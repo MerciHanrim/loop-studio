@@ -567,6 +567,9 @@ const ui = {
   'whatsNew.v0211.dim': 'Con el enfoque activado, las conexiones fuera de la zona enfocada ahora se atenúan como los nodos de esa zona, de modo que el entorno enfocado destaca.',
   'whatsNew.v0211.kept': 'La selección, los avisos y las marcas en movimiento de una simulación en curso se siguen viendo con toda su intensidad.',
   'whatsNew.v0211.contrast': 'En contraste alto, una conexión atenuada no se aclara: la marca una línea de puntos fina.',
+  'whatsNew.v0212.aligned': 'En los nodos que muestran un valor, el valor y la línea de debajo empiezan ahora a la altura del título, bien dentro del contorno del nodo.',
+  'whatsNew.v0212.wider': 'Un nodo en el que no cabe el valor o la línea se ensancha un poco; una línea demasiado larga incluso para el nodo más ancho se abrevia con «…».',
+  'whatsNew.v0212.same': 'Solo cambia la presentación: los valores guardados, la posición de los nodos y los resultados de la simulación no cambian.',
 } as const
 
 export type UiKey = keyof typeof ui

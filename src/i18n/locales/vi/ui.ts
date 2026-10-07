@@ -555,6 +555,9 @@ const ui = {
   'whatsNew.v0211.dim': 'Khi bật Tiêu điểm, các liên kết nằm ngoài vùng tiêu điểm giờ cũng mờ đi như các nút ở đó, nhờ vậy vùng đang được tập trung nổi bật hơn.',
   'whatsNew.v0211.kept': 'Lựa chọn, cảnh báo và các dấu chuyển động của một mô phỏng đang chạy vẫn hiển thị rõ ràng.',
   'whatsNew.v0211.contrast': 'Ở chế độ tương phản cao, liên kết bị mờ không bị làm nhạt đi mà được đánh dấu bằng một đường chấm mảnh.',
+  'whatsNew.v0212.aligned': 'Ở các nút hiển thị giá trị, giá trị và dòng bên dưới giờ bắt đầu thẳng hàng với tiêu đề, nằm gọn trong đường viền của nút.',
+  'whatsNew.v0212.wider': 'Nút không đủ chỗ cho giá trị hoặc dòng sẽ rộng ra một chút; dòng quá dài ngay cả với nút rộng nhất sẽ được rút gọn bằng “…”.',
+  'whatsNew.v0212.same': 'Chỉ cách hiển thị thay đổi: giá trị, vị trí nút và kết quả mô phỏng vẫn giữ nguyên.',
 } satisfies Record<UiKey, string>
 
 export default ui

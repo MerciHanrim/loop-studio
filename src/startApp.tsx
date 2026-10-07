@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
+import { rowFitMeasureCount } from './components/nodes/rowFit'
 import { directionOf, initI18n, useI18n } from './i18n'
 import * as share from './model/share'
 import { flushAutosave, useGraphStore } from './store/graphStore'
@@ -88,6 +89,9 @@ export async function startApp(): Promise<void> {
           return currentRouteMap(g.nodes, g.edges).get(id) ?? null
         },
       },
+      // issue #332 — how many node row-fit measurements have run, so the e2e
+      // can assert none runs per animation frame
+      rowFit: { count: rowFitMeasureCount },
       share,
       shareLink,
       // issue #297 — which door the port is open on, for the session specs

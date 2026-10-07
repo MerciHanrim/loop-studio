@@ -555,6 +555,9 @@ const ui = {
   'whatsNew.v0211.dim': 'Com o Foco ativado, as conexões fora da área em foco agora ficam esmaecidas como os nós dessa área, destacando a vizinhança em foco.',
   'whatsNew.v0211.kept': 'A seleção, os avisos e as marcas em movimento durante a simulação continuam bem visíveis.',
   'whatsNew.v0211.contrast': 'Em alto contraste, uma conexão esmaecida não fica mais clara: uma linha pontilhada fina a indica.',
+  'whatsNew.v0212.aligned': 'Nos nós que mostram um valor, o valor e a linha abaixo dele começam agora na altura do título, bem dentro do contorno do nó.',
+  'whatsNew.v0212.wider': 'Um nó em que o valor ou a linha não cabe fica um pouco mais largo; uma linha que não cabe nem no nó mais largo termina em “…”.',
+  'whatsNew.v0212.same': 'Só a apresentação muda: os valores, as posições dos nós e os resultados da simulação continuam iguais.',
 } as const
 
 export type UiKey = keyof typeof ui

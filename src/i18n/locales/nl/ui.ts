@@ -550,6 +550,9 @@ const ui = {
   'whatsNew.v0211.dim': 'Met Focus aan worden de verbindingen buiten het gefocuste gebied nu ook gedimd, net als de knooppunten daar, zodat de gefocuste omgeving opvalt.',
   'whatsNew.v0211.kept': 'Selectie, waarschuwingen en de bewegende markeringen van een lopende simulatie blijven volledig zichtbaar.',
   'whatsNew.v0211.contrast': 'Bij hoog contrast wordt een gedimde verbinding niet lichter getekend, maar met een fijne stippellijn gemarkeerd.',
+  'whatsNew.v0212.aligned': 'In knooppunten met een waarde beginnen de waarde en de regel eronder nu op de hoogte van de titel, ruim binnen de omtrek van het knooppunt.',
+  'whatsNew.v0212.wider': 'Een knooppunt waarin de waarde of de regel niet past, wordt iets breder; een regel die zelfs in het breedste knooppunt niet past, eindigt op „…”.',
+  'whatsNew.v0212.same': 'Alleen de weergave verandert: opgeslagen waarden, de posities van knooppunten en simulatieresultaten blijven gelijk.',
 } as const
 
 export default ui

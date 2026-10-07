@@ -4,6 +4,16 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.21.2 — 2026-10-07
+
+A fix release (issue #332): a Pool's, a Parameter's and a Register's value and detail rows sit inside the node, as [`docs/node-shell-content-in-vessel.md`](docs/node-shell-content-in-vessel.md) "Follow-up — value and detail rows" describes.
+
+- **Rows start with the title.** The value, a Pool's capacity, a Parameter's unit and a Register's `= expr` now start where the title text starts, at least 8 px inside the drawn outline at both ends. Before, they started 14 px earlier, and a Pool's value sat on or across its slanted side.
+- **Wider only where needed.** A node whose row would not fit grows by the minimum, up to the 260 px maximum; in the three templates that is one node, by under 6 px. A row too long even for the widest node, or one whose widening would bring a title closer to the outline or change a node's height, is cut with a visible "…".
+- **Unchanged:** node heights and positions, saved files, digests and simulation results; Source, Drain, Converter, Gate and End rows.
+
+**No migration.** Three release-note lines in 18 languages, 16 of them without native review. The informational `meta.tool` string is now `loop-studio/0.21.2`.
+
 ## v0.21.1 — 2026-10-07
 
 A fix release (issue #329): Focus mode dims the connections outside the focus set, as [`docs/large-graph-readability.md`](docs/large-graph-readability.md) §LGR3.1 always said.

@@ -539,6 +539,9 @@ const ui = {
   'whatsNew.v0211.dim': 'With Focus on, the connections outside the focused area now fade like the nodes there, so the focused neighbourhood stands out.',
   'whatsNew.v0211.kept': 'Selection, warnings and the moving markers of a running simulation still show at full strength.',
   'whatsNew.v0211.contrast': 'In high contrast, a faded connection is not made paler: a fine dotted line marks it instead.',
+  'whatsNew.v0212.aligned': 'In nodes that show a value, the value and the line under it now start where the title starts, well inside the node’s outline.',
+  'whatsNew.v0212.wider': 'A node whose value or line would not fit grows a little wider; a line too long even for the widest node is cut short with “…”.',
+  'whatsNew.v0212.same': 'Only the display changes: stored values, node positions and simulation results stay the same.',
 } as const
 
 export type UiKey = keyof typeof ui

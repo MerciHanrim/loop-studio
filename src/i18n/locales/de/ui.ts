@@ -630,6 +630,9 @@ const ui = {
   'whatsNew.v0211.dim': 'Mit eingeschaltetem Fokus werden jetzt auch die Verbindungen außerhalb des fokussierten Bereichs abgeschwächt, wie die Knoten dort, sodass die fokussierte Umgebung hervortritt.',
   'whatsNew.v0211.kept': 'Auswahl, Warnungen und die beweglichen Markierungen einer laufenden Simulation bleiben voll sichtbar.',
   'whatsNew.v0211.contrast': 'Bei hohem Kontrast wird eine abgeschwächte Verbindung nicht blasser gezeichnet, sondern durch eine feine gepunktete Linie markiert.',
+  'whatsNew.v0212.aligned': 'In Knoten mit einem Wert beginnen der Wert und die Zeile darunter jetzt auf Höhe des Titels, gut innerhalb des Knotenumrisses.',
+  'whatsNew.v0212.wider': 'Ein Knoten, in den der Wert oder die Zeile nicht passt, wird etwas breiter; eine Zeile, die selbst in den breitesten Knoten nicht passt, endet mit „…“.',
+  'whatsNew.v0212.same': 'Nur die Darstellung ändert sich: gespeicherte Werte, Knotenpositionen und Simulationsergebnisse bleiben gleich.',
 } satisfies Record<UiKey, string>
 
 export default ui

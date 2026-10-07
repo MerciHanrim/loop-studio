@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
   Handle,
   Position,
@@ -26,6 +26,7 @@ import type { ContentDir } from '../../i18n/contentDirection'
 import { useI18n } from '../../i18n/store'
 import { usePhrasedTitle } from './phraseTitle'
 import { InsideMask, OutsideMask } from './RingMasks'
+import { fitRows, type MeasuredRow, type RowFit, rowFitMeasured } from './rowFit'
 import type {
   ConverterData,
   DrainData,
@@ -54,6 +55,138 @@ import { useNodeActivityOpacity } from '../frames/useActivityTint'
 // level (§VL7.1 / §VL12.5).
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2))
+
+// ── issue #332 — the value / detail rows' fit ─────────────────────────────
+// Pool (value, capacity), Register (result, `= expr`) and Parameter (value,
+// unit). The Source / Drain / Converter mode row keeps its place: its pointed
+// or notched vessel scales with the width, so fitting it there would widen a
+// node far more than its row needs (measured in #332, deferred).
+const ROW_FIT_KINDS: ReadonlySet<NodeKind> = new Set(['pool', 'parameter', 'register'])
+
+/** `el`'s offset from `frame`, in untransformed CSS px (a value's bump
+ *  animation scales it, which a `getBoundingClientRect` would read) */
+function offsetIn(el: HTMLElement, frame: HTMLElement): { left: number; top: number } {
+  let left = 0
+  let top = 0
+  for (let e: HTMLElement | null = el; e && e !== frame; e = e.offsetParent as HTMLElement | null) {
+    left += e.offsetLeft
+    top += e.offsetTop
+  }
+  return { left, top }
+}
+
+/** a wrapped title's width on one line, from its own font (canvas
+ *  `measureText`): never by laying the title out unwrapped, which would write
+ *  to the DOM and force a layout of the whole canvas per node — a 2,400-node
+ *  import measured 98 s that way */
+let measureCtx: CanvasRenderingContext2D | null | undefined
+function oneLineWidth(title: HTMLElement, cs: CSSStyleDeclaration): number | null {
+  if (measureCtx === undefined) measureCtx = document.createElement('canvas').getContext('2d')
+  if (!measureCtx) return null
+  measureCtx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`
+  return measureCtx.measureText(title.textContent ?? '').width
+}
+
+/** the whole laid-out width of `el`'s text, even where its ellipsis cuts it
+ *  short: the text's own rect, divided by `scale` (screen px per CSS px) */
+function textWidth(el: HTMLElement, scale: number): number {
+  const range = document.createRange()
+  range.selectNodeContents(el)
+  return range.getBoundingClientRect().width / scale
+}
+
+/** One measurement pass: the stack's and the title's place, and each row's
+ *  extent, all in CSS px within the box, unrounded and untransformed; then
+ *  ./rowFit decides. Rects are scaled back by the frame's own (the canvas
+ *  zoom); the value row's by its own too, as its bump animation scales it.
+ *  Three style reads per node (frame, title, value): a 2,400-node import
+ *  pays for every one. */
+function measureRowFit(frame: HTMLElement, stack: HTMLElement, kind: NodeKind, h: number): RowFit {
+  const width = parseFloat(getComputedStyle(frame).width) || frame.offsetWidth
+  const box = frame.getBoundingClientRect()
+  const scale = box.width / width || 1
+  // `h` is the box height this fit is for, which the box may not be drawn at
+  // yet (the first render's is the floor): the body centres the stack
+  // vertically, so the rows will sit half the difference lower
+  const dy = (h - frame.offsetHeight) / 2
+  const stackStart = offsetIn(stack, frame).left
+  const stackWidth = stack.getBoundingClientRect().width / scale
+  const title = frame.querySelector<HTMLElement>('.nodef__title')
+  const cs = title ? getComputedStyle(title) : null
+  // the title's start unrounded: the Parameter / Register head's rim is a
+  // fraction of a px that `offsetLeft` would round away
+  const tBox = title?.getBoundingClientRect()
+  const titleLeft = tBox ? (tBox.left - box.left) / scale : stackStart + 14
+  const titleTop = (title ? offsetIn(title, frame).top : 0) + dy
+  const lh = cs ? parseFloat(cs.lineHeight) || 1.2 * parseFloat(cs.fontSize) : 0
+  const titleWrapped = title && cs ? title.offsetHeight > 1.5 * lh : false
+  const titleBoxWidth = tBox ? tBox.width / scale : 0
+  const rows: MeasuredRow[] = []
+  for (const key of ['value', 'sub'] as const) {
+    const el = frame.querySelector<HTMLElement>(`.nodef__${key}`)
+    if (!el) continue
+    const at = offsetIn(el, frame)
+    // the value's bump scales it: its own rect over its used width
+    const own = key === 'value' ? el.getBoundingClientRect().width / (parseFloat(getComputedStyle(el).width) || el.offsetWidth) : scale
+    rows.push({ key, top: at.top + dy, bottom: at.top + dy + el.offsetHeight, width: textWidth(el, own || scale) })
+  }
+  return fitRows(
+    kind,
+    {
+      height: h,
+      width,
+      stackStart,
+      padEnd: width - stackStart - stackWidth,
+      titleStart: titleLeft,
+      titleWidth: title && cs ? (titleWrapped ? (oneLineWidth(title, cs) ?? titleBoxWidth) : titleBoxWidth) : 0,
+      titleTop,
+      titleBottom: titleTop + (title?.offsetHeight ?? 0),
+      titleWrapped,
+      titleMax: cs ? parseFloat(cs.maxWidth) || Infinity : Infinity,
+    },
+    rows,
+  )
+}
+
+/** a count of the web-font loads that have finished: a face that arrives after
+ *  the first measurement changes a row's text width without resizing a stack
+ *  the fit already holds, so each load re-reads the fit once */
+let fontLoads = 0
+const fontLoadListeners = new Set<() => void>()
+const onFontLoad = () => {
+  fontLoads++
+  for (const on of fontLoadListeners) on()
+}
+const subscribeFontLoads = (on: () => void): (() => void) => {
+  const fonts = typeof document !== 'undefined' ? document.fonts : undefined
+  if (!fonts) return () => {}
+  if (fontLoadListeners.size === 0) fonts.addEventListener('loadingdone', onFontLoad)
+  fontLoadListeners.add(on)
+  return () => {
+    fontLoadListeners.delete(on)
+    if (fontLoadListeners.size === 0) fonts.removeEventListener('loadingdone', onFontLoad)
+  }
+}
+const useFontLoads = (): number => useSyncExternalStore(subscribeFontLoads, () => fontLoads, () => 0)
+
+/** the box height the stack's rendered content asks for (see NodeFrame) */
+const boxHeightOf = (kind: NodeKind, stack: HTMLElement): number =>
+  clampNodeHeight(kind, stack.offsetHeight + VESSEL_INSET_Y[kind] + 2 * VESSEL_MIN_PAD_Y)
+
+const sameFit = (a: RowFit | null, b: RowFit): boolean =>
+  a !== null && JSON.stringify(a) === JSON.stringify(b)
+
+/** the row fit as the frame's CSS custom properties (index.css reads them) */
+function fitStyle(fit: RowFit | null): Record<string, string | number> | null {
+  if (!fit) return null
+  const s: Record<string, string | number> = {}
+  for (const key of ['value', 'sub'] as const) {
+    if (fit.start[key] != null) s[`--vra-${key}-start`] = `${fit.start[key]}px`
+    if (fit.maxWidth[key] != null) s[`--vra-${key}-max`] = `${fit.maxWidth[key]}px`
+  }
+  if (fit.minWidth != null) s.minWidth = fit.minWidth
+  return s
+}
 
 function useFiring(id: string): boolean {
   return useSimStore((s) => s.firedNodeIds.includes(id))
@@ -204,14 +337,20 @@ function NodeFrame({
   // feeds back into the box height.
   const stackRef = useRef<HTMLDivElement>(null)
   const [boxH, setBoxH] = useState(BASE_NODE_H)
+  // issue #332 — the rows' fit (./rowFit): where the value and detail rows
+  // start and how wide the node must be so no row crosses the vessel. Taken
+  // after the height is known, only when the content, the language, the fonts
+  // or the height change (below) — never per animation frame.
+  const [fit, setFit] = useState<RowFit | null>(null)
+  // the inputs of the last fit: a fit is read once per change of the rendered
+  // strings, the language, the fonts or the box height, and never again for
+  // the same ones (the re-render a fit itself causes reads nothing)
+  const fitInput = useRef('')
   useLayoutEffect(() => {
     const stack = stackRef.current
     if (!stack) return
     const read = () => {
-      const next = clampNodeHeight(
-        kind,
-        stack.offsetHeight + VESSEL_INSET_Y[kind] + 2 * VESSEL_MIN_PAD_Y,
-      )
+      const next = boxHeightOf(kind, stack)
       setBoxH((prev) => (Math.abs(prev - next) > 0.5 ? next : prev))
     }
     read()
@@ -219,6 +358,27 @@ function NodeFrame({
     ro.observe(stack)
     return () => ro.disconnect()
   }, [kind])
+  // a content change that keeps the stack's size (a new number of the same
+  // length, a shorter sub inside a title-wide node) still moves a row's glyph
+  // extent, so any change of the rendered strings is re-read once, after
+  // React commits it: one read per change, never per animation frame
+  const fonts = useFontLoads()
+  const fitKey = JSON.stringify([value, unit, sub, title, locale, fonts])
+  useLayoutEffect(() => {
+    const frame = frameRef.current
+    const stack = stackRef.current
+    if (!frame || !stack || !ROW_FIT_KINDS.has(kind)) return
+    // the height the content asks for, read in the same pass as the box's
+    // own (so the fit and the height land in ONE re-render of the node: a
+    // second one, for 2,400 nodes, cost about 0.7 s)
+    const h = boxHeightOf(kind, stack)
+    const input = `${fitKey}|${h}`
+    if (input === fitInput.current) return
+    fitInput.current = input
+    rowFitMeasured()
+    const next = measureRowFit(frame, stack, kind, h)
+    setFit((prev) => (sameFit(prev, next) ? prev : next))
+  }, [fitKey, boxH, kind])
   // No explicit `updateNodeInternals` call here: React Flow's own internal
   // per-node ResizeObserver already keeps `node.measured` (and the handle
   // bounds edge routing reads) in sync with this wrapper's real DOM size,
@@ -282,8 +442,12 @@ function NodeFrame({
       data-invalid={invalid ? '' : undefined}
       data-accent={accent}
       style={
-        grown || accent
-          ? { ...(grown ? { height: boxH } : null), ...(accent ? { ['--node-accent' as string]: accent } : null) }
+        grown || accent || fit
+          ? {
+              ...(grown ? { height: boxH } : null),
+              ...(accent ? { ['--node-accent' as string]: accent } : null),
+              ...fitStyle(fit),
+            }
           : undefined
       }
       onMouseEnter={() => setHovered(true)}
