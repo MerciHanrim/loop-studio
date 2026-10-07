@@ -547,6 +547,9 @@ const ui = {
   'whatsNew.v0211.dim': '开启聚焦后，聚焦范围以外的连线也会像那里的节点一样变淡，聚焦的邻近区域更加醒目。',
   'whatsNew.v0211.kept': '选择、警告和运行中模拟的移动标记仍以完整强度显示。',
   'whatsNew.v0211.contrast': '在高对比度下，变淡的连线不会变浅，而是改以细点线标示。',
+  'whatsNew.v0212.aligned': '在显示数值的节点中，数值及其下方的一行现在从标题开始的位置起排，完全位于节点轮廓之内。',
+  'whatsNew.v0212.wider': '放不下数值或下方一行的节点会稍微变宽；即使最宽的节点也放不下的行会以“…”截断。',
+  'whatsNew.v0212.same': '只改变显示：已存储的数值、节点位置和模拟结果保持不变。',
 } satisfies Record<UiKey, string>
 
 export default ui

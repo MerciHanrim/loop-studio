@@ -624,6 +624,9 @@ const ui = {
   'whatsNew.v0211.dim': 'Avec le Focus activé, les connexions hors de la zone ciblée s’estompent désormais comme les nœuds qui s’y trouvent, ce qui fait ressortir le voisinage ciblé.',
   'whatsNew.v0211.kept': 'La sélection, les avertissements et les repères mobiles d’une simulation en cours restent pleinement visibles.',
   'whatsNew.v0211.contrast': 'En contraste élevé, une connexion estompée n’est pas pâlie : de fins pointillés la signalent à la place.',
+  'whatsNew.v0212.aligned': 'Dans les nœuds qui affichent une valeur, la valeur et la ligne en dessous commencent désormais au niveau du titre, bien à l’intérieur du contour du nœud.',
+  'whatsNew.v0212.wider': 'Un nœud dont la valeur ou la ligne ne tient pas s’élargit un peu ; une ligne trop longue même pour le nœud le plus large est abrégée par « … ».',
+  'whatsNew.v0212.same': 'Seul l’affichage change : les valeurs enregistrées, la position des nœuds et les résultats de simulation restent identiques.',
 } satisfies Record<UiKey, string>
 
 export default ui

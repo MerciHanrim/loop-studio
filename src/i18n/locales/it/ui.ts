@@ -569,6 +569,9 @@ const ui = {
   'whatsNew.v0211.dim': 'Con la messa a fuoco attiva, anche le connessioni fuori dall’area a fuoco ora si attenuano come i nodi che vi si trovano, così l’area a fuoco risalta.',
   'whatsNew.v0211.kept': 'La selezione, gli avvisi e i segni in movimento di una simulazione in corso restano ben visibili.',
   'whatsNew.v0211.contrast': 'In contrasto elevato una connessione attenuata non viene schiarita: la segnala invece una linea punteggiata sottile.',
+  'whatsNew.v0212.aligned': 'Nei nodi che mostrano un valore, il valore e la riga sottostante ora iniziano all’altezza del titolo, ben dentro il contorno del nodo.',
+  'whatsNew.v0212.wider': 'Un nodo in cui il valore o la riga non entrano si allarga un poco; una riga troppo lunga anche per il nodo più largo viene accorciata con «…».',
+  'whatsNew.v0212.same': 'Cambia solo la visualizzazione: i valori salvati, la posizione dei nodi e i risultati della simulazione restano invariati.',
 } satisfies Record<UiKey, string>
 
 export default ui

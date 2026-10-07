@@ -2030,6 +2030,43 @@ a.sheet__row {
   margin-inline: max(4px, calc(8% - 13px)); /* 19 px to ~243 px, then up to 20.3 px at 260 */
 }
 
+/* issue #332 — the value row and the detail rows of a Pool (its capacity), a
+   Parameter (its unit) and a Register (its `= expr`) used to start at the
+   content edge: 14 px before the title text, and on the Pool's slanted side on
+   top of the outline.
+   `NodeFrame` now measures each row once per resize / content change and hands
+   its start (and, at the maximum width, its max width) in as custom
+   properties, computed by `./components/nodes/rowFit`: the title text's start,
+   and never closer than 8 px to the silhouette at the row's own height. The
+   offset is the PHYSICAL `margin-left`: the canvas is physically left-to-right
+   in every language (docs/localization.md §L9.2), and a row whose own text
+   resolves to RTL (an Arabic unit, `dir="auto"`) must still start on the
+   chip's side, which `margin-inline-start` would put on its right. A fixed px
+   margin counts in the node's intrinsic width, so a row that sets the width
+   widens its node by exactly what it needs, up to the 260 px cap; there the
+   row ends in its ellipsis before the outline. The fit's max width is a plain
+   px length, never inside a `min()` with a %: a % there is cyclic in the
+   intrinsic pass, which drops the whole `max-width`, so a cut-short row would
+   still widen its node by its full text. `flex-start` keeps each row its
+   own text's width, so the measurement reads the text, not the stack. The
+   Source / Drain / Converter mode row and the Gate's centred rows are left as
+   they were. The fallbacks are the first frame only: the measurement runs
+   before the first paint. */
+:is(.nodef--pool, .nodef--parameter, .nodef--register) :is(.nodef__value, .nodef__sub) {
+  align-self: flex-start;
+}
+:is(.nodef--pool, .nodef--parameter, .nodef--register) .nodef__value {
+  margin-left: var(--vra-value-start, 14px);
+  max-width: var(--vra-value-max, calc(100% - var(--vra-value-start, 14px)));
+}
+:is(.nodef--pool, .nodef--parameter, .nodef--register) .nodef__sub {
+  margin-left: var(--vra-sub-start, 14px);
+  max-width: var(--vra-sub-max, calc(100% - var(--vra-sub-start, 14px)));
+}
+.nodef--register .nodef__sub {
+  margin-left: var(--vra-sub-start, clamp(0px, calc(11.6667% - 11.5px), 17px));
+}
+
 .nodef__head {
   display: flex;
   align-items: center;

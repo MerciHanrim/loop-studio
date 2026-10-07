@@ -146,6 +146,68 @@ export function silhouettePath(kind: NodeKind, h = BASE_NODE_H): string {
   }
 }
 
+/** issue #332 — where the drawn vessel's FILL is along a horizontal line at
+ *  `y` (CSS px from the box top, = viewBox y), as `[left, right]` in viewBox x
+ *  units (0 … 120; multiply by `width / 120` for CSS px, the SVG is
+ *  `preserveAspectRatio="none"`). `null` when `y` misses the shape. Computed
+ *  from `silhouettePath` itself (its `M H V L Q Z` commands, the quadratic
+ *  corners flattened), so it cannot drift from what is drawn. The Parameter's
+ *  left tab (`x1 … 8`) is left out: it is a port-side marker, not room for text,
+ *  so the body's edge `x8` is the edge text must keep clear of. */
+export function fillSpanAt(kind: NodeKind, h: number, y: number): [number, number] | null {
+  const H = Math.max(BASE_NODE_H, Math.min(h, MAX_NODE_H[kind]))
+  const key = `${kind}|${H}`
+  let segs = segmentCache.get(key)
+  if (!segs) segmentCache.set(key, (segs = pathSegments(silhouettePath(kind, H))))
+  const xs: number[] = []
+  for (const [a, b] of segs) {
+    if ((a[1] <= y && b[1] >= y) || (b[1] <= y && a[1] >= y)) {
+      if (a[1] === b[1]) xs.push(a[0], b[0])
+      else xs.push(a[0] + ((y - a[1]) / (b[1] - a[1])) * (b[0] - a[0]))
+    }
+  }
+  if (xs.length < 2) return null
+  const left = kind === 'parameter' ? Math.max(8, Math.min(...xs)) : Math.min(...xs)
+  return [left, Math.max(...xs)]
+}
+
+type Pt = [number, number]
+/** each (kind, height)'s flattened path, parsed once: a row fit samples it
+ *  about fifteen times per node */
+const segmentCache = new Map<string, [Pt, Pt][]>()
+/** The straight segments of one of this module's paths, quadratics flattened. */
+function pathSegments(d: string): [Pt, Pt][] {
+  const tok = d.match(/[MHVLQZ]|-?\d+(?:\.\d+)?/g) ?? []
+  const segs: [Pt, Pt][] = []
+  let i = 0
+  let cur: Pt = [0, 0]
+  let start: Pt = [0, 0]
+  const num = () => Number(tok[i++])
+  while (i < tok.length) {
+    const c = tok[i++]
+    if (c === 'M') { cur = [num(), num()]; start = cur }
+    else if (c === 'H') { const p: Pt = [num(), cur[1]]; segs.push([cur, p]); cur = p }
+    else if (c === 'V') { const p: Pt = [cur[0], num()]; segs.push([cur, p]); cur = p }
+    else if (c === 'L') { const p: Pt = [num(), num()]; segs.push([cur, p]); cur = p }
+    else if (c === 'Q') {
+      const q: Pt = [num(), num()]
+      const p: Pt = [num(), num()]
+      let prev = cur
+      for (let k = 1; k <= 16; k++) {
+        const t = k / 16
+        const pt: Pt = [
+          (1 - t) * (1 - t) * cur[0] + 2 * (1 - t) * t * q[0] + t * t * p[0],
+          (1 - t) * (1 - t) * cur[1] + 2 * (1 - t) * t * q[1] + t * t * p[1],
+        ]
+        segs.push([prev, pt])
+        prev = pt
+      }
+      cur = p
+    } else if (c === 'Z') { segs.push([cur, start]); cur = start }
+  }
+  return segs
+}
+
 /** Clamp a content height to this kind's silhouette range: never below the base
  *  height, never above the per-kind ceiling. The caller decides *whether* to
  *  grow at all (only when the title has actually wrapped). */

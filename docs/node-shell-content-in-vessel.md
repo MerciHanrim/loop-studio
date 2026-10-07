@@ -146,7 +146,57 @@ boundary: chip ≥ 5.5, head / sub ≥ 3.0, value ≥ 2 px (parameter, 118 – 2
 bug. (`.nodef__stack` is an unpainted layout box that spans to the fixed body
 padding, so its corners are no longer the thing measured.)
 
+## Follow-up — value and detail rows (issue #332, v0.21.2)
+
+The rows under the title (a Pool's value and capacity `≤ N`, a Parameter's
+value and unit, a Register's result and `= expr`) used to start at the content
+edge: 14 px before the title text, and on the Pool's slanted side on or across
+the outline (measured −9.7 px); a Register's value sat inside the keyboard
+focus ring. For these three kinds only:
+
+1. each row starts where the title text starts (the chip plus its gap), along
+   the stack's PHYSICAL start: the canvas is physically left-to-right in every
+   language (`docs/localization.md` §L9.2), and a row whose own text resolves
+   to RTL (`dir="auto"`, an Arabic unit) still starts on the chip's side;
+2. each row's glyphs stay at least 8 px (`NODE_RINGS.focus.to` + 2) inside the
+   fill at the row's own height, at both ends;
+3. a node keeps the width it had before when that already holds both;
+   otherwise only that node widens, by the minimum, up to the 260 px maximum,
+   and only for a row that is then whole: a row too long even for the widest
+   node ends in its ellipsis where it is;
+4. a title that had 8 px or more keeps at least `max(8, its clearance − 0.5)`
+   px (`TITLE_SLACK`), one that had less keeps all of it: the outline scales
+   with the width (`preserveAspectRatio="none"`), so on the Pool's slant every
+   px of width moves it toward the title;
+5. a widening that would unwrap a title (and so change the node's height) does
+   not happen. Where rule 4 or 5 stops a widening, the row is cut with a
+   visible ellipsis (`1234567.89` reads `12345…`); only the display is cut.
+
+`./src/components/nodes/rowFit.ts` (`fitRows`, pure) decides from what
+`NodeFrame` measures; `fillSpanAt` (`./silhouette`) reads the fill straight
+from the drawn path. The fit is taken in the same pass as the height, when the
+rendered strings, the language, the fonts or the height change, never per
+animation frame; it reaches the CSS as `--vra-*` custom properties (a physical
+`margin-left`, a plain px `max-width`: a `%` inside `min()` is cyclic in the
+intrinsic pass and drops the whole `max-width`) and a `min-width`. Unchanged:
+node heights, positions, saved coordinates, files, digests and the engine. In
+the three templates exactly one node widens (early MMO `r_income`, +5.66 px).
+The Source / Drain / Converter mode line, the Gate's rows and two-line Pool
+titles are left as they were: their pointed, notched or slanted outlines grow
+with the width, so the same rule would widen 37 template nodes by up to 49 px
+(a separate follow-up).
+
 ## Regression tests
+
+- `src/components/nodes/rowFit.test.ts` (the fill and the fit, rules 1 – 5 on
+  a grid of widths) and `e2e/value-row-alignment.spec.ts` /
+  `value-row-alignment.mobile.spec.ts` (#332) — every Pool / Parameter /
+  Register row against the drawn outline (Range glyphs, `isPointInFill` at the
+  row's top, middle and bottom) in a synthetic graph and the three templates,
+  light, dark, forced colours, `ar` and a phone; states that move nothing;
+  Source / Drain / Converter untouched; the content digest; a measurement
+  counter (`__loop.rowFit.count`) that rises only on a frame whose row text
+  changed.
 
 - `e2e/node-long-label.spec.ts` "content ⊂ vessel — path-aware (isPointInFill)"
   — for every Parameter / Register, in EN / KO / JA, all four corners of every

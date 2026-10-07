@@ -140,7 +140,17 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.21.1
+## Latest — v0.21.2
+
+A fix release: values and detail rows sit inside their node.
+
+- **Pool, Parameter and Register rows start with the title**, at least 8 px inside the
+  drawn outline; before, a Pool's value sat on its slanted side
+- **Wider only where needed**: a node grows only when a row would not fit, up to the
+  usual maximum, and a row too long even then ends in "…"; positions, heights, files and
+  results are unchanged
+
+## v0.21.1
 
 A fix release: Focus mode dims the connections too.
 
@@ -172,21 +182,8 @@ Flow colours beyond the canvas.
   already shown above them
 - **On a phone**, the read-only Inspector shows a colour as one line: a dot, its name and hex
 
-## v0.19.0
-
-Flow colours: give nodes and connections a colour so a large graph's flows read apart.
-
-- **The Inspector's Colour section** colours every selected node and connection at once:
-  five palette colours, recent ones, the colours already in the diagram, a hex value or any
-  colour from the browser's picker; Default removes it
-- **Kept everywhere, changing nothing it computes**: saved with the diagram and in links
-  and undo, and a colour change never resets the run or a Monte Carlo result
-- **Selection stays clear on any colour**: a selected node shows a ring outside its
-  outline, a selected connection a highlight beneath it
-- **Advice, never a block**: a colour that would be hard to see, or that looks like a
-  colour the canvas uses for focus, warnings or a run, is still applied, with a note
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.18.2 (the
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.19.0 (flow
+colours on nodes and connections), v0.18.2 (the
 guided tour says each step once), v0.18.1 (one
 keyboard contract for every menu), v0.18.0 (the third-party open-source licenses in the About dialog), v0.17.2 (the
 Temporary session button drawn like the menu buttons), v0.17.1 (share

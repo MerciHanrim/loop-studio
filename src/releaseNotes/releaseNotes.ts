@@ -39,6 +39,15 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // issue #332 - a Pool's, a Parameter's and a Register's value and detail
+    // rows start at the title and stay inside the drawn outline; the date is
+    // the day it is deployed, set right before the merge
+    id: 'release:0.21.2',
+    version: '0.21.2',
+    date: '2026-10-07',
+    items: ['whatsNew.v0212.aligned', 'whatsNew.v0212.wider', 'whatsNew.v0212.same'],
+  },
+  {
     // issue #329 - Focus mode dims the connections outside the focus set (an
     // inline opacity beat the rule); the date is the day it is deployed, set
     // right before the merge

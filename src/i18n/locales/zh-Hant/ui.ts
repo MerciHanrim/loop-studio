@@ -573,6 +573,9 @@ const ui = {
   'whatsNew.v0211.dim': '開啟聚焦後，聚焦範圍以外的連線也會像那裡的節點一樣變淡，聚焦的鄰近區域更加醒目。',
   'whatsNew.v0211.kept': '選取、警告和執行中模擬的移動標記仍以完整強度顯示。',
   'whatsNew.v0211.contrast': '在高對比度下，變淡的連線不會變淺，而是改以細點線標示。',
+  'whatsNew.v0212.aligned': '在顯示數值的節點中，數值及其下方的一行現在從標題開始的位置起排，完全位於節點輪廓之內。',
+  'whatsNew.v0212.wider': '放不下數值或下方一行的節點會稍微變寬；即使最寬的節點也放不下的行會以「…」截斷。',
+  'whatsNew.v0212.same': '只改變顯示：已儲存的數值、節點位置和模擬結果保持不變。',
 } satisfies Record<UiKey, string>
 
 export default ui

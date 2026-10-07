@@ -609,6 +609,9 @@ const ui = {
   'whatsNew.v0211.dim': 'Odak açıkken odak alanının dışındaki bağlantılar da artık oradaki düğümler gibi soluklaşır; böylece odaklanılan çevre öne çıkar.',
   'whatsNew.v0211.kept': 'Seçim, uyarılar ve çalışan bir simülasyonun hareket eden işaretleri tam belirginlikte kalır.',
   'whatsNew.v0211.contrast': 'Yüksek karşıtlıkta soluklaşan bir bağlantı daha açık çizilmez; bunun yerine ince noktalı bir çizgiyle belirtilir.',
+  'whatsNew.v0212.aligned': 'Değer gösteren düğümlerde değer ve altındaki satır artık başlıkla aynı hizada başlar ve düğümün dış çizgisinin rahatça içinde kalır.',
+  'whatsNew.v0212.wider': 'Değerin veya satırın sığmadığı bir düğüm biraz genişler; en geniş düğüme bile sığmayan bir satır “…” ile kısaltılır.',
+  'whatsNew.v0212.same': 'Yalnızca görünüm değişir: değerler, düğüm konumları ve simülasyon sonuçları aynı kalır.',
 } as const
 
 export type UiKey = keyof typeof ui
