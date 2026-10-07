@@ -85,11 +85,13 @@ test.describe('§MML1 — long node labels stay inside the box', () => {
     await page.waitForTimeout(250) // let the ResizeObserver grow-pass settle
   })
 
-  test('a short label is unchanged — one line, 64 px box', async ({ page }) => {
+  // docs/flow-colour-and-compact-nodes.md FC-7 (#325 PR 3) — the compact floor
+  // is 56, and a one-line Pool settles at the 58 its title and value need
+  test('a short label stays one line — a one-line Pool is the compact 58 px box', async ({ page }) => {
     const b = await box(page, 'short')
     expect(b.titleLines).toBe(1)
-    expect(b.boxH).toBe(64)
-    expect(b.viewBox).toBe('0 0 120 64')
+    expect(b.boxH).toBe(58)
+    expect(b.viewBox).toBe('0 0 120 58')
   })
 
   test('an official-length label wraps to ≤ 2 lines and the box grows to fit', async ({ page }) => {
@@ -427,7 +429,9 @@ test.describe('content ⊂ vessel — path-aware (isPointInFill)', () => {
     })
   }
 
-  test('a Source / plain Pool are unchanged — still the 64 px base box', async ({ page }) => {
+  // FC-7 (#325 PR 3): a Source sits at the 56 px compact floor, a plain one-line
+  // Pool at the 58 its content needs
+  test('a Source / plain Pool take the compact box — 56 / 58 px', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await importGraph(page, SHELL)
@@ -436,7 +440,7 @@ test.describe('content ⊂ vessel — path-aware (isPointInFill)', () => {
       src: (document.querySelector('.react-flow__node[data-id="src"] .nodef') as HTMLElement).offsetHeight,
       poolPlain: (document.querySelector('.react-flow__node[data-id="poolPlain"] .nodef') as HTMLElement).offsetHeight,
     }))
-    expect(h.src).toBe(64)
-    expect(h.poolPlain).toBe(64)
+    expect(h.src).toBe(56)
+    expect(h.poolPlain).toBe(58)
   })
 })

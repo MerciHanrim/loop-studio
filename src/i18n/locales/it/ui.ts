@@ -563,6 +563,9 @@ const ui = {
   'whatsNew.v0200.templates': 'Tre dei modelli inclusi ora si aprono con i flussi principali colorati; i loro risultati non cambiano.',
   'whatsNew.v0200.once': 'Nella sezione Colore dell’Ispettore ogni colore compare una sola volta: Recenti e In questo documento tralasciano i colori già mostrati sopra.',
   'whatsNew.v0200.phone': 'Sul telefono l’Ispettore in sola lettura mostra un colore su una riga: un punto con il nome del colore e il suo valore esadecimale.',
+  'whatsNew.v0210.compact': 'I nodi sono più compatti: un nodo su una riga è più basso e un po’ più stretto, così una parte maggiore di un grafo grande entra nello schermo.',
+  'whatsNew.v0210.grows': 'Un nodo che ha bisogno di spazio cresce comunque: i titoli su due righe e le righe in più mantengono la loro altezza, e i titoli lunghi vanno a capo come prima.',
+  'whatsNew.v0210.same': 'Le posizioni dei nodi, i file salvati e i risultati della simulazione non cambiano; le connessioni ora si agganciano un po’ più in alto su ogni nodo.',
 } satisfies Record<UiKey, string>
 
 export default ui

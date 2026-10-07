@@ -624,6 +624,9 @@ const ui = {
   'whatsNew.v0200.templates': 'Drei der mitgelieferten Vorlagen öffnen sich jetzt mit farbigen Hauptflüssen; ihre Ergebnisse bleiben gleich.',
   'whatsNew.v0200.once': 'Im Abschnitt Farbe der Eigenschaften erscheint jede Farbe nur einmal: Zuletzt verwendet und In diesem Dokument lassen die Farben weg, die schon darüber stehen.',
   'whatsNew.v0200.phone': 'Auf dem Smartphone zeigen die schreibgeschützten Eigenschaften eine Farbe in einer Zeile: einen Punkt mit dem Namen der Farbe und ihrem Hex-Wert.',
+  'whatsNew.v0210.compact': 'Knoten sind kompakter: Ein einzeiliger Knoten ist niedriger und etwas schmaler, sodass mehr von einem großen Graphen auf den Bildschirm passt.',
+  'whatsNew.v0210.grows': 'Ein Knoten, der Platz braucht, wächst weiterhin: Zweizeilige Titel und zusätzliche Zeilen behalten ihre Höhe, und lange Titel brechen wie bisher um.',
+  'whatsNew.v0210.same': 'Knotenpositionen, gespeicherte Dateien und Simulationsergebnisse bleiben unverändert; Verbindungen setzen jetzt etwas höher am Knoten an.',
 } satisfies Record<UiKey, string>
 
 export default ui

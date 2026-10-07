@@ -1720,9 +1720,10 @@ a.sheet__row {
      redrawn at that height by `./silhouette`, so `preserveAspectRatio="none"`
      no longer distorts it. */
   max-width: 260px;
-  height: 64px; /* +4px to seat the Plex type scale (title 14 / value 18).
-     A two-line title replaces this with an inline `height` (the measured body
-     height, capped per kind) and the vessel is redrawn at that height. */
+  height: 56px; /* docs/flow-colour-and-compact-nodes.md FC-7 — the compact
+     floor (it was 64). Content that needs more (a one-line Pool settles at 58, a
+     two-line title, a capacity row) replaces this with an inline `height` (the
+     measured body height, capped per kind) and the vessel is redrawn at it. */
   font-family: var(--font-sans);
   font-size: 12px;
   filter: var(--elev-node);
@@ -1957,7 +1958,7 @@ a.sheet__row {
   flex-direction: column;
   justify-content: center;
   width: 100%;
-  padding: 6px 16px;
+  padding: 6px 12px; /* FC-7: inline 16 -> 12 */
   pointer-events: none;
 }
 /* the un-stretched content column — its natural height drives the box height
@@ -1971,13 +1972,13 @@ a.sheet__row {
   max-width: 100%;
 }
 .nodef--source .nodef__body {
-  padding-right: 26px;
+  padding-right: 22px; /* FC-7: 26 -> 22, still clear of the arrow tip */
 }
 .nodef--drain .nodef__body {
-  padding-left: 26px;
+  padding-left: 22px; /* FC-7: 26 -> 22 */
 }
 .nodef--gate .nodef__body {
-  padding: 8px 30px;
+  padding: 8px 26px; /* FC-7: inline 30 -> 26 */
   align-items: center;
 }
 .nodef--end .nodef__body {

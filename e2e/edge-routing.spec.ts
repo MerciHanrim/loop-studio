@@ -445,14 +445,18 @@ test.describe('edge routing — Slice 1', () => {
         hit: hit.getAttribute('d'),
         markerEnd: vis.getAttribute('marker-end') ?? vis.style.markerEnd ?? '',
         labelTransform: label?.style.transform ?? '',
-        mid: route ? [Math.round(route.mid.x), Math.round(route.mid.y)] : null,
+        mid: route ? [route.mid.x, route.mid.y] : null,
       }
     })
     expect(consumers.hit).toBe(consumers.d) // BaseEdge draws both from one path
     expect(consumers.markerEnd).toMatch(/url\(#/) // the renderer-owned direction marker
     // the label anchor is the route's arc-length midpoint
-    expect(consumers.labelTransform).toContain(`${consumers.mid![0]}px`)
-    expect(consumers.labelTransform).toContain(`${consumers.mid![1]}px`)
+    // compared unrounded: a port can sit on a half pixel (a 58 px compact Pool
+    // puts it at 29, #325 PR 3), and the label is placed at the exact midpoint
+    const at = /translate\(([-0-9.]+)px,\s*([-0-9.]+)px\)\s*$/.exec(consumers.labelTransform)
+    expect(at, `label transform ${consumers.labelTransform}`).not.toBeNull()
+    expect(Number(at![1])).toBeCloseTo(consumers.mid![0], 6)
+    expect(Number(at![2])).toBeCloseTo(consumers.mid![1], 6)
 
     await test.step('running sim: the playback token walks the orthogonal d; a selection change does not restart it', async () => {
       // prime one step (tokenless) so `gold` holds a unit and the drain edge `e_gd`

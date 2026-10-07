@@ -618,6 +618,9 @@ const ui = {
   'whatsNew.v0200.templates': 'Trois des modèles fournis s’ouvrent désormais avec leurs flux principaux en couleur ; leurs résultats ne changent pas.',
   'whatsNew.v0200.once': 'Dans la section Couleur des Propriétés, chaque couleur n’apparaît qu’une fois : Récentes et Dans ce document omettent les couleurs déjà affichées au-dessus.',
   'whatsNew.v0200.phone': 'Sur un téléphone, les Propriétés en lecture seule affichent une couleur sur une ligne : une pastille avec le nom de la couleur et sa valeur hex.',
+  'whatsNew.v0210.compact': 'Les nœuds sont plus compacts : un nœud d’une ligne est moins haut et un peu plus étroit, pour qu’une plus grande partie d’un grand graphe tienne à l’écran.',
+  'whatsNew.v0210.grows': 'Un nœud qui a besoin de place grandit toujours : les titres sur deux lignes et les lignes supplémentaires gardent leur hauteur, et les titres longs passent à la ligne comme avant.',
+  'whatsNew.v0210.same': 'Les positions des nœuds, les fichiers enregistrés et les résultats de simulation ne changent pas ; les connexions s’attachent maintenant un peu plus haut sur chaque nœud.',
 } satisfies Record<UiKey, string>
 
 export default ui

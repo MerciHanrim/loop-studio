@@ -25,9 +25,12 @@ import {
   type RouteResult,
   ROUTER_VERSION,
 } from '../components/edges/orthogonalRoute'
+import { BASE_NODE_H } from '../components/nodes/silhouette'
 
+// the size of a node React Flow has not measured yet; the height is the node's
+// own floor, so a one-line node routes the same before and after it is measured
 const DEFAULT_W = 130
-const DEFAULT_H = 64
+const DEFAULT_H = BASE_NODE_H
 
 type Key = { nodes: LoopNode[]; edges: LoopEdge[]; v: number; sig: string }
 let cacheKey: Key | null = null

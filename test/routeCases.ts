@@ -22,8 +22,12 @@ import { Position } from '@xyflow/react'
 import { readFileSync } from 'node:fs'
 import type { Box, Pt, RouteInput } from '../src/components/edges/orthogonalRoute'
 
+/** must match routeMap's size for a node not measured yet (130 x
+ *  `BASE_NODE_H`, the compact floor of #325 PR 3); duplicated like PAD so a
+ *  change to it is visible here. Every node of every example has a measured
+ *  size in the fixture, so neither value reaches the golden routes. */
 const DEFAULT_W = 130
-const DEFAULT_H = 64
+const DEFAULT_H = 56
 /** must match ROUTE_PAD in the router; duplicated so a change to it is visible here */
 const PAD = 12
 
@@ -130,6 +134,29 @@ function inputsFromDoc(prefix: string, doc: RawDoc, sizes: Record<string, [numbe
 /** every orthogonal edge of one bundled example, as the app routes it */
 export function exampleCases(graph: (typeof ORTHO_EXAMPLES)[number]): Case[] {
   const doc = readJson<RawDoc>(`../examples/${graph}.json`)
+  return inputsFromDoc(graph, doc, MEASURED[graph] ?? {})
+}
+
+/** Routing data an example gained AFTER the golden fixture was frozen at
+ *  e763eeb, by edge. #325 PR 3 (compact nodes): the gacha Template's layout
+ *  round 7 gave `e_pickup_36` one waypoint so its `+1` label no longer overlaps
+ *  `e_pickup_34`'s in ko on the shorter nodes. The router did not change, so
+ *  the golden keeps its e763eeb bytes: its inputs project exactly this waypoint
+ *  out, and the routed path WITH it is pinned as its own case. */
+export const WAYPOINTS_ADDED_SINCE_GOLDEN: Partial<Record<(typeof ORTHO_EXAMPLES)[number], Record<string, Pt[]>>> = {
+  'gacha-banner-zones': { e_pickup_36: [{ x: 3200, y: 650 }] },
+}
+
+/** `exampleCases` with the waypoints added since the golden projected out —
+ *  each one only if it is exactly the listed value, else this throws */
+export function goldenExampleCases(graph: (typeof ORTHO_EXAMPLES)[number]): Case[] {
+  const doc = readJson<RawDoc>(`../examples/${graph}.json`)
+  for (const [edgeId, added] of Object.entries(WAYPOINTS_ADDED_SINCE_GOLDEN[graph] ?? {})) {
+    const edge = doc.edges.find((e) => e.id === edgeId)
+    if (JSON.stringify(edge?.data?.waypoints) !== JSON.stringify(added))
+      throw new Error(`${graph}#${edgeId}: expected the waypoint added since the golden, ${JSON.stringify(added)}, found ${JSON.stringify(edge?.data?.waypoints)}`)
+    delete edge!.data!.waypoints
+  }
   return inputsFromDoc(graph, doc, MEASURED[graph] ?? {})
 }
 
@@ -423,5 +450,5 @@ export function latticeCases(seed: number, count: number): Case[] {
 
 /** every case the golden fixture pins: the real corpus + the boundaries. */
 export function goldenCases(): Case[] {
-  return [...ORTHO_EXAMPLES.flatMap((g) => exampleCases(g)), ...boundaryCases()]
+  return [...ORTHO_EXAMPLES.flatMap((g) => goldenExampleCases(g)), ...boundaryCases()]
 }

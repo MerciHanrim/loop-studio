@@ -649,6 +649,46 @@ test.describe('3-zone gacha banner comparison Template', () => {
     }
   })
 
+  test('the Premium Pickup `+1` labels of e_pickup_34 and e_pickup_36 keep clear of each other with compact nodes, in EN/KO/JA', async ({
+    page,
+  }) => {
+    // #325 PR 3 (compact nodes), layout round 7 of
+    // scripts/gen-gacha-banner-zones-example.ts — with 56 / 58 px nodes both
+    // edges ran through the one band between the first two flow rows and their
+    // `+1` labels overlapped in ko. `e_pickup_36` now leaves its bottom port
+    // downward through one waypoint into the band under the second row. This
+    // pins the pair the broader every-label test above caught.
+    await openApp(page)
+    await resetAll(page)
+    await pickDesktopTemplate(page, EN_NAME)
+    await page.setViewportSize({ width: 1600, height: 900 })
+    const waypoints = await page.evaluate(
+      () =>
+        (window as unknown as { __loop: { graph: { getState: () => { edges: { id: string; data?: { waypoints?: unknown } }[] } } } })
+          .__loop.graph.getState()
+          .edges.find((e) => e.id === 'e_pickup_36')?.data?.waypoints,
+    )
+    expect(waypoints).toEqual([{ x: 3200, y: 650 }])
+    for (const locale of ['en', 'ko', 'ja'] as const) {
+      await setLocale(page, locale)
+      await page.evaluate(() =>
+        (window as unknown as { __loop: { rf: { setViewport: (v: object) => void } } }).__loop.rf.setViewport({ x: 800 - 3200, y: 450 - 600, zoom: 1 }),
+      )
+      const boxes = await page.evaluate(() =>
+        ['e_pickup_34', 'e_pickup_36'].map((id) => {
+          const el = document.querySelector(`.edge-label[data-edge-id="${id}"]`) as HTMLElement | null
+          const r = el?.getBoundingClientRect()
+          return r ? { id, text: (el!.textContent || '').trim(), x: r.x, y: r.y, w: r.width, h: r.height } : null
+        }),
+      )
+      expect(boxes.every((b) => b !== null && b.w > 0 && b.h > 0), `${locale}: both labels render`).toBe(true)
+      const [a, b] = boxes as { id: string; text: string; x: number; y: number; w: number; h: number }[]
+      expect([a.text, b.text]).toEqual(['+1', '+1'])
+      const overlap = a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+      expect(overlap, `${locale}: ${a.id} ${JSON.stringify(a)} overlaps ${b.id} ${JSON.stringify(b)}`).toBe(false)
+    }
+  })
+
   test('comparison frame fully contains every comparison-row node, in EN/KO/JA, at both reviewed viewports', async ({
     page,
   }) => {

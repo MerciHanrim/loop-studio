@@ -567,6 +567,9 @@ const ui = {
   'whatsNew.v0200.templates': '三個內建範本現在開啟時主要流程已設定顏色，結果與之前相同。',
   'whatsNew.v0200.once': '屬性面板的顏色區段中，每種顏色只會出現一次：「最近」和「此文件中的顏色」不再列出上方已顯示的顏色。',
   'whatsNew.v0200.phone': '在手機上，唯讀屬性面板以一行顯示顏色：一個色點，以及顏色名稱和十六進位值。',
+  'whatsNew.v0210.compact': '節點更緊湊了：單行節點更矮、略窄，螢幕上能顯示更多的大型圖。',
+  'whatsNew.v0210.grows': '需要空間的節點仍會變大：兩行標題和額外的列保持原有高度，長標題照常換行。',
+  'whatsNew.v0210.same': '節點位置、已儲存的檔案和模擬結果都不變；連線現在連接在每個節點稍高的位置。',
 } satisfies Record<UiKey, string>
 
 export default ui

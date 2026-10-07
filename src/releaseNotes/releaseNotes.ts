@@ -39,6 +39,15 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // issue #325 PR 3 - compact nodes: a 56 px floor instead of 64, less side
+    // padding, content still deciding; the date is the day it is deployed, set
+    // right before the merge
+    id: 'release:0.21.0',
+    version: '0.21.0',
+    date: '2026-10-07',
+    items: ['whatsNew.v0210.compact', 'whatsNew.v0210.grows', 'whatsNew.v0210.same'],
+  },
+  {
     // issue #325 PR 2 - flow colours in the minimap, the timeline and three
     // bundled templates, each colour offered once in the Inspector, and a
     // one-line colour summary on the phone; the date is the day it is

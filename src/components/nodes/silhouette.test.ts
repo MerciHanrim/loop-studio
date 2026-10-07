@@ -18,8 +18,9 @@ const KINDS: NodeKind[] = [
   'register',
 ]
 
-// the historic hard-coded silhouettes — the parametric function must return
-// these byte-for-byte at (and below) the base height
+// the historic hard-coded silhouettes, drawn at 64 — the parametric function
+// must still return these byte-for-byte at 64, so a node whose content keeps it
+// at 64 or taller draws exactly as before the compact floor (FC-7)
 const HISTORIC: Record<NodeKind, string> = {
   pool: 'M32 6 H88 Q95 6 96 13 L112 52 Q113 58 107 58 H13 Q7 58 8 52 L24 13 Q25 6 32 6 Z',
   source: 'M14 8 Q8 8 8 14 V50 Q8 56 14 56 H84 L114 32 L84 8 Z',
@@ -41,22 +42,72 @@ const nums = (d: string) => (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number)
 // bottom-edge `H14` would otherwise read its x as a y).
 const topCapYs = (d: string) => nums(d).slice(0, 8).filter((v, i) => i % 2 === 1 && v <= 20)
 
-describe('silhouettePath — base height is byte-identical', () => {
+/** every point the path names, in drawing order (control points included), for
+ *  the `M H V L Q Z` commands these silhouettes use */
+function points(d: string): { x: number; y: number }[] {
+  const out: { x: number; y: number }[] = []
+  let x = 0
+  let y = 0
+  for (const [, cmd, args] of d.matchAll(/([MHVLQZ])([^MHVLQZ]*)/g)) {
+    const a = nums(args)
+    if (cmd === 'H') x = a[0]
+    else if (cmd === 'V') y = a[0]
+    else if (cmd === 'M' || cmd === 'L') [x, y] = a
+    else if (cmd === 'Q') {
+      out.push({ x: a[0], y: a[1] })
+      ;[x, y] = [a[2], a[3]]
+    } else continue
+    out.push({ x, y })
+  }
+  return out
+}
+
+/** how many times the outline's y changes direction going once around it: a
+ *  vessel that goes down one side and back up the other changes exactly twice;
+ *  a reversed segment (a cap drawn past its own end) adds two more */
+function yTurns(d: string): number {
+  const ys = points(d).map((p) => p.y)
+  const steps = ys.map((v, i) => Math.sign(ys[(i + 1) % ys.length] - v)).filter((s) => s !== 0)
+  let turns = 0
+  for (let i = 0; i < steps.length; i++) if (steps[i] !== steps[(i + 1) % steps.length]) turns++
+  return turns
+}
+
+describe('silhouettePath — the compact floor (FC-7)', () => {
+  it('the base height is 56', () => {
+    expect(BASE_NODE_H).toBe(56)
+  })
   for (const k of KINDS) {
-    it(`${k}: h = 64 returns the historic path verbatim`, () => {
-      expect(silhouettePath(k, BASE_NODE_H)).toBe(HISTORIC[k])
+    it(`${k}: h = 64 still returns the historic path verbatim`, () => {
+      expect(silhouettePath(k, 64)).toBe(HISTORIC[k])
     })
-    it(`${k}: any h ≤ 64 returns the historic path`, () => {
-      expect(silhouettePath(k, 40)).toBe(HISTORIC[k])
-      expect(silhouettePath(k)).toBe(HISTORIC[k])
+    it(`${k}: below the floor it draws the floor`, () => {
+      expect(silhouettePath(k, 40)).toBe(silhouettePath(k, BASE_NODE_H))
+      expect(silhouettePath(k)).toBe(silhouettePath(k, BASE_NODE_H))
+    })
+    it(`${k}: at every height from the floor to its ceiling the outline stays inside the box and never reverses`, () => {
+      for (let H = BASE_NODE_H; H <= MAX_NODE_H[k]; H++) {
+        const d = silhouettePath(k, H)
+        for (const p of points(d)) {
+          expect(p.x, `${k} at ${H}`).toBeGreaterThanOrEqual(0)
+          expect(p.x, `${k} at ${H}`).toBeLessThanOrEqual(120)
+          expect(p.y, `${k} at ${H}`).toBeGreaterThanOrEqual(0)
+          expect(p.y, `${k} at ${H}`).toBeLessThanOrEqual(H)
+        }
+        expect(yTurns(d), `${k} at ${H}: ${d}`).toBe(2)
+      }
     })
   }
+  it('the End and the Register meet their caps at mid-height below 64', () => {
+    expect(silhouettePath('end', 56)).toBe('M28 8 H92 Q112 8 112 28 Q112 48 92 48 H28 Q8 48 8 28 Q8 8 28 8 Z')
+    expect(silhouettePath('register', 56)).toBe('M14 12 H110 Q118 12 118 28 Q118 44 110 44 H14 Q6 44 6 28 Q6 12 14 12 Z')
+  })
 })
 
 describe('silhouettePath — growth', () => {
   for (const k of KINDS) {
     const grown = silhouettePath(k, 88)
-    it(`${k}: a taller path differs from the base and is still a closed subpath`, () => {
+    it(`${k}: a taller path differs from the historic one and is still a closed subpath`, () => {
       expect(grown).not.toBe(HISTORIC[k])
       expect(grown.startsWith('M')).toBe(true)
       expect(grown.trimEnd().endsWith('Z')).toBe(true)
@@ -69,10 +120,10 @@ describe('silhouettePath — growth', () => {
     it(`${k}: the top-cap Y coordinates are unchanged`, () => {
       for (const y of topCapYs(HISTORIC[k])) expect(topCapYs(grown)).toContain(y)
     })
-    it(`${k}: some coordinate reaches below the base shape's extent`, () => {
+    it(`${k}: some coordinate reaches below the historic shape's extent`, () => {
       const baseMaxY = Math.max(...nums(HISTORIC[k]))
       expect(Math.max(...nums(grown))).toBeGreaterThan(baseMaxY - 1)
-      // the grown path names a Y at least (88 - 12) = 76, past the base's ~58 bottom
+      // the grown path names a Y at least (88 - 12) = 76, past the historic ~58 bottom
       expect(nums(grown).some((v) => v >= 76)).toBe(true)
     })
   }
@@ -87,8 +138,9 @@ describe('silhouettePath — growth', () => {
 
 describe('clampNodeHeight', () => {
   it('floors at the base height', () => {
-    expect(clampNodeHeight('pool', 40)).toBe(64)
-    expect(clampNodeHeight('pool', 64)).toBe(64)
+    expect(clampNodeHeight('pool', 40)).toBe(56)
+    expect(clampNodeHeight('pool', 56)).toBe(56)
+    expect(clampNodeHeight('pool', 58)).toBe(58)
   })
   it('caps at the per-kind ceiling', () => {
     expect(clampNodeHeight('gate', 500)).toBe(MAX_NODE_H.gate)
