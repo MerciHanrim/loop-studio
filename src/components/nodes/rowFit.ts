@@ -111,7 +111,16 @@ export type RowFit = {
   maxWidth: Partial<Record<MeasuredRow['key'], number>>
 }
 
-const half = (v: number) => Math.ceil(v * 2) / 2
+// Layout units (1/64 px). A row aligned to the title takes the title's own
+// start, to the nearest unit, so it shares the title's sub-pixel phase; a
+// clearance is only ever rounded up, and a room down. Never a coarser step: a
+// half-px ceil turned a title start measured at 29.00001 into 29.5 on one
+// machine and 29 on another (CI), moving the row's glyphs by half a pixel.
+const UNIT = 64
+const EPS = 1e-6
+const nearest = (v: number) => Math.round(v * UNIT) / UNIT
+const up = (v: number) => Math.ceil(v * UNIT - EPS) / UNIT
+const down = (v: number) => Math.floor(v * UNIT + EPS) / UNIT
 const clampW = (w: number) => Math.max(NODE_MIN_W, Math.min(w, NODE_MAX_W))
 
 /** the extreme fill edges across `[top, bottom]`, in viewBox x */
@@ -135,7 +144,7 @@ export function fitRows(kind: NodeKind, g: FrameGeometry, rows: MeasuredRow[]): 
   const titleEdge = edgesOver(kind, height, g.titleTop, g.titleBottom)[0]
   const titleClear = (w: number) => titleAt(w) - (titleEdge * w) / 120
   const rowEdges = rows.map((r) => edgesOver(kind, height, r.top, r.bottom))
-  const startAt = (i: number, w: number) => half(Math.max(titleAt(w), (rowEdges[i][0] * w) / 120 + ROW_CLEAR))
+  const startAt = (i: number, w: number) => Math.max(nearest(titleAt(w)), up((rowEdges[i][0] * w) / 120 + ROW_CLEAR))
   // a row's room at width `w`: inside the outline by `ROW_CLEAR`, and inside
   // the box's end padding (a row that reached into it would widen the node)
   const roomAt = (i: number, w: number) =>
@@ -175,12 +184,12 @@ export function fitRows(kind: NodeKind, g: FrameGeometry, rows: MeasuredRow[]): 
   const start: RowFit['start'] = {}
   const maxWidth: RowFit['maxWidth'] = {}
   rows.forEach((r, i) => {
-    start[r.key] = +(startAt(i, used) - stackStart).toFixed(2)
+    start[r.key] = +(startAt(i, used) - stackStart).toFixed(4)
     const room = roomAt(i, used)
-    if (room < r.width - 0.01) maxWidth[r.key] = Math.max(0, Math.floor(room * 2) / 2)
+    if (room < r.width - 0.01) maxWidth[r.key] = Math.max(0, down(room))
   })
   // a row cut short no longer holds the node at its width, so the width is
   // held explicitly then too
   const cut = Object.keys(maxWidth).length > 0
-  return { width: +used.toFixed(2), start, minWidth: used > before + 0.01 || cut ? +used.toFixed(2) : null, maxWidth }
+  return { width: +used.toFixed(4), start, minWidth: used > before + 0.01 || cut ? +used.toFixed(4) : null, maxWidth }
 }
