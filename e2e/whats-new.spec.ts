@@ -238,7 +238,7 @@ test.describe('closing the notice and opening the panel are different things', (
         expect(text).not.toContain('text unavailable')
       }
     }
-    expect(RELEASE_NOTES.map((n) => n.version)).toEqual(['0.21.0', '0.20.0', '0.19.0','0.18.2', '0.18.1', '0.18.0', '0.17.2', '0.17.1', '0.17.0', '0.16.0', '0.15.3', '0.15.2', '0.15.1', '0.15.0', '0.14.0'])
+    expect(RELEASE_NOTES.map((n) => n.version)).toEqual(['0.21.1', '0.21.0', '0.20.0', '0.19.0','0.18.2', '0.18.1', '0.18.0', '0.17.2', '0.17.1', '0.17.0', '0.16.0', '0.15.3', '0.15.2', '0.15.1', '0.15.0', '0.14.0'])
 
     await page.keyboard.press('Escape')
     await expect(panel).toHaveCount(0)

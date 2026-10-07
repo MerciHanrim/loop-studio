@@ -566,6 +566,9 @@ const ui = {
   'whatsNew.v0210.compact': 'I nodi sono più compatti: un nodo su una riga è più basso e un po’ più stretto, così una parte maggiore di un grafo grande entra nello schermo.',
   'whatsNew.v0210.grows': 'Un nodo che ha bisogno di spazio cresce comunque: i titoli su due righe e le righe in più mantengono la loro altezza, e i titoli lunghi vanno a capo come prima.',
   'whatsNew.v0210.same': 'Le posizioni dei nodi, i file salvati e i risultati della simulazione non cambiano; le connessioni ora si agganciano un po’ più in alto su ogni nodo.',
+  'whatsNew.v0211.dim': 'Con la messa a fuoco attiva, anche le connessioni fuori dall’area a fuoco ora si attenuano come i nodi che vi si trovano, così l’area a fuoco risalta.',
+  'whatsNew.v0211.kept': 'La selezione, gli avvisi e i segni in movimento di una simulazione in corso restano ben visibili.',
+  'whatsNew.v0211.contrast': 'In contrasto elevato una connessione attenuata non viene schiarita: la segnala invece una linea punteggiata sottile.',
 } satisfies Record<UiKey, string>
 
 export default ui

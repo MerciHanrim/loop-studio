@@ -140,7 +140,16 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.21.0
+## Latest — v0.21.1
+
+A fix release: Focus mode dims the connections too.
+
+- **Connections outside the focus set fade** like the nodes there, path and arrowhead,
+  whatever their activator says; before, only the nodes were dimmed
+- **What stays at full strength is unchanged**: selection, warnings and the moving markers
+  of a running simulation; under high contrast a faded connection is a fine dotted line
+
+## v0.21.0
 
 Compact nodes: more of a large graph fits in view.
 
@@ -177,16 +186,8 @@ Flow colours: give nodes and connections a colour so a large graph's flows read 
 - **Advice, never a block**: a colour that would be hard to see, or that looks like a
   colour the canvas uses for focus, warnings or a run, is still applied, with a note
 
-## v0.18.2
-
-A fix release: the guided tour says each step once.
-
-- **Each step is announced once**: step 1 as the tour opens, every later step as Next or
-  Back reaches it, with its number, title and text
-- **Focus stays on Next or Back** while the steps change, and ending the tour returns it
-  to the Help button (More on a phone)
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.18.1 (one
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.18.2 (the
+guided tour says each step once), v0.18.1 (one
 keyboard contract for every menu), v0.18.0 (the third-party open-source licenses in the About dialog), v0.17.2 (the
 Temporary session button drawn like the menu buttons), v0.17.1 (share
 links compressed with the browser's own Compression Streams), v0.17.0

@@ -39,6 +39,15 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // issue #329 - Focus mode dims the connections outside the focus set (an
+    // inline opacity beat the rule); the date is the day it is deployed, set
+    // right before the merge
+    id: 'release:0.21.1',
+    version: '0.21.1',
+    date: '2026-10-07',
+    items: ['whatsNew.v0211.dim', 'whatsNew.v0211.kept', 'whatsNew.v0211.contrast'],
+  },
+  {
     // issue #325 PR 3 - compact nodes: a 56 px floor instead of 64, less side
     // padding, content still deciding; the date is the day it is deployed, set
     // right before the merge

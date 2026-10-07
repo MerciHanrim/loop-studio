@@ -4,6 +4,17 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.21.1 — 2026-10-07
+
+A fix release (issue #329): Focus mode dims the connections outside the focus set, as [`docs/large-graph-readability.md`](docs/large-graph-readability.md) §LGR3.1 always said.
+
+- **Connections fade with the nodes.** A connection outside the focus set is drawn at 0.26, its path and its arrowhead. Before, every connection path carried an inline `opacity` that beat the dimming rule, so only the nodes were dimmed.
+- **Focus wins over an activator.** An unsatisfied activator connection stays at 0.5 inside the focus set and goes to 0.26 outside it.
+- **High contrast keeps its own tell.** Under forced colours a dimmed connection is not faded; its fine `1 5` dash marks it, as before.
+- **Unchanged:** labels, the selection highlight, nodes, the playback tokens and cues, files, digests and simulation results.
+
+**No migration.** Three release-note lines in 18 languages, 16 of them without native review. The informational `meta.tool` string is now `loop-studio/0.21.1`.
+
 ## v0.21.0 — 2026-10-07
 
 Compact nodes (issue #325, the last of three parts): more of a large graph fits in view. The contract is [`docs/flow-colour-and-compact-nodes.md`](docs/flow-colour-and-compact-nodes.md) FC-7.

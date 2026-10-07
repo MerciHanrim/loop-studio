@@ -386,13 +386,17 @@ function LoopEdge({
           isState ? 'edge-state' : 'edge-resource',
           route ? `route-${route.routeClass}${route.invalidWaypoint ? ' route-invalid' : ''}` : '',
           activityOp > 0 ? 'lgr-active-tint' : '',
+          // issue #329 — an unsatisfied activator's 0.5 is a class, not an
+          // inline `opacity`: an inline value beat Focus mode's 0.26
+          // (`.react-flow__edge.lgr-deemph .react-flow__edge-path`), so a
+          // connection outside the focus set was never dimmed
+          activatorOn === false ? 'edge-activator-off' : '',
         ]
           .filter(Boolean)
           .join(' ')}
         style={{
           stroke: baseStroke,
           strokeWidth: selected ? 2 : activatorOn === true ? 1.8 : isState ? 1 : 1.5,
-          opacity: activatorOn === false ? 0.5 : 1,
           ...(activityOp > 0 ? { ['--lgr-activity' as string]: activityOp } : null),
         }}
       />

@@ -566,6 +566,9 @@ const ui = {
   'whatsNew.v0210.compact': 'Os nós estão mais compactos: um nó de uma linha é mais baixo e um pouco mais estreito, e assim cabe mais de um grafo grande de uma só vez.',
   'whatsNew.v0210.grows': 'Um nó que precisa de espaço continua a crescer: títulos de duas linhas e linhas adicionais mantêm a altura, e títulos longos passam para a linha seguinte como antes.',
   'whatsNew.v0210.same': 'As posições dos nós, os ficheiros guardados e os resultados da simulação não mudam; as ligações passam a prender-se um pouco mais acima em cada nó.',
+  'whatsNew.v0211.dim': 'Com o Foco ativado, as ligações fora da área em foco passam a ficar esbatidas como os nós dessa área, destacando a vizinhança em foco.',
+  'whatsNew.v0211.kept': 'A seleção, os avisos e as marcas em movimento durante a simulação continuam bem visíveis.',
+  'whatsNew.v0211.contrast': 'Em alto contraste, uma ligação esbatida não fica mais clara: uma linha pontilhada fina indica-a.',
 } as const
 
 export type UiKey = keyof typeof ui

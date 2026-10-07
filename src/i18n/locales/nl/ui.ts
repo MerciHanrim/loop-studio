@@ -547,6 +547,9 @@ const ui = {
   'whatsNew.v0210.compact': 'Knooppunten zijn compacter: een knooppunt van één regel is lager en iets smaller, zodat er meer van een groot diagram op het scherm past.',
   'whatsNew.v0210.grows': 'Een knooppunt dat ruimte nodig heeft, groeit nog steeds: titels van twee regels en aanvullende regels houden hun hoogte, en lange titels lopen door zoals voorheen.',
   'whatsNew.v0210.same': 'Posities van knooppunten, opgeslagen bestanden en simulatieresultaten veranderen niet; verbindingen sluiten nu iets hoger op elk knooppunt aan.',
+  'whatsNew.v0211.dim': 'Met Focus aan worden de verbindingen buiten het gefocuste gebied nu ook gedimd, net als de knooppunten daar, zodat de gefocuste omgeving opvalt.',
+  'whatsNew.v0211.kept': 'Selectie, waarschuwingen en de bewegende markeringen van een lopende simulatie blijven volledig zichtbaar.',
+  'whatsNew.v0211.contrast': 'Bij hoog contrast wordt een gedimde verbinding niet lichter getekend, maar met een fijne stippellijn gemarkeerd.',
 } as const
 
 export default ui

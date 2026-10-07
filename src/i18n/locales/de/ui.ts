@@ -627,6 +627,9 @@ const ui = {
   'whatsNew.v0210.compact': 'Knoten sind kompakter: Ein einzeiliger Knoten ist niedriger und etwas schmaler, sodass mehr von einem großen Graphen auf den Bildschirm passt.',
   'whatsNew.v0210.grows': 'Ein Knoten, der Platz braucht, wächst weiterhin: Zweizeilige Titel und zusätzliche Zeilen behalten ihre Höhe, und lange Titel brechen wie bisher um.',
   'whatsNew.v0210.same': 'Knotenpositionen, gespeicherte Dateien und Simulationsergebnisse bleiben unverändert; Verbindungen setzen jetzt etwas höher am Knoten an.',
+  'whatsNew.v0211.dim': 'Mit eingeschaltetem Fokus werden jetzt auch die Verbindungen außerhalb des fokussierten Bereichs abgeschwächt, wie die Knoten dort, sodass die fokussierte Umgebung hervortritt.',
+  'whatsNew.v0211.kept': 'Auswahl, Warnungen und die beweglichen Markierungen einer laufenden Simulation bleiben voll sichtbar.',
+  'whatsNew.v0211.contrast': 'Bei hohem Kontrast wird eine abgeschwächte Verbindung nicht blasser gezeichnet, sondern durch eine feine gepunktete Linie markiert.',
 } satisfies Record<UiKey, string>
 
 export default ui

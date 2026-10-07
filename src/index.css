@@ -2224,6 +2224,13 @@ a.sheet__row {
    (`showLabel`), not here. The route-invalid `!` flag (`.route-invalid-flag`,
    required set) is left alone. §LGR4.2 — a dimmed edge is not selectable while
    Focus is on. */
+/* an unsatisfied activator connection is drawn at 0.5. It is a class, not an
+   inline style, so the Focus rule below (higher specificity) outranks it: a
+   connection outside the focus set is 0.26 whatever its activator (issue #329;
+   the inline `opacity` this replaces beat the Focus rule on every connection). */
+.react-flow__edge-path.edge-activator-off {
+  opacity: 0.5;
+}
 .react-flow__edge.lgr-deemph .react-flow__edge-path {
   opacity: 0.26;
 }
@@ -2233,10 +2240,13 @@ a.sheet__row {
 
 /* §LGR9 — under a UA colour override opacity is unreliable, so a de-emphasised
    element gets a sparse dash instead. A state edge is already dashed `4 4`; the
-   de-emphasis dash is finer so the two still read apart. */
+   de-emphasis dash is finer so the two still read apart. The dash is the only
+   tell there: a dimmed connection is not faded, and its opacity is 1 even when
+   its activator is unsatisfied (issue #329). */
 @media (forced-colors: active) {
   .react-flow__edge.lgr-deemph .react-flow__edge-path {
     stroke-dasharray: 1 5;
+    opacity: 1;
   }
   .react-flow__node.lgr-deemph .nodef__stroke {
     stroke-dasharray: 2 4;
@@ -2965,7 +2975,7 @@ a.sheet__row {
   }
   .lgr-active-tint.edge-state:not(.route-invalid) {
     stroke-dasharray: 8 4;
-    /* an activator-OFF state edge carries `opacity: 0.5` inline; composited
+    /* an activator-OFF state edge carries `opacity: 0.5` (`.edge-activator-off`); composited
        over the canvas that halved the Highlight tell to 2.0–2.6:1 (measured
        at zoom 0.4–0.75). Opaque here only — light / dark keep the fade. */
     opacity: 1 !important;

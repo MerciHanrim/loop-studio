@@ -621,6 +621,9 @@ const ui = {
   'whatsNew.v0210.compact': 'Les nœuds sont plus compacts : un nœud d’une ligne est moins haut et un peu plus étroit, pour qu’une plus grande partie d’un grand graphe tienne à l’écran.',
   'whatsNew.v0210.grows': 'Un nœud qui a besoin de place grandit toujours : les titres sur deux lignes et les lignes supplémentaires gardent leur hauteur, et les titres longs passent à la ligne comme avant.',
   'whatsNew.v0210.same': 'Les positions des nœuds, les fichiers enregistrés et les résultats de simulation ne changent pas ; les connexions s’attachent maintenant un peu plus haut sur chaque nœud.',
+  'whatsNew.v0211.dim': 'Avec le Focus activé, les connexions hors de la zone ciblée s’estompent désormais comme les nœuds qui s’y trouvent, ce qui fait ressortir le voisinage ciblé.',
+  'whatsNew.v0211.kept': 'La sélection, les avertissements et les repères mobiles d’une simulation en cours restent pleinement visibles.',
+  'whatsNew.v0211.contrast': 'En contraste élevé, une connexion estompée n’est pas pâlie : de fins pointillés la signalent à la place.',
 } satisfies Record<UiKey, string>
 
 export default ui
