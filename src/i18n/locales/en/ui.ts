@@ -536,6 +536,9 @@ const ui = {
   'whatsNew.v0210.compact': 'Nodes are more compact: a one-line node is shorter and a little narrower, so more of a large graph fits in view at once.',
   'whatsNew.v0210.grows': 'A node that needs the room still grows: two-line titles and extra rows keep their height, and long titles wrap as before.',
   'whatsNew.v0210.same': 'Node positions, saved files and simulation results are unchanged; connections now attach a little higher on each node.',
+  'whatsNew.v0211.dim': 'With Focus on, the connections outside the focused area now fade like the nodes there, so the focused neighbourhood stands out.',
+  'whatsNew.v0211.kept': 'Selection, warnings and the moving markers of a running simulation still show at full strength.',
+  'whatsNew.v0211.contrast': 'In high contrast, a faded connection is not made paler: a fine dotted line marks it instead.',
 } as const
 
 export type UiKey = keyof typeof ui

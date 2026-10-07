@@ -550,6 +550,9 @@ const ui = {
   'whatsNew.v0210.compact': 'Los nodos son más compactos: un nodo de una línea es más bajo y algo más estrecho, así que cabe en pantalla una parte mayor de un grafo grande.',
   'whatsNew.v0210.grows': 'Un nodo que necesita espacio sigue creciendo: los títulos de dos líneas y las filas adicionales mantienen su altura, y los títulos largos se ajustan como antes.',
   'whatsNew.v0210.same': 'Las posiciones de los nodos, los archivos guardados y los resultados de la simulación no cambian; las conexiones ahora se unen un poco más arriba en cada nodo.',
+  'whatsNew.v0211.dim': 'Con el enfoque activado, las conexiones fuera de la zona enfocada ahora se atenúan como los nodos de esa zona, de modo que el entorno enfocado destaca.',
+  'whatsNew.v0211.kept': 'La selección, los avisos y las marcas en movimiento de una simulación en curso se siguen viendo con toda su intensidad.',
+  'whatsNew.v0211.contrast': 'En contraste alto, una conexión atenuada no se aclara: la marca una línea de puntos fina.',
 } as const
 
 export type UiKey = keyof typeof ui

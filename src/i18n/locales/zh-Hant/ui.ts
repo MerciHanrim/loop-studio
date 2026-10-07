@@ -570,6 +570,9 @@ const ui = {
   'whatsNew.v0210.compact': '節點更緊湊了：單行節點更矮、略窄，螢幕上能顯示更多的大型圖。',
   'whatsNew.v0210.grows': '需要空間的節點仍會變大：兩行標題和額外的列保持原有高度，長標題照常換行。',
   'whatsNew.v0210.same': '節點位置、已儲存的檔案和模擬結果都不變；連線現在連接在每個節點稍高的位置。',
+  'whatsNew.v0211.dim': '開啟聚焦後，聚焦範圍以外的連線也會像那裡的節點一樣變淡，聚焦的鄰近區域更加醒目。',
+  'whatsNew.v0211.kept': '選取、警告和執行中模擬的移動標記仍以完整強度顯示。',
+  'whatsNew.v0211.contrast': '在高對比度下，變淡的連線不會變淺，而是改以細點線標示。',
 } satisfies Record<UiKey, string>
 
 export default ui

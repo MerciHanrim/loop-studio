@@ -552,6 +552,9 @@ const ui = {
   'whatsNew.v0210.compact': 'Nút gọn hơn: nút một dòng thấp hơn và hẹp hơn một chút, nên màn hình chứa được nhiều hơn của một đồ thị lớn.',
   'whatsNew.v0210.grows': 'Nút cần chỗ vẫn lớn ra: tiêu đề hai dòng và các dòng thêm giữ nguyên chiều cao, tiêu đề dài vẫn xuống dòng như trước.',
   'whatsNew.v0210.same': 'Vị trí nút, tệp đã lưu và kết quả mô phỏng không đổi; liên kết giờ gắn vào mỗi nút ở vị trí cao hơn một chút.',
+  'whatsNew.v0211.dim': 'Khi bật Tiêu điểm, các liên kết nằm ngoài vùng tiêu điểm giờ cũng mờ đi như các nút ở đó, nhờ vậy vùng đang được tập trung nổi bật hơn.',
+  'whatsNew.v0211.kept': 'Lựa chọn, cảnh báo và các dấu chuyển động của một mô phỏng đang chạy vẫn hiển thị rõ ràng.',
+  'whatsNew.v0211.contrast': 'Ở chế độ tương phản cao, liên kết bị mờ không bị làm nhạt đi mà được đánh dấu bằng một đường chấm mảnh.',
 } satisfies Record<UiKey, string>
 
 export default ui

@@ -544,6 +544,9 @@ const ui = {
   'whatsNew.v0210.compact': '节点更紧凑了：单行节点更矮、略窄，屏幕上能显示更多的大型图。',
   'whatsNew.v0210.grows': '需要空间的节点仍会变大：两行标题和额外的行保持原有高度，长标题照常换行。',
   'whatsNew.v0210.same': '节点位置、已保存的文件和模拟结果都不变；连线现在连接在每个节点稍高的位置。',
+  'whatsNew.v0211.dim': '开启聚焦后，聚焦范围以外的连线也会像那里的节点一样变淡，聚焦的邻近区域更加醒目。',
+  'whatsNew.v0211.kept': '选择、警告和运行中模拟的移动标记仍以完整强度显示。',
+  'whatsNew.v0211.contrast': '在高对比度下，变淡的连线不会变浅，而是改以细点线标示。',
 } satisfies Record<UiKey, string>
 
 export default ui
