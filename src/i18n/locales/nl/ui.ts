@@ -544,6 +544,9 @@ const ui = {
   'whatsNew.v0200.templates': 'Drie van de meegeleverde sjablonen openen nu met hun hoofdstromen in kleur; hun resultaten veranderen niet.',
   'whatsNew.v0200.once': 'In het onderdeel Kleur van de Inspector staat elke kleur maar één keer: Laatst gebruikt en In dit document laten de kleuren weg die al hoger staan.',
   'whatsNew.v0200.phone': 'Op een telefoon toont de alleen-lezen Inspector een kleur op één regel: een stip met de naam van de kleur en de hexwaarde.',
+  'whatsNew.v0210.compact': 'Knooppunten zijn compacter: een knooppunt van één regel is lager en iets smaller, zodat er meer van een groot diagram op het scherm past.',
+  'whatsNew.v0210.grows': 'Een knooppunt dat ruimte nodig heeft, groeit nog steeds: titels van twee regels en aanvullende regels houden hun hoogte, en lange titels lopen door zoals voorheen.',
+  'whatsNew.v0210.same': 'Posities van knooppunten, opgeslagen bestanden en simulatieresultaten veranderen niet; verbindingen sluiten nu iets hoger op elk knooppunt aan.',
 } as const
 
 export default ui

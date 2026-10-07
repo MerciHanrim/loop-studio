@@ -4,6 +4,16 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.21.0 — 2026-10-07
+
+Compact nodes (issue #325, the last of three parts): more of a large graph fits in view. The contract is [`docs/flow-colour-and-compact-nodes.md`](docs/flow-colour-and-compact-nodes.md) FC-7.
+
+- **Shorter, a little narrower.** A one-line node is 56 px tall instead of 64 (a one-line Pool 58, which its title and value need), with 12 px of side padding instead of 16 (Source and Drain 22 instead of 26 at their pointed end, Gate 26 instead of 30). Of the 386 nodes in the bundled templates and a sample of every kind, 235 got shorter.
+- **Content still decides.** 56 is a floor, not a forced height: a two-line title, a capacity row, every Parameter and every Register keep the height their content needs, the title's maximum width is unchanged so long titles wrap where they did, and no outline is squeezed or reversed at any height.
+- **Nothing a file holds changes.** Node positions, saved diagrams, share links, digests and simulation results are the same; connections attach 3 to 4 px higher and orthogonal routes are recomputed. The ports and their 18 px hit area keep their size, and the selection, focus, invalid, run and Focus-mode marks keep their order.
+
+**No migration.** Three release-note lines in 18 languages, 16 of them without native review. The informational `meta.tool` string is now `loop-studio/0.21.0`.
+
 ## v0.20.0 — 2026-10-07
 
 Flow colours beyond the canvas (issue #325, the second of three parts). The contract is [`docs/flow-colour-and-compact-nodes.md`](docs/flow-colour-and-compact-nodes.md) FC-5 and FC-6.

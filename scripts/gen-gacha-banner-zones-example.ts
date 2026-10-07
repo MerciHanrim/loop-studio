@@ -355,7 +355,16 @@ const recommendedRunConfig: RecommendedRunConfig = {
 // same point. A short, explicit waypoint per edge — opposite sides of that
 // shared point — separates them; still purely cosmetic routing data, never
 // an engine change.
+// Layout round 7 (#325 PR 3, compact nodes, Lumi 2026-10-07) — with the nodes
+// 56 / 58 px tall instead of 64, `e_pickup_34` (SR hit -> Pulls made) and
+// `e_pickup_36` (Pickup hit -> SSR count) both ran their horizontal leg through
+// the one 38 px band between the first two flow rows, 14 px apart, and their
+// two `+1` labels overlapped in ko. The band is too narrow to hold both labels
+// clear of each other AND of the rows, so `e_pickup_36` alone now leaves its
+// bottom port DOWNWARD into the free band under the second row (y 632..670)
+// through one waypoint; its label lands there, clear of every label and node.
 const WAYPOINTS: Record<string, { x: number; y: number }[]> = {
+  e_pickup_36: [{ x: 3200, y: 650 }],
   e_standard_12: [{ x: 1200, y: 550 }],
   e_standard_13: [{ x: 1320, y: 550 }],
   e_pickup_7: [{ x: 2680, y: 600 }],

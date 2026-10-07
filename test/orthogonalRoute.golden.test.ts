@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { execSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { computeOrthogonalRoute, ROUTER_VERSION, type RouteResult } from '../src/components/edges/orthogonalRoute'
-import { boundaryCases, exampleCases, goldenCases, ORTHO_EXAMPLES, type Case } from './routeCases'
+import { boundaryCases, exampleCases, goldenCases, goldenExampleCases, ORTHO_EXAMPLES, type Case } from './routeCases'
 
 // docs/edge-routing.md §ER3 — the FROZEN route bytes.
 //
@@ -123,9 +123,13 @@ describe('orthogonalRoute — golden route bytes', () => {
     expect(corpus).toEqual(Object.keys(fixture.cases).sort())
   })
 
+  // the inputs are the examples with the routing data added since the fixture
+  // was frozen projected out (`WAYPOINTS_ADDED_SINCE_GOLDEN`: #325 PR 3's one
+  // gacha waypoint), so the e763eeb bytes still hold; the path WITH it is
+  // pinned in the describe below
   for (const graph of ORTHO_EXAMPLES) {
-    it(`${graph} — every orthogonal edge routes byte-identically`, { timeout: 60_000 }, () => {
-      const { missing, mismatched } = checkGroup(exampleCases(graph))
+    it(`${graph} — every orthogonal edge routes byte-identically (waypoints added since e763eeb projected out)`, { timeout: 60_000 }, () => {
+      const { missing, mismatched } = checkGroup(goldenExampleCases(graph))
       expect({ missing, mismatched: mismatched.slice(0, 5) }).toEqual({ missing: [], mismatched: [] })
       expect(mismatched.length).toBe(0)
     })
@@ -142,5 +146,20 @@ describe('orthogonalRoute — golden route bytes', () => {
     expect([...classes].sort()).toEqual(['degenerate', 'fallback-lz', 'orthogonal', 'same-side', 'self-loop'])
     const invalid = Object.values(fixture.cases).filter((c) => c.invalidWaypoint)
     expect(invalid.length).toBeGreaterThan(0) // §ER4 invalid-waypoint path is pinned too
+  })
+})
+
+describe('orthogonalRoute — routing added since the golden', () => {
+  it('gacha e_pickup_36 with its #325 PR 3 waypoint (the ko `+1` label overlap fix) leaves its bottom port downward into the band under the second row', () => {
+    const c = exampleCases('gacha-banner-zones').find((x) => x.name === 'gacha-banner-zones#e_pickup_36')!
+    expect(c.input.waypoints).toEqual([{ x: 3200, y: 650 }])
+    expect(snap(computeOrthogonalRoute(c.input))).toEqual({
+      d: 'M 3829.5 634 L 3829.5 644 Q 3829.5 650 3823.5 650 L 2546 650 Q 2540 650 2540 644 L 2540 470',
+      hitD: 'M 3829.5 634 L 3829.5 650 L 2540 650 L 2540 470',
+      routeClass: 'orthogonal',
+      mid: [3102.75, 650],
+      endAngle: -1.5707963267948966,
+      invalidWaypoint: false,
+    })
   })
 })

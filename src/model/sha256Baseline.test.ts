@@ -68,10 +68,26 @@ describe('SHA-256 after the replacement, against what the replaced code computed
 // are kept, checked only by the explicit legacy test below.
 const COLOURED_SINCE = new Set(['coffee-roastery.json', 'gacha-banner-zones.json', 'mmo-progression.json'])
 
-/** a document's text without its flow colours: the file as it was recorded */
-const withoutFlowColours = (text: string): string => {
-  const doc = JSON.parse(text) as { nodes: { data: Record<string, unknown> }[]; edges: { data?: Record<string, unknown> }[] }
+// #325 PR 3 (compact nodes) - one more cosmetic addition since the baseline: the
+// gacha Template's layout round 7 gave `e_pickup_36` one routing waypoint
+// (scripts/gen-gacha-banner-zones-example.ts) so its `+1` label no longer meets
+// `e_pickup_34`'s on the shorter nodes. Routing is never engine data, so the
+// engine digest still matches; the legacy projection removes exactly this one
+// waypoint, and fails if it is not exactly what PR 3 added.
+const ADDED_WAYPOINTS: Record<string, Record<string, unknown>> = {
+  'gacha-banner-zones.json': { e_pickup_36: [{ x: 3200, y: 650 }] },
+}
+
+/** a document's text without what was added after the #301 baseline: the flow
+ *  colours (PR 2) and the one PR 3 waypoint - the file as it was recorded */
+const legacyProjection = (file: string, text: string): string => {
+  const doc = JSON.parse(text) as { nodes: { data: Record<string, unknown> }[]; edges: { id: string; data?: Record<string, unknown> }[] }
   for (const el of [...doc.nodes, ...doc.edges]) if (el.data) delete el.data.accent
+  for (const [edgeId, added] of Object.entries(ADDED_WAYPOINTS[file] ?? {})) {
+    const edge = doc.edges.find((e) => e.id === edgeId)
+    expect(edge?.data?.waypoints, `${file} ${edgeId}: the waypoint PR 3 added`).toEqual(added)
+    delete edge!.data!.waypoints
+  }
   return JSON.stringify(doc)
 }
 
@@ -105,11 +121,11 @@ describe('the digests of real documents are unchanged', () => {
     })
   }
 
-  it('legacy (#301 baseline): the three coloured Templates without their flow colours give the recorded digests', async () => {
+  it('legacy (#301 baseline): the three coloured Templates without their flow colours (PR 2) and the gacha e_pickup_36 waypoint (PR 3) give the recorded digests', async () => {
     const legacy = EXAMPLE_GRAPH_DIGESTS.filter((g) => COLOURED_SINCE.has(g.file))
     expect(legacy.map((g) => g.file).sort()).toEqual([...COLOURED_SINCE].sort())
     for (const g of legacy) {
-      const p = deserialize(withoutFlowColours(read(g.file)))
+      const p = deserialize(legacyProjection(g.file, read(g.file)))
       const doc = docOf(p)
       expect(p.modelVersion, g.file).toBe(g.modelVersion)
       expect(await semanticDigest({ nodes: p.nodes, edges: p.edges }, p.modelVersion), g.file).toBe(g.semanticDigest)

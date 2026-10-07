@@ -603,6 +603,9 @@ const ui = {
   'whatsNew.v0200.templates': 'Hazır şablonlardan üçü artık ana akışları renkli olarak açılıyor; sonuçları değişmiyor.',
   'whatsNew.v0200.once': 'İnceleyici’nin Renk bölümünde her renk yalnızca bir kez görünür: Son kullanılanlar ve Bu belgede, yukarıda zaten görünen renkleri göstermez.',
   'whatsNew.v0200.phone': 'Telefonda salt okunur İnceleyici bir rengi tek satırda gösterir: rengin adı ve onaltılık değeriyle bir nokta.',
+  'whatsNew.v0210.compact': 'Düğümler daha kompakt: tek satırlık bir düğüm daha alçak ve biraz daha dar, böylece büyük bir grafiğin daha fazlası ekrana sığar.',
+  'whatsNew.v0210.grows': 'Yere ihtiyacı olan bir düğüm yine büyür: iki satırlık başlıklar ve ek satırlar yüksekliklerini korur, uzun başlıklar da eskisi gibi alt satıra geçer.',
+  'whatsNew.v0210.same': 'Düğüm konumları, kaydedilmiş dosyalar ve simülasyon sonuçları değişmez; bağlantılar artık her düğüme biraz daha yukarıdan bağlanır.',
 } as const
 
 export type UiKey = keyof typeof ui

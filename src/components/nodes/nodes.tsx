@@ -41,8 +41,9 @@ import { useNodeActivityOpacity } from '../frames/useActivityTint'
 // ── N1 "Vessel" silhouettes ──────────────────────────────────────────────
 // The outer shape carries the node's role. Type colour is used only on a small
 // chip, never to fill the silhouette. Selection and firing are separate cues.
-// The viewBox is `0 0 120 h` — `h` is the measured body height (>= 64 once a
-// title wraps to two lines). `./silhouette` regenerates each of the seven paths
+// The viewBox is `0 0 120 h` — `h` is the measured body height, floored at
+// `BASE_NODE_H` (56, the compact floor of docs/flow-colour-and-compact-nodes.md
+// FC-7) and grown by the content. `./silhouette` regenerates each of the paths
 // for `h`, keeping stroke / radius / notch fixed (docs/mmo-multilingual-layout.md
 // §MML1b); at h = 64 it returns the historic path verbatim.
 
@@ -190,14 +191,15 @@ function NodeFrame({
 
   // docs/mmo-multilingual-layout.md §MML1b + docs/node-shell-content-in-vessel.md —
   // the box height is driven by the RENDERED content, so the stack always sits
-  // inside the DRAWN vessel (not the 64px bounding box): the vessel path insets
+  // inside the DRAWN vessel (not the bounding box): the vessel path insets
   // its own top/bottom caps (`VESSEL_INSET_Y`) and a `parameter` / `register`
-  // capsule is only ~40px tall inside the 64px box, so a title + value + `= expr`
+  // capsule is 24px shorter than its box, so a title + value + `= expr`
   // stack spilled past the outline at both ends. Measure `.nodef__stack`'s real
   // height, add the vessel inset + a min clear gap top and bottom, clamp to the
   // kind's silhouette range, and redraw the vessel + handles at that height.
-  // `clampNodeHeight` floors at `BASE_NODE_H`, so a short node (Source / Drain /
-  // Gate, a plain Pool) is byte-identical to before. The ResizeObserver settles
+  // `clampNodeHeight` floors at `BASE_NODE_H` (56), so a short node (Source /
+  // Drain / Gate / Converter / End) sits at the floor and a one-line Pool at the
+  // 58 its title and value need. The ResizeObserver settles
   // in one pass: the SVG is `position: absolute`, so a viewBox change never
   // feeds back into the box height.
   const stackRef = useRef<HTMLDivElement>(null)

@@ -533,6 +533,9 @@ const ui = {
   'whatsNew.v0200.templates': 'Three of the bundled templates now open with their main flows coloured, and their results are unchanged.',
   'whatsNew.v0200.once': 'The Inspector’s Colour section shows each colour once: Recent and In this document leave out the colours already shown above them.',
   'whatsNew.v0200.phone': 'On a phone, the read-only Inspector shows a colour as one line: a dot with the colour’s name and hex value.',
+  'whatsNew.v0210.compact': 'Nodes are more compact: a one-line node is shorter and a little narrower, so more of a large graph fits in view at once.',
+  'whatsNew.v0210.grows': 'A node that needs the room still grows: two-line titles and extra rows keep their height, and long titles wrap as before.',
+  'whatsNew.v0210.same': 'Node positions, saved files and simulation results are unchanged; connections now attach a little higher on each node.',
 } as const
 
 export type UiKey = keyof typeof ui

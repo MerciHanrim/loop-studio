@@ -541,6 +541,9 @@ const ui = {
   'whatsNew.v0200.templates': '三个内置模板现在打开时主要流程已设置颜色，结果与之前相同。',
   'whatsNew.v0200.once': '属性面板的颜色部分中，每种颜色只出现一次：“最近”和“本文档中的颜色”不再列出上方已显示的颜色。',
   'whatsNew.v0200.phone': '在手机上，只读属性面板用一行显示颜色：一个色点，以及颜色名称和十六进制值。',
+  'whatsNew.v0210.compact': '节点更紧凑了：单行节点更矮、略窄，屏幕上能显示更多的大型图。',
+  'whatsNew.v0210.grows': '需要空间的节点仍会变大：两行标题和额外的行保持原有高度，长标题照常换行。',
+  'whatsNew.v0210.same': '节点位置、已保存的文件和模拟结果都不变；连线现在连接在每个节点稍高的位置。',
 } satisfies Record<UiKey, string>
 
 export default ui

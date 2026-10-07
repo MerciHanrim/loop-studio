@@ -2027,7 +2027,13 @@
         "expr": "+1",
         "timing": "afterPull",
         "when": "source-fired",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 3200,
+            "y": 650
+          }
+        ]
       }
     },
     {

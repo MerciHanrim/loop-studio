@@ -549,6 +549,9 @@ const ui = {
   'whatsNew.v0200.templates': 'Ba mẫu có sẵn giờ mở ra với các luồng chính đã được tô màu; kết quả của chúng không thay đổi.',
   'whatsNew.v0200.once': 'Trong mục Màu của Bảng thuộc tính, mỗi màu chỉ xuất hiện một lần: Gần đây và Trong tài liệu này bỏ qua các màu đã hiện ở phía trên.',
   'whatsNew.v0200.phone': 'Trên điện thoại, Bảng thuộc tính chỉ đọc hiển thị màu trên một dòng: một chấm màu cùng tên màu và mã màu.',
+  'whatsNew.v0210.compact': 'Nút gọn hơn: nút một dòng thấp hơn và hẹp hơn một chút, nên màn hình chứa được nhiều hơn của một đồ thị lớn.',
+  'whatsNew.v0210.grows': 'Nút cần chỗ vẫn lớn ra: tiêu đề hai dòng và các dòng thêm giữ nguyên chiều cao, tiêu đề dài vẫn xuống dòng như trước.',
+  'whatsNew.v0210.same': 'Vị trí nút, tệp đã lưu và kết quả mô phỏng không đổi; liên kết giờ gắn vào mỗi nút ở vị trí cao hơn một chút.',
 } satisfies Record<UiKey, string>
 
 export default ui

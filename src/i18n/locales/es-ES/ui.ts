@@ -561,6 +561,9 @@ const ui = {
   'whatsNew.v0200.templates': 'Tres de las plantillas incluidas ahora se abren con sus flujos principales en color; sus resultados no cambian.',
   'whatsNew.v0200.once': 'En la sección Color de Propiedades, cada color aparece una sola vez: Recientes y En este documento omiten los colores que ya se muestran arriba.',
   'whatsNew.v0200.phone': 'En un teléfono, Propiedades en modo de solo lectura muestra un color en una línea: un punto con el nombre del color y su valor hexadecimal.',
+  'whatsNew.v0210.compact': 'Los nodos son más compactos: un nodo de una línea es más bajo y algo más estrecho, así que cabe en pantalla una parte mayor de un grafo grande.',
+  'whatsNew.v0210.grows': 'Un nodo que necesita espacio sigue creciendo: los títulos de dos líneas y las filas adicionales mantienen su altura, y los títulos largos se ajustan como antes.',
+  'whatsNew.v0210.same': 'Las posiciones de los nodos, los archivos guardados y los resultados de la simulación no cambian; las conexiones ahora se unen un poco más arriba en cada nodo.',
 } as const
 
 export type UiKey = keyof typeof ui

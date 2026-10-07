@@ -140,7 +140,18 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.20.0
+## Latest — v0.21.0
+
+Compact nodes: more of a large graph fits in view.
+
+- **Shorter, a little narrower**: a one-line node is 56 px tall instead of 64, with less
+  side padding, so more of a big graph fits at the same zoom
+- **Content still decides**: two-line titles, capacity rows, Parameters and Registers keep
+  the height they need, and long titles wrap as before
+- **Nothing in a file changes**: positions, saved diagrams and simulation results stay the
+  same; connections attach a few pixels higher
+
+## v0.20.0
 
 Flow colours beyond the canvas.
 
@@ -175,18 +186,8 @@ A fix release: the guided tour says each step once.
 - **Focus stays on Next or Back** while the steps change, and ending the tour returns it
   to the Help button (More on a phone)
 
-## v0.18.1
-
-A fix release: the menus answer the keyboard the same way.
-
-- **Every menu button** opens at its first item from the keyboard, moves with the arrows,
-  Home and End, and closes with Escape or Tab, back to its button
-- **Settings and `⋯`** are disclosures you Tab through; Theme is a choice of one
-- **On a phone**, a sheet takes focus when it opens, and Escape in a sheet opened from
-  More goes back to More; the run bar and the update bar stay usable
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.18.0 (the
-third-party open-source licenses in the About dialog), v0.17.2 (the
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.18.1 (one
+keyboard contract for every menu), v0.18.0 (the third-party open-source licenses in the About dialog), v0.17.2 (the
 Temporary session button drawn like the menu buttons), v0.17.1 (share
 links compressed with the browser's own Compression Streams), v0.17.0
 (password-protected share links), v0.16.0 (the storage gate, temporary sessions and the

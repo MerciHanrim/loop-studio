@@ -549,6 +549,9 @@ const ui = {
   'whatsNew.v0200.templates': 'Três dos templates incluídos agora abrem com os fluxos principais em cor; os resultados não mudam.',
   'whatsNew.v0200.once': 'Na área Cor do Inspetor, cada cor aparece uma só vez: Recentes e Neste documento omitem as cores já mostradas acima.',
   'whatsNew.v0200.phone': 'No celular, o Inspetor somente leitura mostra uma cor numa linha: um ponto com o nome da cor e o seu valor hexadecimal.',
+  'whatsNew.v0210.compact': 'Os nós estão mais compactos: um nó de uma linha é mais baixo e um pouco mais estreito, e assim cabe mais de um grafo grande de uma só vez.',
+  'whatsNew.v0210.grows': 'Um nó que precisa de espaço continua a crescer: títulos de duas linhas e linhas adicionais mantêm a altura, e títulos longos passam para a linha seguinte como antes.',
+  'whatsNew.v0210.same': 'As posições dos nós, os arquivos salvos e os resultados da simulação não mudam; as conexões agora se ligam um pouco mais acima em cada nó.',
 } as const
 
 export type UiKey = keyof typeof ui
