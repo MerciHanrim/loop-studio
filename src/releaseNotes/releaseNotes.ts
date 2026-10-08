@@ -45,7 +45,7 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
     // set right before the merge
     id: 'release:0.22.0',
     version: '0.22.0',
-    date: '2026-10-08',
+    date: '2026-10-09',
     items: ['whatsNew.v0220.gate', 'whatsNew.v0220.badge', 'whatsNew.v0220.label', 'whatsNew.v0220.focus', 'whatsNew.v0220.cap'],
   },
   {

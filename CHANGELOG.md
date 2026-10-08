@@ -4,7 +4,7 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
-## v0.22.0 — 2026-10-08
+## v0.22.0 — 2026-10-09
 
 Playback shows what moved where (issue #330, first of three): the path a Gate took, every amount as a `+N` badge beside its round token, and Focus mode winning on connections, as [`docs/simulation-playback.md`](docs/simulation-playback.md) §PB4.6 and [`docs/large-graph-readability.md`](docs/large-graph-readability.md) §LGR2.3 describe.
 
