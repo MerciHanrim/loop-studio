@@ -548,6 +548,7 @@ const ui = {
   'whatsNew.v0214.rail': 'While editing is locked, the Group frame and Clear all frames buttons stay where they are, turned off, so the other buttons no longer move.',
   'whatsNew.v0214.tool': 'Locking also turns the frame tool off, so a drag on the empty canvas moves the view instead of starting a frame.',
   'whatsNew.v0214.keys': 'While editing is locked, moving through the controls with the keyboard skips these two buttons, like every other button that is turned off.',
+  'whatsNew.v0214.zoom': 'On a phone, tapping the language search no longer zooms the page in and leaves it that way.',
 } as const
 
 export type UiKey = keyof typeof ui

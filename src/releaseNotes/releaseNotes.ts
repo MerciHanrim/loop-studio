@@ -39,13 +39,15 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
-    // issue #338 - the Controls rail keeps its two frame buttons, disabled,
-    // while the canvas is locked, so the other buttons no longer move; the
-    // date is the day it is deployed, set right before the merge
+    // issues #338 + #340 - the Controls rail keeps its two frame buttons,
+    // disabled, while the canvas is locked, so the other buttons no longer
+    // move; and a phone's text fields are at least 16 px, so focusing the
+    // language search no longer zooms the page in; the date is the day it is
+    // deployed, set right before the merge
     id: 'release:0.21.4',
     version: '0.21.4',
     date: '2026-10-08',
-    items: ['whatsNew.v0214.rail', 'whatsNew.v0214.tool', 'whatsNew.v0214.keys'],
+    items: ['whatsNew.v0214.rail', 'whatsNew.v0214.tool', 'whatsNew.v0214.keys', 'whatsNew.v0214.zoom'],
   },
   {
     // issues #334 + #335 - a new document starts unlocked with an empty undo

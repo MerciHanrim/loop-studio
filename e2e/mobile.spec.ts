@@ -368,6 +368,53 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
     expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe('INPUT')
   })
 
+  // #340 — iOS Safari zooms in on a focused text field under 16 px and stays
+  // zoomed; the More sheet's language search was 12 px. Every text field the
+  // phone shows takes at least 16 px, in each place one appears.
+  test('every text field the phone shows is ≥ 16px: the language search, the share link, the Monte-Carlo fields (#340)', async ({ page }) => {
+    const under16 = () =>
+      page.evaluate(() => {
+        const NOT_TEXT = new Set(['checkbox', 'radio', 'range', 'file', 'color', 'button', 'submit', 'reset', 'hidden'])
+        return [...document.querySelectorAll<HTMLElement>('input, textarea, select')]
+          .filter((el) => !(el instanceof HTMLInputElement && NOT_TEXT.has(el.type)))
+          .filter((el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden')
+          .map((el) => ({ el: `${el.tagName.toLowerCase()}.${el.className}`, px: parseFloat(getComputedStyle(el).fontSize) }))
+          .filter((f) => f.px < 16)
+      })
+    await loadDiagram(page)
+    expect(await under16(), 'the canvas').toEqual([])
+
+    // the More sheet, its language menu and the search field
+    await more(page).click()
+    expect(await under16(), 'the More sheet').toEqual([])
+    await sheet(page, 'More').locator('button.lang-switch').click()
+    const search = page.locator('.lang-menu__search')
+    await expect(search).toBeVisible()
+    expect(await search.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16)
+    expect(await under16(), 'the language menu').toEqual([])
+    expect(rectInside(await search.boundingBox(), PORTRAIT.width, PORTRAIT.height, 1)).toBe(true)
+    await search.focus()
+    await page.keyboard.type('fra')
+    await expect(page.locator('.lang-menu__item')).toHaveCount(1)
+    await page.keyboard.press('Escape')
+    await expect(search).toBeHidden()
+    expect(await page.evaluate(() => document.activeElement?.classList.contains('lang-menu__search') ?? false)).toBe(false)
+    await page.keyboard.press('Escape')
+
+    // the share panel's link field
+    await more(page).click()
+    await sheet(page, 'More').locator('.sheet__row', { hasText: 'Share link' }).click()
+    await answerDialog(page, 'accept', /anyone with it/i)
+    await expect(page.locator('.sheet .share-pop__url')).toBeVisible()
+    expect(await under16(), 'the share panel').toEqual([])
+    await page.keyboard.press('Escape')
+
+    // the Monte-Carlo dialog
+    await runBar(page).getByRole('button', { name: 'Monte Carlo' }).click()
+    await expect(page.locator('.mcdlg__field input').first()).toBeVisible()
+    expect(await under16(), 'the Monte-Carlo dialog').toEqual([])
+  })
+
   test('Timeline sheet opens and closes', async ({ page }) => {
     await loadDiagram(page)
     await runBar(page).getByRole('button', { name: /^Timeline/ }).click()

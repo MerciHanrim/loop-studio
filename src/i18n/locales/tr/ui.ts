@@ -618,6 +618,7 @@ const ui = {
   'whatsNew.v0214.rail': 'Düzenleme kilitliyken Grup çerçevesi ve Tüm çerçeveleri kaldır düğmeleri devre dışı olarak yerinde kalır, böylece diğer düğmeler artık kaymaz.',
   'whatsNew.v0214.tool': 'Kilitlemek çerçeve aracını da kapatır, böylece boş tuvalde sürüklemek çerçeve başlatmak yerine görünümü kaydırır.',
   'whatsNew.v0214.keys': 'Düzenleme kilitliyken klavyeyle gezinme, kapalı diğer tüm düğmeler gibi bu iki düğmeyi de atlar.',
+  'whatsNew.v0214.zoom': 'Telefonda dil aramasına dokunmak artık sayfayı büyütüp öyle bırakmıyor.',
 } as const
 
 export type UiKey = keyof typeof ui

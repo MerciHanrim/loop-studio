@@ -578,6 +578,7 @@ const ui = {
   'whatsNew.v0214.rail': 'Enquanto a edição está bloqueada, os botões Quadro de grupo e Limpar todos os quadros ficam no mesmo lugar, desativados, e os outros botões já não mudam de posição.',
   'whatsNew.v0214.tool': 'Bloquear também desativa a ferramenta de quadro, por isso arrastar na tela vazia desloca a área visível em vez de começar um quadro.',
   'whatsNew.v0214.keys': 'Enquanto a edição está bloqueada, a navegação pelo teclado ignora estes dois botões, como qualquer outro botão desativado.',
+  'whatsNew.v0214.zoom': 'Ao tocar na pesquisa de idioma no telefone, a página já não amplia nem fica ampliada.',
 } as const
 
 export type UiKey = keyof typeof ui

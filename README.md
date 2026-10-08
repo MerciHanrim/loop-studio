@@ -142,13 +142,17 @@ import, …) live under [`docs/`](docs/).
 
 ## Latest — v0.21.4
 
-A fix release: the canvas controls keep their place while editing is locked.
+A fix release: the canvas controls keep their place while editing is locked, and the phone's
+language search no longer zooms the page in.
 
 - **The frame buttons stay, turned off**: Group frame and Clear all frames remain in the
   canvas controls while editing is locked, so the other buttons no longer move; before, the
   two disappeared and every button above them shifted down
 - **Locking turns the frame tool off**: a drag on the empty canvas then moves the view, as it
   should while editing is locked
+- **No zoom from the phone's text fields**: on an iPhone, tapping the language search used to
+  zoom the page in and leave it zoomed; every phone text field is now large enough that it
+  does not
 
 ## v0.21.3
 

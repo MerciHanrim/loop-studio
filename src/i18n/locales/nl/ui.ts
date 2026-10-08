@@ -559,6 +559,7 @@ const ui = {
   'whatsNew.v0214.rail': 'Zolang bewerken vergrendeld is, blijven de knoppen Groepskader en Alle kaders wissen uitgeschakeld op hun plek, zodat de andere knoppen niet meer verschuiven.',
   'whatsNew.v0214.tool': 'Vergrendelen zet ook het kaderhulpmiddel uit, zodat slepen op een leeg tekengebied de weergave verschuift in plaats van een kader te beginnen.',
   'whatsNew.v0214.keys': 'Zolang bewerken vergrendeld is, slaat het toetsenbord deze twee knoppen over, net als elke andere uitgeschakelde knop.',
+  'whatsNew.v0214.zoom': 'Op een telefoon zoomt de pagina niet meer in en blijft ze niet meer ingezoomd wanneer je op de taalzoekbalk tikt.',
 } as const
 
 export default ui

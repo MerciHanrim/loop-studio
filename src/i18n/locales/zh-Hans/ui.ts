@@ -556,6 +556,7 @@ const ui = {
   'whatsNew.v0214.rail': '编辑锁定期间，分组框和清除所有分组框按钮会以停用状态留在原位，其他按钮不再移动。',
   'whatsNew.v0214.tool': '锁定时也会关闭分组框工具，因此在空白画布上拖动会移动视图，而不会开始绘制分组框。',
   'whatsNew.v0214.keys': '编辑锁定期间，用键盘切换时会像跳过其他停用按钮一样跳过这两个按钮。',
+  'whatsNew.v0214.zoom': '在手机上点按语言搜索框时，页面不再放大并停留在放大状态。',
 } satisfies Record<UiKey, string>
 
 export default ui

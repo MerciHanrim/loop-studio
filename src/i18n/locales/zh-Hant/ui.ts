@@ -582,6 +582,7 @@ const ui = {
   'whatsNew.v0214.rail': '編輯鎖定期間，群組框和清除所有群組框按鈕會以停用狀態留在原位，其他按鈕不再移動。',
   'whatsNew.v0214.tool': '鎖定時也會關閉群組框工具，因此在空白畫布上拖曳會移動檢視，而不會開始畫群組框。',
   'whatsNew.v0214.keys': '編輯鎖定期間，用鍵盤切換時會像略過其他停用按鈕一樣略過這兩個按鈕。',
+  'whatsNew.v0214.zoom': '在手機上點按語言搜尋框時，頁面不再放大並停留在放大狀態。',
 } satisfies Record<UiKey, string>
 
 export default ui

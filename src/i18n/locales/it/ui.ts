@@ -578,6 +578,7 @@ const ui = {
   'whatsNew.v0214.rail': 'Finché le modifiche sono bloccate, i pulsanti Riquadro di gruppo ed Elimina tutti i riquadri restano al loro posto, disattivati, e gli altri pulsanti non si spostano più.',
   'whatsNew.v0214.tool': 'Il blocco disattiva anche lo strumento riquadro, così trascinare sull’area di disegno vuota sposta la vista invece di iniziare un riquadro.',
   'whatsNew.v0214.keys': 'Finché le modifiche sono bloccate, la navigazione da tastiera salta questi due pulsanti, come ogni altro pulsante disattivato.',
+  'whatsNew.v0214.zoom': 'Su un telefono, toccare la ricerca della lingua non ingrandisce più la pagina lasciandola ingrandita.',
 } satisfies Record<UiKey, string>
 
 export default ui

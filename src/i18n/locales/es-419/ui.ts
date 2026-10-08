@@ -562,6 +562,7 @@ const ui = {
   'whatsNew.v0214.rail': 'Mientras la edición está bloqueada, los botones Marco de grupo y Eliminar todos los marcos se quedan en su lugar, desactivados, y los demás botones ya no se mueven.',
   'whatsNew.v0214.tool': 'Al bloquear también se desactiva la herramienta de marco, así que arrastrar sobre el lienzo vacío mueve la vista en lugar de empezar un marco.',
   'whatsNew.v0214.keys': 'Mientras la edición está bloqueada, la navegación con el teclado omite estos dos botones, como cualquier otro botón desactivado.',
+  'whatsNew.v0214.zoom': 'En un teléfono, tocar la búsqueda de idioma ya no amplía la página ni la deja ampliada.',
 } as const
 
 export type UiKey = keyof typeof ui

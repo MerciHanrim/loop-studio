@@ -564,6 +564,7 @@ const ui = {
   'whatsNew.v0214.rail': 'Khi chỉnh sửa đang bị khóa, nút Nhóm và Xóa tất cả nhóm vẫn ở nguyên chỗ nhưng bị tắt, nên các nút khác không còn dịch chuyển.',
   'whatsNew.v0214.tool': 'Khóa cũng tắt công cụ nhóm, nên kéo trên khung vẽ trống sẽ di chuyển khung nhìn thay vì bắt đầu vẽ nhóm.',
   'whatsNew.v0214.keys': 'Khi chỉnh sửa đang bị khóa, thao tác bằng bàn phím bỏ qua hai nút này, giống như mọi nút đã tắt khác.',
+  'whatsNew.v0214.zoom': 'Trên điện thoại, chạm vào ô tìm ngôn ngữ không còn phóng to trang rồi giữ nguyên như vậy.',
 } satisfies Record<UiKey, string>
 
 export default ui

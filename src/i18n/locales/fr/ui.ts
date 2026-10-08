@@ -633,6 +633,7 @@ const ui = {
   'whatsNew.v0214.rail': 'Tant que l’édition est verrouillée, les boutons Cadre de groupe et Effacer tous les cadres restent à leur place, désactivés, et les autres boutons ne se déplacent plus.',
   'whatsNew.v0214.tool': 'Le verrouillage désactive aussi l’outil de cadre, si bien qu’un glissement sur le canevas vide déplace la vue au lieu de commencer un cadre.',
   'whatsNew.v0214.keys': 'Tant que l’édition est verrouillée, la navigation au clavier passe ces deux boutons, comme tous les autres boutons désactivés.',
+  'whatsNew.v0214.zoom': 'Sur un téléphone, toucher la recherche de langue n’agrandit plus la page sans la rétablir ensuite.',
 } satisfies Record<UiKey, string>
 
 export default ui
