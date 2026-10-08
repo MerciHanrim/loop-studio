@@ -572,6 +572,9 @@ const ui = {
   'whatsNew.v0212.aligned': 'Nei nodi che mostrano un valore, il valore e la riga sottostante ora iniziano all’altezza del titolo, ben dentro il contorno del nodo.',
   'whatsNew.v0212.wider': 'Un nodo in cui il valore o la riga non entrano si allarga un poco; una riga troppo lunga anche per il nodo più largo viene accorciata con «…».',
   'whatsNew.v0212.same': 'Cambia solo la visualizzazione: i valori salvati, la posizione dei nodi e i risultati della simulazione restano invariati.',
+  'whatsNew.v0213.fresh': 'Un nuovo diagramma parte sbloccato, e aprendo un altro diagramma la cronologia di annullamento parte vuota.',
+  'whatsNew.v0213.locked': 'Finché le modifiche sono bloccate, niente cambia il diagramma: aggiungere, inserire, importare dati, Annulla e Ripeti aspettano lo sblocco.',
+  'whatsNew.v0213.shows': 'Il pulsante di blocco ora mostra il suo stato: un lucchetto aperto quando puoi modificare, un lucchetto chiuso ed evidenziato quando le modifiche sono bloccate.',
 } satisfies Record<UiKey, string>
 
 export default ui

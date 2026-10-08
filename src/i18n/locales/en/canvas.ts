@@ -27,6 +27,7 @@ const canvas = {
   'canvas.minimap.show': 'Show the minimap',
   'canvas.lock.lock': 'Lock editing — selecting and reading stay on',
   'canvas.lock.unlock': 'Unlock editing — move, connect, and change values',
+  'canvas.lock.name': 'Edit lock',
   'canvas.focus.on': 'Focus off — click to focus the selected node',
   'canvas.focus.off': 'Focus on — click to show the whole graph',
   'canvas.focus.hint': 'Select a node to focus on',

@@ -86,6 +86,13 @@ const setVp = (page: Page, v: { x: number; y: number; zoom: number }) =>
   )
 
 /** node positions + edge ids + canUndo — the parts a viewport change must NOT touch */
+/** the undo history's depth (#334 — a Template load leaves it empty) */
+const historyDepth = (page: Page) =>
+  page.evaluate(() => {
+    const g = (window as unknown as { __loop: Loop }).__loop.graph.getState()
+    return { past: g.past.length as number, future: g.future.length as number }
+  })
+
 const graphSig = (page: Page) =>
   page.evaluate(() => {
     const g = (window as unknown as { __loop: Loop }).__loop.graph.getState()
@@ -144,15 +151,10 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
     // the swap moved the camera only — node positions are exactly the file's
     expect((await graphSig(page)).positions).toEqual(filePositions(COFFEE))
 
-    // re-fitting is NOT an undo entry: one undo goes straight back past Coffee
-    // to the previous (MMO) graph, not to "Coffee at the old viewport"
-    await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().undo())
-    const afterUndo = await page.evaluate(() =>
-      (window as unknown as { __loop: Loop }).__loop.graph.getState().nodes.map((n: any) => n.id).sort(),
-    )
-    expect(afterUndo, 'undo skips past Coffee (no viewport-only history entry)').not.toEqual(
-      COFFEE.nodes.map((n) => n.id).sort(),
-    )
+    // re-fitting is NOT an undo entry. #334 — a Template load is a document
+    // boundary that empties the history, so the history is exactly empty: no
+    // "Coffee at the old viewport" entry, and no way back to MMO either
+    expect(await historyDepth(page), 'no viewport-only history entry').toEqual({ past: 0, future: 0 })
   })
 
   // docs/mmo-multilingual-layout.md §MML3 — the MMO demo is ~3500 px wide, so
@@ -181,13 +183,9 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
     expect(await nodeOnScreen(page, MMO_R), 'rest of the graph is off screen (pan / minimap / Focus)').toBe(false)
 
     // camera-only: positions are exactly the file's, and the framing is not an
-    // undo entry (one undo lands past MMO on the previous Coffee graph)
+    // undo entry (#334 — the Template load empties the history; nothing at all)
     expect((await graphSig(page)).positions).toEqual(filePositions(MMO))
-    await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().undo())
-    const afterUndo = await page.evaluate(() =>
-      (window as unknown as { __loop: Loop }).__loop.graph.getState().nodes.map((n: any) => n.id).sort(),
-    )
-    expect(afterUndo, 'undo skips past the MMO framing').not.toEqual(MMO.nodes.map((n) => n.id).sort())
+    expect(await historyDepth(page), 'the MMO framing is no history entry').toEqual({ past: 0, future: 0 })
   })
 
   // docs/gacha-banner-zones.md's layout round 2 — the 3 zones sit side by side
@@ -214,13 +212,9 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
     expect(await nodeOnScreen(page, GACHA_R), 'Pickup zone is off screen (pan / minimap / Focus)').toBe(false)
 
     // camera-only: positions are exactly the file's, and the framing is not an
-    // undo entry (one undo lands past gacha on the previous Coffee graph)
+    // undo entry (#334 — the Template load empties the history; nothing at all)
     expect((await graphSig(page)).positions).toEqual(filePositions(GACHA))
-    await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().undo())
-    const afterUndo = await page.evaluate(() =>
-      (window as unknown as { __loop: Loop }).__loop.graph.getState().nodes.map((n: any) => n.id).sort(),
-    )
-    expect(afterUndo, 'undo skips past the gacha framing').not.toEqual(GACHA.nodes.map((n) => n.id).sort())
+    expect(await historyDepth(page), 'the gacha framing is no history entry').toEqual({ past: 0, future: 0 })
   })
 
   // Review (Hanrim/Lumi, after PR #198): the comparison frame is 1720 graph

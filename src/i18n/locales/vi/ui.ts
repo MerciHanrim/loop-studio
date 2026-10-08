@@ -558,6 +558,9 @@ const ui = {
   'whatsNew.v0212.aligned': 'Ở các nút hiển thị giá trị, giá trị và dòng bên dưới giờ bắt đầu thẳng hàng với tiêu đề, nằm gọn trong đường viền của nút.',
   'whatsNew.v0212.wider': 'Nút không đủ chỗ cho giá trị hoặc dòng sẽ rộng ra một chút; dòng quá dài ngay cả với nút rộng nhất sẽ được rút gọn bằng “…”.',
   'whatsNew.v0212.same': 'Chỉ cách hiển thị thay đổi: giá trị, vị trí nút và kết quả mô phỏng vẫn giữ nguyên.',
+  'whatsNew.v0213.fresh': 'Sơ đồ mới bắt đầu ở trạng thái không khóa, và khi mở một sơ đồ khác, lịch sử hoàn tác bắt đầu trống.',
+  'whatsNew.v0213.locked': 'Khi chỉnh sửa đang bị khóa, không thao tác nào thay đổi sơ đồ: thêm, chèn, nhập dữ liệu, Hoàn tác và Làm lại đều chờ đến khi bạn mở khóa.',
+  'whatsNew.v0213.shows': 'Nút khóa giờ cho thấy trạng thái: ổ khóa mở khi bạn có thể chỉnh sửa, ổ khóa đóng và được làm nổi bật khi chỉnh sửa bị khóa.',
 } satisfies Record<UiKey, string>
 
 export default ui

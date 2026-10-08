@@ -48,7 +48,14 @@ export function Templates() {
     const { graph, recommendedRunConfig, modelVersion } = openTemplate(tpl)
     // §MML3 — a Template may frame a sub-region on menu-open instead of fit-all.
     // §TLO12 — and may carry group `frames` (undefined ⇒ frameStore cleared, as before).
-    loadGraph(graph, modelVersion, tpl.initialView ?? null, graph.frames) // one history entry; sim resets off structureRev
+    // #334 — a document boundary: the history starts empty, and the Template's
+    // own lock is part of the swap (applyRecommended then finds it already set)
+    loadGraph(graph, {
+      canvasLocked: recommendedRunConfig?.canvasLocked === true,
+      modelVersion,
+      initialView: tpl.initialView ?? null,
+      frames: graph.frames,
+    }) // sim resets off structureRev
     useMcStore.getState().applyRecommended(recommendedRunConfig)
   }
 

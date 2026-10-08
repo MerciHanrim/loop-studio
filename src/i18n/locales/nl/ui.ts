@@ -553,6 +553,9 @@ const ui = {
   'whatsNew.v0212.aligned': 'In knooppunten met een waarde beginnen de waarde en de regel eronder nu op de hoogte van de titel, ruim binnen de omtrek van het knooppunt.',
   'whatsNew.v0212.wider': 'Een knooppunt waarin de waarde of de regel niet past, wordt iets breder; een regel die zelfs in het breedste knooppunt niet past, eindigt op „…”.',
   'whatsNew.v0212.same': 'Alleen de weergave verandert: opgeslagen waarden, de posities van knooppunten en simulatieresultaten blijven gelijk.',
+  'whatsNew.v0213.fresh': 'Een nieuw diagram begint ontgrendeld, en wie een ander diagram opent, begint met een lege geschiedenis voor ongedaan maken.',
+  'whatsNew.v0213.locked': 'Zolang bewerken vergrendeld is, verandert er niets aan het diagram: toevoegen, invoegen, gegevens importeren, Ongedaan maken en Opnieuw uitvoeren wachten tot je ontgrendelt.',
+  'whatsNew.v0213.shows': 'De vergrendelknop toont nu zijn toestand: een open hangslot zolang je kunt bewerken, een gesloten, gemarkeerd hangslot zolang bewerken vergrendeld is.',
 } as const
 
 export default ui

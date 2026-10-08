@@ -462,6 +462,7 @@ export function DataImportWizard({
     }
     const result = commitDataImport(validation.plan, placement)
     if (!result.ok) {
+      if (result.reason === 'locked') return // #334 — disabled while locked; nothing to show
       setCommitError({ code: result.reason, detail: result.detail })
       return
     }

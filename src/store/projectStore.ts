@@ -29,7 +29,7 @@ import {
 } from '../model/revision'
 import type { LoopEdge, LoopNode } from '../model/types'
 import type { ImportSourceTable, SavedFrame } from '../model/serialize'
-import { bootProjectHeader, setAutosaveProjectHeader, setHistorySidecar, useGraphStore } from './graphStore'
+import { bootProjectHeader, isEditBlocked, setAutosaveProjectHeader, setHistorySidecar, useGraphStore } from './graphStore'
 import { useDataImportStore } from './dataImportStore'
 import { useFrameStore } from './frameStore'
 import { storagePort } from '../storage/storagePort'
@@ -78,6 +78,8 @@ export type ApplyFailReason =
   | 'target-moved'
   | 'invalid-selection'
   | 'no-effective-change'
+  /** #334 — the Canvas edit lock is on; the Review UI disables Apply first */
+  | 'locked'
 export type ApplyResult =
   | { ok: true; classification: ApplyClassification; newRevisionId: string; partial?: boolean }
   | {
@@ -508,16 +510,24 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 
     openProposalAsDocument: (project, base, proposed) => {
       // §R10.5 — one atomic swap: load the proposed graph, then adopt a
-      // `proposal` header that PINS the original base for §R6 re-export. The
-      // graphStore history sidecar captures this header on the frame it creates,
-      // so undo restores the prior document AND its header.
+      // `proposal` header that PINS the original base for §R6 re-export.
+      // #334 — another document: the history starts empty (Undo never returns
+      // to the previous document), and it opens unlocked (a proposal's run
+      // settings are not applied, so it carries no recommended lock).
       // LGR Slice 5 — adopt the proposal's saved frames too (`[]` when it has
-      // none ⇒ a clean replace); part of the same one `loadDoc` history entry.
+      // none ⇒ a clean replace); part of the same one `loadDoc`.
       // §M2-1 — the proposal's OWN model-semantics version is preserved (a v2
       // proposal opens as a v2 document); never the target's, never a reset.
-      useGraphStore
-        .getState()
-        .loadDoc({ nodes: proposed.nodes, edges: proposed.edges }, proposed.modelVersion ?? 1, proposed.frames, proposed.dataImports)
+      useGraphStore.getState().loadDoc(
+        { nodes: proposed.nodes, edges: proposed.edges },
+        {
+          mode: 'document-boundary',
+          canvasLocked: false,
+          modelVersion: proposed.modelVersion ?? 1,
+          frames: proposed.frames,
+          dataImports: proposed.dataImports,
+        },
+      )
       const digest = digestOfCanonical(canonicalContent(proposed, { modelVersion: proposed.modelVersion }))
       const next: OpenProject = {
         projectId: project.projectId,
@@ -546,6 +556,10 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       // Everything is re-checked HERE, at the click — never trust the class the
       // Review panel computed when it opened (the target may have been edited or
       // swapped since).
+
+      // #334 — an Apply edits the open document; refused while the edit lock
+      // is on, before any check or mutation
+      if (isEditBlocked()) return { ok: false, reason: 'locked' }
 
       // §R7A.1 gates
       const o = get().open
@@ -657,9 +671,10 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       // §M2-1 — the target's model-semantics version is kept (equal to the
       // proposal's, by the gate above); `postGraphDigest` below is projected at
       // that same version, so `dirty` is false right after an Apply.
-      useGraphStore
-        .getState()
-        .loadDoc({ nodes: resultNodes, edges: resultEdges }, g.modelVersion, resultFrames, resultDataImports)
+      useGraphStore.getState().loadDoc(
+        { nodes: resultNodes, edges: resultEdges },
+        { mode: 'revision-apply', modelVersion: g.modelVersion, frames: resultFrames, dataImports: resultDataImports },
+      )
       // the new baseline is the WHOLE post-apply content — `frameStore` /
       // `dataImportStore` now hold the effective values (swapped when
       // `resultFrames` / `resultDataImports` were set, kept otherwise), so read

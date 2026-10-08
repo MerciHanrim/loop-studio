@@ -627,6 +627,9 @@ const ui = {
   'whatsNew.v0212.aligned': 'Dans les nœuds qui affichent une valeur, la valeur et la ligne en dessous commencent désormais au niveau du titre, bien à l’intérieur du contour du nœud.',
   'whatsNew.v0212.wider': 'Un nœud dont la valeur ou la ligne ne tient pas s’élargit un peu ; une ligne trop longue même pour le nœud le plus large est abrégée par « … ».',
   'whatsNew.v0212.same': 'Seul l’affichage change : les valeurs enregistrées, la position des nœuds et les résultats de simulation restent identiques.',
+  'whatsNew.v0213.fresh': 'Un nouveau diagramme commence déverrouillé, et l’ouverture d’un autre diagramme commence avec un historique d’annulation vide.',
+  'whatsNew.v0213.locked': 'Tant que l’édition est verrouillée, rien ne modifie le diagramme : ajouter, insérer, importer des données, Annuler et Rétablir attendent que vous déverrouilliez.',
+  'whatsNew.v0213.shows': 'Le bouton de verrouillage montre désormais son état : un cadenas ouvert quand vous pouvez modifier, un cadenas fermé et mis en évidence quand l’édition est verrouillée.',
 } satisfies Record<UiKey, string>
 
 export default ui

@@ -38,6 +38,7 @@ const canvas = {
   'canvas.minimap.show': 'ミニマップを表示',
   'canvas.lock.lock': '編集をロック — 選択と閲覧は有効なまま',
   'canvas.lock.unlock': '編集をロック解除 — 移動・接続・値の変更ができます',
+  'canvas.lock.name': '編集ロック',
   'canvas.focus.on': 'フォーカス オフ — クリックで選択ノードにフォーカス',
   'canvas.focus.off': 'フォーカス オン — クリックでグラフ全体を表示',
   'canvas.focus.hint': 'フォーカスするノードを選択してください',

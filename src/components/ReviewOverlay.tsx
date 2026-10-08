@@ -12,6 +12,7 @@ import {
   threeWayForPending,
 } from '../store/revisionIO'
 import { useSimStore } from '../store/simStore'
+import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { reviewModel, type ReviewModel } from '../ui/revisionActions'
 import { useArrowGlyph, useT, type MessageKey } from '../i18n'
@@ -293,7 +294,7 @@ function HunkRow({
 }
 
 const FAIL_KEY: Record<
-  Exclude<ApplyFailReason, 'needs-confirmation' | 'target-moved' | 'no-effective-change'>,
+  Exclude<ApplyFailReason, 'needs-confirmation' | 'target-moved' | 'no-effective-change' | 'locked'>,
   MessageKey
 > = {
   'wrong-project': 'review.fail.wrongProject',
@@ -314,6 +315,9 @@ export function ReviewOverlay() {
   const pending = useReviewStore((s) => s.pending)
   const close = useReviewStore((s) => s.close)
   const isMobile = useIsMobile()
+  // #334 — an Apply edits the open document, so it waits for the edit lock to
+  // be lifted; Open as a document (another document) stays available
+  const editLocked = useUiStore((s) => s.canvasLocked)
   const dialogRef = useRef<HTMLDivElement>(null)
   // set once the store has told us a non-`exact` apply needs consent — carries
   // the class + the target digest THAT decision was made against (§R7A.4)
@@ -388,6 +392,7 @@ export function ReviewOverlay() {
       afterMutation()
       return
     }
+    if (res.reason === 'locked') return // #334 — Apply is disabled while locked
     if (res.reason === 'needs-confirmation' || res.reason === 'target-moved') {
       // arm (or re-arm) against the snapshot the store just evaluated
       setArmed({ cls: res.classification ?? 'divergent', digest: res.targetDigest ?? null })
@@ -414,6 +419,7 @@ export function ReviewOverlay() {
       afterMutation()
       return
     }
+    if (res.reason === 'locked') return // #334 — Apply is disabled while locked
     if (res.reason === 'target-moved') {
       // planCtx/sel already re-seed from the fresh plan (deps below) — just say so
       setErr(t('review.err.targetMovedList'))
@@ -517,12 +523,12 @@ export function ReviewOverlay() {
 
       <div className="review__actions">
         {canApply && mode === 'whole' ? (
-          <button type="button" className="btn btn--primary" onClick={doApply}>
+          <button type="button" className="btn btn--primary" onClick={doApply} disabled={editLocked}>
             {armed ? t('review.action.applyAnyway') : t('review.action.applyProposal')}
           </button>
         ) : null}
         {canApply && mode === 'hunks' ? (
-          <button type="button" className="btn btn--primary" onClick={doApplySelected}>
+          <button type="button" className="btn btn--primary" onClick={doApplySelected} disabled={editLocked}>
             {t('review.action.applySelected', { count: selectionCount(sel) })}
           </button>
         ) : null}

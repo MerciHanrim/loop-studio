@@ -27,6 +27,7 @@ const canvas = {
   'canvas.minimap.show': '미니맵 보기',
   'canvas.lock.lock': '편집 잠금 — 선택과 조회는 계속 가능',
   'canvas.lock.unlock': '편집 잠금 해제 — 이동·연결·값 수정 가능',
+  'canvas.lock.name': '편집 잠금',
   'canvas.focus.on': 'Focus 꺼짐 — 눌러서 선택한 노드에 집중',
   'canvas.focus.off': 'Focus 켜짐 — 눌러서 전체 그래프 보기',
   'canvas.focus.hint': '집중해서 볼 노드를 선택하세요',

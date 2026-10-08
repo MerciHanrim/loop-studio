@@ -74,7 +74,7 @@ describe('graphStore.simulationRev', () => {
     expect(bumped(() => useGraphStore.getState().undo())).toBeGreaterThan(0)
     expect(bumped(() => useGraphStore.getState().redo())).toBeGreaterThan(0)
     expect(
-      bumped(() => useGraphStore.getState().loadGraph({ nodes: [], edges: [] })),
+      bumped(() => useGraphStore.getState().loadGraph({ nodes: [], edges: [] }, { canvasLocked: false })),
     ).toBeGreaterThan(0)
     const doc = useGraphStore.getState().exportJSON()
     expect(bumped(() => useGraphStore.getState().loadJSON(doc))).toBeGreaterThan(0)

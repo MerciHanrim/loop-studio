@@ -219,7 +219,13 @@ export function MobileMoreMenu({
     useSimStore.getState().pause()
     // docs/template-label-overlay.md — deep clone + current-locale label overlay
     const { graph, recommendedRunConfig, modelVersion } = openTemplate(tpl)
-    loadGraph(graph, modelVersion, tpl.initialView ?? null, graph.frames) // §MML3 — one bump; MMO frames its early band
+    // §MML3 — one bump; MMO frames its early band. #334 — a document boundary
+    loadGraph(graph, {
+      canvasLocked: recommendedRunConfig?.canvasLocked === true,
+      modelVersion,
+      initialView: tpl.initialView ?? null,
+      frames: graph.frames,
+    })
     useMcStore.getState().applyRecommended(recommendedRunConfig)
     closeOverlay()
   }

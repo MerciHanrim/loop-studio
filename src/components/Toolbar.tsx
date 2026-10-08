@@ -3,6 +3,7 @@ import type { ChangeEvent, DragEvent, RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useReactFlow } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
+import { useUiStore } from '../store/uiStore'
 import type { NodeKind } from '../model/types'
 import { useProjectStore } from '../store/projectStore'
 import { useReviewStore } from '../store/reviewStore'
@@ -109,6 +110,8 @@ export function Toolbar() {
   const redo = useGraphStore((s) => s.redo)
   const canUndo = useGraphStore((s) => s.canUndo)
   const canRedo = useGraphStore((s) => s.canRedo)
+  // #334 — the edit lock: the palette and Undo / Redo change the document
+  const editLocked = useUiStore((s) => s.canvasLocked)
   const { screenToFlowPosition, getViewport, setViewport } = useReactFlow()
   const isMobile = useIsMobile()
   const t = useT()
@@ -471,7 +474,8 @@ export function Toolbar() {
                   }}
                   type="button"
                   className={`chip chip--${p.kind}`}
-                  draggable
+                  draggable={!editLocked}
+                  disabled={editLocked}
                   data-dragging={draggingKind === p.kind ? '' : undefined}
                   onDragStart={(e) => onDragStart(e, p.kind)}
                   onDragEnd={onDragEnd}
@@ -550,7 +554,7 @@ export function Toolbar() {
             type="button"
             className="btn btn--icon"
             onClick={undo}
-            disabled={!canUndo}
+            disabled={!canUndo || editLocked}
             title={t('toolbar.undo.title')}
           >
             <ArrowIcon unit="undo" />
@@ -559,7 +563,7 @@ export function Toolbar() {
             type="button"
             className="btn btn--icon"
             onClick={redo}
-            disabled={!canRedo}
+            disabled={!canRedo || editLocked}
             title={t('toolbar.redo.title')}
           >
             <ArrowIcon unit="redo" />

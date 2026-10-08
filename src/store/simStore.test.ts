@@ -107,7 +107,7 @@ describe('a simulation-relevant graph change discards the pending queue', () => 
 
   it('template swap (loadGraph)', () => {
     armQueue()
-    useGraphStore.getState().loadGraph(TEMPLATES[0].graph)
+    useGraphStore.getState().loadGraph(TEMPLATES[0].graph, { canvasLocked: false })
     expect(sim().triggerQueue).toEqual([])
     expect(sim().stepIndex).toBe(0)
   })

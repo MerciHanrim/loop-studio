@@ -56,7 +56,10 @@ export const ICONS = {
   auto: [c(8, 8, 5.5), p('M8 2.5A5.5 5.5 0 0 1 8 13.5Z', { fill: true })],
   // canvas
   lock: [rect(3.5, 7.5, 9, 6, 1.2), p('M5.5 7.5V5.5A2.5 2.5 0 0 1 10.5 5.5V7.5')],
-  unlock: [rect(3.5, 7.5, 9, 6, 1.2), p('M10.5 7.5V5A2.5 2.5 0 0 0 5.5 5V5.5')],
+  // #335 — swung to the side: the left leg stays in the body, the right end
+  // of the shackle lifts clear of it (a 2 px gap at 1×, measured), so open and
+  // closed differ by silhouette, never by colour alone
+  unlock: [rect(3.5, 7.5, 9, 6, 1.2), p('M5.5 7.5V4.5A2.5 2.5 0 0 1 10.35 3.6')],
   focus: [c(8, 8, 3.5), p('M8 1.5V3.5M8 12.5V14.5M1.5 8H3.5M12.5 8H14.5')],
   trigger: [p('M8 2V14M2 8H14M3.76 3.76L12.24 12.24M12.24 3.76L3.76 12.24', { strokeWidth: 1.5 })],
   // the revision chip

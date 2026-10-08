@@ -383,10 +383,12 @@ test.describe('browser storage is reached through the port only, and only behind
 
     // 2. work in the session: a preference, the example spreadsheet, a theme -
     //    the autosave and the toggles run, and none of it reaches localStorage
+    // (#334 — the data import is an edit, which the lock refuses: import
+    // first, then lock)
+    await importExample(page)
     const lock = page.locator('.react-flow__controls-button.rf-lock')
     await lock.click()
     await expect(lock).toHaveAttribute('aria-pressed', 'true')
-    await importExample(page)
     await page.waitForTimeout(700) // past the 400 ms autosave debounce
     const session = (await take(page, 'session')).filter((c) => c.viaPort || c.viaBoot)
     expect(session.map(brief)).toEqual([['setItem', MODE, 'port']])

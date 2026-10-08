@@ -55,6 +55,47 @@ type Snapshot = { nodes: LoopNode[]; edges: LoopEdge[] }
 export type InsertModuleResult =
   | { ok: true; insertedNodeIds: string[]; promotedToV2: boolean }
   | { ok: false; reason: string }
+/** Issue #334 — what a user-edit action that reports a result returns when the
+ *  edit lock refused it. The UI disables those entry points first, so a caller
+ *  only has to return quietly on it; it is never shown as a message. */
+export type LockedRefusal = { ok: false; reason: 'locked' }
+/** Issue #334 — how a whole-graph load relates to the open document. Required,
+ *  with no default, so a new caller has to say which one it is:
+ *  - `document-boundary`: another document replaces this one (a file, a share
+ *    link, a Workspace, a project revision, Open proposal as document). The
+ *    history is emptied and `canvasLocked` is the NEW document's lock, written
+ *    once as part of the swap.
+ *  - `revision-apply`: the open document is edited in place (SEMANTICS-R.md
+ *    R-INV-8 — one undo entry); refused while the edit lock is on. */
+export type LoadDocOptions = (
+  | { mode: 'document-boundary'; canvasLocked: boolean }
+  | { mode: 'revision-apply' }
+) & {
+  modelVersion?: ModelSemanticsVersion
+  /** LGR Slice 5 — the doc's saved manual frames (already defensively read).
+   *  An array (incl. `[]`) REPLACES `frameStore`; `undefined` KEEPS the
+   *  current frames (a revision Apply that carries no `frames` change must not
+   *  wipe them). Part of this ONE load — no per-frame undo entry (§SF11). */
+  frames?: readonly SavedFrame[]
+  /** `loop-revision/8` — the doc's saved data-import source records (already
+   *  defensively read); same `undefined`-keeps rule as `frames`. */
+  dataImports?: readonly ImportSourceTable[]
+}
+/** a Template load (or a pasted graph) — always a document boundary */
+export type LoadGraphOptions = {
+  /** the Template's own `recommendedRunConfig.canvasLocked === true` */
+  canvasLocked: boolean
+  modelVersion?: ModelSemanticsVersion
+  /** docs/mmo-multilingual-layout.md §MML3 — a menu-opened Template's framing */
+  initialView?: InitialView | null
+  /** docs/template-label-overlay.md §TLO12 — a bundled Template MAY ship group
+   *  frames (already run through `readSavedFrames`). Absent ⇒ `frameStore` is
+   *  cleared. A pasted graph never passes this. */
+  frames?: readonly SavedFrame[]
+  /** `loop-revision/8` — a bundled Template's saved data-import source
+   *  records, if it ever ships any. Absent ⇒ cleared, same posture as `frames`. */
+  dataImports?: readonly ImportSourceTable[]
+}
 /** one undo-history frame: the graph, its `modelVersion`, AND an opaque sidecar
  *  (the loop-revision/1 project header at that instant), so a single undo/redo
  *  restores all of them together even across several Apply / edit steps
@@ -186,7 +227,7 @@ type GraphStore = {
    *  data. Mirrors `insertModule`'s pure-build-then-apply shape:
    *  `buildImportCommit` (pure, includes its own pre-commit collision gate)
    *  runs first and can refuse with `ok:false` before anything changes. */
-  commitDataImport: (plan: ValidatedImportPlan, placement: PlacementChoice) => ImportCommitResult
+  commitDataImport: (plan: ValidatedImportPlan, placement: PlacementChoice) => ImportCommitResult | LockedRefusal
   /** docs/data-import.md §DI11/§DI16 Phase 2 — commit a validated refresh
    *  diff as ONE atomic history entry: every created/updated/removed node
    *  AND the refreshed table's stored record land together, so one Ctrl+Z
@@ -196,7 +237,7 @@ type GraphStore = {
    *  gates) runs first and can refuse with `ok:false` before anything
    *  changes. `newNodeOrigin` mirrors `commitDataImport`'s own
    *  `PlacementChoice.origin` — the current viewport centre. */
-  commitRefresh: (plan: RefreshDiffPlan, resolution: RefreshResolution, newNodeOrigin: XY) => RefreshCommitResult
+  commitRefresh: (plan: RefreshDiffPlan, resolution: RefreshResolution, newNodeOrigin: XY) => RefreshCommitResult | LockedRefusal
   /** §DI-D19 item 2 — rename a bound table's display `label` and recompose
    *  every `labelAutoComposed: true` Parameter that draws on it (this
    *  table's own, via §DI10's 4th label constituent) as ONE atomic Undo
@@ -204,7 +245,7 @@ type GraphStore = {
    *  `validateDrafts`'s own storage rules (`empty-table-name`/
    *  `label-too-long`) — a rename path must never store a name first import
    *  could never have produced. */
-  renameDataImportTable: (id: string, newLabel: string) => { ok: true } | { ok: false; reason: 'empty-table-name' | 'label-too-long' }
+  renameDataImportTable: (id: string, newLabel: string) => { ok: true } | { ok: false; reason: 'empty-table-name' | 'label-too-long' } | LockedRefusal
   updateNodeData: (id: string, patch: Record<string, unknown>) => void
   setEdgeData: (id: string, data: LoopEdgeData) => void
   /** docs/flow-colour-and-compact-nodes.md FC-2.4 — set (`#RRGGBB` in any
@@ -215,35 +256,12 @@ type GraphStore = {
   removeNode: (id: string) => void
   removeEdge: (id: string) => void
   setSelection: (nodeId: string | null, edgeId: string | null) => void
+  /** a new, empty document: a document boundary, unlocked (#334) */
   newGraph: () => void
-  loadGraph: (
-    snapshot: Snapshot,
-    modelVersion?: ModelSemanticsVersion,
-    initialView?: InitialView | null,
-    /** docs/template-label-overlay.md §TLO12 — a bundled Template MAY ship group
-     *  frames (already run through `readSavedFrames`). Absent / undefined ⇒
-     *  `frameStore` is cleared, exactly as before (#4A). A pasted graph never
-     *  passes this. */
-    frames?: readonly SavedFrame[],
-    /** `loop-revision/8` — a bundled Template's saved data-import source
-     *  records (already run through `readDataImports`), if it ever ships any.
-     *  Absent / undefined ⇒ cleared, same posture as `frames`. */
-    dataImports?: readonly ImportSourceTable[],
-  ) => void
-  loadDoc: (
-    doc: { nodes: LoopNode[]; edges: LoopEdge[] },
-    modelVersion?: ModelSemanticsVersion,
-    /** LGR Slice 5 — the doc's saved manual frames (already defensively read).
-     *  Absent ⇒ `[]`. Loaded into `frameStore` as part of this ONE `loadDoc`
-     *  (no separate undo entry — §SF11). */
-    frames?: readonly SavedFrame[],
-    /** `loop-revision/8` — the doc's saved data-import source records
-     *  (already defensively read). `undefined` KEEPS the current records (a
-     *  revision Apply that carries no `dataImports` change must not wipe
-     *  them), same posture as `frames`. */
-    dataImports?: readonly ImportSourceTable[],
-  ) => void
-  /** returns the file's `recommendedRunConfig` (if any) for the caller to apply */
+  loadGraph: (snapshot: Snapshot, opts: LoadGraphOptions) => void
+  loadDoc: (doc: { nodes: LoopNode[]; edges: LoopEdge[] }, opts: LoadDocOptions) => void
+  /** a document boundary (#334); returns the file's `recommendedRunConfig` (if
+   *  any) for the caller to apply — its lock is already applied */
   loadJSON: (text: string) => RecommendedRunConfig | undefined
   exportJSON: (recommendedRunConfig?: RecommendedRunConfig) => string
 }
@@ -342,6 +360,41 @@ export function setFrameHistorySidecar(s: FrameSidecar | null): void {
  *  mirroring `setFrameHistorySidecar`. */
 export function setDataImportHistorySidecar(s: Sidecar | null): void {
   dataImportSidecar = s
+}
+// Issue #334 — the Canvas edit lock (docs/canvas-edit-lock.md). This store
+// cannot import `uiStore` (uiStore → mcStore → graphStore would be a cycle), so
+// `editPolicy.ts` registers here, the way the history sidecars do: the guard
+// that blocks every user edit while the canvas is locked, and the sink a
+// document replacement writes the new document's lock through. Unregistered (a
+// bare store in a unit test) ⇒ nothing is blocked and nothing is written.
+let editGuard: () => boolean = () => false
+let documentLockSink: ((locked: boolean) => void) | null = null
+export function setEditGuard(fn: (() => boolean) | null): void {
+  editGuard = fn ?? (() => false)
+}
+export function setDocumentLockSink(fn: ((locked: boolean) => void) | null): void {
+  documentLockSink = fn
+}
+/** true while the edit lock blocks user edits; `frameStore` and `projectStore`
+ *  ask before their own document changes */
+export function isEditBlocked(): boolean {
+  return editGuard()
+}
+/** #334 — a React Flow `replace` change that differs from the current element
+ *  ONLY in `selected` (what `setNodes((ns) => ns.map(n => ({ ...n, selected })))`
+ *  produces): a selection, which the edit lock lets through */
+function selectionOnlyReplace(
+  c: { type: string; id?: string; item?: unknown },
+  current: readonly { id: string }[],
+): boolean {
+  if (c.type !== 'replace' || !c.item) return false
+  const cur = current.find((x) => x.id === c.id) as Record<string, unknown> | undefined
+  if (!cur) return false
+  const next = c.item as Record<string, unknown>
+  const keys = new Set([...Object.keys(cur), ...Object.keys(next)])
+  keys.delete('selected')
+  for (const k of keys) if (!Object.is(cur[k], next[k])) return false
+  return true
 }
 // docs/bundled-module-label-localization.md §MLS3.2 — `m` rides along on the
 // SAME sidecar bundle as `p`/`f`/`d`, purely in-memory (never serialize()d),
@@ -601,6 +654,19 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     set({ simulationRev: get().simulationRev + 1 })
   }
 
+  /** Issue #334 — entering another document (New, a Template, a file, a share
+   *  link, a Workspace, a project revision, Open proposal as document). The new
+   *  document's lock is written first, once, as its FINAL value: a locked
+   *  Template or file stays locked throughout, a document without one unlocks;
+   *  there is no unlock-then-relock. Returns the history reset for the caller's
+   *  one `set` of the new graph, so Undo can never cross into the previous
+   *  document. One synchronous pass: nothing renders or autosaves in between. */
+  const enterDocument = (canvasLocked: boolean) => {
+    documentLockSink?.(canvasLocked)
+    lastTag = ''
+    return { past: [], future: [], canUndo: false, canRedo: false, pristineSample: false }
+  }
+
   return {
     commitHistory: (tag, framesOverride) => commit(tag, framesOverride),
     notifyFrameChange: () => persist(),
@@ -611,6 +677,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       return entry as unknown as GestureSnapshot
     },
     pushGestureEntry: (snapshot) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
       lastTag = '' // the next node drag / edit starts its own entry
       clearPristine()
       set({
@@ -621,6 +688,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       })
     },
     applyGesturePositions: (positions, waypoints) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
       const nIds = Object.keys(positions)
       const eIds = Object.keys(waypoints)
       if (nIds.length === 0 && eIds.length === 0) return
@@ -659,6 +727,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     canRedo: false,
 
     undo: () => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
       const { past, future, nodes, edges, modelVersion } = get()
       if (!past.length) return
       const prev = past[past.length - 1]
@@ -682,6 +751,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     redo: () => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
       const { past, future, nodes, edges, modelVersion } = get()
       if (!future.length) return
       const next = future[0]
@@ -704,7 +774,15 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       restoreSidecar(next.sidecar) // restore the project header + saved frames this entry carried
     },
 
-    onNodesChange: (changes) => {
+    onNodesChange: (all) => {
+      // #334 — while locked, selection and size measurements still apply;
+      // a move, add, remove or replace does not (a `replace` that only flips
+      // `selected` — React Flow's `setNodes` from a panel's reveal — is a
+      // selection, and passes)
+      const changes = editGuard()
+        ? all.filter((c) => c.type === 'select' || c.type === 'dimensions' || selectionOnlyReplace(c, get().nodes))
+        : all
+      if (changes.length === 0 && all.length > 0) return
       const dragging = changes.some((c) => c.type === 'position' && c.dragging)
       const settled = changes.some((c) => c.type === 'position' && c.dragging === false)
       const removed = changes.some((c) => c.type === 'remove')
@@ -719,7 +797,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       persist()
     },
 
-    onEdgesChange: (changes) => {
+    onEdgesChange: (all) => {
+      const changes = editGuard() ? all.filter((c) => c.type === 'select' || selectionOnlyReplace(c, get().edges)) : all // #334 — see onNodesChange
+      if (changes.length === 0 && all.length > 0) return
       const removed = changes.some((c) => c.type === 'remove')
       if (removed) commit('remove')
       set({ edges: applyEdgeChanges(changes, get().edges) })
@@ -728,6 +808,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     onConnect: (conn) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
       if (!conn.source || !conn.target) return
       const viaState =
         conn.sourceHandle?.startsWith('state') || conn.targetHandle?.startsWith('state')
@@ -762,6 +843,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     addNodeAt: (kind, position) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
       commit('')
       // docs/localization.md §L3.4a — the name is resolved for the CURRENT UI
       // language at placement, then de-duplicated against the graph's display
@@ -783,6 +865,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     updateNodeData: (id, patch) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
       commit(`data:${id}`)
       // docs/bundled-module-label-localization.md §MLS3.1 (revision 3) —
       // detach EAGERLY, right here at the actual edit, never deferred to the
@@ -811,6 +894,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     setAccent: (nodeIds, edgeIds, accent) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
       const value = accent == null ? undefined : readAccent(accent)
       if (accent != null && value === undefined) return
       const nodeSet = new Set(nodeIds)
@@ -835,6 +919,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     setEdgeData: (id, data) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
       commit(`edge:${id}`)
       const before = get().edges.find((e) => e.id === id)?.data as Record<string, unknown> | undefined
       set({ edges: get().edges.map((e) => (e.id === id ? { ...e, data } : e)) })
@@ -885,6 +970,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     removeNode: (id) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
       commit('')
       set({
         nodes: get().nodes.filter((n) => n.id !== id),
@@ -896,6 +982,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     removeEdge: (id) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
       commit('')
       set({ edges: get().edges.filter((e) => e.id !== id), selectedEdgeId: null })
       bump()
@@ -905,11 +992,11 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     setSelection: (nodeId, edgeId) => set({ selectedNodeId: nodeId, selectedEdgeId: edgeId }),
 
     newGraph: () => {
-      commit('')
-      lastTag = ''
+      const fresh = enterDocument(false) // #334 — a new document starts unlocked
       dropProjectHeader()
       clearModuleProvenance() // docs/bundled-module-label-localization.md §MLS4.2
       set({
+        ...fresh,
         nodes: [],
         edges: [],
         selectedNodeId: null,
@@ -928,14 +1015,14 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       persist()
     },
 
-    loadGraph: (snapshot, modelVersion = 1, initialView = null, frames, dataImports) => {
+    loadGraph: (snapshot, { canvasLocked, modelVersion = 1, initialView = null, frames, dataImports }) => {
       // templates and pasted graphs go through the same handle/field backfill
       const { nodes, edges } = normalizeGraph(snapshot)
-      commit('')
-      lastTag = ''
+      const fresh = enterDocument(canvasLocked)
       dropProjectHeader()
       clearModuleProvenance() // docs/bundled-module-label-localization.md §MLS4.2
       set({
+        ...fresh,
         nodes,
         edges,
         selectedNodeId: null,
@@ -958,25 +1045,32 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     loadJSON: (text) => {
       const { nodes, edges, recommendedRunConfig, modelVersion, frames, dataImports } = deserialize(text)
-      get().loadDoc({ nodes, edges }, modelVersion, frames, dataImports)
+      get().loadDoc(
+        { nodes, edges },
+        { mode: 'document-boundary', canvasLocked: recommendedRunConfig?.canvasLocked === true, modelVersion, frames, dataImports },
+      )
       return recommendedRunConfig
     },
 
     /** load already-deserialized (and normalized) nodes/edges — one `bump()`.
-     *  Used by `loadJSON`, the Workspace importer, and revision Apply so the
-     *  whole restore is a single `simulationRev` step (SEMANTICS-W.md §W5.1).
-     *  LGR Slice 5 — `frames`: an array (incl. `[]`) REPLACES `frameStore` with
-     *  the doc's saved frames; `undefined` KEEPS the current frames (a revision
-     *  Apply that carries no `frames` change must not wipe them). Either way
-     *  this is part of the ONE `loadDoc` history entry — no per-frame undo
-     *  entry (§SF11). `dataImports` (`loop-revision/8`) follows the exact same
-     *  rule. */
-    loadDoc: ({ nodes, edges }, modelVersion = 1, frames, dataImports) => {
-      commit('')
-      lastTag = ''
+     *  Used by `loadJSON`, the Workspace importer, the share link, the project
+     *  revision paths and revision Apply, so the whole restore is a single
+     *  `simulationRev` step (SEMANTICS-W.md §W5.1). `opts.mode` (#334) says
+     *  whether this is another document (empty history, its own lock) or a
+     *  revision Apply on this one (one undo entry, refused while locked). */
+    loadDoc: ({ nodes, edges }, opts) => {
+      const { modelVersion = 1, frames, dataImports } = opts
+      let history: ReturnType<typeof enterDocument> | null = null
+      if (opts.mode === 'document-boundary') history = enterDocument(opts.canvasLocked)
+      else {
+        if (editGuard()) return // #334 — a revision Apply is an edit
+        commit('')
+        lastTag = ''
+      }
       dropProjectHeader()
       clearModuleProvenance() // docs/bundled-module-label-localization.md §MLS4.2
       set({
+        ...(history ?? {}),
         nodes,
         edges,
         selectedNodeId: null,
@@ -992,6 +1086,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     insertModule: (mod, opts) => {
+      if (editGuard()) return { ok: false, reason: 'locked' } // #334 — the edit lock
       const g = get()
       const built = insertGraph(
         { nodes: g.nodes, edges: g.edges, modelVersion: g.modelVersion },
@@ -1045,6 +1140,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     commitDataImport: (plan, placement) => {
+      if (editGuard()) return { ok: false, reason: 'locked' } // #334 — the edit lock
       const g = get()
       const existingFrames = (frameSidecar?.get() as SavedFrame[] | null) ?? []
       const existingTables = (dataImportSidecar?.get() as ImportSourceTable[] | null) ?? []
@@ -1061,6 +1157,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     commitRefresh: (plan, resolution, newNodeOrigin) => {
+      if (editGuard()) return { ok: false, reason: 'locked' } // #334 — the edit lock
       const g = get()
       const existingFrames = (frameSidecar?.get() as SavedFrame[] | null) ?? []
       const existingTables = (dataImportSidecar?.get() as ImportSourceTable[] | null) ?? []
@@ -1089,6 +1186,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     renameDataImportTable: (id, newLabel) => {
+      if (editGuard()) return { ok: false, reason: 'locked' } // #334 — the edit lock
       if (newLabel.trim() === '') return { ok: false, reason: 'empty-table-name' }
       if (newLabel.length > DI_LABEL_MAX) return { ok: false, reason: 'label-too-long' }
       const existingTables = (dataImportSidecar?.get() as ImportSourceTable[] | null) ?? []

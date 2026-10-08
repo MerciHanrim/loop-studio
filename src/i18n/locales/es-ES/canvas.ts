@@ -50,6 +50,7 @@ const canvas = {
   'canvas.minimap.show': 'Mostrar el minimapa',
   'canvas.lock.lock': 'Bloquear la edición: seleccionar y leer siguen activos',
   'canvas.lock.unlock': 'Desbloquear la edición: mover, conectar y cambiar valores',
+  'canvas.lock.name': 'Bloqueo de edición',
   'canvas.focus.on': 'Enfoque desactivado: haga clic para enfocar el nodo seleccionado',
   'canvas.focus.off': 'Enfoque activado: haga clic para mostrar todo el grafo',
   'canvas.focus.hint': 'Seleccione un nodo para enfocarlo',

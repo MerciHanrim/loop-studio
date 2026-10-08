@@ -57,6 +57,7 @@ const canvas = {
   'canvas.minimap.show': 'Mostra la minimappa',
   'canvas.lock.lock': 'Blocca le modifiche — selezione e lettura restano attive',
   'canvas.lock.unlock': 'Sblocca le modifiche — sposta, collega e cambia i valori',
+  'canvas.lock.name': 'Blocco delle modifiche',
   'canvas.focus.on': 'Messa a fuoco disattivata — fai clic per mettere a fuoco il nodo selezionato',
   'canvas.focus.off': 'Messa a fuoco attiva — fai clic per mostrare tutto il grafo',
   'canvas.focus.hint': 'Seleziona un nodo da mettere a fuoco',

@@ -43,6 +43,7 @@ const canvas = {
   'canvas.minimap.show': 'Afficher la miniature',
   'canvas.lock.lock': 'Verrouiller l’édition — la sélection et la lecture restent actives',
   'canvas.lock.unlock': 'Déverrouiller l’édition — déplacer, connecter et modifier les valeurs',
+  'canvas.lock.name': 'Verrouillage de l’édition',
   'canvas.focus.on': 'Focus désactivé — cliquez pour cibler le nœud sélectionné',
   'canvas.focus.off': 'Focus activé — cliquez pour afficher tout le graphe',
   'canvas.focus.hint': 'Sélectionnez un nœud à cibler',

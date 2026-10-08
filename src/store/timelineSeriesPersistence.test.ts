@@ -62,7 +62,7 @@ beforeEach(() => {
   useMcStore.getState().clear()
   useSimStore.getState().reset()
   useGraphStore.getState().newGraph()
-  useGraphStore.getState().loadDoc({ nodes: NODES, edges: EDGES })
+  useGraphStore.getState().loadDoc({ nodes: NODES, edges: EDGES }, { mode: 'document-boundary', canvasLocked: false })
   useProjectStore.setState({ open: null, dirty: false, activePlanId: null })
   sim().setTimelineSeries(undefined)
   localStorage.clear()
@@ -234,7 +234,7 @@ describe('§3.2 — hydration adds no immediate autosave; the scheduled save car
   it.each(STATES)(
     '$label: applyRecommended writes the graph record 0 times; the ONE debounced save then holds $onDisk',
     ({ set, onDisk }) => {
-      useGraphStore.getState().loadDoc({ nodes: NODES, edges: EDGES }) // schedules the debounced save
+      useGraphStore.getState().loadDoc({ nodes: NODES, edges: EDGES }, { mode: 'document-boundary', canvasLocked: false }) // schedules the debounced save
       const spy = vi.spyOn(localStorage, 'setItem')
       useMcStore.getState().applyRecommended(set === 'auto' ? {} : { timelineSeries: set })
       expect(graphWrites(spy), 'immediate graph-record writes caused by hydration').toBe(0)

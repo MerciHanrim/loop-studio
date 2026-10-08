@@ -140,7 +140,18 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.21.2
+## Latest — v0.21.3
+
+A fix release: the edit lock is exact, and its button shows the state.
+
+- **A new document starts unlocked**, and every other one brings its own lock and an empty
+  undo history, so Undo never goes back into the previous document
+- **While locked, nothing edits the document**: the palette, Insert module, Undo, Redo and
+  the data import wait; selecting, viewing, running and exporting stay available
+- **The lock button reads at a glance**: an open padlock when you can edit, a closed,
+  highlighted one when editing is locked
+
+## v0.21.2
 
 A fix release: values and detail rows sit inside their node.
 
@@ -170,19 +181,8 @@ Compact nodes: more of a large graph fits in view.
 - **Nothing in a file changes**: positions, saved diagrams and simulation results stay the
   same; connections attach a few pixels higher
 
-## v0.20.0
-
-Flow colours beyond the canvas.
-
-- **The minimap and the timeline** show a coloured node in its colour; a coloured Pool or
-  Register draws its timeline line in it, and every other series keeps its own
-- **Three templates in colour**: Coffee roastery, the gacha banner and early MMO open with
-  three colours on their main flows; their results are unchanged
-- **Each colour once** in the Inspector: Recent and In this document leave out the colours
-  already shown above them
-- **On a phone**, the read-only Inspector shows a colour as one line: a dot, its name and hex
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.19.0 (flow
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.20.0 (flow
+colours in the minimap and the timeline), v0.19.0 (flow
 colours on nodes and connections), v0.18.2 (the
 guided tour says each step once), v0.18.1 (one
 keyboard contract for every menu), v0.18.0 (the third-party open-source licenses in the About dialog), v0.17.2 (the

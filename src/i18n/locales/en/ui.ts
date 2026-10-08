@@ -542,6 +542,9 @@ const ui = {
   'whatsNew.v0212.aligned': 'In nodes that show a value, the value and the line under it now start where the title starts, well inside the node’s outline.',
   'whatsNew.v0212.wider': 'A node whose value or line would not fit grows a little wider; a line too long even for the widest node is cut short with “…”.',
   'whatsNew.v0212.same': 'Only the display changes: stored values, node positions and simulation results stay the same.',
+  'whatsNew.v0213.fresh': 'A new diagram starts unlocked, and opening another diagram starts with an empty undo history.',
+  'whatsNew.v0213.locked': 'While editing is locked, nothing changes the diagram: adding, inserting, importing data, Undo and Redo all wait until you unlock it.',
+  'whatsNew.v0213.shows': 'The lock button now shows its state: an open padlock while you can edit, a closed, highlighted padlock while editing is locked.',
 } as const
 
 export type UiKey = keyof typeof ui

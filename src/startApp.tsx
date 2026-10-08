@@ -5,6 +5,7 @@ import { rowFitMeasureCount } from './components/nodes/rowFit'
 import { directionOf, initI18n, useI18n } from './i18n'
 import * as share from './model/share'
 import { flushAutosave, useGraphStore } from './store/graphStore'
+import './store/editPolicy' // #334 — registers the edit-lock guard on the document stores
 import { useAutosaveStore } from './store/autosaveStore'
 import { useMcStore } from './store/mcStore'
 import { useProjectStore } from './store/projectStore'

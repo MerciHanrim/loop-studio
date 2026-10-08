@@ -38,6 +38,7 @@ const canvas = {
   'canvas.minimap.show': 'Minikaart tonen',
   'canvas.lock.lock': 'Bewerken vergrendelen — selecteren en lezen blijven aan',
   'canvas.lock.unlock': 'Bewerken ontgrendelen — verplaatsen, verbinden en waarden wijzigen',
+  'canvas.lock.name': 'Bewerkvergrendeling',
   'canvas.focus.on': 'Focus uit — klik om op het geselecteerde knooppunt te focussen',
   'canvas.focus.off': 'Focus aan — klik om het hele diagram te tonen',
   'canvas.focus.hint': 'Selecteer een knooppunt om op te focussen',

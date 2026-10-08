@@ -33,6 +33,15 @@ async function setLocale(page: Page, code: string) {
 // Templates ▾ is the first `.menu` in the toolbar actions (locale-agnostic).
 const templatesBtn = (page: Page) =>
   page.locator('.toolbar__actions .menu').first().locator('> button')
+/** #334 — the MMO template opens edit-locked, and the lock now refuses every
+ *  user edit at the store too; a test that edits it lifts the lock first, the
+ *  way a user has to. */
+async function unlockCanvas(page: Page) {
+  const lock = page.locator('.react-flow__controls-button.rf-lock')
+  if ((await lock.getAttribute('aria-pressed')) === 'true') await lock.click()
+  await expect(lock).toHaveAttribute('aria-pressed', 'false')
+}
+
 async function pickTemplate(page: Page, hasText: string) {
   await templatesBtn(page).click()
   await page
@@ -67,6 +76,7 @@ test.describe('template label overlay', () => {
     expect(l).not.toContain('Level')
 
     // the user renames the `gold` node to something of their own
+    await unlockCanvas(page)
     await page.evaluate(() => {
       const gs = (window as unknown as { __loop: Loop }).__loop.graph.getState()
       const gold = gs.nodes.find((n: any) => n.id === 'gold')
@@ -227,6 +237,7 @@ test.describe('template label overlay', () => {
     await setLocale(page, 'ko')
     await pickTemplate(page, MMO_KO)
     expect(await labels(page)).toContain('레벨')
+    await unlockCanvas(page)
     await page.evaluate(() => {
       const gs = (window as unknown as { __loop: Loop }).__loop.graph.getState()
       const gold = gs.nodes.find((n: any) => n.id === 'gold')
@@ -313,6 +324,7 @@ test.describe('official template label — locale switch (§TLO11)', () => {
     await pickTemplate(page, MMO_EN)
 
     // rename one official node to exactly "<label> 2" and add a brand-new node
+    await unlockCanvas(page)
     await rename(page, 'gold', 'Gold 2')
     await page.evaluate(() => {
       const gs = (window as unknown as { __loop: Loop }).__loop.graph.getState()
@@ -396,7 +408,7 @@ test.describe('official template label — locale switch (§TLO11)', () => {
           { id: 'sample-pool', type: 'pool', position: { x: 200, y: 0 }, data: { kind: 'pool', label: 'Gold', activation: 'passive', initial: 5, mode: 'pullAny' } },
         ],
         edges: [],
-      })
+      }, { canvasLocked: false })
     })
     await setLocale(page, 'ko')
     expect((await labels(page)).sort()).toEqual(['Faucet', 'Gold'])
@@ -700,6 +712,7 @@ test.describe('official template label — locale switch (§TLO11)', () => {
     await setLocale(page, 'ko')
     await pickTemplate(page, MMO_KO)
     await page.evaluate(() => document.fonts.ready)
+    await unlockCanvas(page) // the delete below is a user edit
 
     // 'quest_payout' is one of the nodes whose measured height actually
     // changes on a ko → en switch (confirmed instrumented during the

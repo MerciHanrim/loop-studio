@@ -3,6 +3,7 @@ import { useReactFlow } from '@xyflow/react'
 import { BUNDLED_MODULES, cloneModuleDoc } from '../model/modules'
 import type { GraphDocLike } from '../model/moduleGraph'
 import { useGraphStore } from '../store/graphStore'
+import { useUiStore } from '../store/uiStore'
 import { planSelectionAsModule, readModuleFile } from '../store/moduleIO'
 import { useI18n, useT } from '../i18n'
 import { moduleLabelOverlay } from '../i18n/moduleLabels'
@@ -55,6 +56,9 @@ export function ModuleMenu({
   const btnRef = useRef<HTMLButtonElement>(null)
   const popRef = useRef<HTMLDivElement>(null)
   const insertModule = useGraphStore((s) => s.insertModule)
+  // #334 — inserting edits the document; saving the selection as a module
+  // (an export) stays available while locked
+  const editLocked = useUiStore((s) => s.canvasLocked)
   const { screenToFlowPosition } = useReactFlow()
 
   useOutsideDismiss(open, wrapRef, () => setOpen(false))
@@ -203,7 +207,8 @@ export function ModuleMenu({
               type="button"
               className="menu__item"
               role="menuitem"
-              draggable
+              disabled={editLocked}
+              draggable={!editLocked}
               onDragStart={(e) => {
                 e.dataTransfer.setData(MODULE_DND_TYPE, m.id)
                 e.dataTransfer.effectAllowed = 'copy'
@@ -214,7 +219,7 @@ export function ModuleMenu({
               <span className="menu__blurb">{t(MODULE_KEY[m.id as keyof typeof MODULE_KEY].blurb)}</span>
             </button>
           ))}
-          <button type="button" className="menu__item" role="menuitem" onClick={pickFile}>
+          <button type="button" className="menu__item" role="menuitem" onClick={pickFile} disabled={editLocked}>
             <span className="menu__name">{t('modules.fromFile')}</span>
           </button>
           <button type="button" className="menu__item" role="menuitem" onClick={extract}>

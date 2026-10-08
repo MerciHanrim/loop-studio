@@ -157,7 +157,7 @@ describe('Slice 1 — CAS revalidation & audit of committed-state / engine-input
       { name: 'undo', run: () => { const id = graph().nodes.find((n) => n.data.kind === 'pool')!.id; graph().updateNodeData(id, { capacity: 8 }); graph().undo() } },
       { name: 'redo', run: () => { const id = graph().nodes.find((n) => n.data.kind === 'pool')!.id; graph().updateNodeData(id, { capacity: 8 }); graph().undo(); graph().redo() } },
       { name: 'import (loadJSON)', run: () => graph().loadJSON(serialize(graph().nodes, graph().edges)) },
-      { name: 'template swap (loadGraph)', run: () => graph().loadGraph(TEMPLATES[0].graph) },
+      { name: 'template swap (loadGraph)', run: () => graph().loadGraph(TEMPLATES[0].graph, { canvasLocked: false }) },
       { name: 'restoreSnapshot', run: () => sim().restoreSnapshot({ seed: null, step: 0, ended: false, values: {}, fired: [], triggerQueue: [], stateEvents: [], series: [] }) },
       { name: 'setSeed', run: () => sim().setSeed(sim().seed + 1) },
     ]

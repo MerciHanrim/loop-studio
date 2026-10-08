@@ -472,58 +472,49 @@ test('[P1] a user rename to another locale\'s official string is preserved throu
   expect((await gs(page)).nodes.find((n) => n.id === supply.id)!.data?.label).toBe('공급원')
 })
 
-test('[P1] insert -> New -> Undo -> a locale switch still syncs the restored instance', async ({ page }) => {
+// Issue #334 — New, a file (loadDoc via loadJSON) and a Template-style load
+// (loadGraph) are document BOUNDARIES: the history starts empty, so Undo can
+// never bring the inserted module back. (Before #334 each was undoable and the
+// [P1] review-round-2 tests here checked a locale switch after that Undo; that
+// path no longer exists. The history-aware provenance sidecar is still covered
+// below through the one in-place whole-graph load left, a revision Apply.)
+test('#334 New, a file and a Template-style load are document boundaries: Undo cannot bring the inserted module back', async ({ page }) => {
+  for (const which of ['New', 'a file', 'a Template-style load'] as const) {
+    await resetAll(page)
+    const before = await gs(page)
+    await insertViaMenu(page, 'en', 'buffered-step')
+    await page.evaluate((w) => {
+      const l = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      const g = l.graph.getState()
+      if (w === 'New') g.newGraph()
+      else if (w === 'a file') {
+        l.mc.getState().applyRecommended(g.loadJSON(JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes: [], edges: [] })))
+      } else {
+        g.loadGraph(
+          { nodes: [{ id: 'tpl_1', type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool', label: 'Template pool', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } }], edges: [] },
+          { canvasLocked: false },
+        )
+      }
+    }, which)
+    const after = await gs(page)
+    expect(after.past, which).toHaveLength(0)
+    expect(after.future, which).toHaveLength(0)
+    await page.evaluate(() => (window as any).__loop.graph.getState().undo())
+    expect(labelsOf(await gs(page), before), which).toEqual(labelsOf(after, before))
+  }
+})
+
+test('[P1] insert -> a revision Apply (in place) -> Undo -> a locale switch still syncs the restored instance', async ({ page }) => {
   await resetAll(page)
   const before = await gs(page)
   await insertViaMenu(page, 'en', 'buffered-step')
 
-  await page.evaluate(() => (window as any).__loop.graph.getState().newGraph())
+  // the in-place whole-graph load of a revision Apply clears the live
+  // provenance but keeps one undo entry carrying it (§MLS3.2)
+  await page.evaluate(() =>
+    (window as any).__loop.graph.getState().loadDoc({ nodes: [], edges: [] }, { mode: 'revision-apply' }),
+  )
   expect((await gs(page)).nodes).toHaveLength(0)
-
-  await page.evaluate(() => (window as any).__loop.graph.getState().undo())
-  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].en].sort())
-
-  await setLocale(page, 'ko')
-  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].ko].sort())
-})
-
-test('[P1] insert -> loadDoc (Import) -> Undo -> a locale switch still syncs the restored instance', async ({ page }) => {
-  await resetAll(page)
-  const before = await gs(page)
-  await insertViaMenu(page, 'en', 'reward-split')
-
-  // Import replaces the whole document via loadDoc — a real "start fresh"
-  // point (§MLS4.2), just like New
-  await page.evaluate(() => {
-    const l = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
-    l.mc.getState().applyRecommended(
-      l.graph.getState().loadJSON(
-        JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes: [], edges: [] }),
-      ),
-    )
-  })
-  expect((await gs(page)).nodes).toHaveLength(0)
-
-  await page.evaluate(() => (window as any).__loop.graph.getState().undo())
-  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['reward-split'].en].sort())
-
-  await setLocale(page, 'ja')
-  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['reward-split'].ja].sort())
-})
-
-test('[P1] insert -> loadGraph (Template-style load) -> Undo -> a locale switch still syncs the restored instance', async ({ page }) => {
-  await resetAll(page)
-  const before = await gs(page)
-  await insertViaMenu(page, 'en', 'buffered-step')
-
-  await page.evaluate(() => {
-    const g = (window as unknown as { __loop: { graph: { getState: () => any } } }).__loop.graph.getState()
-    g.loadGraph({
-      nodes: [{ id: 'tpl_1', type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool', label: 'Template pool', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } }],
-      edges: [],
-    })
-  })
-  expect((await gs(page)).nodes.map((n) => n.data?.label)).toEqual(['Template pool'])
 
   await page.evaluate(() => (window as any).__loop.graph.getState().undo())
   expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].en].sort())

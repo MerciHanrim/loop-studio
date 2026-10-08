@@ -271,10 +271,13 @@ test.describe('the two deletions', () => {
   test('personal: Delete work data removes the document record; the author record and the preferences stay; the canvas is emptied and what is autosaved afterwards holds none of the old diagram', async ({ page }) => {
     await openWithOneNode(page)
     await labelTheWork(page)
-    // the author record and a preference, to prove they stay
+    // the author record and a preference, to prove they stay. (#334 — the
+    // Canvas edit lock is not that preference any more: the emptied canvas is a
+    // new document, and a new document starts unlocked; see
+    // document-boundary.spec.ts.)
     await page.evaluate(() => {
       localStorage.setItem('loop-studio:author', JSON.stringify({ name: 'Keep Me' }))
-      localStorage.setItem('loop-studio:canvas-locked', '1')
+      localStorage.setItem('loop-studio:focus-mode', '1')
     })
     await openStorageArea(page)
     await expect(dialog(page).locator('[data-storage-action="delete-work"]')).toBeVisible()
@@ -288,7 +291,7 @@ test.describe('the two deletions', () => {
     await page.waitForTimeout(600) // the autosave of the emptied canvas
     const after = Object.fromEntries((await stored(page)) as [string, string][])
     expect(after['loop-studio:author']).toBe(JSON.stringify({ name: 'Keep Me' }))
-    expect(after['loop-studio:canvas-locked']).toBe('1')
+    expect(after['loop-studio:focus-mode']).toBe('1')
     expect(after[MODE]).toBe('personal')
     // the record is gone, or it is the emptied canvas: in neither case does any
     // of the old diagram survive - the key may come back, the data may not
