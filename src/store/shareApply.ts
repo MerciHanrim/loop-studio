@@ -34,8 +34,16 @@ export function applySharedGraph(parsed: ReturnType<typeof deserialize>): void {
   // current document's" (`loadDoc`'s revision-Apply posture), which carried
   // the PREVIOUS document's frames and data-import records into the shared
   // graph — and into its next Export / digest — while dropping the link's own.
-  useGraphStore
-    .getState()
-    .loadDoc({ nodes: parsed.nodes, edges: parsed.edges }, parsed.modelVersion, parsed.frames, parsed.dataImports) // the ONE bump
+  // #334 — another document: empty history, the link's own lock
+  useGraphStore.getState().loadDoc(
+    { nodes: parsed.nodes, edges: parsed.edges },
+    {
+      mode: 'document-boundary',
+      canvasLocked: parsed.recommendedRunConfig?.canvasLocked === true,
+      modelVersion: parsed.modelVersion,
+      frames: parsed.frames,
+      dataImports: parsed.dataImports,
+    },
+  ) // the ONE bump
   useMcStore.getState().applyRecommended(parsed.recommendedRunConfig)
 }

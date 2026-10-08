@@ -29,7 +29,7 @@ async function seed(page: Page, canvasLocked?: boolean) {
         { id: 'e1', source: 'src', target: 'p1', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '1' } },
         { id: 'e2', source: 'p1', target: 'snk', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '1' } },
       ],
-    })
+    }, { mode: 'document-boundary', canvasLocked: locked === true })
     l.mc.getState().applyRecommended(locked === undefined ? {} : { canvasLocked: locked })
   }, canvasLocked)
 }
@@ -185,7 +185,7 @@ test.describe('Canvas edit-lock', () => {
       const round = serM.deserialize(await shareM.decodeShareText(payload))
       g().newGraph()
       l.ui.getState().setCanvasLocked(false)
-      g().loadDoc({ nodes: round.nodes, edges: round.edges })
+      g().loadDoc({ nodes: round.nodes, edges: round.edges }, { mode: 'document-boundary', canvasLocked: round.recommendedRunConfig?.canvasLocked === true })
       l.mc.getState().applyRecommended(round.recommendedRunConfig)
       const afterShare = l.ui.getState().canvasLocked
 
@@ -219,6 +219,162 @@ test.describe('Canvas edit-lock', () => {
     await expect(page.locator('.canvas')).toBeVisible()
     await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
     expect(await locked(page)).toBe(false)
+  })
+
+  // Issue #334 — while locked, every user edit is refused, through the real
+  // controls: they are disabled, and pressing them anyway changes nothing.
+  test('locked: the palette, Undo / Redo, Insert module and the data import wizard are disabled and change nothing', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await seed(page)
+    await page.getByRole('button', { name: 'Pool', exact: true }).click() // an edit, so Undo has something
+    await expect(page.locator('.react-flow__node')).toHaveCount(4)
+    await lockBtn(page).click()
+    expect(await locked(page)).toBe(true)
+    const digest0 = await graphDigest(page)
+    const pos0 = await nodePos(page, 'p1')
+
+    const pool = page.getByRole('button', { name: 'Pool', exact: true })
+    await expect(pool).toBeDisabled()
+    await expect(pool).toHaveAttribute('draggable', 'false')
+    await pool.click({ force: true })
+
+    const undo = page.locator('.toolbar button[title^="Undo"]')
+    await expect(undo).toBeDisabled()
+    await expect(page.locator('.toolbar button[title^="Redo"]')).toBeDisabled()
+    await page.locator('.react-flow__pane').click({ position: { x: 5, y: 5 } })
+    await page.keyboard.press('Control+z')
+
+    // the arrow keys on a selected node
+    await page.locator('.react-flow__node[data-id="p1"]').click()
+    await page.keyboard.press('ArrowRight')
+    await page.keyboard.press('ArrowDown')
+
+    await page.getByRole('button', { name: 'Insert module', exact: true }).click()
+    const items = page.locator('.menu__pop[role="menu"] [role="menuitem"]')
+    const n = await items.count()
+    for (let i = 0; i < n - 1; i++) await expect(items.nth(i)).toBeDisabled() // every bundled module + From file
+    await expect(items.nth(n - 1)).toBeEnabled() // saving the selection as a module is an export
+    await page.keyboard.press('Escape')
+
+    await page.getByRole('button', { name: 'Data', exact: true }).click()
+    const data = page.locator('.menu__pop[role="menu"] [role="menuitem"]')
+    await expect(data.nth(0)).toBeDisabled() // Import
+    await expect(data.nth(1)).toBeEnabled() // Manage bindings (its refresh / rename are disabled inside)
+    await expect(data.nth(2)).toBeDisabled() // the in-app guide opens the same wizard
+    await page.keyboard.press('Escape')
+
+    expect(await graphDigest(page)).toBe(digest0)
+    expect(await nodePos(page, 'p1')).toEqual(pos0)
+    await expect(page.locator('.react-flow__node')).toHaveCount(4)
+
+    // unlocking lifts it: the palette adds again
+    await lockBtn(page).click()
+    await expect(pool).toBeEnabled()
+    await pool.click()
+    await expect(page.locator('.react-flow__node')).toHaveCount(5)
+  })
+
+  test('locked: the turned-off controls are really disabled, and the keyboard neither reaches nor runs them', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await seed(page)
+    await page.getByRole('button', { name: 'Pool', exact: true }).click() // so Undo would have something
+    await lockBtn(page).click()
+    expect(await locked(page)).toBe(true)
+    const digest0 = await graphDigest(page)
+    const count0 = await page.locator('.react-flow__node').count()
+
+    // the native `disabled` state, which is also what the accessibility tree reports
+    const palette = page.locator('.toolbar__palette button.chip')
+    const n = await palette.count()
+    expect(n).toBeGreaterThan(0)
+    for (let i = 0; i < n; i++) {
+      await expect(palette.nth(i)).toBeDisabled()
+      expect(await palette.nth(i).evaluate((b) => (b as HTMLButtonElement).disabled)).toBe(true)
+    }
+    for (const title of ['Undo', 'Redo']) {
+      const b = page.locator(`.toolbar button[title^="${title}"]`)
+      await expect(b).toBeDisabled()
+      expect(await b.evaluate((x) => (x as HTMLButtonElement).disabled)).toBe(true)
+    }
+
+    // Tab walks the whole page from the top and never lands on one of them
+    const landed = await page.evaluate(() => {
+      const off = new Set<Element>([
+        ...document.querySelectorAll('.toolbar__palette button.chip'),
+        ...document.querySelectorAll('.toolbar button[title^="Undo"], .toolbar button[title^="Redo"]'),
+      ])
+      return { off: off.size }
+    })
+    expect(landed.off).toBe(n + 2)
+    await page.locator('body').focus()
+    for (let i = 0; i < 60; i++) {
+      await page.keyboard.press('Tab')
+      const hit = await page.evaluate(() => {
+        const a = document.activeElement
+        return !!a && (a.matches('.toolbar__palette button.chip') || a.matches('.toolbar button[title^="Undo"], .toolbar button[title^="Redo"]'))
+      })
+      expect(hit, `Tab #${i + 1} reached a disabled control`).toBe(false)
+    }
+
+    // the menus' keyboard skips the disabled rows: from the Insert module
+    // trigger, Arrow keys + Enter land only on the enabled row (Save selection
+    // as a module, an export) and never insert anything
+    const insert = page.getByRole('button', { name: 'Insert module', exact: true })
+    await insert.focus()
+    await page.keyboard.press('Enter')
+    const rows = page.locator('.menu__pop[role="menu"] [role="menuitem"]')
+    await expect(rows.first()).toBeVisible()
+    for (let i = 0; i < 6; i++) {
+      await page.keyboard.press('ArrowDown')
+      const onDisabled = await page.evaluate(() => (document.activeElement as HTMLButtonElement | null)?.disabled === true)
+      expect(onDisabled).toBe(false)
+    }
+    await page.keyboard.press('Escape')
+
+    // and a keyboard press on a disabled palette chip does nothing
+    await palette.first().evaluate((b) => (b as HTMLButtonElement).focus())
+    await page.keyboard.press('Enter')
+    await page.keyboard.press('Space')
+
+    expect(await graphDigest(page)).toBe(digest0)
+    await expect(page.locator('.react-flow__node')).toHaveCount(count0)
+  })
+
+  test('locked: selecting, zooming, Focus, Step and export still work, and leave the document as it was', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await seed(page, true)
+    const digest0 = await graphDigest(page)
+
+    await page.locator('.react-flow__node[data-id="p1"]').click()
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().selectedNodeId))
+      .toBe('p1')
+    const zoom0 = await page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport().zoom)
+    await page.locator('.react-flow__controls-button.react-flow__controls-zoomin').click()
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport().zoom))
+      .toBeGreaterThan(zoom0)
+    const focus = page.locator('.react-flow__controls-button.rf-focus')
+    await focus.click()
+    await expect(focus).toHaveAttribute('aria-pressed', 'true')
+    await focus.click()
+
+    await page.getByRole('button', { name: 'Advance one step' }).click()
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().stepIndex))
+      .toBeGreaterThan(0)
+
+    await page.getByRole('button', { name: 'File', exact: true }).click()
+    const download = page.waitForEvent('download')
+    await page.locator('[role="menuitem"]').filter({ hasText: 'Graph JSON' }).first().click()
+    const file = JSON.parse(await (await (await download).createReadStream()).toArray().then((b) => Buffer.concat(b).toString('utf8')))
+    expect(file.recommendedRunConfig.canvasLocked).toBe(true)
+
+    expect(await graphDigest(page)).toBe(digest0)
+    expect(await locked(page)).toBe(true)
   })
 
   test('a fresh document load always re-seeds canvasLocked, even over a persisted reload', async ({ page }) => {

@@ -123,9 +123,11 @@ revision 2, it IS captured and restored alongside `nodes`/`edges` on every
 `SidecarBundle` gains one more key, `m`). This is the load-bearing
 correction from revision 1: a bare global map, cleared wholesale by
 `newGraph`/`loadGraph`/`loadDoc`, cannot be right — those three actions
-push the pre-reset document into `past` FIRST, so an Undo back past one of
+pushed the pre-reset document into `past` FIRST, so an Undo back past one of
 them must restore that point's tracking along with its nodes, not land on
-an empty map.
+an empty map. (Since #334 / v0.21.3, `docs/canvas-edit-lock.md` §4, only a
+revision Apply still does so; New, a Template and another document start
+with an empty history.)
 
 - **`lastAppliedLabel`** is the exact string THIS FEATURE itself last wrote
   at that node — set at insert time to whatever `cloneModuleDoc` actually
@@ -446,11 +448,17 @@ contract this implementation is checked against)
     against EACH ENTRY's own provenance snapshot, never the live one
     (§MLS4.3, revision 2) — so neither can resurrect a stale-language label,
     AND a still-managed-at-that-point instance correctly resumes syncing if
-    Undo lands there, even past a New/Template-load/file-load.
+    Undo lands there, even past an in-place whole-graph load (a revision
+    Apply).
 11. `newGraph` / `loadGraph` / `loadDoc` all clear the LIVE provenance map
-    (§MLS4.2) — but the outgoing document's own tracking is preserved in
-    history via the same `commit()` sidecar mechanism as `nodes`/`edges`
-    themselves, so an Undo past the reset restores it too (revision 2).
+    (§MLS4.2). Since v0.21.3 (issue #334, `docs/canvas-edit-lock.md` §4) New,
+    a Template, a file, a share link and Open proposal as document are
+    document boundaries that start with an EMPTY history, so the outgoing
+    document's tracking leaves with it and no Undo can reach it. The one
+    whole-graph load that stays undoable, a revision Apply (`loadDoc`
+    `revision-apply`), preserves the outgoing tracking in history via the
+    same `commit()` sidecar mechanism as `nodes`/`edges` themselves, so an
+    Undo past it restores it too (revision 2).
 12. No new wire field, no new file-format version; provenance does not
     survive a save/reload — scoped explicitly to "bundled instances inserted
     in the current session, from this feature onward" (§MLS3), never smuggled
@@ -481,10 +489,12 @@ contract this implementation is checked against)
   `bundledModuleId` registers provenance (with the real applied label) for
   exactly the inserted node ids; a `needs-v2-consent` refusal registers
   nothing; a file-based insert (no `bundledModuleId`) registers nothing;
-  `newGraph`/`loadGraph`/`loadDoc` clear the LIVE provenance; **[P1]**
-  New/loadGraph/loadDoc followed by Undo restores the module instance's
-  provenance along with its nodes; Redo past a reset restores the empty
-  (new-document) provenance, not the pre-reset instance's; a loaded document
+  `newGraph`/`loadGraph`/`loadDoc` clear the LIVE provenance; **[P1]** a
+  revision Apply (`loadDoc` `revision-apply`) followed by Undo restores the
+  module instance's provenance along with its nodes, and Redo the empty
+  provenance, not the pre-load instance's; since #334, New / loadGraph /
+  a `document-boundary` loadDoc leave an empty history, so Undo cannot bring
+  the instance or its provenance back; a loaded document
   that reuses a former host node id is never treated as provenanced;
   **[P1, revision 3]** `updateNodeData` detaches provenance immediately on a
   real label edit with no switch involved; a same-value patch does not
@@ -503,8 +513,9 @@ contract this implementation is checked against)
   same-locale reselect a no-op, no regression to Template label-switch
   behavior) PLUS, from revision 2's review round: **[P1]** a rename to
   another locale's official string preserved through EN/KO/JA cycling;
-  insert → New/loadDoc/loadGraph → Undo → switch still syncs the restored
-  instance; a loaded document reusing a former host node id is never
+  insert → a revision Apply → Undo → switch still syncs the restored
+  instance (since #334 the New / file / Template-style variants check
+  instead that Undo cannot bring the instance back); a loaded document reusing a former host node id is never
   synced; a rename followed by Undo then Redo restores the managed state
   matching each history point (pre-rename still syncs, post-rename stays
   preserved) — PLUS, from revision 3's review round: **[P1]**
@@ -520,7 +531,7 @@ contract this implementation is checked against)
 | **MLS-D2** | where does the EN canonical label come from? | **`BUNDLED_MODULES[i].doc`** directly (the same source `cloneModuleDoc` already reads for an EN insert) — not a third overlay table, so there is exactly one place each canonical id's English text is authored. |
 | **MLS-D3** | prune provenance entries for deleted/detached nodes? | **No.** Left in whatever snapshot they're in — harmless (never looked up for a node that no longer exists in that snapshot's own `nodes` array) and every live-map entry is fully cleared at the next `newGraph`/`loadGraph`/`loadDoc` regardless; pruning per-delete would be extra wiring for no observable benefit. |
 | **MLS-D4** | reuse `known.generated.ts` / the Template relabel machinery? | **No** — a static id table is structurally impossible for modules (§MLS2); a small, synchronous, always-resident map is enough here (two modules, under a dozen nodes apiece), so none of the Template path's lazy-dictionary/CI-drift-check machinery is needed. |
-| **MLS-D5** | (revision 2) how does provenance survive Undo/Redo past a New/Template-load/file-load? | **A history-aware sidecar**, riding on the exact mechanism `frameSidecar`/`dataImportSidecar` already use — `SidecarBundle` gains a `m` key, captured by `commit()`'s `sidecarNow()` and restored by `undo()`/`redo()`'s `restoreSidecar()`. Rejected: a bare global map cleared by the three reset actions (revision 1's approach) — provably wrong, since it discarded the outgoing document's tracking the instant a reset committed, with no way for Undo to bring it back. |
+| **MLS-D5** | (revision 2) how does provenance survive Undo/Redo past a New/Template-load/file-load? (Since #334 / v0.21.3 those three are document boundaries with an empty history; the question now applies only to a revision Apply.) | **A history-aware sidecar**, riding on the exact mechanism `frameSidecar`/`dataImportSidecar` already use — `SidecarBundle` gains a `m` key, captured by `commit()`'s `sidecarNow()` and restored by `undo()`/`redo()`'s `restoreSidecar()`. Rejected: a bare global map cleared by the three reset actions (revision 1's approach) — provably wrong, since it discarded the outgoing document's tracking the instant a reset committed, with no way for Undo to bring it back. |
 | **MLS-D6** | (revision 3) when does a real label edit detach provenance — lazily at the next switch, or eagerly at the edit? | **Eagerly**, in `updateNodeData` itself (§MLS4.4). Rejected: lazy-only detection (revision 2's approach) — it cannot distinguish "never edited" from "edited, then edited back to the exact same text" before any switch happens, silently erasing a genuine edit. The lazy check (§MLS3.1 rule 1) still exists as a correct fallback for a label that arrives some OTHER way (e.g. via Undo/Redo restoring an earlier snapshot) — it is not made redundant, just no longer the only path. |
 
 ## MLS8. Order this feeds into

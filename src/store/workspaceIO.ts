@@ -127,9 +127,17 @@ export async function importFile(
       : ''
 
   // ── from here: synchronous ──────────────────────────────────────────
-  useGraphStore
-    .getState()
-    .loadDoc({ nodes: parsed.nodes, edges: parsed.edges }, modelVersion, parsed.frames, parsed.dataImports) // the ONE bump
+  // #334 — another document: empty history, the file's own lock
+  useGraphStore.getState().loadDoc(
+    { nodes: parsed.nodes, edges: parsed.edges },
+    {
+      mode: 'document-boundary',
+      canvasLocked: parsed.recommendedRunConfig?.canvasLocked === true,
+      modelVersion,
+      frames: parsed.frames,
+      dataImports: parsed.dataImports,
+    },
+  ) // the ONE bump
   useMcStore.getState().applyRecommended(parsed.recommendedRunConfig)
 
   if (parsed.workspace == null) {

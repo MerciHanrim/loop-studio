@@ -1168,8 +1168,10 @@ export function Canvas() {
           {!isMobile && (
             <ControlButton
               onClick={toggleCanvasLocked}
+              // #335 — a toggle: the NAME is fixed ("Edit lock"), `aria-pressed`
+              // carries the state, and the tooltip names the next action
               title={canvasLocked ? t('canvas.lock.unlock') : t('canvas.lock.lock')}
-              aria-label={canvasLocked ? t('canvas.lock.unlock') : t('canvas.lock.lock')}
+              aria-label={t('canvas.lock.name')}
               aria-pressed={canvasLocked}
               className="rf-lock"
             >

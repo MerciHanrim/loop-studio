@@ -86,6 +86,9 @@ test.describe('edge label — @-reference value types', () => {
     await openApp(page)
     await resetAll(page)
     await importGraph(page, GACHA)
+    // #334 — the gacha file opens edit-locked and the lock refuses every user
+    // edit; the value edits below lift it first, as a user has to
+    await page.evaluate(() => (window as any).__loop.ui.getState().setCanvasLocked(false))
 
     // the error label as the ACTIVE locale renders it — never hard-code English,
     // and never accept the raw id as a substitute
@@ -125,6 +128,9 @@ test.describe('edge label — @-reference value types', () => {
     await openApp(page)
     await resetAll(page)
     await importGraph(page, GACHA)
+    // #334 — the gacha file opens edit-locked and the lock refuses every user
+    // edit; the value edits below lift it first, as a user has to
+    await page.evaluate(() => (window as any).__loop.ui.getState().setCanvasLocked(false))
 
     const refError = await page.evaluate(
       () => (window as any).__loop.i18n.getState().activeCatalog['canvas.edgeLabel.refMissing'] as string,

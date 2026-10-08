@@ -4,6 +4,17 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.21.3 — 2026-10-08
+
+A fix release (issues #334 and #335): the Canvas edit lock is exact at every document boundary and refuses every edit, and its button shows the state at a glance, as [`docs/canvas-edit-lock.md`](docs/canvas-edit-lock.md) describes.
+
+- **A new document starts unlocked.** File → New, starting a temporary session without the open diagram, and Delete work data leave an unlocked, empty document. Before, a locked example or file kept the new document locked, even after a reload.
+- **Every other document brings its own lock and no history.** A Template, a file, a share link and Open proposal as document open with their own lock (a locked example stays locked) and with an empty undo history: Undo can no longer go back into the previous document. The confirmation before a replacement is the safety net.
+- **While locked, nothing edits the document.** The palette, Insert module, Undo and Redo, the data import wizard, a data refresh, renaming a bound table and a revision Apply are disabled, and the stores refuse them too. Selecting, panning, zooming, Focus and the other view settings, Run and Step, export and sharing stay available.
+- **The lock button shows its state.** Unlocked is an open padlock with its shackle swung clear of the body; locked is the closed padlock with the same pressed tell as Focus (the system highlight in forced colours). Its name stays "Edit lock" and `aria-pressed` carries the state; the tooltip names the next action.
+
+**No migration.** Files, share links, digests and simulation results are unchanged. One new string (the button's name) and three release-note lines in 18 languages, 16 of them without native review. The informational `meta.tool` string is now `loop-studio/0.21.3`.
+
 ## v0.21.2 — 2026-10-07
 
 A fix release (issue #332): a Pool's, a Parameter's and a Register's value and detail rows sit inside the node, as [`docs/node-shell-content-in-vessel.md`](docs/node-shell-content-in-vessel.md) "Follow-up — value and detail rows" describes.

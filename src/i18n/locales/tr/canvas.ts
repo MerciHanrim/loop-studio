@@ -55,6 +55,7 @@ const canvas = {
   'canvas.minimap.show': 'Mini haritayı göster',
   'canvas.lock.lock': 'Düzenlemeyi kilitle — seçme ve okuma açık kalır',
   'canvas.lock.unlock': 'Düzenlemeyi aç — taşıma, bağlama ve değer değiştirme',
+  'canvas.lock.name': 'Düzenleme kilidi',
   'canvas.focus.on': 'Odak kapalı — seçili düğüme odaklanmak için tıklayın',
   'canvas.focus.off': 'Odak açık — grafiğin tamamını görmek için tıklayın',
   'canvas.focus.hint': 'Odaklanmak için bir düğüm seçin',

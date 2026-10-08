@@ -255,6 +255,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
     const y = rect ? rect.top + rect.height / 2 : window.innerHeight / 2
     const result = commitRefresh(plan, resolution, screenToFlowPosition({ x, y }))
     if (!result.ok) {
+      if (result.reason === 'locked') return // #334 — disabled while locked; nothing to show
       setCommitError(result)
       return
     }

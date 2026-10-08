@@ -89,10 +89,18 @@ describe('frameStore — a whole-graph swap loads / clears the saved frames (§S
 
   it('`loadDoc` REPLACES the frame set from the doc; `n` re-derived from order', () => {
     useFrameStore.getState().addFrame({ x: 9, y: 9, w: 9, h: 9 }) // stale session frame
-    useGraphStore.getState().loadDoc({ nodes: [], edges: [] }, 1, [
-      { id: 'a', label: 'One', rect: { x: 1, y: 2, w: 100, h: 50 } },
-      { id: 'b', label: 'Two', rect: { x: 3, y: 4, w: 60, h: 40 }, color: 'gold' },
-    ])
+    useGraphStore.getState().loadDoc(
+      { nodes: [], edges: [] },
+      {
+        mode: 'document-boundary',
+        canvasLocked: false,
+        modelVersion: 1,
+        frames: [
+          { id: 'a', label: 'One', rect: { x: 1, y: 2, w: 100, h: 50 } },
+          { id: 'b', label: 'Two', rect: { x: 3, y: 4, w: 60, h: 40 }, color: 'gold' },
+        ],
+      },
+    )
     const fs = useFrameStore.getState()
     expect(fs.frames.map((f) => [f.id, f.label, f.n, f.color])).toEqual([
       ['a', 'One', 1, undefined],

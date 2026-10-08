@@ -58,7 +58,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
   // ---------------------------------------------------------------- shape
   it('has exactly the same key set as pt-BR', () => {
     expect(Object.keys(ptValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(1036) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines); the flow colour: +20 (the sixteen strings of the Colour section and the four 0.19.0 release-note lines); the flow colour views: +4 (the four 0.20.0 release-note lines); compact nodes: +3 (the three 0.21.0 release-note lines); Focus dimming: +3 (the three 0.21.1 release-note lines); value rows: +3 (the three 0.21.2 release-note lines)
+    expect(KEYS).toHaveLength(1040) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines); the flow colour: +20 (the sixteen strings of the Colour section and the four 0.19.0 release-note lines); the flow colour views: +4 (the four 0.20.0 release-note lines); compact nodes: +3 (the three 0.21.0 release-note lines); Focus dimming: +3 (the three 0.21.1 release-note lines); value rows: +3 (the three 0.21.2 release-note lines); the edit lock: +4 (canvas.lock.name, its fixed accessible name, and the three 0.21.3 release-note lines)
   })
 
   it('differs from pt-BR on exactly the audited keys', () => {
@@ -146,6 +146,8 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // release-note lines - `ligações` / `ligação esbatida` not `conexões` /
     // `conexão esmaecida`; the third reads the same in both. Value rows
     // (0.21.2) left it at 277: all three of its lines read the same in both.
+    // The edit lock's name (#335) and the three 0.21.3 lines read the same
+    // in both too.
     expect(DELTA).toHaveLength(277)
     // and it is a real audit, not a rewrite — most of the catalog agrees.
     //

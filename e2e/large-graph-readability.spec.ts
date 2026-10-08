@@ -1653,7 +1653,13 @@ test.describe('LGR Slice 4a — transient group frames', () => {
 
     const after = await snapshot(page)
     expect(after.graph).toBe(before.graph)
-    expect(after.canUndo).toBe(before.canUndo)
+    // the GraphDoc and its digest are untouched; the frame itself is one undo
+    // entry since saved frames (LGR Slice 5, §SF11.1). (#334 — the import
+    // before it now leaves an empty history, which is what made this visible:
+    // the old `canUndo` equality held only because the import's own entry
+    // was there.)
+    expect(before.canUndo).toBe(false)
+    expect(after.canUndo).toBe(true)
     expect(await gDigest(page)).toBe(digestBefore)
   })
 
@@ -2953,7 +2959,12 @@ test.describe('LGR frame colour (§FC)', () => {
     await expect(page.locator('.lgr-frame__fill[data-color]')).toHaveCount(0)
 
     expect(await gDigest(page)).toBe(digestBefore)
-    expect(await fcCanUndo(page)).toBe(undoBefore)
+    // the GraphDoc digest is untouched; the frame's add and colour changes are
+    // undo entries of their own (saved frames, §SF11.1). #334 — the import
+    // before them now leaves an empty history, so the old `canUndo` equality
+    // (true only because of the import's entry) no longer stands in for it.
+    expect(undoBefore).toBe(false)
+    expect(await fcCanUndo(page)).toBe(true)
   })
 
   test('pick an accent on an AUTO frame -> it PROMOTES: leaves the auto set, becomes a SOLID manual Group frame with that colour (§AF5 R5)', async ({ page }) => {
@@ -3314,17 +3325,19 @@ test.describe('LGR Slice 5 — saved frames (SF / loop-revision/5)', () => {
     expect((await sfState(page)).struct).toBe(base.struct)
   })
 
-  test('Import adds ONE undo entry, never one-per-frame; pure Suggest / Dismiss / Clear suggested add none and never touch the doc digest or the record (SF11.3 / boundaries 4-7)', async ({ page }) => {
+  test('Import is a document boundary (#334): an empty history, never one entry per frame; pure Suggest / Dismiss / Clear suggested add none and never touch the doc digest or the record (SF11.3 / boundaries 4-7)', async ({ page }) => {
     await loadAF(page)
     await fcAdd(page, { x: 0, y: 0, w: 100, h: 60 }, 'One')
     await fcAdd(page, { x: 200, y: 0, w: 100, h: 60 }, 'Two')
     await sfRecSettled(page) // let the create autosave land first
     const before = await sfState(page)
 
-    // a whole-graph import that CARRIES two frames = still exactly one entry
+    // a whole-graph import that CARRIES two frames: no per-frame entry — and,
+    // since #334, no entry at all (another document starts an empty history)
+    expect(before.past).toBeGreaterThan(0)
     await page.evaluate((t) => (window as unknown as { __loop: { graph: { getState: () => { loadJSON: (t: string) => void } } } }).__loop.graph.getState().loadJSON(t), before.exported)
     expect((await sfState(page)).frames.map((f) => f.label)).toEqual(['One', 'Two'])
-    expect((await sfState(page)).past - before.past).toBe(1)
+    expect((await sfState(page)).past).toBe(0)
 
     // pure Suggest / Dismiss / Clear suggested — no undo entry, digest + record frozen
     const recMid = await sfRecSettled(page)

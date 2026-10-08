@@ -33,6 +33,7 @@ const canvas = {
   'canvas.minimap.show': '显示缩略图',
   'canvas.lock.lock': '锁定编辑——仍可选择和查看',
   'canvas.lock.unlock': '解除编辑锁定——可移动、连接和修改数值',
+  'canvas.lock.name': '编辑锁定',
   'canvas.focus.on': '聚焦已关闭——点击可聚焦所选节点',
   'canvas.focus.off': '聚焦已开启——点击可显示整张图',
   'canvas.focus.hint': '选择一个节点以聚焦',

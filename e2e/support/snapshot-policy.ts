@@ -116,6 +116,14 @@ export const SNAPSHOTS: Record<string, Partial<Record<SnapshotProject, SnapshotK
   'minimap-dark': { chromium: 'element' },
   'distribution-light': { chromium: 'element' },
   'distribution-dark': { chromium: 'element' },
+  // lock-control.spec.ts (#335) — the edit-lock button itself, 26 px, both
+  // states in every theme
+  'lock-light-unlocked': { chromium: 'element' },
+  'lock-light-locked': { chromium: 'element' },
+  'lock-dark-unlocked': { chromium: 'element' },
+  'lock-dark-locked': { chromium: 'element' },
+  'lock-forced-unlocked': { chromium: 'element' },
+  'lock-forced-locked': { chromium: 'element' },
 }
 
 /** The kind a baseline is judged under, or a thrown error when the stem /

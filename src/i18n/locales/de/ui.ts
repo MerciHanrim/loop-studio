@@ -633,6 +633,9 @@ const ui = {
   'whatsNew.v0212.aligned': 'In Knoten mit einem Wert beginnen der Wert und die Zeile darunter jetzt auf Höhe des Titels, gut innerhalb des Knotenumrisses.',
   'whatsNew.v0212.wider': 'Ein Knoten, in den der Wert oder die Zeile nicht passt, wird etwas breiter; eine Zeile, die selbst in den breitesten Knoten nicht passt, endet mit „…“.',
   'whatsNew.v0212.same': 'Nur die Darstellung ändert sich: gespeicherte Werte, Knotenpositionen und Simulationsergebnisse bleiben gleich.',
+  'whatsNew.v0213.fresh': 'Ein neues Diagramm beginnt entsperrt, und wer ein anderes Diagramm öffnet, beginnt mit einem leeren Rückgängig-Verlauf.',
+  'whatsNew.v0213.locked': 'Solange die Bearbeitung gesperrt ist, ändert sich am Diagramm nichts: Hinzufügen, Einfügen, Datenimport, Rückgängig und Wiederherstellen warten, bis Sie entsperren.',
+  'whatsNew.v0213.shows': 'Die Sperrtaste zeigt jetzt ihren Zustand: ein offenes Schloss, solange Sie bearbeiten können, ein geschlossenes, hervorgehobenes Schloss, wenn die Bearbeitung gesperrt ist.',
 } satisfies Record<UiKey, string>
 
 export default ui

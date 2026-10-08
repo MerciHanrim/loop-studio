@@ -49,6 +49,7 @@ const canvas = {
   'canvas.minimap.show': 'Übersichtskarte einblenden',
   'canvas.lock.lock': 'Bearbeitung sperren — Auswählen und Lesen bleiben aktiv',
   'canvas.lock.unlock': 'Bearbeitung entsperren — bewegen, verbinden und Werte ändern',
+  'canvas.lock.name': 'Bearbeitungssperre',
   'canvas.focus.on': 'Fokus aus — klicken, um den ausgewählten Knoten zu fokussieren',
   'canvas.focus.off': 'Fokus an — klicken, um den ganzen Graphen zu zeigen',
   'canvas.focus.hint': 'Einen Knoten zum Fokussieren auswählen',

@@ -570,6 +570,9 @@ const ui = {
   'whatsNew.v0212.aligned': 'En los nodos que muestran un valor, el valor y la línea de debajo empiezan ahora a la altura del título, bien dentro del contorno del nodo.',
   'whatsNew.v0212.wider': 'Un nodo en el que no cabe el valor o la línea se ensancha un poco; una línea demasiado larga incluso para el nodo más ancho se abrevia con «…».',
   'whatsNew.v0212.same': 'Solo cambia la presentación: los valores guardados, la posición de los nodos y los resultados de la simulación no cambian.',
+  'whatsNew.v0213.fresh': 'Un diagrama nuevo empieza desbloqueado, y al abrir otro diagrama el historial de deshacer empieza vacío.',
+  'whatsNew.v0213.locked': 'Mientras la edición está bloqueada, nada cambia el diagrama: añadir, insertar, importar datos, Deshacer y Rehacer esperan hasta que la desbloquee.',
+  'whatsNew.v0213.shows': 'El botón de bloqueo muestra ahora su estado: un candado abierto mientras puede editar y un candado cerrado y resaltado mientras la edición está bloqueada.',
 } as const
 
 export type UiKey = keyof typeof ui

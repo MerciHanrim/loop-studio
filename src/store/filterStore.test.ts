@@ -62,7 +62,7 @@ describe('filterStore — §LGR3.4 cleared on a whole-graph (re)load', () => {
     expect(filtersActive(useFilterStore.getState())).toBe(true)
 
     // a whole-graph load bumps loadRev → the subscription clears the filters
-    useGraphStore.getState().loadGraph({ nodes: [], edges: [] })
+    useGraphStore.getState().loadGraph({ nodes: [], edges: [] }, { canvasLocked: false })
     expect(useGraphStore.getState().loadRev).toBe(loadRevBefore + 1)
     expect(filtersActive(useFilterStore.getState())).toBe(false)
   })

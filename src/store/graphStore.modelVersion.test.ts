@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { serialize } from '../model/serialize'
+import { deserialize, serialize } from '../model/serialize'
 import { useGraphStore } from './graphStore'
 
 // loop-model/2 (SEMANTICS-M2.md §M2-1.1) — the document's model-semantics
@@ -143,7 +143,7 @@ describe('graphStore.modelVersion', () => {
       expect(mv()).toBe(2)
     })
 
-    it('undo of a v2-document load restores the pre-load v1', () => {
+    it('a v2-document load is a document boundary (#334); an in-place v2 Apply undoes back to v1', () => {
       const v2 = serialize(
         [
           { id: 'a', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'a' } } as never,
@@ -160,7 +160,20 @@ describe('graphStore.modelVersion', () => {
       expect(mv()).toBe(1)
       g().loadJSON(v2)
       expect(mv()).toBe(2)
-      g().undo() // the load's history entry captured the pre-load v1
+      // another document: the history starts empty, Undo cannot return to v1
+      expect(g().canUndo).toBe(false)
+      g().undo()
+      expect(mv()).toBe(2)
+
+      // an in-place whole-graph load (a revision Apply) keeps its one undo
+      // entry, and that entry captured the pre-load version
+      g().newGraph()
+      g().addNodeAt('pool', { x: 0, y: 0 })
+      expect(mv()).toBe(1)
+      const { nodes, edges } = deserialize(v2)
+      g().loadDoc({ nodes, edges }, { mode: 'revision-apply', modelVersion: 2 })
+      expect(mv()).toBe(2)
+      g().undo()
       expect(mv()).toBe(1)
       g().redo()
       expect(mv()).toBe(2)

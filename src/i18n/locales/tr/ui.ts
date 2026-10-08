@@ -612,6 +612,9 @@ const ui = {
   'whatsNew.v0212.aligned': 'Değer gösteren düğümlerde değer ve altındaki satır artık başlıkla aynı hizada başlar ve düğümün dış çizgisinin rahatça içinde kalır.',
   'whatsNew.v0212.wider': 'Değerin veya satırın sığmadığı bir düğüm biraz genişler; en geniş düğüme bile sığmayan bir satır “…” ile kısaltılır.',
   'whatsNew.v0212.same': 'Yalnızca görünüm değişir: değerler, düğüm konumları ve simülasyon sonuçları aynı kalır.',
+  'whatsNew.v0213.fresh': 'Yeni bir diyagram kilitsiz başlar; başka bir diyagram açıldığında geri alma geçmişi boş başlar.',
+  'whatsNew.v0213.locked': 'Düzenleme kilitliyken diyagramı hiçbir şey değiştirmez: ekleme, yerleştirme, veri içe aktarma, Geri al ve Yinele kilidi açana kadar bekler.',
+  'whatsNew.v0213.shows': 'Kilit düğmesi artık durumunu gösterir: düzenleyebildiğinizde açık bir asma kilit, düzenleme kilitliyken kapalı ve vurgulanmış bir asma kilit.',
 } as const
 
 export type UiKey = keyof typeof ui

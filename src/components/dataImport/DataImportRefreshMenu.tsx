@@ -3,6 +3,7 @@ import { useT } from '../../i18n'
 import { buildChangeProposalCsv } from '../../model/dataImportExportCsv'
 import { useDataImportStore } from '../../store/dataImportStore'
 import { useGraphStore } from '../../store/graphStore'
+import { useUiStore } from '../../store/uiStore'
 import { downloadCsv } from '../../ui/download'
 import { useDialogFocus } from '../useDialogFocus'
 import { DataImportRefreshWizard } from './DataImportRefreshWizard'
@@ -30,6 +31,8 @@ export function DataImportRefreshMenu({
   const tables = useDataImportStore((s) => s.tables)
   const hostNodes = useGraphStore((s) => s.nodes)
   const renameDataImportTable = useGraphStore((s) => s.renameDataImportTable)
+  // #334 — a rename and a refresh change the document; the CSV export does not
+  const editLocked = useUiStore((s) => s.canvasLocked)
 
   const [refreshingId, setRefreshingId] = useState<string | null>(null)
   const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({})
@@ -62,6 +65,7 @@ export function DataImportRefreshMenu({
     if (draft === undefined || draft === current) return
     const r = renameDataImportTable(id, draft)
     if (!r.ok) {
+      if (r.reason === 'locked') return // #334 — disabled while locked; nothing to show
       setRenameError((prev) => ({ ...prev, [id]: r.reason }))
       return
     }
@@ -104,6 +108,7 @@ export function DataImportRefreshMenu({
                     {t('import.refresh.renameLabel')}
                     <input dir="auto"
                       type="text"
+                      disabled={editLocked}
                       value={renameDrafts[table.sourceTableId] ?? table.label}
                       onChange={(e) => setRenameDrafts((prev) => ({ ...prev, [table.sourceTableId]: e.target.value }))}
                       onBlur={() => commitRename(table.sourceTableId, table.label)}
@@ -115,7 +120,7 @@ export function DataImportRefreshMenu({
                     </p>
                   )}
                   <span>{t('import.refresh.rowCount', { n: table.rows.length })}</span>
-                  <button type="button" className="btn" onClick={() => setRefreshingId(table.sourceTableId)}>
+                  <button type="button" className="btn" disabled={editLocked} onClick={() => setRefreshingId(table.sourceTableId)}>
                     {t('import.refresh.refreshButton')}
                   </button>
                 </li>

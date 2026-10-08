@@ -302,7 +302,7 @@ describe('insertModule — module-label-sync provenance (§MLS4.1)', () => {
     const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    g().loadDoc({ nodes: [pool('x')], edges: [] })
+    g().loadDoc({ nodes: [pool('x')], edges: [] }, { mode: 'document-boundary', canvasLocked: false })
     expect(moduleProvenanceFor(r.insertedNodeIds[0])).toBeUndefined()
   })
 
@@ -310,60 +310,51 @@ describe('insertModule — module-label-sync provenance (§MLS4.1)', () => {
     const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    g().loadGraph({ nodes: [pool('x')], edges: [] })
+    g().loadGraph({ nodes: [pool('x')], edges: [] }, { canvasLocked: false })
     expect(moduleProvenanceFor(r.insertedNodeIds[0])).toBeUndefined()
   })
 
+  // Issue #334 — New, a Template load (`loadGraph`) and another document
+  // (`loadDoc` 'document-boundary') are document BOUNDARIES: the history
+  // starts empty, so Undo cannot reach the previous document, and the old
+  // instance's provenance stays gone with it. (Before #334 these three were
+  // undoable, and the [P1] review-round-2 tests here checked that an Undo past
+  // them restored the provenance; that path no longer exists.)
+  const boundaries: [string, () => void][] = [
+    ['New', () => g().newGraph()],
+    ['loadGraph', () => g().loadGraph({ nodes: [pool('x')], edges: [] }, { canvasLocked: false })],
+    ['loadDoc (document boundary)', () => g().loadDoc({ nodes: [pool('x')], edges: [] }, { mode: 'document-boundary', canvasLocked: false })],
+  ]
+  for (const [name, swap] of boundaries) {
+    it(`${name} is a document boundary: Undo is disabled and the old instance's provenance stays gone`, () => {
+      const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
+      expect(r.ok).toBe(true)
+      if (!r.ok) return
+      const insertedId = r.insertedNodeIds[0]
+      swap()
+      expect(g().canUndo).toBe(false)
+      expect(g().canRedo).toBe(false)
+      g().undo() // a no-op with an empty history
+      expect(g().nodes.some((n) => n.id === insertedId)).toBe(false)
+      expect(moduleProvenanceFor(insertedId)).toBeUndefined()
+    })
+  }
+
   // [P1] review round 2, 2026-09-15 — provenance is a HISTORY-AWARE sidecar
-  // (§MLS3.2): `newGraph`/`loadGraph`/`loadDoc` only clear the LIVE map, but
-  // `commit('')` (called first by each of them) folds the PRE-reset live
-  // provenance into the new `past` entry's own sidecar snapshot — so an Undo
-  // back past that reset restores the module instance's tracking along with
-  // its nodes, not just an empty map.
-  it('New -> Undo restores the module instance\'s provenance', () => {
+  // (§MLS3.2): an in-place whole-graph load (a revision Apply) clears the LIVE
+  // map, but its `commit('')` folds the PRE-load live provenance into the new
+  // `past` entry's own sidecar snapshot, so an Undo back past it restores the
+  // module instance's tracking along with its nodes, and a Redo the empty map.
+  it('a revision Apply -> Undo restores the module instance\'s provenance; Redo the empty one', () => {
     const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
     expect(r.ok).toBe(true)
     if (!r.ok) return
     const insertedId = r.insertedNodeIds[0]
-    g().newGraph()
+    g().loadDoc({ nodes: [pool('x')], edges: [] }, { mode: 'revision-apply' })
     expect(moduleProvenanceFor(insertedId)).toBeUndefined()
     g().undo()
     expect(g().nodes.some((n) => n.id === insertedId)).toBe(true)
     expect(moduleProvenanceFor(insertedId)).toEqual({ moduleId: 'buffered-step', canonicalId: 'supply', lastAppliedLabel: 'supply' })
-  })
-
-  it('loadGraph -> Undo restores the module instance\'s provenance', () => {
-    const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
-    expect(r.ok).toBe(true)
-    if (!r.ok) return
-    const insertedId = r.insertedNodeIds[0]
-    g().loadGraph({ nodes: [pool('x')], edges: [] })
-    expect(moduleProvenanceFor(insertedId)).toBeUndefined()
-    g().undo()
-    expect(g().nodes.some((n) => n.id === insertedId)).toBe(true)
-    expect(moduleProvenanceFor(insertedId)).toBeDefined()
-  })
-
-  it('loadDoc -> Undo restores the module instance\'s provenance', () => {
-    const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
-    expect(r.ok).toBe(true)
-    if (!r.ok) return
-    const insertedId = r.insertedNodeIds[0]
-    g().loadDoc({ nodes: [pool('x')], edges: [] })
-    expect(moduleProvenanceFor(insertedId)).toBeUndefined()
-    g().undo()
-    expect(g().nodes.some((n) => n.id === insertedId)).toBe(true)
-    expect(moduleProvenanceFor(insertedId)).toBeDefined()
-  })
-
-  it('Redo past a reset restores the empty (new-document) provenance, not the pre-reset instance', () => {
-    const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
-    expect(r.ok).toBe(true)
-    if (!r.ok) return
-    const insertedId = r.insertedNodeIds[0]
-    g().newGraph()
-    g().undo()
-    expect(moduleProvenanceFor(insertedId)).toBeDefined()
     g().redo()
     expect(g().nodes.some((n) => n.id === insertedId)).toBe(false)
     expect(moduleProvenanceFor(insertedId)).toBeUndefined()
@@ -377,7 +368,7 @@ describe('insertModule — module-label-sync provenance (§MLS4.1)', () => {
     // a totally unrelated document that coincidentally reuses the exact same
     // node id (never possible in practice -- ids are never reissued -- but
     // this is exactly the boundary §MLS3 draws: id alone proves nothing)
-    g().loadDoc({ nodes: [pool(insertedId)], edges: [] })
+    g().loadDoc({ nodes: [pool(insertedId)], edges: [] }, { mode: 'document-boundary', canvasLocked: false })
     expect(g().nodes.some((n) => n.id === insertedId)).toBe(true)
     expect(moduleProvenanceFor(insertedId)).toBeUndefined()
   })

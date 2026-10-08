@@ -128,6 +128,8 @@ test.describe('locale lazy-loading — behaviour', () => {
     await openApp(page)
     await resetAll(page)
     await openMmo(page)
+    // #334 — MMO opens edit-locked; the rename below is a user edit
+    await page.evaluate(() => (window as any).__loop.ui.getState().setCanvasLocked(false))
     // rename one node via the store bridge
     await page.evaluate(() => {
       const g = (window as unknown as { __loop: L }).__loop.graph.getState()

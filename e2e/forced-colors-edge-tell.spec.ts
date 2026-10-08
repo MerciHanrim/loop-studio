@@ -309,6 +309,9 @@ async function injectIdleStateEdge(page: Page, nearEdgeId: string): Promise<stri
 /** Give a LIVE edge a manual waypoint inside another node: the router refuses it (§ER4) and the
  *  edge gets `route-invalid` + the `!` flag while keeping whatever activity tint it already has. */
 async function makeRouteInvalid(page: Page, edgeId: string): Promise<void> {
+  // #334 — the mmo fixture opens edit-locked and the lock refuses every user
+  // edit; the waypoint below is one, so the lock is lifted first
+  await page.evaluate(() => (window as any).__loop.ui.getState().setCanvasLocked(false))
   await page.evaluate((id) => {
     const g = (window as unknown as { __loop: { graph: { getState: () => { nodes: { id: string; position: { x: number; y: number } }[]; edges: { id: string; source: string; target: string; data: Record<string, unknown> }[]; setEdgeData: (id: string, d: object) => void } } } }).__loop.graph.getState()
     const e = g.edges.find((x) => x.id === id)!

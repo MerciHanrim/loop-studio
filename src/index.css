@@ -1015,6 +1015,22 @@ body {
   cursor: grabbing;
 }
 
+/* #334 — while the Canvas edit lock is on the palette adds nothing: the chip
+   is `disabled` (and not draggable). A colour, not `opacity`, so a forced-
+   colours theme keeps the tell (it maps to `GrayText` there). No hover or
+   keyboard-focus fill — a disabled chip takes neither. */
+.chip:disabled {
+  color: var(--text-disabled);
+  cursor: default;
+  background: transparent;
+  border-color: transparent;
+}
+@media (forced-colors: active) {
+  .chip:disabled {
+    color: GrayText;
+  }
+}
+
 .chip__glyph {
   font-size: 14px;
   line-height: 1;
@@ -1313,6 +1329,18 @@ body {
 }
 .menu__item:hover {
   background: var(--surface-hover);
+}
+/* #334 — a row the edit lock turns off (Insert module, the data import
+   wizard): a colour, not `opacity`, so forced colours keeps it (GrayText). */
+.menu__item:disabled {
+  color: var(--text-disabled);
+  cursor: default;
+  background: transparent;
+}
+@media (forced-colors: active) {
+  .menu__item:disabled {
+    color: GrayText;
+  }
 }
 /* a divider between logically distinct groups within one popover (File ▾'s
    New/Import vs. its flattened Export rows) */
@@ -2893,11 +2921,15 @@ a.sheet__row {
   }
 }
 
-/* the Frame-tool + Activity toggles — same "pressed" tell as Focus / Filters */
+/* the Frame-tool + Activity toggles, and the Canvas edit lock (#335 — before
+   it, a 1.07 : 1 background change was its only tell) — same "pressed" tell
+   as Focus / Filters */
 .react-flow__controls-button.rf-frame[aria-pressed='true'],
 .react-flow__controls-button.rf-frame[aria-pressed='true']:hover,
 .react-flow__controls-button.rf-activity[aria-pressed='true'],
-.react-flow__controls-button.rf-activity[aria-pressed='true']:hover {
+.react-flow__controls-button.rf-activity[aria-pressed='true']:hover,
+.react-flow__controls-button.rf-lock[aria-pressed='true'],
+.react-flow__controls-button.rf-lock[aria-pressed='true']:hover {
   color: var(--signal-primary);
   background: var(--signal-primary-soft);
   box-shadow: inset 0 0 0 2px var(--signal-primary);
@@ -2921,7 +2953,9 @@ a.sheet__row {
   .react-flow__controls-button.rf-frame[aria-pressed='true'],
   .react-flow__controls-button.rf-frame[aria-pressed='true']:hover,
   .react-flow__controls-button.rf-activity[aria-pressed='true'],
-  .react-flow__controls-button.rf-activity[aria-pressed='true']:hover {
+  .react-flow__controls-button.rf-activity[aria-pressed='true']:hover,
+  .react-flow__controls-button.rf-lock[aria-pressed='true'],
+  .react-flow__controls-button.rf-lock[aria-pressed='true']:hover {
     background: Highlight;
     color: HighlightText;
   }
@@ -4218,9 +4252,6 @@ a.sheet__row {
    every control inside it inert. */
 .inspector-ro--desktop {
   display: contents;
-}
-.react-flow__controls-button.rf-lock[aria-pressed='true'] {
-  background: var(--surface-sunken);
 }
 .inspector__empty {
   color: var(--text-secondary);

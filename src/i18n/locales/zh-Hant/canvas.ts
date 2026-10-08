@@ -38,6 +38,7 @@ const canvas = {
   'canvas.minimap.show': '顯示縮圖',
   'canvas.lock.lock': '鎖定編輯——仍可選取與檢視',
   'canvas.lock.unlock': '解除編輯鎖定——可移動、連接與修改數值',
+  'canvas.lock.name': '編輯鎖定',
   'canvas.focus.on': '聚焦已關閉——點一下可聚焦選取的節點',
   'canvas.focus.off': '聚焦已開啟——點一下可顯示整張圖',
   'canvas.focus.hint': '選一個節點來聚焦',

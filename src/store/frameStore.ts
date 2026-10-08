@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { setFrameHistorySidecar, useGraphStore } from './graphStore'
+import { isEditBlocked, setFrameHistorySidecar, useGraphStore } from './graphStore'
 import { loadFromStorage, type SavedFrame } from '../model/serialize'
 
 // docs/large-graph-readability.md §LGR6 — group frames.
@@ -127,6 +127,7 @@ export const useFrameStore = create<FrameStore>((set, get) => ({
   selectFrame: (id) => set((s) => (s.selectedId === id ? s : { selectedId: id })),
 
   addFrame: (rect) => {
+    if (isEditBlocked()) return '' // #334 — a saved frame is document content
     beginUndo()
     const id = newId()
     const n = get().nextN
@@ -141,11 +142,13 @@ export const useFrameStore = create<FrameStore>((set, get) => ({
   },
 
   adoptFrame: (rect, label, color) => {
+    if (isEditBlocked()) return '' // #334 — a saved frame is document content
     beginUndo()
     return get().adoptFrameSilently(rect, label, color)
   },
 
   adoptFrameSilently: (rect, label, color) => {
+    if (isEditBlocked()) return '' // #334 — a saved frame is document content
     const id = newId()
     const n = get().nextN
     const r = { ...rect }
@@ -159,6 +162,7 @@ export const useFrameStore = create<FrameStore>((set, get) => ({
   },
 
   setRectsSilently: (rects) => {
+    if (isEditBlocked()) return // #334 — a saved frame is document content
     let changed = false
     const next = get().frames.map((f) => {
       const r = rects[f.id]
@@ -172,6 +176,7 @@ export const useFrameStore = create<FrameStore>((set, get) => ({
   },
 
   renameFrame: (id, label) => {
+    if (isEditBlocked()) return // #334 — a saved frame is document content
     const f = get().frames.find((x) => x.id === id)
     if (!f || f.label === label) return
     beginUndo()
@@ -180,6 +185,7 @@ export const useFrameStore = create<FrameStore>((set, get) => ({
   },
 
   resizeFrame: (id, rect) => {
+    if (isEditBlocked()) return // #334 — a saved frame is document content
     const f = get().frames.find((x) => x.id === id)
     if (!f || rectEq(f.rect, rect)) return
     beginGestureUndo(id) // coalesces across the gesture (§SF11.1)
@@ -188,6 +194,7 @@ export const useFrameStore = create<FrameStore>((set, get) => ({
   },
 
   setFrameColor: (id, color) => {
+    if (isEditBlocked()) return // #334 — a saved frame is document content
     const f = get().frames.find((x) => x.id === id)
     if (!f) return
     if (color === null ? f.color === undefined : f.color === color) return // no-op ⇒ no entry
@@ -206,6 +213,7 @@ export const useFrameStore = create<FrameStore>((set, get) => ({
   },
 
   removeFrame: (id) => {
+    if (isEditBlocked()) return // #334 — a saved frame is document content
     if (!get().frames.some((f) => f.id === id)) return
     beginUndo()
     set((s) => ({
@@ -216,6 +224,7 @@ export const useFrameStore = create<FrameStore>((set, get) => ({
   },
 
   clearFrames: () => {
+    if (isEditBlocked()) return // #334 — a saved frame is document content
     if (get().frames.length === 0 && get().nextN === 1 && get().selectedId === null) return
     beginUndo() // ONE atomic entry for the whole clear (§SF11.1)
     set({ frames: [], nextN: 1, selectedId: null })

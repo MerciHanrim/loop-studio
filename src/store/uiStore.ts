@@ -29,13 +29,16 @@ type UiState = {
   toggleOverlay: (o: Exclude<Overlay, 'none'>) => void
 
   /**
-   * Canvas EDIT lock (docs/mobile.md §MV3a shape, on desktop). Locked ⇒ nodes
-   * don't move / connect, nothing deletes, the Inspector is read-only — but
-   * selection, the read-only Inspector, pan / zoom, the minimap, the Timeline
-   * and the simulation all still work. UI-only: never the GraphDoc, the
-   * `loop-revision/*` digest, undo, or `simulationRev`. Seeded from
-   * `recommendedRunConfig.canvasLocked` on document / template load; the toolbar
-   * / Controls lock toggle flips it. Also persisted to `localStorage`
+   * Canvas EDIT lock (docs/mobile.md §MV3a shape, on desktop). Locked ⇒ no
+   * user edit of the document at all (docs/canvas-edit-lock.md §1) — but
+   * selection, the read-only Inspector, pan / zoom, the minimap, the Timeline,
+   * export and the simulation all still work. UI-only: never the GraphDoc, the
+   * `loop-revision/*` digest, undo, or `simulationRev`. Every document
+   * boundary (New, a Template, a file, a share link — issue #334,
+   * docs/canvas-edit-lock.md) sets it to the new document's
+   * `recommendedRunConfig.canvasLocked === true`, once, as part of the swap; the
+   * Controls lock toggle flips it. While on, `editPolicy.ts` refuses every user
+   * edit at the stores as well as in the UI. Also persisted to `localStorage`
    * (`CANVAS_LOCKED_KEY`, the same pattern as `focusMode`) so a plain refresh
    * or a PWA update-and-reload preserves whatever lock state was in effect —
    * it is a safety guard against accidental edits, so a reload the user did

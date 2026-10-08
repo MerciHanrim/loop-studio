@@ -53,6 +53,7 @@ const canvas = {
   'canvas.minimap.show': 'Hiện bản đồ thu nhỏ',
   'canvas.lock.lock': 'Khóa chỉnh sửa — vẫn chọn và đọc được',
   'canvas.lock.unlock': 'Mở khóa chỉnh sửa — di chuyển, nối và đổi giá trị',
+  'canvas.lock.name': 'Khóa chỉnh sửa',
   'canvas.focus.on': 'Tiêu điểm đang tắt — nhấn để lấy tiêu điểm nút đang chọn',
   'canvas.focus.off': 'Tiêu điểm đang bật — nhấn để hiện toàn bộ đồ thị',
   'canvas.focus.hint': 'Chọn một nút để lấy tiêu điểm',

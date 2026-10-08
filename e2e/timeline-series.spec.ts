@@ -51,7 +51,7 @@ async function seed(page: Page, timelineSeries?: string[] | 'all') {
       { id: 'e2', source: 'src', target: 'p2', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '1' } },
       { id: 'e3', source: 'p1', target: 'snk', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '1' } },
     ]
-    g.loadDoc({ nodes, edges })
+    g.loadDoc({ nodes, edges }, { mode: 'document-boundary', canvasLocked: false })
     l.mc.getState().applyRecommended(ts ? { timelineSeries: ts } : {})
   }, timelineSeries)
 }
@@ -68,7 +68,7 @@ async function seedNoSeries(page: Page) {
         { id: 'snk', type: 'drain', position: { x: 400, y: 0 }, data: { kind: 'drain', label: 'Snk', activation: 'automatic', mode: 'pullAny' } },
       ],
       edges: [{ id: 'e1', source: 'src', target: 'snk', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '1' } }],
-    })
+    }, { mode: 'document-boundary', canvasLocked: false })
     l.mc.getState().applyRecommended({})
   })
 }
@@ -88,7 +88,7 @@ async function seedPools(page: Page, n: number) {
       nodes.push({ id, type: 'pool', position: { x: 200, y: i * 60 }, data: { kind: 'pool', label: `Q${i}`, activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } })
       edges.push({ id: `e_${id}`, source: 'src', target: id, sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '1' } })
     }
-    g.loadDoc({ nodes, edges })
+    g.loadDoc({ nodes, edges }, { mode: 'document-boundary', canvasLocked: false })
     l.mc.getState().applyRecommended({})
   }, n)
 }
@@ -295,6 +295,9 @@ test.describe('recommendedRunConfig.timelineSeries — the three stored states',
     expect(await storedField(page)).toEqual(ts)
     await expect(trigger(page)).toHaveText('Series 55/55')
 
+    // #334 — the MMO file opens edit-locked and the lock refuses every user
+    // edit; lift it before adding the 56th Pool, as a user has to
+    await page.evaluate(() => (window as unknown as Bridge).__loop.ui.getState().setCanvasLocked(false))
     await addPool(page)
     await expect(trigger(page)).toHaveText('Series 55/56')
     expect(await seriesState(page)).toHaveLength(55)
@@ -663,7 +666,7 @@ test.describe('round trips — every graph Export writes the choice back', () =>
       const parsed = serM.deserialize(roundText)
       g().newGraph()
       l.mc.getState().applyRecommended({ baseSeed: 7, runs: 1, steps: 1, tracked: [] })
-      g().loadDoc({ nodes: parsed.nodes, edges: parsed.edges })
+      g().loadDoc({ nodes: parsed.nodes, edges: parsed.edges }, { mode: 'document-boundary', canvasLocked: false })
       l.mc.getState().applyRecommended(parsed.recommendedRunConfig)
       return {
         series: l.sim.getState().timelineSeries,

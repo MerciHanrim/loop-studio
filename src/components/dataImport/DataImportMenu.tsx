@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useT } from '../../i18n'
+import { useUiStore } from '../../store/uiStore'
 import { useMenuKeyboard, useMenuTrigger } from '../../ui/useMenuKeyboard'
 import type { ToolbarDialog } from '../toolbar/dialogTypes'
 import { useMenuOpenStore } from '../toolbar/menuOpenStore'
@@ -26,6 +27,10 @@ export function DataImportMenu({
   onOpenDialog: (desc: ToolbarDialog) => void
 }) {
   const t = useT()
+  // #334 — both wizard entries end in adding Parameters to the document, so
+  // they wait for the edit lock to be lifted; Manage bindings stays (its own
+  // refresh and rename are disabled inside, its exports are not)
+  const editLocked = useUiStore((s) => s.canvasLocked)
   const [menuOpen, setMenuOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement | null>(null)
@@ -68,6 +73,7 @@ export function DataImportMenu({
             type="button"
             className="menu__item"
             role="menuitem"
+            disabled={editLocked}
             onClick={() => {
               setMenuOpen(false)
               onOpenDialog({ kind: 'dataImport-wizard' })
@@ -92,6 +98,7 @@ export function DataImportMenu({
             type="button"
             className="menu__item"
             role="menuitem"
+            disabled={editLocked}
             onClick={() => {
               setMenuOpen(false)
               onOpenDialog({ kind: 'dataImport-wizard', quickStart: true })

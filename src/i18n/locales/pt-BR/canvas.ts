@@ -54,6 +54,7 @@ const canvas = {
   'canvas.minimap.show': 'Mostrar o minimapa',
   'canvas.lock.lock': 'Bloquear a edição — selecionar e ler continuam ativos',
   'canvas.lock.unlock': 'Desbloquear a edição — mover, conectar e alterar valores',
+  'canvas.lock.name': 'Bloqueio de edição',
   'canvas.focus.on': 'Foco desativado — clique para focar o nó selecionado',
   'canvas.focus.off': 'Foco ativado — clique para mostrar o grafo inteiro',
   'canvas.focus.hint': 'Selecione um nó para focar',
