@@ -1061,13 +1061,17 @@ export function Canvas() {
           {/* docs/large-graph-readability.md §LGR6 — the one-shot "draw a group
               frame" tool (desktop only; frame drawing is not on mobile, §LGR9).
               Armed ⇒ a pane drag rubber-bands a labelled rectangle behind the
-              nodes. Transient, session-only, never in the GraphDoc / undo. */}
-          {!isMobile && !canvasLocked && (
+              nodes. Transient, session-only, never in the GraphDoc / undo.
+              #338 — while the canvas is locked it stays in place, `disabled`
+              (a saved frame is document content, #334), so the rail keeps its
+              height; locking also turns an armed tool off (store/editPolicy). */}
+          {!isMobile && (
             <ControlButton
               onClick={() => (frameToolArmed ? disarmFrameTool() : armFrameTool())}
               title={frameToolArmed ? t('canvas.frame.drawing') : t('canvas.frame.draw')}
               aria-label={frameToolArmed ? t('canvas.frame.drawing') : t('canvas.frame.draw')}
               aria-pressed={frameToolArmed}
+              disabled={canvasLocked}
               className="rf-frame"
             >
               <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
@@ -1105,8 +1109,9 @@ export function Canvas() {
             </ControlButton>
           )}
           {/* §AF5 R4 — the DEFAULT clear removes BOTH kinds ("Clear all frames").
-              Shown when either a manual or an auto frame exists. */}
-          {!isMobile && !canvasLocked && (framesExist || autoFramesExist) && (
+              Shown when either a manual or an auto frame exists. #338 —
+              `disabled` while the canvas is locked, never removed. */}
+          {!isMobile && (framesExist || autoFramesExist) && (
             <ControlButton
               onClick={() => {
                 clearFrames()
@@ -1114,6 +1119,7 @@ export function Canvas() {
               }}
               title={t('canvas.frame.clearAll')}
               aria-label={t('canvas.frame.clearAll')}
+              disabled={canvasLocked}
               className="rf-frame-clear"
             >
               <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">

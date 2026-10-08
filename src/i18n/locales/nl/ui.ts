@@ -556,6 +556,10 @@ const ui = {
   'whatsNew.v0213.fresh': 'Een nieuw diagram begint ontgrendeld, en wie een ander diagram opent, begint met een lege geschiedenis voor ongedaan maken.',
   'whatsNew.v0213.locked': 'Zolang bewerken vergrendeld is, verandert er niets aan het diagram: toevoegen, invoegen, gegevens importeren, Ongedaan maken en Opnieuw uitvoeren wachten tot je ontgrendelt.',
   'whatsNew.v0213.shows': 'De vergrendelknop toont nu zijn toestand: een open hangslot zolang je kunt bewerken, een gesloten, gemarkeerd hangslot zolang bewerken vergrendeld is.',
+  'whatsNew.v0214.rail': 'Zolang bewerken vergrendeld is, blijven de knoppen Groepskader en Alle kaders wissen uitgeschakeld op hun plek, zodat de andere knoppen niet meer verschuiven.',
+  'whatsNew.v0214.tool': 'Vergrendelen zet ook het kaderhulpmiddel uit, zodat slepen op een leeg tekengebied de weergave verschuift in plaats van een kader te beginnen.',
+  'whatsNew.v0214.keys': 'Zolang bewerken vergrendeld is, slaat het toetsenbord deze twee knoppen over, net als elke andere uitgeschakelde knop.',
+  'whatsNew.v0214.zoom': 'Op een telefoon zoomt de pagina niet meer in en blijft ze niet meer ingezoomd wanneer je op de taalzoekbalk tikt.',
 } as const
 
 export default ui

@@ -1736,6 +1736,22 @@ a.sheet__row {
 .react-flow__controls-button svg {
   fill: currentColor;
 }
+/* #338 — a rail button the edit lock disables ("Group frame", "Clear all
+   frames") stays in place, so the rail keeps its height. Like the #334 chips:
+   a colour, not `opacity`, so forced colours keep the tell (`GrayText`), and no
+   hover fill. Keyboard focus never lands on it (`disabled` leaves Tab). */
+.react-flow__controls-button:disabled,
+.react-flow__controls-button:disabled:hover {
+  color: var(--text-disabled);
+  background: var(--surface-raised);
+  cursor: default;
+}
+@media (forced-colors: active) {
+  .react-flow__controls-button:disabled,
+  .react-flow__controls-button:disabled:hover {
+    color: GrayText;
+  }
+}
 
 /* ==== N1 "Vessel" nodes ================================================== */
 .nodef {
@@ -5760,6 +5776,18 @@ input[type='number']::-webkit-inner-spin-button {
      `maximum-scale` / `user-scalable=no`. */
   .mcdlg__field input {
     font-size: 16px;
+  }
+  /* #340 — that "only place" stopped being true: the More sheet's language
+     search (12 px, inherited from its menu) zoomed an iPhone in and left it
+     zoomed. So EVERY text field the phone can focus takes at least 16 px, not
+     one field at a time (the Monte-Carlo fields above, the share password
+     field below, #300, were each patched alone). `max(16px, 1em)` keeps a
+     field that is already larger as it is. The long selector out-ranks a
+     component's own `font` (the language search's `font: inherit`). */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']):not([type='button']):not([type='submit']):not([type='reset']):not([type='hidden']),
+  textarea,
+  select {
+    font-size: max(16px, 1em);
   }
 
   /* height tracks the *visual* viewport (dvh), so the iOS address bar

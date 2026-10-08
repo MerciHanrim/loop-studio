@@ -240,6 +240,18 @@ Pinch / accessibility zoom is **never** blocked — the viewport meta stays
 `width=device-width, initial-scale=1.0, viewport-fit=cover` with no
 `maximum-scale` or `user-scalable=no`.
 
+**Every text field, not one at a time (#340, v0.21.4).** The "only place"
+above stopped being true: the More sheet's language search (12 px, inherited
+from its menu) zoomed an iPhone in and left it zoomed, as the share password
+field had before it (#300, patched alone). Under the mobile media query **every
+text-like field — `input` of any type but checkbox, radio, range, file,
+colour, button, submit, reset and hidden, `textarea` and `select` — takes
+`font-size: max(16px, 1em)`**, so a field added later cannot bring the zoom
+back, and one already larger keeps its size. `e2e/mobile.spec.ts` "every text
+field the phone shows is ≥ 16px" reads every visible field's computed size on
+the canvas, in the More sheet, in the language menu (and types into its search
+and closes it), in the share panel and in the Monte-Carlo dialog.
+
 ## MV5. Timeline & Inspector sheets
 
 Both are bottom sheets. **Shared sheet contract:**

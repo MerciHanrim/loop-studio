@@ -636,6 +636,10 @@ const ui = {
   'whatsNew.v0213.fresh': 'Ein neues Diagramm beginnt entsperrt, und wer ein anderes Diagramm öffnet, beginnt mit einem leeren Rückgängig-Verlauf.',
   'whatsNew.v0213.locked': 'Solange die Bearbeitung gesperrt ist, ändert sich am Diagramm nichts: Hinzufügen, Einfügen, Datenimport, Rückgängig und Wiederherstellen warten, bis Sie entsperren.',
   'whatsNew.v0213.shows': 'Die Sperrtaste zeigt jetzt ihren Zustand: ein offenes Schloss, solange Sie bearbeiten können, ein geschlossenes, hervorgehobenes Schloss, wenn die Bearbeitung gesperrt ist.',
+  'whatsNew.v0214.rail': 'Solange die Bearbeitung gesperrt ist, bleiben die Schaltflächen Gruppenrahmen und Alle Rahmen löschen deaktiviert an ihrem Platz, sodass sich die anderen Schaltflächen nicht mehr verschieben.',
+  'whatsNew.v0214.tool': 'Beim Sperren wird auch das Rahmenwerkzeug ausgeschaltet, sodass ein Ziehen auf leerer Arbeitsfläche die Ansicht verschiebt, statt einen Rahmen zu beginnen.',
+  'whatsNew.v0214.keys': 'Solange die Bearbeitung gesperrt ist, überspringt die Tastatur diese beiden Schaltflächen wie jede andere deaktivierte Schaltfläche.',
+  'whatsNew.v0214.zoom': 'Auf dem Smartphone vergrößert ein Tippen auf die Sprachsuche die Seite nicht mehr dauerhaft.',
 } satisfies Record<UiKey, string>
 
 export default ui

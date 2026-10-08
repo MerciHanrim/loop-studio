@@ -1,3 +1,4 @@
+import { useFrameStore } from './frameStore'
 import { setDocumentLockSink, setEditGuard } from './graphStore'
 import { useUiStore } from './uiStore'
 
@@ -29,3 +30,11 @@ export const editLocked = (): boolean => useUiStore.getState().canvasLocked
 
 setEditGuard(editLocked)
 setDocumentLockSink((locked) => useUiStore.getState().setCanvasLocked(locked))
+
+// Issue #338 — locking turns an armed frame tool off, however the lock comes on
+// (the rail button, or a locked document's boundary): the tool's button is
+// disabled while locked, so nothing could turn it off, and an armed tool keeps
+// drag-to-pan off and starts a frame draft the stores then refuse.
+useUiStore.subscribe((s, prev) => {
+  if (s.canvasLocked && !prev.canvasLocked) useFrameStore.getState().disarmTool()
+})
