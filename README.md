@@ -140,7 +140,22 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.21.4
+## Latest — v0.22.0
+
+Playback shows what moved where: the path a Gate took, and every amount beside its moving
+marker.
+
+- **The Gate's path lights up**: during a run, each branch a Gate actually sends something
+  down is highlighted under its moving marker; a branch that carries nothing keeps its usual
+  look
+- **`+N` beside every moving marker**: the amount a connection carries in a step rides
+  beside its marker as a badge, from `+1`; the connection's own label stays in place and
+  fades only while the badge passes over it
+- **Focus mode wins on connections**: the markers, badges and highlights on connections
+  outside the focus fade with those connections; in a busy step at most 24 markers move, and
+  every other connection that moved is highlighted instead
+
+## v0.21.4
 
 A fix release: the canvas controls keep their place while editing is locked, and the phone's
 language search no longer zooms the page in.
@@ -175,16 +190,8 @@ A fix release: values and detail rows sit inside their node.
   usual maximum, and a row too long even then ends in "…"; positions, heights, files and
   results are unchanged
 
-## v0.21.1
-
-A fix release: Focus mode dims the connections too.
-
-- **Connections outside the focus set fade** like the nodes there, path and arrowhead,
-  whatever their activator says; before, only the nodes were dimmed
-- **What stays at full strength is unchanged**: selection, warnings and the moving markers
-  of a running simulation; under high contrast a faded connection is a fine dotted line
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.21.0 (compact
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.21.1 (Focus
+mode dims the connections too), v0.21.0 (compact
 nodes, so more of a large graph fits in view), v0.20.0 (flow
 colours in the minimap and the timeline), v0.19.0 (flow
 colours on nodes and connections), v0.18.2 (the

@@ -634,6 +634,11 @@ const ui = {
   'whatsNew.v0214.tool': 'Le verrouillage désactive aussi l’outil de cadre, si bien qu’un glissement sur le canevas vide déplace la vue au lieu de commencer un cadre.',
   'whatsNew.v0214.keys': 'Tant que l’édition est verrouillée, la navigation au clavier passe ces deux boutons, comme tous les autres boutons désactivés.',
   'whatsNew.v0214.zoom': 'Sur un téléphone, toucher la recherche de langue n’agrandit plus la page sans la rétablir ensuite.',
+  'whatsNew.v0220.gate': 'Pendant une exécution, chaque branche par laquelle un Aiguillage envoie réellement quelque chose est mise en évidence. Une branche qui ne transporte rien garde son aspect habituel.',
+  'whatsNew.v0220.badge': 'La quantité transportée par une connexion pendant une étape s’affiche désormais à côté de son repère mobile sous forme de badge +N, dès +1.',
+  'whatsNew.v0220.label': 'L’étiquette propre à une connexion reste à sa place et ne s’estompe que pendant que le repère mobile ou son badge passe dessus.',
+  'whatsNew.v0220.focus': 'Avec le Focus activé, les repères mobiles, les badges et les mises en évidence sur les connexions hors du focus s’estompent désormais avec ces connexions.',
+  'whatsNew.v0220.cap': 'Lors d’une étape très chargée, 24 repères au plus se déplacent à la fois. Les autres connexions qui ont bougé sont mises en évidence à la place.',
 } satisfies Record<UiKey, string>
 
 export default ui

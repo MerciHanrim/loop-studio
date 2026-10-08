@@ -289,7 +289,7 @@ describe('es-419 copy — mechanical review', () => {
       Ctrl: ['toolbar.undo.title', 'toolbar.redo.title'],
       Cmd: ['toolbar.undo.title', 'toolbar.redo.title'],
       Z: ['toolbar.undo.title', 'toolbar.redo.title'],
-      N: ['import.ignoreLastRows', 'import.issue.invalid-ignore-rows', 'import.issue.ragged-row'],
+      N: ['import.ignoreLastRows', 'import.issue.invalid-ignore-rows', 'import.issue.ragged-row', 'whatsNew.v0220.badge'],
       // the sample CSV's own column headers, shown as data
       item: ['import.qs.mapping'],
       name: ['import.qs.mapping'],

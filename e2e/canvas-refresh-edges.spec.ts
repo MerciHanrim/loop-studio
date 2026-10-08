@@ -129,8 +129,10 @@ test.describe('Playback choreography — the token reacts ONLY to real engine ev
 // in LoopEdge (not merely CSS-suppressed) — so under `prefers-reduced-motion:
 // reduce` there is literally no `animateMotion` / travelling element in the DOM
 // to play, freeze, or restart.
+// (issue #330 PR 1 — the `+N` badge lives in the label layer; a TRAVELLING one
+// is motion, the reduced-motion static one is not)
 const MOTION =
-  '.react-flow__edges animateMotion, .flow-move, .pb-move, .pb-cue, .flow-bead, .flow-trail, .flow-token__n, .state-move, .state-move__n'
+  '.react-flow__edges animateMotion, .flow-move, .pb-move, .pb-cue, .flow-bead, .flow-trail, .pb-badge[data-playback-badge="travel"], .state-move, .state-move__n'
 
 test.describe('Canvas Refresh PR 2 — reduced motion: the flow bead contract', () => {
   test('a real FlowEvent renders NO moving element — a held static highlight + arrival cue instead', async ({ page }) => {
@@ -153,8 +155,12 @@ test.describe('Canvas Refresh PR 2 — reduced motion: the flow bead contract', 
     expect(held.anim === 'none' || held.anim === '').toBe(true) // not animating
     expect(held.op).toBeGreaterThan(0.1) // and actually visible, not faded away
 
+    // issue #330 PR 1 — …and the step's `+N`, static, beside the arrival tell
+    await expect(page.locator('.pb-badge[data-badge-for="r1"][data-playback-badge="static"]')).toHaveText('+2')
+
     // an edge that carried NOTHING this step gets no highlight (nothing inferred)
     await expect(page.locator('.react-flow__edge[data-id="r2"] .flow-edge-pulse')).toHaveCount(0)
+    await expect(page.locator('.pb-badge[data-badge-for="r2"]')).toHaveCount(0)
   })
 
   test('the cues are HELD through Pause and only clear on Reset', async ({ page }) => {
@@ -197,7 +203,10 @@ test.describe('Playback choreography — one token per event, merged sum', () =>
     await step(page)
     const token = page.locator('.react-flow__edge[data-id="r1"] .pb-move')
     await expect(token).toHaveCount(1)
-    await expect(token.locator('.flow-token__n')).toHaveText('2') // src → A carries flow "2"
+    // src → A carries flow "2": the summed amount rides beside the token as its
+    // `+N` badge (issue #330 PR 1), one per edge
+    await expect(page.locator('.pb-badge[data-badge-for="r1"]')).toHaveText('+2')
+    await expect(page.locator('.pb-badge[data-badge-for="r1"]')).toHaveCount(1)
 
     // a multi-step run never shows more than one token on any edge at once
     for (let i = 0; i < 5; i++) {

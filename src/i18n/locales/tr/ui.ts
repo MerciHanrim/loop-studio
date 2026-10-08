@@ -619,6 +619,11 @@ const ui = {
   'whatsNew.v0214.tool': 'Kilitlemek çerçeve aracını da kapatır, böylece boş tuvalde sürüklemek çerçeve başlatmak yerine görünümü kaydırır.',
   'whatsNew.v0214.keys': 'Düzenleme kilitliyken klavyeyle gezinme, kapalı diğer tüm düğmeler gibi bu iki düğmeyi de atlar.',
   'whatsNew.v0214.zoom': 'Telefonda dil aramasına dokunmak artık sayfayı büyütüp öyle bırakmıyor.',
+  'whatsNew.v0220.gate': 'Çalıştırma sırasında, bir Dağıtıcının gerçekten bir şey gönderdiği her dal vurgulanır; hiçbir şey taşımayan dal her zamanki görünümünü korur.',
+  'whatsNew.v0220.badge': 'Bir bağlantının bir adımda taşıdığı miktar artık hareket eden işaretinin yanında +N rozeti olarak görünür; +1’den itibaren gösterilir.',
+  'whatsNew.v0220.label': 'Bir bağlantının kendi etiketi yerinde kalır ve yalnızca hareket eden işaret ya da rozeti üzerinden geçerken soluklaşır.',
+  'whatsNew.v0220.focus': 'Odak açıkken, odak dışındaki bağlantılardaki hareket eden işaretler, rozetler ve vurgular artık bu bağlantılarla birlikte soluklaşır.',
+  'whatsNew.v0220.cap': 'Hareketin çok olduğu bir adımda aynı anda en fazla 24 işaret hareket eder; hareket eden diğer bağlantılar bunun yerine vurgulanır.',
 } as const
 
 export type UiKey = keyof typeof ui

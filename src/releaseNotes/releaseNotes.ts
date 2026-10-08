@@ -39,6 +39,16 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // issue #330 PR 1 - playback shows the path a Gate took, every amount as a
+    // `+N` badge beside its moving marker, the label rule, Focus mode on
+    // connections and the 24-marker cap; the date is the day it is deployed,
+    // set right before the merge
+    id: 'release:0.22.0',
+    version: '0.22.0',
+    date: '2026-10-08',
+    items: ['whatsNew.v0220.gate', 'whatsNew.v0220.badge', 'whatsNew.v0220.label', 'whatsNew.v0220.focus', 'whatsNew.v0220.cap'],
+  },
+  {
     // issues #338 + #340 - the Controls rail keeps its two frame buttons,
     // disabled, while the canvas is locked, so the other buttons no longer
     // move; and a phone's text fields are at least 16 px, so focusing the

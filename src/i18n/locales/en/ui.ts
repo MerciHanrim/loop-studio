@@ -549,6 +549,11 @@ const ui = {
   'whatsNew.v0214.tool': 'Locking also turns the frame tool off, so a drag on the empty canvas moves the view instead of starting a frame.',
   'whatsNew.v0214.keys': 'While editing is locked, moving through the controls with the keyboard skips these two buttons, like every other button that is turned off.',
   'whatsNew.v0214.zoom': 'On a phone, tapping the language search no longer zooms the page in and leaves it that way.',
+  'whatsNew.v0220.gate': 'During a run, each branch a Gate actually sends something down is highlighted; a branch that carries nothing keeps its usual look.',
+  'whatsNew.v0220.badge': 'The amount a connection carries in a step now shows beside its moving marker as a +N badge, starting from +1.',
+  'whatsNew.v0220.label': 'A connection’s own label stays where it is and fades only while the moving marker or its badge passes over it.',
+  'whatsNew.v0220.focus': 'With Focus on, the moving markers, badges and highlights on connections outside the focus now fade along with those connections.',
+  'whatsNew.v0220.cap': 'In a busy step, at most 24 markers move at once; every other connection that moved is highlighted instead.',
 } as const
 
 export type UiKey = keyof typeof ui

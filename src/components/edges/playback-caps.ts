@@ -7,8 +7,11 @@
  *  always shows the exact summed amount regardless of this cap. */
 export const MAX_PLAYBACK_TOKENS = 12
 
-/** max travelling tokens rendered across ALL edges in one step. Past this, a
- *  flowing edge still commits its value and keeps its label, it just does not
- *  animate. The bearing edges are chosen deterministically (ascending edgeId)
- *  so the set is stable across re-render / deselect+reselect / speed change. */
-export const MAX_PLAYBACK_TOKENS_TOTAL = 60
+/** issue #330 PR 1 (v0.22.0) — max token-and-badge pairs (the round token and
+ *  its `+N` badge, counted together) across ALL edges in one step; it replaced
+ *  the 60 travelling-cue budget. Past it, a resource edge that moved keeps its
+ *  path highlight and its arrival cue, it just carries no token; it still
+ *  commits its value and keeps its label. The bearing edges are chosen
+ *  deterministically (ascending edgeId) so the set is stable across re-render /
+ *  deselect+reselect / speed change. */
+export const MAX_PLAYBACK_TOKENS_TOTAL = 24

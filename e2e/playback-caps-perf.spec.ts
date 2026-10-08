@@ -2,7 +2,9 @@ import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 
 // docs/simulation-playback.md §PB4.5 / PB-Q4 — the DOM bounds and the render
-// budget. `MAX_PLAYBACK_TOKENS_TOTAL` (60) travelling tokens per step;
+// budget. `MAX_PLAYBACK_TOKENS_TOTAL` (24 token-and-badge pairs per step since
+// issue #330 PR 1; it was 60 travelling cues; past it a moved resource edge
+// keeps its path highlight and arrival cue, §PB4.6);
 // `MAX_PLAYBACK_TOKENS` (12) breakdown chips per selected edge; and an idle
 // edge must not re-render on every τ frame. No state-machine change.
 
@@ -40,7 +42,7 @@ const fanGraph = (n: number, extraState = false) => {
  *  40 resource transfers + 20 `trigger` deliveries + 20 non-zero `label` deltas
  *  (default). Edge ids `c000..c079` interleave the kinds (`i % 4 < 2` resource,
  *  `== 2` trigger, `== 3` label), so ascending-id order mixes all three and the
- *  over-budget tail (`c060..c079`) also spans all three. `reverse` emits the
+ *  over-budget tail (`c024..c079`) also spans all three. `reverse` emits the
  *  node / edge arrays back-to-front to prove the budget ignores input order.
  *  Trigger deliveries land one step after the source fires, so drive it as
  *  `advance()` (step 1) then a choreographed step 2. */
@@ -111,26 +113,32 @@ test.afterEach(async ({ page }) => {
 })
 
 test.describe('playback — Slice 3c-c: token caps', () => {
-  test('MAX_PLAYBACK_TOKENS_TOTAL — ≤ 60 travelling tokens; the overflow edges still commit', async ({ page }) => {
+  test('MAX_PLAYBACK_TOKENS_TOTAL — 24 token-and-badge pairs; the overflow edges keep a path highlight and still commit', async ({ page }) => {
     await setup(page, fanGraph(65))
     await holdTravel(page)
 
     const moving = await page.locator('g.pb-move').count()
-    expect(moving).toBeLessThanOrEqual(60)
-    expect(moving).toBeGreaterThanOrEqual(55) // essentially all of the cap is used
+    expect(moving).toBe(24) // the whole cap is used
+    // the dot and its badge are one pair: as many badges as tokens
+    await expect(page.locator('.pb-badge[data-playback-badge="travel"]')).toHaveCount(24)
 
-    // the bearing set is the first 60 edge-ids in ascending order — deterministic
+    // the bearing set is the first 24 edge-ids in ascending order — deterministic
     const withToken = await page.evaluate(() =>
       [...document.querySelectorAll('.react-flow__edge')]
         .filter((e) => e.querySelector('g.pb-move'))
         .map((e) => e.getAttribute('data-id'))
         .sort(),
     )
-    expect(withToken).toEqual(Array.from({ length: 60 }, (_, i) => `e${String(i).padStart(3, '0')}`))
-    // an overflow edge (e060..e064) shows NO token…
-    for (const eid of ['e060', 'e064']) {
+    expect(withToken).toEqual(Array.from({ length: 24 }, (_, i) => `e${String(i).padStart(3, '0')}`))
+    // an overflow edge (e024..e064) shows NO token and no badge, but its path
+    // highlight (§PB4.6); a bearing edge (not from a Gate) has no highlight
+    for (const eid of ['e024', 'e060', 'e064']) {
       expect(await page.locator(`.react-flow__edge[data-id="${eid}"] g.pb-move`).count()).toBe(0)
+      await expect(page.locator(`.pb-badge[data-badge-for="${eid}"]`)).toHaveCount(0)
+      await expect(page.locator(`.react-flow__edge[data-id="${eid}"] .pb-path--over-cap`)).toHaveCount(1)
     }
+    await expect(page.locator('.react-flow__edge[data-id="e000"] .pb-path')).toHaveCount(0)
+    await expect(page.locator('.pb-path--over-cap')).toHaveCount(65 - 24)
 
     // …but every edge still commits its value on settle
     await call(page, 'stepOnce')
@@ -214,33 +222,31 @@ test.describe('playback — Slice 3c-c: token caps', () => {
       expect(chips).toBe(0) // one transfer ⇒ no breakdown; the token label carries it
     }
 
-    // the moving dot's own label is the exact summed flow for the edge
-    const label = await page.locator('.react-flow__edge[data-id="e_a"] g.pb-move text').textContent().catch(() => null)
+    // the moving dot's own `+N` badge is the exact summed flow for the edge
     const flow = await page.evaluate(() => (window as any).__loop.sim.getState().transition.flowByEdge['e_a'])
-    if (label) expect(Number(label)).toBe(flow)
     expect(flow).toBe(7)
+    await expect(page.locator('.pb-badge[data-badge-for="e_a"]')).toHaveText(`+${flow}`)
     await call(page, 'pause')
   })
 })
 
 test.describe('playback — Slice 3c-c: ONE global travel budget (resource + trigger + label)', () => {
-  test('mixed 40 resource + 20 trigger + 20 label ⇒ ≤ 60 travelling elements total', async ({ page }) => {
+  test('mixed 40 resource + 20 trigger + 20 label ⇒ 24 travelling elements total', async ({ page }) => {
     await setup(page, mixedGraph())
     await holdMixedTravel(page)
 
     const pb = await page.locator('g.pb-move').count()
     const stTrig = await page.locator('g.state-move.state-move--trigger').count()
     const stLabel = await page.locator('g.state-move.state-move--label').count()
-    // the cap spans ALL three kinds together — never resource-60 + state-60
-    expect(pb + stTrig + stLabel).toBeLessThanOrEqual(60)
-    expect(pb + stTrig + stLabel).toBe(60) // essentially the whole budget is used
+    // the cap spans ALL three kinds together — never resource-24 + state-24
+    expect(pb + stTrig + stLabel).toBe(24) // the whole budget is used
     // and it is a genuine mix, not one kind starving the others
     expect(pb).toBeGreaterThan(0)
     expect(stTrig).toBeGreaterThan(0)
     expect(stLabel).toBeGreaterThan(0)
 
-    // the bearing set is the deterministic first-60 by (edgeId, cueKind, ord)
-    expect(await travellingSet(page)).toEqual(Array.from({ length: 60 }, (_, i) => C(i)))
+    // the bearing set is the deterministic first-24 by (edgeId, cueKind, ord)
+    expect(await travellingSet(page)).toEqual(Array.from({ length: 24 }, (_, i) => C(i)))
 
     // per-edge lock: NO edge renders more than one travelling element, so the
     // on-screen total can never exceed the picked-edge count even though the
@@ -259,7 +265,7 @@ test.describe('playback — Slice 3c-c: ONE global travel budget (resource + tri
     await call(page, 'reset')
   })
 
-  test('the chosen 60 are independent of node / edge input order', async ({ page }) => {
+  test('the chosen 24 are independent of node / edge input order', async ({ page }) => {
     await setup(page, mixedGraph(false))
     await holdMixedTravel(page)
     const forward = await travellingSet(page)
@@ -273,7 +279,7 @@ test.describe('playback — Slice 3c-c: ONE global travel budget (resource + tri
     const reversed = await travellingSet(page)
 
     expect(reversed).toEqual(forward)
-    expect(reversed).toEqual(Array.from({ length: 60 }, (_, i) => C(i)))
+    expect(reversed).toEqual(Array.from({ length: 24 }, (_, i) => C(i)))
     await call(page, 'reset')
   })
 

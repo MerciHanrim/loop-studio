@@ -8,12 +8,12 @@
     "branch-computed": "the attribute is an EXPRESSION and the file contains the declared marker - one element, several branches wanting different directions"
   },
   "totals": {
-    "elements": 95,
+    "elements": 96,
     "byExpect": {
       "auto": 37,
       "branch-computed": 4,
       "locale-direction": 13,
-      "ltr": 41
+      "ltr": 42
     }
   },
   "elements": [
@@ -754,6 +754,14 @@
       "tag": "span",
       "find": [
         "fmtSigned(sv.clampAdjustment)"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/edges/PlaybackBadgeView.tsx",
+      "tag": "div",
+      "find": [
+        "{amount}"
       ],
       "expect": "ltr"
     },

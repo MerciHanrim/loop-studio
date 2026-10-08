@@ -224,8 +224,16 @@ connection is 0.5 inside the focus set and 0.26 outside it, Focus winning.
 Under forced colours a dimmed connection is not faded (opacity 1); the sparse
 `1 5` dash is its tell (§LGR9). Issue #329: until v0.21.1 an inline `opacity`
 on every connection path beat this rule, so connections were never dimmed; the
-activator's 0.5 is now the `.edge-activator-off` class. The playback cues on a
-dimmed connection keep their strength (their Focus policy is #330).
+activator's 0.5 is now the `.edge-activator-off` class. Issue #330 PR 1
+(v0.22.0): the playback cues on a dimmed connection follow its dimming — the
+path highlight, the round token and its `+N` badge, the depart / arrive cues,
+the L0 pulse and the reduced-motion forms are drawn at the same 0.26
+(`filter: opacity()`, so it multiplies with their own animation); under forced
+colours they are not faded either, the highlight takes the `1 5` dash, the
+token turns hollow and the badge's border is dashed
+(`docs/simulation-playback.md` §PB4.6). The run-in-progress cue and every cue
+INSIDE a node (the fired wave, the evaluated mark) keep full strength, as
+above.
 
 **A selected node is never de-emphasised.** Selection outranks focus: whatever
 the focus set says, a node the user has selected renders at full strength, with

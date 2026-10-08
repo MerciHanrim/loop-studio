@@ -579,6 +579,11 @@ const ui = {
   'whatsNew.v0214.tool': 'Il blocco disattiva anche lo strumento riquadro, così trascinare sull’area di disegno vuota sposta la vista invece di iniziare un riquadro.',
   'whatsNew.v0214.keys': 'Finché le modifiche sono bloccate, la navigazione da tastiera salta questi due pulsanti, come ogni altro pulsante disattivato.',
   'whatsNew.v0214.zoom': 'Su un telefono, toccare la ricerca della lingua non ingrandisce più la pagina lasciandola ingrandita.',
+  'whatsNew.v0220.gate': 'Durante un’esecuzione viene evidenziato ogni ramo in cui un Ripartitore invia davvero qualcosa; un ramo che non trasporta nulla mantiene il suo aspetto abituale.',
+  'whatsNew.v0220.badge': 'La quantità che una connessione trasporta in un passo ora compare accanto al suo segno in movimento come un indicatore +N, già da +1.',
+  'whatsNew.v0220.label': 'L’etichetta della connessione resta al suo posto e si attenua solo mentre il segno in movimento o il suo indicatore le passa sopra.',
+  'whatsNew.v0220.focus': 'Con la messa a fuoco attiva, i segni in movimento, gli indicatori e le evidenziazioni sulle connessioni fuori fuoco ora si attenuano insieme a quelle connessioni.',
+  'whatsNew.v0220.cap': 'In un passo con molto movimento si spostano al massimo 24 segni alla volta; le altre connessioni con movimento vengono evidenziate al loro posto.',
 } satisfies Record<UiKey, string>
 
 export default ui

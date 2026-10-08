@@ -329,13 +329,15 @@ the sum); the **`preparedTransition.events` list keeps every original
   resource token (different meaning, own beat);
 - a cap `MAX_PLAYBACK_TOKENS` (**12**) per edge per step bounds the per-transfer
   breakdown chips (`shown + N == the edge's transfer count`); and a SINGLE global
-  `MAX_PLAYBACK_TOKENS_TOTAL` (**60**) budget spans **every travelling cue in a
-  step together** — resource transfer tokens, `trigger` beads and non-zero
+  `MAX_PLAYBACK_TOKENS_TOTAL` (**24**, issue #330 PR 1; it was 60) budget spans
+  **every travelling cue in a step together** — resource token-and-badge pairs
+  (§PB4.6, the dot and its `+N` counted as one), `trigger` beads and non-zero
   `label` beads — chosen by the fixed stable key
   `(edgeId, cueKind, originalEventIndex)` with `resource < trigger < label`, so
   the animated set is deterministic and independent of the order the engine
-  emitted events in. Past either cap only the animation is skipped — the summed
-  amount shown is still exact, the engine result and any settle-beat cue
+  emitted events in. Past either cap only the token is skipped — a resource edge
+  that moved keeps its **path highlight** and its **arrival cue** (§PB4.6), the
+  summed amount shown is still exact, the engine result and any settle-beat cue
   (`activator`, the committed value / label) are untouched. `activator` never
   travels, so it is never budget-gated. An edge emits **at most one** travelling
   cue per step (one `data.kind`, one state `mode`, one `StateEvent` per mode —
@@ -344,6 +346,46 @@ the sum); the **`preparedTransition.events` list keeps every original
   picked-edge count. The sort is computed **once per transition** (keyed on the
   per-transition `flowByEdge` identity) — a τ-only frame and every one of the
   hundreds of edge consumers share that one result.
+
+**PB4.6 — what moved where: the Gate path, the `+N` badge, the label (issue #330
+PR 1, v0.22.0).** A presentation layer over §PB4.1–PB4.5; the engine, the RNG,
+files, digests and every PB-INV / PBO-INV invariant are unchanged.
+
+- **The round token stays** wherever it travelled before; one summed token per
+  connection per step (§PB4.5).
+- **`+N` badge.** The step's summed amount is always shown, from `+1`, as a
+  badge **beside** the token (up and to its right), moving with it. It lives in
+  the label layer, above every connection label, so the token-and-badge pair is
+  drawn on top. It replaces the bare number that used to sit above the dot only
+  when the amount was above 1. The badge is elided with the dot at L0 (§PB4.4).
+- **Gate path.** For every Gate, deterministic or probabilistic, every outgoing
+  connection with a move event this step is **highlighted** (`.pb-path--gate`,
+  under its token); several can be at once. A branch with no move keeps its
+  usual look — no faded or crossed-out cue. The highlight lasts from the edge's
+  onset to settle.
+- **Past the 24 pairs** (§PB4.5) every moved resource connection keeps the path
+  highlight (`.pb-path--over-cap`) and its arrival cue, without a token.
+- **The connection's own label never moves.** It dims (`.edge-label--under-token`)
+  only while its real box overlaps the token or its badge; only the connection's
+  OWN label is tested, never another connection's. The label's size is read once
+  per text, never per frame.
+- **Focus mode wins on connections** (`docs/large-graph-readability.md`
+  §LGR2.3): on a connection outside the focus set every playback cue — the path
+  highlight, the token and badge, the depart / arrive cues, the L0 pulse and the
+  reduced-motion forms — is drawn at the connection's own low strength (0.26).
+  Cues inside a node keep full strength.
+- **Reduced motion:** no travel. The path highlight (`.flow-edge-pulse`), the
+  arrival tell (§PBO4) and the `+N` badge stay, static, for the committed step;
+  the badge sits at the target end, to its left, off the target node, within the
+  same 24 pairs.
+- **Forced colours:** the path highlight is told by width (a 4 px `CanvasText`
+  line over the 1.5 px connection), never by a low opacity; the badge is a
+  `Canvas` pill with a `CanvasText` border and amount; a covered label is not
+  faded but gives way (hidden) for as long as the token or badge covers it;
+  outside the focus set the highlight takes the connection's `1 5` dash, the
+  token is hollow and the badge's border dashed.
+- **Monte Carlo** draws no tokens, as before. The speed tiers (§PB6.1) are
+  issue #330 PR 3; until then every speed draws this same form.
 
 ## PB5. Pause / Resume
 
@@ -662,9 +704,10 @@ emphasis.
     their origins; a net-zero +/− pair still shows both component cues;
     `> MAX_PLAYBACK_TOKENS` ⇒ still one token, exact summed label, `+N`
     affordance; `> MAX_PLAYBACK_TOKENS_TOTAL` travelling cues across the step
-    (resource + `trigger` + non-zero `label`, one global budget) ⇒ the
+    (resource + `trigger` + non-zero `label`, one global budget of 24) ⇒ the
     over-budget edges keep their committed value / label and their settle cue
-    but do not animate; `to` unchanged in every case.
+    but do not animate; a resource edge among them keeps its path highlight and
+    arrival cue (§PB4.6); `to` unchanged in every case.
 14. **MC / Predict untouched** — a Monte-Carlo run shows no tokens and its result
     equals today's oracle; Predict shows numbers, no tokens.
 15. **VL / revision carry-over** — GraphDoc bytes, `loop-revision/3` digest, undo
@@ -757,7 +800,7 @@ oracle of its own**. Its verification is:
   checklist (each behaviour → the E2E that locks it) lives in
   [`examples/README.md`](../examples/README.md) §5.
 - **`e2e/playback-fixture.spec.ts`** — imports that graph and checks the cues,
-  the 60-token budget, the Bézier/orthogonal `d` fidelity, the L0 / reduced-motion
+  the 24-pair budget, the Bézier/orthogonal `d` fidelity, the L0 / reduced-motion
   elision, and the invariance below.
 - **Behavioural specs** — `playback.spec.ts` (Slice 1 state machine),
   `playback-choreography.spec.ts` (token + state-event choreography, Pause/speed,

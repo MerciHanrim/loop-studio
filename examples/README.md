@@ -356,8 +356,8 @@ file and checks the cues, the budget, and the invariance assertions.
 
 | cluster | wiring | the cue it shows |
 |---|---|---|
-| **Fan** | `Fan Source ─1→ P00 … P64` — **65 resource edges**, four of them `route: "orthogonal"` | 65 travelling **resource tokens** in one step — more than the **`MAX_PLAYBACK_TOKENS_TOTAL` = 60** budget, so ~10 edges commit their value with **no** animation |
-| **Merge** | `Merge A ─3→` and `Merge B ─2→ Merge Pool` (both `orthogonal`) | two resource tokens into one pool; each edge's token is labelled with its own amount; the pool value is their sum |
+| **Fan** | `Fan Source ─1→ P00 … P64` — **65 resource edges**, four of them `route: "orthogonal"` | 65 travelling **resource tokens** in one step — more than the **`MAX_PLAYBACK_TOKENS_TOTAL` = 24** token-and-badge pairs, so the rest commit their value with **no** token, each keeping its path highlight and arrival cue |
+| **Merge** | `Merge A ─3→` and `Merge B ─2→ Merge Pool` (both `orthogonal`) | two resource tokens into one pool; each edge's token carries its own amount as a `+N` badge; the pool value is their sum |
 | **Signal** | `Signal Source ─1→ Gate Pool` ; `Signal Source ┄trigger d0┄▷ Signal Drain` ; `Gate Pool ┄activator "≥ 1"┄▷ Signal Drain` | the **`trigger` bead** rides the real edge `d` on its delivery step; the **`activator`** never travels — its target-side cue lands on the **`arrive`** beat once `Gate Pool ≥ 1` |
 | **Label** | `Feeder ┄"+5"┄▷ Tank` and `Feeder ┄"-2"┄▷ Tank` | a **signed `label` delta bead** per edge — toward the target for `+`, away for `−` — never merged into a resource token |
 
@@ -375,7 +375,8 @@ drives the whole thing; the `trigger` delivers on step 2 (`fired + delay + 1`).
 | the **`trigger`** bead rides the edge on its delivery step; blocked ⇒ hollow | step 2 | `e2e/playback-choreography.spec.ts` "trigger rides the real … edge d", `e2e/state-ui.spec.ts` |
 | the **`activator`** shows a target-side cue on **`arrive`** and never a travelling bead | once `Gate Pool ≥ 1` | `e2e/playback-choreography.spec.ts` "activator does not travel…", `e2e/playback-fixture.spec.ts` "the activator edge never renders a travelling bead" |
 | a **signed `label` delta** bead per edge, by sign, never merged with the resource token | every step | `e2e/playback-choreography.spec.ts` "label — a signed-delta bead by sign…" |
-| more than **60** travelling cues in a step ⇒ exactly 60 animate, the rest still commit; the chosen set is deterministic and input-order-independent; **≤ 1** travelling element per edge | the Fan | `e2e/playback-caps-perf.spec.ts` (whole file), `e2e/playback-fixture.spec.ts` "every travelling cue kind renders, and the global 60-token budget bites", `src/engine/state-one-cue-per-edge.test.ts` |
+| more than **24** travelling cues in a step ⇒ exactly 24 animate, the rest still commit (a resource edge among them keeps its path highlight and arrival cue); the chosen set is deterministic and input-order-independent; **≤ 1** travelling element per edge | the Fan | `e2e/playback-caps-perf.spec.ts` (whole file), `e2e/playback-fixture.spec.ts` "every travelling cue kind renders, and the global 24-pair budget bites", `src/engine/state-one-cue-per-edge.test.ts` |
+| every amount shows as a **`+N` badge** beside its token, from `+1`; the connection's own label dims only while the pair covers it; a **Gate** output that moved is highlighted, an untaken branch is not | Play / Step | `e2e/playback-gate-path.spec.ts` (whole file) |
 | the budget is sorted **once per transition**, not per edge or per τ frame | any run | `e2e/playback-caps-perf.spec.ts` "the budget is sorted ONCE per transition" |
 | **L0** (zoom `< 0.45`): no travelling dot / state bead; the ordered depart / path-pulse / arrive cues + `settle` still play | zoom out | `e2e/playback-choreography.spec.ts` "§PB4.4 — at L0 the travelling dot is elided", `e2e/playback-fixture.spec.ts` "reduced motion and L0 both drop every travelling element" |
 | **`prefers-reduced-motion: reduce`**: zero travelling elements ever; a static edge cue instead; a Paused transition never auto-settles | OS setting | `e2e/playback-choreography.spec.ts` "reduced motion ⇒ no travelling element ever", "Play settles far faster…" |
@@ -400,9 +401,10 @@ exactly what a plain `advance()`-only run of the same length does.
 Import  examples/playback-choreography.json
 
 Play (or Step) at a slow speed →
-  • ~60 dots leave Fan Source and travel their edges; a handful of Fan edges
-    just tick their target value up with no dot (the 60-token budget)
-  • Merge A / Merge B each send a labelled dot into Merge Pool
+  • 24 dots (with their `+N` badges, counting the state beads) leave and travel
+    their edges; the other Fan edges are highlighted and tick their target value
+    up with no dot (the 24-pair budget)
+  • Merge A / Merge B each send a dot with its `+N` badge into Merge Pool
   • step 2: a bead rides Signal Source ┄▷ Signal Drain (the trigger)
   • once Gate Pool ≥ 1: a ring lands at Signal Drain on arrival (the activator) —
     it never travels
