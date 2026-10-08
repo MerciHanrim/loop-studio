@@ -565,6 +565,11 @@ const ui = {
   'whatsNew.v0214.tool': 'Khóa cũng tắt công cụ nhóm, nên kéo trên khung vẽ trống sẽ di chuyển khung nhìn thay vì bắt đầu vẽ nhóm.',
   'whatsNew.v0214.keys': 'Khi chỉnh sửa đang bị khóa, thao tác bằng bàn phím bỏ qua hai nút này, giống như mọi nút đã tắt khác.',
   'whatsNew.v0214.zoom': 'Trên điện thoại, chạm vào ô tìm ngôn ngữ không còn phóng to trang rồi giữ nguyên như vậy.',
+  'whatsNew.v0220.gate': 'Trong khi chạy, mỗi nhánh mà Bộ chia thực sự gửi thứ gì đó đi qua sẽ được làm nổi bật; nhánh không chuyển gì vẫn giữ dáng vẻ thường ngày.',
+  'whatsNew.v0220.badge': 'Lượng mà một liên kết chuyển trong một bước giờ hiện bên cạnh dấu chuyển động của nó dưới dạng huy hiệu +N, kể cả +1.',
+  'whatsNew.v0220.label': 'Nhãn riêng của liên kết vẫn ở nguyên chỗ và chỉ mờ đi khi dấu chuyển động hoặc huy hiệu của nó đi qua.',
+  'whatsNew.v0220.focus': 'Khi bật Tiêu điểm, các dấu chuyển động, huy hiệu và phần làm nổi bật trên liên kết nằm ngoài tiêu điểm giờ cũng mờ đi cùng các liên kết đó.',
+  'whatsNew.v0220.cap': 'Ở bước có nhiều chuyển động, tối đa 24 dấu di chuyển cùng lúc; các liên kết khác có chuyển động sẽ được làm nổi bật thay thế.',
 } satisfies Record<UiKey, string>
 
 export default ui

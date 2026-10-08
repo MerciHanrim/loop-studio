@@ -640,6 +640,11 @@ const ui = {
   'whatsNew.v0214.tool': 'Beim Sperren wird auch das Rahmenwerkzeug ausgeschaltet, sodass ein Ziehen auf leerer Arbeitsfläche die Ansicht verschiebt, statt einen Rahmen zu beginnen.',
   'whatsNew.v0214.keys': 'Solange die Bearbeitung gesperrt ist, überspringt die Tastatur diese beiden Schaltflächen wie jede andere deaktivierte Schaltfläche.',
   'whatsNew.v0214.zoom': 'Auf dem Smartphone vergrößert ein Tippen auf die Sprachsuche die Seite nicht mehr dauerhaft.',
+  'whatsNew.v0220.gate': 'Während eines Laufs wird jeder Zweig hervorgehoben, über den ein Verteiler tatsächlich etwas schickt; ein Zweig ohne Bewegung behält sein gewohntes Aussehen.',
+  'whatsNew.v0220.badge': 'Die Menge, die eine Verbindung in einem Schritt transportiert, steht jetzt als +N-Badge neben ihrer beweglichen Markierung, schon ab +1.',
+  'whatsNew.v0220.label': 'Die eigene Beschriftung einer Verbindung bleibt an ihrem Platz und wird nur blasser, solange die bewegliche Markierung oder ihr Badge darüberliegt.',
+  'whatsNew.v0220.focus': 'Bei eingeschaltetem Fokus werden die beweglichen Markierungen, Badges und Hervorhebungen auf Verbindungen außerhalb des Fokus jetzt zusammen mit diesen Verbindungen blasser.',
+  'whatsNew.v0220.cap': 'In einem Schritt mit viel Bewegung wandern höchstens 24 Markierungen gleichzeitig; jede weitere Verbindung, die sich bewegt hat, wird stattdessen hervorgehoben.',
 } satisfies Record<UiKey, string>
 
 export default ui

@@ -3327,12 +3327,6 @@ a.sheet__row {
     r: 8;
   }
 }
-.flow-token__n {
-  fill: var(--text-secondary);
-  font-size: 9px;
-  font-weight: 700;
-  text-anchor: middle;
-}
 /* docs/simulation-playback.md §PB4.4 — at L0 the sub-pixel travelling dot is
    dropped; this steady directional stroke stands in for the `travel` beat so
    the depart → travel → arrive order still reads on the map. No motion; it is
@@ -3354,6 +3348,64 @@ a.sheet__row {
   opacity: 0.75;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
+}
+
+/* issue #330 PR 1 (v0.22.0), docs/simulation-playback.md §PB4.6 — the path
+   highlight: drawn on a Gate output that moved this step (whichever branch the
+   Gate took; an untaken branch keeps its usual look) and on any moved edge past
+   the 24 token-and-badge pairs. Under the token, over the connection; the
+   connection's own stroke and flow colour stay as they are. */
+.pb-path {
+  stroke: var(--flow-strength);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  opacity: 0.55;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+/* the `+N` badge beside the round token, from `+1`; it moves with the token. It
+   lives in the label layer (HTML, above every connection label) so the pair is
+   drawn on top. Its box matches ./components/edges/playbackBadge.ts (height
+   13, the text plus 4 px each side, border included). The amount is in the
+   primary ink for legibility; the run colour is its border. */
+.pb-badge {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  height: 13px;
+  padding: 0 3px;
+  border: 1px solid var(--flow-strength);
+  border-radius: 7px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+/* §LGR2.3 — on a connection outside the focus set (the label layer is outside
+   the connection's own group, so a class, not the group rule below) */
+.pb-badge.pb-badge--dim {
+  opacity: 0.26;
+}
+/* the connection's OWN label never moves; it dims only while the token or its
+   badge overlaps its real box */
+.edge-label.edge-label--under-token {
+  opacity: 0.3;
+}
+/* §LGR2.3 (issue #330 PR 1) — a connection outside the focus set carries its
+   playback cues at the connection's own low strength. `filter: opacity()`
+   multiplies with the cues' own animated opacity (a static `opacity` would be
+   overridden by their keyframes). Cues inside a node keep full strength. */
+.react-flow__edge.lgr-deemph
+  :is(.pb-path, .pb-move, .pb-cue, .pb-l0-pulse, .flow-edge-pulse, .pb-rm-tell, .state-move, .state-cue, .state-edge-pulse) {
+  filter: opacity(0.26);
 }
 
 /* ==== state-edge feedback (SEMANTICS-S §S9 / S2 §S2-9) ================== */
@@ -3442,7 +3494,6 @@ a.sheet__row {
     fill: CanvasText;
     forced-color-adjust: none;
   }
-  .flow-token__n,
   .state-move__n {
     fill: CanvasText;
     forced-color-adjust: none;
@@ -3484,6 +3535,46 @@ a.sheet__row {
   .pb-rm-tell--absorb {
     stroke: CanvasText;
     forced-color-adjust: none;
+  }
+  /* issue #330 PR 1 — the path highlight is told by WIDTH (a 4 px line over the
+     1.5 px connection), never by a low opacity; the badge is a Canvas pill
+     with a CanvasText border and amount */
+  .pb-path {
+    stroke: CanvasText;
+    stroke-width: 4;
+    opacity: 1;
+    forced-color-adjust: none;
+  }
+  .pb-badge {
+    background: Canvas;
+    color: CanvasText;
+    border-color: CanvasText;
+    forced-color-adjust: none;
+  }
+  .pb-badge.pb-badge--dim {
+    opacity: 1;
+    border-style: dashed;
+  }
+  /* a covered label is not faded (an opacity is unreliable here): it gives way
+     to the token and its badge for as long as they cover it */
+  .edge-label.edge-label--under-token {
+    opacity: 1;
+    visibility: hidden;
+  }
+  /* §LGR9 — outside the focus set the cues are not faded either: the path
+     highlight takes the connection's sparse `1 5` dash, the token turns hollow,
+     the badge's border is dashed */
+  .react-flow__edge.lgr-deemph
+    :is(.pb-path, .pb-move, .pb-cue, .pb-l0-pulse, .flow-edge-pulse, .pb-rm-tell, .state-move, .state-cue, .state-edge-pulse) {
+    filter: none;
+  }
+  .react-flow__edge.lgr-deemph .pb-path {
+    stroke-dasharray: 1 5;
+  }
+  .react-flow__edge.lgr-deemph .flow-bead {
+    fill: Canvas;
+    stroke: CanvasText;
+    stroke-width: 1.2;
   }
 }
 

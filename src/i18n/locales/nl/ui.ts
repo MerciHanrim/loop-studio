@@ -560,6 +560,11 @@ const ui = {
   'whatsNew.v0214.tool': 'Vergrendelen zet ook het kaderhulpmiddel uit, zodat slepen op een leeg tekengebied de weergave verschuift in plaats van een kader te beginnen.',
   'whatsNew.v0214.keys': 'Zolang bewerken vergrendeld is, slaat het toetsenbord deze twee knoppen over, net als elke andere uitgeschakelde knop.',
   'whatsNew.v0214.zoom': 'Op een telefoon zoomt de pagina niet meer in en blijft ze niet meer ingezoomd wanneer je op de taalzoekbalk tikt.',
+  'whatsNew.v0220.gate': 'Tijdens een run wordt elke tak uitgelicht waarlangs een Verdeler echt iets stuurt; een tak die niets vervoert, houdt zijn gewone uiterlijk.',
+  'whatsNew.v0220.badge': 'De hoeveelheid die een verbinding in een stap vervoert, staat nu als +N-aanduiding naast haar bewegende markering, al vanaf +1.',
+  'whatsNew.v0220.label': 'Het eigen label van een verbinding blijft op zijn plek en wordt alleen vager zolang de bewegende markering of de aanduiding eroverheen gaat.',
+  'whatsNew.v0220.focus': 'Met Focus aan worden de bewegende markeringen, aanduidingen en accenten op verbindingen buiten de focus nu samen met die verbindingen vager.',
+  'whatsNew.v0220.cap': 'In een drukke stap bewegen hooguit 24 markeringen tegelijk; de andere verbindingen die bewogen, worden in plaats daarvan uitgelicht.',
 } as const
 
 export default ui

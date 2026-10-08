@@ -577,6 +577,11 @@ const ui = {
   'whatsNew.v0214.tool': 'Al bloquear también se desactiva la herramienta de marco, así que arrastrar sobre el lienzo vacío mueve la vista en lugar de empezar un marco.',
   'whatsNew.v0214.keys': 'Mientras la edición está bloqueada, la navegación con el teclado omite estos dos botones, como cualquier otro botón desactivado.',
   'whatsNew.v0214.zoom': 'En un teléfono, tocar la búsqueda de idioma ya no amplía la página ni la deja ampliada.',
+  'whatsNew.v0220.gate': 'Durante una ejecución, se resalta cada rama por la que un Distribuidor envía algo de verdad; una rama que no lleva nada conserva su aspecto habitual.',
+  'whatsNew.v0220.badge': 'La cantidad que una conexión transporta en un paso ahora aparece junto a su marca en movimiento como una insignia +N, desde +1.',
+  'whatsNew.v0220.label': 'La etiqueta propia de una conexión se queda en su lugar y solo se atenúa mientras la marca en movimiento o su insignia pasan por encima.',
+  'whatsNew.v0220.focus': 'Con el Enfoque activado, las marcas en movimiento, las insignias y los resaltados de las conexiones fuera del enfoque ahora se atenúan junto con esas conexiones.',
+  'whatsNew.v0220.cap': 'En un paso con mucho movimiento se mueven como máximo 24 marcas a la vez; las demás conexiones con movimiento se resaltan en su lugar.',
 } as const
 
 export type UiKey = keyof typeof ui

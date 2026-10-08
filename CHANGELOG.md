@@ -4,6 +4,19 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.22.0 — 2026-10-09
+
+Playback shows what moved where (issue #330, first of three): the path a Gate took, every amount as a `+N` badge beside its round token, and Focus mode winning on connections, as [`docs/simulation-playback.md`](docs/simulation-playback.md) §PB4.6 and [`docs/large-graph-readability.md`](docs/large-graph-readability.md) §LGR2.3 describe.
+
+- **The Gate path.** For every Gate, deterministic or probabilistic, each outgoing connection that carried a move this step is highlighted under its round token, from its onset to settle; several can be at once. A branch with no move keeps its usual look, with no faded or crossed-out cue.
+- **`+N` beside the round token.** The round token still travels wherever it did; the step's summed amount now always rides beside it as a `+N` badge, from `+1` (before, a bare number sat above the dot only when the amount was above 1). The badge is drawn above every connection label. At the map zoom level the badge is left out with the dot, as before.
+- **The connection's own label stays put.** It dims only while the token or its badge covers its real box; no other connection's label is tested.
+- **24 token-and-badge pairs per step** replace the budget of 60 travelling cues. Past them, every resource connection that moved keeps the path highlight and its arrival cue.
+- **Focus mode wins on connections.** Outside the focus set, the path highlight, the token and badge, the depart and arrive cues and the reduced-motion forms are drawn at the connection's own low strength; cues inside a node keep full strength.
+- **Reduced motion and high contrast.** Under reduced motion nothing travels: the moved paths, the arrival tells and the `+N` badges stay, static, for the step. In forced colours the highlight is told by width, the badge is a system-colour pill, a covered label gives way, and outside the focus set the cues take a dash instead of fading.
+
+**No migration.** Engine, RNG, files, share links, digests and simulation results are unchanged; Monte Carlo draws no tokens, as before. Five release-note lines in 18 languages, 16 of them without native review. The informational `meta.tool` string is now `loop-studio/0.22.0`.
+
 ## v0.21.4 — 2026-10-08
 
 A fix release (issues #338 and #340): while the Canvas is edit-locked, the Controls rail keeps every button where it is, as [`docs/canvas-edit-lock.md`](docs/canvas-edit-lock.md) describes; and on a phone, focusing a text field no longer zooms the page in, as [`docs/mobile.md`](docs/mobile.md) §MV4b describes.

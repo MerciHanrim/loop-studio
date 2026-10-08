@@ -53,13 +53,24 @@ function budgetSet(t: Transition): ReadonlySet<string> {
   t.events.forEach((e, i) => {
     if (!(e.edgeId in firstEv)) firstEv[e.edgeId] = i
   })
+  const set = pick(t.flowByEdge, t.stateEvents, firstEv)
+  cache = { key: t.flowByEdge, set }
+  return set
+}
 
+/** the stable choice itself: the first `MAX_PLAYBACK_TOKENS_TOTAL` candidates
+ *  in the fixed key order */
+function pick(
+  flowByEdge: Record<string, number>,
+  stateEvents: Transition['stateEvents'],
+  firstEv: Record<string, number>,
+): ReadonlySet<string> {
   const cand: { edgeId: string; rank: number; ord: number }[] = []
-  for (const edgeId of Object.keys(t.flowByEdge)) {
-    if ((t.flowByEdge[edgeId] ?? 0) > 0)
+  for (const edgeId of Object.keys(flowByEdge)) {
+    if ((flowByEdge[edgeId] ?? 0) > 0)
       cand.push({ edgeId, rank: KIND_RANK.resource, ord: firstEv[edgeId] ?? 0 })
   }
-  t.stateEvents.forEach((e, i) => {
+  stateEvents.forEach((e, i) => {
     if (e.effect.kind === 'trigger') cand.push({ edgeId: e.edgeId, rank: KIND_RANK.trigger, ord: i })
     else if (e.effect.kind === 'label' && e.effect.delta !== 0)
       cand.push({ edgeId: e.edgeId, rank: KIND_RANK.label, ord: i })
@@ -76,13 +87,35 @@ function budgetSet(t: Transition): ReadonlySet<string> {
     if (set.size >= MAX_PLAYBACK_TOKENS_TOTAL) break
     set.add(c.edgeId)
   }
-  cache = { key: t.flowByEdge, set }
   return set
+}
+
+// issue #330 PR 1 — the same choice for a COMMITTED step (no transition in
+// flight): reduced motion holds a static `+N` badge for the step after it
+// settles, within the same 24 pairs the step's tokens had. The key is the
+// committed `activeByEdge`, a fresh object per commit; the original event
+// index only breaks ties that cannot arise (see KIND_RANK), so the set equals
+// the one chosen while the step was in flight.
+let heldCache: { key: object; set: ReadonlySet<string> } | null = null
+function heldSet(activeByEdge: Record<string, number>, stateEvents: Transition['stateEvents']): ReadonlySet<string> {
+  if (heldCache && heldCache.key === activeByEdge) return heldCache.set
+  const set = pick(activeByEdge, stateEvents, {})
+  heldCache = { key: activeByEdge, set }
+  return set
+}
+
+/** For an edge that carried flow in the COMMITTED step, the ≤ 24 edge-ids that
+ *  hold a static `+N` badge under reduced motion; `null` both frames for any
+ *  other edge, so an idle edge is never re-rendered by it. */
+export function useHeldBadgeBudget(edgeId: string): ReadonlySet<string> {
+  // the committed object itself (stable across every τ frame), not the store
+  const active = useSimStore((st) => ((st.activeByEdge[edgeId] ?? 0) > 0 ? st.activeByEdge : null))
+  return active ? heldSet(active, useSimStore.getState().stateEvents) : EMPTY
 }
 
 /** For an edge that IS a travelling-cue candidate this step (a flowing resource
  *  edge, or a state edge with a `trigger` / non-zero `label` event), the global
- *  set of ≤ 60 edge-ids allowed to animate — `set.has(id)` decides whether this
+ *  set of ≤ 24 edge-ids allowed to animate — `set.has(id)` decides whether this
  *  edge's cue travels or is elided. For any other edge the selector returns
  *  `null` both frames, so an idle edge is never re-rendered by the cap. */
 export function usePlaybackTravelBudget(edgeId: string): ReadonlySet<string> {

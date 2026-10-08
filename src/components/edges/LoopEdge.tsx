@@ -16,7 +16,10 @@ import { currentRouteMap } from '../../store/routeMap'
 import { useLod } from '../lod'
 import { useEdgeActivityOpacity } from '../frames/useActivityTint'
 import { MAX_PLAYBACK_TOKENS } from './playback-caps'
-import { usePlaybackTravelBudget } from './playbackBudget'
+import { useHeldBadgeBudget, usePlaybackTravelBudget } from './playbackBudget'
+import { badgeText, labelUnderToken } from './playbackBadge'
+import { PlaybackBadge } from './PlaybackBadgeView'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { LoopEdgeData } from '../../model/types'
 import { canonicalNumber } from '../../model/expr'
 import { parseActivatorExpr, parseFlow, resolveParamRhs, type StateEvent } from '../../engine'
@@ -250,6 +253,9 @@ function LoopEdge({
   // stays through Pause, clears on Reset (docs/visual-language.md §VL9). The
   // choreography scheduler settles a reduced-motion step near-instantly.
   const rmHeldPulse = rm && !isState && amount > 0 && running
+  // issue #330 PR 1 — reduced motion holds a static `+N` badge at the target
+  // end for the committed step, within the step's 24 pairs
+  const heldBudget = useHeldBadgeBudget(id)
 
   // ── Slice 2 choreography — the token walks the real `d` in step with τ ──
   // The scheduler owns τ / phase / commit (Slice 1); this layer only reads.
@@ -289,12 +295,23 @@ function LoopEdge({
   // the ordered phase cues (emit burst · travel path-pulse · converge/absorb) —
   // shown once this edge's bucket onset is reached, while a resource transition
   // is in flight, motion is allowed, and it is within the global travel budget.
-  const pbCueOn = pbFlow > 0 && !rm && !!pbLocalPhase && travelBudget.has(id)
-  // the travelling dot itself — elided at L0 (§PB4.4).
+  const pbMoves = pbFlow > 0 && !rm && !!pbLocalPhase
+  // issue #330 PR 1 — within the 24 token-and-badge pairs of the step
+  const pbInCap = travelBudget.has(id)
+  const pbCueOn = pbMoves && pbInCap
+  // the travelling dot and its `+N` badge — elided at L0 (§PB4.4).
   const pbToken = pbCueOn && !atL0
   const pbFrac = travelFraction(pbLocalTau)
   const pbPt = pbToken ? pointOnPath(path, pbFrac) : null
-  const pbEndPt = pbCueOn && pbLocalPhase === 'arrive' ? pointOnPath(path, 1) : null
+  // issue #330 PR 1 — past the cap a moved edge keeps its arrival cue
+  const pbArriveOn = pbMoves && pbLocalPhase === 'arrive'
+  const pbEndPt = pbArriveOn ? pointOnPath(path, 1) : null
+  // issue #330 PR 1 — the path highlight: every Gate output that moved this
+  // step (whichever branch the Gate took, deterministic or probabilistic; a
+  // branch with no move gets no cue), and every moved edge past the cap
+  const sourceIsGate = gNodes.some((n) => n.id === source && n.data.kind === 'gate')
+  const pbPathOn = pbMoves && (sourceIsGate || !pbInCap)
+  const pbBadge = badgeText(pbFlow)
   const pbAll = selected && transition && !isState ? transition.events.filter((e) => e.edgeId === id) : []
   const pbBreakdown = pbAll.slice(0, MAX_PLAYBACK_TOKENS)
   const pbBreakdownRest = pbAll.length - pbBreakdown.length
@@ -351,6 +368,35 @@ function LoopEdge({
 
   // labels drop out when zoomed out to scan structure — kept for a selected edge
   const showLabel = (!lowZoom || selected) && !outOfFocus
+
+  // issue #330 PR 1 — the reduced-motion `+N`: static at the target end, in
+  // flight (the brief collapsed transition) and held after the step settles
+  const rmBadgeAmount =
+    rm && !isState && !atL0
+      ? transition && pbFlow > 0 && travelBudget.has(id)
+        ? pbFlow
+        : rmHeldPulse && transition == null && heldBudget.has(id)
+          ? amount
+          : 0
+      : 0
+  const rmBadgePt = rmBadgeAmount > 0 ? { x: targetX, y: targetY } : null
+
+  // issue #330 PR 1 — the connection's OWN label never moves; it dims only while
+  // its real box overlaps the token or its badge. Its size is read once per
+  // text (in flow px: the label sits inside the zoomed viewport, offsetWidth is
+  // unscaled), never per frame; no other connection's label is tested.
+  const labelRef = useRef<HTMLDivElement>(null)
+  const [labelSize, setLabelSize] = useState<{ w: number; h: number } | null>(null)
+  const labelKey = `${text}|${label.mark ?? ''}|${showLabel}|${selected}|${stepIndex}`
+  useLayoutEffect(() => {
+    const el = labelRef.current
+    const next = el ? { w: el.offsetWidth, h: el.offsetHeight } : null
+    setLabelSize((prev) => (prev && next && prev.w === next.w && prev.h === next.h ? prev : next))
+  }, [labelKey])
+  const labelBox = showLabel && labelSize ? { x: labelX, y: labelY, ...labelSize } : null
+  const labelDimmed =
+    (pbPt != null && labelUnderToken(labelBox, pbPt.x, pbPt.y, pbBadge)) ||
+    (rmBadgePt != null && labelUnderToken(labelBox, rmBadgePt.x, rmBadgePt.y, badgeText(rmBadgeAmount), 'left'))
 
   // docs/flow-colour-and-compact-nodes.md FC-4.2 — the edge's flow colour is
   // its REST colour: a satisfied activator keeps the run signal over it, and a
@@ -483,6 +529,28 @@ function LoopEdge({
           token-specific state. `data-playback-phase` makes the beat observable.
           Slice 3 — at L0 the moving `<g>` is elided; the depart / travel-pulse /
           arrive cues below still play in order (§PB4.4). */}
+      {/* issue #330 PR 1 — the path highlight under the token: a Gate output
+          that moved this step, or any moved edge past the 24 pairs */}
+      {pbPathOn ? (
+        <path
+          className={`pb-path${sourceIsGate ? ' pb-path--gate' : ''}${pbInCap ? '' : ' pb-path--over-cap'}`}
+          data-playback-phase={pbLocalPhase ?? undefined}
+          d={path}
+          fill="none"
+        />
+      ) : null}
+      {/* arrive: an INWARD collapse onto the target — `converge`, or `absorb`
+          (inward + dissolve) into a Drain / End (§PBO3); past the cap too */}
+      {pbArriveOn && pbEndPt ? (
+        <circle
+          className={`pb-cue pb-cue--arrive pb-cue--${arriveCueRole}`}
+          data-playback-phase="arrive"
+          data-cue-role={arriveCueRole}
+          cx={pbEndPt.x}
+          cy={pbEndPt.y}
+          r="6"
+        />
+      ) : null}
       {pbCueOn ? (
         <>
           {/* emit: an OUTWARD burst at the source handle (§PBO3) */}
@@ -505,18 +573,6 @@ function LoopEdge({
               fill="none"
             />
           ) : null}
-          {/* arrive: an INWARD collapse onto the target — `converge`, or
-              `absorb` (inward + dissolve) into a Drain / End (§PBO3) */}
-          {pbLocalPhase === 'arrive' && pbEndPt ? (
-            <circle
-              className={`pb-cue pb-cue--arrive pb-cue--${arriveCueRole}`}
-              data-playback-phase="arrive"
-              data-cue-role={arriveCueRole}
-              cx={pbEndPt.x}
-              cy={pbEndPt.y}
-              r="6"
-            />
-          ) : null}
           {pbToken && pbPt ? (
             <g
               className={`pb-move pb-move--${pbLocalPhase}${
@@ -526,11 +582,6 @@ function LoopEdge({
               transform={`translate(${pbPt.x} ${pbPt.y})`}
             >
               <circle className="flow-bead" r="3.6" />
-              {pbFlow > 1 ? (
-                <text className="flow-token__n" dy="-8">
-                  {fmtAmt(pbFlow)}
-                </text>
-              ) : null}
             </g>
           ) : null}
         </>
@@ -586,11 +637,30 @@ function LoopEdge({
         </g>
       ) : null}
 
+      {/* issue #330 PR 1 — the step's summed amount as a `+N` badge, from
+          `+1`: beside the travelling token (moving with it), or, under reduced
+          motion, static at the target end beside the held arrival tell. In the
+          label layer, above every label, so the pair is drawn on top. */}
+      {pbPt || rmBadgePt ? (
+        <EdgeLabelRenderer>
+          <PlaybackBadge
+            edgeId={id}
+            amount={pbPt ? pbBadge : badgeText(rmBadgeAmount)}
+            at={(pbPt ?? rmBadgePt)!}
+            side={pbPt ? 'right' : 'left'}
+            dimmed={outOfFocus}
+            kind={pbPt ? 'travel' : 'static'}
+          />
+        </EdgeLabelRenderer>
+      ) : null}
+
       {showLabel ? (
         <EdgeLabelRenderer>
           <div
+            ref={labelRef}
             data-edge-id={id}
-            className={`edge-label${isState ? ' edge-label--state' : ''}${
+            data-under-token={labelDimmed ? '' : undefined}
+            className={`edge-label${labelDimmed ? ' edge-label--under-token' : ''}${isState ? ' edge-label--state' : ''}${
               selected ? ' is-selected' : ''
             }${activatorOn === true ? ' edge-label--on' : ''}${
               sv?.kind === 'trigger' && !sv.applied ? ' edge-label--blocked' : ''

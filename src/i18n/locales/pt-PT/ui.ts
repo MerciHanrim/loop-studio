@@ -579,6 +579,11 @@ const ui = {
   'whatsNew.v0214.tool': 'Bloquear também desativa a ferramenta de quadro, por isso arrastar na tela vazia desloca a área visível em vez de começar um quadro.',
   'whatsNew.v0214.keys': 'Enquanto a edição está bloqueada, a navegação pelo teclado ignora estes dois botões, como qualquer outro botão desativado.',
   'whatsNew.v0214.zoom': 'Ao tocar na pesquisa de idioma no telefone, a página já não amplia nem fica ampliada.',
+  'whatsNew.v0220.gate': 'Durante uma execução, cada ramo por onde um Distribuidor realmente envia algo fica destacado; um ramo que não leva nada mantém a aparência habitual.',
+  'whatsNew.v0220.badge': 'A quantidade transportada em cada passo aparece agora ao lado da marca em movimento, como um indicador +N, a partir de +1.',
+  'whatsNew.v0220.label': 'O rótulo de cada linha fica no mesmo lugar e só fica mais claro enquanto a marca em movimento ou o seu indicador passa por cima.',
+  'whatsNew.v0220.focus': 'Com o Foco ativado, as marcas em movimento, os indicadores e os destaques fora do foco ficam mais claros, tal como as linhas onde estão.',
+  'whatsNew.v0220.cap': 'Quando um passo tem muito movimento, no máximo 24 marcas estão em movimento ao mesmo tempo; os outros caminhos com movimento ficam destacados.',
 } as const
 
 export type UiKey = keyof typeof ui

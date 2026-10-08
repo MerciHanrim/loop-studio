@@ -51,7 +51,9 @@ function tokenInfo(page: Page, edgeId: string) {
       const dd = Math.hypot(p.x - pt.x, p.y - pt.y)
       if (dd < best) best = dd
     }
-    return { pt, onPathDist: best, label: g.querySelector('text')?.textContent ?? null, cls: g.getAttribute('class') }
+    // issue #330 PR 1 — the amount is the token's `+N` badge (in the label layer)
+    const badge = document.querySelector(`.pb-badge[data-badge-for="${eid}"]`)?.textContent ?? null
+    return { pt, onPathDist: best, label: badge, cls: g.getAttribute('class') }
   }, edgeId)
 }
 
@@ -163,10 +165,10 @@ test.describe('playback — Slice 2 choreography', () => {
     await call(page, 'play')
     await expect.poll(() => simState(page).then((s) => (s.tau && s.tau > 0.3 && s.tau < 0.7 ? 1 : -1)), { timeout: 8000 }).toBe(1)
 
-    // e_a carries a single transfer of 2 ⇒ one token labelled 2
+    // e_a carries a single transfer of 2 ⇒ one token with a `+2` badge
     const ta = await tokenInfo(page, 'e_a')
     expect(ta).not.toBeNull()
-    expect(ta!.label).toBe('2')
+    expect(ta!.label).toBe('+2')
     // one token element, not several
     const count = await page.evaluate(() => document.querySelectorAll('.react-flow__edge[data-id="e_a"] g.pb-move').length)
     expect(count).toBe(1)

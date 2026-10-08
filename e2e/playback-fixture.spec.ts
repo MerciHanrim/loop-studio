@@ -5,7 +5,8 @@ import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 // Imports the committed `examples/playback-choreography.json` through the real
 // Import path and checks the Simulation Playback / Event Choreography cycle
 // end to end on ONE graph: every travelling cue kind renders, the global
-// 60-token budget bites, orthogonal and Bézier share the real `d`, and playing
+// 24-pair budget bites (issue #330 PR 1; it was 60), orthogonal and Bézier share
+// the real `d`, and playing
 // / pausing / resetting the run moves NOTHING that belongs to the document or
 // the committed engine result.
 //
@@ -95,7 +96,7 @@ test.describe('playback-choreography.json — the Simulation Playback cycle on o
     await expect(page.locator('.react-flow__edge[data-id="zf00"] path.route-orthogonal')).toHaveCount(1)
   })
 
-  test('every travelling cue kind renders, and the global 60-token budget bites', async ({ page }) => {
+  test('every travelling cue kind renders, and the global 24-pair budget bites', async ({ page }) => {
     await call(page, 'advance') // step 1 → Gate Pool = 1, trigger scheduled for step 2
     await holdTravel(page) // step 2, mid-travel
 
@@ -108,10 +109,13 @@ test.describe('playback-choreography.json — the Simulation Playback cycle on o
     expect(await page.locator('.react-flow__edge[data-id="t_sd"] g.pb-move').count()).toBe(0)
     expect(await page.locator('.react-flow__edge[data-id="m_a"] g.state-move').count()).toBe(0)
 
-    // 68 flowing resource + 1 trigger + 2 label = 71 candidates ⇒ exactly 60 animate
+    // 68 flowing resource + 1 trigger + 2 label = 71 candidates ⇒ exactly 24 animate
     const travelling = await page.locator('g.pb-move, g.state-move').count()
-    expect(travelling).toBeLessThanOrEqual(60)
-    expect(travelling).toBe(60)
+    expect(travelling).toBe(24)
+    // every resource edge past the cap keeps its path highlight (§PB4.6)
+    const overCap = await page.locator('.pb-path--over-cap').count()
+    const resourceTokens = await page.locator('g.pb-move').count()
+    expect(overCap + resourceTokens).toBe(68)
     // no edge renders more than one travelling element
     const maxPerEdge = await page.evaluate(() =>
       Math.max(0, ...[...document.querySelectorAll('.react-flow__edge')].map((e) => e.querySelectorAll('g.pb-move, g.state-move').length)),
@@ -138,7 +142,17 @@ test.describe('playback-choreography.json — the Simulation Playback cycle on o
 
   test('the token walks the real d on both an orthogonal and a Bézier edge', async ({ page }) => {
     await holdTravel(page)
-    for (const eid of ['m_a' /* orthogonal */, 'zf40' /* Bézier */]) {
+    // a Bézier edge among the 24 that carry a token this step (issue #330 PR 1:
+    // `zf40` used to be one; past the 24 pairs it now carries none)
+    const bezier = await page.evaluate(
+      () =>
+        [...document.querySelectorAll('.react-flow__edge')]
+          .filter((e) => e.querySelector('g.pb-move') && !e.querySelector('path.route-orthogonal'))
+          .map((e) => e.getAttribute('data-id'))
+          .sort()[0],
+    )
+    expect(bezier, 'a Bézier edge with a token').toBeTruthy()
+    for (const eid of ['m_a' /* orthogonal */, bezier! /* Bézier */]) {
       const onPath = await page.evaluate((id) => {
         const g = document.querySelector(`.react-flow__edge[data-id="${id}"] g.pb-move`) as SVGGElement | null
         const vis = document.querySelector(`.react-flow__edge[data-id="${id}"] path.react-flow__edge-path`) as SVGPathElement | null

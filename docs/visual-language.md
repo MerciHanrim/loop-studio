@@ -529,6 +529,13 @@ byte-identical across L2/L1/L0 (§VL12.5).
   the ▲/▼ glyph kept), no pulse (instant colour change held for one step),
   no card slide-in. All *information* is preserved; only the animation is
   dropped.
+- **Playback, issue #330 PR 1 (v0.22.0)** (`docs/simulation-playback.md`
+  §PB4.6): a Gate output that moved is highlighted while its token travels, and
+  the step's summed amount rides beside the token as a `+N` badge from `+1`.
+  Under reduced motion the same information is static for the committed step:
+  the moved path's highlight, the arrival tell, and the `+N` badge at the
+  target end. A connection's own label never moves; it dims only while the
+  token or its badge covers it.
 - Motion never conveys information that isn't also in a static frame.
 
 ---

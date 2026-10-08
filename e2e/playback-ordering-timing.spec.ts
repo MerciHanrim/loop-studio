@@ -407,8 +407,8 @@ test.describe('playback ordering — real-time cascade timing (PR 2)', () => {
     expect(afterComputes - beforeComputes).toBeLessThanOrEqual(stepsRun + 2)
     // the render kept up (rAF actually ticked through the window)
     expect(frames).toBeGreaterThan(elapsed / 40) // ≥ ~25fps effective
-    // the global 60-token budget still caps concurrent travelling elements
-    expect(peakTokens).toBeLessThanOrEqual(60)
+    // the global 24-pair budget (issue #330 PR 1) still caps concurrent travelling elements
+    expect(peakTokens).toBeLessThanOrEqual(24)
     void t0
   })
 })
