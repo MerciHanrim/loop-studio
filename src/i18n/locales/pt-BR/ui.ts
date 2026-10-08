@@ -561,6 +561,9 @@ const ui = {
   'whatsNew.v0213.fresh': 'Um novo diagrama começa desbloqueado, e abrir outro diagrama começa com o histórico de desfazer vazio.',
   'whatsNew.v0213.locked': 'Enquanto a edição está bloqueada, nada altera o diagrama: adicionar, inserir, importar dados, Desfazer e Refazer esperam até que a edição seja desbloqueada.',
   'whatsNew.v0213.shows': 'O botão de bloqueio agora mostra o estado: um cadeado aberto enquanto é possível editar e um cadeado fechado e destacado enquanto a edição está bloqueada.',
+  'whatsNew.v0214.rail': 'Enquanto a edição está bloqueada, os botões Quadro de grupo e Limpar todos os quadros ficam no mesmo lugar, desativados, e os outros botões já não mudam de posição.',
+  'whatsNew.v0214.tool': 'Bloquear também desativa a ferramenta de quadro, por isso arrastar na tela vazia desloca a área visível em vez de começar um quadro.',
+  'whatsNew.v0214.keys': 'Enquanto a edição está bloqueada, a navegação pelo teclado ignora estes dois botões, como qualquer outro botão desativado.',
 } as const
 
 export type UiKey = keyof typeof ui

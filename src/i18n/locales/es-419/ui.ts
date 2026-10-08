@@ -559,6 +559,9 @@ const ui = {
   'whatsNew.v0213.fresh': 'Un diagrama nuevo empieza desbloqueado, y al abrir otro diagrama el historial de deshacer empieza vacío.',
   'whatsNew.v0213.locked': 'Mientras la edición está bloqueada, nada cambia el diagrama: añadir, insertar, importar datos, Deshacer y Rehacer esperan hasta que la desbloquee.',
   'whatsNew.v0213.shows': 'El botón de bloqueo muestra ahora su estado: un candado abierto mientras puede editar y un candado cerrado y resaltado mientras la edición está bloqueada.',
+  'whatsNew.v0214.rail': 'Mientras la edición está bloqueada, los botones Marco de grupo y Eliminar todos los marcos se quedan en su lugar, desactivados, y los demás botones ya no se mueven.',
+  'whatsNew.v0214.tool': 'Al bloquear también se desactiva la herramienta de marco, así que arrastrar sobre el lienzo vacío mueve la vista en lugar de empezar un marco.',
+  'whatsNew.v0214.keys': 'Mientras la edición está bloqueada, la navegación con el teclado omite estos dos botones, como cualquier otro botón desactivado.',
 } as const
 
 export type UiKey = keyof typeof ui

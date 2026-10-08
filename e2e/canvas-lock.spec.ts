@@ -403,3 +403,114 @@ test.describe('Canvas edit-lock', () => {
     expect(await locked(page)).toBe(true)
   })
 })
+
+// #338 — the Controls rail keeps its buttons under the lock: the frame tool and
+// "Clear all frames" stay in place, native `disabled`, so the rail's height and
+// every button's place are the same locked and unlocked.
+test.describe('Canvas edit-lock — the Controls rail (#338)', () => {
+  const rail = (page: Page) =>
+    page.evaluate(() => {
+      const c = document.querySelector('.react-flow__controls')!
+      const r = c.getBoundingClientRect()
+      return {
+        top: r.top,
+        height: r.height,
+        buttons: [...c.querySelectorAll('button')].map((b) => {
+          const q = b.getBoundingClientRect()
+          return { cls: b.className, top: q.top - r.top, height: q.height }
+        }),
+      }
+    })
+  const frameTool = (page: Page) => page.locator('.react-flow__controls-button.rf-frame')
+  const clearAll = (page: Page) => page.locator('.react-flow__controls-button.rf-frame-clear')
+  const addFrame = (page: Page) =>
+    page.evaluate(() => (window as unknown as Bridge).__loop.frame.getState().addFrame({ x: -40, y: -40, w: 600, h: 160 }))
+  const frameCount = (page: Page) =>
+    page.evaluate(() => (window as unknown as Bridge).__loop.frame.getState().frames.length)
+
+  test('the rail keeps the same buttons, button height and overall height locked and unlocked, with and without frames, in light, dark and forced colours', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await seed(page)
+    for (const withFrame of [false, true]) {
+      if (withFrame) await addFrame(page)
+      for (const scheme of [{ colorScheme: 'light', forcedColors: 'none' }, { colorScheme: 'dark', forcedColors: 'none' }, { colorScheme: 'light', forcedColors: 'active' }] as const) {
+        await page.emulateMedia(scheme)
+        const tag = `${withFrame ? 'a frame' : 'no frame'}, ${scheme.colorScheme}${scheme.forcedColors === 'active' ? ' forced' : ''}`
+        expect(await locked(page)).toBe(false)
+        const open = await rail(page)
+        await lockBtn(page).click()
+        await expect(frameTool(page), tag).toBeDisabled()
+        const shut = await rail(page)
+        expect(shut.buttons.map((b) => b.cls.replace(/\s+/g, ' ')), tag).toEqual(open.buttons.map((b) => b.cls.replace(/\s+/g, ' ')))
+        expect(shut.buttons.map((b) => [b.top, b.height]), tag).toEqual(open.buttons.map((b) => [b.top, b.height]))
+        expect(new Set(shut.buttons.map((b) => b.height)), tag).toEqual(new Set([26]))
+        expect([shut.top, shut.height], tag).toEqual([open.top, open.height])
+        if (withFrame) await expect(clearAll(page), tag).toBeDisabled()
+        // a disabled rail button reads as disabled: never the enabled colour
+        const colours = await page.evaluate(() => {
+          const c = (s: string) => getComputedStyle(document.querySelector(s)!).color
+          return { off: c('.react-flow__controls-button.rf-frame'), on: c('.react-flow__controls-button.rf-focus') }
+        })
+        expect(colours.off, tag).not.toBe(colours.on)
+        await lockBtn(page).click()
+        await expect(frameTool(page), tag).toBeEnabled()
+      }
+    }
+  })
+
+  test('locked: the two frame buttons are disabled, Tab skips them, and clicking them changes nothing; unlocked they work again', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await seed(page)
+    await addFrame(page)
+    await lockBtn(page).click()
+    expect(await locked(page)).toBe(true)
+    await expect(frameTool(page)).toBeDisabled()
+    await expect(clearAll(page)).toBeDisabled()
+    // Tab through the rail never lands on either
+    await page.locator('.react-flow__controls-button').first().focus()
+    for (let i = 0; i < 16; i++) {
+      const at = await page.evaluate(() => {
+        const a = document.activeElement
+        return a?.closest('.react-flow__controls') ? a.className : null
+      })
+      if (at === null) break
+      expect(at, `Tab stop ${i + 1}`).not.toMatch(/\brf-frame(-clear)?\b/)
+      await page.keyboard.press('Tab')
+    }
+    // a click reaches nothing: no tool armed, the frame still there
+    await frameTool(page).click({ force: true })
+    await clearAll(page).click({ force: true })
+    expect(await page.evaluate(() => (window as unknown as Bridge).__loop.frame.getState().toolArmed)).toBe(false)
+    expect(await frameCount(page)).toBe(1)
+    // unlocked, both work again
+    await lockBtn(page).click()
+    await expect(frameTool(page)).toBeEnabled()
+    await clearAll(page).click()
+    expect(await frameCount(page)).toBe(0)
+  })
+
+  test('locking turns an armed frame tool off; a drag on the empty canvas then pans and draws no frame', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await seed(page)
+    await frameTool(page).click()
+    await expect(frameTool(page)).toHaveAttribute('aria-pressed', 'true')
+    await lockBtn(page).click()
+    expect(await locked(page)).toBe(true)
+    await expect(frameTool(page)).toHaveAttribute('aria-pressed', 'false')
+    expect(await page.evaluate(() => (window as unknown as Bridge).__loop.frame.getState().toolArmed)).toBe(false)
+    const v0 = await page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport())
+    const pane = await page.locator('.react-flow__pane').boundingBox()
+    const x = pane!.x + pane!.width - 120
+    const y = pane!.y + pane!.height - 160
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x - 80, y - 60, { steps: 6 })
+    await page.mouse.up()
+    const v1 = await page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport())
+    expect([v1.x, v1.y], 'the drag panned').not.toEqual([v0.x, v0.y])
+    expect(await frameCount(page)).toBe(0)
+  })
+})

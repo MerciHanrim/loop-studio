@@ -561,6 +561,9 @@ const ui = {
   'whatsNew.v0213.fresh': 'Sơ đồ mới bắt đầu ở trạng thái không khóa, và khi mở một sơ đồ khác, lịch sử hoàn tác bắt đầu trống.',
   'whatsNew.v0213.locked': 'Khi chỉnh sửa đang bị khóa, không thao tác nào thay đổi sơ đồ: thêm, chèn, nhập dữ liệu, Hoàn tác và Làm lại đều chờ đến khi bạn mở khóa.',
   'whatsNew.v0213.shows': 'Nút khóa giờ cho thấy trạng thái: ổ khóa mở khi bạn có thể chỉnh sửa, ổ khóa đóng và được làm nổi bật khi chỉnh sửa bị khóa.',
+  'whatsNew.v0214.rail': 'Khi chỉnh sửa đang bị khóa, nút Nhóm và Xóa tất cả nhóm vẫn ở nguyên chỗ nhưng bị tắt, nên các nút khác không còn dịch chuyển.',
+  'whatsNew.v0214.tool': 'Khóa cũng tắt công cụ nhóm, nên kéo trên khung vẽ trống sẽ di chuyển khung nhìn thay vì bắt đầu vẽ nhóm.',
+  'whatsNew.v0214.keys': 'Khi chỉnh sửa đang bị khóa, thao tác bằng bàn phím bỏ qua hai nút này, giống như mọi nút đã tắt khác.',
 } satisfies Record<UiKey, string>
 
 export default ui

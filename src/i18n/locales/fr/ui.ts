@@ -630,6 +630,9 @@ const ui = {
   'whatsNew.v0213.fresh': 'Un nouveau diagramme commence déverrouillé, et l’ouverture d’un autre diagramme commence avec un historique d’annulation vide.',
   'whatsNew.v0213.locked': 'Tant que l’édition est verrouillée, rien ne modifie le diagramme : ajouter, insérer, importer des données, Annuler et Rétablir attendent que vous déverrouilliez.',
   'whatsNew.v0213.shows': 'Le bouton de verrouillage montre désormais son état : un cadenas ouvert quand vous pouvez modifier, un cadenas fermé et mis en évidence quand l’édition est verrouillée.',
+  'whatsNew.v0214.rail': 'Tant que l’édition est verrouillée, les boutons Cadre de groupe et Effacer tous les cadres restent à leur place, désactivés, et les autres boutons ne se déplacent plus.',
+  'whatsNew.v0214.tool': 'Le verrouillage désactive aussi l’outil de cadre, si bien qu’un glissement sur le canevas vide déplace la vue au lieu de commencer un cadre.',
+  'whatsNew.v0214.keys': 'Tant que l’édition est verrouillée, la navigation au clavier passe ces deux boutons, comme tous les autres boutons désactivés.',
 } satisfies Record<UiKey, string>
 
 export default ui

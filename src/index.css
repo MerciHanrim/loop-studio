@@ -1736,6 +1736,22 @@ a.sheet__row {
 .react-flow__controls-button svg {
   fill: currentColor;
 }
+/* #338 — a rail button the edit lock disables ("Group frame", "Clear all
+   frames") stays in place, so the rail keeps its height. Like the #334 chips:
+   a colour, not `opacity`, so forced colours keep the tell (`GrayText`), and no
+   hover fill. Keyboard focus never lands on it (`disabled` leaves Tab). */
+.react-flow__controls-button:disabled,
+.react-flow__controls-button:disabled:hover {
+  color: var(--text-disabled);
+  background: var(--surface-raised);
+  cursor: default;
+}
+@media (forced-colors: active) {
+  .react-flow__controls-button:disabled,
+  .react-flow__controls-button:disabled:hover {
+    color: GrayText;
+  }
+}
 
 /* ==== N1 "Vessel" nodes ================================================== */
 .nodef {

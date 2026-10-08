@@ -3599,8 +3599,9 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
         locked,
       )
     await setLocked(true)
-    await expect(frameToolBtn(page)).toHaveCount(0)
-    await expect(clearFramesBtn(page)).toHaveCount(0)
+    // #338 — the tool and "Clear all frames" stay in the rail, disabled
+    await expect(frameToolBtn(page)).toBeDisabled()
+    await expect(clearFramesBtn(page)).toBeDisabled()
     // select via the strip still works
     await strip(page, 0).click({ position: { x: 10, y: 6 } })
     expect((await frameHead(page)).selectedId).toBe(id)
@@ -3617,7 +3618,7 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
     expect(await positions(page), 'locked: the nodes do not move').toEqual(p0)
     expect((await history(page)).past).toBe(h0.past)
     await setLocked(false)
-    await expect(frameToolBtn(page)).toHaveCount(1)
+    await expect(frameToolBtn(page)).toBeEnabled()
     // mobile: same contract
     await page.setViewportSize({ width: 390, height: 780 })
     await expect(page.locator('.lgr-frame')).toHaveCount(1)

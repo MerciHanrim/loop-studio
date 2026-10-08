@@ -169,4 +169,17 @@ describe('editPolicy — what stays available while locked', () => {
     expect(JSON.parse(text).nodes).toHaveLength(2)
     expect(snapshot()).toEqual(before)
   })
+
+  it('#338 — locking turns an armed frame tool off; unlocking does not arm it again', () => {
+    seed()
+    useFrameStore.getState().armTool()
+    expect(useFrameStore.getState().toolArmed).toBe(true)
+    lock(true)
+    expect(useFrameStore.getState().toolArmed).toBe(false)
+    lock(false)
+    expect(useFrameStore.getState().toolArmed).toBe(false)
+    // an unarmed tool stays unarmed through a lock
+    lock(true)
+    expect(useFrameStore.getState().toolArmed).toBe(false)
+  })
 })

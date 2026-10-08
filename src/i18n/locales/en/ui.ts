@@ -545,6 +545,9 @@ const ui = {
   'whatsNew.v0213.fresh': 'A new diagram starts unlocked, and opening another diagram starts with an empty undo history.',
   'whatsNew.v0213.locked': 'While editing is locked, nothing changes the diagram: adding, inserting, importing data, Undo and Redo all wait until you unlock it.',
   'whatsNew.v0213.shows': 'The lock button now shows its state: an open padlock while you can edit, a closed, highlighted padlock while editing is locked.',
+  'whatsNew.v0214.rail': 'While editing is locked, the Group frame and Clear all frames buttons stay where they are, turned off, so the other buttons no longer move.',
+  'whatsNew.v0214.tool': 'Locking also turns the frame tool off, so a drag on the empty canvas moves the view instead of starting a frame.',
+  'whatsNew.v0214.keys': 'While editing is locked, moving through the controls with the keyboard skips these two buttons, like every other button that is turned off.',
 } as const
 
 export type UiKey = keyof typeof ui

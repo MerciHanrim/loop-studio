@@ -4,6 +4,16 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.21.4 — 2026-10-08
+
+A fix release (issue #338): while the Canvas is edit-locked, the Controls rail keeps every button where it is, as [`docs/canvas-edit-lock.md`](docs/canvas-edit-lock.md) describes.
+
+- **The frame buttons stay, disabled.** "Group frame" and "Clear all frames" remain in the rail while editing is locked, as disabled buttons left out of the Tab order, so in the same document the rail has the same buttons and the same height locked and unlocked. Since v0.12.0 the two had been removed from the rail while locked, so the rail grew shorter and every button above them moved down by a button's height.
+- **Locking turns the frame tool off.** A frame tool armed before locking used to stay armed: a drag on the empty canvas started a frame the lock then refused, and did not pan. Locking now turns it off, so the drag moves the view.
+- **Unchanged:** the buttons that appear only when they apply ("Clear all frames" with no frame, "Suggest frames", "Clear suggested frames"), and everything the lock allows or refuses.
+
+**No migration.** Files, share links, digests and simulation results are unchanged. One release-note line in 18 languages, 16 of them without native review. The informational `meta.tool` string is now `loop-studio/0.21.4`.
+
 ## v0.21.3 — 2026-10-08
 
 A fix release (issues #334 and #335): the Canvas edit lock is exact at every document boundary and refuses every edit, and its button shows the state at a glance, as [`docs/canvas-edit-lock.md`](docs/canvas-edit-lock.md) describes.
