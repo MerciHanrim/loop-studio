@@ -1976,23 +1976,97 @@ a.sheet__row {
     opacity: 0;
   }
 }
-/* state: arrival — compression ring INSIDE the pool, spatially split from fired */
-.nodef__arrival {
-  fill: var(--state-arrival);
+/* issue #330 PR 2 — the Pool arrival pulse, INSIDE the pool (spatially split
+   from the fired wave outside it): a soft tint of the silhouette from 7 px in
+   (clear of the band and every ring), under the title and value, which stay
+   on top. It starts when the first token arrives and runs a fixed 0.5 s
+   across the settle (docs/simulation-playback.md §PB2.1). The 2 px line is
+   its forced-colours form only. */
+.nodef__pulse {
   opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: nodeArrive 0.12s ease-out forwards;
+  animation: nodePulse 0.5s ease-out forwards;
   pointer-events: none;
 }
-@keyframes nodeArrive {
+.nodef__pulse-tint {
+  fill: var(--state-arrival);
+  fill-opacity: 0.16;
+  stroke: none;
+}
+.nodef__pulse-line {
+  display: none;
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+@keyframes nodePulse {
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* issue #330 PR 2 — the conversion mark (option A): a 10 px ⇄ drawing at the
+   Converter's own spot, shown from its onset while its tokens move, then
+   faded after the settle (docs/simulation-playback-ordering.md §PBO3) */
+.nodef__conv {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  overflow: visible;
+  pointer-events: none;
+}
+.nodef__conv path {
+  fill: none;
+  stroke: var(--state-arrival);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* at L0 it takes the type dot's place and size */
+.nodef__conv--map {
+  left: calc(50% - 9px);
+  width: 18px;
+  height: 18px;
+}
+.nodef__conv--live {
+  animation: convIn 0.15s ease-out both;
+}
+.nodef__conv--done {
+  animation: convOut 0.4s ease-in forwards;
+}
+@keyframes convIn {
   from {
-    transform: scale(0.25);
-    opacity: 0.5;
+    opacity: 0;
+    transform: scale(0.6);
   }
   to {
+    opacity: 1;
     transform: scale(1);
+  }
+}
+@keyframes convOut {
+  from {
+    opacity: 1;
+  }
+  to {
     opacity: 0;
+  }
+}
+@media (forced-colors: active) {
+  /* no tint in forced colours: the pulse is a 2 px system-colour line, 7–9 px
+     inside, drawn under the text; the mark takes the same colour */
+  .nodef__pulse-tint {
+    display: none;
+  }
+  .nodef__pulse-line {
+    display: inline;
+    stroke: Highlight;
+  }
+  .nodef__conv path {
+    stroke: Highlight;
   }
 }
 
@@ -2277,8 +2351,9 @@ a.sheet__row {
    the §VL7.1 required set — the selection ring (`.nodef__sel`), the
    keyboard-focus ring (`.nodef__focus`), the `invalid` outline + flag
    (`.nodef__invalid` / `.nodef__flag`), and the run cues (`.nodef__wave` /
-   `.nodef__arrival` / the §LGR5 `.nodef__eval` corner bracket) — is NOT dimmed
-   (a faded parent would clamp them). */
+   the Pool pulse `.nodef__pulse` / the conversion mark `.nodef__conv` / the
+   §LGR5 `.nodef__eval` corner bracket) — is NOT dimmed (a faded parent would
+   clamp them; §LGR2.3, cues inside a node keep full strength). */
 .react-flow__node.lgr-deemph .nodef__fill,
 .react-flow__node.lgr-deemph .nodef__hue,
 .react-flow__node.lgr-deemph .nodef__band,
@@ -3989,18 +4064,19 @@ a.sheet__row {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* §VL9 — same rule as the edge pulse: no travel / no fade-out. The fired ring
-     and the arrival disc are HELD statically for the step so "this node fired /
-     resource landed here" stays readable while paused, then clear on the next
-     step or Reset when firedNodeIds / arrivedPoolIds empty. */
+  /* §VL9 — same rule as the edge pulse: no travel / no fade-out. The fired
+     ring, the Pool arrival tint and the conversion mark are HELD statically for
+     the step so "this node fired / resource landed here / converted here"
+     stays readable while paused, then clear on the next step or Reset. */
   .nodef__wave {
     animation: none;
     opacity: 0.6;
   }
-  .nodef__arrival {
+  .nodef__pulse,
+  .nodef__conv--live,
+  .nodef__conv--done {
     animation: none;
-    opacity: 0.4;
-    transform: scale(0.9);
+    opacity: 1;
   }
   .nodef__value--up,
   .nodef__value--down {

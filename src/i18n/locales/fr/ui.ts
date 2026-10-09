@@ -639,6 +639,9 @@ const ui = {
   'whatsNew.v0220.label': 'L’étiquette propre à une connexion reste à sa place et ne s’estompe que pendant que le repère mobile ou son badge passe dessus.',
   'whatsNew.v0220.focus': 'Avec le Focus activé, les repères mobiles, les badges et les mises en évidence sur les connexions hors du focus s’estompent désormais avec ces connexions.',
   'whatsNew.v0220.cap': 'Lors d’une étape très chargée, 24 repères au plus se déplacent à la fois. Les autres connexions qui ont bougé sont mises en évidence à la place.',
+  'whatsNew.v0230.pulse': 'Quand un repère mobile atteint un Réservoir, l’intérieur du Réservoir s’éclaire désormais brièvement. Sa valeur change toujours à la fin de l’étape.',
+  'whatsNew.v0230.mark': 'Pendant que les repères d’un Convertisseur se déplacent, un petit signe à deux flèches apparaît à l’intérieur, puis s’estompe à la fin de l’étape.',
+  'whatsNew.v0230.focus': 'Avec le Focus activé, ces deux signes gardent toute leur intensité, même dans les nœuds hors du focus.',
 } satisfies Record<UiKey, string>
 
 export default ui

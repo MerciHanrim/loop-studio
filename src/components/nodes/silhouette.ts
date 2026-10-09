@@ -45,6 +45,11 @@ export const NODE_RINGS = {
   invalid: { from: 6.5, to: 8.5 },
 } as const
 
+/** issue #330 PR 2 — the Pool arrival pulse fills the silhouette from this
+ *  many screen px inside: clear of the band and the focus ring (`focus.to`)
+ *  by 1 px. Its forced-colours line is drawn from here to 2 px further in. */
+export const POOL_PULSE_INSET = 7
+
 /** the user-space rectangle every ring mask covers (`RingMasks.tsx`), in
  *  viewBox units — vertical units are px, horizontal ones at least ~1 px; its
  *  height follows the node's */
@@ -175,6 +180,17 @@ type Pt = [number, number]
 /** each (kind, height)'s flattened path, parsed once: a row fit samples it
  *  about fifteen times per node */
 const segmentCache = new Map<string, [Pt, Pt][]>()
+
+/** issue #330 PR 2 — the drawn outline of `kind` at height `h` as straight
+ *  segments in viewBox units (x 0 … 120, y = CSS px), quadratics flattened;
+ *  the same parse `fillSpanAt` reads, cached per (kind, height) */
+export function silhouetteSegments(kind: NodeKind, h: number): readonly (readonly [Pt, Pt])[] {
+  const H = Math.max(BASE_NODE_H, Math.min(h, MAX_NODE_H[kind]))
+  const key = `${kind}|${H}`
+  let segs = segmentCache.get(key)
+  if (!segs) segmentCache.set(key, (segs = pathSegments(silhouettePath(kind, H))))
+  return segs
+}
 /** The straight segments of one of this module's paths, quadratics flattened. */
 function pathSegments(d: string): [Pt, Pt][] {
   const tok = d.match(/[MHVLQZ]|-?\d+(?:\.\d+)?/g) ?? []

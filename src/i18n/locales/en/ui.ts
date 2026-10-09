@@ -554,6 +554,9 @@ const ui = {
   'whatsNew.v0220.label': 'A connection’s own label stays where it is and fades only while the moving marker or its badge passes over it.',
   'whatsNew.v0220.focus': 'With Focus on, the moving markers, badges and highlights on connections outside the focus now fade along with those connections.',
   'whatsNew.v0220.cap': 'In a busy step, at most 24 markers move at once; every other connection that moved is highlighted instead.',
+  'whatsNew.v0230.pulse': 'When a moving marker reaches a Pool, the inside of the Pool now briefly lights up; its number still changes when the step ends.',
+  'whatsNew.v0230.mark': 'While a Converter’s markers are moving, a small two-arrow sign appears inside it and fades when the step ends.',
+  'whatsNew.v0230.focus': 'With Focus on, these two signs keep their full strength, even in nodes outside the focus.',
 } as const
 
 export type UiKey = keyof typeof ui

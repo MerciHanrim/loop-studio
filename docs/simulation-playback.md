@@ -143,6 +143,12 @@ wall-clock by the current speed, §PB6):
 The exact fractions are a single constants block (`PLAYBACK_BEATS`), tunable in
 one place.
 
+The target's inflow cue on a **Pool** is the **arrival pulse** (issue #330 PR 2,
+v0.23.0, §PB4.7): it starts the moment that Pool's first token reaches it (the
+connection's own arrive beat, on its local τ), plays inside the Pool, and runs a
+fixed time across the `settle`; the Pool's value and delta still change only at
+`settle`.
+
 **PB2.2 — `committedStep === revealedStep`, always.** There is one clock: the
 store's `stepIndex`. It moves only at `settle`, so what the canvas shows and what
 the store holds are the same thing at every instant. There is no separate
@@ -387,6 +393,42 @@ files, digests and every PB-INV / PBO-INV invariant are unchanged.
 - **Monte Carlo** draws no tokens, as before. The speed tiers (§PB6.1) are
   issue #330 PR 3; until then every speed draws this same form.
 
+**PB4.7 — the cues inside a node: the Pool arrival pulse and the conversion
+mark (issue #330 PR 2, v0.23.0).** A presentation layer over §PB2.1 and
+§PBO3; the engine, the RNG, files, digests and every PB-INV / PBO-INV invariant
+are unchanged. Both are drawn **inside the node only**, never across the
+selection, keyboard-focus or invalid rings, and neither moves, resizes or
+re-lays out the node.
+
+- **Pool arrival pulse.** A soft tint of the Pool's silhouette from 7 px inside
+  (clear of the flow-colour band and the focus ring), under the title and value,
+  which stay on top. It starts when the Pool's first token of the step reaches
+  it — the earliest arrive beat among its moved incoming connections — and runs
+  a fixed 0.5 s, carrying on across the `settle` (it is keyed on the step, so the
+  commit does not restart it); the next arrival at that Pool starts a new one.
+  Past the 24 pairs and at L0, where no token is drawn, it plays at the same
+  moment. The value and delta still change at `settle` (§PB2.4). It replaces the
+  disc that used to play at `settle`, after the token had gone.
+- **Conversion mark (option A).** A 10 px ⇄ drawing inside the Converter,
+  shown from the Converter's own onset (its pull-in and push-out share one
+  onset, §PBO3) while its tokens move, then faded after the `settle`. Its spot
+  is the Converter's own: the free square nearest the end of the mode text, at
+  least 6 px inside the drawn outline and 1 px clear of the title, mode text
+  and type chip. The spot is computed from the silhouette and the measured text
+  once per change of the text, language, fonts or node size — never per frame,
+  never while a step plays — and is the same at L1 (where the mode text is
+  hidden but keeps its place). At L0 the mark takes the type dot's place and
+  size. No one fixed spot fits every Converter: the waisted shape and its text
+  leave a different pocket per node and language (a fixed spot after the mode
+  text missed 20 of the 450 bundled instances).
+- **Focus mode:** both are cues inside a node and keep full strength on a node
+  outside the focus set (`docs/large-graph-readability.md` §LGR2.3).
+- **Reduced motion:** both are held static for the committed step — the tint
+  and the mark at full strength, no fade — and clear on the next step or Reset
+  (§PB9).
+- **Forced colours:** no tint; the pulse is a 2 px `Highlight` line 7–9 px
+  inside the outline, drawn under the text, and the mark takes the same colour.
+
 ## PB5. Pause / Resume
 
 **PB5.1 — Pause keeps the prepared transition.** Pause stops the `τ` clock at its
@@ -598,7 +640,10 @@ same RNG result). The choreography then:
   (target handle emphasis) cues **briefly** or all at once — the ordering is the
   information, so it is not removed, but it is **not padded to a long duration**;
 - runs `settle` (value delta chip, state effects) — a very short count-up or an
-  immediate snap.
+  immediate snap;
+- holds the cues inside the nodes static for the committed step (issue #330
+  PR 2, §PB4.7): the Pool arrival tint and the conversion mark, at full
+  strength, cleared on the next step or Reset.
 
 **PB9.2 — timing.** `beatDuration` may collapse toward its floor so the sequence
 is quick; it must not stretch playback out. Step still fast-forwards; Play still

@@ -12,6 +12,7 @@ import {
   clampNodeHeight,
   maskBox,
   NODE_RINGS,
+  POOL_PULSE_INSET,
   silhouettePath,
   VESSEL_INSET_Y,
   VESSEL_MIN_PAD_Y,
@@ -27,6 +28,8 @@ import { useI18n } from '../../i18n/store'
 import { usePhrasedTitle } from './phraseTitle'
 import { InsideMask, OutsideMask } from './RingMasks'
 import { fitRows, type MeasuredRow, type RowFit, rowFitMeasured } from './rowFit'
+import { type Box, convMarkSpot, type Spot } from './convMark'
+import { useConversionMark, usePoolPulseKey } from './nodeCues'
 import type {
   ConverterData,
   DrainData,
@@ -148,6 +151,41 @@ function measureRowFit(frame: HTMLElement, stack: HTMLElement, kind: NodeKind, h
   )
 }
 
+/** issue #330 PR 2 — the Converter's conversion-mark spot (./convMark): its
+ *  title, mode text and chip boxes in CSS px within the box (rects scaled
+ *  back by the canvas zoom), then the geometry decides. One pass per change,
+ *  like the row fit; the mark is absolutely placed, so it moves nothing. */
+function measureConvSpot(frame: HTMLElement, width: number, h: number): Spot | null {
+  const box = frame.getBoundingClientRect()
+  const scale = box.width / width || 1
+  // `h` may not be drawn yet: the body centres the stack vertically
+  const dy = (h - frame.offsetHeight) / 2
+  const rel = (r: DOMRect): Box => ({
+    left: (r.left - box.left) / scale,
+    top: (r.top - box.top) / scale + dy,
+    right: (r.right - box.left) / scale,
+    bottom: (r.bottom - box.top) / scale + dy,
+  })
+  const glyphs = (el: Element | null): Box[] => {
+    if (!el) return []
+    const range = document.createRange()
+    range.selectNodeContents(el)
+    return [...range.getClientRects()].filter((r) => r.width > 0.5).map(rel)
+  }
+  const mode = glyphs(frame.querySelector('.nodef__sub'))
+  const chip = frame.querySelector('.nodef__chip')
+  const text = [...glyphs(frame.querySelector('.nodef__title')), ...mode, ...(chip ? [rel(chip.getBoundingClientRect())] : [])]
+  const modeBox: Box | null = mode.length
+    ? {
+        left: Math.min(...mode.map((b) => b.left)),
+        top: Math.min(...mode.map((b) => b.top)),
+        right: Math.max(...mode.map((b) => b.right)),
+        bottom: Math.max(...mode.map((b) => b.bottom)),
+      }
+    : null
+  return convMarkSpot(width, h, text, modeBox)
+}
+
 /** a count of the web-font loads that have finished: a face that arrives after
  *  the first measurement changes a row's text width without resizing a stack
  *  the fit already holds, so each load re-reads the fit once */
@@ -257,7 +295,12 @@ type FrameProps = {
    *  primary-fill copy of the silhouette at this opacity (0…~0.15). 0 / absent
    *  ⇒ nothing renders. Never covers the run cues / rings (drawn after it). */
   activity?: number
-  arriving?: boolean
+  /** issue #330 PR 2 — the Pool arrival pulse's step key (./nodeCues), or
+   *  null / absent for none */
+  pulseKey?: number | null
+  /** issue #330 PR 2 — the Converter's conversion mark, `<step>:live` /
+   *  `<step>:done` (./nodeCues), or null / absent for none */
+  conversion?: string | null
   /** §VL3 — the model layer's `invalid` state (a Register the engine can't
    *  evaluate, or an unreadable model node). A `--warning` dashed outline + a
    *  top-right `!` flag; carries no value (the caller passes `—`). */
@@ -280,7 +323,8 @@ function NodeFrame({
   firing,
   evaluated,
   activity,
-  arriving,
+  pulseKey,
+  conversion,
   invalid,
   stepKey,
 }: FrameProps) {
@@ -379,6 +423,26 @@ function NodeFrame({
     const next = measureRowFit(frame, stack, kind, h)
     setFit((prev) => (sameFit(prev, next) ? prev : next))
   }, [fitKey, boxH, kind])
+  // issue #330 PR 2 — a Converter's conversion-mark spot, read once per change
+  // of the rendered strings, the language, the fonts or the box size (never per
+  // frame, never while a step plays); the same at L1, where the mode row is
+  // hidden but keeps its place
+  const [convSpot, setConvSpot] = useState<Spot | null>(null)
+  const convInput = useRef('')
+  useLayoutEffect(() => {
+    const frame = frameRef.current
+    if (!frame || kind !== 'converter') return
+    const width = parseFloat(getComputedStyle(frame).width) || frame.offsetWidth
+    const input = `${fitKey}|${boxH}|${width}`
+    if (input === convInput.current) return
+    convInput.current = input
+    const next = measureConvSpot(frame, width, boxH)
+    setConvSpot((prev) => (prev?.x === next?.x && prev?.y === next?.y ? prev : next))
+  }, [fitKey, boxH, kind])
+  const convPhase = conversion ? conversion.slice(conversion.indexOf(':') + 1) : null
+  const convStep = conversion ? conversion.slice(0, conversion.indexOf(':')) : null
+  // at L0 the mark takes the type dot's place; elsewhere it needs its spot
+  const convOn = convPhase != null && (mapOnly || convSpot != null)
   // No explicit `updateNodeInternals` call here: React Flow's own internal
   // per-node ResizeObserver already keeps `node.measured` (and the handle
   // bounds edge routing reads) in sync with this wrapper's real DOM size,
@@ -441,6 +505,7 @@ function NodeFrame({
       }
       data-invalid={invalid ? '' : undefined}
       data-accent={accent}
+      data-conv-spot={convSpot ? `${convSpot.x},${convSpot.y}` : undefined}
       style={
         grown || accent || fit
           ? {
@@ -495,7 +560,7 @@ function NodeFrame({
         {/* FC-4.1 — the masks that cut each ring out of a wider stroke at a
             fixed px distance from the silhouette (NODE_RINGS), and the clip
             that keeps the flow-colour band inside it */}
-        {accent || selected || invalid || focused ? (
+        {accent || selected || invalid || focused || pulseKey != null ? (
           <defs>
             {accent ? (
               <clipPath id={`${uid}-in`}>
@@ -505,6 +570,7 @@ function NodeFrame({
             {selected ? <OutsideMask id={`${uid}-sel`} d={path} box={box} from={NODE_RINGS.selection.from} /> : null}
             {invalid ? <OutsideMask id={`${uid}-inv`} d={path} box={box} from={NODE_RINGS.invalid.from} /> : null}
             {focused ? <InsideMask id={`${uid}-foc`} d={path} box={box} from={NODE_RINGS.focus.from} /> : null}
+            {pulseKey != null ? <InsideMask id={`${uid}-pul`} d={path} box={box} from={POOL_PULSE_INSET} /> : null}
           </defs>
         ) : null}
         {/* FC-4.1 — the flow-colour band: just inside the structure line,
@@ -553,17 +619,25 @@ function NodeFrame({
           />
         ) : null}
         {firing ? <path key={`w${stepKey}`} className="nodef__wave" d={path} /> : null}
-        {arriving ? (
-          <circle
-            key={`a${stepKey}`}
-            className="nodef__arrival"
-            cx="60"
-            cy={boxH / 2}
-            r="15"
-          />
+        {/* issue #330 PR 2 — the Pool arrival pulse: a soft tint of the
+            silhouette from `POOL_PULSE_INSET` px inside (clear of every ring),
+            under the text, from the first token's arrival; its forced-colours
+            form is the 2 px line (index.css). Keyed on its step, so the settle
+            does not restart it. */}
+        {pulseKey != null ? (
+          <g key={`p${pulseKey}`} className="nodef__pulse" data-pulse-step={pulseKey}>
+            <path className="nodef__pulse-tint" d={path} mask={`url(#${uid}-pul)`} />
+            <path
+              className="nodef__pulse-line"
+              d={path}
+              mask={`url(#${uid}-pul)`}
+              strokeWidth={2 * (POOL_PULSE_INSET + 2)}
+            />
+          </g>
         ) : null}
-        {/* L0 map: type colour collapses to one dot inside the silhouette */}
-        {mapOnly ? <circle className="nodef__cdot" cx="60" cy={boxH / 2} r="9" /> : null}
+        {/* L0 map: type colour collapses to one dot inside the silhouette; a
+            conversion mark takes its place while it shows */}
+        {mapOnly && !convOn ? <circle className="nodef__cdot" cx="60" cy={boxH / 2} r="9" /> : null}
       </svg>
 
       {/* §VL4 — one persistent flag, top-right, non-colour tell for `invalid` */}
@@ -584,6 +658,24 @@ function NodeFrame({
           (§VL7.1) and is exempt from `lgr-deemph` dimming (LGR-INV-6). */}
       {evaluated && !firing ? (
         <span className="nodef__eval" aria-hidden="true" title={tip('node.evaluatedCue')} />
+      ) : null}
+
+      {/* issue #330 PR 2 — the conversion mark (option A): a 10 px ⇄ drawing
+          at this Converter's own spot (./convMark), from its onset to the
+          settle, then it fades; at L0 it takes the type dot's place. Outside
+          the body, so the L0 / L1 text elision never hides it, and not dimmed
+          by Focus mode (a cue inside a node, §LGR2.3). Keyed on its step. */}
+      {convOn ? (
+        <svg
+          key={`c${convStep}`}
+          className={`nodef__conv nodef__conv--${convPhase}${mapOnly ? ' nodef__conv--map' : ''}`}
+          data-conv-mark={convPhase}
+          viewBox="0 0 12 12"
+          aria-hidden="true"
+          style={mapOnly || !convSpot ? { top: boxH / 2 - 9 } : { left: convSpot.x, top: convSpot.y }}
+        >
+          <path d="M1.5 3.5 H10 M7.5 1 L10 3.5 L7.5 6 M10.5 8.5 H2 M4.5 6 L2 8.5 L4.5 11" />
+        </svg>
       ) : null}
 
       {/* The body is ALWAYS in the DOM so the node's footprint / hit target is
@@ -623,7 +715,7 @@ function PoolNode({ id, data, selected }: NodeProps) {
   const live = useSimStore((s) => (s.values ? s.values[id] : undefined))
   const shown = live ?? d.initial
   const stepKey = useSimStore((s) => s.stepIndex)
-  const arriving = useSimStore((s) => s.arrivedPoolIds.includes(id))
+  const pulseKey = usePoolPulseKey(id)
   // Pool's face is its count; mode / capacity stay in the inspector
   return (
     <>
@@ -642,7 +734,7 @@ function PoolNode({ id, data, selected }: NodeProps) {
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
         activity={useNodeActivityOpacity(id)}
-        arriving={arriving}
+        pulseKey={pulseKey}
         stepKey={stepKey}
       />
       <Handle type="source" position={Position.Right} id="out" className="h h--out" />
@@ -741,6 +833,7 @@ function ConverterNode({ id, data, selected }: NodeProps) {
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
         activity={useNodeActivityOpacity(id)}
+        conversion={useConversionMark(id)}
         stepKey={stepKey}
       />
       <Handle type="source" position={Position.Right} id="out" className="h h--out" />

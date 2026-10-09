@@ -39,6 +39,15 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // issue #330 PR 2 - the cues inside a node: the Pool arrival pulse and the
+    // Converter's conversion mark, at full strength under Focus mode; the
+    // date is the day it is deployed, set right before the merge
+    id: 'release:0.23.0',
+    version: '0.23.0',
+    date: '2026-10-09',
+    items: ['whatsNew.v0230.pulse', 'whatsNew.v0230.mark', 'whatsNew.v0230.focus'],
+  },
+  {
     // issue #330 PR 1 - playback shows the path a Gate took, every amount as a
     // `+N` badge beside its moving marker, the label rule, Focus mode on
     // connections and the 24-marker cap; the date is the day it is deployed,
