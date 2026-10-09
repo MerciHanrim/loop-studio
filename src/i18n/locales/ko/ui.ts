@@ -160,6 +160,15 @@ const ui = {
   'import.modelLayerUnreadable': '이 파일의 모델 계층 내용을 읽을 수 없어 ({detail}) 프로젝트 데이터는 무시했습니다.',
   'mobile.more.import': '파일 가져오기',
   'mobile.more.importSub': 'Graph 또는 Workspace JSON',
+  'mobile.speed.rowLabel': '재생 속도',
+  'mobile.speed.slow': '느리게',
+  'mobile.speed.normal': '보통',
+  'mobile.speed.fast': '빠르게',
+  'mobile.speed.veryFast': '매우 빠르게',
+  'mobile.speed.slow.time': '단계당 1초',
+  'mobile.speed.normal.time': '단계당 0.6초',
+  'mobile.speed.fast.time': '단계당 0.3초',
+  'mobile.speed.veryFast.time': '단계당 0.12초',
   'export.button': '내보내기',
   'export.menuLabel': '내보내기',
   'export.graphJson.name': '그래프 JSON',
@@ -560,6 +569,9 @@ const ui = {
   'whatsNew.v0230.pulse': '움직이는 표시가 풀에 닿으면 이제 풀 안쪽이 잠깐 밝아지며, 숫자는 그대로 단계가 끝날 때 바뀝니다.',
   'whatsNew.v0230.mark': '컨버터의 표시가 움직이는 동안 그 안에 작은 양방향 화살표 표시가 나타나고, 단계가 끝나면 사라집니다.',
   'whatsNew.v0230.focus': 'Focus를 켜도 이 두 표시는 집중 범위 밖의 노드에서도 흐려지지 않습니다.',
+  'whatsNew.v0240.tiers': '이제 재생 속도에 따라 단계의 모습도 바뀝니다. 단계당 0.4초 이상이면 움직이는 표시가 +N과 함께 이동하고, 더 빠르면 +N이 도착할 때 나타나며, 0.2초보다 빠르면 경로가 잠깐 밝아진 뒤 표시가 끝에 나타납니다.',
+  'whatsNew.v0240.step': '한 단계 진행은 속도 설정과 관계없이 항상 전체 움직임을 보여 줍니다.',
+  'whatsNew.v0240.phone': '휴대폰의 더 보기 메뉴에 재생 속도(느리게, 보통, 빠르게, 매우 빠르게)가 생겼고, 한 번에 움직이는 표시는 최대 12개입니다.',
 } satisfies Record<UiKey, string>
 
 export default ui

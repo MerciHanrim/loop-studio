@@ -192,8 +192,23 @@ The mobile layout is unaffected — it is always view-only regardless of the fie
   full-width at the breakpoint, with **real** `padding-bottom:
   env(safe-area-inset-bottom)` (MV7).
 - Keeps **Reset / Step / Play·Pause**, the **Monte Carlo** button, and the
-  `step N` counter. The speed slider and seed field are **not rendered** on
-  mobile (view/run uses defaults; a power user is on desktop).
+  `step N` counter. The speed slider and seed field are **not rendered** in the
+  bar (view/run uses defaults; a power user is on desktop).
+- **Playback speed (issue #330 PR 3, v0.24.0) — §MV4 reopened narrowly.** A
+  stepped choice in the More sheet, never a slider in the bar: `⋯ → Playback
+  speed` opens a sub-sheet with **Slow** (1000 ms a step), **Normal** (600, the
+  default), **Fast** (300) and **Very fast** (120), the current one pressed
+  (`aria-pressed`); a choice sets the same session-only `speedMs` as the
+  desktop slider and closes the sheets. Each speed falls in exactly one tier of
+  `docs/simulation-playback.md` §PB6.1. A speed the desktop slider set that is
+  none of the four leaves none pressed. There is still **no run seed** in the
+  bar; the Monte Carlo dialog keeps its base seed.
+- **Fewer moving elements on the phone.** Every phone speed draws its tier with
+  the phone display profile (`docs/simulation-playback.md` §PB6.1): at most 12
+  token-and-badge pairs a step (the first 12 of the desktop's stable order) and
+  no departure ring; past the 12 a move keeps its path highlight and arrival
+  cue. Fixed when a step starts, so a rotation mid-step changes nothing in that
+  step. Reduced motion and L0 keep their contracts.
 - 44 px minimum touch targets.
 - **Its height is measured, not assumed** (issue #303). The bar wraps to a
   second row below about 390 px and, at 390 px, in six languages; the
@@ -485,7 +500,7 @@ opening. Its mobile placement rules:
 | MV-D4 | simulation-input Inspector tabs | **read-only on mobile** in this cut; any future live sim-input editing is a separate, separately-gated decision |
 | MV-D5 | document replacement | Import / Template **allowed**, but **confirm-before-replace** (MV3b), reusing the existing atomic `loadDoc()` path |
 | MV-D6 | layout switch | **never** mutates the doc / undo history / latch (MV3c); desktop width fully restores the editing UI |
-| MV-D7 | run bar | fixed bottom: Reset / Step / Play·Pause / Monte Carlo + `step N`; **no** speed slider or seed field |
+| MV-D7 | run bar | fixed bottom: Reset / Step / Play·Pause / Monte Carlo + `step N`; **no** speed slider or seed field; the four-step Playback speed lives under `⋯` (§MV4, issue #330 PR 3) |
 | MV-D8 | Timeline | collapsible bottom sheet, collapsed by default |
 | MV-D9 | secondary actions | a `More` menu (Share / Import / Export / Templates / Theme / stamp); palette + undo/redo + New not rendered |
 | MV-D10 | MiniMap | **not rendered** on mobile — and, on desktop, hidden when the canvas pane is smaller than ~640 × 380 px (`Canvas.tsx` `minimapFits`), where the fixed ~202 × 152 overlay would dominate rather than help |

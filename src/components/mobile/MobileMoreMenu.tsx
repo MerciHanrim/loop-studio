@@ -11,6 +11,7 @@ import { useGraphStore } from '../../store/graphStore'
 import { useMcStore } from '../../store/mcStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useSimStore } from '../../store/simStore'
+import { PHONE_SPEEDS } from '../../store/playbackTier'
 import { selectOverlay, useUiStore } from '../../store/uiStore'
 import {
   decideWorkspaceExport,
@@ -24,7 +25,7 @@ import { type ProtectedShareLinkResult, copyShareLink, prepareProtectedShareLink
 import { useTourStore } from '../../store/tourStore'
 import { useWhatsNewStore } from '../../store/whatsNewStore'
 import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../../store/hintStore'
-import { useT } from '../../i18n'
+import { type MessageKey, useT } from '../../i18n'
 import { AboutDialog } from '../AboutDialog'
 import { AuthorDialog } from '../AuthorDialog'
 import { ConfirmDialog } from '../ConfirmDialog'
@@ -39,7 +40,7 @@ import { WhatsNewPanel } from '../WhatsNewPanel'
 import { StoragePrivacyDialog } from '../StoragePrivacyDialog'
 import { ShareCreateDialog } from '../toolbar/ShareCreateDialog'
 import { selectTemporary, useSessionStore } from '../../store/sessionStore'
-import { ArrowIcon } from '../../ui/icons'
+import { ArrowIcon, Icon } from '../../ui/icons'
 
 // docs/localization.md Slice 2b — Templates replace, the Project-revision
 // disclosure, and the Workspace-JSON summary are in-app ConfirmDialogs now;
@@ -53,6 +54,13 @@ type PendingConfirm = { title: string; body: string; confirmLabel: string; run: 
 // the desktop menus.
 
 const MiB = (n: number) => `${(n / (1024 * 1024)).toFixed(1)} MiB`
+// issue #330 PR 3 — each phone speed's name and per-step time, as literal keys
+const SPEED_KEYS = {
+  slow: ['mobile.speed.slow', 'mobile.speed.slow.time'],
+  normal: ['mobile.speed.normal', 'mobile.speed.normal.time'],
+  fast: ['mobile.speed.fast', 'mobile.speed.fast.time'],
+  veryFast: ['mobile.speed.veryFast', 'mobile.speed.veryFast.time'],
+} as const satisfies Record<(typeof PHONE_SPEEDS)[number]['key'], readonly [MessageKey, MessageKey]>
 // a sub-sheet returns focus to the top bar's More button when it closes
 const backToMore = () => document.querySelector<HTMLButtonElement>('.mob-more')
 
@@ -99,6 +107,9 @@ export function MobileMoreMenu({
         }).length,
     ) >= WORTH_IT_FLOOR
   const t = useT()
+  // issue #330 PR 3 — the current speed's step, if it is one of the four
+  const speedMs = useSimStore((s) => s.speedMs)
+  const speedChoice = PHONE_SPEEDS.find((s) => s.ms === speedMs) ?? null
   // §L9.3 — a direction-aware CHARACTER from the shared table, never a transform
   const { fitView } = useReactFlow()
 
@@ -410,6 +421,15 @@ export function MobileMoreMenu({
             </button>
           </span>
         </div>
+        {/* docs/mobile.md §MV4 (issue #330 PR 3) — the playback speed: four
+            steps in a sub-sheet, never a slider in the run bar */}
+        <button type="button" className="sheet__row" data-more-row="speed" onClick={() => openOverlay('speed')}>
+          {t('mobile.speed.rowLabel')}
+          <span className="sheet__row-sub">
+            {speedChoice ? t(SPEED_KEYS[speedChoice.key][0]) : null}
+            <ArrowIcon unit="submenu" />
+          </span>
+        </button>
         {/* docs/…-auto-frames.md §AF-INV-7 — on mobile, "Suggest frames" is a
             More-sheet action (no canvas control); auto frames still render. */}
         {(suggestEligible || autoFramesExist) && (
@@ -588,6 +608,40 @@ export function MobileMoreMenu({
         <WhatsNewPanel open={whatsNewOpen} onClose={closeWhatsNew} returnFocusTo={backToMore} />
       </MobileSheet>
       </>
+    )
+  }
+
+  // docs/mobile.md §MV4 (issue #330 PR 3) — the mobile Playback speed
+  // sub-sheet: Slow 1000, Normal 600, Fast 300, Very fast 120 ms a step, each
+  // in exactly one tier (§PB6.1). The same session-only `speedMs` as the
+  // desktop slider; a choice closes the sheets so the run shows at once.
+  if (overlay === 'speed') {
+    return (
+      <MobileSheet
+        key="speed"
+        title={t('mobile.speed.rowLabel')}
+        onClose={() => closeOverlay('speed')}
+        onEscape={backToMoreFrom('speed')}
+        returnFocusTo={backToMore}
+      >
+        {PHONE_SPEEDS.map((s) => (
+          <button
+            key={s.key}
+            type="button"
+            className="sheet__row sheet__row--speed"
+            data-speed={s.key}
+            aria-pressed={speedMs === s.ms}
+            onClick={() => {
+              useSimStore.getState().setSpeed(s.ms)
+              closeOverlay()
+            }}
+          >
+            {speedMs === s.ms ? <Icon name="check" className="icon--check" /> : null}
+            {t(SPEED_KEYS[s.key][0])}
+            <span className="sheet__row-sub">{t(SPEED_KEYS[s.key][1])}</span>
+          </button>
+        ))}
+      </MobileSheet>
     )
   }
 

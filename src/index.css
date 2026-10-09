@@ -3438,6 +3438,13 @@ a.sheet__row {
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
+/* issue #330 PR 3 — the very fast tier (§PB6.1): a moved path flashes, a
+   little stronger than the highlight, from its onset to its arrive beat, where
+   the token appears at the end instead of travelling. Forced colours: the same
+   4 px CanvasText line as every path highlight. */
+.pb-path--flash {
+  opacity: 0.8;
+}
 /* the `+N` badge beside the round token, from `+1`; it moves with the token. It
    lives in the label layer (HTML, above every connection label) so the pair is
    drawn on top. Its box matches ./components/edges/playbackBadge.ts (height
@@ -6110,6 +6117,21 @@ input[type='number']::-webkit-inner-spin-button {
   .sheet__row:hover,
   .sheet__row:focus-visible {
     background: var(--surface-hover);
+  }
+  /* issue #330 PR 3 — the Playback speed choices: a 44 px touch target
+     (§MV7), and the chosen one marked by a check and a soft tint, never by
+     colour alone (forced colours keep the check and the pressed state) */
+  .sheet__row--speed {
+    min-height: 44px;
+  }
+  .sheet__row--speed[aria-pressed='true'] {
+    background: var(--signal-primary-soft);
+    font-weight: 600;
+  }
+  /* on the tint the tertiary per-step time would fall under 4.5:1; lift it,
+     as the hover / focus rule above does */
+  .sheet__row--speed[aria-pressed='true'] .sheet__row-sub {
+    color: var(--text-secondary);
   }
   .sheet__row-sub {
     margin-inline-start: auto;

@@ -465,6 +465,50 @@ step count, event lists, beat order, or which `to` is committed. Two runs at
 different speeds from the same seed commit byte-identical `SimState` at every step
 and identical series.
 
+**The speed tiers (issue #330 PR 3, v0.24.0).** What a step DRAWS depends on its
+beat, in three tiers with exact boundaries on the continuous desktop slider
+(120 … 2400 ms, `src/store/playbackTier.ts`):
+
+| tier | beat | the round token | `+N` |
+|---|---|---|---|
+| **full** | ≥ 400 ms | travels its path (§PB4) | beside it, moving with it |
+| **fast** | 200 … 399 ms | travels its path | only from its arrive beat, beside it at the end |
+| **very fast** | < 200 ms | does not travel: the moved path flashes (`.pb-path--flash`) from the edge's onset to its arrive beat, then the token appears at the end | with the token, at the arrive beat |
+
+- The tier is read **once, when a step starts**, and travels with the
+  transition (`transition.tier`). A speed change during a step re-rates that
+  step's clock (§PB6.2) but changes its tier only from the next step.
+- **Step** (the button) always draws the **full** tier, whatever the slider says.
+- Everything else is the same in every tier: the onsets (§PBO2), the depart and
+  arrive cues, the Gate path, the 24 pairs and what lies past them (§PB4.5), the
+  own-label rule (judged on what is on screen: the token alone while `+N` is
+  not shown), Focus mode, the Pool pulse and the conversion mark (§PB4.7, at
+  the same arrival moment). State-connection beads are not tiered.
+- Reduced motion ignores the tier (§PB9). L0 elides the token in every tier
+  (§PB4.4).
+- The phone's four speeds (`docs/mobile.md` §MV4) fall one in each of full
+  (1000 and 600 ms), fast (300) and very fast (120).
+- **The display profile, fixed per step like the tier** (`transition.profile`).
+  In the mobile view/run layout (`src/ui/media.ts`) a step uses the **phone**
+  profile: at most **12** token-and-badge pairs — the FIRST 12 of the same
+  stable order as the desktop 24 (§PB4.5), so a phone pair is always a desktop
+  pair — and **no departure ring** (the `emit` burst, §PBO3). Every move past
+  the 12 keeps its path highlight (the Gate path included) and its arrival cue,
+  as past the 24; the arrival rings, the chosen pairs' `+N`, the Pool pulse and
+  the conversion mark are unchanged. Step draws the full tier with the phone
+  profile's 12 and no departure ring. The profile is read when the step
+  starts, so rotating or resizing the screen during a step makes nothing in
+  that step appear or disappear; the next step takes the new layout. Under
+  reduced motion the profile is `desktop` (the static form of §PB9 and its 24
+  are unchanged), and L0 keeps its contract: no token, the path pulse for the
+  pairs of the step's budget.
+- **A current limit, measured (not addressed here):** a step with about 300
+  simultaneous moves runs at roughly 70–200 ms a frame on a desktop dev build,
+  on `main` before this change as after it; hiding the Pool pulse or the
+  connection cues does not change it, so it is the per-frame cost of updating
+  that many moving connections, not a cue. The bundled Templates (largest
+  ≈ 40 moves a step) stay near 17 ms median.
+
 **PB6.2 — speed change mid-transition: recompute the remaining phases only.**
 Progress is held as `τ ∈ [0,1]`, never as an absolute end-timestamp. On a change
 at frame time `t₀` with current `τ₀`:

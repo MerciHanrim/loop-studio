@@ -173,6 +173,15 @@ const ui = {
   'import.modelLayerUnreadable': 'Không đọc được phần nội dung tầng mô hình của tệp này ({detail}); dữ liệu dự án của nó đã bị bỏ qua.',
   'mobile.more.import': 'Nhập tệp',
   'mobile.more.importSub': 'Graph hoặc Workspace JSON',
+  'mobile.speed.rowLabel': 'Tốc độ phát',
+  'mobile.speed.slow': 'Chậm',
+  'mobile.speed.normal': 'Bình thường',
+  'mobile.speed.fast': 'Nhanh',
+  'mobile.speed.veryFast': 'Rất nhanh',
+  'mobile.speed.slow.time': '1 giây mỗi bước',
+  'mobile.speed.normal.time': '0,6 giây mỗi bước',
+  'mobile.speed.fast.time': '0,3 giây mỗi bước',
+  'mobile.speed.veryFast.time': '0,12 giây mỗi bước',
   'export.button': 'Xuất',
   'export.menuLabel': 'Xuất',
   'export.graphJson.name': 'Graph JSON',
@@ -573,6 +582,9 @@ const ui = {
   'whatsNew.v0230.pulse': 'Khi một dấu chuyển động tới Bể chứa, bên trong Bể chứa giờ sẽ sáng lên trong chốc lát; con số vẫn chỉ thay đổi khi bước kết thúc.',
   'whatsNew.v0230.mark': 'Trong lúc các dấu của Bộ chuyển đổi di chuyển, bên trong nó hiện một ký hiệu nhỏ hai mũi tên, rồi mờ đi khi bước kết thúc.',
   'whatsNew.v0230.focus': 'Khi bật Tiêu điểm, hai ký hiệu này vẫn giữ nguyên độ đậm, kể cả trong các nút nằm ngoài tiêu điểm.',
+  'whatsNew.v0240.tiers': 'Tốc độ phát giờ cũng thay đổi những gì một bước hiển thị: từ 0,4 giây mỗi bước trở lên, dấu chuyển động mang theo +N; nhanh hơn thì +N hiện khi tới nơi; dưới 0,2 giây thì đường đi lóe sáng rồi dấu hiện ở cuối.',
+  'whatsNew.v0240.step': 'Tiến một bước luôn hiển thị toàn bộ chuyển động, dù tốc độ được đặt thế nào.',
+  'whatsNew.v0240.phone': 'Trên điện thoại, mục Thêm giờ có tốc độ phát (Chậm, Bình thường, Nhanh hoặc Rất nhanh), và cùng lúc chỉ có tối đa 12 dấu di chuyển.',
 } satisfies Record<UiKey, string>
 
 export default ui

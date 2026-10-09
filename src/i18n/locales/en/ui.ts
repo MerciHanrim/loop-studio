@@ -157,6 +157,15 @@ const ui = {
   'import.modelLayerUnreadable': "This file's model-layer content is not readable ({detail}); its project data was ignored.",
   'mobile.more.import': 'Import file',
   'mobile.more.importSub': 'Graph or Workspace JSON',
+  'mobile.speed.rowLabel': 'Playback speed',
+  'mobile.speed.slow': 'Slow',
+  'mobile.speed.normal': 'Normal',
+  'mobile.speed.fast': 'Fast',
+  'mobile.speed.veryFast': 'Very fast',
+  'mobile.speed.slow.time': '1 s a step',
+  'mobile.speed.normal.time': '0.6 s a step',
+  'mobile.speed.fast.time': '0.3 s a step',
+  'mobile.speed.veryFast.time': '0.12 s a step',
   'export.button': 'Export',
   'export.menuLabel': 'Export',
   'export.graphJson.name': 'Graph JSON',
@@ -557,6 +566,9 @@ const ui = {
   'whatsNew.v0230.pulse': 'When a moving marker reaches a Pool, the inside of the Pool now briefly lights up; its number still changes when the step ends.',
   'whatsNew.v0230.mark': 'While a Converter’s markers are moving, a small two-arrow sign appears inside it and fades when the step ends.',
   'whatsNew.v0230.focus': 'With Focus on, these two signs keep their full strength, even in nodes outside the focus.',
+  'whatsNew.v0240.tiers': 'Playback speed now also changes what a step shows: at 0.4 s a step or slower, the moving marker carries its +N; faster, +N appears when it arrives; under 0.2 s, the path flashes and the marker appears at its end.',
+  'whatsNew.v0240.step': 'Advancing one step always shows the full movement, whatever the speed is set to.',
+  'whatsNew.v0240.phone': 'On a phone, More now has Playback speed (Slow, Normal, Fast or Very fast), and at most 12 markers move at once.',
 } as const
 
 export type UiKey = keyof typeof ui

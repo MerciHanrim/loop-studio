@@ -1,5 +1,5 @@
 import { useSimStore } from '../../store/simStore'
-import { MAX_PLAYBACK_TOKENS_TOTAL } from './playback-caps'
+import { MAX_PLAYBACK_TOKENS_PHONE, MAX_PLAYBACK_TOKENS_TOTAL } from './playback-caps'
 
 /** the in-flight transition, non-null. `flowByEdge` / `events` / `stateEvents`
  *  are set once per transition and kept by reference across every τ tick, so
@@ -53,17 +53,19 @@ function budgetSet(t: Transition): ReadonlySet<string> {
   t.events.forEach((e, i) => {
     if (!(e.edgeId in firstEv)) firstEv[e.edgeId] = i
   })
-  const set = pick(t.flowByEdge, t.stateEvents, firstEv)
+  // issue #330 PR 3 — the phone profile (fixed when the step started) takes the
+  // first 12 of the same order
+  const set = pick(t.flowByEdge, t.stateEvents, firstEv, t.profile === 'phone' ? MAX_PLAYBACK_TOKENS_PHONE : MAX_PLAYBACK_TOKENS_TOTAL)
   cache = { key: t.flowByEdge, set }
   return set
 }
 
-/** the stable choice itself: the first `MAX_PLAYBACK_TOKENS_TOTAL` candidates
- *  in the fixed key order */
+/** the stable choice itself: the first `cap` candidates in the fixed key order */
 function pick(
   flowByEdge: Record<string, number>,
   stateEvents: Transition['stateEvents'],
   firstEv: Record<string, number>,
+  cap: number = MAX_PLAYBACK_TOKENS_TOTAL,
 ): ReadonlySet<string> {
   const cand: { edgeId: string; rank: number; ord: number }[] = []
   for (const edgeId of Object.keys(flowByEdge)) {
@@ -84,7 +86,7 @@ function pick(
 
   const set = new Set<string>()
   for (const c of cand) {
-    if (set.size >= MAX_PLAYBACK_TOKENS_TOTAL) break
+    if (set.size >= cap) break
     set.add(c.edgeId)
   }
   return set

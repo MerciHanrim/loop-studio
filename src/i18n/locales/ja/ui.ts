@@ -167,6 +167,15 @@ const ui = {
   'import.modelLayerUnreadable': 'このファイルのモデル層の内容を読み取れないため（{detail}）、プロジェクトデータは無視しました。',
   'mobile.more.import': 'ファイルをインポート',
   'mobile.more.importSub': 'グラフまたはワークスペースの JSON',
+  'mobile.speed.rowLabel': '再生速度',
+  'mobile.speed.slow': '遅い',
+  'mobile.speed.normal': '標準',
+  'mobile.speed.fast': '速い',
+  'mobile.speed.veryFast': 'とても速い',
+  'mobile.speed.slow.time': '1ステップあたり1秒',
+  'mobile.speed.normal.time': '1ステップあたり0.6秒',
+  'mobile.speed.fast.time': '1ステップあたり0.3秒',
+  'mobile.speed.veryFast.time': '1ステップあたり0.12秒',
   'export.button': 'エクスポート',
   'export.menuLabel': 'エクスポート',
   'export.graphJson.name': 'グラフ JSON',
@@ -592,6 +601,9 @@ const ui = {
   'whatsNew.v0230.pulse': '動く印がプールに届くと、プールの内側が一瞬明るくなるようになりました。数値はこれまでどおりステップの終わりに変わります。',
   'whatsNew.v0230.mark': 'コンバーターの印が動いている間、その内側に小さな双方向の矢印が表示され、ステップの終わりに消えます。',
   'whatsNew.v0230.focus': 'フォーカスがオンでも、この2つの表示はフォーカス外のノードでも淡くなりません。',
+  'whatsNew.v0240.tiers': '再生速度によって、ステップの見え方も変わるようになりました。1ステップあたり0.4秒以上では動く印が+Nと一緒に進み、それより速いと+Nは到着時に表示され、0.2秒未満では経路が一瞬光ったあと印が終点に表示されます。',
+  'whatsNew.v0240.step': '1 ステップ進めると、速度の設定にかかわらず常に動き全体が表示されます。',
+  'whatsNew.v0240.phone': 'スマートフォンの「その他」メニューに再生速度（遅い・標準・速い・とても速い）が加わり、同時に動く印は最大12個になりました。',
 } satisfies Record<UiKey, string>
 
 export default ui

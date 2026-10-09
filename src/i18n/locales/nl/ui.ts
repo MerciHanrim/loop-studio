@@ -167,6 +167,15 @@ const ui = {
   'import.modelLayerUnreadable': 'De inhoud van de modellaag van dit bestand is niet leesbaar ({detail}); de projectgegevens zijn genegeerd.',
   'mobile.more.import': 'Bestand importeren',
   'mobile.more.importSub': 'Diagram- of Werkruimte-JSON',
+  'mobile.speed.rowLabel': 'Afspeelsnelheid',
+  'mobile.speed.slow': 'Langzaam',
+  'mobile.speed.normal': 'Normaal',
+  'mobile.speed.fast': 'Snel',
+  'mobile.speed.veryFast': 'Heel snel',
+  'mobile.speed.slow.time': '1 s per stap',
+  'mobile.speed.normal.time': '0,6 s per stap',
+  'mobile.speed.fast.time': '0,3 s per stap',
+  'mobile.speed.veryFast.time': '0,12 s per stap',
   'export.button': 'Exporteren',
   'export.menuLabel': 'Exporteren',
   'export.graphJson.name': 'Diagram-JSON',
@@ -568,6 +577,9 @@ const ui = {
   'whatsNew.v0230.pulse': 'Als een bewegende markering een Voorraad bereikt, licht de binnenkant van die Voorraad nu even op; het getal verandert nog steeds pas aan het eind van de stap.',
   'whatsNew.v0230.mark': 'Zolang de markeringen van een Omzetter bewegen, verschijnt erin een klein teken met twee pijlen, dat aan het eind van de stap vervaagt.',
   'whatsNew.v0230.focus': 'Met Focus aan houden deze twee tekens hun volle sterkte, ook in knooppunten buiten de focus.',
+  'whatsNew.v0240.tiers': 'De afspeelsnelheid bepaalt nu ook wat een stap laat zien: vanaf 0,4 s per stap reist de markering met haar +N mee; sneller verschijnt +N bij aankomst; onder 0,2 s licht het pad even op en verschijnt de markering aan het eind.',
+  'whatsNew.v0240.step': 'Eén stap vooruit laat altijd de hele beweging zien, welke snelheid er ook is ingesteld.',
+  'whatsNew.v0240.phone': 'Op een telefoon biedt Meer nu een afspeelsnelheid (Langzaam, Normaal, Snel of Heel snel), en bewegen hooguit 12 markeringen tegelijk.',
 } as const
 
 export default ui

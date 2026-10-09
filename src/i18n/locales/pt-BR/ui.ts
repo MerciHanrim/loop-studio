@@ -170,6 +170,15 @@ const ui = {
   'import.modelLayerUnreadable': 'O conteúdo da camada de modelo deste arquivo não é legível ({detail}); os dados de projeto dele foram ignorados.',
   'mobile.more.import': 'Importar arquivo',
   'mobile.more.importSub': 'Grafo ou Espaço de trabalho JSON',
+  'mobile.speed.rowLabel': 'Velocidade de reprodução',
+  'mobile.speed.slow': 'Lenta',
+  'mobile.speed.normal': 'Normal',
+  'mobile.speed.fast': 'Rápida',
+  'mobile.speed.veryFast': 'Muito rápida',
+  'mobile.speed.slow.time': '1 s por passo',
+  'mobile.speed.normal.time': '0,6 s por passo',
+  'mobile.speed.fast.time': '0,3 s por passo',
+  'mobile.speed.veryFast.time': '0,12 s por passo',
   'export.button': 'Exportar',
   'export.menuLabel': 'Exportar',
   'export.graphJson.name': 'Grafo JSON',
@@ -573,6 +582,9 @@ const ui = {
   'whatsNew.v0230.pulse': 'Quando uma marca em movimento chega a um Reservatório, o interior do Reservatório agora acende por um instante; o valor só muda no fim do passo, como antes.',
   'whatsNew.v0230.mark': 'Enquanto as marcas de um Conversor estão em movimento, aparece dentro dele um pequeno sinal com duas setas, que desaparece no fim do passo.',
   'whatsNew.v0230.focus': 'Com o Foco ativado, os dois sinais mantêm a intensidade total, mesmo nos nós fora do foco.',
+  'whatsNew.v0240.tiers': 'A velocidade de reprodução agora também muda o que um passo mostra: a partir de 0,4 s por passo, a marca em movimento leva o seu +N; em velocidades maiores, o +N aparece na chegada; abaixo de 0,2 s, o caminho acende por um instante e a marca aparece no fim.',
+  'whatsNew.v0240.step': 'Avançar um passo mostra sempre todo o movimento, seja qual for a velocidade escolhida.',
+  'whatsNew.v0240.phone': 'Em telefones, o menu Mais oferece agora a velocidade de reprodução (Lenta, Normal, Rápida ou Muito rápida), e no máximo 12 marcas estão em movimento ao mesmo tempo.',
 } as const
 
 export type UiKey = keyof typeof ui

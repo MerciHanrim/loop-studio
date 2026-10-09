@@ -289,7 +289,7 @@ describe('es-419 copy — mechanical review', () => {
       Ctrl: ['toolbar.undo.title', 'toolbar.redo.title'],
       Cmd: ['toolbar.undo.title', 'toolbar.redo.title'],
       Z: ['toolbar.undo.title', 'toolbar.redo.title'],
-      N: ['import.ignoreLastRows', 'import.issue.invalid-ignore-rows', 'import.issue.ragged-row', 'whatsNew.v0220.badge'],
+      N: ['import.ignoreLastRows', 'import.issue.invalid-ignore-rows', 'import.issue.ragged-row', 'whatsNew.v0220.badge', 'whatsNew.v0240.tiers'],
       // the sample CSV's own column headers, shown as data
       item: ['import.qs.mapping'],
       name: ['import.qs.mapping'],
@@ -337,6 +337,10 @@ describe('es-419 copy — mechanical review', () => {
       x: ['canvas.frame.a11y.moved', 'rf.node.moveCancelled', 'rf.node.moved'],
       y: ['canvas.frame.a11y.moved', 'rf.node.moveCancelled', 'rf.node.moved'],
       rev: ['revChip.rev'],
+      // issue #330 PR 3 — the Spanish word IS `Normal` (the phone's Normal
+      // speed), and `s` is the seconds symbol of the four per-step times
+      Normal: ['mobile.speed.normal', 'whatsNew.v0240.phone'],
+      s: ['mobile.speed.slow.time', 'mobile.speed.normal.time', 'mobile.speed.fast.time', 'mobile.speed.veryFast.time', 'whatsNew.v0240.tiers'],
     }
 
     const WORD = /[A-Za-zÀ-ÖØ-öø-ÿ]+/gu

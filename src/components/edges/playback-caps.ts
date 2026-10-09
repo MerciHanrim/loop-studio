@@ -15,3 +15,10 @@ export const MAX_PLAYBACK_TOKENS = 12
  *  deterministically (ascending edgeId) so the set is stable across re-render /
  *  deselect+reselect / speed change. */
 export const MAX_PLAYBACK_TOKENS_TOTAL = 24
+
+/** issue #330 PR 3 (v0.24.0) — the phone's budget (the mobile view/run layout,
+ *  docs/mobile.md §MV4): the FIRST 12 of the same stable order, so a phone
+ *  pair is always a desktop pair. Past it, as past the 24, a moved edge keeps
+ *  its path highlight and its arrival cue. Fixed per step with the transition's
+ *  display profile, so a rotation or resize mid-step changes nothing on screen. */
+export const MAX_PLAYBACK_TOKENS_PHONE = 12
