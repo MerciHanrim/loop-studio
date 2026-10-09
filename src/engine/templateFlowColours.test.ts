@@ -63,9 +63,11 @@ const TEMPLATES: { file: string; flows: TemplateFlows; colours: string[]; conten
     file: 'gacha-banner-zones.json',
     flows: GACHA_BANNER_ZONES_FLOWS,
     colours: ['sage', 'violet', 'rose'],
-    // #325 PR 3: with the `e_pickup_36` routing waypoint of layout round 7
-    contentDigest: 'ac61fc8bd006ca5b1bff67e9d2246e3874c883bbb4a729596064690f60e51b67',
-    fullContentDigest: 'ac61fc8bd006ca5b1bff67e9d2246e3874c883bbb4a729596064690f60e51b67',
+    // #325 PR 3: with the `e_pickup_36` routing waypoint of layout round 7;
+    // issue #344 step 1: with the `e_pickup_17` / `e_pickup_20` waypoints of
+    // layout round 8
+    contentDigest: 'bcd9d0196f0de1debabcd2bb7c3db4282757c6bb9f6ed0890a83d6995816f7ed',
+    fullContentDigest: 'bcd9d0196f0de1debabcd2bb7c3db4282757c6bb9f6ed0890a83d6995816f7ed',
   },
   {
     file: 'mmo-progression.json',

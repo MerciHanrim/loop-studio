@@ -112,6 +112,7 @@ const canvas = {
   'canvas.frame.areaName': 'Bereich {n}',
   'canvas.frame.dismiss': 'Diesen vorgeschlagenen Rahmen verwerfen',
   'canvas.frame.clearAll': 'Alle Rahmen löschen',
+  'canvas.tidy': 'Am Raster ausrichten — alle Knoten und Rahmen auf das Raster setzen',
   'canvas.frame.clearSuggested': 'Vorgeschlagene Rahmen löschen',
   'canvas.frame.clearSuggestedRow': 'Vorgeschlagene Rahmen löschen',
   'canvas.frame.colorRow': 'Rahmenfarbe',

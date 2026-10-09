@@ -13,6 +13,15 @@ import { defaultNodeLabel } from '../i18n/nodeDefaults'
 import { relabelFramesForLocale, relabelNodesForLocale } from '../i18n/templateLabels/relabel'
 import { relabelModuleNodesForLocale } from '../i18n/moduleLabelSync'
 import { createNode, defaultData, nextId } from '../model/factory'
+import { snapDragChanges } from '../model/layout/dragSnap'
+import { convertLayout, isLegacyLayout } from './layoutConvert'
+import { GRID, snapNodePosition } from '../model/layout/grid'
+import { boxesOverlap, nearestFree } from '../model/layout/place'
+import { BASE_NODE_H } from '../components/nodes/silhouette'
+
+/** a not-yet-measured node's width for the palette's free-spot search (the
+ *  router's own default, `routeMap.ts`) */
+const NEW_NODE_W = 130
 import { uniqueNodeLabel } from '../model/nodeLabel'
 import { insertGraph, type GraphDocLike } from '../model/moduleGraph'
 import {
@@ -68,7 +77,14 @@ export type LockedRefusal = { ok: false; reason: 'locked' }
  *  - `revision-apply`: the open document is edited in place (SEMANTICS-R.md
  *    R-INV-8 — one undo entry); refused while the edit lock is on. */
 export type LoadDocOptions = (
-  | { mode: 'document-boundary'; canvasLocked: boolean }
+  | {
+      mode: 'document-boundary'
+      canvasLocked: boolean
+      /** issue #344 §DL2.8 — the opened file's `layoutVersion`: older than
+       *  `LAYOUT_VERSION` ⇒ re-placed on the grid once, before the history
+       *  starts. Absent ⇒ the caller's graph is already current (no conversion). */
+      layoutVersion?: number
+    }
   | { mode: 'revision-apply' }
 ) & {
   modelVersion?: ModelSemanticsVersion
@@ -203,7 +219,15 @@ type GraphStore = {
   onEdgesChange: (changes: EdgeChange<LoopEdge>[]) => void
   onConnect: (conn: Connection) => void
 
-  addNodeAt: (kind: NodeKind, position: XY) => void
+  /** issue #344 §DL3 — the node lands on the grid unless `free` (Alt held at
+   *  the drop); `findFree` steps on the grid to the nearest spot no node covers
+   *  (the palette click, which has no drop point of its own) */
+  addNodeAt: (kind: NodeKind, position: XY, opts?: { free?: boolean; findFree?: boolean }) => void
+  /** issue #344 §DL2.10 — re-place the current document on the grid by the
+   *  same rules as the one-time conversion: ONE undo entry (graph + saved
+   *  frames), cosmetic (no simulation change). Returns how many nodes moved;
+   *  0 ⇒ nothing changed and no entry was made. Refused while locked. */
+  tidyToGrid: () => number
   /** docs/module-system.md §MS3 — merge a module (a plain graph fragment) into
    *  the open graph as ONE atomic history entry: every module node/edge id is
    *  re-issued, every `register` expr `@ref` / v2 `@param` flow is rewritten,
@@ -216,7 +240,7 @@ type GraphStore = {
    *  never touches `mcStore` or `frameStore` (§MS4a-B2 / B3). */
   insertModule: (
     module: GraphDocLike,
-    opts: { at: XY; confirmedPromotion?: boolean; bundledModuleId?: string },
+    opts: { at: XY; confirmedPromotion?: boolean; bundledModuleId?: string; /** issue #344 §DL3 — Alt at the drop: the anchor is not snapped */ free?: boolean },
   ) => InsertModuleResult
   /** docs/data-import.md §DI16 Phase 1B — commit a validated multi-table
    *  import as ONE atomic history entry: every generated Parameter, every
@@ -779,12 +803,15 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       // a move, add, remove or replace does not (a `replace` that only flips
       // `selected` — React Flow's `setNodes` from a panel's reveal — is a
       // selection, and passes)
-      const changes = editGuard()
+      let changes = editGuard()
         ? all.filter((c) => c.type === 'select' || c.type === 'dimensions' || selectionOnlyReplace(c, get().nodes))
         : all
       if (changes.length === 0 && all.length > 0) return
       const dragging = changes.some((c) => c.type === 'position' && c.dragging)
       const settled = changes.some((c) => c.type === 'position' && c.dragging === false)
+      // issue #344 §DL3 — a pointer drag lands on the grid (the grabbed
+      // node's correction applied to every dragged node; Alt = free)
+      if (dragging || settled) changes = snapDragChanges(changes)
       const removed = changes.some((c) => c.type === 'remove')
       // 'remove' tag: a node deletion and the connected-edge deletions React Flow
       // cascades arrive as separate calls in the same tick — coalesce them into
@@ -842,8 +869,34 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       persist()
     },
 
-    addNodeAt: (kind, position) => {
+    tidyToGrid: () => {
+      if (editGuard()) return 0 // #334 — refused while the edit lock is on
+      const g = get()
+      const frames = (frameSidecar?.get() as SavedFrame[] | null | undefined) ?? []
+      const c = convertLayout({ nodes: g.nodes, edges: g.edges, frames: [...frames] })
+      const moved = c.nodes.filter((n, i) => n !== g.nodes[i]).length
+      const edgesChanged = c.edges.some((e, i) => e !== g.edges[i])
+      const framesChanged = (c.frames ?? []).some((f, i) => f !== frames[i])
+      if (!moved && !edgesChanged && !framesChanged) return 0
+      commit('') // the pre-tidy graph + saved frames, ONE entry
+      lastTag = ''
+      set({ nodes: c.nodes, edges: c.edges })
+      if (framesChanged) frameSidecar?.set(c.frames)
+      clearPristine()
+      persist()
+      return moved
+    },
+
+    addNodeAt: (kind, position, opts) => {
       if (editGuard()) return // #334 — refused while the edit lock is on
+      if (!opts?.free) {
+        const want = snapNodePosition(position)
+        if (opts?.findFree) {
+          const boxes = get().nodes.map((n) => ({ x: n.position.x, y: n.position.y, w: n.measured?.width ?? NEW_NODE_W, h: n.measured?.height ?? BASE_NODE_H }))
+          const w = kind === 'gate' ? 134 : NEW_NODE_W
+          position = nearestFree(want, (p) => !boxes.some((b) => boxesOverlap({ x: p.x, y: p.y, w, h: BASE_NODE_H }, b, GRID))) ?? want
+        } else position = want
+      }
       commit('')
       // docs/localization.md §L3.4a — the name is resolved for the CURRENT UI
       // language at placement, then de-duplicated against the graph's display
@@ -1044,10 +1097,10 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     loadJSON: (text) => {
-      const { nodes, edges, recommendedRunConfig, modelVersion, frames, dataImports } = deserialize(text)
+      const { nodes, edges, recommendedRunConfig, modelVersion, layoutVersion, frames, dataImports } = deserialize(text)
       get().loadDoc(
         { nodes, edges },
-        { mode: 'document-boundary', canvasLocked: recommendedRunConfig?.canvasLocked === true, modelVersion, frames, dataImports },
+        { mode: 'document-boundary', canvasLocked: recommendedRunConfig?.canvasLocked === true, modelVersion, layoutVersion, frames, dataImports },
       )
       return recommendedRunConfig
     },
@@ -1058,8 +1111,18 @@ export const useGraphStore = create<GraphStore>((set, get) => {
      *  `simulationRev` step (SEMANTICS-W.md §W5.1). `opts.mode` (#334) says
      *  whether this is another document (empty history, its own lock) or a
      *  revision Apply on this one (one undo entry, refused while locked). */
-    loadDoc: ({ nodes, edges }, opts) => {
-      const { modelVersion = 1, frames, dataImports } = opts
+    loadDoc: (doc, opts) => {
+      const { modelVersion = 1, dataImports } = opts
+      let { nodes, edges } = doc
+      let frames = opts.frames
+      // issue #344 §DL2.8 — an older layout is re-placed once, here, before
+      // `enterDocument` starts the history: never an undo entry
+      if (opts.mode === 'document-boundary' && opts.layoutVersion != null && isLegacyLayout(opts.layoutVersion)) {
+        const c = convertLayout({ nodes, edges, frames: frames ? [...frames] : undefined })
+        nodes = c.nodes
+        edges = c.edges
+        frames = c.frames
+      }
       let history: ReturnType<typeof enterDocument> | null = null
       if (opts.mode === 'document-boundary') history = enterDocument(opts.canvasLocked)
       else {
@@ -1091,7 +1154,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       const built = insertGraph(
         { nodes: g.nodes, edges: g.edges, modelVersion: g.modelVersion },
         mod,
-        { at: opts.at },
+        { at: opts.free ? opts.at : snapNodePosition(opts.at) }, // issue #344 §DL3 — the anchor on the grid
       )
       if (!built.ok) return { ok: false, reason: built.reason }
       // §MS3.4 / MS7-2 — a v1 host + v2 module promotion is never silent. Bail

@@ -109,6 +109,7 @@ const canvas = {
   'canvas.frame.areaName': 'Área {n}',
   'canvas.frame.dismiss': 'Dispensar este quadro sugerido',
   'canvas.frame.clearAll': 'Limpar todos os quadros',
+  'canvas.tidy': 'Alinhar ao quadriculado — coloca todos os nós e quadros no quadriculado',
   'canvas.frame.clearSuggested': 'Limpar os quadros sugeridos',
   'canvas.frame.clearSuggestedRow': 'Limpar os quadros sugeridos',
   'canvas.frame.colorRow': 'Cor do quadro',

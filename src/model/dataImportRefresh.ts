@@ -7,7 +7,8 @@
 // discipline for the first import.
 
 import { nextId } from './factory'
-import { NODE_H, NODE_W, gridPositions, nodeRect, shiftUntilClear, type Rect } from './dataImportCommit'
+import { NODE_H, NODE_W, gridPositions, nodeRect, rectsOverlap, shiftUntilClear, type Rect } from './dataImportCommit'
+import { snapNodePosition } from './layout/grid'
 import { composeFullRowLabel } from './dataImportValidate'
 import type { ValidatedRefreshSnapshot } from './dataImportRefreshValidate'
 import { findReferences, type NodeReference } from './dataImportReferences'
@@ -399,7 +400,11 @@ function placeNewNodes(count: number, origin: Point, hostNodes: readonly LoopNod
   if (!shifted) return null
   const dx = shifted.x - rect.x
   const dy = shifted.y - rect.y
-  return raw.map((p) => ({ x: p.x + dx, y: p.y + dy }))
+  const placed = raw.map((p) => ({ x: p.x + dx, y: p.y + dy }))
+  // issue #344 §DL3 — on the grid (≤ 8 px), unless that would touch something
+  // the scan kept clear: then the scan's own positions stand (never into a frame)
+  const snapped = placed.map(snapNodePosition)
+  return snapped.some((p) => obstacles.some((o) => rectsOverlap(nodeRect(p), o))) ? placed : snapped
 }
 
 export function buildRefreshCommit(

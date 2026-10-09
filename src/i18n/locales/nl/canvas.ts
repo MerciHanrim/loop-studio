@@ -97,6 +97,7 @@ const canvas = {
   'canvas.frame.areaName': 'Gebied {n}',
   'canvas.frame.dismiss': 'Dit voorgestelde kader verwerpen',
   'canvas.frame.clearAll': 'Alle kaders wissen',
+  'canvas.tidy': 'Uitlijnen op raster — zet alle knooppunten en kaders op het raster',
   'canvas.frame.clearSuggested': 'Voorgestelde kaders wissen',
   'canvas.frame.clearSuggestedRow': 'Voorgestelde kaders wissen',
   'canvas.frame.colorRow': 'Kaderkleur',

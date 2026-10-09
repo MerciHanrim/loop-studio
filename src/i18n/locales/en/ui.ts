@@ -371,7 +371,8 @@ const ui = {
     "{n, plural, one {# Parameter} other {# Parameters}} added from {tables}. Their values are in the Inputs panel. To use one in a Register, type @ in its expression and pick the name; a connection's flow field and an Activator offer the same picker.",
   'help.contextual.hint.import.name': 'Spreadsheet import',
   'help.contextual.hint.import.desc': 'Shown once, right after the first spreadsheet import lands on the canvas.',
-  'hint.frameMove.body': 'Drag a frame’s edge to move it together with everything inside it. Hold Alt while dragging to move the frame alone.',
+  'hint.frameMove.body':
+    'Drag a frame’s edge to move it together with everything inside it. Hold Ctrl (⌘ on a Mac) while dragging to move the frame alone, or Alt to move it freely, off the grid.',
   'help.contextual.hint.frameMove.name': 'Frame move',
   'help.contextual.hint.frameMove.desc': 'Shown once, the first time a group frame is selected on an editable canvas.',
   'hint.focusFilter.body': 'Graph getting busy? Focus dims everything but one node’s neighbourhood; Filter hides node or connection types.',
@@ -569,6 +570,9 @@ const ui = {
   'whatsNew.v0240.tiers': 'Playback speed now also changes what a step shows: at 0.4 s a step or slower, the moving marker carries its +N; faster, +N appears when it arrives; under 0.2 s, the path flashes and the marker appears at its end.',
   'whatsNew.v0240.step': 'Advancing one step always shows the full movement, whatever the speed is set to.',
   'whatsNew.v0240.phone': 'On a phone, More now has Playback speed (Slow, Normal, Fast or Very fast), and at most 12 markers move at once.',
+  'whatsNew.v0250.grid': 'Nodes and frames now line up on the canvas grid: a new node lands on it, and a drag or an arrow key moves along it. Hold Alt to drag freely; to move a frame without what is inside it, hold Ctrl (⌘ on a Mac) instead of Alt.',
+  'whatsNew.v0250.ports': 'The connection points on the sides of a node now stay at one height near its top, so connections in a row stay straight in every language, and a node with a long name grows downward.',
+  'whatsNew.v0250.tidy': 'A diagram saved by an earlier version is lined up on the grid once, when it opens. The new Tidy to grid button, beside the zoom buttons, lines up the open diagram at any time, as one step you can undo.',
 } as const
 
 export type UiKey = keyof typeof ui

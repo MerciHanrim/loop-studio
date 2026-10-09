@@ -400,7 +400,8 @@ const ui = {
     '{n, plural, one {# Parametro aggiunto} many {# Parametri aggiunti} other {# Parametri aggiunti}} da {tables}. I loro valori sono nel pannello Ingressi. Per usarne uno in un Valore calcolato, scrivi @ nella sua espressione e scegli il nome; il campo del flusso di una connessione e un Attivatore offrono lo stesso selettore.',
   'help.contextual.hint.import.name': 'Importazione da foglio di calcolo',
   'help.contextual.hint.import.desc': 'Mostrata una volta, subito dopo la prima importazione da foglio di calcolo sull’area di disegno.',
-  'hint.frameMove.body': 'Trascina il bordo di un riquadro per spostarlo insieme a tutto ciò che contiene. Tieni premuto Alt mentre trascini per spostare solo il riquadro.',
+  'hint.frameMove.body':
+    'Trascina il bordo di un riquadro per spostarlo insieme a tutto ciò che contiene. Tieni premuto Ctrl (⌘ su Mac) mentre trascini per spostare solo il riquadro, o Alt per spostarlo liberamente, fuori dalla griglia.',
   'help.contextual.hint.frameMove.name': 'Spostamento del riquadro',
   'help.contextual.hint.frameMove.desc': 'Mostrata una volta, la prima volta che si seleziona un riquadro di gruppo su un’area di disegno modificabile.',
   'hint.focusFilter.body': 'Il grafo si sta affollando? La messa a fuoco attenua tutto tranne i dintorni di un nodo; i filtri nascondono tipi di nodo o di connessione.',
@@ -599,6 +600,9 @@ const ui = {
   'whatsNew.v0240.tiers': 'Ora la velocità di riproduzione cambia anche ciò che un passo mostra: da 0,4 s per passo in su, il segno in movimento porta il suo +N; più veloce, il +N compare all’arrivo; sotto 0,2 s, il percorso si illumina per un attimo e il segno compare alla fine.',
   'whatsNew.v0240.step': 'Avanzare di un passo mostra sempre tutto il movimento, qualunque sia la velocità scelta.',
   'whatsNew.v0240.phone': 'Sul telefono, il menu Altro offre ora la velocità di riproduzione (Lenta, Normale, Veloce o Molto veloce), e al massimo 12 segni si spostano alla volta.',
+  'whatsNew.v0250.grid': 'Nodi e riquadri ora si allineano alla griglia dell’area di disegno: un nuovo nodo viene posato sulla griglia, e trascinando o con i tasti freccia si sposta lungo la griglia. Tieni premuto Alt per trascinare liberamente; per spostare un riquadro senza il suo contenuto, tieni premuto Ctrl (⌘ su Mac) invece di Alt.',
+  'whatsNew.v0250.ports': 'I punti di connessione ai lati di un nodo ora restano a un’altezza fissa vicino al bordo superiore: le connessioni in fila restano dritte in ogni lingua, e un nodo con un nome lungo cresce verso il basso.',
+  'whatsNew.v0250.tidy': 'Un diagramma salvato con una versione precedente viene allineato alla griglia una volta, all’apertura. Il nuovo pulsante Allinea alla griglia, accanto ai pulsanti di ingrandimento, allinea il diagramma aperto in qualsiasi momento, in un solo passaggio che puoi annullare.',
 } satisfies Record<UiKey, string>
 
 export default ui

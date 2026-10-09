@@ -114,6 +114,7 @@ const canvas = {
   'canvas.frame.areaName': 'Область {n}',
   'canvas.frame.dismiss': 'Убрать эту предложенную рамку',
   'canvas.frame.clearAll': 'Убрать все рамки',
+  'canvas.tidy': 'Выровнять по сетке — поставить все узлы и рамки на сетку',
   'canvas.frame.clearSuggested': 'Убрать предложенные рамки',
   'canvas.frame.clearSuggestedRow': 'Убрать предложенные рамки',
   'canvas.frame.colorRow': 'Цвет рамки',

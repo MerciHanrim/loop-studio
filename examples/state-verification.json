@@ -1,6 +1,7 @@
 {
   "schema": "loop-studio/graph",
   "version": 1,
+  "layoutVersion": 1,
   "nodes": [
     {
       "id": "pulse_src",

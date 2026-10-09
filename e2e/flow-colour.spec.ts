@@ -43,7 +43,20 @@ const accentOf = (page: Page, kind: 'nodes' | 'edges', id: string) =>
 const section = (page: Page) => page.locator('.accent-field')
 const swatch = (page: Page, name: string) => section(page).getByRole('button', { name, exact: true })
 const node = (page: Page, id: string) => page.locator(`.react-flow__node[data-id="${id}"]`)
-const edgeHit = (page: Page, id: string) => page.locator(`.react-flow__edge[data-id="${id}"] .react-flow__edge-interaction`)
+/** click an edge at the midpoint of its own hit path. A level edge (both ports
+ *  on the same row — issue #344) has a box with no height, which a locator
+ *  click cannot land on. */
+const clickEdge = async (page: Page, id: string, modifiers: 'Control'[] = []) => {
+  const mid = await page.evaluate((i) => {
+    const p = document.querySelector(`.react-flow__edge[data-id="${i}"] path.react-flow__edge-interaction`) as SVGPathElement
+    const pt = p.getPointAtLength(p.getTotalLength() / 2)
+    const m = p.getScreenCTM()!
+    return { x: m.a * pt.x + m.c * pt.y + m.e, y: m.b * pt.x + m.d * pt.y + m.f }
+  }, id)
+  for (const k of modifiers) await page.keyboard.down(k)
+  await page.mouse.click(mid.x, mid.y)
+  for (const k of modifiers) await page.keyboard.up(k)
+}
 
 test.describe('flow colour — the Colour section (FC-5)', () => {
   test('a palette colour colours the node; Default removes the key', async ({ page }) => {
@@ -61,7 +74,7 @@ test.describe('flow colour — the Colour section (FC-5)', () => {
   test('an edge takes the colour: line, its own arrow, its label border', async ({ page }) => {
     await load(page)
     // e2 (Gold → Spend): nothing crosses it in this fixture (s1 curves over e1)
-    await edgeHit(page, 'e2').click({ force: true })
+    await clickEdge(page, 'e2')
     await swatch(page, 'Slate').click()
     expect(await accentOf(page, 'edges', 'e2')).toBe('#638EA5')
     const path = page.locator('.react-flow__edge[data-id="e2"] path.react-flow__edge-path')
@@ -78,7 +91,7 @@ test.describe('flow colour — the Colour section (FC-5)', () => {
     await load(page)
     await node(page, 'src').click()
     await node(page, 'sink').click({ modifiers: ['Control'] })
-    await edgeHit(page, 'e2').click({ force: true, modifiers: ['Control'] })
+    await clickEdge(page, 'e2', ['Control'])
     const targets = await page.evaluate(() => {
       const g = (window as any).__loop.graph.getState()
       return {
@@ -120,7 +133,7 @@ test.describe('flow colour — the Colour section (FC-5)', () => {
     // on a mixed selection, opening it applies nothing either
     await page.evaluate(() => (window as any).__loop.graph.getState().setAccent([], ['e2'], '#654321'))
     await node(page, 'gold').click()
-    await edgeHit(page, 'e2').click({ force: true, modifiers: ['Control'] })
+    await clickEdge(page, 'e2', ['Control'])
     await expect(section(page).locator('.accent-field__mixed')).toBeVisible()
     await picker.click()
     await page.keyboard.press('Escape')
@@ -297,7 +310,7 @@ test.describe('flow colour — drawing and state priority (FC-4)', () => {
   test('a selected coloured edge keeps its colour over the underlay; a state edge stays dashed', async ({ page }) => {
     await load(page)
     await page.evaluate(() => (window as any).__loop.graph.getState().setAccent([], ['e2', 's1'], '#9182A8'))
-    await edgeHit(page, 'e2').click({ force: true })
+    await clickEdge(page, 'e2')
     const path = page.locator('.react-flow__edge[data-id="e2"] path.react-flow__edge-path')
     await expect(path).toHaveCSS('stroke', 'rgb(145, 130, 168)')
     await expect(path).toHaveCSS('stroke-width', '2px')

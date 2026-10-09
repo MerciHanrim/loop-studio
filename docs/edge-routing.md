@@ -139,6 +139,11 @@ produce a **byte-identical** route.
 
 ### ER3.2 Obstacles
 
+- **Handle points** (issue #344, `docs/diagram-layout.md` §DL1): a resource
+  handle (`in` / `out`) starts or ends a route on the fixed port row 28 px below
+  the node's top, at the x where the drawn outline is on that row
+  (`portInsetFraction`); a state handle at the top / bottom centre. Before
+  #344 a resource handle was at the side's vertical centre.
 - An **obstacle** is a node's box `{x, y, width, height}` from
   `node.position` + `node.measured` (fall back to `node.width/height`), inflated
   by `ROUTE_PAD` on all sides.

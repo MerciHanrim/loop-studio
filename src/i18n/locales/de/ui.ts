@@ -453,7 +453,7 @@ const ui = {
   'help.contextual.hint.import.desc':
     'Wird einmal gezeigt, direkt nachdem der erste Import aus einem Tabellenblatt auf der Arbeitsfläche gelandet ist.',
   'hint.frameMove.body':
-    'Den Rand eines Rahmens ziehen, um ihn mit allem darin zu bewegen. Alt gedrückt halten, um nur den Rahmen zu bewegen.',
+    'Den Rand eines Rahmens ziehen, um ihn mit allem darin zu bewegen. Strg (⌘ auf dem Mac) gedrückt halten, um nur den Rahmen zu bewegen, oder Alt, um ihn frei, abseits des Rasters zu bewegen.',
   'help.contextual.hint.frameMove.name': 'Rahmen bewegen',
   'help.contextual.hint.frameMove.desc':
     'Wird einmal gezeigt, wenn zum ersten Mal ein Gruppenrahmen auf einer bearbeitbaren Arbeitsfläche ausgewählt wird.',
@@ -660,6 +660,9 @@ const ui = {
   'whatsNew.v0240.tiers': 'Das Wiedergabetempo bestimmt jetzt auch, was ein Schritt zeigt: ab 0,4 s pro Schritt wandert die Markierung mit ihrem +N; schneller erscheint +N erst bei der Ankunft; unter 0,2 s leuchtet der Weg kurz auf und die Markierung erscheint an seinem Ende.',
   'whatsNew.v0240.step': 'Einen Schritt weiter zeigt immer die ganze Bewegung, egal welches Tempo eingestellt ist.',
   'whatsNew.v0240.phone': 'Auf dem Smartphone bietet „Mehr“ jetzt das Wiedergabetempo (Langsam, Normal, Schnell oder Sehr schnell), und höchstens 12 Markierungen bewegen sich gleichzeitig.',
+  'whatsNew.v0250.grid': 'Knoten und Rahmen richten sich jetzt am Raster der Arbeitsfläche aus: Ein neuer Knoten landet darauf, und Ziehen oder die Pfeiltasten bewegen ihn am Raster entlang. Mit gedrückter Alt-Taste wird frei gezogen; um einen Rahmen ohne seinen Inhalt zu bewegen, jetzt Strg (⌘ auf dem Mac) statt Alt gedrückt halten.',
+  'whatsNew.v0250.ports': 'Die Verbindungspunkte an den Seiten eines Knotens liegen jetzt auf einer festen Höhe nahe der Oberkante: Verbindungen in einer Reihe bleiben in jeder Sprache gerade, und ein Knoten mit langem Namen wächst nach unten.',
+  'whatsNew.v0250.tidy': 'Ein Diagramm aus einer früheren Version wird beim Öffnen einmal am Raster ausgerichtet. Die neue Schaltfläche Am Raster ausrichten neben den Zoom-Schaltflächen richtet das geöffnete Diagramm jederzeit aus, als ein Schritt, der sich rückgängig machen lässt.',
 } satisfies Record<UiKey, string>
 
 export default ui

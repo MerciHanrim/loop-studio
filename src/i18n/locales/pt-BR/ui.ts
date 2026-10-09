@@ -386,7 +386,8 @@ const ui = {
     '{n, plural, one {# Parâmetro adicionado} many {# de Parâmetros adicionados} other {# Parâmetros adicionados}} a partir de {tables}. Os valores deles estão no painel Entradas. Para usar um em um Valor calculado, digite @ na expressão dele e escolha o nome; o campo de fluxo de uma conexão e um Ativador oferecem o mesmo seletor.',
   'help.contextual.hint.import.name': 'Importação de planilha',
   'help.contextual.hint.import.desc': 'Exibido uma vez, logo depois que a primeira importação de planilha chega à tela.',
-  'hint.frameMove.body': 'Arraste a borda de um quadro para movê-lo junto com tudo o que está dentro dele. Segure Alt ao arrastar para mover só o quadro.',
+  'hint.frameMove.body':
+    'Arraste a borda de um quadro para movê-lo junto com tudo o que está dentro dele. Segure Ctrl (⌘ no Mac) ao arrastar para mover só o quadro, ou Alt para movê-lo livremente, fora do quadriculado.',
   'help.contextual.hint.frameMove.name': 'Movimento de quadro',
   'help.contextual.hint.frameMove.desc': 'Exibido uma vez, na primeira vez que um quadro de grupo é selecionado em uma tela editável.',
   'hint.focusFilter.body': 'O grafo está ficando cheio? O Foco escurece tudo, menos a vizinhança de um nó; o Filtro oculta tipos de nó ou de conexão.',
@@ -585,6 +586,9 @@ const ui = {
   'whatsNew.v0240.tiers': 'A velocidade de reprodução agora também muda o que um passo mostra: a partir de 0,4 s por passo, a marca em movimento leva o seu +N; em velocidades maiores, o +N aparece na chegada; abaixo de 0,2 s, o caminho acende por um instante e a marca aparece no fim.',
   'whatsNew.v0240.step': 'Avançar um passo mostra sempre todo o movimento, seja qual for a velocidade escolhida.',
   'whatsNew.v0240.phone': 'Em telefones, o menu Mais oferece agora a velocidade de reprodução (Lenta, Normal, Rápida ou Muito rápida), e no máximo 12 marcas estão em movimento ao mesmo tempo.',
+  'whatsNew.v0250.grid': 'Os nós e os quadros ficam agora alinhados ao quadriculado da tela: um novo nó é colocado sobre ele e, ao arrastar ou usar as teclas de seta, o movimento segue o quadriculado. Segure Alt para arrastar livremente; para mover um quadro sem o que está dentro dele, segure Ctrl (⌘ no Mac) em vez de Alt.',
+  'whatsNew.v0250.ports': 'Os pontos de entrada e saída nas laterais de um nó ficam agora a uma altura fixa perto do topo: as linhas entre nós em fila ficam retas em qualquer idioma, e um nó com um nome longo cresce para baixo.',
+  'whatsNew.v0250.tidy': 'Um diagrama criado com uma versão anterior é alinhado ao quadriculado uma vez, ao ser aberto. O novo botão Alinhar ao quadriculado, ao lado dos botões de zoom, alinha o diagrama aberto a qualquer momento, como um único passo que pode ser desfeito.',
 } as const
 
 export type UiKey = keyof typeof ui

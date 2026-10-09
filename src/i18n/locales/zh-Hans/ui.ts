@@ -378,7 +378,8 @@ const ui = {
     '已从 {tables} 添加 {n, plural, other {# 个参数}}。它们的数值在“输入”面板里。要在计算值中使用某个参数，在表达式里输入 @ 再选择名称；连线的流量字段和激活器也提供同样的选择器。',
   'help.contextual.hint.import.name': '电子表格导入',
   'help.contextual.hint.import.desc': '第一次把电子表格导入到画布之后显示一次。',
-  'hint.frameMove.body': '拖动分组框的边缘，可以连同里面的内容一起移动。拖动时按住 Alt，则只移动分组框本身。',
+  'hint.frameMove.body':
+    '拖动分组框的边缘，可以连同里面的内容一起移动。拖动时按住 Ctrl（Mac 上为 ⌘），则只移动分组框本身；按住 Alt 则不对齐网格、自由移动。',
   'help.contextual.hint.frameMove.name': '分组框移动',
   'help.contextual.hint.frameMove.desc': '在可编辑的画布上第一次选中分组框时显示一次。',
   'hint.focusFilter.body': '图变复杂了？“聚焦”会把某个节点邻域之外的内容调暗；“筛选”可以隐藏某些节点或连线类型。',
@@ -577,6 +578,9 @@ const ui = {
   'whatsNew.v0240.tiers': '播放速度现在也会改变一步的显示方式：每步 0.4 秒及以上时，移动标记带着 +N 一起移动；更快时，+N 在到达时出现；快于 0.2 秒时，路径先短暂亮起，标记随后出现在终点。',
   'whatsNew.v0240.step': '前进一步时，无论速度如何设置，始终显示完整的移动过程。',
   'whatsNew.v0240.phone': '在手机上，“更多”菜单新增了播放速度（慢、正常、快、很快），同时移动的标记最多 12 个。',
+  'whatsNew.v0250.grid': '节点和分组框现在会对齐画布网格：新节点放在网格上，拖动或用方向键移动时沿网格移动。按住 Alt 拖动可自由移动；如果只想移动分组框而不带里面的内容，请按住 Ctrl（Mac 上为 ⌘），不再是 Alt。',
+  'whatsNew.v0250.ports': '节点两侧的连接点现在固定在靠近顶部的同一高度，因此一行中的连线在任何语言下都保持笔直，名称较长的节点则向下变高。',
+  'whatsNew.v0250.tidy': '用旧版本保存的图表在打开时会对齐网格一次。缩放按钮旁的新按钮“对齐网格”可随时对齐当前打开的图表，并可一步撤销。',
 } satisfies Record<UiKey, string>
 
 export default ui

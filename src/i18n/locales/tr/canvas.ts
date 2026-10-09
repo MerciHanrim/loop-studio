@@ -111,6 +111,7 @@ const canvas = {
   'canvas.frame.areaName': '{n}. alan',
   'canvas.frame.dismiss': 'Bu önerilen çerçeveyi kaldır',
   'canvas.frame.clearAll': 'Tüm çerçeveleri kaldır',
+  'canvas.tidy': 'Izgaraya hizala — tüm düğümleri ve çerçeveleri ızgaraya yerleştirir',
   'canvas.frame.clearSuggested': 'Önerilen çerçeveleri kaldır',
   'canvas.frame.clearSuggestedRow': 'Önerilen çerçeveleri kaldır',
   'canvas.frame.colorRow': 'Çerçeve rengi',

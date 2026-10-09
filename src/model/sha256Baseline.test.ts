@@ -73,9 +73,14 @@ const COLOURED_SINCE = new Set(['coffee-roastery.json', 'gacha-banner-zones.json
 // (scripts/gen-gacha-banner-zones-example.ts) so its `+1` label no longer meets
 // `e_pickup_34`'s on the shorter nodes. Routing is never engine data, so the
 // engine digest still matches; the legacy projection removes exactly this one
-// waypoint, and fails if it is not exactly what PR 3 added.
+// waypoint, and fails if it is not exactly what PR 3 added. Issue #344 step 1
+// (layout round 8) added one more each to `e_pickup_17` and `e_pickup_20`.
 const ADDED_WAYPOINTS: Record<string, Record<string, unknown>> = {
-  'gacha-banner-zones.json': { e_pickup_36: [{ x: 3200, y: 650 }] },
+  'gacha-banner-zones.json': {
+    e_pickup_17: [{ x: 3700, y: 549 }],
+    e_pickup_20: [{ x: 3360, y: 548 }],
+    e_pickup_36: [{ x: 3200, y: 650 }],
+  },
 }
 
 /** a document's text without what was added after the #301 baseline: the flow
@@ -121,7 +126,7 @@ describe('the digests of real documents are unchanged', () => {
     })
   }
 
-  it('legacy (#301 baseline): the three coloured Templates without their flow colours (PR 2) and the gacha e_pickup_36 waypoint (PR 3) give the recorded digests', async () => {
+  it('legacy (#301 baseline): the three coloured Templates without their flow colours (PR 2) and the gacha waypoints added since (PR 3, #344) give the recorded digests', async () => {
     const legacy = EXAMPLE_GRAPH_DIGESTS.filter((g) => COLOURED_SINCE.has(g.file))
     expect(legacy.map((g) => g.file).sort()).toEqual([...COLOURED_SINCE].sort())
     for (const g of legacy) {

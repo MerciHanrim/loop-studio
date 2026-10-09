@@ -176,6 +176,19 @@ export function fillSpanAt(kind: NodeKind, h: number, y: number): [number, numbe
   return [left, Math.max(...xs)]
 }
 
+/** issue #344, docs/diagram-layout.md §DL1 — how far in from the box's left
+ *  (`in`) or right (`out`) edge the drawn outline is on the port row, as a
+ *  FRACTION of the node's width (the outline stretches with the width only),
+ *  for a node `h` tall: the resource port is drawn there, ON the outline (a
+ *  Pool's slanted side, a Drain's notch tip, a Converter's waist), while the
+ *  routing lane stays on the row. `rowY` is the port row (`PORT_ROW`, passed
+ *  in so this module keeps no layout import). 0 when the row misses the shape. */
+export function portInsetFraction(kind: NodeKind, h: number, side: 'in' | 'out', rowY: number): number {
+  const span = fillSpanAt(kind, h, rowY)
+  if (!span) return 0
+  return (side === 'in' ? span[0] : 120 - span[1]) / 120
+}
+
 type Pt = [number, number]
 /** each (kind, height)'s flattened path, parsed once: a row fit samples it
  *  about fifteen times per node */

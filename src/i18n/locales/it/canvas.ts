@@ -108,6 +108,7 @@ const canvas = {
   'canvas.frame.areaName': 'Area {n}',
   'canvas.frame.dismiss': 'Ignora questo riquadro suggerito',
   'canvas.frame.clearAll': 'Elimina tutti i riquadri',
+  'canvas.tidy': 'Allinea alla griglia — porta tutti i nodi e i riquadri sulla griglia',
   'canvas.frame.clearSuggested': 'Elimina i riquadri suggeriti',
   'canvas.frame.clearSuggestedRow': 'Elimina i riquadri suggeriti',
   'canvas.frame.colorRow': 'Colore del riquadro',

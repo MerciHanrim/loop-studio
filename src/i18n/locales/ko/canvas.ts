@@ -78,6 +78,7 @@ const canvas = {
   'canvas.frame.areaName': '구역 {n}',
   'canvas.frame.dismiss': '이 제안 프레임 무시',
   'canvas.frame.clearAll': '모든 프레임 지우기',
+  'canvas.tidy': '그리드에 정돈 — 모든 노드와 프레임을 그리드에 맞춥니다',
   'canvas.frame.clearSuggested': '제안 프레임 지우기',
   'canvas.frame.clearSuggestedRow': '제안 프레임 지우기',
   'canvas.frame.colorRow': '프레임 색상',

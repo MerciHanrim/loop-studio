@@ -193,17 +193,19 @@ test.describe('edge routing — Slice 1', () => {
     await settle(page)
 
     // incremental: settle `gold` at a new position through the real change stream
+    // (a grid position — issue #344: a drag snaps, so an off-grid target would
+    // not be the position the cold load below opens with)
     await page.evaluate(() => {
       const g = (window as any).__loop.graph.getState()
-      g.onNodesChange([{ type: 'position', id: 'gold', position: { x: 360, y: 40 }, dragging: true }])
-      g.onNodesChange([{ type: 'position', id: 'gold', position: { x: 360, y: 40 }, dragging: false }])
+      g.onNodesChange([{ type: 'position', id: 'gold', position: { x: 368, y: 36 }, dragging: true }])
+      g.onNodesChange([{ type: 'position', id: 'gold', position: { x: 368, y: 36 }, dragging: false }])
     })
     await page.waitForTimeout(50)
     const incremental = await edgePaths(page)
 
     // cold: load the SAME final graph fresh
     const cold = JSON.parse(G2({ route: true }))
-    cold.nodes.find((n: any) => n.id === 'gold').position = { x: 360, y: 40 }
+    cold.nodes.find((n: any) => n.id === 'gold').position = { x: 368, y: 36 }
     await importGraph(page, JSON.stringify(cold))
     await expect(page.locator('.react-flow__edge[data-id="e_sg"] path.route-orthogonal')).toHaveCount(1)
     await settle(page)
@@ -285,11 +287,12 @@ test.describe('edge routing — Slice 1', () => {
     expect(before.ab.dom).toBe(before.ab.map)
     expect(before.cd.dom).toBe(before.cd.map)
 
-    // move the obstacle a long way through both corridors
+    // move the obstacle a long way through both corridors (to a grid position,
+    // which a drag keeps — issue #344)
     await page.evaluate(() => {
       const g = (window as any).__loop.graph.getState()
-      g.onNodesChange([{ type: 'position', id: 'obst', position: { x: 280, y: 4 }, dragging: true }])
-      g.onNodesChange([{ type: 'position', id: 'obst', position: { x: 280, y: 4 }, dragging: false }])
+      g.onNodesChange([{ type: 'position', id: 'obst', position: { x: 288, y: 4 }, dragging: true }])
+      g.onNodesChange([{ type: 'position', id: 'obst', position: { x: 288, y: 4 }, dragging: false }])
     })
     await settle(page)
     const after = await genAndPaths()
@@ -313,7 +316,7 @@ test.describe('edge routing — Slice 1', () => {
 
     // incremental == cold: import the moved graph fresh
     const cold = JSON.parse(GRID())
-    cold.nodes.find((n: any) => n.id === 'obst').position = { x: 280, y: 4 }
+    cold.nodes.find((n: any) => n.id === 'obst').position = { x: 288, y: 4 }
     await importGraph(page, JSON.stringify(cold))
     await expect(page.locator('.react-flow__edge[data-id="e_ab"] path.route-orthogonal')).toHaveCount(1)
     await settle(page)

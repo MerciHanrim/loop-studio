@@ -142,9 +142,16 @@ export function exampleCases(graph: (typeof ORTHO_EXAMPLES)[number]): Case[] {
  *  round 7 gave `e_pickup_36` one waypoint so its `+1` label no longer overlaps
  *  `e_pickup_34`'s in ko on the shorter nodes. The router did not change, so
  *  the golden keeps its e763eeb bytes: its inputs project exactly this waypoint
- *  out, and the routed path WITH it is pinned as its own case. */
+ *  out, and the routed path WITH it is pinned as its own case. Issue #344
+ *  step 1 (layout round 8): `e_pickup_17` and `e_pickup_20` gained one waypoint
+ *  each, once the resource ports moved to the fixed 28 px row — projected out
+ *  the same way. */
 export const WAYPOINTS_ADDED_SINCE_GOLDEN: Partial<Record<(typeof ORTHO_EXAMPLES)[number], Record<string, Pt[]>>> = {
-  'gacha-banner-zones': { e_pickup_36: [{ x: 3200, y: 650 }] },
+  'gacha-banner-zones': {
+    e_pickup_17: [{ x: 3700, y: 549 }],
+    e_pickup_20: [{ x: 3360, y: 548 }],
+    e_pickup_36: [{ x: 3200, y: 650 }],
+  },
 }
 
 /** `exampleCases` with the waypoints added since the golden projected out —

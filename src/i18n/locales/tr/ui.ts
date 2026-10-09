@@ -433,7 +433,7 @@ const ui = {
   'help.contextual.hint.import.desc':
     'İlk tablo içe aktarımı tuvale düştükten hemen sonra bir kez gösterilir.',
   'hint.frameMove.body':
-    'Bir çerçeveyi içindeki her şeyle birlikte taşımak için kenarından sürükleyin. Yalnızca çerçeveyi taşımak için sürüklerken Alt tuşunu basılı tutun.',
+    'Bir çerçeveyi içindeki her şeyle birlikte taşımak için kenarından sürükleyin. Yalnızca çerçeveyi taşımak için sürüklerken Ctrl (Mac’te ⌘) tuşunu, ızgaradan bağımsız serbestçe taşımak için Alt tuşunu basılı tutun.',
   'help.contextual.hint.frameMove.name': 'Çerçeve taşıma',
   'help.contextual.hint.frameMove.desc':
     'Düzenlenebilir bir tuvalde bir grup çerçevesi ilk kez seçildiğinde bir kez gösterilir.',
@@ -639,6 +639,9 @@ const ui = {
   'whatsNew.v0240.tiers': 'Oynatma hızı artık bir adımın gösterdiğini de değiştirir: adım başına 0,4 sn ve üzerinde işaret +N ile birlikte hareket eder; daha hızlıda +N varışta görünür; 0,2 sn altında yol kısa bir süre parlar ve işaret sonunda belirir.',
   'whatsNew.v0240.step': 'Bir adım ilerletmek, hız ayarı ne olursa olsun her zaman hareketin tamamını gösterir.',
   'whatsNew.v0240.phone': 'Telefonda Diğer menüsünde artık oynatma hızı var (Yavaş, Normal, Hızlı veya Çok hızlı) ve aynı anda en fazla 12 işaret hareket eder.',
+  'whatsNew.v0250.grid': 'Düğümler ve çerçeveler artık tuvalin ızgarasına hizalanır: yeni bir düğüm ızgaraya yerleşir, sürükleme ve ok tuşları onu ızgara boyunca taşır. Serbestçe sürüklemek için Alt tuşunu basılı tutun; bir çerçeveyi içindekiler olmadan taşımak için artık Alt yerine Ctrl (Mac’te ⌘) tuşunu basılı tutun.',
+  'whatsNew.v0250.ports': 'Bir düğümün yanlarındaki bağlantı noktaları artık üst kenara yakın, sabit bir yükseklikte durur: bir sıradaki bağlantılar her dilde düz kalır ve uzun adlı bir düğüm aşağı doğru uzar.',
+  'whatsNew.v0250.tidy': 'Önceki bir sürümle kaydedilmiş bir diyagram, açıldığında bir kez ızgaraya hizalanır. Yakınlaştırma düğmelerinin yanındaki yeni Izgaraya hizala düğmesi, açık diyagramı istediğiniz zaman hizalar; bu, geri alınabilen tek bir adımdır.',
 } as const
 
 export type UiKey = keyof typeof ui

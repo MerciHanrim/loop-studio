@@ -381,7 +381,8 @@ const ui = {
     '{n, plural, one {# Parameter} other {# Parameters}} toegevoegd uit {tables}. Hun waarden staan in het paneel Invoer. Om er een te gebruiken in een Berekende waarde, typ je @ in de expressie en kies je de naam; het stroomveld van een verbinding en een Activator bieden dezelfde keuzelijst.',
   'help.contextual.hint.import.name': 'Spreadsheetimport',
   'help.contextual.hint.import.desc': 'Wordt één keer getoond, direct nadat de eerste spreadsheetimport op het tekengebied is geland.',
-  'hint.frameMove.body': 'Sleep de rand van een kader om het samen met alles erin te verplaatsen. Houd Alt ingedrukt tijdens het slepen om alleen het kader te verplaatsen.',
+  'hint.frameMove.body':
+    'Sleep de rand van een kader om het samen met alles erin te verplaatsen. Houd Ctrl (⌘ op een Mac) ingedrukt tijdens het slepen om alleen het kader te verplaatsen, of Alt om het vrij, buiten het raster te verplaatsen.',
   'help.contextual.hint.frameMove.name': 'Kader verplaatsen',
   'help.contextual.hint.frameMove.desc': 'Wordt één keer getoond, de eerste keer dat een groepskader op een bewerkbaar tekengebied wordt geselecteerd.',
   'hint.focusFilter.body': 'Wordt het diagram druk? Focus dimt alles behalve de omgeving van één knooppunt; Filters verbergen soorten knooppunten of verbindingen.',
@@ -580,6 +581,9 @@ const ui = {
   'whatsNew.v0240.tiers': 'De afspeelsnelheid bepaalt nu ook wat een stap laat zien: vanaf 0,4 s per stap reist de markering met haar +N mee; sneller verschijnt +N bij aankomst; onder 0,2 s licht het pad even op en verschijnt de markering aan het eind.',
   'whatsNew.v0240.step': 'Eén stap vooruit laat altijd de hele beweging zien, welke snelheid er ook is ingesteld.',
   'whatsNew.v0240.phone': 'Op een telefoon biedt Meer nu een afspeelsnelheid (Langzaam, Normaal, Snel of Heel snel), en bewegen hooguit 12 markeringen tegelijk.',
+  'whatsNew.v0250.grid': 'Knooppunten en kaders lijnen nu uit op het raster van het tekengebied: een nieuw knooppunt komt erop terecht, en slepen of de pijltjestoetsen verplaatsen het langs het raster. Houd Alt ingedrukt om vrij te slepen; om een kader zonder zijn inhoud te verplaatsen, houd je nu Ctrl (⌘ op een Mac) ingedrukt in plaats van Alt.',
+  'whatsNew.v0250.ports': 'De verbindingspunten aan de zijkanten van een knooppunt blijven nu op één hoogte dicht bij de bovenkant: verbindingen in een rij blijven in elke taal recht, en een knooppunt met een lange naam groeit naar beneden.',
+  'whatsNew.v0250.tidy': 'Een diagram dat met een eerdere versie is opgeslagen, wordt bij het openen één keer op het raster uitgelijnd. De nieuwe knop Uitlijnen op raster, naast de zoomknoppen, lijnt het geopende diagram op elk moment uit, als één stap die je ongedaan kunt maken.',
 } as const
 
 export default ui

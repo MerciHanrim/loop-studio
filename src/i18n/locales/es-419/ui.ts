@@ -384,7 +384,8 @@ const ui = {
     '{n, plural, one {# Parámetro agregado} many {# Parámetros agregados} other {# Parámetros agregados}} desde {tables}. Sus valores están en el panel de Entradas. Para usar uno en un Valor calculado, escriba @ en su expresión y elija el nombre; el campo de flujo de una conexión y un Activador ofrecen el mismo selector.',
   'help.contextual.hint.import.name': 'Importación de hoja de cálculo',
   'help.contextual.hint.import.desc': 'Se muestra una vez, justo después de que la primera importación de hoja de cálculo llega al lienzo.',
-  'hint.frameMove.body': 'Arrastre el borde de un marco para moverlo junto con todo lo que contiene. Mantenga Alt mientras arrastra para mover solo el marco.',
+  'hint.frameMove.body':
+    'Arrastre el borde de un marco para moverlo junto con todo lo que contiene. Mantenga Ctrl (⌘ en Mac) mientras arrastra para mover solo el marco, o Alt para moverlo libremente, fuera de la cuadrícula.',
   'help.contextual.hint.frameMove.name': 'Mover un marco',
   'help.contextual.hint.frameMove.desc': 'Se muestra una vez, la primera vez que se selecciona un marco de grupo en un lienzo editable.',
   'hint.focusFilter.body': '¿El grafo se está poniendo denso? Enfocar atenúa todo salvo el vecindario de un nodo; Filtros oculta tipos de nodo o de conexión.',
@@ -583,6 +584,9 @@ const ui = {
   'whatsNew.v0240.tiers': 'Ahora la velocidad de reproducción también cambia lo que muestra un paso: desde 0,4 s por paso, la marca en movimiento lleva su +N; más rápido, el +N aparece al llegar; por debajo de 0,2 s, el camino se ilumina un momento y la marca aparece al final.',
   'whatsNew.v0240.step': 'Avanzar un paso siempre muestra todo el movimiento, sea cual sea la velocidad elegida.',
   'whatsNew.v0240.phone': 'En un teléfono, el menú Más ofrece ahora la velocidad de reproducción (Lenta, Normal, Rápida o Muy rápida), y se mueven como máximo 12 marcas a la vez.',
+  'whatsNew.v0250.grid': 'Los nodos y los marcos ahora se alinean con la cuadrícula del lienzo: un nodo nuevo se coloca en ella, y al arrastrar o usar las flechas del teclado se mueve por la cuadrícula. Mantenga Alt para arrastrar libremente; para mover un marco sin su contenido, mantenga Ctrl (⌘ en Mac) en lugar de Alt.',
+  'whatsNew.v0250.ports': 'Los puntos de conexión a los lados de un nodo ahora quedan a una misma altura cerca de su parte superior, así que las conexiones en fila se mantienen rectas en cualquier idioma, y un nodo con un nombre largo crece hacia abajo.',
+  'whatsNew.v0250.tidy': 'Un diagrama guardado con una versión anterior se alinea con la cuadrícula una vez, al abrirlo. El nuevo botón Alinear a la cuadrícula, junto a los botones de zoom, alinea el diagrama abierto en cualquier momento, en un solo paso que puede deshacer.',
 } as const
 
 export type UiKey = keyof typeof ui

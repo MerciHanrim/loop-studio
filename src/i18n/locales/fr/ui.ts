@@ -447,7 +447,7 @@ const ui = {
   'help.contextual.hint.import.desc':
     'Affiché une fois, juste après le premier import de feuille de calcul sur le canevas.',
   'hint.frameMove.body':
-    'Faites glisser le bord d’un cadre pour le déplacer avec tout ce qu’il contient. Maintenez Alt pendant le déplacement pour ne bouger que le cadre.',
+    'Faites glisser le bord d’un cadre pour le déplacer avec tout ce qu’il contient. Maintenez Ctrl (⌘ sur Mac) pendant le déplacement pour ne bouger que le cadre, ou Alt pour le déplacer librement, hors de la grille.',
   'help.contextual.hint.frameMove.name': 'Déplacement de cadre',
   'help.contextual.hint.frameMove.desc':
     'Affiché une fois, la première fois qu’un cadre de groupe est sélectionné sur un canevas modifiable.',
@@ -654,6 +654,9 @@ const ui = {
   'whatsNew.v0240.tiers': 'La vitesse de lecture change désormais aussi ce qu’une étape montre. À partir de 0,4 s par étape, le repère mobile porte son +N. Plus vite, le +N apparaît à l’arrivée. Sous 0,2 s, le chemin s’allume brièvement et le repère apparaît à son extrémité.',
   'whatsNew.v0240.step': 'Avancer d’un pas montre toujours tout le mouvement, quelle que soit la vitesse choisie.',
   'whatsNew.v0240.phone': 'Sur un téléphone, le menu Plus propose désormais la vitesse de lecture (Lente, Normale, Rapide ou Très rapide), et 12 repères au plus se déplacent à la fois.',
+  'whatsNew.v0250.grid': 'Les nœuds et les cadres s’alignent désormais sur la grille du canevas : un nouveau nœud s’y pose, et un glissement ou les touches fléchées le déplacent le long de la grille. Maintenez Alt pour déplacer librement ; pour déplacer un cadre sans son contenu, maintenez désormais Ctrl (⌘ sur Mac) au lieu d’Alt.',
+  'whatsNew.v0250.ports': 'Les points de connexion sur les côtés d’un nœud restent désormais à une même hauteur près du haut : les connexions alignées sur une rangée restent droites dans toutes les langues, et un nœud au nom long s’agrandit vers le bas.',
+  'whatsNew.v0250.tidy': 'Un diagramme enregistré avec une version précédente est aligné une fois sur la grille à son ouverture. Le nouveau bouton Aligner sur la grille, à côté des boutons de zoom, aligne le diagramme ouvert à tout moment, en une étape que vous pouvez annuler.',
 } satisfies Record<UiKey, string>
 
 export default ui

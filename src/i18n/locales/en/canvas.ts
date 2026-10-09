@@ -82,6 +82,7 @@ const canvas = {
   'canvas.frame.areaName': 'Area {n}',
   'canvas.frame.dismiss': 'Dismiss this suggested frame',
   'canvas.frame.clearAll': 'Clear all frames',
+  'canvas.tidy': 'Tidy to grid — line up every node and frame on the grid',
   'canvas.frame.clearSuggested': 'Clear suggested frames',
   'canvas.frame.clearSuggestedRow': 'Clear suggested frames',
   'canvas.frame.colorRow': 'Frame colour',

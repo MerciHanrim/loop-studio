@@ -18,14 +18,15 @@
 // `graphStore.nodes` / `.edges` at all.
 
 import { Position } from '@xyflow/react'
-import type { LoopEdge, LoopNode } from '../model/types'
+import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
+import { PORT_ROW } from '../model/layout/grid'
 import {
   type Box,
   computeOrthogonalRoute,
   type RouteResult,
   ROUTER_VERSION,
 } from '../components/edges/orthogonalRoute'
-import { BASE_NODE_H } from '../components/nodes/silhouette'
+import { BASE_NODE_H, portInsetFraction } from '../components/nodes/silhouette'
 
 // the size of a node React Flow has not measured yet; the height is the node's
 // own floor, so a one-line node routes the same before and after it is measured
@@ -49,15 +50,19 @@ const handlePos = (handleId: string | null | undefined, fallback: Position): Pos
   return fallback
 }
 
-/** centre of a node's handle in flow coords */
+/** centre of a node's handle in flow coords. issue #344 §DL1 — a resource
+ *  port is on the fixed row `PORT_ROW` below the top, drawn on the outline
+ *  there (`portInsetFraction`, the same rule `nodes.tsx` draws it with), so a
+ *  route starts where the port is; state ports stay at the top / bottom centre */
 function handlePoint(n: LoopNode, pos: Position): { x: number; y: number } {
   const w = n.measured?.width ?? n.width ?? DEFAULT_W
   const h = n.measured?.height ?? n.height ?? DEFAULT_H
   const x = n.position.x
   const y = n.position.y
+  const kind = n.type as NodeKind
   switch (pos) {
-    case Position.Left: return { x, y: y + h / 2 }
-    case Position.Right: return { x: x + w, y: y + h / 2 }
+    case Position.Left: return { x: x + portInsetFraction(kind, h, 'in', PORT_ROW) * w, y: y + PORT_ROW }
+    case Position.Right: return { x: x + w - portInsetFraction(kind, h, 'out', PORT_ROW) * w, y: y + PORT_ROW }
     case Position.Top: return { x: x + w / 2, y }
     default: return { x: x + w / 2, y: y + h }
   }

@@ -4,6 +4,19 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.25.0 — 2026-10-09
+
+Diagrams line up on a grid (issue #344, Diagram Readability, step 1 of 5), as [`docs/diagram-layout.md`](docs/diagram-layout.md) §DL1–§DL3 describe.
+
+- **The port row.** A node's resource ports (`in` / `out`) sit on a fixed row 28 px below its top, on its drawn outline, whatever its height, text or language. A node with a long name grows downward and its connections do not move; one-line nodes draw their ports where they always did.
+- **The 16 px grid.** A node is on the grid when its left edge and its port row are multiples of 16, so two nodes on one grid row have level connections. A palette click places the new node on the nearest free grid spot from the canvas centre (no random offset any more); a drop, Insert module and an imported Parameter land on the grid.
+- **Dragging snaps.** A dragged selection moves by the one correction that puts the grabbed node on the grid, so it keeps its shape; a frame drag snaps the frame's top-left and a resize the dragged corner. The arrow keys move a node or a frame one grid step, 16 px (Shift: 64 px), instead of 5 px (20 px).
+- **Modifiers.** Alt now means a free move, off the grid, for nodes, selections, frames and drops. Moving a frame without its contents is Ctrl (⌘ on a Mac), no longer Alt; the frame hint says so. Shift is unchanged.
+- **Older diagrams are lined up once.** A graph file, Workspace, share link or autosave from an earlier version is placed on the grid when it opens, before its undo history starts: related rows a few pixels apart merge into one, overlapping nodes are moved apart by inserting space, frames grow outward to keep what they held, and waypoints snap (one that would land inside a node is dropped). The re-placement uses each node's widest size over the 18 languages, so it is the same in every language. Project revisions and proposals keep their recorded layout, since their digest covers the positions; bundled Templates and modules open at their own coordinates, which a later step re-places by hand.
+- **Tidy to grid.** A new button in the canvas controls (desktop) applies the same re-placement to the open diagram at any time, graph and frames together, as one undo step; it is off while editing is locked.
+
+**Migration.** Files now carry `layoutVersion` (1), written on every save; a file without it reads as 0 and is re-placed once on opening. It is not part of any digest. The engine digest and simulation results are unchanged; the content digest of a re-placed diagram changes with its positions. The Gacha Template gains two routing waypoints, so two of its connection labels stay clear of a node with the new port row. Five strings in 18 languages (the Tidy to grid button, the frame hint and three release-note lines), 16 of them without native review. The informational `meta.tool` string is now `loop-studio/0.25.0`.
+
 ## v0.24.0 — 2026-10-09
 
 Playback speed changes what a step draws (issue #330, the last of three), and the phone gets a speed choice of its own, as [`docs/simulation-playback.md`](docs/simulation-playback.md) §PB6.1 and [`docs/mobile.md`](docs/mobile.md) §MV4 describe.

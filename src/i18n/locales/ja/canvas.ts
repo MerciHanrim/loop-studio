@@ -93,6 +93,7 @@ const canvas = {
   'canvas.frame.areaName': 'エリア {n}',
   'canvas.frame.dismiss': 'この提案フレームを閉じる',
   'canvas.frame.clearAll': 'すべてのフレームをクリア',
+  'canvas.tidy': 'グリッドに整列 — すべてのノードとフレームをグリッドにそろえます',
   'canvas.frame.clearSuggested': '提案フレームをクリア',
   'canvas.frame.clearSuggestedRow': '提案フレームをクリア',
   'canvas.frame.colorRow': 'フレームの色',

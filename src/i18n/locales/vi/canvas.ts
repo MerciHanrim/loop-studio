@@ -104,6 +104,7 @@ const canvas = {
   'canvas.frame.areaName': 'Vùng {n}',
   'canvas.frame.dismiss': 'Bỏ nhóm gợi ý này',
   'canvas.frame.clearAll': 'Xóa tất cả nhóm',
+  'canvas.tidy': 'Căn theo lưới — đặt mọi nút và nhóm vào lưới',
   'canvas.frame.clearSuggested': 'Xóa các nhóm gợi ý',
   'canvas.frame.clearSuggestedRow': 'Xóa các nhóm gợi ý',
   'canvas.frame.colorRow': 'Màu nhóm',

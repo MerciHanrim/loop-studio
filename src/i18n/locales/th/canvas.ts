@@ -112,6 +112,7 @@ const canvas = {
   'canvas.frame.areaName': 'พื้นที่ที่ {n}',
   'canvas.frame.dismiss': 'ปิดกรอบที่แนะนำนี้',
   'canvas.frame.clearAll': 'ล้างกรอบทั้งหมด',
+  'canvas.tidy': 'จัดให้ตรงตาราง — วางโหนดและกรอบทั้งหมดให้ตรงตาราง',
   'canvas.frame.clearSuggested': 'ล้างกรอบที่แนะนำ',
   'canvas.frame.clearSuggestedRow': 'ล้างกรอบที่แนะนำ',
   'canvas.frame.colorRow': 'สีกรอบ',

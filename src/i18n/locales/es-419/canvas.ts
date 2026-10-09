@@ -90,6 +90,7 @@ const canvas = {
   'canvas.frame.areaName': 'Área {n}',
   'canvas.frame.dismiss': 'Descartar este marco sugerido',
   'canvas.frame.clearAll': 'Eliminar todos los marcos',
+  'canvas.tidy': 'Alinear a la cuadrícula: coloca todos los nodos y marcos en la cuadrícula',
   'canvas.frame.clearSuggested': 'Eliminar los marcos sugeridos',
   'canvas.frame.clearSuggestedRow': 'Eliminar los marcos sugeridos',
   'canvas.frame.colorRow': 'Color del marco',

@@ -13,11 +13,13 @@ import {
   maskBox,
   NODE_RINGS,
   POOL_PULSE_INSET,
+  portInsetFraction,
   silhouettePath,
   VESSEL_INSET_Y,
   VESSEL_MIN_PAD_Y,
 } from './silhouette'
 import { formatRegisterValue, readAccent, readParameterData, readRegisterData } from '../../model/model'
+import { PORT_ROW } from '../../model/layout/grid'
 import { useGraphStore } from '../../store/graphStore'
 import { useRegisterOutcome } from '../../store/registers'
 import { useSimStore } from '../../store/simStore'
@@ -306,6 +308,9 @@ type FrameProps = {
    *  top-right `!` flag; carries no value (the caller passes `—`). */
   invalid?: boolean
   stepKey: number
+  /** issue #344 §DL1 — the resource ports this kind has (`in` left, `out`
+   *  right); drawn here, where the box height is known, on the fixed port row */
+  ports?: { in?: boolean; out?: boolean }
 } & SubProps
 
 function NodeFrame({
@@ -327,6 +332,7 @@ function NodeFrame({
   conversion,
   invalid,
   stepKey,
+  ports,
 }: FrameProps) {
   const tip = useT()
   const lod = useLod()
@@ -533,7 +539,6 @@ function NodeFrame({
         className="h h--state"
         style={{ opacity: opOut }}
       />
-
       <svg
         className="nodef__shape"
         viewBox={`0 0 120 ${boxH}`}
@@ -706,6 +711,30 @@ function NodeFrame({
         ) : null}
         </div>
       </div>
+
+      {/* issue #344 §DL1 — resource ports on the fixed row PORT_ROW px below
+          the top, drawn ON the outline there (a fraction of the width: the
+          outline stretches with the width only), whatever the height. Last in
+          the frame, so they paint — and take the pointer — above the
+          silhouette and the text they sit on. */}
+      {ports?.in ? (
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="in"
+          className="h h--in"
+          style={{ top: PORT_ROW, left: `${portInsetFraction(kind, boxH, 'in', PORT_ROW) * 100}%` }}
+        />
+      ) : null}
+      {ports?.out ? (
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="out"
+          className="h h--out"
+          style={{ top: PORT_ROW, right: `${portInsetFraction(kind, boxH, 'out', PORT_ROW) * 100}%` }}
+        />
+      ) : null}
     </div>
   )
 }
@@ -719,10 +748,10 @@ function PoolNode({ id, data, selected }: NodeProps) {
   // Pool's face is its count; mode / capacity stay in the inspector
   return (
     <>
-      <Handle type="target" position={Position.Left} id="in" className="h h--in" />
       <NodeFrame
         nodeId={id}
         kind="pool"
+        ports={{ in: true, out: true }}
         title={d.label}
         titleDir="auto"
         value={fmt(shown)}
@@ -737,7 +766,6 @@ function PoolNode({ id, data, selected }: NodeProps) {
         pulseKey={pulseKey}
         stepKey={stepKey}
       />
-      <Handle type="source" position={Position.Right} id="out" className="h h--out" />
     </>
   )
 }
@@ -750,6 +778,7 @@ function SourceNode({ id, data, selected }: NodeProps) {
       <NodeFrame
         nodeId={id}
         kind="source"
+        ports={{ out: true }}
         title={d.label}
         titleDir="auto"
         sub={`${d.activation} · ${d.mode}`}
@@ -761,7 +790,6 @@ function SourceNode({ id, data, selected }: NodeProps) {
         activity={useNodeActivityOpacity(id)}
         stepKey={stepKey}
       />
-      <Handle type="source" position={Position.Right} id="out" className="h h--out" />
     </>
   )
 }
@@ -771,10 +799,10 @@ function DrainNode({ id, data, selected }: NodeProps) {
   const stepKey = useSimStore((s) => s.stepIndex)
   return (
     <>
-      <Handle type="target" position={Position.Left} id="in" className="h h--in" />
       <NodeFrame
         nodeId={id}
         kind="drain"
+        ports={{ in: true }}
         title={d.label}
         titleDir="auto"
         sub={`${d.activation} · ${d.mode}`}
@@ -795,10 +823,10 @@ function GateNode({ id, data, selected }: NodeProps) {
   const stepKey = useSimStore((s) => s.stepIndex)
   return (
     <>
-      <Handle type="target" position={Position.Left} id="in" className="h h--in" />
       <NodeFrame
         nodeId={id}
         kind="gate"
+        ports={{ in: true, out: true }}
         title={d.label}
         titleDir="auto"
         sub={d.distribution}
@@ -810,7 +838,6 @@ function GateNode({ id, data, selected }: NodeProps) {
         activity={useNodeActivityOpacity(id)}
         stepKey={stepKey}
       />
-      <Handle type="source" position={Position.Right} id="out" className="h h--out" />
     </>
   )
 }
@@ -820,10 +847,10 @@ function ConverterNode({ id, data, selected }: NodeProps) {
   const stepKey = useSimStore((s) => s.stepIndex)
   return (
     <>
-      <Handle type="target" position={Position.Left} id="in" className="h h--in" />
       <NodeFrame
         nodeId={id}
         kind="converter"
+        ports={{ in: true, out: true }}
         title={d.label}
         titleDir="auto"
         sub={d.mode}
@@ -836,7 +863,6 @@ function ConverterNode({ id, data, selected }: NodeProps) {
         conversion={useConversionMark(id)}
         stepKey={stepKey}
       />
-      <Handle type="source" position={Position.Right} id="out" className="h h--out" />
     </>
   )
 }
@@ -846,10 +872,10 @@ function EndNode({ id, data, selected }: NodeProps) {
   const stepKey = useSimStore((s) => s.stepIndex)
   return (
     <>
-      <Handle type="target" position={Position.Left} id="in" className="h h--in" />
       <NodeFrame
         nodeId={id}
         kind="end"
+        ports={{ in: true }}
         title={d.label}
         titleDir="auto"
         selected={selected}

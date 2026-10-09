@@ -90,6 +90,7 @@ const canvas = {
   'canvas.frame.areaName': '區域 {n}',
   'canvas.frame.dismiss': '忽略這個建議的群組框',
   'canvas.frame.clearAll': '清除所有群組框',
+  'canvas.tidy': '對齊格線——把所有節點和群組框對齊到格線',
   'canvas.frame.clearSuggested': '清除建議的群組框',
   'canvas.frame.clearSuggestedRow': '清除建議的群組框',
   'canvas.frame.colorRow': '群組框顏色',

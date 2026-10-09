@@ -140,7 +140,21 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.24.0
+## Latest — v0.25.0
+
+Diagrams line up on a grid, and connections between nodes in a row stay straight in every
+language.
+
+- **A layout grid**: a new node lands on the canvas grid, and a drag or an arrow key moves
+  nodes and frames along it; hold Alt to drag freely, and Ctrl (⌘ on a Mac), no longer Alt,
+  to move a frame without its contents
+- **Ports on one row**: a node's side connection points sit 28 px below its top whatever its
+  height, so a node with a long name grows downward and its connections do not move
+- **Older diagrams are lined up once**: a diagram saved by an earlier version is placed on the
+  grid when it opens, as part of opening it (a project revision keeps its recorded layout);
+  Tidy to grid in the canvas controls does the same at any time, as one step you can undo
+
+## v0.24.0
 
 Playback speed changes what a step draws, and the phone gets a speed choice of its own.
 
@@ -179,21 +193,8 @@ marker.
   outside the focus fade with those connections; in a busy step at most 24 markers move, and
   every other connection that moved is highlighted instead
 
-## v0.21.4
-
-A fix release: the canvas controls keep their place while editing is locked, and the phone's
-language search no longer zooms the page in.
-
-- **The frame buttons stay, turned off**: Group frame and Clear all frames remain in the
-  canvas controls while editing is locked, so the other buttons no longer move; before, the
-  two disappeared and every button above them shifted down
-- **Locking turns the frame tool off**: a drag on the empty canvas then moves the view, as it
-  should while editing is locked
-- **No zoom from the phone's text fields**: on an iPhone, tapping the language search used to
-  zoom the page in and leave it zoomed; every phone text field is now large enough that it
-  does not
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.21.3 (the edit
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.21.4 (the
+canvas controls keep their place while editing is locked), v0.21.3 (the edit
 lock is exact, and its button shows the state), v0.21.2 (values
 and detail rows sit inside their node), v0.21.1 (Focus
 mode dims the connections too), v0.21.0 (compact

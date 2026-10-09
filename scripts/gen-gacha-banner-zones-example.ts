@@ -363,7 +363,16 @@ const recommendedRunConfig: RecommendedRunConfig = {
 // clear of each other AND of the rows, so `e_pickup_36` alone now leaves its
 // bottom port DOWNWARD into the free band under the second row (y 632..670)
 // through one waypoint; its label lands there, clear of every label and node.
+// Layout round 8 (issue #344 step 1) — the resource ports moved to a fixed row
+// 28 px below each node's top, so a two-line node's connections leave higher
+// than its centre. Two Premium Pickup labels then touched a node in the
+// every-label check: `e_pickup_17` ("50", SSR split -> Standard) the R count
+// Pool by 0.3 px, and `e_pickup_20` ("900", Roll normal owed -> R hit) the SR
+// hit Gate by up to 3.3 px. One waypoint each drops the vertical leg into the
+// free band under the second flow row, where the label lands clear.
 const WAYPOINTS: Record<string, { x: number; y: number }[]> = {
+  e_pickup_17: [{ x: 3700, y: 549 }],
+  e_pickup_20: [{ x: 3360, y: 548 }],
   e_pickup_36: [{ x: 3200, y: 650 }],
   e_standard_12: [{ x: 1200, y: 550 }],
   e_standard_13: [{ x: 1320, y: 550 }],

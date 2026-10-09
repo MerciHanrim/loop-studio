@@ -1,12 +1,13 @@
 import type { Page } from '@playwright/test'
+import { PORT_ROW } from '../src/model/layout/grid'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 
 // docs/mmo-multilingual-layout.md §MML1 — the general node renderer must keep a
 // long title inside the box:
 //   • an official-length label wraps to AT MOST TWO lines around the ~135 px
 //     soft-max, the box GROWS in height to fit (never past the per-kind
-//     ceiling), the title stays clear of the value / sub rows, and the handles
-//     re-centre on the grown box;
+//     ceiling), the title stays clear of the value / sub rows, and the side
+//     handles stay on the 28 px port row of the grown box (issue #344 §DL1);
 //   • an abnormally long SINGLE token (no break opportunity) is the last-resort
 //     case — it may force-break, but it must never spill outside the silhouette;
 //   • a pathologically long multi-word label may wrap to many lines, but the
@@ -26,7 +27,7 @@ const HUGE_TOKEN = 'Supercalifragilisticexpialidocious' + 'antidisestablishmenta
 // because its glyphs depend on the runner's installed OS fonts. The guarantees
 // are the same as any long label: the full string is kept on the element, it
 // never spills sideways out of the vessel, the silhouette grows to fit, and the
-// resource handles re-centre on the grown box.
+// resource handles stay on the port row.
 const MULTISCRIPT = "Trésor d'or — a deliberately very long label that overflows · 黄金の保管庫 · Хранилище · 🪙"
 
 const GRAPH = JSON.stringify({
@@ -43,6 +44,20 @@ const GRAPH = JSON.stringify({
 })
 
 const node = (page: Page, id: string) => page.locator(`.react-flow__node[data-id="${id}"]`)
+
+/** each side (resource) port's centre below the node top, in flow px */
+const sidePorts = (page: Page, id: string) =>
+  page.evaluate((nid) => {
+    const wrap = document.querySelector(`.react-flow__node[data-id="${nid}"]`) as HTMLElement
+    const nf = wrap.querySelector('.nodef') as HTMLElement
+    const nfR = nf.getBoundingClientRect()
+    const zoom = nfR.height / nf.offsetHeight
+    const ports = [...wrap.querySelectorAll('.h--in, .h--out')].map((h) => {
+      const r = h.getBoundingClientRect()
+      return ((r.top + r.bottom) / 2 - nfR.top) / zoom
+    })
+    return { ports, nfH: nf.offsetHeight, wrapH: wrap.offsetHeight }
+  }, id)
 
 async function box(page: Page, id: string) {
   return page.evaluate((nid) => {
@@ -130,25 +145,17 @@ test.describe('§MML1 — long node labels stay inside the box', () => {
     expect(b.boxH).toBeLessThanOrEqual(132)
   })
 
-  test('handles re-centre on the grown box; the selection ring uses the grown height', async ({ page }) => {
+  test('the side handles stay on the port row of the grown box; the selection ring uses the grown height', async ({ page }) => {
     const b = await box(page, 'official')
-    // the left/right RESOURCE ports (not the top/bottom state ports) sit on the
-    // vertical centre of the GROWN box
-    const m = await page.evaluate(() => {
-      const wrap = document.querySelector('.react-flow__node[data-id="official"]') as HTMLElement
-      const nf = wrap.querySelector('.nodef') as HTMLElement
-      const nfR = nf.getBoundingClientRect()
-      const ports = [...wrap.querySelectorAll('.h--in, .h--out')].map((h) => {
-        const r = h.getBoundingClientRect()
-        return (r.top + r.bottom) / 2 - nfR.top
-      })
-      return { ports, nfH: nf.offsetHeight, wrapH: wrap.offsetHeight }
-    })
+    // the left/right RESOURCE ports (not the top/bottom state ports) stay on
+    // the port row 28 px from the top of the GROWN box — it grows downward
+    const m = await sidePorts(page, 'official')
     expect(m.ports.length).toBeGreaterThan(0)
     // the RF node wrapper tracks the grown box height…
     expect(Math.abs(m.wrapH - m.nfH)).toBeLessThanOrEqual(2)
-    // …and each resource port is on that grown box's vertical centre
-    for (const cy of m.ports) expect(Math.abs(cy - b.boxH / 2)).toBeLessThanOrEqual(8)
+    // …and each resource port is on the port row, well above the grown centre
+    for (const cy of m.ports) expect(Math.abs(cy - PORT_ROW)).toBeLessThanOrEqual(1.5)
+    expect(b.boxH / 2 - PORT_ROW).toBeGreaterThan(8)
 
     await node(page, 'official').click()
     await expect(node(page, 'official').locator('.nodef__sel')).toBeVisible()
@@ -160,7 +167,7 @@ test.describe('§MML1 — long node labels stay inside the box', () => {
     expect(selVB).toBe(`0 0 120 ${b.boxH}`)
   })
 
-  test('a multi-script / CJK / Cyrillic / emoji label — full string kept, no spill, vessel grows, handles re-centre', async ({ page }) => {
+  test('a multi-script / CJK / Cyrillic / emoji label — full string kept, no spill, vessel grows, handles stay on the port row', async ({ page }) => {
     // bring the multiscript node (flow y 840) fully on screen at zoom 1
     await page.evaluate(() =>
       (window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport(
@@ -183,20 +190,11 @@ test.describe('§MML1 — long node labels stay inside the box', () => {
     expect(b.boxH, 'but not past the pool ceiling').toBeLessThanOrEqual(132)
     expect(b.viewBox, 'silhouette redrawn at the grown height').toBe(`0 0 120 ${b.boxH}`)
 
-    // the resource ports sit on the vertical centre of the GROWN box
-    const m = await page.evaluate(() => {
-      const wrap = document.querySelector('.react-flow__node[data-id="multiscript"]') as HTMLElement
-      const nf = wrap.querySelector('.nodef') as HTMLElement
-      const nfR = nf.getBoundingClientRect()
-      const ports = [...wrap.querySelectorAll('.h--in, .h--out')].map((h) => {
-        const r = h.getBoundingClientRect()
-        return (r.top + r.bottom) / 2 - nfR.top
-      })
-      return { ports, nfH: nf.offsetHeight, wrapH: wrap.offsetHeight }
-    })
+    // the resource ports stay on the port row of the GROWN box
+    const m = await sidePorts(page, 'multiscript')
     expect(m.ports.length).toBeGreaterThan(0)
     expect(Math.abs(m.wrapH - m.nfH)).toBeLessThanOrEqual(2)
-    for (const cy of m.ports) expect(Math.abs(cy - b.boxH / 2)).toBeLessThanOrEqual(8)
+    for (const cy of m.ports) expect(Math.abs(cy - PORT_ROW)).toBeLessThanOrEqual(1.5)
   })
 
   test('renders in dark mode without sideways clipping', async ({ page }) => {

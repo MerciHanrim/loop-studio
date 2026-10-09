@@ -39,6 +39,15 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // issue #344 step 1 - the layout grid and the fixed port row, the one-time
+    // re-placement of older diagrams and Tidy to grid; the date is the day it
+    // is deployed, set right before the merge
+    id: 'release:0.25.0',
+    version: '0.25.0',
+    date: '2026-10-09',
+    items: ['whatsNew.v0250.grid', 'whatsNew.v0250.ports', 'whatsNew.v0250.tidy'],
+  },
+  {
     // issue #330 PR 3 - the speed tiers, Step always full, the phone's four
     // speeds and its fewer moving markers; the date is the day it is deployed,
     // set right before the merge

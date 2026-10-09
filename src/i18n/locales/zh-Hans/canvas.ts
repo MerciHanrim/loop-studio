@@ -87,6 +87,7 @@ const canvas = {
   'canvas.frame.areaName': '区域 {n}',
   'canvas.frame.dismiss': '忽略这个推荐分组',
   'canvas.frame.clearAll': '清除所有分组框',
+  'canvas.tidy': '对齐网格——把所有节点和分组框对齐到网格',
   'canvas.frame.clearSuggested': '清除推荐的分组框',
   'canvas.frame.clearSuggestedRow': '清除推荐的分组框',
   'canvas.frame.colorRow': '分组框颜色',

@@ -19,6 +19,8 @@ import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { blocksCanvasKey } from '../ui/keyboardTarget'
 import { createKeyGesture } from '../ui/keyGestureLifetime'
+import { dragSnap } from '../model/layout/dragSnap'
+import { GRID, snapNodePosition } from '../model/layout/grid'
 import { type MessageKey, useI18n, useLocaleDirection, useT } from '../i18n'
 import { moduleLabelOverlay } from '../i18n/moduleLabels'
 import { useFilterStore } from '../store/filterStore'
@@ -76,6 +78,13 @@ const DEFAULT_EDGE_OPTIONS = { type: 'loop' } as const
 // see every one of them (a template literal would read as a dead key).
 const ARROW_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'])
 
+/** issue #344 §DL3 — an arrow key's grid direction and React Flow's word for it */
+const ARROW_DIR: Record<string, [number, number, string]> = {
+  ArrowLeft: [-1, 0, 'left'],
+  ArrowRight: [1, 0, 'right'],
+  ArrowUp: [0, -1, 'up'],
+  ArrowDown: [0, 1, 'down'],
+}
 const RF_DIR_KEY: Record<string, MessageKey> = {
   left: 'rf.dir.left',
   right: 'rf.dir.right',
@@ -106,6 +115,7 @@ export function Canvas() {
   const onEdgesChange = useGraphStore((s) => s.onEdgesChange)
   const onConnect = useGraphStore((s) => s.onConnect)
   const addNodeAt = useGraphStore((s) => s.addNodeAt)
+  const tidyToGrid = useGraphStore((s) => s.tidyToGrid)
   const insertModule = useGraphStore((s) => s.insertModule)
   const setSelection = useGraphStore((s) => s.setSelection)
   const { screenToFlowPosition, fitView, setViewport, getViewport, deleteElements } = useReactFlow()
@@ -717,6 +727,32 @@ export function Canvas() {
         open = { snapshot: g.captureGestureSnapshot(), positions, announceId: ids[0] }
       }
       gesture.press(e.key)
+      // issue #344 §DL3 — the move itself: one grid step (Shift: four), the
+      // focused node landing on the grid (left edge + port row) and every
+      // selected node moved by the same delta. React Flow's own 5 / 20 px step
+      // never runs (this capture listener is ahead of it).
+      e.preventDefault()
+      e.stopPropagation()
+      const dir = ARROW_DIR[e.key]
+      const g = useGraphStore.getState()
+      const focusedId = (e.target as HTMLElement | null)?.closest?.('.react-flow__node')?.getAttribute('data-id')
+      const anchor = g.nodes.find((n) => n.id === focusedId)
+      if (!dir || !anchor) return
+      const step = GRID * (e.shiftKey ? 4 : 1)
+      const to = snapNodePosition({ x: anchor.position.x + dir[0] * step, y: anchor.position.y + dir[1] * step })
+      const dx = to.x - anchor.position.x
+      const dy = to.y - anchor.position.y
+      const moved: Record<string, Pt> = {}
+      for (const id of ids) {
+        const n = g.nodes.find((x) => x.id === id)
+        if (n) moved[id] = { x: n.position.x + dx, y: n.position.y + dy }
+      }
+      g.applyGesturePositions(moved, {})
+      // the announcement React Flow would have made for its own move
+      const st = rfStore.getState() as unknown as { ariaLiveMessage?: string }
+      if ('ariaLiveMessage' in st) {
+        rfStore.setState({ ariaLiveMessage: t('rf.node.moved', { direction: t(RF_DIR_KEY[dir[2]] ?? 'rf.dir.right'), x: Math.round(to.x), y: Math.round(to.y) }) } as never)
+      }
     }
     const onKeyUp = (e: KeyboardEvent) => {
       if (ARROW_KEYS.has(e.key)) gesture.release(e.key)
@@ -756,6 +792,7 @@ export function Canvas() {
           const r = insertModule(cloneModuleDoc(block, moduleLabelOverlay(moduleId, locale)), {
             at,
             bundledModuleId: moduleId,
+            free: e.altKey, // issue #344 §DL3 — Alt at the drop: not snapped
           })
           if (!r.ok) window.alert(r.reason)
         }
@@ -763,7 +800,7 @@ export function Canvas() {
       }
       const kind = e.dataTransfer.getData(DND_TYPE) as NodeKind
       if (!kind) return
-      addNodeAt(kind, at)
+      addNodeAt(kind, at, { free: e.altKey }) // issue #344 §DL3 — on the grid; Alt = free
     },
     [addNodeAt, insertModule, screenToFlowPosition],
   )
@@ -796,6 +833,14 @@ export function Canvas() {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
+        // issue #344 §DL3 — which node a drag grabbed and whether Alt is held
+        // (Alt = free move); the store snaps the drag by that node's correction
+        onNodeDragStart={(e, node) => dragSnap.begin(node.id, e.altKey)}
+        onNodeDrag={(e) => dragSnap.update(e.altKey)}
+        onNodeDragStop={(e) => dragSnap.update(e.altKey)}
+        onSelectionDragStart={(e, dragged) => dragSnap.begin(dragged[0]?.id ?? null, e.altKey)}
+        onSelectionDrag={(e) => dragSnap.update(e.altKey)}
+        onSelectionDragStop={(e) => dragSnap.update(e.altKey)}
         onEdgesChange={onEdgesChange}
         onConnect={noEdit ? undefined : onConnect}
         onSelectionChange={onSelectionChange}
@@ -1085,6 +1130,29 @@ export function Canvas() {
                   stroke="currentColor"
                   strokeWidth="1.6"
                   strokeDasharray="2.4 2"
+                />
+              </svg>
+            </ControlButton>
+          )}
+          {/* issue #344 §DL2.10 — Tidy to grid: re-place the document on the
+              grid by the conversion's own rules, as ONE undo step. Desktop
+              only (the phone does not edit); `disabled` while locked, never
+              removed, so the rail keeps its height (#338). */}
+          {!isMobile && (
+            <ControlButton
+              onClick={() => tidyToGrid()}
+              title={t('canvas.tidy')}
+              aria-label={t('canvas.tidy')}
+              disabled={canvasLocked}
+              className="rf-tidy"
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                <path
+                  d="M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinejoin="round"
                 />
               </svg>
             </ControlButton>

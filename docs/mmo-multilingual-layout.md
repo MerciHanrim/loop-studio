@@ -60,9 +60,12 @@ general policy with **two representative fixtures: MMO and Coffee**.
 - **2-line (or wider) nodes grow in height to fit their content.** The fixed
   64px node height is replaced by a content-driven height. The title must not
   overlap the value / unit / sub-description for that node kind.
-- **Handles reposition to the grown box** — side handles to the real vertical
-  centre of the new height, top/bottom and kind-specific handles to their
-  defined positions on the new box.
+- **Handles reposition to the grown box** — top/bottom and kind-specific
+  handles to their defined positions on the new box. The side (resource)
+  handles stay on the port row 28 px from the top whatever the height, so a
+  node grows downward and its connections never move
+  (`docs/diagram-layout.md` §DL1, issue #344; until then they followed the
+  vertical centre).
 - **Line breaking is the browser's.** The wrap rule (note `word-break: keep-all`
   would block breaking *between* JA characters, so it cannot be combined with
   "browser CJK breaking"):

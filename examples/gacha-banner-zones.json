@@ -1,6 +1,7 @@
 {
   "schema": "loop-studio/graph/2",
   "version": 1,
+  "layoutVersion": 1,
   "nodes": [
     {
       "id": "pulls_per_zone",
@@ -1727,6 +1728,12 @@
         "kind": "resource",
         "flow": "@zone3_pickup_w_standard",
         "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 3700,
+            "y": 549
+          }
+        ],
         "accent": "#B47599"
       }
     },
@@ -1769,6 +1776,12 @@
         "kind": "resource",
         "flow": "@zone3_pickup_w_r",
         "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 3360,
+            "y": 548
+          }
+        ],
         "accent": "#B47599"
       }
     },

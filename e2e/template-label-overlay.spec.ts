@@ -472,9 +472,13 @@ test.describe('official template label — locale switch (§TLO11)', () => {
           // (offsetHeight, used for wrapH/nfH, is transform-invariant layout
           // size — comparing a scaled port offset against it would be a
           // coordinate-space mismatch, not a real geometry defect.)
+          // issue #344 §DL1.2 — a resource port sits on the fixed row 28 flow
+          // px below the box top (no longer at the box's vertical centre):
+          // this is its distance from that row, in flow px
+          const scale = nf.offsetHeight > 0 ? nfR.height / nf.offsetHeight : 1
           const ports = [...wrap.querySelectorAll('.h--in, .h--out')].map((h) => {
             const r = h.getBoundingClientRect()
-            return (r.top + r.bottom) / 2 - nfR.top - nfR.height / 2
+            return ((r.top + r.bottom) / 2 - nfR.top) / scale - 28
           })
           return { id: wrap.dataset.id!, wrapH: wrap.offsetHeight, nfH: nf.offsetHeight, ports }
         })
@@ -654,7 +658,7 @@ test.describe('official template label — locale switch (§TLO11)', () => {
       const snap = await geometrySnapshot()
       for (const n of snap) {
         for (const offCenter of n.ports) {
-          expect(Math.abs(offCenter), `node ${n.id} port centring after ${locale}`).toBeLessThanOrEqual(8)
+          expect(Math.abs(offCenter), `node ${n.id} port on its 28 px row after ${locale}`).toBeLessThanOrEqual(1.5)
         }
       }
 

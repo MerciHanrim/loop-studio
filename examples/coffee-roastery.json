@@ -1,6 +1,7 @@
 {
   "schema": "loop-studio/graph/2",
   "version": 1,
+  "layoutVersion": 1,
   "nodes": [
     {
       "id": "cafe_retail_demand_kg",

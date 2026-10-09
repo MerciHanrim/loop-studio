@@ -114,6 +114,11 @@ export async function importFile(
      *  recovery proved (by digest) that a declared-v1 revision / proposal
      *  file is v2 content. Absent ⇒ the declared version, as always. */
     modelVersion?: ModelSemanticsVersion
+    /** issue #344 §DL2.8 — open the layout exactly as written, even when it
+     *  predates the grid. Set by `revisionIO.routeImport` for a Project
+     *  revision: its digest covers the positions, so a re-placement would make
+     *  the file differ from its own revision the moment it opens. */
+    keepLayout?: boolean
   } = {},
 ): Promise<ImportOutcome> {
   const parsed = deserialize(text) // throws on a bad graph, as today
@@ -133,6 +138,8 @@ export async function importFile(
     {
       mode: 'document-boundary',
       canvasLocked: parsed.recommendedRunConfig?.canvasLocked === true,
+      // issue #344 — a legacy layout is re-placed once (never a revision's)
+      layoutVersion: opts.keepLayout ? undefined : parsed.layoutVersion,
       modelVersion,
       frames: parsed.frames,
       dataImports: parsed.dataImports,

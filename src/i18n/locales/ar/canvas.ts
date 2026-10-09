@@ -95,6 +95,7 @@ const canvas = {
   'canvas.frame.areaName': 'منطقة {n}',
   'canvas.frame.dismiss': 'تجاهل هذا الإطار المقترح',
   'canvas.frame.clearAll': 'مسح كل الإطارات',
+  'canvas.tidy': 'محاذاة إلى الشبكة — ضع كل العقد والإطارات على الشبكة',
   'canvas.frame.clearSuggested': 'مسح الإطارات المقترحة',
   'canvas.frame.clearSuggestedRow': 'مسح الإطارات المقترحة',
   'canvas.frame.colorRow': 'لون الإطار',

@@ -102,6 +102,7 @@ const canvas = {
   'canvas.frame.areaName': 'Zone {n}',
   'canvas.frame.dismiss': 'Ignorer ce cadre suggéré',
   'canvas.frame.clearAll': 'Effacer tous les cadres',
+  'canvas.tidy': 'Aligner sur la grille — place tous les nœuds et cadres sur la grille',
   'canvas.frame.clearSuggested': 'Effacer les cadres suggérés',
   'canvas.frame.clearSuggestedRow': 'Effacer les cadres suggérés',
   'canvas.frame.colorRow': 'Couleur du cadre',

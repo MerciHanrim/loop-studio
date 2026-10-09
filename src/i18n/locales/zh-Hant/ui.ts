@@ -402,7 +402,7 @@ const ui = {
   'help.contextual.hint.import.name': '試算表匯入',
   'help.contextual.hint.import.desc': '第一次把試算表匯入到畫布之後顯示一次。',
   'hint.frameMove.body':
-    '拖曳群組框的邊緣，可以連同裡面的內容一起移動。拖曳時按住 Alt，則只移動群組框本身。',
+    '拖曳群組框的邊緣，可以連同裡面的內容一起移動。拖曳時按住 Ctrl（Mac 上為 ⌘），則只移動群組框本身；按住 Alt 則不對齊格線、自由移動。',
   'help.contextual.hint.frameMove.name': '群組框移動',
   'help.contextual.hint.frameMove.desc': '在可編輯的畫布上第一次選取群組框時顯示一次。',
   'hint.focusFilter.body':
@@ -603,6 +603,9 @@ const ui = {
   'whatsNew.v0240.tiers': '播放速度現在也會改變一步的顯示方式：每步 0.4 秒以上時，移動標記帶著 +N 一起移動；更快時，+N 在抵達時出現；快於 0.2 秒時，路徑先短暫亮起，標記隨後出現在終點。',
   'whatsNew.v0240.step': '前進一步時，無論速度如何設定，始終顯示完整的移動過程。',
   'whatsNew.v0240.phone': '在手機上，「更多」選單新增了播放速度（慢、正常、快、很快），同時移動的標記最多 12 個。',
+  'whatsNew.v0250.grid': '節點和群組框現在會對齊畫布格線：新節點放在格線上，拖曳或用方向鍵移動時沿格線移動。按住 Alt 拖曳可自由移動；如果只想移動群組框而不帶裡面的內容，請按住 Ctrl（Mac 上為 ⌘），不再是 Alt。',
+  'whatsNew.v0250.ports': '節點兩側的連接點現在固定在靠近頂端的同一高度，因此同一列的連線在任何語言下都保持筆直，名稱較長的節點則向下變高。',
+  'whatsNew.v0250.tidy': '以舊版本儲存的圖表在開啟時會對齊格線一次。縮放按鈕旁的新按鈕「對齊格線」可隨時對齊目前開啟的圖表，並可一步復原。',
 } satisfies Record<UiKey, string>
 
 export default ui

@@ -119,6 +119,7 @@ const SURVIVING: ReadonlyArray<readonly [string, readonly string[]]> = [
   ['product, company and place names, never translated', [
     'loop', 'studio', 'github', 'google', 'excel', 'numbers', 'machinations', 'io', 'alex',
     'inspector', 'portugal', 'thai',
+    'mac', // the frame-move hint (issue #344)
   ]],
   ['file formats, units, metrics and version tokens', [
     'csv', 'tsv', 'json', 'xlsx', 'kg', 'xp', 'p10', 'p50', 'p90', 'montecarloresult',
@@ -261,15 +262,15 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
 // ------------------------------------------------------------------ shape
 describe('nl copy — the surfaces exist and are complete', () => {
   it('has exactly the base key set', () => {
-    expect(KEYS).toHaveLength(1064) // issue #330 PR 3: +3 (three 0.24.0 release-note lines); issue #330 PR 3: +9 (the phone Playback speed sheet); issue #330 PR 2: +3 (three 0.23.0 release-note lines); issue #330 PR 1: +5 (five 0.22.0 release-note lines); issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines); the flow colour: +20 (the sixteen strings of the Colour section and the four 0.19.0 release-note lines); the flow colour views: +4 (the four 0.20.0 release-note lines); compact nodes: +3 (the three 0.21.0 release-note lines); Focus dimming: +3 (the three 0.21.1 release-note lines); value rows: +3 (the three 0.21.2 release-note lines); the edit lock: +4 (canvas.lock.name, its fixed accessible name, and the three 0.21.3 release-note lines); the locked rail and the phone search: +4 (the four 0.21.4 release-note lines)
+    expect(KEYS).toHaveLength(1068) // issue #344 Step 1: +3 (three 0.25.0 release-note lines); issue #344 Step 1: +1 (canvas.tidy, the Tidy to grid rail button); issue #330 PR 3: +3 (three 0.24.0 release-note lines); issue #330 PR 3: +9 (the phone Playback speed sheet); issue #330 PR 2: +3 (three 0.23.0 release-note lines); issue #330 PR 1: +5 (five 0.22.0 release-note lines); issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines); the flow colour: +20 (the sixteen strings of the Colour section and the four 0.19.0 release-note lines); the flow colour views: +4 (the four 0.20.0 release-note lines); compact nodes: +3 (the three 0.21.0 release-note lines); Focus dimming: +3 (the three 0.21.1 release-note lines); value rows: +3 (the three 0.21.2 release-note lines); the edit lock: +4 (canvas.lock.name, its fixed accessible name, and the three 0.21.3 release-note lines); the locked rail and the phone search: +4 (the four 0.21.4 release-note lines)
     expect(Object.keys(NL).sort()).toEqual([...KEYS].sort())
   })
 
   it('covers all four runtime surfaces, at the measured sizes', () => {
     const per: Record<string, number> = {}
     for (const r of RUNTIME) per[r.surface.split('/')[0]!] = (per[r.surface.split('/')[0]!] ?? 0) + 1
-    expect(per).toEqual({ catalog: 1064, template: 196, frame: 7, module: 19 })
-    expect(RUNTIME).toHaveLength(1286)
+    expect(per).toEqual({ catalog: 1068, template: 196, frame: 7, module: 19 })
+    expect(RUNTIME).toHaveLength(1290)
   })
 
   it('EVERY row has a non-empty ENGLISH side — the vacuity guard', () => {
