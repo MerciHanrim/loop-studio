@@ -210,3 +210,39 @@ describe('guarded router — determinism', () => {
     expect(c.hitD).toBe(a.hitD)
   })
 })
+
+describe('guarded router — Manual orthogonal bend points (issue #344 step 3)', () => {
+  /** is `p` on the polyline (a vertex or inside a segment)? */
+  const onRoute = (pts: Pt[], p: Pt) =>
+    pts.some((a, i) => {
+      const b = pts[i + 1]
+      if (!b) return a.x === p.x && a.y === p.y
+      return (a.x === b.x && a.x === p.x && p.y >= Math.min(a.y, b.y) && p.y <= Math.max(a.y, b.y)) || (a.y === b.y && a.y === p.y && p.x >= Math.min(a.x, b.x) && p.x <= Math.max(a.x, b.x))
+    })
+  /** a vertex where the route goes straight back the way it came */
+  const folds = (pts: Pt[]) =>
+    pts.slice(1, -1).filter((b, i) => {
+      const a = pts[i]
+      const c = pts[i + 2]
+      return (a.x === b.x && b.x === c.x && Math.sign(b.y - a.y) === -Math.sign(c.y - b.y)) || (a.y === b.y && b.y === c.y && Math.sign(b.x - a.x) === -Math.sign(c.x - b.x))
+    })
+
+  it('the route turns AT each bend point: it passes through every one and never folds back over itself', () => {
+    // the case found on the canvas: a bend above the source row, then one below it
+    const s = box('s', 0, 336, 145, 56)
+    const t = box('t', 480, 448, 139, 56)
+    const waypoints = [{ x: 304, y: 304 }, { x: 352, y: 448 }]
+    const r = computeGuardedRoute(input(s, t, [], { waypoints }))
+    for (const w of waypoints) expect(onRoute(r.points, w), `through (${w.x}, ${w.y})`).toBe(true)
+    expect(folds(r.points)).toEqual([])
+    expect(r.routeClass).toBe('orthogonal')
+  })
+
+  it('an automatic route (no bend points) is unchanged by the rule', () => {
+    const s = box('s', 0, 0)
+    const t = box('t', 480, 192)
+    const auto = computeGuardedRoute(input(s, t, []))
+    expect(auto.points.length).toBeGreaterThan(2)
+    expect(folds(auto.points)).toEqual([])
+  })
+})

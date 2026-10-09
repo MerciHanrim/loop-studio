@@ -130,6 +130,8 @@ const canvas = {
   'canvas.activity.rowLabel': 'Aktivitätsebene',
   'canvas.route.invalidFlag':
     'ungültige Linienführung — ein Wegpunkt liegt in einem Knoten',
+  'canvas.route.bend': 'Knickpunkt {n} von {total}',
+  'canvas.route.noBendRoom': 'Kein Abschnitt dieser Verbindung hat Platz für einen Knickpunkt; nichts wurde geändert.',
   'canvas.edgeLabel.clamp': 'gekappt',
   'canvas.edgeLabel.clamp.title':
     'vom einmaligen Kappen des Zielspeichers am Ende von Phase 0 entfernt',

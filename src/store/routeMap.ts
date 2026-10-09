@@ -29,7 +29,7 @@
 import { create } from 'zustand'
 import { Position } from '@xyflow/react'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
-import { PORT_ROW } from '../model/layout/grid'
+import { GRID, PORT_ROW } from '../model/layout/grid'
 import {
   type Box,
   computeGuardedRoute,
@@ -46,6 +46,7 @@ import {
   type Pt,
 } from '../components/edges/orthogonalRoute'
 import { BASE_NODE_H, portInsetFraction } from '../components/nodes/silhouette'
+import { freeLinePoints, pointAlong } from '../components/edges/freeLine'
 
 // the size of a node React Flow has not measured yet; the height is the node's
 // own floor, so a one-line node routes the same before and after it is measured
@@ -74,6 +75,14 @@ export type RoutedEdge = GuardedResult & {
   label: Pt | null
 }
 
+/** §ER15 — a Curved or Straight edge's label slot: the fraction of its line's
+ *  length where the label is centred (the line `LoopEdge` draws, sampled the
+ *  same way), and that point on the route map's own copy of the line */
+export type FreeSlot = { f: number; at: Pt }
+
+/** a generation: the routes, and the label slots of the other edges */
+type GenOut = { map?: Map<string, RoutedEdge>; free?: Map<string, FreeSlot> }
+
 // ── the routing inputs that are not graph data: label sizes, the live flag ──
 
 type LabelSize = { w: number; h: number }
@@ -81,7 +90,18 @@ const labelSizes = new Map<string, LabelSize>()
 
 /** bumped whenever the map to show changes outside a graph edit (a label size,
  *  a committed full generation), so every `LoopEdge` re-reads it */
-export const useRouteInputs = create<{ rev: number; busy: boolean }>(() => ({ rev: 0, busy: false }))
+export const useRouteInputs = create<{ rev: number; busy: boolean; record: boolean }>(() => ({ rev: 0, busy: false, record: false }))
+
+/** §ER15.1 — the document is a record shown by its recorded label rule
+ *  (`graphStore.recordLabels`): Curved and Straight labels are not placed, they
+ *  sit at their line's middle as recorded, and nothing else keeps off their
+ *  lines — the routed edges get exactly the generation they had before step 3 */
+let recordLabels = false
+export function setRecordLabels(on: boolean): void {
+  if (recordLabels === on) return
+  recordLabels = on
+  useRouteInputs.setState((s) => ({ rev: s.rev + 1, record: on }))
+}
 const bump = () => useRouteInputs.setState((s) => ({ rev: s.rev + 1 }))
 
 /** §ER14.5 — `busy` while a routed edge is not drawn because its first route
@@ -124,6 +144,8 @@ export function endLiveLayout(): void {
 
 const isOrtho = (e: LoopEdge): boolean =>
   (e.data as { route?: unknown } | undefined)?.route === 'orthogonal'
+const isStraight = (e: LoopEdge): boolean =>
+  (e.data as { route?: unknown } | undefined)?.route === 'straight'
 
 const handlePos = (handleId: string | null | undefined, fallback: Position): Position => {
   // resource ports: `in` = Left, `out` = Right; state ports: top / bottom.
@@ -171,20 +193,7 @@ function polyHits(pts: Pt[], b: Box): boolean {
 }
 
 /** the point at fraction `f` of a polyline's length */
-function pointAt(pts: Pt[], f: number): Pt {
-  let total = 0
-  for (let i = 1; i < pts.length; i++) total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y)
-  let acc = 0
-  for (let i = 1; i < pts.length; i++) {
-    const seg = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y)
-    if (acc + seg >= total * f) {
-      const r = seg > 0 ? (total * f - acc) / seg : 0
-      return { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * r, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * r }
-    }
-    acc += seg
-  }
-  return pts[pts.length - 1]
-}
+const pointAt = pointAlong
 
 /** the segments of `routes`, indexed by ruler line for the trunk / crossing cost */
 function occupiedOf(routes: Pt[][]): Occupied {
@@ -247,6 +256,12 @@ function sharedStubSegments(r: GuardedResult, atSource: boolean, atTarget: boole
 
 type Plan = {
   ortho: LoopEdge[]
+  /** §ER15 — the Curved and Straight connections with both ends present, in id
+   *  order, and each one's line (from the same port anchors the routes use):
+   *  not routed, but their labels take a free slot and every other label keeps
+   *  off their lines */
+  free: LoopEdge[]
+  lines: Map<string, Pt[]>
   byId: Map<string, LoopNode>
   boxes: Box[]
   /** parallel sets — unordered endpoint key, reversed pairs included (§ER3.7) */
@@ -351,7 +366,19 @@ function plan(nodes: LoopNode[], edges: LoopEdge[]): Plan {
       reserved.push({ edgeId: e.id, port: asSource ? srcKey(e) : tgtKey(e), stub: [port, branch], leg })
     }
   }
-  return { ortho, byId, boxes: nodes.map(boxOf), groups, portUse, fans, reserved }
+  const free: LoopEdge[] = []
+  const lines = new Map<string, Pt[]>()
+  for (const e of recordLabels ? [] : [...edges].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
+    if (isOrtho(e)) continue
+    const s = byId.get(e.source)
+    const t = byId.get(e.target)
+    if (!s || !t) continue
+    const sPos = handlePos(e.sourceHandle, Position.Right)
+    const tPos = handlePos(e.targetHandle, Position.Left)
+    free.push(e)
+    lines.set(e.id, freeLinePoints(handlePoint(s, sPos), sPos, handlePoint(t, tPos), tPos, isStraight(e)))
+  }
+  return { ortho, free, lines, byId, boxes: nodes.map(boxOf), groups, portUse, fans, reserved }
 }
 
 /** one edge, routed against the current layout and the given placed routes:
@@ -450,21 +477,23 @@ function sharedStubsOf(p: Plan, routes: ReadonlyMap<string, GuardedResult>): Pt[
   return out
 }
 
-/** the first free slot on the edge's own route: never on a shared port stub;
+/** the first free slot on the edge's own line: never on a shared port stub;
  *  then clear of every node box, every label already placed and every other
- *  line; failing that, clear of nodes and labels only; the midpoint last */
-function placeLabel(
+ *  line (routed, Curved or Straight); failing that, clear of nodes and labels
+ *  only; the midpoint last. Returns the slot's centre and its fraction. */
+function placeLabelOn(
   p: Plan,
   id: string,
-  r: GuardedResult,
+  points: Pt[],
+  mid: Pt,
   placed: Map<string, Box>,
   routes: ReadonlyMap<string, GuardedResult>,
   stubs: Pt[][],
-): Pt | null {
+): { c: Pt; f: number } | null {
   const size = labelSizes.get(id)
   if (!size) return null
   const nodes = p.boxes.map((b) => ({ ...b, x: b.x - LABEL_NODE_MARGIN, y: b.y - LABEL_NODE_MARGIN, w: b.w + 2 * LABEL_NODE_MARGIN, h: b.h + 2 * LABEL_NODE_MARGIN }))
-  const candidates = LABEL_SLOTS.map((f) => (f === 0.5 ? r.mid : pointAt(r.points, f)))
+  const candidates = LABEL_SLOTS.map((f) => ({ c: f === 0.5 ? mid : pointAt(points, f), f }))
   const offStub = (box: Box) => !stubs.some((s) => polyHits(s, box))
   const clear = (box: Box): boolean => {
     if (nodes.some((n) => hit(n, box))) return false
@@ -473,23 +502,45 @@ function placeLabel(
   }
   const offLines = (box: Box): boolean => {
     for (const [oid, o] of routes) if (oid !== id && polyHits(o.points, box)) return false
+    for (const [oid, l] of p.lines) if (oid !== id && polyHits(l, box)) return false
     return true
   }
-  for (const c of candidates) {
-    const box = labelBoxAt(c, size, id)
-    if (offStub(box) && clear(box) && offLines(box)) return c
+  for (const s of candidates) {
+    const box = labelBoxAt(s.c, size, id)
+    if (offStub(box) && clear(box) && offLines(box)) return s
   }
-  for (const c of candidates) {
-    const box = labelBoxAt(c, size, id)
-    if (offStub(box) && clear(box)) return c
+  for (const s of candidates) {
+    const box = labelBoxAt(s.c, size, id)
+    if (offStub(box) && clear(box)) return s
   }
-  for (const c of candidates) if (offStub(labelBoxAt(c, size, id))) return c
-  return r.mid
+  for (const s of candidates) if (offStub(labelBoxAt(s.c, size, id))) return s
+  return { c: mid, f: 0.5 }
+}
+
+/** a routed edge's label slot */
+function placeLabel(
+  p: Plan,
+  id: string,
+  r: GuardedResult,
+  placed: Map<string, Box>,
+  routes: ReadonlyMap<string, GuardedResult>,
+  stubs: Pt[][],
+): Pt | null {
+  return placeLabelOn(p, id, r.points, r.mid, placed, routes, stubs)?.c ?? null
+}
+
+/** a Curved or Straight edge's label slot, as a fraction of its line */
+function placeFreeLabel(p: Plan, e: LoopEdge, placed: Map<string, Box>, routes: ReadonlyMap<string, GuardedResult>, stubs: Pt[][]): FreeSlot | null {
+  const line = p.lines.get(e.id)!
+  const s = placeLabelOn(p, e.id, line, pointAt(line, 0.5), placed, routes, stubs)
+  if (!s) return null
+  placed.set(e.id, labelBoxAt(s.c, labelSizes.get(e.id)!, e.id))
+  return { f: s.f, at: s.c }
 }
 
 /** a full generation, as steps: each `yield` is a point where a sliced run may
  *  pause. Run to the end in one go it IS the synchronous generation. */
-function* fullSteps(nodes: LoopNode[], edges: LoopEdge[], out: { map?: Map<string, RoutedEdge> }): Generator<string> {
+function* fullSteps(nodes: LoopNode[], edges: LoopEdge[], out: GenOut): Generator<string> {
   const p = plan(nodes, edges)
   yield 'plan'
   const routes = new Map<string, GuardedResult>()
@@ -540,35 +591,46 @@ function* fullSteps(nodes: LoopNode[], edges: LoopEdge[], out: { map?: Map<strin
     }
     if (changed === 0) break
   }
+  // §ER15 — then the Curved and Straight labels, in id order, among every
+  // label and line already placed
+  const free = new Map<string, FreeSlot>()
+  for (const e of p.free) {
+    const s = placeFreeLabel(p, e, placed, routes, stubs)
+    if (s) free.set(e.id, s)
+    yield `free ${e.id}`
+  }
   const map = new Map<string, RoutedEdge>()
   for (const e of p.ortho) {
     const r = routes.get(e.id)
     if (r) map.set(e.id, { ...r, label: labels.get(e.id) ?? null })
   }
   out.map = map
+  out.free = free
 }
 
 /** the synchronous full generation */
-function rebuildFull(nodes: LoopNode[], edges: LoopEdge[]): Map<string, RoutedEdge> {
-  const out: { map?: Map<string, RoutedEdge> } = {}
+function rebuildFull(nodes: LoopNode[], edges: LoopEdge[]): Required<GenOut> {
+  const out: GenOut = {}
   for (const _ of fullSteps(nodes, edges, out)) {
     // run every step at once
   }
-  return out.map!
+  return { map: out.map!, free: out.free! }
 }
 
 /** each routed edge's own routing input, to tell which changed */
 const edgeKey = (e: LoopEdge): string =>
-  JSON.stringify([e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, (e.data as { waypoints?: unknown }).waypoints ?? null, labelSizes.get(e.id) ?? null])
+  JSON.stringify([e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, (e.data as { route?: unknown }).route ?? null, (e.data as { waypoints?: unknown }).waypoints ?? null, labelSizes.get(e.id) ?? null])
 
 /** the provisional map: the last full generation, with the routes this change
  *  touches routed again — an edge that is new or whose own input changed, one
  *  incident to a moved / resized node, one whose route now runs into a moved
  *  node — incident and new ones first, within `PROVISIONAL_MS` (a new edge left
  *  over is not drawn until the full generation commits; a moved one keeps its
- *  last route). Their labels take a free slot among the labels already placed.
- *  Never committed as a full generation. */
-function provisional(nodes: LoopNode[], edges: LoopEdge[], from: Base): Map<string, RoutedEdge> {
+ *  last route). Their labels take a free slot among the labels already placed;
+ *  then so do the labels of the Curved and Straight edges that are new, changed
+ *  or incident to a moved node (no routing: always within the budget). Never
+ *  committed as a full generation. */
+function provisional(nodes: LoopNode[], edges: LoopEdge[], from: Base): Required<GenOut> {
   const tStart = now()
   const p = plan(nodes, edges)
   const moved = new Set<string>()
@@ -597,6 +659,18 @@ function provisional(nodes: LoopNode[], edges: LoopEdge[], from: Base): Map<stri
     const s = labelSizes.get(id)
     if (r.label && s && !redo.has(id)) placed.set(id, labelBoxAt(r.label, s, id))
   }
+  const free = new Map<string, FreeSlot>()
+  const freeRedo: LoopEdge[] = []
+  for (const e of p.free) {
+    const s = from.free.get(e.id)
+    if (!s || from.keys.get(e.id) !== edgeKey(e) || moved.has(e.source) || moved.has(e.target)) {
+      freeRedo.push(e)
+      continue
+    }
+    free.set(e.id, s)
+    const size = labelSizes.get(e.id)
+    if (size) placed.set(e.id, labelBoxAt(s.at, size, e.id))
+  }
   const t0 = now()
   let longest = 0
   for (const e of [...first, ...then]) {
@@ -614,9 +688,13 @@ function provisional(nodes: LoopNode[], edges: LoopEdge[], from: Base): Map<stri
     if (c) placed.set(e.id, labelBoxAt(c, labelSizes.get(e.id)!, e.id))
     out.set(e.id, { ...r, label: c })
   }
+  for (const e of freeRedo) {
+    const s = placeFreeLabel(p, e, placed, out, [])
+    if (s) free.set(e.id, s)
+  }
   lastProvisional.ms = +(now() - tStart).toFixed(2)
   provisionalPeakMs = Math.max(provisionalPeakMs, lastProvisional.ms)
-  return out
+  return { map: out, free }
 }
 
 const now = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now())
@@ -717,7 +795,8 @@ export function routeDiagnostics(): Report & { provisional: typeof lastProvision
  *  string (an id such as `a:100:10:80:60;b` would collide under a joined key).
  *  Non-layout fields — `selected`, `dragging`, `data.label`, values, classes —
  *  are deliberately NOT part of it. issue #344 — the label sizes of routed
- *  edges are part of it. */
+ *  edges are part of it; §ER15 — so is every edge's shape and label size, as
+ *  Curved and Straight labels are placed too. */
 export function layoutSignature(nodes: LoopNode[], edges: LoopEdge[]): string {
   const ns: (string | number | boolean)[][] = []
   for (const n of nodes) {
@@ -726,10 +805,10 @@ export function layoutSignature(nodes: LoopNode[], edges: LoopEdge[]): string {
   }
   const es: unknown[][] = []
   for (const e of edges) {
-    if (!isOrtho(e)) continue
+    const shape = isOrtho(e) ? 'o' : isStraight(e) ? 's' : 'c'
     const wp = (e.data as { waypoints?: unknown } | undefined)?.waypoints
     const ls = labelSizes.get(e.id)
-    es.push([e.id, e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, Array.isArray(wp) ? wp : null, ls ? [ls.w, ls.h] : null])
+    es.push([e.id, shape, e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, shape === 'o' && Array.isArray(wp) ? wp : null, ls ? [ls.w, ls.h] : null])
   }
   return JSON.stringify([ns, es])
 }
@@ -738,18 +817,20 @@ export function layoutSignature(nodes: LoopNode[], edges: LoopEdge[]): string {
 type Base = {
   sig: string
   map: Map<string, RoutedEdge>
+  free: Map<string, FreeSlot>
   geo: Map<string, { x: number; y: number; w: number; h: number }>
   keys: Map<string, string>
 }
-const baseOf = (nodes: LoopNode[], edges: LoopEdge[], sig: string, map: Map<string, RoutedEdge>): Base => ({
+const baseOf = (nodes: LoopNode[], edges: LoopEdge[], sig: string, gen: Required<GenOut>): Base => ({
   sig,
-  map,
+  map: gen.map,
+  free: gen.free,
   geo: new Map(nodes.map((n) => [n.id, { ...n.position, ...sizeOf(n) }])),
-  keys: new Map(edges.filter(isOrtho).map((e) => [e.id, edgeKey(e)])),
+  keys: new Map(edges.map((e) => [e.id, edgeKey(e)])),
 })
 
 /** the map shown now, for the signature it answers */
-let committed: { sig: string; map: ReadonlyMap<string, RoutedEdge> } | null = null
+let committed: { sig: string; map: ReadonlyMap<string, RoutedEdge>; free: ReadonlyMap<string, FreeSlot> } | null = null
 /** the last FULL generation (exact): what a provisional map starts from */
 let base: Base | null = null
 let lastInput: { nodes: LoopNode[]; edges: LoopEdge[] } | null = null
@@ -773,7 +854,7 @@ function taskScheduler(): Scheduler | null {
 }
 let scheduler: Scheduler | null = taskScheduler()
 
-let job: { token: number; sig: string; nodes: LoopNode[]; edges: LoopEdge[]; steps: Generator<string>; out: { map?: Map<string, RoutedEdge> }; slices: number; maxSlice: number; lastStep: number; maxStep: number; slowest: string } | null = null
+let job: { token: number; sig: string; nodes: LoopNode[]; edges: LoopEdge[]; steps: Generator<string>; out: GenOut; slices: number; maxSlice: number; lastStep: number; maxStep: number; slowest: string } | null = null
 let jobToken = 0
 
 function cancelJob(): void {
@@ -785,7 +866,7 @@ function cancelJob(): void {
 function startFull(nodes: LoopNode[], edges: LoopEdge[], sig: string): void {
   cancelJob()
   if (!scheduler) return
-  const out: { map?: Map<string, RoutedEdge> } = {}
+  const out: GenOut = {}
   const token = ++jobToken
   job = { token, sig, nodes, edges, steps: fullSteps(nodes, edges, out), out, slices: 0, maxSlice: 0, lastStep: 0, maxStep: 0, slowest: '' }
   const runSlice = () => {
@@ -819,7 +900,7 @@ function startFull(nodes: LoopNode[], edges: LoopEdge[], sig: string): void {
     job = null
     // only the generation for the layout on screen is committed
     if (committed && committed.sig === j.sig && !live) {
-      commitFull(j.nodes, j.edges, j.sig, j.out.map!)
+      commitFull(j.nodes, j.edges, j.sig, { map: j.out.map!, free: j.out.free! })
       bump()
     }
     j.slices++
@@ -834,59 +915,215 @@ function startFull(nodes: LoopNode[], edges: LoopEdge[], sig: string): void {
 const generations = new Map<string, Base>()
 const GENERATIONS_KEPT = 4
 
-function commitFull(nodes: LoopNode[], edges: LoopEdge[], sig: string, map: Map<string, RoutedEdge>): void {
-  base = baseOf(nodes, edges, sig, map)
-  committed = { sig, map }
+function commitFull(nodes: LoopNode[], edges: LoopEdge[], sig: string, gen: Required<GenOut>): void {
+  base = baseOf(nodes, edges, sig, gen)
+  committed = { sig, map: gen.map, free: gen.free }
   genCount++
-  report(nodes, edges, map)
+  report(nodes, edges, gen.map)
   generations.delete(sig)
   generations.set(sig, base)
   while (generations.size > GENERATIONS_KEPT) generations.delete(generations.keys().next().value!)
   setBusy(false)
 }
 
-/** The route map to draw for the current routing input — shared by every
- *  `LoopEdge` in the render. */
-export function currentRouteMap(nodes: LoopNode[], edges: LoopEdge[]): ReadonlyMap<string, RoutedEdge> {
+/** what is waiting: a routed edge with no route yet, or a Curved / Straight
+ *  edge whose label size is known but has no slot yet */
+function waiting(nodes: LoopNode[], edges: LoopEdge[], gen: { map: ReadonlyMap<string, RoutedEdge>; free: ReadonlyMap<string, FreeSlot> }): boolean {
+  const ids = new Set(nodes.map((n) => n.id))
+  for (const e of edges) {
+    if (isOrtho(e)) {
+      if (!gen.map.has(e.id)) return true
+    } else if (!recordLabels && ids.has(e.source) && ids.has(e.target) && labelSizes.has(e.id) && !gen.free.has(e.id)) return true
+  }
+  return false
+}
+
+const NO_SLOTS: ReadonlyMap<string, FreeSlot> = new Map()
+
+/** The generation to draw for the current routing input — the routes and the
+ *  Curved / Straight label slots — shared by every `LoopEdge` in the render. */
+export function currentRouteGeneration(nodes: LoopNode[], edges: LoopEdge[]): { map: ReadonlyMap<string, RoutedEdge>; free: ReadonlyMap<string, FreeSlot> } {
   const rev = useRouteInputs.getState().rev
-  if (committed && idKey && idKey.nodes === nodes && idKey.edges === edges && idKey.rev === rev) return committed.map
+  if (committed && idKey && idKey.nodes === nodes && idKey.edges === edges && idKey.rev === rev) return committed
   lastInput = { nodes, edges }
-  const sig = layoutSignature(nodes, edges) + `|v${ROUTE_MAP_VERSION}`
+  const sig = layoutSignature(nodes, edges) + `|v${ROUTE_MAP_VERSION}${recordLabels ? '|record' : ''}`
   idKey = { nodes, edges, rev }
-  if (committed && committed.sig === sig) return committed.map // same layout, new identities
+  if (committed && committed.sig === sig) return committed // same layout, new identities
   const known = generations.get(sig)
   if (known) {
     // a full generation of exactly this layout is kept: show it at once
     cancelJob()
     base = known
-    committed = { sig, map: known.map }
+    committed = { sig, map: known.map, free: known.free }
     report(nodes, edges, known.map)
     setBusy(false)
-    return known.map
+    return committed
   }
   if (!scheduler) {
     // tests and the offline judge: the full generation at once
     cancelJob()
-    const map = rebuildFull(nodes, edges)
-    commitFull(nodes, edges, sig, map)
-    return map
+    commitFull(nodes, edges, sig, rebuildFull(nodes, edges))
+    return committed!
   }
   const total = edges.filter(isOrtho).length
   // a cold start, or another document (most routed edges are new): nothing
-  // routed is drawn until the sliced full generation commits
+  // routed, and no Curved / Straight label, is drawn until the sliced full
+  // generation commits
   const fresh = base ? edges.filter((e) => isOrtho(e) && !base!.map.has(e.id)).length : total
   if (!base || fresh > Math.max(8, total / 2)) {
-    const map = new Map<string, RoutedEdge>()
-    committed = { sig, map }
-    setBusy(total > 0)
+    committed = { sig, map: new Map(), free: NO_SLOTS }
+    setBusy(waiting(nodes, edges, committed))
     if (!live) startFull(nodes, edges, sig)
-    return map
+    return committed
   }
-  const map = provisional(nodes, edges, base)
-  committed = { sig, map }
-  setBusy(map.size < total)
+  const gen = provisional(nodes, edges, base)
+  committed = { sig, ...gen }
+  setBusy(waiting(nodes, edges, committed))
   if (!live) startFull(nodes, edges, sig)
-  return map
+  return committed
+}
+
+/** the routes of the current generation (see `currentRouteGeneration`) */
+export function currentRouteMap(nodes: LoopNode[], edges: LoopEdge[]): ReadonlyMap<string, RoutedEdge> {
+  return currentRouteGeneration(nodes, edges).map
+}
+
+// ── bend-point editing (issue #344 step 3, docs/edge-routing.md §ER16) ─────
+
+/** how close to a port stub a bend point may not be, flow px */
+export const BEND_STUB_TOL = 8
+
+/** why a bend point of `edgeId` cannot be at `p`: inside a node, or on one of
+ *  the connection's own port stubs (the stretch from a port to `ROUTE_STUB`
+ *  past its node's side, which the router owns); null when it can. A refused
+ *  edit is undone, never adjusted. */
+export function bendRejection(nodes: LoopNode[], edges: LoopEdge[], edgeId: string, p: Pt): 'node' | 'stub' | null {
+  for (const n of nodes) {
+    const b = boxOf(n)
+    if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) return 'node'
+  }
+  const e = edges.find((x) => x.id === edgeId)
+  if (!e) return null
+  const byId = new Map(nodes.map((n) => [n.id, n]))
+  for (const asSource of [true, false]) {
+    const n = byId.get(asSource ? e.source : e.target)
+    if (!n) continue
+    const pos = asSource ? handlePos(e.sourceHandle, Position.Right) : handlePos(e.targetHandle, Position.Left)
+    const port = handlePoint(n, pos)
+    const nrm = pos === Position.Left ? { x: -1, y: 0 } : pos === Position.Right ? { x: 1, y: 0 } : pos === Position.Top ? { x: 0, y: -1 } : { x: 0, y: 1 }
+    const b = boxOf(n)
+    const side = nrm.x > 0 ? b.x + b.w - port.x : nrm.x < 0 ? port.x - b.x : nrm.y > 0 ? b.y + b.h - port.y : port.y - b.y
+    const len = Math.max(0, side) + ROUTE_STUB
+    const end = { x: port.x + nrm.x * len, y: port.y + nrm.y * len }
+    if (distToSegment(p, port, end) < BEND_STUB_TOL) return 'stub'
+  }
+  return null
+}
+
+function distToSegment(p: Pt, a: Pt, b: Pt): number {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const l2 = dx * dx + dy * dy
+  const t = l2 > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2)) : 0
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
+}
+
+/** where along a polyline the point nearest to `p` lies, as a length from its start */
+function lengthAt(pts: Pt[], p: Pt): number {
+  let best = Infinity
+  let at = 0
+  let acc = 0
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1]
+    const b = pts[i]
+    const seg = Math.hypot(b.x - a.x, b.y - a.y)
+    const d = distToSegment(p, a, b)
+    if (d < best) {
+      best = d
+      const dx = b.x - a.x
+      const dy = b.y - a.y
+      const t = seg > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (seg * seg))) : 0
+      at = acc + t * seg
+    }
+    acc += seg
+  }
+  return at
+}
+
+/** the point of segment a→b (axis-aligned) nearest to `p`, snapped to the grid
+ *  ALONG the segment and kept on its line ACROSS it, so a bend point added
+ *  there leaves the route where it is (a port row is off the grid: a full snap
+ *  would make the route jog). `free` (Alt) skips the snap. Null when no grid
+ *  line falls inside the segment. */
+function onSegment(a: Pt, b: Pt, p: Pt, free: boolean): Pt | null {
+  const horiz = Math.abs(a.y - b.y) <= Math.abs(a.x - b.x)
+  const lo = horiz ? Math.min(a.x, b.x) : Math.min(a.y, b.y)
+  const hi = horiz ? Math.max(a.x, b.x) : Math.max(a.y, b.y)
+  const want = Math.max(lo, Math.min(hi, horiz ? p.x : p.y))
+  let v = want
+  if (!free) {
+    v = Math.round(want / GRID) * GRID
+    if (v < lo || v > hi) v = v < lo ? Math.ceil(lo / GRID) * GRID : Math.floor(hi / GRID) * GRID
+    if (v < lo || v > hi) return null
+  }
+  return horiz ? { x: v, y: a.y } : { x: a.x, y: v }
+}
+
+/** where a click at `p` puts a new bend point: on the nearest segment of the
+ *  route, snapped along it (Alt: free); null when that segment holds no grid
+ *  line */
+export function bendAtClick(points: Pt[], p: Pt, free: boolean): Pt | null {
+  let best = -1
+  let bestD = Infinity
+  for (let i = 1; i < points.length; i++) {
+    const d = distToSegment(p, points[i - 1], points[i])
+    if (d < bestD) {
+      bestD = d
+      best = i
+    }
+  }
+  return best < 0 ? null : onSegment(points[best - 1], points[best], p, free)
+}
+
+/** §ER16.2 — the bend point Enter adds: the middle of the longest editable
+ *  segment of the route (between its two stub ends), snapped along it; equal
+ *  lengths go to the one nearer the route's start; a segment whose point would
+ *  be refused (`bendRejection`) gives way to the next. Null when none can take
+ *  one. Deterministic: lengths and order only. */
+export function keyboardBend(nodes: LoopNode[], edges: LoopEdge[], edgeId: string, route: GuardedResult): Pt | null {
+  const pts = route.points
+  const sStart = lengthAt(pts, route.stubs[1])
+  const sEnd = lengthAt(pts, route.stubs[2])
+  const spans: { a: Pt; b: Pt; len: number; at: number }[] = []
+  let acc = 0
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1]
+    const b = pts[i]
+    const seg = Math.hypot(b.x - a.x, b.y - a.y)
+    const s0 = Math.max(acc, sStart)
+    const s1 = Math.min(acc + seg, sEnd)
+    if (s1 - s0 > COORD_TOL && seg > 0) {
+      const at = (k: number) => ({ x: a.x + ((b.x - a.x) * (k - acc)) / seg, y: a.y + ((b.y - a.y) * (k - acc)) / seg })
+      spans.push({ a: at(s0), b: at(s1), len: s1 - s0, at: s0 })
+    }
+    acc += seg
+  }
+  spans.sort((p, q) => q.len - p.len || p.at - q.at)
+  for (const s of spans) {
+    const mid = { x: (s.a.x + s.b.x) / 2, y: (s.a.y + s.b.y) / 2 }
+    const p = onSegment(s.a, s.b, mid, false)
+    if (p && bendRejection(nodes, edges, edgeId, p) === null) return p
+  }
+  return null
+}
+const COORD_TOL = 1e-6
+
+/** the index a new bend point clicked at `p` takes among `waypoints`, for a
+ *  route drawn through `points`: the span of the route the click lands on (the
+ *  route passes through its bend points in order) */
+export function bendInsertIndex(points: Pt[], waypoints: Pt[], p: Pt): number {
+  const s = lengthAt(points, p)
+  return waypoints.filter((w) => lengthAt(points, w) < s).length
 }
 
 /** test hook — how many FULL generations have been committed. */
@@ -897,7 +1134,11 @@ export function __routeGenCount(): number {
  *  (the cache, the job and the diagnostics are untouched): what a committed
  *  sliced generation must equal */
 export function __syncFullGeneration(nodes: LoopNode[], edges: LoopEdge[]): Map<string, RoutedEdge> {
-  return rebuildFull(nodes, edges)
+  return rebuildFull(nodes, edges).map
+}
+/** test hook — the synchronous Curved / Straight label slots for this input */
+export function __syncFreeSlots(nodes: LoopNode[], edges: LoopEdge[]): Map<string, FreeSlot> {
+  return rebuildFull(nodes, edges).free
 }
 /** test hook — replace the slice scheduler (null = synchronous) */
 export function __setRouteScheduler(s: Scheduler | null): void {
@@ -915,6 +1156,7 @@ export function __resetRouteCache(): void {
   genCount = 0
   labelSizes.clear()
   live = false
+  recordLabels = false
   warned.clear()
   lastProvisional = null
   lastJob = { slices: 0, maxSliceMs: 0, maxStepMs: 0, slowestStep: '', cancelled: 0 }

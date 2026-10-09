@@ -124,6 +124,8 @@ const canvas = {
   'canvas.activity.on': 'Sovrapposizione attività attiva — fai clic per nascondere il colore',
   'canvas.activity.rowLabel': 'Sovrapposizione attività',
   'canvas.route.invalidFlag': 'percorso non valido — un punto del percorso è dentro un nodo',
+  'canvas.route.bend': 'Angolo {n} di {total}',
+  'canvas.route.noBendRoom': 'Nessun tratto di questo collegamento ha spazio per un angolo: non è stato modificato nulla.',
   'canvas.edgeLabel.clamp': 'limite',
   'canvas.edgeLabel.clamp.title': 'rimosso dall’unico limite di fine Fase 0 del Serbatoio di destinazione',
   'canvas.edgeLabel.blocked': 'bloccato',

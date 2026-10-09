@@ -99,6 +99,11 @@ describe('es-ES — the region audit, as a contract', () => {
         'tour.desktop.pieces.body',
         'hint.importFirstCommit.body',
         'timeline.series.showAllHint',
+        // issue #344 step 3 — the Add bend button, and its hint (`pulse
+        // Intro`, `añadir`); the keyboard notice says `no se ha cambiado`
+        'inspector.edge.route.addBend',
+        'inspector.edge.route.addBendHint',
+        'canvas.route.noBendRoom',
         // issue #297: the storage gate and the Storage and privacy area -
         // `ordenador` not `computadora`, `Ajustes` not `Configuración`, and the
         // `usted` register (`Puede`, `ha visto`, `Se ha eliminado`)

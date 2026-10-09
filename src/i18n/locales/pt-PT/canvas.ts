@@ -130,6 +130,8 @@ const canvas = {
   'canvas.activity.on': 'Camada de atividade ativada — clique para ocultar o realce',
   'canvas.activity.rowLabel': 'Camada de atividade',
   'canvas.route.invalidFlag': 'rota inválida — um ponto da rota está dentro de um nó',
+  'canvas.route.bend': 'Dobra {n} de {total}',
+  'canvas.route.noBendRoom': 'Nenhum trecho desta ligação tem espaço para uma dobra; nada foi alterado.',
   'canvas.edgeLabel.clamp': 'limite',
   'canvas.edgeLabel.clamp.title': 'removido pelo único limite de fim da Fase 0 do Reservatório de destino',
   'canvas.edgeLabel.blocked': 'bloqueado',

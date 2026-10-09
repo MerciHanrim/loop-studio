@@ -57,7 +57,7 @@ The Controls rail's **Tidy to grid** re-places the current document by the DL2.2
 - DL3.4 Arrow keys move a node or frame by one grid step (16 px), Shift + arrow by four (64 px), landing on the grid; still one undo entry per held gesture (§LGR6.7).
 - DL3.5 An off-grid position in a current document stays valid and is drawn as it is.
 
-## DL4. Connection shapes and route editing (step 3 — decided, not yet built)
+## DL4. Connection shapes and route editing (step 3 — built; `SEMANTICS-R10.md`, `docs/edge-routing.md` §ER15–§ER16)
 
 - DL4.1 Shapes: **Auto orthogonal** (the C′ router) is the default for new and converted connections; **Curved** (today's Bézier) and **Straight** (a direct line) are choices; **Manual orthogonal** keeps the author's bend points.
 - DL4.2 Editing an automatic route by hand (adding, moving or removing a bend point) turns the connection into Manual orthogonal; **Reset to automatic** returns it to the C′ route.
@@ -66,3 +66,6 @@ The Controls rail's **Tidy to grid** re-places the current document by the DL2.2
 - DL4.5 The phone draws every shape and route but offers no route editing.
 - DL4.6 Bundled Templates use automatic routes; a manual bend point only where the router cannot resolve a case.
 - DL4.7 Out of scope for v0.25.0: editing Bézier control points, and line decorations beyond today's.
+- DL4.8 Stored form (Lumi, 2026-10-09): Curved = no `route` (never `"bezier"`); Straight = `route: "straight"`, no bend points; Auto = `route: "orthogonal"` with no bend points; Manual = `route: "orthogonal"` with 1 to 64. Manual is not a value of its own. An invalid value, or bend points beside Straight or Curved, is removed on reading and reported. A revision or proposal written before `loop-revision/10` keeps its bytes and its digest.
+- DL4.9 Curved and Straight give up obstacle avoidance by choice, but their labels still take a free slot on their own line, by the same rule as a routed label. A revision or proposal recorded before `loop-revision/10` keeps its Curved labels where they were recorded (the Bézier middle) until its first shape edit or Tidy to grid (Lumi, 2026-10-10).
+- DL4.10 A bend point is added with **Add bend** and then a click on the route (on the segment clicked) or **Enter** (the middle of the longest editable segment; the focus moves to the new handle); it is snapped along its segment, so adding it moves nothing. A drop inside a node or on the connection's own port stub puts the point back; it is never adjusted. Arrow keys move a selected bend point 16 px, Shift + arrow 64 px; Delete or Backspace removes it; Escape cancels the edit in progress or disarms Add bend.

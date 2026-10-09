@@ -304,7 +304,8 @@ export async function importGraph(page: Page, json: string, opts: { legacyLayout
  *  drawn only when their first sliced generation commits: wait until no
  *  generation is pending and every routed connection whose two ends exist has
  *  its route (a spec reading paths, labels or the route map right after a load
- *  must call this, or `importGraph`, which does) */
+ *  must call this, or `importGraph`, which does). §ER15 — and until no Curved
+ *  or Straight label is waiting for its slot (`busy`). */
 export async function routesSettled(page: Page): Promise<void> {
   // two frames first: a change that just landed (a load, a locale's new label
   // sizes) has had its render, so a job it starts is already pending
@@ -316,7 +317,7 @@ export async function routesSettled(page: Page): Promise<void> {
     const routed = g.edges.filter(
       (e: { source: string; target: string; data?: { route?: string } }) => e.data?.route === 'orthogonal' && ids.has(e.source) && ids.has(e.target),
     ).length
-    return !l.routeMap.pending() && l.routeMap.all().size === routed
+    return !l.routeMap.pending() && !l.routeMap.busy() && l.routeMap.all().size === routed
   })
 }
 

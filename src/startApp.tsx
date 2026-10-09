@@ -12,7 +12,7 @@ import { useProjectStore } from './store/projectStore'
 import { usePwaStore } from './store/pwaStore'
 import { useReviewStore } from './store/reviewStore'
 import * as revisionIO from './store/revisionIO'
-import { __resetProvisionalPeak, __resetRouteCache, __routeGenCount, __syncFullGeneration, currentRouteMap, routeDiagnostics } from './store/routeMap'
+import { __resetProvisionalPeak, __resetRouteCache, __routeGenCount, __syncFreeSlots, __syncFullGeneration, currentRouteGeneration, currentRouteMap, routeDiagnostics, setRecordLabels, useRouteInputs } from './store/routeMap'
 import * as shareLink from './store/shareLink'
 import { useDataImportStore } from './store/dataImportStore'
 import { useFilterStore } from './store/filterStore'
@@ -51,6 +51,11 @@ export async function startApp(): Promise<void> {
   // value means `system`. In a temporary session the port holds nothing, so
   // this is the system theme, and it also clears whatever the gate showed.
   applyStoredTheme()
+  // issue #344 step 3 (§ER15.1) — the route map follows the document's label
+  // rule; subscribed before the first render, so a document switch reaches it
+  // before any edge renders
+  setRecordLabels(useGraphStore.getState().recordLabels)
+  useGraphStore.subscribe((s) => setRecordLabels(s.recordLabels))
 
   // Dev-only store bridge for browser E2E (never in the production / portable
   // build — `import.meta.env.DEV` is statically false there and tree-shaken out).
@@ -104,6 +109,17 @@ export async function startApp(): Promise<void> {
           const g = useGraphStore.getState()
           return __syncFullGeneration(g.nodes, g.edges)
         },
+        // §ER15 — the Curved / Straight label slots on screen, the synchronous
+        // ones they must equal, and whether anything drawn is still waiting
+        free: () => {
+          const g = useGraphStore.getState()
+          return currentRouteGeneration(g.nodes, g.edges).free
+        },
+        syncFree: () => {
+          const g = useGraphStore.getState()
+          return __syncFreeSlots(g.nodes, g.edges)
+        },
+        busy: () => useRouteInputs.getState().busy,
       },
       // issue #332 — how many node row-fit measurements have run, so the e2e
       // can assert none runs per animation frame

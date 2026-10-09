@@ -106,6 +106,8 @@ const canvas = {
   'canvas.activity.on': 'Capa de actividad activada: haga clic para ocultar el resaltado',
   'canvas.activity.rowLabel': 'Capa de actividad',
   'canvas.route.invalidFlag': 'trazado inválido: un punto del trazado queda dentro de un nodo',
+  'canvas.route.bend': 'Codo {n} de {total}',
+  'canvas.route.noBendRoom': 'Ningún tramo de esta conexión tiene espacio para un codo; no se cambió nada.',
   'canvas.edgeLabel.clamp': 'recorte',
   'canvas.edgeLabel.clamp.title': 'retirado por el único recorte del Depósito de destino al final de la Fase 0',
   'canvas.edgeLabel.blocked': 'bloqueado',

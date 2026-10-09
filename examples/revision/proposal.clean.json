@@ -255,6 +255,7 @@
       "author": {
         "name": "Fixture"
       }
-    }
+    },
+    "semantics": "loop-revision/10"
   }
 }

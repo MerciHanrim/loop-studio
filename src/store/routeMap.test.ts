@@ -356,3 +356,141 @@ describe('currentRouteMap — the guarded generation (§ER14)', () => {
     expect(d.flagged.every((f) => f.routeClass === 'outer' || f.routeClass === 'blocked')).toBe(true)
   })
 })
+
+describe('currentRouteGeneration — Curved and Straight label slots (§ER15)', () => {
+  const LS = { w: 24, h: 18 }
+  /** s → t straight with a node `o` on the middle of the line; a → b curved
+   *  with `o2` on its middle; plus one routed edge r → u */
+  const scene = () => ({
+    nodes: [node('s', 0, 0), node('t', 400, 0), node('o', 230, 0), node('a', 0, 240), node('b', 400, 240), node('o2', 230, 240), node('r', 0, 480), node('u', 400, 480)],
+    edges: [edge('st', 's', 't', { route: 'straight' }), edge('cv', 'a', 'b', { route: undefined }), edge('or', 'r', 'u')],
+  })
+  const boxes = (nodes: LoopNode[]) => nodes.map((n) => ({ id: n.id, x: n.position.x - 2, y: n.position.y - 2, w: 134, h: 60 }))
+  const hits = (c: { x: number; y: number }, b: { x: number; y: number; w: number; h: number }) =>
+    c.x - LS.w / 2 < b.x + b.w && b.x < c.x + LS.w / 2 && c.y - LS.h / 2 < b.y + b.h && b.y < c.y + LS.h / 2
+
+  it('a label takes the first slot on its own line that is clear of every node, not the middle', async () => {
+    const { currentRouteGeneration, setRouteLabelSize } = await import('./routeMap')
+    const { nodes, edges } = scene()
+    for (const e of edges) setRouteLabelSize(e.id, LS.w, LS.h)
+    const g = currentRouteGeneration(nodes, edges)
+    expect([...g.free.keys()].sort()).toEqual(['cv', 'st'])
+    for (const id of ['st', 'cv']) {
+      const s = g.free.get(id)!
+      expect(s.f, id).not.toBe(0.5)
+      for (const b of boxes(nodes)) expect(hits(s.at, b), `${id} label on ${b.id}`).toBe(false)
+    }
+    // both lines are horizontal here (ports on one row), so the slot is on the row
+    expect(g.free.get('st')!.at.y).toBe(28)
+    expect(g.free.get('cv')!.at.y).toBeCloseTo(268, 6)
+  })
+
+  it('a label whose size is not known yet has no slot', async () => {
+    const { currentRouteGeneration, setRouteLabelSize } = await import('./routeMap')
+    const { nodes, edges } = scene()
+    setRouteLabelSize('st', LS.w, LS.h)
+    expect([...currentRouteGeneration(nodes, edges).free.keys()]).toEqual(['st'])
+  })
+
+  it('Curved and Straight connections never change a route', async () => {
+    const { currentRouteGeneration } = await import('./routeMap')
+    const { nodes, edges } = scene()
+    const withFree = routes(currentRouteGeneration(nodes, edges).map)
+    __resetRouteCache()
+    expect(routes(currentRouteGeneration(nodes, edges.filter((e) => e.id === 'or')).map)).toEqual(withFree)
+  })
+
+  it('the sliced generation gives the synchronous slots; a moved node re-places only the labels of its own edges until the drop', async () => {
+    const { currentRouteGeneration, setRouteLabelSize, __setRouteScheduler, beginLiveLayout, endLiveLayout } = await import('./routeMap')
+    const q: (() => void)[] = []
+    __setRouteScheduler((fn) => void q.push(fn))
+    try {
+      const { nodes, edges } = scene()
+      for (const e of edges) setRouteLabelSize(e.id, LS.w, LS.h)
+      expect(currentRouteGeneration(nodes, edges).free.size, 'no slot before the first generation commits').toBe(0)
+      while (q.length) q.shift()!()
+      const sliced = currentRouteGeneration(nodes, edges)
+      beginLiveLayout()
+      const moved = nodes.map((n) => (n.id === 's' ? { ...n, position: { x: 0, y: 16 } } : n))
+      const during = currentRouteGeneration(moved, edges)
+      expect(during.free.get('cv'), 'an edge the move does not touch keeps its slot').toBe(sliced.free.get('cv'))
+      expect(during.free.get('st')).not.toBe(sliced.free.get('st'))
+      endLiveLayout()
+      while (q.length) q.shift()!()
+      const dropped = currentRouteGeneration(moved, edges)
+      __setRouteScheduler(null)
+      __resetRouteCache()
+      for (const e of edges) setRouteLabelSize(e.id, LS.w, LS.h)
+      expect([...dropped.free]).toEqual([...currentRouteGeneration(moved, edges).free])
+      __resetRouteCache()
+      for (const e of edges) setRouteLabelSize(e.id, LS.w, LS.h)
+      expect([...sliced.free]).toEqual([...currentRouteGeneration(nodes, edges).free])
+    } finally {
+      __setRouteScheduler(null)
+    }
+  })
+})
+
+describe('bend points from the keyboard and on the line (§ER16.2)', () => {
+  const two = () => ({ nodes: [node('a', 0, 0), node('b', 480, 192)], edges: [edge('e', 'a', 'b')] })
+
+  it('Enter takes the middle of the longest editable segment, snapped along it and kept on its line', async () => {
+    const { keyboardBend } = await import('./routeMap')
+    const { nodes, edges } = two()
+    const r = currentRouteMap(nodes, edges).get('e')!
+    const p = keyboardBend(nodes, edges, 'e', r)!
+    expect(p).not.toBeNull()
+    // on the route: one coordinate is a segment's own line, the other on the grid
+    const onLine = r.points.some((a, i) => {
+      const b = r.points[i + 1]
+      return !!b && ((a.x === b.x && p.x === a.x && p.y % 16 === 0) || (a.y === b.y && p.y === a.y && p.x % 16 === 0))
+    })
+    expect(onLine).toBe(true)
+    // deterministic
+    expect(keyboardBend(nodes, edges, 'e', r)).toEqual(p)
+  })
+
+  it('equal segments go to the one nearer the start; a refused point gives way to the next segment', async () => {
+    const { keyboardBend } = await import('./routeMap')
+    // a symmetric Z: two equal horizontal legs; the first one wins
+    const { nodes, edges } = { nodes: [node('a', 0, 0), node('b', 448, 320)], edges: [edge('e', 'a', 'b')] }
+    const r = currentRouteMap(nodes, edges).get('e')!
+    const p = keyboardBend(nodes, edges, 'e', r)!
+    expect(p).not.toBeNull()
+    // a node over that point refuses it: another segment is used
+    const blocked = [...nodes, node('x', p.x - 20, p.y - 20, { width: 40, height: 40, measured: { width: 40, height: 40 } })]
+    __resetRouteCache()
+    const r2 = currentRouteMap(blocked, edges).get('e')!
+    const q = keyboardBend(blocked, edges, 'e', r2)
+    if (q) expect(q).not.toEqual(p)
+  })
+
+  it('a click puts the bend on the nearest segment, snapped along it (Alt: exactly at the click)', async () => {
+    const { bendAtClick } = await import('./routeMap')
+    const pts = [{ x: 0, y: 28 }, { x: 200, y: 28 }, { x: 200, y: 300 }]
+    expect(bendAtClick(pts, { x: 75, y: 33 }, false)).toEqual({ x: 80, y: 28 })
+    expect(bendAtClick(pts, { x: 75, y: 33 }, true)).toEqual({ x: 75, y: 28 })
+    expect(bendAtClick(pts, { x: 205, y: 151 }, false)).toEqual({ x: 200, y: 144 })
+    // a segment with no grid line inside it takes no snapped bend
+    expect(bendAtClick([{ x: 1, y: 28 }, { x: 15, y: 28 }], { x: 8, y: 28 }, false)).toBeNull()
+  })
+})
+
+describe('the record label rule (§ER15.1)', () => {
+  it('a record places no Curved / Straight label, and its routed labels are the ones without them', async () => {
+    const { currentRouteGeneration, setRecordLabels, setRouteLabelSize } = await import('./routeMap')
+    const nodes = [node('s', 0, 0), node('t', 400, 0), node('mid', 200, 0), node('r', 0, 240), node('u', 400, 240)]
+    const edges = [edge('cv', 's', 't', { route: undefined }), edge('or', 'r', 'u')]
+    for (const e of edges) setRouteLabelSize(e.id, 24, 18)
+    setRecordLabels(true)
+    const rec = currentRouteGeneration(nodes, edges)
+    expect(rec.free.size).toBe(0)
+    const recRoutes = [...rec.map].map(([id, x]) => [id, x.d, x.label])
+    __resetRouteCache()
+    for (const e of edges) setRouteLabelSize(e.id, 24, 18)
+    setRecordLabels(true)
+    expect([...currentRouteGeneration(nodes, edges.filter((e) => e.id === 'or')).map].map(([id, x]) => [id, x.d, x.label])).toEqual(recRoutes)
+    setRecordLabels(false)
+    expect(currentRouteGeneration(nodes, edges).free.has('cv'), 'the current rule places it').toBe(true)
+  })
+})

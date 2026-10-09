@@ -119,6 +119,9 @@ export async function importFile(
      *  revision: its digest covers the positions, so a re-placement would make
      *  the file differ from its own revision the moment it opens. */
     keepLayout?: boolean
+    /** issue #344 step 3 — the file is a revision recorded before
+     *  `loop-revision/10`: its Curved labels keep their recorded place */
+    recordLabels?: boolean
   } = {},
 ): Promise<ImportOutcome> {
   const parsed = deserialize(text) // throws on a bad graph, as today
@@ -140,6 +143,7 @@ export async function importFile(
       canvasLocked: parsed.recommendedRunConfig?.canvasLocked === true,
       // issue #344 — a legacy layout is re-placed once (never a revision's)
       layoutVersion: opts.keepLayout ? undefined : parsed.layoutVersion,
+      recordLabels: opts.recordLabels === true,
       modelVersion,
       frames: parsed.frames,
       dataImports: parsed.dataImports,

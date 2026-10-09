@@ -847,3 +847,112 @@ Lumi, 2026-10-09: no pause at the drop, no long main-thread task.
   is replaced by the ladder, the outer corridor and `blocked`.
 - ER-INV-6 Bézier parity still holds for `route` absent.
 - ER-INV-3 holds at rest; during a live gesture the map is incremental by design.
+
+## ER15. Curved and Straight connections (issue #344 step 3, v0.25.0)
+
+`SEMANTICS-R10.md` adds `route: "straight"`. The four shapes and their stored
+form are in §R10-0; `docs/diagram-layout.md` §DL4 is the product rule.
+
+- **Straight** is drawn as one straight segment between the two port anchors
+  React Flow gives the edge (`M sx,sy L tx,ty`). **Curved** is unchanged: React
+  Flow's Bézier, byte for byte (ER-INV-6).
+- Neither is routed: the user chose to give up obstacle avoidance. A Curved or
+  Straight connection never changes any route (the router does not see it).
+- **Their labels are placed**, not left at the middle. The route map samples
+  each line from its own port anchors (`freeLine.ts`: the straight segment, or
+  the Bézier with React Flow's control points, 24 segments) and gives the label
+  the first slot of `LABEL_SLOTS` that is clear of every node, every label
+  already placed and every other line (routed, Curved or Straight); failing
+  that, clear of nodes and labels; the middle last — the same rule as a routed
+  label (§ER14.3).
+- Order: the routed labels first, exactly as before (they also keep off Curved
+  and Straight lines), then the Curved and Straight labels in id order. A
+  document with only orthogonal connections gets a byte-identical generation.
+- A slot is stored as a fraction of the line's length; `LoopEdge` puts the
+  label at that fraction of the line it draws, so the label sits on the drawn
+  curve even where React Flow's anchors differ from the map's by a pixel.
+- A label whose slot is not known yet (its size not measured, or the first
+  generation of a document still running) is rendered hidden and measured,
+  never shown in a temporary place; the canvas is `aria-busy` while a measured
+  label waits (§ER14.5). The provisional map re-places only the labels of the
+  Curved and Straight edges that are new, changed or incident to a moved node.
+
+### ER15.1 Records keep their recorded label places (Lumi, 2026-10-10)
+
+- A revision or proposal whose header declares semantics before
+  `loop-revision/10` (no `semantics` key, or an earlier one — `SEMANTICS-R10.md`
+  §R10-6; the edges are never inspected for this) opens with `recordLabels`:
+  its Curved labels sit at the
+  Bézier middle, where they were when it was recorded, and the route map places
+  no Curved / Straight label and keeps no label off their lines — so the routed
+  edges get the generation they had before step 3. A record's Review, which is
+  drawn on that same canvas, keeps its visual reference too.
+- Ordinary documents, Templates, share links and `/10` records use the free
+  slots of §ER15.
+- The first shape or bend-point edit, or Tidy to grid (even on a record
+  already on the grid), ends the rule for that document, inside the same undo
+  entry: undoing it brings the record's label places back.
+- The autosaved Project header carries the rule as `labelLayoutVersion` (0 the
+  record's, 1 current; absent in an older header reads as 0), so a reload
+  restores it. An ordinary document has no Project header and follows the
+  layout migration contract; `layoutVersion` means the layout migration only.
+
+## ER16. Shapes and bend points in the editor (issue #344 step 3, v0.25.0)
+
+### ER16.1 The Inspector
+
+- **Route**: Orthogonal / Curved / Straight. Under Orthogonal it says
+  *Automatic route* or, with bend points, *Manual route*.
+- **Add bend** (a toggle) and, for a Manual route, **Reset to automatic**
+  (keeps `orthogonal`, drops every bend point).
+- Switching to Curved or Straight drops the bend points (R10-INV-3). Changing a
+  connection's kind (resource / state) keeps its shape and bend points.
+- Under the edit lock the select and the buttons are disabled by the
+  Inspector's fieldset; on the phone the select is read-only (the sheet's
+  fieldset) and the bend tools are not rendered at all.
+
+### ER16.2 Editing on the canvas
+
+- **Add bend**: armed for the selected connection. The next click on its line
+  inserts one bend point on the segment clicked (`bendAtClick`), snapped to
+  the 16 px grid ALONG that segment and kept on its line across it (Alt: at
+  the click) — so adding a bend moves nothing; a port row is off the grid and
+  a full snap would make the route jog. **Enter** inserts one in the middle of
+  the longest editable segment (between the two stub ends; equal lengths: the
+  one nearer the start; a refused point gives way to the next segment —
+  `keyboardBend`) and moves the focus to its handle. Either goes into the
+  span it lies on (`bendInsertIndex`), is one undo entry, makes an Auto route
+  Manual, and disarms. When no segment can take one, Enter changes nothing,
+  stays armed, and says so in the canvas live region and under the hint.
+  Escape, another selection, the edit lock and the phone layout disarm it.
+- **Handles**: a selected Manual connection shows one handle per bend point
+  (`RouteBends.tsx`, a button named "Bend point n of total"). A pointer drag
+  moves it on the grid (Alt: free); the arrow keys move a focused handle one
+  grid step, Shift four; Delete or Backspace removes it (the last one removed
+  makes the route automatic again); Escape cancels the drag or key gesture in
+  progress and puts the point back.
+- **Refused**: a bend point dropped inside a node, or within `BEND_STUB_TOL`
+  (8 px) of the connection's own port stub (the stretch from a port to
+  `ROUTE_STUB` past its node's side), goes back where it was; nothing is
+  adjusted and nothing is recorded. While it is over such a place the handle
+  has a dashed border (the non-colour tell).
+- **Undo**: adding, moving (one drag, or one held key gesture), removing,
+  Reset and a shape change are one history entry each, never merged with the
+  next edit; undoing or redoing one does not reset the run (R10-INV-2, the
+  flow-colour rule). The Inspector says so in its restart note: the route,
+  the bend points and the colour are drawing only.
+- Changing a connection's kind (resource / state) keeps its shape and bend
+  points; nothing else about a kind change is different.
+- During a drag the route map shows provisional maps (`beginLiveLayout`); the
+  drop starts the full generation.
+
+### ER16.3 How a Manual route goes through its bend points
+
+The route is the guarded route (§ER14) through the stub ends and every bend
+point, in order, one search per span. A span after a bend point starts from
+the way the route arrived there: leaving along it is free, turning is one
+bend, and going straight back costs two — so a Manual route turns AT its bend
+point instead of running up to it and folding back over itself (which
+`simplify` would then hide, leaving the bend point off the drawn line). It is
+a cost, not a ban: a span that has no other way still finds one. Auto routes
+(one span) are unchanged.

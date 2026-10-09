@@ -255,7 +255,7 @@ test.describe('edge routing — Slice 1', () => {
     await expect(page.locator('.react-flow__edge[data-id="e_sg"] path.route-orthogonal')).toHaveCount(1)
     expect(await edgeData(page, 'e_sg')).toMatchObject({ route: 'orthogonal' })
 
-    await select.selectOption('bezier')
+    await select.selectOption('curved')
     await expect(page.locator('.react-flow__edge[data-id="e_sg"] path.route-orthogonal')).toHaveCount(0)
     const data = await edgeData(page, 'e_sg')
     expect(data.route).toBeUndefined()

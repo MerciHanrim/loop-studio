@@ -128,6 +128,8 @@ const canvas = {
   'canvas.activity.on': 'Etkinlik katmanı açık — rengi kaldırmak için tıklayın',
   'canvas.activity.rowLabel': 'Etkinlik katmanı',
   'canvas.route.invalidFlag': 'geçersiz güzergâh — bir güzergâh noktası düğümün içinde',
+  'canvas.route.bend': 'Kırılma noktası {n} / {total}',
+  'canvas.route.noBendRoom': 'Bu bağlantının hiçbir parçasında kırılma noktası için yer yok; hiçbir şey değiştirilmedi.',
   'canvas.edgeLabel.clamp': 'kırpıldı',
   'canvas.edgeLabel.clamp.title':
     'alıcı Havuzun Faz 0 sonundaki tek sınırlaması tarafından kaldırıldı',

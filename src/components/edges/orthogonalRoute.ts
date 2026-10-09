@@ -204,6 +204,11 @@ type SearchOpts = {
   firstDir?: number
   /** the only move allowed into the goal */
   lastDir?: number
+  /** issue #344 step 3 — the move the route ARRIVED at the start with (a bend
+   *  point between two spans): leaving along it is free, turning is one bend,
+   *  and going straight back counts as two (a U-turn), so a Manual route turns
+   *  at its bend point instead of folding back over itself */
+  arrive?: number
 }
 
 /** issue #344 step 2 — the extra cost per px of running along an unrelated
@@ -377,7 +382,10 @@ function* buildRouteSteps(a: Pt, goal: Pt, aPos: Position | null, bPos: Position
   const dir = new Int8Array(N) // 0 = none, 1 = horizontal, 2 = vertical
   const from = new Int32Array(N).fill(-1)
   g[startId] = 0
-  dir[startId] = aPos ? (isHoriz(aPos) ? 1 : 2) : 0
+  const arrive = opts?.arrive
+  dir[startId] = aPos ? (isHoriz(aPos) ? 1 : 2) : arrive != null ? (arrive < 2 ? 2 : 1) : 0
+  // the move straight back along `arrive` (0 up ↔ 1 down, 2 left ↔ 3 right)
+  const back = arrive == null ? -1 : arrive ^ 1
 
   // the heuristic measures to the RAW goal, not to its ruler line: `goal` is an
   // anchor (a stub end or a user waypoint) and is not quantised, so when it
@@ -500,7 +508,7 @@ function* buildRouteSteps(a: Pt, goal: Pt, aPos: Position | null, bPos: Position
       // apart, and a step between them counts as vertical for the bend test.
       const stepDir = near(X[ni], X[ci]) ? 2 : 1
       const prevDir = dir[cur]
-      const turn = prevDir !== 0 && prevDir !== stepDir ? 1 : 0
+      const turn = prevDir !== 0 && prevDir !== stepDir ? 1 : cur === startId && d === back ? 2 : 0
       const ng = g[cur] + Math.abs(X[ni] - X[ci]) + Math.abs(Y[nj] - Y[cj]) + trunk(ci, cj, ni, nj)
       const nbn = bends[cur] + turn
       const curG = g[nb]
@@ -728,6 +736,15 @@ export type GuardedResult = Omit<RouteResult, 'routeClass'> & {
 
 /** the move index of `buildRoute` (0 up, 1 down, 2 left, 3 right) for a unit vector */
 const moveOf = (v: Pt): number => (v.y < 0 ? 0 : v.y > 0 ? 1 : v.x < 0 ? 2 : 3)
+/** the last move of a polyline (its last two distinct points), or none */
+function arrivalOf(pts: Pt[]): number | undefined {
+  const b = pts[pts.length - 1]
+  for (let k = pts.length - 2; k >= 0; k--) {
+    const a = pts[k]
+    if (!near(a.x, b.x) || !near(a.y, b.y)) return moveOf({ x: near(a.x, b.x) ? 0 : b.x - a.x, y: near(a.y, b.y) ? 0 : b.y - a.y })
+  }
+  return undefined
+}
 /** the unit vector across a port's stub, toward its positive side */
 const across = (pos: Position): Pt => (isHoriz(pos) ? { x: 0, y: 1 } : { x: 1, y: 0 })
 /** the first move after a fan branch at the source */
@@ -887,6 +904,9 @@ export function* guardedRouteSteps(inp: GuardedInput): Generator<string, Guarded
           ...opts,
           firstDir: i === 0 ? dirs.firstDir : undefined,
           lastDir: i === anchors.length - 2 ? dirs.lastDir : undefined,
+          // issue #344 step 3 — a span after a bend point continues from the
+          // way the route arrived there
+          arrive: i === 0 ? undefined : arrivalOf(full),
         }
         const seg = yield* buildRouteSteps(anchors[i], anchors[i + 1], i === 0 ? inp.sourcePosition : null, i === anchors.length - 2 ? inp.targetPosition : null, rs, spanOpts)
         if (!seg) return null

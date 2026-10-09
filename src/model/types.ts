@@ -132,9 +132,10 @@ export type StateMode = 'label' | 'node' | 'trigger' | 'activator'
  *  `route` ⇒ Bézier (the writer never emits `"bezier"`). `waypoints` is
  *  meaningful only with `route: "orthogonal"`; each point is world-space finite,
  *  kept verbatim, in user order (§R3-1.1 / §R3-2). The computed path is NOT
- *  stored. */
+ *  stored. loop-revision/10 (SEMANTICS-R10.md) adds `"straight"`, a direct
+ *  line that takes no waypoints. */
 export type EdgeRoutingData = {
-  route?: 'orthogonal'
+  route?: 'orthogonal' | 'straight'
   waypoints?: { x: number; y: number }[]
 }
 

@@ -131,6 +131,8 @@ const canvas = {
   'canvas.activity.on': 'Слой активности включён — нажмите, чтобы убрать подсветку',
   'canvas.activity.rowLabel': 'Слой активности',
   'canvas.route.invalidFlag': 'некорректный маршрут — точка маршрута находится внутри узла',
+  'canvas.route.bend': 'Излом {n} из {total}',
+  'canvas.route.noBendRoom': 'Ни на одном отрезке этой связи нет места для излома; ничего не изменено.',
   'canvas.edgeLabel.clamp': 'обрезано',
   'canvas.edgeLabel.clamp.title':
     'убрано единственным ограничением принимающего Накопителя в конце фазы 0',

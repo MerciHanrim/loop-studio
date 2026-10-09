@@ -20,7 +20,8 @@ import { useIsMobile } from '../ui/media'
 import { blocksCanvasKey } from '../ui/keyboardTarget'
 import { createKeyGesture } from '../ui/keyGestureLifetime'
 import { dragSnap } from '../model/layout/dragSnap'
-import { beginLiveLayout, endLiveLayout, useRouteInputs } from '../store/routeMap'
+import { beginLiveLayout, bendAtClick, bendInsertIndex, bendRejection, currentRouteMap, endLiveLayout, keyboardBend, useRouteInputs } from '../store/routeMap'
+import { useRouteEditStore } from '../store/routeEditStore'
 import { GRID, snapNodePosition } from '../model/layout/grid'
 import { type MessageKey, useI18n, useLocaleDirection, useT } from '../i18n'
 import { moduleLabelOverlay } from '../i18n/moduleLabels'
@@ -613,6 +614,85 @@ export function Canvas() {
     return () => document.removeEventListener('keydown', onKey, true)
   }, [refInsertArmed, disarmRefInsert])
 
+  // issue #344 step 3 (docs/edge-routing.md §ER16) — "Add bend": armed from the
+  // Inspector for the selected connection. The next click on its line inserts
+  // one bend point on the segment clicked, snapped along it (Alt: free), into
+  // the span the click lands on; or Enter inserts one in the middle of the
+  // longest editable segment (`keyboardBend`) and moves the focus to its
+  // handle. Either is one undo entry and disarms. A point inside a node or on
+  // the connection's own port stub is refused (nothing changes; Enter says so
+  // through the canvas live region and stays armed). Escape disarms; so does
+  // another selection, the edit lock or the phone layout, which also drop the
+  // focused bend point.
+  const addBendFor = useRouteEditStore((s) => s.addBendFor)
+  const selectedEdgeId = useGraphStore((s) => s.selectedEdgeId)
+  useEffect(() => {
+    const r = useRouteEditStore.getState()
+    if (noEdit) {
+      r.clear()
+      return
+    }
+    if (r.addBendFor != null && r.addBendFor !== selectedEdgeId) r.armAddBend(null)
+    if (r.bend != null && r.bend.edgeId !== selectedEdgeId) r.selectBend(null)
+  }, [noEdit, selectedEdgeId])
+  /** insert bend point `p` of `edgeId` into the span it lies on: one entry */
+  const insertBend = useCallback((edgeId: string, p: { x: number; y: number }) => {
+    const r = useRouteEditStore.getState()
+    const g = useGraphStore.getState()
+    const edge = g.edges.find((x) => x.id === edgeId)
+    const route = currentRouteMap(g.nodes, g.edges).get(edgeId)
+    if (!edge || !route) return
+    const wps = (edge.data as { waypoints?: { x: number; y: number }[] } | undefined)?.waypoints ?? []
+    const i = bendInsertIndex(route.points, wps, p)
+    r.armAddBend(null) // one bend point per arming
+    g.setEdgeRouting(edgeId, { route: 'orthogonal', waypoints: [...wps.slice(0, i), p, ...wps.slice(i)] })
+    r.selectBend({ edgeId, index: i })
+  }, [])
+  useEffect(() => {
+    if (addBendFor == null) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        useRouteEditStore.getState().armAddBend(null)
+        return
+      }
+      if (e.key !== 'Enter' || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+      if (e.defaultPrevented || blocksCanvasKey(e.target)) return
+      // Enter would otherwise press the focused Add bend button (disarming)
+      e.preventDefault()
+      e.stopPropagation()
+      const g = useGraphStore.getState()
+      const route = currentRouteMap(g.nodes, g.edges).get(addBendFor)
+      const p = route ? keyboardBend(g.nodes, g.edges, addBendFor, route) : null
+      if (p) {
+        insertBend(addBendFor, p)
+        return
+      }
+      const st = rfStore.getState() as unknown as { ariaLiveMessage?: string }
+      if ('ariaLiveMessage' in st) rfStore.setState({ ariaLiveMessage: t('canvas.route.noBendRoom') } as never)
+      useRouteEditStore.getState().setNotice('canvas.route.noBendRoom')
+    }
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
+  }, [addBendFor, insertBend, rfStore, t])
+  const onAddBendClick = useCallback(
+    (e: React.MouseEvent, edge: LoopEdge) => {
+      const r = useRouteEditStore.getState()
+      if (r.addBendFor !== edge.id) return
+      const g = useGraphStore.getState()
+      const route = currentRouteMap(g.nodes, g.edges).get(edge.id)
+      if (!route) return
+      const at = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+      const p = bendAtClick(route.points, at, e.altKey)
+      if (!p || bendRejection(g.nodes, g.edges, edge.id, p) !== null) {
+        r.armAddBend(null)
+        return
+      }
+      insertBend(edge.id, p)
+    },
+    [screenToFlowPosition, insertBend],
+  )
+
   // §LGR6.6 — ONE owner for the destructive canvas keys. React Flow's built-in
   // handler is switched off (`deleteKeyCode={null}` below) because it (a)
   // defaults to `Backspace` ALONE, so `Delete` did nothing although our own
@@ -860,6 +940,7 @@ export function Canvas() {
         nodesConnectable={!noEdit && !refInsertArmed}
         edgesReconnectable={!noEdit}
         onNodeClick={refInsertArmed ? (_e, n) => onArmedNodeClick(n.id) : undefined}
+        onEdgeClick={addBendFor != null && !noEdit ? onAddBendClick : undefined}
         zoomOnDoubleClick={!isMobile && !framePropsOpen}
         zoomOnScroll={!framePropsOpen}
         zoomOnPinch={!framePropsOpen}

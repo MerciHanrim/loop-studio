@@ -113,6 +113,8 @@ const canvas = {
   'canvas.activity.on': 'Activiteitsoverlay aan — klik om de kleuring te verbergen',
   'canvas.activity.rowLabel': 'Activiteitsoverlay',
   'canvas.route.invalidFlag': 'ongeldige route — een routepunt ligt binnen een knooppunt',
+  'canvas.route.bend': 'Knik {n} van {total}',
+  'canvas.route.noBendRoom': 'Geen enkel stuk van deze verbinding heeft ruimte voor een knik; er is niets gewijzigd.',
   'canvas.edgeLabel.clamp': 'begrensd',
   'canvas.edgeLabel.clamp.title': 'verwijderd door de enkele begrenzing van de doelvoorraad aan het einde van fase 0',
   'canvas.edgeLabel.blocked': 'geblokkeerd',

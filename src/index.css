@@ -1613,6 +1613,42 @@ a.sheet__row {
   fill: var(--warning);
   font: 700 11px var(--font-sans);
 }
+/* issue #344 step 3 (docs/edge-routing.md §ER16) — a bend point of the selected
+   Manual orthogonal connection (RouteBends.tsx): a small square on the route,
+   draggable and focusable. A position it cannot keep (inside a node, on the
+   port stub) is shown with a DASHED border — the non-colour tell — and the
+   point goes back on release. */
+.route-bend {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  margin: 0;
+  border: 2px solid var(--line-focus);
+  border-radius: 2px;
+  background: var(--surface-raised);
+  pointer-events: all;
+  cursor: move;
+  z-index: 1;
+}
+.route-bend:focus-visible,
+.route-bend.is-focused {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.route-bend.is-invalid {
+  border-style: dashed;
+  border-color: var(--warning);
+}
+@media (forced-colors: active) {
+  .route-bend {
+    border-color: Highlight;
+    background: Canvas;
+  }
+  .route-bend.is-invalid {
+    border-color: CanvasText;
+  }
+}
 /* Under `forced-colors: active` the UA force-adjusts these SVG `fill` / `stroke`
    values to system colours automatically (the same path the Canvas Visual
    Refresh relies on — no `@media` block, see scripts/check-mobile-query.mjs).
@@ -4464,6 +4500,33 @@ a.sheet__row {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+}
+/* issue #344 step 3 — the route state, Add bend and Reset to automatic */
+.inspector__route {
+  margin: -4px 0 12px;
+}
+.inspector__route .inspector__note {
+  margin-bottom: 6px;
+}
+.inspector__route-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+/* the armed state: the rail toggles' pressed treatment, never an `outline`
+   (that is the focus ring, see §LGR9 below) */
+.inspector__route-actions .btn[aria-pressed='true'],
+.inspector__route-actions .btn[aria-pressed='true']:hover {
+  color: var(--signal-primary);
+  background: var(--signal-primary-soft);
+  box-shadow: inset 0 0 0 2px var(--signal-primary);
+}
+@media (forced-colors: active) {
+  .inspector__route-actions .btn[aria-pressed='true'],
+  .inspector__route-actions .btn[aria-pressed='true']:hover {
+    background: Highlight;
+    color: HighlightText;
+  }
 }
 .inspector__kind {
   font-size: 11px;

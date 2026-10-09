@@ -10,8 +10,9 @@ export const MAX_WAYPOINTS_PER_EDGE = 64
 
 export type EdgeWaypoint = { x: number; y: number }
 export type EdgeRoutingRead = {
-  /** present iff a valid `"orthogonal"` mode survived */
-  route?: 'orthogonal'
+  /** present iff a valid `"orthogonal"` or (loop-revision/10) `"straight"`
+   *  mode survived */
+  route?: 'orthogonal' | 'straight'
   /** present iff `route` is `"orthogonal"` AND 1..64 finite points survived */
   waypoints?: EdgeWaypoint[]
 }
@@ -33,11 +34,11 @@ export function readRoutingPayload(raw: unknown, onWarn?: (msg: string) => void)
   const d = raw as { route?: unknown; waypoints?: unknown }
 
   // ── route ──
-  let route: 'orthogonal' | undefined
+  let route: 'orthogonal' | 'straight' | undefined
   if (d.route === undefined || d.route === 'bezier') {
     route = undefined // absent / explicit-bezier both normalise to absent
-  } else if (d.route === 'orthogonal') {
-    route = 'orthogonal'
+  } else if (d.route === 'orthogonal' || d.route === 'straight') {
+    route = d.route
   } else {
     onWarn?.('edge routing dropped — unrecognised `route` value')
     return {} // whole payload
@@ -49,6 +50,12 @@ export function readRoutingPayload(raw: unknown, onWarn?: (msg: string) => void)
   if (!Array.isArray(rawWp)) {
     onWarn?.('edge routing dropped — `waypoints` is not an array')
     return {}
+  }
+  if (route === 'straight') {
+    // SEMANTICS-R10.md §R10-1.1 — a straight line takes no bend points: the
+    // shape is kept, the waypoints are dropped
+    if (rawWp.length > 0) onWarn?.('edge `waypoints` dropped — a `route: "straight"` connection takes none')
+    return { route }
   }
   if (route !== 'orthogonal') {
     if (rawWp.length > 0) onWarn?.('edge `waypoints` dropped — no `route: "orthogonal"`')
@@ -82,6 +89,12 @@ export function edgeHasRoutingIntent(data: unknown): boolean {
   if (!data || typeof data !== 'object') return false
   const d = data as { route?: unknown; waypoints?: unknown }
   return d.route === 'orthogonal' || (Array.isArray(d.waypoints) && d.waypoints.length > 0)
+}
+
+/** SEMANTICS-R10.md §R10-1 — true iff the edge carries a surviving
+ *  `route: "straight"`, evaluated on already-normalised data. */
+export function edgeIsStraight(data: unknown): boolean {
+  return !!data && typeof data === 'object' && (data as { route?: unknown }).route === 'straight'
 }
 
 /**

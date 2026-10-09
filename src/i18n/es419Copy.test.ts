@@ -272,7 +272,7 @@ describe('es-419 copy — mechanical review', () => {
         'inspector.labelTiming.warnSForm',
       ],
       Alt: ['hint.frameMove.body', 'whatsNew.v0250.grid'],
-      Esc: ['canvas.regionSelect.on', 'canvas.frame.drawing'],
+      Esc: ['canvas.regionSelect.on', 'canvas.frame.drawing', 'inspector.edge.route.addBendHint'],
       Escape: [
         'canvas.frame.a11y.descSelected',
         'rf.node.a11y',
@@ -342,6 +342,8 @@ describe('es-419 copy — mechanical review', () => {
       // speed), and `s` is the seconds symbol of the four per-step times
       Normal: ['mobile.speed.normal', 'whatsNew.v0240.phone'],
       s: ['mobile.speed.slow.time', 'mobile.speed.normal.time', 'mobile.speed.fast.time', 'mobile.speed.veryFast.time', 'whatsNew.v0240.tiers'],
+      // issue #344 step 3 — the Spanish adjective IS `manual` (Trazado manual)
+      manual: ['inspector.edge.route.manual'],
     }
 
     const WORD = /[A-Za-zÀ-ÖØ-öø-ÿ]+/gu

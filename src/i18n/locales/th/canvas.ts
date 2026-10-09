@@ -128,6 +128,8 @@ const canvas = {
   'canvas.activity.on': 'ชั้นแสดงกิจกรรมเปิดอยู่ — คลิกเพื่อซ่อนสี',
   'canvas.activity.rowLabel': 'ชั้นแสดงกิจกรรม',
   'canvas.route.invalidFlag': 'เส้นทางไม่ถูกต้อง — มีจุดของเส้นทางอยู่ในโหนด',
+  'canvas.route.bend': 'จุดหักมุม {n} จาก {total}',
+  'canvas.route.noBendRoom': 'เส้นเชื่อมนี้ไม่มีช่วงใดที่มีที่ว่างสำหรับจุดหักมุม จึงไม่ได้เปลี่ยนแปลงอะไร',
   'canvas.edgeLabel.clamp': 'ถูกตัด',
   'canvas.edgeLabel.clamp.title': 'ถูกตัดโดยการจำกัดครั้งเดียวของถังพักปลายทางเมื่อจบเฟส 0',
   'canvas.edgeLabel.blocked': 'ถูกขวาง',

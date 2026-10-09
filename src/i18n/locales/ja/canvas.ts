@@ -109,6 +109,8 @@ const canvas = {
   'canvas.activity.on': 'アクティビティ表示 オン — クリックで色を消します',
   'canvas.activity.rowLabel': 'アクティビティ表示',
   'canvas.route.invalidFlag': '無効な経路 — 経路の点がノードの内側にあります',
+  'canvas.route.bend': '折れ点 {total} 個中 {n} 個目',
+  'canvas.route.noBendRoom': 'この接続には折れ点を入れられる区間がないため、何も変更していません。',
   'canvas.edgeLabel.clamp': 'クランプ',
   'canvas.edgeLabel.clamp.title': 'ターゲットのプールでフェーズ 0 終了時に 1 回クランプされ取り除かれました',
   'canvas.edgeLabel.blocked': 'ブロック',

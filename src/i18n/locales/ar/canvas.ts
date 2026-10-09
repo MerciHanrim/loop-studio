@@ -111,6 +111,8 @@ const canvas = {
   'canvas.activity.on': 'طبقة النشاط مُفعّلة — انقر لإخفاء التلوين',
   'canvas.activity.rowLabel': 'طبقة النشاط',
   'canvas.route.invalidFlag': 'مسار غير صالح — إحدى نقاط المسار داخل عقدة',
+  'canvas.route.bend': 'نقطة الانعطاف {n} من {total}',
+  'canvas.route.noBendRoom': 'لا يوجد في هذا الرابط مقطع يتّسع لانعطاف؛ لم يتغيّر شيء.',
   'canvas.edgeLabel.clamp': 'تقييد',
   'canvas.edgeLabel.clamp.title': 'أُزيل بفعل تقييد المَجمَع الهدف الوحيد في نهاية المرحلة 0',
   'canvas.edgeLabel.blocked': 'محجوب',

@@ -103,6 +103,8 @@ const canvas = {
   'canvas.activity.on': '活动叠加已开启——点击可隐藏着色',
   'canvas.activity.rowLabel': '活动叠加',
   'canvas.route.invalidFlag': '路径无效——有路径点落在节点内部',
+  'canvas.route.bend': '拐点，共 {total} 个，第 {n} 个',
+  'canvas.route.noBendRoom': '这条连线没有可加拐点的线段，未做任何更改。',
   'canvas.edgeLabel.clamp': '限幅',
   'canvas.edgeLabel.clamp.title': '被目标资源池在阶段 0 结束时的一次限幅移除',
   'canvas.edgeLabel.blocked': '受阻',

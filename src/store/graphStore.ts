@@ -84,6 +84,10 @@ export type LoadDocOptions = (
        *  `LAYOUT_VERSION` ⇒ re-placed on the grid once, before the history
        *  starts. Absent ⇒ the caller's graph is already current (no conversion). */
       layoutVersion?: number
+      /** issue #344 step 3 — the document is a revision or proposal recorded
+       *  before `loop-revision/10`: its Curved labels keep their recorded
+       *  (Bézier middle) place (see `recordLabels`) */
+      recordLabels?: boolean
     }
   | { mode: 'revision-apply' }
 ) & {
@@ -122,6 +126,8 @@ type HistoryEntry = {
   nodes: LoopNode[]
   edges: LoopEdge[]
   modelVersion: ModelSemanticsVersion
+  /** issue #344 step 3 — the record label rule in force (`recordLabels`) */
+  recordLabels?: boolean
   sidecar: unknown
 }
 /** docs/large-graph-readability-saved-frames.md §SF11.1 "Move" — an opaque
@@ -179,6 +185,15 @@ type GraphStore = {
    *  Passed to `serialize()` / autosave and to `step()` / Monte-Carlo. One-way
    *  per document: never returns to `1` except on a full new / v1 load. */
   modelVersion: ModelSemanticsVersion
+
+  /** issue #344 step 3 (docs/edge-routing.md §ER15.1) — the document came
+   *  from a revision or proposal whose header declares semantics before
+   *  `loop-revision/10`, and its Curved labels are drawn where they were
+   *  recorded (the Bézier middle), not in a free slot, so the record and its
+   *  Review look as they did. Ends with the first shape or bend-point edit, or
+   *  Tidy to grid (each undoable); the autosaved Project header carries it as
+   *  `labelLayoutVersion` (0 = this rule, 1 = the current placement). */
+  recordLabels: boolean
 
   past: HistoryEntry[]
   future: HistoryEntry[]
@@ -272,6 +287,15 @@ type GraphStore = {
   renameDataImportTable: (id: string, newLabel: string) => { ok: true } | { ok: false; reason: 'empty-table-name' | 'label-too-long' } | LockedRefusal
   updateNodeData: (id: string, patch: Record<string, unknown>) => void
   setEdgeData: (id: string, data: LoopEdgeData) => void
+  /** issue #344 step 3 (docs/diagram-layout.md §DL4, SEMANTICS-R10.md) — set a
+   *  connection's shape and bend points: `route` absent = Curved, `"straight"`,
+   *  `"orthogonal"` with no `waypoints` = Auto, with 1 … 64 = Manual. ONE history
+   *  entry per call, never merged with the next edit; nothing when unchanged or
+   *  while the edit lock is on. Cosmetic: the run is not reset. */
+  setEdgeRouting: (id: string, routing: EdgeRouting) => void
+  /** the same change with no history entry, for a bend-point gesture between
+   *  `captureGestureSnapshot` and `pushGestureEntry` */
+  setEdgeRoutingSilently: (id: string, routing: EdgeRouting) => void
   /** docs/flow-colour-and-compact-nodes.md FC-2.4 — set (`#RRGGBB` in any
    *  form `readAccent` takes) or remove (`null`) the flow colour of these
    *  nodes and edges as ONE undo entry. Elements that already have it are
@@ -472,13 +496,29 @@ function writeAutosaveNow(): void {
     saveToStorage(
       s.nodes,
       s.edges,
-      autosaveProjectHeader,
+      withLabelLayout(autosaveProjectHeader, s.recordLabels),
       autosaveTimelineSeries,
       s.modelVersion,
       liveFrames(),
       liveDataImports(),
     ),
   )
+}
+
+/** issue #344 step 3 (§ER15.1) — the Project header of the autosave carries the
+ *  label rule explicitly: `labelLayoutVersion` 0 = the record's own (legacy
+ *  Curved labels), 1 = the current placement. Only a document with a header can
+ *  hold the record rule; an ordinary document never gets the key. */
+export const LABEL_LAYOUT_VERSION = 1
+export function bootRecordLabels(header: unknown): boolean {
+  if (!header || typeof header !== 'object') return false
+  const h = header as { role?: unknown; labelLayoutVersion?: unknown }
+  if (h.role === 'proposal') return false
+  return h.labelLayoutVersion !== LABEL_LAYOUT_VERSION
+}
+function withLabelLayout(header: unknown, recordLabels: boolean): unknown {
+  if (!header || typeof header !== 'object') return header
+  return { ...(header as Record<string, unknown>), labelLayoutVersion: recordLabels ? 0 : LABEL_LAYOUT_VERSION }
 }
 
 /** Write the pending debounced autosave RIGHT NOW, if there is one. Called on
@@ -509,6 +549,29 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   })
 }
 
+// ── connection shapes (issue #344 step 3, SEMANTICS-R10.md) ────────────────
+
+export type EdgeRouting = { route?: 'orthogonal' | 'straight'; waypoints?: { x: number; y: number }[] }
+
+/** the edges with `id`'s routing replaced, keys trailing as the reader writes
+ *  them; null when nothing changes. Bend points are kept only beside
+ *  `"orthogonal"` (R10-INV-3). */
+function withRouting(edges: LoopEdge[], id: string, r: EdgeRouting): LoopEdge[] | null {
+  const e = edges.find((x) => x.id === id)
+  if (!e || !e.data) return null
+  const { route: _r, waypoints: _w, accent, ...rest } = e.data as LoopEdgeData & EdgeRouting & { accent?: unknown }
+  const wps = r.route === 'orthogonal' && r.waypoints && r.waypoints.length > 0 ? r.waypoints.map((p) => ({ x: p.x, y: p.y })) : undefined
+  // `normalizeEdge`'s order: … route, waypoints, accent
+  const data = {
+    ...rest,
+    ...(r.route ? { route: r.route } : {}),
+    ...(wps ? { waypoints: wps } : {}),
+    ...(accent !== undefined ? { accent } : {}),
+  } as LoopEdgeData
+  if (JSON.stringify(data) === JSON.stringify(e.data)) return null
+  return edges.map((x) => (x.id === id ? { ...x, data } : x))
+}
+
 // ── save boundary (SEMANTICS of an undo step) ───────────────────────────────
 // One history entry per discrete action. Continuous actions coalesce: a node
 // drag is one entry; rapid edits to the same field within COALESCE_MS are one
@@ -531,6 +594,33 @@ export function onlyAccentsDiffer(
   a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
   b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
 ): boolean {
+  return onlyCosmeticsDiffer(a, b, ['accent'])
+}
+
+/** issue #344 step 3 — the same test with a connection's shape and bend points
+ *  (`route`, `waypoints`) also counted as decoration: undoing or redoing a
+ *  shape or bend-point edit does not reset the run either (SEMANTICS-R10.md
+ *  R10-INV-2) */
+export function onlyDecorationDiffers(
+  a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
+  b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
+): boolean {
+  return onlyCosmeticsDiffer(a, b, ['accent', 'route', 'waypoints'])
+}
+
+function onlyCosmeticsDiffer(
+  a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
+  b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
+  edgeKeys: readonly string[],
+): boolean {
+  const withoutEdgeKeys = (data: unknown): string => {
+    if (!data || typeof data !== 'object') return JSON.stringify(data)
+    const rest = { ...(data as Record<string, unknown>) }
+    for (const k of edgeKeys) delete rest[k]
+    return JSON.stringify(rest)
+  }
+  const edgeKeysOf = (data: unknown): string =>
+    JSON.stringify(edgeKeys.map((k) => (data as Record<string, unknown> | undefined)?.[k] ?? null))
   if (a.modelVersion !== b.modelVersion) return false
   if (a.nodes.length !== b.nodes.length || a.edges.length !== b.edges.length) return false
   let accentChanged = false
@@ -550,8 +640,8 @@ export function onlyAccentsDiffer(
       (p.sourceHandle ?? null) !== (q.sourceHandle ?? null) || (p.targetHandle ?? null) !== (q.targetHandle ?? null)
     ) return false
     if (p.data === q.data) continue
-    if (withoutAccent(p.data) !== withoutAccent(q.data)) return false
-    if (accentOf(p.data) !== accentOf(q.data)) accentChanged = true
+    if (withoutEdgeKeys(p.data) !== withoutEdgeKeys(q.data)) return false
+    if (edgeKeysOf(p.data) !== edgeKeysOf(q.data)) accentChanged = true
   }
   return accentChanged
 }
@@ -663,9 +753,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     if (tag === 'remove') queueMicrotask(() => { if (lastTag === 'remove') lastTag = '' })
     clearPristine() // any edit / load / template — even a coalesced one — ends "pristine"
     if (coalesce) return
-    const { nodes, edges, modelVersion } = get()
+    const { nodes, edges, modelVersion, recordLabels } = get()
     set({
-      past: [...get().past, { nodes, edges, modelVersion, sidecar: sidecarNow(framesOverride) }].slice(-HISTORY_MAX),
+      past: [...get().past, { nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow(framesOverride) }].slice(-HISTORY_MAX),
       future: [], // a fresh action discards the redo branch AND its sidecars
       canUndo: true,
       canRedo: false,
@@ -696,8 +786,8 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     notifyFrameChange: () => persist(),
 
     captureGestureSnapshot: () => {
-      const { nodes, edges, modelVersion } = get()
-      const entry: HistoryEntry = { nodes, edges, modelVersion, sidecar: sidecarNow() }
+      const { nodes, edges, modelVersion, recordLabels } = get()
+      const entry: HistoryEntry = { nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow() }
       return entry as unknown as GestureSnapshot
     },
     pushGestureEntry: (snapshot) => {
@@ -745,6 +835,11 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     pendingInitialView: null,
     pristineSample: stored == null,
     modelVersion: bootModelVersion,
+    // issue #344 step 3 (§ER15.1) — the autosaved Project header says which
+    // label rule the document had; a header written before the key existed is
+    // a record from before `loop-revision/10`. A proposal session is not
+    // restored (its header is dropped at boot), so it never keeps the rule.
+    recordLabels: bootRecordLabels(stored?.project),
     past: [],
     future: [],
     canUndo: false,
@@ -752,7 +847,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     undo: () => {
       if (editGuard()) return // #334 — refused while the edit lock is on
-      const { past, future, nodes, edges, modelVersion } = get()
+      const { past, future, nodes, edges, modelVersion, recordLabels } = get()
       if (!past.length) return
       const prev = past[past.length - 1]
       lastTag = ''
@@ -760,15 +855,16 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         nodes: prev.nodes,
         edges: prev.edges,
         modelVersion: prev.modelVersion,
+        recordLabels: prev.recordLabels ?? false,
         past: past.slice(0, -1),
-        future: [{ nodes, edges, modelVersion, sidecar: sidecarNow() }, ...future].slice(0, HISTORY_MAX),
+        future: [{ nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow() }, ...future].slice(0, HISTORY_MAX),
         canUndo: past.length > 1,
         canRedo: true,
         selectedNodeId: null,
         selectedEdgeId: null,
       })
-      // FC-2.4 — undoing a flow colour is not a model change
-      if (onlyAccentsDiffer({ nodes, edges, modelVersion }, prev)) clearPristine()
+      // FC-2.4 / R10-INV-2 — undoing a flow colour, a shape or a bend point is not a model change
+      if (onlyDecorationDiffers({ nodes, edges, modelVersion }, prev)) clearPristine()
       else bump()
       persist()
       restoreSidecar(prev.sidecar) // restore the project header + saved frames this entry carried
@@ -776,7 +872,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     redo: () => {
       if (editGuard()) return // #334 — refused while the edit lock is on
-      const { past, future, nodes, edges, modelVersion } = get()
+      const { past, future, nodes, edges, modelVersion, recordLabels } = get()
       if (!future.length) return
       const next = future[0]
       lastTag = ''
@@ -784,15 +880,16 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         nodes: next.nodes,
         edges: next.edges,
         modelVersion: next.modelVersion,
-        past: [...past, { nodes, edges, modelVersion, sidecar: sidecarNow() }].slice(-HISTORY_MAX),
+        recordLabels: next.recordLabels ?? false,
+        past: [...past, { nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow() }].slice(-HISTORY_MAX),
         future: future.slice(1),
         canUndo: true,
         canRedo: future.length > 1,
         selectedNodeId: null,
         selectedEdgeId: null,
       })
-      // FC-2.4 — redoing a flow colour is not a model change
-      if (onlyAccentsDiffer({ nodes, edges, modelVersion }, next)) clearPristine()
+      // FC-2.4 / R10-INV-2 — redoing a flow colour, a shape or a bend point is not a model change
+      if (onlyDecorationDiffers({ nodes, edges, modelVersion }, next)) clearPristine()
       else bump()
       persist()
       restoreSidecar(next.sidecar) // restore the project header + saved frames this entry carried
@@ -877,10 +974,11 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       const moved = c.nodes.filter((n, i) => n !== g.nodes[i]).length
       const edgesChanged = c.edges.some((e, i) => e !== g.edges[i])
       const framesChanged = (c.frames ?? []).some((f, i) => f !== frames[i])
-      if (!moved && !edgesChanged && !framesChanged) return 0
+      // a record already on the grid still leaves its recorded label rule
+      if (!moved && !edgesChanged && !framesChanged && !g.recordLabels) return 0
       commit('') // the pre-tidy graph + saved frames, ONE entry
       lastTag = ''
-      set({ nodes: c.nodes, edges: c.edges })
+      set({ nodes: c.nodes, edges: c.edges, recordLabels: false }) // §ER15.1 — so does a tidied record
       if (framesChanged) frameSidecar?.set(c.frames)
       clearPristine()
       persist()
@@ -1022,6 +1120,23 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       persist()
     },
 
+    setEdgeRouting: (id, routing) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
+      const next = withRouting(get().edges, id, routing)
+      if (!next) return
+      commit('')
+      lastTag = '' // the next edit is its own entry, whatever it is
+      set({ edges: next, recordLabels: false }) // §ER15.1 — an edited shape takes the current label rule
+      persist()
+    },
+    setEdgeRoutingSilently: (id, routing) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
+      const next = withRouting(get().edges, id, routing)
+      if (!next) return
+      set({ edges: next, recordLabels: false })
+      persist()
+    },
+
     removeNode: (id) => {
       if (editGuard()) return // #334 — refused while the edit lock is on
       commit('')
@@ -1055,6 +1170,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         selectedNodeId: null,
         selectedEdgeId: null,
         modelVersion: 1,
+        recordLabels: false,
         loadRev: get().loadRev + 1,
         pendingInitialView: null, // §MML3 — no menu framing survives a New
         // `newGraph` does NOT bump `fitRev`: an empty canvas has nothing to fit,
@@ -1081,6 +1197,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         selectedNodeId: null,
         selectedEdgeId: null,
         modelVersion,
+        recordLabels: false,
         loadRev: get().loadRev + 1,
         fitRev: get().fitRev + 1,
         // §MML3 — a menu-opened Template's framing hint; `null` for a paste
@@ -1139,6 +1256,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         selectedNodeId: null,
         selectedEdgeId: null,
         modelVersion,
+        // issue #344 step 3 — another document says which label rule it takes;
+        // a revision Apply edits this one and keeps its rule
+        recordLabels: opts.mode === 'document-boundary' ? opts.recordLabels === true : get().recordLabels,
         loadRev: get().loadRev + 1,
         pendingInitialView: null, // §MML3 — file / Share / Workspace keeps its own camera
       })

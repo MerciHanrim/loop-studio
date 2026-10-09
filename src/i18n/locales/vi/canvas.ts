@@ -120,6 +120,8 @@ const canvas = {
   'canvas.activity.on': 'Lớp phủ hoạt động đang bật — nhấn để ẩn màu tô',
   'canvas.activity.rowLabel': 'Lớp phủ hoạt động',
   'canvas.route.invalidFlag': 'đường đi không hợp lệ — một điểm định tuyến nằm trong nút',
+  'canvas.route.bend': 'Điểm gấp {n} trên {total}',
+  'canvas.route.noBendRoom': 'Không đoạn nào của liên kết này còn chỗ cho điểm gấp; không có gì thay đổi.',
   'canvas.edgeLabel.clamp': 'cắt bớt',
   'canvas.edgeLabel.clamp.title': 'bị bỏ bởi một lần cắt duy nhất ở cuối Pha 0 của Bể chứa đích',
   'canvas.edgeLabel.blocked': 'bị chặn',
