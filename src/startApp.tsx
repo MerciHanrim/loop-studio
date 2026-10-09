@@ -12,7 +12,7 @@ import { useProjectStore } from './store/projectStore'
 import { usePwaStore } from './store/pwaStore'
 import { useReviewStore } from './store/reviewStore'
 import * as revisionIO from './store/revisionIO'
-import { __resetRouteCache, __routeGenCount, currentRouteMap } from './store/routeMap'
+import { __resetProvisionalPeak, __resetRouteCache, __routeGenCount, __syncFullGeneration, currentRouteMap, routeDiagnostics } from './store/routeMap'
 import * as shareLink from './store/shareLink'
 import { useDataImportStore } from './store/dataImportStore'
 import { useFilterStore } from './store/filterStore'
@@ -88,6 +88,21 @@ export async function startApp(): Promise<void> {
         get: (id: string) => {
           const g = useGraphStore.getState()
           return currentRouteMap(g.nodes, g.edges).get(id) ?? null
+        },
+        // issue #344 §ER14.4–5 — the last full generation's classes and fans,
+        // the last provisional map and job, and whether a job is still running
+        diagnostics: routeDiagnostics,
+        pending: () => routeDiagnostics().pending,
+        resetProvisionalPeak: __resetProvisionalPeak,
+        // the map on screen, and the synchronous generation it must equal once
+        // nothing is pending (computed aside; the cache is untouched)
+        all: () => {
+          const g = useGraphStore.getState()
+          return currentRouteMap(g.nodes, g.edges)
+        },
+        syncFull: () => {
+          const g = useGraphStore.getState()
+          return __syncFullGeneration(g.nodes, g.edges)
         },
       },
       // issue #332 — how many node row-fit measurements have run, so the e2e

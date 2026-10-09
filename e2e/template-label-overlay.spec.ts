@@ -1,5 +1,5 @@
 import type { Browser, Page } from '@playwright/test'
-import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
+import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, routesSettled, seedPersonalBrowser, test } from './support/loop'
 
 // docs/template-label-overlay.md — the shared fresh-open Template label overlay:
 // a bundled Template opens with the current locale's node `label`s; `openTemplate`
@@ -51,6 +51,10 @@ async function pickTemplate(page: Page, hasText: string) {
   // pristine first boot loads without a confirm; if a confirm appears, accept it
   const confirm = page.locator('.dialog button', { hasText: /replace|바꾸기|교체/i })
   if (await confirm.isVisible().catch(() => false)) await confirm.click()
+  // issue #344 §ER14.5 — its routes are drawn once their first sliced
+  // generation commits
+  await page.waitForFunction(() => (window as unknown as { __loop: any }).__loop.graph.getState().nodes.length > 0)
+  await routesSettled(page)
 }
 
 const MMO_EN = 'Early MMO progression'

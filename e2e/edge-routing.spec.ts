@@ -304,12 +304,12 @@ test.describe('edge routing — Slice 1', () => {
     expect(after.ab.dom).toBe(after.ab.map)
     expect(after.cd.dom).toBe(after.cd.map)
 
-    // the previous route is not an input: clearing the cache and recomputing
-    // from scratch yields byte-identical paths
+    // the previous route is not an input: recomputing from scratch (the
+    // synchronous full generation, computed aside — issue #344 §ER14.5) yields
+    // byte-identical paths
     const recomputed = await page.evaluate(() => {
-      const l = (window as any).__loop
-      l.routeMap.reset()
-      return { ab: l.routeMap.get('e_ab')?.d ?? '', cd: l.routeMap.get('e_cd')?.d ?? '' }
+      const m = (window as any).__loop.routeMap.syncFull()
+      return { ab: m.get('e_ab')?.d ?? '', cd: m.get('e_cd')?.d ?? '' }
     })
     expect(recomputed.ab).toBe(after.ab.map)
     expect(recomputed.cd).toBe(after.cd.map)
@@ -359,9 +359,20 @@ test.describe('edge routing — Slice 1', () => {
       const p = document.querySelector('.react-flow__edge[data-id="e_ac"] path.react-flow__edge-path') as SVGPathElement
       const route = (window as any).__loop.routeMap.get('e_ac')
       const g = (window as any).__loop.graph.getState()
+      // issue #344 §ER14.2 — the route skips a waypoint inside a node and never
+      // enters the node (no L / Z fallback through it any more)
+      const mid = g.nodes.find((n: any) => n.id === 'mid')
+      const box = { x: mid.position.x, y: mid.position.y, w: mid.measured.width, h: mid.measured.height }
+      const pts = route.points as { x: number; y: number }[]
+      const entersMid = pts.some((q, i) => {
+        if (i === 0) return false
+        const a = pts[i - 1]
+        return Math.max(a.x, q.x) > box.x && Math.min(a.x, q.x) < box.x + box.w && Math.max(a.y, q.y) > box.y && Math.min(a.y, q.y) < box.y + box.h
+      })
       return {
         invalidClass: p.classList.contains('route-invalid'),
-        fallback: route?.routeClass,
+        routeClass: route?.routeClass,
+        entersMid,
         invalidFlag: route?.invalidWaypoint,
         dash: getComputedStyle(p).strokeDasharray,
         waypoints: g.edges[0].data.waypoints, // value kept
@@ -369,7 +380,8 @@ test.describe('edge routing — Slice 1', () => {
     })
     expect(cue.invalidFlag).toBe(true)
     expect(cue.invalidClass).toBe(true)
-    expect(cue.fallback).toBe('fallback-lz')
+    expect(cue.routeClass).not.toBe('fallback-lz')
+    expect(cue.entersMid).toBe(false)
     expect(cue.dash).not.toBe('none') // dashed WARNING treatment
     expect(cue.waypoints).toEqual([{ x: 300, y: 12 }]) // not consumed / not moved
   })

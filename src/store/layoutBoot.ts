@@ -6,7 +6,7 @@
 // conversion before any history exists. Imports no store.
 
 import { loadFromStorage, saveToStorage } from '../model/serialize'
-import { convertLayout, isLegacyLayout } from './layoutConvert'
+import { isLegacyLayout, migrateDocument } from './layoutConvert'
 
 /** convert a legacy autosave record once; a current one (or none) is untouched,
  *  and so is one that carries a Project header — a revision's layout is never
@@ -14,6 +14,6 @@ import { convertLayout, isLegacyLayout } from './layoutConvert'
 export function convertAutosaveLayout(): void {
   const stored = loadFromStorage()
   if (!stored || !isLegacyLayout(stored.layoutVersion) || stored.project != null) return
-  const c = convertLayout({ nodes: stored.nodes, edges: stored.edges, frames: stored.frames })
+  const c = migrateDocument({ nodes: stored.nodes, edges: stored.edges, frames: stored.frames })
   saveToStorage(c.nodes, c.edges, stored.project, stored.recommendedRunConfig?.timelineSeries, stored.modelVersion, c.frames, stored.dataImports)
 }

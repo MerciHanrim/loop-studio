@@ -695,3 +695,155 @@ Machine-checkable, mirroring the Visual Refresh specs.
   semantics). Nothing here touches it.
 - **No node re-layout.** Routing steps edges around nodes where they *are*; it
   never moves a node.
+
+---
+
+## ER14. The guarded router (issue #344 step 2, v0.25.0)
+
+Diagram Readability (`docs/diagram-layout.md`) makes the orthogonal route the
+default for new and migrated connections and replaces the router behind
+`route: "orthogonal"` with a guarded one. The wire contract of §ER6 is
+unchanged: `route` absent is still a Bézier, `waypoints` are still meaningful
+only with `orthogonal`.
+
+### ER14.1 Route meaning and the migration
+
+- `route` absent = Bézier, everywhere, as before. Nothing reinterprets it.
+- A revision or proposal payload keeps its bytes, its digests AND its drawing:
+  an absent `route` there is drawn as a Bézier.
+- The layout migration of an ordinary pre-grid document (`layoutVersion` < 1:
+  a graph file, a Workspace, a share link, the autosave without a Project
+  header — §DL2.8) writes `route: "orthogonal"` on every connection without a
+  `route`. Its full content digest changes; its engine digest does not. Tidy to
+  grid never writes a route.
+- A new connection is created with `route: "orthogonal"`.
+- `orthogonal` without `waypoints` = **Auto** (the guarded route);
+  with `waypoints` = **Manual** (routed through them).
+- Bundled Templates and modules are not migrated; step 4 re-places them.
+
+### ER14.2 No node fill is ever crossed
+
+`computeGuardedRoute` (`orthogonalRoute.ts`) runs the §ER3 search with:
+
+- **own end nodes as obstacles** — a route leaves its port along the port
+  normal to a stub `ROUTE_STUB` beyond its own box (shorter, half the gap, when
+  another node is nearer) and enters its target the same way; only those two
+  stubs may run inside the connection's own nodes;
+- **the clearance ladder** `GUARD_PADS` (12, 6, 2, 0 px) — a failed search is
+  retried with less clearance (`routeClass` `tight` below 12);
+- **the outer corridor** — then rulers `OUTER_MARGIN` outside the bounding box
+  of every node, both stubs and every waypoint, with a larger budget (`outer`);
+- **`blocked`** — the one case no route can avoid: another node covers a port
+  or a stub. The route avoids every node except the covering one.
+
+Every candidate is checked before it is returned: between the stubs no segment
+enters a node fill (own end nodes included), and the stubs enter no other node.
+There is no cost-based crossing and no plain L / Z: a route that would cross is
+never drawn. A waypoint inside a node fill keeps its value and the §ER4 cue but
+is not routed through. The v1 entry point `computeOrthogonalRoute` stays as the
+pinned single-edge core (golden + differential tests); the app no longer calls it.
+
+### ER14.3 Shared trunks and labels
+
+- Edges are routed in id order. Each placed route's segments are indexed by
+  ruler line; an **unrelated** edge (sharing neither its source port nor its
+  target port) pays `TRUNK_COST` per px it runs along one and `CROSS_COST` per
+  crossing. The result never depends on input order.
+- **A port fan** (Lumi, 2026-10-09): connections of exactly the same port share
+  only that port's stub, `ROUTE_STUB` (16 px) beyond the node box, in the same
+  direction; past it there is no line-on-line overlap at all.
+  - Each member gets its own **branch point** inside the stub. The members are
+    sorted by where their far end lies across the stub, then by edge id;
+    members on the negative side leave toward it, members on the positive side
+    toward that one, at most one (the lowest id among those level with the
+    port) goes straight on, and other level members alternate sides. Within a
+    side the member reaching furthest out branches nearest the node, so
+    siblings never cross; members on opposite sides may share an offset. The
+    offsets split the 16 px evenly. The router fixes the first move after the
+    branch (and, at a target fan, the move into it).
+  - Every end's stub and every branch's first leg are **reserved** before any
+    route: another route pays `FAN_COST` per px to run along them (a route's
+    own ports' stubs excepted), so neither a later sibling nor an earlier
+    unrelated route takes them. Past the branch, running along a sibling also
+    costs `FAN_COST`, and the sibling's lines ± `PARALLEL_GAP` are offered as
+    lanes.
+  - If obstacles block a branch, the route is found without it, drawn on the
+    outer corridor when needed, and listed in `routeDiagnostics().fanBlocked`;
+    `fanOverlaps` lists any pair that still runs together past the stub. Both
+    are reported, never hidden.
+  - No label sits on a shared stub. A selected connection's underlay runs
+    alone from its branch on. A parallel set (the same two ports) keeps its own
+    offset (§ER3.7).
+  - Measured (every connection routed): Early MMO 0 fan overlaps (a port with
+    17 connections included), the 3-zone gacha 0; 0 `fanBlocked`.
+- The judge (survey and collision check) keeps the same-port trunk as an
+  informational count; unrelated line-on-line overlap is a failure.
+- A label takes the first free slot on its own route — the midpoint, then 0.4,
+  0.6, 0.3, 0.7, 0.25, 0.75, 0.2, 0.8 of its length — clear of every node box
+  (2 px margin) and every label already placed; the midpoint when none is free.
+- Then up to `LABEL_ROUNDS` (2) guarded rounds: an edge whose route runs
+  through other edges' labels is routed again with those labels as soft
+  obstacles (`computeSoftReroute`: one rung of `SOFT_PADS` — 12, then 6 px —
+  per step, each with the budget `SOFT_EXPANSIONS`), kept only when it crosses
+  fewer of them and is not a lower rung; otherwise the edge keeps its route.
+- Label sizes are the labels' REST sizes (shown, not selected, no run value),
+  reported by the rendered labels; the last known size stays while a label is
+  hidden by zoom. A run, a selection or a zoom never moves a route.
+
+### ER14.4 Failures are reported, never hidden
+
+`routeDiagnostics()` returns, for the last full generation, how many routes each
+rung produced and every edge drawn `outer` or `blocked`; the collision check of
+step 6 reads it. In a development build each such edge is warned once.
+
+### ER14.5 Cost: a provisional map at once, the full generation in slices
+
+Lumi, 2026-10-09: no pause at the drop, no long main-thread task.
+
+- A map is cached on the layout signature (§ER3.8, label sizes included).
+- A layout change shows a **provisional** map at once: the last full generation
+  with only the routes the change touches routed again — new or changed edges,
+  edges incident to a moved or resized node, edges whose route now runs into a
+  moved node — incident ones first, within `PROVISIONAL_MS` (5 ms, budgeted by
+  the longest route so far; an edge with no route at all is always routed).
+- The **full generation** for the new layout then runs as a job, in id order,
+  in slices of about `SLICE_MS` (8 ms; a step is started only when the longest
+  step so far still fits), each slice its own task, so input and frames run in
+  between. A single search is itself a step sequence: the A* search pauses
+  every `SEARCH_SLICE` (1,024) expansions, so no step is longer than a slice;
+  the synchronous router drains the same steps, so its result is unchanged. It is committed in one swap when complete; a partial map is never
+  drawn. A newer layout, or a drag starting, cancels a running job; a cancelled
+  job never commits. Diagnostics and development warnings are settled on the
+  committed generation only.
+- During a node, selection or frame drag (`beginLiveLayout` … `endLiveLayout`)
+  only provisional maps are shown; the drop starts the job.
+- **A cold start** (a document opened, or another document: most routed edges
+  new) runs the same sliced job. Until it commits, no routed edge and no label
+  of one is drawn — never a temporary path; only an invisible, off-canvas copy
+  of each label is rendered so its rest size reaches the router first. The
+  canvas carries `aria-busy` while any routed edge waits. The last
+  `GENERATIONS_KEPT` (4) committed generations are kept by signature, so a
+  layout seen again (undo, redo, the same document reopened) is shown at once;
+  a newer document cancels the job.
+- Only a run without a task scheduler (unit tests, the offline judge) computes
+  the full generation at once — the same steps, so the committed map is
+  byte-identical to the synchronous one (`__syncFullGeneration`).
+- Acceptance (Lumi's criteria; Early MMO, every connection routed):
+  - production build: drag p95 16.8 ms (≤ 20), max frame 17.4 ms, 0 long tasks
+    during the drag and the drop; the 3-zone gacha 16.9 ms, 0;
+  - routing-owned work (development build, where it is instrumented): the
+    largest slice 6.9 ms on the cold load and 10 ms at the drop, the longest
+    step 6.9 ms, the provisional map at most 6 ms (≤ 10); no routing task of
+    50 ms or more;
+  - the committed map equals the synchronous generation byte for byte; 0
+    cancelled generations committed.
+  - Not routing: the document mount (~145 ms in production) and the node press
+    (51–100 ms on a development build) are long tasks with no routing at all
+    (the curves-only control shows them too). Out of scope for #344.
+
+### ER14.6 Invariants that change
+
+- ER-INV-5 "never fails to draw" now draws without crossing: the L / Z fallback
+  is replaced by the ladder, the outer corridor and `blocked`.
+- ER-INV-6 Bézier parity still holds for `route` absent.
+- ER-INV-3 holds at rest; during a live gesture the map is incremental by design.

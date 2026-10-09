@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
-import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { expect, importGraph, openApp, resetAll, routesSettled, test } from './support/loop'
 
 // docs/gacha-banner-zones.md (GZ) — the 3-zone gacha banner comparison
 // Template, exercised through the app. The engine-level acceptance (GZ8) is
@@ -70,6 +70,10 @@ async function pickDesktopTemplate(page: Page, name: string) {
     .locator('.toolbar__actions .menu').first()
     .locator('.menu__pop [role="menuitem"]', { hasText: name })
     .click()
+  // issue #344 §ER14.5 — its routes are drawn once their first sliced
+  // generation commits
+  await page.waitForFunction(() => (window as unknown as { __loop: any }).__loop.graph.getState().nodes.length > 0)
+  await routesSettled(page)
 }
 
 /** Step the live sim exactly `n` times (a fixed count, not "until ended" —
@@ -361,6 +365,7 @@ test.describe('3-zone gacha banner comparison Template', () => {
 
     for (const locale of ['en', 'ko', 'ja'] as const) {
       await setLocale(page, locale)
+      await routesSettled(page) // issue #344 — the new label sizes route again
       for (const { id, text } of await labelTexts()) {
         expect(text, `${locale}: edge ${id} leaks an internal id ("${text}")`).not.toMatch(/@/)
       }
@@ -449,6 +454,7 @@ test.describe('3-zone gacha banner comparison Template', () => {
 
     for (const locale of ['en', 'ko', 'ja'] as const) {
       await setLocale(page, locale)
+      await routesSettled(page) // issue #344 — the new label sizes route again
       const expected = ERROR_LABEL[locale]
       for (const { id, text } of await labelTexts(BROKEN_EDGE_IDS)) {
         expect(text, `${locale}: edge ${id} should show the translated error label`).toBe(expected)
@@ -615,6 +621,7 @@ test.describe('3-zone gacha banner comparison Template', () => {
 
     for (const locale of ['en', 'ko', 'ja'] as const) {
       await setLocale(page, locale)
+      await routesSettled(page) // issue #344 — the new label sizes route again
       for (const zoneFrameId of ['zone_standard', 'zone_pickup'] as const) {
         const frame = frames.find((f) => f.id === zoneFrameId)!
         const cx = frame.rect.x + frame.rect.w / 2
@@ -671,6 +678,7 @@ test.describe('3-zone gacha banner comparison Template', () => {
     expect(waypoints).toEqual([{ x: 3200, y: 650 }])
     for (const locale of ['en', 'ko', 'ja'] as const) {
       await setLocale(page, locale)
+      await routesSettled(page) // issue #344 — the new label sizes route again
       await page.evaluate(() =>
         (window as unknown as { __loop: { rf: { setViewport: (v: object) => void } } }).__loop.rf.setViewport({ x: 800 - 3200, y: 450 - 600, zoom: 1 }),
       )

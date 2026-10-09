@@ -20,6 +20,7 @@ import { useIsMobile } from '../ui/media'
 import { blocksCanvasKey } from '../ui/keyboardTarget'
 import { createKeyGesture } from '../ui/keyGestureLifetime'
 import { dragSnap } from '../model/layout/dragSnap'
+import { beginLiveLayout, endLiveLayout, useRouteInputs } from '../store/routeMap'
 import { GRID, snapNodePosition } from '../model/layout/grid'
 import { type MessageKey, useI18n, useLocaleDirection, useT } from '../i18n'
 import { moduleLabelOverlay } from '../i18n/moduleLabels'
@@ -122,6 +123,9 @@ export function Canvas() {
   const rfStore = useStoreApi()
   const isMobile = useIsMobile()
   const canvasLocked = useUiStore((s) => s.canvasLocked)
+  // issue #344 §ER14.5 — routed connections not drawn yet (their first sliced
+  // generation is running): the canvas says it is busy
+  const routesBusy = useRouteInputs((s) => s.busy)
   const toggleCanvasLocked = useUiStore((s) => s.toggleCanvasLocked)
   const focusMode = useUiStore((s) => s.focusMode)
   const toggleFocusMode = useUiStore((s) => s.toggleFocusMode)
@@ -820,6 +824,7 @@ export function Canvas() {
       className={`canvas${canvasLocked ? ' canvas--locked' : ''}${refInsertArmed ? ' canvas--ref-insert' : ''}`}
       data-tour="canvas"
       data-covered-by-sheets=""
+      aria-busy={routesBusy || undefined}
       onDrop={noEdit ? undefined : handleDrop}
       onDragOver={noEdit ? undefined : handleDragOver}
       onContextMenu={noEdit ? (e) => e.preventDefault() : undefined}
@@ -834,13 +839,15 @@ export function Canvas() {
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         // issue #344 §DL3 — which node a drag grabbed and whether Alt is held
-        // (Alt = free move); the store snaps the drag by that node's correction
-        onNodeDragStart={(e, node) => dragSnap.begin(node.id, e.altKey)}
+        // (Alt = free move); the store snaps the drag by that node's correction.
+        // §ER14.5 — while it lasts only the routes the moved nodes touch are
+        // routed again; the drop builds one full generation
+        onNodeDragStart={(e, node) => { dragSnap.begin(node.id, e.altKey); beginLiveLayout() }}
         onNodeDrag={(e) => dragSnap.update(e.altKey)}
-        onNodeDragStop={(e) => dragSnap.update(e.altKey)}
-        onSelectionDragStart={(e, dragged) => dragSnap.begin(dragged[0]?.id ?? null, e.altKey)}
+        onNodeDragStop={(e) => { dragSnap.update(e.altKey); endLiveLayout() }}
+        onSelectionDragStart={(e, dragged) => { dragSnap.begin(dragged[0]?.id ?? null, e.altKey); beginLiveLayout() }}
         onSelectionDrag={(e) => dragSnap.update(e.altKey)}
-        onSelectionDragStop={(e) => dragSnap.update(e.altKey)}
+        onSelectionDragStop={(e) => { dragSnap.update(e.altKey); endLiveLayout() }}
         onEdgesChange={onEdgesChange}
         onConnect={noEdit ? undefined : onConnect}
         onSelectionChange={onSelectionChange}

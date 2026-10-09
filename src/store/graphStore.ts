@@ -14,7 +14,7 @@ import { relabelFramesForLocale, relabelNodesForLocale } from '../i18n/templateL
 import { relabelModuleNodesForLocale } from '../i18n/moduleLabelSync'
 import { createNode, defaultData, nextId } from '../model/factory'
 import { snapDragChanges } from '../model/layout/dragSnap'
-import { convertLayout, isLegacyLayout } from './layoutConvert'
+import { convertLayout, isLegacyLayout, migrateDocument } from './layoutConvert'
 import { GRID, snapNodePosition } from '../model/layout/grid'
 import { boxesOverlap, nearestFree } from '../model/layout/place'
 import { BASE_NODE_H } from '../components/nodes/silhouette'
@@ -851,7 +851,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
               ? conn.targetHandle
               : 'state-target',
             type: 'loop',
-            data: { kind: 'state', mode: 'trigger', expr: '' },
+            data: { kind: 'state', mode: 'trigger', expr: '', route: 'orthogonal' }, // issue #344 §ER14.1 — new connections are routed
           }
         : {
             id: nextId('e'),
@@ -861,7 +861,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
             sourceHandle: 'out',
             targetHandle: 'in',
             type: 'loop',
-            data: { kind: 'resource', flow: '1' },
+            data: { kind: 'resource', flow: '1', route: 'orthogonal' }, // issue #344 §ER14.1
           }
       commit('')
       set({ edges: addEdge(edge, get().edges) })
@@ -1118,7 +1118,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       // issue #344 §DL2.8 — an older layout is re-placed once, here, before
       // `enterDocument` starts the history: never an undo entry
       if (opts.mode === 'document-boundary' && opts.layoutVersion != null && isLegacyLayout(opts.layoutVersion)) {
-        const c = convertLayout({ nodes, edges, frames: frames ? [...frames] : undefined })
+        const c = migrateDocument({ nodes, edges, frames: frames ? [...frames] : undefined })
         nodes = c.nodes
         edges = c.edges
         frames = c.frames

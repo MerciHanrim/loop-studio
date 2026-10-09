@@ -40,3 +40,20 @@ export function convertLayout<T extends ConvertibleDoc>(doc: T): T {
   const frames = doc.frames?.map((f) => (r.frames[f.id] ? { ...f, rect: r.frames[f.id] } : f))
   return { ...doc, nodes, edges, ...(doc.frames ? { frames } : {}) }
 }
+
+/** docs/edge-routing.md §ER14.1 — the migration of an ordinary pre-grid
+ *  document: its layout re-placed (`convertLayout`) and every connection that
+ *  has no `route` (a Bézier) given `route: "orthogonal"` explicitly, so it is
+ *  drawn by the router from now on. An absent `route` keeps meaning Bézier
+ *  everywhere else — a revision or proposal is never migrated, and Tidy to grid
+ *  re-places positions only. A connection already `orthogonal` keeps its
+ *  waypoints (Manual) or has none (Auto). */
+export function migrateDocument<T extends ConvertibleDoc>(doc: T): T {
+  const placed = convertLayout(doc)
+  const edges = placed.edges.map((e) =>
+    e.data && (e.data as { route?: unknown }).route === undefined
+      ? { ...e, data: { ...e.data, route: 'orthogonal' } as LoopEdgeData }
+      : e,
+  )
+  return { ...placed, edges }
+}

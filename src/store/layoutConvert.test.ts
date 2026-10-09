@@ -80,6 +80,42 @@ describe('the one-time conversion', () => {
   })
 })
 
+describe('the route migration (§ER14.1)', () => {
+  const routeOf = (id: string) => (g().edges.find((e) => e.id === id)!.data as { route?: string }).route
+
+  it('an ordinary pre-grid document gets route "orthogonal" written on every connection', () => {
+    g().loadJSON(legacyFile())
+    expect(routeOf('e1')).toBe('orthogonal')
+    expect(routeOf('e2')).toBe('orthogonal')
+    // and it is saved that way: the file now says so explicitly
+    const saved = JSON.parse(serialize(g().nodes, g().edges)) as { edges: { data: { route?: string } }[] }
+    expect(saved.edges.every((e) => e.data.route === 'orthogonal')).toBe(true)
+  })
+
+  it('keeps the engine digest; only cosmetic content changes', async () => {
+    const before = deserialize(legacyFile())
+    g().loadJSON(legacyFile())
+    expect(await semanticDigest({ nodes: g().nodes, edges: g().edges }, 1)).toBe(await semanticDigest({ nodes: before.nodes, edges: before.edges }, 1))
+  })
+
+  it('a CURRENT document keeps an absent route: it is still a curve', () => {
+    g().loadJSON(serialize([pool('a', 0, 4), pool('b', 208, 4)], [flow('e1', 'a', 'b')]))
+    expect(routeOf('e1')).toBeUndefined()
+  })
+
+  it('Tidy to grid re-places positions only: it never writes a route', () => {
+    g().loadJSON(serialize([pool('a', 3, 7), pool('b', 205, 11)], [flow('e1', 'a', 'b')]))
+    g().tidyToGrid()
+    expect(routeOf('e1')).toBeUndefined()
+  })
+
+  it('a new connection is created orthogonal', () => {
+    g().loadJSON(serialize([pool('a', 0, 4), pool('b', 208, 4)], []))
+    g().onConnect({ source: 'a', target: 'b', sourceHandle: 'out', targetHandle: 'in' })
+    expect((g().edges[0].data as { route?: string }).route).toBe('orthogonal')
+  })
+})
+
 describe('the autosave record at boot', () => {
   class MemStorage {
     m = new Map<string, string>()
@@ -111,6 +147,7 @@ describe('the autosave record at boot', () => {
     const stored = loadFromStorage()!
     for (const n of stored.nodes) expect(nodeOnGrid(n.position)).toBe(true)
     expect(stored.layoutVersion).toBe(LAYOUT_VERSION)
+    expect((stored.edges[0].data as { route?: string }).route).toBe('orthogonal')
   })
 
   it('keeps its layout when it carries a Project header — a revision is never re-placed automatically', () => {

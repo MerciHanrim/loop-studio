@@ -13,6 +13,7 @@ import { FramePropsPopover } from './FramePropsPopover'
 import { isolateAuto } from '../../i18n/bidiIsolate'
 import { Icon } from '../../ui/icons'
 import { GRID, snapPoint } from '../../model/layout/grid'
+import { beginLiveLayout, endLiveLayout } from '../../store/routeMap'
 
 // docs/large-graph-readability.md §LGR6 (transient) + …-auto-frames.md §AF (auto).
 // One render layer for BOTH frame kinds:
@@ -467,6 +468,7 @@ export function FrameLayer() {
       cancelRaf(d)
       d.free = e.altKey
       applyGesture(d, flowPt(e)) // the exact final Δ, whatever the last frame showed
+      endLiveLayout()
       // commit iff the FINAL rect differs from the origin — a click, an unmoved
       // press, or an out-and-back gesture is a no-op: origin written back, no
       // entry, no promotion (never a sticky "moved" flag)
@@ -495,6 +497,7 @@ export function FrameLayer() {
       dragRef.current = null
       cancelRaf(d)
       restoreGesture(d)
+      endLiveLayout()
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
@@ -577,6 +580,9 @@ export function FrameLayer() {
           edges: G.edges,
         })
         dragRef.current = { kind, id, isAuto, label, origin, snapshot, last: null, raf: null, current: orig }
+        // issue #344 §ER14.5 — a carried move re-routes only what it touches
+        // until the pointer comes up
+        beginLiveLayout()
       } else {
         dragRef.current = { kind, id, isAuto, label, anchor, orig, snapshot, last: null, raf: null, current: orig }
       }

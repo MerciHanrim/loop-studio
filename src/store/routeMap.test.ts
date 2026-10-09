@@ -174,3 +174,185 @@ describe('currentRouteMap — a reused generation equals a cold rebuild', () => 
     expect(routes(currentRouteMap(moved, edges))).toEqual(routes(warm))
   })
 })
+
+// issue #344 step 2 — docs/edge-routing.md §ER14
+describe('currentRouteMap — the guarded generation (§ER14)', () => {
+  /** a row of three sources feeding two targets, with crossing traffic */
+  const busy = () => ({
+    nodes: [node('a', 0, 0), node('b', 0, 160), node('c', 0, 320), node('x', 500, 80), node('y', 500, 240), node('mid', 250, 140)],
+    edges: [edge('e1', 'a', 'y'), edge('e2', 'c', 'x'), edge('e3', 'b', 'x'), edge('e4', 'b', 'y'), edge('e5', 'y', 'a')],
+  })
+
+  it('is independent of node and edge input order (edges are routed in id order)', () => {
+    const { nodes, edges } = busy()
+    const m1 = routes(currentRouteMap(nodes, edges))
+    __resetRouteCache()
+    const m2 = routes(currentRouteMap([...nodes].reverse(), [...edges].reverse()))
+    expect(new Map(m2.map((r) => [r[0], r]))).toEqual(new Map(m1.map((r) => [r[0], r])))
+  })
+
+  it('a label sits in a free slot clear of every node box', async () => {
+    const { setRouteLabelSize } = await import('./routeMap')
+    const { nodes, edges } = busy()
+    for (const e of edges) setRouteLabelSize(e.id, 24, 18)
+    const m = currentRouteMap(nodes, edges)
+    for (const [id, r] of m) {
+      expect(r.label, id).not.toBeNull()
+      const L = { x: r.label!.x - 12, y: r.label!.y - 9, w: 24, h: 18 }
+      for (const n of nodes) {
+        const b = { x: n.position.x - 2, y: n.position.y - 2, w: 134, h: 60 }
+        const overlap = L.x < b.x + b.w && b.x < L.x + L.w && L.y < b.y + b.h && b.y < L.y + L.h
+        // the midpoint is the fallback when no slot is free; here every route has one
+        expect(overlap, `${id} label on ${n.id}`).toBe(false)
+      }
+    }
+  })
+
+  /** a scheduler the test drives by hand: `run()` runs every queued slice */
+  const manual = () => {
+    const q: (() => void)[] = []
+    return {
+      schedule: (fn: () => void) => void q.push(fn),
+      step: () => q.shift()?.(),
+      run: () => {
+        let n = 0
+        while (q.length && n++ < 10000) q.shift()!()
+        return n
+      },
+      size: () => q.length,
+    }
+  }
+
+  it('a live gesture re-routes only what the moved node touches; the drop commits the cold-load generation', async () => {
+    const { beginLiveLayout, endLiveLayout, __setRouteScheduler } = await import('./routeMap')
+    const s = manual()
+    __setRouteScheduler(s.schedule)
+    try {
+      const { nodes, edges } = busy()
+      currentRouteMap(nodes, edges) // cold: sliced too
+      s.run()
+      const before = currentRouteMap(nodes, edges)
+      beginLiveLayout()
+      // drag `a` (incident: e1, e5) a little
+      const moved = nodes.map((n) => (n.id === 'a' ? { ...n, position: { x: 0, y: 16 } } : n))
+      const during = currentRouteMap(moved, edges)
+      for (const id of ['e2', 'e3', 'e4']) expect(during.get(id), `${id} untouched while live`).toBe(before.get(id))
+      expect(during.get('e1')!.d).not.toBe(before.get('e1')!.d)
+      expect(s.size(), 'no full generation while the gesture lasts').toBe(0)
+      const g = __routeGenCount()
+      endLiveLayout()
+      s.run()
+      expect(__routeGenCount()).toBe(g + 1)
+      const dropped = currentRouteMap(moved, edges)
+      __setRouteScheduler(null)
+      __resetRouteCache()
+      const cold = currentRouteMap(moved, edges)
+      expect(routes(dropped)).toEqual(routes(cold))
+    } finally {
+      __setRouteScheduler(null)
+    }
+  })
+
+  it('a sliced full generation shows the provisional map until it is complete, then the synchronous result in one swap', async () => {
+    const { __setRouteScheduler } = await import('./routeMap')
+    const s = manual()
+    __setRouteScheduler(s.schedule)
+    try {
+      const { nodes, edges } = busy()
+      currentRouteMap(nodes, edges) // cold: sliced too
+      s.run()
+      const moved = nodes.map((n) => (n.id === 'mid' ? { ...n, position: { x: 250, y: 60 } } : n))
+      const shown = currentRouteMap(moved, edges)
+      // until the job commits, every render gets the SAME provisional map
+      expect(currentRouteMap(moved, edges)).toBe(shown)
+      s.run()
+      const final = currentRouteMap(moved, edges)
+      __setRouteScheduler(null)
+      __resetRouteCache()
+      expect(routes(final)).toEqual(routes(currentRouteMap(moved, edges)))
+    } finally {
+      __setRouteScheduler(null)
+    }
+  })
+
+  it('a cold start draws no routed edge until its sliced generation commits; busy meanwhile; a layout seen again is shown at once', async () => {
+    const { __setRouteScheduler, useRouteInputs } = await import('./routeMap')
+    const s = manual()
+    __setRouteScheduler(s.schedule)
+    try {
+      const { nodes, edges } = busy()
+      expect(currentRouteMap(nodes, edges).size, 'nothing routed is drawn yet').toBe(0)
+      await Promise.resolve() // `busy` is published right after the render
+      expect(useRouteInputs.getState().busy).toBe(true)
+      s.run()
+      const full = currentRouteMap(nodes, edges)
+      expect(full.size).toBe(edges.length)
+      await Promise.resolve()
+      expect(useRouteInputs.getState().busy).toBe(false)
+      // another layout, then back: the kept generation, with no job
+      const moved = nodes.map((n) => (n.id === 'mid' ? { ...n, position: { x: 250, y: 60 } } : n))
+      currentRouteMap(moved, edges)
+      s.run()
+      const g = __routeGenCount()
+      expect(currentRouteMap(nodes, edges)).toBe(full)
+      expect(s.size()).toBe(0)
+      expect(__routeGenCount()).toBe(g)
+      // and it equals the synchronous generation
+      __setRouteScheduler(null)
+      __resetRouteCache()
+      expect(routes(full)).toEqual(routes(currentRouteMap(nodes, edges)))
+    } finally {
+      __setRouteScheduler(null)
+    }
+  })
+
+  it('a newer layout cancels a running job: the cancelled generation never commits', async () => {
+    const { __setRouteScheduler, routeDiagnostics } = await import('./routeMap')
+    const s = manual()
+    __setRouteScheduler(s.schedule)
+    try {
+      const { nodes, edges } = busy()
+      currentRouteMap(nodes, edges)
+      s.run()
+      const g = __routeGenCount()
+      const m1 = nodes.map((n) => (n.id === 'mid' ? { ...n, position: { x: 250, y: 60 } } : n))
+      currentRouteMap(m1, edges) // the first job is queued, not finished
+      const m2 = nodes.map((n) => (n.id === 'mid' ? { ...n, position: { x: 250, y: 200 } } : n))
+      currentRouteMap(m2, edges) // cancels it
+      s.run()
+      expect(__routeGenCount()).toBe(g + 1) // only the second commits
+      expect(routeDiagnostics().job.cancelled).toBeGreaterThan(0)
+      const final = currentRouteMap(m2, edges)
+      __setRouteScheduler(null)
+      __resetRouteCache()
+      expect(routes(final)).toEqual(routes(currentRouteMap(m2, edges)))
+    } finally {
+      __setRouteScheduler(null)
+    }
+  })
+
+  it('a port fan shares only its stub: no two connections of one port run together past it, and no label sits on it', async () => {
+    const { routeDiagnostics, setRouteLabelSize } = await import('./routeMap')
+    // one source port feeding four targets in the same direction
+    const nodes = [node('s', 0, 160), node('t1', 400, 0), node('t2', 400, 120), node('t3', 400, 240), node('t4', 400, 360)]
+    const edges = [edge('f1', 's', 't1'), edge('f2', 's', 't2'), edge('f3', 's', 't3'), edge('f4', 's', 't4')]
+    for (const e of edges) setRouteLabelSize(e.id, 24, 18)
+    const m = currentRouteMap(nodes, edges)
+    expect(routeDiagnostics().fanOverlaps).toEqual([])
+    for (const [id, r] of m) {
+      const [p0, p1] = r.stubs
+      const L = { x: r.label!.x - 12, y: r.label!.y - 9, w: 24, h: 18 }
+      const onStub = Math.max(p0.x, p1.x) > L.x && Math.min(p0.x, p1.x) < L.x + L.w && Math.max(p0.y, p1.y) > L.y && Math.min(p0.y, p1.y) < L.y + L.h
+      expect(onStub, `${id} label on the shared stub`).toBe(false)
+    }
+  })
+
+  it('reports how many routes each rung produced, and names every outer / blocked one', async () => {
+    const { routeDiagnostics } = await import('./routeMap')
+    const { nodes, edges } = busy()
+    currentRouteMap(nodes, edges)
+    const d = routeDiagnostics()
+    expect(Object.values(d.counts).reduce((a, b) => a + b, 0)).toBe(edges.length)
+    expect(d.flagged.every((f) => f.routeClass === 'outer' || f.routeClass === 'blocked')).toBe(true)
+  })
+})
