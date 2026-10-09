@@ -13,7 +13,8 @@ import { defaultNodeLabel } from '../i18n/nodeDefaults'
 import { relabelFramesForLocale, relabelNodesForLocale } from '../i18n/templateLabels/relabel'
 import { relabelModuleNodesForLocale } from '../i18n/moduleLabelSync'
 import { createNode, defaultData, nextId } from '../model/factory'
-import { snapDragChanges } from '../model/layout/dragSnap'
+import { dragSnap, snapDrag } from '../model/layout/dragSnap'
+import { useGuideStore } from './guideStore'
 import { convertLayout, isLegacyLayout, migrateDocument } from './layoutConvert'
 import { GRID, snapNodePosition } from '../model/layout/grid'
 import { boxesOverlap, nearestFree } from '../model/layout/place'
@@ -906,9 +907,17 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       if (changes.length === 0 && all.length > 0) return
       const dragging = changes.some((c) => c.type === 'position' && c.dragging)
       const settled = changes.some((c) => c.type === 'position' && c.dragging === false)
-      // issue #344 §DL3 — a pointer drag lands on the grid (the grabbed
-      // node's correction applied to every dragged node; Alt = free)
-      if (dragging || settled) changes = snapDragChanges(changes)
+      // issue #344 §DL3 — a pointer drag lands by the smart guides' one
+      // correction (§DL3.6: port row, centre / edges, grid; Alt = free), an
+      // arrow-key move on the grid; the guides show where it went
+      if (dragging || settled) {
+        const s = snapDrag(changes, get().nodes)
+        changes = s.changes
+        if (s.guides) {
+          if (dragSnap.active) useGuideStore.getState().show(s.guides, s.faint)
+          else useGuideStore.getState().flash(s.guides)
+        }
+      }
       const removed = changes.some((c) => c.type === 'remove')
       // 'remove' tag: a node deletion and the connected-edge deletions React Flow
       // cascades arrive as separate calls in the same tick — coalesce them into

@@ -1613,6 +1613,38 @@ a.sheet__row {
   fill: var(--warning);
   font: 700 11px var(--font-sans);
 }
+/* issue #344 §DL3.6 — smart guides (SmartGuideLayer.tsx): a dashed placement
+   line through where the drag lands, a solid line to every node it is exactly
+   aligned with. 1 screen px whatever the zoom; faint while Alt frees the move. */
+.smart-guides {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 4;
+}
+.smart-guide {
+  stroke: var(--line-focus);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 4 4;
+  opacity: 0.55;
+}
+.smart-guide.is-strong {
+  stroke-dasharray: none;
+  opacity: 0.95;
+}
+.smart-guides.is-faint .smart-guide {
+  opacity: 0.3;
+}
+@media (forced-colors: active) {
+  .smart-guide {
+    stroke: Highlight;
+  }
+}
 /* issue #344 step 3 (docs/edge-routing.md §ER16) — a bend point of the selected
    Manual orthogonal connection (RouteBends.tsx): a small square on the route,
    draggable and focusable. A position it cannot keep (inside a node, on the

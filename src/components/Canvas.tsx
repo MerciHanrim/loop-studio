@@ -19,9 +19,10 @@ import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { blocksCanvasKey } from '../ui/keyboardTarget'
 import { createKeyGesture } from '../ui/keyGestureLifetime'
-import { dragSnap } from '../model/layout/dragSnap'
+import { dragSnap, keyMoveGuides } from '../model/layout/dragSnap'
 import { beginLiveLayout, bendAtClick, bendInsertIndex, bendRejection, currentRouteMap, endLiveLayout, keyboardBend, useRouteInputs } from '../store/routeMap'
 import { useRouteEditStore } from '../store/routeEditStore'
+import { useGuideStore } from '../store/guideStore'
 import { GRID, snapNodePosition } from '../model/layout/grid'
 import { type MessageKey, useI18n, useLocaleDirection, useT } from '../i18n'
 import { moduleLabelOverlay } from '../i18n/moduleLabels'
@@ -33,6 +34,7 @@ import { useFocusSet } from './focusSet'
 import { useHiddenSet } from './filterSet'
 import { FilterPanel } from './FilterPanel'
 import { FrameLayer } from './frames/FrameLayer'
+import { SmartGuideLayer } from './SmartGuideLayer'
 import { PanSurface } from './PanSurface'
 import { useFrameStore, hasFrames } from '../store/frameStore'
 import { useAutoFrameStore, hasAutoFrames, autoFramesStale } from '../store/autoFrameStore'
@@ -832,6 +834,8 @@ export function Canvas() {
         if (n) moved[id] = { x: n.position.x + dx, y: n.position.y + dy }
       }
       g.applyGesturePositions(moved, {})
+      // §DL3.6 — the row and column it now sits on, briefly
+      useGuideStore.getState().flash(keyMoveGuides(useGraphStore.getState().nodes, Object.keys(moved), anchor.id))
       // the announcement React Flow would have made for its own move
       const st = rfStore.getState() as unknown as { ariaLiveMessage?: string }
       if ('ariaLiveMessage' in st) {
@@ -922,12 +926,12 @@ export function Canvas() {
         // (Alt = free move); the store snaps the drag by that node's correction.
         // §ER14.5 — while it lasts only the routes the moved nodes touch are
         // routed again; the drop builds one full generation
-        onNodeDragStart={(e, node) => { dragSnap.begin(node.id, e.altKey); beginLiveLayout() }}
+        onNodeDragStart={(e, node, dragged) => { dragSnap.begin(node.id, e.altKey, dragged.map((n) => n.id), useGraphStore.getState().nodes, getViewport().zoom); beginLiveLayout() }}
         onNodeDrag={(e) => dragSnap.update(e.altKey)}
-        onNodeDragStop={(e) => { dragSnap.update(e.altKey); endLiveLayout() }}
-        onSelectionDragStart={(e, dragged) => { dragSnap.begin(dragged[0]?.id ?? null, e.altKey); beginLiveLayout() }}
+        onNodeDragStop={(e) => { dragSnap.update(e.altKey); dragSnap.end(); useGuideStore.getState().clear(); endLiveLayout() }}
+        onSelectionDragStart={(e, dragged) => { dragSnap.begin(dragged[0]?.id ?? null, e.altKey, dragged.map((n) => n.id), useGraphStore.getState().nodes, getViewport().zoom); beginLiveLayout() }}
         onSelectionDrag={(e) => dragSnap.update(e.altKey)}
-        onSelectionDragStop={(e) => { dragSnap.update(e.altKey); endLiveLayout() }}
+        onSelectionDragStop={(e) => { dragSnap.update(e.altKey); dragSnap.end(); useGuideStore.getState().clear(); endLiveLayout() }}
         onEdgesChange={onEdgesChange}
         onConnect={noEdit ? undefined : onConnect}
         onSelectionChange={onSelectionChange}
@@ -1004,6 +1008,8 @@ export function Canvas() {
         {/* docs/large-graph-readability.md §LGR6 — transient group frames
             (behind the nodes) + their interactive chrome. Render / UI-only. */}
         <FrameLayer />
+        {/* docs/diagram-layout.md §DL3.6 — the smart guides of a node drag */}
+        <SmartGuideLayer />
         {/* docs/large-graph-readability.md §LGR12.3 — the "N nodes selected"
             readout is NOT a canvas panel: desktop → DesktopInspector (the right
             column, directly above the Inspector), mobile → MobileInspectorSheet
