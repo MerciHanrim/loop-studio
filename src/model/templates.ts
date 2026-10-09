@@ -133,7 +133,10 @@ export const TEMPLATES: Template[] = [
     // threshold `LOD_L1_MIN` = 0.45); tuned by eye at 1280 / 820 px. The rest
     // of the graph is one pan / minimap away. Fixed graph coords, no locale
     // branch.
-    initialView: { rect: { x: 0, y: 0, width: 880, height: 360 }, minZoom: 0.6 },
+    // issue #344 step 4 (docs/diagram-layout.md §DL5.5) — the same first
+    // steps at their placed coordinates (Character creation, Active character,
+    // the Starter zone encounter + first combat; widest boxes + 40 px)
+    initialView: { rect: { x: 8, y: -4, width: 1149, height: 478 }, minZoom: 0.6 },
   },
   // docs/gacha-banner-zones.md (GZ) — the 3-zone gacha banner comparison. The
   // canonical graph is examples/gacha-banner-zones.json, built by
@@ -180,6 +183,8 @@ export const TEMPLATES: Template[] = [
     // exact class of overflow if the layout shifts slightly in the future.
     // Fixed graph coords, no locale branch (comparison row 0-1720 + Free
     // zone 0-950 x 0-810).
-    initialView: { rect: { x: 0, y: 0, width: 1760, height: 850 }, minZoom: 0.45 },
+    // issue #344 step 4 (§DL5.5) — the comparison frame + the Free zone frame
+    // at their placed coordinates, 40 px margin
+    initialView: { rect: { x: -40, y: -56, width: 2064, height: 1120 }, minZoom: 0.45 },
   },
 ]

@@ -7,8 +7,8 @@
       "id": "tpl-src",
       "type": "source",
       "position": {
-        "x": 48,
-        "y": 196
+        "x": 40,
+        "y": 190
       },
       "data": {
         "kind": "source",
@@ -21,7 +21,7 @@
       "id": "tpl-vault",
       "type": "pool",
       "position": {
-        "x": 288,
+        "x": 268,
         "y": 180
       },
       "data": {
@@ -37,7 +37,7 @@
       "id": "tpl-gate",
       "type": "gate",
       "position": {
-        "x": 512,
+        "x": 479,
         "y": 180
       },
       "data": {
@@ -51,8 +51,8 @@
       "id": "tpl-conv",
       "type": "converter",
       "position": {
-        "x": 768,
-        "y": 116
+        "x": 740,
+        "y": 110
       },
       "data": {
         "kind": "converter",
@@ -65,8 +65,8 @@
       "id": "tpl-prod",
       "type": "pool",
       "position": {
-        "x": 960,
-        "y": 116
+        "x": 934,
+        "y": 110
       },
       "data": {
         "kind": "pool",
@@ -81,8 +81,8 @@
       "id": "tpl-spill",
       "type": "drain",
       "position": {
-        "x": 768,
-        "y": 308
+        "x": 740,
+        "y": 300
       },
       "data": {
         "kind": "drain",
@@ -95,8 +95,8 @@
       "id": "tpl-consume",
       "type": "drain",
       "position": {
-        "x": 1184,
-        "y": 116
+        "x": 1153,
+        "y": 110
       },
       "data": {
         "kind": "drain",
@@ -116,8 +116,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "3",
-        "route": "orthogonal"
+        "flow": "3"
       }
     },
     {
@@ -129,8 +128,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "all",
-        "route": "orthogonal"
+        "flow": "all"
       }
     },
     {
@@ -142,8 +140,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "2",
-        "route": "orthogonal"
+        "flow": "2"
       }
     },
     {
@@ -155,8 +152,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -168,8 +164,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -181,8 +176,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     }
   ]

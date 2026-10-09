@@ -7,8 +7,8 @@
       "id": "cafe_retail_demand_kg",
       "type": "parameter",
       "position": {
-        "x": 48,
-        "y": 4
+        "x": 40,
+        "y": 0
       },
       "data": {
         "kind": "parameter",
@@ -21,7 +21,7 @@
       "type": "parameter",
       "position": {
         "x": 320,
-        "y": 4
+        "y": 0
       },
       "data": {
         "kind": "parameter",
@@ -33,8 +33,8 @@
       "id": "online_orders",
       "type": "parameter",
       "position": {
-        "x": 608,
-        "y": 4
+        "x": 600,
+        "y": 0
       },
       "data": {
         "kind": "parameter",
@@ -46,8 +46,8 @@
       "id": "green_wholesale_kg",
       "type": "parameter",
       "position": {
-        "x": 896,
-        "y": 4
+        "x": 880,
+        "y": 0
       },
       "data": {
         "kind": "parameter",
@@ -59,8 +59,8 @@
       "id": "dessert_prep",
       "type": "parameter",
       "position": {
-        "x": 1184,
-        "y": 4
+        "x": 1160,
+        "y": 0
       },
       "data": {
         "kind": "parameter",
@@ -72,8 +72,8 @@
       "id": "green_delivery",
       "type": "source",
       "position": {
-        "x": 48,
-        "y": 228
+        "x": 40,
+        "y": 200
       },
       "data": {
         "kind": "source",
@@ -87,8 +87,8 @@
       "id": "green_stock",
       "type": "pool",
       "position": {
-        "x": 304,
-        "y": 228
+        "x": 300,
+        "y": 200
       },
       "data": {
         "kind": "pool",
@@ -104,8 +104,8 @@
       "id": "green_wholesale",
       "type": "drain",
       "position": {
-        "x": 304,
-        "y": 404
+        "x": 300,
+        "y": 360
       },
       "data": {
         "kind": "drain",
@@ -119,8 +119,8 @@
       "id": "roasting",
       "type": "gate",
       "position": {
-        "x": 544,
-        "y": 228
+        "x": 540,
+        "y": 200
       },
       "data": {
         "kind": "gate",
@@ -134,8 +134,8 @@
       "id": "roasted_stock",
       "type": "pool",
       "position": {
-        "x": 800,
-        "y": 228
+        "x": 780,
+        "y": 200
       },
       "data": {
         "kind": "pool",
@@ -151,8 +151,8 @@
       "id": "roast_loss",
       "type": "drain",
       "position": {
-        "x": 544,
-        "y": 404
+        "x": 540,
+        "y": 360
       },
       "data": {
         "kind": "drain",
@@ -166,8 +166,8 @@
       "id": "online_sales",
       "type": "drain",
       "position": {
-        "x": 1040,
-        "y": 196
+        "x": 1020,
+        "y": 160
       },
       "data": {
         "kind": "drain",
@@ -181,8 +181,8 @@
       "id": "cafe_retail",
       "type": "drain",
       "position": {
-        "x": 800,
-        "y": 404
+        "x": 780,
+        "y": 360
       },
       "data": {
         "kind": "drain",
@@ -196,8 +196,8 @@
       "id": "roasted_bleed",
       "type": "drain",
       "position": {
-        "x": 1040,
-        "y": 356
+        "x": 1020,
+        "y": 300
       },
       "data": {
         "kind": "drain",
@@ -211,8 +211,8 @@
       "id": "dessert_prep_src",
       "type": "source",
       "position": {
-        "x": 48,
-        "y": 644
+        "x": 40,
+        "y": 520
       },
       "data": {
         "kind": "source",
@@ -226,8 +226,8 @@
       "id": "dessert_stock",
       "type": "pool",
       "position": {
-        "x": 304,
-        "y": 644
+        "x": 300,
+        "y": 520
       },
       "data": {
         "kind": "pool",
@@ -243,8 +243,8 @@
       "id": "dessert_sales",
       "type": "drain",
       "position": {
-        "x": 544,
-        "y": 644
+        "x": 540,
+        "y": 520
       },
       "data": {
         "kind": "drain",
@@ -258,8 +258,8 @@
       "id": "dessert_wrapup",
       "type": "drain",
       "position": {
-        "x": 544,
-        "y": 788
+        "x": 540,
+        "y": 660
       },
       "data": {
         "kind": "drain",
@@ -273,8 +273,8 @@
       "id": "projected_revenue",
       "type": "register",
       "position": {
-        "x": 1424,
-        "y": 4
+        "x": 1400,
+        "y": 0
       },
       "data": {
         "kind": "register",
@@ -287,8 +287,8 @@
       "id": "planned_cost",
       "type": "register",
       "position": {
-        "x": 1424,
-        "y": 148
+        "x": 1400,
+        "y": 120
       },
       "data": {
         "kind": "register",
@@ -301,8 +301,8 @@
       "id": "projected_operating_margin",
       "type": "register",
       "position": {
-        "x": 1424,
-        "y": 292
+        "x": 1400,
+        "y": 240
       },
       "data": {
         "kind": "register",
@@ -315,8 +315,8 @@
       "id": "roasted_supply_margin",
       "type": "register",
       "position": {
-        "x": 1424,
-        "y": 452
+        "x": 1400,
+        "y": 360
       },
       "data": {
         "kind": "register",
@@ -328,8 +328,8 @@
       "id": "dessert_prep_margin",
       "type": "register",
       "position": {
-        "x": 1424,
-        "y": 612
+        "x": 1400,
+        "y": 480
       },
       "data": {
         "kind": "register",
@@ -349,7 +349,6 @@
       "data": {
         "kind": "resource",
         "flow": "34",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -363,7 +362,6 @@
       "data": {
         "kind": "resource",
         "flow": "@green_wholesale_kg",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -376,8 +374,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "@daily_roast_kg",
-        "route": "orthogonal"
+        "flow": "@daily_roast_kg"
       }
     },
     {
@@ -390,7 +387,6 @@
       "data": {
         "kind": "resource",
         "flow": "82",
-        "route": "orthogonal",
         "accent": "#A78243"
       }
     },
@@ -404,7 +400,6 @@
       "data": {
         "kind": "resource",
         "flow": "18",
-        "route": "orthogonal",
         "accent": "#A78243"
       }
     },
@@ -418,7 +413,6 @@
       "data": {
         "kind": "resource",
         "flow": "@online_orders",
-        "route": "orthogonal",
         "accent": "#A78243"
       }
     },
@@ -432,7 +426,6 @@
       "data": {
         "kind": "resource",
         "flow": "@cafe_retail_demand_kg",
-        "route": "orthogonal",
         "accent": "#A78243"
       }
     },
@@ -446,7 +439,6 @@
       "data": {
         "kind": "resource",
         "flow": "14%",
-        "route": "orthogonal",
         "accent": "#A78243"
       }
     },
@@ -460,7 +452,6 @@
       "data": {
         "kind": "resource",
         "flow": "@dessert_prep",
-        "route": "orthogonal",
         "accent": "#B47599"
       }
     },
@@ -474,7 +465,6 @@
       "data": {
         "kind": "resource",
         "flow": "16",
-        "route": "orthogonal",
         "accent": "#B47599"
       }
     },
@@ -488,7 +478,6 @@
       "data": {
         "kind": "resource",
         "flow": "55%",
-        "route": "orthogonal",
         "accent": "#B47599"
       }
     }
@@ -515,29 +504,29 @@
       "label": "Supply & inventory",
       "rect": {
         "x": 16,
-        "y": 192,
-        "w": 496,
-        "h": 560
+        "y": 176,
+        "w": 473,
+        "h": 432
       }
     },
     {
       "id": "zone_roasting",
       "label": "Roasting & sales",
       "rect": {
-        "x": 512,
-        "y": 160,
-        "w": 752,
-        "h": 736
+        "x": 516,
+        "y": 136,
+        "w": 719,
+        "h": 612
       }
     },
     {
       "id": "zone_forecast",
       "label": "Forecast metrics",
       "rect": {
-        "x": 1392,
-        "y": -32,
-        "w": 320,
-        "h": 800
+        "x": 1376,
+        "y": -24,
+        "w": 308,
+        "h": 634
       }
     }
   ]

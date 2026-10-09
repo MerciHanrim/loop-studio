@@ -7,8 +7,8 @@
       "id": "level",
       "type": "pool",
       "position": {
-        "x": 1920,
-        "y": 980
+        "x": 1520,
+        "y": 800
       },
       "data": {
         "kind": "pool",
@@ -24,8 +24,8 @@
       "id": "xp",
       "type": "pool",
       "position": {
-        "x": 1408,
-        "y": 980
+        "x": 1120,
+        "y": 800
       },
       "data": {
         "kind": "pool",
@@ -41,8 +41,8 @@
       "id": "xp_earned",
       "type": "pool",
       "position": {
-        "x": 1632,
-        "y": 980
+        "x": 1320,
+        "y": 800
       },
       "data": {
         "kind": "pool",
@@ -58,8 +58,8 @@
       "id": "reward",
       "type": "pool",
       "position": {
-        "x": 2224,
-        "y": 980
+        "x": 1720,
+        "y": 800
       },
       "data": {
         "kind": "pool",
@@ -75,8 +75,8 @@
       "id": "fail_pool",
       "type": "pool",
       "position": {
-        "x": 688,
-        "y": 980
+        "x": 560,
+        "y": 800
       },
       "data": {
         "kind": "pool",
@@ -91,8 +91,8 @@
       "id": "death_pool",
       "type": "pool",
       "position": {
-        "x": 944,
-        "y": 980
+        "x": 720,
+        "y": 800
       },
       "data": {
         "kind": "pool",
@@ -107,8 +107,8 @@
       "id": "reward_router",
       "type": "gate",
       "position": {
-        "x": 2080,
-        "y": 1188
+        "x": 1590,
+        "y": 940
       },
       "data": {
         "kind": "gate",
@@ -121,8 +121,8 @@
       "id": "hunt_payout",
       "type": "converter",
       "position": {
-        "x": 2416,
-        "y": 1060
+        "x": 1820,
+        "y": 890
       },
       "data": {
         "kind": "converter",
@@ -136,8 +136,8 @@
       "id": "quest_payout",
       "type": "converter",
       "position": {
-        "x": 2336,
-        "y": 1252
+        "x": 1800,
+        "y": 1000
       },
       "data": {
         "kind": "converter",
@@ -151,8 +151,8 @@
       "id": "hunt_xp",
       "type": "pool",
       "position": {
-        "x": 2656,
-        "y": 1060
+        "x": 2030,
+        "y": 890
       },
       "data": {
         "kind": "pool",
@@ -168,8 +168,8 @@
       "id": "quest_xp",
       "type": "pool",
       "position": {
-        "x": 2656,
-        "y": 1236
+        "x": 2030,
+        "y": 980
       },
       "data": {
         "kind": "pool",
@@ -185,8 +185,8 @@
       "id": "fail_conv",
       "type": "converter",
       "position": {
-        "x": 960,
-        "y": 1188
+        "x": 730,
+        "y": 940
       },
       "data": {
         "kind": "converter",
@@ -199,8 +199,8 @@
       "id": "death_conv",
       "type": "converter",
       "position": {
-        "x": 1184,
-        "y": 1188
+        "x": 900,
+        "y": 940
       },
       "data": {
         "kind": "converter",
@@ -213,8 +213,8 @@
       "id": "combat_wins",
       "type": "pool",
       "position": {
-        "x": 672,
-        "y": 1124
+        "x": 550,
+        "y": 890
       },
       "data": {
         "kind": "pool",
@@ -229,8 +229,8 @@
       "id": "combat_fails",
       "type": "pool",
       "position": {
-        "x": 672,
-        "y": 1236
+        "x": 550,
+        "y": 980
       },
       "data": {
         "kind": "pool",
@@ -245,8 +245,8 @@
       "id": "deaths",
       "type": "pool",
       "position": {
-        "x": 704,
-        "y": 1332
+        "x": 570,
+        "y": 1070
       },
       "data": {
         "kind": "pool",
@@ -261,8 +261,8 @@
       "id": "gold",
       "type": "pool",
       "position": {
-        "x": 1904,
-        "y": 1396
+        "x": 1500,
+        "y": 1130
       },
       "data": {
         "kind": "pool",
@@ -279,8 +279,8 @@
       "id": "gold_earned",
       "type": "pool",
       "position": {
-        "x": 2176,
-        "y": 1412
+        "x": 1680,
+        "y": 1140
       },
       "data": {
         "kind": "pool",
@@ -296,8 +296,8 @@
       "id": "vendor_revenue",
       "type": "pool",
       "position": {
-        "x": 2464,
-        "y": 1412
+        "x": 1860,
+        "y": 1140
       },
       "data": {
         "kind": "pool",
@@ -313,8 +313,8 @@
       "id": "repair_spend",
       "type": "pool",
       "position": {
-        "x": 1952,
-        "y": 1524
+        "x": 1520,
+        "y": 1250
       },
       "data": {
         "kind": "pool",
@@ -330,8 +330,8 @@
       "id": "resupply_spend",
       "type": "pool",
       "position": {
-        "x": 2192,
-        "y": 1636
+        "x": 1700,
+        "y": 1340
       },
       "data": {
         "kind": "pool",
@@ -347,8 +347,8 @@
       "id": "training_spend",
       "type": "pool",
       "position": {
-        "x": 2448,
-        "y": 1524
+        "x": 1860,
+        "y": 1250
       },
       "data": {
         "kind": "pool",
@@ -364,8 +364,8 @@
       "id": "water",
       "type": "pool",
       "position": {
-        "x": 2032,
-        "y": 1748
+        "x": 1540,
+        "y": 1430
       },
       "data": {
         "kind": "pool",
@@ -381,8 +381,8 @@
       "id": "food",
       "type": "pool",
       "position": {
-        "x": 1920,
-        "y": 1844
+        "x": 1520,
+        "y": 1530
       },
       "data": {
         "kind": "pool",
@@ -398,8 +398,8 @@
       "id": "water_bought",
       "type": "pool",
       "position": {
-        "x": 2240,
-        "y": 1796
+        "x": 1720,
+        "y": 1480
       },
       "data": {
         "kind": "pool",
@@ -414,8 +414,8 @@
       "id": "food_bought",
       "type": "pool",
       "position": {
-        "x": 2560,
-        "y": 1796
+        "x": 1940,
+        "y": 1480
       },
       "data": {
         "kind": "pool",
@@ -430,8 +430,8 @@
       "id": "water_consumed",
       "type": "pool",
       "position": {
-        "x": 1488,
-        "y": 1492
+        "x": 1200,
+        "y": 1220
       },
       "data": {
         "kind": "pool",
@@ -446,8 +446,8 @@
       "id": "food_consumed",
       "type": "pool",
       "position": {
-        "x": 1424,
-        "y": 1716
+        "x": 1130,
+        "y": 1400
       },
       "data": {
         "kind": "pool",
@@ -462,8 +462,8 @@
       "id": "water_upkeep",
       "type": "converter",
       "position": {
-        "x": 1728,
-        "y": 1588
+        "x": 1330,
+        "y": 1310
       },
       "data": {
         "kind": "converter",
@@ -476,8 +476,8 @@
       "id": "food_upkeep",
       "type": "converter",
       "position": {
-        "x": 1776,
-        "y": 1716
+        "x": 1370,
+        "y": 1400
       },
       "data": {
         "kind": "converter",
@@ -490,8 +490,8 @@
       "id": "resupply",
       "type": "converter",
       "position": {
-        "x": 2192,
-        "y": 1524
+        "x": 1700,
+        "y": 1250
       },
       "data": {
         "kind": "converter",
@@ -505,8 +505,8 @@
       "id": "gear_score",
       "type": "pool",
       "position": {
-        "x": 3168,
-        "y": 1332
+        "x": 2340,
+        "y": 1080
       },
       "data": {
         "kind": "pool",
@@ -522,8 +522,8 @@
       "id": "gear_wear",
       "type": "pool",
       "position": {
-        "x": 2784,
-        "y": 1348
+        "x": 2160,
+        "y": 1080
       },
       "data": {
         "kind": "pool",
@@ -538,8 +538,8 @@
       "id": "wear_cleared",
       "type": "pool",
       "position": {
-        "x": 2848,
-        "y": 980
+        "x": 2160,
+        "y": 800
       },
       "data": {
         "kind": "pool",
@@ -554,8 +554,8 @@
       "id": "repair_wear",
       "type": "converter",
       "position": {
-        "x": 2912,
-        "y": 1092
+        "x": 2190,
+        "y": 890
       },
       "data": {
         "kind": "converter",
@@ -568,8 +568,8 @@
       "id": "repair_gold",
       "type": "converter",
       "position": {
-        "x": 2944,
-        "y": 1252
+        "x": 2220,
+        "y": 990
       },
       "data": {
         "kind": "converter",
@@ -583,8 +583,8 @@
       "id": "drop",
       "type": "pool",
       "position": {
-        "x": 464,
-        "y": 980
+        "x": 380,
+        "y": 800
       },
       "data": {
         "kind": "pool",
@@ -600,8 +600,8 @@
       "id": "loot_feed",
       "type": "pool",
       "position": {
-        "x": 448,
-        "y": 1332
+        "x": 370,
+        "y": 1070
       },
       "data": {
         "kind": "pool",
@@ -617,8 +617,8 @@
       "id": "loot_dispatch",
       "type": "converter",
       "position": {
-        "x": 448,
-        "y": 1188
+        "x": 370,
+        "y": 940
       },
       "data": {
         "kind": "converter",
@@ -632,8 +632,8 @@
       "id": "loot_category",
       "type": "gate",
       "position": {
-        "x": 464,
-        "y": 1460
+        "x": 380,
+        "y": 1180
       },
       "data": {
         "kind": "gate",
@@ -647,8 +647,8 @@
       "id": "bucket_equip",
       "type": "pool",
       "position": {
-        "x": 352,
-        "y": 1572
+        "x": 270,
+        "y": 1300
       },
       "data": {
         "kind": "pool",
@@ -664,8 +664,8 @@
       "id": "bucket_vendor",
       "type": "pool",
       "position": {
-        "x": 576,
-        "y": 1572
+        "x": 440,
+        "y": 1300
       },
       "data": {
         "kind": "pool",
@@ -681,8 +681,8 @@
       "id": "bucket_consumable",
       "type": "pool",
       "position": {
-        "x": 848,
-        "y": 1572
+        "x": 640,
+        "y": 1300
       },
       "data": {
         "kind": "pool",
@@ -698,8 +698,8 @@
       "id": "bucket_rare",
       "type": "pool",
       "position": {
-        "x": 1088,
-        "y": 1572
+        "x": 850,
+        "y": 1300
       },
       "data": {
         "kind": "pool",
@@ -715,8 +715,8 @@
       "id": "items_looted",
       "type": "pool",
       "position": {
-        "x": 208,
-        "y": 1188
+        "x": 200,
+        "y": 940
       },
       "data": {
         "kind": "pool",
@@ -733,7 +733,7 @@
       "type": "pool",
       "position": {
         "x": 80,
-        "y": 1556
+        "y": 1290
       },
       "data": {
         "kind": "pool",
@@ -749,8 +749,8 @@
       "id": "items_sold",
       "type": "pool",
       "position": {
-        "x": 96,
-        "y": 1684
+        "x": 100,
+        "y": 1390
       },
       "data": {
         "kind": "pool",
@@ -766,8 +766,8 @@
       "id": "items_consumed",
       "type": "pool",
       "position": {
-        "x": 96,
-        "y": 1796
+        "x": 90,
+        "y": 1480
       },
       "data": {
         "kind": "pool",
@@ -783,8 +783,8 @@
       "id": "equip_conv",
       "type": "converter",
       "position": {
-        "x": 320,
-        "y": 1748
+        "x": 290,
+        "y": 1420
       },
       "data": {
         "kind": "converter",
@@ -798,8 +798,8 @@
       "id": "vendor_conv",
       "type": "converter",
       "position": {
-        "x": 576,
-        "y": 1748
+        "x": 450,
+        "y": 1420
       },
       "data": {
         "kind": "converter",
@@ -813,8 +813,8 @@
       "id": "consumable_conv",
       "type": "converter",
       "position": {
-        "x": 800,
-        "y": 1748
+        "x": 630,
+        "y": 1420
       },
       "data": {
         "kind": "converter",
@@ -828,8 +828,8 @@
       "id": "rare_conv",
       "type": "converter",
       "position": {
-        "x": 1056,
-        "y": 1748
+        "x": 830,
+        "y": 1420
       },
       "data": {
         "kind": "converter",
@@ -843,8 +843,8 @@
       "id": "elapsed",
       "type": "pool",
       "position": {
-        "x": 3888,
-        "y": 356
+        "x": 3020,
+        "y": 290
       },
       "data": {
         "kind": "pool",
@@ -859,8 +859,8 @@
       "id": "clock",
       "type": "source",
       "position": {
-        "x": 3648,
-        "y": 356
+        "x": 2820,
+        "y": 290
       },
       "data": {
         "kind": "source",
@@ -873,8 +873,8 @@
       "id": "completion",
       "type": "pool",
       "position": {
-        "x": 3888,
-        "y": 196
+        "x": 3030,
+        "y": 170
       },
       "data": {
         "kind": "pool",
@@ -889,8 +889,8 @@
       "id": "completion_src",
       "type": "source",
       "position": {
-        "x": 3648,
-        "y": 196
+        "x": 2810,
+        "y": 170
       },
       "data": {
         "kind": "source",
@@ -903,8 +903,8 @@
       "id": "end15",
       "type": "end",
       "position": {
-        "x": 3888,
-        "y": 36
+        "x": 3020,
+        "y": 40
       },
       "data": {
         "kind": "end",
@@ -916,8 +916,8 @@
       "id": "z1_enc_src",
       "type": "source",
       "position": {
-        "x": 592,
-        "y": 164
+        "x": 460,
+        "y": 160
       },
       "data": {
         "kind": "source",
@@ -930,8 +930,8 @@
       "id": "z1_enc",
       "type": "pool",
       "position": {
-        "x": 944,
-        "y": 36
+        "x": 720,
+        "y": 40
       },
       "data": {
         "kind": "pool",
@@ -946,8 +946,8 @@
       "id": "z1_combat",
       "type": "gate",
       "position": {
-        "x": 896,
-        "y": 372
+        "x": 690,
+        "y": 300
       },
       "data": {
         "kind": "gate",
@@ -960,8 +960,8 @@
       "id": "z1_win",
       "type": "pool",
       "position": {
-        "x": 592,
-        "y": 388
+        "x": 460,
+        "y": 320
       },
       "data": {
         "kind": "pool",
@@ -976,8 +976,8 @@
       "id": "z1_winamp",
       "type": "converter",
       "position": {
-        "x": 592,
-        "y": 564
+        "x": 460,
+        "y": 460
       },
       "data": {
         "kind": "converter",
@@ -990,8 +990,8 @@
       "id": "z1_lootroll",
       "type": "pool",
       "position": {
-        "x": 592,
-        "y": 740
+        "x": 460,
+        "y": 600
       },
       "data": {
         "kind": "pool",
@@ -1007,8 +1007,8 @@
       "id": "z1_loot",
       "type": "gate",
       "position": {
-        "x": 896,
-        "y": 772
+        "x": 690,
+        "y": 620
       },
       "data": {
         "kind": "gate",
@@ -1022,8 +1022,8 @@
       "id": "z1_xp_meter",
       "type": "gate",
       "position": {
-        "x": 1248,
-        "y": 356
+        "x": 960,
+        "y": 290
       },
       "data": {
         "kind": "gate",
@@ -1038,8 +1038,8 @@
       "id": "z1_xp2lvl",
       "type": "converter",
       "position": {
-        "x": 1248,
-        "y": 532
+        "x": 960,
+        "y": 440
       },
       "data": {
         "kind": "converter",
@@ -1053,8 +1053,8 @@
       "id": "z1_training",
       "type": "converter",
       "position": {
-        "x": 896,
-        "y": 580
+        "x": 690,
+        "y": 470
       },
       "data": {
         "kind": "converter",
@@ -1067,8 +1067,8 @@
       "id": "z2_enc_src",
       "type": "source",
       "position": {
-        "x": 1504,
-        "y": 164
+        "x": 1200,
+        "y": 160
       },
       "data": {
         "kind": "source",
@@ -1081,8 +1081,8 @@
       "id": "z2_enc",
       "type": "pool",
       "position": {
-        "x": 1856,
-        "y": 36
+        "x": 1460,
+        "y": 40
       },
       "data": {
         "kind": "pool",
@@ -1097,8 +1097,8 @@
       "id": "z2_combat",
       "type": "gate",
       "position": {
-        "x": 1824,
-        "y": 372
+        "x": 1430,
+        "y": 300
       },
       "data": {
         "kind": "gate",
@@ -1111,8 +1111,8 @@
       "id": "z2_win",
       "type": "pool",
       "position": {
-        "x": 1504,
-        "y": 388
+        "x": 1200,
+        "y": 320
       },
       "data": {
         "kind": "pool",
@@ -1127,8 +1127,8 @@
       "id": "z2_winamp",
       "type": "converter",
       "position": {
-        "x": 1504,
-        "y": 564
+        "x": 1200,
+        "y": 460
       },
       "data": {
         "kind": "converter",
@@ -1141,8 +1141,8 @@
       "id": "z2_lootroll",
       "type": "pool",
       "position": {
-        "x": 1488,
-        "y": 740
+        "x": 1200,
+        "y": 600
       },
       "data": {
         "kind": "pool",
@@ -1158,8 +1158,8 @@
       "id": "z2_loot",
       "type": "gate",
       "position": {
-        "x": 1824,
-        "y": 772
+        "x": 1430,
+        "y": 620
       },
       "data": {
         "kind": "gate",
@@ -1173,8 +1173,8 @@
       "id": "z2_xp_meter",
       "type": "gate",
       "position": {
-        "x": 2192,
-        "y": 356
+        "x": 1700,
+        "y": 290
       },
       "data": {
         "kind": "gate",
@@ -1189,8 +1189,8 @@
       "id": "z2_xp2lvl",
       "type": "converter",
       "position": {
-        "x": 2192,
-        "y": 532
+        "x": 1700,
+        "y": 440
       },
       "data": {
         "kind": "converter",
@@ -1204,8 +1204,8 @@
       "id": "z2_training",
       "type": "converter",
       "position": {
-        "x": 1824,
-        "y": 580
+        "x": 1430,
+        "y": 470
       },
       "data": {
         "kind": "converter",
@@ -1218,8 +1218,8 @@
       "id": "z3_enc_src",
       "type": "source",
       "position": {
-        "x": 2560,
-        "y": 164
+        "x": 1940,
+        "y": 160
       },
       "data": {
         "kind": "source",
@@ -1232,8 +1232,8 @@
       "id": "z3_enc",
       "type": "pool",
       "position": {
-        "x": 2928,
-        "y": 36
+        "x": 2200,
+        "y": 40
       },
       "data": {
         "kind": "pool",
@@ -1248,8 +1248,8 @@
       "id": "z3_combat",
       "type": "gate",
       "position": {
-        "x": 2864,
-        "y": 372
+        "x": 2170,
+        "y": 300
       },
       "data": {
         "kind": "gate",
@@ -1262,8 +1262,8 @@
       "id": "z3_win",
       "type": "pool",
       "position": {
-        "x": 2560,
-        "y": 388
+        "x": 1940,
+        "y": 320
       },
       "data": {
         "kind": "pool",
@@ -1278,8 +1278,8 @@
       "id": "z3_winamp",
       "type": "converter",
       "position": {
-        "x": 2560,
-        "y": 564
+        "x": 1940,
+        "y": 460
       },
       "data": {
         "kind": "converter",
@@ -1292,8 +1292,8 @@
       "id": "z3_lootroll",
       "type": "pool",
       "position": {
-        "x": 2560,
-        "y": 740
+        "x": 1940,
+        "y": 600
       },
       "data": {
         "kind": "pool",
@@ -1309,8 +1309,8 @@
       "id": "z3_loot",
       "type": "gate",
       "position": {
-        "x": 2864,
-        "y": 772
+        "x": 2170,
+        "y": 620
       },
       "data": {
         "kind": "gate",
@@ -1324,8 +1324,8 @@
       "id": "z3_xp_meter",
       "type": "gate",
       "position": {
-        "x": 3280,
-        "y": 356
+        "x": 2440,
+        "y": 290
       },
       "data": {
         "kind": "gate",
@@ -1340,8 +1340,8 @@
       "id": "z3_xp2lvl",
       "type": "converter",
       "position": {
-        "x": 3280,
-        "y": 532
+        "x": 2440,
+        "y": 440
       },
       "data": {
         "kind": "converter",
@@ -1355,8 +1355,8 @@
       "id": "z3_training",
       "type": "converter",
       "position": {
-        "x": 2864,
-        "y": 580
+        "x": 2170,
+        "y": 470
       },
       "data": {
         "kind": "converter",
@@ -1369,8 +1369,8 @@
       "id": "void",
       "type": "drain",
       "position": {
-        "x": 2528,
-        "y": 964
+        "x": 1920,
+        "y": 780
       },
       "data": {
         "kind": "drain",
@@ -1383,8 +1383,8 @@
       "id": "char_creation",
       "type": "source",
       "position": {
-        "x": 48,
-        "y": 36
+        "x": 40,
+        "y": 40
       },
       "data": {
         "kind": "source",
@@ -1397,8 +1397,8 @@
       "id": "active_char",
       "type": "pool",
       "position": {
-        "x": 400,
-        "y": 36
+        "x": 320,
+        "y": 40
       },
       "data": {
         "kind": "pool",
@@ -1413,8 +1413,8 @@
       "id": "r_income",
       "type": "register",
       "position": {
-        "x": 4144,
-        "y": 324
+        "x": 3280,
+        "y": 260
       },
       "data": {
         "kind": "register",
@@ -1428,8 +1428,8 @@
       "id": "r_expense",
       "type": "register",
       "position": {
-        "x": 4144,
-        "y": 468
+        "x": 3280,
+        "y": 370
       },
       "data": {
         "kind": "register",
@@ -1443,8 +1443,8 @@
       "id": "r_netgold",
       "type": "register",
       "position": {
-        "x": 4144,
-        "y": 596
+        "x": 3280,
+        "y": 480
       },
       "data": {
         "kind": "register",
@@ -1458,8 +1458,8 @@
       "id": "r_huntshare",
       "type": "register",
       "position": {
-        "x": 4144,
-        "y": 180
+        "x": 3280,
+        "y": 150
       },
       "data": {
         "kind": "register",
@@ -1472,8 +1472,8 @@
       "id": "r_efflevel",
       "type": "register",
       "position": {
-        "x": 4144,
-        "y": 36
+        "x": 3280,
+        "y": 40
       },
       "data": {
         "kind": "register",
@@ -1486,8 +1486,8 @@
       "id": "r_items_acct",
       "type": "register",
       "position": {
-        "x": 4144,
-        "y": 740
+        "x": 3280,
+        "y": 590
       },
       "data": {
         "kind": "register",
@@ -1501,8 +1501,8 @@
       "id": "r_burned",
       "type": "register",
       "position": {
-        "x": 4144,
-        "y": 884
+        "x": 3280,
+        "y": 700
       },
       "data": {
         "kind": "register",
@@ -1523,8 +1523,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "all",
-        "route": "orthogonal"
+        "flow": "all"
       }
     },
     {
@@ -1536,8 +1535,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "3",
-        "route": "orthogonal"
+        "flow": "3"
       }
     },
     {
@@ -1549,8 +1547,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -1562,8 +1559,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "3",
-        "route": "orthogonal"
+        "flow": "3"
       }
     },
     {
@@ -1575,8 +1571,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "3",
-        "route": "orthogonal"
+        "flow": "3"
       }
     },
     {
@@ -1588,8 +1583,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "3",
-        "route": "orthogonal"
+        "flow": "3"
       }
     },
     {
@@ -1602,7 +1596,6 @@
       "data": {
         "kind": "resource",
         "flow": "2",
-        "route": "orthogonal",
         "accent": "#A78243"
       }
     },
@@ -1616,7 +1609,6 @@
       "data": {
         "kind": "resource",
         "flow": "2",
-        "route": "orthogonal",
         "accent": "#A78243"
       }
     },
@@ -1629,8 +1621,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "9",
-        "route": "orthogonal"
+        "flow": "9"
       }
     },
     {
@@ -1642,8 +1633,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "9",
-        "route": "orthogonal"
+        "flow": "9"
       }
     },
     {
@@ -1655,8 +1645,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "9",
-        "route": "orthogonal"
+        "flow": "9"
       }
     },
     {
@@ -1669,7 +1658,6 @@
       "data": {
         "kind": "resource",
         "flow": "7",
-        "route": "orthogonal",
         "accent": "#A78243"
       }
     },
@@ -1683,7 +1671,6 @@
       "data": {
         "kind": "resource",
         "flow": "7",
-        "route": "orthogonal",
         "accent": "#A78243"
       }
     },
@@ -1696,8 +1683,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -1709,8 +1695,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -1722,8 +1707,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1.5",
-        "route": "orthogonal"
+        "flow": "1.5"
       }
     },
     {
@@ -1735,8 +1719,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -1748,8 +1731,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -1761,8 +1743,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -1774,8 +1755,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "3",
-        "route": "orthogonal"
+        "flow": "3"
       }
     },
     {
@@ -1787,8 +1767,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "3",
-        "route": "orthogonal"
+        "flow": "3"
       }
     },
     {
@@ -1800,8 +1779,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -1813,8 +1791,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -1826,8 +1803,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -1839,8 +1815,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -1853,7 +1828,6 @@
       "data": {
         "kind": "resource",
         "flow": "6",
-        "route": "orthogonal",
         "accent": "#A78243"
       }
     },
@@ -1866,8 +1840,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "8",
-        "route": "orthogonal"
+        "flow": "8"
       }
     },
     {
@@ -1879,8 +1852,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "8",
-        "route": "orthogonal"
+        "flow": "8"
       }
     },
     {
@@ -1892,8 +1864,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "8",
-        "route": "orthogonal"
+        "flow": "8"
       }
     },
     {
@@ -1905,8 +1876,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "8",
-        "route": "orthogonal"
+        "flow": "8"
       }
     },
     {
@@ -1919,7 +1889,6 @@
       "data": {
         "kind": "resource",
         "flow": "6",
-        "route": "orthogonal",
         "accent": "#A78243"
       }
     },
@@ -1933,8 +1902,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": "< 5",
-        "route": "orthogonal"
+        "expr": "< 5"
       }
     },
     {
@@ -1946,8 +1914,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "4",
-        "route": "orthogonal"
+        "flow": "4"
       }
     },
     {
@@ -1959,8 +1926,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "4",
-        "route": "orthogonal"
+        "flow": "4"
       }
     },
     {
@@ -1973,7 +1939,6 @@
       "data": {
         "kind": "resource",
         "flow": "4",
-        "route": "orthogonal",
         "accent": "#A78243"
       }
     },
@@ -1987,7 +1952,6 @@
       "data": {
         "kind": "resource",
         "flow": "4",
-        "route": "orthogonal",
         "accent": "#A78243"
       }
     },
@@ -2001,8 +1965,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": "> 6",
-        "route": "orthogonal"
+        "expr": "> 6"
       }
     },
     {
@@ -2015,8 +1978,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": ">= 1",
-        "route": "orthogonal"
+        "expr": ">= 1"
       }
     },
     {
@@ -2029,8 +1991,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": "> 6",
-        "route": "orthogonal"
+        "expr": "> 6"
       }
     },
     {
@@ -2043,8 +2004,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": ">= 1",
-        "route": "orthogonal"
+        "expr": ">= 1"
       }
     },
     {
@@ -2057,7 +2017,6 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2071,7 +2030,6 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2085,7 +2043,6 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2099,7 +2056,6 @@
       "data": {
         "kind": "resource",
         "flow": "all",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2113,7 +2069,6 @@
       "data": {
         "kind": "resource",
         "flow": "34",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2127,7 +2082,6 @@
       "data": {
         "kind": "resource",
         "flow": "40",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2141,7 +2095,6 @@
       "data": {
         "kind": "resource",
         "flow": "20",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2155,7 +2108,6 @@
       "data": {
         "kind": "resource",
         "flow": "6",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2169,7 +2121,6 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2183,7 +2134,6 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2196,8 +2146,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "4",
-        "route": "orthogonal"
+        "flow": "4"
       }
     },
     {
@@ -2210,7 +2159,6 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2224,7 +2172,6 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2237,8 +2184,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "3",
-        "route": "orthogonal"
+        "flow": "3"
       }
     },
     {
@@ -2250,8 +2196,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "3",
-        "route": "orthogonal"
+        "flow": "3"
       }
     },
     {
@@ -2263,8 +2208,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "3",
-        "route": "orthogonal"
+        "flow": "3"
       }
     },
     {
@@ -2277,7 +2221,6 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2291,7 +2234,6 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2304,8 +2246,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "2",
-        "route": "orthogonal"
+        "flow": "2"
       }
     },
     {
@@ -2317,8 +2258,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "2",
-        "route": "orthogonal"
+        "flow": "2"
       }
     },
     {
@@ -2330,8 +2270,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "2",
-        "route": "orthogonal"
+        "flow": "2"
       }
     },
     {
@@ -2343,8 +2282,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "2",
-        "route": "orthogonal"
+        "flow": "2"
       }
     },
     {
@@ -2357,7 +2295,6 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2371,7 +2308,6 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2384,8 +2320,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "14",
-        "route": "orthogonal"
+        "flow": "14"
       }
     },
     {
@@ -2397,8 +2332,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "14",
-        "route": "orthogonal"
+        "flow": "14"
       }
     },
     {
@@ -2410,8 +2344,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "14",
-        "route": "orthogonal"
+        "flow": "14"
       }
     },
     {
@@ -2423,8 +2356,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -2436,8 +2368,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -2449,8 +2380,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "all",
-        "route": "orthogonal"
+        "flow": "all"
       }
     },
     {
@@ -2463,8 +2393,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": ">= 15",
-        "route": "orthogonal"
+        "expr": ">= 15"
       }
     },
     {
@@ -2476,8 +2405,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -2489,8 +2417,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "all",
-        "route": "orthogonal"
+        "flow": "all"
       }
     },
     {
@@ -2502,8 +2429,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "9",
-        "route": "orthogonal"
+        "flow": "9"
       }
     },
     {
@@ -2541,8 +2467,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -2580,8 +2505,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -2594,7 +2518,6 @@
       "data": {
         "kind": "resource",
         "flow": "all",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2649,7 +2572,6 @@
       "data": {
         "kind": "resource",
         "flow": "10",
-        "route": "orthogonal",
         "accent": "#9182A8"
       }
     },
@@ -2703,8 +2625,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": "< 5",
-        "route": "orthogonal"
+        "expr": "< 5"
       }
     },
     {
@@ -2717,8 +2638,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": "< 5",
-        "route": "orthogonal"
+        "expr": "< 5"
       }
     },
     {
@@ -2731,8 +2651,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": "< 5",
-        "route": "orthogonal"
+        "expr": "< 5"
       }
     },
     {
@@ -2745,8 +2664,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": "< 5",
-        "route": "orthogonal"
+        "expr": "< 5"
       }
     },
     {
@@ -2758,8 +2676,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -2771,8 +2688,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "all",
-        "route": "orthogonal"
+        "flow": "all"
       }
     },
     {
@@ -2784,8 +2700,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "7",
-        "route": "orthogonal"
+        "flow": "7"
       }
     },
     {
@@ -2823,8 +2738,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -2862,8 +2776,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -2876,7 +2789,6 @@
       "data": {
         "kind": "resource",
         "flow": "all",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -2931,7 +2843,6 @@
       "data": {
         "kind": "resource",
         "flow": "19",
-        "route": "orthogonal",
         "accent": "#9182A8"
       }
     },
@@ -2985,8 +2896,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": ">= 5",
-        "route": "orthogonal"
+        "expr": ">= 5"
       }
     },
     {
@@ -2999,8 +2909,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": "< 10",
-        "route": "orthogonal"
+        "expr": "< 10"
       }
     },
     {
@@ -3013,8 +2922,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": ">= 5",
-        "route": "orthogonal"
+        "expr": ">= 5"
       }
     },
     {
@@ -3027,8 +2935,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": "< 10",
-        "route": "orthogonal"
+        "expr": "< 10"
       }
     },
     {
@@ -3041,8 +2948,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": ">= 5",
-        "route": "orthogonal"
+        "expr": ">= 5"
       }
     },
     {
@@ -3055,8 +2961,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": "< 10",
-        "route": "orthogonal"
+        "expr": "< 10"
       }
     },
     {
@@ -3069,8 +2974,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": ">= 5",
-        "route": "orthogonal"
+        "expr": ">= 5"
       }
     },
     {
@@ -3083,8 +2987,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": "< 10",
-        "route": "orthogonal"
+        "expr": "< 10"
       }
     },
     {
@@ -3096,8 +2999,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -3109,8 +3011,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "all",
-        "route": "orthogonal"
+        "flow": "all"
       }
     },
     {
@@ -3122,8 +3023,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "6.5",
-        "route": "orthogonal"
+        "flow": "6.5"
       }
     },
     {
@@ -3161,8 +3061,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -3200,8 +3099,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -3214,7 +3112,6 @@
       "data": {
         "kind": "resource",
         "flow": "all",
-        "route": "orthogonal",
         "accent": "#74906B"
       }
     },
@@ -3269,7 +3166,6 @@
       "data": {
         "kind": "resource",
         "flow": "27",
-        "route": "orthogonal",
         "accent": "#9182A8"
       }
     },
@@ -3323,8 +3219,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": ">= 10",
-        "route": "orthogonal"
+        "expr": ">= 10"
       }
     },
     {
@@ -3337,8 +3232,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": ">= 4",
-        "route": "orthogonal"
+        "expr": ">= 4"
       }
     },
     {
@@ -3351,8 +3245,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": ">= 10",
-        "route": "orthogonal"
+        "expr": ">= 10"
       }
     },
     {
@@ -3365,8 +3258,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": ">= 4",
-        "route": "orthogonal"
+        "expr": ">= 4"
       }
     },
     {
@@ -3379,8 +3271,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": ">= 10",
-        "route": "orthogonal"
+        "expr": ">= 10"
       }
     },
     {
@@ -3393,8 +3284,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": ">= 4",
-        "route": "orthogonal"
+        "expr": ">= 4"
       }
     },
     {
@@ -3407,8 +3297,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": ">= 10",
-        "route": "orthogonal"
+        "expr": ">= 10"
       }
     },
     {
@@ -3421,8 +3310,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": ">= 4",
-        "route": "orthogonal"
+        "expr": ">= 4"
       }
     },
     {
@@ -3434,8 +3322,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1",
-        "route": "orthogonal"
+        "flow": "1"
       }
     },
     {
@@ -3448,8 +3335,7 @@
       "data": {
         "kind": "state",
         "mode": "activator",
-        "expr": ">= 1",
-        "route": "orthogonal"
+        "expr": ">= 1"
       }
     }
   ],

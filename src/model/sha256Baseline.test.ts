@@ -96,6 +96,26 @@ const legacyProjection = (file: string, text: string): string => {
   return JSON.stringify(doc)
 }
 
+// issue #344 step 4 (docs/diagram-layout.md §DL5) - the five bundled Templates
+// were placed for the grid: positions, frames and routes moved, which are
+// content but never engine data. Their engine digest still equals the
+// recorded one; their content and full-content digests changed and are pinned
+// at their current values (the three coloured ones in
+// src/engine/templateFlowColours.test.ts, the other two below). The recorded
+// #301 chain is checked on the files as they stood before that step,
+// `test/fixtures/templates-before-step4/`.
+const PLACED_SINCE = new Set(['equilibrium.json', 'deadlock.json', ...COLOURED_SINCE])
+const PLACED_PINS: Record<string, { contentDigest: string; fullContentDigest: string }> = {
+  'deadlock.json': { contentDigest: '0a5e956ac7c0a15e02534f72020bf5e51cfd20cc4034dca9d8fd00fe82d08fc8', fullContentDigest: '0a5e956ac7c0a15e02534f72020bf5e51cfd20cc4034dca9d8fd00fe82d08fc8' },
+  'equilibrium.json': { contentDigest: '05d969fd3e97409e023779c13460741ba88758c033f68ae698e39d515004ac6c', fullContentDigest: '05d969fd3e97409e023779c13460741ba88758c033f68ae698e39d515004ac6c' },
+}
+const BEFORE_STEP4 = import.meta.glob('../../test/fixtures/templates-before-step4/*.json', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
+const readBefore = (file: string): string => {
+  const text = BEFORE_STEP4['../../test/fixtures/templates-before-step4/' + file]
+  if (text === undefined) throw new Error('missing pre-step-4 copy ' + file)
+  return text
+}
+
 const docOf = (p: ReturnType<typeof deserialize>) => ({
   nodes: p.nodes,
   edges: p.edges,
@@ -116,6 +136,27 @@ describe('the digests of real documents are unchanged', () => {
       })
       continue
     }
+    if (PLACED_SINCE.has(g.file)) {
+      it(`examples/${g.file}: placed for the grid (#344 step 4) - the engine digest is the recorded one, content pinned anew`, async () => {
+        const p = deserialize(read(g.file))
+        const doc = docOf(p)
+        expect(p.modelVersion).toBe(g.modelVersion)
+        expect(await semanticDigest({ nodes: p.nodes, edges: p.edges }, p.modelVersion)).toBe(g.semanticDigest)
+        const content = digestOfCanonical(canonicalContent(doc, { modelVersion: p.modelVersion }))
+        const full = await fullContentDigest(doc, p.modelVersion)
+        expect(content, g.file).toBe(PLACED_PINS[g.file]!.contentDigest)
+        expect(full, g.file).toBe(PLACED_PINS[g.file]!.fullContentDigest)
+        expect(content).not.toBe(g.contentDigest)
+      })
+      it(`examples/${g.file} before step 4: semantic, content and full-content digests as recorded`, async () => {
+        const p = deserialize(readBefore(g.file))
+        const doc = docOf(p)
+        expect(await semanticDigest({ nodes: p.nodes, edges: p.edges }, p.modelVersion)).toBe(g.semanticDigest)
+        expect(digestOfCanonical(canonicalContent(doc, { modelVersion: p.modelVersion }))).toBe(g.contentDigest)
+        expect(await fullContentDigest(doc, p.modelVersion)).toBe(g.fullContentDigest)
+      })
+      continue
+    }
     it(`examples/${g.file}: semantic, content and full-content digests`, async () => {
       const p = deserialize(read(g.file))
       const doc = docOf(p)
@@ -126,11 +167,11 @@ describe('the digests of real documents are unchanged', () => {
     })
   }
 
-  it('legacy (#301 baseline): the three coloured Templates without their flow colours (PR 2) and the gacha waypoints added since (PR 3, #344) give the recorded digests', async () => {
+  it('legacy (#301 baseline): the three coloured Templates as they stood before #344 step 4, without their flow colours (PR 2) and the gacha waypoints added since (PR 3, #344 step 1), give the recorded digests', async () => {
     const legacy = EXAMPLE_GRAPH_DIGESTS.filter((g) => COLOURED_SINCE.has(g.file))
     expect(legacy.map((g) => g.file).sort()).toEqual([...COLOURED_SINCE].sort())
     for (const g of legacy) {
-      const p = deserialize(legacyProjection(g.file, read(g.file)))
+      const p = deserialize(legacyProjection(g.file, readBefore(g.file)))
       const doc = docOf(p)
       expect(p.modelVersion, g.file).toBe(g.modelVersion)
       expect(await semanticDigest({ nodes: p.nodes, edges: p.edges }, p.modelVersion), g.file).toBe(g.semanticDigest)

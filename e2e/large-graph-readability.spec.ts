@@ -2316,9 +2316,14 @@ test.describe('§LGR9 forced-colors — rail toggles keep a visible keyboard foc
       await resetAll(page)
       await importGraph(page, readFileSync(new URL(`../examples/${file}`, import.meta.url), 'utf8'))
       await expect(page.locator('.react-flow__node').first()).toBeVisible()
-      await page.evaluate(() =>
-        (window as unknown as { __loop: { rf: { fitView: (o: object) => void } } }).__loop.rf.fitView({ duration: 0, padding: 0.1 }),
-      )
+      // frame the measured edges' own nodes (issue #344 step 4: fitting the
+      // whole, now larger, MMO graph made the zoom — and so the stroke's pixel
+      // coverage — depend on the graph's size, not on the edges under test)
+      await page.evaluate((ids) => {
+        const l = (window as unknown as { __loop: { rf: { fitView: (o: object) => void }; graph: { getState: () => { edges: { id: string; source: string; target: string }[] } } } }).__loop
+        const ends = l.graph.getState().edges.filter((e) => (ids as string[]).includes(e.id)).flatMap((e) => [e.source, e.target])
+        l.rf.fitView({ duration: 0, padding: 0.1, nodes: [...new Set(ends)].map((id) => ({ id })) })
+      }, [...edgeIds])
       await page.waitForTimeout(300)
       for (let i = 0; i < 10; i++) await commitOneStep(page)
       await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)

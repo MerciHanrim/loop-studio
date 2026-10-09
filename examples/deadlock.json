@@ -7,8 +7,8 @@
       "id": "tpl-src",
       "type": "source",
       "position": {
-        "x": 40,
-        "y": 190
+        "x": 48,
+        "y": 196
       },
       "data": {
         "kind": "source",
@@ -21,7 +21,7 @@
       "id": "tpl-vault",
       "type": "pool",
       "position": {
-        "x": 268,
+        "x": 288,
         "y": 180
       },
       "data": {
@@ -37,7 +37,7 @@
       "id": "tpl-gate",
       "type": "gate",
       "position": {
-        "x": 479,
+        "x": 512,
         "y": 180
       },
       "data": {
@@ -51,8 +51,8 @@
       "id": "tpl-conv",
       "type": "converter",
       "position": {
-        "x": 740,
-        "y": 110
+        "x": 768,
+        "y": 116
       },
       "data": {
         "kind": "converter",
@@ -65,8 +65,8 @@
       "id": "tpl-prod",
       "type": "pool",
       "position": {
-        "x": 934,
-        "y": 110
+        "x": 960,
+        "y": 116
       },
       "data": {
         "kind": "pool",
@@ -81,8 +81,8 @@
       "id": "tpl-spill",
       "type": "drain",
       "position": {
-        "x": 740,
-        "y": 300
+        "x": 768,
+        "y": 308
       },
       "data": {
         "kind": "drain",
@@ -102,7 +102,8 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "3"
+        "flow": "3",
+        "route": "orthogonal"
       }
     },
     {
@@ -114,7 +115,8 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "all"
+        "flow": "all",
+        "route": "orthogonal"
       }
     },
     {
@@ -126,7 +128,8 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "2"
+        "flow": "2",
+        "route": "orthogonal"
       }
     },
     {
@@ -138,7 +141,8 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1"
+        "flow": "1",
+        "route": "orthogonal"
       }
     },
     {
@@ -150,7 +154,8 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "1"
+        "flow": "1",
+        "route": "orthogonal"
       }
     }
   ]

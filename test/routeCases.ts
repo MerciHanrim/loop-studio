@@ -55,6 +55,15 @@ const MEASURED = readJson<Record<string, Record<string, [number, number]>>>(
 /** the bundled examples that carry `route: "orthogonal"` edges */
 export const ORTHO_EXAMPLES = ['gacha-banner-zones', 'mmo-progression', 'playback-choreography'] as const
 
+/** issue #344 step 4 re-placed the Templates (widest geometry, every
+ *  connection Auto orthogonal). This corpus pins the v1 router on the layouts
+ *  it was frozen on, so the two Templates are read from their copies as they
+ *  stood before that step (`fixtures/templates-before-step4/`, byte-equal
+ *  to `examples/` at 2cd99f1); the playback fixture is not a Template and is
+ *  read live. */
+const exampleFile = (graph: (typeof ORTHO_EXAMPLES)[number]): string =>
+  graph === 'playback-choreography' ? `../examples/${graph}.json` : `./fixtures/templates-before-step4/${graph}.json`
+
 // ── replication of src/store/routeMap.ts `rebuild` ──────────────────────────
 const handlePos = (h: string | null | undefined, fallback: Position): Position =>
   h === 'in'
@@ -133,7 +142,7 @@ function inputsFromDoc(prefix: string, doc: RawDoc, sizes: Record<string, [numbe
 
 /** every orthogonal edge of one bundled example, as the app routes it */
 export function exampleCases(graph: (typeof ORTHO_EXAMPLES)[number]): Case[] {
-  const doc = readJson<RawDoc>(`../examples/${graph}.json`)
+  const doc = readJson<RawDoc>(exampleFile(graph))
   return inputsFromDoc(graph, doc, MEASURED[graph] ?? {})
 }
 
@@ -157,7 +166,7 @@ export const WAYPOINTS_ADDED_SINCE_GOLDEN: Partial<Record<(typeof ORTHO_EXAMPLES
 /** `exampleCases` with the waypoints added since the golden projected out —
  *  each one only if it is exactly the listed value, else this throws */
 export function goldenExampleCases(graph: (typeof ORTHO_EXAMPLES)[number]): Case[] {
-  const doc = readJson<RawDoc>(`../examples/${graph}.json`)
+  const doc = readJson<RawDoc>(exampleFile(graph))
   for (const [edgeId, added] of Object.entries(WAYPOINTS_ADDED_SINCE_GOLDEN[graph] ?? {})) {
     const edge = doc.edges.find((e) => e.id === edgeId)
     if (JSON.stringify(edge?.data?.waypoints) !== JSON.stringify(added))
@@ -170,7 +179,7 @@ export function goldenExampleCases(graph: (typeof ORTHO_EXAMPLES)[number]): Case
 /** mmo-progression with EVERY edge forced orthogonal — 144 edges over 97 nodes,
  *  the heaviest routing load the app can be put under (differential only). */
 export function stressCases(): Case[] {
-  const doc = readJson<RawDoc>('../examples/mmo-progression.json')
+  const doc = readJson<RawDoc>(exampleFile('mmo-progression'))
   for (const e of doc.edges) e.data = { ...(e.data ?? {}), route: 'orthogonal' }
   return inputsFromDoc('STRESS-mmo-all-orthogonal', doc, MEASURED['mmo-progression'] ?? {})
 }

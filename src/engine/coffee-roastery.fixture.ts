@@ -1,6 +1,7 @@
 import { defaultData } from '../model/factory'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { withTemplateFlowColours, type TemplateFlows } from './templateFlowColours'
+import { placeTemplate } from '../model/layout/templatePlacement'
 
 // Builder for examples/coffee-roastery.json — the "Coffee roastery operations
 // flow" Templates demo (docs/example-coffee-roastery.md, settled design,
@@ -141,7 +142,7 @@ const res = (id: string, source: string, target: string, flow: string): LoopEdge
 const num = (n: number) => String(n)
 
 // ── the graph ─────────────────────────────────────────────────────────────
-export function buildCoffeeRoastery(): { nodes: LoopNode[]; edges: LoopEdge[] } {
+function buildCoffeeRoasteryAuthored(): { nodes: LoopNode[]; edges: LoopEdge[] } {
   const nodes: LoopNode[] = []
   const edges: LoopEdge[] = []
   const N = (n: LoopNode) => (nodes.push(n), n)
@@ -317,7 +318,7 @@ export const COFFEE_ROASTERY_MC = {
 // (the Register column was moved +80 px for exactly this clearance). Frame gaps:
 // 27 px (1→2), 141 px (2→3); overlap: 0. Titles are EN canonical; the label
 // overlay localises them (§TLO12).
-export const COFFEE_ROASTERY_FRAMES = [
+const COFFEE_ROASTERY_AUTHORED_FRAMES = [
   { id: 'zone_supply', label: 'Supply & inventory', rect: { x: 16, y: 176, w: 473, h: 432 } },
   { id: 'zone_roasting', label: 'Roasting & sales', rect: { x: 516, y: 136, w: 719, h: 612 } },
   // bottom extended +20 (614 → 634) after the node-shell height fix
@@ -327,3 +328,20 @@ export const COFFEE_ROASTERY_FRAMES = [
   // right and the other two zones are unchanged.
   { id: 'zone_forecast', label: 'Forecast metrics', rect: { x: 1376, y: -24, w: 308, h: 634 } },
 ] as const
+
+// issue #344 step 4 (docs/diagram-layout.md §DL5) — the authored graph and
+// frames above, placed for the grid: widest boxes over 18 languages,
+// clearance, frames that travel with their nodes (≥ 24 px margin, §CR17),
+// every connection Auto orthogonal. What ships is this.
+const PLACED = placeTemplate('coffee-roastery', {
+  ...buildCoffeeRoasteryAuthored(),
+  frames: COFFEE_ROASTERY_AUTHORED_FRAMES.map((f) => ({ id: f.id, label: f.label, rect: { ...f.rect } })),
+})
+
+/** the Coffee roastery graph as it ships (a fresh copy each call) */
+export function buildCoffeeRoastery(): { nodes: LoopNode[]; edges: LoopEdge[] } {
+  return structuredClone({ nodes: PLACED.nodes, edges: PLACED.edges })
+}
+
+/** the three group frames as they ship */
+export const COFFEE_ROASTERY_FRAMES: readonly { id: string; label: string; rect: { x: number; y: number; w: number; h: number } }[] = PLACED.frames!

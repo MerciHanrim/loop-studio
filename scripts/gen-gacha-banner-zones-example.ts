@@ -74,6 +74,7 @@ import {
   type ZoneKey,
 } from '../src/engine/gachaBannerZonesGraph'
 import { withTemplateFlowColours } from '../src/engine/templateFlowColours'
+import { placeTemplate } from '../src/model/layout/templatePlacement'
 import { serialize, type RecommendedRunConfig, type SavedFrame } from '../src/model/serialize'
 import type { LoopEdge, LoopNode } from '../src/model/types'
 
@@ -396,7 +397,17 @@ const routedEdges: LoopEdge[] = (edges as LoopEdge[]).map((e) => ({
 // same as its frame's (cosmetic data, like the routing above)
 const coloured = withTemplateFlowColours(positioned, routedEdges, GACHA_BANNER_ZONES_FLOWS)
 
-const text = serialize(coloured.nodes, coloured.edges, recommendedRunConfig, undefined, undefined, 2, frames)
+// Layout round 9 (issue #344 step 4, docs/diagram-layout.md §DL5) — the
+// layout above, placed for the grid by `placeTemplate`: each node's widest box
+// over the 18 languages plus a clearance (so no language puts a node over a
+// port, and every port fan has room to branch), frames that travel with their
+// nodes, and every connection AUTO orthogonal — the guarded router of step 2
+// resolves every case the `WAYPOINTS` above were added for, in all 18
+// languages, so none is kept (measured: no blocked port, no fan overlap past a
+// stub, no outer route).
+const placed = placeTemplate('gacha-banner-zones', { ...coloured, frames: frames.map((f) => ({ ...f, rect: { ...f.rect } })) })
+
+const text = serialize(placed.nodes, placed.edges, recommendedRunConfig, undefined, undefined, 2, placed.frames)
 
 const outPath = fileURLToPath(new URL('../examples/gacha-banner-zones.json', import.meta.url))
 writeFileSync(outPath, text + '\n')

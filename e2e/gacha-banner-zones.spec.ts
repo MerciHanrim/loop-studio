@@ -662,25 +662,34 @@ test.describe('3-zone gacha banner comparison Template', () => {
     // #325 PR 3 (compact nodes), layout round 7 of
     // scripts/gen-gacha-banner-zones-example.ts — with 56 / 58 px nodes both
     // edges ran through the one band between the first two flow rows and their
-    // `+1` labels overlapped in ko. `e_pickup_36` now leaves its bottom port
-    // downward through one waypoint into the band under the second row. This
-    // pins the pair the broader every-label test above caught.
+    // `+1` labels overlapped in ko. Round 7 fixed it with a waypoint; issue
+    // #344 step 4 (round 9) placed the Template for the grid and made every
+    // connection Auto orthogonal, so the guarded router and the label slots
+    // now keep the pair apart with no waypoint. This pins the pair the broader
+    // every-label test above caught.
     await openApp(page)
     await resetAll(page)
     await pickDesktopTemplate(page, EN_NAME)
     await page.setViewportSize({ width: 1600, height: 900 })
-    const waypoints = await page.evaluate(
+    const routing = await page.evaluate(
       () =>
-        (window as unknown as { __loop: { graph: { getState: () => { edges: { id: string; data?: { waypoints?: unknown } }[] } } } })
+        (window as unknown as { __loop: { graph: { getState: () => { edges: { id: string; data?: { route?: unknown; waypoints?: unknown } }[] } } } })
           .__loop.graph.getState()
-          .edges.find((e) => e.id === 'e_pickup_36')?.data?.waypoints,
+          .edges.find((e) => e.id === 'e_pickup_36')?.data,
     )
-    expect(waypoints).toEqual([{ x: 3200, y: 650 }])
+    expect(routing?.route).toBe('orthogonal')
+    expect(routing?.waypoints, 'Auto: no bend points').toBeUndefined()
     for (const locale of ['en', 'ko', 'ja'] as const) {
       await setLocale(page, locale)
       await routesSettled(page) // issue #344 — the new label sizes route again
-      await page.evaluate(() =>
-        (window as unknown as { __loop: { rf: { setViewport: (v: object) => void } } }).__loop.rf.setViewport({ x: 800 - 3200, y: 450 - 600, zoom: 1 }),
+      // centre the pair (wherever the placement put it)
+      const at = await page.evaluate(() => {
+        const r = (window as unknown as { __loop: { routeMap: { get: (id: string) => { label: { x: number; y: number } | null; mid: { x: number; y: number } } | null } } }).__loop.routeMap.get('e_pickup_36')!
+        return r.label ?? r.mid
+      })
+      await page.evaluate(
+        (p) => (window as unknown as { __loop: { rf: { setViewport: (v: object) => void } } }).__loop.rf.setViewport({ x: 800 - p.x, y: 450 - p.y, zoom: 1 }),
+        at,
       )
       const boxes = await page.evaluate(() =>
         ['e_pickup_34', 'e_pickup_36'].map((id) => {
