@@ -180,6 +180,12 @@ holds (`fill: CanvasText` on `converge`, `stroke-dasharray` + vanish on
   1.2×); `absorb` overrides the end with the dissolve.
 - No new colour — all three read on `--flow-strength` / `currentColor`.
 - The direction marker, trail, count label, and §PB4.5 breakdown are unchanged.
+- **The conversion mark (issue #330 PR 2, v0.23.0, option A).** A Converter's
+  inputs and output keep this order: they share the Converter's one onset and
+  their tokens move together — there is no consume-then-produce sequence. Only
+  a 10 px ⇄ mark inside the Converter says "converted here", shown from that
+  onset while the tokens move and faded after the `settle`
+  (`docs/simulation-playback.md` §PB4.7). Onsets are unchanged.
 
 ## PBO4. Reduced-motion & forced-colors — the role difference must survive
 

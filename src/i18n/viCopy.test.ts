@@ -132,11 +132,11 @@ const englishFor = (surface: string, id: string): string => {
 describe('vi copy — the first locale English hides inside', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(VI).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(1049) // issue #330 PR 1: +5 (five 0.22.0 release-note lines); issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines); the flow colour: +20 (the sixteen strings of the Colour section and the four 0.19.0 release-note lines); the flow colour views: +4 (the four 0.20.0 release-note lines); compact nodes: +3 (the three 0.21.0 release-note lines); Focus dimming: +3 (the three 0.21.1 release-note lines); value rows: +3 (the three 0.21.2 release-note lines); the edit lock: +4 (canvas.lock.name, its fixed accessible name, and the three 0.21.3 release-note lines); the locked rail and the phone search: +4 (the four 0.21.4 release-note lines)
+    expect(KEYS).toHaveLength(1052) // issue #330 PR 2: +3 (three 0.23.0 release-note lines); issue #330 PR 1: +5 (five 0.22.0 release-note lines); issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines); the flow colour: +20 (the sixteen strings of the Colour section and the four 0.19.0 release-note lines); the flow colour views: +4 (the four 0.20.0 release-note lines); compact nodes: +3 (the three 0.21.0 release-note lines); Focus dimming: +3 (the three 0.21.1 release-note lines); value rows: +3 (the three 0.21.2 release-note lines); the edit lock: +4 (canvas.lock.name, its fixed accessible name, and the three 0.21.3 release-note lines); the locked rail and the phone search: +4 (the four 0.21.4 release-note lines)
   })
 
   it('covers all four runtime surfaces', () => {
-    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(1049)
+    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(1052)
     expect(RUNTIME.filter(([s]) => s.startsWith('template/'))).toHaveLength(196)
     expect(RUNTIME.filter(([s]) => s.startsWith('frame/'))).toHaveLength(7)
     expect(RUNTIME.filter(([s]) => s.startsWith('module/'))).toHaveLength(19)
@@ -770,11 +770,11 @@ describe('one English noun, one Vietnamese term, everywhere English names it', (
   // string whose English original names a product noun carries the SAME
   // Vietnamese term, so a later rename moves all of them together.
   const GLOSSARY: [string, RegExp, string, number][] = [
-    ['Pool', /(^|[^A-Za-z])Pools?([^A-Za-z]|$)/, 'Bể chứa', 21],
+    ['Pool', /(^|[^A-Za-z])Pools?([^A-Za-z]|$)/, 'Bể chứa', 22],
     ['Source', /(^|[^A-Za-z])Sources?([^A-Za-z]|$)/, 'Nguồn', 4],
     ['Drain', /(^|[^A-Za-z])Drains?([^A-Za-z]|$)/, 'Điểm xả', 5],
     ['Gate', /(^|[^A-Za-z])Gates?([^A-Za-z]|$)/, 'Bộ chia', 6],
-    ['Converter', /(^|[^A-Za-z])Converters?([^A-Za-z]|$)/, 'Bộ chuyển đổi', 4],
+    ['Converter', /(^|[^A-Za-z])Converters?([^A-Za-z]|$)/, 'Bộ chuyển đổi', 5],
     ['Parameter', /(^|[^A-Za-z])Parameters?([^A-Za-z]|$)/, 'Tham số', 24],
     ['Register', /(^|[^A-Za-z])Registers?([^A-Za-z]|$)/, 'Giá trị tính toán', 11],
     ['Template', /(^|[^A-Za-z])Templates?([^A-Za-z]|$)/, 'Mẫu', 3],

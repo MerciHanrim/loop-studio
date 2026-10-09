@@ -565,6 +565,9 @@ const ui = {
   'whatsNew.v0220.label': 'Het eigen label van een verbinding blijft op zijn plek en wordt alleen vager zolang de bewegende markering of de aanduiding eroverheen gaat.',
   'whatsNew.v0220.focus': 'Met Focus aan worden de bewegende markeringen, aanduidingen en accenten op verbindingen buiten de focus nu samen met die verbindingen vager.',
   'whatsNew.v0220.cap': 'In een drukke stap bewegen hooguit 24 markeringen tegelijk; de andere verbindingen die bewogen, worden in plaats daarvan uitgelicht.',
+  'whatsNew.v0230.pulse': 'Als een bewegende markering een Voorraad bereikt, licht de binnenkant van die Voorraad nu even op; het getal verandert nog steeds pas aan het eind van de stap.',
+  'whatsNew.v0230.mark': 'Zolang de markeringen van een Omzetter bewegen, verschijnt erin een klein teken met twee pijlen, dat aan het eind van de stap vervaagt.',
+  'whatsNew.v0230.focus': 'Met Focus aan houden deze twee tekens hun volle sterkte, ook in knooppunten buiten de focus.',
 } as const
 
 export default ui

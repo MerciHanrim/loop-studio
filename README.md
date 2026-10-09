@@ -140,7 +140,19 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.22.0
+## Latest — v0.23.0
+
+Playback shows what happens inside the nodes: a Pool lights up as a marker arrives, and a
+Converter shows that it converts.
+
+- **The Pool lights up on arrival**: when a moving marker reaches a Pool, the inside of the
+  Pool briefly glows, under its title and value; the number still changes when the step ends
+- **A conversion mark inside the Converter**: while a Converter's markers move, a small
+  two-arrow mark shows inside it, at a spot clear of its text, and fades when the step ends
+- **Never faded by Focus mode**: both stay at full strength in nodes outside the focus; with
+  reduced motion they stay still for the step, and in forced colours the glow is a thin line
+
+## v0.22.0
 
 Playback shows what moved where: the path a Gate took, and every amount beside its moving
 marker.
@@ -180,17 +192,8 @@ A fix release: the edit lock is exact, and its button shows the state.
 - **The lock button reads at a glance**: an open padlock when you can edit, a closed,
   highlighted one when editing is locked
 
-## v0.21.2
-
-A fix release: values and detail rows sit inside their node.
-
-- **Pool, Parameter and Register rows start with the title**, at least 8 px inside the
-  drawn outline; before, a Pool's value sat on its slanted side
-- **Wider only where needed**: a node grows only when a row would not fit, up to the
-  usual maximum, and a row too long even then ends in "…"; positions, heights, files and
-  results are unchanged
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.21.1 (Focus
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.21.2 (values
+and detail rows sit inside their node), v0.21.1 (Focus
 mode dims the connections too), v0.21.0 (compact
 nodes, so more of a large graph fits in view), v0.20.0 (flow
 colours in the minimap and the timeline), v0.19.0 (flow

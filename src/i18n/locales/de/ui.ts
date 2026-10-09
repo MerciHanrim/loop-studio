@@ -645,6 +645,9 @@ const ui = {
   'whatsNew.v0220.label': 'Die eigene Beschriftung einer Verbindung bleibt an ihrem Platz und wird nur blasser, solange die bewegliche Markierung oder ihr Badge darüberliegt.',
   'whatsNew.v0220.focus': 'Bei eingeschaltetem Fokus werden die beweglichen Markierungen, Badges und Hervorhebungen auf Verbindungen außerhalb des Fokus jetzt zusammen mit diesen Verbindungen blasser.',
   'whatsNew.v0220.cap': 'In einem Schritt mit viel Bewegung wandern höchstens 24 Markierungen gleichzeitig; jede weitere Verbindung, die sich bewegt hat, wird stattdessen hervorgehoben.',
+  'whatsNew.v0230.pulse': 'Wenn eine bewegliche Markierung einen Speicher erreicht, leuchtet sein Inneres jetzt kurz auf; die Zahl ändert sich weiterhin erst am Ende des Schritts.',
+  'whatsNew.v0230.mark': 'Solange sich die Markierungen eines Konverters bewegen, erscheint in ihm ein kleines Zeichen mit zwei Pfeilen, das am Ende des Schritts verblasst.',
+  'whatsNew.v0230.focus': 'Bei eingeschaltetem Fokus behalten diese beiden Zeichen ihre volle Stärke, auch in Knoten außerhalb des Fokus.',
 } satisfies Record<UiKey, string>
 
 export default ui

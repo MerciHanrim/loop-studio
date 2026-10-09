@@ -4,6 +4,16 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.23.0 — 2026-10-09
+
+Playback shows what happens inside the nodes (issue #330, second of three): a Pool lights up as its first marker arrives, and a Converter shows a conversion mark while its markers move, as [`docs/simulation-playback.md`](docs/simulation-playback.md) §PB4.7 describes.
+
+- **The Pool arrival pulse.** When the first moving marker of a step reaches a Pool, a soft tint fills the Pool from 7 px inside its outline, under its title and value, for half a second; it carries on across the end of the step. The value still changes when the step ends. Past the 24 marker pairs and when zoomed far out, where no marker is drawn, the pulse plays at the same moment. It replaces the disc that used to play after the marker had gone.
+- **The conversion mark (option A).** While a Converter's markers move, a small two-arrow mark shows inside it and fades after the step; its inputs and output still move together. Each Converter has its own spot for the mark, at least 6 px inside the outline and clear of its title and mode text, worked out once per text, language or size change. When zoomed far out it takes the place of the type dot.
+- **Focus mode, reduced motion and forced colours.** Both are cues inside a node, so Focus mode never fades them. Under reduced motion they stay still for the step; in forced colours the pulse is a 2 px system-colour line under the text and the mark takes the same colour.
+
+**No migration.** Engine, RNG, files, share links, digests and simulation results are unchanged; node sizes and text placement are unchanged. Three release-note lines in 18 languages, 16 of them without native review. The informational `meta.tool` string is now `loop-studio/0.23.0`.
+
 ## v0.22.0 — 2026-10-09
 
 Playback shows what moved where (issue #330, first of three): the path a Gate took, every amount as a `+N` badge beside its round token, and Focus mode winning on connections, as [`docs/simulation-playback.md`](docs/simulation-playback.md) §PB4.6 and [`docs/large-graph-readability.md`](docs/large-graph-readability.md) §LGR2.3 describe.

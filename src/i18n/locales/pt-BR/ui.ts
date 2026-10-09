@@ -570,6 +570,9 @@ const ui = {
   'whatsNew.v0220.label': 'O rótulo de cada linha fica no mesmo lugar e só fica mais claro enquanto a marca em movimento ou o seu indicador passa por cima.',
   'whatsNew.v0220.focus': 'Com o Foco ativado, as marcas em movimento, os indicadores e os destaques fora do foco ficam mais claros, tal como as linhas onde estão.',
   'whatsNew.v0220.cap': 'Quando um passo tem muito movimento, no máximo 24 marcas estão em movimento ao mesmo tempo; os outros caminhos com movimento ficam destacados.',
+  'whatsNew.v0230.pulse': 'Quando uma marca em movimento chega a um Reservatório, o interior do Reservatório agora acende por um instante; o valor só muda no fim do passo, como antes.',
+  'whatsNew.v0230.mark': 'Enquanto as marcas de um Conversor estão em movimento, aparece dentro dele um pequeno sinal com duas setas, que desaparece no fim do passo.',
+  'whatsNew.v0230.focus': 'Com o Foco ativado, os dois sinais mantêm a intensidade total, mesmo nos nós fora do foco.',
 } as const
 
 export type UiKey = keyof typeof ui

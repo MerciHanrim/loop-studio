@@ -624,6 +624,9 @@ const ui = {
   'whatsNew.v0220.label': 'Bir bağlantının kendi etiketi yerinde kalır ve yalnızca hareket eden işaret ya da rozeti üzerinden geçerken soluklaşır.',
   'whatsNew.v0220.focus': 'Odak açıkken, odak dışındaki bağlantılardaki hareket eden işaretler, rozetler ve vurgular artık bu bağlantılarla birlikte soluklaşır.',
   'whatsNew.v0220.cap': 'Hareketin çok olduğu bir adımda aynı anda en fazla 24 işaret hareket eder; hareket eden diğer bağlantılar bunun yerine vurgulanır.',
+  'whatsNew.v0230.pulse': 'Hareket eden bir işaret bir Havuza ulaştığında, Havuzun içi artık kısa bir süre parlar; sayı yine adımın sonunda değişir.',
+  'whatsNew.v0230.mark': 'Bir Dönüştürücünün işaretleri hareket ederken içinde iki oklu küçük bir işaret görünür ve adımın sonunda kaybolur.',
+  'whatsNew.v0230.focus': 'Odak açıkken bu iki işaret, odak dışındaki düğümlerde bile tam gücünü korur.',
 } as const
 
 export type UiKey = keyof typeof ui

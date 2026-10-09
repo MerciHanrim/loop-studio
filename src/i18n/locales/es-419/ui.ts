@@ -568,6 +568,9 @@ const ui = {
   'whatsNew.v0220.label': 'La etiqueta propia de una conexión se queda en su lugar y solo se atenúa mientras la marca en movimiento o su insignia pasan por encima.',
   'whatsNew.v0220.focus': 'Con el Enfoque activado, las marcas en movimiento, las insignias y los resaltados de las conexiones fuera del enfoque ahora se atenúan junto con esas conexiones.',
   'whatsNew.v0220.cap': 'En un paso con mucho movimiento se mueven como máximo 24 marcas a la vez; las demás conexiones con movimiento se resaltan en su lugar.',
+  'whatsNew.v0230.pulse': 'Cuando una marca en movimiento llega a un Depósito, el interior del Depósito ahora se ilumina un momento; su valor sigue cambiando al final del paso.',
+  'whatsNew.v0230.mark': 'Mientras se mueven las marcas de un Convertidor, aparece dentro de él un pequeño signo de dos flechas, que se desvanece al final del paso.',
+  'whatsNew.v0230.focus': 'Con el Enfoque activado, estos dos signos mantienen toda su intensidad, incluso en los nodos fuera del enfoque.',
 } as const
 
 export type UiKey = keyof typeof ui

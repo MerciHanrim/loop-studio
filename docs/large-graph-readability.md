@@ -232,8 +232,9 @@ the L0 pulse and the reduced-motion forms are drawn at the same 0.26
 colours they are not faded either, the highlight takes the `1 5` dash, the
 token turns hollow and the badge's border is dashed
 (`docs/simulation-playback.md` §PB4.6). The run-in-progress cue and every cue
-INSIDE a node (the fired wave, the evaluated mark) keep full strength, as
-above.
+INSIDE a node (the fired wave, the evaluated mark, and since issue #330 PR 2,
+v0.23.0, the Pool arrival pulse and the conversion mark, §PB4.7) keep full
+strength, as above.
 
 **A selected node is never de-emphasised.** Selection outranks focus: whatever
 the focus set says, a node the user has selected renders at full strength, with

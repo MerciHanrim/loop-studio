@@ -536,6 +536,12 @@ byte-identical across L2/L1/L0 (§VL12.5).
   the moved path's highlight, the arrival tell, and the `+N` badge at the
   target end. A connection's own label never moves; it dims only while the
   token or its badge covers it.
+- **Playback, issue #330 PR 2 (v0.23.0)** (`docs/simulation-playback.md`
+  §PB4.7): when a token reaches a Pool, a soft tint pulses inside the Pool
+  (0.5 s, under the text); a Converter whose tokens move shows a small ⇄ mark
+  inside it, which fades after the step. Under reduced motion both are held
+  static for the committed step; in forced colours the pulse is a 2 px
+  system-colour line instead of a tint.
 - Motion never conveys information that isn't also in a static frame.
 
 ---

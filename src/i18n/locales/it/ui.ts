@@ -584,6 +584,9 @@ const ui = {
   'whatsNew.v0220.label': 'L’etichetta della connessione resta al suo posto e si attenua solo mentre il segno in movimento o il suo indicatore le passa sopra.',
   'whatsNew.v0220.focus': 'Con la messa a fuoco attiva, i segni in movimento, gli indicatori e le evidenziazioni sulle connessioni fuori fuoco ora si attenuano insieme a quelle connessioni.',
   'whatsNew.v0220.cap': 'In un passo con molto movimento si spostano al massimo 24 segni alla volta; le altre connessioni con movimento vengono evidenziate al loro posto.',
+  'whatsNew.v0230.pulse': 'Quando un segno in movimento raggiunge un Serbatoio, l’interno del Serbatoio ora si illumina per un attimo; il valore cambia sempre alla fine del passo.',
+  'whatsNew.v0230.mark': 'Mentre i segni di un Convertitore si spostano, al suo interno compare un piccolo segno a due frecce, che svanisce alla fine del passo.',
+  'whatsNew.v0230.focus': 'Con la messa a fuoco attiva, questi due segni restano a piena intensità, anche nei nodi fuori fuoco.',
 } satisfies Record<UiKey, string>
 
 export default ui

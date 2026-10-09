@@ -146,7 +146,8 @@ test.describe('Canvas Refresh PR 2 — reduced motion: the flow bead contract', 
     // the substitute: a persistent highlight on the edge that carried flow…
     await expect(page.locator('.react-flow__edge[data-id="r1"] .flow-edge-pulse')).toHaveCount(1)
     // …and the arrival cue on the pool it landed in, HELD (no fade-to-0 keyframe)
-    const arrival = page.locator('.react-flow__node[data-id="a"] .nodef__arrival')
+    // (issue #330 PR 2 — the arrival tint inside the Pool)
+    const arrival = page.locator('.react-flow__node[data-id="a"] .nodef__pulse')
     await expect(arrival).toHaveCount(1)
     const held = await arrival.evaluate((el) => {
       const cs = getComputedStyle(el)
@@ -168,7 +169,7 @@ test.describe('Canvas Refresh PR 2 — reduced motion: the flow bead contract', 
     await load(page)
     await step(page) // status → paused
     const pulse = page.locator('.react-flow__edge[data-id="r1"] .flow-edge-pulse')
-    const arrival = page.locator('.react-flow__node[data-id="a"] .nodef__arrival')
+    const arrival = page.locator('.react-flow__node[data-id="a"] .nodef__pulse')
     await expect(pulse).toHaveCount(1)
     await expect(arrival).toHaveCount(1)
 
@@ -179,7 +180,7 @@ test.describe('Canvas Refresh PR 2 — reduced motion: the flow bead contract', 
     await expect(page.locator(MOTION)).toHaveCount(0) // still nothing moving
 
     await reset(page)
-    await expect(page.locator('.flow-edge-pulse, .state-edge-pulse, .nodef__wave, .nodef__arrival')).toHaveCount(0)
+    await expect(page.locator('.flow-edge-pulse, .state-edge-pulse, .nodef__wave, .nodef__pulse, .nodef__conv')).toHaveCount(0)
   })
 
   test('a state-edge effect under reduce is also static — no pulse travels', async ({ page }) => {

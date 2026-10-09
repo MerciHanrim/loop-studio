@@ -570,6 +570,9 @@ const ui = {
   'whatsNew.v0220.label': 'Nhãn riêng của liên kết vẫn ở nguyên chỗ và chỉ mờ đi khi dấu chuyển động hoặc huy hiệu của nó đi qua.',
   'whatsNew.v0220.focus': 'Khi bật Tiêu điểm, các dấu chuyển động, huy hiệu và phần làm nổi bật trên liên kết nằm ngoài tiêu điểm giờ cũng mờ đi cùng các liên kết đó.',
   'whatsNew.v0220.cap': 'Ở bước có nhiều chuyển động, tối đa 24 dấu di chuyển cùng lúc; các liên kết khác có chuyển động sẽ được làm nổi bật thay thế.',
+  'whatsNew.v0230.pulse': 'Khi một dấu chuyển động tới Bể chứa, bên trong Bể chứa giờ sẽ sáng lên trong chốc lát; con số vẫn chỉ thay đổi khi bước kết thúc.',
+  'whatsNew.v0230.mark': 'Trong lúc các dấu của Bộ chuyển đổi di chuyển, bên trong nó hiện một ký hiệu nhỏ hai mũi tên, rồi mờ đi khi bước kết thúc.',
+  'whatsNew.v0230.focus': 'Khi bật Tiêu điểm, hai ký hiệu này vẫn giữ nguyên độ đậm, kể cả trong các nút nằm ngoài tiêu điểm.',
 } satisfies Record<UiKey, string>
 
 export default ui
