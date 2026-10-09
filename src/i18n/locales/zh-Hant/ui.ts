@@ -172,6 +172,15 @@ const ui = {
   'import.modelLayerUnreadable': '這個檔案的模型層內容無法讀取（{detail}），它的專案資料已被忽略。',
   'mobile.more.import': '匯入檔案',
   'mobile.more.importSub': 'Graph 或 Workspace JSON',
+  'mobile.speed.rowLabel': '播放速度',
+  'mobile.speed.slow': '慢',
+  'mobile.speed.normal': '正常',
+  'mobile.speed.fast': '快',
+  'mobile.speed.veryFast': '很快',
+  'mobile.speed.slow.time': '每步 1 秒',
+  'mobile.speed.normal.time': '每步 0.6 秒',
+  'mobile.speed.fast.time': '每步 0.3 秒',
+  'mobile.speed.veryFast.time': '每步 0.12 秒',
   'export.button': '匯出',
   'export.menuLabel': '匯出',
   'export.graphJson.name': 'Graph JSON',
@@ -591,6 +600,9 @@ const ui = {
   'whatsNew.v0230.pulse': '移動標記抵達資源池時，資源池內部現在會短暫亮起；數值仍在這一步結束時才變化。',
   'whatsNew.v0230.mark': '轉換器的標記移動期間，其內部會顯示一個小的雙向箭頭，並在這一步結束時淡出。',
   'whatsNew.v0230.focus': '開啟聚焦時，這兩種提示即使在聚焦範圍外的節點中也維持原有強度。',
+  'whatsNew.v0240.tiers': '播放速度現在也會改變一步的顯示方式：每步 0.4 秒以上時，移動標記帶著 +N 一起移動；更快時，+N 在抵達時出現；快於 0.2 秒時，路徑先短暫亮起，標記隨後出現在終點。',
+  'whatsNew.v0240.step': '前進一步時，無論速度如何設定，始終顯示完整的移動過程。',
+  'whatsNew.v0240.phone': '在手機上，「更多」選單新增了播放速度（慢、正常、快、很快），同時移動的標記最多 12 個。',
 } satisfies Record<UiKey, string>
 
 export default ui

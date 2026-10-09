@@ -4,6 +4,18 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.24.0 — 2026-10-09
+
+Playback speed changes what a step draws (issue #330, the last of three), and the phone gets a speed choice of its own, as [`docs/simulation-playback.md`](docs/simulation-playback.md) §PB6.1 and [`docs/mobile.md`](docs/mobile.md) §MV4 describe.
+
+- **Three speed tiers.** At 400 ms a step or slower, the round marker travels with its `+N` beside it, as before. From 200 to 399 ms it travels and `+N` appears when it arrives. Below 200 ms the moved path flashes, then the marker appears at the end with `+N`. The tier is read when a step starts, so changing the speed during a step changes its pace but not what it draws; the next step takes the new tier.
+- **Step always draws the full movement,** whatever the speed is set to.
+- **Playback speed on the phone.** More → Playback speed offers Slow (1 s a step), Normal (0.6 s, the default), Fast (0.3 s) and Very fast (0.12 s); the current one is checked. There is still no seed in the phone's run bar.
+- **Fewer moving markers on the phone.** A phone shows at most 12 marker-and-badge pairs a step — the first 12 of the same stable order as the desktop's 24 — and no departure ring; every other move keeps its path highlight and arrival cue. This is fixed when a step starts, so rotating the phone mid-step makes nothing in that step appear or disappear.
+- Reduced motion and the far-zoomed map view keep their forms, unchanged.
+
+**No migration.** Engine, RNG, files, share links, digests and simulation results are unchanged; the speed is still not saved. A current limit, measured: a step with about 300 simultaneous moves draws slowly (roughly 70–200 ms a frame on a desktop development build), before this change as after it. Twelve release-note and phone strings in 18 languages, 16 of them without native review. The informational `meta.tool` string is now `loop-studio/0.24.0`.
+
 ## v0.23.0 — 2026-10-09
 
 Playback shows what happens inside the nodes (issue #330, second of three): a Pool lights up as its first marker arrives, and a Converter shows a conversion mark while its markers move, as [`docs/simulation-playback.md`](docs/simulation-playback.md) §PB4.7 describes.

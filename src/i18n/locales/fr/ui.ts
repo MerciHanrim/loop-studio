@@ -183,6 +183,15 @@ const ui = {
     'Le contenu de la couche modèle de ce fichier est illisible ({detail}) ; ses données de projet ont été ignorées.',
   'mobile.more.import': 'Importer un fichier',
   'mobile.more.importSub': 'Graph ou Workspace JSON',
+  'mobile.speed.rowLabel': 'Vitesse de lecture',
+  'mobile.speed.slow': 'Lente',
+  'mobile.speed.normal': 'Normale',
+  'mobile.speed.fast': 'Rapide',
+  'mobile.speed.veryFast': 'Très rapide',
+  'mobile.speed.slow.time': '1 s par étape',
+  'mobile.speed.normal.time': '0,6 s par étape',
+  'mobile.speed.fast.time': '0,3 s par étape',
+  'mobile.speed.veryFast.time': '0,12 s par étape',
   'export.button': 'Exporter',
   'export.menuLabel': 'Exporter',
   'export.graphJson.name': 'Graph JSON',
@@ -642,6 +651,9 @@ const ui = {
   'whatsNew.v0230.pulse': 'Quand un repère mobile atteint un Réservoir, l’intérieur du Réservoir s’éclaire désormais brièvement. Sa valeur change toujours à la fin de l’étape.',
   'whatsNew.v0230.mark': 'Pendant que les repères d’un Convertisseur se déplacent, un petit signe à deux flèches apparaît à l’intérieur, puis s’estompe à la fin de l’étape.',
   'whatsNew.v0230.focus': 'Avec le Focus activé, ces deux signes gardent toute leur intensité, même dans les nœuds hors du focus.',
+  'whatsNew.v0240.tiers': 'La vitesse de lecture change désormais aussi ce qu’une étape montre. À partir de 0,4 s par étape, le repère mobile porte son +N. Plus vite, le +N apparaît à l’arrivée. Sous 0,2 s, le chemin s’allume brièvement et le repère apparaît à son extrémité.',
+  'whatsNew.v0240.step': 'Avancer d’un pas montre toujours tout le mouvement, quelle que soit la vitesse choisie.',
+  'whatsNew.v0240.phone': 'Sur un téléphone, le menu Plus propose désormais la vitesse de lecture (Lente, Normale, Rapide ou Très rapide), et 12 repères au plus se déplacent à la fois.',
 } satisfies Record<UiKey, string>
 
 export default ui

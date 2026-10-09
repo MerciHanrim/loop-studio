@@ -542,6 +542,11 @@ byte-identical across L2/L1/L0 (§VL12.5).
   inside it, which fades after the step. Under reduced motion both are held
   static for the committed step; in forced colours the pulse is a 2 px
   system-colour line instead of a tint.
+- **Playback speed tiers, issue #330 PR 3 (v0.24.0)**
+  (`docs/simulation-playback.md` §PB6.1): at 400 ms a step or slower the token
+  travels with its `+N`; from 200 to 399 ms it travels and `+N` shows on
+  arrival; below 200 ms the moved path flashes and the token appears at the end
+  with `+N`. Step always draws the full form; reduced motion is unchanged.
 - Motion never conveys information that isn't also in a static frame.
 
 ---

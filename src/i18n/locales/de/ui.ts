@@ -191,6 +191,15 @@ const ui = {
     'Der Inhalt der Modellebene dieser Datei ist nicht lesbar ({detail}); ihre Projektdaten wurden ignoriert.',
   'mobile.more.import': 'Datei importieren',
   'mobile.more.importSub': 'Graph oder Workspace JSON',
+  'mobile.speed.rowLabel': 'Wiedergabetempo',
+  'mobile.speed.slow': 'Langsam',
+  'mobile.speed.normal': 'Normal',
+  'mobile.speed.fast': 'Schnell',
+  'mobile.speed.veryFast': 'Sehr schnell',
+  'mobile.speed.slow.time': '1 s pro Schritt',
+  'mobile.speed.normal.time': '0,6 s pro Schritt',
+  'mobile.speed.fast.time': '0,3 s pro Schritt',
+  'mobile.speed.veryFast.time': '0,12 s pro Schritt',
   'export.button': 'Exportieren',
   'export.menuLabel': 'Exportieren',
   'export.graphJson.name': 'Graph JSON',
@@ -648,6 +657,9 @@ const ui = {
   'whatsNew.v0230.pulse': 'Wenn eine bewegliche Markierung einen Speicher erreicht, leuchtet sein Inneres jetzt kurz auf; die Zahl ändert sich weiterhin erst am Ende des Schritts.',
   'whatsNew.v0230.mark': 'Solange sich die Markierungen eines Konverters bewegen, erscheint in ihm ein kleines Zeichen mit zwei Pfeilen, das am Ende des Schritts verblasst.',
   'whatsNew.v0230.focus': 'Bei eingeschaltetem Fokus behalten diese beiden Zeichen ihre volle Stärke, auch in Knoten außerhalb des Fokus.',
+  'whatsNew.v0240.tiers': 'Das Wiedergabetempo bestimmt jetzt auch, was ein Schritt zeigt: ab 0,4 s pro Schritt wandert die Markierung mit ihrem +N; schneller erscheint +N erst bei der Ankunft; unter 0,2 s leuchtet der Weg kurz auf und die Markierung erscheint an seinem Ende.',
+  'whatsNew.v0240.step': 'Einen Schritt weiter zeigt immer die ganze Bewegung, egal welches Tempo eingestellt ist.',
+  'whatsNew.v0240.phone': 'Auf dem Smartphone bietet „Mehr“ jetzt das Wiedergabetempo (Langsam, Normal, Schnell oder Sehr schnell), und höchstens 12 Markierungen bewegen sich gleichzeitig.',
 } satisfies Record<UiKey, string>
 
 export default ui

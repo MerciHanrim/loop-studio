@@ -1783,7 +1783,8 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
       }
       await escapeSheet(page, which)
     }
-    expect(checked, 'the walk must reach every text sub-label: 5 More + 5 Templates + 4 enabled Export').toBe(14)
+    // issue #330 PR 3 — More gained the Playback speed row (its sub names the speed)
+    expect(checked, 'the walk must reach every text sub-label: 6 More + 5 Templates + 4 enabled Export').toBe(15)
     expect(bad, 'hovered secondary labels below 4.5:1').toEqual([])
   })
 
@@ -1808,9 +1809,10 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
       }
       await escapeSheet(page, which)
     }
-    // the four submenu rows carry their affordance IN the sub-label, so they
+    // the five submenu rows carry their affordance IN the sub-label, so they
     // are covered by the same contract rather than by the row's own text
-    expect(markers.sort(), 'the ▸ markers are part of this contract').toEqual(['Export', 'Filters', 'Help', 'Templates'])
+    // (issue #330 PR 3: + Playback speed)
+    expect(markers.sort(), 'the ▸ markers are part of this contract').toEqual(['Export', 'Filters', 'Help', 'Playback speed', 'Templates'])
     expect(bad, 'focused secondary labels below 4.5:1').toEqual([])
   })
 

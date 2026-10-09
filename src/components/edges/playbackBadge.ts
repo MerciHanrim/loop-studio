@@ -65,15 +65,17 @@ export function tokenAndBadgeBoxes(x: number, y: number, text: string, side: Bad
 export const overlaps = (a: Box, b: Box): boolean => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1
 
 /** whether a label box (centred on the label point, `w` × `h`) meets the token
- *  or its badge */
+ *  or its badge; `text` null ⇒ a token without its badge (issue #330 PR 3: the
+ *  fast tier shows `+N` only on arrival) */
 export function labelUnderToken(
   label: { x: number; y: number; w: number; h: number } | null,
   x: number,
   y: number,
-  text: string,
+  text: string | null,
   side: BadgeSide = 'right',
 ): boolean {
   if (!label || label.w <= 0) return false
   const L: Box = { x0: label.x - label.w / 2, y0: label.y - label.h / 2, x1: label.x + label.w / 2, y1: label.y + label.h / 2 }
-  return tokenAndBadgeBoxes(x, y, text, side).some((b) => overlaps(L, b))
+  const [token, badge] = tokenAndBadgeBoxes(x, y, text ?? '', side)
+  return overlaps(L, token) || (text != null && overlaps(L, badge))
 }

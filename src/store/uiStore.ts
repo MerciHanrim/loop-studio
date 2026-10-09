@@ -20,6 +20,7 @@ export type Overlay =
   | 'export'
   | 'help' // docs/guided-tour.md §GT7 — the mobile Help sub-sheet
   | 'filter' // docs/large-graph-readability.md §LGR9 — the mobile Filters sub-sheet
+  | 'speed' // docs/mobile.md §MV4 — the mobile Playback speed sub-sheet (issue #330 PR 3)
   | 'inspector' // Slice 3
 
 type UiState = {

@@ -178,6 +178,15 @@ const ui = {
     'Bu dosyanın model katmanı içeriği okunamıyor ({detail}); proje verisi yok sayıldı.',
   'mobile.more.import': 'Dosya içe aktar',
   'mobile.more.importSub': 'Graph ya da Workspace JSON',
+  'mobile.speed.rowLabel': 'Oynatma hızı',
+  'mobile.speed.slow': 'Yavaş',
+  'mobile.speed.normal': 'Normal',
+  'mobile.speed.fast': 'Hızlı',
+  'mobile.speed.veryFast': 'Çok hızlı',
+  'mobile.speed.slow.time': 'Adım başına 1 sn',
+  'mobile.speed.normal.time': 'Adım başına 0,6 sn',
+  'mobile.speed.fast.time': 'Adım başına 0,3 sn',
+  'mobile.speed.veryFast.time': 'Adım başına 0,12 sn',
   'export.button': 'Dışa aktar',
   'export.menuLabel': 'Dışa aktar',
   'export.graphJson.name': 'Graph JSON',
@@ -627,6 +636,9 @@ const ui = {
   'whatsNew.v0230.pulse': 'Hareket eden bir işaret bir Havuza ulaştığında, Havuzun içi artık kısa bir süre parlar; sayı yine adımın sonunda değişir.',
   'whatsNew.v0230.mark': 'Bir Dönüştürücünün işaretleri hareket ederken içinde iki oklu küçük bir işaret görünür ve adımın sonunda kaybolur.',
   'whatsNew.v0230.focus': 'Odak açıkken bu iki işaret, odak dışındaki düğümlerde bile tam gücünü korur.',
+  'whatsNew.v0240.tiers': 'Oynatma hızı artık bir adımın gösterdiğini de değiştirir: adım başına 0,4 sn ve üzerinde işaret +N ile birlikte hareket eder; daha hızlıda +N varışta görünür; 0,2 sn altında yol kısa bir süre parlar ve işaret sonunda belirir.',
+  'whatsNew.v0240.step': 'Bir adım ilerletmek, hız ayarı ne olursa olsun her zaman hareketin tamamını gösterir.',
+  'whatsNew.v0240.phone': 'Telefonda Diğer menüsünde artık oynatma hızı var (Yavaş, Normal, Hızlı veya Çok hızlı) ve aynı anda en fazla 12 işaret hareket eder.',
 } as const
 
 export type UiKey = keyof typeof ui

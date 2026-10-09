@@ -10,6 +10,8 @@ import {
   useGraphStore,
 } from './graphStore'
 import { computeStagger } from './playbackRank'
+import { type PlaybackProfile, type PlaybackTier, tierOf } from './playbackTier'
+import { MOBILE_MEDIA_QUERY } from '../ui/media'
 import { flowTotals, isSteady, STEADY_N, type SteadySample } from './steadyState'
 
 // docs/large-graph-readability.md §LGR6-cues — the trailing Activity-overlay
@@ -168,6 +170,12 @@ type SimStore = {
         onsetByEdge: Record<string, number>
         /** count of non-empty onset buckets this step (observable for tests) */
         bucketCount: number
+        /** issue #330 PR 3 — what this step draws (./playbackTier, §PB6.1):
+         *  read once when the step starts; Step is always `full` */
+        tier: PlaybackTier
+        /** issue #330 PR 3 — the display profile (./playbackTier), fixed when
+         *  the step starts, so a rotation or resize mid-step changes nothing */
+        profile: PlaybackProfile
       }
     | null
   /** id of the current preparedTransition, or null (§PB7.3) */
@@ -254,6 +262,9 @@ const isHidden = (): boolean =>
 const reducedMotion = (): boolean =>
   typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches === true
 const clamp01 = (n: number): number => (n < 0 ? 0 : n > 1 ? 1 : n)
+/** the mobile view/run layout right now (the one query, src/ui/media.ts) */
+const isPhoneLayout = (): boolean =>
+  typeof matchMedia !== 'undefined' && matchMedia(MOBILE_MEDIA_QUERY).matches === true
 
 /** recursively `Object.freeze` a plain-data value (dev only) so a bug that
  *  mutates `prepared.toState` / `prepared.derived` throws instead of silently
@@ -441,7 +452,7 @@ export const useSimStore = create<SimStore>((set, get) => {
   /** prepare + arm + start the τ clock for ONE step's choreography. Used by both
    *  UI Step (one-shot) and Play (the loop re-calls it after each settle). It
    *  does not decide whether to continue — the loop does, gated on `status`. */
-  const beginTransition = () => {
+  const beginTransition = (tier: PlaybackTier) => {
     if (get().status === 'ended' || isHidden() || get().activeTransitionId != null) return
     const p = armPrepared(prepareTransition())
     prepared = p
@@ -462,6 +473,10 @@ export const useSimStore = create<SimStore>((set, get) => {
         stateEvents: p.derived.stateEvents,
         onsetByEdge,
         bucketCount,
+        tier,
+        // the phone layout's fewer moving elements (docs/mobile.md §MV4);
+        // reduced motion keeps its own static form on either layout (§PB9)
+        profile: isPhoneLayout() && !reducedMotion() ? 'phone' : 'desktop',
       },
     })
   }
@@ -520,7 +535,8 @@ export const useSimStore = create<SimStore>((set, get) => {
         set((s) => ({ transition: s.transition ? { ...s.transition, tau, phase: phaseOf(tau) } : null }))
       }
     } else if (s.status === 'running') {
-      beginTransition()
+      // issue #330 PR 3 — Play reads the tier from the speed, once per step
+      beginTransition(tierOf(s.speedMs))
     }
 
     if ((get().status === 'running' || get().activeTransitionId != null) && typeof requestAnimationFrame !== 'undefined') {
@@ -603,7 +619,8 @@ export const useSimStore = create<SimStore>((set, get) => {
       if (get().status === 'running') return // Step is disabled while Play runs
       head()
       if (get().initError) return // the graph cannot be initialised — see `initError`
-      beginTransition()
+      // issue #330 PR 3 — Step always draws the full tier (§PB6.1)
+      beginTransition('full')
       if (typeof requestAnimationFrame === 'undefined' || reducedMotion()) {
         // no animation clock (SSR / vitest), or reduced motion ⇒ a Step's
         // one-step choreography settles instantly (§PB9 — no artificial wait).

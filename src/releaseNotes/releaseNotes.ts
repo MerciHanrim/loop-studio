@@ -39,6 +39,15 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // issue #330 PR 3 - the speed tiers, Step always full, the phone's four
+    // speeds and its fewer moving markers; the date is the day it is deployed,
+    // set right before the merge
+    id: 'release:0.24.0',
+    version: '0.24.0',
+    date: '2026-10-09',
+    items: ['whatsNew.v0240.tiers', 'whatsNew.v0240.step', 'whatsNew.v0240.phone'],
+  },
+  {
     // issue #330 PR 2 - the cues inside a node: the Pool arrival pulse and the
     // Converter's conversion mark, at full strength under Focus mode; the
     // date is the day it is deployed, set right before the merge

@@ -140,7 +140,19 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.23.0
+## Latest — v0.24.0
+
+Playback speed changes what a step draws, and the phone gets a speed choice of its own.
+
+- **Three speed tiers**: at 0.4 s a step or slower the marker travels with its `+N`; faster,
+  `+N` appears when it arrives; below 0.2 s the path flashes and the marker appears at its
+  end; Step always shows the full movement
+- **Playback speed on the phone**: More → Playback speed offers Slow, Normal, Fast and Very
+  fast
+- **Fewer moving markers on the phone**: at most 12 a step, and no departure ring; every
+  other move keeps its highlighted path and arrival
+
+## v0.23.0
 
 Playback shows what happens inside the nodes: a Pool lights up as a marker arrives, and a
 Converter shows that it converts.
@@ -181,18 +193,8 @@ language search no longer zooms the page in.
   zoom the page in and leave it zoomed; every phone text field is now large enough that it
   does not
 
-## v0.21.3
-
-A fix release: the edit lock is exact, and its button shows the state.
-
-- **A new document starts unlocked**, and every other one brings its own lock and an empty
-  undo history, so Undo never goes back into the previous document
-- **While locked, nothing edits the document**: the palette, Insert module, Undo, Redo and
-  the data import wait; selecting, viewing, running and exporting stay available
-- **The lock button reads at a glance**: an open padlock when you can edit, a closed,
-  highlighted one when editing is locked
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.21.2 (values
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.21.3 (the edit
+lock is exact, and its button shows the state), v0.21.2 (values
 and detail rows sit inside their node), v0.21.1 (Focus
 mode dims the connections too), v0.21.0 (compact
 nodes, so more of a large graph fits in view), v0.20.0 (flow

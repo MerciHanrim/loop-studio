@@ -299,10 +299,19 @@ function LoopEdge({
   // issue #330 PR 1 — within the 24 token-and-badge pairs of the step
   const pbInCap = travelBudget.has(id)
   const pbCueOn = pbMoves && pbInCap
-  // the travelling dot and its `+N` badge — elided at L0 (§PB4.4).
-  const pbToken = pbCueOn && !atL0
-  const pbFrac = travelFraction(pbLocalTau)
+  // issue #330 PR 3 (§PB6.1) — the step's tier, read once when it started:
+  // `full` the token travels with its `+N`; `fast` the token travels and `+N`
+  // shows on arrival; `veryFast` the path flashes, then the token appears at
+  // the end, with `+N`, at the arrive beat
+  const pbTier = transition?.tier ?? 'full'
+  const pbArriving = pbLocalPhase === 'arrive'
+  // the round dot and its `+N` badge — elided at L0 (§PB4.4).
+  const pbToken = pbCueOn && !atL0 && (pbTier !== 'veryFast' || pbArriving)
+  const pbFrac = pbTier === 'veryFast' ? 1 : travelFraction(pbLocalTau)
   const pbPt = pbToken ? pointOnPath(path, pbFrac) : null
+  const pbBadgeOn = pbPt != null && (pbTier === 'full' || pbArriving)
+  // the very fast tier's path flash, from the edge's onset to its arrive beat
+  const pbFlash = pbCueOn && pbTier === 'veryFast' && !pbArriving
   // issue #330 PR 1 — past the cap a moved edge keeps its arrival cue
   const pbArriveOn = pbMoves && pbLocalPhase === 'arrive'
   const pbEndPt = pbArriveOn ? pointOnPath(path, 1) : null
@@ -310,7 +319,7 @@ function LoopEdge({
   // step (whichever branch the Gate took, deterministic or probabilistic; a
   // branch with no move gets no cue), and every moved edge past the cap
   const sourceIsGate = gNodes.some((n) => n.id === source && n.data.kind === 'gate')
-  const pbPathOn = pbMoves && (sourceIsGate || !pbInCap)
+  const pbPathOn = pbMoves && (sourceIsGate || !pbInCap || pbFlash)
   const pbBadge = badgeText(pbFlow)
   const pbAll = selected && transition && !isState ? transition.events.filter((e) => e.edgeId === id) : []
   const pbBreakdown = pbAll.slice(0, MAX_PLAYBACK_TOKENS)
@@ -395,7 +404,7 @@ function LoopEdge({
   }, [labelKey])
   const labelBox = showLabel && labelSize ? { x: labelX, y: labelY, ...labelSize } : null
   const labelDimmed =
-    (pbPt != null && labelUnderToken(labelBox, pbPt.x, pbPt.y, pbBadge)) ||
+    (pbPt != null && labelUnderToken(labelBox, pbPt.x, pbPt.y, pbBadgeOn ? pbBadge : null)) ||
     (rmBadgePt != null && labelUnderToken(labelBox, rmBadgePt.x, rmBadgePt.y, badgeText(rmBadgeAmount), 'left'))
 
   // docs/flow-colour-and-compact-nodes.md FC-4.2 — the edge's flow colour is
@@ -533,7 +542,7 @@ function LoopEdge({
           that moved this step, or any moved edge past the 24 pairs */}
       {pbPathOn ? (
         <path
-          className={`pb-path${sourceIsGate ? ' pb-path--gate' : ''}${pbInCap ? '' : ' pb-path--over-cap'}`}
+          className={`pb-path${sourceIsGate ? ' pb-path--gate' : ''}${pbInCap ? '' : ' pb-path--over-cap'}${pbFlash ? ' pb-path--flash' : ''}`}
           data-playback-phase={pbLocalPhase ?? undefined}
           d={path}
           fill="none"
@@ -553,8 +562,9 @@ function LoopEdge({
       ) : null}
       {pbCueOn ? (
         <>
-          {/* emit: an OUTWARD burst at the source handle (§PBO3) */}
-          {pbLocalPhase === 'depart' ? (
+          {/* emit: an OUTWARD burst at the source handle (§PBO3); not drawn on
+              the phone profile (issue #330 PR 3, docs/mobile.md §MV4) */}
+          {pbLocalPhase === 'depart' && transition?.profile !== 'phone' ? (
             <circle
               className="pb-cue pb-cue--depart"
               data-playback-phase="depart"
@@ -641,7 +651,7 @@ function LoopEdge({
           `+1`: beside the travelling token (moving with it), or, under reduced
           motion, static at the target end beside the held arrival tell. In the
           label layer, above every label, so the pair is drawn on top. */}
-      {pbPt || rmBadgePt ? (
+      {(pbPt && pbBadgeOn) || rmBadgePt ? (
         <EdgeLabelRenderer>
           <PlaybackBadge
             edgeId={id}
