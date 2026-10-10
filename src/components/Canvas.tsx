@@ -12,6 +12,7 @@ import {
   useStoreApi,
 } from '@xyflow/react'
 import { useGraphStore, type GestureSnapshot } from '../store/graphStore'
+import type { InitialView } from '../model/templates'
 import { BUNDLED_MODULES, cloneModuleDoc } from '../model/modules'
 import { refInsertVerdict, type RefResolveKind } from '../model/exprRefs'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
@@ -231,12 +232,13 @@ export function Canvas() {
   // size — identical for every UI language, and unchanged on a language switch
   // (this only runs on a `fitRev` swap).
   const applyInitialView = useCallback(
-    (iv: { rect: { x: number; y: number; width: number; height: number }; minZoom: number }) => {
+    (iv: InitialView) => {
       // the computation itself lives in `canvasFit.ts` (shared with the
       // import wizard's post-commit view, docs/data-import.md §DI17); the
-      // insets are this Canvas's own overlays.
+      // insets are this Canvas's own overlays. `keep` (issue #344) caps the
+      // zoom so the core start nodes stay whole.
       const insets = canvasFitInsets(minimapVisibleRef.current)
-      const vp = viewportForRect(iv.rect, { width: paneW, height: paneH }, insets, { floor: iv.minZoom, ceil: 1.2 })
+      const vp = viewportForRect(iv.rect, { width: paneW, height: paneH }, insets, { floor: iv.minZoom, ceil: 1.2, keep: iv.keep })
       if (!vp) return void fitView({ padding: 0.3, maxZoom: 1.2 })
       setViewport(vp, { duration: 0 })
       if (import.meta.env.DEV) lastInitialViewRef.current = { insetR: insets.right, insetB: insets.bottom, zoom: vp.zoom }

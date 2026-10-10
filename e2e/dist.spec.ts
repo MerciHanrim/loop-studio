@@ -15,6 +15,19 @@ import { expectShownNoticesAre, manifestNoticesSha, openAbout, openLicences, sha
 const RF = 'examples/risky-factory.json'
 const ORIGIN = 'http://localhost:4173' // playwright.dist.config.ts baseURL
 
+/** issue #344 §ER14.5 — the DOM side of the route settle contract, for a build
+ *  without the dev bridge: two frames (a change that just landed has rendered
+ *  and started its generation), then the canvas is no longer aria-busy and
+ *  every connection has its path */
+async function domRoutesSettled(page: Page): Promise<void> {
+  await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))))
+  await page.waitForFunction(() => {
+    if (document.querySelector('.canvas[aria-busy="true"]')) return false
+    const paths = [...document.querySelectorAll('.react-flow__edge path.react-flow__edge-path')]
+    return paths.length > 0 && paths.every((p) => (p.getAttribute('d') ?? '').length > 0)
+  })
+}
+
 /** boot the prod build; fail on any console error, page error, failed request,
  *  or cross-origin request */
 async function openProd(page: Page): Promise<{ bad: string[] }> {
@@ -260,6 +273,11 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     await page.evaluate(() => document.fonts.ready)
     // representative Korean node label, confirming the KO Template actually loaded
     await expect(page.locator('.react-flow__node', { hasText: '레벨' }).first()).toBeVisible()
+    // issue #344 §ER14.5 — the routed connections are drawn once their first
+    // generation commits; the canvas is aria-busy until then (the DOM side of
+    // the settle contract `routesSettled` reads in dev). "Before" is read only
+    // when every route is drawn.
+    await domRoutesSettled(page)
 
     async function snapshot() {
       return page.evaluate(() => {
@@ -354,6 +372,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     await page.locator('.lang-menu__item[data-locale="en"]').click()
     await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('en')
     await expect(page.locator('.react-flow__node', { hasText: 'Level' }).first()).toBeVisible()
+    await domRoutesSettled(page)
 
     // the switch must have actually changed at least one node's real height —
     // otherwise the edge-alignment checks below would trivially pass with

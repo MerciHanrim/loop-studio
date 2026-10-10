@@ -171,6 +171,11 @@ EN / KO / JA exactly like MMO. "Coffee 배치 불변" (acceptance #9) means:
 - The framed nodes must **not sit under the minimap** — the fit uses the pane
   MINUS the fixed overlays (minimap bottom-right, zoom Controls left), and
   left-aligns the rect (a progression graph reads beginning-first).
+- Since issue #344 a fixed **`keep`** rectangle (the core start nodes at their
+  widest box over the 18 languages, also graph coordinates, no locale branch)
+  caps the zoom so those nodes open whole at any pane size, with the minimap
+  expanded or collapsed; the minimap counts only where the two would overlap
+  on both axes (`docs/diagram-layout.md` §DL5.6).
 - The camera is **not** re-initialised on: a language change, a plain reload, an
   Import / Share / Workspace restore, or Undo / Redo. A viewport the user has
   panned or zoomed is **never** overwritten by a language change.
