@@ -581,9 +581,11 @@ const ui = {
   'whatsNew.v0240.tiers': 'De afspeelsnelheid bepaalt nu ook wat een stap laat zien: vanaf 0,4 s per stap reist de markering met haar +N mee; sneller verschijnt +N bij aankomst; onder 0,2 s licht het pad even op en verschijnt de markering aan het eind.',
   'whatsNew.v0240.step': 'Eén stap vooruit laat altijd de hele beweging zien, welke snelheid er ook is ingesteld.',
   'whatsNew.v0240.phone': 'Op een telefoon biedt Meer nu een afspeelsnelheid (Langzaam, Normaal, Snel of Heel snel), en bewegen hooguit 12 markeringen tegelijk.',
-  'whatsNew.v0250.grid': 'Knooppunten en kaders lijnen nu uit op het raster van het tekengebied: een nieuw knooppunt komt erop terecht, en slepen of de pijltjestoetsen verplaatsen het langs het raster. Houd Alt ingedrukt om vrij te slepen; om een kader zonder zijn inhoud te verplaatsen, houd je nu Ctrl (⌘ op een Mac) ingedrukt in plaats van Alt.',
-  'whatsNew.v0250.ports': 'De verbindingspunten aan de zijkanten van een knooppunt blijven nu op één hoogte dicht bij de bovenkant: verbindingen in een rij blijven in elke taal recht, en een knooppunt met een lange naam groeit naar beneden.',
-  'whatsNew.v0250.tidy': 'Een diagram dat met een eerdere versie is opgeslagen, wordt bij het openen één keer op het raster uitgelijnd. De nieuwe knop Uitlijnen op raster, naast de zoomknoppen, lijnt het geopende diagram op elk moment uit, als één stap die je ongedaan kunt maken.',
+  'whatsNew.v0250.grid': 'Bewerken op het raster. Knooppunten en kaders klikken vast op een raster van 16 px, met slimme hulplijnen voor verbindingspunten, middens en randen in de buurt. Bestaande gewone diagrammen worden één keer uitgelijnd, en Uitlijnen op raster lijnt het geopende diagram opnieuw uit in één actie die je ongedaan kunt maken.',
+  'whatsNew.v0250.routing': 'Duidelijkere automatische routes. Automatische orthogonale verbindingen gaan om knooppunten heen, houden verbindingen met hetzelfde verbindingspunt uit elkaar en zetten hun labels op vrijere plekken.',
+  'whatsNew.v0250.shapes': 'Bewerkbare verbindingsvormen. Kies Gebogen, Recht of Orthogonaal, automatisch of met je eigen knikken: voeg ze toe, verplaats of verwijder ze op de computer. Op een telefoon worden deze vormen getoond, maar niet bewerkt.',
+  'whatsNew.v0250.outline': 'Tekst blijft binnen de knooppunten. De omtrek van een knooppunt groeit nu mee met de titel en de waarden, zodat de tekst in alle 18 talen erbinnen blijft.',
+  'whatsNew.v0250.templates': 'Vernieuwde sjablonen. Alle vijf meegeleverde sjablonen gebruiken het nieuwe raster en de nieuwe routes, met duidelijkere tussenruimtes en betere beginweergaven.',
 } as const
 
 export default ui

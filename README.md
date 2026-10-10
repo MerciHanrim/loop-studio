@@ -142,17 +142,20 @@ import, …) live under [`docs/`](docs/).
 
 ## Latest — v0.25.0
 
-Diagrams line up on a grid, and connections between nodes in a row stay straight in every
-language.
+Diagrams are easier to read: nodes line up on a grid, connections run around them at right
+angles, and every node keeps its text inside its outline.
 
-- **A layout grid**: a new node lands on the canvas grid, and a drag or an arrow key moves
-  nodes and frames along it; hold Alt to drag freely, and Ctrl (⌘ on a Mac), no longer Alt,
-  to move a frame without its contents
-- **Ports on one row**: a node's side connection points sit 28 px below its top whatever its
-  height, so a node with a long name grows downward and its connections do not move
-- **Older diagrams are lined up once**: a diagram saved by an earlier version is placed on the
-  grid when it opens, as part of opening it (a project revision keeps its recorded layout);
-  Tidy to grid in the canvas controls does the same at any time, as one step you can undo
+- **Grid-aligned editing**: nodes and frames snap to a 16 px grid, with smart guides to other
+  nodes' ports, centres and edges; an older ordinary document is lined up once when it opens,
+  and Tidy to grid realigns the open one at any time as one undo step
+- **Clearer automatic routing**: orthogonal connections go around nodes, branch apart at a
+  shared port and put their labels on a free spot of their own line
+- **Editable connection shapes**: Curved, Straight or Orthogonal, automatic or with bend
+  points added, moved or removed on the desktop; the phone shows them without editing
+- **Text inside nodes**: Pools, Sources, Drains, Converters and Gates are drawn to their own
+  width, so titles and values stay inside in all 18 languages
+- **Reworked Templates**: all five use the new grid and routing, with clearer spacing and
+  opening views
 
 ## v0.24.0
 

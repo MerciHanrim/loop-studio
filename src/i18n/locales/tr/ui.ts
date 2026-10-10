@@ -639,9 +639,11 @@ const ui = {
   'whatsNew.v0240.tiers': 'Oynatma hızı artık bir adımın gösterdiğini de değiştirir: adım başına 0,4 sn ve üzerinde işaret +N ile birlikte hareket eder; daha hızlıda +N varışta görünür; 0,2 sn altında yol kısa bir süre parlar ve işaret sonunda belirir.',
   'whatsNew.v0240.step': 'Bir adım ilerletmek, hız ayarı ne olursa olsun her zaman hareketin tamamını gösterir.',
   'whatsNew.v0240.phone': 'Telefonda Diğer menüsünde artık oynatma hızı var (Yavaş, Normal, Hızlı veya Çok hızlı) ve aynı anda en fazla 12 işaret hareket eder.',
-  'whatsNew.v0250.grid': 'Düğümler ve çerçeveler artık tuvalin ızgarasına hizalanır: yeni bir düğüm ızgaraya yerleşir, sürükleme ve ok tuşları onu ızgara boyunca taşır. Serbestçe sürüklemek için Alt tuşunu basılı tutun; bir çerçeveyi içindekiler olmadan taşımak için artık Alt yerine Ctrl (Mac’te ⌘) tuşunu basılı tutun.',
-  'whatsNew.v0250.ports': 'Bir düğümün yanlarındaki bağlantı noktaları artık üst kenara yakın, sabit bir yükseklikte durur: bir sıradaki bağlantılar her dilde düz kalır ve uzun adlı bir düğüm aşağı doğru uzar.',
-  'whatsNew.v0250.tidy': 'Önceki bir sürümle kaydedilmiş bir diyagram, açıldığında bir kez ızgaraya hizalanır. Yakınlaştırma düğmelerinin yanındaki yeni Izgaraya hizala düğmesi, açık diyagramı istediğiniz zaman hizalar; bu, geri alınabilen tek bir adımdır.',
+  'whatsNew.v0250.grid': 'Izgaraya hizalı düzenleme. Düğümler ve çerçeveler 16 px ızgaraya oturur; akıllı kılavuzlar yakındaki bağlantı noktalarını, merkezleri ve kenarları gösterir. Mevcut sıradan diyagramlar bir kez hizalanır, Izgaraya hizala ise açık diyagramı istediğiniz zaman tek bir geri alınabilir adımla yeniden hizalar.',
+  'whatsNew.v0250.routing': 'Daha net otomatik güzergâhlar. Otomatik dik açılı bağlantılar düğümlerin etrafından dolaşır, aynı bağlantı noktasını paylaşan bağlantıları ayırır ve etiketlerini daha boş yerlere koyar.',
+  'whatsNew.v0250.shapes': 'Düzenlenebilir bağlantı şekilleri. Eğri, Düz veya Dik açılı seçilebilir; dik açılı bağlantı otomatik kalabilir ya da masaüstünde kırılma noktaları eklenip taşınarak ve silinerek elle çizilebilir. Telefonda bu şekiller gösterilir ama düzenlenemez.',
+  'whatsNew.v0250.outline': 'Metin düğümün içinde kalır. Düğümün dış çizgisi artık başlığına ve değerlerine göre genişler, böylece metin 18 dilin hepsinde içeride kalır.',
+  'whatsNew.v0250.templates': 'Yenilenen şablonlar. Hazır gelen beş şablonun hepsi yeni ızgarayı ve güzergâhları kullanır; aralıklar daha net, açılış görünümleri daha iyidir.',
 } as const
 
 export type UiKey = keyof typeof ui

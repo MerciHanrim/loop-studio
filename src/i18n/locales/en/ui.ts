@@ -570,9 +570,11 @@ const ui = {
   'whatsNew.v0240.tiers': 'Playback speed now also changes what a step shows: at 0.4 s a step or slower, the moving marker carries its +N; faster, +N appears when it arrives; under 0.2 s, the path flashes and the marker appears at its end.',
   'whatsNew.v0240.step': 'Advancing one step always shows the full movement, whatever the speed is set to.',
   'whatsNew.v0240.phone': 'On a phone, More now has Playback speed (Slow, Normal, Fast or Very fast), and at most 12 markers move at once.',
-  'whatsNew.v0250.grid': 'Nodes and frames now line up on the canvas grid: a new node lands on it, and a drag or an arrow key moves along it. Hold Alt to drag freely; to move a frame without what is inside it, hold Ctrl (⌘ on a Mac) instead of Alt.',
-  'whatsNew.v0250.ports': 'The connection points on the sides of a node now stay at one height near its top, so connections in a row stay straight in every language, and a node with a long name grows downward.',
-  'whatsNew.v0250.tidy': 'A diagram saved by an earlier version is lined up on the grid once, when it opens. The new Tidy to grid button, beside the zoom buttons, lines up the open diagram at any time, as one step you can undo.',
+  'whatsNew.v0250.grid': 'Grid-aligned editing. Nodes and frames snap to a 16 px grid, with smart guides for nearby ports, centres and edges. Existing ordinary documents are aligned once, and Tidy to grid can realign the current document in one undoable action.',
+  'whatsNew.v0250.routing': 'Clearer automatic routing. Auto orthogonal connections avoid nodes, separate connections that share a port and place their labels in clearer spaces.',
+  'whatsNew.v0250.shapes': 'Editable connection shapes. Choose Curved, Straight or Orthogonal, automatic or with your own bends, and add, move or remove bends on desktop. Phones display these shapes without editing them.',
+  'whatsNew.v0250.outline': 'Text stays inside nodes. Node outlines now grow with their titles and values, keeping text contained across all 18 languages.',
+  'whatsNew.v0250.templates': 'Reworked templates. All five bundled templates use the new grid and routing, with clearer spacing and improved opening views.',
 } as const
 
 export type UiKey = keyof typeof ui

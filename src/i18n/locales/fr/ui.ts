@@ -654,9 +654,11 @@ const ui = {
   'whatsNew.v0240.tiers': 'La vitesse de lecture change désormais aussi ce qu’une étape montre. À partir de 0,4 s par étape, le repère mobile porte son +N. Plus vite, le +N apparaît à l’arrivée. Sous 0,2 s, le chemin s’allume brièvement et le repère apparaît à son extrémité.',
   'whatsNew.v0240.step': 'Avancer d’un pas montre toujours tout le mouvement, quelle que soit la vitesse choisie.',
   'whatsNew.v0240.phone': 'Sur un téléphone, le menu Plus propose désormais la vitesse de lecture (Lente, Normale, Rapide ou Très rapide), et 12 repères au plus se déplacent à la fois.',
-  'whatsNew.v0250.grid': 'Les nœuds et les cadres s’alignent désormais sur la grille du canevas : un nouveau nœud s’y pose, et un glissement ou les touches fléchées le déplacent le long de la grille. Maintenez Alt pour déplacer librement ; pour déplacer un cadre sans son contenu, maintenez désormais Ctrl (⌘ sur Mac) au lieu d’Alt.',
-  'whatsNew.v0250.ports': 'Les points de connexion sur les côtés d’un nœud restent désormais à une même hauteur près du haut : les connexions alignées sur une rangée restent droites dans toutes les langues, et un nœud au nom long s’agrandit vers le bas.',
-  'whatsNew.v0250.tidy': 'Un diagramme enregistré avec une version précédente est aligné une fois sur la grille à son ouverture. Le nouveau bouton Aligner sur la grille, à côté des boutons de zoom, aligne le diagramme ouvert à tout moment, en une étape que vous pouvez annuler.',
+  'whatsNew.v0250.grid': 'Édition alignée sur la grille. Les nœuds et les cadres s’alignent sur une grille de 16 px, avec des repères intelligents pour les points de connexion, centres et bords proches. Les diagrammes ordinaires existants sont alignés une fois, et Aligner sur la grille réaligne le diagramme ouvert en une seule action annulable.',
+  'whatsNew.v0250.routing': 'Tracé automatique plus lisible. Les connexions orthogonales automatiques évitent les nœuds, séparent les connexions qui partagent un point de connexion et placent leurs étiquettes dans des espaces plus dégagés.',
+  'whatsNew.v0250.shapes': 'Formes de connexion modifiables. Choisissez Courbe, Droit ou Orthogonal, automatique ou avec vos propres coudes : ajoutez-les, déplacez-les ou supprimez-les sur ordinateur. Sur téléphone, ces formes s’affichent sans pouvoir être modifiées.',
+  'whatsNew.v0250.outline': 'Le texte reste dans les nœuds. Le contour d’un nœud s’adapte désormais à son titre et à ses valeurs, et le texte reste à l’intérieur dans les 18 langues.',
+  'whatsNew.v0250.templates': 'Modèles retravaillés. Les cinq modèles fournis utilisent la nouvelle grille et le nouveau tracé, avec un espacement plus clair et de meilleures vues d’ouverture.',
 } satisfies Record<UiKey, string>
 
 export default ui

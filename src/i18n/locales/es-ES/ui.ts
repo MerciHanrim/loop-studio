@@ -598,9 +598,11 @@ const ui = {
   'whatsNew.v0240.tiers': 'Ahora la velocidad de reproducción también cambia lo que muestra un paso: desde 0,4 s por paso, la marca en movimiento lleva su +N; más rápido, el +N aparece al llegar; por debajo de 0,2 s, el camino se ilumina un momento y la marca aparece al final.',
   'whatsNew.v0240.step': 'Avanzar un paso siempre muestra todo el movimiento, sea cual sea la velocidad elegida.',
   'whatsNew.v0240.phone': 'En un teléfono, el menú Más ofrece ahora la velocidad de reproducción (Lenta, Normal, Rápida o Muy rápida), y se mueven como máximo 12 marcas a la vez.',
-  'whatsNew.v0250.grid': 'Los nodos y los marcos ahora se alinean con la cuadrícula del lienzo: un nodo nuevo se coloca en ella, y al arrastrar o usar las flechas del teclado se mueve por la cuadrícula. Mantenga Alt para arrastrar libremente; para mover un marco sin su contenido, mantenga Ctrl (⌘ en Mac) en lugar de Alt.',
-  'whatsNew.v0250.ports': 'Los puntos de conexión a los lados de un nodo ahora quedan a una misma altura cerca de su parte superior, así que las conexiones en fila se mantienen rectas en cualquier idioma, y un nodo con un nombre largo crece hacia abajo.',
-  'whatsNew.v0250.tidy': 'Un diagrama guardado con una versión anterior se alinea con la cuadrícula una vez, al abrirlo. El nuevo botón Alinear a la cuadrícula, junto a los botones de zoom, alinea el diagrama abierto en cualquier momento, en un solo paso que puede deshacer.',
+  'whatsNew.v0250.grid': 'Edición alineada a la cuadrícula. Los nodos y los marcos se ajustan a una cuadrícula de 16 px, con guías inteligentes para los puntos de conexión, centros y bordes cercanos. Los diagramas normales existentes se alinean una vez, y Alinear a la cuadrícula vuelve a alinear el diagrama abierto en una sola acción que se puede deshacer.',
+  'whatsNew.v0250.routing': 'Trazado automático más claro. Las conexiones ortogonales automáticas evitan los nodos, separan las conexiones que comparten un punto de conexión y colocan sus etiquetas en espacios más despejados.',
+  'whatsNew.v0250.shapes': 'Formas de conexión editables. Elija Curvo, Recto u Ortogonal, automático o con sus propios codos: colóquelos, muévalos o quítelos en la versión de escritorio. En el teléfono, estas formas se muestran sin poder editarlas.',
+  'whatsNew.v0250.outline': 'El texto queda dentro de los nodos. El contorno de un nodo ahora se ajusta a su título y sus valores, y el texto queda dentro en los 18 idiomas.',
+  'whatsNew.v0250.templates': 'Plantillas renovadas. Las cinco plantillas incluidas usan la nueva cuadrícula y el nuevo trazado, con un espaciado más claro y mejores vistas iniciales.',
 } as const
 
 export type UiKey = keyof typeof ui

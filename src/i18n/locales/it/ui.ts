@@ -600,9 +600,11 @@ const ui = {
   'whatsNew.v0240.tiers': 'Ora la velocità di riproduzione cambia anche ciò che un passo mostra: da 0,4 s per passo in su, il segno in movimento porta il suo +N; più veloce, il +N compare all’arrivo; sotto 0,2 s, il percorso si illumina per un attimo e il segno compare alla fine.',
   'whatsNew.v0240.step': 'Avanzare di un passo mostra sempre tutto il movimento, qualunque sia la velocità scelta.',
   'whatsNew.v0240.phone': 'Sul telefono, il menu Altro offre ora la velocità di riproduzione (Lenta, Normale, Veloce o Molto veloce), e al massimo 12 segni si spostano alla volta.',
-  'whatsNew.v0250.grid': 'Nodi e riquadri ora si allineano alla griglia dell’area di disegno: un nuovo nodo viene posato sulla griglia, e trascinando o con i tasti freccia si sposta lungo la griglia. Tieni premuto Alt per trascinare liberamente; per spostare un riquadro senza il suo contenuto, tieni premuto Ctrl (⌘ su Mac) invece di Alt.',
-  'whatsNew.v0250.ports': 'I punti di connessione ai lati di un nodo ora restano a un’altezza fissa vicino al bordo superiore: le connessioni in fila restano dritte in ogni lingua, e un nodo con un nome lungo cresce verso il basso.',
-  'whatsNew.v0250.tidy': 'Un diagramma salvato con una versione precedente viene allineato alla griglia una volta, all’apertura. Il nuovo pulsante Allinea alla griglia, accanto ai pulsanti di ingrandimento, allinea il diagramma aperto in qualsiasi momento, in un solo passaggio che puoi annullare.',
+  'whatsNew.v0250.grid': 'Modifica allineata alla griglia. Nodi e riquadri si agganciano a una griglia di 16 px, con guide intelligenti per punti di connessione, centri e bordi vicini. I diagrammi normali esistenti vengono allineati una volta, e Allinea alla griglia riallinea il diagramma aperto in un’unica azione annullabile.',
+  'whatsNew.v0250.routing': 'Percorsi automatici più chiari. Le connessioni ortogonali automatiche evitano i nodi, separano le connessioni che condividono un punto di connessione e mettono le loro etichette in spazi più liberi.',
+  'whatsNew.v0250.shapes': 'Forme delle connessioni modificabili. Scegli Curvo, Dritto o Ortogonale, automatico o con angoli tuoi: aggiungili, spostali o rimuovili da computer. Sul telefono queste forme vengono mostrate ma non si possono modificare.',
+  'whatsNew.v0250.outline': 'Il testo resta nei nodi. Il contorno di un nodo ora si adatta al titolo e ai valori, e il testo resta dentro il contorno in tutte le 18 lingue.',
+  'whatsNew.v0250.templates': 'Modelli rivisti. Tutti e cinque i modelli inclusi usano la nuova griglia e i nuovi percorsi, con spaziature più chiare e viste iniziali migliori.',
 } satisfies Record<UiKey, string>
 
 export default ui

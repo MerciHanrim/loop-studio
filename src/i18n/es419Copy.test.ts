@@ -271,7 +271,9 @@ describe('es-419 copy — mechanical review', () => {
         'stateExpr.label.hint.notAnAssignment',
         'inspector.labelTiming.warnSForm',
       ],
-      Alt: ['hint.frameMove.body', 'whatsNew.v0250.grid'],
+      Alt: ['hint.frameMove.body'],
+      // issue #344: the grid size in the 0.25.0 release note
+      px: ['whatsNew.v0250.grid'],
       Esc: ['canvas.regionSelect.on', 'canvas.frame.drawing', 'inspector.edge.route.addBendHint'],
       Escape: [
         'canvas.frame.a11y.descSelected',
@@ -286,8 +288,8 @@ describe('es-419 copy — mechanical review', () => {
         'whatsNew.v0182.end',
       ],
       Tab: ['whatsNew.v0181.move'],
-      Ctrl: ['toolbar.undo.title', 'toolbar.redo.title', 'hint.frameMove.body', 'whatsNew.v0250.grid'],
-      Mac: ['hint.frameMove.body', 'whatsNew.v0250.grid'], // issue #344 — Ctrl / ⌘ moves a frame alone
+      Ctrl: ['toolbar.undo.title', 'toolbar.redo.title', 'hint.frameMove.body'],
+      Mac: ['hint.frameMove.body'], // issue #344 — Ctrl / ⌘ moves a frame alone
       Cmd: ['toolbar.undo.title', 'toolbar.redo.title'],
       Z: ['toolbar.undo.title', 'toolbar.redo.title'],
       N: ['import.ignoreLastRows', 'import.issue.invalid-ignore-rows', 'import.issue.ragged-row', 'whatsNew.v0220.badge', 'whatsNew.v0240.tiers'],

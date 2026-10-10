@@ -586,9 +586,11 @@ const ui = {
   'whatsNew.v0240.tiers': 'Tốc độ phát giờ cũng thay đổi những gì một bước hiển thị: từ 0,4 giây mỗi bước trở lên, dấu chuyển động mang theo +N; nhanh hơn thì +N hiện khi tới nơi; dưới 0,2 giây thì đường đi lóe sáng rồi dấu hiện ở cuối.',
   'whatsNew.v0240.step': 'Tiến một bước luôn hiển thị toàn bộ chuyển động, dù tốc độ được đặt thế nào.',
   'whatsNew.v0240.phone': 'Trên điện thoại, mục Thêm giờ có tốc độ phát (Chậm, Bình thường, Nhanh hoặc Rất nhanh), và cùng lúc chỉ có tối đa 12 dấu di chuyển.',
-  'whatsNew.v0250.grid': 'Nút và nhóm giờ được căn theo lưới của khung vẽ: nút mới được đặt lên lưới, và khi kéo hoặc dùng phím mũi tên, chúng di chuyển theo lưới. Giữ Alt để kéo tự do; để chỉ di chuyển riêng nhóm mà không kéo theo nội dung bên trong, giờ hãy giữ Ctrl (⌘ trên Mac) thay cho Alt.',
-  'whatsNew.v0250.ports': 'Các điểm nối ở hai bên nút giờ nằm ở cùng một độ cao gần cạnh trên, nên các liên kết trên một hàng luôn thẳng ở mọi ngôn ngữ, và nút có tên dài sẽ dài thêm xuống dưới.',
-  'whatsNew.v0250.tidy': 'Sơ đồ được lưu bằng phiên bản trước sẽ được căn theo lưới một lần khi mở. Nút mới Căn theo lưới, bên cạnh các nút thu phóng, căn sơ đồ đang mở bất cứ lúc nào, trong một bước có thể hoàn tác.',
+  'whatsNew.v0250.grid': 'Chỉnh sửa theo lưới. Nút và nhóm bám theo lưới 16 px, kèm đường gióng thông minh cho các điểm nối, tâm và cạnh ở gần. Sơ đồ thông thường có sẵn được căn một lần, và Căn theo lưới căn lại sơ đồ đang mở trong một thao tác có thể hoàn tác.',
+  'whatsNew.v0250.routing': 'Đường đi tự động rõ ràng hơn. Liên kết vuông góc tự động tránh các nút, tách các liên kết dùng chung một điểm nối và đặt nhãn của chúng vào chỗ thoáng hơn.',
+  'whatsNew.v0250.shapes': 'Hình dạng liên kết có thể chỉnh. Chọn Cong, Thẳng hoặc Vuông góc, tự động hoặc với điểm gấp của riêng bạn: thêm, di chuyển hoặc xóa chúng trên máy tính. Trên điện thoại, các hình dạng này chỉ được hiển thị, không chỉnh sửa được.',
+  'whatsNew.v0250.outline': 'Chữ nằm gọn trong nút. Đường viền của nút giờ giãn theo tiêu đề và giá trị, giữ chữ nằm bên trong ở cả 18 ngôn ngữ.',
+  'whatsNew.v0250.templates': 'Mẫu được làm lại. Cả năm mẫu có sẵn đều dùng lưới và đường đi mới, khoảng cách rõ ràng hơn và khung nhìn khi mở tốt hơn.',
 } satisfies Record<UiKey, string>
 
 export default ui

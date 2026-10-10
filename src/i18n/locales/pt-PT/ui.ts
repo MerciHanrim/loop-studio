@@ -600,9 +600,11 @@ const ui = {
   'whatsNew.v0240.tiers': 'A velocidade de reprodução agora também muda o que um passo mostra: a partir de 0,4 s por passo, a marca em movimento leva o seu +N; em velocidades maiores, o +N aparece na chegada; abaixo de 0,2 s, o caminho acende por um instante e a marca aparece no fim.',
   'whatsNew.v0240.step': 'Avançar um passo mostra sempre todo o movimento, seja qual for a velocidade escolhida.',
   'whatsNew.v0240.phone': 'Em telefones, o menu Mais oferece agora a velocidade de reprodução (Lenta, Normal, Rápida ou Muito rápida), e no máximo 12 marcas estão em movimento ao mesmo tempo.',
-  'whatsNew.v0250.grid': 'Os nós e os quadros ficam agora alinhados ao quadriculado da tela: um novo nó é colocado sobre ele e, ao arrastar ou usar as teclas de seta, o movimento segue o quadriculado. Segure Alt para arrastar livremente; para mover um quadro sem o que está dentro dele, segure Ctrl (⌘ no Mac) em vez de Alt.',
-  'whatsNew.v0250.ports': 'Os pontos de entrada e saída nas laterais de um nó ficam agora a uma altura fixa perto do topo: as linhas entre nós em fila ficam retas em qualquer idioma, e um nó com um nome longo cresce para baixo.',
-  'whatsNew.v0250.tidy': 'Um diagrama criado com uma versão anterior é alinhado ao quadriculado uma vez, ao ser aberto. O novo botão Alinhar ao quadriculado, ao lado dos botões de zoom, alinha o diagrama aberto a qualquer momento, como um único passo que pode ser desfeito.',
+  'whatsNew.v0250.grid': 'Edição alinhada ao quadriculado. Os nós e os quadros encaixam num quadriculado de 16 px, com guias inteligentes para pontos de entrada e saída, centros e extremidades próximos. Os diagramas comuns já existentes são alinhados uma vez, e Alinhar ao quadriculado volta a alinhar o diagrama aberto numa única ação que pode ser desfeita.',
+  'whatsNew.v0250.routing': 'Rotas automáticas mais claras. As linhas ortogonais automáticas contornam os nós, separam as linhas que usam o mesmo ponto e colocam os seus rótulos em espaços mais livres.',
+  'whatsNew.v0250.shapes': 'Formas de linha editáveis. É possível escolher Curva, Reta ou Ortogonal, automática ou com dobras próprias, que se adicionam, movem ou removem no computador. No telefone, estas formas são mostradas, mas não podem ser editadas.',
+  'whatsNew.v0250.outline': 'O texto fica dentro dos nós. O contorno de um nó acompanha agora o título e os valores, e o texto fica dentro dele nos 18 idiomas.',
+  'whatsNew.v0250.templates': 'Templates renovados. Os cinco Templates incluídos usam o novo quadriculado e as novas rotas, com espaçamento mais claro e melhores vistas iniciais.',
 } as const
 
 export type UiKey = keyof typeof ui

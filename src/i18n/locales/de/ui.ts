@@ -660,9 +660,11 @@ const ui = {
   'whatsNew.v0240.tiers': 'Das Wiedergabetempo bestimmt jetzt auch, was ein Schritt zeigt: ab 0,4 s pro Schritt wandert die Markierung mit ihrem +N; schneller erscheint +N erst bei der Ankunft; unter 0,2 s leuchtet der Weg kurz auf und die Markierung erscheint an seinem Ende.',
   'whatsNew.v0240.step': 'Einen Schritt weiter zeigt immer die ganze Bewegung, egal welches Tempo eingestellt ist.',
   'whatsNew.v0240.phone': 'Auf dem Smartphone bietet „Mehr“ jetzt das Wiedergabetempo (Langsam, Normal, Schnell oder Sehr schnell), und höchstens 12 Markierungen bewegen sich gleichzeitig.',
-  'whatsNew.v0250.grid': 'Knoten und Rahmen richten sich jetzt am Raster der Arbeitsfläche aus: Ein neuer Knoten landet darauf, und Ziehen oder die Pfeiltasten bewegen ihn am Raster entlang. Mit gedrückter Alt-Taste wird frei gezogen; um einen Rahmen ohne seinen Inhalt zu bewegen, jetzt Strg (⌘ auf dem Mac) statt Alt gedrückt halten.',
-  'whatsNew.v0250.ports': 'Die Verbindungspunkte an den Seiten eines Knotens liegen jetzt auf einer festen Höhe nahe der Oberkante: Verbindungen in einer Reihe bleiben in jeder Sprache gerade, und ein Knoten mit langem Namen wächst nach unten.',
-  'whatsNew.v0250.tidy': 'Ein Diagramm aus einer früheren Version wird beim Öffnen einmal am Raster ausgerichtet. Die neue Schaltfläche Am Raster ausrichten neben den Zoom-Schaltflächen richtet das geöffnete Diagramm jederzeit aus, als ein Schritt, der sich rückgängig machen lässt.',
+  'whatsNew.v0250.grid': 'Bearbeiten am Raster. Knoten und Rahmen rasten in ein 16-px-Raster ein, und Hilfslinien zeigen nahe Verbindungspunkte, Mitten und Kanten. Bestehende gewöhnliche Diagramme werden einmal ausgerichtet, und Am Raster ausrichten richtet das geöffnete Diagramm jederzeit neu aus, in einem Schritt, der sich rückgängig machen lässt.',
+  'whatsNew.v0250.routing': 'Übersichtlichere automatische Linienführung. Automatisch rechtwinklige Verbindungen weichen Knoten aus, trennen Verbindungen am selben Verbindungspunkt und setzen ihre Beschriftungen an freiere Stellen.',
+  'whatsNew.v0250.shapes': 'Verbindungsformen bearbeiten. Zur Wahl stehen Gebogen, Gerade und Rechtwinklig, automatisch oder mit eigenen Knickpunkten, die sich am Desktop hinzufügen, verschieben und entfernen lassen. Auf dem Smartphone werden diese Formen nur angezeigt, nicht bearbeitet.',
+  'whatsNew.v0250.outline': 'Text bleibt im Knoten. Der Umriss eines Knotens passt sich jetzt an Titel und Werte an, sodass der Text in allen 18 Sprachen darin bleibt.',
+  'whatsNew.v0250.templates': 'Überarbeitete Vorlagen. Alle fünf mitgelieferten Vorlagen nutzen das neue Raster und die neue Linienführung, mit klareren Abständen und besseren Startansichten.',
 } satisfies Record<UiKey, string>
 
 export default ui
