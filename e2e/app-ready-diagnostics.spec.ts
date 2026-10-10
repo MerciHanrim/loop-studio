@@ -72,6 +72,76 @@ test.describe('waitForAppReady', () => {
     await page.context().close()
   })
 
+  // issue #305 - where the time went: Node's clock and the renderer's, apart
+  test('timeline: the Node side and the renderer side are reported separately, each with its own marks', async ({ browser }) => {
+    const page = await stubPage(
+      browser,
+      '/__app-ready/late-toolbar',
+      '<!doctype html><html lang="en"><body><div id="root"></div><script>setTimeout(() => { document.documentElement.lang = "en"; document.getElementById("root").innerHTML = \'<header class="toolbar">t</header>\' }, 150)</script></body></html>',
+    )
+    await page.goto('/__app-ready/late-toolbar')
+    const msg = await failure(page)
+    expect(msg).toContain('waiting for .canvas')
+    // Node's clock: the document events before the wait (negative), the toolbar during it, the verdict
+    expect(msg).toMatch(/node timeline \(ms from the wait start\): navigated -\d+, DOMContentLoaded -?\d+, load -?\d+; toolbar visible \d+; gave up \d+/)
+    // the renderer's clock: its own marks, and where the wait started on that clock
+    expect(msg).toMatch(/renderer timeline \(ms from navigation start, read at \d+ ; the wait started at -?\d+\): lang set \d+, #root \d+, toolbar attached \d+ \/ visible \d+, canvas visible -/)
+    expect(msg).toMatch(/renderer work: \d+ frames, longest gap \d+ ms ending at \d+; long tasks \d+, \d+ ms in all/)
+    expect(msg).toMatch(/navigation: response end \d+, DOMContentLoaded \d+, load \d+; requests \d+, catalog requests 0 ending at -; slowest/)
+    expect(msg).not.toContain('late trace')
+    await page.context().close()
+  })
+
+  test('a renderer busy at the deadline: the probe goes unanswered, and the late trace is collected when it answers', async ({ browser }) => {
+    // after load, the main thread is held for 2.5 s: the 600 ms wait fails, the
+    // 1 s probe cannot run, and the same read comes back once the task ends
+    const page = await stubPage(
+      browser,
+      '/__app-ready/busy',
+      '<!doctype html><html lang="en"><body><div id="root"></div><script>addEventListener("load", () => setTimeout(() => { const t = performance.now(); while (performance.now() - t < 2500) {} }, 50))</script></body></html>',
+    )
+    await page.goto('/__app-ready/busy')
+    const msg = await failure(page)
+    expect(msg).toContain('stage: renderer did not answer')
+    expect(msg).toContain('did not answer within 1000 ms')
+    expect(msg).toMatch(/late trace: the renderer answered \d+ ms after the deadline; stage then: nothing rendered into #root/)
+    // the late read carries the long task that held the renderer
+    const late = msg.slice(msg.indexOf('late trace'))
+    const longest = Number(/longest (\d+) ms at/.exec(late)?.[1])
+    expect(longest, 'the blocking task is in the late trace').toBeGreaterThanOrEqual(2000)
+    await page.context().close()
+  })
+
+  test('the slowest request is named, with its query values masked; requests are not listed one by one', async ({ browser }) => {
+    const page = await stubPage(
+      browser,
+      '/__app-ready/slow-page',
+      '<!doctype html><html lang="en"><body><div id="root"></div><script src="/__app-ready/slow.js?key=s3cret"></script></body></html>',
+    )
+    await page.route('**/__app-ready/slow.js*', async (r) => {
+      await new Promise((res) => setTimeout(res, 400))
+      await r.fulfill({ status: 200, contentType: 'text/javascript', body: '/* slow */' })
+    })
+    await page.goto('/__app-ready/slow-page')
+    const msg = await failure(page)
+    expect(msg).toMatch(/slowest \d+ ms from \d+, http:\/\/(localhost|127\.0\.0\.1):\d+\/__app-ready\/slow\.js\?key=\*\*\*/)
+    expect(Number(/slowest (\d+) ms/.exec(msg)?.[1])).toBeGreaterThanOrEqual(300)
+    expect(msg).not.toContain('s3cret')
+    expect(msg.match(/slow\.js/g)?.length).toBe(1)
+    await page.context().close()
+  })
+
+  test('a document without a boot trace says so', async ({ browser }) => {
+    // every context the fixture sees is traced (even `browser.newPage()` goes
+    // through `browser.newContext()`), so the trace is removed from this document
+    const page = await stubPage(browser, '/__app-ready/untraced', EMPTY_ROOT)
+    await page.goto('/__app-ready/untraced')
+    await page.evaluate(() => delete (window as unknown as { __appReadyTrace?: unknown }).__appReadyTrace)
+    const msg = await failure(page)
+    expect(msg).toContain('renderer timeline: not recorded (no boot trace in this document)')
+    await page.context().close()
+  })
+
   test('page errors and console errors are listed, counted and capped', async ({ browser }) => {
     const script = [
       'for (let i = 0; i < 30; i++) console.error("console-305 same");',
