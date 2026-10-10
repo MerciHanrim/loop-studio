@@ -114,7 +114,7 @@ jobs:
   # within the budget (`npm run check:e2e-shards`). To change the shard count,
   # change the matrix AND the `/N` in the run step; the check keeps them equal.
   e2e-shard:
-    name: e2e (shard ${{ matrix.shard }}/5)
+    name: e2e (shard ${{ matrix.shard }}/6)
     # Windows so the committed visual baselines (`*-win32.png`) match; public
     # repo ⇒ Actions minutes are free.
     runs-on: windows-latest
@@ -122,7 +122,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -135,7 +135,7 @@ jobs:
       # the default config's `build-portable` setup project self-builds the
       # portable bundle on the one shard that carries the portable spec
       - name: E2E (dev server + portable file://)
-        run: node scripts/e2e-shards.mjs run ${{ matrix.shard }}/5
+        run: node scripts/e2e-shards.mjs run ${{ matrix.shard }}/6
       # the JSON report is the timing sample `scripts/e2e-shard-weights.mjs`
       # reads to refresh the weights; small, kept for two weeks, uploaded always
       - name: Upload the timing report

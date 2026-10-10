@@ -1,6 +1,6 @@
 # The e2e shards (issue #311)
 
-The browser suite (`npm run e2e`: the dev-server projects and the portable file) runs on CI as five concurrent jobs on `windows-latest`, each with a 20-minute limit. This page says how the suite is divided between them, what proves the division is complete, and how the division is kept honest as the suite grows.
+The browser suite (`npm run e2e`: the dev-server projects and the portable file) runs on CI as six concurrent jobs on `windows-latest`, each with a 20-minute limit. This page says how the suite is divided between them, what proves the division is complete, and how the division is kept honest as the suite grows.
 
 ## Why not Playwright's `--shard`
 
@@ -29,6 +29,8 @@ It runs in the `checks` job on every pull request and push.
 
 Predicted at the first split (weights from six runs, 2026-10-01 to 2026-10-03), before any CI run of it: with four shards the loads would be 808 / 808 / 809 / 808 s by the medians and 894 / 919 / 882 / 919 s by the slowest samples, a longest job of 17 min 19 s and only 41 s inside the budget; so the split ships with **five** shards: 648 / 647 / 647 / 646 / 646 s by the medians, 712 / 746 / 708 / 725 / 723 s by the slowest samples, a longest predicted job of 14 min 26 s, 5 min 34 s under the limit. Against each of the eleven recorded runs, with that run's own times and weights that exclude it, the longest of four time-cut shards would have been 9 to 18 % shorter than the count split that ran (848 s instead of 1,037 s on `16020f2`), and the longest of five 606 to 693 s. These are predictions from recorded samples; the measured shard times of the first CI runs are what confirms them.
 
+Grown to **six** shards on 2026-10-10 (issue #344, v0.25.0). The weights had last been refreshed on 2026-10-03, and the suite had since grown to 2,105 tests with spec files that had no sample (estimated at the suite's median per test). On run 38032960035 (`30bf3d4`) four of the five shards ran their tests in 15.0 to 16.6 min, and shard 4 was cancelled at the 20-minute limit after 379 of its 386 tests, against a prediction of 14 min 53 s. That run was added as a sample: the four uploaded reports, and for shard 4, which uploads no report when cancelled, the durations its log printed for the 379 tests that ran plus the local full run's durations for the 7 it never reached (about 6.5 s together). With those weights five shards predict longest jobs of 19 min 10 s, 50 s under the limit and so outside the budget; six predict 14 min 46 s to 16 min 01 s by the slowest samples, 3 min 59 s to 5 min 14 s under the limit.
+
 ## Keeping the weights current
 
 Every shard job uploads its JSON report (`test-results/e2e-report.json`) as the artifact `e2e-report-shard-<i>`, kept for two weeks. To add a run as a sample:
@@ -44,4 +46,4 @@ The newest sample goes to the front of every file it covers and the seventh samp
 
 - It does not make a shard finish in time on a runner slower than any in the sample, and it does not say why two runners differ; that variance (up to ±50 % per shard on the same tree) is recorded, not explained.
 - It does not touch the production-bundle and PWA jobs, which are not sharded, and it does not change the 20-minute limit.
-- It does not split a spec file. The largest file (`large-graph-readability.spec.ts`, about 210 s) is well under a shard's share, so file granularity does not bind; if a single file ever approached a shard's share, the unit would have to change.
+- It does not split a spec file. The largest files (`whats-new.spec.ts`, `large-graph-readability.spec.ts` and `forced-colors-edge-tell.spec.ts`, about 200 to 225 s each in the 2026-10-10 sample) are well under a shard's share, so file granularity does not bind; if a single file ever approached a shard's share, the unit would have to change.
