@@ -4,6 +4,7 @@ import {
   digestOfCanonical,
   graphStructureIssues,
   readRevisionSideAndProject,
+  recordKeepsLabels,
   type HunkSelection,
   type ProjectPayload,
   type ProposalBase,
@@ -155,7 +156,11 @@ export async function routeImport(text: string): Promise<RouteResult> {
   // PROVED (the declared one, or v2 for a recovered legacy file), then adopt
   // the header. `loaded` is that same projection, so the adopted baseline
   // digest equals what `projectStore.liveDigest()` computes right after.
-  const outcome = await importFile(text, { modelVersion: read.modelVersion })
+  // issue #344 §DL2.8 — a revision opens exactly as recorded (no layout
+  // re-placement), or it would differ from its own revision on open.
+  // issue #344 step 3 — a revision whose header declares semantics before
+  // `loop-revision/10` keeps its recorded label places too (§ER15.1, §R10-6)
+  const outcome = await importFile(text, { modelVersion: read.modelVersion, keepLayout: true, recordLabels: recordKeepsLabels(read.project) })
   useProjectStore.getState().openRevisionFromFile(read.project, digestOfCanonical(loaded))
   return { kind: 'revision', outcome, project: read.project, legacyV2Recovered: read.legacyV2Recovered }
 }

@@ -386,7 +386,8 @@ const ui = {
     '{n, plural, other {Đã thêm # tham số}} từ {tables}. Giá trị của chúng nằm ở bảng Đầu vào. Để dùng một cái trong Giá trị tính toán, gõ @ trong biểu thức rồi chọn tên; ô lượng chảy của liên kết và một bộ kích hoạt cũng có cùng bộ chọn đó.',
   'help.contextual.hint.import.name': 'Nhập bảng tính',
   'help.contextual.hint.import.desc': 'Hiện một lần, ngay sau khi lần nhập bảng tính đầu tiên đưa dữ liệu lên khung vẽ.',
-  'hint.frameMove.body': 'Kéo cạnh của một nhóm để di chuyển nó cùng mọi thứ bên trong. Giữ Alt khi kéo để chỉ di chuyển riêng nhóm.',
+  'hint.frameMove.body':
+    'Kéo cạnh của một nhóm để di chuyển nó cùng mọi thứ bên trong. Giữ Ctrl (⌘ trên Mac) khi kéo để chỉ di chuyển riêng nhóm, hoặc Alt để di chuyển tự do, không theo lưới.',
   'help.contextual.hint.frameMove.name': 'Di chuyển nhóm',
   'help.contextual.hint.frameMove.desc': 'Hiện một lần, lần đầu tiên một nhóm được chọn trên khung vẽ có thể chỉnh sửa.',
   'hint.focusFilter.body': 'Đồ thị đang rối? Tiêu điểm làm mờ mọi thứ trừ vùng lân cận của một nút; Bộ lọc ẩn bớt loại nút hoặc loại liên kết.',
@@ -585,6 +586,11 @@ const ui = {
   'whatsNew.v0240.tiers': 'Tốc độ phát giờ cũng thay đổi những gì một bước hiển thị: từ 0,4 giây mỗi bước trở lên, dấu chuyển động mang theo +N; nhanh hơn thì +N hiện khi tới nơi; dưới 0,2 giây thì đường đi lóe sáng rồi dấu hiện ở cuối.',
   'whatsNew.v0240.step': 'Tiến một bước luôn hiển thị toàn bộ chuyển động, dù tốc độ được đặt thế nào.',
   'whatsNew.v0240.phone': 'Trên điện thoại, mục Thêm giờ có tốc độ phát (Chậm, Bình thường, Nhanh hoặc Rất nhanh), và cùng lúc chỉ có tối đa 12 dấu di chuyển.',
+  'whatsNew.v0250.grid': 'Chỉnh sửa theo lưới. Nút và nhóm bám theo lưới 16 px, kèm đường gióng thông minh cho các điểm nối, tâm và cạnh ở gần. Sơ đồ thông thường có sẵn được căn một lần, và Căn theo lưới căn lại sơ đồ đang mở trong một thao tác có thể hoàn tác.',
+  'whatsNew.v0250.routing': 'Đường đi tự động rõ ràng hơn. Liên kết vuông góc tự động tránh các nút, tách các liên kết dùng chung một điểm nối và đặt nhãn của chúng vào chỗ thoáng hơn.',
+  'whatsNew.v0250.shapes': 'Hình dạng liên kết có thể chỉnh. Chọn Cong, Thẳng hoặc Vuông góc, tự động hoặc với điểm gấp của riêng bạn: thêm, di chuyển hoặc xóa chúng trên máy tính. Trên điện thoại, các hình dạng này chỉ được hiển thị, không chỉnh sửa được.',
+  'whatsNew.v0250.outline': 'Chữ nằm gọn trong nút. Đường viền của nút giờ giãn theo tiêu đề và giá trị, giữ chữ nằm bên trong ở cả 18 ngôn ngữ.',
+  'whatsNew.v0250.templates': 'Mẫu được làm lại. Cả năm mẫu có sẵn đều dùng lưới và đường đi mới, khoảng cách rõ ràng hơn và khung nhìn khi mở tốt hơn.',
 } satisfies Record<UiKey, string>
 
 export default ui

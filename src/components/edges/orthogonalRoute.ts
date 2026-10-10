@@ -63,8 +63,8 @@ const normal = (p: Position): Pt =>
   p === Position.Left ? { x: -1, y: 0 } : p === Position.Right ? { x: 1, y: 0 } : p === Position.Top ? { x: 0, y: -1 } : { x: 0, y: 1 }
 const isHoriz = (p: Position): boolean => p === Position.Left || p === Position.Right
 
-function inflate(b: Box): { x0: number; y0: number; x1: number; y1: number } {
-  return { x0: b.x - ROUTE_PAD, y0: b.y - ROUTE_PAD, x1: b.x + b.w + ROUTE_PAD, y1: b.y + b.h + ROUTE_PAD }
+function inflate(b: Box, pad: number = ROUTE_PAD): { x0: number; y0: number; x1: number; y1: number } {
+  return { x0: b.x - pad, y0: b.y - pad, x1: b.x + b.w + pad, y1: b.y + b.h + pad }
 }
 type IBox = { x0: number; y0: number; x1: number; y1: number }
 const ptInside = (p: Pt, r: IBox): boolean => p.x > r.x0 + COORD_EPS && p.x < r.x1 - COORD_EPS && p.y > r.y0 + COORD_EPS && p.y < r.y1 - COORD_EPS
@@ -177,13 +177,96 @@ function simplify(pts: Pt[]): Pt[] {
 /** open-list entry: a node id plus the key it was pushed with */
 type Open = { f: number; g: number; x: number; y: number; id: number }
 
-function buildRoute(a: Pt, goal: Pt, aPos: Position | null, bPos: Position | null, rs: IBox[]): Pt[] | null {
+/** issue #344 step 2 — the segments other routes already run along, by ruler
+ *  line: `v` keyed by x (each a y interval), `h` keyed by y. `vx` / `hy` are
+ *  the sorted keys, for the crossing count. */
+export type Occupied = {
+  v: Map<number, [number, number][]>
+  h: Map<number, [number, number][]>
+  vx?: number[]
+  hy?: number[]
+}
+
+/** optional search inputs of the guarded router (§ER3 v2); absent ⇒ exactly the
+ *  v1 search */
+type SearchOpts = {
+  /** shared-trunk cost: every px a step runs along an occupied segment costs
+   *  `TRUNK_COST` px more */
+  occ?: Occupied
+  /** the routes of the same port's fan, past their stubs: every px a step runs
+   *  along one costs `FAN_COST` px more (a fan splits after its stub) */
+  fan?: Occupied
+  /** extra ruler lines (the outer corridor of the last rung) */
+  extraX?: number[]
+  extraY?: number[]
+  maxExpansions?: number
+  /** the only move allowed out of the start (0 up, 1 down, 2 left, 3 right) */
+  firstDir?: number
+  /** the only move allowed into the goal */
+  lastDir?: number
+  /** issue #344 step 3 — the move the route ARRIVED at the start with (a bend
+   *  point between two spans): leaving along it is free, turning is one bend,
+   *  and going straight back counts as two (a U-turn), so a Manual route turns
+   *  at its bend point instead of folding back over itself */
+  arrive?: number
+}
+
+/** issue #344 step 2 — the extra cost per px of running along an unrelated
+ *  route (so two unrelated connections do not share a trunk when another lane
+ *  exists) */
+export const TRUNK_COST = 2
+
+/** issue #344 step 2 — the extra cost of crossing a route already placed, in px
+ *  (the same order as a bend: a detour of about one bend is worth one crossing
+ *  fewer) */
+export const CROSS_COST = BEND_COST
+
+/** issue #344 step 2 (§ER14.3) — the extra cost per px of running along another
+ *  connection of the same port past its stub: high enough that a lane one
+ *  `PARALLEL_GAP` aside (two bends) is always cheaper */
+export const FAN_COST = 40
+
+/** how many segments of the sorted-key index `keys` / `map` lie strictly inside
+ *  (lo, hi) and span `at` strictly — the perpendicular segments a step crosses */
+function crossCount(keys: number[] | undefined, map: Map<number, [number, number][]>, lo: number, hi: number, at: number): number {
+  if (!keys || keys.length === 0) return 0
+  let a = 0
+  let b = keys.length
+  while (a < b) {
+    const m = (a + b) >> 1
+    if (keys[m] > lo + COORD_EPS) b = m
+    else a = m + 1
+  }
+  let n = 0
+  for (let k = a; k < keys.length && keys[k] < hi - COORD_EPS; k++) {
+    for (const [y0, y1] of map.get(keys[k])!) if (at > y0 + COORD_EPS && at < y1 - COORD_EPS) n++
+  }
+  return n
+}
+
+/** the length of [lo, hi] covered by the intervals of `list` */
+function overlapLen(list: [number, number][] | undefined, lo: number, hi: number): number {
+  if (!list) return 0
+  let s = 0
+  for (const [a, b] of list) {
+    const o = Math.min(hi, b) - Math.max(lo, a)
+    if (o > 0) s += o
+  }
+  return s
+}
+
+/** the search as steps: it pauses (yields) every `SEARCH_SLICE` expansions,
+ *  so a long search can be spread over several slices of a sliced generation
+ *  (§ER14.5). `buildRoute` runs it to the end. */
+function* buildRouteSteps(a: Pt, goal: Pt, aPos: Position | null, bPos: Position | null, rs: IBox[], opts?: SearchOpts): Generator<string, Pt[] | null> {
   // rulers
   const xs = new Set<number>([q(a.x), q(goal.x)])
   const ys = new Set<number>([q(a.y), q(goal.y)])
   for (const r of rs) {
     xs.add(q(r.x0)); xs.add(q(r.x1)); ys.add(q(r.y0)); ys.add(q(r.y1))
   }
+  if (opts?.extraX) for (const x of opts.extraX) xs.add(q(x))
+  if (opts?.extraY) for (const y of opts.extraY) ys.add(q(y))
   const xArr = [...xs].sort(cmpNum)
   const yArr = [...ys].sort(cmpNum)
   // wide-channel midpoints
@@ -299,7 +382,10 @@ function buildRoute(a: Pt, goal: Pt, aPos: Position | null, bPos: Position | nul
   const dir = new Int8Array(N) // 0 = none, 1 = horizontal, 2 = vertical
   const from = new Int32Array(N).fill(-1)
   g[startId] = 0
-  dir[startId] = aPos ? (isHoriz(aPos) ? 1 : 2) : 0
+  const arrive = opts?.arrive
+  dir[startId] = aPos ? (isHoriz(aPos) ? 1 : 2) : arrive != null ? (arrive < 2 ? 2 : 1) : 0
+  // the move straight back along `arrive` (0 up ↔ 1 down, 2 left ↔ 3 right)
+  const back = arrive == null ? -1 : arrive ^ 1
 
   // the heuristic measures to the RAW goal, not to its ruler line: `goal` is an
   // anchor (a stub end or a user waypoint) and is not quantised, so when it
@@ -352,6 +438,30 @@ function buildRoute(a: Pt, goal: Pt, aPos: Position | null, bPos: Position | nul
 
   push({ f: fOf(startId, startI, startJ), g: 0, x: X[startI], y: Y[startJ], id: startId })
   let expansions = 0
+  const maxExp = opts?.maxExpansions ?? MAX_EXPANSIONS
+  const firstDir = opts?.firstDir
+  const lastDir = opts?.lastDir
+  const occ = opts?.occ
+  // the surcharge of one axis-aligned step (0 without `occ`): running along an
+  // occupied segment (shared trunk) and crossing one
+  const fan = opts?.fan
+  const trunk = (i0: number, j0: number, i1: number, j1: number): number => {
+    if (!occ && !fan) return 0
+    if (i0 === i1) {
+      const lo = Math.min(Y[j0], Y[j1])
+      const hi = Math.max(Y[j0], Y[j1])
+      return (
+        (occ ? TRUNK_COST * overlapLen(occ.v.get(X[i0]), lo, hi) + CROSS_COST * crossCount(occ.hy, occ.h, lo, hi, X[i0]) : 0) +
+        (fan ? FAN_COST * overlapLen(fan.v.get(X[i0]), lo, hi) : 0)
+      )
+    }
+    const lo = Math.min(X[i0], X[i1])
+    const hi = Math.max(X[i0], X[i1])
+    return (
+      (occ ? TRUNK_COST * overlapLen(occ.h.get(Y[j0]), lo, hi) + CROSS_COST * crossCount(occ.vx, occ.v, lo, hi, Y[j0]) : 0) +
+      (fan ? FAN_COST * overlapLen(fan.h.get(Y[j0]), lo, hi) : 0)
+    )
+  }
 
   while (heap.length > 0) {
     const e = pop()
@@ -360,10 +470,14 @@ function buildRoute(a: Pt, goal: Pt, aPos: Position | null, bPos: Position | nul
     const cj = cur - ci * NY
     if (e.g !== g[cur] || e.f !== fOf(cur, ci, cj)) continue // superseded entry
     if (cur === goalId) break
-    if (++expansions > MAX_EXPANSIONS) return null
+    if (++expansions > maxExp) return null
+    if ((expansions & (SEARCH_SLICE - 1)) === 0) yield 'search'
 
     // the nearest existing lattice point in each of the four directions
     for (let d = 0; d < 4; d++) {
+      // §ER14.3 — a port fan's branch: the first move out of the start, and
+      // the move into the goal, may be fixed (0 up, 1 down, 2 left, 3 right)
+      if (firstDir != null && cur === startId && d !== firstDir) continue
       let ni = ci
       let nj = cj
       if (d === 0) {
@@ -389,12 +503,13 @@ function buildRoute(a: Pt, goal: Pt, aPos: Position | null, bPos: Position | nul
       }
 
       const nb = ni * NY + nj
+      if (lastDir != null && nb === goalId && d !== lastDir) continue
       // `near`, not index equality: two ruler lines can sit exactly COORD_EPS
       // apart, and a step between them counts as vertical for the bend test.
       const stepDir = near(X[ni], X[ci]) ? 2 : 1
       const prevDir = dir[cur]
-      const turn = prevDir !== 0 && prevDir !== stepDir ? 1 : 0
-      const ng = g[cur] + Math.abs(X[ni] - X[ci]) + Math.abs(Y[nj] - Y[cj])
+      const turn = prevDir !== 0 && prevDir !== stepDir ? 1 : cur === startId && d === back ? 2 : 0
+      const ng = g[cur] + Math.abs(X[ni] - X[ci]) + Math.abs(Y[nj] - Y[cj]) + trunk(ci, cj, ni, nj)
       const nbn = bends[cur] + turn
       const curG = g[nb]
       const better = curG === Infinity ? true : ng !== curG ? ng < curG : nbn !== bends[nb] ? nbn < bends[nb] : false
@@ -417,6 +532,22 @@ function buildRoute(a: Pt, goal: Pt, aPos: Position | null, bPos: Position | nul
   // the exit / entry direction is enforced by the stubs the caller already applied
   void bPos
   return path
+}
+
+/** expansions between two pauses of a search (a power of two) */
+export const SEARCH_SLICE = 1024
+
+/** run a step generator to its end and return its value */
+function drain<T>(gen: Generator<string, T>): T {
+  for (;;) {
+    const r = gen.next()
+    if (r.done) return r.value
+  }
+}
+
+/** the §ER3 search, run at once */
+function buildRoute(a: Pt, goal: Pt, aPos: Position | null, bPos: Position | null, rs: IBox[], opts?: SearchOpts): Pt[] | null {
+  return drain(buildRouteSteps(a, goal, aPos, bPos, rs, opts))
 }
 
 // ── special cases (§ER3.6) ────────────────────────────────────────────────
@@ -479,7 +610,7 @@ export function computeOrthogonalRoute(inp: RouteInput): RouteResult {
 
   const stubA = { x: src.x + sN.x * ROUTE_STUB, y: src.y + sN.y * ROUTE_STUB }
   const stubB = { x: tgt.x + tN.x * ROUTE_STUB, y: tgt.y + tN.y * ROUTE_STUB }
-  const rs = inp.obstacles.map(inflate)
+  const rs = inp.obstacles.map((b) => inflate(b))
   invalidWp = inp.waypoints.some((w) => {
     const p = { x: q(w.x), y: q(w.y) }
     return rs.some((r) => ptInside(p, r))
@@ -519,4 +650,353 @@ export function computeOrthogonalRoute(inp: RouteInput): RouteResult {
     }
   }
   return done(simplified, 'orthogonal')
+}
+
+// ── the guarded router (docs/edge-routing.md §ER14, issue #344 step 2) ──────
+//
+// The same A* search, with four guarantees the v1 entry point above does not
+// give (it stays as the pinned single-edge core):
+//   1. the edge's OWN end nodes are obstacles — a route leaves its port along
+//      the port normal to a stub beyond its own box, and only that stub may run
+//      inside its own node;
+//   2. no node fill is ever crossed: a failed search is retried with the
+//      clearance stepped down (`GUARD_PADS`), then with an outer corridor
+//      around every obstacle (`outer`); the plain L / Z through nodes is gone;
+//   3. unrelated routes already placed cost extra to run along (`TRUNK_COST`);
+//   4. a failure is reported, never hidden: `routeClass` says which rung found
+//      the route, `blocked` when the port itself is covered by another node.
+
+/** the clearance ladder, px around every obstacle */
+export const GUARD_PADS = [ROUTE_PAD, 6, 2, 0] as const
+/** the outer corridor's distance from the bounding box of everything */
+export const OUTER_MARGIN = 2 * ROUTE_PAD
+export const OUTER_EXPANSIONS = 10 * MAX_EXPANSIONS
+
+export type GuardedClass = 'orthogonal' | 'tight' | 'outer' | 'blocked' | 'degenerate'
+
+export type GuardedInput = {
+  edgeId: string
+  source: Pt
+  target: Pt
+  sourcePosition: Position
+  targetPosition: Position
+  /** the edge's own end nodes (null for one not measured / missing) */
+  sourceBox: Box | null
+  targetBox: Box | null
+  /** every OTHER node — a fill no route may cross */
+  obstacles: Box[]
+  /** boxes avoided when possible but not fills (other connections' labels) */
+  soft?: Box[]
+  /** interior pinned points, in user order, verbatim */
+  waypoints: Pt[]
+  parallelIndex: number
+  parallelCount: number
+  occupied?: Occupied
+  /** the same port's other connections past their stubs (`FAN_COST`) */
+  fan?: Occupied
+  /** extra ruler lines offered to the search (the parallel lanes beside the
+   *  routes of related connections, so a fan can always split after its stub) */
+  lanes?: { x: number[]; y: number[] }
+  /** §ER14.3 — this end is one connection of a port fan: its branch point is
+   *  `len` px (0–16) beyond the node box, and the route leaves it toward
+   *  `side`: -1 the negative side across the stub (up for a left / right port,
+   *  left for a top / bottom one), +1 the positive side, 0 straight on. At the
+   *  target the route arrives FROM `side`. */
+  sourceFan?: FanEnd
+  targetFan?: FanEnd
+  /** a reroute around `soft` boxes only (a guarded label round): the ONE rung
+   *  at this clearance, with the soft boxes, nothing else; when it is not free
+   *  the result is `null` and the caller keeps its route */
+  softPad?: number
+}
+
+export type FanEnd = { len: number; side: -1 | 0 | 1 }
+
+/** the clearances a reroute around labels tries, one per step (§ER14.3) */
+export const SOFT_PADS = [ROUTE_PAD, 6] as const
+/** the search budget of one such rung: a label reroute is an optional
+ *  improvement, so a search that would have to explore the whole graph gives up
+ *  early (the edge keeps its route) */
+export const SOFT_EXPANSIONS = MAX_EXPANSIONS / 5
+
+export type GuardedResult = Omit<RouteResult, 'routeClass'> & {
+  routeClass: GuardedClass
+  /** the simplified polyline the path is drawn from */
+  points: Pt[]
+  /** the clearance the route was found with (px), -1 for outer / blocked */
+  clearance: number
+  /** each port and the end of its stub: [source port, source stub end,
+   *  target stub end, target port] — the only stretch two connections of one
+   *  port may share (§ER14.3) */
+  stubs: [Pt, Pt, Pt, Pt]
+  /** a fan branch was blocked by obstacles: the route was found without the
+   *  branch constraint and may run along a sibling (reported, §ER14.4) */
+  fanBlocked: boolean
+}
+
+/** the move index of `buildRoute` (0 up, 1 down, 2 left, 3 right) for a unit vector */
+const moveOf = (v: Pt): number => (v.y < 0 ? 0 : v.y > 0 ? 1 : v.x < 0 ? 2 : 3)
+/** the last move of a polyline (its last two distinct points), or none */
+function arrivalOf(pts: Pt[]): number | undefined {
+  const b = pts[pts.length - 1]
+  for (let k = pts.length - 2; k >= 0; k--) {
+    const a = pts[k]
+    if (!near(a.x, b.x) || !near(a.y, b.y)) return moveOf({ x: near(a.x, b.x) ? 0 : b.x - a.x, y: near(a.y, b.y) ? 0 : b.y - a.y })
+  }
+  return undefined
+}
+/** the unit vector across a port's stub, toward its positive side */
+const across = (pos: Position): Pt => (isHoriz(pos) ? { x: 0, y: 1 } : { x: 1, y: 0 })
+/** the first move after a fan branch at the source */
+function leaveMove(pos: Position, f: FanEnd): number {
+  if (f.side === 0) return moveOf(normal(pos))
+  const a = across(pos)
+  return moveOf({ x: a.x * f.side, y: a.y * f.side })
+}
+/** the move into a fan branch at the target (arriving from `f.side`) */
+function arriveMove(pos: Position, f: FanEnd): number {
+  const n = normal(pos)
+  if (f.side === 0) return moveOf({ x: -n.x, y: -n.y })
+  const a = across(pos)
+  return moveOf({ x: -a.x * f.side, y: -a.y * f.side })
+}
+
+/** a polyline's path strings, arc-length midpoint and end angle */
+function polyResult(s: Pt[]): Pick<RouteResult, 'd' | 'hitD' | 'mid' | 'endAngle'> {
+  let total = 0
+  for (let i = 1; i < s.length; i++) total += Math.hypot(s[i].x - s[i - 1].x, s[i].y - s[i - 1].y)
+  let acc = 0
+  let mid: Pt = s[0]
+  for (let i = 1; i < s.length; i++) {
+    const seg = Math.hypot(s[i].x - s[i - 1].x, s[i].y - s[i - 1].y)
+    if (acc + seg >= total / 2) {
+      const r = seg > 0 ? (total / 2 - acc) / seg : 0
+      mid = { x: s[i - 1].x + (s[i].x - s[i - 1].x) * r, y: s[i - 1].y + (s[i].y - s[i - 1].y) * r }
+      break
+    }
+    acc += seg
+  }
+  const p = s.length >= 2 ? s[s.length - 2] : s[0]
+  const e = s[s.length - 1]
+  return { d: pointsToPath(s), hitD: pointsToPoly(s), mid, endAngle: Math.atan2(e.y - p.y, e.x - p.x) }
+}
+
+/** the end of a port's stub: `want` (default `ROUTE_STUB`) beyond the node's
+ *  own box along the port normal, shortened to half the free gap when another
+ *  node is nearer */
+function stubEnd(port: Pt, pos: Position, own: Box | null, fills: IBox[], want: number = ROUTE_STUB): Pt {
+  const n = normal(pos)
+  // how far the own box reaches along the normal from the port
+  let base = 0
+  if (own) {
+    if (n.x > 0) base = Math.max(0, own.x + own.w - port.x)
+    else if (n.x < 0) base = Math.max(0, port.x - own.x)
+    else if (n.y > 0) base = Math.max(0, own.y + own.h - port.y)
+    else base = Math.max(0, port.y - own.y)
+  }
+  // the nearest other fill face crossing the port's line, beyond the own box
+  let gap = Infinity
+  for (const r of fills) {
+    if (n.x !== 0) {
+      if (!(port.y > r.y0 + COORD_EPS && port.y < r.y1 - COORD_EPS)) continue
+      const d = n.x > 0 ? r.x0 - port.x : port.x - r.x1
+      if (d > -COORD_EPS) gap = Math.min(gap, d - base)
+    } else {
+      if (!(port.x > r.x0 + COORD_EPS && port.x < r.x1 - COORD_EPS)) continue
+      const d = n.y > 0 ? r.y0 - port.y : port.y - r.y1
+      if (d > -COORD_EPS) gap = Math.min(gap, d - base)
+    }
+  }
+  const len = gap === Infinity || gap >= 2 * want ? want : Math.max(Math.min(want, gap / 2), 0)
+  return { x: q(port.x + n.x * (base + len)), y: q(port.y + n.y * (base + len)) }
+}
+
+/** does any segment of `pts` from index `from` to `to` (exclusive end) cross a fill? */
+function crossesFill(pts: Pt[], from: number, to: number, fills: IBox[]): boolean {
+  for (let i = from + 1; i <= to; i++) if (!segFree(pts[i - 1], pts[i], fills)) return true
+  return false
+}
+
+/** the guarded route of one edge: always a route (§ER14.2) */
+export function computeGuardedRoute(inp: GuardedInput): GuardedResult {
+  return drain(guardedRouteSteps({ ...inp, softPad: undefined }))!
+}
+
+/** §ER14.3 — one rung of a guarded label round's reroute around `soft` boxes,
+ *  at clearance `pad`; null when it is not free (the caller tries the next
+ *  rung of `SOFT_PADS` in a later step, or keeps its route). One search, so
+ *  one step stays short. */
+export function computeSoftReroute(inp: GuardedInput, pad: number): GuardedResult | null {
+  return drain(guardedRouteSteps({ ...inp, softPad: pad }))
+}
+
+/** the guarded router as steps (§ER14.5): it pauses wherever its searches do,
+ *  so one edge's route can be spread over slices; the two functions above run
+ *  it at once */
+export function* guardedRouteSteps(inp: GuardedInput): Generator<string, GuardedResult | null> {
+  const fanOffset = (inp.parallelIndex - (inp.parallelCount - 1) / 2) * PARALLEL_GAP
+  const perpS = isHoriz(inp.sourcePosition) ? { x: 0, y: fanOffset } : { x: fanOffset, y: 0 }
+  const perpT = isHoriz(inp.targetPosition) ? { x: 0, y: fanOffset } : { x: fanOffset, y: 0 }
+  const src = { x: inp.source.x + perpS.x, y: inp.source.y + perpS.y }
+  const tgt = { x: inp.target.x + perpT.x, y: inp.target.y + perpT.y }
+  const ownBoxes = [inp.sourceBox, inp.targetBox].filter((b): b is Box => b != null)
+  if (inp.sourceBox && inp.targetBox && inp.sourceBox.id === inp.targetBox.id) ownBoxes.pop()
+  // every node fill: other nodes and the edge's own end nodes, at no clearance
+  const fills = [...inp.obstacles, ...ownBoxes].map((b) => inflate(b, 0))
+  const others0 = inp.obstacles.map((b) => inflate(b, 0))
+  const invalidWaypoint = inp.waypoints.some((w) => {
+    const p = { x: q(w.x), y: q(w.y) }
+    return inp.obstacles.some((b) => ptInside(p, inflate(b)))
+  })
+  const result = (pts: Pt[], cls: GuardedClass, clearance: number, stubs: [Pt, Pt, Pt, Pt], fanBlocked = false): GuardedResult => {
+    const s = simplify(pts)
+    return { ...polyResult(s), routeClass: cls, points: s, clearance, invalidWaypoint, stubs, fanBlocked }
+  }
+
+  if (near(src.x, tgt.x) && near(src.y, tgt.y)) {
+    const n = normal(inp.sourcePosition)
+    return result([src, { x: src.x + n.x, y: src.y + n.y }], 'degenerate', -1, [src, src, tgt, tgt])
+  }
+
+  const laneX = inp.lanes?.x ?? []
+  const laneY = inp.lanes?.y ?? []
+  // a waypoint inside a node fill cannot be passed through: it keeps its value
+  // (and the §ER4 cue) but the route does not use it
+  const wps = inp.waypoints.map((p) => ({ x: q(p.x), y: q(p.y) })).filter((p) => !fills.some((r) => ptInside(p, r)))
+  const soft = inp.soft ?? []
+
+  // with the fan branches (§ER14.3), then — only if no rung finds a route —
+  // without them, reported as `fanBlocked`
+  const withFan = inp.sourceFan != null || inp.targetFan != null
+  const first = yield* solve(true)
+  if (first) return first
+  if (inp.softPad != null) return null
+  if (withFan) {
+    const plain = yield* solve(false)
+    if (plain) return { ...plain, fanBlocked: true }
+  }
+  return yield* blockedRoute(withFan)
+
+  /** the clearance ladder and the outer corridor, with or without the fan
+   *  branches; null when nothing inside them is free */
+  function* solve(fanOn: boolean): Generator<string, GuardedResult | null> {
+    const sf = fanOn ? inp.sourceFan : undefined
+    const tf = fanOn ? inp.targetFan : undefined
+    const stubA = stubEnd(src, inp.sourcePosition, inp.sourceBox, others0, sf?.len ?? ROUTE_STUB)
+    const stubB = stubEnd(tgt, inp.targetPosition, inp.targetBox, others0, tf?.len ?? ROUTE_STUB)
+    const stubs: [Pt, Pt, Pt, Pt] = [src, stubA, stubB, tgt]
+    const anchors: Pt[] = [stubA, ...wps, stubB]
+    // the own nodes keep a clearance just inside the shortest branch, so a
+    // branch point is always outside them
+    const ownPad = (pad: number) => Math.max(0, Math.min(pad, Math.min(sf?.len ?? ROUTE_STUB, tf?.len ?? ROUTE_STUB) - 1))
+    const dirs = {
+      firstDir: sf ? leaveMove(inp.sourcePosition, sf) : undefined,
+      lastDir: tf ? arriveMove(inp.targetPosition, tf) : undefined,
+    }
+    function* attempt(rs: IBox[], opts: SearchOpts): Generator<string, Pt[] | null> {
+      // an anchor strictly inside an obstacle cannot leave it (every segment
+      // from it crosses that interior), so the search would only exhaust its
+      // budget: the same failure, decided without searching
+      if (anchors.some((p) => rs.some((r) => ptInside(p, r)))) return null
+      const full: Pt[] = [src]
+      for (let i = 0; i < anchors.length - 1; i++) {
+        const spanOpts: SearchOpts = {
+          ...opts,
+          firstDir: i === 0 ? dirs.firstDir : undefined,
+          lastDir: i === anchors.length - 2 ? dirs.lastDir : undefined,
+          // issue #344 step 3 — a span after a bend point continues from the
+          // way the route arrived there
+          arrive: i === 0 ? undefined : arrivalOf(full),
+        }
+        const seg = yield* buildRouteSteps(anchors[i], anchors[i + 1], i === 0 ? inp.sourcePosition : null, i === anchors.length - 2 ? inp.targetPosition : null, rs, spanOpts)
+        if (!seg) return null
+        full.push(...(i === 0 ? seg : seg.slice(1)))
+      }
+      full.push(tgt)
+      // the guarantee itself: between the two stubs nothing crosses a fill,
+      // and the stubs cross no OTHER node
+      if (crossesFill(full, 1, full.length - 2, fills)) return null
+      if (crossesFill(full, 0, 1, others0) || crossesFill(full, full.length - 2, full.length - 1, others0)) return null
+      return full
+    }
+    const boxesAt = (pad: number, withSoft: boolean): IBox[] => [
+      ...inp.obstacles.map((b) => inflate(b, pad)),
+      ...ownBoxes.map((b) => inflate(b, ownPad(pad))),
+      ...(withSoft ? soft.map((b) => inflate(b, pad)) : []),
+    ]
+    const search: SearchOpts = {
+      occ: inp.occupied,
+      fan: inp.fan,
+      extraX: laneX,
+      extraY: laneY,
+      ...(inp.softPad != null ? { maxExpansions: SOFT_EXPANSIONS } : {}),
+    }
+    for (const pad of GUARD_PADS) {
+      if (inp.softPad != null && pad !== inp.softPad) continue
+      const pts = yield* attempt(boxesAt(pad, true), search)
+      if (pts) return result(pts, pad === ROUTE_PAD ? 'orthogonal' : 'tight', pad, stubs)
+    }
+    if (inp.softPad != null) return null
+    for (const pad of GUARD_PADS) {
+      // the soft boxes give way before the node clearance does
+      if (soft.length === 0) break
+      const pts = yield* attempt(boxesAt(pad, false), search)
+      if (pts) return result(pts, pad === ROUTE_PAD ? 'orthogonal' : 'tight', pad, stubs)
+    }
+    // the outer corridor: rulers outside the bounding box of every fill, both
+    // stubs and every waypoint, and a larger search budget
+    const outer = yield* attempt(boxesAt(0, false), outerOpts(stubA, stubB))
+    if (outer) return result(outer, 'outer', -1, stubs)
+    return null
+  }
+
+  function outerOpts(stubA: Pt, stubB: Pt): SearchOpts {
+    let bx0 = Math.min(src.x, tgt.x, stubA.x, stubB.x)
+    let by0 = Math.min(src.y, tgt.y, stubA.y, stubB.y)
+    let bx1 = Math.max(src.x, tgt.x, stubA.x, stubB.x)
+    let by1 = Math.max(src.y, tgt.y, stubA.y, stubB.y)
+    for (const r of fills) {
+      bx0 = Math.min(bx0, r.x0); by0 = Math.min(by0, r.y0); bx1 = Math.max(bx1, r.x1); by1 = Math.max(by1, r.y1)
+    }
+    for (const p of wps) {
+      bx0 = Math.min(bx0, p.x); by0 = Math.min(by0, p.y); bx1 = Math.max(bx1, p.x); by1 = Math.max(by1, p.y)
+    }
+    return {
+      occ: inp.occupied,
+      fan: inp.fan,
+      extraX: [...laneX, bx0 - OUTER_MARGIN, bx1 + OUTER_MARGIN],
+      extraY: [...laneY, by0 - OUTER_MARGIN, by1 + OUTER_MARGIN],
+      maxExpansions: OUTER_EXPANSIONS,
+    }
+  }
+
+  /** nothing is free: another node covers a port or a stub. Route around every
+   *  node that does NOT cover a stub, and say so. */
+  function* blockedRoute(fanBlocked: boolean): Generator<string, GuardedResult> {
+    const stubA = stubEnd(src, inp.sourcePosition, inp.sourceBox, others0)
+    const stubB = stubEnd(tgt, inp.targetPosition, inp.targetBox, others0)
+    const stubs: [Pt, Pt, Pt, Pt] = [src, stubA, stubB, tgt]
+    const anchors: Pt[] = [stubA, ...wps, stubB]
+    const stubSegs: [Pt, Pt][] = [[src, stubA], [stubB, tgt]]
+    const covering = new Set<number>()
+    inp.obstacles.forEach((b, k) => {
+      const r = inflate(b, 0)
+      if (stubSegs.some(([a, c]) => segHitsBox(a, c, r)) || ptInside(src, r) || ptInside(tgt, r)) covering.add(k)
+    })
+    const rest = inp.obstacles.filter((_, k) => !covering.has(k))
+    const restFills = [...rest, ...ownBoxes].map((b) => inflate(b, 0))
+    // no budget here: on the obstacle-edge grid with the outer corridor, every
+    // anchor outside the remaining fills is connected, so the search ends
+    const blockedOpts: SearchOpts = { ...outerOpts(stubA, stubB), maxExpansions: Infinity }
+    const full: Pt[] = [src]
+    for (let i = 0; i < anchors.length - 1; i++) {
+      const seg = yield* buildRouteSteps(anchors[i], anchors[i + 1], i === 0 ? inp.sourcePosition : null, i === anchors.length - 2 ? inp.targetPosition : null, restFills, blockedOpts)
+      // unreachable in practice (an anchor sealed inside the fills left after
+      // dropping the covering ones); drawn along the stubs only, never across
+      if (!seg) return result([src, stubA], 'blocked', -1, stubs, fanBlocked)
+      full.push(...(i === 0 ? seg : seg.slice(1)))
+    }
+    full.push(tgt)
+    return result(full, 'blocked', -1, stubs, fanBlocked)
+  }
 }

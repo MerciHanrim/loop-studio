@@ -74,6 +74,7 @@ import {
   type ZoneKey,
 } from '../src/engine/gachaBannerZonesGraph'
 import { withTemplateFlowColours } from '../src/engine/templateFlowColours'
+import { placeTemplate } from '../src/model/layout/templatePlacement'
 import { serialize, type RecommendedRunConfig, type SavedFrame } from '../src/model/serialize'
 import type { LoopEdge, LoopNode } from '../src/model/types'
 
@@ -363,7 +364,16 @@ const recommendedRunConfig: RecommendedRunConfig = {
 // clear of each other AND of the rows, so `e_pickup_36` alone now leaves its
 // bottom port DOWNWARD into the free band under the second row (y 632..670)
 // through one waypoint; its label lands there, clear of every label and node.
+// Layout round 8 (issue #344 step 1) — the resource ports moved to a fixed row
+// 28 px below each node's top, so a two-line node's connections leave higher
+// than its centre. Two Premium Pickup labels then touched a node in the
+// every-label check: `e_pickup_17` ("50", SSR split -> Standard) the R count
+// Pool by 0.3 px, and `e_pickup_20` ("900", Roll normal owed -> R hit) the SR
+// hit Gate by up to 3.3 px. One waypoint each drops the vertical leg into the
+// free band under the second flow row, where the label lands clear.
 const WAYPOINTS: Record<string, { x: number; y: number }[]> = {
+  e_pickup_17: [{ x: 3700, y: 549 }],
+  e_pickup_20: [{ x: 3360, y: 548 }],
   e_pickup_36: [{ x: 3200, y: 650 }],
   e_standard_12: [{ x: 1200, y: 550 }],
   e_standard_13: [{ x: 1320, y: 550 }],
@@ -387,7 +397,17 @@ const routedEdges: LoopEdge[] = (edges as LoopEdge[]).map((e) => ({
 // same as its frame's (cosmetic data, like the routing above)
 const coloured = withTemplateFlowColours(positioned, routedEdges, GACHA_BANNER_ZONES_FLOWS)
 
-const text = serialize(coloured.nodes, coloured.edges, recommendedRunConfig, undefined, undefined, 2, frames)
+// Layout round 9 (issue #344 step 4, docs/diagram-layout.md §DL5) — the
+// layout above, placed for the grid by `placeTemplate`: each node's widest box
+// over the 18 languages plus a clearance (so no language puts a node over a
+// port, and every port fan has room to branch), frames that travel with their
+// nodes, and every connection AUTO orthogonal — the guarded router of step 2
+// resolves every case the `WAYPOINTS` above were added for, in all 18
+// languages, so none is kept (measured: no blocked port, no fan overlap past a
+// stub, no outer route).
+const placed = placeTemplate('gacha-banner-zones', { ...coloured, frames: frames.map((f) => ({ ...f, rect: { ...f.rect } })) })
+
+const text = serialize(placed.nodes, placed.edges, recommendedRunConfig, undefined, undefined, 2, placed.frames)
 
 const outPath = fileURLToPath(new URL('../examples/gacha-banner-zones.json', import.meta.url))
 writeFileSync(outPath, text + '\n')

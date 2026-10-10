@@ -17,9 +17,11 @@ const ORTHOGONAL = readFileSync(resolve(import.meta.dirname, '..', 'examples', '
 // while the position only *looked* restored (audit 2026-09-20).
 //
 // The contract pinned here: a Canvas capture-phase arrow keydown opens the same
-// transaction the frame gestures use — React Flow keeps doing the movement and
-// the announcement — and exactly ONE entry is pushed when the last arrow comes
-// up and the positions really changed. The transaction opens ONLY for an arrow
+// transaction the frame gestures use, and exactly ONE entry is pushed when the
+// last arrow comes up and the positions really changed. Since issue #344
+// (docs/diagram-layout.md §DL3.4) the capture handler also MAKES the move —
+// one 16 px grid step, Shift 64, onto the grid — and the announcement React
+// Flow used to make; React Flow's own 5 / 20 px step never runs. The transaction opens ONLY for an arrow
 // aimed at a real, selected, draggable React Flow node; a frame, a button, a
 // text field, a dialog, the locked canvas and mobile never open one. Escape
 // restores the origin, pushes nothing, keeps the selection and announces the
@@ -39,6 +41,7 @@ type Bridge = {
         redo: () => void
         onNodesChange: (c: unknown[]) => void
         updateNodeData: (id: string, d: unknown) => void
+        tidyToGrid: () => number
       }
     }
     frame: { getState: () => { frames: { id: string; rect: { x: number; y: number; w: number; h: number } }[]; addFrame: (r: { x: number; y: number; w: number; h: number }) => string; selectFrame: (id: string | null) => void } }
@@ -68,6 +71,9 @@ async function load(page: Page, fixture = readRiskyFactory()) {
   await importGraph(page, fixture)
   await expect(page.locator('.react-flow__node').first()).toBeVisible()
   await page.evaluate(() => (window as unknown as Bridge).__loop.rf.setViewport({ x: 200, y: 200, zoom: 1 }, { duration: 0 }))
+  // issue #344 §DL3 — the scene on the grid first, so every arrow step is
+  // exactly one grid step (16 px, Shift 64) from a node already on the grid
+  await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().tidyToGrid())
   await page.waitForTimeout(250)
 }
 
@@ -96,7 +102,7 @@ test.describe('node keyboard move — one gesture, one undo entry (§LGR6.7 / F2
     await page.keyboard.press('ArrowRight')
     await page.waitForTimeout(300)
     const a = await state(page)
-    expect(a.pos[id].x - b.pos[id].x, 'React Flow still moves it 5 px').toBe(5)
+    expect(a.pos[id].x - b.pos[id].x, 'one grid step (#344)').toBe(16)
     expect(a.past - b.past, 'one press = one entry').toBe(1)
     expect(a.simRev, 'a position is never engine content').toBe(b.simRev)
     await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().undo())
@@ -111,7 +117,7 @@ test.describe('node keyboard move — one gesture, one undo entry (§LGR6.7 / F2
     await holdArrow(page, 'ArrowRight', 5)
     const a1 = await state(page)
     expect(a1.past - b.past, 'the whole burst is one entry').toBe(1)
-    expect(a1.pos[id].x - b.pos[id].x).toBe(25)
+    expect(a1.pos[id].x - b.pos[id].x).toBe(80)
     await holdArrow(page, 'ArrowRight', 2)
     const a2 = await state(page)
     expect(a2.past - a1.past, 'a second burst is its own entry').toBe(1)
@@ -120,7 +126,7 @@ test.describe('node keyboard move — one gesture, one undo entry (§LGR6.7 / F2
     expect((await state(page)).pos[id].x, 'one undo removes only the second burst').toBe(a1.pos[id].x)
   })
 
-  test('Shift accelerates to 20 px inside the same gesture', async ({ page }) => {
+  test('Shift moves four grid steps (64 px) inside the same gesture', async ({ page }) => {
     await load(page)
     const id = await focusAndSelect(page)
     const b = await state(page)
@@ -131,7 +137,7 @@ test.describe('node keyboard move — one gesture, one undo entry (§LGR6.7 / F2
     await page.keyboard.up('Shift')
     await page.waitForTimeout(250)
     const a = await state(page)
-    expect(a.pos[id].x - b.pos[id].x).toBe(20)
+    expect(a.pos[id].x - b.pos[id].x).toBe(64)
     expect(a.past - b.past).toBe(1)
   })
 
@@ -208,7 +214,7 @@ test.describe('node keyboard move — one gesture, one undo entry (§LGR6.7 / F2
     const labelBefore = await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().nodes[1].data!.label)
     expect(labelBefore).toBe('MARKER')
     await holdArrow(page, 'ArrowRight', 4)
-    expect((await state(page)).pos[id].x).toBe(b.pos[id].x + 20)
+    expect((await state(page)).pos[id].x).toBe(b.pos[id].x + 64)
     await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().undo())
     await page.waitForTimeout(300)
     expect((await state(page)).pos[id], 'the move is undone').toEqual(b.pos[id])
@@ -232,7 +238,7 @@ test.describe('node keyboard move — one gesture, one undo entry (§LGR6.7 / F2
     await holdArrow(page, 'ArrowRight', 3)
     const a = await state(page)
     expect(a.past - b.past, 'one entry for the whole selection').toBe(1)
-    for (const id of ids) expect(a.pos[id].x - b.pos[id].x, `${id} moved`).toBe(15)
+    for (const id of ids) expect(a.pos[id].x - b.pos[id].x, `${id} moved`).toBe(48)
     for (const id of Object.keys(b.pos).filter((k) => !ids.includes(k))) {
       expect(a.pos[id], `${id} untouched`).toEqual(b.pos[id])
     }
@@ -241,7 +247,7 @@ test.describe('node keyboard move — one gesture, one undo entry (§LGR6.7 / F2
     for (const id of ids) expect((await state(page)).pos[id]).toEqual(b.pos[id])
     await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().redo())
     await page.waitForTimeout(300)
-    for (const id of ids) expect((await state(page)).pos[id].x).toBe(b.pos[id].x + 15)
+    for (const id of ids) expect((await state(page)).pos[id].x).toBe(b.pos[id].x + 48)
   })
 
   test('a move touches no waypoint, no frame rect and no simulationRev', async ({ page }) => {
@@ -362,18 +368,18 @@ test.describe('node keyboard move — what must NOT open a transaction (§LGR6.7
     // React Flow's node handler has NO modifier gate: every combination moves,
     // and only Shift changes the step (measured 2026-09-20).
     for (const [combo, step] of [
-      ['ArrowRight', 5],
-      ['Shift+ArrowRight', 20],
-      ['Control+ArrowRight', 5],
-      ['Alt+ArrowRight', 5],
-      ['Meta+ArrowRight', 5],
-      ['Control+Shift+ArrowRight', 20],
+      ['ArrowRight', 16],
+      ['Shift+ArrowRight', 64],
+      ['Control+ArrowRight', 16],
+      ['Alt+ArrowRight', 16],
+      ['Meta+ArrowRight', 16],
+      ['Control+Shift+ArrowRight', 64],
     ] as const) {
       const b = await state(page)
       await page.keyboard.press(combo)
       await page.waitForTimeout(300)
       const a = await state(page)
-      expect(a.pos[id].x - b.pos[id].x, `${combo}: React Flow's step`).toBe(step)
+      expect(a.pos[id].x - b.pos[id].x, `${combo}: the grid step`).toBe(step)
       expect(a.past - b.past, `${combo}: a move React Flow makes is a move we record`).toBe(1)
     }
   })
@@ -445,7 +451,7 @@ test.describe('node keyboard move — orthogonal routing (§LGR6.7 / §ER3.9)', 
     await holdArrow(page, 'ArrowRight', 3)
     const gen1 = await page.evaluate(() => (window as unknown as Bridge).__loop.routeMap.genCount())
     const a = await state(page)
-    expect(a.pos[id].x - b.pos[id].x, 'the node moved').toBe(15)
+    expect(a.pos[id].x - b.pos[id].x, 'the node moved').toBe(48)
     expect(gen1, 'the route map followed the move').toBeGreaterThan(gen0)
     expect(a.past - b.past, 'and it is one entry').toBe(1)
     // the commit at keyup must not force another rebuild on top of the last move

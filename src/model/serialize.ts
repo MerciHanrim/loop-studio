@@ -14,6 +14,10 @@ export const STORAGE_KEY = 'loop-studio:graph:v1'
 export const SCHEMA_V1 = 'loop-studio/graph'
 export const SCHEMA_V2 = 'loop-studio/graph/2'
 const SCHEMA_VERSION = 1
+/** issue #344, docs/diagram-layout.md §DL2.8 — the current layout rules: 1 =
+ *  the 16 px grid with the 28 px port row. A document with a lower (or no)
+ *  `layoutVersion` is re-placed once when it is opened. */
+export const LAYOUT_VERSION = 1
 
 export type ModelSemanticsVersion = 1 | 2
 
@@ -201,6 +205,11 @@ export const DI_HEADER_MAX = 200
 export type GraphDoc = {
   schema: string
   version: number
+  /** issue #344, docs/diagram-layout.md §DL2.8 — which layout rules the
+   *  positions follow. Written on every save (`LAYOUT_VERSION`); absent ⇒ 0, a
+   *  layout from before the grid, converted once when the document is opened.
+   *  Not part of either digest (the positions themselves are). */
+  layoutVersion?: number
   nodes: LoopNode[]
   edges: LoopEdge[]
   recommendedRunConfig?: RecommendedRunConfig
@@ -662,6 +671,7 @@ export function serialize(
   const doc: GraphDoc = {
     schema: schemaForModelVersion(modelVersion),
     version: SCHEMA_VERSION,
+    layoutVersion: LAYOUT_VERSION, // issue #344 — every save follows the current rules
     nodes: nodes.map(toDocNode),
     edges: edges.map(toDocEdge),
   }
@@ -703,6 +713,8 @@ export function deserialize(text: string): {
   edges: LoopEdge[]
   /** loop-model/2 — the model-semantics version this file declares (from `schema`). */
   modelVersion: ModelSemanticsVersion
+  /** issue #344 — the file's `layoutVersion` (0 when absent or unreadable) */
+  layoutVersion: number
   recommendedRunConfig?: RecommendedRunConfig
   /** LGR Slice 5 — the saved manual frames, already run through `readSavedFrames`
    *  (bad entries dropped, ids resolved, labels capped). `[]` when the file has
@@ -766,6 +778,7 @@ export function deserialize(text: string): {
   return {
     ...normalizeGraph({ nodes: obj.nodes as LoopNode[], edges: obj.edges as LoopEdge[] }),
     modelVersion,
+    layoutVersion: Number.isInteger(obj.layoutVersion) && (obj.layoutVersion as number) >= 0 ? (obj.layoutVersion as number) : 0,
     frames: readSavedFrames(obj.frames), // §R5-1.1 — [] when absent / all-bad
     dataImports: readDataImports(obj.dataImports), // §R8-1.1 — [] when absent / all-bad
     hasRawDataImportSignal,
@@ -838,6 +851,8 @@ export function loadFromStorage():
       nodes: LoopNode[]
       edges: LoopEdge[]
       modelVersion: ModelSemanticsVersion
+      /** issue #344 — 0 for an autosave written before the grid */
+      layoutVersion: number
       recommendedRunConfig?: RecommendedRunConfig
       frames: SavedFrame[]
       dataImports: ImportSourceTable[]

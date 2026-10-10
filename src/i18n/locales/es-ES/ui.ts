@@ -398,7 +398,8 @@ const ui = {
     '{n, plural, one {# Parámetro añadido} many {# Parámetros añadidos} other {# Parámetros añadidos}} desde {tables}. Sus valores están en el panel de Entradas. Para usar uno en un Valor calculado, escriba @ en su expresión y elija el nombre; el campo de flujo de una conexión y un Activador ofrecen el mismo selector.',
   'help.contextual.hint.import.name': 'Importación de hoja de cálculo',
   'help.contextual.hint.import.desc': 'Se muestra una vez, justo después de que la primera importación de hoja de cálculo llega al lienzo.',
-  'hint.frameMove.body': 'Arrastre el borde de un marco para moverlo junto con todo lo que contiene. Mantenga Alt mientras arrastra para mover solo el marco.',
+  'hint.frameMove.body':
+    'Arrastre el borde de un marco para moverlo junto con todo lo que contiene. Mantenga Ctrl (⌘ en Mac) mientras arrastra para mover solo el marco, o Alt para moverlo libremente, fuera de la cuadrícula.',
   'help.contextual.hint.frameMove.name': 'Mover un marco',
   'help.contextual.hint.frameMove.desc': 'Se muestra una vez, la primera vez que se selecciona un marco de grupo en un lienzo editable.',
   'hint.focusFilter.body': '¿El grafo se está poniendo denso? Enfocar atenúa todo salvo el vecindario de un nodo; Filtros oculta tipos de nodo o de conexión.',
@@ -597,6 +598,11 @@ const ui = {
   'whatsNew.v0240.tiers': 'Ahora la velocidad de reproducción también cambia lo que muestra un paso: desde 0,4 s por paso, la marca en movimiento lleva su +N; más rápido, el +N aparece al llegar; por debajo de 0,2 s, el camino se ilumina un momento y la marca aparece al final.',
   'whatsNew.v0240.step': 'Avanzar un paso siempre muestra todo el movimiento, sea cual sea la velocidad elegida.',
   'whatsNew.v0240.phone': 'En un teléfono, el menú Más ofrece ahora la velocidad de reproducción (Lenta, Normal, Rápida o Muy rápida), y se mueven como máximo 12 marcas a la vez.',
+  'whatsNew.v0250.grid': 'Edición alineada a la cuadrícula. Los nodos y los marcos se ajustan a una cuadrícula de 16 px, con guías inteligentes para los puntos de conexión, centros y bordes cercanos. Los diagramas normales existentes se alinean una vez, y Alinear a la cuadrícula vuelve a alinear el diagrama abierto en una sola acción que se puede deshacer.',
+  'whatsNew.v0250.routing': 'Trazado automático más claro. Las conexiones ortogonales automáticas evitan los nodos, separan las conexiones que comparten un punto de conexión y colocan sus etiquetas en espacios más despejados.',
+  'whatsNew.v0250.shapes': 'Formas de conexión editables. Elija Curvo, Recto u Ortogonal, automático o con sus propios codos: colóquelos, muévalos o quítelos en la versión de escritorio. En el teléfono, estas formas se muestran sin poder editarlas.',
+  'whatsNew.v0250.outline': 'El texto queda dentro de los nodos. El contorno de un nodo ahora se ajusta a su título y sus valores, y el texto queda dentro en los 18 idiomas.',
+  'whatsNew.v0250.templates': 'Plantillas renovadas. Las cinco plantillas incluidas usan la nueva cuadrícula y el nuevo trazado, con un espaciado más claro y mejores vistas iniciales.',
 } as const
 
 export type UiKey = keyof typeof ui

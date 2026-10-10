@@ -140,7 +140,24 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.24.0
+## Latest — v0.25.0
+
+Diagrams are easier to read: nodes line up on a grid, connections run around them at right
+angles, and every node keeps its text inside its outline.
+
+- **Grid-aligned editing**: nodes and frames snap to a 16 px grid, with smart guides to other
+  nodes' ports, centres and edges; an older ordinary document is lined up once when it opens,
+  and Tidy to grid realigns the open one at any time as one undo step
+- **Clearer automatic routing**: orthogonal connections go around nodes, branch apart at a
+  shared port and put their labels on a free spot of their own line
+- **Editable connection shapes**: Curved, Straight or Orthogonal, automatic or with bend
+  points added, moved or removed on the desktop; the phone shows them without editing
+- **Text inside nodes**: Pools, Sources, Drains, Converters and Gates are drawn to their own
+  width, so titles and values stay inside in all 18 languages
+- **Reworked Templates**: all five use the new grid and routing, with clearer spacing and
+  opening views
+
+## v0.24.0
 
 Playback speed changes what a step draws, and the phone gets a speed choice of its own.
 
@@ -179,21 +196,8 @@ marker.
   outside the focus fade with those connections; in a busy step at most 24 markers move, and
   every other connection that moved is highlighted instead
 
-## v0.21.4
-
-A fix release: the canvas controls keep their place while editing is locked, and the phone's
-language search no longer zooms the page in.
-
-- **The frame buttons stay, turned off**: Group frame and Clear all frames remain in the
-  canvas controls while editing is locked, so the other buttons no longer move; before, the
-  two disappeared and every button above them shifted down
-- **Locking turns the frame tool off**: a drag on the empty canvas then moves the view, as it
-  should while editing is locked
-- **No zoom from the phone's text fields**: on an iPhone, tapping the language search used to
-  zoom the page in and leave it zoomed; every phone text field is now large enough that it
-  does not
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.21.3 (the edit
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.21.4 (the
+canvas controls keep their place while editing is locked), v0.21.3 (the edit
 lock is exact, and its button shows the state), v0.21.2 (values
 and detail rows sit inside their node), v0.21.1 (Focus
 mode dims the connections too), v0.21.0 (compact

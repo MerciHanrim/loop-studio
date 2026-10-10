@@ -604,7 +604,8 @@ The visual system must not break the local / offline / deterministic posture.
   grows the vessel to its ceiling, and force-breaks an unbreakable token. The
   multi-script / CJK / Cyrillic / emoji stress case lives in
   `e2e/node-long-label.spec.ts` as a **DOM** test — full string kept on the
-  element, no sideways spill, silhouette grows, handles re-centre — and never
+  element, no sideways spill, silhouette grows, the side handles stay on the
+  28 px port row (`docs/diagram-layout.md` §DL1) — and never
   compares pixels.
 - **Parameter / Register are in the committed matrix.** Their frames — `param`
   resting, `param` out-of-range, `register` valid mid-run, `register` `invalid`

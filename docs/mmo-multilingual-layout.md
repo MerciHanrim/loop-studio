@@ -60,9 +60,12 @@ general policy with **two representative fixtures: MMO and Coffee**.
 - **2-line (or wider) nodes grow in height to fit their content.** The fixed
   64px node height is replaced by a content-driven height. The title must not
   overlap the value / unit / sub-description for that node kind.
-- **Handles reposition to the grown box** — side handles to the real vertical
-  centre of the new height, top/bottom and kind-specific handles to their
-  defined positions on the new box.
+- **Handles reposition to the grown box** — top/bottom and kind-specific
+  handles to their defined positions on the new box. The side (resource)
+  handles stay on the port row 28 px from the top whatever the height, so a
+  node grows downward and its connections never move
+  (`docs/diagram-layout.md` §DL1, issue #344; until then they followed the
+  vertical centre).
 - **Line breaking is the browser's.** The wrap rule (note `word-break: keep-all`
   would block breaking *between* JA characters, so it cannot be combined with
   "browser CJK breaking"):
@@ -168,6 +171,11 @@ EN / KO / JA exactly like MMO. "Coffee 배치 불변" (acceptance #9) means:
 - The framed nodes must **not sit under the minimap** — the fit uses the pane
   MINUS the fixed overlays (minimap bottom-right, zoom Controls left), and
   left-aligns the rect (a progression graph reads beginning-first).
+- Since issue #344 a fixed **`keep`** rectangle (the core start nodes at their
+  widest box over the 18 languages, also graph coordinates, no locale branch)
+  caps the zoom so those nodes open whole at any pane size, with the minimap
+  expanded or collapsed; the minimap counts only where the two would overlap
+  on both axes (`docs/diagram-layout.md` §DL5.6).
 - The camera is **not** re-initialised on: a language change, a plain reload, an
   Import / Share / Workspace restore, or Undo / Redo. A viewport the user has
   panned or zoomed is **never** overwritten by a language change.

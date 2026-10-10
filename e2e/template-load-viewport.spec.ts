@@ -367,9 +367,17 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
       const panned = await getVp(page)
 
       await pickMobileTemplate(page, COFFEE_EN, COFFEE_R)
-      await waitForFit(page, COFFEE_L, COFFEE_R)
+      // issue #344 step 5 — Coffee opens on its operating flow (its
+      // initialView, floor 0.46), from its first lever, on a phone as on a
+      // desktop: the far forecast column may be off screen
+      await expect.poll(() => nodeOnScreen(page, COFFEE_L)).toBe(true)
       const after = await getVp(page)
       expect(after).not.toEqual(panned)
+      expect(after.zoom).toBeGreaterThanOrEqual(0.46 - 1e-6)
+      // ... and Reset view still brings the whole graph in, the forecast
+      // column on the right included
+      await page.locator('.rf-resetview').click()
+      await waitForFit(page, COFFEE_L, COFFEE_R)
       expect((await graphSig(page)).positions).toEqual(filePositions(COFFEE))
     } finally {
       await page.close()

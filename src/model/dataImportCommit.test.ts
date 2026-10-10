@@ -4,6 +4,7 @@ import { createTableDraft, setColumnRole, validateDrafts, type DraftColumnRole, 
 import { canonicalContent, digestOfCanonical } from './revision'
 import { deserialize, serialize, type ImportSourceTable, type SavedFrame } from './serialize'
 import type { LoopEdge, LoopNode } from './types'
+import { nodeOnGrid } from './layout/grid'
 
 // docs/data-import.md -- Phase 1B. `buildImportCommit` is the pure
 // candidate builder: label composition (the resolved join rule), the three
@@ -120,7 +121,9 @@ describe('buildImportCommit -- placement', () => {
     expect(built.ok).toBe(true)
     if (!built.ok) return
     expect(built.createdFrames).toEqual([])
-    expect(built.createdNodes[0].position).toEqual({ x: 100, y: 200 })
+    // issue #344 §DL3 — on the 16 px grid (left edge 96, port row 196 + 28 = 224)
+    expect(built.createdNodes[0].position).toEqual({ x: 96, y: 196 })
+    for (const n of built.createdNodes) expect(nodeOnGrid(n.position)).toBe(true)
   })
 
   it('"framePerTable": a lookup-only table (zero number columns) gets NO frame', () => {

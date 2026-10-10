@@ -400,7 +400,8 @@ const ui = {
     '{n, plural, one {# Parametro aggiunto} many {# Parametri aggiunti} other {# Parametri aggiunti}} da {tables}. I loro valori sono nel pannello Ingressi. Per usarne uno in un Valore calcolato, scrivi @ nella sua espressione e scegli il nome; il campo del flusso di una connessione e un Attivatore offrono lo stesso selettore.',
   'help.contextual.hint.import.name': 'Importazione da foglio di calcolo',
   'help.contextual.hint.import.desc': 'Mostrata una volta, subito dopo la prima importazione da foglio di calcolo sull’area di disegno.',
-  'hint.frameMove.body': 'Trascina il bordo di un riquadro per spostarlo insieme a tutto ciò che contiene. Tieni premuto Alt mentre trascini per spostare solo il riquadro.',
+  'hint.frameMove.body':
+    'Trascina il bordo di un riquadro per spostarlo insieme a tutto ciò che contiene. Tieni premuto Ctrl (⌘ su Mac) mentre trascini per spostare solo il riquadro, o Alt per spostarlo liberamente, fuori dalla griglia.',
   'help.contextual.hint.frameMove.name': 'Spostamento del riquadro',
   'help.contextual.hint.frameMove.desc': 'Mostrata una volta, la prima volta che si seleziona un riquadro di gruppo su un’area di disegno modificabile.',
   'hint.focusFilter.body': 'Il grafo si sta affollando? La messa a fuoco attenua tutto tranne i dintorni di un nodo; i filtri nascondono tipi di nodo o di connessione.',
@@ -599,6 +600,11 @@ const ui = {
   'whatsNew.v0240.tiers': 'Ora la velocità di riproduzione cambia anche ciò che un passo mostra: da 0,4 s per passo in su, il segno in movimento porta il suo +N; più veloce, il +N compare all’arrivo; sotto 0,2 s, il percorso si illumina per un attimo e il segno compare alla fine.',
   'whatsNew.v0240.step': 'Avanzare di un passo mostra sempre tutto il movimento, qualunque sia la velocità scelta.',
   'whatsNew.v0240.phone': 'Sul telefono, il menu Altro offre ora la velocità di riproduzione (Lenta, Normale, Veloce o Molto veloce), e al massimo 12 segni si spostano alla volta.',
+  'whatsNew.v0250.grid': 'Modifica allineata alla griglia. Nodi e riquadri si agganciano a una griglia di 16 px, con guide intelligenti per punti di connessione, centri e bordi vicini. I diagrammi normali esistenti vengono allineati una volta, e Allinea alla griglia riallinea il diagramma aperto in un’unica azione annullabile.',
+  'whatsNew.v0250.routing': 'Percorsi automatici più chiari. Le connessioni ortogonali automatiche evitano i nodi, separano le connessioni che condividono un punto di connessione e mettono le loro etichette in spazi più liberi.',
+  'whatsNew.v0250.shapes': 'Forme delle connessioni modificabili. Scegli Curvo, Dritto o Ortogonale, automatico o con angoli tuoi: aggiungili, spostali o rimuovili da computer. Sul telefono queste forme vengono mostrate ma non si possono modificare.',
+  'whatsNew.v0250.outline': 'Il testo resta nei nodi. Il contorno di un nodo ora si adatta al titolo e ai valori, e il testo resta dentro il contorno in tutte le 18 lingue.',
+  'whatsNew.v0250.templates': 'Modelli rivisti. Tutti e cinque i modelli inclusi usano la nuova griglia e i nuovi percorsi, con spaziature più chiare e viste iniziali migliori.',
 } satisfies Record<UiKey, string>
 
 export default ui

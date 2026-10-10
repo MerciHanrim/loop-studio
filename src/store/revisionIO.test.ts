@@ -3,6 +3,7 @@ import { STORAGE_KEY } from '../model/serialize'
 import { useGraphStore } from './graphStore'
 import { useProjectStore } from './projectStore'
 import { routeImport } from './revisionIO'
+import baseRevisionDoc from '../../examples/revision/base.revision.json'
 
 const recordProject = () => {
   const raw = localStorage.getItem(STORAGE_KEY)
@@ -156,5 +157,33 @@ describe('routeImport (§R10 — Import ≠ Apply)', () => {
     expect(useProjectStore.getState().open).toBeNull()
     // the graph — including the raw, unrepaired bad node — still loaded
     expect(useGraphStore.getState().nodes.some((n) => n.id === 'bad')).toBe(true)
+  })
+})
+
+describe('issue #344 step 3 — opening a record writes nothing of /10 into it (SEMANTICS-R10.md §R10-6)', () => {
+  it('a revision from before /10 opens as a record: the header keeps no semantics, the autosave keeps the rule only as labelLayoutVersion', async () => {
+    const { flushAutosave } = await import('./graphStore')
+    const text = JSON.stringify(baseRevisionDoc, null, 2)
+    const original = JSON.parse(text)
+    expect(original.project.semantics, 'the fixture is a pre-/10 record').toBeUndefined()
+    const r = await routeImport(text)
+    expect(r.kind).toBe('revision')
+    expect(useGraphStore.getState().recordLabels).toBe(true)
+    expect('semantics' in (useProjectStore.getState().open as object)).toBe(false)
+    flushAutosave()
+    const saved = recordProject()
+    expect(saved.revisionId).toBe(original.project.revisionId)
+    expect('semantics' in saved, 'no /10 header added by opening').toBe(false)
+    expect(saved.labelLayoutVersion).toBe(0)
+    expect(JSON.parse(text), 'the opened text itself is untouched').toEqual(original)
+  })
+
+  it('a record exported by this build declares /10; opening it takes the current rule', async () => {
+    const text = makeRevisionFile()
+    expect(JSON.parse(text).project.semantics).toBe('loop-revision/10')
+    useGraphStore.getState().newGraph()
+    useProjectStore.setState({ open: null, dirty: false, activePlanId: null })
+    await routeImport(text)
+    expect(useGraphStore.getState().recordLabels).toBe(false)
   })
 })

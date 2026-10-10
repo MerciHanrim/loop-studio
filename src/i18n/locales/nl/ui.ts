@@ -381,7 +381,8 @@ const ui = {
     '{n, plural, one {# Parameter} other {# Parameters}} toegevoegd uit {tables}. Hun waarden staan in het paneel Invoer. Om er een te gebruiken in een Berekende waarde, typ je @ in de expressie en kies je de naam; het stroomveld van een verbinding en een Activator bieden dezelfde keuzelijst.',
   'help.contextual.hint.import.name': 'Spreadsheetimport',
   'help.contextual.hint.import.desc': 'Wordt één keer getoond, direct nadat de eerste spreadsheetimport op het tekengebied is geland.',
-  'hint.frameMove.body': 'Sleep de rand van een kader om het samen met alles erin te verplaatsen. Houd Alt ingedrukt tijdens het slepen om alleen het kader te verplaatsen.',
+  'hint.frameMove.body':
+    'Sleep de rand van een kader om het samen met alles erin te verplaatsen. Houd Ctrl (⌘ op een Mac) ingedrukt tijdens het slepen om alleen het kader te verplaatsen, of Alt om het vrij, buiten het raster te verplaatsen.',
   'help.contextual.hint.frameMove.name': 'Kader verplaatsen',
   'help.contextual.hint.frameMove.desc': 'Wordt één keer getoond, de eerste keer dat een groepskader op een bewerkbaar tekengebied wordt geselecteerd.',
   'hint.focusFilter.body': 'Wordt het diagram druk? Focus dimt alles behalve de omgeving van één knooppunt; Filters verbergen soorten knooppunten of verbindingen.',
@@ -580,6 +581,11 @@ const ui = {
   'whatsNew.v0240.tiers': 'De afspeelsnelheid bepaalt nu ook wat een stap laat zien: vanaf 0,4 s per stap reist de markering met haar +N mee; sneller verschijnt +N bij aankomst; onder 0,2 s licht het pad even op en verschijnt de markering aan het eind.',
   'whatsNew.v0240.step': 'Eén stap vooruit laat altijd de hele beweging zien, welke snelheid er ook is ingesteld.',
   'whatsNew.v0240.phone': 'Op een telefoon biedt Meer nu een afspeelsnelheid (Langzaam, Normaal, Snel of Heel snel), en bewegen hooguit 12 markeringen tegelijk.',
+  'whatsNew.v0250.grid': 'Bewerken op het raster. Knooppunten en kaders klikken vast op een raster van 16 px, met slimme hulplijnen voor verbindingspunten, middens en randen in de buurt. Bestaande gewone diagrammen worden één keer uitgelijnd, en Uitlijnen op raster lijnt het geopende diagram opnieuw uit in één actie die je ongedaan kunt maken.',
+  'whatsNew.v0250.routing': 'Duidelijkere automatische routes. Automatische orthogonale verbindingen gaan om knooppunten heen, houden verbindingen met hetzelfde verbindingspunt uit elkaar en zetten hun labels op vrijere plekken.',
+  'whatsNew.v0250.shapes': 'Bewerkbare verbindingsvormen. Kies Gebogen, Recht of Orthogonaal, automatisch of met je eigen knikken: voeg ze toe, verplaats of verwijder ze op de computer. Op een telefoon worden deze vormen getoond, maar niet bewerkt.',
+  'whatsNew.v0250.outline': 'Tekst blijft binnen de knooppunten. De omtrek van een knooppunt groeit nu mee met de titel en de waarden, zodat de tekst in alle 18 talen erbinnen blijft.',
+  'whatsNew.v0250.templates': 'Vernieuwde sjablonen. Alle vijf meegeleverde sjablonen gebruiken het nieuwe raster en de nieuwe routes, met duidelijkere tussenruimtes en betere beginweergaven.',
 } as const
 
 export default ui

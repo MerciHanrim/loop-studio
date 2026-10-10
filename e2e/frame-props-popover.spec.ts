@@ -26,8 +26,9 @@ type Viewport = { x: number; y: number; zoom: number }
 
 const GACHA = readFileSync(new URL('../examples/gacha-banner-zones.json', import.meta.url), 'utf8')
 
-/** the shipped rect of the frame this whole spec exists for */
-const PICKUP = { x: 2440, y: 330, w: 1790, h: 1000 }
+/** the shipped rect of the frame this whole spec exists for (read from the
+ *  file: issue #344 step 4 placed the Template, and a copied number goes stale) */
+const PICKUP = (JSON.parse(GACHA) as { frames: { id: string; rect: { x: number; y: number; w: number; h: number } }[] }).frames.find((f) => f.id === 'zone_pickup')!.rect
 const PICKUP_LABEL = 'Premium Pickup'
 
 const ui = (page: Page) =>

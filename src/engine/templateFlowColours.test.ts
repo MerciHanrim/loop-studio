@@ -50,29 +50,32 @@ describe('withTemplateFlowColours', () => {
 
 // the current generated JSON, exactly: its engine digest equals the one recorded
 // before the colours (sha256Baseline.fixture.ts), its content and full-content
-// digests are pinned here at their values WITH the colours
+// digests are pinned here at their values WITH the colours (re-pinned for
+// issue #344 step 4: the Templates placed for the grid, every connection Auto
+// orthogonal — content, never engine data)
 const TEMPLATES: { file: string; flows: TemplateFlows; colours: string[]; contentDigest: string; fullContentDigest: string }[] = [
   {
     file: 'coffee-roastery.json',
     flows: COFFEE_ROASTERY_FLOWS,
     colours: ['sage', 'gold', 'rose'],
-    contentDigest: 'b64fd6264bbf3aa0810ea85a86ca95be1c4bed3f3d6df290d4d222e575d79d71',
-    fullContentDigest: 'b64fd6264bbf3aa0810ea85a86ca95be1c4bed3f3d6df290d4d222e575d79d71',
+    contentDigest: '66f518eb9ebbe945a87362960866f61f534917fa7ff90c4df1d4a1674b74b5aa',
+    fullContentDigest: '66f518eb9ebbe945a87362960866f61f534917fa7ff90c4df1d4a1674b74b5aa',
   },
   {
     file: 'gacha-banner-zones.json',
     flows: GACHA_BANNER_ZONES_FLOWS,
     colours: ['sage', 'violet', 'rose'],
-    // #325 PR 3: with the `e_pickup_36` routing waypoint of layout round 7
-    contentDigest: 'ac61fc8bd006ca5b1bff67e9d2246e3874c883bbb4a729596064690f60e51b67',
-    fullContentDigest: 'ac61fc8bd006ca5b1bff67e9d2246e3874c883bbb4a729596064690f60e51b67',
+    // issue #344 step 4 (layout round 9): placed for the grid, every
+    // connection Auto orthogonal — the waypoints of rounds 7 and 8 are gone
+    contentDigest: 'a9b4dbb8566a94c509ede6e3253723feeb346315f0470826dc4646968e2941a0',
+    fullContentDigest: 'a9b4dbb8566a94c509ede6e3253723feeb346315f0470826dc4646968e2941a0',
   },
   {
     file: 'mmo-progression.json',
     flows: MMO_PROGRESSION_FLOWS,
     colours: ['sage', 'gold', 'violet'],
-    contentDigest: '947b2fc2319b3dd1692bb1fd41cde79432828a154a6175bd23502f58d525c539',
-    fullContentDigest: '947b2fc2319b3dd1692bb1fd41cde79432828a154a6175bd23502f58d525c539',
+    contentDigest: '41674ea763b2330552878d7bbe72c88c2794a12ad406e98a5a478e9a430ed983',
+    fullContentDigest: '41674ea763b2330552878d7bbe72c88c2794a12ad406e98a5a478e9a430ed983',
   },
 ]
 

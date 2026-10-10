@@ -1,5 +1,5 @@
 import type { Browser, Page } from '@playwright/test'
-import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
+import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, routesSettled, seedPersonalBrowser, test } from './support/loop'
 
 // docs/template-label-overlay.md — the shared fresh-open Template label overlay:
 // a bundled Template opens with the current locale's node `label`s; `openTemplate`
@@ -51,6 +51,10 @@ async function pickTemplate(page: Page, hasText: string) {
   // pristine first boot loads without a confirm; if a confirm appears, accept it
   const confirm = page.locator('.dialog button', { hasText: /replace|바꾸기|교체/i })
   if (await confirm.isVisible().catch(() => false)) await confirm.click()
+  // issue #344 §ER14.5 — its routes are drawn once their first sliced
+  // generation commits
+  await page.waitForFunction(() => (window as unknown as { __loop: any }).__loop.graph.getState().nodes.length > 0)
+  await routesSettled(page)
 }
 
 const MMO_EN = 'Early MMO progression'
@@ -472,9 +476,13 @@ test.describe('official template label — locale switch (§TLO11)', () => {
           // (offsetHeight, used for wrapH/nfH, is transform-invariant layout
           // size — comparing a scaled port offset against it would be a
           // coordinate-space mismatch, not a real geometry defect.)
+          // issue #344 §DL1.2 — a resource port sits on the fixed row 28 flow
+          // px below the box top (no longer at the box's vertical centre):
+          // this is its distance from that row, in flow px
+          const scale = nf.offsetHeight > 0 ? nfR.height / nf.offsetHeight : 1
           const ports = [...wrap.querySelectorAll('.h--in, .h--out')].map((h) => {
             const r = h.getBoundingClientRect()
-            return (r.top + r.bottom) / 2 - nfR.top - nfR.height / 2
+            return ((r.top + r.bottom) / 2 - nfR.top) / scale - 28
           })
           return { id: wrap.dataset.id!, wrapH: wrap.offsetHeight, nfH: nf.offsetHeight, ports }
         })
@@ -654,7 +662,7 @@ test.describe('official template label — locale switch (§TLO11)', () => {
       const snap = await geometrySnapshot()
       for (const n of snap) {
         for (const offCenter of n.ports) {
-          expect(Math.abs(offCenter), `node ${n.id} port centring after ${locale}`).toBeLessThanOrEqual(8)
+          expect(Math.abs(offCenter), `node ${n.id} port on its 28 px row after ${locale}`).toBeLessThanOrEqual(1.5)
         }
       }
 

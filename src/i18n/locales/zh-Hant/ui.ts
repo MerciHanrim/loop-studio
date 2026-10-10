@@ -402,7 +402,7 @@ const ui = {
   'help.contextual.hint.import.name': '試算表匯入',
   'help.contextual.hint.import.desc': '第一次把試算表匯入到畫布之後顯示一次。',
   'hint.frameMove.body':
-    '拖曳群組框的邊緣，可以連同裡面的內容一起移動。拖曳時按住 Alt，則只移動群組框本身。',
+    '拖曳群組框的邊緣，可以連同裡面的內容一起移動。拖曳時按住 Ctrl（Mac 上為 ⌘），則只移動群組框本身；按住 Alt 則不對齊格線、自由移動。',
   'help.contextual.hint.frameMove.name': '群組框移動',
   'help.contextual.hint.frameMove.desc': '在可編輯的畫布上第一次選取群組框時顯示一次。',
   'hint.focusFilter.body':
@@ -603,6 +603,11 @@ const ui = {
   'whatsNew.v0240.tiers': '播放速度現在也會改變一步的顯示方式：每步 0.4 秒以上時，移動標記帶著 +N 一起移動；更快時，+N 在抵達時出現；快於 0.2 秒時，路徑先短暫亮起，標記隨後出現在終點。',
   'whatsNew.v0240.step': '前進一步時，無論速度如何設定，始終顯示完整的移動過程。',
   'whatsNew.v0240.phone': '在手機上，「更多」選單新增了播放速度（慢、正常、快、很快），同時移動的標記最多 12 個。',
+  'whatsNew.v0250.grid': '依格線編輯。節點和群組框會吸附到 16 px 格線，並有智慧參考線對齊附近的連接點、中心和邊緣。既有的一般圖表會在開啟時對齊一次，「對齊格線」可隨時重新對齊目前的圖表，並可一步復原。',
+  'whatsNew.v0250.routing': '更清楚的自動走線。自動直角連線會避開節點，把共用同一連接點的連線分開，並把標籤放在更空的位置。',
+  'whatsNew.v0250.shapes': '可編輯的連線形狀。可選擇曲線、直線或直角；直角連線可以保持自動，也可以在桌面版新增、移動或刪除拐點來自行走線。手機上會顯示這些形狀，但無法編輯。',
+  'whatsNew.v0250.outline': '文字留在節點內。節點輪廓現在會隨標題和數值變寬，在全部 18 種語言中文字都留在輪廓內。',
+  'whatsNew.v0250.templates': '重新編排的範本。全部 5 個內建範本都採用新的格線和走線，間距更清楚，開啟時的畫面也有改善。',
 } satisfies Record<UiKey, string>
 
 export default ui

@@ -341,6 +341,8 @@ describe('projectStore — routing is loop-revision/3 cosmetic revision content 
         useGraphStore.getState().setEdgeData(eid, d as never)
         vi.advanceTimersByTime(700) // past COALESCE_MS ⇒ each edit is its own undo entry
       }
+      // a new connection is orthogonal (issue #344 §ER14.1): start from a curve
+      set({ kind: 'resource', flow: '1' })
 
       promote('2026-09-09T00:00:00Z')
       const baseline = useProjectStore.getState().open!.baselineDigest

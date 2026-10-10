@@ -526,7 +526,10 @@ router). The relation is **derived at the moment the drag starts and never
 stored** — `frames` on the wire stays `{ id, label, rect, color? }`
 (`SEMANTICS-R5.md` R5-D3 unchanged). A node inside two overlapping frames
 follows whichever frame is dragged; a merely overlapping frame does not move.
-**Alt held at pointer-down** (frozen for the gesture) moves the frame alone.
+**Ctrl (⌘ on a Mac) held at pointer-down** (frozen for the gesture) moves the
+frame alone — Alt until issue #344, which gave Alt its one meaning on every
+drag: a free move, off the grid (`docs/diagram-layout.md` §DL3.3). A frame
+drag lands its top-left on the 16 px grid (§DL3.2).
 Moving a **node** never moves a frame. One gesture is **exactly one** undo
 entry through an explicit transaction (§SF11.1 "Move" — not the 600 ms
 coalescing, so a paused drag is still one entry); `Esc` or a `pointercancel`
@@ -566,12 +569,13 @@ container already exposes. `aria-describedby` points at one of three shared
 descriptions (idle / selected / read-only).
 
 **Keys.** `Enter` / `Space` select. `Escape` cancels a running gesture, and
-deselects when none is running. `Arrow` moves by **5 px**, `Shift+Arrow` by
-**20 px** — the steps React Flow already gives a node, so one canvas never
-teaches two rules. A keyboard move **carries exactly what a pointer drag
-carries** (§LGR6.5). There is deliberately **no keyboard frame-only escape
-hatch**: `Alt+Arrow` is the browser's Back / Forward, and Alt+drag stays a
-pointer contract. On the selected frame's **resize handle** (the existing
+deselects when none is running. `Arrow` moves by **one grid step (16 px)**,
+`Shift+Arrow` by **four (64 px)**, landing on the grid — the same steps a node
+takes since issue #344 (`docs/diagram-layout.md` §DL3.4; 5 / 20 px before),
+so one canvas never teaches two rules. A keyboard move **carries exactly what a
+pointer drag carries** (§LGR6.5). There is deliberately **no keyboard
+frame-only escape hatch**: `Alt+Arrow` is the browser's Back / Forward, and the
+frame-only move (Ctrl / ⌘ + drag) stays a pointer contract. On the selected frame's **resize handle** (the existing
 bottom-right corner, now a real button), `Left`/`Right` change the width and
 `Up`/`Down` the height by the same steps, with the same anchor, minimum and
 "a resize never moves the contents" rules the pointer path has. No mode key.
@@ -914,11 +918,11 @@ exercised at three run phases: **start** (step 0–2), **mid** (≈ step 40), **
 | **LGR-D6** | run distinction — what is the v1 source? | **`StepReport` only, as it already exists** (`events` / `activated` / `fired` / `stateEvents`). **`effective`** = node in `fired`, or edge in `events`, or state edge in `stateEvents`. **`evaluated`** = a **node** in `activated` but not `fired` — **node-only**. A zero-flow edge / unselected gate branch gets **no cue** (the committed result has no such data; marking them would need engine instrumentation — deferred). No engine field, no playback-builder field, no execution-path instrumentation. |
 | **LGR-D7** | past-step cues | **Cleared each step.** The only accumulation is an **opt-in Activity overlay**, off by default, **never persisted**; window length + decay curve are a Slice-4a tuning detail. |
 | **LGR-D8** | group frames — which models ship, when? | **Transient (session-only, in memory) in Slice 4a — fully specified here.** **Auto** frames in **Slice 4b** — the clustering algorithm + label generation are **their own detailed design pass**; this doc fixes only their boundary (§LGR6.3), not the algorithm. **Saved** frames in **Slice 5**, behind a **Frozen `loop-revision/5` cosmetic `frames` contract** — designed in `docs/large-graph-readability-saved-frames.md` (§LGR6.4). |
-| **LGR-D9** | can a frame move its members? | **Yes, derived (2026-09-20)** — a frame **drag** carries every node / manual frame **fully inside** its rect at pointer-down (+ the waypoints of edges with both ends carried); Alt+drag moves the frame alone; nothing is stored (R5-D3 holds); a node drag never moves a frame. Was "No in v1" until the frame-membership pass (§LGR6.5). |
+| **LGR-D9** | can a frame move its members? | **Yes, derived (2026-09-20)** — a frame **drag** carries every node / manual frame **fully inside** its rect at pointer-down (+ the waypoints of edges with both ends carried); Ctrl / ⌘+drag moves the frame alone (Alt until #344, now the free move); nothing is stored (R5-D3 holds); a node drag never moves a frame. Was "No in v1" until the frame-membership pass (§LGR6.5). |
 | **LGR-D10** | does anything here move / resize / reorder a node? | **Never** — including node z-order — with **one** exception: the user's own frame **drag** (LGR-D9), which moves the carried nodes by the drag's Δ and nothing else. Resize / rename / colour / delete / Focus / Filter / Activity / auto frames still move nothing. (§LGR13.) |
 | **LGR-D11** | does selecting / focusing / filtering move the viewport? | **Never.** Only an explicit "fit / frame selection" does, unchanged. |
 | **LGR-D12** | mobile extent | Global hit-test rule **yes**; Focus + Filters **yes** (More sheet); frame **drawing** no; auto frames render once Slice 4b ships. **Saved frames on mobile — and on a locked desktop canvas — are view + select only (2026-09-20, D6):** no move / resize / rename / colour / delete / promote, no Frame tool, no "Clear all" — on mobile the More sheet keeps only the session-only **Clear suggested frames** row (the saved-frame-deleting "Clear all frames" row was removed with this pass); on desktop "Clear all" is off under the edit-lock. |
-| **LGR-D14** | can a frame be used from the keyboard? | **Yes (2026-09-20, §LGR6.6).** The container is the focus unit (`role="group"`, one tab stop, post-selection stops for the label / ✕ / resize handle — the swatches moved out of the frame entirely with LGR-D16); Enter·Space select, Escape cancels-then-deselects, Arrow 5 px / Shift+Arrow 20 px move **with** the contents, the resize handle's arrows change width / height. No mode key and **no keyboard frame-only escape hatch** (Alt+Arrow is the browser's Back). Both gestures reuse the pointer's **transaction** — one entry per burst, nothing for an out-and-back or an Escape, a focus loss commits. `Backspace` **and** `Delete` delete (nodes / edges first, then the selected frame), guarded against text fields, any open modal dialog, and the edit-lock / mobile. |
+| **LGR-D14** | can a frame be used from the keyboard? | **Yes (2026-09-20, §LGR6.6).** The container is the focus unit (`role="group"`, one tab stop, post-selection stops for the label / ✕ / resize handle — the swatches moved out of the frame entirely with LGR-D16); Enter·Space select, Escape cancels-then-deselects, Arrow 16 px / Shift+Arrow 64 px (one / four grid steps since #344) move **with** the contents, the resize handle's arrows change width / height. No mode key and **no keyboard frame-only escape hatch** (Alt+Arrow is the browser's Back). Both gestures reuse the pointer's **transaction** — one entry per burst, nothing for an out-and-back or an Escape, a focus loss commits. `Backspace` **and** `Delete` delete (nodes / edges first, then the selected frame), guarded against text fields, any open modal dialog, and the edit-lock / mobile. |
 | **LGR-D15** | is a keyboard node move undoable? | **Yes (2026-09-21, §LGR6.7).** It was not: React Flow reports it as `dragging: false`, which the store does not commit, so one `Ctrl+Z` afterwards undid the PREVIOUS edit instead. A capture-phase arrow `keydown` now brackets React Flow's own movement with the §SF11.1 transaction — one entry per burst, none for an out-and-back or an Escape (which restores and announces the origin), safe settle on blur / tab switch / pointer press. It opens only for an arrow aimed at a selected, draggable React Flow node, so frames, buttons, text fields, dialogs and the edit-lock never open one. The pointer path is untouched and still commits on its first `dragging: true`. |
 | **LGR-D16** | where is a frame's name / colour edited? | **In one properties popover reached from its TITLE (2026-09-25, §FC10).** The accent picker used to be a swatch row pinned to the frame's BOTTOM edge in canvas coordinates, so a frame taller than the viewport put its only colour control off screen — measured on the shipped gacha `Premium Pickup` (1790×1000). Name and accent now sit together in a screen-space panel portaled out of the canvas transform, flipped and clamped inside the viewport; a colour applies immediately, Escape cancels the name. `uiStore.frameProps` holds the open id (session-only, never GraphDoc / undo) and `Canvas.tsx` freezes pan + zoom while it is set — opening it and recolouring from it move nothing (LGR-D10 / D11 hold). **LGR-D12 / D6 is unchanged:** none of this exists on mobile or under the edit-lock. |
 | **LGR-D13** | where does view state live? | Sticky toggles: **one global `localStorage` blob**. Everything else (filter selections, focus selection, transient frames, activity tint): **in memory only**. Never GraphDoc / digest / Share / revision / `SimState`. Full table in §LGR3.4. |

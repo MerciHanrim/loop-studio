@@ -1,6 +1,7 @@
 import { defaultData } from '../model/factory'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { withTemplateFlowColours, type TemplateFlows } from './templateFlowColours'
+import { placeTemplate } from '../model/layout/templatePlacement'
 
 // Builder for examples/mmo-progression.json — the "Early MMO progression
 // (levels 1–15)" Templates demo. Design: docs/example-mmo-progression.md
@@ -609,7 +610,12 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
     }
   }
 
-  return withTemplateFlowColours(nodes, edges, MMO_PROGRESSION_FLOWS)
+  // issue #344 step 4 (docs/diagram-layout.md §DL5) — the authored layout
+  // above, placed for the grid: widest boxes over 18 languages, clearance,
+  // every connection Auto orthogonal
+  const coloured = withTemplateFlowColours(nodes, edges, MMO_PROGRESSION_FLOWS)
+  const placed = placeTemplate('mmo-progression', coloured)
+  return { nodes: placed.nodes, edges: placed.edges }
 }
 
 // docs/flow-colour-and-compact-nodes.md FC-6 — the three economies: items and

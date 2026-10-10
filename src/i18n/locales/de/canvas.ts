@@ -112,6 +112,7 @@ const canvas = {
   'canvas.frame.areaName': 'Bereich {n}',
   'canvas.frame.dismiss': 'Diesen vorgeschlagenen Rahmen verwerfen',
   'canvas.frame.clearAll': 'Alle Rahmen löschen',
+  'canvas.tidy': 'Am Raster ausrichten — alle Knoten und Rahmen auf das Raster setzen',
   'canvas.frame.clearSuggested': 'Vorgeschlagene Rahmen löschen',
   'canvas.frame.clearSuggestedRow': 'Vorgeschlagene Rahmen löschen',
   'canvas.frame.colorRow': 'Rahmenfarbe',
@@ -129,6 +130,8 @@ const canvas = {
   'canvas.activity.rowLabel': 'Aktivitätsebene',
   'canvas.route.invalidFlag':
     'ungültige Linienführung — ein Wegpunkt liegt in einem Knoten',
+  'canvas.route.bend': 'Knickpunkt {n} von {total}',
+  'canvas.route.noBendRoom': 'Kein Abschnitt dieser Verbindung hat Platz für einen Knickpunkt; nichts wurde geändert.',
   'canvas.edgeLabel.clamp': 'gekappt',
   'canvas.edgeLabel.clamp.title':
     'vom einmaligen Kappen des Zielspeichers am Ende von Phase 0 entfernt',

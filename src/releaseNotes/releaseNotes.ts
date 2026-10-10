@@ -39,6 +39,23 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // issue #344 (Diagram Readability, one migration) - grid-aligned editing
+    // with smart guides and the one-time re-placement, automatic orthogonal
+    // routing, the connection shapes and bend points, text inside the node
+    // outline, and the re-placed Templates; the date is the day it is
+    // deployed, set right before the merge
+    id: 'release:0.25.0',
+    version: '0.25.0',
+    date: '2026-10-10',
+    items: [
+      'whatsNew.v0250.grid',
+      'whatsNew.v0250.routing',
+      'whatsNew.v0250.shapes',
+      'whatsNew.v0250.outline',
+      'whatsNew.v0250.templates',
+    ],
+  },
+  {
     // issue #330 PR 3 - the speed tiers, Step always full, the phone's four
     // speeds and its fewer moving markers; the date is the day it is deployed,
     // set right before the merge

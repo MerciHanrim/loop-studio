@@ -12,9 +12,10 @@ import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from '
 //     stops (the rename path is kept: select, Tab to the label, Enter); the
 //     four edge hit-strips stay unfocusable and out of the accessibility tree.
 //   • Enter / Space select; Escape deselects when no gesture is running.
-//   • Arrow keys move the frame by 5 px (Shift 20) and carry exactly what a
-//     pointer drag carries; the resize handle's arrows change width / height by
-//     the same steps.
+//   • Arrow keys move the frame by one grid step, 16 px (Shift 64), its
+//     top-left landing on the grid (issue #344 §DL3.4), and carry exactly what
+//     a pointer drag carries; the resize handle's arrows change width / height
+//     by the same steps, the corner landing on the grid.
 //   • both gestures are ONE history transaction with the SAME lifetime as the
 //     pointer one: captured on the first keydown, silent origin + accumulated
 //     absolute Δ while keys repeat, ONE entry when the last arrow comes up and
@@ -64,7 +65,7 @@ async function load(page: Page, opts: { locale?: string } = {}) {
   await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
 }
 
-const FRAME: Rect = { x: -60, y: -60, w: 520, h: 320 }
+const FRAME: Rect = { x: -64, y: -64, w: 528, h: 320 }
 const container = (page: Page) => page.locator('.lgr-frame').first()
 const handle = (page: Page) => page.locator('.lgr-frame__resize').first()
 
@@ -173,7 +174,28 @@ test.describe('frame accessibility — role, name and focus unit (§LGR6.6)', ()
 })
 
 test.describe('frame accessibility — keyboard move and resize (§LGR6.6)', () => {
-  test('Arrow moves the frame 5 px and Shift+Arrow 20 px, carrying the same contents a pointer drag carries', async ({ page }) => {
+  test('an off-grid frame lands on the grid with its first step, its contents carried by the same Δ', async ({ page }) => {
+    await load(page)
+    const id = await seedFrame(page, { x: -60, y: -60, w: 520, h: 320 })
+    await container(page).focus()
+    await page.keyboard.press('Enter')
+    const r0 = await rectOf(page, id)
+    const p0 = await positions(page)
+    await page.keyboard.press('ArrowRight')
+    await page.waitForTimeout(200)
+    const r1 = await rectOf(page, id)
+    // −60 + 16 = −44 → −48; y −60 → −64: the top-left is on the grid, the size kept
+    expect(r1).toEqual({ x: -48, y: -64, w: 520, h: 320 })
+    const p1 = await positions(page)
+    const moved = Object.keys(p0).filter((k) => p1[k].x !== p0[k].x || p1[k].y !== p0[k].y)
+    expect(moved.length).toBeGreaterThan(0)
+    for (const nid of moved) {
+      expect(p1[nid].x - p0[nid].x).toBe(r1.x - r0.x)
+      expect(p1[nid].y - p0[nid].y).toBe(r1.y - r0.y)
+    }
+  })
+
+  test('Arrow moves the frame one grid step (16 px) and Shift+Arrow four (64 px), carrying the same contents a pointer drag carries', async ({ page }) => {
     await load(page)
     const id = await seedFrame(page, FRAME)
     await container(page).focus()
@@ -182,12 +204,12 @@ test.describe('frame accessibility — keyboard move and resize (§LGR6.6)', () 
     const p0 = await positions(page)
     await page.keyboard.press('ArrowRight')
     await page.waitForTimeout(200)
-    expect((await rectOf(page, id)).x).toBe(r0.x + 5)
+    expect((await rectOf(page, id)).x).toBe(r0.x + 16)
     await page.keyboard.press('Shift+ArrowDown')
     await page.waitForTimeout(200)
     const r1 = await rectOf(page, id)
-    expect(r1.x).toBe(r0.x + 5)
-    expect(r1.y).toBe(r0.y + 20)
+    expect(r1.x).toBe(r0.x + 16)
+    expect(r1.y).toBe(r0.y + 64)
     // whatever the frame carried moved by EXACTLY the frame's own delta, and
     // every other node stayed put — the same all-or-nothing containment rule a
     // pointer drag uses (asserted without restating that rule here)
@@ -195,8 +217,8 @@ test.describe('frame accessibility — keyboard move and resize (§LGR6.6)', () 
     const moved = Object.keys(p0).filter((k) => p1[k].x !== p0[k].x || p1[k].y !== p0[k].y)
     expect(moved.length, 'the fixture frame carries nodes').toBeGreaterThan(0)
     for (const nid of moved) {
-      expect(p1[nid].x - p0[nid].x, `${nid} carried in x`).toBe(5)
-      expect(p1[nid].y - p0[nid].y, `${nid} carried in y`).toBe(20)
+      expect(p1[nid].x - p0[nid].x, `${nid} carried in x`).toBe(16)
+      expect(p1[nid].y - p0[nid].y, `${nid} carried in y`).toBe(64)
     }
     for (const nid of Object.keys(p0).filter((k) => !moved.includes(k))) {
       expect(p1[nid], `${nid} untouched`).toEqual(p0[nid])
@@ -300,20 +322,20 @@ test.describe('frame accessibility — keyboard move and resize (§LGR6.6)', () 
       tag: el.tagName, tabIndex: (el as HTMLElement).tabIndex, name: el.getAttribute('aria-label'), role: el.getAttribute('role'),
     }))
     expect(meta.tabIndex).toBe(0)
-    expect(meta.name, 'the handle names itself and the current size').toMatch(/520/)
+    expect(meta.name, 'the handle names itself and the current size').toMatch(/528/)
     expect(meta.role === 'button' || meta.tag === 'BUTTON').toBe(true)
     const r0 = await rectOf(page, id)
     await handle(page).focus()
     await page.keyboard.press('ArrowRight')
     await page.waitForTimeout(200)
-    expect(await rectOf(page, id)).toEqual({ ...r0, w: r0.w + 5 })
+    expect(await rectOf(page, id)).toEqual({ ...r0, w: r0.w + 16 })
     await page.keyboard.press('Shift+ArrowDown')
     await page.waitForTimeout(200)
-    expect(await rectOf(page, id)).toEqual({ ...r0, w: r0.w + 5, h: r0.h + 20 })
+    expect(await rectOf(page, id)).toEqual({ ...r0, w: r0.w + 16, h: r0.h + 64 })
     await page.keyboard.press('ArrowLeft')
     await page.keyboard.press('ArrowUp')
     await page.waitForTimeout(250)
-    expect(await rectOf(page, id)).toEqual({ ...r0, w: r0.w, h: r0.h + 15 })
+    expect(await rectOf(page, id)).toEqual({ ...r0, w: r0.w, h: r0.h + 48 })
   })
 
   test('a keyboard resize never moves the contents and is ONE entry per burst', async ({ page }) => {

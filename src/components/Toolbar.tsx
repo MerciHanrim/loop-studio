@@ -229,11 +229,13 @@ export function Toolbar() {
 
   const [activeDialog, setActiveDialog] = useState<ToolbarDialog>(null)
 
+  // issue #344 §DL3 — the canvas centre, on the grid, at the nearest spot no
+  // node covers (it used to add ±40 px of random jitter instead)
   const addCentered = (kind: NodeKind) => {
     const rect = document.querySelector('.canvas')?.getBoundingClientRect()
-    const cx = (rect ? rect.left + rect.width / 2 : window.innerWidth / 2) + (Math.random() * 80 - 40)
-    const cy = (rect ? rect.top + rect.height / 2 : window.innerHeight / 2) + (Math.random() * 80 - 40)
-    addNodeAt(kind, screenToFlowPosition({ x: cx, y: cy }))
+    const cx = rect ? rect.left + rect.width / 2 : window.innerWidth / 2
+    const cy = rect ? rect.top + rect.height / 2 : window.innerHeight / 2
+    addNodeAt(kind, screenToFlowPosition({ x: cx, y: cy }), { findFree: true })
   }
 
   const onDragStart = (e: DragEvent, kind: NodeKind) => {

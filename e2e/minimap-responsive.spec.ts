@@ -202,6 +202,21 @@ const onScreen = (p: Page, id: string) =>
     return b.right > a.left + 2 && b.left < a.right - 2 && b.bottom > a.top + 2 && b.top < a.bottom - 2
   }, id)
 
+// issue #344 (docs/diagram-layout.md §DL5.6) — the MMO opening view's core
+// start nodes open WHOLE (inside the pane, not merely touching it); returns the
+// ones that do not
+const MMO_CORE = ['char_creation', 'active_char', 'z1_enc_src', 'z1_enc']
+const notWhole = (p: Page) =>
+  p.evaluate((ids) => {
+    const a = document.querySelector('.react-flow')!.getBoundingClientRect()
+    return ids.filter((nid) => {
+      const el = document.querySelector(`.react-flow__node[data-id="${nid}"]`)
+      if (!el) return true
+      const b = el.getBoundingClientRect()
+      return !(b.left >= a.left - 0.5 && b.right <= a.right + 0.5 && b.top >= a.top - 0.5 && b.bottom <= a.bottom + 0.5)
+    })
+  }, MMO_CORE)
+
 test.describe('minimap — the collapse / restore control', () => {
   test.beforeEach(async ({ page }) => {
     await openApp(page)
@@ -340,15 +355,20 @@ test.describe('minimap — the collapse / restore control', () => {
     expect(await onScreen(page, 'char_creation')).toBe(true)
     expect(await onScreen(page, 'z1_enc')).toBe(true)
     expect(await onScreen(page, 'end15')).toBe(false)
-    // sanity: the framed early band does not sit under the minimap
-    const clearOfMinimap = await page.evaluate(() => {
+    expect(await notWhole(page)).toEqual([])
+    // sanity: the framed early band does not sit under the minimap — the two
+    // screen rects collide only when they overlap on BOTH axes (issue #344:
+    // the opening view lets the top row run past the minimap's column, above it)
+    const underMinimap = await page.evaluate(() => {
       const m = document.querySelector('.react-flow__minimap')!.getBoundingClientRect()
-      return ['char_creation', 'active_char', 'z1_enc'].every((id) => {
+      return ['char_creation', 'active_char', 'z1_enc'].filter((id) => {
         const el = document.querySelector(`.react-flow__node[data-id="${id}"]`)
-        return !el || el.getBoundingClientRect().right <= m.left + 1
+        if (!el) return false
+        const r = el.getBoundingClientRect()
+        return r.left < m.right - 1 && m.left < r.right - 1 && r.top < m.bottom - 1 && m.top < r.bottom - 1
       })
     })
-    expect(clearOfMinimap).toBe(true)
+    expect(underMinimap).toEqual([])
 
     // collapse, re-open the same Template at the same pane size
     await toggleBtn(page).click()
@@ -358,11 +378,13 @@ test.describe('minimap — the collapse / restore control', () => {
     expect(ivCollapsed!.insetR).toBe(0) // no gap for an invisible minimap
     expect(ivCollapsed!.insetB).toBe(0)
     expect(ivCollapsed!.zoom).toBeGreaterThanOrEqual(MMO_MIN_ZOOM - 1e-6)
-    // a wider usable width ⇒ same-or-larger fit zoom for the same rect
+    // a wider usable width ⇒ same-or-larger fit zoom for the same rect, capped
+    // so the core start nodes stay whole (the `keep` rect)
     expect(ivCollapsed!.zoom).toBeGreaterThanOrEqual(ivExpanded!.zoom - 1e-6)
     expect(await onScreen(page, 'char_creation')).toBe(true)
     expect(await onScreen(page, 'z1_enc')).toBe(true)
     expect(await onScreen(page, 'end15')).toBe(false)
+    expect(await notWhole(page)).toEqual([])
   })
 
   test('the toggle is keyboard operable with a visible focus ring', async ({ page }) => {

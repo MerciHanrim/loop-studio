@@ -1,0 +1,98 @@
+# Diagram layout — the grid, the port row and re-placement (non-frozen design doc)
+
+Issue #344 (Diagram Readability). The six steps ship together as ONE migration, v0.25.0, so coordinates, routes, Templates, node outlines and the visual baselines change once:
+
+1. the grid, the fixed port row, snapping and the layout migration (this document, §DL1–§DL3);
+2. automatic orthogonal routing (the guarded C′ router) and label placement;
+3. the connection shape choice and manual route editing (§DL4);
+4. all five bundled Templates re-placed;
+5. node outline and text containment (#337) on this base;
+6. an automated collision check over all 18 languages, then the final baselines.
+
+The release notes, the change declaration and the baselines are settled once, after step 6. Steps 2–6 extend this document as they land.
+
+## DL1. The grid and the port row
+
+- DL1.1 The layout grid is **16 px** in flow coordinates: the dots the canvas already draws at L2.
+- DL1.2 A node's resource ports (`in` left, `out` right) sit on a fixed **port row 28 px below the node's top**, whatever its height, text or language. 28 is half the 56 px floor, so a one-line node draws its ports where it always did; a taller node grows downward and its ports stay.
+- DL1.3 The routing lane is the port row; the DRAWN port is projected onto the outline on that row (a Pool's slanted side, a Drain's notch tip, a Converter's waist, a Source's point), as the fraction of the width where the outline is (`portInsetFraction`). The router starts a route at that same point (`routeMap.ts`).
+- DL1.4 A position is **on the grid** when the node's left edge `x` and its port row `y + 28` are multiples of 16 (the stored `y` is `16k − 28`). Frames and waypoints are on the grid when their coordinates are multiples of 16.
+- DL1.5 State ports (top / bottom centre) are unchanged.
+
+## DL2. Re-placing a graph
+
+- DL2.1 **Canonical geometry.** Re-placement never measures the DOM or a font. Each node's box is its canonical box (`canonicalBox.ts`): the widest the content can take in any supported language — an upper-bound advance per character for its script, the title wrapped at 135 px under the strictest UI-language rule (Korean keeps words whole, Japanese / Chinese break by phrase, Parameter and Register titles wrap narrower), the kind's paddings, minimum / maximum widths and height rules. For the Pool, Source, Drain, Converter and Gate (#337, drawn for their own width with fixed-depth features) each side also keeps room for the outline where it reaches furthest in over the text, plus the 8 px clearance. Checked against every bundled Template in all 18 languages: never smaller than the drawn box.
+- DL2.2 **Rules** (`replace.ts`), pure and deterministic, ties broken by node id:
+  1. every node: left edge and port row to the nearest grid line;
+  2. rows: two related nodes (a flow connects them, or they share a direct flow neighbour) whose port rows were less than 16 px apart share one row; two unrelated neighbours 8–16 px apart never do (the lower takes the next row). A row move is made only when it reverses no order;
+  3. overlaps: space is inserted — a pair closer than the clearance (48 px across, 32 px down: `LAYOUT_CLEARANCE`, the same as the Templates', §DL5) is separated along the axis its centres are further apart on, by moving every node on the far side by the same grid step, until every pair keeps it. No left/right or above/below order between two nodes is ever reversed;
+  4. frames (§DL2.9): each saved frame rebuilt around the nodes it showed;
+  5. waypoints: snapped; one that lands inside a node is dropped.
+- DL2.3 Idempotent: re-placing a re-placed graph changes nothing.
+- DL2.4 Engine digest and simulation results never change; the full content digest changes (positions are cosmetic content).
+
+## DL2.8. The one-time conversion and `layoutVersion`
+
+- The file carries `layoutVersion` (`LAYOUT_VERSION = 1`), written on every save; absent means 0, a pre-grid layout. It is not part of either digest.
+- A document with an older `layoutVersion` is re-placed ONCE when it is opened — a graph file, a Workspace, a share link, the autosave record (converted by the boot module before the stores read it) — **before its history starts**: never an undo entry. The next save writes the current version, so it never runs again.
+- **Records are never re-placed automatically** (Lumi, 2026-10-09). A revision or proposal payload is a record with its own digest and a comparison base, not an ordinary document:
+  - a revision file and a proposal payload always keep their recorded coordinates — opened, opened as a document, or applied;
+  - a Project autosave based on a revision (an autosave record carrying a Project header) is not converted either;
+  - the base revision and the proposal source stay as recorded, so Review shows the real layout differences;
+  - **Tidy to grid** on such a document changes only the current document, as one cosmetic change and one undo step, like any other edit.
+  Converting them on open would make a document differ from its own revision the moment it opens and turn every exact proposal into a non-exact one.
+- Ordinary documents, files and share links are converted once, by their `layoutVersion`.
+- Bundled Templates and modules are never converted: they open at their source coordinates (step 4 re-places those).
+- A position placed freely with Alt in a current document is kept.
+
+## DL2.9. Frames in a re-placement (the one-time conversion and Tidy to grid)
+
+- Each node's box BEFORE the move is read first, before any node's size or place changes: the one-time conversion reads the box the document was drawn with when it was saved (`legacyCanonicalBoxBeforeOutlineContainment`, frozen — the canonical box before #337 drew the five kinds for their own width), Tidy to grid the current canonical box.
+- Two sets per frame, from those boxes:
+  - the **held set** — the nodes fully inside: the frame's members, as before;
+  - the **visual coverage set** — the nodes whose centre was inside. It decides no membership; it only sizes the frame.
+- The rebuilt frame covers every node of both sets at its new place and current size, keeps its own padding on each side where it had more than 24 px, at least 24 px, and is snapped outward. A frame that showed no node keeps its snapped rect.
+- So no frame edge runs through a node that sat in it, and a node #337 draws wider never falls out of its frame.
+- Membership afterwards (Lumi, 2026-10-10):
+  - before the re-placement, the held set is computed by the usual full-containment rule;
+  - the re-placement rebuilds each frame so it also covers the nodes that sat in it visually (the coverage set);
+  - membership is not stored: after the re-placement it is computed again from the final geometry, so a coverage node now wholly inside its frame takes part in later frame drags like any other node inside;
+  - the code that decides membership during an ordinary drag or selection is not changed.
+
+## DL2.10. Tidy to grid
+
+The Controls rail's **Tidy to grid** re-places the current document by the DL2.2 rules as ONE undo entry (graph and saved frames together). Desktop only; disabled while the canvas is locked. Nothing to move ⇒ no entry.
+
+## DL3. Snapping while editing
+
+- DL3.1 New nodes land on the grid: a palette click takes the nearest free grid spot from the canvas centre (no random jitter); a drop snaps the drop point; Insert module snaps the module's anchor; imported Parameters land on the grid (frames snapped outward).
+- DL3.2 A pointer drag snaps: every dragged node moves by the ONE correction that puts the grabbed node on the grid, so a selection keeps its relative positions. A frame drag snaps the frame's top-left; a resize snaps the dragged corner.
+- DL3.3 Modifiers: **Alt** — a free move (no snapping) for that drag, for nodes, selections and frames, or a free drop; releasing it mid-drag snaps again. **Ctrl / Command** — move a frame alone (it was Alt before #344). **Shift** — unchanged (selection, the large keyboard step).
+- DL3.4 Arrow keys move a node or frame by one grid step (16 px), Shift + arrow by four (64 px), landing on the grid; still one undo entry per held gesture (§LGR6.7).
+- DL3.5 An off-grid position in a current document stays valid and is drawn as it is.
+- DL3.6 Smart guides (Hanrim / Lumi, 2026-10-10; `src/model/layout/smartGuides.ts`, `SmartGuideLayer.tsx`). The offset between the pointer and the node is kept for the whole drag; the snap reference is the node's position and its port row, never the grabbed point, so where a node is grabbed cannot change where it lands. Per axis the first of these within 6 screen px wins: another node's **port row** (vertical only), another node's **centre or left / right (top / bottom) edge**, then the **16 px grid**; ties go to the smaller distance, then the node id. A selection is referenced by its bounding box (centre and edges) and the grabbed node's port row. During the drag a dashed line runs through where it will land, on both axes, and a solid line reaches every other node it is exactly aligned with. Alt shows the guides faint and pulls nothing. After an arrow-key move the row and column it sits on show for 1.2 s. Not on the phone. Only the nodes within 1,200 flow px are compared (grid buckets built once per drag). Display and input only: no stored field, revision, digest or simulation result depends on it.
+
+## DL4. Connection shapes and route editing (step 3 — built; `SEMANTICS-R10.md`, `docs/edge-routing.md` §ER15–§ER16)
+
+- DL4.1 Shapes: **Auto orthogonal** (the C′ router) is the default for new and converted connections; **Curved** (today's Bézier) and **Straight** (a direct line) are choices; **Manual orthogonal** keeps the author's bend points.
+- DL4.2 Editing an automatic route by hand (adding, moving or removing a bend point) turns the connection into Manual orthogonal; **Reset to automatic** returns it to the C′ route.
+- DL4.3 Bend points snap to the 16 px grid; Alt moves one freely. Each add, move or delete is one undo step. Nothing changes a route while the canvas is locked.
+- DL4.4 The shape and the bend points are saved in files and share links; they never change the engine digest or a simulation result.
+- DL4.5 The phone draws every shape and route but offers no route editing.
+- DL4.6 Bundled Templates use automatic routes; a manual bend point only where the router cannot resolve a case.
+- DL4.7 Out of scope for v0.25.0: editing Bézier control points, and line decorations beyond today's.
+- DL4.8 Stored form (Lumi, 2026-10-09): Curved = no `route` (never `"bezier"`); Straight = `route: "straight"`, no bend points; Auto = `route: "orthogonal"` with no bend points; Manual = `route: "orthogonal"` with 1 to 64. Manual is not a value of its own. An invalid value, or bend points beside Straight or Curved, is removed on reading and reported. A revision or proposal written before `loop-revision/10` keeps its bytes and its digest.
+- DL4.9 Curved and Straight give up obstacle avoidance by choice, but their labels still take a free slot on their own line, by the same rule as a routed label. A revision or proposal recorded before `loop-revision/10` keeps its Curved labels where they were recorded (the Bézier middle) until its first shape edit or Tidy to grid (Lumi, 2026-10-10).
+- DL4.10 A bend point is added with **Add bend** and then a click on the route (on the segment clicked) or **Enter** (the middle of the longest editable segment; the focus moves to the new handle); it is snapped along its segment, so adding it moves nothing. A drop inside a node or on the connection's own port stub puts the point back; it is never adjusted. Arrow keys move a selected bend point 16 px, Shift + arrow 64 px; Delete or Backspace removes it; Escape cancels the edit in progress or disarms Add bend.
+
+## DL5. The bundled Templates, placed for the grid (step 4)
+
+- DL5.1 Every Template goes through one function, `placeTemplate` (`src/model/layout/templatePlacement.ts`): the Coffee and MMO builders and the Gacha generator call it last; the two small Templates (Equilibrium, Deadlock) were placed by it once and their files are the source. A shipped file is always the placement of its source.
+- DL5.2 Placement is `replaceOnGrid` (§DL2: order-keeping, space inserted, no left/right or above/below order between two nodes reversed), with each node sized by its WIDEST real box over the 18 languages (`templateBoxes.json`, measured on the running app, rounded up) plus a clearance `TEMPLATE_GAP` of 48 px across and 32 px down. The clearance is what keeps every language clear of a node over another's port and gives every port fan room to branch past its 16 px stub; smaller clearances still left fan overlaps past the stub in MMO (measured: 32 / 16 in es and vi, 48 / 16 in de, es, it and vi, 48 / 24 in es and ru; 0.7 to 2.4 px).
+- DL5.3 A saved frame travels with the nodes it held (centre inside it before the move): it is rebuilt around them, keeping its own padding on each side and at least 24 px (§CR17), snapped outward. No frame cuts a node, by the widest boxes. Two frames that stood apart keep at least 32 px between them (`FRAME_GAP`; a frame's title sits in that gap, and two margins alone would make neighbouring frames touch): space is inserted as in §DL2 — every node beyond the nearer frame's far edge moves by the same grid step — so no order is reversed and no clearance shrinks.
+- DL5.4 Every connection is Auto orthogonal. A Manual exception (bend points) is used only where placement cannot resolve a case, each recorded with its connection id and reason; none is needed: in all 18 languages no route is blocked or on the outer corridor and no fan overlaps past its stub (measured 2026-10-10).
+- DL5.5 The menu-open framings (`initialView`):
+  - MMO puts readability before the whole start path, and the core start nodes before the zoom: its rect is sized for about 1.05 at 1600 x 1000, inside the Controls rail's reserved column, and its `keep` rect (§DL5.6) caps the zoom so every core start node opens whole in every language — Character creation, Active character, Starter encounters, Starter Lv 1–5. At 1600 x 1000 it opens at 1.040 (node text 12.5 px smallest, 14.6 px median; Thai Starter Lv 1–5, the widest, ends 8 px inside the pane, above the minimap); at 1280 x 800 at 0.725, or 0.772 with the minimap collapsed. Later paths may start off screen; Reset view and the minimap show the whole graph.
+  - Coffee opens on its operating flow — the five daily levers, the supply and the roasting & sales frames — at about 0.5 in a 1280 x 800 window (L1 with room, never at the 0.45 edge; floor 0.46); the forecast metrics may start off screen.
+  - Gacha keeps its overview: the comparison row and the Free zone, at its 0.45 floor.
+- DL5.6 `keep` — the nodes that must open whole (`InitialView.keep`, `viewportForRect` in `src/components/canvasFit.ts`). An `initialView` MAY carry a `keep` rect: the core start nodes at their widest box over the 18 languages (`templateBoxes.json`), the tight union of those boxes (pinned by `src/model/templates.initialView.test.ts`). The zoom is the rect's fit, capped at the largest zoom that shows `keep` inside the pane (8 px from its right and bottom edges, clear of the Controls rail); the minimap's corner (224 x 176 px with its margin) counts only when `keep` would overlap it on BOTH axes, and then `keep` clears it by whichever side keeps the larger zoom. So a top row may run past the minimap's column above it, and a collapsed minimap never lets the zoom grow past what `keep` allows. The readability floor (`minZoom`) still wins on a pane too small for `keep` (a phone opens at the floor, as before). Only MMO carries `keep`; the left alignment, the vertical centring and the other Templates' views are unchanged.

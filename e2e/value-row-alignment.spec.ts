@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 import { fitCount, frames, misfits, readRows, ROWS_GRAPH, zoomOne } from './support/rowFit'
+import { outlineMisfits, readOutline } from './support/outlineFit'
 
 // issue #332 — a Pool's value and capacity, a Parameter's value and unit and a
 // Register's result and `= expr` start where the title text starts and keep
@@ -68,8 +69,10 @@ test.describe('#332 value and detail rows inside the vessel', () => {
       const rows = await readRows(page)
       expect(rows.length).toBe(21)
       expect(misfits(rows)).toEqual([])
-      // the long Pool value is cut short where the slanted side would reach its title
-      expect(rows.find((r) => r.id === 'Pool long' && r.key === 'value')!.clipped).toBe(true)
+      // #337 — the long Pool value was cut short where the slanted side would
+      // reach it; with the fixed 8 px slant the node widens to show it whole
+      // (a row is cut only past the 260 px maximum, src/components/nodes/outlineFit.test.ts)
+      expect(rows.find((r) => r.id === 'Pool long' && r.key === 'value')!.clipped).toBe(false)
     })
   }
 
@@ -95,18 +98,13 @@ test.describe('#332 value and detail rows inside the vessel', () => {
     expect(ar.vsTitle).toBeLessThan(1)
   })
 
-  test('the Source, Drain and Converter mode rows are left as they were', async ({ page }) => {
+  // #337 — the Source, Drain and Converter mode rows were left in place here;
+  // with the fixed-depth outlines they take the same rule as the Pool's rows
+  test('the Source, Drain and Converter mode rows start at the title and keep 8 px inside (#337)', async ({ page }) => {
     await load(page, ROWS_GRAPH, 'Converter')
-    const out = await page.evaluate(() =>
-      ['Source', 'Drain', 'Converter'].map((id) => {
-        const f = document.querySelector<HTMLElement>(`.react-flow__node[data-id="${id}"] .nodef`)!
-        return { id, style: f.getAttribute('style') ?? '', margin: getComputedStyle(f.querySelector('.nodef__sub')!).marginLeft }
-      }),
-    )
-    for (const o of out) {
-      expect(o.style).not.toContain('--vra')
-      expect(o.margin).toBe('0px')
-    }
+    const rows = (await readOutline(page)).filter((e) => ['Source', 'Drain', 'Converter'].includes(e.id) && e.role === 'sub')
+    expect(rows.map((r) => r.id).sort()).toEqual(['Converter', 'Drain', 'Source'])
+    expect(outlineMisfits(rows)).toEqual([])
   })
 
   test('selection, keyboard focus, Focus mode and the activity overlay move no row and take no measurement', async ({ page }) => {

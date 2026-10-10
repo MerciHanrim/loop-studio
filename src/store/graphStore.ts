@@ -13,6 +13,16 @@ import { defaultNodeLabel } from '../i18n/nodeDefaults'
 import { relabelFramesForLocale, relabelNodesForLocale } from '../i18n/templateLabels/relabel'
 import { relabelModuleNodesForLocale } from '../i18n/moduleLabelSync'
 import { createNode, defaultData, nextId } from '../model/factory'
+import { dragSnap, snapDrag } from '../model/layout/dragSnap'
+import { useGuideStore } from './guideStore'
+import { convertLayout, isLegacyLayout, migrateDocument } from './layoutConvert'
+import { GRID, snapNodePosition } from '../model/layout/grid'
+import { boxesOverlap, nearestFree } from '../model/layout/place'
+import { BASE_NODE_H } from '../components/nodes/silhouette'
+
+/** a not-yet-measured node's width for the palette's free-spot search (the
+ *  router's own default, `routeMap.ts`) */
+const NEW_NODE_W = 130
 import { uniqueNodeLabel } from '../model/nodeLabel'
 import { insertGraph, type GraphDocLike } from '../model/moduleGraph'
 import {
@@ -68,7 +78,18 @@ export type LockedRefusal = { ok: false; reason: 'locked' }
  *  - `revision-apply`: the open document is edited in place (SEMANTICS-R.md
  *    R-INV-8 — one undo entry); refused while the edit lock is on. */
 export type LoadDocOptions = (
-  | { mode: 'document-boundary'; canvasLocked: boolean }
+  | {
+      mode: 'document-boundary'
+      canvasLocked: boolean
+      /** issue #344 §DL2.8 — the opened file's `layoutVersion`: older than
+       *  `LAYOUT_VERSION` ⇒ re-placed on the grid once, before the history
+       *  starts. Absent ⇒ the caller's graph is already current (no conversion). */
+      layoutVersion?: number
+      /** issue #344 step 3 — the document is a revision or proposal recorded
+       *  before `loop-revision/10`: its Curved labels keep their recorded
+       *  (Bézier middle) place (see `recordLabels`) */
+      recordLabels?: boolean
+    }
   | { mode: 'revision-apply' }
 ) & {
   modelVersion?: ModelSemanticsVersion
@@ -106,6 +127,8 @@ type HistoryEntry = {
   nodes: LoopNode[]
   edges: LoopEdge[]
   modelVersion: ModelSemanticsVersion
+  /** issue #344 step 3 — the record label rule in force (`recordLabels`) */
+  recordLabels?: boolean
   sidecar: unknown
 }
 /** docs/large-graph-readability-saved-frames.md §SF11.1 "Move" — an opaque
@@ -164,6 +187,15 @@ type GraphStore = {
    *  per document: never returns to `1` except on a full new / v1 load. */
   modelVersion: ModelSemanticsVersion
 
+  /** issue #344 step 3 (docs/edge-routing.md §ER15.1) — the document came
+   *  from a revision or proposal whose header declares semantics before
+   *  `loop-revision/10`, and its Curved labels are drawn where they were
+   *  recorded (the Bézier middle), not in a free slot, so the record and its
+   *  Review look as they did. Ends with the first shape or bend-point edit, or
+   *  Tidy to grid (each undoable); the autosaved Project header carries it as
+   *  `labelLayoutVersion` (0 = this rule, 1 = the current placement). */
+  recordLabels: boolean
+
   past: HistoryEntry[]
   future: HistoryEntry[]
   canUndo: boolean
@@ -203,7 +235,15 @@ type GraphStore = {
   onEdgesChange: (changes: EdgeChange<LoopEdge>[]) => void
   onConnect: (conn: Connection) => void
 
-  addNodeAt: (kind: NodeKind, position: XY) => void
+  /** issue #344 §DL3 — the node lands on the grid unless `free` (Alt held at
+   *  the drop); `findFree` steps on the grid to the nearest spot no node covers
+   *  (the palette click, which has no drop point of its own) */
+  addNodeAt: (kind: NodeKind, position: XY, opts?: { free?: boolean; findFree?: boolean }) => void
+  /** issue #344 §DL2.10 — re-place the current document on the grid by the
+   *  same rules as the one-time conversion: ONE undo entry (graph + saved
+   *  frames), cosmetic (no simulation change). Returns how many nodes moved;
+   *  0 ⇒ nothing changed and no entry was made. Refused while locked. */
+  tidyToGrid: () => number
   /** docs/module-system.md §MS3 — merge a module (a plain graph fragment) into
    *  the open graph as ONE atomic history entry: every module node/edge id is
    *  re-issued, every `register` expr `@ref` / v2 `@param` flow is rewritten,
@@ -216,7 +256,7 @@ type GraphStore = {
    *  never touches `mcStore` or `frameStore` (§MS4a-B2 / B3). */
   insertModule: (
     module: GraphDocLike,
-    opts: { at: XY; confirmedPromotion?: boolean; bundledModuleId?: string },
+    opts: { at: XY; confirmedPromotion?: boolean; bundledModuleId?: string; /** issue #344 §DL3 — Alt at the drop: the anchor is not snapped */ free?: boolean },
   ) => InsertModuleResult
   /** docs/data-import.md §DI16 Phase 1B — commit a validated multi-table
    *  import as ONE atomic history entry: every generated Parameter, every
@@ -248,6 +288,15 @@ type GraphStore = {
   renameDataImportTable: (id: string, newLabel: string) => { ok: true } | { ok: false; reason: 'empty-table-name' | 'label-too-long' } | LockedRefusal
   updateNodeData: (id: string, patch: Record<string, unknown>) => void
   setEdgeData: (id: string, data: LoopEdgeData) => void
+  /** issue #344 step 3 (docs/diagram-layout.md §DL4, SEMANTICS-R10.md) — set a
+   *  connection's shape and bend points: `route` absent = Curved, `"straight"`,
+   *  `"orthogonal"` with no `waypoints` = Auto, with 1 … 64 = Manual. ONE history
+   *  entry per call, never merged with the next edit; nothing when unchanged or
+   *  while the edit lock is on. Cosmetic: the run is not reset. */
+  setEdgeRouting: (id: string, routing: EdgeRouting) => void
+  /** the same change with no history entry, for a bend-point gesture between
+   *  `captureGestureSnapshot` and `pushGestureEntry` */
+  setEdgeRoutingSilently: (id: string, routing: EdgeRouting) => void
   /** docs/flow-colour-and-compact-nodes.md FC-2.4 — set (`#RRGGBB` in any
    *  form `readAccent` takes) or remove (`null`) the flow colour of these
    *  nodes and edges as ONE undo entry. Elements that already have it are
@@ -448,13 +497,29 @@ function writeAutosaveNow(): void {
     saveToStorage(
       s.nodes,
       s.edges,
-      autosaveProjectHeader,
+      withLabelLayout(autosaveProjectHeader, s.recordLabels),
       autosaveTimelineSeries,
       s.modelVersion,
       liveFrames(),
       liveDataImports(),
     ),
   )
+}
+
+/** issue #344 step 3 (§ER15.1) — the Project header of the autosave carries the
+ *  label rule explicitly: `labelLayoutVersion` 0 = the record's own (legacy
+ *  Curved labels), 1 = the current placement. Only a document with a header can
+ *  hold the record rule; an ordinary document never gets the key. */
+export const LABEL_LAYOUT_VERSION = 1
+export function bootRecordLabels(header: unknown): boolean {
+  if (!header || typeof header !== 'object') return false
+  const h = header as { role?: unknown; labelLayoutVersion?: unknown }
+  if (h.role === 'proposal') return false
+  return h.labelLayoutVersion !== LABEL_LAYOUT_VERSION
+}
+function withLabelLayout(header: unknown, recordLabels: boolean): unknown {
+  if (!header || typeof header !== 'object') return header
+  return { ...(header as Record<string, unknown>), labelLayoutVersion: recordLabels ? 0 : LABEL_LAYOUT_VERSION }
 }
 
 /** Write the pending debounced autosave RIGHT NOW, if there is one. Called on
@@ -485,6 +550,29 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   })
 }
 
+// ── connection shapes (issue #344 step 3, SEMANTICS-R10.md) ────────────────
+
+export type EdgeRouting = { route?: 'orthogonal' | 'straight'; waypoints?: { x: number; y: number }[] }
+
+/** the edges with `id`'s routing replaced, keys trailing as the reader writes
+ *  them; null when nothing changes. Bend points are kept only beside
+ *  `"orthogonal"` (R10-INV-3). */
+function withRouting(edges: LoopEdge[], id: string, r: EdgeRouting): LoopEdge[] | null {
+  const e = edges.find((x) => x.id === id)
+  if (!e || !e.data) return null
+  const { route: _r, waypoints: _w, accent, ...rest } = e.data as LoopEdgeData & EdgeRouting & { accent?: unknown }
+  const wps = r.route === 'orthogonal' && r.waypoints && r.waypoints.length > 0 ? r.waypoints.map((p) => ({ x: p.x, y: p.y })) : undefined
+  // `normalizeEdge`'s order: … route, waypoints, accent
+  const data = {
+    ...rest,
+    ...(r.route ? { route: r.route } : {}),
+    ...(wps ? { waypoints: wps } : {}),
+    ...(accent !== undefined ? { accent } : {}),
+  } as LoopEdgeData
+  if (JSON.stringify(data) === JSON.stringify(e.data)) return null
+  return edges.map((x) => (x.id === id ? { ...x, data } : x))
+}
+
 // ── save boundary (SEMANTICS of an undo step) ───────────────────────────────
 // One history entry per discrete action. Continuous actions coalesce: a node
 // drag is one entry; rapid edits to the same field within COALESCE_MS are one
@@ -507,6 +595,33 @@ export function onlyAccentsDiffer(
   a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
   b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
 ): boolean {
+  return onlyCosmeticsDiffer(a, b, ['accent'])
+}
+
+/** issue #344 step 3 — the same test with a connection's shape and bend points
+ *  (`route`, `waypoints`) also counted as decoration: undoing or redoing a
+ *  shape or bend-point edit does not reset the run either (SEMANTICS-R10.md
+ *  R10-INV-2) */
+export function onlyDecorationDiffers(
+  a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
+  b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
+): boolean {
+  return onlyCosmeticsDiffer(a, b, ['accent', 'route', 'waypoints'])
+}
+
+function onlyCosmeticsDiffer(
+  a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
+  b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
+  edgeKeys: readonly string[],
+): boolean {
+  const withoutEdgeKeys = (data: unknown): string => {
+    if (!data || typeof data !== 'object') return JSON.stringify(data)
+    const rest = { ...(data as Record<string, unknown>) }
+    for (const k of edgeKeys) delete rest[k]
+    return JSON.stringify(rest)
+  }
+  const edgeKeysOf = (data: unknown): string =>
+    JSON.stringify(edgeKeys.map((k) => (data as Record<string, unknown> | undefined)?.[k] ?? null))
   if (a.modelVersion !== b.modelVersion) return false
   if (a.nodes.length !== b.nodes.length || a.edges.length !== b.edges.length) return false
   let accentChanged = false
@@ -526,8 +641,8 @@ export function onlyAccentsDiffer(
       (p.sourceHandle ?? null) !== (q.sourceHandle ?? null) || (p.targetHandle ?? null) !== (q.targetHandle ?? null)
     ) return false
     if (p.data === q.data) continue
-    if (withoutAccent(p.data) !== withoutAccent(q.data)) return false
-    if (accentOf(p.data) !== accentOf(q.data)) accentChanged = true
+    if (withoutEdgeKeys(p.data) !== withoutEdgeKeys(q.data)) return false
+    if (edgeKeysOf(p.data) !== edgeKeysOf(q.data)) accentChanged = true
   }
   return accentChanged
 }
@@ -639,9 +754,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     if (tag === 'remove') queueMicrotask(() => { if (lastTag === 'remove') lastTag = '' })
     clearPristine() // any edit / load / template — even a coalesced one — ends "pristine"
     if (coalesce) return
-    const { nodes, edges, modelVersion } = get()
+    const { nodes, edges, modelVersion, recordLabels } = get()
     set({
-      past: [...get().past, { nodes, edges, modelVersion, sidecar: sidecarNow(framesOverride) }].slice(-HISTORY_MAX),
+      past: [...get().past, { nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow(framesOverride) }].slice(-HISTORY_MAX),
       future: [], // a fresh action discards the redo branch AND its sidecars
       canUndo: true,
       canRedo: false,
@@ -672,8 +787,8 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     notifyFrameChange: () => persist(),
 
     captureGestureSnapshot: () => {
-      const { nodes, edges, modelVersion } = get()
-      const entry: HistoryEntry = { nodes, edges, modelVersion, sidecar: sidecarNow() }
+      const { nodes, edges, modelVersion, recordLabels } = get()
+      const entry: HistoryEntry = { nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow() }
       return entry as unknown as GestureSnapshot
     },
     pushGestureEntry: (snapshot) => {
@@ -721,6 +836,11 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     pendingInitialView: null,
     pristineSample: stored == null,
     modelVersion: bootModelVersion,
+    // issue #344 step 3 (§ER15.1) — the autosaved Project header says which
+    // label rule the document had; a header written before the key existed is
+    // a record from before `loop-revision/10`. A proposal session is not
+    // restored (its header is dropped at boot), so it never keeps the rule.
+    recordLabels: bootRecordLabels(stored?.project),
     past: [],
     future: [],
     canUndo: false,
@@ -728,7 +848,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     undo: () => {
       if (editGuard()) return // #334 — refused while the edit lock is on
-      const { past, future, nodes, edges, modelVersion } = get()
+      const { past, future, nodes, edges, modelVersion, recordLabels } = get()
       if (!past.length) return
       const prev = past[past.length - 1]
       lastTag = ''
@@ -736,15 +856,16 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         nodes: prev.nodes,
         edges: prev.edges,
         modelVersion: prev.modelVersion,
+        recordLabels: prev.recordLabels ?? false,
         past: past.slice(0, -1),
-        future: [{ nodes, edges, modelVersion, sidecar: sidecarNow() }, ...future].slice(0, HISTORY_MAX),
+        future: [{ nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow() }, ...future].slice(0, HISTORY_MAX),
         canUndo: past.length > 1,
         canRedo: true,
         selectedNodeId: null,
         selectedEdgeId: null,
       })
-      // FC-2.4 — undoing a flow colour is not a model change
-      if (onlyAccentsDiffer({ nodes, edges, modelVersion }, prev)) clearPristine()
+      // FC-2.4 / R10-INV-2 — undoing a flow colour, a shape or a bend point is not a model change
+      if (onlyDecorationDiffers({ nodes, edges, modelVersion }, prev)) clearPristine()
       else bump()
       persist()
       restoreSidecar(prev.sidecar) // restore the project header + saved frames this entry carried
@@ -752,7 +873,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     redo: () => {
       if (editGuard()) return // #334 — refused while the edit lock is on
-      const { past, future, nodes, edges, modelVersion } = get()
+      const { past, future, nodes, edges, modelVersion, recordLabels } = get()
       if (!future.length) return
       const next = future[0]
       lastTag = ''
@@ -760,15 +881,16 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         nodes: next.nodes,
         edges: next.edges,
         modelVersion: next.modelVersion,
-        past: [...past, { nodes, edges, modelVersion, sidecar: sidecarNow() }].slice(-HISTORY_MAX),
+        recordLabels: next.recordLabels ?? false,
+        past: [...past, { nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow() }].slice(-HISTORY_MAX),
         future: future.slice(1),
         canUndo: true,
         canRedo: future.length > 1,
         selectedNodeId: null,
         selectedEdgeId: null,
       })
-      // FC-2.4 — redoing a flow colour is not a model change
-      if (onlyAccentsDiffer({ nodes, edges, modelVersion }, next)) clearPristine()
+      // FC-2.4 / R10-INV-2 — redoing a flow colour, a shape or a bend point is not a model change
+      if (onlyDecorationDiffers({ nodes, edges, modelVersion }, next)) clearPristine()
       else bump()
       persist()
       restoreSidecar(next.sidecar) // restore the project header + saved frames this entry carried
@@ -779,12 +901,23 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       // a move, add, remove or replace does not (a `replace` that only flips
       // `selected` — React Flow's `setNodes` from a panel's reveal — is a
       // selection, and passes)
-      const changes = editGuard()
+      let changes = editGuard()
         ? all.filter((c) => c.type === 'select' || c.type === 'dimensions' || selectionOnlyReplace(c, get().nodes))
         : all
       if (changes.length === 0 && all.length > 0) return
       const dragging = changes.some((c) => c.type === 'position' && c.dragging)
       const settled = changes.some((c) => c.type === 'position' && c.dragging === false)
+      // issue #344 §DL3 — a pointer drag lands by the smart guides' one
+      // correction (§DL3.6: port row, centre / edges, grid; Alt = free), an
+      // arrow-key move on the grid; the guides show where it went
+      if (dragging || settled) {
+        const s = snapDrag(changes, get().nodes)
+        changes = s.changes
+        if (s.guides) {
+          if (dragSnap.active) useGuideStore.getState().show(s.guides, s.faint)
+          else useGuideStore.getState().flash(s.guides)
+        }
+      }
       const removed = changes.some((c) => c.type === 'remove')
       // 'remove' tag: a node deletion and the connected-edge deletions React Flow
       // cascades arrive as separate calls in the same tick — coalesce them into
@@ -824,7 +957,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
               ? conn.targetHandle
               : 'state-target',
             type: 'loop',
-            data: { kind: 'state', mode: 'trigger', expr: '' },
+            data: { kind: 'state', mode: 'trigger', expr: '', route: 'orthogonal' }, // issue #344 §ER14.1 — new connections are routed
           }
         : {
             id: nextId('e'),
@@ -834,7 +967,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
             sourceHandle: 'out',
             targetHandle: 'in',
             type: 'loop',
-            data: { kind: 'resource', flow: '1' },
+            data: { kind: 'resource', flow: '1', route: 'orthogonal' }, // issue #344 §ER14.1
           }
       commit('')
       set({ edges: addEdge(edge, get().edges) })
@@ -842,8 +975,35 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       persist()
     },
 
-    addNodeAt: (kind, position) => {
+    tidyToGrid: () => {
+      if (editGuard()) return 0 // #334 — refused while the edit lock is on
+      const g = get()
+      const frames = (frameSidecar?.get() as SavedFrame[] | null | undefined) ?? []
+      const c = convertLayout({ nodes: g.nodes, edges: g.edges, frames: [...frames] })
+      const moved = c.nodes.filter((n, i) => n !== g.nodes[i]).length
+      const edgesChanged = c.edges.some((e, i) => e !== g.edges[i])
+      const framesChanged = (c.frames ?? []).some((f, i) => f !== frames[i])
+      // a record already on the grid still leaves its recorded label rule
+      if (!moved && !edgesChanged && !framesChanged && !g.recordLabels) return 0
+      commit('') // the pre-tidy graph + saved frames, ONE entry
+      lastTag = ''
+      set({ nodes: c.nodes, edges: c.edges, recordLabels: false }) // §ER15.1 — so does a tidied record
+      if (framesChanged) frameSidecar?.set(c.frames)
+      clearPristine()
+      persist()
+      return moved
+    },
+
+    addNodeAt: (kind, position, opts) => {
       if (editGuard()) return // #334 — refused while the edit lock is on
+      if (!opts?.free) {
+        const want = snapNodePosition(position)
+        if (opts?.findFree) {
+          const boxes = get().nodes.map((n) => ({ x: n.position.x, y: n.position.y, w: n.measured?.width ?? NEW_NODE_W, h: n.measured?.height ?? BASE_NODE_H }))
+          const w = kind === 'gate' ? 134 : NEW_NODE_W
+          position = nearestFree(want, (p) => !boxes.some((b) => boxesOverlap({ x: p.x, y: p.y, w, h: BASE_NODE_H }, b, GRID))) ?? want
+        } else position = want
+      }
       commit('')
       // docs/localization.md §L3.4a — the name is resolved for the CURRENT UI
       // language at placement, then de-duplicated against the graph's display
@@ -969,6 +1129,23 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       persist()
     },
 
+    setEdgeRouting: (id, routing) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
+      const next = withRouting(get().edges, id, routing)
+      if (!next) return
+      commit('')
+      lastTag = '' // the next edit is its own entry, whatever it is
+      set({ edges: next, recordLabels: false }) // §ER15.1 — an edited shape takes the current label rule
+      persist()
+    },
+    setEdgeRoutingSilently: (id, routing) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
+      const next = withRouting(get().edges, id, routing)
+      if (!next) return
+      set({ edges: next, recordLabels: false })
+      persist()
+    },
+
     removeNode: (id) => {
       if (editGuard()) return // #334 — refused while the edit lock is on
       commit('')
@@ -1002,6 +1179,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         selectedNodeId: null,
         selectedEdgeId: null,
         modelVersion: 1,
+        recordLabels: false,
         loadRev: get().loadRev + 1,
         pendingInitialView: null, // §MML3 — no menu framing survives a New
         // `newGraph` does NOT bump `fitRev`: an empty canvas has nothing to fit,
@@ -1028,6 +1206,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         selectedNodeId: null,
         selectedEdgeId: null,
         modelVersion,
+        recordLabels: false,
         loadRev: get().loadRev + 1,
         fitRev: get().fitRev + 1,
         // §MML3 — a menu-opened Template's framing hint; `null` for a paste
@@ -1044,10 +1223,10 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     loadJSON: (text) => {
-      const { nodes, edges, recommendedRunConfig, modelVersion, frames, dataImports } = deserialize(text)
+      const { nodes, edges, recommendedRunConfig, modelVersion, layoutVersion, frames, dataImports } = deserialize(text)
       get().loadDoc(
         { nodes, edges },
-        { mode: 'document-boundary', canvasLocked: recommendedRunConfig?.canvasLocked === true, modelVersion, frames, dataImports },
+        { mode: 'document-boundary', canvasLocked: recommendedRunConfig?.canvasLocked === true, modelVersion, layoutVersion, frames, dataImports },
       )
       return recommendedRunConfig
     },
@@ -1058,8 +1237,18 @@ export const useGraphStore = create<GraphStore>((set, get) => {
      *  `simulationRev` step (SEMANTICS-W.md §W5.1). `opts.mode` (#334) says
      *  whether this is another document (empty history, its own lock) or a
      *  revision Apply on this one (one undo entry, refused while locked). */
-    loadDoc: ({ nodes, edges }, opts) => {
-      const { modelVersion = 1, frames, dataImports } = opts
+    loadDoc: (doc, opts) => {
+      const { modelVersion = 1, dataImports } = opts
+      let { nodes, edges } = doc
+      let frames = opts.frames
+      // issue #344 §DL2.8 — an older layout is re-placed once, here, before
+      // `enterDocument` starts the history: never an undo entry
+      if (opts.mode === 'document-boundary' && opts.layoutVersion != null && isLegacyLayout(opts.layoutVersion)) {
+        const c = migrateDocument({ nodes, edges, frames: frames ? [...frames] : undefined })
+        nodes = c.nodes
+        edges = c.edges
+        frames = c.frames
+      }
       let history: ReturnType<typeof enterDocument> | null = null
       if (opts.mode === 'document-boundary') history = enterDocument(opts.canvasLocked)
       else {
@@ -1076,6 +1265,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         selectedNodeId: null,
         selectedEdgeId: null,
         modelVersion,
+        // issue #344 step 3 — another document says which label rule it takes;
+        // a revision Apply edits this one and keeps its rule
+        recordLabels: opts.mode === 'document-boundary' ? opts.recordLabels === true : get().recordLabels,
         loadRev: get().loadRev + 1,
         pendingInitialView: null, // §MML3 — file / Share / Workspace keeps its own camera
       })
@@ -1091,7 +1283,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       const built = insertGraph(
         { nodes: g.nodes, edges: g.edges, modelVersion: g.modelVersion },
         mod,
-        { at: opts.at },
+        { at: opts.free ? opts.at : snapNodePosition(opts.at) }, // issue #344 §DL3 — the anchor on the grid
       )
       if (!built.ok) return { ok: false, reason: built.reason }
       // §MS3.4 / MS7-2 — a v1 host + v2 module promotion is never silent. Bail

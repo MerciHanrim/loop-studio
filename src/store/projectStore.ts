@@ -16,6 +16,7 @@ import {
   mintId,
   planProposalExport,
   planRevisionExport,
+  recordKeepsLabels,
   truncBytes,
   type AppliedProposal,
   type CanonicalContent,
@@ -523,6 +524,9 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         {
           mode: 'document-boundary',
           canvasLocked: false,
+          // issue #344 step 3 — a proposal whose header declares semantics
+          // before `loop-revision/10` keeps its recorded label places (§ER15.1)
+          recordLabels: recordKeepsLabels(project),
           modelVersion: proposed.modelVersion ?? 1,
           frames: proposed.frames,
           dataImports: proposed.dataImports,

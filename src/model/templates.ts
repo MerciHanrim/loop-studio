@@ -25,6 +25,12 @@ import type { LoopEdge, LoopNode } from './types'
 export type InitialView = {
   rect: { x: number; y: number; width: number; height: number }
   minZoom: number
+  /** issue #344 (docs/diagram-layout.md §DL5.6) — the graph rect that must
+   *  open WHOLE (the core start nodes at their widest box over the 18
+   *  languages, `layout/templateBoxes.json`): the zoom is capped so it fits the
+   *  pane, clear of the minimap only where the two would overlap on both axes.
+   *  Above `minZoom` only; absent ⇒ the plain `rect` fit. */
+  keep?: { x: number; y: number; width: number; height: number }
 }
 
 export type Template = {
@@ -110,6 +116,12 @@ export const TEMPLATES: Template[] = [
     recommendedRunConfig: (coffeeRoasteryDoc as { recommendedRunConfig?: RecommendedRunConfig })
       .recommendedRunConfig,
     modelVersion: modelVersionForSchema((coffeeRoasteryDoc as { schema?: unknown }).schema) ?? 1,
+    // issue #344 step 5 (docs/diagram-layout.md §DL5.5) — the operating flow
+    // first: the five daily levers, the supply and the roasting & sales frames,
+    // sized so a 1280 x 800 window opens at about 0.5 (L1 with room, never at
+    // the 0.45 edge); the forecast metrics may start off screen (Reset view and
+    // the minimap show the whole graph)
+    initialView: { rect: { x: 8, y: -12, width: 1344, height: 912 }, minZoom: 0.46 },
   },
   // The "Early MMO progression (levels 1–15)" demo — a connected play economy.
   // The canonical graph is examples/mmo-progression.json (built + verified by
@@ -133,7 +145,20 @@ export const TEMPLATES: Template[] = [
     // threshold `LOD_L1_MIN` = 0.45); tuned by eye at 1280 / 820 px. The rest
     // of the graph is one pan / minimap away. Fixed graph coords, no locale
     // branch.
-    initialView: { rect: { x: 0, y: 0, width: 880, height: 360 }, minZoom: 0.6 },
+    // issue #344 steps 4–6 (docs/diagram-layout.md §DL5.5–§DL5.6) —
+    // readability first: the rect is sized for a zoom of about 1.05 at
+    // 1600 x 1000 (node text >= 12 px on screen) inside the Controls rail's
+    // reserved column; `keep` holds the core start nodes — Character creation,
+    // Active character, Starter encounters and Starter Lv 1–5 — at their
+    // widest box over the 18 languages (Thai Starter Lv 1–5, 196 px, ends at
+    // 1236), so they open whole at any pane size and with the minimap
+    // collapsed (1.040 at 1600 x 1000); later paths may start off screen
+    // (Reset view and the minimap show the whole graph)
+    initialView: {
+      rect: { x: 44, y: -4, width: 927, height: 368 },
+      minZoom: 0.6,
+      keep: { x: 48, y: 36, width: 1188, height: 200 },
+    },
   },
   // docs/gacha-banner-zones.md (GZ) — the 3-zone gacha banner comparison. The
   // canonical graph is examples/gacha-banner-zones.json, built by
@@ -180,6 +205,8 @@ export const TEMPLATES: Template[] = [
     // exact class of overflow if the layout shifts slightly in the future.
     // Fixed graph coords, no locale branch (comparison row 0-1720 + Free
     // zone 0-950 x 0-810).
-    initialView: { rect: { x: 0, y: 0, width: 1760, height: 850 }, minZoom: 0.45 },
+    // issue #344 step 4 (§DL5.5) — the comparison frame + the Free zone frame
+    // at their placed coordinates, 40 px margin
+    initialView: { rect: { x: -40, y: -56, width: 2080, height: 1136 }, minZoom: 0.45 },
   },
 ]

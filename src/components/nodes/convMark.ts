@@ -46,11 +46,10 @@ function inside(px: number, py: number, segs: readonly Seg[]): boolean {
   return n % 2 === 1
 }
 
-/** the outline of a Converter `w` × `h` CSS px, in CSS px (the SVG is drawn
- *  with `preserveAspectRatio="none"`, so x scales by `w / 120`) */
+/** the outline of a Converter `w` × `h` CSS px, in CSS px: issue #337 — drawn
+ *  for its own width (viewBox `0 0 w h`), so read at `w` */
 export function converterOutline(w: number, h: number): Seg[] {
-  const k = w / 120
-  return silhouetteSegments('converter', h).map(([a, b]) => [[a[0] * k, a[1]], [b[0] * k, b[1]]] as const)
+  return silhouetteSegments('converter', h, w).map(([a, b]) => [[a[0], a[1]], [b[0], b[1]]] as const)
 }
 
 /** is the `CONV_MARK` square at (x, y) inside the outline by `CONV_MARK_INSET`?

@@ -12,7 +12,10 @@ import { useGraphStore } from '../../store/graphStore'
 import { BEAT_ARRIVE, BEAT_DEPART_END, BEAT_SETTLE, useSimStore, type PlaybackPhase } from '../../store/simStore'
 import type { CueRole } from '../../store/playbackRank'
 import { useUiStore } from '../../store/uiStore'
-import { currentRouteMap } from '../../store/routeMap'
+import { currentRouteGeneration, setRouteLabelSize, useRouteInputs } from '../../store/routeMap'
+import { freeLinePoints, pointAlong } from './freeLine'
+import { RouteBends } from './RouteBends'
+import { useIsMobile } from '../../ui/media'
 import { useLod } from '../lod'
 import { useEdgeActivityOpacity } from '../frames/useActivityTint'
 import { MAX_PLAYBACK_TOKENS } from './playback-caps'
@@ -116,12 +119,29 @@ function LoopEdge({
   // its `d` from the atomic route map (§ER3.9); everything else (marker, bead,
   // pulse, rings, LOD) just consumes the `path` string.
   const routeMode = (data as { route?: unknown } | undefined)?.route
+  // SEMANTICS-R10.md — a straight connection is a direct line between its ports
+  const straight = routeMode === 'straight'
   const gNodes = useGraphStore((s) => s.nodes)
   const gEdges = useGraphStore((s) => s.edges)
-  const route = routeMode === 'orthogonal' ? currentRouteMap(gNodes, gEdges).get(id) : undefined
-  const path = route ? route.d : bezierPath
-  const labelX = route ? route.mid.x : bezierLabelX
-  const labelY = route ? route.mid.y : bezierLabelY
+  // issue #344 §ER14 — label sizes and the end of a drag are routing inputs too
+  useRouteInputs((s) => s.rev)
+  const gen = currentRouteGeneration(gNodes, gEdges)
+  const route = routeMode === 'orthogonal' ? gen.map.get(id) : undefined
+  // §ER15 — a Curved or Straight edge is not routed, but its label takes the
+  // free slot the map chose on its line; until that slot is known the label is
+  // not shown (never in a temporary place)
+  const slot = routeMode === 'orthogonal' ? undefined : gen.free.get(id)
+  const freeAt = slot
+    ? pointAlong(freeLinePoints({ x: sourceX, y: sourceY }, sourcePosition, { x: targetX, y: targetY }, targetPosition, straight), slot.f)
+    : null
+  // §ER15.1 — a record shown by its recorded label rule: the label sits at the
+  // line's middle, as it was recorded, at once
+  const record = useRouteInputs((s) => s.record)
+  const labelPending = routeMode !== 'orthogonal' && !slot && !record
+  const path = route ? route.d : straight ? `M ${sourceX},${sourceY}L ${targetX},${targetY}` : bezierPath
+  // §ER14.3 — a routed edge's label sits in the free slot the map chose
+  const labelX = route ? (route.label ?? route.mid).x : freeAt ? freeAt.x : straight ? (sourceX + targetX) / 2 : bezierLabelX
+  const labelY = route ? (route.label ?? route.mid).y : freeAt ? freeAt.y : straight ? (sourceY + targetY) / 2 : bezierLabelY
 
   // docs/large-graph-readability.md §LGR6-cues — the opt-in Activity overlay's
   // per-edge tint. Read here (not via the edge object's `style`, which v12 does
@@ -371,6 +391,12 @@ function LoopEdge({
   // label lives in a portal outside the edge group, so it is gated here, not in
   // CSS. In focus set ⇔ the edge touches the selected node.
   const focusMode = useUiStore((s) => s.focusMode)
+  // issue #344 step 3 — the bend handles of a selected Manual orthogonal
+  // connection: desktop only, never under the edit lock
+  const isMobile = useIsMobile()
+  const locked = useUiStore((s) => s.canvasLocked)
+  const bends = routeMode === 'orthogonal' && Array.isArray(d.waypoints) ? d.waypoints : null
+  const editsBends = selected && route != null && !isMobile && !locked && bends != null && bends.length > 0
   const selectedNodeId = useGraphStore((s) => s.selectedNodeId)
   const outOfFocus =
     focusMode && selectedNodeId != null && source !== selectedNodeId && target !== selectedNodeId
@@ -397,11 +423,16 @@ function LoopEdge({
   const labelRef = useRef<HTMLDivElement>(null)
   const [labelSize, setLabelSize] = useState<{ w: number; h: number } | null>(null)
   const labelKey = `${text}|${label.mark ?? ''}|${showLabel}|${selected}|${stepIndex}`
+  // issue #344 §ER14.3 — the router places labels from their REST size only
+  // (shown, not selected, no run value), so a run or a selection never moves a
+  // route
+  const reportsRestSize = !selected && sv == null
   useLayoutEffect(() => {
     const el = labelRef.current
     const next = el ? { w: el.offsetWidth, h: el.offsetHeight } : null
     setLabelSize((prev) => (prev && next && prev.w === next.w && prev.h === next.h ? prev : next))
-  }, [labelKey])
+    if (next && reportsRestSize) setRouteLabelSize(id, next.w, next.h)
+  }, [labelKey, reportsRestSize, id])
   const labelBox = showLabel && labelSize ? { x: labelX, y: labelY, ...labelSize } : null
   const labelDimmed =
     (pbPt != null && labelUnderToken(labelBox, pbPt.x, pbPt.y, pbBadgeOn ? pbBadge : null)) ||
@@ -423,6 +454,26 @@ function LoopEdge({
   const markerId =
     (accent ? accentMarkerId(accent) : null) ?? (isState ? EDGE_MARKER.state : EDGE_MARKER.resource)
 
+  // issue #344 §ER14.5 — a routed edge whose route is not committed yet (the
+  // first, sliced generation of a document) is not drawn at all: no temporary
+  // path, no label in a wrong place. Only an invisible, off-canvas copy of its
+  // label is rendered, so its rest size reaches the router before the routes do.
+  if (routeMode === 'orthogonal' && !route) {
+    return showLabel ? (
+      <EdgeLabelRenderer>
+        <div
+          ref={labelRef}
+          className={`edge-label edge-label--measure${isState ? ' edge-label--state' : ''}`}
+          aria-hidden="true"
+          style={{ visibility: 'hidden', transform: 'translate(-99999px, -99999px)' }}
+          dir={textDir}
+        >
+          {label.mark ? <Icon name="trigger" className="edge-label__mark" /> : text}
+        </div>
+      </EdgeLabelRenderer>
+    ) : null
+  }
+
   return (
     <>
       {/* FC-4.2 — selection is an underlay beneath the path, never a recolour */}
@@ -439,7 +490,11 @@ function LoopEdge({
           // an inline `stroke-dasharray` used to beat every stylesheet rule
           // and left active state edges with no tell at all.
           isState ? 'edge-state' : 'edge-resource',
-          route ? `route-${route.routeClass}${route.invalidWaypoint ? ' route-invalid' : ''}` : '',
+          // every guarded route is `route-orthogonal`; a lower rung of the
+          // ladder (§ER14.2) is named beside it
+          route
+            ? `route-orthogonal${route.routeClass !== 'orthogonal' ? ` route-${route.routeClass}` : ''}${route.invalidWaypoint ? ' route-invalid' : ''}`
+            : '',
           activityOp > 0 ? 'lgr-active-tint' : '',
           // issue #329 — an unsatisfied activator's 0.5 is a class, not an
           // inline `opacity`: an inline value beat Focus mode's 0.26
@@ -664,6 +719,8 @@ function LoopEdge({
         </EdgeLabelRenderer>
       ) : null}
 
+      {editsBends ? <RouteBends edgeId={id} waypoints={bends!} /> : null}
+
       {showLabel ? (
         <EdgeLabelRenderer>
           <div
@@ -678,7 +735,10 @@ function LoopEdge({
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
               ...(accent ? { ['--edge-accent' as string]: accent } : null),
+              // §ER15 — measured, not shown, until its slot is known
+              ...(labelPending ? { visibility: 'hidden' as const } : null),
             }}
+            aria-hidden={labelPending || undefined}
             dir={textDir}
           >
             {label.mark ? <Icon name="trigger" className="edge-label__mark" /> : text}

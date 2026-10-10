@@ -447,7 +447,7 @@ const ui = {
   'help.contextual.hint.import.desc':
     'Affiché une fois, juste après le premier import de feuille de calcul sur le canevas.',
   'hint.frameMove.body':
-    'Faites glisser le bord d’un cadre pour le déplacer avec tout ce qu’il contient. Maintenez Alt pendant le déplacement pour ne bouger que le cadre.',
+    'Faites glisser le bord d’un cadre pour le déplacer avec tout ce qu’il contient. Maintenez Ctrl (⌘ sur Mac) pendant le déplacement pour ne bouger que le cadre, ou Alt pour le déplacer librement, hors de la grille.',
   'help.contextual.hint.frameMove.name': 'Déplacement de cadre',
   'help.contextual.hint.frameMove.desc':
     'Affiché une fois, la première fois qu’un cadre de groupe est sélectionné sur un canevas modifiable.',
@@ -654,6 +654,11 @@ const ui = {
   'whatsNew.v0240.tiers': 'La vitesse de lecture change désormais aussi ce qu’une étape montre. À partir de 0,4 s par étape, le repère mobile porte son +N. Plus vite, le +N apparaît à l’arrivée. Sous 0,2 s, le chemin s’allume brièvement et le repère apparaît à son extrémité.',
   'whatsNew.v0240.step': 'Avancer d’un pas montre toujours tout le mouvement, quelle que soit la vitesse choisie.',
   'whatsNew.v0240.phone': 'Sur un téléphone, le menu Plus propose désormais la vitesse de lecture (Lente, Normale, Rapide ou Très rapide), et 12 repères au plus se déplacent à la fois.',
+  'whatsNew.v0250.grid': 'Édition alignée sur la grille. Les nœuds et les cadres s’alignent sur une grille de 16 px, avec des repères intelligents pour les points de connexion, centres et bords proches. Les diagrammes ordinaires existants sont alignés une fois, et Aligner sur la grille réaligne le diagramme ouvert en une seule action annulable.',
+  'whatsNew.v0250.routing': 'Tracé automatique plus lisible. Les connexions orthogonales automatiques évitent les nœuds, séparent les connexions qui partagent un point de connexion et placent leurs étiquettes dans des espaces plus dégagés.',
+  'whatsNew.v0250.shapes': 'Formes de connexion modifiables. Choisissez Courbe, Droit ou Orthogonal, automatique ou avec vos propres coudes : ajoutez-les, déplacez-les ou supprimez-les sur ordinateur. Sur téléphone, ces formes s’affichent sans pouvoir être modifiées.',
+  'whatsNew.v0250.outline': 'Le texte reste dans les nœuds. Le contour d’un nœud s’adapte désormais à son titre et à ses valeurs, et le texte reste à l’intérieur dans les 18 langues.',
+  'whatsNew.v0250.templates': 'Modèles retravaillés. Les cinq modèles fournis utilisent la nouvelle grille et le nouveau tracé, avec un espacement plus clair et de meilleures vues d’ouverture.',
 } satisfies Record<UiKey, string>
 
 export default ui

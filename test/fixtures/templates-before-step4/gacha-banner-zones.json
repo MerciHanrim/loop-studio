@@ -1,0 +1,2273 @@
+{
+  "schema": "loop-studio/graph/2",
+  "version": 1,
+  "layoutVersion": 1,
+  "nodes": [
+    {
+      "id": "pulls_per_zone",
+      "type": "parameter",
+      "position": {
+        "x": 40,
+        "y": 40
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Pulls per zone (whole number)",
+        "value": 200
+      }
+    },
+    {
+      "id": "cmp1_hit_rate_free",
+      "type": "register",
+      "position": {
+        "x": 380,
+        "y": 40
+      },
+      "data": {
+        "kind": "register",
+        "label": "Hit rate — General / Free",
+        "expr": "@ssr_count_free / @pulls_per_zone",
+        "format": "percent"
+      }
+    },
+    {
+      "id": "cmp2_hit_rate_standard",
+      "type": "register",
+      "position": {
+        "x": 720,
+        "y": 40
+      },
+      "data": {
+        "kind": "register",
+        "label": "Hit rate — Premium Standard",
+        "expr": "@ssr_count_standard / @pulls_per_zone",
+        "format": "percent"
+      }
+    },
+    {
+      "id": "cmp3_hit_rate_pickup",
+      "type": "register",
+      "position": {
+        "x": 1060,
+        "y": 40
+      },
+      "data": {
+        "kind": "register",
+        "label": "Hit rate — Premium Pickup",
+        "expr": "@ssr_count_pickup / @pulls_per_zone",
+        "format": "percent"
+      }
+    },
+    {
+      "id": "cmp4_pickup_rate_pickup",
+      "type": "register",
+      "position": {
+        "x": 1400,
+        "y": 40
+      },
+      "data": {
+        "kind": "register",
+        "label": "Pickup rate — Premium Pickup",
+        "expr": "@pickup_count_pickup / @pulls_per_zone",
+        "format": "percent"
+      }
+    },
+    {
+      "id": "fund_free",
+      "type": "source",
+      "position": {
+        "x": 40,
+        "y": 370
+      },
+      "data": {
+        "kind": "source",
+        "label": "Fund tickets",
+        "activation": "onStart",
+        "mode": "pushAny",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "ticket_free",
+      "type": "pool",
+      "position": {
+        "x": 230,
+        "y": 370
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Tickets",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "pulls_made_free",
+      "type": "pool",
+      "position": {
+        "x": 40,
+        "y": 730
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Pulls made",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "zone1_free_w_ssr",
+      "type": "parameter",
+      "position": {
+        "x": 300,
+        "y": 730
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "General / Free · SSR weight",
+        "value": 6
+      }
+    },
+    {
+      "id": "zone1_free_w_sr",
+      "type": "parameter",
+      "position": {
+        "x": 560,
+        "y": 730
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "General / Free · SR weight",
+        "value": 51
+      }
+    },
+    {
+      "id": "zone1_free_w_r",
+      "type": "parameter",
+      "position": {
+        "x": 40,
+        "y": 870
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "General / Free · R weight",
+        "value": 943
+      }
+    },
+    {
+      "id": "sr_count_free",
+      "type": "pool",
+      "position": {
+        "x": 800,
+        "y": 370
+      },
+      "data": {
+        "kind": "pool",
+        "label": "SR count",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "r_count_free",
+      "type": "pool",
+      "position": {
+        "x": 800,
+        "y": 470
+      },
+      "data": {
+        "kind": "pool",
+        "label": "R count",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "ssr_count_free",
+      "type": "pool",
+      "position": {
+        "x": 800,
+        "y": 570
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Free SSR",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "roll_gate_free",
+      "type": "gate",
+      "position": {
+        "x": 420,
+        "y": 370
+      },
+      "data": {
+        "kind": "gate",
+        "label": "Roll",
+        "activation": "automatic",
+        "distribution": "probabilistic",
+        "mode": "pullAny",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "ssr_hit_free",
+      "type": "gate",
+      "position": {
+        "x": 610,
+        "y": 370
+      },
+      "data": {
+        "kind": "gate",
+        "label": "SSR",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "sr_hit_free",
+      "type": "gate",
+      "position": {
+        "x": 610,
+        "y": 470
+      },
+      "data": {
+        "kind": "gate",
+        "label": "SR",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "r_hit_free",
+      "type": "gate",
+      "position": {
+        "x": 610,
+        "y": 570
+      },
+      "data": {
+        "kind": "gate",
+        "label": "R",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "fund_standard",
+      "type": "source",
+      "position": {
+        "x": 1260,
+        "y": 370
+      },
+      "data": {
+        "kind": "source",
+        "label": "Fund tickets",
+        "activation": "onStart",
+        "mode": "pushAny",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "ticket_standard",
+      "type": "pool",
+      "position": {
+        "x": 1450,
+        "y": 370
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Tickets",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "pulls_made_standard",
+      "type": "pool",
+      "position": {
+        "x": 1520,
+        "y": 730
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Pulls made",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "zone2_standard_w_ssr",
+      "type": "parameter",
+      "position": {
+        "x": 1780,
+        "y": 730
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Premium Standard · SSR weight",
+        "value": 10
+      }
+    },
+    {
+      "id": "zone2_standard_w_sr",
+      "type": "parameter",
+      "position": {
+        "x": 1260,
+        "y": 870
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Premium Standard · SR weight",
+        "value": 90
+      }
+    },
+    {
+      "id": "zone2_standard_w_r",
+      "type": "parameter",
+      "position": {
+        "x": 1520,
+        "y": 870
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Premium Standard · R weight",
+        "value": 900
+      }
+    },
+    {
+      "id": "sr_count_standard",
+      "type": "pool",
+      "position": {
+        "x": 2020,
+        "y": 370
+      },
+      "data": {
+        "kind": "pool",
+        "label": "SR count",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "r_count_standard",
+      "type": "pool",
+      "position": {
+        "x": 2020,
+        "y": 470
+      },
+      "data": {
+        "kind": "pool",
+        "label": "R count",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "ssr_count_standard",
+      "type": "pool",
+      "position": {
+        "x": 2020,
+        "y": 570
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Standard SSR",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "roll_gate_standard",
+      "type": "gate",
+      "position": {
+        "x": 1640,
+        "y": 370
+      },
+      "data": {
+        "kind": "gate",
+        "label": "Roll",
+        "activation": "automatic",
+        "distribution": "probabilistic",
+        "mode": "pullAny",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "ssr_hit_standard",
+      "type": "gate",
+      "position": {
+        "x": 1830,
+        "y": 370
+      },
+      "data": {
+        "kind": "gate",
+        "label": "SSR",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "sr_hit_standard",
+      "type": "gate",
+      "position": {
+        "x": 1830,
+        "y": 470
+      },
+      "data": {
+        "kind": "gate",
+        "label": "SR",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "r_hit_standard",
+      "type": "gate",
+      "position": {
+        "x": 1830,
+        "y": 570
+      },
+      "data": {
+        "kind": "gate",
+        "label": "R",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "pity_standard",
+      "type": "pool",
+      "position": {
+        "x": 1260,
+        "y": 730
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Pity",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "zone2_standard_hard_pity",
+      "type": "parameter",
+      "position": {
+        "x": 1780,
+        "y": 870
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Premium Standard · Hard pity ceiling",
+        "value": 80
+      }
+    },
+    {
+      "id": "forced_ssr_standard",
+      "type": "gate",
+      "position": {
+        "x": 1640,
+        "y": 470
+      },
+      "data": {
+        "kind": "gate",
+        "label": "Forced SSR",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "ceiling_hits_standard",
+      "type": "pool",
+      "position": {
+        "x": 1260,
+        "y": 1010
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Ceiling hits",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "fund_pickup",
+      "type": "source",
+      "position": {
+        "x": 2480,
+        "y": 370
+      },
+      "data": {
+        "kind": "source",
+        "label": "Fund tickets",
+        "activation": "onStart",
+        "mode": "pushAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "ticket_pickup",
+      "type": "pool",
+      "position": {
+        "x": 2800,
+        "y": 370
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Tickets",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "pulls_made_pickup",
+      "type": "pool",
+      "position": {
+        "x": 3000,
+        "y": 830
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Pulls made",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "zone3_pickup_w_ssr",
+      "type": "parameter",
+      "position": {
+        "x": 2480,
+        "y": 970
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Premium Pickup · SSR weight",
+        "value": 10
+      }
+    },
+    {
+      "id": "zone3_pickup_w_sr",
+      "type": "parameter",
+      "position": {
+        "x": 2740,
+        "y": 970
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Premium Pickup · SR weight",
+        "value": 90
+      }
+    },
+    {
+      "id": "zone3_pickup_w_r",
+      "type": "parameter",
+      "position": {
+        "x": 3000,
+        "y": 970
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Premium Pickup · R weight",
+        "value": 900
+      }
+    },
+    {
+      "id": "sr_count_pickup",
+      "type": "pool",
+      "position": {
+        "x": 3760,
+        "y": 370
+      },
+      "data": {
+        "kind": "pool",
+        "label": "SR count",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "r_count_pickup",
+      "type": "pool",
+      "position": {
+        "x": 3760,
+        "y": 470
+      },
+      "data": {
+        "kind": "pool",
+        "label": "R count",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "ssr_count_pickup",
+      "type": "pool",
+      "position": {
+        "x": 2480,
+        "y": 470
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Pickup SSR",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "pity_pickup",
+      "type": "pool",
+      "position": {
+        "x": 2480,
+        "y": 830
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Pity",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "zone3_pickup_hard_pity",
+      "type": "parameter",
+      "position": {
+        "x": 2480,
+        "y": 1110
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Premium Pickup · Hard pity ceiling",
+        "value": 80
+      }
+    },
+    {
+      "id": "ceiling_hits_pickup",
+      "type": "pool",
+      "position": {
+        "x": 2740,
+        "y": 1110
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Ceiling hits",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "missed_pickup_pickup",
+      "type": "pool",
+      "position": {
+        "x": 2740,
+        "y": 830
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Pickup owed",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "zone3_pickup_w_pickup",
+      "type": "parameter",
+      "position": {
+        "x": 3000,
+        "y": 1110
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Premium Pickup · Pickup weight",
+        "value": 50
+      }
+    },
+    {
+      "id": "zone3_pickup_w_standard",
+      "type": "parameter",
+      "position": {
+        "x": 2480,
+        "y": 1250
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Premium Pickup · Standard weight",
+        "value": 50
+      }
+    },
+    {
+      "id": "roll_normal_open_pickup",
+      "type": "gate",
+      "position": {
+        "x": 3120,
+        "y": 370
+      },
+      "data": {
+        "kind": "gate",
+        "label": "Roll — normal, not owed",
+        "activation": "automatic",
+        "distribution": "probabilistic",
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "roll_normal_owed_pickup",
+      "type": "gate",
+      "position": {
+        "x": 3120,
+        "y": 470
+      },
+      "data": {
+        "kind": "gate",
+        "label": "Roll — normal, owed",
+        "activation": "automatic",
+        "distribution": "probabilistic",
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "roll_forced_open_pickup",
+      "type": "gate",
+      "position": {
+        "x": 3120,
+        "y": 570
+      },
+      "data": {
+        "kind": "gate",
+        "label": "Roll — forced, not owed",
+        "activation": "automatic",
+        "distribution": "probabilistic",
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "roll_forced_owed_pickup",
+      "type": "gate",
+      "position": {
+        "x": 3120,
+        "y": 670
+      },
+      "data": {
+        "kind": "gate",
+        "label": "Roll — forced, owed",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "ssr_split_open_pickup",
+      "type": "gate",
+      "position": {
+        "x": 3440,
+        "y": 370
+      },
+      "data": {
+        "kind": "gate",
+        "label": "SSR split — not owed",
+        "activation": "automatic",
+        "distribution": "probabilistic",
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "pickup_hit_pickup",
+      "type": "gate",
+      "position": {
+        "x": 3760,
+        "y": 570
+      },
+      "data": {
+        "kind": "gate",
+        "label": "Pickup hit",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "standard_hit_pickup",
+      "type": "gate",
+      "position": {
+        "x": 3760,
+        "y": 670
+      },
+      "data": {
+        "kind": "gate",
+        "label": "Standard hit",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "sr_hit_pickup",
+      "type": "gate",
+      "position": {
+        "x": 3440,
+        "y": 470
+      },
+      "data": {
+        "kind": "gate",
+        "label": "SR",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "r_hit_pickup",
+      "type": "gate",
+      "position": {
+        "x": 3440,
+        "y": 570
+      },
+      "data": {
+        "kind": "gate",
+        "label": "R",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "pickup_count_pickup",
+      "type": "pool",
+      "position": {
+        "x": 4080,
+        "y": 370
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Pickup wins",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "standard_count_pickup",
+      "type": "pool",
+      "position": {
+        "x": 4080,
+        "y": 470
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Standard count",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "termination_fuel",
+      "type": "pool",
+      "position": {
+        "x": 40,
+        "y": 170
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Completion signal",
+        "activation": "passive",
+        "initial": 1,
+        "capacity": 1,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "all_zones_done",
+      "type": "end",
+      "position": {
+        "x": 264,
+        "y": 170
+      },
+      "data": {
+        "kind": "end",
+        "label": "All zones complete",
+        "activation": "automatic"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_free_1",
+      "source": "fund_free",
+      "target": "ticket_free",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@pulls_per_zone",
+        "route": "orthogonal",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "e_free_2",
+      "source": "roll_gate_free",
+      "target": "ssr_hit_free",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@zone1_free_w_ssr",
+        "route": "orthogonal",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "e_free_3",
+      "source": "roll_gate_free",
+      "target": "sr_hit_free",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@zone1_free_w_sr",
+        "route": "orthogonal",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "e_free_4",
+      "source": "roll_gate_free",
+      "target": "r_hit_free",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@zone1_free_w_r",
+        "route": "orthogonal",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "e_free_5",
+      "source": "sr_hit_free",
+      "target": "sr_count_free",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "e_free_6",
+      "source": "r_hit_free",
+      "target": "r_count_free",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "e_free_7",
+      "source": "ssr_hit_free",
+      "target": "pulls_made_free",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_free_8",
+      "source": "sr_hit_free",
+      "target": "pulls_made_free",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_free_9",
+      "source": "r_hit_free",
+      "target": "pulls_made_free",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_free_10",
+      "source": "ticket_free",
+      "target": "roll_gate_free",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "e_free_11",
+      "source": "ssr_hit_free",
+      "target": "ssr_count_free",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "e_standard_1",
+      "source": "fund_standard",
+      "target": "ticket_standard",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@pulls_per_zone",
+        "route": "orthogonal",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "e_standard_2",
+      "source": "roll_gate_standard",
+      "target": "ssr_hit_standard",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@zone2_standard_w_ssr",
+        "route": "orthogonal",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "e_standard_3",
+      "source": "roll_gate_standard",
+      "target": "sr_hit_standard",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@zone2_standard_w_sr",
+        "route": "orthogonal",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "e_standard_4",
+      "source": "roll_gate_standard",
+      "target": "r_hit_standard",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@zone2_standard_w_r",
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 1740,
+            "y": 370
+          }
+        ],
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "e_standard_5",
+      "source": "sr_hit_standard",
+      "target": "sr_count_standard",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "e_standard_6",
+      "source": "r_hit_standard",
+      "target": "r_count_standard",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "e_standard_7",
+      "source": "ssr_hit_standard",
+      "target": "pulls_made_standard",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_standard_8",
+      "source": "sr_hit_standard",
+      "target": "pulls_made_standard",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_standard_9",
+      "source": "r_hit_standard",
+      "target": "pulls_made_standard",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_standard_10",
+      "source": "ticket_standard",
+      "target": "roll_gate_standard",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "e_standard_11",
+      "source": "ticket_standard",
+      "target": "forced_ssr_standard",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "e_standard_12",
+      "source": "pity_standard",
+      "target": "roll_gate_standard",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": "< @zone2_standard_hard_pity - 1",
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 1200,
+            "y": 550
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_standard_13",
+      "source": "pity_standard",
+      "target": "forced_ssr_standard",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= @zone2_standard_hard_pity - 1",
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 1320,
+            "y": 550
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_standard_14",
+      "source": "forced_ssr_standard",
+      "target": "ceiling_hits_standard",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_standard_15",
+      "source": "ssr_hit_standard",
+      "target": "pity_standard",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "=0",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_standard_16",
+      "source": "forced_ssr_standard",
+      "target": "pity_standard",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "=0",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_standard_17",
+      "source": "sr_hit_standard",
+      "target": "pity_standard",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_standard_18",
+      "source": "r_hit_standard",
+      "target": "pity_standard",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_standard_19",
+      "source": "forced_ssr_standard",
+      "target": "pulls_made_standard",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_standard_20",
+      "source": "ssr_hit_standard",
+      "target": "ssr_count_standard",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "e_standard_21",
+      "source": "forced_ssr_standard",
+      "target": "ssr_count_standard",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#9182A8"
+      }
+    },
+    {
+      "id": "e_pickup_1",
+      "source": "fund_pickup",
+      "target": "ticket_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@pulls_per_zone",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_2",
+      "source": "ticket_pickup",
+      "target": "roll_normal_open_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_3",
+      "source": "ticket_pickup",
+      "target": "roll_normal_owed_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_4",
+      "source": "ticket_pickup",
+      "target": "roll_forced_open_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_5",
+      "source": "ticket_pickup",
+      "target": "roll_forced_owed_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_6",
+      "source": "pity_pickup",
+      "target": "roll_normal_open_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": "< @zone3_pickup_hard_pity - 1",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_pickup_7",
+      "source": "missed_pickup_pickup",
+      "target": "roll_normal_open_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": "< 1",
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 2680,
+            "y": 600
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_pickup_8",
+      "source": "pity_pickup",
+      "target": "roll_normal_owed_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": "< @zone3_pickup_hard_pity - 1",
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 2420,
+            "y": 600
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_pickup_9",
+      "source": "missed_pickup_pickup",
+      "target": "roll_normal_owed_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 1",
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 2800,
+            "y": 600
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_pickup_10",
+      "source": "pity_pickup",
+      "target": "roll_forced_open_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= @zone3_pickup_hard_pity - 1",
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 2540,
+            "y": 600
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_pickup_11",
+      "source": "missed_pickup_pickup",
+      "target": "roll_forced_open_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": "< 1",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_pickup_12",
+      "source": "pity_pickup",
+      "target": "roll_forced_owed_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= @zone3_pickup_hard_pity - 1",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_pickup_13",
+      "source": "missed_pickup_pickup",
+      "target": "roll_forced_owed_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 1",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_pickup_14",
+      "source": "roll_normal_open_pickup",
+      "target": "ssr_split_open_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@zone3_pickup_w_ssr",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_15",
+      "source": "roll_forced_open_pickup",
+      "target": "ssr_split_open_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_16",
+      "source": "ssr_split_open_pickup",
+      "target": "pickup_hit_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@zone3_pickup_w_pickup",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_17",
+      "source": "ssr_split_open_pickup",
+      "target": "standard_hit_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@zone3_pickup_w_standard",
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 3700,
+            "y": 549
+          }
+        ],
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_18",
+      "source": "roll_normal_owed_pickup",
+      "target": "pickup_hit_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@zone3_pickup_w_ssr",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_19",
+      "source": "roll_normal_owed_pickup",
+      "target": "sr_hit_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@zone3_pickup_w_sr",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_20",
+      "source": "roll_normal_owed_pickup",
+      "target": "r_hit_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@zone3_pickup_w_r",
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 3360,
+            "y": 548
+          }
+        ],
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_21",
+      "source": "roll_normal_open_pickup",
+      "target": "sr_hit_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@zone3_pickup_w_sr",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_22",
+      "source": "roll_normal_open_pickup",
+      "target": "r_hit_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@zone3_pickup_w_r",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_23",
+      "source": "roll_forced_owed_pickup",
+      "target": "pickup_hit_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_24",
+      "source": "pickup_hit_pickup",
+      "target": "pickup_count_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_25",
+      "source": "standard_hit_pickup",
+      "target": "standard_count_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_26",
+      "source": "sr_hit_pickup",
+      "target": "sr_count_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_27",
+      "source": "r_hit_pickup",
+      "target": "r_count_pickup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_pickup_28",
+      "source": "pickup_hit_pickup",
+      "target": "pity_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "=0",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 3760,
+            "y": 780
+          },
+          {
+            "x": 2480,
+            "y": 780
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_pickup_29",
+      "source": "standard_hit_pickup",
+      "target": "pity_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "=0",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_pickup_30",
+      "source": "sr_hit_pickup",
+      "target": "pity_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_pickup_31",
+      "source": "r_hit_pickup",
+      "target": "pity_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_pickup_32",
+      "source": "pickup_hit_pickup",
+      "target": "pulls_made_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_pickup_33",
+      "source": "standard_hit_pickup",
+      "target": "pulls_made_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_pickup_34",
+      "source": "sr_hit_pickup",
+      "target": "pulls_made_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_pickup_35",
+      "source": "r_hit_pickup",
+      "target": "pulls_made_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 3200,
+            "y": 700
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_pickup_36",
+      "source": "pickup_hit_pickup",
+      "target": "ssr_count_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 3200,
+            "y": 650
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_pickup_37",
+      "source": "standard_hit_pickup",
+      "target": "ssr_count_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 3827,
+            "y": 340
+          },
+          {
+            "x": 2539,
+            "y": 340
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_pickup_38",
+      "source": "roll_forced_open_pickup",
+      "target": "ceiling_hits_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_pickup_39",
+      "source": "roll_forced_owed_pickup",
+      "target": "ceiling_hits_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_pickup_40",
+      "source": "standard_hit_pickup",
+      "target": "missed_pickup_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "=1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 3200,
+            "y": 750
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_pickup_41",
+      "source": "pickup_hit_pickup",
+      "target": "missed_pickup_pickup",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "=0",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_termination_fuel",
+      "source": "termination_fuel",
+      "target": "all_zones_done",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "all",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_termination_gate_free",
+      "source": "pulls_made_free",
+      "target": "all_zones_done",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= @pulls_per_zone",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_termination_gate_standard",
+      "source": "pulls_made_standard",
+      "target": "all_zones_done",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= @pulls_per_zone",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_termination_gate_pickup",
+      "source": "pulls_made_pickup",
+      "target": "all_zones_done",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= @pulls_per_zone",
+        "route": "orthogonal"
+      }
+    }
+  ],
+  "recommendedRunConfig": {
+    "baseSeed": 1,
+    "runs": 2000,
+    "steps": 202,
+    "tracked": [
+      "pulls_made_free",
+      "ssr_count_free",
+      "pulls_made_standard",
+      "ssr_count_standard",
+      "ceiling_hits_standard",
+      "pulls_made_pickup",
+      "ssr_count_pickup",
+      "ceiling_hits_pickup",
+      "pickup_count_pickup",
+      "standard_count_pickup"
+    ],
+    "timelineSeries": [
+      "ssr_count_free",
+      "ssr_count_standard",
+      "ssr_count_pickup",
+      "pickup_count_pickup"
+    ],
+    "canvasLocked": true
+  },
+  "frames": [
+    {
+      "id": "zone_comparison",
+      "label": "Comparison",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "w": 1720,
+        "h": 300
+      }
+    },
+    {
+      "id": "zone_free",
+      "label": "General / Free",
+      "rect": {
+        "x": 0,
+        "y": 330,
+        "w": 950,
+        "h": 620
+      },
+      "color": "sage"
+    },
+    {
+      "id": "zone_standard",
+      "label": "Premium Standard",
+      "rect": {
+        "x": 1220,
+        "y": 330,
+        "w": 950,
+        "h": 760
+      },
+      "color": "violet"
+    },
+    {
+      "id": "zone_pickup",
+      "label": "Premium Pickup",
+      "rect": {
+        "x": 2440,
+        "y": 330,
+        "w": 1790,
+        "h": 1000
+      },
+      "color": "rose"
+    }
+  ]
+}

@@ -424,7 +424,7 @@ Table B (final) — pinned separately by the impl PR's fixture test
 | Graph | Contaminated LP/split groups | Outcome |
 |---|---|---|
 | Coffee | none (0 foreign in every group) | 3 candidates pass through unchanged |
-| MMO | the 28 / 18 / 13 / 10 / 7 / 7 raw groups all fail S8 once bisected | recursive bisection yields **12 clean candidates** (`{10, 8, 7, 6, 4, 4, 4, 4, 3, 3, 3, 3}`) + **7 dropped** (`no valid spatial gap`: sizes 3, 4, 3, 7, 4, 4, 6) |
+| MMO | the 28 / 18 / 13 / 10 / 7 / 7 raw groups all fail S8 once bisected | recursive bisection yields **14 clean candidates** (`{10, 8, 7, 6, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3}`) + **6 dropped** (`no valid spatial gap`: sizes 6, 4, 4, 4, 3, 3); before issue #344 step 5 re-placed the Template by its widest boxes, 12 clean + 7 dropped (the 7 now splits into a 4 and a 3) |
 
 **Table B — final suggested frames (measured, after steps 3b – 5):**
 

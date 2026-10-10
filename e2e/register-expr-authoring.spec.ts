@@ -140,28 +140,44 @@ test('§RXA9.3b — nothing the pick defers may touch the caret after the user h
   // loaded machine, not an exotic one. Releasing it *after* the user has typed
   // is the interleaving that produced `@wallet+ 10 ` in CI.
   await page.evaluate(() => {
-    const w = window as unknown as { __heldFrames: FrameRequestCallback[] }
+    const w = window as unknown as { __heldFrames: FrameRequestCallback[]; __realRaf: typeof window.requestAnimationFrame }
     w.__heldFrames = []
+    w.__realRaf = window.requestAnimationFrame
     window.requestAnimationFrame = ((cb: FrameRequestCallback) => w.__heldFrames.push(cb)) as unknown as typeof window.requestAnimationFrame
   })
-  await expr(page).fill('')
-  await expr(page).pressSequentially('@wal')
-  await expect(listbox(page)).toBeVisible()
-  await page.locator('[role="option"]', { hasText: 'Wallet' }).first().click()
-  await expect(expr(page)).toHaveValue('@wallet')
-  // the pick has to be finished here, with no frame having run
-  await expect.poll(() => caretState(page)).toEqual({ focused: true, start: 7, end: 7 })
+  // the stub is this test's own: the real requestAnimationFrame comes back
+  // right after the held frames run, and on any failure before that
+  const restoreRaf = () =>
+    page.evaluate(() => {
+      const w = window as unknown as { __realRaf?: typeof window.requestAnimationFrame }
+      if (w.__realRaf) window.requestAnimationFrame = w.__realRaf
+      delete w.__realRaf
+    })
+  try {
+    await expr(page).fill('')
+    await expr(page).pressSequentially('@wal')
+    await expect(listbox(page)).toBeVisible()
+    await page.locator('[role="option"]', { hasText: 'Wallet' }).first().click()
+    await expect(expr(page)).toHaveValue('@wallet')
+    // the pick has to be finished here, with no frame having run
+    await expect.poll(() => caretState(page)).toEqual({ focused: true, start: 7, end: 7 })
 
-  // real sequential typing, the path this test exists for
-  await expr(page).pressSequentially(' + 10')
-  await expect(expr(page)).toHaveValue('@wallet + 10')
+    // real sequential typing, the path this test exists for
+    await expr(page).pressSequentially(' + 10')
+    await expect(expr(page)).toHaveValue('@wallet + 10')
 
-  // now let the held frames run. Whatever the pick left on one of them must
-  // not move the caret out from under the text the user just typed.
-  await page.evaluate(() => {
-    const w = window as unknown as { __heldFrames: FrameRequestCallback[] }
-    for (const cb of w.__heldFrames.splice(0)) cb(performance.now())
-  })
+    // now let the held frames run. Whatever the pick left on one of them must
+    // not move the caret out from under the text the user just typed.
+    await page.evaluate(() => {
+      const w = window as unknown as { __heldFrames: FrameRequestCallback[] }
+      for (const cb of w.__heldFrames.splice(0)) cb(performance.now())
+    })
+  } finally {
+    await restoreRaf()
+  }
+  // nothing of the stub is left for what follows (the import below waits on real frames)
+  expect(await page.evaluate(() => /\[native code\]/.test(Function.prototype.toString.call(window.requestAnimationFrame)))).toBe(true)
+  expect(await page.evaluate(() => new Promise<boolean>((r) => requestAnimationFrame(() => r(true))))).toBe(true)
   await expect.poll(() => caretState(page)).toEqual({ focused: true, start: 12, end: 12 })
 
   // and the next character still lands at the end, where the caret is

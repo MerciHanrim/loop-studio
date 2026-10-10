@@ -12,6 +12,8 @@ import { createKeyGesture } from '../../ui/keyGestureLifetime'
 import { FramePropsPopover } from './FramePropsPopover'
 import { isolateAuto } from '../../i18n/bidiIsolate'
 import { Icon } from '../../ui/icons'
+import { GRID, snapPoint } from '../../model/layout/grid'
+import { beginLiveLayout, endLiveLayout } from '../../store/routeMap'
 
 // docs/large-graph-readability.md §LGR6 (transient) + …-auto-frames.md §AF (auto).
 // One render layer for BOTH frame kinds:
@@ -63,10 +65,26 @@ import { Icon } from '../../ui/icons'
 
 const rectEq = (a: FrameRect, b: FrameRect) => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h
 
+/** issue #344 §DL3.2 — a snapped move / resize can end with the pointer off the
+ *  strip or handle it pressed (the frame jumps to the grid under it), so the
+ *  browser's click lands on whatever the release is over — the pane would
+ *  deselect the frame. The one click that ends a real gesture is swallowed;
+ *  a press that changed nothing keeps its click (it selects). */
+function swallowNextClick(): void {
+  const stop = (ev: MouseEvent) => {
+    ev.stopPropagation()
+    ev.preventDefault()
+    done()
+  }
+  const done = () => window.removeEventListener('click', stop, true)
+  window.addEventListener('click', stop, true)
+  setTimeout(done, 0) // the click, if any, is dispatched before this runs
+}
+
 // §LGR6.6 — the same steps React Flow gives a node's arrow keys, so one canvas
 // never teaches two rules.
-const KEY_STEP = 5
-const KEY_STEP_FAST = 20
+const KEY_STEP = GRID // issue #344 §DL3 — one grid step
+const KEY_STEP_FAST = GRID * 4 // Shift: four steps
 const ARROWS: Record<string, readonly [number, number]> = {
   ArrowLeft: [-1, 0],
   ArrowRight: [1, 0],
@@ -113,6 +131,8 @@ type Drag =
       origin: MoveOrigin
       snapshot: GestureSnapshot
       last: Pt | null
+      /** issue #344 §DL3 — Alt held at the last pointer event: a free move */
+      free?: boolean
       raf: number | null
       /** the dragged frame's rect at the last applied Δ (an auto frame's draft / the promote rect) */
       current: FrameRect
@@ -126,6 +146,8 @@ type Drag =
       orig: FrameRect
       snapshot: GestureSnapshot
       last: Pt | null
+      /** issue #344 §DL3 — Alt held at the last pointer event: a free move */
+      free?: boolean
       raf: number | null
       current: FrameRect
     }
@@ -191,19 +213,32 @@ export function FrameLayer() {
     (d: Extract<Drag, { kind: 'move' | 'resize' }>, p: Pt) => {
       const G = useGraphStore.getState()
       if (d.kind === 'move') {
-        const dx = p.x - d.origin.anchor.x
-        const dy = p.y - d.origin.anchor.y
+        let dx = p.x - d.origin.anchor.x
+        let dy = p.y - d.origin.anchor.y
+        // issue #344 §DL3 — the frame's top-left lands on the grid (everything
+        // it carries moves by the same Δ); Alt = a free move. A pointer that
+        // has not moved stays a no-op: a click never snaps an off-grid frame.
+        if (!d.free && (dx !== 0 || dy !== 0)) {
+          const s = snapPoint({ x: d.origin.rect.x + dx, y: d.origin.rect.y + dy })
+          dx = s.x - d.origin.rect.x
+          dy = s.y - d.origin.rect.y
+        }
         const r = applyMoveDelta(d.origin, dx, dy)
         d.current = r.rect
         setRectsSilently(r.frameRects)
         G.applyGesturePositions(r.nodePositions, r.edgeWaypoints)
         if (d.isAuto) setAutoDraft({ id: d.id, rect: r.rect })
       } else {
+        // issue #344 §DL3 — the dragged corner lands on the grid; Alt = free
+        // (and, as for a move, an unmoved pointer changes nothing)
+        const moved = p.x !== d.anchor.x || p.y !== d.anchor.y
+        const corner = { x: d.orig.x + d.orig.w + (p.x - d.anchor.x), y: d.orig.y + d.orig.h + (p.y - d.anchor.y) }
+        const c = d.free || !moved ? corner : snapPoint(corner)
         const next: FrameRect = {
           x: d.orig.x,
           y: d.orig.y,
-          w: Math.max(1, d.orig.w + (p.x - d.anchor.x)),
-          h: Math.max(1, d.orig.h + (p.y - d.anchor.y)),
+          w: Math.max(1, c.x - d.orig.x),
+          h: Math.max(1, c.y - d.orig.y),
         }
         d.current = next
         if (d.isAuto) setAutoDraft({ id: d.id, rect: next })
@@ -268,7 +303,11 @@ export function FrameLayer() {
   const applyKeyGesture = useCallback(
     (g: KeyGesture) => {
       if (g.kind === 'move' && g.origin) {
-        const r = applyMoveDelta(g.origin, g.dx, g.dy)
+        // issue #344 §DL3 — the top-left lands on the grid after each step; a
+        // net Δ of 0 (out and back) leaves the frame where it started
+        const to = { x: g.origin.rect.x + g.dx, y: g.origin.rect.y + g.dy }
+        const s = g.dx !== 0 || g.dy !== 0 ? snapPoint(to) : to
+        const r = applyMoveDelta(g.origin, s.x - g.origin.rect.x, s.y - g.origin.rect.y)
         g.current = r.rect
         setRectsSilently(r.frameRects)
         useGraphStore.getState().applyGesturePositions(r.nodePositions, r.edgeWaypoints)
@@ -277,11 +316,15 @@ export function FrameLayer() {
       } else {
         // the pointer contract exactly: the top-left is the anchor, w / h grow,
         // and a resize never moves the contents
+        // issue #344 §DL3 — the bottom-right corner lands on the grid (a net Δ
+        // of 0 leaves it where it started)
+        const corner = { x: g.orig.x + g.orig.w + g.dx, y: g.orig.y + g.orig.h + g.dy }
+        const c = g.dx !== 0 || g.dy !== 0 ? snapPoint(corner) : corner
         const next: FrameRect = {
           x: g.orig.x,
           y: g.orig.y,
-          w: Math.max(1, g.orig.w + g.dx),
-          h: Math.max(1, g.orig.h + g.dy),
+          w: Math.max(1, c.x - g.orig.x),
+          h: Math.max(1, c.y - g.orig.y),
         }
         g.current = next
         if (g.isAuto) setAutoDraft({ id: g.id, rect: next })
@@ -403,6 +446,7 @@ export function FrameLayer() {
       }
       // at most one store write per animation frame; the LAST pointer position wins
       d.last = p
+      d.free = e.altKey
       if (d.raf === null) {
         d.raf = requestAnimationFrame(() => {
           d.raf = null
@@ -422,7 +466,9 @@ export function FrameLayer() {
         return
       }
       cancelRaf(d)
+      d.free = e.altKey
       applyGesture(d, flowPt(e)) // the exact final Δ, whatever the last frame showed
+      endLiveLayout()
       // commit iff the FINAL rect differs from the origin — a click, an unmoved
       // press, or an out-and-back gesture is a no-op: origin written back, no
       // entry, no promotion (never a sticky "moved" flag)
@@ -431,6 +477,7 @@ export function FrameLayer() {
         restoreGesture(d)
         return
       }
+      swallowNextClick()
       // ONE entry for the whole gesture — the pre-gesture snapshot
       useGraphStore.getState().pushGestureEntry(d.snapshot)
       if (d.isAuto) {
@@ -450,6 +497,7 @@ export function FrameLayer() {
       dragRef.current = null
       cancelRaf(d)
       restoreGesture(d)
+      endLiveLayout()
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
@@ -523,13 +571,18 @@ export function FrameLayer() {
           frameId: id,
           rect: orig,
           isAuto,
-          frameOnly: e.altKey, // frozen for the whole gesture (D5)
+          // frozen for the whole gesture (D5); issue #344 §DL3 — Ctrl / Command
+          // (Alt now means a free move, as on nodes)
+          frameOnly: e.ctrlKey || e.metaKey,
           anchor,
           frames: useFrameStore.getState().frames,
           nodes: G.nodes,
           edges: G.edges,
         })
         dragRef.current = { kind, id, isAuto, label, origin, snapshot, last: null, raf: null, current: orig }
+        // issue #344 §ER14.5 — a carried move re-routes only what it touches
+        // until the pointer comes up
+        beginLiveLayout()
       } else {
         dragRef.current = { kind, id, isAuto, label, anchor, orig, snapshot, last: null, raf: null, current: orig }
       }

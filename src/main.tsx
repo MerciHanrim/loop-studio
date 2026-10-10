@@ -43,6 +43,11 @@ if (__PWA_ENABLED__) {
 }
 
 async function start(): Promise<void> {
+  // issue #344 §DL2.8 — a legacy autosave record is re-placed on the grid once,
+  // here, before `startApp` evaluates the stores that read it (no store is
+  // imported by this module, and the session is open by now)
+  const { convertAutosaveLayout } = await import('./store/layoutBoot')
+  convertAutosaveLayout()
   const { startApp } = await import('./startApp')
   await startApp()
 }

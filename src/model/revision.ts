@@ -6,7 +6,7 @@
 // (§R2.1 / §R6). NO store, NO autosave, NO UI, NO download side effects — the
 // lifecycle that consumes these lands in Slice 1B.
 
-import { edgeHasRoutingIntent } from './edgeRouting'
+import { edgeHasRoutingIntent, edgeIsStraight } from './edgeRouting'
 import { defaultData } from './factory'
 import {
   normalizeResourceType,
@@ -150,7 +150,26 @@ export type ProjectPayload = {
   appliedProposal?: AppliedProposal
   lineage?: string[]
   meta?: ProjectMeta
+  /** SEMANTICS-R10.md §R10-6 — the revision semantics the writer recorded the
+   *  file with (`loop-revision/N`). Written by every build from `/10` on;
+   *  absent in older files. Not content: outside every digest. */
+  semantics?: string
 }
+
+/** the revision semantics this build writes into a header (§R10-6) */
+export const REVISION_SEMANTICS = 'loop-revision/10'
+const SEMANTICS_RE = /^loop-revision\/([1-9][0-9]{0,3})$/
+
+/** §R10-6 — the `N` a header declares, or 0 when it declares none (a file
+ *  written before `/10`, or an unreadable value) */
+export function declaredSemantics(project: { semantics?: unknown } | null | undefined): number {
+  const m = typeof project?.semantics === 'string' ? SEMANTICS_RE.exec(project.semantics) : null
+  return m ? Number(m[1]) : 0
+}
+
+/** §R10-6 / docs/edge-routing.md §ER15.1 — a record whose header declares
+ *  semantics before `/10` keeps its Curved labels where they were recorded */
+export const recordKeepsLabels = (project: { semantics?: unknown } | null | undefined): boolean => declaredSemantics(project) < 10
 
 // ── id validation & secure mint (§R11) ─────────────────────────────────────
 
@@ -425,6 +444,8 @@ function projectEdge(e: LoopEdge, modelLayer: boolean): CanonicalEdge {
       // projection, and only when `route === "orthogonal"` survived.
       if (!modelLayer) continue
       if (src?.route === 'orthogonal') data.route = 'orthogonal'
+      // SEMANTICS-R10.md §R10-2 — the same slot, the new value
+      else if (src?.route === 'straight') data.route = 'straight'
     }
     else if (f === 'waypoints') {
       // §R3-2.2 — array in stored order, NOT deduped, each {x, y} verbatim
@@ -630,6 +651,7 @@ export type SideVersion =
   | 'loop-revision/6' // SEMANTICS-R6.md — the side carries CSU (loop-state/3) `timing` / `when` content
   | 'loop-revision/8' // SEMANTICS-R8.md — the side carries data-import provenance content (§R8-1)
   | 'loop-revision/9' // SEMANTICS-R9.md — the side carries ≥ 1 flow colour (`data.accent`)
+  | 'loop-revision/10' // SEMANTICS-R10.md — the side carries ≥ 1 straight connection (`route: "straight"`)
 export type RevisionSideOk = {
   ok: true
   version: SideVersion
@@ -801,7 +823,13 @@ export function readRevisionSide(
   const hasAccent =
     g.nodes.some((n) => readAccent((n.data as { accent?: unknown } | undefined)?.accent) !== undefined) ||
     g.edges.some((e) => readAccent((e.data as { accent?: unknown } | undefined)?.accent) !== undefined)
-  const version: SideVersion = hasAccent
+  // SEMANTICS-R10.md §R10-1 — ≥ 1 SURVIVING `route: "straight"` (the
+  // defensive read keeps it; a build before /10 drops it). The newest
+  // extension, so the highest label precedence, on the same projection.
+  const hasStraight = g.edges.some((e) => edgeIsStraight(e.data))
+  const version: SideVersion = hasStraight
+    ? 'loop-revision/10'
+    : hasAccent
     ? 'loop-revision/9'
     : hasDataImport
     ? 'loop-revision/8'
@@ -1900,6 +1928,8 @@ export function readProject(raw: unknown, loadedContent?: CanonicalContent): Rea
     role,
     ...(lineage ? { lineage } : {}),
     ...(readMeta(o.meta) ? { meta: readMeta(o.meta) } : {}),
+    // §R10-6 — kept only in its exact form; anything else reads as absent
+    ...(typeof o.semantics === 'string' && SEMANTICS_RE.test(o.semantics) ? { semantics: o.semantics } : {}),
   }
 
   if (isAppliedProposal(o.appliedProposal)) project.appliedProposal = o.appliedProposal
@@ -2111,6 +2141,7 @@ export function planRevisionExport(input: {
     contentDigest: baselineDigest, // §R10 integrity — the file's own content
     lineage,
     meta,
+    semantics: REVISION_SEMANTICS, // SEMANTICS-R10.md §R10-6
   }
   const file = buildFile(input.doc, project, input.modelVersion)
   const text = JSON.stringify(file, null, 2)
@@ -2214,6 +2245,7 @@ export function planProposalExport(input: {
     base,
     lineage: [base.revisionId, ...input.project.lineage].slice(0, LINEAGE_MAX),
     meta: { ...input.meta, createdAt: input.now },
+    semantics: REVISION_SEMANTICS, // SEMANTICS-R10.md §R10-6
   }
   const file = buildFile(input.doc, project, input.modelVersion)
   const text = JSON.stringify(file, null, 2)

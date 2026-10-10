@@ -16,7 +16,13 @@
 // meet at mid-height instead of inserting a straight run, so no path ever
 // draws a reversed segment.
 //
-// The SVG viewBox is `0 0 120 h`; the x geometry (width 120) never changes.
+// The End, the Parameter and the Register are drawn in a `0 0 120 h` viewBox
+// stretched to the node's width. Issue #337 (v0.21.4) — the Pool, the Source,
+// the Drain, the Converter and the Gate are WIDTH-parametric as well: their
+// path is drawn in CSS px for the node's own width (viewBox `0 0 w h`), every
+// point, notch, slant and corner keeps its px depth (`OUTLINE_DEPTH`) and only
+// the straight runs stretch. Stretched, those features grew as the node
+// widened while the text stayed at fixed insets, so text crossed them.
 
 import type { NodeKind } from '../../model/types'
 
@@ -52,9 +58,10 @@ export const POOL_PULSE_INSET = 7
 
 /** the user-space rectangle every ring mask covers (`RingMasks.tsx`), in
  *  viewBox units — vertical units are px, horizontal ones at least ~1 px; its
- *  height follows the node's */
+ *  height follows the node's, and (#337) its width the viewBox's (120, or a
+ *  width-parametric outline's own) */
 export type MaskBox = { x: number; y: number; width: number; height: number }
-export const maskBox = (boxH: number): MaskBox => ({ x: -200, y: -200, width: 520, height: boxH + 400 })
+export const maskBox = (boxH: number, viewW = 120): MaskBox => ({ x: -200, y: -200, width: viewW + 400, height: boxH + 400 })
 
 /** How many px the drawn vessel path leaves EMPTY at the top + bottom of its
  *  `0 0 120 H` viewBox — the `y` where the top cap's straight run begins and
@@ -96,8 +103,44 @@ export const MAX_NODE_H: Record<NodeKind, number> = {
 
 const n = (v: number) => Math.round(v * 100) / 100
 
+/** issue #337 — the kinds whose outline is width-parametric (drawn in CSS px
+ *  for the node's width, `viewBox="0 0 w h"`) */
+export const FIXED_DEPTH_KINDS: ReadonlySet<NodeKind> = new Set(['pool', 'source', 'drain', 'converter', 'gate'])
+export const isFixedDepth = (kind: NodeKind): boolean => FIXED_DEPTH_KINDS.has(kind)
+
+/** issue #337 — the px depth each feature keeps at every width and height: the
+ *  Pool's slanted sides (horizontal run), the Source's arrow, the Drain's notch,
+ *  the Converter's two waists and the Gate's two points (an elongated hexagon). */
+export const OUTLINE_DEPTH = { poolSlant: 8, sourceArrow: 16, drainNotch: 16, converterWaist: 16, gatePoint: 16 } as const
+
+/** The width-parametric outline of a `FIXED_DEPTH_KINDS` kind at width `w` and
+ *  height `H` (already clamped), in CSS px. The left side never depends on the
+ *  width and the right side only through `w − …`, so a feature's depth is the
+ *  same at every width. */
+function fixedPath(kind: NodeKind, w: number, H: number): string {
+  const mid = n(H / 2)
+  const R = (x: number) => n(w - x) // x px in from the right edge
+  const { poolSlant: s, sourceArrow: a, drainNotch: d, converterWaist: c, gatePoint: g } = OUTLINE_DEPTH
+  switch (kind) {
+    case 'pool':
+      // the shipped corners (top r ≈ 7, bottom r ≈ 6) on a slant of `s` px
+      return `M${16 + s} 6 H${R(16 + s)} Q${R(9 + s)} 6 ${R(8 + s)} 13 L${R(8)} ${n(H - 12)} Q${R(7)} ${n(H - 6)} ${R(13)} ${n(H - 6)} H13 Q7 ${n(H - 6)} 8 ${n(H - 12)} L${8 + s} 13 Q${9 + s} 6 ${16 + s} 6 Z`
+    case 'source':
+      return `M14 8 Q8 8 8 14 V${n(H - 14)} Q8 ${n(H - 8)} 14 ${n(H - 8)} H${R(6 + a)} L${R(6)} ${mid} L${R(6 + a)} 8 Z`
+    case 'drain':
+      return `M6 ${mid} L${6 + d} 8 H${R(16)} Q${R(8)} 8 ${R(8)} 15 V${n(H - 15)} Q${R(8)} ${n(H - 8)} ${R(16)} ${n(H - 8)} H${6 + d} Z`
+    case 'converter':
+      return `M14 8 H${R(14)} Q${R(8)} 8 ${R(8)} 14 L${R(8 + c)} ${mid} L${R(8)} ${n(H - 14)} Q${R(8)} ${n(H - 8)} ${R(14)} ${n(H - 8)} H14 Q8 ${n(H - 8)} 8 ${n(H - 14)} L${8 + c} ${mid} L8 14 Q8 8 14 8 Z`
+    default:
+      // gate: an elongated hexagon, a `g` px point at each end, flat top and bottom
+      return `M${3 + g} 3 H${R(3 + g)} L${R(3)} ${mid} L${R(3 + g)} ${n(H - 3)} H${3 + g} L3 ${mid} Z`
+  }
+}
+
 /** The vessel outline for `kind` at body height `h` (viewBox `0 0 120 h`),
- *  clamped to the kind's range [`BASE_NODE_H`, `MAX_NODE_H`].
+ *  clamped to the kind's range [`BASE_NODE_H`, `MAX_NODE_H`]. A
+ *  `FIXED_DEPTH_KINDS` kind is drawn for the node's width `w` instead
+ *  (viewBox `0 0 w h`, issue #337).
  *
  *  `parameter` / `register` were RE-CUT (docs/node-shell-content-in-vessel.md
  *  "curved corner" follow-up): the old capsule / tag inset its left+right edges
@@ -116,21 +159,16 @@ const n = (v: number) => Math.round(v * 100) / 100
  *  (`VESSEL_INSET_Y` 24). (A true stadium / semicircular-ended capsule cannot
  *  contain the content: it pinches in hard exactly where the chip / title
  *  corner sits, 4 px below the top edge.) */
-export function silhouettePath(kind: NodeKind, h = BASE_NODE_H): string {
+export function silhouettePath(kind: NodeKind, h = BASE_NODE_H, w = 120): string {
   const H = Math.max(BASE_NODE_H, Math.min(h, MAX_NODE_H[kind]))
   const mid = n(H / 2)
   switch (kind) {
     case 'pool':
-      // top edge y6, shoulders y13; bottom edge y H-6, shoulders y H-12
-      return `M32 6 H88 Q95 6 96 13 L112 ${n(H - 12)} Q113 ${n(H - 6)} 107 ${n(H - 6)} H13 Q7 ${n(H - 6)} 8 ${n(H - 12)} L24 13 Q25 6 32 6 Z`
     case 'source':
-      return `M14 8 Q8 8 8 14 V${n(H - 14)} Q8 ${n(H - 8)} 14 ${n(H - 8)} H84 L114 ${mid} L84 8 Z`
     case 'drain':
-      return `M6 ${mid} L34 8 H104 Q112 8 112 15 V${n(H - 15)} Q112 ${n(H - 8)} 104 ${n(H - 8)} H34 Z`
-    case 'gate':
-      return `M60 3 L117 ${mid} L60 ${n(H - 3)} L3 ${mid} Z`
     case 'converter':
-      return `M14 8 H106 Q112 8 112 14 L82 ${mid} L112 ${n(H - 14)} Q112 ${n(H - 8)} 106 ${n(H - 8)} H14 Q8 ${n(H - 8)} 8 ${n(H - 14)} L38 ${mid} L8 14 Q8 8 14 8 Z`
+    case 'gate':
+      return fixedPath(kind, w, H)
     case 'end':
       // the rounded caps meet at mid-height up to 64; above it a straight V
       // keeps the cap radius fixed
@@ -158,12 +196,26 @@ export function silhouettePath(kind: NodeKind, h = BASE_NODE_H): string {
  *  from `silhouettePath` itself (its `M H V L Q Z` commands, the quadratic
  *  corners flattened), so it cannot drift from what is drawn. The Parameter's
  *  left tab (`x1 … 8`) is left out: it is a port-side marker, not room for text,
- *  so the body's edge `x8` is the edge text must keep clear of. */
-export function fillSpanAt(kind: NodeKind, h: number, y: number): [number, number] | null {
+ *  so the body's edge `x8` is the edge text must keep clear of.
+ *
+ *  Issue #337 — for a `FIXED_DEPTH_KINDS` kind the span is in CSS px for the
+ *  node's width `w` (its viewBox is `0 0 w h`). */
+export function fillSpanAt(kind: NodeKind, h: number, y: number, w = 120): [number, number] | null {
   const H = Math.max(BASE_NODE_H, Math.min(h, MAX_NODE_H[kind]))
-  const key = `${kind}|${H}`
+  if (!FIXED_DEPTH_KINDS.has(kind)) return spanOf(`${kind}|${H}`, () => silhouettePath(kind, H), kind, y)
+  // read once per height at a wide reference width: the left side never
+  // depends on the width and the right side keeps its distance from the right
+  // edge, so one reading serves every width
+  const s = spanOf(`${kind}|${H}|ref`, () => silhouettePath(kind, H, REF_W), kind, y)
+  return s && [s[0], w - (REF_W - s[1])]
+}
+
+/** the reference width a width-parametric outline is read at */
+const REF_W = 1000
+
+function spanOf(key: string, path: () => string, kind: NodeKind, y: number): [number, number] | null {
   let segs = segmentCache.get(key)
-  if (!segs) segmentCache.set(key, (segs = pathSegments(silhouettePath(kind, H))))
+  if (!segs) segmentCache.set(key, (segs = pathSegments(path())))
   const xs: number[] = []
   for (const [a, b] of segs) {
     if ((a[1] <= y && b[1] >= y) || (b[1] <= y && a[1] >= y)) {
@@ -176,6 +228,22 @@ export function fillSpanAt(kind: NodeKind, h: number, y: number): [number, numbe
   return [left, Math.max(...xs)]
 }
 
+/** issue #344, docs/diagram-layout.md §DL1 — how far in from the box's left
+ *  (`in`) or right (`out`) edge the drawn outline is on the port row, as a
+ *  FRACTION of the node's width `w`, for a node `h` tall: the resource port is
+ *  drawn there, ON the outline (a Pool's slanted side, a Drain's notch tip, a
+ *  Converter's waist), while the routing lane stays on the row. `rowY` is the
+ *  port row (`PORT_ROW`, passed in so this module keeps no layout import). 0
+ *  when the row misses the shape. A 120-wide-viewBox kind stretches with the
+ *  width, so its fraction is the same at every width; a `FIXED_DEPTH_KINDS`
+ *  kind (#337) keeps its px depth, so its fraction is read at `w`. */
+export function portInsetFraction(kind: NodeKind, h: number, side: 'in' | 'out', rowY: number, w = 120): number {
+  const W = FIXED_DEPTH_KINDS.has(kind) ? w : 120
+  const span = fillSpanAt(kind, h, rowY, W)
+  if (!span) return 0
+  return (side === 'in' ? span[0] : W - span[1]) / W
+}
+
 type Pt = [number, number]
 /** each (kind, height)'s flattened path, parsed once: a row fit samples it
  *  about fifteen times per node */
@@ -183,12 +251,15 @@ const segmentCache = new Map<string, [Pt, Pt][]>()
 
 /** issue #330 PR 2 — the drawn outline of `kind` at height `h` as straight
  *  segments in viewBox units (x 0 … 120, y = CSS px), quadratics flattened;
- *  the same parse `fillSpanAt` reads, cached per (kind, height) */
-export function silhouetteSegments(kind: NodeKind, h: number): readonly (readonly [Pt, Pt])[] {
+ *  the same parse `fillSpanAt` reads, cached per (kind, height). Issue #337 —
+ *  a `FIXED_DEPTH_KINDS` kind is drawn for its width, so it is read at width
+ *  `w`, in CSS px (its viewBox is `0 0 w h`), cached per (kind, height, width). */
+export function silhouetteSegments(kind: NodeKind, h: number, w = 120): readonly (readonly [Pt, Pt])[] {
   const H = Math.max(BASE_NODE_H, Math.min(h, MAX_NODE_H[kind]))
-  const key = `${kind}|${H}`
+  const own = FIXED_DEPTH_KINDS.has(kind)
+  const key = own ? `${kind}|${H}|w${n(w)}` : `${kind}|${H}`
   let segs = segmentCache.get(key)
-  if (!segs) segmentCache.set(key, (segs = pathSegments(silhouettePath(kind, H))))
+  if (!segs) segmentCache.set(key, (segs = pathSegments(own ? silhouettePath(kind, H, n(w)) : silhouettePath(kind, H))))
   return segs
 }
 /** The straight segments of one of this module's paths, quadratics flattened. */

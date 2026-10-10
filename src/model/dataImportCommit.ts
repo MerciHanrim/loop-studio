@@ -15,6 +15,7 @@ import {
 import { validateResultGraph } from './revision'
 import type { ImportSourceTable, SavedFrame } from './serialize'
 import type { LoopEdge, LoopNode } from './types'
+import { snapNodePosition, snapRectOutward } from './layout/grid'
 
 export type PlacementChoice =
   | { kind: 'none'; origin: { x: number; y: number } }
@@ -65,7 +66,7 @@ const GRID_COLS = 4
 export type Rect = { x: number; y: number; w: number; h: number }
 type Point = { x: number; y: number }
 
-function rectsOverlap(a: Rect, b: Rect): boolean {
+export function rectsOverlap(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
 }
 export function nodeRect(pos: Point): Rect {
@@ -353,6 +354,11 @@ export function buildImportCommit(
     }
     positions = candidate
   }
+  // issue #344 §DL3 — every imported node lands on the grid (≤ 8 px: inside
+  // the 24 px frame padding and the 300 / 144 px pitch, so no overlap and no
+  // node outside its frame); a created frame snaps outward to the grid
+  positions = positions.map(snapNodePosition)
+  for (let i = 0; i < createdFrames.length; i++) createdFrames[i] = { ...createdFrames[i], rect: snapRectOutward(createdFrames[i].rect) }
 
   // -- build the Parameter nodes -----------------------------------------
   const createdNodes: LoopNode[] = cells.map((cell, i) => {

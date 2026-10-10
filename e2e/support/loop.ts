@@ -3,6 +3,7 @@ import { test as base, expect, type BrowserContext, type Locator, type Page } fr
 import { waitForAppReady, watchContext, watchPage } from './appReady'
 import { SNAPSHOT_POLICY, snapshotKind } from './snapshot-policy'
 import { seedWhatsNewSeen } from './whatsNew'
+import { LAYOUT_VERSION } from '../../src/model/serialize'
 
 export { safeUrl, waitForAppReady, watchContext, watchPage } from './appReady'
 
@@ -277,16 +278,47 @@ export function mcSnapshot(page: Page): Promise<McSnapshot> {
 }
 
 /** Load a serialized graph — same path as the Import button, including applying
- *  the file's `recommendedRunConfig` to the Monte-Carlo config. */
-export async function importGraph(page: Page, json: string): Promise<void> {
+ *  the file's `recommendedRunConfig` to the Monte-Carlo config.
+ *
+ *  issue #344 §DL2.8 — a file without `layoutVersion` is a pre-grid layout,
+ *  which the app re-places once on open. A spec's hand-written scene is laid
+ *  out deliberately, so it is imported AS AUTHORED (stamped with the current
+ *  layout version) unless `legacyLayout` asks for the conversion. */
+export async function importGraph(page: Page, json: string, opts: { legacyLayout?: boolean; noRouteWait?: boolean } = {}): Promise<void> {
   // issue #297 - the app (and its bridge) is loaded behind the storage gate,
   // after the document's load event; a spec that reloads and imports at once
   // must wait for the bridge the way `openApp` does
   await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
+  if (!opts.legacyLayout) {
+    const doc = JSON.parse(json) as Record<string, unknown>
+    if (doc.layoutVersion === undefined) json = JSON.stringify({ ...doc, layoutVersion: LAYOUT_VERSION })
+  }
   await page.evaluate((text) => {
     const l = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
     l.mc.getState().applyRecommended(l.graph.getState().loadJSON(text))
   }, json)
+  if (!opts.noRouteWait) await routesSettled(page)
+}
+
+/** issue #344 §ER14.5 — the routed connections of a freshly opened document are
+ *  drawn only when their first sliced generation commits: wait until no
+ *  generation is pending and every routed connection whose two ends exist has
+ *  its route (a spec reading paths, labels or the route map right after a load
+ *  must call this, or `importGraph`, which does). §ER15 — and until no Curved
+ *  or Straight label is waiting for its slot (`busy`). */
+export async function routesSettled(page: Page): Promise<void> {
+  // two frames first: a change that just landed (a load, a locale's new label
+  // sizes) has had its render, so a job it starts is already pending
+  await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))))
+  await page.waitForFunction(() => {
+    const l = (window as unknown as { __loop: any }).__loop
+    const g = l.graph.getState()
+    const ids = new Set(g.nodes.map((n: { id: string }) => n.id))
+    const routed = g.edges.filter(
+      (e: { source: string; target: string; data?: { route?: string } }) => e.data?.route === 'orthogonal' && ids.has(e.source) && ids.has(e.target),
+    ).length
+    return !l.routeMap.pending() && !l.routeMap.busy() && l.routeMap.all().size === routed
+  })
 }
 
 export const readFixture = (): string =>

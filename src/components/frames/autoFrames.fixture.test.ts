@@ -117,10 +117,13 @@ describe('Early MMO fixture — Table A / A′ / B', () => {
     expect(stages.tableA).toEqual([28, 18, 13, 10, 7, 7, 4, 3])
   })
 
-  it("Table A′ — spatial cohesion splits the interleaved communities into 12 clean candidates and drops 7", () => {
-    expect(stages.candidates).toEqual([10, 8, 7, 6, 4, 4, 4, 4, 3, 3, 3, 3])
+  // issue #344 step 5 — the Template placed by its #337 widest boxes: one
+  // community of 7 that had no spatial gap now splits into a 4 and a 3, so two
+  // more clean candidates reach the ceiling; the final frames are unchanged
+  it("Table A′ — spatial cohesion splits the interleaved communities into 14 clean candidates and drops 6", () => {
+    expect(stages.candidates).toEqual([10, 8, 7, 6, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3])
     const noGap = stages.drops.filter((d) => d.reason === 'contaminated: no valid spatial gap')
-    expect(noGap.map((d) => d.size).sort((a, b) => b - a)).toEqual([7, 6, 4, 4, 4, 3, 3])
+    expect(noGap.map((d) => d.size).sort((a, b) => b - a)).toEqual([6, 4, 4, 4, 3, 3])
   })
 
   it('Table B — exactly 6 frames, sizes {10, 8, 7, 6, 4, 4}, coverage 39/90', () => {
@@ -137,9 +140,9 @@ describe('Early MMO fixture — Table A / A′ / B', () => {
     expect(maxFM).toBeLessThanOrEqual(0.5 + 1e-9)
   })
 
-  it('6 clean candidates lost to the MAX_FRAMES ceiling (a ceiling, not a target)', () => {
+  it('8 clean candidates lost to the MAX_FRAMES ceiling (a ceiling, not a target)', () => {
     const ceiling = stages.drops.filter((d) => d.reason === 'MAX_FRAMES ceiling reached')
-    expect(ceiling.map((d) => d.size).sort((a, b) => b - a)).toEqual([4, 4, 3, 3, 3, 3])
+    expect(ceiling.map((d) => d.size).sort((a, b) => b - a)).toEqual([4, 4, 4, 3, 3, 3, 3, 3])
   })
 
   it('coverage is in the reported range 0.35–0.50 (NOT back up toward 0.92)', () => {

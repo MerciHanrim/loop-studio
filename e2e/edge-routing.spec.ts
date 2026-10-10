@@ -193,17 +193,19 @@ test.describe('edge routing — Slice 1', () => {
     await settle(page)
 
     // incremental: settle `gold` at a new position through the real change stream
+    // (a grid position — issue #344: a drag snaps, so an off-grid target would
+    // not be the position the cold load below opens with)
     await page.evaluate(() => {
       const g = (window as any).__loop.graph.getState()
-      g.onNodesChange([{ type: 'position', id: 'gold', position: { x: 360, y: 40 }, dragging: true }])
-      g.onNodesChange([{ type: 'position', id: 'gold', position: { x: 360, y: 40 }, dragging: false }])
+      g.onNodesChange([{ type: 'position', id: 'gold', position: { x: 368, y: 36 }, dragging: true }])
+      g.onNodesChange([{ type: 'position', id: 'gold', position: { x: 368, y: 36 }, dragging: false }])
     })
     await page.waitForTimeout(50)
     const incremental = await edgePaths(page)
 
     // cold: load the SAME final graph fresh
     const cold = JSON.parse(G2({ route: true }))
-    cold.nodes.find((n: any) => n.id === 'gold').position = { x: 360, y: 40 }
+    cold.nodes.find((n: any) => n.id === 'gold').position = { x: 368, y: 36 }
     await importGraph(page, JSON.stringify(cold))
     await expect(page.locator('.react-flow__edge[data-id="e_sg"] path.route-orthogonal')).toHaveCount(1)
     await settle(page)
@@ -253,7 +255,7 @@ test.describe('edge routing — Slice 1', () => {
     await expect(page.locator('.react-flow__edge[data-id="e_sg"] path.route-orthogonal')).toHaveCount(1)
     expect(await edgeData(page, 'e_sg')).toMatchObject({ route: 'orthogonal' })
 
-    await select.selectOption('bezier')
+    await select.selectOption('curved')
     await expect(page.locator('.react-flow__edge[data-id="e_sg"] path.route-orthogonal')).toHaveCount(0)
     const data = await edgeData(page, 'e_sg')
     expect(data.route).toBeUndefined()
@@ -285,11 +287,12 @@ test.describe('edge routing — Slice 1', () => {
     expect(before.ab.dom).toBe(before.ab.map)
     expect(before.cd.dom).toBe(before.cd.map)
 
-    // move the obstacle a long way through both corridors
+    // move the obstacle a long way through both corridors (to a grid position,
+    // which a drag keeps — issue #344)
     await page.evaluate(() => {
       const g = (window as any).__loop.graph.getState()
-      g.onNodesChange([{ type: 'position', id: 'obst', position: { x: 280, y: 4 }, dragging: true }])
-      g.onNodesChange([{ type: 'position', id: 'obst', position: { x: 280, y: 4 }, dragging: false }])
+      g.onNodesChange([{ type: 'position', id: 'obst', position: { x: 288, y: 4 }, dragging: true }])
+      g.onNodesChange([{ type: 'position', id: 'obst', position: { x: 288, y: 4 }, dragging: false }])
     })
     await settle(page)
     const after = await genAndPaths()
@@ -301,19 +304,19 @@ test.describe('edge routing — Slice 1', () => {
     expect(after.ab.dom).toBe(after.ab.map)
     expect(after.cd.dom).toBe(after.cd.map)
 
-    // the previous route is not an input: clearing the cache and recomputing
-    // from scratch yields byte-identical paths
+    // the previous route is not an input: recomputing from scratch (the
+    // synchronous full generation, computed aside — issue #344 §ER14.5) yields
+    // byte-identical paths
     const recomputed = await page.evaluate(() => {
-      const l = (window as any).__loop
-      l.routeMap.reset()
-      return { ab: l.routeMap.get('e_ab')?.d ?? '', cd: l.routeMap.get('e_cd')?.d ?? '' }
+      const m = (window as any).__loop.routeMap.syncFull()
+      return { ab: m.get('e_ab')?.d ?? '', cd: m.get('e_cd')?.d ?? '' }
     })
     expect(recomputed.ab).toBe(after.ab.map)
     expect(recomputed.cd).toBe(after.cd.map)
 
     // incremental == cold: import the moved graph fresh
     const cold = JSON.parse(GRID())
-    cold.nodes.find((n: any) => n.id === 'obst').position = { x: 280, y: 4 }
+    cold.nodes.find((n: any) => n.id === 'obst').position = { x: 288, y: 4 }
     await importGraph(page, JSON.stringify(cold))
     await expect(page.locator('.react-flow__edge[data-id="e_ab"] path.route-orthogonal')).toHaveCount(1)
     await settle(page)
@@ -356,9 +359,20 @@ test.describe('edge routing — Slice 1', () => {
       const p = document.querySelector('.react-flow__edge[data-id="e_ac"] path.react-flow__edge-path') as SVGPathElement
       const route = (window as any).__loop.routeMap.get('e_ac')
       const g = (window as any).__loop.graph.getState()
+      // issue #344 §ER14.2 — the route skips a waypoint inside a node and never
+      // enters the node (no L / Z fallback through it any more)
+      const mid = g.nodes.find((n: any) => n.id === 'mid')
+      const box = { x: mid.position.x, y: mid.position.y, w: mid.measured.width, h: mid.measured.height }
+      const pts = route.points as { x: number; y: number }[]
+      const entersMid = pts.some((q, i) => {
+        if (i === 0) return false
+        const a = pts[i - 1]
+        return Math.max(a.x, q.x) > box.x && Math.min(a.x, q.x) < box.x + box.w && Math.max(a.y, q.y) > box.y && Math.min(a.y, q.y) < box.y + box.h
+      })
       return {
         invalidClass: p.classList.contains('route-invalid'),
-        fallback: route?.routeClass,
+        routeClass: route?.routeClass,
+        entersMid,
         invalidFlag: route?.invalidWaypoint,
         dash: getComputedStyle(p).strokeDasharray,
         waypoints: g.edges[0].data.waypoints, // value kept
@@ -366,7 +380,8 @@ test.describe('edge routing — Slice 1', () => {
     })
     expect(cue.invalidFlag).toBe(true)
     expect(cue.invalidClass).toBe(true)
-    expect(cue.fallback).toBe('fallback-lz')
+    expect(cue.routeClass).not.toBe('fallback-lz')
+    expect(cue.entersMid).toBe(false)
     expect(cue.dash).not.toBe('none') // dashed WARNING treatment
     expect(cue.waypoints).toEqual([{ x: 300, y: 12 }]) // not consumed / not moved
   })

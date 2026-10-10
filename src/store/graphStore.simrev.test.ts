@@ -83,6 +83,8 @@ describe('graphStore.simulationRev', () => {
   it('does NOT bump: a routing-only edge edit (route / waypoints are cosmetic — loop-revision/3 §R3-3)', () => {
     const { edgeId } = base()
     const set = (d: Record<string, unknown>) => useGraphStore.getState().setEdgeData(edgeId, d as never)
+    // a new connection is orthogonal (issue #344 §ER14.1): start from a curve
+    set({ kind: 'resource', flow: '1' })
     // route only
     expect(bumped(() => set({ kind: 'resource', flow: '1', route: 'orthogonal' }))).toBe(0)
     // waypoints only (route already present)

@@ -26,6 +26,7 @@ import {
 } from '../model/model'
 import { useGraphStore } from '../store/graphStore'
 import { useRegisterOutcome } from '../store/registers'
+import { useRouteEditStore } from '../store/routeEditStore'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { AccentField } from './AccentField'
@@ -257,13 +258,19 @@ export function Inspector() {
         <Field label={t('inspector.field.type')}>
           <select
             value={ed.kind}
-            onChange={(e) =>
+            onChange={(e) => {
+              // issue #344 step 3 — the shape and the bend points are the
+              // author's drawing, not the connection's kind: they are kept
+              const shape = {
+                ...(ed.route ? { route: ed.route } : {}),
+                ...(ed.waypoints ? { waypoints: ed.waypoints } : {}),
+              }
               setData(
                 e.target.value === 'state'
-                  ? { kind: 'state', mode: 'trigger', expr: '' }
-                  : { kind: 'resource', flow: '1' },
+                  ? { kind: 'state', mode: 'trigger', expr: '', ...shape }
+                  : { kind: 'resource', flow: '1', ...shape },
               )
-            }
+            }}
           >
             <option value="resource">{t('inspector.edge.type.resource')}</option>
             <option value="state">{t('inspector.edge.type.state')}</option>
@@ -293,18 +300,10 @@ export function Inspector() {
           />
         )}
 
-        <RouteField
-          value={ed.route === 'orthogonal' ? 'orthogonal' : 'bezier'}
-          onChange={(mode) => {
-            if (mode === 'orthogonal') setData({ ...ed, route: 'orthogonal' })
-            else {
-              // loop-revision/3 §R3-1 / ER-D16 — back to default drops BOTH keys
-              const { route: _r, waypoints: _w, ...rest } = ed
-              setData(rest as LoopEdgeData)
-            }
-          }}
-        />
+        <RouteField edgeId={edge.id} route={ed.route} bends={ed.waypoints?.length ?? 0} />
 
+        {/* issue #344 step 3 — which edits restart the run and which (route,
+            bends, colour: drawing only) do not */}
         <p className="inspector__note">{t('inspector.edge.note')}</p>
 
         <AccentField />
@@ -410,21 +409,71 @@ function EdgeFlowField({
 }
 
 // ── edge routing (loop-revision/3 / docs/edge-routing.md) ─────────────────
-function RouteField({
-  value,
-  onChange,
-}: {
-  value: 'bezier' | 'orthogonal'
-  onChange: (mode: 'bezier' | 'orthogonal') => void
-}) {
+// issue #344 step 3 (docs/diagram-layout.md §DL4, SEMANTICS-R10.md) — the
+// connection's shape: Orthogonal (Auto, or Manual once it has bend points),
+// Curved or Straight. Each change is one undo entry and leaves the run alone;
+// switching to Curved or Straight drops the bend points; Reset to automatic
+// keeps Orthogonal and drops them. Under the edit lock (and on the phone, whose
+// sheet is read-only) the select is disabled by the surrounding fieldset; the
+// bend tools are not offered on the phone at all.
+function RouteField({ edgeId, route, bends }: { edgeId: string; route: unknown; bends: number }) {
   const t = useT()
+  const isMobile = useIsMobile()
+  const setEdgeRouting = useGraphStore((s) => s.setEdgeRouting)
+  const armed = useRouteEditStore((s) => s.addBendFor === edgeId)
+  const armAddBend = useRouteEditStore((s) => s.armAddBend)
+  const notice = useRouteEditStore((s) => s.notice)
+  const shape = route === 'orthogonal' ? 'orthogonal' : route === 'straight' ? 'straight' : 'curved'
+  const manual = shape === 'orthogonal' && bends > 0
   return (
-    <Field label={t('inspector.field.route')}>
-      <select value={value} onChange={(e) => onChange(e.target.value as 'bezier' | 'orthogonal')}>
-        <option value="bezier">{t('inspector.edge.route.curved')}</option>
-        <option value="orthogonal">{t('inspector.edge.route.orthogonal')}</option>
-      </select>
-    </Field>
+    <>
+      <Field label={t('inspector.field.route')}>
+        <select
+          value={shape}
+          onChange={(e) => {
+            const v = e.target.value
+            armAddBend(null)
+            setEdgeRouting(edgeId, v === 'orthogonal' ? { route: 'orthogonal' } : v === 'straight' ? { route: 'straight' } : {})
+          }}
+        >
+          <option value="orthogonal">{t('inspector.edge.route.orthogonal')}</option>
+          <option value="curved">{t('inspector.edge.route.curved')}</option>
+          <option value="straight">{t('inspector.edge.route.straight')}</option>
+        </select>
+      </Field>
+      {shape === 'orthogonal' && !isMobile ? (
+        <div className="inspector__route">
+          <p className="inspector__note">{t(manual ? 'inspector.edge.route.manual' : 'inspector.edge.route.auto')}</p>
+          <div className="inspector__route-actions">
+            <button
+              type="button"
+              className="btn btn--ghost"
+              aria-pressed={armed}
+              onClick={() => armAddBend(armed ? null : edgeId)}
+            >
+              {t('inspector.edge.route.addBend')}
+            </button>
+            {manual ? (
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => {
+                  armAddBend(null)
+                  setEdgeRouting(edgeId, { route: 'orthogonal' })
+                }}
+              >
+                {t('inspector.edge.route.reset')}
+              </button>
+            ) : null}
+          </div>
+          {armed || manual ? (
+            <p className="inspector__hint">{t(armed ? 'inspector.edge.route.addBendHint' : 'inspector.edge.route.editHint')}</p>
+          ) : null}
+          {/* the canvas live region announces it; this is the visible copy */}
+          {armed && notice ? <p className="inspector__note inspector__note--warn">{t(notice)}</p> : null}
+        </div>
+      ) : null}
+    </>
   )
 }
 

@@ -12,6 +12,7 @@ import {
   useStoreApi,
 } from '@xyflow/react'
 import { useGraphStore, type GestureSnapshot } from '../store/graphStore'
+import type { InitialView } from '../model/templates'
 import { BUNDLED_MODULES, cloneModuleDoc } from '../model/modules'
 import { refInsertVerdict, type RefResolveKind } from '../model/exprRefs'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
@@ -19,6 +20,11 @@ import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { blocksCanvasKey } from '../ui/keyboardTarget'
 import { createKeyGesture } from '../ui/keyGestureLifetime'
+import { dragSnap, keyMoveGuides } from '../model/layout/dragSnap'
+import { beginLiveLayout, bendAtClick, bendInsertIndex, bendRejection, currentRouteMap, endLiveLayout, keyboardBend, useRouteInputs } from '../store/routeMap'
+import { useRouteEditStore } from '../store/routeEditStore'
+import { useGuideStore } from '../store/guideStore'
+import { GRID, snapNodePosition } from '../model/layout/grid'
 import { type MessageKey, useI18n, useLocaleDirection, useT } from '../i18n'
 import { moduleLabelOverlay } from '../i18n/moduleLabels'
 import { useFilterStore } from '../store/filterStore'
@@ -29,6 +35,7 @@ import { useFocusSet } from './focusSet'
 import { useHiddenSet } from './filterSet'
 import { FilterPanel } from './FilterPanel'
 import { FrameLayer } from './frames/FrameLayer'
+import { SmartGuideLayer } from './SmartGuideLayer'
 import { PanSurface } from './PanSurface'
 import { useFrameStore, hasFrames } from '../store/frameStore'
 import { useAutoFrameStore, hasAutoFrames, autoFramesStale } from '../store/autoFrameStore'
@@ -76,6 +83,13 @@ const DEFAULT_EDGE_OPTIONS = { type: 'loop' } as const
 // see every one of them (a template literal would read as a dead key).
 const ARROW_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'])
 
+/** issue #344 §DL3 — an arrow key's grid direction and React Flow's word for it */
+const ARROW_DIR: Record<string, [number, number, string]> = {
+  ArrowLeft: [-1, 0, 'left'],
+  ArrowRight: [1, 0, 'right'],
+  ArrowUp: [0, -1, 'up'],
+  ArrowDown: [0, 1, 'down'],
+}
 const RF_DIR_KEY: Record<string, MessageKey> = {
   left: 'rf.dir.left',
   right: 'rf.dir.right',
@@ -106,12 +120,16 @@ export function Canvas() {
   const onEdgesChange = useGraphStore((s) => s.onEdgesChange)
   const onConnect = useGraphStore((s) => s.onConnect)
   const addNodeAt = useGraphStore((s) => s.addNodeAt)
+  const tidyToGrid = useGraphStore((s) => s.tidyToGrid)
   const insertModule = useGraphStore((s) => s.insertModule)
   const setSelection = useGraphStore((s) => s.setSelection)
   const { screenToFlowPosition, fitView, setViewport, getViewport, deleteElements } = useReactFlow()
   const rfStore = useStoreApi()
   const isMobile = useIsMobile()
   const canvasLocked = useUiStore((s) => s.canvasLocked)
+  // issue #344 §ER14.5 — routed connections not drawn yet (their first sliced
+  // generation is running): the canvas says it is busy
+  const routesBusy = useRouteInputs((s) => s.busy)
   const toggleCanvasLocked = useUiStore((s) => s.toggleCanvasLocked)
   const focusMode = useUiStore((s) => s.focusMode)
   const toggleFocusMode = useUiStore((s) => s.toggleFocusMode)
@@ -214,12 +232,13 @@ export function Canvas() {
   // size — identical for every UI language, and unchanged on a language switch
   // (this only runs on a `fitRev` swap).
   const applyInitialView = useCallback(
-    (iv: { rect: { x: number; y: number; width: number; height: number }; minZoom: number }) => {
+    (iv: InitialView) => {
       // the computation itself lives in `canvasFit.ts` (shared with the
       // import wizard's post-commit view, docs/data-import.md §DI17); the
-      // insets are this Canvas's own overlays.
+      // insets are this Canvas's own overlays. `keep` (issue #344) caps the
+      // zoom so the core start nodes stay whole.
       const insets = canvasFitInsets(minimapVisibleRef.current)
-      const vp = viewportForRect(iv.rect, { width: paneW, height: paneH }, insets, { floor: iv.minZoom, ceil: 1.2 })
+      const vp = viewportForRect(iv.rect, { width: paneW, height: paneH }, insets, { floor: iv.minZoom, ceil: 1.2, keep: iv.keep })
       if (!vp) return void fitView({ padding: 0.3, maxZoom: 1.2 })
       setViewport(vp, { duration: 0 })
       if (import.meta.env.DEV) lastInitialViewRef.current = { insetR: insets.right, insetB: insets.bottom, zoom: vp.zoom }
@@ -599,6 +618,85 @@ export function Canvas() {
     return () => document.removeEventListener('keydown', onKey, true)
   }, [refInsertArmed, disarmRefInsert])
 
+  // issue #344 step 3 (docs/edge-routing.md §ER16) — "Add bend": armed from the
+  // Inspector for the selected connection. The next click on its line inserts
+  // one bend point on the segment clicked, snapped along it (Alt: free), into
+  // the span the click lands on; or Enter inserts one in the middle of the
+  // longest editable segment (`keyboardBend`) and moves the focus to its
+  // handle. Either is one undo entry and disarms. A point inside a node or on
+  // the connection's own port stub is refused (nothing changes; Enter says so
+  // through the canvas live region and stays armed). Escape disarms; so does
+  // another selection, the edit lock or the phone layout, which also drop the
+  // focused bend point.
+  const addBendFor = useRouteEditStore((s) => s.addBendFor)
+  const selectedEdgeId = useGraphStore((s) => s.selectedEdgeId)
+  useEffect(() => {
+    const r = useRouteEditStore.getState()
+    if (noEdit) {
+      r.clear()
+      return
+    }
+    if (r.addBendFor != null && r.addBendFor !== selectedEdgeId) r.armAddBend(null)
+    if (r.bend != null && r.bend.edgeId !== selectedEdgeId) r.selectBend(null)
+  }, [noEdit, selectedEdgeId])
+  /** insert bend point `p` of `edgeId` into the span it lies on: one entry */
+  const insertBend = useCallback((edgeId: string, p: { x: number; y: number }) => {
+    const r = useRouteEditStore.getState()
+    const g = useGraphStore.getState()
+    const edge = g.edges.find((x) => x.id === edgeId)
+    const route = currentRouteMap(g.nodes, g.edges).get(edgeId)
+    if (!edge || !route) return
+    const wps = (edge.data as { waypoints?: { x: number; y: number }[] } | undefined)?.waypoints ?? []
+    const i = bendInsertIndex(route.points, wps, p)
+    r.armAddBend(null) // one bend point per arming
+    g.setEdgeRouting(edgeId, { route: 'orthogonal', waypoints: [...wps.slice(0, i), p, ...wps.slice(i)] })
+    r.selectBend({ edgeId, index: i })
+  }, [])
+  useEffect(() => {
+    if (addBendFor == null) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        useRouteEditStore.getState().armAddBend(null)
+        return
+      }
+      if (e.key !== 'Enter' || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+      if (e.defaultPrevented || blocksCanvasKey(e.target)) return
+      // Enter would otherwise press the focused Add bend button (disarming)
+      e.preventDefault()
+      e.stopPropagation()
+      const g = useGraphStore.getState()
+      const route = currentRouteMap(g.nodes, g.edges).get(addBendFor)
+      const p = route ? keyboardBend(g.nodes, g.edges, addBendFor, route) : null
+      if (p) {
+        insertBend(addBendFor, p)
+        return
+      }
+      const st = rfStore.getState() as unknown as { ariaLiveMessage?: string }
+      if ('ariaLiveMessage' in st) rfStore.setState({ ariaLiveMessage: t('canvas.route.noBendRoom') } as never)
+      useRouteEditStore.getState().setNotice('canvas.route.noBendRoom')
+    }
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
+  }, [addBendFor, insertBend, rfStore, t])
+  const onAddBendClick = useCallback(
+    (e: React.MouseEvent, edge: LoopEdge) => {
+      const r = useRouteEditStore.getState()
+      if (r.addBendFor !== edge.id) return
+      const g = useGraphStore.getState()
+      const route = currentRouteMap(g.nodes, g.edges).get(edge.id)
+      if (!route) return
+      const at = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+      const p = bendAtClick(route.points, at, e.altKey)
+      if (!p || bendRejection(g.nodes, g.edges, edge.id, p) !== null) {
+        r.armAddBend(null)
+        return
+      }
+      insertBend(edge.id, p)
+    },
+    [screenToFlowPosition, insertBend],
+  )
+
   // §LGR6.6 — ONE owner for the destructive canvas keys. React Flow's built-in
   // handler is switched off (`deleteKeyCode={null}` below) because it (a)
   // defaults to `Backspace` ALONE, so `Delete` did nothing although our own
@@ -717,6 +815,34 @@ export function Canvas() {
         open = { snapshot: g.captureGestureSnapshot(), positions, announceId: ids[0] }
       }
       gesture.press(e.key)
+      // issue #344 §DL3 — the move itself: one grid step (Shift: four), the
+      // focused node landing on the grid (left edge + port row) and every
+      // selected node moved by the same delta. React Flow's own 5 / 20 px step
+      // never runs (this capture listener is ahead of it).
+      e.preventDefault()
+      e.stopPropagation()
+      const dir = ARROW_DIR[e.key]
+      const g = useGraphStore.getState()
+      const focusedId = (e.target as HTMLElement | null)?.closest?.('.react-flow__node')?.getAttribute('data-id')
+      const anchor = g.nodes.find((n) => n.id === focusedId)
+      if (!dir || !anchor) return
+      const step = GRID * (e.shiftKey ? 4 : 1)
+      const to = snapNodePosition({ x: anchor.position.x + dir[0] * step, y: anchor.position.y + dir[1] * step })
+      const dx = to.x - anchor.position.x
+      const dy = to.y - anchor.position.y
+      const moved: Record<string, Pt> = {}
+      for (const id of ids) {
+        const n = g.nodes.find((x) => x.id === id)
+        if (n) moved[id] = { x: n.position.x + dx, y: n.position.y + dy }
+      }
+      g.applyGesturePositions(moved, {})
+      // §DL3.6 — the row and column it now sits on, briefly
+      useGuideStore.getState().flash(keyMoveGuides(useGraphStore.getState().nodes, Object.keys(moved), anchor.id))
+      // the announcement React Flow would have made for its own move
+      const st = rfStore.getState() as unknown as { ariaLiveMessage?: string }
+      if ('ariaLiveMessage' in st) {
+        rfStore.setState({ ariaLiveMessage: t('rf.node.moved', { direction: t(RF_DIR_KEY[dir[2]] ?? 'rf.dir.right'), x: Math.round(to.x), y: Math.round(to.y) }) } as never)
+      }
     }
     const onKeyUp = (e: KeyboardEvent) => {
       if (ARROW_KEYS.has(e.key)) gesture.release(e.key)
@@ -756,6 +882,7 @@ export function Canvas() {
           const r = insertModule(cloneModuleDoc(block, moduleLabelOverlay(moduleId, locale)), {
             at,
             bundledModuleId: moduleId,
+            free: e.altKey, // issue #344 §DL3 — Alt at the drop: not snapped
           })
           if (!r.ok) window.alert(r.reason)
         }
@@ -763,7 +890,7 @@ export function Canvas() {
       }
       const kind = e.dataTransfer.getData(DND_TYPE) as NodeKind
       if (!kind) return
-      addNodeAt(kind, at)
+      addNodeAt(kind, at, { free: e.altKey }) // issue #344 §DL3 — on the grid; Alt = free
     },
     [addNodeAt, insertModule, screenToFlowPosition],
   )
@@ -783,6 +910,7 @@ export function Canvas() {
       className={`canvas${canvasLocked ? ' canvas--locked' : ''}${refInsertArmed ? ' canvas--ref-insert' : ''}`}
       data-tour="canvas"
       data-covered-by-sheets=""
+      aria-busy={routesBusy || undefined}
       onDrop={noEdit ? undefined : handleDrop}
       onDragOver={noEdit ? undefined : handleDragOver}
       onContextMenu={noEdit ? (e) => e.preventDefault() : undefined}
@@ -796,6 +924,16 @@ export function Canvas() {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
+        // issue #344 §DL3 — which node a drag grabbed and whether Alt is held
+        // (Alt = free move); the store snaps the drag by that node's correction.
+        // §ER14.5 — while it lasts only the routes the moved nodes touch are
+        // routed again; the drop builds one full generation
+        onNodeDragStart={(e, node, dragged) => { dragSnap.begin(node.id, e.altKey, dragged.map((n) => n.id), useGraphStore.getState().nodes, getViewport().zoom); beginLiveLayout() }}
+        onNodeDrag={(e) => dragSnap.update(e.altKey)}
+        onNodeDragStop={(e) => { dragSnap.update(e.altKey); dragSnap.end(); useGuideStore.getState().clear(); endLiveLayout() }}
+        onSelectionDragStart={(e, dragged) => { dragSnap.begin(dragged[0]?.id ?? null, e.altKey, dragged.map((n) => n.id), useGraphStore.getState().nodes, getViewport().zoom); beginLiveLayout() }}
+        onSelectionDrag={(e) => dragSnap.update(e.altKey)}
+        onSelectionDragStop={(e) => { dragSnap.update(e.altKey); dragSnap.end(); useGuideStore.getState().clear(); endLiveLayout() }}
         onEdgesChange={onEdgesChange}
         onConnect={noEdit ? undefined : onConnect}
         onSelectionChange={onSelectionChange}
@@ -808,6 +946,7 @@ export function Canvas() {
         nodesConnectable={!noEdit && !refInsertArmed}
         edgesReconnectable={!noEdit}
         onNodeClick={refInsertArmed ? (_e, n) => onArmedNodeClick(n.id) : undefined}
+        onEdgeClick={addBendFor != null && !noEdit ? onAddBendClick : undefined}
         zoomOnDoubleClick={!isMobile && !framePropsOpen}
         zoomOnScroll={!framePropsOpen}
         zoomOnPinch={!framePropsOpen}
@@ -871,6 +1010,8 @@ export function Canvas() {
         {/* docs/large-graph-readability.md §LGR6 — transient group frames
             (behind the nodes) + their interactive chrome. Render / UI-only. */}
         <FrameLayer />
+        {/* docs/diagram-layout.md §DL3.6 — the smart guides of a node drag */}
+        <SmartGuideLayer />
         {/* docs/large-graph-readability.md §LGR12.3 — the "N nodes selected"
             readout is NOT a canvas panel: desktop → DesktopInspector (the right
             column, directly above the Inspector), mobile → MobileInspectorSheet
@@ -1085,6 +1226,29 @@ export function Canvas() {
                   stroke="currentColor"
                   strokeWidth="1.6"
                   strokeDasharray="2.4 2"
+                />
+              </svg>
+            </ControlButton>
+          )}
+          {/* issue #344 §DL2.10 — Tidy to grid: re-place the document on the
+              grid by the conversion's own rules, as ONE undo step. Desktop
+              only (the phone does not edit); `disabled` while locked, never
+              removed, so the rail keeps its height (#338). */}
+          {!isMobile && (
+            <ControlButton
+              onClick={() => tidyToGrid()}
+              title={t('canvas.tidy')}
+              aria-label={t('canvas.tidy')}
+              disabled={canvasLocked}
+              className="rf-tidy"
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                <path
+                  d="M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinejoin="round"
                 />
               </svg>
             </ControlButton>

@@ -6,19 +6,19 @@
     "ltr": "a technical token whose direction is known — needs `isolateLtr`. RECORDED, NOT IMPLEMENTED.",
     "per-fragment": "several INDEPENDENT user values in one argument — needs one isolate per fragment. RECORDED, NOT IMPLEMENTED.",
     "closed-value": "the value provably cannot carry user text: a catalog string, an engine phrase, a formatted number, a build constant, a model-vocabulary token.",
-    "attribute": "the string ends up in an HTML attribute on an intrinsic element. PR B kept these as a separate axis (115 sites) because MARKUP cannot reach an attribute. An isolate could — so each row here still says what the value is, and the class records the axis rather than a verdict that it is safe. TWO DIFFERENT NUMBERS: 12 rows carry this CLASS, while 18 arguments have an attribute SINK, and they differ in both directions — 8 attribute-sink arguments are mechanically classified (a number, an enum, a catalog string) and need no row, and 2 rows are attribute by TRACING rather than by sink, because the value is built in a helper whose return value is an `aria-label` and the sink detector cannot follow a value through a function. Every row reached that way says TRACED and names the destination.",
+    "attribute": "the string ends up in an HTML attribute on an intrinsic element. PR B kept these as a separate axis (115 sites) because MARKUP cannot reach an attribute. An isolate could — so each row here still says what the value is, and the class records the axis rather than a verdict that it is safe. TWO DIFFERENT NUMBERS: 12 rows carry this CLASS, while 20 arguments have an attribute SINK, and they differ in both directions — 10 attribute-sink arguments are mechanically classified (a number, an enum, a catalog string) and need no row, and 2 rows are attribute by TRACING rather than by sink, because the value is built in a helper whose return value is an `aria-label` and the sink detector cannot follow a value through a function. Every row reached that way says TRACED and names the destination.",
     "unreachable": "the site cannot render this value at all. NO ROW USES THIS CLASS: every argument enumerated is reachable, which is worth recording as a result rather than leaving the class quietly empty."
   },
   "$implemented": "A row classed `auto` / `ltr` / `per-fragment` is an OPEN obligation: the evidence says the value needs bounding and the code does not bound it yet. C3.5 was scoped to fix the two families that were already evidenced — the unrecognized-column header and the five `import.loc.*` calls — and those moved to `isolate-obligations.json`. The checker asserts these rows are NOT wrapped, so implementing one without moving its row is red in both directions.",
   "totals": {
-    "arguments": 217,
+    "arguments": 222,
     "rows": 53,
     "byClass": {
       "attribute": 10,
       "closed-value": 43
     },
     "recordedNotImplemented": 0,
-    "attributeSink": 18
+    "attributeSink": 20
   },
   "rows": [
     {

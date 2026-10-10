@@ -184,7 +184,64 @@ the three templates exactly one node widens (early MMO `r_income`, +5.66 px).
 The Source / Drain / Converter mode line, the Gate's rows and two-line Pool
 titles are left as they were: their pointed, notched or slanted outlines grow
 with the width, so the same rule would widen 37 template nodes by up to 49 px
-(a separate follow-up).
+(the follow-up below, #337).
+
+## Follow-up — width-parametric outlines (issue #337, v0.21.4)
+
+The Pool, the Source, the Drain, the Converter and the Gate were drawn in the
+`0 0 120 h` viewBox stretched to the node's width, so every point, notch and
+slant got deeper as a node widened while its text stayed at fixed px insets.
+Measured on v0.21.3 in the five Templates in all 18 languages, desktop and
+phone: of 2,899 such nodes, 2,493 had a text line crossing the outline, every
+one had something closer than 8 px, and the kind chip crossed on every Pool,
+Drain and Converter. Widening a stretched outline cannot fix it (a waist or a
+slope deepens as fast as the node widens: 242 Converters and 369 Gates would
+need more than 260 px). On #332's rows: 892 of 1,898 Pool value / capacity rows
+started later than their title, because the title itself sat closer than 8 px
+to the slant and `rowFit` then placed the row at the outline + 8. #332's e2e
+allowed it (it fails only a row that starts before the title or sits under
+8 px), but it departed from #332's rule 1.
+
+1. **The outline keeps its features' px depth at every width and height**
+   (`./src/components/nodes/silhouette.ts` `FIXED_DEPTH_KINDS`,
+   `OUTLINE_DEPTH`): the Pool's slanted sides run 8 px, the Source's arrow is
+   16 px deep, the Drain's notch 16 px, the Converter's two waists 16 px, and the
+   Gate is an elongated hexagon with a 16 px point at each end (the stretched
+   diamond could not hold its text below 260 px). The path is drawn in CSS px
+   for the node's own width (`viewBox="0 0 w h"`); only the straight runs
+   stretch, the way the height caps of §MML1b already keep their offsets. The
+   End, the Parameter and the Register keep their 120-wide viewBox.
+2. **Every painted element keeps 8 px** (`ROW_CLEAR`) from the outline at its
+   own height, the way #332 measures (the line box's top + 1, middle and
+   bottom − 1): the kind chip, each title line and each row.
+   `./src/components/nodes/outlineFit.ts` (`fitOutline`, pure) moves the head
+   (chip + title, as one) in by the least its most constrained element needs
+   (`--of-head-shift`, a physical `margin-left`), starts every row where the
+   title starts (#332's rule for the Pool, the same for the Source / Drain /
+   Converter mode row) or further in only where the outline needs it, keeps the
+   Gate's lines centred, and sets the node's width to what the content and the
+   outline need, up to 260 px, where a row is cut by its ellipsis. Because the
+   left side of these outlines never depends on the width and the right side
+   keeps its distance from the right edge, the fit is a direct computation, not
+   a search. The width is built from widths that do not depend on the node's
+   current one (each row's whole text, the title on one line up to its own
+   135 px max), so a node an earlier fit made narrow grows when its title does.
+   With the head clear of a fixed slant, every Pool row starts at its title.
+3. **The bundled Templates were adjusted minimally**, as their positions are
+   shared by every language: in Early MMO 24 nodes moved right (x only, by
+   2 – 112 px), in the gacha Template two ticket Pools moved 9 px right and the
+   three zone frames widened (+37 / +45 / +49 px, which also brings inside the
+   17 nodes that already ended past their frame in long languages on v0.21.3),
+   and in Coffee one column (green stock, green wholesale, dessert stock) moved
+   25 px left. In all 18 languages: every pair of nodes stays at least
+   min(its gap before, 8 px) apart and no node leaves its frame. The engine
+   digest (`semanticDigest`) of every Template is unchanged; their full revision
+   digest moves, because positions and frame rects are cosmetic fields of it.
+   Users' files are not migrated or moved.
+
+Unchanged: node heights and wrapping, the engine, simulation results, port hit
+areas (the ports sit on the box edges, as when a node widens today), the
+activity overlay (#330), and the Parameter, Register and End outlines and rows.
 
 ## Regression tests
 
@@ -214,3 +271,11 @@ with the width, so the same rule would widen 37 template nodes by up to 49 px
 - `e2e/coffee-zone-frames.spec.ts` (EN / KO / JA) + `coffee-roastery.test.ts`
   §CR17 — every Forecast node keeps ≥ 24 px frame margin (unchanged by the
   re-cut).
+- #337: `src/components/nodes/silhouette.test.ts` (the five outlines' depths at
+  every width and height) and `outlineFit.test.ts` (the fit on a grid of titles
+  and rows: every element ≥ 8 px, rows at the title, the narrowest width);
+  `e2e/outline-containment.spec.ts` — every chip, title line and row of the
+  five kinds against the drawn outline in a synthetic graph of every mode and
+  the five Templates in all 18 languages, desktop and phone; every Pool and
+  mode row at its title; no two Template nodes overlapping and every node
+  inside its saved frame in every language.

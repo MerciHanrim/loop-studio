@@ -2316,9 +2316,14 @@ test.describe('§LGR9 forced-colors — rail toggles keep a visible keyboard foc
       await resetAll(page)
       await importGraph(page, readFileSync(new URL(`../examples/${file}`, import.meta.url), 'utf8'))
       await expect(page.locator('.react-flow__node').first()).toBeVisible()
-      await page.evaluate(() =>
-        (window as unknown as { __loop: { rf: { fitView: (o: object) => void } } }).__loop.rf.fitView({ duration: 0, padding: 0.1 }),
-      )
+      // frame the measured edges' own nodes (issue #344 step 4: fitting the
+      // whole, now larger, MMO graph made the zoom — and so the stroke's pixel
+      // coverage — depend on the graph's size, not on the edges under test)
+      await page.evaluate((ids) => {
+        const l = (window as unknown as { __loop: { rf: { fitView: (o: object) => void }; graph: { getState: () => { edges: { id: string; source: string; target: string }[] } } } }).__loop
+        const ends = l.graph.getState().edges.filter((e) => (ids as string[]).includes(e.id)).flatMap((e) => [e.source, e.target])
+        l.rf.fitView({ duration: 0, padding: 0.1, nodes: [...new Set(ends)].map((id) => ({ id })) })
+      }, [...edgeIds])
       await page.waitForTimeout(300)
       for (let i = 0; i < 10; i++) await commitOneStep(page)
       await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
@@ -3409,8 +3414,9 @@ test.describe('LGR Slice 5 — saved frames (SF / loop-revision/5)', () => {
 // CARRIES its contents. Derived at pointer-down (full containment, like the
 // creation guard), nothing stored (R5-D3 holds), ONE undo entry per gesture
 // through an explicit transaction (never the 600 ms coalescing), Esc /
-// pointercancel restore the origin with no entry, Alt+drag moves the frame
-// alone, nothing changes under the edit-lock or on mobile.
+// pointercancel restore the origin with no entry, Ctrl/⌘+drag moves the frame
+// alone (Alt before issue #344, which made Alt a free move off the grid),
+// nothing changes under the edit-lock or on mobile.
 // ---------------------------------------------------------------------------
 test.describe('LGR frame membership — a frame drag carries its contents (§LGR6.5 / LGR-D9)', () => {
   type Rect = { x: number; y: number; w: number; h: number }
@@ -3441,23 +3447,28 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
   const shifted = (r: Rect, dx: number, dy: number): Rect => ({ x: r.x + dx, y: r.y + dy, w: r.w, h: r.h })
   const strip = (page: Page, frameIndex: number) => page.locator('.lgr-frame').nth(frameIndex).locator('.lgr-frame__edge-hit--top')
 
-  /** a real pointer drag on a frame's TOP hit-strip by (dx, dy) screen px (zoom 1 ⇒ flow units). */
-  async function dragStrip(page: Page, frameIndex: number, dx: number, dy: number, opts: { alt?: boolean; pauseMs?: number; midway?: () => Promise<void> } = {}) {
+  /** a real pointer drag on a frame's TOP hit-strip by (dx, dy) screen px (zoom 1 ⇒ flow units).
+   *  Membership is the subject here, so by default Alt is held — a FREE move
+   *  (issue #344 §DL3.3), the frame moving by exactly (dx, dy); `snap` drops it
+   *  to see the grid snap. `frameOnly` holds Ctrl: the frame moves alone. */
+  async function dragStrip(page: Page, frameIndex: number, dx: number, dy: number, opts: { snap?: boolean; frameOnly?: boolean; pauseMs?: number; midway?: () => Promise<void> } = {}) {
     const b = (await strip(page, frameIndex).boundingBox())!
     const x0 = b.x + Math.min(40, b.width / 2)
     const y0 = b.y + b.height / 2
-    if (opts.alt) await page.keyboard.down('Alt')
+    const keys = [...(opts.snap ? [] : ['Alt']), ...(opts.frameOnly ? ['Control'] : [])]
+    for (const k of keys) await page.keyboard.down(k)
     await page.mouse.move(x0, y0)
     await page.mouse.down()
     await page.mouse.move(x0 + dx / 2, y0 + dy / 2, { steps: 4 })
     if (opts.pauseMs) await page.waitForTimeout(opts.pauseMs)
     if (opts.midway) {
       await opts.midway()
+      for (const k of keys) await page.keyboard.up(k)
       return
     }
     await page.mouse.move(x0 + dx, y0 + dy, { steps: 4 })
     await page.mouse.up()
-    if (opts.alt) await page.keyboard.up('Alt')
+    for (const k of keys) await page.keyboard.up(k)
   }
 
   // the fixture: a(0,0) b(260,0) c(520,0) d(780,0) mid(260,170) ma(0,170) mc(520,170) lone(780,200)
@@ -3470,12 +3481,16 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
     const inner = await seedFrame(page, INNER)
     const p0 = await positions(page)
     const h0 = await history(page)
-    await dragStrip(page, 0, 60, 40) // index 0 = outer (creation order)
+    // a SNAPPED drag (issue #344 §DL3.2): the pointer moves (60, 40), the
+    // outer top-left (−40, −40) + (60, 40) = (20, 0) lands on the grid at
+    // (16, 0), so the Δ everything rides by is (56, 40)
+    await dragStrip(page, 0, 60, 40, { snap: true }) // index 0 = outer (creation order)
+    const D = { x: 56, y: 40 }
     const p1 = await positions(page)
-    for (const id of ['a', 'b', 'c', 'mid', 'ma', 'mc']) expect(p1[id], `${id} carried`).toEqual({ x: p0[id].x + 60, y: p0[id].y + 40 })
+    for (const id of ['a', 'b', 'c', 'mid', 'ma', 'mc']) expect(p1[id], `${id} carried`).toEqual({ x: p0[id].x + D.x, y: p0[id].y + D.y })
     for (const id of ['d', 'lone']) expect(p1[id], `${id} left alone`).toEqual(p0[id])
-    expect(await rectOf(page, outer)).toEqual(shifted(OUTER, 60, 40))
-    expect(await rectOf(page, inner), 'the nested frame rides along').toEqual(shifted(INNER, 60, 40))
+    expect(await rectOf(page, outer)).toEqual(shifted(OUTER, D.x, D.y))
+    expect(await rectOf(page, inner), 'the nested frame rides along').toEqual(shifted(INNER, D.x, D.y))
     // the edges between carried nodes re-rendered (route map rebuilt) — the path still exists
     await expect(edge(page, 'e_ab').locator('path.react-flow__edge-path')).toHaveCount(1)
     const h1 = await history(page)
@@ -3555,7 +3570,7 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
     }
   })
 
-  test('Alt+drag moves the frame ONLY — nodes, the nested frame and waypoints stay', async ({ page }) => {
+  test('Ctrl+drag (⌘ on a Mac) moves the frame ONLY — nodes, the nested frame and waypoints stay', async ({ page }) => {
     await load(page)
     const outer = await seedFrame(page, OUTER)
     const inner = await seedFrame(page, INNER)
@@ -3566,7 +3581,7 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
     })
     const p0 = await positions(page)
     const h0 = await history(page)
-    await dragStrip(page, 0, 70, 20, { alt: true })
+    await dragStrip(page, 0, 70, 20, { frameOnly: true })
     expect(await rectOf(page, outer)).toEqual(shifted(OUTER, 70, 20))
     expect(await rectOf(page, inner)).toEqual(INNER)
     expect(await positions(page)).toEqual(p0)
@@ -3697,12 +3712,12 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
     const notes = page.locator('.hint-note')
     await expect(notes).toHaveCount(1)
     await expect(notes.first()).toContainText(/Sheet1/)
-    await expect(notes.first()).not.toContainText(/Alt/)
+    await expect(notes.first()).not.toContainText(/Ctrl/)
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('loop-studio/contextual-help/1') ?? '{}')), 'the hidden frame-move note is NOT consumed').not.toHaveProperty('frame-move')
     // close the import note; the frame is still selected → the frame-move note takes the slot
     await notes.first().locator('.hint-note__x').click()
     expect((await frameHead(page)).selectedId).not.toBeNull()
-    await expect(page.locator('.hint-note', { hasText: /Alt/ })).toHaveCount(1)
+    await expect(page.locator('.hint-note', { hasText: /Ctrl/ })).toHaveCount(1)
     await expect(page.locator('.hint-note')).toHaveCount(1)
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('loop-studio/contextual-help/1') ?? '{}'))).toMatchObject({ 'frame-move': true })
   })
@@ -3753,7 +3768,7 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
     expect((await frameHead(page)).frames.map((f) => f.id)).toEqual([manual])
   })
 
-  test('the first time a frame is selected a one-time note explains "edge drag carries contents / Alt+drag frame only"; it is listed in the contextual-tips dialog', async ({ page }) => {
+  test('the first time a frame is selected a one-time note explains "edge drag carries contents / Ctrl+drag frame only"; it is listed in the contextual-tips dialog', async ({ page }) => {
     await load(page)
     await page.evaluate(() => localStorage.removeItem('loop-studio/contextual-help/1'))
     await page.reload()
@@ -3764,10 +3779,10 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
     await strip(page, 0).click({ position: { x: 10, y: 6 } })
     const note = page.locator('.hint-note')
     await expect(note).toHaveCount(1)
-    await expect(note).toContainText(/Alt/)
+    await expect(note).toContainText(/Ctrl/)
     await note.locator('.hint-note__x').click()
     // closing it hands the slot back to whatever tier-3 note was waiting — the frame note itself is gone
-    await expect(page.locator('.hint-note', { hasText: /Alt/ })).toHaveCount(0)
+    await expect(page.locator('.hint-note', { hasText: /Ctrl/ })).toHaveCount(0)
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('loop-studio/contextual-help/1') ?? '{}'))).toMatchObject({ 'frame-move': true })
   })
 })

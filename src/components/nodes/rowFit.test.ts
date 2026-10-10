@@ -3,12 +3,16 @@ import type { NodeKind } from '../../model/types'
 import { fitRows, type FrameGeometry, headRim, type MeasuredRow, NODE_MAX_W, NODE_MIN_W, ROW_CLEAR, TITLE_SLACK } from './rowFit'
 import { fillSpanAt, NODE_RINGS } from './silhouette'
 
-// issue #332 — the value / detail row fit of a Pool, a Parameter, a Register.
+// issue #332 — the value / detail row fit of a Parameter and a Register. The
+// Pool's rows moved to ./outlineFit with its width-parametric outline (#337);
+// its #332 rules are tested in ./outlineFit.test.
 
 describe('fillSpanAt', () => {
   it('reads the fill straight from the drawn path', () => {
-    // pool at 58: the left side runs (24, 13) → (8, 46), the right (96, 13) → (112, 46)
-    expect(fillSpanAt('pool', 58, 29.5)).toEqual([16, 104])
+    // pool at 58 (width-parametric, #337): the left side runs (16, 13) → (8, 46)
+    // at every width, the right keeps the same distance from the right edge
+    expect(fillSpanAt('pool', 58, 29.5)).toEqual([12, 108])
+    expect(fillSpanAt('pool', 58, 29.5, 200)).toEqual([12, 188])
     // register at 64 (the historic cut): its ends bulge to x6 / x118 at mid-height
     const [l, r] = fillSpanAt('register', 64, 32)!
     expect(l).toBeCloseTo(6, 1)
@@ -31,20 +35,11 @@ describe('fillSpanAt', () => {
 })
 
 // geometry close to what NodeFrame measures in the shipped layout (index.css):
-// Pool body padding 12 / 12, title one line at y 10 … 26; Parameter / Register
-// padding 15 / 15, the head carrying the width-scaled rim
-const pool = (width: number, over: Partial<FrameGeometry> = {}): FrameGeometry => ({
-  height: 74, width, stackStart: 12, padEnd: 12, titleStart: 26, titleWidth: 60,
-  titleTop: 10, titleBottom: 26, titleWrapped: false, titleMax: 135, ...over,
-})
+// Parameter / Register padding 15 / 15, the head carrying the width-scaled rim
 const capsule = (kind: 'parameter' | 'register', width: number, over: Partial<FrameGeometry> = {}): FrameGeometry => ({
   height: 86, width, stackStart: 15, padEnd: 15, titleStart: 29 + headRim(kind, width), titleWidth: 70,
   titleTop: 16, titleBottom: 32, titleWrapped: false, titleMax: 135, ...over,
 })
-const POOL_ROWS = (value: number, sub = 40): MeasuredRow[] => [
-  { key: 'value', top: 27, bottom: 48, width: value },
-  { key: 'sub', top: 49, bottom: 64, width: sub },
-]
 const CAPSULE_ROWS = (value: number, sub = 40): MeasuredRow[] => [
   { key: 'value', top: 33, bottom: 54, width: value },
   { key: 'sub', top: 55, bottom: 70, width: sub },
@@ -70,20 +65,8 @@ describe('fitRows', () => {
   })
 
   it('starts each row at the title text, and keeps the size when it already fits', () => {
-    // a one-line Pool (58 px tall, value only) and a Register
-    const p = fitRows('pool', pool(118, { height: 58 }), POOL_ROWS(20).slice(0, 1))
-    expect(p).toEqual({ width: 118, start: { value: 14 }, minWidth: null, maxWidth: {} })
     const r = fitRows('register', capsule('register', 118), CAPSULE_ROWS(20, 30))
     expect(r).toEqual({ width: 118, start: { value: 14, sub: 14 }, minWidth: null, maxWidth: {} })
-  })
-
-  it('moves a row past the title start where the slant needs it', () => {
-    // a capacity row makes the Pool 74 px tall, so its left side leans in
-    // further toward the top: at the value row's top the fill starts at
-    // x ≈ 19.4, and 8 px clear of it is past the title's 26
-    const fit = fitRows('pool', pool(118), POOL_ROWS(20))
-    expect(fit.start.value! + 12).toBeGreaterThan(26)
-    expect(fit.start.sub).toBe(14)
   })
 
   it('widens a Register by the minimum that holds the row whole', () => {
@@ -109,14 +92,6 @@ describe('fitRows', () => {
     expect(fit.maxWidth.sub!).toBeLessThan(400)
     // the shorter value row still fits whole
     expect(fit.maxWidth.value).toBeUndefined()
-  })
-
-  it('never makes a Pool title worse: the slanted side would move toward it', () => {
-    // a 108 px value (`1234567.89`) set the shipped width (12 + 108 + 12);
-    // aligned at the title it would need ~185 px, where the title would cross
-    const fit = fitRows('pool', pool(132), POOL_ROWS(108))
-    expect(fit.minWidth).toBe(132)
-    expect(fit.maxWidth.value).toBeLessThan(108)
   })
 
   it('lets a title that had 8 px or more lose at most TITLE_SLACK, never below 8', () => {
@@ -158,15 +133,14 @@ describe('fitRows', () => {
   // title, keeps ROW_CLEAR inside the outline at both ends, and the node never
   // leaves the CSS width range
   it.each([
-    ['pool', [118, 140, 200, 260]],
     ['parameter', [118, 140, 200, 260]],
     ['register', [118, 140, 200, 260]],
   ] as const)('%s rows stay inside the outline at every width', (kind, widths) => {
     for (const width of widths) {
       for (const value of [10, 60, 120, 240, 500]) {
         for (const sub of [20, 90, 300]) {
-          const g = kind === 'pool' ? pool(width) : capsule(kind, width)
-          const rows = kind === 'pool' ? POOL_ROWS(value, sub) : CAPSULE_ROWS(value, sub)
+          const g = capsule(kind, width)
+          const rows = CAPSULE_ROWS(value, sub)
           const fit = fitRows(kind, g, rows)
           const w = fit.width
           if (fit.minWidth != null) expect(fit.minWidth).toBe(w)

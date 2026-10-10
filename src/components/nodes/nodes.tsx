@@ -10,14 +10,18 @@ import {
 import {
   BASE_NODE_H,
   clampNodeHeight,
+  isFixedDepth,
   maskBox,
   NODE_RINGS,
   POOL_PULSE_INSET,
+  portInsetFraction,
   silhouettePath,
   VESSEL_INSET_Y,
   VESSEL_MIN_PAD_Y,
 } from './silhouette'
+import { type Extent, fitOutline, type OutlineFit, type OutlineGeometry, type OutlineRow } from './outlineFit'
 import { formatRegisterValue, readAccent, readParameterData, readRegisterData } from '../../model/model'
+import { PORT_ROW } from '../../model/layout/grid'
 import { useGraphStore } from '../../store/graphStore'
 import { useRegisterOutcome } from '../../store/registers'
 import { useSimStore } from '../../store/simStore'
@@ -60,11 +64,10 @@ import { useNodeActivityOpacity } from '../frames/useActivityTint'
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2))
 
 // ── issue #332 — the value / detail rows' fit ─────────────────────────────
-// Pool (value, capacity), Register (result, `= expr`) and Parameter (value,
-// unit). The Source / Drain / Converter mode row keeps its place: its pointed
-// or notched vessel scales with the width, so fitting it there would widen a
-// node far more than its row needs (measured in #332, deferred).
-const ROW_FIT_KINDS: ReadonlySet<NodeKind> = new Set(['pool', 'parameter', 'register'])
+// Register (result, `= expr`) and Parameter (value, unit): ./rowFit. Issue
+// #337 — the Pool (value, capacity) moved to the outline fit below with the
+// other width-parametric kinds; #332's rules for its rows are kept there.
+const ROW_FIT_KINDS: ReadonlySet<NodeKind> = new Set(['parameter', 'register'])
 
 /** `el`'s offset from `frame`, in untransformed CSS px (a value's bump
  *  animation scales it, which a `getBoundingClientRect` would read) */
@@ -186,6 +189,80 @@ function measureConvSpot(frame: HTMLElement, width: number, h: number): Spot | n
   return convMarkSpot(width, h, text, modeBox)
 }
 
+/** issue #337 — one measurement pass for a width-parametric kind: the head (the
+ *  chip and each title line) and the rows, in CSS px within the box at their
+ *  place BEFORE the fit moves them (the head's own shift, a `margin-left`, is
+ *  taken back out), each line's top / bottom its line box; then ./outlineFit
+ *  decides. Like `measureRowFit`, nothing is written to the DOM. */
+function measureOutlineFit(frame: HTMLElement, stack: HTMLElement, kind: NodeKind, h: number): OutlineFit {
+  return fitOutline(measureOutlineGeometry(frame, stack, kind, h))
+}
+
+function measureOutlineGeometry(frame: HTMLElement, stack: HTMLElement, kind: NodeKind, h: number): OutlineGeometry {
+  const width = parseFloat(getComputedStyle(frame).width) || frame.offsetWidth
+  const box = frame.getBoundingClientRect()
+  const scale = box.width / width || 1
+  const dy = (h - frame.offsetHeight) / 2
+  const stackStart = offsetIn(stack, frame).left
+  const headEl = frame.querySelector<HTMLElement>('.nodef__head')
+  const shiftNow = headEl ? parseFloat(getComputedStyle(headEl).marginLeft) || 0 : 0
+  const at = (q: DOMRect | { left: number; right: number; top: number; bottom: number }): Extent => ({
+    left: (q.left - box.left) / scale - shiftNow,
+    right: (q.right - box.left) / scale - shiftNow,
+    top: (q.top - box.top) / scale + dy,
+    bottom: (q.bottom - box.top) / scale + dy,
+  })
+  const chipEl = frame.querySelector<HTMLElement>('.nodef__chip')
+  const title = frame.querySelector<HTMLElement>('.nodef__title')
+  const cs = title ? getComputedStyle(title) : null
+  const lh = cs ? parseFloat(cs.lineHeight) || 1.2 * parseFloat(cs.fontSize) : 0
+  const tBox = title ? at(title.getBoundingClientRect()) : null
+  // each title line's glyphs; its top / bottom the line's BOX (the title's own
+  // top plus the line's index × the line height), not the font's taller content
+  const titleLines: Extent[] = []
+  if (title && tBox) {
+    const range = document.createRange()
+    range.selectNodeContents(title)
+    // (a line a line clamp hides lies below the title's own box: left out)
+    const rects = [...range.getClientRects()].filter((q) => q.width > 0.5).map(at).filter((q) => (q.top + q.bottom) / 2 < tBox.bottom).sort((a, b) => a.top - b.top || a.left - b.left)
+    for (const q of rects) {
+      const line = Math.max(0, Math.round(((q.top + q.bottom) / 2 - tBox.top - lh / 2) / lh))
+      const top = tBox.top + line * lh
+      const L = titleLines.find((m) => Math.abs(m.top - top) < 0.5)
+      if (L) { L.left = Math.min(L.left, q.left); L.right = Math.max(L.right, q.right) } else titleLines.push({ left: q.left, right: q.right, top, bottom: top + lh })
+    }
+  }
+  const titleWrapped = title && cs ? title.offsetHeight > 1.5 * lh : false
+  const rows: OutlineRow[] = []
+  for (const key of ['value', 'sub'] as const) {
+    const el = frame.querySelector<HTMLElement>(`.nodef__${key}`)
+    if (!el) continue
+    const o = offsetIn(el, frame)
+    const own = key === 'value' ? el.getBoundingClientRect().width / (parseFloat(getComputedStyle(el).width) || el.offsetWidth) : scale
+    const w = textWidth(el, own || scale)
+    // the Gate centres its rows: their measured centre, with the whole text width
+    const centre = o.left + el.offsetWidth / 2
+    rows.push({ key, top: o.top + dy, bottom: o.top + dy + el.offsetHeight, width: w, left: centre - w / 2 })
+  }
+  return {
+    kind,
+    height: h,
+    width,
+    stackStart,
+    // the body's own end padding: the Gate's stack shrinks to its content
+    padEnd: stack.parentElement ? parseFloat(getComputedStyle(stack.parentElement).paddingRight) || 0 : 0,
+    minWidth: parseFloat(getComputedStyle(frame).minWidth) || 118,
+    chip: chipEl ? at(chipEl.getBoundingClientRect()) : null,
+    titleLines,
+    titleBoxStart: tBox ? tBox.left : stackStart + 14,
+    // a wrapped title's one-line width from its own font (never by laying it
+    // out unwrapped); an unwrapped one's is its box
+    titleOneLine: title && cs && tBox ? (titleWrapped ? (oneLineWidth(title, cs) ?? tBox.right - tBox.left) : tBox.right - tBox.left) : 0,
+    titleMax: cs ? parseFloat(cs.maxWidth) || Infinity : Infinity,
+    rows,
+  }
+}
+
 /** a count of the web-font loads that have finished: a face that arrives after
  *  the first measurement changes a row's text width without resizing a stack
  *  the fit already holds, so each load re-reads the fit once */
@@ -211,18 +288,24 @@ const useFontLoads = (): number => useSyncExternalStore(subscribeFontLoads, () =
 const boxHeightOf = (kind: NodeKind, stack: HTMLElement): number =>
   clampNodeHeight(kind, stack.offsetHeight + VESSEL_INSET_Y[kind] + 2 * VESSEL_MIN_PAD_Y)
 
-const sameFit = (a: RowFit | null, b: RowFit): boolean =>
+type AnyFit = RowFit | OutlineFit
+
+const sameFit = (a: AnyFit | null, b: AnyFit): boolean =>
   a !== null && JSON.stringify(a) === JSON.stringify(b)
 
-/** the row fit as the frame's CSS custom properties (index.css reads them) */
-function fitStyle(fit: RowFit | null): Record<string, string | number> | null {
+/** the row fit as the frame's CSS custom properties (index.css reads them); an
+ *  outline fit (#337) also sets the node's width and the head's shift */
+function fitStyle(fit: AnyFit | null): Record<string, string | number> | null {
   if (!fit) return null
   const s: Record<string, string | number> = {}
   for (const key of ['value', 'sub'] as const) {
     if (fit.start[key] != null) s[`--vra-${key}-start`] = `${fit.start[key]}px`
     if (fit.maxWidth[key] != null) s[`--vra-${key}-max`] = `${fit.maxWidth[key]}px`
   }
-  if (fit.minWidth != null) s.minWidth = fit.minWidth
+  if ('headShift' in fit) {
+    s.width = fit.width
+    if (fit.headShift) s['--of-head-shift'] = `${fit.headShift}px`
+  } else if (fit.minWidth != null) s.minWidth = fit.minWidth
   return s
 }
 
@@ -306,6 +389,9 @@ type FrameProps = {
    *  top-right `!` flag; carries no value (the caller passes `—`). */
   invalid?: boolean
   stepKey: number
+  /** issue #344 §DL1 — the resource ports this kind has (`in` left, `out`
+   *  right); drawn here, where the box height is known, on the fixed port row */
+  ports?: { in?: boolean; out?: boolean }
 } & SubProps
 
 function NodeFrame({
@@ -327,6 +413,7 @@ function NodeFrame({
   conversion,
   invalid,
   stepKey,
+  ports,
 }: FrameProps) {
   const tip = useT()
   const lod = useLod()
@@ -385,7 +472,25 @@ function NodeFrame({
   // start and how wide the node must be so no row crosses the vessel. Taken
   // after the height is known, only when the content, the language, the fonts
   // or the height change (below) — never per animation frame.
-  const [fit, setFit] = useState<RowFit | null>(null)
+  // issue #337 — for a width-parametric kind, the outline fit (./outlineFit):
+  // also the head's place and the node's width, which the outline is drawn for
+  const fixedDepth = isFixedDepth(kind)
+  // a content change that keeps the stack's size (a new number of the same
+  // length, a shorter sub inside a title-wide node) still moves a row's glyph
+  // extent, so any change of the rendered strings is re-read once, after
+  // React commits it: one read per change, never per animation frame
+  const fonts = useFontLoads()
+  const fitKey = JSON.stringify([value, unit, sub, title, locale, fonts])
+  // the fit and the strings, language and fonts it was read for
+  const [fitState, setFitState] = useState<{ fit: AnyFit; key: string } | null>(null)
+  // #337 — a node is read the way a fresh one is: when its strings, language
+  // or fonts change it renders once without its fit (before the paint, so
+  // nothing shows it) and the fit is read from that natural layout. Read under
+  // the old width, a longer single word is squeezed rather than wrapped and its
+  // one-line width comes out short (the same Template opened again in German),
+  // and a Register kept the previous language's minimum width, so its title
+  // wrapped, and its height came out, unlike a fresh open's.
+  const fit = fitState && fitState.key === fitKey ? fitState.fit : null
   // the inputs of the last fit: a fit is read once per change of the rendered
   // strings, the language, the fonts or the box height, and never again for
   // the same ones (the re-render a fit itself causes reads nothing)
@@ -402,16 +507,10 @@ function NodeFrame({
     ro.observe(stack)
     return () => ro.disconnect()
   }, [kind])
-  // a content change that keeps the stack's size (a new number of the same
-  // length, a shorter sub inside a title-wide node) still moves a row's glyph
-  // extent, so any change of the rendered strings is re-read once, after
-  // React commits it: one read per change, never per animation frame
-  const fonts = useFontLoads()
-  const fitKey = JSON.stringify([value, unit, sub, title, locale, fonts])
   useLayoutEffect(() => {
     const frame = frameRef.current
     const stack = stackRef.current
-    if (!frame || !stack || !ROW_FIT_KINDS.has(kind)) return
+    if (!frame || !stack || !(fixedDepth || ROW_FIT_KINDS.has(kind))) return
     // the height the content asks for, read in the same pass as the box's
     // own (so the fit and the height land in ONE re-render of the node: a
     // second one, for 2,400 nodes, cost about 0.7 s)
@@ -420,25 +519,28 @@ function NodeFrame({
     if (input === fitInput.current) return
     fitInput.current = input
     rowFitMeasured()
-    const next = measureRowFit(frame, stack, kind, h)
-    setFit((prev) => (sameFit(prev, next) ? prev : next))
-  }, [fitKey, boxH, kind])
+    const next: AnyFit = fixedDepth ? measureOutlineFit(frame, stack, kind, h) : measureRowFit(frame, stack, kind, h)
+    setFitState((prev) => (prev && prev.key === fitKey && sameFit(prev.fit, next) ? prev : { fit: next, key: fitKey }))
+  }, [fitKey, boxH, kind, fixedDepth])
   // issue #330 PR 2 — a Converter's conversion-mark spot, read once per change
   // of the rendered strings, the language, the fonts or the box size (never per
   // frame, never while a step plays); the same at L1, where the mode row is
-  // hidden but keeps its place
+  // hidden but keeps its place; #337 — read only once the outline fit is in
+  // place (the render without it is a measuring pass, never painted), and once
+  // more whenever the fit moves the text or sets the width (the input carries
+  // both, so an unchanged fit reads nothing)
   const [convSpot, setConvSpot] = useState<Spot | null>(null)
   const convInput = useRef('')
   useLayoutEffect(() => {
     const frame = frameRef.current
-    if (!frame || kind !== 'converter') return
+    if (!frame || kind !== 'converter' || (fixedDepth && !fit)) return
     const width = parseFloat(getComputedStyle(frame).width) || frame.offsetWidth
-    const input = `${fitKey}|${boxH}|${width}`
+    const input = `${fitKey}|${boxH}|${width}|${fit ? JSON.stringify(fit) : ''}`
     if (input === convInput.current) return
     convInput.current = input
     const next = measureConvSpot(frame, width, boxH)
     setConvSpot((prev) => (prev?.x === next?.x && prev?.y === next?.y ? prev : next))
-  }, [fitKey, boxH, kind])
+  }, [fitKey, boxH, kind, fit, fixedDepth])
   const convPhase = conversion ? conversion.slice(conversion.indexOf(':') + 1) : null
   const convStep = conversion ? conversion.slice(0, conversion.indexOf(':')) : null
   // at L0 the mark takes the type dot's place; elsewhere it needs its spot
@@ -465,12 +567,15 @@ function NodeFrame({
     }
   }, [])
 
-  const path = silhouettePath(kind, boxH)
+  // #337 — a width-parametric outline is drawn for the node's width (the fit
+  // sets it, before the first paint); the others in their 120-wide viewBox
+  const pathW = fixedDepth && fit && 'headShift' in fit ? fit.width : 120
+  const path = silhouettePath(kind, boxH, pathW)
   // FC-4.1 — only a stored-form colour is drawn; the ids are this component's
   // own (never built from the node id or the colour)
   const accent = readAccent(accentProp)
   const uid = 'nf' + useId().replace(/[^A-Za-z0-9_-]/g, '_')
-  const box = maskBox(boxH)
+  const box = maskBox(boxH, pathW)
   // state ports are invisible at rest; they surface on hover / selection /
   // keyboard focus / while a state wire is being dragged. A port that already
   // carries a state edge stays faintly visible so the wiring reads.
@@ -533,10 +638,9 @@ function NodeFrame({
         className="h h--state"
         style={{ opacity: opOut }}
       />
-
       <svg
         className="nodef__shape"
-        viewBox={`0 0 120 ${boxH}`}
+        viewBox={`0 0 ${pathW} ${boxH}`}
         preserveAspectRatio="none"
         aria-hidden="true"
       >
@@ -636,8 +740,15 @@ function NodeFrame({
           </g>
         ) : null}
         {/* L0 map: type colour collapses to one dot inside the silhouette; a
-            conversion mark takes its place while it shows */}
-        {mapOnly && !convOn ? <circle className="nodef__cdot" cx="60" cy={boxH / 2} r="9" /> : null}
+            conversion mark takes its place while it shows. #337 — in a
+            width-parametric viewBox the dot is stretched by the same `w / 120`
+            the 120-wide viewBox applies, so it draws exactly as on every other
+            kind */}
+        {mapOnly && !convOn ? (
+          <g transform={pathW === 120 ? undefined : `scale(${pathW / 120} 1)`}>
+            <circle className="nodef__cdot" cx="60" cy={boxH / 2} r="9" />
+          </g>
+        ) : null}
       </svg>
 
       {/* §VL4 — one persistent flag, top-right, non-colour tell for `invalid` */}
@@ -706,6 +817,30 @@ function NodeFrame({
         ) : null}
         </div>
       </div>
+
+      {/* issue #344 §DL1 — resource ports on the fixed row PORT_ROW px below
+          the top, drawn ON the outline there (a fraction of the width: the
+          outline stretches with the width only), whatever the height. Last in
+          the frame, so they paint — and take the pointer — above the
+          silhouette and the text they sit on. */}
+      {ports?.in ? (
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="in"
+          className="h h--in"
+          style={{ top: PORT_ROW, left: `${portInsetFraction(kind, boxH, 'in', PORT_ROW, pathW) * 100}%` }}
+        />
+      ) : null}
+      {ports?.out ? (
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="out"
+          className="h h--out"
+          style={{ top: PORT_ROW, right: `${portInsetFraction(kind, boxH, 'out', PORT_ROW, pathW) * 100}%` }}
+        />
+      ) : null}
     </div>
   )
 }
@@ -719,10 +854,10 @@ function PoolNode({ id, data, selected }: NodeProps) {
   // Pool's face is its count; mode / capacity stay in the inspector
   return (
     <>
-      <Handle type="target" position={Position.Left} id="in" className="h h--in" />
       <NodeFrame
         nodeId={id}
         kind="pool"
+        ports={{ in: true, out: true }}
         title={d.label}
         titleDir="auto"
         value={fmt(shown)}
@@ -737,7 +872,6 @@ function PoolNode({ id, data, selected }: NodeProps) {
         pulseKey={pulseKey}
         stepKey={stepKey}
       />
-      <Handle type="source" position={Position.Right} id="out" className="h h--out" />
     </>
   )
 }
@@ -750,6 +884,7 @@ function SourceNode({ id, data, selected }: NodeProps) {
       <NodeFrame
         nodeId={id}
         kind="source"
+        ports={{ out: true }}
         title={d.label}
         titleDir="auto"
         sub={`${d.activation} · ${d.mode}`}
@@ -761,7 +896,6 @@ function SourceNode({ id, data, selected }: NodeProps) {
         activity={useNodeActivityOpacity(id)}
         stepKey={stepKey}
       />
-      <Handle type="source" position={Position.Right} id="out" className="h h--out" />
     </>
   )
 }
@@ -771,10 +905,10 @@ function DrainNode({ id, data, selected }: NodeProps) {
   const stepKey = useSimStore((s) => s.stepIndex)
   return (
     <>
-      <Handle type="target" position={Position.Left} id="in" className="h h--in" />
       <NodeFrame
         nodeId={id}
         kind="drain"
+        ports={{ in: true }}
         title={d.label}
         titleDir="auto"
         sub={`${d.activation} · ${d.mode}`}
@@ -795,10 +929,10 @@ function GateNode({ id, data, selected }: NodeProps) {
   const stepKey = useSimStore((s) => s.stepIndex)
   return (
     <>
-      <Handle type="target" position={Position.Left} id="in" className="h h--in" />
       <NodeFrame
         nodeId={id}
         kind="gate"
+        ports={{ in: true, out: true }}
         title={d.label}
         titleDir="auto"
         sub={d.distribution}
@@ -810,7 +944,6 @@ function GateNode({ id, data, selected }: NodeProps) {
         activity={useNodeActivityOpacity(id)}
         stepKey={stepKey}
       />
-      <Handle type="source" position={Position.Right} id="out" className="h h--out" />
     </>
   )
 }
@@ -820,10 +953,10 @@ function ConverterNode({ id, data, selected }: NodeProps) {
   const stepKey = useSimStore((s) => s.stepIndex)
   return (
     <>
-      <Handle type="target" position={Position.Left} id="in" className="h h--in" />
       <NodeFrame
         nodeId={id}
         kind="converter"
+        ports={{ in: true, out: true }}
         title={d.label}
         titleDir="auto"
         sub={d.mode}
@@ -836,7 +969,6 @@ function ConverterNode({ id, data, selected }: NodeProps) {
         conversion={useConversionMark(id)}
         stepKey={stepKey}
       />
-      <Handle type="source" position={Position.Right} id="out" className="h h--out" />
     </>
   )
 }
@@ -846,10 +978,10 @@ function EndNode({ id, data, selected }: NodeProps) {
   const stepKey = useSimStore((s) => s.stepIndex)
   return (
     <>
-      <Handle type="target" position={Position.Left} id="in" className="h h--in" />
       <NodeFrame
         nodeId={id}
         kind="end"
+        ports={{ in: true }}
         title={d.label}
         titleDir="auto"
         selected={selected}

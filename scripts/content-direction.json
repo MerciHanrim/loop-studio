@@ -8,10 +8,10 @@
     "branch-computed": "the attribute is an EXPRESSION and the file contains the declared marker - one element, several branches wanting different directions"
   },
   "totals": {
-    "elements": 96,
+    "elements": 97,
     "byExpect": {
       "auto": 37,
-      "branch-computed": 4,
+      "branch-computed": 5,
       "locale-direction": 13,
       "ltr": 42
     }
@@ -731,7 +731,18 @@
         "text"
       ],
       "expect": "branch-computed",
-      "marker": "dir={textDir}"
+      "marker": "dir={textDir}",
+      "ordinal": 0
+    },
+    {
+      "file": "src/components/edges/LoopEdge.tsx",
+      "tag": "div",
+      "find": [
+        "text"
+      ],
+      "expect": "branch-computed",
+      "marker": "dir={textDir}",
+      "ordinal": 1
     },
     {
       "file": "src/components/edges/LoopEdge.tsx",

@@ -1613,6 +1613,74 @@ a.sheet__row {
   fill: var(--warning);
   font: 700 11px var(--font-sans);
 }
+/* issue #344 §DL3.6 — smart guides (SmartGuideLayer.tsx): a dashed placement
+   line through where the drag lands, a solid line to every node it is exactly
+   aligned with. 1 screen px whatever the zoom; faint while Alt frees the move. */
+.smart-guides {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 4;
+}
+.smart-guide {
+  stroke: var(--line-focus);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 4 4;
+  opacity: 0.55;
+}
+.smart-guide.is-strong {
+  stroke-dasharray: none;
+  opacity: 0.95;
+}
+.smart-guides.is-faint .smart-guide {
+  opacity: 0.3;
+}
+@media (forced-colors: active) {
+  .smart-guide {
+    stroke: Highlight;
+  }
+}
+/* issue #344 step 3 (docs/edge-routing.md §ER16) — a bend point of the selected
+   Manual orthogonal connection (RouteBends.tsx): a small square on the route,
+   draggable and focusable. A position it cannot keep (inside a node, on the
+   port stub) is shown with a DASHED border — the non-colour tell — and the
+   point goes back on release. */
+.route-bend {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  margin: 0;
+  border: 2px solid var(--line-focus);
+  border-radius: 2px;
+  background: var(--surface-raised);
+  pointer-events: all;
+  cursor: move;
+  z-index: 1;
+}
+.route-bend:focus-visible,
+.route-bend.is-focused {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.route-bend.is-invalid {
+  border-style: dashed;
+  border-color: var(--warning);
+}
+@media (forced-colors: active) {
+  .route-bend {
+    border-color: Highlight;
+    background: Canvas;
+  }
+  .route-bend.is-invalid {
+    border-color: CanvasText;
+  }
+}
 /* Under `forced-colors: active` the UA force-adjusts these SVG `fill` / `stroke`
    values to system colours automatically (the same path the Canvas Visual
    Refresh relies on — no `@media` block, see scripts/check-mobile-query.mjs).
@@ -2184,7 +2252,26 @@ a.sheet__row {
 .nodef--register .nodef__sub {
   margin-left: var(--vra-sub-start, clamp(0px, calc(11.6667% - 11.5px), 17px));
 }
-
+/* issue #337 — the Pool, Source, Drain, Converter and Gate outlines keep a fixed
+   px depth at every width (./components/nodes/silhouette), and
+   ./components/nodes/outlineFit places what is painted inside them: the head
+   (chip + title) moves in by `--of-head-shift` where the outline needs it, a
+   Source / Drain / Converter mode row starts at the title like #332's rows,
+   and the node's width is set inline. The shift is a physical `margin-left`
+   for the reason #332's row starts are: the canvas is left-to-right in every
+   language. The Gate keeps its lines centred, so only a mode row's max width
+   reaches it. */
+:is(.nodef--pool, .nodef--source, .nodef--drain, .nodef--converter) .nodef__head {
+  margin-left: var(--of-head-shift, 0px);
+}
+:is(.nodef--source, .nodef--drain, .nodef--converter) .nodef__sub {
+  align-self: flex-start;
+  margin-left: var(--vra-sub-start, 0px);
+  max-width: var(--vra-sub-max, calc(100% - var(--vra-sub-start, 0px)));
+}
+.nodef--gate .nodef__sub {
+  max-width: var(--vra-sub-max, 100%);
+}
 .nodef__head {
   display: flex;
   align-items: center;
@@ -4464,6 +4551,33 @@ a.sheet__row {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+}
+/* issue #344 step 3 — the route state, Add bend and Reset to automatic */
+.inspector__route {
+  margin: -4px 0 12px;
+}
+.inspector__route .inspector__note {
+  margin-bottom: 6px;
+}
+.inspector__route-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+/* the armed state: the rail toggles' pressed treatment, never an `outline`
+   (that is the focus ring, see §LGR9 below) */
+.inspector__route-actions .btn[aria-pressed='true'],
+.inspector__route-actions .btn[aria-pressed='true']:hover {
+  color: var(--signal-primary);
+  background: var(--signal-primary-soft);
+  box-shadow: inset 0 0 0 2px var(--signal-primary);
+}
+@media (forced-colors: active) {
+  .inspector__route-actions .btn[aria-pressed='true'],
+  .inspector__route-actions .btn[aria-pressed='true']:hover {
+    background: Highlight;
+    color: HighlightText;
+  }
 }
 .inspector__kind {
   font-size: 11px;

@@ -400,7 +400,8 @@ const ui = {
     '{n, plural, one {# Parâmetro adicionado} many {# de Parâmetros adicionados} other {# Parâmetros adicionados}} a partir de {tables}. Os valores deles estão no painel Entradas. Para usar um num Valor calculado, digite @ na expressão dele e escolha o nome; o campo de fluxo de uma ligação e um Ativador oferecem o mesmo seletor.',
   'help.contextual.hint.import.name': 'Importação de folha de cálculo',
   'help.contextual.hint.import.desc': 'Exibido uma vez, logo depois que a primeira importação de folha de cálculo chega à tela.',
-  'hint.frameMove.body': 'Arraste a borda de um quadro para movê-lo junto com tudo o que está dentro dele. Segure Alt ao arrastar para mover só o quadro.',
+  'hint.frameMove.body':
+    'Arraste a borda de um quadro para movê-lo junto com tudo o que está dentro dele. Segure Ctrl (⌘ no Mac) ao arrastar para mover só o quadro, ou Alt para movê-lo livremente, fora do quadriculado.',
   'help.contextual.hint.frameMove.name': 'Movimento de quadro',
   'help.contextual.hint.frameMove.desc': 'Exibido uma vez, na primeira vez que um quadro de grupo é selecionado numa tela editável.',
   'hint.focusFilter.body': 'O grafo está a ficar cheio? O Foco escurece tudo, menos a vizinhança de um nó; o Filtro oculta tipos de nó ou de ligação.',
@@ -599,6 +600,11 @@ const ui = {
   'whatsNew.v0240.tiers': 'A velocidade de reprodução agora também muda o que um passo mostra: a partir de 0,4 s por passo, a marca em movimento leva o seu +N; em velocidades maiores, o +N aparece na chegada; abaixo de 0,2 s, o caminho acende por um instante e a marca aparece no fim.',
   'whatsNew.v0240.step': 'Avançar um passo mostra sempre todo o movimento, seja qual for a velocidade escolhida.',
   'whatsNew.v0240.phone': 'Em telefones, o menu Mais oferece agora a velocidade de reprodução (Lenta, Normal, Rápida ou Muito rápida), e no máximo 12 marcas estão em movimento ao mesmo tempo.',
+  'whatsNew.v0250.grid': 'Edição alinhada ao quadriculado. Os nós e os quadros encaixam num quadriculado de 16 px, com guias inteligentes para pontos de entrada e saída, centros e extremidades próximos. Os diagramas comuns já existentes são alinhados uma vez, e Alinhar ao quadriculado volta a alinhar o diagrama aberto numa única ação que pode ser desfeita.',
+  'whatsNew.v0250.routing': 'Rotas automáticas mais claras. As linhas ortogonais automáticas contornam os nós, separam as linhas que usam o mesmo ponto e colocam os seus rótulos em espaços mais livres.',
+  'whatsNew.v0250.shapes': 'Formas de linha editáveis. É possível escolher Curva, Reta ou Ortogonal, automática ou com dobras próprias, que se adicionam, movem ou removem no computador. No telefone, estas formas são mostradas, mas não podem ser editadas.',
+  'whatsNew.v0250.outline': 'O texto fica dentro dos nós. O contorno de um nó acompanha agora o título e os valores, e o texto fica dentro dele nos 18 idiomas.',
+  'whatsNew.v0250.templates': 'Templates renovados. Os cinco Templates incluídos usam o novo quadriculado e as novas rotas, com espaçamento mais claro e melhores vistas iniciais.',
 } as const
 
 export type UiKey = keyof typeof ui

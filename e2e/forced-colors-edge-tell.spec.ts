@@ -175,16 +175,51 @@ type Dash = { runs: number; inkShare: number; meanLen: number; n: number }
  *  decode of this screenshot instead of re-sending the same PNG and the same
  *  point array per window. The arithmetic below is unchanged — same band, same
  *  background sample, 0.15 / reach 1 for scoring, `inkShare - 0.05 * runs`,
- *  width 80, stride 20, first window wins a tie. */
+ *  width 80, stride 20, first window wins a tie.
+ *
+ *  issue #344 step 4 — with `edgeId`, a window more than a quarter of which
+ *  lies within 3 px of ANOTHER edge's drawn path (a line running alongside;
+ *  a crossing touches only a few points) is skipped: the scoring prefers continuous ink,
+ *  and another line running alongside is continuous even while this edge is
+ *  dashed, so the probe measured the neighbour (the placed MMO put a line next
+ *  to `a_z1_enc_src_hi` at zoom 0.75). */
 async function cleanStretch(
   page: Page,
   offPng: Buffer,
   pts: Pt[],
   offThr: number,
   offReach: number,
+  edgeId?: string,
 ): Promise<{ stretch: [number, number]; off: Dash } | null> {
   return page.evaluate(
-    async ({ b64, pts, offThr, offReach }) => {
+    async ({ b64, pts, offThr, offReach, edgeId }) => {
+      // every other edge's drawn path, in screen px, bucketed by 4 px
+      const near = new Map<string, { x: number; y: number }[]>()
+      if (edgeId) {
+        for (const g of document.querySelectorAll('.react-flow__edge')) {
+          if (g.getAttribute('data-id') === edgeId) continue
+          const p = g.querySelector('path.react-flow__edge-path') as SVGPathElement | null
+          if (!p) continue
+          const m = p.getScreenCTM()!
+          const sc = Math.hypot(m.a, m.b) || 1
+          const L = p.getTotalLength()
+          for (let s = 0; s <= L; s += 2 / sc) {
+            const q = p.getPointAtLength(s)
+            const x = m.a * q.x + m.c * q.y + m.e
+            const y = m.b * q.x + m.d * q.y + m.f
+            const k = `${Math.floor(x / 4)},${Math.floor(y / 4)}`
+            ;(near.get(k) ?? near.set(k, []).get(k)!).push({ x, y })
+          }
+        }
+      }
+      const crowded = (q: { x: number; y: number }): boolean => {
+        const bx = Math.floor(q.x / 4)
+        const by = Math.floor(q.y / 4)
+        for (let dx = -1; dx <= 1; dx++)
+          for (let dy = -1; dy <= 1; dy++)
+            for (const o of near.get(`${bx + dx},${by + dy}`) ?? []) if (Math.hypot(o.x - q.x, o.y - q.y) < 3) return true
+        return false
+      }
       const im = new Image()
       im.src = `data:image/png;base64,${b64}`
       await im.decode()
@@ -257,7 +292,10 @@ async function cleanStretch(
       let best: [number, number] | null = null
       let bestShare = -1
       for (let a = 0; a + W <= pts.length; a += 20) {
-        const inside = pts.slice(a, a + W).every((p) => p.x > pane.left && p.x < pane.right && p.y > pane.top && p.y < pane.bottom)
+        const win = pts.slice(a, a + W)
+        const inside = win.every((p) => p.x > pane.left && p.x < pane.right && p.y > pane.top && p.y < pane.bottom)
+        // a crossing touches a few points; a line running alongside, many
+        if (edgeId && win.filter(crowded).length > W / 4) continue
         if (!inside) continue
         const { inkShare, runs } = scan(a, a + W, 0.15, 1)
         const score = inkShare - 0.05 * runs // a stretch under a label/crossing breaks into pieces
@@ -269,7 +307,7 @@ async function cleanStretch(
       if (!best) return null
       return { stretch: best, off: scan(best[0], best[1], offThr, offReach) }
     },
-    { b64: offPng.toString('base64'), pts, offThr, offReach },
+    { b64: offPng.toString('base64'), pts, offThr, offReach, edgeId },
   )
 }
 
@@ -424,7 +462,7 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
           const offPng = await page.screenshot()
           const pts = await pathPoints(page, id)
           // reach-2 for the plain stroke: a solid line must count as ONE piece however its anti-aliasing breaks
-          const picked = await cleanStretch(page, offPng, pts, 0.15, 2)
+          const picked = await cleanStretch(page, offPng, pts, 0.15, 2, id)
           if (!picked) {
             // shorter than 80 screen px at this zoom — too few periods to count
             await activityBtn(page).click()
@@ -498,7 +536,12 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
     await activityBtn(page).click()
     await commitSteps(page, 10)
     for (const zoom of [0.4, 0.75]) {
-      for (const id of await longestActive(page, 'edge-state', 2)) {
+      // issue #344 step 4 — the two longest active state edges that HAVE an
+      // 80 px stretch clear of every other line (on the placed MMO a long one
+      // may run beside another line all the way at zoom 0.4), out of six
+      let measured = 0
+      for (const id of await longestActive(page, 'edge-state', 6)) {
+        if (measured === 2) break
         await centreOn(page, id, zoom)
         await activityBtn(page).click()
         await page.waitForTimeout(150)
@@ -507,8 +550,13 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
         // a state edge is 1 px wide: a low presence threshold for the grey 4 4 (reach-2 for the plain
         // reference); the ON count uses plain 8-connectivity — fragmentation only raises the count
         // an activator-OFF state edge is painted at opacity 0.5 in the plain state → a very low presence threshold
-        const picked = await cleanStretch(page, offPng, pts, 0.06, 2)
-        expect(picked, `${id} z${zoom}: an 80 px stretch inside the pane`).not.toBeNull()
+        const picked = await cleanStretch(page, offPng, pts, 0.06, 2, id)
+        if (!picked) {
+          await activityBtn(page).click() // back ON for the next candidate
+          await page.waitForTimeout(150)
+          continue
+        }
+        measured++
         const [a, b] = picked!.stretch
         const off = picked!.off
         await activityBtn(page).click()
@@ -524,6 +572,7 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
         expect(on.inkShare, `${id} z${zoom}: gaps survive`).toBeLessThan(0.9)
         expect(on.inkShare, `${id} z${zoom}: the tell is painted`).toBeGreaterThan(0.05)
       }
+      expect(measured, `z${zoom}: two active state edges measured`).toBe(2)
     }
   })
 

@@ -40,6 +40,7 @@ export function applySharedGraph(parsed: ReturnType<typeof deserialize>): void {
     {
       mode: 'document-boundary',
       canvasLocked: parsed.recommendedRunConfig?.canvasLocked === true,
+      layoutVersion: parsed.layoutVersion, // issue #344 — a legacy layout is re-placed once
       modelVersion: parsed.modelVersion,
       frames: parsed.frames,
       dataImports: parsed.dataImports,

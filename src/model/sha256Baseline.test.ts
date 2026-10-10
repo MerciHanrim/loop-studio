@@ -73,9 +73,14 @@ const COLOURED_SINCE = new Set(['coffee-roastery.json', 'gacha-banner-zones.json
 // (scripts/gen-gacha-banner-zones-example.ts) so its `+1` label no longer meets
 // `e_pickup_34`'s on the shorter nodes. Routing is never engine data, so the
 // engine digest still matches; the legacy projection removes exactly this one
-// waypoint, and fails if it is not exactly what PR 3 added.
+// waypoint, and fails if it is not exactly what PR 3 added. Issue #344 step 1
+// (layout round 8) added one more each to `e_pickup_17` and `e_pickup_20`.
 const ADDED_WAYPOINTS: Record<string, Record<string, unknown>> = {
-  'gacha-banner-zones.json': { e_pickup_36: [{ x: 3200, y: 650 }] },
+  'gacha-banner-zones.json': {
+    e_pickup_17: [{ x: 3700, y: 549 }],
+    e_pickup_20: [{ x: 3360, y: 548 }],
+    e_pickup_36: [{ x: 3200, y: 650 }],
+  },
 }
 
 /** a document's text without what was added after the #301 baseline: the flow
@@ -89,6 +94,26 @@ const legacyProjection = (file: string, text: string): string => {
     delete edge!.data!.waypoints
   }
   return JSON.stringify(doc)
+}
+
+// issue #344 step 4 (docs/diagram-layout.md §DL5) - the five bundled Templates
+// were placed for the grid: positions, frames and routes moved, which are
+// content but never engine data. Their engine digest still equals the
+// recorded one; their content and full-content digests changed and are pinned
+// at their current values (the three coloured ones in
+// src/engine/templateFlowColours.test.ts, the other two below). The recorded
+// #301 chain is checked on the files as they stood before that step,
+// `test/fixtures/templates-before-step4/`.
+const PLACED_SINCE = new Set(['equilibrium.json', 'deadlock.json', ...COLOURED_SINCE])
+const PLACED_PINS: Record<string, { contentDigest: string; fullContentDigest: string }> = {
+  'deadlock.json': { contentDigest: '7ec1004c804aa53414da260df9f3ba375c42aff3569bb16981cd3e9236b72c5b', fullContentDigest: '7ec1004c804aa53414da260df9f3ba375c42aff3569bb16981cd3e9236b72c5b' },
+  'equilibrium.json': { contentDigest: '373f7deae9c99c7f324e92cabf90fdb23146a6bb79c6e8a02cd3553d34320a7d', fullContentDigest: '373f7deae9c99c7f324e92cabf90fdb23146a6bb79c6e8a02cd3553d34320a7d' },
+}
+const BEFORE_STEP4 = import.meta.glob('../../test/fixtures/templates-before-step4/*.json', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
+const readBefore = (file: string): string => {
+  const text = BEFORE_STEP4['../../test/fixtures/templates-before-step4/' + file]
+  if (text === undefined) throw new Error('missing pre-step-4 copy ' + file)
+  return text
 }
 
 const docOf = (p: ReturnType<typeof deserialize>) => ({
@@ -111,6 +136,27 @@ describe('the digests of real documents are unchanged', () => {
       })
       continue
     }
+    if (PLACED_SINCE.has(g.file)) {
+      it(`examples/${g.file}: placed for the grid (#344 step 4) - the engine digest is the recorded one, content pinned anew`, async () => {
+        const p = deserialize(read(g.file))
+        const doc = docOf(p)
+        expect(p.modelVersion).toBe(g.modelVersion)
+        expect(await semanticDigest({ nodes: p.nodes, edges: p.edges }, p.modelVersion)).toBe(g.semanticDigest)
+        const content = digestOfCanonical(canonicalContent(doc, { modelVersion: p.modelVersion }))
+        const full = await fullContentDigest(doc, p.modelVersion)
+        expect(content, g.file).toBe(PLACED_PINS[g.file]!.contentDigest)
+        expect(full, g.file).toBe(PLACED_PINS[g.file]!.fullContentDigest)
+        expect(content).not.toBe(g.contentDigest)
+      })
+      it(`examples/${g.file} before step 4: semantic, content and full-content digests as recorded`, async () => {
+        const p = deserialize(readBefore(g.file))
+        const doc = docOf(p)
+        expect(await semanticDigest({ nodes: p.nodes, edges: p.edges }, p.modelVersion)).toBe(g.semanticDigest)
+        expect(digestOfCanonical(canonicalContent(doc, { modelVersion: p.modelVersion }))).toBe(g.contentDigest)
+        expect(await fullContentDigest(doc, p.modelVersion)).toBe(g.fullContentDigest)
+      })
+      continue
+    }
     it(`examples/${g.file}: semantic, content and full-content digests`, async () => {
       const p = deserialize(read(g.file))
       const doc = docOf(p)
@@ -121,11 +167,11 @@ describe('the digests of real documents are unchanged', () => {
     })
   }
 
-  it('legacy (#301 baseline): the three coloured Templates without their flow colours (PR 2) and the gacha e_pickup_36 waypoint (PR 3) give the recorded digests', async () => {
+  it('legacy (#301 baseline): the three coloured Templates as they stood before #344 step 4, without their flow colours (PR 2) and the gacha waypoints added since (PR 3, #344 step 1), give the recorded digests', async () => {
     const legacy = EXAMPLE_GRAPH_DIGESTS.filter((g) => COLOURED_SINCE.has(g.file))
     expect(legacy.map((g) => g.file).sort()).toEqual([...COLOURED_SINCE].sort())
     for (const g of legacy) {
-      const p = deserialize(legacyProjection(g.file, read(g.file)))
+      const p = deserialize(legacyProjection(g.file, readBefore(g.file)))
       const doc = docOf(p)
       expect(p.modelVersion, g.file).toBe(g.modelVersion)
       expect(await semanticDigest({ nodes: p.nodes, edges: p.edges }, p.modelVersion), g.file).toBe(g.semanticDigest)

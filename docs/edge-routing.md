@@ -139,6 +139,11 @@ produce a **byte-identical** route.
 
 ### ER3.2 Obstacles
 
+- **Handle points** (issue #344, `docs/diagram-layout.md` §DL1): a resource
+  handle (`in` / `out`) starts or ends a route on the fixed port row 28 px below
+  the node's top, at the x where the drawn outline is on that row
+  (`portInsetFraction`); a state handle at the top / bottom centre. Before
+  #344 a resource handle was at the side's vertical centre.
 - An **obstacle** is a node's box `{x, y, width, height}` from
   `node.position` + `node.measured` (fall back to `node.width/height`), inflated
   by `ROUTE_PAD` on all sides.
@@ -690,3 +695,264 @@ Machine-checkable, mirroring the Visual Refresh specs.
   semantics). Nothing here touches it.
 - **No node re-layout.** Routing steps edges around nodes where they *are*; it
   never moves a node.
+
+---
+
+## ER14. The guarded router (issue #344 step 2, v0.25.0)
+
+Diagram Readability (`docs/diagram-layout.md`) makes the orthogonal route the
+default for new and migrated connections and replaces the router behind
+`route: "orthogonal"` with a guarded one. The wire contract of §ER6 is
+unchanged: `route` absent is still a Bézier, `waypoints` are still meaningful
+only with `orthogonal`.
+
+### ER14.1 Route meaning and the migration
+
+- `route` absent = Bézier, everywhere, as before. Nothing reinterprets it.
+- A revision or proposal payload keeps its bytes, its digests AND its drawing:
+  an absent `route` there is drawn as a Bézier.
+- The layout migration of an ordinary pre-grid document (`layoutVersion` < 1:
+  a graph file, a Workspace, a share link, the autosave without a Project
+  header — §DL2.8) writes `route: "orthogonal"` on every connection without a
+  `route`. Its full content digest changes; its engine digest does not. Tidy to
+  grid never writes a route.
+- A new connection is created with `route: "orthogonal"`.
+- `orthogonal` without `waypoints` = **Auto** (the guarded route);
+  with `waypoints` = **Manual** (routed through them).
+- Bundled Templates and modules are not migrated; step 4 re-places them.
+
+### ER14.2 No node fill is ever crossed
+
+`computeGuardedRoute` (`orthogonalRoute.ts`) runs the §ER3 search with:
+
+- **own end nodes as obstacles** — a route leaves its port along the port
+  normal to a stub `ROUTE_STUB` beyond its own box (shorter, half the gap, when
+  another node is nearer) and enters its target the same way; only those two
+  stubs may run inside the connection's own nodes;
+- **the clearance ladder** `GUARD_PADS` (12, 6, 2, 0 px) — a failed search is
+  retried with less clearance (`routeClass` `tight` below 12);
+- **the outer corridor** — then rulers `OUTER_MARGIN` outside the bounding box
+  of every node, both stubs and every waypoint, with a larger budget (`outer`);
+- **`blocked`** — the one case no route can avoid: another node covers a port
+  or a stub. The route avoids every node except the covering one.
+
+Every candidate is checked before it is returned: between the stubs no segment
+enters a node fill (own end nodes included), and the stubs enter no other node.
+There is no cost-based crossing and no plain L / Z: a route that would cross is
+never drawn. A waypoint inside a node fill keeps its value and the §ER4 cue but
+is not routed through. The v1 entry point `computeOrthogonalRoute` stays as the
+pinned single-edge core (golden + differential tests); the app no longer calls it.
+
+### ER14.3 Shared trunks and labels
+
+- Edges are routed in id order. Each placed route's segments are indexed by
+  ruler line; an **unrelated** edge (sharing neither its source port nor its
+  target port) pays `TRUNK_COST` per px it runs along one and `CROSS_COST` per
+  crossing. The result never depends on input order.
+- **A port fan** (Lumi, 2026-10-09): connections of exactly the same port share
+  only that port's stub, `ROUTE_STUB` (16 px) beyond the node box, in the same
+  direction; past it there is no line-on-line overlap at all.
+  - Each member gets its own **branch point** inside the stub. The members are
+    sorted by where their far end lies across the stub, then by edge id;
+    members on the negative side leave toward it, members on the positive side
+    toward that one, at most one (the lowest id among those level with the
+    port) goes straight on, and other level members alternate sides. Within a
+    side the member reaching furthest out branches nearest the node, so
+    siblings never cross; members on opposite sides may share an offset. The
+    offsets split the 16 px evenly. The router fixes the first move after the
+    branch (and, at a target fan, the move into it).
+  - Every end's stub and every branch's first leg are **reserved** before any
+    route: another route pays `FAN_COST` per px to run along them (a route's
+    own ports' stubs excepted), so neither a later sibling nor an earlier
+    unrelated route takes them. Past the branch, running along a sibling also
+    costs `FAN_COST`, and the sibling's lines ± `PARALLEL_GAP` are offered as
+    lanes.
+  - If obstacles block a branch, the route is found without it, drawn on the
+    outer corridor when needed, and listed in `routeDiagnostics().fanBlocked`;
+    `fanOverlaps` lists any pair that still runs together past the stub. Both
+    are reported, never hidden.
+  - No label sits on a shared stub. A selected connection's underlay runs
+    alone from its branch on. A parallel set (the same two ports) keeps its own
+    offset (§ER3.7).
+  - Measured (every connection routed): Early MMO 0 fan overlaps (a port with
+    17 connections included), the 3-zone gacha 0; 0 `fanBlocked`.
+- The judge (survey and collision check) keeps the same-port trunk as an
+  informational count; unrelated line-on-line overlap is a failure.
+- A label takes the first free slot on its own route — the midpoint, then 0.4,
+  0.6, 0.3, 0.7, 0.25, 0.75, 0.2, 0.8 of its length — clear of every node box
+  (2 px margin) and every label already placed; the midpoint when none is free.
+- Then up to `LABEL_ROUNDS` (2) guarded rounds: an edge whose route runs
+  through other edges' labels is routed again with those labels as soft
+  obstacles (`computeSoftReroute`: one rung of `SOFT_PADS` — 12, then 6 px —
+  per step, each with the budget `SOFT_EXPANSIONS`), kept only when it crosses
+  fewer of them and is not a lower rung; otherwise the edge keeps its route.
+- Label sizes are the labels' REST sizes (shown, not selected, no run value),
+  reported by the rendered labels; the last known size stays while a label is
+  hidden by zoom. A run, a selection or a zoom never moves a route.
+
+### ER14.4 Failures are reported, never hidden
+
+`routeDiagnostics()` returns, for the last full generation, how many routes each
+rung produced and every edge drawn `outer` or `blocked`; the collision check of
+step 6 reads it. In a development build each such edge is warned once.
+
+### ER14.5 Cost: a provisional map at once, the full generation in slices
+
+Lumi, 2026-10-09: no pause at the drop, no long main-thread task.
+
+- A map is cached on the layout signature (§ER3.8, label sizes included).
+- A layout change shows a **provisional** map at once: the last full generation
+  with only the routes the change touches routed again — new or changed edges,
+  edges incident to a moved or resized node, edges whose route now runs into a
+  moved node — incident ones first, within `PROVISIONAL_MS` (5 ms, budgeted by
+  the longest route so far; an edge with no route at all is always routed).
+- The **full generation** for the new layout then runs as a job, in id order,
+  in slices of about `SLICE_MS` (8 ms; a step is started only when the longest
+  step so far still fits), each slice its own task, so input and frames run in
+  between. A single search is itself a step sequence: the A* search pauses
+  every `SEARCH_SLICE` (1,024) expansions, so no step is longer than a slice;
+  the synchronous router drains the same steps, so its result is unchanged. It is committed in one swap when complete; a partial map is never
+  drawn. A newer layout, or a drag starting, cancels a running job; a cancelled
+  job never commits. Diagnostics and development warnings are settled on the
+  committed generation only.
+- During a node, selection or frame drag (`beginLiveLayout` … `endLiveLayout`)
+  only provisional maps are shown; the drop starts the job.
+- **A cold start** (a document opened, or another document: most routed edges
+  new) runs the same sliced job. Until it commits, no routed edge and no label
+  of one is drawn — never a temporary path; only an invisible, off-canvas copy
+  of each label is rendered so its rest size reaches the router first. The
+  canvas carries `aria-busy` while any routed edge waits. The last
+  `GENERATIONS_KEPT` (4) committed generations are kept by signature, so a
+  layout seen again (undo, redo, the same document reopened) is shown at once;
+  a newer document cancels the job.
+- Only a run without a task scheduler (unit tests, the offline judge) computes
+  the full generation at once — the same steps, so the committed map is
+  byte-identical to the synchronous one (`__syncFullGeneration`).
+- Acceptance (Lumi's criteria; Early MMO, every connection routed):
+  - production build: drag p95 16.8 ms (≤ 20), max frame 17.4 ms, 0 long tasks
+    during the drag and the drop; the 3-zone gacha 16.9 ms, 0;
+  - routing-owned work (development build, where it is instrumented): the
+    largest slice 6.9 ms on the cold load and 10 ms at the drop, the longest
+    step 6.9 ms, the provisional map at most 6 ms (≤ 10); no routing task of
+    50 ms or more;
+  - the committed map equals the synchronous generation byte for byte; 0
+    cancelled generations committed.
+  - Not routing: the document mount (~145 ms in production) and the node press
+    (51–100 ms on a development build) are long tasks with no routing at all
+    (the curves-only control shows them too). Out of scope for #344.
+
+### ER14.6 Invariants that change
+
+- ER-INV-5 "never fails to draw" now draws without crossing: the L / Z fallback
+  is replaced by the ladder, the outer corridor and `blocked`.
+- ER-INV-6 Bézier parity still holds for `route` absent.
+- ER-INV-3 holds at rest; during a live gesture the map is incremental by design.
+
+## ER15. Curved and Straight connections (issue #344 step 3, v0.25.0)
+
+`SEMANTICS-R10.md` adds `route: "straight"`. The four shapes and their stored
+form are in §R10-0; `docs/diagram-layout.md` §DL4 is the product rule.
+
+- **Straight** is drawn as one straight segment between the two port anchors
+  React Flow gives the edge (`M sx,sy L tx,ty`). **Curved** is unchanged: React
+  Flow's Bézier, byte for byte (ER-INV-6).
+- Neither is routed: the user chose to give up obstacle avoidance. A Curved or
+  Straight connection never changes any route (the router does not see it).
+- **Their labels are placed**, not left at the middle. The route map samples
+  each line from its own port anchors (`freeLine.ts`: the straight segment, or
+  the Bézier with React Flow's control points, 24 segments) and gives the label
+  the first slot of `LABEL_SLOTS` that is clear of every node, every label
+  already placed and every other line (routed, Curved or Straight); failing
+  that, clear of nodes and labels; the middle last — the same rule as a routed
+  label (§ER14.3).
+- Order: the routed labels first, exactly as before (they also keep off Curved
+  and Straight lines), then the Curved and Straight labels in id order. A
+  document with only orthogonal connections gets a byte-identical generation.
+- A slot is stored as a fraction of the line's length; `LoopEdge` puts the
+  label at that fraction of the line it draws, so the label sits on the drawn
+  curve even where React Flow's anchors differ from the map's by a pixel.
+- A label whose slot is not known yet (its size not measured, or the first
+  generation of a document still running) is rendered hidden and measured,
+  never shown in a temporary place; the canvas is `aria-busy` while a measured
+  label waits (§ER14.5). The provisional map re-places only the labels of the
+  Curved and Straight edges that are new, changed or incident to a moved node.
+
+### ER15.1 Records keep their recorded label places (Lumi, 2026-10-10)
+
+- A revision or proposal whose header declares semantics before
+  `loop-revision/10` (no `semantics` key, or an earlier one — `SEMANTICS-R10.md`
+  §R10-6; the edges are never inspected for this) opens with `recordLabels`:
+  its Curved labels sit at the
+  Bézier middle, where they were when it was recorded, and the route map places
+  no Curved / Straight label and keeps no label off their lines — so the routed
+  edges get the generation they had before step 3. A record's Review, which is
+  drawn on that same canvas, keeps its visual reference too.
+- Ordinary documents, Templates, share links and `/10` records use the free
+  slots of §ER15.
+- The first shape or bend-point edit, or Tidy to grid (even on a record
+  already on the grid), ends the rule for that document, inside the same undo
+  entry: undoing it brings the record's label places back.
+- The autosaved Project header carries the rule as `labelLayoutVersion` (0 the
+  record's, 1 current; absent in an older header reads as 0), so a reload
+  restores it. An ordinary document has no Project header and follows the
+  layout migration contract; `layoutVersion` means the layout migration only.
+
+## ER16. Shapes and bend points in the editor (issue #344 step 3, v0.25.0)
+
+### ER16.1 The Inspector
+
+- **Route**: Orthogonal / Curved / Straight. Under Orthogonal it says
+  *Automatic route* or, with bend points, *Manual route*.
+- **Add bend** (a toggle) and, for a Manual route, **Reset to automatic**
+  (keeps `orthogonal`, drops every bend point).
+- Switching to Curved or Straight drops the bend points (R10-INV-3). Changing a
+  connection's kind (resource / state) keeps its shape and bend points.
+- Under the edit lock the select and the buttons are disabled by the
+  Inspector's fieldset; on the phone the select is read-only (the sheet's
+  fieldset) and the bend tools are not rendered at all.
+
+### ER16.2 Editing on the canvas
+
+- **Add bend**: armed for the selected connection. The next click on its line
+  inserts one bend point on the segment clicked (`bendAtClick`), snapped to
+  the 16 px grid ALONG that segment and kept on its line across it (Alt: at
+  the click) — so adding a bend moves nothing; a port row is off the grid and
+  a full snap would make the route jog. **Enter** inserts one in the middle of
+  the longest editable segment (between the two stub ends; equal lengths: the
+  one nearer the start; a refused point gives way to the next segment —
+  `keyboardBend`) and moves the focus to its handle. Either goes into the
+  span it lies on (`bendInsertIndex`), is one undo entry, makes an Auto route
+  Manual, and disarms. When no segment can take one, Enter changes nothing,
+  stays armed, and says so in the canvas live region and under the hint.
+  Escape, another selection, the edit lock and the phone layout disarm it.
+- **Handles**: a selected Manual connection shows one handle per bend point
+  (`RouteBends.tsx`, a button named "Bend point n of total"). A pointer drag
+  moves it on the grid (Alt: free); the arrow keys move a focused handle one
+  grid step, Shift four; Delete or Backspace removes it (the last one removed
+  makes the route automatic again); Escape cancels the drag or key gesture in
+  progress and puts the point back.
+- **Refused**: a bend point dropped inside a node, or within `BEND_STUB_TOL`
+  (8 px) of the connection's own port stub (the stretch from a port to
+  `ROUTE_STUB` past its node's side), goes back where it was; nothing is
+  adjusted and nothing is recorded. While it is over such a place the handle
+  has a dashed border (the non-colour tell).
+- **Undo**: adding, moving (one drag, or one held key gesture), removing,
+  Reset and a shape change are one history entry each, never merged with the
+  next edit; undoing or redoing one does not reset the run (R10-INV-2, the
+  flow-colour rule). The Inspector says so in its restart note: the route,
+  the bend points and the colour are drawing only.
+- Changing a connection's kind (resource / state) keeps its shape and bend
+  points; nothing else about a kind change is different.
+- During a drag the route map shows provisional maps (`beginLiveLayout`); the
+  drop starts the full generation.
+
+### ER16.3 How a Manual route goes through its bend points
+
+The route is the guarded route (§ER14) through the stub ends and every bend
+point, in order, one search per span. A span after a bend point starts from
+the way the route arrived there: leaving along it is free, turning is one
+bend, and going straight back costs two — so a Manual route turns AT its bend
+point instead of running up to it and folding back over itself (which
+`simplify` would then hide, leaving the bend point off the drawn line). It is
+a cost, not a ban: a span that has no other way still finds one. Auto routes
+(one span) are unchanged.
