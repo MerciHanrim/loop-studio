@@ -133,10 +133,13 @@ export const TEMPLATES: Template[] = [
     // threshold `LOD_L1_MIN` = 0.45); tuned by eye at 1280 / 820 px. The rest
     // of the graph is one pan / minimap away. Fixed graph coords, no locale
     // branch.
-    // issue #344 step 4 (docs/diagram-layout.md §DL5.5) — the same first
-    // steps at their placed coordinates (Character creation, Active character,
-    // the Starter zone encounter + first combat; widest boxes + 40 px)
-    initialView: { rect: { x: 8, y: -4, width: 1149, height: 478 }, minZoom: 0.6 },
+    // issue #344 step 4 (docs/diagram-layout.md §DL5.5) — readability first:
+    // the rect is sized for a zoom of about 1.05–1.1 at 1600 x 1000 (node
+    // text >= 12 px on screen), left-aligned on Character creation, so the
+    // first flow (Character creation → Active character → Starter encounters →
+    // Starter Lv 1–5) is in view; later paths may start off screen (Reset
+    // view and the minimap show the whole graph)
+    initialView: { rect: { x: 8, y: -4, width: 896, height: 368 }, minZoom: 0.6 },
   },
   // docs/gacha-banner-zones.md (GZ) — the 3-zone gacha banner comparison. The
   // canonical graph is examples/gacha-banner-zones.json, built by
@@ -185,6 +188,6 @@ export const TEMPLATES: Template[] = [
     // zone 0-950 x 0-810).
     // issue #344 step 4 (§DL5.5) — the comparison frame + the Free zone frame
     // at their placed coordinates, 40 px margin
-    initialView: { rect: { x: -40, y: -56, width: 2064, height: 1120 }, minZoom: 0.45 },
+    initialView: { rect: { x: -40, y: -56, width: 2064, height: 1136 }, minZoom: 0.45 },
   },
 ]

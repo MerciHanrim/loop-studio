@@ -58,8 +58,8 @@ const TEMPLATES: { file: string; flows: TemplateFlows; colours: string[]; conten
     file: 'coffee-roastery.json',
     flows: COFFEE_ROASTERY_FLOWS,
     colours: ['sage', 'gold', 'rose'],
-    contentDigest: 'd8bf782d9f8b7701b553a7880005d583879e76bca05c55cc11b928e6cf27ef72',
-    fullContentDigest: 'd8bf782d9f8b7701b553a7880005d583879e76bca05c55cc11b928e6cf27ef72',
+    contentDigest: '072687a280a0cfdf9b68e688efe68376f4eb26ce390fbd5467a107eeb1f059da',
+    fullContentDigest: '072687a280a0cfdf9b68e688efe68376f4eb26ce390fbd5467a107eeb1f059da',
   },
   {
     file: 'gacha-banner-zones.json',
@@ -67,8 +67,8 @@ const TEMPLATES: { file: string; flows: TemplateFlows; colours: string[]; conten
     colours: ['sage', 'violet', 'rose'],
     // issue #344 step 4 (layout round 9): placed for the grid, every
     // connection Auto orthogonal — the waypoints of rounds 7 and 8 are gone
-    contentDigest: '437339478baa3370b7821baa9f0216600025017fab7ed1cf8ee4283fb5aa4882',
-    fullContentDigest: '437339478baa3370b7821baa9f0216600025017fab7ed1cf8ee4283fb5aa4882',
+    contentDigest: 'a619c11cd17f5f39f4a2baa00b76b700fb62f11a02f72ebfcf465e16566326b2',
+    fullContentDigest: 'a619c11cd17f5f39f4a2baa00b76b700fb62f11a02f72ebfcf465e16566326b2',
   },
   {
     file: 'mmo-progression.json',

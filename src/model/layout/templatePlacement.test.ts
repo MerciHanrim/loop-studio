@@ -5,13 +5,13 @@ import equilibrium from '../../../examples/equilibrium.json'
 import gacha from '../../../examples/gacha-banner-zones.json'
 import mmo from '../../../examples/mmo-progression.json'
 import BOXES from './templateBoxes.json'
-import { FRAME_MARGIN, TEMPLATE_GAP, placeTemplate, type TemplateName } from './templatePlacement'
+import { FRAME_GAP, FRAME_MARGIN, TEMPLATE_GAP, placeTemplate, type TemplateName } from './templatePlacement'
 import type { LoopEdge, LoopNode } from '../types'
 
 // docs/diagram-layout.md §DL5 (issue #344 step 4) — what every shipped Template
 // holds once placed: by each node's widest box over the 18 languages, no two
 // nodes closer than the clearance on both axes; every saved frame holds each of
-// its nodes with ≥ FRAME_MARGIN and no two frames overlap; every connection is
+// its nodes with ≥ FRAME_MARGIN and two frames keep ≥ FRAME_GAP; every connection is
 // Auto orthogonal (no Manual exception is needed); and placing a shipped file
 // again changes nothing it has already settled.
 
@@ -55,7 +55,7 @@ describe.each(SHIPPED)('%s as shipped', (tpl, doc) => {
     }
   })
 
-  it('every frame holds each node whose centre is in it with ≥ FRAME_MARGIN; no two frames overlap', () => {
+  it('every frame holds each node whose centre is in it with ≥ FRAME_MARGIN; two frames keep ≥ FRAME_GAP between them', () => {
     const frames = doc.frames ?? []
     for (const f of frames) {
       for (const n of doc.nodes) {
@@ -73,7 +73,8 @@ describe.each(SHIPPED)('%s as shipped', (tpl, doc) => {
       for (let j = i + 1; j < frames.length; j++) {
         const a = frames[i]!.rect
         const b = frames[j]!.rect
-        expect(a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h, `${frames[i]!.id} / ${frames[j]!.id}`).toBe(false)
+        const gap = Math.max(b.x - (a.x + a.w), a.x - (b.x + b.w), b.y - (a.y + a.h), a.y - (b.y + b.h))
+        expect(gap, `${frames[i]!.id} / ${frames[j]!.id}`).toBeGreaterThanOrEqual(FRAME_GAP)
       }
   })
 
