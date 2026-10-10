@@ -11,6 +11,14 @@ import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 // toolbar, then the canvas, each visible), the 8 s budget and the retry policy
 // are exactly what `openApp` used before.
 //
+// The report also says WHERE the time went: Node's own clock for the document
+// events and the wait, and the renderer's own clock for the boot (`bootTrace`,
+// an init script of every watched context), kept apart; and when the renderer
+// does not answer at the deadline, the same read is collected once it does (the
+// "late trace", at most LATE_MS after the verdict, so it changes no verdict).
+// Still diagnostics only: the condition, the budget and the retry policy are
+// unchanged.
+//
 // `watchPage` must be attached BEFORE the navigation it is meant to explain
 // (`goto`, `reload`). The shared fixture attaches it to every page of the
 // default context and of every context made with `browser.newContext()`
@@ -82,6 +90,11 @@ type Watch = {
   /** of the CURRENT document: reset whenever the main frame navigates */
   domContentLoaded: boolean
   load: boolean
+  /** Node's clock (`Date.now()`) at the current document's navigation and its
+   *  two document events, kept apart from the renderer's own clock */
+  navigatedAt: number | null
+  domContentLoadedAt: number | null
+  loadAt: number | null
 }
 
 const watches = new WeakMap<Page, Watch>()
@@ -168,6 +181,9 @@ export function watchPage(page: Page): void {
     closed: false,
     domContentLoaded: false,
     load: false,
+    navigatedAt: null,
+    domContentLoadedAt: null,
+    loadAt: null,
   }
   watches.set(page, w)
   page.on('pageerror', (e) => add(w.pageErrors, e.message))
@@ -184,13 +200,113 @@ export function watchPage(page: Page): void {
     if (f !== page.mainFrame()) return
     w.domContentLoaded = false
     w.load = false
+    w.navigatedAt = Date.now()
+    w.domContentLoadedAt = null
+    w.loadAt = null
   })
-  page.on('domcontentloaded', () => (w.domContentLoaded = true))
-  page.on('load', () => (w.load = true))
+  page.on('domcontentloaded', () => {
+    w.domContentLoaded = true
+    w.domContentLoadedAt = Date.now()
+  })
+  page.on('load', () => {
+    w.load = true
+    w.loadAt = Date.now()
+  })
 }
 
-/** every page of `context`, the ones it has and the ones it will open */
-export function watchContext(context: BrowserContext): void {
+/**
+ * Issue #305 - the renderer side of a boot, kept by an init script in every
+ * document of a watched context, so a failure report can say where the time
+ * went INSIDE the page (the Node side is in `Watch`). Compact by design, so it
+ * cannot slow the boot it measures: one check per animation frame (no subtree
+ * observer), a running count / sum / top three of the long tasks, the longest
+ * frame gap, and the first time each mark is seen. Requests are not recorded
+ * here; the report reads the browser's own resource timing once. It stops 500 ms
+ * after the canvas is visible, or after 30 s. Test code only: it never reaches
+ * a product bundle.
+ */
+function bootTrace(): void {
+  const w = window as unknown as { __appReadyTrace?: unknown }
+  if (w.__appReadyTrace) return
+  const now = (): number => Math.round(performance.now())
+  const marks: Record<string, number> = {}
+  const tr = { marks, frames: 0, maxGap: 0, maxGapAt: 0, longCount: 0, longSum: 0, longTop: [] as number[][], fonts: {} as Record<string, Record<string, number>> }
+  w.__appReadyTrace = tr
+  try {
+    // the dev build loads about 250 modules; the default buffer keeps 250
+    performance.setResourceTimingBufferSize(2000)
+  } catch {
+    /* keep the default */
+  }
+  const mark = (k: string): void => {
+    if (marks[k] === undefined) marks[k] = now()
+  }
+  // the parser's own `lang` is no mutation: the first one is the app setting it
+  new MutationObserver((records) => {
+    for (const r of records) if (r.attributeName === 'lang' && r.target === document.documentElement) mark('lang')
+  }).observe(document, { attributes: true, attributeFilter: ['lang'], subtree: true })
+  try {
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) {
+        const d = Math.round(e.duration)
+        tr.longCount++
+        tr.longSum += d
+        tr.longTop.push([Math.round(e.startTime), d])
+        tr.longTop.sort((a, b) => b[1] - a[1])
+        tr.longTop.length = Math.min(tr.longTop.length, 3)
+      }
+    }).observe({ type: 'longtask', buffered: true })
+  } catch {
+    /* no long-task timing in this browser */
+  }
+  const visible = (sel: string): boolean | null => {
+    const el = document.querySelector(sel) as HTMLElement | null
+    if (!el) return null
+    const r = el.getBoundingClientRect()
+    const s = getComputedStyle(el)
+    return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'
+  }
+  let last = performance.now()
+  const frame = (): void => {
+    const t = performance.now()
+    const gap = Math.round(t - last)
+    last = t
+    tr.frames++
+    if (gap > tr.maxGap) {
+      tr.maxGap = gap
+      tr.maxGapAt = Math.round(t)
+    }
+    if ((document.getElementById('root')?.childElementCount ?? 0) > 0) mark('root')
+    if (document.querySelector('.gate')) mark('gate')
+    const tb = visible('.toolbar')
+    if (tb !== null) mark('toolbarAttached')
+    if (tb) mark('toolbarVisible')
+    if (visible('.canvas')) mark('canvasVisible')
+    try {
+      for (const f of document.fonts) {
+        if (!/CJK Punct/.test(f.family)) continue
+        const k = f.family.replace(/["']/g, '')
+        const s = (tr.fonts[k] ??= {})
+        if (s[f.status] === undefined) s[f.status] = Math.round(t)
+      }
+    } catch {
+      /* fonts not readable yet */
+    }
+    const done = marks.canvasVisible !== undefined && t - marks.canvasVisible > 500
+    if (!done && t < 30_000) requestAnimationFrame(frame)
+  }
+  requestAnimationFrame(frame)
+}
+
+const traced = new WeakSet<BrowserContext>()
+
+/** every page of `context`, the ones it has and the ones it will open; the
+ *  boot trace is registered before any of them navigates again */
+export async function watchContext(context: BrowserContext): Promise<void> {
+  if (!traced.has(context)) {
+    traced.add(context)
+    await context.addInitScript(bootTrace)
+  }
   for (const p of context.pages()) watchPage(p)
   context.on('page', watchPage)
 }
@@ -203,43 +319,129 @@ type Probe = {
   htmlDir: string
   toolbar: { present: boolean; visible: boolean }
   canvas: { present: boolean; visible: boolean }
+  /** the boot trace's summary, or null on a page without one */
+  trace: TraceSummary | null
 }
 
-/** one read of the page, bounded: a renderer that does not answer within
- *  `ms` is itself the finding */
-async function probe(page: Page, ms: number): Promise<{ probe: Probe | null; answeredInMs: number | null; error?: string }> {
+/** what `bootTrace` kept, plus the browser's navigation and resource timing,
+ *  read once; every time is the renderer's own (ms from its navigation start) */
+type TraceSummary = {
+  timeOrigin: number
+  now: number
+  marks: Record<string, number>
+  frames: number
+  maxGap: number
+  maxGapAt: number
+  longCount: number
+  longSum: number
+  longTop: number[][]
+  fonts: Record<string, Record<string, number>>
+  nav: { responseEnd: number; domContentLoaded: number; load: number } | null
+  requests: number
+  catalog: number
+  catalogEnd: number | null
+  slowest: { url: string; start: number; duration: number } | null
+}
+
+type Read = { probe: Probe; answeredInMs: number }
+
+/** one read of the page: the DOM state and the boot trace, in ONE evaluate */
+function readPage(page: Page): Promise<Read> {
   const t0 = Date.now()
-  const read = page.evaluate(() => {
-    const vis = (sel: string) => {
-      const el = document.querySelector(sel) as HTMLElement | null
-      if (!el) return { present: false, visible: false }
-      const r = el.getBoundingClientRect()
-      const s = getComputedStyle(el)
-      return { present: true, visible: r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' }
-    }
-    return {
-      readyState: document.readyState,
-      rootChildren: document.getElementById('root')?.childElementCount ?? -1,
-      gate: Boolean(document.querySelector('.gate')),
-      htmlLang: document.documentElement.lang,
-      htmlDir: document.documentElement.dir,
-      toolbar: vis('.toolbar'),
-      canvas: vis('.canvas'),
-    }
-  })
+  return page
+    .evaluate(() => {
+      const vis = (sel: string) => {
+        const el = document.querySelector(sel) as HTMLElement | null
+        if (!el) return { present: false, visible: false }
+        const r = el.getBoundingClientRect()
+        const s = getComputedStyle(el)
+        return { present: true, visible: r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' }
+      }
+      type T = Omit<TraceSummary, 'timeOrigin' | 'now' | 'nav' | 'requests' | 'catalog' | 'catalogEnd' | 'slowest'>
+      const tr = (window as unknown as { __appReadyTrace?: T }).__appReadyTrace
+      let trace: TraceSummary | null = null
+      if (tr) {
+        const r = Math.round
+        const navT = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
+        const res = performance.getEntriesByType('resource') as PerformanceResourceTiming[]
+        let slow: PerformanceResourceTiming | null = null
+        for (const e of res) if (!slow || e.duration > slow.duration) slow = e
+        const cat = res.filter((e) => /\/i18n\/locales\/|\/templateLabels\//.test(e.name))
+        trace = {
+          ...tr,
+          marks: { ...tr.marks },
+          longTop: tr.longTop.map((x) => [...x]),
+          fonts: JSON.parse(JSON.stringify(tr.fonts)),
+          timeOrigin: r(performance.timeOrigin),
+          now: r(performance.now()),
+          nav: navT ? { responseEnd: r(navT.responseEnd), domContentLoaded: r(navT.domContentLoadedEventEnd), load: r(navT.loadEventEnd) } : null,
+          requests: res.length,
+          catalog: cat.length,
+          catalogEnd: cat.length ? r(Math.max(...cat.map((e) => e.responseEnd))) : null,
+          slowest: slow ? { url: slow.name, start: r(slow.startTime), duration: r(slow.duration) } : null,
+        }
+      }
+      return {
+        readyState: document.readyState,
+        rootChildren: document.getElementById('root')?.childElementCount ?? -1,
+        gate: Boolean(document.querySelector('.gate')),
+        htmlLang: document.documentElement.lang,
+        htmlDir: document.documentElement.dir,
+        toolbar: vis('.toolbar'),
+        canvas: vis('.canvas'),
+        trace,
+      }
+    })
+    .then((probe) => ({ probe, answeredInMs: Date.now() - t0 }))
+}
+
+/** a read raced against `ms`: a renderer that does not answer in time is itself
+ *  the finding, and its read is handed back still running (`late`) */
+async function probe(page: Page, ms: number): Promise<{ probe: Probe | null; answeredInMs: number | null; error?: string; late?: Promise<Read> }> {
+  const read = readPage(page)
   try {
-    const result = await Promise.race([
-      read,
-      new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), ms)),
-    ])
+    const result = await Promise.race([read, new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), ms))])
     if (result === 'timeout') {
       read.catch(() => undefined)
-      return { probe: null, answeredInMs: null }
+      return { probe: null, answeredInMs: null, late: read }
     }
-    return { probe: result, answeredInMs: Date.now() - t0 }
+    return result
   } catch (e) {
     return { probe: null, answeredInMs: null, error: String((e as Error).message ?? e).split('\n')[0] }
   }
+}
+
+/** how long, after a renderer missed the 1 s probe, the report waits for that
+ *  same read to come back (the boot's late state); the wait is over once the
+ *  failure is decided, so it changes no verdict */
+const LATE_MS = 5000
+
+/** Node's own clock for the wait being reported */
+export type WaitTimes = { startedAt: number; toolbarAt?: number }
+
+/** ms from `base`, or `-` */
+const at = (t: number | null | undefined, base: number): string => (t === null || t === undefined ? '-' : String(t - base))
+
+/** the Node side: the document events and the wait, ms from the wait's start */
+function nodeLine(w: Watch, times: WaitTimes, failedAt: number): string {
+  const b = times.startedAt
+  return `node timeline (ms from the wait start): navigated ${at(w.navigatedAt, b)}, DOMContentLoaded ${at(w.domContentLoadedAt, b)}, load ${at(w.loadAt, b)}; toolbar visible ${at(times.toolbarAt, b)}; gave up ${failedAt - b}`
+}
+
+/** the renderer side, ms from the document's navigation start */
+function traceLines(t: TraceSummary | null, times: WaitTimes | undefined): string[] {
+  if (!t) return ['renderer timeline: not recorded (no boot trace in this document)']
+  const m = t.marks
+  const waitStart = times ? ` ; the wait started at ${times.startedAt - t.timeOrigin}` : ''
+  const fonts = Object.entries(t.fonts)
+    .map(([k, s]) => `${k} ${Object.entries(s).map(([st, v]) => `${st} ${v}`).join(' / ')}`)
+    .join('; ')
+  const long = t.longTop.map(([s, d]) => `${d} ms at ${s}`).join(', ')
+  return [
+    `renderer timeline (ms from navigation start, read at ${t.now}${waitStart}): lang set ${at(m.lang, 0)}, #root ${at(m.root, 0)}, toolbar attached ${at(m.toolbarAttached, 0)} / visible ${at(m.toolbarVisible, 0)}, canvas visible ${at(m.canvasVisible, 0)}${m.gate !== undefined ? `, storage gate ${m.gate}` : ''}`,
+    `renderer work: ${t.frames} frames, longest gap ${t.maxGap} ms ending at ${t.maxGapAt}; long tasks ${t.longCount}, ${t.longSum} ms in all${long ? `, longest ${long}` : ''}${fonts ? `; CJK faces ${fonts}` : ''}`,
+    `navigation: response end ${t.nav ? t.nav.responseEnd : '-'}, DOMContentLoaded ${t.nav ? t.nav.domContentLoaded : '-'}, load ${t.nav ? t.nav.load : '-'}; requests ${t.requests}, catalog requests ${t.catalog} ending at ${at(t.catalogEnd, 0)}; slowest ${t.slowest ? `${t.slowest.duration} ms from ${t.slowest.start}, ${safeUrl(t.slowest.url)}` : '-'}`,
+  ]
 }
 
 /** the furthest step of the boot this page reached, in words */
@@ -258,11 +460,12 @@ function stageOf(w: Watch | undefined, p: Probe | null, answered: boolean): stri
 }
 
 /** The diagnostic report for `page`, as lines. Exported for the helper's own
- *  tests. */
-export async function appReadyReport(page: Page, elapsedMs: number, waitingFor: string): Promise<string[]> {
+ *  tests. `times` is Node's clock for the wait (from `waitForAppReady`). */
+export async function appReadyReport(page: Page, elapsedMs: number, waitingFor: string, times?: WaitTimes): Promise<string[]> {
+  const failedAt = Date.now()
   const w = watches.get(page)
   const closed = w?.closed || page.isClosed()
-  const { probe: p, answeredInMs, error } = closed ? { probe: null, answeredInMs: null } : await probe(page, 1000)
+  const { probe: p, answeredInMs, error, late } = closed ? { probe: null, answeredInMs: null } : await probe(page, 1000)
   const stage = stageOf(w ? { ...w, closed } : undefined, p, answeredInMs !== null)
   const yn = (b: boolean | undefined) => (b === undefined ? 'unknown' : b ? 'yes' : 'no')
   const vis = (v: { present: boolean; visible: boolean } | undefined) => (v ? `present ${yn(v.present)}, visible ${yn(v.visible)}` : 'unknown')
@@ -275,6 +478,19 @@ export async function appReadyReport(page: Page, elapsedMs: number, waitingFor: 
     `dom: #root children ${p ? p.rootChildren : 'unknown'}, storage gate ${yn(p?.gate)}, html lang "${cut(p?.htmlLang ?? '?', 40)}" dir "${cut(p?.htmlDir ?? '?', 10)}"`,
     `toolbar: ${vis(p?.toolbar)}; canvas: ${vis(p?.canvas)}`,
   ]
+  // issue #305 - where the time went, Node's clock and the renderer's apart
+  // (before the event lists, so the report cap never cuts them)
+  if (w && times) lines.push(nodeLine(w, times, failedAt))
+  if (p) lines.push(...traceLines(p.trace, times))
+  // a renderer that missed the probe: the same read, collected when it answers
+  if (late) {
+    const r = await Promise.race([late.catch(() => null), new Promise<'timeout'>((res) => setTimeout(() => res('timeout'), LATE_MS))])
+    if (r === 'timeout' || r === null) lines.push(`late trace: the renderer still had not answered ${Date.now() - failedAt} ms after the deadline`)
+    else {
+      lines.push(`late trace: the renderer answered ${Date.now() - failedAt} ms after the deadline; stage then: ${stageOf(w, r.probe, true)}`)
+      lines.push(...traceLines(r.probe.trace, times))
+    }
+  }
   if (!w) {
     lines.push('page events: not watched (watchPage was not attached before the navigation)')
     return lines
@@ -299,14 +515,15 @@ export async function appReadyReport(page: Page, elapsedMs: number, waitingFor: 
  * also attached to the test as `app-ready-diagnostics`.
  */
 export async function waitForAppReady(page: Page, opts: { timeout?: number } = {}): Promise<void> {
-  const t0 = Date.now()
+  const times: WaitTimes = { startedAt: Date.now() }
   let waitingFor = '.toolbar'
   try {
     await expect(page.locator('.toolbar')).toBeVisible(opts.timeout !== undefined ? { timeout: opts.timeout } : undefined)
+    times.toolbarAt = Date.now()
     waitingFor = '.canvas'
     await expect(page.locator('.canvas')).toBeVisible(opts.timeout !== undefined ? { timeout: opts.timeout } : undefined)
   } catch (e) {
-    const lines = await appReadyReport(page, Date.now() - t0, waitingFor)
+    const lines = await appReadyReport(page, Date.now() - times.startedAt, waitingFor, times)
     const first = cut(scrubText(String((e as Error).message ?? e).split('\n')[0]), MAX_TEXT)
     const report = capReport([first, ...lines].join('\n'))
     await attach(report)

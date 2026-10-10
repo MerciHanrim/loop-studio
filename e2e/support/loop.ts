@@ -35,7 +35,7 @@ export const test = base.extend<
   // (the fixture callback is named `provide`, not `use`: oxlint's React rule
   // takes `use(context)` for the React `use` hook)
   context: async ({ context }, provide) => {
-    watchContext(context)
+    await watchContext(context)
     await provide(context)
   },
   _watchNewContexts: [
@@ -45,7 +45,7 @@ export const test = base.extend<
         const original = browser.newContext.bind(browser)
         b.newContext = async (...args: Parameters<typeof browser.newContext>) => {
           const ctx = await original(...args)
-          watchContext(ctx)
+          await watchContext(ctx)
           return ctx
         }
         b[WATCHED] = true
