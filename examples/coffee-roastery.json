@@ -33,7 +33,7 @@
       "id": "online_orders",
       "type": "parameter",
       "position": {
-        "x": 640,
+        "x": 672,
         "y": 4
       },
       "data": {
@@ -46,7 +46,7 @@
       "id": "green_wholesale_kg",
       "type": "parameter",
       "position": {
-        "x": 928,
+        "x": 960,
         "y": 4
       },
       "data": {
@@ -59,7 +59,7 @@
       "id": "dessert_prep",
       "type": "parameter",
       "position": {
-        "x": 1216,
+        "x": 1264,
         "y": 4
       },
       "data": {
@@ -119,7 +119,7 @@
       "id": "roasting",
       "type": "gate",
       "position": {
-        "x": 576,
+        "x": 608,
         "y": 228
       },
       "data": {
@@ -134,7 +134,7 @@
       "id": "roasted_stock",
       "type": "pool",
       "position": {
-        "x": 832,
+        "x": 864,
         "y": 228
       },
       "data": {
@@ -151,7 +151,7 @@
       "id": "roast_loss",
       "type": "drain",
       "position": {
-        "x": 576,
+        "x": 592,
         "y": 404
       },
       "data": {
@@ -166,7 +166,7 @@
       "id": "online_sales",
       "type": "drain",
       "position": {
-        "x": 1072,
+        "x": 1120,
         "y": 196
       },
       "data": {
@@ -181,7 +181,7 @@
       "id": "cafe_retail",
       "type": "drain",
       "position": {
-        "x": 832,
+        "x": 848,
         "y": 404
       },
       "data": {
@@ -196,7 +196,7 @@
       "id": "roasted_bleed",
       "type": "drain",
       "position": {
-        "x": 1072,
+        "x": 1120,
         "y": 356
       },
       "data": {
@@ -243,7 +243,7 @@
       "id": "dessert_sales",
       "type": "drain",
       "position": {
-        "x": 576,
+        "x": 592,
         "y": 644
       },
       "data": {
@@ -258,7 +258,7 @@
       "id": "dessert_wrapup",
       "type": "drain",
       "position": {
-        "x": 576,
+        "x": 592,
         "y": 788
       },
       "data": {
@@ -273,7 +273,7 @@
       "id": "projected_revenue",
       "type": "register",
       "position": {
-        "x": 1456,
+        "x": 1504,
         "y": 4
       },
       "data": {
@@ -287,7 +287,7 @@
       "id": "planned_cost",
       "type": "register",
       "position": {
-        "x": 1456,
+        "x": 1504,
         "y": 148
       },
       "data": {
@@ -301,7 +301,7 @@
       "id": "projected_operating_margin",
       "type": "register",
       "position": {
-        "x": 1456,
+        "x": 1504,
         "y": 292
       },
       "data": {
@@ -315,7 +315,7 @@
       "id": "roasted_supply_margin",
       "type": "register",
       "position": {
-        "x": 1456,
+        "x": 1504,
         "y": 452
       },
       "data": {
@@ -328,7 +328,7 @@
       "id": "dessert_prep_margin",
       "type": "register",
       "position": {
-        "x": 1456,
+        "x": 1504,
         "y": 612
       },
       "data": {
@@ -516,7 +516,7 @@
       "rect": {
         "x": 16,
         "y": 192,
-        "w": 496,
+        "w": 512,
         "h": 560
       }
     },
@@ -524,9 +524,9 @@
       "id": "zone_roasting",
       "label": "Roasting & sales",
       "rect": {
-        "x": 544,
+        "x": 560,
         "y": 160,
-        "w": 752,
+        "w": 784,
         "h": 736
       }
     },
@@ -534,7 +534,7 @@
       "id": "zone_forecast",
       "label": "Forecast metrics",
       "rect": {
-        "x": 1424,
+        "x": 1472,
         "y": -32,
         "w": 320,
         "h": 800

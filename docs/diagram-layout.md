@@ -21,12 +21,12 @@ The release notes, the change declaration and the baselines are settled once, af
 
 ## DL2. Re-placing a graph
 
-- DL2.1 **Canonical geometry.** Re-placement never measures the DOM or a font. Each node's box is its canonical box (`canonicalBox.ts`): the widest the content can take in any supported language — an upper-bound advance per character for its script, the title wrapped at 135 px under the strictest UI-language rule (Korean keeps words whole, Japanese / Chinese break by phrase, Parameter and Register titles wrap narrower), the kind's paddings, minimum / maximum widths and height rules. Checked against every bundled Template in all 18 languages: never smaller than the drawn box.
+- DL2.1 **Canonical geometry.** Re-placement never measures the DOM or a font. Each node's box is its canonical box (`canonicalBox.ts`): the widest the content can take in any supported language — an upper-bound advance per character for its script, the title wrapped at 135 px under the strictest UI-language rule (Korean keeps words whole, Japanese / Chinese break by phrase, Parameter and Register titles wrap narrower), the kind's paddings, minimum / maximum widths and height rules. For the Pool, Source, Drain, Converter and Gate (#337, drawn for their own width with fixed-depth features) each side also keeps room for the outline where it reaches furthest in over the text, plus the 8 px clearance. Checked against every bundled Template in all 18 languages: never smaller than the drawn box.
 - DL2.2 **Rules** (`replace.ts`), pure and deterministic, ties broken by node id:
   1. every node: left edge and port row to the nearest grid line;
   2. rows: two related nodes (a flow connects them, or they share a direct flow neighbour) whose port rows were less than 16 px apart share one row; two unrelated neighbours 8–16 px apart never do (the lower takes the next row). A row move is made only when it reverses no order;
-  3. overlaps: space is inserted — an overlapping pair is separated along the axis its centres are further apart on, by moving every node on the far side by the same grid step, until nothing overlaps. No left/right or above/below order between two nodes is ever reversed;
-  4. frames: snapped outward, grown to keep every node they held;
+  3. overlaps: space is inserted — a pair closer than the clearance (48 px across, 32 px down: `LAYOUT_CLEARANCE`, the same as the Templates', §DL5) is separated along the axis its centres are further apart on, by moving every node on the far side by the same grid step, until every pair keeps it. No left/right or above/below order between two nodes is ever reversed;
+  4. frames (§DL2.9): each saved frame rebuilt around the nodes it showed;
   5. waypoints: snapped; one that lands inside a node is dropped.
 - DL2.3 Idempotent: re-placing a re-placed graph changes nothing.
 - DL2.4 Engine digest and simulation results never change; the full content digest changes (positions are cosmetic content).
@@ -44,6 +44,20 @@ The release notes, the change declaration and the baselines are settled once, af
 - Ordinary documents, files and share links are converted once, by their `layoutVersion`.
 - Bundled Templates and modules are never converted: they open at their source coordinates (step 4 re-places those).
 - A position placed freely with Alt in a current document is kept.
+
+## DL2.9. Frames in a re-placement (the one-time conversion and Tidy to grid)
+
+- Each node's box BEFORE the move is read first, before any node's size or place changes: the one-time conversion reads the box the document was drawn with when it was saved (`legacyCanonicalBoxBeforeOutlineContainment`, frozen — the canonical box before #337 drew the five kinds for their own width), Tidy to grid the current canonical box.
+- Two sets per frame, from those boxes:
+  - the **held set** — the nodes fully inside: the frame's members, as before;
+  - the **visual coverage set** — the nodes whose centre was inside. It decides no membership; it only sizes the frame.
+- The rebuilt frame covers every node of both sets at its new place and current size, keeps its own padding on each side where it had more than 24 px, at least 24 px, and is snapped outward. A frame that showed no node keeps its snapped rect.
+- So no frame edge runs through a node that sat in it, and a node #337 draws wider never falls out of its frame.
+- Membership afterwards (Lumi, 2026-10-10):
+  - before the re-placement, the held set is computed by the usual full-containment rule;
+  - the re-placement rebuilds each frame so it also covers the nodes that sat in it visually (the coverage set);
+  - membership is not stored: after the re-placement it is computed again from the final geometry, so a coverage node now wholly inside its frame takes part in later frame drags like any other node inside;
+  - the code that decides membership during an ordinary drag or selection is not changed.
 
 ## DL2.10. Tidy to grid
 
@@ -78,5 +92,6 @@ The Controls rail's **Tidy to grid** re-places the current document by the DL2.2
 - DL5.3 A saved frame travels with the nodes it held (centre inside it before the move): it is rebuilt around them, keeping its own padding on each side and at least 24 px (§CR17), snapped outward. No frame cuts a node, by the widest boxes. Two frames that stood apart keep at least 32 px between them (`FRAME_GAP`; a frame's title sits in that gap, and two margins alone would make neighbouring frames touch): space is inserted as in §DL2 — every node beyond the nearer frame's far edge moves by the same grid step — so no order is reversed and no clearance shrinks.
 - DL5.4 Every connection is Auto orthogonal. A Manual exception (bend points) is used only where placement cannot resolve a case, each recorded with its connection id and reason; none is needed: in all 18 languages no route is blocked or on the outer corridor and no fan overlaps past its stub (measured 2026-10-10).
 - DL5.5 The menu-open framings (`initialView`):
-  - MMO puts readability before the whole start path: the rect is sized for a zoom of about 1.05–1.1 (node text at least about 12 px on screen, median about 14 px), left-aligned on Character creation, with the first flow (Character creation → Active character → Starter encounters → Starter Lv 1–5) in view. Later paths may start off screen; Reset view and the minimap show the whole graph.
+  - MMO puts readability before the whole start path: at 1600 x 1000 it opens at 1.05 (node text 12.6 px smallest, 14.7 px median), inside the Controls rail's reserved column, with every core start node whole in every language — Character creation, Active character, Starter encounters, Starter Lv 1–5 (German, the widest, ends 9 px before the side panel). Later paths may start off screen; Reset view and the minimap show the whole graph.
+  - Coffee opens on its operating flow — the five daily levers, the supply and the roasting & sales frames — at about 0.5 in a 1280 x 800 window (L1 with room, never at the 0.45 edge; floor 0.46); the forecast metrics may start off screen.
   - Gacha keeps its overview: the comparison row and the Free zone, at its 0.45 floor.

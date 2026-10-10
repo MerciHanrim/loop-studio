@@ -37,7 +37,7 @@
       "id": "tpl-gate",
       "type": "gate",
       "position": {
-        "x": 512,
+        "x": 528,
         "y": 180
       },
       "data": {
@@ -51,7 +51,7 @@
       "id": "tpl-conv",
       "type": "converter",
       "position": {
-        "x": 768,
+        "x": 784,
         "y": 116
       },
       "data": {
@@ -65,7 +65,7 @@
       "id": "tpl-prod",
       "type": "pool",
       "position": {
-        "x": 960,
+        "x": 1008,
         "y": 116
       },
       "data": {
@@ -81,7 +81,7 @@
       "id": "tpl-spill",
       "type": "drain",
       "position": {
-        "x": 768,
+        "x": 784,
         "y": 308
       },
       "data": {
@@ -95,7 +95,7 @@
       "id": "tpl-consume",
       "type": "drain",
       "position": {
-        "x": 1184,
+        "x": 1248,
         "y": 116
       },
       "data": {

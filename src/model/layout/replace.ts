@@ -16,7 +16,8 @@
 //      far side (by original centre) by the same grid step, until nothing
 //      overlaps; no left/right or above/below order between any two nodes is
 //      ever reversed (a row move in step 2 is made only when it reverses none)
-//   4. frames: snapped outward, and grown to keep every node they held
+//   4. frames: snapped outward, and grown to keep every node they held (fully
+//      inside before the move, or the caller's held set)
 //   5. waypoints: snapped; one that lands inside a node is dropped
 
 import type { LoopEdge, LoopNode } from '../types'
@@ -36,12 +37,26 @@ export type ReplaceResult = {
 const byId = (a: { id: string }, b: { id: string }): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 const isResource = (e: LoopEdge): boolean => !(e.sourceHandle ?? '').startsWith('state') && !(e.targetHandle ?? '').startsWith('state')
 
-export function replaceOnGrid(nodes: readonly LoopNode[], edges: readonly LoopEdge[], frames: readonly FrameLike[], sizeOf: SizeOf): ReplaceResult {
+export type ReplaceOptions = {
+  /** frame id → the ids of the nodes it holds, when the caller decided it */
+  held?: Readonly<Record<string, readonly string[]>>
+  /** a clearance every node keeps from the next (x to its right, y below it):
+   *  the placement treats each box as this much larger; frames and waypoints
+   *  still use the real box */
+  gap?: { x: number; y: number }
+}
+
+export function replaceOnGrid(nodes: readonly LoopNode[], edges: readonly LoopEdge[], frames: readonly FrameLike[], sizeOf: SizeOf, opts: ReplaceOptions = {}): ReplaceResult {
   const sorted = [...nodes].sort(byId)
-  const size = new Map(sorted.map((n) => [n.id, sizeOf(n)]))
+  const real = new Map(sorted.map((n) => [n.id, sizeOf(n)]))
+  const gx = opts.gap?.x ?? 0
+  const gy = opts.gap?.y ?? 0
+  const size = new Map(sorted.map((n) => [n.id, { w: real.get(n.id)!.w + gx, h: real.get(n.id)!.h + gy }]))
   const orig = new Map(sorted.map((n) => [n.id, { x: n.position.x, y: n.position.y }]))
   const pos = new Map(sorted.map((n) => [n.id, snapNodePosition(n.position)]))
   const box = (id: string, p = pos.get(id)!): Box => ({ x: p.x, y: p.y, w: size.get(id)!.w, h: size.get(id)!.h })
+  /** the node's own box, without the clearance */
+  const realBox = (id: string, p = pos.get(id)!): Box => ({ x: p.x, y: p.y, w: real.get(id)!.w, h: real.get(id)!.h })
   const row = (p: { y: number }): number => p.y + PORT_ROW
 
   // 2. related pairs: a resource connection between them, or a shared direct
@@ -147,16 +162,20 @@ export function replaceOnGrid(nodes: readonly LoopNode[], edges: readonly LoopEd
     }
   }
 
-  // 4. frames: outward to the grid, grown to keep the nodes they held
+  // 4. frames: outward to the grid, grown to keep the nodes they held — fully
+  //    inside before the move, or the caller's own held set (`opts.held`: the
+  //    layout migration decides membership by the boxes the document was
+  //    drawn with, before the move changes any node's size)
   const outFrames: ReplaceResult['frames'] = {}
   for (const f of [...frames].sort(byId)) {
-    const held = ids.filter((id) => {
-      const b = box(id, orig.get(id)!)
+    const given = opts.held?.[f.id]
+    const held = given ? ids.filter((id) => given.includes(id)) : ids.filter((id) => {
+      const b = realBox(id, orig.get(id)!)
       return b.x >= f.rect.x && b.y >= f.rect.y && b.x + b.w <= f.rect.x + f.rect.w && b.y + b.h <= f.rect.y + f.rect.h
     })
     let x0 = f.rect.x, y0 = f.rect.y, x1 = f.rect.x + f.rect.w, y1 = f.rect.y + f.rect.h
     for (const id of held) {
-      const b = box(id)
+      const b = realBox(id)
       x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h)
     }
     outFrames[f.id] = snapRectOutward({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 })
@@ -168,7 +187,7 @@ export function replaceOnGrid(nodes: readonly LoopNode[], edges: readonly LoopEd
     const wps = (e.data as { waypoints?: { x: number; y: number }[] } | undefined)?.waypoints
     if (!Array.isArray(wps) || wps.length === 0) continue
     outWps[e.id] = wps.map(snapPoint).filter((p) => !ids.some((id) => {
-      const b = box(id)
+      const b = realBox(id)
       return p.x > b.x && p.x < b.x + b.w && p.y > b.y && p.y < b.y + b.h
     }))
   }

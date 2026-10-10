@@ -20,7 +20,7 @@
       "id": "cmp1_hit_rate_free",
       "type": "register",
       "position": {
-        "x": 592,
+        "x": 608,
         "y": 36
       },
       "data": {
@@ -34,7 +34,7 @@
       "id": "cmp2_hit_rate_standard",
       "type": "register",
       "position": {
-        "x": 928,
+        "x": 944,
         "y": 36
       },
       "data": {
@@ -48,7 +48,7 @@
       "id": "cmp3_hit_rate_pickup",
       "type": "register",
       "position": {
-        "x": 1264,
+        "x": 1280,
         "y": 36
       },
       "data": {
@@ -62,7 +62,7 @@
       "id": "cmp4_pickup_rate_pickup",
       "type": "register",
       "position": {
-        "x": 1664,
+        "x": 1680,
         "y": 36
       },
       "data": {
@@ -125,7 +125,7 @@
       "id": "zone1_free_w_ssr",
       "type": "parameter",
       "position": {
-        "x": 384,
+        "x": 400,
         "y": 756
       },
       "data": {
@@ -138,7 +138,7 @@
       "id": "zone1_free_w_sr",
       "type": "parameter",
       "position": {
-        "x": 768,
+        "x": 784,
         "y": 756
       },
       "data": {
@@ -164,7 +164,7 @@
       "id": "sr_count_free",
       "type": "pool",
       "position": {
-        "x": 1008,
+        "x": 1024,
         "y": 404
       },
       "data": {
@@ -181,7 +181,7 @@
       "id": "r_count_free",
       "type": "pool",
       "position": {
-        "x": 1008,
+        "x": 1024,
         "y": 500
       },
       "data": {
@@ -198,7 +198,7 @@
       "id": "ssr_count_free",
       "type": "pool",
       "position": {
-        "x": 1008,
+        "x": 1024,
         "y": 596
       },
       "data": {
@@ -215,7 +215,7 @@
       "id": "roll_gate_free",
       "type": "gate",
       "position": {
-        "x": 496,
+        "x": 512,
         "y": 404
       },
       "data": {
@@ -231,7 +231,7 @@
       "id": "ssr_hit_free",
       "type": "gate",
       "position": {
-        "x": 816,
+        "x": 832,
         "y": 404
       },
       "data": {
@@ -247,7 +247,7 @@
       "id": "sr_hit_free",
       "type": "gate",
       "position": {
-        "x": 816,
+        "x": 832,
         "y": 500
       },
       "data": {
@@ -263,7 +263,7 @@
       "id": "r_hit_free",
       "type": "gate",
       "position": {
-        "x": 816,
+        "x": 832,
         "y": 596
       },
       "data": {
@@ -279,7 +279,7 @@
       "id": "fund_standard",
       "type": "source",
       "position": {
-        "x": 1472,
+        "x": 1488,
         "y": 404
       },
       "data": {
@@ -294,7 +294,7 @@
       "id": "ticket_standard",
       "type": "pool",
       "position": {
-        "x": 1712,
+        "x": 1728,
         "y": 404
       },
       "data": {
@@ -311,7 +311,7 @@
       "id": "pulls_made_standard",
       "type": "pool",
       "position": {
-        "x": 1776,
+        "x": 1792,
         "y": 756
       },
       "data": {
@@ -328,7 +328,7 @@
       "id": "zone2_standard_w_ssr",
       "type": "parameter",
       "position": {
-        "x": 2032,
+        "x": 2048,
         "y": 756
       },
       "data": {
@@ -341,7 +341,7 @@
       "id": "zone2_standard_w_sr",
       "type": "parameter",
       "position": {
-        "x": 1472,
+        "x": 1488,
         "y": 900
       },
       "data": {
@@ -354,7 +354,7 @@
       "id": "zone2_standard_w_r",
       "type": "parameter",
       "position": {
-        "x": 1776,
+        "x": 1792,
         "y": 900
       },
       "data": {
@@ -367,7 +367,7 @@
       "id": "sr_count_standard",
       "type": "pool",
       "position": {
-        "x": 2352,
+        "x": 2368,
         "y": 404
       },
       "data": {
@@ -384,7 +384,7 @@
       "id": "r_count_standard",
       "type": "pool",
       "position": {
-        "x": 2352,
+        "x": 2368,
         "y": 500
       },
       "data": {
@@ -401,7 +401,7 @@
       "id": "ssr_count_standard",
       "type": "pool",
       "position": {
-        "x": 2352,
+        "x": 2368,
         "y": 596
       },
       "data": {
@@ -418,7 +418,7 @@
       "id": "roll_gate_standard",
       "type": "gate",
       "position": {
-        "x": 1904,
+        "x": 1920,
         "y": 404
       },
       "data": {
@@ -434,7 +434,7 @@
       "id": "ssr_hit_standard",
       "type": "gate",
       "position": {
-        "x": 2160,
+        "x": 2176,
         "y": 404
       },
       "data": {
@@ -450,7 +450,7 @@
       "id": "sr_hit_standard",
       "type": "gate",
       "position": {
-        "x": 2160,
+        "x": 2176,
         "y": 500
       },
       "data": {
@@ -466,7 +466,7 @@
       "id": "r_hit_standard",
       "type": "gate",
       "position": {
-        "x": 2080,
+        "x": 2096,
         "y": 596
       },
       "data": {
@@ -482,7 +482,7 @@
       "id": "pity_standard",
       "type": "pool",
       "position": {
-        "x": 1472,
+        "x": 1488,
         "y": 756
       },
       "data": {
@@ -499,7 +499,7 @@
       "id": "zone2_standard_hard_pity",
       "type": "parameter",
       "position": {
-        "x": 2032,
+        "x": 2048,
         "y": 900
       },
       "data": {
@@ -512,7 +512,7 @@
       "id": "forced_ssr_standard",
       "type": "gate",
       "position": {
-        "x": 1904,
+        "x": 1920,
         "y": 500
       },
       "data": {
@@ -528,7 +528,7 @@
       "id": "ceiling_hits_standard",
       "type": "pool",
       "position": {
-        "x": 1472,
+        "x": 1488,
         "y": 1044
       },
       "data": {
@@ -545,7 +545,7 @@
       "id": "fund_pickup",
       "type": "source",
       "position": {
-        "x": 2816,
+        "x": 2832,
         "y": 404
       },
       "data": {
@@ -560,7 +560,7 @@
       "id": "ticket_pickup",
       "type": "pool",
       "position": {
-        "x": 3136,
+        "x": 3152,
         "y": 404
       },
       "data": {
@@ -577,7 +577,7 @@
       "id": "pulls_made_pickup",
       "type": "pool",
       "position": {
-        "x": 3344,
+        "x": 3360,
         "y": 868
       },
       "data": {
@@ -594,7 +594,7 @@
       "id": "zone3_pickup_w_ssr",
       "type": "parameter",
       "position": {
-        "x": 2816,
+        "x": 2832,
         "y": 996
       },
       "data": {
@@ -607,7 +607,7 @@
       "id": "zone3_pickup_w_sr",
       "type": "parameter",
       "position": {
-        "x": 3072,
+        "x": 3088,
         "y": 996
       },
       "data": {
@@ -620,7 +620,7 @@
       "id": "zone3_pickup_w_r",
       "type": "parameter",
       "position": {
-        "x": 3344,
+        "x": 3360,
         "y": 996
       },
       "data": {
@@ -633,7 +633,7 @@
       "id": "sr_count_pickup",
       "type": "pool",
       "position": {
-        "x": 4096,
+        "x": 4112,
         "y": 404
       },
       "data": {
@@ -650,7 +650,7 @@
       "id": "r_count_pickup",
       "type": "pool",
       "position": {
-        "x": 4096,
+        "x": 4112,
         "y": 500
       },
       "data": {
@@ -667,7 +667,7 @@
       "id": "ssr_count_pickup",
       "type": "pool",
       "position": {
-        "x": 2816,
+        "x": 2832,
         "y": 500
       },
       "data": {
@@ -684,7 +684,7 @@
       "id": "pity_pickup",
       "type": "pool",
       "position": {
-        "x": 2816,
+        "x": 2832,
         "y": 868
       },
       "data": {
@@ -701,7 +701,7 @@
       "id": "zone3_pickup_hard_pity",
       "type": "parameter",
       "position": {
-        "x": 2816,
+        "x": 2832,
         "y": 1140
       },
       "data": {
@@ -714,7 +714,7 @@
       "id": "ceiling_hits_pickup",
       "type": "pool",
       "position": {
-        "x": 3072,
+        "x": 3088,
         "y": 1140
       },
       "data": {
@@ -731,7 +731,7 @@
       "id": "missed_pickup_pickup",
       "type": "pool",
       "position": {
-        "x": 3072,
+        "x": 3088,
         "y": 868
       },
       "data": {
@@ -748,7 +748,7 @@
       "id": "zone3_pickup_w_pickup",
       "type": "parameter",
       "position": {
-        "x": 3344,
+        "x": 3360,
         "y": 1140
       },
       "data": {
@@ -761,7 +761,7 @@
       "id": "zone3_pickup_w_standard",
       "type": "parameter",
       "position": {
-        "x": 2816,
+        "x": 2832,
         "y": 1284
       },
       "data": {
@@ -774,7 +774,7 @@
       "id": "roll_normal_open_pickup",
       "type": "gate",
       "position": {
-        "x": 3456,
+        "x": 3472,
         "y": 404
       },
       "data": {
@@ -790,7 +790,7 @@
       "id": "roll_normal_owed_pickup",
       "type": "gate",
       "position": {
-        "x": 3456,
+        "x": 3472,
         "y": 500
       },
       "data": {
@@ -806,7 +806,7 @@
       "id": "roll_forced_open_pickup",
       "type": "gate",
       "position": {
-        "x": 3456,
+        "x": 3472,
         "y": 596
       },
       "data": {
@@ -822,7 +822,7 @@
       "id": "roll_forced_owed_pickup",
       "type": "gate",
       "position": {
-        "x": 3456,
+        "x": 3472,
         "y": 708
       },
       "data": {
@@ -838,7 +838,7 @@
       "id": "ssr_split_open_pickup",
       "type": "gate",
       "position": {
-        "x": 3776,
+        "x": 3792,
         "y": 404
       },
       "data": {
@@ -854,7 +854,7 @@
       "id": "pickup_hit_pickup",
       "type": "gate",
       "position": {
-        "x": 4096,
+        "x": 4112,
         "y": 596
       },
       "data": {
@@ -870,7 +870,7 @@
       "id": "standard_hit_pickup",
       "type": "gate",
       "position": {
-        "x": 4096,
+        "x": 4112,
         "y": 708
       },
       "data": {
@@ -886,7 +886,7 @@
       "id": "sr_hit_pickup",
       "type": "gate",
       "position": {
-        "x": 3776,
+        "x": 3792,
         "y": 500
       },
       "data": {
@@ -902,7 +902,7 @@
       "id": "r_hit_pickup",
       "type": "gate",
       "position": {
-        "x": 3776,
+        "x": 3792,
         "y": 596
       },
       "data": {
@@ -918,7 +918,7 @@
       "id": "pickup_count_pickup",
       "type": "pool",
       "position": {
-        "x": 4416,
+        "x": 4432,
         "y": 404
       },
       "data": {
@@ -935,7 +935,7 @@
       "id": "standard_count_pickup",
       "type": "pool",
       "position": {
-        "x": 4416,
+        "x": 4432,
         "y": 500
       },
       "data": {
@@ -968,7 +968,7 @@
       "id": "all_zones_done",
       "type": "end",
       "position": {
-        "x": 352,
+        "x": 368,
         "y": 164
       },
       "data": {
@@ -2140,7 +2140,7 @@
       "rect": {
         "x": 0,
         "y": -16,
-        "w": 1984,
+        "w": 2000,
         "h": 336
       }
     },
@@ -2150,7 +2150,7 @@
       "rect": {
         "x": 0,
         "y": 352,
-        "w": 1200,
+        "w": 1232,
         "h": 688
       },
       "color": "sage"
@@ -2159,9 +2159,9 @@
       "id": "zone_standard",
       "label": "Premium Standard",
       "rect": {
-        "x": 1424,
+        "x": 1440,
         "y": 352,
-        "w": 1120,
+        "w": 1152,
         "h": 800
       },
       "color": "violet"
@@ -2170,9 +2170,9 @@
       "id": "zone_pickup",
       "label": "Premium Pickup",
       "rect": {
-        "x": 2768,
+        "x": 2784,
         "y": 352,
-        "w": 1856,
+        "w": 1872,
         "h": 1072
       },
       "color": "rose"

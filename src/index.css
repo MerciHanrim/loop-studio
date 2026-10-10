@@ -2252,7 +2252,26 @@ a.sheet__row {
 .nodef--register .nodef__sub {
   margin-left: var(--vra-sub-start, clamp(0px, calc(11.6667% - 11.5px), 17px));
 }
-
+/* issue #337 — the Pool, Source, Drain, Converter and Gate outlines keep a fixed
+   px depth at every width (./components/nodes/silhouette), and
+   ./components/nodes/outlineFit places what is painted inside them: the head
+   (chip + title) moves in by `--of-head-shift` where the outline needs it, a
+   Source / Drain / Converter mode row starts at the title like #332's rows,
+   and the node's width is set inline. The shift is a physical `margin-left`
+   for the reason #332's row starts are: the canvas is left-to-right in every
+   language. The Gate keeps its lines centred, so only a mode row's max width
+   reaches it. */
+:is(.nodef--pool, .nodef--source, .nodef--drain, .nodef--converter) .nodef__head {
+  margin-left: var(--of-head-shift, 0px);
+}
+:is(.nodef--source, .nodef--drain, .nodef--converter) .nodef__sub {
+  align-self: flex-start;
+  margin-left: var(--vra-sub-start, 0px);
+  max-width: var(--vra-sub-max, calc(100% - var(--vra-sub-start, 0px)));
+}
+.nodef--gate .nodef__sub {
+  max-width: var(--vra-sub-max, 100%);
+}
 .nodef__head {
   display: flex;
   align-items: center;

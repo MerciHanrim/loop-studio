@@ -3,7 +3,10 @@ import type { NodeKind } from '../../model/types'
 import {
   BASE_NODE_H,
   clampNodeHeight,
+  FIXED_DEPTH_KINDS,
+  fillSpanAt,
   MAX_NODE_H,
+  OUTLINE_DEPTH,
   silhouettePath,
 } from './silhouette'
 
@@ -20,14 +23,17 @@ const KINDS: NodeKind[] = [
 
 // the historic hard-coded silhouettes, drawn at 64 — the parametric function
 // must still return these byte-for-byte at 64, so a node whose content keeps it
-// at 64 or taller draws exactly as before the compact floor (FC-7)
+// at 64 or taller draws exactly as before the compact floor (FC-7). Issue #337:
+// the five width-parametric kinds have their own outline since v0.21.4, given
+// here at width 120 (Pool slant 8, Source arrow 16, Drain notch 16, Converter
+// waist 16, Gate a hexagon with 16 px points).
 const HISTORIC: Record<NodeKind, string> = {
-  pool: 'M32 6 H88 Q95 6 96 13 L112 52 Q113 58 107 58 H13 Q7 58 8 52 L24 13 Q25 6 32 6 Z',
-  source: 'M14 8 Q8 8 8 14 V50 Q8 56 14 56 H84 L114 32 L84 8 Z',
-  drain: 'M6 32 L34 8 H104 Q112 8 112 15 V49 Q112 56 104 56 H34 Z',
-  gate: 'M60 3 L117 32 L60 61 L3 32 Z',
+  pool: 'M24 6 H96 Q103 6 104 13 L112 52 Q113 58 107 58 H13 Q7 58 8 52 L16 13 Q17 6 24 6 Z',
+  source: 'M14 8 Q8 8 8 14 V50 Q8 56 14 56 H98 L114 32 L98 8 Z',
+  drain: 'M6 32 L22 8 H104 Q112 8 112 15 V49 Q112 56 104 56 H22 Z',
+  gate: 'M19 3 H101 L117 32 L101 61 H19 L3 32 Z',
   converter:
-    'M14 8 H106 Q112 8 112 14 L82 32 L112 50 Q112 56 106 56 H14 Q8 56 8 50 L38 32 L8 14 Q8 8 14 8 Z',
+    'M14 8 H106 Q112 8 112 14 L96 32 L112 50 Q112 56 106 56 H14 Q8 56 8 50 L24 32 L8 14 Q8 8 14 8 Z',
   end: 'M28 8 H92 Q112 8 112 32 Q112 56 92 56 H28 Q8 56 8 32 Q8 8 28 8 Z',
   parameter: 'M14 12 H106 Q112 12 112 18 V46 Q112 52 106 52 H14 Q8 52 8 46 V40 H1 V24 H8 V18 Q8 12 14 12 Z',
   register: 'M14 12 H110 Q118 12 118 32 Q118 52 110 52 H14 Q6 52 6 32 Q6 12 14 12 Z',
@@ -133,6 +139,72 @@ describe('silhouettePath — growth', () => {
     expect(silhouettePath('converter', 200)).toBe(
       silhouettePath('converter', MAX_NODE_H.converter),
     )
+  })
+})
+
+// issue #337 — the five width-parametric outlines keep every feature's px depth
+describe('silhouettePath — width-parametric (#337)', () => {
+  const FIXED = [...FIXED_DEPTH_KINDS]
+  const WIDTHS = [118, 134, 160, 200, 260]
+
+  it('covers exactly the Pool, Source, Drain, Converter and Gate', () => {
+    expect(FIXED.sort()).toEqual(['converter', 'drain', 'gate', 'pool', 'source'])
+    expect(OUTLINE_DEPTH).toEqual({ poolSlant: 8, sourceArrow: 16, drainNotch: 16, converterWaist: 16, gatePoint: 16 })
+  })
+
+  for (const k of FIXED) {
+    it(`${k}: at every width and height the outline stays in the w × h box and never reverses`, () => {
+      for (const w of WIDTHS) {
+        for (const H of [BASE_NODE_H, 64, 74, MAX_NODE_H[k]]) {
+          const d = silhouettePath(k, H, w)
+          for (const p of points(d)) {
+            expect(p.x, `${k} ${w}×${H}`).toBeGreaterThanOrEqual(0)
+            expect(p.x, `${k} ${w}×${H}`).toBeLessThanOrEqual(w)
+            expect(p.y, `${k} ${w}×${H}`).toBeGreaterThanOrEqual(0)
+            expect(p.y, `${k} ${w}×${H}`).toBeLessThanOrEqual(H)
+          }
+          expect(yTurns(d), `${k} ${w}×${H}: ${d}`).toBe(2)
+        }
+      }
+    })
+
+    it(`${k}: the left side is the same at every width, the right keeps its distance from the right edge`, () => {
+      for (const H of [BASE_NODE_H, 74]) {
+        for (let y = 4; y < H - 3; y += 3) {
+          const ref = fillSpanAt(k, H, y, 1000)
+          for (const w of WIDTHS) {
+            const s = fillSpanAt(k, H, y, w)
+            if (!ref) { expect(s).toBeNull(); continue }
+            expect(s![0], `${k} ${w}×${H} at ${y}`).toBeCloseTo(ref[0], 6)
+            expect(w - s![1], `${k} ${w}×${H} at ${y}`).toBeCloseTo(1000 - ref[1], 6)
+          }
+        }
+      }
+    })
+  }
+
+  it('each feature has its decided depth at the mid-height, at any width', () => {
+    const H = 56, y = 28
+    for (const w of WIDTHS) {
+      // Source: the arrow tip 6 px in from the right, its root 16 px before it
+      expect(w - fillSpanAt('source', H, y, w)![1]).toBeCloseTo(6, 6)
+      expect(w - fillSpanAt('source', H, 8.001, w)![1]).toBeCloseTo(6 + OUTLINE_DEPTH.sourceArrow, 1)
+      // Drain: the notch's point 6 px in from the left, the body 16 px past it
+      expect(fillSpanAt('drain', H, y, w)![0]).toBeCloseTo(6, 6)
+      expect(fillSpanAt('drain', H, 8.001, w)![0]).toBeCloseTo(6 + OUTLINE_DEPTH.drainNotch, 1)
+      // Converter: each waist 16 px deep from the 8 px body edge
+      expect(fillSpanAt('converter', H, y, w)![0]).toBeCloseTo(8 + OUTLINE_DEPTH.converterWaist, 6)
+      expect(w - fillSpanAt('converter', H, y, w)![1]).toBeCloseTo(8 + OUTLINE_DEPTH.converterWaist, 6)
+      // Gate: points 3 px in, the flat top starting 16 px further in
+      expect(fillSpanAt('gate', H, y, w)![0]).toBeCloseTo(3, 6)
+      expect(fillSpanAt('gate', H, 3.001, w)![0]).toBeCloseTo(3 + OUTLINE_DEPTH.gatePoint, 1)
+      // Pool: the slant runs 8 px from its shoulder (y 13) to its foot (y H - 12)
+      expect(fillSpanAt('pool', H, 13, w)![0] - fillSpanAt('pool', H, H - 12, w)![0]).toBeCloseTo(OUTLINE_DEPTH.poolSlant, 6)
+    }
+  })
+
+  it('the End, the Parameter and the Register keep their 120-wide viewBox: the width does not change their path', () => {
+    for (const k of ['end', 'parameter', 'register'] as const) expect(silhouettePath(k, 64, 260)).toBe(HISTORIC[k])
   })
 })
 

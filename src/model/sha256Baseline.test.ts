@@ -106,8 +106,8 @@ const legacyProjection = (file: string, text: string): string => {
 // `test/fixtures/templates-before-step4/`.
 const PLACED_SINCE = new Set(['equilibrium.json', 'deadlock.json', ...COLOURED_SINCE])
 const PLACED_PINS: Record<string, { contentDigest: string; fullContentDigest: string }> = {
-  'deadlock.json': { contentDigest: '0a5e956ac7c0a15e02534f72020bf5e51cfd20cc4034dca9d8fd00fe82d08fc8', fullContentDigest: '0a5e956ac7c0a15e02534f72020bf5e51cfd20cc4034dca9d8fd00fe82d08fc8' },
-  'equilibrium.json': { contentDigest: '05d969fd3e97409e023779c13460741ba88758c033f68ae698e39d515004ac6c', fullContentDigest: '05d969fd3e97409e023779c13460741ba88758c033f68ae698e39d515004ac6c' },
+  'deadlock.json': { contentDigest: '7ec1004c804aa53414da260df9f3ba375c42aff3569bb16981cd3e9236b72c5b', fullContentDigest: '7ec1004c804aa53414da260df9f3ba375c42aff3569bb16981cd3e9236b72c5b' },
+  'equilibrium.json': { contentDigest: '373f7deae9c99c7f324e92cabf90fdb23146a6bb79c6e8a02cd3553d34320a7d', fullContentDigest: '373f7deae9c99c7f324e92cabf90fdb23146a6bb79c6e8a02cd3553d34320a7d' },
 }
 const BEFORE_STEP4 = import.meta.glob('../../test/fixtures/templates-before-step4/*.json', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
 const readBefore = (file: string): string => {

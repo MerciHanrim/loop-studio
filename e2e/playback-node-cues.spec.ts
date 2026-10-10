@@ -134,7 +134,10 @@ test('the conversion mark shows from the Converter onset, at its own spot inside
     const hits = boxes.filter((b) => !(m.right <= b.left || m.left >= b.right || m.bottom <= b.top || m.top >= b.bottom)).length
     return { out, hits, size: m.width / scale }
   })
-  expect(geo).toEqual({ out: 0, hits: 0, size: 10 })
+  // (#337: the Converter's width is a fraction of a px, so the size read back
+  // through the zoom carries a float error far below a px)
+  expect({ out: geo.out, hits: geo.hits }).toEqual({ out: 0, hits: 0 })
+  expect(geo.size).toBeCloseTo(10, 3)
   // after the settle it fades
   await call(page, 'play')
   await expect.poll(async () => markOf(page, 'tpl-conv').getAttribute('data-conv-mark'), { timeout: 20000, intervals: [16] }).toBe('done')

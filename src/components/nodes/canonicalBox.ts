@@ -12,7 +12,8 @@
 // It never changes how a node is drawn; it only decides where nodes may go.
 
 import type { LoopNode, NodeKind } from '../../model/types'
-import { BASE_NODE_H, MAX_NODE_H, VESSEL_INSET_Y, VESSEL_MIN_PAD_Y } from './silhouette'
+import { BASE_NODE_H, fillSpanAt, isFixedDepth, MAX_NODE_H, VESSEL_INSET_Y, VESSEL_MIN_PAD_Y } from './silhouette'
+import { ROW_CLEAR } from './rowFit'
 
 /** the CSS of `.nodef` and its rows (src/index.css) */
 const MIN_W = 118
@@ -145,21 +146,68 @@ function rows(node: LoopNode): [string, number, boolean][] {
 
 export type CanonicalBox = { w: number; h: number }
 
+/** issue #337 — a width-parametric kind (./outlineFit) keeps every painted
+ *  element `ROW_CLEAR` inside its drawn outline: how far in the outline's left
+ *  and right sides reach anywhere over the stack's height (the stack is centred
+ *  between the vessel's caps), plus that clearance — an upper bound of where
+ *  the fit puts the head and the rows, and of the room it leaves at the end */
+function outlineReach(kind: NodeKind, h: number): [number, number] {
+  const REF = 1000 // the left side never depends on the width, the right only through it
+  const inset = (VESSEL_INSET_Y[kind] ?? 16) / 2 + VESSEL_MIN_PAD_Y
+  let l = 0
+  let r = 0
+  for (let y = inset; y <= h - inset + 1e-9; y += 1) {
+    const s = fillSpanAt(kind, h, y, REF)
+    if (!s) continue
+    l = Math.max(l, s[0])
+    r = Math.max(r, REF - s[1])
+  }
+  return [l + ROW_CLEAR, r + ROW_CLEAR]
+}
+
+/** FROZEN — the canonical box as it was computed before #337 drew the Pool,
+ *  Source, Drain, Converter and Gate for their own width (the content and the
+ *  kind's paddings only). Used ONLY by the layout migration, to decide which
+ *  nodes a saved frame held as the document was drawn when it was saved
+ *  (§DL2.8): a node #337 draws wider stays its frame's. Never changes; pinned
+ *  by `canonicalBox.test.ts` over the Templates as they stood before step 4. */
+export function legacyCanonicalBoxBeforeOutlineContainment(node: LoopNode): CanonicalBox {
+  const kind = node.type as NodeKind
+  const title = String((node.data as { label?: unknown }).label ?? '')
+  const lines = titleLines(title, kind === 'parameter' || kind === 'register' ? NARROW_TITLE : undefined)
+  const rs = rows(node)
+  const titleW = lines.length > 1 ? TITLE_MAX : lines[0]
+  const content = Math.max(CHIP + titleW, ...rs.map(([t, px]) => textWidthBound(t, px)))
+  const [pl, pr] = PAD[kind] ?? [12, 12]
+  const w = Math.min(MAX_W, Math.max(kind === 'gate' ? MIN_W_GATE : MIN_W, Math.ceil(content + pl + pr)))
+  const stack = lines.length * TITLE_LH + rs.reduce((a, [, px, own]) => a + (own ? (px === VALUE_PX ? VALUE_LH : SUB_LH) : 0), 0)
+  const h = Math.max(BASE_NODE_H, Math.min(MAX_NODE_H[kind] ?? 132, Math.ceil(stack + (VESSEL_INSET_Y[kind] ?? 16) + 2 * VESSEL_MIN_PAD_Y) + 2))
+  return { w, h }
+}
+
 /** the canonical (widest) box of a node, from the document alone */
 export function canonicalBox(node: LoopNode): CanonicalBox {
   const kind = node.type as NodeKind
   const title = String((node.data as { label?: unknown }).label ?? '')
   const lines = titleLines(title, kind === 'parameter' || kind === 'register' ? NARROW_TITLE : undefined)
   const rs = rows(node)
-  // a wrapped title's box is the full `max-width` (CSS shrink-to-fit), not
-  // its longest line
-  const titleW = lines.length > 1 ? TITLE_MAX : lines[0]
-  const content = Math.max(CHIP + titleW, ...rs.map(([t, px]) => textWidthBound(t, px)))
-  const [pl, pr] = PAD[kind] ?? [12, 12]
-  const w = Math.min(MAX_W, Math.max(kind === 'gate' ? MIN_W_GATE : MIN_W, Math.ceil(content + pl + pr)))
   // `boxHeightOf`: the stack (title lines + rows, the body padding outside it)
   // + the kind's vessel inset + the clear gap above and below
   const stack = lines.length * TITLE_LH + rs.reduce((a, [, px, own]) => a + (own ? (px === VALUE_PX ? VALUE_LH : SUB_LH) : 0), 0)
   const h = Math.max(BASE_NODE_H, Math.min(MAX_NODE_H[kind] ?? 132, Math.ceil(stack + (VESSEL_INSET_Y[kind] ?? 16) + 2 * VESSEL_MIN_PAD_Y) + 2 /* line-box rounding */))
+  // a wrapped title's box is the full `max-width` (CSS shrink-to-fit), not
+  // its longest line
+  const titleW = lines.length > 1 ? TITLE_MAX : lines[0]
+  const rowW = Math.max(0, ...rs.map(([t, px]) => textWidthBound(t, px)))
+  const [pl, pr] = PAD[kind] ?? [12, 12]
+  const minW = kind === 'gate' ? MIN_W_GATE : MIN_W
+  let need: number
+  if (!isFixedDepth(kind)) need = Math.max(CHIP + titleW, rowW) + pl + pr
+  else {
+    const [L, R] = outlineReach(kind, h)
+    // the Gate centres every line; the others start their rows at the title
+    need = kind === 'gate' ? Math.max(CHIP + titleW, rowW) + 2 * Math.max(L, R, pl, pr) : CHIP + Math.max(titleW, rowW) + Math.max(pl, L) + Math.max(pr, R)
+  }
+  const w = Math.min(MAX_W, Math.max(minW, Math.ceil(need)))
   return { w, h }
 }

@@ -21,16 +21,15 @@
 
 import type { LoopEdge, LoopEdgeData, LoopNode } from '../types'
 import { GRID } from './grid'
+import { centreInside, FRAME_MARGIN, LAYOUT_CLEARANCE, rebuildFrameRect } from './frameRebuild'
 import { replaceOnGrid, type FrameLike } from './replace'
 import BOXES from './templateBoxes.json'
 
 export type TemplateName = keyof typeof BOXES
 
-/** the clearance kept between two nodes, flow px: two port stubs and a lane
- *  across, and a row of routes between two node rows */
-export const TEMPLATE_GAP = { x: 48, y: 32 } as const
-/** the margin a frame keeps around each node it holds (docs/example-coffee-roastery.md §CR17) */
-export const FRAME_MARGIN = 24
+/** the clearance kept between two nodes (the same as every re-placement's, §DL2.9) */
+export const TEMPLATE_GAP = LAYOUT_CLEARANCE
+export { FRAME_MARGIN }
 /** the space kept between two frames that stood apart: room for a frame's title
  *  between it and its neighbour (two frames' margins alone would make them touch) */
 export const FRAME_GAP = 32
@@ -51,39 +50,14 @@ export function placeTemplate<F extends FrameLike>(name: TemplateName, doc: Doc<
   // 2. a frame travels with the nodes it holds — those whose centre was inside
   //    it BEFORE the move (by their real size): it is rebuilt around where they
   //    now are, keeping its own padding on each side (at least `FRAME_MARGIN`),
-  //    snapped outward. A frame that holds no node keeps the grid's rect.
-  const bbox = (ids: string[], at: (id: string) => { x: number; y: number }) => {
-    const xs = ids.map((id) => at(id).x)
-    const ys = ids.map((id) => at(id).y)
-    const x1s = ids.map((id) => at(id).x + size(id).w)
-    const y1s = ids.map((id) => at(id).y + size(id).h)
-    return { x: Math.min(...xs), y: Math.min(...ys), x1: Math.max(...x1s), y1: Math.max(...y1s) }
-  }
+  //    snapped outward (`rebuildFrameRect`). A frame that holds no node keeps
+  //    the grid's rect.
   const origAt = new Map(doc.nodes.map((n) => [n.id, n.position]))
   const at = new Map(doc.nodes.map((n) => [n.id, r.positions[n.id] ?? n.position]))
+  const boxAt = (where: Map<string, { x: number; y: number }>) => (id: string) => ({ ...where.get(id)!, ...size(id) })
   const build = () => doc.frames?.map((f) => {
-    const members = doc.nodes
-      .filter((n) => {
-        const s = size(n.id)
-        const cx = n.position.x + s.w / 2
-        const cy = n.position.y + s.h / 2
-        return cx >= f.rect.x && cx <= f.rect.x + f.rect.w && cy >= f.rect.y && cy <= f.rect.y + f.rect.h
-      })
-      .map((n) => n.id)
-    if (members.length === 0) return { ...f, rect: r.frames[f.id] ?? f.rect }
-    const b0 = bbox(members, (id) => origAt.get(id)!)
-    const b1 = bbox(members, (id) => at.get(id)!)
-    const pad = {
-      l: Math.max(FRAME_MARGIN, b0.x - f.rect.x),
-      t: Math.max(FRAME_MARGIN, b0.y - f.rect.y),
-      r: Math.max(FRAME_MARGIN, f.rect.x + f.rect.w - b0.x1),
-      b: Math.max(FRAME_MARGIN, f.rect.y + f.rect.h - b0.y1),
-    }
-    const x0 = Math.floor((b1.x - pad.l) / GRID) * GRID
-    const y0 = Math.floor((b1.y - pad.t) / GRID) * GRID
-    const x1 = Math.ceil((b1.x1 + pad.r) / GRID) * GRID
-    const y1 = Math.ceil((b1.y1 + pad.b) / GRID) * GRID
-    return { ...f, rect: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } }
+    const members = doc.nodes.filter((n) => centreInside(boxAt(origAt)(n.id), f.rect)).map((n) => n.id)
+    return { ...f, rect: rebuildFrameRect(f.rect, members, boxAt(origAt), boxAt(at), r.frames[f.id] ?? f.rect) }
   })
 
   // 2b. two frames that stood apart keep `FRAME_GAP` between them (the lower or

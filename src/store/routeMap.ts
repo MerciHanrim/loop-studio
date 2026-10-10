@@ -171,8 +171,8 @@ function handlePoint(n: LoopNode, pos: Position): Pt {
   const y = n.position.y
   const kind = n.type as NodeKind
   switch (pos) {
-    case Position.Left: return { x: x + portInsetFraction(kind, h, 'in', PORT_ROW) * w, y: y + PORT_ROW }
-    case Position.Right: return { x: x + w - portInsetFraction(kind, h, 'out', PORT_ROW) * w, y: y + PORT_ROW }
+    case Position.Left: return { x: x + portInsetFraction(kind, h, 'in', PORT_ROW, w) * w, y: y + PORT_ROW }
+    case Position.Right: return { x: x + w - portInsetFraction(kind, h, 'out', PORT_ROW, w) * w, y: y + PORT_ROW }
     case Position.Top: return { x: x + w / 2, y }
     default: return { x: x + w / 2, y: y + h }
   }

@@ -73,6 +73,25 @@ describe('replaceOnGrid', () => {
     }
   })
 
+  it('holds only the nodes fully inside by default: one reaching past the edge is not taken in', () => {
+    // `b` (120 wide) ends 30 px past the frame's right edge
+    const f: FrameLike = { id: 'f', rect: { x: 0, y: 0, w: 290, h: 90 } }
+    const r = replaceOnGrid([N('a', 16, 16), N('b', 200, 16)], [], [f], size)
+    expect(r.frames.f.x + r.frames.f.w).toBeLessThan(r.positions.b.x + 120)
+  })
+
+  it("a caller's held set decides the members: the frame grows to hold each of them whole, and only them", () => {
+    // the migration's case: `b` was inside as drawn when saved, its box is wider now
+    const f: FrameLike = { id: 'f', rect: { x: 0, y: 0, w: 290, h: 90 } }
+    const r = replaceOnGrid([N('a', 16, 16), N('b', 200, 16), N('c', 16, 200)], [], [f], size, { held: { f: ['a', 'b'] } })
+    const fr = r.frames.f
+    for (const id of ['a', 'b']) {
+      const p = r.positions[id]
+      expect(p.x >= fr.x && p.y >= fr.y && p.x + 120 <= fr.x + fr.w && p.y + 58 <= fr.y + fr.h, id).toBe(true)
+    }
+    expect(r.positions.c.y).toBeGreaterThanOrEqual(fr.y + fr.h)
+  })
+
   it('snaps waypoints and drops one that lands inside a node', () => {
     const e = E('w', 'a', 'b', { route: 'orthogonal', waypoints: [{ x: 101, y: 203 }, { x: 260, y: 30 }] })
     const r = replaceOnGrid([N('a', 0, 0), N('b', 220, 0)], [e], [], size)
