@@ -8,7 +8,7 @@
 
 import { edgeHasRoutingIntent, edgeIsStraight } from './edgeRouting'
 import { defaultData } from './factory'
-import { readPorts } from './ports'
+import { canonicalPorts, edgePortKind } from './ports'
 import {
   normalizeResourceType,
   readAccent,
@@ -157,9 +157,12 @@ export type ProjectPayload = {
   semantics?: string
 }
 
-/** the revision semantics this build writes into a header (§R10-6) */
-export const REVISION_SEMANTICS = 'loop-revision/10'
+/** the revision semantics this build writes into a header (§R10-6; `/11` since
+ *  SEMANTICS-R11.md — the port faces of the node structure) */
+export const REVISION_SEMANTICS = 'loop-revision/11'
 const SEMANTICS_RE = /^loop-revision\/([1-9][0-9]{0,3})$/
+/** the `N` of {@link REVISION_SEMANTICS} — what this reader can verify */
+const OWN_SEMANTICS_N = Number(SEMANTICS_RE.exec(REVISION_SEMANTICS)![1])
 
 /** §R10-6 — the `N` a header declares, or 0 when it declares none (a file
  *  written before `/10`, or an unreadable value) */
@@ -491,9 +494,10 @@ function projectEdge(e: LoopEdge, modelLayer: boolean): CanonicalEdge {
       if (a !== undefined) data.accent = a
     }
     else if (f === 'ports') {
-      // node structure §4.2 — trailing, only valid faces, only when one is stored
+      // SEMANTICS-R11.md §R11-2 — trailing, the canonical form only (valid,
+      // non-default faces), only when one is stored; `source` before `target`
       if (!modelLayer) continue
-      const p = readPorts(src?.ports)
+      const p = canonicalPorts(edgePortKind(e), src?.ports)
       if (p) data.ports = { ...(p.source ? { source: p.source } : {}), ...(p.target ? { target: p.target } : {}) }
     }
   }
@@ -665,6 +669,7 @@ export type SideVersion =
   | 'loop-revision/8' // SEMANTICS-R8.md — the side carries data-import provenance content (§R8-1)
   | 'loop-revision/9' // SEMANTICS-R9.md — the side carries ≥ 1 flow colour (`data.accent`)
   | 'loop-revision/10' // SEMANTICS-R10.md — the side carries ≥ 1 straight connection (`route: "straight"`)
+  | 'loop-revision/11' // SEMANTICS-R11.md — the side carries ≥ 1 stored non-default port face (`data.ports`)
 export type RevisionSideOk = {
   ok: true
   version: SideVersion
@@ -840,7 +845,14 @@ export function readRevisionSide(
   // defensive read keeps it; a build before /10 drops it). The newest
   // extension, so the highest label precedence, on the same projection.
   const hasStraight = g.edges.some((e) => edgeIsStraight(e.data))
-  const version: SideVersion = hasStraight
+  // SEMANTICS-R11.md §R11-1 — ≥ 1 SURVIVING non-default port face (the
+  // defensive read keeps only valid, non-default faces; a build before /11
+  // drops the key). The newest extension, so the highest label precedence,
+  // on the same projection.
+  const hasPorts = g.edges.some((e) => canonicalPorts(edgePortKind(e), (e.data as { ports?: unknown } | undefined)?.ports) !== undefined)
+  const version: SideVersion = hasPorts
+    ? 'loop-revision/11'
+    : hasStraight
     ? 'loop-revision/10'
     : hasAccent
     ? 'loop-revision/9'
@@ -1540,6 +1552,7 @@ const cloneEl = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T
  *  `activation`, `capacity`, endpoints, handles, …) is always projected. */
 const OPTIONAL_PROJECTED_KEYS = new Set([
   'route', 'waypoints', 'resourceType', 'delay', 'timing', 'when', // edge data
+  'ports', // SEMANTICS-R11.md §R11-3 — a chosen side without faces removes them
   'min', 'max', 'step', 'unit', 'format', // parameter / register hints
   // `loop-revision/8` (SEMANTICS-R8.md) — the data-import provenance fields.
   // Explicitly listed here per PR #181's own lesson: a field missing from this
@@ -1857,6 +1870,7 @@ export type ReadProjectDropReason =
   | 'malformed-parent'
   | 'malformed-digest'
   | 'digest-mismatch'
+  | 'newer-semantics' // SEMANTICS-R11.md §R11-6 — the digest fails AND the header declares a format newer than this reader's
   | 'bad-base'
 export type ReadProjectDropped = { ok: false; warning: string; reason: ReadProjectDropReason }
 export type ReadProjectResult = ReadProjectOk | ReadProjectDropped
@@ -1925,6 +1939,14 @@ export function readProject(raw: unknown, loadedContent?: CanonicalContent): Rea
       return drop('malformed-digest', "this file's project content digest is malformed")
     }
     if (digestOfCanonical(loadedContent) !== o.contentDigest) {
+      // SEMANTICS-R11.md §R11-6 — a header that declares a NEWER format than
+      // this reader knows explains the failure: its digest covers a field this
+      // projection does not have. Said as what it is, not as outside editing.
+      // A newer-declared file whose digest DOES verify is accepted above like
+      // any other — the declaration alone refuses nothing.
+      if (declaredSemantics(o) > OWN_SEMANTICS_N) {
+        return drop('newer-semantics', "this file's project data was written by a newer version of Loop Studio, so this version cannot verify its revision history (the diagram itself opens)")
+      }
       return drop('digest-mismatch', "this file's project data does not match its graph (edited outside Loop Studio?)")
     }
   }

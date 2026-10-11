@@ -29,6 +29,19 @@ export function readPorts(raw: unknown): EdgePorts | undefined {
 export type PortKind = 'resource' | 'state'
 export type PortEnd = 'source' | 'target'
 
+/** the CANONICAL stored form (SEMANTICS-R11.md §R11-1.1): only valid faces,
+ *  and only the ones that differ from the kind's default — an explicit default
+ *  face says nothing and is dropped, so two documents that draw alike store
+ *  alike (and digest alike). Undefined when nothing non-default remains. */
+export function canonicalPorts(kind: PortKind, raw: unknown): EdgePorts | undefined {
+  const p = readPorts(raw)
+  if (!p) return undefined
+  const out: EdgePorts = {}
+  if (p.source && p.source !== defaultFace(kind, 'source')) out.source = p.source
+  if (p.target && p.target !== defaultFace(kind, 'target')) out.target = p.target
+  return out.source || out.target ? out : undefined
+}
+
 /** today's faces by kind: a resource connection leaves right and arrives left,
  *  a state connection leaves bottom and arrives top */
 export const defaultFace = (kind: PortKind, end: PortEnd): PortFace =>
