@@ -58,8 +58,11 @@ const TEMPLATES: { file: string; flows: TemplateFlows; colours: string[]; conten
     file: 'coffee-roastery.json',
     flows: COFFEE_ROASTERY_FLOWS,
     colours: ['sage', 'gold', 'rose'],
-    contentDigest: '66f518eb9ebbe945a87362960866f61f534917fa7ff90c4df1d4a1674b74b5aa',
-    fullContentDigest: '66f518eb9ebbe945a87362960866f61f534917fa7ff90c4df1d4a1674b74b5aa',
+    // re-pinned 2026-10-12 (coffee-roastery rev 13): the three money proxies'
+    // unit is `$/day` — content, never engine data (the engine digest below
+    // is unchanged)
+    contentDigest: '5ca6532e78e92fabc7b4f3126fcaf0754b67a43c4094c25eb36899a0a4b3a755',
+    fullContentDigest: '5ca6532e78e92fabc7b4f3126fcaf0754b67a43c4094c25eb36899a0a4b3a755',
   },
   {
     file: 'gacha-banner-zones.json',
