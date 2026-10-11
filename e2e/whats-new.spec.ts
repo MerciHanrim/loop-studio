@@ -663,6 +663,9 @@ const measure = (page: Page) =>
       return {
         insideViewport: nb.left >= 0 && nb.top >= 0 && nb.right <= innerWidth && nb.bottom <= innerHeight,
         insideCanvas: nb.left >= canvas.left && nb.right <= canvas.right && nb.top >= canvas.top && nb.bottom <= canvas.bottom,
+        // the notice rail under the toolbar (desktop): the card sits in it, above the canvas
+        insideRail: (() => { const r = document.getElementById('notice-rail')?.getBoundingClientRect(); return !!r && nb.left >= r.left - 1 && nb.right <= r.right + 1 && nb.top >= r.top - 1 && nb.bottom <= r.bottom + 1 })(),
+        aboveCanvas: nb.bottom <= canvas.top + 1,
         controls: controls.length,
         covered: controls.filter((el) => hit(el.getBoundingClientRect())).map(label),
         inLeftHalf: nb.left + nb.width / 2 < canvas.left + canvas.width / 2,
@@ -676,6 +679,14 @@ const measure = (page: Page) =>
   )
 
 /** the box of every piece of chrome, to see whether the notice moves anything */
+/** the toolbar's own rects: these never move when a note comes or goes */
+const toolbarRects = (page: Page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll('.toolbar, .toolbar *')].map((el) => {
+      const r = el.getBoundingClientRect()
+      return [r.left, r.top, r.width, r.height].map((v) => Math.round(v * 10) / 10).join(',')
+    }),
+  )
 const chromeRects = (page: Page) =>
   page.evaluate((notice) =>
     [...document.querySelectorAll('.toolbar, .toolbar *, .app__body, .canvas, .canvas-col > *, aside.inspector, aside.inspector *, .pstrip, .pstrip *, .react-flow__controls, .react-flow__minimap, .react-flow__node')]
@@ -699,28 +710,48 @@ test.describe('where the notice sits', () => {
         const m = await measure(page)
         expect(m.controls).toBeGreaterThan(5)
         expect(m.insideViewport).toBe(true)
-        expect(m.insideCanvas).toBe(true)
         expect(m.covered).toEqual([])
         if (size.mobile) {
-          // physical right, at the bottom, above the run bar and the attribution - in right-to-left too
+          // the phone keeps the card on the canvas: physical right, at the bottom,
+          // above the run bar and the attribution - in right-to-left too
+          expect(m.insideCanvas).toBe(true)
           expect(m.inLeftHalf).toBe(false)
           expect(m.inTopHalf).toBe(false)
           expect(m.aboveRunBar).toBe(true)
           expect(m.aboveAttribution).not.toBe(false)
         } else {
-          // the canvas's inline-start top corner: left in left-to-right, right in right-to-left
-          expect(m.inTopHalf).toBe(true)
+          // desktop (2026-10-12, Lumi): the card sits in the notice rail under the
+          // toolbar, ABOVE the canvas, never over it; at the rail's inline start —
+          // left in left-to-right, right in right-to-left
+          expect(m.insideRail).toBe(true)
+          expect(m.aboveCanvas).toBe(true)
+          expect(m.insideCanvas).toBe(false)
           expect(m.inLeftHalf).toBe(m.dir !== 'rtl')
         }
         expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
 
-        // nothing moves when it goes away, so nothing moved when it came
+        // when it goes away: on the phone nothing moves; on desktop the rail
+        // collapses, so the canvas row grows back upward — the toolbar does not
+        // move and the CAMERA does not change (no fit, no re-centring follows
+        // the space change; only the first fit of a Template uses the real area)
         const before = await chromeRects(page)
+        const vpBefore = await page.evaluate(() => (window as unknown as { __loop: { rf: { getViewport: () => { x: number; y: number; zoom: number } } } }).__loop.rf.getViewport())
         await page.locator(NOTICE).getByRole('button').last().click()
         await expect(page.locator(NOTICE)).toHaveCount(0)
         const after = await chromeRects(page)
+        const vpAfter = await page.evaluate(() => (window as unknown as { __loop: { rf: { getViewport: () => { x: number; y: number; zoom: number } } } }).__loop.rf.getViewport())
         expect(before.length).toBeGreaterThan(20)
-        expect(after).toEqual(before)
+        expect(vpAfter).toEqual(vpBefore)
+        if (size.mobile) expect(after).toEqual(before)
+        else {
+          const toolbarBefore = await toolbarRects(page)
+          expect(toolbarBefore.length).toBeGreaterThan(5)
+          expect(await toolbarRects(page)).toEqual(toolbarBefore)
+          // the rest of the chrome kept its horizontal place; it may have moved up by the rail's height
+          // (left and width only: the canvas row also grows in HEIGHT by the rail's height)
+          const xs = (rs: string[]) => rs.map((s) => s.split(',').filter((_, i) => i === 0 || i === 2).join(','))
+          expect(xs(after)).toEqual(xs(before))
+        }
       })
     }
   }

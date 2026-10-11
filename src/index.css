@@ -7624,3 +7624,45 @@ input[type='number']::-webkit-inner-spin-button {
 .mcdlg--share:lang(ko) {
   word-break: keep-all;
 }
+
+/* ---- the notice rail (src/ui/noticeRail.tsx) — a strip under the toolbar for
+   the first-run update notice and the tier-1 canvas hints on desktop, so they
+   never cover the diagram. Empty, it collapses; showing, it takes the height
+   its content needs (a long translation or enlarged text wraps; nothing is cut
+   to one line) and the canvas is that much shorter. No fit follows (a fit runs
+   on a Template swap only, from the pane size at that moment). ---- */
+.notice-rail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 0 12px;
+  background: var(--surface-ground);
+}
+.notice-rail:empty {
+  display: none;
+}
+.notice-rail:not(:empty) {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line-hairline);
+}
+.notice-rail > * {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+/* the update notice, in the rail: static, not the canvas overlay */
+.notice-rail .whatsnew-notice {
+  position: static;
+  max-width: none;
+  z-index: auto;
+}
+/* a hint note in the rail: the same chip, free to wrap, its close button never
+   pushed out of view */
+.notice-rail .hint-note {
+  max-width: none;
+  white-space: normal;
+}
+.notice-rail .hint-note > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

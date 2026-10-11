@@ -43,6 +43,7 @@ import { useFrameStore, hasFrames } from '../store/frameStore'
 import { useAutoFrameStore, hasAutoFrames, autoFramesStale } from '../store/autoFrameStore'
 import { WORTH_IT_FLOOR } from './frames/autoFrames'
 import { CanvasHintNote, useHintEligible } from './HintNote'
+import { RailOrPanel } from '../ui/noticeRail'
 import { canvasFitInsets, viewportForRect } from './canvasFit'
 import { MinimapDock } from './MinimapDock'
 import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../store/hintStore'
@@ -1070,8 +1071,10 @@ export function Canvas() {
         {/* docs/…-auto-frames.md §AF9.2 — while suggested frames are on screen,
             a one-line note that they are STRUCTURAL, not domain regions. Never
             takes the pointer. */}
+        {/* the two tier-1 hint notes render into the notice rail on desktop
+            (src/ui/noticeRail.tsx), a top-centre Panel on the phone */}
         {importHintShowing && lastImportBatch && (
-          <Panel position="top-center" className="hint-note" role="note">
+          <RailOrPanel className="hint-note" role="note">
             <span dir={uiDir}>
               {t('hint.importFirstCommit.body', {
                 n: lastImportBatch.count,
@@ -1081,15 +1084,15 @@ export function Canvas() {
             <button type="button" className="hint-note__x" aria-label={t('hint.close')} onClick={importHint.close}>
               <Icon name="close" />
             </button>
-          </Panel>
+          </RailOrPanel>
         )}
         {frameMoveHintShowing && (
-          <Panel position="top-center" className="hint-note" role="note">
+          <RailOrPanel className="hint-note" role="note">
             <span dir={uiDir}>{t('hint.frameMove.body')}</span>
             <button type="button" className="hint-note__x" aria-label={t('hint.close')} onClick={frameMoveHint.close}>
               <Icon name="close" />
             </button>
-          </Panel>
+          </RailOrPanel>
         )}
         {autoFramesExist && !suggestNoteDismissed && !importHintShowing && !frameMoveHintShowing && (
           <Panel position="top-center" className="lgr-suggest-note">

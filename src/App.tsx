@@ -28,6 +28,11 @@ export default function App() {
       <AutosaveNotice />
       <div className="app">
         <Toolbar />
+        {/* the notice rail (src/ui/noticeRail.tsx): the first-run update notice
+            and the tier-1 canvas hints render INTO this strip on desktop, under
+            the toolbar and above the canvas, so they never cover the diagram;
+            empty, it collapses (CSS `:empty`). The phone keeps its own places. */}
+        <div className="notice-rail" id="notice-rail" />
         <div className="app__body">
           <div className="canvas-col">
             <Canvas />

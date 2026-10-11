@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Panel } from '@xyflow/react'
+import { RailOrPanel } from '../ui/noticeRail'
 import { useT } from '../i18n'
 import type { ContentDir } from '../i18n/contentDirection'
 import { useHintStore, type HintId } from '../store/hintStore'
@@ -75,13 +75,15 @@ export function CanvasHintNote({ id, trigger, ready, children, dir }: CanvasHint
   const { eligible, close } = useHintEligible(id, trigger, ready)
   const t = useT()
   if (!eligible) return null
+  // the notice rail (src/ui/noticeRail.tsx): under the toolbar on desktop, the
+  // top-centre Panel where there is no rail (the phone)
   return (
-    <Panel position="top-center" className="hint-note" role="note">
+    <RailOrPanel className="hint-note" role="note">
       <span dir={dir}>{children}</span>
       <button type="button" className="hint-note__x" aria-label={t('hint.close')} onClick={close}>
         <Icon name="close" />
       </button>
-    </Panel>
+    </RailOrPanel>
   )
 }
 
