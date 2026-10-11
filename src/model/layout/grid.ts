@@ -14,6 +14,12 @@ export const GRID = 16
  *  a one-line node draws its ports where it always did) */
 export const PORT_ROW = 28
 
+/** node structure, first implementation (17-implementation-rules.md §2, NS4.2
+ *  P3) — a resource port on a TOP or BOTTOM face takes a fixed lane this far
+ *  from the near corner (`in` from the left corner, `out` from the right one),
+ *  never the centre, which the state port keeps */
+export const PORT_COL = 20
+
 const round = (v: number): number => {
   const r = Math.round(v / GRID) * GRID
   return r === 0 ? 0 : r // never -0

@@ -8,6 +8,7 @@
 
 import { edgeHasRoutingIntent, edgeIsStraight } from './edgeRouting'
 import { defaultData } from './factory'
+import { readPorts } from './ports'
 import {
   normalizeResourceType,
   readAccent,
@@ -249,9 +250,15 @@ const MODEL_NODE_FIELDS: Record<'parameter' | 'register', readonly string[]> = {
  *  trailing, to `state` only — deliberately `engine` (§R5-3 `fieldTag`
  *  default), not `cosmetic` like `route` / `waypoints`: they change what a
  *  step computes. Each new key is emitted only when non-default. */
+// Node structure, first implementation (17-implementation-rules.md §4.2) —
+// `ports` (the port faces) appended TRAILING to both kinds, cosmetic like
+// `route`; emitted only when a face is stored, so a document without faces
+// projects to the same bytes as before. The revision-spec version policy for
+// this field is NOT decided here (open until the older-version round-trip
+// check); this is the projection a face needs to be diffed and dirty-tracked.
 const EDGE_FIELDS: Record<'resource' | 'state', readonly string[]> = {
-  resource: ['kind', 'flow', 'resourceType', 'route', 'waypoints', 'accent'],
-  state: ['kind', 'mode', 'expr', 'delay', 'route', 'waypoints', 'timing', 'when', 'accent'],
+  resource: ['kind', 'flow', 'resourceType', 'route', 'waypoints', 'accent', 'ports'],
+  state: ['kind', 'mode', 'expr', 'delay', 'route', 'waypoints', 'timing', 'when', 'accent', 'ports'],
 }
 
 const MODEL_NODE_KINDS = new Set(['parameter', 'register'])
@@ -482,6 +489,12 @@ function projectEdge(e: LoopEdge, modelLayer: boolean): CanonicalEdge {
       if (!modelLayer) continue
       const a = readAccent(src?.accent)
       if (a !== undefined) data.accent = a
+    }
+    else if (f === 'ports') {
+      // node structure §4.2 — trailing, only valid faces, only when one is stored
+      if (!modelLayer) continue
+      const p = readPorts(src?.ports)
+      if (p) data.ports = { ...(p.source ? { source: p.source } : {}), ...(p.target ? { target: p.target } : {}) }
     }
   }
   return {
@@ -990,6 +1003,9 @@ export function fieldTag(kind: 'node' | 'edge', field: string): FieldTag {
   // loop-revision/3 §R3-3 — routing intent is cosmetic (like `label` / `position`):
   // projected, diffed, dirty-tracked; never engineAffecting, never advisoryAffecting.
   if (kind === 'edge' && (field === 'data.route' || field === 'data.waypoints')) return 'cosmetic'
+  // node structure (17-implementation-rules.md §4.2) — a port face is routing
+  // intent of the same kind as `route`: cosmetic, diffed, never engine-affecting
+  if (kind === 'edge' && field === 'data.ports') return 'cosmetic'
   // loop-revision/9 — the flow colour is decorative on a node and on an edge
   if (field === 'data.accent') return 'cosmetic'
   if (field === 'data.resourceType') return 'advisory'

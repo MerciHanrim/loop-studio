@@ -29,7 +29,7 @@
 import { create } from 'zustand'
 import { Position } from '@xyflow/react'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
-import { GRID, PORT_ROW } from '../model/layout/grid'
+import { GRID, PORT_COL, PORT_ROW } from '../model/layout/grid'
 import {
   type Box,
   computeGuardedRoute,
@@ -47,6 +47,8 @@ import {
 } from '../components/edges/orthogonalRoute'
 import { BASE_NODE_H, portInsetFraction } from '../components/nodes/silhouette'
 import { freeLinePoints, pointAlong } from '../components/edges/freeLine'
+import { edgePortKind, faceOf, type PortEnd } from '../model/ports'
+import type { PortFace } from '../model/types'
 
 // the size of a node React Flow has not measured yet; the height is the node's
 // own floor, so a one-line node routes the same before and after it is measured
@@ -147,38 +149,103 @@ const isOrtho = (e: LoopEdge): boolean =>
 const isStraight = (e: LoopEdge): boolean =>
   (e.data as { route?: unknown } | undefined)?.route === 'straight'
 
-const handlePos = (handleId: string | null | undefined, fallback: Position): Position => {
-  // resource ports: `in` = Left, `out` = Right; state ports: top / bottom.
-  if (handleId === 'in') return Position.Left
-  if (handleId === 'out') return Position.Right
-  if (handleId === 'state-target') return Position.Top
-  if (handleId === 'state-source') return Position.Bottom
-  return fallback
-}
+const posOfFace = (f: PortFace): Position =>
+  f === 'top' ? Position.Top : f === 'right' ? Position.Right : f === 'bottom' ? Position.Bottom : Position.Left
+
+/** node structure (17-implementation-rules.md §2) — the side one end of a
+ *  connection uses: its stored face (`data.ports`), else the kind's default —
+ *  resource `in` = Left / `out` = Right, state source = Bottom / target = Top,
+ *  exactly the sides the handle ids meant before faces existed */
+const endPos = (e: LoopEdge, end: PortEnd): Position => posOfFace(faceOf(e, end))
+
+/** which port an end is: a resource `in` / `out`, or a state port */
+const endPort = (e: LoopEdge, end: PortEnd): 'in' | 'out' | 'state' =>
+  edgePortKind(e) === 'state' ? 'state' : end === 'source' ? 'out' : 'in'
 
 const sizeOf = (n: LoopNode): { w: number; h: number } => ({
   w: n.measured?.width ?? n.width ?? DEFAULT_W,
   h: n.measured?.height ?? n.height ?? DEFAULT_H,
 })
 
-/** centre of a node's handle in flow coords. issue #344 §DL1 — a resource
- *  port is on the fixed row `PORT_ROW` below the top, drawn on the outline
- *  there (`portInsetFraction`, the same rule `nodes.tsx` draws it with), so a
- *  route starts where the port is; state ports stay at the top / bottom centre */
-function handlePoint(n: LoopNode, pos: Position): Pt {
+/** centre of a node's port in flow coords — the ONE anchor function (NS4.2
+ *  P4) `nodes.tsx` draws the ports with and every route, free line, label and
+ *  token reads. issue #344 §DL1 — a resource port on a left / right face is on
+ *  the fixed row `PORT_ROW` below the top, drawn on the outline there
+ *  (`portInsetFraction`); on a top / bottom face it takes the fixed lane
+ *  `PORT_COL` from the near corner (`in` the left one, `out` the right one).
+ *  A state port is at the centre of whichever face it uses. */
+export function portPoint(n: LoopNode, pos: Position, port: 'in' | 'out' | 'state'): Pt {
   const { w, h } = sizeOf(n)
   const x = n.position.x
   const y = n.position.y
   const kind = n.type as NodeKind
+  if (port === 'state') {
+    switch (pos) {
+      case Position.Left: return { x, y: y + h / 2 }
+      case Position.Right: return { x: x + w, y: y + h / 2 }
+      case Position.Top: return { x: x + w / 2, y }
+      default: return { x: x + w / 2, y: y + h }
+    }
+  }
   switch (pos) {
     case Position.Left: return { x: x + portInsetFraction(kind, h, 'in', PORT_ROW, w) * w, y: y + PORT_ROW }
     case Position.Right: return { x: x + w - portInsetFraction(kind, h, 'out', PORT_ROW, w) * w, y: y + PORT_ROW }
-    case Position.Top: return { x: x + w / 2, y }
-    default: return { x: x + w / 2, y: y + h }
+    case Position.Top: return { x: port === 'in' ? x + PORT_COL : x + w - PORT_COL, y }
+    default: return { x: port === 'in' ? x + PORT_COL : x + w - PORT_COL, y: y + h }
   }
 }
 
+/** the anchor of one end of a connection */
+const endPoint = (n: LoopNode, e: LoopEdge, end: PortEnd): Pt => portPoint(n, endPos(e, end), endPort(e, end))
+
 const boxOf = (n: LoopNode): Box => ({ id: n.id, x: n.position.x, y: n.position.y, ...sizeOf(n) })
+
+// ── node structure: the outside names as obstacles ────────────────────────
+// A node's name is drawn OUTSIDE its body (17-implementation-rules.md §2); the
+// router keeps every line clear of it like a node (the study's whole premise,
+// `12-sweep-results.md`). The renderer publishes each name's box relative to
+// its node's position (flow px) once it is laid out, and clears it on unmount
+// or when the structure is switched back; a layout change moves the box with
+// the node, a size change bumps the generation like a label's size does.
+type NameBox = { dx: number; dy: number; w: number; h: number }
+const nameBoxes = new Map<string, NameBox>()
+export function setNodeNameBox(nodeId: string, box: NameBox | null): void {
+  const prev = nameBoxes.get(nodeId)
+  if (!box) {
+    if (!prev) return
+    nameBoxes.delete(nodeId)
+  } else {
+    if (prev && prev.dx === box.dx && prev.dy === box.dy && prev.w === box.w && prev.h === box.h) return
+    nameBoxes.set(nodeId, box)
+  }
+  bump()
+}
+/** the bounds of the nodes AND their outside names, flow px — what a view
+ *  that shows the whole diagram must contain (the name is basic information
+ *  from level 1, so a fit that cuts it is not a fit); null without nodes */
+export function diagramBounds(nodes: LoopNode[]): { x: number; y: number; width: number; height: number } | null {
+  let x0 = Infinity
+  let y0 = Infinity
+  let x1 = -Infinity
+  let y1 = -Infinity
+  for (const n of nodes) {
+    if (n.hidden) continue
+    for (const b of [boxOf(n), nameBoxOf(n)]) {
+      if (!b) continue
+      x0 = Math.min(x0, b.x)
+      y0 = Math.min(y0, b.y)
+      x1 = Math.max(x1, b.x + b.w)
+      y1 = Math.max(y1, b.y + b.h)
+    }
+  }
+  return Number.isFinite(x0) ? { x: x0, y: y0, width: x1 - x0, height: y1 - y0 } : null
+}
+const NAME_BOX_PREFIX = 'name:'
+const nameBoxOf = (n: LoopNode): Box | null => {
+  const b = nameBoxes.get(n.id)
+  return b ? { id: NAME_BOX_PREFIX + n.id, x: n.position.x + b.dx, y: n.position.y + b.dy, w: b.w, h: b.h } : null
+}
+const nameBoxesOf = (nodes: LoopNode[]): Box[] => nodes.map(nameBoxOf).filter((b): b is Box => b !== null)
 
 const hit = (a: Box, b: Box): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
 
@@ -327,14 +394,14 @@ function plan(nodes: LoopNode[], edges: LoopEdge[]): Plan {
     const { e: e0, asSource } = list[0]
     const portNode = byId.get(asSource ? e0.source : e0.target)
     if (!portNode) continue
-    const pos = asSource ? handlePos(e0.sourceHandle, Position.Right) : handlePos(e0.targetHandle, Position.Left)
-    const at = handlePoint(portNode, pos)
+    const pos = endPos(e0, asSource ? 'source' : 'target')
+    const at = endPoint(portNode, e0, asSource ? 'source' : 'target')
     const horiz = pos === Position.Left || pos === Position.Right
     const members: { id: string; delta: number }[] = []
     for (const { e, asSource: s } of list) {
       const far = byId.get(s ? e.target : e.source)
       if (!far) continue
-      const p = handlePoint(far, s ? handlePos(e.targetHandle, Position.Left) : handlePos(e.sourceHandle, Position.Right))
+      const p = endPoint(far, e, s ? 'target' : 'source')
       members.push({ id: e.id, delta: horiz ? p.y - at.y : p.x - at.x })
     }
     for (const [id, f] of assignFan(members)) {
@@ -349,9 +416,9 @@ function plan(nodes: LoopNode[], edges: LoopEdge[]): Plan {
     for (const asSource of [true, false]) {
       const n = byId.get(asSource ? e.source : e.target)
       if (!n) continue
-      const pos = asSource ? handlePos(e.sourceHandle, Position.Right) : handlePos(e.targetHandle, Position.Left)
+      const pos = endPos(e, asSource ? 'source' : 'target')
       const f = asSource ? fans.get(e.id)?.src : fans.get(e.id)?.tgt
-      const port = handlePoint(n, pos)
+      const port = endPoint(n, e, asSource ? 'source' : 'target')
       const nrm = pos === Position.Left ? { x: -1, y: 0 } : pos === Position.Right ? { x: 1, y: 0 } : pos === Position.Top ? { x: 0, y: -1 } : { x: 0, y: 1 }
       const b = boxOf(n)
       const side = nrm.x > 0 ? b.x + b.w - port.x : nrm.x < 0 ? port.x - b.x : nrm.y > 0 ? b.y + b.h - port.y : port.y - b.y
@@ -373,12 +440,14 @@ function plan(nodes: LoopNode[], edges: LoopEdge[]): Plan {
     const s = byId.get(e.source)
     const t = byId.get(e.target)
     if (!s || !t) continue
-    const sPos = handlePos(e.sourceHandle, Position.Right)
-    const tPos = handlePos(e.targetHandle, Position.Left)
+    const sPos = endPos(e, 'source')
+    const tPos = endPos(e, 'target')
     free.push(e)
-    lines.set(e.id, freeLinePoints(handlePoint(s, sPos), sPos, handlePoint(t, tPos), tPos, isStraight(e)))
+    lines.set(e.id, freeLinePoints(endPoint(s, e, 'source'), sPos, endPoint(t, e, 'target'), tPos, isStraight(e)))
   }
-  return { ortho, free, lines, byId, boxes: nodes.map(boxOf), groups, portUse, fans, reserved }
+  // the outside names are obstacles like the nodes (they carry their own ids,
+  // so a route's own end nodes are still the only boxes it may touch)
+  return { ortho, free, lines, byId, boxes: [...nodes.map(boxOf), ...nameBoxesOf(nodes)], groups, portUse, fans, reserved }
 }
 
 /** one edge, routed against the current layout and the given placed routes:
@@ -388,8 +457,8 @@ function routeInput(p: Plan, e: LoopEdge, others: ReadonlyMap<string, GuardedRes
   const s = p.byId.get(e.source)
   const t = p.byId.get(e.target)
   if (!s || !t) return null
-  const sPos = handlePos(e.sourceHandle, Position.Right)
-  const tPos = handlePos(e.targetHandle, Position.Left)
+  const sPos = endPos(e, 'source')
+  const tPos = endPos(e, 'target')
   const set = p.groups.get(pkey(e))!
   const busy: Pt[][] = []
   const fanRoutes: Pt[][] = []
@@ -422,8 +491,8 @@ function routeInput(p: Plan, e: LoopEdge, others: ReadonlyMap<string, GuardedRes
   }
   const input: GuardedInput = {
     edgeId: e.id,
-    source: handlePoint(s, sPos),
-    target: handlePoint(t, tPos),
+    source: endPoint(s, e, 'source'),
+    target: endPoint(t, e, 'target'),
     sourcePosition: sPos,
     targetPosition: tPos,
     sourceBox: boxOf(s),
@@ -619,7 +688,7 @@ function rebuildFull(nodes: LoopNode[], edges: LoopEdge[]): Required<GenOut> {
 
 /** each routed edge's own routing input, to tell which changed */
 const edgeKey = (e: LoopEdge): string =>
-  JSON.stringify([e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, (e.data as { route?: unknown }).route ?? null, (e.data as { waypoints?: unknown }).waypoints ?? null, labelSizes.get(e.id) ?? null])
+  JSON.stringify([e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, (e.data as { route?: unknown }).route ?? null, (e.data as { waypoints?: unknown }).waypoints ?? null, labelSizes.get(e.id) ?? null, faceOf(e, 'source'), faceOf(e, 'target')])
 
 /** the provisional map: the last full generation, with the routes this change
  *  touches routed again — an edge that is new or whose own input changed, one
@@ -801,14 +870,17 @@ export function layoutSignature(nodes: LoopNode[], edges: LoopEdge[]): string {
   const ns: (string | number | boolean)[][] = []
   for (const n of nodes) {
     const { w, h } = sizeOf(n)
-    ns.push([n.id, n.position.x, n.position.y, w, h, n.hidden === true])
+    const nb = nameBoxes.get(n.id)
+    // node structure — the outside name's box is layout too (an obstacle)
+    ns.push([n.id, n.position.x, n.position.y, w, h, n.hidden === true, nb ? `${nb.dx},${nb.dy},${nb.w},${nb.h}` : ''])
   }
   const es: unknown[][] = []
   for (const e of edges) {
     const shape = isOrtho(e) ? 'o' : isStraight(e) ? 's' : 'c'
     const wp = (e.data as { waypoints?: unknown } | undefined)?.waypoints
     const ls = labelSizes.get(e.id)
-    es.push([e.id, shape, e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, shape === 'o' && Array.isArray(wp) ? wp : null, ls ? [ls.w, ls.h] : null])
+    // node structure — the faces decide where a route starts and ends
+    es.push([e.id, shape, e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, shape === 'o' && Array.isArray(wp) ? wp : null, ls ? [ls.w, ls.h] : null, faceOf(e, 'source'), faceOf(e, 'target')])
   }
   return JSON.stringify([ns, es])
 }
@@ -1008,8 +1080,8 @@ export function bendRejection(nodes: LoopNode[], edges: LoopEdge[], edgeId: stri
   for (const asSource of [true, false]) {
     const n = byId.get(asSource ? e.source : e.target)
     if (!n) continue
-    const pos = asSource ? handlePos(e.sourceHandle, Position.Right) : handlePos(e.targetHandle, Position.Left)
-    const port = handlePoint(n, pos)
+    const pos = endPos(e, asSource ? 'source' : 'target')
+    const port = endPoint(n, e, asSource ? 'source' : 'target')
     const nrm = pos === Position.Left ? { x: -1, y: 0 } : pos === Position.Right ? { x: 1, y: 0 } : pos === Position.Top ? { x: 0, y: -1 } : { x: 0, y: 1 }
     const b = boxOf(n)
     const side = nrm.x > 0 ? b.x + b.w - port.x : nrm.x < 0 ? port.x - b.x : nrm.y > 0 ? b.y + b.h - port.y : port.y - b.y

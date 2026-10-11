@@ -1,0 +1,107 @@
+{
+  "schema": "loop-studio/graph/2",
+  "version": 1,
+  "layoutVersion": 1,
+  "nodes": [
+    {
+      "id": "arrivals",
+      "type": "source",
+      "position": { "x": 48, "y": 164 },
+      "data": { "kind": "source", "label": "Daily arrivals", "activation": "automatic", "mode": "pushAny" }
+    },
+    {
+      "id": "waiting",
+      "type": "pool",
+      "position": { "x": 240, "y": 164 },
+      "data": { "kind": "pool", "label": "Waiting room", "activation": "passive", "initial": 4, "capacity": 20, "mode": "pullAny" }
+    },
+    {
+      "id": "triage",
+      "type": "gate",
+      "position": { "x": 448, "y": 164 },
+      "data": { "kind": "gate", "label": "Triage desk", "activation": "automatic", "distribution": "deterministic" }
+    },
+    {
+      "id": "treated",
+      "type": "pool",
+      "position": { "x": 656, "y": 164 },
+      "data": { "kind": "pool", "label": "Treated today", "activation": "passive", "initial": 0, "capacity": null, "mode": "pullAny" }
+    },
+    {
+      "id": "discharged",
+      "type": "drain",
+      "position": { "x": 656, "y": 372 },
+      "data": { "kind": "drain", "label": "Discharged home", "activation": "automatic", "mode": "pullAny" }
+    },
+    {
+      "id": "rate",
+      "type": "parameter",
+      "position": { "x": 48, "y": 372 },
+      "data": { "kind": "parameter", "label": "Arrivals per step", "value": 3, "unit": "people" }
+    },
+    {
+      "id": "occupancy",
+      "type": "register",
+      "position": { "x": 240, "y": 372 },
+      "data": { "kind": "register", "label": "Waiting-room occupancy", "expr": "@waiting / 20", "format": "percent" }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_arrive",
+      "source": "arrivals",
+      "target": "waiting",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "@rate", "route": "orthogonal" }
+    },
+    {
+      "id": "e_triage",
+      "source": "waiting",
+      "target": "triage",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "1", "route": "orthogonal" }
+    },
+    {
+      "id": "e_treat",
+      "source": "triage",
+      "target": "treated",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "1", "route": "orthogonal" }
+    },
+    {
+      "id": "e_leave",
+      "source": "treated",
+      "target": "discharged",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "1", "route": "orthogonal", "ports": { "source": "bottom", "target": "top" } }
+    },
+    {
+      "id": "a_open",
+      "source": "waiting",
+      "target": "triage",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": { "kind": "state", "mode": "activator", "expr": ">= 1", "route": "orthogonal" }
+    }
+  ],
+  "frames": [
+    { "id": "clinic", "label": "Clinic floor", "rect": { "x": 208, "y": 96, "w": 688, "h": 176 } }
+  ],
+  "recommendedRunConfig": {
+    "baseSeed": 1,
+    "runs": 50,
+    "steps": 20,
+    "tracked": ["waiting", "treated"],
+    "timelineSeries": ["waiting", "treated"],
+    "canvasLocked": false
+  }
+}

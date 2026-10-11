@@ -137,7 +137,18 @@ export type StateMode = 'label' | 'node' | 'trigger' | 'activator'
 export type EdgeRoutingData = {
   route?: 'orthogonal' | 'straight'
   waypoints?: { x: number; y: number }[]
+  /** Node structure, first implementation (scratch/share/connection-editing-2/
+   *  17-implementation-rules.md §2 and §4.2, NS4.2 P1) — the FACE of the node
+   *  each end of the connection leaves from / arrives at. Cosmetic like `route`:
+   *  projected, diffed, dirty-tracked, undoable, never engine-affecting; the
+   *  handle ids stay the kind channel and are NOT changed by a face. Absent ⇒
+   *  today's faces by kind (resource right → left, state bottom → top). The
+   *  revision-spec version policy for this field is still open (§4.2). */
+  ports?: EdgePorts
 }
+
+export type PortFace = 'top' | 'right' | 'bottom' | 'left'
+export type EdgePorts = { source?: PortFace; target?: PortFace }
 
 export type ResourceEdgeData = EdgeRoutingData & FlowColour & {
   kind: 'resource'

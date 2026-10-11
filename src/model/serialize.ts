@@ -1,5 +1,6 @@
 import { readRoutingPayload } from './edgeRouting'
 import { defaultData } from './factory'
+import { readPorts } from './ports'
 import { readAccent, readParameterData, readRegisterData, SOURCE_ID_MAX_BYTES, SOURCE_KEY_MAX_BYTES, utf8Len } from './model'
 import type { LoopEdge, LoopNode, NodeKind } from './types'
 import { storagePort } from '../storage/storagePort'
@@ -565,6 +566,10 @@ function normalizeEdge(e: LoopEdge): LoopEdge {
   // docs/flow-colour-and-compact-nodes.md FC-2.3 — a flow colour, trailing,
   // only in its stored form (both edge kinds)
   const accent = readAccent((e.data as Record<string, unknown> | undefined)?.accent)
+  // node structure (17-implementation-rules.md §4.2) — the port faces, trailing,
+  // only valid faces; absent means today's faces, so a file without them is
+  // byte-identical on a round trip
+  const ports = readPorts((e.data as Record<string, unknown> | undefined)?.ports)
 
   if (stateEdge) {
     const prev = e.data?.kind === 'state' ? e.data : undefined
@@ -590,6 +595,7 @@ function normalizeEdge(e: LoopEdge): LoopEdge {
         ...(routing.route ? { route: routing.route } : {}),
         ...(routing.waypoints ? { waypoints: routing.waypoints } : {}),
         ...(accent !== undefined ? { accent } : {}),
+        ...(ports ? { ports } : {}),
       },
     }
   }
@@ -611,6 +617,7 @@ function normalizeEdge(e: LoopEdge): LoopEdge {
       ...(routing.route ? { route: routing.route } : {}),
       ...(routing.waypoints ? { waypoints: routing.waypoints } : {}),
       ...(accent !== undefined ? { accent } : {}),
+      ...(ports ? { ports } : {}),
     } as LoopEdge['data'],
   }
 }

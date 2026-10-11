@@ -16,6 +16,8 @@ import type { InitialView } from '../model/templates'
 import { BUNDLED_MODULES, cloneModuleDoc } from '../model/modules'
 import { refInsertVerdict, type RefResolveKind } from '../model/exprRefs'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
+import { edgePortKind, faceOf, rfHandleId } from '../model/ports'
+import { diagramBounds } from '../store/routeMap'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { blocksCanvasKey } from '../ui/keyboardTarget'
@@ -123,7 +125,27 @@ export function Canvas() {
   const tidyToGrid = useGraphStore((s) => s.tidyToGrid)
   const insertModule = useGraphStore((s) => s.insertModule)
   const setSelection = useGraphStore((s) => s.setSelection)
-  const { screenToFlowPosition, fitView, setViewport, getViewport, deleteElements } = useReactFlow()
+  const { screenToFlowPosition, fitView, fitBounds, setViewport, getViewport, getNodes, deleteElements } = useReactFlow()
+  // node structure (Lumi, 2026-10-12) — a fit that contains the OUTSIDE NAMES:
+  // React Flow's fitView knows only the node boxes, so under the new structure
+  // a name on the far side was cut off; here the bounds take every name box in
+  // (routeMap.diagramBounds), then the same 1.2 zoom ceiling as fitView's.
+  // Today's structure keeps fitView as it was.
+  const fitAll = useCallback(async (): Promise<void> => {
+    const b = useUiStore.getState().nodeStructure === 'outside' ? diagramBounds(getNodes() as LoopNode[]) : null
+    if (!b) {
+      await fitView({ padding: 0.3, maxZoom: 1.2 })
+      return
+    }
+    await fitBounds(b, { padding: 0.3, duration: 0 })
+    const v = getViewport()
+    if (v.zoom > 1.2) {
+      const el = canvasRef.current
+      const w = el?.clientWidth ?? 0
+      const h = el?.clientHeight ?? 0
+      await setViewport({ x: w / 2 - (b.x + b.width / 2) * 1.2, y: h / 2 - (b.y + b.height / 2) * 1.2, zoom: 1.2 }, { duration: 0 })
+    }
+  }, [fitView, fitBounds, getNodes, getViewport, setViewport])
   const rfStore = useStoreApi()
   const isMobile = useIsMobile()
   const canvasLocked = useUiStore((s) => s.canvasLocked)
@@ -239,7 +261,7 @@ export function Canvas() {
       // zoom so the core start nodes stay whole.
       const insets = canvasFitInsets(minimapVisibleRef.current)
       const vp = viewportForRect(iv.rect, { width: paneW, height: paneH }, insets, { floor: iv.minZoom, ceil: 1.2, keep: iv.keep })
-      if (!vp) return void fitView({ padding: 0.3, maxZoom: 1.2 })
+      if (!vp) return void fitAll()
       setViewport(vp, { duration: 0 })
       if (import.meta.env.DEV) lastInitialViewRef.current = { insetR: insets.right, insetB: insets.bottom, zoom: vp.zoom }
     },
@@ -319,7 +341,7 @@ export function Canvas() {
     // §MML3 — a menu-opened Template may frame a sub-region instead of fit-all
     const iv = useGraphStore.getState().pendingInitialView
     if (iv) applyInitialViewRef.current(iv)
-    else void fitView({ padding: 0.3, maxZoom: 1.2 })
+    else void fitAll()
   }, [fitRev, loadRev, nodesInitialized, measuredSig, settleTick, fitView, getViewport])
 
   // docs/large-graph-readability.md §LGR3.3 — the two lenses COMPOSE: filter
@@ -387,14 +409,32 @@ export function Canvas() {
       return n
     })
   }, [nodes, hidden, focusSet])
-  const rfEdges = useMemo(() => {
-    if (!hidden && !focusSet) return edges
+  // node structure (src/model/ports.ts) — under the new structure a node offers
+  // one DOM handle per face per port, so a connection with a stored face binds
+  // to `<id>@<face>`; the document's edge keeps the plain id. Today's structure
+  // has only the default handles, so a stored face is drawn at the default
+  // face there (the document is untouched either way).
+  const nodeStructure = useUiStore((s) => s.nodeStructure)
+  const facedEdges = useMemo(() => {
+    if (nodeStructure !== 'outside') return edges
     return edges.map((e) => {
+      const k = edgePortKind(e)
+      const sh = rfHandleId(k, 'source', faceOf(e, 'source'))
+      const th = rfHandleId(k, 'target', faceOf(e, 'target'))
+      return sh === e.sourceHandle && th === e.targetHandle ? e : { ...e, sourceHandle: sh, targetHandle: th }
+    })
+  }, [edges, nodeStructure])
+  const rfEdges = useMemo(() => {
+    if (!hidden && !focusSet) return facedEdges
+    return facedEdges.map((e) => {
       if (hidden?.edges.has(e.id)) return { ...e, hidden: true }
       if (focusSet && !focusSet.edges.has(e.id)) return { ...e, className: withDeemph(e.className) }
       return e
     })
-  }, [edges, hidden, focusSet])
+  }, [facedEdges, hidden, focusSet])
+  // pointing to read (17-implementation-rules.md §2 cues): the connection under
+  // the pointer, so its whole route and its own label are identified together
+  const setHoverEdgeId = useUiStore((s) => s.setHoverEdgeId)
 
   // docs/large-graph-readability.md §LGR3.4 / LGR-D4 — Reset view: one UI-only
   // action that fits the graph and clears the exploration lens (filter
@@ -403,7 +443,7 @@ export function Canvas() {
   const resetView = useCallback(() => {
     useFilterStore.getState().clear()
     setSelection(null, null)
-    void fitView({ padding: 0.3, maxZoom: 1.2 })
+    void fitAll()
   }, [setSelection, fitView])
 
   // structural editing is off on mobile (docs/mobile.md §MV3a) OR when the
@@ -534,12 +574,12 @@ export function Canvas() {
     if (!import.meta.env.DEV) return
     const w = window as unknown as { __loop?: Record<string, unknown> }
     if (w.__loop) {
-      w.__loop.rf = { setViewport, getViewport, fitView }
+      w.__loop.rf = { setViewport, getViewport, fitView, fitAll }
       // the last `applyInitialView` result — lets an e2e assert the minimap
       // inset was / was not reserved on a menu-open framing (ux/minimap-collapse)
       w.__loop.canvas = { lastInitialView: () => lastInitialViewRef.current }
     }
-  }, [setViewport, getViewport, fitView])
+  }, [setViewport, getViewport, fitView, fitAll])
 
   // docs/contextual-inline-help.md §CIH3 #4 — any real canvas interaction
   // (a pan, a pinch/wheel zoom, a node drag, a tap-select) satisfies the
@@ -570,7 +610,7 @@ export function Canvas() {
       landscape = now
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => {
-        void fitView({ padding: 0.3, maxZoom: 1.2 })
+        void fitAll()
       })
     }
     window.addEventListener('resize', onResize)
@@ -907,7 +947,7 @@ export function Canvas() {
   return (
     <div
       ref={canvasRef}
-      className={`canvas${canvasLocked ? ' canvas--locked' : ''}${refInsertArmed ? ' canvas--ref-insert' : ''}`}
+      className={`canvas${canvasLocked ? ' canvas--locked' : ''}${refInsertArmed ? ' canvas--ref-insert' : ''}${nodeStructure === 'outside' ? ' canvas--nodes-outside' : ''}`}
       data-tour="canvas"
       data-covered-by-sheets=""
       aria-busy={routesBusy || undefined}
@@ -947,6 +987,8 @@ export function Canvas() {
         edgesReconnectable={!noEdit}
         onNodeClick={refInsertArmed ? (_e, n) => onArmedNodeClick(n.id) : undefined}
         onEdgeClick={addBendFor != null && !noEdit ? onAddBendClick : undefined}
+        onEdgeMouseEnter={nodeStructure === 'outside' ? (_e, edge) => setHoverEdgeId(edge.id) : undefined}
+        onEdgeMouseLeave={nodeStructure === 'outside' ? () => setHoverEdgeId(null) : undefined}
         zoomOnDoubleClick={!isMobile && !framePropsOpen}
         zoomOnScroll={!framePropsOpen}
         zoomOnPinch={!framePropsOpen}
