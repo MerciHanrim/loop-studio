@@ -25,7 +25,14 @@ import { GRID, PORT_ROW, snapNodePosition, snapPoint, snapRectOutward } from './
 import { boxesOverlap, type Box } from './place'
 
 export type FrameLike = { id: string; rect: { x: number; y: number; w: number; h: number } }
-export type SizeOf = (node: LoopNode) => { w: number; h: number }
+/** a node's box for the placement. Today's node: its body, anchored at the node
+ *  position (`w`, `h`). Under the node structure the box that must keep clear of
+ *  the others is the body AND the outside name, and when the name sits above or
+ *  left of the body that box STARTS before the node position: `dx` / `dy` (≤ 0)
+ *  give its origin relative to the position; `bw` / `bh` give the body alone,
+ *  anchored at the position — what frame MEMBERSHIP and order-keeping use (a
+ *  name never decides which frame a node belongs to). Absent ⇒ 0 / the box. */
+export type SizeOf = (node: LoopNode) => { w: number; h: number; dx?: number; dy?: number; bw?: number; bh?: number }
 
 export type ReplaceResult = {
   positions: Record<string, { x: number; y: number }>
@@ -54,9 +61,14 @@ export function replaceOnGrid(nodes: readonly LoopNode[], edges: readonly LoopEd
   const size = new Map(sorted.map((n) => [n.id, { w: real.get(n.id)!.w + gx, h: real.get(n.id)!.h + gy }]))
   const orig = new Map(sorted.map((n) => [n.id, { x: n.position.x, y: n.position.y }]))
   const pos = new Map(sorted.map((n) => [n.id, snapNodePosition(n.position)]))
-  const box = (id: string, p = pos.get(id)!): Box => ({ x: p.x, y: p.y, w: size.get(id)!.w, h: size.get(id)!.h })
-  /** the node's own box, without the clearance */
-  const realBox = (id: string, p = pos.get(id)!): Box => ({ x: p.x, y: p.y, w: real.get(id)!.w, h: real.get(id)!.h })
+  // the box's origin relative to the node position (a name above / left of the
+  // body starts the box before the position), and the body alone
+  const off = (id: string) => ({ dx: real.get(id)!.dx ?? 0, dy: real.get(id)!.dy ?? 0 })
+  const box = (id: string, p = pos.get(id)!): Box => ({ x: p.x + off(id).dx, y: p.y + off(id).dy, w: size.get(id)!.w, h: size.get(id)!.h })
+  /** the node's own box (body ∪ outside name), without the clearance */
+  const realBox = (id: string, p = pos.get(id)!): Box => ({ x: p.x + off(id).dx, y: p.y + off(id).dy, w: real.get(id)!.w, h: real.get(id)!.h })
+  /** the body alone, anchored at the position — membership and order-keeping */
+  const bodyBox = (id: string, p = pos.get(id)!): Box => ({ x: p.x, y: p.y, w: real.get(id)!.bw ?? real.get(id)!.w, h: real.get(id)!.bh ?? real.get(id)!.h })
   const row = (p: { y: number }): number => p.y + PORT_ROW
 
   // 2. related pairs: a resource connection between them, or a shared direct
@@ -79,7 +91,9 @@ export function replaceOnGrid(nodes: readonly LoopNode[], edges: readonly LoopEd
     return A.x < B.x + B.w + 4 * GRID && B.x < A.x + A.w + 4 * GRID // within four grid steps sideways
   }
   const ids = sorted.map((n) => n.id)
-  const centre = (id: string, p: { x: number; y: number }) => ({ x: p.x + size.get(id)!.w / 2, y: p.y + size.get(id)!.h / 2 })
+  // the BODY's centre: the order between two nodes is the order of their bodies,
+  // not of where their names happen to hang
+  const centre = (id: string, p: { x: number; y: number }) => { const b = bodyBox(id, p); return { x: b.x + b.w / 2, y: b.y + b.h / 2 } }
   const oc = new Map(ids.map((id) => [id, centre(id, orig.get(id)!)]))
   /** a row move of `id` to `target` reverses no above/below order (centres
    *  >= 8 px apart before) with any other node */
@@ -169,8 +183,10 @@ export function replaceOnGrid(nodes: readonly LoopNode[], edges: readonly LoopEd
   const outFrames: ReplaceResult['frames'] = {}
   for (const f of [...frames].sort(byId)) {
     const given = opts.held?.[f.id]
+    // membership by the BODY (the product's own rule: a name never decides it);
+    // the frame then grows to cover the whole box, name included
     const held = given ? ids.filter((id) => given.includes(id)) : ids.filter((id) => {
-      const b = realBox(id, orig.get(id)!)
+      const b = bodyBox(id, orig.get(id)!)
       return b.x >= f.rect.x && b.y >= f.rect.y && b.x + b.w <= f.rect.x + f.rect.w && b.y + b.h <= f.rect.y + f.rect.h
     })
     let x0 = f.rect.x, y0 = f.rect.y, x1 = f.rect.x + f.rect.w, y1 = f.rect.y + f.rect.h

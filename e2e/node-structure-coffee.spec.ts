@@ -19,7 +19,8 @@ type Loop = {
 }
 
 async function openCoffee(page: Page, structure: 'outside' | 'inside'): Promise<void> {
-  await page.goto(structure === 'outside' ? '/?nodes=outside' : '/')
+  // the new node is the default; the previous structure is reached by `?nodes=inside`
+  await page.goto(structure === 'outside' ? '/' : '/?nodes=inside')
   await waitForAppReady(page)
   await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
   // Templates ▸ Coffee roastery (the same path a user takes)

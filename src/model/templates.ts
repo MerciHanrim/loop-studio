@@ -116,12 +116,15 @@ export const TEMPLATES: Template[] = [
     recommendedRunConfig: (coffeeRoasteryDoc as { recommendedRunConfig?: RecommendedRunConfig })
       .recommendedRunConfig,
     modelVersion: modelVersionForSchema((coffeeRoasteryDoc as { schema?: unknown }).schema) ?? 1,
-    // issue #344 step 5 (docs/diagram-layout.md §DL5.5) — the operating flow
-    // first: the five daily levers, the supply and the roasting & sales frames,
-    // sized so a 1280 x 800 window opens at about 0.5 (L1 with room, never at
-    // the 0.45 edge); the forecast metrics may start off screen (Reset view and
-    // the minimap show the whole graph)
-    initialView: { rect: { x: 8, y: -12, width: 1344, height: 912 }, minZoom: 0.46 },
+    // issue #344 step 5 (docs/diagram-layout.md §DL5.5), re-placed for the node
+    // structure (2026-10-12, share 23-coffee-replace.md): the START SCREEN is
+    // the work flow — the four bean levers, the Supply and the Roasting & sales
+    // zones and the dessert lever under them, with room for the left tool
+    // column; a 1280 x 800 window opens at about 0.71 (level 1 with room, never
+    // at the 0.45 edge). The Forecast metrics column is one pan to the right;
+    // the whole view (Reset view, the minimap) shows all three zones at about
+    // 0.52 there.
+    initialView: { rect: { x: -64, y: -40, width: 1344, height: 864 }, minZoom: 0.46 },
   },
   // The "Early MMO progression (levels 1–15)" demo — a connected play economy.
   // The canonical graph is examples/mmo-progression.json (built + verified by

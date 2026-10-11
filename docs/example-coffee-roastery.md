@@ -563,6 +563,38 @@ it. The frozen legacy fixtures (`examples/revision-legacy-v0.10.0/`,
 `test/fixtures/templates-before-step4/`) keep `kKRW/day` as the record they
 are. The rev 10 note above stays as written: it describes the unit at rev 10.
 
+**rev 14 — re-placed for the node structure (2026-10-12, Lumi's candidate A).**
+The compact body with the name outside halves the bodies and frees the room the
+old frames kept, so the diagram is placed again for reading order, not for the
+old coordinates (share `connection-editing-2/23-coffee-replace.md`):
+
+- one main row, Supply → Roasting → Sales, with the three sales drains in a fan
+  column (rows 196 / 324 / 452); the secondary outflows under their stock and
+  forward of it (Roasting weight loss forks forward of the Gate; Green wholesale
+  hangs UNDER Green bean stock through the node structure's ports — `e_green_wholesale`
+  is stored bottom → top, the stock's bottom `out` lane and the drain's top `in`
+  lane aligned, so the line is a straight drop; the stock's name then sits on its
+  TOP face);
+- the dessert flow on its own row (516), its two outflows fanning up and down from
+  Dessert stock;
+- the four bean levers on one row above the zones (y −28), each over the flow it
+  drives; the dessert lever UNDER the dessert row (724) so it reads with that flow;
+- Forecast metrics as one results column at the right, its frame from the lever
+  row to the flow zones' bottom (720); the three frames share one top (112) and
+  one bottom.
+
+Placement: `placeTemplate` with boxes measured as body ∪ outside name over the 18
+languages (`docs/diagram-layout.md` §DL5.2.1) and Coffee's own clearance 0
+(§DL5.2.2). The start view (`initialView`) is the work flow, `−64 / −40 / 1344 ×
+864` (about 0.71 at 1280 × 800); the whole view shows all three zones at about
+0.52 there. §CR17 holds by the measured boxes (`coffee-roastery.test.ts`); the
+lever rule of §CR5 is now "four on a row, the dessert lever below its row".
+No value, flow, label, member or digest-relevant semantics changes — the revision
+content digest moves (positions are content), the engine digest does not.
+Verified in 18 languages: no name over a name, body or label; no name across a
+frame border; members 5 / 8 / 5 everywhere. This placement presumes the node
+structure as the product's default (a bundle holds one placement).
+
 The legend renders in the component's structural order — every shown Pool, then
 every shown Register, each in graph-node order — so the operating-margin
 Register sits at the end of the row, read after the three stock trajectories.
