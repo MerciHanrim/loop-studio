@@ -160,11 +160,15 @@ export const iso = (value: string): string => FSI + value + PDI
 /** the exact rendering of a value wrapped by `isolateLtr` */
 export const isoLtr = (value: string): string => LRI + value + PDI
 
-export async function openApp(page: Page): Promise<void> {
+export async function openApp(page: Page, opts: { structure?: 'outside' | 'inside' } = {}): Promise<void> {
   // issue #305 - idempotent; covers a page from a context the fixture did not
   // make, and is attached before the navigation either way
   watchPage(page)
-  await page.goto('/')
+  // the node structure: the NEW node (name outside) is the default since
+  // 2026-10-12; a spec that pins the PREVIOUS body's own rules (text inside the
+  // outline, the row fit, the title chip) opens `?nodes=inside`, which the
+  // product still serves for a page load
+  await page.goto(opts.structure === 'inside' ? '/?nodes=inside' : '/')
   await waitForAppReady(page)
   await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
 }

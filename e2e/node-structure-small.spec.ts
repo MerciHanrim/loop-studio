@@ -25,7 +25,8 @@ const FIXTURE = readFileSync(new URL('./fixtures/node-structure-small.json', imp
 type Loop = { graph: { getState: () => any }; rf: { setViewport: (v: { x: number; y: number; zoom: number }, o?: { duration: number }) => void; getViewport: () => { x: number; y: number; zoom: number }; fitView: (o?: object) => void }; ui: { getState: () => any } }
 
 async function openSmall(page: Page, structure: 'outside' | 'inside'): Promise<void> {
-  await page.goto(structure === 'outside' ? '/?nodes=outside' : '/')
+  // the new node is the default; the previous structure is reached by `?nodes=inside`
+  await page.goto(structure === 'outside' ? '/' : '/?nodes=inside')
   await waitForAppReady(page)
   await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
   await page.setInputFiles('.toolbar__actions input[type=file]', { name: 'node-structure-small.json', mimeType: 'application/json', buffer: Buffer.from(FIXTURE, 'utf8') })

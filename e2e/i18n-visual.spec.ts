@@ -158,7 +158,7 @@ test.describe('i18n Slice 3 — representative KO reference screenshots', () => 
     const lbl = await page.evaluate(() => {
       const wrap = document.querySelector('.react-flow__node[data-id="pool"]')!
       const nf = wrap.querySelector('.nodef') as HTMLElement
-      const title = wrap.querySelector('.nodef__title') as HTMLElement
+      const title = wrap.querySelector('.nodef__name') as HTMLElement
       const lineH = parseFloat(getComputedStyle(title).lineHeight) || 16
       const n = nf.getBoundingClientRect()
       const t = title.getBoundingClientRect()
@@ -167,12 +167,14 @@ test.describe('i18n Slice 3 — representative KO reference screenshots', () => 
         clippedX: title.scrollWidth > title.clientWidth + 1,
         clippedY: title.scrollHeight > title.clientHeight + 1,
         inside: t.left >= n.left - 1 && t.right <= n.right + 1 && t.top >= n.top - 1 && t.bottom <= n.bottom + 1,
+        // the new node: the name sits OUTSIDE, directly below the body, left-aligned
+        below: t.left >= n.left - 1 && t.top >= n.bottom - 1 && t.top <= n.bottom + 24,
       }
     })
     expect(lbl.lines, 'the label wraps (not a single ellipsised line)').toBeGreaterThan(1)
     expect(lbl.clippedX, 'no sideways clipping').toBe(false)
     expect(lbl.clippedY, 'no vertical clipping').toBe(false)
-    expect(lbl.inside, 'the title sits inside the node box').toBe(true)
+    expect(lbl.inside || lbl.below, 'the title sits inside the node box (previous body) or directly below it (the new node)').toBe(true)
     await expect(page).toHaveScreenshot(...snap(page, 'ko-long-label-and-tip', shot(page)))
   })
 

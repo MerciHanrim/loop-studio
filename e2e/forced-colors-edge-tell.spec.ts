@@ -363,7 +363,7 @@ async function makeRouteInvalid(page: Page, edgeId: string): Promise<void> {
  *  is the edges. `visibility: hidden` removes only the glyphs — the node shapes and any edge passing
  *  under a label keep every pixel, unlike a `mask` box. Under forced colours `color` is
  *  force-adjusted, so this is the one property that reliably takes the text out. */
-const NODE_TEXT = '.nodef__title, .nodef__value, .nodef__sub'
+const NODE_TEXT = '.nodef__name, .nodef__title, .nodef__value, .nodef__sub' // the new node's name is outside the body
 async function hideNodeText(page: Page, clip: { x: number; y: number; width: number; height: number }): Promise<void> {
   await page.addStyleTag({ content: `${NODE_TEXT} { visibility: hidden }` })
   // the spans to hide really exist inside the clip, and every one of them computes `hidden`

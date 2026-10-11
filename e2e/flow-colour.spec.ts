@@ -328,7 +328,12 @@ test.describe('flow colour — drawing and state priority (FC-4)', () => {
     await page.evaluate(() => (window as any).__loop.ui.getState().setFocusMode(false))
     await page.emulateMedia({ forcedColors: 'active' })
     await expect(node(page, 'sink').locator('.nodef__band')).toHaveCSS('display', 'none')
-    await expect(node(page, 'sink').locator('.nodef__chip')).not.toHaveCSS('background-color', 'rgb(180, 117, 153)')
+    // the type chip is the previous body's; the new node carries the type by its
+    // silhouette and (for a Drain) its role symbol, drawn in the text colour —
+    // neither takes the flow colour
+    const chip = node(page, 'sink').locator('.nodef__chip')
+    if (await chip.count()) await expect(chip).not.toHaveCSS('background-color', 'rgb(180, 117, 153)')
+    else await expect(node(page, 'sink').locator('.nodef__role')).not.toHaveCSS('color', 'rgb(180, 117, 153)')
     await expect(page.locator('.react-flow__edge[data-id="e2"] path.react-flow__edge-path')).not.toHaveCSS('stroke', 'rgb(180, 117, 153)')
     await page.emulateMedia({ forcedColors: 'none' })
   })

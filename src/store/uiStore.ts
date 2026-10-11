@@ -412,14 +412,17 @@ export const useUiStore = create<UiState>((set, get) => ({
   setHoverEdgeId: (id) => set((s) => (s.hoverEdgeId === id ? s : { hoverEdgeId: id })),
 }))
 
-/** `?nodes=outside` switches the canvas to the new node structure for this
- *  page load only (bring-up of the first implementation); anything else, or no
- *  `window`, is today's structure */
+/** The node structure the canvas opens with. The NEW node — a compact body
+ *  with the name outside — is the DEFAULT (Lumi / Hanrim, 2026-10-12: the
+ *  product change the small graph and Coffee are verified under, with the
+ *  Coffee re-placement that presumes it). `?nodes=inside` opens the previous
+ *  structure for this page load only (comparison and the specs that pin it);
+ *  `?nodes=outside` still names the default. Never persisted. */
 function readNodeStructureOverride(): 'inside' | 'outside' {
   try {
-    return new URLSearchParams(window.location.search).get('nodes') === 'outside' ? 'outside' : 'inside'
+    return new URLSearchParams(window.location.search).get('nodes') === 'inside' ? 'inside' : 'outside'
   } catch {
-    return 'inside'
+    return 'outside'
   }
 }
 

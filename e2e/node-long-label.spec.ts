@@ -93,7 +93,7 @@ const drawnFor = (vb: string | null, b: { cssW: number; boxH: number }, what?: s
 
 test.describe('§MML1 — long node labels stay inside the box', () => {
   test.beforeEach(async ({ page }) => {
-    await openApp(page)
+    await openApp(page, { structure: 'inside' })
     await resetAll(page)
     await importGraph(page, GRAPH)
     await expect(node(page, 'overlong')).toBeVisible()
@@ -371,7 +371,7 @@ test.describe('content ⊂ vessel — path-aware (isPointInFill)', () => {
 
   for (const loc of ['en', 'ko', 'ja'] as const) {
     test(`every parameter / register corner is inside the fill — ${loc}`, async ({ page }) => {
-      await openApp(page)
+      await openApp(page, { structure: 'inside' })
       await resetAll(page)
       await page.evaluate((l) => (window as any).__loop.i18n.getState().setLocale(l), loc)
       await importGraph(page, SHELL)
@@ -408,7 +408,7 @@ test.describe('content ⊂ vessel — path-aware (isPointInFill)', () => {
   // content AABB clears the drawn stroke top and bottom.
   for (const loc of ['en', 'ko', 'ja'] as const) {
     test(`content clears the vessel top / bottom — ${loc}`, async ({ page }) => {
-      await openApp(page)
+      await openApp(page, { structure: 'inside' })
       await resetAll(page)
       await page.evaluate((l) => (window as any).__loop.i18n.getState().setLocale(l), loc)
       await importGraph(page, SHELL)
@@ -439,7 +439,7 @@ test.describe('content ⊂ vessel — path-aware (isPointInFill)', () => {
   // FC-7 (#325 PR 3): a Source sits at the 56 px compact floor, a plain one-line
   // Pool at the 58 its content needs
   test('a Source / plain Pool take the compact box — 56 / 58 px', async ({ page }) => {
-    await openApp(page)
+    await openApp(page, { structure: 'inside' })
     await resetAll(page)
     await importGraph(page, SHELL)
     await page.waitForTimeout(300)

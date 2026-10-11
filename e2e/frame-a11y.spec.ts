@@ -103,7 +103,10 @@ test.describe('frame accessibility — role, name and focus unit (§LGR6.6)', ()
     const strips = await page.locator('.lgr-frame__edge-hit').evaluateAll((els) =>
       els.map((el) => ({ tabIndex: (el as HTMLElement).tabIndex, hidden: el.getAttribute('aria-hidden') })),
     )
-    expect(strips).toHaveLength(4)
+    // four sides; under the node structure a side's strip is drawn in PIECES
+    // around an outside name on the border (frames/frameChrome.ts), so there
+    // can be more than four elements — every one of them stays out of the tree
+    expect(strips.length).toBeGreaterThanOrEqual(4)
     for (const s of strips) {
       expect(s.tabIndex).toBeLessThan(0)
       expect(s.hidden).toBe('true')

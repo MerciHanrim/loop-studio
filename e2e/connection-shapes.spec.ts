@@ -380,7 +380,8 @@ test.describe('connection shapes — keyboard Add bend and the record label rule
 
   test('with no segment that can take a bend, Enter changes nothing and says so', async ({ page }) => {
     // two nodes so close that the route is its two stubs
-    await importGraph(page, doc([node('a', 'source', 0, 0), node('b', 'drain', 176, 0)], [edge('e', 'a', 'b', { route: 'orthogonal' })]))
+    // two nodes so close that the route is its two stubs (the new node's body is 88 wide: 88 + two 16 px stubs)
+    await importGraph(page, doc([node('a', 'source', 0, 0), node('b', 'drain', 120, 0)], [edge('e', 'a', 'b', { route: 'orthogonal' })]))
     await selectEdge(page, 'e')
     const h0 = await history(page)
     const add = page.getByRole('button', { name: 'Add bend' })
@@ -441,14 +442,14 @@ test.describe('connection shapes — keyboard Add bend and the record label rule
     expect(await recordRule(page)).toBe(false)
   })
 
-  test('a record whose header declares /10 takes the current placement, though it has no straight connection', async ({ page }) => {
+  test('a record whose header declares the current semantics (/11) takes the current placement, though it has no straight connection', async ({ page }) => {
     // a Curved-only graph, recorded by this build
     await importGraph(page, doc([node('a', 'source', 0, 0), node('b', 'drain', 480, 0), node('mid', 'pool', 240, 0)], [edge('cv', 'a', 'b', {})]))
     const text = await page.evaluate(() => {
       const r = (window as any).__loop.project.getState().planRevision()
       return r.ok ? (r.text as string) : ''
     })
-    expect(JSON.parse(text).project.semantics).toBe('loop-revision/10')
+    expect(JSON.parse(text).project.semantics).toBe('loop-revision/11') // the current semantics (SEMANTICS-R11.md); the record rule of §R10-6 is unchanged
     expect(text).not.toContain('"straight"')
     await resetAll(page)
     await openRecord(page, text)

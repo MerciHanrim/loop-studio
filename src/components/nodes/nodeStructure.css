@@ -173,3 +173,29 @@
   box-shadow: inset 0 0 0 1px var(--line-strong), var(--elev-edge-label);
   color: var(--text-primary);
 }
+
+/* the handles stay ABOVE the bridge: the gap between body and name belongs to
+   the node's hit region, but a port on the body's edge (its outer half lies in
+   that gap) must still start a connection — measured 2026-10-12: a state-port
+   drag from the bottom face began on the bridge instead of the handle */
+.nodef--outside .nodef__bridge {
+  z-index: 1;
+}
+.nodef--outside .react-flow__handle {
+  z-index: 2;
+}
+
+/* a face handle that is not revealed is INERT: it neither shows nor takes the
+   pointer (measured 2026-10-12: at rest, a drag from a Pool's bottom `state-source`
+   started on the hidden `state-target@bottom` drawn over it and the stored wire
+   came out reversed). And whenever both are present, the DEFAULT handle of a
+   face stays on top of an extra one at the same spot. */
+.nodef--outside .react-flow__handle.h--extra[data-off] {
+  pointer-events: none;
+}
+.nodef--outside .react-flow__handle.h--extra {
+  z-index: 2;
+}
+.nodef--outside .react-flow__handle:not(.h--extra) {
+  z-index: 3;
+}

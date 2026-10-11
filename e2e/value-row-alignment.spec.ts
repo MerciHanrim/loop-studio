@@ -33,7 +33,7 @@ const RUN_GRAPH = JSON.stringify({
 })
 
 const load = async (page: Page, json: string, waitId: string) => {
-  await openApp(page)
+  await openApp(page, { structure: 'inside' })
   await resetAll(page)
   await importGraph(page, json)
   await page.locator(`.react-flow__node[data-id="${waitId}"]`).waitFor()
@@ -125,7 +125,7 @@ test.describe('#332 value and detail rows inside the vessel', () => {
   })
 
   test('the fit leaves the graph alone: the content digest does not move', async ({ page }) => {
-    await openApp(page)
+    await openApp(page, { structure: 'inside' })
     await resetAll(page)
     await importGraph(page, example('mmo-progression.json'))
     const d0 = await digest(page)

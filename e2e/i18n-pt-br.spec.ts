@@ -262,12 +262,12 @@ test('a bundled Template opens with Portuguese node labels', async ({ page }) =>
   await expect
     .poll(() =>
       page.evaluate(() =>
-        [...document.querySelectorAll('.nodef__title')].map((t) => t.textContent?.trim()),
+        [...document.querySelectorAll('.nodef__name')].map((t) => t.textContent?.trim()),
       ),
     )
     .toContain('Fornecimento de material')
   const titles = await page.evaluate(() =>
-    [...document.querySelectorAll('.nodef__title')].map((t) => t.textContent?.trim()),
+    [...document.querySelectorAll('.nodef__name')].map((t) => t.textContent?.trim()),
   )
   expect(titles, 'the dictionary loaded, so no English canonical is left').not.toContain(
     'Material supply',
@@ -336,7 +336,7 @@ test('Portuguese adds no overflow of its own', async ({ page }) => {
   const sweep = () =>
     page.evaluate(() => {
       const rows: { sel: string; text: string; ovX: number; ovY: number }[] = []
-      const sels = ['.menu__blurb', '.palette-tip__desc', '.nodef__title', '.toolbar__actions button', '.lang-menu__item']
+      const sels = ['.menu__blurb', '.palette-tip__desc', '.nodef__name', '.toolbar__actions button', '.lang-menu__item']
       for (const sel of sels) {
         for (const el of document.querySelectorAll(sel)) {
           const e = el as HTMLElement

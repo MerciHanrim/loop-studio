@@ -30,7 +30,7 @@ const GRAPH = JSON.stringify({
 })
 
 async function load(page: Page): Promise<void> {
-  await openApp(page)
+  await openApp(page, { structure: 'inside' })
   await resetAll(page)
   await page.setInputFiles('.toolbar__actions input[type=file]', {
     name: 'g.json',

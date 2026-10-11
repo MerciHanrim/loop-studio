@@ -35,7 +35,7 @@ async function openMmo(page: Page) {
   await expect(page.locator('.react-flow__node[data-id="char_creation"]')).toBeVisible()
 }
 const nodeLabel = (page: Page, id: string) =>
-  page.locator(`.react-flow__node[data-id="${id}"] .nodef__title`).innerText()
+  page.locator(`.react-flow__node[data-id="${id}"] .nodef__name`).innerText()
 
 test.describe('locale lazy-loading — behaviour', () => {
   test('a switch commits the UI catalog and the official node labels together — no EN flash', async ({

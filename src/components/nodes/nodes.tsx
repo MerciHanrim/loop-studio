@@ -619,14 +619,24 @@ function NodeFrame({
   const convInput = useRef('')
   useLayoutEffect(() => {
     const frame = frameRef.current
-    if (!frame || kind !== 'converter' || (fixedDepth && !fit)) return
+    if (!frame || kind !== 'converter') return
+    // node structure — the Converter's body holds no text and no inner symbol
+    // (Lumi's set A: Converter / End show their silhouette alone), so the mark
+    // takes the body's centre; nothing to measure (the name is outside)
+    if (outside) {
+      const width = parseFloat(getComputedStyle(frame).width) || frame.offsetWidth
+      const next = { x: width / 2 - 6, y: boxH / 2 - 6 }
+      setConvSpot((prev) => (prev?.x === next.x && prev?.y === next.y ? prev : next))
+      return
+    }
+    if (fixedDepth && !fit) return
     const width = parseFloat(getComputedStyle(frame).width) || frame.offsetWidth
     const input = `${fitKey}|${boxH}|${width}|${fit ? JSON.stringify(fit) : ''}`
     if (input === convInput.current) return
     convInput.current = input
     const next = measureConvSpot(frame, width, boxH)
     setConvSpot((prev) => (prev?.x === next?.x && prev?.y === next?.y ? prev : next))
-  }, [fitKey, boxH, kind, fit, fixedDepth])
+  }, [fitKey, boxH, kind, fit, fixedDepth, outside])
   const convPhase = conversion ? conversion.slice(conversion.indexOf(':') + 1) : null
   const convStep = conversion ? conversion.slice(0, conversion.indexOf(':')) : null
   // at L0 the mark takes the type dot's place; elsewhere it needs its spot
@@ -749,12 +759,12 @@ function NodeFrame({
           (../../model/ports `rfHandleId`) */}
       {outside ? (
         <>
-          <Handle type="target" position={Position.Left} id="state-target@left" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} />
-          <Handle type="target" position={Position.Right} id="state-target@right" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} />
-          <Handle type="target" position={Position.Bottom} id="state-target@bottom" className="h h--state h--extra" style={{ left: '50%', opacity: facesOn ? 1 : 0 }} />
-          <Handle type="source" position={Position.Top} id="state-source@top" className="h h--state h--extra" style={{ left: '50%', opacity: facesOn ? 1 : 0 }} />
-          <Handle type="source" position={Position.Left} id="state-source@left" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} />
-          <Handle type="source" position={Position.Right} id="state-source@right" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} />
+          <Handle type="target" position={Position.Left} id="state-target@left" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
+          <Handle type="target" position={Position.Right} id="state-target@right" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
+          <Handle type="target" position={Position.Bottom} id="state-target@bottom" className="h h--state h--extra" style={{ left: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
+          <Handle type="source" position={Position.Top} id="state-source@top" className="h h--state h--extra" style={{ left: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
+          <Handle type="source" position={Position.Left} id="state-source@left" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
+          <Handle type="source" position={Position.Right} id="state-source@right" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
         </>
       ) : null}
       <svg
@@ -854,10 +864,11 @@ function NodeFrame({
             <defs>
               <OutsideMask id={`${uid}-fired`} d={path} box={box} from={9} />
             </defs>
-            <path key={`t${stepKey}`} className="nodef__fired-ticks" d={path} mask={`url(#${uid}-fired)`} strokeWidth={2 * 11} strokeDasharray="8 24" />
+            {/* `data-run-cue` — the §LGR5.1 `effective` cue, whichever form draws it */}
+            <path key={`t${stepKey}`} className="nodef__fired-ticks" data-run-cue="effective" d={path} mask={`url(#${uid}-fired)`} strokeWidth={2 * 11} strokeDasharray="8 24" />
           </>
         ) : firing ? (
-          <path key={`w${stepKey}`} className="nodef__wave" d={path} />
+          <path key={`w${stepKey}`} className="nodef__wave" data-run-cue="effective" d={path} />
         ) : null}
         {/* issue #330 PR 2 — the Pool arrival pulse: a soft tint of the
             silhouette from `POOL_PULSE_INSET` px inside (clear of every ring),
@@ -904,7 +915,7 @@ function NodeFrame({
           Ignored while `firing`; not lod-gated — a run cue stays at every zoom
           (§VL7.1) and is exempt from `lgr-deemph` dimming (LGR-INV-6). */}
       {evaluated && !firing ? (
-        <span className="nodef__eval" aria-hidden="true" title={tip('node.evaluatedCue')} />
+        <span className="nodef__eval" data-run-cue="evaluated" aria-hidden="true" title={tip('node.evaluatedCue')} />
       ) : null}
 
       {/* issue #330 PR 2 — the conversion mark (option A): a 10 px ⇄ drawing
@@ -1013,16 +1024,16 @@ function NodeFrame({
           anchors match `routeMap.portPoint`. */}
       {outside && ports?.in ? (
         <>
-          <Handle type="target" position={Position.Top} id="in@top" className="h h--in h--extra" style={{ left: PORT_COL, opacity: facesOn ? 1 : 0 }} />
-          <Handle type="target" position={Position.Bottom} id="in@bottom" className="h h--in h--extra" style={{ left: PORT_COL, opacity: facesOn ? 1 : 0 }} />
-          <Handle type="target" position={Position.Right} id="in@right" className="h h--in h--extra" style={{ top: PORT_ROW, right: `${portInsetFraction(kind, bodyH, 'out', PORT_ROW, pathW) * 100}%`, opacity: facesOn ? 1 : 0 }} />
+          <Handle type="target" position={Position.Top} id="in@top" className="h h--in h--extra" style={{ left: PORT_COL, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
+          <Handle type="target" position={Position.Bottom} id="in@bottom" className="h h--in h--extra" style={{ left: PORT_COL, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
+          <Handle type="target" position={Position.Right} id="in@right" className="h h--in h--extra" style={{ top: PORT_ROW, right: `${portInsetFraction(kind, bodyH, 'out', PORT_ROW, pathW) * 100}%`, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
         </>
       ) : null}
       {outside && ports?.out ? (
         <>
-          <Handle type="source" position={Position.Top} id="out@top" className="h h--out h--extra" style={{ left: `calc(100% - ${PORT_COL}px)`, opacity: facesOn ? 1 : 0 }} />
-          <Handle type="source" position={Position.Bottom} id="out@bottom" className="h h--out h--extra" style={{ left: `calc(100% - ${PORT_COL}px)`, opacity: facesOn ? 1 : 0 }} />
-          <Handle type="source" position={Position.Left} id="out@left" className="h h--out h--extra" style={{ top: PORT_ROW, left: `${portInsetFraction(kind, bodyH, 'in', PORT_ROW, pathW) * 100}%`, opacity: facesOn ? 1 : 0 }} />
+          <Handle type="source" position={Position.Top} id="out@top" className="h h--out h--extra" style={{ left: `calc(100% - ${PORT_COL}px)`, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
+          <Handle type="source" position={Position.Bottom} id="out@bottom" className="h h--out h--extra" style={{ left: `calc(100% - ${PORT_COL}px)`, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
+          <Handle type="source" position={Position.Left} id="out@left" className="h h--out h--extra" style={{ top: PORT_ROW, left: `${portInsetFraction(kind, bodyH, 'in', PORT_ROW, pathW) * 100}%`, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
         </>
       ) : null}
     </div>

@@ -195,12 +195,12 @@ test('the labels that differ from es-419 differ in the product', async ({ page }
   await expect
     .poll(() =>
       page.evaluate(() =>
-        [...document.querySelectorAll('.nodef__title')].map((t) => t.textContent?.trim()),
+        [...document.querySelectorAll('.nodef__name')].map((t) => t.textContent?.trim()),
       ),
     )
     .toContain('Puntuación de equipo')
   const titles = await page.evaluate(() =>
-    [...document.querySelectorAll('.nodef__title')].map((t) => t.textContent?.trim()),
+    [...document.querySelectorAll('.nodef__name')].map((t) => t.textContent?.trim()),
   )
   expect(titles, 'the Latin American score word must not appear here').not.toContain(
     'Puntaje de equipo',

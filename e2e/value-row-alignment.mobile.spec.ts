@@ -8,7 +8,7 @@ import { fitCount, frames, misfits, readRows, ROWS_GRAPH, zoomOne } from './supp
 // panning takes no measurement.
 
 const load = async (page: Page) => {
-  await openApp(page)
+  await openApp(page, { structure: 'inside' })
   await resetAll(page)
   await importGraph(page, ROWS_GRAPH)
   await page.locator('.react-flow__node[data-id="Converter"]').waitFor({ state: 'attached' })
