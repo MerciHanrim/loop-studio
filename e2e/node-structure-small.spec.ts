@@ -208,7 +208,7 @@ test.describe('node structure — the small graph under the new node', () => {
     await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2, { steps: 12 })
     await page.mouse.up()
     await expect.poll(count).toBe(n0 + 1)
-    const made = await page.evaluate(() => { const es = (window as unknown as { __loop: Loop }).__loop.graph.getState().edges; const e = es[es.length - 1]; return { source: e.source, target: e.target, sourceHandle: e.sourceHandle, targetHandle: e.targetHandle, data: e.data } })
+    const made = await page.evaluate(() => { const es = (window as unknown as { __loop: Loop }).__loop.graph.getState().edges; const e = es[es.length - 1]; return { id: e.id, source: e.source, target: e.target, sourceHandle: e.sourceHandle, targetHandle: e.targetHandle, data: e.data } })
     expect(made.source).toBe('triage')
     expect(made.target).toBe('discharged')
     // the document keeps the plain handle ids; the non-default face is stored, the default one is not
@@ -216,6 +216,48 @@ test.describe('node structure — the small graph under the new node', () => {
     expect(made.targetHandle).toBe('in')
     expect(made.data.ports).toEqual({ source: 'bottom' })
     await expect(page.locator('.react-flow__edge path.react-flow__edge-path')).toHaveCount(6)
+    // N1 (Lumi, 2026-10-12) — triage now uses all four faces and its name keeps
+    // the bottom face (the fallback); the new line leaves that face through the
+    // node's BRIDGE (the 12 px gap, part of the node's hit region), so the short
+    // run there answers the pointer as the node — the name itself is clear — and
+    // the connection is selected from any other segment (here its last one).
+    const n1 = await page.evaluate((edgeId) => {
+      const root = document.querySelector('.react-flow')!.getBoundingClientRect()
+      const v = (window as unknown as { __loop: Loop }).__loop.rf.getViewport()
+      const toScreen = (p: { x: number; y: number }) => ({ x: root.left + v.x + p.x * v.zoom, y: root.top + v.y + p.y * v.zoom })
+      const d = document.querySelector(`.react-flow__edge[data-id="${edgeId}"] path.react-flow__edge-path`)!.getAttribute('d')!
+      const nums = d.match(/-?\d+(\.\d+)?/g)!.map(Number)
+      const pts: { x: number; y: number }[] = []
+      for (let i = 0; i + 1 < nums.length; i += 2) pts.push({ x: nums[i], y: nums[i + 1] })
+      const br = (document.querySelector('.react-flow__node[data-id="triage"] .nodef') as HTMLElement).getBoundingClientRect()
+      const nr = (document.querySelector('.react-flow__node[data-id="triage"] .nodef__name') as HTMLElement).getBoundingClientRect()
+      let inBridge: { x: number; y: number } | null = null
+      for (let i = 0; i + 1 < pts.length && !inBridge; i++) {
+        const a = toScreen(pts[i])
+        const b = toScreen(pts[i + 1])
+        const m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+        if (m.x >= br.left && m.x <= br.right && m.y >= br.bottom && m.y <= nr.top) inBridge = m
+      }
+      const hit = inBridge ? document.elementFromPoint(inBridge.x, inBridge.y) : null
+      const who = hit?.closest('.react-flow__node')?.getAttribute('data-id') ?? hit?.closest('.react-flow__edge')?.getAttribute('data-id') ?? null
+      const nameHit = document.elementFromPoint(nr.left + nr.width / 2, nr.top + nr.height / 2)?.closest('.react-flow__node')?.getAttribute('data-id') ?? null
+      // a point on the route's LONGEST segment, 30 % along it (off the label at
+      // the middle and off every bridge): what answers the pointer there
+      let best = 0
+      for (let i = 0; i + 1 < pts.length; i++) if (Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y) > Math.hypot(pts[best + 1].x - pts[best].x, pts[best + 1].y - pts[best].y)) best = i
+      const a = toScreen(pts[best])
+      const b = toScreen(pts[best + 1])
+      const other = { x: a.x + (b.x - a.x) * 0.3, y: a.y + (b.y - a.y) * 0.3 }
+      const otherHit = document.elementFromPoint(other.x, other.y)?.closest('.react-flow__edge')?.getAttribute('data-id') ?? null
+      return { hasBridgeRun: inBridge !== null, who, nameHit, other, otherHit }
+    }, made.id)
+    expect(n1.hasBridgeRun, 'the new line has a run inside the bridge').toBe(true)
+    expect(n1.who, 'that run answers the pointer as the node').toBe('triage')
+    expect(n1.nameHit, 'the name is clear').toBe('triage')
+    expect(n1.otherHit, 'another segment of the same line answers as the line').toBe(made.id)
+    await page.mouse.click(n1.other.x, n1.other.y)
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().selectedEdgeId)).toBe(made.id)
+    await page.keyboard.press('Escape')
     // undo removes the connection
     await page.keyboard.press('Control+z')
     await expect.poll(count).toBe(n0)
@@ -327,6 +369,131 @@ test.describe('node structure — the small graph under the new node', () => {
     // the accessible name of the reached node carries the role word and, for a symbol kind, its enum word
     const label = await page.locator(`.react-flow__node[data-id="${reached}"] .nodef`).getAttribute('aria-label')
     expect(label).toBeTruthy()
+  })
+
+  // Lumi (2026-10-12): the frame's chrome yields to a node's outside name —
+  // the name and its bridge answer the pointer before the transparent EDGE
+  // strips (they select / move the frame; resizing is the corner handle, next
+  // test), the frame can still be selected and moved from the border a name
+  // does not cover, and the title chip MOVES off a name instead of covering
+  // it. Membership is the body rectangle and is not touched (F1: nothing grows
+  // by itself).
+  test("a frame's chrome yields to the outside names: the edge strips are cut around a name and its bridge, the title chip moves, the free border still answers", async ({ page }) => {
+    const tight = { x: 224, y: 148, w: 587, h: 88 }
+    // through the dev bridge's store handle (a page-side `import()` of the store
+    // module can land on a second instance once HMR has stamped the app's import URL)
+    const setTight = () => page.evaluate((r) => (window as unknown as { __loop: { frame: { getState: () => { resizeFrame: (id: string, rect: typeof r) => void } } } }).__loop.frame.getState().resizeFrame('clinic', r), tight)
+    const read = () => page.evaluate(() => {
+      const who = (x: number, y: number) => { const el = document.elementFromPoint(x, y); return el?.closest('.react-flow__node')?.getAttribute('data-id') ?? (el?.closest('.lgr-frame__label') ? 'chip' : el?.closest('.lgr-frame__edge-hit') ? 'strip' : null) }
+      const name = (id: string) => (document.querySelector(`.react-flow__node[data-id="${id}"] .nodef__name`) as HTMLElement).getBoundingClientRect()
+      const w = name('waiting'), tr = name('triage'), te = name('treated')
+      const chip = (document.querySelector('.lgr-frame__label') as HTMLElement).getBoundingClientRect()
+      const frame = (document.querySelector('.lgr-frame') as HTMLElement).getBoundingClientRect()
+      return {
+        waitingCentre: who(w.left + w.width / 2, w.top + w.height / 2),
+        triageCentre: who(tr.left + tr.width / 2, tr.top + tr.height / 2),
+        treatedOuter: who(te.right - 2, te.top + te.height / 2),
+        chipClearOfName: chip.left >= w.right || chip.right <= w.left || chip.bottom <= w.top || chip.top >= w.bottom,
+        chipLeftOfFrameRight: chip.right <= frame.right + 0.5,
+        // a point on the top border well right of Waiting room's name and bridge
+        freeTop: who(frame.right - 40, frame.top),
+        // a point on the right border above Treated today's bridge
+        freeRight: who(frame.right, frame.top + 6),
+        strips: document.querySelectorAll('.lgr-frame__edge-hit').length,
+      }
+    })
+    await openSmall(page, 'outside')
+    // the shipped frame (sized for today's taller Pool) is already cut once: Treated
+    // today's bridge and name lie on its right border (share 20 §1)
+    const before = await page.locator('.lgr-frame__edge-hit').count()
+    expect(before).toBeGreaterThanOrEqual(4)
+    await setTight()
+    await expect.poll(async () => (await read()).strips).toBeGreaterThan(before)
+    const r = await read()
+    expect(r.waitingCentre, 'the top-face name is not under the title chip').toBe('waiting')
+    expect(r.triageCentre, 'the bottom-face name is not under the bottom strip').toBe('triage')
+    expect(r.treatedOuter, 'the right-face name is not under the right strip').toBe('treated')
+    expect(r.chipClearOfName).toBe(true)
+    expect(r.chipLeftOfFrameRight).toBe(true)
+    expect(r.freeTop, 'the free part of the top border still answers').toBe('strip')
+    expect(r.freeRight, 'the free part of the right border still answers').toBe('strip')
+    // the member set did not move: still the three bodies
+    const members = await page.evaluate(async (fr) => {
+      const { rectContains } = await import('/src/components/frames/frameGeom.ts')
+      const g = (window as unknown as { __loop: Loop }).__loop.graph.getState()
+      return g.nodes.filter((n: any) => { const el = document.querySelector(`.react-flow__node[data-id="${n.id}"] .nodef`) as HTMLElement; return rectContains(fr, { x: n.position.x, y: n.position.y, w: el.offsetWidth, h: el.offsetHeight }) }).map((n: any) => n.id).sort()
+    }, tight)
+    expect(members).toEqual(['treated', 'triage', 'waiting'])
+    // today's structure: the same tight frame keeps four whole strips and the chip at home
+    await openSmall(page, 'inside')
+    await setTight()
+    await expect(page.locator('.lgr-frame__edge-hit')).toHaveCount(4)
+    const home = await page.evaluate(() => { const c = document.querySelector('.lgr-frame__label') as HTMLElement; return { left: c.style.left, inside: c.classList.contains('is-inside') } })
+    expect(home).toEqual({ left: '0px', inside: false })
+  })
+
+  // Lumi (2026-10-12): the corner case — a name across the frame's bottom-right
+  // corner, where the RESIZE HANDLE of a selected frame sits. Both must hold:
+  // the name is read and selects its node, and the frame can still be resized
+  // (the handle moves off the name; a thin strip piece is never the only way).
+  test('a name across the resize corner: the name still answers and selects its node, the handle moves and still resizes the frame', async ({ page }) => {
+    await openSmall(page, 'outside')
+    // the frame's right edge runs through the MIDDLE of Triage desk's name (below
+    // its body); the name's width depends on the font the runner has, so the
+    // edge is taken from the rendered name, not hard-coded
+    const nameMidX = await page.evaluate(() => {
+      const root = document.querySelector('.react-flow')!.getBoundingClientRect()
+      const v = (window as unknown as { __loop: Loop }).__loop.rf.getViewport()
+      const nb = (document.querySelector('.react-flow__node[data-id="triage"] .nodef__name') as HTMLElement).getBoundingClientRect()
+      return Math.round((nb.left + nb.width / 2 - root.left - v.x) / v.zoom)
+    })
+    const corner = { x: 224, y: 148, w: nameMidX - 224, h: 88 }
+    await page.evaluate((r) => (window as unknown as { __loop: { frame: { getState: () => { resizeFrame: (id: string, rect: typeof r) => void; selectFrame: (id: string) => void } } } }).__loop.frame.getState().resizeFrame('clinic', r), corner)
+    await page.evaluate(() => (window as unknown as { __loop: { frame: { getState: () => { selectFrame: (id: string) => void } } } }).__loop.frame.getState().selectFrame('clinic'))
+    const handle = page.locator('.lgr-frame__resize')
+    await expect(handle).toHaveCount(1)
+    const r = await page.evaluate(() => {
+      const name = (document.querySelector('.react-flow__node[data-id="triage"] .nodef__name') as HTMLElement).getBoundingClientRect()
+      const h = (document.querySelector('.lgr-frame__resize') as HTMLElement)
+      const hb = h.getBoundingClientRect()
+      const frame = (document.querySelector('.lgr-frame') as HTMLElement).getBoundingClientRect()
+      const at = (x: number, y: number) => document.elementFromPoint(x, y)
+      const cornerHit = at(frame.right, frame.bottom)
+      return {
+        nameCentre: at(name.left + name.width / 2, name.top + name.height / 2)?.closest('.react-flow__node')?.getAttribute('data-id') ?? null,
+        // the corner point itself lies on the name: the node answers there too
+        cornerAnswers: cornerHit?.closest('.react-flow__node')?.getAttribute('data-id') ?? cornerHit?.className ?? null,
+        debug: { name: { l: name.left, t: name.top, r: name.right, b: name.bottom }, frame: { r: frame.right, b: frame.bottom }, cornerTag: cornerHit?.tagName, cornerClass: typeof cornerHit?.className === 'string' ? cornerHit.className : null },
+        handleClearOfName: hb.right <= name.left || hb.left >= name.right || hb.bottom <= name.top || hb.top >= name.bottom,
+        handleOnBottomBorder: Math.abs((hb.top + hb.height / 2) - frame.bottom) < 1 && hb.left >= frame.left && hb.right <= frame.right + 1,
+        handlePlacement: h.getAttribute('data-placement'),
+        handleCentre: { x: hb.left + hb.width / 2, y: hb.top + hb.height / 2 },
+      }
+    })
+    expect(r.nameCentre).toBe('triage')
+    expect(r.cornerAnswers, JSON.stringify(r.debug)).toBe('triage')
+    expect(r.handleClearOfName).toBe(true)
+    expect(r.handleOnBottomBorder).toBe(true)
+    expect(r.handlePlacement).toBeNull()
+    // the moved handle still resizes the same corner: a 48 × 16 drag grows the rect (snapped to the grid)
+    const rectOf = () => page.evaluate(() => (window as unknown as { __loop: { frame: { getState: () => { frames: { id: string; rect: { x: number; y: number; w: number; h: number } }[] } } } }).__loop.frame.getState().frames.find((f) => f.id === 'clinic')!.rect)
+    await page.mouse.move(r.handleCentre.x, r.handleCentre.y)
+    await page.mouse.down()
+    await page.mouse.move(r.handleCentre.x + 20, r.handleCentre.y + 8)
+    await page.mouse.move(r.handleCentre.x + 48, r.handleCentre.y + 16, { steps: 6 })
+    await page.mouse.up()
+    const grown = await rectOf()
+    expect(grown.x).toBe(corner.x)
+    expect(grown.y).toBe(corner.y)
+    expect(grown.w).toBeGreaterThan(corner.w)
+    expect(grown.h).toBeGreaterThan(corner.h)
+    expect((grown.x + grown.w) % 16, 'the dragged corner lands on the grid').toBe(0)
+    expect((grown.y + grown.h) % 16).toBe(0)
+    await page.keyboard.press('Control+z')
+    await expect.poll(rectOf).toEqual(corner)
+    // and the name selects its node
+    await nodeName(page, 'triage').click()
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().selectedNodeId)).toBe('triage')
   })
 
   test("today's structure is untouched without the switch", async ({ page }) => {

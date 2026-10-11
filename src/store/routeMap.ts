@@ -247,6 +247,29 @@ const nameBoxOf = (n: LoopNode): Box | null => {
 }
 const nameBoxesOf = (nodes: LoopNode[]): Box[] => nodes.map(nameBoxOf).filter((b): b is Box => b !== null)
 
+/** a node's outside name, the gap between body and name (the bridge: part of
+ *  the node's hit region, nodes.tsx) AND its body, flow px — what other chrome
+ *  must yield to (the frame's edge strips, title chip and resize handle,
+ *  frames/frameChrome.ts). Empty for a node without a published name (today's
+ *  structure). Readers re-run on `useRouteInputs.rev`, which a name box change
+ *  bumps. */
+export function nameFootprintsOf(nodes: LoopNode[]): Array<{ id: string; name: Box; bridge: Box; body: Box }> {
+  const out: Array<{ id: string; name: Box; bridge: Box; body: Box }> = []
+  for (const n of nodes) {
+    if (n.hidden) continue
+    const name = nameBoxOf(n)
+    if (!name) continue
+    const b = boxOf(n)
+    let bridge: Box
+    if (name.y >= b.y + b.h) bridge = { id: 'bridge:' + n.id, x: b.x, y: b.y + b.h, w: b.w, h: name.y - (b.y + b.h) }
+    else if (name.y + name.h <= b.y) bridge = { id: 'bridge:' + n.id, x: b.x, y: name.y + name.h, w: b.w, h: b.y - (name.y + name.h) }
+    else if (name.x >= b.x + b.w) bridge = { id: 'bridge:' + n.id, x: b.x + b.w, y: b.y, w: name.x - (b.x + b.w), h: b.h }
+    else bridge = { id: 'bridge:' + n.id, x: name.x + name.w, y: b.y, w: b.x - (name.x + name.w), h: b.h }
+    out.push({ id: n.id, name, bridge, body: b })
+  }
+  return out
+}
+
 const hit = (a: Box, b: Box): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
 
 /** does the polyline enter box `b`'s interior? */

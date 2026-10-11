@@ -2756,7 +2756,13 @@ a.sheet__row {
      .lgr-frame       — the interactive chrome, in a ViewportPortal (on top):
        four thin edge hit-strips + the label chip + (when selected) a resize
        corner and a delete ✕. The frame interior has no element here, so a
-       click on it passes straight through to the node / edge / pane beneath. */
+       click on it passes straight through to the node / edge / pane beneath.
+       Node structure (frames/frameChrome.ts): under the new node an edge
+       strip (select / move) is drawn in PIECES that skip every outside name
+       and bridge lying on the border (inline left / width or top / height);
+       the label chip and the resize handle move off a name, bridge or body
+       they would cover (`data-placement="collides"` when no clear place was
+       found); without outside names nothing changes. */
 .lgr-frame-back {
   position: absolute;
   inset: 0;
@@ -2915,6 +2921,15 @@ a.sheet__row {
   /* §FC10 — the chip is a DISCLOSURE for the properties popover now, not a
      text box that opens in place. */
   cursor: pointer;
+}
+/* node structure (frames/frameChrome.ts) — a chip moved JUST INSIDE the top
+   border because a node's outside name left no room above it: the same chip,
+   hanging from the border instead of standing on it. `left` is set inline. */
+.lgr-frame__label.is-inside {
+  transform: none;
+  border-top: none;
+  border-bottom: 1px solid var(--line-hairline);
+  border-radius: 0 0 4px 4px;
 }
 /* §FC10 — while its popover is open the chip reads as pressed, so the anchor
    the panel belongs to is never ambiguous on a canvas full of frames. */
