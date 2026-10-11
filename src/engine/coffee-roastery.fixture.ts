@@ -82,7 +82,8 @@ export const P = {
   dessertSales: 16, // dessert units the day's demand absorbs
   dessertWrapPct: 55, // % of the day's leftover dessert that does not carry over
 
-  // prices / unit costs — PLANNING constants, read only by the proxy Registers
+  // prices / unit costs — PLANNING constants, read only by the proxy Registers;
+  // example dollar amounts ($ per kg / per unit / per day)
   cafeRetailPricePerKg: 30,
   onlineRevenuePerKg: 17,
   wholesaleRevenuePerKg: 9,
@@ -123,9 +124,11 @@ const pool = (
 
 // `unit` is an advisory display hint (loop-model/2 §M2): it renders as the
 // Register node's sub-line and carries no locale, so the three money proxies
-// below share one canonical `kKRW/day` string (thousand-won per day — the price
-// constants in `P` are in thousands of KRW). It does NOT make the proxy a
-// realised or accounting figure.
+// below share one canonical `$/day` string (dollars per day — the price
+// constants in `P` are example dollar amounts; rev 13, 2026-10-12: the example
+// moved from thousands of won to dollars with the SAME numbers, no exchange
+// conversion — the figures read as a small roastery's day either way). It does
+// NOT make the proxy a realised or accounting figure.
 const reg = (id: string, label: string, expr: string, at: XY, unit?: string) =>
   mkNode('register', id, label, at, unit ? { expr, unit } : { expr })
 
@@ -229,7 +232,7 @@ function buildCoffeeRoasteryAuthored(): { nodes: LoopNode[]; edges: LoopEdge[] }
         P.onlineRevenuePerKg,
       )} + @green_wholesale_kg * ${num(P.wholesaleRevenuePerKg)} + ${num(P.fixedDailyOther)}`,
       { x: rx, y: 0 },
-      'kKRW/day',
+      '$/day',
     ),
   )
   // PLANNING PROXY — the planned daily spend at the current levers. NOT a
@@ -242,7 +245,7 @@ function buildCoffeeRoasteryAuthored(): { nodes: LoopNode[]; edges: LoopEdge[] }
         P.dessertCostPerUnit,
       )} + ${num(P.fixedDailyCost)}`,
       { x: rx, y: 120 },
-      'kKRW/day',
+      '$/day',
     ),
   )
   // PLANNING PROXY — projected revenue minus planned cost. NOT accounting
@@ -253,7 +256,7 @@ function buildCoffeeRoasteryAuthored(): { nodes: LoopNode[]; edges: LoopEdge[] }
       'Projected daily operating margin',
       '@projected_revenue - @planned_cost',
       { x: rx, y: 240 },
-      'kKRW/day',
+      '$/day',
     ),
   )
   // signed PROXY — reads the LIVE roasted-stock level against a demand buffer.

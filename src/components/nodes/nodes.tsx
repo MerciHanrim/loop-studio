@@ -398,7 +398,7 @@ type FrameProps = {
   value?: string
   valueDir?: 'up' | 'down' | null
   /** loop-model/2 §M2 — an advisory display unit shown right after `value`
-   *  (space + unit, e.g. `464 kKRW/day`). Absent ⇒ the value renders exactly as
+   *  (space + unit, e.g. `464 $/day`). Absent ⇒ the value renders exactly as
    *  before. Never engine- / digest-affecting. */
   unit?: string
   selected?: boolean
@@ -1238,7 +1238,7 @@ function ParameterNode({ id, data, selected }: NodeProps) {
   const read = readParameterData(data)
   if (!read.ok) return <UnreadableModelNode id={id} kind="parameter" selected={selected} />
   const d = read.data
-  // node structure — the unit rides the value row (`464 kKRW/day`, as a
+  // node structure — the unit rides the value row (`464 $/day`, as a
   // Register's does); today's node keeps it on the detail line. The width
   // reserved it (W1), so the row shows it (Lumi's review, 2026-10-12)
   return (

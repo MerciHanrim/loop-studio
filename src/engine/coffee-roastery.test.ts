@@ -260,11 +260,12 @@ describe('coffee-roastery example', () => {
     }
   })
 
-  it('the three money proxies carry a `kKRW/day` unit and evaluate to 464 / 346.8 / 117.2 at the defaults (rev 10)', () => {
+  it('the three money proxies carry a `$/day` unit and evaluate to 464 / 346.8 / 117.2 at the defaults (rev 10, dollars since rev 13)', () => {
     // `unit` is an advisory display hint only — it does not change the value or
-    // make the proxy a realised / accounting figure (§CR3.5 / §CR8).
+    // make the proxy a realised / accounting figure (§CR3.5 / §CR8). rev 13:
+    // dollars instead of thousands of won, the same numbers.
     for (const id of ['projected_revenue', 'planned_cost', 'projected_operating_margin']) {
-      expect((byId.get(id)!.data as { unit?: string }).unit).toBe('kKRW/day')
+      expect((byId.get(id)!.data as { unit?: string }).unit).toBe('$/day')
     }
     // the two signed stock proxies stay unitless (kg / dessert-unit space)
     for (const id of ['roasted_supply_margin', 'dessert_prep_margin']) {
