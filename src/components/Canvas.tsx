@@ -43,7 +43,7 @@ import { useFrameStore, hasFrames } from '../store/frameStore'
 import { useAutoFrameStore, hasAutoFrames, autoFramesStale } from '../store/autoFrameStore'
 import { WORTH_IT_FLOOR } from './frames/autoFrames'
 import { CanvasHintNote, useHintEligible } from './HintNote'
-import { RailOrPanel } from '../ui/noticeRail'
+import { NOTICE_RAIL_ID, RailOrPanel } from '../ui/noticeRail'
 import { canvasFitInsets, viewportForRect } from './canvasFit'
 import { MinimapDock } from './MinimapDock'
 import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../store/hintStore'
@@ -363,15 +363,22 @@ export function Canvas() {
   // the armed reference moves with the shift — measured 2026-10-13: a hint
   // entering the rail between a Template swap and its fit cancelled the
   // Template's start view (the Gacha initial-load e2e).
+  // Only the RAIL's own height counts (measured 2026-10-13, the full e2e on the
+  // release tree): shifting on every move of the pane's top edge also fired
+  // when the toolbar wrapped at a narrow width, and the phone layout in
+  // between detached and re-attached the observer with a new reference, so a
+  // resize to 560 px and back left the camera 108 px off. The rail's height is
+  // read afresh on every callback, so a rebuilt rail element is no problem.
   useEffect(() => {
     if (isMobile || typeof ResizeObserver === 'undefined') return
     const pane = rfStore.getState().domNode
     if (!pane) return
-    let lastTop = pane.getBoundingClientRect().top
+    const railHeight = () => document.getElementById(NOTICE_RAIL_ID)?.getBoundingClientRect().height ?? 0
+    let lastRail = railHeight()
     const ro = new ResizeObserver(() => {
-      const top = pane.getBoundingClientRect().top
-      const d = top - lastTop
-      lastTop = top
+      const h = railHeight()
+      const d = h - lastRail
+      lastRail = h
       if (d === 0) return
       const v = getViewport()
       void setViewport({ x: v.x, y: v.y - d, zoom: v.zoom }, { duration: 0 })
