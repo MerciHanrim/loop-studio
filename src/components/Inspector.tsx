@@ -27,6 +27,7 @@ import {
 import { useGraphStore } from '../store/graphStore'
 import { useRegisterOutcome } from '../store/registers'
 import { useRouteEditStore } from '../store/routeEditStore'
+import { useSimStore } from '../store/simStore'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { AccentField } from './AccentField'
@@ -214,7 +215,7 @@ export function Inspector() {
 
         {d.kind === 'pool' && (
           // keyed per node so a half-typed draft never carries over to the next selection
-          <PoolFields key={node.id} d={d} set={set} findings={mismatches.filter((f) => f.nodeId === node.id)} />
+          <PoolFields key={node.id} id={node.id} d={d} set={set} findings={mismatches.filter((f) => f.nodeId === node.id)} />
         )}
         {d.kind === 'source' && <SourceFields d={d} set={set} />}
         {d.kind === 'drain' && <DrainFields d={d} set={set} />}
@@ -1094,15 +1095,22 @@ function NonNegativeNumberField({
 }
 
 function PoolFields({
+  id,
   d,
   set,
   findings,
 }: {
+  id: string
   d: PoolData
   set: Patch
   findings: ResourceMismatchFinding[]
 }) {
   const t = useT()
+  // the count the node SHOWS — the engine's value once a run has started, the
+  // authored starting amount before — as the node formats it (`nodes.tsx` fmt)
+  const live = useSimStore((s) => (s.values ? s.values[id] : undefined))
+  const shown = live ?? d.initial
+  const shownText = Number.isInteger(shown) ? String(shown) : shown.toFixed(2)
   return (
     <>
       <NonNegativeNumberField
@@ -1111,6 +1119,15 @@ function PoolFields({
         allowEmpty={false}
         onCommit={(n) => set({ initial: n ?? 0 })}
       />
+      {/* node structure (Lumi, 2026-10-12): the CURRENT amount, read-only and
+          apart from the authored starting amount — the whole number for the
+          keyboard and touch paths. On the canvas the row is elided when the
+          formatted count is wider than the body (nodeStructure overflow rule)
+          and its pointer tooltip is no path for those users; the Inspector of
+          the selected node, and the sheet a tap opens on the phone, is. */}
+      <Field label={t('inspector.field.currentAmount')}>
+        <input type="text" className="field__readout" readOnly value={shownText} dir="ltr" />
+      </Field>
       <NonNegativeNumberField
         label={t('inspector.field.capacity')}
         value={d.capacity}

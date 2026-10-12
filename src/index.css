@@ -4628,6 +4628,15 @@ a.sheet__row {
   background: var(--surface-raised);
   color: var(--text-primary);
 }
+/* a read-only read-out in a field (the Pool's current amount): the field's own
+   box, the number in the mono face, no editing affordance */
+.field input.field__readout {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-ground);
+  color: var(--text-secondary);
+  cursor: default;
+}
 .field input[aria-invalid='true'] {
   border-color: var(--state-warning);
 }

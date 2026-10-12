@@ -37,6 +37,7 @@ const inspector = {
   'inspector.field.activation': '激活方式',
   'inspector.node.endNote': '一旦有资源到达就结束本次运行。',
   'inspector.field.startingAmount': '初始数量',
+  'inspector.field.currentAmount': '当前数量',
   'inspector.field.capacity': '容量（留空表示不限）',
   'inspector.number.nonNegativeHint': '请输入 0 或更大的数字。',
   'inspector.field.flowMode': '流动方式',

@@ -38,6 +38,7 @@ const inspector = {
   'inspector.field.activation': 'Etkinleştirme',
   'inspector.node.endNote': 'Bir kaynak ulaştığı anda çalıştırmayı durdurur.',
   'inspector.field.startingAmount': 'Başlangıç miktarı',
+  'inspector.field.currentAmount': 'Mevcut miktar',
   'inspector.field.capacity': 'Kapasite (boş = sınırsız)',
   'inspector.number.nonNegativeHint': '0 ya da daha büyük bir sayı girin.',
   'inspector.field.flowMode': 'Akış kipi',

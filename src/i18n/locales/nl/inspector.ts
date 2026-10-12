@@ -35,6 +35,7 @@ const inspector = {
   'inspector.field.activation': 'Activering',
   'inspector.node.endNote': 'Stopt de run op het moment dat een middel hier aankomt.',
   'inspector.field.startingAmount': 'Beginhoeveelheid',
+  'inspector.field.currentAmount': 'Huidige hoeveelheid',
   'inspector.field.capacity': 'Capaciteit (leeg = onbeperkt)',
   'inspector.number.nonNegativeHint': 'Voer een getal in dat 0 of groter is.',
   'inspector.field.flowMode': 'Stroommodus',

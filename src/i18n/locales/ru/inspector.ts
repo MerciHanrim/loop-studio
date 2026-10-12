@@ -47,6 +47,7 @@ const inspector = {
   'inspector.field.activation': 'Активация',
   'inspector.node.endNote': 'Останавливает выполнение в тот момент, когда до него доходит ресурс.',
   'inspector.field.startingAmount': 'Начальное количество',
+  'inspector.field.currentAmount': 'Текущее количество',
   'inspector.field.capacity': 'Ёмкость (пусто = без ограничения)',
   'inspector.number.nonNegativeHint': 'Введите число 0 или больше.',
   'inspector.field.flowMode': 'Режим потока',

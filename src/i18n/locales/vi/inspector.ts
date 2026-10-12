@@ -41,6 +41,7 @@ const inspector = {
   'inspector.field.activation': 'Kiểu kích hoạt',
   'inspector.node.endNote': 'Dừng lần chạy ngay khi có tài nguyên tới nơi.',
   'inspector.field.startingAmount': 'Lượng ban đầu',
+  'inspector.field.currentAmount': 'Lượng hiện tại',
   'inspector.field.capacity': 'Sức chứa (để trống = không giới hạn)',
   'inspector.number.nonNegativeHint': 'Nhập một số từ 0 trở lên.',
   'inspector.field.flowMode': 'Chế độ dòng chảy',
