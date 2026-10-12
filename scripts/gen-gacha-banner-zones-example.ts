@@ -11,7 +11,7 @@
 // whole placed for the grid by `placeTemplate`. That code is in the history
 // of this file (`git log -- scripts/gen-gacha-banner-zones-example.ts`).
 //
-// Layout round 10 — the node structure (2026-10-13; share
+// Layout round 10 — the node structure (2026-10-12; share
 // scratch/share/connection-editing-2/24-default-switch-verification.md §9–§10).
 // Under the new node (a compact body with the name OUTSIDE it, four-side
 // ports) the band layout lost four connections to one shared corridor in the
@@ -33,7 +33,7 @@
 // (body ∪ name, 18-language maxima, src/model/layout/templateBoxes.json); the
 // comparison row sits ABOVE the zones in this layout. No waypoints: the
 // guarded router routes every connection from its faces. The old coordinates
-// are not a goal (Lumi, 2026-10-13); the four-connection reach regression is
+// are not a goal (Lumi, 2026-10-12); the four-connection reach regression is
 // re-verified with real clicks on the shipped file.
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'

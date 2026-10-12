@@ -838,7 +838,7 @@ test.describe('3-zone gacha banner comparison Template', () => {
     expect(label).toBe('ピックアップ的中') // no zone suffix — the frame title gives that context
   })
 
-  // Node structure, layout round 10 (Lumi, 2026-10-13): a connection's LABEL
+  // Node structure, layout round 10 (Lumi, 2026-10-12): a connection's LABEL
   // beats another connection's line. `e_pickup_29`'s chip sits where
   // `e_pickup_35`'s route runs under it; the chip takes no pointer of its own
   // (§LGR4.1), so before the fix a real click on the chip selected the line

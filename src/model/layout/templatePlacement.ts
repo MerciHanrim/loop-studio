@@ -50,9 +50,9 @@ type Doc<F extends FrameLike> = { nodes: LoopNode[]; edges: LoopEdge[]; frames?:
 export const TEMPLATE_GAPS: Partial<Record<TemplateName, { x: number; y: number }>> = {
   'coffee-roastery': { x: 0, y: 0 },
   // Gacha, re-placed from the design study's layout under the node structure
-  // (2026-10-13): the study's own spacing already keeps bodies, names and labels
+  // (2026-10-12): the study's own spacing already keeps bodies, names and labels
   // apart in 18 languages; with the default clearance the pipeline moved every
-  // one of its 63 nodes (up to 912 px). Adopted by Lumi (2026-10-13) as this
+  // one of its 63 nodes (up to 912 px). Adopted by Lumi (2026-10-12) as this
   // example's explicit placement value, like Coffee's — not a general rule
   // (share 24-default-switch-verification.md §10).
   'gacha-banner-zones': { x: 0, y: 0 },

@@ -39,14 +39,14 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
-    // the node structure (share connection-editing-2, 2026-10-13) - the compact
+    // the node structure (share connection-editing-2, 2026-10-12) - the compact
     // node with its name outside, four-side ports (with the older-version
     // compatibility note), the notice rail, the Pool's current amount and the
     // re-placed Coffee / Gacha Templates; the date is the day it is deployed,
     // set right before the merge
     id: 'release:0.26.0',
     version: '0.26.0',
-    date: '2026-10-13',
+    date: '2026-10-12',
     items: [
       'whatsNew.v0260.node',
       'whatsNew.v0260.ports',

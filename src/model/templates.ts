@@ -210,14 +210,14 @@ export const TEMPLATES: Template[] = [
     // zone 0-950 x 0-810).
     // issue #344 step 4 (§DL5.5) — the comparison frame + the Free zone frame
     // at their placed coordinates, 40 px margin: { x: -40, y: -56, width: 2080, height: 1136 }.
-    // Node structure (2026-10-13, layout round 10 of the generator): the zones
+    // Node structure (2026-10-12, layout round 10 of the generator): the zones
     // are stacked as blocks — the comparison row (with the termination nodes)
     // on top, Free and Standard under it, Pickup below. The start keeps the
     // same idea: the comparison frame + the Free zone frame at their placed
     // coordinates (-32, -16, 1568 × 208 and -32, 256, 1408 × 896) plus a 40 px
     // margin — the headline numbers and one legible zone; Standard one pan to
     // the right, Pickup one pan down. Whole view (≈ 0.25 at 1280 × 800) and
-    // start screen are judged apart; adopted by Lumi (2026-10-13).
+    // start screen are judged apart; adopted by Lumi (2026-10-12).
     initialView: { rect: { x: -72, y: -56, width: 1648, height: 1248 }, minZoom: 0.45 },
   },
 ]

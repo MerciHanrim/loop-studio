@@ -360,10 +360,10 @@ export function Canvas() {
   // Measured before this: a 39 px jump broke the hit-test and frame-drag e2e.
   // The shift is not a user's pan: a swap armed above compares the viewport
   // with the one it saw at arming to tell a pan from an untouched camera, so
-  // the armed reference moves with the shift — measured 2026-10-13: a hint
+  // the armed reference moves with the shift — measured 2026-10-12: a hint
   // entering the rail between a Template swap and its fit cancelled the
   // Template's start view (the Gacha initial-load e2e).
-  // Only the RAIL's own height counts (measured 2026-10-13, the full e2e on the
+  // Only the RAIL's own height counts (measured 2026-10-12, the full e2e on the
   // release tree): shifting on every move of the pane's top edge also fired
   // when the toolbar wrapped at a narrow width, and the phone layout in
   // between detached and re-attached the observer with a new reference, so a
@@ -781,7 +781,7 @@ export function Canvas() {
     },
     [screenToFlowPosition, insertBend],
   )
-  // A connection's LABEL beats another connection's line (Lumi, 2026-10-13).
+  // A connection's LABEL beats another connection's line (Lumi, 2026-10-12).
   // The label chip takes no pointer of its own (§LGR4.1: a chip drawn over a
   // node must not swallow the node's click — nodes still win, they sit above
   // the lines), so a click on a chip lands on whatever line runs under it,
