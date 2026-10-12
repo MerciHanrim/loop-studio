@@ -116,12 +116,15 @@ export const TEMPLATES: Template[] = [
     recommendedRunConfig: (coffeeRoasteryDoc as { recommendedRunConfig?: RecommendedRunConfig })
       .recommendedRunConfig,
     modelVersion: modelVersionForSchema((coffeeRoasteryDoc as { schema?: unknown }).schema) ?? 1,
-    // issue #344 step 5 (docs/diagram-layout.md §DL5.5) — the operating flow
-    // first: the five daily levers, the supply and the roasting & sales frames,
-    // sized so a 1280 x 800 window opens at about 0.5 (L1 with room, never at
-    // the 0.45 edge); the forecast metrics may start off screen (Reset view and
-    // the minimap show the whole graph)
-    initialView: { rect: { x: 8, y: -12, width: 1344, height: 912 }, minZoom: 0.46 },
+    // issue #344 step 5 (docs/diagram-layout.md §DL5.5), re-placed for the node
+    // structure (2026-10-12, share 23-coffee-replace.md): the START SCREEN is
+    // the work flow — the four bean levers, the Supply and the Roasting & sales
+    // zones and the dessert lever under them, with room for the left tool
+    // column; a 1280 x 800 window opens at about 0.71 (level 1 with room, never
+    // at the 0.45 edge). The Forecast metrics column is one pan to the right;
+    // the whole view (Reset view, the minimap) shows all three zones at about
+    // 0.52 there.
+    initialView: { rect: { x: -64, y: -40, width: 1344, height: 864 }, minZoom: 0.46 },
   },
   // The "Early MMO progression (levels 1–15)" demo — a connected play economy.
   // The canonical graph is examples/mmo-progression.json (built + verified by
@@ -206,7 +209,15 @@ export const TEMPLATES: Template[] = [
     // Fixed graph coords, no locale branch (comparison row 0-1720 + Free
     // zone 0-950 x 0-810).
     // issue #344 step 4 (§DL5.5) — the comparison frame + the Free zone frame
-    // at their placed coordinates, 40 px margin
-    initialView: { rect: { x: -40, y: -56, width: 2080, height: 1136 }, minZoom: 0.45 },
+    // at their placed coordinates, 40 px margin: { x: -40, y: -56, width: 2080, height: 1136 }.
+    // Node structure (2026-10-12, layout round 10 of the generator): the zones
+    // are stacked as blocks — the comparison row (with the termination nodes)
+    // on top, Free and Standard under it, Pickup below. The start keeps the
+    // same idea: the comparison frame + the Free zone frame at their placed
+    // coordinates (-32, -16, 1568 × 208 and -32, 256, 1408 × 896) plus a 40 px
+    // margin — the headline numbers and one legible zone; Standard one pan to
+    // the right, Pickup one pan down. Whole view (≈ 0.25 at 1280 × 800) and
+    // start screen are judged apart; adopted by Lumi (2026-10-12).
+    initialView: { rect: { x: -72, y: -56, width: 1648, height: 1248 }, minZoom: 0.45 },
   },
 ]

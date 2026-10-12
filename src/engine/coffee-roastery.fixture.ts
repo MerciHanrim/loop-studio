@@ -1,5 +1,5 @@
 import { defaultData } from '../model/factory'
-import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
+import type { EdgePorts, LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { withTemplateFlowColours, type TemplateFlows } from './templateFlowColours'
 import { placeTemplate } from '../model/layout/templatePlacement'
 
@@ -82,7 +82,8 @@ export const P = {
   dessertSales: 16, // dessert units the day's demand absorbs
   dessertWrapPct: 55, // % of the day's leftover dessert that does not carry over
 
-  // prices / unit costs — PLANNING constants, read only by the proxy Registers
+  // prices / unit costs — PLANNING constants, read only by the proxy Registers;
+  // example dollar amounts ($ per kg / per unit / per day)
   cafeRetailPricePerKg: 30,
   onlineRevenuePerKg: 17,
   wholesaleRevenuePerKg: 9,
@@ -123,20 +124,24 @@ const pool = (
 
 // `unit` is an advisory display hint (loop-model/2 §M2): it renders as the
 // Register node's sub-line and carries no locale, so the three money proxies
-// below share one canonical `kKRW/day` string (thousand-won per day — the price
-// constants in `P` are in thousands of KRW). It does NOT make the proxy a
-// realised or accounting figure.
+// below share one canonical `$/day` string (dollars per day — the price
+// constants in `P` are example dollar amounts; rev 13, 2026-10-12: the example
+// moved from thousands of won to dollars with the SAME numbers, no exchange
+// conversion — the figures read as a small roastery's day either way). It does
+// NOT make the proxy a realised or accounting figure.
 const reg = (id: string, label: string, expr: string, at: XY, unit?: string) =>
   mkNode('register', id, label, at, unit ? { expr, unit } : { expr })
 
-const res = (id: string, source: string, target: string, flow: string): LoopEdge => ({
+// `ports` — the node structure's port faces (SEMANTICS-R11.md): only where a
+// connection leaves or arrives at a non-default side; absent = right → left.
+const res = (id: string, source: string, target: string, flow: string, ports?: EdgePorts): LoopEdge => ({
   id,
   source,
   target,
   sourceHandle: 'out',
   targetHandle: 'in',
   type: 'loop',
-  data: { kind: 'resource', flow },
+  data: { kind: 'resource', flow, ...(ports ? { ports } : {}) },
 })
 
 const num = (n: number) => String(n)
@@ -149,16 +154,16 @@ function buildCoffeeRoasteryAuthored(): { nodes: LoopNode[]; edges: LoopEdge[] }
   const E = (e: LoopEdge) => (edges.push(e), e)
 
   // ── the five surfaced levers — one clear row along the top (§CR6) ──────────
-  N(param('cafe_retail_demand_kg', 'Cafe & retail bean demand (kg/day)', { x: 40, y: 0 }, P.cafeRetailDemandKg))
-  N(param('daily_roast_kg', 'Daily roast amount (kg)', { x: 320, y: 0 }, P.dailyRoastKg))
-  N(param('online_orders', 'Online bean orders (kg/day)', { x: 600, y: 0 }, P.onlineOrders))
-  N(param('green_wholesale_kg', 'Green wholesale orders (kg)', { x: 880, y: 0 }, P.greenWholesaleKg))
-  N(param('dessert_prep', 'Daily dessert prep', { x: 1160, y: 0 }, P.dessertPrep))
+  N(param('cafe_retail_demand_kg', 'Cafe & retail bean demand (kg/day)', { x: 912, y: -28 }, P.cafeRetailDemandKg))
+  N(param('daily_roast_kg', 'Daily roast amount (kg)', { x: 464, y: -28 }, P.dailyRoastKg))
+  N(param('online_orders', 'Online bean orders (kg/day)', { x: 1072, y: -28 }, P.onlineOrders))
+  N(param('green_wholesale_kg', 'Green wholesale orders (kg)', { x: 240, y: -28 }, P.greenWholesaleKg))
+  N(param('dessert_prep', 'Daily dessert prep', { x: 48, y: 724 }, P.dessertPrep))
 
   // ── green side: delivery → green stock, split between wholesale and roasting ─
-  N(mkNode('source', 'green_delivery', 'Green bean delivery', { x: 40, y: 200 }))
+  N(mkNode('source', 'green_delivery', 'Green bean delivery', { x: 48, y: 196 }))
   N(
-    pool('green_stock', 'Green bean stock', { x: 300, y: 200 }, {
+    pool('green_stock', 'Green bean stock', { x: 208, y: 196 }, {
       initial: P.greenStart,
       capacity: P.greenCap,
     }),
@@ -169,42 +174,42 @@ function buildCoffeeRoasteryAuthored(): { nodes: LoopNode[]; edges: LoopEdge[] }
   // before `roasting`, so on a short-green day the wholesale contract is filled
   // first and the roaster takes what is left — the two genuinely compete for the
   // SAME green pool (§CR9.1 #2).
-  N(mkNode('drain', 'green_wholesale', 'Green wholesale', { x: 300, y: 360 }))
-  E(res('e_green_wholesale', 'green_stock', 'green_wholesale', '@green_wholesale_kg'))
+  N(mkNode('drain', 'green_wholesale', 'Green wholesale', { x: 336, y: 324 }))
+  E(res('e_green_wholesale', 'green_stock', 'green_wholesale', '@green_wholesale_kg', { source: 'bottom', target: 'top' })) // leaves the stock's bottom, enters the drain's top: a straight drop (the new ports)
 
   // roasting — a deterministic Gate metered by lever #2 (§CR6.1 #2). ONE input
   // edge carries `@daily_roast_kg`; two fixed weights conserve mass 82 : 18.
   N(
-    mkNode('gate', 'roasting', 'Roasting · 82% yield', { x: 540, y: 200 }, {
+    mkNode('gate', 'roasting', 'Roasting · 82% yield', { x: 528, y: 196 }, {
       distribution: 'deterministic',
     }),
   )
-  N(pool('roasted_stock', 'Roasted bean stock', { x: 780, y: 200 }, { initial: P.roastedStart }))
-  N(mkNode('drain', 'roast_loss', 'Roasting weight loss', { x: 540, y: 360 }))
+  N(pool('roasted_stock', 'Roasted bean stock', { x: 752, y: 196 }, { initial: P.roastedStart }))
+  N(mkNode('drain', 'roast_loss', 'Roasting weight loss', { x: 640, y: 324 }))
   E(res('e_green_roast', 'green_stock', 'roasting', '@daily_roast_kg'))
   E(res('e_roast_yield', 'roasting', 'roasted_stock', num(P.roastYieldPct)))
   E(res('e_roast_loss', 'roasting', 'roast_loss', num(P.roastLossPct)))
 
   // ── roasted-bean sales ────────────────────────────────────────────────────
   // online bagged beans — a Drain metered by lever #3 (§CR6.1 #3)
-  N(mkNode('drain', 'online_sales', 'Online bagged-bean sales', { x: 1020, y: 160 }))
+  N(mkNode('drain', 'online_sales', 'Online bagged-bean sales', { x: 1008, y: 324 }))
   E(res('e_online', 'roasted_stock', 'online_sales', '@online_orders'))
   // cafe drinks + retail bags — a Drain metered by lever #1 (§CR6.1 #1). This is
   // the demand the cafe counter + retail shelf actually pull off roasted stock
   // each day, so raising it draws roasted stock down (§CR9.1 #1).
-  N(mkNode('drain', 'cafe_retail', 'Cafe & retail bean use', { x: 780, y: 360 }))
+  N(mkNode('drain', 'cafe_retail', 'Cafe & retail bean use', { x: 1008, y: 196 }))
   E(res('e_cafe_retail', 'roasted_stock', 'cafe_retail', '@cafe_retail_demand_kg'))
   // staff coffee / cupping / sampling — a small draw that scales with what is on
   // the shelf, so roasted stock settles to a level instead of running away.
-  N(mkNode('drain', 'roasted_bleed', 'Staff, cupping & sampling', { x: 1020, y: 300 }))
+  N(mkNode('drain', 'roasted_bleed', 'Staff, cupping & sampling', { x: 1008, y: 452 }))
   E(res('e_roasted_bleed', 'roasted_stock', 'roasted_bleed', `${num(P.roastedBleedPct)}%`))
 
   // ── dessert: lever #5 preps into the dessert pool; sales are demand-bounded,
   // most of the day's leftover does not carry over (§CR3.4). ────────────────
-  N(mkNode('source', 'dessert_prep_src', 'Dessert prep', { x: 40, y: 520 }))
-  N(pool('dessert_stock', 'Dessert stock', { x: 300, y: 520 }))
-  N(mkNode('drain', 'dessert_sales', 'Dessert sales', { x: 540, y: 520 }))
-  N(mkNode('drain', 'dessert_wrapup', 'End-of-day leftover', { x: 540, y: 660 }))
+  N(mkNode('source', 'dessert_prep_src', 'Dessert prep', { x: 48, y: 516 }))
+  N(pool('dessert_stock', 'Dessert stock', { x: 240, y: 516 }))
+  N(mkNode('drain', 'dessert_sales', 'Dessert sales', { x: 528, y: 452 }))
+  N(mkNode('drain', 'dessert_wrapup', 'End-of-day leftover', { x: 528, y: 580 }))
   E(res('e_dessert_in', 'dessert_prep_src', 'dessert_stock', '@dessert_prep'))
   E(res('e_dessert_sales', 'dessert_stock', 'dessert_sales', num(P.dessertSales)))
   // `dessert_sales` sorts before `dessert_wrapup` (id order), so the day's
@@ -218,7 +223,7 @@ function buildCoffeeRoasteryAuthored(): { nodes: LoopNode[]; edges: LoopEdge[] }
   // column sits inside `zone_forecast` with a 24 px margin. Registers have no
   // ports / edges, so the move is purely visual (no engine / value / wiring
   // effect). Pinned by coffee-roastery.test.ts + coffee-zone-frames.spec.ts.
-  const rx = 1400
+  const rx = 1264
   // PLANNING PROXY — projected on the ordered / planned levers, assumes all
   // demand is met. NOT realised revenue (§CR3.5 / §CR8).
   N(
@@ -228,8 +233,8 @@ function buildCoffeeRoasteryAuthored(): { nodes: LoopNode[]; edges: LoopEdge[] }
       `@cafe_retail_demand_kg * ${num(P.cafeRetailPricePerKg)} + @online_orders * ${num(
         P.onlineRevenuePerKg,
       )} + @green_wholesale_kg * ${num(P.wholesaleRevenuePerKg)} + ${num(P.fixedDailyOther)}`,
-      { x: rx, y: 0 },
-      'kKRW/day',
+      { x: rx, y: 36 },
+      '$/day',
     ),
   )
   // PLANNING PROXY — the planned daily spend at the current levers. NOT a
@@ -241,8 +246,8 @@ function buildCoffeeRoasteryAuthored(): { nodes: LoopNode[]; edges: LoopEdge[] }
       `(@daily_roast_kg + @green_wholesale_kg) * ${num(P.greenCostPerKg)} + @dessert_prep * ${num(
         P.dessertCostPerUnit,
       )} + ${num(P.fixedDailyCost)}`,
-      { x: rx, y: 120 },
-      'kKRW/day',
+      { x: rx, y: 196 },
+      '$/day',
     ),
   )
   // PLANNING PROXY — projected revenue minus planned cost. NOT accounting
@@ -252,8 +257,8 @@ function buildCoffeeRoasteryAuthored(): { nodes: LoopNode[]; edges: LoopEdge[] }
       'projected_operating_margin',
       'Projected daily operating margin',
       '@projected_revenue - @planned_cost',
-      { x: rx, y: 240 },
-      'kKRW/day',
+      { x: rx, y: 324 },
+      '$/day',
     ),
   )
   // signed PROXY — reads the LIVE roasted-stock level against a demand buffer.
@@ -263,7 +268,7 @@ function buildCoffeeRoasteryAuthored(): { nodes: LoopNode[]; edges: LoopEdge[] }
       'roasted_supply_margin',
       'Roasted supply margin',
       `@roasted_stock - (@cafe_retail_demand_kg + @online_orders) * ${num(P.roastedCoverDays)}`,
-      { x: rx, y: 360 },
+      { x: rx, y: 452 },
     ),
   )
   // signed PROXY — `+` = prepared more than the day sold (leftover) · `−` = demand
@@ -273,7 +278,7 @@ function buildCoffeeRoasteryAuthored(): { nodes: LoopNode[]; edges: LoopEdge[] }
       'dessert_prep_margin',
       'Dessert prep margin',
       `@dessert_prep - ${num(P.dessertSales)}`,
-      { x: rx, y: 480 },
+      { x: rx, y: 580 },
     ),
   )
 
@@ -318,21 +323,23 @@ export const COFFEE_ROASTERY_MC = {
 // (the Register column was moved +80 px for exactly this clearance). Frame gaps:
 // 27 px (1→2), 141 px (2→3); overlap: 0. Titles are EN canonical; the label
 // overlay localises them (§TLO12).
+// Node structure re-placement (2026-10-12, share 23-coffee-replace.md, candidate
+// A adopted by Lumi): the two flow zones share one top (52 px above the main
+// row, room for a two-line name on a TOP face) and one bottom; the Forecast
+// zone starts at the lever row and ends on the same bottom.
 const COFFEE_ROASTERY_AUTHORED_FRAMES = [
-  { id: 'zone_supply', label: 'Supply & inventory', rect: { x: 16, y: 176, w: 473, h: 432 } },
-  { id: 'zone_roasting', label: 'Roasting & sales', rect: { x: 516, y: 136, w: 719, h: 612 } },
-  // bottom extended +20 (614 → 634) after the node-shell height fix
-  // (docs/node-shell-content-in-vessel.md): a Register now renders at its true
-  // content height, so the JA 2-line-title `dessert_prep_margin` grew ~16px and
-  // needed the frame to keep its ≥24 px bottom margin (§CR17). Top / left /
-  // right and the other two zones are unchanged.
-  { id: 'zone_forecast', label: 'Forecast metrics', rect: { x: 1376, y: -24, w: 308, h: 634 } },
+  { id: 'zone_supply', label: 'Supply & inventory', rect: { x: 16, y: 112, w: 448, h: 608 } }, // top: 24 px over the stock's top-face name AND 17 px of chip over a three-line lever name; bottom shared
+  { id: 'zone_roasting', label: 'Roasting & sales', rect: { x: 496, y: 112, w: 720, h: 608 } },
+  { id: 'zone_forecast', label: 'Forecast metrics', rect: { x: 1232, y: -28, w: 304, h: 748 } },
 ] as const
 
 // issue #344 step 4 (docs/diagram-layout.md §DL5) — the authored graph and
 // frames above, placed for the grid: widest boxes over 18 languages,
 // clearance, frames that travel with their nodes (≥ 24 px margin, §CR17),
 // every connection Auto orthogonal. What ships is this.
+// Node structure (2026-10-12): the boxes are body AND outside name (up to 150
+// wide, two or three lines tall), measured over 18 languages; the clearance
+// between them is this Template's own (`TEMPLATE_GAPS`, templatePlacement.ts).
 const PLACED = placeTemplate('coffee-roastery', {
   ...buildCoffeeRoasteryAuthored(),
   frames: COFFEE_ROASTERY_AUTHORED_FRAMES.map((f) => ({ id: f.id, label: f.label, rect: { ...f.rect } })),

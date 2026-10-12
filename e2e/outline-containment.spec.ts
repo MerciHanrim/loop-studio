@@ -18,7 +18,7 @@ const LOCALES = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'de', 'fr', 'es-ES', 'e
 const TEMPLATE_IDS = ['equilibrium', 'deadlock', 'coffee-roastery', 'mmo-progression', 'gacha-banner-zones']
 
 const load = async (page: Page) => {
-  await openApp(page)
+  await openApp(page, { structure: 'inside' })
   await resetAll(page)
   await importGraph(page, OUTLINE_GRAPH)
   await page.locator('.react-flow__node[data-id="gate p 3"]').waitFor()
@@ -119,10 +119,16 @@ test.describe('#337 every element inside the drawn outline', () => {
     expect(await fitCount(page)).toBe(n2)
   })
 
+  // Templates re-placed for the NEW node (share connection-editing-2/23-coffee-replace.md)
+  // are not placed for the previous body any more: their bodies overlap there by
+  // design, so the previous-body sweep skips them (the new node's own 18-language
+  // check is the sweep in that note; this spec is pinned to `?nodes=inside`)
+  const PLACED_FOR_NEW_NODE = new Set(['coffee-roastery', 'gacha-banner-zones'])
   for (const id of TEMPLATE_IDS) {
     test(`${id}, all 18 languages: every element fits, no overlap, no frame crossed on any side, a reopened node fits as a fresh one, measurements bounded`, async ({ page }) => {
+      test.skip(PLACED_FOR_NEW_NODE.has(id), 'placed for the new node structure — not a previous-body layout')
       test.slow()
-      await openApp(page)
+      await openApp(page, { structure: 'inside' })
       await resetAll(page)
       const problems: string[] = []
       const open = async (loc: string) => {

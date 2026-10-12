@@ -1,5 +1,8 @@
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+// this spec is ABOUT the canvas hint notes (or needs one to appear): the shared
+// fixture's "every canvas hint already seen" seed is turned off here
+test.use({ hintsSeen: false })
 
 // docs/localization.md §L9.3 — the canvas content direction contract.
 //
@@ -168,16 +171,16 @@ test.describe('§L9.3 — user text takes its own direction inside the ltr-pinne
     // English interface: the Arabic label already reads rtl, because `auto`
     // never asked the interface
     await expectChromeMirrored(page, false)
-    expect(await attrOf(page, `${N('feed')} .nodef__title`)).toBe('auto')
-    expect(await dirOf(page, `${N('feed')} .nodef__title`)).toBe('rtl')
-    expect(await dirOf(page, `${N('tank')} .nodef__title`)).toBe('ltr')
+    expect(await attrOf(page, `${N('feed')} .nodef__name`)).toBe('auto')
+    expect(await dirOf(page, `${N('feed')} .nodef__name`)).toBe('rtl')
+    expect(await dirOf(page, `${N('tank')} .nodef__name`)).toBe('ltr')
 
     // Arabic interface: neither label moves. The Latin one staying ltr is the
     // half that inheritance would have got wrong.
     await switchLocale(page, 'ar-XB')
     await expectChromeMirrored(page, true)
-    expect(await dirOf(page, `${N('feed')} .nodef__title`)).toBe('rtl')
-    expect(await dirOf(page, `${N('tank')} .nodef__title`)).toBe('ltr')
+    expect(await dirOf(page, `${N('feed')} .nodef__name`)).toBe('rtl')
+    expect(await dirOf(page, `${N('tank')} .nodef__name`)).toBe('ltr')
   })
 
   test('a frame chip: the user name takes its own direction, the localized default takes the reader’s', async ({
@@ -263,16 +266,23 @@ test.describe('§L9.3 — engine tokens stay in author order', () => {
     await expectChromeMirrored(page, true)
 
     expect(await attrOf(page, `${N('tank')} .nodef__value`)).toBe('ltr')
-    expect(await attrOf(page, `${N('tank')} .nodef__sub`)).toBe('ltr')
     expect(await attrOf(page, `${N('reg')} .nodef__value`)).toBe('ltr')
-    expect(await attrOf(page, `${N('reg')} .nodef__sub`)).toBe('ltr')
+    // the engine sub-line exists in the previous body only (the new node's body
+    // holds the value row alone, the unit beside the value); where it exists it
+    // declares ltr like the value
+    for (const id of ['tank', 'reg']) {
+      if (await page.locator(`${N(id)} .nodef__sub`).count()) expect(await attrOf(page, `${N(id)} .nodef__sub`)).toBe('ltr')
+    }
     // the same element on a different caller declares the opposite, which is
     // the proof that the direction travels with the VALUE and not the class
-    expect(await attrOf(page, `${N('param')} .nodef__sub`)).toBe('auto')
-    expect(await dirOf(page, `${N('param')} .nodef__sub`)).toBe('rtl')
-    // and the text really is the engine's, not an empty box
-    await expect(page.locator(`${N('tank')} .nodef__sub`)).toHaveText('≤ 8')
-    await expect(page.locator(`${N('reg')} .nodef__sub`)).toHaveText('= 1 + 1')
+    // the user's unit: the previous body's sub-line, or the new node's unit beside the value
+    const unitSel = `${N('param')} .nodef__sub, ${N('param')} .nodef__unit`
+    expect(await attrOf(page, unitSel)).toBe('auto')
+    expect(await dirOf(page, unitSel)).toBe('rtl')
+    // and the text really is the engine's, not an empty box (the previous body's
+    // detail line; the new node shows the capacity in the value row instead)
+    if (await page.locator(`${N('tank')} .nodef__sub`).count()) await expect(page.locator(`${N('tank')} .nodef__sub`)).toHaveText('≤ 8')
+    if (await page.locator(`${N('reg')} .nodef__sub`).count()) await expect(page.locator(`${N('reg')} .nodef__sub`)).toHaveText('= 1 + 1')
   })
 
   test('a pinned value keeps the number ahead of its unit under a surrounding rtl', async ({ page }) => {
@@ -393,20 +403,22 @@ test.describe('§L9.3 — catalog prose follows the reader', () => {
     await openApp(page)
     await resetAll(page)
     await importGraph(page, UNREADABLE)
-    await expect(page.locator(`${N('bad')} .nodef__title`)).toContainText(/unreadable/i)
+    await expect(page.locator(`${N('bad')} .nodef__name`)).toContainText(/unreadable/i)
 
     // English interface first: Latin text either way, so this half only shows
     // the element exists and reads ltr
-    expect(await dirOf(page, `${N('bad')} .nodef__title`)).toBe('ltr')
+    expect(await dirOf(page, `${N('bad')} .nodef__name`)).toBe('ltr')
 
     await switchLocale(page, 'ar-XB')
     await expectChromeMirrored(page, true)
     // the catalogue is still English here, so `auto` would have stayed ltr.
     // These two only read rtl because the component asked the app's resolver.
-    expect(await attrOf(page, `${N('bad')} .nodef__title`)).toBe('rtl')
-    expect(await dirOf(page, `${N('bad')} .nodef__title`)).toBe('rtl')
-    expect(await attrOf(page, `${N('bad')} .nodef__sub`)).toBe('rtl')
-    expect(await dirOf(page, `${N('bad')} .nodef__sub`)).toBe('rtl')
+    expect(await attrOf(page, `${N('bad')} .nodef__name`)).toBe('rtl')
+    expect(await dirOf(page, `${N('bad')} .nodef__name`)).toBe('rtl')
+    if (await page.locator(`${N('bad')} .nodef__sub`).count()) {
+      expect(await attrOf(page, `${N('bad')} .nodef__sub`)).toBe('rtl')
+      expect(await dirOf(page, `${N('bad')} .nodef__sub`)).toBe('rtl')
+    }
   })
 
   test('the filter panel’s own copy mirrors, row labels aside', async ({ page }) => {
@@ -482,12 +494,13 @@ test.describe('§L9.3 — en → ar-XB → en recovers exactly', () => {
     await expect(page.locator('.edge-label[data-edge-id="m2"] .edge-label__clamp')).toBeVisible()
 
     const SURFACES = {
-      userLabelArabic: `${N('feed')} .nodef__title`,
-      userLabelLatin: `${N('tank')} .nodef__title`,
+      userLabelArabic: `${N('feed')} .nodef__name`,
+      userLabelLatin: `${N('tank')} .nodef__name`,
       engineValue: `${N('tank')} .nodef__value`,
-      engineSub: `${N('tank')} .nodef__sub`,
+      // the previous body's sub-line, or the new node's unit beside the value
+      engineSub: `${N('tank')} .nodef__sub, ${N('tank')} .nodef__unit`,
       registerValue: `${N('reg')} .nodef__value`,
-      userUnit: `${N('param')} .nodef__sub`,
+      userUnit: `${N('param')} .nodef__sub, ${N('param')} .nodef__unit`,
       edgeDelta: '.edge-label[data-edge-id="m1"] .edge-label__delta',
       clampProse: '.edge-label[data-edge-id="m2"] .edge-label__clamp',
       clampNumber: '.edge-label[data-edge-id="m2"] .edge-label__clamp span',
@@ -509,6 +522,9 @@ test.describe('§L9.3 — en → ar-XB → en recovers exactly', () => {
 
     const enDirs = await dirMap(page, SURFACES)
     const enDoc = await doc()
+    // the Pool's engine sub-line exists in the previous body only; the new node
+    // shows its capacity in the value row, so that surface is absent (null)
+    const hasEngineSub = (await page.locator(SURFACES.engineSub).count()) > 0
 
     // the English baseline: the only rtl surface is the one whose VALUE is
     // Arabic, which is what `auto` is for
@@ -516,7 +532,7 @@ test.describe('§L9.3 — en → ar-XB → en recovers exactly', () => {
       userLabelArabic: 'rtl',
       userLabelLatin: 'ltr',
       engineValue: 'ltr',
-      engineSub: 'ltr',
+      engineSub: hasEngineSub ? 'ltr' : null,
       registerValue: 'ltr',
       userUnit: 'rtl',
       edgeDelta: 'ltr',

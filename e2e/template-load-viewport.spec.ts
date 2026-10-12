@@ -25,7 +25,7 @@ const COFFEE_EN = 'Coffee roastery operations flow'
 const MMO_EN = 'Early MMO progression (levels 1–15)'
 const GACHA_EN = '3-zone gacha banner comparison'
 // the extreme left / right nodes of each graph — both must land on screen
-const COFFEE_L = 'cafe_retail_demand_kg'
+const COFFEE_L = 'green_wholesale_kg' // the left-most lever since the re-placement (share 23-coffee-replace.md)
 const COFFEE_R = 'projected_operating_margin'
 const MMO_L = 'char_creation'
 const MMO_R = 'end15'

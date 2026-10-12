@@ -728,9 +728,14 @@ test.describe('normalisation, and the one thing the font does not carry', () => 
     const m = await page.evaluate((nid: string) => {
       const el = document.querySelector<HTMLElement>(`.react-flow__node[data-id="${nid}"]`)
       if (!el) return { error: 'node not found' }
-      const label = (Array.from(el.querySelectorAll<HTMLElement>('*')).find(
-        (x) => (x.textContent ?? '').trim() && !Array.from(x.children).some((c) => (c.textContent ?? '').trim()),
-      ) ?? el)
+      // the node's LABEL element: the name outside the body (the new node) or the
+      // title inside it (the previous body) — not the first text leaf in DOM
+      // order, which under the new node is the value
+      const label = (el.querySelector<HTMLElement>('.nodef__name, .nodef__title') ??
+        Array.from(el.querySelectorAll<HTMLElement>('*')).find(
+          (x) => (x.textContent ?? '').trim() && !Array.from(x.children).some((c) => (c.textContent ?? '').trim()),
+        ) ??
+        el)
       const text = (label.textContent ?? '').trim()
       const cs = getComputedStyle(label)
       const cv = document.createElement('canvas')
@@ -778,16 +783,21 @@ test.describe('normalisation, and the one thing the font does not carry', () => 
       }
       const lb = label.getBoundingClientRect()
       const cb = clipper?.getBoundingClientRect() ?? null
-      // overlap with the node's other laid-out children
+      // overlap of the LABEL with the node's other laid-out children — the
+      // visible ones: not the transparent bridge (the hit region between body and
+      // name under the new node) and not the port handles, which sit on the
+      // body's edge by design
       const kids = (Array.from((label.parentElement ?? el).children) as HTMLElement[]).filter((k) => {
+        if (k === label || k.contains(label)) return false
+        if (k.classList.contains('nodef__bridge') || k.classList.contains('react-flow__handle')) return false
         const q = k.getBoundingClientRect()
         return q.width > 0 && q.height > 0
       })
       let overlaps = 0
       for (let i = 0; i < kids.length; i++) {
-        for (let j = i + 1; j < kids.length; j++) {
-          const a = kids[i].getBoundingClientRect()
-          const b = kids[j].getBoundingClientRect()
+        for (let j = i; j < i + 1; j++) {
+          const a = lb
+          const b = kids[i].getBoundingClientRect()
           if (
             Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 &&
             Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5

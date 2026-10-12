@@ -152,7 +152,7 @@ test.describe('a Chinese node title', () => {
     await page.locator('.menu__pop[role="menu"] [role="menuitem"]').first().click()
     const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load|加载|載入/i })
     if (await confirm.isVisible().catch(() => false)) await confirm.click()
-    const title = page.locator('.nodef__title').first()
+    const title = page.locator('.nodef__name').first()
     await expect(title).toBeVisible()
     const box = await title.evaluate((el) => ({
       scrollW: el.scrollWidth,
@@ -205,7 +205,7 @@ test.describe('the zh-Hans template-label dictionary', () => {
     const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load|加载|載入/i })
     if (await confirm.isVisible().catch(() => false)) await confirm.click()
     await expect(page.locator('.react-flow__node').first()).toBeVisible()
-    const labels = await page.locator('.nodef__title').allInnerTexts()
+    const labels = await page.locator('.nodef__name').allInnerTexts()
     console.log(`[zh-tmpl] ${JSON.stringify(labels)}`)
     expect(labels.length, 'the template produced no labelled nodes').toBeGreaterThan(3)
     const english = labels.filter((l) => /^[\x20-\x7e]+$/.test(l.trim()) && /[A-Za-z]{3}/.test(l))

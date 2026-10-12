@@ -3,64 +3,38 @@
 // engine fixture (src/engine/gacha-banner-zones.test.ts) uses, so the shipped
 // Template and the tested graph can never drift apart.
 //
-// Layout (Hanrim, 2026-09-13, after reviewing round-3 screenshots): a bundled
-// Template must read as "a 10-minute answer", not "a complex internal
-// circuit" next to a Machinations-style board. Per zone, resource-flow nodes
-// (tickets, gates, count Pools) sit in an UPPER band; pity/guarantee state
-// and every Parameter sit in a LOWER band — so the dashed activator/afterPull
-// lines cluster near the bottom instead of criss-crossing the whole frame.
-// The 4 comparison Registers sit in one prominent horizontal row of their
-// own, above all three zones, not a cramped stack in the corner.
+// Layout history (rounds 1–9, 2026-09-13 … issue #344 step 4): a per-zone
+// band layout computed here — resource flow in an upper band, pity /
+// guarantee state and every Parameter in a lower band, the three zones side
+// by side under one comparison row, every connection orthogonal, per-edge
+// waypoints for the label coincidences the bands produced, and finally the
+// whole placed for the grid by `placeTemplate`. That code is in the history
+// of this file (`git log -- scripts/gen-gacha-banner-zones-example.ts`).
 //
-// Layout round 2 (Hanrim, 2026-09-13, live-preview node-spacing review):
-// stacking the 3 zones VERTICALLY wasted all the horizontal room a normal
-// viewport has, so fit-to-view shrank every node to ~24px — illegible. Zones
-// now sit SIDE BY SIDE below the comparison row instead, each keeping its
-// own two-band (flow/control) layout. The Pickup zone also gets wider flow
-// columns than Free/Standard (`COL_W_PICKUP`) — its 4-path structure packs
-// more nodes into adjacent depth columns, which produced ~20px real overlaps
-// at the old shared `COL_W`. The comparison row's card pitch is widened too
-// — the 4 Register cards nearly touched once their labels carried an
-// explicit zone tag.
-//
-// Layout round 3 (Hanrim, 2026-09-13, comparison-frame review): `bbox()`
-// assumed every node draws at the same generic ~150×80 footprint used by the
-// small flow/control nodes — wrong for the 5 wide comparison cards, which
-// measure up to ~260×102px (checked directly in the browser, EN/KO/JA, at
-// zoom 1 — `pulls_per_zone`/`cmp1..4_*`; a Register's box width turned out to
-// be effectively LOCALE-INVARIANT, capped by its own CSS rather than growing
-// with the label, so a longer translation adds wrapped lines — taller, not
-// wider). The old fixed 150px assumption left the comparison frame's right
-// edge ~110px short of the actual last-card edge, visibly clipping it, and a
-// separate hardcoded `comparisonHeight` guess (unrelated to the frame's real
-// computed height) put the zone row ~110px further down than the frame's
-// real bottom, reading as a disconnected gap. Fixed: `COMPARISON_CARD_W/H`
-// hold the real measured max + a small safety margin (for a future
-// translation that wraps a little wider/taller than what's measured today);
-// `bbox()` takes a footprint override so the comparison frame is sized from
-// these instead of the generic default; the shared row sits at `y: PAD`
-// (was `0`) so the frame gets an actual top margin instead of clamping it
-// away; `zoneRowY` is derived directly from the comparison frame's OWN
-// computed bbox (`frame.y + frame.h` + a deliberate seam), not a hand-rolled
-// formula duplicating that math.
-//
-// Layout round 4 (Hanrim/Lumi review of PR #198, after GZ3.5 round 4 added
-// two termination-plumbing nodes — `termination_fuel`, `all_zones_done` —
-// to the graph): those two are NOT comparison content (GZ7.1 explicitly
-// excludes them from every tracked/display set) and must read as auxiliary,
-// not compete with the 4 real metric cards. Putting them in the SAME
-// `CARD_GAP_X`-pitched row as the wide comparison cards was wrong on two
-// counts: it visually equated them with the real metrics, and it grew the
-// comparison frame's width enough to threaten the Template's own
-// `initialView` contract (`src/model/templates.ts` — 1280×720 must still
-// frame the comparison row + Free zone at ≥ the 0.6 zoom floor). Fixed: the
-// two termination nodes now sit in their own small, tightly-pitched strip
-// BELOW the main 5-card row, inside the same comparison frame (still fine —
-// Hanrim confirmed — just not fighting for the same visual weight or pitch).
-// The main row's own positions are completely unchanged from round 3.
-//
-// Run: npx tsx scripts/gen-gacha-banner-zones-example.ts
-
+// Layout round 10 — the node structure (2026-10-12; share
+// scratch/share/connection-editing-2/24-default-switch-verification.md §9–§10).
+// Under the new node (a compact body with the name OUTSIDE it, four-side
+// ports) the band layout lost four connections to one shared corridor in the
+// Premium Pickup zone: `e_pickup_18`, `_21`, `_29`, `_33` could not be selected
+// by a real click on the line nor on their label (other lines covered both).
+// The positions below are the design study's final Gacha layout (its ELK
+// top-down layering with the names beside the bodies, the frames kept, the
+// label-aware moves and the computed frame separation — clean in 18 languages
+// on the eleven collision counts, position hash 198232794), snapped to the
+// product grid (x on 16, the port row y + 28 on 16) and carried into the
+// product as plain coordinates — with the zones re-arranged as blocks (the
+// comparison row with the two termination nodes on top, Free and Standard
+// side by side under it, Pickup under those), since the study's side-by-side
+// row (5650 px wide) no longer fit a 1280 × 800 pane even at the minimum
+// zoom — each node's position, each connection's port
+// FACES where they differ from the defaults (a resource leaves right / enters
+// left, a state leaves bottom / enters top), and each frame's members. The
+// frames' rectangles are rebuilt by `placeTemplate` around the measured boxes
+// (body ∪ name, 18-language maxima, src/model/layout/templateBoxes.json); the
+// comparison row sits ABOVE the zones in this layout. No waypoints: the
+// guarded router routes every connection from its faces. The old coordinates
+// are not a goal (Lumi, 2026-10-12); the four-connection reach regression is
+// re-verified with real clicks on the shipped file.
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import {
@@ -70,251 +44,180 @@ import {
   TRACKED_POOLS,
   ZONE_TITLE,
   buildGachaBannerZonesGraph,
-  isControlNode,
-  type ZoneKey,
 } from '../src/engine/gachaBannerZonesGraph'
 import { withTemplateFlowColours } from '../src/engine/templateFlowColours'
 import { placeTemplate } from '../src/model/layout/templatePlacement'
 import { serialize, type RecommendedRunConfig, type SavedFrame } from '../src/model/serialize'
-import type { LoopEdge, LoopNode } from '../src/model/types'
+import type { EdgePorts, LoopEdge, LoopNode } from '../src/model/types'
 
 const { nodes, edges } = buildGachaBannerZonesGraph()
 
-const COL_W = 190
-const COL_W_PICKUP = 320 // wider flow-band columns for Pickup's denser 4-path structure
-const ROW_H = 100
-const PAD = 40
-const BAND_GAP = 60 // between a zone's flow band and its control band
-const ZONE_GAP_X = 120 // between one zone's frame and the next (zones are laid out horizontally)
-const CONTROL_COLS = 3
-// Layout round 6 (Hanrim/Lumi, 2026-09-14, connector-readability review round
-// 2) — wider than the flow band's own `colW`/`ROW_H`: the pity node's
-// activator-out and label-in edges route BETWEEN control-band grid cells,
-// not just around the grid, so this band needs real clearance between
-// adjacent cells for a long condition label to pass through without
-// overlapping a Parameter node.
-const CONTROL_COL_W = 260
-const CONTROL_ROW_H = 140
-const CARD_GAP_X = 340 // comparison-row card pitch (was 260 — cards nearly touched once labels grew)
-// Real measured max card size (EN/KO/JA, zoom 1): width maxes out at ~260px
-// (locale-invariant — a Register card's width is CSS-capped, longer text
-// wraps instead of widening) and height at ~102px (a 2-line label). +20/+8
-// safety margin for a future translation that wraps a touch wider/taller.
-const COMPARISON_CARD_W = 280
-const COMPARISON_CARD_H = 110
-// The termination strip's own small pitch/size assumption (layout round 4) —
-// deliberately much tighter than the wide comparison-card pitch, since these
-// two nodes are auxiliary plumbing, not comparison content. Measured max
-// real size (EN/KO/JA, zoom 1): ~177×74px; a little buffer for future label
-// changes.
-const TERMINATION_NODE_W = 200
-const TERMINATION_NODE_H = 90
-const TERMINATION_STRIP_GAP_X = 24
-const TERMINATION_STRIP_GAP_Y = 20 // between the main card row and this strip
-
-// The comparison-area ids checked FIRST and explicitly: the shared Parameter
-// plus the 4 `cmpN_...` Registers all carry a real per-zone suffix (like
-// every per-zone node does) but must NOT be classified into that zone — they
-// sit in the shared comparison row instead (bbox() below would otherwise
-// scatter them across whichever zone their suffix happens to name).
-const COMPARISON_IDS = new Set([
-  'pulls_per_zone',
-  'cmp1_hit_rate_free',
-  'cmp2_hit_rate_standard',
-  'cmp3_hit_rate_pickup',
-  'cmp4_pickup_rate_pickup',
-])
-// GZ3.5 round 4's termination plumbing — NOT comparison content (GZ7.1
-// excludes both from every tracked/display set), but still sits inside the
-// same comparison frame as a small, visually secondary strip (layout round
-// 4) rather than being scattered into a zone's own frame.
-const TERMINATION_IDS = new Set(['termination_fuel', 'all_zones_done'])
-
-// Checked in `zoneN_` PREFIX order FIRST: a role name can itself contain
-// another zone's name as a suffix (`zone3_pickup_w_standard` ends with
-// `_standard`), which used to misclassify that Parameter into Zone 2 when
-// the old code OR'd a zone's prefix check with its suffix check on the same
-// line. Prefix match is unambiguous for every `zoneN_`-prefixed Parameter id
-// and always wins now; suffix match is only a fallback for the ids (Pool /
-// Gate / Source) that carry no `zoneN_` prefix at all.
-function zoneOf(id: string): ZoneKey | 'shared' {
-  if (COMPARISON_IDS.has(id) || TERMINATION_IDS.has(id)) return 'shared'
-  if (id.startsWith('zone1_')) return 'free'
-  if (id.startsWith('zone2_')) return 'standard'
-  if (id.startsWith('zone3_')) return 'pickup'
-  if (id.endsWith('_free')) return 'free'
-  if (id.endsWith('_standard')) return 'standard'
-  if (id.endsWith('_pickup')) return 'pickup'
-  return 'shared'
+// ── the layout tables (study → product, see the header) ────────────────────
+const LAYOUT: Record<string, [number, number]> = {
+  all_zones_done: [1040, 36],
+  ceiling_hits_pickup: [1424, 2548],
+  ceiling_hits_standard: [1984, 1220],
+  cmp1_hit_rate_free: [208, 36],
+  cmp2_hit_rate_standard: [400, 36],
+  cmp3_hit_rate_pickup: [592, 36],
+  cmp4_pickup_rate_pickup: [784, 36],
+  forced_ssr_standard: [2080, 1028],
+  fund_free: [672, 308],
+  fund_pickup: [2032, 1492],
+  fund_standard: [1984, 308],
+  missed_pickup_pickup: [1408, 1636],
+  pickup_count_pickup: [1600, 2260],
+  pickup_hit_pickup: [1360, 2068],
+  pity_pickup: [1376, 2260],
+  pity_standard: [2048, 884],
+  pulls_made_free: [640, 932],
+  pulls_made_pickup: [32, 2260],
+  pulls_made_standard: [1712, 1220],
+  pulls_per_zone: [16, 36],
+  r_count_free: [176, 1028],
+  r_count_pickup: [656, 2260],
+  r_count_standard: [1744, 884],
+  r_hit_free: [1184, 740],
+  r_hit_pickup: [1184, 2068],
+  r_hit_standard: [1952, 740],
+  roll_forced_open_pickup: [1408, 2404],
+  roll_forced_owed_pickup: [2032, 1924],
+  roll_gate_free: [672, 596],
+  roll_gate_standard: [1952, 596],
+  roll_normal_open_pickup: [1408, 1780],
+  roll_normal_owed_pickup: [1328, 1924],
+  sr_count_free: [928, 932],
+  sr_count_pickup: [880, 2356],
+  sr_count_standard: [2304, 884],
+  sr_hit_free: [672, 740],
+  sr_hit_pickup: [16, 2068],
+  sr_hit_standard: [2304, 740],
+  ssr_count_free: [384, 932],
+  ssr_count_pickup: [928, 2260],
+  ssr_count_standard: [2560, 660],
+  ssr_hit_free: [400, 740],
+  ssr_hit_standard: [1680, 740],
+  ssr_split_open_pickup: [1712, 1924],
+  standard_count_pickup: [1104, 2484],
+  standard_hit_pickup: [896, 2068],
+  termination_fuel: [1232, 36],
+  ticket_free: [656, 452],
+  ticket_pickup: [2032, 1636],
+  ticket_standard: [1968, 452],
+  zone1_free_w_r: [16, 596],
+  zone1_free_w_sr: [16, 452],
+  zone1_free_w_ssr: [16, 308],
+  zone2_standard_hard_pity: [1520, 740],
+  zone2_standard_w_r: [1520, 596],
+  zone2_standard_w_sr: [1520, 452],
+  zone2_standard_w_ssr: [1520, 308],
+  zone3_pickup_hard_pity: [2336, 1924],
+  zone3_pickup_w_pickup: [2336, 2068],
+  zone3_pickup_w_r: [2336, 1780],
+  zone3_pickup_w_sr: [2336, 1636],
+  zone3_pickup_w_ssr: [2336, 1492],
+  zone3_pickup_w_standard: [2336, 2260],
 }
 
-const COL_W_BY_ZONE: Record<ZoneKey, number> = { free: COL_W, standard: COL_W, pickup: COL_W_PICKUP }
-
-const resEdges = edges.filter((e) => e.data.kind === 'resource')
-const inBy = new Map<string, LoopEdge[]>()
-for (const e of resEdges) {
-  const list = inBy.get(e.target) ?? []
-  list.push(e)
-  inBy.set(e.target, list)
+const FACES: Record<string, EdgePorts> = {
+  e_free_1: { source: 'bottom', target: 'top' },
+  e_free_2: { source: 'bottom', target: 'top' },
+  e_free_3: { source: 'bottom', target: 'top' },
+  e_free_4: { source: 'bottom', target: 'top' },
+  e_free_5: { source: 'bottom', target: 'top' },
+  e_free_6: { source: 'bottom', target: 'top' },
+  e_free_10: { source: 'bottom', target: 'top' },
+  e_free_11: { source: 'bottom', target: 'top' },
+  e_pickup_1: { source: 'bottom', target: 'top' },
+  e_pickup_2: { source: 'bottom', target: 'top' },
+  e_pickup_3: { source: 'bottom', target: 'top' },
+  e_pickup_4: { source: 'bottom', target: 'top' },
+  e_pickup_5: { source: 'bottom', target: 'top' },
+  e_pickup_6: { source: 'top', target: 'bottom' },
+  e_pickup_8: { source: 'top', target: 'bottom' },
+  e_pickup_12: { source: 'top', target: 'bottom' },
+  e_pickup_14: { source: 'bottom', target: 'top' },
+  e_pickup_15: { source: 'top', target: 'bottom' },
+  e_pickup_16: { source: 'bottom', target: 'top' },
+  e_pickup_17: { source: 'bottom', target: 'top' },
+  e_pickup_18: { source: 'bottom', target: 'top' },
+  e_pickup_19: { source: 'bottom', target: 'top' },
+  e_pickup_20: { source: 'bottom', target: 'top' },
+  e_pickup_21: { source: 'bottom', target: 'top' },
+  e_pickup_22: { source: 'bottom', target: 'top' },
+  e_pickup_23: { source: 'bottom', target: 'top' },
+  e_pickup_24: { source: 'bottom', target: 'top' },
+  e_pickup_25: { source: 'bottom', target: 'top' },
+  e_pickup_26: { source: 'bottom', target: 'top' },
+  e_pickup_27: { source: 'bottom', target: 'top' },
+  e_pickup_40: { source: 'top', target: 'bottom' },
+  e_pickup_41: { source: 'top', target: 'bottom' },
+  e_standard_1: { source: 'bottom', target: 'top' },
+  e_standard_2: { source: 'bottom', target: 'top' },
+  e_standard_3: { source: 'bottom', target: 'top' },
+  e_standard_4: { source: 'bottom', target: 'top' },
+  e_standard_5: { source: 'bottom', target: 'top' },
+  e_standard_6: { source: 'bottom', target: 'top' },
+  e_standard_10: { source: 'bottom', target: 'top' },
+  e_standard_11: { source: 'bottom', target: 'top' },
+  e_standard_12: { source: 'top', target: 'bottom' },
+  e_standard_16: { source: 'top', target: 'bottom' },
+  e_standard_20: { source: 'bottom', target: 'top' },
+  e_standard_21: { source: 'bottom', target: 'top' },
+  e_termination_fuel: { source: 'bottom', target: 'top' },
 }
 
-const depth = new Map<string, number>()
-function depthOf(id: string, seen: Set<string>): number {
-  if (depth.has(id)) return depth.get(id)!
-  if (seen.has(id)) return 0 // guard against any accidental cycle
-  seen.add(id)
-  const ins = inBy.get(id) ?? []
-  const d = ins.length === 0 ? 0 : 1 + Math.max(...ins.map((e) => depthOf(e.source, seen)))
-  depth.set(id, d)
-  return d
-}
-for (const n of nodes) depthOf(n.id, new Set())
-
-// ── comparison row: the 4 Registers + the shared Parameter, side by side,
-// above everything (its own frame, not colour-matched to any zone). Sits at
-// `y: PAD`, not `0`, so the frame below gets a real top margin instead of
-// clamping a negative one away. The two termination-plumbing nodes (layout
-// round 4) sit in their own small, tightly-pitched strip BELOW this row —
-// same frame, deliberately secondary visual weight, not stretched across the
-// wide comparison-card pitch. ───────────────────────────────────────────────
-const positions = new Map<string, { x: number; y: number }>()
-const mainCardNodes = nodes.filter((n) => COMPARISON_IDS.has(n.id))
-mainCardNodes.forEach((n, i) => positions.set(n.id, { x: PAD + i * CARD_GAP_X, y: PAD }))
-const terminationStripY = PAD + COMPARISON_CARD_H + TERMINATION_STRIP_GAP_Y
-const terminationNodes = nodes.filter((n) => TERMINATION_IDS.has(n.id))
-terminationNodes.forEach((n, i) =>
-  positions.set(n.id, { x: PAD + i * (TERMINATION_NODE_W + TERMINATION_STRIP_GAP_X), y: terminationStripY }),
-)
-
-// A real, deliberate seam between the comparison frame and the zone row
-// below it — small enough to read as connected, not zero (which would make
-// the two frame borders touch) and nowhere near the old ~110px gap the
-// original footprint bug produced.
-const COMPARISON_TO_ZONE_GAP = 30
-
-// The comparison frame's REAL bottom edge — computed from the ACTUAL
-// positions just assigned above (main row + termination strip), via the same
-// `bbox()`/footprint machinery used for the final frame rect below, not a
-// hand-rolled formula that could silently drift out of sync with it. Reads
-// straight from the `positions` Map since the zones haven't been placed yet.
-function earlyBBoxBottom(ids: string[], footprint: { w: number; h: number }): number {
-  const ys = ids.map((id) => positions.get(id)!.y)
-  return Math.max(...ys) + footprint.h
-}
-// Reused below for the FINAL comparison frame rect too (`bbox()`'s footprint
-// param) — one definition, so the two can never silently drift apart. `h` is
-// `PAD + TERMINATION_NODE_H` (not `COMPARISON_CARD_H`) because the strip,
-// not the card row, is now the comparison area's lowest content.
-const COMPARISON_FOOTPRINT = { w: PAD + COMPARISON_CARD_W, h: PAD + TERMINATION_NODE_H }
-const comparisonFrameBottom = earlyBBoxBottom(
-  [...mainCardNodes.map((n) => n.id), ...terminationNodes.map((n) => n.id)],
-  COMPARISON_FOOTPRINT,
-)
-
-// ── the three zones, laid out SIDE BY SIDE (not stacked — see layout round
-// 2 above). Each zone keeps its own flow band (upper, depth/row-based) then
-// control band (lower, a simple wrapped grid — Parameters/pity have no
-// resource-edge topology among themselves worth laying out by depth). ─────
-const ZONES: ZoneKey[] = ['free', 'standard', 'pickup']
-// `+ PAD` is the zone's OWN top margin (bbox subtracts PAD from its first
-// node's y), so the zone frame's border ends up exactly
-// `COMPARISON_TO_ZONE_GAP` below the comparison frame's real bottom edge.
-const zoneRowY = comparisonFrameBottom + COMPARISON_TO_ZONE_GAP + PAD
-
-function maxFlowDepth(zone: ZoneKey): number {
-  const ds = nodes.filter((n) => zoneOf(n.id) === zone && !isControlNode(n.id)).map((n) => depth.get(n.id) ?? 0)
-  return ds.length > 0 ? Math.max(...ds) : 0
+const FRAME_MEMBERS: Record<string, string[]> = {
+  zone_comparison: ['pulls_per_zone', 'cmp1_hit_rate_free', 'cmp2_hit_rate_standard', 'cmp3_hit_rate_pickup', 'cmp4_pickup_rate_pickup', 'termination_fuel', 'all_zones_done'],
+  zone_free: ['fund_free', 'ticket_free', 'pulls_made_free', 'zone1_free_w_ssr', 'zone1_free_w_sr', 'zone1_free_w_r', 'sr_count_free', 'r_count_free', 'ssr_count_free', 'roll_gate_free', 'ssr_hit_free', 'sr_hit_free', 'r_hit_free'],
+  zone_standard: ['fund_standard', 'ticket_standard', 'pulls_made_standard', 'zone2_standard_w_ssr', 'zone2_standard_w_sr', 'zone2_standard_w_r', 'sr_count_standard', 'r_count_standard', 'ssr_count_standard', 'roll_gate_standard', 'ssr_hit_standard', 'sr_hit_standard', 'r_hit_standard', 'pity_standard', 'zone2_standard_hard_pity', 'forced_ssr_standard', 'ceiling_hits_standard'],
+  zone_pickup: ['fund_pickup', 'ticket_pickup', 'pulls_made_pickup', 'zone3_pickup_w_ssr', 'zone3_pickup_w_sr', 'zone3_pickup_w_r', 'sr_count_pickup', 'r_count_pickup', 'ssr_count_pickup', 'pity_pickup', 'zone3_pickup_hard_pity', 'ceiling_hits_pickup', 'missed_pickup_pickup', 'zone3_pickup_w_pickup', 'zone3_pickup_w_standard', 'roll_normal_open_pickup', 'roll_normal_owed_pickup', 'roll_forced_open_pickup', 'roll_forced_owed_pickup', 'ssr_split_open_pickup', 'pickup_hit_pickup', 'standard_hit_pickup', 'sr_hit_pickup', 'r_hit_pickup', 'pickup_count_pickup', 'standard_count_pickup'],
 }
 
-function zoneWidth(zone: ZoneKey): number {
-  const colW = COL_W_BY_ZONE[zone]
-  const flowWidth = (maxFlowDepth(zone) + 1) * colW
-  const controlWidth = CONTROL_COLS * CONTROL_COL_W
-  return Math.max(flowWidth, controlWidth) + 150 // + a node's own drawn width
-}
+// every node has a position and every position names a node
+for (const id of Object.keys(LAYOUT)) if (!nodes.some((n) => n.id === id)) throw new Error(`LAYOUT names an unknown node ${id}`)
+const positioned: LoopNode[] = nodes.map((n) => {
+  const p = LAYOUT[n.id]
+  if (!p) throw new Error(`LAYOUT has no position for ${n.id}`)
+  return { ...n, position: { x: p[0], y: p[1] } }
+})
 
-const zoneOriginX: Record<ZoneKey, number> = { free: 0, standard: 0, pickup: 0 }
-{
-  let cursorX = PAD
-  for (const zone of ZONES) {
-    zoneOriginX[zone] = cursorX
-    cursorX += zoneWidth(zone) + ZONE_GAP_X
-  }
-}
+// every face names a connection
+for (const id of Object.keys(FACES)) if (!edges.some((e) => e.id === id)) throw new Error(`FACES names an unknown connection ${id}`)
+const routedEdges: LoopEdge[] = (edges as LoopEdge[]).map((e) => {
+  const data = e.data
+  if (!data) throw new Error(`connection ${e.id} has no data`)
+  return { ...e, data: { ...data, route: 'orthogonal' as const, ...(FACES[e.id] ? { ports: FACES[e.id] } : {}) } }
+})
 
-for (const zone of ZONES) {
-  const colW = COL_W_BY_ZONE[zone]
-  const originX = zoneOriginX[zone]
-  const zoneNodes = nodes.filter((n) => zoneOf(n.id) === zone)
-  const flowNodes = zoneNodes.filter((n) => !isControlNode(n.id))
-  // `pity_*` / `missed_pickup_pickup` sort first (row 0, so their own
-  // column) so nothing else in the control grid sits ABOVE either hub —
-  // both carry several activator-out / label-in edges climbing straight out
-  // of the control band into the flow band above, and any OTHER control
-  // node occupying that same column above one forces those routes' labels
-  // to skirt right past that node's box (connector-readability review round
-  // 3, Hanrim/Lumi, 2026-09-14).
-  const isHub = (id: string) => id.startsWith('pity_') || id === 'missed_pickup_pickup'
-  const controlNodes = zoneNodes
-    .filter((n) => isControlNode(n.id))
-    .sort((a, b) => Number(isHub(b.id)) - Number(isHub(a.id)))
-
-  // Flow band.
-  const rowByKey = new Map<string, number>()
-  let maxFlowRow = 0
-  for (const n of flowNodes) {
-    const d = depth.get(n.id) ?? 0
-    const row = rowByKey.get(String(d)) ?? 0
-    rowByKey.set(String(d), row + 1)
-    positions.set(n.id, { x: originX + d * colW, y: zoneRowY + row * ROW_H })
-    maxFlowRow = Math.max(maxFlowRow, row + 1)
-  }
-  const flowBandHeight = Math.max(1, maxFlowRow) * ROW_H
-  const controlY = zoneRowY + flowBandHeight + BAND_GAP
-
-  // Control band: a simple wrapped grid, widest column first (Parameters),
-  // so it reads as a compact settings strip under the flow. Layout round 6
-  // (Hanrim/Lumi, 2026-09-14) — the pity node's activator/label edges route
-  // BETWEEN grid cells (not just around the grid's outside), so this band
-  // needs its own, wider pitch — the flow band's `colW`/`ROW_H` were tuned
-  // for short flow chips passing AROUND nodes, not long condition labels
-  // passing BETWEEN them.
-  controlNodes.forEach((n, i) => {
-    const col = i % CONTROL_COLS
-    const row = Math.floor(i / CONTROL_COLS)
-    positions.set(n.id, { x: originX + col * CONTROL_COL_W, y: controlY + row * CONTROL_ROW_H })
-  })
-}
-
-const positioned: LoopNode[] = nodes.map((n) => ({ ...n, position: positions.get(n.id) ?? { x: 0, y: 0 } }))
-
-// `footprint` is the assumed (width, height) beyond a node's own `position`
-// used to grow the frame past its rightmost/bottommost node — the default
-// (150×80) fits the small flow/control nodes elsewhere, but is too small for
-// the much wider/taller comparison cards (layout round 3). Passing it in
-// keeps left/top margins equal to right/bottom (both derive from the same
-// PAD, since `footprint.w/h` is itself `PAD + <real max card size>` for the
-// comparison call below).
-function bbox(
-  ids: string[],
-  footprint: { w: number; h: number } = { w: 150, h: 80 },
-): { x: number; y: number; w: number; h: number } {
+// frames: a provisional rectangle around the members' bodies (so membership
+// resolves); `placeTemplate` rebuilds it around the measured boxes
+const FRAME_PAD = 40
+const BODY = { w: 150, h: 56 }
+function rectOf(ids: string[]): { x: number; y: number; w: number; h: number } {
   const ps = positioned.filter((n) => ids.includes(n.id)).map((n) => n.position)
-  const minX = Math.min(...ps.map((p) => p.x)) - PAD
-  const minY = Math.min(...ps.map((p) => p.y)) - PAD
-  const maxX = Math.max(...ps.map((p) => p.x)) + footprint.w
-  const maxY = Math.max(...ps.map((p) => p.y)) + footprint.h
-  return { x: Math.max(0, minX), y: Math.max(0, minY), w: maxX - minX, h: maxY - minY }
+  if (ps.length !== ids.length) throw new Error(`frame members missing: ${ids.filter((id) => !positioned.some((n) => n.id === id)).join(', ')}`)
+  const minX = Math.min(...ps.map((p) => p.x)) - FRAME_PAD
+  const minY = Math.min(...ps.map((p) => p.y)) - FRAME_PAD
+  const maxX = Math.max(...ps.map((p) => p.x)) + BODY.w + FRAME_PAD
+  const maxY = Math.max(...ps.map((p) => p.y)) + BODY.h + FRAME_PAD
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY }
 }
-
-const idsByZone = (zone: ZoneKey | 'shared') => positioned.filter((n) => zoneOf(n.id) === zone).map((n) => n.id)
-
-const frames: SavedFrame[] = [
-  { id: 'zone_comparison', label: 'Comparison', rect: bbox(idsByZone('shared'), COMPARISON_FOOTPRINT) },
-  { id: 'zone_free', label: ZONE_TITLE.free, rect: bbox(idsByZone('free')), color: 'sage' },
-  { id: 'zone_standard', label: ZONE_TITLE.standard, rect: bbox(idsByZone('standard')), color: 'violet' },
-  { id: 'zone_pickup', label: ZONE_TITLE.pickup, rect: bbox(idsByZone('pickup')), color: 'rose' },
-]
+const FRAME_LABEL: Record<string, string> = {
+  zone_comparison: 'Comparison',
+  zone_free: ZONE_TITLE.free,
+  zone_standard: ZONE_TITLE.standard,
+  zone_pickup: ZONE_TITLE.pickup,
+}
+const FRAME_COLOR: Record<string, SavedFrame['color']> = { zone_free: 'sage', zone_standard: 'violet', zone_pickup: 'rose' }
+const frames: SavedFrame[] = Object.entries(FRAME_MEMBERS).map(([id, members]) => ({
+  id,
+  label: FRAME_LABEL[id],
+  rect: rectOf(members),
+  ...(FRAME_COLOR[id] ? { color: FRAME_COLOR[id] } : {}),
+}))
+const allMembers = Object.values(FRAME_MEMBERS).flat()
+if (new Set(allMembers).size !== nodes.length || allMembers.length !== nodes.length) throw new Error('every node belongs to exactly one frame')
 
 const STEPS = PULLS_PER_ZONE + 2 // GZ3.5 round 4 — the global End's own horizon, exact
 const recommendedRunConfig: RecommendedRunConfig = {
@@ -326,89 +229,13 @@ const recommendedRunConfig: RecommendedRunConfig = {
   canvasLocked: true,
 }
 
-// Layout round 5 (Hanrim/Lumi review after PR #205, connector readability):
-// an edge's label sits at its bezier midpoint, and the pity/guarantee
-// cluster has several state (dashed control) edges fanning into/out of one
-// control-band node (`pity_standard`/`pity_pickup`) toward flow-band
-// targets — their midpoints land close enough to overlap and cross the main
-// flow diagonally. Routing only the state edges orthogonal still left one
-// coincidence between a resource edge's bezier midpoint and a state edge's
-// orthogonal one (`ticket_standard -> forced_ssr_standard`'s "1" landing on
-// `ssr_hit_standard -> pulls_made_standard`'s "+1") — a two-kind mix has no
-// guarantee the two routers ever avoid meeting at the same point. Routing
-// EVERY edge (resource included) the same way removes that mismatch.
-// `route: 'orthogonal'` is purely cosmetic edge-routing data
-// (`docs/edge-routing.md` §R3 — "never engine-affecting", proven for both
-// resource and state edges by `edge-routing.spec.ts`), so this is a
-// Template-layout change, not an engine change: the router computes each
-// edge its own Manhattan path from its actual source/target, which
-// separates these labels instead of letting bezier curvature coincide them.
-// Layout round 6 (Hanrim/Lumi, 2026-09-14) — reclassifying `pulls_made_*` /
-// `ceiling_hits_*` as control nodes, sorting the `pity_*` / `missed_pickup_
-// pickup` hubs to the control grid's own front column (both above,
-// gachaBannerZonesGraph.ts / this file), giving the control band its own
-// wider `CONTROL_COL_W` / `CONTROL_ROW_H` pitch, and switching the
-// activator/resource `@id` canvas display from a name to a resolved NUMBER
-// (LoopEdge.tsx round 3) together closed every overlap except one shape:
-// TWO edges sharing the exact same hub node (`pity_*` / `missed_pickup_
-// pickup`) toward two DIFFERENT flow-band targets still have their
-// orthogonal arc-length midpoints coincide, since both routes leave the
-// same point. A short, explicit waypoint per edge — opposite sides of that
-// shared point — separates them; still purely cosmetic routing data, never
-// an engine change.
-// Layout round 7 (#325 PR 3, compact nodes, Lumi 2026-10-07) — with the nodes
-// 56 / 58 px tall instead of 64, `e_pickup_34` (SR hit -> Pulls made) and
-// `e_pickup_36` (Pickup hit -> SSR count) both ran their horizontal leg through
-// the one 38 px band between the first two flow rows, 14 px apart, and their
-// two `+1` labels overlapped in ko. The band is too narrow to hold both labels
-// clear of each other AND of the rows, so `e_pickup_36` alone now leaves its
-// bottom port DOWNWARD into the free band under the second row (y 632..670)
-// through one waypoint; its label lands there, clear of every label and node.
-// Layout round 8 (issue #344 step 1) — the resource ports moved to a fixed row
-// 28 px below each node's top, so a two-line node's connections leave higher
-// than its centre. Two Premium Pickup labels then touched a node in the
-// every-label check: `e_pickup_17` ("50", SSR split -> Standard) the R count
-// Pool by 0.3 px, and `e_pickup_20` ("900", Roll normal owed -> R hit) the SR
-// hit Gate by up to 3.3 px. One waypoint each drops the vertical leg into the
-// free band under the second flow row, where the label lands clear.
-const WAYPOINTS: Record<string, { x: number; y: number }[]> = {
-  e_pickup_17: [{ x: 3700, y: 549 }],
-  e_pickup_20: [{ x: 3360, y: 548 }],
-  e_pickup_36: [{ x: 3200, y: 650 }],
-  e_standard_12: [{ x: 1200, y: 550 }],
-  e_standard_13: [{ x: 1320, y: 550 }],
-  e_pickup_7: [{ x: 2680, y: 600 }],
-  e_pickup_9: [{ x: 2800, y: 600 }],
-  e_pickup_8: [{ x: 2420, y: 600 }],
-  e_pickup_10: [{ x: 2540, y: 600 }],
-  e_pickup_35: [{ x: 3200, y: 700 }],
-  e_pickup_40: [{ x: 3200, y: 750 }],
-  e_standard_4: [{ x: 1740, y: 370 }],
-  e_pickup_28: [{ x: 3760, y: 780 }, { x: 2480, y: 780 }],
-  e_pickup_37: [{ x: 3827, y: 340 }, { x: 2539, y: 340 }],
-}
-
-const routedEdges: LoopEdge[] = (edges as LoopEdge[]).map((e) => ({
-  ...e,
-  data: { ...e.data, route: 'orthogonal', ...(WAYPOINTS[e.id] ? { waypoints: WAYPOINTS[e.id] } : {}) },
-}))
-
 // docs/flow-colour-and-compact-nodes.md FC-6 — each zone's flow colour, the
 // same as its frame's (cosmetic data, like the routing above)
 const coloured = withTemplateFlowColours(positioned, routedEdges, GACHA_BANNER_ZONES_FLOWS)
-
-// Layout round 9 (issue #344 step 4, docs/diagram-layout.md §DL5) — the
-// layout above, placed for the grid by `placeTemplate`: each node's widest box
-// over the 18 languages plus a clearance (so no language puts a node over a
-// port, and every port fan has room to branch), frames that travel with their
-// nodes, and every connection AUTO orthogonal — the guarded router of step 2
-// resolves every case the `WAYPOINTS` above were added for, in all 18
-// languages, so none is kept (measured: no blocked port, no fan overlap past a
-// stub, no outer route).
+// docs/diagram-layout.md §DL5 — placed for the grid: the measured boxes keep
+// every language clear of every port, the frames travel with their nodes
 const placed = placeTemplate('gacha-banner-zones', { ...coloured, frames: frames.map((f) => ({ ...f, rect: { ...f.rect } })) })
-
 const text = serialize(placed.nodes, placed.edges, recommendedRunConfig, undefined, undefined, 2, placed.frames)
-
 const outPath = fileURLToPath(new URL('../examples/gacha-banner-zones.json', import.meta.url))
 writeFileSync(outPath, text + '\n')
 console.log(`wrote ${outPath} (${positioned.length} nodes, ${edges.length} edges)`)

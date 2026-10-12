@@ -57,7 +57,8 @@ async function holdWhen(page: Page, pred: (s: Awaited<ReturnType<typeof sim>>) =
 
 const pulseOf = (page: Page, id: string) => page.locator(`.react-flow__node[data-id="${id}"] .nodef__pulse`)
 const markOf = (page: Page, id: string) => page.locator(`.react-flow__node[data-id="${id}"] .nodef__conv`)
-const valueOf = (page: Page, id: string) => page.locator(`.react-flow__node[data-id="${id}"] .nodef__value`).innerText()
+// a capped Pool reads `count / cap` under the new node: the count is what the cue tests compare
+const valueOf = (page: Page, id: string) => page.locator(`.react-flow__node[data-id="${id}"] .nodef__value`).innerText().then((t) => t.split(' /')[0]!.trim())
 
 test.afterEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: null, forcedColors: null }).catch(() => {})
@@ -127,8 +128,12 @@ test('the conversion mark shows from the Converter onset, at its own spot inside
     }
     const range = document.createRange()
     const boxes: DOMRect[] = []
-    for (const sel of ['.nodef__title', '.nodef__sub']) {
-      range.selectNodeContents(f.querySelector(sel)!)
+    // the text the mark must keep clear of: the previous body's title and mode
+    // line; the new node's body holds only a value row (its name is outside)
+    for (const sel of ['.nodef__title', '.nodef__sub', '.nodef__value']) {
+      const el = f.querySelector(sel)
+      if (!el) continue
+      range.selectNodeContents(el)
       boxes.push(...[...range.getClientRects()].filter((r) => r.width > 0.5))
     }
     const hits = boxes.filter((b) => !(m.right <= b.left || m.left >= b.right || m.bottom <= b.top || m.top >= b.bottom)).length

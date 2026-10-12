@@ -190,25 +190,40 @@ test.describe('3-zone gacha banner comparison Template', () => {
     expect(after.stepIndex).toBe(END_STEP) // stepOnce() was a no-op past ended
     expect(after.values).toEqual(r.values)
 
-    // Play auto-stops at the same point, through the real UI control — not
-    // just the direct stepOnce() calls above. Crank the beat speed WAY up
-    // (bypassing the UI slider's own 120ms floor, purely for test speed —
-    // reduced motion alone doesn't change how often Play triggers the next
-    // beat) so `END_STEP` beats settle in a few seconds, not minutes.
-    await page.evaluate((seed) => {
+    // Play auto-stops at the same point, through the real Play control — not
+    // just the direct stepOnce() calls above. Play takes over a few steps
+    // before the End: the run to there is the same engine step either way
+    // (stepOnce above, and the Monte-Carlo test below, prove every run ends at
+    // exactly END_STEP and never earlier), and what Play adds is its OWN
+    // stopping. Playing all 202 steps from the start proves nothing more and is
+    // bound by drawing: two painted frames a step, 404 frames, 11–13 s locally
+    // and over 20 s on a CI runner (measured 2026-10-12, it always ended at
+    // 202). The beat is cranked WAY up (below the UI slider's 120 ms floor,
+    // purely for test speed — reduced motion alone doesn't change how often
+    // Play triggers the next beat).
+    const PLAY_FROM = END_STEP - 3 // the last pulls, then the End
+    await page.evaluate(
+      ({ seed, from }) => {
+        const s = (window as unknown as { __loop: Loop }).__loop.sim.getState
+        s().setSpeed(20)
+        s().setSeed(seed)
+        s().reset()
+        for (let i = 0; i < from; i++) s().stepOnce()
+      },
+      { seed: 1, from: PLAY_FROM },
+    )
+    const handover = await page.evaluate(() => {
       const s = (window as unknown as { __loop: Loop }).__loop.sim.getState()
-      s.setSpeed(20)
-      s.setSeed(seed)
-      s.reset()
-      s.play()
-    }, 1)
+      return { status: s.status, stepIndex: s.stepIndex }
+    })
+    expect(handover.status, 'not ended before Play takes over').not.toBe('ended')
+    expect(handover.stepIndex).toBe(PLAY_FROM)
+    await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.sim.getState().play())
     // `status` is `'idle' | 'running' | 'paused' | 'ended'` — polling for
     // 'ended' here already proves Play stopped itself (mutually exclusive
     // with 'running'), not merely that it will eventually get there.
     await expect
-      .poll(() => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.sim.getState().status), {
-        timeout: 20_000,
-      })
+      .poll(() => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.sim.getState().status))
       .toBe('ended')
     const played = await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.sim.getState().stepIndex)
     expect(played).toBe(END_STEP)
@@ -821,5 +836,46 @@ test.describe('3-zone gacha banner comparison Template', () => {
           .nodes.find((n: any) => n.id === 'pickup_hit_pickup').data.label,
     )
     expect(label).toBe('ピックアップ的中') // no zone suffix — the frame title gives that context
+  })
+
+  // Node structure, layout round 10 (Lumi, 2026-10-12): a connection's LABEL
+  // beats another connection's line. `e_pickup_29`'s chip sits where
+  // `e_pickup_35`'s route runs under it; the chip takes no pointer of its own
+  // (§LGR4.1), so before the fix a real click on the chip selected the line
+  // beneath. A REAL click (not a dispatched event) at the chip's centre must
+  // select the chip's own connection; a click on the same line away from any
+  // chip still selects that line.
+  test('a real click on a connection label selects that connection, even where another line runs under the chip (e_pickup_29)', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await pickDesktopTemplate(page, EN_NAME)
+    await routesSettled(page)
+    const centreChip = async (edgeId: string) =>
+      page.evaluate((id) => {
+        const chip = document.querySelector(`.edge-label[data-edge-id="${id}"]:not(.edge-label--measure)`) as HTMLElement
+        const root = document.querySelector('.react-flow')!.getBoundingClientRect()
+        const vp = (window as unknown as { __loop: { rf: { getViewport: () => { x: number; y: number; zoom: number } } } }).__loop.rf.getViewport()
+        const b = chip.getBoundingClientRect()
+        const fx = (b.left + b.width / 2 - root.left - vp.x) / vp.zoom
+        const fy = (b.top + b.height / 2 - root.top - vp.y) / vp.zoom
+        ;(window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport({ x: root.width / 2 - fx, y: root.height / 2 - fy, zoom: 1 }, { duration: 0 })
+      }, edgeId)
+    // edge chips show at L2 only: go to 100 % around the connection's source first
+    await page.evaluate(() => {
+      const l = (window as unknown as { __loop: { graph: { getState: () => { nodes: { id: string; position: { x: number; y: number } }[] } }; rf: { setViewport: (v: object, o: object) => void } } }).__loop
+      const n = l.graph.getState().nodes.find((x) => x.id === 'standard_hit_pickup')!
+      const root = document.querySelector('.react-flow')!.getBoundingClientRect()
+      l.rf.setViewport({ x: root.width / 2 - n.position.x, y: root.height / 2 - n.position.y, zoom: 1 }, { duration: 0 })
+    })
+    const chip = page.locator('.edge-label[data-edge-id="e_pickup_29"]:not(.edge-label--measure)')
+    await expect(chip).toHaveCount(1) // the label mounts once its slot is known (§ER15)
+    await centreChip('e_pickup_29')
+    await page.waitForTimeout(200)
+    const b = (await chip.boundingBox())!
+    // what is under the pointer at the chip's centre: a LINE (the chip itself takes no pointer)
+    const under = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('.react-flow__edge')?.getAttribute('data-id') ?? null, [b.x + b.width / 2, b.y + b.height / 2] as const)
+    expect(under, "another connection's line runs under the chip").not.toBeNull()
+    await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2)
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().selectedEdgeId)).toBe('e_pickup_29')
   })
 })

@@ -135,9 +135,13 @@ test('forced-colors: the hue wash is dropped; shape + chip still carry the type'
     .locator('.react-flow__node[data-id="gold"] .nodef__hue')
     .evaluate((el) => getComputedStyle(el).display)
   expect(display).toBe('none')
-  // the non-colour tells survive: silhouette stroke + the type chip
+  // the non-colour tells survive: the silhouette stroke, and the type word — the
+  // previous body's type chip, or under the new node the name outside the body
+  // (the kind rides the silhouette and the accessible name there)
   await expect(page.locator('.react-flow__node[data-id="gold"] .nodef__stroke')).toBeVisible()
-  await expect(page.locator('.react-flow__node[data-id="gold"] .nodef__chip')).toBeVisible()
+  const chip = page.locator('.react-flow__node[data-id="gold"] .nodef__chip')
+  if (await chip.count()) await expect(chip).toBeVisible()
+  else await expect(page.locator('.react-flow__node[data-id="gold"] .nodef__name')).toBeVisible()
 })
 
 test('edge labels use --line-strong for the border and the dedicated --elev-edge-label shadow token', async ({ page }) => {

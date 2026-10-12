@@ -470,8 +470,10 @@ test.describe('edge routing — Slice 1', () => {
     // puts it at 29, #325 PR 3), and the label is placed at the exact midpoint
     const at = /translate\(([-0-9.]+)px,\s*([-0-9.]+)px\)\s*$/.exec(consumers.labelTransform)
     expect(at, `label transform ${consumers.labelTransform}`).not.toBeNull()
-    expect(Number(at![1])).toBeCloseTo(consumers.mid![0], 6)
-    expect(Number(at![2])).toBeCloseTo(consumers.mid![1], 6)
+    // the style's transform string is serialized to 3 decimals; the path's own
+    // mid-point is not — compare at that resolution (a sub-pixel rounding, not a path difference)
+    expect(Number(at![1])).toBeCloseTo(consumers.mid![0], 2)
+    expect(Number(at![2])).toBeCloseTo(consumers.mid![1], 2)
 
     await test.step('running sim: the playback token walks the orthogonal d; a selection change does not restart it', async () => {
       // prime one step (tokenless) so `gold` holds a unit and the drain edge `e_gd`

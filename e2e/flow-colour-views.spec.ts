@@ -159,7 +159,16 @@ test.describe('flow colour — the Inspector offers each colour once (FC-5)', ()
     // a colour only the document has
     await loop(page, `l.graph.getState().setAccent(['r_plain'], [], '#123456')`)
 
-    // a palette colour, chosen: it stays in the palette row only
+    // a palette colour, chosen: it stays in the palette row only. The node is
+    // panned to the middle of the pane first — at the fit the minimap lies over
+    // it under the new node's compact layout, and this test is about the colour
+    // list, not the overlay
+    await page.evaluate(() => {
+      const l = (window as unknown as { __loop: { graph: { getState: () => { nodes: { id: string; position: { x: number; y: number } }[] } }; rf: { setViewport: (v: { x: number; y: number; zoom: number }, o?: { duration: number }) => void } } }).__loop
+      const n = l.graph.getState().nodes.find((x) => x.id === 'gold')!
+      const pane = document.querySelector('.react-flow')!.getBoundingClientRect()
+      l.rf.setViewport({ x: pane.width / 2 - n.position.x, y: pane.height / 2 - n.position.y, zoom: 1 }, { duration: 0 })
+    })
     await page.locator('.react-flow__node[data-id="gold"]').click()
     await field(page).getByRole('button', { name: 'Rose', exact: true }).click()
     expect(await rowSwatches(page, 'Recent')).toEqual([])

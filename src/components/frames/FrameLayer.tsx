@@ -13,7 +13,8 @@ import { FramePropsPopover } from './FramePropsPopover'
 import { isolateAuto } from '../../i18n/bidiIsolate'
 import { Icon } from '../../ui/icons'
 import { GRID, snapPoint } from '../../model/layout/grid'
-import { beginLiveLayout, endLiveLayout } from '../../store/routeMap'
+import { beginLiveLayout, endLiveLayout, nameFootprintsOf, useRouteInputs } from '../../store/routeMap'
+import { freeSpans, placeChip, placeHandle } from './frameChrome'
 
 // docs/large-graph-readability.md §LGR6 (transient) + …-auto-frames.md §AF (auto).
 // One render layer for BOTH frame kinds:
@@ -97,6 +98,10 @@ const ANNOUNCE_MS = 300
 // three SHARED descriptions (one per state) rather than one per frame — the
 // text is identical for every frame in that state, so `aria-describedby` just
 // points at the right one.
+/** the title chip's home: outside, above the top-left corner */
+const CHIP_HOME = { x: 0, inside: false, placed: true } as const
+/** the resize handle's home: centred on the bottom-right corner */
+const HANDLE_HOME = { dx: 0, dy: 0, placed: true } as const
 const DESC_ID = 'lgr-frame-desc'
 const DESC_SELECTED_ID = 'lgr-frame-desc-selected'
 const DESC_READONLY_ID = 'lgr-frame-desc-readonly'
@@ -191,6 +196,30 @@ export function FrameLayer() {
   const { screenToFlowPosition } = useReactFlow()
   const nodes = useGraphStore((s) => s.nodes)
   const edges = useGraphStore((s) => s.edges)
+
+  // ── node structure: the chrome yields to the outside names ──────────────
+  // frameChrome.ts — under the new node structure a node's name and its bridge
+  // (the gap to the body) take the pointer BEFORE the frame's edge strips
+  // (select / move), and the title chip and the resize handle move off a name
+  // they would cover. Two blocker lists (Lumi, 2026-10-12): the strips are cut
+  // by names and bridges only; a chip or handle is placed clear of names,
+  // bridges AND bodies. Today's structure publishes no name boxes, so both
+  // lists are empty there and nothing below changes a thing: one whole strip
+  // per side, chip and handle at home.
+  const outsideNames = useUiStore((s) => s.nodeStructure === 'outside')
+  const routeRev = useRouteInputs((s) => s.rev)
+  const { stripBlockers, placeBlockers } = useMemo(() => {
+    if (!outsideNames) return { stripBlockers: [], placeBlockers: [] }
+    void routeRev // a name box change bumps the route inputs' revision
+    const fp = nameFootprintsOf(nodes)
+    return { stripBlockers: fp.flatMap((f) => [f.name, f.bridge]), placeBlockers: fp.flatMap((f) => [f.name, f.bridge, f.body]) }
+  }, [outsideNames, routeRev, nodes])
+  /** each chip's rendered size (flow px — the portal lives inside the viewport
+   *  transform), reported by the chip itself; needed to place it */
+  const [chipSizes, setChipSizes] = useState<Record<string, { w: number; h: number }>>({})
+  const onChipSize = useCallback((id: string, w: number, h: number) => {
+    setChipSizes((s) => (s[id] && s[id].w === w && s[id].h === h ? s : { ...s, [id]: { w, h } }))
+  }, [])
 
   // ── draw / drag / resize interaction ────────────────────────────────────
   const [draft, setDraft] = useState<FrameRect | null>(null)
@@ -755,18 +784,27 @@ export function FrameLayer() {
               }}
             >
               {selectable
-                ? (['top', 'right', 'bottom', 'left'] as const).map((side) => (
-                    <div
-                      key={side}
-                      className={`lgr-frame__edge-hit lgr-frame__edge-hit--${side}`}
-                      aria-hidden="true"
-                      onPointerDown={startChromeDrag('move', rf.id, rf.rect, rf.auto, rf.label)}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        selectFrame(rf.id)
-                      }}
-                    />
-                  ))
+                ? (['top', 'right', 'bottom', 'left'] as const).flatMap((side) =>
+                    // the strip in pieces: the parts of the border no outside
+                    // name or bridge covers (one whole piece without any)
+                    freeSpans(rf.rect, side, stripBlockers).map((span, i) => (
+                      <div
+                        key={`${side}:${i}`}
+                        className={`lgr-frame__edge-hit lgr-frame__edge-hit--${side}`}
+                        aria-hidden="true"
+                        style={
+                          side === 'top' || side === 'bottom'
+                            ? { left: span.start, width: span.len, right: 'auto' }
+                            : { top: span.start, height: span.len, bottom: 'auto' }
+                        }
+                        onPointerDown={startChromeDrag('move', rf.id, rf.rect, rf.auto, rf.label)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          selectFrame(rf.id)
+                        }}
+                      />
+                    )),
+                  )
                 : null}
 
               <FrameLabel
@@ -776,6 +814,9 @@ export function FrameLayer() {
                 selected={sel}
                 open={propsId === rf.id}
                 buttonRef={propsId === rf.id ? propsAnchorRef : undefined}
+                place={placeBlockers.length && chipSizes[rf.id] ? placeChip(rf.rect, chipSizes[rf.id], placeBlockers) : CHIP_HOME}
+                maxW={rf.rect.w}
+                onSize={(w, h) => onChipSize(rf.id, w, h)}
                 onOpen={() => {
                   selectFrame(rf.id)
                   if (propsId === rf.id) closeFrameProps()
@@ -801,6 +842,18 @@ export function FrameLayer() {
                   <button
                     type="button"
                     className="lgr-frame__resize"
+                    // frameChrome.ts — the handle moves off an outside name /
+                    // bridge / body across the corner (left along the bottom
+                    // border, else up the right one); the resize gesture is
+                    // delta-based, so it still resizes the same corner. A
+                    // placement that found no room is recorded on the element.
+                    {...(() => {
+                      const hp = placeBlockers.length ? placeHandle(rf.rect, placeBlockers) : HANDLE_HOME
+                      return {
+                        style: hp.dx || hp.dy ? { right: -6 - hp.dx, bottom: -6 - hp.dy } : undefined,
+                        'data-placement': hp.placed ? undefined : 'collides',
+                      }
+                    })()}
                     aria-label={t('canvas.frame.a11y.resize', {
                       label: rf.label || def,
                       w: Math.round(rf.rect.w),
@@ -861,11 +914,24 @@ function FrameLabel({
   selected,
   open,
   buttonRef,
+  place,
+  maxW,
+  onSize,
   onOpen,
 }: {
   def: string
   label: string
   editable: boolean
+  /** node structure (frameChrome.ts `placeChip`) — where the chip stands:
+   *  `x` from the frame's left edge, `inside` = hanging just inside the top
+   *  border instead of standing on it; `placed` false = no clear place was
+   *  found and the chip stands at home over something (recorded on the
+   *  element as `data-placement="collides"`). */
+  place: { x: number; inside: boolean; placed: boolean }
+  /** the frame's width: the chip never grows past the frame's right edge */
+  maxW: number
+  /** reports the chip's rendered size (flow px) so it can be placed */
+  onSize: (w: number, h: number) => void
   /** §LGR6.6 — the container is the frame's single tab stop; the label joins
    *  the tab order only once the frame is selected, next to ✕ and the resize
    *  handle, so the keyboard rename path is kept without a duplicate stop on
@@ -891,12 +957,38 @@ function FrameLabel({
   const chipText = showsUserLabel ? label : def
   const chipDir = showsUserLabel ? 'auto' : uiDir
 
+  // the chip measures itself (offset size = flow px inside the viewport
+  // transform) and reports every change; the reporter is kept in a ref so the
+  // observer is attached once per element
+  const onSizeRef = useRef(onSize)
+  onSizeRef.current = onSize
+  const roRef = useRef<ResizeObserver | null>(null)
+  const measure = useCallback(
+    (el: HTMLElement | null) => {
+      if (buttonRef) (buttonRef as { current: HTMLButtonElement | null }).current = el as HTMLButtonElement | null
+      roRef.current?.disconnect()
+      roRef.current = null
+      if (!el) return
+      const report = () => onSizeRef.current(el.offsetWidth, el.offsetHeight)
+      report()
+      if (typeof ResizeObserver !== 'undefined') {
+        const ro = new ResizeObserver(report)
+        ro.observe(el)
+        roRef.current = ro
+      }
+    },
+    [buttonRef],
+  )
+  const placeStyle = { left: place.x, maxWidth: Math.max(0, maxW - place.x) }
+  const placeClass = `${place.inside ? ' is-inside' : ''}${place.placed ? '' : ' is-colliding'}`
+  const placeData = place.placed ? undefined : 'collides'
+
   // §AF-INV-7 / D6 — a non-editable label (a mobile auto frame, or any frame
   // on a locked / mobile canvas) is a plain span: no popover, no rename, no
   // colour. Unchanged by §FC10.
   if (!editable) {
     return (
-      <span className="lgr-frame__label lgr-frame__label--static" dir={chipDir}>
+      <span ref={measure} className={`lgr-frame__label lgr-frame__label--static${placeClass}`} style={placeStyle} data-placement={placeData} dir={chipDir}>
         {chipText}
       </span>
     )
@@ -907,9 +999,11 @@ function FrameLabel({
   // anchor), so the frame's chrome never reflows on open.
   return (
     <button
-      ref={buttonRef}
+      ref={measure}
       type="button"
-      className={`lgr-frame__label${open ? ' is-open' : ''}`}
+      className={`lgr-frame__label${open ? ' is-open' : ''}${placeClass}`}
+      style={placeStyle}
+      data-placement={placeData}
       tabIndex={selected ? 0 : -1}
       aria-haspopup="dialog"
       aria-expanded={open}

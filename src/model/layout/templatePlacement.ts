@@ -36,27 +36,66 @@ export const FRAME_GAP = 32
 
 type Doc<F extends FrameLike> = { nodes: LoopNode[]; edges: LoopEdge[]; frames?: F[] }
 
+/** the clearance between two nodes' boxes, per Template. `TEMPLATE_GAP` (48 ×
+ *  32, §DL5.2) was measured for today's node, whose box is the body alone.
+ *  Under the NODE STRUCTURE a node's box is its body AND its outside name (up
+ *  to 150 px wide, two or three lines tall, `templateBoxes.json` measured that
+ *  way), so the same clearance pushes a hand-placed diagram apart by a name's
+ *  width per column and a name's height per row — the Coffee trial of
+ *  2026-10-12 grew back to today's extent. A Template placed by hand under the
+ *  node structure declares its own clearance here (Coffee: 0, adopted —
+ *  the measured boxes still drive the overlap separation, the frame rebuild
+ *  and the 18-language sweep; Lumi 2026-10-12/13: an explicit placement value
+ *  of that example, never a general rule; share 23-coffee-replace.md). */
+export const TEMPLATE_GAPS: Partial<Record<TemplateName, { x: number; y: number }>> = {
+  'coffee-roastery': { x: 0, y: 0 },
+  // Gacha, re-placed from the design study's layout under the node structure
+  // (2026-10-12): the study's own spacing already keeps bodies, names and labels
+  // apart in 18 languages; with the default clearance the pipeline moved every
+  // one of its 63 nodes (up to 912 px). Adopted by Lumi (2026-10-12) as this
+  // example's explicit placement value, like Coffee's — not a general rule
+  // (share 24-default-switch-verification.md §10).
+  'gacha-banner-zones': { x: 0, y: 0 },
+}
+export const gapFor = (name: TemplateName): { x: number; y: number } => TEMPLATE_GAPS[name] ?? TEMPLATE_GAP
+
+/** a measured box entry: `[w, h]` for today's node (the body, anchored at the
+ *  node position), or `[w, h, dx, dy, bw, bh]` under the node structure — the
+ *  box is the body AND the outside name, `dx` / `dy` (≤ 0) its origin relative
+ *  to the node position when the name sits above or left, `bw` / `bh` the body
+ *  alone (what membership uses). */
+export type MeasuredBox = { w: number; h: number; dx: number; dy: number; bw: number; bh: number }
+export const readBox = (b: readonly number[]): MeasuredBox => ({ w: b[0]!, h: b[1]!, dx: b[2] ?? 0, dy: b[3] ?? 0, bw: b[4] ?? b[0]!, bh: b[5] ?? b[1]! })
+
 export function placeTemplate<F extends FrameLike>(name: TemplateName, doc: Doc<F>, manual: Record<string, { x: number; y: number }[]> = {}): Doc<F> {
-  const boxes = BOXES[name] as Record<string, number[]>
-  const size = (id: string): { w: number; h: number } => {
+  return placeWithBoxes(name, BOXES[name] as Record<string, number[]>, gapFor(name), doc, manual)
+}
+
+/** `placeTemplate` with the boxes and the clearance given — the same function,
+ *  so a test can feed boxes with a name above or left of the body */
+export function placeWithBoxes<F extends FrameLike>(name: string, boxes: Record<string, readonly number[]>, gap: { x: number; y: number }, doc: Doc<F>, manual: Record<string, { x: number; y: number }[]> = {}): Doc<F> {
+  const size = (id: string): MeasuredBox => {
     const b = boxes[id]
     if (!b) throw new Error(`placeTemplate(${name}): no measured box for node ${id}`)
-    return { w: b[0], h: b[1] }
+    return readBox(b)
   }
   const r = replaceOnGrid(doc.nodes, doc.edges, doc.frames ?? [], (n) => {
     const s = size(n.id)
-    return { w: s.w + TEMPLATE_GAP.x, h: s.h + TEMPLATE_GAP.y }
+    return { w: s.w + gap.x, h: s.h + gap.y, dx: s.dx, dy: s.dy, bw: s.bw, bh: s.bh }
   })
-  // 2. a frame travels with the nodes it holds — those whose centre was inside
-  //    it BEFORE the move (by their real size): it is rebuilt around where they
-  //    now are, keeping its own padding on each side (at least `FRAME_MARGIN`),
-  //    snapped outward (`rebuildFrameRect`). A frame that holds no node keeps
-  //    the grid's rect.
+  // 2. a frame travels with the nodes it holds — those whose BODY centre was
+  //    inside it BEFORE the move (a name never decides membership): it is
+  //    rebuilt around where their whole boxes (body ∪ name) now are, keeping
+  //    its own padding on each side (at least `FRAME_MARGIN`), snapped outward
+  //    (`rebuildFrameRect`). A frame that holds no node keeps the grid's rect.
   const origAt = new Map(doc.nodes.map((n) => [n.id, n.position]))
   const at = new Map(doc.nodes.map((n) => [n.id, r.positions[n.id] ?? n.position]))
-  const boxAt = (where: Map<string, { x: number; y: number }>) => (id: string) => ({ ...where.get(id)!, ...size(id) })
+  /** the whole box (body ∪ name) at `where`, its origin offset by dx / dy */
+  const boxAt = (where: Map<string, { x: number; y: number }>) => (id: string) => { const p = where.get(id)!; const s = size(id); return { x: p.x + s.dx, y: p.y + s.dy, w: s.w, h: s.h } }
+  /** the body alone at `where`, anchored at the position */
+  const bodyAt = (where: Map<string, { x: number; y: number }>) => (id: string) => { const p = where.get(id)!; const s = size(id); return { x: p.x, y: p.y, w: s.bw, h: s.bh } }
   const build = () => doc.frames?.map((f) => {
-    const members = doc.nodes.filter((n) => centreInside(boxAt(origAt)(n.id), f.rect)).map((n) => n.id)
+    const members = doc.nodes.filter((n) => centreInside(bodyAt(origAt)(n.id), f.rect)).map((n) => n.id)
     return { ...f, rect: rebuildFrameRect(f.rect, members, boxAt(origAt), boxAt(at), r.frames[f.id] ?? f.rect) }
   })
 
@@ -88,7 +127,8 @@ export function placeTemplate<F extends FrameLike>(name: TemplateName, doc: Doc<
     if (!shift) break
     for (const n of doc.nodes) {
       const p = at.get(n.id)!
-      const c = shift.axis === 'x' ? p.x + size(n.id).w / 2 : p.y + size(n.id).h / 2
+      // the BODY's centre decides which side of the gap a node is on
+      const c = shift.axis === 'x' ? p.x + size(n.id).bw / 2 : p.y + size(n.id).bh / 2
       if (c > shift.t) at.set(n.id, shift.axis === 'x' ? { x: p.x + shift.d, y: p.y } : { x: p.x, y: p.y + shift.d })
     }
     frames = build()

@@ -50,6 +50,7 @@ const inspector = {
   'inspector.field.activation': 'Attivazione',
   'inspector.node.endNote': 'Ferma l’esecuzione nel momento in cui una risorsa lo raggiunge.',
   'inspector.field.startingAmount': 'Quantità iniziale',
+  'inspector.field.currentAmount': 'Quantità attuale',
   'inspector.field.capacity': 'Capacità (vuoto = illimitata)',
   'inspector.number.nonNegativeHint': 'Inserisci un numero maggiore o uguale a 0.',
   'inspector.field.flowMode': 'Modalità di flusso',

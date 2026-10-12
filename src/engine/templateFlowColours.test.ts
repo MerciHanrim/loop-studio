@@ -58,8 +58,12 @@ const TEMPLATES: { file: string; flows: TemplateFlows; colours: string[]; conten
     file: 'coffee-roastery.json',
     flows: COFFEE_ROASTERY_FLOWS,
     colours: ['sage', 'gold', 'rose'],
-    contentDigest: '66f518eb9ebbe945a87362960866f61f534917fa7ff90c4df1d4a1674b74b5aa',
-    fullContentDigest: '66f518eb9ebbe945a87362960866f61f534917fa7ff90c4df1d4a1674b74b5aa',
+    // re-pinned 2026-10-12 twice (coffee-roastery rev 13: the money unit is
+    // `$/day`; rev 14: re-placed for the node structure — positions, frames
+    // and one connection's port faces are content, never engine data; the
+    // engine digest below is unchanged by both)
+    contentDigest: '1bb29617ad5888570bdfd22c2db8c6faf268c04a8fdb15181880ff0a185b0545',
+    fullContentDigest: '1bb29617ad5888570bdfd22c2db8c6faf268c04a8fdb15181880ff0a185b0545',
   },
   {
     file: 'gacha-banner-zones.json',
@@ -67,8 +71,8 @@ const TEMPLATES: { file: string; flows: TemplateFlows; colours: string[]; conten
     colours: ['sage', 'violet', 'rose'],
     // issue #344 step 4 (layout round 9): placed for the grid, every
     // connection Auto orthogonal — the waypoints of rounds 7 and 8 are gone
-    contentDigest: 'a9b4dbb8566a94c509ede6e3253723feeb346315f0470826dc4646968e2941a0',
-    fullContentDigest: 'a9b4dbb8566a94c509ede6e3253723feeb346315f0470826dc4646968e2941a0',
+    contentDigest: 'cf883dca811c9fecc44794321bb7c7e418fee942cf55c7797a1276fc2d1b1b77',
+    fullContentDigest: 'cf883dca811c9fecc44794321bb7c7e418fee942cf55c7797a1276fc2d1b1b77',
   },
   {
     file: 'mmo-progression.json',

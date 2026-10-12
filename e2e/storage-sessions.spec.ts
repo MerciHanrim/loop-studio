@@ -359,7 +359,8 @@ test.describe('Reset all Loop Studio data', () => {
     // no helper answered the gate on the side: the fixture still seeded the tour
     // and the release-note state (`whatsNewSeen`), and neither carries the mode key
     expect(await page.evaluate((k) => localStorage.getItem(k), MODE)).toBeNull()
-    expect(await storedKeys(page)).toEqual(['loop-studio/guided-tour/1', 'loop-studio/whats-new/announced/1', 'loop-studio/whats-new/opened/1'])
+    // the fixture seeds the canvas hints as seen too (support/loop.ts `hintsSeen`), the same way as the tour and the release-note state
+    expect(await storedKeys(page)).toEqual(['loop-studio/contextual-help/1', 'loop-studio/guided-tour/1', 'loop-studio/whats-new/announced/1', 'loop-studio/whats-new/opened/1'])
     await page.locator('.gate [data-gate-choice="personal"] input[type="checkbox"]').check()
     await page.locator('.gate [data-gate-choice="personal"] button').click()
     await waitForAppReady(page)
@@ -374,7 +375,8 @@ test.describe('Reset all Loop Studio data', () => {
     // what is left is exactly the fixture's own seed, re-armed on the reload
     // (the tour key and the two release-note keys): no document, no author,
     // no mode key, nothing else of the app's
-    expect(await storedKeys(page)).toEqual(['loop-studio/guided-tour/1', 'loop-studio/whats-new/announced/1', 'loop-studio/whats-new/opened/1'])
+    // the fixture seeds the canvas hints as seen too (support/loop.ts `hintsSeen`), the same way as the tour and the release-note state
+    expect(await storedKeys(page)).toEqual(['loop-studio/contextual-help/1', 'loop-studio/guided-tour/1', 'loop-studio/whats-new/announced/1', 'loop-studio/whats-new/opened/1'])
   })
 })
 

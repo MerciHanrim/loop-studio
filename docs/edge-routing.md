@@ -956,3 +956,24 @@ point instead of running up to it and folding back over itself (which
 `simplify` would then hide, leaving the bend point off the drawn line). It is
 a cost, not a ban: a span that has no other way still finds one. Auto routes
 (one span) are unchanged.
+
+## ER17. Port faces — which side a connection uses (node structure, first implementation)
+
+A connection may leave or arrive at a non-default FACE of a node (`top` / `right` /
+`bottom` / `left`), stored as `data.ports: { source?, target? }` next to `route` and
+`waypoints`; handle ids stay the plain `out` / `in` / `state-source` / `state-target`.
+The stored form is canonical — valid faces that differ from the default only (resource
+`right → left`, state `bottom → top`; `src/model/ports.ts` `canonicalPorts`) — so a
+document without faces is byte-identical to before, and an explicit default face
+normalises away. The revision layer carries it as a `cosmetic` field under
+`loop-revision/11` (`docs/specs/SEMANTICS-R11.md`): diffed, dirty-tracked, undone and
+applied; never in the engine digest.
+
+**Older builds — v0.25.0 measured on its production deploy (`SEMANTICS-R11.md` §R11-5);
+earlier builds by the same reasoning from the code, not measured.** They open
+the document and draw the DEFAULT faces; when they save it again the faces are gone, and
+a revision that carries faces has its project header refused there. **A round trip
+through an older build does not preserve port faces.** The document schema is not bumped
+on purpose: a face is placement, and taking the whole document away from an older build
+to protect it would cost more than it saves (decision D-A). The user-facing change note
+of the release that ships this says the same in one sentence.

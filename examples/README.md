@@ -621,8 +621,8 @@ carries the day's roast intake exactly and splits it 82 % → roasted stock,
   waste / accounting figures — never labelled `missed sales` / `waste` / `폐기`.
 - Three **planning proxies** — **`Projected daily revenue`**,
   **`Planned daily cost`**, **`Projected daily operating margin`**, each with a
-  **`kKRW/day`** display-unit hint (thousands of KRW per day — the defaults read
-  `464` / `346.8` / `117.2`). Computed from the *ordered / planned* levers
+  **`$/day`** display-unit hint (example dollar amounts per day — the defaults
+  read `464` / `346.8` / `117.2`). Computed from the *ordered / planned* levers
   assuming every unit of demand is met, so they are **not** realised revenue,
   cost, or accounting operating profit. When roasted stock runs short the
   projected-revenue line still rises with the order lever — the shortfall shows

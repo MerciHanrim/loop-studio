@@ -1,0 +1,201 @@
+/* ==== Node structure, first implementation ==================================
+   scratch/share/connection-editing-2/17-implementation-rules.md — the rules of
+   the NEW node while `uiStore.nodeStructure === 'outside'` (`.nodef--outside`,
+   nodes.tsx). Nothing here touches today's node: every selector is scoped to
+   the new structure or to elements only it renders. */
+
+/* the body: the compact height, W1's width (inline), the value row centred;
+   the elevation moves to the drawn shape so it never shadows the outside name */
+.nodef--outside {
+  min-width: 0;
+  filter: none;
+}
+.nodef--outside .nodef__shape {
+  filter: var(--elev-node);
+}
+.nodef--outside .nodef__body {
+  padding: 6px 8px;
+  align-items: center;
+}
+.nodef--outside .nodef__stack {
+  align-items: center;
+  justify-content: center;
+}
+.nodef--outside .nodef__value {
+  max-width: 100%;
+}
+/* a value-less kind: the INNER role symbol (roleSymbol.ts) in the body's
+   centre — the text colour, never the type hue, so it reads without colour;
+   present only where it adds to the silhouette (Gate kind, Source / Drain
+   activation); Converter and End show their silhouette alone */
+.nodef__role {
+  width: 20px;
+  height: 20px;
+  color: var(--text-primary);
+  display: block;
+}
+
+/* the OUTSIDE name — the product's title type, wrapped at 150 px, two lines
+   at most in practice; the gap to the body is 12 px (V2.5 / V2.7); its face
+   is the node's `data-name-face` (nodes.tsx `nameFaceFor`) */
+.nodef__name {
+  --name-gap: 12px;
+  position: absolute;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.15;
+  color: var(--text-primary);
+  width: max-content;
+  max-width: 150px;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+  line-break: strict;
+  text-wrap: balance;
+  pointer-events: auto;
+}
+.nodef__name--bottom {
+  left: 0;
+  top: calc(100% + var(--name-gap));
+  text-align: start;
+}
+.nodef__name--top {
+  left: 0;
+  bottom: calc(100% + var(--name-gap));
+  text-align: start;
+}
+.nodef__name--right {
+  left: calc(100% + var(--name-gap));
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: start;
+}
+.nodef__name--left {
+  right: calc(100% + var(--name-gap));
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: end;
+}
+:lang(ko) .nodef__name,
+.nodef__name--phrased {
+  word-break: keep-all;
+}
+
+/* the bridge: the gap between body and name belongs to the node's hit region,
+   so pointing does not drop while the pointer crosses it (§2 rule 3) */
+.nodef__bridge {
+  --name-gap: 12px;
+  position: absolute;
+  background: transparent;
+}
+.nodef__bridge--bottom {
+  left: 0;
+  top: 100%;
+  width: 100%;
+  height: var(--name-gap);
+}
+.nodef__bridge--top {
+  left: 0;
+  bottom: 100%;
+  width: 100%;
+  height: var(--name-gap);
+}
+.nodef__bridge--right {
+  left: 100%;
+  top: 0;
+  width: var(--name-gap);
+  height: 100%;
+}
+.nodef__bridge--left {
+  right: 100%;
+  top: 0;
+  width: var(--name-gap);
+  height: 100%;
+}
+
+/* the level rule (Lumi, 2026-10-12): level 1 shows role, value AND the name;
+   level 0 hides the name with the body (the L0 policy is not decided by this) */
+.nodef.lod-L0 .nodef__name {
+  visibility: hidden;
+}
+
+/* pointed at (hover): the body's outline thickens and the name is underlined —
+   a form, not a colour; told from selection (the grey ring outside) and from
+   keyboard focus (the dashed ring inside) by form. A candidate expression (V7). */
+.nodef--outside.is-hover .nodef__stroke {
+  stroke-width: 2.5;
+}
+.nodef--outside.is-hover .nodef__name {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+/* the fired mark (ticks, 9–11 px outside): the signal colour, held static;
+   position (outermost) and pattern are the tells, never the colour alone */
+.nodef__fired-ticks {
+  fill: none;
+  stroke: var(--state-fired);
+  stroke-linecap: butt;
+  vector-effect: non-scaling-stroke;
+}
+@media (forced-colors: active) {
+  .nodef__fired-ticks {
+    stroke: Highlight;
+  }
+}
+
+/* keyboard focus identifies the same set as pointing, in its own form: the
+   dashed inner ring the product already draws, and the name underlined DASHED */
+.nodef--outside.is-focused .nodef__name {
+  text-decoration: underline dashed;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+/* the extra face handles are revealed with the state ports (inline opacity) */
+.react-flow__handle.h--extra {
+  transition: opacity 100ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__handle.h--extra {
+    transition: none;
+  }
+}
+
+/* a pointed-at connection: the whole route thickens in its own colour and
+   dash, and ITS label chip takes an inset line (no size change) — V7 */
+.react-flow__edge-path.edge-hover {
+  stroke-width: 2.5;
+}
+.edge-label.is-hover {
+  box-shadow: inset 0 0 0 1px var(--line-strong), var(--elev-edge-label);
+  color: var(--text-primary);
+}
+
+/* the handles stay ABOVE the bridge: the gap between body and name belongs to
+   the node's hit region, but a port on the body's edge (its outer half lies in
+   that gap) must still start a connection — measured 2026-10-12: a state-port
+   drag from the bottom face began on the bridge instead of the handle */
+.nodef--outside .nodef__bridge {
+  z-index: 1;
+}
+.nodef--outside .react-flow__handle {
+  z-index: 2;
+}
+
+/* a face handle that is not revealed is INERT: it neither shows nor takes the
+   pointer (measured 2026-10-12: at rest, a drag from a Pool's bottom `state-source`
+   started on the hidden `state-target@bottom` drawn over it and the stored wire
+   came out reversed). And whenever both are present, the DEFAULT handle of a
+   face stays on top of an extra one at the same spot. */
+.nodef--outside .react-flow__handle.h--extra[data-off] {
+  pointer-events: none;
+}
+.nodef--outside .react-flow__handle.h--extra {
+  z-index: 2;
+}
+.nodef--outside .react-flow__handle:not(.h--extra) {
+  z-index: 3;
+}

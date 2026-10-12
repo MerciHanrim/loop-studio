@@ -43,6 +43,7 @@ const inspector = {
   'inspector.field.activation': 'การกระตุ้น',
   'inspector.node.endNote': 'หยุดการรันทันทีที่มีทรัพยากรมาถึง',
   'inspector.field.startingAmount': 'ปริมาณเริ่มต้น',
+  'inspector.field.currentAmount': 'ปริมาณปัจจุบัน',
   'inspector.field.capacity': 'ความจุ (เว้นว่าง = ไม่จำกัด)',
   'inspector.number.nonNegativeHint': 'ใส่ตัวเลขที่เป็น 0 หรือมากกว่า',
   'inspector.field.flowMode': 'โหมดการไหล',

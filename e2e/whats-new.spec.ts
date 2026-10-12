@@ -238,7 +238,7 @@ test.describe('closing the notice and opening the panel are different things', (
         expect(text).not.toContain('text unavailable')
       }
     }
-    expect(RELEASE_NOTES.map((n) => n.version)).toEqual(['0.25.0', '0.24.0', '0.23.0', '0.22.0', '0.21.4', '0.21.3', '0.21.2', '0.21.1', '0.21.0', '0.20.0', '0.19.0','0.18.2', '0.18.1', '0.18.0', '0.17.2', '0.17.1', '0.17.0', '0.16.0', '0.15.3', '0.15.2', '0.15.1', '0.15.0', '0.14.0'])
+    expect(RELEASE_NOTES.map((n) => n.version)).toEqual(['0.26.0', '0.25.0', '0.24.0', '0.23.0', '0.22.0', '0.21.4', '0.21.3', '0.21.2', '0.21.1', '0.21.0', '0.20.0', '0.19.0','0.18.2', '0.18.1', '0.18.0', '0.17.2', '0.17.1', '0.17.0', '0.16.0', '0.15.3', '0.15.2', '0.15.1', '0.15.0', '0.14.0'])
 
     await page.keyboard.press('Escape')
     await expect(panel).toHaveCount(0)
@@ -663,6 +663,9 @@ const measure = (page: Page) =>
       return {
         insideViewport: nb.left >= 0 && nb.top >= 0 && nb.right <= innerWidth && nb.bottom <= innerHeight,
         insideCanvas: nb.left >= canvas.left && nb.right <= canvas.right && nb.top >= canvas.top && nb.bottom <= canvas.bottom,
+        // the notice rail under the toolbar (desktop): the card sits in it, above the canvas
+        insideRail: (() => { const r = document.getElementById('notice-rail')?.getBoundingClientRect(); return !!r && nb.left >= r.left - 1 && nb.right <= r.right + 1 && nb.top >= r.top - 1 && nb.bottom <= r.bottom + 1 })(),
+        aboveCanvas: nb.bottom <= canvas.top + 1,
         controls: controls.length,
         covered: controls.filter((el) => hit(el.getBoundingClientRect())).map(label),
         inLeftHalf: nb.left + nb.width / 2 < canvas.left + canvas.width / 2,
@@ -676,6 +679,14 @@ const measure = (page: Page) =>
   )
 
 /** the box of every piece of chrome, to see whether the notice moves anything */
+/** the toolbar's own rects: these never move when a note comes or goes */
+const toolbarRects = (page: Page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll('.toolbar, .toolbar *')].map((el) => {
+      const r = el.getBoundingClientRect()
+      return [r.left, r.top, r.width, r.height].map((v) => Math.round(v * 10) / 10).join(',')
+    }),
+  )
 const chromeRects = (page: Page) =>
   page.evaluate((notice) =>
     [...document.querySelectorAll('.toolbar, .toolbar *, .app__body, .canvas, .canvas-col > *, aside.inspector, aside.inspector *, .pstrip, .pstrip *, .react-flow__controls, .react-flow__minimap, .react-flow__node')]
@@ -699,28 +710,56 @@ test.describe('where the notice sits', () => {
         const m = await measure(page)
         expect(m.controls).toBeGreaterThan(5)
         expect(m.insideViewport).toBe(true)
-        expect(m.insideCanvas).toBe(true)
         expect(m.covered).toEqual([])
         if (size.mobile) {
-          // physical right, at the bottom, above the run bar and the attribution - in right-to-left too
+          // the phone keeps the card on the canvas: physical right, at the bottom,
+          // above the run bar and the attribution - in right-to-left too
+          expect(m.insideCanvas).toBe(true)
           expect(m.inLeftHalf).toBe(false)
           expect(m.inTopHalf).toBe(false)
           expect(m.aboveRunBar).toBe(true)
           expect(m.aboveAttribution).not.toBe(false)
         } else {
-          // the canvas's inline-start top corner: left in left-to-right, right in right-to-left
-          expect(m.inTopHalf).toBe(true)
+          // desktop (2026-10-12, Lumi): the card sits in the notice rail under the
+          // toolbar, ABOVE the canvas, never over it; at the rail's inline start —
+          // left in left-to-right, right in right-to-left
+          expect(m.insideRail).toBe(true)
+          expect(m.aboveCanvas).toBe(true)
+          expect(m.insideCanvas).toBe(false)
           expect(m.inLeftHalf).toBe(m.dir !== 'rtl')
         }
         expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
 
-        // nothing moves when it goes away, so nothing moved when it came
+        // when it goes away: on the phone nothing moves; on desktop the rail
+        // collapses, so the canvas row grows back upward — the toolbar does not
+        // move and NOTHING ON THE CANVAS MOVES ON SCREEN: the zoom is the same,
+        // every node keeps its screen rectangle (Canvas.tsx shifts the viewport
+        // by the rail's height change, which is neither a fit nor a re-centring;
+        // only the first fit of a Template uses the real area)
+        const nodeRects = () => page.evaluate(() => [...document.querySelectorAll('.react-flow__node')].map((el) => { const r = el.getBoundingClientRect(); return [Math.round(r.left * 10) / 10, Math.round(r.top * 10) / 10, Math.round(r.width * 10) / 10].join(',') }))
         const before = await chromeRects(page)
+        const vpBefore = await page.evaluate(() => (window as unknown as { __loop: { rf: { getViewport: () => { x: number; y: number; zoom: number } } } }).__loop.rf.getViewport())
+        const nodesBefore = await nodeRects()
         await page.locator(NOTICE).getByRole('button').last().click()
         await expect(page.locator(NOTICE)).toHaveCount(0)
         const after = await chromeRects(page)
+        const vpAfter = await page.evaluate(() => (window as unknown as { __loop: { rf: { getViewport: () => { x: number; y: number; zoom: number } } } }).__loop.rf.getViewport())
         expect(before.length).toBeGreaterThan(20)
-        expect(after).toEqual(before)
+        expect(vpAfter.zoom).toBe(vpBefore.zoom)
+        expect(vpAfter.x).toBe(vpBefore.x)
+        expect(nodesBefore.length).toBeGreaterThan(0)
+        expect(await nodeRects(), 'every node keeps its place on screen').toEqual(nodesBefore)
+        if (size.mobile) expect(vpAfter.y).toBe(vpBefore.y)
+        if (size.mobile) expect(after).toEqual(before)
+        else {
+          const toolbarBefore = await toolbarRects(page)
+          expect(toolbarBefore.length).toBeGreaterThan(5)
+          expect(await toolbarRects(page)).toEqual(toolbarBefore)
+          // the rest of the chrome kept its horizontal place; it may have moved up by the rail's height
+          // (left and width only: the canvas row also grows in HEIGHT by the rail's height)
+          const xs = (rs: string[]) => rs.map((s) => s.split(',').filter((_, i) => i === 0 || i === 2).join(','))
+          expect(xs(after)).toEqual(xs(before))
+        }
       })
     }
   }

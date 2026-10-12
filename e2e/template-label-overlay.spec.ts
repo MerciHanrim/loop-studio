@@ -480,7 +480,9 @@ test.describe('official template label — locale switch (§TLO11)', () => {
           // px below the box top (no longer at the box's vertical centre):
           // this is its distance from that row, in flow px
           const scale = nf.offsetHeight > 0 ? nfR.height / nf.offsetHeight : 1
-          const ports = [...wrap.querySelectorAll('.h--in, .h--out')].map((h) => {
+          // the DEFAULT resource ports on the port row — the new node's extra face
+          // handles (top / bottom / far side) are off that row by design
+          const ports = [...wrap.querySelectorAll('.h--in:not(.h--extra), .h--out:not(.h--extra)')].map((h) => {
             const r = h.getBoundingClientRect()
             return ((r.top + r.bottom) / 2 - nfR.top) / scale - 28
           })
@@ -638,7 +640,12 @@ test.describe('official template label — locale switch (§TLO11)', () => {
         // without moving every one of its handles; see HANDLE_MOVE_EPSILON_PX
         // above). Two static deltas would otherwise "agree" vacuously.
         let anyHandleMoved = false
-        for (const edgeId of await resizedEdgeIds(snap)) {
+        const resized = await resizedEdgeIds(snap)
+        // the new node's body does not grow with its label (the name is outside):
+        // no node resized ⇒ nothing moved, nothing to settle — the invariant the
+        // rest of this test checks (heights, handle centring, endpoints) still runs
+        if (resized.size === 0) return true
+        for (const edgeId of resized) {
           const before = prevEdges[edgeId]
           const after = edges[edgeId]
           if (!before || !after) return false
@@ -668,7 +675,12 @@ test.describe('official template label — locale switch (§TLO11)', () => {
 
       const nextEdges = await edgeAlignment()
       const resized = await resizedEdgeIds(snap)
-      expect(resized.size, `expected at least one node to resize on the ${locale} switch`).toBeGreaterThan(0)
+      // the previous body grows with its label, so a switch resizes some node;
+      // the new node's body is fixed (the name is outside) — then NOTHING must
+      // have resized, and the port-row / endpoint checks around this still ran
+      const newNode = await page.evaluate(() => document.querySelector('.nodef--outside') != null)
+      if (newNode) expect(resized.size, `no node resizes on the ${locale} switch under the new node`).toBe(0)
+      else expect(resized.size, `expected at least one node to resize on the ${locale} switch`).toBeGreaterThan(0)
       let anyHandleMoved = false
       for (const edgeId of resized) {
         const before = prevEdges[edgeId]
@@ -707,7 +719,7 @@ test.describe('official template label — locale switch (§TLO11)', () => {
       // least one of its HANDLES actually moved as a result (see
       // HANDLE_MOVE_EPSILON_PX) — otherwise every check above could pass
       // vacuously by comparing two unmoved (zero-delta) positions.
-      expect(anyHandleMoved, `expected at least one handle to actually move on the ${locale} switch`).toBe(true)
+      if (!newNode) expect(anyHandleMoved, `expected at least one handle to actually move on the ${locale} switch`).toBe(true) // the new node's body does not grow: no handle moves by design
 
       prevGeo = snap
       prevEdges = nextEdges

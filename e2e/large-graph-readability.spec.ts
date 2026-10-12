@@ -712,15 +712,22 @@ test.describe('large-graph readability — Slice 1', () => {
     // in-focus edges keep their chips
     await expect(edgeLabel(page, 'e_ab')).toHaveCount(1)
     await expect(edgeLabel(page, 'e_bc')).toHaveCount(1)
-    // a de-emphasised node's type dot is hidden (visibility, so no reflow)
-    const chip = await node(page, 'd')
-      .locator('.nodef__chip')
-      .evaluate((el) => getComputedStyle(el).visibility)
-    expect(chip).toBe('hidden')
-    const keptChip = await node(page, 'a')
-      .locator('.nodef__chip')
-      .evaluate((el) => getComputedStyle(el).visibility)
-    expect(keptChip).toBe('visible')
+    // a de-emphasised node's type dot is hidden (visibility, so no reflow) —
+    // the previous body's chip; the new node has no chip, its de-emphasis is
+    // the node-level class the dimming hangs on (the name dims with the node)
+    if (await node(page, 'd').locator('.nodef__chip').count()) {
+      const chip = await node(page, 'd')
+        .locator('.nodef__chip')
+        .evaluate((el) => getComputedStyle(el).visibility)
+      expect(chip).toBe('hidden')
+      const keptChip = await node(page, 'a')
+        .locator('.nodef__chip')
+        .evaluate((el) => getComputedStyle(el).visibility)
+      expect(keptChip).toBe('visible')
+    } else {
+      await expect(node(page, 'd')).toHaveClass(/lgr-deemph/)
+      await expect(node(page, 'a')).not.toHaveClass(/lgr-deemph/)
+    }
   })
 
   test('keyboard: bare `f` toggles; a text field and Ctrl/Cmd-F are left alone (§LGR4.3)', async ({ page }) => {
@@ -1214,7 +1221,7 @@ const simHead = (page: Page) =>
 
 const anyRunCue = (page: Page) =>
   page.evaluate(
-    () => document.querySelectorAll('.nodef__wave, .nodef__eval').length,
+    () => document.querySelectorAll('[data-run-cue]').length,
   )
 
 async function loadRun(page: Page, graph = GRAPH_RUN): Promise<void> {
@@ -1245,8 +1252,9 @@ async function commitOneStep(page: Page): Promise<void> {
     .toBeGreaterThan(0)
 }
 
-const hasWave = (page: Page, id: string) => node(page, id).locator('.nodef__wave')
-const hasEval = (page: Page, id: string) => node(page, id).locator('.nodef__eval')
+// the `effective` cue: the wave under the previous node, the ticks ring under the new one — one attribute names both
+const hasWave = (page: Page, id: string) => node(page, id).locator('[data-run-cue="effective"]')
+const hasEval = (page: Page, id: string) => node(page, id).locator('[data-run-cue="evaluated"]')
 /** the evaluated mark is an OPEN corner bracket — only two borders (left +
  *  bottom) and one rounded corner, never a closed ring or a circle. */
 const evalShape = (page: Page, id: string) =>
@@ -1371,8 +1379,8 @@ test.describe('LGR Slice 3 — run distinction (evaluated vs effective)', () => 
     await commitOneStep(page)
     const firstHead = await simHead(page)
     expect(firstHead.firedNodeIds.length).toBeGreaterThan(0)
-    await expect(page.locator('.nodef__wave').first()).toHaveCount(1)
-    await expect(page.locator('.nodef__eval').first()).toHaveCount(1)
+    await expect(page.locator('[data-run-cue="effective"]').first()).toHaveCount(1)
+    await expect(page.locator('[data-run-cue="evaluated"]').first()).toHaveCount(1)
 
     // paused (stepOnce leaves status 'paused') — the last committed step`s cues
     // stay; an explicit pause() is a no-op that must not clear them
@@ -1387,14 +1395,14 @@ test.describe('LGR Slice 3 — run distinction (evaluated vs effective)', () => 
       (window as unknown as { __loop: { sim: { getState: () => { reset: () => void } } } }).__loop.sim.getState().reset(),
     )
     await expect(page.locator('.nodef__wave')).toHaveCount(0)
-    await expect(page.locator('.nodef__eval')).toHaveCount(0)
+    await expect(page.locator('[data-run-cue="evaluated"]')).toHaveCount(0)
 
     // a fresh graph load also starts with no run cue
     await commitOneStep(page)
     expect(await anyRunCue(page)).toBeGreaterThan(0)
     await importGraph(page, GRAPH_RUN)
     await expect(page.locator('.nodef__wave')).toHaveCount(0)
-    await expect(page.locator('.nodef__eval')).toHaveCount(0)
+    await expect(page.locator('[data-run-cue="evaluated"]')).toHaveCount(0)
 
     // ── ended: a graph that finishes on step 1 keeps its last cues ──
     await loadRun(page, GRAPH_END)
@@ -2785,8 +2793,8 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
     // the drawn manual frame is SELECTED at capture time, which would show the
     // one-time tier-1 "frame move" note (§CIH3 #9) in the top-centre slot over
     // the suggest note this baseline pins — mark it seen before the app mounts
+    // (the shared fixture now seeds every canvas hint as seen — support/loop.ts `hintsSeen`)
     await page.goto('/')
-    await page.evaluate(() => localStorage.setItem('loop-studio/contextual-help/1', JSON.stringify({ 'frame-move': true })))
     await loadAF(page)
     await ensureTimelineOpen(page)
     await page.addStyleTag({ content: '.react-flow__minimap,.react-flow__attribution{display:none!important}' })
@@ -3695,7 +3703,8 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
 
   test('the import hint outranks the frame-move hint: one note at a time, import first, frame-move only after it closes — and it is not consumed while hidden', async ({ page }) => {
     await load(page)
-    await page.evaluate(() => localStorage.removeItem('loop-studio/contextual-help/1'))
+    // present but empty (not removed): the shared fixture re-seeds an ABSENT key on every navigation
+    await page.evaluate(() => localStorage.setItem('loop-studio/contextual-help/1', '{}'))
     await page.reload()
     await load(page)
     // the import note first (a fresh import batch), THEN a saved frame — which
@@ -3770,7 +3779,8 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
 
   test('the first time a frame is selected a one-time note explains "edge drag carries contents / Ctrl+drag frame only"; it is listed in the contextual-tips dialog', async ({ page }) => {
     await load(page)
-    await page.evaluate(() => localStorage.removeItem('loop-studio/contextual-help/1'))
+    // present but empty (not removed): the shared fixture re-seeds an ABSENT key on every navigation
+    await page.evaluate(() => localStorage.setItem('loop-studio/contextual-help/1', '{}'))
     await page.reload()
     await load(page)
     await seedFrame(page, OUTER)

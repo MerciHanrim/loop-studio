@@ -67,7 +67,11 @@ test('a resource port sits 28 px below the node top, whatever the height, on the
       return { id, height: box.height, inRow: inH.top + inH.height / 2 - box.top, outRow: outH.top + outH.height / 2 - box.top, inX: inH.left + inH.width / 2 - box.left, outX: box.right - (outH.left + outH.width / 2) }
     }),
   )
-  expect(rows[1].height, 'c wraps to a taller box').toBeGreaterThan(rows[0].height + 10)
+  // the previous body grows with a wrapping title; the new node's body is a
+  // fixed 56 px with the name outside — the port-row rule below is what this
+  // test protects, "whatever the height" being vacuous under the new node
+  const newNode = await page.evaluate(() => document.querySelector('.nodef--outside') != null)
+  if (!newNode) expect(rows[1].height, 'c wraps to a taller box').toBeGreaterThan(rows[0].height + 10)
   for (const r of rows) {
     expect(Math.abs(r.inRow - 28), `${r.id} in`).toBeLessThan(0.6)
     expect(Math.abs(r.outRow - 28), `${r.id} out`).toBeLessThan(0.6)

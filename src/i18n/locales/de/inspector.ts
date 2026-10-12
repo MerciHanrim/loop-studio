@@ -46,6 +46,7 @@ const inspector = {
   'inspector.field.activation': 'Aktivierung',
   'inspector.node.endNote': 'Beendet den Lauf in dem Moment, in dem eine Ressource es erreicht.',
   'inspector.field.startingAmount': 'Anfangsbestand',
+  'inspector.field.currentAmount': 'Aktueller Bestand',
   'inspector.field.capacity': 'Kapazität (leer = unbegrenzt)',
   'inspector.number.nonNegativeHint': 'Geben Sie eine Zahl ab 0 ein.',
   'inspector.field.flowMode': 'Flussmodus',

@@ -260,11 +260,11 @@ test('a bundled Template opens with Spanish node labels', async ({ page }) => {
   await page.locator('.menu__name', { hasText: 'Línea de producción equilibrada' }).click()
   await expect
     .poll(() =>
-      page.evaluate(() => [...document.querySelectorAll('.nodef__title')].map((t) => t.textContent?.trim())),
+      page.evaluate(() => [...document.querySelectorAll('.nodef__name')].map((t) => t.textContent?.trim())),
     )
     .toContain('Suministro de material')
   const titles = await page.evaluate(() =>
-    [...document.querySelectorAll('.nodef__title')].map((t) => t.textContent?.trim()),
+    [...document.querySelectorAll('.nodef__name')].map((t) => t.textContent?.trim()),
   )
   expect(titles, 'the dictionary loaded, so no English canonical is left').not.toContain('Material supply')
   expect(titles).toContain('Procesamiento')

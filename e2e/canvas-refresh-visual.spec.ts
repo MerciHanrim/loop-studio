@@ -56,7 +56,7 @@ const isMobileViewport = (page: Page) => (page.viewportSize()?.width ?? 1280) < 
 
 async function load(page: Page, scheme: 'light' | 'dark'): Promise<void> {
   await page.emulateMedia({ colorScheme: scheme })
-  await openApp(page)
+  await openApp(page, { structure: 'inside' })
   await resetAll(page)
   await importGraph(page, FIXTURE) // loadJSON bridge — works on desktop and mobile
   await expect(page.locator('.react-flow__node[data-id="gold"]')).toBeVisible()

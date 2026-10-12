@@ -665,6 +665,11 @@ const ui = {
   'whatsNew.v0250.shapes': 'Verbindungsformen bearbeiten. Zur Wahl stehen Gebogen, Gerade und Rechtwinklig, automatisch oder mit eigenen Knickpunkten, die sich am Desktop hinzufügen, verschieben und entfernen lassen. Auf dem Smartphone werden diese Formen nur angezeigt, nicht bearbeitet.',
   'whatsNew.v0250.outline': 'Text bleibt im Knoten. Der Umriss eines Knotens passt sich jetzt an Titel und Werte an, sodass der Text in allen 18 Sprachen darin bleibt.',
   'whatsNew.v0250.templates': 'Überarbeitete Vorlagen. Alle fünf mitgelieferten Vorlagen nutzen das neue Raster und die neue Linienführung, mit klareren Abständen und besseren Startansichten.',
+  'whatsNew.v0260.node': 'Neues Knotendesign. Jeder Knoten ist eine kompakte Form mit Rolle und Wert innen und dem Namen direkt daneben, sodass ein Diagramm in jeder Sprache auf einen Blick gleich zu lesen ist; die Namen bleiben auch in der mittleren Zoomstufe sichtbar.',
+  'whatsNew.v0260.ports': 'Verbindungen von jeder Seite. Eine Verbindung kann einen Knoten oben, unten, links oder rechts verlassen oder erreichen, und eine neue Verbindung merkt sich die Seite, von der sie gezogen wurde. Bestehende Dokumente behalten ihre Verbindungen, wo sie waren; wird ein Dokument mit gewählten Seiten von einer älteren Version von Loop Studio erneut gespeichert, gehen nur die Seiten verloren und diese Verbindungen kehren zu ihren Standardseiten zurück, sonst ändert sich nichts.',
+  'whatsNew.v0260.notices': 'Hinweise unter der Werkzeugleiste. Der Aktualisierungshinweis und die Hinweise beim ersten Gebrauch stehen jetzt in einer Zeile unter der Werkzeugleiste statt über dem Diagramm, und das Diagramm bewegt sich nicht, wenn sie erscheinen oder geschlossen werden.',
+  'whatsNew.v0260.currentAmount': 'Der aktuelle Bestand eines Speichers unter Eigenschaften. Neben dem Anfangsbestand zeigt ein schreibgeschütztes Feld, wie viel der Speicher gerade enthält, auch auf dem Telefon.',
+  'whatsNew.v0260.templates': 'Neu angeordnete Vorlagen. Die Kaffeerösterei und der Gacha-Banner-Vergleich mit drei Zonen sind für die neuen Knoten neu angeordnet; das Geld der Kaffeerösterei wird jetzt in Dollar pro Tag angezeigt.',
 } satisfies Record<UiKey, string>
 
 export default ui

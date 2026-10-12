@@ -203,6 +203,24 @@ type UiState = {
   refInsertPick: { nodeId: string; editingId: string; caretStart: number; caretEnd: number } | null
   pickRefInsert: (nodeId: string) => void
   clearRefInsertPick: () => void
+
+  /**
+   * Node structure, first implementation (scratch/share/connection-editing-2/
+   * 17-implementation-rules.md) — which node structure the canvas draws:
+   * `inside` = today's node (title inside the body); `outside` = the new node
+   * (a small body with role and value, the name outside from level 1, the
+   * body + name + gap one hit region, four-side ports). A VIEW switch while the
+   * new structure is brought up on a small graph: never written to a document,
+   * a Share or a Workspace, never persisted; read once from `?nodes=outside`
+   * (a bring-up convenience like `?lang=`). Which structure ships as the
+   * default, and how, is the later stage's decision — not this flag's.
+   */
+  nodeStructure: 'inside' | 'outside'
+  setNodeStructure: (v: 'inside' | 'outside') => void
+  /** node structure — the connection the pointer is over (pointing to read: the
+   *  whole route and its own label are identified together); UI-only */
+  hoverEdgeId: string | null
+  setHoverEdgeId: (id: string | null) => void
 }
 
 const CANVAS_LOCKED_KEY = 'loop-studio:canvas-locked'
@@ -387,6 +405,25 @@ export const useUiStore = create<UiState>((set, get) => ({
       }
     }),
   clearRefInsertPick: () => set((s) => (s.refInsertPick ? { refInsertPick: null } : s)),
+
+  nodeStructure: readNodeStructureOverride(),
+  setNodeStructure: (v) => set((s) => (s.nodeStructure === v ? s : { nodeStructure: v })),
+  hoverEdgeId: null,
+  setHoverEdgeId: (id) => set((s) => (s.hoverEdgeId === id ? s : { hoverEdgeId: id })),
 }))
+
+/** The node structure the canvas opens with. The NEW node — a compact body
+ *  with the name outside — is the DEFAULT (Lumi / Hanrim, 2026-10-12: the
+ *  product change the small graph and Coffee are verified under, with the
+ *  Coffee re-placement that presumes it). `?nodes=inside` opens the previous
+ *  structure for this page load only (comparison and the specs that pin it);
+ *  `?nodes=outside` still names the default. Never persisted. */
+function readNodeStructureOverride(): 'inside' | 'outside' {
+  try {
+    return new URLSearchParams(window.location.search).get('nodes') === 'inside' ? 'inside' : 'outside'
+  } catch {
+    return 'outside'
+  }
+}
 
 export const selectOverlay = (s: UiState): Overlay => s.overlay

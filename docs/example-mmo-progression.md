@@ -267,7 +267,7 @@ default / trajectory / Timeline change**, and the Template label overlay stays
 - **`XP pace (starter-levels)` → `XP pace index`** (KO → `경험치 진행 지수`) —
   see above; it names the value as an index and drops the unit question.
 - **Register `unit` hint** (advisory, renders as the node's sub-line, one
-  canonical token per locale — like the coffee `kKRW/day` hint): `Total income`
+  canonical token per locale — like the coffee `$/day` hint): `Total income`
   / `Total expense` / `Net gold check` → `gold`; `Items accounted` → `items`;
   `Consumables burned` → `units`. `Hunt XP share` keeps its `%` (percent
   format); `XP pace index` stays unit-less.
@@ -289,7 +289,7 @@ default / trajectory / Timeline change**, and the Template label overlay stays
 
 ### Register `unit` on the canvas
 
-`RegisterNode` renders `unit` right after the value (`464 kKRW/day`,
+`RegisterNode` renders `unit` right after the value (`464 $/day`,
 `64 gold`) — a lighter, smaller sans suffix that shares the value line's
 ellipsis, so a long unit truncates with the value and never widens the node.
 The `= @…` expression stays on the sub-line; the Inspector `unit` field is

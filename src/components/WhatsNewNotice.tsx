@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useT } from '../i18n'
+import { useNoticeRail } from '../ui/noticeRail'
 import { selectUpdateReady, usePwaStore } from '../store/pwaStore'
 import { useUiStore } from '../store/uiStore'
 import { useWhatsNewStore } from '../store/whatsNewStore'
@@ -153,33 +155,38 @@ export function WhatsNewNotice({ blocked }: Props) {
   // stable, because the dialog's focus effect re-runs when its `onEscape` changes
   const closePanel = useCallback(() => setPanelOpen(false), [])
 
+  // the notice rail (src/ui/noticeRail.tsx) — on desktop the section renders
+  // into the strip under the toolbar instead of over the canvas; everything
+  // else here (gating, focus return, the live line, the panel) is unchanged
+  const rail = useNoticeRail()
+  const section = visible ? (
+    <section
+      ref={noticeRef}
+      className="whatsnew-notice"
+      aria-label={t('whatsNew.notice.region')}
+      data-whatsnew="notice"
+      onFocus={() => (focusInside.current = true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) focusInside.current = false
+      }}
+    >
+      <p className="whatsnew-notice__text">{sentence}</p>
+      <span className="whatsnew-notice__actions">
+        <button type="button" className="btn btn--sm" onClick={openPanel}>
+          {t('whatsNew.notice.open')}
+        </button>
+        <button type="button" className="btn btn--sm btn--ghost" onClick={close}>
+          {t('dialog.close')}
+        </button>
+      </span>
+    </section>
+  ) : null
   return (
     <>
       <div className="sr-only" aria-live="polite" data-whatsnew="live">
         {said}
       </div>
-      {visible ? (
-        <section
-          ref={noticeRef}
-          className="whatsnew-notice"
-          aria-label={t('whatsNew.notice.region')}
-          data-whatsnew="notice"
-          onFocus={() => (focusInside.current = true)}
-          onBlur={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) focusInside.current = false
-          }}
-        >
-          <p className="whatsnew-notice__text">{sentence}</p>
-          <span className="whatsnew-notice__actions">
-            <button type="button" className="btn btn--sm" onClick={openPanel}>
-              {t('whatsNew.notice.open')}
-            </button>
-            <button type="button" className="btn btn--sm btn--ghost" onClick={close}>
-              {t('dialog.close')}
-            </button>
-          </span>
-        </section>
-      ) : null}
+      {section && rail ? createPortal(section, rail) : section}
       <WhatsNewPanel open={panelOpen} onClose={closePanel} returnFocusTo={focusFallback} />
     </>
   )

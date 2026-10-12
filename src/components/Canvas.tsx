@@ -16,6 +16,8 @@ import type { InitialView } from '../model/templates'
 import { BUNDLED_MODULES, cloneModuleDoc } from '../model/modules'
 import { refInsertVerdict, type RefResolveKind } from '../model/exprRefs'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
+import { edgePortKind, faceOf, rfHandleId } from '../model/ports'
+import { diagramBounds } from '../store/routeMap'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { blocksCanvasKey } from '../ui/keyboardTarget'
@@ -41,6 +43,7 @@ import { useFrameStore, hasFrames } from '../store/frameStore'
 import { useAutoFrameStore, hasAutoFrames, autoFramesStale } from '../store/autoFrameStore'
 import { WORTH_IT_FLOOR } from './frames/autoFrames'
 import { CanvasHintNote, useHintEligible } from './HintNote'
+import { NOTICE_RAIL_ID, RailOrPanel } from '../ui/noticeRail'
 import { canvasFitInsets, viewportForRect } from './canvasFit'
 import { MinimapDock } from './MinimapDock'
 import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../store/hintStore'
@@ -123,7 +126,27 @@ export function Canvas() {
   const tidyToGrid = useGraphStore((s) => s.tidyToGrid)
   const insertModule = useGraphStore((s) => s.insertModule)
   const setSelection = useGraphStore((s) => s.setSelection)
-  const { screenToFlowPosition, fitView, setViewport, getViewport, deleteElements } = useReactFlow()
+  const { screenToFlowPosition, fitView, fitBounds, setViewport, getViewport, getNodes, deleteElements, setEdges: rfSetEdges, setNodes: rfSetNodes } = useReactFlow()
+  // node structure (Lumi, 2026-10-12) — a fit that contains the OUTSIDE NAMES:
+  // React Flow's fitView knows only the node boxes, so under the new structure
+  // a name on the far side was cut off; here the bounds take every name box in
+  // (routeMap.diagramBounds), then the same 1.2 zoom ceiling as fitView's.
+  // Today's structure keeps fitView as it was.
+  const fitAll = useCallback(async (): Promise<void> => {
+    const b = useUiStore.getState().nodeStructure === 'outside' ? diagramBounds(getNodes() as LoopNode[]) : null
+    if (!b) {
+      await fitView({ padding: 0.3, maxZoom: 1.2 })
+      return
+    }
+    await fitBounds(b, { padding: 0.3, duration: 0 })
+    const v = getViewport()
+    if (v.zoom > 1.2) {
+      const el = canvasRef.current
+      const w = el?.clientWidth ?? 0
+      const h = el?.clientHeight ?? 0
+      await setViewport({ x: w / 2 - (b.x + b.width / 2) * 1.2, y: h / 2 - (b.y + b.height / 2) * 1.2, zoom: 1.2 }, { duration: 0 })
+    }
+  }, [fitView, fitBounds, getNodes, getViewport, setViewport])
   const rfStore = useStoreApi()
   const isMobile = useIsMobile()
   const canvasLocked = useUiStore((s) => s.canvasLocked)
@@ -203,6 +226,7 @@ export function Canvas() {
   const paneH = useStore((s) => s.height)
   const t = useT()
 
+
   // docs/mobile.md §MV-D10 / docs/mmo-multilingual-layout.md §MML3 — the minimap
   // (a fixed ~202×152 overlay) only earns its space on a canvas large enough to
   // want an overview. Below this it is hidden (like on mobile), so a small
@@ -239,7 +263,7 @@ export function Canvas() {
       // zoom so the core start nodes stay whole.
       const insets = canvasFitInsets(minimapVisibleRef.current)
       const vp = viewportForRect(iv.rect, { width: paneW, height: paneH }, insets, { floor: iv.minZoom, ceil: 1.2, keep: iv.keep })
-      if (!vp) return void fitView({ padding: 0.3, maxZoom: 1.2 })
+      if (!vp) return void fitAll()
       setViewport(vp, { duration: 0 })
       if (import.meta.env.DEV) lastInitialViewRef.current = { insetR: insets.right, insetB: insets.bottom, zoom: vp.zoom }
     },
@@ -319,8 +343,51 @@ export function Canvas() {
     // §MML3 — a menu-opened Template may frame a sub-region instead of fit-all
     const iv = useGraphStore.getState().pendingInitialView
     if (iv) applyInitialViewRef.current(iv)
-    else void fitView({ padding: 0.3, maxZoom: 1.2 })
+    else void fitAll()
   }, [fitRev, loadRev, nodesInitialized, measuredSig, settleTick, fitView, getViewport])
+
+  // the notice rail (src/ui/noticeRail.tsx, `#notice-rail`) sits between the
+  // toolbar and this pane: when a note comes or goes the pane's TOP EDGE moves
+  // by the rail's height change. Lumi (2026-10-12): nothing on the canvas may
+  // move when that happens. So whenever this pane's size changes, its top edge
+  // is compared with the last one and the viewport is shifted by the
+  // difference in the same layout pass: every node keeps its place ON SCREEN,
+  // the rail reveals or frees the strip at the top. No zoom change, no fit, no
+  // re-centring (those run on a Template swap only). A pane that only grows or
+  // shrinks at the BOTTOM (the timeline panel, a window resize) moves nothing.
+  // The pane element is observed, not the rail, so a re-created rail (a locale
+  // or direction switch rebuilds the chrome) cannot detach the observer.
+  // Measured before this: a 39 px jump broke the hit-test and frame-drag e2e.
+  // The shift is not a user's pan: a swap armed above compares the viewport
+  // with the one it saw at arming to tell a pan from an untouched camera, so
+  // the armed reference moves with the shift — measured 2026-10-12: a hint
+  // entering the rail between a Template swap and its fit cancelled the
+  // Template's start view (the Gacha initial-load e2e).
+  // Only the RAIL's own height counts (measured 2026-10-12, the full e2e on the
+  // release tree): shifting on every move of the pane's top edge also fired
+  // when the toolbar wrapped at a narrow width, and the phone layout in
+  // between detached and re-attached the observer with a new reference, so a
+  // resize to 560 px and back left the camera 108 px off. The rail's height is
+  // read afresh on every callback, so a rebuilt rail element is no problem.
+  useEffect(() => {
+    if (isMobile || typeof ResizeObserver === 'undefined') return
+    const pane = rfStore.getState().domNode
+    if (!pane) return
+    const railHeight = () => document.getElementById(NOTICE_RAIL_ID)?.getBoundingClientRect().height ?? 0
+    let lastRail = railHeight()
+    const ro = new ResizeObserver(() => {
+      const h = railHeight()
+      const d = h - lastRail
+      lastRail = h
+      if (d === 0) return
+      const v = getViewport()
+      void setViewport({ x: v.x, y: v.y - d, zoom: v.zoom }, { duration: 0 })
+      const armed = armedSwap.current
+      if (armed) armed.fromVp = { ...armed.fromVp, y: armed.fromVp.y - d }
+    })
+    ro.observe(pane)
+    return () => ro.disconnect()
+  }, [isMobile, rfStore, getViewport, setViewport])
 
   // docs/large-graph-readability.md §LGR3.3 — the two lenses COMPOSE: filter
   // hides first (removes from the canvas), then focus dims the remainder. Both
@@ -387,14 +454,32 @@ export function Canvas() {
       return n
     })
   }, [nodes, hidden, focusSet])
-  const rfEdges = useMemo(() => {
-    if (!hidden && !focusSet) return edges
+  // node structure (src/model/ports.ts) — under the new structure a node offers
+  // one DOM handle per face per port, so a connection with a stored face binds
+  // to `<id>@<face>`; the document's edge keeps the plain id. Today's structure
+  // has only the default handles, so a stored face is drawn at the default
+  // face there (the document is untouched either way).
+  const nodeStructure = useUiStore((s) => s.nodeStructure)
+  const facedEdges = useMemo(() => {
+    if (nodeStructure !== 'outside') return edges
     return edges.map((e) => {
+      const k = edgePortKind(e)
+      const sh = rfHandleId(k, 'source', faceOf(e, 'source'))
+      const th = rfHandleId(k, 'target', faceOf(e, 'target'))
+      return sh === e.sourceHandle && th === e.targetHandle ? e : { ...e, sourceHandle: sh, targetHandle: th }
+    })
+  }, [edges, nodeStructure])
+  const rfEdges = useMemo(() => {
+    if (!hidden && !focusSet) return facedEdges
+    return facedEdges.map((e) => {
       if (hidden?.edges.has(e.id)) return { ...e, hidden: true }
       if (focusSet && !focusSet.edges.has(e.id)) return { ...e, className: withDeemph(e.className) }
       return e
     })
-  }, [edges, hidden, focusSet])
+  }, [facedEdges, hidden, focusSet])
+  // pointing to read (17-implementation-rules.md §2 cues): the connection under
+  // the pointer, so its whole route and its own label are identified together
+  const setHoverEdgeId = useUiStore((s) => s.setHoverEdgeId)
 
   // docs/large-graph-readability.md §LGR3.4 / LGR-D4 — Reset view: one UI-only
   // action that fits the graph and clears the exploration lens (filter
@@ -403,7 +488,7 @@ export function Canvas() {
   const resetView = useCallback(() => {
     useFilterStore.getState().clear()
     setSelection(null, null)
-    void fitView({ padding: 0.3, maxZoom: 1.2 })
+    void fitAll()
   }, [setSelection, fitView])
 
   // structural editing is off on mobile (docs/mobile.md §MV3a) OR when the
@@ -534,12 +619,12 @@ export function Canvas() {
     if (!import.meta.env.DEV) return
     const w = window as unknown as { __loop?: Record<string, unknown> }
     if (w.__loop) {
-      w.__loop.rf = { setViewport, getViewport, fitView }
+      w.__loop.rf = { setViewport, getViewport, fitView, fitAll }
       // the last `applyInitialView` result — lets an e2e assert the minimap
       // inset was / was not reserved on a menu-open framing (ux/minimap-collapse)
       w.__loop.canvas = { lastInitialView: () => lastInitialViewRef.current }
     }
-  }, [setViewport, getViewport, fitView])
+  }, [setViewport, getViewport, fitView, fitAll])
 
   // docs/contextual-inline-help.md §CIH3 #4 — any real canvas interaction
   // (a pan, a pinch/wheel zoom, a node drag, a tap-select) satisfies the
@@ -570,7 +655,7 @@ export function Canvas() {
       landscape = now
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => {
-        void fitView({ padding: 0.3, maxZoom: 1.2 })
+        void fitAll()
       })
     }
     window.addEventListener('resize', onResize)
@@ -695,6 +780,35 @@ export function Canvas() {
       insertBend(edge.id, p)
     },
     [screenToFlowPosition, insertBend],
+  )
+  // A connection's LABEL beats another connection's line (Lumi, 2026-10-12).
+  // The label chip takes no pointer of its own (§LGR4.1: a chip drawn over a
+  // node must not swallow the node's click — nodes still win, they sit above
+  // the lines), so a click on a chip lands on whatever line runs under it,
+  // and where another connection's route crosses the chip that OTHER
+  // connection got selected (measured on the Gacha Template: `e_pickup_29`'s
+  // label over `e_pickup_35`'s line). Narrow rule, applied to a click that
+  // reached a line: if the point is inside a visible label chip of a
+  // different connection, the selection goes to the chip's connection.
+  const onEdgeClick = useCallback(
+    (e: React.MouseEvent, edge: LoopEdge) => {
+      if (useRouteEditStore.getState().addBendFor != null && !noEdit) {
+        onAddBendClick(e, edge)
+        return
+      }
+      const target = e.target as Element | null
+      if (!target?.closest('.react-flow__edge-interaction, .react-flow__edge-path')) return
+      for (const chip of document.querySelectorAll<HTMLElement>('.edge-label:not(.edge-label--measure)')) {
+        const r = chip.getBoundingClientRect()
+        if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) continue
+        const id = chip.dataset.edgeId
+        if (!id || id === edge.id) return
+        rfSetEdges((es) => es.map((x) => (x.selected !== (x.id === id) ? { ...x, selected: x.id === id } : x)))
+        rfSetNodes((ns) => ns.map((n) => (n.selected ? { ...n, selected: false } : n)))
+        return
+      }
+    },
+    [noEdit, onAddBendClick, rfSetEdges, rfSetNodes],
   )
 
   // §LGR6.6 — ONE owner for the destructive canvas keys. React Flow's built-in
@@ -907,7 +1021,7 @@ export function Canvas() {
   return (
     <div
       ref={canvasRef}
-      className={`canvas${canvasLocked ? ' canvas--locked' : ''}${refInsertArmed ? ' canvas--ref-insert' : ''}`}
+      className={`canvas${canvasLocked ? ' canvas--locked' : ''}${refInsertArmed ? ' canvas--ref-insert' : ''}${nodeStructure === 'outside' ? ' canvas--nodes-outside' : ''}`}
       data-tour="canvas"
       data-covered-by-sheets=""
       aria-busy={routesBusy || undefined}
@@ -946,7 +1060,9 @@ export function Canvas() {
         nodesConnectable={!noEdit && !refInsertArmed}
         edgesReconnectable={!noEdit}
         onNodeClick={refInsertArmed ? (_e, n) => onArmedNodeClick(n.id) : undefined}
-        onEdgeClick={addBendFor != null && !noEdit ? onAddBendClick : undefined}
+        onEdgeClick={onEdgeClick}
+        onEdgeMouseEnter={nodeStructure === 'outside' ? (_e, edge) => setHoverEdgeId(edge.id) : undefined}
+        onEdgeMouseLeave={nodeStructure === 'outside' ? () => setHoverEdgeId(null) : undefined}
         zoomOnDoubleClick={!isMobile && !framePropsOpen}
         zoomOnScroll={!framePropsOpen}
         zoomOnPinch={!framePropsOpen}
@@ -1028,8 +1144,10 @@ export function Canvas() {
         {/* docs/…-auto-frames.md §AF9.2 — while suggested frames are on screen,
             a one-line note that they are STRUCTURAL, not domain regions. Never
             takes the pointer. */}
+        {/* the two tier-1 hint notes render into the notice rail on desktop
+            (src/ui/noticeRail.tsx), a top-centre Panel on the phone */}
         {importHintShowing && lastImportBatch && (
-          <Panel position="top-center" className="hint-note" role="note">
+          <RailOrPanel className="hint-note" role="note">
             <span dir={uiDir}>
               {t('hint.importFirstCommit.body', {
                 n: lastImportBatch.count,
@@ -1039,15 +1157,15 @@ export function Canvas() {
             <button type="button" className="hint-note__x" aria-label={t('hint.close')} onClick={importHint.close}>
               <Icon name="close" />
             </button>
-          </Panel>
+          </RailOrPanel>
         )}
         {frameMoveHintShowing && (
-          <Panel position="top-center" className="hint-note" role="note">
+          <RailOrPanel className="hint-note" role="note">
             <span dir={uiDir}>{t('hint.frameMove.body')}</span>
             <button type="button" className="hint-note__x" aria-label={t('hint.close')} onClick={frameMoveHint.close}>
               <Icon name="close" />
             </button>
-          </Panel>
+          </RailOrPanel>
         )}
         {autoFramesExist && !suggestNoteDismissed && !importHintShowing && !frameMoveHintShowing && (
           <Panel position="top-center" className="lgr-suggest-note">

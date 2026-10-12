@@ -182,8 +182,8 @@ test.describe('the audited Italian copy is on screen', () => {
     await page.locator('.menu__pop [role="menuitem"]', { hasText: cat['templates.coffeeRoastery.name'] }).click()
     const confirm = page.locator('.mcdlg--confirm .mcdlg__foot .btn--primary')
     if (await confirm.isVisible().catch(() => false)) await confirm.click()
-    await expect.poll(() => page.locator('.nodef__title').count()).toBeGreaterThan(20)
-    const titles = (await page.locator('.nodef__title').allInnerTexts()).join(' | ')
+    await expect.poll(() => page.locator('.nodef__name').count()).toBeGreaterThan(20)
+    const titles = (await page.locator('.nodef__name').allInnerTexts()).join(' | ')
     // the glossary term, a plain label, and the ONE the read-back is watching
     expect(titles).toContain('Scorte di caffè verde')
     expect(titles).toContain('Margine operativo giornaliero previsto')
@@ -318,7 +318,7 @@ test.describe('nothing Italian adds overflows its box', () => {
     await setLocale(page, 'it')
     const bad = await page.evaluate(() => {
       const out: string[] = []
-      const sel = '.palette-item, .menu__blurb, .menu__name, .nodef__title, .btn, .toolbar__actions button'
+      const sel = '.palette-item, .menu__blurb, .menu__name, .nodef__name, .btn, .toolbar__actions button'
       for (const el of document.querySelectorAll(sel)) {
         const e = el as HTMLElement
         if (!e.offsetParent) continue

@@ -1,5 +1,8 @@
 import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
+// this spec is ABOUT the canvas hint notes (or needs one to appear): the shared
+// fixture's "every canvas hint already seen" seed is turned off here
+test.use({ hintsSeen: false })
 
 // docs/localization.md §L9.4 — the isolation obligations, measured in a real
 // browser, in real Arabic sentences.
@@ -648,14 +651,13 @@ test.describe('§L9.4 per-fragment — each table label is isolated, the punctua
 
     const m = (await measure(page, '.hint-note'))!
     expect(m.spans.map((s) => s.kind), 'one isolate per label, never one around the join').toEqual(['FSI', 'FSI', 'FSI'])
-    // the sentence follows the READER even though the panel around it does not:
-    // the React Flow pane is pinned `ltr` (§L9.2) and the span inside declares
-    // the reader's direction
+    // the sentence follows the READER whatever the panel around it does: on the
+    // canvas (the phone) that panel is the React Flow pane pinned `ltr` (§L9.2);
+    // in the notice rail under the toolbar (desktop, src/ui/noticeRail.tsx) it is
+    // the app's own direction. Either way the span inside declares the reader's
+    // direction — that span is the claim, not its container
     expect(m.direction, 'the sentence itself is rtl').toBe('rtl')
-    expect(
-      await page.evaluate(() => getComputedStyle(document.querySelector('.hint-note')!).direction),
-      'and the panel around it is still the pinned ltr',
-    ).toBe('ltr')
+    expect(['ltr', 'rtl']).toContain(await page.evaluate(() => getComputedStyle(document.querySelector('.hint-note')!).direction))
     expect(m.spans.map((s) => s.text)).toEqual(LABELS)
     // THE point of the shape: the quote and the comma belong to the sentence, so
     // they sit OUTSIDE the isolates. A single isolate around the joined list

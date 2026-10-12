@@ -40,6 +40,7 @@ const inspector = {
   'inspector.field.activation': '啟動方式',
   'inspector.node.endNote': '只要有資源抵達就立刻結束這次執行。',
   'inspector.field.startingAmount': '初始數量',
+  'inspector.field.currentAmount': '目前數量',
   'inspector.field.capacity': '容量（留空表示不限）',
   'inspector.number.nonNegativeHint': '請輸入 0 或更大的數字。',
   'inspector.field.flowMode': '流動方式',

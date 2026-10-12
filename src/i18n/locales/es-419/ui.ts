@@ -589,6 +589,11 @@ const ui = {
   'whatsNew.v0250.shapes': 'Formas de conexión editables. Elija Curvo, Recto u Ortogonal, automático o con sus propios codos: colóquelos, muévalos o quítelos en la versión de escritorio. En el teléfono, estas formas se muestran sin poder editarlas.',
   'whatsNew.v0250.outline': 'El texto queda dentro de los nodos. El contorno de un nodo ahora se ajusta a su título y sus valores, y el texto queda dentro en los 18 idiomas.',
   'whatsNew.v0250.templates': 'Plantillas renovadas. Las cinco plantillas incluidas usan la nueva cuadrícula y el nuevo trazado, con un espaciado más claro y mejores vistas iniciales.',
+  'whatsNew.v0260.node': 'Nuevo diseño de nodos. Cada nodo es una forma compacta con su rol y su valor adentro y su nombre justo afuera, así que un diagrama se lee igual de un vistazo en cualquier idioma; los nombres siguen visibles en el nivel de zoom intermedio.',
+  'whatsNew.v0260.ports': 'Conexiones desde cualquier lado. Una conexión puede salir de un nodo o entrar en él por arriba, abajo, la izquierda o la derecha, y una conexión nueva recuerda el lado desde el que se trazó. Los documentos existentes conservan sus conexiones donde estaban; si una versión anterior de Loop Studio vuelve a guardar un documento con lados elegidos, solo se pierden esos lados y esas conexiones vuelven a sus lados predeterminados, nada más cambia.',
+  'whatsNew.v0260.notices': 'Avisos debajo de la barra de herramientas. El aviso de actualización y las sugerencias de la primera vez ahora aparecen en una franja debajo de la barra de herramientas, no sobre el diagrama, y el diagrama no se mueve cuando aparecen o se cierran.',
+  'whatsNew.v0260.currentAmount': 'La cantidad actual de un Depósito en Propiedades. Junto a la cantidad inicial, un campo de solo lectura muestra cuánto contiene el Depósito en este momento, también en el teléfono.',
+  'whatsNew.v0260.templates': 'Plantillas reubicadas. La tostaduría de café y la comparación de 3 zonas se volvieron a distribuir para los nuevos nodos; el dinero de la tostaduría ahora se lee en dólares por día.',
 } as const
 
 export type UiKey = keyof typeof ui

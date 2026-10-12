@@ -54,6 +54,7 @@ import {
   type TimelineSeries,
 } from '../model/serialize'
 import { readAccent } from '../model/model'
+import { parseHandleId, portsFromHandles } from '../model/ports'
 import type { InitialView } from '../model/templates'
 import type { LoopEdge, LoopEdgeData, LoopNode, NodeKind } from '../model/types'
 
@@ -943,31 +944,32 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     onConnect: (conn) => {
       if (editGuard()) return // #334 — refused while the edit lock is on
       if (!conn.source || !conn.target) return
-      const viaState =
-        conn.sourceHandle?.startsWith('state') || conn.targetHandle?.startsWith('state')
+      // node structure (src/model/ports.ts) — a DOM handle is `<id>` on the
+      // kind's default face or `<id>@<face>`: the document keeps the plain id
+      // (the kind channel) and stores a non-default face in `data.ports`
+      const sh = parseHandleId(conn.sourceHandle)
+      const th = parseHandleId(conn.targetHandle)
+      const viaState = sh.base?.startsWith('state') || th.base?.startsWith('state')
+      const ports = portsFromHandles(viaState ? 'state' : 'resource', conn.sourceHandle, conn.targetHandle)
       const edge: LoopEdge = viaState
         ? {
             id: nextId('e'),
             source: conn.source,
             target: conn.target,
-            sourceHandle: conn.sourceHandle?.startsWith('state')
-              ? conn.sourceHandle
-              : 'state-source',
-            targetHandle: conn.targetHandle?.startsWith('state')
-              ? conn.targetHandle
-              : 'state-target',
+            sourceHandle: sh.base?.startsWith('state') ? sh.base : 'state-source',
+            targetHandle: th.base?.startsWith('state') ? th.base : 'state-target',
             type: 'loop',
-            data: { kind: 'state', mode: 'trigger', expr: '', route: 'orthogonal' }, // issue #344 §ER14.1 — new connections are routed
+            data: { kind: 'state', mode: 'trigger', expr: '', route: 'orthogonal', ...(ports ? { ports } : {}) }, // issue #344 §ER14.1 — new connections are routed
           }
         : {
             id: nextId('e'),
             source: conn.source,
             target: conn.target,
-            // resource edges always ride the side circular ports
+            // resource edges always ride the circular ports (`out` / `in`); the face is separate
             sourceHandle: 'out',
             targetHandle: 'in',
             type: 'loop',
-            data: { kind: 'resource', flow: '1', route: 'orthogonal' }, // issue #344 §ER14.1
+            data: { kind: 'resource', flow: '1', route: 'orthogonal', ...(ports ? { ports } : {}) }, // issue #344 §ER14.1
           }
       commit('')
       set({ edges: addEdge(edge, get().edges) })

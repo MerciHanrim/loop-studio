@@ -58,6 +58,7 @@ const inspector = {
   'inspector.field.activation': 'التفعيل',
   'inspector.node.endNote': 'توقف التشغيل لحظة وصول مورد إليها.',
   'inspector.field.startingAmount': 'الكمية الابتدائية',
+  'inspector.field.currentAmount': 'الكمية الحالية',
   'inspector.field.capacity': 'السعة (فارغ = بلا حد)',
   'inspector.number.nonNegativeHint': 'أدخل رقمًا يساوي 0 أو أكبر.',
   'inspector.field.flowMode': 'وضع التدفّق',

@@ -125,6 +125,8 @@ function LoopEdge({
   const gEdges = useGraphStore((s) => s.edges)
   // issue #344 §ER14 — label sizes and the end of a drag are routing inputs too
   useRouteInputs((s) => s.rev)
+  // node structure — pointed at (the Canvas sets it under the new structure only)
+  const hoverEdge = useUiStore((s) => s.hoverEdgeId === id)
   const gen = currentRouteGeneration(gNodes, gEdges)
   const route = routeMode === 'orthogonal' ? gen.map.get(id) : undefined
   // §ER15 — a Curved or Straight edge is not routed, but its label takes the
@@ -490,6 +492,8 @@ function LoopEdge({
           // an inline `stroke-dasharray` used to beat every stylesheet rule
           // and left active state edges with no tell at all.
           isState ? 'edge-state' : 'edge-resource',
+          // node structure — pointed at: the whole route thickens (nodeStructure.css)
+          hoverEdge ? 'edge-hover' : '',
           // every guarded route is `route-orthogonal`; a lower rung of the
           // ladder (§ER14.2) is named beside it
           route
@@ -729,7 +733,7 @@ function LoopEdge({
             data-under-token={labelDimmed ? '' : undefined}
             className={`edge-label${labelDimmed ? ' edge-label--under-token' : ''}${isState ? ' edge-label--state' : ''}${
               selected ? ' is-selected' : ''
-            }${activatorOn === true ? ' edge-label--on' : ''}${
+            }${hoverEdge ? ' is-hover' : ''}${activatorOn === true ? ' edge-label--on' : ''}${
               sv?.kind === 'trigger' && !sv.applied ? ' edge-label--blocked' : ''
             }${accent ? ' has-accent' : ''}`}
             style={{

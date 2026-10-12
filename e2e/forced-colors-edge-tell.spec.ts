@@ -193,13 +193,22 @@ async function cleanStretch(
 ): Promise<{ stretch: [number, number]; off: Dash } | null> {
   return page.evaluate(
     async ({ b64, pts, offThr, offReach, edgeId }) => {
-      // every other edge's drawn path, in screen px, bucketed by 4 px
+      // every other edge's drawn path, in screen px, bucketed by 4 px — only
+      // the edges whose box comes within reach of this edge's own points: a
+      // point is "crowded" only within 3 px of one of them, so an edge outside
+      // that box can add no point that counts (on the MMO that skips most of
+      // its 144 paths, which cost a second or more per candidate on a runner)
       const near = new Map<string, { x: number; y: number }[]>()
       if (edgeId) {
+        const xs = pts.map((q) => q.x)
+        const ys = pts.map((q) => q.y)
+        const reachBox = { left: Math.min(...xs) - 4, right: Math.max(...xs) + 4, top: Math.min(...ys) - 4, bottom: Math.max(...ys) + 4 }
         for (const g of document.querySelectorAll('.react-flow__edge')) {
           if (g.getAttribute('data-id') === edgeId) continue
           const p = g.querySelector('path.react-flow__edge-path') as SVGPathElement | null
           if (!p) continue
+          const r = p.getBoundingClientRect()
+          if (r.right < reachBox.left || r.left > reachBox.right || r.bottom < reachBox.top || r.top > reachBox.bottom) continue
           const m = p.getScreenCTM()!
           const sc = Math.hypot(m.a, m.b) || 1
           const L = p.getTotalLength()
@@ -363,7 +372,7 @@ async function makeRouteInvalid(page: Page, edgeId: string): Promise<void> {
  *  is the edges. `visibility: hidden` removes only the glyphs — the node shapes and any edge passing
  *  under a label keep every pixel, unlike a `mask` box. Under forced colours `color` is
  *  force-adjusted, so this is the one property that reliably takes the text out. */
-const NODE_TEXT = '.nodef__title, .nodef__value, .nodef__sub'
+const NODE_TEXT = '.nodef__name, .nodef__title, .nodef__value, .nodef__sub' // the new node's name is outside the body
 async function hideNodeText(page: Page, clip: { x: number; y: number; width: number; height: number }): Promise<void> {
   await page.addStyleTag({ content: `${NODE_TEXT} { visibility: hidden }` })
   // the spans to hide really exist inside the clip, and every one of them computes `hidden`
@@ -531,11 +540,14 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
     }
   })
 
-  test('mmo: at zoom 0.4 and 0.75 an active state edge is painted as dashes with real gaps (its 8 4 shape vs the plain 4 4 is pinned by computed style + the 0.75 baseline)', async ({ page }) => {
-    await loadFixture(page, 'mmo-progression.json')
-    await activityBtn(page).click()
-    await commitSteps(page, 10)
-    for (const zoom of [0.4, 0.75]) {
+  // one test per zoom, like the resource pair above: both zooms in one test
+  // spent ten choreographed steps plus up to twelve candidates against a 30 s
+  // budget and ran out on a runner (2026-10-12, its measurements unchanged)
+  for (const zoom of [0.4, 0.75]) {
+    test(`mmo: at zoom ${zoom} an active state edge is painted as dashes with real gaps (its 8 4 shape vs the plain 4 4 is pinned by computed style + the 0.75 baseline)`, async ({ page }) => {
+      await loadFixture(page, 'mmo-progression.json')
+      await activityBtn(page).click()
+      await commitSteps(page, 10)
       // issue #344 step 4 — the two longest active state edges that HAVE an
       // 80 px stretch clear of every other line (on the placed MMO a long one
       // may run beside another line all the way at zoom 0.4), out of six
@@ -573,8 +585,8 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
         expect(on.inkShare, `${id} z${zoom}: the tell is painted`).toBeGreaterThan(0.05)
       }
       expect(measured, `z${zoom}: two active state edges measured`).toBe(2)
-    }
-  })
+    })
+  }
 
   test('mmo fit view (≈ 0.255, observation only): the colour tell is present; the dash count is recorded, not gated', async ({ page }) => {
     await loadFixture(page, 'mmo-progression.json')

@@ -146,7 +146,7 @@ test('selecting it localizes the chrome AND the bundled template labels', async 
   const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load|加載|載入/i })
   if (await confirm.isVisible().catch(() => false)) await confirm.click()
 
-  const labels = await page.locator('.nodef__title').allInnerTexts()
+  const labels = await page.locator('.nodef__name').allInnerTexts()
   expect(labels.length).toBeGreaterThan(0)
   const english = labels.filter((l) => /^[\x20-\x7e]+$/.test(l.trim()) && /[A-Za-z]{3}/.test(l))
   expect(english, 'no bundled node label may stay English in a Chinese UI').toEqual([])

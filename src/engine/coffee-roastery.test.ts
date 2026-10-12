@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import fixtureDoc from '../../examples/coffee-roastery.json'
+import BOXES from '../model/layout/templateBoxes.json'
 import { registersOfSnapshot } from '../model/model'
 import { normalizeGraph, serialize } from '../model/serialize'
 import type { LoopEdge, LoopNode } from '../model/types'
@@ -118,16 +119,13 @@ describe('coffee-roastery example', () => {
     // to its true content height so the whole stack sits inside the drawn
     // vessel). The e2e (coffee-zone-frames.spec.ts) re-measures the live boxes
     // per locale and fails if any drifts past these.
-    const NODE_WH: Record<string, [number, number]> = {
-      green_delivery: [186.3, 64], dessert_prep_src: [168, 64], green_stock: [159.1, 74],
-      green_wholesale: [164.8, 64], dessert_stock: [134.2, 64],
-      roasting: [207.2, 64], roast_loss: [189.2, 64], dessert_sales: [146.6, 64],
-      dessert_wrapup: [182.3, 64], roasted_stock: [172.9, 64], cafe_retail: [191, 72],
-      online_sales: [191, 72], roasted_bleed: [191, 88],
-      projected_revenue: [260, 102], planned_cost: [260, 86], projected_operating_margin: [248, 102],
-      roasted_supply_margin: [260, 102], dessert_prep_margin: [181, 102],
-    }
-    const PARAM_WH: [number, number] = [181, 86] // widest / tallest Parameter render
+    // Node structure (2026-10-12): the box is the body AND the outside name,
+    // its widest over the 18 languages — the same table the placement uses
+    // (`layout/templateBoxes.json`, measured on the running app; the EN / KO /
+    // JA table that stood here was today's node). The e2e
+    // (coffee-zone-frames.spec.ts) re-measures the live boxes per locale.
+    const BOX = BOXES['coffee-roastery'] as unknown as Record<string, [number, number]>
+    const NODE_WH = BOX
 
     const MARGIN = 24
     const nonParams = nodes.filter((n) => n.data.kind !== 'parameter')
@@ -135,7 +133,9 @@ describe('coffee-roastery example', () => {
     for (const n of nonParams) {
       const wh = NODE_WH[n.id]
       expect(wh, `no measured box for ${n.id}`).toBeDefined()
-      const nb = { l: n.position.x, r: n.position.x + wh[0], t: n.position.y, b: n.position.y + wh[1] }
+      // the box starts before the node position when the name sits above / left (dx, dy ≤ 0)
+      const [bw, bh, dx = 0, dy = 0] = wh as unknown as number[]
+      const nb = { l: n.position.x + dx, r: n.position.x + dx + bw, t: n.position.y + dy, b: n.position.y + dy + bh }
       const inside = frames!.filter((f) => {
         const fb = box(f.rect)
         return (
@@ -149,7 +149,8 @@ describe('coffee-roastery example', () => {
     const params = nodes.filter((n) => n.data.kind === 'parameter')
     expect(params).toHaveLength(5)
     for (const p of params) {
-      const pb = { l: p.position.x, r: p.position.x + PARAM_WH[0], t: p.position.y, b: p.position.y + PARAM_WH[1] }
+      const [pw, ph, pdx = 0, pdy = 0] = BOX[p.id]! as unknown as number[]
+      const pb = { l: p.position.x + pdx, r: p.position.x + pdx + pw, t: p.position.y + pdy, b: p.position.y + pdy + ph }
       for (const f of frames!) {
         expect(overlap(pb, box(f.rect)), `${p.id} must not touch ${f.id}`).toBe(false)
       }
@@ -185,13 +186,21 @@ describe('coffee-roastery example', () => {
 
     const params = nodes.filter((n) => n.data.kind === 'parameter')
     expect(params).toHaveLength(5)
-    // the five levers on one row along the top, strictly left → right
-    const py = params.map((n) => n.position.y)
+    // the levers sit beside the flow they drive (re-placement 2026-10-12, share
+    // 23-coffee-replace.md): the four bean levers on ONE row above the zones,
+    // strictly left → right; the dessert lever UNDER the dessert row, under the
+    // Supply zone, so it reads with that flow
+    const beanLevers = params.filter((n) => n.id !== 'dessert_prep')
+    const py = beanLevers.map((n) => n.position.y)
     expect(Math.max(...py) - Math.min(...py)).toBe(0)
-    const sortedByX = [...params].sort((a, b) => a.position.x - b.position.x)
+    const sortedByX = [...beanLevers].sort((a, b) => a.position.x - b.position.x)
     for (let i = 1; i < sortedByX.length; i++) {
       expect(sortedByX[i].position.x).toBeGreaterThan(sortedByX[i - 1].position.x)
     }
+    const dessertLever = params.find((n) => n.id === 'dessert_prep')!
+    const dessertStock = nodes.find((n) => n.id === 'dessert_stock')!
+    expect(dessertLever.position.y).toBeGreaterThan(dessertStock.position.y)
+    expect(dessertLever.position.x).toBeLessThanOrEqual(dessertStock.position.x)
 
     // Registers: no ports, so nothing wires to them; one column past every
     // other node.
@@ -260,11 +269,12 @@ describe('coffee-roastery example', () => {
     }
   })
 
-  it('the three money proxies carry a `kKRW/day` unit and evaluate to 464 / 346.8 / 117.2 at the defaults (rev 10)', () => {
+  it('the three money proxies carry a `$/day` unit and evaluate to 464 / 346.8 / 117.2 at the defaults (rev 10, dollars since rev 13)', () => {
     // `unit` is an advisory display hint only — it does not change the value or
-    // make the proxy a realised / accounting figure (§CR3.5 / §CR8).
+    // make the proxy a realised / accounting figure (§CR3.5 / §CR8). rev 13:
+    // dollars instead of thousands of won, the same numbers.
     for (const id of ['projected_revenue', 'planned_cost', 'projected_operating_margin']) {
-      expect((byId.get(id)!.data as { unit?: string }).unit).toBe('kKRW/day')
+      expect((byId.get(id)!.data as { unit?: string }).unit).toBe('$/day')
     }
     // the two signed stock proxies stay unitless (kg / dessert-unit space)
     for (const id of ['roasted_supply_margin', 'dessert_prep_margin']) {
