@@ -4,6 +4,7 @@ import {
   Position,
   useConnection,
   useStore,
+  useUpdateNodeInternals,
   type NodeProps,
   type NodeTypes,
 } from '@xyflow/react'
@@ -45,7 +46,7 @@ import type {
 } from '../../model/types'
 import { useLod } from '../lod'
 import { useNodeActivityOpacity } from '../frames/useActivityTint'
-import { faceOf, nameFaceFor } from '../../model/ports'
+import { edgePortKind, faceOf, nameFaceFor, rfHandleId } from '../../model/ports'
 import type { PortFace } from '../../model/types'
 import { PORT_COL } from '../../model/layout/grid'
 import { setNodeNameBox } from '../../store/routeMap'
@@ -482,6 +483,23 @@ function NodeFrame({
     return [...used].sort().join(',')
   })
   const nameFace: PortFace = nameFaceFor(new Set(usedFacesKey.split(',').filter(Boolean) as PortFace[]))
+  // the DOM handles of this node's connections (the kind's id on its default
+  // face, `<id>@<face>` elsewhere — ../../model/ports `rfHandleId`): a face
+  // handle a connection uses stays mounted, or React Flow could not draw that
+  // connection; the other face handles mount only while the faces are shown
+  // (`facesOn` below). Hidden, they were ~11 idle handles on every node, each
+  // subscribed to the canvas store — measured as frame time on a large
+  // diagram's playback.
+  const usedHandlesKey = useStore((s) => {
+    if (!outside) return ''
+    const used = new Set<string>()
+    for (const e of s.edges) {
+      const edge = e as never
+      if (e.source === nodeId) used.add(rfHandleId(edgePortKind(edge), 'source', faceOf(edge, 'source')))
+      if (e.target === nodeId) used.add(rfHandleId(edgePortKind(edge), 'target', faceOf(edge, 'target')))
+    }
+    return [...used].sort().join(',')
+  })
   const nameRef = useRef<HTMLSpanElement>(null)
   // §MML1 — render-time phrase segmentation for JA / ZH titles (display only)
   const locale = useI18n((s) => s.activeLocale)
@@ -687,6 +705,20 @@ function NodeFrame({
   // only when they are needed, i.e. while a connection is being dragged or
   // while the node is selected / keyboard-focused for editing
   const facesOn = connecting || isSelected || selected === true || focused
+  const usedHandles = new Set(usedHandlesKey.split(',').filter(Boolean))
+  const faceMounted = (id: string) => facesOn || usedHandles.has(id)
+  // a handle mounted or unmounted without a size change: React Flow's own
+  // ResizeObserver does not see it, so its handle bounds (which the drop of a
+  // connection and an edge's ends read) are refreshed here — not on the first
+  // render, which React Flow measures itself
+  const updateNodeInternals = useUpdateNodeInternals()
+  const mountedFacesKey = outside ? (facesOn ? '*' : usedHandlesKey) : ''
+  const facesKeyRef = useRef(mountedFacesKey)
+  useLayoutEffect(() => {
+    if (facesKeyRef.current === mountedFacesKey) return
+    facesKeyRef.current = mountedFacesKey
+    updateNodeInternals(nodeId)
+  }, [mountedFacesKey, nodeId, updateNodeInternals])
   // §VL3 stacking — every state is its own layer, so a Register that is
   // selected AND keyboard-focused AND invalid shows all three cues at once:
   // the outer --warning invalid ring, the solid selection ring, the inset
@@ -759,12 +791,12 @@ function NodeFrame({
           (../../model/ports `rfHandleId`) */}
       {outside ? (
         <>
-          <Handle type="target" position={Position.Left} id="state-target@left" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
-          <Handle type="target" position={Position.Right} id="state-target@right" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
-          <Handle type="target" position={Position.Bottom} id="state-target@bottom" className="h h--state h--extra" style={{ left: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
-          <Handle type="source" position={Position.Top} id="state-source@top" className="h h--state h--extra" style={{ left: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
-          <Handle type="source" position={Position.Left} id="state-source@left" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
-          <Handle type="source" position={Position.Right} id="state-source@right" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
+          {faceMounted('state-target@left') ? <Handle type="target" position={Position.Left} id="state-target@left" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('state-target@right') ? <Handle type="target" position={Position.Right} id="state-target@right" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('state-target@bottom') ? <Handle type="target" position={Position.Bottom} id="state-target@bottom" className="h h--state h--extra" style={{ left: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('state-source@top') ? <Handle type="source" position={Position.Top} id="state-source@top" className="h h--state h--extra" style={{ left: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('state-source@left') ? <Handle type="source" position={Position.Left} id="state-source@left" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('state-source@right') ? <Handle type="source" position={Position.Right} id="state-source@right" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
         </>
       ) : null}
       <svg
@@ -1024,16 +1056,16 @@ function NodeFrame({
           anchors match `routeMap.portPoint`. */}
       {outside && ports?.in ? (
         <>
-          <Handle type="target" position={Position.Top} id="in@top" className="h h--in h--extra" style={{ left: PORT_COL, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
-          <Handle type="target" position={Position.Bottom} id="in@bottom" className="h h--in h--extra" style={{ left: PORT_COL, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
-          <Handle type="target" position={Position.Right} id="in@right" className="h h--in h--extra" style={{ top: PORT_ROW, right: `${portInsetFraction(kind, bodyH, 'out', PORT_ROW, pathW) * 100}%`, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
+          {faceMounted('in@top') ? <Handle type="target" position={Position.Top} id="in@top" className="h h--in h--extra" style={{ left: PORT_COL, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('in@bottom') ? <Handle type="target" position={Position.Bottom} id="in@bottom" className="h h--in h--extra" style={{ left: PORT_COL, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('in@right') ? <Handle type="target" position={Position.Right} id="in@right" className="h h--in h--extra" style={{ top: PORT_ROW, right: `${portInsetFraction(kind, bodyH, 'out', PORT_ROW, pathW) * 100}%`, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
         </>
       ) : null}
       {outside && ports?.out ? (
         <>
-          <Handle type="source" position={Position.Top} id="out@top" className="h h--out h--extra" style={{ left: `calc(100% - ${PORT_COL}px)`, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
-          <Handle type="source" position={Position.Bottom} id="out@bottom" className="h h--out h--extra" style={{ left: `calc(100% - ${PORT_COL}px)`, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
-          <Handle type="source" position={Position.Left} id="out@left" className="h h--out h--extra" style={{ top: PORT_ROW, left: `${portInsetFraction(kind, bodyH, 'in', PORT_ROW, pathW) * 100}%`, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} />
+          {faceMounted('out@top') ? <Handle type="source" position={Position.Top} id="out@top" className="h h--out h--extra" style={{ left: `calc(100% - ${PORT_COL}px)`, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('out@bottom') ? <Handle type="source" position={Position.Bottom} id="out@bottom" className="h h--out h--extra" style={{ left: `calc(100% - ${PORT_COL}px)`, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('out@left') ? <Handle type="source" position={Position.Left} id="out@left" className="h h--out h--extra" style={{ top: PORT_ROW, left: `${portInsetFraction(kind, bodyH, 'in', PORT_ROW, pathW) * 100}%`, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
         </>
       ) : null}
     </div>
