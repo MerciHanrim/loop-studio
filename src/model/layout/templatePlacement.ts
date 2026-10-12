@@ -48,6 +48,12 @@ type Doc<F extends FrameLike> = { nodes: LoopNode[]; edges: LoopEdge[]; frames?:
  *  and the 18-language sweep; decided with Lumi, share 23-coffee-replace.md). */
 export const TEMPLATE_GAPS: Partial<Record<TemplateName, { x: number; y: number }>> = {
   'coffee-roastery': { x: 0, y: 0 },
+  // Gacha, re-placed from the design study's layout under the node structure
+  // (2026-10-13): the study's own spacing already keeps bodies, names and labels
+  // apart in 18 languages; with the default clearance the pipeline moved every
+  // one of its 63 nodes (up to 912 px). TRIAL, measured against the default in
+  // share 24-default-switch-verification.md §10; Lumi decides, as for Coffee.
+  'gacha-banner-zones': { x: 0, y: 0 },
 }
 export const gapFor = (name: TemplateName): { x: number; y: number } => TEMPLATE_GAPS[name] ?? TEMPLATE_GAP
 

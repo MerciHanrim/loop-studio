@@ -71,8 +71,8 @@ const TEMPLATES: { file: string; flows: TemplateFlows; colours: string[]; conten
     colours: ['sage', 'violet', 'rose'],
     // issue #344 step 4 (layout round 9): placed for the grid, every
     // connection Auto orthogonal — the waypoints of rounds 7 and 8 are gone
-    contentDigest: 'a9b4dbb8566a94c509ede6e3253723feeb346315f0470826dc4646968e2941a0',
-    fullContentDigest: 'a9b4dbb8566a94c509ede6e3253723feeb346315f0470826dc4646968e2941a0',
+    contentDigest: 'cf883dca811c9fecc44794321bb7c7e418fee942cf55c7797a1276fc2d1b1b77',
+    fullContentDigest: 'cf883dca811c9fecc44794321bb7c7e418fee942cf55c7797a1276fc2d1b1b77',
   },
   {
     file: 'mmo-progression.json',

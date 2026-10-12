@@ -7,7 +7,7 @@
       "id": "pulls_per_zone",
       "type": "parameter",
       "position": {
-        "x": 48,
+        "x": 16,
         "y": 36
       },
       "data": {
@@ -20,7 +20,7 @@
       "id": "cmp1_hit_rate_free",
       "type": "register",
       "position": {
-        "x": 608,
+        "x": 208,
         "y": 36
       },
       "data": {
@@ -34,7 +34,7 @@
       "id": "cmp2_hit_rate_standard",
       "type": "register",
       "position": {
-        "x": 944,
+        "x": 400,
         "y": 36
       },
       "data": {
@@ -48,7 +48,7 @@
       "id": "cmp3_hit_rate_pickup",
       "type": "register",
       "position": {
-        "x": 1280,
+        "x": 592,
         "y": 36
       },
       "data": {
@@ -62,7 +62,7 @@
       "id": "cmp4_pickup_rate_pickup",
       "type": "register",
       "position": {
-        "x": 1680,
+        "x": 784,
         "y": 36
       },
       "data": {
@@ -76,8 +76,8 @@
       "id": "fund_free",
       "type": "source",
       "position": {
-        "x": 48,
-        "y": 404
+        "x": 672,
+        "y": 308
       },
       "data": {
         "kind": "source",
@@ -91,8 +91,8 @@
       "id": "ticket_free",
       "type": "pool",
       "position": {
-        "x": 288,
-        "y": 404
+        "x": 656,
+        "y": 452
       },
       "data": {
         "kind": "pool",
@@ -108,8 +108,8 @@
       "id": "pulls_made_free",
       "type": "pool",
       "position": {
-        "x": 48,
-        "y": 756
+        "x": 640,
+        "y": 932
       },
       "data": {
         "kind": "pool",
@@ -125,8 +125,8 @@
       "id": "zone1_free_w_ssr",
       "type": "parameter",
       "position": {
-        "x": 400,
-        "y": 756
+        "x": 16,
+        "y": 308
       },
       "data": {
         "kind": "parameter",
@@ -138,8 +138,8 @@
       "id": "zone1_free_w_sr",
       "type": "parameter",
       "position": {
-        "x": 784,
-        "y": 756
+        "x": 16,
+        "y": 452
       },
       "data": {
         "kind": "parameter",
@@ -151,8 +151,8 @@
       "id": "zone1_free_w_r",
       "type": "parameter",
       "position": {
-        "x": 48,
-        "y": 900
+        "x": 16,
+        "y": 596
       },
       "data": {
         "kind": "parameter",
@@ -164,8 +164,8 @@
       "id": "sr_count_free",
       "type": "pool",
       "position": {
-        "x": 1024,
-        "y": 404
+        "x": 928,
+        "y": 932
       },
       "data": {
         "kind": "pool",
@@ -181,8 +181,8 @@
       "id": "r_count_free",
       "type": "pool",
       "position": {
-        "x": 1024,
-        "y": 500
+        "x": 176,
+        "y": 1028
       },
       "data": {
         "kind": "pool",
@@ -198,8 +198,8 @@
       "id": "ssr_count_free",
       "type": "pool",
       "position": {
-        "x": 1024,
-        "y": 596
+        "x": 384,
+        "y": 932
       },
       "data": {
         "kind": "pool",
@@ -215,8 +215,8 @@
       "id": "roll_gate_free",
       "type": "gate",
       "position": {
-        "x": 512,
-        "y": 404
+        "x": 672,
+        "y": 596
       },
       "data": {
         "kind": "gate",
@@ -231,8 +231,8 @@
       "id": "ssr_hit_free",
       "type": "gate",
       "position": {
-        "x": 832,
-        "y": 404
+        "x": 400,
+        "y": 740
       },
       "data": {
         "kind": "gate",
@@ -247,8 +247,8 @@
       "id": "sr_hit_free",
       "type": "gate",
       "position": {
-        "x": 832,
-        "y": 500
+        "x": 672,
+        "y": 740
       },
       "data": {
         "kind": "gate",
@@ -263,8 +263,8 @@
       "id": "r_hit_free",
       "type": "gate",
       "position": {
-        "x": 832,
-        "y": 596
+        "x": 1184,
+        "y": 740
       },
       "data": {
         "kind": "gate",
@@ -279,8 +279,8 @@
       "id": "fund_standard",
       "type": "source",
       "position": {
-        "x": 1488,
-        "y": 404
+        "x": 2000,
+        "y": 308
       },
       "data": {
         "kind": "source",
@@ -294,8 +294,8 @@
       "id": "ticket_standard",
       "type": "pool",
       "position": {
-        "x": 1728,
-        "y": 404
+        "x": 1984,
+        "y": 452
       },
       "data": {
         "kind": "pool",
@@ -311,8 +311,8 @@
       "id": "pulls_made_standard",
       "type": "pool",
       "position": {
-        "x": 1792,
-        "y": 756
+        "x": 1728,
+        "y": 1220
       },
       "data": {
         "kind": "pool",
@@ -328,8 +328,8 @@
       "id": "zone2_standard_w_ssr",
       "type": "parameter",
       "position": {
-        "x": 2048,
-        "y": 756
+        "x": 1520,
+        "y": 308
       },
       "data": {
         "kind": "parameter",
@@ -341,8 +341,8 @@
       "id": "zone2_standard_w_sr",
       "type": "parameter",
       "position": {
-        "x": 1488,
-        "y": 900
+        "x": 1520,
+        "y": 452
       },
       "data": {
         "kind": "parameter",
@@ -354,8 +354,8 @@
       "id": "zone2_standard_w_r",
       "type": "parameter",
       "position": {
-        "x": 1792,
-        "y": 900
+        "x": 1520,
+        "y": 596
       },
       "data": {
         "kind": "parameter",
@@ -367,8 +367,8 @@
       "id": "sr_count_standard",
       "type": "pool",
       "position": {
-        "x": 2368,
-        "y": 404
+        "x": 2336,
+        "y": 884
       },
       "data": {
         "kind": "pool",
@@ -384,8 +384,8 @@
       "id": "r_count_standard",
       "type": "pool",
       "position": {
-        "x": 2368,
-        "y": 500
+        "x": 1760,
+        "y": 884
       },
       "data": {
         "kind": "pool",
@@ -401,8 +401,8 @@
       "id": "ssr_count_standard",
       "type": "pool",
       "position": {
-        "x": 2368,
-        "y": 596
+        "x": 2592,
+        "y": 660
       },
       "data": {
         "kind": "pool",
@@ -418,8 +418,8 @@
       "id": "roll_gate_standard",
       "type": "gate",
       "position": {
-        "x": 1920,
-        "y": 404
+        "x": 1968,
+        "y": 596
       },
       "data": {
         "kind": "gate",
@@ -434,8 +434,8 @@
       "id": "ssr_hit_standard",
       "type": "gate",
       "position": {
-        "x": 2176,
-        "y": 404
+        "x": 1696,
+        "y": 740
       },
       "data": {
         "kind": "gate",
@@ -450,8 +450,8 @@
       "id": "sr_hit_standard",
       "type": "gate",
       "position": {
-        "x": 2176,
-        "y": 500
+        "x": 2336,
+        "y": 740
       },
       "data": {
         "kind": "gate",
@@ -466,8 +466,8 @@
       "id": "r_hit_standard",
       "type": "gate",
       "position": {
-        "x": 2096,
-        "y": 596
+        "x": 1968,
+        "y": 740
       },
       "data": {
         "kind": "gate",
@@ -482,8 +482,8 @@
       "id": "pity_standard",
       "type": "pool",
       "position": {
-        "x": 1488,
-        "y": 756
+        "x": 2080,
+        "y": 884
       },
       "data": {
         "kind": "pool",
@@ -499,8 +499,8 @@
       "id": "zone2_standard_hard_pity",
       "type": "parameter",
       "position": {
-        "x": 2048,
-        "y": 900
+        "x": 1520,
+        "y": 740
       },
       "data": {
         "kind": "parameter",
@@ -512,8 +512,8 @@
       "id": "forced_ssr_standard",
       "type": "gate",
       "position": {
-        "x": 1920,
-        "y": 500
+        "x": 2112,
+        "y": 1028
       },
       "data": {
         "kind": "gate",
@@ -528,8 +528,8 @@
       "id": "ceiling_hits_standard",
       "type": "pool",
       "position": {
-        "x": 1488,
-        "y": 1044
+        "x": 2016,
+        "y": 1220
       },
       "data": {
         "kind": "pool",
@@ -545,8 +545,8 @@
       "id": "fund_pickup",
       "type": "source",
       "position": {
-        "x": 2832,
-        "y": 404
+        "x": 2064,
+        "y": 1492
       },
       "data": {
         "kind": "source",
@@ -560,8 +560,8 @@
       "id": "ticket_pickup",
       "type": "pool",
       "position": {
-        "x": 3152,
-        "y": 404
+        "x": 2064,
+        "y": 1636
       },
       "data": {
         "kind": "pool",
@@ -577,8 +577,8 @@
       "id": "pulls_made_pickup",
       "type": "pool",
       "position": {
-        "x": 3360,
-        "y": 868
+        "x": 32,
+        "y": 2260
       },
       "data": {
         "kind": "pool",
@@ -594,8 +594,8 @@
       "id": "zone3_pickup_w_ssr",
       "type": "parameter",
       "position": {
-        "x": 2832,
-        "y": 996
+        "x": 2368,
+        "y": 1492
       },
       "data": {
         "kind": "parameter",
@@ -607,8 +607,8 @@
       "id": "zone3_pickup_w_sr",
       "type": "parameter",
       "position": {
-        "x": 3088,
-        "y": 996
+        "x": 2368,
+        "y": 1636
       },
       "data": {
         "kind": "parameter",
@@ -620,8 +620,8 @@
       "id": "zone3_pickup_w_r",
       "type": "parameter",
       "position": {
-        "x": 3360,
-        "y": 996
+        "x": 2368,
+        "y": 1780
       },
       "data": {
         "kind": "parameter",
@@ -633,8 +633,8 @@
       "id": "sr_count_pickup",
       "type": "pool",
       "position": {
-        "x": 4112,
-        "y": 404
+        "x": 880,
+        "y": 2356
       },
       "data": {
         "kind": "pool",
@@ -650,8 +650,8 @@
       "id": "r_count_pickup",
       "type": "pool",
       "position": {
-        "x": 4112,
-        "y": 500
+        "x": 656,
+        "y": 2260
       },
       "data": {
         "kind": "pool",
@@ -667,8 +667,8 @@
       "id": "ssr_count_pickup",
       "type": "pool",
       "position": {
-        "x": 2832,
-        "y": 500
+        "x": 928,
+        "y": 2260
       },
       "data": {
         "kind": "pool",
@@ -684,8 +684,8 @@
       "id": "pity_pickup",
       "type": "pool",
       "position": {
-        "x": 2832,
-        "y": 868
+        "x": 1376,
+        "y": 2260
       },
       "data": {
         "kind": "pool",
@@ -701,8 +701,8 @@
       "id": "zone3_pickup_hard_pity",
       "type": "parameter",
       "position": {
-        "x": 2832,
-        "y": 1140
+        "x": 2368,
+        "y": 1924
       },
       "data": {
         "kind": "parameter",
@@ -714,8 +714,8 @@
       "id": "ceiling_hits_pickup",
       "type": "pool",
       "position": {
-        "x": 3088,
-        "y": 1140
+        "x": 1424,
+        "y": 2548
       },
       "data": {
         "kind": "pool",
@@ -731,8 +731,8 @@
       "id": "missed_pickup_pickup",
       "type": "pool",
       "position": {
-        "x": 3088,
-        "y": 868
+        "x": 1408,
+        "y": 1636
       },
       "data": {
         "kind": "pool",
@@ -748,8 +748,8 @@
       "id": "zone3_pickup_w_pickup",
       "type": "parameter",
       "position": {
-        "x": 3360,
-        "y": 1140
+        "x": 2368,
+        "y": 2068
       },
       "data": {
         "kind": "parameter",
@@ -761,8 +761,8 @@
       "id": "zone3_pickup_w_standard",
       "type": "parameter",
       "position": {
-        "x": 2832,
-        "y": 1284
+        "x": 2368,
+        "y": 2260
       },
       "data": {
         "kind": "parameter",
@@ -774,8 +774,8 @@
       "id": "roll_normal_open_pickup",
       "type": "gate",
       "position": {
-        "x": 3472,
-        "y": 404
+        "x": 1408,
+        "y": 1780
       },
       "data": {
         "kind": "gate",
@@ -790,8 +790,8 @@
       "id": "roll_normal_owed_pickup",
       "type": "gate",
       "position": {
-        "x": 3472,
-        "y": 500
+        "x": 1328,
+        "y": 1924
       },
       "data": {
         "kind": "gate",
@@ -806,8 +806,8 @@
       "id": "roll_forced_open_pickup",
       "type": "gate",
       "position": {
-        "x": 3472,
-        "y": 596
+        "x": 1408,
+        "y": 2404
       },
       "data": {
         "kind": "gate",
@@ -822,8 +822,8 @@
       "id": "roll_forced_owed_pickup",
       "type": "gate",
       "position": {
-        "x": 3472,
-        "y": 708
+        "x": 2064,
+        "y": 1924
       },
       "data": {
         "kind": "gate",
@@ -838,8 +838,8 @@
       "id": "ssr_split_open_pickup",
       "type": "gate",
       "position": {
-        "x": 3792,
-        "y": 404
+        "x": 1728,
+        "y": 1924
       },
       "data": {
         "kind": "gate",
@@ -854,8 +854,8 @@
       "id": "pickup_hit_pickup",
       "type": "gate",
       "position": {
-        "x": 4112,
-        "y": 596
+        "x": 1360,
+        "y": 2068
       },
       "data": {
         "kind": "gate",
@@ -870,8 +870,8 @@
       "id": "standard_hit_pickup",
       "type": "gate",
       "position": {
-        "x": 4112,
-        "y": 708
+        "x": 896,
+        "y": 2068
       },
       "data": {
         "kind": "gate",
@@ -886,8 +886,8 @@
       "id": "sr_hit_pickup",
       "type": "gate",
       "position": {
-        "x": 3792,
-        "y": 500
+        "x": 16,
+        "y": 2068
       },
       "data": {
         "kind": "gate",
@@ -902,8 +902,8 @@
       "id": "r_hit_pickup",
       "type": "gate",
       "position": {
-        "x": 3792,
-        "y": 596
+        "x": 1184,
+        "y": 2068
       },
       "data": {
         "kind": "gate",
@@ -918,8 +918,8 @@
       "id": "pickup_count_pickup",
       "type": "pool",
       "position": {
-        "x": 4432,
-        "y": 404
+        "x": 1616,
+        "y": 2260
       },
       "data": {
         "kind": "pool",
@@ -935,8 +935,8 @@
       "id": "standard_count_pickup",
       "type": "pool",
       "position": {
-        "x": 4432,
-        "y": 500
+        "x": 1104,
+        "y": 2484
       },
       "data": {
         "kind": "pool",
@@ -952,8 +952,8 @@
       "id": "termination_fuel",
       "type": "pool",
       "position": {
-        "x": 48,
-        "y": 180
+        "x": 1232,
+        "y": 36
       },
       "data": {
         "kind": "pool",
@@ -968,8 +968,8 @@
       "id": "all_zones_done",
       "type": "end",
       "position": {
-        "x": 368,
-        "y": 164
+        "x": 1040,
+        "y": 36
       },
       "data": {
         "kind": "end",
@@ -989,6 +989,10 @@
       "data": {
         "kind": "resource",
         "flow": "@pulls_per_zone",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#74906B"
       }
@@ -1003,6 +1007,10 @@
       "data": {
         "kind": "resource",
         "flow": "@zone1_free_w_ssr",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#74906B"
       }
@@ -1017,6 +1025,10 @@
       "data": {
         "kind": "resource",
         "flow": "@zone1_free_w_sr",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#74906B"
       }
@@ -1031,6 +1043,10 @@
       "data": {
         "kind": "resource",
         "flow": "@zone1_free_w_r",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#74906B"
       }
@@ -1045,6 +1061,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#74906B"
       }
@@ -1059,6 +1079,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#74906B"
       }
@@ -1121,6 +1145,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#74906B"
       }
@@ -1135,6 +1163,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#74906B"
       }
@@ -1149,6 +1181,10 @@
       "data": {
         "kind": "resource",
         "flow": "@pulls_per_zone",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#9182A8"
       }
@@ -1163,6 +1199,10 @@
       "data": {
         "kind": "resource",
         "flow": "@zone2_standard_w_ssr",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#9182A8"
       }
@@ -1177,6 +1217,10 @@
       "data": {
         "kind": "resource",
         "flow": "@zone2_standard_w_sr",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#9182A8"
       }
@@ -1191,6 +1235,10 @@
       "data": {
         "kind": "resource",
         "flow": "@zone2_standard_w_r",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#9182A8"
       }
@@ -1205,6 +1253,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#9182A8"
       }
@@ -1219,6 +1271,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#9182A8"
       }
@@ -1281,6 +1337,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#9182A8"
       }
@@ -1295,6 +1355,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#9182A8"
       }
@@ -1310,6 +1374,10 @@
         "kind": "state",
         "mode": "activator",
         "expr": "< @zone2_standard_hard_pity - 1",
+        "ports": {
+          "source": "top",
+          "target": "bottom"
+        },
         "route": "orthogonal"
       }
     },
@@ -1372,6 +1440,10 @@
         "expr": "=0",
         "timing": "afterPull",
         "when": "source-fired",
+        "ports": {
+          "source": "top",
+          "target": "bottom"
+        },
         "route": "orthogonal"
       }
     },
@@ -1433,6 +1505,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#9182A8"
       }
@@ -1447,6 +1523,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#9182A8"
       }
@@ -1461,6 +1541,10 @@
       "data": {
         "kind": "resource",
         "flow": "@pulls_per_zone",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1475,6 +1559,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1489,6 +1577,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1503,6 +1595,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1517,6 +1613,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1532,6 +1632,10 @@
         "kind": "state",
         "mode": "activator",
         "expr": "< @zone3_pickup_hard_pity - 1",
+        "ports": {
+          "source": "top",
+          "target": "bottom"
+        },
         "route": "orthogonal"
       }
     },
@@ -1560,6 +1664,10 @@
         "kind": "state",
         "mode": "activator",
         "expr": "< @zone3_pickup_hard_pity - 1",
+        "ports": {
+          "source": "top",
+          "target": "bottom"
+        },
         "route": "orthogonal"
       }
     },
@@ -1616,6 +1724,10 @@
         "kind": "state",
         "mode": "activator",
         "expr": ">= @zone3_pickup_hard_pity - 1",
+        "ports": {
+          "source": "top",
+          "target": "bottom"
+        },
         "route": "orthogonal"
       }
     },
@@ -1643,6 +1755,10 @@
       "data": {
         "kind": "resource",
         "flow": "@zone3_pickup_w_ssr",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1657,6 +1773,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "top",
+          "target": "bottom"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1671,6 +1791,10 @@
       "data": {
         "kind": "resource",
         "flow": "@zone3_pickup_w_pickup",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1685,6 +1809,10 @@
       "data": {
         "kind": "resource",
         "flow": "@zone3_pickup_w_standard",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1699,6 +1827,10 @@
       "data": {
         "kind": "resource",
         "flow": "@zone3_pickup_w_ssr",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1713,6 +1845,10 @@
       "data": {
         "kind": "resource",
         "flow": "@zone3_pickup_w_sr",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1727,6 +1863,10 @@
       "data": {
         "kind": "resource",
         "flow": "@zone3_pickup_w_r",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1741,6 +1881,10 @@
       "data": {
         "kind": "resource",
         "flow": "@zone3_pickup_w_sr",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1755,6 +1899,10 @@
       "data": {
         "kind": "resource",
         "flow": "@zone3_pickup_w_r",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1769,6 +1917,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1783,6 +1935,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1797,6 +1953,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1811,6 +1971,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -1825,6 +1989,10 @@
       "data": {
         "kind": "resource",
         "flow": "1",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal",
         "accent": "#B47599"
       }
@@ -2034,6 +2202,10 @@
         "expr": "=1",
         "timing": "afterPull",
         "when": "source-fired",
+        "ports": {
+          "source": "top",
+          "target": "bottom"
+        },
         "route": "orthogonal"
       }
     },
@@ -2050,6 +2222,10 @@
         "expr": "=0",
         "timing": "afterPull",
         "when": "source-fired",
+        "ports": {
+          "source": "top",
+          "target": "bottom"
+        },
         "route": "orthogonal"
       }
     },
@@ -2063,6 +2239,10 @@
       "data": {
         "kind": "resource",
         "flow": "all",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
         "route": "orthogonal"
       }
     },
@@ -2138,20 +2318,20 @@
       "id": "zone_comparison",
       "label": "Comparison",
       "rect": {
-        "x": 0,
+        "x": -32,
         "y": -16,
-        "w": 2000,
-        "h": 336
+        "w": 1568,
+        "h": 208
       }
     },
     {
       "id": "zone_free",
       "label": "General / Free",
       "rect": {
-        "x": 0,
-        "y": 352,
-        "w": 1232,
-        "h": 688
+        "x": -32,
+        "y": 256,
+        "w": 1408,
+        "h": 896
       },
       "color": "sage"
     },
@@ -2159,10 +2339,10 @@
       "id": "zone_standard",
       "label": "Premium Standard",
       "rect": {
-        "x": 1440,
-        "y": 352,
-        "w": 1152,
-        "h": 800
+        "x": 1472,
+        "y": 256,
+        "w": 1312,
+        "h": 1104
       },
       "color": "violet"
     },
@@ -2170,10 +2350,10 @@
       "id": "zone_pickup",
       "label": "Premium Pickup",
       "rect": {
-        "x": 2784,
-        "y": 352,
-        "w": 1872,
-        "h": 1072
+        "x": -32,
+        "y": 1440,
+        "w": 2592,
+        "h": 1248
       },
       "color": "rose"
     }
