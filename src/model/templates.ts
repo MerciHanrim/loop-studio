@@ -217,7 +217,7 @@ export const TEMPLATES: Template[] = [
     // coordinates (-32, -16, 1568 × 208 and -32, 256, 1408 × 896) plus a 40 px
     // margin — the headline numbers and one legible zone; Standard one pan to
     // the right, Pickup one pan down. Whole view (≈ 0.25 at 1280 × 800) and
-    // start screen are judged apart (Lumi). Candidate until Lumi's review.
+    // start screen are judged apart; adopted by Lumi (2026-10-13).
     initialView: { rect: { x: -72, y: -56, width: 1648, height: 1248 }, minZoom: 0.45 },
   },
 ]

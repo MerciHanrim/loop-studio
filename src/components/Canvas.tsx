@@ -126,7 +126,7 @@ export function Canvas() {
   const tidyToGrid = useGraphStore((s) => s.tidyToGrid)
   const insertModule = useGraphStore((s) => s.insertModule)
   const setSelection = useGraphStore((s) => s.setSelection)
-  const { screenToFlowPosition, fitView, fitBounds, setViewport, getViewport, getNodes, deleteElements } = useReactFlow()
+  const { screenToFlowPosition, fitView, fitBounds, setViewport, getViewport, getNodes, deleteElements, setEdges: rfSetEdges, setNodes: rfSetNodes } = useReactFlow()
   // node structure (Lumi, 2026-10-12) — a fit that contains the OUTSIDE NAMES:
   // React Flow's fitView knows only the node boxes, so under the new structure
   // a name on the far side was cut off; here the bounds take every name box in
@@ -774,6 +774,35 @@ export function Canvas() {
     },
     [screenToFlowPosition, insertBend],
   )
+  // A connection's LABEL beats another connection's line (Lumi, 2026-10-13).
+  // The label chip takes no pointer of its own (§LGR4.1: a chip drawn over a
+  // node must not swallow the node's click — nodes still win, they sit above
+  // the lines), so a click on a chip lands on whatever line runs under it,
+  // and where another connection's route crosses the chip that OTHER
+  // connection got selected (measured on the Gacha Template: `e_pickup_29`'s
+  // label over `e_pickup_35`'s line). Narrow rule, applied to a click that
+  // reached a line: if the point is inside a visible label chip of a
+  // different connection, the selection goes to the chip's connection.
+  const onEdgeClick = useCallback(
+    (e: React.MouseEvent, edge: LoopEdge) => {
+      if (useRouteEditStore.getState().addBendFor != null && !noEdit) {
+        onAddBendClick(e, edge)
+        return
+      }
+      const target = e.target as Element | null
+      if (!target?.closest('.react-flow__edge-interaction, .react-flow__edge-path')) return
+      for (const chip of document.querySelectorAll<HTMLElement>('.edge-label:not(.edge-label--measure)')) {
+        const r = chip.getBoundingClientRect()
+        if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) continue
+        const id = chip.dataset.edgeId
+        if (!id || id === edge.id) return
+        rfSetEdges((es) => es.map((x) => (x.selected !== (x.id === id) ? { ...x, selected: x.id === id } : x)))
+        rfSetNodes((ns) => ns.map((n) => (n.selected ? { ...n, selected: false } : n)))
+        return
+      }
+    },
+    [noEdit, onAddBendClick, rfSetEdges, rfSetNodes],
+  )
 
   // §LGR6.6 — ONE owner for the destructive canvas keys. React Flow's built-in
   // handler is switched off (`deleteKeyCode={null}` below) because it (a)
@@ -1024,7 +1053,7 @@ export function Canvas() {
         nodesConnectable={!noEdit && !refInsertArmed}
         edgesReconnectable={!noEdit}
         onNodeClick={refInsertArmed ? (_e, n) => onArmedNodeClick(n.id) : undefined}
-        onEdgeClick={addBendFor != null && !noEdit ? onAddBendClick : undefined}
+        onEdgeClick={onEdgeClick}
         onEdgeMouseEnter={nodeStructure === 'outside' ? (_e, edge) => setHoverEdgeId(edge.id) : undefined}
         onEdgeMouseLeave={nodeStructure === 'outside' ? () => setHoverEdgeId(null) : undefined}
         zoomOnDoubleClick={!isMobile && !framePropsOpen}

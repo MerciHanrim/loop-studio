@@ -43,16 +43,18 @@ type Doc<F extends FrameLike> = { nodes: LoopNode[]; edges: LoopEdge[]; frames?:
  *  way), so the same clearance pushes a hand-placed diagram apart by a name's
  *  width per column and a name's height per row — the Coffee trial of
  *  2026-10-12 grew back to today's extent. A Template placed by hand under the
- *  node structure declares its own clearance here (TRIAL value for Coffee: 0 —
+ *  node structure declares its own clearance here (Coffee: 0, adopted —
  *  the measured boxes still drive the overlap separation, the frame rebuild
- *  and the 18-language sweep; decided with Lumi, share 23-coffee-replace.md). */
+ *  and the 18-language sweep; Lumi 2026-10-12/13: an explicit placement value
+ *  of that example, never a general rule; share 23-coffee-replace.md). */
 export const TEMPLATE_GAPS: Partial<Record<TemplateName, { x: number; y: number }>> = {
   'coffee-roastery': { x: 0, y: 0 },
   // Gacha, re-placed from the design study's layout under the node structure
   // (2026-10-13): the study's own spacing already keeps bodies, names and labels
   // apart in 18 languages; with the default clearance the pipeline moved every
-  // one of its 63 nodes (up to 912 px). TRIAL, measured against the default in
-  // share 24-default-switch-verification.md §10; Lumi decides, as for Coffee.
+  // one of its 63 nodes (up to 912 px). Adopted by Lumi (2026-10-13) as this
+  // example's explicit placement value, like Coffee's — not a general rule
+  // (share 24-default-switch-verification.md §10).
   'gacha-banner-zones': { x: 0, y: 0 },
 }
 export const gapFor = (name: TemplateName): { x: number; y: number } => TEMPLATE_GAPS[name] ?? TEMPLATE_GAP
