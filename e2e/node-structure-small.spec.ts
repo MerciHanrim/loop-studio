@@ -121,12 +121,16 @@ test.describe('node structure — the small graph under the new node', () => {
     await expect(nodeBox(page, 'treated')).toHaveClass(/is-selected/)
     await expect(box).not.toHaveClass(/is-selected/)
     // pointing is for reading: the face handles stay hidden on hover and show
-    // only on the selected node (and while a connection is dragged)
-    const extra = (id: string) => page.locator(`.react-flow__node[data-id="${id}"] .react-flow__handle.h--extra`).first()
+    // only on the selected node (and while a connection is dragged). A face no
+    // connection uses is not even mounted until then (node-face-handles.spec),
+    // so "hidden" is: no face handle of the hovered node is shown
+    const extras = (id: string) => page.locator(`.react-flow__node[data-id="${id}"] .react-flow__handle.h--extra`)
+    const shownExtras = (id: string) => extras(id).evaluateAll((hs) => hs.filter((h) => getComputedStyle(h).opacity !== '0').length)
     await nodeName(page, 'triage').hover()
     await expect(box).toHaveClass(/is-hover/)
-    await expect(extra('triage')).toHaveCSS('opacity', '0')
-    await expect(extra('treated')).toHaveCSS('opacity', '1')
+    await expect.poll(() => shownExtras('triage')).toBe(0)
+    await expect(extras('treated').first()).toHaveCSS('opacity', '1')
+    expect(await shownExtras('treated')).toBe(await extras('treated').count())
   })
 
   test('the whole-diagram fit contains the outside names, not only the bodies', async ({ page }) => {
