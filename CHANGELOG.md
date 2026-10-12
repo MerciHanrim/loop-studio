@@ -4,6 +4,22 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.26.0 — 2026-10-12
+
+The node structure becomes the default: each node is a compact body with its role and value inside and its name just outside, and a connection can leave or enter a node on any of its four sides (PR #347; documents gain the optional port sides under `loop-revision/11`, the placement rules are in [`docs/diagram-layout.md`](docs/diagram-layout.md)).
+
+- **The new node.** The body is a fixed 56 px high, as wide as its value needs (88 to 260 px), with the role symbol and the value inside. The name is separated from the body, so the body's size does not depend on the length of a translation. It sits just outside the body, on the first side no connection uses (below, then right, left, top), and is shown from the middle zoom level up. Pointing at the name or the body is pointing at the node; hover and keyboard focus mark the name too. A value too long for the body ends in an ellipsis and stays complete in the tooltip, the DOM text and the Inspector. A fired node shows a ring of ticks.
+- **Connections from any side.** Every port is offered on all four sides while a node is selected, focused or a connection is being drawn; a new connection remembers the side it was drawn from, stored as a cosmetic face on the connection (`data.ports`), outside the engine digest. Existing documents are not re-placed automatically: their values and the meaning of their connections are kept, and a port with no chosen side uses its default side. Their look changes with the new node.
+- **Notices under the toolbar.** The update notice and the two first-time canvas hints move into a strip under the toolbar. The diagram does not move when a note appears or closes, and a hint never appears in the middle of a press or a drag.
+- **A Pool's current amount.** The Inspector shows, beside the starting amount, a read-only Current amount that follows the run, on the desktop and on the phone sheet, reachable by keyboard and touch.
+- **A label beats another line.** A click on a connection's label selects that connection even where another connection's line passes under the label.
+- **Re-placed Templates.** The Coffee roastery (money now in dollars per day) and the 3-zone gacha banner comparison are laid out again for the new node; both declare a placement clearance of 0 as their own explicit value, not as a rule for every Template.
+- **The previous body** stays reachable with `?nodes=inside` for its own rule specs; it is not a user setting.
+
+**Compatibility.** A document with chosen sides, saved again by v0.25.0 or earlier, loses those sides: its connections go back to their default sides. **Reader.** From v0.26.0, when a project file's revision header declares a newer format than the reader knows and its digest does not verify, the reader says the project data was written by a newer version of Loop Studio, and the diagram itself still opens; v0.25.0 shows a different warning for such a file.
+
+**Notes.** Six strings in 18 languages (6 added: the five release-note lines and the Inspector's Current amount), none with native-speaker review. Verification is recorded in PR #347: the full local e2e on the release tree, the 39 reviewed baselines and the new state matrix, the unit suite, and CI on the final commit, where the MMO playback frame-rate floor failed once and passed on one agreed confirmation re-run. The new node's rendering cost is measured (a fast-beat frame about 20 % slower than the previous body); reducing it is the first follow-up.
+
 ## v0.25.0 — 2026-10-10
 
 Diagrams are easier to read, in one migration (issue #344, Diagram Readability): nodes line up on a grid, connections run at right angles around them, and every node keeps its text inside its outline, as [`docs/diagram-layout.md`](docs/diagram-layout.md), [`docs/edge-routing.md`](docs/edge-routing.md) §ER14–§ER16 and [`docs/specs/SEMANTICS-R10.md`](docs/specs/SEMANTICS-R10.md) describe.
