@@ -4,6 +4,10 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.26.1 — 2026-10-12
+
+Corrects the wording of two lines of the v0.26.0 What's new note, in all 18 languages, which promised more than holds. The new node line now says that with the name outside the body, the size of a node no longer depends on the length of a translation (it no longer says a diagram reads the same in every language). The connections line now says that existing documents are not re-placed, their values and the meaning of their connections are kept and they look different with the new node, and that a document with chosen sides, saved again by an older version, loses those sides and its connections go back to their default sides (it no longer says that existing connections stay where they were or that nothing else changes). No behaviour changes. The README's three screenshots are reshot from the v0.26.0 production deployment with the new node (the Coffee roastery in $/day, the re-placed gacha banner comparison), and its Latest section describes v0.26.0.
+
 ## v0.26.0 — 2026-10-12
 
 The node structure becomes the default: each node is a compact body with its role and value inside and its name just outside, and a connection can leave or enter a node on any of its four sides (PR #347; documents gain the optional port sides under `loop-revision/11`, the placement rules are in [`docs/diagram-layout.md`](docs/diagram-layout.md)).
