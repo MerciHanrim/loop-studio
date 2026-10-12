@@ -1,5 +1,8 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, iso, openApp, resetAll, snap, test } from './support/loop'
+// this spec is ABOUT the canvas hint notes (or needs one to appear): the shared
+// fixture's "every canvas hint already seen" seed is turned off here
+test.use({ hintsSeen: false })
 
 // docs/data-import.md §DI17 — the in-tool guide for the CSV/TSV import
 // wizard: the collapsible quick start with its one-click example, the shared

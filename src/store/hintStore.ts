@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { create } from 'zustand'
 import { useTourStore } from './tourStore'
 import { useUiStore } from './uiStore'
@@ -198,4 +199,37 @@ export const __resetHintTimers = (): void => {
     clearTimeout(cooldownTimer)
     cooldownTimer = null
   }
+}
+
+// A note in the notice rail (src/ui/noticeRail.tsx) changes the canvas pane's
+// height. While a pointer button is held — a drag, a press on a frame's edge
+// strip — that must not happen: React Flow's and the frame layer's gesture
+// maths read the pointer against the LIVE viewport, so a layout shift during a
+// gesture becomes motion (measured 2026-10-12: a press on a frame strip that
+// brought up the frame-move note moved the frame and its nodes by 32 px). So
+// every canvas hint waits for the pointer to be released (`ready`, which only
+// schedules the display and never burns the one-time opportunity). Session-
+// only, window-level, installed once.
+const usePointerHeldStore = create<{ held: boolean }>(() => ({ held: false }))
+let pointerHeldInstalled = false
+function installPointerHeld(): void {
+  if (pointerHeldInstalled || typeof window === 'undefined') return
+  pointerHeldInstalled = true
+  // only a pointer with a button actually down counts (a synthetic pointerdown
+  // without buttons — a test's `dispatchEvent` — is an interaction, not a hold)
+  const down = (e: PointerEvent) => { if (e.buttons > 0) usePointerHeldStore.setState({ held: true }) }
+  // released AFTER the whole input sequence has been handled (pointerup, the
+  // drag end, click): a macrotask, so no gesture handler ever runs on a pane
+  // that just moved — measured 2026-10-12: releasing on the capture phase let
+  // the frame layer's own pointerup see the shift and move the frame 32 px
+  const up = () => void setTimeout(() => usePointerHeldStore.setState({ held: false }), 0)
+  window.addEventListener('pointerdown', down, true)
+  window.addEventListener('pointerup', up, true)
+  window.addEventListener('pointercancel', up, true)
+  window.addEventListener('blur', up)
+}
+/** true while a pointer button is held anywhere in the window */
+export function usePointerHeld(): boolean {
+  useEffect(() => installPointerHeld(), [])
+  return usePointerHeldStore((s) => s.held)
 }

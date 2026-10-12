@@ -732,16 +732,24 @@ test.describe('where the notice sits', () => {
 
         // when it goes away: on the phone nothing moves; on desktop the rail
         // collapses, so the canvas row grows back upward — the toolbar does not
-        // move and the CAMERA does not change (no fit, no re-centring follows
-        // the space change; only the first fit of a Template uses the real area)
+        // move and NOTHING ON THE CANVAS MOVES ON SCREEN: the zoom is the same,
+        // every node keeps its screen rectangle (Canvas.tsx shifts the viewport
+        // by the rail's height change, which is neither a fit nor a re-centring;
+        // only the first fit of a Template uses the real area)
+        const nodeRects = () => page.evaluate(() => [...document.querySelectorAll('.react-flow__node')].map((el) => { const r = el.getBoundingClientRect(); return [Math.round(r.left * 10) / 10, Math.round(r.top * 10) / 10, Math.round(r.width * 10) / 10].join(',') }))
         const before = await chromeRects(page)
         const vpBefore = await page.evaluate(() => (window as unknown as { __loop: { rf: { getViewport: () => { x: number; y: number; zoom: number } } } }).__loop.rf.getViewport())
+        const nodesBefore = await nodeRects()
         await page.locator(NOTICE).getByRole('button').last().click()
         await expect(page.locator(NOTICE)).toHaveCount(0)
         const after = await chromeRects(page)
         const vpAfter = await page.evaluate(() => (window as unknown as { __loop: { rf: { getViewport: () => { x: number; y: number; zoom: number } } } }).__loop.rf.getViewport())
         expect(before.length).toBeGreaterThan(20)
-        expect(vpAfter).toEqual(vpBefore)
+        expect(vpAfter.zoom).toBe(vpBefore.zoom)
+        expect(vpAfter.x).toBe(vpBefore.x)
+        expect(nodesBefore.length).toBeGreaterThan(0)
+        expect(await nodeRects(), 'every node keeps its place on screen').toEqual(nodesBefore)
+        if (size.mobile) expect(vpAfter.y).toBe(vpBefore.y)
         if (size.mobile) expect(after).toEqual(before)
         else {
           const toolbarBefore = await toolbarRects(page)

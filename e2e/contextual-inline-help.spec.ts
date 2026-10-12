@@ -3,6 +3,9 @@ import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 import { WHATS_NEW_SEEN } from './support/whatsNew'
+// this spec is ABOUT the canvas hint notes (or needs one to appear): the shared
+// fixture's "every canvas hint already seen" seed is turned off here
+test.use({ hintsSeen: false })
 
 // docs/contextual-inline-help.md §CIH8 — the contextual-help acceptance set.
 // Presentation only: nothing here is serialized, digested, undone, or seen by

@@ -2793,8 +2793,8 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
     // the drawn manual frame is SELECTED at capture time, which would show the
     // one-time tier-1 "frame move" note (§CIH3 #9) in the top-centre slot over
     // the suggest note this baseline pins — mark it seen before the app mounts
+    // (the shared fixture now seeds every canvas hint as seen — support/loop.ts `hintsSeen`)
     await page.goto('/')
-    await page.evaluate(() => localStorage.setItem('loop-studio/contextual-help/1', JSON.stringify({ 'frame-move': true })))
     await loadAF(page)
     await ensureTimelineOpen(page)
     await page.addStyleTag({ content: '.react-flow__minimap,.react-flow__attribution{display:none!important}' })
@@ -3703,7 +3703,8 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
 
   test('the import hint outranks the frame-move hint: one note at a time, import first, frame-move only after it closes — and it is not consumed while hidden', async ({ page }) => {
     await load(page)
-    await page.evaluate(() => localStorage.removeItem('loop-studio/contextual-help/1'))
+    // present but empty (not removed): the shared fixture re-seeds an ABSENT key on every navigation
+    await page.evaluate(() => localStorage.setItem('loop-studio/contextual-help/1', '{}'))
     await page.reload()
     await load(page)
     // the import note first (a fresh import batch), THEN a saved frame — which
@@ -3778,7 +3779,8 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
 
   test('the first time a frame is selected a one-time note explains "edge drag carries contents / Ctrl+drag frame only"; it is listed in the contextual-tips dialog', async ({ page }) => {
     await load(page)
-    await page.evaluate(() => localStorage.removeItem('loop-studio/contextual-help/1'))
+    // present but empty (not removed): the shared fixture re-seeds an ABSENT key on every navigation
+    await page.evaluate(() => localStorage.setItem('loop-studio/contextual-help/1', '{}'))
     await page.reload()
     await load(page)
     await seedFrame(page, OUTER)

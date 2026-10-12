@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { RailOrPanel } from '../ui/noticeRail'
 import { useT } from '../i18n'
 import type { ContentDir } from '../i18n/contentDirection'
-import { useHintStore, type HintId } from '../store/hintStore'
+import { useHintStore, usePointerHeld, type HintId } from '../store/hintStore'
 import { Icon } from '../ui/icons'
 
 // docs/contextual-inline-help.md §CIH2 — the shared situational-hint
@@ -37,6 +37,11 @@ export function useHintEligible(
   const [alreadySeenAtMount] = useState(() => Boolean(useHintStore.getState().seen[id]))
   const [shown, setShown] = useState(false)
   const [closedThisInstance, setClosedThisInstance] = useState(false)
+  // a hint's FIRST appearance waits for the pointer to be released (hintStore
+  // `usePointerHeld`): on desktop the note enters the rail and moves the pane's
+  // top edge, which must never happen inside a gesture. Only the appearance is
+  // held back — a shown note stays while the pointer presses its own close button
+  const held = usePointerHeld()
 
   useEffect(() => {
     if (closedThisInstance) return
@@ -44,11 +49,11 @@ export function useHintEligible(
       if (!trigger) setClosedThisInstance(true)
       return
     }
-    if (trigger && ready && !alreadySeenAtMount) {
+    if (trigger && ready && !alreadySeenAtMount && !held) {
       setShown(true)
       markSeen(id)
     }
-  }, [trigger, ready, shown, closedThisInstance, alreadySeenAtMount, id, markSeen])
+  }, [trigger, ready, shown, closedThisInstance, alreadySeenAtMount, held, id, markSeen])
 
   return { eligible: shown && ready && !closedThisInstance, close: () => setClosedThisInstance(true) }
 }

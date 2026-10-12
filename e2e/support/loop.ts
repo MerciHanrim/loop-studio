@@ -24,7 +24,7 @@ export type StorageModeSeed = 'personal' | 'temporary' | 'gate'
 const WATCHED = Symbol('appReady.watchedNewContext')
 
 export const test = base.extend<
-  { errors: string[]; _tourSeed: void; whatsNewSeen: boolean; storageMode: StorageModeSeed },
+  { errors: string[]; _tourSeed: void; whatsNewSeen: boolean; hintsSeen: boolean; storageMode: StorageModeSeed },
   { _watchNewContexts: void }
 >({
   // Issue #305 - every page is watched from before its first navigation, so a
@@ -60,6 +60,14 @@ export const test = base.extend<
   // records that release as announced and opened. `e2e/whats-new.spec.ts`
   // turns this off with `test.use({ whatsNewSeen: false })`.
   whatsNewSeen: [true, { option: true }],
+  // the canvas hint notes (docs/contextual-inline-help.md) now render in the
+  // notice rail under the toolbar (src/ui/noticeRail.tsx), where a note takes
+  // the pane's height — so, like the tour and the update notice, every spec
+  // starts with the four canvas hints already seen and a spec ABOUT a hint
+  // turns this off with `test.use({ hintsSeen: false })` (or clears the key
+  // itself before a reload, as the frame-move tests of
+  // large-graph-readability.spec.ts do).
+  hintsSeen: [true, { option: true }],
   storageMode: ['personal', { option: true }],
   // docs/guided-tour.md — every spec starts with the first-run Welcome card
   // suppressed so it never intercepts a click. The suppression is the real
@@ -72,18 +80,26 @@ export const test = base.extend<
   // on the gate. A value already there is kept, so a spec that writes its own
   // (or the app's own write followed by a reload) is not overwritten.
   _tourSeed: [
-    async ({ context, whatsNewSeen, storageMode }, use) => {
+    async ({ context, whatsNewSeen, storageMode, hintsSeen }, use) => {
       if (whatsNewSeen) await seedWhatsNewSeen(context)
-      await context.addInitScript((mode) => {
-        try {
-          if (mode !== 'gate' && !localStorage.getItem('loop-studio:storage-mode'))
-            localStorage.setItem('loop-studio:storage-mode', mode)
-          if (!localStorage.getItem('loop-studio/guided-tour/1'))
-            localStorage.setItem('loop-studio/guided-tour/1', 'dismissed')
-        } catch {
-          /* opaque origin — a spec that hits this stubs storage itself */
-        }
-      }, storageMode)
+      await context.addInitScript(
+        ({ mode, hints }) => {
+          try {
+            if (mode !== 'gate' && !localStorage.getItem('loop-studio:storage-mode'))
+              localStorage.setItem('loop-studio:storage-mode', mode)
+            if (!localStorage.getItem('loop-studio/guided-tour/1'))
+              localStorage.setItem('loop-studio/guided-tour/1', 'dismissed')
+            if (hints && !localStorage.getItem('loop-studio/contextual-help/1'))
+              localStorage.setItem(
+                'loop-studio/contextual-help/1',
+                JSON.stringify({ 'empty-canvas': true, 'focus-filter-discovery': true, 'import-first-commit': true, 'frame-move': true }),
+              )
+          } catch {
+            /* opaque origin — a spec that hits this stubs storage itself */
+          }
+        },
+        { mode: storageMode, hints: hintsSeen },
+      )
       await use()
     },
     { auto: true },

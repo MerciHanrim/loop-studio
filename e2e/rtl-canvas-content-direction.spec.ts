@@ -1,5 +1,8 @@
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+// this spec is ABOUT the canvas hint notes (or needs one to appear): the shared
+// fixture's "every canvas hint already seen" seed is turned off here
+test.use({ hintsSeen: false })
 
 // docs/localization.md §L9.3 — the canvas content direction contract.
 //
