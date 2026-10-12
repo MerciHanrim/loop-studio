@@ -190,25 +190,40 @@ test.describe('3-zone gacha banner comparison Template', () => {
     expect(after.stepIndex).toBe(END_STEP) // stepOnce() was a no-op past ended
     expect(after.values).toEqual(r.values)
 
-    // Play auto-stops at the same point, through the real UI control — not
-    // just the direct stepOnce() calls above. Crank the beat speed WAY up
-    // (bypassing the UI slider's own 120ms floor, purely for test speed —
-    // reduced motion alone doesn't change how often Play triggers the next
-    // beat) so `END_STEP` beats settle in a few seconds, not minutes.
-    await page.evaluate((seed) => {
+    // Play auto-stops at the same point, through the real Play control — not
+    // just the direct stepOnce() calls above. Play takes over a few steps
+    // before the End: the run to there is the same engine step either way
+    // (stepOnce above, and the Monte-Carlo test below, prove every run ends at
+    // exactly END_STEP and never earlier), and what Play adds is its OWN
+    // stopping. Playing all 202 steps from the start proves nothing more and is
+    // bound by drawing: two painted frames a step, 404 frames, 11–13 s locally
+    // and over 20 s on a CI runner (measured 2026-10-12, it always ended at
+    // 202). The beat is cranked WAY up (below the UI slider's 120 ms floor,
+    // purely for test speed — reduced motion alone doesn't change how often
+    // Play triggers the next beat).
+    const PLAY_FROM = END_STEP - 3 // the last pulls, then the End
+    await page.evaluate(
+      ({ seed, from }) => {
+        const s = (window as unknown as { __loop: Loop }).__loop.sim.getState
+        s().setSpeed(20)
+        s().setSeed(seed)
+        s().reset()
+        for (let i = 0; i < from; i++) s().stepOnce()
+      },
+      { seed: 1, from: PLAY_FROM },
+    )
+    const handover = await page.evaluate(() => {
       const s = (window as unknown as { __loop: Loop }).__loop.sim.getState()
-      s.setSpeed(20)
-      s.setSeed(seed)
-      s.reset()
-      s.play()
-    }, 1)
+      return { status: s.status, stepIndex: s.stepIndex }
+    })
+    expect(handover.status, 'not ended before Play takes over').not.toBe('ended')
+    expect(handover.stepIndex).toBe(PLAY_FROM)
+    await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.sim.getState().play())
     // `status` is `'idle' | 'running' | 'paused' | 'ended'` — polling for
     // 'ended' here already proves Play stopped itself (mutually exclusive
     // with 'running'), not merely that it will eventually get there.
     await expect
-      .poll(() => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.sim.getState().status), {
-        timeout: 20_000,
-      })
+      .poll(() => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.sim.getState().status))
       .toBe('ended')
     const played = await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.sim.getState().stepIndex)
     expect(played).toBe(END_STEP)

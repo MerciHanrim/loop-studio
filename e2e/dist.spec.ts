@@ -4,6 +4,7 @@ import { expect, test, waitForAppReady } from './support/loop'
 import { capturedExports, installProbe, pathProbe } from './support/mc'
 import { expectOneVersionStory, readAboutVersion, readNewestShown } from './support/whatsNew'
 import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
+import { PARALLEL_GAP } from '../src/components/edges/orthogonalRoute'
 import { expectShownNoticesAre, manifestNoticesSha, openAbout, openLicences, sha256 } from './support/licenses'
 
 // Runs under playwright.dist.config.ts: production `npm run build` served by
@@ -239,12 +240,16 @@ test.describe('production build (Cloudflare Pages shape)', () => {
   test('a bulk locale switch on the MMO Template keeps edge endpoints aligned with their real handle positions (no window.__loop)', async ({
     page,
   }) => {
-    // Confirms src/components/nodes/nodes.tsx's reliance on React Flow's own
-    // internal per-node ResizeObserver (docs: the template-label-overlay
-    // investigation, 2026-09-16) holds in the ACTUAL shipped bundle, not only
-    // under the dev server's React StrictMode. Pure DOM/UI — no window.__loop
-    // (tree-shaken out of production) — so node/edge identity is read off
-    // data-id / aria-label rather than the graph store.
+    // The node structure (v0.26.0): the name sits OUTSIDE a fixed-height body,
+    // so a language switch no longer resizes any body — the previous rule
+    // (a switch must change some node's height, and each moved handle drags
+    // its edge end with it) no longer has anything to move. What a switch must
+    // do now, in the ACTUAL shipped bundle: every body keeps its box, every
+    // port keeps its place, every name is re-written in the new language, and
+    // every connection still starts and ends on a real port of its own nodes.
+    // Pure DOM/UI — no window.__loop (tree-shaken out of production) — so
+    // node/edge identity is read off data-id / aria-label rather than the
+    // graph store.
     const { bad } = await openProd(page)
 
     // Pin the starting locale explicitly rather than assuming the fresh
@@ -279,21 +284,34 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     // when every route is drawn.
     await domRoutesSettled(page)
 
-    async function snapshot() {
+    type Pt = { x: number; y: number }
+    type Snap = {
+      nodes: Record<string, { w: number; h: number; name: string }>
+      handles: Record<string, Pt>
+      edges: Record<string, { source: string; target: string; start: Pt | null; end: Pt | null; sourcePorts: Pt[]; targetPorts: Pt[] }>
+      zoom: number
+    }
+    async function snapshot(): Promise<Snap> {
       return page.evaluate(() => {
-        const nodes: Record<string, { nfH: number }> = {}
+        const centre = (el: Element) => {
+          const r = el.getBoundingClientRect()
+          return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 }
+        }
+        const nodes: Record<string, { w: number; h: number; name: string }> = {}
         for (const wrap of document.querySelectorAll('.react-flow__node')) {
           const id = (wrap as HTMLElement).dataset.id!
           const nf = wrap.querySelector('.nodef') as HTMLElement | null
-          if (nf) nodes[id] = { nfH: nf.offsetHeight }
+          const name = wrap.querySelector('.nodef__name')
+          if (nf) nodes[id] = { w: nf.offsetWidth, h: nf.offsetHeight, name: (name?.textContent ?? '').trim() }
         }
-        const handleCenter = (nodeId: string, handleId: string) => {
-          const h = document.querySelector(
-            `.react-flow__handle[data-nodeid="${nodeId}"][data-handleid="${handleId}"]`,
-          )
-          if (!h) return null
-          const r = h.getBoundingClientRect()
-          return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 }
+        // every port, by node and handle id — the default faces and the four-side
+        // ones alike (a hidden face handle is still laid out where its port is)
+        const handles: Record<string, { x: number; y: number }> = {}
+        const ports = (nodeId: string, kind: 'source' | 'target') =>
+          [...document.querySelectorAll(`.react-flow__handle.${kind}[data-nodeid="${nodeId}"]`)].map(centre)
+        for (const h of document.querySelectorAll('.react-flow__handle')) {
+          const el = h as HTMLElement
+          handles[`${el.dataset.nodeid}/${el.dataset.handleid}`] = centre(h)
         }
         const toScreen = (path: SVGPathElement, x: number, y: number) => {
           const svg = path.ownerSVGElement
@@ -305,10 +323,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
           const s = pt.matrixTransform(ctm)
           return { x: s.x, y: s.y }
         }
-        const edges: Record<
-          string,
-          { source: string; target: string; sourceHandleScreen: { x: number; y: number } | null; targetHandleScreen: { x: number; y: number } | null; startScreen: { x: number; y: number } | null; endScreen: { x: number; y: number } | null }
-        > = {}
+        const edges: Snap['edges'] = {}
         for (const g of document.querySelectorAll('.react-flow__edge')) {
           const id = (g as HTMLElement).dataset.id!
           // "Edge from <source> to <target>" -- LoopEdge sets no custom
@@ -319,48 +334,52 @@ test.describe('production build (Cloudflare Pages shape)', () => {
           if (!m) continue
           const [, source, target] = m
           const p = g.querySelector('path.react-flow__edge-path') as SVGPathElement | null
-          // state edges are dashed (LoopEdge.tsx); resource edges are solid —
-          // the only DOM-visible way to tell which handle PAIR ('in'/'out' vs
-          // 'state-target'/'state-source') an edge uses without window.__loop.
-          const isState = p ? getComputedStyle(p).strokeDasharray !== 'none' : false
-          const sourceHandle = isState ? 'state-source' : 'out'
-          const targetHandle = isState ? 'state-target' : 'in'
-          let startScreen = null
-          let endScreen = null
+          let start = null
+          let end = null
           if (p) {
             try {
               const len = p.getTotalLength()
-              const start = p.getPointAtLength(0)
-              const end = p.getPointAtLength(len)
-              startScreen = toScreen(p, start.x, start.y)
-              endScreen = toScreen(p, end.x, end.y)
+              const s = p.getPointAtLength(0)
+              const e = p.getPointAtLength(len)
+              start = toScreen(p, s.x, s.y)
+              end = toScreen(p, e.x, e.y)
             } catch {
               /* zero-length / detached path -- left null */
             }
           }
-          edges[id] = {
-            source,
-            target,
-            sourceHandleScreen: handleCenter(source, sourceHandle),
-            targetHandleScreen: handleCenter(target, targetHandle),
-            startScreen,
-            endScreen,
-          }
+          edges[id] = { source, target, start, end, sourcePorts: ports(source, 'source'), targetPorts: ports(target, 'target') }
         }
-        return { nodes, edges }
+        const vp = document.querySelector('.react-flow__viewport')
+        const zoom = vp ? new DOMMatrixReadOnly(getComputedStyle(vp).transform).a : 1
+        return { nodes, handles, edges, zoom }
       })
     }
-    type Pt = { x: number; y: number }
-    const delta = (a: Pt | null, b: Pt | null) => (a && b ? { x: b.x - a.x, y: b.y - a.y } : null)
-    const dist = (a: Pt | null, b: Pt | null) => (a && b ? Math.hypot(a.x - b.x, a.y - b.y) : null)
-    const TOLERANCE_PX = 3
-    // A resized node doesn't guarantee its handle on this edge's side moved
-    // (e.g. Position.Top's x only depends on width, fixed at 120px here) —
-    // two unmoved (zero-delta) positions would otherwise "agree" trivially
-    // without proving anything was actually re-measured.
-    const HANDLE_MOVE_EPSILON_PX = 0.5
+    const ENDPOINT_TOLERANCE_PX = 3
+    const nearest = (p: Pt | null, ports: Pt[]) =>
+      p ? Math.min(...ports.map((q) => Math.hypot(p.x - q.x, p.y - q.y))) : Infinity
+    // every connection starts on a source port of its source node and ends on a
+    // target port of its target node — whichever face each one takes. Two or
+    // more connections between the same two nodes fan out side by side from
+    // their shared ports by PARALLEL_GAP flow px each (orthogonalRoute.ts,
+    // §ER3.7), so such a set is allowed its own half-width beside the port.
+    function expectEndpointsOnPorts(snap: Snap, label: string) {
+      const ids = Object.keys(snap.edges)
+      expect(ids.length, `${label}: the MMO connections are drawn`).toBeGreaterThan(100)
+      const pair = (id: string) => [snap.edges[id].source, snap.edges[id].target].sort().join('|')
+      const setSize = new Map<string, number>()
+      for (const id of ids) setSize.set(pair(id), (setSize.get(pair(id)) ?? 0) + 1)
+      const off = ids
+        .map((id) => {
+          const e = snap.edges[id]
+          const fan = ((setSize.get(pair(id))! - 1) / 2) * PARALLEL_GAP * snap.zoom
+          return { id, start: nearest(e.start, e.sourcePorts), end: nearest(e.end, e.targetPorts), allowed: ENDPOINT_TOLERANCE_PX + fan }
+        })
+        .filter((r) => !(r.start <= r.allowed && r.end <= r.allowed))
+      expect(off, `${label}: every connection end sits on a real port of its node`).toEqual([])
+    }
 
     const before = await snapshot()
+    expectEndpointsOnPorts(before, 'KO')
 
     // switch to a genuinely different, explicitly-verified locale (KO → EN),
     // not an assumed starting state — otherwise a locale switch that silently
@@ -374,48 +393,38 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     await expect(page.locator('.react-flow__node', { hasText: 'Level' }).first()).toBeVisible()
     await domRoutesSettled(page)
 
-    // the switch must have actually changed at least one node's real height —
-    // otherwise the edge-alignment checks below would trivially pass with
-    // nothing to compare (a false positive this test exists to prevent)
-    const afterHeights = await snapshot()
-    const anyResized = Object.entries(afterHeights.nodes).some(
-      ([id, n]) => before.nodes[id] != null && Math.abs(before.nodes[id].nfH - n.nfH) > 1,
-    )
-    expect(anyResized, 'expected the KO → EN switch to actually change at least one node height').toBe(true)
+    const after = await snapshot()
+    expect(Object.keys(after.nodes).sort(), 'the same nodes before and after').toEqual(Object.keys(before.nodes).sort())
 
-    async function fullySettled() {
-      const snap = await snapshot()
-      // Proves genuine movement was observed and tracked, not merely that
-      // some node's height changed — a node can resize without moving every
-      // one of its handles (see HANDLE_MOVE_EPSILON_PX above).
-      let anyHandleMoved = false
-      for (const [id, e] of Object.entries(snap.edges)) {
-        const beforeH = before.nodes[e.source]?.nfH
-        const afterH = snap.nodes[e.source]?.nfH
-        const targetBeforeH = before.nodes[e.target]?.nfH
-        const targetAfterH = snap.nodes[e.target]?.nfH
-        const sourceResized = beforeH != null && afterH != null && Math.abs(beforeH - afterH) > 1
-        const targetResized = targetBeforeH != null && targetAfterH != null && Math.abs(targetBeforeH - targetAfterH) > 1
-        if (!sourceResized && !targetResized) continue
-        const be = before.edges[id]
-        if (sourceResized) {
-          const handleMoved = delta(be.sourceHandleScreen, e.sourceHandleScreen)
-          const handleMoveDist = handleMoved ? Math.hypot(handleMoved.x, handleMoved.y) : null
-          if (handleMoveDist != null && handleMoveDist > HANDLE_MOVE_EPSILON_PX) anyHandleMoved = true
-          const d = dist(delta(be.startScreen, e.startScreen), handleMoved)
-          if (d == null || d > TOLERANCE_PX) return false
-        }
-        if (targetResized) {
-          const handleMoved = delta(be.targetHandleScreen, e.targetHandleScreen)
-          const handleMoveDist = handleMoved ? Math.hypot(handleMoved.x, handleMoved.y) : null
-          if (handleMoveDist != null && handleMoveDist > HANDLE_MOVE_EPSILON_PX) anyHandleMoved = true
-          const d = dist(delta(be.endScreen, e.endScreen), handleMoved)
-          if (d == null || d > TOLERANCE_PX) return false
-        }
-      }
-      return anyHandleMoved
-    }
-    await expect.poll(fullySettled, { timeout: 5000, intervals: [50] }).toBe(true)
+    // the body keeps its box: the name is outside it, so no translation can
+    // grow or shrink a node
+    const resized = Object.keys(after.nodes).filter(
+      (id) => Math.abs(after.nodes[id].w - before.nodes[id].w) > 0.5 || Math.abs(after.nodes[id].h - before.nodes[id].h) > 0.5,
+    )
+    expect(resized, 'no body changes its size with the language').toEqual([])
+
+    // every port stays where it was (same viewport, same body — same screen point)
+    const HANDLE_EPSILON_PX = 0.5
+    expect(Object.keys(after.handles).sort(), 'the same ports before and after').toEqual(Object.keys(before.handles).sort())
+    const movedPorts = Object.keys(after.handles).filter(
+      (k) => Math.hypot(after.handles[k].x - before.handles[k].x, after.handles[k].y - before.handles[k].y) > HANDLE_EPSILON_PX,
+    )
+    expect(movedPorts, 'no port moves with the language').toEqual([])
+
+    // the names are the ones re-written: Korean before, English after — a
+    // switch that silently did nothing would leave them as they were
+    const HANGUL = /[ᄀ-ᇿ㄰-㆏가-힯]/
+    const named = Object.keys(after.nodes).filter((id) => before.nodes[id].name !== '')
+    expect(named.length, 'the MMO nodes carry an outside name').toBeGreaterThan(80)
+    const koBefore = named.filter((id) => HANGUL.test(before.nodes[id].name))
+    expect(koBefore.length, 'the KO Template names its nodes in Korean').toBeGreaterThan(named.length / 2)
+    const stillKo = named.filter((id) => HANGUL.test(after.nodes[id].name))
+    expect(stillKo, 'no name stays in Korean after the switch to English').toEqual([])
+    const rewritten = koBefore.filter((id) => after.nodes[id].name !== before.nodes[id].name && /[A-Za-z]/.test(after.nodes[id].name))
+    expect(rewritten.length, 'every Korean name is re-written in English').toBe(koBefore.length)
+
+    // and every connection still starts and ends on a real port of its nodes
+    expectEndpointsOnPorts(after, 'EN')
 
     expect(bad, 'no failed or cross-origin requests').toEqual([])
   })
