@@ -43,6 +43,17 @@ export const SNAPSHOT_FALLBACK_RATIO: number = Math.max(
  *  on disk (present ↔ listed, size ↔ kind) and against every `toHaveScreenshot`
  *  call in e2e/. Adding a snapshot = add its stem here first. */
 export const SNAPSHOTS: Record<string, Partial<Record<SnapshotProject, SnapshotKind>>> = {
+  // node-structure-matrix-visual.spec.ts — the NEW node's state matrix (every
+  // kind × L2 / L1 / L0 × light / dark / forced colours), desktop only
+  'node-matrix-light-L2': { chromium: 'desktop-canvas-clip' },
+  'node-matrix-light-L1': { chromium: 'desktop-canvas-clip' },
+  'node-matrix-light-L0': { chromium: 'desktop-canvas-clip' },
+  'node-matrix-dark-L2': { chromium: 'desktop-canvas-clip' },
+  'node-matrix-dark-L1': { chromium: 'desktop-canvas-clip' },
+  'node-matrix-dark-L0': { chromium: 'desktop-canvas-clip' },
+  'node-matrix-forced-L2': { chromium: 'desktop-canvas-clip' },
+  'node-matrix-forced-L1': { chromium: 'desktop-canvas-clip' },
+  'node-matrix-forced-L0': { chromium: 'desktop-canvas-clip' },
   // canvas-refresh-visual.spec.ts — the LOD × theme matrix, both projects
   'matrix-light-L0': { chromium: 'desktop-canvas-clip', mobile: 'mobile-canvas-clip' },
   'matrix-light-L1': { chromium: 'desktop-canvas-clip', mobile: 'mobile-canvas-clip' },
