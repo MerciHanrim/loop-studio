@@ -226,34 +226,6 @@ export function Canvas() {
   const paneH = useStore((s) => s.height)
   const t = useT()
 
-  // the notice rail (src/ui/noticeRail.tsx, `#notice-rail`) sits between the
-  // toolbar and this pane: when a note comes or goes the pane's TOP EDGE moves
-  // by the rail's height change. Lumi (2026-10-12): nothing on the canvas may
-  // move when that happens. So whenever this pane's size changes, its top edge
-  // is compared with the last one and the viewport is shifted by the
-  // difference in the same layout pass: every node keeps its place ON SCREEN,
-  // the rail reveals or frees the strip at the top. No zoom change, no fit, no
-  // re-centring (those run on a Template swap only). A pane that only grows or
-  // shrinks at the BOTTOM (the timeline panel, a window resize) moves nothing.
-  // The pane element is observed, not the rail, so a re-created rail (a locale
-  // or direction switch rebuilds the chrome) cannot detach the observer.
-  // Measured before this: a 39 px jump broke the hit-test and frame-drag e2e.
-  useEffect(() => {
-    if (isMobile || typeof ResizeObserver === 'undefined') return
-    const pane = rfStore.getState().domNode
-    if (!pane) return
-    let lastTop = pane.getBoundingClientRect().top
-    const ro = new ResizeObserver(() => {
-      const top = pane.getBoundingClientRect().top
-      const d = top - lastTop
-      lastTop = top
-      if (d === 0) return
-      const v = getViewport()
-      void setViewport({ x: v.x, y: v.y - d, zoom: v.zoom }, { duration: 0 })
-    })
-    ro.observe(pane)
-    return () => ro.disconnect()
-  }, [isMobile, rfStore, getViewport, setViewport])
 
   // docs/mobile.md §MV-D10 / docs/mmo-multilingual-layout.md §MML3 — the minimap
   // (a fixed ~202×152 overlay) only earns its space on a canvas large enough to
@@ -373,6 +345,42 @@ export function Canvas() {
     if (iv) applyInitialViewRef.current(iv)
     else void fitAll()
   }, [fitRev, loadRev, nodesInitialized, measuredSig, settleTick, fitView, getViewport])
+
+  // the notice rail (src/ui/noticeRail.tsx, `#notice-rail`) sits between the
+  // toolbar and this pane: when a note comes or goes the pane's TOP EDGE moves
+  // by the rail's height change. Lumi (2026-10-12): nothing on the canvas may
+  // move when that happens. So whenever this pane's size changes, its top edge
+  // is compared with the last one and the viewport is shifted by the
+  // difference in the same layout pass: every node keeps its place ON SCREEN,
+  // the rail reveals or frees the strip at the top. No zoom change, no fit, no
+  // re-centring (those run on a Template swap only). A pane that only grows or
+  // shrinks at the BOTTOM (the timeline panel, a window resize) moves nothing.
+  // The pane element is observed, not the rail, so a re-created rail (a locale
+  // or direction switch rebuilds the chrome) cannot detach the observer.
+  // Measured before this: a 39 px jump broke the hit-test and frame-drag e2e.
+  // The shift is not a user's pan: a swap armed above compares the viewport
+  // with the one it saw at arming to tell a pan from an untouched camera, so
+  // the armed reference moves with the shift — measured 2026-10-13: a hint
+  // entering the rail between a Template swap and its fit cancelled the
+  // Template's start view (the Gacha initial-load e2e).
+  useEffect(() => {
+    if (isMobile || typeof ResizeObserver === 'undefined') return
+    const pane = rfStore.getState().domNode
+    if (!pane) return
+    let lastTop = pane.getBoundingClientRect().top
+    const ro = new ResizeObserver(() => {
+      const top = pane.getBoundingClientRect().top
+      const d = top - lastTop
+      lastTop = top
+      if (d === 0) return
+      const v = getViewport()
+      void setViewport({ x: v.x, y: v.y - d, zoom: v.zoom }, { duration: 0 })
+      const armed = armedSwap.current
+      if (armed) armed.fromVp = { ...armed.fromVp, y: armed.fromVp.y - d }
+    })
+    ro.observe(pane)
+    return () => ro.disconnect()
+  }, [isMobile, rfStore, getViewport, setViewport])
 
   // docs/large-graph-readability.md §LGR3.3 — the two lenses COMPOSE: filter
   // hides first (removes from the canvas), then focus dims the remainder. Both
