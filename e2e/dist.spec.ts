@@ -5,6 +5,8 @@ import { capturedExports, installProbe, pathProbe } from './support/mc'
 import { expectOneVersionStory, readAboutVersion, readNewestShown } from './support/whatsNew'
 import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
 import { PARALLEL_GAP } from '../src/components/edges/orthogonalRoute'
+import { edgePortKind, faceOf, rfHandleId, type PortEnd } from '../src/model/ports'
+import type { LoopEdge } from '../src/model/types'
 import { expectShownNoticesAre, manifestNoticesSha, openAbout, openLicences, sha256 } from './support/licenses'
 
 // Runs under playwright.dist.config.ts: production `npm run build` served by
@@ -288,7 +290,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     type Snap = {
       nodes: Record<string, { w: number; h: number; name: string }>
       handles: Record<string, Pt>
-      edges: Record<string, { source: string; target: string; start: Pt | null; end: Pt | null; sourcePorts: Pt[]; targetPorts: Pt[] }>
+      edges: Record<string, { source: string; target: string; start: Pt | null; end: Pt | null }>
       zoom: number
     }
     async function snapshot(): Promise<Snap> {
@@ -304,11 +306,10 @@ test.describe('production build (Cloudflare Pages shape)', () => {
           const name = wrap.querySelector('.nodef__name')
           if (nf) nodes[id] = { w: nf.offsetWidth, h: nf.offsetHeight, name: (name?.textContent ?? '').trim() }
         }
-        // every port, by node and handle id — the default faces and the four-side
-        // ones alike (a hidden face handle is still laid out where its port is)
+        // every port, by node and DOM handle id — the default faces and the
+        // four-side ones alike (a hidden face handle is still laid out where
+        // its port is)
         const handles: Record<string, { x: number; y: number }> = {}
-        const ports = (nodeId: string, kind: 'source' | 'target') =>
-          [...document.querySelectorAll(`.react-flow__handle.${kind}[data-nodeid="${nodeId}"]`)].map(centre)
         for (const h of document.querySelectorAll('.react-flow__handle')) {
           const el = h as HTMLElement
           handles[`${el.dataset.nodeid}/${el.dataset.handleid}`] = centre(h)
@@ -323,7 +324,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
           const s = pt.matrixTransform(ctm)
           return { x: s.x, y: s.y }
         }
-        const edges: Snap['edges'] = {}
+        const edges: Record<string, { source: string; target: string; start: { x: number; y: number } | null; end: { x: number; y: number } | null }> = {}
         for (const g of document.querySelectorAll('.react-flow__edge')) {
           const id = (g as HTMLElement).dataset.id!
           // "Edge from <source> to <target>" -- LoopEdge sets no custom
@@ -347,35 +348,75 @@ test.describe('production build (Cloudflare Pages shape)', () => {
               /* zero-length / detached path -- left null */
             }
           }
-          edges[id] = { source, target, start, end, sourcePorts: ports(source, 'source'), targetPorts: ports(target, 'target') }
+          edges[id] = { source, target, start, end }
         }
         const vp = document.querySelector('.react-flow__viewport')
         const zoom = vp ? new DOMMatrixReadOnly(getComputedStyle(vp).transform).a : 1
         return { nodes, handles, edges, zoom }
       })
     }
-    const ENDPOINT_TOLERANCE_PX = 3
-    const nearest = (p: Pt | null, ports: Pt[]) =>
-      p ? Math.min(...ports.map((q) => Math.hypot(p.x - q.x, p.y - q.y))) : Infinity
-    // every connection starts on a source port of its source node and ends on a
-    // target port of its target node — whichever face each one takes. Two or
-    // more connections between the same two nodes fan out side by side from
-    // their shared ports by PARALLEL_GAP flow px each (orthogonalRoute.ts,
-    // §ER3.7), so such a set is allowed its own half-width beside the port.
+
+    // What each connection's two ends must be, from the Template's own
+    // document (the KO Template is the same graph with Korean labels): the DOM
+    // handle of the port and face the connection USES (src/model/ports.ts —
+    // the kind's default face binds to the document's handle id, any other
+    // face to `<id>@<face>`), and its place in its parallel set. The router
+    // groups a set by both ends' node AND handle (routeMap.ts `pkey`, reversed
+    // pairs included), orders it by connection id and moves member i by
+    // (i − (n − 1) / 2) · PARALLEL_GAP flow px across the face, the same
+    // offset at both ends (orthogonalRoute.ts `fanOffset`, §ER3.7) — so only a
+    // real member of a set is off its port, and only by its own offset.
+    type DocEdge = Pick<LoopEdge, 'id' | 'source' | 'target' | 'sourceHandle' | 'targetHandle' | 'data'>
+    const DOC_EDGES = (JSON.parse(readFileSync(new URL('../examples/mmo-progression.json', import.meta.url), 'utf8')) as { edges: DocEdge[] }).edges
+    expect(
+      DOC_EDGES.every((e) => (e.data as { route?: unknown }).route === 'orthogonal'),
+      'every MMO connection is routed orthogonally (the fan rule below is the orthogonal router’s)',
+    ).toBe(true)
+    const endKey = (node: string, handle: string | null | undefined) => `${node}:${handle ?? ''}`
+    const setKey = (e: DocEdge) => [endKey(e.source, e.sourceHandle), endKey(e.target, e.targetHandle)].sort().join('|')
+    const sets = new Map<string, string[]>()
+    for (const e of [...DOC_EDGES].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) (sets.get(setKey(e)) ?? sets.set(setKey(e), []).get(setKey(e))!).push(e.id)
+    const expected = new Map(
+      DOC_EDGES.map((e) => {
+        const kind = edgePortKind(e)
+        const set = sets.get(setKey(e))!
+        const fan = (set.indexOf(e.id) - (set.length - 1) / 2) * PARALLEL_GAP
+        const end = (node: string, which: PortEnd) => {
+          const face = faceOf(e, which)
+          const across = face === 'left' || face === 'right' ? { x: 0, y: fan } : { x: fan, y: 0 }
+          return { handle: `${node}/${rfHandleId(kind, which, face)}`, across }
+        }
+        return [e.id, { source: e.source, target: e.target, setSize: set.length, start: end(e.source, 'source'), end: end(e.target, 'target') }]
+      }),
+    )
+    expect([...expected.values()].some((x) => x.setSize > 1), 'the MMO has parallel sets, so the fan is exercised').toBe(true)
+
+    const ENDPOINT_TOLERANCE_PX = 2
+    // every connection starts on the port it uses on its source node and ends
+    // on the port it uses on its target node, a parallel member by exactly its
+    // own fan offset
     function expectEndpointsOnPorts(snap: Snap, label: string) {
-      const ids = Object.keys(snap.edges)
-      expect(ids.length, `${label}: the MMO connections are drawn`).toBeGreaterThan(100)
-      const pair = (id: string) => [snap.edges[id].source, snap.edges[id].target].sort().join('|')
-      const setSize = new Map<string, number>()
-      for (const id of ids) setSize.set(pair(id), (setSize.get(pair(id)) ?? 0) + 1)
-      const off = ids
-        .map((id) => {
-          const e = snap.edges[id]
-          const fan = ((setSize.get(pair(id))! - 1) / 2) * PARALLEL_GAP * snap.zoom
-          return { id, start: nearest(e.start, e.sourcePorts), end: nearest(e.end, e.targetPorts), allowed: ENDPOINT_TOLERANCE_PX + fan }
-        })
-        .filter((r) => !(r.start <= r.allowed && r.end <= r.allowed))
-      expect(off, `${label}: every connection end sits on a real port of its node`).toEqual([])
+      expect(Object.keys(snap.edges).sort(), `${label}: every MMO connection is drawn`).toEqual([...expected.keys()].sort())
+      const off: { id: string; why: string }[] = []
+      for (const [id, x] of expected) {
+        const e = snap.edges[id]
+        if (e.source !== x.source || e.target !== x.target) {
+          off.push({ id, why: `drawn ${e.source} → ${e.target}, the document says ${x.source} → ${x.target}` })
+          continue
+        }
+        for (const [which, at, want] of [['start', e.start, x.start], ['end', e.end, x.end]] as const) {
+          const h = snap.handles[want.handle]
+          if (!h || !at) {
+            off.push({ id, why: `${which}: ${h ? 'no path end' : `no handle ${want.handle}`}` })
+            continue
+          }
+          const wx = h.x + want.across.x * snap.zoom
+          const wy = h.y + want.across.y * snap.zoom
+          const d = Math.hypot(at.x - wx, at.y - wy)
+          if (d > ENDPOINT_TOLERANCE_PX) off.push({ id, why: `${which} ${d.toFixed(2)} px from ${want.handle}${want.across.x || want.across.y ? ` + its fan offset` : ''}` })
+        }
+      }
+      expect(off, `${label}: every connection end sits on the port it uses`).toEqual([])
     }
 
     const before = await snapshot()
