@@ -659,6 +659,11 @@ const ui = {
   'whatsNew.v0250.shapes': 'Formes de connexion modifiables. Choisissez Courbe, Droit ou Orthogonal, automatique ou avec vos propres coudes : ajoutez-les, déplacez-les ou supprimez-les sur ordinateur. Sur téléphone, ces formes s’affichent sans pouvoir être modifiées.',
   'whatsNew.v0250.outline': 'Le texte reste dans les nœuds. Le contour d’un nœud s’adapte désormais à son titre et à ses valeurs, et le texte reste à l’intérieur dans les 18 langues.',
   'whatsNew.v0250.templates': 'Modèles retravaillés. Les cinq modèles fournis utilisent la nouvelle grille et le nouveau tracé, avec un espacement plus clair et de meilleures vues d’ouverture.',
+  'whatsNew.v0260.node': 'Nouveau dessin des nœuds. Chaque nœud est une forme compacte avec son rôle et sa valeur à l’intérieur et son nom juste à côté, si bien qu’un diagramme se lit de la même façon d’un coup d’œil dans toutes les langues ; les noms restent visibles au niveau de zoom intermédiaire.',
+  'whatsNew.v0260.ports': 'Des connexions de tous les côtés. Une connexion peut quitter un nœud ou y arriver par le haut, le bas, la gauche ou la droite, et une nouvelle connexion retient le côté d’où elle a été tracée. Les documents existants gardent leurs connexions là où elles étaient ; si une version antérieure de Loop Studio réenregistre un document dont les côtés ont été choisis, seuls ces côtés sont perdus et ces connexions reviennent à leurs côtés par défaut, rien d’autre ne change.',
+  'whatsNew.v0260.notices': 'Les avis sous la barre d’outils. L’avis de mise à jour et les conseils de première utilisation s’affichent désormais dans une bande sous la barre d’outils, et non par-dessus le diagramme, et le diagramme ne bouge pas quand ils apparaissent ou se ferment.',
+  'whatsNew.v0260.currentAmount': 'La quantité actuelle d’un Réservoir dans Propriétés. À côté de la quantité initiale, un champ en lecture seule indique ce que le Réservoir contient en ce moment, aussi sur téléphone.',
+  'whatsNew.v0260.templates': 'Modèles replacés. La torréfaction de café et la comparaison de bannières gacha à trois zones sont remises en page pour les nouveaux nœuds ; l’argent de la torréfaction se lit désormais en dollars par jour.',
 } satisfies Record<UiKey, string>
 
 export default ui

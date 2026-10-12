@@ -586,6 +586,11 @@ const ui = {
   'whatsNew.v0250.shapes': 'Bewerkbare verbindingsvormen. Kies Gebogen, Recht of Orthogonaal, automatisch of met je eigen knikken: voeg ze toe, verplaats of verwijder ze op de computer. Op een telefoon worden deze vormen getoond, maar niet bewerkt.',
   'whatsNew.v0250.outline': 'Tekst blijft binnen de knooppunten. De omtrek van een knooppunt groeit nu mee met de titel en de waarden, zodat de tekst in alle 18 talen erbinnen blijft.',
   'whatsNew.v0250.templates': 'Vernieuwde sjablonen. Alle vijf meegeleverde sjablonen gebruiken het nieuwe raster en de nieuwe routes, met duidelijkere tussenruimtes en betere beginweergaven.',
+  'whatsNew.v0260.node': 'Nieuw knooppuntontwerp. Elk knooppunt is een compacte vorm met rol en waarde binnenin en de naam er net buiten, zodat een diagram in elke taal in één oogopslag hetzelfde leest; namen blijven zichtbaar op het middelste zoomniveau.',
+  'whatsNew.v0260.ports': 'Verbindingen van elke kant. Een verbinding kan een knooppunt boven, onder, links of rechts verlaten of bereiken, en een nieuwe verbinding onthoudt de kant waarvandaan ze is getrokken. Bestaande documenten houden hun verbindingen waar ze waren; slaat een oudere versie van Loop Studio een document met gekozen kanten opnieuw op, dan gaan alleen die kanten verloren en keren die verbindingen terug naar hun standaardkant, verder verandert er niets.',
+  'whatsNew.v0260.notices': 'Meldingen onder de werkbalk. De updatemelding en de aanwijzingen bij het eerste gebruik staan nu in een strook onder de werkbalk in plaats van op het diagram, en het diagram beweegt niet wanneer ze verschijnen of sluiten.',
+  'whatsNew.v0260.currentAmount': 'De huidige hoeveelheid van een Voorraad in de Inspector. Naast de beginhoeveelheid toont een alleen-lezen veld hoeveel de Voorraad nu bevat, ook op de telefoon.',
+  'whatsNew.v0260.templates': 'Opnieuw geplaatste sjablonen. De koffiebranderij en de vergelijking van gachabanners met drie zones zijn opnieuw ingedeeld voor de nieuwe knooppunten; het geld van de koffiebranderij leest nu in dollar per dag.',
 } as const
 
 export default ui

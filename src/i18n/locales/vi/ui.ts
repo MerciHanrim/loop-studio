@@ -591,6 +591,11 @@ const ui = {
   'whatsNew.v0250.shapes': 'Hình dạng liên kết có thể chỉnh. Chọn Cong, Thẳng hoặc Vuông góc, tự động hoặc với điểm gấp của riêng bạn: thêm, di chuyển hoặc xóa chúng trên máy tính. Trên điện thoại, các hình dạng này chỉ được hiển thị, không chỉnh sửa được.',
   'whatsNew.v0250.outline': 'Chữ nằm gọn trong nút. Đường viền của nút giờ giãn theo tiêu đề và giá trị, giữ chữ nằm bên trong ở cả 18 ngôn ngữ.',
   'whatsNew.v0250.templates': 'Mẫu được làm lại. Cả năm mẫu có sẵn đều dùng lưới và đường đi mới, khoảng cách rõ ràng hơn và khung nhìn khi mở tốt hơn.',
+  'whatsNew.v0260.node': 'Thiết kế nút mới. Mỗi nút là một hình gọn với vai trò và giá trị bên trong, tên nằm ngay bên ngoài, nên sơ đồ đọc giống nhau khi liếc qua ở mọi ngôn ngữ; tên vẫn hiện ở mức thu phóng trung bình.',
+  'whatsNew.v0260.ports': 'Kết nối từ mọi phía. Một kết nối có thể rời hoặc vào một nút ở trên, dưới, trái hoặc phải, và kết nối mới ghi nhớ phía đã được kéo ra. Tài liệu hiện có giữ nguyên các kết nối ở chỗ cũ; nếu một phiên bản Loop Studio cũ hơn lưu lại tài liệu đã chọn phía, chỉ thông tin phía đó bị mất và các kết nối ấy trở về phía mặc định, không có gì khác thay đổi.',
+  'whatsNew.v0260.notices': 'Thông báo dưới thanh công cụ. Thông báo cập nhật và gợi ý lần đầu nay nằm trên một dải dưới thanh công cụ thay vì đè lên sơ đồ, và sơ đồ không dịch chuyển khi chúng xuất hiện hay đóng lại.',
+  'whatsNew.v0260.currentAmount': 'Lượng hiện tại của Bể chứa trong Bảng thuộc tính. Bên cạnh lượng ban đầu, một ô chỉ đọc cho biết Bể chứa đang chứa bao nhiêu, kể cả trên điện thoại.',
+  'whatsNew.v0260.templates': 'Mẫu được bố trí lại. Xưởng rang cà phê và so sánh banner gacha ba vùng được bố trí lại cho các nút mới; tiền của xưởng rang cà phê nay đọc theo đô la mỗi ngày.',
 } satisfies Record<UiKey, string>
 
 export default ui

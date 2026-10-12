@@ -575,6 +575,11 @@ const ui = {
   'whatsNew.v0250.shapes': 'Editable connection shapes. Choose Curved, Straight or Orthogonal, automatic or with your own bends, and add, move or remove bends on desktop. Phones display these shapes without editing them.',
   'whatsNew.v0250.outline': 'Text stays inside nodes. Node outlines now grow with their titles and values, keeping text contained across all 18 languages.',
   'whatsNew.v0250.templates': 'Reworked templates. All five bundled templates use the new grid and routing, with clearer spacing and improved opening views.',
+  'whatsNew.v0260.node': 'New node design. Each node is a compact shape with its role and value inside and its name just outside, so a diagram reads the same at a glance in every language; names stay visible at the middle zoom level.',
+  'whatsNew.v0260.ports': 'Connections from any side. A connection can leave or enter a node at its top, bottom, left or right, and a new connection remembers the side it was drawn from. Existing documents keep their connections where they were; if a document with chosen sides is saved again by an older version of Loop Studio, the sides are dropped and those connections return to their default sides, nothing else changes.',
+  'whatsNew.v0260.notices': 'Notices under the toolbar. The update notice and the first-time hints now sit in a strip under the toolbar instead of over the diagram, and the diagram does not move when they appear or close.',
+  'whatsNew.v0260.currentAmount': 'A Pool\'s current amount in the Inspector. Beside the starting amount, a read-only field shows the amount the Pool holds right now, also on phones.',
+  'whatsNew.v0260.templates': 'Re-placed templates. The Coffee roastery and the 3-zone gacha banner comparison are laid out again for the new nodes; the Coffee roastery\'s money now reads in dollars per day.',
 } as const
 
 export type UiKey = keyof typeof ui

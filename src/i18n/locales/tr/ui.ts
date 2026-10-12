@@ -644,6 +644,11 @@ const ui = {
   'whatsNew.v0250.shapes': 'Düzenlenebilir bağlantı şekilleri. Eğri, Düz veya Dik açılı seçilebilir; dik açılı bağlantı otomatik kalabilir ya da masaüstünde kırılma noktaları eklenip taşınarak ve silinerek elle çizilebilir. Telefonda bu şekiller gösterilir ama düzenlenemez.',
   'whatsNew.v0250.outline': 'Metin düğümün içinde kalır. Düğümün dış çizgisi artık başlığına ve değerlerine göre genişler, böylece metin 18 dilin hepsinde içeride kalır.',
   'whatsNew.v0250.templates': 'Yenilenen şablonlar. Hazır gelen beş şablonun hepsi yeni ızgarayı ve güzergâhları kullanır; aralıklar daha net, açılış görünümleri daha iyidir.',
+  'whatsNew.v0260.node': 'Yeni düğüm tasarımı. Her düğüm, rolü ve değeri içinde, adı hemen dışında olan sıkışık bir biçim; böylece bir diyagram her dilde ilk bakışta aynı okunur ve adlar orta yakınlaştırma düzeyinde de görünür kalır.',
+  'whatsNew.v0260.ports': 'Her yönden bağlantı. Bir bağlantı düğümden üstten, alttan, soldan ya da sağdan çıkabilir veya girebilir; yeni çizilen bir bağlantı çizildiği kenarı hatırlar. Var olan belgelerin bağlantıları olduğu yerde kalır; kenarları seçilmiş bir belge Loop Studio’nun eski bir sürümüyle yeniden kaydedilirse yalnızca bu kenar bilgisi kaybolur ve o bağlantılar varsayılan kenarlarına döner, başka hiçbir şey değişmez.',
+  'whatsNew.v0260.notices': 'Araç çubuğunun altındaki bildirimler. Güncelleme bildirimi ve ilk kullanım ipuçları artık diyagramın üstünde değil, araç çubuğunun altındaki bir şeritte görünür; belirdiklerinde ya da kapandıklarında diyagram yerinden oynamaz.',
+  'whatsNew.v0260.currentAmount': 'İnceleyici’de bir Havuzun güncel miktarı. Başlangıç miktarının yanında salt okunur bir alan, Havuzun şu anda tuttuğu miktarı gösterir; telefonda da görünür.',
+  'whatsNew.v0260.templates': 'Yeniden yerleştirilen şablonlar. Kahve kavurma atölyesi ve üç bölgeli gacha afiş karşılaştırması yeni düğümlere göre yeniden düzenlendi; kahve kavurma atölyesinin parası artık günlük dolar olarak okunur.',
 } as const
 
 export type UiKey = keyof typeof ui
