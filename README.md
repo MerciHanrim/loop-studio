@@ -17,7 +17,7 @@ session neither reads nor saves stored work, author information or settings
 production flow to a large game economy and a three-zone probability/pity
 comparison.
 
-![Loop Studio's two-tier toolbar in a temporary session, its orange-bordered Temporary session button beside the menu buttons, and the Coffee roastery Template, grouped into three labelled zone frames, a few steps into a run with the Timeline filling in below](docs/assets/hero-coffee.png)
+![Loop Studio's two-tier toolbar in a temporary session, its orange-bordered Temporary session button beside the menu buttons, and the Coffee roastery Template in the compact new nodes, each name outside its node, grouped into three labelled zone frames with its money in $/day, a few steps into a run with the Timeline filling in below](docs/assets/hero-coffee.png)
 
 ## Key features
 
@@ -92,14 +92,14 @@ per zone under identical run settings. Once a run completes, its hit and
 pickup rates are easy to compare; run Monte Carlo analysis to inspect the
 distribution across many runs.
 
-![The gacha Template after a completed 200-pull-per-zone run: five comparison cards reading real hit-rate/pickup-rate percentages, a Timeline with per-zone SSR/pickup curves, and a Register's expression read-back open in the right column](docs/assets/gacha-overview.png)
+![The gacha Template after a completed 200-pull-per-zone run, its comparison row above the zone frames stacked below it: five comparison cards reading real hit-rate/pickup-rate percentages, a Timeline with per-zone SSR/pickup curves, and a Register's expression read-back open in the right column](docs/assets/gacha-overview.png)
 
 *Premium Pickup, framed on its own* — the hard-pity counter forces the next
 roll's SSR once it hits the ceiling; whether that (or any ordinary) SSR lands
 as pickup or standard depends on the `Pickup owed` guarantee flag, which a
 miss sets and the next SSR consumes.
 
-![The Premium Pickup zone alone after the same completed run: the hard-pity counter against its ceiling, the Pickup-owed guarantee flag, a real Pickup/Standard hit split, and a selected Pool's Inspector open in the right column](docs/assets/gacha-pickup-guarantee.png)
+![The Premium Pickup zone alone after the same completed run, with the minimap and the Timeline folded away: the hard-pity counter against its ceiling, the Pickup-owed guarantee flag, a real Pickup/Standard hit split, and a selected Pool's Inspector open in the right column with its current amount](docs/assets/gacha-pickup-guarantee.png)
 
 ## Develop locally
 
@@ -140,7 +140,29 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.25.0
+## Latest — v0.26.0
+
+A new node: a compact body with its role and value inside and its name just outside, so the
+size of a node no longer depends on the length of a translation.
+
+- **New node design**: the name sits outside the body and stays visible at the middle zoom
+  level; a value too long for the body ends in an ellipsis and stays complete in its tooltip
+  and in the Inspector
+- **Connections from any side**: a connection can leave or enter a node at its top, bottom,
+  left or right, and a new connection remembers the side it was drawn from; existing documents
+  are not re-placed, their values and the meaning of their connections are kept, and they look
+  different with the new node
+- **Notices under the toolbar**: the update notice and the first-time hints sit in a strip
+  under the toolbar, and the diagram does not move when they appear or close
+- **A Pool's current amount**: a read-only field in the Inspector, beside the starting
+  amount, also on phones
+- **Re-placed Templates**: the Coffee roastery (money in $/day) and the 3-zone gacha banner
+  comparison are laid out again for the new node
+
+A document with chosen sides, saved again by v0.25.0 or earlier, loses those sides. v0.26.1
+corrects the wording of two lines of this release's What's new note.
+
+## v0.25.0
 
 Diagrams are easier to read: nodes line up on a grid, connections run around them at right
 angles, and every node keeps its text inside its outline.
@@ -181,22 +203,8 @@ Converter shows that it converts.
 - **Never faded by Focus mode**: both stay at full strength in nodes outside the focus; with
   reduced motion they stay still for the step, and in forced colours the glow is a thin line
 
-## v0.22.0
-
-Playback shows what moved where: the path a Gate took, and every amount beside its moving
-marker.
-
-- **The Gate's path lights up**: during a run, each branch a Gate actually sends something
-  down is highlighted under its moving marker; a branch that carries nothing keeps its usual
-  look
-- **`+N` beside every moving marker**: the amount a connection carries in a step rides
-  beside its marker as a badge, from `+1`; the connection's own label stays in place and
-  fades only while the badge passes over it
-- **Focus mode wins on connections**: the markers, badges and highlights on connections
-  outside the focus fade with those connections; in a busy step at most 24 markers move, and
-  every other connection that moved is highlighted instead
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.21.4 (the
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.22.0 (the
+Gate's path lights up and a `+N` rides beside every moving marker), v0.21.4 (the
 canvas controls keep their place while editing is locked), v0.21.3 (the edit
 lock is exact, and its button shows the state), v0.21.2 (values
 and detail rows sit inside their node), v0.21.1 (Focus
