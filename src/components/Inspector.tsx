@@ -31,6 +31,7 @@ import { useSimStore } from '../store/simStore'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { AccentField } from './AccentField'
+import { EdgeEndsField } from './EdgeEndsField'
 import { RegisterExprField } from './RegisterExprField'
 import { useT, type MessageKey } from '../i18n'
 import { isolateAuto, isolateLtr } from '../i18n/bidiIsolate'
@@ -108,6 +109,7 @@ export function Inspector() {
   const setEdgeData = useGraphStore((s) => s.setEdgeData)
   const removeNode = useGraphStore((s) => s.removeNode)
   const removeEdge = useGraphStore((s) => s.removeEdge)
+  const isMobile = useIsMobile()
 
   const node = nodes.find((n) => n.id === selectedNodeId) ?? null
   const edge = edges.find((e) => e.id === selectedEdgeId) ?? null
@@ -302,6 +304,10 @@ export function Inspector() {
         )}
 
         <RouteField edgeId={edge.id} route={ed.route} bends={ed.waypoints?.length ?? 0} />
+
+        {/* §ER18 — where the connection's ends are; the phone stays read-only,
+            so it offers no Ends controls (as no Add bend) */}
+        {isMobile ? null : <EdgeEndsField key={edge.id} edge={edge} />}
 
         {/* issue #344 step 3 — which edits restart the run and which (route,
             bends, colour: drawing only) do not */}

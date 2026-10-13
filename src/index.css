@@ -4816,6 +4816,54 @@ a.sheet__row {
   border-color: var(--state-warning);
 }
 
+/* docs/edge-routing.md §ER18 — the Inspector's Ends group: per end a node
+   list and a four-side choice, then Apply / Revert */
+.ends {
+  margin: 4px 0 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-hairline);
+}
+.ends__title {
+  margin: 0 0 6px;
+}
+.ends__end {
+  margin-bottom: 8px;
+}
+.ends__node {
+  display: block;
+}
+.ends__node select {
+  width: 100%;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  border: 1px solid var(--line-control);
+  border-radius: var(--control-radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.ends__sides {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 6px;
+  font-size: 12px;
+}
+.ends__side {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ends__status:empty {
+  display: none;
+}
+.ends__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
 /* docs/flow-colour-and-compact-nodes.md FC-5 — the Inspector's Colour section */
 .accent-field {
   margin: 4px 0 10px;

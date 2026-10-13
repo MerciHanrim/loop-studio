@@ -977,3 +977,48 @@ through an older build does not preserve port faces.** The document schema is no
 on purpose: a face is placement, and taking the whole document away from an older build
 to protect it would cost more than it saves (decision D-A). The user-facing change note
 of the release that ships this says the same in one sentence.
+
+## ER18. Moving a connection's end (line editing, first unit)
+
+An existing connection's source or target end can be moved to another side of the
+same node or to another node without deleting it. Every surface that offers it uses
+ONE check, `endMoveVerdict`, and ONE change, `moveEdgeEnds` (`src/model/endMove.ts`,
+the graph store): the Inspector's Ends group today, the canvas end grips next.
+
+- **What a move keeps.** The connection's id, kind, direction, handles (the kind
+  channel: `out` / `in`, `state-*`) and every `data` field — amount or condition,
+  resource type, colour, line shape and the user's bends. Only the end node and the
+  end's face (`data.ports`, canonical as in §ER17) change. Turning a connection around
+  is a separate action.
+- **What is refused, with the reason shown.** An end on a node without the port this
+  kind needs at that end: a Source has no input, a Drain or End no output, a Parameter
+  or Register no ports at all (`SEMANTICS-M.md` §M1.3). And, only when an end changes
+  NODE, a result that repeats another connection by the drawing rule — the same two
+  ends AND the same stored handles, as xyflow's `addEdge` refuses — with the moved
+  connection itself excluded. A side change alone is never a duplicate: the shipped
+  examples hold parallel connections of one kind between the same nodes (Early MMO
+  `a_z2_*_lo` / `_hi`, the choreography's `l_add` / `l_sub`) and resource + state
+  pairs, and none of them may lose its side change. A self-loop is allowed, as when
+  drawing. Drawing runs the same duplicate check before it records, so a refused
+  drawing leaves no undo entry and does not reset the run.
+- **History and the run.** One undo step per applied move; a cancel, a refusal or the
+  same ends record nothing. A side-only move keeps the run (a face is cosmetic,
+  `SEMANTICS-R11.md`; `ports` counts as decoration on undo and redo too); a move to
+  another node resets it, as drawing a new connection does.
+- **Routes.** An automatic route is recomputed (the ends and faces are in the layout
+  signature). The user's bends are never removed by a move: when a kept bend would be
+  refused by the bend rule at the new ends (`bendRejection`: inside a node, or on the
+  new end's stub), the Inspector says so BEFORE applying; "Reset to automatic" stays
+  the user's own, separate choice (the line-editing principle: a user-adjusted route
+  is kept, going back to automatic is explicit).
+- **The Inspector's Ends group.** For the source (From) and the target (To): a node
+  list and a four-side choice; the user picks, then Applies (one change, never a
+  provisional side first and a second change after); Revert returns the pick. A node
+  that cannot take this end is listed disabled with its reason in the option's own
+  text, so a keyboard or screen-reader user reads it; the reason, the bend warning and
+  the applied result are in a status line the controls describe themselves with. Node
+  names are the user's text and are bidi-isolated. Under the edit lock the Inspector is
+  disabled as a whole; the phone stays read-only.
+- **Compatibility.** Nothing new is stored: the ends and `data.ports` are written and
+  read as before, so a moved end round-trips through save, reopen, undo and redo, and
+  an older build loses only the faces (§ER17).

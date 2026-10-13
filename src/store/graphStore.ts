@@ -55,6 +55,7 @@ import {
 } from '../model/serialize'
 import { readAccent } from '../model/model'
 import { parseHandleId, portsFromHandles } from '../model/ports'
+import { duplicateOf, endMoveVerdict, movedEdge, type EndMove, type EndMoveVerdict } from '../model/endMove'
 import type { InitialView } from '../model/templates'
 import type { LoopEdge, LoopEdgeData, LoopNode, NodeKind } from '../model/types'
 
@@ -295,6 +296,13 @@ type GraphStore = {
    *  entry per call, never merged with the next edit; nothing when unchanged or
    *  while the edit lock is on. Cosmetic: the run is not reset. */
   setEdgeRouting: (id: string, routing: EdgeRouting) => void
+  /** docs/edge-routing.md §ER18 — move one or both ends of a connection to
+   *  another side or another node, keeping the connection (id, kind, every
+   *  `data` field, the user's bends). Checked by `endMoveVerdict`; a refusal,
+   *  the same ends, or the edit lock record nothing and leave the run. ONE
+   *  history entry per applied move; a side-only move keeps the run, a node
+   *  change resets it. Returns the verdict (null under the edit lock). */
+  moveEdgeEnds: (id: string, move: EndMove) => EndMoveVerdict | null
   /** the same change with no history entry, for a bend-point gesture between
    *  `captureGestureSnapshot` and `pushGestureEntry` */
   setEdgeRoutingSilently: (id: string, routing: EdgeRouting) => void
@@ -607,7 +615,9 @@ export function onlyDecorationDiffers(
   a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
   b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
 ): boolean {
-  return onlyCosmeticsDiffer(a, b, ['accent', 'route', 'waypoints'])
+  // §ER18 — and a connection's sides (`ports`, cosmetic in SEMANTICS-R11.md):
+  // undoing a side-only end move does not reset the run either
+  return onlyCosmeticsDiffer(a, b, ['accent', 'route', 'waypoints', 'ports'])
 }
 
 function onlyCosmeticsDiffer(
@@ -971,6 +981,11 @@ export const useGraphStore = create<GraphStore>((set, get) => {
             type: 'loop',
             data: { kind: 'resource', flow: '1', route: 'orthogonal', ...(ports ? { ports } : {}) }, // issue #344 §ER14.1
           }
+      // docs/edge-routing.md §ER18 — the drawing rule for "already connected"
+      // (the same ends and stored handles, `duplicateOf`, as xyflow's
+      // `addEdge` refuses): checked BEFORE recording, so a refused drawing
+      // leaves no undo entry and does not reset the run
+      if (duplicateOf(get().edges, edge)) return
       commit('')
       set({ edges: addEdge(edge, get().edges) })
       bump()
@@ -1144,6 +1159,23 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       lastTag = '' // the next edit is its own entry, whatever it is
       set({ edges: next, recordLabels: false }) // §ER15.1 — an edited shape takes the current label rule
       persist()
+    },
+    moveEdgeEnds: (id, move) => {
+      if (editGuard()) return null // #334 — refused while the edit lock is on
+      const { nodes, edges } = get()
+      const verdict = endMoveVerdict(nodes, edges, id, move)
+      if (!verdict.ok || verdict.same) return verdict
+      commit('')
+      lastTag = '' // the next edit is its own entry, whatever it is
+      set({
+        edges: edges.map((e) => (e.id === id ? movedEdge(e, move) : e)),
+        recordLabels: false, // §ER15.1 — an edited connection takes the current label rule
+      })
+      // a side is drawing (SEMANTICS-R11.md: `data.ports` is cosmetic); a
+      // different node is a different model, as drawing a new connection is
+      if (verdict.nodeChanged) bump()
+      persist()
+      return verdict
     },
     setEdgeRoutingSilently: (id, routing) => {
       if (editGuard()) return // #334 — refused while the edit lock is on
