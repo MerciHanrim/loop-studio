@@ -46,19 +46,33 @@ export type Box = { x0: number; y0: number; x1: number; y1: number }
 
 /** which side of its anchor the badge sits: right of a travelling token (the
  *  approved mockup); left of the target end for the reduced-motion static
- *  badge, so it stays off the target node */
+ *  badge, so it stays off the target node. Both are above the anchor. */
 export type BadgeSide = 'right' | 'left'
 
+/** docs/simulation-playback.md §PB4.8 — the four places of the L2 travelling
+ *  badge (./badgePlan chooses one per connection); `up-right` is `right` */
+export type BadgePlace = 'up-right' | 'down-right' | 'up-left' | 'down-left'
+export const BADGE_PLACES: readonly BadgePlace[] = ['up-right', 'down-right', 'up-left', 'down-left']
+const placeOf = (p: BadgeSide | BadgePlace): BadgePlace => (p === 'right' ? 'up-right' : p === 'left' ? 'up-left' : p)
+
 /** the badge's left edge relative to its anchor */
-export const badgeX = (text: string, side: BadgeSide): number => (side === 'right' ? BADGE_DX : -BADGE_DX - badgeWidth(text))
+export const badgeX = (text: string, side: BadgeSide | BadgePlace): number =>
+  placeOf(side).endsWith('right') ? BADGE_DX : -BADGE_DX - badgeWidth(text)
+/** the badge's vertical centre relative to its anchor */
+export const badgeDY = (side: BadgeSide | BadgePlace): number => (placeOf(side).startsWith('up') ? BADGE_DY : -BADGE_DY)
+
+/** the box of a badge `w` wide beside an anchor (x, y), in one of the places */
+export function badgeBoxAt(x: number, y: number, w: number, place: BadgePlace): Box {
+  const x0 = place.endsWith('right') ? x + BADGE_DX : x - BADGE_DX - w
+  const cy = y + badgeDY(place)
+  return { x0, y0: cy - BADGE_H / 2, x1: x0 + w, y1: cy + BADGE_H / 2 }
+}
 
 /** the token and its badge at the token's centre (x, y) */
-export function tokenAndBadgeBoxes(x: number, y: number, text: string, side: BadgeSide = 'right'): [Box, Box] {
-  const w = badgeWidth(text)
-  const bx = x + badgeX(text, side)
+export function tokenAndBadgeBoxes(x: number, y: number, text: string, side: BadgeSide | BadgePlace = 'right'): [Box, Box] {
   return [
     { x0: x - TOKEN_R, y0: y - TOKEN_R, x1: x + TOKEN_R, y1: y + TOKEN_R },
-    { x0: bx, y0: y + BADGE_DY - BADGE_H / 2, x1: bx + w, y1: y + BADGE_DY + BADGE_H / 2 },
+    badgeBoxAt(x, y, badgeWidth(text), placeOf(side)),
   ]
 }
 
@@ -72,7 +86,7 @@ export function labelUnderToken(
   x: number,
   y: number,
   text: string | null,
-  side: BadgeSide = 'right',
+  side: BadgeSide | BadgePlace = 'right',
 ): boolean {
   if (!label || label.w <= 0) return false
   const L: Box = { x0: label.x - label.w / 2, y0: label.y - label.h / 2, x1: label.x + label.w / 2, y1: label.y + label.h / 2 }

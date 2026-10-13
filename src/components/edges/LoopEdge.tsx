@@ -20,7 +20,9 @@ import { useLod } from '../lod'
 import { useEdgeActivityOpacity } from '../frames/useActivityTint'
 import { MAX_PLAYBACK_TOKENS } from './playback-caps'
 import { useHeldBadgeBudget, usePlaybackTravelBudget } from './playbackBudget'
-import { badgeText, labelUnderToken } from './playbackBadge'
+import { type BadgePlace, badgeBoxAt, badgeText, badgeWidth, labelUnderToken } from './playbackBadge'
+import { badgeClearOfEnds } from './badgePlan'
+import { badgePlaces, nodeBodyBox } from './badgePlanCache'
 import { PlaybackBadge } from './PlaybackBadgeView'
 import { useId, useLayoutEffect, useRef, useState } from 'react'
 import type { LoopEdgeData } from '../../model/types'
@@ -195,7 +197,8 @@ function LoopEdge({
   // no second copy of the 0.45 threshold. At L0 the sub-pixel travelling dot is
   // elided, the ordered depart / path-pulse / arrive cues still play, and
   // `settle` still commits.
-  const atL0 = useLod() === 'L0'
+  const lod = useLod()
+  const atL0 = lod === 'L0'
 
   const d = (data as LoopEdgeData | undefined) ?? FALLBACK
   const isState = d.kind === 'state'
@@ -355,7 +358,7 @@ function LoopEdge({
   const pbToken = pbCueOn && !atL0 && (pbTier !== 'veryFast' || pbArriving)
   const pbFrac = pbTier === 'veryFast' ? 1 : travelFraction(pbLocalTau)
   const pbPt = pbToken ? pointOnPath(path, pbFrac) : null
-  const pbBadgeOn = pbPt != null && (pbTier === 'full' || pbArriving)
+  const pbBadgeWanted = pbPt != null && (pbTier === 'full' || pbArriving)
   // the very fast tier's path flash, from the edge's onset to its arrive beat
   const pbFlash = pbCueOn && pbTier === 'veryFast' && !pbArriving
   // issue #330 PR 1 — past the cap a moved edge keeps its arrival cue
@@ -367,6 +370,25 @@ function LoopEdge({
   const sourceIsGate = gNodes.some((n) => n.id === source && n.data.kind === 'gate')
   const pbPathOn = pbMoves && (sourceIsGate || !pbInCap || pbFlash)
   const pbBadge = badgeText(pbFlow)
+  // docs/simulation-playback.md §PB4.8 ("T3 without tail", 2026-10-13) — at
+  // L2, the full tier's travelling badge sits in ONE of four places beside its
+  // token, the place this connection's plan gives (./badgePlanCache), read
+  // once when the step starts and kept for the whole step; and it is shown only
+  // while its whole box is clear of BOTH end bodies, tested on the exact
+  // geometry every frame. L1, the fast tiers' arrival badge and the
+  // reduced-motion static badge keep their place and their showing.
+  const t3 = pbPt != null && pbTier === 'full' && lod === 'L2'
+  const planRef = useRef<{ step: number; place: BadgePlace } | null>(null)
+  if (t3 && planRef.current?.step !== transition!.fromStep) {
+    planRef.current = { step: transition!.fromStep, place: badgePlaces(gNodes, gEdges, gen.map).get(id) ?? 'up-right' }
+  }
+  const badgePlace: BadgePlace = t3 ? planRef.current!.place : 'up-right'
+  const t3Bodies = t3 ? [gNodes.find((n) => n.id === source), gNodes.find((n) => n.id === target)].map((n) => (n ? nodeBodyBox(n) : null)) : null
+  const t3Clear =
+    !t3 ||
+    t3Bodies!.some((b) => b == null) ||
+    badgeClearOfEnds(badgeBoxAt(pbPt!.x, pbPt!.y, badgeWidth(pbBadge), badgePlace), t3Bodies![0]!, t3Bodies![1]!)
+  const pbBadgeOn = pbBadgeWanted && t3Clear
   const pbAll = selected && transition && !isState ? transition.events.filter((e) => e.edgeId === id) : []
   const pbBreakdown = pbAll.slice(0, MAX_PLAYBACK_TOKENS)
   const pbBreakdownRest = pbAll.length - pbBreakdown.length
@@ -462,7 +484,7 @@ function LoopEdge({
   }, [labelKey, reportsRestSize, id])
   const labelBox = showLabel && labelSize ? { x: labelX, y: labelY, ...labelSize } : null
   const labelDimmed =
-    (pbPt != null && labelUnderToken(labelBox, pbPt.x, pbPt.y, pbBadgeOn ? pbBadge : null)) ||
+    (pbPt != null && labelUnderToken(labelBox, pbPt.x, pbPt.y, pbBadgeOn ? pbBadge : null, badgePlace)) ||
     (rmBadgePt != null && labelUnderToken(labelBox, rmBadgePt.x, rmBadgePt.y, badgeText(rmBadgeAmount), 'left'))
 
   // docs/flow-colour-and-compact-nodes.md FC-4.2 / FC-4.3 — the edge's flow
@@ -775,7 +797,7 @@ function LoopEdge({
             edgeId={id}
             amount={pbPt ? pbBadge : badgeText(rmBadgeAmount)}
             at={(pbPt ?? rmBadgePt)!}
-            side={pbPt ? 'right' : 'left'}
+            side={pbPt ? badgePlace : 'left'}
             dimmed={outOfFocus}
             kind={pbPt ? 'travel' : 'static'}
             colour={accent}

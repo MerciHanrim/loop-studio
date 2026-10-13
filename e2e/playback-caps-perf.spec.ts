@@ -119,8 +119,13 @@ test.describe('playback — Slice 3c-c: token caps', () => {
 
     const moving = await page.locator('g.pb-move').count()
     expect(moving).toBe(24) // the whole cap is used
-    // the dot and its badge are one pair: as many badges as tokens
-    await expect(page.locator('.pb-badge[data-playback-badge="travel"]')).toHaveCount(24)
+    // the dot and its badge are one pair of the cap: a badge only beside a
+    // token. docs/simulation-playback.md §PB4.8 — at L2 a badge waits while
+    // its box meets an end body, so in this packed fan (pools 24 px apart) a
+    // pair can show its token alone for a moment
+    const badgeFor = await page.locator('.pb-badge[data-playback-badge="travel"]').evaluateAll((els) => els.map((e) => e.getAttribute('data-badge-for')))
+    expect(badgeFor.length).toBeGreaterThan(0)
+    expect(badgeFor.length).toBeLessThanOrEqual(24)
 
     // the bearing set is the first 24 edge-ids in ascending order — deterministic
     const withToken = await page.evaluate(() =>
@@ -130,6 +135,7 @@ test.describe('playback — Slice 3c-c: token caps', () => {
         .sort(),
     )
     expect(withToken).toEqual(Array.from({ length: 24 }, (_, i) => `e${String(i).padStart(3, '0')}`))
+    for (const id of badgeFor) expect(withToken, `badge ${id} beside a token`).toContain(id)
     // an overflow edge (e024..e064) shows NO token and no badge, but its path
     // highlight (§PB4.6); a bearing edge (not from a Gate) has no highlight
     for (const eid of ['e024', 'e060', 'e064']) {

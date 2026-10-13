@@ -360,7 +360,8 @@ files, digests and every PB-INV / PBO-INV invariant are unchanged.
 - **The round token stays** wherever it travelled before; one summed token per
   connection per step (§PB4.5).
 - **`+N` badge.** The step's summed amount is always shown, from `+1`, as a
-  badge **beside** the token (up and to its right), moving with it. It lives in
+  badge **beside** the token (up and to its right; at L2 in its connection's
+  own place, §PB4.8), moving with it. It lives in
   the label layer, above every connection label, so the token-and-badge pair is
   drawn on top. It replaces the bare number that used to sit above the dot only
   when the amount was above 1. The badge is elided with the dot at L0 (§PB4.4).
@@ -428,6 +429,53 @@ re-lays out the node.
   (§PB9).
 - **Forced colours:** no tint; the pulse is a 2 px `Highlight` line 7–9 px
   inside the outline, drawn under the text, and the mark takes the same colour.
+
+**PB4.8 — where the travelling `+N` badge sits at L2 ("T3 without tail",
+2026-10-13).** Measured on the Coffee roastery: today's badge, always up and to
+the right of its token, stacked on the three-way fan out of Roasted bean stock
+and sat over its end nodes' bodies and values. Approved for the **L2
+travelling badge of the full tier only**; a presentation layer, nothing else
+changes.
+
+- **One place per connection**, from four beside the token: up-right (today's),
+  down-right, up-left, down-left, at the same 6 px / 11 px offsets. It is
+  chosen from the layout alone (routes, node bodies, outside names), before a
+  step runs (`src/components/edges/badgePlan.ts`): within a fan (the
+  connections leaving one side of one node) the combination with the fewest
+  moments of badge on badge, then the fewest covered names and node bodies,
+  then the longest shown share, then today's place; a fan of more than five is
+  placed member by member. The plan is kept until the layout changes, and a
+  connection keeps the place it had at the start of a step for the whole step:
+  a badge never changes place while it moves.
+- **Shown only while its whole box is clear of both end bodies.** Tested every
+  frame on the exact geometry (the token's point on the drawn path, the badge's
+  box at its place, each end node's body box), never on a sampled route: the
+  badge waits at the departure until it is clear of the source and stops before
+  it would meet the target.
+- **No tail** joining token and badge: at the 6 px gap it made no visible
+  difference.
+- **What is guaranteed, and what is a plan.** Guaranteed every frame: a shown
+  badge never meets either end body (tested at its real width), and a
+  connection's place does not change during a step. A plan, not a guarantee:
+  that badges of one fan do not meet and that names and bodies are not covered.
+  The plan assumes a two-digit badge (`+12`, 26 px) and fan members that travel
+  together (the same fraction of their routes at the same moment). A wider
+  amount extends its badge away from the token (`+4.5` 29 px, `+21.3` 35 px),
+  and the playback ordering (§PBO2) can start the members of one fan at
+  different onsets, so they are at different fractions. Measured on the Coffee
+  roastery (8 steps, 600 ms): no meeting from the widths, even at five
+  characters; the first step starts `e_online` at τ 0.24 and `e_roasted_bleed`
+  at 0.30, and their badges meet for about 2.5 % of that step (one frame at
+  600 ms, 14–17 × 2–4 px); later steps start them together and nothing meets.
+  The places are not re-chosen while a step runs to remove this.
+- **Unchanged:** L1 (up-right, shown from the departure), the fast tiers'
+  arrival badge, the very fast tier, the reduced-motion static badge (to the
+  left of the target end), L0 (no badge), Focus mode's strength and the forced
+  colours' form. The connection's own label still dims only while the token or
+  the SHOWN badge covers it.
+- **Known residue:** on the bundle out of Roasted bean stock a badge can still
+  pass beside another connection's label (`+4.5` near `10`, a few hundred ms over
+  eight steps).
 
 ## PB5. Pause / Resume
 
