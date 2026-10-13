@@ -100,6 +100,8 @@ const inspector = {
   'inspector.ends.reason.noPorts': '{node} has no ports; refer to it from an expression instead.',
   'inspector.ends.reason.duplicate': '{from} and {to} are already connected this way.',
   'inspector.ends.reason.missing': 'That node is no longer in the diagram.',
+  'inspector.ends.noGrip.source': 'The canvas has no free spot for this connection’s start grip here; move the start from this group.',
+  'inspector.ends.noGrip.target': 'The canvas has no free spot for this connection’s end grip here; move the end from this group.',
   'inspector.ends.bends': 'A bend of this connection would be inside a node or next to the new end, and the line will not pass through it. Apply keeps the bends; “Reset to automatic” removes them.',
   'inspector.edge.note': 'Changing a connection’s simulation settings restarts the current run. Route, bends, and colour are drawing-only and do not restart it.',
   'inspector.field.mode': 'Mode',

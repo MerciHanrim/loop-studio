@@ -108,6 +108,8 @@ const inspector = {
   'inspector.ends.reason.noPorts': '{node} にはポートがありません。式から参照してください。',
   'inspector.ends.reason.duplicate': '{from} と {to} はすでに同じ方法で接続されています。',
   'inspector.ends.reason.missing': 'そのノードはもう図にありません。',
+  'inspector.ends.noGrip.source': 'ここではキャンバス上に、この接続の始点のつまみを置く空きがありません。始点はこのグループから移動してください。',
+  'inspector.ends.noGrip.target': 'ここではキャンバス上に、この接続の終点のつまみを置く空きがありません。終点はこのグループから移動してください。',
   'inspector.ends.bends': 'この接続の折れ点のひとつがノードの内側か新しい端点のすぐ横に来るため、線はその点を通りません。適用しても折れ点は残ります。消すには「自動に戻す」を使います。',
   'inspector.edge.note':
     '接続のシミュレーション設定を変えると、現在の実行が最初からやり直しになります。経路・折れ点・色は描画だけの情報なので、変えてもやり直しにはなりません。',

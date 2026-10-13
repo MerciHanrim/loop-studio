@@ -282,25 +282,51 @@ test.describe('the canvas end grips (§ER18)', () => {
     await expect(page.locator('.end-grip')).toHaveCount(0)
   })
 
-  test('a grip is a 24 px screen target at every zoom, the dot stays small, and on this fixture its target meets no port', async ({ page }) => {
+  test('a grip is a 24 px screen target at every zoom, the dot stays small, and its target meets no port, label or name on this fixture', async ({ page }) => {
     await open(page)
     await selectEdge(page, 'e_leave')
     for (const zoom of [0.5, 1, 2]) {
       await page.evaluate((z) => (window as unknown as { __loop: L }).__loop.rf.setViewport({ x: 40, y: 60, zoom: z }, { duration: 0 }), zoom)
+      // the grips re-place after the zoom's render: two frames, as routesSettled waits
+      await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))))
       const m = await page.evaluate(() => {
         const meet = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
-        return [...document.querySelectorAll('.end-grip')].map((g) => {
-          const gb = g.getBoundingClientRect()
-          const dot = g.querySelector('.end-grip__dot')!.getBoundingClientRect()
-          const ports = [...document.querySelectorAll('.react-flow__handle')].filter((h) => !(h as HTMLElement).hasAttribute('data-off') && meet(gb, h.getBoundingClientRect())).length
-          return { w: Math.round(gb.width), h: Math.round(gb.height), dot: Math.round(dot.width), ports }
-        })
+        return {
+          grips: [...document.querySelectorAll('.end-grip')].map((g) => {
+            const gb = g.getBoundingClientRect()
+            const dot = g.querySelector('.end-grip__dot')!.getBoundingClientRect()
+            const hits = [...document.querySelectorAll('.react-flow__handle, .edge-label, .nodef__name')].filter((h) => !(h as HTMLElement).hasAttribute('data-off') && meet(gb, h.getBoundingClientRect())).length
+            return { w: Math.round(gb.width), h: Math.round(gb.height), dot: Math.round(dot.width), hits }
+          }),
+          // every end is a grip or, with no free spot, a mark
+          ends: document.querySelectorAll('.end-grip').length + document.querySelectorAll('.end-grip-none').length,
+        }
       })
-      expect(m, `zoom ${zoom}`).toEqual([
-        { w: 24, h: 24, dot: 10, ports: 0 },
-        { w: 24, h: 24, dot: 10, ports: 0 },
-      ])
+      expect(m.ends, `zoom ${zoom}`).toBe(2)
+      for (const g of m.grips) expect(g, `zoom ${zoom}`).toEqual({ w: 24, h: 24, dot: 10, hits: 0 })
+      if (zoom >= 1) expect(m.grips, `zoom ${zoom}: both ends have room`).toHaveLength(2)
     }
+  })
+
+  test('an end with no free spot near it has no grip, only a mark, and the Ends group says to move it from there', async ({ page }) => {
+    await open(page)
+    const ends = await selectEdge(page, 'e_leave')
+    // at zoom 0.5 the target end's spots are all taken (the drain's name and its ports)
+    await page.evaluate(() => (window as unknown as { __loop: L }).__loop.rf.setViewport({ x: 40, y: 60, zoom: 0.5 }, { duration: 0 }))
+    await expect(page.locator('.end-grip-none[data-end="target"]')).toHaveCount(1)
+    await expect(grip(page, 'target')).toHaveCount(0)
+    // the mark is no button: not focusable, not a pointer target, not announced
+    const mark = page.locator('.end-grip-none')
+    await expect(mark).toHaveAttribute('aria-hidden', 'true')
+    expect(await mark.evaluate((el) => ({ tab: (el as HTMLElement).tabIndex, pe: getComputedStyle(el).pointerEvents, tag: el.tagName }))).toEqual({ tab: -1, pe: 'none', tag: 'SPAN' })
+    // the hint is in the Ends group while it is still folded
+    await expect(ends.locator('.ends__toggle')).toHaveAttribute('aria-expanded', 'false')
+    await expect(ends.locator('.ends__status')).toBeVisible()
+    await expect(ends.locator('.ends__status')).toHaveText('The canvas has no free spot for this connection’s end grip here; move the end from this group.')
+    // back at zoom 1 the grip is there again and the hint goes
+    await page.evaluate(() => (window as unknown as { __loop: L }).__loop.rf.setViewport({ x: 40, y: 60, zoom: 1 }, { duration: 0 }))
+    await expect(grip(page, 'target')).toHaveCount(1)
+    await expect(ends.locator('.ends__status')).toHaveText('')
   })
 
   test('under the edit lock there are no grips', async ({ page }) => {
@@ -314,9 +340,13 @@ test.describe('the canvas end grips (§ER18)', () => {
 
 test.describe('the canvas end grips by touch (§ER18)', () => {
   test.use({ hasTouch: true })
+  // the 44 px targets need room: this fixture is shown at zoom 1.5 for them
+  const roomy = (page: Page) => page.evaluate(() => (window as unknown as { __loop: L }).__loop.rf.setViewport({ x: -200, y: -120, zoom: 1.5 }, { duration: 0 }))
   test('with a touch pointer a grip is a 44 px target that, on this fixture, meets no port', async ({ page }) => {
     await open(page)
     await selectEdge(page, 'e_leave')
+    await roomy(page)
+    await expect(page.locator('.end-grip')).toHaveCount(2)
     const m = await page.evaluate(() => {
       const meet = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
       return {
@@ -332,6 +362,8 @@ test.describe('the canvas end grips by touch (§ER18)', () => {
   test('a touch drag of the target grip onto another node’s face moves the end', async ({ page }) => {
     await open(page)
     await selectEdge(page, 'e_leave')
+    await roomy(page)
+    await expect(grip(page, 'target')).toHaveCount(1)
     const before = await state(page, 'e_leave')
     const cdp = await page.context().newCDPSession(page)
     const a = await centreOf(grip(page, 'target'))
@@ -386,26 +418,33 @@ test.describe('the Ends group folds (§ER18)', () => {
 })
 
 test.describe('the grips: the side choice by click, tap or key (§ER18)', () => {
-  test('a click on a grip offers that node’s four sides, the current one marked; choosing one moves the end, closes, focus back on the grip', async ({ page }) => {
+  test('a click on a grip opens a popover naming the end and its node with the four sides, the current one marked; choosing one moves the end, closes, focus back on the grip', async ({ page }) => {
     await open(page)
     await selectEdge(page, 'e_leave')
     const before = await state(page, 'e_leave')
     await grip(page, 'target').click()
     const picker = page.locator('.end-picker[data-end="target"]')
-    await expect(picker).toHaveAttribute('role', 'group')
+    // named by its title: which end, of which node
+    await expect(page.getByRole('group', { name: 'To Discharged home' })).toBeVisible()
+    await expect(picker.locator('.end-popover__title')).toContainText('Discharged home')
     await expect(picker.getByRole('button')).toHaveCount(4)
     await expect(picker.getByRole('button', { name: 'Top' })).toHaveAttribute('aria-pressed', 'true')
     await expect(picker.getByRole('button', { name: 'Top' })).toBeFocused()
-    // the buttons sit around Discharged home only
+    // inside the canvas, and not over the node it edits
+    const pop = (await picker.boundingBox())!
+    const canvas = (await page.locator('.react-flow').boundingBox())!
+    expect(pop.x).toBeGreaterThanOrEqual(canvas.x)
+    expect(pop.y).toBeGreaterThanOrEqual(canvas.y)
+    expect(pop.x + pop.width).toBeLessThanOrEqual(canvas.x + canvas.width)
+    expect(pop.y + pop.height).toBeLessThanOrEqual(canvas.y + canvas.height)
     const node = (await page.locator('.react-flow__node[data-id="discharged"]').boundingBox())!
+    const meets = pop.x < node.x + node.width && node.x < pop.x + pop.width && pop.y < node.y + node.height && node.y < pop.y + pop.height
+    expect(meets, 'the popover does not cover the node it edits').toBe(false)
+    // no side is cut off: every button, Bottom included, inside the popover and the canvas
     for (const b of await picker.getByRole('button').all()) {
       const r = (await b.boundingBox())!
-      const cx = r.x + r.width / 2
-      const cy = r.y + r.height / 2
-      expect(cx).toBeGreaterThan(node.x - 60)
-      expect(cx).toBeLessThan(node.x + node.width + 60)
-      expect(cy).toBeGreaterThan(node.y - 60)
-      expect(cy).toBeLessThan(node.y + node.height + 60)
+      expect(r.y + r.height, await b.textContent() ?? '').toBeLessThanOrEqual(Math.min(pop.y + pop.height, canvas.y + canvas.height) + 0.5)
+      expect(r.y).toBeGreaterThanOrEqual(Math.max(pop.y, canvas.y) - 0.5)
     }
     await picker.getByRole('button', { name: 'Left' }).click()
     await expect(picker).toHaveCount(0)
@@ -444,6 +483,8 @@ test.describe('the grips: the side choice by tap (§ER18)', () => {
   test('a tap offers the sides as a click does, and a tapped side moves the end', async ({ page }) => {
     await open(page)
     await selectEdge(page, 'e_leave')
+    await page.evaluate(() => (window as unknown as { __loop: L }).__loop.rf.setViewport({ x: -200, y: -120, zoom: 1.5 }, { duration: 0 }))
+    await expect(grip(page, 'target')).toHaveCount(1)
     await grip(page, 'target').tap()
     const picker = page.locator('.end-picker[data-end="target"]')
     await expect(picker.getByRole('button')).toHaveCount(4)

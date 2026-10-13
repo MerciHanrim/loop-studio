@@ -124,6 +124,8 @@ const inspector = {
   'inspector.ends.reason.noPorts': '{node} hat keine Verbindungspunkte; verweisen Sie stattdessen aus einem Ausdruck darauf.',
   'inspector.ends.reason.duplicate': '{from} und {to} sind bereits auf diese Weise verbunden.',
   'inspector.ends.reason.missing': 'Dieser Knoten ist nicht mehr im Diagramm.',
+  'inspector.ends.noGrip.source': 'Auf der Arbeitsfläche ist hier kein freier Platz für den Griff am Anfang dieser Verbindung; verschieben Sie den Anfang in dieser Gruppe.',
+  'inspector.ends.noGrip.target': 'Auf der Arbeitsfläche ist hier kein freier Platz für den Griff am Ende dieser Verbindung; verschieben Sie das Ende in dieser Gruppe.',
   'inspector.ends.bends': 'Ein Knickpunkt dieser Verbindung läge in einem Knoten oder direkt am neuen Ende, und die Linie führt nicht durch ihn. Übernehmen behält die Knickpunkte; „Auf automatisch zurücksetzen“ entfernt sie.',
   'inspector.edge.note':
     'Das Ändern der Simulationseinstellungen einer Verbindung startet den aktuellen Lauf neu. Linienführung, Knickpunkte und Farbe betreffen nur die Darstellung und starten ihn nicht neu.',

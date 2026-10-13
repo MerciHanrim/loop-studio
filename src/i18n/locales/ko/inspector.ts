@@ -99,6 +99,8 @@ const inspector = {
   'inspector.ends.reason.noPorts': '{node}에는 포트가 없습니다. 표현식에서 참조하세요.',
   'inspector.ends.reason.duplicate': '같은 방식의 연결이 이미 있습니다. 출발: {from}, 도착: {to}.',
   'inspector.ends.reason.missing': '그 노드는 이제 다이어그램에 없습니다.',
+  'inspector.ends.noGrip.source': '여기서는 캔버스에 이 연결의 출발 잡는 점을 둘 빈자리가 없습니다. 출발 끝점은 이 묶음에서 옮기세요.',
+  'inspector.ends.noGrip.target': '여기서는 캔버스에 이 연결의 도착 잡는 점을 둘 빈자리가 없습니다. 도착 끝점은 이 묶음에서 옮기세요.',
   'inspector.ends.bends': '이 연결의 꺾임점 하나가 노드 안이나 새 끝점 바로 옆에 놓이게 되어, 선이 그 점을 지나지 않습니다. 적용해도 꺾임점은 남고, 지우려면 “자동으로 되돌리기”를 쓰세요.',
   'inspector.edge.note': '연결의 시뮬레이션 설정을 바꾸면 현재 실행이 다시 시작됩니다. 경로, 꺾임점, 색상은 그리기 정보일 뿐이라 바꿔도 다시 시작되지 않습니다.',
   'inspector.field.mode': '모드',

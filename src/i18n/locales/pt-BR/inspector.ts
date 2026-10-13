@@ -110,6 +110,8 @@ const inspector = {
   'inspector.ends.reason.noPorts': '{node} não tem portas; faça referência a ele a partir de uma expressão.',
   'inspector.ends.reason.duplicate': 'Já existe uma ligação deste tipo entre {from} e {to}.',
   'inspector.ends.reason.missing': 'Esse nó já não está no diagrama.',
+  'inspector.ends.noGrip.source': 'Aqui a tela não tem espaço livre para a alça do início desta ligação; mova o início a partir deste grupo.',
+  'inspector.ends.noGrip.target': 'Aqui a tela não tem espaço livre para a alça do fim desta ligação; mova o fim a partir deste grupo.',
   'inspector.ends.bends': 'Uma dobra desta ligação ficaria dentro de um nó ou junto à nova extremidade, e a linha não passará por ela. Aplicar mantém as dobras; “Voltar à rota automática” apaga todas.',
   'inspector.edge.note': 'Alterar as configurações de simulação de uma conexão reinicia a execução atual. A rota, as dobras e a cor são só desenho e não a reiniciam.',
   'inspector.field.mode': 'Modo',

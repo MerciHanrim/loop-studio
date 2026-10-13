@@ -120,6 +120,8 @@ const inspector = {
   'inspector.ends.reason.noPorts': '{node} n’a pas de points de connexion. Référencez-le plutôt depuis une expression.',
   'inspector.ends.reason.duplicate': 'Une connexion de ce type relie déjà {from} et {to}.',
   'inspector.ends.reason.missing': 'Ce nœud ne fait plus partie du diagramme.',
+  'inspector.ends.noGrip.source': 'Le canevas n’a ici aucune place libre pour la poignée du départ de cette connexion. Déplacez le départ depuis ce groupe.',
+  'inspector.ends.noGrip.target': 'Le canevas n’a ici aucune place libre pour la poignée de l’arrivée de cette connexion. Déplacez l’arrivée depuis ce groupe.',
   'inspector.ends.bends': 'Un coude de cette connexion se trouverait dans un nœud ou juste à côté de la nouvelle extrémité, et la ligne n’y passera pas. Appliquer conserve les coudes. « Revenir au tracé automatique » les supprime.',
   'inspector.edge.note':
     'Modifier les réglages de simulation d’une connexion relance l’exécution en cours. Le tracé, les coudes et la couleur ne concernent que le dessin et ne la relancent pas.',

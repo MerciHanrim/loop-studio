@@ -118,6 +118,8 @@ const inspector = {
   'inspector.ends.reason.noPorts': '{node} non ha porte; richiamalo da un’espressione.',
   'inspector.ends.reason.duplicate': 'Esiste già un collegamento di questo tipo tra {from} e {to}.',
   'inspector.ends.reason.missing': 'Quel nodo non è più nel diagramma.',
+  'inspector.ends.noGrip.source': 'Qui l’area di disegno non ha uno spazio libero per la maniglia dell’inizio di questo collegamento; sposta l’inizio da questo gruppo.',
+  'inspector.ends.noGrip.target': 'Qui l’area di disegno non ha uno spazio libero per la maniglia della fine di questo collegamento; sposta la fine da questo gruppo.',
   'inspector.ends.bends': 'Un angolo di questo collegamento finirebbe dentro un nodo o accanto al nuovo estremo, e la linea non ci passerà. Applica mantiene gli angoli; “Torna al percorso automatico” li rimuove.',
   'inspector.edge.note': 'Modificare le impostazioni di simulazione di un collegamento riavvia l’esecuzione in corso. Percorso, angoli e colore riguardano solo il disegno e non la riavviano.',
   'inspector.field.mode': 'Modalità',

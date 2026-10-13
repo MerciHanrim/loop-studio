@@ -109,6 +109,8 @@ const inspector = {
   'inspector.ends.reason.noPorts': '{node} không có cổng kết nối; hãy tham chiếu tới nó từ một biểu thức.',
   'inspector.ends.reason.duplicate': 'Giữa {from} và {to} đã có một liên kết kiểu này.',
   'inspector.ends.reason.missing': 'Nút đó không còn trong sơ đồ.',
+  'inspector.ends.noGrip.source': 'Ở đây trên khung vẽ không còn chỗ trống cho tay nắm ở điểm đầu của liên kết này; hãy di chuyển điểm đầu từ nhóm này.',
+  'inspector.ends.noGrip.target': 'Ở đây trên khung vẽ không còn chỗ trống cho tay nắm ở điểm cuối của liên kết này; hãy di chuyển điểm cuối từ nhóm này.',
   'inspector.ends.bends': 'Một điểm gấp của liên kết này sẽ nằm trong một nút hoặc sát đầu mút mới, và đường nối sẽ không đi qua nó. Áp dụng vẫn giữ các điểm gấp; “Trở về đường đi tự động” sẽ xóa chúng.',
   'inspector.edge.note': 'Thay đổi thiết lập mô phỏng của một liên kết sẽ khởi động lại lần chạy hiện tại. Đường đi, điểm gấp và màu chỉ là phần vẽ và không khởi động lại nó.',
   'inspector.field.mode': 'Chế độ',

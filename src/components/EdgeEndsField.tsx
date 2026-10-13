@@ -107,7 +107,10 @@ export function EdgeEndsField({ edge }: { edge: LoopEdge }) {
         to: isolateAuto(nameOf(byId.get(grip.end === 'target' ? grip.node : current.target.node), grip.end === 'target' ? grip.node : current.target.node)),
       })
     : null
-  const status = verdict && !verdict.ok ? { text: reasonText(verdict)!, warn: true } : bendsAffected ? { text: t('inspector.ends.bends'), warn: true } : !changed && gripText ? { text: gripText, warn: true } : done ? { text: done, warn: false } : null
+  // an end the canvas has no grip for (no free spot near it): moved from here
+  const noGrip = useEndGripNotice((s) => (s.noSpot?.edgeId === edge.id ? s.noSpot.ends : null))
+  const noGripText = noGrip?.length ? noGrip.map((e) => t(e === 'source' ? 'inspector.ends.noGrip.source' : 'inspector.ends.noGrip.target')).join(' ') : null
+  const status = verdict && !verdict.ok ? { text: reasonText(verdict)!, warn: true } : bendsAffected ? { text: t('inspector.ends.bends'), warn: true } : !changed && gripText ? { text: gripText, warn: true } : done ? { text: done, warn: false } : noGripText ? { text: noGripText, warn: false } : null
   const statusId = `${ids}-status`
 
   const endRow = (end: PortEnd) => {

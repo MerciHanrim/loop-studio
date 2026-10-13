@@ -105,6 +105,8 @@ const inspector = {
   'inspector.ends.reason.noPorts': '{node} 没有端口；请在表达式中引用它。',
   'inspector.ends.reason.duplicate': '{from} 和 {to} 之间已有同样方式的连线。',
   'inspector.ends.reason.missing': '该节点已不在图中。',
+  'inspector.ends.noGrip.source': '这里的画布上没有空位放置这条连线起点的手柄；请在此组中移动起点。',
+  'inspector.ends.noGrip.target': '这里的画布上没有空位放置这条连线终点的手柄；请在此组中移动终点。',
   'inspector.ends.bends': '这条连线的某个拐点会落在节点内部或紧挨新的端点，线不会经过它。应用后拐点仍会保留；要删除拐点，请使用“恢复自动走线”。',
   'inspector.edge.note': '修改连线的模拟设置会让当前运行重新开始。走线、拐点和颜色只影响绘制，修改它们不会重新开始。',
   'inspector.field.mode': '模式',

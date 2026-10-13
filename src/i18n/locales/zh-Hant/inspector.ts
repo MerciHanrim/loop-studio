@@ -110,6 +110,8 @@ const inspector = {
   'inspector.ends.reason.noPorts': '{node} 沒有連接點；請在運算式中引用它。',
   'inspector.ends.reason.duplicate': '{from} 和 {to} 之間已有同樣方式的連線。',
   'inspector.ends.reason.missing': '該節點已不在圖中。',
+  'inspector.ends.noGrip.source': '這裡的畫布上沒有空位放置這條連線起點的把手；請在此組中移動起點。',
+  'inspector.ends.noGrip.target': '這裡的畫布上沒有空位放置這條連線終點的把手；請在此組中移動終點。',
   'inspector.ends.bends': '這條連線的某個拐點會落在節點裡面或緊鄰新的端點，線不會經過它。套用後拐點仍會保留；要刪除拐點，請使用「恢復自動走線」。',
   'inspector.edge.note':
     '修改連線的模擬設定會讓目前的執行重新開始。走線、拐點和顏色只影響繪製，修改它們不會重新開始。',

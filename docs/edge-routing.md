@@ -1029,14 +1029,21 @@ the graph store): the Inspector's Ends group and the canvas end grips.
   hover, never on the phone or under the edit lock. A grip keeps its SCREEN size at
   every zoom: a small dot (10 px) inside a 24 × 24 px pointer target, 44 × 44 px
   while any pointer of the device is coarse (`(any-pointer: coarse)`); the side
-  buttons are at least as large. It sits just out along its end's stub (half its
-  target and 2 px past the port), so that its target stays off the port it ends on
-  and off that node's other ports and pressing a port still draws a new connection
-  while one is selected. That is a placement rule, measured on the cases checked —
-  no port met a grip's target on the small fixture or the Coffee roastery's fan at
-  zoom 0.5, 1 and 2, mouse and touch — not a guarantee for every layout (a port of
-  ANOTHER node close to the stub, or a very short stub, can still meet it).
-  Dragging a grip offers every
+  buttons are at least as large. **Where it sits:** on the connection's own line,
+  at the nearest FREE spot near its end — tried from half its target and 2 px past
+  the port, then 8, 16 and 24 screen px further in (24 px, one mouse target's width:
+  beyond it the dot no longer reads as this end's; the dot's centre is then at most
+  38 px from the port with a mouse, 48 px with touch), never past the middle of the
+  line. A spot is free when nothing else a press could reach lies under the whole
+  target — another connection's line, a port, a node, the other grip (the browser's
+  own hit testing, `elementsFromPoint`, on a 5 × 5 grid) — and it covers no text (any
+  connection label, this one's too, or a node's outside name). **No free spot: no
+  grip.** That end gets a small hollow mark that is not a pointer target, not
+  focusable and not announced, and the Ends group says — folded or open — that the
+  canvas has no free spot for that end's grip and that the end moves from there. A
+  large transparent target would take presses meant for the lines around it; the
+  Inspector path costs a step instead. The rule is measured on the cases checked
+  (share notes 46, 47), not a guarantee for every layout. Dragging a grip offers every
   node's faces, as drawing does; dropping on a face moves that end (the same check
   and change), dropping on a refused face changes nothing and says why (the canvas
   live region and the Ends status line), dropping elsewhere or pressing Esc changes
@@ -1047,12 +1054,16 @@ the graph store): the Inspector's Ends group and the canvas end grips.
   when the grips go away under it (the connection deselected or deleted, the edit lock
   turned on); after Esc, moving on or releasing does nothing.
 - **The side choice on a grip.** A click or tap on a grip (or Enter / Space on the
-  focused grip — each grip is a named button) offers the four sides of THAT end's node,
-  as buttons just outside each side (past the node's outside name where it is on that
-  side), the current one marked. Choosing one moves the end to that side (one undo
-  step, the run kept) and closes them; Esc or a press elsewhere closes them unchanged;
-  either way focus returns to the grip. It is the precise path for a side of the same
-  node; another node is reached by dragging, or from the Ends group.
+  focused grip — each grip is a named button) opens a small popover: its title names
+  the end and the node (From / To and the node's name), its four sides sit in a cross
+  (top, left and right, bottom), the current one marked. It opens beside the grip on
+  the side AWAY from the node it edits and stays inside the canvas; it is never taller
+  or wider than the canvas allows, and scrolls inside rather than cut a side off. While
+  open it may cover other lines and labels; its title says which node it edits.
+  Choosing a side moves the end to it (one undo step, the run kept) and closes it; Esc
+  or a press elsewhere closes it unchanged; either way focus returns to the grip. It is
+  the precise path for a side of the same node; another node is reached by dragging,
+  or from the Ends group. No zoom is forced for touch.
 - **Compatibility.** Nothing new is stored: the ends and `data.ports` are written and
   read as before, so a moved end round-trips through save, reopen, undo and redo, and
   an older build loses only the faces (§ER17).

@@ -1706,32 +1706,88 @@ a.sheet__row {
   outline-offset: 0;
   border-radius: 50%;
 }
-/* the side picker: the four sides of that end's node, as buttons just outside
-   each side, the current one marked */
-.end-picker__side {
+/* an end with no free spot for a grip: a small hollow mark on the end itself,
+   not a pointer target (the Ends group moves that end) */
+.end-grip-none {
   position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--line-focus);
+  background: var(--surface-raised);
+  pointer-events: none;
+  transform-origin: 0 0;
+}
+/* the side popover: which end of which node, and its four sides in a cross
+   (top above, left and right, bottom below), the current one marked; in
+   screen space, inside the canvas */
+.end-popover {
+  position: absolute;
+  z-index: 6;
+  padding: 6px 8px 8px;
+  border: 1px solid var(--line-container);
+  border-radius: var(--radius);
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+  box-shadow: var(--elev-overlay);
+  font-size: 12px;
+}
+.end-popover__title {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  max-width: 220px;
+  margin: 0 0 6px;
+  white-space: nowrap;
+}
+.end-popover__end {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.end-popover__node {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.end-popover__sides {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas: 'top top' 'left right' 'bottom bottom';
+  justify-items: center;
+  gap: 4px;
+}
+.end-popover__side--top {
+  grid-area: top;
+}
+.end-popover__side--left {
+  grid-area: left;
+}
+.end-popover__side--right {
+  grid-area: right;
+}
+.end-popover__side--bottom {
+  grid-area: bottom;
+}
+.end-popover__side {
   min-width: 24px;
   min-height: 24px;
-  padding: 3px 7px;
+  padding: 3px 8px;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 16px;
   border: 1px solid var(--line-control);
   border-radius: var(--control-radius);
   background: var(--surface-raised);
   color: var(--text-primary);
-  pointer-events: all;
   cursor: pointer;
   white-space: nowrap;
-  z-index: 2;
-  transform-origin: 0 0;
 }
-.end-picker__side[aria-pressed='true'] {
+.end-popover__side[aria-pressed='true'] {
   border-color: var(--line-focus);
   box-shadow: inset 0 0 0 1px var(--line-focus);
   font-weight: 600;
 }
-.end-picker__side:focus-visible {
+.end-popover__side:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
@@ -1742,13 +1798,17 @@ a.sheet__row {
   width: 44px;
   height: 44px;
 }
-.end-picker__side[data-coarse] {
+.end-popover__side[data-coarse] {
   min-width: 44px;
   min-height: 44px;
 }
 @media (forced-colors: active) {
-  .end-picker__side[aria-pressed='true'] {
+  .end-popover__side[aria-pressed='true'],
+  .end-grip-none {
     border-color: Highlight;
+  }
+  .end-popover {
+    border-color: CanvasText;
   }
 }
 .end-grip__dot {

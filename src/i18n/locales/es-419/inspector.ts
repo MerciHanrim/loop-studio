@@ -103,6 +103,8 @@ const inspector = {
   'inspector.ends.reason.noPorts': '{node} no tiene puertos; haga referencia a él desde una expresión.',
   'inspector.ends.reason.duplicate': 'Ya existe una conexión de este tipo desde {from} hasta {to}.',
   'inspector.ends.reason.missing': 'Ese nodo ya no está en el diagrama.',
+  'inspector.ends.noGrip.source': 'En el lienzo no hay espacio libre aquí para el asa del inicio de esta conexión; mueva el inicio desde este grupo.',
+  'inspector.ends.noGrip.target': 'En el lienzo no hay espacio libre aquí para el asa del final de esta conexión; mueva el final desde este grupo.',
   'inspector.ends.bends': 'Un codo de esta conexión quedaría dentro de un nodo o junto al nuevo extremo, y la línea no pasará por él. Aplicar conserva los codos; “Volver al trazado automático” los quita.',
   'inspector.edge.note': 'Cambiar la configuración de simulación de una conexión reinicia la ejecución actual. El trazado, los codos y el color solo afectan al dibujo y no la reinician.',
   'inspector.field.mode': 'Modo',

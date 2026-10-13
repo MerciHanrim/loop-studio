@@ -115,6 +115,8 @@ const inspector = {
   'inspector.ends.reason.noPorts': '{node} heeft geen poorten; verwijs ernaar vanuit een expressie.',
   'inspector.ends.reason.duplicate': '{from} en {to} zijn al op deze manier verbonden.',
   'inspector.ends.reason.missing': 'Dat knooppunt staat niet meer in het diagram.',
+  'inspector.ends.noGrip.source': 'Het tekengebied heeft hier geen vrije plek voor de greep aan het begin van deze verbinding; verplaats het begin vanuit deze groep.',
+  'inspector.ends.noGrip.target': 'Het tekengebied heeft hier geen vrije plek voor de greep aan het eind van deze verbinding; verplaats het eind vanuit deze groep.',
   'inspector.ends.bends': 'Een knik van deze verbinding zou in een knooppunt of vlak naast het nieuwe uiteinde liggen, en de lijn loopt er niet doorheen. Toepassen houdt de knikken; “Terug naar automatisch” verwijdert ze.',
   'inspector.edge.note': 'Het wijzigen van de simulatie-instellingen van een verbinding start de huidige run opnieuw. Route, knikken en kleur zijn alleen tekening en starten hem niet opnieuw.',
   'inspector.field.mode': 'Modus',

@@ -113,6 +113,8 @@ const inspector = {
   'inspector.ends.reason.noPorts': '{node} düğümünün bağlantı noktası yok; ona bir ifadeden başvurun.',
   'inspector.ends.reason.duplicate': '{from} ile {to} arasında bu türden bir bağlantı zaten var.',
   'inspector.ends.reason.missing': 'Bu düğüm artık diyagramda yok.',
+  'inspector.ends.noGrip.source': 'Tuvalde burada bu bağlantının başlangıç tutamacı için boş yer yok; başlangıcı bu gruptan taşıyın.',
+  'inspector.ends.noGrip.target': 'Tuvalde burada bu bağlantının bitiş tutamacı için boş yer yok; bitişi bu gruptan taşıyın.',
   'inspector.ends.bends': 'Bu bağlantının bir kırılma noktası bir düğümün içinde ya da yeni ucun hemen yanında kalacak ve çizgi oradan geçmeyecek. Uygula kırılma noktalarını korur; «Otomatik güzergâha dön» onları kaldırır.',
   'inspector.edge.note':
     'Bir bağlantının simülasyon ayarlarını değiştirmek geçerli çalıştırmayı yeniden başlatır. Güzergâh, kırılma noktaları ve renk yalnızca çizimdir ve onu yeniden başlatmaz.',
