@@ -674,6 +674,9 @@ const ui = {
   'whatsNew.v0262.lightColour': 'Eine gewählte Farbe mit zu wenig Kontrast für das aktuelle Design behält ihre Farbe; ihre Laufsignale erhalten einen dünnen grauen Rand, damit sie sich vom Hintergrund abheben.',
   'whatsNew.v0262.badgePlace': 'Wenn Sie so weit hineingezoomt haben, dass die Beschriftungen der Verbindungen zu sehen sind, behält das bewegliche +N-Badge für den ganzen Schritt einen Platz neben seiner Markierung. Der Platz ist so gewählt, dass die Badges von Verbindungen, die einen Knoten gemeinsam verlassen, möglichst auseinanderliegen, und das Badge erscheint nur, solange es die Knoten an beiden Enden nicht berührt. Weiter herausgezoomt und bei den schnelleren Tempi erscheint das Badge wie bisher.',
   'whatsNew.v0262.selection': 'Eine in den Eigenschaften gewählte Farbe gilt jetzt dem Knoten, den die Eigenschaften zeigen, auch direkt nachdem Sie einen Knoten verschoben und einen weiteren aus der Werkzeugleiste hinzugefügt haben oder mit ] oder [ zu einem Nachbarn gewechselt sind.',
+  'whatsNew.v0270.moveEnd': 'Das Ende einer Verbindung lässt sich jetzt verschieben, ohne die Verbindung neu zu zeichnen: Wählen Sie sie aus und ziehen Sie den runden Griff an einem Ende auf eine Seite eines anderen Knotens, oder verwenden Sie „Enden“ in den Eigenschaften. Menge, Bedingung, Farbe, Linienform und Knickpunkte bleiben, wie sie waren.',
+  'whatsNew.v0270.pickSide': 'Um nur die Seite zu ändern, die eine Verbindung nutzt, klicken oder tippen Sie auf einen Griff und wählen Sie rund um den Knoten Oben, Rechts, Unten oder Links. Auf dem Smartphone bleibt das Diagramm schreibgeschützt.',
+  'whatsNew.v0270.refused': 'Eine Verschiebung, die nicht möglich ist, etwa ein Ende an einem Knoten ohne Eingang, wird nicht ausgeführt, und der Grund wird angezeigt.',
 } satisfies Record<UiKey, string>
 
 export default ui

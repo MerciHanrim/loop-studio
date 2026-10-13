@@ -600,6 +600,9 @@ const ui = {
   'whatsNew.v0262.lightColour': 'Uma cor escolhida com pouco contraste para o tema atual mantém a cor, e os sinais de execução ganham um contorno fino de cor neutra para se destacarem do fundo.',
   'whatsNew.v0262.badgePlace': 'Quando o zoom é suficiente para ver os rótulos das conexões, o indicador +N em movimento mantém um mesmo lugar ao lado da sua marca durante todo o passo, um lugar escolhido para ajudar os indicadores das conexões que saem juntas de um nó a ficarem separados, e ele só aparece enquanto não toca os nós das duas pontas. Com menos zoom, e nas velocidades mais rápidas, o indicador aparece como antes.',
   'whatsNew.v0262.selection': 'Uma cor escolhida no Inspetor agora vale para o nó que o Inspetor mostra, também logo depois de arrastar um nó e adicionar outro pela barra de ferramentas, ou depois de passar para um nó vizinho com ] ou [.',
+  'whatsNew.v0270.moveEnd': 'A extremidade de uma ligação agora pode ser movida sem desenhar a ligação de novo: selecione-a e arraste a alça redonda de uma das extremidades até um lado de outro nó, ou use Extremidades no Inspetor. A quantidade, a condição, a cor, a forma da linha e as dobras ficam como estavam.',
+  'whatsNew.v0270.pickSide': 'Para mudar só o lado que uma ligação usa, clique ou toque em uma alça e escolha Topo, Direita, Base ou Esquerda em volta desse nó. No telefone o diagrama continua só de leitura.',
+  'whatsNew.v0270.refused': 'Um movimento que não pode ser feito, como uma extremidade em um nó sem entrada, não é aplicado, e o motivo é mostrado.',
 } as const
 
 export type UiKey = keyof typeof ui

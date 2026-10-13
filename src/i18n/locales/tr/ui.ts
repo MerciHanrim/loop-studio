@@ -653,6 +653,9 @@ const ui = {
   'whatsNew.v0262.lightColour': 'Geçerli tema için kontrastı yetersiz olan seçili bir renk kendi rengini korur; çalışma işaretlerine arka plandan ayrılmaları için ince gri bir kenar eklenir.',
   'whatsNew.v0262.badgePlace': 'Bağlantı etiketlerini görecek kadar yakınlaştırdığınızda hareket eden +N rozeti, adım boyunca işaretinin yanında tek bir yerde kalır; bu yer, bir düğümden birlikte çıkan bağlantıların rozetlerinin ayrı durmasına yardım edecek şekilde seçilir ve rozet yalnızca iki uçtaki düğümlere değmediği sürece görünür. Daha fazla uzaklaştırdığınızda ve daha hızlı hızlarda rozet eskisi gibi görünür.',
   'whatsNew.v0262.selection': 'İnceleyici’de seçilen renk artık İnceleyici’nin gösterdiği düğüme uygulanır; bir düğümü sürükleyip hemen ardından araç çubuğundan başka bir düğüm eklediğinizde ya da ] veya [ ile bir komşuya geçtiğinizde de böyledir.',
+  'whatsNew.v0270.moveEnd': 'Bir bağlantının ucu artık bağlantıyı yeniden çizmeden taşınabilir: bağlantıyı seçin ve uçlarından birindeki yuvarlak tutamacı başka bir düğümün bir kenarına sürükleyin ya da İnceleyici’de «Uçlar»ı kullanın. Miktar, koşul, renk, çizgi biçimi ve kırılma noktaları olduğu gibi kalır.',
+  'whatsNew.v0270.pickSide': 'Bir bağlantının kullandığı kenarı yalnızca değiştirmek için bir tutamaca tıklayın ya da dokunun ve o düğümün çevresinde Üst, Sağ, Alt veya Sol’u seçin. Telefonda diyagram salt okunur kalır.',
+  'whatsNew.v0270.refused': 'Yapılamayan bir taşıma, örneğin girişi olmayan bir düğüme konan bir uç, uygulanmaz ve nedeni gösterilir.',
 } as const
 
 export type UiKey = keyof typeof ui
