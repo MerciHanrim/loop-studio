@@ -6,6 +6,7 @@ import {
   FLOW_PALETTE,
   NOTICE_STATE_COLOURS,
   oklabDistance,
+  runNeedsCase,
   SURFACES,
 } from './flowColour'
 
@@ -76,5 +77,19 @@ describe('accentIdPart — a DOM-safe id fragment', () => {
     expect(accentIdPart('3A7BD5')).toBeNull()
     expect(accentIdPart('#3A7BD5"><script>')).toBeNull()
     expect(accentIdPart('url(#x)')).toBeNull()
+  })
+})
+
+describe('FC-4.3 — which run signals get the neutral case', () => {
+  it('a colour under 3:1 on that theme’s canvas, and only there', () => {
+    expect(runNeedsCase('#F4E04D', 'light')).toBe(true)
+    expect(runNeedsCase('#BFE3F0', 'light')).toBe(true)
+    expect(runNeedsCase('#F4E04D', 'dark')).toBe(false)
+    expect(runNeedsCase('#1F2A44', 'dark')).toBe(true)
+    expect(runNeedsCase('#1F2A44', 'light')).toBe(false)
+  })
+  it.each(FLOW_PALETTE.map((p) => [p.id, p.hex] as const))('no palette colour is cased: %s %s', (_id, hex) => {
+    expect(runNeedsCase(hex, 'light')).toBe(false)
+    expect(runNeedsCase(hex, 'dark')).toBe(false)
   })
 })

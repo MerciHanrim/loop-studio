@@ -12,6 +12,8 @@ export function PlaybackBadge({
   side,
   dimmed,
   kind,
+  colour,
+  cased,
 }: {
   edgeId: string
   /** the `+N` itself (./playbackBadge `badgeText`) */
@@ -20,11 +22,17 @@ export function PlaybackBadge({
   side: BadgeSide
   dimmed: boolean
   kind: 'travel' | 'static'
+  /** the connection's flow colour (docs/flow-colour-and-compact-nodes.md
+   *  FC-4.3): the border takes it; the amount keeps the primary ink */
+  colour?: string
+  /** the colour is under 3:1 on this theme's canvas: a thin neutral rim
+   *  outside the border (FC-4.3) */
+  cased?: boolean
 }) {
   return (
     // a sign and digits only: pinned ltr like every engine token (§L9.3)
     <div
-      className={`pb-badge${dimmed ? ' pb-badge--dim' : ''}`}
+      className={`pb-badge${dimmed ? ' pb-badge--dim' : ''}${cased ? ' pb-badge--cased' : ''}`}
       data-badge-for={edgeId}
       data-playback-badge={kind}
       aria-hidden="true"
@@ -32,6 +40,7 @@ export function PlaybackBadge({
       style={{
         width: badgeWidth(amount),
         transform: `translate(${at.x + badgeX(amount, side)}px, ${at.y + BADGE_DY - BADGE_H / 2}px)`,
+        ...(colour ? { ['--edge-run' as string]: colour } : null),
       }}
     >
       {amount}

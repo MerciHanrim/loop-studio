@@ -5,7 +5,7 @@ Issue #325. This document is the contract for the milestone's three pull request
 ## FC-0. What a flow colour is
 
 - A flow colour is a **decorative grouping aid**: the user picks it so a reader can follow one flow or one region of a large graph. It carries no simulation meaning and no product state.
-- It never replaces what already carries meaning. A node's **kind** is its silhouette (§VL0.1); the neutral **structure line** that bounds every node stays on every node; **selection, keyboard focus, errors and warnings, run cues and Focus-mode dimming** keep channels of their own (FC-4).
+- It never replaces what already carries meaning. A node's **kind** is its silhouette (§VL0.1); the neutral **structure line** that bounds every node stays on every node; **selection, keyboard focus, errors and warnings and Focus-mode dimming** keep channels of their own (FC-4). A run cue belongs to the element it is about and is drawn in that element's flow colour (FC-4.3).
 - An uncoloured graph looks as it does today, except for the selection correction of FC-4.1, which applies to every graph.
 - Under forced colours a flow colour is not drawn at all (FC-3.4).
 
@@ -167,7 +167,7 @@ The spatial order is fixed, measured from the silhouette in screen pixels (every
 - Each ring is cut out of a wider stroke on the same path by a mask, so the rings never overlap and nothing is painted in the gaps between them: an edge that reaches a port stays visible. With selection, focus, invalid and a flow colour on one Register, all four show at once.
 - The structure line is the node's boundary, so even a colour with no contrast never erases the edge of a node.
 - The selection ring applies to every selected node, coloured or not; it replaces main's recolour of the structure line's own path, which §VL3 never specified.
-- Run cues keep their own channels: the fired wave is a transient animation outside the rings; the arrival disc and the evaluated corner bracket are unchanged.
+- Run cues keep their own places and forms: the fired wave is a transient animation outside the rings, the arrival tint is inside, the evaluated corner bracket is unchanged. A coloured node draws its own fired wave and ticks, arrival tint and conversion mark in its flow colour (FC-4.3); the evaluated bracket keeps its neutral ink.
 
 Inside the node, **"the flow colour if set, else the kind hue"** decides the chip, the hue wash (opacity unchanged at 0.04: the body stays neutral) and the L0 dot. The body, the text and the fill do not take the colour. Focus-mode dimming applies to the band, the chip, the wash and the dot like everything else; the chip and the dot stay hidden when dimmed.
 
@@ -175,11 +175,24 @@ Inside the node, **"the flow colour if set, else the kind hue"** decides the chi
 
 - A coloured edge draws its path and its arrowhead in the flow colour at its usual width, and its flow or condition label takes a 1 px border in the colour.
 - **Selection** no longer recolours: a selected edge keeps its colour (flow colour or default) at 2 px, over a **selection underlay** — a wider, translucent `--state-selected` stroke beneath the path — plus the existing start dot. Uncoloured edges get the same underlay.
-- The colour never overrides a state or a rule: a state edge stays dashed; a satisfied activator keeps its `--signal-primary` stroke over the colour and an unsatisfied one keeps opacity 0.5; a route-invalid edge keeps its `--warning` dash and `!` flag; run tokens, pulses and cues keep `--flow-strength` and `--signal-primary`; Focus-mode dimming applies.
+- The colour never overrides a state or a rule: a state edge stays dashed; a satisfied activator keeps the colour and is told by its 1.8 px weight and its upright "on" label (an uncoloured one still takes `--signal-primary`), and an unsatisfied one keeps opacity 0.5; a route-invalid edge keeps its `--warning` dash and `!` flag; Focus-mode dimming applies.
+- A coloured edge's **run signals** are drawn in its flow colour (FC-4.3): the path highlight and the very fast tier's flash, the token, the `+N` badge's border, the departure and arrival rings, the reduced-motion highlight and role tells, the L0 travel pulse, and a state edge's bead, held highlight and satisfied-activator ring. The badge's amount and a label's run amounts keep the primary ink. A blocked trigger keeps `--state-warning`.
 
 ### FC-4.3 The rule
 
-The flow colour is a rest colour. Every state that restyles an element today still does, on a channel of its own, and the flow colour never replaces a state's colour, line style, weight or glyph.
+A run cue is drawn in the colour of the element it is about:
+
+- **A connection's run signals** (FC-4.2) take that connection's flow colour; with none, the default run colour (`--flow-strength`, `--signal-primary`).
+- **A node's own run cues** (FC-4.1) take that node's flow colour; with none, the default run colour. A connection's colour is never passed to the node it reaches or leaves.
+- **Selection, keyboard focus, errors and warnings** keep their own colours and forms, apart from the run colour, and a flow colour never replaces them.
+
+Being active is told by motion, weight and contrast, never by a change of hue: the token moves, the path highlight is 3.5 px with round caps over the 1.5 px line, the rings expand or collapse, the held highlights stay for the step. A light flow colour is drawn as chosen; it is not swapped for the default run colour and not darkened (FC-3.1). Where a colour is under 3:1 against what a run signal is drawn on in the current theme (FC-3.3's floor, used to find the signals to support, not as proof that they read), that signal gets a thin neutral **case** in `--line-strong` that only parts it from its background:
+
+- **A connection's signals** (on the canvas): a path signal a 0.75 px rim on each side, drawn under it with its own width cut out, so its colour is never greyed; a token, a bead and a filled tell a 0.75 px outline painted under the fill; a ring the same ring under it, 0.75 px wider each side; the badge a 1 px rim outside its border, its amount still in the primary ink.
+- **A node's own cues**: the fired ticks and the wave (outside the node, judged against the canvas) a copy under them, 0.75 px wider, the ticks starting at 8.5 px so they never meet the invalid ring; the conversion mark and the arrival tint (inside the node, judged against the node face): the mark a copy under it, 0.75 px wider; the tint keeps its colour and shows only its own inner edge, a 1 px line 7–8 px inside the outline, so the body is not greyed.
+- **No case** at rest, nor where the colour has enough contrast in the current theme: a dark theme cases a colour that is too dark for it in the same way. Under forced colours no case is drawn.
+
+The case is thinner and crisper than the 7 px translucent selection underlay and carries no focus blue or warning orange. Under forced colours no flow colour is drawn (FC-3.4): every run signal is drawn exactly as on an uncoloured graph.
 
 ## FC-5. The colour control
 

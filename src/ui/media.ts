@@ -44,3 +44,34 @@ export function useIsMobile(): boolean {
 export function useForcedColors(): boolean {
   return useSyncExternalStore(forcedColors.subscribe, forcedColors.getSnapshot, () => false)
 }
+
+const systemDark = mediaQuery('(prefers-color-scheme: dark)')
+/** the theme's own switch: `data-theme` on the root (src/theme/theme.ts), one
+ *  observer for every reader */
+const themeAttr = {
+  subs: new Set<() => void>(),
+  observer: null as MutationObserver | null,
+  subscribe(onChange: () => void): () => void {
+    if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return () => {}
+    themeAttr.subs.add(onChange)
+    if (!themeAttr.observer) {
+      themeAttr.observer = new MutationObserver(() => themeAttr.subs.forEach((f) => f()))
+      themeAttr.observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    }
+    const offSystem = systemDark.subscribe(onChange)
+    return () => {
+      themeAttr.subs.delete(onChange)
+      offSystem()
+    }
+  },
+}
+const resolvedTheme = (): 'light' | 'dark' => {
+  const set = typeof document === 'undefined' ? null : document.documentElement.getAttribute('data-theme')
+  return set === 'light' || set === 'dark' ? set : systemDark.getSnapshot() ? 'dark' : 'light'
+}
+
+/** the theme the canvas is drawn in: the chosen one, else the system's.
+ *  SSR-safe. */
+export function useCanvasTheme(): 'light' | 'dark' {
+  return useSyncExternalStore(themeAttr.subscribe, resolvedTheme, () => 'light')
+}
