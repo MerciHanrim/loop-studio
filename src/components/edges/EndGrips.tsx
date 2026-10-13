@@ -19,7 +19,7 @@
 // on). Shown only on a desktop canvas that is not locked (the caller decides).
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { EdgeLabelRenderer, Position, useStoreApi, type Connection } from '@xyflow/react'
+import { EdgeLabelRenderer, Position, useStore, useStoreApi, type Connection } from '@xyflow/react'
 import { XYHandle, type FinalConnectionState } from '@xyflow/system'
 import { useT, type MessageKey } from '../../i18n'
 import { useEndGripNotice } from '../../store/endGripNotice'
@@ -27,6 +27,7 @@ import { endMoveVerdict, type EndMoveVerdict } from '../../model/endMove'
 import { defaultFace, edgePortKind, faceOf, parseHandleId, PORT_FACES, type PortEnd } from '../../model/ports'
 import type { PortFace } from '../../model/types'
 import { useGraphStore } from '../../store/graphStore'
+import { useCoarsePointer } from '../../ui/media'
 import { nameFootprintsOf, portPoint } from '../../store/routeMap'
 
 type Props = {
@@ -39,6 +40,9 @@ type Props = {
   sourceY: number
   targetX: number
   targetY: number
+  /** the sides the ends leave and arrive on: a grip sits out along its end's stub */
+  sourcePosition: Position
+  targetPosition: Position
   /** a refused drop's reason, said in the canvas live region */
   announce: (v: Extract<EndMoveVerdict, { ok: false }>, end: PortEnd) => void
 }
@@ -51,10 +55,15 @@ const SIDE_KEY: Record<PortFace, MessageKey> = {
 }
 const POS: Record<PortFace, Position> = { top: Position.Top, right: Position.Right, bottom: Position.Bottom, left: Position.Left }
 const OUT: Record<PortFace, { x: number; y: number }> = { top: { x: 0, y: -1 }, right: { x: 1, y: 0 }, bottom: { x: 0, y: 1 }, left: { x: -1, y: 0 } }
-/** how far outside its face a side button sits, flow px */
-const PICK_OFFSET = 22
+/** how far outside its face a side button's centre sits, screen px */
+const PICK_OFFSET = [22, 30] as const
+/** the same for the left and right buttons, whose label makes them wider, screen px */
+const PICK_OFFSET_H = [30, 36] as const
+/** the screen gap between a port and its grip's target, px */
+const GRIP_GAP = 2
+const FACE_OF: Record<Position, PortFace> = { [Position.Top]: 'top', [Position.Right]: 'right', [Position.Bottom]: 'bottom', [Position.Left]: 'left' }
 /** how far past the node's outside name a side button sits when the name is
- *  on that side, flow px (the button's centre) */
+ *  on that side, screen px (the button's centre) */
 const PICK_CLEAR = 12
 
 type Drag = { end: PortEnd; cancelled: boolean; touch: boolean; started: boolean }
@@ -62,6 +71,20 @@ type Drag = { end: PortEnd; cancelled: boolean; touch: boolean; started: boolean
 export function EndGrips(p: Props) {
   const t = useT()
   const store = useStoreApi()
+  // the grips and the side buttons keep their SCREEN size at every zoom (a
+  // pointer target of at least 24 px, 44 px for touch, in CSS): they live in
+  // the zoomed flow layer, so each is scaled back by the zoom
+  const zoom = useStore((s) => s.transform[2])
+  const unzoom = (x: number, y: number) => `translate(${x}px, ${y}px) scale(${1 / zoom}) translate(-50%, -50%)`
+  // a grip sits just OUT along its end's stub, its whole target clear of the
+  // port it ends on (and of that node's other ports), so pressing a port still
+  // draws a new connection: half the target (24 px, 44 px for touch) and a gap
+  const coarse = useCoarsePointer()
+  const out = ((coarse ? 44 : 24) / 2 + GRIP_GAP) / zoom
+  const along = (x: number, y: number, pos: Position) => {
+    const d = OUT[FACE_OF[pos]]
+    return { x: x + d.x * out, y: y + d.y * out }
+  }
   const moveEdgeEnds = useGraphStore((s) => s.moveEdgeEnds)
   const drag = useRef<Drag | null>(null)
   // a click that follows a real drag (released on the grip itself) is not a pick
@@ -216,23 +239,26 @@ export function EndGrips(p: Props) {
       <div ref={pickerRef} className="end-picker" role="group" aria-label={t('inspector.ends.side')} data-end={end}>
         {PORT_FACES.map((f) => {
           const at = portPoint(n, POS[f], port)
-          let x = at.x + OUT[f].x * PICK_OFFSET
-          let y = at.y + OUT[f].y * PICK_OFFSET
+          // half the button (24 px, 44 px for touch; a side label is wider than tall) and a margin
+          const off = f === 'left' || f === 'right' ? PICK_OFFSET_H[coarse ? 1 : 0] : PICK_OFFSET[coarse ? 1 : 0]
+          let x = at.x + (OUT[f].x * off) / zoom
+          let y = at.y + (OUT[f].y * off) / zoom
           // the node's outside name on this side is not covered: past it
           if (name && x >= name.x && x <= name.x + name.w && y >= name.y && y <= name.y + name.h) {
-            if (f === 'bottom') y = name.y + name.h + PICK_CLEAR
-            else if (f === 'top') y = name.y - PICK_CLEAR
-            else if (f === 'right') x = name.x + name.w + PICK_CLEAR * 2
-            else x = name.x - PICK_CLEAR * 2
+            if (f === 'bottom') y = name.y + name.h + PICK_CLEAR / zoom
+            else if (f === 'top') y = name.y - PICK_CLEAR / zoom
+            else if (f === 'right') x = name.x + name.w + (PICK_CLEAR * 2) / zoom
+            else x = name.x - (PICK_CLEAR * 2) / zoom
           }
           return (
             <button
               key={f}
               type="button"
               className="end-picker__side nodrag nopan"
+              data-coarse={coarse ? '' : undefined}
               data-face={f}
               aria-pressed={f === now}
-              style={{ transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
+              style={{ transform: unzoom(x, y) }}
               onClick={() => {
                 if (f !== now) moveEdgeEnds(p.edgeId, { [end]: { node: n.id, face: f } })
                 closePicker(end)
@@ -254,10 +280,11 @@ export function EndGrips(p: Props) {
       }}
       type="button"
       className="end-grip nodrag nopan"
+      data-coarse={coarse ? '' : undefined}
       data-end={end}
       aria-label={t(end === 'source' ? 'canvas.endGrip.source' : 'canvas.endGrip.target')}
       aria-expanded={picking === end}
-      style={{ transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
+      style={{ transform: unzoom(x, y) }}
       onMouseDown={(e) => start(e, end)}
       onTouchStart={(e) => start(e, end)}
       onClick={() => {
@@ -274,8 +301,8 @@ export function EndGrips(p: Props) {
 
   return (
     <EdgeLabelRenderer>
-      {grip('source', p.sourceX, p.sourceY)}
-      {grip('target', p.targetX, p.targetY)}
+      {(() => { const a = along(p.sourceX, p.sourceY, p.sourcePosition); return grip('source', a.x, a.y) })()}
+      {(() => { const a = along(p.targetX, p.targetY, p.targetPosition); return grip('target', a.x, a.y) })()}
       {picking ? picker(picking) : null}
     </EdgeLabelRenderer>
   )

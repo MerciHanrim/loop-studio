@@ -31,6 +31,15 @@ function mediaQuery(query: string) {
 
 const mobile = mediaQuery(MOBILE_MEDIA_QUERY)
 const forcedColors = mediaQuery('(forced-colors: active)')
+/** a coarse pointer anywhere on the device: the end grips' 44 px targets (`data-coarse` in src/index.css) */
+export const COARSE_POINTER_QUERY = '(any-pointer: coarse)'
+const coarsePointer = mediaQuery(COARSE_POINTER_QUERY)
+
+/** `true` while ANY pointer of the device is coarse (a touch screen, also on a
+ *  laptop with a mouse): the end grips' pointer targets are 44 px then. SSR-safe. */
+export function useCoarsePointer(): boolean {
+  return useSyncExternalStore(coarsePointer.subscribe, coarsePointer.getSnapshot, () => false)
+}
 
 /** `true` while the viewport is in the mobile view/run layout. SSR-safe. */
 export function useIsMobile(): boolean {

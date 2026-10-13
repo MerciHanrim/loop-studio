@@ -1026,7 +1026,14 @@ the graph store): the Inspector's Ends group and the canvas end grips.
   disabled as a whole; the phone stays read-only.
 - **The canvas end grips.** Exactly when ONE connection is selected (and nothing else),
   a round grip sits on each of its ends (`EndGrips`, drawn by `LoopEdge`), never on
-  hover, never on the phone or under the edit lock. Dragging a grip offers every
+  hover, never on the phone or under the edit lock. A grip keeps its SCREEN size at
+  every zoom: a small dot (10 px) inside a 24 × 24 px pointer target, 44 × 44 px
+  while any pointer of the device is coarse (`(any-pointer: coarse)`); the side
+  buttons are at least as large. It sits just out along its end's stub, its whole
+  target clear of the port it ends on and of that node's other ports (measured: no
+  port meets a grip's target on the small fixture or the Coffee roastery's fan, at
+  zoom 0.5, 1 and 2, mouse and touch), so pressing a port still draws a new
+  connection while one is selected. Dragging a grip offers every
   node's faces, as drawing does; dropping on a face moves that end (the same check
   and change), dropping on a refused face changes nothing and says why (the canvas
   live region and the Ends status line), dropping elsewhere or pressing Esc changes

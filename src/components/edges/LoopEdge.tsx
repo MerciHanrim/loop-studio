@@ -853,6 +853,8 @@ function LoopEdge({
           sourceY={sourceY}
           targetX={targetX}
           targetY={targetY}
+          sourcePosition={sourcePosition}
+          targetPosition={targetPosition}
           announce={announceEnd}
         />
       ) : null}

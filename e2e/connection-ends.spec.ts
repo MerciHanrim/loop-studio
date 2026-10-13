@@ -282,6 +282,27 @@ test.describe('the canvas end grips (§ER18)', () => {
     await expect(page.locator('.end-grip')).toHaveCount(0)
   })
 
+  test('a grip is a 24 px screen target at every zoom, the dot stays small, and its target meets no port', async ({ page }) => {
+    await open(page)
+    await selectEdge(page, 'e_leave')
+    for (const zoom of [0.5, 1, 2]) {
+      await page.evaluate((z) => (window as unknown as { __loop: L }).__loop.rf.setViewport({ x: 40, y: 60, zoom: z }, { duration: 0 }), zoom)
+      const m = await page.evaluate(() => {
+        const meet = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+        return [...document.querySelectorAll('.end-grip')].map((g) => {
+          const gb = g.getBoundingClientRect()
+          const dot = g.querySelector('.end-grip__dot')!.getBoundingClientRect()
+          const ports = [...document.querySelectorAll('.react-flow__handle')].filter((h) => !(h as HTMLElement).hasAttribute('data-off') && meet(gb, h.getBoundingClientRect())).length
+          return { w: Math.round(gb.width), h: Math.round(gb.height), dot: Math.round(dot.width), ports }
+        })
+      })
+      expect(m, `zoom ${zoom}`).toEqual([
+        { w: 24, h: 24, dot: 10, ports: 0 },
+        { w: 24, h: 24, dot: 10, ports: 0 },
+      ])
+    }
+  })
+
   test('under the edit lock there are no grips', async ({ page }) => {
     await open(page)
     await selectEdge(page, 'e_leave')
@@ -293,6 +314,21 @@ test.describe('the canvas end grips (§ER18)', () => {
 
 test.describe('the canvas end grips by touch (§ER18)', () => {
   test.use({ hasTouch: true })
+  test('with a touch pointer a grip is a 44 px target that meets no port', async ({ page }) => {
+    await open(page)
+    await selectEdge(page, 'e_leave')
+    const m = await page.evaluate(() => {
+      const meet = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+      return {
+        coarse: matchMedia('(any-pointer: coarse)').matches,
+        grips: [...document.querySelectorAll('.end-grip')].map((g) => {
+          const gb = g.getBoundingClientRect()
+          return { w: Math.round(gb.width), h: Math.round(gb.height), ports: [...document.querySelectorAll('.react-flow__handle')].filter((h) => !(h as HTMLElement).hasAttribute('data-off') && meet(gb, h.getBoundingClientRect())).length }
+        }),
+      }
+    })
+    expect(m).toEqual({ coarse: true, grips: [{ w: 44, h: 44, ports: 0 }, { w: 44, h: 44, ports: 0 }] })
+  })
   test('a touch drag of the target grip onto another node’s face moves the end', async ({ page }) => {
     await open(page)
     await selectEdge(page, 'e_leave')
@@ -422,11 +458,18 @@ test.describe('the grips: nothing applied when a drag is cut short (§ER18)', ()
     await open(page)
     await selectEdge(page, 'e_leave')
     await expect(page.locator('.end-grip')).toHaveCount(2)
-    // a second connection joins the selection (React Flow's own marks, as a multi-selection makes them)
-    await page.evaluate(() => {
-      const l = (window as unknown as { __loop: L }).__loop
-      l.graph.setState({ edges: l.graph.getState().edges.map((e: { id: string }) => ({ ...e, selected: e.id === 'e_leave' || e.id === 'e_treat' })) })
+    // a second connection joins the selection by Ctrl+click, React Flow's
+    // multi-selection key here (held on the keyboard: `mouse.click` has no
+    // modifier option); the same steps select two on main e7efd77 too
+    const p = await page.locator('.react-flow__edge[data-id="e_treat"] path.react-flow__edge-path').evaluate((el) => {
+      const s = el as SVGPathElement
+      const q = s.getPointAtLength(s.getTotalLength() * 0.5)
+      const m = s.getScreenCTM()!
+      return { x: q.x * m.a + q.y * m.c + m.e, y: q.x * m.b + q.y * m.d + m.f }
     })
+    await page.keyboard.down('Control')
+    await page.mouse.click(p.x, p.y)
+    await page.keyboard.up('Control')
     await expect.poll(() => page.evaluate(() => (window as unknown as { __loop: L }).__loop.graph.getState().edges.filter((e: { selected?: boolean }) => e.selected).length)).toBe(2)
     await expect(page.locator('.end-grip')).toHaveCount(0)
   })
