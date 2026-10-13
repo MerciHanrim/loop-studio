@@ -148,7 +148,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // (0.21.2) left it at 277: all three of its lines read the same in both.
     // The edit lock's name (#335), the three 0.21.3 lines and the four
     // 0.21.4 lines (#338, #340) read the same in both too.
-    expect(DELTA).toHaveLength(280) // 0.26.2: +2 — the run-colour and the badge lines carry `conexão` / `rótulos`, so pt-PT says `ligação` / `etiquetas`; the other two lines are written neutrally and identically in both (the quarter bound below has 0.25 of headroom left); 0.26.0: +1 — the connections release-note line carries `conexão`, so pt-PT says `ligação`; the other four lines are neutral and identical
+    expect(DELTA).toHaveLength(280) // 0.26.2: +2 — the run-colour and the badge lines carry `conexão` / `rótulos`, so pt-PT says `ligação` / `etiquetas`; the other two lines are written neutrally and identically in both (the quarter bound below: 252 of 1 056 against 264); 0.26.0: +1 — the connections release-note line carries `conexão`, so pt-PT says `ligação`; the other four lines are neutral and identical
     // and it is a real audit, not a rewrite — most of the catalog agrees.
     //
     // The password strings of issue #300 are counted apart. The word for a
