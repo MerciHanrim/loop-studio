@@ -129,6 +129,9 @@ describe('es-ES — the region audit, as a contract', () => {
         // (es-419 `agregar`); the other two lines read the same in both
         'whatsNew.v0262.runColour',
         'whatsNew.v0262.selection',
+        // 0.27.0 - the side-choice line says `móvil` where es-419 says `teléfono`;
+        // the other two lines read the same in both
+        'whatsNew.v0270.pickSide',
         // issue #300 - the password dialogs: `usted` where es-419 says `tú`
         // (`Envíe`, `Introduzca`, `Compruebe`, `Pida`, `Actualice`), and
         // `gestor de contraseñas` where es-419 says `administrador`

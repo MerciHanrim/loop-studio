@@ -133,6 +133,8 @@ const canvas = {
   'canvas.route.invalidFlag': 'некорректный маршрут — точка маршрута находится внутри узла',
   'canvas.route.bend': 'Излом {n} из {total}',
   'canvas.route.noBendRoom': 'Ни на одном отрезке этой связи нет места для излома; ничего не изменено.',
+  'canvas.endGrip.source': 'Начало этой связи: выбрать сторону',
+  'canvas.endGrip.target': 'Конец этой связи: выбрать сторону',
   'canvas.edgeLabel.clamp': 'обрезано',
   'canvas.edgeLabel.clamp.title':
     'убрано единственным ограничением принимающего Накопителя в конце фазы 0',

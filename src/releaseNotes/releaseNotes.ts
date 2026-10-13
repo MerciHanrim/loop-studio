@@ -39,6 +39,17 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // line editing, unit 1 (docs/edge-routing.md §ER18, share
+    // connection-editing-2 notes 40–46): move a connection's end — the canvas
+    // end grips and the Inspector's Ends group — the side choice on a grip, and
+    // a refused move saying why; the date is the day it is deployed, set right
+    // before the merge
+    id: 'release:0.27.0',
+    version: '0.27.0',
+    date: '2026-10-13',
+    items: ['whatsNew.v0270.moveEnd', 'whatsNew.v0270.pickSide', 'whatsNew.v0270.refused'],
+  },
+  {
     // run signals in the colour of their own node or connection, the neutral
     // case for a colour short of contrast, the L2 travelling badge's own place
     // (§PB4.8: L2 only; fan separation a plan, not a guarantee), and the

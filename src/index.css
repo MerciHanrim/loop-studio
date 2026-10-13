@@ -1681,6 +1681,155 @@ a.sheet__row {
     border-color: CanvasText;
   }
 }
+/* docs/edge-routing.md §ER18 — the end grips of the one selected connection:
+   a round dot on each end (round, unlike the square bend handles), inside a
+   24 px pointer and touch target. Not a focus stop: the keyboard path is the
+   Inspector's Ends group. */
+.end-grip {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  display: grid;
+  place-items: center;
+  pointer-events: all;
+  cursor: grab;
+  touch-action: none;
+  z-index: 1;
+  transform-origin: 0 0;
+}
+.end-grip:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
+  border-radius: 50%;
+}
+/* an end with no free spot for a grip: a small hollow mark on the end itself,
+   not a pointer target (the Ends group moves that end) */
+.end-grip-none {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--line-focus);
+  background: var(--surface-raised);
+  pointer-events: none;
+  transform-origin: 0 0;
+}
+/* the side popover: which end of which node, and its four sides in a cross
+   (top above, left and right, bottom below), the current one marked; in
+   screen space, inside the canvas */
+.end-popover {
+  position: absolute;
+  z-index: 6;
+  padding: 6px 8px 8px;
+  border: 1px solid var(--line-container);
+  border-radius: var(--radius);
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+  box-shadow: var(--elev-overlay);
+  font-size: 12px;
+}
+.end-popover__title {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  max-width: 220px;
+  margin: 0 0 6px;
+  white-space: nowrap;
+}
+.end-popover__end {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.end-popover__node {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.end-popover__sides {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas: 'top top' 'left right' 'bottom bottom';
+  justify-items: center;
+  gap: 4px;
+}
+.end-popover__side--top {
+  grid-area: top;
+}
+.end-popover__side--left {
+  grid-area: left;
+}
+.end-popover__side--right {
+  grid-area: right;
+}
+.end-popover__side--bottom {
+  grid-area: bottom;
+}
+.end-popover__side {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 3px 8px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  border: 1px solid var(--line-control);
+  border-radius: var(--control-radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.end-popover__side[aria-pressed='true'] {
+  border-color: var(--line-focus);
+  box-shadow: inset 0 0 0 1px var(--line-focus);
+  font-weight: 600;
+}
+.end-popover__side:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+/* a touch pointer anywhere (`data-coarse`, set from `(any-pointer: coarse)` by
+   EndGrips, so no second media breakpoint, scripts/check-mobile-query.mjs): the
+   grips and the side buttons are 44 px targets (the visible dot stays small) */
+.end-grip[data-coarse] {
+  width: 44px;
+  height: 44px;
+}
+.end-popover__side[data-coarse] {
+  min-width: 44px;
+  min-height: 44px;
+}
+@media (forced-colors: active) {
+  .end-popover__side[aria-pressed='true'],
+  .end-grip-none {
+    border-color: Highlight;
+  }
+  .end-popover {
+    border-color: CanvasText;
+  }
+}
+.end-grip__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--line-focus);
+  background: var(--surface-raised);
+}
+.end-grip:hover .end-grip__dot {
+  background: var(--line-focus);
+}
+@media (forced-colors: active) {
+  .end-grip__dot {
+    border-color: Highlight;
+    background: Canvas;
+  }
+  .end-grip:hover .end-grip__dot {
+    background: Highlight;
+  }
+}
 /* Under `forced-colors: active` the UA force-adjusts these SVG `fill` / `stroke`
    values to system colours automatically (the same path the Canvas Visual
    Refresh relies on — no `@media` block, see scripts/check-mobile-query.mjs).
@@ -4814,6 +4963,97 @@ a.sheet__row {
 }
 .field input[aria-invalid='true'] {
   border-color: var(--state-warning);
+}
+
+/* docs/edge-routing.md §ER18 — the Inspector's Ends group: per end a node
+   list and a four-side choice, then Apply / Revert */
+.ends {
+  margin: 4px 0 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-hairline);
+}
+.ends__title {
+  margin: 0;
+}
+/* collapsed by default: the name and a one-line From → To summary */
+.ends__toggle {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.ends__toggle::before {
+  content: '';
+  flex: none;
+  width: 0;
+  height: 0;
+  border-block: 4px solid transparent;
+  border-inline-start: 5px solid currentColor;
+  align-self: center;
+}
+.ends__toggle[aria-expanded='true']::before {
+  border-inline: 4px solid transparent;
+  border-block-start: 5px solid currentColor;
+  border-block-end: 0;
+}
+.ends__toggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.ends__summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+.ends > div:not([hidden]) {
+  margin-top: 8px;
+}
+.ends__end {
+  margin-bottom: 8px;
+}
+.ends__node {
+  display: block;
+}
+.ends__node select {
+  width: 100%;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  border: 1px solid var(--line-control);
+  border-radius: var(--control-radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.ends__sides {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 6px;
+  font-size: 12px;
+}
+.ends__side {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ends__status:empty {
+  display: none;
+}
+.ends__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
 }
 
 /* docs/flow-colour-and-compact-nodes.md FC-5 — the Inspector's Colour section */

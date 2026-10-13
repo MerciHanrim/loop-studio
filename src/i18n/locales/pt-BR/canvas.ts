@@ -127,6 +127,8 @@ const canvas = {
   'canvas.route.invalidFlag': 'rota inválida — um ponto da rota está dentro de um nó',
   'canvas.route.bend': 'Dobra {n} de {total}',
   'canvas.route.noBendRoom': 'Nenhum trecho desta ligação tem espaço para uma dobra; nada foi alterado.',
+  'canvas.endGrip.source': 'Início desta ligação: escolher um lado',
+  'canvas.endGrip.target': 'Fim desta ligação: escolher um lado',
   'canvas.edgeLabel.clamp': 'limite',
   'canvas.edgeLabel.clamp.title': 'removido pelo único limite de fim da Fase 0 do Reservatório de destino',
   'canvas.edgeLabel.blocked': 'bloqueado',

@@ -140,7 +140,23 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.26.2
+## Latest — v0.27.0
+
+A connection's end can move without drawing the connection again.
+
+- **Move an end**: select a connection and drag the round grip at either end onto a side of
+  another node, or use Ends in the Inspector; its amount, condition, colour, line shape and
+  bends stay as they were, and one undo step takes the move back
+- **Pick a side**: click or tap a grip to choose Top, Right, Bottom or Left in a small panel
+  that names the node, for a change of side only; where the canvas has no room for a grip
+  near an end, Ends in the Inspector moves it
+- **Refused moves say why**: an end on a node without the port it needs, or a move that would
+  repeat a connection drawn the same way, is not applied, and the reason is shown
+
+On a phone the diagram stays read-only. Turning a connection around, curves you shape
+yourself and moving a connection's label are not in this release.
+
+## v0.26.2
 
 Playback in your own colours, and the moving `+N` badges kept off the nodes they travel
 between.
@@ -201,19 +217,8 @@ angles, and every node keeps its text inside its outline.
 - **Reworked Templates**: all five use the new grid and routing, with clearer spacing and
   opening views
 
-## v0.24.0
-
-Playback speed changes what a step draws, and the phone gets a speed choice of its own.
-
-- **Three speed tiers**: at 0.4 s a step or slower the marker travels with its `+N`; faster,
-  `+N` appears when it arrives; below 0.2 s the path flashes and the marker appears at its
-  end; Step always shows the full movement
-- **Playback speed on the phone**: More → Playback speed offers Slow, Normal, Fast and Very
-  fast
-- **Fewer moving markers on the phone**: at most 12 a step, and no departure ring; every
-  other move keeps its highlighted path and arrival
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.23.0 (a Pool
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.24.0 (three
+playback speed tiers, and a speed choice and fewer moving markers on the phone), v0.23.0 (a Pool
 lights up as a marker arrives and a Converter shows that it converts), v0.22.0 (the
 Gate's path lights up and a `+N` rides beside every moving marker), v0.21.4 (the
 canvas controls keep their place while editing is locked), v0.21.3 (the edit

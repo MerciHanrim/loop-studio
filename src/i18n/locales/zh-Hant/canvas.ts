@@ -108,6 +108,8 @@ const canvas = {
   'canvas.route.invalidFlag': '路徑無效——有路徑點落在節點裡面',
   'canvas.route.bend': '拐點，共 {total} 個，第 {n} 個',
   'canvas.route.noBendRoom': '這條連線沒有可加拐點的線段，未做任何變更。',
+  'canvas.endGrip.source': '這條連線的起點：選擇一條邊',
+  'canvas.endGrip.target': '這條連線的終點：選擇一條邊',
   'canvas.edgeLabel.clamp': '限幅',
   'canvas.edgeLabel.clamp.title': '被目標資源池在階段 0 結束時的那一次限幅移除',
   'canvas.edgeLabel.blocked': '受阻',

@@ -4,14 +4,15 @@
   "$limit": "This manifest defends the call sites listed here, exactly and in both directions. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together close the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
   "$history": "PR B recorded 11 decision rows and deferred them. C3.5 re-ran the population from the TypeScript type checker — 205 ICU arguments — and found 27 more that carry user or technical values: 8 in its first pass (the unrecognized-column header and the five `import.loc.*` calls) and 19 that its first pass only RECORDED as open. All 27 are implemented here, so no row of the disposition manifest is classed `auto`, `ltr` or `per-fragment` any more.",
   "totals": {
-    "rows": 40,
-    "obligations": 25,
-    "callSites": 35
+    "rows": 53,
+    "obligations": 28,
+    "callSites": 40
   },
   "rowsBySource": {
     "pr-b-census": 11,
     "c3.5-sweep": 27,
-    "issue-298": 2
+    "issue-298": 2,
+    "er18": 13
   },
   "obligations": [
     {
@@ -660,6 +661,117 @@
             "parent"
           ],
           "kind": "ltr"
+        }
+      ]
+    },
+    {
+      "id": "edge-ends-reason",
+      "rows": [
+        "er18 EdgeEndsField.tsx inspector.ends.reason.* {node}",
+        "er18 EdgeEndsField.tsx inspector.ends.reason.* {from}",
+        "er18 EdgeEndsField.tsx inspector.ends.reason.* {to}"
+      ],
+      "file": "src/components/EdgeEndsField.tsx",
+      "enclosing": "EdgeEndsField>reasonText",
+      "carries": "the user's own NODE NAMES (a node's label, else its id) in the reason a pick in the Ends group is refused",
+      "why": "docs/edge-routing.md §ER18. A node's name is whatever the user typed, in any script; each name is its own argument and is isolated on its own, so a Hebrew or Arabic name does not reorder the sentence around it.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.ends.reason.missing",
+            "inspector.ends.reason.noInput",
+            "inspector.ends.reason.noOutput",
+            "inspector.ends.reason.noPorts",
+            "inspector.ends.reason.duplicate"
+          ],
+          "args": [
+            "node",
+            "from",
+            "to"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "edge-ends-field",
+      "rows": [
+        "er18 EdgeEndsField.tsx inspector.ends.reason.* (grip) {node}",
+        "er18 EdgeEndsField.tsx inspector.ends.reason.* (grip) {from}",
+        "er18 EdgeEndsField.tsx inspector.ends.reason.* (grip) {to}",
+        "er18 EdgeEndsField.tsx inspector.ends.summary {from}",
+        "er18 EdgeEndsField.tsx inspector.ends.summary {to}",
+        "er18 EdgeEndsField.tsx inspector.ends.applied {from}",
+        "er18 EdgeEndsField.tsx inspector.ends.applied {to}"
+      ],
+      "file": "src/components/EdgeEndsField.tsx",
+      "enclosing": "EdgeEndsField",
+      "carries": "the user's own NODE NAMES in the Ends group's folded summary, its applied result, and a refused canvas grip drop's reason",
+      "why": "docs/edge-routing.md §ER18, the same values as `edge-ends-reason`. Each name is its own argument and is isolated on its own; the arrow of the summary (`graph-relation`, scripts/arrow-units.json) and the sentence's words stay outside.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.ends.reason.missing",
+            "inspector.ends.reason.noInput",
+            "inspector.ends.reason.noOutput",
+            "inspector.ends.reason.noPorts",
+            "inspector.ends.reason.duplicate"
+          ],
+          "args": [
+            "node",
+            "from",
+            "to"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "inspector.ends.summary"
+          ],
+          "args": [
+            "from",
+            "to"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "inspector.ends.applied"
+          ],
+          "args": [
+            "from",
+            "to"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "end-grip-reason",
+      "rows": [
+        "er18 LoopEdge.tsx inspector.ends.reason.* {node}",
+        "er18 LoopEdge.tsx inspector.ends.reason.* {from}",
+        "er18 LoopEdge.tsx inspector.ends.reason.* {to}"
+      ],
+      "file": "src/components/edges/LoopEdge.tsx",
+      "enclosing": "LoopEdge>announceEnd",
+      "carries": "the user's own NODE NAMES in a refused canvas grip drop's reason, said in the canvas live region",
+      "why": "docs/edge-routing.md §ER18, the same sentence as the Ends group says. Each name is isolated on its own where it enters the message.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.ends.reason.missing",
+            "inspector.ends.reason.noInput",
+            "inspector.ends.reason.noOutput",
+            "inspector.ends.reason.noPorts",
+            "inspector.ends.reason.duplicate"
+          ],
+          "args": [
+            "node",
+            "from",
+            "to"
+          ],
+          "kind": "auto"
         }
       ]
     }

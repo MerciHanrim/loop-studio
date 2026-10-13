@@ -122,6 +122,8 @@ const canvas = {
   'canvas.route.invalidFlag': 'đường đi không hợp lệ — một điểm định tuyến nằm trong nút',
   'canvas.route.bend': 'Điểm gấp {n} trên {total}',
   'canvas.route.noBendRoom': 'Không đoạn nào của liên kết này còn chỗ cho điểm gấp; không có gì thay đổi.',
+  'canvas.endGrip.source': 'Điểm đầu của liên kết này: chọn một cạnh',
+  'canvas.endGrip.target': 'Điểm cuối của liên kết này: chọn một cạnh',
   'canvas.edgeLabel.clamp': 'cắt bớt',
   'canvas.edgeLabel.clamp.title': 'bị bỏ bởi một lần cắt duy nhất ở cuối Pha 0 của Bể chứa đích',
   'canvas.edgeLabel.blocked': 'bị chặn',

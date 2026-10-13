@@ -977,3 +977,93 @@ through an older build does not preserve port faces.** The document schema is no
 on purpose: a face is placement, and taking the whole document away from an older build
 to protect it would cost more than it saves (decision D-A). The user-facing change note
 of the release that ships this says the same in one sentence.
+
+## ER18. Moving a connection's end (line editing, first unit)
+
+An existing connection's source or target end can be moved to another side of the
+same node or to another node without deleting it. Every surface that offers it uses
+ONE check, `endMoveVerdict`, and ONE change, `moveEdgeEnds` (`src/model/endMove.ts`,
+the graph store): the Inspector's Ends group and the canvas end grips.
+
+- **What a move keeps.** The connection's id, kind, direction, handles (the kind
+  channel: `out` / `in`, `state-*`) and every `data` field — amount or condition,
+  resource type, colour, line shape and the user's bends. Only the end node and the
+  end's face (`data.ports`, canonical as in §ER17) change. Turning a connection around
+  is a separate action.
+- **What is refused, with the reason shown.** An end on a node without the port this
+  kind needs at that end: a Source has no input, a Drain or End no output, a Parameter
+  or Register no ports at all (`SEMANTICS-M.md` §M1.3). And, only when an end changes
+  NODE, a result that repeats another connection by the drawing rule — the same two
+  ends AND the same stored handles, as xyflow's `addEdge` refuses — with the moved
+  connection itself excluded. A side change alone is never a duplicate: the shipped
+  examples hold parallel connections of one kind between the same nodes (Early MMO
+  `a_z2_*_lo` / `_hi`, the choreography's `l_add` / `l_sub`) and resource + state
+  pairs, and none of them may lose its side change. A self-loop is allowed, as when
+  drawing. Drawing runs the same duplicate check before it records, so a refused
+  drawing leaves no undo entry and does not reset the run.
+- **History and the run.** One undo step per applied move; a cancel, a refusal or the
+  same ends record nothing. A side-only move keeps the run (a face is cosmetic,
+  `SEMANTICS-R11.md`; `ports` counts as decoration on undo and redo too); a move to
+  another node resets it, as drawing a new connection does.
+- **Routes.** An automatic route is recomputed (the ends and faces are in the layout
+  signature). The user's bends are never removed by a move: when a kept bend would be
+  refused by the bend rule at the new ends (`bendRejection`: inside a node, or on the
+  new end's stub), the Inspector says so BEFORE applying; "Reset to automatic" stays
+  the user's own, separate choice (the line-editing principle: a user-adjusted route
+  is kept, going back to automatic is explicit).
+- **The Inspector's Ends group.** Folded by default to one line — the group's name and
+  the From → To names — so the connection's other fields keep their place (the design
+  review: an always-open group pushed the Colour section out of view). Opened, for the
+  source (From) and the target (To): a node
+  list and a four-side choice; the user picks, then Applies (one change, never a
+  provisional side first and a second change after); Revert returns the pick. A node
+  that cannot take this end is listed disabled with its reason in the option's own
+  text, so a keyboard or screen-reader user reads it; the reason, the bend warning and
+  the applied result are in a status line the controls describe themselves with; that
+  line stays visible while the group is folded. Folding it with a pick not applied
+  drops the pick. Node
+  names are the user's text and are bidi-isolated. Under the edit lock the Inspector is
+  disabled as a whole; the phone stays read-only.
+- **The canvas end grips.** Exactly when ONE connection is selected (and nothing else),
+  a round grip sits on each of its ends (`EndGrips`, drawn by `LoopEdge`), never on
+  hover, never on the phone or under the edit lock. A grip keeps its SCREEN size at
+  every zoom: a small dot (10 px) inside a 24 × 24 px pointer target, 44 × 44 px
+  while any pointer of the device is coarse (`(any-pointer: coarse)`); the side
+  buttons are at least as large. **Where it sits:** on the connection's own line,
+  at the nearest FREE spot near its end — tried from half its target and 2 px past
+  the port, then 8, 16 and 24 screen px further in (24 px, one mouse target's width:
+  beyond it the dot no longer reads as this end's; the dot's centre is then at most
+  38 px from the port with a mouse, 48 px with touch), never past the middle of the
+  line. A spot is free when nothing else a press could reach lies under the whole
+  target — another connection's line, a port, a node, the other grip (the browser's
+  own hit testing, `elementsFromPoint`, on a 5 × 5 grid) — and it covers no text (any
+  connection label, this one's too, or a node's outside name). **No free spot: no
+  grip.** That end gets a small hollow mark that is not a pointer target, not
+  focusable and not announced, and the Ends group says — folded or open — that the
+  canvas has no free spot for that end's grip and that the end moves from there. A
+  large transparent target would take presses meant for the lines around it; the
+  Inspector path costs a step instead. The rule is measured on the cases checked
+  (share notes 46, 47), not a guarantee for every layout. Dragging a grip offers every
+  node's faces, as drawing does; dropping on a face moves that end (the same check
+  and change), dropping on a refused face changes nothing and says why (the canvas
+  live region and the Ends status line), dropping elsewhere or pressing Esc changes
+  nothing and records nothing. The drag is React Flow's own connection engine
+  (`XYHandle`, the one its edge reconnection uses) started from a mouse press or a
+  touch start — React Flow's own reconnect anchors listen to the mouse only, so they
+  are not used (spike 2026-10-13). A drag in progress is cancelled, applying nothing,
+  when the grips go away under it (the connection deselected or deleted, the edit lock
+  turned on); after Esc, moving on or releasing does nothing.
+- **The side choice on a grip.** A click or tap on a grip (or Enter / Space on the
+  focused grip — each grip is a named button) opens a small popover: its title names
+  the end and the node (From / To and the node's name), its four sides sit in a cross
+  (top, left and right, bottom), the current one marked. It opens beside the grip on
+  the side AWAY from the node it edits and stays inside the canvas; it is never taller
+  or wider than the canvas allows, and scrolls inside rather than cut a side off. While
+  open it may cover other lines and labels; its title says which node it edits.
+  Choosing a side moves the end to it (one undo step, the run kept) and closes it; Esc
+  or a press elsewhere closes it unchanged; either way focus returns to the grip. It is
+  the precise path for a side of the same node; another node is reached by dragging,
+  or from the Ends group. No zoom is forced for touch.
+- **Compatibility.** Nothing new is stored: the ends and `data.ports` are written and
+  read as before, so a moved end round-trips through save, reopen, undo and redo, and
+  an older build loses only the faces (§ER17).

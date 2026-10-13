@@ -614,6 +614,9 @@ const ui = {
   'whatsNew.v0262.lightColour': 'Un colore scelto con poco contrasto per il tema attuale mantiene il suo colore; i suoi segnali di esecuzione ricevono un sottile bordo grigio che li distingue dallo sfondo.',
   'whatsNew.v0262.badgePlace': 'Quando lo zoom basta per vedere le etichette delle connessioni, l’indicatore +N in movimento mantiene un solo posto accanto al suo segno per tutto il passo, un posto scelto per aiutare gli indicatori delle connessioni che lasciano insieme un nodo a restare separati, e compare solo finché non tocca i nodi alle due estremità. Con uno zoom minore, e alle velocità più rapide, l’indicatore compare come prima.',
   'whatsNew.v0262.selection': 'Un colore scelto nell’Ispettore ora va al nodo che l’Ispettore mostra, anche subito dopo aver trascinato un nodo e aggiunto un altro dalla barra degli strumenti, o dopo essere passati a un vicino con ] o [.',
+  'whatsNew.v0270.moveEnd': 'L’estremo di un collegamento ora si sposta senza ridisegnare il collegamento: selezionalo e trascina la maniglia rotonda di uno dei due estremi su un lato di un altro nodo, oppure usa Estremi nell’Ispettore. Quantità, condizione, colore, forma della linea e angoli restano com’erano.',
+  'whatsNew.v0270.pickSide': 'Per cambiare solo il lato che un collegamento usa, fai clic o tocca una maniglia e scegli Sopra, Destra, Sotto o Sinistra nel piccolo pannello che si apre; dove l’area di disegno non ha spazio per una maniglia, usa Estremi nell’Ispettore. Sul telefono il diagramma resta in sola lettura.',
+  'whatsNew.v0270.refused': 'Uno spostamento che non si può fare, come un estremo su un nodo senza ingresso, non viene applicato, e viene mostrato il motivo.',
 } satisfies Record<UiKey, string>
 
 export default ui

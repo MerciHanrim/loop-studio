@@ -612,6 +612,9 @@ const ui = {
   'whatsNew.v0262.lightColour': 'Un color elegido con poco contraste para el tema actual conserva su color; sus señales de ejecución reciben un borde gris fino para que se distingan del fondo.',
   'whatsNew.v0262.badgePlace': 'Cuando el zoom es suficiente para ver las etiquetas de las conexiones, la insignia +N en movimiento conserva un mismo lugar junto a su marca durante todo el paso, un lugar elegido para ayudar a que las insignias de las conexiones que salen juntas de un nodo queden separadas, y solo aparece mientras no toca los nodos de ambos extremos. Con menos zoom, y en las velocidades más rápidas, la insignia aparece como antes.',
   'whatsNew.v0262.selection': 'Un color elegido en Propiedades ahora se aplica al nodo que muestra Propiedades, también justo después de arrastrar un nodo y añadir otro desde la barra de herramientas, o después de pasar a un vecino con ] o [.',
+  'whatsNew.v0270.moveEnd': 'El extremo de una conexión ahora se puede mover sin volver a dibujarla: selecciónela y arrastre el asa redonda de cualquiera de sus extremos hasta un lado de otro nodo, o use Extremos en Propiedades. Su cantidad, condición, color, forma de línea y codos se mantienen como estaban.',
+  'whatsNew.v0270.pickSide': 'Para cambiar solo el lado que usa una conexión, haga clic o toque un asa y elija Arriba, Derecha, Abajo o Izquierda en el pequeño panel que se abre; donde el lienzo no tiene espacio para un asa, use Extremos en Propiedades. En un móvil el diagrama sigue siendo de solo lectura.',
+  'whatsNew.v0270.refused': 'Un movimiento que no se puede hacer, como un extremo en un nodo sin entrada, no se aplica, y se muestra el motivo.',
 } as const
 
 export type UiKey = keyof typeof ui

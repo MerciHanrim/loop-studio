@@ -8,9 +8,9 @@
     "keepLiterals": 1,
     "iconSites": 13,
     "catalogKeysMirror": 9,
-    "catalogKeysKeep": 1,
-    "catalogPairsPerLocale": 10,
-    "catalogOccurrencesPerLocale": 12
+    "catalogKeysKeep": 2,
+    "catalogPairsPerLocale": 11,
+    "catalogOccurrencesPerLocale": 13
   },
   "units": {
     "before-after": {
@@ -101,7 +101,8 @@
       "unit": "graph-relation",
       "verdict": "keep",
       "keys": [
-        "regExpr.row.cycle"
+        "regExpr.row.cycle",
+        "inspector.ends.summary"
       ],
       "occurrences": {
         "regExpr.row.cycle": 2
@@ -144,5 +145,5 @@
       "why": "CONDITIONAL, not mandatory. This is a locale-local arrow: ja and ko chose one where English has none. Nothing requires the Arabic translation to use an arrow here. What the contract says is that IF it does, the  rule applies and the arrow is written mirrored - the same rule every other menu-path arrow follows. Requiring an arrow would be inventing a translation decision; leaving it unrecorded would let one ship unruled."
     }
   ],
-  "$axes": "TWO axes, and they are different numbers that were reported as one. CONTRACT PAIRS are the (locale, unit, key) triples the rule is evaluated on: 10 per catalogue locale. GLYPH OCCURRENCES are the arrow characters actually in those values: 12 per locale. They cannot be equal - TWO keys carry the same unit's glyph twice (`regExpr.row.cycle` renders `{name} → … → {name}`, `import.qs.sources.sheets` names a two-step menu path). `occurrences` records that. Before issue #298 four keys were governed by two units each (a menu-path arrow and the disclosure `▾` of the button they quote); the `▾` left those strings with the issue."
+  "$axes": "TWO axes, and they are different numbers that were reported as one. CONTRACT PAIRS are the (locale, unit, key) triples the rule is evaluated on: 11 per catalogue locale. GLYPH OCCURRENCES are the arrow characters actually in those values: 13 per locale. They cannot be equal - TWO keys carry the same unit's glyph twice (`regExpr.row.cycle` renders `{name} → … → {name}`, `import.qs.sources.sheets` names a two-step menu path). `occurrences` records that. Before issue #298 four keys were governed by two units each (a menu-path arrow and the disclosure `▾` of the button they quote); the `▾` left those strings with the issue."
 }
