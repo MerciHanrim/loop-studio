@@ -36,7 +36,17 @@ function stepConnected(dir: 1 | -1): void {
     if (list.length === 0) return
     walk = { from: sel, list, i: dir === 1 ? 0 : list.length - 1 }
   }
-  g.setSelection(walk.list[walk.i], null)
+  const next = walk.list[walk.i]!
+  g.setSelection(next, null)
+  // the walk moves the whole selection: React Flow's marks follow it to the
+  // neighbour (the Colour section acts on the marked set), the way a click on
+  // that node would leave them
+  const nodeMarks = g.nodes
+    .filter((n) => !!n.selected !== (n.id === next))
+    .map((n) => ({ id: n.id, type: 'select' as const, selected: n.id === next }))
+  if (nodeMarks.length) g.onNodesChange(nodeMarks)
+  const edgeMarks = g.edges.filter((e) => e.selected).map((e) => ({ id: e.id, type: 'select' as const, selected: false }))
+  if (edgeMarks.length) g.onEdgesChange(edgeMarks)
 }
 
 /**

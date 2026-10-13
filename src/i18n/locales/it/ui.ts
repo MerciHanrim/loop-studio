@@ -610,6 +610,10 @@ const ui = {
   'whatsNew.v0260.notices': 'Avvisi sotto la barra degli strumenti. L’avviso di aggiornamento e i suggerimenti del primo uso compaiono ora in una striscia sotto la barra degli strumenti, non sopra il diagramma, e il diagramma non si sposta quando compaiono o si chiudono.',
   'whatsNew.v0260.currentAmount': 'La quantità attuale di un Serbatoio nell’Ispettore. Accanto alla quantità iniziale, un campo di sola lettura mostra quanto contiene il Serbatoio in questo momento, anche sul telefono.',
   'whatsNew.v0260.templates': 'Modelli ricollocati. La torrefazione di caffè e il confronto di banner gacha a tre aree sono stati ridisposti per i nuovi nodi; il denaro della torrefazione si legge ora in dollari al giorno.',
+  'whatsNew.v0262.runColour': 'I segnali di esecuzione usano i colori che hai scelto. Mentre un passo viene riprodotto, una connessione con un colore scelto disegna in quel colore il suo segno in movimento, l’evidenziazione del suo percorso, i suoi anelli, il bordo del suo indicatore +N e i suoi segni con movimento ridotto, e un nodo con un colore scelto mostra i propri segni di esecuzione nel suo colore. Ciò che non ha un colore scelto mantiene il colore di esecuzione consueto.',
+  'whatsNew.v0262.lightColour': 'Un colore scelto con poco contrasto per il tema attuale mantiene il suo colore; i suoi segnali di esecuzione ricevono un sottile bordo grigio che li distingue dallo sfondo.',
+  'whatsNew.v0262.badgePlace': 'Quando lo zoom basta per vedere le etichette delle connessioni, l’indicatore +N in movimento mantiene un solo posto accanto al suo segno per tutto il passo, un posto scelto per aiutare gli indicatori delle connessioni che lasciano insieme un nodo a restare separati, e compare solo finché non tocca i nodi alle due estremità. Con uno zoom minore, e alle velocità più rapide, l’indicatore compare come prima.',
+  'whatsNew.v0262.selection': 'Un colore scelto nell’Ispettore ora va al nodo che l’Ispettore mostra, anche subito dopo aver trascinato un nodo e aggiunto un altro dalla barra degli strumenti, o dopo essere passati a un vicino con ] o [.',
 } satisfies Record<UiKey, string>
 
 export default ui

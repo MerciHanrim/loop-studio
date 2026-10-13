@@ -102,6 +102,14 @@ export function accentNotices(hex: string, scope: { nodes: boolean; edges: boole
   return out
 }
 
+/** FC-4.3 — whether a flow colour's run signals need the neutral case where
+ *  they are drawn on this theme: under the non-text floor against the canvas
+ *  (a connection's signals, a node's fired mark outside it) or the node face (a
+ *  node's arrival and conversion marks inside it). The floor finds the signals
+ *  to support; it does not say a signal reads (that is judged on the canvas). */
+export const runNeedsCase = (hex: string, theme: 'light' | 'dark', place: 'canvas' | 'node' = 'canvas'): boolean =>
+  contrastRatio(hex, SURFACES[theme][place]) < CONTRAST_MIN
+
 /** A DOM-safe id fragment for a STORED colour: its six hex digits in lower
  *  case — never the `#`, never what the user typed. `null` for anything that
  *  is not in the stored form, so no other string can reach an id. */

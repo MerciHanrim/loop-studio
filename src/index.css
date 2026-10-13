@@ -1916,6 +1916,38 @@ a.sheet__row {
 @media not (forced-colors: active) {
   .nodef.has-accent {
     --node-hue: var(--node-accent);
+    /* FC-4.3 — the node's OWN run cues (fired wave and ticks, arrival tint,
+       conversion mark) take its flow colour; an incoming connection's colour
+       never reaches them */
+    --state-fired: var(--node-accent);
+    --state-arrival: var(--node-accent);
+  }
+  /* FC-4.3 — the neutral case of a node's own cue whose colour is under 3:1
+     where the cue is drawn (nodes.tsx `data-run-case`: `out` on the canvas,
+     `in` on the node face): the fired ticks and the wave a copy under them,
+     0.75 px wider (the ticks never reach the invalid ring); the conversion
+     mark the same; the arrival tint keeps its colour and only shows its own
+     inner edge, the 1 px line of its forced-colours form, in the case colour —
+     the body is not greyed */
+  .nodef__fired-case {
+    fill: none;
+    stroke: var(--line-strong);
+    stroke-linecap: butt;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+  }
+  .nodef__wave.nodef__wave-case {
+    stroke: var(--line-strong);
+    stroke-width: 3.5;
+  }
+  .nodef__conv path.nodef__conv-case {
+    stroke: var(--line-strong);
+    stroke-width: 2.4;
+  }
+  .nodef[data-run-case~='in'] .nodef__pulse-line {
+    display: inline;
+    stroke: var(--line-strong);
+    stroke-width: 16;
   }
   .nodef.has-accent .nodef__chip {
     opacity: 1;
@@ -3342,13 +3374,17 @@ a.sheet__row {
 }
 
 /* ==== flow tokens — T1 Bead, compressing toward T3 at speed ============== */
+/* docs/flow-colour-and-compact-nodes.md FC-4.3 — every run signal of a
+   connection reads `--edge-run`, set inline by LoopEdge (and the badge) only
+   when the connection has a flow colour; without one, the default run colour.
+   Being active is told by motion, weight and contrast, not by a hue change. */
 /* shown only on a selected edge — the flow's start point, not a rest marker */
 .flow-rest {
   fill: var(--state-selected);
   pointer-events: none;
 }
 .flow-bead {
-  fill: var(--flow-strength);
+  fill: var(--edge-run, var(--flow-strength));
 }
 .flow-trail {
   fill: var(--flow-trail);
@@ -3399,14 +3435,14 @@ a.sheet__row {
   vector-effect: non-scaling-stroke;
 }
 .pb-rm-tell--emit {
-  fill: var(--flow-strength);
+  fill: var(--edge-run, var(--flow-strength));
 }
 .pb-rm-tell--converge {
-  fill: var(--flow-strength);
+  fill: var(--edge-run, var(--flow-strength));
 }
 .pb-rm-tell--absorb {
   fill: none;
-  stroke: var(--flow-strength);
+  stroke: var(--edge-run, var(--flow-strength));
   stroke-width: 1.5;
   stroke-dasharray: 2.5 2;
 }
@@ -3422,7 +3458,7 @@ a.sheet__row {
                     nothing lands). */
 .pb-cue {
   fill: none;
-  stroke: var(--flow-strength);
+  stroke: var(--edge-run, var(--flow-strength));
   stroke-width: 1.5;
   pointer-events: none;
   vector-effect: non-scaling-stroke;
@@ -3430,7 +3466,7 @@ a.sheet__row {
 /* converge ends as a filled dot; absorb's ring is dashed. These hold even
    without the keyframes (reduced-motion path renders its own `.pb-rm-tell`). */
 .pb-cue--converge {
-  fill: var(--flow-strength);
+  fill: var(--edge-run, var(--flow-strength));
 }
 .pb-cue--absorb {
   stroke-dasharray: 3 2.5;
@@ -3509,7 +3545,7 @@ a.sheet__row {
    the depart → travel → arrive order still reads on the map. No motion; it is
    present only while `phase === "travel"` and clears with the transition. */
 .pb-l0-pulse {
-  stroke: var(--flow-strength);
+  stroke: var(--edge-run, var(--flow-strength));
   stroke-width: 3;
   opacity: 0.6;
   vector-effect: non-scaling-stroke;
@@ -3520,7 +3556,7 @@ a.sheet__row {
    edge that STAYS for the whole step, no fade, so "this edge carried flow this
    step" stays legible even while paused. */
 .flow-edge-pulse {
-  stroke: var(--flow-strength);
+  stroke: var(--edge-run, var(--flow-strength));
   stroke-width: 2.5;
   opacity: 0.75;
   vector-effect: non-scaling-stroke;
@@ -3530,10 +3566,11 @@ a.sheet__row {
 /* issue #330 PR 1 (v0.22.0), docs/simulation-playback.md §PB4.6 — the path
    highlight: drawn on a Gate output that moved this step (whichever branch the
    Gate took; an untaken branch keeps its usual look) and on any moved edge past
-   the 24 token-and-badge pairs. Under the token, over the connection; the
-   connection's own stroke and flow colour stay as they are. */
+   the 24 token-and-badge pairs. Under the token, over the connection, in the
+   connection's run colour (its flow colour if set): told from the line by its
+   width and its round caps. */
 .pb-path {
-  stroke: var(--flow-strength);
+  stroke: var(--edge-run, var(--flow-strength));
   stroke-width: 3.5;
   stroke-linecap: round;
   opacity: 0.55;
@@ -3551,7 +3588,8 @@ a.sheet__row {
    lives in the label layer (HTML, above every connection label) so the pair is
    drawn on top. Its box matches ./components/edges/playbackBadge.ts (height
    13, the text plus 4 px each side, border included). The amount is in the
-   primary ink for legibility; the run colour is its border. */
+   primary ink for legibility, whatever the colour; the connection's run colour
+   is its border. */
 .pb-badge {
   position: absolute;
   left: 0;
@@ -3560,7 +3598,7 @@ a.sheet__row {
   box-sizing: border-box;
   height: 13px;
   padding: 0 3px;
-  border: 1px solid var(--flow-strength);
+  border: 1px solid var(--edge-run, var(--flow-strength));
   border-radius: 7px;
   background: var(--surface-raised);
   color: var(--text-primary);
@@ -3578,6 +3616,123 @@ a.sheet__row {
 .pb-badge.pb-badge--dim {
   opacity: 0.26;
 }
+/* docs/flow-colour-and-compact-nodes.md FC-4.3 — the neutral case of a run
+   signal whose flow colour is under 3:1 on this theme's canvas (LoopEdge sets
+   `data-run-case` and draws the copies): a thin `--line-strong` rim beside
+   the signal that only parts it from the canvas — never over its colour, and
+   not a selection (a 7 px translucent underlay), a focus (blue dashes) or a
+   warning (orange). None under forced colours: the system colours carry every
+   signal there. Paths: a line under the signal with the signal's own width cut
+   out (`.run-case`); rings: the same ring under it, wider; filled dots and
+   tells: a stroke painted under the fill; the badge: a rim outside its border. */
+.run-case {
+  pointer-events: none;
+}
+.run-case__outer,
+.run-case__inner,
+.run-case__rim {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.run-case__outer {
+  stroke: #fff;
+}
+.run-case__inner {
+  stroke: #000;
+}
+.run-case__rim {
+  stroke: var(--line-strong);
+}
+/* each signal's width (index.css above), and that plus 0.75 px each side */
+.run-case--path :is(.run-case__outer, .run-case__rim),
+.run-case--flash :is(.run-case__outer, .run-case__rim) {
+  stroke-width: 5;
+}
+.run-case--path .run-case__inner,
+.run-case--flash .run-case__inner {
+  stroke-width: 3.5;
+}
+.run-case--l0 :is(.run-case__outer, .run-case__rim) {
+  stroke-width: 4.5;
+}
+.run-case--l0 .run-case__inner {
+  stroke-width: 3;
+}
+.run-case--pulse :is(.run-case__outer, .run-case__rim) {
+  stroke-width: 4;
+}
+.run-case--pulse .run-case__inner {
+  stroke-width: 2.5;
+}
+.run-case-ring {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 3;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+.run-case-ring--absorb {
+  stroke-dasharray: 3 2.5;
+}
+.run-case-ring--rm-absorb {
+  stroke-dasharray: 2.5 2;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .run-case-ring--emit {
+    animation: pb-cue-emit 260ms ease-out;
+  }
+  .run-case-ring--converge {
+    animation: pb-case-converge 260ms ease-in forwards;
+  }
+  .run-case-ring--absorb {
+    animation: pb-cue-absorb 280ms ease-in forwards;
+  }
+  .run-case-ring--activator {
+    animation: pb-cue-ping 260ms ease-out;
+  }
+}
+/* the converge ring's case follows it in, then stays as a 0.75 px rim around
+   the dot it settles into (the dot's own ring has faded out by then) */
+@keyframes pb-case-converge {
+  from {
+    r: 9;
+    stroke-opacity: 0.55;
+  }
+  55% {
+    r: 3.5;
+    stroke-opacity: 0.6;
+  }
+  to {
+    r: 2.875;
+    stroke-width: 0.75;
+    stroke-opacity: 1;
+  }
+}
+@media not (forced-colors: active) {
+  [data-run-case] .flow-bead,
+  .state-move--trigger[data-run-case]:not(.state-move--blocked) .state-move__bead,
+  .state-move--in[data-run-case] .state-move__bead,
+  [data-run-case] :is(.pb-rm-tell--emit, .pb-rm-tell--converge) {
+    stroke: var(--line-strong);
+    stroke-width: 1.5;
+    paint-order: stroke;
+    vector-effect: non-scaling-stroke;
+  }
+  .pb-badge--cased {
+    box-shadow: 0 0 0 1px var(--line-strong);
+  }
+}
+@media (forced-colors: active) {
+  .run-case,
+  .nodef__fired-case,
+  .nodef__wave-case,
+  .nodef__conv-case,
+  .run-case-ring {
+    display: none;
+  }
+}
 /* the connection's OWN label never moves; it dims only while the token or its
    badge overlaps its real box */
 .edge-label.edge-label--under-token {
@@ -3588,7 +3743,7 @@ a.sheet__row {
    multiplies with the cues' own animated opacity (a static `opacity` would be
    overridden by their keyframes). Cues inside a node keep full strength. */
 .react-flow__edge.lgr-deemph
-  :is(.pb-path, .pb-move, .pb-cue, .pb-l0-pulse, .flow-edge-pulse, .pb-rm-tell, .state-move, .state-cue, .state-edge-pulse) {
+  :is(.pb-path, .pb-move, .pb-cue, .pb-l0-pulse, .flow-edge-pulse, .pb-rm-tell, .state-move, .state-cue, .state-edge-pulse, .run-case, .run-case-ring) {
   filter: opacity(0.26);
 }
 
@@ -3601,7 +3756,7 @@ a.sheet__row {
 }
 /* trigger — a bead delivered along the edge; blocked ⇒ hollow warning ring */
 .state-move--trigger .state-move__bead {
-  fill: var(--signal-primary);
+  fill: var(--edge-run, var(--signal-primary));
 }
 .state-move--blocked .state-move__bead {
   fill: none;
@@ -3610,7 +3765,7 @@ a.sheet__row {
 }
 /* label — a signed-delta bead toward (+) / away (−) the target */
 .state-move--label .state-move__bead {
-  fill: var(--signal-primary);
+  fill: var(--edge-run, var(--signal-primary));
   opacity: 0.9;
 }
 .state-move--out .state-move__bead {
@@ -3631,7 +3786,7 @@ a.sheet__row {
   vector-effect: non-scaling-stroke;
 }
 .state-cue--activator.is-on {
-  stroke: var(--signal-primary);
+  stroke: var(--edge-run, var(--signal-primary));
 }
 @media (prefers-reduced-motion: no-preference) {
   .state-cue--activator {
@@ -3642,7 +3797,7 @@ a.sheet__row {
    for the step (§VL9), so the trigger fire / label apply stays readable while
    paused. */
 .state-edge-pulse {
-  stroke: var(--signal-primary);
+  stroke: var(--edge-run, var(--signal-primary));
   stroke-width: 2.5;
   opacity: 0.8;
   vector-effect: non-scaling-stroke;
@@ -3759,6 +3914,14 @@ a.sheet__row {
     fill: Canvas;
     stroke: CanvasText;
     stroke-width: 1.2;
+  }
+  /* FC-3.4 — no flow colour under forced colours: the two held highlights
+     with no system-colour rule of their own keep the default run colour */
+  .flow-edge-pulse {
+    stroke: var(--flow-strength);
+  }
+  .state-edge-pulse:not(.state-edge-pulse--blocked) {
+    stroke: var(--signal-primary);
   }
 }
 
@@ -4243,6 +4406,13 @@ a.sheet__row {
   border-color: var(--signal-primary);
   font-style: normal;
 }
+/* FC-4.3 — on a coloured connection the "on" label keeps the connection's
+   colour as its border and the primary ink for its text (a light colour stays
+   legible); upright text and the edge's weight tell it is on */
+.edge-label--on.has-accent:not(.is-selected) {
+  color: var(--text-primary);
+  border-color: var(--edge-accent);
+}
 /* label delta + separate clamp note; trigger "blocked" tag */
 /* issue #298 — the trigger mark, an icon of the label's own size and colour */
 .edge-label__mark {
@@ -4278,6 +4448,11 @@ a.sheet__row {
 }
 .edge-label__bd--more {
   color: var(--text-tertiary);
+}
+/* FC-4.3 — a run amount on a coloured connection's label is text: it keeps
+   the primary ink instead of the default run colour */
+.edge-label.has-accent :is(.edge-label__delta, .edge-label__bd:not(.edge-label__bd--more)) {
+  color: var(--text-primary);
 }
 .edge-label--blocked,
 .edge-label__blocked {

@@ -1017,8 +1017,13 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         get().nodes.map((n) => n.data.label),
       )
       const node = createNode(kind, position, label)
+      // the new node is THE selection, as the Inspector shows it: React Flow's
+      // marks move to it (as an inserted module's do, §MS3.3), so a drag that
+      // left another node marked can no longer steer what the Inspector's
+      // controls act on (the Colour section follows the marked set)
       set({
-        nodes: [...get().nodes, node],
+        nodes: [...get().nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), { ...node, selected: true }],
+        edges: get().edges.some((e) => e.selected) ? get().edges.map((e) => (e.selected ? { ...e, selected: false } : e)) : get().edges,
         selectedNodeId: node.id,
         selectedEdgeId: null,
       })

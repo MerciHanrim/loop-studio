@@ -580,6 +580,10 @@ const ui = {
   'whatsNew.v0260.notices': 'Notices under the toolbar. The update notice and the first-time hints now sit in a strip under the toolbar instead of over the diagram, and the diagram does not move when they appear or close.',
   'whatsNew.v0260.currentAmount': 'A Pool\'s current amount in the Inspector. Beside the starting amount, a read-only field shows the amount the Pool holds right now, also on phones.',
   'whatsNew.v0260.templates': 'Re-placed templates. The Coffee roastery and the 3-zone gacha banner comparison are laid out again for the new nodes; the Coffee roastery\'s money now reads in dollars per day.',
+  'whatsNew.v0262.runColour': 'Run signals take the colours you chose. While a step plays, a connection with a chosen colour draws its moving marker, its path highlight, its rings, the border of its +N badge and its reduced-motion marks in that colour, and a node with a chosen colour shows its own run marks in its colour. Anything without a chosen colour keeps the usual run colour.',
+  'whatsNew.v0262.lightColour': 'A chosen colour with too little contrast for the current theme keeps its colour; its run signals get a thin grey edge so they stand out from the background.',
+  'whatsNew.v0262.badgePlace': 'When you are zoomed in far enough to see the connection labels, the moving +N badge keeps one place beside its marker for the whole step, a place picked to help the badges of connections that leave a node together stay apart, and it shows only while it is clear of the nodes at both ends. Zoomed out further, and at the faster speeds, the badge shows as before.',
+  'whatsNew.v0262.selection': 'A colour picked in the Inspector now goes to the node the Inspector shows, also right after you drag a node and add another from the toolbar, or after you step to a neighbour with ] or [.',
 } as const
 
 export type UiKey = keyof typeof ui

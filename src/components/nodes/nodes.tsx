@@ -51,6 +51,8 @@ import type { PortFace } from '../../model/types'
 import { PORT_COL } from '../../model/layout/grid'
 import { setNodeNameBox } from '../../store/routeMap'
 import { reservedWidth } from './nodeWidth'
+import { runNeedsCase } from '../../ui/flowColour'
+import { useCanvasTheme } from '../../ui/media'
 import { roleSymbol, type SymbolPrim } from './roleSymbol'
 import './nodeStructure.css'
 
@@ -692,6 +694,11 @@ function NodeFrame({
   // FC-4.1 — only a stored-form colour is drawn; the ids are this component's
   // own (never built from the node id or the colour)
   const accent = readAccent(accentProp)
+  // FC-4.3 — a colour under 3:1 where a cue is drawn gets the neutral case
+  // there: `out` the fired mark outside the node (on the canvas), `in` the
+  // arrival and conversion marks inside it (on the node face)
+  const canvasTheme = useCanvasTheme()
+  const runCase = accent ? [runNeedsCase(accent, canvasTheme, 'canvas') ? 'out' : '', runNeedsCase(accent, canvasTheme, 'node') ? 'in' : ''].filter(Boolean).join(' ') : ''
   const uid = 'nf' + useId().replace(/[^A-Za-z0-9_-]/g, '_')
   const box = maskBox(bodyH, pathW)
   // state ports are invisible at rest; they surface on hover / selection /
@@ -754,6 +761,7 @@ function NodeFrame({
       }
       data-invalid={invalid ? '' : undefined}
       data-accent={accent}
+      data-run-case={runCase || undefined}
       data-conv-spot={convSpot ? `${convSpot.x},${convSpot.y}` : undefined}
       data-name-face={outside ? nameFace : undefined}
       style={
@@ -895,12 +903,22 @@ function NodeFrame({
           <>
             <defs>
               <OutsideMask id={`${uid}-fired`} d={path} box={box} from={9} />
+              {runCase.includes('out') ? <OutsideMask id={`${uid}-firedcase`} d={path} box={box} from={8.5} /> : null}
             </defs>
+            {/* FC-4.3 — the ticks' neutral case: each tick grown by 0.5 px
+                inward (never onto the invalid ring, which ends at 8.5 px) and
+                0.75 px outward and along, drawn under it */}
+            {runCase.includes('out') ? (
+              <path key={`tc${stepKey}`} className="nodef__fired-case" aria-hidden="true" d={path} mask={`url(#${uid}-firedcase)`} strokeWidth={2 * 11.75} strokeDasharray="9.5 22.5" strokeDashoffset={0.75} />
+            ) : null}
             {/* `data-run-cue` — the §LGR5.1 `effective` cue, whichever form draws it */}
             <path key={`t${stepKey}`} className="nodef__fired-ticks" data-run-cue="effective" d={path} mask={`url(#${uid}-fired)`} strokeWidth={2 * 11} strokeDasharray="8 24" />
           </>
         ) : firing ? (
-          <path key={`w${stepKey}`} className="nodef__wave" data-run-cue="effective" d={path} />
+          <>
+            {runCase.includes('out') ? <path key={`wc${stepKey}`} className="nodef__wave nodef__wave-case" aria-hidden="true" d={path} /> : null}
+            <path key={`w${stepKey}`} className="nodef__wave" data-run-cue="effective" d={path} />
+          </>
         ) : null}
         {/* issue #330 PR 2 — the Pool arrival pulse: a soft tint of the
             silhouette from `POOL_PULSE_INSET` px inside (clear of every ring),
@@ -964,6 +982,8 @@ function NodeFrame({
           aria-hidden="true"
           style={mapOnly || !convSpot ? { top: boxH / 2 - 9 } : { left: convSpot.x, top: convSpot.y }}
         >
+          {/* FC-4.3 — on a light node face, the same mark under it, wider, in the neutral case */}
+          {runCase.includes('in') ? <path className="nodef__conv-case" d="M1.5 3.5 H10 M7.5 1 L10 3.5 L7.5 6 M10.5 8.5 H2 M4.5 6 L2 8.5 L4.5 11" /> : null}
           <path d="M1.5 3.5 H10 M7.5 1 L10 3.5 L7.5 6 M10.5 8.5 H2 M4.5 6 L2 8.5 L4.5 11" />
         </svg>
       ) : null}

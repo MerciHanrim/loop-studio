@@ -15,19 +15,21 @@ import { useUiStore } from '../../store/uiStore'
 import { currentRouteGeneration, setRouteLabelSize, useRouteInputs } from '../../store/routeMap'
 import { freeLinePoints, pointAlong } from './freeLine'
 import { RouteBends } from './RouteBends'
-import { useIsMobile } from '../../ui/media'
+import { useCanvasTheme, useIsMobile } from '../../ui/media'
 import { useLod } from '../lod'
 import { useEdgeActivityOpacity } from '../frames/useActivityTint'
 import { MAX_PLAYBACK_TOKENS } from './playback-caps'
 import { useHeldBadgeBudget, usePlaybackTravelBudget } from './playbackBudget'
-import { badgeText, labelUnderToken } from './playbackBadge'
+import { type BadgePlace, badgeBoxAt, badgeText, badgeWidth, labelUnderToken } from './playbackBadge'
+import { badgeClearOfEnds } from './badgePlan'
+import { badgePlaces, nodeBodyBox } from './badgePlanCache'
 import { PlaybackBadge } from './PlaybackBadgeView'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useId, useLayoutEffect, useRef, useState } from 'react'
 import type { LoopEdgeData } from '../../model/types'
 import { canonicalNumber } from '../../model/expr'
 import { parseActivatorExpr, parseFlow, resolveParamRhs, type StateEvent } from '../../engine'
 import { EDGE_MARKER } from './EdgeMarkers'
-import { accentMarkerId } from '../../ui/flowColour'
+import { accentMarkerId, runNeedsCase } from '../../ui/flowColour'
 import { readAccent } from '../../model/model'
 import { Icon } from '../../ui/icons'
 
@@ -84,6 +86,30 @@ function rmEmitTriangle(sx: number, sy: number, tx: number, ty: number): string 
   const br = [sx + Math.cos(ang - 2.5) * 4.5, sy + Math.sin(ang - 2.5) * 4.5]
   return `${tip[0]},${tip[1]} ${bl[0]},${bl[1]} ${br[0]},${br[1]}`
 }
+
+/** docs/flow-colour-and-compact-nodes.md FC-4.3 — the neutral case of a path
+ *  signal whose colour is under 3:1 on this theme's canvas: a line drawn under
+ *  the signal, a little wider than it, with the signal's own width cut out of
+ *  it, so only a thin rim shows on each side and the colour itself (drawn
+ *  translucent) is never greyed. `kind` picks the signal's width (index.css). */
+function RunCasePath({ d, kind }: { d: string; kind: 'path' | 'flash' | 'l0' | 'pulse' }) {
+  const mask = `run-case-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`
+  return (
+    <g className={`run-case run-case--${kind}`} aria-hidden="true">
+      <mask id={mask} maskUnits="userSpaceOnUse" x="-1000000" y="-1000000" width="2000000" height="2000000">
+        <path className="run-case__outer" d={d} />
+        <path className="run-case__inner" d={d} />
+      </mask>
+      <path className="run-case__rim" d={d} mask={`url(#${mask})`} />
+    </g>
+  )
+}
+
+/** the case of a ring cue: the same ring under it, wider, in the neutral case
+ *  colour, playing the same keyframes (index.css) */
+const RunCaseRing = ({ role, cx, cy, r }: { role: string; cx: number; cy: number; r: string }) => (
+  <circle className={`run-case-ring run-case-ring--${role}`} cx={cx} cy={cy} r={r} aria-hidden="true" />
+)
 
 /** §L9.3 - an edge label's text together with what KIND of text it is. The two
  *  are one value so a branch cannot set the text and forget the kind. */
@@ -171,7 +197,8 @@ function LoopEdge({
   // no second copy of the 0.45 threshold. At L0 the sub-pixel travelling dot is
   // elided, the ordered depart / path-pulse / arrive cues still play, and
   // `settle` still commits.
-  const atL0 = useLod() === 'L0'
+  const lod = useLod()
+  const atL0 = lod === 'L0'
 
   const d = (data as LoopEdgeData | undefined) ?? FALLBACK
   const isState = d.kind === 'state'
@@ -331,7 +358,7 @@ function LoopEdge({
   const pbToken = pbCueOn && !atL0 && (pbTier !== 'veryFast' || pbArriving)
   const pbFrac = pbTier === 'veryFast' ? 1 : travelFraction(pbLocalTau)
   const pbPt = pbToken ? pointOnPath(path, pbFrac) : null
-  const pbBadgeOn = pbPt != null && (pbTier === 'full' || pbArriving)
+  const pbBadgeWanted = pbPt != null && (pbTier === 'full' || pbArriving)
   // the very fast tier's path flash, from the edge's onset to its arrive beat
   const pbFlash = pbCueOn && pbTier === 'veryFast' && !pbArriving
   // issue #330 PR 1 — past the cap a moved edge keeps its arrival cue
@@ -343,6 +370,25 @@ function LoopEdge({
   const sourceIsGate = gNodes.some((n) => n.id === source && n.data.kind === 'gate')
   const pbPathOn = pbMoves && (sourceIsGate || !pbInCap || pbFlash)
   const pbBadge = badgeText(pbFlow)
+  // docs/simulation-playback.md §PB4.8 ("T3 without tail", 2026-10-13) — at
+  // L2, the full tier's travelling badge sits in ONE of four places beside its
+  // token, the place this connection's plan gives (./badgePlanCache), read
+  // once when the step starts and kept for the whole step; and it is shown only
+  // while its whole box is clear of BOTH end bodies, tested on the exact
+  // geometry every frame. L1, the fast tiers' arrival badge and the
+  // reduced-motion static badge keep their place and their showing.
+  const t3 = pbPt != null && pbTier === 'full' && lod === 'L2'
+  const planRef = useRef<{ step: number; place: BadgePlace } | null>(null)
+  if (t3 && planRef.current?.step !== transition!.fromStep) {
+    planRef.current = { step: transition!.fromStep, place: badgePlaces(gNodes, gEdges, gen.map).get(id) ?? 'up-right' }
+  }
+  const badgePlace: BadgePlace = t3 ? planRef.current!.place : 'up-right'
+  const t3Bodies = t3 ? [gNodes.find((n) => n.id === source), gNodes.find((n) => n.id === target)].map((n) => (n ? nodeBodyBox(n) : null)) : null
+  const t3Clear =
+    !t3 ||
+    t3Bodies!.some((b) => b == null) ||
+    badgeClearOfEnds(badgeBoxAt(pbPt!.x, pbPt!.y, badgeWidth(pbBadge), badgePlace), t3Bodies![0]!, t3Bodies![1]!)
+  const pbBadgeOn = pbBadgeWanted && t3Clear
   const pbAll = selected && transition && !isState ? transition.events.filter((e) => e.edgeId === id) : []
   const pbBreakdown = pbAll.slice(0, MAX_PLAYBACK_TOKENS)
   const pbBreakdownRest = pbAll.length - pbBreakdown.length
@@ -396,6 +442,7 @@ function LoopEdge({
   // issue #344 step 3 — the bend handles of a selected Manual orthogonal
   // connection: desktop only, never under the edit lock
   const isMobile = useIsMobile()
+  const canvasTheme = useCanvasTheme()
   const locked = useUiStore((s) => s.canvasLocked)
   const bends = routeMode === 'orthogonal' && Array.isArray(d.waypoints) ? d.waypoints : null
   const editsBends = selected && route != null && !isMobile && !locked && bends != null && bends.length > 0
@@ -437,18 +484,28 @@ function LoopEdge({
   }, [labelKey, reportsRestSize, id])
   const labelBox = showLabel && labelSize ? { x: labelX, y: labelY, ...labelSize } : null
   const labelDimmed =
-    (pbPt != null && labelUnderToken(labelBox, pbPt.x, pbPt.y, pbBadgeOn ? pbBadge : null)) ||
+    (pbPt != null && labelUnderToken(labelBox, pbPt.x, pbPt.y, pbBadgeOn ? pbBadge : null, badgePlace)) ||
     (rmBadgePt != null && labelUnderToken(labelBox, rmBadgePt.x, rmBadgePt.y, badgeText(rmBadgeAmount), 'left'))
 
-  // docs/flow-colour-and-compact-nodes.md FC-4.2 — the edge's flow colour is
-  // its REST colour: a satisfied activator keeps the run signal over it, and a
-  // selection no longer recolours anything (the underlay below shows it), so a
-  // selected edge keeps its colour, flow or default.
+  // docs/flow-colour-and-compact-nodes.md FC-4.2 / FC-4.3 — the edge's flow
+  // colour is its colour at rest AND in a run: a satisfied activator keeps it
+  // (told by weight, opacity and the label), only an uncoloured one takes the
+  // run colour; a selection no longer recolours anything (the underlay below
+  // shows it), so a selected edge keeps its colour, flow or default.
   const accent = readAccent((d as { accent?: unknown }).accent)
   const baseStroke =
-    activatorOn === true
-      ? 'var(--signal-primary)'
-      : accent ?? (isState ? 'var(--edge-state)' : 'var(--edge-resource)')
+    accent ??
+    (activatorOn === true ? 'var(--signal-primary)' : isState ? 'var(--edge-state)' : 'var(--edge-resource)')
+  // FC-4.3 — this connection's run signals (path highlight, token, badge
+  // border, rings, pulses, reduced-motion tells, state bead) read `--edge-run`;
+  // without a flow colour they fall back to the default run colour (index.css).
+  // A colour under 3:1 on this theme's canvas gets a thin neutral case behind
+  // each signal (`data-run-case`, and a copy of each path and ring drawn under
+  // it); the colour itself is never changed.
+  const runCase = accent != null && runNeedsCase(accent, canvasTheme)
+  const runAttrs = accent
+    ? { style: { ['--edge-run' as string]: accent }, ...(runCase ? { 'data-run-case': '' } : null) }
+    : {}
 
   // §VL6 — the renderer owns the direction marker (see EdgeMarkers.tsx); it is
   // always drawn and tracks the edge class (or its flow colour) so the arrow is
@@ -538,6 +595,9 @@ function LoopEdge({
           travelling bead — shown while the transition is in flight AND held
           after settle (keyed on the committed step), cleared on Reset / edit.
           Trigger / label only; an activator shows as the persistent tint. */}
+      {isState && sv && (sv.kind === 'trigger' || sv.kind === 'label') && rm && running && runCase && !(sv.kind === 'trigger' && !sv.applied) ? (
+        <RunCasePath key={`spc-${id}-${stepIndex}`} d={path} kind="pulse" />
+      ) : null}
       {isState && sv && (sv.kind === 'trigger' || sv.kind === 'label') && rm && running ? (
         <path
           key={`sp-${id}-${stepIndex}`}
@@ -545,6 +605,7 @@ function LoopEdge({
           data-playback-phase={stPhase ?? undefined}
           d={path}
           fill="none"
+          {...runAttrs}
         />
       ) : null}
 
@@ -561,6 +622,7 @@ function LoopEdge({
               className={`state-move state-move--trigger${stv.applied ? '' : ' state-move--blocked'}`}
               data-playback-phase={stPhase ?? undefined}
               transform={`translate(${stPt.x} ${stPt.y})`}
+              {...runAttrs}
             >
               <circle className="state-move__bead" r={stv.applied ? 4 : 3.4} />
             </g>
@@ -571,6 +633,7 @@ function LoopEdge({
               className={`state-move state-move--label state-move--${stv.delta > 0 ? 'in' : 'out'}`}
               data-playback-phase={stPhase ?? undefined}
               transform={`translate(${stPt.x} ${stPt.y})`}
+              {...runAttrs}
             >
               <circle className="state-move__bead" r="3.4" />
               <text className="state-move__n" dy="-8">
@@ -579,6 +642,9 @@ function LoopEdge({
             </g>
           ) : null}
           {/* activator: no travel — a target-side cue on the arrive / settle beat */}
+          {stv.kind === 'activator' && stTargetPt && stv.satisfied && runCase ? (
+            <RunCaseRing role="activator" cx={stTargetPt.x} cy={stTargetPt.y} r="6" />
+          ) : null}
           {stv.kind === 'activator' && stTargetPt ? (
             <circle
               className={`state-cue state-cue--activator${stv.satisfied ? ' is-on' : ''}`}
@@ -586,6 +652,7 @@ function LoopEdge({
               cx={stTargetPt.x}
               cy={stTargetPt.y}
               r="6"
+              {...runAttrs}
             />
           ) : null}
         </>
@@ -599,16 +666,19 @@ function LoopEdge({
           arrive cues below still play in order (§PB4.4). */}
       {/* issue #330 PR 1 — the path highlight under the token: a Gate output
           that moved this step, or any moved edge past the 24 pairs */}
+      {pbPathOn && runCase ? <RunCasePath d={path} kind={pbFlash ? 'flash' : 'path'} /> : null}
       {pbPathOn ? (
         <path
           className={`pb-path${sourceIsGate ? ' pb-path--gate' : ''}${pbInCap ? '' : ' pb-path--over-cap'}${pbFlash ? ' pb-path--flash' : ''}`}
           data-playback-phase={pbLocalPhase ?? undefined}
           d={path}
           fill="none"
+          {...runAttrs}
         />
       ) : null}
       {/* arrive: an INWARD collapse onto the target — `converge`, or `absorb`
           (inward + dissolve) into a Drain / End (§PBO3); past the cap too */}
+      {pbArriveOn && pbEndPt && runCase ? <RunCaseRing role={arriveCueRole} cx={pbEndPt.x} cy={pbEndPt.y} r="6" /> : null}
       {pbArriveOn && pbEndPt ? (
         <circle
           className={`pb-cue pb-cue--arrive pb-cue--${arriveCueRole}`}
@@ -617,12 +687,16 @@ function LoopEdge({
           cx={pbEndPt.x}
           cy={pbEndPt.y}
           r="6"
+          {...runAttrs}
         />
       ) : null}
       {pbCueOn ? (
         <>
           {/* emit: an OUTWARD burst at the source handle (§PBO3); not drawn on
               the phone profile (issue #330 PR 3, docs/mobile.md §MV4) */}
+          {pbLocalPhase === 'depart' && transition?.profile !== 'phone' && runCase ? (
+            <RunCaseRing role="emit" cx={sourceX} cy={sourceY} r="6" />
+          ) : null}
           {pbLocalPhase === 'depart' && transition?.profile !== 'phone' ? (
             <circle
               className="pb-cue pb-cue--depart"
@@ -631,15 +705,18 @@ function LoopEdge({
               cx={sourceX}
               cy={sourceY}
               r="6"
+              {...runAttrs}
             />
           ) : null}
           {/* travel, L0 only: a directional path pulse in place of the dot */}
+          {pbLocalPhase === 'travel' && atL0 && runCase ? <RunCasePath d={path} kind="l0" /> : null}
           {pbLocalPhase === 'travel' && atL0 ? (
             <path
               className="pb-l0-pulse"
               data-playback-phase="travel"
               d={path}
               fill="none"
+              {...runAttrs}
             />
           ) : null}
           {pbToken && pbPt ? (
@@ -649,6 +726,7 @@ function LoopEdge({
               }`}
               data-playback-phase={pbLocalPhase}
               transform={`translate(${pbPt.x} ${pbPt.y})`}
+              {...runAttrs}
             >
               <circle className="flow-bead" r="3.6" />
             </g>
@@ -662,7 +740,8 @@ function LoopEdge({
           once" — not padded). `data-playback-phase` still tracks the live beat.
           Clears on settle; the held post-settle pulse below takes over. */}
       {transition && !isState && pbFlow > 0 && rm && travelBudget.has(id) ? (
-        <g key={`pbrm-${id}-${transition.fromStep}`} data-playback-phase={pbLocalPhase ?? undefined}>
+        <g key={`pbrm-${id}-${transition.fromStep}`} data-playback-phase={pbLocalPhase ?? undefined} {...runAttrs}>
+          {runCase ? <RunCasePath d={path} kind="pulse" /> : null}
           <path
             className="flow-edge-pulse"
             data-playback-phase={pbLocalPhase ?? undefined}
@@ -678,8 +757,10 @@ function LoopEdge({
           §PBO4 — the role tell (emit ▸ / converge ▪ / absorb ◌) is a static
           SVG shape, distinct by geometry, held for the whole committed step. */}
       {rmHeldPulse && transition == null ? (
-        <g key={`p-${id}-${stepIndex}`}>
+        <g key={`p-${id}-${stepIndex}`} {...runAttrs}>
+          {runCase ? <RunCasePath d={path} kind="pulse" /> : null}
           <path className="flow-edge-pulse" d={path} fill="none" />
+          {targetIsSink && runCase ? <RunCaseRing role="rm-absorb" cx={targetX} cy={targetY} r="4.5" /> : null}
           <polygon
             className="pb-rm-tell pb-rm-tell--emit"
             data-cue-role="emit"
@@ -716,9 +797,11 @@ function LoopEdge({
             edgeId={id}
             amount={pbPt ? pbBadge : badgeText(rmBadgeAmount)}
             at={(pbPt ?? rmBadgePt)!}
-            side={pbPt ? 'right' : 'left'}
+            side={pbPt ? badgePlace : 'left'}
             dimmed={outOfFocus}
             kind={pbPt ? 'travel' : 'static'}
+            colour={accent}
+            cased={runCase}
           />
         </EdgeLabelRenderer>
       ) : null}

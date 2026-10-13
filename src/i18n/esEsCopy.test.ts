@@ -124,6 +124,11 @@ describe('es-ES — the region audit, as a contract', () => {
         'storage.delete.workKeepsTemporary',
         'storage.mode.temporary',
         'whatsNew.v0160.temporary',
+        // 0.26.2 - the run-colour line in the `usted` register (`ha elegido`
+        // where es-419 says `elegiste`) and the selection line's `añadir`
+        // (es-419 `agregar`); the other two lines read the same in both
+        'whatsNew.v0262.runColour',
+        'whatsNew.v0262.selection',
         // issue #300 - the password dialogs: `usted` where es-419 says `tú`
         // (`Envíe`, `Introduzca`, `Compruebe`, `Pida`, `Actualice`), and
         // `gestor de contraseñas` where es-419 says `administrador`

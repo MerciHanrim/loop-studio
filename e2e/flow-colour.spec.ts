@@ -115,6 +115,58 @@ test.describe('flow colour — the Colour section (FC-5)', () => {
     for (const [k, id] of [['nodes', 'src'], ['nodes', 'sink'], ['edges', 'e2']] as const) expect(await accentOf(page, k, id)).toBeNull()
   })
 
+  test('a node added from the palette after dragging another takes the colour; undo takes it back; a later multi-selection still colours all', async ({ page }) => {
+    // found rebuilding a Coffee branch by hand (2026-10-13): the drag left the
+    // Pool marked, the Inspector showed the new Drain, and the swatch coloured
+    // the Pool
+    await load(page)
+    const box = (await node(page, 'gold').boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2 + 120, { steps: 12 })
+    await page.mouse.up()
+    const before = await page.evaluate(() => (window as any).__loop.graph.getState().nodes.map((n: { id: string }) => n.id))
+    await page.locator('.palette-item').nth(2).click() // Drain
+    const added = await page.evaluate((b4) => (window as any).__loop.graph.getState().nodes.find((n: { id: string }) => !b4.includes(n.id)).id, before)
+    await expect(page.locator('.inspector').getByRole('textbox', { name: 'Label', exact: true })).toHaveValue(/Drain/)
+    await swatch(page, 'Gold').click()
+    expect(await accentOf(page, 'nodes', added)).toBe('#A78243')
+    expect(await accentOf(page, 'nodes', 'gold')).toBeNull()
+    await page.getByRole('button', { name: /^Undo/ }).click()
+    expect(await accentOf(page, 'nodes', added)).toBeNull()
+    expect(await accentOf(page, 'nodes', 'gold')).toBeNull()
+    // multi-selection is as before: Ctrl-click two nodes, one swatch colours both
+    await node(page, 'src').click()
+    await node(page, 'sink').click({ modifiers: ['Control'] })
+    await swatch(page, 'Violet').click()
+    expect(await accentOf(page, 'nodes', 'src')).toBe('#9182A8')
+    expect(await accentOf(page, 'nodes', 'sink')).toBe('#9182A8')
+    expect(await accentOf(page, 'nodes', added)).toBeNull()
+  })
+
+  test('the keyboard neighbour walk moves the whole selection: Inspector, marks and the colour all go to the neighbour', async ({ page }) => {
+    await load(page)
+    await node(page, 'gold').click() // A, by a click: React Flow marks it
+    await page.mouse.move(5, 5)
+    await expect(node(page, 'gold')).toHaveClass(/selected/)
+    await page.keyboard.press(']') // §LGR4.3 — to Gold's first neighbour by id
+    const label = page.locator('.inspector').getByRole('textbox', { name: 'Label', exact: true })
+    await expect(label).not.toHaveValue('Gold')
+    const shown = await label.inputValue()
+    const b = await page.evaluate((l) => (window as any).__loop.graph.getState().nodes.find((n: { data: { label: string } }) => n.data.label === l).id, shown)
+    const marked = () => page.evaluate(() => [...document.querySelectorAll('.react-flow__node.selected')].map((n) => n.getAttribute('data-id')))
+    await swatch(page, 'Gold').click()
+    expect(await accentOf(page, 'nodes', b)).toBe('#A78243')
+    expect(await accentOf(page, 'nodes', 'gold')).toBeNull()
+    expect(await marked()).toEqual([b])
+    // pressed again, the walk still rotates through Gold's neighbours, the marks with it
+    await page.keyboard.press(']')
+    await expect(label).not.toHaveValue(shown)
+    const c = await page.evaluate((l) => (window as any).__loop.graph.getState().nodes.find((n: { data: { label: string } }) => n.data.label === l).id, await label.inputValue())
+    expect(c).not.toBe('gold')
+    expect(await marked()).toEqual([c])
+  })
+
   test('the browser colour input applies on its real change only (condition 4)', async ({ page }) => {
     await load(page)
     await node(page, 'gold').click()

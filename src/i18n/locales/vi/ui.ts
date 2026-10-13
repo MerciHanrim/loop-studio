@@ -596,6 +596,10 @@ const ui = {
   'whatsNew.v0260.notices': 'Thông báo dưới thanh công cụ. Thông báo cập nhật và gợi ý lần đầu nay nằm trên một dải dưới thanh công cụ thay vì đè lên sơ đồ, và sơ đồ không dịch chuyển khi chúng xuất hiện hay đóng lại.',
   'whatsNew.v0260.currentAmount': 'Lượng hiện tại của Bể chứa trong Bảng thuộc tính. Bên cạnh lượng ban đầu, một ô chỉ đọc cho biết Bể chứa đang chứa bao nhiêu, kể cả trên điện thoại.',
   'whatsNew.v0260.templates': 'Mẫu được bố trí lại. Xưởng rang cà phê và so sánh banner gacha ba vùng được bố trí lại cho các nút mới; tiền của xưởng rang cà phê nay đọc theo đô la mỗi ngày.',
+  'whatsNew.v0262.runColour': 'Tín hiệu chạy giờ dùng màu bạn đã chọn. Khi một bước đang phát, liên kết có màu đã chọn vẽ dấu chuyển động, phần làm nổi đường đi, các vòng, viền của huy hiệu +N và các dấu khi giảm chuyển động bằng màu đó, còn nút có màu đã chọn hiển thị dấu chạy của chính nó bằng màu của nó. Những gì chưa chọn màu vẫn giữ màu chạy thông thường.',
+  'whatsNew.v0262.lightColour': 'Màu đã chọn có độ tương phản quá thấp so với giao diện hiện tại vẫn giữ nguyên màu; tín hiệu chạy của nó có thêm một viền xám mảnh để nổi bật trên nền.',
+  'whatsNew.v0262.badgePlace': 'Khi phóng to đủ để thấy nhãn của các liên kết, huy hiệu +N chuyển động giữ một vị trí bên cạnh dấu của nó trong suốt bước; vị trí này được chọn để giúp huy hiệu của các liên kết cùng rời một nút tách xa nhau, và huy hiệu chỉ hiện khi không chạm vào các nút ở hai đầu. Khi thu nhỏ hơn, và ở các tốc độ nhanh hơn, huy hiệu hiện như trước.',
+  'whatsNew.v0262.selection': 'Màu chọn trong Bảng thuộc tính giờ được áp dụng cho nút mà Bảng thuộc tính đang hiển thị, kể cả ngay sau khi bạn kéo một nút rồi thêm nút khác từ thanh công cụ, hoặc sau khi chuyển sang nút kề bên bằng ] hoặc [.',
 } satisfies Record<UiKey, string>
 
 export default ui
