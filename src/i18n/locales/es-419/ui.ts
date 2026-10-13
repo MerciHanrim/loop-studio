@@ -594,6 +594,10 @@ const ui = {
   'whatsNew.v0260.notices': 'Avisos debajo de la barra de herramientas. El aviso de actualización y las sugerencias de la primera vez ahora aparecen en una franja debajo de la barra de herramientas, no sobre el diagrama, y el diagrama no se mueve cuando aparecen o se cierran.',
   'whatsNew.v0260.currentAmount': 'La cantidad actual de un Depósito en Propiedades. Junto a la cantidad inicial, un campo de solo lectura muestra cuánto contiene el Depósito en este momento, también en el teléfono.',
   'whatsNew.v0260.templates': 'Plantillas reubicadas. La tostaduría de café y la comparación de 3 zonas se volvieron a distribuir para los nuevos nodos; el dinero de la tostaduría ahora se lee en dólares por día.',
+  'whatsNew.v0262.runColour': 'Las señales de ejecución usan los colores que elegiste. Mientras se reproduce un paso, una conexión con un color elegido dibuja en ese color su marca en movimiento, el resaltado de su camino, sus anillos, el borde de su insignia +N y sus marcas con movimiento reducido, y un nodo con un color elegido muestra sus propias marcas de ejecución en su color. Lo que no tiene un color elegido conserva el color de ejecución habitual.',
+  'whatsNew.v0262.lightColour': 'Un color elegido con poco contraste para el tema actual conserva su color; sus señales de ejecución reciben un borde gris fino para que se distingan del fondo.',
+  'whatsNew.v0262.badgePlace': 'Cuando el zoom es suficiente para ver las etiquetas de las conexiones, la insignia +N en movimiento conserva un mismo lugar junto a su marca durante todo el paso, un lugar elegido para ayudar a que las insignias de las conexiones que salen juntas de un nodo queden separadas, y solo aparece mientras no toca los nodos de ambos extremos. Con menos zoom, y en las velocidades más rápidas, la insignia aparece como antes.',
+  'whatsNew.v0262.selection': 'Un color elegido en Propiedades ahora se aplica al nodo que muestra Propiedades, también justo después de arrastrar un nodo y agregar otro desde la barra de herramientas, o después de pasar a un vecino con ] o [.',
 } as const
 
 export type UiKey = keyof typeof ui

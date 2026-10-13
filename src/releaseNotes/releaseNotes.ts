@@ -39,6 +39,18 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // run signals in the colour of their own node or connection, the neutral
+    // case for a colour short of contrast, the L2 travelling badge's own place
+    // (§PB4.8: L2 only; fan separation a plan, not a guarantee), and the
+    // colour going to the node the Inspector shows (share connection-editing-2
+    // notes 33–38); the date is the day it is deployed, set right before the
+    // merge
+    id: 'release:0.26.2',
+    version: '0.26.2',
+    date: '2026-10-13',
+    items: ['whatsNew.v0262.runColour', 'whatsNew.v0262.lightColour', 'whatsNew.v0262.badgePlace', 'whatsNew.v0262.selection'],
+  },
+  {
     // the node structure (share connection-editing-2, 2026-10-12) - the compact
     // node with its name outside, four-side ports (with the older-version
     // compatibility note), the notice rail, the Pool's current amount and the

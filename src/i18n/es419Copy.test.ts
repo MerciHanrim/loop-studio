@@ -292,7 +292,7 @@ describe('es-419 copy — mechanical review', () => {
       Mac: ['hint.frameMove.body'], // issue #344 — Ctrl / ⌘ moves a frame alone
       Cmd: ['toolbar.undo.title', 'toolbar.redo.title'],
       Z: ['toolbar.undo.title', 'toolbar.redo.title'],
-      N: ['import.ignoreLastRows', 'import.issue.invalid-ignore-rows', 'import.issue.ragged-row', 'whatsNew.v0220.badge', 'whatsNew.v0240.tiers'],
+      N: ['import.ignoreLastRows', 'import.issue.invalid-ignore-rows', 'import.issue.ragged-row', 'whatsNew.v0220.badge', 'whatsNew.v0240.tiers', 'whatsNew.v0262.badgePlace', 'whatsNew.v0262.runColour'],
       // the sample CSV's own column headers, shown as data
       item: ['import.qs.mapping'],
       name: ['import.qs.mapping'],

@@ -140,7 +140,29 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.26.0
+## Latest — v0.26.2
+
+Playback in your own colours, and the moving `+N` badges kept off the nodes they travel
+between.
+
+- **Run signals in the chosen colours**: while a step plays, a connection with a chosen colour
+  draws its moving marker, path highlight, rings, `+N` badge border and reduced-motion marks
+  in that colour, and a node with a chosen colour shows its own run marks in its colour;
+  anything without one keeps the usual run colour
+- **Light colours stay visible**: a chosen colour with too little contrast for the current
+  theme keeps its colour, and its run signals get a thin grey edge
+- **The `+N` badge in its own place**: zoomed in far enough to see the connection labels, the
+  moving badge keeps one place beside its marker for the whole step, picked to help the badges
+  of connections that leave a node together stay apart, and shows only while it is clear of
+  the nodes at both ends; zoomed out further, and at the faster speeds, it shows as before
+- **The colour goes where the Inspector points**: after dragging a node and adding another
+  from the toolbar, or stepping to a neighbour with `]` / `[`, a picked colour goes to the node
+  the Inspector shows
+
+The badges of two connections that leave a node together can still meet briefly when they
+start at different moments, and amounts at the middle zoom level are not yet easier to read.
+
+## v0.26.0
 
 A new node: a compact body with its role and value inside and its name just outside, so the
 size of a node no longer depends on the length of a translation.
@@ -191,19 +213,8 @@ Playback speed changes what a step draws, and the phone gets a speed choice of i
 - **Fewer moving markers on the phone**: at most 12 a step, and no departure ring; every
   other move keeps its highlighted path and arrival
 
-## v0.23.0
-
-Playback shows what happens inside the nodes: a Pool lights up as a marker arrives, and a
-Converter shows that it converts.
-
-- **The Pool lights up on arrival**: when a moving marker reaches a Pool, the inside of the
-  Pool briefly glows, under its title and value; the number still changes when the step ends
-- **A conversion mark inside the Converter**: while a Converter's markers move, a small
-  two-arrow mark shows inside it, at a spot clear of its text, and fades when the step ends
-- **Never faded by Focus mode**: both stay at full strength in nodes outside the focus; with
-  reduced motion they stay still for the step, and in forced colours the glow is a thin line
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.22.0 (the
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.23.0 (a Pool
+lights up as a marker arrives and a Converter shows that it converts), v0.22.0 (the
 Gate's path lights up and a `+N` rides beside every moving marker), v0.21.4 (the
 canvas controls keep their place while editing is locked), v0.21.3 (the edit
 lock is exact, and its button shows the state), v0.21.2 (values

@@ -649,6 +649,10 @@ const ui = {
   'whatsNew.v0260.notices': 'Araç çubuğunun altındaki bildirimler. Güncelleme bildirimi ve ilk kullanım ipuçları artık diyagramın üstünde değil, araç çubuğunun altındaki bir şeritte görünür; belirdiklerinde ya da kapandıklarında diyagram yerinden oynamaz.',
   'whatsNew.v0260.currentAmount': 'İnceleyici’de bir Havuzun güncel miktarı. Başlangıç miktarının yanında salt okunur bir alan, Havuzun şu anda tuttuğu miktarı gösterir; telefonda da görünür.',
   'whatsNew.v0260.templates': 'Yeniden yerleştirilen şablonlar. Kahve kavurma atölyesi ve üç bölgeli gacha afiş karşılaştırması yeni düğümlere göre yeniden düzenlendi; kahve kavurma atölyesinin parası artık günlük dolar olarak okunur.',
+  'whatsNew.v0262.runColour': 'Çalışma işaretleri artık seçtiğiniz renkleri kullanır. Bir adım oynatılırken, rengi seçilmiş bir bağlantı hareket eden işaretini, yol vurgusunu, halkalarını, +N rozetinin kenarını ve azaltılmış hareket işaretlerini o renkte çizer; rengi seçilmiş bir düğüm de kendi çalışma işaretlerini kendi renginde gösterir. Rengi seçilmemiş öğeler alışılmış çalışma rengini korur.',
+  'whatsNew.v0262.lightColour': 'Geçerli tema için kontrastı yetersiz olan seçili bir renk kendi rengini korur; çalışma işaretlerine arka plandan ayrılmaları için ince gri bir kenar eklenir.',
+  'whatsNew.v0262.badgePlace': 'Bağlantı etiketlerini görecek kadar yakınlaştırdığınızda hareket eden +N rozeti, adım boyunca işaretinin yanında tek bir yerde kalır; bu yer, bir düğümden birlikte çıkan bağlantıların rozetlerinin ayrı durmasına yardım edecek şekilde seçilir ve rozet yalnızca iki uçtaki düğümlere değmediği sürece görünür. Daha fazla uzaklaştırdığınızda ve daha hızlı hızlarda rozet eskisi gibi görünür.',
+  'whatsNew.v0262.selection': 'İnceleyici’de seçilen renk artık İnceleyici’nin gösterdiği düğüme uygulanır; bir düğümü sürükleyip hemen ardından araç çubuğundan başka bir düğüm eklediğinizde ya da ] veya [ ile bir komşuya geçtiğinizde de böyledir.',
 } as const
 
 export type UiKey = keyof typeof ui

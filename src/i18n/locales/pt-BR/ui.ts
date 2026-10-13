@@ -596,6 +596,10 @@ const ui = {
   'whatsNew.v0260.notices': 'Avisos abaixo da barra de ferramentas. O aviso de atualização e as dicas da primeira vez agora ficam em uma faixa abaixo da barra de ferramentas, não sobre o diagrama, e o diagrama não se move quando eles aparecem ou fecham.',
   'whatsNew.v0260.currentAmount': 'A quantidade atual de um Reservatório no Inspetor. Ao lado da quantidade inicial, um campo apenas de leitura mostra quanto o Reservatório contém agora, também no telefone.',
   'whatsNew.v0260.templates': 'Modelos reposicionados. A torrefação de café e a comparação de banners gacha de três zonas foram redistribuídas para os novos nós; o dinheiro da torrefação agora se lê em dólares por dia.',
+  'whatsNew.v0262.runColour': 'Os sinais de execução usam as cores que você escolheu. Enquanto um passo é reproduzido, uma conexão com uma cor escolhida desenha nessa cor sua marca em movimento, o destaque do seu caminho, seus anéis, a borda do seu indicador +N e suas marcas com movimento reduzido, e um nó com uma cor escolhida mostra suas próprias marcas de execução na sua cor. O que não tem cor escolhida mantém a cor de execução de sempre.',
+  'whatsNew.v0262.lightColour': 'Uma cor escolhida com pouco contraste para o tema atual mantém a cor, e os sinais de execução ganham um contorno fino de cor neutra para se destacarem do fundo.',
+  'whatsNew.v0262.badgePlace': 'Quando o zoom é suficiente para ver os rótulos das conexões, o indicador +N em movimento mantém um mesmo lugar ao lado da sua marca durante todo o passo, um lugar escolhido para ajudar os indicadores das conexões que saem juntas de um nó a ficarem separados, e ele só aparece enquanto não toca os nós das duas pontas. Com menos zoom, e nas velocidades mais rápidas, o indicador aparece como antes.',
+  'whatsNew.v0262.selection': 'Uma cor escolhida no Inspetor agora vale para o nó que o Inspetor mostra, também logo depois de arrastar um nó e adicionar outro pela barra de ferramentas, ou depois de passar para um nó vizinho com ] ou [.',
 } as const
 
 export type UiKey = keyof typeof ui
