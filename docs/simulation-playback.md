@@ -447,6 +447,24 @@ changes.
   placed member by member. The plan is kept until the layout changes, and a
   connection keeps the place it had at the start of a step for the whole step:
   a badge never changes place while it moves.
+- **The plan's cost.** It is made inside the render of the first step that
+  needs it, so it must stay small: the routes are sampled every 2 px along
+  their length in script (`pathSample.ts`, the browser's own arc length; the
+  count of points from one `getTotalLength` per route), not with one
+  `getPointAtLength` per point, and a fan's badge meetings are counted once per
+  pair of members and pair of places, then summed for each combination (every
+  combination is still tried, in the same order). Measured on the Early MMO
+  progression (117 connections), first L2 step: one plan, 1.7 s with a DOM call
+  per point, 27 ms now (development build); production build, the first Step
+  at L2, 1.5–1.6 s → 61–63 ms. These are measurements, not a bound: the plan
+  still blocks a render once per layout, and a larger document costs more.
+  The pair count is the same arithmetic as before; the sampling is not: its
+  points are within 0.043 px of `getPointAtLength` on the routes checked, so
+  a badge box that lies exactly on another box's edge could fall on the other
+  side. On the 30 layouts checked (the 12 example graphs with connections,
+  and for the six with orthogonal routes, each as automatic curves, as
+  straight lines and with a user bend) every connection got the place the
+  DOM-sampled plan gave it.
 - **Shown only while its whole box is clear of both end bodies.** Tested every
   frame on the exact geometry (the token's point on the drawn path, the badge's
   box at its place, each end node's body box), never on a sampled route: the

@@ -11,6 +11,7 @@ import type { PortFace } from '../../model/types'
 import { layoutSignature, nameFootprintsOf, portPoint, type RoutedEdge } from '../../store/routeMap'
 import { planBadgePlaces, type PlanEdge, type PlanMark } from './badgePlan'
 import { badgeWidth, type BadgePlace, type Box } from './playbackBadge'
+import { samplePath } from './pathSample'
 
 /** route sampling step, flow px */
 const STEP = 2
@@ -27,6 +28,9 @@ export const nodeBodyBox = (n: LoopNode): Box | null => {
 }
 
 let sampler: SVGPathElement | null = null
+/** the route at equal steps along its length: the browser's length (one call)
+ *  sets the count, the points are computed in script (pathSample.ts); a path
+ *  the script does not read is sampled through the DOM, point by point */
 function sample(d: string): { x: number; y: number }[] {
   if (typeof document === 'undefined') return []
   sampler ??= document.createElementNS('http://www.w3.org/2000/svg', 'path')
@@ -37,6 +41,8 @@ function sample(d: string): { x: number; y: number }[] {
   } catch {
     return []
   }
+  const pts = samplePath(d, STEP, len)
+  if (pts) return pts
   const n = Math.max(1, Math.ceil(len / STEP))
   const out: { x: number; y: number }[] = []
   for (let i = 0; i <= n; i++) {
@@ -62,11 +68,10 @@ function pathOf(e: LoopEdge, s: LoopNode, t: LoopNode, map: ReadonlyMap<string, 
 }
 
 let cache: { sig: string; map: ReadonlyMap<string, RoutedEdge>; places: Map<string, BadgePlace> } | null = null
+let plansMade = 0
 
-/** every resource connection's badge place for this layout */
-export function badgePlaces(nodes: LoopNode[], edges: LoopEdge[], map: ReadonlyMap<string, RoutedEdge>): Map<string, BadgePlace> {
-  const sig = layoutSignature(nodes, edges)
-  if (cache && cache.sig === sig && cache.map === map) return cache.places
+/** what a plan reads: the marks, and every resource connection with its path */
+function planInputs(nodes: LoopNode[], edges: LoopEdge[], map: ReadonlyMap<string, RoutedEdge>): { marks: PlanMark[]; plan: (PlanEdge & { d: string })[] } {
   const byId = new Map(nodes.map((n) => [n.id, n]))
   const marks: PlanMark[] = []
   for (const n of nodes) {
@@ -74,7 +79,7 @@ export function badgePlaces(nodes: LoopNode[], edges: LoopEdge[], map: ReadonlyM
     if (b && !n.hidden) marks.push({ ...b, node: n.id, kind: 'body' })
   }
   for (const f of nameFootprintsOf(nodes)) marks.push({ x0: f.name.x, y0: f.name.y, x1: f.name.x + f.name.w, y1: f.name.y + f.name.h, node: f.id, kind: 'name' })
-  const plan: PlanEdge[] = []
+  const plan: (PlanEdge & { d: string })[] = []
   for (const e of edges) {
     if (edgePortKind(e) !== 'resource') continue
     const s = byId.get(e.source)
@@ -84,11 +89,20 @@ export function badgePlaces(nodes: LoopNode[], edges: LoopEdge[], map: ReadonlyM
     if (!s || !t || !sb || !tb) continue
     const d = pathOf(e, s, t, map)
     const pts = d ? sample(d) : []
-    if (pts.length < 2) continue
-    plan.push({ id: e.id, fan: `${e.source}|${faceOf(e, 'source')}`, pts, from: e.source, to: e.target, source: sb, target: tb })
+    if (!d || pts.length < 2) continue
+    plan.push({ id: e.id, fan: `${e.source}|${faceOf(e, 'source')}`, pts, from: e.source, to: e.target, source: sb, target: tb, d })
   }
+  return { marks, plan }
+}
+
+/** every resource connection's badge place for this layout */
+export function badgePlaces(nodes: LoopNode[], edges: LoopEdge[], map: ReadonlyMap<string, RoutedEdge>): Map<string, BadgePlace> {
+  const sig = layoutSignature(nodes, edges)
+  if (cache && cache.sig === sig && cache.map === map) return cache.places
+  const { marks, plan } = planInputs(nodes, edges, map)
   const places = planBadgePlaces(plan, marks, badgeWidth(PLAN_TEXT))
   cache = { sig, map, places }
+  plansMade++
   return places
 }
 
@@ -96,3 +110,11 @@ export function badgePlaces(nodes: LoopNode[], edges: LoopEdge[], map: ReadonlyM
 export function __resetBadgePlan(): void {
   cache = null
 }
+
+/** test seam: how many plans have been made (cache misses) */
+export function __badgePlanCount(): number {
+  return plansMade
+}
+
+/** test seam: the inputs a plan reads, with each connection's path */
+export const __planInputs = planInputs

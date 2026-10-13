@@ -2,8 +2,8 @@
 // badge sits at L2: ONE of four places beside its token, chosen per connection
 // from the layout before a step runs and never changed while the token moves
 // (the approved "T3 without tail", 2026-10-13). Pure geometry in flow px; the
-// caller samples the routes (an SVG path is the only source of a curve's
-// points) and keeps the plan for as long as the layout is unchanged.
+// caller samples the routes (badgePlanCache.ts, pathSample.ts) and keeps the
+// plan for as long as the layout is unchanged.
 
 import { BADGE_PLACES, badgeBoxAt, type BadgePlace, type Box, overlaps } from './playbackBadge'
 
@@ -57,17 +57,51 @@ const better = (a: number[], b: number[]) => {
   return false
 }
 
-function fanCost(members: PlanEdge[], combo: BadgePlace[], scored: Map<string, Scored>[], width: number): number[] {
-  let overlap = 0
-  for (let k = 0; k <= FAN_SAMPLES && members.length > 1; k++) {
-    const boxes = members.map((m, i) => {
-      const s = scored[i]!.get(combo[i]!)!
-      const j = Math.round((k / FAN_SAMPLES) * (m.pts.length - 1))
-      const p = m.pts[j]
-      return p && s.shown[j] ? badgeBoxAt(p.x, p.y, width, combo[i]!) : null
-    })
-    for (let a = 0; a < boxes.length; a++) for (let b = a + 1; b < boxes.length; b++) if (boxes[a] && boxes[b] && overlaps(boxes[a]!, boxes[b]!)) overlap++
+/** a fan's badge-on-badge moments, counted once per pair of members and pair
+ *  of places: `pairs[a][b][pa * 4 + pb]` is how many of the FAN_SAMPLES + 1
+ *  moments member a's shown badge at place pa meets member b's at place pb.
+ *  A combination's count is the sum over its pairs (the same integers the
+ *  moment-by-moment count adds, in another order). */
+function pairOverlaps(members: PlanEdge[], scored: Map<string, Scored>[], width: number): number[][][] {
+  // each member's shown badge box at each place and moment, or null
+  const boxes = members.map((m, i) =>
+    BADGE_PLACES.map((place) => {
+      const s = scored[i]!.get(place)!
+      const out: (Box | null)[] = []
+      for (let k = 0; k <= FAN_SAMPLES; k++) {
+        const j = Math.round((k / FAN_SAMPLES) * (m.pts.length - 1))
+        const p = m.pts[j]
+        out.push(p && s.shown[j] ? badgeBoxAt(p.x, p.y, width, place) : null)
+      }
+      return out
+    }),
+  )
+  const n = BADGE_PLACES.length
+  const pairs: number[][][] = members.map(() => [])
+  for (let a = 0; a < members.length; a++) {
+    for (let b = a + 1; b < members.length; b++) {
+      const table: number[] = []
+      for (let pa = 0; pa < n; pa++) {
+        for (let pb = 0; pb < n; pb++) {
+          let c = 0
+          for (let k = 0; k <= FAN_SAMPLES; k++) {
+            const x = boxes[a]![pa]![k]
+            const y = boxes[b]![pb]![k]
+            if (x && y && overlaps(x, y)) c++
+          }
+          table.push(c)
+        }
+      }
+      pairs[a]![b] = table
+    }
   }
+  return pairs
+}
+
+function fanCost(combo: BadgePlace[], scored: Map<string, Scored>[], pairs: number[][][]): number[] {
+  let overlap = 0
+  const idx = combo.map((p) => BADGE_PLACES.indexOf(p))
+  for (let a = 0; a < combo.length; a++) for (let b = a + 1; b < combo.length; b++) overlap += pairs[a]![b]![idx[a]! * BADGE_PLACES.length + idx[b]!]!
   const covers = combo.reduce((s, p, i) => s + scored[i]!.get(p)!.covers, 0)
   const share = combo.reduce((s, p, i) => s + scored[i]!.get(p)!.share, 0) / combo.length
   return [overlap, covers, -Math.round(share * 1000), combo.filter((p) => p !== 'up-right').length]
@@ -85,12 +119,13 @@ export function planBadgePlaces(edges: PlanEdge[], marks: PlanMark[], width: num
   for (const members of fans.values()) {
     members.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     const scored = members.map((m) => new Map(BADGE_PLACES.map((p) => [p, score(m, p, width, marks)] as const)))
+    const pairs = pairOverlaps(members, scored, width)
     let best: { combo: BadgePlace[]; cost: number[] } | null = null
     if (members.length <= EXHAUSTIVE_MAX) {
       let combos: BadgePlace[][] = [[]]
       for (let i = 0; i < members.length; i++) combos = combos.flatMap((c) => BADGE_PLACES.map((p) => [...c, p]))
       for (const combo of combos) {
-        const cost = fanCost(members, combo, scored, width)
+        const cost = fanCost(combo, scored, pairs)
         if (!best || better(cost, best.cost)) best = { combo, cost }
       }
     } else {
@@ -99,11 +134,11 @@ export function planBadgePlaces(edges: PlanEdge[], marks: PlanMark[], width: num
       for (let pass = 0; pass < 2; pass++) {
         for (let i = 0; i < members.length; i++) {
           let pick = combo[i]!
-          let pickCost = fanCost(members, combo, scored, width)
+          let pickCost = fanCost(combo, scored, pairs)
           for (const p of BADGE_PLACES) {
             const trial = combo.slice()
             trial[i] = p
-            const cost = fanCost(members, trial, scored, width)
+            const cost = fanCost(trial, scored, pairs)
             if (better(cost, pickCost)) { pick = p; pickCost = cost }
           }
           combo[i] = pick
