@@ -17,6 +17,9 @@ function three() {
   const [a, b, c] = S().nodes
   S().onConnect({ source: a!.id, target: b!.id, sourceHandle: 'out', targetHandle: 'in' })
   S().onConnect({ source: b!.id, target: c!.id, sourceHandle: 'out', targetHandle: 'in' })
+  // the last palette add is marked selected; start from nothing marked, as a
+  // click on empty canvas leaves it
+  S().onNodesChange(S().nodes.filter((n) => n.selected).map((n) => ({ id: n.id, type: 'select' as const, selected: false })))
   return { a: a!.id, b: b!.id, c: c!.id, e1: S().edges[0]!.id, e2: S().edges[1]!.id }
 }
 
@@ -125,5 +128,47 @@ describe('accentTargets — condition 1: the selection model is unchanged', () =
     const nodes = S().nodes.map((n) => ({ ...n, selected: true }))
     const edges = S().edges.map((e) => ({ ...e, selected: true }))
     expect(serialize(nodes, edges)).not.toContain('selected')
+  })
+})
+
+describe('a node added from the palette is the selection the colour applies to', () => {
+  const targets = () => accentTargets(S())
+  const marked = () => S().nodes.filter((n) => n.selected).map((n) => n.id)
+
+  it('A dragged (marked) → B added → the colour goes to B, and undo takes it back', () => {
+    S().addNodeAt('pool', { x: 0, y: 0 })
+    const a = S().nodes[0]!.id
+    // a drag leaves React Flow marking the dragged node
+    S().onNodesChange([{ id: a, type: 'select', selected: true }])
+    expect(marked()).toEqual([a])
+    S().addNodeAt('drain', { x: 300, y: 0 })
+    const b = S().nodes[1]!.id
+    expect(S().selectedNodeId).toBe(b)
+    expect(marked()).toEqual([b])
+    expect(targets()).toEqual({ nodeIds: [b], edgeIds: [] })
+    S().setAccent(targets().nodeIds, targets().edgeIds, '#A78243')
+    expect(accentOf(S().nodes.find((n) => n.id === b)!.data)).toBe('#A78243')
+    expect('accent' in S().nodes.find((n) => n.id === a)!.data).toBe(false)
+    S().undo()
+    expect('accent' in S().nodes.find((n) => n.id === b)!.data).toBe(false)
+    S().undo()
+    expect(S().nodes.map((n) => n.id)).toEqual([a])
+  })
+
+  it('a marked connection is cleared too, and a multi-selection made afterwards still colours every member', () => {
+    const { a, b, c, e1 } = three()
+    S().onEdgesChange([{ id: e1, type: 'select', selected: true }])
+    S().addNodeAt('end', { x: 600, y: 0 })
+    const d = S().nodes[3]!.id
+    expect(S().edges.filter((e) => e.selected)).toHaveLength(0)
+    expect(targets()).toEqual({ nodeIds: [d], edgeIds: [] })
+    // Ctrl-click style multi-selection, then one colour for all
+    S().onNodesChange([{ id: a, type: 'select', selected: true }, { id: c, type: 'select', selected: true }, { id: d, type: 'select', selected: false }])
+    S().onEdgesChange([{ id: e1, type: 'select', selected: true }])
+    expect(targets()).toEqual({ nodeIds: [a, c], edgeIds: [e1] })
+    S().setAccent(targets().nodeIds, targets().edgeIds, '#74906B')
+    for (const id of [a, c]) expect(accentOf(S().nodes.find((n) => n.id === id)!.data)).toBe('#74906B')
+    expect('accent' in S().nodes.find((n) => n.id === b)!.data).toBe(false)
+    expect(accentOf(S().edges.find((e) => e.id === e1)!.data)).toBe('#74906B')
   })
 })

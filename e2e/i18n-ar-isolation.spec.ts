@@ -425,6 +425,9 @@ test.describe('§L9.4 LRI — an id keeps its own left-to-right order inside an 
       const [src, pool] = g().nodes.map((n: { id: string }) => n.id)
       g().onConnect({ source: src, target: pool, sourceHandle: 'out', targetHandle: 'in' })
       g().setEdgeData(g().edges[0].id, { kind: 'resource', flow: '@{#7-beta}' })
+      // the last add left its node marked selected: move the marks to what is selected, as a click on it does
+      g().onNodesChange(g().nodes.filter((n: { selected?: boolean }) => n.selected).map((n: { id: string }) => ({ id: n.id, type: 'select', selected: false })))
+      g().onEdgesChange([{ id: g().edges[0].id, type: 'select', selected: true }])
       g().setSelection(null, g().edges[0].id)
     })
     await setLocale(page, 'ar')
@@ -460,6 +463,9 @@ test.describe('§L9.4 LRI — an id keeps its own left-to-right order inside an 
       const ids = g().nodes.map((n: { id: string }) => n.id)
       g().onConnect({ source: ids[0], target: ids[1], sourceHandle: 'out', targetHandle: 'in' })
       g().setEdgeData(g().edges[0].id, { kind: 'resource', flow: `@{${ids[1]}}` })
+      // the last add left its node marked selected: move the marks to what is selected, as a click on it does
+      g().onNodesChange(g().nodes.filter((n: { selected?: boolean }) => n.selected).map((n: { id: string }) => ({ id: n.id, type: 'select', selected: false })))
+      g().onEdgesChange([{ id: g().edges[0].id, type: 'select', selected: true }])
       g().setSelection(null, g().edges[0].id)
       return ids[1] as string
     })
@@ -497,6 +503,9 @@ async function seedUnsupportedTiming(page: Page, timing: string, when: string): 
       // `mode: 'label'` is what makes the Inspector render LabelTimingField at
       // all, and `expr` is what makes the label a label
       g().setEdgeData(e, { kind: 'state', mode: 'label', expr: '+1', timing: tm, when: wh })
+      // the last add left its node marked selected: move the marks to what is selected, as a click on it does
+      g().onNodesChange(g().nodes.filter((n: { selected?: boolean }) => n.selected).map((n: { id: string }) => ({ id: n.id, type: 'select', selected: false })))
+      g().onEdgesChange([{ id: e, type: 'select', selected: true }])
       g().setSelection(null, e)
     },
     { timing, when },
@@ -908,6 +917,9 @@ test.describe('§L9.4 display only — the stored document and its digest do not
     // node labels and the frame
     await page.evaluate(() => {
       const g = (window as unknown as Bridge).__loop.graph.getState()
+      // the last add left its node marked selected: move the marks to what is selected, as a click on it does
+      g.onNodesChange(g.nodes.filter((n: { selected?: boolean }) => n.selected).map((n: { id: string }) => ({ id: n.id, type: 'select', selected: false })))
+      g.onEdgesChange([{ id: g.edges[0].id, type: 'select', selected: true }])
       g.setSelection(null, g.edges[0].id)
     })
     await expect(page.locator('.labeltiming__groupline')).toBeVisible()
@@ -1014,6 +1026,9 @@ test.describe('§L9.4 the shapes C3.5 added', () => {
       g().onConnect({ source: ids[0], target: ids[1], sourceHandle: 'out', targetHandle: 'in' })
       // trailing whitespace so the NORMALISED note renders in the same panel
       g().setEdgeData(g().edges[0].id, { kind: 'resource', flow: '1', resourceType: '  ذهب  ' })
+      // the last add left its node marked selected: move the marks to what is selected, as a click on it does
+      g().onNodesChange(g().nodes.filter((n: { selected?: boolean }) => n.selected).map((n: { id: string }) => ({ id: n.id, type: 'select', selected: false })))
+      g().onEdgesChange([{ id: g().edges[0].id, type: 'select', selected: true }])
       g().setSelection(null, g().edges[0].id)
     })
     await setLocale(page, 'ar')
@@ -1070,6 +1085,8 @@ test.describe('§L9.4 the shapes C3.5 added', () => {
         const ids = g().nodes.map((n: { id: string }) => n.id)
         g().updateNodeData(ids[0], { label: '2024 مصدر' })
         g().updateNodeData(ids[1], { label: 'Reg', expr: e.replace('SOURCE', ids[0]) })
+        // the last add left its node marked selected: move the marks to what is selected, as a click on it does
+        g().onNodesChange(g().nodes.filter((n: { selected?: boolean }) => n.selected).map((n: { id: string }) => ({ id: n.id, type: 'select', selected: false })))
         g().setSelection(ids[1], null)
       }, expr)
 
