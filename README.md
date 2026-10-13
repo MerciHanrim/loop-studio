@@ -147,8 +147,9 @@ A connection's end can move without drawing the connection again.
 - **Move an end**: select a connection and drag the round grip at either end onto a side of
   another node, or use Ends in the Inspector; its amount, condition, colour, line shape and
   bends stay as they were, and one undo step takes the move back
-- **Pick a side**: click or tap a grip to choose Top, Right, Bottom or Left around that node,
-  for a change of side only
+- **Pick a side**: click or tap a grip to choose Top, Right, Bottom or Left in a small panel
+  that names the node, for a change of side only; where the canvas has no room for a grip
+  near an end, Ends in the Inspector moves it
 - **Refused moves say why**: an end on a node without the port it needs, or a move that would
   repeat a connection drawn the same way, is not applied, and the reason is shown
 

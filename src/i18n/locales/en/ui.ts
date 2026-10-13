@@ -585,7 +585,7 @@ const ui = {
   'whatsNew.v0262.badgePlace': 'When you are zoomed in far enough to see the connection labels, the moving +N badge keeps one place beside its marker for the whole step, a place picked to help the badges of connections that leave a node together stay apart, and it shows only while it is clear of the nodes at both ends. Zoomed out further, and at the faster speeds, the badge shows as before.',
   'whatsNew.v0262.selection': 'A colour picked in the Inspector now goes to the node the Inspector shows, also right after you drag a node and add another from the toolbar, or after you step to a neighbour with ] or [.',
   'whatsNew.v0270.moveEnd': 'A connection’s end can now move without drawing the connection again: select it and drag the round grip at either end onto a side of another node, or use Ends in the Inspector. Its amount, condition, colour, line shape and bends stay as they were.',
-  'whatsNew.v0270.pickSide': 'To change only the side a connection uses, click or tap a grip and choose Top, Right, Bottom or Left around that node. On a phone the diagram stays read-only.',
+  'whatsNew.v0270.pickSide': 'To change only the side a connection uses, click or tap a grip and choose Top, Right, Bottom or Left in the small panel that opens; where the canvas has no room for a grip, use Ends in the Inspector. On a phone the diagram stays read-only.',
   'whatsNew.v0270.refused': 'A move that cannot be made, such as an end on a node with no input, is not applied, and the reason is shown.',
 } as const
 

@@ -601,7 +601,7 @@ const ui = {
   'whatsNew.v0262.badgePlace': 'Khi phóng to đủ để thấy nhãn của các liên kết, huy hiệu +N chuyển động giữ một vị trí bên cạnh dấu của nó trong suốt bước; vị trí này được chọn để giúp huy hiệu của các liên kết cùng rời một nút tách xa nhau, và huy hiệu chỉ hiện khi không chạm vào các nút ở hai đầu. Khi thu nhỏ hơn, và ở các tốc độ nhanh hơn, huy hiệu hiện như trước.',
   'whatsNew.v0262.selection': 'Màu chọn trong Bảng thuộc tính giờ được áp dụng cho nút mà Bảng thuộc tính đang hiển thị, kể cả ngay sau khi bạn kéo một nút rồi thêm nút khác từ thanh công cụ, hoặc sau khi chuyển sang nút kề bên bằng ] hoặc [.',
   'whatsNew.v0270.moveEnd': 'Giờ có thể di chuyển đầu mút của một liên kết mà không phải vẽ lại liên kết: chọn liên kết rồi kéo tay nắm tròn ở một trong hai đầu tới một cạnh của nút khác, hoặc dùng mục Đầu mút trong Bảng thuộc tính. Lượng, điều kiện, màu, dạng đường và các điểm gấp vẫn giữ nguyên.',
-  'whatsNew.v0270.pickSide': 'Để chỉ đổi cạnh mà một liên kết dùng, hãy nhấp hoặc chạm vào một tay nắm rồi chọn Trên, Phải, Dưới hoặc Trái quanh nút đó. Trên điện thoại, sơ đồ vẫn chỉ để xem.',
+  'whatsNew.v0270.pickSide': 'Để chỉ đổi cạnh mà một liên kết dùng, hãy nhấp hoặc chạm vào một tay nắm rồi chọn Trên, Phải, Dưới hoặc Trái trong bảng nhỏ vừa mở; ở chỗ khung vẽ không còn chỗ cho tay nắm, hãy dùng mục Đầu mút trong Bảng thuộc tính. Trên điện thoại, sơ đồ vẫn chỉ để xem.',
   'whatsNew.v0270.refused': 'Một lần di chuyển không thể thực hiện, chẳng hạn đặt đầu mút lên nút không có đầu vào, sẽ không được áp dụng và lý do sẽ được hiển thị.',
 } satisfies Record<UiKey, string>
 
