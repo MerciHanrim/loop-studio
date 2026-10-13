@@ -282,7 +282,7 @@ test.describe('the canvas end grips (§ER18)', () => {
     await expect(page.locator('.end-grip')).toHaveCount(0)
   })
 
-  test('a grip is a 24 px screen target at every zoom, the dot stays small, and its target meets no port', async ({ page }) => {
+  test('a grip is a 24 px screen target at every zoom, the dot stays small, and on this fixture its target meets no port', async ({ page }) => {
     await open(page)
     await selectEdge(page, 'e_leave')
     for (const zoom of [0.5, 1, 2]) {
@@ -314,7 +314,7 @@ test.describe('the canvas end grips (§ER18)', () => {
 
 test.describe('the canvas end grips by touch (§ER18)', () => {
   test.use({ hasTouch: true })
-  test('with a touch pointer a grip is a 44 px target that meets no port', async ({ page }) => {
+  test('with a touch pointer a grip is a 44 px target that, on this fixture, meets no port', async ({ page }) => {
     await open(page)
     await selectEdge(page, 'e_leave')
     const m = await page.evaluate(() => {

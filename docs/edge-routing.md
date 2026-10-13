@@ -1029,11 +1029,14 @@ the graph store): the Inspector's Ends group and the canvas end grips.
   hover, never on the phone or under the edit lock. A grip keeps its SCREEN size at
   every zoom: a small dot (10 px) inside a 24 × 24 px pointer target, 44 × 44 px
   while any pointer of the device is coarse (`(any-pointer: coarse)`); the side
-  buttons are at least as large. It sits just out along its end's stub, its whole
-  target clear of the port it ends on and of that node's other ports (measured: no
-  port meets a grip's target on the small fixture or the Coffee roastery's fan, at
-  zoom 0.5, 1 and 2, mouse and touch), so pressing a port still draws a new
-  connection while one is selected. Dragging a grip offers every
+  buttons are at least as large. It sits just out along its end's stub (half its
+  target and 2 px past the port), so that its target stays off the port it ends on
+  and off that node's other ports and pressing a port still draws a new connection
+  while one is selected. That is a placement rule, measured on the cases checked —
+  no port met a grip's target on the small fixture or the Coffee roastery's fan at
+  zoom 0.5, 1 and 2, mouse and touch — not a guarantee for every layout (a port of
+  ANOTHER node close to the stub, or a very short stub, can still meet it).
+  Dragging a grip offers every
   node's faces, as drawing does; dropping on a face moves that end (the same check
   and change), dropping on a refused face changes nothing and says why (the canvas
   live region and the Ends status line), dropping elsewhere or pressing Esc changes
