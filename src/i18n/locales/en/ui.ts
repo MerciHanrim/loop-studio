@@ -587,6 +587,9 @@ const ui = {
   'whatsNew.v0270.moveEnd': 'A connection’s end can now move without drawing the connection again: select it and drag the round grip at either end onto a side of another node, or use Ends in the Inspector. Its amount, condition, colour, line shape and bends stay as they were.',
   'whatsNew.v0270.pickSide': 'To change only the side a connection uses, click or tap a grip and choose Top, Right, Bottom or Left in the small panel that opens; where the canvas has no room for a grip, use Ends in the Inspector. On a phone the diagram stays read-only.',
   'whatsNew.v0270.refused': 'A move that cannot be made, such as an end on a node with no input, is not applied, and the reason is shown.',
+  'whatsNew.v0280.reverse': 'A connection can now be turned around without drawing it again: select it and press Reverse beside Ends in the Inspector. Its amount, condition, colour and line shape stay as they were and are read in the new direction; the bends you placed keep their places.',
+  'whatsNew.v0280.drawn': 'After a reversal the automatic route, the line next to each end and the label’s place may be drawn differently.',
+  'whatsNew.v0280.refused': 'A reversal that cannot be made, such as one that would end the connection at a node with no input or leave a state connection with no effect, is not applied, and the reason is shown.',
 } as const
 
 export type UiKey = keyof typeof ui

@@ -617,6 +617,9 @@ const ui = {
   'whatsNew.v0270.moveEnd': 'L’estremo di un collegamento ora si sposta senza ridisegnare il collegamento: selezionalo e trascina la maniglia rotonda di uno dei due estremi su un lato di un altro nodo, oppure usa Estremi nell’Ispettore. Quantità, condizione, colore, forma della linea e angoli restano com’erano.',
   'whatsNew.v0270.pickSide': 'Per cambiare solo il lato che un collegamento usa, fai clic o tocca una maniglia e scegli Sopra, Destra, Sotto o Sinistra nel piccolo pannello che si apre; dove l’area di disegno non ha spazio per una maniglia, usa Estremi nell’Ispettore. Sul telefono il diagramma resta in sola lettura.',
   'whatsNew.v0270.refused': 'Uno spostamento che non si può fare, come un estremo su un nodo senza ingresso, non viene applicato, e viene mostrato il motivo.',
+  'whatsNew.v0280.reverse': 'Ora un collegamento si può invertire senza ridisegnarlo: selezionalo e premi Inverti accanto a Estremi nell’Ispettore. Quantità, condizione, colore e forma della linea restano com’erano e si leggono nella nuova direzione; gli angoli che hai messo restano al loro posto.',
+  'whatsNew.v0280.drawn': 'Dopo un’inversione, il percorso automatico, la linea vicino a ciascun estremo e la posizione dell’etichetta possono cambiare.',
+  'whatsNew.v0280.refused': 'Un’inversione che non si può fare, per esempio una che farebbe arrivare il collegamento a un nodo senza ingressi o lascerebbe senza effetto un collegamento di stato, non viene applicata, e il motivo viene mostrato.',
 } satisfies Record<UiKey, string>
 
 export default ui

@@ -677,6 +677,9 @@ const ui = {
   'whatsNew.v0270.moveEnd': 'Das Ende einer Verbindung lässt sich jetzt verschieben, ohne die Verbindung neu zu zeichnen: Wählen Sie sie aus und ziehen Sie den runden Griff an einem Ende auf eine Seite eines anderen Knotens, oder verwenden Sie „Enden“ in den Eigenschaften. Menge, Bedingung, Farbe, Linienform und Knickpunkte bleiben, wie sie waren.',
   'whatsNew.v0270.pickSide': 'Um nur die Seite zu ändern, die eine Verbindung nutzt, klicken oder tippen Sie auf einen Griff und wählen Sie im kleinen Feld, das sich öffnet, Oben, Rechts, Unten oder Links; wo auf der Arbeitsfläche kein Platz für einen Griff ist, verwenden Sie „Enden“ in den Eigenschaften. Auf dem Smartphone bleibt das Diagramm schreibgeschützt.',
   'whatsNew.v0270.refused': 'Eine Verschiebung, die nicht möglich ist, etwa ein Ende an einem Knoten ohne Eingang, wird nicht ausgeführt, und der Grund wird angezeigt.',
+  'whatsNew.v0280.reverse': 'Eine Verbindung lässt sich jetzt umkehren, ohne sie neu zu zeichnen: Wählen Sie sie aus und drücken Sie „Umkehren“ neben „Enden“ in den Eigenschaften. Menge, Bedingung, Farbe und Linienform bleiben, wie sie waren, und gelten in der neuen Richtung; Ihre Knickpunkte bleiben an ihrem Platz.',
+  'whatsNew.v0280.drawn': 'Nach dem Umkehren können die automatische Linienführung, die Linie an jedem Ende und der Platz der Beschriftung anders aussehen.',
+  'whatsNew.v0280.refused': 'Eine Umkehrung, die nicht möglich ist, etwa weil die Verbindung an einem Knoten ohne Eingang enden oder eine Zustandsverbindung ihre Wirkung verlieren würde, wird nicht ausgeführt, und der Grund wird angezeigt.',
 } satisfies Record<UiKey, string>
 
 export default ui

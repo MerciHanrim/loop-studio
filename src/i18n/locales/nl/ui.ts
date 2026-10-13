@@ -598,6 +598,9 @@ const ui = {
   'whatsNew.v0270.moveEnd': 'Het uiteinde van een verbinding kun je nu verplaatsen zonder de verbinding opnieuw te tekenen: selecteer haar en sleep de ronde greep aan een van de uiteinden naar een zijde van een ander knooppunt, of gebruik Uiteinden in de Inspector. Hoeveelheid, voorwaarde, kleur, lijnvorm en knikken blijven zoals ze waren.',
   'whatsNew.v0270.pickSide': 'Om alleen de zijde te veranderen die een verbinding gebruikt, klik of tik je op een greep en kies je Boven, Rechts, Onder of Links in het kleine paneel dat opent; waar het tekengebied geen ruimte voor een greep heeft, gebruik je Uiteinden in de Inspector. Op een telefoon blijft het diagram alleen-lezen.',
   'whatsNew.v0270.refused': 'Een verplaatsing die niet kan, zoals een uiteinde op een knooppunt zonder ingang, wordt niet toegepast, en de reden wordt getoond.',
+  'whatsNew.v0280.reverse': 'Een verbinding kun je nu omkeren zonder haar opnieuw te tekenen: selecteer haar en druk op Omkeren naast Uiteinden in de Inspector. Hoeveelheid, voorwaarde, kleur en lijnvorm blijven zoals ze waren en gelden in de nieuwe richting; de knikken die je plaatste blijven op hun plek.',
+  'whatsNew.v0280.drawn': 'Na het omkeren kunnen de automatische route, de lijn bij elk uiteinde en de plek van het etiket anders getekend worden.',
+  'whatsNew.v0280.refused': 'Een omkering die niet kan, zoals een die de verbinding zou laten eindigen bij een knooppunt zonder ingang of een toestandsverbinding zonder effect zou laten, wordt niet toegepast, en de reden wordt getoond.',
 } as const
 
 export default ui

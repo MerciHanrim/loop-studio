@@ -603,6 +603,9 @@ const ui = {
   'whatsNew.v0270.moveEnd': 'A extremidade de uma ligação agora pode ser movida sem desenhar a ligação de novo: selecione-a e arraste a alça redonda de uma das extremidades até um lado de outro nó, ou use Extremidades no Inspetor. A quantidade, a condição, a cor, a forma da linha e as dobras ficam como estavam.',
   'whatsNew.v0270.pickSide': 'Para mudar só o lado que uma ligação usa, clique ou toque em uma alça e escolha Topo, Direita, Base ou Esquerda no pequeno painel que se abre; onde a tela não tem espaço para uma alça, use Extremidades no Inspetor. No telefone o diagrama continua só de leitura.',
   'whatsNew.v0270.refused': 'Um movimento que não pode ser feito, como uma extremidade em um nó sem entrada, não é aplicado, e o motivo é mostrado.',
+  'whatsNew.v0280.reverse': 'Agora uma ligação pode ser invertida sem desenhar a ligação de novo: selecione-a e use Inverter, ao lado de Extremidades no Inspetor. A quantidade, a condição, a cor e a forma da linha ficam como estavam e passam a ser lidas na nova direção; as dobras que colocou ficam no lugar.',
+  'whatsNew.v0280.drawn': 'Depois de uma inversão, a rota automática, a linha perto de cada extremidade e o lugar do rótulo podem mudar.',
+  'whatsNew.v0280.refused': 'Uma inversão que não pode ser feita, como uma que faria a ligação terminar em um nó sem entrada ou deixaria uma ligação de estado sem efeito, não é aplicada, e o motivo é mostrado.',
 } as const
 
 export type UiKey = keyof typeof ui
