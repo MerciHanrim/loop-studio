@@ -3,6 +3,7 @@ import {
   EdgeLabelRenderer,
   getBezierPath,
   useStore,
+  useStoreApi,
   type EdgeProps,
   type EdgeTypes,
 } from '@xyflow/react'
@@ -15,6 +16,11 @@ import { useUiStore } from '../../store/uiStore'
 import { currentRouteGeneration, setRouteLabelSize, useRouteInputs } from '../../store/routeMap'
 import { freeLinePoints, pointAlong } from './freeLine'
 import { RouteBends } from './RouteBends'
+import { EndGrips } from './EndGrips'
+import type { EndMoveReason, EndMoveVerdict } from '../../model/endMove'
+import type { PortEnd } from '../../model/ports'
+import { isolateAuto } from '../../i18n/bidiIsolate'
+import type { MessageKey } from '../../i18n'
 import { useCanvasTheme, useIsMobile } from '../../ui/media'
 import { useLod } from '../lod'
 import { useEdgeActivityOpacity } from '../frames/useActivityTint'
@@ -115,6 +121,15 @@ const RunCaseRing = ({ role, cx, cy, r }: { role: string; cx: number; cy: number
  *  are one value so a branch cannot set the text and forget the kind. */
 type EdgeText = { s: string; kind: 'token' | 'prose'; mark?: 'trigger' }
 
+/** §ER18 — a refused grip drop's reason, the same sentences as the Ends group's */
+const END_REASON_KEY: Record<EndMoveReason, MessageKey> = {
+  missing: 'inspector.ends.reason.missing',
+  noInput: 'inspector.ends.reason.noInput',
+  noOutput: 'inspector.ends.reason.noOutput',
+  noPorts: 'inspector.ends.reason.noPorts',
+  duplicate: 'inspector.ends.reason.duplicate',
+}
+
 function LoopEdge({
   id,
   source,
@@ -127,6 +142,8 @@ function LoopEdge({
   targetPosition,
   data,
   selected,
+  sourceHandleId,
+  targetHandleId,
 }: EdgeProps) {
   // §L9.3 — the edge label sits inside the ltr-pinned canvas: its localized
   // prose opts back into the reader's direction, its numbers stay pinned.
@@ -446,6 +463,23 @@ function LoopEdge({
   const locked = useUiStore((s) => s.canvasLocked)
   const bends = routeMode === 'orthogonal' && Array.isArray(d.waypoints) ? d.waypoints : null
   const editsBends = selected && route != null && !isMobile && !locked && bends != null && bends.length > 0
+  // docs/edge-routing.md §ER18 — the end grips: on the ONE selected connection
+  // (nothing else selected), never on hover; desktop only, never under the lock
+  const sole = useGraphStore((s) => (selected ? s.edges.filter((e) => e.selected).length === 1 && !s.nodes.some((n) => n.selected) : false))
+  const editsEnds = selected === true && sole && !isMobile && !locked
+  const rfApi = useStoreApi()
+  const announceEnd = (v: Extract<EndMoveVerdict, { ok: false }>, end: PortEnd) => {
+    const name = (nid: string) => ((gNodes.find((n) => n.id === nid)?.data as { label?: string } | undefined)?.label) || nid
+    const other = end === 'source' ? target : source
+    // §L9.3 — the node names are the user's own text, isolated where they enter
+    const msg = t(END_REASON_KEY[v.reason], {
+      node: isolateAuto(name(v.node)),
+      from: isolateAuto(name(end === 'source' ? v.node : other)),
+      to: isolateAuto(name(end === 'target' ? v.node : other)),
+    })
+    const st = rfApi.getState() as unknown as { ariaLiveMessage?: string }
+    if ('ariaLiveMessage' in st) rfApi.setState({ ariaLiveMessage: msg } as never)
+  }
   const selectedNodeId = useGraphStore((s) => s.selectedNodeId)
   const outOfFocus =
     focusMode && selectedNodeId != null && source !== selectedNodeId && target !== selectedNodeId
@@ -807,6 +841,21 @@ function LoopEdge({
       ) : null}
 
       {editsBends ? <RouteBends edgeId={id} waypoints={bends!} /> : null}
+
+      {editsEnds ? (
+        <EndGrips
+          edgeId={id}
+          source={source}
+          target={target}
+          sourceHandle={sourceHandleId ?? null}
+          targetHandle={targetHandleId ?? null}
+          sourceX={sourceX}
+          sourceY={sourceY}
+          targetX={targetX}
+          targetY={targetY}
+          announce={announceEnd}
+        />
+      ) : null}
 
       {showLabel ? (
         <EdgeLabelRenderer>

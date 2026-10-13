@@ -88,6 +88,7 @@ const inspector = {
   'inspector.edge.route.addBendHint': '折れ点を入れる位置で接続をクリックするか、Enter で最も長い区間の中央に追加します。Esc でキャンセル。',
   'inspector.edge.route.editHint': '折れ点をドラッグするか、選択して矢印キーで移動します（Shift を押しながらで大きく動きます）。Delete で削除します。',
   'inspector.ends.title': '端点',
+  'inspector.ends.summary': '{from} → {to}',
   'inspector.ends.from': '始点',
   'inspector.ends.to': '終点',
   'inspector.ends.node': 'ノード',

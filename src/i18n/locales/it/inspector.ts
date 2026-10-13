@@ -98,6 +98,7 @@ const inspector = {
   'inspector.edge.route.addBendHint': 'Fai clic sul collegamento dove va l’angolo, oppure premi Invio per aggiungerne uno a metà del suo tratto più lungo. Esc per annullare.',
   'inspector.edge.route.editHint': 'Trascina un angolo, oppure selezionalo e spostalo con i tasti freccia (con Maiusc lo spostamento è maggiore). Canc lo rimuove.',
   'inspector.ends.title': 'Estremi',
+  'inspector.ends.summary': '{from} → {to}',
   'inspector.ends.from': 'Partenza',
   'inspector.ends.to': 'Arrivo',
   'inspector.ends.node': 'Nodo',

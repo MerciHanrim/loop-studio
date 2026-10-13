@@ -113,6 +113,8 @@ const canvas = {
   'canvas.route.invalidFlag': 'مسار غير صالح — إحدى نقاط المسار داخل عقدة',
   'canvas.route.bend': 'نقطة الانعطاف {n} من {total}',
   'canvas.route.noBendRoom': 'لا يوجد في هذا الرابط مقطع يتّسع لانعطاف؛ لم يتغيّر شيء.',
+  'canvas.endGrip.source': 'بداية هذا الرابط: اختر جانبًا',
+  'canvas.endGrip.target': 'نهاية هذا الرابط: اختر جانبًا',
   'canvas.edgeLabel.clamp': 'تقييد',
   'canvas.edgeLabel.clamp.title': 'أُزيل بفعل تقييد المَجمَع الهدف الوحيد في نهاية المرحلة 0',
   'canvas.edgeLabel.blocked': 'محجوب',

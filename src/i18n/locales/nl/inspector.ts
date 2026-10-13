@@ -95,6 +95,7 @@ const inspector = {
   'inspector.edge.route.addBendHint': 'Klik op de verbinding waar de knik komt, of druk op Enter om er een in het midden van het langste stuk toe te voegen. Esc om te annuleren.',
   'inspector.edge.route.editHint': 'Sleep een knik, of selecteer hem en verplaats hem met de pijltoetsen (Shift voor een grotere stap). Delete verwijdert hem.',
   'inspector.ends.title': 'Uiteinden',
+  'inspector.ends.summary': '{from} → {to}',
   'inspector.ends.from': 'Van',
   'inspector.ends.to': 'Naar',
   'inspector.ends.node': 'Knooppunt',

@@ -89,6 +89,7 @@ const inspector = {
   'inspector.edge.route.addBendHint': 'Nhấn vào liên kết tại chỗ cần điểm gấp, hoặc nhấn Enter để thêm một điểm ở giữa đoạn dài nhất. Esc để hủy.',
   'inspector.edge.route.editHint': 'Kéo một điểm gấp, hoặc chọn nó rồi di chuyển bằng các phím mũi tên (giữ Shift để bước lớn hơn). Delete xóa nó.',
   'inspector.ends.title': 'Đầu mút',
+  'inspector.ends.summary': '{from} → {to}',
   'inspector.ends.from': 'Từ',
   'inspector.ends.to': 'Đến',
   'inspector.ends.node': 'Nút',

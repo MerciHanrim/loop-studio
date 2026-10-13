@@ -104,6 +104,7 @@ const inspector = {
   'inspector.edge.route.addBendHint': 'Auf die Verbindung klicken, wo der Knick hinkommt, oder mit Eingabe einen in der Mitte des längsten Abschnitts einfügen. Esc bricht ab.',
   'inspector.edge.route.editHint': 'Einen Knickpunkt ziehen oder auswählen und mit den Pfeiltasten verschieben (Umschalt für größere Schritte). Entf entfernt ihn.',
   'inspector.ends.title': 'Enden',
+  'inspector.ends.summary': '{from} → {to}',
   'inspector.ends.from': 'Von',
   'inspector.ends.to': 'Nach',
   'inspector.ends.node': 'Knoten',

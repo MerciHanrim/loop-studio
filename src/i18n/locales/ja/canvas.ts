@@ -111,6 +111,8 @@ const canvas = {
   'canvas.route.invalidFlag': '無効な経路 — 経路の点がノードの内側にあります',
   'canvas.route.bend': '折れ点 {total} 個中 {n} 個目',
   'canvas.route.noBendRoom': 'この接続には折れ点を入れられる区間がないため、何も変更していません。',
+  'canvas.endGrip.source': 'この接続の始点：辺を選ぶ',
+  'canvas.endGrip.target': 'この接続の終点：辺を選ぶ',
   'canvas.edgeLabel.clamp': 'クランプ',
   'canvas.edgeLabel.clamp.title': 'ターゲットのプールでフェーズ 0 終了時に 1 回クランプされ取り除かれました',
   'canvas.edgeLabel.blocked': 'ブロック',

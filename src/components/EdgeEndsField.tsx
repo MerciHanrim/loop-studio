@@ -13,6 +13,7 @@ import { edgePortKind, faceOf, PORT_FACES, type PortEnd } from '../model/ports'
 import { endMoveVerdict, movedEdge, portRefusal, type EdgeEnd, type EndMoveReason } from '../model/endMove'
 import { bendRejection } from '../store/routeMap'
 import { useGraphStore } from '../store/graphStore'
+import { useEndGripNotice } from '../store/endGripNotice'
 import { useT, type MessageKey } from '../i18n'
 // §L9.3 — a node's name is the user's own text, in whatever script they write it
 import { isolateAuto } from '../i18n/bidiIsolate'
@@ -55,6 +56,7 @@ export function EdgeEndsField({ edge }: { edge: LoopEdge }) {
   )
   const [pick, setPick] = useState(current)
   const [done, setDone] = useState<string | null>(null)
+  const [open, setOpen] = useState(false)
   // the connection changed under the pick: start from its ends again (state
   // adjusted while rendering, as React documents for a changed input)
   const [base, setBase] = useState(current)
@@ -96,7 +98,16 @@ export function EdgeEndsField({ edge }: { edge: LoopEdge }) {
       to: isolateAuto(nameOf(byId.get(v.end === 'target' ? v.node : other), v.end === 'target' ? v.node : other)),
     })
   }
-  const status = verdict && !verdict.ok ? { text: reasonText(verdict)!, warn: true } : bendsAffected ? { text: t('inspector.ends.bends'), warn: true } : done ? { text: done, warn: false } : null
+  // a canvas grip's refused drop on this connection says its reason here too
+  const grip = useEndGripNotice((s) => (s.edgeId === edge.id ? s.verdict : null))
+  const gripText = grip
+    ? t(REASON_KEY[grip.reason], {
+        node: isolateAuto(nameOf(byId.get(grip.node), grip.node)),
+        from: isolateAuto(nameOf(byId.get(grip.end === 'source' ? grip.node : current.source.node), grip.end === 'source' ? grip.node : current.source.node)),
+        to: isolateAuto(nameOf(byId.get(grip.end === 'target' ? grip.node : current.target.node), grip.end === 'target' ? grip.node : current.target.node)),
+      })
+    : null
+  const status = verdict && !verdict.ok ? { text: reasonText(verdict)!, warn: true } : bendsAffected ? { text: t('inspector.ends.bends'), warn: true } : !changed && gripText ? { text: gripText, warn: true } : done ? { text: done, warn: false } : null
   const statusId = `${ids}-status`
 
   const endRow = (end: PortEnd) => {
@@ -143,16 +154,41 @@ export function EdgeEndsField({ edge }: { edge: LoopEdge }) {
     )
   }
 
+  // collapsed by default: a one-line summary (From → To) that keeps the
+  // connection's other fields where they were; open, the pick and Apply. The
+  // status line (a refusal, the bend warning, the result) is in the group in
+  // both states, so a reason never hides behind the fold.
+  const summary = t('inspector.ends.summary', {
+    from: isolateAuto(nameOf(byId.get(current.source.node), current.source.node)),
+    to: isolateAuto(nameOf(byId.get(current.target.node), current.target.node)),
+  })
   return (
     <section className="ends" aria-labelledby={`${ids}-title`}>
       <h3 className="field__label ends__title" id={`${ids}-title`}>
-        {t('inspector.ends.title')}
+        <button
+          type="button"
+          className="ends__toggle"
+          aria-expanded={open}
+          aria-controls={`${ids}-body`}
+          onClick={() => {
+            // folding away a pick that was not applied drops it: nothing hidden stays pending
+            if (open) {
+              setPick(current)
+              setDone(null)
+            }
+            setOpen(!open)
+          }}
+        >
+          <span className="ends__toggle-name">{t('inspector.ends.title')}</span>
+          <span className="ends__summary">{summary}</span>
+        </button>
       </h3>
-      {endRow('source')}
-      {endRow('target')}
       <p id={statusId} role="status" className={status?.warn ? 'field__hint field__hint--bad ends__status' : 'field__hint ends__status'}>
         {status?.text ?? ''}
       </p>
+      <div id={`${ids}-body`} hidden={!open}>
+      {endRow('source')}
+      {endRow('target')}
       <div className="ends__actions">
         <button
           type="button"
@@ -184,6 +220,7 @@ export function EdgeEndsField({ edge }: { edge: LoopEdge }) {
         >
           {t('inspector.ends.revert')}
         </button>
+      </div>
       </div>
     </section>
   )

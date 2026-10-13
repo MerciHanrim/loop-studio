@@ -80,6 +80,7 @@ const inspector = {
   'inspector.edge.route.editHint': 'Drag a bend point, or select it and move it with the arrow keys (Shift for a bigger step). Delete removes it.',
   // docs/edge-routing.md §ER18 — the Ends group: move an end to another side or node
   'inspector.ends.title': 'Ends',
+  'inspector.ends.summary': '{from} → {to}',
   'inspector.ends.from': 'From',
   'inspector.ends.to': 'To',
   'inspector.ends.node': 'Node',

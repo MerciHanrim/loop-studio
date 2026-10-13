@@ -132,11 +132,11 @@ const englishFor = (surface: string, id: string): string => {
 describe('vi copy — the first locale English hides inside', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(VI).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(1110) // the connection Ends group (docs/edge-routing.md §ER18): +21 (inspector.ends.*); 0.26.2: +4 (the four release-note lines); 0.26.0: +5 (the five release-note lines); the node structure: +1 (inspector.field.currentAmount, the Pool's read-only current amount); issue #344: +2 (the 0.25.0 release note is five lines, was three); issue #344 Step 3: +9 (the connection shape and bend-point strings and the keyboard bend notice); issue #344 Step 1: +3 (three 0.25.0 release-note lines); issue #344 Step 1: +1 (canvas.tidy, the Tidy to grid rail button); issue #330 PR 3: +3 (three 0.24.0 release-note lines); issue #330 PR 3: +9 (the phone Playback speed sheet); issue #330 PR 2: +3 (three 0.23.0 release-note lines); issue #330 PR 1: +5 (five 0.22.0 release-note lines); issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines); the flow colour: +20 (the sixteen strings of the Colour section and the four 0.19.0 release-note lines); the flow colour views: +4 (the four 0.20.0 release-note lines); compact nodes: +3 (the three 0.21.0 release-note lines); Focus dimming: +3 (the three 0.21.1 release-note lines); value rows: +3 (the three 0.21.2 release-note lines); the edit lock: +4 (canvas.lock.name, its fixed accessible name, and the three 0.21.3 release-note lines); the locked rail and the phone search: +4 (the four 0.21.4 release-note lines)
+    expect(KEYS).toHaveLength(1113) // the connection Ends group (docs/edge-routing.md §ER18): +24 (inspector.ends.*, canvas.endGrip.source / target); 0.26.2: +4 (the four release-note lines); 0.26.0: +5 (the five release-note lines); the node structure: +1 (inspector.field.currentAmount, the Pool's read-only current amount); issue #344: +2 (the 0.25.0 release note is five lines, was three); issue #344 Step 3: +9 (the connection shape and bend-point strings and the keyboard bend notice); issue #344 Step 1: +3 (three 0.25.0 release-note lines); issue #344 Step 1: +1 (canvas.tidy, the Tidy to grid rail button); issue #330 PR 3: +3 (three 0.24.0 release-note lines); issue #330 PR 3: +9 (the phone Playback speed sheet); issue #330 PR 2: +3 (three 0.23.0 release-note lines); issue #330 PR 1: +5 (five 0.22.0 release-note lines); issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines); the flow colour: +20 (the sixteen strings of the Colour section and the four 0.19.0 release-note lines); the flow colour views: +4 (the four 0.20.0 release-note lines); compact nodes: +3 (the three 0.21.0 release-note lines); Focus dimming: +3 (the three 0.21.1 release-note lines); value rows: +3 (the three 0.21.2 release-note lines); the edit lock: +4 (canvas.lock.name, its fixed accessible name, and the three 0.21.3 release-note lines); the locked rail and the phone search: +4 (the four 0.21.4 release-note lines)
   })
 
   it('covers all four runtime surfaces', () => {
-    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(1110)
+    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(1113)
     expect(RUNTIME.filter(([s]) => s.startsWith('template/'))).toHaveLength(196)
     expect(RUNTIME.filter(([s]) => s.startsWith('frame/'))).toHaveLength(7)
     expect(RUNTIME.filter(([s]) => s.startsWith('module/'))).toHaveLength(19)
@@ -169,6 +169,7 @@ const IDENTICAL_TO_EN: [string, string][] = [
   ['catalog:import.qs.mapping', 'item_id: {key} · item_name: {label} · price: {number} · drop_rate: {number}'],
   ['catalog:inspector.edge.flowParam.resolved', '= {value}'],
   ['catalog:inspector.edge.flowPlaceholder', '1, all, 2D6, 1-3, 25%'],
+  ['catalog:inspector.ends.summary', '{from} → {to}'], // §ER18: the Ends group's summary
   ['catalog:inspector.expr.activatorPlaceholder', '>= 5'],
   ['catalog:inspector.expr.labelPlaceholder', '+1   ·   -2   ·   =S'],
   ['catalog:mc.title', 'Monte Carlo'],
@@ -203,7 +204,7 @@ describe('a string identical to English is declared, with its value', () => {
     expect(actual.slice().sort((a, b) => a[0].localeCompare(b[0]))).toEqual(
       IDENTICAL_TO_EN.slice().sort((a, b) => a[0].localeCompare(b[0])),
     )
-    expect(IDENTICAL_TO_EN).toHaveLength(29) // issue #308: +1 (tour.nav.announce)
+    expect(IDENTICAL_TO_EN).toHaveLength(30) // §ER18: +1 (inspector.ends.summary); issue #308: +1 (tour.nav.announce)
   })
 
   it('every declared pair still reads back the value it declares', () => {

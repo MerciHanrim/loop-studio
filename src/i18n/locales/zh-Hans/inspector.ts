@@ -85,6 +85,7 @@ const inspector = {
   'inspector.edge.route.addBendHint': '在连线上要加拐点的位置点击，或按 Enter 在最长一段的中点添加，按 Esc 取消。',
   'inspector.edge.route.editHint': '拖动拐点，或选中后用方向键移动（按住 Shift 幅度更大）。按 Delete 删除。',
   'inspector.ends.title': '端点',
+  'inspector.ends.summary': '{from} → {to}',
   'inspector.ends.from': '起点',
   'inspector.ends.to': '终点',
   'inspector.ends.node': '节点',

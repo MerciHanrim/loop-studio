@@ -79,6 +79,7 @@ const inspector = {
   'inspector.edge.route.addBendHint': '꺾임점을 넣을 연결선 위치를 클릭하거나, Enter를 눌러 가장 긴 구간 가운데에 추가하세요. Esc로 취소합니다.',
   'inspector.edge.route.editHint': '꺾임점을 드래그하거나, 선택한 뒤 화살표 키로 옮기세요(Shift와 함께 누르면 더 크게 움직입니다). Delete로 삭제합니다.',
   'inspector.ends.title': '끝점',
+  'inspector.ends.summary': '{from} → {to}',
   'inspector.ends.from': '출발',
   'inspector.ends.to': '도착',
   'inspector.ends.node': '노드',

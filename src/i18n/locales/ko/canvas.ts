@@ -96,6 +96,8 @@ const canvas = {
   'canvas.route.invalidFlag': '잘못된 경로 — 경로 점이 노드 안에 있습니다',
   'canvas.route.bend': '꺾임점 {total}개 중 {n}번째',
   'canvas.route.noBendRoom': '이 연결에는 꺾임점을 넣을 구간이 없어 아무것도 바꾸지 않았습니다.',
+  'canvas.endGrip.source': '이 연결의 출발 끝점: 면 선택',
+  'canvas.endGrip.target': '이 연결의 도착 끝점: 면 선택',
   'canvas.edgeLabel.clamp': '클램프',
   'canvas.edgeLabel.clamp.title': '대상 풀의 페이즈 0 종료 시 단일 클램프로 제거됨',
   'canvas.edgeLabel.blocked': '차단됨',

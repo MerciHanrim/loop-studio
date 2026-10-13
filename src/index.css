@@ -1681,6 +1681,80 @@ a.sheet__row {
     border-color: CanvasText;
   }
 }
+/* docs/edge-routing.md §ER18 — the end grips of the one selected connection:
+   a round dot on each end (round, unlike the square bend handles), inside a
+   24 px pointer and touch target. Not a focus stop: the keyboard path is the
+   Inspector's Ends group. */
+.end-grip {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  display: grid;
+  place-items: center;
+  pointer-events: all;
+  cursor: grab;
+  touch-action: none;
+  z-index: 1;
+}
+.end-grip:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
+  border-radius: 50%;
+}
+/* the side picker: the four sides of that end's node, as buttons just outside
+   each side, the current one marked */
+.end-picker__side {
+  position: absolute;
+  padding: 1px 6px;
+  font: inherit;
+  font-size: 11px;
+  line-height: 16px;
+  border: 1px solid var(--line-control);
+  border-radius: var(--control-radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  pointer-events: all;
+  cursor: pointer;
+  white-space: nowrap;
+  z-index: 2;
+}
+.end-picker__side[aria-pressed='true'] {
+  border-color: var(--line-focus);
+  box-shadow: inset 0 0 0 1px var(--line-focus);
+  font-weight: 600;
+}
+.end-picker__side:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+@media (forced-colors: active) {
+  .end-picker__side[aria-pressed='true'] {
+    border-color: Highlight;
+  }
+}
+.end-grip__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--line-focus);
+  background: var(--surface-raised);
+}
+.end-grip:hover .end-grip__dot {
+  background: var(--line-focus);
+}
+@media (forced-colors: active) {
+  .end-grip__dot {
+    border-color: Highlight;
+    background: Canvas;
+  }
+  .end-grip:hover .end-grip__dot {
+    background: Highlight;
+  }
+}
 /* Under `forced-colors: active` the UA force-adjusts these SVG `fill` / `stroke`
    values to system colours automatically (the same path the Canvas Visual
    Refresh relies on — no `@media` block, see scripts/check-mobile-query.mjs).
@@ -4824,7 +4898,50 @@ a.sheet__row {
   border-top: 1px solid var(--line-hairline);
 }
 .ends__title {
-  margin: 0 0 6px;
+  margin: 0;
+}
+/* collapsed by default: the name and a one-line From → To summary */
+.ends__toggle {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.ends__toggle::before {
+  content: '';
+  flex: none;
+  width: 0;
+  height: 0;
+  border-block: 4px solid transparent;
+  border-inline-start: 5px solid currentColor;
+  align-self: center;
+}
+.ends__toggle[aria-expanded='true']::before {
+  border-inline: 4px solid transparent;
+  border-block-start: 5px solid currentColor;
+  border-block-end: 0;
+}
+.ends__toggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.ends__summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+.ends > div:not([hidden]) {
+  margin-top: 8px;
 }
 .ends__end {
   margin-bottom: 8px;

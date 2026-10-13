@@ -100,6 +100,8 @@ const canvas = {
   'canvas.route.invalidFlag': 'invalid route — a route point is inside a node',
   'canvas.route.bend': 'Bend point {n} of {total}',
   'canvas.route.noBendRoom': 'No segment of this connection has room for a bend point; nothing was changed.',
+  'canvas.endGrip.source': 'Start of this connection: choose a side',
+  'canvas.endGrip.target': 'End of this connection: choose a side',
   'canvas.edgeLabel.clamp': 'clamp',
   'canvas.edgeLabel.clamp.title': 'removed by the target Pool\'s single end-of-Phase-0 clamp',
   'canvas.edgeLabel.blocked': 'blocked',

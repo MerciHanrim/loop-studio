@@ -93,6 +93,7 @@ const inspector = {
   'inspector.edge.route.addBendHint': 'Kırılma noktasının geleceği yerde bağlantıya tıklayın ya da en uzun parçanın ortasına eklemek için Enter tuşuna basın. İptal için Esc.',
   'inspector.edge.route.editHint': 'Bir kırılma noktasını sürükleyin ya da seçip ok tuşlarıyla taşıyın (Shift daha büyük adım atar). Delete onu siler.',
   'inspector.ends.title': 'Uçlar',
+  'inspector.ends.summary': '{from} → {to}',
   'inspector.ends.from': 'Başlangıç',
   'inspector.ends.to': 'Bitiş',
   'inspector.ends.node': 'Düğüm',

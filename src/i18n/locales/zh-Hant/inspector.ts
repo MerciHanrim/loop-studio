@@ -90,6 +90,7 @@ const inspector = {
   'inspector.edge.route.addBendHint': '在連線上要加拐點的位置點一下，或按 Enter 在最長一段的中點新增，按 Esc 取消。',
   'inspector.edge.route.editHint': '拖曳拐點，或選取後用方向鍵移動（按住 Shift 幅度更大）。按 Delete 刪除。',
   'inspector.ends.title': '端點',
+  'inspector.ends.summary': '{from} → {to}',
   'inspector.ends.from': '起點',
   'inspector.ends.to': '終點',
   'inspector.ends.node': '節點',

@@ -983,7 +983,7 @@ of the release that ships this says the same in one sentence.
 An existing connection's source or target end can be moved to another side of the
 same node or to another node without deleting it. Every surface that offers it uses
 ONE check, `endMoveVerdict`, and ONE change, `moveEdgeEnds` (`src/model/endMove.ts`,
-the graph store): the Inspector's Ends group today, the canvas end grips next.
+the graph store): the Inspector's Ends group and the canvas end grips.
 
 - **What a move keeps.** The connection's id, kind, direction, handles (the kind
   channel: `out` / `in`, `state-*`) and every `data` field — amount or condition,
@@ -1011,14 +1011,38 @@ the graph store): the Inspector's Ends group today, the canvas end grips next.
   new end's stub), the Inspector says so BEFORE applying; "Reset to automatic" stays
   the user's own, separate choice (the line-editing principle: a user-adjusted route
   is kept, going back to automatic is explicit).
-- **The Inspector's Ends group.** For the source (From) and the target (To): a node
+- **The Inspector's Ends group.** Folded by default to one line — the group's name and
+  the From → To names — so the connection's other fields keep their place (the design
+  review: an always-open group pushed the Colour section out of view). Opened, for the
+  source (From) and the target (To): a node
   list and a four-side choice; the user picks, then Applies (one change, never a
   provisional side first and a second change after); Revert returns the pick. A node
   that cannot take this end is listed disabled with its reason in the option's own
   text, so a keyboard or screen-reader user reads it; the reason, the bend warning and
-  the applied result are in a status line the controls describe themselves with. Node
+  the applied result are in a status line the controls describe themselves with; that
+  line stays visible while the group is folded. Folding it with a pick not applied
+  drops the pick. Node
   names are the user's text and are bidi-isolated. Under the edit lock the Inspector is
   disabled as a whole; the phone stays read-only.
+- **The canvas end grips.** Exactly when ONE connection is selected (and nothing else),
+  a round grip sits on each of its ends (`EndGrips`, drawn by `LoopEdge`), never on
+  hover, never on the phone or under the edit lock. Dragging a grip offers every
+  node's faces, as drawing does; dropping on a face moves that end (the same check
+  and change), dropping on a refused face changes nothing and says why (the canvas
+  live region and the Ends status line), dropping elsewhere or pressing Esc changes
+  nothing and records nothing. The drag is React Flow's own connection engine
+  (`XYHandle`, the one its edge reconnection uses) started from a mouse press or a
+  touch start — React Flow's own reconnect anchors listen to the mouse only, so they
+  are not used (spike 2026-10-13). A drag in progress is cancelled, applying nothing,
+  when the grips go away under it (the connection deselected or deleted, the edit lock
+  turned on); after Esc, moving on or releasing does nothing.
+- **The side choice on a grip.** A click or tap on a grip (or Enter / Space on the
+  focused grip — each grip is a named button) offers the four sides of THAT end's node,
+  as buttons just outside each side (past the node's outside name where it is on that
+  side), the current one marked. Choosing one moves the end to that side (one undo
+  step, the run kept) and closes them; Esc or a press elsewhere closes them unchanged;
+  either way focus returns to the grip. It is the precise path for a side of the same
+  node; another node is reached by dragging, or from the Ends group.
 - **Compatibility.** Nothing new is stored: the ends and `data.ports` are written and
   read as before, so a moved end round-trips through save, reopen, undo and redo, and
   an older build loses only the faces (§ER17).

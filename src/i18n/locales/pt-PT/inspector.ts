@@ -90,6 +90,7 @@ const inspector = {
   'inspector.edge.route.addBendHint': 'Clique na ligação onde fica a dobra; com Enter, uma dobra entra no meio do trecho mais longo. Esc para cancelar.',
   'inspector.edge.route.editHint': 'Arraste uma dobra, ou selecione-a e mova-a com as teclas de seta (Shift para um passo maior). Delete apaga a dobra.',
   'inspector.ends.title': 'Extremidades',
+  'inspector.ends.summary': '{from} → {to}',
   'inspector.ends.from': 'De',
   'inspector.ends.to': 'Para',
   'inspector.ends.node': 'Nó',

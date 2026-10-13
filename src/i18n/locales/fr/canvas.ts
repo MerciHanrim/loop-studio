@@ -121,6 +121,8 @@ const canvas = {
   'canvas.route.invalidFlag': 'tracé invalide — un point de tracé est à l’intérieur d’un nœud',
   'canvas.route.bend': 'Coude {n} sur {total}',
   'canvas.route.noBendRoom': 'Aucun segment de cette connexion n’a la place pour un coude. Rien n’a été modifié.',
+  'canvas.endGrip.source': 'Début de cette connexion : choisir un côté',
+  'canvas.endGrip.target': 'Fin de cette connexion : choisir un côté',
   'canvas.edgeLabel.clamp': 'écrêtage',
   'canvas.edgeLabel.clamp.title':
     'retiré par l’unique écrêtage de fin de phase 0 du réservoir cible',

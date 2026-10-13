@@ -130,6 +130,8 @@ const canvas = {
   'canvas.route.invalidFlag': 'geçersiz güzergâh — bir güzergâh noktası düğümün içinde',
   'canvas.route.bend': 'Kırılma noktası {n} / {total}',
   'canvas.route.noBendRoom': 'Bu bağlantının hiçbir parçasında kırılma noktası için yer yok; hiçbir şey değiştirilmedi.',
+  'canvas.endGrip.source': 'Bu bağlantının başlangıcı: bir kenar seçin',
+  'canvas.endGrip.target': 'Bu bağlantının bitişi: bir kenar seçin',
   'canvas.edgeLabel.clamp': 'kırpıldı',
   'canvas.edgeLabel.clamp.title':
     'alıcı Havuzun Faz 0 sonundaki tek sınırlaması tarafından kaldırıldı',

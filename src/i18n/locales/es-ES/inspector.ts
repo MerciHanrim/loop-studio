@@ -97,6 +97,7 @@ const inspector = {
   'inspector.edge.route.addBendHint': 'Haga clic en la conexión donde va el codo o pulse Intro para añadir uno en el centro de su tramo más largo. Esc para cancelar.',
   'inspector.edge.route.editHint': 'Arrastre un codo, o selecciónelo y muévalo con las teclas de flecha (Mayús para un paso mayor). Suprimir lo elimina.',
   'inspector.ends.title': 'Extremos',
+  'inspector.ends.summary': '{from} → {to}',
   'inspector.ends.from': 'Desde',
   'inspector.ends.to': 'Hasta',
   'inspector.ends.node': 'Nodo',

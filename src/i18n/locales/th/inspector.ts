@@ -94,6 +94,7 @@ const inspector = {
   'inspector.edge.route.addBendHint': 'คลิกบนเส้นเชื่อมตรงตำแหน่งที่ต้องการจุดหักมุม หรือกด Enter เพื่อเพิ่มจุดกึ่งกลางของช่วงที่ยาวที่สุด กด Esc เพื่อยกเลิก',
   'inspector.edge.route.editHint': 'ลากจุดหักมุม หรือเลือกแล้วย้ายด้วยปุ่มลูกศร (กด Shift ค้างเพื่อก้าวทีละมาก) Delete ลบจุดนั้น',
   'inspector.ends.title': 'ปลายเส้น',
+  'inspector.ends.summary': '{from} → {to}',
   'inspector.ends.from': 'จาก',
   'inspector.ends.to': 'ไปยัง',
   'inspector.ends.node': 'โหนด',

@@ -115,6 +115,8 @@ const canvas = {
   'canvas.route.invalidFlag': 'ongeldige route — een routepunt ligt binnen een knooppunt',
   'canvas.route.bend': 'Knik {n} van {total}',
   'canvas.route.noBendRoom': 'Geen enkel stuk van deze verbinding heeft ruimte voor een knik; er is niets gewijzigd.',
+  'canvas.endGrip.source': 'Begin van deze verbinding: kies een zijde',
+  'canvas.endGrip.target': 'Eind van deze verbinding: kies een zijde',
   'canvas.edgeLabel.clamp': 'begrensd',
   'canvas.edgeLabel.clamp.title': 'verwijderd door de enkele begrenzing van de doelvoorraad aan het einde van fase 0',
   'canvas.edgeLabel.blocked': 'geblokkeerd',

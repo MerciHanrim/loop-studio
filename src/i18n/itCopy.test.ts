@@ -183,6 +183,7 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
   ['catalog canvas.frame.areaName', 'Area {n}'],
   ['catalog inspector.edge.flowPlaceholder', '1, all, 2D6, 1-3, 25%'],
   ['catalog inspector.edge.flowParam.resolved', '= {value}'],
+  ['catalog inspector.ends.summary', '{from} → {to}'], // §ER18: the Ends group's summary, two names and an arrow
   ['catalog inspector.expr.activatorPlaceholder', '>= 5'],
   ['catalog inspector.expr.labelPlaceholder', '+1   ·   -2   ·   =S'],
   ['catalog regExpr.row.generic', '— {code}'],
@@ -207,15 +208,15 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
 // ------------------------------------------------------------------ shape
 describe('it copy — the surfaces exist and are complete', () => {
   it('has exactly the base key set', () => {
-    expect(KEYS).toHaveLength(1110) // the connection Ends group (docs/edge-routing.md §ER18): +21 (inspector.ends.*); 0.26.2: +4 (the four release-note lines); 0.26.0: +5 (the five release-note lines); the node structure: +1 (inspector.field.currentAmount, the Pool's read-only current amount); issue #344: +2 (the 0.25.0 release note is five lines, was three); issue #344 Step 3: +9 (the connection shape and bend-point strings and the keyboard bend notice); issue #344 Step 1: +3 (three 0.25.0 release-note lines); issue #344 Step 1: +1 (canvas.tidy, the Tidy to grid rail button); issue #330 PR 3: +3 (three 0.24.0 release-note lines); issue #330 PR 3: +9 (the phone Playback speed sheet); issue #330 PR 2: +3 (three 0.23.0 release-note lines); issue #330 PR 1: +5 (five 0.22.0 release-note lines); issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines); the flow colour: +20 (the sixteen strings of the Colour section and the four 0.19.0 release-note lines); the flow colour views: +4 (the four 0.20.0 release-note lines); compact nodes: +3 (the three 0.21.0 release-note lines); Focus dimming: +3 (the three 0.21.1 release-note lines); value rows: +3 (the three 0.21.2 release-note lines); the edit lock: +4 (canvas.lock.name, its fixed accessible name, and the three 0.21.3 release-note lines); the locked rail and the phone search: +4 (the four 0.21.4 release-note lines)
+    expect(KEYS).toHaveLength(1113) // the connection Ends group (docs/edge-routing.md §ER18): +24 (inspector.ends.*, canvas.endGrip.source / target); 0.26.2: +4 (the four release-note lines); 0.26.0: +5 (the five release-note lines); the node structure: +1 (inspector.field.currentAmount, the Pool's read-only current amount); issue #344: +2 (the 0.25.0 release note is five lines, was three); issue #344 Step 3: +9 (the connection shape and bend-point strings and the keyboard bend notice); issue #344 Step 1: +3 (three 0.25.0 release-note lines); issue #344 Step 1: +1 (canvas.tidy, the Tidy to grid rail button); issue #330 PR 3: +3 (three 0.24.0 release-note lines); issue #330 PR 3: +9 (the phone Playback speed sheet); issue #330 PR 2: +3 (three 0.23.0 release-note lines); issue #330 PR 1: +5 (five 0.22.0 release-note lines); issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines); the flow colour: +20 (the sixteen strings of the Colour section and the four 0.19.0 release-note lines); the flow colour views: +4 (the four 0.20.0 release-note lines); compact nodes: +3 (the three 0.21.0 release-note lines); Focus dimming: +3 (the three 0.21.1 release-note lines); value rows: +3 (the three 0.21.2 release-note lines); the edit lock: +4 (canvas.lock.name, its fixed accessible name, and the three 0.21.3 release-note lines); the locked rail and the phone search: +4 (the four 0.21.4 release-note lines)
     expect(Object.keys(IT).sort()).toEqual([...KEYS].sort())
   })
 
   it('covers all four runtime surfaces, at the measured sizes', () => {
     const per: Record<string, number> = {}
     for (const r of RUNTIME) per[r.surface.split('/')[0]!] = (per[r.surface.split('/')[0]!] ?? 0) + 1
-    expect(per).toEqual({ catalog: 1110, template: 196, frame: 7, module: 19 })
-    expect(RUNTIME).toHaveLength(1332)
+    expect(per).toEqual({ catalog: 1113, template: 196, frame: 7, module: 19 })
+    expect(RUNTIME).toHaveLength(1335)
   })
 
   it('EVERY row has a non-empty ENGLISH side — the vacuity guard', () => {
@@ -297,9 +298,9 @@ describe('it copy — what is identical to English, exactly', () => {
   })
 
   // issue #308: 39 -> 40 (tour.nav.announce)
-  it('the declared set is what it claims — 40 pairs, no duplicate key', () => {
-    expect(IDENTICAL_TO_EN).toHaveLength(40)
-    expect(new Set(IDENTICAL_TO_EN.map(([k]) => k)).size).toBe(40)
+  it('the declared set is what it claims — 41 pairs, no duplicate key', () => {
+    expect(IDENTICAL_TO_EN).toHaveLength(41) // §ER18: +1 (inspector.ends.summary)
+    expect(new Set(IDENTICAL_TO_EN.map(([k]) => k)).size).toBe(41)
   })
 })
 

@@ -100,6 +100,7 @@ const inspector = {
   'inspector.edge.route.addBendHint': 'Cliquez sur la connexion à l’endroit du coude, ou appuyez sur Entrée pour en ajouter un au milieu de son plus long segment. Échap pour annuler.',
   'inspector.edge.route.editHint': 'Faites glisser un coude, ou sélectionnez-le et déplacez-le avec les flèches (Maj pour un pas plus grand). Suppr le supprime.',
   'inspector.ends.title': 'Extrémités',
+  'inspector.ends.summary': '{from} → {to}',
   'inspector.ends.from': 'Départ',
   'inspector.ends.to': 'Arrivée',
   'inspector.ends.node': 'Nœud',

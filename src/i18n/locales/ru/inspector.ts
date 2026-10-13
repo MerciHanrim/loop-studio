@@ -101,6 +101,7 @@ const inspector = {
   'inspector.edge.route.addBendHint': 'Нажмите на связь там, где нужен излом, или нажмите Enter, чтобы добавить излом в середину самого длинного отрезка. Esc для отмены.',
   'inspector.edge.route.editHint': 'Перетащите излом или выделите его и сдвиньте стрелками (Shift — более крупным шагом). Delete удаляет излом.',
   'inspector.ends.title': 'Концы',
+  'inspector.ends.summary': '{from} → {to}',
   'inspector.ends.from': 'Откуда',
   'inspector.ends.to': 'Куда',
   'inspector.ends.node': 'Узел',

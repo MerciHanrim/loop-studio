@@ -110,6 +110,7 @@ const inspector = {
   'inspector.edge.route.addBendHint': 'انقر على الرابط حيث تريد الانعطاف، أو اضغط Enter لإضافة انعطاف في منتصف أطول مقطع، وEsc للإلغاء.',
   'inspector.edge.route.editHint': 'اسحب نقطة انعطاف، أو حدّدها وحرّكها بمفاتيح الأسهم (ومع Shift خطوة أكبر). Delete تزيلها.',
   'inspector.ends.title': 'الطرفان',
+  'inspector.ends.summary': '{from} → {to}',
   'inspector.ends.from': 'من',
   'inspector.ends.to': 'إلى',
   'inspector.ends.node': 'العقدة',
