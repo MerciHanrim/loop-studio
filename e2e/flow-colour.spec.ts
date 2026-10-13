@@ -144,6 +144,29 @@ test.describe('flow colour — the Colour section (FC-5)', () => {
     expect(await accentOf(page, 'nodes', added)).toBeNull()
   })
 
+  test('the keyboard neighbour walk moves the whole selection: Inspector, marks and the colour all go to the neighbour', async ({ page }) => {
+    await load(page)
+    await node(page, 'gold').click() // A, by a click: React Flow marks it
+    await page.mouse.move(5, 5)
+    await expect(node(page, 'gold')).toHaveClass(/selected/)
+    await page.keyboard.press(']') // §LGR4.3 — to Gold's first neighbour by id
+    const label = page.locator('.inspector').getByRole('textbox', { name: 'Label', exact: true })
+    await expect(label).not.toHaveValue('Gold')
+    const shown = await label.inputValue()
+    const b = await page.evaluate((l) => (window as any).__loop.graph.getState().nodes.find((n: { data: { label: string } }) => n.data.label === l).id, shown)
+    const marked = () => page.evaluate(() => [...document.querySelectorAll('.react-flow__node.selected')].map((n) => n.getAttribute('data-id')))
+    await swatch(page, 'Gold').click()
+    expect(await accentOf(page, 'nodes', b)).toBe('#A78243')
+    expect(await accentOf(page, 'nodes', 'gold')).toBeNull()
+    expect(await marked()).toEqual([b])
+    // pressed again, the walk still rotates through Gold's neighbours, the marks with it
+    await page.keyboard.press(']')
+    await expect(label).not.toHaveValue(shown)
+    const c = await page.evaluate((l) => (window as any).__loop.graph.getState().nodes.find((n: { data: { label: string } }) => n.data.label === l).id, await label.inputValue())
+    expect(c).not.toBe('gold')
+    expect(await marked()).toEqual([c])
+  })
+
   test('the browser colour input applies on its real change only (condition 4)', async ({ page }) => {
     await load(page)
     await node(page, 'gold').click()
