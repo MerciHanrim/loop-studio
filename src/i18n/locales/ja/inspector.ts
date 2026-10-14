@@ -118,6 +118,7 @@ const inspector = {
   'inspector.ends.reverse.done': '向きを反転しました。量と条件はそのままで、新しい向きで解釈されます。',
   'inspector.ends.reverse.bendsKept': '折れ点は元の位置のままです。',
   'inspector.ends.reverse.mayChange': '自動の経路、両端付近の線、ラベルの位置は変わることがあります。',
+  'inspector.ends.reverse.again': 'もう一度反転することはできません。',
   'inspector.ends.reverse.reason.activatorSource': '反転すると、このアクティベーターの始点が Pool ではない {node} になります。アクティベーターの始点は Pool である必要があります。',
   'inspector.ends.reverse.reason.labelPool': '反転すると、このラベルの一方の端が Pool ではない {node} になります。ラベルの両端は Pool である必要があります。',
   'inspector.ends.reverse.reason.labelRouterSource': '反転すると、このラベルの始点が {node} になります。ソース実行時に適用するラベルの始点は、ゲート・コンバーター・ドレイン・エンドのいずれかである必要があります。',

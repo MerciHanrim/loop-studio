@@ -109,6 +109,7 @@ const inspector = {
   'inspector.ends.reverse.done': '방향을 뒤집었습니다. 수량·조건은 그대로이며, 이제 새 방향 기준으로 해석됩니다.',
   'inspector.ends.reverse.bendsKept': '꺾임점은 원래 위치에 그대로 있습니다.',
   'inspector.ends.reverse.mayChange': '자동 경로, 양 끝 가까이의 선, 라벨 위치는 달라질 수 있습니다.',
+  'inspector.ends.reverse.again': '다시 뒤집을 수는 없습니다.',
   'inspector.ends.reverse.reason.activatorSource': '뒤집으면 이 activator는 Pool이 아닌 노드({node})에서 출발하게 됩니다. activator는 Pool에서 출발해야 합니다.',
   'inspector.ends.reverse.reason.labelPool': '뒤집으면 이 label의 한쪽 끝이 Pool이 아닌 노드({node})가 됩니다. label은 양 끝이 모두 Pool이어야 합니다.',
   'inspector.ends.reverse.reason.labelRouterSource': '뒤집으면 이 label은 노드({node})에서 출발하게 됩니다. 소스 실행 시 적용되는 label은 게이트·컨버터·드레인·엔드에서 출발해야 합니다.',

@@ -128,6 +128,7 @@ const inspector = {
   'inspector.ends.reverse.done': 'Direzione invertita. Quantità e condizione restano e ora si leggono nella nuova direzione.',
   'inspector.ends.reverse.bendsKept': 'I tuoi angoli restano dove erano.',
   'inspector.ends.reverse.mayChange': 'Il percorso automatico, la linea vicino a ciascun estremo e la posizione dell’etichetta possono cambiare.',
+  'inspector.ends.reverse.again': 'Non si può invertire di nuovo.',
   'inspector.ends.reverse.reason.activatorSource': 'Invertito, questo attivatore partirebbe da {node}, che non è un Serbatoio; un attivatore deve partire da un Serbatoio.',
   'inspector.ends.reverse.reason.labelPool': 'Invertita, questa etichetta avrebbe a un estremo {node}, che non è un Serbatoio; serve un Serbatoio a entrambi gli estremi.',
   'inspector.ends.reverse.reason.labelRouterSource': 'Invertita, questa etichetta partirebbe da {node}; un’etichetta applicata quando la sorgente scatta deve partire da un Ripartitore, un Convertitore, uno Scarico o una Fine.',

@@ -120,6 +120,7 @@ const inspector = {
   'inspector.ends.reverse.done': 'Direção invertida. A quantidade e a condição continuam iguais e agora são lidas na nova direção.',
   'inspector.ends.reverse.bendsKept': 'As dobras ficam onde estavam.',
   'inspector.ends.reverse.mayChange': 'A rota automática, a linha perto de cada extremidade e o lugar do rótulo podem mudar.',
+  'inspector.ends.reverse.again': 'Não pode ser invertida de novo.',
   'inspector.ends.reverse.reason.activatorSource': 'Invertido, este ativador partiria de {node}, que não é um Reservatório; um ativador precisa de uma origem do tipo Reservatório.',
   'inspector.ends.reverse.reason.labelPool': 'Invertido, uma das extremidades deste rótulo seria {node}, que não é um Reservatório; o rótulo precisa de um Reservatório nas duas extremidades.',
   'inspector.ends.reverse.reason.labelRouterSource': 'Invertido, este rótulo partiria de {node}; um rótulo aplicado quando a origem dispara precisa de uma origem do tipo Distribuidor, Conversor, Sumidouro ou Fim.',

@@ -130,6 +130,7 @@ const inspector = {
   'inspector.ends.reverse.done': 'Sens inversé. La quantité et la condition sont gardées et se lisent maintenant dans le nouveau sens.',
   'inspector.ends.reverse.bendsKept': 'Vos coudes restent à leur place.',
   'inspector.ends.reverse.mayChange': 'Le tracé automatique, la ligne près de chaque extrémité et la place de l’étiquette peuvent changer.',
+  'inspector.ends.reverse.again': 'Elle ne peut pas être inversée de nouveau.',
   'inspector.ends.reverse.reason.activatorSource': 'Inversé, cet activateur partirait de {node}, qui n’est pas un réservoir. Un activateur doit partir d’un réservoir.',
   'inspector.ends.reverse.reason.labelPool': 'Inversée, cette étiquette aurait {node}, qui n’est pas un réservoir, à une extrémité. Elle doit avoir un réservoir à chaque extrémité.',
   'inspector.ends.reverse.reason.labelRouterSource': 'Inversée, cette étiquette partirait de {node}. Une étiquette appliquée quand la source agit doit partir d’un aiguillage, d’un convertisseur, d’un puits ou d’une fin.',

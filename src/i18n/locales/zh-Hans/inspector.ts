@@ -115,6 +115,7 @@ const inspector = {
   'inspector.ends.reverse.done': '已反转方向。数量和条件保持不变，现在按新的方向解读。',
   'inspector.ends.reverse.bendsKept': '拐点仍在原来的位置。',
   'inspector.ends.reverse.mayChange': '自动走线、两端附近的线段和标签位置可能会变化。',
+  'inspector.ends.reverse.again': '不能再反转回去。',
   'inspector.ends.reverse.reason.activatorSource': '反转后，这个激活器的起点将是 {node}，它不是资源池；激活器需要以资源池为源。',
   'inspector.ends.reverse.reason.labelPool': '反转后，这个标签的一端将是 {node}，它不是资源池；标签的两端都必须是资源池。',
   'inspector.ends.reverse.reason.labelRouterSource': '反转后，这个标签的起点将是 {node}；在源执行时施加的标签需要以分流门、转换器、汇或终点为源。',

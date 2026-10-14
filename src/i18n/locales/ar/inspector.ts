@@ -140,6 +140,7 @@ const inspector = {
   'inspector.ends.reverse.done': 'عُكس الاتجاه. بقيت الكمية والشرط كما هما، ويُقرآن الآن وفق الاتجاه الجديد.',
   'inspector.ends.reverse.bendsKept': 'تبقى نقاط الانعطاف التي وضعتها في أماكنها.',
   'inspector.ends.reverse.mayChange': 'قد يتغيّر المسار التلقائي والخط قرب كل طرف ومكان تسمية الرابط.',
+  'inspector.ends.reverse.again': 'لا يمكن عكسه مرة أخرى.',
   'inspector.ends.reverse.reason.activatorSource': 'بعد العكس سيبدأ هذا المُفعِّل من {node}، وهو ليس مَجمَعًا؛ يحتاج المُفعِّل إلى مصدر من نوع مَجمَع.',
   'inspector.ends.reverse.reason.labelPool': 'بعد العكس سيكون أحد طرفي هذا الوسم {node}، وهو ليس مَجمَعًا؛ يحتاج الوسم إلى مَجمَع عند طرفيه كليهما.',
   'inspector.ends.reverse.reason.labelRouterSource': 'بعد العكس سيبدأ هذا الوسم من {node}؛ الوسم الذي يُطبَّق عندما يعمل المصدر يحتاج إلى مصدر من نوع بوّابة أو مُحوِّل أو مصرف أو نهاية.',

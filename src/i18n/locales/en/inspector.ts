@@ -110,6 +110,7 @@ const inspector = {
   'inspector.ends.reverse.done': 'Reversed. The amount and condition are kept and are now read in the new direction.',
   'inspector.ends.reverse.bendsKept': 'Your bends stay where they were.',
   'inspector.ends.reverse.mayChange': 'The automatic route, the line next to each end and the label’s place may change.',
+  'inspector.ends.reverse.again': 'It cannot be reversed back.',
   'inspector.ends.reverse.reason.activatorSource': 'Reversed, this activator would start at {node}, which is not a Pool; an activator needs a Pool as its source.',
   'inspector.ends.reverse.reason.labelPool': 'Reversed, one end of this label would be {node}, which is not a Pool; it needs a Pool at both ends.',
   'inspector.ends.reverse.reason.labelRouterSource': 'Reversed, this label would start at {node}; a label applied when the source fires needs a Gate, Converter, Drain or End as its source.',

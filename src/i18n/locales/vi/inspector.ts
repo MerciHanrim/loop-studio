@@ -119,6 +119,7 @@ const inspector = {
   'inspector.ends.reverse.done': 'Đã đảo chiều. Lượng và điều kiện được giữ nguyên và giờ được hiểu theo chiều mới.',
   'inspector.ends.reverse.bendsKept': 'Các điểm gấp của bạn vẫn ở chỗ cũ.',
   'inspector.ends.reverse.mayChange': 'Đường đi tự động, đoạn gần mỗi đầu và vị trí của nhãn có thể thay đổi.',
+  'inspector.ends.reverse.again': 'Không thể đảo chiều trở lại.',
   'inspector.ends.reverse.reason.activatorSource': 'Nếu đảo chiều, bộ kích hoạt này sẽ bắt đầu ở {node}, vốn không phải Bể chứa; bộ kích hoạt cần nguồn là Bể chứa.',
   'inspector.ends.reverse.reason.labelPool': 'Nếu đảo chiều, một đầu của nhãn này sẽ là {node}, vốn không phải Bể chứa; nhãn cần Bể chứa ở cả hai đầu.',
   'inspector.ends.reverse.reason.labelRouterSource': 'Nếu đảo chiều, nhãn này sẽ bắt đầu ở {node}; nhãn áp dụng khi nguồn kích hoạt cần nguồn là Bộ chia, Bộ chuyển đổi, Điểm xả hoặc Điểm kết thúc.',

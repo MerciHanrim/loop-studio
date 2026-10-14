@@ -1125,9 +1125,14 @@ for moving an end. The investigation behind the rules is share note 48 (Lumi,
   and that the automatic route, the line next to each end and the label's place may
   change; when it is refused, the reason, with the node names isolated; while a pick
   in the open group is not applied, "Apply or revert the change you picked first,
-  then reverse" (no position word: the pick is below the note) — so it is never unclear whether the pending ends or the stored ones would
-  be reversed. Waiting or refused, the button is `aria-disabled`, not disabled: it
-  stays in the Tab order and the note describes it. Under the edit lock the Inspector
+  then reverse" (no position word: the pick is below the note) — so it is never
+  unclear whether the pending ends or the stored ones would be reversed. A reversal
+  that makes a connection work (an activator from a Gate, a "When the source fires"
+  label from a Pool) leaves one that cannot be reversed back: the result stays shown,
+  and a line of its own below it says "It cannot be reversed back." with the reason;
+  the button then waits and describes itself with that line (Lumi's review of #354).
+  Waiting or refused, the button is `aria-disabled`, not disabled: it stays in the
+  Tab order and the note describes it. Under the edit lock the Inspector
   is disabled as a whole; the phone stays read-only. Not on the canvas in this unit.
 - **Compatibility.** Nothing new is stored: the ends, `data.ports` and `waypoints` are
   written and read as before.

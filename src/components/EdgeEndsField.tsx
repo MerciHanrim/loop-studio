@@ -140,22 +140,29 @@ export function EdgeEndsField({ edge }: { edge: LoopEdge }) {
   // the connection a reversal from here produced: its note stays while the
   // connection is that one (an undo or another edit ends it)
   const [reversed, setReversed] = useState<LoopEdge | null>(null)
-  // the note under it, folded or open: the wait, the refusal, the result (the
-  // reading; the bends' places, only when there are bends; what may be drawn
-  // differently), else what a reversal keeps
+  const refusal = reverse.ok
+    ? null
+    : t(REVERSE_REASON_KEY[reverse.reason], {
+        node: isolateAuto(nameOf(byId.get(reverse.node), reverse.node)),
+        from: isolateAuto(nameOf(byId.get(current.target.node), current.target.node)),
+        to: isolateAuto(nameOf(byId.get(current.source.node), current.source.node)),
+      })
+  const justReversed = reversed === edge
+  // the note under it, folded or open: the wait; the result of the reversal
+  // just made (the reading; the bends' places, only when there are bends; what
+  // may be drawn differently); a refusal; else what a reversal keeps
   const reverseNote = changed
     ? t('inspector.ends.reverse.pending')
-    : !reverse.ok
-      ? t(REVERSE_REASON_KEY[reverse.reason], {
-          node: isolateAuto(nameOf(byId.get(reverse.node), reverse.node)),
-          from: isolateAuto(nameOf(byId.get(current.target.node), current.target.node)),
-          to: isolateAuto(nameOf(byId.get(current.source.node), current.source.node)),
-        })
-      : reversed === edge
-        ? [t('inspector.ends.reverse.done'), waypoints.length > 0 ? t('inspector.ends.reverse.bendsKept') : null, t('inspector.ends.reverse.mayChange')].filter(Boolean).join(' ')
-        : t('inspector.ends.reverse.hint')
+    : justReversed
+      ? [t('inspector.ends.reverse.done'), waypoints.length > 0 ? t('inspector.ends.reverse.bendsKept') : null, t('inspector.ends.reverse.mayChange')].filter(Boolean).join(' ')
+      : (refusal ?? t('inspector.ends.reverse.hint'))
+  // a reversal that made a connection work (an activator from a Gate, say) can
+  // leave one that cannot be reversed back: the result stays, and why the NEXT
+  // reversal is refused is a line of its own, the one the button describes
+  const againNote = !changed && justReversed && refusal ? `${t('inspector.ends.reverse.again')} ${refusal}` : null
   const reverseBlocked = changed || !reverse.ok
   const reverseNoteId = `${ids}-reverse`
+  const reverseAgainId = `${ids}-reverse-again`
 
   const endRow = (end: PortEnd) => {
     const value = pick[end]
@@ -237,7 +244,7 @@ export function EdgeEndsField({ edge }: { edge: LoopEdge }) {
         className="btn btn--ghost ends__reverse"
         aria-label={t('inspector.ends.reverse.name')}
         aria-disabled={reverseBlocked || undefined}
-        aria-describedby={reverseNoteId}
+        aria-describedby={againNote ? reverseAgainId : reverseNoteId}
         onClick={() => {
           if (reverseBlocked) return
           const v = reverseEdge(edge.id)
@@ -255,6 +262,11 @@ export function EdgeEndsField({ edge }: { edge: LoopEdge }) {
       <p id={reverseNoteId} role="status" className="field__hint ends__reverse-note">
         {reverseNote}
       </p>
+      {againNote ? (
+        <p id={reverseAgainId} className="field__hint ends__reverse-note">
+          {againNote}
+        </p>
+      ) : null}
       <p id={statusId} role="status" className={status?.warn ? 'field__hint field__hint--bad ends__status' : 'field__hint ends__status'}>
         {status?.text ?? ''}
       </p>

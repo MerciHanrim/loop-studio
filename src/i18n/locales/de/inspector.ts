@@ -134,6 +134,7 @@ const inspector = {
   'inspector.ends.reverse.done': 'Umgekehrt. Menge und Bedingung bleiben erhalten und gelten jetzt in der neuen Richtung.',
   'inspector.ends.reverse.bendsKept': 'Ihre Knickpunkte bleiben, wo sie waren.',
   'inspector.ends.reverse.mayChange': 'Die automatische Linienführung, die Linie an jedem Ende und der Platz der Beschriftung können sich ändern.',
+  'inspector.ends.reverse.again': 'Zurück umkehren lässt sie sich nicht.',
   'inspector.ends.reverse.reason.activatorSource': 'Umgekehrt begänne dieser Aktivator bei {node} (kein Speicher); ein Aktivator braucht einen Speicher als Quelle.',
   'inspector.ends.reverse.reason.labelPool': 'Umgekehrt läge ein Ende dieser Beschriftung bei {node} (kein Speicher); sie braucht an beiden Enden einen Speicher.',
   'inspector.ends.reverse.reason.labelRouterSource': 'Umgekehrt begänne diese Beschriftung bei {node}; eine Beschriftung, die wirkt, wenn die Quelle auslöst, braucht einen Verteiler, Konverter, eine Senke oder ein Ende als Quelle.',

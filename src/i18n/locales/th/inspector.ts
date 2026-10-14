@@ -124,6 +124,7 @@ const inspector = {
   'inspector.ends.reverse.done': 'กลับทิศแล้ว จำนวนและเงื่อนไขยังคงเดิม และตอนนี้อ่านตามทิศทางใหม่',
   'inspector.ends.reverse.bendsKept': 'จุดหักมุมของคุณยังอยู่ที่เดิม',
   'inspector.ends.reverse.mayChange': 'เส้นทางอัตโนมัติ เส้นช่วงใกล้ปลายแต่ละด้าน และตำแหน่งของป้ายกำกับอาจเปลี่ยนไป',
+  'inspector.ends.reverse.again': 'กลับทิศกลับคืนไม่ได้',
   'inspector.ends.reverse.reason.activatorSource': 'ถ้ากลับทิศ ตัวกระตุ้นนี้จะเริ่มที่ {node} ซึ่งไม่ใช่ถังพัก ตัวกระตุ้นต้องมีถังพักเป็นต้นทาง',
   'inspector.ends.reverse.reason.labelPool': 'ถ้ากลับทิศ ปลายด้านหนึ่งของป้ายกำกับนี้จะเป็น {node} ซึ่งไม่ใช่ถังพัก ป้ายกำกับต้องมีถังพักที่ปลายทั้งสองด้าน',
   'inspector.ends.reverse.reason.labelRouterSource': 'ถ้ากลับทิศ ป้ายกำกับนี้จะเริ่มที่ {node} ป้ายกำกับที่ใช้เมื่อต้นทางทำงานต้องมีตัวกระจาย ตัวแปลง ทางระบาย หรือจุดสิ้นสุด เป็นต้นทาง',

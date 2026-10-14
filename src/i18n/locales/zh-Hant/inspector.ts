@@ -120,6 +120,7 @@ const inspector = {
   'inspector.ends.reverse.done': '已反轉方向。數量和條件維持不變，現在依新的方向解讀。',
   'inspector.ends.reverse.bendsKept': '拐點仍在原來的位置。',
   'inspector.ends.reverse.mayChange': '自動走線、兩端附近的線段和標籤位置可能會改變。',
+  'inspector.ends.reverse.again': '不能再反轉回去。',
   'inspector.ends.reverse.reason.activatorSource': '反轉後，這個啟動器的起點會是 {node}，它不是資源池；啟動器需要以資源池作為來源。',
   'inspector.ends.reverse.reason.labelPool': '反轉後，這個標籤的一端會是 {node}，它不是資源池；標籤的兩端都必須是資源池。',
   'inspector.ends.reverse.reason.labelRouterSource': '反轉後，這個標籤的起點會是 {node}；在來源執行時施加的標籤需要以分流閘、轉換器、匯或終點作為來源。',

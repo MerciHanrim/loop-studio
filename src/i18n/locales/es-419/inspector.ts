@@ -113,6 +113,7 @@ const inspector = {
   'inspector.ends.reverse.done': 'Dirección invertida. La cantidad y la condición se mantienen y ahora se interpretan en la nueva dirección.',
   'inspector.ends.reverse.bendsKept': 'Sus codos siguen donde estaban.',
   'inspector.ends.reverse.mayChange': 'El trazado automático, la línea junto a cada extremo y el lugar de la etiqueta pueden cambiar.',
+  'inspector.ends.reverse.again': 'No se puede volver a invertir.',
   'inspector.ends.reverse.reason.activatorSource': 'Invertido, este activador saldría de {node}, que no es un Depósito; un activador necesita un Depósito de origen.',
   'inspector.ends.reverse.reason.labelPool': 'Invertida, esta etiqueta tendría en un extremo {node}, que no es un Depósito; necesita un Depósito en ambos extremos.',
   'inspector.ends.reverse.reason.labelRouterSource': 'Invertida, esta etiqueta saldría de {node}; una etiqueta que se aplica cuando el origen actúa necesita un origen de tipo Distribuidor, Convertidor, Sumidero o Fin.',

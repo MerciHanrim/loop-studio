@@ -125,6 +125,7 @@ const inspector = {
   'inspector.ends.reverse.done': 'Omgekeerd. Hoeveelheid en voorwaarde blijven behouden en gelden nu in de nieuwe richting.',
   'inspector.ends.reverse.bendsKept': 'Je knikken blijven waar ze waren.',
   'inspector.ends.reverse.mayChange': 'De automatische route, de lijn bij elk uiteinde en de plek van het etiket kunnen veranderen.',
+  'inspector.ends.reverse.again': 'Terug omkeren kan niet.',
   'inspector.ends.reverse.reason.activatorSource': 'Omgekeerd zou deze activator beginnen bij {node}, dat geen Voorraad is; een activator heeft een Voorraad als bron nodig.',
   'inspector.ends.reverse.reason.labelPool': 'Omgekeerd zou één uiteinde van dit etiket {node} zijn, dat geen Voorraad is; het heeft aan beide uiteinden een Voorraad nodig.',
   'inspector.ends.reverse.reason.labelRouterSource': 'Omgekeerd zou dit etiket beginnen bij {node}; een etiket dat werkt wanneer de bron vuurt, heeft een Verdeler, Omzetter, Afvoer of Einde als bron nodig.',

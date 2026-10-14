@@ -161,3 +161,68 @@ test.describe('Reverse in the Ends group (§ER19)', () => {
     expect(await state(page, 'e_treat')).toEqual(before)
   })
 })
+
+// A reversal that makes a connection work can leave one that cannot be
+// reversed back (Lumi's review of #354): the result stays shown, and why the
+// NEXT reversal is refused is a line of its own, the one the button describes.
+test.describe('Reverse that makes a state connection work (§ER19)', () => {
+  /** a state connection the user drew, with its mode — added through the store
+   *  the drawing gesture ends in */
+  async function drawState(page: Page, source: string, target: string, data: Record<string, unknown>) {
+    const id = await page.evaluate(
+      ({ source, target, data }) => {
+        const g = (window as unknown as { __loop: L }).__loop.graph.getState()
+        g.onConnect({ source, target, sourceHandle: 'state-source', targetHandle: 'state-target' })
+        const e = (window as unknown as { __loop: L }).__loop.graph.getState().edges.find((x: { source: string; target: string; data?: { kind?: string } }) => x.source === source && x.target === target && x.data?.kind === 'state')
+        g.setEdgeData(e.id, { ...e.data, ...data })
+        return e.id as string
+      },
+      { source, target, data },
+    )
+    await routesSettled(page)
+    return id
+  }
+  const plain = async (l: Locator) => (await l.textContent())!.replace(/[\u2066-\u2069]/g, '')
+
+  for (const c of [
+    {
+      what: 'an activator from a Gate (no effect) reversed to start at a Pool',
+      from: 'triage',
+      to: 'treated',
+      data: { mode: 'activator', expr: '>= 1' },
+      again: 'It cannot be reversed back. Reversed, this activator would start at Triage desk, which is not a Pool; an activator needs a Pool as its source.',
+    },
+    {
+      what: 'a "When the source fires" label from a Pool (no effect) reversed to start at a Gate',
+      from: 'treated',
+      to: 'triage',
+      data: { mode: 'label', expr: '+1', timing: 'afterPull', when: 'source-fired' },
+      again: 'It cannot be reversed back. Reversed, this label would start at Treated today; a label applied when the source fires needs a Gate, Converter, Drain or End as its source.',
+    },
+  ]) {
+    test(`${c.what}: the result stays, the refusal of the next one is its own line`, async ({ page }) => {
+      await open(page)
+      const id = await drawState(page, c.from, c.to, c.data)
+      const ends = await selectEdge(page, id)
+      await expect(reverse(ends)).not.toHaveAttribute('aria-disabled', 'true')
+      await reverse(ends).click()
+      await expect.poll(async () => (await state(page, id)).source).toBe(c.to)
+      // the reversal's own result, as for any other
+      await expect(note(ends).first()).toHaveText('Reversed. The amount and condition are kept and are now read in the new direction. The automatic route, the line next to each end and the label’s place may change.')
+      // and, apart from it, why it cannot be reversed back
+      const again = ends.locator('.ends__reverse-note').nth(1)
+      await expect.poll(() => plain(again)).toBe(c.again)
+      await expect(reverse(ends)).toHaveAttribute('aria-disabled', 'true')
+      const described = await reverse(ends).getAttribute('aria-describedby')
+      expect(described).toBe(await again.getAttribute('id'))
+      // pressing it again records nothing
+      const before = await state(page, id)
+      await reverse(ends).focus()
+      await page.keyboard.press('Enter')
+      expect(await state(page, id)).toEqual(before)
+      // and one undo step still takes the reversal back
+      await page.keyboard.press('Control+z')
+      await expect.poll(async () => (await state(page, id)).source).toBe(c.from)
+    })
+  }
+})

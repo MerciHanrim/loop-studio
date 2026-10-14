@@ -123,6 +123,7 @@ const inspector = {
   'inspector.ends.reverse.done': 'Yön ters çevrildi. Miktar ve koşul korunur ve artık yeni yöne göre okunur.',
   'inspector.ends.reverse.bendsKept': 'Kırılma noktalarınız oldukları yerde kalır.',
   'inspector.ends.reverse.mayChange': 'Otomatik güzergâh, her ucun yanındaki çizgi ve etiketin yeri değişebilir.',
+  'inspector.ends.reverse.again': 'Yeniden ters çevrilemez.',
   'inspector.ends.reverse.reason.activatorSource': 'Ters çevrilirse bu etkinleştirici {node} düğümünden başlar; bu bir Havuz değil, oysa etkinleştiricinin kaynağı bir Havuz olmalıdır.',
   'inspector.ends.reverse.reason.labelPool': 'Ters çevrilirse bu etiketin bir ucu {node} düğümü olur; bu bir Havuz değil, oysa etiketin iki ucunda da bir Havuz olmalıdır.',
   'inspector.ends.reverse.reason.labelRouterSource': 'Ters çevrilirse bu etiket {node} düğümünden başlar; kaynak çalıştığında uygulanan bir etiketin kaynağı Dağıtıcı, Dönüştürücü, Gider ya da Bitiş olmalıdır.',
