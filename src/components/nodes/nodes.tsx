@@ -4,6 +4,7 @@ import {
   Position,
   useConnection,
   useStore,
+  useStoreApi,
   useUpdateNodeInternals,
   type NodeProps,
   type NodeTypes,
@@ -47,7 +48,7 @@ import type {
 import { useLod } from '../lod'
 import { useNodeActivityOpacity } from '../frames/useActivityTint'
 import { edgePortKind, faceOf, nameFaceFor, rfHandleId } from '../../model/ports'
-import type { PortFace } from '../../model/types'
+import type { LoopEdge, PortFace } from '../../model/types'
 import { PORT_COL } from '../../model/layout/grid'
 import { setNodeNameBox } from '../../store/routeMap'
 import { reservedWidth } from './nodeWidth'
@@ -55,6 +56,30 @@ import { runNeedsCase } from '../../ui/flowColour'
 import { useCanvasTheme } from '../../ui/media'
 import { roleSymbol, type SymbolPrim } from './roleSymbol'
 import './nodeStructure.css'
+
+type PortedEdge = Pick<LoopEdge, 'source' | 'target' | 'data' | 'sourceHandle' | 'targetHandle'>
+
+/** the DOM handle ids `nodeId`'s connections use, as a sorted key */
+function handlesKeyOf(edges: readonly PortedEdge[], nodeId: string): string {
+  const used = new Set<string>()
+  for (const e of edges) {
+    if (e.source === nodeId) used.add(rfHandleId(edgePortKind(e), 'source', faceOf(e, 'source')))
+    if (e.target === nodeId) used.add(rfHandleId(edgePortKind(e), 'target', faceOf(e, 'target')))
+  }
+  return [...used].sort().join(',')
+}
+
+const unionKey = (a: string, b: string): string =>
+  [...new Set([...a.split(','), ...b.split(',')].filter(Boolean))].sort().join(',')
+
+/** does the mounted-handles key `next` add a handle `prev` did not have
+ *  (`*` = every face, shown) */
+function addsHandle(prev: string, next: string): boolean {
+  if (next === '*') return prev !== '*'
+  if (prev === '*') return false
+  const had = new Set(prev.split(','))
+  return next.split(',').some((id) => id && !had.has(id))
+}
 
 /** node structure — the inner role symbol (./roleSymbol) as React elements */
 function RoleSymbol({ prims, label }: { prims: SymbolPrim[]; label?: string }) {
@@ -492,16 +517,18 @@ function NodeFrame({
   // (`facesOn` below). Hidden, they were ~11 idle handles on every node, each
   // subscribed to the canvas store — measured as frame time on a large
   // diagram's playback.
-  const usedHandlesKey = useStore((s) => {
-    if (!outside) return ''
-    const used = new Set<string>()
-    for (const e of s.edges) {
-      const edge = e as never
-      if (e.source === nodeId) used.add(rfHandleId(edgePortKind(edge), 'source', faceOf(edge, 'source')))
-      if (e.target === nodeId) used.add(rfHandleId(edgePortKind(edge), 'target', faceOf(edge, 'target')))
-    }
-    return [...used].sort().join(',')
-  })
+  //
+  // React Flow's `edges` prop reaches its own store in a passive effect after
+  // the commit that changed the document, so a connection moved to a face no
+  // connection of this node used before (a reversal, an end moved to an unused
+  // side) would be drawn by React Flow before that face's handle existed: it
+  // drew no line for that render and warned (error 008). The handles are
+  // therefore the union of the document's connections (mounted, and measured
+  // below, in the commit of the change itself) and React Flow's (kept until
+  // its edges catch up).
+  const rfHandlesKey = useStore((s) => (outside ? handlesKeyOf(s.edges as never, nodeId) : ''))
+  const docHandlesKey = useGraphStore((s) => (outside ? handlesKeyOf(s.edges as never, nodeId) : ''))
+  const usedHandlesKey = rfHandlesKey === docHandlesKey ? rfHandlesKey : unionKey(rfHandlesKey, docHandlesKey)
   const nameRef = useRef<HTMLSpanElement>(null)
   // §MML1 — render-time phrase segmentation for JA / ZH titles (display only)
   const locale = useI18n((s) => s.activeLocale)
@@ -717,15 +744,30 @@ function NodeFrame({
   // a handle mounted or unmounted without a size change: React Flow's own
   // ResizeObserver does not see it, so its handle bounds (which the drop of a
   // connection and an edge's ends read) are refreshed here — not on the first
-  // render, which React Flow measures itself
+  // render, which React Flow measures itself.
+  // A handle that was ADDED is measured in this layout effect, before paint and
+  // before React Flow's edges catch up (above), so the connection that needs it
+  // finds it. A handle that was only REMOVED is measured on the next animation
+  // frame (`useUpdateNodeInternals`): no connection uses it any more, and a
+  // store update in this layout effect would run React Flow's edge selectors of
+  // the previous render (useSyncExternalStore swaps them in a passive effect),
+  // which still look for the removed handle.
+  const rfStore = useStoreApi()
   const updateNodeInternals = useUpdateNodeInternals()
   const mountedFacesKey = outside ? (facesOn ? '*' : usedHandlesKey) : ''
   const facesKeyRef = useRef(mountedFacesKey)
   useLayoutEffect(() => {
-    if (facesKeyRef.current === mountedFacesKey) return
+    const prev = facesKeyRef.current
+    if (prev === mountedFacesKey) return
     facesKeyRef.current = mountedFacesKey
-    updateNodeInternals(nodeId)
-  }, [mountedFacesKey, nodeId, updateNodeInternals])
+    if (addsHandle(prev, mountedFacesKey)) {
+      const { domNode, updateNodeInternals: measureNow } = rfStore.getState()
+      const nodeElement = domNode?.querySelector<HTMLDivElement>(`.react-flow__node[data-id="${CSS.escape(nodeId)}"]`)
+      if (nodeElement) measureNow(new Map([[nodeId, { id: nodeId, nodeElement, force: true }]]), { triggerFitView: false })
+    } else {
+      updateNodeInternals(nodeId)
+    }
+  }, [mountedFacesKey, nodeId, rfStore, updateNodeInternals])
   // §VL3 stacking — every state is its own layer, so a Register that is
   // selected AND keyboard-focused AND invalid shows all three cues at once:
   // the outer --warning invalid ring, the solid selection ring, the inset
