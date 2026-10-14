@@ -39,6 +39,16 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // line editing, unit 2 (docs/edge-routing.md §ER19, share
+    // connection-editing-2 notes 48–49): reverse a connection from the Ends
+    // group, what may be drawn differently after it, and a refused reversal
+    // saying why; the date is the day it is deployed, set right before the merge
+    id: 'release:0.28.0',
+    version: '0.28.0',
+    date: '2026-10-14',
+    items: ['whatsNew.v0280.reverse', 'whatsNew.v0280.drawn', 'whatsNew.v0280.refused'],
+  },
+  {
     // line editing, unit 1 (docs/edge-routing.md §ER18, share
     // connection-editing-2 notes 40–46): move a connection's end — the canvas
     // end grips and the Inspector's Ends group — the side choice on a grip, and

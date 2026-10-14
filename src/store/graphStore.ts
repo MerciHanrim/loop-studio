@@ -56,6 +56,7 @@ import {
 import { readAccent } from '../model/model'
 import { parseHandleId, portsFromHandles } from '../model/ports'
 import { duplicateOf, endMoveVerdict, movedEdge, type EndMove, type EndMoveVerdict } from '../model/endMove'
+import { reversedEdge, reverseVerdict, type ReverseVerdict } from '../model/reverse'
 import type { InitialView } from '../model/templates'
 import type { LoopEdge, LoopEdgeData, LoopNode, NodeKind } from '../model/types'
 
@@ -303,6 +304,13 @@ type GraphStore = {
    *  history entry per applied move; a side-only move keeps the run, a node
    *  change resets it. Returns the verdict (null under the edit lock). */
   moveEdgeEnds: (id: string, move: EndMove) => EndMoveVerdict | null
+  /** docs/edge-routing.md §ER19 — reverse a connection's direction, keeping
+   *  every `data` field; the sides swap with the ends and the bends keep their
+   *  points in reverse order. Checked by `reverseVerdict`; a refusal, a
+   *  reversal that changes nothing, or the edit lock record nothing and leave
+   *  the run. ONE history entry; the run is reset (a self-loop, whose node
+   *  does not change, keeps it). Returns the verdict (null under the lock). */
+  reverseEdge: (id: string) => ReverseVerdict | null
   /** the same change with no history entry, for a bend-point gesture between
    *  `captureGestureSnapshot` and `pushGestureEntry` */
   setEdgeRoutingSilently: (id: string, routing: EdgeRouting) => void
@@ -1173,6 +1181,22 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       })
       // a side is drawing (SEMANTICS-R11.md: `data.ports` is cosmetic); a
       // different node is a different model, as drawing a new connection is
+      if (verdict.nodeChanged) bump()
+      persist()
+      return verdict
+    },
+    reverseEdge: (id) => {
+      if (editGuard()) return null // #334 — refused while the edit lock is on
+      const { nodes, edges } = get()
+      const verdict = reverseVerdict(nodes, edges, id)
+      if (!verdict.ok || verdict.same) return verdict
+      commit('')
+      lastTag = '' // the next edit is its own entry, whatever it is
+      set({
+        edges: edges.map((e) => (e.id === id ? reversedEdge(e) : e)),
+        recordLabels: false, // §ER15.1 — an edited connection takes the current label rule
+      })
+      // which node feeds which is the model, as drawing a new connection is
       if (verdict.nodeChanged) bump()
       persist()
       return verdict

@@ -671,6 +671,9 @@ const ui = {
   'whatsNew.v0270.moveEnd': 'L’extrémité d’une connexion se déplace désormais sans redessiner la connexion : sélectionnez-la et faites glisser la poignée ronde de l’une de ses extrémités sur un côté d’un autre nœud, ou utilisez Extrémités dans les Propriétés. Sa quantité, sa condition, sa couleur, la forme de sa ligne et ses coudes restent tels quels.',
   'whatsNew.v0270.pickSide': 'Pour changer seulement le côté qu’utilise une connexion, cliquez ou touchez une poignée et choisissez Haut, Droite, Bas ou Gauche dans le petit panneau qui s’ouvre. Là où le canevas n’a pas de place pour une poignée, utilisez Extrémités dans les Propriétés. Sur un téléphone, le diagramme reste en lecture seule.',
   'whatsNew.v0270.refused': 'Un déplacement impossible, comme une extrémité sur un nœud sans entrée, n’est pas appliqué, et la raison est affichée.',
+  'whatsNew.v0280.reverse': 'Une connexion peut désormais être inversée sans la redessiner. Sélectionnez-la et appuyez sur Inverser, à côté d’Extrémités dans les Propriétés. Sa quantité, sa condition, sa couleur et la forme de sa ligne restent telles quelles et se lisent dans le nouveau sens, et les coudes que vous avez placés gardent leur place.',
+  'whatsNew.v0280.drawn': 'Après une inversion, le tracé automatique, la ligne près de chaque extrémité et la place de l’étiquette peuvent changer.',
+  'whatsNew.v0280.refused': 'Une inversion impossible, par exemple si la connexion arrivait à un nœud sans entrée ou si une connexion d’état perdait son effet, n’est pas appliquée, et la raison est affichée.',
 } satisfies Record<UiKey, string>
 
 export default ui

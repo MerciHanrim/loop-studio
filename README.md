@@ -140,7 +140,23 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.27.0
+## Latest — v0.28.0
+
+A connection can be turned around without drawing it again.
+
+- **Reverse a connection**: select it and press Reverse beside Ends in the Inspector; its
+  amount, condition, colour and line shape stay as they were and are read in the new
+  direction, the bends you placed keep their places, and one undo step takes it back
+- **What may look different**: the automatic route, the line next to each end and the
+  label's place may be drawn differently after a reversal
+- **Refused reversals say why**: a reversal that would end a connection at a node with no
+  input, start it at a node with no output, repeat a connection drawn the same way, or leave a
+  state connection with no effect is not applied, and the reason is shown
+
+On a phone the diagram stays read-only. Curves you shape yourself and moving a connection's
+label are not in this release.
+
+## v0.27.0
 
 A connection's end can move without drawing the connection again.
 
@@ -153,8 +169,7 @@ A connection's end can move without drawing the connection again.
 - **Refused moves say why**: an end on a node without the port it needs, or a move that would
   repeat a connection drawn the same way, is not applied, and the reason is shown
 
-On a phone the diagram stays read-only. Turning a connection around, curves you shape
-yourself and moving a connection's label are not in this release.
+On a phone the diagram stays read-only.
 
 ## v0.26.2
 
@@ -200,24 +215,9 @@ size of a node no longer depends on the length of a translation.
 A document with chosen sides, saved again by v0.25.0 or earlier, loses those sides. v0.26.1
 corrects the wording of two lines of this release's What's new note.
 
-## v0.25.0
-
-Diagrams are easier to read: nodes line up on a grid, connections run around them at right
-angles, and every node keeps its text inside its outline.
-
-- **Grid-aligned editing**: nodes and frames snap to a 16 px grid, with smart guides to other
-  nodes' ports, centres and edges; an older ordinary document is lined up once when it opens,
-  and Tidy to grid realigns the open one at any time as one undo step
-- **Clearer automatic routing**: orthogonal connections go around nodes, branch apart at a
-  shared port and put their labels on a free spot of their own line
-- **Editable connection shapes**: Curved, Straight or Orthogonal, automatic or with bend
-  points added, moved or removed on the desktop; the phone shows them without editing
-- **Text inside nodes**: Pools, Sources, Drains, Converters and Gates are drawn to their own
-  width, so titles and values stay inside in all 18 languages
-- **Reworked Templates**: all five use the new grid and routing, with clearer spacing and
-  opening views
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.24.0 (three
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.25.0 (nodes
+on a grid, orthogonal connections around them, editable connection shapes and text inside
+nodes), v0.24.0 (three
 playback speed tiers, and a speed choice and fewer moving markers on the phone), v0.23.0 (a Pool
 lights up as a marker arrives and a Converter shows that it converts), v0.22.0 (the
 Gate's path lights up and a `+N` rides beside every moving marker), v0.21.4 (the

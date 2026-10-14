@@ -603,6 +603,9 @@ const ui = {
   'whatsNew.v0270.moveEnd': 'Giờ có thể di chuyển đầu mút của một liên kết mà không phải vẽ lại liên kết: chọn liên kết rồi kéo tay nắm tròn ở một trong hai đầu tới một cạnh của nút khác, hoặc dùng mục Đầu mút trong Bảng thuộc tính. Lượng, điều kiện, màu, dạng đường và các điểm gấp vẫn giữ nguyên.',
   'whatsNew.v0270.pickSide': 'Để chỉ đổi cạnh mà một liên kết dùng, hãy nhấp hoặc chạm vào một tay nắm rồi chọn Trên, Phải, Dưới hoặc Trái trong bảng nhỏ vừa mở; ở chỗ khung vẽ không còn chỗ cho tay nắm, hãy dùng mục Đầu mút trong Bảng thuộc tính. Trên điện thoại, sơ đồ vẫn chỉ để xem.',
   'whatsNew.v0270.refused': 'Một lần di chuyển không thể thực hiện, chẳng hạn đặt đầu mút lên nút không có đầu vào, sẽ không được áp dụng và lý do sẽ được hiển thị.',
+  'whatsNew.v0280.reverse': 'Giờ có thể đảo chiều một liên kết mà không phải vẽ lại: chọn liên kết rồi nhấn Đảo chiều bên cạnh mục Đầu mút trong Bảng thuộc tính. Lượng, điều kiện, màu và dạng đường vẫn giữ nguyên và được hiểu theo chiều mới; các điểm gấp bạn đã đặt vẫn ở chỗ cũ.',
+  'whatsNew.v0280.drawn': 'Sau khi đảo chiều, đường đi tự động, đoạn gần mỗi đầu và vị trí của nhãn có thể thay đổi.',
+  'whatsNew.v0280.refused': 'Một lần đảo chiều không thể thực hiện, chẳng hạn khi liên kết sẽ kết thúc ở một nút không có đầu vào hoặc một liên kết trạng thái sẽ mất tác dụng, sẽ không được áp dụng và lý do sẽ được hiển thị.',
 } satisfies Record<UiKey, string>
 
 export default ui

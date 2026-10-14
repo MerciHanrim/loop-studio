@@ -989,7 +989,7 @@ the graph store): the Inspector's Ends group and the canvas end grips.
   channel: `out` / `in`, `state-*`) and every `data` field — amount or condition,
   resource type, colour, line shape and the user's bends. Only the end node and the
   end's face (`data.ports`, canonical as in §ER17) change. Turning a connection around
-  is a separate action.
+  is a separate action (§ER19).
 - **What is refused, with the reason shown.** An end on a node without the port this
   kind needs at that end: a Source has no input, a Drain or End no output, a Parameter
   or Register no ports at all (`SEMANTICS-M.md` §M1.3). And, only when an end changes
@@ -1067,3 +1067,72 @@ the graph store): the Inspector's Ends group and the canvas end grips.
 - **Compatibility.** Nothing new is stored: the ends and `data.ports` are written and
   read as before, so a moved end round-trips through save, reopen, undo and redo, and
   an older build loses only the faces (§ER17).
+
+## ER19. Reversing a connection's direction (line editing, second unit)
+
+An existing connection's direction can be reversed — its source becomes its target and
+its target its source — without deleting it. ONE check, `reverseVerdict`, and ONE
+change, `reversedEdge` through the store's `reverseEdge` (`src/model/reverse.ts`), as
+for moving an end. The investigation behind the rules is share note 48 (Lumi,
+2026-10-14).
+
+- **What a reversal keeps.** The id, kind, handles (the kind channel) and every `data`
+  field — amount or condition, mode, timing, delay, resource type, colour, line shape.
+  The two ends swap; each end keeps the face of the node it is on, so the faces swap
+  with the ends (stored canonically: a default resource connection, right → left,
+  stores `ports: { source: left, target: right }` reversed, and reversing again stores
+  nothing); the user's bends keep their points in reverse order. The same text is then
+  read in the new direction: `25%` or `all` is taken from the new source, an
+  activator's comparison reads the new source, a label edits the other Pool (`S` is the
+  new source's amount), a trigger pulses the other node.
+- **What is refused, judged on the RESULT, one reason shown, in this order.** (1) The
+  new source needs an output and the new target an input, as drawing does
+  (`portRefusal`): a Source cannot become a target, a Drain or End cannot become a
+  source. (2) The result must not repeat another connection by the drawing rule
+  (`duplicateOf`, the reversed connection excluded). (3) A state connection must not
+  break the engine rule of its mode and timing in the new direction — the action
+  refuses rather than leave a connection with no effect; the engine rules themselves
+  are unchanged: an activator needs a Pool source (`SEMANTICS-S.md` §S4); an "Always"
+  label needs a Pool at both ends (§S5); a "When the source fires" label needs a Gate,
+  Converter, Drain or End source and a Pool target (`SEMANTICS-S3.md` §S3-5), so a
+  working one is always refused; a mode or a timing that never has an effect is
+  refused; a trigger has no node rule. An expression's validity does not depend on
+  direction and is not a reason. A connection with no effect today that would work
+  reversed is accepted.
+- **Left to the engine (Lumi, 2026-10-14).** Resource rules that are not about ports —
+  a reversal that closes a loop of Gates and Converters with no Pool, or an input of a
+  probabilistic Gate that becomes one of its branches with an amount that is not a
+  valid weight — are applied, and the engine's existing warnings say what follows.
+- **History and the run.** One undo step; a refusal records nothing. The run is reset,
+  on the reversal and on its undo and redo (which node feeds which is the model). A
+  self-loop keeps its node: only its faces swap and the run is kept; with one face and
+  at most one bend nothing changes and nothing is recorded.
+- **Routes and labels.** An automatic route is recomputed and may change; so may the
+  stretch between a port and its nearest bend (the router's L may turn on the other
+  side), a neighbour's lane at a shared port, and a label's place (labels are placed by
+  rule, not stored). The bends themselves stay where they are, and no bend warning is
+  needed: the bend rule checks a point against both ends' stubs, and the stubs swap
+  with the faces. Measured on five cases with user bends (share note 48): the bends
+  kept and passed in all five, the drawn line the same in one. Neither the router nor
+  label placement is changed for this; the label overlaps seen there are a separate
+  item.
+- **The Inspector.** **Reverse** sits beside the Ends group's folded summary, on the
+  same row, folded or open; it is its own button, so pressing it never opens or closes
+  the group. One press applies it — no confirmation, no Apply — and keeps focus on it.
+  Below it, a note, visible folded: while Reverse can act, that the amount and
+  condition are kept and are read in the new direction; after it acted, that
+  sentence, that the user's bends stay where they were (only when there are bends),
+  and that the automatic route, the line next to each end and the label's place may
+  change; when it is refused, the reason, with the node names isolated; while a pick
+  in the open group is not applied, "Apply or revert the change you picked first,
+  then reverse" (no position word: the pick is below the note) — so it is never
+  unclear whether the pending ends or the stored ones would be reversed. A reversal
+  that makes a connection work (an activator from a Gate, a "When the source fires"
+  label from a Pool) leaves one that cannot be reversed back: the result stays shown,
+  and a line of its own below it says "It cannot be reversed back." with the reason;
+  the button then waits and describes itself with that line (Lumi's review of #354).
+  Waiting or refused, the button is `aria-disabled`, not disabled: it stays in the
+  Tab order and the note describes it. Under the edit lock the Inspector
+  is disabled as a whole; the phone stays read-only. Not on the canvas in this unit.
+- **Compatibility.** Nothing new is stored: the ends, `data.ports` and `waypoints` are
+  written and read as before.

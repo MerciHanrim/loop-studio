@@ -6,11 +6,16 @@
 // `moveEdgeEnds`), the same the canvas end grips use. A node that cannot take
 // this end is listed disabled with its reason IN its text, so a keyboard or
 // screen-reader user reads it as well as a mouse user.
+//
+// §ER19 — the same group's Reverse, beside the folded summary: its own button
+// (it never opens or closes the group), one press, one undo step, through the
+// model's `reverseVerdict` and the store's `reverseEdge`.
 
 import { useId, useMemo, useState } from 'react'
 import type { LoopEdge, LoopNode, PortFace } from '../model/types'
 import { edgePortKind, faceOf, PORT_FACES, type PortEnd } from '../model/ports'
 import { endMoveVerdict, movedEdge, portRefusal, type EdgeEnd, type EndMoveReason } from '../model/endMove'
+import { reverseVerdict, type ReverseReason } from '../model/reverse'
 import { bendRejection } from '../store/routeMap'
 import { useGraphStore } from '../store/graphStore'
 import { useEndGripNotice } from '../store/endGripNotice'
@@ -31,6 +36,20 @@ const REASON_KEY: Record<EndMoveReason, MessageKey> = {
   noPorts: 'inspector.ends.reason.noPorts',
   duplicate: 'inspector.ends.reason.duplicate',
 }
+// §ER19 — a reversal's refusals: the end move's own (ports, a repeat), then
+// the state rules the new direction would break
+const REVERSE_REASON_KEY: Record<ReverseReason, MessageKey> = {
+  missing: 'inspector.ends.reason.missing',
+  noInput: 'inspector.ends.reason.noInput',
+  noOutput: 'inspector.ends.reason.noOutput',
+  noPorts: 'inspector.ends.reason.noPorts',
+  duplicate: 'inspector.ends.reason.duplicate',
+  activatorSource: 'inspector.ends.reverse.reason.activatorSource',
+  labelPool: 'inspector.ends.reverse.reason.labelPool',
+  labelRouterSource: 'inspector.ends.reverse.reason.labelRouterSource',
+  labelTarget: 'inspector.ends.reverse.reason.labelTarget',
+  stateMode: 'inspector.ends.reverse.reason.stateMode',
+}
 const SHORT_KEY: Partial<Record<EndMoveReason, MessageKey>> = {
   noInput: 'inspector.ends.option.noInput',
   noOutput: 'inspector.ends.option.noOutput',
@@ -45,6 +64,7 @@ export function EdgeEndsField({ edge }: { edge: LoopEdge }) {
   const nodes = useGraphStore((s) => s.nodes)
   const edges = useGraphStore((s) => s.edges)
   const moveEdgeEnds = useGraphStore((s) => s.moveEdgeEnds)
+  const reverseEdge = useGraphStore((s) => s.reverseEdge)
   const ids = useId()
   const portKind = edgePortKind(edge)
 
@@ -113,6 +133,37 @@ export function EdgeEndsField({ edge }: { edge: LoopEdge }) {
   const status = verdict && !verdict.ok ? { text: reasonText(verdict)!, warn: true } : bendsAffected ? { text: t('inspector.ends.bends'), warn: true } : !changed && gripText ? { text: gripText, warn: true } : done ? { text: done, warn: false } : noGripText ? { text: noGripText, warn: false } : null
   const statusId = `${ids}-status`
 
+  // §ER19 — Reverse, beside the summary, folded or open: one press applies it
+  // (one undo step). It waits while a pick here is not applied, so it is never
+  // unclear whether the pending ends or the stored ones are reversed.
+  const reverse = reverseVerdict(nodes, edges, edge.id)
+  // the connection a reversal from here produced: its note stays while the
+  // connection is that one (an undo or another edit ends it)
+  const [reversed, setReversed] = useState<LoopEdge | null>(null)
+  const refusal = reverse.ok
+    ? null
+    : t(REVERSE_REASON_KEY[reverse.reason], {
+        node: isolateAuto(nameOf(byId.get(reverse.node), reverse.node)),
+        from: isolateAuto(nameOf(byId.get(current.target.node), current.target.node)),
+        to: isolateAuto(nameOf(byId.get(current.source.node), current.source.node)),
+      })
+  const justReversed = reversed === edge
+  // the note under it, folded or open: the wait; the result of the reversal
+  // just made (the reading; the bends' places, only when there are bends; what
+  // may be drawn differently); a refusal; else what a reversal keeps
+  const reverseNote = changed
+    ? t('inspector.ends.reverse.pending')
+    : justReversed
+      ? [t('inspector.ends.reverse.done'), waypoints.length > 0 ? t('inspector.ends.reverse.bendsKept') : null, t('inspector.ends.reverse.mayChange')].filter(Boolean).join(' ')
+      : (refusal ?? t('inspector.ends.reverse.hint'))
+  // a reversal that made a connection work (an activator from a Gate, say) can
+  // leave one that cannot be reversed back: the result stays, and why the NEXT
+  // reversal is refused is a line of its own, the one the button describes
+  const againNote = !changed && justReversed && refusal ? `${t('inspector.ends.reverse.again')} ${refusal}` : null
+  const reverseBlocked = changed || !reverse.ok
+  const reverseNoteId = `${ids}-reverse`
+  const reverseAgainId = `${ids}-reverse-again`
+
   const endRow = (end: PortEnd) => {
     const value = pick[end]
     const set = (v: EdgeEnd) => {
@@ -167,6 +218,7 @@ export function EdgeEndsField({ edge }: { edge: LoopEdge }) {
   })
   return (
     <section className="ends" aria-labelledby={`${ids}-title`}>
+      <div className="ends__head">
       <h3 className="field__label ends__title" id={`${ids}-title`}>
         <button
           type="button"
@@ -186,6 +238,35 @@ export function EdgeEndsField({ edge }: { edge: LoopEdge }) {
           <span className="ends__summary">{summary}</span>
         </button>
       </h3>
+      {/* its own button: reversing never opens or closes the group */}
+      <button
+        type="button"
+        className="btn btn--ghost ends__reverse"
+        aria-label={t('inspector.ends.reverse.name')}
+        aria-disabled={reverseBlocked || undefined}
+        aria-describedby={againNote ? reverseAgainId : reverseNoteId}
+        onClick={() => {
+          if (reverseBlocked) return
+          const v = reverseEdge(edge.id)
+          if (v?.ok && !v.same) {
+            setDone(null)
+            setReversed(useGraphStore.getState().edges.find((e) => e.id === edge.id) ?? null)
+          }
+        }}
+      >
+        {t('inspector.ends.reverse')}
+      </button>
+      </div>
+      {/* never the warning colour: a refusal says why this action is not
+          available, not that the connection is wrong */}
+      <p id={reverseNoteId} role="status" className="field__hint ends__reverse-note">
+        {reverseNote}
+      </p>
+      {againNote ? (
+        <p id={reverseAgainId} className="field__hint ends__reverse-note">
+          {againNote}
+        </p>
+      ) : null}
       <p id={statusId} role="status" className={status?.warn ? 'field__hint field__hint--bad ends__status' : 'field__hint ends__status'}>
         {status?.text ?? ''}
       </p>

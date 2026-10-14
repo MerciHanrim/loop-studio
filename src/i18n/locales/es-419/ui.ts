@@ -601,6 +601,9 @@ const ui = {
   'whatsNew.v0270.moveEnd': 'El extremo de una conexión ahora se puede mover sin volver a dibujarla: selecciónela y arrastre el asa redonda de cualquiera de sus extremos hasta un lado de otro nodo, o use Extremos en Propiedades. Su cantidad, condición, color, forma de línea y codos se mantienen como estaban.',
   'whatsNew.v0270.pickSide': 'Para cambiar solo el lado que usa una conexión, haga clic o toque un asa y elija Arriba, Derecha, Abajo o Izquierda en el pequeño panel que se abre; donde el lienzo no tiene espacio para un asa, use Extremos en Propiedades. En un teléfono el diagrama sigue siendo de solo lectura.',
   'whatsNew.v0270.refused': 'Un movimiento que no se puede hacer, como un extremo en un nodo sin entrada, no se aplica, y se muestra el motivo.',
+  'whatsNew.v0280.reverse': 'Ahora una conexión se puede invertir sin volver a dibujarla: selecciónela y use Invertir, junto a Extremos en Propiedades. La cantidad, la condición, el color y la forma de la línea se mantienen y se interpretan en la nueva dirección; los codos que colocó siguen en su lugar.',
+  'whatsNew.v0280.drawn': 'Después de invertirla, el trazado automático, la línea junto a cada extremo y el lugar de la etiqueta pueden cambiar.',
+  'whatsNew.v0280.refused': 'Una inversión que no se puede hacer, como una que haría terminar la conexión en un nodo sin entrada o dejaría sin efecto una conexión de estado, no se aplica, y se muestra el motivo.',
 } as const
 
 export type UiKey = keyof typeof ui

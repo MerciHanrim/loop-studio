@@ -656,6 +656,9 @@ const ui = {
   'whatsNew.v0270.moveEnd': 'Bir bağlantının ucu artık bağlantıyı yeniden çizmeden taşınabilir: bağlantıyı seçin ve uçlarından birindeki yuvarlak tutamacı başka bir düğümün bir kenarına sürükleyin ya da İnceleyici’de «Uçlar»ı kullanın. Miktar, koşul, renk, çizgi biçimi ve kırılma noktaları olduğu gibi kalır.',
   'whatsNew.v0270.pickSide': 'Bir bağlantının kullandığı kenarı yalnızca değiştirmek için bir tutamaca tıklayın ya da dokunun ve açılan küçük panelde Üst, Sağ, Alt veya Sol’u seçin; tuvalde tutamaç için yer olmayan yerlerde İnceleyici’de «Uçlar»ı kullanın. Telefonda diyagram salt okunur kalır.',
   'whatsNew.v0270.refused': 'Yapılamayan bir taşıma, örneğin girişi olmayan bir düğüme konan bir uç, uygulanmaz ve nedeni gösterilir.',
+  'whatsNew.v0280.reverse': 'Bir bağlantı artık yeniden çizilmeden ters çevrilebilir: bağlantıyı seçin ve İnceleyici’de «Uçlar»ın yanındaki «Ters çevir»e basın. Miktar, koşul, renk ve çizgi biçimi olduğu gibi kalır ve yeni yöne göre okunur; yerleştirdiğiniz kırılma noktaları yerinde kalır.',
+  'whatsNew.v0280.drawn': 'Ters çevirdikten sonra otomatik güzergâh, her ucun yanındaki çizgi ve etiketin yeri değişebilir.',
+  'whatsNew.v0280.refused': 'Yapılamayan bir ters çevirme, örneğin bağlantıyı girişi olmayan bir düğümde bitirecek ya da bir durum bağlantısını etkisiz bırakacaksa, uygulanmaz ve nedeni gösterilir.',
 } as const
 
 export type UiKey = keyof typeof ui

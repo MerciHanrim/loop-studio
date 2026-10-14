@@ -132,11 +132,11 @@ const englishFor = (surface: string, id: string): string => {
 describe('vi copy — the first locale English hides inside', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(VI).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(1118) // §ER18 grips: +2 (inspector.ends.noGrip.source / target); 0.27.0: +3 (the three release-note lines); the connection Ends group (docs/edge-routing.md §ER18): +24 (inspector.ends.*, canvas.endGrip.source / target); 0.26.2: +4 (the four release-note lines); 0.26.0: +5 (the five release-note lines); the node structure: +1 (inspector.field.currentAmount, the Pool's read-only current amount); issue #344: +2 (the 0.25.0 release note is five lines, was three); issue #344 Step 3: +9 (the connection shape and bend-point strings and the keyboard bend notice); issue #344 Step 1: +3 (three 0.25.0 release-note lines); issue #344 Step 1: +1 (canvas.tidy, the Tidy to grid rail button); issue #330 PR 3: +3 (three 0.24.0 release-note lines); issue #330 PR 3: +9 (the phone Playback speed sheet); issue #330 PR 2: +3 (three 0.23.0 release-note lines); issue #330 PR 1: +5 (five 0.22.0 release-note lines); issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines); the flow colour: +20 (the sixteen strings of the Colour section and the four 0.19.0 release-note lines); the flow colour views: +4 (the four 0.20.0 release-note lines); compact nodes: +3 (the three 0.21.0 release-note lines); Focus dimming: +3 (the three 0.21.1 release-note lines); value rows: +3 (the three 0.21.2 release-note lines); the edit lock: +4 (canvas.lock.name, its fixed accessible name, and the three 0.21.3 release-note lines); the locked rail and the phone search: +4 (the four 0.21.4 release-note lines)
+    expect(KEYS).toHaveLength(1134) // 0.28.0: +3 (the three release-note lines); §ER19 Reverse: +13 (inspector.ends.reverse.*); §ER18 grips: +2 (inspector.ends.noGrip.source / target); 0.27.0: +3 (the three release-note lines); the connection Ends group (docs/edge-routing.md §ER18): +24 (inspector.ends.*, canvas.endGrip.source / target); 0.26.2: +4 (the four release-note lines); 0.26.0: +5 (the five release-note lines); the node structure: +1 (inspector.field.currentAmount, the Pool's read-only current amount); issue #344: +2 (the 0.25.0 release note is five lines, was three); issue #344 Step 3: +9 (the connection shape and bend-point strings and the keyboard bend notice); issue #344 Step 1: +3 (three 0.25.0 release-note lines); issue #344 Step 1: +1 (canvas.tidy, the Tidy to grid rail button); issue #330 PR 3: +3 (three 0.24.0 release-note lines); issue #330 PR 3: +9 (the phone Playback speed sheet); issue #330 PR 2: +3 (three 0.23.0 release-note lines); issue #330 PR 1: +5 (five 0.22.0 release-note lines); issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines); the flow colour: +20 (the sixteen strings of the Colour section and the four 0.19.0 release-note lines); the flow colour views: +4 (the four 0.20.0 release-note lines); compact nodes: +3 (the three 0.21.0 release-note lines); Focus dimming: +3 (the three 0.21.1 release-note lines); value rows: +3 (the three 0.21.2 release-note lines); the edit lock: +4 (canvas.lock.name, its fixed accessible name, and the three 0.21.3 release-note lines); the locked rail and the phone search: +4 (the four 0.21.4 release-note lines)
   })
 
   it('covers all four runtime surfaces', () => {
-    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(1118)
+    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(1134)
     expect(RUNTIME.filter(([s]) => s.startsWith('template/'))).toHaveLength(196)
     expect(RUNTIME.filter(([s]) => s.startsWith('frame/'))).toHaveLength(7)
     expect(RUNTIME.filter(([s]) => s.startsWith('module/'))).toHaveLength(19)
@@ -410,6 +410,7 @@ const ASCII_KEYS = [
   'catalog:whatsNew.v0262.runColour', // the `+N` of the badge
   'catalog:whatsNew.v0262.lightColour', // `so` (Vietnamese: compared with), not the English word
   'catalog:whatsNew.v0262.badgePlace', // the `+N` of the badge
+  'catalog:inspector.ends.reverse.reason.stateMode', // §ER19: Loop Studio, where a mode has no effect
   'catalog:inspector.edge.route.addBendHint',
   'catalog:inspector.edge.route.editHint',
   'catalog:import.parseError',
@@ -590,7 +591,7 @@ describe('a kept English word is declared, twice over — by key and by word', (
       ([s, id]) => s + ':' + id,
     )
     expect(actual.slice().sort()).toEqual(ASCII_KEYS.slice().sort())
-    expect(ASCII_KEYS).toHaveLength(203) // 0.26.2: +3 (the `+N` of two release-note lines, the Vietnamese `so` of a third); 0.26.0: +2 (Loop Studio in one release-note line, the gacha banner comparison in another); issue #344 Step 3: +2 (Esc / Shift / Delete in the two bend hints), -1 (the edge note no longer names Monte Carlo); issue #344 Step 1: +1 (Alt / Ctrl / Mac in one 0.25.0 release-note line); issue #330 PR 3: +1 (the `+N` of one 0.24.0 release-note line); issue #330 PR 1: +1 (the `+N` of one 0.22.0 release-note line); issue #307: +3 (the three 0.18.1 release-note lines); issue #308: +1 (one 0.18.2 release-note line); issue #325: +1 (one 0.19.0 release-note line)
+    expect(ASCII_KEYS).toHaveLength(204) // §ER19 Reverse: +1 (Loop Studio in the no-effect reason); 0.26.2: +3 (the `+N` of two release-note lines, the Vietnamese `so` of a third); 0.26.0: +2 (Loop Studio in one release-note line, the gacha banner comparison in another); issue #344 Step 3: +2 (Esc / Shift / Delete in the two bend hints), -1 (the edge note no longer names Monte Carlo); issue #344 Step 1: +1 (Alt / Ctrl / Mac in one 0.25.0 release-note line); issue #330 PR 3: +1 (the `+N` of one 0.24.0 release-note line); issue #330 PR 1: +1 (the `+N` of one 0.22.0 release-note line); issue #307: +3 (the three 0.18.1 release-note lines); issue #308: +1 (one 0.18.2 release-note line); issue #325: +1 (one 0.19.0 release-note line)
   })
 
   it('the kept vocabulary is exactly the declared one', () => {
@@ -781,11 +782,11 @@ describe('one English noun, one Vietnamese term, everywhere English names it', (
   // string whose English original names a product noun carries the SAME
   // Vietnamese term, so a later rename moves all of them together.
   const GLOSSARY: [string, RegExp, string, number][] = [
-    ['Pool', /(^|[^A-Za-z])Pools?([^A-Za-z]|$)/, 'Bể chứa', 23],
+    ['Pool', /(^|[^A-Za-z])Pools?([^A-Za-z]|$)/, 'Bể chứa', 26], // §ER19 Reverse: +3 (three refusal reasons)
     ['Source', /(^|[^A-Za-z])Sources?([^A-Za-z]|$)/, 'Nguồn', 4],
-    ['Drain', /(^|[^A-Za-z])Drains?([^A-Za-z]|$)/, 'Điểm xả', 5],
-    ['Gate', /(^|[^A-Za-z])Gates?([^A-Za-z]|$)/, 'Bộ chia', 6],
-    ['Converter', /(^|[^A-Za-z])Converters?([^A-Za-z]|$)/, 'Bộ chuyển đổi', 5],
+    ['Drain', /(^|[^A-Za-z])Drains?([^A-Za-z]|$)/, 'Điểm xả', 6], // §ER19 Reverse: +1
+    ['Gate', /(^|[^A-Za-z])Gates?([^A-Za-z]|$)/, 'Bộ chia', 7], // §ER19 Reverse: +1
+    ['Converter', /(^|[^A-Za-z])Converters?([^A-Za-z]|$)/, 'Bộ chuyển đổi', 6], // §ER19 Reverse: +1
     ['Parameter', /(^|[^A-Za-z])Parameters?([^A-Za-z]|$)/, 'Tham số', 24],
     ['Register', /(^|[^A-Za-z])Registers?([^A-Za-z]|$)/, 'Giá trị tính toán', 11],
     ['Template', /(^|[^A-Za-z])Templates?([^A-Za-z]|$)/, 'Mẫu', 3],

@@ -389,11 +389,14 @@ test.describe('the Ends group folds (§ER18)', () => {
     await expect(toggle).toContainText(`${iso('Treated today')} → ${iso('Discharged home')}`)
     await expect(from(ends).locator('select')).toBeHidden()
     await expect(apply(ends)).toBeHidden()
-    // the keyboard: Enter on the toggle opens it, the pick is next in order
+    // the keyboard: Enter on the toggle opens it; Reverse, on the same row
+    // (§ER19), is next in order, then the pick
     await toggle.focus()
     await page.keyboard.press('Enter')
     await expect(toggle).toHaveAttribute('aria-expanded', 'true')
     await expect(from(ends).locator('select')).toBeVisible()
+    await page.keyboard.press('Tab')
+    await expect(ends.getByRole('button', { name: 'Reverse direction' })).toBeFocused()
     await page.keyboard.press('Tab')
     await expect(from(ends).locator('select')).toBeFocused()
     // and on, by Tab, to the Colour section, which scrolls into view

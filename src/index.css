@@ -4973,7 +4973,26 @@ a.sheet__row {
   border-top: 1px solid var(--line-hairline);
 }
 .ends__title {
+  flex: 1;
+  min-width: 0;
   margin: 0;
+}
+/* §ER19 — the summary and Reverse on one row; Reverse is its own button */
+.ends__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ends__reverse {
+  flex: none;
+}
+/* waiting or refused: still focusable, so its reason is read (the note) */
+.ends__reverse[aria-disabled='true'] {
+  opacity: 0.4;
+  cursor: default;
+}
+.ends__reverse-note {
+  margin: 2px 0 0;
 }
 /* collapsed by default: the name and a one-line From → To summary */
 .ends__toggle {
@@ -5015,7 +5034,7 @@ a.sheet__row {
   font-weight: 400;
   color: var(--text-primary);
 }
-.ends > div:not([hidden]) {
+.ends > div:not([hidden]):not(.ends__head) {
   margin-top: 8px;
 }
 .ends__end {
