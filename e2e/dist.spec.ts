@@ -272,11 +272,16 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     // shipped-language spellings (same pattern as e2e/i18n.spec.ts's
     // openSettings), not just the English one.
     const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ })
+    // picking a language leaves Settings open; close it, so the next switch's
+    // first click opens it again rather than closing it (the Templates menu
+    // used to close it, before the MMO document was opened from its file)
     const switchTo = async (locale: string) => {
       await settingsBtn.click()
       await page.locator('.toolbar .lang-switch').click()
       await page.locator(`.lang-menu__item[data-locale="${locale}"]`).click()
       await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(locale)
+      await page.keyboard.press('Escape')
+      await expect(page.locator('.toolbar .lang-switch')).toBeHidden()
     }
     await switchTo('en')
 
