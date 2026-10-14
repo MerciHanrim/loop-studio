@@ -601,6 +601,9 @@ const ui = {
   'whatsNew.v0280.reverse': 'Een verbinding kun je nu omkeren zonder haar opnieuw te tekenen: selecteer haar en druk op Omkeren naast Uiteinden in de Inspector. Hoeveelheid, voorwaarde, kleur en lijnvorm blijven zoals ze waren en gelden in de nieuwe richting; de knikken die je plaatste blijven op hun plek.',
   'whatsNew.v0280.drawn': 'Na het omkeren kunnen de automatische route, de lijn bij elk uiteinde en de plek van het etiket anders getekend worden.',
   'whatsNew.v0280.refused': 'Een omkering die niet kan, zoals een die de verbinding zou laten eindigen bij een knooppunt zonder ingang of een toestandsverbinding zonder effect zou laten, wordt niet toegepast, en de reden wordt getoond.',
+  'whatsNew.v0281.labelBends': 'Het etiket van een verbinding blijft nu weg van de knikken die je plaatste, waar de lijn ruimte heeft, zodat de knikgrepen het niet meer bedekken als je de verbinding selecteert. Op een korte lijn met knikken dicht bij elkaar kan het nog op een knik staan.',
+  'whatsNew.v0281.stable': 'Waar een etiket staat, hangt af van de lijn en de knikken erop, niet van de selectie: een verbinding selecteren, deselecteren of zoomen laat het etiket staan waar het staat.',
+  'whatsNew.v0281.nearby': 'In een vol diagram kan een etiket dat van een knik wegschuift ook het etiket of de lijn van een verbinding ernaast verplaatsen.',
 } as const
 
 export default ui

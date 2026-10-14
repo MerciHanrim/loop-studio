@@ -604,6 +604,9 @@ const ui = {
   'whatsNew.v0280.reverse': 'Ahora una conexión se puede invertir sin volver a dibujarla: selecciónela y use Invertir, junto a Extremos en Propiedades. La cantidad, la condición, el color y la forma de la línea se mantienen y se interpretan en la nueva dirección; los codos que colocó siguen en su lugar.',
   'whatsNew.v0280.drawn': 'Después de invertirla, el trazado automático, la línea junto a cada extremo y el lugar de la etiqueta pueden cambiar.',
   'whatsNew.v0280.refused': 'Una inversión que no se puede hacer, como una que haría terminar la conexión en un nodo sin entrada o dejaría sin efecto una conexión de estado, no se aplica, y se muestra el motivo.',
+  'whatsNew.v0281.labelBends': 'La etiqueta de una conexión ahora se aparta de los codos que colocó, donde la línea tiene espacio, así que las asas de los codos ya no la tapan al seleccionar la conexión. En una línea corta con codos muy juntos todavía puede quedar sobre uno.',
+  'whatsNew.v0281.stable': 'El lugar de una etiqueta depende de su línea y de los codos que tiene, no de la selección: seleccionar una conexión, deseleccionarla o hacer zoom deja la etiqueta donde está.',
+  'whatsNew.v0281.nearby': 'En un diagrama denso, una etiqueta que se aparta de un codo también puede mover la etiqueta o la línea de una conexión cercana.',
 } as const
 
 export type UiKey = keyof typeof ui

@@ -659,6 +659,9 @@ const ui = {
   'whatsNew.v0280.reverse': 'Bir bağlantı artık yeniden çizilmeden ters çevrilebilir: bağlantıyı seçin ve İnceleyici’de «Uçlar»ın yanındaki «Ters çevir»e basın. Miktar, koşul, renk ve çizgi biçimi olduğu gibi kalır ve yeni yöne göre okunur; yerleştirdiğiniz kırılma noktaları yerinde kalır.',
   'whatsNew.v0280.drawn': 'Ters çevirdikten sonra otomatik güzergâh, her ucun yanındaki çizgi ve etiketin yeri değişebilir.',
   'whatsNew.v0280.refused': 'Yapılamayan bir ters çevirme, örneğin bağlantıyı girişi olmayan bir düğümde bitirecek ya da bir durum bağlantısını etkisiz bırakacaksa, uygulanmaz ve nedeni gösterilir.',
+  'whatsNew.v0281.labelBends': 'Bir bağlantının etiketi artık çizgide yer olduğunda yerleştirdiğiniz kırılma noktalarından uzak durur, böylece bağlantıyı seçtiğinizde kırılma noktası tutamaçları onu örtmez. Kırılma noktaları birbirine yakın kısa bir çizgide yine de birinin üzerinde kalabilir.',
+  'whatsNew.v0281.stable': 'Bir etiketin yeri seçime değil, çizgisine ve üzerindeki kırılma noktalarına bağlıdır: bağlantıyı seçmek, seçimi kaldırmak ya da yakınlaştırmak etiketi yerinden oynatmaz.',
+  'whatsNew.v0281.nearby': 'Yoğun bir diyagramda, bir kırılma noktasından uzaklaşan etiket yakındaki bir bağlantının etiketini ya da çizgisini de kaydırabilir.',
 } as const
 
 export type UiKey = keyof typeof ui

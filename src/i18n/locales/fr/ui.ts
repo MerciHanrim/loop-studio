@@ -674,6 +674,9 @@ const ui = {
   'whatsNew.v0280.reverse': 'Une connexion peut désormais être inversée sans la redessiner. Sélectionnez-la et appuyez sur Inverser, à côté d’Extrémités dans les Propriétés. Sa quantité, sa condition, sa couleur et la forme de sa ligne restent telles quelles et se lisent dans le nouveau sens, et les coudes que vous avez placés gardent leur place.',
   'whatsNew.v0280.drawn': 'Après une inversion, le tracé automatique, la ligne près de chaque extrémité et la place de l’étiquette peuvent changer.',
   'whatsNew.v0280.refused': 'Une inversion impossible, par exemple si la connexion arrivait à un nœud sans entrée ou si une connexion d’état perdait son effet, n’est pas appliquée, et la raison est affichée.',
+  'whatsNew.v0281.labelBends': 'L’étiquette d’une connexion évite désormais les coudes que vous avez placés, là où la ligne a de la place, et les poignées des coudes ne la couvrent plus quand vous sélectionnez la connexion. Sur une ligne courte aux coudes rapprochés, elle peut encore se trouver sur l’un d’eux.',
+  'whatsNew.v0281.stable': 'La place d’une étiquette dépend de sa ligne et de ses coudes, pas de la sélection. Sélectionner une connexion, la désélectionner ou zoomer laisse son étiquette où elle est.',
+  'whatsNew.v0281.nearby': 'Dans un diagramme dense, une étiquette qui s’écarte d’un coude peut aussi déplacer l’étiquette ou la ligne d’une connexion voisine.',
 } satisfies Record<UiKey, string>
 
 export default ui

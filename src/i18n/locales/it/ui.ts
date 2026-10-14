@@ -620,6 +620,9 @@ const ui = {
   'whatsNew.v0280.reverse': 'Ora un collegamento si può invertire senza ridisegnarlo: selezionalo e premi Inverti accanto a Estremi nell’Ispettore. Quantità, condizione, colore e forma della linea restano com’erano e si leggono nella nuova direzione; gli angoli che hai messo restano al loro posto.',
   'whatsNew.v0280.drawn': 'Dopo un’inversione, il percorso automatico, la linea vicino a ciascun estremo e la posizione dell’etichetta possono cambiare.',
   'whatsNew.v0280.refused': 'Un’inversione che non si può fare, per esempio una che farebbe arrivare il collegamento a un nodo senza ingressi o lascerebbe senza effetto un collegamento di stato, non viene applicata, e il motivo viene mostrato.',
+  'whatsNew.v0281.labelBends': 'L’etichetta di un collegamento ora sta lontana dagli angoli che hai messo, dove la linea ha spazio, così le maniglie degli angoli non la coprono più quando selezioni il collegamento. Su una linea corta con angoli vicini può ancora finire sopra uno di essi.',
+  'whatsNew.v0281.stable': 'La posizione di un’etichetta dipende dalla sua linea e dagli angoli che ha, non dalla selezione: selezionare un collegamento, deselezionarlo o fare zoom lascia l’etichetta dov’è.',
+  'whatsNew.v0281.nearby': 'In un diagramma fitto, un’etichetta che si allontana da un angolo può spostare anche l’etichetta o la linea di un collegamento vicino.',
 } satisfies Record<UiKey, string>
 
 export default ui

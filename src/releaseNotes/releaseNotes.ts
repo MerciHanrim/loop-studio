@@ -39,6 +39,15 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // a routed label keeps off its own connection's stored bend points where
+    // its line has room (docs/edge-routing.md §ER14.3, share notes 50 and 52);
+    // the date is the day it is deployed, set right before the merge
+    id: 'release:0.28.1',
+    version: '0.28.1',
+    date: '2026-10-14',
+    items: ['whatsNew.v0281.labelBends', 'whatsNew.v0281.stable', 'whatsNew.v0281.nearby'],
+  },
+  {
     // line editing, unit 2 (docs/edge-routing.md §ER19, share
     // connection-editing-2 notes 48–49): reverse a connection from the Ends
     // group, what may be drawn differently after it, and a refused reversal
