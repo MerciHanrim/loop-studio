@@ -220,10 +220,10 @@ test.describe('flow colour — the Inspector offers each colour once (FC-5)', ()
 })
 
 test.describe('flow colour — the bundled Templates (FC-6)', () => {
+  // the Templates the menu offers; Early MMO left the menu in 0.28.1 (its colours stay checked from the file, src/engine/templateFlowColours.test.ts)
   const TEMPLATES = [
     { name: 'Coffee roastery operations flow', waitFor: 'cafe_retail_demand_kg', file: 'coffee-roastery.json' },
     { name: '3-zone gacha banner comparison', waitFor: 'cmp1_hit_rate_free', file: 'gacha-banner-zones.json' },
-    { name: 'Early MMO progression (levels 1–15)', waitFor: 'char_creation', file: 'mmo-progression.json' },
   ]
   for (const t of TEMPLATES) {
     test(`${t.name}: opens with its three flow colours, on the canvas and the minimap`, async ({ page }) => {

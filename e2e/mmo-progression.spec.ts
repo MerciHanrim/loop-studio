@@ -3,17 +3,19 @@ import type { Page } from '@playwright/test'
 import { ensureTimelineOpen, expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
 
 // docs/example-mmo-progression.md §EM10 — the "Early MMO progression (levels
-// 1–15)" Templates demo, exercised through the app: pick it from Templates ▾
-// (desktop) and the mobile More → Templates sheet, in EN and KO; run it to
-// completion deterministically; check it round-trips; and check the §EM10.1
-// accounting identities from the app's own engine state.
+// 1–15)" document, exercised through the app. Since 0.28.1 it is a developer
+// stress fixture: no longer offered by Templates ▾ (desktop) or the mobile
+// More → Templates sheet, so it is opened from its FILE, as a user's own file
+// is, and both menus are checked not to list it. Its own behaviour is unchanged:
+// the recommended config applies, it opens edit-locked, its node names follow a
+// locale switch, it runs to completion deterministically, it round-trips, and
+// the §EM10.1 accounting identities hold in the app's own engine state.
 //
 // The canonical graph is examples/mmo-progression.json — the fixture regen guard
 // (src/engine/mmo-progression.test.ts) owns the value-level acceptance.
 
-const DOC = JSON.parse(
-  readFileSync(new URL('../examples/mmo-progression.json', import.meta.url), 'utf8'),
-) as {
+const DOC_TEXT = readFileSync(new URL('../examples/mmo-progression.json', import.meta.url), 'utf8')
+const DOC = JSON.parse(DOC_TEXT) as {
   nodes: { id: string }[]
   edges: { id: string }[]
   recommendedRunConfig: {
@@ -72,21 +74,34 @@ const runToEnd = (page: Page, seed: number, cap = 200) =>
 // Templates is the first `.menu` in the toolbar actions (locale-agnostic).
 const templatesBtn = (page: Page) => page.locator('.toolbar__actions .menu').first().locator('> button')
 
-async function pickDesktopTemplate(page: Page, name: string) {
-  await templatesBtn(page).click()
+/** Open examples/mmo-progression.json through the app's real file input (the
+ *  toolbar's Open), confirming a replace if the session asks; wait for the
+ *  whole graph. */
+async function openMmoFile(page: Page) {
   await page
-    .locator('.toolbar__actions .menu').first()
-    .locator('.menu__pop [role="menuitem"]', { hasText: name })
-    .click()
+    .locator('input[type=file][accept*="json"]')
+    .first()
+    .setInputFiles({ name: 'mmo-progression.json', mimeType: 'application/json', buffer: Buffer.from(DOC_TEXT, 'utf8') })
+  // a modified session asks to replace (the dialog may arrive a moment after
+  // the file is read); a pristine one loads straight away. Locale-independent:
+  // the confirm dialog's primary action, by class.
+  const confirm = page.locator('.mcdlg--confirm .btn--primary')
+  const count = () => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().nodes.length)
+  await expect
+    .poll(async () => {
+      if (await confirm.isVisible().catch(() => false)) await confirm.click()
+      return count()
+    })
+    .toBe(DOC.nodes.length)
 }
 
 test.describe('Early MMO progression example', () => {
-  test('desktop: Templates ▾ loads the canonical graph + its recommended MC config', async ({ page }) => {
+  test('desktop: opening its file loads the canonical graph + its recommended MC config', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     expect(await loop(page)).toBe(true)
 
-    await pickDesktopTemplate(page, EN_NAME)
+    await openMmoFile(page)
 
     const g = await graphCounts(page)
     expect(g.nodes).toBe(DOC.nodes.length)
@@ -116,7 +131,7 @@ test.describe('Early MMO progression example', () => {
   }) => {
     await openApp(page)
     await resetAll(page)
-    await pickDesktopTemplate(page, EN_NAME)
+    await openMmoFile(page)
     await ensureTimelineOpen(page) // docs/timeline-series-contract.md §7 — collapsed until the first run
 
     const legend = page.locator('.timeline__legend')
@@ -159,14 +174,14 @@ test.describe('Early MMO progression example', () => {
     expect(ts2).toContain('elapsed')
     expect(ts2.length).toBe(6)
     // (a fresh template open resetting the legend to the recommended 5 is covered
-    //  by the "Templates ▾ loads the canonical graph + its recommended MC config"
+    //  by the "opening its file loads the canonical graph + its recommended MC config"
     //  test above, and the reload path by timeline-series.spec.ts.)
   })
 
   test('opens edit-locked — a node still selects into a read-only Inspector; unlock → editable', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
-    await pickDesktopTemplate(page, EN_NAME)
+    await openMmoFile(page)
 
     const isLocked = () =>
       page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.ui.getState().canvasLocked)
@@ -194,23 +209,25 @@ test.describe('Early MMO progression example', () => {
     await expect(aside.locator('input').first()).toBeEnabled()
   })
 
-  test('the Templates menu name + blurb render in EN and KO; the graph opens with the current locale\'s node labels (docs/template-label-overlay.md)', async ({ page }) => {
+  test('the Templates menu does not offer it in EN or KO (0.28.1); opened from its file, its node names follow a locale switch (docs/template-label-overlay.md)', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
 
     const menuPop = page.locator('.toolbar__actions .menu').first().locator('.menu__pop')
 
+    // the menu is open and lists the Templates it offers (Coffee), but not this one
     await templatesBtn(page).click()
-    const enItem = menuPop.locator('[role="menuitem"]', { hasText: EN_NAME })
-    await expect(enItem).toBeVisible()
-    await expect(enItem.locator('.menu__blurb')).toContainText('quests, hunts and rewards')
+    await expect(menuPop.locator('[role="menuitem"]', { hasText: 'Coffee roastery' })).toBeVisible()
+    await expect(menuPop.locator('[role="menuitem"]', { hasText: EN_NAME })).toHaveCount(0)
+    await expect(menuPop.locator('.menu__blurb', { hasText: 'quests, hunts and rewards' })).toHaveCount(0)
     await page.keyboard.press('Escape')
 
     await setLocale(page, 'ko')
+    await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('ko')
     await templatesBtn(page).click()
-    const koItem = menuPop.locator('[role="menuitem"]', { hasText: KO_NAME })
-    await expect(koItem).toBeVisible()
-    await expect(koItem.locator('.menu__blurb')).toContainText('퀘스트, 사냥, 보상')
+    await expect(menuPop.locator('[role="menuitem"]', { hasText: '커피' }).first()).toBeVisible()
+    await expect(menuPop.locator('[role="menuitem"]', { hasText: KO_NAME })).toHaveCount(0)
+    await expect(menuPop.locator('.menu__blurb', { hasText: '퀘스트, 사냥, 보상' })).toHaveCount(0)
     await page.keyboard.press('Escape')
 
     const labels = () =>
@@ -224,22 +241,28 @@ test.describe('Early MMO progression example', () => {
       await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(code)
     }
 
-    // opened in KO ⇒ Korean node labels (from the ko dictionary)
-    await useLocale('ko')
-    await pickDesktopTemplate(page, KO_NAME)
+    // opened from its (English) file in EN ⇒ the canonical English labels
+    await useLocale('en')
+    await openMmoFile(page)
     let l = await labels()
-    expect(l).toContain('레벨')
+    expect(l).toContain('Level')
+    expect(l).toContain('Gold')
+    expect(l).toContain('Reached level 15')
+    expect(l).not.toContain('레벨')
+
+    // switched to KO ⇒ Korean node labels (it is still a Template entry's
+    // document, so the ko dictionary re-seeds its official names)
+    await useLocale('ko')
+    await expect.poll(labels).toContain('레벨')
+    l = await labels()
     expect(l).toContain('골드')
     expect(l).toContain('15레벨 도달')
     expect(l).not.toContain('Level')
 
-    // opened in EN ⇒ the canonical English labels (reset first so the second
-    // pick loads without a replace-confirm)
-    await resetAll(page)
+    // and back to EN ⇒ the English labels again
     await useLocale('en')
-    await pickDesktopTemplate(page, EN_NAME)
+    await expect.poll(labels).toContain('Level')
     l = await labels()
-    expect(l).toContain('Level')
     expect(l).toContain('Gold')
     expect(l).toContain('Reached level 15')
     expect(l).not.toContain('레벨')
@@ -249,7 +272,7 @@ test.describe('Early MMO progression example', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' }) // each Step settles synchronously
     await openApp(page)
     await resetAll(page)
-    await pickDesktopTemplate(page, EN_NAME)
+    await openMmoFile(page)
 
     const a = await runToEnd(page, 1)
     expect(a.endedAt).toBeGreaterThan(15)
@@ -289,7 +312,7 @@ test.describe('Early MMO progression example', () => {
   test('Export → re-import round-trips the graph and the recommended config', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
-    await pickDesktopTemplate(page, EN_NAME)
+    await openMmoFile(page)
     const before = await graphCounts(page)
 
     const roundTripped = await page.evaluate(() => {
@@ -321,7 +344,7 @@ test.describe('Early MMO progression example', () => {
     )
   })
 
-  test('mobile: the More → Templates sheet lists and loads it', async ({ browser }) => {
+  test('mobile: the More → Templates sheet does not list it (0.28.1); its file opens on a phone', async ({ browser }) => {
     const page = await browser.newPage({
       viewport: { width: 390, height: 844 },
       isMobile: true,
@@ -347,21 +370,15 @@ test.describe('Early MMO progression example', () => {
         .click()
       const templates = page.locator('.sheet[aria-label="Templates"]')
       await expect(templates).toBeVisible()
-      const row = templates.locator('.sheet__row', { hasText: EN_NAME })
-      await expect(row).toBeVisible()
-      await expect(row.locator('.sheet__row-sub')).toContainText('quests, hunts and rewards')
+      // the sheet lists the Templates it offers (Coffee), but not this one
+      await expect(templates.locator('.sheet__row', { hasText: 'Coffee roastery' })).toBeVisible()
+      await expect(templates.locator('.sheet__row', { hasText: EN_NAME })).toHaveCount(0)
+      await expect(templates.locator('.sheet__row-sub', { hasText: 'quests, hunts and rewards' })).toHaveCount(0)
+      await page.keyboard.press('Escape')
 
-      await row.click()
-      // a modified session confirms first; a pristine one loads straight away
-      const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i })
-      if (await confirm.isVisible().catch(() => false)) await confirm.click()
-      await expect
-        .poll(() =>
-          page.evaluate(
-            () => (window as unknown as { __loop: Loop }).__loop.graph.getState().nodes.length,
-          ),
-        )
-        .toBe(DOC.nodes.length)
+      // the phone's own file input (the top bar's Open) still opens the document
+      await openMmoFile(page)
+      expect((await graphCounts(page)).nodeIds).toEqual([...DOC.nodes.map((n) => n.id)].sort())
     } finally {
       await page.close()
     }

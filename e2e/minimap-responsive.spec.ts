@@ -158,27 +158,29 @@ test.describe('minimap — visible only when the pane can host it', () => {
 // `< 640 × 380` auto-hide. Collapsing / expanding never moves the camera; the
 // NEXT Template open frames against whatever the minimap state is then.
 
-// §MML3 — MMO's Template.initialView.minZoom (src/model/templates.ts); a stable
-// value also pinned by e2e/template-load-viewport.spec.ts.
-const MMO_MIN_ZOOM = 0.6
-const MMO_NAME = 'Early MMO progression (levels 1–15)'
+// §MML3 — the gacha Template's initialView.minZoom (src/model/templates.ts). Early
+// MMO, the previous subject here, left the Templates menu in 0.28.1; the gacha
+// banner comparison is the menu's large Template with a framed start, a stable
+// value.
+const TPL_MIN_ZOOM = 0.45
+const TPL_NAME = '3-zone gacha banner comparison'
 
 const uiState = (p: Page) =>
   p.evaluate(() => (window as unknown as { __loop: { ui: { getState: () => { minimapCollapsed: boolean } } } }).__loop.ui.getState())
 const toggleBtn = (p: Page) => p.locator('.minimap-toggle')
 
-/** open MMO through the real Templates menu (the §MML3 framing path) */
-async function openMmoFromMenu(page: Page): Promise<void> {
+/** open the gacha Template through the real Templates menu (the §MML3 framing path) */
+async function openTemplateFromMenu(page: Page): Promise<void> {
   await page.locator('.toolbar__actions .menu').first().locator('> button').click()
   await page
     .locator('.toolbar__actions .menu')
     .first()
-    .locator('.menu__pop [role="menuitem"]', { hasText: MMO_NAME })
+    .locator('.menu__pop [role="menuitem"]', { hasText: TPL_NAME })
     .click()
   const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i })
   await confirm.waitFor({ state: 'visible', timeout: 1200 }).catch(() => {})
   if (await confirm.count()) await confirm.click()
-  await expect(page.locator('.react-flow__node[data-id="char_creation"]')).toBeVisible()
+  await expect(page.locator('.react-flow__node[data-id="cmp1_hit_rate_free"]')).toBeVisible()
   await page.waitForTimeout(500) // let the fit / measurement-settle effect land
 }
 
@@ -202,10 +204,11 @@ const onScreen = (p: Page, id: string) =>
     return b.right > a.left + 2 && b.left < a.right - 2 && b.bottom > a.top + 2 && b.top < a.bottom - 2
   }, id)
 
-// issue #344 (docs/diagram-layout.md §DL5.6) — the MMO opening view's core
-// start nodes open WHOLE (inside the pane, not merely touching it); returns the
+// issue #344 (docs/diagram-layout.md §DL5.6) — the opening view's core
+// start nodes (the comparison row and the Free zone's front) open WHOLE (inside
+// the pane, not merely touching it); returns the
 // ones that do not
-const MMO_CORE = ['char_creation', 'active_char', 'z1_enc_src', 'z1_enc']
+const START_CORE = ['cmp1_hit_rate_free', 'fund_free', 'ticket_free', 'roll_gate_free']
 const notWhole = (p: Page) =>
   p.evaluate((ids) => {
     const a = document.querySelector('.react-flow')!.getBoundingClientRect()
@@ -215,7 +218,7 @@ const notWhole = (p: Page) =>
       const b = el.getBoundingClientRect()
       return !(b.left >= a.left - 0.5 && b.right <= a.right + 0.5 && b.top >= a.top - 0.5 && b.bottom <= a.bottom + 0.5)
     })
-  }, MMO_CORE)
+  }, START_CORE)
 
 test.describe('minimap — the collapse / restore control', () => {
   test.beforeEach(async ({ page }) => {
@@ -346,22 +349,22 @@ test.describe('minimap — the collapse / restore control', () => {
 
   test('a Template opened while collapsed reserves NO minimap gap; expanded it does', async ({ page }) => {
     // expanded run
-    await openMmoFromMenu(page)
+    await openTemplateFromMenu(page)
     const ivExpanded = await lastInitialView(page)
     expect(ivExpanded, 'applyInitialView ran').not.toBeNull()
     expect(ivExpanded!.insetR).toBe(224)
     expect(ivExpanded!.insetB).toBe(176)
-    expect(ivExpanded!.zoom).toBeGreaterThanOrEqual(MMO_MIN_ZOOM - 1e-6)
-    expect(await onScreen(page, 'char_creation')).toBe(true)
-    expect(await onScreen(page, 'z1_enc')).toBe(true)
-    expect(await onScreen(page, 'end15')).toBe(false)
+    expect(ivExpanded!.zoom).toBeGreaterThanOrEqual(TPL_MIN_ZOOM - 1e-6)
+    expect(await onScreen(page, 'cmp1_hit_rate_free')).toBe(true)
+    expect(await onScreen(page, 'roll_gate_free')).toBe(true)
+    expect(await onScreen(page, 'pulls_made_pickup')).toBe(false)
     expect(await notWhole(page)).toEqual([])
     // sanity: the framed early band does not sit under the minimap — the two
     // screen rects collide only when they overlap on BOTH axes (issue #344:
     // the opening view lets the top row run past the minimap's column, above it)
     const underMinimap = await page.evaluate(() => {
       const m = document.querySelector('.react-flow__minimap')!.getBoundingClientRect()
-      return ['char_creation', 'active_char', 'z1_enc'].filter((id) => {
+      return ['cmp1_hit_rate_free', 'fund_free', 'roll_gate_free'].filter((id) => {
         const el = document.querySelector(`.react-flow__node[data-id="${id}"]`)
         if (!el) return false
         const r = el.getBoundingClientRect()
@@ -373,17 +376,17 @@ test.describe('minimap — the collapse / restore control', () => {
     // collapse, re-open the same Template at the same pane size
     await toggleBtn(page).click()
     await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
-    await openMmoFromMenu(page)
+    await openTemplateFromMenu(page)
     const ivCollapsed = await lastInitialView(page)
     expect(ivCollapsed!.insetR).toBe(0) // no gap for an invisible minimap
     expect(ivCollapsed!.insetB).toBe(0)
-    expect(ivCollapsed!.zoom).toBeGreaterThanOrEqual(MMO_MIN_ZOOM - 1e-6)
+    expect(ivCollapsed!.zoom).toBeGreaterThanOrEqual(TPL_MIN_ZOOM - 1e-6)
     // a wider usable width ⇒ same-or-larger fit zoom for the same rect, capped
     // so the core start nodes stay whole (the `keep` rect)
     expect(ivCollapsed!.zoom).toBeGreaterThanOrEqual(ivExpanded!.zoom - 1e-6)
-    expect(await onScreen(page, 'char_creation')).toBe(true)
-    expect(await onScreen(page, 'z1_enc')).toBe(true)
-    expect(await onScreen(page, 'end15')).toBe(false)
+    expect(await onScreen(page, 'cmp1_hit_rate_free')).toBe(true)
+    expect(await onScreen(page, 'roll_gate_free')).toBe(true)
+    expect(await onScreen(page, 'pulls_made_pickup')).toBe(false)
     expect(await notWhole(page)).toEqual([])
   })
 

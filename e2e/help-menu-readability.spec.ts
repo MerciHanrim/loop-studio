@@ -150,7 +150,7 @@ test('KO Templates menu: 340px, every description whole and inside the 2-line cl
   expect(width, 'Templates opts into the wide popover').toBe(300)
 
   const blurbs = await measureOpenMenu(page, '.menu__blurb')
-  expect(blurbs.length, 'one description per template').toBe(5)
+  expect(blurbs.length, 'one description per template (0.28.1: Early MMO is not in the menu)').toBe(4)
   for (const b of blurbs) {
     expect(b.fontPx, `"${b.text}": font size`).toBeGreaterThanOrEqual(BODY_MIN_PX)
     expect(b.contrast, `"${b.text}": contrast`).toBeGreaterThanOrEqual(BODY_MIN_CONTRAST)
@@ -220,7 +220,7 @@ test('a widened popover still fits inside a narrow desktop viewport', async ({ p
 
 test.describe('menu keyboard — Templates, Insert module and File', () => {
   for (const [label, name, count] of [
-    ['Templates', /템플릿/, 5],
+    ['Templates', /템플릿/, 4], // 0.28.1: Early MMO is not in the menu
     ['Insert module', /모듈/, 4],
     ['File', /파일/, 7],
   ] as const) {

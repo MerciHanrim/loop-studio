@@ -2,7 +2,7 @@ import { useCallback, useRef, useState, type RefObject } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { FEEDBACK_URL } from '../../feedback'
 import { openTemplate } from '../../i18n/templateLabels'
-import { TEMPLATES } from '../../model/templates'
+import { MENU_TEMPLATES, TEMPLATES } from '../../model/templates'
 import { WORKSPACE_MAX_BYTES } from '../../model/workspace'
 import { useFilterStore } from '../../store/filterStore'
 import { useAutoFrameStore, hasAutoFrames } from '../../store/autoFrameStore'
@@ -513,7 +513,7 @@ export function MobileMoreMenu({
         onEscape={backToMoreFrom('templates')}
         returnFocusTo={backToMore}
       >
-        {TEMPLATES.map((tpl) => (
+        {MENU_TEMPLATES.map((tpl) => (
           <button key={tpl.id} type="button" className="sheet__row" onClick={() => pickTemplate(tpl.id)}>
             {t(TEMPLATE_KEY[tpl.id as keyof typeof TEMPLATE_KEY].name)}
             <span className="sheet__row-sub">

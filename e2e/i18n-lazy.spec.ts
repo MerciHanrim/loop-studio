@@ -21,18 +21,19 @@ const i18nState = (page: Page) =>
 const htmlLang = (page: Page) => page.evaluate(() => document.documentElement.lang)
 const stored = (page: Page) => page.evaluate(() => localStorage.getItem('loop-studio/ui-locale/1'))
 
-const MMO = 'Early MMO progression (levels 1–15)'
-async function openMmo(page: Page) {
+// a Template the menu offers (Early MMO, the previous subject, left the menu in 0.28.1)
+const COFFEE = 'Coffee roastery operations flow'
+async function openCoffee(page: Page) {
   await page.locator('.toolbar__actions .menu').first().locator('> button').click()
   await page
     .locator('.toolbar__actions .menu')
     .first()
-    .locator('.menu__pop [role="menuitem"]', { hasText: MMO })
+    .locator('.menu__pop [role="menuitem"]', { hasText: COFFEE })
     .click()
   const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i })
   await confirm.waitFor({ state: 'visible', timeout: 1200 }).catch(() => {})
   if (await confirm.count()) await confirm.click()
-  await expect(page.locator('.react-flow__node[data-id="char_creation"]')).toBeVisible()
+  await expect(page.locator('.react-flow__node[data-id="green_stock"]')).toBeVisible()
 }
 const nodeLabel = (page: Page, id: string) =>
   page.locator(`.react-flow__node[data-id="${id}"] .nodef__name`).innerText()
@@ -44,15 +45,15 @@ test.describe('locale lazy-loading — behaviour', () => {
     await openApp(page)
     await resetAll(page)
     expect(await loop(page)).toBe(true)
-    await openMmo(page)
-    expect(await nodeLabel(page, 'char_creation')).toBe('Character creation')
+    await openCoffee(page)
+    expect(await nodeLabel(page, 'green_stock')).toBe('Green bean stock')
 
     // drive the switch and sample lang + a node label the moment it settles
     await setLocale(page, 'ko')
     await expect.poll(() => htmlLang(page)).toBe('ko')
     // by the time <html lang> is 'ko', the node label is already Korean —
     // never an intermediate English frame
-    expect(await nodeLabel(page, 'char_creation')).toBe('캐릭터 생성')
+    expect(await nodeLabel(page, 'green_stock')).toBe('생두 재고')
     expect((await i18nState(page)).loadError).toBeNull()
   })
 
@@ -96,7 +97,7 @@ test.describe('locale lazy-loading — behaviour', () => {
   }) => {
     await openApp(page)
     await resetAll(page)
-    await openMmo(page)
+    await openCoffee(page)
     // block BOTH halves of the ja load (dev module URLs)
     await page.route('**/i18n/locales/ja/**', (r) => r.abort())
     await page.route('**/i18n/templateLabels/ja*', (r) => r.abort())
@@ -107,7 +108,7 @@ test.describe('locale lazy-loading — behaviour', () => {
     expect(st.activeLocale).toBe('en')
     expect(st.loadError?.code).toBe('ja')
     expect(await htmlLang(page)).toBe('en')
-    expect(await nodeLabel(page, 'char_creation')).toBe('Character creation')
+    expect(await nodeLabel(page, 'green_stock')).toBe('Green bean stock')
 
     // a successful switch clears the notice
     await page.unroute('**/i18n/locales/ja/**')
@@ -127,22 +128,22 @@ test.describe('locale lazy-loading — behaviour', () => {
   }) => {
     await openApp(page)
     await resetAll(page)
-    await openMmo(page)
-    // #334 — MMO opens edit-locked; the rename below is a user edit
+    await openCoffee(page)
+    // the rename below is a user edit (the Template opens editable; unlock in case)
     await page.evaluate(() => (window as any).__loop.ui.getState().setCanvasLocked(false))
     // rename one node via the store bridge
     await page.evaluate(() => {
       const g = (window as unknown as { __loop: L }).__loop.graph.getState()
-      const n = g.nodes.find((x: any) => x.id === 'char_creation')
+      const n = g.nodes.find((x: any) => x.id === 'green_stock')
       g.updateNodeData(n.id, { label: 'My start' })
     })
     await setLocale(page, 'ko')
     await expect.poll(() => htmlLang(page)).toBe('ko')
-    expect(await nodeLabel(page, 'char_creation')).toBe('My start') // user rename kept
-    expect(await nodeLabel(page, 'active_char')).toBe('활성 캐릭터') // official switched
+    expect(await nodeLabel(page, 'green_stock')).toBe('My start') // user rename kept
+    expect(await nodeLabel(page, 'green_delivery')).toBe('생두 입고') // official switched
 
     // one undo removes the rename, not "Korean → English half-state"
     await page.evaluate(() => (window as unknown as { __loop: L }).__loop.graph.getState().undo())
-    expect(await nodeLabel(page, 'char_creation')).toBe('캐릭터 생성')
+    expect(await nodeLabel(page, 'green_stock')).toBe('생두 재고')
   })
 })

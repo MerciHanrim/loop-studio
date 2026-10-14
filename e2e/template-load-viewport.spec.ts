@@ -14,21 +14,15 @@ import { expect, openApp, resetAll, seedPersonalBrowser, test } from './support/
 const COFFEE = JSON.parse(
   readFileSync(new URL('../examples/coffee-roastery.json', import.meta.url), 'utf8'),
 ) as { nodes: { id: string; position: { x: number; y: number } }[] }
-const MMO = JSON.parse(
-  readFileSync(new URL('../examples/mmo-progression.json', import.meta.url), 'utf8'),
-) as { nodes: { id: string; position: { x: number; y: number } }[] }
 const GACHA = JSON.parse(
   readFileSync(new URL('../examples/gacha-banner-zones.json', import.meta.url), 'utf8'),
 ) as { nodes: { id: string; position: { x: number; y: number } }[] }
 
 const COFFEE_EN = 'Coffee roastery operations flow'
-const MMO_EN = 'Early MMO progression (levels 1–15)'
 const GACHA_EN = '3-zone gacha banner comparison'
 // the extreme left / right nodes of each graph — both must land on screen
 const COFFEE_L = 'green_wholesale_kg' // the left-most lever since the re-placement (share 23-coffee-replace.md)
 const COFFEE_R = 'projected_operating_margin'
-const MMO_L = 'char_creation'
-const MMO_R = 'end15'
 // gacha: a comparison-row node (always framed) and a Pickup-zone-only node
 // (deliberately left off screen — docs/gacha-banner-zones.md's layout round
 // 2 puts Pickup at the far right of the 3-zone row)
@@ -130,12 +124,12 @@ async function waitForFit(page: Page, leftId: string, rightId: string) {
 }
 
 test.describe('template load re-fits the viewport (whole-graph swap boundary)', () => {
-  test('desktop: MMO panned far away → open Coffee → the camera re-fits the Coffee graph, GraphDoc / positions / undo untouched', async ({ page }) => {
+  test('desktop: the gacha Template panned far away → open Coffee → the camera re-fits the Coffee graph, GraphDoc / positions / undo untouched', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     expect(await L(page)).toBe(true)
 
-    await pickDesktopTemplate(page, MMO_EN, MMO_L)
+    await pickDesktopTemplate(page, GACHA_EN, GACHA_L)
     // shove the camera to the previous graph's bottom-right, well off any node
     await setVp(page, { x: -5200, y: -3800, zoom: 0.32 })
     const panned = await getVp(page)
@@ -153,39 +147,46 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
 
     // re-fitting is NOT an undo entry. #334 — a Template load is a document
     // boundary that empties the history, so the history is exactly empty: no
-    // "Coffee at the old viewport" entry, and no way back to MMO either
+    // "Coffee at the old viewport" entry, and no way back to the gacha Template either
     expect(await historyDepth(page), 'no viewport-only history entry').toEqual({ past: 0, future: 0 })
   })
 
-  // docs/mmo-multilingual-layout.md §MML3 — the MMO demo is ~3500 px wide, so
-  // fit-all opens it as an unreadable map. Opened FROM THE MENU it instead
-  // frames the early-progression band (Character creation → Starter zone → the
-  // Level / XP pools) at ≥ the L1 detail zoom. Fixed graph coords, no locale
-  // branch; positions / undo still untouched.
-  test('desktop: open MMO from the menu → the camera frames the early band (§MML3), not fit-all', async ({ page }) => {
+  // issue #344 step 5 (docs/diagram-layout.md §DL5.5) — Coffee opened FROM THE
+  // MENU frames its operating flow (its initialView: the four bean levers, the
+  // Supply and the Roasting & sales zones) at ≥ its 0.46 floor, the left-most
+  // lever whole; positions / undo untouched. At this pane size the Forecast
+  // metrics column fits beside it too (it is one pan away only on a narrower
+  // pane), so nothing here says it is off screen. (Early MMO, this test's
+  // previous subject with §MML3, left the menu in 0.28.1; the gacha framing,
+  // which does leave a zone off screen, is the next test.)
+  test('desktop: open Coffee from the menu → the camera frames its operating flow at ≥ its floor', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
-    await pickDesktopTemplate(page, COFFEE_EN, COFFEE_R)
-    await setVp(page, { x: 300, y: 200, zoom: 1.6 }) // zoomed in on the small graph
+    await pickDesktopTemplate(page, GACHA_EN, GACHA_L)
+    await setVp(page, { x: -2400, y: -1600, zoom: 1.6 }) // somewhere else on the previous graph
     const before = await getVp(page)
 
-    // wait on a band node, not `end15` (which §MML3 deliberately leaves off screen)
-    await pickDesktopTemplate(page, MMO_EN, MMO_L)
-    await expect.poll(() => nodeOnScreen(page, MMO_L)).toBe(true)
+    await pickDesktopTemplate(page, COFFEE_EN, COFFEE_L)
+    await expect.poll(() => nodeOnScreen(page, COFFEE_L)).toBe(true)
     const after = await getVp(page)
 
-    // the camera moved, opened at ≥ L1 detail, and framed the early band:
-    // Character creation is on screen, the far-right End marker is not
+    // the camera moved, opened at ≥ the floor, and framed the work flow: the
+    // left-most lever WHOLE inside the pane, both work zones on screen
     expect(after).not.toEqual(before)
-    expect(after.zoom, 'opens at or above the L1 detail zoom').toBeGreaterThanOrEqual(0.45)
-    expect(await nodeOnScreen(page, 'char_creation')).toBe(true)
-    expect(await nodeOnScreen(page, 'z1_enc')).toBe(true)
-    expect(await nodeOnScreen(page, MMO_R), 'rest of the graph is off screen (pan / minimap / Focus)').toBe(false)
+    expect(after.zoom, 'opens at or above its 0.46 floor').toBeGreaterThanOrEqual(0.46 - 1e-6)
+    const lever = await page.evaluate((nid) => {
+      const p = document.querySelector('.react-flow')!.getBoundingClientRect()
+      const r = document.querySelector(`.react-flow__node[data-id="${nid}"]`)!.getBoundingClientRect()
+      return r.left >= p.left - 0.5 && r.right <= p.right + 0.5 && r.top >= p.top - 0.5 && r.bottom <= p.bottom + 0.5
+    }, COFFEE_L)
+    expect(lever, 'the left-most lever opens whole').toBe(true)
+    expect(await nodeOnScreen(page, 'green_stock')).toBe(true)
+    expect(await nodeOnScreen(page, 'roasted_stock')).toBe(true)
 
     // camera-only: positions are exactly the file's, and the framing is not an
     // undo entry (#334 — the Template load empties the history; nothing at all)
-    expect((await graphSig(page)).positions).toEqual(filePositions(MMO))
-    expect(await historyDepth(page), 'the MMO framing is no history entry').toEqual({ past: 0, future: 0 })
+    expect((await graphSig(page)).positions).toEqual(filePositions(COFFEE))
+    expect(await historyDepth(page), 'the Coffee framing is no history entry').toEqual({ past: 0, future: 0 })
   })
 
   // docs/gacha-banner-zones.md's layout round 2 — the 3 zones sit side by side
@@ -330,8 +331,8 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
   test('desktop: a language change after a menu open never moves the camera (§MML3)', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
-    await pickDesktopTemplate(page, MMO_EN, MMO_L)
-    await expect.poll(() => nodeOnScreen(page, MMO_L)).toBe(true)
+    await pickDesktopTemplate(page, GACHA_EN, GACHA_L)
+    await expect.poll(() => nodeOnScreen(page, GACHA_L)).toBe(true)
     const opened = await getVp(page)
     for (const code of ['ko', 'ja', 'en']) {
       await page.evaluate(
@@ -362,7 +363,7 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
     try {
       await openApp(page)
       await resetAll(page)
-      await pickMobileTemplate(page, MMO_EN, MMO_L)
+      await pickMobileTemplate(page, GACHA_EN, GACHA_L)
       await setVp(page, { x: -5200, y: -3800, zoom: 0.32 })
       const panned = await getVp(page)
 

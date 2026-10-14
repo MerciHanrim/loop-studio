@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import type { Browser, Page } from '@playwright/test'
 import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, routesSettled, seedPersonalBrowser, test } from './support/loop'
 
@@ -17,6 +18,11 @@ import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, routesSettl
 //  - a plain reload / autosave restore does NOT re-run the menu overlay (#97 guard)
 //  - Import keeps the file's own labels; a later language switch keeps them too
 //  - re-open in a different locale order → pristine English canonical
+//
+// The menu cases use Coffee (0.28.1: Early MMO, their previous subject, left the
+// Templates menu). The two bulk-switch geometry cases stay on the full MMO
+// document — the largest one — opened from its FILE: it is still a Template
+// entry's document, so a locale switch re-seeds its official names.
 
 type Loop = Record<string, { getState: () => any }>
 const g = (page: Page) => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState())
@@ -33,9 +39,9 @@ async function setLocale(page: Page, code: string) {
 // Templates ▾ is the first `.menu` in the toolbar actions (locale-agnostic).
 const templatesBtn = (page: Page) =>
   page.locator('.toolbar__actions .menu').first().locator('> button')
-/** #334 — the MMO template opens edit-locked, and the lock now refuses every
- *  user edit at the store too; a test that edits it lifts the lock first, the
- *  way a user has to. */
+/** #334 — the MMO document opens edit-locked, and the lock now refuses every
+ *  user edit at the store too; a test that edits a document lifts the lock
+ *  first (if it is on), the way a user has to. */
 async function unlockCanvas(page: Page) {
   const lock = page.locator('.react-flow__controls-button.rf-lock')
   if ((await lock.getAttribute('aria-pressed')) === 'true') await lock.click()
@@ -57,8 +63,28 @@ async function pickTemplate(page: Page, hasText: string) {
   await routesSettled(page)
 }
 
-const MMO_EN = 'Early MMO progression'
-const MMO_KO = '초반 MMO 성장'
+const COFFEE_EN = 'Coffee roastery operations flow'
+const COFFEE_KO = '커피 로스터리 운영 흐름'
+
+const MMO_TEXT = readFileSync(new URL('../examples/mmo-progression.json', import.meta.url), 'utf8')
+/** Open examples/mmo-progression.json through the app's real file input (its
+ *  file's own English names), confirming a replace if the session asks (the
+ *  dialog may arrive a moment after the file is read), then wait for its
+ *  routes. */
+async function openMmoFile(page: Page) {
+  await page
+    .locator('input[type=file][accept*="json"]')
+    .first()
+    .setInputFiles({ name: 'mmo-progression.json', mimeType: 'application/json', buffer: Buffer.from(MMO_TEXT, 'utf8') })
+  const confirm = page.locator('.mcdlg--confirm .btn--primary')
+  await expect
+    .poll(async () => {
+      if (await confirm.isVisible().catch(() => false)) await confirm.click()
+      return page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().nodes.length)
+    })
+    .toBeGreaterThan(90)
+  await routesSettled(page)
+}
 
 const GRAPH_STORAGE_KEY = 'loop-studio:graph:v1'
 const catValue = (page: Page, key: string) =>
@@ -68,41 +94,41 @@ const catValue = (page: Page, key: string) =>
   )
 
 test.describe('template label overlay', () => {
-  test('MMO opens with the current locale node labels; a later language switch re-seeds the OFFICIAL labels but keeps a user rename', async ({ page }) => {
+  test('Coffee opens with the current locale node labels; a later language switch re-seeds the OFFICIAL labels but keeps a user rename', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
 
     await setLocale(page, 'ko')
-    await pickTemplate(page, MMO_KO)
+    await pickTemplate(page, COFFEE_KO)
     let l = await labels(page)
-    expect(l).toContain('레벨')
-    expect(l).toContain('골드')
-    expect(l).not.toContain('Level')
+    expect(l).toContain('생두 재고')
+    expect(l).toContain('로스팅 원두 재고')
+    expect(l).not.toContain('Green bean stock')
 
-    // the user renames the `gold` node to something of their own
+    // the user renames the `roasted_stock` node to something of their own
     await unlockCanvas(page)
     await page.evaluate(() => {
       const gs = (window as unknown as { __loop: Loop }).__loop.graph.getState()
-      const gold = gs.nodes.find((n: any) => n.id === 'gold')
-      gs.updateNodeData(gold.id, { label: '내 금고' })
+      const roasted = gs.nodes.find((n: any) => n.id === 'roasted_stock')
+      gs.updateNodeData(roasted.id, { label: '내 원두 창고' })
     })
 
     // switch the app language while the KO document is open — the OFFICIAL
     // template labels follow the new language (§TLO11); the user rename does not
     await setLocale(page, 'en')
     l = await labels(page)
-    expect(l).toContain('Level') // 레벨 → Level
-    expect(l).not.toContain('레벨')
-    expect(l).toContain('내 금고') // the user rename is preserved
-    expect(l).not.toContain('Gold') // (that node is now '내 금고')
+    expect(l).toContain('Green bean stock') // 생두 재고 → Green bean stock
+    expect(l).not.toContain('생두 재고')
+    expect(l).toContain('내 원두 창고') // the user rename is preserved
+    expect(l).not.toContain('Roasted bean stock') // (that node is now '내 원두 창고')
 
     // …and a fresh EN open is the canonical English
     await resetAll(page)
-    await pickTemplate(page, MMO_EN)
+    await pickTemplate(page, COFFEE_EN)
     l = await labels(page)
-    expect(l).toContain('Level')
-    expect(l).toContain('Gold')
-    expect(l).not.toContain('레벨')
+    expect(l).toContain('Green bean stock')
+    expect(l).toContain('Roasted bean stock')
+    expect(l).not.toContain('생두 재고')
   })
 
   test('the equilibrium sample opens with KO node labels under a KO locale, EN canonical under EN', async ({ page }) => {
@@ -154,12 +180,12 @@ test.describe('template label overlay', () => {
     expect(l.sort()).toEqual(['Ore Stock', 'Out'])
   })
 
-  test('re-open isolation: opening MMO in KO then EN yields the pristine English canonical', async ({ page }) => {
+  test('re-open isolation: opening Coffee in KO then EN yields the pristine English canonical', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
 
     await setLocale(page, 'ko')
-    await pickTemplate(page, MMO_KO)
+    await pickTemplate(page, COFFEE_KO)
     // mutate the open document
     await page.evaluate(() => {
       const gs = (window as unknown as { __loop: Loop }).__loop.graph.getState()
@@ -168,16 +194,16 @@ test.describe('template label overlay', () => {
 
     await resetAll(page)
     await setLocale(page, 'en')
-    await pickTemplate(page, MMO_EN)
+    await pickTemplate(page, COFFEE_EN)
     const s = await g(page)
-    expect(s.nodes.map((n: any) => n.data.label)).toContain('Level')
-    expect(s.nodes.map((n: any) => n.data.label)).not.toContain('레벨')
+    expect(s.nodes.map((n: any) => n.data.label)).toContain('Green bean stock')
+    expect(s.nodes.map((n: any) => n.data.label)).not.toContain('생두 재고')
     expect(s.selectedNodeId).toBeNull()
   })
 
   // Desktop and mobile edit two different `doLoadTemplate` paths — the mobile
   // More → Templates sheet needs its own functional check that the overlay ran.
-  test('mobile More → Templates opens MMO with the current-locale (KO) node labels', async ({
+  test('mobile More → Templates opens Coffee with the current-locale (KO) node labels', async ({
     browser,
   }: {
     browser: Browser
@@ -204,14 +230,14 @@ test.describe('template label overlay', () => {
 
       const moreLabel = await catValue(page, 'mobile.more') // '더 보기'
       const tplLabel = await catValue(page, 'templates.menuLabel') // '템플릿'
-      const mmoName = await catValue(page, 'templates.mmoProgression.name') // '초반 MMO 성장 (1–15레벨)'
+      const coffeeName = await catValue(page, 'templates.coffeeRoastery.name') // '커피 로스터리 운영 흐름'
 
       await page.locator('.mob-more').click()
       await page
         .locator(`.sheet[aria-label="${moreLabel}"] .sheet__row`, { hasText: tplLabel })
         .click()
       await page
-        .locator(`.sheet[aria-label="${tplLabel}"] .sheet__row`, { hasText: mmoName })
+        .locator(`.sheet[aria-label="${tplLabel}"] .sheet__row`, { hasText: coffeeName })
         .click()
       // a non-pristine session confirms the replace first; a pristine one loads
       // straight away
@@ -219,12 +245,12 @@ test.describe('template label overlay', () => {
       const confirm = page.getByRole('button', { name: confirmLabel })
       if (await confirm.isVisible().catch(() => false)) await confirm.click()
 
-      await expect.poll(() => labels(page).then((l) => l.length)).toBeGreaterThan(50)
+      await expect.poll(() => labels(page).then((l) => l.length)).toBeGreaterThan(20)
       const l = await labels(page)
-      expect(l).toContain('레벨')
-      expect(l).toContain('골드')
-      expect(l).toContain('15레벨 도달')
-      expect(l).not.toContain('Level')
+      expect(l).toContain('생두 재고')
+      expect(l).toContain('로스팅 원두 재고')
+      expect(l).toContain('생두 입고')
+      expect(l).not.toContain('Green bean stock')
     } finally {
       await page.close()
     }
@@ -239,26 +265,26 @@ test.describe('template label overlay', () => {
 
     // KO menu open ⇒ Korean labels; then the user renames a node
     await setLocale(page, 'ko')
-    await pickTemplate(page, MMO_KO)
-    expect(await labels(page)).toContain('레벨')
+    await pickTemplate(page, COFFEE_KO)
+    expect(await labels(page)).toContain('생두 재고')
     await unlockCanvas(page)
     await page.evaluate(() => {
       const gs = (window as unknown as { __loop: Loop }).__loop.graph.getState()
-      const gold = gs.nodes.find((n: any) => n.id === 'gold')
-      gs.updateNodeData(gold.id, { label: '내 금고' })
+      const roasted = gs.nodes.find((n: any) => n.id === 'roasted_stock')
+      gs.updateNodeData(roasted.id, { label: '내 원두 창고' })
     })
 
     // switch the app language to EN ⇒ OFFICIAL labels follow, the rename stays
     await setLocale(page, 'en')
-    expect(await labels(page)).toContain('Level')
-    expect(await labels(page)).not.toContain('레벨')
-    expect(await labels(page)).toContain('내 금고')
+    expect(await labels(page)).toContain('Green bean stock')
+    expect(await labels(page)).not.toContain('생두 재고')
+    expect(await labels(page)).toContain('내 원두 창고')
 
     // let the autosave debounce persist, then a plain reload
     await expect
       .poll(() =>
         page.evaluate(
-          (k) => localStorage.getItem(k)?.includes('내 금고') ?? false,
+          (k) => localStorage.getItem(k)?.includes('내 원두 창고') ?? false,
           GRAPH_STORAGE_KEY,
         ),
       )
@@ -271,17 +297,17 @@ test.describe('template label overlay', () => {
     // change so §TLO11 does nothing either
     expect(await htmlLang(page)).toBe('en')
     const restored = await labels(page)
-    expect(restored).toContain('Level')
-    expect(restored).toContain('Reached level 15') // official label followed the switch
-    expect(restored).toContain('내 금고') // the user rename survived the reload
-    expect(restored).not.toContain('레벨')
+    expect(restored).toContain('Green bean stock')
+    expect(restored).toContain('Green bean delivery') // official label followed the switch
+    expect(restored).toContain('내 원두 창고') // the user rename survived the reload
+    expect(restored).not.toContain('생두 재고')
 
     // and opening the English Template fresh from the menu is the canonical
     await resetAll(page)
-    await pickTemplate(page, MMO_EN)
+    await pickTemplate(page, COFFEE_EN)
     const en = await labels(page)
-    expect(en).toContain('Level')
-    expect(en).not.toContain('레벨')
+    expect(en).toContain('Roasted bean stock')
+    expect(en).not.toContain('생두 재고')
   })
 })
 
@@ -303,7 +329,7 @@ test.describe('official template label — locale switch (§TLO11)', () => {
   test('KO → JA → EN round-trips the official labels of the bundled templates', async ({ page }) => {
     await openApp(page)
     const cases = [
-      { pick: MMO_KO, ko: '레벨', ja: 'レベル', en: 'Level' },
+      { pick: COFFEE_KO, ko: '생두 재고', ja: '生豆在庫', en: 'Green bean stock' },
       { pick: '용량 교착', ko: '가공', ja: '加工', en: 'Processing' },
     ]
     for (const c of cases) {
@@ -325,11 +351,11 @@ test.describe('official template label — locale switch (§TLO11)', () => {
     await openApp(page)
     await resetAll(page)
     await setLocale(page, 'en')
-    await pickTemplate(page, MMO_EN)
+    await pickTemplate(page, COFFEE_EN)
 
     // rename one official node to exactly "<label> 2" and add a brand-new node
     await unlockCanvas(page)
-    await rename(page, 'gold', 'Gold 2')
+    await rename(page, 'green_stock', 'Green bean stock 2')
     await page.evaluate(() => {
       const gs = (window as unknown as { __loop: Loop }).__loop.graph.getState()
       gs.addNodeAt('pool', { x: 40, y: 40 }) // English default label, e.g. "Pool"
@@ -338,10 +364,11 @@ test.describe('official template label — locale switch (§TLO11)', () => {
 
     await setLocale(page, 'ko')
     const after = await labels(page)
-    // official labels moved to KO, but "Gold 2" and the new "Pool" are untouched
-    expect(after).toContain('Gold 2')
+    // official labels moved to KO, but "Green bean stock 2" and the new "Pool"
+    // are untouched
+    expect(after).toContain('Green bean stock 2')
     expect(after).toContain('Pool')
-    expect(after).toContain('레벨')
+    expect(after).toContain('로스팅 원두 재고')
   })
 
   test('an Imported unmodified template graph also switches — no provenance flag', async ({ page }) => {
@@ -371,32 +398,32 @@ test.describe('official template label — locale switch (§TLO11)', () => {
     await openApp(page)
     await resetAll(page)
     await setLocale(page, 'en')
-    await pickTemplate(page, MMO_EN)
+    await pickTemplate(page, COFFEE_EN)
 
-    await rename(page, 'gold', 'stash') // one undoable edit, in EN
+    await rename(page, 'green_stock', 'stash') // one undoable edit, in EN
     const revBeforeSwitch = await simRev(page)
     await setLocale(page, 'ko')
     expect(await simRev(page)).toBe(revBeforeSwitch) // the switch is label-only
 
     await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().undo())
     const l = await labels(page)
-    expect(l).toContain('골드') // the pre-rename node came back — in the ACTIVE language
-    expect(l).not.toContain('Gold')
-    expect(l).toContain('레벨')
+    expect(l).toContain('생두 재고') // the pre-rename node came back — in the ACTIVE language
+    expect(l).not.toContain('Green bean stock')
+    expect(l).toContain('로스팅 원두 재고')
   })
 
   test('the Timeline legend follows the switched labels', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await setLocale(page, 'en')
-    await pickTemplate(page, MMO_EN)
+    await pickTemplate(page, COFFEE_EN)
     await ensureTimelineOpen(page)
     const legend = page.locator('.timeline__legend, .timeline .legend').first()
-    await expect(legend).toContainText('Level')
+    await expect(legend).toContainText('Green bean stock')
 
     await setLocale(page, 'ko')
-    await expect(legend).toContainText('레벨')
-    await expect(legend).not.toContainText('Level')
+    await expect(legend).toContainText('생두 재고')
+    await expect(legend).not.toContainText('Green bean stock')
   })
 
   test('a non-template node id is never switched — even when its label equals an official string', async ({ page }) => {
@@ -422,8 +449,8 @@ test.describe('official template label — locale switch (§TLO11)', () => {
     await openApp(page)
     await resetAll(page)
     await setLocale(page, 'ko')
-    await pickTemplate(page, MMO_KO)
-    expect(await labels(page)).toContain('레벨')
+    await pickTemplate(page, COFFEE_KO)
+    expect(await labels(page)).toContain('생두 재고')
 
     // pin the language preference to JA, keep the KO-labelled graph, reload
     await page.evaluate(() =>
@@ -432,7 +459,7 @@ test.describe('official template label — locale switch (§TLO11)', () => {
     await expect
       .poll(() =>
         page.evaluate(
-          (k) => localStorage.getItem(k)?.includes('레벨') ?? false,
+          (k) => localStorage.getItem(k)?.includes('생두 재고') ?? false,
           GRAPH_STORAGE_KEY,
         ),
       )
@@ -442,12 +469,13 @@ test.describe('official template label — locale switch (§TLO11)', () => {
 
     expect(await htmlLang(page)).toBe('ja')
     const l = await labels(page)
-    expect(l).toContain('レベル') // boot switched the official labels to JA
-    expect(l).not.toContain('레벨')
+    expect(l).toContain('生豆在庫') // boot switched the official labels to JA
+    expect(l).not.toContain('생두 재고')
   })
 
-  // A locale switch on the full 97-node MMO template relabels many nodes in
-  // one commit. An earlier release-blocking bug (2026-09-16 timing
+  // A locale switch on the full 97-node MMO document relabels many nodes in
+  // one commit (0.28.1: opened from its file — it left the Templates menu —
+  // then switched to KO, the start these two tests had from the KO menu). An earlier release-blocking bug (2026-09-16 timing
   // investigation) traced a 5.6-7.1s main-thread stall on an English switch
   // to this app's OWN per-node `updateNodeInternals` calls; removing them
   // entirely (nodes.tsx) — relying on React Flow's own internal per-node
@@ -456,11 +484,14 @@ test.describe('official template label — locale switch (§TLO11)', () => {
   // A/B/C comparison, including a dedicated production-bundle check in
   // e2e/dist.spec.ts). These two tests exercise the resulting geometry
   // directly, not just the label text a switch carries.
-  test('KO → JA → EN → KO on the full MMO template keeps every node\'s RF-measured height, handle centring, and edge endpoints consistent', async ({ page }) => {
+  test('KO → JA → EN → KO on the full MMO document keeps every node\'s RF-measured height, handle centring, and edge endpoints consistent', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
+    await setLocale(page, 'en')
+    await openMmoFile(page)
     await setLocale(page, 'ko')
-    await pickTemplate(page, MMO_KO)
+    await expect.poll(() => labels(page)).toContain('레벨')
+    await routesSettled(page)
     await page.evaluate(() => document.fonts.ready)
 
     async function geometrySnapshot() {
@@ -729,8 +760,11 @@ test.describe('official template label — locale switch (§TLO11)', () => {
   test('a node deleted immediately after a bulk locale switch leaves no dangling edges (React Flow\'s native re-measure excludes it)', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
+    await setLocale(page, 'en')
+    await openMmoFile(page)
     await setLocale(page, 'ko')
-    await pickTemplate(page, MMO_KO)
+    await expect.poll(() => labels(page)).toContain('레벨')
+    await routesSettled(page)
     await page.evaluate(() => document.fonts.ready)
     await unlockCanvas(page) // the delete below is a user edit
 

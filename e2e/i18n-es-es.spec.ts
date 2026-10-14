@@ -191,19 +191,21 @@ test('the labels that differ from es-419 differ in the product', async ({ page }
     .locator('.toolbar__actions .menu', { has: page.getByRole('button', { name: 'Plantillas' }) })
     .getByRole('button', { name: 'Plantillas' })
     .click()
-  await page.locator('.menu__name', { hasText: 'Progresión temprana de MMO' }).click()
+  // Coffee (Early MMO, the previous subject, left the menu in 0.28.1): its one
+  // node name that differs from es-419 is the roasted supply margin
+  await page.locator('.menu__name', { hasText: 'Flujo de operaciones de un tostador de café' }).click()
   await expect
     .poll(() =>
       page.evaluate(() =>
         [...document.querySelectorAll('.nodef__name')].map((t) => t.textContent?.trim()),
       ),
     )
-    .toContain('Puntuación de equipo')
+    .toContain('Margen del suministro de tostado')
   const titles = await page.evaluate(() =>
     [...document.querySelectorAll('.nodef__name')].map((t) => t.textContent?.trim()),
   )
-  expect(titles, 'the Latin American score word must not appear here').not.toContain(
-    'Puntaje de equipo',
+  expect(titles, 'the Latin American supply word must not appear here').not.toContain(
+    'Margen del abasto de tostado',
   )
 })
 

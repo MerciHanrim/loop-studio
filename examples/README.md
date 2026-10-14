@@ -12,7 +12,7 @@ Graphs with different jobs:
 | `model-verification.json` | **model-language precision instrument** — a `parameter`, five `register`s (DAG, `/0`, depends-on-invalid, self-cycle) and an advisory `resourceType` mismatch, in one deterministic economy | yes |
 | `model-verification.expected.json` | test oracle for the above — read by `test/model-verification.test.ts` and by a human comparing `R(t)` | **no** (not a graph) |
 | `playback-choreography.json` | **Simulation Playback demo** — one graph that reproduces every choreography cue at once (resource token, `trigger` bead, `activator` settle cue, signed `label` deltas), on Bézier **and** orthogonal edges, with a 65-edge fan that pushes past the 60-token budget | yes |
-| `mmo-progression.json` | **product demo / Templates entry** — "Early MMO progression (levels 1–15)": a connected play economy with three zone lanes, probabilistic combat, categorised loot, a gold economy with repair / resupply costs, and a rising XP curve | yes (also in **Templates ▾**) |
+| `mmo-progression.json` | **developer stress fixture** (a Template entry, not in the menu since 0.28.1) — "Early MMO progression (levels 1–15)": a connected play economy with three zone lanes, probabilistic combat, categorised loot, a gold economy with repair / resupply costs, and a rising XP curve; the largest bundled graph, kept for performance and readability checks | yes (not in **Templates ▾**) |
 | `coffee-roastery.json` | **product demo / Templates entry** — "Coffee roastery operations flow": a small operating-flow simulation (buy green → roast at 82 % yield → sell through cafe / online / retail + a dessert line) with **five surfaced daily levers** wired as `loop-model/2` `@parameter` flow references. The **first bundled file at `schema` `loop-studio/graph/2`**. A simplified simulation example — **not** an ERP or real-time monitoring system | yes (also in **Templates ▾**) |
 | `module-buffered-step.json` | **bundled Building block** ([`docs/module-system.md`](../docs/module-system.md) `MS`) — a ~10-node v1 fragment: supply → inbox pool → an intake gate that splits into a 2→1 converter and a spoilage drain → outbox pool → shipped, plus two readout Registers and a `batch_size` Parameter. Generalised, no domain names | yes (also in **Insert module ▾**) |
 | `module-reward-split.json` | **bundled Building block** — a ~9-node v1 fragment: activity → wallet pool → an allocate gate splitting 2:1 into spending and savings, savings bleeding through withdrawals, and two Registers (`net worth`, `progress to target`) reading a `savings target` Parameter | yes (also in **Insert module ▾**) |
@@ -429,10 +429,18 @@ disturb.
 
 # 6 — Early MMO progression (levels 1–15)
 
-`mmo-progression.json` is the third **Templates ▾** entry and a connected
-**play-economy** demo — not an XP curve but the whole loop: kill things, turn in
-rewards, level up, buy gear, keep eating, pay to repair. Design:
+`mmo-progression.json` is a connected **play-economy** demo — not an XP curve
+but the whole loop: kill things, turn in rewards, level up, buy gear, keep
+eating, pay to repair. Design:
 [`docs/example-mmo-progression.md`](../docs/example-mmo-progression.md).
+
+Since 0.28.1 it is a **developer stress fixture**, not a menu Template: it stays
+a Template entry in `src/model/templates.ts` (`menu: false`) — so its node
+names still follow a language switch — but **Templates ▾** and the phone's
+More → Templates no longer list it. Open it with **Import**; a document made
+from it earlier still opens as before. It is the largest bundled graph, kept
+for performance and readability checks, and a change that only affects it
+does not block a release.
 
 It is **generalised** — its own invented numbers and generic labels ("Starter
 encounters", "Sell to vendor", "Repair (bill)"). No World-of-Warcraft names,
@@ -523,13 +531,13 @@ Items looted = Items equipped + Items sold + Items consumed + <held in the loot 
 
 ## Manual check in the app
 
-This file carries a `recommendedRunConfig`, so **Import (or pick it from
-Templates ▾) already fills the Monte Carlo dialog** with `200 × 150, base seed 1`
-and the tracked Pools below, sets the Timeline's default 5 series, and opens the
-Canvas edit-locked (unlock with the Controls 🔒 toggle).
+This file carries a `recommendedRunConfig`, so **Import already fills the
+Monte Carlo dialog** with `200 × 150, base seed 1` and the tracked Pools below,
+sets the Timeline's default 5 series, and opens the Canvas edit-locked (unlock
+with the Controls 🔒 toggle).
 
 ```
-Templates ▾ → "Early MMO progression (levels 1–15)"   (or Import examples/mmo-progression.json)
+Import examples/mmo-progression.json   (no longer in Templates ▾ since 0.28.1)
 
 Live — seed 1, Play → the Character-creation Source fires once; from step 2 the
                       Starter lane runs. Level climbs 1 → 5 → 10 → 15; the active

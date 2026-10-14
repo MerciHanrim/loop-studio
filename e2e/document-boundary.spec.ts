@@ -93,10 +93,10 @@ async function storageAction(page: Page, action: 'to-temporary' | 'delete-work')
 }
 
 test.describe('#334 — a new document starts unlocked, with no history', () => {
-  test('File → New from the locked MMO template: unlocked, empty, Undo and Redo disabled; a palette click edits; a reload keeps it unlocked', async ({ page }) => {
+  test('File → New from the locked gacha template (Early MMO left the menu in 0.28.1): unlocked, empty, Undo and Redo disabled; a palette click edits; a reload keeps it unlocked', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
-    await openTemplate(page, 'Early MMO progression')
+    await openTemplate(page, '3-zone gacha banner comparison')
     await expect(lockBtn(page)).toHaveAttribute('aria-pressed', 'true')
 
     await fileNew(page)
@@ -112,7 +112,7 @@ test.describe('#334 — a new document starts unlocked, with no history', () => 
   test('a temporary session without the document, from a locked template: unlocked, no history', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
-    await openTemplate(page, 'Early MMO progression')
+    await openTemplate(page, '3-zone gacha banner comparison')
     await expect(lockBtn(page)).toHaveAttribute('aria-pressed', 'true')
     await storageAction(page, 'to-temporary')
     expect(await nodeCount(page)).toBe(0)
@@ -122,7 +122,7 @@ test.describe('#334 — a new document starts unlocked, with no history', () => 
   test('Delete work data, from a locked template: unlocked, no history', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
-    await openTemplate(page, 'Early MMO progression')
+    await openTemplate(page, '3-zone gacha banner comparison')
     await expect(lockBtn(page)).toHaveAttribute('aria-pressed', 'true')
     await storageAction(page, 'delete-work')
     expect(await nodeCount(page)).toBe(0)

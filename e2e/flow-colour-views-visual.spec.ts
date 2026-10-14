@@ -66,10 +66,10 @@ test('forced colours: the minimap and the timeline keep their kind and series co
   await expect(page.locator('.timeline__panel')).toHaveScreenshot(...snap(page, 'flow-views-forced-timeline'))
 })
 
+// the Templates the menu offers; Early MMO left the menu in 0.28.1 (Lumi: its two baselines removed)
 const TEMPLATES = [
   { id: 'coffee', name: 'Coffee roastery operations flow', waitFor: 'cafe_retail_demand_kg' },
   { id: 'gacha', name: '3-zone gacha banner comparison', waitFor: 'cmp1_hit_rate_free' },
-  { id: 'mmo', name: 'Early MMO progression (levels 1–15)', waitFor: 'char_creation' },
 ]
 // the stored colours are drawn unchanged in both themes (D-1), so the dark
 // shots hold them against the dark structure lines, labels and frames

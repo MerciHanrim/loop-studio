@@ -10,6 +10,17 @@ invariants** in the acceptance conditions (§EM10.1). This is a **non-frozen** d
 marker — and merges as *settled design, implementation pending*, like
 [`docs/localization.md`](localization.md) and [`docs/guided-tour.md`](guided-tour.md).
 
+> **0.28.1 (2026-10-14) — no longer in the Templates menu.** The example is now
+> a **developer stress fixture**: it stays a Template entry in
+> `src/model/templates.ts` with `menu: false` (so its translations and the
+> §TLO11 locale switch still apply), keeps `examples/mmo-progression.json`, its
+> fixture, its scripts and its tests, and is opened by **Import**. Templates ▾
+> and the phone's More → Templates no longer list it; a document made from it
+> still opens. A change that only affects it does not block a release; a
+> readability problem it shows is fixed only when a small case reproduces it.
+> The design below, including the menu registration (§EM10), is the record of
+> how it shipped.
+
 The example is the **second follow-up** to the localization base (after the
 guided tour, before contextual inline help). It is a **product demo / Templates
 entry**, not a precision instrument and not a test oracle: it exists to show
