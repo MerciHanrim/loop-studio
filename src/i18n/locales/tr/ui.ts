@@ -663,6 +663,9 @@ const ui = {
   'whatsNew.v0281.stable': 'Yalnızca seçmek, seçimi kaldırmak ya da yakınlaştırıp uzaklaştırmak bir etiketin yerini değiştirmez.',
   'whatsNew.v0281.nearby': 'Yoğun bir diyagramda, bir kırılma noktasından uzaklaşan etiket başka bir bağlantının etiketini ya da çizgisini de kaydırabilir.',
   'whatsNew.v0281.mmoTemplate': 'Erken MMO ilerleyişi örneği artık şablon listesinde yer almıyor; büyük diyagramları sınamak için geliştirmede kullanılan bir malzeme olarak kalıyor. Bu örnekten oluşturduğunuz belgeler eskisi gibi açılır ve çalışır.',
+  'whatsNew.v0282.sides': 'Aynı bağlantı noktasını farklı kenarlardan kullanan kaynak bağlantıları artık ayrı ayrı dallanır; bu da bazı diyagramlarda gereksiz dolanmaları azaltır.',
+  'whatsNew.v0282.templates': 'Hazır şablonlardaki altı otomatik çizgi farklı çizilir: biri Kahve kavurma işleyişi şablonunda, beşi 3 bölgeli gacha banner karşılaştırması şablonunda.',
+  'whatsNew.v0282.state': 'Durum bağlantıları değişmez: aynı bağlantı noktasının farklı kenarlarını kullanan bağlantılar eskisi gibi birlikte gruplanır.',
 } as const
 
 export type UiKey = keyof typeof ui

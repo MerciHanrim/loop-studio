@@ -624,6 +624,9 @@ const ui = {
   'whatsNew.v0281.stable': 'Selezionare, deselezionare o fare zoom non basta a spostare un’etichetta.',
   'whatsNew.v0281.nearby': 'In un diagramma fitto, un’etichetta che si allontana da un angolo può spostare anche l’etichetta o la linea di un altro collegamento.',
   'whatsNew.v0281.mmoTemplate': 'L’esempio Progressione MMO iniziale non compare più nell’elenco dei modelli; resta come materiale di prova per diagrammi grandi, a uso dello sviluppo. I documenti che ne hai già ricavato si aprono e funzionano come prima.',
+  'whatsNew.v0282.sides': 'I collegamenti di risorsa che usano la stessa porta da lati diversi ora si diramano separatamente, riducendo deviazioni inutili in alcuni diagrammi.',
+  'whatsNew.v0282.templates': 'Sei percorsi automatici nei modelli inclusi sono disegnati in modo diverso: uno in Flusso operativo di una torrefazione e cinque in Confronto fra tre banner gacha.',
+  'whatsNew.v0282.state': 'I collegamenti di stato non cambiano: i collegamenti che usano lati diversi della stessa porta restano raggruppati.',
 } satisfies Record<UiKey, string>
 
 export default ui

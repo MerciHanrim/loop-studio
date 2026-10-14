@@ -684,6 +684,9 @@ const ui = {
   'whatsNew.v0281.stable': 'Auswählen, Abwählen oder Zoomen allein verschiebt keine Beschriftung.',
   'whatsNew.v0281.nearby': 'In einem dichten Diagramm kann eine Beschriftung, die einem Knickpunkt ausweicht, auch die Beschriftung oder die Linie einer anderen Verbindung verschieben.',
   'whatsNew.v0281.mmoTemplate': 'Das Beispiel „Früher MMO-Fortschritt“ steht nicht mehr in der Vorlagenliste; es bleibt als Testmaterial für große Diagramme in der Entwicklung erhalten. Dokumente, die Sie daraus erstellt haben, lassen sich weiter wie bisher öffnen und nutzen.',
+  'whatsNew.v0282.sides': 'Ressourcenverbindungen, die denselben Verbindungspunkt von verschiedenen Seiten aus nutzen, verzweigen sich jetzt getrennt; in manchen Diagrammen fallen dadurch unnötige Umwege weg.',
+  'whatsNew.v0282.templates': 'Sechs automatisch gezogene Linien in den mitgelieferten Vorlagen sehen anders aus: eine in „Betriebsablauf einer Kaffeerösterei“ und fünf in „Gacha-Banner-Vergleich mit 3 Zonen“.',
+  'whatsNew.v0282.state': 'Zustandsverbindungen bleiben unverändert: Verbindungen, die verschiedene Seiten desselben Verbindungspunkts nutzen, werden weiterhin zusammengefasst.',
 } satisfies Record<UiKey, string>
 
 export default ui

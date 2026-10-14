@@ -140,7 +140,18 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.28.1
+## Latest — v0.28.2
+
+Resource connections on two sides of one port branch on their own.
+
+- **Each side branches separately**: resource connections that use the same port from
+  different sides now branch separately, reducing unnecessary detours in some diagrams
+- **Six automatic routes change**: in the bundled templates, one in Coffee roastery
+  operations flow and five in 3-zone gacha banner comparison are drawn differently
+- **State connections unchanged**: connections using different sides of the same state port
+  are still grouped together
+
+## v0.28.1
 
 A connection's label keeps off the bend points you placed on it, where its line has room.
 
@@ -184,29 +195,8 @@ A connection's end can move without drawing the connection again.
 
 On a phone the diagram stays read-only.
 
-## v0.26.2
-
-Playback in your own colours, and the moving `+N` badges kept off the nodes they travel
-between.
-
-- **Run signals in the chosen colours**: while a step plays, a connection with a chosen colour
-  draws its moving marker, path highlight, rings, `+N` badge border and reduced-motion marks
-  in that colour, and a node with a chosen colour shows its own run marks in its colour;
-  anything without one keeps the usual run colour
-- **Light colours stay visible**: a chosen colour with too little contrast for the current
-  theme keeps its colour, and its run signals get a thin grey edge
-- **The `+N` badge in its own place**: zoomed in far enough to see the connection labels, the
-  moving badge keeps one place beside its marker for the whole step, picked to help the badges
-  of connections that leave a node together stay apart, and shows only while it is clear of
-  the nodes at both ends; zoomed out further, and at the faster speeds, it shows as before
-- **The colour goes where the Inspector points**: after dragging a node and adding another
-  from the toolbar, or stepping to a neighbour with `]` / `[`, a picked colour goes to the node
-  the Inspector shows
-
-The badges of two connections that leave a node together can still meet briefly when they
-start at different moments, and amounts at the middle zoom level are not yet easier to read.
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.26.0 (the
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.26.2 (playback
+in the chosen colours, and the moving `+N` badges kept off the nodes), v0.26.0 (the
 compact node with its name outside, connections from any side, notices under the toolbar),
 v0.25.0 (nodes
 on a grid, orthogonal connections around them, editable connection shapes and text inside

@@ -605,6 +605,9 @@ const ui = {
   'whatsNew.v0281.stable': 'Alleen selecteren, deselecteren of zoomen verplaatst geen etiket.',
   'whatsNew.v0281.nearby': 'In een vol diagram kan een etiket dat van een knik wegschuift ook het etiket of de lijn van een andere verbinding verplaatsen.',
   'whatsNew.v0281.mmoTemplate': 'Het voorbeeld Vroege MMO-progressie staat niet meer in de lijst met sjablonen; het blijft bestaan als testmateriaal voor grote diagrammen, voor de ontwikkeling. Documenten die je ermee hebt gemaakt, openen en werken zoals voorheen.',
+  'whatsNew.v0282.sides': 'Middelverbindingen die dezelfde poort vanaf verschillende zijden gebruiken, vertakken nu apart, wat in sommige diagrammen onnodige omwegen vermindert.',
+  'whatsNew.v0282.templates': 'Zes automatische lijnen in de meegeleverde sjablonen worden anders getekend: één in Operationele stroom van een koffiebranderij en vijf in Gacha-bannervergelijking met 3 zones.',
+  'whatsNew.v0282.state': 'Toestandsverbindingen veranderen niet: verbindingen die verschillende zijden van dezelfde poort gebruiken, blijven samen gegroepeerd.',
 } as const
 
 export default ui

@@ -594,6 +594,9 @@ const ui = {
   'whatsNew.v0281.stable': 'Selecting a connection, deselecting it, or zooming in or out does not by itself change where a label sits.',
   'whatsNew.v0281.nearby': 'In a dense diagram, a label that moves off a bend can also move the label or the line of another connection.',
   'whatsNew.v0281.mmoTemplate': 'The Early MMO progression example is no longer listed under Templates; it stays as developer test material for large diagrams. A document you already made from it still opens and works as before.',
+  'whatsNew.v0282.sides': 'Resource connections that use the same port from different sides now branch separately, reducing unnecessary detours in some diagrams.',
+  'whatsNew.v0282.templates': 'Six automatic routes in bundled templates are drawn differently: one in Coffee roastery operations flow and five in 3-zone gacha banner comparison.',
+  'whatsNew.v0282.state': 'State connections are unchanged: connections using different sides of the same port are still grouped together.',
 } as const
 
 export type UiKey = keyof typeof ui

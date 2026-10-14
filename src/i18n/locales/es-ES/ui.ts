@@ -622,6 +622,9 @@ const ui = {
   'whatsNew.v0281.stable': 'Seleccionar o deseleccionar una conexión, o hacer zoom, no basta para mover una etiqueta.',
   'whatsNew.v0281.nearby': 'En un diagrama denso, una etiqueta que se aparta de un codo también puede mover la etiqueta o la línea de otra conexión.',
   'whatsNew.v0281.mmoTemplate': 'El ejemplo Progresión temprana de MMO ya no aparece en la lista de plantillas; se conserva como material de prueba de diagramas grandes para el desarrollo. Los documentos que ya creó a partir de él se abren y funcionan como antes.',
+  'whatsNew.v0282.sides': 'Las conexiones de recurso que usan el mismo puerto desde lados distintos ahora se ramifican por separado, lo que reduce desvíos innecesarios en algunos diagramas.',
+  'whatsNew.v0282.templates': 'Seis trazados automáticos de las plantillas incluidas se dibujan de otra forma: uno en Flujo de operaciones de un tostador de café y cinco en Comparación de 3 zonas de banner gacha.',
+  'whatsNew.v0282.state': 'Las conexiones de estado no cambian: las conexiones que usan lados distintos del mismo puerto se siguen agrupando.',
 } as const
 
 export type UiKey = keyof typeof ui
