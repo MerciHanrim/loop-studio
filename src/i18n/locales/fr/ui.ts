@@ -674,6 +674,10 @@ const ui = {
   'whatsNew.v0280.reverse': 'Une connexion peut désormais être inversée sans la redessiner. Sélectionnez-la et appuyez sur Inverser, à côté d’Extrémités dans les Propriétés. Sa quantité, sa condition, sa couleur et la forme de sa ligne restent telles quelles et se lisent dans le nouveau sens, et les coudes que vous avez placés gardent leur place.',
   'whatsNew.v0280.drawn': 'Après une inversion, le tracé automatique, la ligne près de chaque extrémité et la place de l’étiquette peuvent changer.',
   'whatsNew.v0280.refused': 'Une inversion impossible, par exemple si la connexion arrivait à un nœud sans entrée ou si une connexion d’état perdait son effet, n’est pas appliquée, et la raison est affichée.',
+  'whatsNew.v0281.labelBends': 'Là où il y a de la place, l’étiquette d’une connexion se place désormais à l’écart des coudes que vous avez posés. Faute de place, elle peut encore en chevaucher un.',
+  'whatsNew.v0281.stable': 'Une sélection, une désélection ou un zoom ne suffisent pas à déplacer une étiquette.',
+  'whatsNew.v0281.nearby': 'Dans un diagramme dense, une étiquette qui s’écarte d’un coude peut aussi déplacer l’étiquette ou la ligne d’une autre connexion.',
+  'whatsNew.v0281.mmoTemplate': 'L’exemple Progression MMO du début de jeu ne figure plus dans la liste des modèles. Il reste un support de test pour les grands diagrammes, réservé au développement. Les documents que vous en avez tirés s’ouvrent et fonctionnent comme avant.',
 } satisfies Record<UiKey, string>
 
 export default ui

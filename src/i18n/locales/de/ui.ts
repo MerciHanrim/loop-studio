@@ -680,6 +680,10 @@ const ui = {
   'whatsNew.v0280.reverse': 'Eine Verbindung lässt sich jetzt umkehren, ohne sie neu zu zeichnen: Wählen Sie sie aus und drücken Sie „Umkehren“ neben „Enden“ in den Eigenschaften. Menge, Bedingung, Farbe und Linienform bleiben, wie sie waren, und gelten in der neuen Richtung; Ihre Knickpunkte bleiben an ihrem Platz.',
   'whatsNew.v0280.drawn': 'Nach dem Umkehren können die automatische Linienführung, die Linie an jedem Ende und der Platz der Beschriftung anders aussehen.',
   'whatsNew.v0280.refused': 'Eine Umkehrung, die nicht möglich ist, etwa weil die Verbindung an einem Knoten ohne Eingang enden oder eine Zustandsverbindung ihre Wirkung verlieren würde, wird nicht ausgeführt, und der Grund wird angezeigt.',
+  'whatsNew.v0281.labelBends': 'Wo Platz ist, steht die Beschriftung einer Verbindung jetzt abseits der Knickpunkte, die Sie gesetzt haben. Reicht der Platz nicht, kann sie einen davon weiterhin überlappen.',
+  'whatsNew.v0281.stable': 'Auswählen, Abwählen oder Zoomen allein verschiebt keine Beschriftung.',
+  'whatsNew.v0281.nearby': 'In einem dichten Diagramm kann eine Beschriftung, die einem Knickpunkt ausweicht, auch die Beschriftung oder die Linie einer anderen Verbindung verschieben.',
+  'whatsNew.v0281.mmoTemplate': 'Das Beispiel „Früher MMO-Fortschritt“ steht nicht mehr in der Vorlagenliste; es bleibt als Testmaterial für große Diagramme in der Entwicklung erhalten. Dokumente, die Sie daraus erstellt haben, lassen sich weiter wie bisher öffnen und nutzen.',
 } satisfies Record<UiKey, string>
 
 export default ui

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { TEMPLATES } from '../model/templates'
+import { MENU_TEMPLATES, TEMPLATES } from '../model/templates'
 import { useGraphStore } from '../store/graphStore'
 import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
@@ -84,7 +84,7 @@ export function Templates() {
       </button>
       {open ? (
         <div className="menu__pop menu__pop--scrollable menu__pop--wide" role="menu" ref={popRef}>
-          {TEMPLATES.map((tpl) => (
+          {MENU_TEMPLATES.map((tpl) => (
             <button
               key={tpl.id}
               type="button"

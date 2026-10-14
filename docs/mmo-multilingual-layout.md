@@ -6,6 +6,13 @@ toolbar responsive PR). The bundled **MMO progression** template (97 nodes /
 144 edges) has node-box overlaps and an unreadable initial camera; the problem
 is worst in JA but is **not JA-only**.
 
+> **0.28.1 (2026-10-14).** MMO left the Templates menu and is a developer stress
+> fixture opened by Import ([`docs/example-mmo-progression.md`](example-mmo-progression.md)).
+> Its `initialView` (§MML3) is applied on a fresh menu open only, so it no
+> longer applies in the product; it stays in the Template entry, and the
+> menu-framing contract is checked on Coffee and the gacha banner instead. The
+> layout measurements below are the record of the MMO pass.
+
 ## MML0. What the measurement pass found
 
 All figures are **flow coordinates** (measured at zoom = 1, so screen px = flow

@@ -618,6 +618,10 @@ const ui = {
   'whatsNew.v0280.reverse': 'Ahora una conexión se puede invertir sin volver a dibujarla: selecciónela y use Invertir, junto a Extremos en Propiedades. La cantidad, la condición, el color y la forma de la línea se mantienen y se interpretan en la nueva dirección; los codos que colocó siguen en su lugar.',
   'whatsNew.v0280.drawn': 'Después de invertirla, el trazado automático, la línea junto a cada extremo y el lugar de la etiqueta pueden cambiar.',
   'whatsNew.v0280.refused': 'Una inversión que no se puede hacer, como una que haría terminar la conexión en un nodo sin entrada o dejaría sin efecto una conexión de estado, no se aplica, y se muestra el motivo.',
+  'whatsNew.v0281.labelBends': 'Donde hay espacio, la etiqueta de una conexión ahora se coloca lejos de los codos que agregó. Si falta espacio, todavía puede quedar sobre uno.',
+  'whatsNew.v0281.stable': 'Seleccionar o deseleccionar una conexión, o hacer zoom, no basta para mover una etiqueta.',
+  'whatsNew.v0281.nearby': 'En un diagrama denso, una etiqueta que se aparta de un codo también puede mover la etiqueta o la línea de otra conexión.',
+  'whatsNew.v0281.mmoTemplate': 'El ejemplo Progresión temprana de MMO ya no aparece en la lista de plantillas; se conserva como material de prueba de diagramas grandes para el desarrollo. Los documentos que ya creó a partir de él se abren y funcionan como antes.',
 } as const
 
 export type UiKey = keyof typeof ui

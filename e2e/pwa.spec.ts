@@ -421,11 +421,12 @@ test('applying a waiting update keeps a locked Template locked after reload', as
   await installAndControl(page)
 
   await page.getByRole('button', { name: 'Templates' }).click()
-  await page.getByRole('menuitem', { name: /Early MMO progression/ }).click()
+  // a locked Template the menu offers (Early MMO, locked too, left the menu in 0.28.1)
+  await page.getByRole('menuitem', { name: /3-zone gacha banner comparison/ }).click()
   const replaceDlg = page.locator('.mcdlg--confirm')
   await expect(replaceDlg).toBeVisible()
   await replaceDlg.getByRole('button', { name: 'Load template' }).click()
-  await expect(page.locator('.canvas.canvas--locked')).toBeVisible() // examples/mmo-progression.json ships canvasLocked: true
+  await expect(page.locator('.canvas.canvas--locked')).toBeVisible() // examples/gacha-banner-zones.json ships canvasLocked: true
 
   await stageUpdate(page, 'b')
   await expect(page.locator('.pwa-update')).toBeVisible()

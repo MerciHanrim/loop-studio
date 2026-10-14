@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 
-/** the bundled Early-MMO Template — 97 nodes / 144 edges, real Bézier +
+/** the Early-MMO document (a developer stress fixture since 0.28.1, read from
+ *  its file) — 97 nodes / 144 edges, real Bézier +
  *  orthogonal routing, real crossings. Used only for the dense-graph
  *  edge-tap performance regression test below. */
 const readMmoProgression = (): string =>

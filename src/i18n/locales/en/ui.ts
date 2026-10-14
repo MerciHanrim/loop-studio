@@ -590,6 +590,10 @@ const ui = {
   'whatsNew.v0280.reverse': 'A connection can now be turned around without drawing it again: select it and press Reverse beside Ends in the Inspector. Its amount, condition, colour and line shape stay as they were and are read in the new direction; the bends you placed keep their places.',
   'whatsNew.v0280.drawn': 'After a reversal the automatic route, the line next to each end and the label’s place may be drawn differently.',
   'whatsNew.v0280.refused': 'A reversal that cannot be made, such as one that would end the connection at a node with no input or leave a state connection with no effect, is not applied, and the reason is shown.',
+  'whatsNew.v0281.labelBends': 'Where there is room, a connection’s label is now placed clear of the bend points you added to it. Where there is not enough room, it can still overlap one.',
+  'whatsNew.v0281.stable': 'Selecting a connection, deselecting it, or zooming in or out does not by itself change where a label sits.',
+  'whatsNew.v0281.nearby': 'In a dense diagram, a label that moves off a bend can also move the label or the line of another connection.',
+  'whatsNew.v0281.mmoTemplate': 'The Early MMO progression example is no longer listed under Templates; it stays as developer test material for large diagrams. A document you already made from it still opens and works as before.',
 } as const
 
 export type UiKey = keyof typeof ui

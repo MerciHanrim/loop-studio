@@ -13,9 +13,9 @@ session neither reads nor saves stored work, author information or settings
 ([docs/storage-sessions.md](docs/storage-sessions.md)).
 
 **Run it now: <https://cozy-loop-studio.pages.dev>** — available in
-[18 languages](#languages), with five bundled Templates ranging from a small
-production flow to a large game economy and a three-zone probability/pity
-comparison.
+[18 languages](#languages), with four bundled Templates ranging from a small
+production flow to a coffee roastery's daily operations and a three-zone
+probability/pity comparison.
 
 ![Loop Studio's two-tier toolbar in a temporary session, its orange-bordered Temporary session button beside the menu buttons, and the Coffee roastery Template in the compact new nodes, each name outside its node, grouped into three labelled zone frames with its money in $/day, a few steps into a run with the Timeline filling in below](docs/assets/hero-coffee.png)
 
@@ -140,7 +140,20 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.28.0
+## Latest — v0.28.1
+
+A connection's label keeps off the bend points you placed on it, where its line has room.
+
+- **Labels clear of your bends**: where there is room, a connection's label is placed clear of
+  the bend points you added to it; where there is not enough room, it can still overlap one
+- **Stays put**: selecting a connection, deselecting it or zooming does not by itself change
+  where its label sits
+- **Other connections**: in a dense diagram, a label that moves off a bend can also move the
+  label or the line of another connection
+- **Early MMO example**: no longer listed under Templates; it stays as developer test material
+  for large diagrams, and a document you already made from it still opens and works as before
+
+## v0.28.0
 
 A connection can be turned around without drawing it again.
 
@@ -193,29 +206,9 @@ between.
 The badges of two connections that leave a node together can still meet briefly when they
 start at different moments, and amounts at the middle zoom level are not yet easier to read.
 
-## v0.26.0
-
-A new node: a compact body with its role and value inside and its name just outside, so the
-size of a node no longer depends on the length of a translation.
-
-- **New node design**: the name sits outside the body and stays visible at the middle zoom
-  level; a value too long for the body ends in an ellipsis and stays complete in its tooltip
-  and in the Inspector
-- **Connections from any side**: a connection can leave or enter a node at its top, bottom,
-  left or right, and a new connection remembers the side it was drawn from; existing documents
-  are not re-placed, their values and the meaning of their connections are kept, and they look
-  different with the new node
-- **Notices under the toolbar**: the update notice and the first-time hints sit in a strip
-  under the toolbar, and the diagram does not move when they appear or close
-- **A Pool's current amount**: a read-only field in the Inspector, beside the starting
-  amount, also on phones
-- **Re-placed Templates**: the Coffee roastery (money in $/day) and the 3-zone gacha banner
-  comparison are laid out again for the new node
-
-A document with chosen sides, saved again by v0.25.0 or earlier, loses those sides. v0.26.1
-corrects the wording of two lines of this release's What's new note.
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.25.0 (nodes
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.26.0 (the
+compact node with its name outside, connections from any side, notices under the toolbar),
+v0.25.0 (nodes
 on a grid, orthogonal connections around them, editable connection shapes and text inside
 nodes), v0.24.0 (three
 playback speed tiers, and a speed choice and fewer moving markers on the phone), v0.23.0 (a Pool

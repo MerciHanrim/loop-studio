@@ -143,6 +143,11 @@ own default open-state and its own messaging in the Templates menu.**
   That is the single messaging bug this table exists to prevent.
 - *Early MMO progression* stays an **Example**, stays edit-locked, is **not**
   "fixed" or demoted. It did its job: it verified the ceiling.
+  **Superseded 0.28.1 (2026-10-14):** it left the Templates menu and is now a
+  developer stress fixture — still a Template entry (`menu: false`) and still
+  edit-locked when opened, opened by Import, its documents still open. A change
+  that only affects it does not block a release
+  ([`docs/example-mmo-progression.md`](example-mmo-progression.md)).
 
 ---
 

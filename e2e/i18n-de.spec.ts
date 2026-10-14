@@ -180,24 +180,26 @@ test('a bundled Template opens with German node labels', async ({ page }) => {
   const templates = page.locator('.toolbar__actions .menu').first()
   await templates.locator('> button').click()
   await expect(templates.locator('.menu__pop')).toBeVisible()
-  // by NAME, not position — the German name also proves the Templates menu
-  // itself is translated
-  await templates.locator('.menu__pop [role="menuitem"]', { hasText: 'MMO' }).click()
+  // by its German NAME, not position — which also proves the Templates menu
+  // itself is translated (Coffee: Early MMO, the previous subject, left the
+  // menu in 0.28.1)
+  await templates.locator('.menu__pop [role="menuitem"]', { hasText: 'Betriebsablauf einer Kaffeerösterei' }).click()
   const confirm = page.locator('.mcdlg--confirm .btn--primary')
   if (await confirm.isVisible().catch(() => false)) await confirm.click()
 
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().nodes.length))
+    .toBeGreaterThan(20)
   const labels = await page.evaluate(() =>
     (window as unknown as { __loop: Loop }).__loop.graph
       .getState()
       .nodes.map((n: any) => n.data.label as string),
   )
-  expect(labels.length).toBeGreaterThan(50)
-  // `Gold` and `XP` are deliberately absent from this list: they are the
-  // same word in German, so finding them proves nothing either way
-  for (const no of ['Level', 'Elapsed steps', 'Reward', 'Rare loot', 'Clock'])
+  for (const no of ['Green bean stock', 'Roasted bean stock', 'Green bean delivery', 'Projected daily revenue', 'End-of-day leftover'])
     expect(labels, `"${no}" must not survive into a German document`).not.toContain(no)
   // and the overlay actually supplied German
-  expect(labels.some((l: string) => /[äöüÄÖÜß]/.test(l) || /ung\b|keit\b|punkte/i.test(l))).toBe(true)
+  for (const want of ['Bestand Rohkaffee', 'Bestand gerösteter Kaffee', 'Reste am Tagesende'])
+    expect(labels, `the German overlay must supply "${want}"`).toContain(want)
 })
 
 // ------------------------------------------------------------------ 7

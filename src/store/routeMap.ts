@@ -65,6 +65,9 @@ export const LABEL_ROUNDS = 2
 export const LABEL_SLOTS = [0.5, 0.4, 0.6, 0.3, 0.7, 0.25, 0.75, 0.2, 0.8] as const
 /** the margin kept between a label and a node box */
 const LABEL_NODE_MARGIN = 2
+/** §ER14.3 — the square a label keeps off around each of its connection's own
+ *  stored bend points, flow px: the 12 px bend marker plus 2 px on each side */
+export const BEND_LABEL_BOX = 16
 /** a full generation's work per animation frame, ms */
 export const SLICE_MS = 8
 /** the provisional map's routing budget, ms (a new edge over it is not drawn
@@ -364,6 +367,10 @@ type Plan = {
   reserved: { edgeId: string; port: string; stub: Pt[]; leg: Pt[] | null }[]
   /** each fan member's branch at its source / target port (§ER14.3) */
   fans: Map<string, { src?: FanEnd; tgt?: FanEnd }>
+  /** §ER14.3 — each routed edge's own STORED bend points (its waypoints), the
+   *  points its bend markers sit on while it is selected; its label keeps off
+   *  them whether it is selected or not */
+  bends: Map<string, Pt[]>
 }
 
 /** §ER14.3 — the branch points of one port's fan. Each member's far end is
@@ -470,7 +477,12 @@ function plan(nodes: LoopNode[], edges: LoopEdge[]): Plan {
   }
   // the outside names are obstacles like the nodes (they carry their own ids,
   // so a route's own end nodes are still the only boxes it may touch)
-  return { ortho, free, lines, byId, boxes: [...nodes.map(boxOf), ...nameBoxesOf(nodes)], groups, portUse, fans, reserved }
+  const bends = new Map<string, Pt[]>()
+  for (const e of ortho) {
+    const wps = (e.data as { waypoints?: unknown } | undefined)?.waypoints
+    if (Array.isArray(wps) && wps.length > 0) bends.set(e.id, wps as Pt[])
+  }
+  return { ortho, free, lines, byId, boxes: [...nodes.map(boxOf), ...nameBoxesOf(nodes)], groups, portUse, fans, reserved, bends }
 }
 
 /** one edge, routed against the current layout and the given placed routes:
@@ -570,9 +582,12 @@ function sharedStubsOf(p: Plan, routes: ReadonlyMap<string, GuardedResult>): Pt[
 }
 
 /** the first free slot on the edge's own line: never on a shared port stub;
- *  then clear of every node box, every label already placed and every other
- *  line (routed, Curved or Straight); failing that, clear of nodes and labels
- *  only; the midpoint last. Returns the slot's centre and its fraction. */
+ *  then clear of every node box, every label already placed, every other
+ *  line (routed, Curved or Straight) and the edge's own stored bend points;
+ *  failing that, clear of nodes, labels and its own bends only; then off the
+ *  shared stubs alone; the midpoint last (so a short line with no free slot
+ *  still has its label, possibly over a bend). Returns the slot's centre and
+ *  its fraction. */
 function placeLabelOn(
   p: Plan,
   id: string,
@@ -587,6 +602,9 @@ function placeLabelOn(
   const nodes = p.boxes.map((b) => ({ ...b, x: b.x - LABEL_NODE_MARGIN, y: b.y - LABEL_NODE_MARGIN, w: b.w + 2 * LABEL_NODE_MARGIN, h: b.h + 2 * LABEL_NODE_MARGIN }))
   const candidates = LABEL_SLOTS.map((f) => ({ c: f === 0.5 ? mid : pointAt(points, f), f }))
   const offStub = (box: Box) => !stubs.some((s) => polyHits(s, box))
+  const half = BEND_LABEL_BOX / 2
+  const bendBoxes: Box[] = (p.bends.get(id) ?? []).map((w) => ({ id: `bend:${id}`, x: w.x - half, y: w.y - half, w: BEND_LABEL_BOX, h: BEND_LABEL_BOX }))
+  const offBends = (box: Box) => !bendBoxes.some((b) => hit(b, box))
   const clear = (box: Box): boolean => {
     if (nodes.some((n) => hit(n, box))) return false
     for (const [oid, ob] of placed) if (oid !== id && hit(ob, box)) return false
@@ -599,11 +617,11 @@ function placeLabelOn(
   }
   for (const s of candidates) {
     const box = labelBoxAt(s.c, size, id)
-    if (offStub(box) && clear(box) && offLines(box)) return s
+    if (offStub(box) && clear(box) && offLines(box) && offBends(box)) return s
   }
   for (const s of candidates) {
     const box = labelBoxAt(s.c, size, id)
-    if (offStub(box) && clear(box)) return s
+    if (offStub(box) && clear(box) && offBends(box)) return s
   }
   for (const s of candidates) if (offStub(labelBoxAt(s.c, size, id))) return s
   return { c: mid, f: 0.5 }

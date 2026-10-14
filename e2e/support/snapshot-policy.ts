@@ -97,8 +97,6 @@ export const SNAPSHOTS: Record<string, Partial<Record<SnapshotProject, SnapshotK
   'flow-views-template-coffee-dark': { chromium: 'element' },
   'flow-views-template-gacha-light': { chromium: 'element' },
   'flow-views-template-gacha-dark': { chromium: 'element' },
-  'flow-views-template-mmo-light': { chromium: 'element' },
-  'flow-views-template-mmo-dark': { chromium: 'element' },
   // flow-colour-mobile.spec.ts — the phone's one-line Colour summary (FC-5)
   'flow-views-phone-summary': { mobile: 'element' },
   // model-nodes-visual.spec.ts

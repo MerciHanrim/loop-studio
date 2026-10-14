@@ -606,6 +606,10 @@ const ui = {
   'whatsNew.v0280.reverse': 'Giờ có thể đảo chiều một liên kết mà không phải vẽ lại: chọn liên kết rồi nhấn Đảo chiều bên cạnh mục Đầu mút trong Bảng thuộc tính. Lượng, điều kiện, màu và dạng đường vẫn giữ nguyên và được hiểu theo chiều mới; các điểm gấp bạn đã đặt vẫn ở chỗ cũ.',
   'whatsNew.v0280.drawn': 'Sau khi đảo chiều, đường đi tự động, đoạn gần mỗi đầu và vị trí của nhãn có thể thay đổi.',
   'whatsNew.v0280.refused': 'Một lần đảo chiều không thể thực hiện, chẳng hạn khi liên kết sẽ kết thúc ở một nút không có đầu vào hoặc một liên kết trạng thái sẽ mất tác dụng, sẽ không được áp dụng và lý do sẽ được hiển thị.',
+  'whatsNew.v0281.labelBends': 'Khi còn chỗ, nhãn của một liên kết giờ được đặt tránh các điểm gấp bạn đã đặt. Khi không đủ chỗ, nhãn vẫn có thể chồng lên một điểm gấp.',
+  'whatsNew.v0281.stable': 'Chỉ chọn, bỏ chọn hay thu phóng thì không làm đổi vị trí của nhãn.',
+  'whatsNew.v0281.nearby': 'Trong một sơ đồ dày đặc, một nhãn dịch ra khỏi điểm gấp cũng có thể làm dịch nhãn hoặc đường của một liên kết khác.',
+  'whatsNew.v0281.mmoTemplate': 'Ví dụ Tiến trình MMO giai đoạn đầu không còn nằm trong danh sách mẫu; nó được giữ lại làm tài liệu thử nghiệm sơ đồ lớn cho việc phát triển. Các tài liệu bạn đã tạo từ ví dụ này vẫn mở và dùng được như trước.',
 } satisfies Record<UiKey, string>
 
 export default ui

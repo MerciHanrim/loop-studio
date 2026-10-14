@@ -781,6 +781,14 @@ pinned single-edge core (golden + differential tests); the app no longer calls i
 - A label takes the first free slot on its own route — the midpoint, then 0.4,
   0.6, 0.3, 0.7, 0.25, 0.75, 0.2, 0.8 of its length — clear of every node box
   (2 px margin) and every label already placed; the midpoint when none is free.
+- A label also keeps off its own connection's STORED bend points
+  (`waypoints`): a `BEND_LABEL_BOX` (16 px) square on each, the 12 px bend
+  marker plus 2 px, in the first two passes (clear of everything, then clear of
+  nodes and labels). The bend markers are drawn there while the connection is
+  selected; the rule holds whether it is selected or not, so a selection never
+  moves the label. The last-resort passes ignore the bends, so a line with no
+  slot clear of them still has its label, possibly over a bend: the overlap is
+  avoided where a slot allows, not ruled out (share notes 50 and 52).
 - Then up to `LABEL_ROUNDS` (2) guarded rounds: an edge whose route runs
   through other edges' labels is routed again with those labels as soft
   obstacles (`computeSoftReroute`: one rung of `SOFT_PADS` — 12, then 6 px —

@@ -121,7 +121,9 @@ test.describe('Korean keeps its wrapping contract', () => {
       [...new Set(rows.map((r) => r.wordBreak))],
       'Korean descriptive copy keeps `keep-all`',
     ).toEqual(['keep-all'])
-    expect(rows.reduce((n, r) => n + r.lines, 0), 'the agreed Korean line count').toBe(38)
+    // 0.28.1: 36, was 38 — the Early MMO blurb (2 lines, measured in the
+    // Templates menu's own box) left the menu with its entry
+    expect(rows.reduce((n, r) => n + r.lines, 0), 'the agreed Korean line count').toBe(36)
 
     // measured, not assumed: a break is mid-eojeol when two adjacent
     // NON-space characters end up on different lines
@@ -170,7 +172,8 @@ test.describe('English is untouched', () => {
     await openApp(p)
     const rows = await sweepDescriptiveCopy(p)
     expect(overflowing(rows).map(describe1)).toEqual([])
-    expect(rows.reduce((n, r) => n + r.lines, 0), 'the English line count is unchanged').toBe(40)
+    // 0.28.1: 38, was 40 — the Early MMO blurb (2 lines) left the Templates menu
+    expect(rows.reduce((n, r) => n + r.lines, 0), 'the English line count is unchanged').toBe(38)
     await ctx.close()
   })
 })

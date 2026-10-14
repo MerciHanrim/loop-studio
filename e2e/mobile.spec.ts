@@ -1784,7 +1784,8 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
       await escapeSheet(page, which)
     }
     // issue #330 PR 3 — More gained the Playback speed row (its sub names the speed)
-    expect(checked, 'the walk must reach every text sub-label: 6 More + 5 Templates + 4 enabled Export').toBe(15)
+    // 0.28.1 — Early MMO left the Templates sheet
+    expect(checked, 'the walk must reach every text sub-label: 6 More + 4 Templates + 4 enabled Export').toBe(14)
     expect(bad, 'hovered secondary labels below 4.5:1').toEqual([])
   })
 

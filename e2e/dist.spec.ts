@@ -130,31 +130,38 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     expect(bad, 'no failed or cross-origin requests').toEqual([])
   })
 
-  test('the "Early MMO progression" Template loads its bundled graph + recommended MC config', async ({ page }) => {
+  // The largest Template the menu offers (Early MMO, the previous subject here,
+  // left the menu in 0.28.1 and stays a developer stress fixture).
+  test('the "3-zone gacha banner comparison" Template loads its bundled graph + recommended MC config', async ({ page }) => {
     const { bad } = await openProd(page)
+    const GACHA = JSON.parse(readFileSync(new URL('../examples/gacha-banner-zones.json', import.meta.url), 'utf8')) as {
+      nodes: unknown[]
+      recommendedRunConfig: { runs: number; steps: number; baseSeed: number }
+    }
 
     // Templates ▾ is the first `.menu` in the toolbar actions
     await page.locator('.toolbar__actions .menu').first().locator('> button').click()
     await page
       .locator('.toolbar__actions .menu')
       .first()
-      .locator('.menu__pop [role="menuitem"]', { hasText: 'Early MMO progression' })
+      .locator('.menu__pop [role="menuitem"]', { hasText: '3-zone gacha banner comparison' })
       .click()
     const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i })
     if (await confirm.isVisible().catch(() => false)) await confirm.click()
 
-    // the canonical examples/mmo-progression.json is 97 nodes
-    await expect(page.locator('.react-flow__node')).toHaveCount(97)
+    // every node of the canonical examples/gacha-banner-zones.json
+    await expect(page.locator('.react-flow__node')).toHaveCount(GACHA.nodes.length)
 
     // the file's recommendedRunConfig pre-fills the Monte-Carlo dialog
+    const rc = GACHA.recommendedRunConfig
     await page.locator('.pstrip__mc button', { hasText: 'Monte Carlo' }).click()
     const dlg = page.locator('.mcdlg[aria-labelledby="mcdlg-title"]')
     await expect(dlg).toBeVisible()
     const nums = dlg.locator('.mcdlg__field input[type="number"]')
-    await expect(nums.nth(0)).toHaveValue('200')
-    await expect(nums.nth(1)).toHaveValue('150')
-    await expect(nums.nth(2)).toHaveValue('1')
-    await expect(dlg.locator('.mcdlg__foot .btn--primary')).toHaveText('Run 200 runs')
+    await expect(nums.nth(0)).toHaveValue(String(rc.runs))
+    await expect(nums.nth(1)).toHaveValue(String(rc.steps))
+    await expect(nums.nth(2)).toHaveValue(String(rc.baseSeed))
+    await expect(dlg.locator('.mcdlg__foot .btn--primary')).toHaveText(new RegExp(`^Run ${rc.runs.toLocaleString('en-US').replace(',', ',?')} runs$`))
     await page.keyboard.press('Escape')
 
     expect(bad, 'no failed or cross-origin requests').toEqual([])
@@ -239,7 +246,11 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     expect(bad, 'no failed or cross-origin requests').toEqual([])
   })
 
-  test('a bulk locale switch on the MMO Template keeps edge endpoints aligned with their real handle positions (no window.__loop)', async ({
+  // 0.28.1 — Early MMO left the Templates menu (a developer stress fixture now):
+  // the document is opened from its FILE, as a user's own file is. It is still
+  // a Template entry, so its node names still follow a locale switch; the
+  // largest graph with parallel sets, it stays the subject of this check.
+  test('a bulk locale switch on the MMO document keeps edge endpoints aligned with their real handle positions (no window.__loop)', async ({
     page,
   }) => {
     // The node structure (v0.26.0): the name sits OUTSIDE a fixed-height body,
@@ -261,24 +272,32 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     // shipped-language spellings (same pattern as e2e/i18n.spec.ts's
     // openSettings), not just the English one.
     const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ })
-    await settingsBtn.click()
-    await page.locator('.toolbar .lang-switch').click()
-    await page.locator('.lang-menu__item[data-locale="ko"]').click()
-    await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('ko')
+    // picking a language leaves Settings open; close it, so the next switch's
+    // first click opens it again rather than closing it (the Templates menu
+    // used to close it, before the MMO document was opened from its file)
+    const switchTo = async (locale: string) => {
+      await settingsBtn.click()
+      await page.locator('.toolbar .lang-switch').click()
+      await page.locator(`.lang-menu__item[data-locale="${locale}"]`).click()
+      await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(locale)
+      await page.keyboard.press('Escape')
+      await expect(page.locator('.toolbar .lang-switch')).toBeHidden()
+    }
+    await switchTo('en')
 
-    await page.locator('.toolbar__actions .menu').first().locator('> button').click()
-    await page
-      .locator('.toolbar__actions .menu')
-      .first()
-      .locator('.menu__pop [role="menuitem"]', { hasText: '초반 MMO 성장' })
-      .click()
-    // locale-independent: the confirm dialog's primary action button by
-    // class, not by text (the label is Korean here, since locale is 'ko')
+    // open the MMO document from its file (the real file input)
+    const MMO_TEXT = readFileSync(new URL('../examples/mmo-progression.json', import.meta.url), 'utf8')
+    await page.locator('input[type=file][accept*="json"]').first().setInputFiles({ name: 'mmo-progression.json', mimeType: 'application/json', buffer: Buffer.from(MMO_TEXT, 'utf8') })
+    // locale-independent: the confirm dialog's primary action button by class
     const confirm = page.locator('.mcdlg--confirm .btn--primary')
     if (await confirm.isVisible().catch(() => false)) await confirm.click()
     await expect(page.locator('.react-flow__node')).toHaveCount(97)
+    await expect(page.locator('.react-flow__node', { hasText: 'Level' }).first()).toBeVisible()
+
+    // into Korean: the names follow (the document is still a Template entry's)
+    await switchTo('ko')
     await page.evaluate(() => document.fonts.ready)
-    // representative Korean node label, confirming the KO Template actually loaded
+    // representative Korean node label, confirming the KO names are drawn
     await expect(page.locator('.react-flow__node', { hasText: '레벨' }).first()).toBeVisible()
     // issue #344 §ER14.5 — the routed connections are drawn once their first
     // generation commits; the canvas is aria-busy until then (the DOM side of

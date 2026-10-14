@@ -401,22 +401,26 @@ test('a bundled Template opens with French node labels', async ({ page }) => {
   const templates = page.locator('.toolbar__actions .menu').first()
   await templates.locator('> button').click()
   await expect(templates.locator('.menu__pop')).toBeVisible()
+  // Coffee, by its French name (Early MMO, the previous subject, left the menu
+  // in 0.28.1)
   await templates
-    .locator('.menu__pop [role="menuitem"]', { hasText: 'Progression MMO' })
+    .locator('.menu__pop [role="menuitem"]', { hasText: 'Flux d’exploitation d’une torréfaction' })
     .click()
   const confirm = page.locator('.mcdlg--confirm .btn--primary')
   if (await confirm.isVisible().catch(() => false)) await confirm.click()
 
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().nodes.length))
+    .toBeGreaterThan(20)
   const labels = await page.evaluate(() =>
     (window as unknown as { __loop: Loop }).__loop.graph
       .getState()
       .nodes.map((n: any) => n.data.label as string),
   )
-  expect(labels.length).toBeGreaterThan(50)
-  for (const want of ['Niveau', 'Or', 'Pas écoulés', 'Récompense', 'Butin rare']) {
+  for (const want of ['Stock de café vert', 'Stock de café torréfié', 'Livraison de café vert', 'Chiffre d’affaires prévu du jour', 'Invendus de fin de journée']) {
     expect(labels, `the French overlay must supply "${want}"`).toContain(want)
   }
-  for (const no of ['Level', 'Gold', 'Elapsed steps', 'Reward']) {
+  for (const no of ['Green bean stock', 'Roasted bean stock', 'Green bean delivery', 'Projected daily revenue']) {
     expect(labels, `"${no}" must not survive into a French document`).not.toContain(no)
   }
 })

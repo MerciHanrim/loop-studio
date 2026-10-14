@@ -52,6 +52,12 @@ export type Template = {
    *  (from its file's `schema`). Absent ⇒ v1. A bundled v2 Template loads as v2
    *  as authored — not the explicit-user-promotion path (§CR2.1a). */
   modelVersion?: ModelSemanticsVersion
+  /** `false`: kept here — its node labels still follow a locale switch in a
+   *  document made from it, and the developer data and checks keep reading it —
+   *  but not offered in the Templates menu (desktop or phone). A Template there
+   *  is a starting point whose purpose and structure are easy to grasp and that
+   *  a user could rebuild; a stress fixture is not (Hanrim / Lumi, 2026-10-14). */
+  menu?: false
 }
 
 // The two acceptance diagrams from SEMANTICS.md §14, framed as a production
@@ -107,6 +113,8 @@ export const TEMPLATES: Template[] = [
   // professional probability/pity verification, each entry a bigger and more
   // specialised step than the last. Coffee moved ahead of MMO (was after it);
   // template ids are unchanged, so no saved/shared file or digest is affected.
+  // Since 0.28.1 MMO keeps its place here but is not listed (`menu: false`), so
+  // the menu reads Coffee → Gacha.
   {
     id: 'coffee-roastery',
     name: 'Coffee roastery operations flow',
@@ -130,8 +138,13 @@ export const TEMPLATES: Template[] = [
   // The canonical graph is examples/mmo-progression.json (built + verified by
   // src/engine/mmo-progression.fixture.ts); this entry loads it, no inline copy
   // (docs/example-mmo-progression.md §EM11 / §EM12 Q5).
+  // 0.28.1 (Hanrim / Lumi, 2026-10-14): NOT in the Templates menu any more — it
+  // shows how far Loop Studio goes, but nobody would build it by hand; it stays
+  // a developer stress / regression fixture. The entry stays so a document made
+  // from it keeps its node labels following a locale switch.
   {
     id: 'mmo-progression',
+    menu: false,
     name: 'Early MMO progression (levels 1–15)',
     blurb:
       'A connected play economy: three zone lanes, probabilistic combat, categorised loot, a gold economy with repair and resupply costs, and a rising XP-per-level curve.',
@@ -221,3 +234,7 @@ export const TEMPLATES: Template[] = [
     initialView: { rect: { x: -72, y: -56, width: 1648, height: 1248 }, minZoom: 0.45 },
   },
 ]
+
+/** the Templates the menu offers (desktop and phone): every entry but the ones
+ *  marked `menu: false` */
+export const MENU_TEMPLATES: readonly Template[] = TEMPLATES.filter((t) => t.menu !== false)
