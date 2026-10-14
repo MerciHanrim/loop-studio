@@ -606,9 +606,10 @@ const ui = {
   'whatsNew.v0280.reverse': 'Agora uma ligação pode ser invertida sem desenhar a ligação de novo: selecione-a e use Inverter, ao lado de Extremidades no Inspetor. A quantidade, a condição, a cor e a forma da linha ficam como estavam e passam a ser lidas na nova direção; as dobras que colocou ficam no lugar.',
   'whatsNew.v0280.drawn': 'Depois de uma inversão, a rota automática, a linha perto de cada extremidade e o lugar do rótulo podem mudar.',
   'whatsNew.v0280.refused': 'Uma inversão que não pode ser feita, como uma que faria a ligação terminar em um nó sem entrada ou deixaria uma ligação de estado sem efeito, não é aplicada, e o motivo é mostrado.',
-  'whatsNew.v0281.labelBends': 'O rótulo de uma ligação agora fica longe das dobras que colocou, onde a linha tem espaço, e as alças das dobras deixam de cobri-lo quando a ligação é selecionada. Em uma linha curta com dobras muito próximas, ele ainda pode ficar sobre uma delas.',
-  'whatsNew.v0281.stable': 'O lugar de um rótulo depende da linha e das dobras que ela tem, não da seleção: selecionar uma ligação, desmarcá-la ou fazer zoom deixa o rótulo onde está.',
-  'whatsNew.v0281.nearby': 'Em um diagrama denso, um rótulo que se afasta de uma dobra também pode mover o rótulo ou a linha de uma ligação próxima.',
+  'whatsNew.v0281.labelBends': 'Onde há espaço, o rótulo de uma ligação agora fica longe das dobras que colocou. Se faltar espaço, ele ainda pode ficar sobre uma delas.',
+  'whatsNew.v0281.stable': 'Selecionar ou desmarcar uma ligação, ou fazer zoom, não basta para mover um rótulo.',
+  'whatsNew.v0281.nearby': 'Em um diagrama denso, um rótulo que se afasta de uma dobra também pode mover o rótulo ou a linha de outra ligação.',
+  'whatsNew.v0281.mmoTemplate': 'O exemplo Progressão inicial de MMO deixou de aparecer na lista de templates; fica como material de teste de diagramas grandes para o desenvolvimento. Os documentos que já criou a partir dele abrem e funcionam como antes.',
 } as const
 
 export type UiKey = keyof typeof ui

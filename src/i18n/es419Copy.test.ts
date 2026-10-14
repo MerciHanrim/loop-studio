@@ -310,7 +310,7 @@ describe('es-419 copy — mechanical review', () => {
       banner: ['templates.gachaBannerZones.name'],
       banners: ['templates.gachaBannerZones.blurb'],
       pity: ['templates.gachaBannerZones.blurb'],
-      MMO: ['templates.mmoProgression.name'],
+      MMO: ['templates.mmoProgression.name', 'whatsNew.v0281.mmoTemplate'], // and the 0.28.1 note that it left the menu
       // the Spanish word IS `series` — the capitalised form starts these two
       // Timeline selector strings (the lowercase one is already global)
       Series: ['timeline.series.trigger', 'timeline.series.title'],

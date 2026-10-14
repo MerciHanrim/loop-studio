@@ -13,9 +13,9 @@ session neither reads nor saves stored work, author information or settings
 ([docs/storage-sessions.md](docs/storage-sessions.md)).
 
 **Run it now: <https://cozy-loop-studio.pages.dev>** — available in
-[18 languages](#languages), with five bundled Templates ranging from a small
-production flow to a large game economy and a three-zone probability/pity
-comparison.
+[18 languages](#languages), with four bundled Templates ranging from a small
+production flow to a coffee roastery's daily operations and a three-zone
+probability/pity comparison.
 
 ![Loop Studio's two-tier toolbar in a temporary session, its orange-bordered Temporary session button beside the menu buttons, and the Coffee roastery Template in the compact new nodes, each name outside its node, grouped into three labelled zone frames with its money in $/day, a few steps into a run with the Timeline filling in below](docs/assets/hero-coffee.png)
 
@@ -144,12 +144,14 @@ import, …) live under [`docs/`](docs/).
 
 A connection's label keeps off the bend points you placed on it, where its line has room.
 
-- **Labels clear of your bends**: a label no longer sits under the square handles of the bends
-  you placed when the connection is selected, wherever its line has a free spot; on a short
-  line with bends close together it can still sit on one
-- **Stays put**: selecting a connection, deselecting it or zooming does not move its label
-- **Nearby connections**: in a dense diagram, a label that moves off a bend can also move the
-  label or the line of a nearby connection
+- **Labels clear of your bends**: where there is room, a connection's label is placed clear of
+  the bend points you added to it; where there is not enough room, it can still overlap one
+- **Stays put**: selecting a connection, deselecting it or zooming does not by itself change
+  where its label sits
+- **Other connections**: in a dense diagram, a label that moves off a bend can also move the
+  label or the line of another connection
+- **Early MMO example**: no longer listed under Templates; it stays as developer test material
+  for large diagrams, and a document you already made from it still opens and works as before
 
 ## v0.28.0
 
