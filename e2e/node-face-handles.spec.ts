@@ -11,7 +11,11 @@
 //   - while a connection is drawn from a handle, every node mounts its face
 //     handles, so the drop can choose any face; a new connection to a face
 //     keeps that handle mounted afterwards, and undo / redo unmount / mount it
-//     with the connection, which is drawn each time.
+//     with the connection, which is drawn each time;
+//   - a connection moved to a face its node did not use (Reverse, an end moved
+//     from the Ends group or a grip's popover, their undo / redo) has that
+//     handle mounted and measured before it is drawn: no React Flow 008, no
+//     animation frame without its path.
 // A connection's end cannot be dragged to another port here: React Flow draws
 // its reconnection anchors only with an `onReconnect` handler, which the
 // canvas does not pass (`edgesReconnectable` alone enables nothing), so there
@@ -170,5 +174,120 @@ test.describe('the new node — face handles mount only while needed', () => {
     await expect.poll(() => mountedFaces(page)).toEqual({ ...AT_REST, discharged: ['in@bottom', 'in@top'] })
     await expect(page.locator(`.react-flow__edge[data-id="${made.id}"] path.react-flow__edge-path`)).toHaveCount(1)
     await expect.poll(() => endToHandle(page, made.id, 'end', 'discharged', 'in@bottom')).toBeLessThan(2)
+  })
+
+  // share note 53 (note 51's error 008): a connection moved to a face no
+  // connection of its node used before needs that face's handle mounted AND
+  // measured before React Flow draws it. Before, React Flow drew it first: it
+  // warned (`Couldn't create edge for … handle id`, error 008, development
+  // builds only — this suite runs the dev server) and the path was missing
+  // from the DOM for one animation-frame sample. Every way such a move is made
+  // by a user, with its undo and redo; on the code before the fix this fails
+  // on both counts.
+  test('a connection moved to an unused face is drawn on its handle at once: no React Flow 008, no frame without its path', async ({ page }) => {
+    const warnings: string[] = []
+    page.on('console', (m) => {
+      if (/Couldn't create edge|error#008/.test(m.text())) warnings.push(m.text().slice(0, 160))
+    })
+    await openSmall(page)
+    const EDGE = 'e_treat'
+    const edgeState = () =>
+      page.evaluate((id) => {
+        const g = (window as unknown as { __loop: Loop }).__loop.graph.getState()
+        const e = g.edges.find((x: any) => x.id === id)
+        return { source: e.source as string, target: e.target as string, ports: (e.data?.ports ?? null) as Record<string, string> | null, selected: g.selectedEdgeId as string | null }
+      }, EDGE)
+    // every animation frame, is the connection's path in the DOM
+    await page.evaluate((id) => {
+      const w = window as unknown as { __missing: number; __frames: number }
+      w.__missing = 0
+      w.__frames = 0
+      const tick = () => {
+        w.__frames++
+        const p = document.querySelector(`.react-flow__edge[data-id="${id}"] path.react-flow__edge-path`)
+        if (!p || !(p.getAttribute('d') ?? '')) w.__missing++
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    }, EDGE)
+    // select by a click on the connection's own line; an undo or redo leaves
+    // React Flow's mark on it without the selection, so the empty canvas first
+    const select = async () => {
+      await clickEmptyCanvas(page)
+      const at = await page.evaluate((id) => {
+        const p = document.querySelector(`.react-flow__edge[data-id="${id}"] path.react-flow__edge-path`) as SVGPathElement
+        const len = p.getTotalLength()
+        const m = p.getScreenCTM()!
+        for (let i = 1; i < 40; i++) {
+          const q = p.getPointAtLength((len * i) / 40)
+          const x = q.x * m.a + q.y * m.c + m.e
+          const y = q.x * m.b + q.y * m.d + m.f
+          if ((document.elementFromPoint(x, y)?.closest('.react-flow__edge') as HTMLElement | null)?.dataset.id === id) return { x, y }
+        }
+        return null
+      }, EDGE)
+      expect(at, 'a clickable point on the connection').not.toBeNull()
+      await page.mouse.click(at!.x, at!.y)
+      await expect.poll(async () => (await edgeState()).selected).toBe(EDGE)
+    }
+    const unusedFace = (node: string) =>
+      page.evaluate((nid) => {
+        const g = (window as unknown as { __loop: Loop }).__loop.graph.getState()
+        const used = new Set<string>()
+        for (const x of g.edges) {
+          const p = x.data?.ports ?? {}
+          if (x.source === nid) used.add(p.source ?? (x.sourceHandle?.startsWith('state') ? 'bottom' : 'right'))
+          if (x.target === nid) used.add(p.target ?? (x.targetHandle?.startsWith('state') ? 'top' : 'left'))
+        }
+        return ['top', 'right', 'bottom', 'left'].find((f) => !used.has(f)) ?? null
+      }, node)
+    const undoRedo = async (after: Awaited<ReturnType<typeof edgeState>>, before: Awaited<ReturnType<typeof edgeState>>) => {
+      await page.keyboard.press('Control+z')
+      await expect.poll(async () => ({ ...(await edgeState()), selected: null })).toEqual({ ...before, selected: null })
+      await page.keyboard.press('Control+Shift+z')
+      await expect.poll(async () => ({ ...(await edgeState()), selected: null })).toEqual({ ...after, selected: null })
+    }
+
+    // 1. Reverse (Treated today's LEFT face starts it: no connection used it)
+    await select()
+    const s0 = await edgeState()
+    await page.locator('.inspector .ends').getByRole('button', { name: 'Reverse direction' }).click()
+    await expect.poll(async () => (await edgeState()).source).toBe(s0.target)
+    const s1 = await edgeState()
+    expect(s1.ports).toEqual({ source: 'left', target: 'right' })
+    await undoRedo(s1, s0)
+
+    // 2. the To end to an unused side, from the Inspector's Ends group
+    await select()
+    const f2 = await unusedFace(s1.target)
+    expect(f2, 'an unused side on the To node').not.toBeNull()
+    const ends = page.locator('.inspector .ends')
+    await ends.locator('.ends__toggle').click()
+    await ends.locator('.ends__end').nth(1).locator('.ends__sides input[type=radio]').nth(['top', 'right', 'bottom', 'left'].indexOf(f2!)).check()
+    await ends.locator('.ends__actions button').first().click()
+    await expect.poll(async () => (await edgeState()).ports?.target).toBe(f2)
+    const s2 = await edgeState()
+    await undoRedo(s2, s1)
+
+    // 3. an end to an unused side, from the canvas grip's popover
+    await select()
+    await expect(page.locator('.end-grip').first()).toBeVisible()
+    const end = (await page.locator('.end-grip[data-end="target"]').count()) ? 'target' : 'source'
+    const f3 = await unusedFace(end === 'target' ? s2.target : s2.source)
+    expect(f3, `an unused side on the ${end} node`).not.toBeNull()
+    await page.locator(`.end-grip[data-end="${end}"]`).click()
+    await page.locator(`.end-popover[data-end="${end}"] .end-popover__side[data-face="${f3}"]`).click()
+    await expect.poll(async () => (await edgeState()).ports?.[end]).toBe(f3)
+    const s3 = await edgeState()
+    await undoRedo(s3, s2)
+
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+    const dom = await page.evaluate(() => {
+      const w = window as unknown as { __missing: number; __frames: number }
+      return { missing: w.__missing, frames: w.__frames }
+    })
+    expect(dom.frames, 'the sampler ran').toBeGreaterThan(30)
+    expect(dom.missing, 'animation frames without the connection path').toBe(0)
+    expect(warnings, 'React Flow error 008 warnings').toEqual([])
   })
 })
