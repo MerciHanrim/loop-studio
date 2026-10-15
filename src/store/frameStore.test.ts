@@ -283,12 +283,16 @@ describe('frameStore — §SF11.1 undo units', () => {
 
   it('a frame op undo/redo never touches nodes / edges', () => {
     G().addNodeAt('pool', { x: 0, y: 0 })
-    const nodesBefore = JSON.stringify(G().nodes)
+    // the document content; React Flow's `selected` flag is not part of it, and
+    // every undo / redo ends with nothing selected (share note 56)
+    const content = () => JSON.stringify({ nodes: G().nodes.map(({ selected: _s, ...n }) => n), edges: G().edges.map(({ selected: _s, ...e }) => e) })
+    const before = content()
     useFrameStore.getState().addFrame(R())
     useFrameStore.getState().setFrameColor(useFrameStore.getState().frames[0].id, 'violet')
     G().undo()
     G().undo()
     G().redo()
-    expect(JSON.stringify(G().nodes)).toBe(nodesBefore)
+    expect(content()).toBe(before)
+    expect(G().nodes.some((n) => n.selected), 'the undo / redo left nothing selected').toBe(false)
   })
 })

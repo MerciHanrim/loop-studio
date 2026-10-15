@@ -605,6 +605,10 @@ const ui = {
   'whatsNew.v0282.sides': '从不同的边使用同一端口的资源连线现在会各自分岔，在部分图中减少不必要的绕行。',
   'whatsNew.v0282.templates': '内置模板中有 6 条自动路径的画法有变化：“咖啡烘焙坊运营流程”中 1 条，“三卡池抽卡对比”中 5 条。',
   'whatsNew.v0282.state': '状态连线保持不变：使用同一端口不同边的连线仍会归为一组。',
+  'whatsNew.v0283.cleared': '撤销或重做之后，画布和属性面板中的选中状态都会被清除。',
+  'whatsNew.v0283.hidden': '撤销或重做之后，不会再出现属性面板为空、连线或节点却仍然高亮的情况。在点击选中之前，按 Delete 键不会删除它，方向键也不会移动节点。',
+  'whatsNew.v0283.history': '撤销和重做不再恢复之前某一步的选中状态。',
+  'whatsNew.v0283.module': '插入模块是唯一的例外：撤销会重新选中插入前选中的内容，重做会选中插入的节点。',
 } satisfies Record<UiKey, string>
 
 export default ui

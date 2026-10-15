@@ -140,7 +140,19 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.28.2
+## Latest — v0.28.3
+
+Undo and Redo leave nothing selected.
+
+- **Nothing selected after Undo or Redo**: on the canvas or in the Inspector
+- **No hidden highlight**: a connection or node no longer stays highlighted while the Inspector
+  is empty; Delete won't remove it, and the arrow keys won't move a node until you select it
+- **No old selection comes back**: Undo and Redo no longer bring back a selection from an
+  earlier step
+- **Inserting a module is the one exception**: Undo selects again what was selected before the
+  insert, and Redo selects the inserted nodes
+
+## v0.28.2
 
 Resource connections on two sides of one port branch on their own.
 
@@ -180,22 +192,8 @@ A connection can be turned around without drawing it again.
 On a phone the diagram stays read-only. Curves you shape yourself and moving a connection's
 label are not in this release.
 
-## v0.27.0
-
-A connection's end can move without drawing the connection again.
-
-- **Move an end**: select a connection and drag the round grip at either end onto a side of
-  another node, or use Ends in the Inspector; its amount, condition, colour, line shape and
-  bends stay as they were, and one undo step takes the move back
-- **Pick a side**: click or tap a grip to choose Top, Right, Bottom or Left in a small panel
-  that names the node, for a change of side only; where the canvas has no room for a grip
-  near an end, Ends in the Inspector moves it
-- **Refused moves say why**: an end on a node without the port it needs, or a move that would
-  repeat a connection drawn the same way, is not applied, and the reason is shown
-
-On a phone the diagram stays read-only.
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.26.2 (playback
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.27.0 (a
+connection's end moves without drawing the connection again), v0.26.2 (playback
 in the chosen colours, and the moving `+N` badges kept off the nodes), v0.26.0 (the
 compact node with its name outside, connections from any side, notices under the toolbar),
 v0.25.0 (nodes

@@ -681,6 +681,10 @@ const ui = {
   'whatsNew.v0282.sides': 'Les connexions de ressource qui utilisent le même point de connexion depuis des côtés différents se séparent désormais chacune de leur côté, ce qui réduit les détours inutiles dans certains diagrammes.',
   'whatsNew.v0282.templates': 'Six tracés automatiques des modèles fournis sont dessinés autrement, un dans Flux d’exploitation d’une torréfaction et cinq dans Comparaison de 3 bannières gacha.',
   'whatsNew.v0282.state': 'Les connexions d’état ne changent pas. Les connexions qui utilisent des côtés différents du même point de connexion restent regroupées.',
+  'whatsNew.v0283.cleared': 'Après Annuler ou Rétablir, rien n’est sélectionné, ni sur le canevas ni dans les Propriétés.',
+  'whatsNew.v0283.hidden': 'Après Annuler ou Rétablir, une connexion ou un nœud ne reste plus en surbrillance alors que les Propriétés n’affichent rien. Tant que vous ne cliquez pas dessus pour le sélectionner, Suppr ne le supprime pas et les flèches ne déplacent aucun nœud.',
+  'whatsNew.v0283.history': 'Annuler et Rétablir ne ramènent plus une sélection d’une étape antérieure.',
+  'whatsNew.v0283.module': 'L’insertion d’un module est la seule exception. Annuler sélectionne de nouveau ce qui l’était avant l’insertion, et Rétablir sélectionne les nœuds insérés.',
 } satisfies Record<UiKey, string>
 
 export default ui

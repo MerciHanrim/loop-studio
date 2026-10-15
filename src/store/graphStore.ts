@@ -133,7 +133,16 @@ type HistoryEntry = {
   /** issue #344 step 3 — the record label rule in force (`recordLabels`) */
   recordLabels?: boolean
   sidecar: unknown
+  /** docs/module-system.md §MS3.5 — the one step that restores a selection: a
+   *  module insert's undo brings back the selection from before the insert, its
+   *  redo the inserted set. It rides on both entries of that step (the
+   *  pre-insert one in `past`, the post-insert one in `future`); every other
+   *  undo / redo ends with nothing selected. */
+  selection?: { undo: StepSelection; redo: StepSelection }
 }
+/** a selection as undo / redo restore it: React Flow's `selected` flags and
+ *  the ids the Inspector shows, together */
+type StepSelection = { nodes: string[]; edges: string[]; nodeId: string | null; edgeId: string | null }
 /** docs/large-graph-readability-saved-frames.md §SF11.1 "Move" — an opaque
  *  pre-gesture history entry handed out by `captureGestureSnapshot()` and
  *  pushed back by `pushGestureEntry()` when the gesture really moved something.
@@ -782,6 +791,31 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     })
   }
 
+  /** Undo / redo end with nothing selected, on the canvas as in the Inspector,
+   *  except a module insert's step (§MS3.5), which restores its own selection:
+   *  a history entry keeps React Flow's `selected` flags as they were when it
+   *  was taken, and restoring them would leave a mark the Inspector does not
+   *  show (a click then changes nothing, Delete and the arrow keys act on it)
+   *  or bring back an old selection. `ids` are the elements to flag; only an
+   *  element whose flag changes is copied, and the flags are never
+   *  serialized, so this is no document change. */
+  const flaggedOnly = <T extends { id: string; selected?: boolean }>(xs: T[], ids: readonly string[]): T[] => {
+    const want = new Set(ids)
+    return xs.some((x) => !!x.selected !== want.has(x.id)) ? xs.map((x) => (!!x.selected === want.has(x.id) ? x : { ...x, selected: want.has(x.id) })) : xs
+  }
+  /** the selection undo / redo leave on a restored entry: the step's own
+   *  (§MS3.5), ids kept only for elements that entry has, else none */
+  const restoredSelection = (entry: HistoryEntry, sel: StepSelection | undefined) => {
+    const nodeIds = sel ? sel.nodes.filter((id) => entry.nodes.some((n) => n.id === id)) : []
+    const edgeIds = sel ? sel.edges.filter((id) => entry.edges.some((e) => e.id === id)) : []
+    return {
+      nodes: flaggedOnly(entry.nodes, nodeIds),
+      edges: flaggedOnly(entry.edges, edgeIds),
+      selectedNodeId: sel?.nodeId != null && nodeIds.includes(sel.nodeId) ? sel.nodeId : null,
+      selectedEdgeId: sel?.edgeId != null && edgeIds.includes(sel.edgeId) ? sel.edgeId : null,
+    }
+  }
+
   /** Signal a simulation-relevant change (structure or node/edge data). */
   const bump = () => {
     clearPristine() // covers undo / redo / structural changes that skip `commit`
@@ -872,16 +906,13 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       const prev = past[past.length - 1]
       lastTag = ''
       set({
-        nodes: prev.nodes,
-        edges: prev.edges,
+        ...restoredSelection(prev, prev.selection?.undo),
         modelVersion: prev.modelVersion,
         recordLabels: prev.recordLabels ?? false,
         past: past.slice(0, -1),
-        future: [{ nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow() }, ...future].slice(0, HISTORY_MAX),
+        future: [{ nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow(), ...(prev.selection ? { selection: prev.selection } : {}) }, ...future].slice(0, HISTORY_MAX),
         canUndo: past.length > 1,
         canRedo: true,
-        selectedNodeId: null,
-        selectedEdgeId: null,
       })
       // FC-2.4 / R10-INV-2 — undoing a flow colour, a shape or a bend point is not a model change
       if (onlyDecorationDiffers({ nodes, edges, modelVersion }, prev)) clearPristine()
@@ -897,16 +928,13 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       const next = future[0]
       lastTag = ''
       set({
-        nodes: next.nodes,
-        edges: next.edges,
+        ...restoredSelection(next, next.selection?.redo),
         modelVersion: next.modelVersion,
         recordLabels: next.recordLabels ?? false,
-        past: [...past, { nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow() }].slice(-HISTORY_MAX),
+        past: [...past, { nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow(), ...(next.selection ? { selection: next.selection } : {}) }].slice(-HISTORY_MAX),
         future: future.slice(1),
         canUndo: true,
         canRedo: future.length > 1,
-        selectedNodeId: null,
-        selectedEdgeId: null,
       })
       // FC-2.4 / R10-INV-2 — redoing a flow colour, a shape or a bend point is not a model change
       if (onlyDecorationDiffers({ nodes, edges, modelVersion }, next)) clearPristine()
@@ -1357,8 +1385,25 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       // §MS3.5 / B5 — ONE history entry. `commit('')` snapshots the pre-insert
       // nodes + edges + `modelVersion` + both sidecars; the single `set` below
       // binds the re-issued ids, the v2 promotion, the whole inserted set, and
-      // the selection change together. One Ctrl+Z reverts all of it.
+      // the selection change together. One Ctrl+Z reverts all of it, the
+      // selection included: the entry carries the selection from before the
+      // insert (its undo) and the inserted set (its redo), flags and ids alike.
+      const before = get()
+      const priorSelection: StepSelection = {
+        nodes: before.nodes.filter((n) => n.selected).map((n) => n.id),
+        edges: before.edges.filter((e) => e.selected).map((e) => e.id),
+        nodeId: before.selectedNodeId,
+        edgeId: before.selectedEdgeId,
+      }
+      const insertedSelection: StepSelection = {
+        nodes: [...built.insertedNodeIds],
+        edges: [],
+        nodeId: built.insertedNodeIds.length === 1 ? built.insertedNodeIds[0]! : null,
+        edgeId: null,
+      }
       commit('')
+      const past = get().past
+      set({ past: [...past.slice(0, -1), { ...past[past.length - 1]!, selection: { undo: priorSelection, redo: insertedSelection } }] })
       lastTag = ''
       // docs/bundled-module-label-localization.md §MLS4.1 — registered only
       // now that the insert has actually committed (past the v2-consent
@@ -1384,9 +1429,11 @@ export const useGraphStore = create<GraphStore>((set, get) => {
               ? { ...n, selected: false } // §MS3.3 — inserted nodes, and nothing else
               : n,
         ),
-        edges: built.edges,
+        // §MS3.3 "and nothing else": a connection selected before the insert
+        // is not left marked beside the inserted block
+        edges: flaggedOnly(built.edges, []),
         modelVersion: built.modelVersion,
-        selectedNodeId: built.insertedNodeIds.length === 1 ? built.insertedNodeIds[0] : null,
+        selectedNodeId: insertedSelection.nodeId,
         selectedEdgeId: null,
       })
       bump()

@@ -613,6 +613,10 @@ const ui = {
   'whatsNew.v0282.sides': 'Các liên kết tài nguyên dùng cùng một cổng kết nối từ các cạnh khác nhau giờ rẽ nhánh riêng, giúp giảm đường vòng không cần thiết trong một số sơ đồ.',
   'whatsNew.v0282.templates': 'Sáu đường tự động trong các mẫu có sẵn được vẽ khác đi: một trong Luồng vận hành xưởng rang cà phê và năm trong So sánh ba banner gacha.',
   'whatsNew.v0282.state': 'Liên kết trạng thái không thay đổi: các liên kết dùng các cạnh khác nhau của cùng một cổng kết nối vẫn được gom chung.',
+  'whatsNew.v0283.cleared': 'Sau khi Hoàn tác hoặc Làm lại, không còn gì được chọn, cả trên khung vẽ lẫn trong Bảng thuộc tính.',
+  'whatsNew.v0283.hidden': 'Sau khi Hoàn tác hoặc Làm lại, liên kết hay nút không còn được làm nổi khi Bảng thuộc tính trống. Cho đến khi bạn nhấp để chọn, phím Delete không xóa nó và phím mũi tên không di chuyển nút.',
+  'whatsNew.v0283.history': 'Hoàn tác và Làm lại không còn khôi phục vùng chọn từ một bước trước đó.',
+  'whatsNew.v0283.module': 'Chèn mô-đun là ngoại lệ duy nhất: Hoàn tác chọn lại những gì đã được chọn trước khi chèn, còn Làm lại chọn các nút vừa chèn.',
 } satisfies Record<UiKey, string>
 
 export default ui

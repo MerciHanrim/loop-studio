@@ -666,6 +666,10 @@ const ui = {
   'whatsNew.v0282.sides': 'Aynı bağlantı noktasını farklı kenarlardan kullanan kaynak bağlantıları artık ayrı ayrı dallanır; bu da bazı diyagramlarda gereksiz dolanmaları azaltır.',
   'whatsNew.v0282.templates': 'Hazır şablonlardaki altı otomatik çizgi farklı çizilir: biri Kahve kavurma işleyişi şablonunda, beşi 3 bölgeli gacha banner karşılaştırması şablonunda.',
   'whatsNew.v0282.state': 'Durum bağlantıları değişmez: aynı bağlantı noktasının farklı kenarlarını kullanan bağlantılar eskisi gibi birlikte gruplanır.',
+  'whatsNew.v0283.cleared': 'Geri al ya da Yinele sonrasında ne tuvalde ne de İnceleyici’de hiçbir şey seçili kalmaz.',
+  'whatsNew.v0283.hidden': 'Geri al ya da Yinele sonrasında, İnceleyici boşken bir bağlantı ya da düğüm artık vurgulu kalmaz. Tıklayıp seçene kadar Delete onu silmez, ok tuşları da düğümü taşımaz.',
+  'whatsNew.v0283.history': 'Geri al ve Yinele artık önceki bir adımdaki seçimi geri getirmez.',
+  'whatsNew.v0283.module': 'Tek istisna modül eklemedir: Geri al, eklemeden önce seçili olanı yeniden seçer; Yinele ise eklenen düğümleri seçer.',
 } as const
 
 export type UiKey = keyof typeof ui
