@@ -146,8 +146,7 @@ Undo and Redo leave nothing selected.
 
 - **Nothing selected after Undo or Redo**: on the canvas or in the Inspector
 - **No hidden highlight**: a connection or node no longer stays highlighted while the Inspector
-  shows nothing; Delete does not remove it, and the arrow keys do not move a node, until you
-  click to select it
+  is empty; Delete won't remove it, and the arrow keys won't move a node until you select it
 - **No old selection comes back**: Undo and Redo no longer bring back a selection from an
   earlier step
 - **Inserting a module is the one exception**: Undo selects again what was selected before the

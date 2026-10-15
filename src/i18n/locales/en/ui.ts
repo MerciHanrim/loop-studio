@@ -598,7 +598,7 @@ const ui = {
   'whatsNew.v0282.templates': 'Six automatic routes in bundled templates are drawn differently: one in Coffee roastery operations flow and five in 3-zone gacha banner comparison.',
   'whatsNew.v0282.state': 'State connections are unchanged: connections using different sides of the same port are still grouped together.',
   'whatsNew.v0283.cleared': 'After Undo or Redo, nothing is selected, on the canvas or in the Inspector.',
-  'whatsNew.v0283.hidden': 'A connection or node no longer stays highlighted after Undo or Redo while the Inspector shows nothing. Delete does not remove it, and the arrow keys do not move a node, until you click to select it.',
+  'whatsNew.v0283.hidden': 'After Undo or Redo, a connection or node no longer stays highlighted while the Inspector is empty. Delete won’t remove it, and the arrow keys won’t move a node until you select it.',
   'whatsNew.v0283.history': 'Undo and Redo no longer bring back a selection from an earlier step.',
   'whatsNew.v0283.module': 'Inserting a module is the one exception: Undo selects again what was selected before the insert, and Redo selects the inserted nodes.',
 } as const
