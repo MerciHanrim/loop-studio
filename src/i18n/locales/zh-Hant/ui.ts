@@ -627,6 +627,9 @@ const ui = {
   'whatsNew.v0281.stable': '僅選取、取消選取或縮放，不會改變標籤的位置。',
   'whatsNew.v0281.nearby': '在連線密集的圖中，避開拐點而移動的標籤也可能讓其他連線的標籤或線段一起移動。',
   'whatsNew.v0281.mmoTemplate': '「MMO 前期成長」範例已從範本清單中移除，作為測試大型圖的開發資料保留。用它建立的文件仍可照常開啟和使用。',
+  'whatsNew.v0282.sides': '從不同的邊使用同一連接點的資源連線現在會各自分岔，在部分圖中減少不必要的繞行。',
+  'whatsNew.v0282.templates': '內建範本中有 6 條自動路徑的畫法有變化：「咖啡烘焙坊營運流程」中 1 條，「三卡池轉蛋對比」中 5 條。',
+  'whatsNew.v0282.state': '狀態連線維持不變：使用同一連接點不同邊的連線仍會歸為一組。',
 } satisfies Record<UiKey, string>
 
 export default ui

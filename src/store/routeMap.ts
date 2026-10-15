@@ -311,6 +311,29 @@ const CLASS_RANK: Record<GuardedClass, number> = { orthogonal: 0, degenerate: 0,
 const endKey = (node: string, handle: string | null | undefined) => `${node}:${handle ?? ''}`
 const srcKey = (e: LoopEdge) => endKey(e.source, e.sourceHandle)
 const tgtKey = (e: LoopEdge) => endKey(e.target, e.targetHandle)
+
+/** §ER14.3 — the key of the FAN an end belongs to (the connections that share
+ *  one port's stub and split at their branch points). For a RESOURCE port it
+ *  includes the face (§ER17: the handle id stays plain, the face is in
+ *  `data.ports`): an `out` on the bottom face and one on the right face are two
+ *  stubs in two places, never one fan. A STATE port keeps one fan across its
+ *  faces, as before: grouping state ports by face uncovers an arriving and a
+ *  leaving state connection meeting at one anchor of one face, which is not
+ *  solved yet (share note 54), so that half is a separate unit. A resource
+ *  `in` and `out` stay two fans even where a face puts them on one anchor.
+ *  This key decides, per FAN: fan membership (branch points, first legs) and
+ *  the sibling relation while routing — a sibling's route is cut at the shared
+ *  stub (its stub is not charged) and offered as lanes, a non-sibling is an
+ *  ordinary obstacle — and its `fanOverlaps` check. So two resource lines on
+ *  two faces of one handle no longer excuse each other's stub. `endKey` still
+ *  decides, per handle: the port use count behind "no label on a shared
+ *  stub", the own-port exemption from the reserved stubs, and the parallel
+ *  sets. */
+function fanKey(e: LoopEdge, end: PortEnd): string {
+  const node = end === 'source' ? e.source : e.target
+  const handle = end === 'source' ? e.sourceHandle : e.targetHandle
+  return edgePortKind(e) === 'resource' ? `${endKey(node, handle)}@${faceOf(e, end)}` : endKey(node, handle)
+}
 const pkey = (e: LoopEdge): string => {
   const a = srcKey(e)
   const b = tgtKey(e)
@@ -415,8 +438,10 @@ function plan(nodes: LoopNode[], edges: LoopEdge[]): Plan {
     ;(groups.get(k) ?? groups.set(k, []).get(k)!).push(e.id)
     portUse.set(srcKey(e), (portUse.get(srcKey(e)) ?? 0) + 1)
     portUse.set(tgtKey(e), (portUse.get(tgtKey(e)) ?? 0) + 1)
-    ;(atPort.get(srcKey(e)) ?? atPort.set(srcKey(e), []).get(srcKey(e))!).push({ e, asSource: true })
-    ;(atPort.get(tgtKey(e)) ?? atPort.set(tgtKey(e), []).get(tgtKey(e))!).push({ e, asSource: false })
+    const fs = fanKey(e, 'source')
+    const ft = fanKey(e, 'target')
+    ;(atPort.get(fs) ?? atPort.set(fs, []).get(fs)!).push({ e, asSource: true })
+    ;(atPort.get(ft) ?? atPort.set(ft, []).get(ft)!).push({ e, asSource: false })
   }
   const fans = new Map<string, { src?: FanEnd; tgt?: FanEnd }>()
   for (const list of atPort.values()) {
@@ -505,8 +530,11 @@ function routeInput(p: Plan, e: LoopEdge, others: ReadonlyMap<string, GuardedRes
     if (!r) continue
     // a parallel set (same two ports) fans out by its own offset (§ER3.7)
     if (pkey(o) === pkey(e)) continue
-    const atS = srcKey(o) === srcKey(e)
-    const atT = tgtKey(o) === tgtKey(e)
+    // siblings are members of one FAN (`fanKey`): two resource lines on two
+    // faces of one handle are ordinary routes to each other — charged to run
+    // along or cross, not excused from a stub they do not share
+    const atS = fanKey(o, 'source') === fanKey(e, 'source')
+    const atT = fanKey(o, 'target') === fanKey(e, 'target')
     if (!atS && !atT) {
       busy.push(r.points)
       continue
@@ -873,8 +901,8 @@ function report(nodes: LoopNode[], edges: LoopEdge[], map: Map<string, RoutedEdg
       const a = p.ortho[i]
       const b = p.ortho[j]
       if (pkey(a) === pkey(b)) continue
-      const atS = srcKey(a) === srcKey(b)
-      const atT = tgtKey(a) === tgtKey(b)
+      const atS = fanKey(a, 'source') === fanKey(b, 'source')
+      const atT = fanKey(a, 'target') === fanKey(b, 'target')
       if (!atS && !atT) continue
       const ra = map.get(a.id)
       const rb = map.get(b.id)
@@ -1252,6 +1280,14 @@ export function __syncFullGeneration(nodes: LoopNode[], edges: LoopEdge[]): Map<
 /** test hook — the synchronous Curved / Straight label slots for this input */
 export function __syncFreeSlots(nodes: LoopNode[], edges: LoopEdge[]): Map<string, FreeSlot> {
   return rebuildFull(nodes, edges).free
+}
+/** test hook — which routed connections the plan puts in a fan at each end
+ *  (true where that end's port has siblings), and its parallel sets */
+export function __planFans(nodes: LoopNode[], edges: LoopEdge[]): { fans: Record<string, { src: boolean; tgt: boolean }>; sets: string[][] } {
+  const p = plan(nodes, edges)
+  const fans: Record<string, { src: boolean; tgt: boolean }> = {}
+  for (const e of p.ortho) fans[e.id] = { src: p.fans.get(e.id)?.src != null, tgt: p.fans.get(e.id)?.tgt != null }
+  return { fans, sets: [...p.groups.values()].map((s) => [...s].sort()).sort() }
 }
 /** test hook — replace the slice scheduler (null = synchronous) */
 export function __setRouteScheduler(s: Scheduler | null): void {

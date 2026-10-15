@@ -752,6 +752,20 @@ pinned single-edge core (golden + differential tests); the app no longer calls i
 - **A port fan** (Lumi, 2026-10-09): connections of exactly the same port share
   only that port's stub, `ROUTE_STUB` (16 px) beyond the node box, in the same
   direction; past it there is no line-on-line overlap at all.
+  - Which connections form one fan (share note 54, Lumi 2026-10-15): for a
+    RESOURCE port, the node, the handle id AND the face — the same `out` on the
+    bottom and on the right face are two stubs in two places, two fans. A
+    STATE port keeps one fan across its faces, as before: grouping it by face
+    uncovers an arriving and a leaving state connection meeting at one anchor
+    of one face, which is a separate unit. A resource `in` and `out` are never
+    one fan, even where a face puts them on one anchor. The same key decides
+    the sibling relation while routing: a sibling's route is cut at the shared
+    stub (not charged there) and offered as lanes, anything else is an
+    ordinary obstacle — so two resource lines on two faces of one handle no
+    longer excuse each other's stub, and the `fanOverlaps` check compares fan
+    siblings only. Still counted per node and handle id, as before: the port
+    use behind "no label on a shared stub", a route's exemption from its own
+    ports' reserved stubs, and the parallel sets.
   - Each member gets its own **branch point** inside the stub. The members are
     sorted by where their far end lies across the stub, then by edge id;
     members on the negative side leave toward it, members on the positive side

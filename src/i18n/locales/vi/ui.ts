@@ -610,6 +610,9 @@ const ui = {
   'whatsNew.v0281.stable': 'Chỉ chọn, bỏ chọn hay thu phóng thì không làm đổi vị trí của nhãn.',
   'whatsNew.v0281.nearby': 'Trong một sơ đồ dày đặc, một nhãn dịch ra khỏi điểm gấp cũng có thể làm dịch nhãn hoặc đường của một liên kết khác.',
   'whatsNew.v0281.mmoTemplate': 'Ví dụ Tiến trình MMO giai đoạn đầu không còn nằm trong danh sách mẫu; nó được giữ lại làm tài liệu thử nghiệm sơ đồ lớn cho việc phát triển. Các tài liệu bạn đã tạo từ ví dụ này vẫn mở và dùng được như trước.',
+  'whatsNew.v0282.sides': 'Các liên kết tài nguyên dùng cùng một cổng kết nối từ các cạnh khác nhau giờ rẽ nhánh riêng, giúp giảm đường vòng không cần thiết trong một số sơ đồ.',
+  'whatsNew.v0282.templates': 'Sáu đường tự động trong các mẫu có sẵn được vẽ khác đi: một trong Luồng vận hành xưởng rang cà phê và năm trong So sánh ba banner gacha.',
+  'whatsNew.v0282.state': 'Liên kết trạng thái không thay đổi: các liên kết dùng các cạnh khác nhau của cùng một cổng kết nối vẫn được gom chung.',
 } satisfies Record<UiKey, string>
 
 export default ui

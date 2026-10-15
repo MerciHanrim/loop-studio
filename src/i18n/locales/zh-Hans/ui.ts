@@ -602,6 +602,9 @@ const ui = {
   'whatsNew.v0281.stable': '仅选中、取消选择或缩放，不会改变标签的位置。',
   'whatsNew.v0281.nearby': '在连线密集的图中，避开拐点而移动的标签也可能让其他连线的标签或线段一起移动。',
   'whatsNew.v0281.mmoTemplate': '“MMO 前期成长”示例已从模板列表中移除，作为测试大型图的开发资料保留。用它创建的文档仍可照常打开和使用。',
+  'whatsNew.v0282.sides': '从不同的边使用同一端口的资源连线现在会各自分岔，在部分图中减少不必要的绕行。',
+  'whatsNew.v0282.templates': '内置模板中有 6 条自动路径的画法有变化：“咖啡烘焙坊运营流程”中 1 条，“三卡池抽卡对比”中 5 条。',
+  'whatsNew.v0282.state': '状态连线保持不变：使用同一端口不同边的连线仍会归为一组。',
 } satisfies Record<UiKey, string>
 
 export default ui

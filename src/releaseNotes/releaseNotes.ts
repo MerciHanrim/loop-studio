@@ -39,6 +39,15 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // a resource port's fan is per face, state ports keep one fan
+    // (docs/edge-routing.md §ER14.3, share notes 50 and 54); the date is the
+    // day it is deployed, set right before the merge
+    id: 'release:0.28.2',
+    version: '0.28.2',
+    date: '2026-10-15',
+    items: ['whatsNew.v0282.sides', 'whatsNew.v0282.templates', 'whatsNew.v0282.state'],
+  },
+  {
     // a routed label keeps off its own connection's stored bend points where
     // its line has room (docs/edge-routing.md §ER14.3, share notes 50 and 52),
     // and the Early MMO example leaves the Templates menu (a developer stress

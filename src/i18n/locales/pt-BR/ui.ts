@@ -610,6 +610,9 @@ const ui = {
   'whatsNew.v0281.stable': 'Selecionar ou desmarcar uma ligação, ou fazer zoom, não basta para mover um rótulo.',
   'whatsNew.v0281.nearby': 'Em um diagrama denso, um rótulo que se afasta de uma dobra também pode mover o rótulo ou a linha de outra ligação.',
   'whatsNew.v0281.mmoTemplate': 'O exemplo Progressão inicial de MMO deixou de aparecer na lista de templates; fica como material de teste de diagramas grandes para o desenvolvimento. Os documentos que já criou a partir dele abrem e funcionam como antes.',
+  'whatsNew.v0282.sides': 'As ligações de recurso que usam a mesma porta a partir de lados diferentes agora seguem ramos separados, o que reduz desvios desnecessários em alguns diagramas.',
+  'whatsNew.v0282.templates': 'Seis traçados automáticos dos templates incluídos passam a ser desenhados de outra forma: um em Fluxo de operações de uma torrefação de café e cinco em Comparação de banners de gacha em 3 zonas.',
+  'whatsNew.v0282.state': 'As ligações de estado não mudam: as ligações que usam lados diferentes da mesma porta continuam agrupadas.',
 } as const
 
 export type UiKey = keyof typeof ui

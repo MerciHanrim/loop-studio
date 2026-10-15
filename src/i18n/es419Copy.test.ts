@@ -306,8 +306,8 @@ describe('es-419 copy — mechanical review', () => {
       Player: ['inspector.resourceType.placeholder'],
       Item: ['inspector.resourceType.placeholder'],
       // gacha vocabulary, only in the Template that is about gacha
-      gacha: ['templates.gachaBannerZones.name'],
-      banner: ['templates.gachaBannerZones.name'],
+      gacha: ['templates.gachaBannerZones.name', 'whatsNew.v0282.templates'], // and the 0.28.2 note naming that Template
+      banner: ['templates.gachaBannerZones.name', 'whatsNew.v0282.templates'],
       banners: ['templates.gachaBannerZones.blurb'],
       pity: ['templates.gachaBannerZones.blurb'],
       MMO: ['templates.mmoProgression.name', 'whatsNew.v0281.mmoTemplate'], // and the 0.28.1 note that it left the menu

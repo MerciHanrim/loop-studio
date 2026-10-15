@@ -678,6 +678,9 @@ const ui = {
   'whatsNew.v0281.stable': 'Une sélection, une désélection ou un zoom ne suffisent pas à déplacer une étiquette.',
   'whatsNew.v0281.nearby': 'Dans un diagramme dense, une étiquette qui s’écarte d’un coude peut aussi déplacer l’étiquette ou la ligne d’une autre connexion.',
   'whatsNew.v0281.mmoTemplate': 'L’exemple Progression MMO du début de jeu ne figure plus dans la liste des modèles. Il reste un support de test pour les grands diagrammes, réservé au développement. Les documents que vous en avez tirés s’ouvrent et fonctionnent comme avant.',
+  'whatsNew.v0282.sides': 'Les connexions de ressource qui utilisent le même point de connexion depuis des côtés différents se séparent désormais chacune de leur côté, ce qui réduit les détours inutiles dans certains diagrammes.',
+  'whatsNew.v0282.templates': 'Six tracés automatiques des modèles fournis sont dessinés autrement, un dans Flux d’exploitation d’une torréfaction et cinq dans Comparaison de 3 bannières gacha.',
+  'whatsNew.v0282.state': 'Les connexions d’état ne changent pas. Les connexions qui utilisent des côtés différents du même point de connexion restent regroupées.',
 } satisfies Record<UiKey, string>
 
 export default ui

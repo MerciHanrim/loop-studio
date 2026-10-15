@@ -4,6 +4,16 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.28.2 — 2026-10-15
+
+A resource port's connections on two sides branch on their own ([`docs/edge-routing.md`](docs/edge-routing.md) §ER14.3).
+
+- **The rule.** The router groups the connections of one port into a fan — they share the port's stub and split at their branch points. For a RESOURCE port that group is now per side (node, handle id and face): an `out` leaving the bottom face and one leaving the right face are two stubs in two places, no longer one fan. The same per-fan grouping decides which connections count as siblings while routing, so two resource lines on two sides of one port no longer excuse each other's stub. A resource `in` and `out` are never one fan. STATE ports keep one fan across their sides, as before. The port use behind "no label on a shared stub", a route's exemption from its own ports' reserved stubs and the parallel sets are unchanged.
+- **What looks different.** Six automatic routes in the bundled Templates: Coffee roastery operations flow's green wholesale line now goes straight down instead of an S-jog, and five lines in 3-zone gacha banner comparison change (same-view checks: three easier to follow, two with no real difference). Every other bundled example draws as before.
+- **Why state ports are not included.** Grouping them by side too was measured: it fixes Coffee the same way but makes three lines harder to follow on the gacha banner, all where an arriving and a leaving state connection meet one side of a node at one point — the old cross-side fans happened to push one of the two aside. That meeting is a separate, later unit. A general cost for running beside another line was tried for it and rejected.
+
+**Notes.** Three What's new lines in 18 languages: the translation contract tests pass, and none had native-speaker review. One screenshot baseline changed (the forced-colours Coffee view at zoom 0.5, the straightened line).
+
 ## v0.28.1 — 2026-10-14
 
 A connection's label keeps off the bend points you placed on it, where its line has room ([`docs/edge-routing.md`](docs/edge-routing.md) §ER14.3); the Early MMO example leaves the Templates menu.
