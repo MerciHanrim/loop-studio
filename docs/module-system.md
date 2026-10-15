@@ -279,7 +279,14 @@ Bound into that **single** entry: the **re-issued ids**, the **v2 promotion**
 **selection change**. One `Ctrl+Z` removes every inserted node and edge, reverts
 `modelVersion`, and restores the prior selection — all together. `Ctrl+Shift+Z`
 restores the identical post-insert snapshot (same re-issued ids, same
-`modelVersion`, same selection). `frameStore` is untouched. No new undo
+`modelVersion`, same selection). The selection is restored as React Flow's
+`selected` flags and the Inspector's `selectedNodeId` / `selectedEdgeId`
+together: the step's entries carry the selection from before the insert and the
+inserted set, however often it is undone and redone. This is the one step whose
+undo / redo restores a selection — every other undo / redo ends with nothing
+selected (`large-graph-readability.md` LGR-D17). The insert itself leaves no
+connection selected beside the block (§MS3.3, "and nothing else"). `frameStore`
+is untouched. No new undo
 mechanism — it reuses `graphStore`'s snapshot history, exactly like `loadDoc`
 but **merging** instead of replacing.
 
