@@ -627,9 +627,10 @@ const ui = {
   'whatsNew.v0282.sides': 'As ligações de recurso que usam a mesma porta a partir de lados diferentes agora seguem ramos separados, o que reduz desvios desnecessários em alguns diagramas.',
   'whatsNew.v0282.templates': 'Seis traçados automáticos dos templates incluídos passam a ser desenhados de outra forma: um em Fluxo de operações de uma torrefação de café e cinco em Comparação de banners de gacha em 3 zonas.',
   'whatsNew.v0282.state': 'As ligações de estado não mudam: as ligações que usam lados diferentes da mesma porta continuam agrupadas.',
-  'whatsNew.v0283.cleared': 'Depois de Desfazer ou Refazer, nada fica selecionado, nem na tela nem no Inspetor. Uma ligação ou um nó deixa de ficar destacado enquanto o Inspetor não mostra nada, por isso um clique volta a selecioná-lo, e Delete ou as teclas de seta deixam de agir sobre ele.',
+  'whatsNew.v0283.cleared': 'Depois de Desfazer ou Refazer, nada fica selecionado, nem na tela nem no Inspetor.',
+  'whatsNew.v0283.hidden': 'Depois de Desfazer ou Refazer, uma ligação ou um nó deixa de ficar destacado enquanto o Inspetor não mostra nada. Até que clique nele para selecioná-lo, Delete não o remove e as teclas de seta não movem nenhum nó.',
   'whatsNew.v0283.history': 'Desfazer e Refazer deixam de trazer de volta uma seleção de um passo anterior.',
-  'whatsNew.v0283.module': 'Inserir um módulo é a única exceção: Desfazer volta a selecionar o que estava selecionado antes da inserção, e Refazer seleciona os nós inseridos. Uma ligação selecionada antes da inserção deixa de ficar destacada ao lado deles.',
+  'whatsNew.v0283.module': 'Inserir um módulo é a única exceção: Desfazer volta a selecionar o que estava selecionado antes da inserção, e Refazer seleciona os nós inseridos.',
 } as const
 
 export type UiKey = keyof typeof ui

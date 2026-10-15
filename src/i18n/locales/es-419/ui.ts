@@ -611,9 +611,10 @@ const ui = {
   'whatsNew.v0282.sides': 'Las conexiones de recurso que usan el mismo puerto desde lados distintos ahora se ramifican por separado, lo que reduce desvíos innecesarios en algunos diagramas.',
   'whatsNew.v0282.templates': 'Seis trazados automáticos de las plantillas incluidas se dibujan de otra forma: uno en Flujo de operaciones de un tostador de café y cinco en Comparación de 3 zonas de banner gacha.',
   'whatsNew.v0282.state': 'Las conexiones de estado no cambian: las conexiones que usan lados distintos del mismo puerto se siguen agrupando.',
-  'whatsNew.v0283.cleared': 'Después de Deshacer o Rehacer no queda nada seleccionado, ni en el lienzo ni en Propiedades. Una conexión o un nodo ya no queda resaltado mientras Propiedades no muestra nada, así que un clic lo vuelve a seleccionar, y Suprimir o las teclas de flecha ya no actúan sobre él.',
+  'whatsNew.v0283.cleared': 'Después de Deshacer o Rehacer no queda nada seleccionado, ni en el lienzo ni en Propiedades.',
+  'whatsNew.v0283.hidden': 'Después de Deshacer o Rehacer, una conexión o un nodo ya no queda resaltado mientras Propiedades no muestra nada. Hasta que haga clic para seleccionarlo, Suprimir no lo elimina y las teclas de flecha no mueven ningún nodo.',
   'whatsNew.v0283.history': 'Deshacer y Rehacer ya no recuperan una selección de un paso anterior.',
-  'whatsNew.v0283.module': 'Insertar un módulo es la única excepción: Deshacer vuelve a seleccionar lo que estaba seleccionado antes de insertarlo, y Rehacer selecciona los nodos insertados. Una conexión seleccionada antes de insertar el módulo ya no queda resaltada junto a ellos.',
+  'whatsNew.v0283.module': 'Insertar un módulo es la única excepción: Deshacer vuelve a seleccionar lo que estaba seleccionado antes de insertarlo, y Rehacer selecciona los nodos insertados.',
 } as const
 
 export type UiKey = keyof typeof ui

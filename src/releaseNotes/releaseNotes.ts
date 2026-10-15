@@ -46,7 +46,7 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
     id: 'release:0.28.3',
     version: '0.28.3',
     date: '2026-10-15',
-    items: ['whatsNew.v0283.cleared', 'whatsNew.v0283.history', 'whatsNew.v0283.module'],
+    items: ['whatsNew.v0283.cleared', 'whatsNew.v0283.hidden', 'whatsNew.v0283.history', 'whatsNew.v0283.module'],
   },
   {
     // a resource port's fan is per face, state ports keep one fan

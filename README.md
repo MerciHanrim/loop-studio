@@ -144,14 +144,14 @@ import, …) live under [`docs/`](docs/).
 
 Undo and Redo leave nothing selected.
 
-- **Nothing selected after Undo or Redo**: on the canvas as in the Inspector; a connection or
-  node no longer stays highlighted while the Inspector shows nothing, so one click selects it
-  again, and Delete or the arrow keys no longer act on it
+- **Nothing selected after Undo or Redo**: on the canvas or in the Inspector
+- **No hidden highlight**: a connection or node no longer stays highlighted while the Inspector
+  shows nothing; Delete does not remove it, and the arrow keys do not move a node, until you
+  click to select it
 - **No old selection comes back**: Undo and Redo no longer bring back a selection from an
   earlier step
 - **Inserting a module is the one exception**: Undo selects again what was selected before the
-  insert and Redo selects the inserted nodes; a connection selected before the insert no longer
-  stays highlighted beside them
+  insert, and Redo selects the inserted nodes
 
 ## v0.28.2
 

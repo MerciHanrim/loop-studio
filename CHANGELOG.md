@@ -12,7 +12,7 @@ Undo and Redo leave nothing selected, on the canvas as in the Inspector ([`docs/
 - **Now.** Undo and Redo end with nothing selected, on the canvas and in the Inspector. The document is unchanged by this, and it adds no undo step.
 - **The one exception.** Inserting a module keeps its rule: Undo selects again what was selected before the insert, Redo the inserted nodes, the canvas and the Inspector together, however often the step is undone and redone. The insert itself no longer leaves a connection that was selected before it highlighted beside the inserted nodes.
 
-**Notes.** Three What's new lines in 18 languages: the translation contract tests pass, and none had native-speaker review.
+**Notes.** Four What's new lines in 18 languages: the translation contract tests pass, and none had native-speaker review.
 
 ## v0.28.2 — 2026-10-15
 

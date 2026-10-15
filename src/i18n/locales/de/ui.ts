@@ -687,9 +687,10 @@ const ui = {
   'whatsNew.v0282.sides': 'Ressourcenverbindungen, die denselben Verbindungspunkt von verschiedenen Seiten aus nutzen, verzweigen sich jetzt getrennt; in manchen Diagrammen fallen dadurch unnötige Umwege weg.',
   'whatsNew.v0282.templates': 'Sechs automatisch gezogene Linien in den mitgelieferten Vorlagen sehen anders aus: eine in „Betriebsablauf einer Kaffeerösterei“ und fünf in „Gacha-Banner-Vergleich mit 3 Zonen“.',
   'whatsNew.v0282.state': 'Zustandsverbindungen bleiben unverändert: Verbindungen, die verschiedene Seiten desselben Verbindungspunkts nutzen, werden weiterhin zusammengefasst.',
-  'whatsNew.v0283.cleared': 'Nach Rückgängig oder Wiederherstellen ist nichts ausgewählt, weder auf der Arbeitsfläche noch in den Eigenschaften. Eine Verbindung oder ein Knoten bleibt nicht mehr hervorgehoben, während die Eigenschaften leer sind; ein Klick wählt sie wieder aus, und Entf oder die Pfeiltasten wirken nicht mehr darauf.',
+  'whatsNew.v0283.cleared': 'Nach Rückgängig oder Wiederherstellen ist nichts ausgewählt, weder auf der Arbeitsfläche noch in den Eigenschaften.',
+  'whatsNew.v0283.hidden': 'Nach Rückgängig oder Wiederherstellen bleibt keine Verbindung und kein Knoten mehr hervorgehoben, während die Eigenschaften leer sind. Bis Sie das Element anklicken und damit auswählen, entfernt Entf es nicht, und die Pfeiltasten bewegen keinen Knoten.',
   'whatsNew.v0283.history': 'Rückgängig und Wiederherstellen holen keine Auswahl aus einem früheren Schritt mehr zurück.',
-  'whatsNew.v0283.module': 'Einzige Ausnahme ist das Einfügen eines Moduls: Rückgängig wählt wieder aus, was vor dem Einfügen ausgewählt war, und Wiederherstellen wählt die eingefügten Knoten aus. Eine vorher ausgewählte Verbindung bleibt nicht mehr neben ihnen hervorgehoben.',
+  'whatsNew.v0283.module': 'Einzige Ausnahme ist das Einfügen eines Moduls: Rückgängig wählt wieder aus, was vor dem Einfügen ausgewählt war, und Wiederherstellen wählt die eingefügten Knoten aus.',
 } satisfies Record<UiKey, string>
 
 export default ui
