@@ -627,6 +627,9 @@ const ui = {
   'whatsNew.v0282.sides': 'I collegamenti di risorsa che usano la stessa porta da lati diversi ora si diramano separatamente, riducendo deviazioni inutili in alcuni diagrammi.',
   'whatsNew.v0282.templates': 'Sei percorsi automatici nei modelli inclusi sono disegnati in modo diverso: uno in Flusso operativo di una torrefazione e cinque in Confronto fra tre banner gacha.',
   'whatsNew.v0282.state': 'I collegamenti di stato non cambiano: i collegamenti che usano lati diversi della stessa porta restano raggruppati.',
+  'whatsNew.v0283.cleared': 'Dopo Annulla o Ripeti non resta selezionato nulla, né nell’area di disegno né nell’Ispettore. Un collegamento o un nodo non resta più evidenziato mentre l’Ispettore non mostra nulla, così un clic lo seleziona di nuovo, e Canc o i tasti freccia non agiscono più su di esso.',
+  'whatsNew.v0283.history': 'Annulla e Ripeti non riportano più una selezione di un passaggio precedente.',
+  'whatsNew.v0283.module': 'L’unica eccezione è l’inserimento di un modulo: Annulla seleziona di nuovo ciò che era selezionato prima dell’inserimento, e Ripeti seleziona i nodi inseriti. Un collegamento selezionato prima dell’inserimento non resta più evidenziato accanto a essi.',
 } satisfies Record<UiKey, string>
 
 export default ui

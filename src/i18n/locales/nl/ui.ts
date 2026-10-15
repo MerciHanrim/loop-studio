@@ -608,6 +608,9 @@ const ui = {
   'whatsNew.v0282.sides': 'Middelverbindingen die dezelfde poort vanaf verschillende zijden gebruiken, vertakken nu apart, wat in sommige diagrammen onnodige omwegen vermindert.',
   'whatsNew.v0282.templates': 'Zes automatische lijnen in de meegeleverde sjablonen worden anders getekend: één in Operationele stroom van een koffiebranderij en vijf in Gacha-bannervergelijking met 3 zones.',
   'whatsNew.v0282.state': 'Toestandsverbindingen veranderen niet: verbindingen die verschillende zijden van dezelfde poort gebruiken, blijven samen gegroepeerd.',
+  'whatsNew.v0283.cleared': 'Na Ongedaan maken of Opnieuw uitvoeren is niets geselecteerd, niet op het tekengebied en niet in de Inspector. Een verbinding of knooppunt blijft niet meer gemarkeerd terwijl de Inspector niets toont, dus één klik selecteert het opnieuw, en Delete of de pijltoetsen werken er niet meer op.',
+  'whatsNew.v0283.history': 'Ongedaan maken en Opnieuw uitvoeren halen geen selectie uit een eerdere stap meer terug.',
+  'whatsNew.v0283.module': 'Een module invoegen is de enige uitzondering: Ongedaan maken herstelt de selectie van vóór het invoegen, en Opnieuw uitvoeren selecteert de ingevoegde knooppunten. Een eerder geselecteerde verbinding blijft er niet meer gemarkeerd naast staan.',
 } as const
 
 export default ui

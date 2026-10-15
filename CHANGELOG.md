@@ -4,6 +4,16 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.28.3 — 2026-10-15
+
+Undo and Redo leave nothing selected, on the canvas as in the Inspector ([`docs/large-graph-readability.md`](docs/large-graph-readability.md) LGR-D17); a module insert restores its own selection ([`docs/module-system.md`](docs/module-system.md) §MS3.5).
+
+- **What was wrong.** A history step kept the canvas selection as it was when the step was taken, while Undo and Redo emptied the Inspector. A connection or node could stay highlighted with nothing in the Inspector: a click on it changed nothing, and Delete or an arrow key acted on it (an arrow-key move also discarded what Redo could bring back). Where the kept selection differed from the current one, Undo or Redo brought an old selection back.
+- **Now.** Undo and Redo end with nothing selected, on the canvas and in the Inspector. The document is unchanged by this, and it adds no undo step.
+- **The one exception.** Inserting a module keeps its rule: Undo selects again what was selected before the insert, Redo the inserted nodes, the canvas and the Inspector together, however often the step is undone and redone. The insert itself no longer leaves a connection that was selected before it highlighted beside the inserted nodes.
+
+**Notes.** Three What's new lines in 18 languages: the translation contract tests pass, and none had native-speaker review.
+
 ## v0.28.2 — 2026-10-15
 
 A resource port's connections on two sides branch on their own ([`docs/edge-routing.md`](docs/edge-routing.md) §ER14.3).
