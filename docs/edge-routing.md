@@ -517,19 +517,50 @@ version.
 
 ## ER8. Interaction
 
-- **Switch mode** — Inspector edge panel: `Route: Curved | Orthogonal`. Or
-  right-click edge → "Orthogonal route" / "Curved route". One undo entry.
-- **Add a waypoint** — drag a segment's mid-handle on a selected orthogonal
-  edge. Snaps to grid.
-- **Move a waypoint** — drag its dot; incident segments move as an orthogonal
-  pair.
-- **Remove a waypoint** — select it + `Delete`, or right-click → "Remove point".
-- **Reset route** — right-click edge → "Reset route" (clears manual waypoints;
-  auto takes over). Also in the Inspector.
-- **Keyboard** — an edge is already focusable; `Enter` on a focused edge opens
-  its Inspector where the Route control lives. Waypoint nudging with arrow keys
-  is a nice-to-have, deferred.
-- **Mobile** — none of the above; the edge renders along the file's route.
+What the app offers today. The rules and details are in §ER16 (shapes and
+bend points; `Inspector.tsx` `RouteField`, `RouteBends.tsx`) and, for a
+connection's ends and direction, §ER18 / §ER19. None of it is reached by a
+right-click: the canvas has no context menu (§ER8.1).
+
+- **Shape** — the Inspector's **Route** select: Orthogonal / Curved / Straight
+  (§ER15, §ER16.1). One undo entry. Choosing Curved or Straight drops the bend
+  points.
+- **Add a bend point** — on a selected Orthogonal connection, **Add bend** in
+  the Inspector arms it; the next click on the line inserts one on the segment
+  clicked, snapped to the grid along it (Alt: at the click), or **Enter**
+  inserts one in the middle of its longest editable segment (§ER16.2). The
+  route becomes a Manual route.
+- **Move a bend point** — drag its handle, or focus the handle and use the
+  arrow keys (Shift for a bigger step) (§ER16.2). The route then goes through
+  the bend points in order (§ER16.3).
+- **Remove a bend point** — focus its handle and press Delete or Backspace; the
+  last one removed makes the route automatic again (§ER16.2).
+- **Back to the automatic route** — **Reset to automatic** in the Inspector,
+  shown for a Manual route: keeps Orthogonal and drops every bend point
+  (§ER16.1).
+- **Keyboard** — a connection is focusable; Enter or Space selects it, and the
+  Inspector shows its Route select and bend tools. Every action above has a
+  keyboard path: the select, Add bend then Enter, and a focused bend handle's
+  arrow keys and Delete.
+- **Undo** — each of these is one history entry (§ER16.2).
+- **Edit lock** — the select and the buttons are disabled (§ER16.1).
+- **Phone** — the select is read-only and the bend tools are not shown; the
+  connection is drawn along its stored route (§ER16.1).
+
+### ER8.1 No context menu (correction, 2026-10-17)
+
+The first version of this section, written before the editor of §ER16 was
+built, also listed a right-click menu on a connection ("Orthogonal route" /
+"Curved route", "Remove point", "Reset route"), offered only Curved and
+Orthogonal, described a draggable mid-segment handle for adding points, and
+called arrow-key nudging of bend points deferred. That was the design
+intent of the time, not what was built: there is no right-click menu (the
+canvas wires no context menu; on the phone and under the edit lock it
+suppresses the browser's own menu, `Canvas.tsx` `onContextMenu`, and
+elsewhere the browser's own menu shows), bend points are added with Add bend
+rather than a mid-segment handle, Straight exists (§ER15), and a focused bend
+handle moves with the arrow keys (v0.25.0). The list above replaces that
+version; a right-click menu is not planned.
 
 ---
 
