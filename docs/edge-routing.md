@@ -527,7 +527,8 @@ right-click: the canvas has no context menu (§ER8.1).
   points.
 - **Add a bend point** — on a selected Orthogonal connection, **Add bend** in
   the Inspector arms it; the next click on the line inserts one on the segment
-  clicked, snapped to the grid along it (Alt: at the click), or **Enter**
+  clicked, snapped to the grid along that segment (Alt skips grid snapping
+  but keeps the point on the segment), or **Enter**
   inserts one in the middle of its longest editable segment (§ER16.2). The
   route becomes a Manual route.
 - **Move a bend point** — drag its handle, or focus the handle and use the
@@ -560,7 +561,7 @@ suppresses the browser's own menu, `Canvas.tsx` `onContextMenu`, and
 elsewhere the browser's own menu shows), bend points are added with Add bend
 rather than a mid-segment handle, Straight exists (§ER15), and a focused bend
 handle moves with the arrow keys (v0.25.0). The list above replaces that
-version; a right-click menu is not planned.
+version and describes the currently implemented interactions.
 
 ---
 
