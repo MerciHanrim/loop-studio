@@ -56,10 +56,18 @@ const centreOf = async (page: Page, node: string, handle: string) => {
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 }
 }
 
-/** an empty spot of the pane, away from every node and line */
+/** an empty spot of the pane, away from every node and line: the first point
+ *  of a grid, from the lower right, where the pane itself is on top */
 async function emptySpot(page: Page) {
-  const b = (await page.locator('.react-flow__pane').boundingBox())!
-  return { x: b.x + b.width - 380, y: b.y + b.height - 40 }
+  const p = await page.evaluate(() => {
+    const r = document.querySelector('.react-flow__pane')!.getBoundingClientRect()
+    for (let y = r.bottom - 40; y > r.top + 40; y -= 24)
+      for (let x = r.right - 380; x > r.left + 40; x -= 24)
+        if (document.elementFromPoint(x, y)?.classList.contains('react-flow__pane')) return { x, y }
+    return null
+  })
+  expect(p, 'an empty spot of the pane').not.toBeNull()
+  return p!
 }
 
 /** after a drop: nothing selected, nothing focused, so each node shows the faces its connections use */
@@ -234,6 +242,75 @@ test.describe('drawing a connection: the face handles of every node (share note 
     await expect.poll(() => mountedFaces(page)).toEqual(AT_REST)
     await draw(page, ['arrivals', 'out'], ['discharged', 'in@bottom'])
     await expectMade(page, before.list.length, 'arrivals', 'discharged', 'in@bottom', 'bottom')
+    expect(warnings).toEqual([])
+  })
+
+  test('every node gone during a drag (its insert undone) does not stop the next drag measuring every node', async ({ page }) => {
+    const warnings: string[] = []
+    page.on('console', (m) => {
+      if (/Couldn't create edge|error#008/.test(m.text())) warnings.push(m.text().slice(0, 160))
+    })
+    await openApp(page)
+    await page.evaluate(() => (window as unknown as { __loop: L }).__loop.graph.getState().newGraph())
+    await expect(page.locator('.react-flow__node')).toHaveCount(0)
+    // one undo step that adds every node: a module insert
+    const menu = page.locator('.toolbar__actions .menu', { has: page.getByRole('button', { name: 'Insert module' }) })
+    await menu.getByRole('button', { name: 'Insert module' }).click()
+    await menu.locator('.menu__item').filter({ has: page.locator('.menu__name', { hasText: 'Reward split loop' }) }).click()
+    await expect.poll(() => page.locator('.react-flow__node').count()).toBeGreaterThan(2)
+    await routesSettled(page)
+    await settle(page)
+    const ids = await page.evaluate(() =>
+      [...document.querySelectorAll('.react-flow__node')].map((n) => ({
+        id: (n as HTMLElement).dataset.id!,
+        out: !!n.querySelector('.react-flow__handle[data-handleid="out"]'),
+        in: !!n.querySelector('.react-flow__handle[data-handleid="in"]'),
+      })),
+    )
+    const from = ids.find((n) => n.out)!
+    const to = ids.find((n) => n.in && n.id !== from.id)!
+    // a drag from a node, then Ctrl+Z takes every node away while it is held,
+    // and the drag is released on the empty canvas: no node sees it end
+    const a = await centreOf(page, from.id, 'out')
+    await page.mouse.move(a.x, a.y)
+    await page.mouse.down()
+    await page.mouse.move(a.x + 30, a.y + 30, { steps: 4 })
+    await expect.poll(async () => (await mountedFaces(page))[to.id]?.length ?? 0).toBeGreaterThan(0)
+    await page.keyboard.press('Control+z')
+    await expect(page.locator('.react-flow__node')).toHaveCount(0)
+    const e = await emptySpot(page)
+    await page.mouse.move(e.x, e.y, { steps: 4 })
+    await page.mouse.up()
+    // the nodes come back; a new drag must offer — and React Flow must find — an unused face of another node
+    await page.keyboard.press('Control+y')
+    await expect(page.locator('.react-flow__node')).toHaveCount(ids.length)
+    await routesSettled(page)
+    // the redo selects the inserted nodes again (§MS3.5): clear that through
+    // the store (a click on the empty pane did not clear it here — not traced),
+    // so the target's faces are the used ones until the drag starts
+    await page.evaluate(() => {
+      const g = (window as unknown as { __loop: L }).__loop.graph.getState()
+      g.onNodesChange(g.nodes.map((n: any) => ({ type: 'select', id: n.id, selected: false })))
+      g.setSelection(null, null)
+    })
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __loop: L }).__loop.graph.getState().nodes.filter((n: any) => n.selected).length))
+      .toBe(0)
+    await expect.poll(async () => ((await mountedFaces(page))[to.id] ?? []).length).toBeLessThan(12)
+    const rest = (await mountedFaces(page))[to.id] ?? []
+    const b0 = await centreOf(page, from.id, 'out')
+    await page.mouse.move(b0.x, b0.y)
+    await page.mouse.down()
+    await page.mouse.move(b0.x + 30, b0.y + 30, { steps: 4 })
+    await expect.poll(async () => (await mountedFaces(page))[to.id]?.length ?? 0).toBeGreaterThan(rest.length)
+    const unused = ((await mountedFaces(page))[to.id] ?? []).find((h) => h.startsWith('in@') && !rest.includes(h))!
+    expect(unused, 'an unused input face of the target').toBeTruthy()
+    const t = await centreOf(page, to.id, unused)
+    await page.mouse.move(t.x, t.y, { steps: 8 })
+    await expect(face(page, to.id, unused), 'measured at this drag\'s start, so React Flow picks it').toHaveClass(/\bconnectingto\b/)
+    await page.mouse.move(e.x, e.y, { steps: 4 })
+    await page.mouse.up()
     expect(warnings).toEqual([])
   })
 

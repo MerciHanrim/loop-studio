@@ -1021,7 +1021,13 @@ the handles' bounds are measured again:
   first node whose layout effect sees the drag state change measures every
   node in one `updateNodeInternals` call — at the start at once (the commit's
   DOM is complete, nothing painted), at the end on the next frame (only
-  removals) — and a new drag cancels an end's measurement still waiting.
+  removals) — and a new drag cancels an end's frame that has not run yet (a
+  frame left when the canvas goes away still runs, finds no canvas and
+  measures nothing). The state is each canvas's, keyed by the store's own
+  `getState` (`useStoreApi()` gives every component its own wrapper object),
+  and a drag also ends when React Flow's `connection.inProgress` goes false,
+  so the next drag is measured even when no node saw the last one end (every
+  node gone during the drag, e.g. its insert undone).
   Measured one node at a time, each was one React Flow store update run
   through every subscriber, and starting or ending a drag on the 63-node gacha
   banner Template took about 1.5 to 2.5 times as long, on the production build
