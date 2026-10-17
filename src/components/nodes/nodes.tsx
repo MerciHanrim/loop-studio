@@ -36,6 +36,7 @@ import { InsideMask, OutsideMask } from './RingMasks'
 import { fitRows, type MeasuredRow, type RowFit, rowFitMeasured } from './rowFit'
 import { type Box, convMarkSpot, type Spot } from './convMark'
 import { useConversionMark, usePoolPulseKey } from './nodeCues'
+import { measureFacesForDrag } from './faceBatch'
 import type {
   ConverterData,
   DrainData,
@@ -752,14 +753,24 @@ function NodeFrame({
   // store update in this layout effect would run React Flow's edge selectors of
   // the previous render (useSyncExternalStore swaps them in a passive effect),
   // which still look for the removed handle.
+  // When a connection drag begins or ends, every node's faces change in the
+  // same commit: the first node to get here measures them all at once, in the
+  // same order (./faceBatch, share note 58).
   const rfStore = useStoreApi()
   const updateNodeInternals = useUpdateNodeInternals()
   const mountedFacesKey = outside ? (facesOn ? '*' : usedHandlesKey) : ''
   const facesKeyRef = useRef(mountedFacesKey)
+  const connectingRef = useRef(connecting)
   useLayoutEffect(() => {
     const prev = facesKeyRef.current
+    const wasConnecting = connectingRef.current
+    connectingRef.current = connecting
     if (prev === mountedFacesKey) return
     facesKeyRef.current = mountedFacesKey
+    if (wasConnecting !== connecting) {
+      measureFacesForDrag(rfStore, connecting)
+      return
+    }
     if (addsHandle(prev, mountedFacesKey)) {
       const { domNode, updateNodeInternals: measureNow } = rfStore.getState()
       const nodeElement = domNode?.querySelector<HTMLDivElement>(`.react-flow__node[data-id="${CSS.escape(nodeId)}"]`)
@@ -767,7 +778,7 @@ function NodeFrame({
     } else {
       updateNodeInternals(nodeId)
     }
-  }, [mountedFacesKey, nodeId, rfStore, updateNodeInternals])
+  }, [mountedFacesKey, connecting, nodeId, rfStore, updateNodeInternals])
   // §VL3 stacking — every state is its own layer, so a Register that is
   // selected AND keyboard-focused AND invalid shows all three cues at once:
   // the outer --warning invalid ring, the solid selection ring, the inset
