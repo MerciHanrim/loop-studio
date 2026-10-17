@@ -969,9 +969,10 @@ form are in §R10-0; `docs/diagram-layout.md` §DL4 is the product rule.
 
 - **Add bend**: armed for the selected connection. The next click on its line
   inserts one bend point on the segment clicked (`bendAtClick`), snapped to
-  the 16 px grid ALONG that segment and kept on its line across it (Alt: at
-  the click) — so adding a bend moves nothing; a port row is off the grid and
-  a full snap would make the route jog. **Enter** inserts one in the middle of
+  the 16 px grid ALONG that segment and kept on its line across it (Alt skips
+  grid snapping but keeps the point on the segment) — so adding a bend moves
+  nothing; a port row is off the grid and a full snap would make the route
+  jog. **Enter** inserts one in the middle of
   the longest editable segment (between the two stub ends; equal lengths: the
   one nearer the start; a refused point gives way to the next segment —
   `keyboardBend`) and moves the focus to its handle. Either goes into the
