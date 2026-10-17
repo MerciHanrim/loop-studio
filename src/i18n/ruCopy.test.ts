@@ -261,7 +261,6 @@ describe('ru copy — the first Cyrillic catalog', () => {
       'скруглённые',
       'скруглёнными',
       'создаёт',
-      'создаётся', // 0.28.4: `создаётся ли связь` in the release-note line
       // issue #302: the 0.15.2 release-note lines, `сохранённая тема` and
       // `сохранённое значение темы`
       'сохранённая',

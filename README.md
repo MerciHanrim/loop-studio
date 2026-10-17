@@ -144,10 +144,10 @@ import, …) live under [`docs/`](docs/).
 
 Starting and finishing a connection responds faster.
 
-- **Starting to draw**: responds faster, especially in large diagrams
-- **Letting go**: faster too, whether the connection is made or dropped on the empty canvas,
-  and so is dragging a connection's end grip
-- **Nothing else changes**: while you draw, every side of every node is still offered
+- **Starting to draw**: responds faster, with a larger improvement in large diagrams
+- **Releasing on the empty canvas**: a connection drag released there also responds faster
+- **Every side stays available**: while drawing a connection, handles on every side of every
+  node remain available
 
 ## v0.28.3
 

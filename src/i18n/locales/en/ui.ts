@@ -601,9 +601,9 @@ const ui = {
   'whatsNew.v0283.hidden': 'After Undo or Redo, a connection or node no longer stays highlighted while the Inspector is empty. Delete won’t remove it, and the arrow keys won’t move a node until you select it.',
   'whatsNew.v0283.history': 'Undo and Redo no longer bring back a selection from an earlier step.',
   'whatsNew.v0283.module': 'Inserting a module is the one exception: Undo selects again what was selected before the insert, and Redo selects the inserted nodes.',
-  'whatsNew.v0284.start': 'Starting to draw a connection now responds faster, especially in large diagrams.',
-  'whatsNew.v0284.release': 'Letting go responds faster too, whether the connection is made or you drop it on the empty canvas, and so does dragging a connection’s end grip.',
-  'whatsNew.v0284.same': 'Nothing else changes: while you draw, every side of every node is still offered.',
+  'whatsNew.v0284.start': 'Starting to draw a connection responds faster, with a larger improvement in large diagrams.',
+  'whatsNew.v0284.release': 'Releasing a connection drag on the empty canvas also responds faster.',
+  'whatsNew.v0284.same': 'While drawing a connection, handles on every side of every node remain available.',
 } as const
 
 export type UiKey = keyof typeof ui

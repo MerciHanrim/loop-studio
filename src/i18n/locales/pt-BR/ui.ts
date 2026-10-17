@@ -617,9 +617,9 @@ const ui = {
   'whatsNew.v0283.hidden': 'Depois de Desfazer ou Refazer, uma ligação ou um nó deixa de ficar destacado enquanto o Inspetor não mostra nada. Até que clique nele para selecioná-lo, Delete não o remove e as teclas de seta não movem nenhum nó.',
   'whatsNew.v0283.history': 'Desfazer e Refazer deixam de trazer de volta uma seleção de um passo anterior.',
   'whatsNew.v0283.module': 'Inserir um módulo é a única exceção: Desfazer volta a selecionar o que estava selecionado antes da inserção, e Refazer seleciona os nós inseridos.',
-  'whatsNew.v0284.start': 'Começar a desenhar uma ligação passa a responder mais rapidamente, sobretudo em diagramas grandes.',
-  'whatsNew.v0284.release': 'Soltar também responde mais rapidamente, quer a ligação seja criada, quer seja solta na tela vazia, e o mesmo acontece ao arrastar a alça de uma extremidade.',
-  'whatsNew.v0284.same': 'Nada mais muda: enquanto desenha, todos os lados de todos os nós continuam a ser oferecidos.',
+  'whatsNew.v0284.start': 'Começar a desenhar uma ligação responde mais rapidamente, com uma melhoria maior em diagramas grandes.',
+  'whatsNew.v0284.release': 'Soltar uma ligação arrastada na tela vazia também responde mais rapidamente.',
+  'whatsNew.v0284.same': 'Enquanto desenha uma ligação, as portas de todos os lados de todos os nós continuam disponíveis.',
 } as const
 
 export type UiKey = keyof typeof ui
