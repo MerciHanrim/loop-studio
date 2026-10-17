@@ -609,6 +609,9 @@ const ui = {
   'whatsNew.v0283.hidden': '撤销或重做之后，不会再出现属性面板为空、连线或节点却仍然高亮的情况。在点击选中之前，按 Delete 键不会删除它，方向键也不会移动节点。',
   'whatsNew.v0283.history': '撤销和重做不再恢复之前某一步的选中状态。',
   'whatsNew.v0283.module': '插入模块是唯一的例外：撤销会重新选中插入前选中的内容，重做会选中插入的节点。',
+  'whatsNew.v0284.start': '开始绘制连线时的响应更快了，图表越大，改善越明显。',
+  'whatsNew.v0284.release': '拖动连线后在空白画布上松开时，响应也更快了。',
+  'whatsNew.v0284.same': '绘制连线时，每个节点每条边上的端口仍然可用。',
 } satisfies Record<UiKey, string>
 
 export default ui

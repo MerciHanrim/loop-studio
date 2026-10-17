@@ -1000,6 +1000,39 @@ on purpose: a face is placement, and taking the whole document away from an olde
 to protect it would cost more than it saves (decision D-A). The user-facing change note
 of the release that ships this says the same in one sentence.
 
+### ER17.1 The face handles and when they are measured
+
+A node mounts the handle of a face only when it is needed: a face one of its
+connections uses (always, hidden — React Flow draws no edge whose handle id is
+missing), and every face while a connection or an end grip is dragged (every
+node, so the drop can choose a face) or while the node is selected or
+keyboard-focused (`src/components/nodes/nodes.tsx`, `facesOn`). A mount or
+unmount without a size change is invisible to React Flow's ResizeObserver, so
+the handles' bounds are measured again:
+
+- a change that ADDS a handle — at once, in the node's layout effect: before
+  paint and before React Flow's edges reach its store (a passive effect), so the
+  connection that needs the handle finds it (React Flow error 008 otherwise);
+- a change that only REMOVES handles — on the next animation frame: a store
+  update in the layout effect would run React Flow's edge selectors of the
+  previous render, which still look for the removed handle;
+- **the start and the end of a drag change every node in the same commit and
+  are measured ONCE for all nodes** (`src/components/nodes/faceBatch.ts`): the
+  first node whose layout effect sees the drag state change measures every
+  node in one `updateNodeInternals` call — at the start at once (the commit's
+  DOM is complete, nothing painted), at the end on the next frame (only
+  removals) — and a new drag cancels an end's frame that has not run yet (a
+  frame left when the canvas goes away still runs, finds no canvas and
+  measures nothing). The state is each canvas's, keyed by the store's own
+  `getState` (`useStoreApi()` gives every component its own wrapper object),
+  and a drag also ends when React Flow's `connection.inProgress` goes false,
+  so the next drag is measured even when no node saw the last one end (every
+  node gone during the drag, e.g. its insert undone).
+  Measured one node at a time, each was one React Flow store update run
+  through every subscriber, and starting or ending a drag on the 63-node gacha
+  banner Template took about 1.5 to 2.5 times as long, on the production build
+  of one machine at CPU × 1 and × 4 (share note 58).
+
 ## ER18. Moving a connection's end (line editing, first unit)
 
 An existing connection's source or target end can be moved to another side of the

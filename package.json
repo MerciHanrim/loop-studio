@@ -1,7 +1,7 @@
 {
   "name": "loop-studio",
   "private": true,
-  "version": "0.28.3",
+  "version": "0.28.4",
   "type": "module",
   "engines": {
     "node": ">=22.12.0"

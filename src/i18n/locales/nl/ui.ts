@@ -612,6 +612,9 @@ const ui = {
   'whatsNew.v0283.hidden': 'Na Ongedaan maken of Opnieuw uitvoeren blijft een verbinding of knooppunt niet meer gemarkeerd terwijl de Inspector niets toont. Tot je erop klikt om het te selecteren, verwijdert Delete het niet en verplaatsen de pijltoetsen geen knooppunt.',
   'whatsNew.v0283.history': 'Ongedaan maken en Opnieuw uitvoeren halen geen selectie uit een eerdere stap meer terug.',
   'whatsNew.v0283.module': 'Een module invoegen is de enige uitzondering: Ongedaan maken herstelt de selectie van vóór het invoegen, en Opnieuw uitvoeren selecteert de ingevoegde knooppunten.',
+  'whatsNew.v0284.start': 'Beginnen met het tekenen van een verbinding reageert sneller, met een grotere verbetering in grote diagrammen.',
+  'whatsNew.v0284.release': 'Ook een gesleepte verbinding loslaten op het lege tekengebied reageert sneller.',
+  'whatsNew.v0284.same': 'Tijdens het tekenen van een verbinding blijven de poorten op alle zijden van alle knooppunten beschikbaar.',
 } as const
 
 export default ui

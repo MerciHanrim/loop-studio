@@ -617,6 +617,9 @@ const ui = {
   'whatsNew.v0283.hidden': 'Sau khi Hoàn tác hoặc Làm lại, liên kết hay nút không còn được làm nổi khi Bảng thuộc tính trống. Cho đến khi bạn nhấp để chọn, phím Delete không xóa nó và phím mũi tên không di chuyển nút.',
   'whatsNew.v0283.history': 'Hoàn tác và Làm lại không còn khôi phục vùng chọn từ một bước trước đó.',
   'whatsNew.v0283.module': 'Chèn mô-đun là ngoại lệ duy nhất: Hoàn tác chọn lại những gì đã được chọn trước khi chèn, còn Làm lại chọn các nút vừa chèn.',
+  'whatsNew.v0284.start': 'Bắt đầu vẽ liên kết phản hồi nhanh hơn, và sơ đồ càng lớn thì cải thiện càng rõ.',
+  'whatsNew.v0284.release': 'Thả một liên kết đang kéo trên khung vẽ trống cũng phản hồi nhanh hơn.',
+  'whatsNew.v0284.same': 'Trong khi vẽ liên kết, cổng kết nối ở mọi cạnh của mọi nút vẫn dùng được.',
 } satisfies Record<UiKey, string>
 
 export default ui

@@ -4,6 +4,16 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.28.4 — 2026-10-17
+
+Starting and finishing a connection drag responds faster ([`docs/edge-routing.md`](docs/edge-routing.md) §ER17.1).
+
+- **What was slow.** While a connection or an end grip is dragged, every node shows all of its sides so the drop can choose one, and when the drag ends the unused ones go. Each node then measured its handles again on its own — one update of the canvas's state per node, each passed to everything listening to it — so the start and the end of a drag grew slow on large diagrams.
+- **Now.** One measurement covers every node: at the start at once, before anything is drawn; at the end on the next frame, as before. A new drag started right after one ends is measured on its own. While drawing, every side of every node is still offered.
+- **How much.** On one machine's production build, the 63-node 3-zone gacha banner comparison started a drag in about 70–80 ms instead of 100–120 ms, and in about 370–460 ms instead of 800–850 ms with the processor slowed four times; releasing the drag on the empty canvas improved about as much; Coffee roastery operations flow did not get slower. Only those two gestures were timed: a release that makes a connection and an end grip drag take the same path and were checked to work as before, not timed. The full measurement is kept with the work, not in the app.
+
+**Notes.** Three What's new lines in 18 languages: the translation contract tests pass, and none had native-speaker review.
+
 ## v0.28.3 — 2026-10-15
 
 Undo and Redo leave nothing selected, on the canvas as in the Inspector ([`docs/large-graph-readability.md`](docs/large-graph-readability.md) LGR-D17); a module insert restores its own selection ([`docs/module-system.md`](docs/module-system.md) §MS3.5).

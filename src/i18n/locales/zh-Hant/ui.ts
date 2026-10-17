@@ -634,6 +634,9 @@ const ui = {
   'whatsNew.v0283.hidden': '復原或重做之後，不會再出現屬性面板是空的、連線或節點卻仍醒目標示的情況。在點一下選取之前，按 Delete 鍵不會刪除它，方向鍵也不會移動節點。',
   'whatsNew.v0283.history': '復原和重做不再恢復先前某一步的選取狀態。',
   'whatsNew.v0283.module': '插入模組是唯一的例外：復原會重新選取插入前選取的內容，重做會選取插入的節點。',
+  'whatsNew.v0284.start': '開始繪製連線時的反應更快了，圖表越大，改善越明顯。',
+  'whatsNew.v0284.release': '拖曳連線後在空白畫布上放開時，反應也更快了。',
+  'whatsNew.v0284.same': '繪製連線時，每個節點每一邊上的連接點仍然可用。',
 } satisfies Record<UiKey, string>
 
 export default ui

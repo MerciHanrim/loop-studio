@@ -615,6 +615,9 @@ const ui = {
   'whatsNew.v0283.hidden': 'Después de Deshacer o Rehacer, una conexión o un nodo ya no queda resaltado mientras Propiedades no muestra nada. Hasta que haga clic para seleccionarlo, Suprimir no lo elimina y las teclas de flecha no mueven ningún nodo.',
   'whatsNew.v0283.history': 'Deshacer y Rehacer ya no recuperan una selección de un paso anterior.',
   'whatsNew.v0283.module': 'Insertar un módulo es la única excepción: Deshacer vuelve a seleccionar lo que estaba seleccionado antes de insertarlo, y Rehacer selecciona los nodos insertados.',
+  'whatsNew.v0284.start': 'Empezar a dibujar una conexión responde más rápido, con una mejora mayor en diagramas grandes.',
+  'whatsNew.v0284.release': 'Soltar en el lienzo vacío una conexión que se está arrastrando también responde más rápido.',
+  'whatsNew.v0284.same': 'Mientras dibuja una conexión, los puertos de todos los lados de todos los nodos siguen disponibles.',
 } as const
 
 export type UiKey = keyof typeof ui

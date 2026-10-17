@@ -631,6 +631,9 @@ const ui = {
   'whatsNew.v0283.hidden': 'Dopo Annulla o Ripeti, un collegamento o un nodo non resta più evidenziato mentre l’Ispettore non mostra nulla. Finché non ci fai clic per selezionarlo, Canc non lo rimuove e i tasti freccia non spostano nessun nodo.',
   'whatsNew.v0283.history': 'Annulla e Ripeti non riportano più una selezione di un passaggio precedente.',
   'whatsNew.v0283.module': 'L’unica eccezione è l’inserimento di un modulo: Annulla seleziona di nuovo ciò che era selezionato prima dell’inserimento, e Ripeti seleziona i nodi inseriti.',
+  'whatsNew.v0284.start': 'Iniziare a disegnare un collegamento risponde più rapidamente, con un miglioramento maggiore nei diagrammi grandi.',
+  'whatsNew.v0284.release': 'Anche rilasciare sull’area di disegno vuota un collegamento che stai trascinando risponde più rapidamente.',
+  'whatsNew.v0284.same': 'Mentre disegni un collegamento, le porte su tutti i lati di tutti i nodi restano disponibili.',
 } satisfies Record<UiKey, string>
 
 export default ui

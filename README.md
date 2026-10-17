@@ -140,7 +140,16 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.28.3
+## Latest — v0.28.4
+
+Starting and finishing a connection responds faster.
+
+- **Starting to draw**: responds faster, with a larger improvement in large diagrams
+- **Releasing on the empty canvas**: a connection drag released there also responds faster
+- **Every side stays available**: while drawing a connection, handles on every side of every
+  node remain available
+
+## v0.28.3
 
 Undo and Redo leave nothing selected.
 
@@ -176,23 +185,8 @@ A connection's label keeps off the bend points you placed on it, where its line 
 - **Early MMO example**: no longer listed under Templates; it stays as developer test material
   for large diagrams, and a document you already made from it still opens and works as before
 
-## v0.28.0
-
-A connection can be turned around without drawing it again.
-
-- **Reverse a connection**: select it and press Reverse beside Ends in the Inspector; its
-  amount, condition, colour and line shape stay as they were and are read in the new
-  direction, the bends you placed keep their places, and one undo step takes it back
-- **What may look different**: the automatic route, the line next to each end and the
-  label's place may be drawn differently after a reversal
-- **Refused reversals say why**: a reversal that would end a connection at a node with no
-  input, start it at a node with no output, repeat a connection drawn the same way, or leave a
-  state connection with no effect is not applied, and the reason is shown
-
-On a phone the diagram stays read-only. Curves you shape yourself and moving a connection's
-label are not in this release.
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.27.0 (a
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.28.0 (a
+connection turned around without drawing it again), v0.27.0 (a
 connection's end moves without drawing the connection again), v0.26.2 (playback
 in the chosen colours, and the moving `+N` badges kept off the nodes), v0.26.0 (the
 compact node with its name outside, connections from any side, notices under the toolbar),
