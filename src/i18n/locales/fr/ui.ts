@@ -685,6 +685,9 @@ const ui = {
   'whatsNew.v0283.hidden': 'Après Annuler ou Rétablir, une connexion ou un nœud ne reste plus en surbrillance alors que les Propriétés n’affichent rien. Tant que vous ne cliquez pas dessus pour le sélectionner, Suppr ne le supprime pas et les flèches ne déplacent aucun nœud.',
   'whatsNew.v0283.history': 'Annuler et Rétablir ne ramènent plus une sélection d’une étape antérieure.',
   'whatsNew.v0283.module': 'L’insertion d’un module est la seule exception. Annuler sélectionne de nouveau ce qui l’était avant l’insertion, et Rétablir sélectionne les nœuds insérés.',
+  'whatsNew.v0284.start': 'Commencer à tracer une connexion réagit désormais plus vite, surtout dans les grands diagrammes.',
+  'whatsNew.v0284.release': 'Le relâchement réagit aussi plus vite, que la connexion soit créée ou relâchée sur le canevas vide, de même que le glissement de la poignée d’une extrémité.',
+  'whatsNew.v0284.same': 'Rien d’autre ne change. Pendant le tracé, tous les côtés de tous les nœuds restent proposés.',
 } satisfies Record<UiKey, string>
 
 export default ui

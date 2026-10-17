@@ -670,6 +670,9 @@ const ui = {
   'whatsNew.v0283.hidden': 'Geri al ya da Yinele sonrasında, İnceleyici boşken bir bağlantı ya da düğüm artık vurgulu kalmaz. Tıklayıp seçene kadar Delete onu silmez, ok tuşları da düğümü taşımaz.',
   'whatsNew.v0283.history': 'Geri al ve Yinele artık önceki bir adımdaki seçimi geri getirmez.',
   'whatsNew.v0283.module': 'Tek istisna modül eklemedir: Geri al, eklemeden önce seçili olanı yeniden seçer; Yinele ise eklenen düğümleri seçer.',
+  'whatsNew.v0284.start': 'Bağlantı çizmeye başlamak artık daha hızlı tepki veriyor, özellikle büyük diyagramlarda.',
+  'whatsNew.v0284.release': 'Bırakmak da daha hızlı: bağlantı oluşsa da boş tuvale bırakılsa da; bir ucun tutamacını sürüklemek de aynı şekilde.',
+  'whatsNew.v0284.same': 'Başka bir şey değişmez: çizerken tüm düğümlerin tüm kenarları yine sunulur.',
 } as const
 
 export type UiKey = keyof typeof ui

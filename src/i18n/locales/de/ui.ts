@@ -691,6 +691,9 @@ const ui = {
   'whatsNew.v0283.hidden': 'Nach Rückgängig oder Wiederherstellen bleibt keine Verbindung und kein Knoten mehr hervorgehoben, während die Eigenschaften leer sind. Bis Sie das Element anklicken und damit auswählen, entfernt Entf es nicht, und die Pfeiltasten bewegen keinen Knoten.',
   'whatsNew.v0283.history': 'Rückgängig und Wiederherstellen holen keine Auswahl aus einem früheren Schritt mehr zurück.',
   'whatsNew.v0283.module': 'Einzige Ausnahme ist das Einfügen eines Moduls: Rückgängig wählt wieder aus, was vor dem Einfügen ausgewählt war, und Wiederherstellen wählt die eingefügten Knoten aus.',
+  'whatsNew.v0284.start': 'Wenn Sie beginnen, eine Verbindung zu zeichnen, reagiert die Ansicht jetzt schneller, besonders in großen Diagrammen.',
+  'whatsNew.v0284.release': 'Auch das Loslassen reagiert schneller, ob die Verbindung entsteht oder Sie auf der leeren Arbeitsfläche loslassen; ebenso das Ziehen am Griff eines Verbindungsendes.',
+  'whatsNew.v0284.same': 'Sonst ändert sich nichts: Während Sie zeichnen, werden weiterhin alle Seiten aller Knoten angeboten.',
 } satisfies Record<UiKey, string>
 
 export default ui

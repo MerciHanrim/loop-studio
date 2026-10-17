@@ -39,6 +39,15 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // a connection drag's start and end measure every node's face handles in
+    // one update (docs/edge-routing.md §ER17.1, share note 58); the date is
+    // the day it is deployed, set right before the merge
+    id: 'release:0.28.4',
+    version: '0.28.4',
+    date: '2026-10-17',
+    items: ['whatsNew.v0284.start', 'whatsNew.v0284.release', 'whatsNew.v0284.same'],
+  },
+  {
     // undo / redo end with nothing selected, a module insert restores its
     // own selection (docs/large-graph-readability.md LGR-D17,
     // docs/module-system.md §MS3.5, share note 56); the date is the day it
