@@ -1,19 +1,21 @@
 # Loop Studio
 
-Loop Studio is a browser-based **visual systems editor and simulator** —
-draw a Machinations-style diagram of pools, sources, drains, gates, and
-converters, then run a deterministic, seeded simulation to see how the
-system behaves over time. Built primarily for **game economies**, the same
-step-based model generalises to inventory/supply chains, service queues,
-cash flows, and other resource-flow systems; it's an independent, client-only
-implementation — nothing is uploaded, the whole app runs in your browser, and
-a graph is a plain JSON file you own. Work is kept in your browser profile
+Loop Studio is a browser-based **visual systems editor and simulator** for
+modelling **how resources flow and how state changes** over time. Draw a
+diagram of pools, sources, drains, gates and converters, connect the values
+and conditions that drive them, then run a deterministic, seeded simulation —
+step by step, or as many runs at once — to see how the system behaves. The
+same step-based model fits a game economy, a production line or supply chain,
+a service queue, a budget or cash flow, and any other system where amounts
+move and rules react to them. It's an independent, client-only implementation
+— nothing is uploaded, the whole app runs in your browser, and a graph is a
+plain JSON file you own. Work is kept in your browser profile
 only when you say it is your own browser; on a shared computer a temporary
 session neither reads nor saves stored work, author information or settings
 ([docs/storage-sessions.md](docs/storage-sessions.md)).
 
 **Run it now: <https://cozy-loop-studio.pages.dev>** — available in
-[18 languages](#languages), with four bundled Templates ranging from a small
+[English and Korean](#languages), with four bundled Templates ranging from a small
 production flow to a coffee roastery's daily operations and a three-zone
 probability/pity comparison.
 
@@ -40,8 +42,8 @@ probability/pity comparison.
   plus file-based project revisions & proposals for asynchronous
   collaboration — no accounts, no server
 - **Runs anywhere** — an installable offline PWA, a portable single-file
-  build, shareable links (optionally protected with a password), and a UI translated into
-  [18 languages](#languages)
+  build, shareable links (optionally protected with a password), and a UI in
+  [English and Korean](#languages)
 
 ## Languages
 
@@ -49,41 +51,31 @@ probability/pity comparison.
      registry by `src/i18n/readmeLocales.test.ts`. Adding or removing a shipped
      language must update this table in the same change. -->
 
-The UI ships in 18 languages, listed here the way the in-app picker orders
-them. Pick one under **Settings → Language**; the first visit follows your
-browser's language, and the choice is remembered on that device.
+The UI ships in 2 languages, listed here the way the in-app picker orders
+them. Pick one under **View → Language**; the first visit follows your
+browser's language — Korean for a Korean browser, English for every other —
+and the choice is remembered on that device.
 
 | Code | Language | In its own words |
 |---|---|---|
-| `ar` | Arabic | العربية |
-| `zh-Hans` | Chinese (Simplified) | 简体中文 |
-| `zh-Hant` | Chinese (Traditional) | 繁體中文 |
-| `nl` | Dutch | Nederlands |
 | `en` | English | English |
-| `fr` | French | Français |
-| `de` | German | Deutsch |
-| `it` | Italian | Italiano |
-| `ja` | Japanese | 日本語 |
 | `ko` | Korean | 한국어 |
-| `pt-BR` | Portuguese (Brazil) | Português (Brasil) |
-| `pt-PT` | Portuguese (Portugal) | Português (Portugal) |
-| `ru` | Russian | Русский |
-| `es-419` | Spanish (Latin America) | Español (Latinoamérica) |
-| `es-ES` | Spanish (Spain) | Español (España) |
-| `th` | Thai | ไทย |
-| `tr` | Turkish | Türkçe |
-| `vi` | Vietnamese | Tiếng Việt |
 
 <!-- LOCALES:END -->
 
-Regional pairs are separate locales, not one catalog with a flag: a browser
-asking for `pt-PT` gets European Portuguese, while `pt`, `pt-BR` and the
-African Portuguese tags get Brazilian — and the same split holds for the two
-Spanish and the two Chinese catalogs. See
-[`docs/localization.md`](docs/localization.md) for the resolution order and
-the per-locale notes.
+Earlier versions also shipped sixteen other languages. They are no longer
+supported: their translations are kept in [`archive/i18n/`](archive/i18n/README.md),
+outside the build, and are not updated. If you had chosen one of them, Loop
+Studio now starts in English; the names and text in your documents are not
+changed. See [`docs/localization.md`](docs/localization.md) for the resolution
+order.
 
 ## Representative use cases
+
+The bundled Templates come from different fields — a small production flow, a
+coffee roastery's daily operations, and a game's probability rules — because
+the model is about flows and states, not about one genre. The one with the most
+moving parts is a game example:
 
 The *3-zone gacha banner comparison* Template runs three pity/pickup rule
 sets — **General/Free**, **Premium Standard** (hard-pity ceiling), and

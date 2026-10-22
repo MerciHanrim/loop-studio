@@ -369,7 +369,7 @@ test.describe('content ⊂ vessel — path-aware (isPointInFill)', () => {
     })
   }
 
-  for (const loc of ['en', 'ko', 'ja'] as const) {
+  for (const loc of ['en', 'ko'] as const) { // §L2.0 (2026-10): the shipped languages
     test(`every parameter / register corner is inside the fill — ${loc}`, async ({ page }) => {
       await openApp(page, { structure: 'inside' })
       await resetAll(page)
@@ -406,7 +406,7 @@ test.describe('content ⊂ vessel — path-aware (isPointInFill)', () => {
 
   // #167 regression — the vertical containment it fixed must still hold: the
   // content AABB clears the drawn stroke top and bottom.
-  for (const loc of ['en', 'ko', 'ja'] as const) {
+  for (const loc of ['en', 'ko'] as const) {
     test(`content clears the vessel top / bottom — ${loc}`, async ({ page }) => {
       await openApp(page, { structure: 'inside' })
       await resetAll(page)

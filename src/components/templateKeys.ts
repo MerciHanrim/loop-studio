@@ -15,6 +15,18 @@ export const TEMPLATE_KEY = {
     name: 'templates.coffeeRoastery.name',
     blurb: 'templates.coffeeRoastery.blurb',
   },
+  'gacha-general': {
+    name: 'templates.gachaGeneral.name',
+    blurb: 'templates.gachaGeneral.blurb',
+  },
+  'gacha-standard': {
+    name: 'templates.gachaStandard.name',
+    blurb: 'templates.gachaStandard.blurb',
+  },
+  'gacha-pickup': {
+    name: 'templates.gachaPickup.name',
+    blurb: 'templates.gachaPickup.blurb',
+  },
   'gacha-banner-zones': {
     name: 'templates.gachaBannerZones.name',
     blurb: 'templates.gachaBannerZones.blurb',

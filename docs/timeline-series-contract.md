@@ -153,18 +153,33 @@ The cap applies to what is rendered — line, segment and bead — not only to t
 The rule is **one row**, not "eight chips". A fixed count re-compresses the plot at
 narrow widths: at 800px, eight chips wrap to three rows and the plot drops to 118px.
 
-- Show as many chips as fit on **one row** at the current width.
-- The chip count is therefore **not** the drawn-series count and must never be presented
-  as if it were.
-- The CSV control and the selector trigger keep their place; chips yield to them.
+- **Revised 2026-10-20 (Lumi): every drawn series has its chip.** The chips sit on one
+  row in their own strip, which scrolls sideways when they do not fit. A drawn line's
+  name is never reachable only through the selector or a pinned step reading. (Until
+  then the row showed only the chips that fit: at 1280 × 800 the Early MMO file's
+  fifth story series, Gear score, was drawn with its name nowhere on screen.)
+- A side with chips past the edge is faded and carries "+N", how many lie that way; a
+  click or a tap on it scrolls one strip's width that way. While the strip overflows,
+  both marks keep their room (an empty one unseen), so the strip's width does not
+  change as it scrolls. The marks are for the pointer: Tab reaches every chip, a
+  focused chip is brought wholly into view, and a screen reader reads every chip.
+- The wheel scrolls the strip sideways; a touch pans it. A tap on a chip still shows or
+  hides its series.
+- The CSV control and the selector trigger keep their place; the strip takes the room
+  they leave.
 - The trigger is **always present**, at every width and in every state.
 
-| Width | Chips | Lines | Header rows | Plot |
-| ---: | ---: | ---: | ---: | ---: |
-| 1440 | 8 | 8 | 1 | 170px |
-| 800 | 3 | 8 | 1 | 170px |
+- No chip covers the trigger or the CSV control, and the header never reaches into the
+  plot.
 
-Plot height holds at 170px in `auto`, `all`, `explicit` and RTL, at both widths.
+**Revised 2026-10-20.** The analysis area is 152px by default and resizable (§7), so a
+fixed plot height (170px, then "at least 160px") no longer holds. What the rule protects
+is that the header never takes the plot's room. The plot is the area's height less the
+fixed run row and header. So it is the same height with one series or 55, at 1440px or
+800px, in `auto`, `all` and `explicit`, and every pixel the splitter adds goes to the
+plot. Tested in `e2e/timeline-series.spec.ts`: each case's plot height is compared with
+the same width carrying one series, and the splitter's +64px is compared with the plot's
+own +64px.
 
 ## 6. The series selector
 
@@ -249,29 +264,81 @@ controls for overlapping jobs.
 
 ## 7. Timeline panel state
 
-The collapse control already exists (`.pstrip__collapse`, 240px -> 40px, canvas 562 ->
-762px) and already writes nothing. Only the default and the auto-expand rule are new.
+**Revised 2026-10-20 (the workbench, [`workbench.md`](workbench.md) §WB7).** The
+analysis area under the canvas is **open from the start at 152px**. The user can fold it
+to the run row (`.pstrip__collapse`), open it again, and resize it with the splitter
+above it.
 
 ```
-untouched + before any run -> collapsed
-untouched + first run      -> auto-expand
-user has toggled it once   -> automatic transitions stop permanently
+on open                    -> expanded, 152px
+the collapse control       -> folded / expanded, the user's choice
+the splitter               -> any height from 96px, the canvas keeping 160px
 ```
 
-- Run, pause and reset never override a user choice.
-- "First run" means the first time the session has something to show in the panel: a
-  live step (`stepIndex > 0` or `status === 'running'`) **or a completed Monte-Carlo
-  run** — the distribution view lives in the same panel and a result nobody can see
-  is not a result. Automatic transitions only ever expand; the panel never collapses
-  itself again.
-- Screen state only: not in the project save format, not persisted. (Verified: toggling
-  changes no storage key today.)
-- Add the missing **`aria-expanded`**. It currently signals state only by swapping its
-  `title` between `타임라인 숨기기` and `타임라인 표시`, while the section headers and the
-  legend chip both expose `aria-expanded`.
+- Only the user folds or opens it. A run, a step, pause, reset or a completed
+  Monte-Carlo run never changes it.
+- **The Distribution view has its own minimum, 280px** (Lumi, 2026-10-20). At 152px its
+  band chart was 0px tall and its Pool select sat past the area's edge.
+  - Entering the view raises a lower area to 280px. An area that is already taller stays
+    as it is.
+  - While the view shows, the splitter does not go below 280px; folding the whole area
+    still works.
+  - Leaving the view brings back the height from before.
+  - Where the window cannot give 280px and still leave the canvas its 160px, the area
+    stops there and the view scrolls inside it.
+  - The run and the canvas's zoom are untouched.
+  - Measured at 1280 × 800, in English and Korean and with a terminations row (runs that
+    end): 280px shows the stats, the terminations row, the Pool select, the mean toggle
+    and a 98px chart, with nothing scrolling.
+- Screen state only: not in the project save format, not persisted. Neither toggling
+  nor resizing writes a storage key.
+- The collapse control exposes **`aria-expanded`**.
 
-Verified by falsification: with the auto-expand flag reset so only the user-touched guard
-could hold the panel shut, a run advanced from step 0 to step 2 and it stayed collapsed.
+Before 2026-10-20 the panel started collapsed and expanded itself on the first run (a
+live step or a completed Monte-Carlo run) unless the user had toggled it. That rule is
+withdrawn: the panel no longer starts collapsed, so there is nothing for a run to
+expand.
+
+### 7a. The step reading (2026-10-20)
+
+A **reading** of a recorded step, on the live chart (Hanrim's request, Lumi's scope). It
+never changes the run: no seek, no `commitEpoch` bump, no store write. Moving the run to a
+past step (the "timeline scrubber" of `simulation-playback.md` PB-Q5) is a separate
+feature and is not built.
+
+- **Pick.** A click on the plot picks the recorded step nearest to it by x. The chart
+  draws a line at that step, and a small panel beside the line lists the step and the
+  value there of every series the chart draws (Pools as the chart's own numbers,
+  Registers as their formatted value, `—` where R(t) is invalid).
+- **Move.** A click elsewhere moves the pick. A second click on the same point keeps it;
+  it is not a toggle.
+- **End.** The panel's close button, or `Escape` while the chart has focus. Either way the
+  focus is (back) on the chart.
+- **Keyboard.** The chart is focusable once a run has steps (`role="group"`, an
+  accessible name that says how to read it). `ArrowLeft` / `ArrowRight` move to the
+  previous / next recorded step, starting at the latest when nothing is picked;
+  `Home` / `End` go to the first / last. The step heading is a polite live region.
+- **Kept, and ended.** The pick is held by its entry in `series`, not by its number.
+  The run going on appends entries and keeps it. A reset, a restored snapshot, another
+  document (each builds a new `series`) or the record dropping its oldest entries
+  (`MAX_SERIES` = 400) removes the entry, and the reading ends with it.
+- **Where it stands** (Lumi, 2026-10-20). The plot under the 152px area is short, so
+  the panel is not kept inside it. It stands on the plot's bottom beside the line, on
+  the side with more room, and opens upward over the canvas as far as its rows need,
+  above the status bar and inside the window. It is **at most 320px tall**, heading
+  included, and less where the room up to the top of the canvas column is less. On
+  screen is not enough; it must not cover the work. Past that the step heading and the
+  close button stay put and only the list of values scrolls, to the last value. Four
+  series show without a scroll (at 1440 × 900); 30 and 60 scroll inside (at
+  1280 × 800, and 30 at a 380px-tall window where the room is under 320px). It never
+  changes the analysis area's height, the zoom or the run.
+- **Touch.** A tap picks a step and a tap on the close button ends the reading
+  (tested on a 1024 × 768 and a 768 × 1024 touch screen).
+- **Not on the distribution.** The Monte-Carlo distribution view shows no reading.
+- Screen state only: never saved, exported or shared.
+
+Tests: `e2e/timeline-step-reading.spec.ts`. It reads each step's place from the drawn
+line's own vertices, not from the chart's x mapping.
 
 ## 8. Summary panel calculations
 

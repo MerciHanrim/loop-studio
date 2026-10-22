@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { useGraphStore } from './graphStore'
 import { useAutoFrameStore, hasAutoFrames, autoFramesStale, graphSignature } from './autoFrameStore'
 import { useFrameStore } from './frameStore'
-import type { AFEdge, AFNode } from '../components/frames/autoFrames'
+import { useUiStore } from './uiStore'
+import { suggestFrames, type AFEdge, type AFNode } from '../components/frames/autoFrames'
 
 // docs/large-graph-readability-auto-frames.md §AF — the DERIVED auto-frame store.
 // Session-only, no serialization, cleared on a whole-graph swap (`loadRev`).
@@ -197,6 +198,60 @@ describe('autoFrameStore — the staleness-signature boundary', () => {
     useFrameStore.getState().renameFrame(useFrameStore.getState().frames[0].id, 'M2')
     expect(useAutoFrameStore.getState().lastSignature).toBe(sigAfterSuggest) // no re-sign
     expect(autoFramesStale(useAutoFrameStore.getState().lastSignature)).toBe(false)
+  })
+})
+
+// §AF8 — the shown rect is drawn from R0; it never feeds the algorithm back
+describe('autoFrameStore — the shown rect beside R0', () => {
+  const was = useUiStore.getState().nodeStructure
+  beforeEach(() => {
+    resetStores()
+    const { nodes, edges } = twoBlobDoc()
+    useGraphStore.setState({
+      nodes: nodes.map((n) => ({ id: n.id, type: n.kind, position: n.position, data: { kind: n.kind } })) as never,
+      edges: edges.map((e, i) => ({ id: `e${i}`, source: e.source, target: e.target, type: 'loop', data: { kind: 'resource' } })) as never,
+    })
+  })
+  afterEach(() => useUiStore.getState().setNodeStructure(was))
+
+  const fromAlgorithm = () => {
+    const g = useGraphStore.getState()
+    return suggestFrames(
+      g.nodes.map((n) => ({ id: n.id, kind: (n.data as { kind: string }).kind, position: n.position })),
+      g.edges.map((e) => ({ source: e.source, target: e.target })),
+    ).map((r) => ({ area: r.area, rect: r.rect, members: r.members }))
+  }
+  const contains = (o: { x: number; y: number; w: number; h: number }, i: typeof o) =>
+    i.x >= o.x && i.y >= o.y && i.x + i.w <= o.x + o.w && i.y + i.h <= o.y + o.h
+
+  it('outside: rect, members and area are the algorithm’s own; the shown rect holds R0', () => {
+    useUiStore.getState().setNodeStructure('outside')
+    useAutoFrameStore.getState().suggest()
+    const fs = useAutoFrameStore.getState().autoFrames
+    expect(fs.map((f) => ({ area: f.area, rect: f.rect, members: f.members }))).toEqual(fromAlgorithm())
+    for (const f of fs) expect(contains(f.shown, f.rect), f.id).toBe(true)
+    // these pools' names stand below the row: at least one frame grows
+    expect(fs.some((f) => f.shown.h > f.rect.h)).toBe(true)
+  })
+
+  it('inside: the shown rect is R0 itself', () => {
+    useUiStore.getState().setNodeStructure('inside')
+    useAutoFrameStore.getState().suggest()
+    for (const f of useAutoFrameStore.getState().autoFrames) {
+      expect(f.shown).toEqual(f.rect)
+      expect(f.shownHeld).toEqual([])
+    }
+  })
+
+  it('a label change moves neither R0 nor the shown rect', () => {
+    useUiStore.getState().setNodeStructure('outside')
+    useAutoFrameStore.getState().suggest()
+    const a = useAutoFrameStore.getState().autoFrames.map((f) => ({ rect: f.rect, shown: f.shown, members: f.members }))
+    useGraphStore.setState({
+      nodes: useGraphStore.getState().nodes.map((n) => ({ ...n, data: { ...n.data, label: `긴 이름 ${n.id} — a much longer name` } })) as never,
+    })
+    useAutoFrameStore.getState().suggest()
+    expect(useAutoFrameStore.getState().autoFrames.map((f) => ({ rect: f.rect, shown: f.shown, members: f.members }))).toEqual(a)
   })
 })
 

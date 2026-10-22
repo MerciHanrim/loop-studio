@@ -1,0 +1,1 @@
+{ "type": "user-facing", "changelog": "**Structures in the File menu.** \"Save selected structure…\" saves the selected nodes and the connections between them to a file, and \"Insert saved structure…\" adds such a file to the open document as one undo step. The Insert module menu and its two bundled blocks are gone." }

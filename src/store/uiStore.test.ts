@@ -138,6 +138,31 @@ describe('uiStore — Inputs / Summary panels (docs/module-system.md §MS5)', ()
   // covered by e2e/model-panels.spec.ts — same reason as focusMode above.
 })
 
+describe('uiStore — minimapCollapsed (docs/workbench.md §WB2.1)', () => {
+  it('starts folded when no choice can be read (a fresh store)', async () => {
+    // the value is read once, when the store is made; nothing stored (the
+    // test env answers no storage) is the "no choice" case
+    vi.resetModules()
+    const fresh = await import('./uiStore')
+    expect(fresh.useUiStore.getState().minimapCollapsed).toBe(true)
+  })
+
+  it('set / toggle flip it; setting the same value is a no-op', () => {
+    useUiStore.setState({ minimapCollapsed: true })
+    const s = () => useUiStore.getState()
+    s().toggleMinimapCollapsed()
+    expect(s().minimapCollapsed).toBe(false)
+    s().setMinimapCollapsed(true)
+    expect(s().minimapCollapsed).toBe(true)
+    const before = s()
+    s().setMinimapCollapsed(true)
+    expect(s()).toBe(before)
+  })
+
+  // a stored choice ('0' / '1' under `loop-studio:minimap-collapsed`) kept
+  // across a reload is covered by e2e/minimap-responsive.spec.ts
+})
+
 describe('uiStore — panMode (docs/dense-graph-pan.md — session-only)', () => {
   beforeEach(() => useUiStore.setState({ panMode: false }))
 

@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
-import { OVERFLOW_GRAPH, OVERFLOW_CASES, expectedRow, readValueRow } from './support/valueOverflow'
+import { OVERFLOW_GRAPH, OVERFLOW_CASES, expectedMeaning, expectedRow, expectedValue, readValueRow } from './support/valueOverflow'
 
 // Node structure — the value OVERFLOW rule of the new node (share
 // 17-implementation-rules.md §4.1; Lumi 2026-10-12: "long integers, decimals,
@@ -36,36 +36,41 @@ async function selectByKeyboard(page: Page, id: string): Promise<void> {
 }
 
 test.describe('node structure — a value wider than the reserved body', () => {
-  test('the row keeps the document format and precision, and the ellipsis is the elision mark', async ({ page }) => {
+  test('the row keeps the document format and precision, the ellipsis is the elision mark, and the whole value is beside the symbol', async ({ page }) => {
     await load(page)
     for (const c of OVERFLOW_CASES) {
       const row = await readValueRow(page, c.id)
-      const want = expectedRow(c)
+      const value = expectedValue(c)
       // the DOM text is the whole formatted value: no rounding, no dropped
-      // digits, the unit kept — space never changes what the number says
-      expect(row.text, `${c.id}: full text`).toBe(want)
-      // it does not fit the reserved width, and the mark is the ellipsis: the
-      // row is clipped (overflow hidden) with text-overflow ellipsis, its
-      // scroll width wider than its box
+      // digits — space never changes what the number says
+      expect(row.text, `${c.id}: full text`).toBe(value)
+      // it does not fit its symbol, and the mark is the ellipsis: the row is
+      // clipped (overflow hidden) with text-overflow ellipsis, its scroll width
+      // wider than its box
       expect(row.overflows, `${c.id}: overflows its box (${row.scrollWidth} > ${row.clientWidth})`).toBe(true)
       expect(row.textOverflow, `${c.id}: elision mark`).toBe('ellipsis')
       expect(row.overflow, `${c.id}: clipped`).toBe('hidden')
+      // and it is never ONLY cut short (Lumi, 2026-10-19): the line beside the
+      // symbol writes it in full, with what it means (a capacity, a unit)
+      expect(row.auxValue, `${c.id}: the whole value beside the symbol`).toBe(value)
+      expect(row.auxMeaning, `${c.id}: what it means beside the symbol`).toBe(expectedMeaning(c))
       // the pointer path: the whole text on the row's tooltip
-      expect(row.title, `${c.id}: tooltip`).toBe(want)
-      // the body is at the cap or at its reservation — never grown for the value
-      expect(row.bodyWidth, `${c.id}: body width`).toBeLessThanOrEqual(260)
-      expect(row.bodyWidth, `${c.id}: body width`).toBeGreaterThanOrEqual(88)
+      expect(row.title, `${c.id}: tooltip`).toBe(expectedRow(c))
+      // the symbol is never grown for the value: the 56 px cell
+      expect(row.bodyWidth, `${c.id}: body width`).toBe(56)
     }
   })
 
-  test('a Pool that is NOT at the cap still elides, not shrinks: a twelve-digit count in a six-digit reservation', async ({ page }) => {
+  test('a Pool elides, not shrinks: a twelve-digit count keeps the value size', async ({ page }) => {
     await load(page)
     const row = await readValueRow(page, 'p_twelve')
     expect(row.text).toBe('123456789012')
     expect(row.overflows, `overflows (${row.scrollWidth} > ${row.clientWidth})`).toBe(true)
     expect(row.textOverflow).toBe('ellipsis')
-    // the glyphs are not scaled down: the row's font size is the value type's 18 px
-    expect(row.fontSize).toBe('18px')
+    // the glyphs are not scaled down: the row's font size is the symbol node's
+    // value type, 16 px (the workbench; the previous body's was 18 px)
+    expect(row.fontSize).toBe('16px')
+    expect(row.auxValue, 'and written in full beside the symbol').toBe('123456789012')
   })
 
   test('keyboard path: a keyboard-selected node shows the whole value in the Inspector', async ({ page }) => {
@@ -81,7 +86,7 @@ test.describe('node structure — a value wider than the reserved body', () => {
     // a Register: the read-back's total is the engine's number verbatim (the
     // same digits the row carries, computed by the product's own rule)
     await selectByKeyboard(page, 'reg_big')
-    const big = expectedRow(OVERFLOW_CASES.find((c) => c.id === 'reg_big')!).replace(/ ¤$/, '')
+    const big = expectedValue(OVERFLOW_CASES.find((c) => c.id === 'reg_big')!).replace(/^= /, '')
     await expect(page.locator('.regrb__total')).toContainText(big)
   })
 

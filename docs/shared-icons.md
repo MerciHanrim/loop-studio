@@ -12,7 +12,8 @@ Until v0.15.3 the icons were typed as Unicode characters. Measured on `main 3f07
 - **It follows `currentColor`**, so it takes the control's text colour in every theme and under forced colours, where the text colour is the system's.
 - **Its size is `1em` by default**, the height of the text it replaced; a control that was measured to need another box gets it in CSS (`.icon--…` and the per-control rules in `src/index.css`), never in the component.
 - **A translated string carries no functional glyph.** `Play`, `Light`, `File` and the rest are words; the icon sits beside them in the component. The 17 catalog keys that carried a glyph lost it in all 18 locales, and the in-sentence `↔` of the Inspector's type-mismatch note became words in each language (`inspector.resourceType.pair`).
-- **Meaning-bearing characters stay text:** `©` (copyright), `＋ － ＝` beside the palette marks and on the expression keypad, the formula and menu-path characters `→ ← × − ≥ ≤ ≈ ± ÷ ≠ °`, and `⏎ ⇥ ␡` as the written names of control characters. Anything a person typed is theirs.
+- **A node kind's mark is not an `<Icon>`:** since 2026-10-21 the palette (the tool row's Add buttons) and the left list draw each kind with its canvas symbol's base outline, small (`src/components/nodes/KindIcon.tsx`, `docs/visual-language.md`); only the small End icon adds an identifying square inside its octagon (the canvas End has none). The palette's `＋ － ＝` text and its own `node-*` icons are gone.
+- **Meaning-bearing characters stay text:** `©` (copyright), `＋ － ＝` on the expression keypad, the formula and menu-path characters `→ ← × − ≥ ≤ ≈ ± ÷ ≠ °`, and `⏎ ⇥ ␡` as the written names of control characters. Anything a person typed is theirs.
 
 ## Direction
 

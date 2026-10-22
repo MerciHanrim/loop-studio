@@ -37,7 +37,8 @@ export const FRAME_GAP = 32
 type Doc<F extends FrameLike> = { nodes: LoopNode[]; edges: LoopEdge[]; frames?: F[] }
 
 /** the clearance between two nodes' boxes, per Template. `TEMPLATE_GAP` (48 ×
- *  32, §DL5.2) was measured for today's node, whose box is the body alone.
+ *  32, §DL5.2) was measured for the previous node (`?nodes=inside`), whose box
+ *  is the body alone.
  *  Under the NODE STRUCTURE a node's box is its body AND its outside name (up
  *  to 150 px wide, two or three lines tall, `templateBoxes.json` measured that
  *  way), so the same clearance pushes a hand-placed diagram apart by a name's
@@ -59,7 +60,7 @@ export const TEMPLATE_GAPS: Partial<Record<TemplateName, { x: number; y: number 
 }
 export const gapFor = (name: TemplateName): { x: number; y: number } => TEMPLATE_GAPS[name] ?? TEMPLATE_GAP
 
-/** a measured box entry: `[w, h]` for today's node (the body, anchored at the
+/** a measured box entry: `[w, h]` for the previous node (the body, anchored at the
  *  node position), or `[w, h, dx, dy, bw, bh]` under the node structure — the
  *  box is the body AND the outside name, `dx` / `dy` (≤ 0) its origin relative
  *  to the node position when the name sits above or left, `bw` / `bh` the body

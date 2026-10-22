@@ -15,8 +15,8 @@ function three() {
   S().addNodeAt('pool', { x: 200, y: 0 })
   S().addNodeAt('drain', { x: 400, y: 0 })
   const [a, b, c] = S().nodes
-  S().onConnect({ source: a!.id, target: b!.id, sourceHandle: 'out', targetHandle: 'in' })
-  S().onConnect({ source: b!.id, target: c!.id, sourceHandle: 'out', targetHandle: 'in' })
+  S().onConnect({ source: a!.id, target: b!.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
+  S().onConnect({ source: b!.id, target: c!.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
   // the last palette add is marked selected; start from nothing marked, as a
   // click on empty canvas leaves it
   S().onNodesChange(S().nodes.filter((n) => n.selected).map((n) => ({ id: n.id, type: 'select' as const, selected: false })))

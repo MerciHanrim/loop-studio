@@ -78,10 +78,17 @@ export function MonteCarloDialog() {
   }, [open, config, lastThroughput])
 
   // Escape closes (does NOT cancel a run); Tab trapped; focus returns to the
-  // strip's Monte Carlo button
-  useDialogFocus(open, dialogRef, close, () =>
-    document.querySelector<HTMLButtonElement>('.pstrip__mc button'),
-  )
+  // strip's Monte Carlo button — or, where the row folds it (docs/workbench.md
+  // §WB7), to the Run menu it is reached from, or ⋯ holding that menu: a
+  // folded button cannot take focus, which then fell to <body> (2026-10-20)
+  useDialogFocus(open, dialogRef, close, () => {
+    const shown = (el: HTMLElement | null) => (el && el.getClientRects().length > 0 ? el : null)
+    return (
+      shown(document.querySelector<HTMLButtonElement>('.pstrip__mc button')) ??
+      shown(document.querySelector<HTMLButtonElement>('[data-menu="run"] > .wb-mb')) ??
+      shown(document.querySelector<HTMLButtonElement>('.toolbar__overflow-btn'))
+    )
+  })
 
   if (!open) return null
 
@@ -276,7 +283,7 @@ export function MonteCarloDialog() {
           ) : (
             <button
               type="button"
-              className="btn btn--primary"
+              className="btn btn--primary btn--run"
               disabled={overLimit || noPools || (estimating && !estimate)}
               onClick={() => void run()}
             >

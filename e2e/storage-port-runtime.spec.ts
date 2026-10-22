@@ -208,17 +208,17 @@ test.describe('browser storage is reached through the port only, and only behind
     expect(inPhase('start-up', 'setItem', MODE)).toBe(1)
     expect(inPhase('start-up', 'getItem', GRAPH)).toBeGreaterThan(0)
     expect(inPhase('start-up', 'setItem', GRAPH)).toBeGreaterThan(0)
-    // issue #296 - a first visit records the newest release note as its baseline,
-    // once and with no action, and that write goes through the port like the rest
-    expect(inPhase('start-up', 'getItem', ANNOUNCED)).toBeGreaterThan(0)
-    expect(inPhase('start-up', 'getItem', OPENED)).toBeGreaterThan(0)
-    expect(inPhase('start-up', 'setItem', ANNOUNCED)).toBe(1)
-    expect(inPhase('start-up', 'setItem', OPENED)).toBe(0)
+    // 2026-10 - the in-app release notes were removed: their two keys are
+    // neither read nor written any more, at a first visit or later
+    for (const key of [ANNOUNCED, OPENED]) {
+      expect(all.filter((c) => c.key === key), key).toEqual([])
+    }
     // issue #302 / #297 - at this start the boot door read NO theme (the mode
-    // was not yet remembered when the page loaded); the two module readers are
-    // the returning-profile check of the update notice and `applyStoredTheme()`
+    // was not yet remembered when the page loaded); the one module reader left
+    // is `applyStoredTheme()` (the update notice's returning-profile check was
+    // the other, and it went with the notes)
     expect(all.filter((c) => c.viaBoot && c.phase === 'start-up')).toEqual([])
-    expect(inPhase('start-up', 'getItem', THEME)).toBe(2)
+    expect(inPhase('start-up', 'getItem', THEME)).toBe(1)
 
     // 2. onboarding and a preference. A profile with no tour key is offered the
     //    Welcome card once the app has settled; WHEN that is differs between this
@@ -228,7 +228,9 @@ test.describe('browser storage is reached through the port only, and only behind
     //    the card closes) rather than by a click that races it.
     await skipTour(page)
     await seen(page, 'setItem', TOUR)
-    const lock = page.locator('.react-flow__controls-button.rf-lock')
+    // the edit lock is the tool row's (the workbench, 2026-10): the canvas rail's
+    // button it replaced, the same `toggleCanvasLocked` and `aria-pressed`
+    const lock = page.locator('.wb-toolrow [data-tool="lock"]')
     await lock.click()
     await expect(lock).toHaveAttribute('aria-pressed', 'true')
     await lock.click()
@@ -284,9 +286,10 @@ test.describe('browser storage is reached through the port only, and only behind
       ['getItem', THEME, 'boot'],
     ])
     expect(restore.filter((c) => c.viaBoot).length, 'the boot door reads exactly those two').toBe(2)
-    // three module readers of the theme at a remembered start: the returning-
-    // profile check, the module door, and nothing else
-    expect(inPhase('restore', 'getItem', THEME)).toBe(3)
+    // two readers of the theme at a remembered start: the boot door above and
+    // the module door, nothing else (the update notice's returning-profile
+    // check was a third until the in-app release notes were removed, 2026-10)
+    expect(inPhase('restore', 'getItem', THEME)).toBe(2)
 
     // 6. share restore: the link, pointed at THIS server, loads the document
     //    and the autosave stores it
@@ -386,7 +389,9 @@ test.describe('browser storage is reached through the port only, and only behind
     // (#334 — the data import is an edit, which the lock refuses: import
     // first, then lock)
     await importExample(page)
-    const lock = page.locator('.react-flow__controls-button.rf-lock')
+    // the edit lock is the tool row's (the workbench, 2026-10): the canvas rail's
+    // button it replaced, the same `toggleCanvasLocked` and `aria-pressed`
+    const lock = page.locator('.wb-toolrow [data-tool="lock"]')
     await lock.click()
     await expect(lock).toHaveAttribute('aria-pressed', 'true')
     await page.waitForTimeout(700) // past the 400 ms autosave debounce

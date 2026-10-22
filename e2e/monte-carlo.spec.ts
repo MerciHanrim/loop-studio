@@ -11,6 +11,7 @@ import {
   runMc,
   test,
 } from './support/loop'
+import { openMonteCarloDialog } from './support/workbenchMenus'
 
 // Item 6 — import the verification fixture, then drive a real Monte-Carlo run
 // through the Worker path (http dev server ⇒ real Workers), plus a cancel.
@@ -31,7 +32,7 @@ test.describe('Monte Carlo run', () => {
       ;(window as any).__loop.mc.getState().setConfig({ baseSeed: 1, runs: 40, steps: 10, tracked })
     }, FIXTURE_POOLS_4)
 
-    await page.locator('.pstrip__mc button').click()
+    await openMonteCarloDialog(page)
     const runBtn = page.locator('.mcdlg__foot .btn--primary')
     await expect(runBtn).toBeEnabled() // cost probe resolved
     await runBtn.click()

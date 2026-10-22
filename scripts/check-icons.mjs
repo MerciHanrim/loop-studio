@@ -137,13 +137,15 @@ if (!touchRef) {
   }
 }
 
-// ── index.html: light + dark theme-color ────────────────────────────────
-const themeLight = /<meta[^>]+name=["']?theme-color["']?[^>]*media=["'][^"']*light[^"']*["'][^>]*content=["']#f0efea["']/i
-const themeDark = /<meta[^>]+name=["']?theme-color["']?[^>]*media=["'][^"']*dark[^"']*["'][^>]*content=["']#171a18["']/i
-if (themeLight.test(html)) ok('index.html: light theme-color #f0efea')
-else fail('index.html: missing light theme-color #f0efea')
-if (themeDark.test(html)) ok('index.html: dark theme-color #171a18')
-else fail('index.html: missing dark theme-color #171a18')
+// ── index.html: light + dark theme-color, the workbench --bg-app (2026-10;
+//    THEME_COLOR in src/theme/theme.ts). The icon field above keeps its own
+//    fixed brand colour. ─────────────────────────────────────────────────
+const themeLight = /<meta[^>]+name=["']?theme-color["']?[^>]*media=["'][^"']*light[^"']*["'][^>]*content=["']#e3e6ea["']/i
+const themeDark = /<meta[^>]+name=["']?theme-color["']?[^>]*media=["'][^"']*dark[^"']*["'][^>]*content=["']#101215["']/i
+if (themeLight.test(html)) ok('index.html: light theme-color #e3e6ea')
+else fail('index.html: missing light theme-color #e3e6ea')
+if (themeDark.test(html)) ok('index.html: dark theme-color #101215')
+else fail('index.html: missing dark theme-color #101215')
 
 if (failed) {
   console.error('\nicon check FAILED')

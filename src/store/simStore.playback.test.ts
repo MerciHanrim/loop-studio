@@ -25,8 +25,8 @@ function flowGraph() {
   g.addNodeAt('pool', { x: 200, y: 0 })
   g.addNodeAt('drain', { x: 400, y: 0 })
   const [s, p, d] = graph().nodes
-  graph().onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' })
-  graph().onConnect({ source: p.id, target: d.id, sourceHandle: 'out', targetHandle: 'in' })
+  graph().onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
+  graph().onConnect({ source: p.id, target: d.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
   const e = graph().edges.find((x) => x.source === s.id && x.target === p.id)!
   graph().setEdgeData(e.id, { kind: 'resource', flow: '2' })
   return { poolId: p.id }

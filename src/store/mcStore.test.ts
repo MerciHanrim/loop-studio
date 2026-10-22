@@ -9,7 +9,7 @@ function seedGraph() {
   g.addNodeAt('source', { x: 0, y: 0 })
   g.addNodeAt('pool', { x: 200, y: 0 })
   const [s, p] = useGraphStore.getState().nodes
-  useGraphStore.getState().onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' })
+  useGraphStore.getState().onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
   const e = useGraphStore.getState().edges[0]
   useGraphStore.getState().setEdgeData(e.id, { kind: 'resource', flow: '1-3' })
   return { poolId: p.id }

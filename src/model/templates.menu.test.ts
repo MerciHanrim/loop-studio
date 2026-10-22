@@ -9,7 +9,10 @@ import { MENU_TEMPLATES, TEMPLATES } from './templates'
 
 describe('the Templates the menu offers', () => {
   it('are every Template but Early MMO, in the same order', () => {
-    expect(MENU_TEMPLATES.map((t) => t.id)).toEqual(['equilibrium', 'deadlock', 'coffee-roastery', 'gacha-banner-zones'])
+    // 2026-10-20: the general gacha (docs/gacha-general.md), the standard
+    // gacha (docs/gacha-standard.md) and the pickup gacha (docs/gacha-pickup.md),
+    // before the 3-zone comparison
+    expect(MENU_TEMPLATES.map((t) => t.id)).toEqual(['equilibrium', 'deadlock', 'coffee-roastery', 'gacha-general', 'gacha-standard', 'gacha-pickup', 'gacha-banner-zones'])
   })
   it('Early MMO stays a Template entry, only not in the menu', () => {
     const mmo = TEMPLATES.find((t) => t.id === 'mmo-progression')

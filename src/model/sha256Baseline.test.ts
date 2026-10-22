@@ -116,6 +116,12 @@ const readBefore = (file: string): string => {
   return text
 }
 
+// The workbench redesign (2026-10) removed the two bundled module blocks from
+// `examples/`. Their recorded digests stay in the fixture as the #301 record;
+// with no file left to read they are checked for being gone, not skipped in
+// silence.
+const REMOVED_SINCE = new Set(['module-buffered-step.json', 'module-reward-split.json'])
+
 const docOf = (p: ReturnType<typeof deserialize>) => ({
   nodes: p.nodes,
   edges: p.edges,
@@ -125,7 +131,14 @@ const docOf = (p: ReturnType<typeof deserialize>) => ({
 })
 
 describe('the digests of real documents are unchanged', () => {
+  it('the removed module examples are exactly the recorded ones that have no file now', () => {
+    const recorded = EXAMPLE_GRAPH_DIGESTS.filter((x) => x.graph).map((g) => g.file)
+    const absent = recorded.filter((f) => EXAMPLE_TEXT['../../examples/' + f] === undefined)
+    expect(absent.sort()).toEqual([...REMOVED_SINCE].sort())
+  })
+
   for (const g of EXAMPLE_GRAPH_DIGESTS.filter((x) => x.graph)) {
+    if (REMOVED_SINCE.has(g.file)) continue
     if (COLOURED_SINCE.has(g.file)) {
       it(`examples/${g.file}: the semantic digest (a flow colour is not a model change)`, async () => {
         const p = deserialize(read(g.file))

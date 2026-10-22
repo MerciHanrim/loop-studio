@@ -14,8 +14,8 @@ marker — and merges as *settled design, implementation pending*, like
 > a **developer stress fixture**: it stays a Template entry in
 > `src/model/templates.ts` with `menu: false` (so its translations and the
 > §TLO11 locale switch still apply), keeps `examples/mmo-progression.json`, its
-> fixture, its scripts and its tests, and is opened by **Import**. Templates ▾
-> and the phone's More → Templates no longer list it; a document made from it
+> fixture, its scripts and its tests, and is opened by **Import**. File →
+> Templates and the phone's More → Templates no longer list it; a document made from it
 > still opens. A change that only affects it does not block a release; a
 > readability problem it shows is fixed only when a small case reproduces it.
 > The design below, including the menu registration (§EM10), is the record of
@@ -612,7 +612,8 @@ opens **edit-locked**: nodes don't move / connect, nothing deletes, the Inspecto
 is read-only — but selecting a node, reading its Inspector, pan / zoom, the
 minimap, the Timeline and the simulation all still work. The layout *is* part of
 this example's explanation (§EM13.1), so it shouldn't be nudged by accident on a
-first read; the Controls lock toggle (🔒 → 🔓) unlocks editing at any time. Like
+first read; the lock button (the tool row's last; the Controls rail's 🔒
+before 2026-10) unlocks editing at any time. Like
 `timelineSeries`, `canvasLocked` is UI-only advisory metadata — never the
 GraphDoc, the `loop-revision/*` digest, undo, or `simulationRev` — and it is
 preserved across Graph / Workspace / Share round-trips. Absent (every older file)

@@ -10,7 +10,9 @@ import {
 // Baselines lifted from the running app (~1920px), grouped per the two-tier
 // contract — Tier 1 (this file) is always one row; Tier 2 (the palette) is
 // always its own row and is never measured here. `OVERFLOW_ORDER` order:
-// help, data, settings, file, share, module.
+// help, data, settings, file, share. (Each row also had a sixth width, the
+// Module group's, until that group was removed in 2026-10; the remaining
+// widths are unchanged.)
 const EN: ToolbarMetrics = {
   inner: 1892,
   topGap: 10,
@@ -18,19 +20,21 @@ const EN: ToolbarMetrics = {
   brandBase: 206,
   core: 170,
   more: 30,
-  items: [25, 70, 90, 60, 62, 119], // help, data, settings, file, share, module
+  items: [25, 70, 90, 60, 62], // help, data, settings, file, share
 }
 const KO: ToolbarMetrics = {
   ...EN,
   brandBase: 201,
   core: 196,
-  items: [25, 60, 80, 55, 60, 91],
+  items: [25, 60, 80, 55, 60],
 }
+// JA no longer ships (§L2.0, 2026-10); its measured row stays as the widest
+// case these numbers cover
 const JA: ToolbarMetrics = {
   ...EN,
   brandBase: 216,
   core: 190,
-  items: [25, 75, 95, 65, 72, 136],
+  items: [25, 75, 95, 65, 72],
 }
 const LOCALES = { EN, KO, JA }
 
@@ -91,11 +95,12 @@ describe('overflowedItems / isInline', () => {
   it('collapsed=0 → everything inline', () => {
     expect(overflowedItems(0)).toEqual([])
     expect(isInline('help', 0)).toBe(true)
-    expect(isInline('module', 0)).toBe(true)
+    expect(isInline('share', 0)).toBe(true)
   })
-  it('collapsed=3 → help/data/settings in the menu, the rest inline', () => {
-    expect(overflowedItems(3)).toEqual(['help', 'data', 'settings'])
-    expect(isInline('settings', 3)).toBe(false)
+  it('collapsed=3 → help/run/insert in the menu, the rest inline (the workbench menu bar, 2026-10)', () => {
+    expect(overflowedItems(3)).toEqual(['help', 'run', 'insert'])
+    expect(isInline('insert', 3)).toBe(false)
+    expect(isInline('view', 3)).toBe(true)
     expect(isInline('file', 3)).toBe(true)
   })
 })

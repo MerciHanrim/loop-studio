@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { ja } from '../../i18n/templateLabels/ja'
 import { mayBreakBetween, needsPhrasing, phraseTitleParts } from './phraseTitle'
+
+// §L2.0 (2026-10) — no Japanese or Chinese catalog ships now; the phrasing code
+// stays for when one does, and these tests keep it honest on literal strings.
+// The sweep over the shipped Japanese template labels is in
+// `archive/i18n/tests/phraseTitle.multilocale.test.ts`.
 
 // docs/mmo-multilingual-layout.md §MML1 — the injected `<wbr>` restricts wrap
 // points to phrase boundaries, but a `<wbr>` is an EXPLICIT break opportunity
@@ -23,8 +27,6 @@ function possibleLines(parts: string[], breakAfter: boolean[]): string[] {
   return lines
 }
 
-const NO_LINE_START_CHARS = ['・', '、', '。', '！', '？', '）', '」', '』', '】', 'ー', 'ッ', '々']
-
 describe('phraseTitle — kinsoku-safe <wbr> placement', () => {
   it('needsPhrasing is JA / ZH only', () => {
     expect(needsPhrasing('ja')).toBe(true)
@@ -40,33 +42,14 @@ describe('phraseTitle — kinsoku-safe <wbr> placement', () => {
     expect(mayBreakBetween('スタッフ・', 'カッピング')).toBe(true)
   })
 
-  // the exact reported label, pinned to the shipped string
+  // the exact reported label (Coffee, Japanese)
   it('the Coffee "staff cupping" JA label never starts a line with ・', () => {
-    const label = ja['coffee-roastery'].roasted_bleed
-    expect(label).toBe('スタッフ・カッピング・サンプル用')
+    const label = 'スタッフ・カッピング・サンプル用'
     const seg = phraseTitleParts(label, 'ja')
     expect(seg, 'the label is phrased (has a usable break)').not.toBeNull()
     const lines = possibleLines(seg!.parts, seg!.breakAfter)
     expect(lines.length).toBeGreaterThan(1)
     for (const line of lines) expect(line.startsWith('・'), `line "${line}"`).toBe(false)
-  })
-
-  // every shipped JA node label, across every bundled template
-  it('no shipped JA template label can wrap to a 行頭禁則 line head', () => {
-    for (const [tpl, dict] of Object.entries(ja)) {
-      for (const [id, label] of Object.entries(dict)) {
-        const seg = phraseTitleParts(label, 'ja')
-        if (!seg) continue
-        const lines = possibleLines(seg.parts, seg.breakAfter)
-        for (const line of lines) {
-          const head = [...line][0] ?? ''
-          expect(
-            NO_LINE_START_CHARS.includes(head),
-            `${tpl}/${id} "${label}" → line "${line}" starts with a forbidden "${head}"`,
-          ).toBe(false)
-        }
-      }
-    }
   })
 
   it('still phrases genuine meaning-unit boundaries (does not glue the whole string)', () => {

@@ -3,7 +3,8 @@ import { expect, openApp, resetAll, test } from './support/loop'
 
 // docs/example-coffee-roastery.md §CR17 + docs/template-label-overlay.md §TLO12 —
 // the Coffee roastery Template ships three group frames (`zone_supply`,
-// `zone_roasting`, `zone_forecast`). This spec pins, in EN / KO / JA, that:
+// `zone_roasting`, `zone_forecast`). This spec pins, in EN / KO (the two
+// shipped languages, docs/localization.md §L2.0 (2026-10)), that:
 //   • the three frames render and carry the active locale's title;
 //   • every non-Parameter node sits in exactly one frame with ≥ 24 px margin;
 //   • the five y = 0 Parameter nodes touch no frame box and no title chip;
@@ -31,9 +32,9 @@ async function pickCoffee(page: Page) {
   await templatesBtn(page).click()
   await page
     .locator('.toolbar__actions .menu').first()
-    .locator('.menu__pop [role="menuitem"]', { hasText: /Coffee roastery|커피 로스터리|コーヒー/ })
+    .locator('.menu__pop [role="menuitem"]', { hasText: /Coffee roastery|커피 로스터리/ })
     .click()
-  const confirm = page.locator('.dialog button, .mcdlg button', { hasText: /replace|바꾸기|교체|불러오기|読み込む|Load template/i })
+  const confirm = page.locator('.dialog button, .mcdlg button', { hasText: /replace|바꾸기|교체|불러오기|Load template/i })
   if (await confirm.isVisible().catch(() => false)) await confirm.click()
   await expect(page.locator('.lgr-frame')).toHaveCount(3)
   await page.waitForTimeout(300)
@@ -43,7 +44,6 @@ const EXPECTED_TITLES: Record<string, [string, string, string]> = {
   // [zone_supply, zone_roasting, zone_forecast]
   en: ['Supply & inventory', 'Roasting & sales', 'Forecast metrics'],
   ko: ['공급·재고', '로스팅·판매', '예측 지표'],
-  ja: ['供給・在庫', '焙煎・販売', '予測指標'],
 }
 
 const ZONE_OF: Record<string, string> = {
@@ -94,7 +94,7 @@ const overlaps = (a: { l: number; t: number; r: number; b: number }, b: typeof a
   !(a.r <= b.l || b.r <= a.l || a.b <= b.t || b.b <= a.t)
 
 test.describe('Coffee roastery — zone frames (§CR17 / §TLO12)', () => {
-  for (const locale of ['en', 'ko', 'ja'] as const) {
+  for (const locale of ['en', 'ko'] as const) {
     test(`${locale}: 3 frames, titled, non-overlapping, nodes ≥24px margin, params + titles clear`, async ({ page }) => {
       await openApp(page)
       await resetAll(page)
@@ -169,24 +169,38 @@ test.describe('Coffee roastery — zone frames (§CR17 / §TLO12)', () => {
           .sort(),
       )
 
+    const frameLabels = async () =>
+      new Map(
+        await page.evaluate(() =>
+          (window as unknown as { __loop: Loop }).__loop.frame
+            .getState()
+            .frames.map((f: any) => [f.id as string, f.label as string] as [string, string]),
+        ),
+      )
+
+    // §L2.0 (2026-10): en → ko → en → ko, the only shipped pair (the ja leg retired)
     expect(await titleTexts()).toEqual([...EXPECTED_TITLES.en].sort())
     await setLocale(page, 'ko')
     expect(await titleTexts()).toEqual([...EXPECTED_TITLES.ko].sort())
-    await setLocale(page, 'ja')
-    expect(await titleTexts()).toEqual([...EXPECTED_TITLES.ja].sort())
     await setLocale(page, 'en')
     expect(await titleTexts()).toEqual([...EXPECTED_TITLES.en].sort())
+    await setLocale(page, 'ko')
+    expect(await titleTexts()).toEqual([...EXPECTED_TITLES.ko].sort())
 
-    // rename zone_supply, then switch — the user title stays, the other two move
+    // rename zone_supply, then switch both ways — the user title stays, the
+    // other two move with the language each time
     await page.evaluate(() =>
       (window as unknown as { __loop: Loop }).__loop.frame.getState().renameFrame('zone_supply', 'My inbound zone'),
     )
-    await setLocale(page, 'ja')
-    const afterJa = await page.evaluate(() =>
-      (window as unknown as { __loop: Loop }).__loop.frame.getState().frames.map((f: any) => [f.id, f.label]),
-    )
-    expect(new Map(afterJa).get('zone_supply')).toBe('My inbound zone')
-    expect(new Map(afterJa).get('zone_roasting')).toBe('焙煎・販売')
-    expect(new Map(afterJa).get('zone_forecast')).toBe('予測指標')
+    await setLocale(page, 'en')
+    const afterEn = await frameLabels()
+    expect(afterEn.get('zone_supply')).toBe('My inbound zone')
+    expect(afterEn.get('zone_roasting')).toBe(EXPECTED_TITLES.en[1])
+    expect(afterEn.get('zone_forecast')).toBe(EXPECTED_TITLES.en[2])
+    await setLocale(page, 'ko')
+    const afterKo = await frameLabels()
+    expect(afterKo.get('zone_supply')).toBe('My inbound zone')
+    expect(afterKo.get('zone_roasting')).toBe(EXPECTED_TITLES.ko[1])
+    expect(afterKo.get('zone_forecast')).toBe(EXPECTED_TITLES.ko[2])
   })
 })

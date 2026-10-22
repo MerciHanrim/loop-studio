@@ -2,12 +2,12 @@ import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, test, waitForAppReady } from './support/loop'
 import { capturedExports, installProbe, pathProbe } from './support/mc'
-import { expectOneVersionStory, readAboutVersion, readNewestShown } from './support/whatsNew'
-import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
+import { expectAboutIsPackageVersion, readAboutVersion } from './support/appVersion'
 import { PARALLEL_GAP } from '../src/components/edges/orthogonalRoute'
 import { edgePortKind, faceOf, rfHandleId, type PortEnd } from '../src/model/ports'
 import type { LoopEdge } from '../src/model/types'
 import { expectShownNoticesAre, manifestNoticesSha, openAbout, openLicences, sha256 } from './support/licenses'
+import { openMonteCarloDialog } from './support/workbenchMenus'
 
 // Runs under playwright.dist.config.ts: production `npm run build` served by
 // `vite preview` at the root `/` — the shape Cloudflare Pages serves. No
@@ -56,7 +56,7 @@ async function openProd(page: Page): Promise<{ bad: string[] }> {
 }
 
 async function runPrefilledMc(page: Page, runs: number, steps: number, seed: number): Promise<void> {
-  await page.locator('.pstrip__mc button', { hasText: 'Monte Carlo' }).click()
+  await openMonteCarloDialog(page)
   const dlg = page.locator('.mcdlg[aria-labelledby="mcdlg-title"]')
   await expect(dlg).toBeVisible()
   const nums = dlg.locator('.mcdlg__field input[type="number"]')
@@ -154,7 +154,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
 
     // the file's recommendedRunConfig pre-fills the Monte-Carlo dialog
     const rc = GACHA.recommendedRunConfig
-    await page.locator('.pstrip__mc button', { hasText: 'Monte Carlo' }).click()
+    await openMonteCarloDialog(page)
     const dlg = page.locator('.mcdlg[aria-labelledby="mcdlg-title"]')
     await expect(dlg).toBeVisible()
     const nums = dlg.locator('.mcdlg__field input[type="number"]')
@@ -172,69 +172,32 @@ test.describe('production build (Cloudflare Pages shape)', () => {
   }) => {
     const { bad } = await openProd(page)
 
-    await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings$/ }).click()
+    await page.locator('.toolbar__actions .wb-viewmenu > .wb-mb').click()
     await page.locator('.toolbar .lang-switch').click()
     const opts = page.locator('.lang-menu__pop [role="option"]')
-    // ar, en, ko, ja, zh-Hans, zh-Hant, fr, de, it, es-419, pt-BR, es-ES, pt-PT,
-    // ru, tr, th, vi, nl — NO en-XA
-    await expect(opts).toHaveCount(18)
+    // §L2.0 (2026-10) — en and ko are the shipped locales — NO en-XA (and no
+    // ar-XB, which is dev-only and never offered in the picker anyway)
+    await expect(opts).toHaveCount(2)
     await expect(page.locator('.lang-menu__pop [data-locale="en-XA"]')).toHaveCount(0)
     // §L5.6 — in PRODUCTION the picker shows exactly the shipped locales, in
-    // English-name order, with no pseudo-locale to append. Asserted unsorted
-    // here on purpose: the DOM order is the contract.
+    // English-name order ("English" before "Korean"), with no pseudo-locale to
+    // append. Asserted unsorted here on purpose: the DOM order is the contract.
     expect(await opts.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.locale))).toEqual([
-      'ar',
-      'zh-Hans',
-      'zh-Hant',
-      'nl',
       'en',
-      'fr',
-      'de',
-      'it',
-      'ja',
       'ko',
-      'pt-BR',
-      'pt-PT',
-      'ru',
-      'es-419',
-      'es-ES',
-      'th',
-      'tr',
-      'vi',
     ])
-    const codes = await opts.evaluateAll((els) =>
-      els.map((e) => (e as HTMLElement).dataset.locale).sort(),
-    )
-    expect(codes).toEqual([
-      'ar',
-      'de',
-      'en',
-      'es-419',
-      'es-ES',
-      'fr',
-      'it',
-      'ja',
-      'ko',
-      'nl',
-      'pt-BR',
-      'pt-PT',
-      'ru',
-      'th',
-      'tr',
-      'vi',
-      'zh-Hans',
-      'zh-Hant',
-    ])
-    // §L5.4 — eighteen shipped languages, so the search box is shown (it first
-    // reached PRODUCTION at six), and the dev pseudo-locale is still absent.
-    await expect(page.locator('.lang-menu__pop input[role="combobox"]')).toHaveCount(1)
+    // §L5.4 — two shipped languages are below the six-language threshold, so
+    // there is no search box.
+    await expect(page.locator('.lang-menu__pop .lang-menu__search')).toHaveCount(0)
+    await expect(page.locator('.lang-menu__pop input[role="combobox"]')).toHaveCount(0)
 
-    // pick JA, reload — it persists, and still only the three are offered
-    await page.locator('.lang-menu__item[data-locale="ja"]').click()
-    await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('ja')
+    // pick KO, reload — it persists
+    await page.locator('.lang-menu__item[data-locale="ko"]').click()
+    await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('ko')
+    expect(await page.evaluate(() => localStorage.getItem('loop-studio/ui-locale/1'))).toBe('ko')
     await page.reload()
     await waitForAppReady(page)
-    expect(await page.evaluate(() => document.documentElement.lang)).toBe('ja')
+    expect(await page.evaluate(() => document.documentElement.lang)).toBe('ko')
 
     // a hand-planted 'en-XA' in storage is not a registered code in Production —
     // the resolver ignores it and falls back rather than selecting it
@@ -268,10 +231,10 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     // Pin the starting locale explicitly rather than assuming the fresh
     // context's default (navigator.language) — a real, current-locale check
     // (html lang + a representative label), not an assumption. The Settings
-    // trigger's own label is itself locale-dependent, so match all three
+    // trigger's own label is itself locale-dependent, so match both
     // shipped-language spellings (same pattern as e2e/i18n.spec.ts's
     // openSettings), not just the English one.
-    const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ })
+    const settingsBtn = page.locator('.toolbar__actions .wb-viewmenu > .wb-mb')
     // picking a language leaves Settings open; close it, so the next switch's
     // first click opens it again rather than closing it (the Templates menu
     // used to close it, before the MMO document was opened from its file)
@@ -558,62 +521,30 @@ test.describe('production build — the version the release bumped', () => {
   })
 })
 
-// ── issue #296 — the release notes, as the PRODUCTION build carries them ────
+// ── the version the PRODUCTION build reports ────────────────────────────────
 //
-// The notes are data inside the bundle. These read them through the real
-// screen of the real build, where there is no dev bridge to ask.
-test.describe('production build — release notes', () => {
-  const ITEMS = RELEASE_NOTES.reduce((n, r) => n + r.items.length, 0)
-
-  test('What’s new lists every bundled entry, newest first, and fetches nothing', async ({ page }) => {
-    expect(RELEASE_NOTES.length).toBeGreaterThan(0)
+// The in-app release notes (issue #296) were removed in 2026-10; the changes are
+// in the repository's CHANGELOG. What stays is that the build says which version
+// it is, and that nothing of the removed notes is left on screen or in storage.
+test.describe('production build — the version', () => {
+  test('About shows the package.json version', async ({ page }) => {
     const { bad } = await openProd(page)
     await page.locator('[data-tour="help-trigger"]').click()
-    await page.locator('[data-whatsnew="menu-item"]').click()
-    const panel = page.locator('[data-whatsnew="panel"]')
-    await expect(panel).toBeVisible()
-    const versions = await panel.locator('.whatsnew__version').evaluateAll((els) => els.map((e) => e.firstChild?.textContent ?? ''))
-    expect(versions).toEqual(RELEASE_NOTES.map((n) => 'v' + n.version))
-    const items = await panel.locator('li').allTextContents()
-    expect(items).toHaveLength(ITEMS)
-    for (const text of items) expect(text).not.toMatch(/whatsNew\.|text unavailable|\{/)
+    await page.getByRole('menuitem', { name: 'About Loop Studio' }).click()
+    expectAboutIsPackageVersion((await readAboutVersion(page)).version)
     expect(bad, 'no failed or cross-origin requests').toEqual([])
   })
 
-  // the version About shows and the release What's new starts at are two
-  // screens of one build (the rule is in e2e/support/whatsNew.ts)
-  test('About and What’s new tell one version story', async ({ page }) => {
+  test('no release-notes entry, notice or stored record is left', async ({ page }) => {
     await openProd(page)
     await page.locator('[data-tour="help-trigger"]').click()
-    await page.getByRole('menuitem', { name: 'About Loop Studio' }).click()
-    const about = await readAboutVersion(page)
+    const items = await page.locator('.menu__pop [role="menuitem"]').allTextContents()
+    expect(items.map((s) => s.trim())).not.toContain('What’s new')
+    expect(items.some((s) => /what.s new/i.test(s))).toBe(false)
     await page.keyboard.press('Escape')
-    await expect(page.locator('.mcdlg')).toHaveCount(0)
-    await page.locator('[data-tour="help-trigger"]').click()
-    await page.locator('[data-whatsnew="menu-item"]').click()
-    await expect(page.locator('[data-whatsnew="panel"]')).toBeVisible()
-    expectOneVersionStory(about.version, await readNewestShown(page))
-  })
-
-  test.describe('a returning profile that has not been told', () => {
-    // the shared fixture still pre-dismisses the tour, which is what makes the
-    // profile a returning one; only the "already seen" record is left out
-    test.use({ whatsNewSeen: false })
-
-    test('sees the notice for the newest entry once, and not again after a reload', async ({ page }) => {
-      await page.goto('/')
-      await expect(page.locator('.canvas .react-flow')).toBeVisible()
-      const notice = page.locator('[data-whatsnew="notice"]')
-      await expect(notice).toBeVisible()
-      await expect(notice.locator('p')).toContainText(RELEASE_NOTES[0]!.version)
-      await expect
-        .poll(() => page.evaluate(() => localStorage.getItem('loop-studio/whats-new/announced/1')))
-        .toBe(RELEASE_NOTES[0]!.id)
-      await page.reload()
-      await expect(page.locator('.canvas .react-flow')).toBeVisible()
-      await expect(page.locator('.react-flow__node').first()).toBeVisible()
-      await expect(notice).toHaveCount(0)
-    })
+    await expect(page.locator('[data-whatsnew]')).toHaveCount(0)
+    const stored = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('loop-studio/whats-new/')))
+    expect(stored, 'the app no longer writes the retired release-note keys').toEqual([])
   })
 })
 

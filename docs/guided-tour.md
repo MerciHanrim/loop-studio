@@ -357,8 +357,6 @@ mobile identical):
  ├─ Restart the tour
  ├─ Turn contextual tips back on
  ├─ ────
- ├─ What's new            [New]
- ├─ ────
  ├─ Send feedback ↗
  └─ About Loop Studio
 ```
@@ -366,8 +364,9 @@ mobile identical):
 **Renamed and regrouped on 2026-10-02 (issue #296).** The items were
 `Take a tour` and `Contextual help` until v0.14.0, and the rest of this
 document still uses those names where it records the original decisions. The
-new names say what each item does, and `What's new` with its `New` marker is
-described in [`release-notes.md`](release-notes.md).
+new names say what each item does. The `What's new` group added then, between
+the two groups above, was removed in 2026-10 with the in-app release notes
+([`release-notes.md`](release-notes.md)).
 
 - **`Restart the tour`** (was `Take a tour`) — restarts the tour at step 1. It always runs the
   platform-appropriate script (desktop on desktop, mobile on mobile) regardless

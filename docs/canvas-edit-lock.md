@@ -9,7 +9,7 @@ The Canvas edit lock (`uiStore.canvasLocked`) keeps a document from being change
 While the lock is on, every **user edit** of the document is refused:
 
 - adding a node from the palette (a click or a drag onto the canvas);
-- Insert module (a bundled module or a module file);
+- File → Insert saved structure… (File → Save selected structure… is an export and stays available);
 - moving, connecting, reconnecting and deleting nodes and connections, with the mouse or the keyboard (the arrow keys, Delete, Backspace);
 - every Inspector field and button, the flow colour, the Inputs panel values, the Register expression;
 - saved frames: drawing, moving, resizing, renaming, colouring, deleting, keeping a suggested frame;
@@ -32,7 +32,7 @@ Copy, cut, paste and duplicate of nodes do not exist today. If they are added, c
 
 Twice, on purpose:
 
-- **The UI** disables each entry point while locked (`disabled`, not hidden), so nothing invites an edit that will not happen. That includes the Controls rail's "Group frame" tool and "Clear all frames" (#338, v0.21.4; from v0.12.0 they had been removed from the rail while locked, which changed its height and moved every button above them): they stay in place, native `disabled` and out of the Tab order, so in the same document the rail has the same buttons and the same height locked and unlocked. Locking also turns an armed frame tool off (`editPolicy.ts`), whichever way the lock comes on. Buttons that appear only when they apply ("Clear all frames" with no frame, "Suggest frames", "Clear suggested frames") still follow the document.
+- **The UI** disables each entry point while locked (`disabled`, not hidden), so nothing invites an edit that will not happen. That includes "Group frame" and "Clear all frames" (#338, v0.21.4; from v0.12.0 they had been removed from the Controls rail while locked, which changed its height and moved every button above them): they stay in place, native `disabled` and out of the keyboard's reach. On the desktop workbench (2026-10, [`workbench.md`](workbench.md)) there is no Controls rail: Group frame is a tool of the tool row, which keeps the same buttons in the same places locked and unlocked, and Clear all frames is a disabled row of the Edit menu. Locking also turns an armed frame tool off (`editPolicy.ts`), whichever way the lock comes on. Buttons that appear only when they apply ("Clear all frames" with no frame, "Suggest frames", "Clear suggested frames") still follow the document.
 - **The stores** refuse it anyway. `src/store/editPolicy.ts` registers one guard on `graphStore` (`setEditGuard`); every user-edit action of `graphStore`, the saved-frame changes of `frameStore` and `projectStore.applyProposal` start with it and return without any change: no state, no undo entry, no autosave, no `simulationRev`. Actions that report a result return `{ ok: false, reason: 'locked' }`, which their callers drop silently (the control was disabled first). `onNodesChange` / `onEdgesChange` keep `select` and `dimensions` changes and drop the rest, so selection and layout keep working.
 
 The guard is registered rather than imported because `graphStore` cannot import `uiStore` (`uiStore` → `mcStore` → `graphStore` would be a cycle); `startApp` imports `editPolicy.ts` once for every build (web, portable, PWA). A bare store in a unit test has no guard.
@@ -69,7 +69,7 @@ A temporary session that takes the open diagram along, and Reset all Loop Studio
 
 ## 5. The lock control (issue #335)
 
-The Controls rail's lock button reads at a glance, without colour:
+The lock button — the tool row's last button on the desktop workbench (before 2026-10, on the Controls rail) — reads at a glance, without colour:
 
 - **Unlocked:** an open padlock, its shackle swung to the side; the free end stands clear of the body by a measurable gap at the real 1× size (2 px for the 14 px icon).
 - **Locked:** the closed padlock (both legs meet the body) with the rail's pressed tell, the same as the Focus toggle: the soft signal tint, an inset 2 px ring and the signal colour, at least 3 : 1 against the unlocked button. In forced colours: the system `Highlight` / `HighlightText` pair, like every rail toggle.
@@ -88,5 +88,5 @@ The phone is view-only (`docs/mobile.md` §MV3a) and has no lock control; a Temp
 - `src/store/editPolicy.test.ts` — every refused action leaves the document, the frames, the history and the digest unchanged; selection, a Step, export and unlocking still work.
 - `src/store/graphStore.boundary.test.ts` — each boundary empties the history; a revision Apply keeps one entry; the lock takes only its final value (no unlocked moment for a locked document).
 - `e2e/document-boundary.spec.ts` — the boundaries through the real UI: File → New, a temporary session, Delete work data, a Template, a file and a share link.
-- `e2e/canvas-lock.spec.ts` — the controls are disabled and change nothing while locked, the keyboard neither reaches nor runs them; the allowed ones work. #338: the Controls rail's buttons, each button's 26 px height and the rail's top and height are identical locked and unlocked, with and without a frame, in light, dark and forced colours; the two frame buttons are disabled, out of the Tab order and inert while locked and work again unlocked; locking turns an armed frame tool off, and a drag on the empty canvas then pans and draws no frame.
+- `e2e/canvas-lock.spec.ts` — the controls are disabled and change nothing while locked, the keyboard neither reaches nor runs them; the allowed ones work. #338: the tool row's buttons, each one's place and size, and the row's top and height are identical locked and unlocked, with and without a frame, in light, dark and forced colours; the frame tool is disabled, out of the Tab order and inert while locked, Clear all frames is a disabled Edit menu row the arrow keys skip, and both work again unlocked; locking turns an armed frame tool off, and a drag on the empty canvas then pans and draws no frame.
 - `e2e/lock-control.spec.ts` — the 1× gap of the open icon and none for the closed one, the fixed name, `aria-pressed` and the tooltip, the pressed tell in light and dark (the same as Focus, at least 3 : 1) and `Highlight` in forced colours, and the focus ring on the pressed button.

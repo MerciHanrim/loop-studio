@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import { useGraphStore } from './graphStore'
 import { suggestFrames, type AFEdge, type AFNode } from '../components/frames/autoFrames'
-import type { FrameRect } from './frameStore'
+import { shownRect, type Side } from '../components/frames/autoFrameShown'
+import { useFrameStore, type FrameRect } from './frameStore'
+import { useUiStore } from './uiStore'
 
 // docs/large-graph-readability-auto-frames.md §AF (Slice 4b) — the DERIVED
 // auto-frame set behind "Suggest frames".
@@ -22,10 +24,18 @@ export type AutoFrame = {
    *  `Area N` / `구역 N` when `label` is empty. */
   area: number
   label: string
+  /** the ALGORITHM's rect (R0): what decided this frame, its order and its
+   *  label — never redrawn, never grown (§AF8) */
   rect: FrameRect
   /** the clustered node ids — used only for the staleness signature and tests;
    *  the render layer treats the frame as a pure rectangle (no membership). */
   members: string[]
+  /** the rect the frame is DRAWN with, and selected, moved, resized and
+   *  promoted from (frames/autoFrameShown.ts): R0 grown to hold its members'
+   *  outside names where that is safe; R0 itself in the previous structure */
+  shown: FrameRect
+  /** sides the members' names wanted beyond R0 that stayed at R0 for safety */
+  shownHeld: Side[]
 }
 
 type AutoFrameStore = {
@@ -81,8 +91,15 @@ export const useAutoFrameStore = create<AutoFrameStore>((set) => ({
   suggest: () => {
     const { nodes, edges } = graphInputs()
     const results = suggestFrames(nodes, edges)
+    // the shown rect: only under the node structure whose names stand outside
+    const g = useGraphStore.getState()
+    const outside = useUiStore.getState().nodeStructure === 'outside'
+    const manual = useFrameStore.getState().frames
     set({
-      autoFrames: results.map((r) => ({ id: newId(), area: r.area, label: '', rect: r.rect, members: r.members })),
+      autoFrames: results.map((r) => {
+        const s = outside ? shownRect(r.rect, r.members, g.nodes, g.edges, manual) : { rect: r.rect, held: [] }
+        return { id: newId(), area: r.area, label: '', rect: r.rect, members: r.members, shown: s.rect, shownHeld: s.held }
+      }),
       // an empty result (a graph below the floor, or with no clusterable
       // structure) leaves NOTHING to be stale about — clear the signature so
       // the "recompute available" hint never lights on an empty set.

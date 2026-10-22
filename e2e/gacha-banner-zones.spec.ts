@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, routesSettled, test } from './support/loop'
+import { openFileMenu } from './support/workbenchMenus'
 
 // docs/gacha-banner-zones.md (GZ) — the 3-zone gacha banner comparison
 // Template, exercised through the app. The engine-level acceptance (GZ8) is
@@ -33,15 +34,13 @@ const DOC = JSON.parse(
 
 const EN_NAME = '3-zone gacha banner comparison'
 const KO_NAME = '3존 가챠 배너 비교'
-const JA_NAME = '3ゾーン ガチャバナー比較'
-// `canvas.edgeLabel.refMissing` (src/i18n/locales/{en,ko,ja}/canvas.ts) —
+// `canvas.edgeLabel.refMissing` (src/i18n/locales/{en,ko}/canvas.ts) —
 // duplicated here deliberately: this pins the ACTUAL shown text, so a
 // wording edit to the key must also update this constant, not silently
 // pass because the test only checked "is not raw @...".
-const ERROR_LABEL: Record<'en' | 'ko' | 'ja', string> = {
+const ERROR_LABEL: Record<'en' | 'ko', string> = {
   en: 'Parameter reference error',
   ko: '파라미터 참조 오류',
-  ja: 'パラメーター参照エラー',
 }
 const END_STEP = DOC.recommendedRunConfig.steps // pulls_per_zone + 2, GZ3.5 round 4
 const PULL_HORIZON = END_STEP - 1 // pulls_per_zone + 1 — the last step any pull occurs
@@ -62,13 +61,11 @@ async function setLocale(page: Page, code: string) {
   await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(code)
 }
 
-const templatesBtn = (page: Page) => page.locator('.toolbar__actions .menu').first().locator('> button')
-
 async function pickDesktopTemplate(page: Page, name: string) {
-  await templatesBtn(page).click()
+  // File ▸ Templates (docs/workbench.md §WB2)
+  await openFileMenu(page)
   await page
-    .locator('.toolbar__actions .menu').first()
-    .locator('.menu__pop [role="menuitem"]', { hasText: name })
+    .locator('.toolbar__filemenu-pop [data-template]', { hasText: name })
     .click()
   // issue #344 §ER14.5 — its routes are drawn once their first sliced
   // generation commits
@@ -123,11 +120,9 @@ test.describe('3-zone gacha banner comparison Template', () => {
   test('menu order: Coffee, then Gacha, last (Hanrim, 2026-09-13 reorder); Early MMO is not offered (0.28.1)', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
-    await templatesBtn(page).click()
-    const names = await page
-      .locator('.toolbar__actions .menu').first()
-      .locator('.menu__pop [role="menuitem"] .menu__name')
-      .allInnerTexts()
+    // File ▸ Templates (docs/workbench.md §WB2): the template rows only
+    await openFileMenu(page)
+    const names = await page.locator('.toolbar__filemenu-pop [data-template] .menu__name').allInnerTexts()
     const coffeeIdx = names.findIndex((n) => n.includes('Coffee roastery'))
     const gachaIdx = names.findIndex((n) => n === EN_NAME)
     expect(coffeeIdx).toBeGreaterThanOrEqual(0)
@@ -356,7 +351,7 @@ test.describe('3-zone gacha banner comparison Template', () => {
     }
   })
 
-  test('edge condition labels never leak an internal @id, in EN/KO/JA', async ({ page }) => {
+  test('edge condition labels never leak an internal @id, in EN/KO', async ({ page }) => {
     // Connector-readability review (Hanrim/Lumi, 2026-09-14, after PR #205): a
     // resource-flow `@id` or an activator RHS `@id` (loop-model/2) used to
     // render as the literal internal id on canvas (e.g. `@zone2_standard_w_sr`,
@@ -379,7 +374,7 @@ test.describe('3-zone gacha banner comparison Template', () => {
         })),
       )
 
-    for (const locale of ['en', 'ko', 'ja'] as const) {
+    for (const locale of ['en', 'ko'] as const) { // §L2.0 (2026-10): the shipped languages
       await setLocale(page, locale)
       await routesSettled(page) // issue #344 — the new label sizes route again
       for (const { id, text } of await labelTexts()) {
@@ -388,7 +383,7 @@ test.describe('3-zone gacha banner comparison Template', () => {
     }
   })
 
-  test('a broken @id reference (dangling / wrong kind / non-finite / malformed) shows the translated error label, never the raw @..., in EN/KO/JA', async ({
+  test('a broken @id reference (dangling / wrong kind / non-finite / malformed) shows the translated error label, never the raw @..., in EN/KO', async ({
     page,
   }) => {
     // Review round 1 (Hanrim/Lumi, 2026-09-14) — the P1 fix's whole point:
@@ -468,7 +463,7 @@ test.describe('3-zone gacha banner comparison Template', () => {
         ids,
       )
 
-    for (const locale of ['en', 'ko', 'ja'] as const) {
+    for (const locale of ['en', 'ko'] as const) {
       await setLocale(page, locale)
       await routesSettled(page) // issue #344 — the new label sizes route again
       const expected = ERROR_LABEL[locale]
@@ -523,7 +518,7 @@ test.describe('3-zone gacha banner comparison Template', () => {
     expect(await labelText('act_precise')).toBe('>= 1.05')
   })
 
-  test('every resource/state edge label in Premium Standard + Premium Pickup is legible: no two labels overlap, and no label overlaps a node, in EN/KO/JA', async ({
+  test('every resource/state edge label in Premium Standard + Premium Pickup is legible: no two labels overlap, and no label overlaps a node, in EN/KO', async ({
     page,
   }) => {
     // Connector-readability review (Hanrim/Lumi, 2026-09-14, after PR #205 and
@@ -635,7 +630,7 @@ test.describe('3-zone gacha banner comparison Template', () => {
           .__loop.frame.getState().frames,
     )
 
-    for (const locale of ['en', 'ko', 'ja'] as const) {
+    for (const locale of ['en', 'ko'] as const) {
       await setLocale(page, locale)
       await routesSettled(page) // issue #344 — the new label sizes route again
       for (const zoneFrameId of ['zone_standard', 'zone_pickup'] as const) {
@@ -672,7 +667,7 @@ test.describe('3-zone gacha banner comparison Template', () => {
     }
   })
 
-  test('the Premium Pickup `+1` labels of e_pickup_34 and e_pickup_36 keep clear of each other with compact nodes, in EN/KO/JA', async ({
+  test('the Premium Pickup `+1` labels of e_pickup_34 and e_pickup_36 keep clear of each other with compact nodes, in EN/KO', async ({
     page,
   }) => {
     // #325 PR 3 (compact nodes), layout round 7 of
@@ -695,7 +690,7 @@ test.describe('3-zone gacha banner comparison Template', () => {
     )
     expect(routing?.route).toBe('orthogonal')
     expect(routing?.waypoints, 'Auto: no bend points').toBeUndefined()
-    for (const locale of ['en', 'ko', 'ja'] as const) {
+    for (const locale of ['en', 'ko'] as const) {
       await setLocale(page, locale)
       await routesSettled(page) // issue #344 — the new label sizes route again
       // centre the pair (wherever the placement put it)
@@ -722,7 +717,7 @@ test.describe('3-zone gacha banner comparison Template', () => {
     }
   })
 
-  test('comparison frame fully contains every comparison-row node, in EN/KO/JA, at both reviewed viewports', async ({
+  test('comparison frame fully contains every comparison-row node, in EN/KO, at both reviewed viewports', async ({
     page,
   }) => {
     // Comparison-frame review (Hanrim, 2026-09-13): the frame's right edge
@@ -811,7 +806,7 @@ test.describe('3-zone gacha banner comparison Template', () => {
       }
     }
 
-    for (const locale of ['en', 'ko', 'ja']) {
+    for (const locale of ['en', 'ko']) {
       await page.evaluate((c) => (window as unknown as LoopWindow).__loop.i18n.getState().setLocale(c), locale)
       for (const size of [
         { width: 1280, height: 720 },
@@ -824,20 +819,9 @@ test.describe('3-zone gacha banner comparison Template', () => {
     }
   })
 
-  test('JA: the menu item and node labels localize', async ({ page }) => {
-    await openApp(page)
-    await resetAll(page)
-    await setLocale(page, 'ja')
-    await pickDesktopTemplate(page, JA_NAME)
-
-    const label = await page.evaluate(
-      () =>
-        (window as unknown as { __loop: Loop }).__loop.graph
-          .getState()
-          .nodes.find((n: any) => n.id === 'pickup_hit_pickup').data.label,
-    )
-    expect(label).toBe('ピックアップ的中') // no zone suffix — the frame title gives that context
-  })
+  // §L2.0 (2026-10): the JA twin of the KO localize test above checked only
+  // Japanese copy and was removed with the language; the eighteen-locale
+  // version is kept in archive/i18n/e2e/gacha-banner-zones.spec.ts.
 
   // Node structure, layout round 10 (Lumi, 2026-10-12): a connection's LABEL
   // beats another connection's line. `e_pickup_29`'s chip sits where

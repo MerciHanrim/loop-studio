@@ -235,11 +235,14 @@ test('forced colours: the pulse is a 2 px system-colour line under the text, the
   expect(look).toEqual({ tint: 'none', line: 'inline', lineStroke: true, lineWidth: '18', markStroke: true, underText: true })
 })
 
-// The 450-instance regression: every Converter of every bundled Template, in
-// every shipped language — the mark's spot exists, lies inside the drawn
-// outline by 6 px and clear of the title, mode text and chip by 1 px, and is
-// the same on a fresh mount and after a language round trip (no re-fit drift).
-const LOCALES = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'de', 'fr', 'es-ES', 'es-419', 'pt-BR', 'pt-PT', 'it', 'nl', 'ru', 'tr', 'vi', 'th', 'ar']
+// The Converter regression (450 instances over eighteen languages; 50 over the
+// two shipped now): every Converter of every bundled Template, in every shipped
+// language — the mark's spot exists, lies inside the drawn outline by 6 px and
+// clear of the title, mode text and chip by 1 px, and is the same on a fresh
+// mount and after a language round trip (no re-fit drift).
+// §L2.0 (2026-10): en and ko are the shipped languages; the eighteen-language
+// version is kept in archive/i18n/e2e/playback-node-cues.spec.ts.
+const LOCALES = ['en', 'ko']
 const CONVERTER_TEMPLATES: [string, number][] = [
   ['equilibrium', 1],
   ['deadlock', 1],
@@ -247,7 +250,7 @@ const CONVERTER_TEMPLATES: [string, number][] = [
 ]
 
 for (const [tpl, perLocale] of CONVERTER_TEMPLATES) {
-  test(`${tpl}: every Converter's mark spot, in all 18 languages, is inside the outline by 6 px, clear of its text, and stable`, async ({ page }) => {
+  test(`${tpl}: every Converter's mark spot, in every shipped language (en, ko), is inside the outline by 6 px, clear of its text, and stable`, async ({ page }) => {
     test.setTimeout(180_000)
     await openApp(page)
     await resetAll(page)
@@ -330,7 +333,7 @@ for (const [tpl, perLocale] of CONVERTER_TEMPLATES) {
     }
     expect(bad, bad.join('\n')).toEqual([])
     expect(total).toBe(perLocale * LOCALES.length)
-    // the same document, back in English after 17 other languages: the same spots
+    // the same document, back in English after the other shipped language: the same spots
     const back = await measure('en', false)
     expect(JSON.stringify(back.map((r) => [r.id, r.spot]))).toBe(freshEn)
   })

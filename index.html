@@ -11,8 +11,21 @@
     <!-- PWA install metadata (docs/pwa.md §P1). The manifest link + service
          worker are injected only in the Production / PWA-test build (§P9 D8a);
          these tags are harmless everywhere. -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f0efea" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#171a18" />
+    <!-- the workbench --bg-app per scheme; an explicit Light / Dark choice
+         rewrites both (src/theme/theme.ts syncThemeColor, themeBoot.js) -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#e3e6ea" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#101215" />
+    <!-- the page ground before the stylesheet arrives (index.css --bg-app and
+         color-scheme): by the system scheme, or by an explicit choice the head
+         boot script set as data-theme. It reads nothing stored, so the storage
+         gate keeps the system theme (issue #297) and is never painted light in
+         a dark system. -->
+    <style>
+      :root { color-scheme: light dark; background: #e3e6ea; }
+      @media (prefers-color-scheme: dark) { :root { background: #101215; } }
+      :root[data-theme='light'] { color-scheme: light; background: #e3e6ea; }
+      :root[data-theme='dark'] { color-scheme: dark; background: #101215; }
+    </style>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Loop Studio" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />

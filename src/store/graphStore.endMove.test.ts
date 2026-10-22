@@ -21,7 +21,7 @@ function graph() {
   S().newGraph()
   for (const [k, x] of [['source', 0], ['pool', 320], ['pool', 640], ['drain', 960], ['parameter', 0]] as const) S().addNodeAt(k, { x, y: k === 'parameter' ? 300 : 0 })
   const [a, b, c, d, p] = S().nodes.map((n) => n.id)
-  S().onConnect({ source: a!, target: b!, sourceHandle: 'out', targetHandle: 'in' })
+  S().onConnect({ source: a!, target: b!, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
   const e = S().edges[0]!.id
   S().setEdgeData(e, { ...(edge(e).data as object), flow: '3', accent: '#638EA5' } as never)
   S().setEdgeRouting(e, { route: 'orthogonal', waypoints: [{ x: 224, y: 120 }] })
@@ -139,7 +139,7 @@ describe('the duplicate rule — the drawing rule, only when a node changes, nev
   it('moving onto a pair already joined with the same handles is refused; a side change on a parallel connection is not', () => {
     const { e, a, c } = graph()
     // a second connection a → c (resource, out / in)
-    S().onConnect({ source: a, target: c, sourceHandle: 'out', targetHandle: 'in' })
+    S().onConnect({ source: a, target: c, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
     const other = S().edges.find((x) => x.target === c)!.id
     const p0 = past()
     expect(S().moveEdgeEnds(e, { target: { node: c, face: 'top' } })).toEqual({ ok: false, reason: 'duplicate', end: 'target', node: c })
@@ -150,7 +150,7 @@ describe('the duplicate rule — the drawing rule, only when a node changes, nev
 
   it('parallel connections as the examples hold them (two state connections, the same ends and handles): each can change its side', () => {
     const { b, c } = graph()
-    S().onConnect({ source: b, target: c, sourceHandle: 'state-source', targetHandle: 'state-target' })
+    S().onConnect({ source: b, target: c, sourceHandle: 'state-source', targetHandle: 'state-target' }, 'trigger')
     const s1 = S().edges[S().edges.length - 1]!
     // the second one as a file brings it (drawing would refuse it)
     useGraphStore.setState({ edges: [...S().edges, { ...s1, id: 's2' }] })
@@ -170,7 +170,7 @@ describe('the duplicate rule — the drawing rule, only when a node changes, nev
     const n0 = S().edges.length
     const p0 = past()
     const r0 = rev()
-    S().onConnect({ source: a, target: b, sourceHandle: 'out@top', targetHandle: 'in' })
+    S().onConnect({ source: a, target: b, sourceHandle: 'out@top', targetHandle: 'in' }, 'flow')
     expect(S().edges.length).toBe(n0)
     expect([rev(), past()]).toEqual([r0, p0])
   })

@@ -60,17 +60,22 @@ test.describe('state-verification.json — app import + feedback', () => {
   })
 
   test('Inspector reads each state edge back with its mode and expression / delay', async ({ page }) => {
+    // the workbench panel names the connection's mode in its head, in the
+    // product's words (trigger / condition = activator / change = label,
+    // src/model/connectKind.ts); the Mode select of the old Inspector is the
+    // Kind select in More settings
+    const kindChip = page.locator('.inspector .inspector__kind--edge')
     await selectEdge(page, 't_id_delayed')
-    await expect(page.locator('.inspector .field select').nth(1)).toHaveValue('trigger')
+    await expect(kindChip).toHaveAttribute('data-connect-kind', 'trigger')
     await expect(page.locator('.inspector input[type="number"]')).toHaveValue('2')
 
     await selectEdge(page, 'a_ga_pd')
-    await expect(page.locator('.inspector .field select').nth(1)).toHaveValue('activator')
+    await expect(kindChip).toHaveAttribute('data-connect-kind', 'condition')
     await expect(page.locator('.inspector .field input:not([type="number"]):not([type="radio"])')).toHaveValue('>= 3')
     await expect(page.locator('.inspector .field__hint--ok')).toBeVisible()
 
     await selectEdge(page, 'm_tank_addS')
-    await expect(page.locator('.inspector .field select').nth(1)).toHaveValue('label')
+    await expect(kindChip).toHaveAttribute('data-connect-kind', 'change')
     await expect(page.locator('.inspector .field input:not([type="number"]):not([type="radio"])')).toHaveValue('+S')
   })
 
@@ -96,13 +101,15 @@ test.describe('state-verification.json — app import + feedback', () => {
     await expect(page.locator('.edge-label[data-edge-id="a_gb_pd"].edge-label--on')).toHaveCount(1)
   })
 
-  test('label feedback: +S rides toward Tank, -1 shows its own delta and a separate clamp note', async ({ page }) => {
+  test('label feedback: +S rides toward Tank and shows its applied change; -1 shows its set value and a separate clamp note', async ({ page }) => {
     await stepN(page, 1)
     await stepStateCue(page) // step 2 — the label step, choreographed
     await expect(page.locator('.react-flow__edge[data-id="m_tank_addS"] .state-move--label.state-move--in')).toHaveCount(1)
     await finishStateCue(page)
     await expect(page.locator('.edge-label[data-edge-id="m_tank_addS"] .edge-label__delta')).toHaveText('+10')
-    await expect(page.locator('.edge-label[data-edge-id="m_tank_sub"] .edge-label__delta')).toHaveText('-1')
+    // 2026-10-21: -1 that moved by -1 repeats its set value — no second number;
+    // its clamp note stays
+    await expect(page.locator('.edge-label[data-edge-id="m_tank_sub"] .edge-label__delta')).toHaveCount(0)
     await expect(page.locator('.edge-label[data-edge-id="m_tank_sub"] .edge-label__clamp')).toHaveText('clamp -9')
   })
 

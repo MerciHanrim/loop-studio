@@ -541,7 +541,7 @@ describe('per-hunk selective apply (§R7.2)', () => {
     // seed: pool 'p' —resource→ drain (so there is an edge to mutate)
     useGraphStore.getState().addNodeAt('drain', { x: 300, y: 0 })
     const [n0, n1] = useGraphStore.getState().nodes
-    useGraphStore.getState().onConnect({ source: n0.id, target: n1.id, sourceHandle: 'out', targetHandle: 'in' })
+    useGraphStore.getState().onConnect({ source: n0.id, target: n1.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
     const eid = useGraphStore.getState().edges[0].id
     promote('b') // re-commit with the edge
 
@@ -647,7 +647,7 @@ describe('per-hunk selective apply (§R7.2)', () => {
       }),
     )
     // NOW add a local edge onto the node the proposal removes
-    useGraphStore.getState().onConnect({ source: poolN.id, target: drainN.id, sourceHandle: 'out', targetHandle: 'in' })
+    useGraphStore.getState().onConnect({ source: poolN.id, target: drainN.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
     const eid = useGraphStore.getState().edges[0].id
 
     // three-way: the node-remove hunk is blocked, structurally
@@ -678,7 +678,7 @@ describe('per-hunk selective apply (§R7.2)', () => {
     useGraphStore.getState().addNodeAt('pool', { x: 200, y: 0 })
     useGraphStore.getState().addNodeAt('drain', { x: 400, y: 0 })
     const [s, mid, d] = useGraphStore.getState().nodes
-    useGraphStore.getState().onConnect({ source: s.id, target: mid.id, sourceHandle: 'out', targetHandle: 'in' })
+    useGraphStore.getState().onConnect({ source: s.id, target: mid.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
     const eid = useGraphStore.getState().edges[0].id
     promote()
     const r0 = useProjectStore.getState().open!.revisionId
@@ -843,7 +843,7 @@ describe('Apply / Open-as-document and the model-semantics version (§M2-1)', ()
     g.addNodeAt('parameter', { x: 0, y: 200 })
     g.addNodeAt('source', { x: 0, y: 100 })
     const [pool, param, src] = useGraphStore.getState().nodes.map((n) => n.id)
-    useGraphStore.getState().onConnect({ source: src, target: pool, sourceHandle: 'out', targetHandle: 'in' })
+    useGraphStore.getState().onConnect({ source: src, target: pool, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
     const e = useGraphStore.getState().edges[0]
     useGraphStore.getState().setEdgeData(e.id, { kind: 'resource', flow: `@${param}` })
     expect(useGraphStore.getState().modelVersion).toBe(2)

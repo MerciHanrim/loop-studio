@@ -14,7 +14,9 @@ import { layoutClashes, nodeBoxes, OUTLINE_GRAPH, OUTLINE_KINDS, outlineMisfits,
 
 type Bridge = { __loop: Record<string, { getState: () => any }> }
 
-const LOCALES = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'de', 'fr', 'es-ES', 'es-419', 'pt-BR', 'pt-PT', 'it', 'nl', 'ru', 'tr', 'vi', 'th', 'ar']
+// §L2.0 (2026-10): the shipped languages are en and ko; the eighteen-language
+// sweep is kept in archive/i18n/e2e/outline-containment.spec.ts
+const LOCALES = ['en', 'ko']
 const TEMPLATE_IDS = ['equilibrium', 'deadlock', 'coffee-roastery', 'mmo-progression', 'gacha-banner-zones']
 
 const load = async (page: Page) => {
@@ -79,9 +81,10 @@ test.describe('#337 every element inside the drawn outline', () => {
     }
   })
 
-  test('ar: the same, right to left', async ({ page }) => {
+  // §L2.0 (2026-10): `ar` is retired; the RTL pseudo-locale `ar-XB` carries it
+  test('right to left (ar-XB): the same', async ({ page }) => {
     await load(page)
-    await setLocale(page, 'ar')
+    await setLocale(page, 'ar-XB')
     await page.waitForFunction(() => document.documentElement.dir === 'rtl')
     await page.evaluate(() => document.fonts.ready)
     await frames(page, 2)
@@ -125,7 +128,7 @@ test.describe('#337 every element inside the drawn outline', () => {
   // check is the sweep in that note; this spec is pinned to `?nodes=inside`)
   const PLACED_FOR_NEW_NODE = new Set(['coffee-roastery', 'gacha-banner-zones'])
   for (const id of TEMPLATE_IDS) {
-    test(`${id}, all 18 languages: every element fits, no overlap, no frame crossed on any side, a reopened node fits as a fresh one, measurements bounded`, async ({ page }) => {
+    test(`${id}, every shipped language (en, ko): every element fits, no overlap, no frame crossed on any side, a reopened node fits as a fresh one, measurements bounded`, async ({ page }) => {
       test.skip(PLACED_FOR_NEW_NODE.has(id), 'placed for the new node structure — not a previous-body layout')
       test.slow()
       await openApp(page, { structure: 'inside' })
@@ -135,8 +138,13 @@ test.describe('#337 every element inside the drawn outline', () => {
         const n = await openTemplate(page, id, loc)
         await page.waitForFunction((n) => document.querySelectorAll('.react-flow__node .nodef').length === n, n)
         await page.evaluate(() => document.fonts.ready)
-        // the readings are in CSS px at any zoom (a Template's own fit-all may
-        // land after this); zoom 1 only keeps the text at its usual raster
+        // the Template's own fit-all first (Canvas.tsx, the swap fit): set
+        // before it is armed, zoom 1 counts as an untouched camera and the fit
+        // lands on top of it — the Early MMO's fit is an L0 zoom, where the
+        // inside body is hidden and every chip reads empty (run 6, 2026-10-20).
+        // The readings are in CSS px; zoom 1 keeps the text at its usual
+        // raster and at L2.
+        await page.waitForFunction(() => !(window as unknown as { __loop: { canvas: { swapFitPending: () => boolean } } }).__loop.canvas.swapFitPending())
         await zoomOne(page)
         await frames(page, 3)
         return n

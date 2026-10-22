@@ -72,9 +72,14 @@ const openStateGraph = async (page: Page) => {
   await steps(page, 3)
 }
 
+/** the dimmed opacity, `--dim-opacity`, per scheme: the redesign's correction
+ *  3 (2026-10-19) raised light's to 0.3 so a dimmed line still reads above the
+ *  dot grid; dark keeps 0.26 */
+const DIM = { light: '0.3', dark: '0.26' } as const
+
 test.describe('#329 Focus mode dims the connections outside the focus set', () => {
   for (const scheme of ['light', 'dark'] as const) {
-    test(`${scheme}: outside 0.26 (Focus wins over an unsatisfied activator's 0.5), inside 1 or 0.5, with no inline opacity`, async ({ page }) => {
+    test(`${scheme}: outside ${DIM[scheme]} (Focus wins over an unsatisfied activator's 0.5), inside 1 or 0.5, with no inline opacity`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme })
       await openStateGraph(page)
 
@@ -86,21 +91,21 @@ test.describe('#329 Focus mode dims the connections outside the focus set', () =
         if (!e.activatorOff) expect(e.opacity, `${id}: Focus off, full strength`).toBe('1')
       }
 
-      // gauge_a in focus: its unsatisfied activator inside (0.5), the satisfied one outside (0.26)
+      // gauge_a in focus: its unsatisfied activator inside (0.5), the satisfied one outside (dimmed)
       await focusOn(page, 'gauge_a')
       const a = await drawn(page)
       expect(a.a_ga_pd).toMatchObject({ out: false, activatorOff: true, opacity: '0.5' })
-      expect(a.a_gb_pd).toMatchObject({ out: true, activatorOff: false, opacity: '0.26' })
+      expect(a.a_gb_pd).toMatchObject({ out: true, activatorOff: false, opacity: DIM[scheme] })
       expect(a.e_gsrc_ga).toMatchObject({ out: false, opacity: '1' })
 
-      // gauge_b in focus: the unsatisfied activator outside — Focus's 0.26 wins over its 0.5
+      // gauge_b in focus: the unsatisfied activator outside — Focus's dim wins over its 0.5
       await clickNode(page, 'gauge_b')
       await expect.poll(async () => (await drawn(page)).a_ga_pd.out).toBe(true)
       const b = await drawn(page)
-      expect(b.a_ga_pd).toMatchObject({ out: true, activatorOff: true, opacity: '0.26' })
+      expect(b.a_ga_pd).toMatchObject({ out: true, activatorOff: true, opacity: DIM[scheme] })
       expect(b.a_gb_pd).toMatchObject({ out: false, activatorOff: false, opacity: '1' })
       for (const [id, e] of Object.entries(b)) {
-        if (e.out) expect(e.opacity, `${id}: outside the focus set`).toBe('0.26')
+        if (e.out) expect(e.opacity, `${id}: outside the focus set`).toBe(DIM[scheme])
         // the arrowhead is the path's own marker, so it is painted at the path's opacity
         expect(e.marker, `${id}: the arrowhead is the path's marker`).toMatch(/^url\(#/)
       }
@@ -127,7 +132,7 @@ test.describe('#329 Focus mode dims the connections outside the focus set', () =
     })
   })
 
-  test('during a played step the dimmed path is 0.26 and the playback token keeps its strength and colour', async ({ page }) => {
+  test('during a played step the dimmed path is dimmed (light) and the playback token keeps its strength and colour', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await importGraph(page, EQUILIBRIUM)
@@ -160,7 +165,7 @@ test.describe('#329 Focus mode dims the connections outside the focus set', () =
     expect(inside.length, 'a token on an in-focus connection').toBeGreaterThan(0)
     expect(outside.length, 'a token on a dimmed connection').toBeGreaterThan(0)
     for (const r of inside) expect(r.path, r.id).toBe('1')
-    for (const r of outside) expect(r.path, r.id).toBe('0.26')
+    for (const r of outside) expect(r.path, r.id).toBe(DIM.light)
     // the playback cues are unchanged by this fix (#330 decides their Focus policy)
     for (const r of rows) {
       expect(r.token, `${r.id}: the token is not dimmed by this fix`).toBe('1')

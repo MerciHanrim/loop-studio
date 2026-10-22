@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { useMcStore } from './mcStore'
 import { storagePort, type StorageKey } from '../storage/storagePort'
+import type { ConnectKind, ConnectVerdict } from '../model/connectKind'
 
 // docs/mobile.md §MV5 / §MV-D11 / §MV-D14 — the one open overlay in the mobile
 // View/Run layout. Exactly one of these is visible at a time; opening any of
@@ -66,8 +67,9 @@ type UiState = {
 
   /**
    * The graph minimap's collapsed / expanded state. A **global UI preference**
-   * (its own `localStorage` key, like `focusMode`), default **false** =
-   * expanded / shown. Independent of the small-pane auto-hide
+   * (its own `localStorage` key, like `focusMode`). With nothing stored it is
+   * **true** = folded to its restore button (2026-10-21; was false = shown); a
+   * stored choice is kept. Independent of the small-pane auto-hide
    * (`Canvas.tsx` `minimapFits`, pane `< 640 × 380`): when the pane grows back
    * over that line the minimap returns to whichever state this flag holds.
    * UI-only — never the GraphDoc, viewport, or node coordinates.
@@ -205,15 +207,15 @@ type UiState = {
   clearRefInsertPick: () => void
 
   /**
-   * Node structure, first implementation (scratch/share/connection-editing-2/
+   * Node structure (scratch/share/connection-editing-2/
    * 17-implementation-rules.md) — which node structure the canvas draws:
-   * `inside` = today's node (title inside the body); `outside` = the new node
-   * (a small body with role and value, the name outside from level 1, the
-   * body + name + gap one hit region, four-side ports). A VIEW switch while the
-   * new structure is brought up on a small graph: never written to a document,
-   * a Share or a Workspace, never persisted; read once from `?nodes=outside`
-   * (a bring-up convenience like `?lang=`). Which structure ships as the
-   * default, and how, is the later stage's decision — not this flag's.
+   * `outside` = the DEFAULT, the symbol node (components/nodes/symbol.ts: the
+   * kind's symbol with its value inside, the name outside from level 1, the
+   * symbol + name + gap one hit region, four-side ports); `inside` = the
+   * previous node (title inside the body), opened by `?nodes=inside` for one
+   * page load (comparison and the specs that pin it). A VIEW switch: never
+   * written to a document, a Share or a Workspace, never persisted
+   * (`readNodeStructureOverride` below).
    */
   nodeStructure: 'inside' | 'outside'
   setNodeStructure: (v: 'inside' | 'outside') => void
@@ -221,6 +223,19 @@ type UiState = {
    *  whole route and its own label are identified together); UI-only */
   hoverEdgeId: string | null
   setHoverEdgeId: (id: string | null) => void
+  /** the workbench (2026-10, direction B) — the KIND every drawn connection
+   *  takes (src/model/connectKind.ts), chosen in the tool row; a face point
+   *  only decides where it attaches. Session only, `flow` at start. */
+  connectKind: ConnectKind
+  setConnectKind: (k: ConnectKind) => void
+  /** the last drawing refused for its kind, with its reason and its two ends
+   *  (the status bar says it); cleared by the next drawing or kind choice */
+  connectRefusal: { verdict: Extract<ConnectVerdict, { ok: false }>; source: string; target: string } | null
+  setConnectRefusal: (v: { verdict: Extract<ConnectVerdict, { ok: false }>; source: string; target: string } | null) => void
+  /** the right panel's "More settings" open (the workbench); session only,
+   *  folded at start */
+  panelDetailsOpen: boolean
+  setPanelDetailsOpen: (v: boolean) => void
 }
 
 const CANVAS_LOCKED_KEY = 'loop-studio:canvas-locked'
@@ -302,7 +317,10 @@ export const useUiStore = create<UiState>((set, get) => ({
       return { focusMode: v }
     }),
 
-  minimapCollapsed: readBoolKey(MINIMAP_COLLAPSED_KEY),
+  // folded unless the user chose otherwise (docs/workbench.md §WB2.1,
+  // 2026-10-21): a stored '0' / '1' is that choice, kept; with nothing stored
+  // the minimap starts folded, so a whole fit has nothing under it
+  minimapCollapsed: readBoolKey(MINIMAP_COLLAPSED_KEY, true),
   setMinimapCollapsed: (v) =>
     set((s) => {
       if (s.minimapCollapsed === v) return s
@@ -410,6 +428,12 @@ export const useUiStore = create<UiState>((set, get) => ({
   setNodeStructure: (v) => set((s) => (s.nodeStructure === v ? s : { nodeStructure: v })),
   hoverEdgeId: null,
   setHoverEdgeId: (id) => set((s) => (s.hoverEdgeId === id ? s : { hoverEdgeId: id })),
+  connectKind: 'flow',
+  setConnectKind: (k) => set((s) => (s.connectKind === k && s.connectRefusal == null ? s : { connectKind: k, connectRefusal: null })),
+  connectRefusal: null,
+  setConnectRefusal: (v) => set((s) => (s.connectRefusal === v ? s : { connectRefusal: v })),
+  panelDetailsOpen: false,
+  setPanelDetailsOpen: (v) => set((s) => (s.panelDetailsOpen === v ? s : { panelDetailsOpen: v })),
 }))
 
 /** The node structure the canvas opens with. The NEW node — a compact body

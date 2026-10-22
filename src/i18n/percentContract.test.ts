@@ -51,48 +51,12 @@ type Declared = { position: Position; gap: Gap; sign?: string; bidi?: readonly s
 const DEFAULT_SIGN = PCT
 const DEFAULT_BIDI: readonly string[] = []
 
-/** MEASURED per locale, then pinned. */
+/** MEASURED per locale, then pinned. §L2.0 (2026-10) — English and Korean are
+ *  the shipped locales; the rows of the sixteen archived languages, with their
+ *  measurement notes, are in `archive/i18n/tests/percentContract.multilocale.test.ts`. */
 const CONTRACT: Record<string, Declared> = {
   en: { position: 'after', gap: 'none' },
   ko: { position: 'after', gap: 'none' },
-  ja: { position: 'after', gap: 'none' },
-  'zh-Hans': { position: 'after', gap: 'none' },
-  'zh-Hant': { position: 'after', gap: 'none' },
-  fr: { position: 'after', gap: 'nbsp' },
-  de: { position: 'after', gap: 'nbsp' },
-  'es-419': { position: 'after', gap: 'none' },
-  'pt-BR': { position: 'after', gap: 'none' },
-  'es-ES': { position: 'after', gap: 'nbsp' },
-  'pt-PT': { position: 'after', gap: 'none' },
-  ru: { position: 'after', gap: 'nbsp' },
-  // the first locale to put the sign FIRST, and with nothing between
-  tr: { position: 'before', gap: 'none' },
-  // Thai reads like the base here — Latin digits, sign after, no gap. Its
-  // `numberLocale` is `th-TH`; MEASURED, the bare `th` lays out identically.
-  th: { position: 'after', gap: 'none' },
-  vi: { position: 'after', gap: 'none' },
-  // MEASURED like every other row: `84%`, U+0038 U+0034 U+0025 — the sign
-  // touches the digits. Italian groups its numbers like `de` (`1.234.567,89`)
-  // but does NOT take `de`'s no-break space here.
-  it: { position: 'after', gap: 'none' },
-  // MEASURED: `84%`, U+0038 U+0034 U+0025 — the sign touches the digits.
-  // Dutch groups its numbers like `de` (`1.234.567,89`) and takes `de`'s
-  // separator NOWHERE: grouping like one arm and spacing like the other is
-  // exactly the combination an assumption would have got wrong.
-  nl: { position: 'after', gap: 'none' },
-  // The first row to use `bidi`, and the reason that field exists. MEASURED:
-  // `84‎%‎` — U+0038 U+0034 U+200E U+0025 U+200E. The sign sits AFTER the digits
-  // like almost every other row, and the VISIBLE gap is still none; what is new
-  // is that Intl wraps the value in LEFT-TO-RIGHT MARKs, so the character
-  // adjacent to the sign is U+200E rather than a digit. A test that searched
-  // the formatted string for `'%'` and looked one character back would read
-  // that control as "a gap" and pin the wrong contract — which is why this file
-  // reads `formatToParts` instead.
-  //
-  // These controls come from Intl, not from the catalog. §L2 bans LRM/RLM/ALM
-  // in TRANSLATIONS, and `bidiControls.test.ts` enforces that separately over
-  // the Arabic catalog; the two rules do not conflict.
-  ar: { position: 'after', gap: 'none', bidi: ['LRM', 'LRM'] },
 }
 
 const shipped = LOCALES.filter((l) => !l.pseudo)

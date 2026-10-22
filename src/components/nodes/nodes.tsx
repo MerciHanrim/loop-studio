@@ -50,12 +50,12 @@ import { useLod } from '../lod'
 import { useNodeActivityOpacity } from '../frames/useActivityTint'
 import { edgePortKind, faceOf, nameFaceFor, rfHandleId } from '../../model/ports'
 import type { LoopEdge, PortFace } from '../../model/types'
-import { PORT_COL } from '../../model/layout/grid'
 import { setNodeNameBox } from '../../store/routeMap'
-import { reservedWidth } from './nodeWidth'
 import { runNeedsCase } from '../../ui/flowColour'
 import { useCanvasTheme } from '../../ui/media'
 import { roleSymbol, type SymbolPrim } from './roleSymbol'
+import { CELL, LABEL_GAP, PARAMETER_BASELINE, symbolAnchor, SYMBOLS, symbolValueFits, VALUE_ROOM } from './symbol'
+import { portKindOf } from '../../model/connectKind'
 import './nodeStructure.css'
 
 type PortedEdge = Pick<LoopEdge, 'source' | 'target' | 'data' | 'sourceHandle' | 'targetHandle'>
@@ -97,12 +97,12 @@ function RoleSymbol({ prims, label }: { prims: SymbolPrim[]; label?: string }) {
   )
 }
 
-// ── Node structure, first implementation ──────────────────────────────────
+// ── Node structure (the default; `?nodes=inside` opens the previous one) ──
 // scratch/share/connection-editing-2/17-implementation-rules.md. While
-// `uiStore.nodeStructure === 'outside'` the frame draws the NEW node: a small
-// body (role silhouette + the key value) at the compact height, its width from
-// the display format (W1, ./nodeWidth), the NAME outside the body from level 1,
-// the body + name + the gap between them one hit region (the name and a
+// `uiStore.nodeStructure === 'outside'` the frame draws the SYMBOL node
+// (./symbol, the workbench redesign's step 4: one line symbol per kind in a
+// 56 px cell, the value inside), the NAME outside the symbol from level 1,
+// the symbol + name + the gap between them one hit region (the name and a
 // transparent bridge are children of the node element, so pointing, clicking
 // and dragging any of them is pointing at the node), and one DOM handle per
 // face per port (the document handle ids are unchanged; a non-default face is
@@ -144,6 +144,18 @@ function offsetIn(el: HTMLElement, frame: HTMLElement): { left: number; top: num
     top += e.offsetTop
   }
   return { left, top }
+}
+
+/** a symbol node's value width at `px`, from the value's own face (canvas
+ *  `measureText`, no layout read: a value changes on every step) */
+let sansFamily: string | undefined
+function valueWidthAt(text: string, px: number): number {
+  if (measureCtx === undefined) measureCtx = document.createElement('canvas').getContext('2d')
+  if (!measureCtx) return 0
+  sansFamily ??= getComputedStyle(document.documentElement).getPropertyValue('--font-sans').trim() || 'sans-serif'
+  measureCtx.font = `600 ${px}px ${sansFamily}`
+  // a px of slack for the tabular figures the canvas does not apply
+  return measureCtx.measureText(text).width + 1
 }
 
 /** a wrapped title's width on one line, from its own font (canvas
@@ -450,16 +462,18 @@ type FrameProps = {
    *  `<step>:done` (./nodeCues), or null / absent for none */
   conversion?: string | null
   /** §VL3 — the model layer's `invalid` state (a Register the engine can't
-   *  evaluate, or an unreadable model node). A `--warning` dashed outline + a
+   *  evaluate, or an unreadable model node). A `--warn` dashed outline + a
    *  top-right `!` flag; carries no value (the caller passes `—`). */
   invalid?: boolean
   stepKey: number
   /** issue #344 §DL1 — the resource ports this kind has (`in` left, `out`
    *  right); drawn here, where the box height is known, on the fixed port row */
   ports?: { in?: boolean; out?: boolean }
-  /** node structure — the body width W1 reserves for this node (./nodeWidth),
-   *  used only while the new structure is drawn */
-  widthReserve?: number
+  /** the symbol node's small second line beside the symbol, before the name:
+   *  a Pool's capacity (`≤ 50`), a Parameter's or Register's unit — what the
+   *  value means, which the symbol has no room for (Lumi, 2026-10-19: no
+   *  information is hidden to fit a symbol) */
+  aux?: string
   /** node structure — the inner role symbol (./roleSymbol): null = none */
   role?: SymbolPrim[] | null
   /** node structure — the catalog key of the word the symbol stands for (a
@@ -489,7 +503,7 @@ function NodeFrame({
   invalid,
   stepKey,
   ports,
-  widthReserve,
+  aux,
   role,
   roleKey,
 }: FrameProps) {
@@ -530,6 +544,7 @@ function NodeFrame({
   const rfHandlesKey = useStore((s) => (outside ? handlesKeyOf(s.edges as never, nodeId) : ''))
   const docHandlesKey = useGraphStore((s) => (outside ? handlesKeyOf(s.edges as never, nodeId) : ''))
   const usedHandlesKey = rfHandlesKey === docHandlesKey ? rfHandlesKey : unionKey(rfHandlesKey, docHandlesKey)
+  // the outside label: the aux line (if any) and the name, one box for the router
   const nameRef = useRef<HTMLSpanElement>(null)
   // §MML1 — render-time phrase segmentation for JA / ZH titles (display only)
   const locale = useI18n((s) => s.activeLocale)
@@ -550,6 +565,12 @@ function NodeFrame({
   // node structure — any connection being dragged: the face handles of every
   // node surface so the drop can choose a face
   const connecting = useConnection((c) => c.inProgress)
+  // the port kind of the connection kind chosen in the tool row (direction B,
+  // src/model/connectKind.ts): its handles are on top where a symbol's
+  // resource and state ports share a face's anchor (nodeStructure.css). The
+  // kind a drawing makes is the chosen one whatever handle took the press —
+  // a handle gives only its face.
+  const kindPort = useUiStore((s) => portKindOf(s.connectKind))
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const isSelected = useGraphStore((s) => s.selectedNodeId === nodeId)
@@ -568,6 +589,19 @@ function NodeFrame({
         (kind === 'pool' || kind === 'parameter' || kind === 'register')),
   )
   const frameRef = useRef<HTMLDivElement>(null)
+  // `mouseleave` never comes when the element the pointer last entered is
+  // replaced by a re-render (a selection or focus change) and the pointer then
+  // leaves before the browser hit-tests again: the hover form stayed on. While
+  // hovered, the pointer arriving over anything outside this node clears it.
+  useEffect(() => {
+    if (!hovered) return
+    const onOver = (e: PointerEvent) => {
+      const frame = frameRef.current
+      if (frame && !(e.target instanceof Node && frame.contains(e.target))) setHovered(false)
+    }
+    document.addEventListener('pointerover', onOver, true)
+    return () => document.removeEventListener('pointerover', onOver, true)
+  }, [hovered])
 
   // docs/mmo-multilingual-layout.md §MML1b + docs/node-shell-content-in-vessel.md —
   // the box height is driven by the RENDERED content, so the stack always sits
@@ -597,6 +631,12 @@ function NodeFrame({
   // React commits it: one read per change, never per animation frame
   const fonts = useFontLoads()
   const fitKey = JSON.stringify([value, unit, sub, title, locale, fonts])
+  // the symbol node: does the value fit its symbol (`fonts` re-runs this when
+  // a face arrives)? One that does not is elided there, never shrunk, and
+  // written in full on the line beside the symbol
+  const valueText = outside && value != null ? `${kind === 'register' ? '= ' : ''}${value}` : null
+  const valueFits = valueText != null && VALUE_ROOM[kind] != null && fonts >= 0 ? symbolValueFits(kind, (px) => valueWidthAt(valueText, px)) : null
+  const fullValue = valueFits === false ? valueText : null
   // the fit and the strings, language and fonts it was read for
   const [fitState, setFitState] = useState<{ fit: AnyFit; key: string } | null>(null)
   // #337 — a node is read the way a fresh one is: when its strings, language
@@ -632,7 +672,14 @@ function NodeFrame({
       setNodeNameBox(nodeId, null)
       return
     }
-    const read = () => setNodeNameBox(nodeId, { dx: el.offsetLeft, dy: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight })
+    // the name is centred on its face by a half-size translate (nodeStructure.css),
+    // which `offsetLeft` / `offsetTop` do not include
+    const across = nameFace === 'top' || nameFace === 'bottom'
+    const read = () => {
+      const w = el.offsetWidth
+      const h = el.offsetHeight
+      setNodeNameBox(nodeId, { dx: el.offsetLeft - (across ? w / 2 : 0), dy: el.offsetTop - (across ? 0 : h / 2), w, h })
+    }
     read()
     const ro = new ResizeObserver(read)
     ro.observe(el)
@@ -640,7 +687,7 @@ function NodeFrame({
       ro.disconnect()
       setNodeNameBox(nodeId, null)
     }
-  }, [outside, nodeId, nameFace, title, locale])
+  }, [outside, nodeId, nameFace, title, locale, aux, fullValue])
   useLayoutEffect(() => {
     const frame = frameRef.current
     const stack = stackRef.current
@@ -672,8 +719,7 @@ function NodeFrame({
     // (Lumi's set A: Converter / End show their silhouette alone), so the mark
     // takes the body's centre; nothing to measure (the name is outside)
     if (outside) {
-      const width = parseFloat(getComputedStyle(frame).width) || frame.offsetWidth
-      const next = { x: width / 2 - 6, y: boxH / 2 - 6 }
+      const next = { x: CELL / 2 - 6, y: CELL / 2 - 6 }
       setConvSpot((prev) => (prev?.x === next.x && prev?.y === next.y ? prev : next))
       return
     }
@@ -695,11 +741,11 @@ function NodeFrame({
   // in dev and production alike. Regression coverage:
   // e2e/template-label-overlay.spec.ts (dev) and e2e/dist.spec.ts (prod) —
   // re-run both if a React Flow upgrade touches node measurement.
-  // node structure — the new body stays at the compact height (its stack is
-  // the value row only) and takes W1's width; today's fits are not read for it
+  // the workbench's SYMBOL node (./symbol): the 56 px cell, the kind's symbol
+  // centred in it; today's fits are not read for it
   const grown = !outside && boxH > BASE_NODE_H
-  const bodyH = outside ? BASE_NODE_H : boxH
-  const bodyW = outside ? (widthReserve ?? reservedWidth({ type: kind, data: {} as never })) : null
+  const bodyH = outside ? CELL : boxH
+  const sym = SYMBOLS[kind] ?? SYMBOLS.pool
 
   // keyboard focus lands on React Flow's node wrapper, an ancestor of this div
   useEffect(() => {
@@ -717,8 +763,14 @@ function NodeFrame({
 
   // #337 — a width-parametric outline is drawn for the node's width (the fit
   // sets it, before the first paint); the others in their 120-wide viewBox
-  const pathW = outside ? (fixedDepth ? bodyW! : 120) : fixedDepth && fit && 'headShift' in fit ? fit.width : 120
-  const path = silhouettePath(kind, bodyH, pathW)
+  const pathW = outside ? CELL : fixedDepth && fit && 'headShift' in fit ? fit.width : 120
+  const path = outside ? sym.path : silhouettePath(kind, bodyH, pathW)
+  // a handle on a face sits on the symbol's outline there (`routeMap.portPoint`
+  // reads the same anchors); React Flow's own per-side centring transform stays
+  const at = (face: PortFace, port: 'in' | 'out' | 'state' = 'state'): Record<string, number> => {
+    const a = symbolAnchor(kind, face, port)
+    return face === 'top' ? { left: a.x, top: a.y } : face === 'bottom' ? { left: a.x, bottom: CELL - a.y } : face === 'left' ? { top: a.y, left: a.x } : { top: a.y, right: CELL - a.x }
+  }
   // FC-4.1 — only a stored-form colour is drawn; the ids are this component's
   // own (never built from the node id or the colour)
   const accent = readAccent(accentProp)
@@ -781,7 +833,7 @@ function NodeFrame({
   }, [mountedFacesKey, connecting, nodeId, rfStore, updateNodeInternals])
   // §VL3 stacking — every state is its own layer, so a Register that is
   // selected AND keyboard-focused AND invalid shows all three cues at once:
-  // the outer --warning invalid ring, the solid selection ring, the inset
+  // the outer --warn invalid ring, the solid selection ring, the inset
   // dashed focus ring, and the corner `!` flag. The accessible name carries
   // `invalid` too (not colour / shape alone).
   // the accessible name is localized like every other label: the kind word
@@ -810,7 +862,7 @@ function NodeFrame({
         (accent ? ' has-accent' : '') +
         // node structure — the new body; pointed at = thicker outline + the name
         // underlined (a form, not a colour; the model's candidate, §2 cues)
-        (outside ? ` nodef--outside nodef--name-${nameFace}${hovered ? ' is-hover' : ''}` : '')
+        (outside ? ` nodef--outside nodef--name-${nameFace}${hovered ? ' is-hover' : ''} nodef--kind-${kindPort}${connecting ? ' nodef--connecting' : ''}` : '')
       }
       data-invalid={invalid ? '' : undefined}
       data-accent={accent}
@@ -819,7 +871,20 @@ function NodeFrame({
       data-name-face={outside ? nameFace : undefined}
       style={
         outside
-          ? { width: bodyW!, height: BASE_NODE_H, ...(accent ? { ['--node-accent' as string]: accent } : null) }
+          ? {
+              width: CELL,
+              height: CELL,
+              // the symbol's extent from the cell's centre, for the name, the
+              // bridge and the value (nodeStructure.css)
+              ['--sym-hw' as string]: `${sym.hw}px`,
+              ['--sym-t' as string]: `${-sym.face.top.y}px`,
+              ['--sym-b' as string]: `${sym.face.bottom.y}px`,
+              // the label's distance from the symbol (symbol.ts `LABEL_GAP`)
+              ['--label-gap' as string]: `${LABEL_GAP}px`,
+              // the width the value fit measures against (symbol.ts `VALUE_ROOM`)
+              ...(VALUE_ROOM[kind] != null ? { ['--val-room' as string]: `${VALUE_ROOM[kind]}px` } : null),
+              ...(accent ? { ['--node-accent' as string]: accent } : null),
+            }
           : grown || accent || fit
           ? {
               ...(grown ? { height: boxH } : null),
@@ -837,14 +902,14 @@ function NodeFrame({
         position={Position.Top}
         id="state-target"
         className="h h--state"
-        style={{ opacity: opIn }}
+        style={{ ...(outside ? at('top') : null), opacity: opIn }}
       />
       <Handle
         type="source"
         position={Position.Bottom}
         id="state-source"
         className="h h--state"
-        style={{ opacity: opOut }}
+        style={{ ...(outside ? at('bottom') : null), opacity: opOut }}
       />
       {/* node structure — the state ports on the other faces, and the resource
           ports on the faces they do not take by default: one DOM handle per
@@ -852,12 +917,12 @@ function NodeFrame({
           (../../model/ports `rfHandleId`) */}
       {outside ? (
         <>
-          {faceMounted('state-target@left') ? <Handle type="target" position={Position.Left} id="state-target@left" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
-          {faceMounted('state-target@right') ? <Handle type="target" position={Position.Right} id="state-target@right" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
-          {faceMounted('state-target@bottom') ? <Handle type="target" position={Position.Bottom} id="state-target@bottom" className="h h--state h--extra" style={{ left: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
-          {faceMounted('state-source@top') ? <Handle type="source" position={Position.Top} id="state-source@top" className="h h--state h--extra" style={{ left: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
-          {faceMounted('state-source@left') ? <Handle type="source" position={Position.Left} id="state-source@left" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
-          {faceMounted('state-source@right') ? <Handle type="source" position={Position.Right} id="state-source@right" className="h h--state h--extra" style={{ top: '50%', opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('state-target@left') ? <Handle type="target" position={Position.Left} id="state-target@left" className="h h--state h--extra" style={{ ...at('left'), opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('state-target@right') ? <Handle type="target" position={Position.Right} id="state-target@right" className="h h--state h--extra" style={{ ...at('right'), opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('state-target@bottom') ? <Handle type="target" position={Position.Bottom} id="state-target@bottom" className="h h--state h--extra" style={{ ...at('bottom'), opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('state-source@top') ? <Handle type="source" position={Position.Top} id="state-source@top" className="h h--state h--extra" style={{ ...at('top'), opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('state-source@left') ? <Handle type="source" position={Position.Left} id="state-source@left" className="h h--state h--extra" style={{ ...at('left'), opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('state-source@right') ? <Handle type="source" position={Position.Right} id="state-source@right" className="h h--state h--extra" style={{ ...at('right'), opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
         </>
       ) : null}
       <svg
@@ -911,10 +976,14 @@ function NodeFrame({
           />
         ) : null}
         <path className="nodef__stroke" d={path} />
-        {kind === 'end' ? (
+        {kind === 'end' && !outside ? (
           <line className="nodef__endbar" x1="95" y1="15" x2="95" y2={boxH - 15} />
         ) : null}
-        {/* §VL3 / FC-4.1 — invalid: a --warning dashed ring, the OUTERMOST one;
+        {/* the parameter symbol's baseline under its value, as on an entry field */}
+        {kind === 'parameter' && outside ? (
+          <line className="nodef__baseline" x1={PARAMETER_BASELINE.x1} y1={PARAMETER_BASELINE.y} x2={PARAMETER_BASELINE.x2} y2={PARAMETER_BASELINE.y} />
+        ) : null}
+        {/* §VL3 / FC-4.1 — invalid: a --warn dashed ring, the OUTERMOST one;
             the dash pattern and the corner flag are the non-colour tell */}
         {invalid ? (
           <path
@@ -995,9 +1064,13 @@ function NodeFrame({
             the 120-wide viewBox applies, so it draws exactly as on every other
             kind */}
         {mapOnly && !convOn ? (
-          <g transform={pathW === 120 ? undefined : `scale(${pathW / 120} 1)`}>
-            <circle className="nodef__cdot" cx="60" cy={boxH / 2} r="9" />
-          </g>
+          outside ? (
+            <circle className="nodef__cdot" cx={CELL / 2} cy={CELL / 2} r="9" />
+          ) : (
+            <g transform={pathW === 120 ? undefined : `scale(${pathW / 120} 1)`}>
+              <circle className="nodef__cdot" cx="60" cy={boxH / 2} r="9" />
+            </g>
+          )
         ) : null}
       </svg>
 
@@ -1064,14 +1137,18 @@ function NodeFrame({
           <span
             className={`nodef__value${valueDir ? ` nodef__value--${valueDir}` : ''}`}
             dir="ltr"
-            // §4.1 overflow — the format and precision never change for space; a
-            // value wider than the reservation is elided (the CSS ellipsis is the
-            // mark) and the whole text is on the pointer tooltip here and, for
-            // keyboard and touch, in the Inspector of the selected node
-            title={outside ? `${value}${unit ? ` ${unit}` : ''}` : undefined}
+            // §4.1 overflow — the format, the precision and the size never change
+            // for space: a value wider than its symbol is elided here (the CSS
+            // ellipsis is the mark) AND written in full on the line beside the
+            // symbol (below); the tooltip carries it with what it means
+            title={outside ? `${valueText}${aux ? ` ${aux}` : ''}` : undefined}
+            data-fit={valueFits == null ? undefined : valueFits ? 'fits' : 'over'}
           >
+            {/* the register's readout reads `= …`; a unit is on the line beside
+                the symbol */}
+            {outside && kind === 'register' ? <span className="nodef__eq">= </span> : null}
             {value}
-            {unit ? <span className="nodef__unit" dir="auto">{' '}{unit}</span> : null}
+            {unit && !outside ? <span className="nodef__unit" dir="auto">{' '}{unit}</span> : null}
           </span>
         ) : outside && role ? (
           <RoleSymbol prims={role} label={roleWord ?? undefined} />
@@ -1090,12 +1167,20 @@ function NodeFrame({
       {outside ? (
         <>
           <span className={`nodef__bridge nodef__bridge--${nameFace}`} aria-hidden="true" />
-          <span
-            ref={nameRef}
-            className={`nodef__name nodef__name--${nameFace}${phrased ? ' nodef__name--phrased' : ''}`}
-            dir={titleDir}
-          >
-            {titleNode}
+          <span ref={nameRef} className={`nodef__label nodef__label--${nameFace}`}>
+            {/* pinned ltr like the value row it continues (docs/localization.md
+                §L9.3): the number stays ahead of its unit under any surrounding
+                direction, and the unit, the user's text, takes its own */}
+            {aux || fullValue ? (
+              <span className="nodef__aux" dir="ltr">
+                {fullValue ? <span className="nodef__auxvalue">{fullValue}</span> : null}
+                {fullValue && aux ? (kind === 'pool' ? ' · ' : ' ') : null}
+                {aux ? (kind === 'pool' ? <span className="nodef__cap">{aux}</span> : <span className="nodef__unit" dir="auto">{aux}</span>) : null}
+              </span>
+            ) : null}
+            <span className={`nodef__name nodef__name--${nameFace}${phrased ? ' nodef__name--phrased' : ''}`} dir={titleDir}>
+              {titleNode}
+            </span>
           </span>
         </>
       ) : null}
@@ -1111,7 +1196,7 @@ function NodeFrame({
           position={Position.Left}
           id="in"
           className="h h--in"
-          style={{ top: PORT_ROW, left: `${portInsetFraction(kind, bodyH, 'in', PORT_ROW, pathW) * 100}%` }}
+          style={outside ? at('left') : { top: PORT_ROW, left: `${portInsetFraction(kind, bodyH, 'in', PORT_ROW, pathW) * 100}%` }}
         />
       ) : null}
       {ports?.out ? (
@@ -1120,25 +1205,25 @@ function NodeFrame({
           position={Position.Right}
           id="out"
           className="h h--out"
-          style={{ top: PORT_ROW, right: `${portInsetFraction(kind, bodyH, 'out', PORT_ROW, pathW) * 100}%` }}
+          style={outside ? at('right') : { top: PORT_ROW, right: `${portInsetFraction(kind, bodyH, 'out', PORT_ROW, pathW) * 100}%` }}
         />
       ) : null}
       {/* node structure — the resource ports on the faces they do not take by
-          default: top / bottom on the fixed lane `PORT_COL` from the near corner,
-          the opposite side on the port row; revealed with the state ports. The
-          anchors match `routeMap.portPoint`. */}
+          default, revealed with the state ports; on the symbol's outline at the
+          face's anchor, like every port there (`routeMap.portPoint`); while a
+          connection is dragged the dragged kind's handles are on top */}
       {outside && ports?.in ? (
         <>
-          {faceMounted('in@top') ? <Handle type="target" position={Position.Top} id="in@top" className="h h--in h--extra" style={{ left: PORT_COL, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
-          {faceMounted('in@bottom') ? <Handle type="target" position={Position.Bottom} id="in@bottom" className="h h--in h--extra" style={{ left: PORT_COL, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
-          {faceMounted('in@right') ? <Handle type="target" position={Position.Right} id="in@right" className="h h--in h--extra" style={{ top: PORT_ROW, right: `${portInsetFraction(kind, bodyH, 'out', PORT_ROW, pathW) * 100}%`, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('in@top') ? <Handle type="target" position={Position.Top} id="in@top" className="h h--in h--extra" style={{ ...at('top', 'in'), opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('in@bottom') ? <Handle type="target" position={Position.Bottom} id="in@bottom" className="h h--in h--extra" style={{ ...at('bottom', 'in'), opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('in@right') ? <Handle type="target" position={Position.Right} id="in@right" className="h h--in h--extra" style={{ ...at('right'), opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
         </>
       ) : null}
       {outside && ports?.out ? (
         <>
-          {faceMounted('out@top') ? <Handle type="source" position={Position.Top} id="out@top" className="h h--out h--extra" style={{ left: `calc(100% - ${PORT_COL}px)`, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
-          {faceMounted('out@bottom') ? <Handle type="source" position={Position.Bottom} id="out@bottom" className="h h--out h--extra" style={{ left: `calc(100% - ${PORT_COL}px)`, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
-          {faceMounted('out@left') ? <Handle type="source" position={Position.Left} id="out@left" className="h h--out h--extra" style={{ top: PORT_ROW, left: `${portInsetFraction(kind, bodyH, 'in', PORT_ROW, pathW) * 100}%`, opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('out@top') ? <Handle type="source" position={Position.Top} id="out@top" className="h h--out h--extra" style={{ ...at('top', 'out'), opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('out@bottom') ? <Handle type="source" position={Position.Bottom} id="out@bottom" className="h h--out h--extra" style={{ ...at('bottom', 'out'), opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
+          {faceMounted('out@left') ? <Handle type="source" position={Position.Left} id="out@left" className="h h--out h--extra" style={{ ...at('left'), opacity: facesOn ? 1 : 0 }} data-off={facesOn ? undefined : ''} /> : null}
         </>
       ) : null}
     </div>
@@ -1155,9 +1240,9 @@ function PoolNode({ id, data, selected }: NodeProps) {
   const stepKey = useSimStore((s) => s.stepIndex)
   const pulseKey = usePoolPulseKey(id)
   const outside = useOutside()
-  // Pool's face is its count; mode / capacity stay in the inspector. Node
-  // structure — the new body shows `count / capacity` in one row (the study's
-  // form); the width is reserved for the capacity and six digits (W1)
+  // Pool's face is its count; mode stays in the inspector. The symbol node
+  // holds the count; a capacity is the small line beside the circle (`≤ 50`,
+  // the form the previous node, `?nodes=inside`, shows on its detail line)
   return (
     <>
       <NodeFrame
@@ -1166,11 +1251,11 @@ function PoolNode({ id, data, selected }: NodeProps) {
         ports={{ in: true, out: true }}
         title={d.label}
         titleDir="auto"
-        value={outside && d.capacity != null ? `${fmt(shown)} / ${d.capacity}` : fmt(shown)}
+        value={fmt(shown)}
         valueDir={useValueDir(shown)}
+        aux={outside && d.capacity != null ? `≤ ${d.capacity}` : undefined}
         sub={d.capacity != null ? `≤ ${d.capacity}` : undefined}
         subDir="ltr"
-        widthReserve={outside ? reservedWidth({ type: 'pool', data }) : undefined}
         selected={selected}
         accent={(data as FlowColour).accent}
         firing={useFiring(id)}
@@ -1192,7 +1277,6 @@ function SourceNode({ id, data, selected }: NodeProps) {
         nodeId={id}
         kind="source"
         ports={{ out: true }}
-        widthReserve={reservedWidth({ type: 'source', data })}
         role={roleSymbol('source', d)}
         roleKey={`enum.activation.${d.activation}` as MessageKey}
         title={d.label}
@@ -1219,7 +1303,6 @@ function DrainNode({ id, data, selected }: NodeProps) {
         nodeId={id}
         kind="drain"
         ports={{ in: true }}
-        widthReserve={reservedWidth({ type: 'drain', data })}
         role={roleSymbol('drain', d)}
         roleKey={`enum.activation.${d.activation}` as MessageKey}
         title={d.label}
@@ -1246,7 +1329,6 @@ function GateNode({ id, data, selected }: NodeProps) {
         nodeId={id}
         kind="gate"
         ports={{ in: true, out: true }}
-        widthReserve={reservedWidth({ type: 'gate', data })}
         role={roleSymbol('gate', d)}
         roleKey={`enum.distribution.${d.distribution}` as MessageKey}
         title={d.label}
@@ -1273,7 +1355,6 @@ function ConverterNode({ id, data, selected }: NodeProps) {
         nodeId={id}
         kind="converter"
         ports={{ in: true, out: true }}
-        widthReserve={reservedWidth({ type: 'converter', data })}
         title={d.label}
         titleDir="auto"
         sub={d.mode}
@@ -1299,7 +1380,6 @@ function EndNode({ id, data, selected }: NodeProps) {
         nodeId={id}
         kind="end"
         ports={{ in: true }}
-        widthReserve={reservedWidth({ type: 'end', data })}
         title={d.label}
         titleDir="auto"
         selected={selected}
@@ -1354,18 +1434,16 @@ function ParameterNode({ id, data, selected }: NodeProps) {
   const read = readParameterData(data)
   if (!read.ok) return <UnreadableModelNode id={id} kind="parameter" selected={selected} />
   const d = read.data
-  // node structure — the unit rides the value row (`464 $/day`, as a
-  // Register's does); today's node keeps it on the detail line. The width
-  // reserved it (W1), so the row shows it (Lumi's review, 2026-10-12)
+  // the symbol node: the unit is the small line beside the square, before the
+  // name; the previous node (`?nodes=inside`) keeps it on the detail line
   return (
     <NodeFrame
       nodeId={id}
       kind="parameter"
-      widthReserve={reservedWidth({ type: 'parameter', data })}
       title={d.label || 'Parameter'}
       titleDir="auto"
       value={fmt(d.value)}
-      unit={outside ? d.unit || undefined : undefined}
+      aux={outside ? d.unit || undefined : undefined}
       sub={outside ? undefined : d.unit || undefined}
       subDir="auto"
       selected={selected}
@@ -1380,6 +1458,7 @@ function RegisterNode({ id, data, selected }: NodeProps) {
   const outcome = useRegisterOutcome(id)
   const numeric = outcome && !outcome.invalid ? outcome.value : Number.NaN
   const dir = useValueDir(Number.isFinite(numeric) ? numeric : 0)
+  const outside = useOutside()
   const read = readRegisterData(data)
   if (!read.ok) return <UnreadableModelNode id={id} kind="register" selected={selected} />
   const d = read.data
@@ -1390,12 +1469,13 @@ function RegisterNode({ id, data, selected }: NodeProps) {
     <NodeFrame
       nodeId={id}
       kind="register"
-      widthReserve={reservedWidth({ type: 'register', data })}
       title={d.label || 'Register'}
       titleDir="auto"
       value={invalid ? '—' : formatRegisterValue(numeric, d.format)}
       valueDir={invalid ? null : dir}
       unit={invalid ? undefined : d.unit || undefined}
+      // the symbol node: the unit is the small line beside the readout
+      aux={outside && !invalid ? d.unit || undefined : undefined}
       sub={`= ${d.expr}`}
       subDir="ltr"
       selected={selected}

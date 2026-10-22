@@ -13,6 +13,7 @@ import {
   rgbAt,
 } from './support/boundary'
 import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from './support/loop'
+import { menuRow } from './support/workbenchMenus'
 
 // docs/visual-language.md §VL8 "Control boundary" — every 1 px control border
 // on a panel (`.btn`, the PlayBar's `.pb-btn`, the Timeline's `.timeline__csv`)
@@ -22,12 +23,12 @@ import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from '
 // pixels of one representative control per surface token: toolbar (panel),
 // Share pop (overlay), Filter panel (raised), Import wizard quick-start
 // (sunken), PlayBar strip (panel), Timeline legend (panel). The desktop audit
-// (2026-09-20) had the shared `--line-structure` border at 1.78 / 1.86 (light,
+// (2026-09-20) had the shared `--line-2` border at 1.78 / 1.86 (light,
 // vs panel / vs face), 1.65 overlay, 1.51 sunken, 2.15–2.54 dark, and the
-// hovered `--line-strong` at 2.88 on the sunken group — the face contrast
+// hovered `--line-3` at 2.88 on the sunken group — the face contrast
 // (1.86 / 2.15) was the same on every surface, so the contract is global.
-// Guards: ghost (no rest border, `--line-strong` hovered) and primary
-// (`--signal-primary`) keep their own borders, label text ≥ 4.5:1, disabled
+// Guards: ghost (no rest border, `--line-3` hovered) and primary
+// (`--accent`) keep their own borders, label text ≥ 4.5:1, disabled
 // stays the WCAG exception (`opacity: .4`, `.pb-btn:disabled` →
 // `--line-disabled`), and forced colours own the border (ButtonBorder /
 // Highlight / GrayText). No pressed contract — no desktop `.btn` carries
@@ -40,12 +41,19 @@ import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from '
 // `shell-control-boundary.spec.ts`.
 
 /** the six representative controls, one per surface token (+ PlayBar + Timeline) */
-type Rep = { name: string; surface: string; open: (page: Page) => Promise<Locator> }
+/** `out`: how far outside the box the surface is sampled (default 5 px). The
+ *  menu bar's Share sits 2 px under the window's top edge (a 27 px button in
+ *  the 32 px bar), where 5 px above it is off the page — measured 2026-10-20:
+ *  the off-page sample made the top edge read as the face (1.01:1) */
+type Rep = { name: string; surface: string; open: (page: Page) => Promise<Locator>; out?: number }
 const REPS: Rep[] = [
   {
-    name: 'toolbar Templates (.btn)',
+    // the workbench's menu bar names its menus in plain text (docs/workbench.md
+    // §WB2); Share is the bar's one bordered `.btn`, as Templates was
+    name: 'menu bar Share (.btn)',
     surface: 'panel',
-    open: async (page) => page.locator('.toolbar__actions .menu > button.btn', { hasText: /Templates/ }),
+    open: async (page) => page.locator('.toolbar__actions button.btn', { hasText: /^Share$/ }),
+    out: 2,
   },
   {
     name: 'Share pop Copy (.btn--sm)',
@@ -131,12 +139,12 @@ test.describe('control boundary contrast (§VL8 / WCAG 1.4.11)', () => {
         expect(cs.opacity).toBe('1')
         expect(ratio(parseRgb(cs.color), parseRgb(cs.bg)), `${rep.name}: label vs face ≥ 4.5`).toBeGreaterThanOrEqual(4.5)
         // the contract is the composited pixel boundary; the token identity is asserted after it
-        const rest = await boundary(page, el)
+        const rest = await boundary(page, el, rep.out)
         console.log(`[ctl] ${scheme} ${rep.name} rest: L ${rest.left.vsOut}/${rest.left.vsFace} T ${rest.top.vsOut}/${rest.top.vsFace}`)
         expectBoundary(`${scheme} ${rep.name} rest`, rest)
         await el.hover()
         await page.waitForTimeout(120)
-        const hover = await boundary(page, el)
+        const hover = await boundary(page, el, rep.out)
         console.log(`[ctl] ${scheme} ${rep.name} hover: L ${hover.left.vsOut}/${hover.left.vsFace} T ${hover.top.vsOut}/${hover.top.vsFace}`)
         expectBoundary(`${scheme} ${rep.name} hover`, hover)
         expect(dist(hover.left.edge, rest.left.edge), `${rep.name}: hover has its own (stronger) border`).toBeGreaterThan(6)
@@ -148,13 +156,13 @@ test.describe('control boundary contrast (§VL8 / WCAG 1.4.11)', () => {
 
     test(`${scheme}: guards — ghost / primary borders, the focus boundary + halo, disabled opacity and the PlayBar disabled border`, async ({ page }) => {
       await load(page, scheme)
-      const signal = await probe(page, 'var(--signal-primary)')
-      const lineStrong = await probe(page, 'var(--line-strong)')
+      const signal = await probe(page, 'var(--accent)')
+      const lineStrong = await probe(page, 'var(--line-3)')
       const controlHoverToken = await probe(page, 'var(--line-control-hover)')
-      const focusRing = await probe(page, 'var(--focus-ring)')
+      const focusRing = await probe(page, 'var(--focus)')
       const lineDisabled = await probe(page, 'var(--line-disabled)')
       // ghost (Inspector Delete) — outside the control-boundary contract: no
-      // border at rest, `--line-strong` hovered. That pair needs its own (0,3,0)
+      // border at rest, `--line-3` hovered. That pair needs its own (0,3,0)
       // rule to outrank the shared `.btn:hover:not(:disabled)`, so it is pinned
       // here to catch a silent promotion to the control token.
       await page.evaluate(() => {
@@ -167,35 +175,37 @@ test.describe('control boundary contrast (§VL8 / WCAG 1.4.11)', () => {
       await ghost.hover()
       await page.waitForTimeout(120)
       const gh = await computed(ghost)
-      expect(gh.border, 'ghost hovered: --line-strong, not the control token').toBe(lineStrong)
+      expect(gh.border, 'ghost hovered: --line-3, not the control token').toBe(lineStrong)
       expect(gh.border, 'ghost hovered: never the control-boundary token').not.toBe(controlHoverToken)
-      expect(gh.color).toBe(await probe(page, 'var(--text-primary)'))
+      expect(gh.color).toBe(await probe(page, 'var(--ink-1)'))
       await noHover(page)
-      // primary (Monte Carlo Run): --signal-primary at rest AND hovered, the
+      // primary (Monte Carlo Run): --accent at rest AND hovered, the
       // pre-change values — `.btn--primary:hover:not(:disabled)` is (0,3,0) and
       // sits after the shared hover rule, so the control tokens never reach it.
-      await page.locator('.pstrip__mc button').click()
+      // Run ▸ Monte Carlo… (the run row folds its own button at 1280, docs/workbench.md §WB7)
+      await (await menuRow(page, 'run', /Monte Carlo/)).click()
       const primary = page.locator('.mcdlg[role="dialog"] .btn--primary').first()
       await expect(primary).toBeVisible()
       // the dialog's cost line resolves asynchronously and reflows the footer —
       // settle it before hovering, and let the CSS assertions retry
       await expect(page.locator('.mcdlg__costlabel').first()).toBeVisible()
       const pr = await computed(primary)
-      expect(pr.border, 'primary at rest: --signal-primary').toBe(signal)
+      expect(pr.border, 'primary at rest: --accent').toBe(signal)
       expect(pr.color).toBe(signal)
       await primary.hover()
-      await expect(primary, 'primary hovered: still --signal-primary').toHaveCSS('border-top-color', signal)
+      await expect(primary, 'primary hovered: still --accent').toHaveCSS('border-top-color', signal)
       await expect(primary, 'primary hovered: the soft fill').toHaveCSS(
         'background-color',
-        await probe(page, 'var(--signal-primary-soft)'),
+        await probe(page, 'var(--accent-soft)'),
       )
       await noHover(page)
       await page.keyboard.press('Escape')
       await expect(page.locator('.mcdlg[role="dialog"]')).toHaveCount(0)
       // focus on a bordered toolbar button (class A): the BOUNDARY is the solid
-      // indicator — `--line-focus`, ≥ 3:1 against the toolbar AND the face, on
+      // indicator — `--focus`, ≥ 3:1 against the toolbar AND the face, on
       // real pixels — a halo accompanies it, and there is no outline
-      const tpl = page.locator('.toolbar__actions .menu > button.btn', { hasText: /Templates/ })
+      // the menu bar's bordered button: Share (the Templates menu's trigger was, before 2026-10)
+      const tpl = page.locator('.toolbar__actions button.btn', { hasText: /^Share$/ })
       const restEdge = (await boundary(page, tpl)).left.edge
       await keyboardFocus(page, tpl)
       const fs = await focusStyle(tpl)
@@ -204,8 +214,11 @@ test.describe('control boundary contrast (§VL8 / WCAG 1.4.11)', () => {
       expect(fs.border, 'the boundary takes the solid focus colour').toBe(focusRing)
       expect(fs.boxShadow, 'a 3 px halo accompanies it').toMatch(/0px 0px 0px 3px/)
       const focused = await boundary(page, tpl)
-      console.log(`[ctl] ${scheme} toolbar Templates (.btn) focus: L ${focused.left.vsOut}/${focused.left.vsFace} T ${focused.top.vsOut}/${focused.top.vsFace}`)
-      expectBoundary(`${scheme} toolbar .btn focused`, focused)
+      console.log(`[ctl] ${scheme} menu bar Share (.btn) focus: L ${focused.left.vsOut}/${focused.left.vsFace} T ${focused.top.vsOut}/${focused.top.vsFace}`)
+      // the LEFT edge: Share sits 2 px under the window's top edge, so above it
+      // there is no surface to sample past the 3 px halo (see `Rep.out`)
+      expect(focused.left.vsOut, `${scheme} menu bar .btn focused: left border vs the bar ≥ 3:1`).toBeGreaterThanOrEqual(3)
+      expect(focused.left.vsFace, `${scheme} menu bar .btn focused: left border vs the face ≥ 3:1`).toBeGreaterThanOrEqual(3)
       expect(dist(focused.left.edge, parseRgb(focusRing)), 'the boundary is painted in the focus colour').toBeLessThan(40)
       expect(dist(focused.left.edge, restEdge), 'focus reads differently from rest').toBeGreaterThan(6)
       // the halo alone must never be the indicator: it is far below 3:1
@@ -250,7 +263,7 @@ test.describe('control boundary contrast (§VL8 / WCAG 1.4.11)', () => {
       const grayText = await probe(page, 'GrayText')
       const canvas = parseRgb(await probe(page, 'Canvas'))
       await noHover(page)
-      for (const sel of ['.toolbar__actions .menu > button.btn', '.pstrip .pb-btn:not(.pb-btn--primary):not(:disabled)']) {
+      for (const sel of ['.toolbar__actions button.btn', '.pstrip .pb-btn:not(.pb-btn--primary):not(:disabled)']) {
         const el = page.locator(sel).first()
         await expect(el).toBeVisible()
         expect((await computed(el)).border, `${sel}: enabled = ButtonBorder`).toBe(buttonBorder)

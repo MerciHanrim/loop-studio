@@ -88,7 +88,7 @@ async function seedGraph(page: Page): Promise<void> {
     const gs = (window as unknown as Bridge).__loop.graph.getState()
     gs.updateNodeData(s.id, { label: 'α ⚙' })
     gs.updateNodeData(p.id, { label: 'β 보물' })
-    gs.onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' })
+    gs.onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
   })
 }
 const labelsOf = (page: Page) =>

@@ -95,7 +95,14 @@ test.describe('node structure — the Coffee roastery Template under the new nod
     for (const id of ['projected_revenue', 'planned_cost', 'projected_operating_margin']) {
       await expect(page.locator(`.react-flow__node[data-id="${id}"] .nodef__unit`)).toHaveText('$/day')
     }
-    expect(r.levels.every((l) => l === 'lod-L1' || l === 'lod-L2')).toBe(true)
+    // the fit may land at any level: at 1280 × 800 with the default panels it is
+    // 0.364, level 0, which keeps the names since 2026-10-20 (Lumi; level 0 had
+    // hidden every one of them) — the names' own visibility is the check above.
+    // Which level the whole-diagram fit SHOULD reach is not decided; what is
+    // decided is that the level is the zoom's, by the one rule
+    // (src/components/lod.ts, docs/visual-language.md §VL7.2)
+    const ruled = await page.evaluate(async (z) => (await import('/src/components/lod.ts')).lodFor(z), r.zoom)
+    expect(r.levels, `one level for the whole view, the one zoom ${r.zoom} gives`).toEqual([`lod-${ruled}`])
     expect(r.inView, 'the whole-diagram fit contains every name').toBe(23)
     expect(r.nameName).toBe(0)
     expect(r.nameBody).toBe(0)

@@ -36,7 +36,7 @@ function seed() {
   g().addNodeAt('source', { x: 0, y: 0 })
   g().addNodeAt('pool', { x: 200, y: 0 })
   const [src, pool] = g().nodes
-  g().onConnect({ source: src.id, target: pool.id, sourceHandle: 'out', targetHandle: 'in' })
+  g().onConnect({ source: src.id, target: pool.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
   useFrameStore.getState().addFrame({ x: -20, y: -20, w: 400, h: 120 })
   return { src: src.id, pool: pool.id, edge: g().edges[0].id, frame: useFrameStore.getState().frames[0].id }
 }
@@ -55,7 +55,7 @@ describe('editPolicy — registration', () => {
 describe('editPolicy — while locked, every user edit is refused', () => {
   const refused: [string, (ids: ReturnType<typeof seed>) => unknown][] = [
     ['addNodeAt', () => g().addNodeAt('pool', { x: 400, y: 0 })],
-    ['onConnect', (i) => g().onConnect({ source: i.pool, target: i.src, sourceHandle: 'out', targetHandle: 'in' })],
+    ['onConnect', (i) => g().onConnect({ source: i.pool, target: i.src, sourceHandle: 'out', targetHandle: 'in' }, 'flow')],
     ['updateNodeData', (i) => g().updateNodeData(i.pool, { label: 'Renamed' })],
     ['setEdgeData', (i) => g().setEdgeData(i.edge, { kind: 'resource', flow: '5' })],
     ['setAccent', (i) => g().setAccent([i.pool], [], '#aa3355')],

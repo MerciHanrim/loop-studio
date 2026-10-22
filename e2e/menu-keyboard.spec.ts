@@ -118,15 +118,15 @@ async function expectMenuContract(page: Page, trigger: Locator, prepare: () => P
 const toolbarButton = (page: Page, name: string) => page.locator('.toolbar__actions .menu > button', { hasText: name }).first()
 
 test.describe('every menu keeps the one keyboard contract', () => {
-  test('Templates', async ({ page }) => {
-    await openApp(page)
-    await expectMenuContract(page, page.locator('.toolbar__actions-core > .menu > .btn').first())
-  })
-  test('Insert module', async ({ page }) => {
-    await openApp(page)
-    await expectMenuContract(page, toolbarButton(page, 'Insert module'))
-  })
-  test('File, with its separator never landed on', async ({ page }) => {
+  // the workbench's menu bar (docs/workbench.md §WB2): the Templates menu went
+  // into File; Edit, Insert and Run are menus of their own
+  for (const id of ['edit', 'insert', 'run'] as const) {
+    test(`${id[0]!.toUpperCase()}${id.slice(1)}, with its separators and disabled rows never landed on`, async ({ page }) => {
+      await openApp(page)
+      await expectMenuContract(page, page.locator(`[data-menu="${id}"] > .wb-mb`))
+    })
+  }
+  test('File, with its separators never landed on', async ({ page }) => {
     await openApp(page)
     await expectMenuContract(page, toolbarButton(page, 'File'))
   })
@@ -138,12 +138,12 @@ test.describe('every menu keeps the one keyboard contract', () => {
     await openApp(page)
     await expectMenuContract(page, page.locator('[data-tour="help-trigger"]'))
   })
-  test('Theme, inside Settings: radio items, and Escape closes it alone', async ({ page }) => {
+  test('Theme, inside View: radio items, and Escape closes it alone', async ({ page }) => {
     await openApp(page)
-    const settings = page.locator('.toolbar__settingsmenu > button')
+    const settings = page.locator('.wb-viewmenu > .wb-mb')
     const openSettings = async () => {
       if ((await settings.getAttribute('aria-expanded')) !== 'true') await settings.click()
-      await expect(page.locator('.toolbar__settingsmenu-pop')).toBeVisible()
+      await expect(page.locator('.wb-viewmenu__pop')).toBeVisible()
     }
     const theme = page.locator('.theme-menu > button')
     await expectMenuContract(page, theme, openSettings)
@@ -155,7 +155,7 @@ test.describe('every menu keeps the one keyboard contract', () => {
     await expect(page.locator('.theme-menu__pop [role="menuitemradio"][aria-checked="true"]')).toHaveCount(1)
     await page.keyboard.press('Escape')
     await expect(page.locator('.theme-menu__pop')).toHaveCount(0)
-    await expect(page.locator('.toolbar__settingsmenu-pop')).toBeVisible()
+    await expect(page.locator('.wb-viewmenu__pop')).toBeVisible()
     await expect(theme).toBeFocused()
   })
   test('the Distribution panel’s export menu', async ({ page }) => {
@@ -169,12 +169,13 @@ test.describe('every menu keeps the one keyboard contract', () => {
 })
 
 test.describe('the temporary session’s menu', () => {
-  // Reached the way a person reaches it, from Settings → Storage and privacy.
-  // A profile that STARTS temporary reads no stored key, so the first-run tour
-  // would open over the toolbar and take the clicks.
+  // Reached the way a person reaches it, from File → Storage and privacy (the
+  // workbench; Settings before 2026-10). A profile that STARTS temporary reads
+  // no stored key, so the first-run tour would open over the toolbar and take
+  // the clicks.
   const toTemporary = async (page: Page) => {
     await openApp(page)
-    await page.locator('.toolbar__settingsmenu > button').click()
+    await page.locator('.toolbar__filemenu > .wb-mb').click()
     await page.locator('[data-settings-row="storage-privacy"]').click()
     const dlg = page.locator('.mcdlg--storage')
     await dlg.locator('[data-storage-action="to-temporary"]').click()
@@ -198,17 +199,29 @@ test.describe('the temporary session’s menu', () => {
 })
 
 test.describe('where focus goes after a choice', () => {
-  test('an insert chosen from the keyboard returns focus to the button; chosen with the pointer, focus is left as it was', async ({ page }) => {
+  // The Insert-module menu this used to choose a bundled block from was removed
+  // (2026-10); a File-menu export is the same kind of choice — a command that
+  // opens no dialog.
+  test('a command chosen from the keyboard returns focus to the button; chosen with the pointer, focus is left as it was', async ({ page }) => {
     await openApp(page)
-    const trigger = toolbarButton(page, 'Insert module')
+    const trigger = toolbarButton(page, 'File')
+    const graphJson = popOf(trigger).locator('[role="menuitem"]').filter({ hasText: 'Graph JSON' }).first()
     await trigger.focus()
     await page.keyboard.press('Enter')
     await expect(popOf(trigger).locator('[role="menuitem"]').first()).toBeFocused()
+    for (let i = 0; i < 16 && !(await graphJson.evaluate((el) => el === document.activeElement)); i++) {
+      await page.keyboard.press('ArrowDown')
+    }
+    await expect(graphJson).toBeFocused()
+    const download = page.waitForEvent('download')
     await page.keyboard.press('Enter')
+    await download
     await expect(trigger).toBeFocused()
     // the pointer: open and choose by mouse - focus is not pulled to the button
     await trigger.click()
-    await popOf(trigger).locator('[role="menuitem"]').first().click()
+    const download2 = page.waitForEvent('download')
+    await graphJson.click()
+    await download2
     await expect(popOf(trigger)).toHaveCount(0)
     await expect(trigger).not.toBeFocused()
   })
@@ -240,12 +253,16 @@ test.describe('where focus goes after a choice', () => {
     await expect(dlg).toHaveCount(0)
     await expect(help).toBeFocused()
   })
-  test('the Templates confirmation returns to Templates', async ({ page }) => {
+  test('the Templates confirmation returns to File, the menu the Template was chosen in', async ({ page }) => {
     await openApp(page)
-    const trigger = page.locator('.toolbar__actions-core > .menu > .btn').first()
+    const trigger = page.locator('.toolbar__filemenu > .wb-mb')
     await trigger.focus()
     await page.keyboard.press('Enter')
-    await page.keyboard.press('Enter') // the first Template; the sample document is not empty
+    // the first Template row (docs/workbench.md §WB2: File ▸ Templates)
+    const first = page.locator('.toolbar__filemenu-pop [data-template]').first()
+    for (let i = 0; i < 16 && !(await first.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press('ArrowDown')
+    await expect(first).toBeFocused()
+    await page.keyboard.press('Enter') // the sample document is not empty
     const confirm = page.locator('.mcdlg--confirm')
     await expect(confirm).toBeVisible()
     await page.keyboard.press('Escape')
@@ -254,14 +271,15 @@ test.describe('where focus goes after a choice', () => {
   })
 })
 
-test.describe('Settings and the toolbar overflow are disclosures', () => {
-  test('Settings: no menu role, focus stays on the button, Tab goes in, Escape comes back', async ({ page }) => {
+// View took Settings' place (docs/workbench.md §WB2): a disclosure the same way
+test.describe('View and the toolbar overflow are disclosures', () => {
+  test('View: no menu role, focus stays on the button, Tab goes in, Escape comes back', async ({ page }) => {
     await openApp(page)
-    const btn = page.locator('.toolbar__settingsmenu > button')
+    const btn = page.locator('.wb-viewmenu > .wb-mb')
     await expect(btn).not.toHaveAttribute('aria-haspopup', /.+/)
     await btn.focus()
     await page.keyboard.press('Enter')
-    const pop = page.locator('.toolbar__settingsmenu-pop')
+    const pop = page.locator('.wb-viewmenu__pop')
     await expect(pop).toBeVisible()
     await expect(btn).toHaveAttribute('aria-expanded', 'true')
     await expect(btn).toHaveAttribute('aria-controls', (await pop.getAttribute('id'))!)
@@ -273,18 +291,30 @@ test.describe('Settings and the toolbar overflow are disclosures', () => {
     await page.keyboard.press('Tab')
     await expect(page.locator('.theme-menu > button')).toBeFocused()
     await page.keyboard.press('Tab')
+    await expect(page.locator('.wb-viewmenu__pop .lang-switch')).toBeFocused()
     await page.keyboard.press('Tab')
-    await expect(page.locator('[data-settings-row="storage-privacy"]')).toBeFocused()
+    await expect(page.locator('.wb-viewmenu__pop [data-view-row="focus"]')).toBeFocused()
     await page.keyboard.press('Escape')
     await expect(pop).toHaveCount(0)
     await expect(btn).toBeFocused()
   })
 })
 
+/** The toolbar pinned narrow enough that the overflow holds groups. No
+ *  desktop viewport in English collapses anything, so the width is forced on
+ *  the toolbar itself, the way `toolbar-responsive.spec.ts` does. MEASURED
+ *  2026-10-20 (the workbench's text menu bar): at 480 px the overflow holds
+ *  Help, Run and Insert; at 640 px it holds nothing. */
+async function pinToolbarForOverflow(page: Page): Promise<void> {
+  await page.addStyleTag({ content: '.toolbar { max-width: 480px !important; }' })
+  await expect(page.locator('.toolbar__overflow-btn')).toBeVisible()
+}
+
 test.describe('the toolbar overflow, at a width where it holds groups', () => {
   test.use({ viewport: { width: 760, height: 800 } })
   test('a disclosure; a keyboard choice made in a group inside it returns to its button', async ({ page, context }) => {
     await openApp(page)
+    await pinToolbarForOverflow(page)
     await context.route(/^https?:\/\/(?!localhost)/, (r) => r.abort())
     const more = page.locator('.toolbar__overflow-btn')
     await expect(more).toBeVisible()
@@ -294,7 +324,7 @@ test.describe('the toolbar overflow, at a width where it holds groups', () => {
     const pop = page.locator('.toolbar__overflow-pop')
     await expect(pop).toHaveAttribute('role', 'group')
     await expect(more).toBeFocused()
-    // a menu inside it: Help sits here at 760 px (MEASURED: Data, Settings, Help)
+    // a menu inside it: Help sits here (MEASURED: Data, Settings, Help)
     const help = pop.locator('[data-tour="help-trigger"]')
     await expect(help).toHaveCount(1)
     await help.focus()
@@ -338,24 +368,25 @@ async function expectControlsOnlyWhileOpen(page: Page, btn: Locator, prepare: ()
 }
 
 test.describe('aria-controls names a panel only while it exists', () => {
-  test('Settings', async ({ page }) => {
+  test('View', async ({ page }) => {
     await openApp(page)
-    await expectControlsOnlyWhileOpen(page, page.locator('.toolbar__settingsmenu > button'))
+    await expectControlsOnlyWhileOpen(page, page.locator('.wb-viewmenu > .wb-mb'))
   })
   test('File', async ({ page }) => {
     await openApp(page)
     await expectControlsOnlyWhileOpen(page, toolbarButton(page, 'File'))
   })
-  test('Theme, inside Settings', async ({ page }) => {
+  test('Theme, inside View', async ({ page }) => {
     await openApp(page)
-    await page.locator('.toolbar__settingsmenu > button').click()
+    await page.locator('.wb-viewmenu > .wb-mb').click()
     await expectControlsOnlyWhileOpen(page, page.locator('.theme-menu > button'))
-    // closing Theme left Settings open
-    await expect(page.locator('.toolbar__settingsmenu-pop')).toBeVisible()
+    // closing Theme left View open
+    await expect(page.locator('.wb-viewmenu__pop')).toBeVisible()
   })
   test('Temporary session', async ({ page }) => {
     await openApp(page)
-    await page.locator('.toolbar__settingsmenu > button').click()
+    // File ▸ Storage and privacy (docs/workbench.md §WB2)
+    await page.locator('.toolbar__filemenu > .wb-mb').click()
     await page.locator('[data-settings-row="storage-privacy"]').click()
     const dlg = page.locator('.mcdlg--storage')
     await dlg.locator('[data-storage-action="to-temporary"]').click()
@@ -369,29 +400,34 @@ test.describe('aria-controls on the toolbar overflow, at a width where it holds 
   test.use({ viewport: { width: 760, height: 800 } })
   test('⋯', async ({ page }) => {
     await openApp(page)
+    await pinToolbarForOverflow(page)
     await expectControlsOnlyWhileOpen(page, page.locator('.toolbar__overflow-btn'))
   })
 })
 
-test.describe('Language is a combobox', () => {
-  test('Arrow Down on the closed row starts at the first language, Arrow Up at the last; focus stays in the search field', async ({ page }) => {
+// §L2.0 (2026-10) — with two languages the picker shows no search field
+// (`LANGUAGE_SEARCH_THRESHOLD`), so focus lands on the listbox itself, which
+// carries `aria-activedescendant`; the entry points are the same.
+test.describe('Language is a listbox', () => {
+  test('Arrow Down on the closed row starts at the first language, Arrow Up at the last; focus stays in the list', async ({ page }) => {
     await openApp(page)
-    await page.locator('.toolbar__settingsmenu > button').click()
-    const row = page.locator('.toolbar__settingsmenu-pop .lang-switch')
+    await page.locator('.wb-viewmenu > .wb-mb').click()
+    const row = page.locator('.wb-viewmenu__pop .lang-switch')
     const active = () =>
       page.evaluate(() => {
         const a = document.activeElement as HTMLElement | null
         const id = a?.getAttribute('aria-activedescendant')
         const opts = [...document.querySelectorAll('[role="listbox"] [role="option"]')]
-        return { input: a?.tagName === 'INPUT', index: id ? opts.findIndex((o) => o.id === id) : -2, count: opts.length }
+        return { list: a?.getAttribute('role') === 'listbox', index: id ? opts.findIndex((o) => o.id === id) : -2, count: opts.length }
       })
+    await expect(page.locator('.lang-menu__search')).toHaveCount(0)
     await row.focus()
     await page.keyboard.press('ArrowDown')
-    await expect.poll(() => active().then((a) => a.input && a.index === 0)).toBe(true)
+    await expect.poll(() => active().then((a) => a.list && a.index === 0 && a.count >= 2)).toBe(true)
     await page.keyboard.press('Escape')
     await expect(row).toBeFocused()
     await page.keyboard.press('ArrowUp')
-    await expect.poll(() => active().then((a) => a.input && a.index === a.count - 1)).toBe(true)
+    await expect.poll(() => active().then((a) => a.list && a.index === a.count - 1)).toBe(true)
     await page.keyboard.press('Escape')
     await expect(row).toBeFocused()
   })

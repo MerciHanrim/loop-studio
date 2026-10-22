@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PWA_BACKGROUND, manifest } from './manifest'
+import { THEME_COLOR } from '../theme/theme'
 
 // docs/pwa.md §P1 / §P9 D1 — the manifest object Slice 2's vite-plugin-pwa
 // consumes. The icon *files* (existence, PNG size, plain-vs-maskable byte
@@ -19,10 +20,11 @@ describe('web app manifest', () => {
     expect(manifest.description.length).toBeGreaterThan(10)
   })
 
-  it('background and theme colours are the app ground token', () => {
-    expect(manifest.background_color).toBe('#f0efea')
-    expect(manifest.theme_color).toBe('#f0efea')
-    expect(PWA_BACKGROUND).toBe('#f0efea')
+  it('background and theme colours are the workbench --bg-app, the light theme-color', () => {
+    expect(manifest.background_color).toBe('#e3e6ea')
+    expect(manifest.theme_color).toBe('#e3e6ea')
+    expect(PWA_BACKGROUND).toBe('#e3e6ea')
+    expect(PWA_BACKGROUND).toBe(THEME_COLOR.light)
   })
 
   it('has exactly three independent icon entries: 192 any, 512 any, 512 maskable', () => {

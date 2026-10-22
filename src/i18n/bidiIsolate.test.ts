@@ -230,9 +230,16 @@ describe('idempotence is PER MODE, not per helper', () => {
 describe('the catalog boundary', () => {
   it('these helpers add controls to a VALUE, never to a catalog message', async () => {
     // the shipped catalogs carry zero bidi controls and that must stay true;
-    // this file exists to put one around a render argument instead
-    const ar = (await import('./locales/ar')).default as unknown as Record<string, string>
-    const dirty = Object.entries(ar).filter(([, v]) => hasAnyBidiControl(v))
-    expect(dirty.map(([k]) => k)).toEqual([])
+    // this file exists to put one around a render argument instead.
+    // §L2.0 (2026-10) — the shipped catalogs are `en` and `ko` (it checked the
+    // archived Arabic one before)
+    const shipped = {
+      en: (await import('./locales/en')).default as unknown as Record<string, string>,
+      ko: (await import('./locales/ko')).default as unknown as Record<string, string>,
+    }
+    for (const [code, cat] of Object.entries(shipped)) {
+      const dirty = Object.entries(cat).filter(([, v]) => hasAnyBidiControl(v))
+      expect(dirty.map(([k]) => `${code} ${k}`)).toEqual([])
+    }
   })
 })

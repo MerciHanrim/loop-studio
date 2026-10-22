@@ -4,7 +4,7 @@ import { parse, parseExpr, refsOf } from '../model/expr'
 import { formatRegisterValue, readParameterData, readRegisterData } from '../model/model'
 import type { RegisterOutcome } from '../model/model'
 import type { LoopNode } from '../model/types'
-import { useGraphStore } from '../store/graphStore'
+import { selectOnly, useGraphStore } from '../store/graphStore'
 import { useRegisterOutcomes } from '../store/registers'
 import { useSimStore } from '../store/simStore'
 import { useUiStore } from '../store/uiStore'
@@ -33,31 +33,39 @@ const byId = <T extends { id: string }>(a: T, b: T): number =>
 const labelOf = (n: { id: string; data?: unknown } | undefined): string =>
   ((n?.data as { label?: unknown } | undefined)?.label as string | undefined) ?? n?.id ?? ''
 
-/** select a node / edge and jump the canvas to it, keeping the current zoom
- *  (read-through — §MS5.1). Computes the target viewport and applies it with a
- *  plain (instant) `setViewport` — `fitView` / `setCenter`, and even
- *  `setViewport` with a `{ duration }` transition, silently no-op here because
- *  the pan runs from outside `<ReactFlow>`'s own subtree. An instant jump is
- *  also the snappier behaviour for a list → canvas action. */
-function useReveal(): (nodeId: string | null, edgeId: string | null) => void {
-  const setSelection = useGraphStore((s) => s.setSelection)
+/** select a node / edge from a list and bring it into view, keeping the
+ *  current zoom (read-through — §MS5.1). Every list of the workbench's left
+ *  panel — the Model list and the Inputs tab's panels — reveals the same way
+ *  (Lumi, 2026-10-19): a node already wholly in view does not move the
+ *  canvas; one outside it is brought just inside, with the smallest move.
+ *  Applied with a plain (instant) `setViewport` — `fitView` / `setCenter`,
+ *  and even `setViewport` with a `{ duration }` transition, silently no-op
+ *  here because the pan runs from outside `<ReactFlow>`'s own subtree. */
+export function useReveal(): (nodeId: string | null, edgeId: string | null) => void {
   const nodes = useGraphStore((s) => s.nodes)
-  const { setViewport, getViewport, setNodes } = useReactFlow()
+  const { setViewport, getViewport } = useReactFlow()
   return (nodeId, edgeId) => {
-    setSelection(nodeId, edgeId)
-    // mirror the click-selection ring on the canvas (same pattern as the mobile
-    // Inspector sheet's dismiss) — round-trips through `onNodesChange`
-    setNodes((ns) =>
-      ns.map((n) => (n.selected === (n.id === nodeId) ? n : { ...n, selected: n.id === nodeId })),
-    )
+    // the selection and each element's own `selected` mark, as a click on the
+    // canvas sets them (not React Flow's `setNodes`: see `selectOnly`)
+    selectOnly({ node: nodeId ?? undefined, edge: edgeId ?? undefined })
     const n = nodeId ? nodes.find((x) => x.id === nodeId) : null
     const pane = document.querySelector('.react-flow')?.getBoundingClientRect()
     if (n && pane) {
       const m = (n as { measured?: { width?: number; height?: number } }).measured
-      const cx = n.position.x + (m?.width ?? 60) / 2
-      const cy = n.position.y + (m?.height ?? 30) / 2
-      const { zoom } = getViewport()
-      void setViewport({ x: pane.width / 2 - cx * zoom, y: pane.height / 2 - cy * zoom, zoom })
+      const w = m?.width ?? 60
+      const h = m?.height ?? 30
+      const v = getViewport()
+      // the node's box on screen, with its outside name (a published name box)
+      const el = document.querySelector(`.react-flow__node[data-id="${CSS.escape(n.id)}"]`)
+      const label = el?.querySelector('.nodef__label')?.getBoundingClientRect()
+      const body = el?.getBoundingClientRect()
+      // (no element to read: its box from the document position)
+      const fromDoc = { left: pane.left + v.x + n.position.x * v.zoom, top: pane.top + v.y + n.position.y * v.zoom, right: pane.left + v.x + (n.position.x + w) * v.zoom, bottom: pane.top + v.y + (n.position.y + h) * v.zoom }
+      const rect = body && label ? { left: Math.min(body.left, label.left), top: Math.min(body.top, label.top), right: Math.max(body.right, label.right), bottom: Math.max(body.bottom, label.bottom) } : (body ?? fromDoc)
+      const M = 24 // keep this far inside the pane
+      const dx = rect.left < pane.left + M ? pane.left + M - rect.left : rect.right > pane.right - M ? pane.right - M - rect.right : 0
+      const dy = rect.top < pane.top + M ? pane.top + M - rect.top : rect.bottom > pane.bottom - M ? pane.bottom - M - rect.bottom : 0
+      if (dx !== 0 || dy !== 0) void setViewport({ x: v.x + dx, y: v.y + dy, zoom: v.zoom })
     }
   }
 }

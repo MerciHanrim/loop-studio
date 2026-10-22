@@ -335,7 +335,7 @@ describe('projectStore — routing is loop-revision/3 cosmetic revision content 
       useGraphStore.getState().addNodeAt('source', { x: 0, y: 0 })
       useGraphStore.getState().addNodeAt('pool', { x: 200, y: 0 })
       const [s, p] = useGraphStore.getState().nodes
-      useGraphStore.getState().onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' })
+      useGraphStore.getState().onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
       const eid = useGraphStore.getState().edges[0].id
       const set = (d: Record<string, unknown>) => {
         useGraphStore.getState().setEdgeData(eid, d as never)

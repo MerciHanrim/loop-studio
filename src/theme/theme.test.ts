@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { applyStoredTheme, applyTheme, isThemeMode, readStoredTheme, THEME_KEY } from './theme'
+import { applyStoredTheme, applyTheme, isThemeMode, readStoredTheme, syncThemeColor, THEME_COLOR, THEME_KEY } from './theme'
 
 // Issue #302 — the stored theme at start-up. The unit tests run without a DOM:
 // the port reads the `localStorage` global, so a small one is installed per
@@ -95,6 +95,20 @@ describe('the stored theme', () => {
     expect(root.hasAttribute('data-theme')).toBe(false)
     expect(storage.getItem(THEME_KEY)).toBe('bogus')
     expect(storage.writes).toEqual([])
+  })
+
+  it('syncThemeColor: an explicit theme rewrites both metas, system puts each back to its scheme', () => {
+    const light = { media: '(prefers-color-scheme: light)', content: '' }
+    const dark = { media: '(prefers-color-scheme: dark)', content: '' }
+    const doc = { querySelectorAll: () => [light, dark] } as unknown as Pick<Document, 'querySelectorAll'>
+    syncThemeColor('dark', doc)
+    expect([light.content, dark.content]).toEqual([THEME_COLOR.dark, THEME_COLOR.dark])
+    syncThemeColor('light', doc)
+    expect([light.content, dark.content]).toEqual([THEME_COLOR.light, THEME_COLOR.light])
+    syncThemeColor('system', doc)
+    expect([light.content, dark.content]).toEqual([THEME_COLOR.light, THEME_COLOR.dark])
+    // without a document (this suite's stand-in root has none) it does nothing
+    expect(() => syncThemeColor('dark', null)).not.toThrow()
   })
 
   it('isThemeMode knows exactly the three modes', () => {

@@ -45,8 +45,9 @@ export function reversedEdge(e: LoopEdge): LoopEdge {
 }
 
 /** the state rule a state connection with these ends breaks, in the engine's
- *  own order, or null */
-function stateRefusal(e: LoopEdge, kindOf: (id: string) => string | undefined): { reason: ReverseReason; end: PortEnd } | null {
+ *  own order, or null — shared by a reversal and by drawing a connection of a
+ *  chosen kind (./connectKind) */
+export function stateRefusal(e: LoopEdge, kindOf: (id: string) => string | undefined): { reason: ReverseReason; end: PortEnd } | null {
   const d = (e.data ?? {}) as { mode?: unknown; timing?: unknown; when?: unknown }
   if (typeof d.mode !== 'string' || !KNOWN_STATE_MODES.has(d.mode)) return { reason: 'stateMode', end: 'source' }
   if (d.mode === 'activator') return kindOf(e.source) === 'pool' ? null : { reason: 'activatorSource', end: 'source' }

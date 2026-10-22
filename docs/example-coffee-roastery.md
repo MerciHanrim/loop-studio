@@ -698,7 +698,8 @@ changes but the stock trajectory does not) does **not** satisfy this section
   semantics are unchanged**;
 - a **deterministic-seed run** plus the core stock ↔ revenue relationships are
   **pinned by tests** (a fixture spec, like `mmo-progression.test.ts`);
-- it **loads from `Templates ▾ → 커피 로스터리 운영 흐름`** and applies
+- it **loads from `파일 → 템플릿 → 커피 로스터리 운영 흐름`** (File → Templates;
+  the `Templates ▾` button until the 2026-10 workbench) and applies
   its `recommendedRunConfig`; **no engine / schema / wire change** in impl PR (2)
   itself, only the registration files (§CR2, §CR15) — the engine feature
   (`loop-model/2`, §CR16) merged separately as PR #103.
@@ -722,8 +723,9 @@ the reviewer's identity; results are reported in aggregate.)
 
 ### CR11.1 Protocol — hand over the site, then ask only
 
-Send just the Loop Studio URL and one line: *"open `Templates ▾ → 커피 로스터리
-운영 흐름`"*. **No feature explanation, no Import / Share / file steps.** Then
+Send just the Loop Studio URL and one line: *"open `파일 → 템플릿 → 커피 로스터리
+운영 흐름`"* (File → Templates; `Templates ▾` before the 2026-10 workbench).
+**No feature explanation, no Import / Share / file steps.** Then
 ask:
 
 1. What business flow does this screen represent?

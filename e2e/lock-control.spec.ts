@@ -12,7 +12,10 @@ import { expect, openApp, resetAll, snap, test } from './support/loop'
 //  - a keyboard focus ring stays visible on the pressed button.
 
 type Bridge = { __loop: Record<string, { getState: () => any }> }
-const lockBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-lock')
+// the workbench (docs/workbench.md §WB3, §WB8): the lock is the tool row's
+// last button and Focus the status bar's toggle — the desktop has no rail
+const lockBtn = (page: Page) => page.locator('.wb-toolrow [data-tool="lock"]')
+const focusToggle = (page: Page) => page.locator('.wb-status').getByRole('button', { name: 'Focus', exact: true })
 const setLocked = (page: Page, v: boolean) =>
   page.evaluate((x) => (window as unknown as Bridge).__loop.ui.getState().setCanvasLocked(x), v)
 
@@ -121,7 +124,7 @@ test.describe('#335 — the edit-lock control', () => {
       await page.mouse.move(700, 450)
       const on = await styleOf(page)
       // the same tell as the Focus toggle when it is on
-      const focus = page.locator('.react-flow__controls-button.rf-focus')
+      const focus = focusToggle(page)
       await focus.click()
       await page.mouse.move(700, 450)
       const focusOn = await focus.evaluate((b) => {
@@ -157,6 +160,71 @@ test.describe('#335 — the edit-lock control', () => {
     expect((await styleOf(page)).background).not.toBe(system.background)
   })
 
+  // Under forced colours the UA draws a Canvas backplate behind text, and the
+  // pressed lock's HighlightText word sat on it: Canvas on Canvas, unreadable
+  // (2026-10-22, Chromium emulation). Its keyboard-focus ring was Highlight on
+  // Highlight. Checked as computed styles AND as the rendered word: its own
+  // pixels must hold both the button's Highlight and the HighlightText glyphs.
+  const sysColour = (page: Page, c: string) =>
+    page.evaluate((c) => {
+      const p = document.createElement('div')
+      p.style.color = c
+      document.body.appendChild(p)
+      const v = getComputedStyle(p).color
+      p.remove()
+      return v
+    }, c)
+  /** the share of the word's rendered pixels within 24 (sum of channels) of each colour */
+  const wordShares = async (page: Page, colours: string[]) => {
+    const png = (await lockBtn(page).locator('.wb-toolrow__word').screenshot({ animations: 'disabled' })).toString('base64')
+    return page.evaluate(
+      async ([b64, cs]) => {
+        const img = new Image()
+        img.src = 'data:image/png;base64,' + b64
+        await img.decode()
+        const c = new OffscreenCanvas(img.width, img.height)
+        const x = c.getContext('2d')!
+        x.drawImage(img, 0, 0)
+        const d = x.getImageData(0, 0, img.width, img.height).data
+        const want = (cs as string[]).map((s) => (s.match(/\d+/g) ?? []).slice(0, 3).map(Number))
+        const n = want.map(() => 0)
+        for (let i = 0; i < d.length; i += 4) want.forEach(([r, g, b], k) => { if (Math.abs(d[i] - r) + Math.abs(d[i + 1] - g) + Math.abs(d[i + 2] - b) <= 24) n[k]++ })
+        return n.map((v) => v / (d.length / 4))
+      },
+      [png, colours] as const,
+    )
+  }
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test(`forced colours (${colorScheme}): the pressed lock's word is readable on Highlight, its focus ring visible; unlocked unchanged`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme, forcedColors: 'active' })
+      const [hl, hlText] = [await sysColour(page, 'Highlight'), await sysColour(page, 'HighlightText')]
+      const word = lockBtn(page).locator('.wb-toolrow__word')
+      await setLocked(page, true)
+      await page.mouse.move(700, 450)
+      await expect(lockBtn(page)).toHaveAttribute('aria-pressed', 'true')
+      await expect(lockBtn(page)).toHaveCSS('background-color', hl)
+      await expect(word).toHaveCSS('color', hlText)
+      await expect(word).toHaveCSS('forced-color-adjust', 'none')
+      const [onHl, onText] = await wordShares(page, [hl, hlText])
+      expect(onHl, 'the button colour behind the word (no backplate)').toBeGreaterThan(0.5)
+      // at 1× most glyph pixels are anti-aliased; the exact-colour cores are a few percent
+      expect(onText, "the word's glyphs").toBeGreaterThan(0.01)
+      // the lock still locks
+      expect(await page.locator('.toolbar__palette .chip:disabled').count()).toBeGreaterThan(0)
+      // keyboard focus on the pressed button: the ring is not the button's own colour
+      await lockBtn(page).focus()
+      await page.keyboard.press('Shift+Tab')
+      await page.keyboard.press('Tab')
+      await expect(lockBtn(page)).toBeFocused()
+      await expect(lockBtn(page)).toHaveCSS('outline-color', hlText)
+      // unlocked: the word keeps the UA's forced colours
+      await setLocked(page, false)
+      await expect(lockBtn(page)).toHaveAttribute('aria-pressed', 'false')
+      await expect(word).toHaveCSS('forced-color-adjust', 'auto')
+      await expect(lockBtn(page)).toHaveCSS('outline-color', hl)
+    })
+  }
+
   // the real 26 px button with its 14 px icon, straight from the product UI, at
   // 1×, in both states and every theme. No hover (the pointer rests on the
   // canvas) and no focus (the keyboard ring is checked through the DOM below).
@@ -176,8 +244,9 @@ test.describe('#335 — the edit-lock control', () => {
   test('a keyboard focus ring stays visible on the pressed (locked) button', async ({ page }) => {
     await setLocked(page, true)
     const b = lockBtn(page)
-    // reach it from the previous rail control by keyboard, so it is :focus-visible
-    await page.locator('.react-flow__controls-button.rf-activity').focus()
+    // reach it by keyboard, so it is :focus-visible: from it, back and forth
+    await b.focus()
+    await page.keyboard.press('Shift+Tab')
     await page.keyboard.press('Tab')
     await expect(b).toBeFocused()
     expect(await b.evaluate((x) => x.matches(':focus-visible'))).toBe(true)

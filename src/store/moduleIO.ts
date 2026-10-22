@@ -1,6 +1,8 @@
 // docs/module-system.md §MS2 / §MS6 — the non-UI glue for module insert /
-// extract. The React component (`ModuleMenu.tsx`) owns the menu, the dialogs,
-// and the download; these helpers own the graph reads and the serialisation.
+// extract. The React component (File's structure rows,
+// `StructureMenuItems.tsx`; `ModuleMenu.tsx` until 2026-10) owns the rows, the
+// dialogs and the download; these helpers own the graph reads and the
+// serialisation.
 
 import { extractModule, type GraphDocLike } from '../model/moduleGraph'
 import { deserialize, serialize } from '../model/serialize'

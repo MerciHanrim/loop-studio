@@ -33,10 +33,30 @@ export function readStoredTheme(): ThemeMode {
   }
 }
 
-/** `data-theme` on the root element: set for `light` and `dark`, absent for `system` */
+/** The browser's own chrome colour (`<meta name="theme-color">`: the address
+ *  bar, the task switcher) per theme — the workbench's `--bg-app`, which
+ *  `e2e/theme-color.spec.ts` checks against the stylesheet. index.html carries
+ *  one meta per `prefers-color-scheme`; those follow the SYSTEM only, so an
+ *  explicit Light or Dark choice rewrites both to that theme's colour, and
+ *  System puts each back to its own scheme's. `src/storage/themeBoot.js` does
+ *  the same before the first paint. */
+export const THEME_COLOR = { light: '#e3e6ea', dark: '#101215' } as const
+
+export function syncThemeColor(mode: ThemeMode, doc?: Pick<Document, 'querySelectorAll'> | null): void {
+  const d = doc ?? (typeof document === 'undefined' ? null : document)
+  if (!d) return
+  for (const meta of d.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
+    const scheme = /dark/.test(meta.media) ? 'dark' : 'light'
+    meta.content = THEME_COLOR[mode === 'system' ? scheme : mode]
+  }
+}
+
+/** `data-theme` on the root element: set for `light` and `dark`, absent for
+ *  `system`; and the browser chrome colour to match */
 export function applyTheme(mode: ThemeMode, root: HTMLElement = document.documentElement): void {
   if (mode === 'system') root.removeAttribute('data-theme')
   else root.setAttribute('data-theme', mode)
+  syncThemeColor(mode, root.ownerDocument)
 }
 
 /** at start-up: read, apply, and say what was applied. Writes nothing. */

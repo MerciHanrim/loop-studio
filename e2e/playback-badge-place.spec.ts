@@ -91,8 +91,12 @@ test('L2: one place per connection for the whole step, the fan apart, and never 
   }
   // each connection kept ONE place through the step
   for (const [id, s] of places) expect([...s], id).toHaveLength(1)
-  // the three-way fan: three different places, and each badge is shown on the way
-  expect(new Set(FAN.map((id) => [...(places.get(id) ?? [])][0])).size).toBe(3)
+  // the three-way fan: its shown badges never met (checked every sample
+  // above), and each badge is shown on the way. Three DIFFERENT places is not
+  // the rule — §PB4.8 picks the combination with the fewest moments of badge
+  // on badge — and under the symbol nodes (2026-10) the plan gives Online
+  // orders and Café retail both up-left with no meeting in 41 samples
+  // (measured 2026-10-20, the same at 1280 and 1600 wide)
   expect(shownOnFan).toBeGreaterThan(0)
   for (const id of FAN) expect(places.has(id), id).toBe(true)
 })

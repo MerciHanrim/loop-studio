@@ -69,8 +69,8 @@ async function smallGraph(page: Page) {
     g.addNodeAt('drain', { x: 400, y: 0 })
     const [s, p, d] = (window as unknown as Bridge).__loop.graph.getState!().nodes
     const gs = (window as unknown as Bridge).__loop.graph.getState!()
-    gs.onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' })
-    gs.onConnect({ source: p.id, target: d.id, sourceHandle: 'out', targetHandle: 'in' })
+    gs.onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
+    gs.onConnect({ source: p.id, target: d.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
     const e = (window as unknown as Bridge).__loop.graph.getState!().edges.find((x: any) => x.source === s.id)
     ;(window as unknown as Bridge).__loop.graph.getState!().setEdgeData(e.id, { kind: 'resource', flow: '2' })
   })

@@ -19,10 +19,13 @@ import { deflateSync } from 'node:zlib'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-// -- palette (matches the app's --line-structure / accent) ----------------
+// -- palette: the brand mark's own FIXED colours. They were the app's line and
+//    accent colours when the icons were drawn; since the workbench tokens
+//    (2026-10) the screen theme has its own, and the icons keep these on
+//    purpose (a brand mark does not follow the screen theme). ------------
 const TRACK = [140, 136, 126] // #8c887e
 const BEAD = [47, 116, 110] // #2f746e
-const FIELD = [240, 239, 234] // #f0efea  (--surface-ground, light)
+const FIELD = [240, 239, 234] // #f0efea  (the maskable icon's field)
 
 // -- mark geometry in a 0..1 square (from Logo.tsx / index.html favicon) --
 const C = 0.5 // centre

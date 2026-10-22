@@ -126,11 +126,11 @@ describe('shouldShowLanguageSearch', () => {
     ).toBe(false)
   })
 
-  it('SHOWS for the languages this release ships — first reached at six', () => {
-    expect(LOCALES.filter((l) => !l.pseudo).length).toBeGreaterThanOrEqual(
-      LANGUAGE_SEARCH_THRESHOLD,
-    )
-    expect(shouldShowLanguageSearch(LOCALES)).toBe(true)
+  it('HIDES for the two languages this release ships (§L2.0)', () => {
+    // the box was first reached at six languages; with English and Korean the
+    // picker is a two-row list again
+    expect(LOCALES.filter((l) => !l.pseudo).length).toBeLessThan(LANGUAGE_SEARCH_THRESHOLD)
+    expect(shouldShowLanguageSearch(LOCALES)).toBe(false)
   })
 })
 

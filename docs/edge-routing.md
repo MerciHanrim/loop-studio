@@ -759,14 +759,19 @@ only with `orthogonal`.
 
 - **own end nodes as obstacles** — a route leaves its port along the port
   normal to a stub `ROUTE_STUB` beyond its own box (shorter, half the gap, when
-  another node is nearer) and enters its target the same way; only those two
-  stubs may run inside the connection's own nodes;
+  another node — or the connection's own other end — is nearer) and enters its
+  target the same way; only those two stubs may run inside the connection's
+  own nodes. Two end nodes facing each other closer than two stubs are joined
+  by one straight line (2026-10-20: a full stub used to end inside the other
+  node, and the line stopped at the source's stub);
 - **the clearance ladder** `GUARD_PADS` (12, 6, 2, 0 px) — a failed search is
   retried with less clearance (`routeClass` `tight` below 12);
 - **the outer corridor** — then rulers `OUTER_MARGIN` outside the bounding box
   of every node, both stubs and every waypoint, with a larger budget (`outer`);
 - **`blocked`** — the one case no route can avoid: another node covers a port
-  or a stub. The route avoids every node except the covering one.
+  or a stub. The route avoids every node except the covering one. Where even
+  that finds nothing (the two end nodes touch or overlap), it is the direct L
+  from port to port: a line always reaches both of its ends.
 
 Every candidate is checked before it is returned: between the stubs no segment
 enters a node fill (own end nodes included), and the stubs enter no other node.
@@ -951,6 +956,69 @@ form are in §R10-0; `docs/diagram-layout.md` §DL4 is the product rule.
   restores it. An ordinary document has no Project header and follows the
   layout migration contract; `layoutVersion` means the layout migration only.
 
+### ER15.2 Repeated Value change groups: room for the run form (2026-10-21)
+
+**The problem.** A *repeated Value change group* is two or more Value changes
+with the same ends and stored handles (`repeatedChangeGroups`,
+`src/model/endMove.ts`, the same rule as "already connected").
+- Drawing, an end move and a kind change all refuse to make one. A document may
+  still hold one: an opened file, an engine fixture, a record.
+- In a run each chip of the group can grow: a Δ row, a clamp note.
+- Labels are placed by their rest size (§ER14.3), so two chips of a group grew
+  into each other and hid the applied change.
+
+**What is placed.** A last step of the full generation re-places **only the
+labels of these groups**, after every route, every other label and the guarded
+rounds are final. No line and no other label moves (checked before / after on
+the Templates and the MMO document: identical).
+
+**The run form.** Each label that can grow reports its **run form** as well as
+its rest size.
+- What it is: the rendered border box at the largest the chip can grow to,
+  measured from an off-screen copy in the current language.
+  - A Value change: set value, Δ row and clamp note, every row filled past the
+    chip's width cap.
+  - A Trigger: its blocked note too.
+- Why that is the bound: the chip is `max-width: 160px` with `nowrap` and an
+  ellipsis, and `box-sizing: border-box`. So no number of digits, sign, decimal
+  or language makes it larger, and a longer number is cut.
+- Today a Value change's run form is 160 × 43 flow px.
+- Only this step reads it. Routes and rest places never do.
+
+**Rules.** A member's run-form box must be clear of:
+- every node box and outside name (plus the label margin);
+- every other label, at the size it can grow to;
+- every other line, the shared stubs and its own bend points;
+- `RUN_FORM_MARGIN` (4 px, the light chip shadow) around it all.
+
+Candidates, in order:
+1. **On its line**, at the usual slots.
+2. **Beside it.** Slots 0.15–0.85 in 0.025 steps, nearest the middle first, at
+   gaps of 8 / 16 / 28 / 44 px, the side away from a sibling's own line first.
+   - The chip **hangs from its near edge** and grows away from the line.
+   - A **leader** joins it to the line: a thin neutral tick and a dot. It has
+     no marker and no run signal, takes no pointer events, and crosses no other
+     line.
+
+The place is chosen at rest. A run reads the same map, so nothing moves.
+
+**No safe spot.**
+- A member with no safe spot keeps its place, and the room it can take there
+  is kept clear by the others.
+- A group none of whose members can move is left exactly as it was.
+- Unresolved members are **reported, not hidden**:
+  `routeDiagnostics().runForm.unresolved` (development diagnostics only; the
+  user sees nothing new). Example: `examples/state-verification.json`'s
+  `m_tank_sub`.
+- Placing by the rest size is not counted as solved.
+
+**Limits.**
+- Members **drawn on one curve** (Curved, same ports) get room apart, but
+  nothing tells their lines apart: only their text, the Inspector and hover /
+  selection do.
+- The step runs in the full generation only. A provisional map during a drag
+  keeps the last full generation's places for what it does not redo.
+
 ## ER16. Shapes and bend points in the editor (issue #344 step 3, v0.25.0)
 
 ### ER16.1 The Inspector
@@ -1032,6 +1100,39 @@ through an older build does not preserve port faces.** The document schema is no
 on purpose: a face is placement, and taking the whole document away from an older build
 to protect it would cost more than it saves (decision D-A). The user-facing change note
 of the release that ships this says the same in one sentence.
+
+### ER17.0 Where a face's port sits (symbol nodes, 2026-10)
+
+Under the symbol nodes (`docs/visual-language.md` §VL2.0) every port sits on the
+symbol's outline (`src/components/nodes/symbol.ts` `symbolAnchor`;
+`routeMap.portPoint` returns the node position plus that anchor). Left and right
+are straight out from the centre on the port row, so a stored position keeps its
+horizontal lines; top and bottom are on the centre column. The previous body's
+top / bottom lanes (`PORT_COL` from the near corner) apply only to `?nodes=inside`.
+
+A face's resource and state ports therefore share one point. Two rules keep a
+drop there unambiguous (measured 2026-10-19 on `e2e/connection-ends.spec.ts`: a
+resource end dropped on a node's top face reached the state port drawn over it
+and landed on the resource default side, left):
+
+- the handles of the port kind of the connection kind chosen in the tool row
+  (`src/model/connectKind.ts`) are on top (`nodeStructure.css`,
+  `.nodef--kind-resource` / `.nodef--kind-state`); where only the other kind is
+  under the pointer a press or a drop reaches it as before. Of that kind's two
+  handles on one face (an output and an input share the point), the same one
+  is on top on every face: the output at rest, so a press starts a connection
+  out of the node, and the input while a connection is drawn
+  (`.nodef--connecting`), so a drop ends there (2026-10-20: on the right face
+  the input had been on top, so a drag from there started from the input and
+  was refused; `e2e/node-structure-small.spec.ts`, the four-side ports test);
+- an end grip's drop takes the face of the HANDLE it lands on: a plain handle id
+  is its own port's default face (`EndGrips.tsx` `endAt`), not the connection's.
+
+Separate lanes on the top and bottom faces were tried and dropped: on a 56 px
+symbol a 10 px lane puts the neighbouring port inside a grip's 24 px target, so
+a vertical end had no free spot for its grip. The router's obstacle for a node
+is its symbol's box (`symbolBox`), which can overflow the 56 px cell React Flow
+measures.
 
 ### ER17.1 The face handles and when they are measured
 

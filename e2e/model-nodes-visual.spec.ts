@@ -5,7 +5,7 @@ import { ensureTimelineOpen, expect, openApp, resetAll, test, snap } from './sup
 // first-class in the acceptance suite (no dev flag, no provisional fixture).
 // The chrome pass (Canvas Refresh PR 1) locks: a distinct silhouette, the
 // "lighter" annotation chrome, and — hue-independent — the selection (solid
-// ring), keyboard-focus (dashed ring), and `invalid` (dashed --warning outline
+// ring), keyboard-focus (dashed ring), and `invalid` (dashed --warn outline
 // + a corner `!` flag) states.
 
 const GRAPH = JSON.stringify({
@@ -22,9 +22,11 @@ const GRAPH = JSON.stringify({
   edges: [],
 })
 
-/** Deterministic viewport for the pixel baseline: the Parameter + three
- *  Registers row, all four boxes in frame. The minimap + attribution are hidden
- *  (not masked) so nothing overlaps the row. */
+/** Deterministic viewport for the pixel baseline: the three Registers (with a
+ *  unit, invalid, without a unit — world x 320 … 938, y 195 … 291), whole at
+ *  zoom 0.9, centred in the canvas PANE (664 x 548 since the workbench; the
+ *  Parameter beside them no longer fits at L2). The minimap + attribution are
+ *  hidden (not masked) so nothing overlaps the row. */
 async function centreRegisterRow(page: Page): Promise<void> {
   await page.addStyleTag({
     content: '.react-flow__minimap,.react-flow__attribution{display:none!important}',
@@ -33,8 +35,8 @@ async function centreRegisterRow(page: Page): Promise<void> {
     const w = window as unknown as {
       __loop: { rf: { setViewport: (v: unknown, o: unknown) => void } }
     }
-    // world x 40..1000, y ~215 → centred at zoom 0.9 in the ~1080px canvas
-    w.__loop.rf.setViewport({ x: 70, y: 200, zoom: 0.9 }, { duration: 0 })
+    const pane = document.querySelector('.react-flow')!.getBoundingClientRect()
+    w.__loop.rf.setViewport({ x: Math.round(pane.width / 2 - 629 * 0.9), y: Math.round(pane.height / 2 - 243 * 0.9), zoom: 0.9 }, { duration: 0 })
   })
   await page.waitForTimeout(150)
 }
@@ -106,7 +108,7 @@ test.describe('Parameter / Register — chrome & states (hue-independent)', () =
     await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'register-unit-row'))
   })
 
-  test('invalid Register — dashed --warning outline + corner flag, value is —', async ({ page }) => {
+  test('invalid Register — dashed --warn outline + corner flag, value is —', async ({ page }) => {
     await load(page)
     const bad = node(page, 'r_bad')
     await expect(bad.locator('.nodef__invalid')).toBeVisible()
@@ -181,6 +183,72 @@ test.describe('Parameter / Register — chrome & states (hue-independent)', () =
     await expect(bad.locator('.nodef')).toHaveAttribute('aria-label', /invalid/)
     await expect(bad.locator('.nodef')).toHaveAttribute('aria-label', /selected/)
   })
+
+  // Under forced colours the three state rings name system colours by role
+  // (index.css): invalid CanvasText, selection and keyboard focus Highlight.
+  // Without the rule they kept their token colours (observed in Chromium
+  // emulation). Width, dash and distance stay the non-colour tells. Focus is
+  // made by the real keyboard: Tab from the canvas, Space selects.
+  const systemColour = (page: Page, c: string) =>
+    page.evaluate((c) => {
+      const p = document.createElement('div')
+      p.style.color = c
+      document.body.appendChild(p)
+      const v = getComputedStyle(p).color
+      p.remove()
+      return v
+    }, c)
+  const strokeOf = (l: ReturnType<typeof node>) => l.evaluate((el) => getComputedStyle(el).stroke)
+  async function tabTo(page: Page, id: string) {
+    await page.locator('.react-flow__pane').click({ position: { x: 20, y: 20 } })
+    const at = () => page.evaluate(() => document.activeElement?.closest('.react-flow__node')?.getAttribute('data-id') ?? null)
+    for (let i = 0; i < 40 && (await at()) !== id; i++) await page.keyboard.press('Tab')
+    expect(await at(), `Tab reaches ${id}`).toBe(id)
+  }
+
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test(`forced colours (${colorScheme}): invalid CanvasText, selection and focus Highlight, tells unchanged`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme, forcedColors: 'active' })
+      await load(page)
+      const canvasText = await systemColour(page, 'CanvasText')
+      const highlight = await systemColour(page, 'Highlight')
+      expect(canvasText).not.toBe(highlight)
+      const bad = node(page, 'r_bad')
+      await tabTo(page, 'r_bad')
+      await page.keyboard.press('Space')
+      const [sel, focus, inv] = [bad.locator('.nodef__sel'), bad.locator('.nodef__focus'), bad.locator('.nodef__invalid')]
+      for (const l of [sel, focus, inv]) await expect(l).toBeVisible()
+      expect(await strokeOf(inv), 'invalid').toBe(canvasText)
+      expect(await strokeOf(sel), 'selection').toBe(highlight)
+      expect(await strokeOf(focus), 'keyboard focus').toBe(highlight)
+      // the non-colour tells: selection solid, focus and invalid dashed apart
+      await expect(sel).toHaveCSS('stroke-dasharray', /none|^$/)
+      await expect(focus).toHaveCSS('stroke-dasharray', '3px, 2.5px')
+      await expect(inv).toHaveCSS('stroke-dasharray', '4px, 3px')
+      await expect(bad.locator('.nodef__flag')).toHaveText('!')
+      // Tab on: focus leaves, the selection stays Highlight, the error CanvasText
+      await page.keyboard.press('Tab')
+      await expect(focus).toHaveCount(0)
+      expect(await strokeOf(sel)).toBe(highlight)
+      expect(await strokeOf(inv)).toBe(canvasText)
+    })
+
+    test(`forced colours off (${colorScheme}): the rings keep their tokens`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme, forcedColors: 'none' })
+      await load(page)
+      const token = (name: string) =>
+        page.evaluate((name) => {
+          const h = getComputedStyle(document.documentElement).getPropertyValue(name).trim().replace('#', '')
+          return `rgb(${parseInt(h.slice(0, 2), 16)}, ${parseInt(h.slice(2, 4), 16)}, ${parseInt(h.slice(4, 6), 16)})`
+        }, name)
+      const bad = node(page, 'r_bad')
+      await tabTo(page, 'r_bad')
+      await page.keyboard.press('Space')
+      expect(await strokeOf(bad.locator('.nodef__invalid'))).toBe(await token('--no'))
+      expect(await strokeOf(bad.locator('.nodef__sel'))).toBe(await token('--sel'))
+      expect(await strokeOf(bad.locator('.nodef__focus'))).toBe(await token('--focus'))
+    })
+  }
 
   test('renders in light and dark', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' })

@@ -4,16 +4,17 @@
   "$limit": "This manifest defends the call sites listed here, exactly and in both directions. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together close the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
   "$history": "PR B recorded 11 decision rows and deferred them. C3.5 re-ran the population from the TypeScript type checker — 205 ICU arguments — and found 27 more that carry user or technical values: 8 in its first pass (the unrecognized-column header and the five `import.loc.*` calls) and 19 that its first pass only RECORDED as open. All 27 are implemented here, so no row of the disposition manifest is classed `auto`, `ltr` or `per-fragment` any more.",
   "totals": {
-    "rows": 56,
-    "obligations": 29,
-    "callSites": 41
+    "rows": 74,
+    "obligations": 32,
+    "callSites": 54
   },
   "rowsBySource": {
     "pr-b-census": 11,
     "c3.5-sweep": 27,
     "issue-298": 2,
     "er18": 13,
-    "er19": 3
+    "er19": 3,
+    "workbench": 18
   },
   "obligations": [
     {
@@ -465,7 +466,7 @@
         "issue-298 Inspector.tsx inspector.resourceType.pair {node}"
       ],
       "file": "src/components/Inspector.tsx",
-      "enclosing": "ResourceTypeField",
+      "enclosing": "ResourceMismatchNote",
       "carries": "several INDEPENDENT user RESOURCE TYPE names, joined into one argument",
       "why": "The same shape as `canvas-import-hint-tables`. EACH type is isolated, not each pair and not the join: the `↔` between a pair and the `, ` between pairs are the sentence’s, so one isolate around the whole list would give every name the direction of whichever one came first.",
       "sites": [
@@ -806,6 +807,85 @@
             "from",
             "to"
           ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "workbench-edge-relation",
+      "rows": [
+        "workbench Relations.tsx rel.flow.when {from}",
+        "workbench Relations.tsx rel.flow.when {to}",
+        "workbench Relations.tsx rel.condition.when {source}",
+        "workbench Relations.tsx rel.condition.when {cond}",
+        "workbench Relations.tsx rel.condition.effect {target}",
+        "workbench Relations.tsx rel.change.whenFires {source}",
+        "workbench Relations.tsx rel.change.*Source {target}",
+        "workbench Relations.tsx rel.change.*Source {source}",
+        "workbench Relations.tsx rel.change.add|sub|set {target}",
+        "workbench Relations.tsx rel.trigger.when {source}",
+        "workbench Relations.tsx rel.trigger.effect {target}",
+        "workbench Relations.tsx rel.gate.edgeChance {gate}",
+        "workbench Relations.tsx rel.gate.edgeInert {gate}",
+        "workbench Relations.tsx rel.gate.edgeRuntime {gate}"
+      ],
+      "file": "src/components/workbench/Relations.tsx",
+      "enclosing": "EdgeRelation",
+      "carries": "the user's own NODE NAMES (a node's label, else its id) in the right panel's one-sentence account of a connection; and, for a condition, the comparison (a catalog phrase holding a number or a Parameter's name)",
+      "why": "The workbench (2026-10, step 5), the right panel's relation layer. Each name is its own argument and is isolated on its own where it enters the sentence, so a Hebrew or Arabic name does not reorder the words around it; the comparison is isolated as one run because it can hold a Parameter's name.",
+      "sites": [
+        { "keys": ["rel.flow.when"], "args": ["from", "to"], "kind": "auto" },
+        { "keys": ["rel.condition.when"], "args": ["source", "cond"], "kind": "auto" },
+        { "keys": ["rel.condition.effect"], "args": ["target"], "kind": "auto" },
+        { "keys": ["rel.change.whenFires"], "args": ["source"], "kind": "auto" },
+        { "keys": ["rel.change.addSource", "rel.change.subSource", "rel.change.setSource"], "args": ["target", "source"], "kind": "auto" },
+        { "keys": ["rel.change.add", "rel.change.sub", "rel.change.set"], "args": ["target"], "kind": "auto" },
+        { "keys": ["rel.trigger.when"], "args": ["source"], "kind": "auto" },
+        { "keys": ["rel.trigger.effect"], "args": ["target"], "kind": "auto" },
+        { "keys": ["rel.gate.edgeChance"], "args": ["gate"], "kind": "auto" },
+        { "keys": ["rel.gate.edgeInert"], "args": ["gate"], "kind": "auto" },
+        { "keys": ["rel.gate.edgeRuntime"], "args": ["gate"], "kind": "auto" }
+      ]
+    },
+    {
+      "id": "workbench-condition-parameter",
+      "rows": [
+        "workbench Relations.tsx rel.op.* {n} (a Parameter)"
+      ],
+      "file": "src/components/workbench/Relations.tsx",
+      "enclosing": "effectText",
+      "carries": "a condition compared against a Parameter: its name (the user's text) and any offset, in the right panel's relation rows and sentence",
+      "why": "The workbench (2026-10, step 5). The literal form of the same comparison passes a number and needs nothing; the Parameter form carries a user's name, isolated as one run with its offset.",
+      "sites": [
+        { "keys": ["rel.op.ge", "rel.op.le", "rel.op.gt", "rel.op.lt", "rel.op.eq", "rel.op.ne"], "args": ["n"], "kind": "auto" }
+      ]
+    },
+    {
+      "id": "workbench-connect-refusal",
+      "rows": [
+        "workbench connectReason.ts connect / ends reason {node}",
+        "workbench connectReason.ts connect / ends reason {from}",
+        "workbench connectReason.ts connect / ends reason {to}"
+      ],
+      "file": "src/components/connectReason.ts",
+      "enclosing": "connectReasonText",
+      "carries": "the user's own NODE NAMES in the reason a connection of the chosen kind is refused — drawn on the canvas (the status bar) or chosen in the right panel's kind field",
+      "why": "The workbench, direction B (src/model/connectKind.ts). The port reasons are the end-move sentences (docs/edge-routing.md §ER18), the kind's state rules their own; each name is isolated on its own.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.ends.reason.noInput",
+            "inspector.ends.reason.noOutput",
+            "inspector.ends.reason.noPorts",
+            "inspector.ends.reason.duplicate",
+            "inspector.ends.reason.missing",
+            "connect.refused.conditionSource",
+            "connect.refused.changePool",
+            "connect.refused.changeRouterSource",
+            "connect.refused.changeTarget",
+            "connect.refused.stateMode"
+          ],
+          "args": ["node", "from", "to"],
           "kind": "auto"
         }
       ]

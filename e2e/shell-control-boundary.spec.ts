@@ -11,9 +11,11 @@ import {
   probe,
 } from './support/boundary'
 import { expect, FIXTURE_POOLS_4, importGraph, openApp, readFixture, readRiskyFactory, resetAll, runMc, test } from './support/loop'
+import { openPanelDetails } from './support/panel'
+import { menuRow, openRunSettings } from './support/workbenchMenus'
 
 // docs/visual-language.md §VL8, the shell branch (2026-10-01). Twelve control
-// rules still drew the LAYOUT line (`--line-structure`, 1.78:1 on a light panel)
+// rules still drew the LAYOUT line (`--line-2`, 1.78:1 on a light panel)
 // as their 1 px boundary after #245 fixed `.btn` / `.pb-btn` / `.timeline__csv`.
 // They now draw the control tokens. Measured here on the REAL composited
 // pixels, one representative element per rule, in light and dark:
@@ -94,6 +96,9 @@ const CONTROLS: Ctl[] = [
     hoverToken: true,
     open: async (page) => {
       await select(page, await firstNodeOfKind(page, 'pool'))
+      // a Pool's selects (flow mode, resource type) are in the panel's More
+      // settings (the workbench, 2026-10), opened as a user opens it
+      await openPanelDetails(page)
       const el = page.locator('aside.inspector .field select').first()
       await expect(el).toBeVisible()
       return el
@@ -106,7 +111,8 @@ const CONTROLS: Ctl[] = [
     plainToken: true,
     hoverToken: true,
     open: async (page) => {
-      await page.locator('.pstrip__mc button').click()
+      // Run ▸ Monte Carlo… (the run row folds its own button at 1280, docs/workbench.md §WB7)
+      await (await menuRow(page, 'run', /Monte Carlo/)).click()
       await expect(page.locator('.mcdlg__costlabel').first()).toBeVisible()
       const el = page.locator('.mcdlg[role="dialog"] .mcdlg__field input').first()
       await expect(el).toBeVisible()
@@ -115,21 +121,10 @@ const CONTROLS: Ctl[] = [
       return el
     },
   },
-  {
-    name: 'language search (.lang-menu__search)',
-    graph: 'risky',
-    focus: 'A',
-    plainToken: true,
-    hoverToken: true,
-    open: async (page) => {
-      await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings$/ }).click()
-      await page.locator('.lang-switch').first().click()
-      const el = page.locator('.lang-menu__search')
-      await expect(el).toBeVisible()
-      await el.evaluate((e) => (e as HTMLElement).blur())
-      return el
-    },
-  },
+  // The language search (`.lang-menu__search`) was measured here. §L2.0
+  // (2026-10): with two shipped languages, en and ko, the picker shows no
+  // search box (it appears at six), so there is no element to measure; its
+  // CSS rule is unchanged and returns to this list if the box ever renders again.
   {
     name: 'share URL (.share-pop__url)',
     graph: 'risky',
@@ -152,6 +147,8 @@ const CONTROLS: Ctl[] = [
     plainToken: true,
     hoverToken: true,
     open: async (page) => {
+      // in Run settings where the row folds it (docs/workbench.md §WB7)
+      await openRunSettings(page)
       const el = page.locator('.pstrip__seed')
       await expect(el).toBeVisible()
       return el
@@ -266,13 +263,14 @@ const CONTROLS: Ctl[] = [
     },
   },
   ...(
-    // the inputs and the paste area are standard controls (8 px); a select here
-    // is 16-19 px tall, a compact control, and keeps a compact 6 px
+    // the inputs and the paste area are standard controls (`--control-radius`,
+    // the workbench's 5 px); a select here is 16-19 px tall, a compact control,
+    // and keeps a compact 6 px
     [
-      ['data-import table name (text input)', '.import__nameField input', '8px'],
-      ['data-import paste area (textarea)', 'textarea.import__paste', '8px'],
+      ['data-import table name (text input)', '.import__nameField input', '5px'],
+      ['data-import paste area (textarea)', 'textarea.import__paste', '5px'],
       ['data-import delimiter (select)', '.import__settingsGroup select', '6px'],
-      ['data-import header row (number input)', ".import__settingsGroup input[type='number']", '8px'],
+      ['data-import header row (number input)', ".import__settingsGroup input[type='number']", '5px'],
     ] as const
   ).map(
     ([name, sel, radius]): Ctl => ({
@@ -323,6 +321,10 @@ async function load(page: Page, scheme: 'light' | 'dark', graph: Ctl['graph']) {
     await importGraph(page, readFixture())
     await runMc(page, { baseSeed: 1, runs: 20, steps: 6, tracked: FIXTURE_POOLS_4 })
     await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
+    // the Distribution view raises the area to its own minimum (2026-10-20,
+    // TimelineChart.tsx `DISTRIBUTION_MIN`): its controls are measured as the
+    // view first shows them, nothing resized by the test
+    await expect.poll(() => page.evaluate(() => (document.querySelector('.band__svg') as SVGSVGElement | null)?.getBoundingClientRect().height ?? 0)).toBeGreaterThan(60)
   } else {
     await importGraph(page, graph === 'register' ? REGISTER_DOC : readRiskyFactory())
     await expect(page.locator('.react-flow__node').first()).toBeVisible()
@@ -351,7 +353,7 @@ test.describe('the thirteen bordered-control rules — real pixels (§VL8 / WCAG
         const side = sides[0]
         const lineControl = await probe(page, 'var(--line-control)')
         const lineControlHover = await probe(page, 'var(--line-control-hover)')
-        const lineFocus = await probe(page, 'var(--line-focus)')
+        const lineFocus = await probe(page, 'var(--focus)')
 
         // ── rest
         const cs = await computed(el)
@@ -407,7 +409,7 @@ test.describe('the thirteen bordered-control rules — real pixels (§VL8 / WCAG
       await noHover(page)
       const dc = await computed(input)
       expect(dc.border).toBe(await probe(page, 'var(--line-disabled)'))
-      expect(dc.color).toBe(await probe(page, 'var(--text-disabled)'))
+      expect(dc.color).toBe(await probe(page, 'var(--ink-disabled)'))
       expect(dc.border).not.toBe(enabledCs.border)
       const disabled = await boundary(page, input)
       console.log(`[shell] ${scheme} Inspector field disabled: ${fmt(disabled)}`)
@@ -429,7 +431,11 @@ test.describe('the thirteen bordered-control rules — real pixels (§VL8 / WCAG
       expect(await page.evaluate(() => matchMedia('(forced-colors: active)').matches)).toBe(true)
       const highlight = await probe(page, 'Highlight')
 
-      for (const sel of ['.toolbar__actions .menu > button.btn', '.pstrip .pb-btn:not(.pb-btn--primary):not(:disabled)', '.pstrip__seed', '.minimap-toggle']) {
+      // the menu bar's bordered control is Share (its menus are plain-text
+      // triggers since the workbench, docs/workbench.md §WB2); Seed is in Run
+      // settings where the row folds it
+      await openRunSettings(page)
+      for (const sel of ['.toolbar__actions .toolbar__slot button.btn', '.pstrip .pb-btn:not(.pb-btn--primary):not(:disabled)', '.pstrip__seed', '.minimap-toggle']) {
         const el = page.locator(sel).first()
         await expect(el).toBeVisible()
         await keyboardFocus(page, el)
@@ -481,7 +487,7 @@ test.describe('the thirteen bordered-control rules — real pixels (§VL8 / WCAG
         const s = (window as any).__loop.sim.getState()
         for (let i = 0; i < 3; i++) s.stepOnce()
       })
-      const lineFocus = await probe(page, 'var(--line-focus)')
+      const lineFocus = await probe(page, 'var(--focus)')
       for (const sel of ['.timeline__series', '.timeline__csv']) {
         const el = page.locator(sel)
         await expect(el).toBeVisible()

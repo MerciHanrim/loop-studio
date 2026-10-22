@@ -14,6 +14,12 @@ import { expect, openApp, seedPersonalBrowser, test } from './support/loop'
 // The fix scopes `keep-all` to `:lang(ko)` and gives `:lang(ja)` / `:lang(zh)`
 // `word-break: normal`, upgraded to `auto-phrase` where the engine ships a
 // line-break dictionary — the same shape `.nodef__title` already uses.
+//
+// §L2.0 (2026-10): Japanese and Chinese are no longer shipped, so the checks of
+// their own copy (the CJK overflow sweep and the `:lang(zh)` reach) retired with
+// them; the eighteen-locale version is kept in
+// `archive/i18n/e2e/descriptive-copy-wrapping.spec.ts`. What stays is the Korean
+// contract, the English one, and the computed value for both.
 
 const DESC = ['.menu__blurb', '.palette-tip__desc'] as const
 
@@ -87,27 +93,9 @@ const overflowing = (rows: Row[]) => rows.filter((r) => r.overflowX > 1 || r.ove
 const describe1 = (r: Row) => `${r.sel} "${r.text}" ovX=${r.overflowX} lines=${r.lines}`
 
 // ------------------------------------------------------------------ 1
-// The ten elements that overflow today, by locale. Chinese was the reported
-// case; Japanese has the same cause on the same selectors and is worse.
-test.describe('CJK descriptive copy wraps instead of overflowing', () => {
-  for (const [lang, tag] of [
-    ['zh-Hans', 'zh-CN'],
-    ['zh-Hant', 'zh-TW'],
-    ['ja', 'ja-JP'],
-  ] as const) {
-    test(`${lang}: no menu blurb or palette tooltip overflows`, async ({ page }) => {
-      const { ctx, page: p } = await pageAt(page, tag)
-      await openApp(p)
-      const rows = await sweepDescriptiveCopy(p)
-      expect(rows.length, 'the sweep must actually find copy').toBeGreaterThan(15)
-      expect(
-        overflowing(rows).map(describe1),
-        `${lang} descriptive copy must wrap, not spill`,
-      ).toEqual([])
-      await ctx.close()
-    })
-  }
-})
+// (retired, §L2.0 (2026-10)) "CJK descriptive copy wraps instead of
+// overflowing" checked zh-Hans / zh-Hant / ja copy only; it is kept in
+// `archive/i18n/e2e/descriptive-copy-wrapping.spec.ts`.
 
 // ------------------------------------------------------------------ 2
 // Korean is why `keep-all` exists; it keeps it, and keeps its line count.
@@ -122,8 +110,15 @@ test.describe('Korean keeps its wrapping contract', () => {
       'Korean descriptive copy keeps `keep-all`',
     ).toEqual(['keep-all'])
     // 0.28.1: 36, was 38 — the Early MMO blurb (2 lines, measured in the
-    // Templates menu's own box) left the menu with its entry
-    expect(rows.reduce((n, r) => n + r.lines, 0), 'the agreed Korean line count').toBe(36)
+    // Templates menu's own box) left the menu with its entry.
+    // 2026-10-20: 34, was 36 — the workbench's File menu took the Templates
+    // in and the Templates menu's 300 px width (en: three template blurbs
+    // needed 3 lines at 260 and were clamped); at 300 the two structure rows'
+    // Korean blurbs ("선택한 노드와 그 사이 연결을…", "저장해 둔 구조 파일을…")
+    // take 1 line instead of 2 (measured per blurb, 300 against 260 px);
+    // 2026-10-20: 36 — the General gacha's blurb (2 lines) joined the menu;
+    // 38 — the Standard gacha's (2 lines); 40 — the Pickup gacha's (2 lines)
+    expect(rows.reduce((n, r) => n + r.lines, 0), 'the agreed Korean line count').toBe(40)
 
     // measured, not assumed: a break is mid-eojeol when two adjacent
     // NON-space characters end up on different lines
@@ -172,26 +167,20 @@ test.describe('English is untouched', () => {
     await openApp(p)
     const rows = await sweepDescriptiveCopy(p)
     expect(overflowing(rows).map(describe1)).toEqual([])
-    // 0.28.1: 38, was 40 — the Early MMO blurb (2 lines) left the Templates menu
-    expect(rows.reduce((n, r) => n + r.lines, 0), 'the English line count is unchanged').toBe(38)
+    // 0.28.1: 38, was 40 — the Early MMO blurb (2 lines) left the Templates menu;
+    // 2026-10-20: 40 — the General gacha's blurb (2 lines) joined it; 42 — the
+    // Standard gacha's (2 lines); 44 — the Pickup gacha's (2 lines)
+    expect(rows.reduce((n, r) => n + r.lines, 0), 'the English line count is unchanged').toBe(44)
     await ctx.close()
   })
 })
 
 // ------------------------------------------------------------------ 4
 test.describe('the computed value says what the CSS means', () => {
-  test('ko keep-all, ja/zh phrase-aware (or normal without a dictionary), en default', async ({
-    page,
-  }) => {
-    const supportsAutoPhrase = await page.evaluate(() =>
-      CSS.supports('word-break', 'auto-phrase'),
-    )
-    const cjk = supportsAutoPhrase ? 'auto-phrase' : 'normal'
+  // §L2.0 (2026-10): the ja / zh rows retired with those languages
+  test('ko keep-all, en default', async ({ page }) => {
     for (const [lang, tag, want] of [
       ['ko', 'ko-KR', 'keep-all'],
-      ['ja', 'ja-JP', cjk],
-      ['zh-Hans', 'zh-CN', cjk],
-      ['zh-Hant', 'zh-TW', cjk],
       ['en', 'en-US', 'normal'],
     ] as const) {
       const { ctx, page: p } = await pageAt(page, tag)
@@ -202,72 +191,32 @@ test.describe('the computed value says what the CSS means', () => {
     }
   })
 
-  test('`:lang(zh)` reaches BOTH Chinese locales, not just one', async ({ page }) => {
-    const seen: Record<string, string> = {}
-    for (const [lang, tag] of [
-      ['zh-Hans', 'zh-CN'],
-      ['zh-Hant', 'zh-TW'],
-    ] as const) {
-      const { ctx, page: p } = await pageAt(page, tag)
-      await openApp(p)
-      expect(await p.evaluate(() => document.documentElement.lang), `${lang} html lang`).toBe(lang)
-      const rows = await sweepDescriptiveCopy(p)
-      seen[lang] = [...new Set(rows.map((r) => r.wordBreak))].join()
-      await ctx.close()
-    }
-    expect(seen['zh-Hans'], 'the script subtag must not stop `:lang(zh)` matching').toBe(
-      seen['zh-Hant'],
-    )
-    expect(seen['zh-Hans']).not.toBe('keep-all')
-  })
+  // (retired, §L2.0 (2026-10)) "`:lang(zh)` reaches BOTH Chinese locales" —
+  // kept in `archive/i18n/e2e/descriptive-copy-wrapping.spec.ts`.
 })
 
 // ------------------------------------------------------------------ 5
-// This list froze at the locales that existed when it was written: `fr` (#259)
-// and `de` (#262) each shipped without being added, and because the sweep LOOPS
-// a list rather than asserting a count, nothing went red — it just stopped
-// covering two languages. Each of those has its own length sweep in
-// `i18n-fr.spec.ts` / `i18n-de.spec.ts`, but over a different selector set, so
-// `.menu__blurb` and `.palette-tip__desc` were genuinely unmeasured there.
-// docs/localization.md §L2.11a item 8 is what should have caught it.
+// This list once froze at the locales that existed when it was written: `fr`
+// (#259) and `de` (#262) each shipped without being added, and because the sweep
+// LOOPS a list rather than asserting a count, nothing went red — it just stopped
+// covering two languages. docs/localization.md §L2.11a item 8 is what should
+// have caught it.
 //
-// The list stays explicit — each locale needs its own browser context and tag —
-// so ADDING A LANGUAGE MUST ADD A ROW HERE. Neither the title nor the comments
-// name a count: a number would be one more thing that silently goes stale, which
-// is the very failure this change exists to fix.
+// §L2.0 (2026-10): English and Korean are the shipped languages, so the list is
+// those two; the eighteen-locale version is kept in
+// `archive/i18n/e2e/descriptive-copy-wrapping.spec.ts`. The list stays explicit —
+// each locale needs its own browser context and tag — so ADDING A LANGUAGE MUST
+// ADD A ROW HERE.
 //
-// One test PER LOCALE, not one test that loops the list. It was a single test
-// until `vi` made it the 15th locale: the sweep opens a fresh context, loads the
-// app, opens every menu and hovers every chip, so its cost is proportional to
-// the number of locales, and one test's 30 s budget is not. It ran 24.3 s
-// locally and timed out on CI, twice, without reaching a single assertion. A
-// per-locale test makes each case's runtime independent of how many locales
-// ship, so the budget stops being a function of the list's length. It also names
-// the failing locale in the test title instead of inside an accumulated array.
-// Section 1 above already reads this way.
-test.describe('every shipped locale', () => {
+// One test PER LOCALE, not one test that loops the list: the sweep opens a fresh
+// context, loads the app, opens every menu and hovers every chip, so its cost is
+// proportional to the number of locales, and one test's 30 s budget is not (a
+// single looping test timed out on CI at fifteen locales). A per-locale test
+// also names the failing locale in the test title.
+test.describe('every shipped language (en, ko)', () => {
   for (const [lang, tag] of [
     ['en', 'en-US'],
     ['ko', 'ko-KR'],
-    ['ja', 'ja-JP'],
-    ['zh-Hans', 'zh-CN'],
-    ['zh-Hant', 'zh-TW'],
-    ['fr', 'fr-FR'],
-    ['de', 'de-DE'],
-    ['es-419', 'es-MX'],
-    ['pt-BR', 'pt-AO'],
-    ['es-ES', 'es-ES'],
-    ['pt-PT', 'pt-PT'],
-    ['ru', 'ru-RU'],
-    ['tr', 'tr-TR'],
-    ['th', 'th-TH'],
-    ['vi', 'vi-VN'],
-    ['it', 'it-IT'],
-    ['nl', 'nl-NL'],
-    // the first RTL entry. The tag is the BROWSER locale (fonts, and any
-    // Intl the platform does itself); the app's own number formatting comes
-    // from the registry's `numberLocale`, which is a bare `ar` on purpose.
-    ['ar', 'ar'],
   ] as const) {
     test(`${lang}: all descriptive copy fits`, async ({ page }) => {
       const { ctx, page: p } = await pageAt(page, tag)

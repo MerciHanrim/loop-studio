@@ -1,0 +1,211 @@
+import { describe, expect, it } from 'vitest'
+
+import { BUILTIN_RESOURCE_TYPES } from '../model/model'
+import { BASE_LOCALE, LOCALES } from './registry'
+
+// Copy contracts that live BETWEEN locales rather than inside any one of them.
+//
+// `check:i18n` proves every catalog has the same keys and the same ICU argument
+// shape as `en`, and each locale's own review reads it against `en`. Neither can
+// see a rule that exists in the TRANSLATIONS but not in the English source:
+//
+//   - `language.*` names a language a reader has to recognise by sight, so a
+//     one-character slip is invisible to every mechanical check and to a
+//     reader of the other language;
+//   - the feedback form is English-only, so every non-English UI says so in the
+//     link itself. `en` carries no such marker, so a locale that omits it
+//     matches the source perfectly and still misinforms its reader;
+//   - `inspector.resourceType.placeholder` lists the five BUILTIN_RESOURCE_TYPES,
+//     which the model matches BYTE-EQUAL. Translating them reads perfectly and
+//     tells the user to type a value the product will not recognise.
+//
+// Both shipped broken in #266 (`스페인어(라턴아메리카)`, and `es-419` alone
+// without the English-form marker). This file is where that class of rule goes.
+
+/** every shipped language other than the base — the pseudo QA locale is not a
+ *  language a user has (§L5.4) and is excluded the same way the picker does */
+const TRANSLATED = LOCALES.filter((l) => !l.pseudo && l.code !== BASE_LOCALE).map((l) => l.code)
+
+type SurfaceMarkers = {
+  /** how this language says the linked form is in English */
+  englishForm: RegExp
+  /** how this language says the link opens in a new tab */
+  newTab: RegExp
+}
+
+/** EXHAUSTIVE over `TRANSLATED` — the assertion below fails the moment a
+ *  language is registered without a row here, which is the point: the next
+ *  locale must decide how it says "English form" before it can ship. */
+// locale-subset-file: every table here is over TRANSLATED locales, so `en` is
+// absent file-wide by construction.
+// locale-subset: TRANSLATED only. `en` is the base catalogue and carries no
+// "this form is in English" marker — it IS the English form, so a row for it would
+// assert nothing.
+const MARKERS: Record<string, SurfaceMarkers> = {
+  ko: { englishForm: /영문/, newTab: /새 탭/ },
+  ja: { englishForm: /英語/, newTab: /新しいタブ/ },
+  'zh-Hans': { englishForm: /英文/, newTab: /新标签页/ },
+  'zh-Hant': { englishForm: /英文/, newTab: /新分頁/ },
+  fr: { englishForm: /anglais/i, newTab: /onglet/i },
+  it: { englishForm: /inglese/i, newTab: /scheda/i },
+  // Dutch: the language is `Engels`; a browser tab is a `tabblad`.
+  nl: { englishForm: /Engels/i, newTab: /tabblad/i },
+  de: { englishForm: /englisch/i, newTab: /Tab/ },
+  'es-419': { englishForm: /inglés/i, newTab: /pestaña/i },
+  // Brazilian Portuguese says `aba` for a browser tab; `guia` is the
+  // Microsoft-style rendering and is not what this catalog uses.
+  'pt-BR': { englishForm: /inglês/i, newTab: /aba/i },
+  // Turkish: the form is `İngilizce`; a browser tab is `sekme`.
+  tr: { englishForm: /İngilizce/, newTab: /sekme/i },
+  th: { englishForm: /ภาษาอังกฤษ/, newTab: /แท็บ/ },
+  // Arabic: the language is `الإنجليزية`; a browser tab is `تبويب`. Both are
+  // written with the definite article in the catalog copy, so the patterns
+  // match the bare stem rather than anchoring on `ال`.
+  ar: { englishForm: /الإنجليزية/, newTab: /تبويب/ },
+  // same language as `es-419`, so the same markers — but the row is still
+  // required, because the map is asserted exhaustive over the registry and a
+  // locale with no row would otherwise ship unchecked
+  'es-ES': { englishForm: /inglés/i, newTab: /pestaña/i },
+  // European Portuguese does NOT inherit `pt-BR`'s row: a browser tab is a
+  // `separador` in Portugal, and `aba` there is a flap or a brim. This is the
+  // one marker in the whole map that had to change when a sibling locale of
+  // an existing language registered.
+  'pt-PT': { englishForm: /inglês/i, newTab: /separador/i },
+  // Russian: the form is `английском` and a browser tab is a `вкладка`. Matching on the
+  // stem keeps the regex indifferent to the case ending the sentence needs.
+  ru: { englishForm: /английск/i, newTab: /вкладк/i },
+  // Vietnamese: the language is `tiếng Anh`; a browser tab is a `tab`, kept
+  // as the loanword the way Vietnamese software writes it.
+  vi: { englishForm: /tiếng Anh/i, newTab: /tab mới/i },
+}
+
+const catalogOf = async (code: string) => {
+  const entry = LOCALES.find((l) => l.code === code)
+  if (!entry) throw new Error(`no registry entry for ${code}`)
+  return entry.catalog()
+}
+
+describe('copy contracts that hold ACROSS locales', () => {
+  it('covers every translated locale, so a new language cannot skip these rules', () => {
+    expect(
+      Object.keys(MARKERS).sort(),
+      'MARKERS is exhaustive over the shipped translated locales',
+    ).toEqual([...TRANSLATED].sort())
+  })
+
+  it('names Latin American Spanish the way Korean software names it', async () => {
+    // It shipped as `라턴아메리카` — one stroke off a word that does not exist,
+    // invisible to every mechanical check and to any reader of the other seven
+    // languages. The replacement is not the literal transliteration either:
+    // Korean software says `중남미` for this region (the same choice Diablo IV
+    // makes), even though `라틴 아메리카` is the more precise geographic term
+    // for what `es-419` covers. The endonym stays `Español (Latinoamérica)`
+    // and English stays `Spanish (Latin America)`.
+    const ko = await catalogOf('ko')
+    expect(ko['language.spanishLatinAmerica']).toBe('스페인어(중남미)')
+  })
+
+  // A regional variant's display name is the one string a reader cannot check
+  // for themselves: it names a language they do not read, in a language they
+  // do. `check:i18n` proves the key EXISTS and that its ICU shape matches, so
+  // a value copied from the wrong catalog passes every mechanical gate —
+  // `es-419` shipped this key holding the PORTUGUESE endonym for exactly that
+  // reason. Each locale's own word for the language, pinned.
+  it('names Brazilian Portuguese in each locale, never borrowing the endonym', async () => {
+    const want: Record<string, string> = {
+      ko: '포르투갈어(브라질)',
+      'es-419': 'Portugués (Brasil)',
+      'pt-BR': 'Português (Brasil)',
+      'pt-PT': 'Português (Brasil)',
+    }
+    const got: Record<string, string> = {}
+    for (const code of Object.keys(want)) {
+      got[code] = (await catalogOf(code))['language.portugueseBrazil']
+    }
+    expect(got).toEqual(want)
+  })
+
+  // The mirror of the test above, and the reason both are worth having: the
+  // two Portuguese locales must name EACH OTHER, and neither may quietly
+  // reuse its own name for its sibling. `pt-PT` calls Brazil `(Brasil)` and
+  // itself `(Portugal)`; `pt-BR` does the same in the other direction.
+  it('names European Portuguese in each locale, never borrowing the endonym', async () => {
+    const want: Record<string, string> = {
+      ko: '포르투갈어(포르투갈)',
+      'es-419': 'Portugués (Portugal)',
+      'es-ES': 'Portugués (Portugal)',
+      'pt-BR': 'Português (Portugal)',
+      'pt-PT': 'Português (Portugal)',
+    }
+    const got: Record<string, string> = {}
+    for (const code of Object.keys(want)) {
+      got[code] = (await catalogOf(code))['language.portuguesePortugal']
+    }
+    expect(got).toEqual(want)
+  })
+
+  it('tells every non-English reader that the feedback form is in English', async () => {
+    const missing: string[] = []
+    for (const code of TRANSLATED) {
+      const cat = await catalogOf(code)
+      const label = cat['tour.help.feedback']
+      if (!MARKERS[code]!.englishForm.test(label)) missing.push(`${code}: ${label}`)
+    }
+    expect(missing, 'the visible feedback label names the form as English').toEqual([])
+  })
+
+  it('keeps that marker AND the new-tab notice in the accessible name', async () => {
+    const missingForm: string[] = []
+    const missingTab: string[] = []
+    for (const code of TRANSLATED) {
+      const cat = await catalogOf(code)
+      const aria = cat['tour.help.feedbackAria']
+      if (!MARKERS[code]!.englishForm.test(aria)) missingForm.push(`${code}: ${aria}`)
+      if (!MARKERS[code]!.newTab.test(aria)) missingTab.push(`${code}: ${aria}`)
+    }
+    expect(missingForm, 'the accessible name names the form as English too').toEqual([])
+    expect(missingTab, 'and still says the link opens in a new tab').toEqual([])
+  })
+
+  it('leaves the English source alone — it is the form, so it makes no claim', async () => {
+    const en = await catalogOf(BASE_LOCALE)
+    expect(en['tour.help.feedback']).toBe('Send feedback')
+    expect(en['tour.help.feedbackAria']).toContain('new tab')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// The resourceType placeholder lists CANONICAL TOKENS, not vocabulary.
+//
+// `BUILTIN_RESOURCE_TYPES` is `['Gold', 'Energy', 'XP', 'Player', 'Item']` and
+// `sameResourceType` compares the normalised strings with `===`. A reader who
+// types the translated word gets a CUSTOM type with the generic swatch and no
+// built-in colour, so a translated placeholder is not a style choice — it is
+// wrong instructions.
+//
+// MEASURED when Dutch was read back: FOUR shipped locales had translated them.
+// `fr` had 4 of 5 wrong, `zh-Hans` and `zh-Hant` all 5, `de` 3 (`Gold` and `XP`
+// happen to be spelled the same in German). Eleven other locales already kept
+// all five, which is why this is a contract and not a preference.
+describe('the resourceType placeholder keeps the canonical tokens', () => {
+  it('every catalog contains all five BUILTIN_RESOURCE_TYPES verbatim', async () => {
+    const missing: string[] = []
+    for (const code of [BASE_LOCALE, ...TRANSLATED]) {
+      const cat = await catalogOf(code)
+      const value = cat['inspector.resourceType.placeholder']!
+      for (const token of BUILTIN_RESOURCE_TYPES) {
+        // word boundaries are useless here: CJK catalogs use no spaces
+        if (!value.includes(token)) missing.push(`${code}: "${token}" not in ${value}`)
+      }
+    }
+    expect(
+      missing,
+      'these are byte-matched model tokens — a reader must be able to type them',
+    ).toEqual([])
+  })
+
+  it('the token list itself is the one the model uses', () => {
+    // If a token is ever added, this test fails until every catalog carries it.
+    expect([...BUILTIN_RESOURCE_TYPES]).toEqual(['Gold', 'Energy', 'XP', 'Player', 'Item'])
+  })
+})

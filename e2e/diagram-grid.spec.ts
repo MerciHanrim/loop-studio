@@ -1,5 +1,7 @@
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { handleOnDrawnOutline } from './support/outlineCheck'
+import { menuRow } from './support/workbenchMenus'
 
 // issue #344 Step 1 — docs/diagram-layout.md §DL1–§DL3: the 16 px grid, the
 // resource port row fixed 28 px below a node's top, snapping for pointer drags
@@ -72,12 +74,28 @@ test('a resource port sits 28 px below the node top, whatever the height, on the
   // test protects, "whatever the height" being vacuous under the new node
   const newNode = await page.evaluate(() => document.querySelector('.nodef--outside') != null)
   if (!newNode) expect(rows[1].height, 'c wraps to a taller box').toBeGreaterThan(rows[0].height + 10)
+  // on the outline: the previous body's Pool has slanted sides, so its port sits
+  // inside the box edge; a symbol node's port is at its symbol's own anchor
+  // (symbol.ts — for a Pool's circle, the cell's edge)
+  const anchors = newNode
+    ? await page.evaluate(async () => {
+        const { symbolAnchor, CELL } = await import('/src/components/nodes/symbol.ts')
+        return { inX: symbolAnchor('pool', 'left').x, outX: CELL - symbolAnchor('pool', 'right').x }
+      })
+    : null
   for (const r of rows) {
     expect(Math.abs(r.inRow - 28), `${r.id} in`).toBeLessThan(0.6)
     expect(Math.abs(r.outRow - 28), `${r.id} out`).toBeLessThan(0.6)
-    // a Pool's slanted sides: the port is drawn on the outline, inside the box edge
-    expect(r.inX, `${r.id} in on the outline`).toBeGreaterThan(8)
-    expect(r.outX, `${r.id} out on the outline`).toBeGreaterThan(8)
+    if (anchors) {
+      expect(Math.abs(r.inX - anchors.inX), `${r.id} in on the outline`).toBeLessThan(0.6)
+      expect(Math.abs(r.outX - anchors.outX), `${r.id} out on the outline`).toBeLessThan(0.6)
+      // independent of symbol.ts: each port's centre is on the outline the node DRAWS
+      expect(await handleOnDrawnOutline(page, r.id, '.react-flow__handle.h--in'), `${r.id} in on the drawn outline`).toBe(true)
+      expect(await handleOnDrawnOutline(page, r.id, '.react-flow__handle.h--out'), `${r.id} out on the drawn outline`).toBe(true)
+    } else {
+      expect(r.inX, `${r.id} in on the outline`).toBeGreaterThan(8)
+      expect(r.outX, `${r.id} out on the outline`).toBeGreaterThan(8)
+    }
   }
 })
 
@@ -170,7 +188,8 @@ test('a pre-grid file is re-placed once when it is opened, with no undo entry', 
 
 test('Tidy to grid re-places the document as one undo step, and is disabled while locked', async ({ page }) => {
   await load(page)
-  const button = page.locator('.react-flow__controls .rf-tidy')
+  // Edit ▸ Tidy to grid (docs/workbench.md §WB2; the canvas rail's before 2026-10)
+  const button = await menuRow(page, 'edit', 'Tidy to grid')
   await expect(button).toBeEnabled()
   await button.click()
   const p1 = await positions(page)
@@ -179,5 +198,5 @@ test('Tidy to grid re-places the document as one undo step, and is disabled whil
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z')
   expect((await positions(page)).a).toEqual({ x: 3, y: 7 })
   await page.evaluate(() => (window as unknown as Bridge).__loop.ui.getState().setCanvasLocked(true))
-  await expect(button).toBeDisabled()
+  await expect(await menuRow(page, 'edit', 'Tidy to grid')).toBeDisabled()
 })

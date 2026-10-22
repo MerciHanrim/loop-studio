@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from './support/loop'
+import { openMonteCarloDialog } from './support/workbenchMenus'
 
 // an ORTHOGONAL-routing fixture that is NOT shipped canvas-locked (the MMO and
 // gacha templates are, so a node there cannot be moved at all — by design)
@@ -338,7 +339,7 @@ test.describe('node keyboard move — what must NOT open a transaction (§LGR6.7
   test('an open modal dialog blocks the arrows', async ({ page }) => {
     await load(page)
     await focusAndSelect(page)
-    await page.locator('.pstrip__mc button').click()
+    await openMonteCarloDialog(page)
     await expect(page.locator('.mcdlg[role="dialog"]')).toBeVisible()
     await page.waitForTimeout(400)
     await page.locator('.mcdlg .btn').first().focus()

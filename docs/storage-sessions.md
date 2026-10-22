@@ -46,7 +46,7 @@ The boot script in `<head>` (`src/storage/themeBoot.js`, inlined by `vite.config
 
 The unit tests open the port before each test (`src/test/setup.ts`), because they exercise the stores behind the port, not the gate in front of it.
 
-A preference added later follows these rules by registering its key in the port's table, with nothing else to wire: the recently used flow colours (`loop-studio:recent-accents`, issue #325, `docs/flow-colour-and-compact-nodes.md` FC-2.7) are read and written only through the port, so a temporary session keeps them in its memory store and "Reset all Loop Studio data" removes them. They are a trace of a person for the What's new decision, like every other preference.
+A preference added later follows these rules by registering its key in the port's table, with nothing else to wire: the recently used flow colours (`loop-studio:recent-accents`, issue #325, `docs/flow-colour-and-compact-nodes.md` FC-2.7) are read and written only through the port, so a temporary session keeps them in its memory store and "Reset all Loop Studio data" removes them. Keys an earlier version wrote and nothing uses any more are listed apart, as `RETIRED_STORAGE_KEYS`: they cannot be stored, and "Reset all Loop Studio data" still removes them (the two What's new keys, since 2026-10).
 
 ## Settings: Storage and privacy
 

@@ -2,33 +2,54 @@
 // functions. `check-change-declaration.mjs` gathers the facts from git and the
 // working tree and hands them here; the tests hand it made-up facts.
 //
-// THE RULE
+// THE RULE (revised 2026-10, when the in-app release notes were removed)
 //
 // A change that touches anything a build reads or ships, or the app version,
-// declares what it is in
-// one new file, `.changes/<slug>.json`:
+// declares what it is in one new file, `.changes/<slug>.json`:
 //
-//   { "type": "user-facing", "releaseNoteId": "release:0.15.0" }
-//   { "type": "internal", "reason": "why no release note is needed" }
+//   { "type": "user-facing", "changelog": "<a line of the CHANGELOG's Unreleased section>" }
+//   { "type": "internal", "reason": "why it needs no changelog entry" }
 //
-// - `user-facing` must raise the app version, and its `releaseNoteId` must be
-//   the entry for exactly that version, present in the release-note list.
-// - `internal` must say why, in words. It may raise the version too.
-// - Whatever is declared, a version that changes only goes up, and the version
-//   at the base must be known: one that cannot be read is an error.
+// - `user-facing` records what users notice in `CHANGELOG.md`, under
+//   `## Unreleased`, in the same change: the declared line must be in that
+//   section now, and must not have been there at the base — an entry an earlier
+//   change already wrote does not stand for this one.
+// - `internal` must say why, in words.
+// - The app version is raised only when a release is approved, never as part
+//   of an ordinary change. A version that changes only goes up, the version at
+//   the base must be known (one that cannot be read is an error), and a change
+//   of the version alone still needs a declaration.
 // - Exactly one declaration per change. Old declarations are a record: they are
-//   never edited, renamed or removed.
+//   never edited, renamed or removed. Declarations written before the revision
+//   name an in-app release note (`releaseNoteId`); they still parse, as the
+//   record they are, but a NEW user-facing declaration names its changelog line.
 //
 // A merge to `main` is the production deploy, so a visible change cannot leave
-// its note for later. A label or a line in a pull-request description is not
+// its record for later. A label or a line in a pull-request description is not
 // evidence: only the file is, because it can be checked before a push and it is
 // still in the tree after a squash merge.
-import { compareVersions, parseVersion } from '../src/releaseNotes/validate.ts'
 
 export const DECLARATION_DIR = '.changes'
 const DECLARATION_FILE = /^\.changes\/[a-z0-9][a-z0-9-]*\.json$/
 /** the only other file allowed in the folder */
 const DECLARATION_README = '.changes/README.md'
+export const CHANGELOG = 'CHANGELOG.md'
+/** the heading of the section that collects what has not shipped in a release */
+export const UNRELEASED_HEADING = '## Unreleased'
+
+const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
+
+/** `x.y.z` as three numbers, or null for anything that is not exactly that */
+export function parseVersion(v) {
+  if (typeof v !== 'string') return null
+  const m = SEMVER.exec(v)
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null
+}
+
+/** negative when a < b, 0 when equal, positive when a > b */
+export function compareVersions(a, b) {
+  return a[0] - b[0] || a[1] - b[1] || a[2] - b[2]
+}
 
 /**
  * Paths that are never read by a build and never shipped. EVERYTHING ELSE is
@@ -48,6 +69,8 @@ const NEVER_SHIPS = [
   // documents
   /^docs\//,
   /^(?!src\/|public\/).*\.md$/,
+  // the archived translations (archive/i18n/README.md): no build reads them
+  /^archive\//,
   // the declarations themselves
   /^\.changes\//,
   // tests and their configuration
@@ -82,20 +105,52 @@ export function parseDeclaration(text) {
     return { problems: ['it is not valid JSON'] }
   }
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return { problems: ['it must be a JSON object'] }
-  const keys = Object.keys(value).sort()
+  const keys = Object.keys(value).sort().join(',')
   if (value.type === 'user-facing') {
+    // the record written before 2026-10: it named an in-app release note
+    if (keys === 'releaseNoteId,type') {
+      if (typeof value.releaseNoteId !== 'string' || !/^release:.+$/.test(value.releaseNoteId)) return { problems: ['"releaseNoteId" must be "release:<version>"'] }
+      return { value: { type: 'user-facing', releaseNoteId: value.releaseNoteId } }
+    }
     const problems = []
-    if (keys.join(',') !== 'releaseNoteId,type') problems.push('a user-facing declaration has exactly "type" and "releaseNoteId"')
-    if (typeof value.releaseNoteId !== 'string' || !/^release:.+$/.test(value.releaseNoteId)) problems.push('"releaseNoteId" must be "release:<version>"')
-    return problems.length ? { problems } : { value: { type: 'user-facing', releaseNoteId: value.releaseNoteId } }
+    if (keys !== 'changelog,type') problems.push('a user-facing declaration has exactly "type" and "changelog"')
+    if (typeof value.changelog !== 'string' || value.changelog.trim() === '') problems.push('"changelog" must be the line this change adds under "## Unreleased" in CHANGELOG.md')
+    else if (/\n/.test(value.changelog)) problems.push('"changelog" is one line of the CHANGELOG, without a line break')
+    return problems.length ? { problems } : { value: { type: 'user-facing', changelog: value.changelog } }
   }
   if (value.type === 'internal') {
     const problems = []
-    if (keys.join(',') !== 'reason,type') problems.push('an internal declaration has exactly "type" and "reason"')
-    if (typeof value.reason !== 'string' || value.reason.trim() === '') problems.push('"reason" must say, in words, why no release note is needed')
+    if (keys !== 'reason,type') problems.push('an internal declaration has exactly "type" and "reason"')
+    if (typeof value.reason !== 'string' || value.reason.trim() === '') problems.push('"reason" must say, in words, why no changelog entry is needed')
     return problems.length ? { problems } : { value: { type: 'internal', reason: value.reason } }
   }
   return { problems: ['"type" must be "user-facing" or "internal"'] }
+}
+
+/**
+ * The lines of the CHANGELOG's `## Unreleased` section, trimmed and without
+ * blanks: everything from that heading to the next `## ` heading.
+ *
+ * @param {string | null | undefined} text  the CHANGELOG's text; null when there is none
+ * @returns {{lines: string[]} | {problem: string}}
+ */
+export function readUnreleased(text) {
+  if (typeof text !== 'string') return { problem: `${CHANGELOG} could not be read` }
+  const all = text.replace(/\r\n?/g, '\n').split('\n')
+  const at = all.findIndex((l) => l.trim() === UNRELEASED_HEADING)
+  if (at < 0) return { problem: `${CHANGELOG} has no "${UNRELEASED_HEADING}" section` }
+  const lines = []
+  for (let i = at + 1; i < all.length; i++) {
+    if (/^## /.test(all[i])) break
+    if (all[i].trim() !== '') lines.push(all[i].trim())
+  }
+  return { lines }
+}
+
+/** Is `entry` one of `lines`, or the text of one of them after a list marker? */
+const holds = (lines, entry) => {
+  const want = entry.trim()
+  return lines.some((l) => l === want || l.replace(/^[-*]\s+/, '') === want.replace(/^[-*]\s+/, ''))
 }
 
 /**
@@ -124,38 +179,14 @@ export function readPackageVersion(text) {
 }
 
 /**
- * The languages that have a catalog must be EXACTLY the registered ones.
- *
- * "Every item has text in every language" is only as good as the list of
- * languages it walks. Counting the catalog folders and refusing zero let
- * seventeen of eighteen pass: the release notes would be called complete in a
- * language nobody looked at.
- *
- * @param {string[]} registered  the shipped language codes, from the registry
- * @param {string[]} found       the languages a catalog was loaded for
- * @returns {string[]} problems
- */
-export function compareLanguageSets(registered, found) {
-  const problems = []
-  if (!Array.isArray(registered) || registered.length === 0) return ['the registry lists no shipped language']
-  const dupes = (list) => [...new Set(list.filter((c, i) => list.indexOf(c) !== i))]
-  for (const c of dupes(registered)) problems.push(`the registry lists the language ${c} more than once`)
-  for (const c of dupes(found)) problems.push(`the language ${c} has more than one catalog`)
-  const missing = registered.filter((c) => !found.includes(c))
-  const extra = found.filter((c) => !registered.includes(c))
-  if (missing.length) problems.push(`${missing.length} registered language(s) have no catalog: ${missing.join(', ')}`)
-  if (extra.length) problems.push(`${extra.length} catalog(s) belong to no registered language: ${extra.join(', ')}`)
-  return problems
-}
-
-/**
  * @param {object} facts
  * @param {{status: string, path: string}[]} facts.changed  every path that differs from the base (status: A, M, D, R…)
  * @param {Record<string, string>} facts.declarationTexts   text of every `.changes/*.json` in the tree now
  * @param {string[]} facts.declarationDirEntries            every file in `.changes/` now
  * @param {string | null} facts.baseVersion                 the app version at the base; anything that is not x.y.z is a problem
  * @param {string} facts.headVersion                        the app version now
- * @param {{id: string, version: string}[]} facts.notes     the release-note list now
+ * @param {string | null} facts.changelog                   the CHANGELOG's text now; null when there is none
+ * @param {string | null} facts.baseChangelog               the CHANGELOG's text at the base; null when there was none
  * @returns {{problems: string[], summary: string[]}}
  */
 export function evaluateChange(facts) {
@@ -210,15 +241,21 @@ export function evaluateChange(facts) {
   const mine = added.length === 1 ? parsed[added[0].path] : undefined
   if (added.length === 1 && mine) {
     if (mine.type === 'user-facing') {
-      summary.push(`declared user-facing (${added[0].path}), release note ${mine.releaseNoteId}`)
-      if (!versionChanged) {
-        problems.push(`${added[0].path}: a user-facing change raises the app version, and it is still ${facts.headVersion}`)
-      }
-      if (mine.releaseNoteId !== `release:${facts.headVersion}`) {
-        problems.push(`${added[0].path}: "releaseNoteId" is ${mine.releaseNoteId}, and the app version is ${facts.headVersion}; it must be release:${facts.headVersion}`)
-      }
-      if (!facts.notes.some((n) => n.id === mine.releaseNoteId)) {
-        problems.push(`${added[0].path}: there is no release note with the id ${mine.releaseNoteId}`)
+      if (mine.releaseNoteId !== undefined) {
+        problems.push(`${added[0].path}: a new user-facing declaration names its line under "${UNRELEASED_HEADING}" in ${CHANGELOG} ("changelog"), not an in-app release note; the in-app notes were removed`)
+      } else {
+        summary.push(`declared user-facing (${added[0].path}): ${mine.changelog}`)
+        const now = readUnreleased(facts.changelog)
+        if (now.problem) {
+          problems.push(`${added[0].path}: ${now.problem}`)
+        } else if (!holds(now.lines, mine.changelog)) {
+          problems.push(`${added[0].path}: its "changelog" line is not under "${UNRELEASED_HEADING}" in ${CHANGELOG}`)
+        } else {
+          const then = readUnreleased(facts.baseChangelog)
+          if (!then.problem && holds(then.lines, mine.changelog)) {
+            problems.push(`${added[0].path}: its "changelog" line was already under "${UNRELEASED_HEADING}" at the base; an entry an earlier change wrote does not stand for this one`)
+          }
+        }
       }
     } else {
       summary.push(`declared internal (${added[0].path}): ${mine.reason}`)

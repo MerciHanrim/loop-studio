@@ -176,7 +176,8 @@ EN / KO / JA exactly like MMO. "Coffee 배치 불변" (acceptance #9) means:
   locale**. The zoom may differ per viewport width, but **for one viewport
   width the framing is identical for EN / KO / JA**.
 - The framed nodes must **not sit under the minimap** — the fit uses the pane
-  MINUS the fixed overlays (minimap bottom-right, zoom Controls left), and
+  MINUS the fixed overlays (minimap bottom-right; zoom Controls left, on the phone
+  only since the desktop workbench, 2026-10), and
   left-aligns the rect (a progression graph reads beginning-first).
 - Since issue #344 a fixed **`keep`** rectangle (the core start nodes at their
   widest box over the 18 languages, also graph coordinates, no locale branch)

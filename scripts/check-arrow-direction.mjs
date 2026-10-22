@@ -428,11 +428,11 @@ if (censusClaimed !== glyphOccurrences) {
   )
 }
 
-// the real RTL catalogue is the one the mirrored-glyph rule exists for
+// the real RTL catalogue is the one the mirrored-glyph rule exists for. Since
+// §L2.0 (2026-10) none is registered — Arabic is archived — so the rule has no
+// locale to check here; `src/i18n/arrowContract.test.ts` keeps it tested, and
+// the per-locale checks below apply again the day an RTL locale is registered.
 const realRtl = withCatalogue.filter((l) => l.direction === 'rtl' && !l.pseudo)
-if (realRtl.length === 0) {
-  problems.push('no real RTL catalogue is registered, so the mirrored-glyph rule is not exercised by any locale here')
-}
 for (const l of realRtl) {
   if (l.conditional !== 0) {
     problems.push(`${l.code}: the conditional key uses ${l.conditional} arrow(s); the Arabic translation was decided to use none`)

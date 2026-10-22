@@ -1,6 +1,8 @@
 import type { Page } from '@playwright/test'
+import { readFileSync } from 'node:fs'
 import { probe } from './support/boundary'
-import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { expandMinimap, expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { pickTemplate, pressViewRow } from './support/workbenchMenus'
 
 // docs/mobile.md §MV-D10 / docs/dense-graph-pan.md — the minimap is a fixed
 // ~202×152 overlay; it only earns its space on a canvas pane large enough to
@@ -49,6 +51,9 @@ const nodePositions = (p: Page) =>
 test.describe('minimap — visible only when the pane can host it', () => {
   test.beforeEach(async ({ page }) => {
     await openApp(page)
+    // the threshold is about the OPEN minimap: open it as a stored choice (it
+    // starts folded, docs/workbench.md §WB2.1 — the group below checks that)
+    await expandMinimap(page)
     await resetAll(page)
     await importGraph(page, GRAPH)
     await expect(page.locator('.react-flow__node[data-id="b"]')).toBeVisible()
@@ -404,7 +409,7 @@ test.describe('minimap — the collapse / restore control', () => {
     // it, in place of an outline. The painted boundary is measured at 3:1 in
     // e2e/shell-control-boundary.spec.ts.
     expect(ring.visible).toBe(true)
-    expect(ring.border, 'the boundary takes the solid focus colour').toBe(await probe(page, 'var(--line-focus)'))
+    expect(ring.border, 'the boundary takes the solid focus colour').toBe(await probe(page, 'var(--focus)'))
     expect(ring.halo, 'a 3 px halo accompanies it').toMatch(/0px 0px 0px 3px/)
     expect(ring.outline, 'class A: the border stands in for the outline').toBe('none')
 
@@ -415,5 +420,128 @@ test.describe('minimap — the collapse / restore control', () => {
     await toggleBtn(page).focus()
     await page.keyboard.press('Space')
     await expect(page.locator('.react-flow__minimap')).toBeVisible()
+  })
+})
+
+// docs/workbench.md §WB2.1 (2026-10-21) — with no stored choice the minimap
+// starts FOLDED; a stored choice is kept; opening / folding it moves no camera,
+// node or selection; a Template, a New document or a reload changes nothing
+// about it. Each test is a fresh browser context, so nothing is stored at start.
+const KEY = 'loop-studio:minimap-collapsed'
+const storedChoice = (p: Page) => p.evaluate((k) => localStorage.getItem(k), KEY)
+const selection = (p: Page) =>
+  p.evaluate(() => {
+    const g = (window as unknown as { __loop: { graph: { getState: () => { selectedNodeId: string | null; nodes: { id: string; selected?: boolean }[] } } } }).__loop.graph.getState()
+    return { anchor: g.selectedNodeId, selected: g.nodes.filter((n) => n.selected).map((n) => n.id).sort() }
+  })
+const NAMES = {
+  en: { show: 'Show the minimap', hide: 'Hide the minimap' },
+  ko: { show: '미니맵 보기', hide: '미니맵 숨기기' },
+} as const
+
+test.describe('minimap — starts folded unless the user chose otherwise', () => {
+  for (const [w, h] of [[1440, 900], [1920, 1080]] as const) {
+    for (const lang of ['ko', 'en'] as const) {
+      test(`${lang} ${w}×${h}: nothing stored → folded at open and after a Template; the button opens and folds it, and that is stored`, async ({ page }) => {
+        await page.setViewportSize({ width: w, height: h })
+        await openApp(page)
+        await page.evaluate((l) => (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (l: string) => void } } } }).__loop.i18n.getState().setLocale(l), lang)
+        await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(lang)
+        expect(await storedChoice(page), 'nothing stored').toBeNull()
+        expect((await uiState(page)).minimapCollapsed).toBe(true)
+        await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
+        await expect(toggleBtn(page)).toHaveClass(/is-collapsed/)
+        await expect(toggleBtn(page)).toHaveAccessibleName(NAMES[lang].show)
+
+        // a Template opens folded, and opening it stores nothing; its layout is the file's
+        await resetAll(page)
+        await pickTemplate(page, 'gacha-pickup')
+        await expect(page.locator('.react-flow__node[data-id="pickup_owed"]')).toBeVisible()
+        await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
+        expect(await storedChoice(page)).toBeNull()
+        const file = JSON.parse(readFileSync(new URL('../examples/gacha-pickup.json', import.meta.url), 'utf8')) as { nodes: { id: string; position: { x: number; y: number } }[] }
+        expect(await nodePositions(page)).toEqual(Object.fromEntries(file.nodes.map((n) => [n.id, n.position])))
+
+        // open → drawn, stored '0', nothing moved; fold → gone, stored '1'
+        const vp0 = await viewport(page)
+        await toggleBtn(page).click()
+        await expect(page.locator('.react-flow__minimap')).toBeVisible()
+        await expect(toggleBtn(page)).toHaveAccessibleName(NAMES[lang].hide)
+        expect(await storedChoice(page)).toBe('0')
+        expect(await viewport(page)).toEqual(vp0)
+        await toggleBtn(page).click()
+        await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
+        expect(await storedChoice(page)).toBe('1')
+        expect(await viewport(page)).toEqual(vp0)
+      })
+    }
+  }
+
+  test("a stored '0' is kept: the minimap opens drawn, after a reload too", async ({ page }) => {
+    await page.addInitScript((k) => {
+      if (localStorage.getItem(k) == null) localStorage.setItem(k, '0')
+    }, KEY)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, GRAPH)
+    await expect(page.locator('.react-flow__minimap')).toBeVisible()
+    expect((await uiState(page)).minimapCollapsed).toBe(false)
+    await page.reload()
+    await expect(page.locator('.react-flow__minimap')).toBeVisible()
+    expect(await storedChoice(page)).toBe('0')
+  })
+
+  test('opening / folding from the button and View ▸ Minimap keeps the camera, the nodes and the selection', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, GRAPH)
+    await page.locator('.react-flow__node[data-id="b"] .nodef__shape').click()
+    await expect.poll(() => selection(page)).toEqual({ anchor: 'b', selected: ['b'] })
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport({ x: -60, y: 21, zoom: 1.18 }, { duration: 0 }),
+    )
+    const vp0 = await viewport(page)
+    const pos0 = await nodePositions(page)
+
+    await toggleBtn(page).click() // open (button)
+    await expect(page.locator('.react-flow__minimap')).toBeVisible()
+    await pressViewRow(page, 'minimap') // fold (View)
+    await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
+    await pressViewRow(page, 'minimap') // open (View)
+    await expect(page.locator('.react-flow__minimap')).toBeVisible()
+    await toggleBtn(page).click() // fold (button)
+    await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
+
+    expect(await viewport(page)).toEqual(vp0)
+    expect(await nodePositions(page)).toEqual(pos0)
+    expect(await selection(page)).toEqual({ anchor: 'b', selected: ['b'] })
+  })
+
+  test('a Template and File ▸ New keep the choice, open or folded', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await openApp(page)
+    await resetAll(page)
+    await toggleBtn(page).click() // the user opens it
+    await expect(page.locator('.react-flow__minimap')).toBeVisible()
+
+    await pickTemplate(page, 'gacha-pickup')
+    await expect(page.locator('.react-flow__node[data-id="pickup_owed"]')).toBeVisible()
+    await expect(page.locator('.react-flow__minimap')).toBeVisible()
+    await page.getByRole('button', { name: 'File', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'New', exact: true }).click()
+    const confirm = page.locator('.mcdlg--confirm .btn--primary')
+    if (await confirm.isVisible({ timeout: 1500 }).catch(() => false)) await confirm.click()
+    await expect(page.locator('.react-flow__node[data-id="pickup_owed"]')).toHaveCount(0)
+    await expect(page.locator('.react-flow__minimap')).toBeVisible()
+    expect(await storedChoice(page)).toBe('0')
+
+    await toggleBtn(page).click() // the user folds it
+    await pickTemplate(page, 'gacha-standard')
+    await expect(page.locator('.react-flow__node').first()).toBeVisible()
+    await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
+    await expect(toggleBtn(page)).toHaveClass(/is-collapsed/)
+    expect(await storedChoice(page)).toBe('1')
   })
 })

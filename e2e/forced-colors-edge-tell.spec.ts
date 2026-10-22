@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { expect, importGraph, openApp, resetAll, snap, test } from './support/loop'
+import { viewRow } from './support/workbenchMenus'
 
 // docs/large-graph-readability.md §LGR9 — the Activity overlay's edge tell
 // under `forced-colors: active`, measured 2026-09-19 (two rounds, see the
@@ -24,7 +25,18 @@ test.use({ contextOptions: { forcedColors: 'active' } })
 type Pt = { x: number; y: number }
 
 const edgePath = (page: Page, id: string) => page.locator(`.react-flow__edge[data-id="${id}"] path.react-flow__edge-path`)
-const activityBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-activity')
+// the Activity overlay toggle: View ▸ Activity overlay on the desktop workbench
+// (the canvas rail's button before 2026-10, docs/workbench.md §WB2); View is
+// closed again after each use, so the canvas is never under it
+const toggleActivity = async (page: Page) => {
+  await (await viewRow(page, 'activity')).click()
+  await page.keyboard.press('Escape')
+}
+const activityPressed = async (page: Page) => {
+  const v = await (await viewRow(page, 'activity')).getAttribute('aria-pressed')
+  await page.keyboard.press('Escape')
+  return v
+}
 
 async function loadFixture(page: Page, file: string): Promise<void> {
   await openApp(page)
@@ -441,8 +453,8 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
         expect(s.dash, `${id} off: solid`).toBe('none')
         expect(s.stroke, `${id} off: not the Highlight colour`).not.toBe(hl)
       }
-      await activityBtn(page).click()
-      await expect(activityBtn(page)).toHaveAttribute('aria-pressed', 'true')
+      await toggleActivity(page)
+      expect(await activityPressed(page)).toBe('true')
       await commitSteps(page, 10)
       for (const id of RES[name]) {
         await expect(edgePath(page, id)).toHaveClass(/lgr-active-tint/)
@@ -459,14 +471,14 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
     for (const zoom of [0.4, 0.75]) {
       test(`${name}: at zoom ${zoom} an active resource edge shows ≥ 6 dash pieces on an 80 px stretch where the plain edge is one piece`, async ({ page }) => {
         await loadFixture(page, file)
-        await activityBtn(page).click()
+        await toggleActivity(page)
         await commitSteps(page, 10)
         const results: { id: string; ok: boolean; why: string }[] = []
         for (const id of await longestActive(page, 'edge-resource', 6)) {
           if (results.filter((r) => r.ok).length >= 3) break
           await centreOn(page, id, zoom)
           // OFF reference (same viewport): the plain grey line
-          await activityBtn(page).click()
+          await toggleActivity(page)
           await page.waitForTimeout(150)
           const offPng = await page.screenshot()
           const pts = await pathPoints(page, id)
@@ -474,13 +486,13 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
           const picked = await cleanStretch(page, offPng, pts, 0.15, 2, id)
           if (!picked) {
             // shorter than 80 screen px at this zoom — too few periods to count
-            await activityBtn(page).click()
+            await toggleActivity(page)
             await page.waitForTimeout(150)
             continue
           }
           const [a, b] = picked.stretch
           const off = picked.off
-          await activityBtn(page).click()
+          await toggleActivity(page)
           await page.waitForTimeout(150)
           const onPng = await page.screenshot()
           const on = await dashCount(page, onPng, pts, a, b, 0.2, 1)
@@ -511,7 +523,7 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
       expect(s.dash, `${id} off: the plain state dash`).toBe('4px, 4px')
       expect(s.stroke).not.toBe(hl)
     }
-    await activityBtn(page).click()
+    await toggleActivity(page)
     await commitSteps(page, 10)
     for (const id of STATE_ACTIVE) {
       await expect(edgePath(page, id)).toHaveClass(/lgr-active-tint/)
@@ -546,7 +558,7 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
   for (const zoom of [0.4, 0.75]) {
     test(`mmo: at zoom ${zoom} an active state edge is painted as dashes with real gaps (its 8 4 shape vs the plain 4 4 is pinned by computed style + the 0.75 baseline)`, async ({ page }) => {
       await loadFixture(page, 'mmo-progression.json')
-      await activityBtn(page).click()
+      await toggleActivity(page)
       await commitSteps(page, 10)
       // issue #344 step 4 — the two longest active state edges that HAVE an
       // 80 px stretch clear of every other line (on the placed MMO a long one
@@ -555,7 +567,7 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
       for (const id of await longestActive(page, 'edge-state', 6)) {
         if (measured === 2) break
         await centreOn(page, id, zoom)
-        await activityBtn(page).click()
+        await toggleActivity(page)
         await page.waitForTimeout(150)
         const offPng = await page.screenshot()
         const pts = await pathPoints(page, id)
@@ -564,14 +576,14 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
         // an activator-OFF state edge is painted at opacity 0.5 in the plain state → a very low presence threshold
         const picked = await cleanStretch(page, offPng, pts, 0.06, 2, id)
         if (!picked) {
-          await activityBtn(page).click() // back ON for the next candidate
+          await toggleActivity(page) // back ON for the next candidate
           await page.waitForTimeout(150)
           continue
         }
         measured++
         const [a, b] = picked!.stretch
         const off = picked!.off
-        await activityBtn(page).click()
+        await toggleActivity(page)
         await page.waitForTimeout(150)
         const onPng = await page.screenshot()
         const on = await dashCount(page, onPng, pts, a, b, 0.2, 1)
@@ -591,7 +603,7 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
   test('mmo fit view (≈ 0.255, observation only): the colour tell is present; the dash count is recorded, not gated', async ({ page }) => {
     await loadFixture(page, 'mmo-progression.json')
     const hl = await highlightRgb(page)
-    await activityBtn(page).click()
+    await toggleActivity(page)
     await commitSteps(page, 10)
     const zoom = await page.evaluate(() => (window as unknown as { __loop: { rf: { getViewport: () => { zoom: number } } } }).__loop.rf.getViewport().zoom)
     const id = RES.mmo[0]
@@ -615,8 +627,8 @@ test.describe('§LGR9 forced-colors — route-invalid keeps its priority and the
     test(`${kind}: an ACTIVE edge made route-invalid keeps the ${dash} dash, no Highlight, and its ! flag`, async ({ page }) => {
       await loadFixture(page, 'mmo-progression.json')
       const hl = await highlightRgb(page)
-      await activityBtn(page).click()
-      await expect(activityBtn(page)).toHaveAttribute('aria-pressed', 'true')
+      await toggleActivity(page)
+      expect(await activityPressed(page)).toBe('true')
       await commitSteps(page, 3)
       const [id] = await longestActive(page, pick, 1)
       expect(id, `an active ${kind} edge exists`).toBeTruthy()
@@ -637,7 +649,7 @@ test.describe('§LGR9 forced-colors — route-invalid keeps its priority and the
       expect(on.stroke, `${kind}: no Highlight on an invalid edge (the ! flag is its tell)`).not.toBe(hl)
       expect(on.filter).toBe('none')
       // overlay OFF: the same invalid tell, so it is the overlay that must not change it
-      await activityBtn(page).click()
+      await toggleActivity(page)
       await page.waitForTimeout(150)
       const off = await styleOf(page, id)
       expect(off.dash).toBe(dash)
@@ -650,7 +662,7 @@ test.describe('§LGR9 forced-colors — route-invalid keeps its priority and the
 test.describe('§LGR9 forced-colors — visual baselines (element policy)', () => {
   test('coffee 0.5: an active resource edge', async ({ page }) => {
     await loadFixture(page, 'coffee-roastery.json')
-    await activityBtn(page).click()
+    await toggleActivity(page)
     await commitSteps(page, 10)
     await centreOn(page, 'e_green_roast', 0.5)
     await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
@@ -665,7 +677,7 @@ test.describe('§LGR9 forced-colors — visual baselines (element policy)', () =
   })
   test('mmo 0.75: active resource, active state and inactive state edges in one frame', async ({ page }) => {
     await loadFixture(page, 'mmo-progression.json')
-    await activityBtn(page).click()
+    await toggleActivity(page)
     await commitSteps(page, 10)
     await injectIdleStateEdge(page, 'e_water_up')
     await page.waitForTimeout(200)
@@ -710,8 +722,8 @@ test.describe('§LGR9 forced-colors — inactive edges and route-invalid take th
     const hl = await highlightRgb(page)
     const gray = await systemColor(page, 'GrayText')
     expect(gray).not.toBe(hl)
-    await activityBtn(page).click()
-    await expect(activityBtn(page)).toHaveAttribute('aria-pressed', 'true')
+    await toggleActivity(page)
+    expect(await activityPressed(page)).toBe('true')
     await commitSteps(page, 3)
     const idle = await injectIdleStateEdge(page, 'e_water_up')
     await page.waitForTimeout(200)
@@ -767,7 +779,7 @@ test.describe('§LGR9 forced-colors — inactive edges and route-invalid take th
       await loadFixture(page, 'mmo-progression.json')
       const hl = await highlightRgb(page)
       const gray = await systemColor(page, 'GrayText')
-      await activityBtn(page).click()
+      await toggleActivity(page)
       await commitSteps(page, 3)
       const [id] = await longestActive(page, pick, 1)
       expect((await styleOf(page, id)).stroke).toBe(hl)
@@ -785,7 +797,7 @@ test.describe('§LGR9 forced-colors — inactive edges and route-invalid take th
       await expect(flag).toHaveCount(1)
       await expect(flag).toBeVisible()
       // overlay OFF: still GrayText + invalid tell
-      await activityBtn(page).click()
+      await toggleActivity(page)
       await page.waitForTimeout(150)
       const off = await styleOf(page, id)
       expect(off.stroke).toBe(gray)
@@ -810,16 +822,16 @@ test.describe('§LGR9 forced-colors — inactive edges and route-invalid take th
             el.remove()
             return c
           }
-          return { resource: probe('var(--edge-resource)'), state: probe('var(--edge-state)') }
+          return { resource: probe('var(--m-flow)'), state: probe('var(--m-condition)') }
         })
         const idle = await injectIdleStateEdge(page, 'e_water_up')
         await page.waitForTimeout(200)
         const res = await page.evaluate(() => (document.querySelector('path.react-flow__edge-path.edge-resource') as Element).closest('.react-flow__edge')!.getAttribute('data-id')!)
         const r = await styleOf(page, res)
-        expect(r.stroke, `${scheme}: resource stroke = --edge-resource`).toBe(tokens.resource)
+        expect(r.stroke, `${scheme}: resource stroke = --m-flow`).toBe(tokens.resource)
         expect(r.width).toBe('1.5px')
         const st = await styleOf(page, idle)
-        expect(st.stroke, `${scheme}: state stroke = --edge-state`).toBe(tokens.state)
+        expect(st.stroke, `${scheme}: state stroke = --m-condition`).toBe(tokens.state)
         expect(st.width, `${scheme}: state width stays 1 px`).toBe('1px')
         expect(st.dash).toBe('4px, 4px')
       })

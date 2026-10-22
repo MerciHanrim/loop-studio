@@ -85,13 +85,29 @@ function geom(page: Page) {
 const overlaps = (a: { top: number; bottom: number }, b: { top: number; bottom: number }) =>
   a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5
 
-async function setup(page: Page, graph = G) {
+/** the analysis area's splitter, by the user's keys: `n` × 16 px taller */
+async function growArea(page: Page, n: number) {
+  const splitter = page.getByRole('separator', { name: 'Analysis area height' })
+  await splitter.focus()
+  const plotH = () => page.evaluate(() => Math.round((document.querySelector('.timeline__svg') as SVGSVGElement).getBoundingClientRect().height))
+  const h0 = await plotH()
+  for (let i = 0; i < n; i++) await page.keyboard.press('ArrowUp')
+  await expect.poll(plotH).toBe(h0 + n * 16)
+}
+
+async function setup(page: Page, graph = G, opts: { grow?: boolean } = {}) {
   await openApp(page)
   await resetAll(page)
   await importGraph(page, graph)
   await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().reset())
   await ensureTimelineOpen(page) // desktop: collapsed until the first run; mobile: the sheet
   await expect(page.locator('.timeline__svg')).toBeVisible()
+  // The collision cases need a plot tall enough to hold five labels. The
+  // workbench's analysis area opens at 152 px (timeline-series-contract §7,
+  // 2026-10-20), a 76 px plot, whose label band holds two and folds the rest
+  // into "+N" (its own test below); the user's splitter, +64 px, gives the
+  // band the room these cases are about. The phone's sheet is unchanged.
+  if (opts.grow !== false && !isMobile(page)) await growArea(page, 4)
 }
 
 // enough steps that `big` ≈ 305 and every capped pool is at its cap
@@ -120,6 +136,23 @@ test.describe('Timeline — endpoint label collision avoidance', () => {
     }
     // every endpoint label uses the same vertical anchor (no baseline mixing)
     expect(new Set(g.labels.map((l) => l.dy))).toEqual(new Set(['0.32em']))
+  })
+
+  test('at the default 152 px area the band holds what fits and folds the rest into "+N"; still nothing overlaps', async ({ page }) => {
+    await setup(page, G, { grow: false })
+    await stepK(page, PRIME)
+    const g = (await geom(page))!
+    const real = g.labels.filter((l) => l.id !== '__more__')
+    const more = g.labels.find((l) => l.id === '__more__')
+    if (!isMobile(page)) {
+      expect(more, 'the fold chip').toBeTruthy()
+      expect(real.length + Number(more!.text!.replace(/\D/g, '')), 'every series is counted').toBe(5)
+    }
+    for (let i = 0; i < g.labels.length; i++) {
+      for (let j = i + 1; j < g.labels.length; j++) expect(overlaps(g.labels[i], g.labels[j]), `${g.labels[i].text} vs ${g.labels[j].text}`).toBe(false)
+      expect(g.labels[i].top).toBeGreaterThanOrEqual(g.plot.top - 1)
+      expect(g.labels[i].bottom).toBeLessThanOrEqual(g.plot.bottom + 1)
+    }
   })
 
   // ── 1. an isolated high value is pinned to its own dot ────────────────────

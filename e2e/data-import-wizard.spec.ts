@@ -160,11 +160,10 @@ test('review round 3 -- a validation issue reports the RAW source line number, n
 // CHARACTER offset (`src/model/csv.ts`: "1-based character offset within that
 // row"), so each locale must say so in its own words. `char` is what the
 // message must contain, `notChar` the TABLE-column wording it must not
-// borrow — the same input is line 2, character 1.
+// borrow — the same input is line 2, character 1. §L2.0 (2026-10): ko is the
+// only shipped non-English language, so the ja and zh-Hans rows retired.
 for (const [loc, needle, importLabel, char, notChar] of [
   ['ko', '닫히지 않은 따옴표', '데이터', '1번째 문자', '1열'],
-  ['ja', '閉じられていない引用符', 'データ', '1文字目', '1列目'],
-  ['zh-Hans', '有未闭合的引号', '数据', '第 1 个字符', '第 1 列'],
 ] as const) {
   test(`review round 3 -- ${loc} shows a translated CSV parse-error message, never the raw internal code`, async ({ page }) => {
     await page.evaluate((l) => (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (s: string) => void } } } }).__loop.i18n.getState().setLocale(l), loc)
@@ -181,7 +180,7 @@ for (const [loc, needle, importLabel, char, notChar] of [
     // fill the table name too -- otherwise the empty-name inline hint (also
     // an `.import__error`) is a second match ahead of the parse error in DOM
     // order, and `.first()` below would grab the wrong one. CSS-scoped, not
-    // `getByLabel`, since this test runs under a KO/JA locale where the
+    // `getByLabel`, since this test runs under the KO locale where the
     // field's accessible name is translated.
     await dialog(page).locator('.import__nameField input').fill('Items')
     const paste = dialog(page).locator('textarea').first()
@@ -378,7 +377,8 @@ test('adding to an existing frame with a partly-occupied top row finds the free 
   expect(overlapsOccupant).toBe(false)
 })
 
-for (const loc of ['ko', 'ja'] as const) {
+// §L2.0 (2026-10): ko is the only shipped non-English language; the ja run retired.
+for (const loc of ['ko'] as const) {
   test(`${loc} — real DOM node boxes stay inside their generated frame, never overlapping each other`, async ({ page }) => {
     // NOTE: no second openApp()/resetAll() here — the file's beforeEach already
     // booted and reset. A second navigation right after resetAll used to work
@@ -398,7 +398,7 @@ for (const loc of ['ko', 'ja'] as const) {
     // the data-import button collapses into the toolbar's ⋯ overflow menu at
     // some viewport/locale combinations (it has the lowest collapse priority
     // of any toolbar control) -- open that first if it isn't directly visible.
-    const importButtonText = loc === 'ko' ? '데이터' : 'データ'
+    const importButtonText = '데이터'
     const importBtn = page.getByRole('button', { name: importButtonText, exact: true })
     if (!(await importBtn.isVisible())) {
       await page.locator('.toolbar__overflow-btn').click()
@@ -406,12 +406,10 @@ for (const loc of ['ko', 'ja'] as const) {
     await importBtn.click()
     await page.getByRole('menuitem').first().click() // "Import new spreadsheet…" -- always the first item
     await expect(dialog(page)).toBeVisible()
-    await dialog(page).locator('.import__tableHead input').fill(
-      loc === 'ko' ? '아주 길고 긴 테이블 이름 그리고 더 길게' : '非常に長いテーブル名前でさらに長くする',
-    )
+    await dialog(page).locator('.import__tableHead input').fill('아주 길고 긴 테이블 이름 그리고 더 길게')
     const paste = dialog(page).locator('textarea').first()
-    const longLabel1 = loc === 'ko' ? '매우 길고 긴 상품 이름 프리미엄 한정판 특별 에디션' : '非常に長い商品名のプレミアム限定版特別エディション'
-    const longLabel2 = loc === 'ko' ? '또 다른 매우 길고 긴 두 번째 상품 이름 특별판' : 'もう一つの非常に長い二番目の商品名特別版'
+    const longLabel1 = '매우 길고 긴 상품 이름 프리미엄 한정판 특별 에디션'
+    const longLabel2 = '또 다른 매우 길고 긴 두 번째 상품 이름 특별판'
     await paste.fill(`item_key,name,weight\nitm_a,${longLabel1},10\nitm_b,${longLabel2},20`)
 
     const headerRow = dialog(page).locator('.import__preview thead tr').first()

@@ -48,7 +48,10 @@ import {
 import { BASE_NODE_H, portInsetFraction } from '../components/nodes/silhouette'
 import { freeLinePoints, pointAlong } from '../components/edges/freeLine'
 import { edgePortKind, faceOf, type PortEnd } from '../model/ports'
+import { repeatedChangeGroups } from '../model/endMove'
 import type { PortFace } from '../model/types'
+import { symbolAnchor, symbolBox } from '../components/nodes/symbol'
+import { useUiStore } from './uiStore'
 
 // the size of a node React Flow has not measured yet; the height is the node's
 // own floor, so a one-line node routes the same before and after it is measured
@@ -76,22 +79,39 @@ export const PROVISIONAL_MS = 5
 
 export type RoutedEdge = GuardedResult & {
   /** where the edge's label is centred; null when its size is not known yet
-   *  (the label then sits at `mid`) */
+   *  (the label then sits at `mid`). §ER15.2 — with `beside`, the point the
+   *  label's NEAR EDGE sits on instead */
   label: Pt | null
+  beside?: Beside
 }
 
 /** §ER15 — a Curved or Straight edge's label slot: the fraction of its line's
  *  length where the label is centred (the line `LoopEdge` draws, sampled the
- *  same way), and that point on the route map's own copy of the line */
-export type FreeSlot = { f: number; at: Pt }
+ *  same way), and that point on the route map's own copy of the line.
+ *  §ER15.2 — with `beside`, the label hangs beside its line at that point
+ *  (`at` is then its near edge on the map's copy) */
+export type FreeSlot = { f: number; at: Pt; beside?: Beside }
+
+/** docs/edge-routing.md §ER15.2 — a label placed BESIDE its line: the point
+ *  on the line it belongs to (where its leader starts), the side it hangs on
+ *  and the gap from the line to its near edge, flow px */
+export type LabelSide = 'up' | 'down' | 'left' | 'right'
+export type Beside = { anchor: Pt; side: LabelSide; gap: number }
 
 /** a generation: the routes, and the label slots of the other edges */
-type GenOut = { map?: Map<string, RoutedEdge>; free?: Map<string, FreeSlot> }
+type GenOut = { map?: Map<string, RoutedEdge>; free?: Map<string, FreeSlot>; runForm?: RunFormReport }
 
 // ── the routing inputs that are not graph data: label sizes, the live flag ──
 
 type LabelSize = { w: number; h: number }
 const labelSizes = new Map<string, LabelSize>()
+/** §ER15.2 — a label's RUN FORM, flow px: its rendered border box at the
+ *  largest it can grow to in a run (a Value change: set value, Δ row and clamp
+ *  note, every row at the chip's width cap; a Trigger: its blocked note too).
+ *  Read ONLY by the run-form pass at the end of a full generation — never by
+ *  routing or by the rest placement, so it moves no line and no label outside
+ *  a repeated Value change group. */
+const runFormSizes = new Map<string, LabelSize>()
 
 /** bumped whenever the map to show changes outside a graph edit (a label size,
  *  a committed full generation), so every `LoopEdge` re-reads it */
@@ -130,6 +150,13 @@ export function setRouteLabelSize(edgeId: string, w: number, h: number): void {
   labelSizes.set(edgeId, { w, h })
   bump()
 }
+/** §ER15.2 — a label's run-form size (`LoopEdge`'s off-screen copy) */
+export function setRouteRunFormSize(edgeId: string, w: number, h: number): void {
+  const prev = runFormSizes.get(edgeId)
+  if (prev && prev.w === w && prev.h === h) return
+  runFormSizes.set(edgeId, { w, h })
+  bump()
+}
 
 let live = false
 /** a node / selection / frame drag starts: until `endLiveLayout`, a layout
@@ -154,6 +181,12 @@ const isStraight = (e: LoopEdge): boolean =>
 
 const posOfFace = (f: PortFace): Position =>
   f === 'top' ? Position.Top : f === 'right' ? Position.Right : f === 'bottom' ? Position.Bottom : Position.Left
+const faceOfPos = (p: Position): PortFace =>
+  p === Position.Top ? 'top' : p === Position.Right ? 'right' : p === Position.Bottom ? 'bottom' : 'left'
+
+/** the workbench's symbol nodes are drawn (the default structure); `?nodes=inside`
+ *  keeps the previous body for this page load (uiStore) */
+const symbolNodes = (): boolean => useUiStore.getState().nodeStructure === 'outside'
 
 /** node structure (17-implementation-rules.md §2) — the side one end of a
  *  connection uses: its stored face (`data.ports`), else the kind's default —
@@ -182,6 +215,13 @@ export function portPoint(n: LoopNode, pos: Position, port: 'in' | 'out' | 'stat
   const x = n.position.x
   const y = n.position.y
   const kind = n.type as NodeKind
+  // the workbench's SYMBOL nodes (../components/nodes/symbol): every port on a
+  // face meets the symbol's outline straight out from its centre — the left /
+  // right ones on the old port row, so a stored position keeps its lines
+  if (symbolNodes()) {
+    const a = symbolAnchor(kind, faceOfPos(pos), port)
+    return { x: x + a.x, y: y + a.y }
+  }
   if (port === 'state') {
     switch (pos) {
       case Position.Left: return { x, y: y + h / 2 }
@@ -201,7 +241,15 @@ export function portPoint(n: LoopNode, pos: Position, port: 'in' | 'out' | 'stat
 /** the anchor of one end of a connection */
 const endPoint = (n: LoopNode, e: LoopEdge, end: PortEnd): Pt => portPoint(n, endPos(e, end), endPort(e, end))
 
-const boxOf = (n: LoopNode): Box => ({ id: n.id, x: n.position.x, y: n.position.y, ...sizeOf(n) })
+/** a node's box for the router: a symbol node's is its symbol's own (it can
+ *  overflow the 56 px cell React Flow measures by a few px) */
+const boxOf = (n: LoopNode): Box => {
+  if (symbolNodes()) {
+    const b = symbolBox(n.type as NodeKind)
+    return { id: n.id, x: n.position.x + b.x, y: n.position.y + b.y, w: b.w, h: b.h }
+  }
+  return { id: n.id, x: n.position.x, y: n.position.y, ...sizeOf(n) }
+}
 
 // ── node structure: the outside names as obstacles ────────────────────────
 // A node's name is drawn OUTSIDE its body (17-implementation-rules.md §2); the
@@ -676,6 +724,203 @@ function placeFreeLabel(p: Plan, e: LoopEdge, placed: Map<string, Box>, routes: 
   return { f: s.f, at: s.c }
 }
 
+// ── §ER15.2 — the run-form pass: repeated Value change groups ──────────────
+//
+// A Value change's chip grows in a run (a Δ row, a clamp note) around a place
+// chosen by its REST size; two of them on the same ends and ports grow into
+// each other. This last pass re-places ONLY those groups' labels, after every
+// route, every other label and the guarded rounds are final — so it moves no
+// line and no other label. Each member's RUN-FORM box (`runFormSizes`) must be
+// clear of every node box and outside name (`LABEL_NODE_MARGIN`), every other
+// label at the size it can grow to, every other line, the shared stubs and its
+// own bend points, with `RUN_FORM_MARGIN` around it. Candidates: ON its line
+// at the usual slots, then BESIDE it — the chip hangs from its near edge `gap`
+// px off the line (and grows away from it), joined to the line by a leader
+// that crosses no other line, the side away from a sibling's line first. A
+// member with no safe spot keeps its place, and the room it can take there in
+// a run is kept clear by the others; a group none of whose members can move is
+// left exactly as it was. What could not be resolved is reported
+// (`routeDiagnostics().runForm`), never hidden by falling back to a rest size.
+
+/** the light theme's chip shadow (`--shadow-edge-label: 0 1px 3px`) reaches
+ *  3 px around the box and 4 px below it: kept clear too, flow px */
+export const RUN_FORM_MARGIN = 4
+/** the gaps tried between a line and a label beside it, flow px */
+export const RUN_FORM_GAPS = [8, 16, 28, 44] as const
+/** the slots tried beside a line: 0.15–0.85 in 0.025 steps, nearest the middle first */
+export const RUN_FORM_SLOTS: readonly number[] = Array.from({ length: 29 }, (_, i) => Math.round((0.15 + i * 0.025) * 1000) / 1000).sort(
+  (a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5) || a - b,
+)
+
+type RunFormReport = { groups: number; moved: string[]; unresolved: string[]; unchanged: string[][]; candidates: number; ms: number }
+const NO_RUN_FORM: RunFormReport = { groups: 0, moved: [], unresolved: [], unchanged: [], candidates: 0, ms: 0 }
+/** the pass's report for the generation on screen (kept with each generation) */
+let shownRunForm: RunFormReport = NO_RUN_FORM
+/** test hook — the pass off: the rest placement alone, for a before / after
+ *  comparison in one page (development bridge and tests only) */
+let runFormOn = true
+export function __setRunFormPass(on: boolean): void {
+  if (runFormOn === on) return
+  runFormOn = on
+  bump()
+}
+
+/** a polyline's point at fraction `f` of its length and the direction there */
+function pointAndDirAt(pts: Pt[], f: number): { p: Pt; t: Pt } {
+  let total = 0
+  for (let i = 1; i < pts.length; i++) total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y)
+  let acc = 0
+  for (let i = 1; i < pts.length; i++) {
+    const seg = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y)
+    if (seg > 0 && acc + seg >= total * f) {
+      const r = (total * f - acc) / seg
+      const t = { x: (pts[i].x - pts[i - 1].x) / seg, y: (pts[i].y - pts[i - 1].y) / seg }
+      return { p: { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * r, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * r }, t }
+    }
+    acc += seg
+  }
+  return { p: pts[pts.length - 1], t: { x: 1, y: 0 } }
+}
+const sameLine = (a: Pt[], b: Pt[]): boolean => a.length === b.length && a.every((q, i) => Math.abs(q.x - b[i].x) < 0.5 && Math.abs(q.y - b[i].y) < 0.5)
+const grown = (b: Box, m: number): Box => ({ ...b, x: b.x - m, y: b.y - m, w: b.w + 2 * m, h: b.h + 2 * m })
+const SIDE_DIR: Record<LabelSide, Pt> = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } }
+/** the box of a label whose near edge sits on `near`, hanging on `side` */
+export function besideBox(near: Pt, side: LabelSide, s: LabelSize, id: string): Box {
+  const x = side === 'up' || side === 'down' ? near.x - s.w / 2 : side === 'right' ? near.x : near.x - s.w
+  const y = side === 'left' || side === 'right' ? near.y - s.h / 2 : side === 'down' ? near.y : near.y - s.h
+  return { id: `label:${id}`, x, y, w: s.w, h: s.h }
+}
+
+type RunFormSpot = { box: Box; c: Pt; f: number; beside?: Beside }
+
+/** the run-form pass over a generation's routes and labels: rewrites the
+ *  members' entries in `labels` (routed) and `free` (Curved / Straight) and
+ *  returns each moved routed member's `beside`, and the pass's report */
+function runFormPass(
+  p: Plan,
+  edges: LoopEdge[],
+  routes: ReadonlyMap<string, GuardedResult>,
+  labels: Map<string, Pt | null>,
+  free: Map<string, FreeSlot>,
+  stubs: Pt[][],
+): { beside: Map<string, Beside>; report: RunFormReport } {
+  const t0 = now()
+  const beside = new Map<string, Beside>()
+  const lineOf = (id: string): Pt[] | undefined => routes.get(id)?.points ?? p.lines.get(id)
+  const centreOf = (id: string): Pt | null => labels.get(id) ?? free.get(id)?.at ?? null
+  const groups = recordLabels || !runFormOn
+    ? []
+    : repeatedChangeGroups(edges).filter((g) => g.every((id) => lineOf(id) && runFormSizes.has(id) && labelSizes.has(id) && centreOf(id)))
+  let candidates = 0
+  const moved: string[] = []
+  const unresolved: string[] = []
+  const unchanged: string[][] = []
+  if (groups.length > 0) {
+    const nodes = p.boxes.map((b) => grown(b, LABEL_NODE_MARGIN))
+    // every placed label, at the size it can grow to (its run form if it has one)
+    const boxes = new Map<string, Box>()
+    for (const e of edges) {
+      const c = centreOf(e.id)
+      const s = runFormSizes.get(e.id) ?? labelSizes.get(e.id)
+      if (c && s) boxes.set(e.id, labelBoxAt(c, s, e.id))
+    }
+    const lines: [string, Pt[]][] = []
+    for (const [id, r] of routes) lines.push([id, r.points])
+    for (const [id, pts] of p.lines) lines.push([id, pts])
+    for (const g of groups) {
+      const spotFor = (id: string, local: Map<string, Box>): RunFormSpot | null => {
+        const own = lineOf(id)!
+        const rf = runFormSizes.get(id)!
+        const others = lines.filter(([oid, pts]) => oid !== id && !sameLine(pts, own)).map(([, pts]) => pts)
+        const sib = g.filter((x) => x !== id).map((x) => lineOf(x)!).find((s) => !sameLine(s, own))
+        const half = BEND_LABEL_BOX / 2
+        const bends: Box[] = (p.bends.get(id) ?? []).map((w) => ({ id: `bend:${id}`, x: w.x - half, y: w.y - half, w: BEND_LABEL_BOX, h: BEND_LABEL_BOX }))
+        const clear = (box: Box): boolean => {
+          candidates++
+          const b = grown(box, RUN_FORM_MARGIN)
+          if (nodes.some((n) => hit(n, b))) return false
+          for (const [oid, ob] of local) if (oid !== id && hit(ob, b)) return false
+          if (others.some((pts) => polyHits(pts, b))) return false
+          if (stubs.some((s) => polyHits(s, b))) return false
+          return !bends.some((bb) => hit(bb, b))
+        }
+        const mid = routes.get(id)?.mid
+        for (const f of LABEL_SLOTS) {
+          const c = f === 0.5 && mid ? mid : pointAt(own, f)
+          const box = labelBoxAt(c, rf, id)
+          if (clear(box)) return { box, c, f }
+        }
+        for (const gap of RUN_FORM_GAPS) {
+          for (const f of RUN_FORM_SLOTS) {
+            const { p: at, t } = pointAndDirAt(own, f)
+            const across = Math.abs(t.x) >= Math.abs(t.y) ? (['up', 'down'] as const) : (['left', 'right'] as const)
+            // the side away from a sibling's separate line first; a coincident
+            // group alternates by its order
+            let sides: LabelSide[] = [...across]
+            if (sib) {
+              const q = sib.reduce((m, x) => (Math.hypot(x.x - at.x, x.y - at.y) < Math.hypot(m.x - at.x, m.y - at.y) ? x : m))
+              const d0 = SIDE_DIR[sides[0]]
+              if ((q.x - at.x) * d0.x + (q.y - at.y) * d0.y > 0) sides = [sides[1], sides[0]]
+            } else if (g.indexOf(id) % 2 === 1) sides = [sides[1], sides[0]]
+            for (const side of sides) {
+              const dir = SIDE_DIR[side]
+              const near = { x: at.x + dir.x * gap, y: at.y + dir.y * gap }
+              const box = besideBox(near, side, rf, id)
+              if (polyHits(own, grown(box, 1))) continue
+              // the leader (line point → near edge) crosses no other line
+              const leader: Box = { id: 'leader', x: Math.min(at.x, near.x) - 0.5, y: Math.min(at.y, near.y) - 0.5, w: Math.abs(near.x - at.x) + 1, h: Math.abs(near.y - at.y) + 1 }
+              if (others.some((pts) => polyHits(pts, leader))) continue
+              if (clear(box)) return { box, c: near, f, beside: { anchor: at, side, gap } }
+            }
+          }
+        }
+        return null
+      }
+      // a member that cannot move stays put; the others then keep clear of
+      // the room it can take there, and are placed again
+      const kept = new Set<string>()
+      let result: Map<string, RunFormSpot> | null = null
+      while (kept.size < g.length) {
+        const local = new Map(boxes)
+        for (const id of g) if (!kept.has(id)) local.delete(id)
+        const out = new Map<string, RunFormSpot>()
+        let failed: string | null = null
+        for (const id of g) {
+          if (kept.has(id)) continue
+          const s = spotFor(id, local)
+          if (!s) {
+            failed = id
+            break
+          }
+          out.set(id, s)
+          local.set(id, s.box)
+        }
+        if (failed == null) {
+          result = out
+          break
+        }
+        kept.add(failed)
+      }
+      unresolved.push(...kept)
+      if (!result) {
+        unchanged.push([...g])
+        continue
+      }
+      for (const [id, s] of result) {
+        boxes.set(id, s.box)
+        moved.push(id)
+        if (routes.has(id)) {
+          labels.set(id, s.c)
+          if (s.beside) beside.set(id, s.beside)
+        } else {
+          free.set(id, s.beside ? { f: s.f, at: s.c, beside: s.beside } : { f: s.f, at: s.c })
+        }
+      }
+    }
+  }
+  return { beside, report: { groups: groups.length, moved, unresolved, unchanged, candidates, ms: +(now() - t0).toFixed(2) } }
+}
+
 /** a full generation, as steps: each `yield` is a point where a sliced run may
  *  pause. Run to the end in one go it IS the synchronous generation. */
 function* fullSteps(nodes: LoopNode[], edges: LoopEdge[], out: GenOut): Generator<string> {
@@ -737,10 +982,15 @@ function* fullSteps(nodes: LoopNode[], edges: LoopEdge[], out: GenOut): Generato
     if (s) free.set(e.id, s)
     yield `free ${e.id}`
   }
+  // §ER15.2 — last: the repeated Value change groups, everything else final
+  const { beside: besides, report: runForm } = runFormPass(p, edges, routes, labels, free, stubs)
+  out.runForm = runForm
+  yield 'run form'
   const map = new Map<string, RoutedEdge>()
   for (const e of p.ortho) {
     const r = routes.get(e.id)
-    if (r) map.set(e.id, { ...r, label: labels.get(e.id) ?? null })
+    const b = besides.get(e.id)
+    if (r) map.set(e.id, { ...r, label: labels.get(e.id) ?? null, ...(b ? { beside: b } : {}) })
   }
   out.map = map
   out.free = free
@@ -752,12 +1002,12 @@ function rebuildFull(nodes: LoopNode[], edges: LoopEdge[]): Required<GenOut> {
   for (const _ of fullSteps(nodes, edges, out)) {
     // run every step at once
   }
-  return { map: out.map!, free: out.free! }
+  return { map: out.map!, free: out.free!, runForm: out.runForm ?? NO_RUN_FORM }
 }
 
 /** each routed edge's own routing input, to tell which changed */
 const edgeKey = (e: LoopEdge): string =>
-  JSON.stringify([e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, (e.data as { route?: unknown }).route ?? null, (e.data as { waypoints?: unknown }).waypoints ?? null, labelSizes.get(e.id) ?? null, faceOf(e, 'source'), faceOf(e, 'target')])
+  JSON.stringify([e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, (e.data as { route?: unknown }).route ?? null, (e.data as { waypoints?: unknown }).waypoints ?? null, labelSizes.get(e.id) ?? null, faceOf(e, 'source'), faceOf(e, 'target'), runFormSizes.get(e.id) ?? null])
 
 /** the provisional map: the last full generation, with the routes this change
  *  touches routed again — an edge that is new or whose own input changed, one
@@ -832,7 +1082,9 @@ function provisional(nodes: LoopNode[], edges: LoopEdge[], from: Base): Required
   }
   lastProvisional.ms = +(now() - tStart).toFixed(2)
   provisionalPeakMs = Math.max(provisionalPeakMs, lastProvisional.ms)
-  return { map: out, free }
+  // §ER15.2 — the run-form pass runs in the full generation only: a provisional
+  // map keeps the last full one's places for what it does not redo
+  return { map: out, free, runForm: from.runForm }
 }
 
 const now = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now())
@@ -918,8 +1170,8 @@ function report(nodes: LoopNode[], edges: LoopEdge[], map: Map<string, RoutedEdg
  *  development tools: how many routes each rung produced, every edge drawn on
  *  the outer corridor or blocked, and every port fan that runs together past
  *  its stub; plus the last provisional map and the last job's slices */
-export function routeDiagnostics(): Report & { provisional: typeof lastProvisional; provisionalPeakMs: number; job: typeof lastJob; pending: boolean } {
-  return { ...lastReport, provisional: lastProvisional, provisionalPeakMs, job: lastJob, pending: job != null }
+export function routeDiagnostics(): Report & { provisional: typeof lastProvisional; provisionalPeakMs: number; job: typeof lastJob; pending: boolean; runForm: RunFormReport } {
+  return { ...lastReport, provisional: lastProvisional, provisionalPeakMs, job: lastJob, pending: job != null, runForm: shownRunForm }
 }
 
 // ── the cache, the provisional map and the full-generation job ─────────────
@@ -937,11 +1189,13 @@ export function routeDiagnostics(): Report & { provisional: typeof lastProvision
  *  Curved and Straight labels are placed too. */
 export function layoutSignature(nodes: LoopNode[], edges: LoopEdge[]): string {
   const ns: (string | number | boolean)[][] = []
+  const symbols = symbolNodes()
   for (const n of nodes) {
     const { w, h } = sizeOf(n)
     const nb = nameBoxes.get(n.id)
     // node structure — the outside name's box is layout too (an obstacle)
-    ns.push([n.id, n.position.x, n.position.y, w, h, n.hidden === true, nb ? `${nb.dx},${nb.dy},${nb.w},${nb.h}` : ''])
+    // a symbol node's ends and box follow its kind
+    ns.push([n.id, n.position.x, n.position.y, w, h, n.hidden === true, nb ? `${nb.dx},${nb.dy},${nb.w},${nb.h}` : '', symbols ? (n.type ?? '') : ''])
   }
   const es: unknown[][] = []
   for (const e of edges) {
@@ -949,7 +1203,9 @@ export function layoutSignature(nodes: LoopNode[], edges: LoopEdge[]): string {
     const wp = (e.data as { waypoints?: unknown } | undefined)?.waypoints
     const ls = labelSizes.get(e.id)
     // node structure — the faces decide where a route starts and ends
-    es.push([e.id, shape, e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, shape === 'o' && Array.isArray(wp) ? wp : null, ls ? [ls.w, ls.h] : null, faceOf(e, 'source'), faceOf(e, 'target')])
+    // §ER15.2 — and a label's run-form size (read by the last pass only)
+    const rs = runFormSizes.get(e.id)
+    es.push([e.id, shape, e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, shape === 'o' && Array.isArray(wp) ? wp : null, ls ? [ls.w, ls.h] : null, faceOf(e, 'source'), faceOf(e, 'target'), rs ? [rs.w, rs.h] : null])
   }
   return JSON.stringify([ns, es])
 }
@@ -961,11 +1217,13 @@ type Base = {
   free: Map<string, FreeSlot>
   geo: Map<string, { x: number; y: number; w: number; h: number }>
   keys: Map<string, string>
+  runForm: RunFormReport
 }
 const baseOf = (nodes: LoopNode[], edges: LoopEdge[], sig: string, gen: Required<GenOut>): Base => ({
   sig,
   map: gen.map,
   free: gen.free,
+  runForm: gen.runForm,
   geo: new Map(nodes.map((n) => [n.id, { ...n.position, ...sizeOf(n) }])),
   keys: new Map(edges.map((e) => [e.id, edgeKey(e)])),
 })
@@ -1041,7 +1299,7 @@ function startFull(nodes: LoopNode[], edges: LoopEdge[], sig: string): void {
     job = null
     // only the generation for the layout on screen is committed
     if (committed && committed.sig === j.sig && !live) {
-      commitFull(j.nodes, j.edges, j.sig, { map: j.out.map!, free: j.out.free! })
+      commitFull(j.nodes, j.edges, j.sig, { map: j.out.map!, free: j.out.free!, runForm: j.out.runForm ?? NO_RUN_FORM })
       bump()
     }
     j.slices++
@@ -1059,6 +1317,7 @@ const GENERATIONS_KEPT = 4
 function commitFull(nodes: LoopNode[], edges: LoopEdge[], sig: string, gen: Required<GenOut>): void {
   base = baseOf(nodes, edges, sig, gen)
   committed = { sig, map: gen.map, free: gen.free }
+  shownRunForm = gen.runForm
   genCount++
   report(nodes, edges, gen.map)
   generations.delete(sig)
@@ -1087,7 +1346,7 @@ export function currentRouteGeneration(nodes: LoopNode[], edges: LoopEdge[]): { 
   const rev = useRouteInputs.getState().rev
   if (committed && idKey && idKey.nodes === nodes && idKey.edges === edges && idKey.rev === rev) return committed
   lastInput = { nodes, edges }
-  const sig = layoutSignature(nodes, edges) + `|v${ROUTE_MAP_VERSION}${recordLabels ? '|record' : ''}`
+  const sig = layoutSignature(nodes, edges) + `|v${ROUTE_MAP_VERSION}${recordLabels ? '|record' : ''}${runFormOn ? '' : '|no-run-form'}`
   idKey = { nodes, edges, rev }
   if (committed && committed.sig === sig) return committed // same layout, new identities
   const known = generations.get(sig)
@@ -1096,6 +1355,7 @@ export function currentRouteGeneration(nodes: LoopNode[], edges: LoopEdge[]): { 
     cancelJob()
     base = known
     committed = { sig, map: known.map, free: known.free }
+    shownRunForm = known.runForm
     report(nodes, edges, known.map)
     setBusy(false)
     return committed
@@ -1304,6 +1564,9 @@ export function __resetRouteCache(): void {
   idKey = null
   genCount = 0
   labelSizes.clear()
+  runFormSizes.clear()
+  shownRunForm = NO_RUN_FORM
+  runFormOn = true
   live = false
   recordLabels = false
   warned.clear()

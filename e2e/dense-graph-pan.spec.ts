@@ -1,6 +1,13 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { toolButton } from './support/workbenchMenus'
+import { WORKBENCH_ROOMY_VIEWPORT } from './support/panel'
+
+// the fixture's fixed viewport ({x 200, y 150, zoom 1}, node b at x 460) was
+// placed for the two-tier bar's 980 px canvas: at 1280 × 800 the workbench's
+// 664 px canvas puts b's centre under the right column (./support/panel)
+test.use({ viewport: WORKBENCH_ROOMY_VIEWPORT })
 
 /** the Early-MMO document (a developer stress fixture since 0.28.1, read from
  *  its file) — 97 nodes / 144 edges, real Bézier +
@@ -40,7 +47,8 @@ const GRAPH = JSON.stringify({
 })
 
 const node = (page: Page, id: string) => page.locator(`.react-flow__node[data-id="${id}"]`)
-const panToggle = (page: Page) => page.locator('.react-flow__controls-button.rf-panmode')
+// the tool row's Pan tool (docs/workbench.md §WB3; the canvas rail's before 2026-10)
+const panToggle = (page: Page) => toolButton(page, 'pan')
 const panSurface = (page: Page) => page.locator('.pan-surface')
 
 type Bridge = {

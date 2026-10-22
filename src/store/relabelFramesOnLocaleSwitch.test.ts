@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MessageCatalog } from '../i18n/locales/en'
 import enCatalog from '../i18n/locales/en'
-import jaCatalog from '../i18n/locales/ja'
+import koCatalog from '../i18n/locales/ko'
 import { useI18n } from '../i18n/store'
 import type { ImportSourceTable, SavedFrame } from '../model/serialize'
 import { loadFromStorage, STORAGE_KEY } from '../model/serialize'
@@ -17,13 +17,16 @@ import { loadFromStorage, STORAGE_KEY } from '../model/serialize'
 // The pure `relabel*ForLocale` functions are mocked here so this file tests only
 // the subscription's classification + persistence logic; their own contract is
 // in src/i18n/templateLabels/frameOverlay.test.ts.
+//
+// §L2.0 (2026-10) — the second language is Korean (it was Japanese; that
+// version is in `archive/i18n/tests/relabelFramesOnLocaleSwitch.multilocale.test.ts`).
 
 const FRAME_OFFICIAL: Record<string, Record<string, string>> = {
-  f1: { en: 'Inbound supply', ja: '入荷' },
-  f2: { en: 'Processing', ja: '加工' },
+  f1: { en: 'Inbound supply', ko: '입고' },
+  f2: { en: 'Processing', ko: '가공' },
 }
 const NODE_OFFICIAL: Record<string, Record<string, string>> = {
-  n1: { en: 'Level', ja: 'レベル' },
+  n1: { en: 'Level', ko: '레벨' },
 }
 const officialFrameStrings = new Set(Object.values(FRAME_OFFICIAL).flatMap((m) => Object.values(m)))
 const officialNodeStrings = new Set(Object.values(NODE_OFFICIAL).flatMap((m) => Object.values(m)))
@@ -124,8 +127,8 @@ describe('§TLO12 — frame titles on a locale switch', () => {
       frame('f2', 'my processing'),
       frame('fx', ''),
     ])
-    activate('ja', jaCatalog)
-    expect(liveTitles()).toEqual(['入荷', 'my processing', ''])
+    activate('ko', koCatalog)
+    expect(liveTitles()).toEqual(['입고', 'my processing', ''])
 
     activate('en', enCatalog)
     expect(liveTitles()).toEqual(['Inbound supply', 'my processing', ''])
@@ -137,28 +140,28 @@ describe('§TLO12 — frame titles on a locale switch', () => {
       past: [historyEntry([node('n1', 'Level')], [frame('f1', 'Inbound supply'), frame('f2', 'Processing')])],
       future: [historyEntry([], [frame('f2', 'Processing')])],
     })
-    activate('ja', jaCatalog)
+    activate('ko', koCatalog)
 
     const pastF = (useGraphStore.getState().past[0].sidecar as { f: SavedFrame[] }).f
     const futF = (useGraphStore.getState().future[0].sidecar as { f: SavedFrame[] }).f
-    expect(pastF.map((f) => f.label)).toEqual(['入荷', '加工'])
-    expect(futF.map((f) => f.label)).toEqual(['加工'])
+    expect(pastF.map((f) => f.label)).toEqual(['입고', '가공'])
+    expect(futF.map((f) => f.label)).toEqual(['가공'])
   })
 
   it('history-only diff: updates past, leaves the live refs intact, and does NOT autosave', () => {
-    activate('ja', jaCatalog) // lastLocaleForLabels = 'ja'
+    activate('ko', koCatalog) // lastLocaleForLabels = 'ko'
     // contrived-but-valid state: the LIVE graph is already fully EN, while a past
-    // entry still carries JA official strings.
+    // entry still carries KO official strings.
     useFrameStore.getState().loadFrames([frame('f1', 'Inbound supply')])
     useGraphStore.setState({
       nodes: [node('n1', 'Level')],
-      past: [historyEntry([node('n1', 'レベル')], [frame('f1', '入荷')])],
+      past: [historyEntry([node('n1', '레벨')], [frame('f1', '입고')])],
     })
     const nodesRef = useGraphStore.getState().nodes
     const framesRef = useFrameStore.getState().frames
     setItemSpy.mockClear()
 
-    activate('en', enCatalog) // ja → en: live already EN (no change); past JA → EN (change)
+    activate('en', enCatalog) // ko → en: live already EN (no change); past KO → EN (change)
 
     expect((useGraphStore.getState().past[0].sidecar as { f: SavedFrame[] }).f[0].label).toBe(
       'Inbound supply',
@@ -175,11 +178,11 @@ describe('§TLO12 — frame titles on a locale switch', () => {
     useFrameStore.getState().renameFrame('f1', 'MyZone')
     expect(liveTitles()).toEqual(['MyZone'])
 
-    activate('ja', jaCatalog)
+    activate('ko', koCatalog)
     expect(liveTitles()).toEqual(['MyZone']) // a user name never switches
 
     useGraphStore.getState().undo()
-    expect(liveTitles()).toEqual(['入荷']) // pre-rename state, in the CURRENT language (never stale EN)
+    expect(liveTitles()).toEqual(['입고']) // pre-rename state, in the CURRENT language (never stale EN)
 
     useGraphStore.getState().redo()
     expect(liveTitles()).toEqual(['MyZone'])
@@ -188,9 +191,9 @@ describe('§TLO12 — frame titles on a locale switch', () => {
   it('relabelTitles leaves selectedId / toolArmed / nextN untouched', () => {
     useFrameStore.getState().loadFrames([frame('f1', 'Inbound supply')])
     useFrameStore.setState({ selectedId: 'f1', toolArmed: true, nextN: 9 })
-    activate('ja', jaCatalog)
+    activate('ko', koCatalog)
     const s = useFrameStore.getState()
-    expect(s.frames[0].label).toBe('入荷')
+    expect(s.frames[0].label).toBe('입고')
     expect(s.selectedId).toBe('f1')
     expect(s.toolArmed).toBe(true)
     expect(s.nextN).toBe(9)
@@ -199,7 +202,7 @@ describe('§TLO12 — frame titles on a locale switch', () => {
   it('the whole switch does not bump fitRev / loadRev / simulationRev, nor touch the MC recommended config', () => {
     useFrameStore.getState().loadFrames([frame('f1', 'Inbound supply')])
     useGraphStore.setState({ nodes: [node('n1', 'Level')], fitRev: 5, loadRev: 6, simulationRev: 7 })
-    activate('ja', jaCatalog)
+    activate('ko', koCatalog)
     const g = useGraphStore.getState()
     expect(g.fitRev).toBe(5)
     expect(g.loadRev).toBe(6)
@@ -223,7 +226,7 @@ describe('§TLO12 — frame titles on a locale switch', () => {
     useGraphStore.setState({ nodes: [node('n1', 'Level')] }) // an official EN string ⇒ relabels on switch
     setItemSpy.mockClear()
 
-    activate('ja', jaCatalog) // triggers liveNodesChanged ⇒ this subscription's own saveToStorage call
+    activate('ko', koCatalog) // triggers liveNodesChanged ⇒ this subscription's own saveToStorage call
 
     expect(autosaveWrites()).toBe(1)
     expect(loadFromStorage()!.dataImports).toEqual([table])

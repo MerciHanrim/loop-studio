@@ -115,10 +115,12 @@ test.describe('the licence view in About', () => {
     expect(sha256(await res.text())).toBe(manifestNoticesSha('web'))
   })
 
-  test('in all 18 languages the button and the title read the catalog’s name, and the text stays English, left to right', async ({ page }) => {
+  test('in every shipped language the button and the title read the catalog’s name, and the text stays English, left to right', async ({ page }) => {
     await openApp(page)
     const codes = await page.evaluate(async () => (await import('/src/i18n/registry.ts')).enabledLocales().map((l) => l.code).filter((c) => !/-X[A-Z]$/.test(c)))
-    expect(codes).toHaveLength(18)
+    // §L2.0 (2026-10): en and ko are the shipped languages (the dev-only
+    // pseudo-locales are filtered out above)
+    expect(codes).toEqual(['en', 'ko'])
     const setLocale = async (code: string) => {
       await page.evaluate((c) => (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (c: string) => void } } } }).__loop.i18n.getState().setLocale(c), code)
       await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(code)

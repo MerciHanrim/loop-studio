@@ -78,7 +78,7 @@ async function seedGraph(page: Page): Promise<void> {
     const gs = (window as unknown as Bridge).__loop.graph.getState()
     gs.updateNodeData(s.id, { label: 'α ⚙' })
     gs.updateNodeData(p.id, { label: 'β 보물' })
-    gs.onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' })
+    gs.onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
     const e = (window as unknown as Bridge).__loop.graph.getState().edges[0]
     gs.setEdgeData(e.id, { kind: 'resource', flow: '3' })
   })
@@ -99,12 +99,18 @@ test.beforeEach(async ({ page }) => {
 // `Module → File → Data → Share → Settings → Help`; Import/Export are now
 // inside `File ▾`'s own popover, not flat top-level buttons, so Share's
 // position is checked against Data/Settings instead.
-test('Share sits between Data and Settings, kept standalone', async ({ page }) => {
+// The workbench (docs/workbench.md §WB2, 2026-10): the menu bar reads File ·
+// Edit · View · Insert · Data · Run · Help, with Share at the far end — still
+// a standalone button, not a menu.
+test('Share sits at the far end of the menu bar, after Help, kept standalone', async ({ page }) => {
   const labels = await page.locator('.toolbar__actions .toolbar__slot button').allInnerTexts()
   const compact = labels.map((s) => s.trim()).filter(Boolean)
   expect(compact).toContain('Share')
-  expect(compact.indexOf('Share')).toBeGreaterThan(compact.indexOf('Data'))
-  expect(compact.indexOf('Share')).toBeLessThan(compact.indexOf('Settings'))
+  expect(compact.indexOf('Share')).toBeGreaterThan(compact.indexOf('Help'))
+  expect(compact.indexOf('Share'), 'nothing after Share').toBe(compact.length - 1)
+  const share = page.locator('.toolbar__actions .toolbar__slot button', { hasText: /^Share$/ })
+  // it opens its dialog (`aria-haspopup="dialog"`), never a menu
+  await expect(share, 'a button that acts, not a menu trigger').not.toHaveAttribute('aria-haspopup', /^(menu|true)$/)
 })
 
 test('happy path: disclosure → link copied, shown selectably, address bar untouched', async ({

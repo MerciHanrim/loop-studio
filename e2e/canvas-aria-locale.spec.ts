@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { pickLocale } from './support/workbenchMenus'
 
 // docs/localization.md Slice 2b — React Flow's own built-in a11y strings are
 // localized through the single `ariaLabelConfig` prop on <ReactFlow>.
@@ -33,51 +34,65 @@ const G = JSON.stringify({
 
 /** What React Flow actually puts in the DOM from `ariaLabelConfig`.
  *
- *  Only these are observable in this app: `Canvas` renders
- *  `<Controls showInteractive={false} showFitView={false}>` with its own
- *  Reset-view button, the MiniMap is given an explicit `ariaLabel`, and React
- *  Flow 12 never reads `handle.ariaLabel` at all. Asserting on those would be
- *  asserting on `null === null`. */
+ *  Only these are observable in this app: the node and edge descriptions,
+ *  everywhere; and React Flow's `<Controls>` (zoom in / out and the rail's own
+ *  label) on the phone only — the desktop workbench has no Controls rail, its
+ *  zoom is in the status bar (docs/workbench.md §WB8). The MiniMap is given an
+ *  explicit `ariaLabel`, and React Flow 12 never reads `handle.ariaLabel` at
+ *  all. Asserting on those would be asserting on `null === null`. */
 const ariaStrings = (page: Page) =>
   page.evaluate(() => {
-    const attr = (sel: string, a: string) => document.querySelector(sel)?.getAttribute(a) ?? null
     const desc = (prefix: string) =>
       [...document.querySelectorAll('div[id]')].find((d) => d.id.startsWith(prefix))?.textContent ?? null
+    return {
+      nodeDesc: desc('react-flow__node-desc'),
+      edgeDesc: desc('react-flow__edge-desc'),
+    }
+  })
+const controlsStrings = (page: Page) =>
+  page.evaluate(() => {
+    const attr = (sel: string, a: string) => document.querySelector(sel)?.getAttribute(a) ?? null
     return {
       controls: attr('.react-flow__controls', 'aria-label'),
       zoomInLabel: attr('.react-flow__controls-zoomin', 'aria-label'),
       zoomInTitle: attr('.react-flow__controls-zoomin', 'title'),
       zoomOutLabel: attr('.react-flow__controls-zoomout', 'aria-label'),
       zoomOutTitle: attr('.react-flow__controls-zoomout', 'title'),
-      nodeDesc: desc('react-flow__node-desc'),
-      edgeDesc: desc('react-flow__edge-desc'),
     }
   })
 
 const catalog = (page: Page) =>
   page.evaluate(() => (window as unknown as Bridge).__loop.i18n.getState().activeCatalog)
 
-/** open Settings ▾ if needed, then pick a locale from the language menu — the
- *  real control, not the store (mirrors `i18n.spec.ts`). */
-async function pickLocale(page: Page, code: string) {
-  const trigger = page.locator('.lang-switch').first()
-  let openedSettings = false
-  if (!(await trigger.isVisible().catch(() => false))) {
-    await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ }).click()
-    openedSettings = true
-  }
-  await trigger.click()
-  await expect(trigger).toHaveAttribute('aria-expanded', 'true')
-  const item = page.locator(`.lang-menu__item[data-locale="${code}"]`)
-  await expect(item).toBeVisible()
-  await item.click()
-  await expect(trigger).toHaveAttribute('aria-expanded', 'false')
-  // the switch is atomic and only lands once the catalog has loaded (§L4.5)
-  await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(code)
-  if (openedSettings) await page.keyboard.press('Escape')
-}
-
 test.describe("React Flow's ARIA strings follow a language switch", () => {
+  test('§L-2b — on the phone, React Flow\'s Controls strings follow a language switch made while the Canvas is mounted', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, G)
+    const en = await controlsStrings(page)
+    const enCat = await catalog(page)
+    // precondition: rendered, so nothing below asserts null === null
+    for (const [k, v] of Object.entries(en)) expect(v, `${k} must be rendered on the phone`).toBeTruthy()
+    const matches = async (code: string) => {
+      const now = await controlsStrings(page)
+      const cat = await catalog(page)
+      expect(now.controls, `controls @ ${code}`).toBe(cat['rf.controls.label'])
+      expect(now.zoomInLabel, `zoom-in label @ ${code}`).toBe(cat['rf.controls.zoomIn'])
+      expect(now.zoomInTitle, `zoom-in title @ ${code}`).toBe(cat['rf.controls.zoomIn'])
+      expect(now.zoomOutLabel, `zoom-out label @ ${code}`).toBe(cat['rf.controls.zoomOut'])
+      expect(now.zoomOutTitle, `zoom-out title @ ${code}`).toBe(cat['rf.controls.zoomOut'])
+      return now
+    }
+    expect(await matches('en')).toEqual(en)
+    expect(en.controls).toBe(enCat['rf.controls.label'])
+    await pickLocale(page, 'ko')
+    const ko = await matches('ko')
+    for (const k of Object.keys(en) as (keyof typeof en)[]) expect(ko[k], `${k} must differ from English after switching to ko`).not.toBe(en[k])
+    await pickLocale(page, 'en')
+    expect(await matches('en')).toEqual(en)
+  })
+
   test('§L-2b — switching language while the Canvas is mounted re-localizes every observable React Flow ARIA string', async ({
     page,
   }) => {
@@ -92,9 +107,9 @@ test.describe("React Flow's ARIA strings follow a language switch", () => {
     // DOM in English. If a React Flow upgrade stops rendering one of them, this
     // fails loudly instead of the test quietly asserting null === null forever.
     for (const [k, v] of Object.entries(en)) expect(v, `${k} must be rendered`).toBeTruthy()
-    expect(en.controls).toBe(enCat['rf.controls.label'])
-    expect(en.zoomInLabel).toBe(enCat['rf.controls.zoomIn'])
-    expect(en.zoomOutLabel).toBe(enCat['rf.controls.zoomOut'])
+    // the desktop workbench renders no Controls rail (its zoom is the status
+    // bar's): the rail's strings are checked on the phone, above
+    expect(await page.locator('.react-flow__controls').count()).toBe(0)
     expect(en.edgeDesc).toBe(enCat['rf.edge.a11y'])
 
     // React Flow picks one of the two node descriptions depending on its own
@@ -109,11 +124,6 @@ test.describe("React Flow's ARIA strings follow a language switch", () => {
       const now = await ariaStrings(page)
       const cat = await catalog(page)
       expect(await page.evaluate(() => (window as unknown as Bridge).__loop.i18n.getState().activeLocale)).toBe(code)
-      expect(now.controls, `controls @ ${code}`).toBe(cat['rf.controls.label'])
-      expect(now.zoomInLabel, `zoom-in label @ ${code}`).toBe(cat['rf.controls.zoomIn'])
-      expect(now.zoomInTitle, `zoom-in title @ ${code}`).toBe(cat['rf.controls.zoomIn'])
-      expect(now.zoomOutLabel, `zoom-out label @ ${code}`).toBe(cat['rf.controls.zoomOut'])
-      expect(now.zoomOutTitle, `zoom-out title @ ${code}`).toBe(cat['rf.controls.zoomOut'])
       expect(now.nodeDesc, `node description @ ${code}`).toBe(cat[nodeDescKey!])
       expect(now.edgeDesc, `edge description @ ${code}`).toBe(cat['rf.edge.a11y'])
       return now
@@ -126,10 +136,8 @@ test.describe("React Flow's ARIA strings follow a language switch", () => {
     for (const k of Object.keys(en) as (keyof typeof en)[])
       expect(ko[k], `${k} must differ from English after switching to ko`).not.toBe(en[k])
 
-    await pickLocale(page, 'ja')
-    const ja = await assertMatchesActiveCatalog('ja')
-    for (const k of Object.keys(en) as (keyof typeof en)[])
-      expect(ja[k], `${k} must differ from Korean after switching to ja`).not.toBe(ko[k])
+    // §L2.0 (2026-10): en and ko are the only shipped languages, so the
+    // non-English → non-English hop (ko → ja) retired with Japanese.
 
     // and back — no drift, no stale value left behind
     await pickLocale(page, 'en')

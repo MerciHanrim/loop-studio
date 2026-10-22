@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildGachaBannerZonesGraph } from '../engine/gachaBannerZonesGraph'
-import { th } from '../i18n/templateLabels/th'
+import { ko } from '../i18n/templateLabels/ko'
 import { parseDelimitedText } from '../model/csv'
 import { buildRunCsv, runCsvColumnName } from './timelineCsv'
 
@@ -10,7 +10,7 @@ import { buildRunCsv, runCsvColumnName } from './timelineCsv'
 // a Template may give several Pools the same label: measured on the shipped
 // 3-zone gacha Template, 6 of its 24 column names repeated (tickets ×3,
 // pulls-made ×3, SR-count ×3, R-count ×3, pity ×2, ceiling-hits ×2) — in
-// English exactly as in Thai, so it was never a locale defect. The numbers were
+// English exactly as in a translated overlay, so it was never a locale defect. The numbers were
 // right; the NAMES were not usable as independent data columns. Reordering or
 // copying columns in a spreadsheet, selecting a column by name in an analysis
 // tool, or turning rows into objects (duplicate keys overwrite) all break.
@@ -76,7 +76,9 @@ describe('the 3-zone gacha Template — the case this exists for', () => {
   const pools = buildGachaBannerZonesGraph()
     .nodes.filter((n) => n.data.kind === 'pool')
     .map((n) => ({ id: n.id, label: n.data.label }))
-  const thai = th['gacha-banner-zones']
+  // §L2.0 (2026-10) — the overlaid language is Korean (it was Thai; that version
+  // is in `archive/i18n/tests/timelineCsv.multilocale.test.ts`)
+  const korean = ko['gacha-banner-zones']
 
   it('has Pools whose LABELS repeat — the premise', () => {
     const labels = pools.map((p) => p.label)
@@ -88,12 +90,12 @@ describe('the 3-zone gacha Template — the case this exists for', () => {
     expect(new Set(names).size).toBe(names.length)
   })
 
-  it('every column name is unique in THAI, and there are 24 of them', () => {
-    const thaiPools = pools.map((p) => ({ id: p.id, label: thai[p.id] ?? p.label }))
+  it('every column name is unique in KOREAN, and there are 24 of them', () => {
+    const koreanPools = pools.map((p) => ({ id: p.id, label: korean[p.id] ?? p.label }))
     // the overlay really is applied — otherwise this would silently re-test English
-    expect(thaiPools.filter((p) => p.label !== (pools.find((q) => q.id === p.id) as { label: string }).label).length)
+    expect(koreanPools.filter((p) => p.label !== (pools.find((q) => q.id === p.id) as { label: string }).label).length)
       .toBeGreaterThan(0)
-    const names = ['step', ...thaiPools.map(runCsvColumnName)]
+    const names = ['step', ...koreanPools.map(runCsvColumnName)]
     expect(names).toHaveLength(24)
     expect(new Set(names).size).toBe(24)
   })

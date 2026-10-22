@@ -236,7 +236,7 @@ test.describe('playback — steady-state (§PBO8-7)', () => {
     expect((await sim(page)).stepIndex).toBe(0)
   })
 
-  test('the label is localised (EN / KO / JA) and moves no digest / undo / autosave', async ({
+  test('the label is localised (EN / KO) and moves no digest / undo / autosave', async ({
     page,
   }) => {
     await setup(page)
@@ -255,10 +255,10 @@ test.describe('playback — steady-state (§PBO8-7)', () => {
     await call(page, 'play')
     await expect.poll(() => chipShown(page), { timeout: 4000 }).toBe(true)
 
+    // §L2.0 (2026-10): the shipped languages
     for (const [code, text] of [
       ['en', 'Steady state — flows continue'],
       ['ko', '정상 상태 — 흐름은 계속됨'],
-      ['ja', '定常状態 — フローは継続'],
     ] as const) {
       await setLocale(page, code)
       await expect(chip(page)).toHaveText(text)

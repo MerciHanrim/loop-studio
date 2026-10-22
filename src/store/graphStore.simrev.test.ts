@@ -17,7 +17,7 @@ function base() {
   g.addNodeAt('source', { x: 0, y: 0 })
   g.addNodeAt('pool', { x: 200, y: 0 })
   const [s, p] = useGraphStore.getState().nodes
-  useGraphStore.getState().onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' })
+  useGraphStore.getState().onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
   return {
     sourceId: s.id,
     poolId: p.id,
@@ -39,7 +39,7 @@ describe('graphStore.simulationRev', () => {
       bumped(() =>
         useGraphStore
           .getState()
-          .onConnect({ source: gid, target: did, sourceHandle: 'out', targetHandle: 'in' }),
+          .onConnect({ source: gid, target: did, sourceHandle: 'out', targetHandle: 'in' }, 'flow'),
       ),
     ).toBeGreaterThan(0)
     const eid = useGraphStore.getState().edges[0].id
@@ -148,7 +148,7 @@ describe('graphStore.simulationRev', () => {
     const gid = useGraphStore.getState().nodes.at(-1)!.id
     useGraphStore
       .getState()
-      .onConnect({ source: gid, target: poolId, sourceHandle: 'state-source', targetHandle: 'state-target' })
+      .onConnect({ source: gid, target: poolId, sourceHandle: 'state-source', targetHandle: 'state-target' }, 'trigger')
     const labelEdgeId = useGraphStore.getState().edges.at(-1)!.id
     const set = (d: Record<string, unknown>) => useGraphStore.getState().setEdgeData(labelEdgeId, d as never)
     expect(

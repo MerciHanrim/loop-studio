@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { openMonteCarloDialog } from './support/workbenchMenus'
 
 // docs/localization.md §L13 — Slice 3, acceptance validation.
 //
@@ -42,7 +43,7 @@ const htmlLang = (page: Page) => page.evaluate(() => document.documentElement.la
 // desktop, not a standalone toolbar pill (Hanrim's visual review,
 // 2026-09-15); its trigger only exists once Settings is open.
 async function openSettings(page: Page): Promise<void> {
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ }).click()
+  await page.locator('.toolbar__actions .wb-viewmenu > .wb-mb').click()
 }
 
 /** open the language menu (desktop — inside `Settings ▾` — or inside a
@@ -104,7 +105,7 @@ async function assertContained(page: Page, selector: string) {
 }
 
 async function openMc(page: Page) {
-  await page.locator('.pstrip__mc button').click()
+  await openMonteCarloDialog(page)
   await expect(page.locator('.mcdlg[role="dialog"]')).toBeVisible()
 }
 // docs/toolbar-responsive.md — Export's actions are flattened directly into
@@ -358,11 +359,13 @@ test.describe('i18n Slice 3 — KO under forced-colors', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// JA responsive regression — a CJK button label has no spaces, so a too-narrow
+// CJK responsive regression — a CJK button label has no spaces, so a too-narrow
 // container used to break it character-by-character and stack it vertically.
 // `.btn` / `.pb-btn` / `.chip` are now `white-space: nowrap; word-break: keep-all;
 // flex-shrink: 0` so a whole button drops to the next row instead. The tight
 // mobile run bar additionally shows compact glyphs (docs/mobile.md §MV4).
+// §L2.0 (2026-10) — this was proved in Japanese; Korean is the CJK language
+// that still ships, so the same checks now run in KO.
 const notCharStacked = async (page: Page, selector: string) => {
   const rows = await page.locator(selector).evaluateAll((els) =>
     els
@@ -376,7 +379,7 @@ const notCharStacked = async (page: Page, selector: string) => {
   }
 }
 
-test.describe('i18n Slice 3 — JA responsive: tablet (820×800)', () => {
+test.describe('i18n Slice 3 — KO responsive: tablet (820×800)', () => {
   test.use({ viewport: { width: 820, height: 800 } })
 
   test('the toolbar wraps whole buttons — no CJK label breaks character-by-character', async ({
@@ -384,7 +387,7 @@ test.describe('i18n Slice 3 — JA responsive: tablet (820×800)', () => {
   }) => {
     await openApp(page)
     await resetAll(page)
-    await pickLocale(page, 'ja')
+    await pickLocale(page, 'ko')
 
     await notCharStacked(page, '.toolbar .btn')
     await notCharStacked(page, '.toolbar .chip')
@@ -392,38 +395,67 @@ test.describe('i18n Slice 3 — JA responsive: tablet (820×800)', () => {
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
     )
-    expect(overflow, 'the page scrolls horizontally in JA at 820px').toBe(false)
+    expect(overflow, 'the page scrolls horizontally in KO at 820px').toBe(false)
   })
 
-  test('the run bar stays inside the canvas column — no control is hidden behind the Inspector', async ({
+  test('the run bar stays inside the canvas column; the properties panel is folded at this width', async ({
     page,
   }) => {
     await openApp(page)
     await resetAll(page)
-    await importGraph(page, G) // ensure the Inspector column is present
-    await pickLocale(page, 'ja')
+    await importGraph(page, G)
+    await pickLocale(page, 'ko')
+    // below 900 px the workbench folds the properties panel by default and
+    // opens it as an overlay (docs/workbench.md §WB1a): nothing docks beside
+    // the run bar here — the docked case is checked at 900 px below
+    await expect(page.locator('.rightcol')).toBeHidden()
+    const report = await runBarReport(page)
+    expect(report.length, 'the run bar has controls on screen to check').toBeGreaterThanOrEqual(3)
+    for (const c of report) expect(c.withinBar, `"${c.t}" spills outside the run bar`).toBe(true)
+  })
+})
 
-    const report = await page.evaluate(() => {
-      const bar = document.querySelector('.pstrip') as HTMLElement
-      const barR = bar.getBoundingClientRect()
-      const insp = document.querySelector('.inspector')?.getBoundingClientRect() ?? null
-      // every essential control in the desktop run bar
-      const ctrls = [...bar.querySelectorAll('.pb-btn, .pstrip__step, .pstrip__field')] as HTMLElement[]
-      return ctrls.map((el) => {
-        const r = el.getBoundingClientRect()
-        const cx = Math.round(r.left + r.width / 2)
-        const cy = Math.round(r.top + r.height / 2)
-        const hit = document.elementFromPoint(cx, cy) as HTMLElement | null
-        return {
-          t: (el.textContent ?? '').trim().slice(0, 12),
-          withinBar: r.right <= barR.right + 1 && r.left >= barR.left - 1,
-          overlapsInspector: insp ? r.right > insp.left + 1 : false,
-          hitIsInspector: Boolean(hit?.closest('.inspector')),
-        }
-      })
+/** every essential control of the desktop run bar that is on screen (one the
+ *  row folded, fit step 1 / 2, has no box): inside the bar? left of, and not
+ *  under, the docked Inspector? */
+const runBarReport = (page: Page) =>
+  page.evaluate(() => {
+    const bar = document.querySelector('.pstrip') as HTMLElement
+    const barR = bar.getBoundingClientRect()
+    const ib = document.querySelector('.rightcol:not([hidden]) .inspector')?.getBoundingClientRect() ?? null
+    const insp = ib && ib.width > 0 ? ib : null
+    const ctrls = ([...bar.querySelectorAll('.pb-btn, .pstrip__step, .pstrip__field')] as HTMLElement[]).filter((el) => el.getBoundingClientRect().width > 0)
+    return ctrls.map((el) => {
+      const r = el.getBoundingClientRect()
+      const cx = Math.round(r.left + r.width / 2)
+      const cy = Math.round(r.top + r.height / 2)
+      const hit = document.elementFromPoint(cx, cy) as HTMLElement | null
+      return {
+        t: (el.textContent ?? '').trim().slice(0, 12),
+        withinBar: r.right <= barR.right + 1 && r.left >= barR.left - 1,
+        inspectorShown: insp != null,
+        overlapsInspector: insp ? r.right > insp.left + 1 : null,
+        hitIsInspector: Boolean(hit?.closest('.inspector')),
+      }
     })
+  })
 
+test.describe('i18n Slice 3 — KO responsive: the narrowest docked properties panel (900×800)', () => {
+  test.use({ viewport: { width: 900, height: 800 } })
+
+  test('the run bar stays inside the canvas column — no control is hidden behind the Inspector', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, G)
+    await pickLocale(page, 'ko')
+    // a node selected, so the Inspector shows its fields, docked beside the
+    // canvas (the medium band opens the properties panel; not an overlay)
+    await page.locator('.react-flow__node').first().click()
+    await expect(page.locator('.rightcol:not(.is-overlay) aside.inspector')).toBeVisible()
+    const report = await runBarReport(page)
+    expect(report.length, 'the run bar has controls on screen to check').toBeGreaterThanOrEqual(3)
     for (const c of report) {
+      expect(c.inspectorShown, 'the docked Inspector is on screen').toBe(true)
       expect(c.withinBar, `"${c.t}" spills outside the run bar`).toBe(true)
       expect(c.overlapsInspector, `"${c.t}" overlaps the Inspector`).toBe(false)
       expect(c.hitIsInspector, `"${c.t}" is covered by the Inspector (hit-test)`).toBe(false)
@@ -431,7 +463,7 @@ test.describe('i18n Slice 3 — JA responsive: tablet (820×800)', () => {
   })
 })
 
-test.describe('i18n Slice 3 — JA responsive: mobile (390×844)', () => {
+test.describe('i18n Slice 3 — KO responsive: mobile (390×844)', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
 
   test('the fixed run bar fits in one row and no label stacks; language pick + template + run work', async ({
@@ -440,9 +472,9 @@ test.describe('i18n Slice 3 — JA responsive: mobile (390×844)', () => {
     await openApp(page)
     await resetAll(page)
 
-    // contract: on mobile JA is verified for language pick / template open / run
+    // contract: on mobile KO is verified for language pick / template open / run
     await page.locator('.mob-more').click()
-    await pickLocale(page, 'ja', '.sheet')
+    await pickLocale(page, 'ko', '.sheet')
     await page.locator('.sheet__x').click()
 
     const bar = page.locator('.pstrip--mobile')
@@ -450,13 +482,13 @@ test.describe('i18n Slice 3 — JA responsive: mobile (390×844)', () => {
     await notCharStacked(page, '.pstrip--mobile .pb-btn')
     await notCharStacked(page, '.pstrip--mobile .pstrip__step')
     const barOverflow = await bar.evaluate((el) => el.scrollWidth > el.clientWidth + 1)
-    expect(barOverflow, 'the mobile run bar overflows its row in JA at 390px').toBe(false)
+    expect(barOverflow, 'the mobile run bar overflows its row in KO at 390px').toBe(false)
 
     // run works from the compact bar
-    await bar.getByRole('button', { name: /1 ステップ進める|Advance one step/ }).click()
+    await bar.getByRole('button', { name: /한 단계 진행|Advance one step/ }).click()
     await expect(bar.locator('.pstrip__step')).toHaveText('1')
     // the MC button shows a compact glyph but keeps its full accessible name
-    await expect(bar.getByRole('button', { name: /モンテカルロ|Monte Carlo/ })).toBeVisible()
+    await expect(bar.getByRole('button', { name: /몬테카를로|Monte Carlo/ })).toBeVisible()
   })
 })
 

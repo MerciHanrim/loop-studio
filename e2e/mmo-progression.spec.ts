@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { ensureTimelineOpen, expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
+import { toolButton } from './support/workbenchMenus'
 
 // docs/example-mmo-progression.md §EM10 — the "Early MMO progression (levels
 // 1–15)" document, exercised through the app. Since 0.28.1 it is a developer
@@ -188,7 +189,10 @@ test.describe('Early MMO progression example', () => {
     expect(await isLocked()).toBe(true) // recommendedRunConfig.canvasLocked
     expect(DOC.recommendedRunConfig.canvasLocked).toBe(true)
     await expect(page.locator('.canvas.canvas--locked')).toBeVisible()
-    await expect(page.locator('.react-flow__controls-button.rf-lock svg[data-icon="lock"]')).toHaveCount(1)
+    // the workbench: the edit lock is the tool row's (docs/workbench.md §WB3),
+    // the canvas rail's button it replaced — the same toggle of `canvasLocked`
+    await expect(toolButton(page, 'lock').locator('svg[data-icon="lock"]')).toHaveCount(1)
+    await expect(toolButton(page, 'lock')).toHaveAttribute('aria-pressed', 'true')
 
     // selection + a read-only Inspector still work while locked
     await page.locator('.react-flow__node[data-id="level"]').click()
@@ -203,8 +207,9 @@ test.describe('Early MMO progression example', () => {
     await expect(page.locator('.react-flow__node[data-id="level"]')).not.toHaveClass(/draggable/)
 
     // unlocking restores editing
-    await page.locator('.react-flow__controls-button.rf-lock').click()
+    await toolButton(page, 'lock').click()
     expect(await isLocked()).toBe(false)
+    await expect(toolButton(page, 'lock')).toHaveAttribute('aria-pressed', 'false')
     await expect(page.locator('.react-flow__node[data-id="level"]')).toHaveClass(/draggable/)
     await expect(aside.locator('input').first()).toBeEnabled()
   })

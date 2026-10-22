@@ -102,6 +102,9 @@ const canvas = {
   'canvas.route.noBendRoom': 'No segment of this connection has room for a bend point; nothing was changed.',
   'canvas.endGrip.source': 'Start of this connection: choose a side',
   'canvas.endGrip.target': 'End of this connection: choose a side',
+  // a running value change's chip, read aloud: "set =0, applied change −14"
+  'canvas.edgeLabel.sr.set': 'set',
+  'canvas.edgeLabel.sr.change': 'applied change',
   'canvas.edgeLabel.clamp': 'clamp',
   'canvas.edgeLabel.clamp.title': 'removed by the target Pool\'s single end-of-Phase-0 clamp',
   'canvas.edgeLabel.blocked': 'blocked',

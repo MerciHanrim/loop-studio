@@ -11,7 +11,6 @@ import { useAutosaveStore } from './autosaveStore'
 import { useI18n } from '../i18n/store'
 import { defaultNodeLabel } from '../i18n/nodeDefaults'
 import { relabelFramesForLocale, relabelNodesForLocale } from '../i18n/templateLabels/relabel'
-import { relabelModuleNodesForLocale } from '../i18n/moduleLabelSync'
 import { createNode, defaultData, nextId } from '../model/factory'
 import { dragSnap, snapDrag } from '../model/layout/dragSnap'
 import { useGuideStore } from './guideStore'
@@ -25,14 +24,6 @@ import { BASE_NODE_H } from '../components/nodes/silhouette'
 const NEW_NODE_W = 130
 import { uniqueNodeLabel } from '../model/nodeLabel'
 import { insertGraph, type GraphDocLike } from '../model/moduleGraph'
-import {
-  clearModuleProvenance,
-  detachModuleProvenance,
-  moduleProvenanceSnapshot,
-  registerModuleProvenance,
-  restoreModuleProvenanceSnapshot,
-  type ModuleProvenanceSnapshot,
-} from '../model/moduleProvenance'
 import { buildImportCommit, type ImportCommitResult, type PlacementChoice } from '../model/dataImportCommit'
 import type { ValidatedImportPlan } from '../model/dataImportValidate'
 import { buildRefreshCommit, parameterLabel, type RefreshCommitResult, type RefreshDiffPlan, type RefreshResolution } from '../model/dataImportRefresh'
@@ -54,8 +45,8 @@ import {
   type TimelineSeries,
 } from '../model/serialize'
 import { readAccent } from '../model/model'
-import { parseHandleId, portsFromHandles } from '../model/ports'
-import { duplicateOf, endMoveVerdict, movedEdge, type EndMove, type EndMoveVerdict } from '../model/endMove'
+import { connectKindOf, connectVerdict, drawnEdge, kindChangeVerdict, rekindedEdge, type ConnectKind, type ConnectVerdict } from '../model/connectKind'
+import { endMoveVerdict, movedEdge, type EndMove, type EndMoveVerdict } from '../model/endMove'
 import { reversedEdge, reverseVerdict, type ReverseVerdict } from '../model/reverse'
 import type { InitialView } from '../model/templates'
 import type { LoopEdge, LoopEdgeData, LoopNode, NodeKind } from '../model/types'
@@ -245,7 +236,13 @@ type GraphStore = {
 
   onNodesChange: (changes: NodeChange<LoopNode>[]) => void
   onEdgesChange: (changes: EdgeChange<LoopEdge>[]) => void
-  onConnect: (conn: Connection) => void
+  /** draw a connection of the CHOSEN kind (src/model/connectKind.ts); the
+   *  handles give only the faces. Refused (nothing recorded) with its reason
+   *  when the kind cannot connect these ends. */
+  onConnect: (conn: Connection, kind: ConnectKind) => ConnectVerdict
+  /** change a connection's kind: the kind's own handles, its fields; route,
+   *  bends, colour and faces kept; ONE undo step; refused with its reason */
+  setEdgeKind: (id: string, kind: ConnectKind) => ConnectVerdict
 
   /** issue #344 §DL3 — the node lands on the grid unless `free` (Alt held at
    *  the drop); `findFree` steps on the grid to the nearest spot no node covers
@@ -268,7 +265,7 @@ type GraphStore = {
    *  never touches `mcStore` or `frameStore` (§MS4a-B2 / B3). */
   insertModule: (
     module: GraphDocLike,
-    opts: { at: XY; confirmedPromotion?: boolean; bundledModuleId?: string; /** issue #344 §DL3 — Alt at the drop: the anchor is not snapped */ free?: boolean },
+    opts: { at: XY; confirmedPromotion?: boolean; /** issue #344 §DL3 — Alt at the drop: the anchor is not snapped */ free?: boolean },
   ) => InsertModuleResult
   /** docs/data-import.md §DI16 Phase 1B — commit a validated multi-table
    *  import as ONE atomic history entry: every generated Parameter, every
@@ -455,6 +452,22 @@ export function setDocumentLockSink(fn: ((locked: boolean) => void) | null): voi
 export function isEditBlocked(): boolean {
   return editGuard()
 }
+/** select one node or one connection (or nothing) from outside the canvas, as
+ *  a click on it does: the store's selection, and each element's own
+ *  `selected` mark through the same `select` changes the canvas sends. Never
+ *  React Flow's `setNodes` / `setEdges`: their elements are the canvas's DRAWN
+ *  ones, which carry display-only state (Focus mode's `lgr-deemph` class, a
+ *  filter's `hidden`), and the `replace` changes they send write that state
+ *  into the document's elements (2026-10-20: a node picked from the left list
+ *  under Focus stayed faded, also after Focus was turned off) */
+export function selectOnly(target: { node?: string; edge?: string }): void {
+  const g = useGraphStore.getState()
+  g.setSelection(target.node ?? null, target.edge ?? null)
+  const nodeChanges = g.nodes.filter((n) => !!n.selected !== (n.id === target.node)).map((n) => ({ id: n.id, type: 'select' as const, selected: n.id === target.node }))
+  if (nodeChanges.length) g.onNodesChange(nodeChanges)
+  const edgeChanges = useGraphStore.getState().edges.filter((x) => !!x.selected !== (x.id === target.edge)).map((x) => ({ id: x.id, type: 'select' as const, selected: x.id === target.edge }))
+  if (edgeChanges.length) g.onEdgesChange(edgeChanges)
+}
 /** #334 — a React Flow `replace` change that differs from the current element
  *  ONLY in `selected` (what `setNodes((ns) => ns.map(n => ({ ...n, selected })))`
  *  produces): a selection, which the edit lock lets through */
@@ -471,19 +484,16 @@ function selectionOnlyReplace(
   for (const k of keys) if (!Object.is(cur[k], next[k])) return false
   return true
 }
-// docs/bundled-module-label-localization.md §MLS3.2 — `m` rides along on the
-// SAME sidecar bundle as `p`/`f`/`d`, purely in-memory (never serialize()d),
-// so a `commit()` / `undo()` / `redo()` carries a document's module-tracking
-// state with it exactly like the project header and saved frames do.
-type SidecarBundle = { p: unknown; f: unknown; d: unknown; m: ModuleProvenanceSnapshot }
+// (2026-10: the bundle also carried `m`, the bundled-module label tracking,
+// until the bundled modules were removed.)
+type SidecarBundle = { p: unknown; f: unknown; d: unknown }
 const sidecarNow = (framesOverride?: unknown): SidecarBundle => ({
   p: projectSidecar?.get() ?? null,
   f: framesOverride !== undefined ? framesOverride : (frameSidecar?.get() ?? null),
   d: dataImportSidecar?.get() ?? null,
-  m: moduleProvenanceSnapshot(),
 })
 const restoreSidecar = (sc: unknown): void => {
-  const b = (sc ?? { p: null, f: null, d: null, m: [] }) as SidecarBundle
+  const b = (sc ?? { p: null, f: null, d: null }) as SidecarBundle
   // `frameSidecar`/`dataImportSidecar` first: `projectSidecar.set` (via
   // `projectStore`'s own `persist()`) synchronously flushes an autosave
   // write immediately, reading `liveFrames()`/`liveDataImports()` at that
@@ -493,7 +503,6 @@ const restoreSidecar = (sc: unknown): void => {
   // a stale pre-restore value that then never gets corrected.
   frameSidecar?.set(b.f ?? null)
   dataImportSidecar?.set(b.d ?? null)
-  restoreModuleProvenanceSnapshot(b.m) // §MLS3.2 -- no autosave interaction, order doesn't matter
   projectSidecar?.set(b.p ?? null)
 }
 /** LGR Slice 5 — the live saved manual frames, for `serialize` / autosave. The
@@ -987,45 +996,38 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       persist()
     },
 
-    onConnect: (conn) => {
-      if (editGuard()) return // #334 — refused while the edit lock is on
-      if (!conn.source || !conn.target) return
-      // node structure (src/model/ports.ts) — a DOM handle is `<id>` on the
-      // kind's default face or `<id>@<face>`: the document keeps the plain id
-      // (the kind channel) and stores a non-default face in `data.ports`
-      const sh = parseHandleId(conn.sourceHandle)
-      const th = parseHandleId(conn.targetHandle)
-      const viaState = sh.base?.startsWith('state') || th.base?.startsWith('state')
-      const ports = portsFromHandles(viaState ? 'state' : 'resource', conn.sourceHandle, conn.targetHandle)
-      const edge: LoopEdge = viaState
-        ? {
-            id: nextId('e'),
-            source: conn.source,
-            target: conn.target,
-            sourceHandle: sh.base?.startsWith('state') ? sh.base : 'state-source',
-            targetHandle: th.base?.startsWith('state') ? th.base : 'state-target',
-            type: 'loop',
-            data: { kind: 'state', mode: 'trigger', expr: '', route: 'orthogonal', ...(ports ? { ports } : {}) }, // issue #344 §ER14.1 — new connections are routed
-          }
-        : {
-            id: nextId('e'),
-            source: conn.source,
-            target: conn.target,
-            // resource edges always ride the circular ports (`out` / `in`); the face is separate
-            sourceHandle: 'out',
-            targetHandle: 'in',
-            type: 'loop',
-            data: { kind: 'resource', flow: '1', route: 'orthogonal', ...(ports ? { ports } : {}) }, // issue #344 §ER14.1
-          }
-      // docs/edge-routing.md §ER18 — the drawing rule for "already connected"
-      // (the same ends and stored handles, `duplicateOf`, as xyflow's
-      // `addEdge` refuses): checked BEFORE recording, so a refused drawing
-      // leaves no undo entry and does not reset the run
-      if (duplicateOf(get().edges, edge)) return
+    onConnect: (conn, kind) => {
+      if (editGuard()) return { ok: false, reason: 'missing', end: 'source', node: conn.source ?? '' } // #334 — refused while the edit lock is on
+      if (!conn.source || !conn.target) return { ok: false, reason: 'missing', end: conn.source ? 'target' : 'source', node: conn.source ?? conn.target ?? '' }
+      // the workbench, direction B (src/model/connectKind.ts): the KIND is the
+      // one chosen, never the handle that took the press; each handle gives
+      // only its face (a non-default face is stored in `data.ports`), and the
+      // document keeps the kind's own plain handle ids (the kind channel).
+      // docs/edge-routing.md §ER18 — the ports, the kind's state rule and the
+      // drawing rule for "already connected" are checked BEFORE recording, so
+      // a refused drawing leaves no undo entry and does not reset the run.
+      const ends = { source: conn.source, target: conn.target, sourceHandle: conn.sourceHandle, targetHandle: conn.targetHandle }
+      const v = connectVerdict(get().nodes, get().edges, kind, ends)
+      if (!v.ok) return v
       commit('')
-      set({ edges: addEdge(edge, get().edges) })
+      set({ edges: addEdge(drawnEdge(nextId('e'), kind, ends), get().edges) })
       bump()
       persist()
+      return v
+    },
+
+    setEdgeKind: (id, kind) => {
+      if (editGuard()) return { ok: false, reason: 'missing', end: 'source', node: id }
+      const v = kindChangeVerdict(get().nodes, get().edges, id, kind)
+      if (!v.ok) return v
+      const e = get().edges.find((x) => x.id === id)!
+      if (connectKindOf(e) === kind) return v
+      // one plain step: never merged with an edit to the same connection
+      commit('')
+      set({ edges: get().edges.map((x) => (x.id === id ? rekindedEdge(x, kind) : x)) })
+      bump()
+      persist()
+      return v
     },
 
     tidyToGrid: () => {
@@ -1085,21 +1087,6 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     updateNodeData: (id, patch) => {
       if (editGuard()) return // #334 — refused while the edit lock is on
       commit(`data:${id}`)
-      // docs/bundled-module-label-localization.md §MLS3.1 (revision 3) —
-      // detach EAGERLY, right here at the actual edit, never deferred to the
-      // next locale switch: a lazy content-comparison can't distinguish
-      // "never edited" from "edited, then edited back to the exact same
-      // text" before any switch happens, and the kickoff contract requires
-      // the latter to stay excluded forever regardless. `commit()` above has
-      // already snapshotted the PRE-edit (still-managed) provenance into
-      // `past`; this only mutates the LIVE map, so Undo restores the
-      // managed state and Redo restores the detached one, each correctly.
-      // A patch that doesn't touch `label`, or sets it to the same value it
-      // already has, is not an edit — nothing to detach.
-      if (typeof patch.label === 'string') {
-        const cur = get().nodes.find((n) => n.id === id)?.data.label
-        if (patch.label !== cur) detachModuleProvenance(id)
-      }
       set({
         nodes: get().nodes.map((n) =>
           n.id === id ? { ...n, data: { ...n.data, ...patch } as LoopNode['data'] } : n,
@@ -1262,7 +1249,6 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     newGraph: () => {
       const fresh = enterDocument(false) // #334 — a new document starts unlocked
       dropProjectHeader()
-      clearModuleProvenance() // docs/bundled-module-label-localization.md §MLS4.2
       set({
         ...fresh,
         nodes: [],
@@ -1289,7 +1275,6 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       const { nodes, edges } = normalizeGraph(snapshot)
       const fresh = enterDocument(canvasLocked)
       dropProjectHeader()
-      clearModuleProvenance() // docs/bundled-module-label-localization.md §MLS4.2
       set({
         ...fresh,
         nodes,
@@ -1348,7 +1333,6 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         lastTag = ''
       }
       dropProjectHeader()
-      clearModuleProvenance() // docs/bundled-module-label-localization.md §MLS4.2
       set({
         ...(history ?? {}),
         nodes,
@@ -1405,21 +1389,6 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       const past = get().past
       set({ past: [...past.slice(0, -1), { ...past[past.length - 1]!, selection: { undo: priorSelection, redo: insertedSelection } }] })
       lastTag = ''
-      // docs/bundled-module-label-localization.md §MLS4.1 — registered only
-      // now that the insert has actually committed (past the v2-consent
-      // bail-out above); a no-op when `bundledModuleId` is undefined (a
-      // file-inserted module never reaches this with one set). `label` is
-      // each node's ACTUAL applied label right now (the EN canonical or the
-      // KO/JA overlay's entry `cloneModuleDoc` already wrote before this
-      // call), so `lastAppliedLabel` starts in sync with the real node.
-      registerModuleProvenance(
-        Object.entries(built.idMap).map(([canonicalId, freshId]) => ({
-          freshId,
-          canonicalId,
-          label: built.nodes.find((n) => n.id === freshId)?.data.label ?? '',
-        })),
-        opts.bundledModuleId,
-      )
       const inserted = new Set(built.insertedNodeIds)
       set({
         nodes: built.nodes.map((n) =>
@@ -1543,14 +1512,11 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 })
 
 // ── docs/template-label-overlay.md §TLO11 + §TLO12 — official-template label /
-// frame-title locale switch, joined by
-// docs/bundled-module-label-localization.md §MLS4.3 — official-bundled-MODULE
-// label locale switch (a per-instance provenance lookup, chained after the
-// Template pass; §MLS2 explains why modules can't share the Template's
-// static-id-table mechanism).
+// frame-title locale switch. (2026-10: a bundled-MODULE label pass,
+// §MLS4.3, ran after it until the bundled modules were removed.)
 // When the UI language changes, re-seed the OFFICIAL bundled-template node
-// labels AND frame titles, AND the OFFICIAL bundled-module instance labels
-// (only a string that is EXACTLY one of that id's shipped-locale strings) in
+// labels AND frame titles (only a string that is EXACTLY one of that id's
+// shipped-locale strings) in
 // the live graph and in every undo/redo snapshot, so a switch never leaves a
 // half-translated document and an undo cannot bring the old language back.
 // String-only: no history entry, no `simulationRev` / `loadRev` / `fitRev` /
@@ -1568,17 +1534,10 @@ useI18n.subscribe((s) => {
 
   const g = useGraphStore.getState()
 
-  // live nodes — Template pass, then the module-instance pass (which also
-  // returns a possibly-updated LIVE provenance snapshot: a successful
-  // relabel bumps `lastAppliedLabel`, a detachment (§MLS3.1) drops an
-  // entry). Each pass keeps the same array reference when it changes
-  // nothing, so chaining costs nothing extra when neither (or only one)
-  // applies.
-  const tNodes = relabelNodesForLocale(g.nodes, loc)
-  const liveProvBefore = moduleProvenanceSnapshot()
-  const { nodes, provenance: liveProvAfter } = relabelModuleNodesForLocale(tNodes, loc, liveProvBefore)
+  // live nodes — the Template pass keeps the same array reference when it
+  // changes nothing
+  const nodes = relabelNodesForLocale(g.nodes, loc)
   const liveNodesChanged = nodes !== g.nodes
-  const liveProvChanged = liveProvAfter !== liveProvBefore
 
   // live frames (via the sidecar — `relabelFramesForLocale` keeps the ref when
   // unchanged, so identity is a safe "changed?" signal)
@@ -1586,36 +1545,19 @@ useI18n.subscribe((s) => {
   const relFrames = relabelFramesForLocale(curFrames, loc)
   const liveFramesChanged = relFrames !== curFrames
 
-  // history — remap BOTH the node labels (Template + module) and the frame
-  // sidecar of every entry. Each entry's module pass uses THAT ENTRY's OWN
-  // sidecar snapshot (`sc.m`), never the live one — a node detached live may
-  // still have been under management at an earlier point in history (and a
-  // node the live map still tracks may already have been detached at an
-  // earlier point), so each point in time is relabeled against its own
-  // recorded state, exactly like `nodes`/`edges`/`modelVersion` themselves.
+  // history — remap both the node labels and the frame sidecar of every entry
   const remap = (h: HistoryEntry): HistoryEntry => {
-    const n0 = relabelNodesForLocale(h.nodes, loc)
-    const sc = h.sidecar as { p: unknown; f: unknown; d?: unknown; m?: ModuleProvenanceSnapshot } | null | undefined
-    const mProvBefore = sc?.m ?? []
-    const { nodes: n, provenance: mProvAfter } = relabelModuleNodesForLocale(n0, loc, mProvBefore)
+    const n = relabelNodesForLocale(h.nodes, loc)
+    const sc = h.sidecar as { p: unknown; f: unknown; d?: unknown } | null | undefined
     const f0 = (sc?.f as SavedFrame[] | null) ?? null
     const f1 = f0 ? relabelFramesForLocale(f0, loc) : f0
     const nChg = n !== h.nodes
     const fChg = f1 !== f0
-    const mChg = mProvAfter !== mProvBefore
-    if (!nChg && !fChg && !mChg) return h
+    if (!nChg && !fChg) return h
     return {
       ...h,
       ...(nChg ? { nodes: n } : {}),
-      ...(fChg || mChg
-        ? {
-            sidecar: {
-              ...(sc ?? { p: null, f: null, d: null, m: [] }),
-              ...(fChg ? { f: f1 } : {}),
-              ...(mChg ? { m: mProvAfter } : {}),
-            },
-          }
-        : {}),
+      ...(fChg ? { sidecar: { ...(sc ?? { p: null, f: null, d: null }), f: f1 } } : {}),
     }
   }
   const past = g.past.map(remap)
@@ -1624,11 +1566,7 @@ useI18n.subscribe((s) => {
   const futureChanged = future.some((h, i) => h !== g.future[i])
   const historyChanged = pastChanged || futureChanged
 
-  if (!liveNodesChanged && !liveProvChanged && !liveFramesChanged && !historyChanged) return
-
-  // live provenance: a label-only remap's bookkeeping, same posture as the
-  // frame-title relabel below — no undo entry, no autosave interaction.
-  if (liveProvChanged) restoreModuleProvenanceSnapshot(liveProvAfter)
+  if (!liveNodesChanged && !liveFramesChanged && !historyChanged) return
 
   // live frame titles: a label-only remap — no undo entry, no autosave here
   if (liveFramesChanged) {

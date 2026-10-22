@@ -154,10 +154,14 @@ test('Focus mode wins on connections: an out-of-focus connection carries its cue
   const f = await flows(page)
   const moved = (f.e_a ?? 0) > 0 ? 'e_a' : 'e_b'
   const filterOf = (sel: string) => page.locator(sel).first().evaluate((el) => getComputedStyle(el).filter)
-  expect(await filterOf(`.react-flow__edge[data-id="${moved}"] .pb-path`)).toBe('opacity(0.26)')
-  expect(await filterOf(`.react-flow__edge[data-id="${moved}"] g.pb-move`)).toBe('opacity(0.26)')
+  // the dimmed strength is `--dim-opacity`, the connection's own: the
+  // redesign's correction 3 (2026-10-19) raised light's to 0.3 so a dimmed
+  // line still reads above the dot grid (dark keeps 0.26); this runs light
+  const DIM = '0.3'
+  expect(await filterOf(`.react-flow__edge[data-id="${moved}"] .pb-path`)).toBe(`opacity(${DIM})`)
+  expect(await filterOf(`.react-flow__edge[data-id="${moved}"] g.pb-move`)).toBe(`opacity(${DIM})`)
   await expect(page.locator(`.pb-badge[data-badge-for="${moved}"]`)).toHaveClass(/pb-badge--dim/)
-  expect(Number(await page.locator(`.pb-badge[data-badge-for="${moved}"]`).evaluate((el) => getComputedStyle(el).opacity))).toBeCloseTo(0.26, 2)
+  expect(Number(await page.locator(`.pb-badge[data-badge-for="${moved}"]`).evaluate((el) => getComputedStyle(el).opacity))).toBeCloseTo(Number(DIM), 2)
   // the in-focus connection's cues are at full strength
   expect(await filterOf('.react-flow__edge[data-id="e_in"] g.pb-move')).toBe('none')
   await expect(page.locator('.pb-badge[data-badge-for="e_in"]')).not.toHaveClass(/pb-badge--dim/)

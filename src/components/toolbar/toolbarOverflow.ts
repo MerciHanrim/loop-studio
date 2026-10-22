@@ -7,12 +7,13 @@
 // differ only through their measurements, never a branch on the language.
 
 /** Collapse order for Tier 1's grouped controls. Index 0 collapses first.
- *  Each entry is a whole GROUP (never an individual button torn out of one):
- *  Help, Data, Settings, File, Share, Module — this ordering is a reasonable
- *  default, not a fixed requirement; the render order shown on screen is a
- *  separate, always-canonical sequence (`Module → File → Data → Share →
- *  Settings → Help`) built in `Toolbar.tsx`, independent of collapse order. */
-export const OVERFLOW_ORDER = ['help', 'data', 'settings', 'file', 'share', 'module'] as const
+ *  Each entry is a whole GROUP (never an individual button torn out of one).
+ *  The workbench (2026-10, step 5): Tier 1 is the MENU BAR — File, Edit,
+ *  View, Insert, Data, Run, Help, then Share — in that render order
+ *  (`Toolbar.tsx`), independent of this collapse order: Help, Run, Insert,
+ *  View, Edit, Data, File, Share. (Settings became View and File's Storage
+ *  row; the Templates button became File's Templates section.) */
+export const OVERFLOW_ORDER = ['help', 'run', 'insert', 'view', 'edit', 'data', 'file', 'share'] as const
 export type OverflowItem = (typeof OVERFLOW_ORDER)[number]
 
 export type ToolbarMetrics = {
@@ -24,8 +25,8 @@ export type ToolbarMetrics = {
   actionGap: number
   /** brand region width */
   brandBase: number
-  /** the never-collapsed action core: undo + redo + Templates (+ RevisionChip
-   *  when a project is open), including the gaps between them */
+  /** the never-collapsed action core: the session and revision chips (when
+   *  shown), including the gaps between them; 0 when neither is shown */
   core: number
   /** the ⋯ overflow trigger width (no surrounding gap) */
   more: number
@@ -44,7 +45,7 @@ const SAFETY = 6 // px of headroom required before a heavier collapse is chosen 
  *  removed. */
 function actionsWidth(m: ToolbarMetrics, collapsed: number): number {
   let w = m.core
-  let slots = 3 // undo, redo, Templates — for inter-control gap accounting
+  let slots = m.core > 0 ? 1 : 0 // the chips' core, when shown — for inter-control gap accounting
   for (let i = collapsed; i < m.items.length; i++) {
     w += m.items[i]
     slots++

@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
+import { openInputsTab } from './support/workbenchMenus'
 
 // docs/localization.md §L9.3 — the arrow meaning units, at runtime.
 //
@@ -61,8 +62,10 @@ const arrowOf = (page: Page, sel: string): Promise<ArrowRead> =>
     }
   }, sel)
 
-const UNDO = '.toolbar__actions-core button:nth-of-type(1)'
-const REDO = '.toolbar__actions-core button:nth-of-type(2)'
+// the workbench (2026-10): Undo and Redo are the tool row's, drawing the same
+// two arrow units (Toolbar.tsx `ArrowIcon unit="undo" | "redo"`)
+const UNDO = '.wb-toolrow button:has(svg[data-arrow="undo"])'
+const REDO = '.wb-toolrow button:has(svg[data-arrow="redo"])'
 
 test.describe('§L9.3 arrows — the drawing follows the reader, or deliberately does not', () => {
   test.beforeEach(async ({ page }) => {
@@ -102,7 +105,9 @@ test.describe('§L9.3 arrows — the drawing follows the reader, or deliberately
       const g = (window as unknown as Bridge).__loop.graph.getState()
       g.addNodeAt('parameter', { x: 0, y: 0 })
     })
-    await expect(page.locator('.rightcol .mpanels')).toBeVisible()
+    // the model panels are the left list's Inputs tab (docs/workbench.md §WB5)
+    await openInputsTab(page)
+    await expect(page.locator('.wb-left .mpanels')).toBeVisible()
 
     // COLLAPSE one head first. An expanded head renders the downward chevron, which
     // does not mirror — so with every panel open this test would assert the
@@ -113,8 +118,8 @@ test.describe('§L9.3 arrows — the drawing follows the reader, or deliberately
 
     const snapshot = () =>
       page.evaluate(() => ({
-        undo: document.querySelector('.toolbar__actions-core button:nth-of-type(1) svg')?.getAttribute('data-dir') ?? null,
-        redo: document.querySelector('.toolbar__actions-core button:nth-of-type(2) svg')?.getAttribute('data-dir') ?? null,
+        undo: document.querySelector('.wb-toolrow svg[data-arrow="undo"]')?.getAttribute('data-dir') ?? null,
+        redo: document.querySelector('.wb-toolrow svg[data-arrow="redo"]')?.getAttribute('data-dir') ?? null,
         carets: Array.from(document.querySelectorAll('.mpanel__caret svg')).map((e) => `${e.getAttribute('data-icon')}:${e.getAttribute('data-dir') ?? 'any'}`),
       }))
 
@@ -147,9 +152,10 @@ test.describe('§L9.3 arrows — the drawing follows the reader, or deliberately
       g().addNodeAt('parameter', { x: 480, y: 0 })
       const [src, pool, rate] = g().nodes.map((n: { id: string }) => n.id)
       g().updateNodeData(rate, { label: 'Rate', value: 5 })
-      g().onConnect({ source: src, target: pool, sourceHandle: 'out', targetHandle: 'in' })
+      g().onConnect({ source: src, target: pool, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
       g().setEdgeData(g().edges[0].id, { kind: 'resource', flow: `@${rate}` })
     })
+    await openInputsTab(page)
     const row = page.locator('.mp-row--flow .mp-row__label')
     await expect(row).toBeVisible()
 

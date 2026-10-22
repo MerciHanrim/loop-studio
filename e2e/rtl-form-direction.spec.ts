@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, openApp, test } from './support/loop'
+import { openInputsTab, openRunSettings } from './support/workbenchMenus'
 
 // docs/localization.md §L9.3 — the runtime half of the form direction contract.
 //
@@ -79,6 +80,8 @@ test.describe('form direction — shared fixture (browser behaviour, six rows)',
 
   test('dir="ltr" holds an unsigned and a negative value in the same direction', async ({ page }) => {
     await openApp(page)
+    // at 1280 the row folds Seed into Run settings (docs/workbench.md §WB7)
+    await openRunSettings(page)
     const seed = page.locator('.pstrip__seed')
     await expect(seed).toBeVisible()
     expect(await seed.getAttribute('dir')).toBe('ltr')
@@ -163,7 +166,9 @@ test.describe('form direction - one product path per production kind', () => {
         .addNodeAt('parameter', { x: 260, y: 240 })
     })
     // .mp-row__val declares no `min`, so a negative is a VALID state here -
-    // unlike the ten number fields whose source declares a non-negative floor
+    // unlike the ten number fields whose source declares a non-negative floor.
+    // The model panel is the left list's Inputs tab (docs/workbench.md §WB5).
+    await openInputsTab(page)
     const val = page.locator('.mp-row__val').first()
     await expect(val).toBeVisible()
     expect(await val.getAttribute('dir')).toBe('ltr')

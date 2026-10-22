@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 // Hanrim's UX report (2026-09-15): while any Tier-1 menu (Templates,
-// Insert module, File, Data, Settings, Help, the ⋯ overflow menu) or
+// File, Data, Settings, Help, the ⋯ overflow menu) or
 // Share's result panel is open, the palette's own hover tooltip could still
 // pop up underneath it — two competing temporary UI layers at once. Each of
 // those menus announces its own open/closed state here under a stable key;

@@ -5,11 +5,11 @@ import { seedPersonalBrowser } from './support/loop'
 import { waitForAppReady, watchPage } from './support/appReady'
 import { expect, test } from '@playwright/test'
 import { capturedExports, installProbe, pathProbe, portableUrl } from './support/mc'
-import { expectOneVersionStory, readAboutVersion, readNewestShown, seedWhatsNewSeen } from './support/whatsNew'
-import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
+import { expectAboutIsPackageVersion, readAboutVersion } from './support/appVersion'
 import { LEGACY_SHARE_VECTORS } from '../src/model/shareLegacy.fixture'
 import { PORTABLE_TEMPLATE_ID, portableTemplate, sha256 } from '../scripts/third-party-notices/core.mjs'
 import { expectShownNoticesAre, openAbout, openLicences } from './support/licenses'
+import { openMonteCarloDialog } from './support/workbenchMenus'
 
 // SLICE-2 §5–§6: the portable single-file build opened from file://. No dev
 // server, no window.__loop bridge (production build) — driven entirely through
@@ -76,7 +76,7 @@ async function openPortable(page: Page, mode: 'personal' | 'temporary' = 'tempor
 
 /** Fill the MC dialog and start the run; leave the dialog closed. */
 async function startMc(page: Page, runs: number, steps: number, baseSeed = 1): Promise<void> {
-  await page.locator('.pstrip__mc button', { hasText: 'Monte Carlo' }).click()
+  await openMonteCarloDialog(page)
   const dlg = page.locator('.mcdlg[aria-labelledby="mcdlg-title"]')
   await expect(dlg).toBeVisible()
   const nums = dlg.locator('.mcdlg__field input[type="number"]')
@@ -93,7 +93,7 @@ async function startMc(page: Page, runs: number, steps: number, baseSeed = 1): P
 /** Open the dialog, assert it is pre-filled from the file's recommendedRunConfig,
  *  and start the run. */
 async function startMcPrefilled(page: Page, runs: number, steps: number, baseSeed: number): Promise<void> {
-  await page.locator('.pstrip__mc button', { hasText: 'Monte Carlo' }).click()
+  await openMonteCarloDialog(page)
   const dlg = page.locator('.mcdlg[aria-labelledby="mcdlg-title"]')
   await expect(dlg).toBeVisible()
   const nums = dlg.locator('.mcdlg__field input[type="number"]')
@@ -233,24 +233,13 @@ test.describe('portable file://', () => {
     expect(await page.evaluate(() => ({ pwned: (window as unknown as { __pwned?: number }).__pwned ?? null, scripts: document.scripts.length, imgs: document.images.length }))).toEqual({ pwned: null, scripts: 0, imgs: 0 })
   })
 
-  // issue #296 - the release notes ship inside the single file: the panel reads
-  // them on file://, with no server to ask and no service worker to cache them
-  test('What’s new opens from Help and lists every bundled entry', async ({ page }) => {
+  // the single file says which version it is, on file:// with no server to ask
+  // (the in-app release notes this test also read were removed in 2026-10)
+  test('About opens from Help and shows the package.json version', async ({ page }) => {
     await openPortable(page)
     await page.locator('[data-tour="help-trigger"]').click()
-    await page.locator('[data-whatsnew="menu-item"]').click()
-    const panel = page.locator('[data-whatsnew="panel"]')
-    await expect(panel).toBeVisible()
-    const versions = await panel.locator('.whatsnew__version').evaluateAll((els) => els.map((e) => e.firstChild?.textContent ?? ''))
-    expect(versions).toEqual(RELEASE_NOTES.map((n) => 'v' + n.version))
-    expect(await panel.locator('li').count()).toBe(RELEASE_NOTES.reduce((n, r) => n + r.items.length, 0))
-    const newest = await readNewestShown(page)
-    await page.keyboard.press('Escape')
-    await expect(panel).toHaveCount(0)
-    // and About, in the same file, shows the version that list starts at
-    await page.locator('[data-tour="help-trigger"]').click()
     await page.getByRole('menuitem', { name: 'About Loop Studio' }).click()
-    expectOneVersionStory((await readAboutVersion(page)).version, newest)
+    expectAboutIsPackageVersion((await readAboutVersion(page)).version)
   })
 
   // issue #302 / #297 - the single file carries the boot script in its head, but
@@ -419,7 +408,6 @@ test.describe('portable file://', () => {
         /* ignore */
       }
     })
-    await seedWhatsNewSeen(hpage)
     await installProbe(hpage)
     await hpage.goto(HTTP)
     await hpage.waitForFunction(() => Boolean((window as any).__loop))
@@ -503,8 +491,6 @@ test.describe('portable file://', () => {
         /* ignore */
       }
     })
-    // issue #296 - and this returning profile has already seen the newest release note
-    await seedWhatsNewSeen(page)
     await page.goto(`${HTTP}/#g1=${payload}`)
     await page.waitForFunction(() => Boolean((window as any).__loop))
     await page.waitForFunction(() => location.hash === '') // ShareLoader consumed + stripped

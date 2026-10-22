@@ -44,6 +44,15 @@ export const ICONS = {
   'chevron-up': [p('M4 10L8 6L12 10')],
   check: [p('M3.5 8.5L6.5 11.5L12.5 4.5')],
   plus: [p('M8 3V13M3 8H13')],
+  // the workbench (2026-10): the left panel's search, the status bar's zoom
+  minus: [p('M3 8H13')],
+  search: [c(7, 7, 4), p('M10 10L13.5 13.5')],
+  fit: [p('M3 6V3H6M10 3H13V6M13 10V13H10M6 13H3V10')],
+  // the tool row's canvas tools (the drawings the control rail used)
+  pointer: [p('M4 2.5V12.5L6.8 9.9L8.6 13.6L10.2 12.8L8.4 9.2H12Z', { strokeWidth: 1.4 })],
+  pan: [p('M8 1.5v13M1.5 8h13M8 1.5 5.6 4M8 1.5 10.4 4M8 14.5 5.6 12M8 14.5 10.4 12M1.5 8 4 5.6M1.5 8 4 10.4M14.5 8 12 5.6M14.5 8 12 10.4', { strokeWidth: 1.4 })],
+  region: [p('M2.5 2.5H13.5V13.5H2.5Z', { strokeWidth: 1.4 }), c(6, 6.5, 1.5, { fill: true }), c(10, 10, 1.5, { fill: true })],
+  frame: [rect(2.5, 3.5, 11, 9, 1.5)],
   // transport: sits with the physical time axis, never mirrors
   play: [p('M4.5 3V13L12.5 8Z', { fill: true })],
   pause: [p('M5.5 3.5V12.5M10.5 3.5V12.5', { strokeWidth: 2 })],
@@ -65,12 +74,7 @@ export const ICONS = {
   // the revision chip
   pencil: [p('M3 13L4 9.5L11 2.5L13.5 5L6.5 12L3 13ZM10 3.5L12.5 6')],
   branch: [p('M2.5 4H5.5L10.5 12H13.5M9.5 4H13.5')],
-  // the palette, in the canvas nodes' grammar
-  'node-pool': [c(8, 8, 5.5), c(8, 8, 2.2, { fill: true })],
-  'node-gate': [p('M8 2.5L13.5 8L8 13.5L2.5 8Z')],
-  'node-converter': [p('M3 6H11L8.5 3.5M13 10H5L7.5 12.5')],
-  'node-end': [c(8, 8, 5.5), p('M5.5 5.5L10.5 10.5M10.5 5.5L5.5 10.5')],
-  'node-parameter': [rect(2.5, 5, 11, 6, 1)],
+  // (a node kind's mark is its canvas symbol, small: components/nodes/KindIcon.tsx)
 } as const satisfies Record<string, readonly Shape[]>
 
 export type IconName = keyof typeof ICONS

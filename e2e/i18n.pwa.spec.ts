@@ -1,7 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import { LOCALE_CHUNK_RE } from '../scripts/locale-chunk.mjs'
-import { seedWhatsNewSeen } from './support/whatsNew'
 
 // Runs under playwright.pwa.config.ts — a real `--mode pwa` build with the
 // service worker, served by e2e/support/pwa-serve.mjs at :4174.
@@ -24,8 +23,6 @@ test.beforeEach(async ({ context }) => {
       /* ignore */
     }
   })
-  // issue #296 - and this returning profile has already seen the newest release note
-  await seedWhatsNewSeen(context)
 })
 
 const setGen = (page: Page, to: 'a' | 'b' | 'c') =>
@@ -47,7 +44,7 @@ async function pickLocale(page: Page, code: string) {
   // -- `.lang-switch` doesn't exist in the DOM at all until Settings opens
   const trigger = page.locator('.lang-switch').first()
   if (!(await trigger.isVisible().catch(() => false))) {
-    await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ }).click()
+    await page.locator('.toolbar__actions .wb-viewmenu > .wb-mb').click()
   }
   if ((await trigger.getAttribute('aria-expanded')) === 'true') await page.keyboard.press('Escape')
   await trigger.click()
@@ -87,23 +84,22 @@ test('a language loaded under an active SW is runtime-cached and works offline',
   await installAndControl(page)
   expect(await localeCachePaths(page)).toEqual([]) // nothing yet — booted EN
 
-  await pickLocale(page, 'ja')
-  await expect.poll(() => htmlLang(page)).toBe('ja')
+  // §L2.0 (2026-10) — Korean is the one lazy (runtime-cached) language left
+  await pickLocale(page, 'ko')
+  await expect.poll(() => htmlLang(page)).toBe('ko')
   await expect.poll(() => localeCachePaths(page)).toEqual(
-    expect.arrayContaining([expect.stringMatching(/\/assets\/locale-ja-/), expect.stringMatching(/\/assets\/tmpl-labels-ja-/)]),
+    expect.arrayContaining([expect.stringMatching(/\/assets\/locale-ko-/), expect.stringMatching(/\/assets\/tmpl-labels-ko-/)]),
   )
 
   // go offline, reload — the saved locale boots from the runtime cache
   await context.setOffline(true)
   await page.reload()
   await expect(page.locator('.canvas .react-flow')).toBeVisible()
-  expect(await htmlLang(page)).toBe('ja')
+  expect(await htmlLang(page)).toBe('ko')
 
-  // a never-loaded language, offline → refused, JA kept, notice shown
-  await pickLocale(page, 'ko')
-  await expect(page.locator('.boot-notice[role="status"]')).toBeVisible()
-  expect(await htmlLang(page)).toBe('ja')
-  expect(await page.evaluate(() => localStorage.getItem('loop-studio/ui-locale/1'))).toBe('ko') // intent still recorded
+  // §L2.0 (2026-10) — the "a never-loaded language offline is refused" step is
+  // gone: with en (bundled) and ko (loaded above) the only shipped languages,
+  // no uncached language remains to try.
   await context.setOffline(false)
 })
 
@@ -112,28 +108,28 @@ test('a fresh SW-controlled boot in a saved language has that language cached �
 }) => {
   await setGen(page, 'a')
   await installAndControl(page)
-  await pickLocale(page, 'ja')
-  await expect.poll(() => htmlLang(page)).toBe('ja')
+  await pickLocale(page, 'ko')
+  await expect.poll(() => htmlLang(page)).toBe('ko')
 
   // brand-new context: SW is installed but does not control the FIRST load
   // (clientsClaim:false). One reload → controlled → the boot import() of the
-  // saved JA locale flows through CacheFirst and is stored.
+  // saved KO locale flows through CacheFirst and is stored.
   await page.evaluate(() => caches.delete('loop-locale-chunks'))
   await page.reload() // still not necessarily controlled here…
   await page.waitForFunction(() => !!navigator.serviceWorker.controller)
-  await page.reload() // …controlled now; this boot caches JA
+  await page.reload() // …controlled now; this boot caches KO
   await expect(page.locator('.canvas .react-flow')).toBeVisible()
-  expect(await htmlLang(page)).toBe('ja')
+  expect(await htmlLang(page)).toBe('ko')
   await expect.poll(() => localeCachePaths(page)).toEqual(
-    expect.arrayContaining([expect.stringMatching(/\/assets\/locale-ja-/)]),
+    expect.arrayContaining([expect.stringMatching(/\/assets\/locale-ko-/)]),
   )
 })
 
 test('after an app update, the saved language boots against the new chunk', async ({ page }) => {
   await setGen(page, 'a')
   await installAndControl(page)
-  await pickLocale(page, 'ja')
-  await expect.poll(() => htmlLang(page)).toBe('ja')
+  await pickLocale(page, 'ko')
+  await expect.poll(() => htmlLang(page)).toBe('ko')
   const before = await localeCachePaths(page)
 
   // move to generation B (new content hashes), activate it, reload
@@ -153,10 +149,10 @@ test('after an app update, the saved language boots against the new chunk', asyn
   // the saved language survives the SW update and is present in the runtime
   // cache for the now-controlling generation (the fixture's generations share
   // the locale content, so the chunk hash itself may not move — what matters
-  // is that the update did not strand JA)
-  expect(await htmlLang(page)).toBe('ja')
+  // is that the update did not strand KO)
+  expect(await htmlLang(page)).toBe('ko')
   await expect.poll(() => localeCachePaths(page)).toEqual(
-    expect.arrayContaining([expect.stringMatching(/\/assets\/locale-ja-/)]),
+    expect.arrayContaining([expect.stringMatching(/\/assets\/locale-ko-/)]),
   )
-  expect(before.some((p) => /\/assets\/locale-ja-/.test(p))).toBe(true)
+  expect(before.some((p) => /\/assets\/locale-ko-/.test(p))).toBe(true)
 })

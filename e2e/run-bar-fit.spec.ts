@@ -15,15 +15,16 @@ import { expect, importGraph, test } from './support/loop'
 // The contract: whatever the bar's height is, the space the layout gives it
 // is the same number. Nothing of the canvas is under the bar, and every control
 // in the bar is inside the window. The checks here read the real boxes, in the
-// languages whose labels are shortest and longest and in right-to-left.
+// shipped languages and in right-to-left.
+//
+// §L2.0 (2026-10): en and ko are the shipped languages; the RTL pseudo-locale
+// `ar-XB` (English copy under `dir=rtl`) stands for the retired `ar`. The
+// eighteen-language version is kept in archive/i18n/e2e/run-bar-fit.spec.ts.
 
 const LOCALE_KEY = 'loop-studio/ui-locale/1'
-// locale-subset: the shortest labels (en, ko, zh-Hans), the longest measured
-// (de, ru, es-419), the two scripts that wrap the bar at 360 px (ar, ja), and
-// the locale that keeps its own one-row shape (th); the whole set is measured
-// once at 320 px below
-const LOCALES = ['en', 'ko', 'zh-Hans', 'de', 'ru', 'es-419', 'ar', 'ja', 'th']
-const ALL = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'vi', 'it', 'nl', 'ar']
+// the shipped languages, and right-to-left
+const LOCALES = ['en', 'ko', 'ar-XB']
+const ALL = ['en', 'ko']
 const PHONES = [
   [320, 568],
   [320, 640],
@@ -145,7 +146,7 @@ test.describe('the run bar on a phone keeps to its space', () => {
     }
   }
 
-  test('320px, every language: the measured height is the reserved height', async ({ page }) => {
+  test('320px, every shipped language: the measured height is the reserved height', async ({ page }) => {
     for (const locale of ALL) {
       await boot(page, 320, 640, locale)
       const f = await mobileFit(page)
@@ -155,8 +156,8 @@ test.describe('the run bar on a phone keeps to its space', () => {
     }
   })
 
-  test('390px Arabic: the bar is right-to-left and still inside the viewport', async ({ page }) => {
-    await boot(page, 390, 844, 'ar')
+  test('390px right-to-left (ar-XB): the bar is right-to-left and still inside the viewport', async ({ page }) => {
+    await boot(page, 390, 844, 'ar-XB')
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
     expectMobileFit(await mobileFit(page))
   })
@@ -204,30 +205,70 @@ test.describe('the run bar on a phone keeps to its space', () => {
 
 test.describe('the playback strip in a narrow desktop window stays inside the window', () => {
   for (const [width, height] of WINDOWS) {
-    for (const locale of ['en', 'ko', 'de', 'ru', 'ar']) {
-      test(`${width}x${height} ${locale}: collapsed and expanded, no control past the window`, async ({ page }) => {
+    for (const locale of ['en', 'ko', 'ar-XB']) {
+      // 2026-10-20 (Lumi): the analysis area opens expanded (§7), and the
+      // desktop strip is ONE row at every width — short of room it folds the
+      // Monte-Carlo button and then Speed / Seed into Run settings
+      test(`${width}x${height} ${locale}: expanded and folded, one row, no control past the window`, async ({ page }) => {
         await boot(page, width, height, locale)
-        const collapsed = await desktopFit(page)
-        expect(collapsed.collapsed).toBe(true)
-        expect(collapsed.controls).toBeGreaterThanOrEqual(7)
-        expect(collapsed.cutOff, 'collapsed: controls past the window').toEqual([])
-        expect(collapsed.stripBottomPastWindow).toBeLessThanOrEqual(0)
-        // the collapsed timeline is exactly its strip
-        expect(collapsed.timelineHeight).toBe(collapsed.stripHeight)
-        await page.locator('.pstrip__collapse').click()
         const expanded = await desktopFit(page)
         expect(expanded.collapsed).toBe(false)
+        expect(expanded.controls).toBeGreaterThanOrEqual(7)
+        expect(expanded.stripHeight, 'expanded: one row').toBe(40)
         expect(expanded.cutOff, 'expanded: controls past the window').toEqual([])
         expect(expanded.timelineHeight).toBeGreaterThan(expanded.stripHeight)
+        await page.locator('.pstrip__collapse').click()
+        const folded = await desktopFit(page)
+        expect(folded.collapsed).toBe(true)
+        expect(folded.cutOff, 'folded: controls past the window').toEqual([])
+        expect(folded.stripBottomPastWindow).toBeLessThanOrEqual(0)
+        // the folded timeline is exactly its strip, one row
+        expect(folded.timelineHeight).toBe(folded.stripHeight)
+        expect(folded.stripHeight).toBe(40)
       })
     }
   }
 
-  test('1280x800: the strip is one row of 40px, as before', async ({ page }) => {
+  test('1280x800: the strip is one row of 40px, as before; a run that ended keeps it one row', async ({ page }) => {
     await boot(page, 1280, 800, 'en')
     const f = await desktopFit(page)
     expect(f.stripHeight).toBe(40)
-    expect(f.timelineHeight).toBe(40)
     expect(f.cutOff).toEqual([])
+    // the ended note and Replay are wider than Play and the step readout
+    await page.evaluate(() => {
+      const s = (window as unknown as { __loop: { sim: { getState: () => { advance: () => void }; setState: (p: object) => void } } }).__loop.sim
+      for (let i = 0; i < 12; i++) s.getState().advance()
+      s.setState({ status: 'ended' })
+    })
+    await expect(page.locator('.pstrip .pb-btn--primary')).toContainText('Replay')
+    const ended = await desktopFit(page)
+    expect(ended.stripHeight, 'ended: still one row').toBe(40)
+    expect(ended.cutOff).toEqual([])
+  })
+
+  test('folded into Run settings, Speed and Seed are the same two controls, reached from the row and closed with Escape', async ({ page }) => {
+    await boot(page, 1280, 800, 'en')
+    // a strip short enough to fold them: the canvas column pinned narrow
+    await page.addStyleTag({ content: '.canvas-col { max-width: 360px !important; }' })
+    const strip = page.locator('.pstrip')
+    await expect.poll(() => strip.getAttribute('data-fit')).toBe('2')
+    await expect(strip.locator('.pstrip__mc-btn')).toBeHidden()
+    const btn = strip.getByRole('button', { name: 'Run settings' })
+    await expect(btn).toBeVisible()
+    await expect(strip.locator('input[type="range"]')).toBeHidden()
+    await btn.click()
+    await expect(btn).toHaveAttribute('aria-expanded', 'true')
+    const pop = page.locator(`[id="${await btn.getAttribute('aria-controls')}"]`)
+    await expect(pop.locator('input[type="range"]')).toBeVisible()
+    await expect(pop.locator('input[type="number"]')).toBeVisible()
+    // the same store: the seed set here is the run's seed
+    await pop.locator('input[type="number"]').fill('7')
+    expect(await page.evaluate(() => (window as unknown as { __loop: { sim: { getState: () => { seed: number } } } }).__loop.sim.getState().seed)).toBe(7)
+    await page.keyboard.press('Escape')
+    await expect(btn).toHaveAttribute('aria-expanded', 'false')
+    await expect(btn).toBeFocused()
+    // Monte Carlo has its way in: Run ▸ Monte Carlo…
+    await page.locator('[data-menu="run"] > .wb-mb').click()
+    await expect(page.locator('[data-menu="run"] [role="menuitem"]', { hasText: 'Monte Carlo' })).toBeEnabled()
   })
 })

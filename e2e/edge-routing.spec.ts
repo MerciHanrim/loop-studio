@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { openPanelDetails } from './support/panel'
 
 // docs/edge-routing.md + SEMANTICS-R3.md — Slice 1 through the real app:
 //  • the Bézier default path is byte-unchanged by the feature; toggling a route
@@ -248,6 +249,8 @@ test.describe('edge routing — Slice 1', () => {
     await importGraph(page, G2())
     await expect(page.locator('.react-flow__node[data-id="gold"]')).toBeVisible()
     await page.evaluate(() => (window as any).__loop.graph.getState().setSelection(null, 'e_sg'))
+    // the Route control lives in the panel's More settings (docs/workbench.md §WB6)
+    await openPanelDetails(page)
 
     const select = page.locator('.inspector select').filter({ has: page.locator('option[value="orthogonal"]') })
     await expect(select).toBeVisible()

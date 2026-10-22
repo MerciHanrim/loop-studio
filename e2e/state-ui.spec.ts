@@ -1,5 +1,6 @@
 import { expect, importGraph, openApp, resetAll, test, snap } from './support/loop'
 import type { Page } from '@playwright/test'
+import { openPanelDetails } from './support/panel'
 
 // State Slice 5 — the Inspector editor for `trigger` / `activator` / `label`
 // and the in-canvas feedback (trigger pulse on the delivery step, activator
@@ -35,7 +36,24 @@ const DEMO = JSON.stringify({
   ],
 })
 
+// one Pool → Pool trigger, alone between its ends: a connection that takes
+// every state kind (a condition, a change applied always, a trigger)
+const LONE_TRIGGER = JSON.stringify({
+  schema: 'loop-studio/graph',
+  version: 1,
+  nodes: [
+    { id: 'q', type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool', label: 'Q', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+    { id: 'r', type: 'pool', position: { x: 220, y: 0 }, data: { kind: 'pool', label: 'R', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+  ],
+  edges: [
+    { id: 'solo', source: 'q', target: 'r', sourceHandle: 'state-source', targetHandle: 'state-target', type: 'loop', data: { kind: 'state', mode: 'trigger', expr: '', delay: 0 } },
+  ],
+})
+
 type Bridge = { __loop: Record<string, { getState: () => any }> }
+
+/** the connection's Kind select (the workbench panel's More settings) */
+const kindSelect = (page: Page) => page.locator('.inspector details.wb-panel__more label.field', { has: page.locator('.field__label', { hasText: /^Kind$/ }) }).locator('select')
 
 const selectEdge = (page: Page, id: string) =>
   page.evaluate((eid) => (window as unknown as Bridge).__loop.graph.getState().setSelection(null, eid), id)
@@ -94,11 +112,17 @@ test.describe('Slice 5 — Inspector editing', () => {
   test('trigger: only the delay field, validated as a whole number ≥ 0, never auto-corrected', async ({ page }) => {
     await selectEdge(page, 't_trig')
     const insp = page.locator('.inspector')
-    await expect(insp.locator('.field select').nth(1)).toHaveValue('trigger')
+    // the workbench panel: the old Mode select is the connection's Kind select
+    // in More settings (Flow / Condition / Change / Trigger — the same three
+    // state modes, src/model/connectKind.ts); the second select by position is
+    // now the line's shape
+    await openPanelDetails(page)
+    await expect(kindSelect(page)).toHaveValue('trigger')
     const delay = insp.locator('input[type="number"]')
     await expect(delay).toHaveValue('0')
-    // no expr field for trigger
-    await expect(insp.getByText(/Condition|Modifier/)).toHaveCount(0)
+    // no expr field for trigger — by the fields' own labels: the Kind select
+    // now lists "Condition" as an option (measured 2026-10-20)
+    await expect(insp.locator('.field__label', { hasText: /^(Condition|Modifier) — / })).toHaveCount(0)
 
     await delay.fill('2')
     await expect.poll(() => edgeData(page, 't_trig').then((d) => d.delay)).toBe(2)
@@ -140,15 +164,24 @@ test.describe('Slice 5 — Inspector editing', () => {
   })
 
   test('switching mode hides the other fields but keeps their stored values', async ({ page }) => {
-    await selectEdge(page, 't_trig') // delay 0
-    const modeSel = page.locator('.inspector .field select').nth(1)
-    await modeSel.selectOption('activator')
+    // the switch is the Kind select in More settings, judged by the drawing
+    // rules (src/model/connectKind.ts): `t_trig` (Source → Drain) is refused a
+    // condition (a Pool source) and a change (Pools at both ends), so the same
+    // switch runs on a Pool → Pool trigger with delay 0, which takes all three
+    // kinds. (This document's Pool → Pool pairs are labels without a delay;
+    // a parallel pair's kind change has its own test below.)
+    await importGraph(page, LONE_TRIGGER)
+    await expect(page.locator('.react-flow__node')).toHaveCount(2)
+    await selectEdge(page, 'solo') // delay 0
+    await openPanelDetails(page)
+    const modeSel = kindSelect(page)
+    await modeSel.selectOption('condition')
     await page.locator('.inspector .field input:not([type="number"]):not([type="radio"])').fill('>= 9')
-    await modeSel.selectOption('label')
+    await modeSel.selectOption('change')
     await page.locator('.inspector .field input:not([type="number"]):not([type="radio"])').fill('+3')
     await modeSel.selectOption('trigger')
 
-    const d = await edgeData(page, 't_trig')
+    const d = await edgeData(page, 'solo')
     expect(d.mode).toBe('trigger')
     expect(d.delay).toBe(0) // never deleted
     expect(d.expr).toBe('+3') // last-edited expr kept even though trigger ignores it
@@ -187,6 +220,43 @@ test.describe('Slice 5 — Inspector editing', () => {
     expect(await edgeData(page, 't_trig')).toMatchObject({ kind: 'state', mode: 'trigger', delay: 2 })
     expect(await edgeData(page, 'a_gate')).toMatchObject({ kind: 'state', mode: 'activator', expr: '> 4' })
     expect(await edgeData(page, 'm2')).toMatchObject({ kind: 'state', mode: 'label', expr: '-2' })
+  })
+
+  // 2026-10-20 (Lumi): `m1` and `m2` are parallel state connections between the
+  // same Pools; the duplicate rule is the stored handles, so a change between
+  // the state kinds repeats nothing new — it had refused every change, "already
+  // connected this way", because of the other one
+  test('a parallel state connection changes its kind; the change survives a reload and an Export → Import, and undo / redo', async ({ page }) => {
+    await selectEdge(page, 'm1')
+    await openPanelDetails(page)
+    await kindSelect(page).selectOption('condition')
+    await expect(page.locator('.inspector .inspector__note--warn[role="status"]')).toHaveCount(0)
+    await expect.poll(() => edgeData(page, 'm1')).toMatchObject({ kind: 'state', mode: 'activator', expr: '+S' })
+    expect(await edgeData(page, 'm2'), 'the other one untouched').toMatchObject({ kind: 'state', mode: 'label', expr: '-1' })
+
+    // saved and opened again: the autosave across a reload
+    await page.evaluate(() => (window as unknown as { __loop: { autosave: { flush: () => void } } }).__loop.autosave.flush())
+    await page.reload()
+    await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
+    await expect.poll(() => edgeData(page, 'm1')).toMatchObject({ kind: 'state', mode: 'activator', expr: '+S' })
+    expect(await edgeData(page, 'm2')).toMatchObject({ kind: 'state', mode: 'label', expr: '-1' })
+    // and a file: Export → Import
+    const json = await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().exportJSON())
+    await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().newGraph())
+    await importGraph(page, json)
+    expect(await edgeData(page, 'm1')).toMatchObject({ kind: 'state', mode: 'activator', expr: '+S' })
+    expect(await edgeData(page, 'm2')).toMatchObject({ kind: 'state', mode: 'label', expr: '-1' })
+
+    // undo / redo of the change itself (made again after the import, a fresh history)
+    await selectEdge(page, 'm2')
+    await openPanelDetails(page)
+    await kindSelect(page).selectOption('trigger')
+    await expect.poll(() => edgeData(page, 'm2')).toMatchObject({ kind: 'state', mode: 'trigger', expr: '-1' })
+    await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().undo())
+    await expect.poll(() => edgeData(page, 'm2')).toMatchObject({ kind: 'state', mode: 'label', expr: '-1' })
+    await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().redo())
+    await expect.poll(() => edgeData(page, 'm2')).toMatchObject({ kind: 'state', mode: 'trigger', expr: '-1' })
+    expect(await edgeData(page, 'm1')).toMatchObject({ kind: 'state', mode: 'activator', expr: '+S' })
   })
 })
 
@@ -254,16 +324,33 @@ test.describe('Slice 5 — in-canvas feedback', () => {
     await expect(page.locator('.edge-label[data-edge-id="a_gate"].edge-label--on')).toHaveCount(1)
   })
 
-  test('label: the flash direction follows raw delta; the clamp shows as a separate note', async ({ page }) => {
+  test('label: the flash direction follows raw delta; the applied change shows only when it says more; the clamp shows as a separate note', async ({ page }) => {
     await stepN(page, 1)
     const list = await stateEvents(page)
     // ascending edge.id: m1 (+S = +10) then m2 (-1); running 0 → 10 → 9, clamp 8 ⇒ m2 carries −1
     expect(ev(list, 'm1').effect).toEqual({ kind: 'label', delta: 10, clampAdjustment: 0 })
     expect(ev(list, 'm2').effect).toEqual({ kind: 'label', delta: -1, clampAdjustment: -1 })
 
-    await expect(page.locator('.edge-label[data-edge-id="m1"] .edge-label__delta')).toHaveText('+10')
-    await expect(page.locator('.edge-label[data-edge-id="m2"] .edge-label__delta')).toHaveText('-1')
-    await expect(page.locator('.edge-label[data-edge-id="m2"] .edge-label__clamp')).toHaveText('clamp -1')
+    // 2026-10-21: the applied change shows only when it says more than the set
+    // value — m1 (+S → +10) shows "+S" over "Δ +10" (two lines and the Δ, not
+    // the colour alone), read as "set +S, applied change +10"; m2 (-1 → -1)
+    // repeats its set value, so its chip shows "-1" alone (the clamp note stays)
+    const m1 = page.locator('.edge-label[data-edge-id="m1"]')
+    await expect(m1).toHaveClass(/edge-label--two/)
+    const rows = m1.locator('.edge-label__row')
+    await expect(rows).toHaveCount(2)
+    await expect(rows.nth(0)).toHaveText('+S')
+    await expect(rows.nth(1)).toHaveText('Δ+10')
+    await expect(m1.locator('.edge-label__delta')).toHaveText('+10')
+    await expect(m1.locator('.sr-only')).toHaveText('set +S, applied change +10')
+    for (let i = 0; i < 2; i++) await expect(rows.nth(i)).toHaveAttribute('aria-hidden', 'true')
+    // the second line is under the first
+    const [top, bottom] = await rows.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().top))
+    expect(bottom).toBeGreaterThan(top)
+    const m2 = page.locator('.edge-label[data-edge-id="m2"]')
+    await expect(m2).not.toHaveClass(/edge-label--two/)
+    await expect(m2.locator('.edge-label__delta, .edge-label__row, .sr-only')).toHaveCount(0)
+    await expect(m2.locator('.edge-label__clamp')).toHaveText('clamp -1')
   })
 
   test('label: the τ cue rides toward the target for +, away for −', async ({ page }) => {

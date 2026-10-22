@@ -50,8 +50,21 @@ const invariants = (page: Page) =>
     }
   })
 
+/** Desktop: the fixture (nodes at world x -20 … 656, y -5 … 325) centred in
+ *  the canvas PANE (664 x 548 since the workbench), L2 at 0.95 (still L2) so
+ *  every node is whole. The phone keeps the origin framing it was approved with. */
+const DESKTOP_Z: Record<Level, number> = { L2: 0.95, L1: 0.6, L0: 0.32 }
 async function setLod(page: Page, level: Level) {
-  await page.evaluate((z) => (window as unknown as Bridge).__loop.rf.setViewport({ x: 0, y: 0, zoom: z }, { duration: 0 }), Z[level])
+  const mobile = (page.viewportSize()?.width ?? 1280) < 500
+  await page.evaluate(
+    ({ mobile, z, dz }) => {
+      const rf = (window as unknown as Bridge).__loop.rf
+      if (mobile) return rf.setViewport({ x: 0, y: 0, zoom: z }, { duration: 0 })
+      const pane = document.querySelector('.react-flow')!.getBoundingClientRect()
+      rf.setViewport({ x: Math.round(pane.width / 2 - 318 * dz), y: Math.round(pane.height / 2 - 160 * dz), zoom: dz }, { duration: 0 })
+    },
+    { mobile, z: Z[level], dz: DESKTOP_Z[level] },
+  )
   await page.waitForTimeout(80)
 }
 
@@ -141,7 +154,7 @@ test.describe('playback — Slice 3c-b: choreography acceptance matrix', () => {
         expect([after.canUndo, after.canRedo]).toEqual([before.canUndo, before.canRedo])
         expect(after.d).toEqual(before.d)
         // zoom is where setLod left it, pan unchanged; either way playback set nothing
-        expect(after.viewport.zoom).toBeCloseTo(Z[level], 2)
+        expect(after.viewport.zoom).toBeCloseTo((page.viewportSize()?.width ?? 1280) < 500 ? Z[level] : DESKTOP_Z[level], 2)
       })
     }
   }

@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, test, snap } from './support/loop'
+import { menuRow, menuRowState, pressViewRow, statusFocus, toolButton, viewRow, viewRowPressed } from './support/workbenchMenus'
+import { WORKBENCH_ROOMY_VIEWPORT } from './support/panel'
+import { probe } from './support/boundary'
+import { frameInPane } from './support/visualFrame'
 
 // docs/large-graph-readability.md — Slice 1: the global hit-test rule + the
 // selection-driven focus view + de-emphasis. Render / UI-only: no GraphDoc,
@@ -250,9 +254,11 @@ async function marqueeOver(page: Page, ids: string[]): Promise<void> {
   expect(await viewportTransform(page), 'a marquee inside the pane never pans').toBe(vp)
 }
 
-const focusBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-focus')
-const filterBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-filter')
-const resetViewBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-resetview')
+// the desktop workbench (docs/workbench.md §WB2–§WB3, §WB8) has no canvas
+// rail: Focus is the status bar's toggle, the canvas tools are the tool
+// row's, Filters / Activity overlay / Reset view are View rows, Suggest frames
+// is an Insert row and the two frame clears are Edit rows
+const focusBtn = (page: Page) => statusFocus(page)
 const filterPanel = (page: Page) => page.locator('.lgr-filter')
 // a checkbox row in the panel, by its exact visible label text
 const filterRow = (page: Page, label: string) =>
@@ -432,7 +438,7 @@ test.describe('large-graph readability — Slice 1', () => {
   }) => {
     await load(page)
     await frameForMarquee(page)
-    const tool = page.locator('.react-flow__controls-button.rf-regionselect')
+    const tool = toolButton(page, 'region')
     await expect(tool).toBeVisible()
     await expect(tool).toHaveAttribute('aria-pressed', 'false')
 
@@ -460,8 +466,8 @@ test.describe('large-graph readability — Slice 1', () => {
     page,
   }) => {
     await load(page)
-    const tool = page.locator('.react-flow__controls-button.rf-regionselect')
-    const frame = page.locator('.react-flow__controls-button.rf-frame')
+    const tool = toolButton(page, 'region')
+    const frame = toolButton(page, 'frame')
 
     await frame.click()
     await expect(frame).toHaveAttribute('aria-pressed', 'true')
@@ -484,7 +490,7 @@ test.describe('large-graph readability — Slice 1', () => {
   }) => {
     await load(page)
     await frameForMarquee(page)
-    const tool = page.locator('.react-flow__controls-button.rf-regionselect')
+    const tool = toolButton(page, 'region')
 
     // start from a real multi-selection made with the tool
     await tool.click()
@@ -507,8 +513,8 @@ test.describe('large-graph readability — Slice 1', () => {
 
   test('§LGR12 region select — Pan mode and region select cancel each other', async ({ page }) => {
     await load(page)
-    const tool = page.locator('.react-flow__controls-button.rf-regionselect')
-    const pan = page.locator('.react-flow__controls-button.rf-panmode')
+    const tool = toolButton(page, 'region')
+    const pan = toolButton(page, 'pan')
 
     await pan.click()
     await expect(pan).toHaveAttribute('aria-pressed', 'true')
@@ -531,7 +537,7 @@ test.describe('large-graph readability — Slice 1', () => {
 
   test('§LGR12 region select — a cancelled pointer never leaves the tool armed', async ({ page }) => {
     await load(page)
-    const tool = page.locator('.react-flow__controls-button.rf-regionselect')
+    const tool = toolButton(page, 'region')
 
     await tool.click()
     await expect(tool).toHaveAttribute('aria-pressed', 'true')
@@ -564,9 +570,12 @@ test.describe('large-graph readability — Slice 1', () => {
   test('§LGR12 region select — Esc DURING a box abandons the gesture and restores the selection', async ({
     page,
   }) => {
+    // the fixture's `lone` lies past a 664 px canvas (1280 × 800 in the
+    // workbench, measured 2026-10-20: x 1060 against the pane's 936)
+    await page.setViewportSize(WORKBENCH_ROOMY_VIEWPORT)
     await load(page)
     await frameForMarquee(page)
-    const tool = page.locator('.react-flow__controls-button.rf-regionselect')
+    const tool = toolButton(page, 'region')
     const box = page.locator('.react-flow__selection')
 
     // a selection to protect: the box below deliberately encloses a different node
@@ -848,21 +857,21 @@ test.describe('large-graph readability — Slice 1', () => {
 test.describe('large-graph readability — Slice 2 (transient filters)', () => {
   test('panel toggle: default closed, open state persists to its own key (§LGR3.4)', async ({ page }) => {
     await loadRT(page)
-    await expect(filterBtn(page)).toHaveAttribute('aria-pressed', 'false')
+    expect(await viewRowPressed(page, 'filter')).toBe('false')
     await expect(filterPanel(page)).toHaveCount(0)
-    await filterBtn(page).click()
-    await expect(filterBtn(page)).toHaveAttribute('aria-pressed', 'true')
+    await pressViewRow(page, 'filter')
+    expect(await viewRowPressed(page, 'filter')).toBe('true')
     await expect(filterPanel(page)).toBeVisible()
     expect(await page.evaluate(() => localStorage.getItem('loop-studio:filter-panel'))).toBe('1')
     // the panel's own × closes it
     await filterPanel(page).locator('.lgr-filter__x').click()
     await expect(filterPanel(page)).toHaveCount(0)
-    await expect(filterBtn(page)).toHaveAttribute('aria-pressed', 'false')
+    expect(await viewRowPressed(page, 'filter')).toBe('false')
   })
 
   test('resource-type list is built from the graph — exactly its strings + untyped (§LGR3.2 / §LGR10.5)', async ({ page }) => {
     await loadRT(page)
-    await filterBtn(page).click()
+    await pressViewRow(page, 'filter')
     const group = filterPanel(page).locator('.lgr-filter__group', { hasText: 'Resource type' })
     await expect(group.locator('.lgr-filter__row span')).toHaveText(['currency', 'power', 'untyped'])
     // no built-in palette leakage
@@ -873,7 +882,7 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
 
   test('the edge-class list is graph-derived — Resource / State only on a plain canvas, no dead Dependency hint (§LGR3.2 / LGR-D4)', async ({ page }) => {
     await loadRT(page)
-    await filterBtn(page).click()
+    await pressViewRow(page, 'filter')
     const group = filterPanel(page).locator('.lgr-filter__group', { hasText: 'Edge type' })
     await expect(group.locator('.lgr-filter__row span')).toHaveText(['Resource', 'State'])
     await expect(filterPanel(page)).not.toContainText('Dependency hint')
@@ -906,7 +915,7 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
 
   test('hide an edge class → state edges go, resource edges + nodes stay (§LGR3.2)', async ({ page }) => {
     await loadRT(page)
-    await filterBtn(page).click()
+    await pressViewRow(page, 'filter')
     await expect(edgePath(page, 'st1')).toHaveCount(1)
     await filterRow(page, 'State').check()
     await expect(edge(page, 'st1')).toHaveCount(0)
@@ -916,7 +925,7 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
 
   test('hide a resource type → only that type of pool / edge, incident edges too (§LGR3.2 / §LGR10.5)', async ({ page }) => {
     await loadRT(page)
-    await filterBtn(page).click()
+    await pressViewRow(page, 'filter')
     await filterRow(page, 'currency').check()
     await expect(node(page, 'gold')).toHaveCount(0) // the currency pool
     await expect(edge(page, 're1')).toHaveCount(0) // currency-typed edge
@@ -929,7 +938,7 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
 
   test('the node-kind list is graph-derived — GRAPH_RT shows Source / Pool / End only, no dead options (§LGR3.2 / §LGR10.5)', async ({ page }) => {
     await loadRT(page)
-    await filterBtn(page).click()
+    await pressViewRow(page, 'filter')
     const group = filterPanel(page).locator('.lgr-filter__group', { hasText: 'Node kind' })
     await expect(group.locator('.lgr-filter__row span')).toHaveText(['Source', 'Pool', 'End'])
     // kinds the graph does not contain are not offered
@@ -945,7 +954,7 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
 
   test('Clear filters restores everything and the count reads back', async ({ page }) => {
     await loadRT(page)
-    await filterBtn(page).click()
+    await pressViewRow(page, 'filter')
     await filterRow(page, 'currency').check()
     await filterRow(page, 'End').check()
     await expect(filterPanel(page).locator('.lgr-filter__count')).not.toHaveText(/Nothing hidden/)
@@ -959,7 +968,7 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
     page,
   }) => {
     await loadRT(page)
-    await filterBtn(page).click()
+    await pressViewRow(page, 'filter')
     await expect(filterPanel(page)).toBeVisible()
     const g = await filterPanel(page).evaluate((p) => {
       const body = p.querySelector('.lgr-filter__body') as HTMLElement
@@ -998,7 +1007,7 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
       data: { kind: 'pool', label: `P${i}`, activation: 'passive', initial: 0, capacity: null, mode: 'pullAny', resourceType: `type-${i}` },
     }))
     await importGraph(page, JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes, edges: [] }))
-    await filterBtn(page).click()
+    await pressViewRow(page, 'filter')
     await expect(filterPanel(page)).toBeVisible()
     const g = await filterPanel(page).evaluate((p) => {
       const body = p.querySelector('.lgr-filter__body') as HTMLElement
@@ -1026,13 +1035,13 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
 
   test('filter selections are cleared on a graph reload; the panel toggle survives (§LGR3.4)', async ({ page }) => {
     await loadRT(page)
-    await filterBtn(page).click()
+    await pressViewRow(page, 'filter')
     await filterRow(page, 'State').check()
     await expect(edge(page, 'st1')).toHaveCount(0)
     // re-import the same graph — a whole-graph (re)load
     await importGraph(page, GRAPH_RT)
     await expect(edgePath(page, 'st1')).toHaveCount(1) // selections gone
-    await expect(filterBtn(page)).toHaveAttribute('aria-pressed', 'true') // panel open state kept
+    expect(await viewRowPressed(page, 'filter')).toBe('true') // panel open state kept
     await expect(filterPanel(page).locator('.lgr-filter__count')).toHaveText('Nothing hidden')
   })
 
@@ -1040,12 +1049,12 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
     await loadRT(page)
     await focusBtn(page).click() // Focus MODE on
     await node(page, 'gold').click() // a focused anchor
-    await filterBtn(page).click()
+    await pressViewRow(page, 'filter')
     await filterRow(page, 'State').check()
     await expect(edge(page, 'st1')).toHaveCount(0)
     await expect(selection(page)).resolves.toMatchObject({ node: 'gold' })
 
-    await resetViewBtn(page).click()
+    await pressViewRow(page, 'reset')
     await expect(edgePath(page, 'st1')).toHaveCount(1) // filters cleared
     await expect(selection(page)).resolves.toEqual({ node: null, edge: null }) // anchor cleared
     await expect(focusBtn(page)).toHaveAttribute('aria-pressed', 'true') // MODE preference kept
@@ -1063,9 +1072,9 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
     })
     const offFit = await viewport(page)
 
-    await filterBtn(page).click()
+    await pressViewRow(page, 'filter')
     await filterRow(page, 'State').check()
-    await resetViewBtn(page).click()
+    await pressViewRow(page, 'reset')
 
     // the on-screen viewport IS changed — that is the point of Reset view
     const afterVp = await viewport(page)
@@ -1081,7 +1090,7 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
     await loadRT(page)
     const before = await snapshot(page)
     const vpBefore = await viewport(page)
-    await filterBtn(page).click()
+    await pressViewRow(page, 'filter')
     for (const l of ['State', 'currency', 'End']) await filterRow(page, l).check()
     await filterPanel(page).locator('.lgr-filter__clear').click()
     const after = await snapshot(page)
@@ -1093,7 +1102,7 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
   test('composition: filter hides, then Focus dims the remainder (§LGR3.3)', async ({ page }) => {
     await loadRT(page)
     await focusBtn(page).click()
-    await filterBtn(page).click()
+    await pressViewRow(page, 'filter')
     await filterRow(page, 'State').check() // st1 gone
     await node(page, 'gold').click() // focus set = {gold, src, mana} + {re1, re2}
     await expect(edge(page, 'st1')).toHaveCount(0) // hidden wins — not merely dimmed
@@ -1103,7 +1112,7 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
 
   test('a hidden element is out of the hit path (§LGR4.2)', async ({ page }) => {
     await loadRT(page)
-    await filterBtn(page).click()
+    await pressViewRow(page, 'filter')
     await filterRow(page, 'End').check()
     await expect(node(page, 'end')).toHaveCount(0)
     // clicking where `end` was selects nothing (it is not in the DOM at all)
@@ -1116,7 +1125,7 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
   test('mobile: Filters + Reset view are in the More sheet, not the canvas controls (§LGR9)', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 780 })
     await loadRT(page)
-    await expect(filterBtn(page)).toHaveCount(0) // no canvas control on mobile
+    await expect(page.locator('.react-flow__controls-button.rf-filter')).toHaveCount(0) // no canvas control on mobile
     await page.locator('.mob-more').click()
     await expect(page.locator('.sheet__row').filter({ hasText: /^Reset view/ })).toBeVisible()
     await page.locator('.sheet__row').filter({ hasText: /^Filters/ }).click()
@@ -1129,25 +1138,44 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
     await expect(edge(page, 'st1')).toHaveCount(0)
   })
 
-  test('forced-colors: the Filters ON toggle keeps a tell that survives the colour override (§LGR9)', async ({ page }) => {
+  // the workbench (docs/workbench.md §WB2): Filters is a View row, whose ON
+  // tell is a check mark — a SHAPE, which no colour override removes (the
+  // canvas rail's toggle relied on the Highlight pair instead)
+  test('forced-colors: the Filters ON row keeps a tell that survives the colour override (§LGR9)', async ({ page }) => {
     await page.emulateMedia({ forcedColors: 'active' })
     await loadRT(page)
-    const style = () =>
-      filterBtn(page).evaluate((el) => {
-        const s = getComputedStyle(el)
-        return { outline: `${s.outlineStyle} ${s.outlineWidth}`, background: s.backgroundColor, color: s.color }
+    expect(await page.evaluate(() => matchMedia('(forced-colors: active)').matches), 'the colour override is on').toBe(true)
+    const mark = async () => {
+      const row = await viewRow(page, 'filter')
+      const r = await row.evaluate((el) => {
+        const svg = el.querySelector('.wb-menu__mark svg')
+        if (!svg) return { pressed: el.getAttribute('aria-pressed'), check: 0, drawn: null }
+        // what the override leaves of the mark: its size on screen, the colour
+        // its strokes (or fills) are painted in, and the ground under the row
+        const b = svg.getBoundingClientRect()
+        const shape = svg.querySelector('path, polyline, line, rect, circle') as SVGElement | null
+        const cs = shape ? getComputedStyle(shape) : null
+        const ink = cs ? (cs.stroke && cs.stroke !== 'none' ? cs.stroke : cs.fill) : null
+        let ground = 'rgba(0, 0, 0, 0)'
+        for (let n: Element | null = el; n && ground === 'rgba(0, 0, 0, 0)'; n = n.parentElement) ground = getComputedStyle(n).backgroundColor
+        const vis = getComputedStyle(svg)
+        return { pressed: el.getAttribute('aria-pressed'), check: 1, drawn: { w: Math.round(b.width), h: Math.round(b.height), ink, ground, shown: vis.visibility === 'visible' && vis.opacity === '1' } }
       })
-    const off = await style()
-    expect(off.outline).toMatch(/none|0px/)
-    await filterBtn(page).click()
-    await expect(filterBtn(page)).toHaveAttribute('aria-pressed', 'true')
-    await page.mouse.move(640, 700)
-    const on = await style()
-    // the system Highlight / HighlightText pair, not an outline (see the Focus
-    // toggle test above and the forced-colors block at the end of this spec)
-    expect(on.background).not.toBe(off.background)
-    expect(on.color).not.toBe(off.color)
-    expect(on.outline).toMatch(/none|0px/)
+      await page.locator('.toolbar__actions .wb-viewmenu > .wb-mb').click()
+      return r
+    }
+    expect(await mark()).toEqual({ pressed: 'false', check: 0, drawn: null })
+    await pressViewRow(page, 'filter')
+    await expect(page.locator('.lgr-filter')).toBeVisible()
+    const on = await mark()
+    expect({ pressed: on.pressed, check: on.check }).toEqual({ pressed: 'true', check: 1 })
+    // the check mark is drawn under the override: on screen, at its size, in an
+    // ink that is not the ground it sits on (nor transparent)
+    expect(on.drawn!.shown, 'the mark is shown').toBe(true)
+    expect(on.drawn!.w, 'the mark has its width').toBeGreaterThanOrEqual(8)
+    expect(on.drawn!.h, 'the mark has its height').toBeGreaterThanOrEqual(8)
+    expect(on.drawn!.ink, 'the mark is painted').not.toMatch(/^(none|transparent|rgba\(0, 0, 0, 0\))$/)
+    expect(on.drawn!.ink, 'the mark’s ink differs from the ground under it').not.toBe(on.drawn!.ground)
   })
 })
 
@@ -1464,6 +1492,14 @@ test.describe('LGR Slice 3 — run distinction (evaluated vs effective)', () => 
     // before the pixels so the shot cannot quietly lose a cue again:
     for (const id of head.firedNodeIds) await expectHeldWave(page, id)
     for (const id of head.activatedNodeIds.filter((n) => !head.firedNodeIds.includes(n))) await expect(hasEval(page, id)).toHaveCount(1)
+    // every node whole in the 664 x 548 pane (Iso is the idle cell): the scene is
+    // 724 px wide at zoom 1, so 0.9 (still L2, src/components/lod.ts), then centred
+    await page.evaluate(() => {
+      const rf = (window as unknown as { __loop: { rf: { getViewport: () => { x: number; y: number }; setViewport: (v: object, o: object) => void } } }).__loop.rf
+      const v = rf.getViewport()
+      rf.setViewport({ x: v.x, y: v.y, zoom: 0.9 }, { duration: 0 })
+    })
+    await frameInPane(page)
     await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'run-distinction-states'))
   })
 
@@ -1556,9 +1592,7 @@ const frameHead = (page: Page) =>
     return { frames: s.frames.map((f) => ({ ...f })), toolArmed: s.toolArmed, selectedId: s.selectedId }
   })
 
-const frameToolBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-frame')
-const activityBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-activity')
-const clearFramesBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-frame-clear')
+const frameToolBtn = (page: Page) => toolButton(page, 'frame')
 
 /** drag on the pane from one node's centre-ish to another's, padded out, so the
  *  rect fully encloses the nodes between (a real mouse drag — not a synthetic
@@ -1566,6 +1600,86 @@ const clearFramesBtn = (page: Page) => page.locator('.react-flow__controls-butto
 async function drawFrame(page: Page, fromId: string, toId: string, pad = 40) {
   const a = (await node(page, fromId).boundingBox())!
   const b = (await node(page, toId).boundingBox())!
+  const x1 = Math.min(a.x, b.x) - pad
+  const y1 = Math.min(a.y, b.y) - pad
+  const x2 = Math.max(a.x + a.width, b.x + b.width) + pad
+  const y2 = Math.max(a.y + a.height, b.y + b.height) + pad
+  await page.mouse.move(x1, y1)
+  await page.mouse.down()
+  await page.mouse.move((x1 + x2) / 2, (y1 + y2) / 2, { steps: 4 })
+  await page.mouse.move(x2, y2, { steps: 4 })
+  await page.mouse.up()
+}
+
+/** drawFrame for a test whose subject is what happens AFTER a frame exists:
+ *  the press must land on the empty canvas (the pane the armed tool listens
+ *  on), not on another frame's title or border. The first pad from `pad` up
+ *  whose start point is the pane is used; none ⇒ the test fails here. */
+async function drawFrameFromCanvas(page: Page, fromId: string, toId: string, pad = 24) {
+  const a = (await node(page, fromId).boundingBox())!
+  const b = (await node(page, toId).boundingBox())!
+  for (let p = pad; p <= pad + 48; p += 8) {
+    const x = Math.min(a.x, b.x) - p
+    const y = Math.min(a.y, b.y) - p
+    const onPane = await page.evaluate(([px, py]) => !!document.elementFromPoint(px, py)?.classList.contains('react-flow__pane'), [x, y] as const)
+    if (onPane) return drawFrame(page, fromId, toId, p)
+  }
+  throw new Error(`no start point on the empty canvas near ${fromId} (pads ${pad}…${pad + 48})`)
+}
+
+/** every given element is drawn and whole inside the `.react-flow` pane */
+async function expectWholeInPane(page: Page, items: Locator[]) {
+  const pane = (await page.locator('.react-flow').boundingBox())!
+  for (const l of items) {
+    const b = await l.boundingBox()
+    expect(b, `${l} is drawn`).not.toBeNull()
+    const whole = b!.x >= pane.x && b!.y >= pane.y && b!.x + b!.width <= pane.x + pane.width && b!.y + b!.height <= pane.y + pane.height
+    expect(whole, `${l} (${Math.round(b!.x)},${Math.round(b!.y)} ${Math.round(b!.width)}×${Math.round(b!.height)}) is whole in the pane`).toBe(true)
+  }
+}
+
+/** the largest zoom up to `max` at which every node (with all it draws) and
+ *  every `extra` element is whole in the pane, 16 px clear of its edges; sets
+ *  it, centred, and returns it. Elements in the viewport portal scale with the
+ *  zoom, so one measurement gives the flow extent. */
+async function fitWholeInPane(page: Page, extra: string, max: number): Promise<number> {
+  const z = await page.evaluate(
+    ({ extra, max }) => {
+      const rf = (window as unknown as { __loop: { rf: { getViewport: () => { x: number; y: number; zoom: number }; setViewport: (v: unknown, o: unknown) => void } } }).__loop.rf
+      const v = rf.getViewport()
+      const pane = document.querySelector('.react-flow')!.getBoundingClientRect()
+      const els = [...[...document.querySelectorAll('.react-flow__node')].flatMap((n) => [n, ...n.querySelectorAll('*')]), ...document.querySelectorAll(extra)]
+      const rs = els.map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0)
+      const toFlowX = (x: number) => (x - pane.left - v.x) / v.zoom
+      const toFlowY = (y: number) => (y - pane.top - v.y) / v.zoom
+      const l = toFlowX(Math.min(...rs.map((r) => r.left))), r = toFlowX(Math.max(...rs.map((r) => r.right)))
+      const t = toFlowY(Math.min(...rs.map((r) => r.top))), b = toFlowY(Math.max(...rs.map((r) => r.bottom)))
+      const zoom = Math.min(max, Math.floor(Math.min((pane.width - 32) / (r - l), (pane.height - 32) / (b - t)) * 100) / 100)
+      rf.setViewport({ x: Math.round(pane.width / 2 - ((l + r) / 2) * zoom), y: Math.round(pane.height / 2 - ((t + b) / 2) * zoom), zoom }, { duration: 0 })
+      return zoom
+    },
+    { extra, max },
+  )
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+  await frameInPane(page, { extra })
+  return z
+}
+
+/** a node's visible extent on screen: its box and its outside name */
+async function visibleBox(page: Page, id: string) {
+  return node(page, id).evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    const lab = el.querySelector('.nodef__label')?.getBoundingClientRect()
+    const b = lab && lab.width > 0 ? lab : r
+    const x0 = Math.min(r.left, b.left), y0 = Math.min(r.top, b.top)
+    return { x: x0, y: y0, width: Math.max(r.right, b.right) - x0, height: Math.max(r.bottom, b.bottom) - y0 }
+  })
+}
+
+/** drawFrame around what a user sees: the nodes' boxes AND their names */
+async function drawFrameAround(page: Page, fromId: string, toId: string, pad = 40) {
+  const a = await visibleBox(page, fromId)
+  const b = await visibleBox(page, toId)
   const x1 = Math.min(a.x, b.x) - pad
   const y1 = Math.min(a.y, b.y) - pad
   const x2 = Math.max(a.x + a.width, b.x + b.width) + pad
@@ -1742,6 +1856,9 @@ test.describe('LGR Slice 4a — transient group frames', () => {
   })
 
   test('a node inside a frame is still selectable; the border selects the frame; the interior click clears it', async ({ page }) => {
+    // the wide frame's top-right interior lies past a 664 px canvas (1280 × 800
+    // in the workbench, 2026-10-20)
+    await page.setViewportSize(WORKBENCH_ROOMY_VIEWPORT)
     await load(page)
     await frameToolBtn(page).click()
     await drawFrame(page, 'a', 'c', 50) // wide frame over a, b, c
@@ -1790,9 +1907,9 @@ test.describe('LGR Slice 4a — transient group frames', () => {
     await frameToolBtn(page).click()
     await drawFrame(page, 'c', 'c', 40)
     expect((await frameHead(page)).frames).toHaveLength(2)
-    await clearFramesBtn(page).click()
+    await (await menuRow(page, 'edit', 'Clear all frames')).click()
     expect((await frameHead(page)).frames).toHaveLength(0)
-    await expect(clearFramesBtn(page)).toHaveCount(0) // the button hides with no frames
+    expect((await menuRowState(page, 'edit', 'Clear all frames')).enabled).toBe(false) // the button hides with no frames
   })
 
   test('labels — rename, empty ⇒ default, duplicates ok, deleted number not reused; a graph swap clears frames + resets the counter', async ({ page }) => {
@@ -1874,7 +1991,7 @@ test.describe('LGR Slice 4a — transient group frames', () => {
     )
     expect((await frameHead(page)).frames, 'kept across sim Reset').toHaveLength(1)
 
-    await resetViewBtn(page).click()
+    await pressViewRow(page, 'reset')
     expect((await frameHead(page)).frames, 'kept across Reset view').toHaveLength(1)
 
     const digestBefore = await gDigest(page)
@@ -1904,22 +2021,22 @@ test.describe('LGR Slice 4a — transient group frames', () => {
 test.describe('LGR Slice 4a — the opt-in Activity overlay', () => {
   test('off by default; the toggle persists and survives sim Reset', async ({ page }) => {
     await load(page)
-    await expect(activityBtn(page)).toHaveAttribute('aria-pressed', 'false')
+    expect(await viewRowPressed(page, 'activity')).toBe('false')
     expect(await page.evaluate(() => localStorage.getItem('loop-studio:activity-overlay'))).not.toBe('1')
 
-    await activityBtn(page).click()
-    await expect(activityBtn(page)).toHaveAttribute('aria-pressed', 'true')
+    await pressViewRow(page, 'activity')
+    expect(await viewRowPressed(page, 'activity')).toBe('true')
     expect(await page.evaluate(() => localStorage.getItem('loop-studio:activity-overlay'))).toBe('1')
 
     await page.evaluate(() =>
       (window as unknown as { __loop: { sim: { getState: () => { reset: () => void } } } }).__loop.sim.getState().reset(),
     )
-    await expect(activityBtn(page), 'toggle survives Reset').toHaveAttribute('aria-pressed', 'true')
+    expect(await viewRowPressed(page, 'activity'), 'toggle survives Reset').toBe('true')
   })
 
   test('with the overlay ON, stepping tints the parts that were `effective`; sim Reset clears the tint but keeps the toggle; a graph reload clears it', async ({ page }) => {
     await loadRun(page)
-    await activityBtn(page).click()
+    await pressViewRow(page, 'activity')
     for (let i = 0; i < 3; i++) await commitOneStep(page)
 
     const head = await simHead(page)
@@ -1959,7 +2076,7 @@ test.describe('LGR Slice 4a — the opt-in Activity overlay', () => {
       (window as unknown as { __loop: { sim: { getState: () => { reset: () => void } } } }).__loop.sim.getState().reset(),
     )
     await expect(anyTint()).toHaveCount(0)
-    await expect(activityBtn(page)).toHaveAttribute('aria-pressed', 'true')
+    expect(await viewRowPressed(page, 'activity')).toBe('true')
 
     // a graph reload also clears it
     await commitOneStep(page)
@@ -1970,7 +2087,7 @@ test.describe('LGR Slice 4a — the opt-in Activity overlay', () => {
 
   test('a state-event edge gets the tint too; a fired-neighbour edge with no event of its own does NOT (§LGR5.1)', async ({ page }) => {
     await loadAct(page)
-    await activityBtn(page).click()
+    await pressViewRow(page, 'activity')
     for (let i = 0; i < 3; i++) await commitOneStep(page)
 
     // sanity: what the engine actually reported this step
@@ -2005,7 +2122,7 @@ test.describe('LGR Slice 4a — the opt-in Activity overlay', () => {
 
     // ── pause ──────────────────────────────────────────────────────────────
     await loadRun(page)
-    await activityBtn(page).click()
+    await pressViewRow(page, 'activity')
     for (let i = 0; i < 2; i++) await commitOneStep(page)
     expect(await page.evaluate(() => (window as unknown as { __loop: { sim: { getState: () => { status: string } } } }).__loop.sim.getState().status)).toBe('paused')
     expect(await historyLen()).toBeGreaterThan(0)
@@ -2018,7 +2135,7 @@ test.describe('LGR Slice 4a — the opt-in Activity overlay', () => {
     // ── a normal end ──────────────────────────────────────────────────────
     await importGraph(page, GRAPH_END) // fresh graph clears history…
     await expect(anyTint()).toHaveCount(0)
-    await expect(activityBtn(page)).toHaveAttribute('aria-pressed', 'true') // …toggle kept
+    expect(await viewRowPressed(page, 'activity')).toBe('true') // …toggle kept
     await commitOneStep(page)
     expect(await page.evaluate(() => (window as unknown as { __loop: { sim: { getState: () => { status: string } } } }).__loop.sim.getState().status)).toBe('ended')
     const endHistory = await historyLen()
@@ -2035,13 +2152,13 @@ test.describe('LGR Slice 4a — the opt-in Activity overlay', () => {
     )
     expect(await historyLen()).toBe(0)
     await expect(anyTint()).toHaveCount(0)
-    await expect(activityBtn(page)).toHaveAttribute('aria-pressed', 'true')
+    expect(await viewRowPressed(page, 'activity')).toBe('true')
   })
 
   test('forced-colors: an active node = a dashed SHAPE outline, an active edge = a dashed stroke; the run cues still sit on top (§LGR6-cues / §LGR9)', async ({ page }) => {
     await page.emulateMedia({ forcedColors: 'active' })
     await loadRun(page)
-    await activityBtn(page).click()
+    await pressViewRow(page, 'activity')
     for (let i = 0; i < 2; i++) await commitOneStep(page)
     const head = await simHead(page)
 
@@ -2082,7 +2199,7 @@ test.describe('LGR Slice 4a — the opt-in Activity overlay', () => {
   test('reduced-motion: the activity tint has no transition or animation (§LGR6-cues)', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await loadRun(page)
-    await activityBtn(page).click()
+    await pressViewRow(page, 'activity')
     for (let i = 0; i < 2; i++) await commitOneStep(page)
     const head = await simHead(page)
 
@@ -2115,15 +2232,18 @@ test.describe('LGR Slice 4a — the opt-in Activity overlay', () => {
         { duration: 0 },
       ),
     )
-    await activityBtn(page).click()
+    await pressViewRow(page, 'activity')
     for (let i = 0; i < 3; i++) await commitOneStep(page)
 
     // two partly-overlapping frames via real pointer drags (the tool is one-shot):
-    // one across the top row, one running top→bottom that clips its right side
+    // one across the top row, one running top→bottom that clips its right side,
+    // each drawn around what is visible — bodies AND names (2026-10-22; the
+    // narrow frame whose title collides is kept on its own in "frames and
+    // outside names — kept cases")
     await frameToolBtn(page).click()
-    await drawFrame(page, 'feed', 'tank', 26)
+    await drawFrameAround(page, 'feed', 'tank', 26)
     await frameToolBtn(page).click()
-    await drawFrame(page, 'tank', 'gate0', 20)
+    await drawFrameAround(page, 'tank', 'gate0', 20)
     const fh = await frameHead(page)
     expect(fh.frames.length).toBe(2)
     // select the FIRST-drawn (earlier paint order) so its resize handle shows
@@ -2141,6 +2261,7 @@ test.describe('LGR Slice 4a — the opt-in Activity overlay', () => {
     await expect(node(page, 'gate0').locator('.nodef__activity')).toHaveCount(0)
     await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
 
+    await frameInPane(page, { extra: '.lgr-frame' }) // every node and both frames whole in the pane
     await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'frames-activity'))
   })
 })
@@ -2155,11 +2276,15 @@ test.describe('LGR Slice 4a — the opt-in Activity overlay', () => {
 //      its halo filled the `1 3` dash gaps on dense graphs (mmo: canvas-coloured
 //      samples along an active edge fell from 14–18 to 4–9). Under forced
 //      colours the dashes are the tell, so `filter: none`.
-test.describe('§LGR9 forced-colors — rail toggles keep a visible keyboard focus when pressed; the activity edge tell stays dashed', () => {
+// the workbench (2026-10-20): the desktop has no rail. Its pressed toggles are
+// the status bar's Focus and the tool row's tools (docs/workbench.md §WB3,
+// §WB8) — same contract. Filters and the Activity overlay are View rows, whose
+// tell is a check mark (the Filters forced-colours test above).
+test.describe('§LGR9 forced-colors — the pressed toggles keep a visible keyboard focus when pressed; the activity edge tell stays dashed', () => {
   test.use({ contextOptions: { forcedColors: 'active' } })
 
-  const RAIL = ['rf-focus', 'rf-filter', 'rf-frame', 'rf-activity'] as const
-  const railBtn = (page: Page, cls: string) => page.locator(`.react-flow__controls-button.${cls}`)
+  const RAIL = ['focus', 'frame', 'region', 'lock'] as const
+  const railBtn = (page: Page, cls: string) => (cls === 'focus' ? statusFocus(page) : toolButton(page, cls as 'frame' | 'region' | 'lock'))
   const styleOf = (page: Page, cls: string) =>
     railBtn(page, cls).evaluate((el) => {
       const c = getComputedStyle(el)
@@ -2172,13 +2297,10 @@ test.describe('§LGR9 forced-colors — rail toggles keep a visible keyboard foc
         focusVisible: el.matches(':focus-visible'),
       }
     })
-  /** keyboard focus (so :focus-visible applies): focus the previous rail button by script, then Tab */
+  /** keyboard focus (so :focus-visible applies): focus it, step away and back by keyboard */
   const keyboardFocus = async (page: Page, cls: string) => {
-    await page.evaluate((c) => {
-      const b = document.querySelector(`.react-flow__controls-button.${c}`)!
-      const prev = b.previousElementSibling as HTMLElement | null
-      ;(prev ?? (b as HTMLElement)).focus()
-    }, cls)
+    await railBtn(page, cls).focus()
+    await page.keyboard.press('Shift+Tab')
     await page.keyboard.press('Tab')
     await expect(railBtn(page, cls)).toBeFocused()
   }
@@ -2352,8 +2474,8 @@ test.describe('§LGR9 forced-colors — rail toggles keep a visible keyboard foc
         inkOffs[id] = best!.ink
       }
       // overlay ON: the same edges now carry the tell
-      await activityBtn(page).click()
-      await expect(activityBtn(page)).toHaveAttribute('aria-pressed', 'true')
+      await pressViewRow(page, 'activity')
+      expect(await viewRowPressed(page, 'activity')).toBe('true')
       for (const id of edgeIds) await expect(edgePath(page, id)).toHaveClass(/lgr-active-tint/)
       await page.waitForTimeout(200)
       const onPng = await page.screenshot()
@@ -2383,7 +2505,7 @@ test.describe('§LGR9 forced-colors — rail toggles keep a visible keyboard foc
 // PR #142 — a dense/dark graph compounds the Activity edge glow's opaque
 // drop-shadow into a wash at hub nodes (many simultaneously-active edges
 // converging). Fixed by attenuating ONLY the glow's colour in dark theme via
-// a dedicated --activity-edge-glow token; light theme, the 26px blur-radius
+// a dedicated --accent-glow token; light theme, the 26px blur-radius
 // factor, and the whole activity-frequency calculation (frameGeom.ts) are
 // untouched by design. This locks the token contract with computed-style
 // checks (screenshots don't cover this — the fixtures above run light-theme
@@ -2399,23 +2521,25 @@ test.describe('Activity overlay edge glow — dark-only attenuation contract (§
       return c
     }, cssValue)
 
-  test('light theme: --activity-edge-glow resolves to the same colour as --signal-primary (unchanged, opaque)', async ({ page }) => {
+  test('light theme: --accent-glow resolves to the same colour as --accent (unchanged, opaque)', async ({ page }) => {
     await load(page)
     const [glow, signal] = await Promise.all([
-      resolvedColor(page, 'var(--activity-edge-glow)'),
-      resolvedColor(page, 'var(--signal-primary)'),
+      resolvedColor(page, 'var(--accent-glow)'),
+      resolvedColor(page, 'var(--accent)'),
     ])
     expect(glow).toBe(signal)
   })
 
-  test('dark theme: --activity-edge-glow is the attenuated rgba(118, 183, 174, 0.35) — distinct from the opaque --signal-primary', async ({ page }) => {
+  // the workbench palette (2026-10): the dark signal is the mock-up's teal, and
+  // the glow keeps the same 0.35 attenuation of it
+  test('dark theme: --accent-glow is the attenuated rgba(62, 193, 174, 0.35) — distinct from the opaque --accent', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' })
     await load(page)
     const [glow, signal] = await Promise.all([
-      resolvedColor(page, 'var(--activity-edge-glow)'),
-      resolvedColor(page, 'var(--signal-primary)'),
+      resolvedColor(page, 'var(--accent-glow)'),
+      resolvedColor(page, 'var(--accent)'),
     ])
-    expect(glow).toBe('rgba(118, 183, 174, 0.35)')
+    expect(glow).toBe('rgba(62, 193, 174, 0.35)')
     expect(glow).not.toBe(signal)
   })
 
@@ -2444,12 +2568,12 @@ test.describe('Activity overlay edge glow — dark-only attenuation contract (§
   test('a real active edge in dark theme carries the attenuated glow colour end to end', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' })
     await loadAct(page)
-    await activityBtn(page).click()
+    await pressViewRow(page, 'activity')
     await commitOneStep(page)
     const rf = edgePath(page, 'rf')
     await expect(rf).toHaveClass(/lgr-active-tint/)
     const filter = await rf.evaluate((el) => getComputedStyle(el).filter)
-    expect(filter).toContain('rgba(118, 183, 174, 0.35)')
+    expect(filter).toContain('rgba(62, 193, 174, 0.35)')
   })
 })
 
@@ -2465,7 +2589,7 @@ test.describe('LGR Slice 4a — a Filter that hides a frame’s nodes leaves the
     const rect0 = before.frames[0].rect
 
     // hide the `currency` resource type → `gold` (and its incident edges) go
-    await filterBtn(page).click()
+    await pressViewRow(page, 'filter')
     await filterRow(page, 'currency').check()
     await expect(node(page, 'gold')).toHaveCount(0)
 
@@ -2493,8 +2617,8 @@ test.describe('LGR Slice 4a — mobile (the More sheet)', () => {
 
     // §LGR9 — frame drawing + the activity toggle are NOT canvas controls on mobile
     await expect(frameToolBtn(page)).toHaveCount(0)
-    await expect(activityBtn(page)).toHaveCount(0)
-    await expect(clearFramesBtn(page)).toHaveCount(0)
+    await expect(page.locator('.react-flow__controls-button.rf-activity')).toHaveCount(0)
+    await expect(page.locator('.react-flow__controls-button.rf-frame-clear')).toHaveCount(0)
 
     // an existing (session) frame still RENDERS on the mobile canvas
     await page.evaluate(() =>
@@ -2571,9 +2695,6 @@ const afHead = (page: Page) =>
     const s = (window as unknown as { __loop: { autoFrame: { getState: () => AFHead } } }).__loop.autoFrame.getState()
     return { autoFrames: s.autoFrames.map((f) => ({ ...f, members: [...f.members] })), lastSignature: s.lastSignature }
   })
-const suggestBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-suggest')
-const clearAllBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-frame-clear')
-const clearSuggestedBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-suggest-clear')
 
 async function loadAF(page: Page): Promise<void> {
   await openApp(page)
@@ -2599,9 +2720,9 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
     const digest0 = await gDigest(page)
     const canUndo0 = await page.evaluate(() => (window as unknown as { __loop: { graph: { getState: () => { canUndo: boolean } } } }).__loop.graph.getState().canUndo)
 
-    await expect(suggestBtn(page)).toBeVisible()
+    expect((await menuRowState(page, 'insert', 'Suggest frames')).enabled).toBe(true)
     await expect(page.locator('.lgr-frame--auto')).toHaveCount(0)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
 
     const h = await afHead(page)
     expect(h.autoFrames.length).toBe(2)
@@ -2612,7 +2733,7 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
       expect(f.members).not.toContain('r_a')
       expect(f.members.length).toBeGreaterThanOrEqual(3)
     }
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     const h2 = await afHead(page)
     expect(h2.autoFrames.map((f) => [f.rect, f.members])).toEqual(h.autoFrames.map((f) => [f.rect, f.members]))
     expect(await gDigest(page)).toBe(digest0)
@@ -2621,18 +2742,18 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
 
   test('re-Suggest replaces only the auto set; a manual frame is preserved (AF5 R3/R7)', async ({ page }) => {
     await loadAF(page)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     await frameToolBtn(page).click()
-    await drawFrame(page, 'b0_0', 'b0_5', 24)
+    await drawFrameFromCanvas(page, 'b0_0', 'b0_5', 24) // from the empty canvas, clear of the suggested frame's title
     expect((await frameHead(page)).frames.length).toBe(1)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     expect((await frameHead(page)).frames.length).toBe(1)
     expect((await afHead(page)).autoFrames.length).toBe(2)
   })
 
   test('rename an auto frame → promotes to a manual (solid) frame; a re-infer keeps it (AF5 R5)', async ({ page }) => {
     await loadAF(page)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     const beforeManual = (await frameHead(page)).frames.length
     await page.locator('.lgr-frame--auto .lgr-frame__label').first().click()
     await page.locator('.lgr-frame-props__name').fill('Combat')
@@ -2641,40 +2762,40 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
     const fh = await frameHead(page)
     expect(fh.frames.length).toBe(beforeManual + 1)
     expect(fh.frames.some((f) => f.label === 'Combat')).toBe(true)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     expect((await frameHead(page)).frames.some((f) => f.label === 'Combat')).toBe(true)
   })
 
   test('Dismiss removes one from the current set; the next Suggest may re-propose it (AF5 R8)', async ({ page }) => {
     await loadAF(page)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     expect((await afHead(page)).autoFrames.length).toBe(2)
     await page.locator('.lgr-frame--auto .lgr-frame__edge-hit--top').first().click()
     await page.locator('.lgr-frame--auto .lgr-frame__del').first().click()
     expect((await afHead(page)).autoFrames.length).toBe(1)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     expect((await afHead(page)).autoFrames.length).toBe(2)
   })
 
   test('Clear suggested frames removes only the auto set; Clear all removes both (AF5 R4)', async ({ page }) => {
     await loadAF(page)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     await frameToolBtn(page).click()
-    await drawFrame(page, 'b0_0', 'b0_5', 24)
+    await drawFrameFromCanvas(page, 'b0_0', 'b0_5', 24) // from the empty canvas, clear of the suggested frame's title
     expect((await frameHead(page)).frames.length).toBe(1)
     expect((await afHead(page)).autoFrames.length).toBe(2)
-    await clearSuggestedBtn(page).click()
+    await (await menuRow(page, 'edit', 'Clear suggested frames')).click()
     expect((await afHead(page)).autoFrames.length).toBe(0)
     expect((await frameHead(page)).frames.length).toBe(1)
-    await suggestBtn(page).click()
-    await clearAllBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
+    await (await menuRow(page, 'edit', 'Clear all frames')).click()
     expect((await afHead(page)).autoFrames.length).toBe(0)
     expect((await frameHead(page)).frames.length).toBe(0)
   })
 
   test('composition: Filter hides every framed node → the auto frame + rect + count unchanged; Step / Reset / Activity never recompute (AF-INV-1/2/4)', async ({ page }) => {
     await loadAF(page)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     const before = await afHead(page)
     expect(before.autoFrames.length).toBe(2)
 
@@ -2690,12 +2811,12 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
       (window as unknown as { __loop: { filter: { getState: () => { toggleNodeKind: (k: string) => void } } } }).__loop.filter.getState().toggleNodeKind('pool'),
     )
 
-    await activityBtn(page).click()
+    await pressViewRow(page, 'activity')
     await page.evaluate(() => (window as unknown as { __loop: { sim: { getState: () => { stepOnce: () => void; reset: () => void } } } }).__loop.sim.getState().stepOnce())
     await page.evaluate(() => (window as unknown as { __loop: { sim: { getState: () => { stepOnce: () => void; reset: () => void } } } }).__loop.sim.getState().reset())
     expect((await afHead(page)).autoFrames.map((f) => f.rect)).toEqual(before.autoFrames.map((f) => f.rect))
 
-    await resetViewBtn(page).click()
+    await pressViewRow(page, 'reset')
     expect((await afHead(page)).autoFrames.length).toBe(2)
     await importGraph(page, GRAPH_AF)
     expect((await afHead(page)).autoFrames.length).toBe(0)
@@ -2703,24 +2824,24 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
 
   test('the "recompute available" hint appears after a structural edit and clears on re-Suggest (AF4.3)', async ({ page }) => {
     await loadAF(page)
-    await suggestBtn(page).click()
-    await expect(suggestBtn(page)).not.toHaveClass(/is-stale/)
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
+    expect((await menuRowState(page, 'insert', 'Suggest frames')).note).toBeNull()
     await page.evaluate(() => {
       const G = (window as unknown as { __loop: { graph: { getState: () => { nodes: { id: string; position: { x: number; y: number } }[] }; setState: (p: object) => void } } }).__loop.graph
       const nodes = G.getState().nodes.map((n) => (n.id === 'b0_0' ? { ...n, position: { x: n.position.x + 500, y: n.position.y } } : n))
       G.setState({ nodes })
     })
-    await expect(suggestBtn(page)).toHaveClass(/is-stale/)
-    await suggestBtn(page).click()
-    await expect(suggestBtn(page)).not.toHaveClass(/is-stale/)
+    expect((await menuRowState(page, 'insert', 'Suggest frames')).note).not.toBeNull()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
+    expect((await menuRowState(page, 'insert', 'Suggest frames')).note).toBeNull()
   })
 
   test('forced-colors: an auto frame border stays DASHED, distinct from a manual (solid) frame (AF-INV-6)', async ({ page }) => {
     await page.emulateMedia({ forcedColors: 'active' })
     await loadAF(page)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     await frameToolBtn(page).click()
-    await drawFrame(page, 'b0_0', 'b0_5', 24)
+    await drawFrameFromCanvas(page, 'b0_0', 'b0_5', 24) // from the empty canvas, clear of the suggested frame's title
     const autoDash = await page.locator('.lgr-frame__fill--auto').first().evaluate((el) => getComputedStyle(el).strokeDasharray)
     const manualDash = await page.locator('.lgr-frame__fill:not(.lgr-frame__fill--auto)').first().evaluate((el) => getComputedStyle(el).strokeDasharray)
     expect(autoDash).not.toBe('none')
@@ -2730,24 +2851,24 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
 
   test('a Filter that hides framed nodes does NOT mark the auto set stale (review boundary 2)', async ({ page }) => {
     await loadAF(page)
-    await suggestBtn(page).click()
-    await expect(suggestBtn(page)).not.toHaveClass(/is-stale/)
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
+    expect((await menuRowState(page, 'insert', 'Suggest frames')).note).toBeNull()
     await page.evaluate(() =>
       (window as unknown as { __loop: { filter: { getState: () => { toggleNodeKind: (k: string) => void } } } }).__loop.filter.getState().toggleNodeKind('pool'),
     )
     await expect(node(page, 'b0_0')).toHaveCount(0)
-    await expect(suggestBtn(page)).not.toHaveClass(/is-stale/)
+    expect((await menuRowState(page, 'insert', 'Suggest frames')).note).toBeNull()
     const before = await afHead(page)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     expect((await afHead(page)).autoFrames.map((f) => [f.rect, f.members])).toEqual(before.autoFrames.map((f) => [f.rect, f.members]))
   })
 
   test('eligible drops below the floor after an edit — Suggest stays while a stale set exists, then clears to 0 and keeps manual frames (review boundary 1)', async ({ page }) => {
     await loadAF(page)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     expect((await afHead(page)).autoFrames.length).toBe(2)
     await frameToolBtn(page).click()
-    await drawFrame(page, 'b0_0', 'b0_5', 24)
+    await drawFrameFromCanvas(page, 'b0_0', 'b0_5', 24) // from the empty canvas, clear of the suggested frame's title
     expect((await frameHead(page)).frames.length).toBe(1)
 
     await page.evaluate(() => {
@@ -2758,14 +2879,14 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
         edges: G.getState().edges.filter((e) => keep.has(e.source) && keep.has(e.target)),
       })
     })
-    await expect(suggestBtn(page)).toBeVisible()
-    await expect(suggestBtn(page)).toHaveClass(/is-stale/)
-    await suggestBtn(page).click()
+    expect((await menuRowState(page, 'insert', 'Suggest frames')).enabled).toBe(true)
+    expect((await menuRowState(page, 'insert', 'Suggest frames')).note).not.toBeNull()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     expect((await afHead(page)).autoFrames.length).toBe(0)
     expect((await frameHead(page)).frames.length).toBe(1)
-    await expect(suggestBtn(page)).toHaveCount(0)
-    await expect(clearSuggestedBtn(page)).toHaveCount(0)
-    await clearAllBtn(page).click()
+    expect((await menuRowState(page, 'insert', 'Suggest frames')).enabled).toBe(false)
+    expect((await menuRowState(page, 'edit', 'Clear suggested frames')).enabled).toBe(false)
+    await (await menuRow(page, 'edit', 'Clear all frames')).click()
     expect((await frameHead(page)).frames.length).toBe(0)
   })
 
@@ -2773,11 +2894,16 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
   // now starts collapsed (timeline-series-contract §7), which would give the
   // framed canvas 200px more height. Each visual test opens it first so the
   // shot keeps measuring the frames, not the panel's default state.
-  test('VISUAL — auto-frames.png: fresh Suggest — dashed Area N frames, one selected (x + resize), the structural-only note, minimap hidden', async ({ page }) => {
+  // auto-frames: two shots (2026-10-22). The two suggested frames span about
+  // 1,115 px at the scene's L1 zoom 0.62; the 664 px pane at 1280 × 800 would
+  // need about 0.36 (L0) to hold both, which changes what is shown. So the
+  // zoom and the panels stay; shot 1 holds Area 1 selected (✕ + resize) and the
+  // structural-only note, shot 2 pans to Area 2, unselected, at the same zoom.
+  test('VISUAL — auto-frames.png + auto-frames-area2.png: fresh Suggest — dashed Area N frames, one selected (x + resize), the structural-only note, minimap hidden', async ({ page }) => {
     await loadAF(page)
     await ensureTimelineOpen(page)
     await page.addStyleTag({ content: '.react-flow__minimap,.react-flow__attribution{display:none!important}' })
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     await expect(page.locator('.lgr-frame--auto')).toHaveCount(2)
     await page.locator('.lgr-frame--auto .lgr-frame__edge-hit--top').first().click()
     await expect(page.locator('.lgr-frame--auto.is-selected .lgr-frame__resize')).toHaveCount(1)
@@ -2786,7 +2912,30 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
     await expect(page.locator('.lgr-frame--auto .lgr-frame__label')).toHaveText([/Area 1/, /Area 2/])
     await page.evaluate(() => window.getSelection()?.removeAllRanges())
     await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
+    expect(await page.evaluate(() => (window as unknown as { __loop: { rf: { getViewport: () => { zoom: number } } } }).__loop.rf.getViewport().zoom)).toBe(0.62)
+    const area1 = page.locator('.lgr-frame--auto').nth(0)
+    const area2 = page.locator('.lgr-frame--auto').nth(1)
+    await expectWholeInPane(page, [area1, area1.locator('.lgr-frame__label'), area1.locator('.lgr-frame__del'), area1.locator('.lgr-frame__resize'), page.locator('.lgr-suggest-note'), ...['b0_0', 'b0_5'].map((id) => node(page, id))])
     await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'auto-frames'))
+
+    // shot 2: Area 2 (unselected) at the same zoom, 24 px from the pane's left
+    // edge, so Area 1 (≈ 100 px to its left) is wholly out of the pane rather
+    // than cut at its edge
+    await frameInPane(page, { ids: ['b1_0', 'b1_1', 'b1_2', 'b1_3', 'b1_4', 'b1_5'] })
+    await page.evaluate(() => {
+      const L = (window as unknown as { __loop: { rf: { getViewport: () => { x: number; y: number; zoom: number }; setViewport: (v: unknown, o: unknown) => void }; autoFrame: { getState: () => { autoFrames: { shown: { x: number } }[] } } } }).__loop
+      const v = L.rf.getViewport()
+      L.rf.setViewport({ x: Math.round(24 - L.autoFrame.getState().autoFrames[1].shown.x * v.zoom), y: v.y, zoom: v.zoom }, { duration: 0 })
+    })
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+    await expect(area2).not.toHaveClass(/is-selected/)
+    await expectWholeInPane(page, [area2, area2.locator('.lgr-frame__label'), page.locator('.lgr-suggest-note')])
+    const pane = (await page.locator('.react-flow').boundingBox())!
+    for (const l of [area1, area1.locator('.lgr-frame__del'), area1.locator('.lgr-frame__resize')]) {
+      const b = (await l.boundingBox())!
+      expect(b.x + b.width <= pane.x, `${l} is wholly left of the pane`).toBe(true)
+    }
+    await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'auto-frames-area2'))
   })
 
   test('VISUAL — auto-frames-mixed.png: a promoted solid Group N frame + a manual frame overlapping an auto frame (auto behind manual) + the stale dot on Suggest', async ({ page }) => {
@@ -2794,11 +2943,15 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
     // one-time tier-1 "frame move" note (§CIH3 #9) in the top-centre slot over
     // the suggest note this baseline pins — mark it seen before the app mounts
     // (the shared fixture now seeds every canvas hint as seen — support/loop.ts `hintsSeen`)
+    // the frame drawn over b1_0..b1_5 needs them on a canvas as wide as the
+    // two-tier bar's (2026-10-20: past a 664 px one); the baseline is re-made
+    // in the final baseline pass
+    await page.setViewportSize(WORKBENCH_ROOMY_VIEWPORT)
     await page.goto('/')
     await loadAF(page)
     await ensureTimelineOpen(page)
     await page.addStyleTag({ content: '.react-flow__minimap,.react-flow__attribution{display:none!important}' })
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     await page.locator('.lgr-frame--auto .lgr-frame__label').first().click()
     await page.locator('.lgr-frame-props__name').press('Enter')
     await expect(page.locator('.lgr-frame:not(.lgr-frame--auto)')).toHaveCount(1)
@@ -2811,9 +2964,20 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
       const nodes = G.getState().nodes.map((n) => (n.id === 'b0_2' ? { ...n, position: { x: n.position.x + 400, y: n.position.y } } : n))
       G.setState({ nodes })
     })
-    await expect(suggestBtn(page)).toHaveClass(/is-stale/)
+    // the stale mark is on the Insert menu row now (the canvas rail button that
+    // carried the dot is gone), so it is checked here, not in the image
+    expect((await menuRowState(page, 'insert', 'Suggest frames')).note).not.toBeNull()
     await page.evaluate(() => window.getSelection()?.removeAllRanges())
     await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
+    // the capture (2026-10-22): this scene's own exception, 1600 × 940 → a
+    // 984 × 688 canvas clip (snapshot-policy `desktop-roomy-canvas-clip`), the
+    // panels as the product opens them. At the drag's zoom 0.62 the two rows
+    // and their frames (≈ 1,130 px) do not fit 984, so the zoom is lowered only
+    // as far as fitting needs — never below L1 (0.45) — and every node and
+    // frame, titles included, is whole in the pane
+    const z = await fitWholeInPane(page, '.lgr-frame', 0.62)
+    expect(z, `the capture zoom ${z} stays at L1`).toBeGreaterThanOrEqual(0.45)
+    test.info().annotations.push({ type: 'capture-zoom', description: String(z) })
     await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'auto-frames-mixed'))
   })
 })
@@ -2825,7 +2989,8 @@ test.describe('LGR Slice 4b — mobile (the More sheet)', () => {
   test('Suggest from the More sheet; Area frames render DISPLAY-ONLY (no edit / resize / x); the note dismisses; Clear suggested vs Clear all', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 780 })
     await loadAF(page)
-    await expect(suggestBtn(page)).toHaveCount(0)
+    // no canvas control on the phone (its rail never had Suggest frames)
+    await expect(page.locator('.react-flow__controls-button.rf-suggest')).toHaveCount(0)
 
     await more(page).click()
     await expect(sheetRow(page, /Suggest frames/)).toBeVisible()
@@ -2945,7 +3110,7 @@ test.describe('LGR frame colour (§FC)', () => {
       return { fill: cs.fill, stroke: cs.stroke, color: cs.color, borderColor: cs.borderTopColor, dash: cs.strokeDasharray }
     }, sel)
 
-  test('pick an accent on a selected MANUAL frame — border + label + fill carry it; aria-pressed moves; GraphDoc / digest / undo untouched', async ({ page }) => {
+  test('pick an accent on a selected MANUAL frame — border + label border + fill carry it, the title stays in ink; aria-pressed moves; GraphDoc / digest / undo untouched', async ({ page }) => {
     await loadAF(page)
     const digestBefore = await gDigest(page)
     const undoBefore = await fcCanUndo(page)
@@ -2965,7 +3130,10 @@ test.describe('LGR frame colour (§FC)', () => {
     const label = await cssOf(page, '.lgr-frame[data-color="violet"] .lgr-frame__label')
     expect(back?.stroke).toBe(back?.fill)
     expect(back?.fill).not.toBe('rgba(0, 0, 0, 0)')
-    expect(label?.color).toBe(label?.borderColor)
+    // the label's BORDER carries the accent (the back-rect's colour); its words
+    // stay in the chip's ink (2026-10-21: as text the accents read 3.3–4.0:1)
+    expect(label?.borderColor).toBe(back?.stroke)
+    expect(label?.color).toBe(await probe(page, 'var(--ink-2)'))
 
     await neutralSwatch(page).click()
     expect('color' in (fcFind(await frameHead(page), id) ?? {})).toBe(false)
@@ -2982,7 +3150,7 @@ test.describe('LGR frame colour (§FC)', () => {
 
   test('pick an accent on an AUTO frame -> it PROMOTES: leaves the auto set, becomes a SOLID manual Group frame with that colour (§AF5 R5)', async ({ page }) => {
     await loadAF(page)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     expect((await afHead(page)).autoFrames.length).toBe(2)
     const autoId = (await afHead(page)).autoFrames[0].id
     await fcSelect(page, autoId)
@@ -3001,7 +3169,7 @@ test.describe('LGR frame colour (§FC)', () => {
 
   test('open the picker on an AUTO frame then pick NEUTRAL / Esc — stays auto, rect + label unchanged (§AF5 R6)', async ({ page }) => {
     await loadAF(page)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     const before = await afHead(page)
     await fcSelect(page, before.autoFrames[0].id)
     await fcOpenProps(page, before.autoFrames[0].id)
@@ -3031,13 +3199,13 @@ test.describe('LGR frame colour (§FC)', () => {
   test('an accented manual frame survives Suggest + Clear suggested; Clear all removes it; a graph reload drops the colour', async ({ page }) => {
     await loadAF(page)
     await fcAdd(page, { x: 0, y: 0, w: 400, h: 200 }, 'Kept', 'rose')
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     expect((await frameHead(page)).frames.find((f) => f.label === 'Kept')?.color).toBe('rose')
-    await clearSuggestedBtn(page).click()
+    await (await menuRow(page, 'edit', 'Clear suggested frames')).click()
     expect((await afHead(page)).autoFrames.length).toBe(0)
     expect((await frameHead(page)).frames.find((f) => f.label === 'Kept')?.color).toBe('rose')
 
-    await clearAllBtn(page).click()
+    await (await menuRow(page, 'edit', 'Clear all frames')).click()
     expect((await frameHead(page)).frames).toHaveLength(0)
 
     await fcAdd(page, { x: 0, y: 0, w: 400, h: 200 }, 'Gone', 'slate')
@@ -3068,7 +3236,7 @@ test.describe('LGR frame colour (§FC)', () => {
   test('forced-colors: the accent is dropped; manual (solid) vs auto (dashed) vs selected (outline) are still all distinguishable', async ({ page }) => {
     await page.emulateMedia({ forcedColors: 'active' })
     await loadAF(page)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     await fcAdd(page, { x: 0, y: 0, w: 300, h: 160 }, 'M', 'rose')
     const manual = await cssOf(page, '.lgr-frame-back rect.lgr-frame__fill[data-color]')
     const auto = (await cssOf(page, '.lgr-frame-back rect.lgr-frame__fill--auto'))?.dash
@@ -3143,16 +3311,174 @@ async function loadFCVisual(page: Page, theme: 'light' | 'dark') {
   await page.emulateMedia({ colorScheme: theme })
   await loadAF(page)
   await ensureTimelineOpen(page) // the baselines' canvas height (see the auto-frames note)
-  await suggestBtn(page).click()
-  await fcAdd(page, { x: -40, y: -70, w: 220, h: 150 }, 'Neutral')
-  await fcAdd(page, { x: 200, y: -70, w: 200, h: 150 }, 'Slate', 'slate')
-  await fcAdd(page, { x: 420, y: -70, w: 200, h: 150 }, 'Sage', 'sage')
-  await fcAdd(page, { x: -40, y: 110, w: 200, h: 150 }, 'Gold', 'gold')
-  await fcAdd(page, { x: 200, y: 110, w: 200, h: 150 }, 'Violet', 'violet')
-  const rose = await fcAdd(page, { x: 420, y: 110, w: 200, h: 150 }, 'Rose', 'rose')
+  await (await menuRow(page, 'insert', 'Suggest frames')).click()
+  // the frames a user draws around what they see: each top frame holds two
+  // pools whole, bodies and the names below them (2026-10-22 — the old rects,
+  // set for names inside the body, ran their borders through the names; that
+  // case is kept on its own in "frames and outside names — kept cases")
+  // (their tops clear the suggested frame's, so the two rows of chips do not
+  // touch: a chip is placed against names, not against another frame's chip)
+  await fcAdd(page, { x: -24, y: -48, w: 224, h: 148 }, 'Neutral')
+  await fcAdd(page, { x: 216, y: -48, w: 224, h: 148 }, 'Slate', 'slate')
+  await fcAdd(page, { x: 456, y: -48, w: 224, h: 148 }, 'Sage', 'sage')
+  await fcAdd(page, { x: -24, y: 116, w: 224, h: 140 }, 'Gold', 'gold')
+  await fcAdd(page, { x: 216, y: 116, w: 224, h: 140 }, 'Violet', 'violet')
+  const rose = await fcAdd(page, { x: 456, y: 116, w: 224, h: 140 }, 'Rose', 'rose')
   await fcSelect(page, rose)
   await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
 }
+
+// Two cases the frame-colours and frames-activity scenes used to carry, kept
+// on their own so a change to those scenes cannot hide them (2026-10-22):
+//   • a SAVED frame whose border runs through an outside name — the user's
+//     rectangle is kept as drawn (no product geometry moves a manual frame),
+//     the name stays above the frame and takes the pointer, on the border too;
+//   • a frame too narrow for its title — the chip falls back to its home over
+//     what is there (`data-placement="collides"`, frameChrome.ts `placeChip`),
+//     stays visible, and the frame can still be selected and opened.
+test.describe('frames and outside names — kept cases', () => {
+  type Box = { left: number; right: number; top: number; bottom: number }
+  const boxOf = (page: Page, sel: string) =>
+    page.locator(sel).evaluate((el): Box => {
+      const r = el.getBoundingClientRect()
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }
+    })
+  const hitAt = (page: Page, x: number, y: number) =>
+    page.evaluate(([px, py]) => {
+      const e = document.elementFromPoint(px, py) as HTMLElement | null
+      const n = e?.closest('.react-flow__node') as HTMLElement | null
+      if (n) return `node ${n.dataset.id}`
+      return e?.closest('.lgr-frame') ? `frame ${[...e!.classList].join('.')}` : `other ${e?.tagName ?? 'none'}`
+    }, [x, y] as const)
+
+  test('a saved frame across an outside name keeps its rect; the name stays above it and takes the pointer, on the border too', async ({ page }) => {
+    await loadAF(page)
+    // a one-line name wide enough to sit on both sides of a 12 px border strip
+    await page.evaluate(() => {
+      const G = (window as unknown as { __loop: { graph: { getState: () => { nodes: { id: string; data: object }[] }; setState: (p: object) => void } } }).__loop.graph
+      G.setState({ nodes: G.getState().nodes.map((n) => (n.id === 'b0_2' ? { ...n, data: { ...n.data, label: 'Crossing name' } } : n)) })
+      ;(window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport({ x: 100, y: 200, zoom: 1 }, { duration: 0 })
+    })
+    const name = '.react-flow__node[data-id="b0_2"] .nodef__name'
+    await expect(page.locator(name)).toHaveText('Crossing name')
+    // the frame's left border at the name's centre (b0_2 at x 240: centre 268)
+    const rect = { x: 268, y: -60, w: 200, h: 170 }
+    const id = await fcAdd(page, rect, 'Crossing')
+    await fcSelect(page, null)
+    await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
+
+    // the case itself, failing closed: the border really runs through the name
+    const n = await boxOf(page, name)
+    const border = (await boxOf(page, `.lgr-frame:not(.lgr-frame--auto)`)).left
+    expect(n.left + 6 < border && border < n.right - 6, `the border (${border}) runs through the name (${n.left}…${n.right})`).toBe(true)
+
+    // away from the border the NAME takes the pointer and a click selects its node
+    const away = { x: n.left + 3, y: (n.top + n.bottom) / 2 }
+    expect(await hitAt(page, away.x, away.y)).toBe('node b0_2')
+    await page.mouse.click(away.x, away.y)
+    await expect(node(page, 'b0_2')).toHaveClass(/selected/)
+    expect((await frameHead(page)).selectedId).toBeNull()
+    // and on the border itself, where it runs through the name: the name is the
+    // node's hit region and stays above the frame's strip (measured 2026-10-22)
+    expect(await hitAt(page, border, away.y)).toBe('node b0_2')
+
+    // the user's rectangle is kept: through Suggest frames and a rename
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
+    await page.evaluate(() => {
+      const G = (window as unknown as { __loop: { graph: { getState: () => { nodes: { id: string; data: object }[] }; setState: (p: object) => void } } }).__loop.graph
+      G.setState({ nodes: G.getState().nodes.map((x) => (x.id === 'b0_2' ? { ...x, data: { ...x.data, label: 'Crossing name, renamed' } } : x)) })
+    })
+    await expect(page.locator(name)).toHaveText('Crossing name, renamed')
+    expect((await frameHead(page)).frames.find((f) => f.id === id)?.rect).toEqual(rect)
+  })
+
+  test('a title lying on another frame’s border takes the pointer where it is seen; the other frame still selects and moves from the rest of its border', async ({ page }) => {
+    await loadAF(page)
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport({ x: 300, y: -300, zoom: 1 }, { duration: 0 }),
+    )
+    // empty canvas below the graph. "Under" first, then "Over": Over is drawn
+    // later, so its left border strip (x 94…106) lies on Under's title
+    const under = await fcAdd(page, { x: 96, y: 700, w: 200, h: 100 }, 'Under')
+    const over = await fcAdd(page, { x: 100, y: 620, w: 300, h: 240 }, 'Over')
+    await fcSelect(page, null)
+    const frames = page.locator('.lgr-frame:not(.lgr-frame--auto)')
+    const chip = frames.nth(0).locator('.lgr-frame__label')
+    await expect(chip).toHaveText('Under')
+    const c = (await chip.boundingBox())!
+    const strip = (await frames.nth(1).locator('.lgr-frame__edge-hit--left').first().boundingBox())!
+    // the case, failing closed: Over's left border runs across Under's title
+    expect(strip.x < c.x + c.width && c.x < strip.x + strip.width, 'Over’s left strip crosses Under’s title').toBe(true)
+
+    // every point of the title answers as the title (a 5 × 3 grid, 1 px in)
+    const hits = await page.evaluate(([bx, by, bw, bh]) => {
+      const out: string[] = []
+      for (let ix = 0; ix < 5; ix++)
+        for (let iy = 0; iy < 3; iy++) {
+          const e = document.elementFromPoint(bx + 1 + ((bw - 2) * ix) / 4, by + 1 + ((bh - 2) * iy) / 2) as HTMLElement | null
+          out.push(e?.closest('.lgr-frame__label')?.textContent ?? `${e?.className}`)
+        }
+      return out
+    }, [c.x, c.y, c.width, c.height] as const)
+    // the chip's corners are rounded: a corner point may fall through to the pane
+    expect(hits.filter((h) => h !== 'Under' && !/react-flow__pane/.test(h)), hits.join(' | ')).toEqual([])
+    await page.mouse.click(c.x + 6, c.y + c.height / 2)
+    expect((await frameHead(page)).selectedId).toBe(under)
+    await expect(page.locator('.lgr-frame-props__name')).toBeVisible()
+    await page.keyboard.press('Escape')
+
+    // Over: selected, then moved, from its left border below the title
+    await fcSelect(page, null)
+    const pieces = frames.nth(1).locator('.lgr-frame__edge-hit--left')
+    const below = (await pieces.last().boundingBox())!
+    expect(below.y, 'the strip resumes below the title').toBeGreaterThanOrEqual(c.y + c.height - 1)
+    const px = below.x + below.width / 2
+    const py = below.y + Math.min(40, below.height / 2)
+    await page.mouse.click(px, py)
+    expect((await frameHead(page)).selectedId).toBe(over)
+    const r0 = (await frameHead(page)).frames.find((f) => f.id === over)!.rect
+    await page.mouse.move(px, py)
+    await page.mouse.down()
+    await page.mouse.move(px + 30, py + 10, { steps: 4 })
+    await page.mouse.move(px + 60, py + 20, { steps: 4 })
+    await page.mouse.up()
+    const r1 = (await frameHead(page)).frames.find((f) => f.id === over)!.rect
+    expect(r1.x, 'Over moved right').toBeGreaterThan(r0.x + 30)
+    expect([r1.w, r1.h]).toEqual([r0.w, r0.h])
+  })
+
+  test('a frame too narrow for its title: the chip stands at home over a name (collides), stays visible, and the frame is still selected and opened', async ({ page }) => {
+    await loadAct(page)
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport({ x: 220, y: 70, zoom: 0.9 }, { duration: 0 }),
+    )
+    // the two rects frames-activity's drags made (feed → tank, then the narrow
+    // tank → gate0 column)
+    await fcAdd(page, { x: -28.89, y: -28.89, w: 353.78, h: 113.78 })
+    const narrow = await fcAdd(page, { x: 217.78, y: -22.22, w: 100.44, h: 400.44 })
+    await fcSelect(page, null)
+    await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
+
+    const frames = page.locator('.lgr-frame:not(.lgr-frame--auto)')
+    await expect(frames).toHaveCount(2)
+    const chip = frames.nth(1).locator('.lgr-frame__label')
+    await expect(chip).toHaveText('Group 2')
+    await expect(chip).toHaveAttribute('data-placement', 'collides')
+    await expect(chip).toBeVisible()
+    expect(await chip.evaluate((el) => Number(getComputedStyle(el).opacity))).toBeGreaterThan(0.9)
+    // what it stands over: Tank's name (the documented fallback, not hidden)
+    const c = await chip.boundingBox()
+    const t = await page.locator('.react-flow__node[data-id="tank"] .nodef__label').boundingBox()
+    expect(c && t && c.x < t.x + t.width && t.x < c.x + c.width && c.y < t.y + t.height && t.y < c.y + c.height, 'the chip overlaps Tank’s name').toBe(true)
+
+    // still selected by a real click on its right strip, and opened from the chip
+    const strip = (await frames.nth(1).locator('.lgr-frame__edge-hit--right').boundingBox())!
+    await page.mouse.click(strip.x + strip.width / 2, strip.y + strip.height / 2)
+    expect((await frameHead(page)).selectedId).toBe(narrow)
+    await chip.click()
+    await expect(page.locator('.lgr-frame-props__name')).toBeVisible()
+  })
+})
 
 // docs/large-graph-readability-saved-frames.md (SF) / SEMANTICS-R5.md — LGR
 // Slice 5: a MANUAL frame's id / label / rect / color is DOCUMENT content that
@@ -3255,7 +3581,7 @@ test.describe('LGR Slice 5 — saved frames (SF / loop-revision/5)', () => {
 
   test('a pure suggested frame is NEVER persisted; a promoted one is (SF2 / boundary 6)', async ({ page }) => {
     await loadAF(page)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     expect((await afHead(page)).autoFrames.length).toBe(2)
     // wait out the autosave debounce — suggestions must not reach the record
     await page.waitForTimeout(500)
@@ -3314,7 +3640,7 @@ test.describe('LGR Slice 5 — saved frames (SF / loop-revision/5)', () => {
 
     // promote a suggestion = +1 ; undo removes ONLY the manual frame and does
     // NOT revive the suggestion (§SF11.2)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     const autoCount = (await afHead(page)).autoFrames.length
     expect(autoCount).toBeGreaterThan(0)
     const autoId = (await afHead(page)).autoFrames[0].id
@@ -3355,10 +3681,10 @@ test.describe('LGR Slice 5 — saved frames (SF / loop-revision/5)', () => {
     // pure Suggest / Dismiss / Clear suggested — no undo entry, digest + record frozen
     const recMid = await sfRecSettled(page)
     const mid = await sfState(page)
-    await suggestBtn(page).click()
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
     await page.locator('.lgr-frame--auto .lgr-frame__edge-hit').first().click()
     await page.locator('.lgr-frame--auto .lgr-frame__del').first().click() // Dismiss one
-    await clearSuggestedBtn(page).click()
+    await (await menuRow(page, 'edit', 'Clear suggested frames')).click()
     await page.waitForTimeout(450) // let any (unexpected) autosave fire
     const after = await sfState(page)
     expect(after.past).toBe(mid.past)
@@ -3624,7 +3950,7 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
     await setLocked(true)
     // #338 — the tool and "Clear all frames" stay in the rail, disabled
     await expect(frameToolBtn(page)).toBeDisabled()
-    await expect(clearFramesBtn(page)).toBeDisabled()
+    expect((await menuRowState(page, 'edit', 'Clear all frames')).enabled).toBe(false)
     // select via the strip still works
     await strip(page, 0).click({ position: { x: 10, y: 6 } })
     expect((await frameHead(page)).selectedId).toBe(id)
@@ -3663,7 +3989,7 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
     await load(page)
     await page.evaluate(() =>
       (window as unknown as { __loop: { autoFrame: { setState: (p: object) => void } } }).__loop.autoFrame.setState({
-        autoFrames: [{ id: 'auto_x', area: 1, label: '', rect: { x: -20, y: -20, w: 440, h: 100 }, members: ['a', 'b'] }],
+        autoFrames: [{ id: 'auto_x', area: 1, label: '', rect: { x: -20, y: -20, w: 440, h: 100 }, shown: { x: -20, y: -20, w: 440, h: 100 }, shownHeld: [], members: ['a', 'b'] }],
         lastSignature: 'seeded',
       }),
     )
@@ -3737,7 +4063,7 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
     await page.evaluate(() =>
       (window as unknown as { __loop: { autoFrame: { setState: (p: object) => void } } }).__loop.autoFrame.setState({
         // fully contains ma (0,170) and mid (260,170); NOT nested in OUTER (its bottom passes y=260)
-        autoFrames: [{ id: 'auto_x', area: 1, label: '', rect: { x: -20, y: 150, w: 440, h: 130 }, members: ['ma', 'mid'] }],
+        autoFrames: [{ id: 'auto_x', area: 1, label: '', rect: { x: -20, y: 150, w: 440, h: 130 }, shown: { x: -20, y: 150, w: 440, h: 130 }, shownHeld: [], members: ['ma', 'mid'] }],
         lastSignature: 'seeded',
       }),
     )

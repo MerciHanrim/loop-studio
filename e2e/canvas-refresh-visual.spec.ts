@@ -78,8 +78,36 @@ async function centreOn(page: Page, wx: number, wy: number, z: number): Promise<
   await page.waitForTimeout(120)
 }
 
+/** desktop: a world point centred in the canvas PANE (664 x 548 at the e2e
+ *  viewport since the workbench; the side panels make it differ from the page) */
+async function centreInPane(page: Page, wx: number, wy: number, z: number): Promise<void> {
+  await page.evaluate(
+    ({ z, wx, wy }) => {
+      const pane = document.querySelector('.react-flow')!.getBoundingClientRect()
+      ;(window as unknown as { __loop: { rf: { setViewport: (v: unknown, o: unknown) => void } } }).__loop.rf.setViewport(
+        { x: Math.round(pane.width / 2 - wx * z), y: Math.round(pane.height / 2 - wy * z), zoom: z },
+        { duration: 0 },
+      )
+    },
+    { z, wx, wy },
+  )
+  await page.waitForTimeout(120)
+}
+
+/** The desktop pane (664 x 548) cannot hold the whole fixture (world x 0 … 1148,
+ *  y -17 … 421) at L2: L2 frames its left half — Mint, the long-label pool,
+ *  the long-label Parameter and Δ drift — at zoom 1; L1 takes 0.55 (not 0.6,
+ *  still L1) so every node is whole; L0 keeps 0.32. The phone keeps the
+ *  page-centred framing it was approved with. */
+const DESKTOP: Record<Level, { x: number; y: number; z: number }> = {
+  L2: { x: 256, y: 202, z: 1 },
+  L1: { x: 574, y: 202, z: 0.55 },
+  L0: { x: 574, y: 202, z: 0.32 },
+}
+
 /** the long-content fixture centred at the given detail level */
-const setLod = (page: Page, level: Level) => centreOn(page, 480, 180, Z[level])
+const setLod = (page: Page, level: Level) =>
+  isMobileViewport(page) ? centreOn(page, 480, 180, Z[level]) : centreInPane(page, DESKTOP[level].x, DESKTOP[level].y, DESKTOP[level].z)
 
 const zoom = (page: Page) =>
   page.evaluate(() =>
@@ -103,8 +131,32 @@ async function expectStepped(page: Page, level: Level): Promise<void> {
   if (level !== 'L0') await expect(page.locator('.react-flow__node[data-id="gold"] .nodef__value')).toHaveText('3')
 }
 
-const shotOpts = (page: Page) => ({
-  mask: [page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')],
+/** desktop: the nodes the level frames are whole inside the pane (with all they draw) */
+async function expectFramed(page: Page, level: Level): Promise<void> {
+  if (isMobileViewport(page)) return
+  const ids = level === 'L2' ? ['src', 'gold', 'p_big', 'p_neg'] : ['src', 'gold', 'split', 'sink', 'p_big', 'p_neg', 'r_ok', 'r_bad']
+  const cut = await page.evaluate((ids) => {
+    const pane = document.querySelector('.react-flow')!.getBoundingClientRect()
+    return ids.filter((id) => {
+      const n = document.querySelector(`.react-flow__node[data-id="${id}"]`)!
+      return [n, ...n.querySelectorAll('*')]
+        .map((el) => el.getBoundingClientRect())
+        .some((r) => r.width > 0 && r.height > 0 && (r.left < pane.left || r.right > pane.right || r.top < pane.top || r.bottom > pane.bottom))
+    })
+  }, ids)
+  expect(cut, 'framed nodes cut by the pane edge').toEqual([])
+}
+
+// desktop L2 frames the long-label Parameter whole, and its unit `crédits/秒`
+// ends in a CJK glyph the runner's OS fonts render (the header note), so that
+// one line is masked at L2 (L1 / L0 draw no unit line); the phone's framing
+// never showed it
+const shotOpts = (page: Page, level?: Level) => ({
+  mask: [
+    page.locator('.react-flow__minimap'),
+    page.locator('.react-flow__attribution'),
+    ...(level === 'L2' && !isMobileViewport(page) ? [page.locator('.react-flow__node[data-id="p_big"] .nodef__sub')] : []),
+  ],
 })
 
 // Desktop shows selection + keyboard focus ON the canvas. Mobile's tap opens the
@@ -122,6 +174,11 @@ async function focusGold(page: Page): Promise<void> {
 const onCanvasSelection = (page: Page) => !isMobileViewport(page)
 
 // ── 1. the 12-cell pixel matrix ────────────────────────────────────────────
+// A known limit the L2 cells show on purpose (accepted 2026-10-22, not fixed;
+// docs/visual-snapshot-policy.md "Known limits a baseline shows on purpose"):
+// the long-label pool's content runs past MAX_NODE_H.pool, so its detail line
+// `≤ 2000000` lies below the body and the curved state connection `s_fb`
+// runs through it; the long-label Parameter's name rises above its body.
 for (const scheme of ['light', 'dark'] as const) {
   for (const level of ['L2', 'L1', 'L0'] as const) {
     test(`matrix — ${scheme} · ${level} (device = project)`, async ({ page }) => {
@@ -133,7 +190,8 @@ for (const scheme of ['light', 'dark'] as const) {
       await focusGold(page) // desktop: keyboard-focus AFTER the run-bar click stole it
       await setLod(page, level)
       await expectStepped(page, level)
-      await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, `matrix-${scheme}-${level}`, shotOpts(page)))
+      await expectFramed(page, level)
+      await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, `matrix-${scheme}-${level}`, shotOpts(page, level)))
     })
   }
 }
@@ -226,7 +284,8 @@ for (const level of ['L2', 'L0'] as const) {
     await expect(page.locator('.react-flow__node[data-id="r_bad"] .nodef--register .nodef__stroke')).toHaveAttribute('d', /^M14 12 H110 /)
 
     await expectStepped(page, level)
-    await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, `forced-colors-${level}`, shotOpts(page)))
+    await expectFramed(page, level)
+    await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, `forced-colors-${level}`, shotOpts(page, level)))
     await page.emulateMedia({ forcedColors: null })
   })
 }

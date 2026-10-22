@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { formatRegisterValue, readAccent, registerSeriesRuns, registersOfSnapshot } from '../model/model'
 import { resolveTimelineSeries } from '../model/timelineSeries'
 import { useGraphStore } from '../store/graphStore'
@@ -13,6 +13,7 @@ import { buildRunCsv } from './timelineCsv'
 import { DistributionPanel } from './DistributionPanel'
 import { PlayBar } from './PlayBar'
 import { TimelineSeriesPopover, type SeriesItem } from './TimelineSeriesPopover'
+import { TimelineStepReading, type StepReadingRow } from './TimelineStepReading'
 import { Icon } from '../ui/icons'
 
 // A — chart discipline: the canvas token, carried down onto the time axis.
@@ -20,14 +21,16 @@ import { Icon } from '../ui/icons'
 // only the latest point is marked. No area fill, no gradient.
 
 const PAD = { l: 40, r: 20, t: 14, b: 20 }
-// stable per-pool colour by index — reuses the approved node hues
+// stable per-series colour by index — the series' own tokens (index.css
+// `--series-*`, 2026-10-21), at the node hues' values and order they used to
+// read, so a series' colour no longer claims a node kind
 const HUES = [
-  '--hue-pool',
-  '--hue-gate',
-  '--hue-converter',
-  '--hue-drain',
-  '--hue-source',
-  '--hue-end',
+  '--series-1',
+  '--series-2',
+  '--series-3',
+  '--series-4',
+  '--series-5',
+  '--series-6',
 ]
 const colorFor = (i: number) => `var(${HUES[i % HUES.length]})`
 // docs/flow-colour-and-compact-nodes.md FC-6 — a Pool or Register with a flow
@@ -57,13 +60,15 @@ function exportRunCsv(pools: { id: string; label: string }[], series: { step: nu
 
 export function TimelineChart() {
   const t = useT()
-  // docs/timeline-series-contract.md §7 — screen state only, never persisted:
-  //   untouched + before any run -> collapsed
-  //   untouched + first run      -> auto-expand
-  //   user has toggled it once   -> automatic transitions stop permanently
-  // Automatic transitions only ever EXPAND; the panel never folds itself.
-  const [collapsed, setCollapsed] = useState(true)
-  const userTouched = useRef(false)
+  // docs/timeline-series-contract.md §7 — screen state only, never persisted.
+  // The workbench (2026-10, step 5): the analysis area is OPEN from the start
+  // at its default height (`ANALYSIS_DEFAULT`, the mock-up's 152 px); the
+  // user can fold it to the run row and open it again, and resize it with
+  // the splitter above it. Only the user folds or opens it: a run, a step or
+  // a Monte-Carlo result never changes it (Lumi, 2026-10-20). The one height
+  // change of its own is the Distribution view's minimum, below.
+  const [collapsed, setCollapsed] = useState(false)
+  const [height, setHeight] = useState(ANALYSIS_DEFAULT)
   const plotRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 760, h: 116 })
   const isMobile = useIsMobile()
@@ -85,12 +90,32 @@ export function TimelineChart() {
   const setMcView = useMcStore((s) => s.setView)
   const showDistribution = mcResult != null && mcView === 'distribution'
 
-  // §7 "first run": a live step, a running clock, or a completed Monte-Carlo
-  // run — the distribution view lives in this same panel.
-  const hasRunEver = stepIndex > 0 || status === 'running' || mcResult != null
-  useEffect(() => {
-    if (hasRunEver && collapsed && !userTouched.current) setCollapsed(false)
-  }, [hasRunEver, collapsed])
+  // The Distribution view needs more room than the live chart (Lumi,
+  // 2026-10-20: at the 152 px default its band chart was 0 px tall and its
+  // Pool select sat past the area's edge). Entering it raises an area lower
+  // than `DISTRIBUTION_MIN` to that height — never past what leaves the canvas
+  // its minimum, where the view scrolls inside instead — and leaves a taller
+  // one as it is; leaving it brings back the height from before. The fold, the
+  // run and the canvas's zoom are untouched.
+  const areaRef = useRef<HTMLDivElement>(null)
+  const heightBeforeDistribution = useRef<number | null>(null)
+  const areaMax = () => {
+    const col = areaRef.current?.closest('.canvas-col') as HTMLElement | null
+    return Math.max(ANALYSIS_MIN, (col?.clientHeight ?? 600) - ANALYSIS_CANVAS_MIN)
+  }
+  const areaMin = showDistribution ? Math.min(DISTRIBUTION_MIN, areaMax()) : ANALYSIS_MIN
+  useLayoutEffect(() => {
+    if (isMobile) return
+    if (showDistribution) {
+      if (heightBeforeDistribution.current == null) heightBeforeDistribution.current = height
+      const floor = Math.min(DISTRIBUTION_MIN, areaMax())
+      if (height < floor) setHeight(floor)
+    } else if (heightBeforeDistribution.current != null) {
+      setHeight(heightBeforeDistribution.current)
+      heightBeforeDistribution.current = null
+    }
+    // the switch alone decides; a resize inside the view is the splitter's
+  }, [showDistribution, isMobile])
 
   useEffect(() => {
     const el = plotRef.current
@@ -156,16 +181,14 @@ export function TimelineChart() {
   }, [series, nodes, registers.length])
   const currentOutcomes = currentRegisterOutcomes(nodes, useSimStore((s) => s.values))
 
-  // ── the legend: ALWAYS ONE ROW (contract §5). As many chips as fit at the
-  // current width; the selector trigger and the CSV control keep their place
-  // and the chips yield to them. The chip count is NOT the drawn count — the
-  // trigger says `n/total`, the chips are whatever fit.
-  //
-  // Measured, not guessed: an invisible probe row (`.timeline__probe`, out of
-  // flow, same font metrics) renders every drawn chip so its width is known
-  // in the same layout pass, and one `useLayoutEffect` picks the largest
-  // prefix that fits beside the two fixed controls. No wrap ever reaches the
-  // screen, and no loop of hide-one-and-remeasure.
+  // ── the legend: ALWAYS ONE ROW (contract §5), holding a chip for EVERY drawn
+  // series (Lumi, 2026-10-20: a drawn line's name is never reachable only
+  // through the selector or a step reading). The chips scroll sideways in their
+  // own strip beside the selector trigger and the CSV control, which keep
+  // their place; a side with chips past the edge is faded and shows how many
+  // ("+N", a click scrolls that way). The wheel scrolls the strip; a touch
+  // pans it; Tab moves through the chips and each focused chip scrolls into
+  // view.
   const chipText = (id: string, isReg: boolean): string => {
     if (isReg) {
       const cur = currentOutcomes.get(id)
@@ -182,43 +205,81 @@ export function TimelineChart() {
     [shownPools, shownRegisters],
   )
   const hasRun = series.length >= 2
-  const legendRef = useRef<HTMLSpanElement>(null)
-  const probeRef = useRef<HTMLSpanElement>(null)
+  const keysRef = useRef<HTMLSpanElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const csvRef = useRef<HTMLButtonElement>(null)
-  const [fit, setFit] = useState(0)
-  // bumped by the legend's ResizeObserver and by the web font landing — the
+  // how many chips lie past each edge of the strip, in reading order
+  const [past, setPast] = useState({ start: 0, end: 0 })
+  // bumped by the strip's ResizeObserver and by the web font landing — the
   // two width changes no rendered value announces
   const [measureTick, setMeasureTick] = useState(0)
   const seriesTotal = allSeriesIds.length
   const seriesShown = drawnIds.length
-  useLayoutEffect(() => {
-    const legend = legendRef.current
-    const probe = probeRef.current
-    const trig = triggerRef.current
-    const csv = csvRef.current
-    if (!legend || !probe || !trig || !csv || legend.hidden) return
-    const gap = parseFloat(getComputedStyle(legend).columnGap) || 12
-    const avail = legend.clientWidth - 1 // one px of slack against sub-pixel rounding
-    let used = trig.getBoundingClientRect().width + csv.getBoundingClientRect().width + gap
-    let n = 0
-    for (const el of probe.children) {
-      const w = el.getBoundingClientRect().width
-      if (used + gap + w > avail) break
-      used += gap + w
-      n++
+  const measurePast = useCallback(() => {
+    const keys = keysRef.current
+    if (!keys) return
+    // judged as if the marks were not there: they take room only while the
+    // strip overflows, so a strip that would fit WITHOUT them fits (else a
+    // window widened just enough would keep them, and the overflow, forever)
+    let marks = 0
+    for (const m of keys.parentElement?.querySelectorAll<HTMLElement>('.timeline__past') ?? []) marks += m.getBoundingClientRect().width + 6
+    if (keys.scrollWidth <= keys.clientWidth + marks + 1) {
+      setPast((prev) => (prev.start === 0 && prev.end === 0 ? prev : { start: 0, end: 0 }))
+      return
     }
-    setFit((prev) => (prev === n ? prev : n))
-    // everything a chip's, the trigger's or the CSV control's width depends on
-  }, [chips, series, currentOutcomes, seriesShown, seriesTotal, hasRun, showDistribution, size.w, measureTick, t])
+    const r = keys.getBoundingClientRect()
+    let left = 0
+    let right = 0
+    for (const el of keys.children) {
+      const b = el.getBoundingClientRect()
+      if (b.left < r.left - 1) left++
+      else if (b.right > r.right + 1) right++
+    }
+    const rtl = getComputedStyle(keys).direction === 'rtl'
+    const next = rtl ? { start: right, end: left } : { start: left, end: right }
+    setPast((prev) => (prev.start === next.start && prev.end === next.end ? prev : next))
+  }, [])
+  useLayoutEffect(measurePast, [measurePast, chips, series, currentOutcomes, seriesShown, seriesTotal, hasRun, showDistribution, size.w, measureTick, t])
   useEffect(() => {
-    const legend = legendRef.current
-    if (!legend || typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(() => setMeasureTick((x) => x + 1))
-    ro.observe(legend)
+    const keys = keysRef.current
+    if (!keys) return
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => setMeasureTick((x) => x + 1))
+    ro?.observe(keys)
     document.fonts?.ready.then(() => setMeasureTick((x) => x + 1)).catch(() => {})
-    return () => ro.disconnect()
+    // a vertical wheel scrolls the strip sideways while it has room to go
+    const onWheel = (e: WheelEvent) => {
+      if (keys.scrollWidth <= keys.clientWidth || Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return
+      const before = keys.scrollLeft
+      keys.scrollLeft += getComputedStyle(keys).direction === 'rtl' ? -e.deltaY : e.deltaY
+      if (keys.scrollLeft !== before) e.preventDefault()
+    }
+    keys.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      ro?.disconnect()
+      keys.removeEventListener('wheel', onWheel)
+    }
   }, [collapsed, isMobile, overlay])
+  /** one strip's width toward the reading START (-1) or END (+1) */
+  const scrollKeys = (toward: -1 | 1) => {
+    const keys = keysRef.current
+    if (!keys) return
+    const rtl = getComputedStyle(keys).direction === 'rtl'
+    keys.scrollBy({ left: toward * (rtl ? -1 : 1) * Math.max(40, keys.clientWidth * 0.8), behavior: reducedMotion() ? 'auto' : 'smooth' })
+  }
+  // a "+N" mark is pressed by pointer events, not `click`: a tap on it (a
+  // plain span) produced no click on a touch screen (measured 2026-10-20,
+  // 1024 × 768 touch); a press that moves more than 8 px is a drag, ignored
+  const pressAt = useRef<{ x: number; y: number } | null>(null)
+  const pressToScroll = (toward: -1 | 1) => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      pressAt.current = { x: e.clientX, y: e.clientY }
+    },
+    onPointerUp: (e: React.PointerEvent) => {
+      const at = pressAt.current
+      pressAt.current = null
+      if (at && Math.hypot(e.clientX - at.x, e.clientY - at.y) <= 8) scrollKeys(toward)
+    },
+  })
 
   // ── the series selector (contract §6)
   const popoverId = useId()
@@ -234,6 +295,18 @@ export function TimelineChart() {
     setSelectorOpen(false)
     if (opts.focusAnchor) triggerRef.current?.focus()
   }
+
+  // ── the step reading (./TimelineStepReading): a picked RECORDED step, held
+  // by its entry in `series` rather than by its number. A step appends to
+  // `series` and keeps every entry, so the reading stays while the run goes
+  // on; a reset, a restored snapshot or another document builds a new
+  // `series`, and the record's own trimming drops its oldest entries — in each
+  // case the entry is gone, and so is the reading. It never changes the run.
+  const [pinned, setPinned] = useState<(typeof series)[number] | null>(null)
+  const pinIdx = pinned ? series.indexOf(pinned) : -1
+  useEffect(() => {
+    if (pinned && pinIdx < 0) setPinned(null)
+  }, [pinned, pinIdx])
 
   const view = useMemo(() => {
     const { w, h } = size
@@ -383,6 +456,37 @@ export function TimelineChart() {
 
   const rm = reducedMotion()
   const { w, h } = view
+
+  /** the recorded step nearest to a point of the plot, by its x */
+  const nearestIdx = (px: number): number => {
+    let best = -1
+    let bestD = Infinity
+    series.forEach((pt, i) => {
+      const d = Math.abs(view.x(pt.step) - px)
+      if (d < bestD) {
+        bestD = d
+        best = i
+      }
+    })
+    return best
+  }
+  const pinAt = (i: number) => {
+    const pt = series[i]
+    if (pt) setPinned(pt)
+  }
+  const readingRows = (): StepReadingRow[] => {
+    if (pinIdx < 0) return []
+    const pt = series[pinIdx]
+    const outcomes = regByStep[pinIdx]?.outcomes
+    return [
+      ...shownPools.map((p) => ({ id: p.id, label: p.label, color: p.color, value: fmt(pt.values[p.id] ?? 0), isRegister: false })),
+      ...shownRegisters.map((r) => {
+        const o = outcomes?.get(r.id)
+        return { id: r.id, label: r.label, color: r.color, value: o && !o.invalid ? formatRegisterValue(o.value) : '—', isRegister: true }
+      }),
+    ]
+  }
+  const pinX = pinIdx >= 0 ? view.x(series[pinIdx].step) : null
   const panel = (
         <div className="timeline__panel">
           <div className="timeline__head">
@@ -410,20 +514,45 @@ export function TimelineChart() {
             ) : (
               <span>{t('timeline.title')}</span>
             )}
-            <span className="timeline__legend" ref={legendRef} hidden={showDistribution}>
-              {chips.slice(0, fit).map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={`timeline__key${c.isReg ? ' timeline__key--register' : ''}`}
-                  dir="auto"
-                  onClick={() => toggleTimelineSeries(c.id, drawnIds)}
-                  title={t('timeline.legend.hide', { label: c.label })}
-                >
-                  <span className="timeline__mark" style={{ background: c.color }} />
-                  {c.label} {chipText(c.id, c.isReg)}
-                </button>
-              ))}
+            <span className="timeline__legend" hidden={showDistribution}>
+              {/* every drawn series' chip, in a strip that scrolls sideways;
+                  "+N" on a side says how many lie past that edge (pointer
+                  only: Tab reaches every chip, and a screen reader reads them
+                  all) */}
+              {/* while the strip overflows at all, BOTH edge marks keep their
+                  room (an empty one is invisible), so the strip's width does
+                  not change as it scrolls — a mark appearing had narrowed it
+                  and left the last chip short of the edge (2026-10-20) */}
+              <span className={`timeline__keyrow${past.start ? ' has-past-start' : ''}${past.end ? ' has-past-end' : ''}`}>
+                {past.start || past.end ? (
+                  <span className={`timeline__past timeline__past--start${past.start ? '' : ' is-empty'}`} dir="ltr" aria-hidden="true" {...pressToScroll(-1)}>
+                    +{past.start || past.end}
+                  </span>
+                ) : null}
+                <span className="timeline__keys" ref={keysRef} onScroll={measurePast}>
+                  {chips.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={`timeline__key${c.isReg ? ' timeline__key--register' : ''}`}
+                      dir="auto"
+                      onClick={() => toggleTimelineSeries(c.id, drawnIds)}
+                      // a chip reached by Tab is brought wholly into the strip
+                      // (the browser's own focus scroll left one cut by the edge)
+                      onFocus={(e) => e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' })}
+                      title={t('timeline.legend.hide', { label: c.label })}
+                    >
+                      <span className="timeline__mark" style={{ background: c.color }} />
+                      {c.label} {chipText(c.id, c.isReg)}
+                    </button>
+                  ))}
+                </span>
+                {past.start || past.end ? (
+                  <span className={`timeline__past timeline__past--end${past.end ? '' : ' is-empty'}`} dir="ltr" aria-hidden="true" {...pressToScroll(1)}>
+                    +{past.end || past.start}
+                  </span>
+                ) : null}
+              </span>
 
               {/* contract §6 — the trigger is ALWAYS present, at every width and
                   in every state; with zero eligible series it reads 0/0 and is
@@ -453,17 +582,6 @@ export function TimelineChart() {
                 {t('timeline.csv')}
               </button>
             </span>
-
-            {/* the measurement row: every drawn chip, out of flow, invisible —
-                the one-row fit above is computed from these widths */}
-            <span className="timeline__probe" ref={probeRef} aria-hidden="true">
-              {chips.map((c) => (
-                <span key={c.id} className="timeline__key timeline__key--probe" dir="auto">
-                  <span className="timeline__mark" />
-                  {c.label} {chipText(c.id, c.isReg)}
-                </span>
-              ))}
-            </span>
           </div>
 
           {selectorOpen && seriesTotal > 0 ? (
@@ -481,8 +599,46 @@ export function TimelineChart() {
 
           {showDistribution ? <DistributionPanel /> : null}
 
-          <div className="timeline__plot" ref={plotRef} hidden={showDistribution}>
-            <svg className="timeline__svg" viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+          <div
+            className="timeline__plot"
+            ref={plotRef}
+            hidden={showDistribution}
+            // the reading's keyboard: focus the chart, then the arrow keys walk
+            // the recorded steps; Escape closes the reading
+            tabIndex={hasRun ? 0 : -1}
+            role="group"
+            aria-label={t('timeline.reading.label')}
+            onKeyDown={(e) => {
+              if (!hasRun || e.target !== e.currentTarget) return
+              const last = series.length - 1
+              const from = pinIdx >= 0 ? pinIdx : null
+              let next: number | null = null
+              if (e.key === 'ArrowLeft') next = from == null ? last : Math.max(0, from - 1)
+              else if (e.key === 'ArrowRight') next = from == null ? last : Math.min(last, from + 1)
+              else if (e.key === 'Home') next = 0
+              else if (e.key === 'End') next = last
+              else if (e.key === 'Escape' && pinned) {
+                e.preventDefault()
+                e.stopPropagation()
+                setPinned(null)
+                return
+              }
+              if (next == null) return
+              e.preventDefault()
+              pinAt(next)
+            }}
+          >
+            <svg
+              className="timeline__svg"
+              viewBox={`0 0 ${w} ${h}`}
+              width={w}
+              height={h}
+              onClick={(e) => {
+                if (!hasRun) return
+                const r = e.currentTarget.getBoundingClientRect()
+                pinAt(nearestIdx(e.clientX - r.left))
+              }}
+            >
               <line
                 className="timeline__axis"
                 x1={PAD.l}
@@ -534,6 +690,9 @@ export function TimelineChart() {
                   y2={h - PAD.b}
                 />
               ) : null}
+
+              {/* the step reading's line, at the picked recorded step */}
+              {pinX != null ? <line className="timeline__pin" x1={pinX} y1={PAD.t} x2={pinX} y2={h - PAD.b} /> : null}
 
               {hasRun
                 ? view.lines.map((l) => (
@@ -648,6 +807,21 @@ export function TimelineChart() {
               ) : null}
             </svg>
           </div>
+          {/* outside the plot, which clips: the reading stands on the plot's
+              bottom beside its line and opens UPWARD over the canvas as far
+              as it needs (./TimelineStepReading) */}
+          {pinned && pinX != null && !showDistribution ? (
+            <TimelineStepReading
+              step={series[pinIdx].step}
+              rows={readingRows()}
+              lineX={pinX}
+              plotRef={plotRef}
+              onClose={() => {
+                setPinned(null)
+                plotRef.current?.focus()
+              }}
+            />
+          ) : null}
         </div>
   )
 
@@ -675,15 +849,82 @@ export function TimelineChart() {
   }
 
   return (
-    <div className={`timeline${collapsed ? ' is-collapsed' : ''}`} data-tour="timeline">
+    <div
+      ref={areaRef}
+      className={`timeline wb-analysis${collapsed ? ' is-collapsed' : ''}${showDistribution ? ' is-distribution' : ''}`}
+      data-tour="timeline"
+      style={collapsed ? undefined : { height }}
+    >
+      {!collapsed ? <AnalysisSplitter height={height} min={areaMin} onHeight={setHeight} label={t('workbench.analysis.resize')} /> : null}
       <PlayBar
         collapsed={collapsed}
-        onToggleCollapse={() => {
-          userTouched.current = true // §7 — from here on, no automatic transition
-          setCollapsed((c) => !c)
-        }}
+        onToggleCollapse={() => setCollapsed((c) => !c)}
       />
       {!collapsed ? panel : null}
+    </div>
+  )
+}
+
+/** the analysis area's default height (the workbench mock-up's 152 px) and its
+ *  range: at least the run row and a short chart; at most what leaves the
+ *  canvas `ANALYSIS_CANVAS_MIN` px */
+export const ANALYSIS_DEFAULT = 152
+const ANALYSIS_MIN = 96
+const ANALYSIS_CANVAS_MIN = 160
+const ANALYSIS_STEP = 16
+/** the least the area is while the Distribution view shows: its band chart
+ *  and controls on screen (measured 2026-10-20 at 1280 × 800: 280 px gives the
+ *  chart 98 px) */
+export const DISTRIBUTION_MIN = 280
+
+/** the splitter above the analysis area: drag it, or focus it and press ↑ / ↓
+ *  (one grid step), Home / End (the least / the most) — a window splitter
+ *  (`role="separator"`, focusable, with its value). `min` is the view's own
+ *  least height (the Distribution view's is higher). */
+function AnalysisSplitter({ height, min, onHeight, label }: { height: number; min: number; onHeight: (h: number) => void; label: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const maxOf = () => {
+    const col = ref.current?.closest('.canvas-col') as HTMLElement | null
+    return Math.max(ANALYSIS_MIN, (col?.clientHeight ?? 600) - ANALYSIS_CANVAS_MIN)
+  }
+  const clamp = (h: number) => Math.round(Math.min(maxOf(), Math.max(min, h)))
+  return (
+    <div
+      ref={ref}
+      className="wb-splitter"
+      role="separator"
+      aria-orientation="horizontal"
+      aria-label={label}
+      aria-valuemin={min}
+      aria-valuemax={maxOf()}
+      aria-valuenow={height}
+      tabIndex={0}
+      onPointerDown={(e) => {
+        if (e.button !== 0) return
+        e.preventDefault()
+        const el = e.currentTarget
+        el.setPointerCapture(e.pointerId)
+        const y0 = e.clientY
+        const h0 = height
+        const move = (ev: PointerEvent) => onHeight(clamp(h0 + (y0 - ev.clientY)))
+        const up = () => {
+          el.removeEventListener('pointermove', move)
+          el.removeEventListener('pointerup', up)
+          el.removeEventListener('pointercancel', up)
+        }
+        el.addEventListener('pointermove', move)
+        el.addEventListener('pointerup', up)
+        el.addEventListener('pointercancel', up)
+      }}
+      onKeyDown={(e) => {
+        const next =
+          e.key === 'ArrowUp' ? height + ANALYSIS_STEP : e.key === 'ArrowDown' ? height - ANALYSIS_STEP : e.key === 'Home' ? min : e.key === 'End' ? maxOf() : null
+        if (next == null) return
+        e.preventDefault()
+        onHeight(clamp(next))
+      }}
+    >
+      <i aria-hidden="true" />
     </div>
   )
 }

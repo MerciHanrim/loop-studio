@@ -40,17 +40,20 @@ describe('FC-3.3 — notices by where the colour is drawn', () => {
     expect(accentNotices('#111111', { nodes: false, edges: true })).toEqual([{ kind: 'contrast', theme: 'dark', place: 'canvas' }])
   })
   it('the node face is checked only when the selection has a node', () => {
-    // the frame's light Slate: passes both canvases (4.53 / 3.44) but not the
-    // dark node face (2.66), and is 0.069 from the nearest state colour
-    const hex = '#527A91'
+    // a mid grey: passes both canvases (light 5.36, dark 3.07) but not the dark
+    // node face (2.91), which is a step lighter than the dark canvas in the
+    // workbench palette (2026-10), and is far from every state colour
+    const hex = '#636363'
     expect(accentNotices(hex, { nodes: false, edges: true })).toEqual([])
     expect(accentNotices(hex, { nodes: true, edges: false })).toEqual([{ kind: 'contrast', theme: 'dark', place: 'node' }])
   })
-  it('a state colour itself is called close; the selection grey is not on the list', () => {
-    expect(accentNotices('#3F6FB6', { nodes: false, edges: true })).toContainEqual({ kind: 'state' })
-    expect(accentNotices('#2F746E', { nodes: false, edges: true })).toContainEqual({ kind: 'state' })
-    expect(accentNotices('#A56332', { nodes: false, edges: true })).toContainEqual({ kind: 'state' })
-    expect(accentNotices('#54524C', { nodes: false, edges: true }).some((n) => n.kind === 'state')).toBe(false)
+  it('a state colour itself is called close', () => {
+    // the workbench palette (2026-10) draws selection in the focus blue, so the
+    // focus entry stands for both
+    expect(accentNotices('#2463D1', { nodes: false, edges: true })).toContainEqual({ kind: 'state' })
+    expect(accentNotices('#11806F', { nodes: false, edges: true })).toContainEqual({ kind: 'state' })
+    expect(accentNotices('#8A5A00', { nodes: false, edges: true })).toContainEqual({ kind: 'state' })
+    expect(accentNotices('#6FA6FF', { nodes: false, edges: true })).toContainEqual({ kind: 'state' })
   })
   it('no selection, no notice', () => {
     expect(accentNotices('#FFFF00', { nodes: false, edges: false })).toEqual([])

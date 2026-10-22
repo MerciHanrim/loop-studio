@@ -49,6 +49,26 @@ export function duplicateOf(edges: LoopEdge[], e: Pick<LoopEdge, 'source' | 'tar
   return edges.find((x) => x.id !== except && x.source === e.source && x.target === e.target && same(x.sourceHandle, e.sourceHandle) && same(x.targetHandle, e.targetHandle))
 }
 
+/** docs/edge-routing.md §ER15.2 — the repeated Value change groups: two or more
+ *  Value changes with the same ends and stored handles (the rule above).
+ *  Drawing refuses such a group, but a document may hold one, and in a run its
+ *  chips grow side by side. Each group's ids in id order, the groups in the
+ *  order of their first id. */
+export function repeatedChangeGroups(edges: readonly LoopEdge[]): string[][] {
+  const byKey = new Map<string, string[]>()
+  for (const e of edges) {
+    const d = e.data as { kind?: unknown; mode?: unknown } | undefined
+    if (d?.kind !== 'state' || d.mode !== 'label') continue
+    const k = JSON.stringify([e.source, e.target, e.sourceHandle || null, e.targetHandle || null])
+    ;(byKey.get(k) ?? byKey.set(k, []).get(k)!).push(e.id)
+  }
+  const ord = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+  return [...byKey.values()]
+    .filter((g) => g.length > 1)
+    .map((g) => g.sort(ord))
+    .sort((a, b) => ord(a[0], b[0]))
+}
+
 /** the connection after the move (not checked: see `endMoveVerdict`) */
 export function movedEdge(e: LoopEdge, move: EndMove): LoopEdge {
   const kind = edgePortKind(e)

@@ -11,8 +11,9 @@ import { expect, openApp, resetAll, test } from './support/loop'
 //   820×720  → desktop two-tier checkpoint (the doc's other tested width)
 //   1280/1600/1920 → general desktop checkpoints
 // Collapse order (which GROUP moves into ⋯ first) is a separate question
-// from render order, which is always Module → File → Data → Share →
-// Settings → Help, whether inline or inside ⋯.
+// from render order, which is always File → Data → Share → Settings → Help,
+// whether inline or inside ⋯ (the Module group left the toolbar in 2026-10).
+// §L2.0 (2026-10) — the per-locale loops cover the shipped languages, en and ko.
 
 const htmlLang = (p: Page) => p.evaluate(() => document.documentElement.lang)
 
@@ -132,14 +133,14 @@ test.describe('toolbar — the fixed two-tier contract', () => {
     [1600, 900],
     [1920, 900],
   ] as const) {
-    test(`${w}×${h}: exactly 2 rows total, palette is a single row, no h-scroll, no label wrap — EN/JA/KO`, async ({
+    test(`${w}×${h}: exactly 2 rows total, palette is a single row, no h-scroll, no label wrap — EN/KO`, async ({
       page,
     }) => {
       await page.setViewportSize({ width: w, height: h })
       await openApp(page)
       await resetAll(page)
 
-      for (const code of ['en', 'ja', 'ko']) {
+      for (const code of ['en', 'ko']) {
         await setLocale(page, code)
         const m = await readMetrics(page)
         expect(m.toolbarRows, `${code} @ ${w}×${h} — toolbar rows`).toBe(2)
@@ -155,7 +156,7 @@ test.describe('toolbar — the fixed two-tier contract', () => {
     })
   }
 
-  test('721×720: Tier 1 fits across every RevisionChip state, EN/JA/KO', async ({ page }) => {
+  test('721×720: Tier 1 fits across every RevisionChip state, EN/KO', async ({ page }) => {
     await page.setViewportSize({ width: 721, height: 720 })
     await openApp(page)
     await resetAll(page)
@@ -167,7 +168,7 @@ test.describe('toolbar — the fixed two-tier contract', () => {
       { role: 'proposal', dirty: false },
       { role: 'proposal', dirty: true },
     ]
-    for (const code of ['en', 'ja', 'ko']) {
+    for (const code of ['en', 'ko']) {
       await setLocale(page, code)
       for (const state of states) {
         await setRevisionChip(page, state)
@@ -184,7 +185,7 @@ test.describe('toolbar — the fixed two-tier contract', () => {
     await page.setViewportSize({ width: 1920, height: 900 })
     await openApp(page)
     await resetAll(page)
-    await setLocale(page, 'ja')
+    await setLocale(page, 'ko')
 
     expect((await readMetrics(page)).toolbarRows).toBe(2)
 
@@ -202,13 +203,16 @@ test.describe('toolbar — the fixed two-tier contract', () => {
 })
 
 test.describe('toolbar — group render order and collapse', () => {
+  // the workbench's render order, `GROUP_ORDER` (docs/workbench.md §WB2)
   const rankOf = (label: string): number => {
-    if (/insert module|모듈 삽입|モジュールを挿入/i.test(label)) return 0
-    if (/^file$|^파일$|^ファイル$/i.test(label)) return 1
-    if (/^data$|^데이터$|^データ$/i.test(label)) return 2
-    if (/^share$|^공유$|^共有$/i.test(label)) return 3
-    if (/^settings$|^설정$|^設定$/i.test(label)) return 4
-    if (/help/i.test(label)) return 5
+    if (/^file$|^파일$/i.test(label)) return 1
+    if (/^edit$|^편집$/i.test(label)) return 2
+    if (/^view$|^보기$/i.test(label)) return 3
+    if (/^insert$|^삽입$/i.test(label)) return 4
+    if (/^data$|^데이터$/i.test(label)) return 5
+    if (/^run$|^실행$/i.test(label)) return 6
+    if (/^help$|^도움말$/i.test(label)) return 7
+    if (/^share$|^공유$/i.test(label)) return 8
     return -1
   }
   const overflowLabels = (page: Page) =>
@@ -222,11 +226,14 @@ test.describe('toolbar — group render order and collapse', () => {
     await resetAll(page)
     // pin the toolbar's own measured width (what the ResizeObserver watches)
     // narrow enough to force a partial collapse, without depending on any
-    // locale's real font metrics. The grouped Tier-1 controls (File/Data/
-    // Settings each now a single merged trigger) need less width than the
-    // old individually-listed items did, so 900px alone no longer collapses
-    // anything -- 800px reliably collapses Help+Data only (a real partial).
-    await page.addStyleTag({ content: '.toolbar { max-width: 800px !important; }' })
+    // locale's real font metrics. Re-measured in English after the Insert-
+    // module menu left the toolbar (2026-10): 720px and wider collapse nothing,
+    // 680px holds Data + Help, 640px holds Data + Settings + Help — a real
+    // partial with a gap in render order (Share stays inline between them),
+    // which is what makes the relative-order check below mean something.
+    // The workbench's text menu bar (2026-10-20): 640px collapses nothing;
+    // 480px holds Insert, Run and Help — Data stays inline between them
+    await page.addStyleTag({ content: '.toolbar { max-width: 480px !important; }' })
     await page.waitForTimeout(150)
 
     const moreBtn = page.locator('.toolbar__overflow-btn')
@@ -234,24 +241,26 @@ test.describe('toolbar — group render order and collapse', () => {
     await moreBtn.click()
     const labels = await overflowLabels(page)
     const ranks = labels.map(rankOf).filter((r) => r >= 0)
-    expect(ranks.length).toBeGreaterThan(0)
-    expect(ranks.length).toBeLessThan(6) // genuinely partial, not everything
+    expect(ranks.length).toBeGreaterThan(1) // at least two, so there is an order to check
+    expect(ranks.length).toBeLessThan(8) // genuinely partial: eight groups, not everything
     for (let i = 1; i < ranks.length; i++) expect(ranks[i]).toBeGreaterThan(ranks[i - 1])
   })
 
-  test('every group collapsed still reads Module → File → Data → Share → Settings → Help', async ({
+  test('every group collapsed still reads File → Edit → View → Insert → Data → Run → Help → Share', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1920, height: 900 })
     await openApp(page)
     await resetAll(page)
-    await page.addStyleTag({ content: '.toolbar { max-width: 420px !important; }' })
+    // the workbench's text menu bar (measured 2026-10-20): Share, the last
+    // group to collapse, stays inline at 300px and goes at 260px
+    await page.addStyleTag({ content: '.toolbar { max-width: 260px !important; }' })
     await page.waitForTimeout(150)
 
     await page.locator('.toolbar__overflow-btn').click()
     const labels = await overflowLabels(page)
     const ranks = labels.map(rankOf).filter((r) => r >= 0)
-    expect(ranks).toEqual([0, 1, 2, 3, 4, 5])
+    expect(ranks).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
   })
 })
 
@@ -260,7 +269,10 @@ test.describe('toolbar — nested-menu Escape scoping and dialog survival (revie
     await page.setViewportSize({ width: 1920, height: 900 })
     await openApp(page)
     await resetAll(page)
-    await page.addStyleTag({ content: '.toolbar { max-width: 420px !important; }' })
+    // these tests need File and Help inside ⋯; the workbench's text menu bar
+    // (measured 2026-10-20) keeps File inline down to 360px, and at 300px only
+    // Share stays
+    await page.addStyleTag({ content: '.toolbar { max-width: 300px !important; }' })
     await page.waitForTimeout(150)
   })
 
@@ -328,12 +340,14 @@ test.describe('toolbar — nested-menu Escape scoping and dialog survival (revie
   test('Restart the tour / Send feedback close Help and ⋯ first (no stray popover)', async ({ page }) => {
     const moreBtn = page.locator('.toolbar__overflow-btn')
     await moreBtn.click()
-    await page.locator('.toolbar__overflow-pop button[aria-label="Help"]').click()
-    const helpPop = page.locator('.menu__pop--right')
+    // the workbench's Help trigger names itself in text (it was the `?` icon)
+    await page.locator('.toolbar__overflow-pop [data-tour="help-trigger"]').click()
+    // Help's popup: the menu that holds Restart the tour
+    const helpPop = page.locator('[role="menu"]').filter({ has: page.locator('.menu__item', { hasText: /Restart the tour/ }) })
     await expect(helpPop).toBeVisible()
     await helpPop.locator('.menu__item', { hasText: /Restart the tour/ }).click()
     await expect(page.locator('.toolbar__overflow-pop')).toHaveCount(0)
-    await expect(page.locator('.menu__pop--right')).toHaveCount(0)
+    await expect(helpPop).toHaveCount(0)
   })
 })
 
@@ -405,10 +419,13 @@ test.describe('toolbar — Share’s lifted flow (review condition 3)', () => {
     let pop = await fullyInViewport(page, '.share-pop')
     expect(pop.found).toBe(true)
     expect(pop.ok, 'inline share panel on screen').toBe(true)
-    await page.locator('.share-pop button', { hasText: /close|닫기|閉じる/i }).click()
+    await page.locator('.share-pop button', { hasText: /close|닫기/i }).click()
 
-    // collapsed case
-    await page.addStyleTag({ content: '.toolbar { max-width: 420px !important; }' })
+    // collapsed case — Share is the LAST group to collapse. The workbench's
+    // menu bar names its menus in plain text (2026-10-20), narrower than the
+    // earlier buttons: Share stays inline at 300 px and goes into ⋯ at 260 px
+    // (measured: every group collapsed at 260 and 230 px)
+    await page.addStyleTag({ content: '.toolbar { max-width: 260px !important; }' })
     await page.waitForTimeout(150)
     await page.locator('.toolbar__overflow-btn').click()
     await page.locator('.toolbar__overflow-pop button', { hasText: /^Share$/ }).click()
@@ -426,9 +443,9 @@ test.describe('toolbar — Settings is exempt from ancestor-closing', () => {
     await openApp(page)
     await resetAll(page)
 
-    const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^Settings$/ })
+    const settingsBtn = page.locator('.toolbar__actions .wb-viewmenu > .wb-mb')
     await settingsBtn.click()
-    const pop = page.locator('.toolbar__settingsmenu-pop')
+    const pop = page.locator('.wb-viewmenu__pop')
     await expect(pop).toBeVisible()
     await pop.locator('.settings-row', { hasText: 'Theme' }).click()
     await expect(pop).toBeVisible()
@@ -470,15 +487,20 @@ test.describe('toolbar — palette drag state (review condition 5)', () => {
 
 test.describe('toolbar — an overflowed control is reachable with the mouse and the keyboard', () => {
   test('mouse open, keyboard Escape/Enter', async ({ page }) => {
-    // 900px no longer forces a collapse -- the grouped Tier-1 controls need
-    // less width than the old individually-listed items did. 850px sat right
-    // at the boundary (measured locally as collapsing, but CI's Chromium has
-    // slightly different font metrics and did not collapse there) -- 780px
-    // keeps real margin below the ~850-870px threshold on either platform
-    await page.setViewportSize({ width: 780, height: 900 })
+    // Re-measured after the Insert-module menu left the toolbar (2026-10): no
+    // desktop viewport from 722 to 1920px collapses anything any more, so a
+    // viewport width alone (780px here before) cannot force ⋯. Pin the
+    // toolbar's own width instead, as the order tests do: 640px holds Data,
+    // Settings and Help, with real margin below the 720px no-collapse width.
+    await page.setViewportSize({ width: 1280, height: 900 })
     await openApp(page)
     await resetAll(page)
-    await setLocale(page, 'ja')
+    // the workbench's text menu bar fits whole at 640 px; at 480 px Help, Run
+    // and Insert are in ⋯ (measured 2026-10-20)
+    await page.addStyleTag({ content: '.toolbar { max-width: 480px !important; }' })
+    await page.waitForTimeout(150)
+    // §L2.0 (2026-10) — run in English (this was Japanese)
+    await setLocale(page, 'en')
 
     const moreBtn = page.locator('.toolbar__overflow-btn')
     await expect(moreBtn).toBeVisible()
@@ -506,7 +528,7 @@ test.describe('toolbar — dropdowns are never clipped by the responsive layout'
       await openApp(page)
       await resetAll(page)
 
-      for (const code of ['en', 'ja', 'ko']) {
+      for (const code of ['en', 'ko']) {
         await setLocale(page, code)
 
         await page.locator('.toolbar__actions .menu > button').first().click() // Templates ▾
@@ -515,9 +537,9 @@ test.describe('toolbar — dropdowns are never clipped by the responsive layout'
         expect(tpl.ok, `${code} @ ${width} — Templates pop on screen`).toBe(true)
         await page.keyboard.press('Escape')
 
-        const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ })
+        const settingsBtn = page.locator('.toolbar__actions .wb-viewmenu > .wb-mb')
         await settingsBtn.click()
-        const langBtn = page.locator('.toolbar__settingsmenu-pop .lang-switch')
+        const langBtn = page.locator('.wb-viewmenu__pop .lang-switch')
         await langBtn.click()
         const lang = await fullyInViewport(page, '.lang-menu__pop')
         expect(lang.found, `${code} @ ${width} — Language pop`).toBe(true)

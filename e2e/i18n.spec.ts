@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, test, waitForAppReady } from './support/loop'
+import { openMonteCarloDialog } from './support/workbenchMenus'
 
 // docs/localization.md Slice 1 + the language-menu follow-up.
 //   • the language control is a trigger button + a registry-driven overlay
@@ -37,7 +38,7 @@ const stored = (page: Page) => page.evaluate(() => localStorage.getItem('loop-st
 /** open the desktop `Settings ▾` menu — Theme/Language now live there
  *  (Hanrim's visual review, 2026-09-15), not as standalone toolbar pills. */
 async function openSettings(page: Page): Promise<void> {
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ }).click()
+  await page.locator('.toolbar__actions .wb-viewmenu > .wb-mb').click()
 }
 
 /** open the language menu (desktop — inside `Settings ▾` — or inside the
@@ -50,7 +51,7 @@ async function pickLocale(page: Page, code: string, scope = '') {
   const trigger = page.locator(`${scope} .lang-switch`.trim()).first()
   let openedSettings = false
   if (!scope && !(await trigger.isVisible().catch(() => false))) {
-    await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ }).click()
+    await page.locator('.toolbar__actions .wb-viewmenu > .wb-mb').click()
     openedSettings = true
   }
   if ((await trigger.getAttribute('aria-expanded')) === 'true') {
@@ -287,8 +288,11 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
     await expect(insp.getByRole('button', { name: '삭제' })).toBeVisible() // "Delete"
     // the user's label value is still the English default it was created with
     await expect(insp.locator('.field input').first()).toHaveValue('S')
-    // the kind chip is a raw enum token — shown verbatim
-    await expect(insp.locator('.inspector__kind')).toHaveText('source')
+    // the kind chip names the kind in the reader's language (the workbench,
+    // 2026-10, docs/workbench.md §WB6 — it was the raw enum token before);
+    // the token itself stays on the element
+    await expect(insp.locator('.inspector__kind')).toHaveText('소스')
+    await expect(insp.locator('.inspector__kind')).toHaveAttribute('data-kind', 'source')
   })
 
   test('register diagnostics localise: a parse error keeps the raw CODE; an eval verdict is a localized message (docs/register-expression-authoring.md §RXA3.5)', async ({ page }) => {
@@ -420,20 +424,23 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
     expect(await snapshot(page)).toEqual(before)
   })
 
-  test('Slice 2b-1 chrome — Share button and React Flow controls localize', async ({ page }) => {
+  // the desktop zoom is the workbench status bar's (docs/workbench.md §WB8);
+  // React Flow's own Controls, on the phone only, are e2e/canvas-aria-locale.spec.ts's
+  test('Slice 2b-1 chrome — the Share button and the status bar\'s zoom localize', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await importGraph(page, G)
 
     const shareBtn = page.locator('.toolbar__actions button', { hasText: /^Share$/ })
-    const zoomIn = page.locator('.react-flow__controls-zoomin')
+    // by its icon, so the check reads the name the language gives it
+    const zoomIn = page.locator('.wb-status button').filter({ has: page.locator('svg[data-icon="plus"]') })
     await expect(shareBtn).toBeVisible()
     await expect(zoomIn).toHaveAttribute('aria-label', 'Zoom in')
 
     await pickLocale(page, 'ko')
     await expect(page.locator('.toolbar__actions button', { hasText: '공유' })).toBeVisible()
     await expect(zoomIn).toHaveAttribute('aria-label', '확대')
-    await expect(page.locator('.react-flow__controls')).toHaveAttribute('aria-label', '캔버스 컨트롤')
+    await expect(page.locator('.wb-status')).toHaveAttribute('aria-label', '상태')
 
     await pickLocale(page, 'en')
   })
@@ -445,7 +452,7 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
     await resetAll(page)
     await importGraph(page, G)
 
-    await page.locator('.pstrip__mc button').click()
+    await openMonteCarloDialog(page)
     const dlg = page.locator('.mcdlg[role="dialog"]')
     await expect(dlg.locator('#mcdlg-title')).toHaveText('Monte Carlo')
     const cfg = () => page.evaluate(() => JSON.stringify((window as any).__loop.mc.getState().config))
@@ -567,70 +574,50 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     await expect(trigger).toHaveAttribute('aria-haspopup', 'listbox')
     await expect(trigger).toHaveAttribute('aria-expanded', 'false')
 
-    // Enter opens. Past the six-language threshold the picker is a combobox: the
-    // search box owns focus, so it — not the listbox — is what carries
-    // aria-activedescendant (§L5.4).
+    // Enter opens. Below the six-language threshold there is no search box
+    // (§L5.4): the listbox itself takes focus, so it is what carries
+    // aria-activedescendant.
     await trigger.focus()
     await page.keyboard.press('Enter')
     await expect(trigger).toHaveAttribute('aria-expanded', 'true')
     const pop = page.locator('.lang-menu__pop')
     const list = pop.locator('[role="listbox"]')
     await expect(list).toBeVisible()
-    // §L5.4 — the shipped LANGUAGES are past the threshold, so the search
-    // box appears (the dev pseudo-locale still does not count towards it) and
-    // focus lands in the box rather than on the listbox.
-    const search = pop.locator('input[role="combobox"]')
-    await expect(search).toHaveCount(1)
-    await expect(search).toBeFocused()
+    // §L2.0 (2026-10) — two shipped languages, en and ko, so no search box
+    // (the dev pseudo-locale does not count towards the threshold) and focus
+    // lands on the listbox.
+    await expect(pop.locator('.lang-menu__search')).toHaveCount(0)
+    await expect(pop.locator('input[role="combobox"]')).toHaveCount(0)
+    await expect(list).toBeFocused()
     const opts = list.locator('[role="option"]')
-    // the eighteen shipped languages plus en-XA (dev pseudo). Arabic sorts
-    // FIRST by English name, and Dutch ahead of English — which is why the order
-    // below starts ar, zh-Hans, zh-Hant, nl.
-    await expect(opts).toHaveCount(19)
-    // §L5.6 — the DISPLAY order: shipped locales by English name, the DEV
-    // pseudo-locale last and out of the sorted set. The registry array's own
-    // order is data and is never what the user sees.
+    // the two shipped languages plus en-XA (dev pseudo)
+    await expect(opts).toHaveCount(3)
+    // §L5.6 — the DISPLAY order: shipped locales by English name ("English"
+    // before "Korean"), the DEV pseudo-locale last and out of the sorted set.
+    // The registry array's own order is data and is never what the user sees.
     expect(await opts.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.locale))).toEqual([
-      'ar',
-      'zh-Hans',
-      'zh-Hant',
-      'nl',
       'en',
-      'fr',
-      'de',
-      'it',
-      'ja',
       'ko',
-      'pt-BR',
-      'pt-PT',
-      'ru',
-      'es-419',
-      'es-ES',
-      'th',
-      'tr',
-      'vi',
       'en-XA',
     ])
     await expect(list.locator('[data-locale="en"]')).toHaveAttribute('aria-selected', 'true')
     await expect(list.locator('[data-locale="ko"]')).toHaveAttribute('aria-selected', 'false')
-    await expect(list.locator('[data-locale="ja"] .menu__name')).toHaveText('日本語')
+    await expect(list.locator('[data-locale="ko"] .menu__name')).toHaveText('한국어')
 
     // ArrowDown / End / Home move the active option, not the selection.
-    // The attribute lives on the FOCUSED element, which is now the search
-    // box; the listbox must not also claim it.
-    await expect(list).not.toHaveAttribute('aria-activedescendant', /./)
-    const activeId = () => search.getAttribute('aria-activedescendant')
+    // The attribute lives on the FOCUSED element, which is the listbox.
+    const activeId = () => list.getAttribute('aria-activedescendant')
     // §L5.6 — the list is in DISPLAY order (English name, pseudo last), not
     // registry order, and focus starts on the ACTIVE option. In an English UI
-    // that is `en`, so ArrowDown lands on `fr`, End on the pseudo locale and
-    // Home on the first shipped one — `ar` since Arabic shipped, because the
-    // order is by ENGLISH name and "Arabic" sorts ahead of "Chinese".
+    // that is `en`, so ArrowDown lands on `ko`, End on the pseudo locale and
+    // Home on the first shipped one, `en`.
+    await expect.poll(activeId).toMatch(/opt-en$/)
     await page.keyboard.press('ArrowDown')
-    await expect.poll(activeId).toContain('opt-fr')
+    await expect.poll(activeId).toContain('opt-ko')
     await page.keyboard.press('End')
     await expect.poll(activeId).toContain('opt-en-XA')
     await page.keyboard.press('Home')
-    await expect.poll(activeId).toContain('opt-ar')
+    await expect.poll(activeId).toMatch(/opt-en$/)
     expect(await htmlLang(page)).toBe('en') // nothing selected yet
 
     // Escape closes and returns focus to the trigger
@@ -638,14 +625,13 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     await expect(pop).toBeHidden()
     await expect(trigger).toBeFocused()
 
-    // Space opens, ArrowDown + Enter selects the option after the active one.
-    // In display order (§L5.6) that is `fr`, not `ko` — the language the
-    // keystroke lands on is a property of the ORDER, so it moved with it.
+    // Space opens, ArrowDown + Enter selects the option after the active one,
+    // which in display order (§L5.6) is `ko`.
     await page.keyboard.press(' ')
     await expect(page.locator('.lang-menu__pop')).toBeVisible()
     await page.keyboard.press('ArrowDown')
     await page.keyboard.press('Enter')
-    await expect.poll(() => htmlLang(page)).toBe('fr')
+    await expect.poll(() => htmlLang(page)).toBe('ko')
     await expect(page.locator('.lang-menu__pop')).toBeHidden()
     await expect(trigger).toBeFocused()
   })
@@ -656,7 +642,7 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     await pickLocale(page, 'en-XA')
     expect(await htmlLang(page)).toBe('en-XA')
     // the list now marks en-XA selected
-    await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ }).click()
+    await page.locator('.toolbar__actions .wb-viewmenu > .wb-mb').click()
     await page.locator('.toolbar .lang-switch').click()
     await expect(page.locator('.lang-menu__item[data-locale="en-XA"]')).toHaveAttribute('aria-selected', 'true')
   })
@@ -689,6 +675,80 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     expect(s.label).toBe('한국어')
     if (s.active != null) expect(s.active).toBe('ko')
     if (s.loading != null) expect(s.loading).toBe(false)
+  })
+})
+
+// §L2.0 (2026-10) — English and Korean are the supported languages; the sixteen
+// others are archived. A stored RETIRED code starts in English whatever the
+// browser asks for, a stored `ko` is kept, and the browser language decides only
+// when nothing valid is stored (`resolveInitialLocale` in src/i18n/registry.ts).
+test.describe('§L2.0 — retired languages', () => {
+  /** store `code` under the locale key, then boot again — the same idiom as the
+   *  corrupt-stored-value test in Slice 1 */
+  async function bootWithStored(page: Page, code: string) {
+    await openApp(page)
+    await page.evaluate((c) => localStorage.setItem('loop-studio/ui-locale/1', c), code)
+    await page.reload()
+    await waitForAppReady(page)
+  }
+
+  /** the picker's trigger names `code`, and its row is the ONE selected option */
+  async function expectPickerSelected(page: Page, code: string) {
+    await openSettings(page)
+    const trigger = page.locator('.toolbar .lang-switch')
+    await expect(trigger).toHaveAttribute('data-locale', code)
+    await trigger.click()
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    await expect(page.locator(`.lang-menu__item[data-locale="${code}"]`)).toHaveAttribute('aria-selected', 'true')
+    await expect(page.locator('.lang-menu__item[aria-selected="true"]')).toHaveCount(1)
+  }
+
+  test.describe('in a Korean browser (ko-KR)', () => {
+    test.use({ locale: 'ko-KR' })
+
+    test('a stored retired code (fr) boots in English, not in the browser language', async ({ page }) => {
+      await bootWithStored(page, 'fr')
+      await expect.poll(() => htmlLang(page)).toBe('en')
+      await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('Play')
+      expect(await stored(page)).toBe('fr') // read, never rewritten
+      await expectPickerSelected(page, 'en')
+    })
+
+    test('with no stored value the browser language (ko-KR) boots in Korean', async ({ page }) => {
+      await openApp(page)
+      expect(await stored(page)).toBeNull()
+      await expect.poll(() => htmlLang(page)).toBe('ko')
+      await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('재생')
+    })
+  })
+
+  test.describe('in a German browser (de-DE)', () => {
+    test.use({ locale: 'de-DE' })
+
+    test('with no stored value a retired browser language (de-DE) boots in English', async ({ page }) => {
+      await openApp(page)
+      expect(await stored(page)).toBeNull()
+      await expect.poll(() => htmlLang(page)).toBe('en')
+      await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('Play')
+    })
+
+    test('a stored ko is kept', async ({ page }) => {
+      await bootWithStored(page, 'ko')
+      await expect.poll(() => htmlLang(page)).toBe('ko')
+      await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('재생')
+      expect(await stored(page)).toBe('ko')
+      await expectPickerSelected(page, 'ko')
+    })
+
+    test('a stored region tag (ko-KR) is not a code: it is ignored and the browser language decides', async ({
+      page,
+    }) => {
+      // no case / separator repair (§L5.2 step 1): `ko-KR` never becomes `ko`,
+      // so a de-DE browser falls through to English
+      await bootWithStored(page, 'ko-KR')
+      await expect.poll(() => htmlLang(page)).toBe('en')
+      expect(await stored(page)).toBe('ko-KR') // left exactly as it was
+    })
   })
 })
 

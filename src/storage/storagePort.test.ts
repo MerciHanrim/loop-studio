@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { STORAGE_KEYS, STORAGE_MODE_KEY, StorageGateError, storagePort, storageSession, type StorageKey } from './storagePort'
+import { RETIRED_STORAGE_KEYS, STORAGE_KEYS, STORAGE_MODE_KEY, StorageGateError, storagePort, storageSession, type StorageKey } from './storagePort'
 
 // Issue #297, step 1 — the port is a straight pass-through. These tests pin the
 // three things a caller relies on and that a later "improvement" would break:
@@ -77,10 +77,10 @@ describe('storagePort — a pass-through to localStorage', () => {
 })
 
 describe('storagePort — the key registry', () => {
-  it('lists the eighteen keys Loop Studio stores, by kind', () => {
+  it('lists the sixteen keys Loop Studio stores, by kind', () => {
     const byKind: Record<string, string[]> = {}
     for (const [key, kind] of Object.entries(STORAGE_KEYS)) (byKind[kind] ??= []).push(key)
-    expect(Object.keys(STORAGE_KEYS)).toHaveLength(18)
+    expect(Object.keys(STORAGE_KEYS)).toHaveLength(16)
     // issue #297 - the one key read before the gate and written by a temporary session
     expect(byKind.mode).toEqual(['loop-studio:storage-mode'])
     expect(STORAGE_MODE_KEY).toBe('loop-studio:storage-mode')
@@ -88,9 +88,14 @@ describe('storagePort — the key registry', () => {
     expect(byKind.personal).toEqual(['loop-studio:author'])
     expect(byKind.preference).toHaveLength(10)
     expect(byKind.onboarding).toEqual(['loop-studio/guided-tour/1', 'loop-studio/contextual-help/1', 'loop-studio/import-quickstart/1'])
-    // issue #296 - which release note this profile was told about, and which it opened
-    expect(byKind.release).toEqual(['loop-studio/whats-new/announced/1', 'loop-studio/whats-new/opened/1'])
-    expect(Object.keys(byKind).sort()).toEqual(['mode', 'onboarding', 'personal', 'preference', 'release', 'work'])
+    expect(Object.keys(byKind).sort()).toEqual(['mode', 'onboarding', 'personal', 'preference', 'work'])
+  })
+
+  // 2026-10 - the in-app release notes (issue #296) were removed; their two keys
+  // are only ever deleted, never stored
+  it('keeps the two What’s new keys only as retired keys, apart from the registry', () => {
+    expect([...RETIRED_STORAGE_KEYS]).toEqual(['loop-studio/whats-new/announced/1', 'loop-studio/whats-new/opened/1'])
+    for (const k of RETIRED_STORAGE_KEYS) expect(Object.keys(STORAGE_KEYS), k).not.toContain(k)
   })
 
   it('names every key by its real stored spelling (a rename would orphan saved data)', () => {
@@ -101,8 +106,6 @@ describe('storagePort — the key registry', () => {
         'loop-studio/guided-tour/1',
         'loop-studio/import-quickstart/1',
         'loop-studio/ui-locale/1',
-        'loop-studio/whats-new/announced/1',
-        'loop-studio/whats-new/opened/1',
         'loop-studio:activity-overlay',
         'loop-studio:author',
         'loop-studio:canvas-locked',
@@ -216,12 +219,13 @@ describe('storageSession — the two doors', () => {
 describe('storageSession — reset all', () => {
   beforeEach(() => storageSession.__resetForTests())
 
-  it('removes every registered key from localStorage, empties memory, and closes the port until a reload', () => {
-    for (const key of Object.keys(STORAGE_KEYS)) mem.m.set(key, 'v')
+  it('removes every registered and every retired key from localStorage, empties memory, and closes the port until a reload', () => {
+    const all = [...Object.keys(STORAGE_KEYS), ...RETIRED_STORAGE_KEYS]
+    for (const key of all) mem.m.set(key, 'v')
     mem.m.set('someone-elses-key', 'kept')
     storageSession.use('personal')
     const removed = storageSession.resetAll()
-    expect(removed.sort()).toEqual(Object.keys(STORAGE_KEYS).sort())
+    expect(removed.sort()).toEqual(all.sort())
     expect([...mem.m.entries()]).toEqual([['someone-elses-key', 'kept']])
     expect(storageSession.state()).toBe('closed')
     expect(storageSession.mode()).toBeNull()

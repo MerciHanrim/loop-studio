@@ -114,13 +114,16 @@ test.describe('Canvas Refresh PR 3 — zoom LOD (§VL7)', () => {
     await expect(page.locator('.react-flow__node[data-id="gold"] .nodef__title')).toBeVisible() // title kept
     await expect(page.locator('.react-flow__node[data-id="gold"] .nodef__value')).toBeVisible() // value kept
     await expect(page.locator('.react-flow__node[data-id="gold"] .nodef__sub')).toBeHidden() // sub elided
-    await expect(page.locator('[data-edge-id="e_sg"]')).toHaveCount(0) // no edge chip
+    // the edge flow chip stays at L1 (Lumi, 2026-10-20: a line's value is what
+    // the model says), shrinking with the view; it hides at L0 below
+    await expect(page.locator('[data-edge-id="e_sg"]')).toBeVisible()
     await expect(page.locator('.react-flow__background')).toHaveCount(0) // grid off entering L1
 
     // ── L0 (map) ──
     await zoomTo(page, 0.3)
     expect(await zoom(page)).toBeLessThan(0.45)
     expect(await lodOf(page, 'gold')).toBe('lod-L0')
+    await expect(page.locator('[data-edge-id="e_sg"]')).toHaveCount(0) // no edge chip at L0
     await expect(page.locator('.react-flow__node[data-id="gold"] .nodef__body')).toBeHidden() // no text
     await expect(page.locator('.react-flow__node[data-id="gold"] .nodef__cdot')).toHaveCount(1) // type dot
     await expect(page.locator('.react-flow__background')).toHaveCount(0)
@@ -143,7 +146,7 @@ test.describe('Canvas Refresh PR 3 — zoom LOD (§VL7)', () => {
     expect(st).toMatch(/\d/)
     expect(await page.locator('.react-flow__edge[data-id="e_sg"] path.react-flow__edge-path').getAttribute('marker-end')).toBe('url(#loop-arrow-resource)')
 
-    // invalid Register (gold === 0 at rest) — dashed --warning ring + `!` flag, still there
+    // invalid Register (gold === 0 at rest) — dashed --warn ring + `!` flag, still there
     await expect(page.locator('.react-flow__node[data-id="r_flip"] .nodef__invalid')).toHaveCount(1)
     await expect(page.locator('.react-flow__node[data-id="r_flip"] .nodef__flag')).toHaveText('!')
 

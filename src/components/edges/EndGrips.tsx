@@ -36,10 +36,11 @@ import { XYHandle, type FinalConnectionState } from '@xyflow/system'
 import { useT, type MessageKey } from '../../i18n'
 import { useEndGripNotice } from '../../store/endGripNotice'
 import { endMoveVerdict, type EndMoveVerdict } from '../../model/endMove'
-import { defaultFace, edgePortKind, faceOf, parseHandleId, type PortEnd } from '../../model/ports'
+import { edgePortKind, faceOf, faceOfHandle, type PortEnd } from '../../model/ports'
 import type { PortFace } from '../../model/types'
 import { useGraphStore } from '../../store/graphStore'
 import { useCoarsePointer } from '../../ui/media'
+import { holdConnectTouch, releaseConnectTouch } from './connectTouchHold'
 
 type Props = {
   edgeId: string
@@ -74,8 +75,12 @@ const GRIP_GAP = 2
  *  the Ends group moves that end. */
 const SPOTS = [0, 8, 16, 24] as const
 const NEAR_MAX = 24
-/** the hit-test grid over a candidate target, per side */
-const GRID = 5
+/** the hit-test grid's spacing over a candidate target, screen px: under a
+ *  port's own hit area (the handle plus 5 px each way, rotated with a state
+ *  port), so no port a press could reach slips between two samples (measured
+ *  2026-10-19: a 5 × 5 grid over a 24 px grip missed the state port that
+ *  shares a symbol's face anchor with the end) */
+const GRID_STEP = 3
 
 type Pt = { x: number; y: number }
 type Drag = { end: PortEnd; cancelled: boolean; touch: boolean }
@@ -140,8 +145,9 @@ export function EndGrips(p: Props) {
     const toScreen = (q: Pt) => ({ x: r.left + tx + q.x * zoom, y: r.top + ty + q.y * zoom })
     const taken: { x: number; y: number }[] = []
     // text a grip must not cover even where a press passes through it: every
-    // connection label (this one's too) and every node's outside name
-    const texts = [...document.querySelectorAll('.edge-label, .nodef__name')].map((el) => el.getBoundingClientRect())
+    // connection label (this one's too), every node's outside name and the
+    // line beside a symbol (a capacity, a unit, a value written in full)
+    const texts = [...document.querySelectorAll('.edge-label, .nodef__name, .nodef__aux')].map((el) => el.getBoundingClientRect())
     const coversText = (c: Pt) => texts.some((b) => c.x - size / 2 < b.right && b.left < c.x + size / 2 && c.y - size / 2 < b.bottom && b.top < c.y + size / 2)
     const pick = (end: PortEnd): Pt | null => {
       for (const extra of SPOTS) {
@@ -152,10 +158,14 @@ export function EndGrips(p: Props) {
         // the other grip's target is not shared
         if (taken.some((o) => Math.abs(o.x - c.x) < size && Math.abs(o.y - c.y) < size)) continue
         if (coversText(c)) continue
+        // the samples run from rim to rim (0.5 px inside), so a port reaching
+        // only the target's edge is still found
         let busy = false
-        for (let i = 0; i < GRID && !busy; i++) {
-          for (let j = 0; j < GRID && !busy; j++) {
-            busy = busyAt(c.x - size / 2 + ((i + 0.5) * size) / GRID, c.y - size / 2 + ((j + 0.5) * size) / GRID, p.edgeId)
+        const n = Math.ceil(size / GRID_STEP) + 1
+        const at = (k: number) => 0.5 + (k * (size - 1)) / (n - 1) - size / 2
+        for (let i = 0; i < n && !busy; i++) {
+          for (let j = 0; j < n && !busy; j++) {
+            busy = busyAt(c.x + at(i), c.y + at(j), p.edgeId)
           }
         }
         if (!busy) {
@@ -183,11 +193,13 @@ export function EndGrips(p: Props) {
   }, [spots, p.edgeId])
   useEffect(() => () => useEndGripNotice.getState().setNoSpot(null), [])
 
-  // the end a handle under the pointer would make: its node and its face
+  // the end a handle under the pointer would make: its node and the face the
+  // HANDLE is on — a plain id is its own port's default face (a state port
+  // drawn at a face this connection's kind would not default to is still on
+  // that face)
   const endAt = useCallback((nodeId: string, handleId: string | null, end: PortEnd) => {
     const e = useGraphStore.getState().edges.find((x) => x.id === p.edgeId)
-    const kind = e ? edgePortKind(e) : 'resource'
-    return { node: nodeId, face: parseHandleId(handleId).face ?? defaultFace(kind, end) }
+    return { node: nodeId, face: faceOfHandle(handleId, end, e ? edgePortKind(e) : 'resource') }
   }, [p.edgeId])
 
   const verdictFor = useCallback((conn: Connection, end: PortEnd) => {
@@ -203,6 +215,7 @@ export function EndGrips(p: Props) {
     if (!d) return
     d.cancelled = true
     drag.current = null
+    if (d.touch) releaseConnectTouch()
     document.dispatchEvent(d.touch ? new TouchEvent('touchend', { touches: [] }) : new MouseEvent('mouseup'))
     store.getState().cancelConnection()
   }, [store])
@@ -232,6 +245,9 @@ export function EndGrips(p: Props) {
     const fixedNode = fixed === 'source' ? p.source : p.target
     const fixedHandle = fixed === 'source' ? p.sourceHandle : p.targetHandle
     drag.current = { end, cancelled: false, touch: 'touches' in event }
+    // a touch drag holds that touch's moves until it ends, so the next tap is
+    // still a click (connectTouchHold.ts; measured on these grips 2026-10-22)
+    if ('touches' in event) holdConnectTouch(event.nativeEvent)
     justDragged.current = false
     useEndGripNotice.getState().set(null, null)
     XYHandle.onPointerDown(event.nativeEvent, {
@@ -262,6 +278,7 @@ export function EndGrips(p: Props) {
       onReconnectEnd: (_evt: MouseEvent | TouchEvent, state: FinalConnectionState) => {
         const d = drag.current
         drag.current = null
+        if (d?.touch) releaseConnectTouch()
         // a click the browser sends right after this release (on the grip) is
         // the drag's own; any later click is a pick again
         setTimeout(() => {

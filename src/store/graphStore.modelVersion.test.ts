@@ -13,7 +13,7 @@ function base() {
   g().addNodeAt('source', { x: 0, y: 0 })
   g().addNodeAt('pool', { x: 200, y: 0 })
   const [s, p] = g().nodes
-  g().onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' })
+  g().onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
   return { edgeId: g().edges[0].id }
 }
 

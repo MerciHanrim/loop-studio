@@ -293,7 +293,8 @@ test.describe('loop-revision/1 — Slice 1C', () => {
     expect(applied.open!.revisionId).not.toBe(r0)
     expect(applied.nodes).toBe(2) // proposal graph (== base) adopted whole
 
-    await page.locator('.toolbar__actions button[title^="Undo"]').click()
+    // the workbench's Undo is in the tool row, still inside `.toolbar`
+    await page.locator('.toolbar button[title^="Undo"]').click()
 
     const undone = await snap(page)
     expect(undone.nodes).toBe(preApply.nodes) // graph back
@@ -516,8 +517,9 @@ test.describe('loop-revision/1 — Slice 2 per-hunk apply', () => {
     expect(after.parent).toBe(r0)
     expect(after.rev).not.toBe(r0)
 
-    // one undo restores the pre-apply graph AND the r0 header
-    await page.locator('.toolbar__actions button[title^="Undo"]').click()
+    // one undo restores the pre-apply graph AND the r0 header (the workbench's
+    // Undo is in the tool row, still inside `.toolbar`)
+    await page.locator('.toolbar button[title^="Undo"]').click()
     expect(await nodeInitial(page, sid)).toBe(0)
     await expect
       .poll(() => page.evaluate(() => (window as unknown as { __loop: any }).__loop.project.getState().open.revisionId))
@@ -612,7 +614,7 @@ test.describe('loop-revision/1 — Slice 2 per-hunk apply', () => {
       G.addNodeAt('pool', { x: 0, y: 0 })
       G.addNodeAt('drain', { x: 200, y: 0 })
       const [a, b] = L.graph.getState().nodes
-      L.graph.getState().onConnect({ source: a.id, target: b.id, sourceHandle: 'out', targetHandle: 'in' })
+      L.graph.getState().onConnect({ source: a.id, target: b.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
       const eid = L.graph.getState().edges[0].id
       const P = L.project.getState()
       P.commitRevisionExport(P.planRevision({}).plan)
@@ -709,7 +711,7 @@ test.describe('loop-revision/1 — Slice 2 per-hunk apply', () => {
       ([src, tgt]) =>
         (window as unknown as { __loop: any }).__loop.graph
           .getState()
-          .onConnect({ source: src, target: tgt, sourceHandle: 'out', targetHandle: 'in' }),
+          .onConnect({ source: src, target: tgt, sourceHandle: 'out', targetHandle: 'in' }, 'flow'),
       [built.pId, built.dId],
     )
 
@@ -739,7 +741,7 @@ test.describe('loop-revision/1 — Slice 2 per-hunk apply', () => {
       G.addNodeAt('pool', { x: 200, y: 0 })
       G.addNodeAt('drain', { x: 400, y: 0 })
       const [s, mid, d] = L.graph.getState().nodes
-      L.graph.getState().onConnect({ source: s.id, target: mid.id, sourceHandle: 'out', targetHandle: 'in' })
+      L.graph.getState().onConnect({ source: s.id, target: mid.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
       const eid = L.graph.getState().edges[0].id
       const P = L.project.getState()
       P.commitRevisionExport(P.planRevision({}).plan)

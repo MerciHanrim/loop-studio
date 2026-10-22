@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, snap, test } from './support/loop'
+import { ensureTimelineOpen, expandMinimap, expect, importGraph, openApp, resetAll, snap, test } from './support/loop'
 
 // docs/flow-colour-and-compact-nodes.md FC-6 (issue #325, PR 2) — the flow
 // colour beyond the canvas, in pixels: the minimap and the timeline of a
@@ -37,6 +37,8 @@ const settle = async (page: Page) => {
 /** the coloured graph after five steps, the timeline open */
 async function run(page: Page): Promise<void> {
   await openApp(page)
+  // the minimap starts folded (docs/workbench.md §WB2.1); these shots are of it
+  await expandMinimap(page)
   await resetAll(page)
   await importGraph(page, GRAPH)
   await expect(page.locator('.react-flow__node[data-id="r_plain"]')).toBeVisible()
@@ -77,6 +79,8 @@ for (const t of TEMPLATES) for (const scheme of ['light', 'dark'] as const) {
   test(`${t.name} — its flow colours, fit to the pane, with the minimap — ${scheme}`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: scheme })
     await openApp(page)
+    // "with the minimap": opened as a stored choice (it starts folded, §WB2.1)
+    await expandMinimap(page)
     await page.locator('.toolbar__actions .menu').first().locator('> button').click()
     await page.locator('.toolbar__actions .menu').first().locator('.menu__pop [role="menuitem"]', { hasText: t.name }).click()
     const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i })

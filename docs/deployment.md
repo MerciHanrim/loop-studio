@@ -78,8 +78,9 @@ deploy.
 
 1. open `https://cozy-loop-studio.pages.dev/` — canvas + toolbar render, no console
    errors
-2. **Templates ▾ → Flowing equilibrium**, press Play — the timeline moves
-3. **File ▾ → Import** `examples/risky-factory.json`; open **Monte Carlo** —
+2. **File → Templates → Balanced production line**, press Play — the timeline
+   moves
+3. **File → Import** `examples/risky-factory.json`; open **Monte Carlo** —
    fields show `500 / 40 / 1`; **Run**
 4. DISTRIBUTION appears; termination sparkline flattens near **85 %**; the
    pre-run cost line reads *Parallel, N workers* (Worker path, not "Local")

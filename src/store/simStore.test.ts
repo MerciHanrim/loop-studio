@@ -18,9 +18,9 @@ function triggerGraph() {
   const [s, p, d] = useGraphStore.getState().nodes
   useGraphStore.getState().updateNodeData(d.id, { activation: 'passive' })
   const gs = useGraphStore.getState()
-  gs.onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' })
-  gs.onConnect({ source: p.id, target: d.id, sourceHandle: 'out', targetHandle: 'in' })
-  gs.onConnect({ source: s.id, target: d.id, sourceHandle: 'state-source', targetHandle: 'state-target' })
+  gs.onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
+  gs.onConnect({ source: p.id, target: d.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
+  gs.onConnect({ source: s.id, target: d.id, sourceHandle: 'state-source', targetHandle: 'state-target' }, 'trigger')
   const res = useGraphStore.getState().edges.find((e) => e.source === s.id && e.target === p.id)!
   useGraphStore.getState().setEdgeData(res.id, { kind: 'resource', flow: '2' })
   return { sourceId: s.id, poolId: p.id, drainId: d.id }
@@ -275,8 +275,8 @@ describe('steadyState — §PBO5', () => {
     g.addNodeAt('drain', { x: 400, y: 0 })
     const [src, pool, drn] = useGraphStore.getState().nodes
     const gs = useGraphStore.getState()
-    gs.onConnect({ source: src.id, target: pool.id, sourceHandle: 'out', targetHandle: 'in' })
-    gs.onConnect({ source: pool.id, target: drn.id, sourceHandle: 'out', targetHandle: 'in' })
+    gs.onConnect({ source: src.id, target: pool.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
+    gs.onConnect({ source: pool.id, target: drn.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
     const edges = useGraphStore.getState().edges
     const sp = edges.find((e) => e.source === src.id)!
     const pd = edges.find((e) => e.source === pool.id)!
@@ -346,7 +346,7 @@ describe('steadyState — §PBO5', () => {
     useGraphStore.getState().updateNodeData(pool.id, { capacity: 100 })
     useGraphStore
       .getState()
-      .onConnect({ source: src.id, target: pool.id, sourceHandle: 'out', targetHandle: 'in' })
+      .onConnect({ source: src.id, target: pool.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
     const e = useGraphStore.getState().edges[0]
     useGraphStore.getState().setEdgeData(e.id, { kind: 'resource', flow: '2' })
     for (let i = 0; i < 6; i++) sim().advance()
