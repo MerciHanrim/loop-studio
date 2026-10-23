@@ -16,21 +16,23 @@ export const FLOW_PALETTE = [
 ] as const
 export type FlowPaletteId = (typeof FLOW_PALETTE)[number]['id']
 
-/** The surfaces a flow colour is drawn on, per theme: `--surface-canvas` and
- *  `--surface-raised` (the node face). Pinned against src/index.css by
+/** The surfaces a flow colour is drawn on, per theme: `--bg-canvas` and
+ *  `--bg-node` (the node face). Pinned against src/index.css by
  *  flowColour.test.ts. */
 export const SURFACES = {
-  light: { canvas: '#fdfdfc', node: '#ffffff' },
-  dark: { canvas: '#202320', node: '#323632' },
+  light: { canvas: '#f1f2f4', node: '#ffffff' },
+  dark: { canvas: '#121417', node: '#171a1e' },
 } as const
 
 /** The state colours a flow colour should not be mistaken for (FC-3.3): the
  *  run signal, the focus ring, the warning. Selection is not here — it keeps
  *  its own ring (FC-4.1). Pinned against src/index.css by flowColour.test.ts. */
 export const NOTICE_STATE_COLOURS = {
-  signal: { light: '#2f746e', dark: '#76b7ae' },
-  focus: { light: '#3f6fb6', dark: '#83a9e6' },
-  warning: { light: '#a56332', dark: '#d59660' },
+  // the run colour; light darkened in its own hue on 2026-10-21 (index.css
+  // `--accent`, the Play label's contrast)
+  signal: { light: '#0c7062', dark: '#3ec1ae' },
+  focus: { light: '#2463d1', dark: '#6fa6ff' },
+  warning: { light: '#8a5a00', dark: '#e3c18a' },
 } as const
 
 /** WCAG non-text contrast floor */

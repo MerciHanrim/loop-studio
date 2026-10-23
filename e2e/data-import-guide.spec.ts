@@ -77,9 +77,11 @@ async function openWizard(page: Page): Promise<void> {
  *  minus the zoom Controls column, the minimap's row/column bands (when it
  *  is on screen) and the top-center hint slot (when a hint is showing). The
  *  right column (Inspector) is outside the pane already. */
-async function usableCanvasArea(page: Page): Promise<{ left: number; top: number; right: number; bottom: number }> {
-  return page.evaluate(() => {
+async function usableCanvasArea(page: Page, opts: { bands?: boolean } = {}): Promise<{ left: number; top: number; right: number; bottom: number }> {
+  // `bands: false` — the pane alone; the caller checks the overlays' own boxes
+  return page.evaluate((bands) => {
     const pane = document.querySelector('.react-flow')!.getBoundingClientRect()
+    if (!bands) return { left: pane.left, top: pane.top, right: pane.right, bottom: pane.bottom }
     const controls = document.querySelector('.react-flow__controls')?.getBoundingClientRect()
     const mm = document.querySelector('.react-flow__minimap')?.getBoundingClientRect()
     const hint = document.querySelector('.react-flow__panel.top.center')?.getBoundingClientRect()
@@ -91,11 +93,18 @@ async function usableCanvasArea(page: Page): Promise<{ left: number; top: number
     }
     if (hint && hint.height > 0) top = Math.max(top, hint.bottom)
     return { left, top, right, bottom }
-  })
+  }, opts.bands ?? true)
 }
 async function nodeBox(page: Page, id: string) {
   return page.evaluate((nid) => {
     const r = document.querySelector(`.react-flow__node[data-id="${nid}"]`)!.getBoundingClientRect()
+    return { left: r.left, top: r.top, right: r.right, bottom: r.bottom }
+  }, id)
+}
+/** a node's outside name (the symbol nodes, 2026-10) */
+async function nameBox(page: Page, id: string) {
+  return page.evaluate((nid) => {
+    const r = document.querySelector(`.react-flow__node[data-id="${nid}"] .nodef__name`)!.getBoundingClientRect()
     return { left: r.left, top: r.top, right: r.right, bottom: r.bottom }
   }, id)
 }
@@ -219,13 +228,29 @@ test('the quick start is visible before any input; "Use this example" fills a ta
   // one-shot hint, and every created node inside the usable area
   await expect(page.locator('.hint-note', { hasText: /4 Parameters added/ })).toBeVisible()
   await page.waitForTimeout(150)
-  const area = await usableCanvasArea(page)
+  // every created node AND its outside name on the canvas, under none of its
+  // fixed overlays. At 1280 × 800 the workbench canvas is 664 px wide, so the
+  // floor-zoom fit frames the batch's first columns and the fourth lies in
+  // the minimap's COLUMN band, above the minimap (measured 2026-10-20: node
+  // bottom 262, minimap top 375) — on screen and clear; a band test would call
+  // that hidden. The names are checked too: the first one had begun 12 px
+  // under the left list (the fit's rect now holds the name's reach).
+  const pane = await usableCanvasArea(page, { bands: false })
+  const overlays = await page.evaluate(() =>
+    ['.react-flow__minimap', '.react-flow__panel.top.center', '.react-flow__controls']
+      .map((s) => document.querySelector(s)?.getBoundingClientRect())
+      .filter((r): r is DOMRect => r != null && r.width > 0)
+      .map((r) => ({ left: r.left, top: r.top, right: r.right, bottom: r.bottom })),
+  )
+  const meets = (a: { left: number; top: number; right: number; bottom: number }, b: typeof a) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1
   for (const n of created) {
-    const b = await nodeBox(page, n.id)
-    expect(b.left).toBeGreaterThanOrEqual(area.left - 1)
-    expect(b.top).toBeGreaterThanOrEqual(area.top - 1)
-    expect(b.right).toBeLessThanOrEqual(area.right + 1)
-    expect(b.bottom).toBeLessThanOrEqual(area.bottom + 1)
+    for (const [what, b] of [['node', await nodeBox(page, n.id)], ['name', await nameBox(page, n.id)]] as const) {
+      expect(b.left, `${n.id} ${what} left`).toBeGreaterThanOrEqual(pane.left - 1)
+      expect(b.top, `${n.id} ${what} top`).toBeGreaterThanOrEqual(pane.top - 1)
+      expect(b.right, `${n.id} ${what} right`).toBeLessThanOrEqual(pane.right + 1)
+      expect(b.bottom, `${n.id} ${what} bottom`).toBeLessThanOrEqual(pane.bottom + 1)
+      for (const o of overlays) expect(meets(b, o), `${n.id} ${what} under an overlay`).toBe(false)
+    }
   }
 
   // the quick start collapses after the first success (not an explicit choice) and the hint shows only once
@@ -319,14 +344,14 @@ test('inline errors: the summary takes focus, each item is a button that reveals
   await expect(dialog(page).getByText('Place on the canvas, no frames')).toBeVisible()
 })
 
-for (const [loc, needle] of [
-  ['ko', 'price'],
-  ['ja', 'price'],
+// §L2.0 (2026-10): ko is the only shipped non-English language; the ja row retired.
+for (const [loc, needle, dataButton] of [
+  ['ko', 'price', '데이터'],
 ] as const) {
   test(`${loc} -- the invalid-number message carries the value and the header, never the internal code`, async ({ page }) => {
     await page.evaluate((l) => (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (s: string) => void } } } }).__loop.i18n.getState().setLocale(l), loc)
     await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(loc)
-    const btn = page.getByRole('button', { name: loc === 'ko' ? '데이터' : 'データ', exact: true })
+    const btn = page.getByRole('button', { name: dataButton, exact: true })
     if (!(await btn.isVisible())) await page.locator('.toolbar__overflow-btn').click()
     await btn.click()
     await page.getByRole('menuitem').first().click()

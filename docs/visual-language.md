@@ -33,6 +33,36 @@ bring every existing node/edge onto one grammar in a single pass.
 > or Register — like any other node — changes **no** GraphDoc byte,
 > `loop-revision/*` digest, undo entry, or viewport (§VL10).
 
+> **The workbench design tokens (2026-10).** The token set was designed anew
+> from the reviewed workbench mock-up (share notes 93–95, dark and light) and
+> replaced the earlier one, and the Cozy Shelter family layer, outright; only
+> the user's System / Light / Dark choice was kept. One set of meanings, with a
+> value per theme, in `src/index.css`:
+>
+> | Group | Tokens |
+> |---|---|
+> | surfaces | `--bg-app` `--bg-bar` `--bg-panel` `--bg-head` `--bg-raise` `--bg-hover` `--bg-canvas` `--bg-field` `--bg-overlay` `--bg-node` `--label-bg` |
+> | lines | `--line-1` `--line-2` `--line-3` `--line-control` `--line-control-hover` `--line-disabled` `--grid` `--chart-grid` |
+> | ink | `--ink-1` … `--ink-3`, `--ink-disabled` |
+> | accent (what runs, what is primary) | `--accent` `--accent-soft` `--accent-trail` `--accent-glow` |
+> | selection and focus | `--sel` `--sel-soft` `--sel-name` `--focus` `--focus-halo` |
+> | status | `--ok` `--no` `--warn` |
+> | node kinds | `--k-pool` `--k-source` `--k-drain` `--k-converter` `--k-gate` `--k-end` (Parameter and Register carry no kind hue) |
+> | connection meanings | `--m-flow` `--m-condition` `--m-change`, their `-hi` forms, `--dim-opacity` |
+> | frames, data, shadows, radii | `--frame-*`, `--dist-band-mix` `--minimap-mask`, `--shadow-*`, `--radius` (8 px) `--control-radius` (5 px) |
+>
+> Three values were CORRECTED from the mock-up, each measured in its comment: the
+> light faint ink `--ink-4` (3.98 → 5.01:1 — no rule ever read it, so it was
+> removed on 2026-10-21 with `--chart-axis`, `--accent-ink`, `--pos`,
+> `--k-param` and `--k-register`, all unread),
+> `--ink-disabled` in both themes (2.4–3.4:1 against a live label's 9.6–15), and
+> light `--grid` with `--dim-opacity` (dimmed-line-to-grid 1.21 in light against
+> 1.19 in dark). A control boundary keeps the product's ≥ 3:1 contract
+> (`--line-control`), which the mock-up's `--line-2` would not meet. Each theme
+> declares `color-scheme`. Token names and contrast figures elsewhere in this
+> document belong to the earlier set and are kept as the record of that work;
+> `e2e/shell-function-colours.spec.ts` pins the current values.
+
 ---
 
 ## VL0. Principles
@@ -77,6 +107,60 @@ bring every existing node/edge onto one grammar in a single pass.
 ---
 
 ## VL2. Nodes — the Vessel system
+
+### VL2.0 Symbol nodes (the workbench redesign, 2026-10 — in progress)
+
+The default node structure now draws each kind as a small line SYMBOL, the value
+inside, the name outside (`src/components/nodes/symbol.ts`, `nodes.tsx`
+`NodeFrame`, `nodeStructure.css`). The vessel silhouettes below remain only for
+the previous structure (`?nodes=inside`, one page load).
+
+- **The cell.** Every kind occupies a 56 × 56 cell at the node's stored position,
+  its symbol centred at (28, 28). That centre is the old port row (`PORT_ROW`),
+  so a document's positions, straight lines and user bends are kept and no node
+  is moved; `LAYOUT_VERSION` is unchanged. A symbol larger than the cell (the
+  gate's diamond, 62; the register, 68 wide) overflows it; the router keeps
+  lines out of the symbol's own box.
+- **The shapes.** Approved: pool — a circle, r 28; gate — a diamond, 31 to each
+  point; converter — a flat hexagon (points at ±30, flat sides ±16, height 44);
+  parameter — a 52 px square, radius 5, with a baseline under the value;
+  register — a 68 × 44 readout, radius 4, its value read `= …`.
+  Confirmed on the product screen (2026-10-20): source — a triangle pointing
+  down; drain — a triangle pointing up (the mock-up had none); end — an
+  octagon. The outline is `--node-stroke`, 1.6 px.
+- **The small marks.** The tool row's Add buttons and the left list's rows
+  share the canvas symbols' base outlines (`KindIcon.tsx`, from the same
+  `SYMBOLS`): 16 px, a 1.3 px stroke at that size, mitred corners; the
+  parameter keeps its baseline; no value, name or inner role mark. **Only the
+  small end icon adds an identifying square**: inside its octagon (sides on
+  pixel edges), a small filled square — an aid to tell it from the pool at
+  16 px, used in the tool row and the list only; the canvas end stays a plain
+  octagon. At 16 px on a 1× screen every outline-only octagon measured read as
+  the pool's circle (Lumi approved the square, 2026-10-21). Before that day
+  the Add buttons were `＋ － ＝` text for source, drain and register, and an
+  end was a circled ×.
+- **The ends.** A connection ends on the symbol's outline straight out from the
+  centre: left and right on the port row, top and bottom on the centre column.
+  A face's resource and state ports share that point; while a connection is
+  dragged, the dragged kind's handles are on top there, so a drop reaches the
+  port of its own kind. `routeMap.portPoint` and the DOM handles read the same
+  anchors.
+- **The value.** Pool, parameter and register show their number inside, 600 16 px
+  (15 px in the readout), in the document's own format and precision. A value
+  wider than its symbol is elided there — never shrunk (the overflow rule of
+  2026-10-12: space changes neither precision nor size) — AND written in full on
+  the line beside the symbol, so no value is only cut short. The tooltip carries
+  the value with its capacity or unit.
+- **The aux line.** What a value means and the symbol has no room for — a pool's
+  capacity (`≤ 50`), a parameter's or register's unit — is a small line beside
+  the symbol, above the name, never elided. It is pinned `ltr` like the value row
+  it continues, and the unit takes its own direction (`dir="auto"`,
+  `docs/localization.md` §L9.3).
+- **The label.** The aux line and the name are one box, 12 px from the symbol on
+  its face (below unless a connection uses that face): past every state ring
+  (selection 4.5 px, invalid 8.5 px, the fired ticks 9–11 px), so no state mark
+  meets the name. The name is 500 13 px in `--ink-2`, at most 136 px and two
+  lines; a selected node's is 600 in `--sel-name`.
 
 ### VL2.1 Silhouettes (unchanged from N1)
 
@@ -176,7 +260,8 @@ No capacity bar, no expression row, no primary-value-from-run row.
 3. **Invalid state** — when the model reports the Register `invalid` (§M3.4):
    the value area shows the neutral placeholder **`—`**, the leading `=` glyph
    is **struck through** (the §VL3 `invalid` layer), and the outline takes the
-   `--warning` solid treatment. **No number is shown** — never `0`, never the
+   error colour (`--no`, since 2026-10-21; it was the warning colour).
+   **No number is shown** — never `0`, never the
    last valid value (§M6.2). The Inspector carries the enumerated model **code**
    (`M_REG_PARSE` · `M_REG_EVAL` · `M_REG_UNKNOWN_REF` · `M_REG_WRONG_KIND` ·
    `M_REG_INVALID_ID` · `M_REG_CYCLE` · `M_REG_DEPENDS_ON_INVALID`) plus a
@@ -370,10 +455,27 @@ pure function of zoom: a threshold round-trip restores the prior state exactly
 | Level | Zoom (approx) | Nodes also show | Edges also show |
 |---|---|---|---|
 | **L2 — detail** | ≥ 0.8 | title, value, capacity bar, key expression, type chip, all badges | flow / condition chip, type inner-stroke |
-| **L1 — compact** | 0.45–0.8 | title + value; type as a dot | type inner-stroke |
-| **L0 — map** | < 0.45 | type dot only (no text) | type inner-stroke only |
+| **L1 — compact** | 0.45–0.8 | title + value; type as a dot | flow / condition chip, type inner-stroke |
+| **L0 — map** | < 0.45 | type dot; the outside name (symbol nodes) — no value, no aux line | type inner-stroke only |
 
 Grid fades out entering L1.
+
+**A line's value at L1 (Lumi, 2026-10-20).** The flow / condition chip shows
+at L1 as well as L2: a weight, a `+1` or an end condition is what the model
+says, and a whole-diagram fit of an ordinary example lands at L1. Like a name,
+it shrinks with the view — no minimum type size, no chip dropped because it
+overlaps. It hides at L0. The router reserves a chip's rest size, which the
+chip reports while it is drawn (docs/edge-routing.md §ER14.3), so a document
+opened at L1 now has its chips' room reserved from the start.
+
+**The outside name at L0 (symbol nodes, Lumi 2026-10-20).** The name stays at
+L0. It shrinks with the view like everything else on the canvas: no minimum
+type size, no name dropped because it overlaps; reading it closely means
+zooming in, as reading a value does. A whole-diagram fit (View ▸ Reset view)
+that lands below 0.45 therefore keeps every name on screen, small. The bundled
+examples keep their names, values and lines apart by their own layout; a
+complex user model is not promised to be free of overlaps at every zoom. Under
+`?nodes=inside` (the previous body) L0 is unchanged: no text.
 
 **Parameter / Register at each level.** Same rule as every other kind — the
 §VL7.1 required set never drops:
@@ -404,6 +506,56 @@ byte-identical across L2/L1/L0 (§VL12.5).
   it and leans on surface contrast). **What does not change:** which element is
   emphasised, the hue *identities* (a Gold edge is recognisably the same hue in
   both), and the state→cue mapping.
+- **Colour roles (2026-10-21, the colour review's direction A, first
+  step).** The **run colour** (`--accent`, teal) is for the controls that
+  start or stop a run — Play / Pause (`.pb-btn--primary`) and the Monte
+  Carlo dialog's Run (`.btn--run`) — and for what a run shows (beads,
+  pulses, a satisfied condition, the timeline guide). A control that only
+  opens, chooses or sets something is **neutral**: a dialog's primary button
+  that does not start a run (`.btn--primary`: the ink boundary, its place),
+  the run bar's Monte Carlo button (it opens the dialog), the chosen tab,
+  view and toggle (the underline / pressed face in ink), the speed slider and
+  the dialog's checkboxes. Connecting a port is **interaction** — the
+  selection blue. The **brand** mark (logo, toolbar mark) has its own
+  `--brand`, at the value it always showed. The run chart's **series** have
+  their own `--series-1…6`, at the kind hues' values and order they used to
+  read; node kinds keep `--k-*` (minimap, node wash). Colours a user or an
+  example stores (a frame's colour, a flow colour) are not theme roles and
+  are unchanged. Text on these surfaces is held to 4.5:1 by value, not by
+  hue: the light run colour and success colour were darkened in their own
+  hue, a coloured frame's title is written in ink (the colour stays on its
+  border and outline), and text on the solid focus fill is `--on-focus`
+  (white in light, the page's dark in dark). **By meaning (step 2,
+  2026-10-21):** an **error** — a wrong input, a failed action, a computation
+  that gave no number, a node that cannot be read — is `--no`; a **warning** —
+  a state to notice or check (a route point in a clearance, a stale result, a
+  dirty revision, a temporary session, a refused connection's note) — keeps
+  `--warn`; a **normal state** of a run (a condition not met, a blocked move, a
+  change clamped by a capacity) and a guidance note are a strong neutral
+  (`--ink-2` / `--ink-3` — the colour is not a faded one; a cue that already
+  animated keeps its animation, e.g. the not-met condition's ring still plays
+  its 260 ms ping, opacity 0.9 → 0.35, on the step's arrive beat; that ring
+  has its own `--cue-unmet` — the tertiary ink in light, a lighter neutral in
+  dark, chosen so that at every opacity of the ping it is never below the
+  warning colour it had before); a
+  **destructive** control (a frame's
+  delete) is neutral, `--no` on hover / keyboard focus. Each keeps its words,
+  marks, hollow ring and numbers. (Found after that survey of the `--warn`
+  rules, 2026-10-21: the Model panel's error code under an invalid Register —
+  any `M_REG_*` code, a dependency on an invalid Register included — is
+  `--no`; the row's "no value at step N" keeps the row's ink.) **Area and control marks (step 3,
+  2026-10-21):** none of these is a run, so none is teal — a Neutral frame
+  (no colour chosen) is a grey wash (`--ink-3` @ 0.05, the opacity it had); the
+  selected frame's resize handle is a strong neutral (`--ink-2` — it sits on
+  the selected frame's blue dashed outline, and in the selection blue it read
+  as part of that outline; its keyboard focus ring is unchanged); the
+  minimap's view-area outline is a strong neutral (`--ink-2`, in the CSS rule
+  and in MinimapDock's `maskStrokeColor`), at React Flow's screen-constant
+  width from `maskStrokeWidth` (about 1 px whatever the graph's extent or the
+  zoom — the rule no longer sets a width, which was in the minimap's flow
+  units and drew the line at about 1/24 px on a large graph); the guided tour's spotlight ring is
+  `--ink-1` (the scrim does the emphasising). A frame's chosen colour is
+  unchanged.
 - **Contrast** is held to the numeric floors in §VL11.2 and checked
   automatically (§VL12.10).
 - **Non-colour redundancy** is mandatory for: resource vs state edge (solid vs
@@ -677,8 +829,8 @@ committed pixel matrix in `e2e/canvas-refresh-visual.spec.ts`:
     and state representation (§VL2.1, §VL2.4, §VL3, §VL5.4) are rendered on the
     real canvas and covered by criteria 1–10 like every other kind — no dev
     flag, no provisional fixture. The `invalid` state (Register only — a
-    Parameter is never `invalid`) is drawn as a `--warning` **dashed** outline
-    plus a corner `!` flag, so it is identifiable with hue stripped and under
+    Parameter is never `invalid`) is drawn as a **dashed** outline in the error
+    colour (`--no`, since 2026-10-21) plus a corner `!` flag, so it is identifiable with hue stripped and under
     `forced-colors`; the value area shows `—`, never `0` or a stale value.
 
 ---

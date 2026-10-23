@@ -20,7 +20,7 @@ async function sourcePoolGraph(page: Page): Promise<string> {
     const [s, p] = (window as any).__loop.graph.getState().nodes
     ;(window as any).__loop.graph
       .getState()
-      .onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' })
+      .onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
     return (window as any).__loop.graph.getState().edges[0].id
   })
 }
@@ -118,7 +118,7 @@ test.describe('loop-model/2 — parameter-driven flow', () => {
       const p = st.nodes.find((n: any) => n.data.kind === 'pool')
       const par = st.nodes.find((n: any) => n.data.kind === 'parameter')
       st.updateNodeData(par.id, { value: 5 })
-      st.onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' })
+      st.onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
       const eid = (window as any).__loop.graph.getState().edges[0].id
       ;(window as any).__loop.graph.getState().setEdgeData(eid, { kind: 'resource', flow: `@${par.id}` })
     })

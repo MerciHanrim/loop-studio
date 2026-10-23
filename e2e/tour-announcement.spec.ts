@@ -308,13 +308,20 @@ test.describe('the tour says each step once, and keeps focus (desktop)', () => {
   })
 })
 
-test.describe('the tour at 760 px: Help is folded into the overflow button', () => {
+test.describe('the tour with Help folded into the overflow button', () => {
+  // The two-tier bar folded Help into ⋯ at 760 px. The workbench's text menu
+  // bar still fits there (measured 2026-10-20: every menu inline, and the tour
+  // ending by Escape returns focus to Help itself, the right target). The case
+  // this covers — Help inside ⋯ — is made by narrowing the menu bar to 560 px,
+  // where ⋯ holds Run and Help (the pin palette-tooltip-menu-suppression uses).
   test.use({ viewport: { width: 760, height: 800 } })
   for (const run of ['first run', 'replay'] as const) {
     test(`${run}, ended by Escape: focus lands on the overflow button`, async ({ page }) => {
       await seedKey(page, run === 'first run' ? null : 'completed')
       await record(page)
       await openApp(page)
+      await page.addStyleTag({ content: '.toolbar { max-width: 560px !important; }' })
+      await expect(page.locator('.toolbar__actions [data-tour="help-trigger"]').filter({ visible: true })).toHaveCount(0)
       if (run === 'first run') {
         await startFirstRun(page)
       } else {

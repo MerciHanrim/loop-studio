@@ -158,7 +158,7 @@ The spatial order is fixed, measured from the silhouette in screen pixels (every
 
 | layer | where | drawn as |
 |---|---|---|
-| **invalid** (Register) | 6.5 – 8.5 px **outside**, the outermost | `--warning`, dashed `4 3`, plus the `!` flag |
+| **invalid** (Register) | 6.5 – 8.5 px **outside**, the outermost | the error colour (`--no` since 2026-10-21; was the warning colour), dashed `4 3`, plus the `!` flag |
 | **selection** | 2.5 – 4.5 px **outside** | `--state-selected`, solid — §VL3's "2 px ring, offset 2 px" |
 | **structure line** | on the silhouette | the neutral `.nodef__stroke`, unchanged in colour and width for every node |
 | **colour band** | 0 – 3 px **inside**, clipped to the silhouette | the flow colour |
@@ -176,7 +176,7 @@ Inside the node, **"the flow colour if set, else the kind hue"** decides the chi
 - A coloured edge draws its path and its arrowhead in the flow colour at its usual width, and its flow or condition label takes a 1 px border in the colour.
 - **Selection** no longer recolours: a selected edge keeps its colour (flow colour or default) at 2 px, over a **selection underlay** — a wider, translucent `--state-selected` stroke beneath the path — plus the existing start dot. Uncoloured edges get the same underlay.
 - The colour never overrides a state or a rule: a state edge stays dashed; a satisfied activator keeps the colour and is told by its 1.8 px weight and its upright "on" label (an uncoloured one still takes `--signal-primary`), and an unsatisfied one keeps opacity 0.5; a route-invalid edge keeps its `--warning` dash and `!` flag; Focus-mode dimming applies.
-- A coloured edge's **run signals** are drawn in its flow colour (FC-4.3): the path highlight and the very fast tier's flash, the token, the `+N` badge's border, the departure and arrival rings, the reduced-motion highlight and role tells, the L0 travel pulse, and a state edge's bead, held highlight and satisfied-activator ring. The badge's amount and a label's run amounts keep the primary ink. A blocked trigger keeps `--state-warning`.
+- A coloured edge's **run signals** are drawn in its flow colour (FC-4.3): the path highlight and the very fast tier's flash, the token, the `+N` badge's border, the departure and arrival rings, the reduced-motion highlight and role tells, the L0 travel pulse, and a state edge's bead, held highlight and satisfied-activator ring. The badge's amount and a label's run amounts keep the primary ink. A blocked trigger keeps its own hollow ring — in a strong neutral since 2026-10-21 (a normal state of the run, not a warning; it was the warning colour).
 
 ### FC-4.3 The rule
 

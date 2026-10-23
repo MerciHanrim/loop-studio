@@ -39,14 +39,14 @@ Relevant facts about the app (they make PWA simple here):
 |---|---|---|
 | `name` | `Loop Studio` | |
 | `short_name` | `Loop Studio` | fits a home-screen label |
-| `description` | `Design and simulate game-economy loop diagrams.` | |
+| `description` | `Model and simulate how resources flow and how state changes.` | widened from "game-economy loop diagrams" in 2026-10: games are one use case |
 | `id` | `/` | stable install identity across `start_url` changes |
 | `start_url` | `/` | Pages root; **no** tracking query |
 | `scope` | `/` | the whole origin is the app |
 | `display` | `standalone` | app-like; `minimal-ui` is the fallback if a URL bar is wanted |
 | `orientation` | *(omit)* | works at any size |
-| `background_color` | `#f0efea` | `--surface-ground` (light); paints the launch splash |
-| `theme_color` | `#f0efea` | matches the toolbar; also as a `<meta name="theme-color">` with a `prefers-color-scheme: dark` variant `#171a18` |
+| `background_color` | `#e3e6ea` | the workbench `--bg-app` (light, 2026-10; was `#f0efea`); paints the launch splash |
+| `theme_color` | `#e3e6ea` | also as a `<meta name="theme-color">` with a `prefers-color-scheme: dark` variant `#101215`; an explicit Light or Dark choice rewrites both metas to that theme's colour (`syncThemeColor`, `themeBoot.js`) |
 | `icons` | see below | committed PNGs in `public/icons/` |
 | `shortcuts` | *(none for v1)* | "New graph" could be added later |
 | `screenshots` | *(none for v1)* | nice for the install dialog; defer |
@@ -60,7 +60,7 @@ reusing the edge-to-edge logo with `purpose: "maskable"` gets the mark cropped.
 |---|---|---|---|
 | `icons/icon-192.png` | 192×192 | `"any"` | the Logo mark, edge-to-edge |
 | `icons/icon-512.png` | 512×512 | `"any"` | same, full-bleed |
-| `icons/icon-maskable-512.png` | 512×512 | `"maskable"` | a **separately composed** image — the mark scaled into the central safe zone on the `#f0efea` field, tested against the [maskable.app](https://maskable.app) presets |
+| `icons/icon-maskable-512.png` | 512×512 | `"maskable"` | a **separately composed** image — the mark scaled into the central safe zone on the `#f0efea` field (the icons keep their own fixed brand colours; they do not follow the screen theme), tested against the [maskable.app](https://maskable.app) presets |
 | `icons/apple-touch-icon.png` | 180×180 | *(iOS, via `<link>`)* | opaque background, no transparency (iOS does not mask) |
 
 `manifest.icons` lists all three of the first group as distinct entries

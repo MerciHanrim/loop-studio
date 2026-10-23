@@ -2,30 +2,25 @@ import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
 
 // docs/template-label-overlay.md §TLO12 — the frame-title half of the locale
-// switch, through the REAL UI, for a locale whose code carries a hyphen.
+// switch, through the REAL UI, read back from the AUTOSAVED document.
 //
-// THE TRAP IS DIRECTIONAL, AND THAT IS WHAT THIS SPEC WALKS
+// `coffee-zone-frames.spec.ts` checks the titles on screen. This spec checks
+// what is SAVED: the gacha Template's four frame titles in the autosave record,
+// derived from the shipped dictionary inside the page rather than retyped, and
+// that a relabel moves titles only — never counts or geometry.
 //
-//   1 the English frame titles ARE in the known-official index, so `en` ->
-//     `zh-Hans` switches and the product writes the Chinese titles;
-//   2 those Chinese titles were NOT in the index, because
-//     `scripts/gen-known-labels.mjs` located a locale's frame map by searching
-//     for `export const <locale>Frames` — a string that never matches a
-//     hyphenated code (`zh-HansFrames` against the real `zhHansFrames`) — and
-//     returned an EMPTY slice in silence;
-//   3 so every later switch read the current Chinese title as a USER RENAME
-//     and preserved it. Once a document entered one of the six hyphenated
-//     locales it was stuck there for every language afterwards, while its NODE
-//     labels kept switching correctly.
+// §L2.0 (2026-10) — English and Korean are the shipped languages. The two
+// tests that walked a document into and out of a HYPHENATED locale (`zh-Hans`,
+// then all six hyphenated codes: a generator defect left their frame titles out
+// of the known-official index, so a document entering one was stuck there)
+// retired with those languages: no shipped code carries a hyphen now. The
+// eighteen-locale version is kept in
+// `archive/i18n/e2e/frame-label-locale-switch.spec.ts`; the unit contract for
+// the current pair is `src/i18n/templateLabels/frameLabelCoverage.test.ts`.
 //
-// `coffee-zone-frames.spec.ts` already checked frame titles in the browser —
-// for `en`, `ko` and `ja`, all three of them codes the generator could find.
-// Every locale it covered was a locale that worked. This spec enters through
-// the hyphenated door on purpose.
-//
-// The Chinese strings are DERIVED from the shipped dictionary inside the page
-// and never retyped here: `常驻／免费` carries U+FF0F FULLWIDTH SOLIDUS, which
-// no screenshot distinguishes from an ASCII `/` between spaces.
+// What §L2.0 promises instead is that a document whose frame titles were
+// written in a RETIRED language keeps them, unchanged, as the user's own
+// content on every switch. The last test here walks that.
 
 type Loop = Record<string, { getState: () => any }>
 
@@ -78,9 +73,23 @@ async function docState(page: Page) {
   })
 }
 
+const savedTitles = (page: Page) => docState(page).then((s) => s.titles)
+
+/** The gacha Template opens with editing locked, and a locked document refuses
+ *  a rename (#334), so the rename unlocks first, as a user would. */
+const renameFrame = (page: Page, id: string, label: string) =>
+  page.evaluate(
+    ([frameId, title]) => {
+      const l = (window as unknown as { __loop: Loop }).__loop
+      l.ui.getState().setCanvasLocked(false)
+      l.frame.getState().renameFrame(frameId, title)
+    },
+    [id, label] as const,
+  )
+
 const templatesMenu = (page: Page) => page.locator('.toolbar__actions .menu').first()
 
-/** Open the gacha Template from an ENGLISH UI — the entry point of the trap. */
+/** Open the gacha Template from an ENGLISH UI, the state every user starts from. */
 async function openGachaInEnglish(page: Page) {
   await templatesMenu(page).locator('> button').click()
   await templatesMenu(page)
@@ -99,12 +108,12 @@ async function openGachaInEnglish(page: Page) {
     .toBe(4)
 }
 
-test('a document that enters a hyphenated locale can still leave it', async ({ page }) => {
+test('the gacha frame titles switch en -> ko -> en in the saved document; a user rename survives', async ({ page }) => {
   await openApp(page)
   await resetAll(page)
   await setLocale(page, 'en')
 
-  // 1 — seed in English, the state every user starts from
+  // 1 — seed in English
   await openGachaInEnglish(page)
   const enWant = await dictFrameTitles(page, 'en')
   expect(Object.keys(enWant)).toHaveLength(4)
@@ -112,48 +121,76 @@ test('a document that enters a hyphenated locale can still leave it', async ({ p
   expect(seeded.titles).toEqual(enWant)
   expect(seeded.shape).toMatchObject({ nodes: 63, frames: 4 })
 
-  // 2 — enter the hyphenated locale. This step always worked: the ENGLISH
-  //     titles are in the index, so they switch.
-  await setLocale(page, 'zh-Hans')
-  const zhWant = await dictFrameTitles(page, 'zh-Hans')
-  expect(await docState(page).then((s) => s.titles)).toEqual(zhWant)
-  // the fixture is really Han, not English that happens to match
-  for (const [id, label] of Object.entries(zhWant)) {
-    if (label === enWant[id]) continue // a mechanism name kept in English on purpose
-    expect(/\p{Script=Han}/u.test(label), `${id}: ${label}`).toBe(true)
-  }
-  expect(Object.values(zhWant).some((l) => /\p{Script=Han}/u.test(l))).toBe(true)
-
-  // 3 — leave it again. THIS is the step the defect broke: the Chinese titles
-  //     were read as user renames and preserved, in every language afterwards.
-  await setLocale(page, 'en')
-  expect(await docState(page).then((s) => s.titles), 'zh-Hans -> en').toEqual(enWant)
-
-  // 4 — and a third language, so the check is not "English is special"
+  // 2 — to Korean: every official title switches, and really is Korean
   await setLocale(page, 'ko')
-  expect(await docState(page).then((s) => s.titles), 'en -> ko').toEqual(
-    await dictFrameTitles(page, 'ko'),
-  )
+  const koWant = await dictFrameTitles(page, 'ko')
+  expect(await savedTitles(page), 'en -> ko').toEqual(koWant)
+  for (const [id, label] of Object.entries(koWant)) {
+    expect(label, `${id}: the ko dictionary must translate it`).not.toBe(enWant[id])
+    expect(/\p{Script=Hangul}/u.test(label), `${id}: ${label}`).toBe(true)
+  }
+
+  // 3 — and back: the Korean titles are official too, so they are not read as
+  //     user renames and preserved
+  await setLocale(page, 'en')
+  expect(await savedTitles(page), 'ko -> en').toEqual(enWant)
+
+  // 4 — a user rename stays through both directions; the other three move
+  await renameFrame(page, 'zone_free', 'My free banner')
+  await expect.poll(() => savedTitles(page), { message: 'the rename is saved' }).toEqual({
+    ...enWant,
+    zone_free: 'My free banner',
+  })
+  await setLocale(page, 'ko')
+  await expect.poll(() => savedTitles(page), { message: 'en -> ko with a rename' }).toEqual({
+    ...koWant,
+    zone_free: 'My free banner',
+  })
+  await setLocale(page, 'en')
+  await expect.poll(() => savedTitles(page), { message: 'ko -> en with a rename' }).toEqual({
+    ...enWant,
+    zone_free: 'My free banner',
+  })
 
   // 5 — a relabel moves TITLES only: counts and frame geometry are untouched
   expect(await docState(page).then((s) => s.shape)).toEqual(seeded.shape)
 })
 
-test('every hyphenated locale is a door that opens both ways', async ({ page }) => {
-  // The defect was never Chinese-specific: all six hyphenated codes missed the
-  // same search. Each one is entered from English and left again.
+test('§L2.0 — frame titles from a retired language are kept as the user’s on every switch', async ({ page }) => {
+  // A document made in Simplified Chinese before §L2.0 carries the gacha
+  // Template's Chinese titles. Those were official then; now no dictionary
+  // ships them, so they are user content and must never be rewritten. The two
+  // English-titled frames are still official and still switch.
+  //
+  // The titles are the ones `frameLabelCoverage.test.ts` pins. `常驻／免费`
+  // carries U+FF0F FULLWIDTH SOLIDUS, written as an escape so no reader takes it
+  // for an ASCII `/`.
+  const RETIRED = { zone_comparison: '对比', zone_free: '常驻／免费' }
+
   await openApp(page)
   await resetAll(page)
   await setLocale(page, 'en')
   await openGachaInEnglish(page)
   const enWant = await dictFrameTitles(page, 'en')
+  for (const [id, label] of Object.entries(RETIRED)) await renameFrame(page, id, label)
+  await expect
+    .poll(() => savedTitles(page), { message: 'the retired-language titles are saved' })
+    .toEqual({ ...enWant, ...RETIRED })
+  const seeded = await docState(page)
 
-  for (const loc of ['zh-Hans', 'zh-Hant', 'es-419', 'es-ES', 'pt-BR', 'pt-PT'] as const) {
-    await setLocale(page, loc)
-    expect(await docState(page).then((s) => s.titles), `en -> ${loc}`).toEqual(
-      await dictFrameTitles(page, loc),
-    )
-    await setLocale(page, 'en')
-    expect(await docState(page).then((s) => s.titles), `${loc} -> en`).toEqual(enWant)
-  }
+  // reopen it, as a returning user would: the saved document is what boots
+  await openApp(page)
+  await expect.poll(() => savedTitles(page), { message: 'reopened unchanged' }).toEqual({ ...enWant, ...RETIRED })
+
+  await setLocale(page, 'ko')
+  const koWant = await dictFrameTitles(page, 'ko')
+  await expect.poll(() => savedTitles(page), { message: 'en -> ko' }).toEqual({ ...koWant, ...RETIRED })
+
+  await setLocale(page, 'en')
+  await expect.poll(() => savedTitles(page), { message: 'ko -> en' }).toEqual({ ...enWant, ...RETIRED })
+
+  await setLocale(page, 'ko')
+  await expect.poll(() => savedTitles(page), { message: 'en -> ko, again' }).toEqual({ ...koWant, ...RETIRED })
+
+  expect(await docState(page).then((s) => s.shape)).toEqual(seeded.shape)
 })

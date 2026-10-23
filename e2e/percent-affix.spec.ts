@@ -5,14 +5,14 @@ import { expect, openApp, resetAll, test } from './support/loop'
 // REAL DOM rather than in the catalog.
 //
 // `percentContract.test.ts` pins the catalog strings; it cannot see what the
-// browser does with them. Two things only a browser can answer:
+// browser does with them. What only a browser can answer: in the shipped
+// languages the sign touches the number, and it still does inside a
+// right-to-left paragraph.
 //
-//   1 `fr` / `de` / `es-ES` / `ru` set a NO-BREAK space before the sign. The
-//     point of that character is that the number and the `%` never land on
-//     different lines. This measures exactly that, in a box narrow enough to
-//     force a wrap — the check the four-character `fr` / `de` fix was made for.
-//   2 `tr` puts the sign FIRST with nothing between. This measures the order
-//     and the absence of any space character, by code point.
+// §L2.0 (2026-10): the two tests that measured a retired language's own affix —
+// the no-break space of `fr` / `de` / `es-ES` / `ru`, and Turkish's sign-first
+// order — were retired with those languages. The eighteen-locale version is
+// kept in archive/i18n/e2e/percent-affix.spec.ts.
 
 type Loop = Record<string, { getState: () => any }>
 
@@ -78,66 +78,16 @@ async function measure(page: Page, key: string, pct: number) {
   )
 }
 
-const NBSP = 0x00a0
-const SPACE = 0x0020
-const NNBSP = 0x202f
-
-test('a no-break space keeps the number and the sign on one line', async ({ page }) => {
-  await openApp(page)
-  await resetAll(page)
-
-  for (const code of ['fr', 'de', 'es-ES', 'ru'] as const) {
-    await setLocale(page, code)
-    for (const key of ['playbar.mc.progress', 'runbar.mc.cancel'] as const) {
-      const m = await measure(page, key, 84)
-      // the box is narrow on purpose — the string really does wrap
-      expect(m.lineCount, `${code} ${key} should wrap in a 58px box: ${m.text}`).toBeGreaterThan(1)
-      // …and yet the number and the sign stay together
-      expect(
-        m.signOnSameLineAsNumber,
-        `${code} ${key} split the number from the sign: ${JSON.stringify(m.text)}`,
-      ).toBe(true)
-      // the character between them is U+00A0, not a plain or narrow space
-      expect(m.codePointBeforeSign, `${code} ${key} gap code point`).toBe(NBSP)
-      expect(m.codePointBeforeSign).not.toBe(SPACE)
-      expect(m.codePointBeforeSign).not.toBe(NNBSP)
-    }
-  }
-})
-
-test('Turkish puts the sign immediately before the number, with no space', async ({ page }) => {
-  await openApp(page)
-  await resetAll(page)
-  await setLocale(page, 'tr')
-
-  for (const key of ['playbar.mc.progress', 'runbar.mc.cancel'] as const) {
-    const m = await measure(page, key, 84)
-    // order: the sign comes first
-    expect(m.signIndex, `${key}: ${m.text}`).toBeLessThan(m.digitIndex)
-    // and it touches the number — no space of any kind between them
-    expect(m.signIndex + 1, `${key}: the sign must touch the number`).toBe(m.digitIndex)
-    for (const bad of [SPACE, NBSP, NNBSP]) {
-      expect(m.codePointAfterSign, `${key} char after the sign`).not.toBe(bad)
-    }
-    // whatever the box does, the two never separate because nothing separates them
-    expect(m.signOnSameLineAsNumber, `${key}: ${JSON.stringify(m.text)}`).toBe(true)
-  }
-})
-
 test('the locales with no gap keep the sign touching the number', async ({ page }) => {
   await openApp(page)
   await resetAll(page)
 
-  // locale-subset: the NO-GAP group only. `fr`, `de`, `es-ES` and `ru` set a
-  // no-break space and have their own test above; `tr` puts the sign first and has
-  // its own too. Splitting them by affix behaviour is what this spec is for.
-  // `ar` joins the NO-GAP group, and the reason is worth stating: the LRM pair
-  // `percentContract.test.ts` records for Arabic comes from `Intl`, not from the
-  // catalogue — §L2 bans bidi controls in translations and `bidiControls.test.ts`
-  // enforces zero of them in the Arabic files. So the string this spec substitutes
-  // into is a plain `{pct}%`, and what is measured is that the sign still touches
-  // the number inside an RTL paragraph.
-  for (const code of ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'es-419', 'pt-BR', 'pt-PT', 'th', 'vi', 'it', 'nl', 'ar'] as const) {
+  // Both shipped languages (en, ko) put the sign after the number with no gap.
+  // `ar-XB`, the RTL pseudo-locale, stands for the retired `ar` (§L2.0,
+  // 2026-10): its catalogue is `en` verbatim, so the string substituted into is
+  // a plain `{pct}%`, and what is measured is that the sign still touches the
+  // number inside an RTL paragraph (the measuring box inherits `<html dir>`).
+  for (const code of ['en', 'ko', 'ar-XB'] as const) {
     await setLocale(page, code)
     const m = await measure(page, 'playbar.mc.progress', 84)
     expect(m.signIndex, `${code}: ${m.text}`).toBeGreaterThan(m.digitIndex)

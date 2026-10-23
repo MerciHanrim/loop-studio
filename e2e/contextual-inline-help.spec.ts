@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
-import { WHATS_NEW_SEEN } from './support/whatsNew'
 // this spec is ABOUT the canvas hint notes (or needs one to appear): the shared
 // fixture's "every canvas hint already seen" seed is turned off here
 test.use({ hintsSeen: false })
@@ -60,17 +59,12 @@ async function settleTour(page: Page): Promise<void> {
  *  real race caught on a slower CI runner, not a product bug) and permanently
  *  flip the tour out of idle from underneath an unrelated hint assertion. */
 async function installWriteOnlyFailure(page: Page): Promise<void> {
-  await page.addInitScript((seen) => {
-    // issue #296 - the pre-dismissed tour makes this a returning profile, so it
-    // also holds the record that the newest release note was announced and
-    // opened; with writes failing, the app could not record it itself
+  await page.addInitScript(() => {
     const store = new Map<string, string>([
-      // issue #297 - and a remembered personal browser, or the storage gate
-      // would stand in front of the test (this fake replaces the fixture's seed)
+      // issue #297 - a remembered personal browser, or the storage gate would
+      // stand in front of the test (this fake replaces the fixture's seed)
       ['loop-studio:storage-mode', 'personal'],
       ['loop-studio/guided-tour/1', 'dismissed'],
-      [seen.announcedKey, seen.id],
-      [seen.openedKey, seen.id],
     ])
     const t = () => {
       throw new Error('quota')
@@ -88,7 +82,7 @@ async function installWriteOnlyFailure(page: Page): Promise<void> {
         },
       },
     })
-  }, WHATS_NEW_SEEN)
+  })
 }
 
 // a dense, 9-node graph — past WORTH_IT_FLOOR (8) — for the Focus/Filter hint.
@@ -258,7 +252,7 @@ test.describe('contextual inline help — Focus/Filter discovery (§CIH3 #4)', (
     await importGraph(page, GRAPH_9)
     await page.evaluate(() =>
       (window as unknown as Bridge).__loop.autoFrame.setState({
-        autoFrames: [{ id: 'af1', area: 100, label: '', rect: { x: 0, y: 0, w: 10, h: 10 }, members: ['p0', 'p1'] }],
+        autoFrames: [{ id: 'af1', area: 100, label: '', rect: { x: 0, y: 0, w: 10, h: 10 }, shown: { x: 0, y: 0, w: 10, h: 10 }, shownHeld: [], members: ['p0', 'p1'] }],
       }),
     )
     await expect(page.locator('.lgr-suggest-note')).toBeVisible()

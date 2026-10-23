@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type RefObject } from 'react'
+import { useRef, useState, type RefObject } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { FEEDBACK_URL } from '../../feedback'
 import { openTemplate } from '../../i18n/templateLabels'
@@ -23,20 +23,19 @@ import { downloadText } from '../../ui/download'
 import { exportProjectRevision, makeProposal } from '../../ui/revisionActions'
 import { type ProtectedShareLinkResult, copyShareLink, prepareProtectedShareLink, prepareShareLink, shareKb } from '../../ui/shareAction'
 import { useTourStore } from '../../store/tourStore'
-import { useWhatsNewStore } from '../../store/whatsNewStore'
 import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../../store/hintStore'
 import { type MessageKey, useT } from '../../i18n'
 import { AboutDialog } from '../AboutDialog'
 import { AuthorDialog } from '../AuthorDialog'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { ContextualHelpDialog } from '../ContextualHelpDialog'
+import { ExampleNotesDialog } from '../ExampleNotesDialog'
 import { FilterControls } from '../FilterPanel'
 import { InlineHintNote } from '../HintNote'
 import { LanguageSwitch } from '../LanguageSwitch'
 import { TEMPLATE_KEY } from '../templateKeys'
 import { MobileSheet } from './MobileSheet'
 import { ThemeToggle } from '../ThemeToggle'
-import { WhatsNewPanel } from '../WhatsNewPanel'
 import { StoragePrivacyDialog } from '../StoragePrivacyDialog'
 import { ShareCreateDialog } from '../toolbar/ShareCreateDialog'
 import { selectTemporary, useSessionStore } from '../../store/sessionStore'
@@ -153,10 +152,7 @@ export function MobileMoreMenu({
   const [storageOpen, setStorageOpen] = useState(false)
   const temporary = useSessionStore(selectTemporary)
   const [contextualOpen, setContextualOpen] = useState(false)
-  // issue #296 — the What's new panel and the marker that says it is unread
-  const [whatsNewOpen, setWhatsNewOpen] = useState(false)
-  const closeWhatsNew = useCallback(() => setWhatsNewOpen(false), [])
-  const whatsNewUnread = useWhatsNewStore((s) => s.unread)
+  const [examplesOpen, setExamplesOpen] = useState(false)
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null)
 
   // docs/localization.md Slice 2b — the §U4 disclosure is an in-app ConfirmDialog
@@ -558,11 +554,10 @@ export function MobileMoreMenu({
     )
   }
 
-  // docs/guided-tour.md §GT7 / docs/contextual-inline-help.md §CIH4 /
-  // docs/release-notes.md — the mobile Help sub-sheet, in the same three groups
-  // and the same order as the desktop Help menu: restart the tour and turn the
-  // contextual tips back on; What's new, with its `New` marker; Send feedback
-  // (external link, new tab) and About Loop Studio.
+  // docs/guided-tour.md §GT7 / docs/contextual-inline-help.md §CIH4 — the
+  // mobile Help sub-sheet, in the same two groups and the same order as the
+  // desktop Help menu: restart the tour and turn the contextual tips back on;
+  // Send feedback (external link, new tab) and About Loop Studio.
   if (overlay === 'help') {
     return (
       <>
@@ -580,10 +575,8 @@ export function MobileMoreMenu({
         <button type="button" className="sheet__row" onClick={() => setContextualOpen(true)}>
           {t('help.contextual.menuLabel')}
         </button>
-        <div className="menu__divider" role="separator" />
-        <button type="button" className="sheet__row" data-whatsnew="menu-item" onClick={() => setWhatsNewOpen(true)}>
-          {t('whatsNew.title')}
-          {whatsNewUnread ? <span className="sheet__row-sub">{t('whatsNew.newMarker')}</span> : null}
+        <button type="button" className="sheet__row" onClick={() => setExamplesOpen(true)}>
+          {t('help.examples.menuLabel')}
         </button>
         <div className="menu__divider" role="separator" />
         <a
@@ -604,8 +597,8 @@ export function MobileMoreMenu({
           onClose={() => setContextualOpen(false)}
           returnFocusTo={backToMore}
         />
+        <ExampleNotesDialog open={examplesOpen} onClose={() => setExamplesOpen(false)} returnFocusTo={backToMore} />
         <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} returnFocusTo={backToMore} />
-        <WhatsNewPanel open={whatsNewOpen} onClose={closeWhatsNew} returnFocusTo={backToMore} />
       </MobileSheet>
       </>
     )

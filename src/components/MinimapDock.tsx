@@ -22,15 +22,15 @@ import { useForcedColors } from '../ui/media'
 // it instead (docs/flow-colour-and-compact-nodes.md FC-6), except under forced
 // colours (FC-3.4), where every mark keeps its kind fill.
 const MINIMAP_HUE: Record<NodeKind, string> = {
-  pool: 'var(--hue-pool)',
-  source: 'var(--hue-source)',
-  drain: 'var(--hue-drain)',
-  gate: 'var(--hue-gate)',
-  converter: 'var(--hue-converter)',
-  end: 'var(--hue-end)',
+  pool: 'var(--k-pool)',
+  source: 'var(--k-source)',
+  drain: 'var(--k-drain)',
+  gate: 'var(--k-gate)',
+  converter: 'var(--k-converter)',
+  end: 'var(--k-end)',
   // loop-model/1 — annotation nodes read as structure, not a flow hue
-  parameter: 'var(--line-structure)',
-  register: 'var(--line-structure)',
+  parameter: 'var(--line-2)',
+  register: 'var(--line-2)',
 }
 
 const MapIcon = () => (
@@ -92,15 +92,15 @@ export function MinimapDock() {
         ariaLabel={t('canvas.minimap')}
         nodeColor={(n) =>
           (!forced && readAccent((n.data as { accent?: unknown } | undefined)?.accent)) ||
-          (MINIMAP_HUE[(n.type as NodeKind) ?? 'pool'] ?? 'var(--line-strong)')
+          (MINIMAP_HUE[(n.type as NodeKind) ?? 'pool'] ?? 'var(--line-3)')
         }
-        nodeStrokeColor="var(--line-strong)"
+        nodeStrokeColor="var(--line-3)"
         nodeStrokeWidth={2}
         nodeBorderRadius={2}
         maskColor="var(--minimap-mask)"
-        maskStrokeColor="var(--signal-primary)"
+        maskStrokeColor="var(--ink-2)"
         maskStrokeWidth={1}
-        bgColor="var(--surface-raised)"
+        bgColor="var(--bg-raise)"
       />
       {/* the collapse button lives INSIDE the minimap panel (portalled), so it
           tracks its top-right corner whatever size the minimap renders at */}

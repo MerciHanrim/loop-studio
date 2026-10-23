@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
 import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, snap, test } from './support/loop'
+import { openMonteCarloDialog } from './support/workbenchMenus'
 
 // docs/localization.md §L13 — Slice 3, the REPRESENTATIVE Korean reference
 // screenshots. Lumi's call (over a full ~30-image KO pixel matrix, which is
@@ -54,7 +55,7 @@ async function pickLocale(page: Page, code: string, scope = '') {
   const trigger = page.locator(`${scope} .lang-switch`.trim()).first()
   let openedSettings = false
   if (!scope && !(await trigger.isVisible().catch(() => false))) {
-    await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ }).click()
+    await page.locator('.toolbar__actions .wb-viewmenu > .wb-mb').click()
     openedSettings = true
   }
   await trigger.click()
@@ -114,7 +115,7 @@ test.describe('i18n Slice 3 — representative KO reference screenshots', () => 
     await resetAll(page)
     await importGraph(page, G)
     await pickLocale(page, 'ko')
-    await page.locator('.pstrip__mc button').click()
+    await openMonteCarloDialog(page)
     await expect(page.locator('.mcdlg[role="dialog"]')).toBeVisible()
     // let the local benchmark resolve so the KO metric labels (로컬 기준 성능 /
     // 실행 방식 / 메모리) are on screen; the machine-specific values are masked.
@@ -167,8 +168,9 @@ test.describe('i18n Slice 3 — representative KO reference screenshots', () => 
         clippedX: title.scrollWidth > title.clientWidth + 1,
         clippedY: title.scrollHeight > title.clientHeight + 1,
         inside: t.left >= n.left - 1 && t.right <= n.right + 1 && t.top >= n.top - 1 && t.bottom <= n.bottom + 1,
-        // the new node: the name sits OUTSIDE, directly below the body, left-aligned
-        below: t.left >= n.left - 1 && t.top >= n.bottom - 1 && t.top <= n.bottom + 24,
+        // the symbol node: the name sits OUTSIDE, directly below the symbol,
+        // centred on it (2026-10-19; the previous outside name was left-aligned)
+        below: Math.abs((t.left + t.right) / 2 - (n.left + n.right) / 2) <= 1 && t.top >= n.bottom - 1 && t.top <= n.bottom + 24,
       }
     })
     expect(lbl.lines, 'the label wraps (not a single ellipsised line)').toBeGreaterThan(1)

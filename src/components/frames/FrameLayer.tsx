@@ -14,7 +14,7 @@ import { isolateAuto } from '../../i18n/bidiIsolate'
 import { Icon } from '../../ui/icons'
 import { GRID, snapPoint } from '../../model/layout/grid'
 import { beginLiveLayout, endLiveLayout, nameFootprintsOf, useRouteInputs } from '../../store/routeMap'
-import { freeSpans, placeChip, placeHandle } from './frameChrome'
+import { freeSpans, placeChip, placeHandle, type Box } from './frameChrome'
 
 // docs/large-graph-readability.md §LGR6 (transient) + …-auto-frames.md §AF (auto).
 // One render layer for BOTH frame kinds:
@@ -634,15 +634,43 @@ export function FrameLayer() {
     auto: false,
     color: f.color,
   }))
+  // an auto frame is drawn, selected, moved, resized and promoted from its
+  // SHOWN rect (autoFrameShown.ts) — what the user sees; its algorithm rect
+  // (`rect`) stays in the store for the order and the label only
   const autoRF: RenderFrame[] = autoFrames.map((f) => ({
     id: f.id,
-    rect: autoDraft && autoDraft.id === f.id ? autoDraft.rect : f.rect,
+    rect: autoDraft && autoDraft.id === f.id ? autoDraft.rect : f.shown,
     label: f.label,
     ord: f.area,
     auto: true,
   }))
   // paint order: auto BEHIND manual (§AF5 R2)
   const ordered = [...autoRF, ...manualRF]
+
+  // where each title chip stands, and its box (flow px). A chip answers the
+  // pointer where it is SEEN: a frame drawn later — whose edge strip is above
+  // the chip — has that strip cut where it would lie over it, as by a name
+  // (2026-10-22: a suggested frame's shown rect put its chip on a saved
+  // frame's left strip, and a click on the title selected the other frame)
+  const chipPlaceOf = (rf: RenderFrame) =>
+    placeBlockers.length && chipSizes[rf.id] ? placeChip(rf.rect, chipSizes[rf.id], placeBlockers) : CHIP_HOME
+  const chipBoxes: { id: string; box: Box }[] = outsideNames
+    ? ordered.flatMap((rf) => {
+        const s = chipSizes[rf.id]
+        if (!s) return []
+        const p = chipPlaceOf(rf)
+        // + 1 px all round: the reported size is the chip's whole-px offset
+        // size, up to 1 px short of what it draws
+        return [{ id: rf.id, box: { x: rf.rect.x + p.x - 1, y: (p.inside ? rf.rect.y : rf.rect.y - s.h) - 1, w: s.w + 2, h: s.h + 2 } }]
+      })
+    : []
+  // only the chips of frames painted BEFORE this one: a later frame's chip is
+  // above this frame's strip already
+  const stripBlockersOf = (rf: RenderFrame): readonly Box[] => {
+    const at = ordered.indexOf(rf)
+    const below = chipBoxes.filter((c) => ordered.findIndex((o) => o.id === c.id) < at).map((c) => c.box)
+    return below.length ? [...stripBlockers, ...below] : stripBlockers
+  }
 
   /** what the title READS when the frame carries no label of its own */
   const defaultNameFor = (rf: RenderFrame) =>
@@ -786,8 +814,9 @@ export function FrameLayer() {
               {selectable
                 ? (['top', 'right', 'bottom', 'left'] as const).flatMap((side) =>
                     // the strip in pieces: the parts of the border no outside
-                    // name or bridge covers (one whole piece without any)
-                    freeSpans(rf.rect, side, stripBlockers).map((span, i) => (
+                    // name, bridge or other frame's title covers (one whole
+                    // piece without any)
+                    freeSpans(rf.rect, side, stripBlockersOf(rf)).map((span, i) => (
                       <div
                         key={`${side}:${i}`}
                         className={`lgr-frame__edge-hit lgr-frame__edge-hit--${side}`}
@@ -814,7 +843,7 @@ export function FrameLayer() {
                 selected={sel}
                 open={propsId === rf.id}
                 buttonRef={propsId === rf.id ? propsAnchorRef : undefined}
-                place={placeBlockers.length && chipSizes[rf.id] ? placeChip(rf.rect, chipSizes[rf.id], placeBlockers) : CHIP_HOME}
+                place={chipPlaceOf(rf)}
                 maxW={rf.rect.w}
                 onSize={(w, h) => onChipSize(rf.id, w, h)}
                 onOpen={() => {

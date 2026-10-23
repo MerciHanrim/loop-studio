@@ -47,7 +47,10 @@ async function openWithOneNode(page: Page): Promise<void> {
   await makeWork(page)
   expect(await nodeCount(page)).toBe(1)
 }
-const settingsButton = (page: Page) => page.locator('.toolbar__settingsmenu > button')
+// Storage and privacy is a File row in the workbench (docs/workbench.md §WB2;
+// the Settings menu's before 2026-10): its trigger opens the row and takes
+// the focus back when the dialog closes
+const settingsButton = (page: Page) => page.locator('.toolbar__filemenu > .wb-mb')
 const dialog = (page: Page) => page.locator('.mcdlg--storage')
 const chip = (page: Page) => page.locator('[data-session-chip="temporary"]')
 
@@ -167,12 +170,14 @@ test.describe('switching sessions', () => {
     await expect(chip(page)).toBeVisible()
     const m = await page.evaluate(() => {
       const el = document.querySelector('.toolbar [data-session-chip="temporary"]')!
-      const btn = document.querySelector('.toolbar__actions-core > .menu > .btn')!
+      // the menu bar's bordered button beside it: Share (the workbench names
+      // its menus in plain text, docs/workbench.md §WB2; Templates was, before)
+      const btn = [...document.querySelectorAll('.toolbar__actions button.btn')].find((b) => b.textContent?.trim() === 'Share')!
       const c = el.getBoundingClientRect()
       const b = btn.getBoundingClientRect()
       const cs = getComputedStyle(el)
       const probe = document.createElement('span')
-      probe.style.color = 'var(--warning)'
+      probe.style.color = 'var(--warn)'
       document.body.append(probe)
       const warning = getComputedStyle(probe).color
       probe.remove()
@@ -198,7 +203,8 @@ test.describe('switching sessions', () => {
         clipped: el.scrollWidth > el.clientWidth,
       }
     })
-    expect(m).toMatchObject({ h: 28, btnH: 28, radius: '8px', btnRadius: '8px', fontSize: '12px', btnFontSize: '12px', lines: 1, icons: 0, clipped: false })
+    // (the control radius is the workbench's 5 px)
+    expect(m).toMatchObject({ h: 28, btnH: 28, radius: '5px', btnRadius: '5px', fontSize: '12px', btnFontSize: '12px', lines: 1, icons: 0, clipped: false })
     expect(m.offCentre).toBeLessThan(0.5)
     expect(m.color).toBe(m.btnColor)
     expect(m.background).toBe(m.btnBackground)
@@ -216,7 +222,7 @@ test.describe('switching sessions', () => {
     // the menu buttons' focus: the boundary takes the focus colour, with the halo
     const focus = await chip(page).evaluate((el) => {
       const probe = document.createElement('span')
-      probe.style.color = 'var(--line-focus)'
+      probe.style.color = 'var(--focus)'
       document.body.append(probe)
       const lineFocus = getComputedStyle(probe).color
       probe.remove()
@@ -356,11 +362,11 @@ test.describe('Reset all Loop Studio data', () => {
   test('removes every key, and the app restarts into the gate', async ({ page }) => {
     await page.goto('/')
     await expect(page.locator('.gate')).toBeVisible()
-    // no helper answered the gate on the side: the fixture still seeded the tour
-    // and the release-note state (`whatsNewSeen`), and neither carries the mode key
+    // no helper answered the gate on the side: the fixture still seeded the tour,
+    // and it carries no mode key
     expect(await page.evaluate((k) => localStorage.getItem(k), MODE)).toBeNull()
-    // the fixture seeds the canvas hints as seen too (support/loop.ts `hintsSeen`), the same way as the tour and the release-note state
-    expect(await storedKeys(page)).toEqual(['loop-studio/contextual-help/1', 'loop-studio/guided-tour/1', 'loop-studio/whats-new/announced/1', 'loop-studio/whats-new/opened/1'])
+    // the fixture seeds the canvas hints as seen too (support/loop.ts `hintsSeen`), the same way as the tour
+    expect(await storedKeys(page)).toEqual(['loop-studio/contextual-help/1', 'loop-studio/guided-tour/1'])
     await page.locator('.gate [data-gate-choice="personal"] input[type="checkbox"]').check()
     await page.locator('.gate [data-gate-choice="personal"] button').click()
     await waitForAppReady(page)
@@ -368,15 +374,23 @@ test.describe('Reset all Loop Studio data', () => {
     await resetAll(page)
     await makeWork(page)
     await page.evaluate(() => localStorage.setItem('loop-studio:author', JSON.stringify({ name: 'Gone' })))
-    expect(await storedKeys(page)).toEqual(expect.arrayContaining([WORK, MODE, 'loop-studio:author']))
+    // the two keys an earlier version wrote for its in-app release notes (removed
+    // 2026-10): nothing writes them now, and a reset still removes them
+    await page.evaluate(() => {
+      localStorage.setItem('loop-studio/whats-new/announced/1', 'release:0.28.4')
+      localStorage.setItem('loop-studio/whats-new/opened/1', 'release:0.28.4')
+    })
+    expect(await storedKeys(page)).toEqual(
+      expect.arrayContaining([WORK, MODE, 'loop-studio:author', 'loop-studio/whats-new/announced/1', 'loop-studio/whats-new/opened/1']),
+    )
     await openStorageArea(page)
     await confirmAction(page, 'reset-all')
     await expect(page.locator('.gate')).toBeVisible()
     // what is left is exactly the fixture's own seed, re-armed on the reload
-    // (the tour key and the two release-note keys): no document, no author,
-    // no mode key, nothing else of the app's
-    // the fixture seeds the canvas hints as seen too (support/loop.ts `hintsSeen`), the same way as the tour and the release-note state
-    expect(await storedKeys(page)).toEqual(['loop-studio/contextual-help/1', 'loop-studio/guided-tour/1', 'loop-studio/whats-new/announced/1', 'loop-studio/whats-new/opened/1'])
+    // (the tour key): no document, no author, no mode key, no retired
+    // release-note key, nothing else of the app's
+    // the fixture seeds the canvas hints as seen too (support/loop.ts `hintsSeen`), the same way as the tour
+    expect(await storedKeys(page)).toEqual(['loop-studio/contextual-help/1', 'loop-studio/guided-tour/1'])
   })
 })
 

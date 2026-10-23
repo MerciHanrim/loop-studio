@@ -1,122 +1,247 @@
-/* ==== Node structure, first implementation ==================================
+/* ==== Node structure (the default) ==========================================
    scratch/share/connection-editing-2/17-implementation-rules.md — the rules of
-   the NEW node while `uiStore.nodeStructure === 'outside'` (`.nodef--outside`,
-   nodes.tsx). Nothing here touches today's node: every selector is scoped to
-   the new structure or to elements only it renders. */
+   the default node while `uiStore.nodeStructure === 'outside'`
+   (`.nodef--outside`, nodes.tsx). Nothing here touches the previous node
+   (`?nodes=inside`): every selector is scoped to this structure or to elements
+   only it renders. */
 
-/* the body: the compact height, W1's width (inline), the value row centred;
-   the elevation moves to the drawn shape so it never shadows the outside name */
+/* the workbench redesign (2026-10), step 4 — the SYMBOL node (./symbol.ts):
+   a 56 px cell with the kind's line symbol centred in it, the value inside,
+   the name outside. The cell's inline custom properties give the symbol's
+   extent from the centre: `--sym-hw` (half width), `--sym-t` / `--sym-b`
+   (up to the top face, down to the bottom face). The elevation is on the
+   drawn shape, so it never shadows the outside name. */
 .nodef--outside {
+  /* the label's distance from the symbol, `--label-gap`, is set inline by the
+     node from symbol.ts `LABEL_GAP` (past every ring, so no state mark ever
+     meets the name — kept over the mock-up's 4–6 px); one value for the CSS
+     placement and for the frames that read the geometry */
+  /* block-level: with its body absolutely placed the symbol frame has no
+     in-flow text, so as `inline-flex` its baseline was its bottom edge and the
+     line box added a descender gap under it — React Flow measured every node
+     60 px tall around its 56 px cell (measured 2026-10-19, all 97 MMO nodes) */
+  display: flex;
   min-width: 0;
+  max-width: none;
   filter: none;
 }
 .nodef--outside .nodef__shape {
-  filter: var(--elev-node);
+  filter: var(--shadow-node);
 }
-.nodef--outside .nodef__body {
-  padding: 6px 8px;
+.nodef--outside .nodef__stroke {
+  stroke: var(--node-stroke);
+  stroke-width: 1.6;
+}
+.nodef.nodef--outside.lod-L0 .nodef__stroke {
+  stroke: var(--node-stroke);
+  stroke-width: 2;
+}
+/* the body spans the symbol's width (a register is wider than its cell). The
+   previous body's per-kind padding and row starts (index.css, #332's row fit)
+   are not read here: `.nodef.nodef--outside` outranks them, so the number is
+   centred in its symbol */
+.nodef.nodef--outside .nodef__body {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(28px - var(--sym-hw));
+  width: calc(2 * var(--sym-hw));
+  padding: 0;
   align-items: center;
 }
 .nodef--outside .nodef__stack {
   align-items: center;
   justify-content: center;
 }
-.nodef--outside .nodef__value {
-  max-width: 100%;
+/* the number inside: the workbench's 600 16 px tabular figures (15 px in a
+   register's readout); a number wider than the symbol is elided, its whole
+   text on the tooltip and in the Inspector */
+.nodef.nodef--outside .nodef__value {
+  align-self: center;
+  margin: 0;
+  max-width: var(--val-room, 100%);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+  transform-origin: center;
 }
-/* a value-less kind: the INNER role symbol (roleSymbol.ts) in the body's
-   centre — the text colour, never the type hue, so it reads without colour;
-   present only where it adds to the silhouette (Gate kind, Source / Drain
-   activation); Converter and End show their silhouette alone */
+.nodef.nodef--outside.nodef--register .nodef__value {
+  font-size: 15px;
+}
+.nodef__eq {
+  color: var(--ink-3);
+}
+/* the corner marks keep to the symbol's own box, not the cell: the evaluated
+   bracket at its lower left, the invalid flag at its upper right */
+.nodef--outside .nodef__eval {
+  left: calc(28px - var(--sym-hw) - 3px);
+  bottom: calc(28px - var(--sym-b) - 3px);
+}
+.nodef--outside .nodef__flag {
+  right: calc(28px - var(--sym-hw) - 6px);
+  top: calc(28px - var(--sym-t) - 6px);
+}
+/* the parameter's baseline under its value (nodes.tsx, `PARAMETER_BASELINE`) */
+.nodef__baseline {
+  stroke: var(--node-stroke);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+/* the parameter's value sits on its baseline, the readout's on the centre */
+.nodef--outside.nodef--parameter .nodef__stack {
+  transform: translateY(-3px);
+}
+/* a value-less kind: the INNER role symbol (roleSymbol.ts) — the text colour,
+   never the type hue, so it reads without colour; present only where it adds
+   to the symbol (Gate distribution, Source / Drain activation); Converter and
+   End show their symbol alone. In a triangle it sits toward the wide side. */
 .nodef__role {
-  width: 20px;
-  height: 20px;
-  color: var(--text-primary);
+  width: 18px;
+  height: 18px;
+  color: var(--ink-1);
   display: block;
 }
+.nodef--outside.nodef--source .nodef__role {
+  transform: translateY(-6px);
+}
+/* a drain's mark 3 px lower than the source's mirror (2026-10-21): the
+   interactive cursor's tip points up and to the left, into the narrowing
+   top, and sat level with the left port where a flow arrives; 9 px keeps it
+   inside the outline with room on both slopes and over the flat side. Only
+   the drawn mark moves — not the node's box, its ports or its hit region. */
+.nodef--outside.nodef--drain .nodef__role {
+  transform: translateY(9px);
+}
 
-/* the OUTSIDE name — the product's title type, wrapped at 150 px, two lines
-   at most in practice; the gap to the body is 12 px (V2.5 / V2.7); its face
-   is the node's `data-name-face` (nodes.tsx `nameFaceFor`) */
-.nodef__name {
-  --name-gap: 12px;
+/* the OUTSIDE label: the aux line (a capacity or a unit, if any) over the
+   name, one box — the router's obstacle and part of the node's hit region.
+   `--label-gap` from the symbol's box on its side; its face is the
+   node's `data-name-face` (nodes.tsx `nameFaceFor`: below unless a
+   connection uses that face). Centred by a half-size translate, which the
+   router's name box takes back out. */
+.nodef__label {
   position: absolute;
-  font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 14px;
-  line-height: 1.15;
-  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
   width: max-content;
-  max-width: 150px;
+  max-width: 136px;
+  pointer-events: auto;
+}
+.nodef__label--bottom {
+  left: 50%;
+  top: calc(28px + var(--sym-b) + var(--label-gap));
+  transform: translateX(-50%);
+  align-items: center;
+  text-align: center;
+}
+.nodef__label--top {
+  left: 50%;
+  bottom: calc(28px + var(--sym-t) + var(--label-gap));
+  transform: translateX(-50%);
+  align-items: center;
+  text-align: center;
+}
+.nodef__label--right {
+  left: calc(28px + var(--sym-hw) + var(--label-gap));
+  top: 50%;
+  transform: translateY(-50%);
+  align-items: flex-start;
+  text-align: start;
+}
+.nodef__label--left {
+  right: calc(28px + var(--sym-hw) + var(--label-gap));
+  top: 50%;
+  transform: translateY(-50%);
+  align-items: flex-end;
+  text-align: end;
+}
+/* the name — the workbench's 500 13 px in the second ink, at most 136 px
+   wide and two lines */
+.nodef__name {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 17px;
+  color: var(--ink-2);
+  max-width: 136px;
   white-space: normal;
   word-break: normal;
   overflow-wrap: break-word;
   line-break: strict;
   text-wrap: balance;
-  pointer-events: auto;
 }
-.nodef__name--bottom {
-  left: 0;
-  top: calc(100% + var(--name-gap));
-  text-align: start;
+.nodef--outside.is-selected .nodef__name {
+  font-weight: 600;
+  color: var(--sel-name);
 }
-.nodef__name--top {
-  left: 0;
-  bottom: calc(100% + var(--name-gap));
-  text-align: start;
+/* the aux line: small tabular figures in the second ink, never cut short —
+   a long unit wraps inside the label's width */
+.nodef__aux {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 11.5px;
+  line-height: 15px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  max-width: 136px;
+  overflow-wrap: anywhere;
 }
-.nodef__name--right {
-  left: calc(100% + var(--name-gap));
-  top: 50%;
-  transform: translateY(-50%);
-  text-align: start;
+/* the unit on the aux line reads at the line's own size and ink */
+.nodef__aux .nodef__unit {
+  font: inherit;
+  color: inherit;
 }
-.nodef__name--left {
-  right: calc(100% + var(--name-gap));
-  top: 50%;
-  transform: translateY(-50%);
-  text-align: end;
+/* a value too long for its symbol, in full: the number's own ink and weight */
+.nodef__auxvalue {
+  color: var(--ink-1);
+  font-weight: 600;
 }
 :lang(ko) .nodef__name,
 .nodef__name--phrased {
   word-break: keep-all;
 }
 
-/* the bridge: the gap between body and name belongs to the node's hit region,
-   so pointing does not drop while the pointer crosses it (§2 rule 3) */
+/* the bridge: the gap between symbol and name belongs to the node's hit
+   region, so pointing does not drop while the pointer crosses it (§2 rule 3) */
 .nodef__bridge {
-  --name-gap: 12px;
   position: absolute;
   background: transparent;
 }
 .nodef__bridge--bottom {
-  left: 0;
-  top: 100%;
-  width: 100%;
-  height: var(--name-gap);
+  left: calc(28px - var(--sym-hw));
+  width: calc(2 * var(--sym-hw));
+  top: calc(28px + var(--sym-b));
+  height: var(--label-gap);
 }
 .nodef__bridge--top {
-  left: 0;
-  bottom: 100%;
-  width: 100%;
-  height: var(--name-gap);
+  left: calc(28px - var(--sym-hw));
+  width: calc(2 * var(--sym-hw));
+  bottom: calc(28px + var(--sym-t));
+  height: var(--label-gap);
 }
 .nodef__bridge--right {
-  left: 100%;
+  left: calc(28px + var(--sym-hw));
   top: 0;
-  width: var(--name-gap);
+  width: var(--label-gap);
   height: 100%;
 }
 .nodef__bridge--left {
-  right: 100%;
+  right: calc(28px + var(--sym-hw));
   top: 0;
-  width: var(--name-gap);
+  width: var(--label-gap);
   height: 100%;
 }
 
-/* the level rule (Lumi, 2026-10-12): level 1 shows role, value AND the name;
-   level 0 hides the name with the body (the L0 policy is not decided by this) */
-.nodef.lod-L0 .nodef__name {
+/* the level rule (Lumi, 2026-10-12): level 1 shows role, value AND the name.
+   Level 0 keeps the NAME too (Lumi, 2026-10-20: a whole-diagram fit at
+   1280 × 800 went below level 1 and left the Coffee roastery with no name at
+   all). It shrinks with the symbols, as the whole view does — no minimum
+   size, no name dropped for overlapping; reading it closely is zooming in.
+   The aux line (a capacity, a unit, a full value) goes with the body's
+   value, which level 0 hides: `visibility`, so the name does not move. */
+.nodef.lod-L0 .nodef__aux {
   visibility: hidden;
 }
 
@@ -136,7 +261,7 @@
    position (outermost) and pattern are the tells, never the colour alone */
 .nodef__fired-ticks {
   fill: none;
-  stroke: var(--state-fired);
+  stroke: var(--accent);
   stroke-linecap: butt;
   vector-effect: non-scaling-stroke;
 }
@@ -170,8 +295,8 @@
   stroke-width: 2.5;
 }
 .edge-label.is-hover {
-  box-shadow: inset 0 0 0 1px var(--line-strong), var(--elev-edge-label);
-  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--line-3), var(--shadow-edge-label);
+  color: var(--ink-1);
 }
 
 /* the handles stay ABOVE the bridge: the gap between body and name belongs to
@@ -198,4 +323,26 @@
 }
 .nodef--outside .react-flow__handle:not(.h--extra) {
   z-index: 3;
+}
+/* a symbol's resource and state ports on one face share its anchor
+   (symbol.ts): the handles of the port kind of the CHOSEN connection kind
+   (the tool row, src/model/connectKind.ts) are on top there, so the port
+   under the pointer is the kind a drawing will make. The kind itself never
+   depends on which handle takes the press (direction B, Lumi 2026-10-19). */
+.nodef--outside.nodef--kind-resource .react-flow__handle:is(.h--in, .h--out),
+.nodef--outside.nodef--kind-state .react-flow__handle.h--state {
+  z-index: 4;
+}
+/* …and of that kind's two handles on one face (an output and an input share
+   its anchor), the SAME one on every face (2026-10-20, node-structure-small
+   193: on the right face the extra `in@right` sat over the default `out`, so a
+   drag from there started from the input and the drop on another input was
+   refused; on the top, bottom and left faces the output was on top):
+     at rest   — the output: a press on a face starts an outgoing connection
+     dragging  — the input: a drop on a face lands on an input */
+.nodef--outside.nodef--kind-resource:not(.nodef--connecting) .react-flow__handle.h--out,
+.nodef--outside.nodef--kind-state:not(.nodef--connecting) .react-flow__handle.h--state.source,
+.nodef--outside.nodef--kind-resource.nodef--connecting .react-flow__handle.h--in,
+.nodef--outside.nodef--kind-state.nodef--connecting .react-flow__handle.h--state.target {
+  z-index: 5;
 }

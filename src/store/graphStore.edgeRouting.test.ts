@@ -17,7 +17,7 @@ function two() {
   S().addNodeAt('source', { x: 0, y: 0 })
   S().addNodeAt('pool', { x: 320, y: 0 })
   const [a, b] = S().nodes
-  S().onConnect({ source: a!.id, target: b!.id, sourceHandle: 'out', targetHandle: 'in' })
+  S().onConnect({ source: a!.id, target: b!.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
   return S().edges[0]!.id
 }
 

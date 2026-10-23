@@ -174,7 +174,7 @@ describe('the route migration (§ER14.1)', () => {
 
   it('a new connection is created orthogonal', () => {
     g().loadJSON(serialize([pool('a', 0, 4), pool('b', 208, 4)], []))
-    g().onConnect({ source: 'a', target: 'b', sourceHandle: 'out', targetHandle: 'in' })
+    g().onConnect({ source: 'a', target: 'b', sourceHandle: 'out', targetHandle: 'in' }, 'flow')
     expect((g().edges[0].data as { route?: string }).route).toBe('orthogonal')
   })
 })

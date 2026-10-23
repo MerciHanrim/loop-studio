@@ -1,10 +1,17 @@
-// docs/localization.md §L2 — the locale registry. `en` and `ko` are simply its
-// first two entries; the switch UI, the checks, and the fallback all read this
-// list and never name a locale literally (except `BASE_LOCALE`). Adding a
-// language = one `LOCALES` entry + one `src/i18n/locales/<code>.ts` file, no
-// edits elsewhere — the one exception is Chinese, whose script subtag no
-// browser sends, so `chineseScript()` below maps `zh-CN` / `zh-TW` and friends
-// onto the registered script locales.
+// docs/localization.md §L2 — the locale registry. `en` and `ko` are its two
+// entries; the switch UI, the checks, and the fallback all read this list and
+// never name a locale literally (except `BASE_LOCALE`). Adding a language = one
+// `LOCALES` entry + one `src/i18n/locales/<code>/` folder, no edits elsewhere —
+// the one exception is Chinese, whose script subtag no browser sends, so
+// `chineseScript()` below maps `zh-CN` / `zh-TW` and friends onto a registered
+// script locale, should one be added again.
+//
+// §L2.0 (2026-10) — SUPPORTED: English and Korean only. The sixteen other
+// languages that shipped before are archived as translation material in
+// `archive/i18n/` (outside the build and the checks; see its README). A stored
+// choice of one of them is listed in `RETIRED_LOCALES` and starts in English
+// (`resolveInitialLocale`). Their former registry entries — number formats,
+// plural rules, fonts — are kept in this file's git history.
 
 import type { MessageCatalog, MessageKey } from './locales/en'
 import en from './locales/en'
@@ -35,15 +42,12 @@ export type LocaleEntry = {
    *  never touches stored / digested data */
   numberLocale: string
   /** offered to users. `false` = registered (resolver / checks still see it)
-   *  but hidden from the switch UI. Every shipped locale is `true` today; the
-   *  selector work is what will consume this. */
+   *  but hidden from the switch UI. */
   enabled: boolean
   /** §L5.2 step 4 — the BCP-47 base subtag this locale answers for when no
-   *  registered code matches a navigator tag exactly. `es-419` owns `es`, so
-   *  `es-MX` / `es-AR` / `es-ES` reach it; a later `pt-BR` would own `pt`.
+   *  registered code matches a navigator tag exactly (`es-419` owned `es`).
    *
-   *  Only needed by a locale whose CODE is not its own base subtag — `fr`,
-   *  `de` and `ko` are reached by step 3 and declare nothing. At most one
+   *  Only needed by a locale whose CODE is not its own base subtag. At most one
    *  locale may own a base, and the base must be that locale's own language
    *  subtag; `registry.test.ts` enforces both, so this can never silently
    *  become a second, competing resolver. */
@@ -80,466 +84,16 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     enabled: true,
     catalog: () => import('./locales/ko').then((m) => m.default),
   },
-  {
-    code: 'ja',
-    englishName: 'Japanese',
-    nativeName: '日本語',
-    displayNameKey: 'language.japanese',
-    direction: 'ltr',
-    numberLocale: 'ja-JP',
-    enabled: true,
-    catalog: () => import('./locales/ja').then((m) => m.default),
-  },
-  {
-    // Simplified and Traditional Chinese are separate locales, never a
-    // conversion of one another: the terminology differs, not only the
-    // glyphs. The script subtag is part of the code because a browser sends
-    // a REGION (`zh-CN`, `zh-TW`), which `chineseScript()` below maps.
-    code: 'zh-Hans',
-    englishName: 'Chinese (Simplified)',
-    nativeName: '简体中文',
-    displayNameKey: 'language.chineseSimplified',
-    direction: 'ltr',
-    numberLocale: 'zh-Hans',
-    enabled: true,
-    catalog: () => import('./locales/zh-Hans').then((m) => m.default),
-  },
-  {
-    // Traditional Chinese, written to the TAIWAN convention (軟體 / 資料 /
-    // 網路 / 專案 / 範本 / 匯入·匯出). `zh-HK` and `zh-MO` map here too: the
-    // divergences from Hong Kong usage are lexical and mutually legible, not
-    // semantic, so one catalog serves all three (§L2.4). It is NOT a Hong
-    // Kong localisation.
-    code: 'zh-Hant',
-    englishName: 'Chinese (Traditional)',
-    nativeName: '繁體中文',
-    displayNameKey: 'language.chineseTraditional',
-    direction: 'ltr',
-    numberLocale: 'zh-Hant',
-    enabled: true,
-    catalog: () => import('./locales/zh-Hant').then((m) => m.default),
-  },
-  {
-    // France French. `fr-FR` / `fr-BE` / `fr-CH` / `fr-CA` / `fr-LU` all land
-    // here through the ordinary base-subtag rule — French needs no script
-    // mapping of its own. It is NOT a separate Canadian localisation: the
-    // divergences in this product's vocabulary are lexical, not semantic.
-    code: 'fr',
-    englishName: 'French',
-    nativeName: 'Français',
-    displayNameKey: 'language.french',
-    direction: 'ltr',
-    numberLocale: 'fr',
-    enabled: true,
-    catalog: () => import('./locales/fr').then((m) => m.default),
-  },
-  {
-    // Germany Standard German. `de-DE` / `de-AT` / `de-CH` / `de-LI` /
-    // `de-LU` and every other `de-*` land here through the ordinary
-    // base-subtag rule, so German needs no mapping of its own.
-    //
-    // This is deliberately ONE catalog, written in Germany Standard German,
-    // and it does not pretend to be Swiss or Austrian: Swiss German writes
-    // `ss` where this catalog writes `ß`, so a `de-CH` reader sees spelling
-    // that is not theirs. Splitting `de-CH` would not be a mechanical
-    // `ß`->`ss` pass either (the vocabulary diverges too), so it stays a
-    // stated trade-off rather than a hidden one (docs/localization.md §L2.12).
-    code: 'de',
-    englishName: 'German',
-    nativeName: 'Deutsch',
-    displayNameKey: 'language.german',
-    direction: 'ltr',
-    numberLocale: 'de',
-    enabled: true,
-    catalog: () => import('./locales/de').then((m) => m.default),
-  },
-  {
-    // Neutral Latin American Spanish. The code carries the UN M49 region 419
-    // because the catalog IS regional — `Billetera`, `Retiros`, `ustedes` —
-    // and saying so keeps the door open for an `es-ES` later without renaming
-    // this one or migrating anyone's stored value.
-    //
-    // No browser sends `es-419`; it sends `es-MX`, `es-AR`, `es`, `es-ES`.
-    // The code is therefore NOT its own base subtag, which is why this is the
-    // first locale to declare `baseFallbackFor` (§L5.2 step 4). Without it
-    // every Spanish reader would get English — or, through
-    // `navigator.languages`, whatever unrelated language came next.
-    //
-    // `es-ES` and `es-GQ` land here too. Peninsular and Latin American Spanish
-    // are mutually intelligible, so a Spain reader seeing `computadora` and
-    // `ustedes` is a stated trade-off (docs/localization.md §L2.13); English
-    // would be strictly worse. Register `es-ES` later and step 1 gives it that
-    // tag automatically.
-    code: 'es-419',
-    englishName: 'Spanish (Latin America)',
-    nativeName: 'Español (Latinoamérica)',
-    displayNameKey: 'language.spanishLatinAmerica',
-    direction: 'ltr',
-    // CLDR gives `es-419` the `1,234,567.89` convention. Latin America is not
-    // uniform here — Argentina, Colombia, Chile and Peru write `1.234.567,89`
-    // — but the formatter must agree with the code this locale is registered
-    // under, so it stays `es-419` rather than borrowing `es` (§L2.13).
-    numberLocale: 'es-419',
-    enabled: true,
-    baseFallbackFor: 'es',
-    catalog: () => import('./locales/es-419').then((m) => m.default),
-  },
-  {
-    // Brazilian Portuguese. Like `es-419`, the code is NOT its own base
-    // subtag: a browser sends `pt-BR`, `pt`, `pt-PT`, `pt-AO`. Measured with
-    // the real resolver before this entry existed, every one of those gave
-    // `en` — and `["pt-AO","de-DE"]` gave `de`, `["pt","es-MX"]` gave
-    // `es-419`, i.e. a Portuguese reader was handed German or Spanish. So it
-    // declares `baseFallbackFor: 'pt'` (§L5.2 step 4).
-    //
-    // `pt-PT` and the African Portuguese tags land here TOO, and that is a
-    // stated trade-off, not an oversight: European Portuguese differs from
-    // this catalog in vocabulary (`ficheiro` / `ecrã` / `guardar` /
-    // `utilizador` / `carácter`) and even in plural rules — CLDR gives
-    // `pt-BR` 0 -> `one` and `pt-PT` 0 -> `other`. Brazilian Portuguese is
-    // still far closer to those readers than English, which is the only other
-    // option today. `pt-PT` is on the roadmap; registering it later makes step
-    // 1 (exact code) win its own tag with no change to the resolver, exactly
-    // as `es-ES` will beside `es-419`.
-    code: 'pt-BR',
-    englishName: 'Portuguese (Brazil)',
-    nativeName: 'Português (Brasil)',
-    displayNameKey: 'language.portugueseBrazil',
-    direction: 'ltr',
-    // `1.234.567,89` and `83,5%` — the first shipped locale whose DECIMAL
-    // separator is a comma and whose group separator is a period. Nothing in
-    // the product calls `Intl.NumberFormat` today (§L8); the live number path
-    // is ICU `#`, which takes the locale CODE and renders integer counts only,
-    // so only the group separator can appear.
-    numberLocale: 'pt-BR',
-    enabled: true,
-    baseFallbackFor: 'pt',
-    catalog: () => import('./locales/pt-BR').then((m) => m.default),
-  },
-  {
-    // Spain Spanish. Unlike `es-419` and `pt-BR`, this code IS the tag a
-    // browser sends, so it needs NO `baseFallbackFor`: §L5.2 step 1 (exact
-    // code) runs before step 4 (base owner), which is what lets `es-419` keep
-    // owning `es` while `es-ES` takes its own tag. Measured with the real
-    // resolver: `es-ES` and `ES-es` reach here, while bare `es`, `es-MX`,
-    // `es-AR`, `es-US` and the rest continue to reach `es-419`.
-    //
-    // `es-GQ` (Equatorial Guinea) deliberately stays with `es-419` rather
-    // than moving here, even though its usage is historically closer to
-    // Spain: nothing in this catalog is written for it either way, and
-    // re-pointing it would be a guess dressed up as a decision (§L2.15).
-    //
-    // The catalog is a REGION AUDIT over `es-419`, not a second translation:
-    // 12 strings differ out of 841. Its `numberLocale` is where the two
-    // really part company — `1.234.567,89` and a NO-BREAK SPACE before `%`,
-    // against `1,234,567.89` and none.
-    code: 'es-ES',
-    englishName: 'Spanish (Spain)',
-    nativeName: 'Español (España)',
-    displayNameKey: 'language.spanishSpain',
-    direction: 'ltr',
-    numberLocale: 'es-ES',
-    enabled: true,
-    catalog: () => import('./locales/es-ES').then((m) => m.default),
-  },
-  {
-    // European Portuguese. Like `es-ES`, this code IS a tag browsers send, so
-    // it declares NO `baseFallbackFor`: §L5.2 step 1 (exact code) runs before
-    // step 4 (base owner), which lets `pt-BR` keep owning `pt`. Measured with
-    // the real resolver: `pt-PT`, `PT-pt` and `pt-pt` reach here, while bare
-    // `pt`, `pt-BR`, `pt-AO`, `pt-MZ`, `pt-CV`, `pt-GW`, `pt-ST`, `pt-TL`,
-    // `pt-MO`, `pt-CH` and `pt-LU` all continue to reach `pt-BR`.
-    //
-    // KNOWN RESOLVER LIMIT, recorded rather than fixed here: a tag carrying a
-    // script or an extension subtag — `pt-Latn-PT`, `pt-PT-u-ca-gregory` —
-    // misses step 1 and falls to `pt-BR` through the base owner. BCP 47
-    // permits both and `navigator.languages` returns BCP 47 tags, so this is
-    // not "a tag no browser sends"; it is a normalisation the resolver does
-    // not do. `es-ES` has the identical limit. Fixing it is a resolver change
-    // and deliberately NOT mixed into a locale PR (§L2.16).
-    //
-    // The catalog is a REGION AUDIT over `pt-BR`, not a second translation.
-    // Two things it does NOT change: the node-kind glossary, and `tela` —
-    // every one of its keys renders English `canvas`, so `ecrã`, which is a
-    // physical display, would be a mistranslation rather than a regional form.
-    code: 'pt-PT',
-    englishName: 'Portuguese (Portugal)',
-    nativeName: 'Português (Portugal)',
-    displayNameKey: 'language.portuguesePortugal',
-    direction: 'ltr',
-    // MEASURED, and the sharpest split from `pt-BR`: the group separator is a
-    // NO-BREAK SPACE (U+00A0), not a period — `1 234 567,89` against
-    // `1.234.567,89` — and CLDR's `minimumGroupingDigits: 2` means a bare
-    // `1000` carries no separator at all. Percent takes NO space before the
-    // sign here (`84%`), unlike `es-ES`, so no catalog string gains one.
-    // Nothing calls `Intl.NumberFormat` (§L8); the live path is ICU `#`, which
-    // takes this code and DOES group — so the NBSP reaches the DOM from the
-    // formatter, never from the catalog.
-    numberLocale: 'pt-PT',
-    enabled: true,
-    catalog: () => import('./locales/pt-PT').then((m) => m.default),
-  },
-  {
-    // Russian. Unlike every regional variant shipped so far, this code IS its
-    // own base subtag, so §L5.2 step 3 (a registered code that IS the base)
-    // carries every `ru-*` tag and no `baseFallbackFor` is needed. Measured
-    // with the real resolver: `ru`, `ru-RU`, `ru-BY`, `ru-KZ`, `ru-KG`,
-    // `ru-MD`, `ru-UA` and the case variants all reach here.
-    //
-    // It also has NONE of the `es-ES` / `pt-PT` limit: because step 3 splits
-    // on the first subtag, `ru-Cyrl`, `ru-Cyrl-RU` and `ru-RU-u-ca-gregory`
-    // reach `ru` as well. A script or extension subtag only defeats the
-    // resolver for a locale whose CODE is not its own base — worth recording,
-    // because the two cases look identical from the outside (§L2.17).
-    //
-    // Neighbouring Cyrillic languages are deliberately NOT captured: `uk`,
-    // `be`, `bg`, `kk`, `sr` and `mk` keep resolving to `en`, since nothing
-    // here is written for them.
-    code: 'ru',
-    englishName: 'Russian',
-    nativeName: 'Русский',
-    displayNameKey: 'language.russian',
-    direction: 'ltr',
-    // MEASURED. Two things make this the sharpest number locale so far:
-    // the group separator is a NO-BREAK SPACE (`1 234 567`) and the decimal
-    // mark is a comma, AND `{style:'percent'}` puts U+00A0 before the sign
-    // (`84 %`) — so the two `{pct}` catalog strings carry that character,
-    // exactly as `es-ES` does and unlike `pt-BR` / `pt-PT`. Nothing calls
-    // `Intl.NumberFormat` (§L8); the live path is ICU `#`, which takes this
-    // code, so a grouped count reaches the DOM with U+00A0 from the formatter.
-    numberLocale: 'ru',
-    enabled: true,
-    catalog: () => import('./locales/ru').then((m) => m.default),
-  },
-  {
-    code: 'tr',
-    englishName: 'Turkish',
-    nativeName: 'Türkçe',
-    displayNameKey: 'language.turkish',
-    direction: 'ltr',
-    // `tr` IS its own base subtag, so §L5.2 step 3 carries `tr-TR`, `tr-CY`,
-    // `tr-Latn-TR` and `tr-TR-u-ca-gregory` with no `baseFallbackFor` — the
-    // same shape as `ru`, and unlike `es-ES` / `pt-PT`, whose codes are not
-    // their own base subtag and can therefore only be reached by a whole-tag
-    // match. MEASURED: `az`, `kk` and `uz` are NOT captured, which is correct
-    // — Azerbaijani is a different language however close it reads.
-    //
-    // MEASURED, and the sharpest difference so far: the percent sign comes
-    // BEFORE the number with NO gap (`%84`), where every other shipped locale
-    // puts it after. The group separator is a period and the decimal mark a
-    // comma (`1.234.567,89`); no no-break space anywhere. The two `{pct}`
-    // catalog strings therefore read `%{pct}`, pinned in
-    // `percentContract.test.ts`.
-    numberLocale: 'tr',
-    enabled: true,
-    catalog: () => import('./locales/tr').then((m) => m.default),
-  },
-  {
-    code: 'th',
-    englishName: 'Thai',
-    nativeName: 'ไทย',
-    displayNameKey: 'language.thai',
-    direction: 'ltr',
-    // `th` IS its own base subtag, so §L5.2 step 3 carries `th-TH` and any
-    // script / extension subtag with no `baseFallbackFor` — the same shape as
-    // `ru` and `tr`. No other registered code shares the `th` subtag, and the
-    // neighbouring South-East Asian languages (`lo`, `km`, `my`, `vi`, `id`,
-    // `ms`) are unrelated tags that cannot reach it.
-    //
-    // MEASURED, and a first for this registry: `Intl.PluralRules('th')`
-    // declares exactly ONE category, `other`. Every plural message in the
-    // catalog therefore has a single arm, and 0 / 1 / 2 / 1000000 all render
-    // through it with `#` still grouping (`1,000,000`).
-    //
-    // Numbers and percent match `en` exactly — Latin digits, `,` grouping,
-    // `.` decimal, and `84%` with the sign after and no gap. The one thing
-    // that is NOT shared with any existing locale is the SCRIPT: Thai needed
-    // its own typeface (IBM Plex Sans Thai) rather than another subset of
-    // IBM Plex Sans, and it writes without spaces between words, which is why
-    // a runtime label is wrapped in `“…”` here.
-    // `th-TH` rather than a bare `th`: the number / date contract is stated
-    // for THAILAND explicitly, the way `ja-JP` does. MEASURED — the two tags
-    // resolve identically today (`numberingSystem: latn`, `1,234,567.89`,
-    // `84%` as U+0038 U+0034 U+0025, and `other` for 0 / 1 / 2 / 1000000), so
-    // this buys no behaviour change; it pins the region so a future Intl
-    // difference between `th` and `th-TH` cannot move the UI silently.
-    numberLocale: 'th-TH',
-    enabled: true,
-    catalog: () => import('./locales/th').then((m) => m.default),
-  },
-  {
-    code: 'vi',
-    englishName: 'Vietnamese',
-    nativeName: 'Tiếng Việt',
-    displayNameKey: 'language.vietnamese',
-    direction: 'ltr',
-    // `vi` IS its own base subtag, so §L5.2 step 3 carries `vi-VN`, `vi-Latn`
-    // and `vi-Latn-VN` with no `baseFallbackFor` — the same shape as `ru`,
-    // `tr` and `th`. No other registered code shares the `vi` subtag.
-    //
-    // MEASURED, over integers 0-1000000 AND decimals: `Intl.PluralRules('vi')`
-    // declares exactly ONE category, `other` — the second locale here after
-    // `th`. Every plural message has a single arm. (Vietnamese HAS an ordinal
-    // `one` category, but nothing in this catalog uses `selectordinal`, so it
-    // never applies.)
-    //
-    // Numbers do NOT match `en`: `1.234.567,89` — `.` groups and `,` is the
-    // decimal separator, like `de` and the Portuguese pair. Percent does match:
-    // `84%`, sign after the digits with no gap, so `vi` joins that list.
-    //
-    // The SCRIPT is Latin, but IBM Plex Sans did not carry it. MEASURED the
-    // same three ways the `ru` / `tr` / `th` defects needed: 44 characters —
-    // `Ăă Đđ Ơơ Ưư` and 36 of Latin Extended Additional — fell back per glyph
-    // while `document.fonts.check()` answered true, the FOURTH locale in a row
-    // it has lied. The `vietnamese` subset of the same family fixes all 44;
-    // see the `@font-face` block in `src/index.css`.
-    //
-    // `vi-VN` rather than a bare `vi`, the way `th-TH` and `ja-JP` do: the two
-    // resolve identically today, so this pins the region against a future Intl
-    // difference rather than buying a behaviour change.
-    numberLocale: 'vi-VN',
-    enabled: true,
-    catalog: () => import('./locales/vi').then((m) => m.default),
-  },
-  {
-    code: 'it',
-    englishName: 'Italian',
-    nativeName: 'Italiano',
-    displayNameKey: 'language.italian',
-    direction: 'ltr',
-    // The code is BARE `it`, not `it-IT`, and that was measured rather than
-    // assumed. Run through THIS file's own `resolveInitialLocale` three ways:
-    // registering `it-IT` alone sends `it`, `it-CH` and `it-Latn-IT` to
-    // ENGLISH; adding `baseFallbackFor: 'it'` rescues them; registering bare
-    // `it` carries all four through §L5.2 step 3 with no `baseFallbackFor` at
-    // all — the same shape as `ru`, `tr`, `th` and `vi`. Adding it moved ZERO
-    // existing tag resolutions.
-    //
-    // PLURAL — `one`, `many`, `other`, and the `many` arm is the whole reason
-    // this needed measuring. Through the product's own `tryFormat`:
-    //   0 -> other · 1 -> one · 1.5 -> other · 999999 -> other
-    //   1000000 -> MANY · 1000000.5 -> other · 2000000 -> MANY
-    // `many` is a non-zero integer multiple of 1,000,000. English takes
-    // `other` there, so an English-shaped two-arm message silently loses it.
-    // A fixture set that stops at 1,000 — as the first draft of this one did —
-    // never reaches the category at all.
-    //
-    // (`Intl.PluralRules.prototype.select` runs ToNumber on its argument, so
-    // it cannot observe a visible trailing zero: `1`, `"1"`, `"1.0"` and
-    // `"1.00"` all select `one` in every locale. Do not probe a visible-
-    // fraction distinction with it.)
-    //
-    // Numbers do NOT match `en`: `1.234.567,89`, like `de`, `vi` and the
-    // Portuguese pair. Percent DOES: `84%`, sign after the digits with no
-    // separator at all, so `it` joins that arm of `e2e/percent-affix.spec.ts`
-    // rather than the no-break-space arm with `fr` / `de` / `es-ES` / `ru`.
-    //
-    // The script needs NO font work — unlike `ru`, `tr`, `th` and `vi`. Every
-    // code point Italian uses (`à è é ì í î ò ó ù ú`, their capitals, and `€`)
-    // is already in the unranged `latin` face's cmap, checked against the real
-    // woff2 rather than against the declared `unicode-range`. `src/index.css`
-    // is untouched by this locale.
-    //
-    // `it-IT` rather than a bare `it` for numbers, the way `th-TH`, `vi-VN`
-    // and `ja-JP` do: the two resolve identically today, so this pins the
-    // region against a future Intl difference rather than buying a change.
-    numberLocale: 'it-IT',
-    enabled: true,
-    catalog: () => import('./locales/it').then((m) => m.default),
-  },
-  {
-    code: 'nl',
-    englishName: 'Dutch',
-    nativeName: 'Nederlands',
-    displayNameKey: 'language.dutch',
-    direction: 'ltr',
-    // ONE catalog in general Dutch, not a country edition. Measured through
-    // THIS file's own `resolveInitialLocale` against three hypothetical
-    // registries: registering `nl-NL` alone sends `nl`, `nl-BE`, `nl-Latn-NL`,
-    // `nl-NL-u-ca-gregory`, `nl-AW` and `nl-SR` to ENGLISH — six of seven
-    // probe tags; `baseFallbackFor: 'nl'` rescues them; bare `nl` carries all
-    // seven through §L5.2 step 3 with no `baseFallbackFor` at all — the shape
-    // `ru`, `tr`, `th`, `vi` and `it` use. Adding it moved ZERO existing tag
-    // resolutions, and `qaa` still falls through to English.
-    //
-    // PLURAL — `one` and `other` only, and `one` is the integer 1 alone:
-    //   0 -> other · 1 -> ONE · 1.1 -> other · 2 -> other · 11 -> other
-    //   21 -> other · 101 -> other · 1000000 -> other · 2000000 -> other
-    // The same two arms as `en` and `de`. Italian's `many` at multiples of
-    // 1e6 has NO counterpart here, so an Italian-shaped three-arm message
-    // would declare an arm Dutch can never select. `nl-BE` resolves to the
-    // same two categories, which is one more reason the catalog is not split
-    // by country. Ordinal is a single `other`, and the base catalog uses
-    // `selectordinal` zero times, so no key can reach it.
-    //
-    // Numbers do NOT match `en`: `1.234.567,89`, like `de`, `it`, `vi` and
-    // the Portuguese pair. Percent does NOT match `de`: `84%`, sign after the
-    // digits with NO separator — measured as U+0038 U+0034 U+0025 — so `nl`
-    // joins the no-gap arm of `e2e/percent-affix.spec.ts` with `it`, not the
-    // U+00A0 arm `de` sits in. Grouping like `de` and spacing like `it` is
-    // exactly the combination an assumption would have got wrong.
-    //
-    // The picker places Dutch THIRD, ahead of English — the first locale ever
-    // sorted in front of the base language (`Intl.Collator('en')` on
-    // `englishName`: Chinese, Chinese, Dutch, English). `vi` keeps the last
-    // row, so `i18n-tr.spec.ts`'s last-position assertion is untouched.
-    numberLocale: 'nl-NL',
-    enabled: true,
-    catalog: () => import('./locales/nl').then((m) => m.default),
-  },
-  {
-    code: 'ar',
-    englishName: 'Arabic',
-    nativeName: 'العربية',
-    displayNameKey: 'language.arabic',
-    // §L9 — the FIRST shipped locale with `direction: 'rtl'`. PR A made this
-    // field the single source of a reading direction and PR B made the layout
-    // answer to it; this entry is what finally exercises that path with a real
-    // catalog rather than the `ar-XB` pseudo-locale.
-    direction: 'rtl',
-    // ONE catalog in Modern Standard Arabic, not a country edition. Bare `ar`
-    // carries every regional tag through §L5.2 step 3 — `ar-EG`, `ar-SA`,
-    // `ar-MA`, `ar-Arab-EG` and `ar-EG-u-nu-latn` all reach it — so no
-    // `baseFallbackFor` is needed, the same shape `ru`, `tr`, `th`, `vi`, `it`
-    // and `nl` use. `qaa` still falls through to English.
-    //
-    // PLURAL — SIX arms, the full CLDR set, and the first locale here to use
-    // more than three. Measured with `Intl.PluralRules('ar')`:
-    //   0 -> ZERO · 1 -> ONE · 2 -> TWO · 3-10 -> FEW · 11-99 -> MANY ·
-    //   100-102, 200-202 -> OTHER · 1.5 -> other
-    // `en` reaches `other` for 0, 2 and 11; Arabic reaches three different
-    // arms for those same three numbers, so an English-shaped two-arm message
-    // would be wrong for most small counts rather than merely terse. Ordinal
-    // is a single `other`, and the base catalog uses `selectordinal` zero
-    // times, so no key can reach it.
-    //
-    // NUMBERS — `numberLocale: 'ar'` formats `1,234,567.89`, with LATIN digits
-    // and the same separators as `en`. That is deliberate and measured:
-    // `ar-EG` and `ar-SA` both produce `١٬٢٣٤٬٥٦٧٫٨٩` — Arabic-Indic digits,
-    // U+0660..U+0669 — which would change every number the product renders.
-    // Arabic-Indic digits are a separate product decision, not a side effect
-    // of adding a language.
-    //
-    // PERCENT — `84‎%‎`, measured as U+0038 U+0034 U+200E U+0025 U+200E. The
-    // sign comes AFTER the digits like every other locale here, but Intl wraps
-    // it in LEFT-TO-RIGHT MARKs, so the character adjacent to the sign is
-    // U+200E and not a digit. That is a THIRD arm for
-    // `e2e/percent-affix.spec.ts`: not the no-gap arm (`en`, `it`, `nl`,
-    // whose neighbour is U+0034) and not the U+00A0 arm (`de`). The catalog
-    // itself still carries no bidi control characters — these come from Intl,
-    // which is exactly the distinction §L2 draws when it bans them from
-    // TRANSLATIONS.
-    //
-    // The picker places Arabic FIRST of eighteen (`Intl.Collator('en')` on
-    // `englishName`: Arabic, Chinese, Chinese, Dutch, English, …), taking the
-    // row `zh-Hans` held. `vi` keeps the last row, so `i18n-tr.spec.ts`'s
-    // last-position assertion is untouched. The search box is already shown at
-    // seventeen languages (`LANGUAGE_SEARCH_THRESHOLD` is 6), so this adds no
-    // fold.
-    numberLocale: 'ar',
-    enabled: true,
-    catalog: () => import('./locales/ar').then((m) => m.default),
-  },
+]
+
+/** §L2.0 — the languages that shipped before 2026-10 and are archived now
+ *  (`archive/i18n/`). Not registered: never offered, never loaded. A STORED
+ *  value naming one starts the app in `BASE_LOCALE` (`resolveInitialLocale`),
+ *  whatever the browser asks for — the user had chosen a language, and English
+ *  is the stated replacement for it. Nothing in a document changes. */
+export const RETIRED_LOCALES: readonly string[] = [
+  'ar', 'de', 'es-419', 'es-ES', 'fr', 'it', 'ja', 'nl',
+  'pt-BR', 'pt-PT', 'ru', 'th', 'tr', 'vi', 'zh-Hans', 'zh-Hant',
 ]
 
 // A dev / e2e-only pseudo-locale so tests can prove the switch, the resolver,
@@ -565,15 +119,13 @@ function devPseudoLocales(): readonly LocaleEntry[] {
       catalog: () => Promise.resolve(en),
     },
     {
-      // §L9.2 — the RTL pseudo-locale. It exists so PR B's layout work can be
-      // exercised and REGRESSION-GUARDED before a single Arabic string exists:
-      // `direction: 'rtl'` travels the same `directionOf` path the real `ar` will,
-      // so an e2e that passes here keeps passing when PR C lands.
+      // §L9.2 — the RTL pseudo-locale. It keeps the reading-direction layout
+      // exercised and REGRESSION-GUARDED with no right-to-left language shipped:
+      // `direction: 'rtl'` travels the same `directionOf` path a real RTL
+      // locale would.
       //
       // `enabled: false` on purpose — registered, so the resolver, the checkers
-      // and `?lang=ar-XB` all see it, but NOT offered in the picker. That keeps
-      // every existing "seventeen shipped languages plus en-XA" assertion exact
-      // instead of making an RTL QA affordance look like an eighteenth language.
+      // and `?lang=ar-XB` all see it, but NOT offered in the picker.
       //
       // Its catalog is `en` verbatim: this locale tests DIRECTION, not
       // translation. Latin text under `dir=rtl` is in fact the harder case for
@@ -585,7 +137,7 @@ function devPseudoLocales(): readonly LocaleEntry[] {
       displayNameKey: 'language.english',
       direction: 'rtl',
       // Latin digits and separators, so a number that moves is a LAYOUT change
-      // and never a formatting one. A real `ar` numberLocale is PR C's decision.
+      // and never a formatting one.
       numberLocale: 'en',
       enabled: false,
       pseudo: true,
@@ -602,13 +154,8 @@ export const LOCALES: readonly LocaleEntry[] = [...SHIPPED_LOCALES, ...devPseudo
 export const BASE_LOCALE = 'en'
 /** Looked up BY CODE, never by position. It was `LOCALES[0]` until §L5.6: the
  *  array's order is the order languages happened to ship, and a positional
- *  read makes it load-bearing. Re-ordering the array — which sorting the
- *  picker alphabetically would have meant — would then have handed
- *  `store.ts`'s `getEntry(code) ?? BASE_ENTRY` a `zh-Hans` entry (its
- *  `direction`, its `numberLocale`) while `BASE_CATALOG` stayed `en`: a
- *  mismatch no test asserts and nothing would have reported. The picker sorts
- *  a COPY instead (`languageOptions.ts`), and this reads the registry as an
- *  unordered set. */
+ *  read makes it load-bearing. The picker sorts a COPY instead
+ *  (`languageOptions.ts`), and this reads the registry as an unordered set. */
 export const BASE_ENTRY: LocaleEntry = LOCALES.find((l) => l.code === BASE_LOCALE) as LocaleEntry
 export const BASE_CATALOG: MessageCatalog = en
 
@@ -638,8 +185,7 @@ export function directionOf(code: string): LocaleDir {
   return getEntry(code)?.direction ?? 'ltr'
 }
 
-/** the locales a user may pick — `enabled` registry entries, in registry order.
- *  Everything is enabled today; the switch UI is what will call this. */
+/** the locales a user may pick — `enabled` registry entries, in registry order. */
 export function enabledLocales(): readonly LocaleEntry[] {
   return LOCALES.filter((l) => l.enabled)
 }
@@ -667,28 +213,13 @@ export function writeStoredLocale(code: string): void {
   }
 }
 
-/** §L5.2 — the fully deterministic locale-decision order. Pure; the caller
- *  passes the stored value and the browser language list so it is trivially
- *  testable.
- *
- *  1. a stored value that is EXACTLY a registered `code` (no case / separator
- *     repair) wins — an unregistered stored value is NEVER normalised into a
- *     navigator-style fallback, it is simply ignored;
- *  2. else walk `navLangs` IN ORDER and apply EVERY step to a tag before
- *     moving to the next one — exact `code`, Chinese script, an exact
- *     base-subtag code (`ko-KR` → `ko`), then a `baseFallbackFor` owner
- *     (`es-MX` → `es-419`). Sweeping the whole array per STEP instead would
- *     let a later tag's exact match beat an earlier tag's base fallback, which
- *     is the wrong preference: the user put their first tag first.
- *  3. else the canonical `BASE_LOCALE`, only after every tag is exhausted.
- */
 /** §L5.2a — Chinese is the one language whose SCRIPT, not its base subtag,
  *  decides the locale, and no browser sends the script: Chrome sends `zh-CN`,
- *  `zh-TW`, `zh-HK`. The base-subtag rule below would look for a `zh` entry,
- *  find none, and hand a Chinese reader English. This table is consulted
- *  between the exact match and the base match, and only ever returns a code
- *  the registry actually has — an unregistered target falls through to the
- *  ordinary rules and, ultimately, to English.
+ *  `zh-TW`, `zh-HK`. This table is consulted between the exact match and the
+ *  base match, and only ever returns a code the registry actually has — an
+ *  unregistered target falls through to the ordinary rules and, ultimately, to
+ *  English (which is what every Chinese tag reaches while no Chinese locale is
+ *  registered, §L2.0).
  *
  *  Simplified: mainland China, Singapore, Malaysia. Traditional: Taiwan, Hong
  *  Kong, Macau. A bare `zh` takes Simplified, the larger population. */
@@ -702,16 +233,36 @@ function chineseScript(lowerTag: string): string | undefined {
   return lowerTag === 'zh' ? 'zh-Hans' : undefined
 }
 
-/** The registry list is a PARAMETER with the real registry as its default, so
- *  the priority rules can be tested against a hypothetical future registry
- *  (an `es-ES` beside `es-419`) through THIS function rather than a test-only
- *  copy of it. Production always calls it with the default. */
+/** §L5.2 — the fully deterministic locale-decision order. Pure; the caller
+ *  passes the stored value and the browser language list so it is trivially
+ *  testable.
+ *
+ *  1. a stored value that is EXACTLY a registered `code` (no case / separator
+ *     repair) wins — an unregistered stored value is NEVER normalised into a
+ *     navigator-style fallback, it is simply ignored;
+ *  1a. §L2.0 — a stored value that is a RETIRED code gives `BASE_LOCALE`,
+ *     before the browser list is read: the user chose a language, and English
+ *     replaces it, even where the browser would ask for Korean;
+ *  2. else walk `navLangs` IN ORDER and apply EVERY step to a tag before
+ *     moving to the next one — exact `code`, Chinese script, an exact
+ *     base-subtag code (`ko-KR` → `ko`), then a `baseFallbackFor` owner.
+ *     Sweeping the whole array per STEP instead would let a later tag's exact
+ *     match beat an earlier tag's base fallback, which is the wrong
+ *     preference: the user put their first tag first.
+ *  3. else the canonical `BASE_LOCALE`, only after every tag is exhausted.
+ *
+ *  The registry list is a PARAMETER with the real registry as its default, so
+ *  the priority rules can be tested against a hypothetical registry through
+ *  THIS function rather than a test-only copy of it. Production always calls
+ *  it with the defaults. */
 export function resolveInitialLocale(
   stored: string | null,
   navLangs: readonly string[],
   locales: readonly LocaleEntry[] = LOCALES,
+  retired: readonly string[] = RETIRED_LOCALES,
 ): string {
   if (stored != null && locales.some((l) => l.code === stored)) return stored
+  if (stored != null && retired.includes(stored)) return BASE_LOCALE
 
   // §L5.2 / §L9.2 — a STORED code may be any registered locale (that is how
   // `?lang=` and a QA session reach one); a NAVIGATOR tag may only reach an
@@ -719,16 +270,14 @@ export function resolveInitialLocale(
   // is an enabled QA locale whose tag has always been honoured, so filtering on
   // `pseudo` would silently change that measured behaviour, while `ar-XB` — which
   // is Chrome's own RTL pseudo-tag, and would otherwise boot a real user into the
-  // QA locale — is excluded because it is DISABLED. Stated this way it also holds
-  // for a future disabled NON-pseudo locale: nothing a browser suggests can
-  // switch on a locale the product does not offer.
+  // QA locale — is excluded because it is DISABLED.
   const offered = locales.filter((l) => l.enabled)
 
   for (const raw of navLangs) {
     if (typeof raw !== 'string' || raw === '') continue
     const lc = raw.toLowerCase()
 
-    // 1 — the whole tag is a registered code (`es-419`, `zh-Hans`)
+    // 1 — the whole tag is a registered code
     const exact = offered.find((l) => l.code.toLowerCase() === lc)
     if (exact) return exact.code
 
@@ -739,13 +288,12 @@ export function resolveInitialLocale(
     const base = lc.split('-')[0]
     if (!base) continue
 
-    // 3 — a registered code that IS the base subtag (`de-AT` → `de`)
+    // 3 — a registered code that IS the base subtag (`ko-KR` → `ko`)
     const baseHit = offered.find((l) => l.code.toLowerCase() === base)
     if (baseHit) return baseHit.code
 
-    // 4 — the locale that explicitly owns this base (`es-MX` → `es-419`).
-    //     Always AFTER the exact match, so registering `es-ES` later makes
-    //     `es-ES` win its own tag without touching this code.
+    // 4 — the locale that explicitly owns this base. Always AFTER the exact
+    //     match.
     const owner = offered.find((l) => l.baseFallbackFor?.toLowerCase() === base)
     if (owner) return owner.code
   }

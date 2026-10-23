@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
 
 // Hanrim's UX report (2026-09-15): a palette hover tooltip could show at the
-// same time as an open Tier-1 menu (Templates / Insert module / File / Data
+// same time as an open Tier-1 menu (Templates / File / Data
 // / Settings / Help / the ⋯ overflow menu) or Share's result panel — two
 // competing overlay layers. Fixed via a shared `menuOpenStore`
 // (src/components/toolbar/menuOpenStore.ts) each of those components
@@ -19,6 +19,27 @@ import { expect, openApp, resetAll, test } from './support/loop'
 // that).
 
 const tip = (page: Page, kind: string) => page.locator(`#palette-tip-${kind}`)
+
+/** the kind of the first palette chip whose centre is NOT under an open
+ *  popover. The workbench's menus open start-anchored under their triggers
+ *  (docs/workbench.md §WB2), over the tool row: MEASURED 2026-10-20 at
+ *  1280 × 800, File's popover covers the Pool chip and View's the Source chip,
+ *  so a hover there reaches the menu, never the chip — as the Templates
+ *  popover once covered the Register chip. The check is a chip the pointer
+ *  can actually reach while the menu is open. */
+async function uncoveredChip(page: Page): Promise<string> {
+  const kind = await page.locator('.toolbar__palette .chip').evaluateAll((els) => {
+    for (const el of els) {
+      const b = el.getBoundingClientRect()
+      if (b.width === 0) continue
+      const hit = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2)
+      if (hit && el.contains(hit)) return [...el.classList].find((c) => c.startsWith('chip--'))?.slice(6) ?? null
+    }
+    return null
+  })
+  expect(kind, 'a palette chip the open menus leave uncovered').not.toBeNull()
+  return kind!
+}
 const visibleTipCount = (page: Page) =>
   page.locator('.palette-tip').evaluateAll(
     (els) => els.filter((el) => getComputedStyle(el).display !== 'none').length,
@@ -29,38 +50,46 @@ test.beforeEach(async ({ page }) => {
   await resetAll(page)
 })
 
-test('Module menu open suppresses the palette tooltip; closing it (pointer still over the chip) keeps it suppressed until leave+re-enter', async ({
+// The Insert-module menu this case was first written against was removed
+// (2026-10); Templates was the same kind of Tier-1 menu, and in the workbench
+// Templates are rows of File (docs/workbench.md §WB2) — so File.
+test('File menu open suppresses the palette tooltip; closing it (pointer still over the chip) keeps it suppressed until leave+re-enter', async ({
   page,
 }) => {
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^Insert module$/ }).click()
-  const modulePop = page.locator('.toolbar__actions .menu__pop').first()
-  await expect(modulePop).toBeVisible()
+  await page.locator('.toolbar__actions .wb-mb', { hasText: /^File$/ }).click()
+  const menuPop = page.locator('.toolbar__filemenu-pop')
+  await expect(menuPop).toBeVisible()
 
-  await page.locator('.chip--register').hover()
+  const kind = await uncoveredChip(page)
+  await page.locator(`.chip--${kind}`).hover()
   expect(await visibleTipCount(page)).toBe(0)
-  await expect(modulePop).toBeVisible() // the menu itself is unaffected
+  await expect(menuPop).toBeVisible() // the menu itself is unaffected
 
   // close the menu WITHOUT moving the pointer off the chip
   await page.keyboard.press('Escape')
-  await expect(modulePop).toBeHidden()
+  await expect(menuPop).toBeHidden()
   expect(await visibleTipCount(page)).toBe(0) // must not pop back just because the menu closed
 
   // only leaving and re-entering re-arms it
   await page.locator('.toolbar__brand').hover()
-  await page.locator('.chip--register').hover()
-  await expect(tip(page, 'register')).toBeVisible()
+  await page.locator(`.chip--${kind}`).hover()
+  await expect(tip(page, kind)).toBeVisible()
 })
 
-for (const label of [/^Templates$/, /^File$/, /^Data$/]) {
+// every menu of the workbench's menu bar (docs/workbench.md §WB2): File, Edit,
+// View, Insert, Data, Run, Help — the Templates and Settings triggers of the
+// two-tier bar are File's rows and View
+for (const label of [/^File$/, /^Edit$/, /^View$/, /^Insert$/, /^Data$/, /^Run$/, /^Help$/]) {
   test(`${label} suppresses the palette tooltip while open`, async ({ page }) => {
-    await page.locator('.toolbar__actions .menu > button', { hasText: label }).click()
-    await page.locator('.chip--pool').hover()
+    await page.locator('.toolbar__actions .wb-mb', { hasText: label }).click()
+    await expect(page.locator('.toolbar__palette')).toHaveAttribute('data-menu-open', /.*/)
+    await page.locator(`.chip--${await uncoveredChip(page)}`).hover()
     expect(await visibleTipCount(page)).toBe(0)
     await page.keyboard.press('Escape')
   })
 }
 
-test('⋯ → File (two nested menus): closing File alone keeps the palette suppressed; closing ⋯ too, then leaving+re-entering, re-arms it', async ({
+test('⋯ → Help (two nested menus): closing Help alone keeps the palette suppressed; closing ⋯ too, then leaving+re-entering, re-arms it', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1920, height: 900 })
@@ -72,8 +101,13 @@ test('⋯ → File (two nested menus): closing File alone keeps the palette supp
   // visible window -- that NO chip is both on-screen and outside the union
   // of ⋯'s and File's popover spans. 680px keeps File collapsed (4 groups)
   // with a shorter ⋯ popover and a wider palette window, leaving `pool`
-  // genuinely reachable.
-  await page.addStyleTag({ content: '.toolbar { max-width: 680px !important; }' })
+  // genuinely reachable. MEASURED again after the Insert-module menu left
+  // (2026-10): the toolbar needs less width, and 560px is now the pin that
+  // keeps File collapsed (File, Data, Settings, Help — 4 groups).
+  // The workbench's menu bar (2026-10) moves its menus into ⋯ from the END:
+  // MEASURED 2026-10-20, at this pin File, Edit, View, Insert and Data stay
+  // inline and ⋯ holds Run and Help — so the nested pair is ⋯ → Help.
+  await page.addStyleTag({ content: '.toolbar { max-width: 560px !important; }' })
   await page.waitForTimeout(150)
 
   const moreBtn = page.locator('.toolbar__overflow-btn')
@@ -81,17 +115,18 @@ test('⋯ → File (two nested menus): closing File alone keeps the palette supp
   const overflowPop = page.locator('.toolbar__overflow-pop')
   await expect(overflowPop).toBeVisible()
 
-  await overflowPop.locator('button', { hasText: /^File$/ }).click()
-  const filePop = page.locator('.toolbar__filemenu-pop')
-  await expect(filePop).toBeVisible()
+  await overflowPop.locator('.wb-mb', { hasText: /^Help$/ }).click()
+  const helpPop = overflowPop.locator('.menu__pop[role="menu"]')
+  await expect(helpPop).toBeVisible()
 
-  await page.locator('.chip--pool').hover()
+  const kind = await uncoveredChip(page)
+  await page.locator(`.chip--${kind}`).hover()
   expect(await visibleTipCount(page)).toBe(0)
 
-  // Escape closes File only (established nested-menu contract); ⋯ is still
+  // Escape closes Help only (established nested-menu contract); ⋯ is still
   // open, so the palette must STAY suppressed
   await page.keyboard.press('Escape')
-  await expect(filePop).toBeHidden()
+  await expect(helpPop).toBeHidden()
   await expect(overflowPop).toBeVisible()
   expect(await visibleTipCount(page)).toBe(0)
 
@@ -102,23 +137,30 @@ test('⋯ → File (two nested menus): closing File alone keeps the palette supp
 
   // only now does leaving + re-entering show it
   await page.locator('.toolbar__brand').hover()
-  await page.locator('.chip--pool').hover()
-  await expect(tip(page, 'pool')).toBeVisible()
+  await page.locator(`.chip--${kind}`).hover()
+  await expect(tip(page, kind)).toBeVisible()
 })
 
 test('Settings → Theme submenu: closing Theme alone (Escape) keeps Settings open and the palette suppressed', async ({
   page,
 }) => {
-  const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^Settings$/ })
+  const settingsBtn = page.locator('.toolbar__actions .wb-viewmenu > .wb-mb')
   await settingsBtn.click()
-  const settingsPop = page.locator('.toolbar__settingsmenu-pop')
+  const settingsPop = page.locator('.wb-viewmenu__pop')
   await expect(settingsPop).toBeVisible()
 
   await settingsPop.locator('.settings-row', { hasText: 'Theme' }).click()
   const themePop = page.locator('.theme-menu__pop')
   await expect(themePop).toBeVisible()
 
-  await page.locator('.chip--source').hover()
+  // MEASURED 2026-10-20 at 1280 × 800: View's popover (x 280–540) and
+  // Theme's side flyout (x 129–279) together cover all eight chips, so no
+  // chip can be pointed at while both are open. The pointer rests where the
+  // Pool chip is (over Theme's flyout); closing Theme alone uncovers that chip
+  // with View still open, and the pointer is then on the chip
+  const kind = 'pool'
+  const at = (await page.locator(`.chip--${kind}`).boundingBox())!
+  await page.mouse.move(at.x + at.width / 2, at.y + at.height / 2)
   expect(await visibleTipCount(page)).toBe(0)
 
   // Escape closes Theme's OWN submenu only — Settings (the outer menu)
@@ -126,6 +168,9 @@ test('Settings → Theme submenu: closing Theme alone (Escape) keeps Settings op
   await page.keyboard.press('Escape')
   await expect(themePop).toBeHidden()
   await expect(settingsPop).toBeVisible()
+  // the pointer moves on the now-uncovered chip, View still open
+  await page.mouse.move(at.x + at.width / 2 + 1, at.y + at.height / 2)
+  expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('.chip')?.classList.contains('chip--pool') ?? false, [at.x + at.width / 2 + 1, at.y + at.height / 2]), 'the pointer is on the Pool chip').toBe(true)
   expect(await visibleTipCount(page)).toBe(0)
 
   // closing Settings too, pointer still on the chip — still suppressed
@@ -135,14 +180,14 @@ test('Settings → Theme submenu: closing Theme alone (Escape) keeps Settings op
 
   // leave + re-enter re-arms it
   await page.locator('.toolbar__brand').hover()
-  await page.locator('.chip--source').hover()
-  await expect(tip(page, 'source')).toBeVisible()
+  await page.locator(`.chip--${kind}`).hover()
+  await expect(tip(page, kind)).toBeVisible()
 })
 
 test('Theme and Language submenus are mutually exclusive inside Settings', async ({ page }) => {
-  const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^Settings$/ })
+  const settingsBtn = page.locator('.toolbar__actions .wb-viewmenu > .wb-mb')
   await settingsBtn.click()
-  const settingsPop = page.locator('.toolbar__settingsmenu-pop')
+  const settingsPop = page.locator('.wb-viewmenu__pop')
 
   await settingsPop.locator('.settings-row', { hasText: 'Theme' }).click()
   await expect(page.locator('.theme-menu__pop')).toBeVisible()
@@ -223,9 +268,9 @@ test('a menu closed by clicking a canvas node re-arms the palette tooltip (not a
   await page.evaluate(() => (window as any).__loop.graph.getState().addNodeAt('pool', { x: 240, y: 200 }))
   await expect(page.locator('.react-flow__node')).toHaveCount(1)
 
-  const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^Settings$/ })
+  const settingsBtn = page.locator('.toolbar__actions .wb-viewmenu > .wb-mb')
   await settingsBtn.click()
-  const settingsPop = page.locator('.toolbar__settingsmenu-pop')
+  const settingsPop = page.locator('.wb-viewmenu__pop')
   await expect(settingsPop).toBeVisible()
   expect(await page.locator('.toolbar__palette').getAttribute('data-menu-open')).not.toBeNull()
 

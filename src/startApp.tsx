@@ -12,7 +12,7 @@ import { useProjectStore } from './store/projectStore'
 import { usePwaStore } from './store/pwaStore'
 import { useReviewStore } from './store/reviewStore'
 import * as revisionIO from './store/revisionIO'
-import { __resetProvisionalPeak, __resetRouteCache, __routeGenCount, __syncFreeSlots, __syncFullGeneration, currentRouteGeneration, currentRouteMap, routeDiagnostics, setRecordLabels, useRouteInputs } from './store/routeMap'
+import { __resetProvisionalPeak, __resetRouteCache, __routeGenCount, __setRunFormPass, __syncFreeSlots, __syncFullGeneration, currentRouteGeneration, currentRouteMap, routeDiagnostics, setRecordLabels, useRouteInputs } from './store/routeMap'
 import * as shareLink from './store/shareLink'
 import { useDataImportStore } from './store/dataImportStore'
 import { useFilterStore } from './store/filterStore'
@@ -22,7 +22,6 @@ import { useHintStore } from './store/hintStore'
 import { useSimStore } from './store/simStore'
 import { useTourStore } from './store/tourStore'
 import { useUiStore } from './store/uiStore'
-import { useWhatsNewStore } from './store/whatsNewStore'
 import * as workspaceIO from './store/workspaceIO'
 import { installLossWarning } from './store/sessionActions'
 import { storageSession } from './storage/storagePort'
@@ -78,7 +77,6 @@ export async function startApp(): Promise<void> {
       review: useReviewStore,
       tour: useTourStore,
       hint: useHintStore,
-      whatsNew: useWhatsNewStore,
       i18n: useI18n,
       // §L9.2 — the direction resolver itself, so the RTL e2e can assert the value
       // the app's own `dir` attributes read rather than re-deriving it from the
@@ -99,6 +97,8 @@ export async function startApp(): Promise<void> {
         diagnostics: routeDiagnostics,
         pending: () => routeDiagnostics().pending,
         resetProvisionalPeak: __resetProvisionalPeak,
+        // §ER15.2 — the repeated Value change run-form pass on / off (before / after in one page)
+        setRunFormPass: __setRunFormPass,
         // the map on screen, and the synchronous generation it must equal once
         // nothing is pending (computed aside; the cache is untouched)
         all: () => {

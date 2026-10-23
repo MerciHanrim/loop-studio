@@ -39,11 +39,13 @@ async function tapNode(page: Page, id: string): Promise<void> {
 test.describe('node structure — a value wider than the body, on the phone', () => {
   test('the row is elided on the phone too, and a tap opens the sheet with the whole value', async ({ page }) => {
     await load(page)
-    // the elision is the same rule on the phone (the body is the same width)
+    // the elision is the same rule on the phone (the symbol is the same size),
+    // and the whole value and its capacity are beside the symbol there too
     const row = await readValueRow(page, 'p_cap')
-    expect(row.text).toBe('123456789012345 / 999999999999999')
+    expect(row.text).toBe('123456789012345')
     expect(row.overflows, `overflows (${row.scrollWidth} > ${row.clientWidth})`).toBe(true)
     expect(row.textOverflow).toBe('ellipsis')
+    expect([row.auxValue, row.auxMeaning]).toEqual(['123456789012345', '≤ 999999999999999'])
     // touch: a tap on the body selects the Pool and the sheet shows both numbers in full
     await tapNode(page, 'p_cap')
     await expect(page.locator('.sheet--inspector').getByLabel('Starting amount')).toHaveValue('123456789012345')

@@ -1,6 +1,13 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, openApp, routesSettled, test } from './support/loop'
+import { openPanelDetails, WORKBENCH_ROOMY_VIEWPORT } from './support/panel'
+
+// the reopen re-fits the view; in the workbench's 664 × 468 canvas at
+// 1280 × 800 that fit is below the label threshold (measured 2026-10-20 on
+// connection-shapes' revision: zoom 0.715, no label drawn), so this runs with
+// a canvas as wide as the two-tier bar's (./support/panel)
+test.use({ viewport: WORKBENCH_ROOMY_VIEWPORT })
 
 // docs/edge-routing.md §ER14.3 — a routed label keeps off its own connection's
 // stored bend points, so the bend markers drawn while it is selected do not sit
@@ -38,6 +45,8 @@ async function selectEdge(page: Page) {
     return { x: q.x * m.a + q.y * m.c + m.e, y: q.x * m.b + q.y * m.d + m.f }
   })
   await page.mouse.click(p.x, p.y)
+  // the Ends group lives in the panel's More settings (docs/workbench.md §WB6)
+  await openPanelDetails(page)
   await expect(page.locator('.inspector .ends')).toBeVisible()
 }
 
@@ -91,6 +100,8 @@ test.describe('a label keeps off its own bend points (§ER14.3)', () => {
     await page.reload()
     await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
     await routesSettled(page)
+    // the reload fits the view again: the label must be drawn to be read
+    await expect.poll(() => labelAt(page), { message: 'the label is drawn after the reopen' }).not.toBeNull()
     await expect.poll(() => labelAt(page).then((p) => near(p, bent))).toBe(true)
   })
 

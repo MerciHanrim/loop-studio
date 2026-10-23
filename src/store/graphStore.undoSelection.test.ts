@@ -29,7 +29,7 @@ function graph() {
   S().addNodeAt('pool', { x: 0, y: 0 })
   S().addNodeAt('pool', { x: 320, y: 0 })
   const [a, b] = S().nodes.map((n) => n.id)
-  S().onConnect({ source: a!, target: b!, sourceHandle: 'out', targetHandle: 'in' })
+  S().onConnect({ source: a!, target: b!, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
   select([], [])
   return { a: a!, b: b!, e: S().edges[0]!.id }
 }

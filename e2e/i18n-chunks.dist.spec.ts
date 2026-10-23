@@ -29,7 +29,7 @@ async function pickLocale(page: Page, code: string) {
   // -- `.lang-switch` doesn't exist in the DOM at all until Settings opens
   const trigger = page.locator('.lang-switch').first()
   if (!(await trigger.isVisible().catch(() => false))) {
-    await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ }).click()
+    await page.locator('.toolbar__actions .wb-viewmenu > .wb-mb').click()
   }
   if ((await trigger.getAttribute('aria-expanded')) === 'true') await page.keyboard.press('Escape')
   await trigger.click()
@@ -63,15 +63,21 @@ test.describe('locale chunks — production bundle shape', () => {
     expect(localeChunks(await fetched(page))).toEqual(afterKo)
   })
 
-  test('ja then ko fetches at most one chunk per language and ends on ko', async ({ page }) => {
+  // §L2.0 (2026-10) — this was "ja then ko" (two lazy languages). With en and
+  // ko the only shipped languages, the remaining case the test above does not
+  // cover is LEAVING Korean and coming back: en is bundled, and the second ko
+  // activation must reuse the chunks the first one fetched.
+  test('ko → en → ko fetches each language chunk at most once and ends on ko', async ({ page }) => {
     await openProd(page)
-    await pickLocale(page, 'ja')
+    await pickLocale(page, 'ko')
+    await pickLocale(page, 'en')
     await pickLocale(page, 'ko')
     const chunks = localeChunks(await fetched(page))
-    // one locale + one tmpl-labels per language, no duplicates
+    // one locale + one tmpl-labels chunk for ko, no duplicates; en has none
     expect(chunks).toEqual([...new Set(chunks)])
-    expect(chunks.filter((u) => /locale-ja-/.test(u))).toHaveLength(1)
     expect(chunks.filter((u) => /locale-ko-/.test(u))).toHaveLength(1)
+    expect(chunks.filter((u) => /tmpl-labels-ko-/.test(u))).toHaveLength(1)
+    expect(chunks.filter((u) => /\/(locale|tmpl-labels)-en-/.test(u))).toEqual([])
     expect(await page.evaluate(() => document.documentElement.lang)).toBe('ko')
   })
 })

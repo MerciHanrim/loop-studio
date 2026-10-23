@@ -17,9 +17,13 @@ import {
 //
 // docs/localization.md §L4.5 — per-locale dicts are lazy chunks; a real switch
 // loads the target dict first (src/i18n/store.ts). Mirror that here.
+//
+// §L2.0 (2026-10) — English and Korean are the supported languages, so Korean is
+// the one dictionary here. The eighteen-locale version of this file is in
+// `archive/i18n/tests/relabel.multilocale.test.ts`.
 
-// registry-driven: a new language ships a dictionary by adding a DICT_LOADERS
-// entry, and this helper must pick it up without being edited again.
+// registry-driven: a language that ships a dictionary adds a DICT_LOADERS entry,
+// and this helper must pick it up without being edited again.
 async function loadAllDicts() {
   for (const loc of templateLabelDictLocales) await ensureTemplateLabelDict(loc)
   __rebuildOfficialTemplateLabelIndex()
@@ -40,44 +44,29 @@ describe('officialTemplateLabelIndex', () => {
     __rebuildOfficialTemplateLabelIndex()
     const idx = officialTemplateLabelIndex()
     // one entry per shipped locale — adding a language adds its string here
-    expect([...(idx.known.get('level') ?? [])].sort()).toEqual([
-      'Cấp độ',
-      'Level',
-      'Livello',
-      'Niveau',
-      'Nivel',
-      'Nível',
-      'Seviye',
-      'Stufe',
-      'Уровень',
-      // Arabic sorts here by code unit: U+0627 is above Cyrillic U+0423 and
-      // below Thai U+0E40. The list is `.sort()`ed, so its order is the
-      // platform's, not a reading order.
-      'المستوى',
-      'เลเวล',
-      'レベル',
-      '等級',
-      '等级',
-      '레벨',
-    ])
+    expect([...(idx.known.get('level') ?? [])].sort()).toEqual(['Level', '레벨'])
+  })
+
+  it('a label from an archived language is not in the seed — such a node is the user’s', () => {
+    // §L2.0 — a document made in Japanese keeps its names: they are no longer
+    // official strings, so no locale switch rewrites them
+    const idx = officialTemplateLabelIndex()
+    expect(idx.known.get('level')?.has('レベル')).toBe(false)
+    const input = [node('level', 'レベル')]
+    expect(relabelNodesForLocale(input, 'ko')).toBe(input)
+    expect(relabelNodesForLocale(input, 'en')).toBe(input)
   })
 
   it('resolves a per-locale target label once that locale is resident', () => {
     const idx = officialTemplateLabelIndex()
     expect(idx.byLocale.get('en')?.get('level')).toBe('Level')
     expect(idx.byLocale.get('ko')?.get('level')).toBe('레벨')
-    expect(idx.byLocale.get('ja')?.get('level')).toBe('レベル')
-    expect(idx.byLocale.get('zh-Hans')?.get('level')).toBe('等级')
-    expect(idx.byLocale.get('zh-Hant')?.get('level')).toBe('等級')
-    expect(idx.byLocale.get('fr')?.get('level')).toBe('Niveau')
-    expect(idx.byLocale.get('vi')?.get('level')).toBe('Cấp độ')
-    expect(idx.byLocale.get('de')?.get('level')).toBe('Stufe')
   })
 
   it('covers the production-line templates that share node ids', () => {
     const idx = officialTemplateLabelIndex()
     // tpl-src is in BOTH equilibrium and deadlock — identical in every locale
-    expect(idx.byLocale.get('ja')?.get('tpl-src')).toBe('原料供給')
+    expect(idx.byLocale.get('ko')?.get('tpl-src')).toBe('원료 공급')
     expect(idx.ambiguous.has('tpl-src')).toBe(false)
   })
 
@@ -88,75 +77,71 @@ describe('officialTemplateLabelIndex', () => {
 
 describe('relabelNodesForLocale', () => {
   it('switches an official label to the target locale', () => {
-    const out = relabelNodesForLocale([node('level', '레벨'), node('gold', '골드')], 'ja')
-    expect(labels(out)).toEqual(['レベル', 'ゴールド'])
+    const out = relabelNodesForLocale([node('level', 'Level'), node('gold', 'Gold')], 'ko')
+    expect(labels(out)).toEqual(['레벨', '골드'])
   })
 
   it('switches back to the English canonical', () => {
-    const out = relabelNodesForLocale([node('level', 'レベル')], 'en')
+    const out = relabelNodesForLocale([node('level', '레벨')], 'en')
     expect(labels(out)).toEqual(['Level'])
   })
 
   it('preserves a user-renamed label (not one of the official strings)', () => {
     const input = [node('level', 'My hero level')]
-    const out = relabelNodesForLocale(input, 'ja')
+    const out = relabelNodesForLocale(input, 'ko')
     expect(out).toBe(input) // same reference — nothing changed
     expect(labels(out)).toEqual(['My hero level'])
   })
 
   it('preserves a `Foo 2` de-dup suffix', () => {
-    const out = relabelNodesForLocale([node('gold', '골드 2')], 'ja')
+    const out = relabelNodesForLocale([node('gold', '골드 2')], 'en')
     expect(labels(out)).toEqual(['골드 2'])
   })
 
   it('ignores a node whose id is not a bundled-template id', () => {
-    const out = relabelNodesForLocale([node('n7', '레벨')], 'ja')
+    const out = relabelNodesForLocale([node('n7', '레벨')], 'en')
     expect(labels(out)).toEqual(['레벨'])
   })
 
   it('is idempotent — same locale value returns the same array reference', () => {
-    const input = [node('level', 'レベル'), node('gold', 'ゴールド')]
-    expect(relabelNodesForLocale(input, 'ja')).toBe(input)
+    const input = [node('level', '레벨'), node('gold', '골드')]
+    expect(relabelNodesForLocale(input, 'ko')).toBe(input)
   })
 
   it('falls back to the English canonical for an unknown target locale', () => {
-    // `qaa` is ISO 639-2's permanently reserved local-use range. `nl` stood
-    // here until Dutch shipped: an "unknown locale" probe must be a code the
-    // product can never register, or this row silently starts asserting the
-    // opposite of what it was written to assert.
+    // `qaa` is ISO 639-2's permanently reserved local-use range: an "unknown
+    // locale" probe must be a code the product can never register, or this row
+    // silently starts asserting the opposite of what it was written to assert.
     const out = relabelNodesForLocale([node('level', '레벨')], 'qaa')
     expect(labels(out)).toEqual(['Level'])
   })
 
   it('switches only the official nodes in a mixed graph', () => {
     const input = [
-      node('level', '레벨'),
+      node('level', 'Level'),
       node('gold', 'my gold'), // user-renamed
-      node('xp', '경험치'),
+      node('xp', 'XP'),
     ]
-    const out = relabelNodesForLocale(input, 'ja')
+    const out = relabelNodesForLocale(input, 'ko')
     expect(out).not.toBe(input)
-    expect(labels(out)).toEqual(['レベル', 'my gold', '経験値'])
+    expect(labels(out)).toEqual(['레벨', 'my gold', '경험치'])
   })
 
   it('switches the shared production-line ids', () => {
-    const out = relabelNodesForLocale(
-      [node('tpl-src', '원료 공급'), node('tpl-conv', '가공')],
-      'ja',
-    )
-    expect(labels(out)).toEqual(['原料供給', '加工'])
+    const out = relabelNodesForLocale([node('tpl-src', '원료 공급'), node('tpl-conv', '가공')], 'en')
+    const idx = officialTemplateLabelIndex()
+    expect(labels(out)).toEqual([idx.byLocale.get('en')?.get('tpl-src'), idx.byLocale.get('en')?.get('tpl-conv')])
+    expect(labels(out)).not.toContain('원료 공급')
   })
 
   it('still classifies a label from a NOT-yet-loaded locale as official (provenance-agnostic seed)', () => {
-    // only KO is resident; a node carrying its JA official label must still be
-    // recognised as "official" (→ switched), not treated as a user rename
+    // no dictionary is resident; a node carrying its KO official label must
+    // still be recognised as "official" (→ switched to the base), not treated
+    // as a user rename
     __resetTemplateLabelDicts()
     __rebuildOfficialTemplateLabelIndex()
-    return ensureTemplateLabelDict('ko').then(() => {
-      __rebuildOfficialTemplateLabelIndex()
-      const out = relabelNodesForLocale([node('level', 'レベル' /* JA, unloaded */)], 'ko')
-      expect(labels(out)).toEqual(['레벨'])
-    })
+    const out = relabelNodesForLocale([node('level', '레벨' /* KO, unloaded */)], 'en')
+    expect(labels(out)).toEqual(['Level'])
   })
 
   it('a registered locale whose dict is not resident leaves the nodes untouched (no half-English)', () => {
@@ -164,9 +149,10 @@ describe('relabelNodesForLocale', () => {
     __rebuildOfficialTemplateLabelIndex()
     const err = vi.spyOn(console, 'error').mockImplementation(() => {})
     const input = [node('level', 'Level'), node('gold', 'Gold')]
-    const out = relabelNodesForLocale(input, 'ja') // 'ja' registered, dict absent
+    const out = relabelNodesForLocale(input, 'ko') // 'ko' registered, dict absent
     expect(out).toBe(input) // same reference — nothing rewritten
     expect(labels(out)).toEqual(['Level', 'Gold'])
     expect(err).toHaveBeenCalled()
+    err.mockRestore()
   })
 })

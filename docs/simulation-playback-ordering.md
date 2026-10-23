@@ -243,10 +243,14 @@ equilibrium claim is always about ≥ 3 steps of the **current** graph + seed.
 **"Steady state — flows continue"** (`playbar.steady`, localised EN / KO / JA),
 shown only when `steadyState && status === 'running'` — so Pause hides it while
 **preserving** the verdict, and Resume shows it again immediately (before the
-next commit re-confirms it). The chip is **`position: absolute`** (out of flow —
-it shifts no control and no strip height, appearing or not) and a
-render-time + `resize` overlap guard hides it entirely when it cannot sit clear
-of every control. Accessibility: a separate `role="status"` `aria-live="polite"`
+next commit re-confirms it). **Revised 2026-10-20 (Lumi: the run's state comes
+before its settings).** The chip sits in the row's flow beside the current step,
+its room kept while hidden (`visibility`), so it shifts no control and no strip
+height, appearing or not; it is never hidden for lack of room — the row folds
+Monte Carlo, then Speed and Seed, to keep it, and only as a last step may its
+text shorten (`docs/workbench.md` §WB7). Until then it was `position: absolute`
+and an overlap guard hid it wherever it met a control: at 1280 × 800 with the
+workbench's default panels it never showed. Accessibility: a separate `role="status"` `aria-live="polite"`
 region is spoken **once, on first entry into `steadyState && running`** — if the
 detector turns true while stopped (a manual Step to a fixed point) nothing is
 said (the chip is hidden and "flows continue" while paused would be wrong);

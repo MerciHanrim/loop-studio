@@ -51,7 +51,6 @@ const helpSheetRow = async (page: Page, text: RegExp) => {
 
 const DIALOGS: Dialog[] = [
   { name: 'contextual tips', selector: '.mcdlg--contextual-help', open: (page) => helpSheetRow(page, /^Turn contextual tips back on$/) },
-  { name: 'What’s new', selector: '[data-whatsnew="panel"]', open: (page) => helpSheetRow(page, /^What’s new/) },
   { name: 'About', selector: '.mcdlg--about', open: (page) => helpSheetRow(page, /^About Loop Studio$/) },
   {
     name: 'export author',
@@ -241,9 +240,11 @@ test.describe('every dialog is the top layer on a phone', () => {
   }
 
   test('right-to-left, 390px: the contextual dialog is on top and its close button is reachable', async ({ page }) => {
+    // §L2.0 (2026-10): `ar` is retired; the RTL pseudo-locale `ar-XB` is
+    // registered, so a STORED value of it is honoured at boot (§L9.2).
     await page.addInitScript(() => {
       try {
-        localStorage.setItem('loop-studio/ui-locale/1', 'ar')
+        localStorage.setItem('loop-studio/ui-locale/1', 'ar-XB')
       } catch {
         /* ignore */
       }

@@ -3,6 +3,7 @@ import en from './locales/en'
 import {
   BASE_LOCALE,
   LOCALES,
+  RETIRED_LOCALES,
   enabledLocales,
   getEntry,
   isRegistered,
@@ -12,7 +13,15 @@ import {
 
 // docs/localization.md §L2 — every registered locale carries the full required
 // metadata set, so the switch UI / resolver / checks never need a per-locale
-// special case and step 3's selector work does not have to reshape the registry.
+// special case.
+//
+// §L2.0 (2026-10) — English and Korean are the supported languages. The resolver
+// rules that only a larger registry exercises (Chinese script mapping, a base
+// subtag owner, regional variants) are kept below against a HYPOTHETICAL
+// registry passed in as `resolveInitialLocale`'s third argument, so the rules
+// stay tested for the day a language is registered again. The earlier version,
+// which ran them against the eighteen shipped entries, is in
+// `archive/i18n/tests/registry.multilocale.test.ts`.
 describe('locale registry metadata', () => {
   it('every registered locale has the required fields, well-typed', () => {
     expect(LOCALES.length).toBeGreaterThan(0)
@@ -33,14 +42,11 @@ describe('locale registry metadata', () => {
   })
 
   it('nativeName does not depend on the active UI language (it is the endonym)', () => {
-    // a literal in the registry source, not a catalog key — the check is that it
-    // is a plain non-empty string that is stable across the app's lifetime
     for (const l of LOCALES) expect(l.nativeName).toBe(l.nativeName.trim())
   })
 
   // §L5.6 — the registry array is DATA and the picker sorts a copy, so what
-  // `enabledLocales()` owes its caller is the SET, not an order. The display
-  // order is a separate contract, in `localeOrder.test.ts`.
+  // `enabledLocales()` owes its caller is the SET, not an order.
   it('enabledLocales() returns the enabled entries as a set, order not promised', () => {
     const want = LOCALES.filter((l) => l.enabled)
     expect([...enabledLocales()].sort((a, b) => a.code.localeCompare(b.code))).toEqual(
@@ -50,52 +56,16 @@ describe('locale registry metadata', () => {
   })
 
   it('every locale a user can reach is enabled, and only the RTL QA locale is not', () => {
-    // This used to assert `enabledLocales() == LOCALES`, under the name "every
-    // SHIPPED locale is enabled" — two different claims, and the wider one only
-    // held while nothing was ever disabled. §L9.2's `ar-XB` is registered so the
-    // resolver and `?lang=` can reach it, and disabled so the picker does not
-    // offer an RTL QA affordance as an eighteenth language. The precise shape
-    // lives in `the shipped / enabled / pseudo sets` below.
-    expect([...enabledLocales()].map((l) => l.code).sort()).toEqual(
-      LOCALES.filter((l) => l.enabled)
-        .map((l) => l.code)
-        .sort(),
-    )
     expect(LOCALES.filter((l) => !l.enabled).map((l) => l.code)).toEqual(['ar-XB'])
   })
 
-  // §L2.4 — Traditional Chinese is its own locale, never a conversion of
-  // Simplified, and the dev pseudo-locale is not one of the shipped languages.
-  it('ships exactly the registered languages, the pseudo-locale aside', () => {
+  it('ships exactly English and Korean, the pseudo-locales aside (§L2.0)', () => {
     const shipped = LOCALES.filter((l) => !l.pseudo).map((l) => l.code)
-    expect([...shipped].sort()).toEqual([
-      'ar',
-      'de',
-      'en',
-      'es-419',
-      'es-ES',
-      'fr',
-      'it',
-      'ja',
-      'ko',
-      'nl',
-      'pt-BR',
-      'pt-PT',
-      'ru',
-      'th',
-      'tr',
-      'vi',
-      'zh-Hans',
-      'zh-Hant',
-    ])
+    expect([...shipped].sort()).toEqual(['en', 'ko'])
   })
 
-  // §L5.4 / §L9.2 — four SET relations rather than one "every pseudo is en-XA"
-  // predicate. That predicate was true only while there was a single
-  // pseudo-locale; it would have gone silently false the moment a second one
-  // existed, and it never said anything about `enabled` at all. These four pin
-  // the shape instead: which locales ship, which are offered, and which of the
-  // offered ones are QA affordances.
+  // §L5.4 / §L9.2 — SET relations: which locales ship, which are offered, and
+  // which of the offered ones are QA affordances.
   describe('the shipped / enabled / pseudo sets', () => {
     const codes = (ls: readonly LocaleEntry[]) => [...ls.map((l) => l.code)].sort()
     const shipped = LOCALES.filter((l) => !l.pseudo)
@@ -119,213 +89,69 @@ describe('locale registry metadata', () => {
       const disabled = LOCALES.filter((l) => !l.enabled)
       expect(codes(disabled)).toEqual(['ar-XB'])
       expect(disabled.every((l) => l.pseudo)).toBe(true)
-      // It is the RTL half of the pseudo pair. It is no longer the ONLY rtl
-      // entry — PR C registered the real `ar` — so what is asserted now is the
-      // pair itself: two rtl locales, exactly one of them a pseudo, and the
-      // pseudo is the disabled one. Keeping the old single-element assertion
-      // would have made "the only rtl locale" silently mean "the QA one".
+      // §L2.0 — with Arabic archived, the RTL QA pseudo is the only rtl entry;
+      // it keeps the reading-direction layout exercised
       const rtl = LOCALES.filter((l) => l.direction === 'rtl')
-      expect(codes(rtl)).toEqual(['ar', 'ar-XB'])
-      expect(codes(rtl.filter((l) => l.pseudo))).toEqual(['ar-XB'])
-      expect(codes(rtl.filter((l) => !l.enabled))).toEqual(['ar-XB'])
+      expect(codes(rtl)).toEqual(['ar-XB'])
     })
 
     it('every pseudo-locale is dev-only, so production ships none of them', () => {
       // `devPseudoLocales()` is the only source of `pseudo` entries and it is
-      // `import.meta.env.DEV`-gated, so this is the set that disappears from a
-      // production build. `e2e/portable-file.spec.ts` asserts the absence at the
-      // BYTE level in the built artefacts — an identifier search in a minified
-      // bundle proves nothing, since the minifier renames.
+      // `import.meta.env.DEV`-gated; `e2e/portable-file.spec.ts` asserts the
+      // absence at the BYTE level in the built artefacts.
       expect(codes(pseudo)).toEqual(['ar-XB', 'en-XA'])
       expect(pseudo.every((l) => l.catalog !== undefined)).toBe(true)
-      // a pseudo-locale must never be counted as a language a user has
       expect(shipped.some((l) => l.pseudo)).toBe(false)
     })
   })
 
-  it('fr carries its own endonym, display key and number locale', () => {
-    const e = getEntry('fr')
-    expect(e?.nativeName).toBe('Français')
-    expect(e?.englishName).toBe('French')
-    expect(e?.displayNameKey).toBe('language.french')
+  it('ko carries its own endonym, display key and number locale', () => {
+    const e = getEntry('ko')
+    expect(e?.nativeName).toBe('한국어')
+    expect(e?.englishName).toBe('Korean')
+    expect(e?.displayNameKey).toBe('language.korean')
     expect(e?.direction).toBe('ltr')
-    expect(e?.numberLocale).toBe('fr')
-    expect(e?.pseudo).toBeUndefined()
-    expect(isRegistered('fr')).toBe(true)
-  })
-
-  it('zh-Hant carries its own endonym, display key and number locale', () => {
-    const e = getEntry('zh-Hant')
-    expect(e?.nativeName).toBe('繁體中文')
-    expect(e?.englishName).toBe('Chinese (Traditional)')
-    expect(e?.displayNameKey).toBe('language.chineseTraditional')
-    expect(e?.direction).toBe('ltr')
-    expect(e?.numberLocale).toBe('zh-Hant')
+    expect(e?.numberLocale).toBe('ko')
     expect(e?.enabled).toBe(true)
     expect(e?.pseudo).toBeUndefined()
-    expect(isRegistered('zh-Hant')).toBe(true)
+    expect(isRegistered('ko')).toBe(true)
   })
 })
 
-// docs/localization.md §L5.2 — the fully deterministic locale-decision order.
+// docs/localization.md §L2.0 — the sixteen languages archived in 2026-10.
+describe('retired locales (§L2.0)', () => {
+  it('lists the sixteen archived languages, none of them registered', () => {
+    expect([...RETIRED_LOCALES].sort()).toEqual([
+      'ar', 'de', 'es-419', 'es-ES', 'fr', 'it', 'ja', 'nl',
+      'pt-BR', 'pt-PT', 'ru', 'th', 'tr', 'vi', 'zh-Hans', 'zh-Hant',
+    ])
+    for (const code of RETIRED_LOCALES) expect(isRegistered(code), code).toBe(false)
+  })
 
-// docs/localization.md §L5.2a — Chinese is the one language whose SCRIPT, not
-// its base subtag, picks the locale, and no browser sends the script. Every
-// region a Chinese reader's browser actually reports has to land somewhere,
-// and a region that maps to a locale the registry does NOT have must fall
-// through to the ordinary rules rather than guess.
-describe('resolveInitialLocale — Chinese script / region mapping', () => {
-  it('maps every Simplified region, the explicit script, and a bare zh', () => {
-    for (const tag of ['zh-CN', 'zh-SG', 'zh-MY', 'zh', 'zh-Hans', 'zh-Hans-CN', 'ZH-HANS']) {
-      expect(resolveInitialLocale(null, [tag]), tag).toBe('zh-Hans')
+  it('a STORED retired code starts in English, whatever the browser asks for', () => {
+    for (const code of RETIRED_LOCALES) {
+      expect(resolveInitialLocale(code, []), code).toBe('en')
+      expect(resolveInitialLocale(code, ['ko-KR']), `${code} with a Korean browser`).toBe('en')
+      expect(resolveInitialLocale(code, [code]), `${code} with a browser asking for it`).toBe('en')
     }
   })
 
-  it('maps every Traditional region and the explicit script', () => {
-    for (const tag of ['zh-TW', 'zh-HK', 'zh-MO', 'zh-Hant', 'zh-hant', 'zh-Hant-TW', 'zh-Hant-HK']) {
-      expect(resolveInitialLocale(null, [tag]), tag).toBe('zh-Hant')
+  it('a browser asking for a retired language gets English; Korean stays Korean', () => {
+    for (const tag of ['de-DE', 'fr-FR', 'ja-JP', 'zh-CN', 'zh-TW', 'es-MX', 'pt-BR', 'ar-EG', 'ru-RU', 'vi-VN']) {
+      expect(resolveInitialLocale(null, [tag]), tag).toBe('en')
     }
-  })
-
-  it('never hands a Traditional browser Simplified, or the other way round', () => {
-    expect(resolveInitialLocale(null, ['zh-TW'])).not.toBe('zh-Hans')
-    expect(resolveInitialLocale(null, ['zh-CN'])).not.toBe('zh-Hant')
-  })
-
-  it('leaves every other language alone', () => {
     expect(resolveInitialLocale(null, ['ko-KR'])).toBe('ko')
-    expect(resolveInitialLocale(null, ['ja'])).toBe('ja')
-    // `qaa` is ISO 639-2's permanently RESERVED-FOR-LOCAL-USE range, so it can
-    // never become a registered code. `nl-NL` was here until Dutch went on
-    // the roadmap — a probe for "falls back to English" must not be a tag the
-    // product might one day support.
-    expect(resolveInitialLocale(null, ['qaa'])).toBe('en') // reserved, never registrable
-    expect(resolveInitialLocale(null, ['zhuang'])).toBe('en') // not a zh subtag
+    // an unsupported first tag does not hide a supported later one
+    expect(resolveInitialLocale(null, ['de-DE', 'ko'])).toBe('ko')
   })
 
-  // §L5.2 / §L9.2 — a STORED code may be a pseudo-locale; a NAVIGATOR tag may
-  // not. `ar-XB` is Chrome's own RTL pseudo-tag, so without this split a browser
-  // configured with it would boot a real user into the QA locale — and `en-XA`
-  // is `XA` for the same reason. The two paths stay separate until a real `ar`
-  // ships, which is a PR C decision, not a side effect of PR B's test affordance.
-  describe('a browser tag reaches only ENABLED locales; a stored code may be any registered one', () => {
-    // The property that disqualifies a navigator candidate is `enabled`, NOT
-    // `pseudo`. An earlier revision filtered on `pseudo` and so changed `en-XA`'s
-    // measured behaviour as a side effect — `en-XA` is an enabled QA locale and a
-    // browser offering that tag has always been served it. `ar-XB` is excluded
-    // because it is DISABLED, which is also what keeps any future disabled
-    // non-pseudo locale from being switched on by a browser suggestion.
-    it('an ENABLED pseudo-locale is still served to a browser that asks for it', () => {
-      expect(resolveInitialLocale(null, ['en-XA'])).toBe('en-XA')
-      expect(resolveInitialLocale(null, ['en-xa'])).toBe('en-XA')
-      expect(getEntry('en-XA')?.enabled).toBe(true)
-    })
-
-    it('a DISABLED locale is never reached from a browser tag', () => {
-      // `ar-XB` is Chrome's own RTL pseudo-tag, so a browser configured with it
-      // would otherwise boot a real user into the QA locale.
-      expect(getEntry('ar-XB')?.enabled).toBe(false)
-      // The invariant: never `ar-XB` itself. The VALUE it falls to is `en` only
-      // while no `ar` is registered — once PR C ships Arabic, step 3 (a code that
-      // IS the base subtag) will answer `ar`, which is correct and is why this
-      // asserts the fallback through the registry rather than hardcoding 'en'.
-      const arOwner = LOCALES.find((l) => l.enabled && l.code === 'ar')?.code ?? BASE_LOCALE
-      expect(resolveInitialLocale(null, ['ar-XB'])).toBe(arOwner)
-      expect(resolveInitialLocale(null, ['ar-xb'])).toBe(arOwner)
-      expect(arOwner).toBe('ar') // PR C registered it; the lines above survived unchanged
-      // A later tag can only win when the earlier one resolves to NOTHING.
-      // `ar-XB` used to be such a tag; now its base subtag `ar` is registered,
-      // so step 3 answers `ar` and never reaches `de`. That is the correct
-      // reading of the tag — a browser asking for Arabic-in-a-pseudo-region is
-      // asking for Arabic — and the invariant this test is named for still
-      // holds: the answer is the real locale, never the disabled pseudo.
-      expect(resolveInitialLocale(null, ['ar-XB', 'de'])).toBe('ar')
-      // so the fall-through property is asserted with a tag nothing owns
-      expect(resolveInitialLocale(null, ['qaa', 'de'])).toBe('de')
-    })
-
-    it('every disabled locale is unreachable from a browser tag, whatever it is', () => {
-      // stated over the registry rather than over today's one disabled entry, so
-      // a future disabled non-pseudo locale is covered the day it is added
-      for (const l of LOCALES.filter((x) => !x.enabled)) {
-        expect(resolveInitialLocale(null, [l.code]), l.code).not.toBe(l.code)
-      }
-      for (const l of LOCALES.filter((x) => x.enabled)) {
-        expect(resolveInitialLocale(null, [l.code]), l.code).toBe(l.code)
-      }
-    })
-
-    it('honours a disabled or pseudo locale that is the STORED code', () => {
-      expect(resolveInitialLocale('ar-XB', [])).toBe('ar-XB')
-      expect(resolveInitialLocale('ar-XB', ['de'])).toBe('ar-XB')
-      expect(resolveInitialLocale('en-XA', ['de'])).toBe('en-XA')
-    })
-
-    it('sends every Arabic tag to the real `ar`, never to the RTL pseudo', () => {
-      // §L9.2 asserted these all reached `en`, because registering `ar-XB` must
-      // not quietly serve Arabic readers a QA locale. PR C registered the real
-      // `ar`, so the destination changes — but the thing that mattered does
-      // not: the pseudo still answers for nothing.
-      for (const tag of ['ar', 'ar-SA', 'ar-EG', 'ar-MA', 'ar-Arab-EG', 'ar-EG-u-nu-latn']) {
-        expect(resolveInitialLocale(null, [tag]), tag).toBe('ar')
-      }
-      // bare `ar` carries every regional tag through §L5.2 step 3, so no locale
-      // needs to own the base subtag — the shape `ru`, `tr`, `th`, `vi`, `it`
-      // and `nl` use
-      expect(LOCALES.some((l) => l.baseFallbackFor === 'ar')).toBe(false)
-      // and an unregistered tag still falls through to English
-      expect(resolveInitialLocale(null, ['qaa'])).toBe('en')
-    })
-
-    it('leaves all eighteen shipped resolutions untouched', () => {
-      // the regression this split could plausibly have caused
-      const cases: ReadonlyArray<readonly [string, string]> = [
-        ['de-AT', 'de'],
-        ['es-MX', 'es-419'],
-        ['es-ES', 'es-ES'],
-        ['pt-PT', 'pt-PT'],
-        ['pt-BR', 'pt-BR'],
-        ['zh-TW', 'zh-Hant'],
-        ['zh-CN', 'zh-Hans'],
-        ['ko-KR', 'ko'],
-        ['nl-BE', 'nl'],
-        ['it-CH', 'it'],
-        ['fr-CA', 'fr'],
-        ['ru-RU', 'ru'],
-        ['tr-TR', 'tr'],
-        ['th-TH', 'th'],
-        ['vi-VN', 'vi'],
-        ['ja-JP', 'ja'],
-        ['en-GB', 'en'],
-        // `ar` had no row here at all, which `check-locale-lists.mjs` found: a
-        // regional Arabic tag reaching the base subtag is the same §L5.2 step 3
-        // path as `ru-RU` or `nl-BE`, and nothing was asserting it.
-        ['ar-EG', 'ar'],
-        ['ar-SA', 'ar'],
-      ]
-      for (const [tag, want] of cases) expect(resolveInitialLocale(null, [tag]), tag).toBe(want)
-    })
-  })
-
-  it('an earlier acceptable browser language still wins', () => {
-    expect(resolveInitialLocale(null, ['ko', 'zh-CN'])).toBe('ko')
-    expect(resolveInitialLocale(null, ['zh-CN', 'ko'])).toBe('zh-Hans')
-    expect(resolveInitialLocale(null, ['zh-TW', 'zh-CN'])).toBe('zh-Hant')
-    expect(resolveInitialLocale(null, ['zh-CN', 'zh-TW'])).toBe('zh-Hans')
-  })
-
-  it('a stored locale still beats the browser, and a bad stored value recovers', () => {
-    expect(resolveInitialLocale('zh-Hans', ['ko-KR'])).toBe('zh-Hans')
-    expect(resolveInitialLocale('en', ['zh-CN'])).toBe('en')
-    expect(resolveInitialLocale('zh-Hant', ['zh-CN'])).toBe('zh-Hant') // registered → stored wins
-    expect(resolveInitialLocale('zh-Hant-XX', ['zh-CN'])).toBe('zh-Hans') // unregistered → browser
-    expect(resolveInitialLocale('zz-ZZ', ['zh-HK'])).toBe('zh-Hant')
-    expect(resolveInitialLocale('zh-Hant-XX', ['en-US'])).toBe('en')
-    expect(resolveInitialLocale('zh-CN', ['ko-KR'])).toBe('ko') // a REGION is not a code
+  it('a stored English or Korean choice is kept', () => {
+    expect(resolveInitialLocale('ko', ['de-DE'])).toBe('ko')
+    expect(resolveInitialLocale('en', ['ko-KR'])).toBe('en')
   })
 })
 
-describe('resolveInitialLocale', () => {
+describe('resolveInitialLocale — the real registry', () => {
   it('1. a stored value that is EXACTLY a registered code wins', () => {
     expect(resolveInitialLocale('ko', ['en-US'])).toBe('ko')
     expect(resolveInitialLocale('en', ['ko-KR'])).toBe('en')
@@ -342,11 +168,6 @@ describe('resolveInitialLocale', () => {
     expect(resolveInitialLocale(null, ['ko-KR', 'en-US'])).toBe('ko') // base match ko-KR -> ko
     expect(resolveInitialLocale(null, ['en-GB'])).toBe('en') // base match en-GB -> en
     expect(resolveInitialLocale(null, ['qaa', 'ko'])).toBe('ko') // first that resolves wins
-    // §L2.9 — every French region reaches `fr` through the ordinary
-    // base-subtag rule; French needed no mapping of its own.
-    for (const tag of ['fr', 'fr-FR', 'fr-BE', 'fr-CH', 'fr-CA', 'fr-LU', 'FR-ca']) {
-      expect(resolveInitialLocale(null, [tag]), tag).toBe('fr')
-    }
     expect(resolveInitialLocale(null, ['KO-kr'])).toBe('ko') // navigator matched case-insensitively
   })
 
@@ -356,167 +177,184 @@ describe('resolveInitialLocale', () => {
     expect(resolveInitialLocale('xx', ['zz'])).toBe(BASE_LOCALE)
   })
 
-  it('a stored value not in the registry is ignored (not honoured, not thrown)', () => {
+  it('a stored value not in the registry (and not retired) is ignored, not thrown', () => {
     expect(isRegistered('xx')).toBe(false)
     expect(() => resolveInitialLocale('xx', ['ko'])).not.toThrow()
     expect(resolveInitialLocale('xx', ['ko'])).toBe('ko')
   })
+
+  // §L5.2 / §L9.2 — a STORED code may be a pseudo-locale; a NAVIGATOR tag may
+  // reach only an ENABLED one. `ar-XB` is Chrome's own RTL pseudo-tag.
+  describe('a browser tag reaches only ENABLED locales; a stored code may be any registered one', () => {
+    it('an ENABLED pseudo-locale is still served to a browser that asks for it', () => {
+      expect(resolveInitialLocale(null, ['en-XA'])).toBe('en-XA')
+      expect(resolveInitialLocale(null, ['en-xa'])).toBe('en-XA')
+      expect(getEntry('en-XA')?.enabled).toBe(true)
+    })
+
+    it('a DISABLED locale is never reached from a browser tag', () => {
+      expect(getEntry('ar-XB')?.enabled).toBe(false)
+      expect(resolveInitialLocale(null, ['ar-XB'])).toBe('en')
+      expect(resolveInitialLocale(null, ['ar-XB', 'ko'])).toBe('ko')
+    })
+
+    it('every disabled locale is unreachable from a browser tag, whatever it is', () => {
+      for (const l of LOCALES.filter((x) => !x.enabled)) {
+        expect(resolveInitialLocale(null, [l.code]), l.code).not.toBe(l.code)
+      }
+      for (const l of LOCALES.filter((x) => x.enabled)) {
+        expect(resolveInitialLocale(null, [l.code]), l.code).toBe(l.code)
+      }
+    })
+
+    it('honours a disabled or pseudo locale that is the STORED code', () => {
+      expect(resolveInitialLocale('ar-XB', [])).toBe('ar-XB')
+      expect(resolveInitialLocale('ar-XB', ['ko'])).toBe('ar-XB')
+      expect(resolveInitialLocale('en-XA', ['ko'])).toBe('en-XA')
+    })
+  })
 })
 
-// docs/localization.md §L5.2 step 4 — `baseFallbackFor`.
-//
-// `fr`, `de`, `ko` and `ja` are reached because their CODE is their base
-// subtag. `es-419` is not: no browser sends `es-419`, it sends `es-MX`,
-// `es-AR`, `es-ES`, `es`. Without an explicit owner for the `es` base, every
-// one of those resolves to English — or worse, to whatever unrelated language
-// sits later in `navigator.languages`.
-describe('§L5.2 step 4 — baseFallbackFor', () => {
-  it('at most one locale owns a base subtag', () => {
-    const owners = new Map<string, string>()
-    for (const l of LOCALES) {
-      if (l.baseFallbackFor == null) continue
-      const prev = owners.get(l.baseFallbackFor)
-      expect(prev, `${l.baseFallbackFor} is owned by both ${prev} and ${l.code}`).toBeUndefined()
-      owners.set(l.baseFallbackFor, l.code)
+// ── the resolver's rules for a LARGER registry, against a hypothetical one ──
+// The same function, given a registry of the shape the product had before
+// §L2.0; `retired` is empty so only the ordinary rules apply.
+const entry = (code: string, extra: Partial<LocaleEntry> = {}): LocaleEntry => ({
+  code,
+  englishName: code,
+  nativeName: code,
+  displayNameKey: 'language.english',
+  direction: 'ltr',
+  numberLocale: code,
+  enabled: true,
+  catalog: () => Promise.resolve(en),
+  ...extra,
+})
+const WIDE: readonly LocaleEntry[] = [
+  entry('en'),
+  entry('ko'),
+  entry('ja'),
+  entry('fr'),
+  entry('de'),
+  entry('zh-Hans'),
+  entry('zh-Hant'),
+  entry('es-419', { baseFallbackFor: 'es' }),
+  entry('es-ES'),
+  entry('pt-BR', { baseFallbackFor: 'pt' }),
+  entry('pt-PT'),
+  entry('ar', { direction: 'rtl' }),
+  entry('ar-XB', { direction: 'rtl', enabled: false, pseudo: true }),
+]
+const r = (stored: string | null, nav: readonly string[]) => resolveInitialLocale(stored, nav, WIDE, [])
+
+// docs/localization.md §L5.2a — Chinese is the one language whose SCRIPT, not
+// its base subtag, picks the locale, and no browser sends the script.
+describe('resolveInitialLocale — Chinese script / region mapping (hypothetical registry)', () => {
+  it('maps every Simplified region, the explicit script, and a bare zh', () => {
+    for (const tag of ['zh-CN', 'zh-SG', 'zh-MY', 'zh', 'zh-Hans', 'zh-Hans-CN', 'ZH-HANS']) {
+      expect(r(null, [tag]), tag).toBe('zh-Hans')
+    }
+  })
+
+  it('maps every Traditional region and the explicit script', () => {
+    for (const tag of ['zh-TW', 'zh-HK', 'zh-MO', 'zh-Hant', 'zh-hant', 'zh-Hant-TW', 'zh-Hant-HK']) {
+      expect(r(null, [tag]), tag).toBe('zh-Hant')
+    }
+  })
+
+  it('never hands a Traditional browser Simplified, or the other way round', () => {
+    expect(r(null, ['zh-TW'])).not.toBe('zh-Hans')
+    expect(r(null, ['zh-CN'])).not.toBe('zh-Hant')
+  })
+
+  it('leaves every other language alone', () => {
+    expect(r(null, ['ko-KR'])).toBe('ko')
+    expect(r(null, ['ja'])).toBe('ja')
+    expect(r(null, ['qaa'])).toBe('en') // ISO 639-2 reserved for local use, never registrable
+    expect(r(null, ['zhuang'])).toBe('en') // not a zh subtag
+  })
+
+  it('a registered script locale is only reached when the registry has it', () => {
+    // the real registry has no Chinese locale: every Chinese tag reaches English
+    for (const tag of ['zh-CN', 'zh-TW', 'zh']) expect(resolveInitialLocale(null, [tag]), tag).toBe('en')
+  })
+
+  it('an earlier acceptable browser language still wins', () => {
+    expect(r(null, ['ko', 'zh-CN'])).toBe('ko')
+    expect(r(null, ['zh-CN', 'ko'])).toBe('zh-Hans')
+    expect(r(null, ['zh-TW', 'zh-CN'])).toBe('zh-Hant')
+  })
+
+  it('a stored locale still beats the browser, and a bad stored value recovers', () => {
+    expect(r('zh-Hans', ['ko-KR'])).toBe('zh-Hans')
+    expect(r('en', ['zh-CN'])).toBe('en')
+    expect(r('zh-Hant-XX', ['zh-CN'])).toBe('zh-Hans') // unregistered → browser
+    expect(r('zz-ZZ', ['zh-HK'])).toBe('zh-Hant')
+    expect(r('zh-CN', ['ko-KR'])).toBe('ko') // a REGION is not a code
+  })
+
+  it('an RTL language is reached by its own tags, never through the RTL pseudo', () => {
+    for (const tag of ['ar', 'ar-SA', 'ar-EG', 'ar-Arab-EG', 'ar-EG-u-nu-latn']) expect(r(null, [tag]), tag).toBe('ar')
+    expect(r(null, ['ar-XB'])).toBe('ar') // the pseudo is disabled; its base subtag answers
+  })
+})
+
+// docs/localization.md §L5.2 step 4 — `baseFallbackFor`. A locale whose CODE is
+// not its own base subtag (`es-419`, `pt-BR`) needs an explicit owner for the
+// base, or every browser tag of that language reaches English.
+describe('§L5.2 step 4 — baseFallbackFor (hypothetical registry)', () => {
+  it('at most one locale owns a base subtag, in the real registry and the wide one', () => {
+    for (const reg of [LOCALES, WIDE]) {
+      const owners = new Map<string, string>()
+      for (const l of reg) {
+        if (l.baseFallbackFor == null) continue
+        expect(owners.get(l.baseFallbackFor), `${l.baseFallbackFor} owned twice`).toBeUndefined()
+        owners.set(l.baseFallbackFor, l.code)
+      }
     }
   })
 
   it("a declared base is the locale's own language subtag", () => {
-    for (const l of LOCALES) {
-      if (l.baseFallbackFor == null) continue
-      expect(l.code.toLowerCase().split('-')[0], `${l.code} declares ${l.baseFallbackFor}`).toBe(
-        l.baseFallbackFor.toLowerCase(),
-      )
+    for (const reg of [LOCALES, WIDE]) {
+      for (const l of reg) {
+        if (l.baseFallbackFor == null) continue
+        expect(l.code.toLowerCase().split('-')[0], `${l.code} declares ${l.baseFallbackFor}`).toBe(l.baseFallbackFor.toLowerCase())
+      }
     }
   })
 
-  it('every Spanish tag a browser actually sends reaches es-419', () => {
-    for (const tag of [
-      'es',
-      'es-419',
-      'es-MX',
-      'es-AR',
-      'es-CO',
-      'es-CL',
-      'es-PE',
-      'es-VE',
-      'es-UY',
-      'es-US',
-      'es-GQ',
-      'ES-mx',
-      'es-419-u-va-posix',
-    ]) {
-      expect(resolveInitialLocale(null, [tag]), tag).toBe('es-419')
+  it('every Spanish tag a browser actually sends reaches the base owner', () => {
+    for (const tag of ['es', 'es-419', 'es-MX', 'es-AR', 'es-CO', 'es-US', 'es-GQ', 'ES-mx', 'es-419-u-va-posix']) {
+      expect(r(null, [tag]), tag).toBe('es-419')
     }
   })
 
   it('each navigator tag is fully resolved before the next one is tried', () => {
-    // the base fallback of the FIRST tag beats an exact match later in the list
-    expect(resolveInitialLocale(null, ['es-MX', 'de-DE'])).toBe('es-419')
-    expect(resolveInitialLocale(null, ['de-DE', 'es-MX'])).toBe('de')
-    // an unresolvable tag is skipped, not fatal
-    expect(resolveInitialLocale(null, ['xx-YY', 'es-AR'])).toBe('es-419')
-    // English only after every tag is exhausted
-    expect(resolveInitialLocale(null, ['xx-YY', 'zz'])).toBe(BASE_LOCALE)
+    expect(r(null, ['es-MX', 'de-DE'])).toBe('es-419')
+    expect(r(null, ['de-DE', 'es-MX'])).toBe('de')
+    expect(r(null, ['xx-YY', 'es-AR'])).toBe('es-419')
+    expect(r(null, ['xx-YY', 'zz'])).toBe(BASE_LOCALE)
   })
 
-  // This was written against a HYPOTHETICAL registry while `es-ES` was still
-  // a plan; it now runs against the real entry, and the prediction held with
-  // no change to the resolver. `es-ES` declares no `baseFallbackFor` at all —
-  // its code IS the tag a browser sends, so step 1 carries it, and step 4
-  // leaves `es-419` owning the base.
-  it('an exact code beats the base-fallback owner — the real es-ES entry', () => {
-    expect(getEntry('es-ES')?.baseFallbackFor).toBeUndefined()
-    expect(resolveInitialLocale(null, ['es-ES'])).toBe('es-ES')
-    expect(resolveInitialLocale(null, ['ES-es'])).toBe('es-ES')
-    expect(resolveInitialLocale(null, ['es-MX'])).toBe('es-419') // still the owner
-    expect(resolveInitialLocale(null, ['es'])).toBe('es-419')
-    expect(resolveInitialLocale(null, ['es-GQ'])).toBe('es-419') // stated trade-off
-    // and the per-TAG walk still prefers the first tag
-    expect(resolveInitialLocale(null, ['es-MX', 'es-ES'])).toBe('es-419')
-    expect(resolveInitialLocale(null, ['es-ES', 'es-MX'])).toBe('es-ES')
+  it('an exact code beats the base-fallback owner', () => {
+    expect(r(null, ['es-ES'])).toBe('es-ES')
+    expect(r(null, ['ES-es'])).toBe('es-ES')
+    expect(r(null, ['es-MX'])).toBe('es-419')
+    expect(r(null, ['es-MX', 'es-ES'])).toBe('es-419')
+    expect(r(null, ['es-ES', 'es-MX'])).toBe('es-ES')
+    expect(r(null, ['pt-PT'])).toBe('pt-PT')
+    expect(r(null, ['pt-AO'])).toBe('pt-BR')
+  })
+
+  it('a script or extension subtag misses the exact match — known limit', () => {
+    for (const tag of ['pt-Latn-PT', 'pt-PT-u-ca-gregory']) expect(r(null, [tag]), tag).toBe('pt-BR')
+    expect(r(null, ['es-Latn-ES'])).toBe('es-419')
   })
 
   it('an unregistered stored value is never normalised into a fallback', () => {
-    for (const stored of ['es', 'es-MX', 'ES-419']) {
-      expect(isRegistered(stored), stored).toBe(false)
-      expect(resolveInitialLocale(stored, ['en-US']), stored).toBe('en')
-    }
-    expect(resolveInitialLocale('es-419', ['en-US'])).toBe('es-419')
-  })
-
-  // `pt-BR` is the SECOND locale to own a base subtag. Before it existed every
-  // tag below resolved to `en` — and two of them to an unrelated language,
-  // which is the failure that makes this step necessary rather than merely
-  // nice: `["pt-AO","de-DE"]` gave German and `["pt","es-MX"]` gave Spanish.
-  it('every Portuguese tag a browser actually sends reaches pt-BR', () => {
-    for (const tag of [
-      'pt',
-      'pt-BR',
-      // `pt-PT` used to be on this list and is deliberately GONE: registering
-      // European Portuguese moved it to the test below, exactly as
-      // `i18n-pt-br.spec.ts` predicted it would (see [locale-spec-staleness]).
-      'pt-AO',
-      'pt-MZ',
-      'pt-CV',
-      'pt-GW',
-      'pt-ST',
-      'pt-TL',
-      'pt-MO',
-      'PT-br',
-    ]) {
-      expect(resolveInitialLocale(null, [tag]), tag).toBe('pt-BR')
-    }
-  })
-
-  it('a Portuguese first tag is not overtaken by a later unrelated language', () => {
-    expect(resolveInitialLocale(null, ['pt-AO', 'de-DE'])).toBe('pt-BR')
-    expect(resolveInitialLocale(null, ['pt', 'es-MX'])).toBe('pt-BR')
-    expect(resolveInitialLocale(null, ['es-MX', 'pt-BR'])).toBe('es-419')
-    expect(resolveInitialLocale(null, ['en-US', 'pt-BR'])).toBe('en')
-  })
-
-  // This was written against a HYPOTHETICAL registry while `pt-PT` was still
-  // a plan; it now runs against the real entry, and the prediction held with
-  // no change to the resolver — the same arc `es-ES` went through.
-  it('an exact pt-PT wins its own tag with no resolver change', () => {
-    expect(getEntry('pt-PT')?.baseFallbackFor).toBeUndefined()
-    expect(getEntry('pt-BR')?.baseFallbackFor).toBe('pt') // `pt-BR` still owns the base
-    for (const tag of ['pt-PT', 'PT-pt', 'pt-pt']) {
-      expect(resolveInitialLocale(null, [tag]), tag).toBe('pt-PT')
-    }
-    expect(resolveInitialLocale(null, ['pt'])).toBe('pt-BR')
-    expect(resolveInitialLocale(null, ['pt-AO'])).toBe('pt-BR')
-    // and the per-TAG walk still prefers the first tag
-    expect(resolveInitialLocale(null, ['pt-PT', 'pt-BR'])).toBe('pt-PT')
-    expect(resolveInitialLocale(null, ['pt-BR', 'pt-PT'])).toBe('pt-BR')
-    expect(resolveInitialLocale(null, ['pt-AO', 'pt-PT'])).toBe('pt-BR')
-  })
-
-  // A KNOWN RESOLVER LIMIT, pinned so it is a recorded decision rather than a
-  // surprise. `navigator.languages` returns BCP 47 tags and BCP 47 permits a
-  // script subtag and extensions, so these are tags a browser MAY send. Step 1
-  // matches the whole tag only, so they miss `pt-PT` and fall to the base
-  // owner. `es-ES` has the identical limit. Normalising the tag is a resolver
-  // change and is deliberately not mixed into a locale PR (§L2.16).
-  it('a script or extension subtag misses the exact match — known limit', () => {
-    for (const tag of ['pt-Latn-PT', 'pt-PT-u-ca-gregory']) {
-      expect(resolveInitialLocale(null, [tag]), tag).toBe('pt-BR')
-    }
-    expect(resolveInitialLocale(null, ['es-Latn-ES'])).toBe('es-419')
-  })
-
-  it('only an exactly registered Portuguese code restores from storage', () => {
-    for (const stored of ['pt', 'PT-BR', 'pt_BR', 'pt-br', 'PT-PT', 'pt_PT', 'pt-pt']) {
-      expect(isRegistered(stored), stored).toBe(false)
-      expect(resolveInitialLocale(stored, ['en-US']), stored).toBe('en')
-    }
-    expect(resolveInitialLocale('pt-BR', ['en-US'])).toBe('pt-BR')
-    expect(resolveInitialLocale('pt-PT', ['en-US'])).toBe('pt-PT')
-    // §L5.1 is deliberately stricter than §L5.2: `pt-pt` as a NAVIGATOR tag
-    // reaches `pt-PT` (case-insensitive), but as a STORED value it does not,
-    // because a stored value is matched exactly with no case repair.
-    expect(resolveInitialLocale(null, ['pt-pt'])).toBe('pt-PT')
-    expect(resolveInitialLocale('pt-pt', ['en-US'])).toBe('en')
+    for (const stored of ['es', 'es-MX', 'ES-419', 'pt', 'pt-br']) expect(r(stored, ['en-US']), stored).toBe('en')
+    expect(r('es-419', ['en-US'])).toBe('es-419')
+    // stored values are matched exactly; navigator tags case-insensitively
+    expect(r(null, ['pt-pt'])).toBe('pt-PT')
+    expect(r('pt-pt', ['en-US'])).toBe('en')
   })
 })

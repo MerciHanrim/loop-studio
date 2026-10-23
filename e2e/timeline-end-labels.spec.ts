@@ -85,13 +85,29 @@ function geom(page: Page) {
 const overlaps = (a: { top: number; bottom: number }, b: { top: number; bottom: number }) =>
   a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5
 
-async function setup(page: Page, graph = G) {
+/** the analysis area's splitter, by the user's keys: `n` × 16 px taller */
+async function growArea(page: Page, n: number) {
+  const splitter = page.getByRole('separator', { name: 'Analysis area height' })
+  await splitter.focus()
+  const plotH = () => page.evaluate(() => Math.round((document.querySelector('.timeline__svg') as SVGSVGElement).getBoundingClientRect().height))
+  const h0 = await plotH()
+  for (let i = 0; i < n; i++) await page.keyboard.press('ArrowUp')
+  await expect.poll(plotH).toBe(h0 + n * 16)
+}
+
+async function setup(page: Page, graph = G, opts: { grow?: boolean } = {}) {
   await openApp(page)
   await resetAll(page)
   await importGraph(page, graph)
   await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().reset())
   await ensureTimelineOpen(page) // desktop: collapsed until the first run; mobile: the sheet
   await expect(page.locator('.timeline__svg')).toBeVisible()
+  // The collision cases need a plot tall enough to hold five labels. The
+  // workbench's analysis area opens at 152 px (timeline-series-contract §7,
+  // 2026-10-20), a 76 px plot, whose label band holds two and folds the rest
+  // into "+N" (its own test below); the user's splitter, +64 px, gives the
+  // band the room these cases are about. The phone's sheet is unchanged.
+  if (opts.grow !== false && !isMobile(page)) await growArea(page, 4)
 }
 
 // enough steps that `big` ≈ 305 and every capped pool is at its cap
@@ -120,6 +136,23 @@ test.describe('Timeline — endpoint label collision avoidance', () => {
     }
     // every endpoint label uses the same vertical anchor (no baseline mixing)
     expect(new Set(g.labels.map((l) => l.dy))).toEqual(new Set(['0.32em']))
+  })
+
+  test('at the default 152 px area the band holds what fits and folds the rest into "+N"; still nothing overlaps', async ({ page }) => {
+    await setup(page, G, { grow: false })
+    await stepK(page, PRIME)
+    const g = (await geom(page))!
+    const real = g.labels.filter((l) => l.id !== '__more__')
+    const more = g.labels.find((l) => l.id === '__more__')
+    if (!isMobile(page)) {
+      expect(more, 'the fold chip').toBeTruthy()
+      expect(real.length + Number(more!.text!.replace(/\D/g, '')), 'every series is counted').toBe(5)
+    }
+    for (let i = 0; i < g.labels.length; i++) {
+      for (let j = i + 1; j < g.labels.length; j++) expect(overlaps(g.labels[i], g.labels[j]), `${g.labels[i].text} vs ${g.labels[j].text}`).toBe(false)
+      expect(g.labels[i].top).toBeGreaterThanOrEqual(g.plot.top - 1)
+      expect(g.labels[i].bottom).toBeLessThanOrEqual(g.plot.bottom + 1)
+    }
   })
 
   // ── 1. an isolated high value is pinned to its own dot ────────────────────
@@ -297,4 +330,91 @@ test.describe('Timeline — endpoint label collision avoidance', () => {
       }),
     ).toEqual(undo0)
   })
+})
+
+// An endpoint value sits on its own line's end, so the line came in under the
+// digits: drawn straight through the middle of "20" and "10" (2026-10-23,
+// Lumi: "20" / "10" could read as "28" / "18"). The digits now stand on a
+// background of their own; the line, its data and the dots are unchanged.
+// Checked from the painted pixels: across each label's text box, at the height
+// its line passes, no pixel takes a series line's colour.
+const TWO = JSON.stringify({
+  schema: 'loop-studio/graph',
+  version: 1,
+  nodes: [
+    { id: 'src', type: 'source', position: { x: 0, y: 40 }, data: { kind: 'source', label: 'Mint', activation: 'automatic', mode: 'pushAny' } },
+    { id: 'gold', type: 'pool', position: { x: 260, y: 40 }, data: { kind: 'pool', label: 'Gold', activation: 'passive', initial: 10, capacity: 100, mode: 'pullAny' } },
+    { id: 'gems', type: 'pool', position: { x: 260, y: 200 }, data: { kind: 'pool', label: 'Gems', activation: 'passive', initial: 0, capacity: 100, mode: 'pullAny' } },
+    { id: 'sink', type: 'drain', position: { x: 520, y: 40 }, data: { kind: 'drain', label: 'Spend', activation: 'automatic', mode: 'pullAny' } },
+  ],
+  edges: [
+    { id: 'e1', type: 'loop', source: 'src', target: 'gold', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '3' } },
+    { id: 'e2', type: 'loop', source: 'gold', target: 'sink', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+    { id: 'e3', type: 'loop', source: 'src', target: 'gems', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '2' } },
+  ],
+})
+
+/** for each endpoint label that sits on its own dot (no leader): how many
+ *  pixels across its text box, on the rows its line passes, take a series
+ *  line's colour (within a distance of 60 in RGB) */
+async function lineThroughLabels(page: Page): Promise<{ text: string; hits: number; checked: number }[]> {
+  const g = await page.evaluate(() => {
+    const svg = document.querySelector('.timeline__svg') as SVGSVGElement
+    const pr = svg.getBoundingClientRect()
+    const colours = [...svg.querySelectorAll('path.timeline__line, path.timeline__seg')].map((p) => getComputedStyle(p).stroke)
+    const beads = [...svg.querySelectorAll('circle.timeline__bead')].map((c) => +(c as SVGCircleElement).getAttribute('cy')!)
+    const labels = [...svg.querySelectorAll('text.timeline__endlabel:not(.timeline__endlabel--more)')]
+      .map((t) => ({ text: t.textContent ?? '', y: +t.getAttribute('y')!, r: (t as SVGTextElement).getBoundingClientRect() }))
+      .filter((l) => beads.some((cy) => Math.abs(cy - l.y) < 0.5)) // on its own dot
+      .map((l) => ({ text: l.text, left: l.r.left, right: l.r.right, lineY: pr.top + l.y }))
+    return { colours, labels }
+  })
+  const rgb = (s: string) => (s.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map(Number)
+  const series = g.colours.map(rgb).filter((c) => c.length === 3)
+  const out: { text: string; hits: number; checked: number }[] = []
+  for (const l of g.labels) {
+    const clip = { x: Math.ceil(l.left + 1), y: Math.round(l.lineY - 1), width: Math.max(1, Math.floor(l.right - l.left - 2)), height: 3 }
+    const png = (await page.screenshot({ clip })).toString('base64')
+    const hits = await page.evaluate(
+      async ({ png, series }) => {
+        const im = new Image()
+        im.src = `data:image/png;base64,${png}`
+        await im.decode()
+        const c = document.createElement('canvas')
+        c.width = im.width
+        c.height = im.height
+        const ctx = c.getContext('2d')!
+        ctx.drawImage(im, 0, 0)
+        const d = ctx.getImageData(0, 0, im.width, im.height).data
+        let n = 0
+        for (let i = 0; i < d.length; i += 4) if (series.some(([r, g2, b]) => Math.hypot(d[i] - r, d[i + 1] - g2, d[i + 2] - b) < 60)) n++
+        return n
+      },
+      { png, series },
+    )
+    out.push({ text: l.text, hits, checked: clip.width * clip.height })
+  }
+  return out
+}
+
+test.describe('Timeline — an endpoint value is not crossed by its line', () => {
+  test.afterEach(async ({ page }) => {
+    await page.emulateMedia({ colorScheme: null, forcedColors: null }).catch(() => {})
+  })
+  for (const mode of ['light', 'dark', 'forced'] as const) {
+    test(`${mode}: no series line shows through the digits of an endpoint value`, async ({ page }) => {
+      await page.emulateMedia(mode === 'forced' ? { forcedColors: 'active' } : { colorScheme: mode })
+      await setup(page, TWO, { grow: false })
+      await stepK(page, 5)
+      await expect(page.locator('text.timeline__endlabel')).toHaveCount(2)
+      // the values themselves are the run's (the calculation is untouched)
+      expect((await page.locator('text.timeline__endlabel').allTextContents()).sort()).toEqual(['10', '20'])
+      const r = await lineThroughLabels(page)
+      expect(r.map((l) => l.text).sort(), 'both labels sit on their own dot').toEqual(['10', '20'])
+      for (const l of r) {
+        expect(l.checked, `"${l.text}": a text box to check`).toBeGreaterThan(20)
+        expect(l.hits, `"${l.text}": line-coloured pixels across the digits`).toBe(0)
+      }
+    })
+  }
 })

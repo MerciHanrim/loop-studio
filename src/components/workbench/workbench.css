@@ -1,0 +1,800 @@
+/* ==== The workbench (2026-10, step 5) ======================================
+   The approved mock-up `workbench-free3` (wb2.css / wb5.css), on the product's
+   tokens: the left panel 272 px, the right panel 344 px, the analysis area
+   152 px by default under the canvas (with a 7 px splitter above it), the
+   status bar 26 px under everything. Desktop only — the components that use
+   these classes render nothing on the phone. */
+
+/* ---- the menu bar (32 px) and the tool row (42 px) ---- */
+.toolbar.wb-bars {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  gap: 0;
+  padding: 0;
+  background: var(--bg-app);
+  border-bottom: 0;
+  /* the bars' popups (File, View, ⋯ and the rest, the palette tips) stack
+     with the bars: above a side panel opened as an overlay (40, below), below
+     the PWA update bar (46), the tour (47) and the dialogs (50). Without it a
+     popup (20) shared the root stacking context with an overlay that covered
+     the part of it over the panel and took its clicks (measured 2026-10-22
+     at 820 px) */
+  position: relative;
+  z-index: 41;
+}
+.wb-menubar {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 10px;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--line-1);
+  min-width: 0;
+}
+.wb-menubar .toolbar__brand {
+  margin-inline-end: 10px;
+  font-weight: 600;
+}
+.wb-menubar .toolbar__actions {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+}
+/* Share and the chips at the bar's end */
+.wb-menubar .toolbar__slot[data-group='share'] {
+  margin-inline-start: auto;
+}
+.wb-menubar .toolbar__actions-core {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.wb-mb {
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.wb-mb:hover,
+.wb-mb[aria-expanded='true'] {
+  background: var(--bg-hover);
+  color: var(--ink-1);
+}
+.wb-mb:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.wb-toolrow {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px;
+  background: var(--bg-bar);
+  border-bottom: 1px solid var(--line-1);
+  min-width: 0;
+  overflow-x: auto;
+}
+.wb-toolrow .toolbar__palette {
+  order: 0;
+  flex: none;
+  flex-basis: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+  overflow: visible;
+}
+.wb-toolgroup {
+  display: inline-flex;
+  gap: 2px;
+}
+.wb-tb {
+  height: 32px;
+  min-width: 32px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+/* the canvas rail's 14 px icon, not the text's 1em (13 px): the edit lock's
+   closed padlock meets its body at 14 px and showed a 1 px gap at 13
+   (#335, measured 2026-10-20 at 1×) */
+.wb-tb .icon,
+.wb-zb .icon {
+  width: 14px;
+  height: 14px;
+}
+.wb-tb:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--ink-1);
+}
+.wb-tb.is-on {
+  background: var(--sel-soft);
+  color: var(--sel);
+  /* #335 / §LGR9 — the pressed tell is the tint AND a 2 px ring in the signal
+     colour (>= 3:1 against the unpressed button), the canvas rail's rule; a
+     tint alone is too faint to be the state */
+  box-shadow: inset 0 0 0 2px var(--sel);
+}
+.wb-tb:disabled {
+  color: var(--ink-disabled);
+  cursor: not-allowed;
+}
+.wb-tb:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.wb-tcap {
+  color: var(--ink-3);
+  font-size: 12px;
+  margin: 0 2px 0 4px;
+  white-space: nowrap;
+}
+.wb-connect {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.wb-connect__sample {
+  flex: none;
+}
+.wb-toolrow__end {
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+}
+/* the palette chips sit in the tool row as its Add buttons */
+.wb-toolrow .chip {
+  height: 32px;
+  max-height: 32px;
+  border-color: transparent;
+  background: none;
+}
+.wb-toolrow .chip:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+.wb-toolrow .palette-divider {
+  height: 20px;
+}
+/* a row too narrow for its words (./toolRowFit.ts): the words go, in steps;
+   a hidden name still names its button (clipped, not removed) */
+.wb-toolrow[data-fit] .chip__name,
+.wb-toolrow[data-fit='3'] .wb-connect__name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.wb-toolrow[data-fit] .toolbar__palette .wb-tcap,
+.wb-toolrow[data-fit='2'] .wb-connect .wb-tcap,
+.wb-toolrow[data-fit='3'] .wb-connect .wb-tcap,
+.wb-toolrow[data-fit='2'] .wb-toolrow__word,
+.wb-toolrow[data-fit='3'] .wb-toolrow__word {
+  display: none;
+}
+.wb-toolrow[data-fit] .chip {
+  position: relative;
+  min-width: 32px;
+  padding-inline: 8px;
+  gap: 0;
+}
+.wb-toolrow[data-fit='3'] .wb-connect__kind {
+  position: relative;
+  gap: 0;
+}
+
+/* a menu bar's menus open from their trigger's START (2026-10-20): the shared
+   `.menu__pop` anchors at the inline end, as the two-tier bar's menus sat at
+   its far end — File, now near the bar's start, opened 26 px past the
+   window's left edge. Inside the ⋯ overflow, at the bar's end, the end anchor
+   stays. */
+.toolbar__actions .menu > .menu__pop {
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+}
+.toolbar__overflow-pop .menu > .menu__pop {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+}
+
+/* the menus' headings and check marks */
+.wb-menu__heading {
+  padding: 6px 12px 2px;
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 600;
+}
+.wb-menu__check,
+.wb-viewmenu__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wb-menu__mark {
+  width: 14px;
+  flex: none;
+  display: inline-flex;
+  color: var(--sel);
+}
+
+/* ---- the left panel: Model / Inputs ---- */
+.wb-left {
+  flex: 0 0 272px;
+  width: 272px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border-inline-end: 1px solid var(--line-1);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.wb-tabs {
+  flex: none;
+  height: 34px;
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  padding: 0 14px;
+  background: var(--bg-head);
+  border-bottom: 1px solid var(--line-1);
+}
+.wb-tab {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--ink-3);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+/* the chosen tab: neutral strong (colour review A, 2026-10-21 — a choice is
+   not a run); the underline and the ink say it */
+.wb-tab.is-on {
+  color: var(--ink-1);
+  border-bottom-color: var(--ink-1);
+}
+.wb-tab:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.wb-left__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.wb-left__body--inputs {
+  overflow-y: auto;
+}
+/* the Inputs / Summary panels take the whole tab here (they were capped at
+   55 % of the right column above the Inspector) */
+.wb-left__body--inputs .mpanels {
+  max-height: none;
+  overflow: visible;
+}
+.wb-search {
+  flex: none;
+  margin: 10px 12px 6px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 9px;
+  border: 1px solid var(--line-control);
+  border-radius: var(--control-radius);
+  background: var(--bg-field);
+  color: var(--ink-3);
+}
+.wb-search:focus-within {
+  border-color: var(--sel);
+}
+.wb-search input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  border: 0;
+  background: none;
+  color: var(--ink-1);
+  font: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+.wb-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 0 8px;
+}
+.wb-list__head {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.wb-list__count {
+  margin-inline-start: auto;
+  color: var(--ink-3);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.wb-list__sub {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px 0 34px;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.wb-row {
+  width: 100%;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 34px;
+  border: 0;
+  background: none;
+  color: var(--ink-1);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.wb-row:hover,
+.wb-row:focus-visible {
+  background: var(--bg-hover);
+  outline: none;
+}
+.wb-row:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+.wb-row.is-sel {
+  background: var(--sel-soft);
+  box-shadow: inset 2px 0 0 var(--sel);
+}
+.wb-row__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* the row's kind mark (nodes/KindIcon.tsx; was the outline scaled into 14 px
+   with a 5-unit stroke, where the End read as a circle and the Register lost
+   its sides) — the symbol line's colour */
+.wb-kindmark {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--node-stroke);
+}
+.wb-list__none {
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+/* ---- the right panel: the selection's properties ---- */
+.app__body > .rightcol {
+  width: 344px;
+  background: var(--bg-panel);
+}
+
+/* ---- the side panels at the window's width (./panelLayout.ts) ----
+   folded: hidden, still mounted; at the narrow band an open panel is an
+   overlay over the canvas column, one at a time */
+.app__body {
+  position: relative;
+}
+.app__body > .wb-left[hidden],
+.app__body > .rightcol[hidden] {
+  display: none;
+}
+.app__body > .wb-left.is-overlay,
+.app__body > .rightcol.is-overlay {
+  position: absolute;
+  inset-block: 0;
+  z-index: 40;
+  max-width: calc(100% - 48px);
+  box-shadow: var(--shadow-overlay);
+}
+.app__body > .wb-left.is-overlay {
+  inset-inline-start: 0;
+}
+.app__body > .rightcol.is-overlay {
+  inset-inline-end: 0;
+}
+.app__body > .rightcol .inspector {
+  width: auto;
+}
+
+/* the panel's layers: relations, editing, more settings (folded) */
+.wb-panel__hd {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 2px 0 10px;
+}
+.wb-panel__name {
+  font-size: 14px;
+  color: var(--ink-1);
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+.wb-panel__sec {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-1);
+}
+.wb-panel__h,
+.wb-rel__head {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.wb-panel__more {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-1);
+}
+.wb-panel__summary {
+  cursor: pointer;
+  color: var(--ink-1);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.wb-panel__summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.wb-panel__opts {
+  margin-top: 8px;
+}
+/* a finding about a folded setting, kept in view (Inspector ResourceMismatchNote) */
+.wb-panel__finding {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.wb-panel__finding .inspector__note {
+  margin: 0;
+}
+.wb-rel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.wb-rel__sec {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wb-rel__row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: none;
+  color: var(--ink-1);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: start;
+  cursor: pointer;
+}
+.wb-rel__row:hover,
+.wb-rel__row:focus-visible {
+  background: var(--bg-hover);
+  border-color: var(--line-2);
+  outline: none;
+}
+.wb-rel__row:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus);
+}
+.wb-rel__name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+/* the effect gives way to the name: a long one (a Parameter's name read as
+   an amount) wraps in its own column rather than squeezing the name */
+.wb-rel__effect {
+  max-width: 11em;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+  text-align: end;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+.wb-rel__sample {
+  color: var(--ink-3);
+}
+/* a probabilistic Gate's outgoing rows: result · weight · chance */
+.wb-rel__row--chance {
+  grid-template-columns: 22px minmax(0, 1fr) auto auto;
+}
+.wb-rel__chance {
+  min-width: 3.6em;
+  color: var(--ink-1);
+  font-weight: 600;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.wb-rel__lead,
+.wb-rel__cols,
+.wb-rel__sum {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.wb-rel__lead {
+  color: var(--ink-2);
+}
+.wb-rel__cols {
+  padding: 0 8px;
+  color: var(--ink-3);
+}
+.wb-rel__sum {
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.wb-rel__note,
+.wb-rel__none {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.wb-rel__sentence {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 4px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--bg-head);
+  border: 1px solid var(--line-1);
+  overflow-wrap: anywhere;
+}
+.wb-rel__sentence p {
+  margin: 0;
+}
+.wb-rel__when {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.wb-rel__eff {
+  color: var(--ink-1);
+  font-size: 15px;
+  font-weight: 600;
+}
+.wb-rel__chanceline {
+  color: var(--ink-2);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.wb-rel__ends {
+  margin-top: 6px !important;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.wb-rel__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.wb-rel__link:hover,
+.wb-rel__link:focus-visible {
+  color: var(--sel);
+  outline: none;
+}
+
+/* ---- the analysis area under the canvas ---- */
+.timeline.wb-analysis {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.timeline.wb-analysis .timeline__panel {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+}
+.wb-splitter {
+  flex: none;
+  height: 7px;
+  display: grid;
+  place-items: center;
+  background: var(--bg-bar);
+  border-top: 1px solid var(--line-1);
+  cursor: row-resize;
+  touch-action: none;
+}
+.wb-splitter i {
+  width: 32px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line-2);
+}
+.wb-splitter:hover i,
+.wb-splitter:focus-visible i {
+  background: var(--ink-3);
+}
+.wb-splitter:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+/* ---- the status bar ---- */
+.wb-status {
+  flex: none;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px;
+  background: var(--bg-bar);
+  border-top: 1px solid var(--line-1);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.wb-status__counts {
+  white-space: nowrap;
+}
+/* a refused drawing's reason (the warning ink: a message, not decoration) */
+.wb-status__msg {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--warn);
+}
+.wb-status__end {
+  margin-inline-start: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.wb-zb {
+  height: 22px;
+  min-width: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  cursor: pointer;
+}
+.wb-zb:hover {
+  background: var(--bg-hover);
+  color: var(--ink-1);
+}
+.wb-zb:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.wb-zb.is-on {
+  background: var(--sel-soft);
+  color: var(--sel);
+  /* #335 / §LGR9 — the pressed tell is the tint AND a 2 px ring in the signal
+     colour (>= 3:1 against the unpressed button), not the tint alone */
+  box-shadow: inset 0 0 0 2px var(--sel);
+}
+.wb-zoom {
+  min-width: 40px;
+  text-align: center;
+  color: var(--ink-1);
+}
+.wb-sep {
+  width: 1px;
+  height: 14px;
+  margin: 0 6px;
+  background: var(--line-1);
+}
+
+/* §LGR9, carried to the workbench (2026-10-20): a UA colour override drops the
+   pressed tint, so a pressed tool, the chosen connection kind and the status
+   bar's Focus take the system "selected" pair, Highlight / HighlightText —
+   not an outline, which is the keyboard-focus ring (the canvas rail's rule,
+   src/index.css). Last in this file, with the :hover variants, so it wins the
+   normal pressed and hover rules. */
+@media (forced-colors: active) {
+  .wb-tb[aria-pressed='true'],
+  .wb-tb[aria-pressed='true']:hover,
+  .wb-tb[aria-checked='true'],
+  .wb-tb[aria-checked='true']:hover,
+  .wb-zb[aria-pressed='true'],
+  .wb-zb[aria-pressed='true']:hover,
+  .wb-panel-toggle[aria-expanded='true'],
+  .wb-panel-toggle[aria-expanded='true']:hover {
+    background: Highlight;
+    color: HighlightText;
+  }
+  /* the pressed Edit lock's word: the UA draws a Canvas backplate behind text,
+     and HighlightText on it is Canvas on Canvas (observed in Chromium
+     emulation, 2026-10-22: the word unreadable, its icon fine). No backplate
+     for that word, so it sits on the button's Highlight. */
+  .wb-tb[data-tool='lock'][aria-pressed='true'] .wb-toolrow__word {
+    forced-color-adjust: none;
+    color: HighlightText;
+  }
+  /* its keyboard-focus ring is Highlight too, the colour of the pressed
+     button itself (observed the same way): drawn in HighlightText instead,
+     2 px further in so it reads as a ring inside the button, not as the
+     button's edge merging with the Canvas around it */
+  .wb-tb[data-tool='lock'][aria-pressed='true']:focus-visible {
+    outline-color: HighlightText;
+    outline-offset: -4px;
+  }
+  /* the same two findings on the chosen connection kind, the status bar's
+     Focus when on and an open List / Properties toggle (measured on each,
+     2026-10-22): the word only loses its backplate; the ring moves inside */
+  .wb-connect__kind[aria-checked='true'] .wb-connect__name,
+  .wb-status .wb-zb[aria-pressed='true'] .wb-zb__word,
+  .wb-panel-toggle[aria-expanded='true'] .wb-zb__word {
+    forced-color-adjust: none;
+    color: HighlightText;
+  }
+  .wb-connect__kind[aria-checked='true']:focus-visible,
+  .wb-status .wb-zb[aria-pressed='true']:focus-visible,
+  .wb-panel-toggle[aria-expanded='true']:focus-visible {
+    outline-color: HighlightText;
+    outline-offset: -4px;
+  }
+}

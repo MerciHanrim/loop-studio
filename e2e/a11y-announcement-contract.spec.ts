@@ -22,11 +22,14 @@ import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 // interruption and suppression happen above the DOM entirely. The test names,
 // the assertions and the docs all say observed text state for that reason.
 //
-// The spec is locale-parameterized. `ar` is the locale the isolates were added
-// for; `en` is the LTR control. Adding a locale is adding a row to LOCALES -
-// retro-running it over the other shipped locales is deliberately out of scope.
+// The spec is locale-parameterized. The isolates were added for a right-to-left
+// locale; `ar-XB` (the RTL pseudo-locale, English copy under `dir=rtl`) stands
+// for it since `ar` was retired in §L2.0 (2026-10), and `en` is the LTR
+// control. The Arabic labels below are USER fixture data, not catalog copy, so
+// they stay. Adding a locale is adding a row to LOCALES - retro-running it over
+// the other shipped locales is deliberately out of scope.
 
-const LOCALES = ['ar', 'en'] as const
+const LOCALES = ['ar-XB', 'en'] as const
 
 // exactly these seven sites, and exactly 26 product paths across them
 const SITES = [

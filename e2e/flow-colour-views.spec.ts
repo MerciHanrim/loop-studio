@@ -1,6 +1,8 @@
 import type { Locator, Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { ensureTimelineOpen, expandMinimap, expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { keepPanelDetailsOpen } from './support/panel'
+import { openFileMenu, toolButton } from './support/workbenchMenus'
 
 // docs/flow-colour-and-compact-nodes.md FC-5 / FC-6 (issue #325, PR 2) — the
 // flow colour beyond the canvas: the minimap and the timeline take a node's
@@ -35,7 +37,11 @@ async function load(page: Page, json: string): Promise<void> {
   await resetAll(page)
   await importGraph(page, json)
   await expect(page.locator('.react-flow__node[data-id="r_plain"]')).toBeVisible()
+  // the minimap starts folded (docs/workbench.md §WB2.1); these read its marks
+  await expandMinimap(page)
   await expect(page.locator('.react-flow__minimap')).toBeVisible()
+  // the Colour section is in the panel's More settings (docs/workbench.md §WB6)
+  await keepPanelDetailsOpen(page)
 }
 
 /** each node's minimap mark fill, by node id (a mark sits at its node's position) */
@@ -197,7 +203,7 @@ test.describe('flow colour — the Inspector offers each colour once (FC-5)', ()
     await openApp(page)
     await load(page, COLOURED)
     await page.locator('.react-flow__node[data-id="gold"]').click()
-    await page.locator('.react-flow__controls-button.rf-lock').click()
+    await toolButton(page, 'lock').click()
     await expect(page.locator('.canvas.canvas--locked')).toBeVisible()
     const ro = page.locator('fieldset.inspector-ro--desktop')
     const look = (loc: Locator) =>
@@ -232,8 +238,11 @@ test.describe('flow colour — the bundled Templates (FC-6)', () => {
       expect(new Set(Object.values(want)).size).toBe(3)
 
       await openApp(page)
-      await page.locator('.toolbar__actions .menu').first().locator('> button').click()
-      await page.locator('.toolbar__actions .menu').first().locator('.menu__pop [role="menuitem"]', { hasText: t.name }).click()
+      // the minimap starts folded (docs/workbench.md §WB2.1); this reads its marks
+      await expandMinimap(page)
+      // File ▸ Templates (docs/workbench.md §WB2)
+      await openFileMenu(page)
+      await page.locator('.toolbar__filemenu-pop [data-template]', { hasText: t.name }).click()
       const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i })
       await confirm.waitFor({ state: 'visible', timeout: 1200 }).catch(() => {})
       if (await confirm.count()) await confirm.click()

@@ -12,7 +12,8 @@ import { expect, openApp, resetAll, test } from './support/loop'
 // English, so it was never a locale defect. The numbers were right; the names
 // were not independently identifiable, which breaks reordering or copying
 // columns in a spreadsheet, selecting a column by name, and any row→object
-// conversion (duplicate keys overwrite).
+// conversion (duplicate keys overwrite). Since §L2.0 (2026-10) retired Thai,
+// the tests below run in Korean — the locale was incidental, the property is not.
 //
 // The fix appends the node id: `<label> [<node-id>]`. Not a zone prefix — a
 // frame stores NO membership, it is derived from geometry (LGR-D9 / R5-D3), so
@@ -46,7 +47,7 @@ async function headerOf(page: Page, bytes: Buffer): Promise<string[]> {
 }
 
 /** Load the 3-zone gacha Template through the real Templates menu, by the name
- *  the RUNNING catalog gives it — hardcoding Thai here would be the same
+ *  the RUNNING catalog gives it — hardcoding a localized name here would be the same
  *  staleness defect #277 fixed. */
 async function loadGachaIn(page: Page, locale: string): Promise<void> {
   await openApp(page)
@@ -95,8 +96,8 @@ const poolIds = (page: Page) =>
   )
 
 test.describe('the run CSV names every column independently', () => {
-  test('THAI 3-zone gacha: 24 columns, every name unique, every Pool column carries its node id', async ({ page }) => {
-    await loadGachaIn(page, 'th')
+  test('KOREAN 3-zone gacha: 24 columns, every name unique, every Pool column carries its node id', async ({ page }) => {
+    await loadGachaIn(page, 'ko')
     await stepTimes(page, 4)
     const header = await headerOf(page, await downloadRunCsv(page))
 
@@ -113,13 +114,13 @@ test.describe('the run CSV names every column independently', () => {
     const ids = header.slice(1).map((h) => /\[([^\]]+)\]$/.exec(h)?.[1])
     expect(ids).toEqual(await poolIds(page))
 
-    // it is still readable: Thai text in front of every id
-    const thai = header.slice(1).filter((h) => /[฀-๿]/.test(h))
-    expect(thai.length, 'the localized label is kept in front of the id').toBeGreaterThan(10)
+    // it is still readable: Korean (Hangul syllable) text in front of every id
+    const korean = header.slice(1).filter((h) => /[가-힣]/.test(h))
+    expect(korean.length, 'the localized label is kept in front of the id').toBeGreaterThan(10)
   })
 
   test('frames do not name the columns: none, overlapping and nested all give the SAME header', async ({ page }) => {
-    await loadGachaIn(page, 'th')
+    await loadGachaIn(page, 'ko')
     await stepTimes(page, 3)
     const withShippedFrames = await headerOf(page, await downloadRunCsv(page))
     expect(
@@ -148,8 +149,9 @@ test.describe('the run CSV names every column independently', () => {
   })
 
   test('a Pool label with a comma, a quote and a newline survives the download LOSSLESSLY', async ({ page }) => {
-    await loadGachaIn(page, 'th')
-    const hostile = 'ตั๋ว, "premium"\nzone 1'
+    await loadGachaIn(page, 'ko')
+    // '티켓' is the gacha Template's own Korean Pool label (templateLabels/ko.ts)
+    const hostile = '티켓, "premium"\nzone 1'
     const id = (await poolIds(page))[0]
     await page.evaluate(
       ([nodeId, label]) =>

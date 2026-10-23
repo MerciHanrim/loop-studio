@@ -1,12 +1,12 @@
 import { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useRef, useState, type ReactNode } from 'react'
 import { useT } from '../../i18n'
 import { ExportMenuItems } from '../ExportMenu'
+import { StructureMenuItems } from '../StructureMenuItems'
 import type { Viewport } from '../../store/workspaceIO'
 import type { ToolbarDialog } from './dialogTypes'
 import { useMenuOpenStore } from './menuOpenStore'
 import { useOutsideDismiss } from './useOutsideDismiss'
 import { useMenuKeyboard, useMenuTrigger } from '../../ui/useMenuKeyboard'
-import { Icon } from '../../ui/icons'
 
 // docs/toolbar-responsive.md — the `File ▾` Tier-1 group: New, Import, then
 // Export's 5 actions flattened directly into this SAME popover (a divider
@@ -15,12 +15,19 @@ import { Icon } from '../../ui/icons'
 // awkwardly inserted into the popover, not a proper menu row. Modeled on
 // `OverflowMenu.tsx`'s trigger+popover pattern (outside-click close, Escape
 // close, focus return); `New`/`Import` are reused JSX built by
-// `Toolbar.tsx` (their dialog/ancestor-close wiring lives there).
+// `Toolbar.tsx` (their dialog/ancestor-close wiring lives there). The last
+// group (2026-10) saves a selected structure and inserts a saved one
+// (`StructureMenuItems`).
 
 type Props = {
   buttonRef?: (el: HTMLButtonElement | null) => void
   newButton: ReactNode
   importButton: ReactNode
+  /** the workbench (2026-10): the Templates section (Templates.tsx
+   *  `TemplateMenuItems`) and the Storage and privacy row, moved here from the
+   *  Templates button and from Settings */
+  templateItems?: ReactNode
+  storageButton?: ReactNode
   getViewport: () => Viewport
   onOpenDialog: (desc: ToolbarDialog) => void
   onLeave: () => void
@@ -29,7 +36,7 @@ type Props = {
 export type FileMenuHandle = { close: () => void }
 
 export const FileMenu = forwardRef<FileMenuHandle, Props>(function FileMenu(
-  { buttonRef, newButton, importButton, getViewport, onOpenDialog, onLeave },
+  { buttonRef, newButton, importButton, templateItems, storageButton, getViewport, onOpenDialog, onLeave },
   ref,
 ) {
   const t = useT()
@@ -65,7 +72,7 @@ export const FileMenu = forwardRef<FileMenuHandle, Props>(function FileMenu(
           buttonRef?.(el)
         }}
         type="button"
-        className="btn"
+        className="wb-mb"
         aria-haspopup="true"
         aria-expanded={open}
         // only while the menu exists (issue #307): an id that names nothing
@@ -74,11 +81,12 @@ export const FileMenu = forwardRef<FileMenuHandle, Props>(function FileMenu(
         {...triggerProps}
       >
         {t('toolbar.file.button')}
-        <Icon name="chevron-down" className="icon--caret" />
       </button>
       {open ? (
         <div
-          className="menu__pop menu__pop--scrollable toolbar__filemenu-pop"
+          // wide, as the Templates menu it took in was (2026-10-20): its
+          // descriptions read in two lines at 300 px, not at 260
+          className="menu__pop menu__pop--scrollable menu__pop--wide toolbar__filemenu-pop"
           id={menuId}
           ref={popRef}
           role="menu"
@@ -86,7 +94,23 @@ export const FileMenu = forwardRef<FileMenuHandle, Props>(function FileMenu(
         >
           {newButton}
           {importButton}
+          {templateItems ? (
+            <>
+              <div className="menu__divider" role="separator" />
+              {templateItems}
+            </>
+          ) : null}
           <ExportMenuItems getViewport={getViewport} onOpenDialog={onOpenDialog} onLeave={onLeave} />
+          {/* 2026-10 — what remains of "Insert module ▾": save a selected
+              structure, insert a saved one into THIS document (Import, above,
+              opens a whole document instead) */}
+          <StructureMenuItems onOpenDialog={onOpenDialog} onLeave={onLeave} />
+          {storageButton ? (
+            <>
+              <div className="menu__divider" role="separator" />
+              {storageButton}
+            </>
+          ) : null}
         </div>
       ) : null}
     </div>

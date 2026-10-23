@@ -83,8 +83,8 @@ test.afterEach(async ({ page }) => {
 for (const scheme of ['light', 'dark'] as const) {
   test(`full motion · ${scheme}: a connection's token, badge and state bead take its colour; a node's cues take the node's; uncoloured ones the default`, async ({ page }) => {
     await load(page, { scheme })
-    const run = await rgb(page, 'var(--signal-primary)')
-    const ink = await rgb(page, 'var(--text-primary)')
+    const run = await rgb(page, 'var(--accent)')
+    const ink = await rgb(page, 'var(--ink-1)')
     await holdTravel(page)
     await expect(edge(page, 'e_sp', 'g.pb-move .flow-bead')).toHaveCSS('fill', SLATE)
     const badge = page.locator('.pb-badge[data-badge-for="e_sp"]')
@@ -115,12 +115,12 @@ test('L0: the travel pulse takes the connection colour', async ({ page }) => {
   await page.evaluate(() => (window as any).__loop.rf.setViewport({ x: 40, y: 80, zoom: 0.4 }, { duration: 0 }))
   await holdTravel(page)
   await expect(edge(page, 'e_sp', '.pb-l0-pulse')).toHaveCSS('stroke', SLATE)
-  await expect(edge(page, 'e_plain', '.pb-l0-pulse')).toHaveCSS('stroke', await rgb(page, 'var(--flow-strength)'))
+  await expect(edge(page, 'e_plain', '.pb-l0-pulse')).toHaveCSS('stroke', await rgb(page, 'var(--accent)'))
 })
 
 test('reduced motion: the held highlight, the role tells, the static badge and the state highlight take the connection colour', async ({ page }) => {
   await load(page, { reduced: true })
-  const run = await rgb(page, 'var(--flow-strength)')
+  const run = await rgb(page, 'var(--accent)')
   await sim(page, 's.setSpeed(600); s.stepOnce()')
   await settled(page)
   await expect(edge(page, 'e_sp', '.flow-edge-pulse')).toHaveCSS('stroke', SLATE)
@@ -137,12 +137,12 @@ test('a light colour is drawn as chosen: not swapped for the default, not darken
   await holdTravel(page)
   await expect(edge(page, 'e_sp', 'g.pb-move .flow-bead')).toHaveCSS('fill', LIGHT)
   await expect(page.locator('.pb-badge[data-badge-for="e_sp"]')).toHaveCSS('border-top-color', LIGHT)
-  await expect(page.locator('.pb-badge[data-badge-for="e_sp"]')).toHaveCSS('color', await rgb(page, 'var(--text-primary)'))
+  await expect(page.locator('.pb-badge[data-badge-for="e_sp"]')).toHaveCSS('color', await rgb(page, 'var(--ink-1)'))
 })
 
 test('a colour under 3:1 on this canvas gets the neutral case beside its run signals; an ordinary colour, the dark canvas and rest get none', async ({ page }) => {
   await load(page)
-  const rim = await rgb(page, 'var(--line-strong)')
+  const rim = await rgb(page, 'var(--line-3)')
   await page.evaluate(() => (window as any).__loop.graph.getState().setAccent([], ['e_sp'], '#F4E04D'))
   await holdTravel(page)
   // the colour stays the colour; the case only rims it
@@ -178,7 +178,7 @@ test('a colour under 3:1 on this canvas gets the neutral case beside its run sig
 
 test('a light NODE colour: its fired ticks get the case on the canvas, its arrival tint shows a neutral inner edge; an ordinary node colour gets none', async ({ page }) => {
   await load(page)
-  const rim = await rgb(page, 'var(--line-strong)')
+  const rim = await rgb(page, 'var(--line-3)')
   // the source and the pool light; the plain source keeps no colour, the tank an ordinary one
   await page.evaluate(() => (window as any).__loop.graph.getState().setAccent(['src', 'pool'], [], '#BFE3F0'))
   await page.evaluate(() => (window as any).__loop.graph.getState().setAccent(['tank'], [], '#638EA5'))
@@ -217,6 +217,6 @@ test('forced colours: no run signal draws a flow colour', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce', forcedColors: 'active' })
   await sim(page, 's.setSpeed(600); s.stepOnce()')
   await settled(page)
-  await expect(edge(page, 'e_sp', '.flow-edge-pulse')).toHaveCSS('stroke', await rgb(page, 'var(--flow-strength)'))
-  await expect(edge(page, 't_sd', '.state-edge-pulse')).toHaveCSS('stroke', await rgb(page, 'var(--signal-primary)'))
+  await expect(edge(page, 'e_sp', '.flow-edge-pulse')).toHaveCSS('stroke', await rgb(page, 'var(--accent)'))
+  await expect(edge(page, 't_sd', '.state-edge-pulse')).toHaveCSS('stroke', await rgb(page, 'var(--accent)'))
 })

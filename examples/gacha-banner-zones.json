@@ -1441,7 +1441,7 @@
         "timing": "afterPull",
         "when": "source-fired",
         "ports": {
-          "source": "top",
+          "source": "left",
           "target": "bottom"
         },
         "route": "orthogonal"

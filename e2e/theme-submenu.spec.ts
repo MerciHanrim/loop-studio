@@ -6,8 +6,9 @@ import { expect, openApp, resetAll, test } from './support/loop'
 // value + ›" grammar as Language's row, not a cycle-on-click button — and
 // its DISPLAYED labels must be the agreed user-facing names in every
 // locale, never the internal mode name `system`:
-//   EN: Auto / Light / Dark   KO: 자동 / 라이트 / 다크   JA: 自動 / ライト / ダーク
-// (src/components/ThemeToggle.tsx's `theme.option.*` keys — distinct from
+//   EN: Auto / Light / Dark   KO: 자동 / 라이트 / 다크
+// (§L2.0, 2026-10: EN and KO are the shipped languages;
+// src/components/ThemeToggle.tsx's `theme.option.*` keys — distinct from
 // the internal `Mode` union's `'system'` literal, which must never leak
 // into the UI.)
 
@@ -16,9 +17,9 @@ const htmlTheme = (page: Page) => page.evaluate(() => document.documentElement.g
 async function openSettings(page: Page) {
   // Settings can collapse into the ⋯ overflow menu (e.g. at 721×720 — the
   // narrowest desktop checkpoint this suite tests) and its label localizes,
-  // so match all 3 locales and fall back to opening ⋯ first when Settings
-  // isn't inline.
-  const label = /^(Settings|설정|設定)$/
+  // so match both shipped locales and fall back to opening ⋯ first when
+  // Settings isn't inline.
+  const label = /^(View|보기)$/
   const inline = page.locator('.toolbar__actions .menu > button', { hasText: label })
   if (await inline.isVisible().catch(() => false)) {
     await inline.click()
@@ -29,8 +30,8 @@ async function openSettings(page: Page) {
 }
 async function openThemeSubmenu(page: Page) {
   await openSettings(page)
-  // structural, not text-matched -- Theme's row label localizes (테마/テーマ)
-  await page.locator('.toolbar__settingsmenu-pop .theme-menu .settings-row').click()
+  // structural, not text-matched -- Theme's row label localizes (테마)
+  await page.locator('.wb-viewmenu__pop .theme-menu .settings-row').click()
 }
 
 test.beforeEach(async ({ page }) => {
@@ -42,7 +43,7 @@ test('the Settings row shows the current value and a › affordance, not a bare 
   page,
 }) => {
   await openSettings(page)
-  const row = page.locator('.toolbar__settingsmenu-pop .settings-row', { hasText: 'Theme' })
+  const row = page.locator('.wb-viewmenu__pop .settings-row', { hasText: 'Theme' })
   await expect(row).toHaveAttribute('aria-haspopup', 'menu')
   await expect(row).toHaveAttribute('aria-expanded', 'false')
   await expect(row.locator('.settings-row__value')).toContainText('›')
@@ -78,9 +79,9 @@ test('selecting Dark applies it immediately, checks it, and closes only the Them
 
   await expect.poll(() => htmlTheme(page)).toBe('dark')
   await expect(pop).toBeHidden()
-  await expect(page.locator('.toolbar__settingsmenu-pop')).toBeVisible() // Settings stays open
+  await expect(page.locator('.wb-viewmenu__pop')).toBeVisible() // Settings stays open
 
-  const row = page.locator('.toolbar__settingsmenu-pop .settings-row', { hasText: 'Theme' })
+  const row = page.locator('.wb-viewmenu__pop .settings-row', { hasText: 'Theme' })
   await expect(row.locator('.settings-row__value')).toContainText('Dark')
 
   // reopening shows Dark checked
@@ -92,7 +93,7 @@ test('keyboard: ArrowDown/ArrowUp move between options, Enter selects, Escape cl
   page,
 }) => {
   await openSettings(page)
-  const row = page.locator('.toolbar__settingsmenu-pop .theme-menu .settings-row')
+  const row = page.locator('.wb-viewmenu__pop .theme-menu .settings-row')
   const pop = page.locator('.theme-menu__pop')
   const items = pop.locator('.menu__item')
 
@@ -114,11 +115,11 @@ test('keyboard: ArrowDown/ArrowUp move between options, Enter selects, Escape cl
   await expect(pop).toBeHidden()
 
   // Escape (without selecting) closes only Theme, not Settings
-  await page.locator('.toolbar__settingsmenu-pop .settings-row', { hasText: 'Theme' }).click()
+  await page.locator('.wb-viewmenu__pop .settings-row', { hasText: 'Theme' }).click()
   await expect(pop).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(pop).toBeHidden()
-  await expect(page.locator('.toolbar__settingsmenu-pop')).toBeVisible()
+  await expect(page.locator('.wb-viewmenu__pop')).toBeVisible()
 })
 
 test('the submenu boundary stays fully inside the viewport at 721×720 and 820×720', async ({ page }) => {
@@ -156,7 +157,7 @@ test('opens as a side flyout that never covers Language\'s row below it', async 
   await openThemeSubmenu(page)
   const themeBox = await page.locator('.theme-menu__pop').boundingBox()
   const langBox = await page
-    .locator('.toolbar__settingsmenu-pop .settings-row.lang-switch')
+    .locator('.wb-viewmenu__pop .settings-row.lang-switch')
     .boundingBox()
   expect(themeBox).not.toBeNull()
   expect(langBox).not.toBeNull()
@@ -171,7 +172,7 @@ test('opens as a side flyout that never covers Language\'s row below it', async 
 
   // a plain click on Language's row CENTER (not just its label) now reaches
   // it directly, with no chance of hitting a Theme option instead
-  await page.locator('.toolbar__settingsmenu-pop .settings-row.lang-switch').click()
+  await page.locator('.wb-viewmenu__pop .settings-row.lang-switch').click()
   await expect(page.locator('.lang-menu__pop')).toBeVisible()
   await expect(page.locator('.theme-menu__pop')).toHaveCount(0)
 })
@@ -184,11 +185,11 @@ test('flips to the right when there is no room on the left', async ({ page }) =>
   // synthetically relocates just the OPEN Settings popover (not its
   // trigger, which stays clickable in its normal place) to exercise the
   // flip branch rather than waiting for a layout that can't occur
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings$/ }).click()
+  await page.locator('.toolbar__actions .wb-viewmenu > .wb-mb').click()
   await page.addStyleTag({
-    content: '.toolbar__settingsmenu-pop { position: fixed !important; left: 4px !important; right: auto !important; top: 80px !important; }',
+    content: '.wb-viewmenu__pop { position: fixed !important; left: 4px !important; right: auto !important; top: 80px !important; }',
   })
-  await page.locator('.toolbar__settingsmenu-pop .theme-menu .settings-row').click()
+  await page.locator('.wb-viewmenu__pop .theme-menu .settings-row').click()
   const flipped = await page.locator('.theme-menu__pop').boundingBox()
   expect(flipped).not.toBeNull()
   if (flipped) {
@@ -199,18 +200,11 @@ test('flips to the right when there is no room on the left', async ({ page }) =>
   }
 })
 
-test('Korean and Japanese show the agreed labels, never a raw mode literal', async ({ page }) => {
+// §L2.0 (2026-10): the Japanese half was dropped with the language
+test('Korean shows the agreed labels, never a raw mode literal', async ({ page }) => {
   await page.evaluate(() => (window as any).__loop.i18n.getState().setLocale('ko'))
   await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('ko')
   await openThemeSubmenu(page)
-  let texts = (await page.locator('.theme-menu__pop .menu__name').allTextContents()).map((s) => s.trim())
+  const texts = (await page.locator('.theme-menu__pop .menu__name').allTextContents()).map((s) => s.trim())
   expect(texts).toEqual(['자동', '라이트', '다크'])
-  await page.keyboard.press('Escape')
-  await page.keyboard.press('Escape')
-
-  await page.evaluate(() => (window as any).__loop.i18n.getState().setLocale('ja'))
-  await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('ja')
-  await openThemeSubmenu(page)
-  texts = (await page.locator('.theme-menu__pop .menu__name').allTextContents()).map((s) => s.trim())
-  expect(texts).toEqual(['自動', 'ライト', 'ダーク'])
 })

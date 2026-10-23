@@ -188,17 +188,24 @@ test.describe('Timeline — rolling X domain, Register lines', () => {
       const reg = [...document.querySelectorAll('.timeline__line--register')].map((p) => {
         const d = p.getAttribute('d') || ''
         const xs = [...d.matchAll(/[ML]\s*([-\d.]+)/g)].map((m) => +m[1])
-        return { runs: (d.match(/M/g) || []).length, minX: xs.length ? Math.min(...xs) : null, maxX: xs.length ? Math.max(...xs) : null }
+        return { id: p.getAttribute('data-series'), runs: (d.match(/M/g) || []).length, minX: xs.length ? Math.min(...xs) : null, maxX: xs.length ? Math.max(...xs) : null }
       })
       const pool = document.querySelector('.timeline__line:not(.timeline__line--register)') as SVGPathElement | null
       const px = [...((pool?.getAttribute('d') || '').matchAll(/[ML]\s*([-\d.]+)/g))].map((m) => +m[1])
       return { w, reg, poolMin: Math.min(...px), poolMax: Math.max(...px) }
     })
 
-    const regKeys = await page.locator('.timeline__key--register').count()
+    // which registers draw, by name — not a count against the legend's chips,
+    // which held only while the legend listed every register (2026-10-20)
     const drawn = info.reg.filter((r) => r.runs > 0)
-    expect(drawn.length).toBeGreaterThan(0) // ≥ 1 always-valid R(t) line renders
-    expect(drawn.length).toBeLessThan(regKeys) // ≥ 1 always-invalid register (r_loop) draws NOTHING — never a bridged line
+    const drawnIds = drawn.map((r) => r.id)
+    // the always-valid R(t) lines render: Reserve (@gold * @p_rate) and
+    // Headroom (@r_reserve + 10)
+    expect(drawnIds).toEqual(expect.arrayContaining(['r_reserve', 'r_head']))
+    // the always-invalid register (r_loop, a self-reference) is in the
+    // document and draws NOTHING — never a bridged line
+    expect(await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().nodes.some((n: { id: string; type: string }) => n.id === 'r_loop' && n.type === 'register'))).toBe(true)
+    expect(info.reg.map((r) => r.id)).not.toContain('r_loop')
     for (const r of drawn) {
       expect(r.minX!).toBeCloseTo(info.poolMin, 0) // same rolled step-domain as the pool lines
       expect(r.maxX!).toBeLessThanOrEqual(info.w - PAD.r + 1)

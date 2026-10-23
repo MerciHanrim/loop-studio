@@ -50,8 +50,9 @@ import { buildKind } from './buildKind'
  *   personal    something the person typed about themselves
  *   preference  how the app is set up in this browser
  *   onboarding  which first-run guidance has already been shown
- *   release     which release note this profile has been told about, and which
- *               one it has opened (issue #296)
+ *
+ * The keys earlier versions wrote and nothing reads or writes any more are in
+ * `RETIRED_STORAGE_KEYS`, outside this registry and its type.
  */
 export const STORAGE_KEYS = {
   'loop-studio:storage-mode': 'mode',
@@ -70,12 +71,22 @@ export const STORAGE_KEYS = {
   'loop-studio/guided-tour/1': 'onboarding',
   'loop-studio/contextual-help/1': 'onboarding',
   'loop-studio/import-quickstart/1': 'onboarding',
-  'loop-studio/whats-new/announced/1': 'release',
-  'loop-studio/whats-new/opened/1': 'release',
 } as const
 
 export type StorageKey = keyof typeof STORAGE_KEYS
 export type StorageKeyKind = (typeof STORAGE_KEYS)[StorageKey]
+
+/**
+ * Keys an earlier version stored and no code reads or writes any more. They are
+ * not `StorageKey`s, so the port cannot be asked for one; "Reset all Loop Studio
+ * data" still removes them, so a browser that ran the earlier version is left
+ * with nothing of Loop Studio's after a reset.
+ *
+ *   loop-studio/whats-new/*  which in-app release note a profile was told about,
+ *                            and which it opened (issue #296). The in-app notes
+ *                            were removed in 2026-10.
+ */
+export const RETIRED_STORAGE_KEYS = ['loop-studio/whats-new/announced/1', 'loop-studio/whats-new/opened/1'] as const
 
 /** the one key that may be read before the gate and written by a temporary session */
 export const STORAGE_MODE_KEY = 'loop-studio:storage-mode' satisfies StorageKey
@@ -240,15 +251,16 @@ export const storageSession = {
   },
 
   /**
-   * "Reset all Loop Studio data": every registered key is removed from the
-   * browser's storage (the mode key included, so the gate is shown again), the
+   * "Reset all Loop Studio data": every registered key, and every retired one,
+   * is removed from the browser's storage (the mode key included, so the gate
+   * is shown again), the
    * temporary store is emptied, and the port closes until the page reloads, so
    * that no flush on the way out can store anything again. Returns the keys
    * that were present. Throws what the browser throws, before anything closes.
    */
   resetAll(): string[] {
     const removed: string[] = []
-    for (const key of Object.keys(STORAGE_KEYS)) {
+    for (const key of [...Object.keys(STORAGE_KEYS), ...RETIRED_STORAGE_KEYS]) {
       if (localStorage.getItem(key) !== null) removed.push(key)
       localStorage.removeItem(key)
     }

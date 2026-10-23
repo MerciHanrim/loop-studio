@@ -1,5 +1,11 @@
 # Toolbar — fixed two-tier structure (desktop only)
 
+> **Superseded in part (2026-10).** The desktop toolbar is now the
+> workbench's menu bar and tool row: [`workbench.md`](workbench.md) §WB2–§WB3.
+> §TR1–§TR3 and the group lists in §TR4 and §TR6 describe the earlier
+> two-tier bar. §TR5, the start-up theme and the menu keyboard contract
+> below still hold.
+
 **Status: implemented.** The desktop toolbar is a **fixed two-tier
 structure**, not a width-driven row/wrap layout: Tier 1 (brand + project/app
 commands) is always exactly one row; Tier 2 (the 8-item node-creation
@@ -27,15 +33,17 @@ confirm→panel flow). No engine / schema / wire / GraphDoc change.
 
 **Tier 1 — one row, always:**
 
-`Loop Studio · Preview` (brand) — Undo/Redo — Templates — Insert module —
+`Loop Studio · Preview` (brand) — Undo/Redo — Templates (the Insert module menu
+that followed it was removed in 2026-10; File carries its two structure rows) —
 **File** (New, Import, Export) — **Data** (the spreadsheet-import workflow;
 trigger reads `Data ▾` — the spreadsheet detail lives inside its own two menu
 items, not the trigger) — **Share** (kept standalone, never merged into
 another group — an explicit accessibility/discoverability decision) —
 **Settings** (Theme, Language — personal app-environment prefs only, never a
 junk drawer for anything else) — `?` (Help: Take a tour, Contextual help,
-Send feedback, About; since 2026-10-02 the Help items are renamed and
-`What's new` is added, see [`release-notes.md`](release-notes.md)).
+Send feedback, About; since 2026-10-02 the Help items are renamed, see
+[`guided-tour.md`](guided-tour.md) §GT7; the `What's new` item added then was
+removed in 2026-10).
 
 The `v{version} · {sha}` build stamp is removed from the visible bar
 entirely — it lives in the brand row's own `title`/`aria-label` tooltip and
@@ -111,8 +119,10 @@ in a menu).
 
 Every dialog that used to live *inside* a collapsible group (`ExportMenu`'s
 `ConfirmDialog`s and `AuthorDialog`, `DataImportMenu`'s wizard and manage
-dialog, `HelpMenu`'s `About`/`Contextual help`, `ModuleMenu`'s promote/frames
-confirms) now renders at `Toolbar.tsx`'s own stable top level via
+dialog, `HelpMenu`'s `About`/`Contextual help`, and the promote/frames
+confirms of a structure insert — `ModuleMenu`'s until it was removed in
+2026-10, File's structure rows (`StructureMenuItems.tsx`) since) now renders
+at `Toolbar.tsx`'s own stable top level via
 `DialogHost.tsx`, driven by one `activeDialog: ToolbarDialog` union
 (`dialogTypes.ts`) — the same pattern `Toolbar.tsx` already used for `New`'s
 own `ConfirmDialog`. Doing this only inside the group itself would mean
@@ -184,7 +194,8 @@ calculator — the collapse count is monotonic in width, and
 
 ## The theme at start-up (issue #302)
 
-The Settings → Theme choice is stored as `loop-studio:theme` (`system`,
+The View → Theme choice (Settings → Theme before the 2026-10 workbench) is
+stored as `loop-studio:theme` (`system`,
 `light` or `dark`) and shown through the `data-theme` attribute on the root
 element: set for `light` and `dark`, absent for `system`, which lets the
 stylesheet follow `prefers-color-scheme`.
@@ -237,9 +248,10 @@ reload; the boot script is in the page once.
 ## The menu keyboard contract (issue #307)
 
 One contract for every desktop menu button, in `src/ui/useMenuKeyboard.ts`
-(`useMenuTrigger` + `useMenuKeyboard`): Templates, Insert module, File, Data,
-Help, the temporary-session chip, Settings → Theme and the Distribution
-panel's export. It follows the WAI-ARIA menu-button pattern, with typeahead
+(`useMenuTrigger` + `useMenuKeyboard`): File, the workbench's Edit, Insert
+and Run (`workbench/MenubarMenu.tsx`), Data, Help, the temporary-session chip,
+View → Theme and the Distribution panel's export. (Templates is a section of
+File since the 2026-10 workbench; View's own rows follow `ViewMenu.tsx`.) It follows the WAI-ARIA menu-button pattern, with typeahead
 left out.
 
 - **Opening.** Enter, Space or a screen reader's activation opens the menu

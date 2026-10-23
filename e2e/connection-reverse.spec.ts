@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import type { Locator, Page } from '@playwright/test'
 import { expect, openApp, routesSettled, test } from './support/loop'
+import { openPanelDetails, WORKBENCH_ROOMY_VIEWPORT } from './support/panel'
+import { reachablePointOnEdge } from './support/edgePoint'
 
 // docs/edge-routing.md §ER19 — reversing a connection's direction from the
 // Inspector's Ends group: Reverse sits beside the folded summary, is its own
@@ -12,6 +14,10 @@ import { expect, openApp, routesSettled, test } from './support/loop'
 // a_open is an activator from a Pool to a Gate.
 
 const FIXTURE = readFileSync(new URL('./fixtures/node-structure-small.json', import.meta.url), 'utf8')
+
+// the fixture's viewport ({x 40, y 60, zoom 1}) was placed for the two-tier
+// bar's 980 px canvas; the workbench's is as wide at 1600 (./support/panel)
+test.use({ viewport: WORKBENCH_ROOMY_VIEWPORT })
 type L = { graph: { getState: () => any }; ui: { getState: () => any }; rf: { setViewport: (v: object, o?: object) => void } }
 
 async function open(page: Page) {
@@ -22,15 +28,14 @@ async function open(page: Page) {
   await routesSettled(page)
 }
 
-/** a click on the connection's own line, as a user selects it */
+/** a click on the connection's own line, as a user selects it — where the
+ *  line itself is what the pointer reaches (./support/edgePoint: a frame's
+ *  border strip takes a click on its own) */
 async function selectEdge(page: Page, id: string): Promise<Locator> {
-  const p = await page.locator(`.react-flow__edge[data-id="${id}"] path.react-flow__edge-path`).evaluate((el) => {
-    const s = el as SVGPathElement
-    const q = s.getPointAtLength(s.getTotalLength() * 0.3)
-    const m = s.getScreenCTM()!
-    return { x: q.x * m.a + q.y * m.c + m.e, y: q.x * m.b + q.y * m.d + m.f }
-  })
+  const p = await reachablePointOnEdge(page, id)
   await page.mouse.click(p.x, p.y)
+  // the Ends group lives in the panel's More settings (docs/workbench.md §WB6)
+  await openPanelDetails(page)
   const ends = page.locator('.inspector .ends')
   await expect(ends).toBeVisible()
   return ends
@@ -166,16 +171,20 @@ test.describe('Reverse in the Ends group (§ER19)', () => {
 // reversed back (Lumi's review of #354): the result stays shown, and why the
 // NEXT reversal is refused is a line of its own, the one the button describes.
 test.describe('Reverse that makes a state connection work (§ER19)', () => {
-  /** a state connection the user drew, with its mode — added through the store
-   *  the drawing gesture ends in */
+  /** a state connection with no effect, as a document can hold one. Both
+   *  cases are what the workbench's Connect tool refuses to draw (a Condition
+   *  needs a Pool as its source; a Value change applied when the source fires
+   *  needs a Gate, Converter, Drain or End there — src/model/connectKind.ts),
+   *  so the connection is put in the document the way a file brings it, with
+   *  the handles and route a drawn one has */
   async function drawState(page: Page, source: string, target: string, data: Record<string, unknown>) {
     const id = await page.evaluate(
       ({ source, target, data }) => {
-        const g = (window as unknown as { __loop: L }).__loop.graph.getState()
-        g.onConnect({ source, target, sourceHandle: 'state-source', targetHandle: 'state-target' })
-        const e = (window as unknown as { __loop: L }).__loop.graph.getState().edges.find((x: { source: string; target: string; data?: { kind?: string } }) => x.source === source && x.target === target && x.data?.kind === 'state')
-        g.setEdgeData(e.id, { ...e.data, ...data })
-        return e.id as string
+        const l = (window as unknown as { __loop: L & { graph: { setState: (s: object) => void } } }).__loop
+        const id = `e_doc_${source}_${target}`
+        const edge = { id, source, target, sourceHandle: 'state-source', targetHandle: 'state-target', type: 'loop', data: { kind: 'state', route: 'orthogonal', ...data } }
+        l.graph.setState({ edges: [...l.graph.getState().edges, edge] })
+        return id
       },
       { source, target, data },
     )

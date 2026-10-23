@@ -94,6 +94,16 @@ test.describe('no frame is painted in the wrong theme', () => {
   // the browser's own screencast: every frame it painted, classified by the
   // luminance of nine sample points. This is pixels, not the attribute.
   async function paintedFrames(page: Page, go: () => Promise<void>) {
+    // The page this navigates FROM is black, not about:blank's white. The
+    // screencast keeps delivering the previous document until the new one
+    // paints, and the window below keeps frames from 20 ms before the first
+    // paint (the two clocks differ by a few ms). MEASURED 2026-10-20: under a
+    // 4–6× CPU throttle about:blank's white frame came 35–66 ms before the
+    // first paint (6 of 12 loads), and in the full run's order one landed
+    // inside the window and read "blank" — while the app's own first frame was
+    // dark every time. From a black page a leftover frame reads dark, so a
+    // white or light frame here can only be the app's own.
+    await page.goto('data:text/html,<html style="background:%23000"><body style="margin:0;background:%23000"></body></html>')
     const cdp = await page.context().newCDPSession(page)
     const frames: { at: number; data: string }[] = []
     cdp.on('Page.screencastFrame', (f) => {
@@ -105,9 +115,10 @@ test.describe('no frame is painted in the wrong theme', () => {
     await go()
     await page.waitForTimeout(600)
     await cdp.send('Page.stopScreencast').catch(() => {})
-    // the screencast also delivers the previous document (about:blank, white)
-    // until the new one is painted: keep the frames from the new document's
-    // first paint on. The epoch time of that paint comes from the page itself.
+    // the screencast also delivers the previous document (the black page
+    // above) until the new one is painted: keep the frames from the new
+    // document's first paint on. The epoch time of that paint comes from the
+    // page itself.
     const firstPaintEpoch = await page.evaluate(() => {
       const p = performance.getEntriesByType('paint').find((e) => e.name === 'first-paint')
       return p ? (performance.timeOrigin + p.startTime) / 1000 : null
@@ -137,7 +148,10 @@ test.describe('no frame is painted in the wrong theme', () => {
           }
         return pts.reduce((a, b) => a + b, 0) / pts.length
       }, 'data:image/png;base64,' + data)
-      // white is the blank page, not the light theme (whose ground is #f0efea, luminance 239)
+      // white is the blank page, not the light theme (whose ground is the workbench #e3e6ea, luminance 230)
+      // pure black is the page navigated from (above), never the app — whose
+      // dark ground #101215 reads about 17 — so it is left out of the count
+      if (lum < 3) continue
       kinds.push(lum >= 254 ? 'blank' : lum > 140 ? 'light' : lum < 90 ? 'dark' : 'mixed')
     }
     return kinds
@@ -185,7 +199,7 @@ test.describe('choosing a theme still works, and the choice survives a reload', 
     await page.goto('/')
     await expect(page.locator('.canvas .react-flow')).toBeVisible()
     expect(await attr(page)).toBeNull()
-    await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings$/ }).click()
+    await page.locator('.toolbar__actions .wb-viewmenu > .wb-mb').click()
     await page.getByRole('button', { name: /^Theme/ }).click()
     await page.getByRole('menuitemradio', { name: /Dark/ }).click()
     expect(await attr(page)).toBe('dark')

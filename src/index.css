@@ -6,186 +6,175 @@
    ========================================================================== */
 
 :root {
-  /* ── Warm Mineral Lab — LIGHT ────────────────────────────────────────
-     Warm neutral surfaces; low-chroma mineral colour used in small areas
-     only, for classification or live flow — never to fill a node. */
+  /* ── The workbench design tokens (2026-10) ─────────────────────────────
+     One set of MEANINGS, with a value per theme: this block is LIGHT, the
+     two dark blocks below are DARK. The names and the values are the
+     reviewed workbench mock-up's (share notes 93–95: `workbench-free3.html`,
+     dark, and `?theme=light`), extended with the roles the product has and
+     the mock-up did not draw (focus, warning, disabled, run cues, frames,
+     shadows). Three values are CORRECTED from the mock-up, each measured in
+     its comment. It replaced the earlier "Warm Mineral Lab" token set and
+     the Cozy Shelter family layer outright; nothing reads those any more.
+     Only the user's System / Light / Dark choice was kept (src/theme/). */
 
-  /* ── Cozy Shelter Studio design tokens v1.1.0 — the SHARED SHELL layer ──
-     The nineteen canonical `--cs-*` tokens, byte-identical to the family's
-     `tokens.css`. Loop Studio's own vocabulary stays (70 properties; the family
-     layer has no opinion about nodes, edges or flow) and the LIGHT shell reads
-     these through the aliases below. Three are declared and deliberately NOT
-     consumed here: `--cs-font-sans` (typography is out of scope, and Loop keeps
-     per-locale stacks), `--cs-control-line` (1.27:1 on white — a control
-     boundary here is `--line-control`, >= 3:1) and the three state colours
-     (`--warning` is an engine-diagnostic colour, not shell chrome). The family
-     layer has no dark palette, so every dark value below is Loop's own. */
-  --cs-ink: #20242a;
-  --cs-ink-subtle: #606873;
-  --cs-font-sans: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --cs-background: #fdfdfc;
-  --cs-panel: #ffffff;
-  --cs-surface-soft: #f7f7f5;
-  --cs-line: #d9dde4;
-  --cs-control-line: #e1e3e6;
-  --cs-accent: #4f6fe8;
-  --cs-accent-strong: #3d58c4;
-  --cs-focus-ring: rgba(79, 111, 232, .18);
-  --cs-success: #28734b;
-  --cs-warning: #92651b;
-  --cs-danger: #cf4b56;
-  --cs-radius: 12px;
-  --cs-control-radius: 8px;
-  --cs-shadow-soft: 0 1px 2px rgba(20, 27, 38, .04), 0 8px 24px rgba(20, 27, 38, .055);
-  --cs-ci-ink: #20242a;
-  --cs-ci-inverse: #ffffff;
+  /* — surfaces, back to front — */
+  --bg-app: #e3e6ea; /* the page, behind every bar and panel */
+  --bg-bar: #eceef1; /* the tool bar and the status bar */
+  --bg-panel: #f7f8f9; /* a side panel, a sheet */
+  --bg-head: #eef0f2; /* a panel's header strip, a table head */
+  --bg-raise: #e2e5e9; /* a control's face, a chip */
+  --bg-hover: #e6e9ee; /* a hovered (or keyboard-focused) row, chip or button */
+  --bg-canvas: #f1f2f4; /* the diagram's ground */
+  --bg-field: #ffffff; /* an input's field */
+  --bg-overlay: #ffffff; /* a menu, a popover, a dialog */
+  --bg-node: #ffffff; /* a node's face: white symbols on the canvas tone */
+  --label-bg: #ffffff; /* a connection label's plate on the canvas */
+  /* the browser's own controls (number fields, scrollbars) follow the theme;
+     without it dark drew them light (a white number field on a dark panel) */
+  color-scheme: light;
 
-  /* — surfaces (back → front) — panel, raised and overlay are ONE white in
-     the family shell: the step between them is carried by `--line-container`
-     and `--line-control`, and by `--elev-overlay` on a floating surface.
-     Sunken is the family's soft page surface, the same token the ground
-     reads: one cool neutral, no warm grey left over. Depth is a boundary
-     or an existing shadow, never a difference in colour temperature. */
-  --surface-ground: var(--cs-surface-soft);
-  --surface-canvas: var(--cs-background);
-  --surface-panel: var(--cs-panel);
-  --surface-raised: var(--cs-panel);
-  --surface-sunken: var(--cs-surface-soft);
-  /* the fill of a hovered (or keyboard-focused) row, chip or icon button.
-     Its own role with its own values: it used to read the sunken surface,
-     and when sunken joined the family ground the rest / hover step on a
-     white panel would have shrunk to less than half. Not a family token. */
-  --surface-hover: #e9e8e2;
-  --surface-overlay: var(--cs-panel);
+  /* — lines — */
+  --line-1: #d5d9df; /* a divider, a hairline between regions */
+  --line-2: #bfc5cd; /* a container's edge, a structure line */
+  --line-3: #8b939d; /* a strong line: a hovered edge, an axis */
+  /* a CONTROL's boundary (WCAG 1.4.11): >= 3:1 against its panel, its own
+     face and a hovered row. The mock-up drew controls with `--line-2`
+     (1.5:1); a control boundary is a product contract, so it reads the
+     tertiary ink instead */
+  --line-control: #56606b;
+  /* a node SYMBOL's outline (step 4): the workbench's edge colour, which the
+     connections share */
+  --node-stroke: #4b5561;
+  --line-control-hover: #39424c;
+  --line-disabled: #e2e5e9;
+  /* the dot grid behind the graph. CORRECTED (correction 3): the mock-up's
+     #d6dae0 read 1.25:1 on the canvas against dark's 1.18, so beside a dimmed
+     connection the dots outweighed the line; #dcdfe4 is 1.19:1. SVG paint,
+     which forced colours do not recolour: the forced block names a system
+     colour for it. */
+  --grid: #dcdfe4;
+  --chart-grid: var(--line-1);
 
-  /* — lines (weights unchanged in contrast, shifted warm-neutral) — */
-  --line-hairline: var(--cs-line);
-  /* the dot grid behind the graph: non-data structure. It follows the
-     hairline in light and dark. It is SVG paint, which forced colours do
-     not recolour, so the forced-colours block after the dark palette names
-     a system colour for it instead of letting the light palette through. */
-  --canvas-grid: var(--line-hairline);
-  /* the plot grids (Timeline, distribution band, termination sparkline):
-     the same kind of line, the same forced-colours treatment. */
-  --chart-grid: var(--line-hairline);
-  --line-structure: #c1beb4;
-  --line-strong: #8c887e;
-  --line-focus: var(--focus-ring);
-  --line-disabled: #e7e5de;
-  /* a CONTROL's boundary on a panel / sheet (WCAG 1.4.11): >= 3:1 against the
-     panel, against a hovered / focused row (`--surface-hover`) and against the
-     control's own face, in both themes. `--line-structure` is a layout line
-     (1.78:1 on a light panel), never a 1 px control boundary. Declared once:
-     `var()` resolves on :root, so the dark blocks' text tokens carry it. */
-  --line-control: var(--text-tertiary);
-  /* A ROLE token with its own value (shell refresh, 2026-10-01). It used to
-     read `--text-secondary` and would have followed that token onto the shared
-     ink, shrinking the rest / hover step from 1.57 to 1.17. Each theme states
-     its own value; nothing else may alias it. */
-  --line-control-hover: #4f5651;
-  /* A CONTAINER's boundary: popover, dialog, sheet, card. Split out of
-     `--line-structure` so the shell can take the shared line while every graph
-     / chart / minimap stroke keeps `--line-structure` byte-identical.
-     `--line-structure` is therefore NOT a shell token any more: it is drawn by
-     the node silhouettes, the state handle, the chart axes, the minimap and
-     three non-interactive labels, and by nothing interactive. */
-  --line-container: var(--cs-line);
+  /* — ink (text and glyphs), strongest first — */
+  --ink-1: #1b2027;
+  --ink-2: #39424c;
+  --ink-3: #56606b;
+  /* CORRECTED (correction 2): a disabled label must not read like a live one.
+     2.60:1 on the panel, 2.38:1 on a bar, against a live label's 9.6–15. A
+     colour, not `opacity`, which forced colours do not adjust. */
+  --ink-disabled: #959ca6;
 
-  /* — edges: measured against --surface-canvas — */
-  --edge-resource: #adaaa1; /* ~2.2:1 on canvas */
-  --edge-state: #c1beb5; /* ~1.7:1 on canvas; solid vs dashed also separates */
-  --edge-selected: var(--state-selected); /* ≥3:1 on canvas */
+  /* — accent: the RUN's colour — the controls that start or stop a run (Play
+     / Pause, the Monte Carlo dialog's Run) and what a run shows (the colour
+     review's direction A, 2026-10-21; docs/visual-language.md §VL8 "Colour
+     roles"). A
+     control that only opens, chooses or sets something is neutral.
+     CORRECTED for contrast, measured on the BUTTON's own face (`--bg-raise`
+     #e2e5e9), not the bar: #11806f was under 4.5:1 there, and a first
+     correction (#0e7768, chosen against the bar) read 4.31:1; #0c7062, the
+     same hue, is chosen for >= 4.5:1 on the face at rest and while running
+     (2026-10-21) — */
+  --accent: #0c7062;
+  --accent-soft: rgba(12, 112, 98, 0.12);
+  --accent-trail: rgba(12, 112, 98, 0.22); /* a moving resource's trail */
+  --accent-glow: #0c7062; /* the Activity overlay's edge glow */
+  /* the BRAND mark (the logo bead, the toolbar mark): a role of its own, at
+     the value it has always shown — not the run colour, so the run's can move
+     without it (2026-10-21) */
+  --brand: #11806f;
+  /* text on the solid focus fill (an armed control) */
+  --on-focus: #ffffff;
+  /* the ring of a condition NOT met (`.state-cue--activator`): a neutral of its
+     own, so it can differ per theme without moving the shared inks. Light: the
+     tertiary ink. Dark: lighter than the dark tertiary ink — composited at the
+     ping's opacities (0.35–1) it is never below the warning colour the ring
+     had before 2026-10-21 (measured; the ink-3 value was) */
+  --cue-unmet: var(--ink-3);
 
-  /* — text — */
-  --text-primary: var(--cs-ink);
-  --text-secondary: var(--cs-ink-subtle);
-  --text-tertiary: #6c746e;
-  --text-disabled: #9aa09a;
-  --text-on-state: #ffffff;
-  --text-inverse: #f2f1ec;
+  /* — selection and focus — */
+  --sel: #2463d1;
+  --sel-soft: rgba(36, 99, 209, 0.12);
+  --sel-name: #1f56c2; /* a selected node's name */
+  --focus: #2463d1; /* the solid focus indicator (>= 3:1 on every surface) */
+  --focus-halo: rgba(36, 99, 209, 0.18); /* only ever beside the solid one */
 
-  /* — mineral signal: "what is alive and moving right now" — */
-  --signal-primary: #2f746e;
-  --signal-primary-soft: #d8e5e1;
-  /* the shell's SOLID focus colour (>= 3:1 on every shell surface: 4.40 on
-     white, 4.10 on the soft ground). NOT `--cs-focus-ring` — that is the 18 %
-     halo, 1.25:1 on its own; it is `--focus-halo` below and only ever
-     accompanies this solid colour. */
-  --focus-ring: var(--cs-accent);
-  --focus-halo: var(--cs-focus-ring);
-  --warning: #a56332;
+  /* — status — */
+  /* CORRECTED for contrast (2026-10-21): #1f8a4c read 4.12:1 as 11.5 px text
+     on a panel; #1a7f45 reads 4.71:1 */
+  --ok: #1a7f45;
+  /* by MEANING (colour review A, step 2, 2026-10-21): `--no` is an ERROR (a
+     wrong input, a failed action, a computation that gave no number); `--warn`
+     is a state to notice or check; a normal simulation state (a condition not
+     met, a blocked move, a clamped change) and a guidance note are neutral —
+     each keeps its words, marks and numbers. A destructive control is neutral,
+     `--no` on hover / keyboard focus.
+     CORRECTED for contrast with that step: #b4412c read 4.45:1 as the "!"
+     flag's and the delete ×'s glyph on a control face (`--bg-raise`); #ad3e2a,
+     the same hue, is chosen for >= 4.5:1 there (2026-10-21). */
+  --no: #ad3e2a;
+  --warn: #8a5a00;
 
-  /* — state (shape / motion / position lead; colour is secondary) — */
-  --state-selected: #54524c;
-  /* the GRAPH's focus colour — node focus / peek strokes, the frame's focus and
-     selection chrome, the reference-insert control. Its own value, not
-     `var(--focus-ring)`: the shell's focus indicator may change without
-     recolouring anything on the canvas. */
-  --state-focus: #3f6fb6;
-  --state-fired: var(--signal-primary);
-  --state-arrival: var(--signal-primary);
-  --state-guide: var(--signal-primary);
-  --state-warning: var(--warning);
-
-  /* — six node hues: only chip, compact dot, chart mark — */
-  --hue-pool: #527a91;
-  --hue-source: #66805e;
-  --hue-drain: #a86455;
-  --hue-gate: #9a7639;
-  --hue-converter: #78678f;
-  --hue-end: #756f68;
-
-  /* docs/large-graph-readability-frame-colour.md §FC1 — the group-frame accent
-     palette. Four reuse a node hue; rose is its own value. Deliberately NOT
-     teal (--signal-primary) or red/orange (--warning) — those are signal cues. */
-  --frame-accent-slate: #527a91;
-  --frame-accent-sage: #66805e;
-  --frame-accent-gold: #9a7639;
-  --frame-accent-violet: #78678f;
-  --frame-accent-rose: #9e5a83;
-
-  /* — flow token / trail = the mineral signal — */
-  --flow-strength: var(--signal-primary); /* ~5:1 on canvas */
-  --flow-trail: rgba(47, 116, 110, 0.22);
-  /* docs/large-graph-readability.md §LGR6-cues — the Activity overlay's edge
-     glow colour. Light stays the plain opaque signal (never a problem here);
-     dark gets its own attenuated value below — see the two overrides. */
-  --activity-edge-glow: var(--signal-primary);
-
-  /* p10–p90 distribution band fill (data, not decoration) */
-  --dist-band-mix: 11%;
-
-  /* minimap: dim everything outside the current viewport (~12% warm neutral) */
-  --minimap-mask: rgba(108, 116, 110, 0.12);
-
-  /* — elevation (light leans on faint shadow; dark drops it entirely) — */
-  --elev-node: drop-shadow(0 1px 1.5px rgba(20, 20, 20, 0.05));
-  --elev-label: 0 1px 2px rgba(20, 20, 20, 0.08);
-  /* a FLOATING shell surface (menu, popover, tooltip, the filter panel). With
-     panel = overlay = white, this and `--line-container` are what lift it. An
-     existing shadow slot re-pointed, not a new decoration. */
-  --elev-overlay: var(--cs-shadow-soft);
-  /* docs/visual-language.md §VL0 follow-up — a dedicated shadow for the edge
-     flow/condition chip only, kept separate from --elev-label (shared by ~12
-     unrelated surfaces) so strengthening the chip's canvas-vs-chip boundary
-     never ripples into tooltips / badges / panels. */
-  --elev-edge-label: 0 1px 3px rgba(20, 20, 20, 0.14);
-
-  /* docs/visual-language.md §VL0 follow-up — the node-type hue wash: a single
-     opacity constant (flat across themes, like the frame accent fill), so the
-     six --hue-* tokens (already theme-tuned) read as a faint ambient fill
-     without a second per-theme value to keep in sync. Tunable in one place;
-     must stay below the frame accent's fill-opacity (0.05–0.06) so the type
-     wash never outweighs a group frame's own colour. */
+  /* — node kinds: the mark and the list's kind glyph, never a node fill — */
+  --k-pool: #2f78b7;
+  --k-source: #3d8a52;
+  --k-drain: #b5532f;
+  --k-converter: #7a5cc4;
+  --k-gate: #8f7a12;
+  --k-end: #56606b;
+  /* (Parameter and Register carry no kind hue: they read as structure) */
+  /* — the run chart's series, by index (the Timeline and the Monte Carlo
+     band): their OWN tokens since 2026-10-21, so a series' colour no longer
+     claims a node kind. The values and the order are the kind hues they
+     used to read (pool, gate, converter, drain, source, end); choosing
+     others is a later decision — */
+  --series-1: #2f78b7;
+  --series-2: #8f7a12;
+  --series-3: #7a5cc4;
+  --series-4: #b5532f;
+  --series-5: #3d8a52;
+  --series-6: #56606b;
+  /* the faint wash of the kind colour inside a node (one constant for both
+     themes; it stays below a frame's own tint) */
   --node-hue-opacity: 0.04;
 
-  /* two radius axes (family tokens v1.1.0): a CONTAINER — panel, card, dialog,
-     popover, sheet — and a CONTROL — a standard rectangular button, input,
-     select or row. Neither is written as a literal on a rule that belongs to
-     an axis. Compact controls and everything that is neither keep their own
-     literal on purpose. */
-  --radius: var(--cs-radius);
-  --control-radius: var(--cs-control-radius);
+  /* — the three meanings of a connection: their own hue in both themes
+     (flow grey, condition blue, value change ochre), only lightness changes.
+     `-hi` is the meaning emphasised: hovered, or among the selection's
+     relations — */
+  --m-flow: #6a737e; /* 4.29:1 on the canvas */
+  --m-condition: #4f6fa3;
+  --m-change: #8a7424;
+  --m-flow-hi: #1b2027;
+  --m-condition-hi: #1f4f9e;
+  --m-change-hi: #6b5600;
+  /* a connection outside the Focus set (or the selection's relations).
+     CORRECTED (correction 3): at dark's opacity a light dimmed line read
+     1.37:1 beside a 1.25:1 grid. At 0.30 over the corrected grid it is 1.44:1
+     beside 1.19:1 (ratio 1.21); dark is 1.41:1 beside 1.18:1 (ratio 1.19) */
+  --dim-opacity: 0.3;
+
+  /* — group frames: five accents a user can give a frame — */
+  --frame-slate: #527a91;
+  --frame-sage: #66805e;
+  --frame-gold: #9a7639;
+  --frame-violet: #78678f;
+  --frame-rose: #9e5a83;
+
+  /* — data — */
+  --dist-band-mix: 11%; /* the p10–p90 band's fill */
+  --minimap-mask: rgba(86, 96, 107, 0.12); /* outside the viewport */
+
+  /* — shadows: light lifts floating surfaces a little; dark draws none — */
+  --shadow-overlay: 0 10px 28px rgba(20, 30, 45, 0.18);
+  --shadow-node: drop-shadow(0 1px 1.5px rgba(20, 30, 45, 0.05));
+  --shadow-label: 0 1px 2px rgba(20, 30, 45, 0.08);
+  --shadow-edge-label: 0 1px 3px rgba(20, 30, 45, 0.14);
+
+  /* — radii: a CONTAINER (panel, card, dialog, popover, sheet) and a CONTROL
+     (a standard button, input, select or row), the mock-up's 8 and 5 px.
+     Compact controls keep their own literal on purpose. — */
+  --radius: 8px;
+  --control-radius: 5px;
 
   /* Safe-area insets as tokens (docs/mobile.md §MV7). Real space is reserved
      from these, not from bare env() — so an E2E can mock them by redefining
@@ -237,7 +226,7 @@
     Consolas, monospace;
 
   font-family: var(--font-sans);
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 
 /* Japanese CJK glyphs must not fall through to 'Noto Sans KR' — shared Han
@@ -407,6 +396,34 @@
   unicode-range: U+011E-011F, U+0130, U+015E-015F;
 }
 
+/* The change mark "Δ" (U+0394) on node and connection labels — the same
+ * defect as above, for a symbol rather than a language. READ from the files'
+ * own `cmap` tables (2026-10-23): the `latin` subset of IBM Plex Sans (and of
+ * Plex Mono) maps no glyph to U+0394, so "Δ" fell back per glyph to the OS,
+ * which differs between machines (a CI runner drew it unlike this one);
+ * fontsource's `greek` subset of Plex Sans does map it, at 400 and 600. The
+ * face is declared for that one code point only, after the Latin import, as
+ * the faces above are. "≤" (U+2264) is in no subset of the installed Plex
+ * packages and still falls back. */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('@fontsource/ibm-plex-sans/files/ibm-plex-sans-greek-400-normal.woff2')
+    format('woff2');
+  unicode-range: U+0394;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('@fontsource/ibm-plex-sans/files/ibm-plex-sans-greek-600-normal.woff2')
+    format('woff2');
+  unicode-range: U+0394;
+}
+
 /* docs/localization.md §L2.21 — Vietnamese, the fourth locale whose letters
  * IBM Plex Sans was already a candidate for and did not actually carry.
  *
@@ -555,137 +572,186 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    /* ── Warm Mineral Lab — DARK (night observation; higher L, lower chroma) ── */
-    --surface-ground: #171a18;
-    --surface-canvas: #202320;
-    --surface-panel: #272a27;
-    --surface-raised: #323632;
-    --surface-sunken: #141715;
-    --surface-hover: #141715;
-    --surface-overlay: #2b302c;
+    /* the DARK values of the workbench tokens (the mock-up's wb2.css). The
+       same text is in the system-dark block and the explicit `[data-theme='dark']`
+       block: KEEP THE TWO IDENTICAL */
+    --bg-app: #101215;
+    --bg-bar: #16181c;
+    --bg-panel: #1a1d21;
+    --bg-head: #1f2227;
+    --bg-raise: #252a30;
+    /* a step stronger than the mock-up's #2b3037, which moved a hovered menu
+       row only 31 (RGB distance) from the popover face; #2e333a moves it 37 */
+    --bg-hover: #2e333a;
+    --bg-canvas: #121417;
+    --bg-field: #131518;
+    --bg-overlay: #1b1e23;
+    --bg-node: #171a1e;
+    --label-bg: #15181c;
+    color-scheme: dark;
 
-    --line-hairline: #3c403c;
-    --line-structure: #63685f;
-    --line-strong: #8a8f88;
-    --line-focus: var(--focus-ring);
-    --line-disabled: #313531;
-    --line-control-hover: #c8cec8;
-    --line-container: #63685f;
+    --line-1: #2b2f36;
+    --line-2: #3a3f48;
+    --line-3: #8b929d;
+    --line-control: #a4abb5;
+    --node-stroke: #aab3be;
+    --line-control-hover: #c3c9d0;
+    --line-disabled: #252a30;
+    --grid: #20242a; /* 1.18:1 on the canvas */
+    --chart-grid: var(--line-1);
 
-    --edge-resource: #575b56;
-    --edge-state: #474b47;
-    --edge-selected: var(--state-selected);
+    --ink-1: #e9ebee;
+    --ink-2: #c3c9d0;
+    --ink-3: #a4abb5;
+    /* CORRECTED (correction 2): 3.24:1 on the panel, 3.40:1 on a bar, against
+       a live label's 10–15 */
+    --ink-disabled: #666d77;
 
-    --text-primary: #eff2ed;
-    --text-secondary: #c8cec8;
-    --text-tertiary: #a7afa8;
-    --text-disabled: #6c736c;
-    --text-on-state: #171a18;
-    --text-inverse: #202320;
+    --accent: #3ec1ae;
+    --accent-soft: rgba(62, 193, 174, 0.14);
+    --accent-trail: rgba(62, 193, 174, 0.2);
+    /* attenuated in dark: an opaque glow bloomed over a dark canvas */
+    --accent-glow: rgba(62, 193, 174, 0.35);
+    --brand: #3ec1ae;
+    --on-focus: #101215; /* white read 2.45:1 on the dark focus blue */
+    --cue-unmet: #cdd2d8; /* >= the old warning ring at every ping opacity */
 
-    --signal-primary: #76b7ae;
-    --signal-primary-soft: #29433f;
-    --focus-ring: #83a9e6;
-    --focus-halo: rgba(131, 169, 230, 0.24);
-    --warning: #d59660;
+    --sel: #6fa6ff;
+    --sel-soft: rgba(111, 166, 255, 0.15);
+    --sel-name: #b9d1ff;
+    --focus: #6fa6ff;
+    --focus-halo: rgba(111, 166, 255, 0.24);
 
-    --state-selected: #9a9e96;
-    --state-focus: #83a9e6;
-    --state-fired: var(--signal-primary);
-    --state-arrival: var(--signal-primary);
-    --state-guide: var(--signal-primary);
-    --state-warning: var(--warning);
+    --ok: #6fd0a0;
+    --no: #e39a8a;
+    --warn: #e3c18a;
 
-    --hue-pool: #78a6be;
-    --hue-source: #91af85;
-    --hue-drain: #d18a78;
-    --hue-gate: #c6a05b;
-    --hue-converter: #a99bc0;
-    --hue-end: #a6a099;
+    --k-pool: #6fa8d6;
+    --k-source: #7cc48e;
+    --k-drain: #e08b6d;
+    --k-converter: #b59de2;
+    --k-gate: #d9c46e;
+    --k-end: #a4abb5;
+    --series-1: #6fa8d6;
+    --series-2: #d9c46e;
+    --series-3: #b59de2;
+    --series-4: #e08b6d;
+    --series-5: #7cc48e;
+    --series-6: #a4abb5;
 
-    --frame-accent-slate: #78a6be;
-    --frame-accent-sage: #91af85;
-    --frame-accent-gold: #c6a05b;
-    --frame-accent-violet: #a99bc0;
-    --frame-accent-rose: #c58bab;
+    --m-flow: #7a828d; /* 4.75:1 on the canvas */
+    --m-condition: #7f93b3;
+    --m-change: #a8a07a;
+    --m-flow-hi: #d3d8df;
+    --m-condition-hi: #b7cbef;
+    --m-change-hi: #e3d79c;
+    --dim-opacity: 0.26; /* 1.41:1 dimmed beside a 1.18:1 grid */
 
-    --flow-strength: var(--signal-primary);
-    --flow-trail: rgba(118, 183, 174, 0.2);
-    --activity-edge-glow: rgba(118, 183, 174, 0.35);
+    --frame-slate: #78a6be;
+    --frame-sage: #91af85;
+    --frame-gold: #c6a05b;
+    --frame-violet: #a99bc0;
+    --frame-rose: #c58bab;
+
     --dist-band-mix: 15%;
     --minimap-mask: rgba(0, 0, 0, 0.28);
 
-    --elev-node: none;
-    --elev-label: none;
-    --elev-edge-label: none;
-    --elev-overlay: none;
+    --shadow-overlay: none;
+    --shadow-node: none;
+    --shadow-label: none;
+    --shadow-edge-label: none;
   }
 }
 
 :root[data-theme='dark'] {
+  /* the DARK values of the workbench tokens (the mock-up's wb2.css). The
+     same text is in the system-dark block and the explicit `[data-theme='dark']`
+     block: KEEP THE TWO IDENTICAL */
+  --bg-app: #101215;
+  --bg-bar: #16181c;
+  --bg-panel: #1a1d21;
+  --bg-head: #1f2227;
+  --bg-raise: #252a30;
+  /* a step stronger than the mock-up's #2b3037, which moved a hovered menu
+     row only 31 (RGB distance) from the popover face; #2e333a moves it 37 */
+  --bg-hover: #2e333a;
+  --bg-canvas: #121417;
+  --bg-field: #131518;
+  --bg-overlay: #1b1e23;
+  --bg-node: #171a1e;
+  --label-bg: #15181c;
+  color-scheme: dark;
+
+  --line-1: #2b2f36;
+  --line-2: #3a3f48;
+  --line-3: #8b929d;
+  --line-control: #a4abb5;
+  --node-stroke: #aab3be;
+  --line-control-hover: #c3c9d0;
+  --line-disabled: #252a30;
+  --grid: #20242a; /* 1.18:1 on the canvas */
+  --chart-grid: var(--line-1);
+
+  --ink-1: #e9ebee;
+  --ink-2: #c3c9d0;
+  --ink-3: #a4abb5;
+  /* CORRECTED (correction 2): 3.24:1 on the panel, 3.40:1 on a bar, against
+     a live label's 10–15 */
+  --ink-disabled: #666d77;
+
+  --accent: #3ec1ae;
+  --accent-soft: rgba(62, 193, 174, 0.14);
+  --accent-trail: rgba(62, 193, 174, 0.2);
+  /* attenuated in dark: an opaque glow bloomed over a dark canvas */
+  --accent-glow: rgba(62, 193, 174, 0.35);
+  --brand: #3ec1ae;
+  --on-focus: #101215; /* white read 2.45:1 on the dark focus blue */
+  --cue-unmet: #cdd2d8; /* >= the old warning ring at every ping opacity */
+
+  --sel: #6fa6ff;
+  --sel-soft: rgba(111, 166, 255, 0.15);
+  --sel-name: #b9d1ff;
+  --focus: #6fa6ff;
+  --focus-halo: rgba(111, 166, 255, 0.24);
+
+  --ok: #6fd0a0;
+  --no: #e39a8a;
+  --warn: #e3c18a;
+
+  --k-pool: #6fa8d6;
+  --k-source: #7cc48e;
+  --k-drain: #e08b6d;
+  --k-converter: #b59de2;
+  --k-gate: #d9c46e;
+  --k-end: #a4abb5;
+  --series-1: #6fa8d6;
+  --series-2: #d9c46e;
+  --series-3: #b59de2;
+  --series-4: #e08b6d;
+  --series-5: #7cc48e;
+  --series-6: #a4abb5;
+
+  --m-flow: #7a828d; /* 4.75:1 on the canvas */
+  --m-condition: #7f93b3;
+  --m-change: #a8a07a;
+  --m-flow-hi: #d3d8df;
+  --m-condition-hi: #b7cbef;
+  --m-change-hi: #e3d79c;
+  --dim-opacity: 0.26; /* 1.41:1 dimmed beside a 1.18:1 grid */
+
+  --frame-slate: #78a6be;
+  --frame-sage: #91af85;
+  --frame-gold: #c6a05b;
+  --frame-violet: #a99bc0;
+  --frame-rose: #c58bab;
+
   --dist-band-mix: 15%;
   --minimap-mask: rgba(0, 0, 0, 0.28);
-  --surface-ground: #171a18;
-  --surface-canvas: #202320;
-  --surface-panel: #272a27;
-  --surface-raised: #323632;
-  --surface-sunken: #141715;
-  --surface-hover: #141715;
-  --surface-overlay: #2b302c;
 
-  --line-hairline: #3c403c;
-  --line-structure: #63685f;
-  --line-strong: #8a8f88;
-  --line-focus: var(--focus-ring);
-  --line-disabled: #313531;
-  --line-control-hover: #c8cec8;
-  --line-container: #63685f;
-
-  --edge-resource: #575b56;
-  --edge-state: #474b47;
-  --edge-selected: var(--state-selected);
-
-  --text-primary: #eff2ed;
-  --text-secondary: #c8cec8;
-  --text-tertiary: #a7afa8;
-  --text-disabled: #6c736c;
-  --text-on-state: #171a18;
-  --text-inverse: #202320;
-
-  --signal-primary: #76b7ae;
-  --signal-primary-soft: #29433f;
-  --focus-ring: #83a9e6;
-  --focus-halo: rgba(131, 169, 230, 0.24);
-  --warning: #d59660;
-
-  --state-selected: #9a9e96;
-  --state-focus: #83a9e6;
-  --state-fired: var(--signal-primary);
-  --state-arrival: var(--signal-primary);
-  --state-guide: var(--signal-primary);
-  --state-warning: var(--warning);
-
-  --hue-pool: #78a6be;
-  --hue-source: #91af85;
-  --hue-drain: #d18a78;
-  --hue-gate: #c6a05b;
-  --hue-converter: #a99bc0;
-  --hue-end: #a6a099;
-
-  --frame-accent-slate: #78a6be;
-  --frame-accent-sage: #91af85;
-  --frame-accent-gold: #c6a05b;
-  --frame-accent-violet: #a99bc0;
-  --frame-accent-rose: #c58bab;
-
-  --flow-strength: var(--signal-primary);
-  --flow-trail: rgba(118, 183, 174, 0.2);
-  --activity-edge-glow: rgba(118, 183, 174, 0.35);
-
-  --elev-node: none;
-  --elev-label: none;
-  --elev-edge-label: none;
-  --elev-overlay: none;
+  --shadow-overlay: none;
+  --shadow-node: none;
+  --shadow-label: none;
+  --shadow-edge-label: none;
 }
 
 /* forced colours: the UA recolours text, borders and backgrounds, but not SVG
@@ -696,9 +762,15 @@
    the canvas colour and is not seen. A plot grid is a line values are read
    against, so it is the system's muted GrayText. */
 @media (forced-colors: active) {
-  :root {
-    --canvas-grid: Canvas;
+  /* every theme selector above, so this wins over each one: the dark blocks
+     declare their own `--grid` at (0,2,0), and this block, coming
+     later at the same weight, must still decide it */
+  :root,
+  :root[data-theme],
+  :root:not([data-theme='light']) {
+    --grid: Canvas;
     --chart-grid: GrayText;
+    --node-stroke: CanvasText;
   }
 }
 
@@ -717,8 +789,8 @@ body,
 }
 
 body {
-  background: var(--surface-ground);
-  color: var(--text-primary);
+  background: var(--bg-app);
+  color: var(--ink-1);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -726,7 +798,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--surface-ground);
+  background: var(--bg-app);
 }
 
 .app__body {
@@ -750,11 +822,11 @@ body {
   padding: 10px 12px;
   font-size: 12px;
   line-height: 1.4;
-  color: var(--text-primary);
-  background: var(--surface-overlay);
-  border: 1px solid var(--line-container);
+  color: var(--ink-1);
+  background: var(--bg-overlay);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius);
-  box-shadow: var(--elev-overlay);
+  box-shadow: var(--shadow-overlay);
 }
 .pwa-update__text {
   flex: 1;
@@ -766,7 +838,7 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid var(--line-focus);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -781,8 +853,8 @@ body {
   column-gap: 8px;
   row-gap: 18px;
   padding: 8px 14px;
-  background: var(--surface-panel);
-  border-bottom: 1px solid var(--line-hairline);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--line-1);
   flex-wrap: wrap;
 }
 
@@ -815,6 +887,11 @@ body {
 }
 .toolbar .btn {
   max-height: 28px;
+  /* …and at least 28: a text-only `.btn` (Share) came out 27 px in IBM Plex
+     Sans, beside the 28 px temporary-session chip drawn to match it; in the
+     workbench's menu bar they are the two bordered controls side by side
+     (measured 2026-10-20, storage-sessions.spec) */
+  min-height: 28px;
   flex-shrink: 0;
 }
 
@@ -822,7 +899,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--text-primary);
+  color: var(--ink-1);
   /* never squeezed by flex pressure — a stable width is what lets the overflow
      controller measure the real space the actions have to fit into */
   flex-shrink: 0;
@@ -830,7 +907,7 @@ body {
 
 .toolbar__mark {
   display: inline-flex;
-  color: var(--signal-primary);
+  color: var(--brand);
 }
 
 .toolbar__word {
@@ -846,8 +923,8 @@ body {
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--text-tertiary);
-  border: 1px solid var(--line-hairline);
+  color: var(--ink-3);
+  border: 1px solid var(--line-1);
   padding: 1px 5px;
   border-radius: 3px;
 }
@@ -859,13 +936,13 @@ body {
 }
 .logo__track {
   fill: none;
-  stroke: var(--line-strong);
+  stroke: var(--line-3);
   stroke-width: 1.5;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
 }
 .logo__bead {
-  fill: var(--signal-primary);
+  fill: var(--brand);
   transition: cx 120ms ease-out, cy 120ms ease-out;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -891,7 +968,7 @@ body {
   order: 2;
   flex-basis: 100%;
   padding: 4px 8px;
-  background: var(--surface-sunken);
+  background: var(--bg-field);
   border-radius: 8px;
   /* unconditional, not a dedicated 721-819px media query (the project's
      mobile-breakpoint check requires one shared source of truth for any
@@ -910,7 +987,7 @@ body {
   width: 1px;
   align-self: stretch;
   margin: 2px 2px;
-  background: var(--line-hairline);
+  background: var(--line-1);
   flex-shrink: 0;
 }
 
@@ -995,7 +1072,7 @@ body {
   font-size: 12px;
   font-weight: 600;
   background: transparent;
-  color: var(--text-primary);
+  color: var(--ink-1);
   border: 1px solid transparent;
   border-radius: var(--control-radius);
   cursor: grab;
@@ -1007,8 +1084,8 @@ body {
 .chip:hover,
 .chip:focus-visible,
 .chip[data-dragging] {
-  background: var(--surface-raised);
-  border-color: var(--line-strong);
+  background: var(--bg-raise);
+  border-color: var(--line-3);
 }
 
 .chip:active {
@@ -1020,7 +1097,7 @@ body {
    colours theme keeps the tell (it maps to `GrayText` there). No hover or
    keyboard-focus fill — a disabled chip takes neither. */
 .chip:disabled {
-  color: var(--text-disabled);
+  color: var(--ink-disabled);
   cursor: default;
   background: transparent;
   border-color: transparent;
@@ -1034,7 +1111,31 @@ body {
 .chip__glyph {
   font-size: 14px;
   line-height: 1;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
+}
+.chip__glyph .kind-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+/* a node kind's small mark (nodes/KindIcon.tsx): the canvas symbol's outline
+   in the text colour, a 1.3 px stroke at any size, mitred corners; the End
+   adds a small filled square (an outline alone reads as the Pool's at 16 px) */
+.kind-icon {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3px;
+  stroke-linejoin: miter;
+  stroke-miterlimit: 4;
+  overflow: visible;
+}
+.kind-icon path {
+  vector-effect: non-scaling-stroke;
+}
+/* the End's small square (KindIcon.tsx END_16_STOP) */
+.kind-icon .kind-icon__fill {
+  fill: currentColor;
 }
 
 /* ---- node-palette two-layer tip (docs/localization.md §L13 / Slice 2a) ----
@@ -1065,10 +1166,10 @@ body {
   width: max-content;
   max-width: min(280px, calc(100vw - 24px));
   padding: 8px 10px;
-  background: var(--surface-overlay);
-  border: 1px solid var(--line-container);
+  background: var(--bg-overlay);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius);
-  box-shadow: var(--elev-overlay);
+  box-shadow: var(--shadow-overlay);
   /* The ACTIVE tip takes the pointer so it can be read without it vanishing
      when the pointer crosses the 6px gap below the chip; Toolbar.tsx sets
      `pointer-events: auto` inline on that one only. Every inactive tip stays
@@ -1079,18 +1180,18 @@ body {
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .palette-tip__desc {
   font-size: 12.5px;
   line-height: 1.4;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   /* Wrapping is per-language — see §DESCRIPTIVE-WRAP below. */
 }
 .palette-tip__how {
   font-size: 11px;
   line-height: 1.35;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 
 .btn {
@@ -1098,10 +1199,10 @@ body {
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 600;
-  background: var(--surface-raised);
-  color: var(--text-primary);
+  background: var(--bg-raise);
+  color: var(--ink-1);
   /* docs/visual-language.md §VL8 "Control boundary" — the control tokens, not
-     `--line-structure`: a 1 px border on a panel needs ≥ 3:1 against the
+     `--line-2`: a 1 px border on a panel needs ≥ 3:1 against the
      surface AND against the button's own face, and the structure line
      measured 1.86 (light) / 2.15 (dark) against the face on every surface. */
   border: 1px solid var(--line-control);
@@ -1123,7 +1224,7 @@ body {
 }
 
 /* docs/visual-language.md §VL8 — the twelve controls that drew the layout line
-   (`--line-structure`, 1.78:1 on a light panel) as their boundary now draw the
+   (`--line-2`, 1.78:1 on a light panel) as their boundary now draw the
    control tokens, like `.btn` / `.pb-btn` / `.timeline__csv` before them. Rest
    is `--line-control` on each rule; hover steps to `--line-control-hover` here.
    A state that owns the border colour keeps it: an invalid field, the selected
@@ -1161,7 +1262,7 @@ body {
 .accent-field__hex input:disabled,
 .accent-field__picker input:disabled {
   border-color: var(--line-disabled);
-  color: var(--text-disabled);
+  color: var(--ink-disabled);
 }
 .btn--icon {
   padding: 4px 8px;
@@ -1263,7 +1364,7 @@ body {
 
 .btn--ghost {
   border-color: transparent;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 
 /* ---- dropdown menu ---- */
@@ -1280,13 +1381,13 @@ body {
   display: flex;
   flex-direction: column;
   padding: 4px;
-  background: var(--surface-overlay);
-  border: 1px solid var(--line-container);
+  background: var(--bg-overlay);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius);
-  box-shadow: var(--elev-overlay);
+  box-shadow: var(--shadow-overlay);
 }
-/* Opt-in only — a genuinely long TOP-LEVEL menu (Templates, Insert module,
-   File ▾ with Export's items flattened in) scrolls internally rather than
+/* Opt-in only — a genuinely long TOP-LEVEL menu (Templates, File ▾ with
+   Export's items and the structure rows flattened in) scrolls internally rather than
    escaping the viewport at narrow heights (721×720, 820×720). NOT applied
    to `.menu__pop` itself: Lumi's review (2026-09-15) found that a blanket
    `overflow-y: auto` on every `.menu__pop` — including Settings' own,
@@ -1307,8 +1408,6 @@ body {
    Measured, not chosen: at 260px four English rows overflow, at 280px one
    does, at 300px none. Opt-in, and deliberately no wider — an open popover
    covers the palette row beneath it, and every extra 40px hides another chip.
-   The Insert module menu needs none of this: its two compressed descriptions
-   clear the clamp at the shared 260px in all three locales.
    `min(..., 100vw - margin)` keeps the popover inside a narrow viewport,
    where `right: 0` would otherwise push it off the left edge. */
 .menu__pop--wide {
@@ -1324,16 +1423,16 @@ body {
   background: transparent;
   text-align: start;
   font: inherit;
-  color: var(--text-primary);
+  color: var(--ink-1);
   cursor: pointer;
 }
 .menu__item:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
-/* #334 — a row the edit lock turns off (Insert module, the data import
-   wizard): a colour, not `opacity`, so forced colours keeps it (GrayText). */
+/* #334 — a row the edit lock turns off (Insert saved structure, the data
+   import wizard): a colour, not `opacity`, so forced colours keeps it (GrayText). */
 .menu__item:disabled {
-  color: var(--text-disabled);
+  color: var(--ink-disabled);
   cursor: default;
   background: transparent;
 }
@@ -1347,7 +1446,7 @@ body {
 .menu__divider {
   height: 1px;
   margin: 4px 2px;
-  background: var(--line-hairline);
+  background: var(--line-1);
   flex-shrink: 0;
 }
 /* a menu row that is an external link (e.g. Send feedback) — kill the UA
@@ -1362,7 +1461,7 @@ a.sheet__row {
 .menu__ext {
   margin-inline-start: 3px;
   font-weight: 400;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .menu__name {
   font-weight: 600;
@@ -1372,10 +1471,10 @@ a.sheet__row {
 .menu__blurb {
   font-size: 12.5px;
   line-height: 1.35;
-  /* `--text-tertiary` measured 4.26:1 on `--surface-overlay` in light, under
-     the 4.5:1 body-text floor; `--text-secondary` is 6.68:1. No new token. */
-  color: var(--text-secondary);
-  /* Templates / Insert module descriptions read like a document at full
+  /* `--ink-3` measured 4.26:1 on `--bg-overlay` in light, under
+     the 4.5:1 body-text floor; `--ink-2` is 6.68:1. No new token. */
+  color: var(--ink-2);
+  /* Templates descriptions read like a document at full
      length — cap at 2 lines everywhere (harmless for the already-short
      Export/Data blurbs) so a menu stays scannable. Wrapping is per-language
      — see §DESCRIPTIVE-WRAP below. */
@@ -1437,12 +1536,12 @@ a.sheet__row {
   background: transparent;
   text-align: start;
   font: inherit;
-  color: var(--text-primary);
+  color: var(--ink-1);
   cursor: pointer;
 }
 .settings-row:hover,
 .settings-row:focus-visible {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 .settings-row__label {
   font-weight: 600;
@@ -1450,7 +1549,7 @@ a.sheet__row {
 }
 .settings-row__value {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   white-space: nowrap;
 }
 /* Theme's and Language's row-variant submenus (both `.lang-menu__pop`, since
@@ -1470,15 +1569,15 @@ a.sheet__row {
 .share-pop__status {
   font-size: 11px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .share-pop__url {
   width: 100%;
   padding: 6px 8px;
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--text-primary);
-  background: var(--surface-sunken);
+  color: var(--ink-1);
+  background: var(--bg-field);
   border: 1px solid var(--line-control);
   border-radius: var(--control-radius);
 }
@@ -1488,15 +1587,15 @@ a.sheet__row {
 }
 
 .btn--ghost:hover {
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
-/* §VL8 — a hovered ghost button draws `--line-strong`, the structural hover
+/* §VL8 — a hovered ghost button draws `--line-3`, the structural hover
    line, NOT the control-boundary token: a ghost carries no border at rest, so
    its hover line is an appearing edge rather than a boundary that has to stay
    legible. This needs its own (0,3,0) rule only to outrank the shared
    `.btn:hover:not(:disabled)`. */
 .btn--ghost:hover:not(:disabled) {
-  border-color: var(--line-strong);
+  border-color: var(--line-3);
 }
 
 /* ---- canvas column ---- */
@@ -1547,10 +1646,10 @@ a.sheet__row {
 .react-flow {
   --ls-canvas-dir: owned;
   direction: ltr;
-  background: var(--surface-canvas);
+  background: var(--bg-canvas);
 }
 .react-flow__background circle {
-  fill: var(--canvas-grid);
+  fill: var(--grid);
 }
 /* keep edges from thinning to sub-pixel when zoomed out */
 .react-flow__edge-path {
@@ -1563,7 +1662,7 @@ a.sheet__row {
    — a glyph, present-or-absent, that also carries the accessible name). The
    waypoint value is still kept on the wire. */
 .react-flow__edge-path.route-invalid {
-  stroke: var(--warning);
+  stroke: var(--warn);
   stroke-dasharray: 6 3;
 }
 /* §LGR9 — the two edge classes (LoopEdge sets exactly one). These used to be
@@ -1582,10 +1681,10 @@ a.sheet__row {
 }
 /* docs/flow-colour-and-compact-nodes.md FC-4.2 — a selected edge keeps its
    colour (flow colour or default) and is shown by this underlay: a wider,
-   translucent `--state-selected` stroke beneath the path */
+   translucent `--sel` stroke beneath the path */
 .edge-select-underlay {
   fill: none;
-  stroke: var(--state-selected);
+  stroke: var(--sel);
   stroke-width: 7;
   stroke-opacity: 0.38;
   stroke-linecap: round;
@@ -1601,16 +1700,40 @@ a.sheet__row {
 .react-flow__edge.lgr-deemph .edge-select-underlay {
   opacity: 0.26;
 }
+/* docs/edge-routing.md §ER15.2 — the leader of a label placed beside its line:
+   the chip's own neutral (its border's), solid, thin, short, no marker — it
+   must not read as a connection, and it takes no pointer events */
+.edge-leader {
+  pointer-events: none;
+}
+.edge-leader__tick {
+  fill: none;
+  stroke: var(--line-3);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.edge-leader__dot {
+  fill: var(--line-3);
+}
+@media (forced-colors: active) {
+  /* name the system colour rather than rely on the UA recolouring the paint */
+  .edge-leader__tick {
+    stroke: CanvasText;
+  }
+  .edge-leader__dot {
+    fill: CanvasText;
+  }
+}
 .route-invalid-flag {
   pointer-events: none;
 }
 .route-invalid-flag circle {
-  fill: var(--surface-raised);
-  stroke: var(--warning);
+  fill: var(--bg-raise);
+  stroke: var(--warn);
   stroke-width: 1.5;
 }
 .route-invalid-flag text {
-  fill: var(--warning);
+  fill: var(--warn);
   font: 700 11px var(--font-sans);
 }
 /* issue #344 §DL3.6 — smart guides (SmartGuideLayer.tsx): a dashed placement
@@ -1627,7 +1750,7 @@ a.sheet__row {
   z-index: 4;
 }
 .smart-guide {
-  stroke: var(--line-focus);
+  stroke: var(--focus);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
   stroke-dasharray: 4 4;
@@ -1656,21 +1779,21 @@ a.sheet__row {
   height: 12px;
   padding: 0;
   margin: 0;
-  border: 2px solid var(--line-focus);
+  border: 2px solid var(--focus);
   border-radius: 2px;
-  background: var(--surface-raised);
+  background: var(--bg-raise);
   pointer-events: all;
   cursor: move;
   z-index: 1;
 }
 .route-bend:focus-visible,
 .route-bend.is-focused {
-  outline: 2px solid var(--focus-ring);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 .route-bend.is-invalid {
   border-style: dashed;
-  border-color: var(--warning);
+  border-color: var(--warn);
 }
 @media (forced-colors: active) {
   .route-bend {
@@ -1702,7 +1825,7 @@ a.sheet__row {
   transform-origin: 0 0;
 }
 .end-grip:focus-visible {
-  outline: 2px solid var(--focus-ring);
+  outline: 2px solid var(--focus);
   outline-offset: 0;
   border-radius: 50%;
 }
@@ -1713,8 +1836,8 @@ a.sheet__row {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  border: 1.5px dashed var(--line-focus);
-  background: var(--surface-raised);
+  border: 1.5px dashed var(--focus);
+  background: var(--bg-raise);
   pointer-events: none;
   transform-origin: 0 0;
 }
@@ -1725,11 +1848,11 @@ a.sheet__row {
   position: absolute;
   z-index: 6;
   padding: 6px 8px 8px;
-  border: 1px solid var(--line-container);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius);
-  background: var(--surface-overlay);
-  color: var(--text-primary);
-  box-shadow: var(--elev-overlay);
+  background: var(--bg-overlay);
+  color: var(--ink-1);
+  box-shadow: var(--shadow-overlay);
   font-size: 12px;
 }
 .end-popover__title {
@@ -1741,7 +1864,7 @@ a.sheet__row {
   white-space: nowrap;
 }
 .end-popover__end {
-  color: var(--text-secondary);
+  color: var(--ink-2);
   font-weight: 600;
 }
 .end-popover__node {
@@ -1777,18 +1900,18 @@ a.sheet__row {
   line-height: 16px;
   border: 1px solid var(--line-control);
   border-radius: var(--control-radius);
-  background: var(--surface-raised);
-  color: var(--text-primary);
+  background: var(--bg-raise);
+  color: var(--ink-1);
   cursor: pointer;
   white-space: nowrap;
 }
 .end-popover__side[aria-pressed='true'] {
-  border-color: var(--line-focus);
-  box-shadow: inset 0 0 0 1px var(--line-focus);
+  border-color: var(--focus);
+  box-shadow: inset 0 0 0 1px var(--focus);
   font-weight: 600;
 }
 .end-popover__side:focus-visible {
-  outline: 2px solid var(--focus-ring);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 /* a touch pointer anywhere (`data-coarse`, set from `(any-pointer: coarse)` by
@@ -1815,11 +1938,11 @@ a.sheet__row {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  border: 2px solid var(--line-focus);
-  background: var(--surface-raised);
+  border: 2px solid var(--focus);
+  background: var(--bg-raise);
 }
 .end-grip:hover .end-grip__dot {
-  background: var(--line-focus);
+  background: var(--focus);
 }
 @media (forced-colors: active) {
   .end-grip__dot {
@@ -1830,24 +1953,25 @@ a.sheet__row {
     background: Highlight;
   }
 }
-/* Under `forced-colors: active` the UA force-adjusts these SVG `fill` / `stroke`
-   values to system colours automatically (the same path the Canvas Visual
-   Refresh relies on — no `@media` block, see scripts/check-mobile-query.mjs).
-   The non-colour tell is the `!` GLYPH itself: present on an invalid route,
-   absent otherwise. */
+/* The route-invalid `!` flag (`.route-invalid-flag`) has no forced-colours rule. This comment
+   used to say the UA recolours its SVG `fill` / `stroke` automatically; that
+   was not confirmed. The node rings' strokes were observed to keep their token
+   colours under forced colours (Chromium, Playwright emulation, 2026-10-22),
+   and the flag's own paint was not measured. The non-colour tell is the `!`
+   GLYPH itself: present on an invalid route, absent otherwise. */
 /* §VL6 — the direction marker (src/components/edges/EdgeMarkers.tsx). The
    renderer draws it, not React Flow, so it is tokenised — holds contrast in
    BOTH themes — and tracks the edge class it terminates. Its orientation is the
    direction cue and is never removed. */
 .loop-arrow path {
-  fill: var(--edge-resource);
+  fill: var(--m-flow);
   stroke: none;
 }
 .loop-arrow--state path {
-  fill: var(--edge-state);
+  fill: var(--m-condition);
 }
 .loop-arrow--selected path {
-  fill: var(--edge-selected);
+  fill: var(--sel);
 }
 /* docs/flow-colour-and-compact-nodes.md FC-4.2 — an edge with a flow colour */
 .loop-arrow--accent path {
@@ -1856,22 +1980,23 @@ a.sheet__row {
 @media (forced-colors: active) {
   /* FC-3.4 — no flow colour: the arrow takes the edge-class colour back */
   .loop-arrow--accent path {
-    fill: var(--edge-resource);
+    fill: var(--m-flow);
   }
 }
 .react-flow__attribution {
   background: transparent;
   font-size: 10px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 
 /* React Flow secondary UI — map its internals to tokens. The minimap has to be
    *navigable*: node hues carry (via MiniMap nodeColor / nodeStrokeColor props),
-   the viewport rectangle reads as the signal colour, and everything outside it
-   is dimmed by a translucent mask. */
+   the viewport rectangle is a strong neutral outline (colour review A, step 3:
+   it is "where you are", not a run, and a hue would blend with the node
+   fills), and everything outside it is dimmed by a translucent mask. */
 .react-flow__minimap {
-  background: var(--surface-raised);
-  border: 1px solid var(--line-structure);
+  background: var(--bg-raise);
+  border: 1px solid var(--line-2);
   border-radius: 6px;
   cursor: grab;
 }
@@ -1896,15 +2021,15 @@ a.sheet__row {
   height: 22px;
   top: 4px;
   right: 4px;
-  background: var(--surface-raised);
-  color: var(--text-secondary);
+  background: var(--bg-raise);
+  color: var(--ink-2);
   border: 1px solid var(--line-control);
   border-radius: 4px;
   cursor: pointer;
 }
 .minimap-toggle:hover {
-  background: var(--surface-hover);
-  color: var(--text-primary);
+  background: var(--bg-hover);
+  color: var(--ink-1);
 }
 .minimap-toggle.is-collapsed {
   top: auto;
@@ -1930,8 +2055,10 @@ a.sheet__row {
 .react-flow__minimap-mask {
   fill: var(--minimap-mask);
   fill-opacity: 1;
-  stroke: var(--signal-primary);
-  stroke-width: 1;
+  stroke: var(--ink-2); /* = MinimapDock's maskStrokeColor */
+  /* no stroke-width here: a width in this rule is in the minimap's flow units
+     (about 1/24 px on screen for a large graph); React Flow sets the
+     screen-constant width from MinimapDock's maskStrokeWidth (2026-10-21) */
 }
 /* node fill/stroke are set inline by the MiniMap nodeColor / nodeStrokeColor
    props (per node kind); only the fill opacity is left to CSS */
@@ -1939,16 +2066,16 @@ a.sheet__row {
   fill-opacity: 0.8;
 }
 .react-flow__controls {
-  border: 1px solid var(--line-hairline);
+  border: 1px solid var(--line-1);
   box-shadow: none;
 }
 .react-flow__controls-button {
-  background: var(--surface-raised);
-  color: var(--text-secondary);
-  border-bottom-color: var(--line-hairline);
+  background: var(--bg-raise);
+  color: var(--ink-2);
+  border-bottom-color: var(--line-1);
 }
 .react-flow__controls-button:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 .react-flow__controls-button svg {
   fill: currentColor;
@@ -1959,8 +2086,8 @@ a.sheet__row {
    hover fill. Keyboard focus never lands on it (`disabled` leaves Tab). */
 .react-flow__controls-button:disabled,
 .react-flow__controls-button:disabled:hover {
-  color: var(--text-disabled);
-  background: var(--surface-raised);
+  color: var(--ink-disabled);
+  background: var(--bg-raise);
   cursor: default;
 }
 @media (forced-colors: active) {
@@ -1987,7 +2114,7 @@ a.sheet__row {
      measured body height, capped per kind) and the vessel is redrawn at it. */
   font-family: var(--font-sans);
   font-size: 12px;
-  filter: var(--elev-node);
+  filter: var(--shadow-node);
 }
 .nodef--gate {
   min-width: 134px;
@@ -2001,13 +2128,13 @@ a.sheet__row {
   overflow: visible;
 }
 .nodef__fill {
-  fill: var(--surface-raised);
+  fill: var(--bg-node);
 }
 /* docs/visual-language.md §VL0 follow-up — the node-type hue wash: a faint
    ambient fill (see --node-hue-opacity) drawn between the plain fill and the
    Activity overlay, so a currently-active node's Activity tint always reads
    as the stronger signal. Parameter / Register carry no flow hue (§VL0
-   `--node-hue` is `--line-structure` there), so this renders as a neutral,
+   `--node-hue` is `--line-2` there), so this renders as a neutral,
    effectively invisible wash on annotation nodes — no special-casing needed.
    Shape + the existing `.nodef__chip` stay the primary, colour-independent
    type tell; this is a secondary assist only. */
@@ -2026,12 +2153,12 @@ a.sheet__row {
 }
 .nodef__stroke {
   fill: none;
-  stroke: var(--line-structure);
+  stroke: var(--line-2);
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
 }
 .nodef__endbar {
-  stroke: var(--line-structure);
+  stroke: var(--line-2);
   stroke-width: 3;
   vector-effect: non-scaling-stroke;
 }
@@ -2042,7 +2169,7 @@ a.sheet__row {
    so no stroke-width here. Never removed by animation. */
 .nodef__sel {
   fill: none;
-  stroke: var(--state-selected);
+  stroke: var(--sel);
   vector-effect: non-scaling-stroke;
 }
 /* docs/flow-colour-and-compact-nodes.md FC-4.1 — the flow-colour band, just
@@ -2068,8 +2195,8 @@ a.sheet__row {
     /* FC-4.3 — the node's OWN run cues (fired wave and ticks, arrival tint,
        conversion mark) take its flow colour; an incoming connection's colour
        never reaches them */
-    --state-fired: var(--node-accent);
-    --state-arrival: var(--node-accent);
+    --accent: var(--node-accent);
+    --accent: var(--node-accent);
   }
   /* FC-4.3 — the neutral case of a node's own cue whose colour is under 3:1
      where the cue is drawn (nodes.tsx `data-run-case`: `out` on the canvas,
@@ -2080,22 +2207,22 @@ a.sheet__row {
      the body is not greyed */
   .nodef__fired-case {
     fill: none;
-    stroke: var(--line-strong);
+    stroke: var(--line-3);
     stroke-linecap: butt;
     vector-effect: non-scaling-stroke;
     pointer-events: none;
   }
   .nodef__wave.nodef__wave-case {
-    stroke: var(--line-strong);
+    stroke: var(--line-3);
     stroke-width: 3.5;
   }
   .nodef__conv path.nodef__conv-case {
-    stroke: var(--line-strong);
+    stroke: var(--line-3);
     stroke-width: 2.4;
   }
   .nodef[data-run-case~='in'] .nodef__pulse-line {
     display: inline;
-    stroke: var(--line-strong);
+    stroke: var(--line-3);
     stroke-width: 16;
   }
   .nodef.has-accent .nodef__chip {
@@ -2107,7 +2234,7 @@ a.sheet__row {
    outline and every run / selection / focus cue. Transient preview only. */
 .nodef__peek {
   fill: none;
-  stroke: var(--state-focus);
+  stroke: var(--focus);
   stroke-width: 7;
   stroke-opacity: 0.32;
   stroke-linejoin: round;
@@ -2134,7 +2261,7 @@ a.sheet__row {
    the non-colour tell. Width and distance: `NODE_RINGS` in nodes.tsx. */
 .nodef__focus {
   fill: none;
-  stroke: var(--state-focus);
+  stroke: var(--focus);
   stroke-dasharray: 3 2.5;
   vector-effect: non-scaling-stroke;
 }
@@ -2143,7 +2270,7 @@ a.sheet__row {
    pattern + the corner flag are the non-colour tell (§VL3 / §VL4). */
 .nodef--parameter,
 .nodef--register {
-  --node-hue: var(--line-structure); /* annotation nodes carry no flow hue */
+  --node-hue: var(--line-2); /* annotation nodes carry no flow hue */
 }
 .nodef--parameter .nodef__stroke,
 .nodef--register .nodef__stroke {
@@ -2154,9 +2281,25 @@ a.sheet__row {
 }
 .nodef__invalid {
   fill: none;
-  stroke: var(--warning);
+  stroke: var(--no); /* an error: the node cannot be read */
   stroke-dasharray: 4 3;
   vector-effect: non-scaling-stroke;
+}
+/* the three state rings under forced colours. Observed in Chromium (Playwright
+   emulation, 2026-10-22): without these rules the three strokes kept their
+   token colours, and the selection and focus rings were one blue. Each names
+   the system colour of its role, as elsewhere in the app (an error CanvasText
+   like `.route-bend.is-invalid`; selection and keyboard focus Highlight like
+   `.lgr-frame`). Width, dash and distance are unchanged: solid vs dashed and
+   inside vs outside, plus the `!` flag, still tell them apart. */
+@media (forced-colors: active) {
+  .nodef__invalid {
+    stroke: CanvasText;
+  }
+  .nodef__sel,
+  .nodef__focus {
+    stroke: Highlight;
+  }
 }
 .nodef__flag {
   position: absolute;
@@ -2171,9 +2314,9 @@ a.sheet__row {
   font-weight: 700;
   font-size: 11px;
   line-height: 1;
-  color: var(--warning);
-  background: var(--surface-raised);
-  border: 1.5px solid var(--warning);
+  color: var(--no); /* an error */
+  background: var(--bg-raise);
+  border: 1.5px solid var(--no);
   border-radius: 50%;
   pointer-events: none;
 }
@@ -2191,8 +2334,8 @@ a.sheet__row {
   bottom: -3px;
   width: 11px;
   height: 11px;
-  border-left: 1.75px solid var(--text-secondary);
-  border-bottom: 1.75px solid var(--text-secondary);
+  border-left: 1.75px solid var(--ink-2);
+  border-bottom: 1.75px solid var(--ink-2);
   border-bottom-left-radius: 6px;
   opacity: 0.9;
   pointer-events: none;
@@ -2207,7 +2350,7 @@ a.sheet__row {
 /* state: fired — diffusing pulse, outside the selection ring, one step */
 .nodef__wave {
   fill: none;
-  stroke: var(--state-fired);
+  stroke: var(--accent);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
   transform-box: fill-box;
@@ -2237,7 +2380,7 @@ a.sheet__row {
   pointer-events: none;
 }
 .nodef__pulse-tint {
-  fill: var(--state-arrival);
+  fill: var(--accent);
   fill-opacity: 0.16;
   stroke: none;
 }
@@ -2269,7 +2412,7 @@ a.sheet__row {
 }
 .nodef__conv path {
   fill: none;
-  stroke: var(--state-arrival);
+  stroke: var(--accent);
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -2461,28 +2604,28 @@ a.sheet__row {
 }
 /* the one place a node's type colour appears at normal zoom */
 .nodef--pool {
-  --node-hue: var(--hue-pool);
+  --node-hue: var(--k-pool);
 }
 .nodef--source {
-  --node-hue: var(--hue-source);
+  --node-hue: var(--k-source);
 }
 .nodef--drain {
-  --node-hue: var(--hue-drain);
+  --node-hue: var(--k-drain);
 }
 .nodef--gate {
-  --node-hue: var(--hue-gate);
+  --node-hue: var(--k-gate);
 }
 .nodef--converter {
-  --node-hue: var(--hue-converter);
+  --node-hue: var(--k-converter);
 }
 .nodef--end {
-  --node-hue: var(--hue-end);
+  --node-hue: var(--k-end);
 }
 .nodef__chip {
   width: 8px;
   height: 8px;
   border-radius: 2px;
-  background: var(--node-hue, var(--line-strong));
+  background: var(--node-hue, var(--line-3));
   opacity: 1;
   flex: none;
 }
@@ -2491,7 +2634,7 @@ a.sheet__row {
   font-weight: 600;
   font-size: 14px;
   line-height: 1.15;
-  color: var(--text-primary);
+  color: var(--ink-1);
   min-width: 0;
   /* docs/mmo-multilingual-layout.md §MML1 — up to two lines at a ~135px
      soft-max; a title that will not fit in two lines widens the line rather
@@ -2536,7 +2679,7 @@ a.sheet__row {
   font-family: var(--font-mono);
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--ink-1);
   font-variant-numeric: tabular-nums;
   display: inline-block;
   max-width: 100%;
@@ -2558,7 +2701,7 @@ a.sheet__row {
   font-family: var(--font-sans);
   font-weight: 500;
   font-size: 12px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 @keyframes nodeBump {
   from {
@@ -2571,7 +2714,7 @@ a.sheet__row {
 .nodef__sub {
   font-family: var(--font-sans);
   font-weight: 400;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
   font-size: 12px;
   line-height: 1.25;
   overflow: hidden;
@@ -2591,15 +2734,15 @@ a.sheet__row {
 }
 /* half a step stronger so the outline reads without colour at L0 map zoom */
 .nodef.lod-L0 .nodef__stroke {
-  stroke: var(--line-strong);
+  stroke: var(--line-3);
   stroke-width: 2;
 }
 .nodef.lod-L0 .nodef__endbar {
-  stroke: var(--line-strong);
+  stroke: var(--line-3);
   stroke-width: 4;
 }
 .nodef__cdot {
-  fill: var(--node-hue, var(--line-strong));
+  fill: var(--node-hue, var(--line-3));
   opacity: 1;
 }
 
@@ -2656,7 +2799,8 @@ a.sheet__row {
   opacity: 0.5;
 }
 .react-flow__edge.lgr-deemph .react-flow__edge-path {
-  opacity: 0.26;
+  /* per theme, measured against the dot grid (the token's comment) */
+  opacity: var(--dim-opacity);
 }
 .react-flow__edge.lgr-deemph {
   pointer-events: none;
@@ -2682,9 +2826,9 @@ a.sheet__row {
    glyph, a soft-tint fill, and a persistent inset ring (kept on hover). */
 .react-flow__controls-button.rf-focus[aria-pressed='true'],
 .react-flow__controls-button.rf-focus[aria-pressed='true']:hover {
-  color: var(--signal-primary);
-  background: var(--signal-primary-soft);
-  box-shadow: inset 0 0 0 2px var(--signal-primary);
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* the "arm" hint — shown only while Focus is ON but nothing is selected, so the
@@ -2692,14 +2836,14 @@ a.sheet__row {
    takes the pointer, never shifts layout. */
 .lgr-focus-hint {
   pointer-events: none;
-  background: var(--surface-raised);
-  border: 1px solid var(--signal-primary);
-  color: var(--text-secondary);
+  background: var(--bg-raise);
+  border: 1px solid var(--accent);
+  color: var(--ink-2);
   border-radius: 6px;
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 600;
-  box-shadow: var(--elev-label);
+  box-shadow: var(--shadow-label);
 }
 /* docs/large-graph-readability.md §LGR12.3 — how many nodes are selected. NOT a
    canvas overlay (measured: a bottom-centre panel covered the bottom node row
@@ -2711,10 +2855,10 @@ a.sheet__row {
   flex: none;
   margin: 0;
   padding: 6px 14px;
-  background: var(--surface-raised);
-  border-top: 1px solid var(--line-hairline);
-  border-bottom: 1px solid var(--state-selected);
-  color: var(--text-secondary);
+  background: var(--bg-raise);
+  border-top: 1px solid var(--line-1);
+  border-bottom: 1px solid var(--sel);
+  color: var(--ink-2);
   font-size: 12px;
   font-weight: 600;
   line-height: 1.4;
@@ -2722,7 +2866,7 @@ a.sheet__row {
 .lgr-selection-count--sheet {
   margin: 0 0 10px;
   padding: 6px 10px;
-  border: 1px solid var(--state-selected);
+  border: 1px solid var(--sel);
   border-radius: 6px;
 }
 /* docs/…-auto-frames.md §AF9.2 — the "structural, not domain meaning" note that
@@ -2732,15 +2876,15 @@ a.sheet__row {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--surface-raised);
-  border: 1px dashed var(--line-strong);
-  color: var(--text-secondary);
+  background: var(--bg-raise);
+  border: 1px dashed var(--line-3);
+  color: var(--ink-2);
   border-radius: 6px;
   padding: 4px 6px 4px 10px;
   font-size: 12px;
   max-width: 360px;
   text-align: center;
-  box-shadow: var(--elev-label);
+  box-shadow: var(--shadow-label);
 }
 .lgr-suggest-note__x {
   pointer-events: auto;
@@ -2750,13 +2894,13 @@ a.sheet__row {
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   font-size: 11px;
   line-height: 1;
   cursor: pointer;
 }
 .lgr-suggest-note__x:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 /* docs/contextual-inline-help.md §CIH2 — the shared situational-hint note.
@@ -2767,15 +2911,15 @@ a.sheet__row {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--surface-raised);
-  border: 1px dashed var(--line-strong);
-  color: var(--text-secondary);
+  background: var(--bg-raise);
+  border: 1px dashed var(--line-3);
+  color: var(--ink-2);
   border-radius: 6px;
   padding: 4px 6px 4px 10px;
   font-size: 12px;
   max-width: 360px;
   text-align: center;
-  box-shadow: var(--elev-label);
+  box-shadow: var(--shadow-label);
 }
 /* the dialog/sheet-embedded shape — a block inside an already-scrolling
    body, so it grows to the container width instead of capping at 360px. */
@@ -2791,13 +2935,13 @@ a.sheet__row {
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   font-size: 11px;
   line-height: 1;
   cursor: pointer;
 }
 .hint-note__x:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 /* docs/large-graph-readability.md §LGR3.2 — the transient-filter panel. A React
@@ -2825,10 +2969,10 @@ a.sheet__row {
   max-height: calc(100% - 30px); /* 15px top gap + 15px above the Timeline */
   display: flex;
   flex-direction: column;
-  background: var(--surface-raised);
-  border: 1px solid var(--line-strong);
+  background: var(--bg-raise);
+  border: 1px solid var(--line-3);
   border-radius: var(--radius);
-  box-shadow: var(--elev-panel, var(--elev-overlay));
+  box-shadow: var(--shadow-overlay);
   font-size: 12px;
   overflow: hidden;
 }
@@ -2838,23 +2982,23 @@ a.sheet__row {
   align-items: center;
   justify-content: space-between;
   padding: 6px 8px 6px 10px;
-  border-bottom: 1px solid var(--line-hairline);
+  border-bottom: 1px solid var(--line-1);
 }
 .lgr-filter__title {
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .lgr-filter__x {
   border: 0;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
   padding: 2px 4px;
 }
 .lgr-filter__x:hover {
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .lgr-filter__body {
   overflow-y: auto;
@@ -2868,7 +3012,7 @@ a.sheet__row {
 }
 .lgr-filter__hint {
   margin: 0 0 6px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   font-size: 11px;
 }
 .lgr-filter__group {
@@ -2878,7 +3022,7 @@ a.sheet__row {
 }
 .lgr-filter__group legend {
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   text-transform: uppercase;
   letter-spacing: 0.03em;
   font-size: 10px;
@@ -2891,7 +3035,7 @@ a.sheet__row {
   gap: 6px;
   padding: 2px 0;
   cursor: pointer;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .lgr-filter__row input {
   margin: 0;
@@ -2909,10 +3053,10 @@ a.sheet__row {
   gap: 8px;
   margin-top: 4px;
   padding-top: 6px;
-  border-top: 1px solid var(--line-hairline);
+  border-top: 1px solid var(--line-1);
 }
 .lgr-filter__count {
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .lgr-filter__clear {
   padding: 3px 8px;
@@ -2924,9 +3068,9 @@ a.sheet__row {
    `outline` fallback under a forced-colors override. */
 .react-flow__controls-button.rf-filter[aria-pressed='true'],
 .react-flow__controls-button.rf-filter[aria-pressed='true']:hover {
-  color: var(--signal-primary);
-  background: var(--signal-primary-soft);
-  box-shadow: inset 0 0 0 2px var(--signal-primary);
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* ── docs/large-graph-readability.md §LGR6 — transient group frames ──────────
@@ -2953,10 +3097,12 @@ a.sheet__row {
   overflow: visible;
   pointer-events: none;
 }
+/* the Neutral (no colour chosen) frame: a grey wash (colour review A, step 3 —
+   teal is the run colour; a frame is not running) */
 .lgr-frame__fill {
-  fill: var(--signal-primary);
+  fill: var(--ink-3);
   fill-opacity: 0.05;
-  stroke: var(--line-strong);
+  stroke: var(--line-3);
   stroke-width: 1.5;
   stroke-opacity: 0.5;
   vector-effect: non-scaling-stroke;
@@ -2969,24 +3115,24 @@ a.sheet__row {
   stroke-opacity: 0.7;
 }
 .lgr-frame__fill[data-color='slate'] {
-  fill: var(--frame-accent-slate);
-  stroke: var(--frame-accent-slate);
+  fill: var(--frame-slate);
+  stroke: var(--frame-slate);
 }
 .lgr-frame__fill[data-color='sage'] {
-  fill: var(--frame-accent-sage);
-  stroke: var(--frame-accent-sage);
+  fill: var(--frame-sage);
+  stroke: var(--frame-sage);
 }
 .lgr-frame__fill[data-color='gold'] {
-  fill: var(--frame-accent-gold);
-  stroke: var(--frame-accent-gold);
+  fill: var(--frame-gold);
+  stroke: var(--frame-gold);
 }
 .lgr-frame__fill[data-color='violet'] {
-  fill: var(--frame-accent-violet);
-  stroke: var(--frame-accent-violet);
+  fill: var(--frame-violet);
+  stroke: var(--frame-violet);
 }
 .lgr-frame__fill[data-color='rose'] {
-  fill: var(--frame-accent-rose);
-  stroke: var(--frame-accent-rose);
+  fill: var(--frame-rose);
+  stroke: var(--frame-rose);
 }
 /* §FC3 — selection is its OWN channel (a dashed outline on the chrome, below)
    plus a weight + opacity bump here, in WHATEVER colour the frame already is —
@@ -3041,13 +3187,13 @@ a.sheet__row {
   content: '';
   position: absolute;
   inset: -2px;
-  border: 2px solid var(--state-focus);
+  border: 2px solid var(--focus);
   pointer-events: none;
 }
 /* §FC3 — the selection tell is a dashed OUTLINE (its own channel, orthogonal to
    the accent border colour, and it survives forced-colors). */
 .lgr-frame.is-selected {
-  outline: 2px dashed var(--state-focus);
+  outline: 2px dashed var(--focus);
   outline-offset: 3px;
 }
 .lgr-frame__edge-hit {
@@ -3090,9 +3236,9 @@ a.sheet__row {
   font-size: 11px;
   font-weight: 600;
   line-height: 1.4;
-  color: var(--text-secondary);
-  background: var(--surface-raised);
-  border: 1px solid var(--line-hairline);
+  color: var(--ink-2);
+  background: var(--bg-raise);
+  border: 1px solid var(--line-1);
   border-bottom: none;
   border-radius: 4px 4px 0 0;
   white-space: nowrap;
@@ -3109,36 +3255,33 @@ a.sheet__row {
 .lgr-frame__label.is-inside {
   transform: none;
   border-top: none;
-  border-bottom: 1px solid var(--line-hairline);
+  border-bottom: 1px solid var(--line-1);
   border-radius: 0 0 4px 4px;
 }
 /* §FC10 — while its popover is open the chip reads as pressed, so the anchor
    the panel belongs to is never ambiguous on a canvas full of frames. */
 .lgr-frame__label.is-open {
-  background: var(--surface-sunken);
-  box-shadow: inset 0 0 0 1px var(--state-focus);
+  background: var(--bg-field);
+  box-shadow: inset 0 0 0 1px var(--focus);
 }
-/* §FC2 — an accented frame tints its label chip (text + border) with the same
-   accent. Selection no longer recolours the label — the outline is the tell. */
+/* §FC2 — an accented frame tints its label chip's BORDER with the same accent;
+   the title's words stay in the chip's own ink (2026-10-21: as text the five
+   accents read 3.3–4.0:1 on the chip in light). Selection no longer recolours
+   the label — the outline is the tell. */
 .lgr-frame[data-color='slate'] .lgr-frame__label {
-  color: var(--frame-accent-slate);
-  border-color: var(--frame-accent-slate);
+  border-color: var(--frame-slate);
 }
 .lgr-frame[data-color='sage'] .lgr-frame__label {
-  color: var(--frame-accent-sage);
-  border-color: var(--frame-accent-sage);
+  border-color: var(--frame-sage);
 }
 .lgr-frame[data-color='gold'] .lgr-frame__label {
-  color: var(--frame-accent-gold);
-  border-color: var(--frame-accent-gold);
+  border-color: var(--frame-gold);
 }
 .lgr-frame[data-color='violet'] .lgr-frame__label {
-  color: var(--frame-accent-violet);
-  border-color: var(--frame-accent-violet);
+  border-color: var(--frame-violet);
 }
 .lgr-frame[data-color='rose'] .lgr-frame__label {
-  color: var(--frame-accent-rose);
-  border-color: var(--frame-accent-rose);
+  border-color: var(--frame-rose);
 }
 @media (forced-colors: active) {
   /* accent dropped — the label falls back to the system palette */
@@ -3170,12 +3313,19 @@ a.sheet__row {
   justify-content: center;
   font-size: 10px;
   line-height: 1;
-  color: var(--warning);
-  background: var(--surface-raised);
-  border: 1px solid var(--warning);
+  /* a destructive control (colour review A, step 2): neutral at rest, the
+     error colour once it is pointed at or keyboard-focused */
+  color: var(--ink-2);
+  background: var(--bg-raise);
+  border: 1px solid var(--line-control);
   border-radius: 50%;
   cursor: pointer;
   pointer-events: auto;
+}
+.lgr-frame__del:hover,
+.lgr-frame__del:focus-visible {
+  color: var(--no);
+  border-color: var(--no);
 }
 .lgr-frame__resize {
   position: absolute;
@@ -3188,8 +3338,10 @@ a.sheet__row {
   padding: 0;
   background: none;
   border: 0;
-  border-right: 2px solid var(--signal-primary);
-  border-bottom: 2px solid var(--signal-primary);
+  /* a strong neutral (colour review A, step 3): it sits on the selected
+     frame's blue dashed outline, so a blue corner read as part of that outline */
+  border-right: 2px solid var(--ink-2);
+  border-bottom: 2px solid var(--ink-2);
   border-bottom-right-radius: 4px;
   cursor: nwse-resize;
   pointer-events: auto;
@@ -3208,10 +3360,10 @@ a.sheet__row {
   flex-direction: column;
   gap: 8px;
   padding: 10px;
-  background: var(--surface-overlay);
-  border: 1px solid var(--line-container);
+  background: var(--bg-overlay);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius);
-  box-shadow: var(--elev-overlay);
+  box-shadow: var(--shadow-overlay);
 }
 .lgr-frame-props__field {
   display: flex;
@@ -3222,16 +3374,16 @@ a.sheet__row {
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .lgr-frame-props__name {
   width: 180px;
   padding: 4px 6px;
   font-family: var(--font-sans);
   font-size: 12px;
-  color: var(--text-primary);
-  background: var(--surface-sunken);
-  border: 1px solid var(--line-strong);
+  color: var(--ink-1);
+  background: var(--bg-field);
+  border: 1px solid var(--line-3);
   border-radius: var(--control-radius);
 }
 /* §FC4 — the accent row, left-aligned under the name input */
@@ -3248,41 +3400,41 @@ a.sheet__row {
   width: 14px;
   height: 14px;
   padding: 0;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line-3);
   border-radius: 50%;
   cursor: pointer;
-  background: var(--surface-sunken);
+  background: var(--bg-field);
 }
 /* neutral = a small diagonal so it is not just "empty" */
 .lgr-frame__swatch:not([data-color]) {
   background-image: linear-gradient(
     135deg,
     transparent 45%,
-    var(--line-strong) 45%,
-    var(--line-strong) 55%,
+    var(--line-3) 45%,
+    var(--line-3) 55%,
     transparent 55%
   );
 }
 .lgr-frame__swatch[data-color='slate'] {
-  background: var(--frame-accent-slate);
+  background: var(--frame-slate);
 }
 .lgr-frame__swatch[data-color='sage'] {
-  background: var(--frame-accent-sage);
+  background: var(--frame-sage);
 }
 .lgr-frame__swatch[data-color='gold'] {
-  background: var(--frame-accent-gold);
+  background: var(--frame-gold);
 }
 .lgr-frame__swatch[data-color='violet'] {
-  background: var(--frame-accent-violet);
+  background: var(--frame-violet);
 }
 .lgr-frame__swatch[data-color='rose'] {
-  background: var(--frame-accent-rose);
+  background: var(--frame-rose);
 }
 /* §FC4 — a NON-hue "active" tell (a ring) for forced-colors + colour-blind use */
 .lgr-frame__swatch.is-active {
   box-shadow:
-    0 0 0 2px var(--surface-raised),
-    0 0 0 3px var(--text-primary);
+    0 0 0 2px var(--bg-raise),
+    0 0 0 3px var(--ink-1);
 }
 @media (forced-colors: active) {
   .lgr-frame__swatch {
@@ -3304,9 +3456,9 @@ a.sheet__row {
 .react-flow__controls-button.rf-activity[aria-pressed='true']:hover,
 .react-flow__controls-button.rf-lock[aria-pressed='true'],
 .react-flow__controls-button.rf-lock[aria-pressed='true']:hover {
-  color: var(--signal-primary);
-  background: var(--signal-primary-soft);
-  box-shadow: inset 0 0 0 2px var(--signal-primary);
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 /* §LGR9 — a UA colour override drops `box-shadow` and the token fill, so the
    ON state would lose its tell. The pressed tell under forced-colors is the
@@ -3348,7 +3500,7 @@ a.sheet__row {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--signal-primary);
+  background: var(--accent);
 }
 @media (forced-colors: active) {
   .react-flow__controls-button.rf-suggest.is-stale::after {
@@ -3370,14 +3522,14 @@ a.sheet__row {
    overflow the auto-width `.react-flow__node` wrapper; the edge tell is a
    faint primary glow (the path's `stroke` is set inline by `LoopEdge`). On a
    dense/dark graph, many overlapping opaque glows compound into a wash at
-   hub nodes — `--activity-edge-glow` (dark: alpha 0.35) attenuates just that
+   hub nodes — `--accent-glow` (dark: alpha 0.35) attenuates just that
    colour; the radius, the activity math, and the light theme are untouched. */
 .nodef__activity {
-  fill: var(--signal-primary);
+  fill: var(--accent);
   pointer-events: none;
 }
 .react-flow__edge-path.lgr-active-tint {
-  filter: drop-shadow(0 0 calc(var(--lgr-activity, 0) * 26px) var(--activity-edge-glow));
+  filter: drop-shadow(0 0 calc(var(--lgr-activity, 0) * 26px) var(--accent-glow));
 }
 @media (forced-colors: active) {
   /* opacity / a coloured fill is unreliable under a UA colour override — the
@@ -3461,7 +3613,7 @@ a.sheet__row {
 
 /* state: keyboard focus — outer ring, sits beyond the selection outline */
 .react-flow__node:focus-visible {
-  outline: 2px solid var(--state-focus);
+  outline: 2px solid var(--focus);
   outline-offset: 4px;
   border-radius: 4px;
 }
@@ -3470,8 +3622,8 @@ a.sheet__row {
 .react-flow__handle {
   width: 8px;
   height: 8px;
-  background: var(--surface-raised);
-  border: 1.25px solid var(--line-strong);
+  background: var(--bg-raise);
+  border: 1.25px solid var(--line-3);
   border-radius: 999px;
 }
 /* generous invisible hit area (≥16px) without enlarging the mark */
@@ -3488,7 +3640,7 @@ a.sheet__row {
   width: 7px;
   height: 7px;
   border-radius: 1px;
-  border-color: var(--line-structure);
+  border-color: var(--line-2);
   transition: opacity 100ms ease-out;
 }
 .react-flow__handle.h--state.react-flow__handle-top {
@@ -3510,16 +3662,18 @@ a.sheet__row {
   }
 }
 /* hover / active connection — a soft outer halo */
+/* connecting is interaction: the selection blue, not the run colour (colour
+   review A, 2026-10-21) */
 .react-flow__handle:hover {
-  box-shadow: 0 0 0 4px var(--signal-primary-soft);
+  box-shadow: 0 0 0 4px var(--sel-soft);
 }
 .react-flow__handle.connectingfrom,
 .react-flow__handle.connectingto {
-  box-shadow: 0 0 0 4px var(--signal-primary-soft);
+  box-shadow: 0 0 0 4px var(--sel-soft);
 }
 .react-flow__handle.valid {
-  border-color: var(--signal-primary);
-  box-shadow: 0 0 0 3px var(--signal-primary-soft);
+  border-color: var(--sel);
+  box-shadow: 0 0 0 3px var(--sel-soft);
 }
 
 /* ==== flow tokens — T1 Bead, compressing toward T3 at speed ============== */
@@ -3529,14 +3683,14 @@ a.sheet__row {
    Being active is told by motion, weight and contrast, not by a hue change. */
 /* shown only on a selected edge — the flow's start point, not a rest marker */
 .flow-rest {
-  fill: var(--state-selected);
+  fill: var(--sel);
   pointer-events: none;
 }
 .flow-bead {
-  fill: var(--edge-run, var(--flow-strength));
+  fill: var(--edge-run, var(--accent));
 }
 .flow-trail {
-  fill: var(--flow-trail);
+  fill: var(--accent-trail);
 }
 /* docs/simulation-playback.md Slice 2 — the τ-synced choreography token. The
    <g> transform is set every frame from the store's τ; CSS only handles the
@@ -3584,14 +3738,14 @@ a.sheet__row {
   vector-effect: non-scaling-stroke;
 }
 .pb-rm-tell--emit {
-  fill: var(--edge-run, var(--flow-strength));
+  fill: var(--edge-run, var(--accent));
 }
 .pb-rm-tell--converge {
-  fill: var(--edge-run, var(--flow-strength));
+  fill: var(--edge-run, var(--accent));
 }
 .pb-rm-tell--absorb {
   fill: none;
-  stroke: var(--edge-run, var(--flow-strength));
+  stroke: var(--edge-run, var(--accent));
   stroke-width: 1.5;
   stroke-dasharray: 2.5 2;
 }
@@ -3607,7 +3761,7 @@ a.sheet__row {
                     nothing lands). */
 .pb-cue {
   fill: none;
-  stroke: var(--edge-run, var(--flow-strength));
+  stroke: var(--edge-run, var(--accent));
   stroke-width: 1.5;
   pointer-events: none;
   vector-effect: non-scaling-stroke;
@@ -3615,7 +3769,7 @@ a.sheet__row {
 /* converge ends as a filled dot; absorb's ring is dashed. These hold even
    without the keyframes (reduced-motion path renders its own `.pb-rm-tell`). */
 .pb-cue--converge {
-  fill: var(--edge-run, var(--flow-strength));
+  fill: var(--edge-run, var(--accent));
 }
 .pb-cue--absorb {
   stroke-dasharray: 3 2.5;
@@ -3694,7 +3848,7 @@ a.sheet__row {
    the depart → travel → arrive order still reads on the map. No motion; it is
    present only while `phase === "travel"` and clears with the transition. */
 .pb-l0-pulse {
-  stroke: var(--edge-run, var(--flow-strength));
+  stroke: var(--edge-run, var(--accent));
   stroke-width: 3;
   opacity: 0.6;
   vector-effect: non-scaling-stroke;
@@ -3705,7 +3859,7 @@ a.sheet__row {
    edge that STAYS for the whole step, no fade, so "this edge carried flow this
    step" stays legible even while paused. */
 .flow-edge-pulse {
-  stroke: var(--edge-run, var(--flow-strength));
+  stroke: var(--edge-run, var(--accent));
   stroke-width: 2.5;
   opacity: 0.75;
   vector-effect: non-scaling-stroke;
@@ -3719,7 +3873,7 @@ a.sheet__row {
    connection's run colour (its flow colour if set): told from the line by its
    width and its round caps. */
 .pb-path {
-  stroke: var(--edge-run, var(--flow-strength));
+  stroke: var(--edge-run, var(--accent));
   stroke-width: 3.5;
   stroke-linecap: round;
   opacity: 0.55;
@@ -3747,10 +3901,10 @@ a.sheet__row {
   box-sizing: border-box;
   height: 13px;
   padding: 0 3px;
-  border: 1px solid var(--edge-run, var(--flow-strength));
+  border: 1px solid var(--edge-run, var(--accent));
   border-radius: 7px;
-  background: var(--surface-raised);
-  color: var(--text-primary);
+  background: var(--bg-raise);
+  color: var(--ink-1);
   font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 700;
@@ -3761,13 +3915,15 @@ a.sheet__row {
   pointer-events: none;
 }
 /* §LGR2.3 — on a connection outside the focus set (the label layer is outside
-   the connection's own group, so a class, not the group rule below) */
+   the connection's own group, so a class, not the group rule below), at that
+   connection's own strength, `--dim-opacity` (2026-10-20: it had stayed 0.26
+   when the redesign's correction 3 raised light's line to 0.3) */
 .pb-badge.pb-badge--dim {
-  opacity: 0.26;
+  opacity: var(--dim-opacity);
 }
 /* docs/flow-colour-and-compact-nodes.md FC-4.3 — the neutral case of a run
    signal whose flow colour is under 3:1 on this theme's canvas (LoopEdge sets
-   `data-run-case` and draws the copies): a thin `--line-strong` rim beside
+   `data-run-case` and draws the copies): a thin `--line-3` rim beside
    the signal that only parts it from the canvas — never over its colour, and
    not a selection (a 7 px translucent underlay), a focus (blue dashes) or a
    warning (orange). None under forced colours: the system colours carry every
@@ -3792,7 +3948,7 @@ a.sheet__row {
   stroke: #000;
 }
 .run-case__rim {
-  stroke: var(--line-strong);
+  stroke: var(--line-3);
 }
 /* each signal's width (index.css above), and that plus 0.75 px each side */
 .run-case--path :is(.run-case__outer, .run-case__rim),
@@ -3817,7 +3973,7 @@ a.sheet__row {
 }
 .run-case-ring {
   fill: none;
-  stroke: var(--line-strong);
+  stroke: var(--line-3);
   stroke-width: 3;
   pointer-events: none;
   vector-effect: non-scaling-stroke;
@@ -3864,13 +4020,13 @@ a.sheet__row {
   .state-move--trigger[data-run-case]:not(.state-move--blocked) .state-move__bead,
   .state-move--in[data-run-case] .state-move__bead,
   [data-run-case] :is(.pb-rm-tell--emit, .pb-rm-tell--converge) {
-    stroke: var(--line-strong);
+    stroke: var(--line-3);
     stroke-width: 1.5;
     paint-order: stroke;
     vector-effect: non-scaling-stroke;
   }
   .pb-badge--cased {
-    box-shadow: 0 0 0 1px var(--line-strong);
+    box-shadow: 0 0 0 1px var(--line-3);
   }
 }
 @media (forced-colors: active) {
@@ -3893,7 +4049,7 @@ a.sheet__row {
    overridden by their keyframes). Cues inside a node keep full strength. */
 .react-flow__edge.lgr-deemph
   :is(.pb-path, .pb-move, .pb-cue, .pb-l0-pulse, .flow-edge-pulse, .pb-rm-tell, .state-move, .state-cue, .state-edge-pulse, .run-case, .run-case-ring) {
-  filter: opacity(0.26);
+  filter: opacity(var(--dim-opacity));
 }
 
 /* ==== state-edge feedback (SEMANTICS-S §S9 / S2 §S2-9) ================== */
@@ -3903,39 +4059,43 @@ a.sheet__row {
 .state-move {
   pointer-events: none;
 }
-/* trigger — a bead delivered along the edge; blocked ⇒ hollow warning ring */
+/* trigger — a bead delivered along the edge; blocked ⇒ a HOLLOW ring, in a
+   strong neutral (a normal state of the run, not a warning — colour review A,
+   step 2; the ring's shape is the tell) */
 .state-move--trigger .state-move__bead {
-  fill: var(--edge-run, var(--signal-primary));
+  fill: var(--edge-run, var(--accent));
 }
 .state-move--blocked .state-move__bead {
   fill: none;
-  stroke: var(--state-warning);
+  stroke: var(--ink-3);
   stroke-width: 1.5;
 }
 /* label — a signed-delta bead toward (+) / away (−) the target */
 .state-move--label .state-move__bead {
-  fill: var(--edge-run, var(--signal-primary));
+  fill: var(--edge-run, var(--accent));
   opacity: 0.9;
 }
 .state-move--out .state-move__bead {
-  fill: var(--text-tertiary);
+  fill: var(--ink-3);
 }
 .state-move__n {
-  fill: var(--text-secondary);
+  fill: var(--ink-2);
   font-size: 9px;
   font-weight: 700;
   text-anchor: middle;
 }
-/* activator — no travel; a target-side ring that lands on the settle beat */
+/* activator — no travel; a target-side ring that lands on the settle beat.
+   Not met: a strong neutral (a condition not met is a normal state, not a
+   warning — colour review A, step 2); met: the run colour */
 .state-cue--activator {
   fill: none;
-  stroke: var(--state-warning);
+  stroke: var(--cue-unmet);
   stroke-width: 1.5;
   pointer-events: none;
   vector-effect: non-scaling-stroke;
 }
 .state-cue--activator.is-on {
-  stroke: var(--edge-run, var(--signal-primary));
+  stroke: var(--edge-run, var(--accent));
 }
 @media (prefers-reduced-motion: no-preference) {
   .state-cue--activator {
@@ -3946,14 +4106,15 @@ a.sheet__row {
    for the step (§VL9), so the trigger fire / label apply stays readable while
    paused. */
 .state-edge-pulse {
-  stroke: var(--edge-run, var(--signal-primary));
+  stroke: var(--edge-run, var(--accent));
   stroke-width: 2.5;
   opacity: 0.8;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
+/* blocked: a normal state of the run — a strong neutral (colour review A, step 2) */
 .state-edge-pulse--blocked {
-  stroke: var(--state-warning);
+  stroke: var(--ink-3);
 }
 
 /* docs/simulation-playback.md Slice 3c-b — under `forced-colors: active` the UA
@@ -4067,10 +4228,10 @@ a.sheet__row {
   /* FC-3.4 — no flow colour under forced colours: the two held highlights
      with no system-colour rule of their own keep the default run colour */
   .flow-edge-pulse {
-    stroke: var(--flow-strength);
+    stroke: var(--accent);
   }
   .state-edge-pulse:not(.state-edge-pulse--blocked) {
-    stroke: var(--signal-primary);
+    stroke: var(--accent);
   }
 }
 
@@ -4082,17 +4243,62 @@ a.sheet__row {
   row-gap: 6px;
   min-height: 40px;
   padding: 5px 12px;
-  background: var(--surface-panel);
-  border-top: 1px solid var(--line-hairline);
+  background: var(--bg-panel);
+  border-top: 1px solid var(--line-1);
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   flex: none;
   /* anchor for the out-of-flow §PBO5 steady-state chip */
   position: relative;
-  /* on a narrow desktop (canvas column shrunk by the Inspector) the controls
-     don't fit one row — especially in a CJK locale. Wrap whole control groups
-     to a second row rather than overflowing the column under the Inspector. */
+  /* wraps whole groups to a second row where it must — the phone's run bar
+     (`.pstrip--mobile`, issue #303) */
   flex-wrap: wrap;
+}
+/* the desktop strip is ONE row at every width (Lumi, 2026-10-20): short of
+   room it folds what has another way in — PlayBar.tsx `fitRunRow`,
+   `[data-fit]` below */
+.pstrip:not(.pstrip--mobile) {
+  flex-wrap: nowrap;
+}
+/* Speed and Seed: in the row, or folded into "Run settings" (fit steps 2, 3) */
+.pstrip__settings {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.pstrip__settings-btn {
+  display: none;
+}
+.pstrip:is([data-fit='2'], [data-fit='3']) .pstrip__settings-btn {
+  display: inline-flex;
+}
+.pstrip:is([data-fit='2'], [data-fit='3']) .pstrip__settings {
+  display: none;
+}
+.pstrip:is([data-fit='2'], [data-fit='3']) .pstrip__settings.is-open {
+  display: flex;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  inset-inline-start: 12px;
+  z-index: 30;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-overlay);
+}
+.pstrip__settings-btn.is-open {
+  border-color: var(--line-control-hover);
+}
+/* fit step 1: the Monte-Carlo button folds (Run ▸ Monte Carlo… opens it); a
+   run in progress keeps its progress and Cancel, and a cancelled or failed
+   run keeps the button that carries that note (its only place — 2026-10-20:
+   at 1280 the row folds the button by default, and the note was gone) */
+.pstrip[data-fit] .pstrip__mc-btn:not(.has-note) {
+  display: none;
 }
 .pstrip > * {
   flex-shrink: 0;
@@ -4107,8 +4313,8 @@ a.sheet__row {
   font-size: 12px;
   font-weight: 600;
   padding: 3px 9px;
-  background: var(--surface-raised);
-  color: var(--text-primary);
+  background: var(--bg-raise);
+  color: var(--ink-1);
   border: 1px solid var(--line-control); /* §VL8 control boundary, as `.btn` */
   border-radius: var(--control-radius);
   cursor: pointer;
@@ -4120,25 +4326,25 @@ a.sheet__row {
   border-color: var(--line-control-hover);
 }
 .pb-btn:disabled {
-  color: var(--text-disabled);
+  color: var(--ink-disabled);
   border-color: var(--line-disabled);
   cursor: default;
 }
 .pb-btn--primary {
-  border-color: var(--signal-primary);
-  color: var(--signal-primary);
+  border-color: var(--accent);
+  color: var(--accent);
   font-weight: 600;
   min-width: 84px;
 }
 .pb-btn--primary.is-running {
-  border-color: var(--signal-primary);
-  background: var(--signal-primary-soft);
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 .pstrip__step {
   font-family: var(--font-mono);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
   white-space: nowrap;
   word-break: keep-all;
   flex-shrink: 0;
@@ -4147,7 +4353,7 @@ a.sheet__row {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 
 /* docs/localization.md §L9.3 — the playbar keeps its PHYSICAL button order for
@@ -4168,10 +4374,14 @@ a.sheet__row {
    `--ls-canvas-dir` marks the canvas pin. */
 [dir='rtl'] .pstrip,
 [dir='rtl'] .pstrip__group,
-[dir='rtl'] .pstrip__field {
+[dir='rtl'] .pstrip__field,
+[dir='rtl'] .pstrip__settings:not(.is-open) {
   --ls-pstrip-order: physical;
   flex-direction: row-reverse;
 }
+/* the Speed / Seed pair (2026-10-20: added with "Run settings" and left out
+   of the pin, so an RTL reader's pair read Seed before Speed) — in the row it
+   is pinned like the field; opened as the folded popover it is a column */
 /* The two auto-margin spacers inside the strip have to follow it. Manifest A
    classified them FLIP - they are chrome, and chrome mirrors - while manifest B
    pins the strip's ORDER physical, and the two only disagree once the geometry
@@ -4191,9 +4401,10 @@ a.sheet__row {
   text-transform: uppercase;
   letter-spacing: 0.12em;
 }
+/* sets a run, does not start one: neutral (colour review A, 2026-10-21) */
 .pstrip__field input[type='range'] {
   width: 110px;
-  accent-color: var(--signal-primary);
+  accent-color: var(--ink-2);
 }
 .pstrip__seed {
   width: 52px;
@@ -4202,8 +4413,8 @@ a.sheet__row {
   padding: 2px 4px;
   border: 1px solid var(--line-control);
   border-radius: 5px;
-  background: var(--surface-sunken);
-  color: var(--text-secondary);
+  background: var(--bg-field);
+  color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 .pstrip__collapse {
@@ -4211,33 +4422,32 @@ a.sheet__row {
   padding: 3px 8px;
 }
 
-/* docs/simulation-playback-ordering.md §PBO5 — "Steady state — flows continue".
-   Absolutely positioned so it never shifts a control or the strip height,
-   appearing or not; anchored just left of the collapse toggle, vertically
-   centred. Always in the DOM (so its box can be measured for the overlap
-   guard); `.is-on` reveals it only when it is steady, running, AND fits with
-   no control overlap — otherwise it stays measured-but-invisible. */
+/* docs/simulation-playback-ordering.md §PBO5 — "Steady state — flows continue",
+   the run's state beside its step (Lumi, 2026-10-20: the state comes before
+   the settings). In the row's flow, its room kept while hidden (`visibility`),
+   so it never shifts a control or the strip height when it appears; the row
+   folds Monte Carlo, then Speed and Seed, to keep it (PlayBar.tsx
+   `fitRunRow`), and only at the last step may its text shorten. */
 .pstrip__steady {
-  position: absolute;
-  right: 46px; /* clears the collapse toggle; sits in the MC↔collapse gap */
-  top: 50%;
-  transform: translateY(-50%);
-  max-width: 46%;
+  min-width: 0;
   padding: 2px 7px;
-  border: 1px solid var(--line-hairline);
+  border: 1px solid var(--line-1);
   border-radius: 999px;
-  background: var(--surface-raised, var(--surface-panel));
-  color: var(--text-secondary);
+  background: var(--bg-raise);
+  color: var(--ink-2);
   font-size: 11px;
   line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  pointer-events: none;
   visibility: hidden;
 }
 .pstrip__steady.is-on {
   visibility: visible;
+}
+/* fit step 3: the last resort — the status may shorten, never go */
+.pstrip[data-fit='3'] .pstrip__steady {
+  flex-shrink: 1;
 }
 
 /* ==== A — timeline chart (separate observation panel, not canvas) ======= */
@@ -4245,7 +4455,7 @@ a.sheet__row {
   flex: none;
   display: flex;
   flex-direction: column;
-  background: var(--surface-panel);
+  background: var(--bg-panel);
 }
 /* collapsed, the timeline is only the playback strip. The strip wraps to two
    or three rows in a narrow window or a long-label language (MEASURED at 721 to
@@ -4259,7 +4469,7 @@ a.sheet__row {
   height: 200px;
   display: flex;
   flex-direction: column;
-  border-top: 1px solid var(--line-hairline);
+  border-top: 1px solid var(--line-1);
 }
 .timeline__head {
   position: relative; /* the out-of-flow measurement row anchors here */
@@ -4273,13 +4483,13 @@ a.sheet__row {
   font-weight: 400;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 /* docs/timeline-series-contract.md §5 — ALWAYS ONE ROW. `nowrap` + `min-width: 0`
-   + `overflow: hidden` mean the row can never grow the head; the component
-   renders only as many chips as its measurement says fit, so nothing here is
-   ever actually clipped — the overflow rule is the safety net, not the
-   mechanism. */
+   + `overflow: hidden` mean the row can never grow the head. The chips of
+   EVERY drawn series sit in their own strip (`.timeline__keys`), which takes
+   the room the selector trigger and the CSV control leave and scrolls
+   sideways (2026-10-20). */
 .timeline__legend {
   flex: 1 1 auto;
   min-width: 0;
@@ -4292,23 +4502,77 @@ a.sheet__row {
   text-transform: none;
   letter-spacing: 0;
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
-/* the measurement row: the same chips, out of flow and invisible, so their
-   widths are known in the same layout pass (never `display: none` — that
-   has no width) */
-.timeline__probe {
-  position: absolute;
-  inset-inline-start: 0;
-  top: 0;
+/* the strip and its edge counts: as wide as its chips while they fit (so they
+   stay beside the trigger, as before), then the room left, scrolling. The
+   scrollbar is not drawn (the row is one line of text); the fade and the
+   "+N" on a side say there is more that way. Vertical padding inside the
+   scroller keeps a focused chip's ring from being cut, taken back by margin so
+   the head's height does not change. */
+.timeline__keyrow {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.timeline__keys {
+  flex: 0 1 auto;
+  min-width: 0;
   display: flex;
   gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  scroll-padding-inline: 24px;
+  padding-block: 3px;
+  margin-block: -3px;
+  padding-inline: 2px;
+}
+.timeline__keys::-webkit-scrollbar {
+  display: none;
+}
+/* the ring inside the scroller's padding (2 px + 1 px offset = its 3 px) */
+.timeline__keys .timeline__key:focus-visible {
+  outline-offset: 1px;
+}
+.timeline__keyrow.has-past-start .timeline__keys {
+  -webkit-mask-image: linear-gradient(to var(--past-start-side, right), transparent 0, #000 20px);
+  mask-image: linear-gradient(to var(--past-start-side, right), transparent 0, #000 20px);
+}
+.timeline__keyrow.has-past-end .timeline__keys {
+  -webkit-mask-image: linear-gradient(to var(--past-end-side, left), transparent 0, #000 20px);
+  mask-image: linear-gradient(to var(--past-end-side, left), transparent 0, #000 20px);
+}
+.timeline__keyrow.has-past-start.has-past-end .timeline__keys {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+}
+[dir='rtl'] .timeline__keyrow {
+  --past-start-side: left;
+  --past-end-side: right;
+}
+.timeline__past {
+  flex: none;
+  padding: 0 4px;
+  border-radius: 4px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+.timeline__past:hover {
+  background: var(--bg-hover);
+  color: var(--ink-1);
+}
+/* an edge with nothing past it keeps its mark's room, unseen and inert */
+.timeline__past.is-empty {
   visibility: hidden;
   pointer-events: none;
-  white-space: nowrap;
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 11px;
 }
 /* the `display: flex` above otherwise beats the [hidden] UA rule, leaving the
    LIVE legend competing with the Distribution stats row */
@@ -4331,7 +4595,7 @@ a.sheet__row {
   cursor: pointer;
 }
 .timeline__key:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 /* the series selector trigger (`계열 n/total`, contract §6) — a control, not a
    series key; always present, so it keeps its place and the chips yield */
@@ -4343,8 +4607,8 @@ a.sheet__row {
   padding: 1px 6px;
   border: 1px solid var(--line-control); /* §VL8 control boundary, as `.btn` */
   border-radius: 4px;
-  background: var(--surface-raised);
-  color: var(--text-secondary);
+  background: var(--bg-raise);
+  color: var(--ink-2);
   font: inherit;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -4353,7 +4617,7 @@ a.sheet__row {
 .timeline__series:hover:not(:disabled),
 .timeline__series[aria-expanded='true'] {
   border-color: var(--line-control-hover);
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .timeline__series:disabled {
   opacity: 0.4;
@@ -4363,7 +4627,7 @@ a.sheet__row {
   width: 8px;
   height: 8px;
   border-radius: 2px;
-  background: var(--hue-pool);
+  background: var(--series-1);
   flex: none;
 }
 .timeline__csv {
@@ -4371,8 +4635,8 @@ a.sheet__row {
   border: 1px solid var(--line-control); /* §VL8 control boundary, as `.btn` */
   border-radius: 4px;
   padding: 1px 6px;
-  background: var(--surface-raised);
-  color: var(--text-tertiary);
+  background: var(--bg-raise);
+  color: var(--ink-3);
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.12em;
@@ -4380,7 +4644,7 @@ a.sheet__row {
 }
 .timeline__csv:hover:not(:disabled) {
   border-color: var(--line-control-hover);
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .timeline__csv:disabled {
   opacity: 0.4;
@@ -4390,6 +4654,103 @@ a.sheet__row {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  position: relative; /* the step reading sits on the plot */
+}
+.timeline__plot:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.timeline__plot:not([tabindex='-1']) .timeline__svg {
+  cursor: crosshair;
+}
+/* the step reading (TimelineStepReading.tsx): the picked step's line, and its
+   values beside it */
+.timeline__pin {
+  stroke: var(--sel);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+/* placed by TimelineStepReading.tsx (bottom / left or right / max sizes): on
+   the plot's bottom, opening upward over the canvas */
+.timeline__reading {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-2);
+  border-radius: 5px;
+  background: var(--bg-overlay);
+  box-shadow: var(--shadow-overlay);
+  color: var(--ink-1);
+  font-size: 11.5px;
+  /* over the canvas and its own overlays (hint notes, the minimap: 4–5),
+     under the dialogs */
+  z-index: 30;
+}
+.timeline__reading-head {
+  /* the step and the close button stay put; only the list scrolls */
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 2px 2px 8px;
+  border-bottom: 1px solid var(--line-1);
+}
+.timeline__reading-step {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.timeline__reading-x {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.timeline__reading-x:hover {
+  background: var(--bg-hover);
+  color: var(--ink-1);
+}
+.timeline__reading-x:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.timeline__reading-rows {
+  margin: 0;
+  padding: 3px 8px 4px;
+  list-style: none;
+  overflow-y: auto;
+  min-height: 0;
+}
+.timeline__reading-row {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  line-height: 16px;
+}
+.timeline__reading-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+.timeline__reading-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+@media (forced-colors: active) {
+  .timeline__pin {
+    stroke: Highlight;
+  }
+  .timeline__reading {
+    border-color: CanvasText;
+  }
 }
 .timeline__svg {
   display: block;
@@ -4400,30 +4761,30 @@ a.sheet__row {
   vector-effect: non-scaling-stroke;
 }
 .timeline__axis {
-  stroke: var(--line-structure);
+  stroke: var(--line-2);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
 .timeline__tick {
-  fill: var(--text-tertiary);
+  fill: var(--ink-3);
   font-family: var(--font-mono);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 /* paused guide shares the state-edge dash grammar */
 .timeline__guide {
-  stroke: var(--state-guide);
+  stroke: var(--accent);
   stroke-width: 1;
   stroke-dasharray: 4 4;
   opacity: 0.85;
 }
 .timeline__line {
-  stroke: var(--hue-pool);
+  stroke: var(--series-1);
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
 }
 .timeline__seg {
-  stroke: var(--hue-pool);
+  stroke: var(--series-1);
   stroke-width: 2;
   fill: none;
   vector-effect: non-scaling-stroke;
@@ -4436,11 +4797,11 @@ a.sheet__row {
 }
 /* Bead — the same solid dot as the moving token, now the chart's current value */
 .timeline__bead {
-  fill: var(--hue-pool);
+  fill: var(--series-1);
 }
 .timeline__arrival {
   fill: none;
-  stroke: var(--signal-primary);
+  stroke: var(--accent);
   stroke-width: 1.25;
   opacity: 0;
   transform-box: fill-box;
@@ -4459,11 +4820,26 @@ a.sheet__row {
   }
 }
 .timeline__endlabel {
-  fill: var(--text-primary);
+  fill: var(--ink-1);
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
+  /* the value sits on its own line's end, so the line came in under the
+     digits (2026-10-23: "20" / "10" could read as "28" / "18"). A halo in the
+     plot's ground, painted under the glyphs, gives the digits a background of
+     their own: it fills the counters and the gaps between digits and stops
+     2.5 px past them. Nothing moves, the line is drawn as before. */
+  paint-order: stroke;
+  stroke: var(--bg-panel);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+@media (forced-colors: active) {
+  .timeline__endlabel {
+    fill: CanvasText;
+    stroke: Canvas;
+  }
 }
 /* leader from a displaced endpoint label back to its real dot */
 .timeline__lead {
@@ -4475,7 +4851,7 @@ a.sheet__row {
 }
 /* overflow chip when the plot is too short for every endpoint label */
 .timeline__endlabel--more {
-  fill: var(--text-tertiary);
+  fill: var(--ink-3);
 }
 @media (prefers-reduced-motion: reduce) {
   .timeline__arrival {
@@ -4513,15 +4889,15 @@ a.sheet__row {
      blocked / breakdown hover titles are advisory and also shown in the
      Inspector. */
   pointer-events: none;
-  background: var(--surface-raised);
-  border: 1px solid var(--line-strong);
+  background: var(--label-bg);
+  border: 1px solid var(--line-3);
   border-radius: 6px;
   padding: 0 5px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   font-variant-numeric: tabular-nums;
-  box-shadow: var(--elev-edge-label);
+  box-shadow: var(--shadow-edge-label);
   /* Connector-readability review round 3 (Hanrim/Lumi, 2026-09-14) — both a
      resource-flow `@id` and an activator condition now project to a resolved
      NUMBER (LoopEdge.tsx), staying as short as any other flow/condition chip
@@ -4535,13 +4911,13 @@ a.sheet__row {
   white-space: nowrap;
 }
 .edge-label--state {
-  color: var(--text-tertiary);
+  color: var(--ink-3);
   font-style: italic;
   border-style: dashed;
 }
 .edge-label.is-selected {
-  border-color: var(--state-selected);
-  color: var(--text-primary);
+  border-color: var(--sel);
+  color: var(--ink-1);
 }
 /* docs/flow-colour-and-compact-nodes.md FC-4.2 — the label's mark of the
    edge's flow colour: its border, at rest only (selected / on / blocked keep
@@ -4551,15 +4927,15 @@ a.sheet__row {
 }
 /* activator satisfied — steady "on" tint on the label to match the edge */
 .edge-label--on {
-  color: var(--signal-primary);
-  border-color: var(--signal-primary);
+  color: var(--accent);
+  border-color: var(--accent);
   font-style: normal;
 }
 /* FC-4.3 — on a coloured connection the "on" label keeps the connection's
    colour as its border and the primary ink for its text (a light colour stays
    legible); upright text and the edge's weight tell it is on */
 .edge-label--on.has-accent:not(.is-selected) {
-  color: var(--text-primary);
+  color: var(--ink-1);
   border-color: var(--edge-accent);
 }
 /* label delta + separate clamp note; trigger "blocked" tag */
@@ -4569,17 +4945,45 @@ a.sheet__row {
   width: 9.5px; /* the advance of `✳` at this size, so the label's width is unchanged */
   height: 15px; /* the line box the glyph gave the label */
 }
-.edge-label__delta {
-  margin-left: 5px;
+/* the applied change UNDER the set value (2026-10-21): "=0" over "Δ −14" —
+   two lines and the Δ set it apart, not the colour alone; the chip is
+   centred on its anchor, so it grows by half a line up and down, never
+   sideways. §ER15.2 — every rule that SIZES a run part also names the run-form
+   copy's own part (`--rf-*` / `__rf-*`, LoopEdge.tsx), so the copy measures
+   exactly what the live chip draws while no query for a live part finds it */
+.edge-label--two,
+.edge-label--rf-two {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 13px;
+  padding-block: 1px;
+}
+.edge-label__row,
+.edge-label__rf-row {
+  display: block;
+}
+.edge-label__dmark,
+.edge-label__rf-dmark {
+  margin-inline-end: 2px;
   font-style: normal;
   font-weight: 700;
-  color: var(--signal-primary);
+  color: var(--accent);
 }
-.edge-label__clamp {
+.edge-label__delta,
+.edge-label__rf-delta {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--accent);
+}
+/* a change limited as written (a capacity): the model working, not a warning —
+   the clamp mark and the number stay, in ink (colour review A, step 2) */
+.edge-label__clamp,
+.edge-label__rf-clamp {
   margin-left: 5px;
   font-style: normal;
   font-weight: 600;
-  color: var(--state-warning);
+  color: var(--ink-2);
 }
 /* §PB4.5 — per-transfer breakdown for a selected edge while a transition is
    in flight; the merged token stays one dot, the causality lives here. */
@@ -4592,22 +4996,25 @@ a.sheet__row {
   font-style: normal;
   font-weight: 700;
   font-size: 9px;
-  color: var(--flow-strength);
+  color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
 .edge-label__bd--more {
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 /* FC-4.3 — a run amount on a coloured connection's label is text: it keeps
    the primary ink instead of the default run colour */
 .edge-label.has-accent :is(.edge-label__delta, .edge-label__bd:not(.edge-label__bd--more)) {
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
+/* blocked this step: a normal state of the run, in ink — its mark and words
+   stay (colour review A, step 2) */
 .edge-label--blocked,
 .edge-label__blocked {
-  color: var(--state-warning);
+  color: var(--ink-2);
 }
-.edge-label__blocked {
+.edge-label__blocked,
+.edge-label__rf-blocked {
   margin-left: 5px;
   font-style: normal;
   font-weight: 700;
@@ -4623,11 +5030,11 @@ a.sheet__row {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--surface-panel);
+  background: var(--bg-panel);
   /* the left divider is a box-shadow, NOT a border, so it takes no layout width
      — `.rightcol` stays exactly 300px and `.inspector` inside keeps its former
      300px box (no visual/measurement change to the Inspector). */
-  box-shadow: -1px 0 0 var(--line-hairline);
+  box-shadow: -1px 0 0 var(--line-1);
 }
 /* inside `.rightcol` the Inspector fills the height and scrolls. It keeps its
    own opaque `background` (identical to `.rightcol`'s, so the seam is
@@ -4647,8 +5054,8 @@ a.sheet__row {
 .inspector {
   width: 300px;
   flex-shrink: 0;
-  background: var(--surface-panel);
-  border-inline-start: 1px solid var(--line-hairline);
+  background: var(--bg-panel);
+  border-inline-start: 1px solid var(--line-1);
   padding: 14px;
   overflow-y: auto;
 }
@@ -4659,7 +5066,7 @@ a.sheet__row {
   min-height: 0;
   max-height: 55%;
   overflow-y: auto;
-  border-bottom: 1px solid var(--line-hairline);
+  border-bottom: 1px solid var(--line-1);
   /* fixed Summary-value column width — measured (fonts loaded) from the widest
      realistic register value across EN/KO/JA: `346.8 kKRW/day` ≈ 91px in the
      Coffee template. `min-width`, so a longer value grows the column leftward
@@ -4667,7 +5074,7 @@ a.sheet__row {
   --mp-val-w: 96px;
 }
 .mpanel + .mpanel {
-  border-top: 1px solid var(--line-hairline);
+  border-top: 1px solid var(--line-1);
 }
 .mpanel__headrow {
   display: flex;
@@ -4690,14 +5097,14 @@ a.sheet__row {
   border: 0;
   border-radius: 4px;
   background: none;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
   font: inherit;
   font-size: 11px;
   cursor: pointer;
 }
 .mpanel__calc:hover,
 .mpanel__calc[aria-expanded='true'] {
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .mpanel__toggle {
   display: flex;
@@ -4707,7 +5114,7 @@ a.sheet__row {
   padding: 9px 12px;
   border: 0;
   background: none;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   font: inherit;
   font-weight: 600;
   text-transform: uppercase;
@@ -4715,18 +5122,18 @@ a.sheet__row {
   cursor: pointer;
 }
 .mpanel__toggle:hover {
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .mpanel__caret {
   font-size: 9px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .mpanel__count {
   margin-inline-start: auto;
   padding: 0 6px;
   border-radius: 8px;
-  background: var(--surface-sunken);
-  color: var(--text-tertiary);
+  background: var(--bg-field);
+  color: var(--ink-3);
   font-weight: 500;
   letter-spacing: 0;
 }
@@ -4737,7 +5144,7 @@ a.sheet__row {
   margin: 0;
   padding: 2px 0 6px;
   font-size: 12px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .mpanel__list {
   list-style: none;
@@ -4765,7 +5172,7 @@ a.sheet__row {
   border: 0;
   background: none;
   padding: 2px 0;
-  color: var(--text-primary);
+  color: var(--ink-1);
   font: inherit;
   font-size: 12px;
   text-align: start;
@@ -4810,7 +5217,7 @@ a.sheet__row {
 .mp-row--flow .mp-row__label {
   flex: 1 1 55%;
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .mp-row__via {
   flex: 0 1 auto;
@@ -4819,7 +5226,7 @@ a.sheet__row {
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 11px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .mp-row--reg .mp-row__main {
   display: flex;
@@ -4838,11 +5245,11 @@ a.sheet__row {
   text-align: end;
   align-self: start;
   white-space: nowrap;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 .mp-row__val--invalid {
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .mp-row__calc {
   width: 100%;
@@ -4853,14 +5260,18 @@ a.sheet__row {
 .mp-row__expr {
   font-family: var(--font-mono, monospace);
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   word-break: break-word;
 }
 .mp-row__code {
   width: 100%;
   font-size: 10px;
   letter-spacing: 0.04em;
-  color: var(--line-invalid, var(--text-tertiary));
+  /* the error code of a Register whose result is invalid (any M_REG_* code,
+     a dependency on an invalid Register included): the error colour. The
+     row's "no value at step N" stays in the row's ink (2026-10-21; this used
+     an undeclared `--line-invalid`, i.e. its `--ink-3` fallback) */
+  color: var(--no);
 }
 /* Canvas edit-lock (uiStore.canvasLocked): the desktop Inspector is wrapped in a
    `<fieldset disabled>`; `display: contents` drops the fieldset box so the inner
@@ -4870,12 +5281,12 @@ a.sheet__row {
   display: contents;
 }
 .inspector__empty {
-  color: var(--text-secondary);
+  color: var(--ink-2);
   font-size: 13px;
   line-height: 1.5;
 }
 .inspector__hint {
-  color: var(--text-tertiary);
+  color: var(--ink-3);
   font-size: 12px;
   margin-top: 8px;
 }
@@ -4883,7 +5294,7 @@ a.sheet__row {
   margin: 0 0 12px;
   font-size: 12px;
   line-height: 1.4;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .inspector__head {
   display: flex;
@@ -4905,11 +5316,12 @@ a.sheet__row {
 }
 /* the armed state: the rail toggles' pressed treatment, never an `outline`
    (that is the focus ring, see §LGR9 below) */
+/* pressed: neutral strong, a 2 px inner ring (colour review A) */
 .inspector__route-actions .btn[aria-pressed='true'],
 .inspector__route-actions .btn[aria-pressed='true']:hover {
-  color: var(--signal-primary);
-  background: var(--signal-primary-soft);
-  box-shadow: inset 0 0 0 2px var(--signal-primary);
+  color: var(--ink-1);
+  background: var(--bg-hover);
+  box-shadow: inset 0 0 0 2px var(--ink-1);
 }
 @media (forced-colors: active) {
   .inspector__route-actions .btn[aria-pressed='true'],
@@ -4925,9 +5337,9 @@ a.sheet__row {
   letter-spacing: 0.6px;
   padding: 2px 8px;
   border-radius: 999px;
-  color: var(--text-secondary);
-  background: var(--surface-sunken);
-  border: 1px solid var(--line-structure);
+  color: var(--ink-2);
+  background: var(--bg-field);
+  border: 1px solid var(--line-2);
 }
 
 .field {
@@ -4938,7 +5350,7 @@ a.sheet__row {
   display: block;
   font-size: 11px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   margin-bottom: 4px;
 }
 .field input,
@@ -4949,20 +5361,20 @@ a.sheet__row {
   font-size: 13px;
   border: 1px solid var(--line-control);
   border-radius: var(--control-radius);
-  background: var(--surface-raised);
-  color: var(--text-primary);
+  background: var(--bg-field);
+  color: var(--ink-1);
 }
 /* a read-only read-out in a field (the Pool's current amount): the field's own
    box, the number in the mono face, no editing affordance */
 .field input.field__readout {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  background: var(--surface-ground);
-  color: var(--text-secondary);
+  background: var(--bg-app);
+  color: var(--ink-2);
   cursor: default;
 }
 .field input[aria-invalid='true'] {
-  border-color: var(--state-warning);
+  border-color: var(--no); /* an error: a wrong input */
 }
 
 /* docs/edge-routing.md §ER18 — the Inspector's Ends group: per end a node
@@ -4970,7 +5382,7 @@ a.sheet__row {
 .ends {
   margin: 4px 0 10px;
   padding-top: 10px;
-  border-top: 1px solid var(--line-hairline);
+  border-top: 1px solid var(--line-1);
 }
 .ends__title {
   flex: 1;
@@ -5023,7 +5435,7 @@ a.sheet__row {
   border-block-end: 0;
 }
 .ends__toggle:focus-visible {
-  outline: 2px solid var(--focus-ring);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 .ends__summary {
@@ -5032,7 +5444,7 @@ a.sheet__row {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 400;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .ends > div:not([hidden]):not(.ends__head) {
   margin-top: 8px;
@@ -5050,8 +5462,8 @@ a.sheet__row {
   font-size: 13px;
   border: 1px solid var(--line-control);
   border-radius: var(--control-radius);
-  background: var(--surface-raised);
-  color: var(--text-primary);
+  background: var(--bg-field);
+  color: var(--ink-1);
 }
 .ends__sides {
   display: flex;
@@ -5079,7 +5491,7 @@ a.sheet__row {
 .accent-field {
   margin: 4px 0 10px;
   padding-top: 10px;
-  border-top: 1px solid var(--line-hairline);
+  border-top: 1px solid var(--line-1);
 }
 .accent-field__title {
   margin: 0 0 6px;
@@ -5094,7 +5506,7 @@ a.sheet__row {
 .accent-field__rowlabel {
   flex-basis: 100%;
   font-size: 11px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .accent-swatch {
   width: 22px;
@@ -5109,16 +5521,16 @@ a.sheet__row {
   width: auto;
   padding: 0 8px;
   border-radius: 11px;
-  background: var(--surface-raised);
-  color: var(--text-secondary);
+  background: var(--bg-raise);
+  color: var(--ink-2);
   font: inherit;
   font-size: 11px;
 }
 /* a NON-hue pressed tell (a ring), so it survives forced colours */
 .accent-swatch[aria-pressed='true'] {
   box-shadow:
-    0 0 0 2px var(--surface-raised),
-    0 0 0 4px var(--text-primary);
+    0 0 0 2px var(--bg-raise),
+    0 0 0 4px var(--ink-1);
 }
 .accent-swatch:disabled,
 .accent-field__picker input:disabled {
@@ -5139,11 +5551,11 @@ a.sheet__row {
   font-size: 13px;
   border: 1px solid var(--line-control);
   border-radius: var(--control-radius);
-  background: var(--surface-raised);
-  color: var(--text-primary);
+  background: var(--bg-field);
+  color: var(--ink-1);
 }
 .accent-field__hex input[aria-invalid='true'] {
-  border-color: var(--state-warning);
+  border-color: var(--no); /* an error: a wrong input */
 }
 .accent-field__picker input {
   display: block;
@@ -5152,7 +5564,7 @@ a.sheet__row {
   padding: 2px;
   border: 1px solid var(--line-control);
   border-radius: var(--control-radius);
-  background: var(--surface-raised);
+  background: var(--bg-field);
   cursor: pointer;
 }
 /* the phone's read-only summary (FC-5): one line, a dot and the name / hex */
@@ -5163,7 +5575,7 @@ a.sheet__row {
   gap: 4px 8px;
   margin: 0;
   font-size: 13px;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .accent-field__dot {
   flex: none;
@@ -5180,7 +5592,7 @@ a.sheet__row {
 .accent-field__hexvalue {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 @media (forced-colors: active) {
   .accent-swatch {
@@ -5209,17 +5621,17 @@ a.sheet__row {
   margin: 4px 0 0;
   font-size: 11px;
   line-height: 1.4;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .field__hint code {
   font-family: var(--font-mono);
   font-size: 10px;
 }
 .field__hint--ok {
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .field__hint--bad {
-  color: var(--state-warning);
+  color: var(--no); /* an error */
 }
 
 /* docs/register-expression-authoring.md §RXA3 — the reference-aware Register
@@ -5247,12 +5659,12 @@ a.sheet__row {
   line-height: 1.5;
   border: 1px solid var(--line-control);
   border-radius: 6px;
-  background: var(--surface-raised);
-  color: var(--text-secondary);
+  background: var(--bg-raise);
+  color: var(--ink-2);
   cursor: pointer;
 }
 .regexpr__op:hover {
-  color: var(--text-primary);
+  color: var(--ink-1);
   border-color: var(--line-control-hover);
 }
 /* the "＋ Insert reference" secondary action — a labelled MODE toggle, not a
@@ -5268,33 +5680,34 @@ a.sheet__row {
   font-size: 11px;
   font-weight: 600;
   line-height: 1.5;
-  border: 1px solid color-mix(in srgb, var(--state-focus) 45%, var(--line-control));
+  border: 1px solid color-mix(in srgb, var(--focus) 45%, var(--line-control));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--state-focus) 10%, var(--surface-raised));
-  color: var(--state-focus);
+  background: color-mix(in srgb, var(--focus) 10%, var(--bg-raise));
+  color: var(--focus);
   cursor: pointer;
 }
 .regexpr__pick:hover {
-  background: color-mix(in srgb, var(--state-focus) 18%, var(--surface-raised));
-  border-color: var(--state-focus);
+  background: color-mix(in srgb, var(--focus) 18%, var(--bg-raise));
+  border-color: var(--focus);
 }
 .regexpr__pick.is-armed {
-  background: var(--state-focus);
-  border-color: var(--state-focus);
-  color: #fff;
+  background: var(--focus);
+  border-color: var(--focus);
+  /* per theme (2026-10-21): white read 2.45:1 on the dark focus blue */
+  color: var(--on-focus);
 }
 .regexpr__pick:focus-visible {
-  outline: 2px solid var(--line-focus);
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
 .regexpr__hint {
   margin: 4px 0 0;
   font-size: 11px;
   line-height: 1.4;
-  color: var(--state-focus);
+  color: var(--focus);
 }
 .regexpr--arming .regexpr__hint {
-  color: var(--state-focus);
+  color: var(--focus);
 }
 /* while armed, the canvas is a target picker */
 .canvas--ref-insert .react-flow__pane,
@@ -5312,10 +5725,10 @@ a.sheet__row {
   list-style: none;
   max-height: 240px;
   overflow-y: auto;
-  background: var(--surface-raised);
-  border: 1px solid var(--line-strong);
+  background: var(--bg-raise);
+  border: 1px solid var(--line-3);
   border-radius: var(--radius);
-  box-shadow: var(--elev-popover, 0 6px 20px rgb(0 0 0 / 0.18));
+  box-shadow: var(--shadow-overlay);
 }
 .regref__opt {
   padding: 5px 7px;
@@ -5330,14 +5743,14 @@ a.sheet__row {
   gap: 4px 8px;
 }
 .regref__opt.is-active {
-  background: var(--surface-sunk, rgb(0 0 0 / 0.06));
+  background: var(--bg-hover);
 }
 .regref__opt.is-blocked {
   cursor: not-allowed;
   opacity: 0.62;
 }
 .regref__name {
-  color: var(--text-primary);
+  color: var(--ink-1);
   font-weight: 600;
   min-width: 0;
   overflow: hidden;
@@ -5346,25 +5759,27 @@ a.sheet__row {
 }
 .regref__kind {
   font-size: 10px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
 .regref__val {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .regref__reason {
   grid-column: 1 / -1;
   font-size: 10px;
-  color: var(--state-warning);
+  /* guidance (why a candidate cannot be picked, shown before the pick):
+     neutral, not a warning */
+  color: var(--ink-3);
 }
 .regref__empty,
 .regref__more {
   padding: 6px 7px;
   font-size: 11px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 
 /* the name read-back (line 1) + value breakdown (line 2), shown together */
@@ -5374,26 +5789,26 @@ a.sheet__row {
   line-height: 1.5;
 }
 .regrb--parse {
-  color: var(--state-warning);
+  color: var(--no); /* an error: the expression does not parse */
   font-family: var(--font-mono);
   font-size: 11px;
 }
 .regrb--empty {
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .regrb__line {
   margin: 0;
   overflow-wrap: anywhere;
 }
 .regrb__line--meaning {
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .regrb__line--result {
-  color: var(--text-secondary);
+  color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 .regrb__line--bad {
-  color: var(--state-warning);
+  color: var(--no); /* an error: an invalid result */
 }
 .regrb__op {
   white-space: pre-wrap;
@@ -5401,34 +5816,35 @@ a.sheet__row {
 .regrb__chip {
   padding: 0 4px;
   border-radius: 4px;
-  background: var(--surface-sunk, rgb(0 0 0 / 0.06));
-  color: var(--text-primary);
+  background: var(--bg-raise);
+  color: var(--ink-1);
   cursor: default;
 }
 .regrb__chip:focus-visible {
-  outline: 2px solid var(--line-focus);
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
 .regrb__chip--warn {
-  background: color-mix(in srgb, var(--state-warning) 18%, transparent);
-  color: var(--state-warning);
+  background: color-mix(in srgb, var(--warn) 18%, transparent);
+  color: var(--warn);
 }
 .regrb__valref {
   white-space: nowrap;
 }
 .regrb__valname {
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .regrb__num {
   font-family: var(--font-mono);
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .regrb__total {
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
+/* an error: the computation gave no number (÷ 0, not finite — exprRefs.ts) */
 .regrb__total--bad {
-  color: var(--state-warning);
+  color: var(--no);
 }
 
 .inspector__legacy {
@@ -5439,17 +5855,30 @@ a.sheet__row {
 .inspector__legacy code {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 
 /* ==== P2 — Monte Carlo ================================================== */
+/* a dialog's primary button that does NOT start a run (Save, Confirm, Apply,
+   Next, Import, Create the link …): neutral strong — the ink boundary and
+   its place say "primary" (colour review A, 2026-10-21). A button that
+   starts a run adds `btn--run` and keeps the run colour: the Monte Carlo
+   dialog's Run (Play / Pause is `.pb-btn--primary`). */
 .btn--primary {
-  border-color: var(--signal-primary);
-  color: var(--signal-primary);
+  border-color: var(--ink-1);
+  color: var(--ink-1);
 }
 .btn--primary:hover:not(:disabled) {
-  background: var(--signal-primary-soft);
-  border-color: var(--signal-primary);
+  background: var(--bg-hover);
+  border-color: var(--ink-1);
+}
+.btn--run {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn--run:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 /* strip entry + running state */
@@ -5463,7 +5892,7 @@ a.sheet__row {
   font-family: var(--font-mono);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
-  color: var(--signal-primary);
+  color: var(--accent);
 }
 
 /* docs/timeline-series-contract.md §6 — the chart series selector popover.
@@ -5478,12 +5907,12 @@ a.sheet__row {
   flex-direction: column;
   gap: 8px;
   padding: 10px;
-  background: var(--surface-overlay);
-  border: 1px solid var(--line-container);
+  background: var(--bg-overlay);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius);
-  box-shadow: var(--elev-overlay);
+  box-shadow: var(--shadow-overlay);
   font-size: 12px;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .tl-series:focus {
   outline: none;
@@ -5494,7 +5923,7 @@ a.sheet__row {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .tl-series__list {
   list-style: none;
@@ -5516,7 +5945,7 @@ a.sheet__row {
   cursor: pointer;
 }
 .tl-series__item:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 .tl-series__check {
   margin: 0;
@@ -5532,7 +5961,7 @@ a.sheet__row {
   margin: 0;
   min-height: 1em;
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .tl-series__note:empty {
   display: none;
@@ -5542,7 +5971,7 @@ a.sheet__row {
   flex-direction: column;
   gap: 4px;
   padding-top: 8px;
-  border-top: 1px solid var(--line-hairline);
+  border-top: 1px solid var(--line-1);
 }
 .tl-series__action {
   align-self: flex-start;
@@ -5550,7 +5979,7 @@ a.sheet__row {
 .tl-series__hint {
   margin: 0 0 4px;
   font-size: 11px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 
 /* LIVE | DISTRIBUTION switch in the timeline header */
@@ -5560,8 +5989,8 @@ a.sheet__row {
 }
 .timeline__viewtab {
   border: 1px solid var(--line-control);
-  background: var(--surface-raised);
-  color: var(--text-tertiary);
+  background: var(--bg-raise);
+  color: var(--ink-3);
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.12em;
@@ -5575,10 +6004,11 @@ a.sheet__row {
   border-radius: 0 4px 4px 0;
   border-inline-start: 0;
 }
+/* the chosen view: neutral strong, a pressed face (colour review A) */
 .timeline__viewtab.is-on {
-  background: var(--signal-primary-soft);
-  border-color: var(--signal-primary);
-  color: var(--text-primary);
+  background: var(--bg-hover);
+  border-color: var(--ink-1);
+  color: var(--ink-1);
 }
 
 /* distribution panel (checkpoint 1: stats + export + placeholder) */
@@ -5589,6 +6019,27 @@ a.sheet__row {
   flex-direction: column;
   padding: 0 12px 10px;
 }
+/* the stats row stays; below it, the terminations row and the band chart */
+.dist__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* the desktop analysis area (2026-10-20): the band chart keeps a readable
+   height instead of shrinking to nothing, and where the window leaves the
+   area too little room (TimelineChart.tsx `DISTRIBUTION_MIN`, capped by the
+   canvas's minimum) the part below the stats row scrolls inside the area —
+   not the whole view: its Export menu opens upward, and a scroller around it
+   cut it off (measured 2026-10-20, export.spec) */
+.wb-analysis .dist__body {
+  overflow-y: auto;
+}
+.wb-analysis .dist__body .band {
+  min-height: 120px;
+  flex-shrink: 0;
+  flex-grow: 1;
+}
 .dist__stats {
   display: flex;
   align-items: center;
@@ -5596,14 +6047,14 @@ a.sheet__row {
   gap: 14px;
   padding: 2px 0 8px;
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .dist__stat b {
   font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .dist__stale {
-  color: var(--warning, #b26a1f);
+  color: var(--warn);
   font-size: 10px;
 }
 .dist__spacer {
@@ -5616,14 +6067,14 @@ a.sheet__row {
 .dist__plot {
   flex: 1;
   min-height: 0;
-  border: 1px dashed var(--line-structure);
+  border: 1px dashed var(--line-2);
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .dist__plot--placeholder {
-  color: var(--text-tertiary);
+  color: var(--ink-3);
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.1em;
@@ -5633,7 +6084,7 @@ a.sheet__row {
 .mcdlg__scrim {
   position: fixed;
   inset: 0;
-  background: color-mix(in srgb, var(--surface-ground) 62%, transparent);
+  background: color-mix(in srgb, var(--bg-app) 62%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5642,8 +6093,8 @@ a.sheet__row {
 }
 .mcdlg {
   width: 340px;
-  background: var(--surface-panel);
-  border: 1px solid var(--line-container);
+  background: var(--bg-panel);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius);
   box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.4);
   display: flex;
@@ -5654,17 +6105,17 @@ a.sheet__row {
   align-items: center;
   justify-content: space-between;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--line-hairline);
+  border-bottom: 1px solid var(--line-1);
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .mcdlg__x {
   border: 0;
   background: transparent;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
   cursor: pointer;
   font-size: 12px;
 }
@@ -5680,14 +6131,14 @@ a.sheet__row {
   justify-content: space-between;
   gap: 10px;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .mcdlg__field > span {
   font-family: var(--font-mono);
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .mcdlg__field input {
   width: 96px;
@@ -5697,27 +6148,27 @@ a.sheet__row {
   font-variant-numeric: tabular-nums;
   border: 1px solid var(--line-control);
   border-radius: var(--control-radius);
-  background: var(--surface-raised);
-  color: var(--text-primary);
+  background: var(--bg-field);
+  color: var(--ink-1);
 }
 .mcdlg__note {
   margin: 0;
   font-size: 10px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .mcdlg__cost {
-  border: 1px solid var(--line-hairline);
+  border: 1px solid var(--line-1);
   border-radius: 7px;
   padding: 8px 10px;
   display: flex;
   flex-direction: column;
   gap: 4px;
   font-size: 11px;
-  color: var(--text-secondary);
-  background: var(--surface-raised);
+  color: var(--ink-2);
+  background: var(--bg-raise);
 }
 .mcdlg__cost.is-over {
-  border-color: var(--warning, #b26a1f);
+  border-color: var(--warn);
 }
 .mcdlg__costline {
   display: flex;
@@ -5726,21 +6177,21 @@ a.sheet__row {
   font-variant-numeric: tabular-nums;
 }
 .mcdlg__costline b {
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .mcdlg__path {
   font-size: 10px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .mcdlg__over {
-  color: var(--warning, #b26a1f);
+  color: var(--warn);
   font-size: 10px;
 }
 .mcdlg__progress {
   position: relative;
   height: 16px;
   border-radius: 8px;
-  background: var(--surface-sunken);
+  background: var(--bg-field);
   overflow: hidden;
 }
 .mcdlg__bar {
@@ -5748,7 +6199,7 @@ a.sheet__row {
   inset-block: 0;
   inset-inline-start: 0;
   inset-inline-end: auto;
-  background: var(--signal-primary);
+  background: var(--accent);
   transition: width 120ms linear;
 }
 .mcdlg__pct {
@@ -5760,14 +6211,14 @@ a.sheet__row {
   font-family: var(--font-mono);
   font-size: 9px;
   font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
+  color: var(--ink-1);
   mix-blend-mode: difference;
 }
 .mcdlg__foot {
   display: flex;
   gap: 8px;
   padding: 12px 14px;
-  border-top: 1px solid var(--line-hairline);
+  border-top: 1px solid var(--line-1);
 }
 .mcdlg__foot .btn:last-child {
   margin-inline-start: auto;
@@ -5818,22 +6269,23 @@ a.sheet__row {
   margin: 2px 2px 6px;
   padding: 5px 8px;
   font: inherit;
-  color: var(--text-primary);
-  background: var(--surface-sunken, var(--surface-1, transparent));
+  color: var(--ink-1);
+  background: var(--bg-field);
   border: 1px solid var(--line-control);
   border-radius: var(--control-radius);
 }
 .lang-menu__empty {
   padding: 8px 10px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 /* focus lives on the search box / listbox container, so the active option is
    marked with data-active rather than :focus */
 .lang-menu__item[data-active] {
-  background: var(--surface-hover, rgba(127, 127, 127, 0.14));
+  background: var(--bg-hover);
 }
+/* the current language: the check and ink, not the run colour (colour review A) */
 .lang-menu__item[aria-selected='true'] .menu__name {
-  color: var(--signal-primary, var(--text-primary));
+  color: var(--ink-1);
 }
 @media (forced-colors: active) {
   .lang-menu__item[data-active] {
@@ -5848,7 +6300,7 @@ a.sheet__row {
   font-size: 8px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
   min-width: 96px;
 }
 
@@ -5865,7 +6317,7 @@ a.sheet__row {
   align-items: center;
   gap: 12px;
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .band__pool {
   font-family: var(--font-sans);
@@ -5873,8 +6325,8 @@ a.sheet__row {
   padding: 2px 6px;
   border: 1px solid var(--line-control);
   border-radius: 6px;
-  background: var(--surface-raised);
-  color: var(--text-primary);
+  background: var(--bg-raise);
+  color: var(--ink-1);
 }
 .band__pool--single {
   border: 0;
@@ -5888,7 +6340,7 @@ a.sheet__row {
   font-variant-numeric: tabular-nums;
 }
 .band__key b {
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .band__swatch {
   width: 9px;
@@ -5900,18 +6352,19 @@ a.sheet__row {
   border: 1px solid var(--line-control);
   border-radius: 4px;
   padding: 1px 7px;
-  background: var(--surface-raised);
-  color: var(--text-tertiary);
+  background: var(--bg-raise);
+  color: var(--ink-3);
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   cursor: pointer;
 }
+/* on: neutral strong, a pressed face (colour review A) */
 .band__mean.is-on {
-  border-color: var(--signal-primary);
-  color: var(--text-primary);
-  background: var(--signal-primary-soft);
+  border-color: var(--ink-1);
+  color: var(--ink-1);
+  background: var(--bg-hover);
 }
 .band__plot {
   flex: 1;
@@ -5923,7 +6376,7 @@ a.sheet__row {
   display: block;
 }
 .band__axis {
-  stroke: var(--line-structure);
+  stroke: var(--line-2);
   stroke-width: 1;
 }
 .band__grid {
@@ -5931,7 +6384,7 @@ a.sheet__row {
   stroke-width: 1;
 }
 .band__tick {
-  fill: var(--text-tertiary);
+  fill: var(--ink-3);
   font-family: var(--font-mono);
   font-size: 8px;
   font-variant-numeric: tabular-nums;
@@ -5970,14 +6423,14 @@ a.sheet__row {
   font-size: 8px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .term__pct {
   letter-spacing: 0;
 }
 .term__pct b {
   font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .term__plot {
   height: 34px;
@@ -5988,7 +6441,7 @@ a.sheet__row {
   display: block;
 }
 .term__axis {
-  stroke: var(--line-structure);
+  stroke: var(--line-2);
   stroke-width: 1;
 }
 .term__grid {
@@ -5996,22 +6449,22 @@ a.sheet__row {
   stroke-width: 1;
 }
 .term__tick {
-  fill: var(--text-tertiary);
+  fill: var(--ink-3);
   font-family: var(--font-mono);
   font-size: 8px;
   font-variant-numeric: tabular-nums;
 }
 .term__line {
-  stroke: var(--text-secondary);
+  stroke: var(--ink-2);
   stroke-width: 1.5;
   stroke-linejoin: round;
   stroke-linecap: round;
 }
 .term__bead {
-  fill: var(--text-secondary);
+  fill: var(--ink-2);
 }
 .term__empty {
-  fill: var(--text-tertiary);
+  fill: var(--ink-3);
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.08em;
@@ -6039,7 +6492,7 @@ input[type='number']::-webkit-inner-spin-button {
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .mcdlg--confirm .mcdlg__body {
   padding-top: 10px;
@@ -6047,7 +6500,7 @@ input[type='number']::-webkit-inner-spin-button {
 }
 .mcdlg--confirm .mcdlg__note {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .mcdlg--confirm .mcdlg__foot {
   justify-content: flex-end;
@@ -6079,8 +6532,8 @@ input[type='number']::-webkit-inner-spin-button {
    would be a pill). */
 .mcdlg--dataimport :is(input:not([type='checkbox'], [type='radio']), textarea, select) {
   border: 1px solid var(--line-control);
-  background: var(--surface-raised);
-  color: var(--text-primary);
+  background: var(--bg-field);
+  color: var(--ink-1);
 }
 .mcdlg--dataimport :is(input:not([type='checkbox'], [type='radio']), textarea) {
   border-radius: var(--control-radius);
@@ -6097,7 +6550,7 @@ input[type='number']::-webkit-inner-spin-button {
   gap: 16px;
 }
 .import__table {
-  border: 1px solid var(--line-hairline);
+  border: 1px solid var(--line-1);
   border-radius: var(--radius);
   padding: 10px;
   display: flex;
@@ -6121,7 +6574,7 @@ input[type='number']::-webkit-inner-spin-button {
 }
 .import__nameLabel {
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .import__nameField input {
   width: 100%;
@@ -6138,7 +6591,7 @@ input[type='number']::-webkit-inner-spin-button {
   align-items: center;
   gap: 12px;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .import__row label {
   display: flex;
@@ -6157,9 +6610,9 @@ input[type='number']::-webkit-inner-spin-button {
   align-items: center;
   gap: 12px;
   font-size: 12px;
-  color: var(--text-secondary);
-  background: var(--surface-sunken);
-  border: 1px solid var(--line-hairline);
+  color: var(--ink-2);
+  background: var(--bg-field);
+  border: 1px solid var(--line-1);
   border-radius: var(--radius);
   padding: 8px 10px;
 }
@@ -6177,11 +6630,11 @@ input[type='number']::-webkit-inner-spin-button {
   align-self: flex-start;
 }
 .import__error {
-  color: var(--warning);
+  color: var(--no); /* an error: the import failed */
   font-size: 12px;
 }
 .import__warning {
-  color: var(--text-secondary);
+  color: var(--ink-2);
   font-size: 12px;
 }
 .import__preview {
@@ -6193,7 +6646,7 @@ input[type='number']::-webkit-inner-spin-button {
 }
 .import__preview th,
 .import__preview td {
-  border: 1px solid var(--line-hairline);
+  border: 1px solid var(--line-1);
   padding: 4px 6px;
   text-align: start;
   vertical-align: top;
@@ -6209,7 +6662,7 @@ input[type='number']::-webkit-inner-spin-button {
 }
 .import__issues li {
   font-size: 12px;
-  color: var(--warning);
+  color: var(--no); /* an error: a failed check */
 }
 .import__placement label {
   display: flex;
@@ -6221,9 +6674,9 @@ input[type='number']::-webkit-inner-spin-button {
 /* docs/data-import.md §DI17 — the in-tool guide: quick start, shared role
    help, per-table count line, inline validation errors, review breakdown. */
 .import__quickstart {
-  border: 1px solid var(--line-hairline);
+  border: 1px solid var(--line-1);
   border-radius: var(--radius);
-  background: var(--surface-sunken);
+  background: var(--bg-field);
 }
 .import__quickstartToggle {
   width: 100%;
@@ -6232,7 +6685,7 @@ input[type='number']::-webkit-inner-spin-button {
   align-items: center;
   background: transparent;
   border: none;
-  color: var(--text-primary);
+  color: var(--ink-1);
   font: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -6242,13 +6695,13 @@ input[type='number']::-webkit-inner-spin-button {
   border-radius: var(--control-radius);
 }
 .import__quickstartToggle:focus-visible {
-  outline: 2px solid var(--line-focus);
+  outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
 .import__quickstartBody {
   padding: 0 10px 10px;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -6268,23 +6721,23 @@ input[type='number']::-webkit-inner-spin-button {
 }
 .import__quickstartBody summary {
   cursor: pointer;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .import__quickstartLead {
-  color: var(--text-primary);
+  color: var(--ink-1);
   font-size: 13px;
   font-weight: 600;
 }
 .import__quickstartHeading {
-  color: var(--text-primary);
+  color: var(--ink-1);
   font-weight: 600;
   margin-top: 4px;
 }
 .import__example {
   font-family: var(--font-mono);
   font-size: 11px;
-  background: var(--surface-raised);
-  border: 1px solid var(--line-hairline);
+  background: var(--bg-raise);
+  border: 1px solid var(--line-1);
   border-radius: 4px;
   padding: 6px 8px;
   margin: 0;
@@ -6292,7 +6745,7 @@ input[type='number']::-webkit-inner-spin-button {
   overflow-x: auto;
 }
 .import__quickstartResult {
-  color: var(--text-primary);
+  color: var(--ink-1);
   font-weight: 600;
 }
 .import__quickstartActions {
@@ -6302,15 +6755,15 @@ input[type='number']::-webkit-inner-spin-button {
   gap: 8px;
 }
 .import__guideLink {
-  color: var(--text-secondary);
+  color: var(--ink-2);
   font-size: 12px;
 }
 .import__roleHelp {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .import__roleHelpTitle {
-  color: var(--text-primary);
+  color: var(--ink-1);
   font-weight: 600;
 }
 .import__roleHelp dl {
@@ -6323,7 +6776,7 @@ input[type='number']::-webkit-inner-spin-button {
   display: contents;
 }
 .import__roleHelp dt {
-  color: var(--text-primary);
+  color: var(--ink-1);
   font-weight: 600;
 }
 .import__roleHelp dd {
@@ -6332,25 +6785,26 @@ input[type='number']::-webkit-inner-spin-button {
 .import__status {
   margin: 0;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .import__status.is-warn {
-  color: var(--warning);
+  color: var(--warn);
 }
+/* the failed checks' summary: an error */
 .import__issueSummary {
-  border: 1px solid var(--warning);
+  border: 1px solid var(--no);
   border-radius: var(--radius);
   padding: 8px 10px;
   font-size: 12px;
-  color: var(--warning);
+  color: var(--no);
 }
 .import__issueSummary:focus-visible {
-  outline: 2px solid var(--line-focus);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 .import__issueSummary.is-stale {
-  border-color: var(--line-hairline);
-  color: var(--text-secondary);
+  border-color: var(--line-1);
+  color: var(--ink-2);
 }
 .import__issues {
   margin: 0;
@@ -6361,7 +6815,7 @@ input[type='number']::-webkit-inner-spin-button {
   border: none;
   padding: 0;
   margin: 0;
-  color: var(--warning);
+  color: var(--no); /* an error: a link to a failed check */
   font: inherit;
   font-size: 12px;
   text-align: start;
@@ -6369,20 +6823,20 @@ input[type='number']::-webkit-inner-spin-button {
   text-decoration: underline dotted;
 }
 .import__issueLink:focus-visible {
-  outline: 2px solid var(--line-focus);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 .import__issues.is-stale li,
 .import__issues.is-stale .import__issueLink {
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .import__preview .is-bad {
-  outline: 2px solid var(--warning);
+  outline: 2px solid var(--no); /* an error: a cell that fails a check */
   outline-offset: -2px;
 }
 .import__preview td:focus-visible,
 .import__preview th:focus-visible {
-  outline: 2px solid var(--line-focus);
+  outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
 .import__tablesFoot {
@@ -6391,7 +6845,7 @@ input[type='number']::-webkit-inner-spin-button {
   align-items: baseline;
   gap: 12px;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .import__linkTables summary {
   cursor: pointer;
@@ -6403,12 +6857,12 @@ input[type='number']::-webkit-inner-spin-button {
 .import__placementHelp {
   margin: 0 0 6px;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .import__placementResult {
   display: block;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .import__placement label > span {
   display: flex;
@@ -6422,7 +6876,7 @@ input[type='number']::-webkit-inner-spin-button {
 }
 .import__reviewTable th,
 .import__reviewTable td {
-  border: 1px solid var(--line-hairline);
+  border: 1px solid var(--line-1);
   padding: 4px 8px;
   text-align: start;
 }
@@ -6435,7 +6889,7 @@ input[type='number']::-webkit-inner-spin-button {
 .import__labelsPreview {
   margin-top: 8px;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .import__labelsPreview ul {
   margin: 4px 0 0;
@@ -6458,19 +6912,20 @@ input[type='number']::-webkit-inner-spin-button {
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .mcdlg__selectall {
   border: 0;
   background: transparent;
-  color: var(--signal-primary);
+  /* a choice, not a run: neutral (colour review A) */
+  color: var(--ink-2);
   font: inherit;
   letter-spacing: 0.12em;
   cursor: pointer;
   padding: 0;
 }
 .mcdlg__selectall:disabled {
-  color: var(--text-disabled);
+  color: var(--ink-disabled);
   cursor: default;
 }
 .mcdlg__poollist {
@@ -6480,9 +6935,9 @@ input[type='number']::-webkit-inner-spin-button {
   max-height: 132px;
   overflow-y: auto;
   padding: 4px 2px;
-  border: 1px solid var(--line-hairline);
+  border: 1px solid var(--line-1);
   border-radius: 6px;
-  background: var(--surface-raised);
+  background: var(--bg-raise);
 }
 .mcdlg__pool {
   display: flex;
@@ -6491,14 +6946,14 @@ input[type='number']::-webkit-inner-spin-button {
   padding: 3px 6px;
   border-radius: 4px;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   cursor: pointer;
 }
 .mcdlg__pool:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 .mcdlg__pool input {
-  accent-color: var(--signal-primary);
+  accent-color: var(--ink-2); /* a choice, not a run (colour review A) */
   cursor: pointer;
 }
 .mcdlg__pool input:disabled {
@@ -6576,7 +7031,7 @@ input[type='number']::-webkit-inner-spin-button {
   }
   .toolbar--mobile .toolbar__vr {
     font-size: 11px;
-    color: var(--text-tertiary);
+    color: var(--ink-3);
     line-height: 1.2;
   }
   .toolbar--mobile .mob-more {
@@ -6599,7 +7054,7 @@ input[type='number']::-webkit-inner-spin-button {
     padding: 6px calc(10px + var(--sai-right)) calc(6px + var(--sai-bottom))
       calc(10px + var(--sai-left));
     gap: 8px;
-    border-top: 1px solid var(--line-container);
+    border-top: 1px solid var(--line-2);
   }
   .pstrip--mobile .pb-btn {
     min-height: 40px;
@@ -6618,7 +7073,7 @@ input[type='number']::-webkit-inner-spin-button {
     font-family: var(--font-mono);
     font-size: 11px;
     line-height: 1.35;
-    color: var(--warning);
+    color: var(--no); /* an error: the run could not start */
     white-space: normal;
     overflow-wrap: anywhere;
   }
@@ -6628,7 +7083,7 @@ input[type='number']::-webkit-inner-spin-button {
     position: fixed;
     inset: 0;
     z-index: var(--z-sheet);
-    background: color-mix(in srgb, var(--surface-ground) 55%, transparent);
+    background: color-mix(in srgb, var(--bg-app) 55%, transparent);
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
@@ -6636,8 +7091,8 @@ input[type='number']::-webkit-inner-spin-button {
     padding-bottom: var(--mob-runbar-real, calc(var(--mob-runbar-h) + var(--sai-bottom)));
   }
   .sheet {
-    background: var(--surface-panel);
-    border-top: 1px solid var(--line-container);
+    background: var(--bg-panel);
+    border-top: 1px solid var(--line-2);
     border-radius: var(--radius) var(--radius) 0 0;
     padding: 8px calc(12px + var(--sai-right)) calc(12px + var(--sai-bottom))
       calc(12px + var(--sai-left));
@@ -6660,14 +7115,14 @@ input[type='number']::-webkit-inner-spin-button {
     font-size: 10px;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--text-tertiary);
+    color: var(--ink-3);
   }
   .sheet__x {
     min-width: 44px;
     min-height: 44px;
     border: 0;
     background: transparent;
-    color: var(--text-secondary);
+    color: var(--ink-2);
     font-size: 15px;
     cursor: pointer;
   }
@@ -6683,12 +7138,12 @@ input[type='number']::-webkit-inner-spin-button {
     text-align: start;
     font: inherit;
     font-size: 14px;
-    color: var(--text-primary);
+    color: var(--ink-1);
     cursor: pointer;
   }
   .sheet__row:hover,
   .sheet__row:focus-visible {
-    background: var(--surface-hover);
+    background: var(--bg-hover);
   }
   /* issue #330 PR 3 — the Playback speed choices: a 44 px touch target
      (§MV7), and the chosen one marked by a check and a soft tint, never by
@@ -6696,21 +7151,22 @@ input[type='number']::-webkit-inner-spin-button {
   .sheet__row--speed {
     min-height: 44px;
   }
+  /* the chosen speed: neutral, weight and the pressed face (colour review A) */
   .sheet__row--speed[aria-pressed='true'] {
-    background: var(--signal-primary-soft);
+    background: var(--bg-hover);
     font-weight: 600;
   }
   /* on the tint the tertiary per-step time would fall under 4.5:1; lift it,
      as the hover / focus rule above does */
   .sheet__row--speed[aria-pressed='true'] .sheet__row-sub {
-    color: var(--text-secondary);
+    color: var(--ink-2);
   }
   .sheet__row-sub {
     margin-inline-start: auto;
     font-size: 12px;
-    color: var(--text-tertiary);
+    color: var(--ink-3);
   }
-  /* Hovering or keyboard-focusing a row swaps it onto `--surface-hover`, and
+  /* Hovering or keyboard-focusing a row swaps it onto `--bg-hover`, and
      in LIGHT that pulls the secondary label from 4.61:1 down to 3.92:1
      (#6c746e on #e9e8e2). Lift the label in exactly those two states: resting
      keeps 4.61:1, dark already climbs 6.46 -> 8.03:1 on its own because its
@@ -6720,7 +7176,7 @@ input[type='number']::-webkit-inner-spin-button {
      also used on `a` and `div` rows, which `:enabled` never matches. */
   .sheet__row:not(:disabled):not([aria-disabled='true']):hover .sheet__row-sub,
   .sheet__row:not(:disabled):not([aria-disabled='true']):focus-visible .sheet__row-sub {
-    color: var(--text-secondary);
+    color: var(--ink-2);
   }
   /* A row that cannot be used says so before it is tried. Measured 2026-09-21:
      a disabled row was pixel-identical to an enabled one in every state --
@@ -6742,7 +7198,7 @@ input[type='number']::-webkit-inner-spin-button {
      behaviour explicitly. */
   .sheet__row:disabled,
   .sheet__row[aria-disabled='true'] {
-    color: var(--text-secondary);
+    color: var(--ink-2);
     cursor: default;
   }
   .sheet__row:disabled:hover,
@@ -6756,7 +7212,7 @@ input[type='number']::-webkit-inner-spin-button {
     font-family: var(--font-mono);
     font-size: 10px;
     letter-spacing: 0.04em;
-    color: var(--text-tertiary);
+    color: var(--ink-3);
     user-select: text;
   }
   .sheet .share-pop__url {
@@ -6792,22 +7248,22 @@ input[type='number']::-webkit-inner-spin-button {
     gap: 6px;
     padding: 14px;
     text-align: center;
-    background: var(--surface-overlay);
-    border: 1px solid var(--line-container);
+    background: var(--bg-overlay);
+    border: 1px solid var(--line-2);
     border-radius: var(--radius);
-    box-shadow: var(--elev-overlay);
+    box-shadow: var(--shadow-overlay);
   }
   .openhint__title {
     margin: 0;
     font-weight: 600;
     font-size: 13px;
-    color: var(--text-primary);
+    color: var(--ink-1);
   }
   .openhint__body {
     margin: 0;
     font-size: 12px;
     line-height: 1.4;
-    color: var(--text-secondary);
+    color: var(--ink-2);
   }
   .openhint__btn {
     align-self: center;
@@ -6819,7 +7275,7 @@ input[type='number']::-webkit-inner-spin-button {
     margin: 4px 0 0;
     font-size: 11px;
     line-height: 1.4;
-    color: var(--text-tertiary);
+    color: var(--ink-3);
   }
   .openhint__sub code {
     font-family: var(--font-mono);
@@ -6833,7 +7289,7 @@ input[type='number']::-webkit-inner-spin-button {
   .sheet__ro-note {
     margin: 0 0 4px;
     font-size: 12px;
-    color: var(--text-tertiary);
+    color: var(--ink-3);
   }
   .inspector-ro {
     /* strip the <fieldset> chrome; `disabled` on it makes every control inert */
@@ -6862,7 +7318,7 @@ input[type='number']::-webkit-inner-spin-button {
     bottom: var(--mob-runbar-real, calc(var(--mob-runbar-h) + var(--sai-bottom)));
     z-index: var(--z-sheet);
     max-height: 46dvh;
-    border-top: 1px solid var(--line-container);
+    border-top: 1px solid var(--line-2);
     box-shadow: 0 -8px 24px -16px rgba(0, 0, 0, 0.5);
   }
   .timeline--sheet .timeline__panel {
@@ -6915,18 +7371,18 @@ input[type='number']::-webkit-inner-spin-button {
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-2);
   border-radius: 999px;
-  background: var(--surface-overlay);
+  background: var(--bg-overlay);
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.06em;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   white-space: nowrap;
 }
 .rev-chip--dirty {
-  border-color: var(--warning);
-  color: var(--warning);
+  border-color: var(--warn);
+  color: var(--warn);
 }
 /* issue #298 — the unsaved mark is a CSS circle (was the `●` character, drawn
    by an OS font); it follows the chip's text colour */
@@ -6946,7 +7402,7 @@ input[type='number']::-webkit-inner-spin-button {
 .review-scrim {
   position: fixed;
   inset: 0;
-  background: color-mix(in srgb, var(--surface-ground) 62%, transparent);
+  background: color-mix(in srgb, var(--bg-app) 62%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6957,8 +7413,8 @@ input[type='number']::-webkit-inner-spin-button {
   max-width: calc(100vw - 24px);
   max-height: calc(100vh - 48px);
   overflow-y: auto;
-  background: var(--surface-panel);
-  border: 1px solid var(--line-container);
+  background: var(--bg-panel);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius);
   box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.4);
 }
@@ -6967,12 +7423,12 @@ input[type='number']::-webkit-inner-spin-button {
   align-items: center;
   justify-content: space-between;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--line-hairline);
+  border-bottom: 1px solid var(--line-1);
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .review__body {
   padding: 14px;
@@ -6980,7 +7436,7 @@ input[type='number']::-webkit-inner-spin-button {
   flex-direction: column;
   gap: 8px;
   font-size: 13px;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .sheet--review .review__body {
   padding: 12px 16px 20px;
@@ -6990,21 +7446,21 @@ input[type='number']::-webkit-inner-spin-button {
   font-size: 13px;
 }
 .review__unverified {
-  color: var(--text-tertiary);
+  color: var(--ink-3);
   font-style: italic;
 }
 .review__note {
   margin: 0;
   padding: 6px 8px;
-  border-inline-start: 2px solid var(--line-structure);
-  color: var(--text-secondary);
+  border-inline-start: 2px solid var(--line-2);
+  color: var(--ink-2);
   font-size: 12px;
 }
 .review__stamp {
   margin: 0;
   font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .review__diff {
   margin: 4px 0;
@@ -7013,7 +7469,7 @@ input[type='number']::-webkit-inner-spin-button {
   gap: 10px;
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .review__diff-part {
   white-space: nowrap;
@@ -7022,19 +7478,19 @@ input[type='number']::-webkit-inner-spin-button {
   margin: 2px 0;
   font-size: 12px;
   line-height: 1.4;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .review__class--exact {
-  color: var(--signal-primary);
+  color: var(--accent);
 }
 .review__class--blocked,
 .review__warn {
-  color: var(--warning);
+  color: var(--warn);
 }
 .review__warn {
   margin: 2px 0;
   padding: 8px;
-  border: 1px solid var(--warning);
+  border: 1px solid var(--warn);
   border-radius: 6px;
   font-size: 12px;
   line-height: 1.45;
@@ -7048,7 +7504,7 @@ input[type='number']::-webkit-inner-spin-button {
 .review__foot {
   margin: 4px 0 0;
   font-size: 11px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
   line-height: 1.4;
 }
 .review__field {
@@ -7056,14 +7512,14 @@ input[type='number']::-webkit-inner-spin-button {
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .review__field > span {
   font-family: var(--font-mono);
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .review__field input,
 .review__field textarea {
@@ -7071,8 +7527,8 @@ input[type='number']::-webkit-inner-spin-button {
   padding: 6px 8px;
   border: 1px solid var(--line-control);
   border-radius: var(--control-radius);
-  background: var(--surface-raised);
-  color: var(--text-primary);
+  background: var(--bg-field);
+  color: var(--ink-1);
   resize: vertical;
 }
 
@@ -7103,13 +7559,13 @@ input[type='number']::-webkit-inner-spin-button {
   align-items: center;
   gap: 12px;
   padding: 8px 12px;
-  background: var(--surface-panel);
-  border: 1px solid var(--warning);
+  background: var(--bg-panel);
+  border: 1px solid var(--warn);
   border-radius: 8px;
-  box-shadow: var(--elev-label);
+  box-shadow: var(--shadow-label);
   font-size: 12px;
   line-height: 1.4;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .boot-notice__text {
   flex: 1;
@@ -7117,11 +7573,11 @@ input[type='number']::-webkit-inner-spin-button {
 
 /* per-hunk selective apply (SEMANTICS-R.md §R7.2) */
 .review__pick {
-  border: 1px solid var(--line-hairline);
+  border: 1px solid var(--line-1);
   border-radius: 8px;
   max-height: 40vh;
   overflow-y: auto;
-  background: var(--surface-sunken);
+  background: var(--bg-field);
 }
 .review__hunks {
   list-style: none;
@@ -7130,14 +7586,14 @@ input[type='number']::-webkit-inner-spin-button {
 }
 .review__hunk {
   padding: 8px 10px;
-  border-bottom: 1px solid var(--line-hairline);
+  border-bottom: 1px solid var(--line-1);
   font-size: 12px;
 }
 .review__hunk:last-child {
   border-bottom: 0;
 }
 .review__hunk--conflict {
-  background: color-mix(in srgb, var(--warning) 8%, transparent);
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
 }
 .review__hunk-head {
   display: flex;
@@ -7155,7 +7611,7 @@ input[type='number']::-webkit-inner-spin-button {
 .review__hunk-tag {
   font-weight: 400;
   font-style: italic;
-  color: var(--warning);
+  color: var(--warn);
 }
 .review__fields {
   display: flex;
@@ -7170,10 +7626,10 @@ input[type='number']::-webkit-inner-spin-button {
   gap: 4px 10px;
   padding: 4px 6px;
   border-radius: 5px;
-  background: var(--surface-panel);
+  background: var(--bg-panel);
 }
 .review__field-row--conflict {
-  outline: 1px solid var(--warning);
+  outline: 1px solid var(--warn);
 }
 .review__field-name {
   font-family: var(--font-mono);
@@ -7183,16 +7639,16 @@ input[type='number']::-webkit-inner-spin-button {
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .review__field-vals {
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .review__field-choice {
   display: flex;
   gap: 10px;
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .review__field-choice label {
   display: inline-flex;
@@ -7203,14 +7659,14 @@ input[type='number']::-webkit-inner-spin-button {
 .review__hunk-dep {
   margin: 3px 0 0 22px;
   font-size: 10px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .review__hunk-dep code {
   font-family: var(--font-mono);
   margin: 0 2px;
 }
 .review__hunk-dep--blocked {
-  color: var(--warning);
+  color: var(--warn);
 }
 
 /* ==== Korean typography — semantic small-caps labels ===================
@@ -7274,7 +7730,7 @@ input[type='number']::-webkit-inner-spin-button {
 .tour-scrim {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--surface-ground) 55%, transparent);
+  background: color-mix(in srgb, var(--bg-app) 55%, transparent);
 }
 /* the spotlight is drawn ON TOP of the scrim, never interactive; the big
    box-shadow dims everything outside it so the target reads through */
@@ -7282,18 +7738,20 @@ input[type='number']::-webkit-inner-spin-button {
   position: fixed;
   pointer-events: none;
   border-radius: 8px;
-  border: 2px solid var(--signal-primary, #2f6f4f);
-  box-shadow: 0 0 0 9999px color-mix(in srgb, var(--surface-ground) 55%, transparent);
+  /* a plain strong ring (colour review A, step 3): the scrim does the
+     emphasising; teal would read as "run", blue as "keyboard focus is here" */
+  border: 2px solid var(--ink-1);
+  box-shadow: 0 0 0 9999px color-mix(in srgb, var(--bg-app) 55%, transparent);
 }
 .tour-popover,
 .tour-card {
   position: fixed;
-  background: var(--surface-panel);
-  border: 1px solid var(--line-container);
+  background: var(--bg-panel);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius);
   box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.45);
   padding: 14px 16px;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .tour-card {
   top: 50%;
@@ -7313,7 +7771,7 @@ input[type='number']::-webkit-inner-spin-button {
   margin: 0;
   font-size: 13px;
   line-height: 1.55;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .tour-card__foot,
 .tour-popover__foot {
@@ -7338,12 +7796,12 @@ input[type='number']::-webkit-inner-spin-button {
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.1em;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .tour-popover__x {
   border: 0;
   background: transparent;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
   cursor: pointer;
   font-size: 12px;
   line-height: 1;
@@ -7370,14 +7828,14 @@ input[type='number']::-webkit-inner-spin-button {
 .about__version {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .about__copyright {
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .about__note {
   font-size: 12px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .about__licenses {
   margin-top: 4px;
@@ -7387,7 +7845,7 @@ input[type='number']::-webkit-inner-spin-button {
    was unreadable on the dark panel */
 .about a,
 .licenses__file {
-  color: var(--text-primary);
+  color: var(--ink-1);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -7411,7 +7869,7 @@ input[type='number']::-webkit-inner-spin-button {
 .licenses__lead {
   font-size: 13px;
   line-height: 1.6;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .licenses__file {
   font-size: 12px;
@@ -7422,7 +7880,7 @@ input[type='number']::-webkit-inner-spin-button {
   align-items: flex-start;
   gap: 8px;
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .licenses__text {
   align-self: stretch;
@@ -7430,10 +7888,10 @@ input[type='number']::-webkit-inner-spin-button {
   max-height: min(55vh, 520px);
   overflow: auto;
   padding: 10px 12px;
-  border: 1px solid var(--line-hairline);
+  border: 1px solid var(--line-1);
   border-radius: var(--control-radius);
-  background: var(--surface-sunken);
-  color: var(--text-primary);
+  background: var(--bg-field);
+  color: var(--ink-1);
   font-family: var(--font-mono);
   font-size: 11.5px;
   line-height: 1.5;
@@ -7450,7 +7908,7 @@ input[type='number']::-webkit-inner-spin-button {
 .contextual-help__intro {
   margin: 0 0 12px;
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   line-height: 1.5;
 }
 .contextual-help__list {
@@ -7467,7 +7925,7 @@ input[type='number']::-webkit-inner-spin-button {
   justify-content: space-between;
   gap: 12px;
   padding: 8px 0;
-  border-top: 1px solid var(--line-hairline);
+  border-top: 1px solid var(--line-1);
 }
 .contextual-help__row:first-child {
   border-top: none;
@@ -7481,10 +7939,78 @@ input[type='number']::-webkit-inner-spin-button {
 .contextual-help__desc {
   margin: 0;
   font-size: 12px;
-  color: var(--text-tertiary);
+  color: var(--ink-3);
 }
 .contextual-help__rearm {
   flex: none;
+}
+/* Help ▸ Example notes — the same shell and list as above; a long note
+   scrolls inside the dialog's body, never past the window */
+.mcdlg--example-notes {
+  width: min(480px, calc(100vw - 24px));
+  max-height: calc(100dvh - 32px);
+}
+.mcdlg--example-notes .mcdlg__body {
+  min-height: 0;
+  overflow-y: auto;
+}
+.example-notes__row {
+  padding: 4px 0;
+  border-top: 1px solid var(--line-1);
+}
+.example-notes__row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+.example-notes__toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--control-radius);
+  background: none;
+  color: var(--ink-1);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.example-notes__toggle:hover {
+  background: var(--bg-hover);
+}
+.example-notes__toggle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.example-notes__toggle .contextual-help__name {
+  margin: 0;
+}
+.example-notes__caret {
+  display: inline-flex;
+  flex: none;
+  width: 14px;
+  color: var(--ink-3);
+}
+.example-notes__text {
+  padding-block: 4px 8px;
+  padding-inline: 26px 6px;
+}
+.example-notes__text p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.example-notes__text p:last-child {
+  margin-bottom: 0;
+}
+/* Korean breaks between eojeol, never inside one (as the Storage and Share
+   dialogs do): without it the notes broke "뽑기 횟|수" and "같아|집니다"
+   (the desktop captures, 2026-10-20) */
+.mcdlg--example-notes:lang(ko) {
+  word-break: keep-all;
 }
 
 @media (forced-colors: active) {
@@ -7505,7 +8031,7 @@ input[type='number']::-webkit-inner-spin-button {
    The class is decided by whether a control normally SHOWS A BOUNDARY, not by
    what kind of element it is:
 
-   A          a visible boundary: the boundary itself takes `--line-focus`,
+   A          a visible boundary: the boundary itself takes `--focus`,
               a 3 px `--focus-halo` surrounds it, and `outline: none` is
               allowed because the border now stands in for it.
    A-clipped  the same control inside a box that clips (the one-row Timeline
@@ -7519,7 +8045,7 @@ input[type='number']::-webkit-inner-spin-button {
    This block is LAST on purpose, and its selectors carry `:not(:disabled)`
    where the control's own hover rule does: a focused control's boundary must
    beat its hover and its on / selected state, by specificity or by order.
-   The graph is not here — node and frame focus read `--state-focus`. */
+   The graph is not here — node and frame focus read `--focus`. */
 .btn:not(.btn--ghost):focus-visible:not(:disabled),
 .session-chip__btn:focus-visible,
 .pb-btn:focus-visible:not(:disabled),
@@ -7539,14 +8065,14 @@ input[type='number']::-webkit-inner-spin-button {
 .mcdlg--dataimport :is(input:not([type='checkbox'], [type='radio']), textarea, select):focus-visible:not(:disabled),
 .timeline__viewtab:focus-visible {
   outline: none;
-  border-color: var(--line-focus);
+  border-color: var(--focus);
   box-shadow: 0 0 0 3px var(--focus-halo);
 }
 .timeline__series:focus-visible:not(:disabled),
 .timeline__csv:focus-visible:not(:disabled) {
   outline: none;
-  border-color: var(--line-focus);
-  box-shadow: inset 0 0 0 1px var(--line-focus);
+  border-color: var(--focus);
+  box-shadow: inset 0 0 0 1px var(--focus);
 }
 
 /* forced colours drop `box-shadow`, and a recoloured border is not a focus
@@ -7584,130 +8110,6 @@ input[type='number']::-webkit-inner-spin-button {
   }
 }
 
-/* ---- Issue #296 — the update notice, the What's new panel and the `New` marker ----
-   docs/release-notes.md. The notice is one line and two buttons.
-   Desktop: the inline-start top corner of the canvas (mirrors in right-to-left).
-   Mobile: the PHYSICAL right, just above the run bar and the attribution line,
-   in right-to-left too - the canvas zoom controls stay on the left there.
-   Both places were measured: no control is covered and no element moves. */
-.whatsnew-notice {
-  position: absolute;
-  inset-block-start: 12px;
-  inset-inline-start: 12px;
-  z-index: 6;
-  box-sizing: border-box;
-  max-width: min(320px, calc(100% - 24px));
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 10px;
-  padding: 10px 12px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--text-primary);
-  background: var(--surface-overlay);
-  border: 1px solid var(--line-container);
-  border-radius: var(--radius);
-  box-shadow: var(--elev-overlay);
-}
-.whatsnew-notice__text {
-  flex: 1 1 100%;
-  margin: 0;
-  font-weight: 600;
-}
-.whatsnew-notice__actions {
-  display: flex;
-  gap: 6px;
-  margin-inline-start: auto;
-}
-/* the buttons never shrink or wrap inside themselves; the sentence wraps instead */
-.whatsnew-notice__actions .btn {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-/* Korean breaks between words, never inside one */
-.whatsnew-notice:lang(ko) {
-  word-break: keep-all;
-}
-@media (max-width: 720px), (max-height: 500px) and (max-width: 950px) and (pointer: coarse) {
-  .whatsnew-notice {
-    inset-block-start: auto;
-    inset-inline-start: auto;
-    right: 12px;
-    /* a starting value only: the component measures the run bar, whose height
-       is not a constant (it wraps to two rows at 320px), and sets `bottom` */
-    bottom: calc(var(--mob-runbar-real, calc(var(--mob-runbar-h) + var(--sai-bottom))) + 30px);
-    /* leave the column of canvas zoom controls on the left free */
-    max-width: calc(100% - 12px - 66px);
-  }
-}
-
-/* the What's new panel — reuses the .mcdlg shell, like About */
-.mcdlg--whatsnew {
-  width: min(440px, calc(100vw - 24px));
-  max-height: min(80vh, 640px);
-}
-.whatsnew {
-  gap: 16px;
-  overflow-y: auto;
-  font-size: 13px;
-  line-height: 1.55;
-}
-/* the list is a keyboard stop (it scrolls). It fills the panel edge to edge, so
-   the global outline would be drawn outside the panel: it is drawn inside. */
-.whatsnew:focus-visible {
-  outline-offset: -2px;
-}
-.whatsnew__entry + .whatsnew__entry {
-  padding-top: 14px;
-  border-top: 1px solid var(--line-hairline);
-}
-.whatsnew__version {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin: 0 0 8px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-/* the version line is left-to-right in every language; in a right-to-left
-   layout it still starts at the reading edge */
-[dir='rtl'] .whatsnew__version {
-  justify-content: flex-end;
-}
-.whatsnew__date {
-  font-weight: 400;
-  color: var(--text-secondary);
-}
-.whatsnew__items {
-  margin: 0;
-  padding-inline-start: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  color: var(--text-primary);
-}
-.whatsnew:lang(ko) {
-  word-break: keep-all;
-}
-
-/* the `New` marker beside "What's new" in the Help menu. A bordered pill, so it
-   is still a shape when colours are forced. */
-.menu__badge {
-  display: inline-block;
-  margin-inline-start: 4px;
-  padding: 0 6px;
-  border: 1px solid var(--line-control);
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 16px;
-  color: var(--text-secondary);
-  vertical-align: 1px;
-}
-
 /* ── issue #297 — the storage gate ─────────────────────────────────────────
    Drawn by the boot module before the app exists: a full-page ground with one
    card, in the system theme. The two choices are equal: the same `.btn`, the
@@ -7721,17 +8123,17 @@ input[type='number']::-webkit-inner-spin-button {
   justify-content: center;
   padding: 24px 16px;
   box-sizing: border-box;
-  background: var(--surface-ground);
-  color: var(--text-primary);
+  background: var(--bg-app);
+  color: var(--ink-1);
   font-family: var(--font-sans);
 }
 .gate__card {
   width: 100%;
   max-width: 520px;
-  background: var(--surface-panel);
-  border: 1px solid var(--line-container);
+  background: var(--bg-panel);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius);
-  box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-overlay);
   padding: 22px 22px 18px;
   box-sizing: border-box;
   display: flex;
@@ -7745,7 +8147,7 @@ input[type='number']::-webkit-inner-spin-button {
   line-height: 1.3;
 }
 .gate__title:focus-visible {
-  outline: 2px solid var(--line-focus);
+  outline: 2px solid var(--focus);
   outline-offset: 4px;
   border-radius: 4px;
 }
@@ -7753,17 +8155,17 @@ input[type='number']::-webkit-inner-spin-button {
   margin: 0;
   font-size: 12.5px;
   line-height: 1.5;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .gate__note {
   margin: 0;
   padding: 8px 10px;
   border: 1px solid var(--line-control);
   border-radius: var(--control-radius);
-  background: var(--surface-sunken);
+  background: var(--bg-field);
   font-size: 12px;
   line-height: 1.45;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .gate__choices {
   display: grid;
@@ -7778,7 +8180,7 @@ input[type='number']::-webkit-inner-spin-button {
   flex-direction: column;
   gap: 6px;
   padding: 12px;
-  border: 1px solid var(--line-hairline);
+  border: 1px solid var(--line-1);
   border-radius: var(--control-radius);
 }
 .gate__btn {
@@ -7798,7 +8200,7 @@ input[type='number']::-webkit-inner-spin-button {
   font-size: 10px;
   font-weight: 600;
   line-height: 16px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .gate__sub,
 .gate__help,
@@ -7806,7 +8208,7 @@ input[type='number']::-webkit-inner-spin-button {
   margin: 0;
   font-size: 11px;
   line-height: 1.45;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .gate__remember {
   display: flex;
@@ -7814,12 +8216,13 @@ input[type='number']::-webkit-inner-spin-button {
   gap: 6px;
   font-size: 11.5px;
   line-height: 1.4;
-  color: var(--text-primary);
+  color: var(--ink-1);
   cursor: pointer;
 }
 .gate__remember input {
   margin: 1px 0 0;
   flex: none;
+  accent-color: var(--ink-2); /* a choice, not a run (colour review A) */
 }
 .gate__later {
   margin-top: 4px;
@@ -7852,9 +8255,9 @@ input[type='number']::-webkit-inner-spin-button {
   font-size: 12px;
   letter-spacing: 0;
   font-weight: 600;
-  color: var(--text-primary);
-  background: var(--surface-raised);
-  border-color: var(--warning);
+  color: var(--ink-1);
+  background: var(--bg-raise);
+  border-color: var(--warn);
   flex-shrink: 0;
 }
 .session-chip__btn:hover,
@@ -7869,8 +8272,8 @@ input[type='number']::-webkit-inner-spin-button {
   padding: 6px 10px 8px;
   font-size: 11px;
   line-height: 1.45;
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--line-hairline);
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--line-1);
 }
 
 /* ── issue #297 — the Storage and privacy dialog ─────────────────────────── */
@@ -7892,26 +8295,26 @@ input[type='number']::-webkit-inner-spin-button {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .storage__mode {
   margin: 0;
   font-size: 12.5px;
   font-weight: 600;
   line-height: 1.45;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .storage__text {
   margin: 0;
   font-size: 12px;
   line-height: 1.5;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .storage__sub {
   margin: 0;
   font-size: 11px;
   line-height: 1.45;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .storage__toggle {
   display: flex;
@@ -7919,7 +8322,7 @@ input[type='number']::-webkit-inner-spin-button {
   gap: 6px;
   font-size: 12px;
   line-height: 1.4;
-  color: var(--text-primary);
+  color: var(--ink-1);
   cursor: pointer;
 }
 .storage__toggle input {
@@ -7927,7 +8330,7 @@ input[type='number']::-webkit-inner-spin-button {
   flex: none;
 }
 .storage__toggle:has(input:disabled) {
-  color: var(--text-disabled);
+  color: var(--ink-disabled);
   cursor: default;
 }
 .storage__actions {
@@ -7935,7 +8338,7 @@ input[type='number']::-webkit-inner-spin-button {
   flex-wrap: wrap;
   gap: 6px;
   padding-top: 4px;
-  border-top: 1px solid var(--line-hairline);
+  border-top: 1px solid var(--line-1);
 }
 .storage__actions .btn {
   white-space: normal;
@@ -7944,17 +8347,17 @@ input[type='number']::-webkit-inner-spin-button {
 .storage__done {
   margin: 0;
   font-size: 11.5px;
-  color: var(--cs-success);
+  color: var(--ok);
 }
-/* a deletion that failed: on the step it failed on, in the warning colour */
+/* a deletion that failed: on the step it failed on, in the error colour */
 .storage__failed {
   margin: 0;
   padding: 8px 10px;
-  border: 1px solid var(--warning);
+  border: 1px solid var(--no);
   border-radius: var(--control-radius);
   font-size: 11.5px;
   line-height: 1.45;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 /* a step's foot: the export offer sits at the inline start, Cancel and Confirm at the end */
 .mcdlg__foot--spread {
@@ -8004,7 +8407,7 @@ input[type='number']::-webkit-inner-spin-button {
   gap: 6px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--ink-1);
   cursor: pointer;
 }
 .share-protect__option input {
@@ -8016,7 +8419,7 @@ input[type='number']::-webkit-inner-spin-button {
   margin: 0;
   font-size: 11px;
   line-height: 1.45;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .share-protect__status:empty {
   display: none;
@@ -8026,15 +8429,15 @@ input[type='number']::-webkit-inner-spin-button {
   flex-direction: column;
   gap: 3px;
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
 .share-protect__field input {
   width: 100%;
   padding: 6px 8px;
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--text-primary);
-  background: var(--surface-raised);
+  color: var(--ink-1);
+  background: var(--bg-field);
   border: 1px solid var(--line-control);
   border-radius: var(--control-radius);
 }
@@ -8049,17 +8452,17 @@ input[type='number']::-webkit-inner-spin-button {
   gap: 3px;
   font-size: 11px;
   line-height: 1.45;
-  color: var(--text-secondary);
+  color: var(--ink-2);
 }
-/* a refusal: on the dialog it happened in, in the warning colour */
+/* a refusal: on the dialog it happened in, in the error colour */
 .share-protect__problem {
   margin: 0;
   padding: 8px 10px;
-  border: 1px solid var(--warning);
+  border: 1px solid var(--no);
   border-radius: var(--control-radius);
   font-size: 11.5px;
   line-height: 1.45;
-  color: var(--text-primary);
+  color: var(--ink-1);
 }
 .share-pop__status--protected {
   font-weight: 400;
@@ -8069,7 +8472,7 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 /* ---- the notice rail (src/ui/noticeRail.tsx) — a strip under the toolbar for
-   the first-run update notice and the tier-1 canvas hints on desktop, so they
+   the tier-1 canvas hints on desktop, so they
    never cover the diagram. Empty, it collapses; showing, it takes the height
    its content needs (a long translation or enlarged text wraps; nothing is cut
    to one line) and the canvas is that much shorter. No fit follows (a fit runs
@@ -8080,24 +8483,18 @@ input[type='number']::-webkit-inner-spin-button {
   align-items: center;
   gap: 6px 12px;
   padding: 0 12px;
-  background: var(--surface-ground);
+  background: var(--bg-app);
 }
 .notice-rail:empty {
   display: none;
 }
 .notice-rail:not(:empty) {
   padding: 6px 12px;
-  border-bottom: 1px solid var(--line-hairline);
+  border-bottom: 1px solid var(--line-1);
 }
 .notice-rail > * {
   flex: 0 1 auto;
   min-width: 0;
-}
-/* the update notice, in the rail: static, not the canvas overlay */
-.notice-rail .whatsnew-notice {
-  position: static;
-  max-width: none;
-  z-index: auto;
 }
 /* a hint note in the rail: the same chip, free to wrap, its close button never
    pushed out of view */

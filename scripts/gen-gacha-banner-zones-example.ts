@@ -161,7 +161,16 @@ const FACES: Record<string, EdgePorts> = {
   e_standard_10: { source: 'bottom', target: 'top' },
   e_standard_11: { source: 'bottom', target: 'top' },
   e_standard_12: { source: 'top', target: 'bottom' },
-  e_standard_16: { source: 'top', target: 'bottom' },
+  // the forced SSR's reset of the counter leaves the forced SSR's LEFT side
+  // (2026-10-21; was its top): from the top it shared the gap with the
+  // counter's condition into the forced SSR (`e_standard_13`), and while a run
+  // shows its two-line "=0 / Δ −n" its chip met that condition's chip. Faces
+  // only — the connection, its expression and the run are unchanged. Of six
+  // single-line variants measured (ko / en, 1440 / 1920, zoom 0.6), this one
+  // only removed shared stretches (e_standard_13 ≡ _16, and one more per
+  // language) and added none; the others moved one elsewhere, some into the
+  // Pickup zone's ticket fan (scratch round 10)
+  e_standard_16: { source: 'left', target: 'bottom' },
   e_standard_20: { source: 'bottom', target: 'top' },
   e_standard_21: { source: 'bottom', target: 'top' },
   e_termination_fuel: { source: 'bottom', target: 'top' },

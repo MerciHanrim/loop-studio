@@ -9,7 +9,9 @@ import { useT } from '../i18n'
 // header number, not shading here.
 
 const PAD = { l: 40, r: 16, t: 12, b: 20 }
-const HUES = ['--hue-pool', '--hue-gate', '--hue-converter', '--hue-drain', '--hue-source', '--hue-end']
+// the run chart's series tokens (index.css `--series-*`, 2026-10-21: their own,
+// at the kind hues' values and order they used to read)
+const HUES = ['--series-1', '--series-2', '--series-3', '--series-4', '--series-5', '--series-6']
 const hueVar = (i: number) => `var(${HUES[i % HUES.length]})`
 
 const NICE = [1, 1.2, 1.4, 1.5, 1.6, 1.8, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 10]

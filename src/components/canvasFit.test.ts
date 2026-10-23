@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { viewportForRect as viewportForRectOrNull } from './canvasFit'
+import { canvasFitInsets, viewportForRect as viewportForRectOrNull } from './canvasFit'
 
 const viewportForRect = (...args: Parameters<typeof viewportForRectOrNull>) => viewportForRectOrNull(...args)!
 
@@ -115,5 +115,15 @@ describe('viewportForRect — keep', () => {
   it('the floor still wins on a pane too small for the kept rect', () => {
     const v = viewportForRect(MMO, { width: 375, height: 600 }, NO_MM, { floor: 0.6, ceil: 1.2, keep: MMO_KEEP })
     expect(v.zoom).toBe(0.6)
+  })
+})
+
+// 2026-10-20 (Lumi): the desktop workbench has no zoom Controls rail, so no
+// band is kept for one; the phone's rail still takes its ~44 px
+describe('canvasFitInsets', () => {
+  it('reserves the left band only where the Controls rail is on screen', () => {
+    expect(canvasFitInsets(false)).toEqual({ left: 0, right: 0, bottom: 0, top: 0 })
+    expect(canvasFitInsets(true, 12)).toEqual({ left: 0, right: 224, bottom: 176, top: 12 })
+    expect(canvasFitInsets(false, 0, true)).toEqual({ left: 44, right: 0, bottom: 0, top: 0 })
   })
 })

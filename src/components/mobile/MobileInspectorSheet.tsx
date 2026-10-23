@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
-import { useReactFlow } from '@xyflow/react'
-import { selectSelectedNodeCount, useGraphStore } from '../../store/graphStore'
+import { selectOnly, selectSelectedNodeCount, useGraphStore } from '../../store/graphStore'
 import { selectOverlay, useUiStore } from '../../store/uiStore'
 import { useIsMobile } from '../../ui/media'
 import { useT } from '../../i18n'
@@ -23,17 +22,13 @@ export function MobileInspectorSheet() {
   const selectedNodeId = useGraphStore((s) => s.selectedNodeId)
   const selectedEdgeId = useGraphStore((s) => s.selectedEdgeId)
   const selectedNodeCount = useGraphStore(selectSelectedNodeCount)
-  const setSelection = useGraphStore((s) => s.setSelection)
-  const { setNodes, setEdges } = useReactFlow()
   const hasSelection = selectedNodeId != null || selectedEdgeId != null
 
-  // Close must also clear React Flow's own selection, not just the store's, or
-  // the node stays internally selected and can't be re-picked.
-  const dismiss = () => {
-    setNodes((ns) => ns.map((n) => (n.selected ? { ...n, selected: false } : n)))
-    setEdges((es) => es.map((e) => (e.selected ? { ...e, selected: false } : e)))
-    setSelection(null, null)
-  }
+  // Close must also clear each element's own `selected` mark, not just the
+  // store's selection, or the node stays internally selected and can't be
+  // re-picked — through `select` changes (`selectOnly`), never React Flow's
+  // `setNodes`, whose drawn nodes carry display-only state
+  const dismiss = () => selectOnly({})
 
   // selection drives the sheet: pick something → open it; clear the selection
   // (empty-canvas tap) → close it. Opening another overlay leaves the selection

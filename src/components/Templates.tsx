@@ -15,6 +15,49 @@ import { Icon } from '../ui/icons'
 // Replacing the current diagram is confirmed through the shared in-app dialog —
 // `loadGraph` runs only from Confirm (docs/localization.md Slice 2b).
 
+/** open a bundled Template: the Templates menu's action, and (the workbench,
+ *  2026-10) the File menu's Templates section's */
+export function loadTemplate(id: string): void {
+  const tpl = TEMPLATES.find((x) => x.id === id)
+  if (!tpl) return
+  useSimStore.getState().pause() // stop any run before the swap
+  // docs/template-label-overlay.md — a deep clone with the current locale's
+  // node-label + frame-title overlay; the canonical TEMPLATES[i] is never touched.
+  const { graph, recommendedRunConfig, modelVersion } = openTemplate(tpl)
+  // §MML3 — a Template may frame a sub-region on menu-open instead of fit-all.
+  // §TLO12 — and may carry group `frames` (undefined ⇒ frameStore cleared, as before).
+  // #334 — a document boundary: the history starts empty, and the Template's
+  // own lock is part of the swap (applyRecommended then finds it already set)
+  useGraphStore.getState().loadGraph(graph, {
+    canvasLocked: recommendedRunConfig?.canvasLocked === true,
+    modelVersion,
+    initialView: tpl.initialView ?? null,
+    frames: graph.frames,
+  }) // sim resets off structureRev
+  useMcStore.getState().applyRecommended(recommendedRunConfig)
+}
+
+/** the workbench File menu's Templates section: a heading and one item per
+ *  listed Template (name and description, as the Templates menu shows them);
+ *  `onPick` decides whether to confirm first (the caller owns the dialog,
+ *  which must outlive the menu) */
+export function TemplateMenuItems({ onPick }: { onPick: (id: string) => void }) {
+  const t = useT()
+  return (
+    <>
+      <div className="wb-menu__heading" role="presentation">
+        {t('workbench.menu.templates')}
+      </div>
+      {MENU_TEMPLATES.map((tpl) => (
+        <button key={tpl.id} type="button" className="menu__item" role="menuitem" data-template={tpl.id} onClick={() => onPick(tpl.id)}>
+          <span className="menu__name">{t(TEMPLATE_KEY[tpl.id as keyof typeof TEMPLATE_KEY].name)}</span>
+          <span className="menu__blurb">{t(TEMPLATE_KEY[tpl.id as keyof typeof TEMPLATE_KEY].blurb)}</span>
+        </button>
+      ))}
+    </>
+  )
+}
+
 export function Templates() {
   const t = useT()
   const [open, setOpen] = useState(false)
@@ -22,7 +65,6 @@ export function Templates() {
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
   const popRef = useRef<HTMLDivElement>(null)
-  const loadGraph = useGraphStore((s) => s.loadGraph)
   const hasContent = useGraphStore((s) => s.nodes.length > 0 || s.edges.length > 0)
 
   useOutsideDismiss(open, wrapRef, () => setOpen(false))
@@ -39,25 +81,7 @@ export function Templates() {
     return () => useMenuOpenStore.getState().setOpen('templates', false)
   }, [open])
 
-  const load = (id: string) => {
-    const tpl = TEMPLATES.find((x) => x.id === id)
-    if (!tpl) return
-    useSimStore.getState().pause() // stop any run before the swap
-    // docs/template-label-overlay.md — a deep clone with the current locale's
-    // node-label + frame-title overlay; the canonical TEMPLATES[i] is never touched.
-    const { graph, recommendedRunConfig, modelVersion } = openTemplate(tpl)
-    // §MML3 — a Template may frame a sub-region on menu-open instead of fit-all.
-    // §TLO12 — and may carry group `frames` (undefined ⇒ frameStore cleared, as before).
-    // #334 — a document boundary: the history starts empty, and the Template's
-    // own lock is part of the swap (applyRecommended then finds it already set)
-    loadGraph(graph, {
-      canvasLocked: recommendedRunConfig?.canvasLocked === true,
-      modelVersion,
-      initialView: tpl.initialView ?? null,
-      frames: graph.frames,
-    }) // sim resets off structureRev
-    useMcStore.getState().applyRecommended(recommendedRunConfig)
-  }
+  const load = loadTemplate
 
   const pick = (id: string) => {
     setOpen(false)

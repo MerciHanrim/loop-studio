@@ -1,53 +1,18 @@
 import IntlMessageFormat from 'intl-messageformat'
 import { describe, expect, it } from 'vitest'
-import ar from './locales/ar'
-import de from './locales/de'
 import en from './locales/en'
-import es419 from './locales/es-419'
-import esES from './locales/es-ES'
-import fr from './locales/fr'
-import itCat from './locales/it'
-import nl from './locales/nl'
-import ja from './locales/ja'
 import ko from './locales/ko'
-import ptBR from './locales/pt-BR'
-import ptPT from './locales/pt-PT'
-import ru from './locales/ru'
-import zhHans from './locales/zh-Hans'
-import th from './locales/th'
-import vi from './locales/vi'
-import tr from './locales/tr'
-import zhHant from './locales/zh-Hant'
 import { BASE_LOCALE, LOCALES } from './registry'
 
-// docs/localization.md §L12 — the catalog contracts that are only visible in
-// the RENDERED string: ICU quoting (§L4.1) and plural-category fallback
-// (§L4.6). `validateCatalog` compares argument names and kinds, which catches
-// a `{n}` that became `{count}`; neither of these is an argument mistake, so
-// neither is visible to it.
+// docs/localization.md §L12 — the catalog contract that is only visible in the
+// RENDERED string: ICU quoting (§L4.1). `validateCatalog` compares argument
+// names and kinds, which catches a `{n}` that became `{count}`; a quoting
+// mistake is not an argument mistake, so it is not visible to it.
 
-// NOTE: the catalog is imported as `itCat`, not `it`. The locale code `it`
-// collides with vitest's own `it()` — the first locale here whose CODE is
-// a test-framework identifier, so every other catalog can keep its bare name.
-const CATALOGS = {
-  ar,
-  de,
-  'es-419': es419,
-  'es-ES': esES,
-  fr,
-  it: itCat,
-  nl,
-  ja,
-  ko,
-  'pt-BR': ptBR,
-  'pt-PT': ptPT,
-  ru,
-  th,
-  vi,
-  tr,
-  'zh-Hans': zhHans,
-  'zh-Hant': zhHant,
-} as const
+// §L2.0 (2026-10) — Korean is the one translated language. The sixteen
+// archived ones, and the French plural-category checks that went with them,
+// are in `archive/i18n/tests/icuEscaping.multilocale.test.ts`.
+const CATALOGS = { ko } as const
 
 /** Enough of an argument bag to render anything: a number satisfies a plain
  *  slot, `number` and `plural`, and falls through a `select` to its `other`
@@ -105,57 +70,10 @@ describe('ICU quoting survives into the rendered string', () => {
   }
 })
 
-// ------------------------------------------------------- plural categories
-//
-// French cardinal rules select `many` for exact multiples such as 1,000,000
-// (2,000,000 too; 1,000,001 is `other`). The French catalog omits an explicit
-// `many` arm because its wording would be identical to `other`, and the ICU
-// fallback to `other` is what makes that safe. That fallback is a contract, so
-// it is tested rather than assumed: the day a French message needs a `many`
-// wording that differs, this is where the free omission stops being free.
-describe('French plural categories', () => {
-  /** the wording, with every number and its group separators taken out */
-  const wording = (s: string) => s.replace(/[\d  .,\s]+/g, ' ').trim()
-
-  it('selects many for an exact million, and other just past it', () => {
-    const pr = new Intl.PluralRules('fr')
-    expect(pr.select(0)).toBe('one') // French puts 0 in `one`, unlike English
-    expect(pr.select(1)).toBe('one')
-    expect(pr.select(2)).toBe('other')
-    expect(pr.select(1_000_000)).toBe('many')
-    expect(pr.select(2_000_000)).toBe('many')
-    expect(pr.select(1_000_001)).toBe('other')
-  })
-
-  it('every French plural renders at 1,000,000 through its `other` arm', () => {
-    const checked: string[] = []
-    for (const [key, message] of Object.entries(fr as Record<string, string>)) {
-      if (!message.includes(', plural,')) continue
-      checked.push(key)
-      expect(/many\s*\{/.test(message), `${key} has an explicit many arm`).toBe(false)
-      // renders without an ICU error, and says what the `other` arm says
-      expect(wording(render(message, 'fr', 1_000_000)), `${key} at 1,000,000`).toBe(
-        wording(render(message, 'fr', 2)),
-      )
-    }
-    expect(checked.length, 'the French catalog must actually have plurals').toBe(20)
-  })
-
-  it('0 takes the `one` arm, where the gender and participle agreement lives', () => {
-    const at0 = (key: string) => render(fr[key as keyof typeof fr] as string, 'fr', 0)
-    expect(at0('import.refresh.review.added')).toBe('0 ligne sera ajoutée')
-    expect(at0('import.refresh.review.locallyDeleted')).toBe('0 valeur a été supprimée localement')
-    expect(at0('import.refresh.review.fkRepoints')).toBe('0 clé étrangère a changé')
-  })
-})
-
 // docs/localization.md §L2.11a item 9 — this map is hand-written, because the
-// rendering below has to be synchronous and the registry's catalogs are lazy
-// `import()` chunks. That made it the one item-9 guard a new locale could join
-// the product WITHOUT: `pt-BR` shipped in #268 and was simply absent here, so
-// its ICU quoting and plural fallback went unchecked (they turned out fine —
-// a coverage gap, not a defect). The map is now asserted EXHAUSTIVE over the
-// registry, so the next locale cannot be missed silently.
+// rendering above has to be synchronous and the registry's catalogs are lazy
+// `import()` chunks. It is asserted EXHAUSTIVE over the registry, so a locale
+// added later cannot be missed silently.
 describe('every translated locale is actually in this file', () => {
   it('CATALOGS covers the registry', () => {
     const want = LOCALES.filter((l) => !l.pseudo && l.code !== BASE_LOCALE)

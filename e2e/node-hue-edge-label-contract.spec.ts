@@ -54,7 +54,7 @@ test('the node-type hue wash renders on every flow-kind node at the --node-hue-o
   }
 
   // Parameter carries no flow hue by design (§VL0 — `--node-hue` resolves to
-  // `--line-structure` there) — the layer still renders (no special-casing),
+  // `--line-2` there) — the layer still renders (no special-casing),
   // just with the neutral structural line colour instead of a type hue.
   const paramHue = page.locator('.react-flow__node[data-id="p1"] .nodef__hue')
   await expect(paramHue).toHaveCount(1)
@@ -62,7 +62,7 @@ test('the node-type hue wash renders on every flow-kind node at the --node-hue-o
     paramHue.evaluate((el) => getComputedStyle(el).fill),
     page.evaluate(() => {
       const probe = document.createElement('div')
-      probe.style.color = 'var(--line-structure)'
+      probe.style.color = 'var(--line-2)'
       document.body.appendChild(probe)
       const c = getComputedStyle(probe).color
       probe.remove()
@@ -144,7 +144,7 @@ test('forced-colors: the hue wash is dropped; shape + chip still carry the type'
   else await expect(page.locator('.react-flow__node[data-id="gold"] .nodef__name')).toBeVisible()
 })
 
-test('edge labels use --line-strong for the border and the dedicated --elev-edge-label shadow token', async ({ page }) => {
+test('edge labels use --line-3 for the border and the dedicated --shadow-edge-label shadow token', async ({ page }) => {
   await load(page)
   const label = page.locator('.edge-label').first()
   await expect(label).toBeVisible()
@@ -153,14 +153,14 @@ test('edge labels use --line-strong for the border and the dedicated --elev-edge
     label.evaluate((el) => getComputedStyle(el).borderTopColor),
     page.evaluate(() => {
       const probe = document.createElement('div')
-      probe.style.color = 'var(--line-strong)'
+      probe.style.color = 'var(--line-3)'
       document.body.appendChild(probe)
       const c = getComputedStyle(probe).color
       probe.remove()
       return c
     }),
     label.evaluate((el) => getComputedStyle(el).boxShadow),
-    page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--elev-edge-label').trim()),
+    page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--shadow-edge-label').trim()),
   ])
   expect(borderColor).toBe(lineStrongColor)
   // light theme's token is a real shadow (not "none") — confirm it's actually
@@ -170,13 +170,13 @@ test('edge labels use --line-strong for the border and the dedicated --elev-edge
   else expect(boxShadow).not.toBe('none')
 })
 
-test('dark theme: --elev-edge-label resolves to none (no floating shadow on a dark canvas)', async ({ page }) => {
+test('dark theme: --shadow-edge-label resolves to none (no floating shadow on a dark canvas)', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' })
   await load(page)
   const label = page.locator('.edge-label').first()
   await expect(label).toBeVisible()
   const [elevToken, boxShadow] = await Promise.all([
-    page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--elev-edge-label').trim()),
+    page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--shadow-edge-label').trim()),
     label.evaluate((el) => getComputedStyle(el).boxShadow),
   ])
   expect(elevToken).toBe('none')

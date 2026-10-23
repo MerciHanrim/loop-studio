@@ -17,8 +17,9 @@ const SYMBOL_KINDS = new Set(['source', 'drain', 'gate'])
 //
 // The level rule (share 17-implementation-rules.md; Lumi 2026-10-12): L2 and
 // L1 show the role (silhouette + inner symbol), the value and the outside name;
-// L0 hides the body and the name together and keeps the silhouette, the type
-// dot and every state cue. At every level the node keeps its hit box, and the
+// L0 hides the body (and the aux line beside it) and keeps the silhouette, the
+// type dot, the NAME (Lumi, 2026-10-20: never hidden all at once by zooming out;
+// it shrinks with the view) and every state cue. At every level the node keeps its hit box, and the
 // selection ring, the focus ring, the invalid ring + `!` flag, the fired ticks
 // and the evaluated bracket all stay present and painted.
 
@@ -192,17 +193,26 @@ for (const scheme of ['light', 'dark', 'forced'] as const) {
         expect(painted(c.stroke), `${at}: silhouette painted (${c.stroke})`).toBe(true)
         expect(c.cdot, `${at}: type dot`).toBe(level === 'L0')
 
-        // the name — outside, the label, visible at L2 / L1, hidden with the body at L0
+        // the name — outside, the label, visible and painted at every level
         expect(c.name, `${at}: name text`).toBeTruthy()
-        expect(c.nameVis, `${at}: name`).toBe(shown ? 'visible' : 'hidden')
-        if (shown) expect(painted(c.nameColor), `${at}: name painted (${c.nameColor})`).toBe(true)
+        expect(c.nameVis, `${at}: name`).toBe('visible')
+        expect(painted(c.nameColor), `${at}: name painted (${c.nameColor})`).toBe(true)
 
         // the value row — present on the value kinds (an invalid Register shows its
         // placeholder, never a number), visible at L2 / L1, hidden at L0
         if (VALUE_KINDS.has(kind)) {
           expect(c.value, `${at}: value text`).toBeTruthy()
-          if (id === 'r_bad') expect(c.value, `${at}: invalid shows no number`).toBe('—')
-          if (id === 'store') expect(c.value, `${at}: count / capacity`).toMatch(/^\d+ \/ 20$/)
+          // (the symbol nodes, 2026-10-19: a register's readout reads `= …`, its
+          // placeholder too; a pool's capacity is on the line beside its symbol,
+          // shown with the name)
+          if (id === 'r_bad') expect(c.value, `${at}: invalid shows no number`).toBe('= —')
+          if (id === 'store') {
+            expect(c.value, `${at}: the count`).toMatch(/^\d+$/)
+            const aux = page.locator('.react-flow__node[data-id="store"] .nodef__aux')
+            await expect(aux, `${at}: the capacity beside it`).toHaveText('≤ 20')
+            // the capacity goes with the count it qualifies (hidden at L0); the name beside it stays
+            expect(await aux.evaluate((el) => getComputedStyle(el).visibility), `${at}: capacity`).toBe(shown ? 'visible' : 'hidden')
+          }
           expect(c.valueVis, `${at}: value`).toBe(shown ? 'visible' : 'hidden')
           if (shown) expect(painted(c.valueColor), `${at}: value painted`).toBe(true)
           expect(c.role, `${at}: no symbol on a value kind`).toBe(false)

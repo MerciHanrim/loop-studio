@@ -1,23 +1,7 @@
 import IntlMessageFormat from 'intl-messageformat'
 import { describe, expect, it } from 'vitest'
-import ar from './locales/ar'
-import de from './locales/de'
-import itCat from './locales/it'
-import nl from './locales/nl'
 import en from './locales/en'
-import es419 from './locales/es-419'
-import esES from './locales/es-ES'
-import fr from './locales/fr'
-import ja from './locales/ja'
 import ko from './locales/ko'
-import ptBR from './locales/pt-BR'
-import ptPT from './locales/pt-PT'
-import ru from './locales/ru'
-import th from './locales/th'
-import vi from './locales/vi'
-import tr from './locales/tr'
-import zhHans from './locales/zh-Hans'
-import zhHant from './locales/zh-Hant'
 import { BASE_LOCALE, LOCALES } from './registry'
 
 // docs/localization.md §L2.11 — `{column}` names TWO different things, and a
@@ -37,32 +21,12 @@ import { BASE_LOCALE, LOCALES } from './registry'
 // `issue.columnIndex + 1` alongside the column's `header`.
 //
 // The two groups must therefore use DIFFERENT words in every language that
-// distinguishes them. `fr` and `zh-Hant` already did; `ko` / `ja` /
-// `zh-Hans` said "column" for both.
-
-// NOTE: the catalog is imported as `itCat`, not `it`. The locale code `it`
-// collides with vitest's own `it()` — the first locale here whose CODE is
-// a test-framework identifier, so every other catalog can keep its bare name.
-const CATALOGS = {
-  ar,
-  en,
-  ko,
-  ja,
-  'zh-Hans': zhHans,
-  'zh-Hant': zhHant,
-  fr,
-  de,
-  it: itCat,
-  nl,
-  'es-419': es419,
-  'es-ES': esES,
-  'pt-BR': ptBR,
-  'pt-PT': ptPT,
-  ru,
-  th,
-  vi,
-  tr,
-} as const
+// distinguishes them.
+//
+// §L2.0 (2026-10) — English and Korean are the supported languages. The rows
+// for the sixteen archived ones are in
+// `archive/i18n/tests/parserLocation.multilocale.test.ts`.
+const CATALOGS = { en, ko } as const
 type Loc = keyof typeof CATALOGS
 
 /** a position no other number in these messages can collide with */
@@ -104,60 +68,6 @@ const TABLE_KEYS = [
 // drift, not a locale being corrected.
 const VOCAB: Record<Exclude<Loc, 'en'>, { char: string | RegExp; table: string }> = {
   ko: { char: `${N}번째 문자`, table: `${N}열` },
-  ja: { char: `${N}文字目`, table: `${N}列目` },
-  'zh-Hans': { char: `第 ${N} 个字符`, table: `第 ${N} 列` },
-  'zh-Hant': { char: `第 ${N} 個字元`, table: `第 ${N} 欄` },
-  fr: { char: `caractère ${N}`, table: `colonne ${N}` },
-  // German splits the same way: `Zeichen` for a character offset,
-  // `Spalte` for a real table column (§L2.12).
-  // both approved German forms: `Zeichen {column}` next to the thing at
-  // that position, `an Zeichenposition {column}` as a standalone phrase
-  de: { char: new RegExp(`Zeichen(position)? ${N}`), table: `Spalte ${N}` },
-  // Spanish splits the same way: `carácter` for a character offset,
-  // `columna` for a real table column (§L2.13).
-  'es-419': { char: `carácter ${N}`, table: `columna ${N}` },
-  // Spain splits it with the same two words
-  'es-ES': { char: `carácter ${N}`, table: `columna ${N}` },
-  // Portuguese splits it the same way, and the Brazilian spelling is
-  // `caractere` — `carácter` / `caráter` are European.
-  'pt-BR': { char: `caractere ${N}`, table: `coluna ${N}` },
-  // The European spelling, and the whole reason this row is separate: the two
-  // Portuguese catalogs must NOT converge on one word here. The guard forces
-  // `carácter` on these seven PARSER keys only — `carácter` in its ordinary
-  // sense elsewhere in `pt-PT` is not banned, and `caracteres` is the plural
-  // in both locales.
-  'pt-PT': { char: `carácter ${N}`, table: `coluna ${N}` },
-  // Russian splits it the same way. `char` is a RegExp because the parser
-  // messages inflect the noun — `в символе 7` in a prepositional phrase — while the
-  // table half stays nominative `столбец 7`.
-  ru: { char: new RegExp(`символ(е)? ${N}`), table: `столбец ${N}` },
-  // Turkish splits it the same way: `karakter` is a character offset,
-  // `sütun` a real table column. The ordinal suffix sits on the NUMBER
-  // (`{column}. karakter`), so the number leads.
-  tr: { char: `${N}. karakter`, table: `sütun ${N}` },
-  // Thai keeps the same split: `ตำแหน่งอักขระ` is a character offset into the
-  // pasted text, `คอลัมน์` a real spreadsheet column. Thai has no spaces
-  // between words, so the number simply follows the noun with one space.
-  th: { char: `ตำแหน่งอักขระ ${N}`, table: `คอลัมน์ ${N}` },
-  // Vietnamese splits it the same way: `ký tự` is a character, `cột` a real
-  // spreadsheet column. The ordinal sits on the NOUN (`ký tự thứ 7`), so the
-  // number trails it, while the table half is the bare `cột 7`.
-  vi: { char: `ký tự thứ ${N}`, table: `cột ${N}` },
-  // Italian distinguishes the two the way `fr` does: a parser offset is a
-  // CHARACTER (`carattere`), a spreadsheet column is a `colonna`. The two
-  // words share no stem, so a mix-up cannot hide behind a common prefix.
-  it: { char: `carattere ${N}`, table: `colonna ${N}` },
-  // Dutch keeps them apart the same way: a parser offset is a CHARACTER
-  // (`teken`), a spreadsheet column is a `kolom`. No shared stem, so a
-  // mix-up cannot hide behind a common prefix.
-  nl: { char: `teken ${N}`, table: `kolom ${N}` },
-  // Arabic splits it the same way, and the two words share no root: a parser
-  // offset is a POSITION in the pasted text (`الموضع`), a spreadsheet column is
-  // `العمود`. Arabic derives words from three-consonant roots, so "no shared
-  // stem" is a stronger statement here than in the Latin-script rows — و-ض-ع
-  // and ع-م-د have nothing in common, and no inflection of one can drift into
-  // the other.
-  ar: { char: `الموضع ${N}`, table: `العمود ${N}` },
 }
 
 const LOCS = Object.keys(VOCAB) as Exclude<Loc, 'en'>[]

@@ -1,0 +1,846 @@
+{
+  "schema": "loop-studio/graph/2",
+  "version": 1,
+  "layoutVersion": 1,
+  "nodes": [
+    {
+      "id": "target_pulls",
+      "type": "parameter",
+      "position": {
+        "x": 0,
+        "y": 68
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Target pulls (whole number)",
+        "value": 200
+      }
+    },
+    {
+      "id": "ssr_hit_rate",
+      "type": "register",
+      "position": {
+        "x": 992,
+        "y": 68
+      },
+      "data": {
+        "kind": "register",
+        "label": "SSR hit rate · of target pulls",
+        "expr": "@ssr_count / @target_pulls",
+        "format": "percent"
+      }
+    },
+    {
+      "id": "fund_tickets",
+      "type": "source",
+      "position": {
+        "x": 704,
+        "y": 68
+      },
+      "data": {
+        "kind": "source",
+        "label": "Fund tickets",
+        "activation": "onStart",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "tickets",
+      "type": "pool",
+      "position": {
+        "x": 704,
+        "y": 164
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Tickets",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "pulls_made",
+      "type": "pool",
+      "position": {
+        "x": 704,
+        "y": 644
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Pulls made",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "w_ssr",
+      "type": "parameter",
+      "position": {
+        "x": 0,
+        "y": 180
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "SSR weight",
+        "value": 10
+      }
+    },
+    {
+      "id": "w_sr",
+      "type": "parameter",
+      "position": {
+        "x": 0,
+        "y": 292
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "SR weight",
+        "value": 90
+      }
+    },
+    {
+      "id": "w_r",
+      "type": "parameter",
+      "position": {
+        "x": 0,
+        "y": 404
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "R weight",
+        "value": 900
+      }
+    },
+    {
+      "id": "sr_count",
+      "type": "pool",
+      "position": {
+        "x": 704,
+        "y": 516
+      },
+      "data": {
+        "kind": "pool",
+        "label": "SR count",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "r_count",
+      "type": "pool",
+      "position": {
+        "x": 928,
+        "y": 516
+      },
+      "data": {
+        "kind": "pool",
+        "label": "R count",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "ssr_count",
+      "type": "pool",
+      "position": {
+        "x": 480,
+        "y": 516
+      },
+      "data": {
+        "kind": "pool",
+        "label": "SSR count",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "roll",
+      "type": "gate",
+      "position": {
+        "x": 704,
+        "y": 260
+      },
+      "data": {
+        "kind": "gate",
+        "label": "Roll",
+        "activation": "automatic",
+        "distribution": "probabilistic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "ssr_result",
+      "type": "gate",
+      "position": {
+        "x": 480,
+        "y": 404
+      },
+      "data": {
+        "kind": "gate",
+        "label": "SSR result",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "sr_result",
+      "type": "gate",
+      "position": {
+        "x": 704,
+        "y": 404
+      },
+      "data": {
+        "kind": "gate",
+        "label": "SR result",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "r_result",
+      "type": "gate",
+      "position": {
+        "x": 928,
+        "y": 404
+      },
+      "data": {
+        "kind": "gate",
+        "label": "R result",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "pity",
+      "type": "pool",
+      "position": {
+        "x": 128,
+        "y": 404
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Pity",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "hard_pity",
+      "type": "parameter",
+      "position": {
+        "x": 0,
+        "y": 516
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Hard pity ceiling",
+        "value": 80
+      }
+    },
+    {
+      "id": "forced_ssr",
+      "type": "gate",
+      "position": {
+        "x": 288,
+        "y": 404
+      },
+      "data": {
+        "kind": "gate",
+        "label": "Forced SSR",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "ceiling_hits",
+      "type": "pool",
+      "position": {
+        "x": 288,
+        "y": 548
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Ceiling hits",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "completion_signal",
+      "type": "pool",
+      "position": {
+        "x": 928,
+        "y": 772
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Completion signal",
+        "activation": "passive",
+        "initial": 1,
+        "capacity": 1,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "pulls_complete",
+      "type": "end",
+      "position": {
+        "x": 704,
+        "y": 772
+      },
+      "data": {
+        "kind": "end",
+        "label": "Pulls complete",
+        "activation": "automatic"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_fund",
+      "source": "fund_tickets",
+      "target": "tickets",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@target_pulls",
+        "route": "orthogonal",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_roll_ssr",
+      "source": "roll",
+      "target": "ssr_result",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@w_ssr",
+        "route": "orthogonal",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
+        "waypoints": [
+          {
+            "x": 732,
+            "y": 352
+          },
+          {
+            "x": 508,
+            "y": 352
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_roll_sr",
+      "source": "roll",
+      "target": "sr_result",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@w_sr",
+        "route": "orthogonal",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_roll_r",
+      "source": "roll",
+      "target": "r_result",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@w_r",
+        "route": "orthogonal",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
+        "waypoints": [
+          {
+            "x": 732,
+            "y": 352
+          },
+          {
+            "x": 956,
+            "y": 352
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_sr_count",
+      "source": "sr_result",
+      "target": "sr_count",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_r_count",
+      "source": "r_result",
+      "target": "r_count",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_ssr_pull",
+      "source": "ssr_result",
+      "target": "pulls_made",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal",
+        "ports": {
+          "source": "right",
+          "target": "left"
+        },
+        "waypoints": [
+          {
+            "x": 592,
+            "y": 432
+          },
+          {
+            "x": 592,
+            "y": 672
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_sr_pull",
+      "source": "sr_result",
+      "target": "pulls_made",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal",
+        "ports": {
+          "source": "left",
+          "target": "top"
+        },
+        "waypoints": [
+          {
+            "x": 672,
+            "y": 432
+          },
+          {
+            "x": 672,
+            "y": 624
+          },
+          {
+            "x": 732,
+            "y": 624
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_r_pull",
+      "source": "r_result",
+      "target": "pulls_made",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal",
+        "ports": {
+          "source": "right",
+          "target": "right"
+        },
+        "waypoints": [
+          {
+            "x": 1024,
+            "y": 432
+          },
+          {
+            "x": 1024,
+            "y": 672
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_tickets_roll",
+      "source": "tickets",
+      "target": "roll",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_tickets_forced",
+      "source": "tickets",
+      "target": "forced_ssr",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "ports": {
+          "source": "left",
+          "target": "top"
+        },
+        "waypoints": [
+          {
+            "x": 316,
+            "y": 192
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_pity_roll",
+      "source": "pity",
+      "target": "roll",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": "< @hard_pity - 1",
+        "route": "orthogonal",
+        "ports": {
+          "source": "top",
+          "target": "left"
+        },
+        "waypoints": [
+          {
+            "x": 156,
+            "y": 288
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_pity_forced",
+      "source": "pity",
+      "target": "forced_ssr",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= @hard_pity - 1",
+        "route": "orthogonal",
+        "ports": {
+          "source": "right",
+          "target": "left"
+        }
+      }
+    },
+    {
+      "id": "e_forced_ceiling",
+      "source": "forced_ssr",
+      "target": "ceiling_hits",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_ssr_pity",
+      "source": "ssr_result",
+      "target": "pity",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "=0",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal",
+        "ports": {
+          "source": "left",
+          "target": "bottom"
+        },
+        "waypoints": [
+          {
+            "x": 464,
+            "y": 432
+          },
+          {
+            "x": 464,
+            "y": 720
+          },
+          {
+            "x": 156,
+            "y": 720
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_sr_pity",
+      "source": "sr_result",
+      "target": "pity",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal",
+        "ports": {
+          "source": "right",
+          "target": "left"
+        },
+        "waypoints": [
+          {
+            "x": 800,
+            "y": 432
+          },
+          {
+            "x": 800,
+            "y": 736
+          },
+          {
+            "x": 112,
+            "y": 736
+          },
+          {
+            "x": 112,
+            "y": 432
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_r_pity",
+      "source": "r_result",
+      "target": "pity",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal",
+        "ports": {
+          "source": "left",
+          "target": "left"
+        },
+        "waypoints": [
+          {
+            "x": 880,
+            "y": 432
+          },
+          {
+            "x": 880,
+            "y": 752
+          },
+          {
+            "x": 80,
+            "y": 752
+          },
+          {
+            "x": 80,
+            "y": 432
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_ssr_count",
+      "source": "ssr_result",
+      "target": "ssr_count",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_completion",
+      "source": "completion_signal",
+      "target": "pulls_complete",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "all",
+        "route": "orthogonal",
+        "ports": {
+          "source": "left",
+          "target": "right"
+        }
+      }
+    },
+    {
+      "id": "e_pulls_done",
+      "source": "pulls_made",
+      "target": "pulls_complete",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= @target_pulls",
+        "route": "orthogonal",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_forced_into_ssr",
+      "source": "forced_ssr",
+      "target": "ssr_result",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "ports": {
+          "source": "right",
+          "target": "left"
+        }
+      }
+    }
+  ],
+  "recommendedRunConfig": {
+    "baseSeed": 1,
+    "runs": 2000,
+    "steps": 202,
+    "tracked": [
+      "pulls_made",
+      "ssr_count",
+      "sr_count",
+      "r_count",
+      "ceiling_hits"
+    ],
+    "timelineSeries": [
+      "ssr_count",
+      "sr_count",
+      "r_count"
+    ],
+    "canvasLocked": false
+  },
+  "frames": [
+    {
+      "id": "pity_block",
+      "label": "Pity ceiling",
+      "rect": {
+        "x": 100,
+        "y": 368,
+        "w": 272,
+        "h": 288
+      },
+      "color": "violet"
+    }
+  ]
+}

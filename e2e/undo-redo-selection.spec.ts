@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, openApp, routesSettled, test } from './support/loop'
+import { insertStructureFile } from './support/structure'
+import { openPanelDetails } from './support/panel'
 
 // Undo / redo end with nothing selected, on the canvas as in the Inspector. A
 // history entry kept React Flow's `selected` flags, so an undo could leave a
@@ -41,14 +43,27 @@ async function clickNode(page: Page, id: string) {
 }
 
 /** an empty spot of the pane, away from every node and line */
+/** a click on EMPTY canvas: flow point (380, 310), between the fixture's two
+ *  rows of nodes. (The point 380 px from the pane's right edge, used before,
+ *  lands on the Register `occupancy` in the workbench's 664 px canvas at
+ *  1280 × 800 — measured 2026-10-20 — and selects it.) */
 async function clickEmpty(page: Page) {
   const b = (await page.locator('.react-flow__pane').boundingBox())!
-  await page.mouse.click(b.x + b.width - 380, b.y + b.height - 40)
+  const vp = await page.evaluate(() => (window as unknown as { __loop: { rf: { getViewport: () => { x: number; y: number; zoom: number } } } }).__loop.rf.getViewport())
+  const p = { x: b.x + vp.x + 380 * vp.zoom, y: b.y + vp.y + 310 * vp.zoom }
+  expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.classList.contains('react-flow__pane') ?? false, [p.x, p.y]), 'the click is on the empty canvas').toBe(true)
+  await page.mouse.click(p.x, p.y)
 }
 
 const marks = (page: Page) => page.locator('.react-flow__edge.selected, .react-flow__node.selected')
 const ends = (page: Page) => page.locator('.inspector .ends')
 const reverse = (page: Page) => ends(page).getByRole('button', { name: 'Reverse direction' })
+/** Reverse, as a user reaches it: the Ends group is in the panel's More
+ *  settings (the workbench, 2026-10), opened first; it then stays open */
+async function pressReverse(page: Page) {
+  await openPanelDetails(page)
+  await reverse(page).click()
+}
 const store = (page: Page) =>
   page.evaluate(() => {
     const g = (window as unknown as { __loop: L }).__loop.graph.getState()
@@ -74,7 +89,7 @@ test.describe('undo / redo end with nothing selected', () => {
   test('a connection selected across its own Reverse: undo leaves no mark, and a click selects it again', async ({ page }) => {
     await open(page)
     await clickEdge(page, 'e_treat')
-    await reverse(page).click()
+    await pressReverse(page)
     await page.keyboard.press('Control+z')
     await nothingSelected(page)
     await clickEdge(page, 'e_treat')
@@ -91,7 +106,7 @@ test.describe('undo / redo end with nothing selected', () => {
   test('undo and redo bring no old selection back', async ({ page }) => {
     await open(page)
     await clickEdge(page, 'e_treat')
-    await reverse(page).click()
+    await pressReverse(page)
     await clickEmpty(page)
     await nothingSelected(page)
     await page.keyboard.press('Control+z')
@@ -103,7 +118,7 @@ test.describe('undo / redo end with nothing selected', () => {
   test('after an undo, Delete deletes nothing the Inspector does not show', async ({ page }) => {
     await open(page)
     await clickEdge(page, 'e_treat')
-    await reverse(page).click()
+    await pressReverse(page)
     await page.keyboard.press('Control+z')
     await nothingSelected(page)
     const before = await store(page)
@@ -148,16 +163,14 @@ async function marksMatchFlags(page: Page) {
     .toBe(true)
 }
 
-test.describe('a module insert restores its own selection (§MS3.5)', () => {
-  test('undo: the node selected before the insert, in the Inspector too; redo: the inserted block', async ({ page }) => {
+test.describe('a structure insert restores its own selection (§MS3.5)', () => {
+  test('undo: the node selected before the insert, in the Inspector too; redo: the inserted structure', async ({ page }) => {
     await open(page)
     const id = await page.evaluate(() => (window as unknown as { __loop: L }).__loop.graph.getState().nodes.find((n: any) => n.type === 'pool').id as string)
     await clickNode(page, id)
     await expect.poll(async () => (await store(page)).ids).toEqual([id, null])
     const before = (await store(page)).edges.length
-    const menu = page.locator('.toolbar__actions .menu', { has: page.getByRole('button', { name: 'Insert module' }) })
-    await menu.getByRole('button', { name: 'Insert module' }).click()
-    await menu.locator('.menu__item').filter({ has: page.locator('.menu__name', { hasText: 'Reward split loop' }) }).click()
+    await insertStructureFile(page)
     await expect.poll(async () => (await store(page)).edges.length).toBeGreaterThan(before)
     const inserted = [...(await store(page)).flagged].sort()
     expect(inserted).not.toContain(id)
@@ -177,7 +190,7 @@ test.describe('a module insert restores its own selection (§MS3.5)', () => {
     await page.keyboard.press('Control+z')
     await clickEmpty(page)
     await clickEdge(page, 'e_treat')
-    await reverse(page).click()
+    await pressReverse(page)
     await page.keyboard.press('Control+z')
     await nothingSelected(page)
   })

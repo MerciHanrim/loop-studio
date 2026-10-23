@@ -48,7 +48,7 @@ semantic token so it can move independently later:
 
 | id | token | light | dark | reuses | why safe |
 |---|---|---|---|---|---|
-| `neutral` *(default)* | — (existing `--line-strong` border, `--signal-primary` fill @ 0.05) | — | — | — | today's frame |
+| `neutral` *(default)* | — (existing `--line-strong` border, a grey `--ink-3` fill @ 0.05 — 2026-10-21, colour review A step 3; it was the run colour) | — | — | — | today's frame |
 | `slate` | `--frame-accent-slate` | `#527a91` | `#78a6be` | `--hue-pool` | blue-grey; clear of teal |
 | `sage` | `--frame-accent-sage` | `#66805e` | `#91af85` | `--hue-source` | green |
 | `gold` | `--frame-accent-gold` | `#9a7639` | `#c6a05b` | `--hue-gate` | yellow-brown; heavier + `!`-glyphed `invalid` cue and the orange `--warning` stay distinct at border weight |
@@ -77,8 +77,8 @@ On the frame's own chrome only, one accent value driving three surfaces:
 | surface | neutral | accent |
 |---|---|---|
 | **back-rect border** (`.lgr-frame__fill` stroke) | `--line-strong` @ 0.5 | the accent token @ **0.7** |
-| **label chip** (`.lgr-frame__label` text + border) | `--text-secondary` / `--line-hairline` | the accent token |
-| **back-rect fill** | `--signal-primary` @ **0.05** | the accent token @ **0.06** |
+| **label chip** (`.lgr-frame__label` text + border) | `--text-secondary` / `--line-hairline` | border: the accent token; text: the chip's own ink (2026-10-21 — as text the accents read 3.3–4.0:1 on the chip in light) |
+| **back-rect fill** | `--ink-3` @ **0.05** (2026-10-21; was `--signal-primary`) | the accent token @ **0.06** |
 
 Fill opacity is capped at **0.06** — below the 4a Activity-overlay ceiling
 (≈ 0.15) so a coloured frame plus an Activity tint stay separable, and low
@@ -107,8 +107,8 @@ moves to its own channel**:
   1.5 → 2.25, opacity → 0.95) **in whatever colour the frame already is** —
   neutral or accent. Selection changes weight, never hue.
 
-So a `rose` frame that is selected shows: rose border (heavier) + rose label +
-the dashed selection outline. The outline is the unambiguous "this one is
+So a `rose` frame that is selected shows: rose border (heavier) + a rose-bordered
+label + the dashed selection outline. The outline is the unambiguous "this one is
 active" tell regardless of accent.
 
 ---
@@ -211,7 +211,8 @@ export type Frame = { id; n; label; rect; color?: FrameColor }   // absent ⇒ n
 **e2e** (`large-graph-readability.spec.ts`, Slice 4a/4b blocks):
 
 - select a manual frame → swatch row visible → pick `slate` → the back-rect
-  stroke, the label colour, and the fill all read `--frame-accent-slate`;
+  stroke, the label's border, and the fill all read `--frame-accent-slate`
+  (the label's text stays in ink since 2026-10-21);
   `aria-pressed` moves to that swatch;
 - pick `neutral` again → back to the default look;
 - select an **auto** frame → pick `gold` → it **promotes**: leaves the auto set,

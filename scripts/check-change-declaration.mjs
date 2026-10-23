@@ -5,10 +5,12 @@
 // Compares the working tree with the commit it branched from and applies the
 // rule in `change-declaration.mjs`: a change to what is built or shipped, or to
 // the app version, adds exactly one `.changes/<slug>.json` saying whether it is
-// `user-facing` (then the version and the release note come in the same change)
-// or `internal` (then it says why). It also validates the release-note list
-// itself: ids, versions, dates, three to five items, and every item present in
-// every language.
+// `user-facing` (then the line it adds under `## Unreleased` in CHANGELOG.md
+// comes in the same change) or `internal` (then it says why). The app version is
+// raised only when a release is approved, and then it only goes up.
+//
+// Revised 2026-10: the in-app release notes were removed, and with them this
+// check's validation of their list and their languages.
 //
 // The base is `--base`, else `CHANGE_BASE` (CI passes the pull request's base
 // commit, or the previous `main` commit on a push), else `origin/main`.
@@ -16,15 +18,11 @@
 // FAILS CLOSED. If git cannot say what changed - no such ref, a shallow clone
 // with no common ancestor - that is an error, never "nothing changed". The same
 // goes for the app version at the base (no package.json there, not JSON, no
-// x.y.z version) and for the languages: the catalogs found must be exactly the
-// registered set, so a language that lost its catalog is not skipped.
+// x.y.z version).
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
-import { DECLARATION_DIR, compareLanguageSets, evaluateChange, readPackageVersion } from './change-declaration.mjs'
-import { shippedCodes } from './registry-source.mjs'
-import { validateReleaseNotes } from '../src/releaseNotes/validate.ts'
+import { resolve } from 'node:path'
+import { CHANGELOG, DECLARATION_DIR, evaluateChange, readPackageVersion } from './change-declaration.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 let failed = false
@@ -34,6 +32,22 @@ const fail = (m) => {
 }
 const ok = (m) => console.log(`  ok    ${m}`)
 const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+/** a file's text at `ref`, or null when it is not there */
+const showAt = (ref, path) => {
+  try {
+    return git('show', `${ref}:${path}`)
+  } catch {
+    return null
+  }
+}
+/** a file's text in the working tree, or null when it is not there */
+const readNow = (path) => {
+  try {
+    return readFileSync(resolve(root, path), 'utf8')
+  } catch {
+    return null
+  }
+}
 
 // ── the base ────────────────────────────────────────────────────────────────
 const arg = process.argv.indexOf('--base')
@@ -64,21 +78,9 @@ if (base) {
   // ── the app version, then and now ──
   // Both must be read. A base version that cannot be read is an error, never
   // "there was none": with no base nobody can say whether the version moved.
-  let baseText = null
-  try {
-    baseText = git('show', `${base}:package.json`)
-  } catch {
-    baseText = null
-  }
-  const baseRead = readPackageVersion(baseText)
+  const baseRead = readPackageVersion(showAt(base, 'package.json'))
   if (baseRead.problem) fail(`package.json at the base ${base.slice(0, 7)}: ${baseRead.problem} - the app version this change started from is unknown`)
-  let headText = null
-  try {
-    headText = readFileSync(resolve(root, 'package.json'), 'utf8')
-  } catch {
-    headText = null
-  }
-  const headRead = readPackageVersion(headText)
+  const headRead = readPackageVersion(readNow('package.json'))
   if (headRead.problem) fail(`package.json: ${headRead.problem}`)
   const baseVersion = baseRead.version ?? null
   const headVersion = headRead.version ?? null
@@ -91,52 +93,16 @@ if (base) {
     if (entry.endsWith('.json')) declarationTexts[entry] = readFileSync(resolve(root, entry), 'utf8')
   }
 
-  // ── the release-note list, and every language's catalog ──
-  const { RELEASE_NOTES } = await import(pathToFileURL(resolve(root, 'src/releaseNotes/releaseNotes.ts')).href)
-  const localesDir = resolve(root, 'src/i18n/locales')
-  const catalogs = {}
-  for (const code of readdirSync(localesDir, { withFileTypes: true })) {
-    if (!code.isDirectory()) continue
-    // a locale folder merges its slices in `index.ts`, which Node's type
-    // stripping cannot follow (extensionless imports); merge the slices here
-    const merged = {}
-    for (const file of readdirSync(join(localesDir, code.name))) {
-      if (!file.endsWith('.ts') || file === 'index.ts' || file.endsWith('.test.ts')) continue
-      Object.assign(merged, (await import(pathToFileURL(join(localesDir, code.name, file)).href)).default)
-    }
-    if (Object.keys(merged).length === 0) fail(`the catalog of ${code.name} has no text at all`)
-    catalogs[code.name] = merged
-  }
-  // "present in every language" is only as good as the list of languages: the
-  // catalogs found must be exactly the registered set, not merely more than none
-  const localeCount = Object.keys(catalogs).length
-  let registered = null
-  try {
-    registered = shippedCodes()
-  } catch (e) {
-    fail(`the registered languages could not be read: ${e.message}`)
-  }
-  let languagesOk = false
-  if (registered) {
-    const languageProblems = compareLanguageSets(registered, Object.keys(catalogs))
-    for (const p of languageProblems) fail(`languages: ${p}`)
-    languagesOk = languageProblems.length === 0
-    if (languagesOk) ok(`languages: ${localeCount} catalogs, exactly the ${registered.length} registered languages`)
-  }
-
-  if (headVersion === null) {
-    fail('release notes: not checked, the app version is unknown')
-  } else {
-    const noteProblems = validateReleaseNotes(RELEASE_NOTES, { packageVersion: headVersion, catalogs })
-    for (const p of noteProblems) fail(`release notes: ${p}`)
-    if (!noteProblems.length && languagesOk) ok(`release notes: ${RELEASE_NOTES.length} entr${RELEASE_NOTES.length === 1 ? 'y' : 'ies'}, each id, version, date and item valid, every item present in ${localeCount} languages`)
-  }
+  // ── the changelog, then and now: a user-facing change's line goes under
+  //    "## Unreleased", and must be new to this change ──
+  const changelog = readNow(CHANGELOG)
+  const baseChangelog = showAt(base, CHANGELOG)
 
   console.log(`  base  ${base.slice(0, 7)} (${asked})`)
   if (baseVersion === null || headVersion === null) {
     fail('change declaration: not checked, the app version is unknown on one side')
   } else {
-    const { problems, summary } = evaluateChange({ changed, declarationTexts, declarationDirEntries, baseVersion, headVersion, notes: RELEASE_NOTES })
+    const { problems, summary } = evaluateChange({ changed, declarationTexts, declarationDirEntries, baseVersion, headVersion, changelog, baseChangelog })
     for (const s of summary) console.log(`  note  ${s}`)
     for (const p of problems) fail(p)
     if (!problems.length) ok(`change declaration: ${Object.keys(declarationTexts).length} declaration(s) in ${DECLARATION_DIR}/, all well formed; this change satisfies the rule`)

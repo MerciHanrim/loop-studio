@@ -18,9 +18,9 @@ function buildGraph() {
   const [s, p, d] = useGraphStore.getState().nodes
   useGraphStore.getState().updateNodeData(d.id, { activation: 'passive' })
   const gs = useGraphStore.getState()
-  gs.onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' })
-  gs.onConnect({ source: p.id, target: d.id, sourceHandle: 'out', targetHandle: 'in' })
-  gs.onConnect({ source: s.id, target: d.id, sourceHandle: 'state-source', targetHandle: 'state-target' })
+  gs.onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
+  gs.onConnect({ source: p.id, target: d.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
+  gs.onConnect({ source: s.id, target: d.id, sourceHandle: 'state-source', targetHandle: 'state-target' }, 'trigger')
   const edges = useGraphStore.getState().edges
   const resIn = edges.find((e) => e.source === s.id && e.target === p.id)!
   useGraphStore.getState().setEdgeData(resIn.id, { kind: 'resource', flow: '2' })

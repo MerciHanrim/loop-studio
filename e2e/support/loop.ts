@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { test as base, expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
 import { waitForAppReady, watchContext, watchPage } from './appReady'
 import { SNAPSHOT_POLICY, snapshotKind } from './snapshot-policy'
-import { seedWhatsNewSeen } from './whatsNew'
+import { pressViewRow } from './workbenchMenus'
 import { LAYOUT_VERSION } from '../../src/model/serialize'
 
 export { safeUrl, waitForAppReady, watchContext, watchPage } from './appReady'
@@ -24,7 +24,7 @@ export type StorageModeSeed = 'personal' | 'temporary' | 'gate'
 const WATCHED = Symbol('appReady.watchedNewContext')
 
 export const test = base.extend<
-  { errors: string[]; _tourSeed: void; whatsNewSeen: boolean; hintsSeen: boolean; storageMode: StorageModeSeed },
+  { errors: string[]; _tourSeed: void; hintsSeen: boolean; storageMode: StorageModeSeed },
   { _watchNewContexts: void }
 >({
   // Issue #305 - every page is watched from before its first navigation, so a
@@ -54,15 +54,9 @@ export const test = base.extend<
     },
     { auto: true, scope: 'worker' },
   ],
-  // Issue #296 — pre-dismissing the tour (below) makes the profile a RETURNING
-  // one, and a returning profile that has not been told about the newest
-  // release note gets the update notice on its canvas. So the same seed also
-  // records that release as announced and opened. `e2e/whats-new.spec.ts`
-  // turns this off with `test.use({ whatsNewSeen: false })`.
-  whatsNewSeen: [true, { option: true }],
   // the canvas hint notes (docs/contextual-inline-help.md) now render in the
   // notice rail under the toolbar (src/ui/noticeRail.tsx), where a note takes
-  // the pane's height — so, like the tour and the update notice, every spec
+  // the pane's height — so, like the tour, every spec
   // starts with the four canvas hints already seen and a spec ABOUT a hint
   // turns this off with `test.use({ hintsSeen: false })` (or clears the key
   // itself before a reload, as the frame-move tests of
@@ -80,8 +74,7 @@ export const test = base.extend<
   // on the gate. A value already there is kept, so a spec that writes its own
   // (or the app's own write followed by a reload) is not overwritten.
   _tourSeed: [
-    async ({ context, whatsNewSeen, storageMode, hintsSeen }, use) => {
-      if (whatsNewSeen) await seedWhatsNewSeen(context)
+    async ({ context, storageMode, hintsSeen }, use) => {
       await context.addInitScript(
         ({ mode, hints }) => {
           try {
@@ -124,9 +117,8 @@ export { expect }
 
 /** issue #297 — for a browser context a spec creates ITSELF (`browser.newContext`),
  *  the same profile the shared fixture gives every page: a remembered personal
- *  browser (no storage gate), the tour dismissed, the newest release seen. */
+ *  browser (no storage gate), the tour dismissed. */
 export async function seedPersonalBrowser(target: Page | BrowserContext, mode: StorageModeSeed = 'personal'): Promise<void> {
-  await seedWhatsNewSeen(target)
   await target.addInitScript((m) => {
     try {
       if (m !== 'gate' && !localStorage.getItem('loop-studio:storage-mode')) localStorage.setItem('loop-studio:storage-mode', m)
@@ -220,6 +212,19 @@ export async function ensureTimelineOpen(page: Page): Promise<void> {
 }
 
 /**
+ * docs/workbench.md §WB2.1 — the minimap starts FOLDED when no choice is
+ * stored (2026-10-21). A spec about the open minimap itself (its marks, its
+ * corner, the space a framing keeps clear of it) opens it as the user's choice
+ * would: the stored preference, set through the store. Whether it is then
+ * drawn is still the pane's (`minimapFits`) — the caller asserts that.
+ */
+export async function expandMinimap(page: Page): Promise<void> {
+  await page.evaluate(() =>
+    (window as unknown as { __loop: { ui: { getState: () => { setMinimapCollapsed: (v: boolean) => void } } } }).__loop.ui.getState().setMinimapCollapsed(false),
+  )
+}
+
+/**
  * The product's own "Reset view" (Canvas.tsx `resetView`: fit the graph, clear
  * filters / focus). A pixel spec that frames the canvas under the app's camera
  * calls this AFTER the layout it wants is final: the camera is otherwise the
@@ -230,7 +235,12 @@ export async function ensureTimelineOpen(page: Page): Promise<void> {
  * pixel offset is applied anywhere.
  */
 export async function resetView(page: Page): Promise<void> {
-  await page.getByRole('button', { name: /^reset view/i }).click()
+  // the workbench (2026-10): on the desktop Reset view is a row of View — the
+  // same action as the canvas rail's button it replaced (filters cleared,
+  // nothing selected, the whole diagram fitted; ViewMenu.tsx / Canvas.tsx
+  // `resetView`); the phone keeps the rail button
+  if (await page.locator('.wb-toolrow').count()) await pressViewRow(page, 'reset')
+  else await page.getByRole('button', { name: /^reset view/i }).click()
 }
 
 /** Empty graph + idle sim + no Monte-Carlo result. */

@@ -41,6 +41,14 @@ test.describe('handle drags create the right edges', () => {
       (window as any).__loop.graph.getState().nodes.map((n: any) => n.id),
     )
 
+    // the connection KIND is chosen in the tool row, never by the handle that
+    // takes the press (direction B, src/model/connectKind.ts; Lumi 2026-10-19):
+    // with the default "Flow" this same drag stores a resource connection
+    // (measured 2026-10-20), so a state connection is drawn as a user draws
+    // one — "Condition" first, then the port-to-port drag
+    const condition = page.locator('.wb-connect__kind[data-connect-kind="condition"]')
+    await condition.click()
+    await expect(condition).toHaveAttribute('aria-checked', 'true')
     // the diamonds sit at opacity 0 at rest but still take pointer events
     await dragHandle(page, { nodeId: a, handle: 'state-source' }, { nodeId: b, handle: 'state-target' })
 

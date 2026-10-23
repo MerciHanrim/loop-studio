@@ -103,27 +103,4 @@ test.describe('the notice rail keeps the canvas still', () => {
     expect(f1.top - f0.top, 'frame moved by the pointer dy — no jump from the rail').toBe(48)
     expect(await nodeAt(page, x0 + 64 + 8, y0 + 48 + 40), 'the carried Pool is where the pointer left it').toBe('waiting')
   })
-
-  test('the first-run update notice: closing it keeps every node where it was on screen', async ({ page, context }) => {
-    // a returning profile that has not seen the newest release: the notice is up at boot
-    await context.addInitScript(() => {
-      try {
-        localStorage.removeItem('loop-studio/whats-new/seen')
-        localStorage.removeItem('loop-studio/whats-new/announced')
-      } catch {
-        /* opaque origin */
-      }
-    })
-    await page.goto('/')
-    await waitForAppReady(page)
-    const notice = page.locator('.whatsnew-notice')
-    test.skip((await notice.count()) === 0, 'no update notice on this profile — covered by whats-new.spec.ts')
-    await expect(page.locator('.react-flow__node').first()).toBeVisible()
-    const rects0 = await nodeRects(page)
-    const z0 = await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.rf.getViewport().zoom)
-    await notice.getByRole('button').last().click()
-    await expect(notice).toHaveCount(0)
-    await expect.poll(() => nodeRects(page)).toEqual(rects0)
-    expect(await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.rf.getViewport().zoom)).toBe(z0)
-  })
 })

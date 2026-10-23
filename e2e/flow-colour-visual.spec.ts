@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, snap, test } from './support/loop'
+import { frameInPane } from './support/visualFrame'
 
 // docs/flow-colour-and-compact-nodes.md FC-4 — the flow colour in pixels: every
 // node kind and both edge kinds with a palette colour, light and dark, at the
@@ -51,12 +52,16 @@ async function view(page: Page, zoom: number): Promise<void> {
   await page.waitForTimeout(150)
 }
 const opts = (page: Page) => ({ mask: [page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')] })
+// the detail level at 0.85, not 1: the scene is 774 px wide at zoom 1 and the
+// canvas pane is 664 x 548 since the workbench; 0.85 stays inside L2 (>= 0.8)
+const L2_ZOOM = 0.85
 
 for (const scheme of ['light', 'dark'] as const) {
-  for (const [level, zoom] of [['L2', 1], ['L0', 0.4]] as const) {
+  for (const [level, zoom] of [['L2', L2_ZOOM], ['L0', 0.4]] as const) {
     test(`flow colours — ${scheme} · ${level}`, async ({ page }) => {
       await load(page, scheme)
       await view(page, zoom)
+      await frameInPane(page)
       await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, `flow-colour-${scheme}-${level}`, opts(page)))
     })
   }
@@ -64,7 +69,7 @@ for (const scheme of ['light', 'dark'] as const) {
 
 test('flow colours — every state at once: invalid, selection, band and focus on the Register; a selected coloured edge', async ({ page }) => {
   await load(page, 'light')
-  await view(page, 1)
+  await view(page, L2_ZOOM)
   // the coloured edge first, at the midpoint of its own path (Control then
   // adds the Register to the selection)
   const mid = await page.evaluate(() => {
@@ -85,5 +90,6 @@ test('flow colours — every state at once: invalid, selection, band and focus o
   await expect(page.locator('.react-flow__node[data-id="Broken"] .nodef')).toHaveClass(/is-selected.*is-focused|is-focused.*is-selected/)
   await expect(page.locator('.react-flow__edge[data-id="r3"] .edge-select-underlay')).toHaveCount(1)
   await page.waitForTimeout(150)
+  await frameInPane(page)
   await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'flow-colour-states', opts(page)))
 })

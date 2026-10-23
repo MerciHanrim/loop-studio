@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
+import { openInputsTab, openViewMenu } from './support/workbenchMenus'
 
 // docs/localization.md §L9.3 — the two shapes a single `dir` cannot express.
 //
@@ -61,7 +62,7 @@ async function expectMirrored(page: Page): Promise<void> {
 /** a source → pool resource edge whose flow references a parameter, which is what
  *  makes the Inputs panel render a flow row at all */
 async function seedFlowRow(page: Page, sourceLabel: string, targetLabel: string) {
-  return page.evaluate(
+  const ids = await page.evaluate(
     ({ sourceLabel: sl, targetLabel: tl }) => {
       const g = () => (window as unknown as Bridge).__loop.graph.getState()
       g().newGraph()
@@ -72,12 +73,15 @@ async function seedFlowRow(page: Page, sourceLabel: string, targetLabel: string)
       g().updateNodeData(src, { label: sl })
       g().updateNodeData(pool, { label: tl })
       g().updateNodeData(rate, { label: 'Rate', value: 5 })
-      g().onConnect({ source: src, target: pool, sourceHandle: 'out', targetHandle: 'in' })
+      g().onConnect({ source: src, target: pool, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
       g().setEdgeData(g().edges[0].id, { kind: 'resource', flow: `@${rate}` })
       return { src, pool, rate }
     },
     { sourceLabel, targetLabel },
   )
+  // the Inputs panel is the left list's Inputs tab (docs/workbench.md §WB5)
+  await openInputsTab(page)
+  return ids
 }
 
 /** the flow row's fragments: their text, resolved direction and document order */
@@ -232,8 +236,8 @@ test.describe('§L9.3 branch-computed — one element, two directions', () => {
       g().addNodeAt('source', { x: 0, y: 220 })
       g().addNodeAt('pool', { x: 260, y: 220 })
       const [s1, p1, s2, p2] = g().nodes.map((n: { id: string }) => n.id)
-      g().onConnect({ source: s1, target: p1, sourceHandle: 'out', targetHandle: 'in' })
-      g().onConnect({ source: s2, target: p2, sourceHandle: 'out', targetHandle: 'in' })
+      g().onConnect({ source: s1, target: p1, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
+      g().onConnect({ source: s2, target: p2, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
       const [e1, e2] = g().edges.map((e: { id: string }) => e.id)
       g().setEdgeData(e1, { kind: 'resource', flow: '2' })
       g().setEdgeData(e2, { kind: 'resource', flow: '@nope' })
@@ -329,12 +333,12 @@ test.describe('§L9.3 per-fragment markup — the language menu row', () => {
   }) => {
     await openApp(page)
 
-    // the same path e2e/i18n-acceptance.spec.ts takes rather than a guess: on
-    // desktop the switch lives inside the Settings menu, so that opens first
+    // on desktop the switch lives inside View (the workbench, 2026-10: the
+    // two-tier bar's Settings menu), so that opens first
     const openMenu = async () => {
       const trigger = page.locator('.lang-switch').first()
       if (!(await trigger.isVisible().catch(() => false))) {
-        await page.locator('.toolbar__actions .menu > button', { hasText: /Settings/ }).first().click()
+        await openViewMenu(page)
         await expect(trigger).toBeVisible()
       }
       if ((await trigger.getAttribute('aria-expanded')) === 'true') await page.keyboard.press('Escape')

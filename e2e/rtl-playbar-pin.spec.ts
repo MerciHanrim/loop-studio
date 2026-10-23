@@ -71,8 +71,11 @@ const readStrip = (page: Page) =>
       const c = collapse.getBoundingClientRect()
       clearance = Math.round((c.x >= s.right ? c.x - s.right : s.x - c.right) * 100) / 100
     }
+    // what Tab can reach: enabled AND rendered — a control the row folds into
+    // Run settings (`display: none` until it opens, docs/workbench.md §WB7) is
+    // in neither the tab order nor the visual order (its box reads x 0)
     const focusables = [...document.querySelectorAll('.pstrip button, .pstrip input, .pstrip [tabindex]')].filter(
-      (el) => !el.hasAttribute('disabled'),
+      (el) => !el.hasAttribute('disabled') && el.getClientRects().length > 0,
     )
     // a logical anchor OUTSIDE the pin, to prove the rest of the chrome does
     // mirror - the pin is an exception, not the rule

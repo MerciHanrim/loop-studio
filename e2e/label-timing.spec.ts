@@ -1,4 +1,5 @@
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { keepPanelDetailsOpen } from './support/panel'
 import type { Page } from '@playwright/test'
 
 // docs/label-timing-authoring.md (CSU8 slice 3) — the Inspector's `timing` /
@@ -87,6 +88,8 @@ test.describe('label timing — preset radiogroup (docs/label-timing-authoring.m
     await openApp(page)
     await resetAll(page)
     await load(page)
+    // the timing control is in the panel's More settings (docs/workbench.md §WB6)
+    await keepPanelDetailsOpen(page)
   })
 
   test('default: a Pool-sourced label with no timing shows "Always" checked and eligible, no reasons', async ({ page }) => {
@@ -213,21 +216,30 @@ test.describe('label timing — preset radiogroup (docs/label-timing-authoring.m
     })
   })
 
-  test('mode switch preserves timing/when; switching back to label re-shows the same preset, not reset to Always', async ({ page }) => {
+  // the workbench (docs/workbench.md §WB4): the connection's Kind select —
+  // Flow / Condition / Value change / Trigger — took the old Mode select's
+  // place; a label is a Value change, an activator a Condition
+  const kindSelect = (page: Page) => page.locator('.inspector select').filter({ has: page.locator('option[value="change"]') })
+
+  test('a kind switch keeps timing / when; switching back to Value change re-shows the same preset, not reset to Always', async ({ page }) => {
     await selectEdge(page, 'm_afterpull')
-    const modeSel = page.locator('.inspector .field select').nth(1)
-    await modeSel.selectOption('trigger')
+    await kindSelect(page).selectOption('trigger')
     expect(await edgeData(page, 'm_afterpull')).toMatchObject({ mode: 'trigger', timing: 'afterPull', when: 'source-fired' })
 
-    await modeSel.selectOption('label')
+    await kindSelect(page).selectOption('change')
     await expect(radios(page).nth(1)).toBeChecked() // re-shows afterPull, not reset
   })
 
-  test('only rendered for label mode — hidden for trigger / activator', async ({ page }) => {
+  test('only rendered for a Value change — hidden for a Trigger; a Condition from a Gate is refused and changes nothing', async ({ page }) => {
     await selectEdge(page, 'm_afterpull')
     await expect(page.locator('.labeltiming')).toBeVisible()
-    const modeSel = page.locator('.inspector .field select').nth(1)
-    await modeSel.selectOption('activator')
+    // a Condition needs a Pool as its source: refused, said why, the label kept
+    const before = await edgeData(page, 'm_afterpull')
+    await kindSelect(page).selectOption('condition')
+    await expect(page.locator('.inspector')).toContainText('A condition needs a Pool as its source')
+    expect(await edgeData(page, 'm_afterpull')).toEqual(before)
+    await expect(page.locator('.labeltiming')).toBeVisible()
+    await kindSelect(page).selectOption('trigger')
     await expect(page.locator('.labeltiming')).toHaveCount(0)
   })
 

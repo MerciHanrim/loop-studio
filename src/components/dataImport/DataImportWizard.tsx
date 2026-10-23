@@ -154,6 +154,9 @@ export const IMPORT_GUIDE_URL = `${REPO_URL}/blob/main/docs/import-guide.md`
 export const IMPORT_FIT_FLOOR = 0.5
 export const IMPORT_FIT_CEIL = 1
 export const IMPORT_HINT_INSET_TOP = 88
+/** how far a node's outside name can reach left of the node's corner: half
+ *  the name's 136 px max width less half the 56 px cell (nodeStructure.css) */
+const NAME_OVERHANG = 136 / 2 - 56 / 2
 
 function newDraftUI(): DraftUI {
   return { draft: createTableDraft(), pasteText: '', delimiter: ',', delimiterAuto: true, parseError: null }
@@ -478,8 +481,13 @@ export function DataImportWizard({
       let maxY = -Infinity
       for (const n of created) {
         // one pass over the created nodes -- positions + the fixed node
-        // footprint, no DOM measurement (fresh nodes are unmeasured anyway)
-        if (n.position.x < minX) minX = n.position.x
+        // footprint, no DOM measurement (fresh nodes are unmeasured anyway).
+        // The footprint starts at the node's corner, but its outside name
+        // is centred under the 56 px cell and up to 136 px wide
+        // (nodeStructure.css), so it reaches NAME_OVERHANG further left
+        // (measured 2026-10-20 at 1280 x 800: the first name began 12 px
+        // under the left list); right and below, the footprint holds it
+        if (n.position.x - NAME_OVERHANG < minX) minX = n.position.x - NAME_OVERHANG
         if (n.position.y < minY) minY = n.position.y
         if (n.position.x + NODE_W > maxX) maxX = n.position.x + NODE_W
         if (n.position.y + NODE_H > maxY) maxY = n.position.y + NODE_H

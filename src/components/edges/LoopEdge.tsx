@@ -13,7 +13,7 @@ import { useGraphStore } from '../../store/graphStore'
 import { BEAT_ARRIVE, BEAT_DEPART_END, BEAT_SETTLE, useSimStore, type PlaybackPhase } from '../../store/simStore'
 import type { CueRole } from '../../store/playbackRank'
 import { useUiStore } from '../../store/uiStore'
-import { currentRouteGeneration, setRouteLabelSize, useRouteInputs } from '../../store/routeMap'
+import { currentRouteGeneration, setRouteLabelSize, setRouteRunFormSize, useRouteInputs, type LabelSide } from '../../store/routeMap'
 import { freeLinePoints, pointAlong } from './freeLine'
 import { RouteBends } from './RouteBends'
 import { EndGrips } from './EndGrips'
@@ -22,7 +22,7 @@ import type { PortEnd } from '../../model/ports'
 import { isolateAuto } from '../../i18n/bidiIsolate'
 import type { MessageKey } from '../../i18n'
 import { useCanvasTheme, useIsMobile } from '../../ui/media'
-import { useLod } from '../lod'
+import { LOD_L1_MIN, useLod } from '../lod'
 import { useEdgeActivityOpacity } from '../frames/useActivityTint'
 import { MAX_PLAYBACK_TOKENS } from './playback-caps'
 import { useHeldBadgeBudget, usePlaybackTravelBudget } from './playbackBudget'
@@ -34,16 +34,20 @@ import { useId, useLayoutEffect, useRef, useState } from 'react'
 import type { LoopEdgeData } from '../../model/types'
 import { canonicalNumber } from '../../model/expr'
 import { parseActivatorExpr, parseFlow, resolveParamRhs, type StateEvent } from '../../engine'
+import { parseLabelExpr } from '../../engine/stateExpr'
 import { EDGE_MARKER } from './EdgeMarkers'
 import { accentMarkerId, runNeedsCase } from '../../ui/flowColour'
 import { readAccent } from '../../model/model'
 import { Icon } from '../../ui/icons'
 
 const FALLBACK: LoopEdgeData = { kind: 'resource', flow: '1' }
-// docs/visual-language.md §VL7.2 — the flow / condition chip is L2-only detail;
-// the edge class (solid vs dashed) and the direction marker are the §VL7.1
-// required set and are never hidden. A selected edge keeps its label at any zoom.
-const LABEL_L2_MIN = 0.8
+// docs/visual-language.md §VL7.2 — the flow / condition chip shows at L2 and
+// L1 (Lumi, 2026-10-20: a weight, a +1 or an end condition is what the model
+// says, not decoration) and shrinks with the view like a name — no minimum
+// size, no chip dropped for overlapping; it hides at L0. The edge class (solid
+// vs dashed) and the direction marker are the §VL7.1 required set and are
+// never hidden. A selected edge keeps its label at any zoom.
+const LABEL_MIN_ZOOM = LOD_L1_MIN
 
 // docs/simulation-playback.md Slice 2 — the token walks the `travel` beat of the
 // τ axis. The store owns τ (Slice 1); this layer only reads it.
@@ -52,6 +56,29 @@ const PB_TRAVEL_END = 0.8
 
 const fmtAmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 const fmtSigned = (n: number) => `${n > 0 ? '+' : ''}${fmtAmt(n)}`
+/** docs/edge-routing.md §ER15.2 — what the run-form copy's numbers are filled
+ *  with. A chip is capped at its `max-width` (index.css `.edge-label`: one line
+ *  per row, `nowrap`, an ellipsis), so a number of any length, sign, decimal
+ *  or language takes at most that width; a string longer than the cap reaches
+ *  it in every row. Never shown. */
+const RUN_FORM_FILL = `+${'8'.repeat(40)}`
+/** §ER15.2 — a label beside its line hangs from its near edge, toward its side */
+const SIDE_STEP: Record<LabelSide, { x: number; y: number; transform: string }> = {
+  up: { x: 0, y: -1, transform: 'translate(-50%, -100%)' },
+  down: { x: 0, y: 1, transform: 'translate(-50%, 0)' },
+  left: { x: -1, y: 0, transform: 'translate(-100%, -50%)' },
+  right: { x: 1, y: 0, transform: 'translate(0, -50%)' },
+}
+/** a running value change's chip shows the change it applied only when that
+ *  says more than its set value (Lumi, 2026-10-21): `+n` / `−n` that moved the
+ *  value by exactly n read as "+1 +1" — a second addition — so they show the
+ *  set value alone (the run's own cue says it applied); an assignment (`= n`),
+ *  a source-valued change (`±S`) or a change that differs shows both, apart:
+ *  "=0 | Δ −14" */
+const deltaRepeatsSet = (expr: string, delta: number): boolean => {
+  const p = parseLabelExpr(expr)
+  return p.ok && p.token === 'N' && p.op !== '=' && Math.abs(delta - (p.op === '+' ? p.n : -p.n)) < 1e-9
+}
 
 // A detached <path> reused to sample any `d` string at a length fraction. Works
 // on a non-mounted element in every SVG-capable browser; `document`-guarded so
@@ -184,9 +211,19 @@ function LoopEdge({
   const record = useRouteInputs((s) => s.record)
   const labelPending = routeMode !== 'orthogonal' && !slot && !record
   const path = route ? route.d : straight ? `M ${sourceX},${sourceY}L ${targetX},${targetY}` : bezierPath
+  // §ER15.2 — a repeated Value change's label the map placed BESIDE its line:
+  // the point on the line it belongs to (its leader's start) and its near edge
+  const beside = route?.beside ?? (freeAt ? slot?.beside : undefined) ?? null
+  const besideAnchor = route?.beside ? route.beside.anchor : beside ? freeAt : null
+  const besideNear =
+    route?.beside && route.label
+      ? route.label
+      : beside && freeAt
+        ? { x: freeAt.x + SIDE_STEP[beside.side].x * beside.gap, y: freeAt.y + SIDE_STEP[beside.side].y * beside.gap }
+        : null
   // §ER14.3 — a routed edge's label sits in the free slot the map chose
-  const labelX = route ? (route.label ?? route.mid).x : freeAt ? freeAt.x : straight ? (sourceX + targetX) / 2 : bezierLabelX
-  const labelY = route ? (route.label ?? route.mid).y : freeAt ? freeAt.y : straight ? (sourceY + targetY) / 2 : bezierLabelY
+  const labelX = besideNear ? besideNear.x : route ? (route.label ?? route.mid).x : freeAt ? freeAt.x : straight ? (sourceX + targetX) / 2 : bezierLabelX
+  const labelY = besideNear ? besideNear.y : route ? (route.label ?? route.mid).y : freeAt ? freeAt.y : straight ? (sourceY + targetY) / 2 : bezierLabelY
 
   // docs/large-graph-readability.md §LGR6-cues — the opt-in Activity overlay's
   // per-edge tint. Read here (not via the edge object's `style`, which v12 does
@@ -209,7 +246,7 @@ function LoopEdge({
     if (edgeKind === 'state') return tr.stateEvents.some((e) => e.edgeId === id) ? tr : null
     return (tr.flowByEdge[id] ?? 0) > 0 ? tr : null
   })
-  const lowZoom = useStore((s) => s.transform[2] < LABEL_L2_MIN)
+  const lowZoom = useStore((s) => s.transform[2] < LABEL_MIN_ZOOM)
   // §PB4.4 — the L0 ("map") level shares the canvas-wide LOD classifier (../lod);
   // no second copy of the 0.45 threshold. At L0 the sub-pixel travelling dot is
   // elided, the ordered depart / path-pulse / arrive cues still play, and
@@ -415,6 +452,8 @@ function LoopEdge({
   // away, and every animated node is keyed on `stepIndex` so nothing stacks.
   const sv = isState ? stateVisual(stateEvent) : null
   const activatorOn = sv?.kind === 'activator' ? sv.satisfied : undefined
+  // the chip's applied change, when it says more than the set value (`deltaRepeatsSet`)
+  const showDelta = sv?.kind === 'label' && sv.delta !== 0 && !deltaRepeatsSet(String((d as { expr?: string }).expr ?? ''), sv.delta)
 
   // ── Slice 3b — τ-synced state-event choreography ──────────────────────
   // A READ-ONLY consumer of the in-flight `transition.stateEvents` (owned by
@@ -516,7 +555,28 @@ function LoopEdge({
     setLabelSize((prev) => (prev && next && prev.w === next.w && prev.h === next.h ? prev : next))
     if (next && reportsRestSize) setRouteLabelSize(id, next.w, next.h)
   }, [labelKey, reportsRestSize, id])
-  const labelBox = showLabel && labelSize ? { x: labelX, y: labelY, ...labelSize } : null
+  // docs/edge-routing.md §ER15.2 — a label that grows in a run (a Value change:
+  // Δ row and clamp note; a Trigger: its blocked note) also reports its RUN
+  // FORM — the rendered border box at the largest it can grow to, every row at
+  // the chip's width cap — from an off-screen copy in the current language.
+  // Only the route map's last pass reads it (routes and rest places never do).
+  const growsInRun = isState && (d.mode === 'label' || d.mode === 'trigger')
+  const runFormRef = useRef<HTMLDivElement>(null)
+  const clampWord = t('canvas.edgeLabel.clamp')
+  const blockedWord = t('canvas.edgeLabel.blocked')
+  useLayoutEffect(() => {
+    const el = runFormRef.current
+    if (growsInRun && el) setRouteRunFormSize(id, el.offsetWidth, el.offsetHeight)
+  }, [growsInRun, text, label.mark, clampWord, blockedWord, showLabel, id])
+  // (centred; a label beside its line is centred half its size past its near edge)
+  const labelBox =
+    showLabel && labelSize
+      ? {
+          x: labelX + (beside ? (SIDE_STEP[beside.side].x * labelSize.w) / 2 : 0),
+          y: labelY + (beside ? (SIDE_STEP[beside.side].y * labelSize.h) / 2 : 0),
+          ...labelSize,
+        }
+      : null
   const labelDimmed =
     (pbPt != null && labelUnderToken(labelBox, pbPt.x, pbPt.y, pbBadgeOn ? pbBadge : null, badgePlace)) ||
     (rmBadgePt != null && labelUnderToken(labelBox, rmBadgePt.x, rmBadgePt.y, badgeText(rmBadgeAmount), 'left'))
@@ -529,7 +589,7 @@ function LoopEdge({
   const accent = readAccent((d as { accent?: unknown }).accent)
   const baseStroke =
     accent ??
-    (activatorOn === true ? 'var(--signal-primary)' : isState ? 'var(--edge-state)' : 'var(--edge-resource)')
+    (activatorOn === true ? 'var(--accent)' : isState ? 'var(--m-condition)' : 'var(--m-flow)')
   // FC-4.3 — this connection's run signals (path highlight, token, badge
   // border, rings, pulses, reduced-motion tells, state bead) read `--edge-run`;
   // without a flow colour they fall back to the default run colour (index.css).
@@ -551,24 +611,78 @@ function LoopEdge({
   // first, sliced generation of a document) is not drawn at all: no temporary
   // path, no label in a wrong place. Only an invisible, off-canvas copy of its
   // label is rendered, so its rest size reaches the router before the routes do.
+  // §ER15.2 — the run-form copy (never shown, never a click target). Its parts
+  // carry their own `--rf-*` / `__rf-*` names, styled by the same rules as the
+  // live parts (index.css), so no query for a live run part ever finds it
+  const runFormCopy =
+    growsInRun && showLabel ? (
+      <EdgeLabelRenderer>
+        {d.mode === 'trigger' ? (
+          <div
+            ref={runFormRef}
+            className="edge-label edge-label--measure edge-label--state edge-label--run-form"
+            aria-hidden="true"
+            style={{ visibility: 'hidden', transform: 'translate(-99999px, -99999px)' }}
+            dir={textDir}
+          >
+            {label.mark ? <Icon name="trigger" className="edge-label__mark" /> : text}
+            <span className="edge-label__rf-blocked" dir={uiDir}>
+              {blockedWord}
+            </span>
+          </div>
+        ) : (
+          <div
+            ref={runFormRef}
+            className="edge-label edge-label--measure edge-label--state edge-label--run-form edge-label--rf-two"
+            aria-hidden="true"
+            style={{ visibility: 'hidden', transform: 'translate(-99999px, -99999px)' }}
+            dir={textDir}
+          >
+            <span className="edge-label__rf-row">{text}</span>
+            <span className="edge-label__rf-row">
+              <span className="edge-label__rf-dmark">Δ</span>
+              <span className="edge-label__rf-delta" dir="ltr">
+                {RUN_FORM_FILL}
+              </span>
+            </span>
+            <span className="edge-label__rf-clamp" dir={uiDir}>
+              {clampWord} <span dir="ltr">{RUN_FORM_FILL}</span>
+            </span>
+          </div>
+        )}
+      </EdgeLabelRenderer>
+    ) : null
+
   if (routeMode === 'orthogonal' && !route) {
     return showLabel ? (
-      <EdgeLabelRenderer>
-        <div
-          ref={labelRef}
-          className={`edge-label edge-label--measure${isState ? ' edge-label--state' : ''}`}
-          aria-hidden="true"
-          style={{ visibility: 'hidden', transform: 'translate(-99999px, -99999px)' }}
-          dir={textDir}
-        >
-          {label.mark ? <Icon name="trigger" className="edge-label__mark" /> : text}
-        </div>
-      </EdgeLabelRenderer>
+      <>
+        <EdgeLabelRenderer>
+          <div
+            ref={labelRef}
+            className={`edge-label edge-label--measure${isState ? ' edge-label--state' : ''}`}
+            aria-hidden="true"
+            style={{ visibility: 'hidden', transform: 'translate(-99999px, -99999px)' }}
+            dir={textDir}
+          >
+            {label.mark ? <Icon name="trigger" className="edge-label__mark" /> : text}
+          </div>
+        </EdgeLabelRenderer>
+        {runFormCopy}
+      </>
     ) : null
   }
 
   return (
     <>
+      {/* §ER15.2 — a label beside its line is tied to it by a short leader: a
+          thin neutral tick and a dot on the line. No marker, no run signal, no
+          pointer events — it never reads as, or acts as, a connection */}
+      {showLabel && !labelPending && besideAnchor && besideNear ? (
+        <g className="edge-leader" aria-hidden="true">
+          <path className="edge-leader__tick" d={`M ${besideAnchor.x},${besideAnchor.y} L ${besideNear.x},${besideNear.y}`} />
+          <circle className="edge-leader__dot" cx={besideAnchor.x} cy={besideAnchor.y} r={1.75} />
+        </g>
+      ) : null}
       {/* FC-4.2 — selection is an underlay beneath the path, never a recolour */}
       {selected ? <path className="edge-select-underlay" d={path} aria-hidden="true" /> : null}
       <BaseEdge
@@ -607,7 +721,7 @@ function LoopEdge({
       />
 
       {/* docs/edge-routing.md §ER4 — a route point inside a node. The dashed
-          `--warning` stroke is the colour tell; this `!` badge at the route
+          `--warn` stroke is the colour tell; this `!` badge at the route
           midpoint is the NON-colour tell (a glyph, present-or-absent — survives
           `forced-colors` / greyscale and never collides with a dashed state
           edge), and it carries the accessible name. */}
@@ -868,9 +982,10 @@ function LoopEdge({
               selected ? ' is-selected' : ''
             }${hoverEdge ? ' is-hover' : ''}${activatorOn === true ? ' edge-label--on' : ''}${
               sv?.kind === 'trigger' && !sv.applied ? ' edge-label--blocked' : ''
-            }${accent ? ' has-accent' : ''}`}
+            }${accent ? ' has-accent' : ''}${showDelta ? ' edge-label--two' : ''}`}
             style={{
-              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              // §ER15.2 — beside its line it hangs from its near edge
+              transform: `${beside ? SIDE_STEP[beside.side].transform : 'translate(-50%, -50%)'} translate(${labelX}px, ${labelY}px)`,
               ...(accent ? { ['--edge-accent' as string]: accent } : null),
               // §ER15 — measured, not shown, until its slot is known
               ...(labelPending ? { visibility: 'hidden' as const } : null),
@@ -878,9 +993,18 @@ function LoopEdge({
             aria-hidden={labelPending || undefined}
             dir={textDir}
           >
-            {label.mark ? <Icon name="trigger" className="edge-label__mark" /> : text}
-            {sv?.kind === 'label' && sv.delta !== 0 ? (
-              <span className="edge-label__delta" dir="ltr">{fmtSigned(sv.delta)}</span>
+            {label.mark ? <Icon name="trigger" className="edge-label__mark" /> : showDelta ? <span className="edge-label__row" aria-hidden="true">{text}</span> : text}
+            {/* the applied change on a second line under the set value, marked Δ
+                (not by colour alone): the chip grows in height around its anchor,
+                not sideways; read as "set …, applied change …" in one phrase */}
+            {showDelta ? (
+              <>
+                <span className="edge-label__row edge-label__row--delta" aria-hidden="true">
+                  <span className="edge-label__dmark">Δ</span>
+                  <span className="edge-label__delta" dir="ltr">{fmtSigned(sv.delta)}</span>
+                </span>
+                <span className="sr-only">{`${t('canvas.edgeLabel.sr.set')} ${text}, ${t('canvas.edgeLabel.sr.change')} ${fmtSigned(sv.delta)}`}</span>
+              </>
             ) : null}
             {sv?.kind === 'label' && sv.clampAdjustment !== 0 ? (
               <span className="edge-label__clamp" title={t('canvas.edgeLabel.clamp.title')} dir={uiDir}>
@@ -910,6 +1034,7 @@ function LoopEdge({
           </div>
         </EdgeLabelRenderer>
       ) : null}
+      {runFormCopy}
     </>
   )
 }

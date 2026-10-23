@@ -13,8 +13,8 @@ import type { RefObject } from 'react'
 // regardless.
 //
 // One shared hook instead of eight near-identical per-component listeners
-// (Hanrim's review) — every Tier-1 menu (Templates, Insert module, File,
-// Data, Settings, Help, the ⋯ overflow) and Share's result panel call this
+// (Hanrim's review) — every Tier-1 menu (Templates, File, Data, Settings,
+// Help, the ⋯ overflow) and Share's result panel call this
 // the same way. Escape handling is deliberately NOT part of this hook: each
 // caller's own Escape logic already has hard-won nested-menu-ordering fixes
 // (see OverflowMenu.tsx / SettingsMenu.tsx) that this must not disturb.

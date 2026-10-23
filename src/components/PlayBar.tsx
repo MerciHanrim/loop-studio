@@ -1,8 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
 import { useT } from '../i18n'
 import { Icon } from '../ui/icons'
+// measured on the children's boxes: a right-to-left row spills on its start
+// side, which `scrollWidth` does not count (ar-XB at 900 px, 2026-10-20)
+import { fitsRow } from './workbench/toolRowFit'
 
 // P2 — playback lives in the chart-header strip, treated as part of the time
 // axis rather than the editing toolbar.
@@ -26,8 +29,28 @@ type Props = {
   onToggleCollapse: () => void
 }
 
-const intersects = (a: DOMRect, b: DOMRect) =>
-  a.left < b.right - 0.5 && a.right > b.left + 0.5 && a.top < b.bottom - 0.5 && a.bottom > b.top + 0.5
+// The run row is ONE row at every desktop width (Lumi, 2026-10-20). Short of
+// room it gives up, in steps, what has another way in — never Reset, Step,
+// Play, the current step or the run's STATE beside it (the steady state: the
+// run's state comes before its settings, Lumi 2026-10-20):
+//   1 — the Monte-Carlo button (Run ▸ Monte Carlo… opens the same dialog;
+//       a run in progress keeps its progress and Cancel here)
+//   2 — also Speed and Seed, folded into "Run settings" (the same two inputs,
+//       in a popover over the row)
+//   3 — last, the steady-state text may shorten (an ellipsis, its whole text
+//       on the tooltip and announced as before)
+// The step is the first that fits, measured on the row itself after every
+// render: the step readout, the ended note and a Monte-Carlo progress change
+// its width as a run goes on. The steady-state status keeps its room whether
+// shown or not, so it never moves a control when it appears.
+const RUN_ROW_STEPS = 3
+function fitRunRow(row: HTMLElement): void {
+  for (let step = 0; step <= RUN_ROW_STEPS; step++) {
+    if (step === 0) delete row.dataset.fit
+    else row.dataset.fit = String(step)
+    if (fitsRow(row)) return
+  }
+}
 
 export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   const status = useSimStore((s) => s.status)
@@ -55,38 +78,65 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   const ended = status === 'ended'
 
   // docs/simulation-playback-ordering.md §PBO5 — the "Steady state — flows
-  // continue" chip. It is `position: absolute` (out of flow — it never shifts a
-  // control or the strip height, appearing or not) and only shows when it fits
-  // WITHOUT overlapping any control; when the strip is too tight it is hidden.
+  // continue" status, beside the current step. Its room is kept whether it is
+  // shown or not (`visibility`), so it never shifts a control or the strip
+  // height when it appears; the row folds its settings to keep it (above).
+  // (Until 2026-10-20 it was out of flow and hidden wherever it would meet a
+  // control — at 1280 × 800 with the default panels, always.)
   const stripRef = useRef<HTMLDivElement>(null)
-  const chipRef = useRef<HTMLDivElement>(null)
-  const [chipFits, setChipFits] = useState(false)
-  const wantChip = steadyState && running
+  const showSteady = steadyState && running
 
   // Re-check after every render (PlayBar re-renders on step / status / speed /
   // seed / MC changes — frequent enough during a run that a stale verdict
   // self-corrects within a frame) and on window resize. No ResizeObserver — a
   // measure that also `setState`s inside an RO callback trips the benign
   // "ResizeObserver loop" warning, and the render-driven re-check is enough here.
+  // "Run settings" (fit step 2): Speed and Seed in a popover
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const settingsId = useId()
+  const settingsBtnRef = useRef<HTMLButtonElement>(null)
+  const settingsRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!settingsOpen) return
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Node
+      if (settingsRef.current?.contains(t) || settingsBtnRef.current?.contains(t)) return
+      setSettingsOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      setSettingsOpen(false)
+      settingsBtnRef.current?.focus()
+    }
+    window.addEventListener('pointerdown', onDown, true)
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      window.removeEventListener('pointerdown', onDown, true)
+      window.removeEventListener('keydown', onKey, true)
+    }
+  }, [settingsOpen])
+
   useLayoutEffect(() => {
     const strip = stripRef.current
-    const chip = chipRef.current
-    if (!strip || !chip) return
+    if (!strip) return
     const measure = () => {
-      const cr = chip.getBoundingClientRect()
-      const sr = strip.getBoundingClientRect()
-      let fits = cr.width > 0 && cr.left >= sr.left + 4 && cr.right <= sr.right - 2
-      if (fits) {
-        for (const el of strip.querySelectorAll<HTMLElement>(
-          '.pstrip__group, .pstrip__step, .pstrip__field, .pstrip__mc, .pstrip__collapse',
-        )) {
-          if (intersects(cr, el.getBoundingClientRect())) {
-            fits = false
-            break
-          }
-        }
+      fitRunRow(strip)
+      // a fold the row no longer needs closes its popover
+      if (strip.dataset.fit !== '2' && strip.dataset.fit !== '3' && settingsOpen) setSettingsOpen(false)
+      // the open popover stands over its button (2026-10-20: it was pinned to
+      // the row's start, and drifted from the button once the steady state
+      // took its room beside the step), pulled in where the row's end is near
+      const btn = settingsBtnRef.current
+      const pop = settingsRef.current
+      if (settingsOpen && btn && pop) {
+        const room = strip.clientWidth - pop.offsetWidth - 12
+        pop.style.left = `${Math.max(12, Math.min(btn.offsetLeft, room))}px`
+        pop.style.right = 'auto'
+      } else if (pop) {
+        pop.style.left = ''
+        pop.style.right = ''
       }
-      setChipFits(fits) // React bails when the value is unchanged
     }
     measure()
     const onResize = () => requestAnimationFrame(measure)
@@ -171,6 +221,31 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
         </span>
       )}
 
+      {/* the run's state beside its step: its room is kept while hidden; the
+          screen reader hears it once, from the status region below */}
+      <span className={`pstrip__steady${showSteady ? ' is-on' : ''}`} aria-hidden="true" title={showSteady ? t('playbar.steady') : undefined}>
+        {t('playbar.steady')}
+      </span>
+
+      <button
+        ref={settingsBtnRef}
+        type="button"
+        className={`pb-btn pstrip__settings-btn${settingsOpen ? ' is-open' : ''}`}
+        aria-expanded={settingsOpen}
+        aria-controls={settingsOpen ? settingsId : undefined}
+        onClick={() => setSettingsOpen((v) => !v)}
+      >
+        {t('playbar.settings')}
+      </button>
+      {/* Speed and Seed: in the row, or — folded (fit step 2) — the popover's
+          content; one pair of inputs either way */}
+      <div
+        ref={settingsRef}
+        id={settingsId}
+        className={`pstrip__settings${settingsOpen ? ' is-open' : ''}`}
+        role="group"
+        aria-label={t('playbar.settings')}
+      >
       <label className="pstrip__field">
         <span>{t('playbar.speed')}</span>
         <input
@@ -194,6 +269,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
           onChange={(e) => setSeed(Number(e.target.value))}
         />
       </label>
+      </div>
 
       <span className="pstrip__mc">
         {mcRunning ? (
@@ -208,7 +284,9 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
         ) : (
           <button
             type="button"
-            className="pb-btn"
+            // a cancelled / failed run's note is the run's state, not a
+            // setting: the button carrying it is not folded (2026-10-20)
+            className={`pb-btn pstrip__mc-btn${mcMessage ? ' has-note' : ''}`}
             onClick={openMcDialog}
             title={t('playbar.mc.title')}
           >
@@ -234,16 +312,6 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
       >
         <Icon name={collapsed ? 'chevron-up' : 'chevron-down'} />
       </button>
-
-      {/* out of flow; always rendered so its box can be measured, shown only
-          when it fits with no overlap (§PBO5) */}
-      <div
-        ref={chipRef}
-        className={`pstrip__steady${wantChip && chipFits ? ' is-on' : ''}`}
-        aria-hidden="true"
-      >
-        {t('playbar.steady')}
-      </div>
 
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {announce}

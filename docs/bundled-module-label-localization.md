@@ -1,5 +1,13 @@
 # Bundled-module label localization (design doc)
 
+> **RETIRED (2026-10).** The two bundled Building blocks and the *Insert module ▾*
+> menu were removed in the workbench redesign ([`module-system.md`](module-system.md)
+> §MS6, revised), so this overlay and its locale sync were removed with them —
+> `src/i18n/moduleLabels.ts`, `src/store/moduleLabelSync.ts`,
+> `src/model/moduleProvenance.ts` and `e2e/module-label-localization.spec.ts`.
+> A structure the user saves and inserts keeps its own names in every language.
+> The text below is the record of the design as it shipped.
+
 **Status: approved design, implementation landing in the same PR as this
 doc.** Supersedes the stale forward-reference to this filename left in
 `src/model/modules.ts`, `src/components/ModuleMenu.tsx`, `src/components/

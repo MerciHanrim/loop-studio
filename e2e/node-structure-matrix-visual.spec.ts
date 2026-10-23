@@ -10,7 +10,10 @@ import { MATRIX_GRAPH, MATRIX_IDS } from './support/nodeMatrix'
 // focus cue). The baselines are reviewed per row before they are committed
 // (Lumi, 2026-10-12); `snap()` applies the desktop-canvas-clip tolerance.
 
-const Z = { L2: 1, L1: 0.6, L0: 0.32 } as const
+// L2 is 0.84, not 1: the canvas pane at the e2e viewport is 664 x 548 since the
+// workbench (both side panels open at 1280 px), and the scene (about 760 wide
+// at zoom 1) must be whole in it; 0.84 stays inside L2 (>= 0.8, src/components/lod.ts)
+const Z = { L2: 0.84, L1: 0.6, L0: 0.32 } as const
 type Level = keyof typeof Z
 type Scheme = 'light' | 'dark' | 'forced'
 
@@ -32,14 +35,15 @@ async function load(page: Page, scheme: Scheme): Promise<void> {
   await page.evaluate(() => document.fonts.ready)
 }
 
-/** the scene's centre (the compact 3 × 4 grid with its names, about 760 × 420) at a level, exactly */
+/** the scene's centre (the compact 3 × 4 grid with its names and run cues,
+ *  world x about -15 … 681, y about -15 … 420) at a level, exactly */
 async function setLevel(page: Page, level: Level): Promise<void> {
   const z = Z[level]
-  // the viewport is pane-relative: centre the scene in the PANE (980 x 462 with
+  // the viewport is pane-relative: centre the scene in the PANE (664 x 548 with
   // the timeline open), not in the page, or the bottom row falls below the clip
   await page.evaluate((zz) => {
     const pane = document.querySelector('.react-flow')!.getBoundingClientRect()
-    ;(window as unknown as { __loop: Loop }).__loop.rf.setViewport({ x: Math.round(pane.width / 2 - 380 * zz), y: Math.round(pane.height / 2 - 210 * zz), zoom: zz }, { duration: 0 })
+    ;(window as unknown as { __loop: Loop }).__loop.rf.setViewport({ x: Math.round(pane.width / 2 - 333 * zz), y: Math.round(pane.height / 2 - 210 * zz), zoom: zz }, { duration: 0 })
   }, z)
   for (const id of MATRIX_IDS) await expect(page.locator(`.react-flow__node[data-id="${id}"] .nodef`)).toHaveClass(new RegExp(`lod-${level}\\b`))
   await page.waitForTimeout(120)
@@ -59,6 +63,20 @@ for (const scheme of ['light', 'dark', 'forced'] as const) {
       await expect(page.locator('.react-flow__node[data-id="p1"] .nodef__focus')).toHaveCount(1)
       await page.mouse.move(2, 2) // no hover form in the shot
       await setLevel(page, level)
+      // every node, with its outside name, rings, run cues and flag, is whole
+      // inside the pane (the shot is the comparison)
+      const cut = await page.evaluate((ids) => {
+        const pane = document.querySelector('.react-flow')!.getBoundingClientRect()
+        return ids.filter((id) => {
+          const n = document.querySelector(`.react-flow__node[data-id="${id}"]`)!
+          return [n, ...n.querySelectorAll('*')]
+            .map((el) => el.getBoundingClientRect())
+            .some((r) => r.width > 0 && r.height > 0 && (r.left < pane.left || r.right > pane.right || r.top < pane.top || r.bottom > pane.bottom))
+        })
+      }, MATRIX_IDS)
+      expect(cut, 'nodes cut by the pane edge').toEqual([])
+      // the pointer rests off the canvas: no node shows the hover form
+      await expect(page.locator('.nodef.is-hover')).toHaveCount(0)
       await expect(page.locator('.react-flow__node[data-id="r_bad"] .nodef__flag')).toHaveText('!')
       await expect(page.locator('.react-flow')).toHaveScreenshot(
         ...snap(page, `node-matrix-${scheme}-${level}`, { mask: [page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')] }),

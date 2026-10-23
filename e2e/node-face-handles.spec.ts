@@ -24,7 +24,8 @@ import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, test } from './support/loop'
 import { waitForAppReady } from './support/appReady'
-import { PORT_COL } from '../src/model/layout/grid'
+import { endToDomHandle, onDrawnOutline } from './support/outlineCheck'
+import { openPanelDetails } from './support/panel'
 
 const FIXTURE = readFileSync(new URL('./fixtures/node-structure-small.json', import.meta.url), 'utf8')
 
@@ -153,17 +154,22 @@ test.describe('the new node — face handles mount only while needed', () => {
     await expect.poll(() => mountedFaces(page)).toEqual({ ...AT_REST, discharged: ['in@bottom', 'in@top'] })
     await expect(page.locator(`.react-flow__edge[data-id="${made.id}"] path.react-flow__edge-path`)).toHaveCount(1)
     await expect.poll(() => endToHandle(page, made.id, 'end', 'discharged', 'in@bottom')).toBeLessThan(2)
-    // the route really enters from the bottom face, on the `in` lane (routeMap.portPoint)
-    const geom = await page.evaluate((id) => {
+    // the route really enters from the bottom face, at that face's anchor
+    // (routeMap.portPoint: on the symbol's outline, 2026-10-19 symbol nodes)
+    const geom = await page.evaluate(async (id) => {
+      const rm = await import('/src/store/routeMap.ts' as string)
       const g = (window as unknown as { __loop: Loop }).__loop.graph.getState()
       const n = g.nodes.find((x: any) => x.id === 'discharged')
-      const el = document.querySelector('.react-flow__node[data-id="discharged"] .nodef') as HTMLElement
       const d = document.querySelector(`.react-flow__edge[data-id="${id}"] path.react-flow__edge-path`)!.getAttribute('d')!
       const nums = d.match(/-?\d+(\.\d+)?/g)!.map(Number)
-      return { x: n.position.x, y: n.position.y, h: el.offsetHeight, end: { x: nums[nums.length - 2], y: nums[nums.length - 1] } }
+      return { anchor: rm.portPoint(n, 'bottom', 'in') as { x: number; y: number }, bottom: n.position.y + 28, end: { x: nums[nums.length - 2], y: nums[nums.length - 1] } }
     }, made.id)
-    expect(geom.end.x).toBeCloseTo(geom.x + PORT_COL, 0)
-    expect(geom.end.y).toBeCloseTo(geom.y + geom.h, 0)
+    expect(geom.end.x).toBeCloseTo(geom.anchor.x, 0)
+    expect(geom.end.y).toBeCloseTo(geom.anchor.y, 0)
+    expect(geom.anchor.y, 'below the centre: the bottom face').toBeGreaterThan(geom.bottom)
+    // independent of portPoint: on the outline the node DRAWS, and where its DOM handle is
+    expect(await onDrawnOutline(page, 'discharged', geom.end), 'the end is on the drawn outline').toBe(true)
+    expect(await endToDomHandle(page, made.id, 'end', 'discharged', 'in@bottom')).toBeLessThan(2)
     // undo: the connection and its face handle go together
     await page.keyboard.press('Control+z')
     await expect.poll(count).toBe(n0)
@@ -250,6 +256,8 @@ test.describe('the new node — face handles mount only while needed', () => {
 
     // 1. Reverse (Treated today's LEFT face starts it: no connection used it)
     await select()
+    // the Ends group lives in the panel's More settings (docs/workbench.md §WB6)
+    await openPanelDetails(page)
     const s0 = await edgeState()
     await page.locator('.inspector .ends').getByRole('button', { name: 'Reverse direction' }).click()
     await expect.poll(async () => (await edgeState()).source).toBe(s0.target)

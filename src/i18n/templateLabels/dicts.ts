@@ -34,30 +34,10 @@ export type TemplateOverlay = {
 // file-wide.
 // locale-subset: non-base locales only, for the reason the comment above states —
 // `BASE_LOCALE` never ships a dictionary because it is the fallback.
+// §L2.0 (2026-10) — Korean is the only non-base locale; the sixteen other
+// dictionaries are archived in `archive/i18n/templateLabels/`.
 const DICT_LOADERS: Readonly<Record<string, () => Promise<TemplateOverlay>>> = {
-  ja: () => import('./ja').then((m) => ({ nodes: m.ja, frames: m.jaFrames ?? {} })),
   ko: () => import('./ko').then((m) => ({ nodes: m.ko, frames: m.koFrames ?? {} })),
-  'zh-Hans': () =>
-    import('./zh-Hans').then((m) => ({ nodes: m.zhHans, frames: m.zhHansFrames ?? {} })),
-  'zh-Hant': () =>
-    import('./zh-Hant').then((m) => ({ nodes: m.zhHant, frames: m.zhHantFrames ?? {} })),
-  fr: () => import('./fr').then((m) => ({ nodes: m.fr, frames: m.frFrames ?? {} })),
-  de: () => import('./de').then((m) => ({ nodes: m.de, frames: m.deFrames ?? {} })),
-  'es-419': () =>
-    import('./es-419').then((m) => ({ nodes: m.es419, frames: m.es419Frames ?? {} })),
-  'pt-BR': () =>
-    import('./pt-BR').then((m) => ({ nodes: m.ptBR, frames: m.ptBRFrames ?? {} })),
-  'es-ES': () =>
-    import('./es-ES').then((m) => ({ nodes: m.esES, frames: m.esESFrames ?? {} })),
-  'pt-PT': () =>
-    import('./pt-PT').then((m) => ({ nodes: m.ptPT, frames: m.ptPTFrames ?? {} })),
-  ru: () => import('./ru').then((m) => ({ nodes: m.ru, frames: m.ruFrames ?? {} })),
-  tr: () => import('./tr').then((m) => ({ nodes: m.tr, frames: m.trFrames ?? {} })),
-  th: () => import('./th').then((m) => ({ nodes: m.th, frames: m.thFrames ?? {} })),
-  vi: () => import('./vi').then((m) => ({ nodes: m.vi, frames: m.viFrames ?? {} })),
-  it: () => import('./it').then((m) => ({ nodes: m.it, frames: m.itFrames ?? {} })),
-  nl: () => import('./nl').then((m) => ({ nodes: m.nl, frames: m.nlFrames ?? {} })),
-  ar: () => import('./ar').then((m) => ({ nodes: m.ar, frames: m.arFrames ?? {} })),
 }
 
 /** The loaded overlays, filled by `ensureTemplateLabelDict`. */

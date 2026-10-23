@@ -33,12 +33,17 @@ import { useIsMobile } from '../ui/media'
 import { AccentField } from './AccentField'
 import { EdgeEndsField } from './EdgeEndsField'
 import { RegisterExprField } from './RegisterExprField'
+import { EdgeRelation, NodeRelations } from './workbench/Relations'
+import { connectReasonText } from './connectReason'
+import { CONNECT_LABEL } from './connectKindWords'
+import { CONNECT_KINDS, connectKindOf, type ConnectKind } from '../model/connectKind'
 import { useT, type MessageKey } from '../i18n'
 import { isolateAuto, isolateLtr } from '../i18n/bidiIsolate'
 import type {
   ConverterData,
   DrainData,
   GateData,
+  LoopEdge,
   LoopEdgeData,
   NodeKind,
   ParameterData,
@@ -99,7 +104,23 @@ function FieldDiv({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-export function Inspector() {
+/** The editing part of the panel under the desktop edit lock: a
+ *  `<fieldset disabled>` makes every control inside it inert while the values
+ *  stay visible (`display: contents` drops its box, so the parts stay the
+ *  aside's own flex items). The Relations layer sits outside it: it reads the
+ *  model and changes nothing, so its rows still select a line or an end under
+ *  the lock (the lock stops edits, not finding your way). */
+function Editing({ locked, children }: { locked: boolean; children: ReactNode }) {
+  return locked ? (
+    <fieldset className="inspector-ro--desktop" disabled>
+      {children}
+    </fieldset>
+  ) : (
+    <>{children}</>
+  )
+}
+
+export function Inspector({ editLocked = false }: { editLocked?: boolean } = {}) {
   const t = useT()
   const nodes = useGraphStore((s) => s.nodes)
   const edges = useGraphStore((s) => s.edges)
@@ -154,34 +175,49 @@ export function Inspector() {
         modelRead && !modelRead.ok ? modelRead.detail : t('inspector.unreadable.detailFallback')
       return (
         <aside className="inspector">
-          <div className="inspector__head">
-            <span className="inspector__kind inspector__kind--edge" dir="ltr">{kindLabel}</span>
-            <button type="button" className="btn btn--ghost" onClick={() => removeNode(node.id)}>
-              {t('inspector.delete')}
-            </button>
-          </div>
-          <p className="inspector__note inspector__note--warn">
-            {t('inspector.unreadable.note', { detail })}
-          </p>
-          <Field label={t('inspector.field.rawData')}>
-            {/* §L9.3 — JSON structure. Read-only, but a read-only field still
-                DISPLAYS text and text has a direction; what `readOnly` removes
-                is only the question of what the user will type. */}
-            <textarea readOnly rows={5} dir="ltr" value={JSON.stringify(node.data, null, 2)} />
-          </Field>
+          <Editing locked={editLocked}>
+            <div className="inspector__head">
+              <span className="inspector__kind inspector__kind--edge" dir="ltr">{kindLabel}</span>
+              <button type="button" className="btn btn--ghost" onClick={() => removeNode(node.id)}>
+                {t('inspector.delete')}
+              </button>
+            </div>
+            <p className="inspector__note inspector__note--warn">
+              {t('inspector.unreadable.note', { detail })}
+            </p>
+            <Field label={t('inspector.field.rawData')}>
+              {/* §L9.3 — JSON structure. Read-only, but a read-only field still
+                  DISPLAYS text and text has a direction; what `readOnly` removes
+                  is only the question of what the user will type. */}
+              <textarea readOnly rows={5} dir="ltr" value={JSON.stringify(node.data, null, 2)} />
+            </Field>
+          </Editing>
         </aside>
       )
     }
 
     return (
       <aside className="inspector">
-        <div className="inspector__head">
-          <span className={`inspector__kind inspector__kind--${d.kind}`} dir="ltr">{d.kind}</span>
-          <button type="button" className="btn btn--ghost" onClick={() => removeNode(node.id)}>
-            {t('inspector.delete')}
-          </button>
-        </div>
+        <Editing locked={editLocked}>
+          <div className="inspector__head">
+            <span className={`inspector__kind inspector__kind--${d.kind}`} data-kind={d.kind}>{t(`canvas.nodeKind.${d.kind}` as MessageKey)}</span>
+            <button type="button" className="btn btn--ghost" onClick={() => removeNode(node.id)}>
+              {t('inspector.delete')}
+            </button>
+          </div>
+        </Editing>
 
+        {/* the workbench (2026-10, step 5): the panel says what the node IS
+            in the model first — its connections, grouped by what they do —
+            then its editing, then the less used settings (folded) */}
+        <div className="wb-panel__hd">
+          <b className="wb-panel__name" dir="auto">{d.label}</b>
+        </div>
+        <NodeRelations node={node} />
+
+        <Editing locked={editLocked}>
+        <section className="wb-panel__sec" aria-label={t('panel.edit')}>
+        <h3 className="wb-panel__h">{t('panel.edit')}</h3>
         <Field label={t('inspector.field.label')}>
           <input
             // §L9.3 — the user's own label, in whatever script they write it
@@ -203,30 +239,40 @@ export function Inspector() {
 
         {d.kind === 'end' && <p className="inspector__note">{t('inspector.node.endNote')}</p>}
 
-        {'activation' in d && d.kind !== 'end' && (
-          <Field label={t('inspector.field.activation')}>
-            <select value={d.activation} onChange={(e) => set({ activation: e.target.value })}>
-              {ACTIVATIONS.map((a) => (
-                <option key={a} value={a}>
-                  {t(ACTIVATION_KEY[a])}
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
-
         {d.kind === 'pool' && (
           // keyed per node so a half-typed draft never carries over to the next selection
-          <PoolFields key={node.id} id={node.id} d={d} set={set} findings={mismatches.filter((f) => f.nodeId === node.id)} />
+          <PoolFields key={node.id} id={node.id} d={d} set={set} />
         )}
-        {d.kind === 'source' && <SourceFields d={d} set={set} />}
-        {d.kind === 'drain' && <DrainFields d={d} set={set} />}
         {d.kind === 'gate' && <GateFields d={d} set={set} />}
-        {d.kind === 'converter' && <ConverterFields d={d} set={set} />}
         {d.kind === 'parameter' && <ParameterFields d={d} set={set} />}
         {d.kind === 'register' && <RegisterFields id={node.id} d={d} set={set} />}
+        </section>
 
-        <AccentField />
+        {/* a mismatch is a finding, not a setting: it stays in view, with the
+            way to the setting it is about, while that setting is folded */}
+        {d.kind === 'pool' && <ResourceMismatchNote findings={mismatches.filter((f) => f.nodeId === node.id)} />}
+
+        {/* the flow mode and the resource type are settings most edits never
+            touch (Lumi, 2026-10-19): folded, for every kind that has them */}
+        <PanelDetails>
+          {d.kind === 'pool' && <PoolDetails d={d} set={set} />}
+          {d.kind === 'source' && <SourceFields d={d} set={set} />}
+          {d.kind === 'drain' && <DrainFields d={d} set={set} />}
+          {d.kind === 'converter' && <ConverterFields d={d} set={set} />}
+          {'activation' in d && d.kind !== 'end' && (
+            <Field label={t('inspector.field.activation')}>
+              <select value={d.activation} onChange={(e) => set({ activation: e.target.value })}>
+                {ACTIVATIONS.map((a) => (
+                  <option key={a} value={a}>
+                    {t(ACTIVATION_KEY[a])}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+          <AccentField />
+        </PanelDetails>
+        </Editing>
       </aside>
     )
   }
@@ -247,73 +293,71 @@ export function Inspector() {
           value: typeof v === 'number' && Number.isFinite(v) ? v : null,
         }
       })
+    const kind = connectKindOf(edge)
+    const sourceKind = (nodes.find((n) => n.id === edge.source)?.data as { kind?: NodeKind } | undefined)?.kind
+    const targetKind = (nodes.find((n) => n.id === edge.target)?.data as { kind?: NodeKind } | undefined)?.kind
+    // a state connection with a mode Loop Studio no longer offers (legacy)
+    const legacyState = ed.kind === 'state' && !KNOWN_STATE_MODES.includes(ed.mode)
     return (
       <aside className="inspector">
-        <div className="inspector__head">
-          <span className="inspector__kind inspector__kind--edge">
-            {t('inspector.edge.kindLink', { kind: ed.kind })}
-          </span>
-          <button type="button" className="btn btn--ghost" onClick={() => removeEdge(edge.id)}>
-            {t('inspector.delete')}
-          </button>
-        </div>
+        <Editing locked={editLocked}>
+          <div className="inspector__head">
+            <span className="inspector__kind inspector__kind--edge" data-connect-kind={kind ?? undefined}>
+              {kind ? t(CONNECT_LABEL[kind]) : t('inspector.edge.kindLink', { kind: ed.kind })}
+            </span>
+            <button type="button" className="btn btn--ghost" onClick={() => removeEdge(edge.id)}>
+              {t('inspector.delete')}
+            </button>
+          </div>
+        </Editing>
 
-        <Field label={t('inspector.field.type')}>
-          <select
-            value={ed.kind}
-            onChange={(e) => {
-              // issue #344 step 3 — the shape and the bend points are the
-              // author's drawing, not the connection's kind: they are kept
-              const shape = {
-                ...(ed.route ? { route: ed.route } : {}),
-                ...(ed.waypoints ? { waypoints: ed.waypoints } : {}),
-              }
-              setData(
-                e.target.value === 'state'
-                  ? { kind: 'state', mode: 'trigger', expr: '', ...shape }
-                  : { kind: 'resource', flow: '1', ...shape },
-              )
-            }}
-          >
-            <option value="resource">{t('inspector.edge.type.resource')}</option>
-            <option value="state">{t('inspector.edge.type.state')}</option>
-          </select>
-        </Field>
+        {/* the workbench (2026-10, step 5): the connection in one sentence —
+            when, and what happens — then the field its kind is about, then
+            the rest of its settings (folded) */}
+        <EdgeRelation edge={edge} />
 
-        {ed.kind === 'resource' ? (
-          <>
-            <EdgeFlowField
-              flow={ed.flow}
-              params={paramOptions}
-              onChange={(flow) => setData({ ...ed, kind: 'resource', flow })}
-            />
-            <ResourceTypeField
-              value={ed.resourceType}
-              onChange={(v) => setData({ ...ed, kind: 'resource', resourceType: v })}
-              findings={mismatches.filter((f) => f.edgeId === edge.id)}
-            />
-          </>
-        ) : (
-          <StateEdgeFields
-            ed={ed}
-            setData={setData}
-            sourceKind={(nodes.find((n) => n.id === edge.source)?.data as { kind?: NodeKind } | undefined)?.kind}
-            targetKind={(nodes.find((n) => n.id === edge.target)?.data as { kind?: NodeKind } | undefined)?.kind}
-            params={paramOptions}
-          />
-        )}
+        <Editing locked={editLocked}>
+        <section className="wb-panel__sec" aria-label={t('panel.edit')}>
+          <h3 className="wb-panel__h">{t('panel.edit')}</h3>
+          {ed.kind === 'resource' ? (
+            <EdgeFlowField flow={ed.flow} params={paramOptions} onChange={(flow) => setData({ ...ed, kind: 'resource', flow })} />
+          ) : legacyState ? (
+            <LegacyStateEdge ed={ed} setData={setData} />
+          ) : ed.mode === 'trigger' ? (
+            <TriggerFields ed={ed} setData={setData} />
+          ) : ed.mode === 'activator' ? (
+            <ActivatorField ed={ed} setData={setData} params={paramOptions} />
+          ) : (
+            <ExprField ed={ed} setData={setData} labelClass={classifyLabelTiming(ed.timing, ed.when)} />
+          )}
+        </section>
 
-        <RouteField edgeId={edge.id} route={ed.route} bends={ed.waypoints?.length ?? 0} />
+        {ed.kind === 'resource' && <ResourceMismatchNote findings={mismatches.filter((f) => f.edgeId === edge.id)} />}
 
-        {/* §ER18 — where the connection's ends are; the phone stays read-only,
-            so it offers no Ends controls (as no Add bend) */}
-        {isMobile ? null : <EdgeEndsField key={edge.id} edge={edge} />}
+        <PanelDetails>
+          {/* keyed per connection (its refusal note resets), apart from the
+              Ends group's own key beside it */}
+          <EdgeKindField key={`kind:${edge.id}`} edge={edge} />
+          {ed.kind === 'state' && ed.mode === 'label' && (
+            <LabelTimingField ed={ed} setData={setData} sourceKind={sourceKind} targetKind={targetKind} />
+          )}
+          {ed.kind === 'resource' && (
+            <ResourceTypeField value={ed.resourceType} onChange={(v) => setData({ ...ed, kind: 'resource', resourceType: v })} />
+          )}
 
-        {/* issue #344 step 3 — which edits restart the run and which (route,
-            bends, colour: drawing only) do not */}
-        <p className="inspector__note">{t('inspector.edge.note')}</p>
+          <RouteField edgeId={edge.id} route={ed.route} bends={ed.waypoints?.length ?? 0} />
 
-        <AccentField />
+          {/* §ER18 — where the connection's ends are; the phone stays read-only,
+              so it offers no Ends controls (as no Add bend) */}
+          {isMobile ? null : <EdgeEndsField key={edge.id} edge={edge} />}
+
+          {/* issue #344 step 3 — which edits restart the run and which (route,
+              bends, colour: drawing only) do not */}
+          <p className="inspector__note">{t('inspector.edge.note')}</p>
+
+          <AccentField />
+        </PanelDetails>
+        </Editing>
       </aside>
     )
   }
@@ -325,6 +369,75 @@ export function Inspector() {
         <p className="inspector__hint">{t('inspector.empty.hint')}</p>
       </div>
     </aside>
+  )
+}
+
+// ── the workbench right panel's third layer ──────────────────────────────
+/** the less used settings, folded under "More settings"; once opened it stays
+ *  open for the session (uiStore), whatever is selected next */
+function PanelDetails({ children }: { children: ReactNode }) {
+  const t = useT()
+  const open = useUiStore((s) => s.panelDetailsOpen)
+  const setOpen = useUiStore((s) => s.setPanelDetailsOpen)
+  const isMobile = useIsMobile()
+  // the phone's sheet shares this panel; there nothing is folded away — the
+  // settings follow under their heading, as one scroll
+  if (isMobile)
+    return (
+      <section className="wb-panel__sec" aria-label={t('panel.details')}>
+        <h3 className="wb-panel__h">{t('panel.details')}</h3>
+        {children}
+      </section>
+    )
+  return (
+    <details
+      className="wb-panel__more"
+      open={open}
+      onToggle={(e) => {
+        const now = (e.currentTarget as HTMLDetailsElement).open
+        if (now !== open) setOpen(now)
+      }}
+    >
+      <summary className="wb-panel__summary">{t('panel.details')}</summary>
+      <div className="wb-panel__opts">{children}</div>
+    </details>
+  )
+}
+
+/** a connection's KIND, in the workbench's words (src/model/connectKind.ts):
+ *  a change rewrites its handles and keeps its line — route, bends, colour,
+ *  the faces it uses — as ONE undo step; a kind its ends cannot take is
+ *  refused with the reason, and nothing changes */
+function EdgeKindField({ edge }: { edge: LoopEdge }) {
+  const t = useT()
+  const nodes = useGraphStore((s) => s.nodes)
+  const setEdgeKind = useGraphStore((s) => s.setEdgeKind)
+  const [refused, setRefused] = useState<string | null>(null)
+  const kind = connectKindOf(edge)
+  return (
+    <>
+      <Field label={t('panel.kind')}>
+        <select
+          value={kind ?? ''}
+          onChange={(e) => {
+            const v = setEdgeKind(edge.id, e.target.value as ConnectKind)
+            setRefused(v.ok ? null : connectReasonText(t, { verdict: v, source: edge.source, target: edge.target }, nodes))
+          }}
+        >
+          {kind == null ? <option value="" disabled>{t('inspector.edge.kindLink', { kind: 'state' })}</option> : null}
+          {CONNECT_KINDS.map((k) => (
+            <option key={k} value={k}>
+              {t(CONNECT_LABEL[k])}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {refused ? (
+        <p className="inspector__note inspector__note--warn" role="status">
+          {refused}
+        </p>
+      ) : null}
+    </>
   )
 }
 
@@ -485,45 +598,6 @@ function RouteField({ edgeId, route, bends }: { edgeId: string; route: unknown; 
 }
 
 // ── state-edge editing ────────────────────────────────────────────────────
-
-function StateEdgeFields({
-  ed,
-  setData,
-  sourceKind,
-  targetKind,
-  params,
-}: {
-  ed: StateEdgeData
-  setData: (data: LoopEdgeData) => void
-  sourceKind: NodeKind | undefined
-  targetKind: NodeKind | undefined
-  params: { id: string; label: string; value: number | null }[]
-}) {
-  const t = useT()
-  if (!KNOWN_STATE_MODES.includes(ed.mode)) return <LegacyStateEdge ed={ed} setData={setData} />
-  const labelClass = ed.mode === 'label' ? classifyLabelTiming(ed.timing, ed.when) : undefined
-  return (
-    <>
-      <Field label={t('inspector.field.mode')}>
-        <select
-          value={ed.mode}
-          onChange={(e) => setData({ ...ed, mode: e.target.value as StateMode })}
-        >
-          <option value="trigger">{t('inspector.edge.mode.trigger')}</option>
-          <option value="activator">{t('inspector.edge.mode.activator')}</option>
-          <option value="label">{t('inspector.edge.mode.label')}</option>
-        </select>
-      </Field>
-
-      {ed.mode === 'trigger' && <TriggerFields ed={ed} setData={setData} />}
-      {ed.mode === 'activator' && <ActivatorField ed={ed} setData={setData} params={params} />}
-      {ed.mode === 'label' && <ExprField ed={ed} setData={setData} labelClass={labelClass} />}
-      {ed.mode === 'label' && (
-        <LabelTimingField ed={ed} setData={setData} sourceKind={sourceKind} targetKind={targetKind} />
-      )}
-    </>
-  )
-}
 
 function TriggerFields({
   ed,
@@ -989,15 +1063,11 @@ function LegacyStateEdge({
 
 // ── loop-model/1 §M4 — advisory resource-type tag ────────────────────────
 
-function ResourceTypeField({
-  value,
-  onChange,
-  findings,
-}: {
-  value: string | undefined
-  onChange: (v: string | undefined) => void
-  findings: ResourceMismatchFinding[]
-}) {
+/** the one resource-type input on the panel at a time — the mismatch note's
+ *  way to it (ResourceMismatchNote) */
+const RESOURCE_TYPE_INPUT_ID = 'inspector-resource-type'
+
+function ResourceTypeField({ value, onChange }: { value: string | undefined; onChange: (v: string | undefined) => void }) {
   const t = useT()
   const norm = normalizeResourceType(value)
   const raw = value ?? ''
@@ -1005,6 +1075,7 @@ function ResourceTypeField({
     <>
       <Field label={t('inspector.field.resourceType')}>
         <input
+          id={RESOURCE_TYPE_INPUT_ID}
           value={raw}
           list="resource-type-builtins"
           placeholder={t('inspector.resourceType.placeholder')}
@@ -1033,16 +1104,38 @@ function ResourceTypeField({
       {norm.value !== null && !isBuiltinResourceType(norm.value) && (
         <p className="inspector__note">{t('inspector.resourceType.custom')}</p>
       )}
-      {findings.length > 0 && (
-        <p className="inspector__note inspector__note--warn">
-          {t('inspector.resourceType.mismatch', {
-            pairs: findings
-              .map((f) => t('inspector.resourceType.pair', { edge: isolateAuto(f.edgeType), node: isolateAuto(f.nodeType) }))
-              .join(', '),
-          })}
-        </p>
-      )}
     </>
+  )
+}
+
+/** an advisory resource-type mismatch (loop-model/1 §M4), shown outside the
+ *  folded settings with a button that unfolds them and puts the caret in the
+ *  resource type */
+function ResourceMismatchNote({ findings }: { findings: ResourceMismatchFinding[] }) {
+  const t = useT()
+  const setOpen = useUiStore((s) => s.setPanelDetailsOpen)
+  if (findings.length === 0) return null
+  return (
+    <div className="wb-panel__finding">
+      <p className="inspector__note inspector__note--warn">
+        {t('inspector.resourceType.mismatch', {
+          pairs: findings
+            .map((f) => t('inspector.resourceType.pair', { edge: isolateAuto(f.edgeType), node: isolateAuto(f.nodeType) }))
+            .join(', '),
+        })}
+      </p>
+      <button
+        type="button"
+        className="btn btn--ghost wb-panel__goto"
+        onClick={() => {
+          setOpen(true)
+          // the fold opens on this commit; the input takes focus after it
+          requestAnimationFrame(() => document.getElementById(RESOURCE_TYPE_INPUT_ID)?.focus())
+        }}
+      >
+        {t('panel.goToResourceType')}
+      </button>
+    </div>
   )
 }
 
@@ -1100,17 +1193,7 @@ function NonNegativeNumberField({
   )
 }
 
-function PoolFields({
-  id,
-  d,
-  set,
-  findings,
-}: {
-  id: string
-  d: PoolData
-  set: Patch
-  findings: ResourceMismatchFinding[]
-}) {
+function PoolFields({ id, d, set }: { id: string; d: PoolData; set: Patch }) {
   const t = useT()
   // the count the node SHOWS — the engine's value once a run has started, the
   // authored starting amount before — as the node formats it (`nodes.tsx` fmt)
@@ -1140,6 +1223,15 @@ function PoolFields({
         allowEmpty
         onCommit={(n) => set({ capacity: n })}
       />
+    </>
+  )
+}
+
+/** a Pool's folded settings (More settings) */
+function PoolDetails({ d, set }: { d: PoolData; set: Patch }) {
+  const t = useT()
+  return (
+    <>
       <Field label={t('inspector.field.flowMode')}>
         <select value={d.mode} onChange={(e) => set({ mode: e.target.value })}>
           <option value="pullAny">{t('enum.flowMode.pullAny')}</option>
@@ -1148,11 +1240,7 @@ function PoolFields({
           <option value="pushAll">{t('enum.flowMode.pushAll')}</option>
         </select>
       </Field>
-      <ResourceTypeField
-        value={d.resourceType}
-        onChange={(v) => set({ resourceType: v })}
-        findings={findings}
-      />
+      <ResourceTypeField value={d.resourceType} onChange={(v) => set({ resourceType: v })} />
     </>
   )
 }

@@ -17,7 +17,9 @@ import {
 //   • three stored states: field ABSENT (internal `auto`, first 8 in document
 //     order, never written), `'all'` (every series, future ones included), an
 //     explicit sorted id list (exactly those ids);
-//   • the header is always ONE ROW; the chip count is not the drawn count;
+//   • the header is always ONE ROW; every drawn series has its chip there, in
+//     a strip that scrolls sideways (2026-10-20; its "+N" edge marks scroll,
+//     they expand nothing — not the old `+N more` chip below);
 //   • the series selector (`계열 n/total` → a dialog of checkboxes) replaces the
 //     old inline `+N more` chip, which must be unreachable;
 //   • `'all'` is reached only through "Show all" — checking every box by hand
@@ -160,7 +162,13 @@ const headerGeometry = (page: Page) =>
     // `scrollWidth` is blind to overflow on the START side (the row is
     // end-aligned), so clipping is asserted from the boxes themselves
     const allInside = boxes.every((b) => b.left >= legendBox.left - 0.5 && b.right <= legendBox.right + 0.5)
+    // no two of the legend's children overlap (a chip never covers the trigger or CSV)
+    const overlaps = boxes.some((a, i) => boxes.some((b, j) => j > i && a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5))
     return {
+      overlaps,
+      // the header ends where the plot starts: nothing of it reaches into the plot
+      headBottom: head.bottom,
+      plotTop: plot.top,
       rows: oneRow ? 1 : 2,
       allInside,
       chips: legend.querySelectorAll('.timeline__key').length,
@@ -494,64 +502,133 @@ test.describe('the header is always one row (contract §5)', () => {
     return JSON.stringify(doc)
   }
 
-  for (const width of [1440, 800]) {
-    test(`55 series, auto, at ${width}px: one row, 8 drawn, the plot keeps its height, the trigger stays inside`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 900 })
-      await openApp(page)
-      await resetAll(page)
-      await importGraph(page, mmoNoField())
-      expect(await seriesState(page)).toBe('auto')
-      await stepN(page, 6)
-      await expect(page.locator('.timeline__panel')).toBeVisible()
-      await page.evaluate(() => document.fonts.ready)
+  // Revised 2026-10-20 (Lumi): the analysis area is 152 px by default and
+  // resizable (§7), so no fixed plot height holds. What the rule protects is
+  // that the HEADER never takes the plot's room: one row at every width and
+  // series count, so the plot is the area's height less the fixed run row and
+  // header — the same with 3 series or 55, at 1440 or 800 px — and the
+  // splitter's every pixel goes to the plot. A long legend yields chips to
+  // the trigger and the CSV control, and covers neither nor the plot.
+  const plotAt = async (page: Page, width: number, doc: string) => {
+    await page.setViewportSize({ width, height: 900 })
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, doc)
+    await stepN(page, 6)
+    await expect(page.locator('.timeline__panel')).toBeVisible()
+    await page.evaluate(() => document.fonts.ready)
+    return headerGeometry(page)
+  }
+  const FEW = JSON.stringify({
+    schema: 'loop-studio/graph',
+    version: 1,
+    nodes: [
+      { id: 'src', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Src', activation: 'automatic', mode: 'pushAny' } },
+      { id: 'p1', type: 'pool', position: { x: 200, y: 0 }, data: { kind: 'pool', label: 'P1', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+    ],
+    edges: [{ id: 'e1', source: 'src', target: 'p1', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '1' } }],
+  })
 
+  for (const width of [1440, 800]) {
+    test(`55 series, auto, at ${width}px: one row, 8 drawn, the plot as tall as with one series, the trigger stays inside`, async ({ page }) => {
+      const few = await plotAt(page, width, FEW)
+      const g = await plotAt(page, width, mmoNoField())
+      expect(await seriesState(page)).toBe('auto')
       await expect(trigger(page)).toHaveText('Series 8/55')
       await expect(page.locator('.timeline__line:not(.timeline__line--register)')).toHaveCount(8)
-      const g = await headerGeometry(page)
       expect(g.rows, 'every legend child on the same row').toBe(1)
       expect(g.overflow, 'nothing clipped').toBeLessThanOrEqual(0)
       expect(g.allInside, 'every child inside the legend box — nothing hidden by overflow').toBe(true)
+      expect(g.overlaps, 'no chip covers the trigger or the CSV control').toBe(false)
+      expect(g.headBottom, 'the header stops where the plot starts').toBeLessThanOrEqual(g.plotTop + 0.5)
       expect(g.chips).toBeGreaterThanOrEqual(1)
       expect(g.chips, 'chips are what FIT, never more than drawn').toBeLessThanOrEqual(8)
-      expect(g.plotH, 'the plot keeps its room').toBeGreaterThanOrEqual(160)
+      expect(g.plotH, 'the header takes no more of the plot with 55 series than with one').toBe(few.plotH)
+      expect(g.plotH).toBeGreaterThan(0)
       expect(g.triggerInside).toBe(true)
       expect(g.triggerH).toBeLessThan(26)
       expect(g.moreChips).toBe(0)
     })
   }
 
+  test('the splitter gives the plot its every pixel, whatever the legend holds', async ({ page }) => {
+    const g0 = await plotAt(page, 1280, mmoNoField())
+    const splitter = page.getByRole('separator', { name: 'Analysis area height' })
+    await splitter.focus()
+    for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowUp') // 4 × 16 px
+    await expect.poll(async () => (await headerGeometry(page)).plotH).toBe(g0.plotH + 64)
+    expect((await headerGeometry(page)).headH).toBe(g0.headH)
+  })
+
   test('an explicit list longer than one row: still one row; the trigger, not the chips, carries the count', async ({ page }) => {
-    await page.setViewportSize({ width: 800, height: 900 })
-    await openApp(page)
-    await resetAll(page)
-    await importGraph(page, JSON.stringify({ ...JSON.parse(MMO), recommendedRunConfig: { timelineSeries: 'all' } }))
+    const few = await plotAt(page, 800, FEW)
+    const g = await plotAt(page, 800, JSON.stringify({ ...JSON.parse(MMO), recommendedRunConfig: { timelineSeries: 'all' } }))
     expect(await seriesState(page)).toBe('all')
-    await ensureTimelineOpen(page)
-    await page.evaluate(() => document.fonts.ready)
     await expect(trigger(page)).toHaveText('Series 55/55')
-    const g = await headerGeometry(page)
     expect(g.rows).toBe(1)
     expect(g.overflow).toBeLessThanOrEqual(0)
     expect(g.allInside).toBe(true)
-    expect(g.chips).toBeLessThan(55)
-    expect(g.plotH).toBeGreaterThanOrEqual(160)
+    expect(g.overlaps).toBe(false)
+    // revised 2026-10-20 (Lumi): every drawn series has its chip, in a strip
+    // that scrolls sideways — 55 chips, the row still one row, the end marked
+    expect(g.chips).toBe(55)
+    const strip = await page.locator('.timeline__keys').evaluate((el) => ({ scrolls: el.scrollWidth > el.clientWidth, overflowX: getComputedStyle(el).overflowX }))
+    expect(strip).toEqual({ scrolls: true, overflowX: 'auto' })
+    await expect(page.locator('.timeline__past--end')).toHaveText(/^\+\d+$/)
+    await expect(page.locator('.timeline__past--end')).not.toHaveClass(/is-empty/)
+    expect(g.plotH).toBe(few.plotH)
   })
 })
 
+// Revised 2026-10-20 (Lumi): the analysis area is open from the start at
+// 152 px; the user folds it, opens it and resizes it; nothing automatic
+// changes it, and none of it is stored.
 test.describe('the Timeline panel state (contract §7)', () => {
-  test('starts collapsed, auto-expands on the first step, and after a user toggle no automatic transition happens again', async ({ page }) => {
+  const timelineHeight = (page: Page) => page.evaluate(() => Math.round((document.querySelector('.timeline') as HTMLElement).getBoundingClientRect().height))
+
+  test('open from the start at 152 px, before any run; folding, opening and resizing are the user\'s, and nothing is stored', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await seed(page)
     const collapse = page.locator('.pstrip__collapse')
-    await expect(page.locator('.timeline.is-collapsed')).toHaveCount(1)
-    await expect(collapse).toHaveAttribute('aria-expanded', 'false')
-
-    await stepN(page, 1)
+    // storage, every key with its value. The seeded document is autosaved
+    // after a debounce: before the first reading, flush it and wait until the
+    // stored document IS the seeded one (2026-10-23: on a CI runner the first
+    // reading came before that save, which then showed up at the end)
+    type Store = Record<string, string | null>
+    const stored = () =>
+      page.evaluate(() => {
+        ;(window as unknown as { __loop: { autosave: { flush: () => void } } }).__loop.autosave.flush()
+        const out: Record<string, string | null> = {}
+        for (const k of Object.keys(localStorage).sort()) out[k] = localStorage.getItem(k)
+        return out
+      })
+    const seededIds = (s: Store) => {
+      const doc = Object.entries(s).find(([k]) => k === 'loop-studio:graph:v1')?.[1]
+      try {
+        return (JSON.parse(doc ?? 'null')?.nodes ?? []).map((n: { id: string }) => n.id).sort().join(',')
+      } catch {
+        return ''
+      }
+    }
+    const liveIds = await page.evaluate(() => ((window as unknown as Bridge).__loop.graph.getState().nodes as { id: string }[]).map((n) => n.id).sort().join(','))
+    expect(liveIds, 'the seed is in the document').toContain('src')
+    await expect.poll(async () => seededIds(await stored()), { message: 'the seeded document is the stored one' }).toBe(liveIds)
+    const store0 = await stored()
+    // before any step: open, at the default height
     await expect(page.locator('.timeline__panel')).toBeVisible()
+    await expect(page.locator('.timeline.is-collapsed')).toHaveCount(0)
     await expect(collapse).toHaveAttribute('aria-expanded', 'true')
+    expect(await timelineHeight(page)).toBe(152)
 
-    // the user folds it: from here on run / pause / reset never override that
+    // the splitter: the arrow keys resize it in 16 px steps
+    const splitter = page.getByRole('separator', { name: 'Analysis area height' })
+    await splitter.focus()
+    await page.keyboard.press('ArrowUp')
+    await expect.poll(() => timelineHeight(page)).toBe(168)
+    await expect(splitter).toHaveAttribute('aria-valuenow', '168')
+
+    // the user folds it: a step, a reset and more steps leave it folded
     await collapse.click()
     await expect(page.locator('.timeline.is-collapsed')).toHaveCount(1)
     await stepN(page, 3)
@@ -559,28 +636,31 @@ test.describe('the Timeline panel state (contract §7)', () => {
     await stepN(page, 2)
     await expect(page.locator('.timeline.is-collapsed')).toHaveCount(1)
     await expect(collapse).toHaveAttribute('aria-expanded', 'false')
-    // and nothing about this reached storage
-    expect(await page.evaluate(() => Object.keys(localStorage).some((k) => /timeline|collapse/i.test(k)))).toBe(false)
+    // and opens it again, at the height it chose
+    await collapse.click()
+    await expect(page.locator('.timeline__panel')).toBeVisible()
+    expect(await timelineHeight(page)).toBe(168)
+    // nothing about folding or resizing reached storage: no key added, none
+    // rewritten — read after flushing any save still waiting on its debounce
+    expect(await stored()).toEqual(store0)
   })
 
-  test('a completed Monte-Carlo run counts as the first run — the distribution view is in this panel', async ({ page }) => {
+  test('a completed Monte-Carlo run shows its distribution in the open panel', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await importGraph(page, readFixture())
-    await expect(page.locator('.timeline.is-collapsed')).toHaveCount(1)
+    await expect(page.locator('.timeline__panel')).toBeVisible()
     await runMc(page, { baseSeed: 1, runs: 20, steps: 6, tracked: FIXTURE_POOLS_4 })
     await expect(page.locator('.timeline__panel')).toBeVisible()
     await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
   })
 
-  test('after the user has toggled the panel, neither a step nor a Monte-Carlo result overrides that choice', async ({ page }) => {
+  test('folded by the user, neither a step nor a Monte-Carlo result opens it', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await importGraph(page, readFixture())
     const collapse = page.locator('.pstrip__collapse')
-    await collapse.click() // the user opens it before any run…
-    await expect(page.locator('.timeline__panel')).toBeVisible()
-    await collapse.click() // …and folds it again: automatic transitions are over
+    await collapse.click() // the user folds it before any run
     await expect(page.locator('.timeline.is-collapsed')).toHaveCount(1)
 
     await runMc(page, { baseSeed: 1, runs: 20, steps: 6, tracked: FIXTURE_POOLS_4 })

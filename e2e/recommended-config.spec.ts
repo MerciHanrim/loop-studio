@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, readFixture, readRiskyFactory, resetAll, test } from './support/loop'
 import { capturedExports, installProbe } from './support/mc'
+import { openMonteCarloDialog } from './support/workbenchMenus'
 
 // A graph file now carries `recommendedRunConfig` (baseSeed / runs / steps /
 // tracked). Import applies the valid fields to the Monte-Carlo config; Export
@@ -79,7 +80,7 @@ test.describe('recommendedRunConfig', () => {
     await openApp(page)
     await resetAll(page)
     await importGraph(page, readRiskyFactory())
-    await page.locator('.pstrip__mc button', { hasText: 'Monte Carlo' }).click()
+    await openMonteCarloDialog(page)
     await expect(page.locator('.mcdlg__foot .btn--primary')).toHaveText('Run 500 runs')
   })
 })

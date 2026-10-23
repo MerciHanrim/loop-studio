@@ -2,9 +2,10 @@ import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
 
 // docs/localization.md / docs/accessibility.md — the help surfaces a reader
-// actually stops on: the palette's node tooltips and the two descriptive
-// menus (Templates, Insert module), plus the File menu they share their
-// markup with.
+// actually stops on: the palette's node tooltips and the descriptive Templates
+// menu, plus the File menu it shares its markup with. (The Insert-module menu
+// was removed in 2026-10; its structure actions are File-menu rows now, and
+// their descriptions are measured with the File menu's.)
 //
 // Measured, not eyeballed. Korean wrapping is checked with a `Range` over
 // every whitespace-delimited 어절: a token whose client rects have more than
@@ -143,14 +144,18 @@ test('KO node tooltips: every description keeps its 어절 whole, at body size a
   }
 })
 
-test('KO Templates menu: 340px, every description whole and inside the 2-line clamp', async ({ page }) => {
-  await trigger(page, /템플릿/).click()
+// the workbench (docs/workbench.md §WB2): the Templates are rows of the File
+// menu, which took the Templates menu's wide popover with them (2026-10-20)
+test('KO File menu Templates: the wide popover, every description whole and inside the 2-line clamp', async ({ page }) => {
+  await trigger(page, /파일/).click()
   await expect(openPop(page)).toBeVisible()
   const width = await openPop(page).evaluate((el) => Math.round(el.getBoundingClientRect().width))
-  expect(width, 'Templates opts into the wide popover').toBe(300)
+  expect(width, 'File, with the Templates in it, opts into the wide popover').toBe(300)
 
-  const blurbs = await measureOpenMenu(page, '.menu__blurb')
-  expect(blurbs.length, 'one description per template (0.28.1: Early MMO is not in the menu)').toBe(4)
+  const blurbs = await measureOpenMenu(page, '[data-template] .menu__blurb')
+  // 2026-10-20: the General gacha joined the menu (docs/gacha-general.md), then
+  // the Standard gacha (docs/gacha-standard.md), the Pickup gacha (docs/gacha-pickup.md)
+  expect(blurbs.length, 'one description per template (0.28.1: Early MMO is not in the menu)').toBe(7)
   for (const b of blurbs) {
     expect(b.fontPx, `"${b.text}": font size`).toBeGreaterThanOrEqual(BODY_MIN_PX)
     expect(b.contrast, `"${b.text}": contrast`).toBeGreaterThanOrEqual(BODY_MIN_CONTRAST)
@@ -167,33 +172,19 @@ test('KO Templates menu: 340px, every description whole and inside the 2-line cl
   for (const n of names) expect(n.broken, `"${n.text}": the name is not split`).toEqual([])
 })
 
-test('KO Insert module menu: the shared 260px is already enough for its descriptions', async ({ page }) => {
-  await trigger(page, /모듈/).click()
-  await expect(openPop(page)).toBeVisible()
-  const width = await openPop(page).evaluate((el) => Math.round(el.getBoundingClientRect().width))
-  // measured: the compressed module copy clears the 2-line clamp at 260px in
-  // all three locales, so it is NOT widened — a wider popover would only cover
-  // more of the palette row underneath it
-  expect(width, 'the module menu keeps the shared width').toBe(260)
-
-  const blurbs = await measureOpenMenu(page, '.menu__blurb')
-  expect(blurbs.length, 'one description per bundled module').toBe(2)
-  for (const b of blurbs) {
-    expect(b.fontPx).toBeGreaterThanOrEqual(BODY_MIN_PX)
-    expect(b.contrast).toBeGreaterThanOrEqual(BODY_MIN_CONTRAST)
-    expect(b.clipped, `"${b.text}": ${b.scrollH} > ${b.clientH} would be cut by the clamp`).toBe(false)
-    expect(b.broken, `"${b.text}": no word split across lines`).toEqual([])
-    expect(b.text).not.toContain('·')
-  }
-})
-
-test('KO File menu keeps the shared 260px and its own descriptions stay whole', async ({ page }) => {
+test('KO File menu: its own descriptions stay whole in the wide popover it now has', async ({ page }) => {
   await trigger(page, /파일/).click()
   await expect(openPop(page)).toBeVisible()
   const width = await openPop(page).evaluate((el) => Math.round(el.getBoundingClientRect().width))
-  expect(width, 'File is NOT widened — only the two descriptive menus are').toBe(260)
+  // was the shared 260 until the Templates moved in (2026-10-20): at 260 three
+  // English template descriptions needed a third line and were clamped
+  expect(width, 'File is widened with the Templates it carries').toBe(300)
   const blurbs = await measureOpenMenu(page, '.menu__blurb')
   expect(blurbs.length).toBeGreaterThan(0)
+  // the two structure rows carry descriptions of their own
+  expect(blurbs.map((b) => b.text)).toEqual(
+    expect.arrayContaining(['선택한 노드와 그 사이 연결을 파일로 저장합니다.', '저장해 둔 구조 파일을 지금 문서에 추가합니다.']),
+  )
   for (const b of blurbs) {
     expect(b.fontPx).toBeGreaterThanOrEqual(BODY_MIN_PX)
     expect(b.contrast).toBeGreaterThanOrEqual(BODY_MIN_CONTRAST)
@@ -206,7 +197,7 @@ test('KO File menu keeps the shared 260px and its own descriptions stay whole', 
 test('a widened popover still fits inside a narrow desktop viewport', async ({ page }) => {
   // 820×720 is one of the widths the toolbar's own responsive contract pins.
   await page.setViewportSize({ width: 820, height: 720 })
-  for (const name of [/템플릿/, /모듈/] as const) {
+  for (const name of [/파일/] as const) {
     const t = trigger(page, name)
     if ((await t.count()) === 0) continue // folded into ⋯ at this width
     await t.click()
@@ -218,11 +209,13 @@ test('a widened popover still fits inside a narrow desktop viewport', async ({ p
   }
 })
 
-test.describe('menu keyboard — Templates, Insert module and File', () => {
+test.describe('menu keyboard — File (with the Templates in it)', () => {
   for (const [label, name, count] of [
-    ['Templates', /템플릿/, 4], // 0.28.1: Early MMO is not in the menu
-    ['Insert module', /모듈/, 4],
-    ['File', /파일/, 7],
+    // 2026-10: + Save selected structure, Insert saved structure; the
+    // workbench (2026-10-20): + the four Templates (0.28.1: Early MMO is not
+    // among them; the Templates menu itself gone) and Storage & privacy (from
+    // the Settings menu, docs/workbench.md §WB2)
+    ['File', /파일/, 17], // 2026-10-20: + the General, the Standard and the Pickup gacha Templates
   ] as const) {
     test(`${label}: arrows wrap, Home/End jump, separators are skipped, Esc returns focus`, async ({ page }) => {
       const t = trigger(page, name)
@@ -274,7 +267,7 @@ test.describe('menu keyboard — Templates, Insert module and File', () => {
   }
 
   test('ArrowUp from the trigger enters at the LAST row', async ({ page }) => {
-    const t = trigger(page, /템플릿/)
+    const t = trigger(page, /파일/)
     await t.click()
     await expect(openPop(page)).toBeVisible()
     const labels = (await openPop(page).getByRole('menuitem').allTextContents()).map((s) => s.trim())
@@ -299,7 +292,7 @@ test.describe('menu keyboard — Templates, Insert module and File', () => {
     await page.keyboard.press('Home')
     const first = await activeLabel(page)
     reachable.push(first ?? '')
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 16; i++) {
       await page.keyboard.press('ArrowDown')
       const cur = await activeLabel(page)
       if (cur === first) break

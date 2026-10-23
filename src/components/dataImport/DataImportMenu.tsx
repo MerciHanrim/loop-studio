@@ -5,7 +5,6 @@ import { useMenuKeyboard, useMenuTrigger } from '../../ui/useMenuKeyboard'
 import type { ToolbarDialog } from '../toolbar/dialogTypes'
 import { useMenuOpenStore } from '../toolbar/menuOpenStore'
 import { useOutsideDismiss } from '../toolbar/useOutsideDismiss'
-import { Icon } from '../../ui/icons'
 
 // docs/data-import.md §DI16 Phase 1B/2 — the toolbar trigger. Phase 1B
 // shipped this as a single plain button (its own label already ends in "▾",
@@ -59,13 +58,12 @@ export function DataImportMenu({
           buttonRef?.(el)
         }}
         type="button"
-        className="btn"
+        className="wb-mb"
         aria-haspopup="true"
         aria-expanded={menuOpen}
         {...triggerProps}
       >
         {t('import.button')}
-        <Icon name="chevron-down" className="icon--caret" />
       </button>
       {menuOpen && (
         <div className="menu__pop" role="menu" ref={popRef}>

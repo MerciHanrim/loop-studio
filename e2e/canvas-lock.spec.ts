@@ -51,10 +51,17 @@ const nodePos = (page: Page, id: string) =>
     id,
   )
 
-const lockBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-lock')
+// the workbench (docs/workbench.md §WB3, §WB8): the desktop canvas has no
+// Controls rail. The lock is the tool row's last button, the frame tool is one
+// of its canvas tools, zoom and Focus are in the status bar, and Clear all
+// frames is in the Edit menu.
+const lockBtn = (page: Page) => page.locator('.wb-toolrow [data-tool="lock"]')
+const zoomIn = (page: Page) => page.locator('.wb-status').getByRole('button', { name: 'Zoom in', exact: true })
+const focusBtn = (page: Page) => page.locator('.wb-status').getByRole('button', { name: 'Focus', exact: true })
+const paletteChip = (page: Page, name: string) => page.locator('.toolbar__palette').getByRole('button', { name, exact: true })
 
 test.describe('Canvas edit-lock', () => {
-  test('the Controls lock toggle flips uiStore.canvasLocked and replaces the "interactive" button', async ({ page }) => {
+  test('the tool row lock toggle flips uiStore.canvasLocked; React Flow\'s "interactive" button is not shown', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await seed(page)
@@ -99,8 +106,14 @@ test.describe('Canvas edit-lock', () => {
     await expect(labelInput).toBeVisible()
     await expect(labelInput).toBeDisabled() // <fieldset disabled> — :disabled matches
     await expect(labelInput).toHaveValue('P1') // the value is still shown
-    // the Delete button is inert too
-    for (const b of await aside.getByRole('button').all()) await expect(b).toBeDisabled()
+    // the Delete button is inert too, and every other control of the editing
+    // part; only the Relations rows stay usable — they select, never edit
+    // (2026-10-22: e2e/relations-row-pointing.spec.ts)
+    const editing = await aside.locator('button:not(.wb-rel__row):not(.wb-rel__link)').all()
+    expect(editing.length, 'the editing part has buttons to check').toBeGreaterThan(0)
+    for (const b of editing) await expect(b).toBeDisabled()
+    await expect(aside.locator('.inspector__head button')).toBeDisabled()
+    for (const r of await aside.locator('.wb-rel__row, .wb-rel__link').all()) await expect(r).toBeEnabled()
   })
 
   test('locked: nodes do not move, connect, or delete; the graph is untouched', async ({ page }) => {
@@ -140,9 +153,9 @@ test.describe('Canvas edit-lock', () => {
     await resetAll(page)
     await seed(page, true)
 
-    // zoom via the Controls (+) button
+    // zoom via the status bar's (+) button
     const vp0 = await page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport())
-    await page.locator('.react-flow__controls-button.react-flow__controls-zoomin').click()
+    await zoomIn(page).click()
     await expect
       .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport().zoom))
       .toBeGreaterThan(vp0.zoom)
@@ -223,18 +236,19 @@ test.describe('Canvas edit-lock', () => {
 
   // Issue #334 — while locked, every user edit is refused, through the real
   // controls: they are disabled, and pressing them anyway changes nothing.
-  test('locked: the palette, Undo / Redo, Insert module and the data import wizard are disabled and change nothing', async ({ page }) => {
+  test('locked: the palette, Undo / Redo, Insert saved structure and the data import wizard are disabled and change nothing', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await seed(page)
-    await page.getByRole('button', { name: 'Pool', exact: true }).click() // an edit, so Undo has something
+    // the palette's Pool (the left list names the added node "Pool" too)
+    await paletteChip(page, 'Pool').click() // an edit, so Undo has something
     await expect(page.locator('.react-flow__node')).toHaveCount(4)
     await lockBtn(page).click()
     expect(await locked(page)).toBe(true)
     const digest0 = await graphDigest(page)
     const pos0 = await nodePos(page, 'p1')
 
-    const pool = page.getByRole('button', { name: 'Pool', exact: true })
+    const pool = paletteChip(page, 'Pool')
     await expect(pool).toBeDisabled()
     await expect(pool).toHaveAttribute('draggable', 'false')
     await pool.click({ force: true })
@@ -242,6 +256,11 @@ test.describe('Canvas edit-lock', () => {
     const undo = page.locator('.toolbar button[title^="Undo"]')
     await expect(undo).toBeDisabled()
     await expect(page.locator('.toolbar button[title^="Redo"]')).toBeDisabled()
+    // the pointer leaves the chip first, as a user's does: the chip's tooltip
+    // sits over the canvas's top-left corner in the workbench, and a pointer
+    // moving straight from the chip onto it keeps it open (D9)
+    await page.mouse.move(5, 795)
+    await expect(page.locator('#palette-tip-pool')).toBeHidden()
     await page.locator('.react-flow__pane').click({ position: { x: 5, y: 5 } })
     await page.keyboard.press('Control+z')
 
@@ -250,11 +269,11 @@ test.describe('Canvas edit-lock', () => {
     await page.keyboard.press('ArrowRight')
     await page.keyboard.press('ArrowDown')
 
-    await page.getByRole('button', { name: 'Insert module', exact: true }).click()
-    const items = page.locator('.menu__pop[role="menu"] [role="menuitem"]')
-    const n = await items.count()
-    for (let i = 0; i < n - 1; i++) await expect(items.nth(i)).toBeDisabled() // every bundled module + From file
-    await expect(items.nth(n - 1)).toBeEnabled() // saving the selection as a module is an export
+    await page.getByRole('button', { name: 'File', exact: true }).click()
+    const fileRow = (name: string) =>
+      page.locator('.toolbar__filemenu-pop [role="menuitem"]').filter({ has: page.locator('.menu__name', { hasText: name }) })
+    await expect(fileRow('Insert saved structure…')).toBeDisabled()
+    await expect(fileRow('Save selected structure…')).toBeEnabled() // saving the selection is an export
     await page.keyboard.press('Escape')
 
     await page.getByRole('button', { name: 'Data', exact: true }).click()
@@ -279,7 +298,7 @@ test.describe('Canvas edit-lock', () => {
     await openApp(page)
     await resetAll(page)
     await seed(page)
-    await page.getByRole('button', { name: 'Pool', exact: true }).click() // so Undo would have something
+    await paletteChip(page, 'Pool').click() // so Undo would have something
     await lockBtn(page).click()
     expect(await locked(page)).toBe(true)
     const digest0 = await graphDigest(page)
@@ -318,15 +337,17 @@ test.describe('Canvas edit-lock', () => {
       expect(hit, `Tab #${i + 1} reached a disabled control`).toBe(false)
     }
 
-    // the menus' keyboard skips the disabled rows: from the Insert module
-    // trigger, Arrow keys + Enter land only on the enabled row (Save selection
-    // as a module, an export) and never insert anything
-    const insert = page.getByRole('button', { name: 'Insert module', exact: true })
-    await insert.focus()
+    // the menus' keyboard skips the disabled rows: from the File trigger, the
+    // Arrow keys walk the whole menu and never land on a disabled row such as
+    // Insert saved structure
+    const file = page.getByRole('button', { name: 'File', exact: true })
+    await file.focus()
     await page.keyboard.press('Enter')
-    const rows = page.locator('.menu__pop[role="menu"] [role="menuitem"]')
+    const rows = page.locator('.toolbar__filemenu-pop [role="menuitem"]')
     await expect(rows.first()).toBeVisible()
-    for (let i = 0; i < 6; i++) {
+    expect(await rows.evaluateAll((els) => els.filter((e) => (e as HTMLButtonElement).disabled).length)).toBeGreaterThan(0)
+    const total = await rows.count()
+    for (let i = 0; i < total + 2; i++) {
       await page.keyboard.press('ArrowDown')
       const onDisabled = await page.evaluate(() => (document.activeElement as HTMLButtonElement | null)?.disabled === true)
       expect(onDisabled).toBe(false)
@@ -353,11 +374,11 @@ test.describe('Canvas edit-lock', () => {
       .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().selectedNodeId))
       .toBe('p1')
     const zoom0 = await page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport().zoom)
-    await page.locator('.react-flow__controls-button.react-flow__controls-zoomin').click()
+    await zoomIn(page).click()
     await expect
       .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport().zoom))
       .toBeGreaterThan(zoom0)
-    const focus = page.locator('.react-flow__controls-button.rf-focus')
+    const focus = focusBtn(page)
     await focus.click()
     await expect(focus).toHaveAttribute('aria-pressed', 'true')
     await focus.click()
@@ -404,31 +425,42 @@ test.describe('Canvas edit-lock', () => {
   })
 })
 
-// #338 — the Controls rail keeps its buttons under the lock: the frame tool and
-// "Clear all frames" stay in place, native `disabled`, so the rail's height and
-// every button's place are the same locked and unlocked.
-test.describe('Canvas edit-lock — the Controls rail (#338)', () => {
-  const rail = (page: Page) =>
+// #338 — the controls keep their places under the lock: what the lock turns
+// off stays where it is, native `disabled`. The desktop canvas had a Controls
+// rail for this; in the workbench (docs/workbench.md §WB3) the frame tool,
+// Undo / Redo and the palette are in the tool row, so the row's height and
+// every button's place are the same locked and unlocked. Clear all frames is
+// an Edit menu row, disabled under the lock.
+test.describe('Canvas edit-lock — the tool row (#338)', () => {
+  /** every button of the tool row: what it is (its tool, kind or name, never
+   *  its pressed state) and where it is, relative to the row */
+  const row = (page: Page) =>
     page.evaluate(() => {
-      const c = document.querySelector('.react-flow__controls')!
+      const c = document.querySelector('.wb-toolrow')!
       const r = c.getBoundingClientRect()
       return {
         top: r.top,
         height: r.height,
         buttons: [...c.querySelectorAll('button')].map((b) => {
           const q = b.getBoundingClientRect()
-          return { cls: b.className, top: q.top - r.top, height: q.height }
+          const id = b.dataset.tool ?? b.dataset.connectKind ?? b.getAttribute('aria-label') ?? b.textContent ?? ''
+          return { id, left: q.left - r.left, top: q.top - r.top, width: q.width, height: q.height }
         }),
       }
     })
-  const frameTool = (page: Page) => page.locator('.react-flow__controls-button.rf-frame')
-  const clearAll = (page: Page) => page.locator('.react-flow__controls-button.rf-frame-clear')
+  const frameTool = (page: Page) => page.locator('.wb-toolrow [data-tool="frame"]')
+  /** Edit ▸ Clear all frames, with the Edit menu open */
+  const clearAll = (page: Page) => page.locator('[data-menu="edit"] [role="menuitem"]').filter({ has: page.locator('.menu__name', { hasText: 'Clear all frames' }) })
+  const openEdit = async (page: Page) => {
+    await page.getByRole('button', { name: 'Edit', exact: true }).click()
+    await expect(page.locator('[data-menu="edit"] [role="menu"]')).toBeVisible()
+  }
   const addFrame = (page: Page) =>
     page.evaluate(() => (window as unknown as Bridge).__loop.frame.getState().addFrame({ x: -40, y: -40, w: 600, h: 160 }))
   const frameCount = (page: Page) =>
     page.evaluate(() => (window as unknown as Bridge).__loop.frame.getState().frames.length)
 
-  test('the rail keeps the same buttons, button height and overall height locked and unlocked, with and without frames, in light, dark and forced colours', async ({ page }) => {
+  test('the tool row keeps the same buttons, each in its place, and its height locked and unlocked, with and without frames, in light, dark and forced colours', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await seed(page)
@@ -438,19 +470,23 @@ test.describe('Canvas edit-lock — the Controls rail (#338)', () => {
         await page.emulateMedia(scheme)
         const tag = `${withFrame ? 'a frame' : 'no frame'}, ${scheme.colorScheme}${scheme.forcedColors === 'active' ? ' forced' : ''}`
         expect(await locked(page)).toBe(false)
-        const open = await rail(page)
+        const open = await row(page)
         await lockBtn(page).click()
         await expect(frameTool(page), tag).toBeDisabled()
-        const shut = await rail(page)
-        expect(shut.buttons.map((b) => b.cls.replace(/\s+/g, ' ')), tag).toEqual(open.buttons.map((b) => b.cls.replace(/\s+/g, ' ')))
-        expect(shut.buttons.map((b) => [b.top, b.height]), tag).toEqual(open.buttons.map((b) => [b.top, b.height]))
-        expect(new Set(shut.buttons.map((b) => b.height)), tag).toEqual(new Set([26]))
+        const shut = await row(page)
+        expect(shut.buttons.map((b) => b.id), tag).toEqual(open.buttons.map((b) => b.id))
+        expect(shut.buttons.map((b) => [b.left, b.top, b.width, b.height]), tag).toEqual(open.buttons.map((b) => [b.left, b.top, b.width, b.height]))
         expect([shut.top, shut.height], tag).toEqual([open.top, open.height])
-        if (withFrame) await expect(clearAll(page), tag).toBeDisabled()
-        // a disabled rail button reads as disabled: never the enabled colour
+        if (withFrame) {
+          await openEdit(page)
+          await expect(clearAll(page), tag).toBeDisabled()
+          await page.keyboard.press('Escape')
+        }
+        // a disabled tool reads as disabled: never the enabled tools' colour
+        // (Pan, enabled and not pressed, beside the turned-off frame tool)
         const colours = await page.evaluate(() => {
           const c = (s: string) => getComputedStyle(document.querySelector(s)!).color
-          return { off: c('.react-flow__controls-button.rf-frame'), on: c('.react-flow__controls-button.rf-focus') }
+          return { off: c('.wb-toolrow [data-tool="frame"]'), on: c('.wb-toolrow [data-tool="pan"]') }
         })
         expect(colours.off, tag).not.toBe(colours.on)
         await lockBtn(page).click()
@@ -459,7 +495,7 @@ test.describe('Canvas edit-lock — the Controls rail (#338)', () => {
     }
   })
 
-  test('locked: the two frame buttons are disabled, Tab skips them, and clicking them changes nothing; unlocked they work again', async ({ page }) => {
+  test('locked: the frame tool and Clear all frames are disabled, the keyboard skips them, and clicking them changes nothing; unlocked they work again', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await seed(page)
@@ -467,26 +503,37 @@ test.describe('Canvas edit-lock — the Controls rail (#338)', () => {
     await lockBtn(page).click()
     expect(await locked(page)).toBe(true)
     await expect(frameTool(page)).toBeDisabled()
-    await expect(clearAll(page)).toBeDisabled()
-    // Tab through the rail never lands on either
-    await page.locator('.react-flow__controls-button').first().focus()
-    for (let i = 0; i < 16; i++) {
+    // Tab through the tool row never lands on the frame tool
+    await page.locator('.wb-toolrow [data-tool="select"]').focus()
+    for (let i = 0; i < 40; i++) {
       const at = await page.evaluate(() => {
-        const a = document.activeElement
-        return a?.closest('.react-flow__controls') ? a.className : null
+        const a = document.activeElement as HTMLElement | null
+        return a?.closest('.wb-toolrow') ? (a.dataset.tool ?? a.dataset.connectKind ?? a.className) : null
       })
       if (at === null) break
-      expect(at, `Tab stop ${i + 1}`).not.toMatch(/\brf-frame(-clear)?\b/)
+      expect(at, `Tab stop ${i + 1}`).not.toBe('frame')
       await page.keyboard.press('Tab')
     }
+    // the Edit menu: Clear all frames is disabled, and its arrow keys never land on it
+    await openEdit(page)
+    await expect(clearAll(page)).toBeDisabled()
+    const rows = page.locator('[data-menu="edit"] [role="menuitem"], [data-menu="edit"] [role="menuitemcheckbox"]')
+    const total = await rows.count()
+    for (let i = 0; i < total + 2; i++) {
+      await page.keyboard.press('ArrowDown')
+      const name = await page.evaluate(() => (document.activeElement as HTMLElement | null)?.textContent ?? '')
+      expect(name, `ArrowDown ${i + 1}`).not.toContain('Clear all frames')
+    }
     // a click reaches nothing: no tool armed, the frame still there
-    await frameTool(page).click({ force: true })
     await clearAll(page).click({ force: true })
+    await page.keyboard.press('Escape')
+    await frameTool(page).click({ force: true })
     expect(await page.evaluate(() => (window as unknown as Bridge).__loop.frame.getState().toolArmed)).toBe(false)
     expect(await frameCount(page)).toBe(1)
     // unlocked, both work again
     await lockBtn(page).click()
     await expect(frameTool(page)).toBeEnabled()
+    await openEdit(page)
     await clearAll(page).click()
     expect(await frameCount(page)).toBe(0)
   })

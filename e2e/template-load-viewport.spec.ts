@@ -227,7 +227,7 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
   // Template opened for the FIRST time (no fitView, no manual setViewport),
   // full DOM-bounds containment of all 5 comparison cards + a Free-zone node
   // inside the CANVAS PANE itself (not just "overlaps" like `nodeOnScreen`),
-  // in EN/KO/JA, with the actual applied zoom logged via the same
+  // in EN/KO, with the actual applied zoom logged via the same
   // `__loop.canvas.lastInitialView()` debug hook Canvas.tsx exposes — no
   // re-deriving it from a possibly-stale `getViewport()` read.
   test.describe('gacha initial-load viewport containment (post-#198 review)', () => {
@@ -269,7 +269,7 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
       { width: 1280, height: 720 },
       { width: 1600, height: 900 },
     ]) {
-      test(`fresh open at ${size.width}×${size.height}: all 5 comparison cards + a Free-zone node fully on canvas, in EN/KO/JA, no fitView/manual camera`, async ({
+      test(`fresh open at ${size.width}×${size.height}: all 5 comparison cards + a Free-zone node fully on canvas, in EN/KO, no fitView/manual camera`, async ({
         browser,
       }) => {
         const page = await browser.newPage({ viewport: size })
@@ -301,7 +301,7 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
           expect(iv, `no initialView was applied at ${size.width}x${size.height}`).not.toBeNull()
           expect(iv!.zoom, `zoom too small to read labels at ${size.width}x${size.height}`).toBeGreaterThanOrEqual(0.45)
 
-          for (const locale of ['en', 'ko', 'ja']) {
+          for (const locale of ['en', 'ko']) { // §L2.0 (2026-10): the shipped languages
             if (locale !== 'en') {
               await page.evaluate(
                 (c) => (window as unknown as { __loop: Loop }).__loop.i18n.getState().setLocale(c),
@@ -334,7 +334,7 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
     await pickDesktopTemplate(page, GACHA_EN, GACHA_L)
     await expect.poll(() => nodeOnScreen(page, GACHA_L)).toBe(true)
     const opened = await getVp(page)
-    for (const code of ['ko', 'ja', 'en']) {
+    for (const code of ['ko', 'en']) {
       await page.evaluate(
         (c) => (window as unknown as { __loop: Loop }).__loop.i18n.getState().setLocale(c),
         code,

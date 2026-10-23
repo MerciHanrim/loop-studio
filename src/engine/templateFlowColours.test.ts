@@ -70,9 +70,13 @@ const TEMPLATES: { file: string; flows: TemplateFlows; colours: string[]; conten
     flows: GACHA_BANNER_ZONES_FLOWS,
     colours: ['sage', 'violet', 'rose'],
     // issue #344 step 4 (layout round 9): placed for the grid, every
-    // connection Auto orthogonal — the waypoints of rounds 7 and 8 are gone
-    contentDigest: 'cf883dca811c9fecc44794321bb7c7e418fee942cf55c7797a1276fc2d1b1b77',
-    fullContentDigest: 'cf883dca811c9fecc44794321bb7c7e418fee942cf55c7797a1276fc2d1b1b77',
+    // connection Auto orthogonal — the waypoints of rounds 7 and 8 are gone.
+    // Re-pinned 2026-10-21: `e_standard_16` (the forced SSR's counter reset)
+    // leaves the forced SSR's left side, was its top (docs/simulation-playback.md
+    // PB4.2a) — one stored port face, content, never engine data; the engine
+    // digest below is unchanged
+    contentDigest: '6e3e91dc94a22f74ee6d667328ea8d51a6de97e6bbf10af7901c46b6a9741b02',
+    fullContentDigest: '6e3e91dc94a22f74ee6d667328ea8d51a6de97e6bbf10af7901c46b6a9741b02',
   },
   {
     file: 'mmo-progression.json',

@@ -305,6 +305,41 @@ A `label` `StateEvent` with a negative delta travels **target → source** (the
 current flash direction). An `activator` has no travel — a target tint that flips
 on `settle`.
 
+**PB4.2a — a `label`'s chip while a step's change is shown (2026-10-21).** The
+chip keeps its set value and adds the change it applied ONLY when that says
+more than the set value. A `+n` / `−n` that moved its target by exactly `n`
+shows the set value alone (the step's own cue — the pulse, the bead, the
+held highlight under reduced motion — says it applied); before, it read
+"+1 +1", as if added twice. An assignment (`= n`), a source-valued change
+(`±S`) or a change that differs from the set value shows both on TWO lines —
+the set value above, "Δ −14" below — set apart by the line and the Δ, not by
+colour alone (`edge-label--two`). Screen readers get one phrase, "set =0,
+applied change −14" (ko "설정 =0, 실제 변화 −14"); the visible parts are
+hidden from them. A clamp keeps its own note. The chip is centred on its
+anchor, so the second line grows it by half a line up and down, not
+sideways; it changes only while the step is shown, and the router places
+labels from their REST size (`docs/edge-routing.md` §ER14.3), so no line
+moves. Measured 2026-10-21 (every menu Template, whole runs, 1440, ko and
+en): no route changed; with one line the widened chips met a name and a
+symbol in the Pickup gacha. With two lines, a few lines' faces and bends were
+adjusted locally where a chip still met something — nothing else in those
+examples, no engine or router change:
+- the Pickup gacha (`scripts/gen-gacha-pickup-example.ts`): the pickup split →
+  pickup SSR and off-pickup SSR → owed lines; then, in English only, the
+  pickup SSR's "=0 / Δ−1" met the owed state's symbol, so that line now enters
+  the owed state's top beside the "= 1", and the owed → owed-pickup condition
+  leaves under the pickup SSR's name up a lane right of the frame;
+- the 3-zone comparison's Standard zone
+  (`scripts/gen-gacha-banner-zones-example.ts`): the counter reset's
+  "=0 / Δ −n" met the neighbouring condition's chip (`e_standard_16` /
+  `e_standard_13`), so `e_standard_16` leaves the forced SSR's left side (was
+  its top) — only its stored face changed; of six single-line variants
+  measured, this one only removed shared stretches.
+
+After them, in the range checked (those runs, and each layout at rest at
+1440 / 1920 in both languages), no running chip meets another chip, a name or
+a symbol, and no route-point warning appeared.
+
 **PB4.3 — constant speed along arc length.** Equal path length per unit `τ` (not
 equal parameter `t`), so a token does not visually accelerate through an
 orthogonal corner or a Bézier bulge. `<animateMotion>` with the path's own

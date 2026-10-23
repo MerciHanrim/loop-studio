@@ -76,8 +76,9 @@ test('721×720: menu-open suppression and click suppression still hold with the 
 }) => {
   await page.setViewportSize({ width: 721, height: 720 })
 
-  // menu-open suppresses it
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^Templates$/ }).click()
+  // menu-open suppresses it — Help: in the workbench's menu bar File opens
+  // over the palette's first chips, Help's popover clears them (2026-10-20)
+  await page.locator('[data-tour="help-trigger"]').click()
   await chip(page, 'pool').hover()
   await expect(tip(page, 'pool')).toBeHidden()
   await page.keyboard.press('Escape')
@@ -108,10 +109,12 @@ test('721×720: scrolling the palette itself repositions an already-showing tool
 }) => {
   await page.setViewportSize({ width: 721, height: 720 })
   // force genuine horizontal overflow regardless of locale/label widths —
-  // same technique as toolbar-responsive.spec.ts's narrowed-toolbar cases
-  await page.addStyleTag({ content: '.toolbar__palette { max-width: 260px !important; }' })
+  // same technique as toolbar-responsive.spec.ts's narrowed-toolbar cases. In
+  // the workbench (docs/workbench.md §WB3) the palette sits in the tool row,
+  // and it is the ROW that scrolls once even its last fit step does not fit
+  await page.addStyleTag({ content: '.wb-toolrow { max-width: 300px !important; }' })
 
-  const palette = page.locator('.toolbar__palette')
+  const palette = page.locator('.wb-toolrow')
   // keyboard focus, not hover: a real Tab press (not a programmatic
   // `.focus()`, which doesn't set `:focus-visible` at all — confirmed by
   // palette-tooltip.spec.ts's own keyboard test) so the tip stays showing

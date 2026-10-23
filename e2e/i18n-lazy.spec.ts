@@ -60,15 +60,20 @@ test.describe('locale lazy-loading — behaviour', () => {
   test('re-selecting the active locale is a no-op', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
-    await setLocale(page, 'ja')
-    await expect.poll(() => htmlLang(page)).toBe('ja')
+    await setLocale(page, 'ko')
+    await expect.poll(() => htmlLang(page)).toBe('ko')
     const before = await i18nState(page)
-    await setLocale(page, 'ja')
+    await setLocale(page, 'ko')
     await page.waitForTimeout(100)
     expect(await i18nState(page)).toEqual(before)
   })
 
-  test('a fast ja → ko burst settles on ko, never commits ja', async ({ page }) => {
+  // §L2.0 (2026-10) — this was a ja → ko burst (two lazy chunks). With en and
+  // ko left, the race worth pinning is a SLOW lazy request overtaken by a fast
+  // one: ko (its own chunk) then en (bundled, resolves at once). The en request
+  // commits first; the ko completion that arrives afterwards is stale and must
+  // be dropped whole.
+  test('a fast ko → en burst settles on en, never commits ko', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     const seen: string[] = []
@@ -82,13 +87,29 @@ test.describe('locale lazy-loading — behaviour', () => {
     })
     await page.evaluate(() => {
       const api = (window as unknown as { __loop: L }).__loop.i18n.getState()
-      api.setLocale('ja')
       api.setLocale('ko')
+      api.setLocale('en')
     })
-    await expect.poll(() => htmlLang(page)).toBe('ko')
+    // en was already on screen, so <html lang> alone proves nothing: wait until
+    // the ko request has really finished — both halves fetched (dev module
+    // URLs, as in the failed-load test below) and nothing loading — so a ko
+    // commit, if the stale completion were not dropped, would have happened
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const urls = (performance.getEntriesByType('resource') as PerformanceResourceTiming[]).map((e) => e.name)
+          return (
+            urls.some((u) => u.includes('/i18n/locales/ko/')) && urls.some((u) => u.includes('/i18n/templateLabels/ko'))
+          )
+        }),
+      )
+      .toBe(true)
+    await expect.poll(async () => (await i18nState(page)).loading).toBe(false)
     await page.waitForTimeout(200)
-    expect(seen).not.toContain('ja')
-    expect(await stored(page)).toBe('ko')
+    expect(seen).not.toContain('ko')
+    expect(await htmlLang(page)).toBe('en')
+    expect((await i18nState(page)).activeLocale).toBe('en')
+    expect(await stored(page)).toBe('en')
   })
 
   test('a failed load keeps the current language and shows a dismissible notice', async ({
@@ -98,23 +119,27 @@ test.describe('locale lazy-loading — behaviour', () => {
     await openApp(page)
     await resetAll(page)
     await openCoffee(page)
-    // block BOTH halves of the ja load (dev module URLs)
-    await page.route('**/i18n/locales/ja/**', (r) => r.abort())
-    await page.route('**/i18n/templateLabels/ja*', (r) => r.abort())
+    // block BOTH halves of the ko load (dev module URLs). §L2.0 (2026-10) —
+    // this was the ja load; ko is now the one lazy language.
+    await page.route('**/i18n/locales/ko/**', (r) => r.abort())
+    await page.route('**/i18n/templateLabels/ko*', (r) => r.abort())
 
-    await setLocale(page, 'ja')
+    await setLocale(page, 'ko')
     await expect(page.locator('.boot-notice[role="status"]')).toBeVisible()
     const st = await i18nState(page)
     expect(st.activeLocale).toBe('en')
-    expect(st.loadError?.code).toBe('ja')
+    expect(st.loadError?.code).toBe('ko')
     expect(await htmlLang(page)).toBe('en')
     expect(await nodeLabel(page, 'green_stock')).toBe('Green bean stock')
 
-    // a successful switch clears the notice
-    await page.unroute('**/i18n/locales/ja/**')
-    await page.unroute('**/i18n/templateLabels/ja*')
-    await setLocale(page, 'ko')
-    await expect.poll(() => htmlLang(page)).toBe('ko')
+    // a successful switch clears the notice. It has to be a DIFFERENT locale
+    // from the active one (re-selecting en is a no-op) and must not depend on
+    // the browser retrying a module import that already failed, so it is the
+    // dev pseudo-locale en-XA (en's catalog, a registered code of its own).
+    await page.unroute('**/i18n/locales/ko/**')
+    await page.unroute('**/i18n/templateLabels/ko*')
+    await setLocale(page, 'en-XA')
+    await expect.poll(() => htmlLang(page)).toBe('en-XA')
     await expect(page.locator('.boot-notice[role="status"]')).toHaveCount(0)
 
     // the aborted-import network errors are expected here; nothing else is

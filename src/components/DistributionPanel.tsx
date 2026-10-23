@@ -117,8 +117,13 @@ export function DistributionPanel() {
         <ExportMenu result={result} disabled={stale} />
       </div>
 
-      <TerminationSparkline result={result} />
-      <BandChart result={result} />
+      {/* the part that scrolls where the analysis area is too low for the
+          view (index.css `.dist__body`); the stats row with its Export menu
+          stays outside it, so the menu, which opens upward, is never cut */}
+      <div className="dist__body">
+        <TerminationSparkline result={result} />
+        <BandChart result={result} />
+      </div>
     </div>
   )
 }

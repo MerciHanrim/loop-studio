@@ -2,8 +2,8 @@ import { AboutDialog } from '../AboutDialog'
 import { AuthorDialog } from '../AuthorDialog'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { ContextualHelpDialog } from '../ContextualHelpDialog'
+import { ExampleNotesDialog } from '../ExampleNotesDialog'
 import { StoragePrivacyDialog } from '../StoragePrivacyDialog'
-import { WhatsNewPanel } from '../WhatsNewPanel'
 import { DataImportRefreshMenu } from '../dataImport/DataImportRefreshMenu'
 import { DataImportWizard } from '../dataImport/DataImportWizard'
 import { useT } from '../../i18n'
@@ -82,7 +82,11 @@ export function DialogHost({ activeDialog, onClose, returnFocusTo }: Props) {
         onClose={onClose}
         returnFocusTo={returnFocusTo}
       />
-      <WhatsNewPanel open={activeDialog?.kind === 'whatsNew'} onClose={onClose} returnFocusTo={returnFocusTo} />
+      <ExampleNotesDialog
+        open={activeDialog?.kind === 'exampleNotes'}
+        onClose={onClose}
+        returnFocusTo={returnFocusTo}
+      />
       {/* issue #297 - the Storage and privacy area, from Settings and from the temporary-session chip */}
       <StoragePrivacyDialog
         open={activeDialog?.kind === 'storage-privacy'}

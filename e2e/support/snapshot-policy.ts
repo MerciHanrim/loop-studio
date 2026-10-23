@@ -3,8 +3,8 @@
 // One `maxDiffPixelRatio` per CAPTURE KIND, not one global number. The ratio a
 // screenshot is allowed to differ by is a property of what the shot frames:
 // a 1280×800 page full of toolbar text moves ~0.35 % between a Windows 11
-// machine and the windows-latest runner (font rasterisation), a 980×462 canvas
-// clip moves 0.003 %, an element capture 0 %. A single 2 % gate hid eight
+// machine and the windows-latest runner (font rasterisation), a canvas clip
+// (measured at its earlier 980×462) moves 0.003 %, an element capture 0 %. A single 2 % gate hid eight
 // releases of drift (audit 2026-09-18); a single 0.5 % gate would still miss
 // every rail / panel / value change on a canvas clip. Measured basis and the
 // per-kind headroom are in the doc.
@@ -16,8 +16,16 @@
 export const SNAPSHOT_POLICY = {
   /** `expect(page).toHaveScreenshot` at the desktop viewport (1280×800). */
   'desktop-full-page': { maxDiffPixelRatio: 0.005, size: [1280, 800] as const },
-  /** `.react-flow` clip at the desktop viewport (980×462). */
-  'desktop-canvas-clip': { maxDiffPixelRatio: 0.0002, size: [980, 462] as const },
+  /** `.react-flow` clip at the desktop viewport (664×548: since the workbench,
+   *  1280 px is the wide band, with the model list (272) and the properties
+   *  panel (344) both open; it was 980×462 beside the old 300 px right column). */
+  'desktop-canvas-clip': { maxDiffPixelRatio: 0.0002, size: [664, 548] as const },
+  /** `.react-flow` clip at `WORKBENCH_ROOMY_VIEWPORT` (1600×940 → 984×688). A
+   *  per-scene EXCEPTION, not a second desktop condition: registered only for
+   *  a shot whose gesture needs the wider canvas (auto-frames-mixed: a frame
+   *  drawn over a row that a 664 px pane does not hold). The canvas clip's
+   *  ratio — the same capture, wider. */
+  'desktop-roomy-canvas-clip': { maxDiffPixelRatio: 0.0002, size: [984, 688] as const },
   /** `.react-flow` clip under the `mobile` project (390×734: the canvas pane
    *  reserves the run bar's measured 53 px, not a 52 px constant, since issue #303). */
   'mobile-canvas-clip': { maxDiffPixelRatio: 0.001, size: [390, 734] as const },
@@ -71,32 +79,38 @@ export const SNAPSHOTS: Record<string, Partial<Record<SnapshotProject, SnapshotK
   // large-graph-readability.spec.ts
   'run-distinction-states': { chromium: 'desktop-canvas-clip' },
   'frames-activity': { chromium: 'desktop-canvas-clip' },
+  // auto-frames: the two suggested frames do not fit one 664 px pane at their
+  // L1 zoom, so two shots (Area 1 selected + the note; Area 2 unselected)
   'auto-frames': { chromium: 'desktop-canvas-clip' },
-  'auto-frames-mixed': { chromium: 'desktop-canvas-clip' },
+  'auto-frames-area2': { chromium: 'desktop-canvas-clip' },
+  'auto-frames-mixed': { chromium: 'desktop-roomy-canvas-clip' },
   'frame-colours': { chromium: 'desktop-full-page' },
   'frame-colours-dark': { chromium: 'desktop-full-page' },
   'frame-colours-overlap': { chromium: 'desktop-full-page' },
   'frame-colours-forced': { chromium: 'desktop-full-page' },
   // flow-colour-visual.spec.ts — docs/flow-colour-and-compact-nodes.md FC-4;
-  // the full canvas pane with the timeline closed (980 x 662), so `element`
-  'flow-colour-light-L2': { chromium: 'element' },
-  'flow-colour-light-L0': { chromium: 'element' },
-  'flow-colour-dark-L2': { chromium: 'element' },
-  'flow-colour-dark-L0': { chromium: 'element' },
-  'flow-colour-states': { chromium: 'element' },
+  // the canvas pane, now the canvas clip's own 664 x 548 (it was 980 x 662
+  // with the timeline closed, so `element`, before the workbench)
+  'flow-colour-light-L2': { chromium: 'desktop-canvas-clip' },
+  'flow-colour-light-L0': { chromium: 'desktop-canvas-clip' },
+  'flow-colour-dark-L2': { chromium: 'desktop-canvas-clip' },
+  'flow-colour-dark-L0': { chromium: 'desktop-canvas-clip' },
+  'flow-colour-states': { chromium: 'desktop-canvas-clip' },
   // flow-colour-views-visual.spec.ts — docs/flow-colour-and-compact-nodes.md
-  // FC-6 (PR 2): the minimap and the timeline panel, and each Template's full
-  // canvas pane with the timeline closed (980 x 662), light and dark, so `element`
+  // FC-6 (PR 2): the minimap and the timeline panel (`element`), and each
+  // Template's whole fit — the canvas pane, a `.react-flow` clip since the
+  // workbench (664 x 548; it was the 980 x 662 pane with the timeline closed,
+  // so `element`, until 2026-10-23)
   'flow-views-minimap-light': { chromium: 'element' },
   'flow-views-minimap-dark': { chromium: 'element' },
   'flow-views-timeline-light': { chromium: 'element' },
   'flow-views-timeline-dark': { chromium: 'element' },
   'flow-views-forced-minimap': { chromium: 'element' },
   'flow-views-forced-timeline': { chromium: 'element' },
-  'flow-views-template-coffee-light': { chromium: 'element' },
-  'flow-views-template-coffee-dark': { chromium: 'element' },
-  'flow-views-template-gacha-light': { chromium: 'element' },
-  'flow-views-template-gacha-dark': { chromium: 'element' },
+  'flow-views-template-coffee-light': { chromium: 'desktop-canvas-clip' },
+  'flow-views-template-coffee-dark': { chromium: 'desktop-canvas-clip' },
+  'flow-views-template-gacha-light': { chromium: 'desktop-canvas-clip' },
+  'flow-views-template-gacha-dark': { chromium: 'desktop-canvas-clip' },
   // flow-colour-mobile.spec.ts — the phone's one-line Colour summary (FC-5)
   'flow-views-phone-summary': { mobile: 'element' },
   // model-nodes-visual.spec.ts

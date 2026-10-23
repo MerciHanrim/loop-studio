@@ -57,6 +57,22 @@ export function faceOf(e: Pick<LoopEdge, 'data' | 'sourceHandle' | 'targetHandle
   return (end === 'source' ? p?.source : p?.target) ?? defaultFace(edgePortKind(e), end)
 }
 
+/** the port kind a DOM / document handle id belongs to (`state-*` or `in` /
+ *  `out`), or null for an unknown or missing id */
+export function handleKindOf(id: string | null | undefined): PortKind | null {
+  const base = parseHandleId(id).base
+  if (base === 'state-source' || base === 'state-target') return 'state'
+  if (base === 'in' || base === 'out') return 'resource'
+  return null
+}
+
+/** the face a DOM handle stands on: its `@face`, else its OWN port's default
+ *  face (a plain `state-target` is on the top face whatever the connection
+ *  that lands on it); `fallback` for an id that names no port */
+export function faceOfHandle(id: string | null | undefined, end: PortEnd, fallback: PortKind): PortFace {
+  return parseHandleId(id).face ?? defaultFace(handleKindOf(id) ?? fallback, end)
+}
+
 /** the document's handle id for a port kind and end (the kind channel) */
 export const baseHandleId = (kind: PortKind, end: PortEnd): string =>
   kind === 'state' ? (end === 'source' ? 'state-source' : 'state-target') : end === 'source' ? 'out' : 'in'

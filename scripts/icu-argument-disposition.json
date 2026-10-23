@@ -11,11 +11,11 @@
   },
   "$implemented": "A row classed `auto` / `ltr` / `per-fragment` is an OPEN obligation: the evidence says the value needs bounding and the code does not bound it yet. C3.5 was scoped to fix the two families that were already evidenced — the unrecognized-column header and the five `import.loc.*` calls — and those moved to `isolate-obligations.json`. The checker asserts these rows are NOT wrapped, so implementing one without moving its row is red in both directions.",
   "totals": {
-    "arguments": 238,
-    "rows": 53,
+    "arguments": 268,
+    "rows": 54,
     "byClass": {
       "attribute": 10,
-      "closed-value": 43
+      "closed-value": 44
     },
     "recordedNotImplemented": 0,
     "attributeSink": 22
@@ -272,6 +272,16 @@
       "evidence": "`t(TEMPLATE_KEY[id].name)` or '' — a catalog string; the empty arm is what stops it being derived as one."
     },
     {
+      "file": "src/components/Toolbar.tsx",
+      "enclosing": "Toolbar",
+      "key": "templates.replace.body",
+      "arg": "name",
+      "ord": 1,
+      "sink": "prop:ConfirmDialog.body",
+      "class": "closed-value",
+      "evidence": "The workbench (2026-10): the same confirmation, now for File's Templates section — `t(TEMPLATE_KEY[id].name)` or '' while no Template is pending; a catalog string, the empty arm again what stops it being derived as one."
+    },
+    {
       "file": "src/components/TimelineChart.tsx",
       "enclosing": "TimelineChart",
       "key": "timeline.legend.hide",
@@ -300,16 +310,6 @@
       "sink": "indirect",
       "class": "closed-value",
       "evidence": "The build constant `__APP_VERSION__`."
-    },
-    {
-      "file": "src/components/WhatsNewNotice.tsx",
-      "enclosing": "WhatsNewNotice",
-      "key": "whatsNew.notice.text",
-      "arg": "version",
-      "ord": 1,
-      "sink": "indirect",
-      "class": "closed-value",
-      "evidence": "The `version` of the newest bundled release note (`src/releaseNotes/releaseNotes.ts`), which `validateReleaseNotes` holds to x.y.z: digits and dots, no letters."
     },
     {
       "file": "src/components/dataImport/DataImportWizard.tsx",
@@ -550,6 +550,16 @@
       "sink": "indirect",
       "class": "closed-value",
       "evidence": "MiB, formatted by `mib()` — digits plus the ASCII unit."
+    },
+    {
+      "file": "src/components/workbench/Relations.tsx",
+      "enclosing": "EdgeRelation",
+      "key": "rel.gate.edgeChance",
+      "arg": "chance",
+      "ord": 1,
+      "sink": "text",
+      "class": "closed-value",
+      "evidence": "A probabilistic Gate branch's chance, formatted by `chanceText()` through the catalog's own `rel.gate.chance` / `rel.gate.chanceBelow` number messages (`::percent .#`) — a formatted number, no user text (src/engine/gateChance.ts)."
     }
   ]
 }

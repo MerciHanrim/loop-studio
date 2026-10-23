@@ -24,8 +24,15 @@ const gs = (page: Page): Promise<GS> =>
     }
   })
 
-const inputsPanel = (page: Page) => page.locator('.rightcol .mpanel').first()
-const summaryPanel = (page: Page) => page.locator('.rightcol .mpanel').nth(1)
+// the workbench (docs/workbench.md §WB5): the panels moved from the right
+// column to the left list's Inputs tab
+const openInputs = async (page: Page) => {
+  const tab = page.locator('.wb-left [role="tab"]', { hasText: 'Inputs' })
+  await tab.click()
+  await expect(tab).toHaveAttribute('aria-selected', 'true')
+}
+const inputsPanel = (page: Page) => page.locator('.wb-left .mpanel').first()
+const summaryPanel = (page: Page) => page.locator('.wb-left .mpanel').nth(1)
 
 /** a v1 graph: pool + 2 parameters + 1 valid register (@p1 + @p2) + 1 invalid
  *  register (@nope). Returns the node ids. */
@@ -49,15 +56,16 @@ async function seedModelGraph(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await openApp(page)
+  await openInputs(page)
 })
 
 test('the panels are absent with no Parameter / Register, and appear once one exists (§MS5.3)', async ({ page }) => {
   await resetAll(page)
   await page.evaluate(() => (window as any).__loop.graph.getState().addNodeAt('pool', { x: 0, y: 0 }))
-  await expect(page.locator('.rightcol .mpanels')).toHaveCount(0)
+  await expect(page.locator('.wb-left .mpanels')).toHaveCount(0)
 
   await page.evaluate(() => (window as any).__loop.graph.getState().addNodeAt('parameter', { x: 100, y: 0 }))
-  await expect(page.locator('.rightcol .mpanels')).toBeVisible()
+  await expect(page.locator('.wb-left .mpanels')).toBeVisible()
   await expect(inputsPanel(page)).toBeVisible()
 })
 
@@ -105,7 +113,7 @@ test('v2 graph: Inputs also lists each @param flow edge as a read-only pointer',
     g().addNodeAt('parameter', { x: 0, y: 200 })
     const [s, p, rate] = g().nodes.map((n: { id: string }) => n.id)
     g().updateNodeData(rate, { label: 'Rate', value: 3 })
-    g().onConnect({ source: s, target: p, sourceHandle: 'out', targetHandle: 'in' })
+    g().onConnect({ source: s, target: p, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
     g().setEdgeData(g().edges[0].id, { kind: 'resource', flow: `@${rate}` })
   })
   expect((await gs(page)).modelVersion).toBe(2)
@@ -143,11 +151,33 @@ test('Summary shows R(t) + unit and ONE shared Show-calculation toggle beside th
 
   const bad = rows.filter({ hasText: 'Broken' })
   await expect(bad).toContainText(/no value/i)
+  // the invalid Register's error code is in the error colour; its "no value"
+  // line keeps the row's ink, and a valid row has no code (2026-10-21)
+  const colourOf = (token: string) =>
+    page.evaluate((t) => {
+      const s = document.createElement('span')
+      s.style.color = `var(${t})`
+      document.body.appendChild(s)
+      const c = getComputedStyle(s).color
+      s.remove()
+      return c
+    }, token)
+  const colour = (loc: Locator) => loc.evaluate((e) => getComputedStyle(e).color)
+  await expect(bad.locator('.mp-row__code')).toHaveText('M_REG_UNKNOWN_REF')
+  expect(await colour(bad.locator('.mp-row__code'))).toBe(await colourOf('--no'))
+  expect(await colour(bad.locator('.mp-row__val'))).toBe(await colourOf('--ink-2'))
+  await expect(ok.locator('.mp-row__code')).toHaveCount(0)
+  expect(await colour(ok.locator('.mp-row__val'))).toBe(await colourOf('--ink-2'))
 })
 
-test('read-through: clicking a row label selects the node and jumps the canvas to it', async ({ page }) => {
+// Read-through moves the view only as far as it must (Lumi, 2026-10-19,
+// docs/workbench.md §WB5): an off-screen node is brought into the canvas at
+// the CURRENT zoom with the smallest move; a node already in view does not
+// move it. Checked here at the default 1280 × 800, where the workbench's
+// canvas is its narrowest common size (664 px). The node's own box is read
+// against the canvas pane's, independent of the product's reveal code.
+test('read-through: a row selects its node; an off-screen one is brought into view at the same zoom, a visible one moves nothing', async ({ page }) => {
   await seedModelGraph(page) // a cluster near the origin; the camera fits it
-  // add one Parameter far away — centring it needs a big translate change
   const farId = await page.evaluate(() => {
     const g = () => (window as any).__loop.graph.getState()
     g().addNodeAt('parameter', { x: 2400, y: 1600 })
@@ -155,22 +185,33 @@ test('read-through: clicking a row label selects the node and jumps the canvas t
     g().updateNodeData(id, { label: 'Far' })
     return id
   })
-  const translate = async () => {
-    const s = (await page.locator('.react-flow__viewport').getAttribute('style')) ?? ''
-    const m = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/.exec(s)
-    return { x: Number(m?.[1] ?? 0), y: Number(m?.[2] ?? 0) }
-  }
-  const before = await translate()
+  const view = () => page.evaluate(() => (window as any).__loop.rf.getViewport() as { x: number; y: number; zoom: number })
+  /** whether the node's box lies wholly inside the canvas pane */
+  const inPane = (id: string) =>
+    page.evaluate((id) => {
+      const n = document.querySelector(`.react-flow__node[data-id="${id}"]`)?.getBoundingClientRect()
+      const p = document.querySelector('.react-flow__pane')!.getBoundingClientRect()
+      return !!n && n.left >= p.left && n.right <= p.right && n.top >= p.top && n.bottom <= p.bottom
+    }, id)
+  // the camera fits the cluster; Far is far outside it
+  await page.evaluate(() => (window as any).__loop.rf.setViewport({ x: 40, y: 40, zoom: 1 }, { duration: 0 }))
+  expect(await inPane(farId)).toBe(false)
+  const before = await view()
 
   await inputsPanel(page).locator('.mp-row__label', { hasText: 'Far' }).click()
-
   await expect.poll(async () => (await gs(page)).nodes.find((n) => n.id === farId)?.selected).toBe(true)
-  await expect
-    .poll(async () => {
-      const now = await translate()
-      return Math.hypot(now.x - before.x, now.y - before.y)
-    })
-    .toBeGreaterThan(400) // the canvas jumped to the far node
+  await expect.poll(() => inPane(farId)).toBe(true)
+  const after = await view()
+  expect(after.zoom, 'the zoom is kept').toBe(before.zoom)
+
+  // a node already in view: selecting it from the list leaves the view as it is
+  const rate = await page.evaluate(() => (window as any).__loop.graph.getState().nodes.find((n: any) => n.data?.label === 'Rate').id as string)
+  await page.evaluate(() => (window as any).__loop.rf.setViewport({ x: 40, y: 40, zoom: 1 }, { duration: 0 }))
+  expect(await inPane(rate)).toBe(true)
+  const still = await view()
+  await inputsPanel(page).locator('.mp-row__label', { hasText: 'Rate' }).click()
+  await expect.poll(async () => (await gs(page)).nodes.find((n) => n.id === rate)?.selected).toBe(true)
+  expect(await view()).toEqual(still)
 })
 
 test('collapse state persists across a reload (own localStorage keys)', async ({ page }) => {
@@ -183,6 +224,7 @@ test('collapse state persists across a reload (own localStorage keys)', async ({
 
   await page.reload()
   await openApp(page)
+  await openInputs(page)
   await seedModelGraph(page)
   await expect(inputsPanel(page).locator('.mpanel__toggle')).toHaveAttribute('aria-expanded', 'false')
   await expect(inputsPanel(page).locator('.mpanel__body')).toHaveCount(0)
@@ -219,7 +261,7 @@ test('the panels never touch the document — no simulationRev bump, no key in a
 
 test('the panels are desktop-only — absent at a narrow (mobile) viewport', async ({ page }) => {
   await seedModelGraph(page)
-  await expect(page.locator('.rightcol .mpanels')).toBeVisible()
+  await expect(page.locator('.wb-left .mpanels')).toBeVisible()
   await page.setViewportSize({ width: 700, height: 900 })
   await page.reload()
   await expect(page.locator('.toolbar--mobile')).toBeVisible()
@@ -303,7 +345,7 @@ test.describe('panel rows — 2-line names + aligned value column', () => {
       g().updateNodeData(s, { label: 'Continuous green-bean intake source' })
       g().updateNodeData(p, { label: 'Roasted finished-goods buffer stock' })
       g().updateNodeData(rate, { label: 'Rate', value: 3 })
-      g().onConnect({ source: s, target: p, sourceHandle: 'out', targetHandle: 'in' })
+      g().onConnect({ source: s, target: p, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
       g().setEdgeData(g().edges[0].id, { kind: 'resource', flow: `@${rate}` })
     })
     await page.evaluate(() => document.fonts.ready)

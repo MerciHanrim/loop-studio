@@ -153,9 +153,10 @@ test.describe('guided tour — first run', () => {
 // ── 3 / 4 — Help menu re-entry & contents ───────────────────────────────────
 test.describe('guided tour — Help menu', () => {
   // docs/contextual-inline-help.md §CIH4 — the reserved 3rd slot is now live.
-  // docs/release-notes.md (issue #296) — five items in three groups, renamed to
-  // say what each one does; e2e/whats-new.spec.ts pins the separators too.
-  test('exactly five items, in order: Restart the tour, Turn contextual tips back on, What’s new, Send feedback, About', async ({ page }) => {
+  // Five items in two groups, named for what each one does (the What's new
+  // group between them was removed in 2026-10 with the in-app release notes;
+  // Example notes joined the first group on 2026-10-20).
+  test('exactly five items in two groups, in order: Restart the tour, Turn contextual tips back on, Example notes | Send feedback, About', async ({ page }) => {
     await seedKey(page, 'completed')
     await openApp(page)
     await openHelp(page)
@@ -163,9 +164,14 @@ test.describe('guided tour — Help menu', () => {
     await expect(items).toHaveCount(5)
     await expect(items.nth(0)).toHaveText(/Restart the tour|둘러보기 다시 시작/)
     await expect(items.nth(1)).toHaveText(/Turn contextual tips back on|상황별 안내 다시 켜기/)
-    await expect(items.nth(2)).toHaveText(/What’s new|새로운 기능/)
+    await expect(items.nth(2)).toHaveText(/Example notes|예제 설명/)
     await expect(items.nth(3)).toHaveText(/Send feedback|피드백 보내기/)
     await expect(items.nth(4)).toHaveText(/About Loop Studio|Loop Studio 정보/)
+    // one separator, between the two groups
+    const children = await page
+      .locator('.menu__pop[role="menu"]')
+      .evaluate((pop) => [...pop.children].map((c) => (c.getAttribute('role') === 'separator' ? '|' : 'item')))
+    expect(children).toEqual(['item', 'item', 'item', '|', 'item', 'item'])
   })
 
   test('the Send feedback item is a fixed external link opening a new tab', async ({ page }) => {
@@ -181,7 +187,7 @@ test.describe('guided tour — Help menu', () => {
     expect(rel).toContain('noopener')
     expect(rel).toContain('noreferrer')
     // the ↗ marker is decorative — the accessible name carries "new tab"
-    await expect(link).toHaveAttribute('aria-label', /new tab|새 탭|新しいタブ/)
+    await expect(link).toHaveAttribute('aria-label', /new tab|새 탭/)
     await expect(link.locator('.menu__ext')).toHaveAttribute('aria-hidden', 'true')
   })
 

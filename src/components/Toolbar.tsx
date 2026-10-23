@@ -17,23 +17,30 @@ import { HelpMenu } from './HelpMenu'
 import { Logo } from './Logo'
 import { DataImportMenu } from './dataImport/DataImportMenu'
 import { MobileTopBar } from './mobile/MobileTopBar'
-import { ModuleMenu } from './ModuleMenu'
 import { RevisionChip } from './RevisionChip'
 import { SessionChip } from './SessionChip'
 import { ShareButton } from './ShareButton'
-import { Templates } from './Templates'
+import { loadTemplate, TemplateMenuItems } from './Templates'
+import { TEMPLATE_KEY } from './templateKeys'
+import { ViewMenu } from './workbench/ViewMenu'
+import { EditMenu, InsertMenu, RunMenu } from './workbench/WorkbenchMenus'
+import { activeTool, chooseTool, type CanvasTool } from './workbench/canvasTools'
+import { useToolRowFit } from './workbench/toolRowFit'
+import { CONNECT_KINDS, type ConnectKind } from '../model/connectKind'
+import { CONNECT_HINT, CONNECT_LABEL } from './connectKindWords'
+import { useFrameStore } from '../store/frameStore'
 import { DialogHost } from './toolbar/DialogHost'
 import type { ToolbarDialog } from './toolbar/dialogTypes'
 import { FileMenu, type FileMenuHandle } from './toolbar/FileMenu'
 import { anyMenuOpenSelector, useMenuOpenStore } from './toolbar/menuOpenStore'
 import { OverflowMenu, type OverflowMenuHandle } from './toolbar/OverflowMenu'
-import { SettingsMenu } from './toolbar/SettingsMenu'
 import { ShareSurface } from './toolbar/ShareSurface'
 import { isInline, type OverflowItem } from './toolbar/toolbarOverflow'
 import { usePaletteTipPosition } from './toolbar/useAnchoredPosition'
 import { useShareSurface } from './toolbar/useShareSurface'
 import { useToolbarOverflow } from './toolbar/useToolbarOverflow'
-import { ArrowIcon, ICONS, Icon, type IconName } from '../ui/icons'
+import { ArrowIcon, Icon } from '../ui/icons'
+import { KindIcon } from './nodes/KindIcon'
 
 const DND_TYPE = 'application/loop-node'
 
@@ -50,17 +57,18 @@ const DND_TYPE = 'application/loop-node'
 // a dwell timer. There is no OPEN delay (D1): the tooltip still appears at once.
 const TIP_CLOSE_GRACE_MS = 120
 
-// issue #298 — a node-kind MARK is a shared icon (the same shape on every platform);
-// `＋ － ＝` stay text, they are the meaning characters add / remove / equals
-const PALETTE: { kind: NodeKind; nameKey: MessageKey; descKey: MessageKey; glyph: string | IconName }[] = [
-  { kind: 'pool', nameKey: 'palette.pool.name', descKey: 'palette.pool.description', glyph: 'node-pool' },
-  { kind: 'source', nameKey: 'palette.source.name', descKey: 'palette.source.description', glyph: '＋' },
-  { kind: 'drain', nameKey: 'palette.drain.name', descKey: 'palette.drain.description', glyph: '－' },
-  { kind: 'gate', nameKey: 'palette.gate.name', descKey: 'palette.gate.description', glyph: 'node-gate' },
-  { kind: 'converter', nameKey: 'palette.converter.name', descKey: 'palette.converter.description', glyph: 'node-converter' },
-  { kind: 'end', nameKey: 'palette.end.name', descKey: 'palette.end.description', glyph: 'node-end' },
-  { kind: 'parameter', nameKey: 'palette.parameter.name', descKey: 'palette.parameter.description', glyph: 'node-parameter' },
-  { kind: 'register', nameKey: 'palette.register.name', descKey: 'palette.register.description', glyph: '＝' },
+// a node kind's MARK is its canvas symbol, small (nodes/KindIcon.tsx, the same
+// mark as the left list's; 2026-10-21 — it was `＋ － ＝` text for Source,
+// Drain and Register and icons of their own for the rest)
+const PALETTE: { kind: NodeKind; nameKey: MessageKey; descKey: MessageKey }[] = [
+  { kind: 'pool', nameKey: 'palette.pool.name', descKey: 'palette.pool.description' },
+  { kind: 'source', nameKey: 'palette.source.name', descKey: 'palette.source.description' },
+  { kind: 'drain', nameKey: 'palette.drain.name', descKey: 'palette.drain.description' },
+  { kind: 'gate', nameKey: 'palette.gate.name', descKey: 'palette.gate.description' },
+  { kind: 'converter', nameKey: 'palette.converter.name', descKey: 'palette.converter.description' },
+  { kind: 'end', nameKey: 'palette.end.name', descKey: 'palette.end.description' },
+  { kind: 'parameter', nameKey: 'palette.parameter.name', descKey: 'palette.parameter.description' },
+  { kind: 'register', nameKey: 'palette.register.name', descKey: 'palette.register.description' },
 ]
 const PALETTE_GROUPS = [PALETTE.slice(0, 3), PALETTE.slice(3, 6), PALETTE.slice(6, 8)]
 
@@ -68,11 +76,41 @@ const PALETTE_GROUPS = [PALETTE.slice(0, 3), PALETTE.slice(3, 6), PALETTE.slice(
 // sequence whether inline or inside the ⋯ menu (review condition 2). Which
 // subset has collapsed is a separate, narrower question decided by
 // `OVERFLOW_ORDER`/`isInline` in `toolbarOverflow.ts` — never this array.
-const GROUP_ORDER: OverflowItem[] = ['module', 'file', 'data', 'share', 'settings', 'help']
+// (2026-10: the "Insert module ▾" group is gone; its two kept actions are in File)
+// The workbench (2026-10, step 5): Tier 1 is the menu bar, in the mock-up's
+// order, Share at its end.
+const GROUP_ORDER: OverflowItem[] = ['file', 'edit', 'view', 'insert', 'data', 'run', 'help', 'share']
+
+/** the connection kinds of the tool row's Connect choice, each with the line
+ *  sample of its meaning (the workbench's flow / condition / change marks) */
+const TOOL_KEY: Record<CanvasTool, MessageKey> = {
+  select: 'workbench.tool.select',
+  pan: 'workbench.tool.pan',
+  region: 'workbench.tool.region',
+  frame: 'workbench.tool.frame',
+}
+const CONNECT_SAMPLE: Record<ConnectKind, { dash?: string; width: number }> = {
+  flow: { width: 1.6 },
+  condition: { dash: '5 2.5', width: 1.6 },
+  change: { dash: '0.1 3.5', width: 2 },
+  trigger: { dash: '1.5 2.5', width: 1.6 },
+}
 
 export function Toolbar() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [confirmNew, setConfirmNew] = useState(false)
+  // the workbench: File's Templates section confirms a replacement here, so
+  // the dialog outlives the menu (Templates.tsx `loadTemplate`)
+  const [pendingTemplate, setPendingTemplate] = useState<string | null>(null)
+  const hasContent = useGraphStore((s) => s.nodes.length > 0 || s.edges.length > 0)
+  // the tool row: the canvas tool set, the connection kind, the edit lock
+  const panMode = useUiStore((s) => s.panMode)
+  const regionSelectArmed = useUiStore((s) => s.regionSelectArmed)
+  const frameToolArmed = useFrameStore((s) => s.toolArmed)
+  const tool = activeTool({ panMode, regionSelectArmed }, frameToolArmed)
+  const connectKind = useUiStore((s) => s.connectKind)
+  const setConnectKind = useUiStore((s) => s.setConnectKind)
+  const toggleCanvasLocked = useUiStore((s) => s.toggleCanvasLocked)
   const [draggingKind, setDraggingKind] = useState<NodeKind | null>(null)
   // Hanrim's UX report (2026-09-15): clicking a palette chip to create a node
   // left its hover tooltip stuck open (DOM focus remains on the button after
@@ -85,7 +123,7 @@ export function Toolbar() {
   // treat a mouse-activated button click as `:focus-visible`.
   const [suppressedTip, setSuppressedTip] = useState<NodeKind | null>(null)
   // Hanrim's UX report (2026-09-15): a palette hover tooltip could show at
-  // the same time as an open Tier-1 menu (Templates/Module/File/Data/
+  // the same time as an open Tier-1 menu (Templates/File/Data/
   // Settings/Help/⋯) or Share's result panel — two competing overlay
   // layers. `anyMenuOpen` suppresses ALL palette tooltips (hover AND
   // keyboard `:focus-visible`, via CSS `!important`) for as long as
@@ -124,6 +162,10 @@ export function Toolbar() {
     activeLocale,
     projectOpen,
   )
+  // the tool row gives up its words, not its buttons, when it runs out of
+  // width (./workbench/toolRowFit)
+  const toolRowRef = useRef<HTMLDivElement>(null)
+  useToolRowFit(toolRowRef, `${activeLocale}:${isMobile ? 'm' : 'd'}`)
   const share = useShareSurface()
   const anyMenuOpen = menuOpenFromStore || share.surface?.phase === 'panel'
 
@@ -214,13 +256,10 @@ export function Toolbar() {
   // and the ⋯ trigger (always real), so a lifted dialog's `returnFocusTo`
   // (or Share's anchor) can resolve to whichever was the actual starting
   // point, captured BEFORE that point closes.
-  const moduleTriggerRef = useRef<HTMLButtonElement | null>(null)
   const fileTriggerRef = useRef<HTMLButtonElement | null>(null)
   const dataTriggerRef = useRef<HTMLButtonElement | null>(null)
   const shareTriggerRef = useRef<HTMLButtonElement | null>(null)
   const helpTriggerRef = useRef<HTMLButtonElement | null>(null)
-  // issue #297 - the Storage and privacy dialog returns focus to the Settings trigger
-  const settingsTriggerRef = useRef<HTMLButtonElement | null>(null)
   const moreTriggerRef = useRef<HTMLButtonElement | null>(null)
   const fileMenuRef = useRef<FileMenuHandle>(null)
   const overflowMenuRef = useRef<OverflowMenuHandle>(null)
@@ -305,17 +344,15 @@ export function Toolbar() {
   // never has a stale nested-menu selector to worry about. Settings
   // (Theme/Language) is the one deliberate exception: nothing here is ever
   // wired to it.
-  const closeAncestors = (origin: 'file' | 'data' | 'share' | 'help' | 'module', collapsedNow: boolean) => {
+  const closeAncestors = (origin: 'file' | 'data' | 'share' | 'help', collapsedNow: boolean) => {
     if (origin === 'file') fileMenuRef.current?.close()
     if (collapsedNow) overflowMenuRef.current?.close()
   }
   const groupTriggerRef: Partial<Record<OverflowItem, RefObject<HTMLButtonElement | null>>> = {
-    module: moduleTriggerRef,
     file: fileTriggerRef,
     data: dataTriggerRef,
     share: shareTriggerRef,
     help: helpTriggerRef,
-    settings: settingsTriggerRef,
   }
   const captureReturnFocus = (id: OverflowItem): boolean => {
     const collapsedNow = !inline(id)
@@ -325,12 +362,12 @@ export function Toolbar() {
     return collapsedNow
   }
   const onOpenDialogFor =
-    (origin: 'file' | 'data' | 'help' | 'module', id: OverflowItem) => (desc: ToolbarDialog) => {
+    (origin: 'file' | 'data' | 'help', id: OverflowItem) => (desc: ToolbarDialog) => {
       const collapsedNow = captureReturnFocus(id)
       closeAncestors(origin, collapsedNow)
       setActiveDialog(desc)
     }
-  const onLeaveFor = (origin: 'file' | 'help' | 'module', id: OverflowItem) => () => {
+  const onLeaveFor = (origin: 'file' | 'help', id: OverflowItem) => () => {
     const collapsedNow = captureReturnFocus(id)
     closeAncestors(origin, collapsedNow)
   }
@@ -372,14 +409,6 @@ export function Toolbar() {
 
   const groupSlot = (id: OverflowItem) => {
     switch (id) {
-      case 'module':
-        return (
-          <ModuleMenu
-            buttonRef={(el) => (moduleTriggerRef.current = el)}
-            onOpenDialog={onOpenDialogFor('module', 'module')}
-            onLeave={onLeaveFor('module', 'module')}
-          />
-        )
       case 'file':
         return (
           <FileMenu
@@ -387,11 +416,44 @@ export function Toolbar() {
             buttonRef={(el) => (fileTriggerRef.current = el)}
             newButton={newButton}
             importButton={importButton}
+            templateItems={
+              <TemplateMenuItems
+                onPick={(tplId) => {
+                  const collapsedNow = captureReturnFocus('file')
+                  closeAncestors('file', collapsedNow)
+                  if (hasContent) setPendingTemplate(tplId)
+                  else loadTemplate(tplId)
+                }}
+              />
+            }
+            storageButton={
+              <button
+                type="button"
+                className="menu__item"
+                role="menuitem"
+                data-settings-row="storage-privacy"
+                onClick={() => {
+                  const collapsedNow = captureReturnFocus('file')
+                  closeAncestors('file', collapsedNow)
+                  setActiveDialog({ kind: 'storage-privacy' })
+                }}
+              >
+                <span className="menu__name">{t('storage.menuLabel')}</span>
+              </button>
+            }
             getViewport={getViewport}
             onOpenDialog={onOpenDialogFor('file', 'file')}
             onLeave={onLeaveFor('file', 'file')}
           />
         )
+      case 'edit':
+        return <EditMenu />
+      case 'view':
+        return <ViewMenu />
+      case 'insert':
+        return <InsertMenu addCentered={addCentered} />
+      case 'run':
+        return <RunMenu />
       case 'data':
         return (
           <DataImportMenu
@@ -408,19 +470,6 @@ export function Toolbar() {
             active={share.surface != null}
           />
         )
-      case 'settings':
-        return (
-          <SettingsMenu
-            buttonRef={(el) => (settingsTriggerRef.current = el)}
-            // issue #297 - the Storage and privacy row opens a dialog in the
-            // DialogHost, like File's and Help's rows; focus returns to whatever
-            // opened it (the Settings trigger, or the overflow trigger)
-            onOpenDialog={(desc) => {
-              captureReturnFocus('settings')
-              setActiveDialog(desc)
-            }}
-          />
-        )
       case 'help':
         return (
           <HelpMenu
@@ -433,7 +482,12 @@ export function Toolbar() {
   }
 
   return (
-    <header className="toolbar" data-measuring={measuring ? '' : undefined} ref={setToolbar}>
+    <header className="toolbar wb-bars" data-measuring={measuring ? '' : undefined} ref={setToolbar}>
+      {/* the workbench (2026-10, step 5): the MENU BAR — the brand, the menus
+          (File · Edit · View · Insert · Data · Run · Help), Share, the session
+          and revision chips; the ⋯ overflow takes trailing menus on a narrow
+          window (the measured fit, ./toolbar/toolbarOverflow) */}
+      <div className="wb-menubar">
       <div className="toolbar__brand" title={buildTitle} aria-label={buildTitle} ref={setBrand}>
         <span className="toolbar__mark">
           <Logo />
@@ -442,7 +496,74 @@ export function Toolbar() {
         <span className="toolbar__tag">{t('toolbar.preview')}</span>
       </div>
 
+      <div className="toolbar__actions" data-tour="files">
+        {GROUP_ORDER.filter((id) => inline(id)).map((id) => (
+          <span className="toolbar__slot" key={id} data-group={id} ref={setItem(id)}>
+            {groupSlot(id)}
+          </span>
+        ))}
+
+        <OverflowMenu
+          ref={overflowMenuRef}
+          ghost={collapsed === 0}
+          buttonRef={(el) => {
+            moreTriggerRef.current = el
+            setMore(el)
+          }}
+        >
+          {GROUP_ORDER.filter((id) => !inline(id)).map((id) => (
+            <span key={id}>{groupSlot(id)}</span>
+          ))}
+        </OverflowMenu>
+
+        <div className="toolbar__actions-core" ref={setCore}>
+          <RevisionChip />
+          <SessionChip
+            onOpenDialog={(desc, opener) => {
+              returnFocusElRef.current = opener
+              setActiveDialog(desc)
+            }}
+          />
+        </div>
+
+        <input ref={fileRef} type="file" accept=".json" hidden onChange={onFile} />
+      </div>
+      </div>
+
+      {/* the TOOL ROW — the canvas tools (one exclusive set: Select, Pan,
+          Select a region, Group frame — ./workbench/canvasTools), Undo /
+          Redo, Add (the eight node kinds: click to add at the centre, drag
+          to place), the connection kind every drawn connection takes
+          (direction B, ../model/connectKind), and the edit lock */}
+      <div ref={toolRowRef} className="wb-toolrow" role="toolbar" aria-label={t('workbench.tool.label')}>
+        <span className="wb-toolgroup">
+          {(['select', 'pan', 'region', 'frame'] as CanvasTool[]).map((k) => (
+            <button
+              key={k}
+              type="button"
+              className={`wb-tb${tool === k ? ' is-on' : ''}`}
+              aria-pressed={tool === k}
+              data-tool={k}
+              disabled={k === 'frame' && editLocked}
+              title={k === 'region' ? t('canvas.regionSelect.off') : k === 'frame' ? t('canvas.frame.draw') : undefined}
+              aria-label={t(TOOL_KEY[k])}
+              onClick={() => chooseTool(k)}
+            >
+              <Icon name={k === 'select' ? 'pointer' : k} />
+            </button>
+          ))}
+        </span>
+        <span className="wb-sep" aria-hidden="true" />
+        <button type="button" className="wb-tb" onClick={undo} disabled={!canUndo || editLocked} title={t('toolbar.undo.title')} aria-label={t('workbench.edit.undo')}>
+          <ArrowIcon unit="undo" />
+        </button>
+        <button type="button" className="wb-tb" onClick={redo} disabled={!canRedo || editLocked} title={t('toolbar.redo.title')} aria-label={t('workbench.edit.redo')}>
+          <ArrowIcon unit="redo" />
+        </button>
+        <span className="wb-sep" aria-hidden="true" />
+
       <div className="toolbar__palette" data-tour="palette" data-menu-open={anyMenuOpen ? '' : undefined}>
+        <span className="wb-tcap" aria-hidden="true">{t('workbench.tool.add')}</span>
         {PALETTE_GROUPS.map((group, i) => (
           <span className="palette-group" key={i}>
             {i > 0 ? <span className="palette-divider" aria-hidden="true" /> : null}
@@ -492,9 +613,9 @@ export function Toolbar() {
                   aria-describedby={`palette-tip-${p.kind}`}
                 >
                   <span className="chip__glyph" aria-hidden="true">
-                    {p.glyph in ICONS ? <Icon name={p.glyph as IconName} /> : p.glyph}
+                    <KindIcon kind={p.kind} />
                   </span>
-                  {t(p.nameKey)}
+                  <span className="chip__name">{t(p.nameKey)}</span>
                 </button>
               </span>
             ))}
@@ -550,57 +671,70 @@ export function Toolbar() {
         document.body,
       )}
 
-      <div className="toolbar__actions" data-tour="files">
-        <div className="toolbar__actions-core" ref={setCore}>
-          <button
-            type="button"
-            className="btn btn--icon"
-            onClick={undo}
-            disabled={!canUndo || editLocked}
-            title={t('toolbar.undo.title')}
-          >
-            <ArrowIcon unit="undo" />
-          </button>
-          <button
-            type="button"
-            className="btn btn--icon"
-            onClick={redo}
-            disabled={!canRedo || editLocked}
-            title={t('toolbar.redo.title')}
-          >
-            <ArrowIcon unit="redo" />
-          </button>
-          <Templates />
-          <RevisionChip />
-          <SessionChip
-            onOpenDialog={(desc, opener) => {
-              returnFocusElRef.current = opener
-              setActiveDialog(desc)
-            }}
-          />
-        </div>
-
-        {GROUP_ORDER.filter((id) => inline(id)).map((id) => (
-          <span className="toolbar__slot" key={id} ref={setItem(id)}>
-            {groupSlot(id)}
-          </span>
-        ))}
-
-        <OverflowMenu
-          ref={overflowMenuRef}
-          ghost={collapsed === 0}
-          buttonRef={(el) => {
-            moreTriggerRef.current = el
-            setMore(el)
-          }}
-        >
-          {GROUP_ORDER.filter((id) => !inline(id)).map((id) => (
-            <span key={id}>{groupSlot(id)}</span>
+        <span className="wb-sep" aria-hidden="true" />
+        {/* the connection kind: chosen here, used by every drawing (a drag
+            from a port, a click from port to port); a port decides only where
+            the connection attaches. Refused drawings say why (the status bar). */}
+        <span className="wb-connect" role="radiogroup" aria-label={t('connect.label')}>
+          <span className="wb-tcap" aria-hidden="true">{t('connect.label')}</span>
+          {CONNECT_KINDS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              role="radio"
+              aria-checked={connectKind === k}
+              tabIndex={connectKind === k ? 0 : -1}
+              className={`wb-tb wb-connect__kind${connectKind === k ? ' is-on' : ''}`}
+              data-connect-kind={k}
+              title={t(CONNECT_HINT[k])}
+              onClick={() => setConnectKind(k)}
+              onKeyDown={(e) => {
+                if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+                e.preventDefault()
+                const i = CONNECT_KINDS.indexOf(k)
+                const next = CONNECT_KINDS[(i + (e.key === 'ArrowRight' ? 1 : CONNECT_KINDS.length - 1)) % CONNECT_KINDS.length]!
+                setConnectKind(next)
+                ;(e.currentTarget.parentElement?.querySelector(`[data-connect-kind="${next}"]`) as HTMLElement | null)?.focus()
+              }}
+            >
+              <svg className="wb-connect__sample" width="18" height="10" viewBox="0 0 18 10" aria-hidden="true">
+                <path d="M1 5h16" fill="none" stroke="currentColor" strokeWidth={CONNECT_SAMPLE[k].width} strokeDasharray={CONNECT_SAMPLE[k].dash} strokeLinecap={k === 'change' ? 'round' : undefined} />
+              </svg>
+              <span className="wb-connect__name">{t(CONNECT_LABEL[k])}</span>
+            </button>
           ))}
-        </OverflowMenu>
-
-        <input ref={fileRef} type="file" accept=".json" hidden onChange={onFile} />
+        </span>
+        <span className="wb-toolrow__end">
+          <button
+            type="button"
+            className={`wb-tb${editLocked ? ' is-on' : ''}`}
+            data-tool="lock"
+            onClick={toggleCanvasLocked}
+            // #335 — a toggle: the NAME is fixed ("Edit lock"), `aria-pressed`
+            // carries the state, and the tooltip names the next action
+            title={editLocked ? t('canvas.lock.unlock') : t('canvas.lock.lock')}
+            aria-label={t('canvas.lock.name')}
+            aria-pressed={editLocked}
+          >
+            <Icon name={editLocked ? 'lock' : 'unlock'} />
+            <span className="wb-toolrow__word">{t('canvas.lock.name')}</span>
+          </button>
+        </span>
       </div>
+
+      <ConfirmDialog
+        open={pendingTemplate != null}
+        title={t('templates.replace.title')}
+        body={t('templates.replace.body', { name: pendingTemplate ? t(TEMPLATE_KEY[pendingTemplate as keyof typeof TEMPLATE_KEY].name) : '' })}
+        confirmLabel={t('templates.replace.confirm')}
+        onConfirm={() => {
+          const id = pendingTemplate
+          setPendingTemplate(null)
+          if (id != null) loadTemplate(id)
+        }}
+        onCancel={() => setPendingTemplate(null)}
+        returnFocusTo={() => returnFocusElRef.current}
+      />
 
       <ConfirmDialog
         open={confirmNew}

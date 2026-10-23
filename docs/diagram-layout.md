@@ -61,11 +61,11 @@ The release notes, the change declaration and the baselines are settled once, af
 
 ## DL2.10. Tidy to grid
 
-The Controls rail's **Tidy to grid** re-places the current document by the DL2.2 rules as ONE undo entry (graph and saved frames together). Desktop only; disabled while the canvas is locked. Nothing to move ⇒ no entry.
+**Edit → Tidy to grid** (the Controls rail's button before the 2026-10 workbench) re-places the current document by the DL2.2 rules as ONE undo entry (graph and saved frames together). Desktop only; disabled while the canvas is locked. Nothing to move ⇒ no entry.
 
 ## DL3. Snapping while editing
 
-- DL3.1 New nodes land on the grid: a palette click takes the nearest free grid spot from the canvas centre (no random jitter); a drop snaps the drop point; Insert module snaps the module's anchor; imported Parameters land on the grid (frames snapped outward).
+- DL3.1 New nodes land on the grid: a palette click takes the nearest free grid spot from the canvas centre (no random jitter); a drop snaps the drop point; inserting a saved structure snaps its anchor; imported Parameters land on the grid (frames snapped outward).
 - DL3.2 A pointer drag snaps: every dragged node moves by the ONE correction that puts the grabbed node on the grid, so a selection keeps its relative positions. A frame drag snaps the frame's top-left; a resize snaps the dragged corner.
 - DL3.3 Modifiers: **Alt** — a free move (no snapping) for that drag, for nodes, selections and frames, or a free drop; releasing it mid-drag snaps again. **Ctrl / Command** — move a frame alone (it was Alt before #344). **Shift** — unchanged (selection, the large keyboard step).
 - DL3.4 Arrow keys move a node or frame by one grid step (16 px), Shift + arrow by four (64 px), landing on the grid; still one undo entry per held gesture (§LGR6.7).

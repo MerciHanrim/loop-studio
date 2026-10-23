@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import type { Locator, Page } from '@playwright/test'
 import { expect, importGraph, iso, openApp, routesSettled, test } from './support/loop'
+import { openPanelDetails, WORKBENCH_ROOMY_VIEWPORT } from './support/panel'
+import { reachablePointOnEdge } from './support/edgePoint'
 
 // docs/edge-routing.md §ER18 — moving a connection's end from the Inspector's
 // Ends group: pick a node and a side, then Apply. One check and one change for
@@ -11,6 +13,10 @@ import { expect, importGraph, iso, openApp, routesSettled, test } from './suppor
 // Treated today's bottom to Discharged home's top).
 
 const FIXTURE = readFileSync(new URL('./fixtures/node-structure-small.json', import.meta.url), 'utf8')
+
+// the fixture's viewport ({x 40, y 60, zoom 1}) was placed for the two-tier
+// bar's 980 px canvas; the workbench's is as wide at 1600 (./support/panel)
+test.use({ viewport: WORKBENCH_ROOMY_VIEWPORT })
 type L = { graph: { getState: () => any; setState: (s: object) => void }; ui: { getState: () => any }; rf: { setViewport: (v: object, o?: object) => void } }
 
 async function open(page: Page) {
@@ -21,15 +27,16 @@ async function open(page: Page) {
   await routesSettled(page)
 }
 
-/** a click on the connection's own line, as a user selects it */
+/** a click on the connection's own line, as a user selects it — where the
+ *  line itself is what the pointer reaches (./support/edgePoint: a frame's
+ *  border strip takes a click on its own). This group checks the Ends, so it
+ *  clicks the line where nothing covers it: 30 % along, else the next clear
+ *  point. */
 async function selectEdge(page: Page, id: string, open = false): Promise<Locator> {
-  const p = await page.locator(`.react-flow__edge[data-id="${id}"] path.react-flow__edge-path`).evaluate((el) => {
-    const s = el as SVGPathElement
-    const q = s.getPointAtLength(s.getTotalLength() * 0.3)
-    const m = s.getScreenCTM()!
-    return { x: q.x * m.a + q.y * m.c + m.e, y: q.x * m.b + q.y * m.d + m.f }
-  })
+  const p = await reachablePointOnEdge(page, id)
   await page.mouse.click(p.x, p.y)
+  // the Ends group lives in the panel's More settings (docs/workbench.md §WB6)
+  await openPanelDetails(page)
   const ends = page.locator('.inspector .ends')
   await expect(ends).toBeVisible()
   if (open) {
@@ -154,7 +161,11 @@ test.describe('the Inspector Ends group (§ER18)', () => {
     expect(bend.before, 'the bend is valid where the connection is now').toBeNull()
     const ends = await selectEdge(page, 'e_leave', true)
     const status = ends.locator('.ends__status')
-    await expect(status).toHaveText('')
+    // no bend warning before the pick. With the symbol nodes (2026-10-19) the
+    // line leaves Treated today's bottom and runs back up along the 56 px
+    // circle to this bend, so its start has no free grip spot here (measured
+    // at zoom 1 and 1.25): the status says so, and only that
+    await expect(status).toHaveText('The canvas has no free spot for this connection’s start grip here; move the start from this group.')
     await from(ends).getByRole('radio', { name: 'Top' }).check()
     await expect(status).toHaveText('A bend of this connection would be inside a node or next to the new end, and the line will not pass through it. Apply keeps the bends; “Reset to automatic” removes them.')
     // a warning, not a refusal: Apply is still offered, and it keeps the bend
@@ -295,8 +306,20 @@ test.describe('the canvas end grips (§ER18)', () => {
           grips: [...document.querySelectorAll('.end-grip')].map((g) => {
             const gb = g.getBoundingClientRect()
             const dot = g.querySelector('.end-grip__dot')!.getBoundingClientRect()
-            const hits = [...document.querySelectorAll('.react-flow__handle, .edge-label, .nodef__name')].filter((h) => !(h as HTMLElement).hasAttribute('data-off') && meet(gb, h.getBoundingClientRect())).length
-            return { w: Math.round(gb.width), h: Math.round(gb.height), dot: Math.round(dot.width), hits }
+            // text by its box: a connection label, a node's name, the line beside a symbol
+            const texts = [...document.querySelectorAll('.edge-label, .nodef__name, .nodef__aux')].filter((h) => meet(gb, h.getBoundingClientRect())).length
+            // a port by what a press reaches, every screen px of the target: a
+            // state port is a rotated square with a 5 px hit margin, so its
+            // bounding box is not where it can be pressed (2026-10-19: on the
+            // symbol nodes the end's own state port shares the face's anchor,
+            // and its box corner lies under the grip where no press reaches it)
+            let ports = 0
+            for (let i = 0; i < Math.round(gb.width) && !ports; i++) {
+              for (let j = 0; j < Math.round(gb.height) && !ports; j++) {
+                if (document.elementsFromPoint(gb.left + i + 0.5, gb.top + j + 0.5).some((el) => el.closest('.react-flow__handle'))) ports = 1
+              }
+            }
+            return { w: Math.round(gb.width), h: Math.round(gb.height), dot: Math.round(dot.width), hits: texts + ports }
           }),
           // every end is a grip or, with no free spot, a mark
           ends: document.querySelectorAll('.end-grip').length + document.querySelectorAll('.end-grip-none').length,
@@ -310,9 +333,12 @@ test.describe('the canvas end grips (§ER18)', () => {
 
   test('an end with no free spot near it has no grip, only a mark, and the Ends group says to move it from there', async ({ page }) => {
     await open(page)
-    const ends = await selectEdge(page, 'e_leave')
-    // at zoom 0.5 the target end's spots are all taken (the drain's name and its ports)
-    await page.evaluate(() => (window as unknown as { __loop: L }).__loop.rf.setViewport({ x: 40, y: 60, zoom: 0.5 }, { duration: 0 }))
+    // e_triage (Waiting room → Triage desk) at zoom 1.5: its target end has no
+    // free spot, its start has one; at zoom 1 both have. Measured 2026-10-19 on the symbol nodes,
+    // where e_leave's target end has room at zoom 0.5 (and below 0.5 neither
+    // of its ends has): the case moved to the connection that has it.
+    const ends = await selectEdge(page, 'e_triage')
+    await page.evaluate(() => (window as unknown as { __loop: L }).__loop.rf.setViewport({ x: 40, y: 60, zoom: 1.5 }, { duration: 0 }))
     await expect(page.locator('.end-grip-none[data-end="target"]')).toHaveCount(1)
     await expect(grip(page, 'target')).toHaveCount(0)
     // the mark is no button: not focusable, not a pointer target, not announced

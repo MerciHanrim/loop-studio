@@ -45,7 +45,7 @@ const armedState = (page: Page) =>
 async function select(page: Page, id: string) {
   await page.evaluate((n) => (window as any).__loop.graph.getState().setSelection(n, null), id)
 }
-async function setLocale(page: Page, code: 'en' | 'ko' | 'ja') {
+async function setLocale(page: Page, code: 'en' | 'ko') {
   await page.evaluate((c) => (window as any).__loop.i18n.getState().setLocale(c), code)
 }
 /** put the caret at `pos` in the expression input */
@@ -335,10 +335,9 @@ test('§RXA8.8 — the mode announces enter / block-reason / insert to the statu
 const PICK_LABEL = {
   en: { idle: /^Insert reference$/, armed: /^Selecting a reference$/ },
   ko: { idle: /^참조 삽입$/, armed: /^참조 선택 중$/ },
-  ja: { idle: /^参照を挿入$/, armed: /^参照を選択中$/ },
 } as const
 
-for (const loc of ['en', 'ko', 'ja'] as const) {
+for (const loc of ['en', 'ko'] as const) { // §L2.0 (2026-10): the shipped languages
   test(`§RXA8.9 — the insert button label, hint, and block reason localise (${loc})`, async ({ page }) => {
     await setLocale(page, loc)
     await expect(pickBtn(page)).toHaveText(PICK_LABEL[loc].idle)

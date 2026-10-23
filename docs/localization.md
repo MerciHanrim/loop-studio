@@ -67,6 +67,40 @@ format.** Registering `ja` changes what the UI *can say*, never what any file
 
 ## L2. The locale registry
 
+**L2.0 — supported languages: English and Korean (2026-10).** Loop Studio
+officially supports two languages, English (`en`, the base) and Korean (`ko`).
+The sixteen other languages that shipped up to v0.28.4 — `ar`, `de`, `es-419`,
+`es-ES`, `fr`, `it`, `ja`, `nl`, `pt-BR`, `pt-PT`, `ru`, `th`, `tr`, `vi`,
+`zh-Hans`, `zh-Hant` — are **no longer supported**. Their catalogs,
+template-label dictionaries and dedicated tests are kept in
+[`archive/i18n/`](../archive/i18n/README.md), outside the build and outside the
+daily checks, and are **not** updated to new keys.
+
+- **The picker** offers English and Korean (plus the dev-only pseudo-locales,
+  §L9.2). Below `LANGUAGE_SEARCH_THRESHOLD` languages it has no search field.
+- **First visit:** a Korean browser starts in Korean; every other browser starts
+  in English (§L5.2).
+- **A stored choice** of `en` or `ko` is kept. A stored code from the archived
+  list (`RETIRED_LOCALES` in `registry.ts`) starts in **English**, whatever the
+  browser asks for.
+- **User documents are never changed.** Node names and frame titles a document
+  received in an archived language are the user's content from then on: the
+  template-label seed (§TLO11) holds only English and Korean strings, so no
+  locale switch rewrites them.
+- **Tests that covered several languages** keep every check of a common
+  behaviour — saving, switching, layout, the resolver's rules — trimmed to
+  English and Korean, with the `ar-XB` pseudo-locale standing in for
+  right-to-left layout. The resolver rules a larger registry exercises (Chinese
+  script mapping, a base-subtag owner, regional variants) are unit-tested
+  against a hypothetical registry (`src/i18n/registry.test.ts`). The
+  eighteen-locale versions of those tests are in `archive/i18n/tests/` and
+  `archive/i18n/e2e/`.
+
+The registry design below is unchanged: bringing a language back is still one
+catalog plus one registry entry (the archive README lists what else returns with
+it). Sections that describe an archived language's own decisions are kept as the
+record of that work.
+
 **L2.1 — a registry, not a pair.** `src/i18n/registry.ts` holds an ordered list
 of registered locales. `en` and `ko` are simply its first two entries. Every
 part of the system that needs "the set of languages" — the switch UI, the
@@ -432,7 +466,7 @@ needs, in one place:
 | 3 | `language.<name>` in **every** catalog | all `locales/*/ui.ts` | `check:i18n` dead-key guard |
 | 4 | Template label dict + `DICT_LOADERS` entry | `templateLabels/<code>.ts`, `dicts.ts` | `check:template-labels` |
 | 5 | regenerated known labels | `templateLabels/known.generated.ts` | `gen:known-labels` + `check:template-labels` |
-| 6 | **bundled-module overlay** | `src/i18n/moduleLabels.ts` | `moduleLabels.test.ts` (registry-derived) |
+| 6 | ~~bundled-module overlay~~ — none since 2026-10: the bundled Building blocks and `src/i18n/moduleLabels.ts` were removed (bundled-module-label-localization.md, RETIRED) | — | — |
 | 7 | production locale count + list | `e2e/dist.spec.ts` | `npm run e2e:dist` |
 | 8 | dev picker option count **and every earlier locale's spec** | `e2e/i18n.spec.ts` + `e2e/i18n-<code>.spec.ts` | the default e2e run |
 | 9 | rendered-string guards | `icuEscaping.test.ts`, `parserLocation.test.ts` | the unit suite |

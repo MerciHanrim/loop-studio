@@ -13,7 +13,7 @@ import {
   test,
 } from './support/loop'
 import { fixtureFlow } from './support/revision-fixture'
-import { seedWhatsNewSeen } from './support/whatsNew'
+import { PACKAGE_VERSION, VERSION_IS_READ_ONCE } from './support/appVersion'
 
 // docs/mobile.md §MV10 — the mobile View/Run layout. Runs under the `mobile`
 // Playwright project (390x844 portrait; tests rotate to 844x390). Slice 1 scope:
@@ -80,8 +80,11 @@ test.describe('mobile view/run — Slice 1 layout', () => {
     await loadDiagram(page)
     await noHScroll(page)
 
-    // minimap is not rendered on mobile (§MV-D10)
+    // minimap is not rendered on mobile (§MV-D10) — nor its control: it starts
+    // folded on the desktop (docs/workbench.md §WB2.1), so "no minimap" alone
+    // would hold there too
     await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
+    await expect(page.locator('.minimap-toggle')).toHaveCount(0)
     // the desktop Inspector column is out of the mobile flow (Slice 3 → sheet)
     await expect(page.locator('.inspector')).toBeHidden()
 
@@ -99,6 +102,7 @@ test.describe('mobile view/run — Slice 1 layout', () => {
     await page.waitForTimeout(120)
     await noHScroll(page)
     await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
+    await expect(page.locator('.minimap-toggle')).toHaveCount(0)
 
     const canvas = await page.locator('.canvas').boundingBox()
     expect(canvas!.width).toBeGreaterThanOrEqual(LANDSCAPE.width - 2)
@@ -176,7 +180,9 @@ test.describe('mobile view/run — Slice 1 layout', () => {
     await page.setViewportSize({ width: 1200, height: 800 })
     await page.waitForTimeout(150)
 
-    await expect(page.locator('.react-flow__minimap')).toHaveCount(1)
+    // the minimap's control is back (the minimap itself starts folded,
+    // docs/workbench.md §WB2.1; its button is drawn in either state)
+    await expect(page.locator('.minimap-toggle')).toHaveCount(1)
     await expect(page.locator('.inspector')).toBeVisible()
   })
 
@@ -246,6 +252,11 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
       await expect(sheet(page, 'More').getByText(label, { exact: false }).first()).toBeVisible()
     }
     await expect(sheet(page, 'More').locator('.sheet__stamp')).toContainText(/v\d+\.\d+\.\d+/)
+    // one build, one version: the stamp is the version in package.json (a dev
+    // server left running across a version change keeps the old one; restored
+    // 2026-10-22 from the removed whats-new.spec)
+    const stamp = (await sheet(page, 'More').locator('.sheet__stamp').innerText()).trim()
+    expect(/^v(\d+\.\d+\.\d+)/.exec(stamp)?.[1], `the More sheet's stamp reads "${stamp}". ${VERSION_IS_READ_ONCE}`).toBe(PACKAGE_VERSION)
     await page.keyboard.press('Escape')
     await expect(sheet(page, 'More')).toBeHidden()
     await expect(more(page)).toBeFocused()
@@ -260,11 +271,12 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
     const help = sheet(page, 'Help')
     await expect(help).toBeVisible()
     const rows = help.locator('.sheet__row')
-    // docs/release-notes.md (issue #296) — the same five rows as the desktop menu
+    // the same five rows as the desktop menu (What's new was removed in
+    // 2026-10; Example notes joined on 2026-10-20)
     await expect(rows).toHaveCount(5)
     await expect(rows.nth(0)).toHaveText(/Restart the tour|둘러보기 다시 시작/)
     await expect(rows.nth(1)).toHaveText(/Turn contextual tips back on|상황별 안내 다시 켜기/)
-    await expect(rows.nth(2)).toHaveText(/What’s new|새로운 기능/)
+    await expect(rows.nth(2)).toHaveText(/Example notes|예제 설명/)
     await expect(rows.nth(3)).toHaveText(/Send feedback|피드백 보내기/)
     await expect(rows.nth(4)).toHaveText(/About Loop Studio|Loop Studio 정보/)
 
@@ -274,7 +286,7 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
     const rel = (await link.getAttribute('rel')) ?? ''
     expect(rel).toContain('noopener')
     expect(rel).toContain('noreferrer')
-    await expect(link).toHaveAttribute('aria-label', /new tab|새 탭|新しいタブ/)
+    await expect(link).toHaveAttribute('aria-label', /new tab|새 탭/)
     await expect(link.locator('.menu__ext')).toHaveAttribute('aria-hidden', 'true')
 
     // tapping it opens the form in a new tab AND closes the Help sheet (parity
@@ -371,7 +383,7 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
   // #340 — iOS Safari zooms in on a focused text field under 16 px and stays
   // zoomed; the More sheet's language search was 12 px. Every text field the
   // phone shows takes at least 16 px, in each place one appears.
-  test('every text field the phone shows is ≥ 16px: the language search, the share link, the Monte-Carlo fields (#340)', async ({ page }) => {
+  test('every text field the phone shows is ≥ 16px: the language menu, the share link, the Monte-Carlo fields (#340)', async ({ page }) => {
     const under16 = () =>
       page.evaluate(() => {
         const NOT_TEXT = new Set(['checkbox', 'radio', 'range', 'file', 'color', 'button', 'submit', 'reset', 'hidden'])
@@ -384,21 +396,20 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
     await loadDiagram(page)
     expect(await under16(), 'the canvas').toEqual([])
 
-    // the More sheet, its language menu and the search field
+    // the More sheet and its language menu. §L2.0 (2026-10): two languages, no
+    // search box (the search-field size and typing checks went with it) —
+    // focus goes to the listbox; the threshold behaviour is unit-tested in
+    // src/i18n/languageOptions.test.ts
     await more(page).click()
     expect(await under16(), 'the More sheet').toEqual([])
     await sheet(page, 'More').locator('button.lang-switch').click()
-    const search = page.locator('.lang-menu__search')
-    await expect(search).toBeVisible()
-    expect(await search.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16)
+    const list = page.locator('.lang-menu__list[role="listbox"]')
+    await expect(list).toBeVisible()
+    await expect(page.locator('.lang-menu__search')).toHaveCount(0)
     expect(await under16(), 'the language menu').toEqual([])
-    expect(rectInside(await search.boundingBox(), PORTRAIT.width, PORTRAIT.height, 1)).toBe(true)
-    await search.focus()
-    await page.keyboard.type('fra')
-    await expect(page.locator('.lang-menu__item')).toHaveCount(1)
+    await expect(list).toBeFocused()
     await page.keyboard.press('Escape')
-    await expect(search).toBeHidden()
-    expect(await page.evaluate(() => document.activeElement?.classList.contains('lang-menu__search') ?? false)).toBe(false)
+    await expect(list).toBeHidden()
     await page.keyboard.press('Escape')
 
     // the share panel's link field
@@ -711,7 +722,7 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
 
     await page.setViewportSize({ width: 1200, height: 800 })
     await page.waitForTimeout(150)
-    await expect(page.locator('.react-flow__minimap')).toHaveCount(1) // desktop layout is up
+    await expect(page.locator('.minimap-toggle')).toHaveCount(1) // desktop layout is up (the minimap's control; the minimap starts folded)
     expect(await graphContent(page), 'after mobile -> desktop').toBe(before)
 
     await page.setViewportSize(PORTRAIT)
@@ -747,7 +758,7 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     // desktop width — the full editing UI, where multi-select exists
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.waitForTimeout(150)
-    await expect(page.locator('.react-flow__minimap')).toHaveCount(1)
+    await expect(page.locator('.minimap-toggle')).toHaveCount(1) // the minimap's control (it starts folded)
     await page.evaluate(() =>
       (window as unknown as { __loop: { rf: { fitView: (o: object) => void } } }).__loop.rf.fitView({ padding: 0.3, duration: 0 }),
     )
@@ -818,7 +829,7 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     // → back to desktop: everything as it was, the line back in the right column
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.waitForTimeout(300)
-    await expect(page.locator('.react-flow__minimap')).toHaveCount(1)
+    await expect(page.locator('.minimap-toggle')).toHaveCount(1) // the minimap's control (it starts folded)
     expect(await selectionState(), 'ids + anchor survive the return').toEqual(before)
     await expect(desktopLine).toBeVisible()
     await expect(desktopLine).toHaveText(/3 nodes selected/)
@@ -954,8 +965,6 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
         /* private mode — fine */
       }
     })
-    // issue #296 - and this returning profile has already seen the newest release note
-    await seedWhatsNewSeen(page)
     await openApp(page)
     expect(
       await page.evaluate(
@@ -1013,8 +1022,6 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
         /* private mode */
       }
     })
-    // issue #296 - and this returning profile has already seen the newest release note
-    await seedWhatsNewSeen(page)
     await openApp(page)
 
     const hint = page.locator('.openhint')
@@ -1239,7 +1246,7 @@ test.describe('mobile — proposal Review sheet (Slice 1C)', () => {
       G.addNodeAt('pool', { x: 0, y: 0 })
       G.addNodeAt('drain', { x: 200, y: 0 })
       const [a, b] = L.graph.getState().nodes
-      L.graph.getState().onConnect({ source: a.id, target: b.id, sourceHandle: 'out', targetHandle: 'in' })
+      L.graph.getState().onConnect({ source: a.id, target: b.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
       const eid = L.graph.getState().edges[0].id
       const P = L.project.getState()
       P.commitRevisionExport(P.planRevision({}).plan)
@@ -1297,7 +1304,7 @@ test.describe('mobile — proposal Review sheet (Slice 1C)', () => {
       ([src, tgt]) =>
         (window as unknown as { __loop: any }).__loop.graph
           .getState()
-          .onConnect({ source: src, target: tgt, sourceHandle: 'out', targetHandle: 'in' }),
+          .onConnect({ source: src, target: tgt, sourceHandle: 'out', targetHandle: 'in' }, 'flow'),
       [built.pId, built.dId],
     )
     await expect(sheet.locator('.review__class--divergent')).toBeVisible()
@@ -1346,12 +1353,12 @@ test('run bar: an engine init refusal shows a visible notice under the controls,
 
 // ---------------------------------------------------------------------------
 // docs/mobile.md §MV5 — a `.btn` on a sheet has a ≥ 3:1 boundary (WCAG 1.4.11)
-// against the sheet, against the hovered / focused row (`--surface-sunken`)
+// against the sheet, against the hovered / focused row (`--bg-field`)
 // and against its own face, in light and dark, at rest / row-hover / hover /
 // focus / pressed. Measured on the REAL composited pixels of the More sheet's
 // two toggles (Focus selection, Activity overlay), not on token arithmetic.
 // The audit (2026-09-19) had light Off 1.78, light hovered-row 2.88, dark Off
-// 2.54 — the shared `.btn` border (`--line-structure`) was never meant for a
+// 2.54 — the shared `.btn` border (`--line-2`) was never meant for a
 // 1 px control boundary on a panel.
 // ---------------------------------------------------------------------------
 test.describe('sheet .btn boundary contrast (§MV5 / WCAG 1.4.11)', () => {
@@ -1458,7 +1465,7 @@ test.describe('sheet .btn boundary contrast (§MV5 / WCAG 1.4.11)', () => {
       await openMore(page)
       const focusRing = await page.evaluate(() => {
         const d = document.createElement('div')
-        d.style.color = 'var(--focus-ring)'
+        d.style.color = 'var(--focus)'
         document.body.append(d)
         const c = getComputedStyle(d).color
         d.remove()
@@ -1501,7 +1508,7 @@ test.describe('sheet .btn boundary contrast (§MV5 / WCAG 1.4.11)', () => {
         await page.waitForTimeout(120)
         // 4. keyboard focus — a bordered control is focus class A
         //    (docs/visual-language.md §VL8): the boundary itself takes
-        //    --focus-ring and carries the 3:1, a 3 px halo surrounds it, and
+        //    --focus and carries the 3:1, a 3 px halo surrounds it, and
         //    there is no outline. The halo is a tint and is never the indicator.
         await tabTo(page, btn)
         const oc = await btn.evaluate((el) => {
@@ -1509,12 +1516,12 @@ test.describe('sheet .btn boundary contrast (§MV5 / WCAG 1.4.11)', () => {
           return { outline: c.outlineStyle, border: c.borderTopColor, halo: c.boxShadow }
         })
         expect(oc.outline, `${name}: the border stands in for the outline`).toBe('none')
-        expect(oc.border, `${name}: the boundary takes --focus-ring`).toBe(focusRing)
+        expect(oc.border, `${name}: the boundary takes --focus`).toBe(focusRing)
         expect(oc.halo, `${name}: a 3 px halo accompanies it`).toMatch(/0px 0px 0px 3px/)
         const focused = await boundary(page, btn)
         console.log(`[btn] ${name} focus: L ${focused.left.vsOut}/${focused.left.vsFace} T ${focused.top.vsOut}/${focused.top.vsFace}`)
         expectBoundary(`${name} focused`, focused)
-        expect(dist(focused.left.edge, parseRgb(focusRing)), `${name}: the boundary is painted in --focus-ring`).toBeLessThan(40)
+        expect(dist(focused.left.edge, parseRgb(focusRing)), `${name}: the boundary is painted in --focus`).toBeLessThan(40)
         expect(dist(focused.left.edge, rest.left.edge), `${name}: focus reads differently from rest`).toBeGreaterThan(6)
         // 5. pressed via the keyboard: the tell is the label (Off → On) + aria-pressed; the boundary stays ≥ 3:1
         await page.keyboard.press('Space')
@@ -1608,11 +1615,11 @@ test.describe('sheet .btn boundary contrast (§MV5 / WCAG 1.4.11)', () => {
     })
   }
 
-  test('EN / KO / JA at 390 and 320 px: the toggles stay inside their rows and the sheet, one line, no sideways scroll', async ({ page }) => {
+  test('EN / KO at 390 and 320 px: the toggles stay inside their rows and the sheet, one line, no sideways scroll', async ({ page }) => {
     for (const width of [390, 320]) {
       await page.setViewportSize({ width, height: 844 })
       await loadDiagram(page)
-      for (const code of ['en', 'ko', 'ja']) {
+      for (const code of ['en', 'ko']) { // §L2.0 (2026-10): the shipped languages
         await page.evaluate((c) => {
           const loop = (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (l: string) => void } } } }).__loop
           loop.i18n.getState().setLocale(c)
@@ -1639,8 +1646,8 @@ test.describe('sheet .btn boundary contrast (§MV5 / WCAG 1.4.11)', () => {
 
 // docs/mobile.md §MV5 / WCAG 1.4.3 — a sheet row's secondary label keeps its
 // 4.5:1 in the states that change the row's background. `.sheet__row:hover`
-// and `.sheet__row:focus-visible` swap the row onto `--surface-sunken`, and in
-// LIGHT that pulled `--text-tertiary` (#6c746e) from 4.61:1 on the panel down
+// and `.sheet__row:focus-visible` swap the row onto `--bg-field`, and in
+// LIGHT that pulled `--ink-3` (#6c746e) from 4.61:1 on the panel down
 // to 3.92:1 — measured on 2026-09-21 across all three sheets that use the
 // class. Dark is unaffected (its sunken surface is DARKER than the panel, so
 // the same token rises 6.46 → 8.03:1) and forced colours are owned by the UA
@@ -1784,8 +1791,9 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
       await escapeSheet(page, which)
     }
     // issue #330 PR 3 — More gained the Playback speed row (its sub names the speed)
-    // 0.28.1 — Early MMO left the Templates sheet
-    expect(checked, 'the walk must reach every text sub-label: 6 More + 4 Templates + 4 enabled Export').toBe(14)
+    // 0.28.1 — Early MMO left the Templates sheet; 2026-10-20 — the General
+    // gacha joined it, then the Standard and the Pickup gacha
+    expect(checked, 'the walk must reach every text sub-label: 6 More + 7 Templates + 4 enabled Export').toBe(17)
     expect(bad, 'hovered secondary labels below 4.5:1').toEqual([])
   })
 
@@ -1963,7 +1971,7 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
 // and on a coarse pointer a tap left it matching `:hover` — looking pressed.
 //
 // The contract is three cues and no dimming: the primary label steps to
-// `--text-secondary` while the secondary label keeps `--text-tertiary` (so the
+// `--ink-2` while the secondary label keeps `--ink-3` (so the
 // row stays legible and keeps its own hierarchy), the row does not take the
 // hover / focus background, and the cursor stops advertising a click. Forced
 // colours are left to the UA, which already paints GrayText.
@@ -2055,8 +2063,8 @@ test.describe('sheet row disabled distinction (§MV5)', () => {
     const enabled = sheet.locator('.sheet__row').first()
     const disabled = sheet.locator('.sheet__row[disabled]')
     await expect(disabled).toHaveCount(1)
-    const secondary = await token(page, '--text-secondary')
-    const tertiary = await token(page, '--text-tertiary')
+    const secondary = await token(page, '--ink-2')
+    const tertiary = await token(page, '--ink-3')
 
     // the disabled row, at rest
     const rest = await read(disabled)
@@ -2083,7 +2091,7 @@ test.describe('sheet row disabled distinction (§MV5)', () => {
     expect(enRest.cursor).toBe('pointer')
     expect(enHov.cursor).toBe('pointer')
     expect(enHov.bg, 'the enabled row still takes the hover background').not.toBe(enRest.bg)
-    expect(enRest.label, 'the enabled label is the primary token, unchanged').toBe(await token(page, '--text-primary'))
+    expect(enRest.label, 'the enabled label is the primary token, unchanged').toBe(await token(page, '--ink-1'))
     // …and the §252 contract still holds: its hovered sub is lifted, the disabled one is not
     expect(enHov.sub).toBe(secondary)
     expect(hov.sub).toBe(tertiary)
@@ -2093,8 +2101,8 @@ test.describe('sheet row disabled distinction (§MV5)', () => {
     await loadDiagram(page)
     const sheet = await openExport(page)
     const row = sheet.locator('.sheet__row').first()
-    const secondary = await token(page, '--text-secondary')
-    const tertiary = await token(page, '--text-tertiary')
+    const secondary = await token(page, '--ink-2')
+    const tertiary = await token(page, '--ink-3')
 
     const before = await read(row)
     expect(before.cursor).toBe('pointer')
@@ -2183,8 +2191,8 @@ test.describe('sheet row disabled distinction (§MV5)', () => {
     // 4. a coarse pointer can LEAVE the row hovered after a tap; the contract
     //    must hold in that residual state too
     await page.mouse.move(2, 2)
-    const secondary = await token(page, '--text-secondary')
-    const tertiary = await token(page, '--text-tertiary')
+    const secondary = await token(page, '--ink-2')
+    const tertiary = await token(page, '--ink-3')
     const beforeTap = await read(disabled)
     const b = (await disabled.boundingBox())!
     await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2) // a disabled button runs nothing

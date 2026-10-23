@@ -1,4 +1,5 @@
 import { expect, openApp, resetAll, test } from './support/loop'
+import { openMonteCarloDialog } from './support/workbenchMenus'
 
 // Item 5 — both app dialogs share `useDialogFocus`: focus moves in on open,
 // Tab is trapped, Escape closes without committing, focus returns to the opener.
@@ -57,8 +58,11 @@ test.describe('dialog focus + keyboard', () => {
   })
 
   test('Monte Carlo dialog focuses the first field, traps Tab, Escape closes', async ({ page }) => {
-    const mcBtn = page.locator('.pstrip__mc button')
-    await mcBtn.click()
+    // opened as a user opens it: the run row's button, or Run ▸ Monte Carlo…
+    // where the row folds it (1280, docs/workbench.md §WB7) — and focus comes
+    // back to that control, the Run menu's when the row's button is folded
+    const via = await openMonteCarloDialog(page)
+    const mcBtn = via === 'row' ? page.locator('.pstrip__mc button') : page.locator('[data-menu="run"] > .wb-mb')
 
     const dlg = page.locator('.mcdlg[aria-labelledby="mcdlg-title"]')
     await expect(dlg).toBeVisible()

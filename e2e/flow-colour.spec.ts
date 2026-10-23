@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, runMc, test } from './support/loop'
+import { keepPanelDetailsOpen } from './support/panel'
 import { FLOW_PALETTE, NOTICE_STATE_COLOURS, SURFACES } from '../src/ui/flowColour'
 
 // docs/flow-colour-and-compact-nodes.md (issue #325, PR 1) — the flow colour
@@ -33,6 +34,8 @@ async function load(page: Page, json = GRAPH): Promise<void> {
   await page.evaluate(() =>
     (window as unknown as { __loop: { rf: { setViewport: (v: unknown, o: unknown) => void } } }).__loop.rf.setViewport({ x: 80, y: 160, zoom: 1 }, { duration: 0 }),
   )
+  // the Colour section is in the panel's More settings (docs/workbench.md §WB6)
+  await keepPanelDetailsOpen(page)
 }
 
 const accentOf = (page: Page, kind: 'nodes' | 'edges', id: string) =>
@@ -303,7 +306,10 @@ test.describe('flow colour — drawing and state priority (FC-4)', () => {
     await expect(f).toHaveClass(/has-accent/)
     // sample the pixels on a vertical line through the flat top edge
     const box = (await node(page, 'r_bad').boundingBox())!
-    const topY = box.y + 12 // the Register silhouette's top edge, viewBox y 12 = px
+    // the Register's flat top edge: the symbol's own box (symbol.ts, 2026-10-19;
+    // the previous body's silhouette had it at viewBox y 12)
+    const symTop = await page.evaluate(async () => (await import('/src/components/nodes/symbol.ts')).symbolBox('register').y)
+    const topY = box.y + symTop
     const shot = await page.screenshot({ clip: { x: box.x + 20, y: topY - 12, width: box.width - 40, height: 24 } })
     const rows = await page.evaluate(async (b64) => {
       const img = new Image()
@@ -333,21 +339,24 @@ test.describe('flow colour — drawing and state priority (FC-4)', () => {
     const rowHas = (dy: number, hex: string) => rows[12 + dy]!.some((p) => near(p, hex))
     const tokens = await page.evaluate(() => {
       const cs = getComputedStyle(document.documentElement)
-      return { warning: cs.getPropertyValue('--warning').trim(), selected: cs.getPropertyValue('--state-selected').trim(), focus: cs.getPropertyValue('--state-focus').trim() }
+      // the invalid ring is the ERROR colour since 2026-10-21 (colour review A,
+      // step 2: a node that cannot be read is an error; it was the warning colour)
+      return { invalid: cs.getPropertyValue('--no').trim(), selected: cs.getPropertyValue('--sel').trim(), focus: cs.getPropertyValue('--focus').trim() }
     })
-    expect(rowHas(-8, tokens.warning) || rowHas(-7, tokens.warning), 'invalid ring, outermost').toBe(true)
+    expect(rowHas(-8, tokens.invalid) || rowHas(-7, tokens.invalid), 'invalid ring, outermost').toBe(true)
     expect(rowHas(-4, tokens.selected) || rowHas(-3, tokens.selected), 'selection ring, outside').toBe(true)
     expect(rowHas(1, '#A78243') || rowHas(2, '#A78243'), 'colour band, just inside').toBe(true)
     expect(rowHas(5, tokens.focus) || rowHas(6, tokens.focus), 'focus ring, innermost').toBe(true)
     // nothing is painted in the gap between the selection ring and the structure line
-    expect(rowHas(-2, tokens.selected) && rowHas(-2, tokens.warning)).toBe(false)
+    expect(rowHas(-2, tokens.selected) && rowHas(-2, tokens.invalid)).toBe(false)
   })
 
   test('a faint colour never erases the node’s neutral structure line', async ({ page }) => {
     await load(page)
     await page.evaluate(() => (window as any).__loop.graph.getState().setAccent(['gold'], [], '#FDFDFC'))
     const stroke = node(page, 'gold').locator('.nodef__stroke')
-    const structure = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--line-structure').trim())
+    // the symbol's outline token (2026-10-19; the previous body's was --line-2)
+    const structure = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--node-stroke').trim())
     await expect(stroke).toHaveCSS('stroke', await page.evaluate((h) => {
       const d = document.createElement('div')
       d.style.color = h
@@ -400,8 +409,9 @@ test.describe('flow colour — the pinned colours are the stylesheet’s', () =>
         const cs = getComputedStyle(document.documentElement)
         const g = (n: string) => cs.getPropertyValue(n).trim().toLowerCase()
         return {
-          canvas: g('--surface-canvas'), node: g('--surface-raised'),
-          signal: g('--signal-primary'), focus: g('--state-focus'), warning: g('--warning'),
+          // the node face has its own token since the workbench palette (2026-10)
+          canvas: g('--bg-canvas'), node: g('--bg-node'),
+          signal: g('--accent'), focus: g('--focus'), warning: g('--warn'),
           frames: ['slate', 'sage', 'gold', 'violet', 'rose'].map((c) => g(`--frame-accent-${c}`)),
         }
       })

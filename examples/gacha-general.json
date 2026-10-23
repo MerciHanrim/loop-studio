@@ -1,0 +1,552 @@
+{
+  "schema": "loop-studio/graph/2",
+  "version": 1,
+  "layoutVersion": 1,
+  "nodes": [
+    {
+      "id": "target_pulls",
+      "type": "parameter",
+      "position": {
+        "x": 32,
+        "y": 68
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Target pulls (whole number)",
+        "value": 200
+      }
+    },
+    {
+      "id": "ssr_hit_rate",
+      "type": "register",
+      "position": {
+        "x": 736,
+        "y": 68
+      },
+      "data": {
+        "kind": "register",
+        "label": "SSR hit rate · of target pulls",
+        "expr": "@ssr_count / @target_pulls",
+        "format": "percent"
+      }
+    },
+    {
+      "id": "fund_tickets",
+      "type": "source",
+      "position": {
+        "x": 448,
+        "y": 68
+      },
+      "data": {
+        "kind": "source",
+        "label": "Fund tickets",
+        "activation": "onStart",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "tickets",
+      "type": "pool",
+      "position": {
+        "x": 448,
+        "y": 164
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Tickets",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "pulls_made",
+      "type": "pool",
+      "position": {
+        "x": 448,
+        "y": 580
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Pulls made",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "w_ssr",
+      "type": "parameter",
+      "position": {
+        "x": 32,
+        "y": 164
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "SSR weight",
+        "value": 6
+      }
+    },
+    {
+      "id": "w_sr",
+      "type": "parameter",
+      "position": {
+        "x": 32,
+        "y": 260
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "SR weight",
+        "value": 51
+      }
+    },
+    {
+      "id": "w_r",
+      "type": "parameter",
+      "position": {
+        "x": 32,
+        "y": 356
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "R weight",
+        "value": 943
+      }
+    },
+    {
+      "id": "sr_count",
+      "type": "pool",
+      "position": {
+        "x": 448,
+        "y": 468
+      },
+      "data": {
+        "kind": "pool",
+        "label": "SR count",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "r_count",
+      "type": "pool",
+      "position": {
+        "x": 672,
+        "y": 468
+      },
+      "data": {
+        "kind": "pool",
+        "label": "R count",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "ssr_count",
+      "type": "pool",
+      "position": {
+        "x": 224,
+        "y": 468
+      },
+      "data": {
+        "kind": "pool",
+        "label": "SSR count",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "roll",
+      "type": "gate",
+      "position": {
+        "x": 448,
+        "y": 260
+      },
+      "data": {
+        "kind": "gate",
+        "label": "Roll",
+        "activation": "automatic",
+        "distribution": "probabilistic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "ssr_result",
+      "type": "gate",
+      "position": {
+        "x": 224,
+        "y": 372
+      },
+      "data": {
+        "kind": "gate",
+        "label": "SSR result",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "sr_result",
+      "type": "gate",
+      "position": {
+        "x": 448,
+        "y": 372
+      },
+      "data": {
+        "kind": "gate",
+        "label": "SR result",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "r_result",
+      "type": "gate",
+      "position": {
+        "x": 672,
+        "y": 372
+      },
+      "data": {
+        "kind": "gate",
+        "label": "R result",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "completion_signal",
+      "type": "pool",
+      "position": {
+        "x": 672,
+        "y": 692
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Completion signal",
+        "activation": "passive",
+        "initial": 1,
+        "capacity": 1,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "pulls_complete",
+      "type": "end",
+      "position": {
+        "x": 448,
+        "y": 692
+      },
+      "data": {
+        "kind": "end",
+        "label": "Pulls complete",
+        "activation": "automatic"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_fund",
+      "source": "fund_tickets",
+      "target": "tickets",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@target_pulls",
+        "route": "orthogonal",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_roll_ssr",
+      "source": "roll",
+      "target": "ssr_result",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@w_ssr",
+        "route": "orthogonal",
+        "ports": {
+          "source": "left",
+          "target": "top"
+        },
+        "waypoints": [
+          {
+            "x": 252,
+            "y": 288
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_roll_sr",
+      "source": "roll",
+      "target": "sr_result",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@w_sr",
+        "route": "orthogonal",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_roll_r",
+      "source": "roll",
+      "target": "r_result",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@w_r",
+        "route": "orthogonal",
+        "ports": {
+          "source": "right",
+          "target": "top"
+        },
+        "waypoints": [
+          {
+            "x": 700,
+            "y": 288
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_sr_count",
+      "source": "sr_result",
+      "target": "sr_count",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_r_count",
+      "source": "r_result",
+      "target": "r_count",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_ssr_pull",
+      "source": "ssr_result",
+      "target": "pulls_made",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal",
+        "ports": {
+          "source": "left",
+          "target": "left"
+        },
+        "waypoints": [
+          {
+            "x": 192,
+            "y": 400
+          },
+          {
+            "x": 192,
+            "y": 608
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_sr_pull",
+      "source": "sr_result",
+      "target": "pulls_made",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal",
+        "ports": {
+          "source": "left",
+          "target": "top"
+        },
+        "waypoints": [
+          {
+            "x": 416,
+            "y": 400
+          },
+          {
+            "x": 416,
+            "y": 576
+          },
+          {
+            "x": 476,
+            "y": 576
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_r_pull",
+      "source": "r_result",
+      "target": "pulls_made",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1",
+        "timing": "afterPull",
+        "when": "source-fired",
+        "route": "orthogonal",
+        "ports": {
+          "source": "right",
+          "target": "right"
+        },
+        "waypoints": [
+          {
+            "x": 768,
+            "y": 400
+          },
+          {
+            "x": 768,
+            "y": 608
+          }
+        ]
+      }
+    },
+    {
+      "id": "e_tickets_roll",
+      "source": "tickets",
+      "target": "roll",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_ssr_count",
+      "source": "ssr_result",
+      "target": "ssr_count",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_completion",
+      "source": "completion_signal",
+      "target": "pulls_complete",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "all",
+        "route": "orthogonal",
+        "ports": {
+          "source": "left",
+          "target": "right"
+        }
+      }
+    },
+    {
+      "id": "e_pulls_done",
+      "source": "pulls_made",
+      "target": "pulls_complete",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= @target_pulls",
+        "route": "orthogonal",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    }
+  ],
+  "recommendedRunConfig": {
+    "baseSeed": 1,
+    "runs": 2000,
+    "steps": 202,
+    "tracked": [
+      "pulls_made",
+      "ssr_count",
+      "sr_count",
+      "r_count"
+    ],
+    "timelineSeries": [
+      "ssr_count",
+      "sr_count",
+      "r_count"
+    ],
+    "canvasLocked": false
+  }
+}

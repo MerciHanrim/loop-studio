@@ -1,8 +1,8 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { expectOneVersionStory, readAboutVersion, readNewestShown, seedWhatsNewSeen } from './support/whatsNew'
-import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
+import { expectAboutIsPackageVersion, readAboutVersion } from './support/appVersion'
 import { expectShownNoticesAre, manifestNoticesSha, openAbout, openLicences, sha256 } from './support/licenses'
+import { openFileMenu, openMonteCarloDialog } from './support/workbenchMenus'
 
 // Runs under playwright.pwa.config.ts — three pre-built `--mode pwa` generations
 // (stamps pwagenA/B/C) served by e2e/support/pwa-serve.mjs, which switches which
@@ -30,8 +30,6 @@ test.beforeEach(async ({ context }) => {
       /* ignore */
     }
   })
-  // issue #296 - and this returning profile has already seen the newest release note
-  await seedWhatsNewSeen(context)
 })
 
 const setGen = (page: Page, to: 'a' | 'b' | 'c') =>
@@ -181,7 +179,7 @@ test('offline Monte-Carlo: the precached worker chunk runs a real distribution',
   await p2.goto('/')
   await expect(p2.locator('.canvas .react-flow')).toBeVisible()
 
-  await p2.locator('.pstrip__mc button', { hasText: 'Monte Carlo' }).click()
+  await openMonteCarloDialog(p2)
   const dlg = p2.locator('.mcdlg[aria-labelledby="mcdlg-title"]')
   await expect(dlg).toBeVisible()
   const nums = dlg.locator('.mcdlg__field input[type="number"]')
@@ -310,26 +308,16 @@ test('offline: a stored dark theme is on at the first frame, before any menu', a
   await context.setOffline(false)
 })
 
-// issue #296 - once installed, the release notes read with the network down
-test('offline: What’s new opens from the precached app and lists every entry', async ({ page, context }) => {
+// once installed, the precached app says which version it is with the network
+// down (the in-app release notes this test also read were removed in 2026-10)
+test('offline: About opens from the precached app and shows the package.json version', async ({ page, context }) => {
   await installAndControl(page)
   await context.setOffline(true)
   await page.reload()
   await expect(page.locator('.canvas .react-flow')).toBeVisible()
   await page.locator('[data-tour="help-trigger"]').click()
-  await page.locator('[data-whatsnew="menu-item"]').click()
-  const panel = page.locator('[data-whatsnew="panel"]')
-  await expect(panel).toBeVisible()
-  const versions = await panel.locator('.whatsnew__version').evaluateAll((els) => els.map((e) => e.firstChild?.textContent ?? ''))
-  expect(versions).toEqual(RELEASE_NOTES.map((n) => 'v' + n.version))
-  expect(await panel.locator('li').count()).toBe(RELEASE_NOTES.reduce((n, r) => n + r.items.length, 0))
-  // and About, in the same installed app, shows the version that list starts at
-  const newest = await readNewestShown(page)
-  await page.keyboard.press('Escape')
-  await expect(panel).toHaveCount(0)
-  await page.locator('[data-tour="help-trigger"]').click()
   await page.getByRole('menuitem', { name: 'About Loop Studio' }).click()
-  expectOneVersionStory((await readAboutVersion(page)).version, newest)
+  expectAboutIsPackageVersion((await readAboutVersion(page)).version)
   await context.setOffline(false)
 })
 
@@ -420,7 +408,8 @@ test('applying a waiting update keeps a locked Template locked after reload', as
   await setGen(page, 'a')
   await installAndControl(page)
 
-  await page.getByRole('button', { name: 'Templates' }).click()
+  // Templates are rows of File (the workbench, docs/workbench.md §WB2)
+  await openFileMenu(page)
   // a locked Template the menu offers (Early MMO, locked too, left the menu in 0.28.1)
   await page.getByRole('menuitem', { name: /3-zone gacha banner comparison/ }).click()
   const replaceDlg = page.locator('.mcdlg--confirm')

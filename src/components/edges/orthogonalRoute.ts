@@ -47,7 +47,7 @@ export type RouteResult = {
   endAngle: number
   /** docs/edge-routing.md §ER4 — ≥ 1 manual waypoint sits inside an inflated
    *  obstacle. The value is still kept on the wire; the edge shows the §VL3
-   *  dashed `--warning` cue and the route falls back deterministically. */
+   *  dashed `--warn` cue and the route falls back deterministically. */
   invalidWaypoint: boolean
 }
 
@@ -844,6 +844,14 @@ export function* guardedRouteSteps(inp: GuardedInput): Generator<string, Guarded
   // every node fill: other nodes and the edge's own end nodes, at no clearance
   const fills = [...inp.obstacles, ...ownBoxes].map((b) => inflate(b, 0))
   const others0 = inp.obstacles.map((b) => inflate(b, 0))
+  // what a stub may not run into: every other node, and the connection's own
+  // OTHER end. Two nodes closer than two stubs face each other with a stub of
+  // half the gap each; a full stub would end inside the other node, where no
+  // search can leave it (2026-10-20: the line then stopped at the source's stub
+  // and never reached the target)
+  const otherEnd = (b: Box | null) => (b && inp.sourceBox && inp.targetBox && inp.sourceBox.id !== inp.targetBox.id ? [inflate(b, 0)] : [])
+  const stubFillsS = [...others0, ...otherEnd(inp.targetBox)]
+  const stubFillsT = [...others0, ...otherEnd(inp.sourceBox)]
   const invalidWaypoint = inp.waypoints.some((w) => {
     const p = { x: q(w.x), y: q(w.y) }
     return inp.obstacles.some((b) => ptInside(p, inflate(b)))
@@ -882,8 +890,8 @@ export function* guardedRouteSteps(inp: GuardedInput): Generator<string, Guarded
   function* solve(fanOn: boolean): Generator<string, GuardedResult | null> {
     const sf = fanOn ? inp.sourceFan : undefined
     const tf = fanOn ? inp.targetFan : undefined
-    const stubA = stubEnd(src, inp.sourcePosition, inp.sourceBox, others0, sf?.len ?? ROUTE_STUB)
-    const stubB = stubEnd(tgt, inp.targetPosition, inp.targetBox, others0, tf?.len ?? ROUTE_STUB)
+    const stubA = stubEnd(src, inp.sourcePosition, inp.sourceBox, stubFillsS, sf?.len ?? ROUTE_STUB)
+    const stubB = stubEnd(tgt, inp.targetPosition, inp.targetBox, stubFillsT, tf?.len ?? ROUTE_STUB)
     const stubs: [Pt, Pt, Pt, Pt] = [src, stubA, stubB, tgt]
     const anchors: Pt[] = [stubA, ...wps, stubB]
     // the own nodes keep a clearance just inside the shortest branch, so a
@@ -973,8 +981,8 @@ export function* guardedRouteSteps(inp: GuardedInput): Generator<string, Guarded
   /** nothing is free: another node covers a port or a stub. Route around every
    *  node that does NOT cover a stub, and say so. */
   function* blockedRoute(fanBlocked: boolean): Generator<string, GuardedResult> {
-    const stubA = stubEnd(src, inp.sourcePosition, inp.sourceBox, others0)
-    const stubB = stubEnd(tgt, inp.targetPosition, inp.targetBox, others0)
+    const stubA = stubEnd(src, inp.sourcePosition, inp.sourceBox, stubFillsS)
+    const stubB = stubEnd(tgt, inp.targetPosition, inp.targetBox, stubFillsT)
     const stubs: [Pt, Pt, Pt, Pt] = [src, stubA, stubB, tgt]
     const anchors: Pt[] = [stubA, ...wps, stubB]
     const stubSegs: [Pt, Pt][] = [[src, stubA], [stubB, tgt]]
@@ -991,9 +999,11 @@ export function* guardedRouteSteps(inp: GuardedInput): Generator<string, Guarded
     const full: Pt[] = [src]
     for (let i = 0; i < anchors.length - 1; i++) {
       const seg = yield* buildRouteSteps(anchors[i], anchors[i + 1], i === 0 ? inp.sourcePosition : null, i === anchors.length - 2 ? inp.targetPosition : null, restFills, blockedOpts)
-      // unreachable in practice (an anchor sealed inside the fills left after
-      // dropping the covering ones); drawn along the stubs only, never across
-      if (!seg) return result([src, stubA], 'blocked', -1, stubs, fanBlocked)
+      // an anchor sealed inside the fills left after dropping the covering ones
+      // (two end nodes that touch or overlap): the direct L from end to end,
+      // so the line still says what it connects — it never stops short of
+      // its target (2026-10-20; it used to draw the source's stub alone)
+      if (!seg) return result(lzRoute(src, tgt, inp.sourcePosition), 'blocked', -1, stubs, fanBlocked)
       full.push(...(i === 0 ? seg : seg.slice(1)))
     }
     full.push(tgt)

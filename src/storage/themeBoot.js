@@ -31,12 +31,21 @@
 // anything else leaves it off (`system`), and an unreadable storage throws
 // nothing. Plain ES5 on purpose: this runs in every browser that loads the page,
 // before any of the app's code, and is never transpiled.
+//
+// An explicit theme also sets the browser's chrome colour (`theme-color`, the
+// address bar) to that theme's, as `syncThemeColor` in src/theme/theme.ts does
+// later: the two metas in index.html follow the SYSTEM scheme only. The colours
+// are THEME_COLOR's, written out (this file cannot import).
 ;(function () {
   try {
     if (document.documentElement.getAttribute('data-build') === 'portable') return
     if (localStorage.getItem('loop-studio:storage-mode') === 'personal') {
       var v = localStorage.getItem('loop-studio:theme')
-      if (v === 'light' || v === 'dark') document.documentElement.setAttribute('data-theme', v)
+      if (v === 'light' || v === 'dark') {
+        document.documentElement.setAttribute('data-theme', v)
+        var metas = document.querySelectorAll('meta[name="theme-color"]')
+        for (var i = 0; i < metas.length; i++) metas[i].setAttribute('content', v === 'dark' ? '#101215' : '#e3e6ea')
+      }
     }
   } catch {
     /* storage unavailable: the system theme, as the module door would decide */

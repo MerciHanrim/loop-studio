@@ -85,9 +85,11 @@ test.describe('#332 value and detail rows inside the vessel', () => {
     })
   }
 
-  test('ar: the rows start on the chip side, physically left, Arabic unit included', async ({ page }) => {
+  // §L2.0 (2026-10): `ar` is retired; the RTL pseudo-locale `ar-XB` carries the
+  // right-to-left check. The Arabic unit is user fixture data (support/rowFit).
+  test('right to left (ar-XB): the rows start on the chip side, physically left, Arabic unit included', async ({ page }) => {
     await load(page, ROWS_GRAPH, 'Converter')
-    await page.evaluate(() => (window as unknown as Bridge).__loop.i18n.getState().setLocale('ar'))
+    await page.evaluate(() => (window as unknown as Bridge).__loop.i18n.getState().setLocale('ar-XB'))
     await page.waitForFunction(() => document.documentElement.dir === 'rtl')
     await page.evaluate(() => document.fonts.ready)
     await frames(page, 2)

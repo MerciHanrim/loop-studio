@@ -13,26 +13,27 @@ import {
 } from '@xyflow/react'
 import { useGraphStore, type GestureSnapshot } from '../store/graphStore'
 import type { InitialView } from '../model/templates'
-import { BUNDLED_MODULES, cloneModuleDoc } from '../model/modules'
 import { refInsertVerdict, type RefResolveKind } from '../model/exprRefs'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { edgePortKind, faceOf, rfHandleId } from '../model/ports'
-import { diagramBounds } from '../store/routeMap'
+import { connectVerdict } from '../model/connectKind'
+import { useFitAll } from './useFitAll'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { blocksCanvasKey } from '../ui/keyboardTarget'
 import { createKeyGesture } from '../ui/keyGestureLifetime'
 import { dragSnap, keyMoveGuides } from '../model/layout/dragSnap'
-import { beginLiveLayout, bendAtClick, bendInsertIndex, bendRejection, currentRouteMap, endLiveLayout, keyboardBend, useRouteInputs } from '../store/routeMap'
+import { beginLiveLayout, bendAtClick, bendInsertIndex, bendRejection, currentRouteMap, diagramBounds, endLiveLayout, keyboardBend, useRouteInputs } from '../store/routeMap'
+import { MIN_ZOOM as SAVED_VIEW_MIN_ZOOM } from '../model/workspace'
 import { useRouteEditStore } from '../store/routeEditStore'
 import { useGuideStore } from '../store/guideStore'
 import { GRID, snapNodePosition } from '../model/layout/grid'
-import { type MessageKey, useI18n, useLocaleDirection, useT } from '../i18n'
-import { moduleLabelOverlay } from '../i18n/moduleLabels'
+import { type MessageKey, useLocaleDirection, useT } from '../i18n'
 import { useFilterStore } from '../store/filterStore'
 import { nodeTypes } from './nodes/nodes'
 import { edgeTypes } from './edges/LoopEdge'
 import { EdgeMarkers } from './edges/EdgeMarkers'
+import { holdConnectTouch, isFurtherTouchDuringHold, releaseConnectTouch } from './edges/connectTouchHold'
 import { useFocusSet } from './focusSet'
 import { useHiddenSet } from './filterSet'
 import { FilterPanel } from './FilterPanel'
@@ -48,9 +49,7 @@ import { canvasFitInsets, viewportForRect } from './canvasFit'
 import { MinimapDock } from './MinimapDock'
 import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../store/hintStore'
 import { useTourStore } from '../store/tourStore'
-import { useWhatsNewStore } from '../store/whatsNewStore'
 import { isolateAuto } from '../i18n/bidiIsolate'
-import { WhatsNewNotice } from './WhatsNewNotice'
 import { Icon } from '../ui/icons'
 
 // docs/large-graph-readability.md §LGR3.1 — the class the CSS fades on an
@@ -61,14 +60,12 @@ const withDeemph = (base: string | undefined): string =>
   base ? `${base} ${DEEMPH_CLASS}` : DEEMPH_CLASS
 
 const DND_TYPE = 'application/loop-node'
-// docs/module-system.md §MS3.2 — a Building block dragged from the Insert-module
-// menu (kept in sync with `ModuleMenu.tsx`, mirroring the `DND_TYPE` duplication
-// between this file and `Toolbar.tsx`).
-const MODULE_DND_TYPE = 'application/loop-module'
 
 // the <ReactFlow> zoom clamp — shared with PanSurface's own pinch-zoom math
 // (docs/dense-graph-pan.md) so a pinch can never take the viewport past what
-// the Controls +/- or wheel-zoom would allow.
+// the Controls +/- or wheel-zoom would allow. MIN_ZOOM is the least a hand
+// zooms to; the canvas lowers it only where the whole diagram needs less to
+// fit (`zoomFloor` below).
 const MIN_ZOOM = 0.2
 const MAX_ZOOM = 2
 
@@ -107,7 +104,7 @@ const FIT_VIEW_OPTIONS = { padding: 0.3, maxZoom: 1.2 } as const
 // restores it exactly (no hysteresis).
 function LodGrid() {
   const showGrid = useStore((s) => s.transform[2] >= 0.8)
-  return showGrid ? <Background gap={16} color="var(--canvas-grid)" /> : null
+  return showGrid ? <Background gap={16} color="var(--grid)" /> : null
 }
 
 export function Canvas() {
@@ -124,29 +121,11 @@ export function Canvas() {
   const onConnect = useGraphStore((s) => s.onConnect)
   const addNodeAt = useGraphStore((s) => s.addNodeAt)
   const tidyToGrid = useGraphStore((s) => s.tidyToGrid)
-  const insertModule = useGraphStore((s) => s.insertModule)
   const setSelection = useGraphStore((s) => s.setSelection)
-  const { screenToFlowPosition, fitView, fitBounds, setViewport, getViewport, getNodes, deleteElements, setEdges: rfSetEdges, setNodes: rfSetNodes } = useReactFlow()
-  // node structure (Lumi, 2026-10-12) — a fit that contains the OUTSIDE NAMES:
-  // React Flow's fitView knows only the node boxes, so under the new structure
-  // a name on the far side was cut off; here the bounds take every name box in
-  // (routeMap.diagramBounds), then the same 1.2 zoom ceiling as fitView's.
-  // Today's structure keeps fitView as it was.
-  const fitAll = useCallback(async (): Promise<void> => {
-    const b = useUiStore.getState().nodeStructure === 'outside' ? diagramBounds(getNodes() as LoopNode[]) : null
-    if (!b) {
-      await fitView({ padding: 0.3, maxZoom: 1.2 })
-      return
-    }
-    await fitBounds(b, { padding: 0.3, duration: 0 })
-    const v = getViewport()
-    if (v.zoom > 1.2) {
-      const el = canvasRef.current
-      const w = el?.clientWidth ?? 0
-      const h = el?.clientHeight ?? 0
-      await setViewport({ x: w / 2 - (b.x + b.width / 2) * 1.2, y: h / 2 - (b.y + b.height / 2) * 1.2, zoom: 1.2 }, { duration: 0 })
-    }
-  }, [fitView, fitBounds, getNodes, getViewport, setViewport])
+  const { screenToFlowPosition, fitView, setViewport, getViewport, deleteElements, setEdges: rfSetEdges, setNodes: rfSetNodes } = useReactFlow()
+  // the whole-diagram fit that contains the outside names (./useFitAll), the
+  // same one the workbench status bar's Fit runs
+  const fitAll = useFitAll(useCallback(() => canvasRef.current, []))
   const rfStore = useStoreApi()
   const isMobile = useIsMobile()
   const canvasLocked = useUiStore((s) => s.canvasLocked)
@@ -225,6 +204,19 @@ export function Canvas() {
   const paneW = useStore((s) => s.width)
   const paneH = useStore((s) => s.height)
   const t = useT()
+  // the zoom-out limit: MIN_ZOOM for a hand on the wheel, the pinch or −,
+  // lowered only as far as the WHOLE diagram needs to fit this pane (Lumi,
+  // 2026-10-20: the Early MMO's whole-diagram fit at 1280 × 800 stopped at
+  // 0.2 and left 30 of its 97 nodes off screen). The same padding as the
+  // fit (useFitAll: `fitBounds` padding 0.3, bounds × 1.3), a hair under so
+  // the fit is never the one clamped; never below the least zoom a saved
+  // view restores to.
+  const zoomFloor = useMemo(() => {
+    const b = diagramBounds(nodes)
+    if (!b || paneW <= 0 || paneH <= 0 || b.width <= 0 || b.height <= 0) return MIN_ZOOM
+    const fit = Math.min(paneW / (b.width * 1.3), paneH / (b.height * 1.3)) * 0.98
+    return Math.max(SAVED_VIEW_MIN_ZOOM, Math.min(MIN_ZOOM, fit))
+  }, [nodes, paneW, paneH])
 
 
   // docs/mobile.md §MV-D10 / docs/mmo-multilingual-layout.md §MML3 — the minimap
@@ -241,6 +233,9 @@ export function Canvas() {
   const minimapVisible = minimapFits && !minimapCollapsed
   const minimapVisibleRef = useRef(minimapVisible)
   minimapVisibleRef.current = minimapVisible
+  // the zoom Controls rail is on screen on the phone only (canvasFitInsets)
+  const isMobileRef = useRef(isMobile)
+  isMobileRef.current = isMobile
   // DEV / E2E only — the last `applyInitialView` result, so a test can assert
   // whether the minimap inset was reserved. Tree-shaken from the production /
   // portable bundle with the rest of `import.meta.env.DEV`.
@@ -261,7 +256,7 @@ export function Canvas() {
       // import wizard's post-commit view, docs/data-import.md §DI17); the
       // insets are this Canvas's own overlays. `keep` (issue #344) caps the
       // zoom so the core start nodes stay whole.
-      const insets = canvasFitInsets(minimapVisibleRef.current)
+      const insets = canvasFitInsets(minimapVisibleRef.current, 0, isMobileRef.current)
       const vp = viewportForRect(iv.rect, { width: paneW, height: paneH }, insets, { floor: iv.minZoom, ceil: 1.2, keep: iv.keep })
       if (!vp) return void fitAll()
       setViewport(vp, { duration: 0 })
@@ -309,6 +304,11 @@ export function Canvas() {
     sig: number | null
   } | null>(null)
   const [settleTick, setSettleTick] = useState(0)
+  // DEV / E2E only — the swap's fit-all while it is landing (React Flow's
+  // fitView resolves a frame or more later), for `swapFitPending` below
+  const swapFitLanding = useRef<Promise<void> | null>(null)
+  // a touch connection's hold never outlives the canvas
+  useEffect(() => releaseConnectTouch, [])
   useEffect(() => {
     if (seenFitRev.current === null) {
       seenFitRev.current = fitRev // first run: adopt the mount's graph
@@ -343,7 +343,15 @@ export function Canvas() {
     // §MML3 — a menu-opened Template may frame a sub-region instead of fit-all
     const iv = useGraphStore.getState().pendingInitialView
     if (iv) applyInitialViewRef.current(iv)
-    else void fitAll()
+    else {
+      const landing = fitAll()
+      if (import.meta.env.DEV) {
+        swapFitLanding.current = landing
+        void landing.finally(() => {
+          if (swapFitLanding.current === landing) swapFitLanding.current = null
+        })
+      }
+    }
   }, [fitRev, loadRev, nodesInitialized, measuredSig, settleTick, fitView, getViewport])
 
   // the notice rail (src/ui/noticeRail.tsx, `#notice-rail`) sits between the
@@ -420,13 +428,6 @@ export function Canvas() {
   const frameMoveHintShowing = frameMoveHint.eligible && savedFrameSelected
   const lgrNoticeShowing =
     (focusMode && !focusSet) || (autoFramesExist && !suggestNoteDismissed) || importHintShowing || frameMoveHintShowing
-  // Issue #296 — the update notice and the canvas notes share the top of the
-  // canvas, and on a narrow window they would overlap. One at a time, by
-  // priority: a note that follows a deliberate action (the ones above) and a
-  // running tour come first, so the update notice waits for them; the tier-3
-  // discovery hints below wait for the update notice. A hint that is waiting is
-  // not rendered, so its `seen` flag is not consumed.
-  const whatsNewShowing = useWhatsNewStore((s) => s.noticeShowing)
   const hidden = useHiddenSet()
   // §LGR6-cues — the opt-in Activity overlay tint composes AFTER hide (a
   // filtered element is gone, tint and all) and independently of dim (a
@@ -622,7 +623,16 @@ export function Canvas() {
       w.__loop.rf = { setViewport, getViewport, fitView, fitAll }
       // the last `applyInitialView` result — lets an e2e assert the minimap
       // inset was / was not reserved on a menu-open framing (ux/minimap-collapse)
-      w.__loop.canvas = { lastInitialView: () => lastInitialViewRef.current }
+      w.__loop.canvas = {
+        lastInitialView: () => lastInitialViewRef.current,
+        // whether a swap's own fit is still to come: its `fitRev` not seen
+        // yet, armed and waiting for the measure pass, or landing. An e2e
+        // that sets its own viewport after a load waits for this first —
+        // else the fit, armed after that viewport, sees an untouched camera
+        // and lands on top of it.
+        swapFitPending: () =>
+          seenFitRev.current !== useGraphStore.getState().fitRev || armedSwap.current != null || swapFitLanding.current != null,
+      }
     }
   }, [setViewport, getViewport, fitView, fitAll])
 
@@ -984,29 +994,14 @@ export function Canvas() {
     (e: DragEvent) => {
       e.preventDefault()
       const at = screenToFlowPosition({ x: e.clientX, y: e.clientY })
-      // docs/module-system.md §MS3.2 — a bundled Building block dragged from the
-      // Insert-module menu drops at the pointer. Blocks are v1 + self-contained,
-      // so no consent / notice path is reachable here; a validation refusal
-      // (never expected for a bundled block) just alerts.
-      const moduleId = e.dataTransfer.getData(MODULE_DND_TYPE)
-      if (moduleId) {
-        const block = BUNDLED_MODULES.find((m) => m.id === moduleId)
-        if (block) {
-          const locale = useI18n.getState().activeLocale
-          const r = insertModule(cloneModuleDoc(block, moduleLabelOverlay(moduleId, locale)), {
-            at,
-            bundledModuleId: moduleId,
-            free: e.altKey, // issue #344 §DL3 — Alt at the drop: not snapped
-          })
-          if (!r.ok) window.alert(r.reason)
-        }
-        return
-      }
+      // (2026-10: a bundled module dragged from the Insert-module menu was also
+      // dropped here; that menu and its blocks are gone. A saved structure is
+      // inserted from the File menu.)
       const kind = e.dataTransfer.getData(DND_TYPE) as NodeKind
       if (!kind) return
       addNodeAt(kind, at, { free: e.altKey }) // issue #344 §DL3 — on the grid; Alt = free
     },
-    [addNodeAt, insertModule, screenToFlowPosition],
+    [addNodeAt, screenToFlowPosition],
   )
 
   const handleDragOver = useCallback((e: DragEvent) => {
@@ -1028,10 +1023,20 @@ export function Canvas() {
       onDrop={noEdit ? undefined : handleDrop}
       onDragOver={noEdit ? undefined : handleDragOver}
       onContextMenu={noEdit ? (e) => e.preventDefault() : undefined}
+      // a touch that starts on a port may draw a connection: hold its moves
+      // until it ends, so the next tap is still a click (edges/connectTouchHold.ts).
+      // A further finger that lands on another port while that finger is down
+      // starts no second connection (it would end the first): its touchstart
+      // stops here, before the port's handler. Any other multi-touch is as it was.
+      onTouchStartCapture={noEdit ? undefined : (e) => {
+        if (!(e.target as Element).closest?.('.react-flow__handle:not([data-off])')) return
+        if (isFurtherTouchDuringHold(e.nativeEvent)) {
+          e.stopPropagation()
+          return
+        }
+        holdConnectTouch(e.nativeEvent)
+      }}
     >
-      {/* Issue #296 — first in the canvas, so its two buttons come right after
-          the toolbar in the tab order and before any node. */}
-      <WhatsNewNotice blocked={!tourIdle || lgrNoticeShowing} />
       <ReactFlow<LoopNode, LoopEdge>
         nodes={rfNodes}
         edges={rfEdges}
@@ -1049,7 +1054,33 @@ export function Canvas() {
         onSelectionDrag={(e) => dragSnap.update(e.altKey)}
         onSelectionDragStop={(e) => { dragSnap.update(e.altKey); dragSnap.end(); useGuideStore.getState().clear(); endLiveLayout() }}
         onEdgesChange={onEdgesChange}
-        onConnect={noEdit ? undefined : onConnect}
+        // the workbench, direction B (src/model/connectKind.ts): a drawing takes
+        // the kind chosen in the tool row; the same check that refuses it in
+        // the store tells React Flow which drops are valid, and a refused drop
+        // says its reason (the status bar) instead of becoming another kind
+        onConnect={noEdit ? undefined : (c) => {
+          const v = onConnect(c, useUiStore.getState().connectKind)
+          useUiStore.getState().setConnectRefusal(v.ok ? null : { verdict: v, source: c.source, target: c.target })
+        }}
+        isValidConnection={(c) => {
+          if (!c.source || !c.target) return false
+          const g = useGraphStore.getState()
+          return connectVerdict(g.nodes, g.edges, useUiStore.getState().connectKind, { source: c.source, target: c.target, sourceHandle: c.sourceHandle, targetHandle: c.targetHandle }).ok
+        }}
+        onConnectEnd={(_e, state) => {
+          releaseConnectTouch()
+          // a drop ON a node that the kind refuses: say why (nothing is made)
+          const from = state.fromNode?.id
+          const to = state.toNode?.id
+          if (state.isValid || !from || !to) return
+          const g = useGraphStore.getState()
+          const fromIsSource = state.fromHandle?.type !== 'target'
+          const ends = fromIsSource
+            ? { source: from, target: to, sourceHandle: state.fromHandle?.id ?? null, targetHandle: state.toHandle?.id ?? null }
+            : { source: to, target: from, sourceHandle: state.toHandle?.id ?? null, targetHandle: state.fromHandle?.id ?? null }
+          const v = connectVerdict(g.nodes, g.edges, useUiStore.getState().connectKind, ends)
+          useUiStore.getState().setConnectRefusal(v.ok ? null : { verdict: v, source: ends.source, target: ends.target })
+        }}
         onSelectionChange={onSelectionChange}
         // §RXA8 — while armed, freeze selection (the edited Register stays
         // selected), node dragging, and node focus (so the caret returns to the
@@ -1071,7 +1102,7 @@ export function Canvas() {
         ariaLabelConfig={ariaLabelConfig}
         fitView
         fitViewOptions={FIT_VIEW_OPTIONS}
-        minZoom={MIN_ZOOM}
+        minZoom={zoomFloor}
         maxZoom={MAX_ZOOM}
         // §LGR6 — while the Frame tool is armed, a pane drag draws a frame
         // instead of panning the canvas. §LGR12 — while region select is armed,
@@ -1118,7 +1149,7 @@ export function Canvas() {
           active={panSurfaceActive}
           setViewport={setViewport}
           getViewport={getViewport}
-          minZoom={MIN_ZOOM}
+          minZoom={zoomFloor}
           maxZoom={MAX_ZOOM}
         />
         <EdgeMarkers />
@@ -1190,7 +1221,7 @@ export function Canvas() {
             dir={uiDir}
             id="empty-canvas"
             trigger={nodes.length === 0}
-            ready={tourIdle && tier3Ready && !lgrNoticeShowing && !whatsNewShowing}
+            ready={tourIdle && tier3Ready && !lgrNoticeShowing}
           >
             {t('hint.emptyCanvas.body')}
           </CanvasHintNote>
@@ -1210,7 +1241,7 @@ export function Canvas() {
             dir={uiDir}
             id="focus-filter-discovery"
             trigger={nodes.length >= WORTH_IT_FLOOR && !focusOrFilterEverUsed}
-            ready={tourIdle && tier3Ready && largeGraphInteractionGate && !lgrNoticeShowing && !whatsNewShowing}
+            ready={tourIdle && tier3Ready && largeGraphInteractionGate && !lgrNoticeShowing}
           >
             {t('hint.focusFilter.body')}
           </CanvasHintNote>
@@ -1227,6 +1258,11 @@ export function Canvas() {
             also kills selection (so the Inspector can't open). `canvasLocked`
             keeps selection + a read-only Inspector; it only blocks structural
             edits. Hidden on mobile — the mobile layout is always view-only. */}
+        {/* the workbench (2026-10, step 5): on the desktop every control of
+            this rail has its place in the tool row, the menus and the status
+            bar (share workbench-mapping.md); the phone keeps the rail (zoom
+            and Reset view, its only buttons there) */}
+        {isMobile ? (
         <Controls showInteractive={false} showFitView={false}>
           {/* docs/large-graph-readability.md §LGR3.4 / LGR-D4 — Reset view:
               fit the graph + clear the exploration lens (filters + focused
@@ -1489,6 +1525,7 @@ export function Canvas() {
             </ControlButton>
           )}
         </Controls>
+        ) : null}
       </ReactFlow>
     </div>
   )

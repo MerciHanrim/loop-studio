@@ -1,5 +1,14 @@
 # Small Module / Template System (non-frozen design doc)
 
+> **2026-10 — the surface changed (§MS6, revised).** The *Insert module ▾* menu,
+> its two bundled Building blocks and drag-to-insert were removed in the workbench
+> redesign. What a user does with a structure is now two File-menu actions —
+> **Save selected structure…** (§MS2's extract, unchanged) and **Insert saved
+> structure…** (§MS3's insert from a file, unchanged). The insert and extract
+> operations, their atomic history entry, the v2 consent gate and the frame and
+> run-config boundaries (§MS4a) are as below. The rest of this document is the
+> design record as it shipped in `v0.8.0`.
+
 **Status: DESIGN settled; both implementation PRs SHIPPED in `v0.8.0`.** Impl
 PR 1 (module insert / extract — §MS9 steps 1–6) shipped (PR #125, merge
 `eda6380`) + a follow-up (`1812762`, v2-promotion consent copy + §MS6.1
@@ -439,6 +448,25 @@ templates — the module system is what introduces them.
 
 ## MS6. The assembly surface for v1
 
+**Revised 2026-10.** The surface is two rows in the desktop File menu, below the
+export rows and apart from **Import** (which opens a whole document in place of
+this one):
+
+- **Save selected structure…** — "Saves the selected nodes and the connections
+  between them to a file." The §MS2 extract, unchanged; it stays available while
+  editing is locked, because it changes nothing.
+- **Insert saved structure…** — "Adds a structure file you saved to this
+  document." The §MS3 insert of a Graph JSON file at the viewport centre,
+  unchanged; disabled while editing is locked.
+
+The bundled Building blocks (`examples/module-buffered-step.json`,
+`examples/module-reward-split.json`) were removed rather than kept as examples —
+the Templates already teach the model, and a block did not say where to connect
+it or what to change after inserting it. Drag-to-insert went with them, since it
+only ever carried a bundled block. Their label overlay
+([`bundled-module-label-localization.md`](bundled-module-label-localization.md))
+is retired. The original v1 surface, as shipped:
+
 - The Templates menu area gains an **"Insert module…"** action (a submenu, or
   a section in the existing Templates menu) with **exactly two sources**
   (MS7-7): the **bundled Building blocks** (each a small Graph JSON in
@@ -466,9 +494,9 @@ editing is **desktop-only** (`docs/mobile.md §MV3a`). Therefore, by design:
 - Mobile stays **view / run only**, unchanged — "view & run — edit on desktop".
 - The only mobile requirement for this feature is **negative**: at 375 px the
   module code must not break the top bar or the More menu (it adds nothing
-  there). Locked by `e2e/module-system.spec.ts` — *"the module menu is
-  desktop-only — absent on a narrow (mobile) viewport"* (`.toolbar--mobile`
-  visible, the *Insert module ▾* button count is 0).
+  there). Locked by `e2e/module-system.spec.ts` — since 2026-10 *"saving and
+  inserting a structure is desktop-only — absent on a narrow (mobile)
+  viewport"* (`.toolbar--mobile` visible, neither File-menu row in the page).
 
 A mobile module surface is **not planned** — if it is ever wanted it is its own
 pass, gated on mobile structural editing existing at all.
@@ -615,6 +643,11 @@ extract / insert / frames-exclusion confirmations, panel headers) added to
   module; reports `hadFrames` / `hadRunConfig`), `planSelectionAsModule`
   (serialise the selection via `extractModule`; no rrc / no frames), and
   `selectedNodeIds` (marquee selection, single-Inspector fallback).
+- *(2026-10: the UI and Blocks entries below are the record of `v0.8.0`. The
+  workbench removed `ModuleMenu.tsx`, `moduleKeys.ts`, `src/model/modules.ts`,
+  the two block files and drag-to-insert; File's **Save selected structure…**
+  and **Insert saved structure…** rows, `src/components/StructureMenuItems.tsx`,
+  reuse the IO helpers and the same two confirmations.)*
 - **UI** — `src/components/ModuleMenu.tsx` (an *Insert module ▾* menu next to
   Templates: the bundled blocks, *From file…*, *Extract selection as module…*;
   the v2 promotion consent + the frames-exclusion notice reuse `ConfirmDialog`).

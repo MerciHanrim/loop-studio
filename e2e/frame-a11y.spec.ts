@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from './support/loop'
+import { openMonteCarloDialog } from './support/workbenchMenus'
 
 // docs/large-graph-readability.md §LGR6.6 — the frame accessibility bundle.
 // A group frame used to be an anonymous `div`: no role, no name, not focusable,
@@ -65,7 +66,13 @@ async function load(page: Page, opts: { locale?: string } = {}) {
   await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
 }
 
-const FRAME: Rect = { x: -64, y: -64, w: 528, h: 320 }
+// clear of every node's footprint (the node with its name) at its place and
+// one keyboard step right / four down, so no node changes sides mid-gesture.
+// 2026-10-20: was { w: 528, h: 320 }, drawn for the earlier node bodies; the
+// symbol nodes' footprints put ore_router's right edge (480) and waste_drain's
+// bottom (259) across it, and a 16 px step right swept ore_router in
+// (measured: scratch probe of the footprints in flow coordinates)
+const FRAME: Rect = { x: -64, y: -64, w: 576, h: 336 }
 const container = (page: Page) => page.locator('.lgr-frame').first()
 const handle = (page: Page) => page.locator('.lgr-frame__resize').first()
 
@@ -325,7 +332,7 @@ test.describe('frame accessibility — keyboard move and resize (§LGR6.6)', () 
       tag: el.tagName, tabIndex: (el as HTMLElement).tabIndex, name: el.getAttribute('aria-label'), role: el.getAttribute('role'),
     }))
     expect(meta.tabIndex).toBe(0)
-    expect(meta.name, 'the handle names itself and the current size').toMatch(/528/)
+    expect(meta.name, 'the handle names itself and the current size').toMatch(new RegExp(`\\b${FRAME.w}\\b.*\\b${FRAME.h}\\b`))
     expect(meta.role === 'button' || meta.tag === 'BUTTON').toBe(true)
     const r0 = await rectOf(page, id)
     await handle(page).focus()
@@ -481,7 +488,7 @@ test.describe('frame accessibility — the delete keys (§LGR6.6 / F1, F3)', () 
   })
 
   for (const dialog of [
-    { name: 'Monte Carlo', open: async (page: Page) => { await page.locator('.pstrip__mc button').click(); await expect(page.locator('.mcdlg[role="dialog"]')).toBeVisible() } },
+    { name: 'Monte Carlo', open: async (page: Page) => { await openMonteCarloDialog(page); await expect(page.locator('.mcdlg[role="dialog"]')).toBeVisible() } },
     { name: 'spreadsheet import', open: async (page: Page) => { await page.getByRole('button', { name: 'Data' }).click(); await page.getByRole('menuitem').first().click(); await expect(page.locator('.mcdlg--dataimport')).toBeVisible() } },
   ]) {
     test(`an open ${dialog.name} dialog blocks the canvas delete keys (F3)`, async ({ page }) => {
@@ -539,7 +546,8 @@ test.describe('frame accessibility — announcements and locales (§LGR6.6)', ()
     await expect(region).toContainText(String(Math.round(r.x)))
   })
 
-  for (const [locale, moved] of [['ko', /이동/], ['ja', /移動/]] as const) {
+  // §L2.0 (2026-10): ko is the only shipped non-English language; the ja row retired.
+  for (const [locale, moved] of [['ko', /이동/]] as const) {
     test(`${locale}: the frame announcement and the React Flow node move message are both localized`, async ({ page }) => {
       await load(page, { locale })
       await seedFrame(page, FRAME)

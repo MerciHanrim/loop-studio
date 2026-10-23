@@ -5,7 +5,7 @@
 // untouched without the switch. Checked here, on `e2e/fixtures/
 // node-structure-small.json` (7 nodes, 5 connections, one frame):
 //   - the body at the compact height with W1's width, the name OUTSIDE it,
-//     shown at level 1 and hidden at level 0 with the body;
+//     shown at level 1 and at level 0 (where the body's value is hidden);
 //   - body + name + the gap between them = ONE hit region: pointing at any of
 //     them identifies the node, clicking any of them selects it, and the
 //     identification does not drop while the pointer crosses the gap;
@@ -19,6 +19,7 @@ import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, test } from './support/loop'
 import { waitForAppReady } from './support/appReady'
+import { endToDomHandle, onDrawnOutline } from './support/outlineCheck'
 
 const FIXTURE = readFileSync(new URL('./fixtures/node-structure-small.json', import.meta.url), 'utf8')
 
@@ -37,35 +38,67 @@ async function openSmall(page: Page, structure: 'outside' | 'inside'): Promise<v
   await expect.poll(() => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.rf.getViewport().zoom)).toBe(1)
 }
 
+/** the user's own move of the view: a drag of the EMPTY canvas, from flow
+ *  point (380, 310) — between the two rows of nodes, outside the frame — `dx`
+ *  screen px to the left. At 1280 × 800 the workbench canvas is 664 px wide
+ *  (the list and the properties panel open), so at x 40 the graph's right
+ *  part lies under the properties panel (measured 2026-10-20). */
+async function panLeft(page: Page, dx: number): Promise<void> {
+  const pane = (await page.locator('.react-flow__pane').boundingBox())!
+  const vp = await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.rf.getViewport())
+  const grab = { x: pane.x + vp.x + 380 * vp.zoom, y: pane.y + vp.y + 310 * vp.zoom }
+  expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.classList.contains('react-flow__pane') ?? false, [grab.x, grab.y]), 'the press is on the empty canvas').toBe(true)
+  await page.mouse.move(grab.x, grab.y)
+  await page.mouse.down()
+  await page.mouse.move(grab.x - 20, grab.y, { steps: 2 })
+  await page.mouse.move(grab.x - dx, grab.y, { steps: 10 })
+  await page.mouse.up()
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.rf.getViewport().x)).toBe(vp.x - dx)
+}
+
+/** whether an element lies wholly on the canvas */
+async function onCanvas(page: Page, sel: string): Promise<boolean> {
+  const pane = (await page.locator('.react-flow__pane').boundingBox())!
+  const b = (await page.locator(sel).boundingBox())!
+  return b.x >= pane.x && b.x + b.width <= pane.x + pane.width && b.y >= pane.y && b.y + b.height <= pane.y + pane.height
+}
+
 const nodeBox = (page: Page, id: string) => page.locator(`.react-flow__node[data-id="${id}"] .nodef`)
 const nodeName = (page: Page, id: string) => page.locator(`.react-flow__node[data-id="${id}"] .nodef__name`)
 const nodeBridge = (page: Page, id: string) => page.locator(`.react-flow__node[data-id="${id}"] .nodef__bridge`)
 const posOf = (page: Page, id: string) => page.evaluate((nid) => { const n = (window as unknown as { __loop: Loop }).__loop.graph.getState().nodes.find((x: any) => x.id === nid); return { x: n.position.x, y: n.position.y } }, id)
 
 test.describe('node structure — the small graph under the new node', () => {
-  test('the body is compact and W1-wide, the name is outside and shows at level 1 only', async ({ page }) => {
+  test('the body is its kind’s symbol in the 56 px cell, the name is outside and shows at level 1 only', async ({ page }) => {
     await openSmall(page, 'outside')
     await expect(page.locator('.nodef--outside')).toHaveCount(7)
-    // no title inside any body; a name outside every node; the Pool shows `count / capacity`
+    // no title inside any body; a name outside every node
     await expect(page.locator('.nodef--outside .nodef__title')).toHaveCount(0)
     await expect(page.locator('.nodef__name')).toHaveCount(7)
     await expect(nodeName(page, 'waiting')).toHaveText('Waiting room')
-    await expect(nodeBox(page, 'waiting').locator('.nodef__value')).toHaveText(/^4 \/ 20$/)
-    // a Parameter's unit rides its value row (it was reserved by W1, so it shows)
-    await expect(nodeBox(page, 'rate').locator('.nodef__unit')).toHaveText(/people/)
-    await expect(nodeBox(page, 'rate').locator('.nodef__value')).toHaveText(/^3\s+people$/)
+    // the Pool shows its count in the symbol and its capacity beside it — read
+    // together, never hidden to fit the symbol (Lumi, 2026-10-19)
+    await expect(nodeBox(page, 'waiting').locator('.nodef__value')).toHaveText(/^4$/)
+    await expect(nodeBox(page, 'waiting').locator('.nodef__aux')).toHaveText('≤ 20')
+    await expect(nodeBox(page, 'waiting').locator('.nodef__value')).toHaveAttribute('title', '4 ≤ 20')
+    // a Parameter's unit is beside its symbol, with what the value means on the tooltip
+    await expect(nodeBox(page, 'rate').locator('.nodef__value')).toHaveText(/^3$/)
+    await expect(nodeBox(page, 'rate').locator('.nodef__aux .nodef__unit')).toHaveText('people')
     await expect(nodeBox(page, 'rate').locator('.nodef__value')).toHaveAttribute('title', '3 people')
-    // W1: every body is the width the rule reserves from the document, 88–260, at the compact height
-    const widths = await page.evaluate(async () => {
-      const { reservedWidth } = await import('/src/components/nodes/nodeWidth.ts')
+    // every node is the 56 px cell, drawing its kind's symbol (symbol.ts) — the
+    // width no longer depends on the document's values (W1 was the previous body)
+    const cells = await page.evaluate(async () => {
+      const { SYMBOLS } = await import('/src/components/nodes/symbol.ts')
       const nodes = (window as unknown as { __loop: Loop }).__loop.graph.getState().nodes
-      return nodes.map((n: any) => { const el = document.querySelector(`.react-flow__node[data-id="${n.id}"] .nodef`) as HTMLElement; return { id: n.id, drawn: el.offsetWidth, h: el.offsetHeight, expected: reservedWidth(n) } })
+      return nodes.map((n: any) => {
+        const wrap = document.querySelector(`.react-flow__node[data-id="${n.id}"]`) as HTMLElement
+        const el = wrap.querySelector('.nodef') as HTMLElement
+        return { id: n.id, w: el.offsetWidth, h: el.offsetHeight, wrapH: wrap.offsetHeight, d: el.querySelector('.nodef__stroke')!.getAttribute('d'), want: (SYMBOLS as any)[n.type].path }
+      })
     })
-    for (const w of widths) {
-      expect(w.drawn, `${w.id} width`).toBe(w.expected)
-      expect(w.expected).toBeGreaterThanOrEqual(88)
-      expect(w.expected).toBeLessThanOrEqual(260)
-      expect(w.h, `${w.id} height`).toBe(56)
+    for (const c of cells) {
+      expect([c.w, c.h, c.wrapH], `${c.id}: the 56 px cell, as React Flow measures it`).toEqual([56, 56, 56])
+      expect(c.d, `${c.id}: its kind's symbol`).toBe(c.want)
     }
     // the inner role symbol (set A) sits in a value-less body, and the word it
     // stands for joins the accessible name, so the meaning never rests on the
@@ -80,14 +113,19 @@ test.describe('node structure — the small graph under the new node', () => {
     await expect(nodeBox(page, 'waiting')).toHaveAttribute('data-name-face', 'top')
     await expect(nodeBox(page, 'treated')).toHaveAttribute('data-name-face', 'right')
     await expect(nodeBox(page, 'arrivals')).toHaveAttribute('data-name-face', 'bottom')
-    // level 1 (zoom 0.6): the name stays visible; level 0 (zoom 0.3): hidden with the body
-    const visibility = (id: string) => page.evaluate((nid) => getComputedStyle(document.querySelector(`.react-flow__node[data-id="${nid}"] .nodef__name`)!).visibility, id)
+    // level 1 (zoom 0.6) and level 0 (zoom 0.3): the name stays visible (Lumi,
+    // 2026-10-20: zooming out never hides every name); at level 0 the value and
+    // the capacity beside it are hidden
+    const visibility = (id: string, part = '.nodef__name') => page.evaluate(([nid, sel]) => getComputedStyle(document.querySelector(`.react-flow__node[data-id="${nid}"] ${sel}`)!).visibility, [id, part])
     await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.rf.setViewport({ x: 40, y: 60, zoom: 0.6 }, { duration: 0 }))
     await expect(nodeBox(page, 'waiting')).toHaveClass(/lod-L1/)
     expect(await visibility('waiting')).toBe('visible')
+    expect(await visibility('waiting', '.nodef__aux')).toBe('visible')
     await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.rf.setViewport({ x: 40, y: 60, zoom: 0.3 }, { duration: 0 }))
     await expect(nodeBox(page, 'waiting')).toHaveClass(/lod-L0/)
-    expect(await visibility('waiting')).toBe('hidden')
+    expect(await visibility('waiting')).toBe('visible')
+    expect(await visibility('waiting', '.nodef__aux')).toBe('hidden')
+    expect(await visibility('waiting', '.nodef__value')).toBe('hidden')
   })
 
   test('body, name and the gap are one node to point at and to select', async ({ page }) => {
@@ -184,23 +222,49 @@ test.describe('node structure — the small graph under the new node', () => {
 
   test('four-side ports: a stored face routes from that face; a new connection from a face handle stores its face', async ({ page }) => {
     await openSmall(page, 'outside')
-    // e_leave is stored bottom → top: its route starts on the bottom edge of `treated`
-    // at the `out` lane 20 px from the right corner (routeMap.portPoint), and ends on
-    // the top edge of `discharged` at the `in` lane 20 px from the left corner
-    const geom = await page.evaluate(() => {
+    // e_leave is stored bottom → top: its route starts at `treated`'s bottom-face
+    // anchor and ends at `discharged`'s top-face anchor — routeMap.portPoint, on
+    // the symbol outline (the 2026-10-19 symbol nodes; the previous body used
+    // lanes 20 px from the corners)
+    const geom = await page.evaluate(async () => {
+      const rm = await import('/src/store/routeMap.ts' as string)
       const g = (window as unknown as { __loop: Loop }).__loop.graph.getState()
-      const at = (id: string) => { const n = g.nodes.find((x: any) => x.id === id); const el = document.querySelector(`.react-flow__node[data-id="${id}"] .nodef`) as HTMLElement; return { x: n.position.x, y: n.position.y, w: el.offsetWidth, h: el.offsetHeight } }
+      const n = (id: string) => g.nodes.find((x: any) => x.id === id)
       const d = document.querySelector('.react-flow__edge[data-id="e_leave"] path.react-flow__edge-path')!.getAttribute('d')!
       const nums = d.match(/-?\d+(\.\d+)?/g)!.map(Number)
-      return { treated: at('treated'), discharged: at('discharged'), start: { x: nums[0], y: nums[1] }, end: { x: nums[nums.length - 2], y: nums[nums.length - 1] } }
+      return {
+        from: rm.portPoint(n('treated'), 'bottom', 'out') as { x: number; y: number },
+        to: rm.portPoint(n('discharged'), 'top', 'in') as { x: number; y: number },
+        centres: { treated: n('treated').position.y + 28, discharged: n('discharged').position.y + 28 },
+        start: { x: nums[0], y: nums[1] },
+        end: { x: nums[nums.length - 2], y: nums[nums.length - 1] },
+      }
     })
-    expect(geom.start.x).toBeCloseTo(geom.treated.x + geom.treated.w - 20, 0)
-    expect(geom.start.y).toBeCloseTo(geom.treated.y + geom.treated.h, 0)
-    expect(geom.end.x).toBeCloseTo(geom.discharged.x + 20, 0)
-    expect(geom.end.y).toBeCloseTo(geom.discharged.y, 0)
+    expect(geom.start.x).toBeCloseTo(geom.from.x, 0)
+    expect(geom.start.y).toBeCloseTo(geom.from.y, 0)
+    expect(geom.end.x).toBeCloseTo(geom.to.x, 0)
+    expect(geom.end.y).toBeCloseTo(geom.to.y, 0)
+    // and those are the faces stored: below treated's centre, above discharged's
+    expect(geom.from.y).toBeGreaterThan(geom.centres.treated)
+    expect(geom.to.y).toBeLessThan(geom.centres.discharged)
+    // independent of portPoint: both ends on the outline each node DRAWS, and
+    // where its DOM handle for that face is
+    expect(await onDrawnOutline(page, 'treated', geom.start), 'start on treated’s drawn outline').toBe(true)
+    expect(await onDrawnOutline(page, 'discharged', geom.end), 'end on discharged’s drawn outline').toBe(true)
+    expect(await endToDomHandle(page, 'e_leave', 'start', 'treated', 'out@bottom')).toBeLessThan(2)
+    expect(await endToDomHandle(page, 'e_leave', 'end', 'discharged', 'in@top')).toBeLessThan(2)
     // a new connection from triage's bottom `out` handle to discharged's default `in`
     const count = () => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().edges.length)
     const n0 = await count()
+    // both ends on the canvas first, by the user's own move (`panLeft`): at x
+    // 40 the drop point `discharged`'s input lies under the properties panel;
+    // the drag then crossed the canvas edge, auto-pan moved the view (x 40 →
+    // −29.75, measured 2026-10-20) and the drop landed on the panel: no
+    // connection. The faces drawn from are the test's own; only the view is
+    // prepared.
+    await panLeft(page, 160)
+    expect(await onCanvas(page, '.react-flow__node[data-id="triage"] .nodef'), 'the start node on the canvas').toBe(true)
+    expect(await onCanvas(page, '.react-flow__node[data-id="discharged"] .react-flow__handle[data-handleid="in"]'), 'the drop point on the canvas').toBe(true)
     // the face handles show on the SELECTED node (pointing alone reveals none)
     await nodeBox(page, 'triage').click({ position: { x: 30, y: 28 } })
     const from = page.locator('.react-flow__node[data-id="triage"] .react-flow__handle[data-handleid="out@bottom"]')
@@ -408,12 +472,18 @@ test.describe('node structure — the small graph under the new node', () => {
       }
     })
     await openSmall(page, 'outside')
+    // the frame and every name it is checked against on the canvas first, by
+    // the user's own move (`panLeft`): at x 40 Treated today's right-face name
+    // lies under the properties panel, where nothing of the canvas answers
+    await panLeft(page, 200)
+    expect(await onCanvas(page, '.react-flow__node[data-id="treated"] .nodef__name'), 'the right-face name on the canvas').toBe(true)
     // the shipped frame (sized for today's taller Pool) is already cut once: Treated
     // today's bridge and name lie on its right border (share 20 §1)
     const before = await page.locator('.lgr-frame__edge-hit').count()
     expect(before).toBeGreaterThanOrEqual(4)
     await setTight()
     await expect.poll(async () => (await read()).strips).toBeGreaterThan(before)
+    expect(await onCanvas(page, '.lgr-frame'), 'the tight frame on the canvas').toBe(true)
     const r = await read()
     expect(r.waitingCentre, 'the top-face name is not under the title chip').toBe('waiting')
     expect(r.triageCentre, 'the bottom-face name is not under the bottom strip').toBe('triage')

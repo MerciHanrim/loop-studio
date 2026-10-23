@@ -4,10 +4,9 @@ import { expect, openApp, resetAll, test } from './support/loop'
 // The Tier-1 toolbar row, measured in EVERY shipped locale.
 //
 // WHY THIS FILE EXISTS. `src/components/toolbar/toolbarOverflow.test.ts` pins
-// the collapse ARITHMETIC against metrics lifted by hand from the running app,
-// and it has carried exactly three locales — EN, KO and JA — since it was
-// written. That is a real gap: `ru`, `fr` and `pt-PT` all produce a wider row
-// than any of the three, and nothing measured them. Adding invented numbers to
+// the collapse ARITHMETIC against metrics lifted by hand from the running app.
+// When eighteen locales shipped, several produced a wider row than the ones
+// that file carried, and nothing measured them. Adding invented numbers to
 // that file would have made it look covered without measuring anything, so the
 // per-locale coverage lives HERE, where the width is read off the real DOM.
 //
@@ -23,20 +22,16 @@ import { expect, openApp, resetAll, test } from './support/loop'
 // that are locale-independent: nothing clipped, and no horizontal scroll.
 //
 // Measured baseline for the Tier-1 button row at 1280px, taken while adding
-// Italian: `ko` 536 · `vi` 579 · `tr` 588 · `en` 603 · `de` 648 · `fr` 690 ·
-// `pt-PT` 690 · `ru` 707. Russian is the high-water mark and the row holds it,
-// so a new locale only becomes a new case above that. No pixel number is
-// asserted here — a width that is fine on one viewport is not on another, and
-// what a reader actually sees is whether anything is cut off.
+// Italian (eighteen locales then): `ko` 536 · `en` 603, with Russian the
+// high-water mark at 707. No pixel number is asserted here — a width that is
+// fine on one viewport is not on another, and what a reader actually sees is
+// whether anything is cut off.
+//
+// §L2.0 (2026-10) — en and ko are the shipped locales. The RTL pseudo-locale
+// `ar-XB` is not listed: its catalog is English verbatim, so it would measure
+// the same labels as `en`.
 
-const SHIPPED = [
-  'en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'it', 'nl',
-  'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'vi',
-  // the first RTL locale. A hard-coded list that omits one does not FAIL, it
-  // silently stops measuring — which is how `ar` sat outside both per-locale
-  // geometry sweeps while everything else about it was being checked.
-  'ar',
-] as const
+const SHIPPED = ['en', 'ko'] as const
 
 type Loop = Record<string, { getState: () => any }>
 
@@ -63,7 +58,7 @@ const measureRow = (page: Page) =>
         .map((b) => (b.textContent ?? '').trim().slice(0, 28)),
       // a labelled button has words in it (the icon-only ones — undo, redo, the
       // overflow trigger — have none). Since issue #298 the disclosure arrow is
-      // an icon, so a CJK menu label can be two characters long: `设置`, `파일`.
+      // an icon, so a Korean menu label can be two characters long: `설정`, `파일`.
       labels: buttons.map((b) => (b.textContent ?? '').trim()).filter((t) => t.length > 0),
     }
   })

@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from './support/loop'
 import { simSnapshot } from './support/mc'
+import { openFileMenu } from './support/workbenchMenus'
 
 // SLICE-2 §7 (http): any simulation-relevant graph change bumps simulationRev,
 // which resets the live sim AND marks an existing Monte-Carlo result `stale`
@@ -95,7 +96,8 @@ test.describe('MC / sim invalidation', () => {
     await run(page)
     expect((await mc(page)).stale).toBe(false)
 
-    await page.getByRole('button', { name: /Templates/ }).click()
+    // the workbench: Templates are rows of File (docs/workbench.md §WB2)
+    await openFileMenu(page)
     await page.getByRole('menuitem', { name: 'Balanced production line' }).click()
     await page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i }).click()
 
@@ -123,7 +125,7 @@ test.describe('MC / sim invalidation', () => {
     await run(page)
     expect((await mc(page)).tracked).toEqual([])
 
-    await page.getByRole('button', { name: /Templates/ }).click()
+    await openFileMenu(page)
     await page.getByRole('menuitem', { name: 'Capacity deadlock' }).click()
     await page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i }).click()
     await expect(page.locator('.react-flow__node')).toHaveCount(6)
@@ -139,7 +141,7 @@ test.describe('MC / sim invalidation', () => {
     await page.evaluate(() => (window as any).__loop.sim.getState().play())
     await expect.poll(() => simSnapshot(page).then((s) => s.status)).toBe('running')
 
-    await page.getByRole('button', { name: /Templates/ }).click()
+    await openFileMenu(page)
     await page.getByRole('menuitem', { name: 'Balanced production line' }).click()
     await page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i }).click()
     await expect(page.locator('.react-flow__node')).toHaveCount(7)

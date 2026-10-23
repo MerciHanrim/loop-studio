@@ -189,10 +189,15 @@ export default defineConfig(({ mode }) => {
     // run via `npm run e2e`.
     test: {
       // Robust to nested worktree checkouts under .claude/worktrees/, which
-      // otherwise leak their own e2e/ Playwright specs into this glob.
-      exclude: [...configDefaults.exclude, 'e2e/**', '**/.claude/worktrees/**'],
+      // otherwise leak their own e2e/ Playwright specs into this glob; and to
+      // the local, untracked scratch/ folder, whose probes run with their own
+      // configs (2026-10-20: a scratch probe ran here and timed out)
+      exclude: [...configDefaults.exclude, 'e2e/**', '**/.claude/worktrees/**', 'archive/**', 'scratch/**'],
       // issue #297 - the storage port starts shut; the unit tests open it
       setupFiles: ['src/test/setup.ts'],
+      // a stylesheet read as text (`?raw`) keeps its text; vitest blanks every
+      // other CSS import, as before (symbol.test.ts reads nodeStructure.css)
+      css: { include: [/\.css\?raw$/] },
     },
   }
 })

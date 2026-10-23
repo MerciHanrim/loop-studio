@@ -2,6 +2,9 @@ import coffeeRoasteryDoc from '../../examples/coffee-roastery.json'
 import deadlockDoc from '../../examples/deadlock.json'
 import equilibriumDoc from '../../examples/equilibrium.json'
 import gachaBannerZonesDoc from '../../examples/gacha-banner-zones.json'
+import gachaGeneralDoc from '../../examples/gacha-general.json'
+import gachaStandardDoc from '../../examples/gacha-standard.json'
+import gachaPickupDoc from '../../examples/gacha-pickup.json'
 import mmoProgressionDoc from '../../examples/mmo-progression.json'
 import {
   modelVersionForSchema,
@@ -175,6 +178,60 @@ export const TEMPLATES: Template[] = [
       minZoom: 0.6,
       keep: { x: 48, y: 36, width: 1188, height: 200 },
     },
+  },
+  // docs/gacha-general.md — the general gacha: ONE banner with no pity,
+  // standalone (Lumi, 2026-10-20). The canonical graph is
+  // examples/gacha-general.json, built by scripts/gen-gacha-general-example.ts,
+  // which reuses the 3-zone comparison's shared graph builder (its General /
+  // Free zone); the standalone example's run is checked by its own tests
+  // (src/engine/gacha-general.test.ts, e2e/gacha-general.spec.ts). Opens
+  // UNLOCKED (a model to learn from and edit) and fitted whole: no
+  // `initialView`.
+  {
+    id: 'gacha-general',
+    name: 'General gacha',
+    blurb:
+      'One banner with no pity. For each ticket the roll picks SSR, SR or R by weight (chance = weight ÷ the sum of the weights), and the result counts and the pulls made add up. The SSR hit rate is computed with the target pulls as its denominator. It differs from the ratio over the pulls actually made during a run, and equals the observed hit rate once the target is reached. The completion signal is a pool holding 1; the step after the pulls made reach the target, the end takes that 1 and the run stops.',
+    graph: tplGraph(gachaGeneralDoc),
+    recommendedRunConfig: (gachaGeneralDoc as { recommendedRunConfig?: RecommendedRunConfig }).recommendedRunConfig,
+    modelVersion: modelVersionForSchema((gachaGeneralDoc as { schema?: unknown }).schema) ?? 1,
+  },
+  // docs/gacha-standard.md — the standard gacha: ONE banner with a hard pity
+  // ceiling, standalone (Lumi, 2026-10-20). The canonical graph is
+  // examples/gacha-standard.json, built by scripts/gen-gacha-standard-example.ts
+  // from the 3-zone comparison's shared graph builder (its Premium Standard
+  // zone), with one reviewed structural change: the forced SSR feeds the SSR
+  // result, which handles every SSR. Checked step by step against the zone's
+  // structure (src/engine/gacha-standard.test.ts) and as opened from the menu
+  // (e2e/gacha-standard.spec.ts). Opens UNLOCKED and fitted whole: no
+  // `initialView`. Its pity block is a saved frame.
+  {
+    id: 'gacha-standard',
+    name: 'Standard gacha',
+    blurb:
+      'One banner with a hard pity ceiling. The pity counter goes up by one on an SR or an R and back to 0 on an SSR; once it reaches the ceiling − 1, the next pull is a forced SSR, which goes through the same SSR result as a natural one and is also counted in the ceiling hits. The hit rate and the end are as in the General gacha.',
+    graph: tplGraph(gachaStandardDoc),
+    recommendedRunConfig: (gachaStandardDoc as { recommendedRunConfig?: RecommendedRunConfig }).recommendedRunConfig,
+    modelVersion: modelVersionForSchema((gachaStandardDoc as { schema?: unknown }).schema) ?? 1,
+  },
+  // docs/gacha-pickup.md — the pickup gacha: ONE banner with a hard pity
+  // ceiling and a pickup guarantee, standalone (Lumi, 2026-10-20). The
+  // canonical graph is examples/gacha-pickup.json, built by
+  // scripts/gen-gacha-pickup-example.ts from the 3-zone comparison's shared
+  // graph builder (its Premium Pickup zone), with the adopted structure: the
+  // standard gacha's flow into one SSR result, then the guarantee block (the
+  // pickup confirmation when owed, else the pickup split). Its transition
+  // table per state is the zone's (src/engine/gacha-pickup.test.ts); opened from
+  // the menu: e2e/gacha-pickup.spec.ts. Opens UNLOCKED and fitted whole: no
+  // `initialView`. Its two blocks are saved frames.
+  {
+    id: 'gacha-pickup',
+    name: 'Pickup gacha',
+    blurb:
+      'One banner with a hard pity ceiling and a pickup guarantee. Every SSR, natural or forced, goes through one SSR result; while no pickup is owed, the pickup split decides pickup or off-pickup by weight, and an off-pickup SSR makes the next SSR a certain pickup. SR and R pulls keep the guarantee; the pickup SSR uses it. The hit rates and the end are as in the General gacha.',
+    graph: tplGraph(gachaPickupDoc),
+    recommendedRunConfig: (gachaPickupDoc as { recommendedRunConfig?: RecommendedRunConfig }).recommendedRunConfig,
+    modelVersion: modelVersionForSchema((gachaPickupDoc as { schema?: unknown }).schema) ?? 1,
   },
   // docs/gacha-banner-zones.md (GZ) — the 3-zone gacha banner comparison. The
   // canonical graph is examples/gacha-banner-zones.json, built by

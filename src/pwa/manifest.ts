@@ -19,14 +19,17 @@ export type WebManifest = {
   icons: { src: string; sizes: string; type: string; purpose?: 'any' | 'maskable' }[]
 }
 
-/** `--surface-ground`, light (src/index.css). Also the maskable-icon field and
- *  the light `theme-color` meta. Dark `theme-color` is `#171a18` (§P1). */
-export const PWA_BACKGROUND = '#f0efea'
+/** The workbench `--bg-app`, light (src/index.css), and the light
+ *  `theme-color` (`THEME_COLOR` in src/theme/theme.ts; dark is `#101215`).
+ *  The installed app's splash and title bar use it. The icon PNGs keep their
+ *  own fixed brand colours (scripts/gen-icons.mjs): a brand mark does not
+ *  follow the screen theme. */
+export const PWA_BACKGROUND = '#e3e6ea'
 
 export const manifest: WebManifest = {
   name: 'Loop Studio',
   short_name: 'Loop Studio',
-  description: 'Design and simulate game-economy loop diagrams.',
+  description: 'Model and simulate how resources flow and how state changes.',
   // `id`, `start_url`, `scope` are all the origin root — the whole app is one
   // page and the install identity is stable across any future `start_url` tweak.
   id: '/',

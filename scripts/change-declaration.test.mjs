@@ -1,22 +1,39 @@
 import { describe, expect, it } from 'vitest'
-import { compareLanguageSets, evaluateChange, isProductPath, parseDeclaration, readPackageVersion } from './change-declaration.mjs'
+import { evaluateChange, isProductPath, parseDeclaration, readPackageVersion, readUnreleased } from './change-declaration.mjs'
 
 // Issue #296 — the change-declaration rule, on made-up facts. The script that
-// gathers real facts from git is `check-change-declaration.mjs`.
+// gathers real facts from git is `check-change-declaration.mjs`. Revised
+// 2026-10: a user-facing change names its line under "## Unreleased" in
+// CHANGELOG.md, and no longer raises the app version itself.
 
 const INTERNAL = JSON.stringify({ type: 'internal', reason: 'A refactor with no visible change.' })
-const USER = (id = 'release:0.15.0') => JSON.stringify({ type: 'user-facing', releaseNoteId: id })
-const NOTE = { id: 'release:0.15.0', version: '0.15.0' }
+const ENTRY = '- **Structures**: save a selection and insert it into another document from the File menu.'
+const USER = (line = ENTRY) => JSON.stringify({ type: 'user-facing', changelog: line })
+const LEGACY = (id = 'release:0.15.0') => JSON.stringify({ type: 'user-facing', releaseNoteId: id })
+
+const log = (unreleased = [], older = '## v0.28.4 — 2026-10-17\n\n- an older line\n') =>
+  `# Changelog\n\nIntro.\n\n## Unreleased\n\n${unreleased.join('\n')}\n\n${older}`
+const BASE_LOG = log([])
+const HEAD_LOG = log([ENTRY])
 
 /** facts with sensible defaults; `added` maps a new declaration's slug to its text */
-function facts({ changed = [], added = {}, existing = {}, baseVersion = '0.14.0', headVersion = '0.14.0', notes = [], extraEntries = [] } = {}) {
+function facts({
+  changed = [],
+  added = {},
+  existing = {},
+  baseVersion = '0.14.0',
+  headVersion = '0.14.0',
+  changelog = HEAD_LOG,
+  baseChangelog = BASE_LOG,
+  extraEntries = [],
+} = {}) {
   const declarationTexts = { ...existing }
   const all = [...changed]
   for (const [slug, text] of Object.entries(added)) {
     declarationTexts[`.changes/${slug}.json`] = text
     all.push({ status: 'A', path: `.changes/${slug}.json` })
   }
-  return { changed: all, declarationTexts, declarationDirEntries: [...Object.keys(declarationTexts), ...extraEntries], baseVersion, headVersion, notes }
+  return { changed: all, declarationTexts, declarationDirEntries: [...Object.keys(declarationTexts), ...extraEntries], baseVersion, headVersion, changelog, baseChangelog }
 }
 const problems = (f) => evaluateChange(facts(f)).problems
 const SRC = { status: 'M', path: 'src/store/uiStore.ts' }
@@ -42,7 +59,7 @@ describe('what is built or shipped', () => {
   it('a path nobody has classified counts as shipping', () => {
     for (const p of ['wrangler.toml', 'rolldown.config.mjs', 'scripts/new-build-step.mjs', 'assets/logo.svg', 'public/README.md', 'src/notes.md']) expect(isProductPath(p), p).toBe(true)
   })
-  it('documents, tests, CI and the checks themselves do not ship', () => {
+  it('documents, tests, CI, the archive and the checks themselves do not ship', () => {
     for (const p of [
       'src/store/uiStore.test.ts',
       'src/components/A.test.tsx',
@@ -61,6 +78,7 @@ describe('what is built or shipped', () => {
       'README.md',
       'CHANGELOG.md',
       'examples/README.md',
+      'archive/i18n/locales/fr/ui.ts', // archived translations: no build reads them
       '.github/workflows/ci.yml',
       '.gitignore',
       '.oxlintrc.json',
@@ -72,9 +90,11 @@ describe('what is built or shipped', () => {
 })
 
 describe('a declaration file', () => {
-  it('reads the two shapes', () => {
+  it('reads the two shapes, and the record written before 2026-10', () => {
     expect(parseDeclaration(INTERNAL).value).toEqual({ type: 'internal', reason: 'A refactor with no visible change.' })
-    expect(parseDeclaration(USER()).value).toEqual({ type: 'user-facing', releaseNoteId: 'release:0.15.0' })
+    expect(parseDeclaration(USER()).value).toEqual({ type: 'user-facing', changelog: ENTRY })
+    // an old declaration is a record and must still parse, or the whole folder fails
+    expect(parseDeclaration(LEGACY()).value).toEqual({ type: 'user-facing', releaseNoteId: 'release:0.15.0' })
   })
   const bad = [
     ['not JSON', '{', /not valid JSON/],
@@ -83,16 +103,31 @@ describe('a declaration file', () => {
     ['no type', '{"reason":"x"}', /"type" must be/],
     ['internal with an empty reason', '{"type":"internal","reason":"  "}', /must say, in words/],
     ['internal with no reason', '{"type":"internal"}', /exactly "type" and "reason"/],
-    ['internal with an extra key', '{"type":"internal","reason":"x","releaseNoteId":"release:1.0.0"}', /exactly "type" and "reason"/],
-    ['user-facing with no id', '{"type":"user-facing"}', /exactly "type" and "releaseNoteId"/],
-    ['user-facing with a bare version', '{"type":"user-facing","releaseNoteId":"0.15.0"}', /must be "release:<version>"/],
-    ['user-facing with an extra key', '{"type":"user-facing","releaseNoteId":"release:0.15.0","reason":"x"}', /exactly "type" and "releaseNoteId"/],
+    ['internal with an extra key', '{"type":"internal","reason":"x","changelog":"y"}', /exactly "type" and "reason"/],
+    ['user-facing with nothing named', '{"type":"user-facing"}', /exactly "type" and "changelog"/],
+    ['user-facing with an empty line', '{"type":"user-facing","changelog":" "}', /must be the line this change adds/],
+    ['user-facing with two lines', '{"type":"user-facing","changelog":"a\\nb"}', /without a line break/],
+    ['user-facing with an extra key', '{"type":"user-facing","changelog":"x","reason":"y"}', /exactly "type" and "changelog"/],
+    ['a legacy record with a bare version', '{"type":"user-facing","releaseNoteId":"0.15.0"}', /must be "release:<version>"/],
   ]
   for (const [name, text, expected] of bad) {
     it(`rejects ${name}`, () => {
       expect(parseDeclaration(text).problems.join('\n')).toMatch(expected)
     })
   }
+})
+
+describe('the Unreleased section of the CHANGELOG', () => {
+  it('is everything from its heading to the next release heading, blanks left out', () => {
+    expect(readUnreleased(log(['- one', '', '- two']))).toEqual({ lines: ['- one', '- two'] })
+    expect(readUnreleased(log([]))).toEqual({ lines: [] })
+    // CRLF reads the same
+    expect(readUnreleased(log(['- one']).replace(/\n/g, '\r\n'))).toEqual({ lines: ['- one'] })
+  })
+  it('a CHANGELOG with no such section, or none at all, is a reason, never an empty list', () => {
+    expect(readUnreleased('# Changelog\n\n## v0.28.4\n\n- x\n').problem).toMatch(/has no "## Unreleased" section/)
+    expect(readUnreleased(null).problem).toMatch(/could not be read/)
+  })
 })
 
 describe('does this change need a declaration', () => {
@@ -107,7 +142,7 @@ describe('does this change need a declaration', () => {
       expect(problems({ changed: [{ status: 'M', path }] }).join('\n'), path).toMatch(/needs a declaration.*touches what is built or shipped/)
     }
   })
-  it('only documents, unit tests, e2e specs and checks changed: still none is needed', () => {
+  it('only documents, unit tests, e2e specs, the archive and checks changed: still none is needed', () => {
     expect(
       problems({
         changed: [
@@ -115,6 +150,7 @@ describe('does this change need a declaration', () => {
           { status: 'M', path: 'README.md' },
           { status: 'A', path: 'src/store/new.test.ts' },
           { status: 'M', path: 'e2e/mobile.spec.ts' },
+          { status: 'A', path: 'archive/i18n/e2e/i18n-fr.spec.ts' },
           { status: 'M', path: 'scripts/check-i18n.mjs' },
           { status: 'M', path: '.github/workflows/ci.yml' },
         ],
@@ -134,14 +170,15 @@ describe('does this change need a declaration', () => {
   it('an internal declaration with a reason satisfies it', () => {
     expect(problems({ changed: [SRC], added: { 'storage-port': INTERNAL } })).toEqual([])
   })
-  it('an internal change may raise the version without a note', () => {
-    expect(problems({ changed: [SRC], added: { hotfix: INTERNAL }, headVersion: '0.14.1' })).toEqual([])
-    expect(problems({ changed: [SRC], added: { hotfix: INTERNAL }, headVersion: '0.15.0' })).toEqual([])
-    expect(problems({ changed: [SRC], added: { hotfix: INTERNAL }, baseVersion: '0.9.9', headVersion: '0.10.0' })).toEqual([])
+  it('a release raises the version under a declaration of its own', () => {
+    expect(problems({ changed: [SRC], added: { release: INTERNAL }, headVersion: '0.14.1' })).toEqual([])
+    expect(problems({ changed: [SRC], added: { release: INTERNAL }, headVersion: '0.15.0' })).toEqual([])
+    expect(problems({ changed: [SRC], added: { release: INTERNAL }, baseVersion: '0.9.9', headVersion: '0.10.0' })).toEqual([])
   })
-  it('an internal change may not lower the version', () => {
+  it('no change may lower the version', () => {
     expect(problems({ changed: [SRC], added: { hotfix: INTERNAL }, headVersion: '0.13.0' }).join('\n')).toMatch(/went from 0\.14\.0 to 0\.13\.0; a version that changes only goes up/)
     expect(problems({ changed: [SRC], added: { hotfix: INTERNAL }, baseVersion: '0.10.0', headVersion: '0.9.9' }).join('\n')).toMatch(/only goes up/)
+    expect(problems({ changed: [SRC], added: { visible: USER() }, headVersion: '0.13.0' }).join('\n')).toMatch(/only goes up/)
     // and a fall is a fall with nothing else changed, and with nothing declared
     expect(problems({ changed: [], headVersion: '0.13.9' }).join('\n')).toMatch(/only goes up/)
   })
@@ -160,32 +197,85 @@ describe('does this change need a declaration', () => {
 })
 
 describe('a user-facing change', () => {
-  const good = { changed: [SRC], added: { 'whats-new': USER() }, headVersion: '0.15.0', notes: [NOTE] }
-  it('with the version raised and its release note present', () => {
+  const good = { changed: [SRC, { status: 'M', path: 'CHANGELOG.md' }], added: { structures: USER() } }
+  it('with its line added under Unreleased, and the version left alone', () => {
     expect(problems(good)).toEqual([])
   })
-  it('without a version change', () => {
-    expect(problems({ ...good, headVersion: '0.14.0', added: { 'whats-new': USER('release:0.14.0') }, notes: [{ id: 'release:0.14.0', version: '0.14.0' }] }).join('\n')).toMatch(/raises the app version, and it is still 0\.14\.0/)
+  it('does NOT need to raise the version — that waits for an approved release', () => {
+    expect(problems({ ...good, headVersion: '0.14.0', baseVersion: '0.14.0' })).toEqual([])
   })
-  it('with the version lowered', () => {
-    expect(problems({ ...good, headVersion: '0.13.9', added: { 'whats-new': USER('release:0.13.9') }, notes: [{ id: 'release:0.13.9', version: '0.13.9' }] }).join('\n')).toMatch(/went from 0\.14\.0 to 0\.13\.9; a version that changes only goes up/)
+  it('the line may be named with or without its list marker', () => {
+    expect(problems({ ...good, added: { structures: USER(ENTRY.replace(/^- /, '')) } })).toEqual([])
   })
-  it('naming a release note for another version', () => {
-    expect(problems({ ...good, added: { 'whats-new': USER('release:0.16.0') }, notes: [NOTE, { id: 'release:0.16.0', version: '0.16.0' }] }).join('\n')).toMatch(/it must be release:0\.15\.0/)
+  it('whose line is not in the CHANGELOG', () => {
+    expect(problems({ ...good, changelog: BASE_LOG }).join('\n')).toMatch(/its "changelog" line is not under "## Unreleased"/)
   })
-  it('whose release note does not exist', () => {
-    expect(problems({ ...good, notes: [] }).join('\n')).toMatch(/there is no release note with the id release:0\.15\.0/)
+  it('whose line sits under an older release, not under Unreleased', () => {
+    const misplaced = log([], `## v0.28.4 — 2026-10-17\n\n${ENTRY}\n`)
+    expect(problems({ ...good, changelog: misplaced }).join('\n')).toMatch(/is not under "## Unreleased"/)
+  })
+  it('whose line an earlier change already wrote', () => {
+    expect(problems({ ...good, baseChangelog: HEAD_LOG }).join('\n')).toMatch(/was already under "## Unreleased" at the base/)
+  })
+  it('with no Unreleased section, or no CHANGELOG at all', () => {
+    expect(problems({ ...good, changelog: '# Changelog\n\n## v0.28.4\n\n- x\n' }).join('\n')).toMatch(/has no "## Unreleased" section/)
+    expect(problems({ ...good, changelog: null }).join('\n')).toMatch(/could not be read/)
+  })
+  it('a NEW declaration in the old shape, naming an in-app release note, is refused', () => {
+    expect(problems({ ...good, added: { visible: LEGACY('release:0.15.0') }, headVersion: '0.15.0' }).join('\n')).toMatch(/names its line under "## Unreleased".*not an in-app release note/)
+  })
+  it('old declarations in the old shape stay valid records', () => {
+    expect(problems({ ...good, existing: { '.changes/whats-new.json': LEGACY() } })).toEqual([])
+  })
+})
+
+// A release raises the app version and, in the same change, moves the
+// Unreleased lines into the section of exactly that version (2026-10-23).
+describe('a user-facing release change', () => {
+  const released = (version, lines = [ENTRY]) => log([], `## v${version} — 2026-10-23\n\n${lines.join('\n')}\n\n## v0.28.4 — 2026-10-17\n\n- an older line\n`)
+  const release = { changed: [SRC, { status: 'M', path: 'CHANGELOG.md' }, { status: 'M', path: 'package.json' }], added: { structures: USER() }, baseVersion: '0.28.4', headVersion: '0.29.0' }
+  it('its line under the section of the version it raises to', () => {
+    expect(problems({ ...release, changelog: released('0.29.0') })).toEqual([])
+  })
+  it('the heading may carry its date or nothing after the version', () => {
+    const bare = log([], `## v0.29.0\n\n${ENTRY}\n`)
+    expect(problems({ ...release, changelog: bare })).toEqual([])
+  })
+  it('its line still under Unreleased, the version raised: accepted as before', () => {
+    expect(problems({ ...release, changelog: HEAD_LOG })).toEqual([])
+  })
+  it('its line missing, or changed, in the new section', () => {
+    expect(problems({ ...release, changelog: released('0.29.0', ['- something else']) }).join('\n')).toMatch(/neither under "## Unreleased" nor under "## v0\.29\.0"/)
+    expect(problems({ ...release, changelog: released('0.29.0', [ENTRY.replace('File menu', 'Edit menu')]) }).join('\n')).toMatch(/neither under "## Unreleased" nor under "## v0\.29\.0"/)
+  })
+  it('its line under another version than the one raised to: an older release', () => {
+    const older = log([], `## v0.29.0 — 2026-10-23\n\n- other\n\n## v0.28.4 — 2026-10-17\n\n${ENTRY}\n`)
+    expect(problems({ ...release, changelog: older }).join('\n')).toMatch(/neither under "## Unreleased" nor under "## v0\.29\.0"/)
+  })
+  it('its line under a section that only starts like the version (v0.29.0 is not v0.29.01)', () => {
+    expect(problems({ ...release, headVersion: '0.29.0', changelog: log([], `## v0.29.01\n\n${ENTRY}\n`) }).join('\n')).toMatch(/neither under/)
+  })
+  it('moved out of Unreleased with no version raised: refused', () => {
+    expect(problems({ ...release, headVersion: '0.28.4', changelog: released('0.28.5') }).join('\n')).toMatch(/its "changelog" line is not under "## Unreleased"/)
+  })
+  it('moved into the section of the CURRENT version, unraised: refused', () => {
+    const current = log([], `## v0.28.4 — 2026-10-17\n\n${ENTRY}\n`)
+    expect(problems({ ...release, headVersion: '0.28.4', changelog: current }).join('\n')).toMatch(/is not under "## Unreleased"/)
+  })
+  it('a line an earlier change already wrote into that section does not stand for this one', () => {
+    expect(problems({ ...release, changelog: released('0.29.0'), baseChangelog: released('0.29.0') }).join('\n')).toMatch(/was already under "## v0\.29\.0" at the base/)
+  })
+  it('the Unreleased heading itself is still required', () => {
+    expect(problems({ ...release, changelog: `# Changelog\n\n## v0.29.0 — 2026-10-23\n\n${ENTRY}\n` }).join('\n')).toMatch(/has no "## Unreleased" section/)
+  })
+  it('the other rules hold for a release: one declaration, the version only goes up', () => {
+    expect(problems({ ...release, changelog: released('0.29.0'), added: { a: USER(), b: INTERNAL } }).join('\n')).toMatch(/2 declarations were added/)
+    expect(problems({ ...release, baseVersion: '0.29.0', headVersion: '0.28.4', changelog: released('0.28.4') }).join('\n')).toMatch(/only goes up/)
   })
 })
 
 describe('versions are compared as numbers', () => {
-  const at = (baseVersion, headVersion) => ({
-    changed: [SRC],
-    added: { release: USER(`release:${headVersion}`) },
-    baseVersion,
-    headVersion,
-    notes: [{ id: `release:${headVersion}`, version: headVersion }],
-  })
+  const at = (baseVersion, headVersion) => ({ changed: [SRC], added: { release: INTERNAL }, baseVersion, headVersion })
   it('0.9.9 -> 0.10.0 is a rise, although "0.10.0" sorts before "0.9.9" as text', () => {
     expect(['0.9.9', '0.10.0'].sort()).toEqual(['0.10.0', '0.9.9'])
     expect(problems(at('0.9.9', '0.10.0'))).toEqual([])
@@ -198,7 +288,7 @@ describe('versions are compared as numbers', () => {
   it('a pre-release or malformed app version is refused, whatever the declaration says', () => {
     for (const bad of ['0.15.0-beta.1', '0.15.0+build.3', 'v0.15.0', '0.15', '0.15.0.1', '01.2.3', 'next']) {
       expect(problems(at('0.14.0', bad)).join('\n'), bad).toMatch(/the app version ".*" is not x\.y\.z/)
-      expect(problems({ changed: [SRC], added: { hotfix: INTERNAL }, headVersion: bad }).join('\n'), bad).toMatch(/is not x\.y\.z/)
+      expect(problems({ changed: [SRC], added: { visible: USER() }, headVersion: bad }).join('\n'), bad).toMatch(/is not x\.y\.z/)
     }
   })
 })
@@ -228,39 +318,6 @@ describe('the app version in a package.json text', () => {
       expect(r.problem).toMatch(why)
     })
   }
-})
-
-describe('the languages with a catalog are exactly the registered ones', () => {
-  const EIGHTEEN = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'vi', 'it', 'nl', 'ar']
-  it('the same set, in any order', () => {
-    expect(EIGHTEEN).toHaveLength(18)
-    expect(compareLanguageSets(EIGHTEEN, [...EIGHTEEN].reverse())).toEqual([])
-  })
-  it('seventeen of eighteen: every single language is missed out loud', () => {
-    for (const gone of EIGHTEEN) {
-      const seventeen = EIGHTEEN.filter((c) => c !== gone)
-      expect(seventeen).toHaveLength(17)
-      expect(compareLanguageSets(EIGHTEEN, seventeen), gone).toEqual([`1 registered language(s) have no catalog: ${gone}`])
-    }
-  })
-  it('no catalog at all', () => {
-    expect(compareLanguageSets(EIGHTEEN, []).join('\n')).toMatch(/18 registered language\(s\) have no catalog/)
-  })
-  it('a catalog for a language that is not registered', () => {
-    expect(compareLanguageSets(EIGHTEEN, [...EIGHTEEN, 'fi'])).toEqual(['1 catalog(s) belong to no registered language: fi'])
-  })
-  it('one swapped for another keeps the count at eighteen and still fails twice', () => {
-    const swapped = [...EIGHTEEN.filter((c) => c !== 'ar'), 'fi']
-    expect(swapped).toHaveLength(18)
-    expect(compareLanguageSets(EIGHTEEN, swapped)).toEqual(['1 registered language(s) have no catalog: ar', '1 catalog(s) belong to no registered language: fi'])
-  })
-  it('an empty or unreadable registry is a problem, not "nothing to compare"', () => {
-    expect(compareLanguageSets([], EIGHTEEN)).toEqual(['the registry lists no shipped language'])
-    expect(compareLanguageSets(undefined, EIGHTEEN)).toEqual(['the registry lists no shipped language'])
-  })
-  it('a code listed twice', () => {
-    expect(compareLanguageSets([...EIGHTEEN, 'ko'], EIGHTEEN).join('\n')).toMatch(/lists the language ko more than once/)
-  })
 })
 
 describe('declarations are a record', () => {

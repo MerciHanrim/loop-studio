@@ -225,6 +225,93 @@ export const ko: TemplateLabelDict = {
     termination_fuel: '완료 신호',
     all_zones_done: '전체 존 완료',
   },
+  // docs/gacha-general.md — node ids from scripts/gen-gacha-general-example.ts
+  // (`examples/gacha-general.json`); names for a standalone example (share
+  // note 94), the English canonical in the file
+  'gacha-general': {
+    target_pulls: '목표 뽑기 횟수(정수)',
+    w_ssr: 'SSR 가중치',
+    w_sr: 'SR 가중치',
+    w_r: 'R 가중치',
+    fund_tickets: '티켓 지급',
+    tickets: '티켓',
+    roll: '뽑기 판정',
+    ssr_result: 'SSR 결과',
+    sr_result: 'SR 결과',
+    r_result: 'R 결과',
+    ssr_count: 'SSR 횟수',
+    sr_count: 'SR 횟수',
+    r_count: 'R 횟수',
+    pulls_made: '뽑기 횟수',
+    ssr_hit_rate: 'SSR 적중률 · 목표 횟수 기준',
+    completion_signal: '완료 신호',
+    pulls_complete: '뽑기 완료',
+  },
+  // docs/gacha-standard.md — node ids from scripts/gen-gacha-standard-example.ts
+  // (`examples/gacha-standard.json`); the general gacha's names where the node
+  // is the same, and the pity block's as reviewed in the layout rounds
+  // (2026-10-20)
+  'gacha-standard': {
+    target_pulls: '목표 뽑기 횟수(정수)',
+    w_ssr: 'SSR 가중치',
+    w_sr: 'SR 가중치',
+    w_r: 'R 가중치',
+    hard_pity: '천장 횟수',
+    fund_tickets: '티켓 지급',
+    tickets: '티켓',
+    roll: '뽑기 판정',
+    ssr_result: 'SSR 결과',
+    sr_result: 'SR 결과',
+    r_result: 'R 결과',
+    ssr_count: 'SSR 횟수',
+    sr_count: 'SR 횟수',
+    r_count: 'R 횟수',
+    pulls_made: '뽑기 횟수',
+    pity: '천장 카운트',
+    forced_ssr: '확정 SSR',
+    ceiling_hits: '천장 도달 횟수',
+    ssr_hit_rate: 'SSR 적중률 · 목표 횟수 기준',
+    completion_signal: '완료 신호',
+    pulls_complete: '뽑기 완료',
+  },
+  // docs/gacha-pickup.md — node ids from scripts/gen-gacha-pickup-example.ts
+  // (`examples/gacha-pickup.json`); the standard gacha's names where the node
+  // is the same; the guarantee's by role (Lumi, 2026-10-20): the state pool
+  // 픽업 보장 상태, the guarantee's gate 픽업 확정, the chance split 픽업 판정,
+  // the non-pickup result 픽업 외 SSR (the frame: koFrames)
+  'gacha-pickup': {
+    target_pulls: '목표 뽑기 횟수(정수)',
+    w_ssr: 'SSR 가중치',
+    w_sr: 'SR 가중치',
+    w_r: 'R 가중치',
+    hard_pity: '천장 횟수',
+    w_pickup: '픽업 가중치',
+    w_off: '픽업 외 가중치',
+    fund_tickets: '티켓 지급',
+    tickets: '티켓',
+    roll: '뽑기 판정',
+    forced_ssr: '확정 SSR',
+    ssr_result: 'SSR 결과',
+    owed_route: '픽업 확정',
+    pickup_split: '픽업 판정',
+    pickup_ssr: '픽업 SSR',
+    off_ssr: '픽업 외 SSR',
+    sr_result: 'SR 결과',
+    r_result: 'R 결과',
+    pickup_count: '픽업 SSR 횟수',
+    off_count: '픽업 외 SSR 횟수',
+    ssr_count: 'SSR 횟수',
+    sr_count: 'SR 횟수',
+    r_count: 'R 횟수',
+    pulls_made: '뽑기 횟수',
+    pity: '천장 카운트',
+    ceiling_hits: '천장 도달 횟수',
+    pickup_owed: '픽업 보장 상태',
+    ssr_hit_rate: 'SSR 적중률 · 목표 횟수 기준',
+    pickup_rate: '픽업 적중률 · 목표 횟수 기준',
+    completion_signal: '완료 신호',
+    pulls_complete: '뽑기 완료',
+  },
 }
 
 // docs/template-label-overlay.md §TLO12 — the Korean group-frame TITLE overlay,
@@ -242,5 +329,12 @@ export const koFrames: TemplateLabelMap = {
     zone_standard: '프리미엄 상시',
     zone_pickup: '프리미엄 픽업',
     zone_comparison: '비교',
+  },
+  'gacha-standard': {
+    pity_block: '천장',
+  },
+  'gacha-pickup': {
+    pity_block: '천장',
+    pickup_block: '픽업 보장',
   },
 }

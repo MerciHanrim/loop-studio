@@ -53,24 +53,40 @@ function fmtRegister(value: number, format?: 'int' | 'float' | 'percent'): strin
   return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(6)))
 }
 
-/** the whole text the value row must carry for a case — computed from the
- *  document numbers by the product's own rules, never read back from the DOM */
-export function expectedRow(c: OverflowCase): string {
+// The symbol nodes (2026-10-19): the VALUE is in the symbol (a register's
+// readout reads `= …`), what it MEANS — a pool's capacity `≤ N`, a unit — is on
+// the line beside the symbol, and a value too long for its symbol is elided
+// there AND written in full on that line. All of it computed from the
+// document numbers by the product's own rules, never read back from the DOM.
+
+/** the number the symbol carries, in the node's own format */
+export function expectedValue(c: OverflowCase): string {
   switch (c.kind) {
     case 'pool':
-      return c.capacity == null ? fmt(c.initial) : `${fmt(c.initial)} / ${c.capacity}`
+      return fmt(c.initial)
     case 'parameter':
-      return `${fmt(c.value)} ${c.unit}`
+      return fmt(c.value)
     case 'register': {
       const byId = Object.fromEntries(OVERFLOW_CASES.map((x) => [x.id, x])) as Record<string, OverflowCase>
       const value =
         c.id === 'reg_big'
           ? (byId.p_cap as Extract<OverflowCase, { kind: 'pool' }>).initial * 1000
           : (byId.p_dec as Extract<OverflowCase, { kind: 'pool' }>).initial / 3
-      const unit = 'unit' in c ? c.unit : undefined
-      return `${fmtRegister(value, c.format)}${unit ? ` ${unit}` : ''}`
+      return `= ${fmtRegister(value, c.format)}`
     }
   }
+}
+
+/** what the value means, on the line beside the symbol: a capacity or a unit */
+export function expectedMeaning(c: OverflowCase): string | null {
+  if (c.kind === 'pool') return c.capacity == null ? null : `≤ ${c.capacity}`
+  return 'unit' in c && c.unit ? c.unit : null
+}
+
+/** the whole text — the value with what it means — as the tooltip carries it */
+export function expectedRow(c: OverflowCase): string {
+  const m = expectedMeaning(c)
+  return `${expectedValue(c)}${m ? ` ${m}` : ''}`
 }
 
 export type ValueRow = {
@@ -83,6 +99,10 @@ export type ValueRow = {
   overflow: string
   fontSize: string
   bodyWidth: number
+  /** the line beside the symbol: the value in full (when the symbol elides
+   *  it) and what it means */
+  auxValue: string | null
+  auxMeaning: string | null
 }
 
 /** the rendered value row of a node: its text, tooltip and clipping facts */
@@ -101,5 +121,7 @@ export const readValueRow = (page: Page, id: string): Promise<ValueRow> =>
       overflow: s.overflowX,
       fontSize: s.fontSize,
       bodyWidth: root.offsetWidth,
+      auxValue: root.querySelector('.nodef__auxvalue')?.textContent ?? null,
+      auxMeaning: root.querySelector('.nodef__aux .nodef__cap, .nodef__aux .nodef__unit')?.textContent ?? null,
     }
   }, id)

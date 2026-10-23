@@ -80,56 +80,39 @@ describe('every shipped frame title is in the known-official index', () => {
     expect(checked).toBeGreaterThan(0)
   })
 
-  it('the hyphenated locales are covered by name, not only by the loop', () => {
-    // Named so that narrowing the loop above can never quietly drop exactly the
-    // locales this fix is about.
-    for (const loc of ['zh-Hans', 'zh-Hant', 'es-419', 'es-ES', 'pt-BR', 'pt-PT']) {
-      expect(templateLabelDictLocales, loc).toContain(loc)
-      const dict = loadedTemplateFrameLabelDict(loc)
-      const titles = Object.values(dict ?? {}).flatMap((m) => Object.values(m))
-      expect(titles.length, `${loc}: no frame titles loaded`).toBeGreaterThan(0)
-      for (const t of titles) {
-        const ids = Object.entries(KNOWN_OFFICIAL_FRAME_LABELS)
-          .filter(([, v]) => v.includes(t))
-          .map(([k]) => k)
-        expect(ids.length, `${loc}: ${JSON.stringify(t)} is in no known set`).toBeGreaterThan(0)
-      }
-    }
-  })
+  // §L2.0 (2026-10) — the named check of the six hyphenated locales left with
+  // them; no hyphenated locale ships now. It is kept, with the rest of the
+  // eighteen-locale version, in
+  // `archive/i18n/tests/frameLabelCoverage.multilocale.test.ts`, and belongs
+  // back here the day a hyphenated code is registered again.
 })
 
 describe('a document seeded in one locale still switches', () => {
-  // The four titles the gacha Template writes in Simplified Chinese, taken from
-  // `zh-Hans.ts`. This is the shape the reported document had.
-  const zhHansGacha = [
-    frame('zone_comparison', '对比'),
-    frame('zone_free', '常驻／免费'),
-    frame('zone_standard', '付费常驻'),
-    frame('zone_pickup', '付费 UP'),
+  // The four titles the gacha Template writes in Korean, taken from `ko.ts`.
+  const koGacha = [
+    frame('zone_comparison', '비교'),
+    frame('zone_free', '일반(무료)'),
+    frame('zone_standard', '프리미엄 상시'),
+    frame('zone_pickup', '프리미엄 픽업'),
   ]
 
-  it('zh-Hans frame titles switch to English', () => {
-    const out = relabelFramesForLocale(zhHansGacha, 'en').map((f) => f.label)
+  it('ko frame titles switch to English', () => {
+    const out = relabelFramesForLocale(koGacha, 'en').map((f) => f.label)
     expect(out).toEqual(['Comparison', 'General / Free', 'Premium Standard', 'Premium Pickup'])
   })
 
-  it('zh-Hans frame titles switch to Korean', () => {
-    const out = relabelFramesForLocale(zhHansGacha, 'ko').map((f) => f.label)
-    expect(out).toEqual([
-      '비교',
-      '일반(무료)',
-      '프리미엄 상시',
-      '프리미엄 픽업',
-    ])
+  it('English frame titles switch to Korean', () => {
+    const enGacha = TEMPLATES.find((t) => t.id === 'gacha-banner-zones')!.graph.frames!.map((f) => frame(f.id, f.label))
+    const out = relabelFramesForLocale(enGacha, 'ko')
+    const ko = new Map(koGacha.map((f) => [f.id, f.label]))
+    expect(out.map((f) => f.label)).toEqual(enGacha.map((f) => ko.get(f.id)))
   })
 
-  it('every shipped locale can be reached from a zh-Hans document', () => {
+  it('every shipped locale can be reached from a ko document', () => {
     const bad: string[] = []
     for (const loc of ['en', ...templateLabelDictLocales]) {
-      const out = relabelFramesForLocale(zhHansGacha, loc)
+      const out = relabelFramesForLocale(koGacha, loc)
       for (const f of out) {
-        // it moved off the Simplified Chinese string, unless the target locale
-        // IS zh-Hans or its official title happens to be the same string
         const dict = loc === 'en' ? undefined : loadedTemplateFrameLabelDict(loc)
         const want = dict?.['gacha-banner-zones']?.[f.id]
         const expected =
@@ -140,9 +123,17 @@ describe('a document seeded in one locale still switches', () => {
     expect(bad).toEqual([])
   })
 
+  it('a frame title from an archived language is kept as the user’s (§L2.0)', () => {
+    // a document made in Simplified Chinese keeps its titles in every UI
+    const zhHansGacha = [frame('zone_comparison', '对比'), frame('zone_free', '常驻／免费')]
+    for (const loc of ['en', 'ko']) {
+      expect(relabelFramesForLocale(zhHansGacha, loc), loc).toBe(zhHansGacha)
+    }
+  })
+
   it('a user rename is still preserved, in every direction', () => {
     const renamed = [frame('zone_comparison', 'My own name'), frame('zone_free', '我的分组')]
-    for (const loc of ['en', 'ko', 'zh-Hans', 'th']) {
+    for (const loc of ['en', 'ko', 'qaa']) {
       const out = relabelFramesForLocale(renamed, loc)
       expect(out.map((f) => f.label), loc).toEqual(['My own name', '我的分组'])
       // unchanged input returns the SAME array reference

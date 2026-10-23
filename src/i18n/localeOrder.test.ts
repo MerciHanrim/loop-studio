@@ -19,34 +19,33 @@ import { BASE_ENTRY, BASE_LOCALE, LOCALES, type LocaleEntry } from './registry'
 
 const codes = (l: readonly LocaleEntry[]) => l.map((e) => e.code)
 
-/** the eighteen shipped languages, in the order the picker must show them */
-const SHIPPED_ORDER = [
-  'ar', //      Arabic — takes the FIRST row, the one `zh-Hans` held since the
-  //            picker order was introduced, and the first RTL language offered
-  'zh-Hans', // Chinese (Simplified)
-  'zh-Hant', // Chinese (Traditional)
-  'nl', //      Dutch — sorts BEFORE English; the first locale ever to
-  //            precede the base language in the picker
-  'en', //      English
-  'fr', //      French
-  'de', //      German
-  'it', //      Italian
-  'ja', //      Japanese
-  'ko', //      Korean
-  'pt-BR', //   Portuguese (Brazil)
-  'pt-PT', //   Portuguese (Portugal) - sorts right after its Brazilian sibling
-  'ru', //      Russian
-  'es-419', //  Spanish (Latin America)
-  'es-ES', //   Spanish (Spain)  — sorts right after its Latin American sibling
-  'th', //      Thai
-  'tr', //      Turkish
-  'vi', //      Vietnamese — sorts last by English name
+/** the shipped languages (§L2.0: English and Korean), in the order the picker
+ *  must show them. The eighteen-locale version of this file is in
+ *  `archive/i18n/tests/localeOrder.multilocale.test.ts`. */
+const SHIPPED_ORDER = ['en', 'ko']
+
+/** a hypothetical wider registry, so the sort rule is still exercised by more
+ *  than two entries — and by codes whose order differs from their names' */
+const wide = (code: string, englishName: string): LocaleEntry => ({ ...(LOCALES[0] as LocaleEntry), code, englishName })
+const WIDE = [
+  wide('ko', 'Korean'),
+  wide('en', 'English'),
+  wide('zh-Hans', 'Chinese (Simplified)'),
+  wide('es-ES', 'Spanish (Spain)'),
+  wide('ar', 'Arabic'),
+  wide('nl', 'Dutch'),
+  wide('es-419', 'Spanish (Latin America)'),
 ]
 
 describe('§L5.6 — the picker display order', () => {
   it('sorts the shipped locales by English name', () => {
     const shipped = LOCALES.filter((l) => !l.pseudo)
     expect(codes(displayLocaleOrder(shipped))).toEqual(SHIPPED_ORDER)
+  })
+
+  it('sorts by English name, not by code, in a wider registry', () => {
+    // `nl` precedes `en` (Dutch < English); `es-419` precedes `es-ES` by name
+    expect(codes(displayLocaleOrder(WIDE))).toEqual(['ar', 'zh-Hans', 'nl', 'en', 'ko', 'es-419', 'es-ES'])
   })
 
   it('keeps a DEV pseudo-locale last, out of the sorted set', () => {
@@ -100,8 +99,8 @@ describe('§L5.6 — the registry array is data, and nothing reads its order', (
   it('BASE_ENTRY is the entry whose code is BASE_LOCALE, not a position', () => {
     expect(BASE_ENTRY.code).toBe(BASE_LOCALE)
     // ...and it stays that way when the array is in any other order: this is
-    // the contract that a naive "just sort LOCALES" would break, since the
-    // first entry by English name is `zh-Hans`.
-    expect(displayLocaleOrder(LOCALES)[0]?.code).not.toBe(BASE_LOCALE)
+    // the contract that a naive "just sort LOCALES" would break as soon as a
+    // language sorting before English is registered, as in the wider registry.
+    expect(displayLocaleOrder(WIDE)[0]?.code).not.toBe(BASE_LOCALE)
   })
 })

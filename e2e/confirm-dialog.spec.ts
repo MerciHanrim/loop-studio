@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { pickTemplate } from './support/workbenchMenus'
 
 // docs/localization.md Slice 2b — the shared in-app ConfirmDialog contract,
 // exercised through the Share disclosure (the first flow moved off
@@ -173,8 +174,7 @@ const exportItem = (page: Page, name: RegExp) =>
 
 test('Templates replace: Cancel loads nothing (no graph change, no rev bump)', async ({ page }) => {
   const before = await snapshot(page)
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^Templates$/ }).click()
-  await page.locator('.toolbar__actions .menu__pop .menu__item').first().click()
+  await pickTemplate(page) // File ▸ Templates, the first one
   await expect(dlg(page)).toBeVisible()
   expect(await snapshot(page)).toEqual(before) // dialog OPEN — still nothing loaded
   await dlg(page).getByRole('button', { name: /^cancel$/i }).click()

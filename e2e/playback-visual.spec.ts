@@ -32,7 +32,10 @@ const FIX = JSON.stringify({
   ],
 })
 
-const Z = { L2: 1, L1: 0.6, L0: 0.32 } as const
+/** the phone's zooms (the desktop's are DESKTOP_Z below). L2 is 0.85 — still
+ *  L2 (LOD_L2_MIN 0.8) — so the depart beat's subjects fit the 390 px pane
+ *  (2026-10-23; was 1, which cut the Source and Tank) */
+const Z = { L2: 0.85, L1: 0.6, L0: 0.32 } as const
 type Level = keyof typeof Z
 
 const call = (page: Page, fn: string, ...a: unknown[]) =>
@@ -50,8 +53,24 @@ const invariants = (page: Page) =>
     }
   })
 
+/** Desktop: the fixture (nodes at world x -20 … 656, y -5 … 325) centred in
+ *  the canvas PANE (664 x 548 since the workbench), L2 at 0.95 (still L2) so
+ *  every node is whole. The phone: the fixture's top-left corner a few px
+ *  inside the pane (2026-10-23; the origin framing cut the Source, the depart
+ *  beat's subject, at the top-left), so the Source, P, Feed and Tank are whole;
+ *  D, past 390 px at L2, stays off the pane as before. */
+const DESKTOP_Z: Record<Level, number> = { L2: 0.95, L1: 0.6, L0: 0.32 }
 async function setLod(page: Page, level: Level) {
-  await page.evaluate((z) => (window as unknown as Bridge).__loop.rf.setViewport({ x: 0, y: 0, zoom: z }, { duration: 0 }), Z[level])
+  const mobile = (page.viewportSize()?.width ?? 1280) < 500
+  await page.evaluate(
+    ({ mobile, z, dz }) => {
+      const rf = (window as unknown as Bridge).__loop.rf
+      if (mobile) return rf.setViewport({ x: Math.round(20 * z) + 8, y: Math.round(5 * z) + 8, zoom: z }, { duration: 0 })
+      const pane = document.querySelector('.react-flow')!.getBoundingClientRect()
+      rf.setViewport({ x: Math.round(pane.width / 2 - 318 * dz), y: Math.round(pane.height / 2 - 160 * dz), zoom: dz }, { duration: 0 })
+    },
+    { mobile, z: Z[level], dz: DESKTOP_Z[level] },
+  )
   await page.waitForTimeout(80)
 }
 
@@ -141,7 +160,7 @@ test.describe('playback — Slice 3c-b: choreography acceptance matrix', () => {
         expect([after.canUndo, after.canRedo]).toEqual([before.canUndo, before.canRedo])
         expect(after.d).toEqual(before.d)
         // zoom is where setLod left it, pan unchanged; either way playback set nothing
-        expect(after.viewport.zoom).toBeCloseTo(Z[level], 2)
+        expect(after.viewport.zoom).toBeCloseTo((page.viewportSize()?.width ?? 1280) < 500 ? Z[level] : DESKTOP_Z[level], 2)
       })
     }
   }
@@ -240,6 +259,21 @@ test.describe('playback — Slice 3c-b: forced-colors', () => {
 test.describe('playback — Slice 3c-b: masked screenshots (depart beat)', () => {
   test.afterEach(({ page }) => reset(page))
 
+  /** the shot's subjects whole inside the canvas: every node on the desktop;
+   *  on the phone the Source, P, Feed and Tank (D lies past 390 px at L2) */
+  const expectSubjectsWhole = async (page: Page) => {
+    const mobile = (page.viewportSize()?.width ?? 1280) < 500
+    const ids = mobile ? ['src', 'pool', 'feed', 'tank'] : ['src', 'pool', 'drn', 'feed', 'tank']
+    const out = await page.evaluate((ids) => {
+      const pane = document.querySelector('.react-flow')!.getBoundingClientRect()
+      return ids.filter((id) => {
+        const b = document.querySelector(`.react-flow__node[data-id="${id}"] .nodef`)!.getBoundingClientRect()
+        return b.left < pane.left || b.right > pane.right || b.top < pane.top || b.bottom > pane.bottom
+      })
+    }, ids)
+    expect(out, 'nodes cut by the pane').toEqual([])
+  }
+
   const shot = (page: Page) => ({
     mask: [
       page.locator('.react-flow__minimap'),
@@ -254,6 +288,7 @@ test.describe('playback — Slice 3c-b: masked screenshots (depart beat)', () =>
       await call(page, 'advance')
       await setLod(page, 'L2')
       await holdAt(page, 'depart')
+      await expectSubjectsWhole(page)
       await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, `play-depart-${scheme}-L2`, shot(page)))
     })
   }
@@ -263,6 +298,7 @@ test.describe('playback — Slice 3c-b: masked screenshots (depart beat)', () =>
     await call(page, 'advance')
     await setLod(page, 'L2')
     await holdAt(page, 'depart')
+    await expectSubjectsWhole(page)
     await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'play-depart-forced-colors-L2', shot(page)))
   })
 
@@ -276,6 +312,7 @@ test.describe('playback — Slice 3c-b: masked screenshots (depart beat)', () =>
     // `.state-move`; docs/simulation-playback.md) — the shot alone did not
     // pin this, and the old baseline still showed the bead
     await expect(page.locator('.state-move')).toHaveCount(0)
+    await expectSubjectsWhole(page)
     await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'play-travel-L0', shot(page)))
   })
 })

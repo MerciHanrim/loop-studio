@@ -31,7 +31,7 @@ const caret = (page: Page) =>
 async function select(page: Page, id: string) {
   await page.evaluate((n) => (window as any).__loop.graph.getState().setSelection(n, null), id)
 }
-async function setLocale(page: Page, code: 'en' | 'ko' | 'ja') {
+async function setLocale(page: Page, code: 'en' | 'ko') {
   await page.evaluate((c) => (window as any).__loop.i18n.getState().setLocale(c), code)
 }
 async function setInput(page: Page, value: string, selStart: number, selEnd = selStart) {
@@ -165,10 +165,9 @@ test('§RXA8b.6 — desktop unlocked only: the edit lock removes the operator ro
 const OP_LABELS = {
   en: [/^Add$/, /^Subtract$/, /^Multiply$/, /^Divide$/, /^Parentheses$/],
   ko: [/^더하기$/, /^빼기$/, /^곱하기$/, /^나누기$/, /^괄호$/],
-  ja: [/^加算$/, /^減算$/, /^乗算$/, /^除算$/, /^かっこ$/],
 } as const
 
-for (const loc of ['en', 'ko', 'ja'] as const) {
+for (const loc of ['en', 'ko'] as const) { // §L2.0 (2026-10): the shipped languages
   test(`§RXA8b.7 — the operator buttons carry a localised accessible name, not a bare glyph (${loc})`, async ({ page }) => {
     await setLocale(page, loc)
     const btns = page.locator('.regexpr__ops button')

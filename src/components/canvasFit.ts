@@ -30,11 +30,14 @@ export type FitInsets = { left: number; right: number; bottom: number; top: numb
 export type FitOptions = { floor: number; ceil: number; keep?: FitRect }
 export type Viewport = { x: number; y: number; zoom: number }
 
-/** The Canvas's fixed overlays: the zoom Controls on the left (~44 px) and,
- *  when it is on screen, the minimap's column (224 px incl. margin) and row
- *  (176 px) bands. `top` is 0 here; the import wizard adds the hint slot. */
-export function canvasFitInsets(minimapVisible: boolean, top = 0): FitInsets {
-  return { left: 44, right: minimapVisible ? 224 : 0, bottom: minimapVisible ? 176 : 0, top }
+/** The Canvas's fixed overlays: the zoom Controls on the left (~44 px) where
+ *  they are on screen — the phone only since the desktop workbench (2026-10,
+ *  docs/workbench.md: its zoom is the status bar's; Lumi, 2026-10-20: no space
+ *  is kept for a rail that is not there) — and, when it is on screen, the
+ *  minimap's column (224 px incl. margin) and row (176 px) bands. `top` is 0
+ *  here; the import wizard adds the hint slot. */
+export function canvasFitInsets(minimapVisible: boolean, top = 0, controlsRail = false): FitInsets {
+  return { left: controlsRail ? 44 : 0, right: minimapVisible ? 224 : 0, bottom: minimapVisible ? 176 : 0, top }
 }
 
 const PAD = 1.06

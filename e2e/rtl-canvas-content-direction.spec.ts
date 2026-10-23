@@ -304,20 +304,23 @@ test.describe('§L9.3 — engine tokens stay in author order', () => {
     await load(page)
     await switchLocale(page, 'ar-XB')
 
-    const value = page.locator(`${N('reg')} .nodef__value`)
-    await expect(value).toBeVisible()
+    // The symbol nodes (2026-10-19): the number sits in the symbol and the unit
+    // on the line beside it, so the two runs share a box only where a value too
+    // long for its symbol is written out in full on that line — the box this
+    // pin now defends. A long result puts the register there.
+    await page.evaluate(() => (window as any).__loop.graph.getState().updateNodeData('reg', { expr: '123456789 * 1000' }))
+    const value = page.locator(`${N('reg')} .nodef__aux`)
+    await expect(value.locator('.nodef__auxvalue')).toHaveText('= 123456789000')
     await expect(page.locator(`${N('reg')} .nodef__unit`)).toHaveText(new RegExp(AR_UNIT))
     // the unit took its own direction from its own text
     expect(await dirOf(page, `${N('reg')} .nodef__unit`)).toBe('rtl')
 
-    // Measure the TEXT, not the boxes. An earlier draft compared the unit's
-    // offset inside `.nodef__value`'s border box and failed at a true
-    // assertion: the value element is wider than its own text, so the box
-    // offsets say nothing about which run paints first.
+    // Measure the TEXT, not the boxes: the line is wider than its own runs, so
+    // the box offsets say nothing about which run paints first.
     const order = () =>
       page.evaluate((sel) => {
         const v = document.querySelector(sel) as HTMLElement
-        const num = v.firstChild as Text
+        const num = v.querySelector('.nodef__auxvalue')!.firstChild as Text
         const r = document.createRange()
         r.setStart(num, 0)
         r.setEnd(num, num.length)
@@ -329,15 +332,15 @@ test.describe('§L9.3 — engine tokens stay in author order', () => {
           numberLeft: Math.round(r.getBoundingClientRect().left),
           unitLeft: Math.round(unit.getBoundingClientRect().left),
         }
-      }, `${N('reg')} .nodef__value`)
+      }, `${N('reg')} .nodef__aux`)
 
     const baseline = await order()
-    expect(baseline.text, 'the register value should be the engine number').toBe('2')
+    expect(baseline.text, 'the register value should be the engine number').toBe('= 123456789000')
     expect(baseline.attr).toBe('ltr')
     expect(baseline.unitLeft).toBeGreaterThan(baseline.numberLeft)
 
     // force the surrounding direction to rtl — the situation the pin exists for
-    const stack = page.locator(`${N('reg')} .nodef__stack`)
+    const stack = page.locator(`${N('reg')} .nodef__label`)
     await stack.evaluate((el) => el.setAttribute('dir', 'rtl'))
     const forced = await order()
     expect(forced.resolved, 'the pin holds against an rtl ancestor').toBe('ltr')

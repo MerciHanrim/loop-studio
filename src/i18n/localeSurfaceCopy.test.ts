@@ -41,42 +41,11 @@ type SurfaceMarkers = {
 // locale-subset: TRANSLATED only. `en` is the base catalogue and carries no
 // "this form is in English" marker — it IS the English form, so a row for it would
 // assert nothing.
+// §L2.0 (2026-10) — Korean is the one translated locale. The rows of the
+// sixteen archived languages are in
+// `archive/i18n/tests/localeSurfaceCopy.multilocale.test.ts`.
 const MARKERS: Record<string, SurfaceMarkers> = {
   ko: { englishForm: /영문/, newTab: /새 탭/ },
-  ja: { englishForm: /英語/, newTab: /新しいタブ/ },
-  'zh-Hans': { englishForm: /英文/, newTab: /新标签页/ },
-  'zh-Hant': { englishForm: /英文/, newTab: /新分頁/ },
-  fr: { englishForm: /anglais/i, newTab: /onglet/i },
-  it: { englishForm: /inglese/i, newTab: /scheda/i },
-  // Dutch: the language is `Engels`; a browser tab is a `tabblad`.
-  nl: { englishForm: /Engels/i, newTab: /tabblad/i },
-  de: { englishForm: /englisch/i, newTab: /Tab/ },
-  'es-419': { englishForm: /inglés/i, newTab: /pestaña/i },
-  // Brazilian Portuguese says `aba` for a browser tab; `guia` is the
-  // Microsoft-style rendering and is not what this catalog uses.
-  'pt-BR': { englishForm: /inglês/i, newTab: /aba/i },
-  // Turkish: the form is `İngilizce`; a browser tab is `sekme`.
-  tr: { englishForm: /İngilizce/, newTab: /sekme/i },
-  th: { englishForm: /ภาษาอังกฤษ/, newTab: /แท็บ/ },
-  // Arabic: the language is `الإنجليزية`; a browser tab is `تبويب`. Both are
-  // written with the definite article in the catalog copy, so the patterns
-  // match the bare stem rather than anchoring on `ال`.
-  ar: { englishForm: /الإنجليزية/, newTab: /تبويب/ },
-  // same language as `es-419`, so the same markers — but the row is still
-  // required, because the map is asserted exhaustive over the registry and a
-  // locale with no row would otherwise ship unchecked
-  'es-ES': { englishForm: /inglés/i, newTab: /pestaña/i },
-  // European Portuguese does NOT inherit `pt-BR`'s row: a browser tab is a
-  // `separador` in Portugal, and `aba` there is a flap or a brim. This is the
-  // one marker in the whole map that had to change when a sibling locale of
-  // an existing language registered.
-  'pt-PT': { englishForm: /inglês/i, newTab: /separador/i },
-  // Russian: the form is `английском` and a browser tab is a `вкладка`. Matching on the
-  // stem keeps the regex indifferent to the case ending the sentence needs.
-  ru: { englishForm: /английск/i, newTab: /вкладк/i },
-  // Vietnamese: the language is `tiếng Anh`; a browser tab is a `tab`, kept
-  // as the loanword the way Vietnamese software writes it.
-  vi: { englishForm: /tiếng Anh/i, newTab: /tab mới/i },
 }
 
 const catalogOf = async (code: string) => {
@@ -93,55 +62,13 @@ describe('copy contracts that hold ACROSS locales', () => {
     ).toEqual([...TRANSLATED].sort())
   })
 
-  it('names Latin American Spanish the way Korean software names it', async () => {
-    // It shipped as `라턴아메리카` — one stroke off a word that does not exist,
-    // invisible to every mechanical check and to any reader of the other seven
-    // languages. The replacement is not the literal transliteration either:
-    // Korean software says `중남미` for this region (the same choice Diablo IV
-    // makes), even though `라틴 아메리카` is the more precise geographic term
-    // for what `es-419` covers. The endonym stays `Español (Latinoamérica)`
-    // and English stays `Spanish (Latin America)`.
+  // §L2.0 — the display-name checks for regional variants (`es-419`, `pt-BR`,
+  // `pt-PT`) left with the `language.*` keys they read; see the archived copy.
+  it('names the two shipped languages in each catalog', async () => {
     const ko = await catalogOf('ko')
-    expect(ko['language.spanishLatinAmerica']).toBe('스페인어(중남미)')
-  })
-
-  // A regional variant's display name is the one string a reader cannot check
-  // for themselves: it names a language they do not read, in a language they
-  // do. `check:i18n` proves the key EXISTS and that its ICU shape matches, so
-  // a value copied from the wrong catalog passes every mechanical gate —
-  // `es-419` shipped this key holding the PORTUGUESE endonym for exactly that
-  // reason. Each locale's own word for the language, pinned.
-  it('names Brazilian Portuguese in each locale, never borrowing the endonym', async () => {
-    const want: Record<string, string> = {
-      ko: '포르투갈어(브라질)',
-      'es-419': 'Portugués (Brasil)',
-      'pt-BR': 'Português (Brasil)',
-      'pt-PT': 'Português (Brasil)',
-    }
-    const got: Record<string, string> = {}
-    for (const code of Object.keys(want)) {
-      got[code] = (await catalogOf(code))['language.portugueseBrazil']
-    }
-    expect(got).toEqual(want)
-  })
-
-  // The mirror of the test above, and the reason both are worth having: the
-  // two Portuguese locales must name EACH OTHER, and neither may quietly
-  // reuse its own name for its sibling. `pt-PT` calls Brazil `(Brasil)` and
-  // itself `(Portugal)`; `pt-BR` does the same in the other direction.
-  it('names European Portuguese in each locale, never borrowing the endonym', async () => {
-    const want: Record<string, string> = {
-      ko: '포르투갈어(포르투갈)',
-      'es-419': 'Portugués (Portugal)',
-      'es-ES': 'Portugués (Portugal)',
-      'pt-BR': 'Português (Portugal)',
-      'pt-PT': 'Português (Portugal)',
-    }
-    const got: Record<string, string> = {}
-    for (const code of Object.keys(want)) {
-      got[code] = (await catalogOf(code))['language.portuguesePortugal']
-    }
-    expect(got).toEqual(want)
+    const en = await catalogOf(BASE_LOCALE)
+    expect([ko['language.english'], ko['language.korean']]).toEqual(['영어', '한국어'])
+    expect([en['language.english'], en['language.korean']]).toEqual(['English', 'Korean'])
   })
 
   it('tells every non-English reader that the feedback form is in English', async () => {

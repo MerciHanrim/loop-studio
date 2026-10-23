@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, routesSettled, test } from './support/loop'
+import { openPanelDetails, WORKBENCH_ROOMY_VIEWPORT } from './support/panel'
 
 // issue #344 step 3 (docs/diagram-layout.md §DL4, docs/edge-routing.md §ER15–§ER16,
 // SEMANTICS-R10.md) — the connection shapes and the bend-point editor, end to end:
@@ -71,6 +72,8 @@ const toClient = (page: Page, id: string, q: Wp) =>
 const selectEdge = async (page: Page, id: string, f = 0.5) => {
   const c = await pathPoint(page, id, f)
   await page.mouse.click(c.x, c.y)
+  // the route select lives in the panel's More settings (docs/workbench.md §WB6)
+  await openPanelDetails(page)
   await expect(page.locator('.inspector select').filter({ has: page.locator('option[value="straight"]') })).toBeVisible()
 }
 const shapeSelect = (page: Page) => page.locator('.inspector select').filter({ has: page.locator('option[value="straight"]') })
@@ -266,7 +269,11 @@ test.describe('connection shapes — issue #344 step 3', () => {
     await importGraph(page, ONE({ route: 'orthogonal', waypoints: [{ x: 304, y: 96 }] }))
     await selectEdge(page, 'e', 0.8)
     const h0 = await history(page)
-    const inNode = await toClient(page, 'e', { x: 540, y: 216 })
+    // the middle of b's measured box (at 480, 192): inside the node whatever
+    // its drawn width (a 56 px symbol since the redesign; x 540 was inside the
+    // old, wider body and is now past it)
+    const bBox = await page.evaluate(() => (window as any).__loop.graph.getState().nodes.find((n: any) => n.id === 'b').measured as { width: number; height: number })
+    const inNode = await toClient(page, 'e', { x: 480 + bBox.width / 2, y: 192 + bBox.height / 2 })
     await dragBend(page, 0, inNode, {
       beforeUp: async () => {
         await expect(bend(page)).toHaveClass(/is-invalid/)
@@ -335,6 +342,11 @@ test.describe('connection shapes — issue #344 step 3', () => {
 })
 
 test.describe('connection shapes — keyboard Add bend and the record label rule (issue #344 step 3)', () => {
+  // the record-rule tests measure the drawn Curved labels after a fresh fit;
+  // in the workbench's 664 × 468 canvas at 1280 × 800 that fit is below the
+  // label threshold (measured 2026-10-20: zoom 0.715, no label drawn), so
+  // these run with a canvas as wide as the two-tier bar's (./support/panel)
+  test.use({ viewport: WORKBENCH_ROOMY_VIEWPORT })
   test.beforeEach(async ({ page }) => {
     await openApp(page)
     await resetAll(page)
@@ -379,9 +391,24 @@ test.describe('connection shapes — keyboard Add bend and the record label rule
   })
 
   test('with no segment that can take a bend, Enter changes nothing and says so', async ({ page }) => {
-    // two nodes so close that the route is its two stubs
-    // two nodes so close that the route is its two stubs (the new node's body is 88 wide: 88 + two 16 px stubs)
-    await importGraph(page, doc([node('a', 'source', 0, 0), node('b', 'drain', 120, 0)], [edge('e', 'a', 'b', { route: 'orthogonal' })]))
+    // two nodes so close that the route is its two stubs: 16 px out of a's
+    // box, 16 px into b's, nothing between. The stubs start at the node's BOX
+    // (an 88 px body before the redesign, so b sat at 120; a 56 px symbol
+    // since), so b is placed at a's measured width + two stubs
+    const at = (bx: number) => doc([node('a', 'source', 0, 0), node('b', 'drain', bx, 0)], [edge('e', 'a', 'b', { route: 'orthogonal' })])
+    await importGraph(page, at(120))
+    const aw = await page.evaluate(() => (window as any).__loop.graph.getState().nodes.find((n: any) => n.id === 'a').measured.width as number)
+    await importGraph(page, at(aw + 32))
+    await routesSettled(page)
+    expect(
+      await page.evaluate(() => {
+        const ns = (window as any).__loop.graph.getState().nodes
+        const a = ns.find((n: any) => n.id === 'a')
+        const b = ns.find((n: any) => n.id === 'b')
+        return b.position.x - (a.position.x + a.measured.width)
+      }),
+      'the boxes are two 16 px stubs apart',
+    ).toBe(32)
     await selectEdge(page, 'e')
     const h0 = await history(page)
     const add = page.getByRole('button', { name: 'Add bend' })
@@ -432,9 +459,14 @@ test.describe('connection shapes — keyboard Add bend and the record label rule
     await page.waitForFunction(() => Boolean((window as any).__loop) && (window as any).__loop.project.getState().open != null)
     await routesSettled(page)
     expect(await recordRule(page)).toBe(true)
-    for (const [id, d] of Object.entries(await fromRecorded(page))) expect(d, `${id} at its recorded place after the reload`).toBeLessThan(1)
+    // the reload fits the view again; the labels it measures must be drawn
+    // (a zoom below the label threshold hides them, and an empty reading would
+    // pass the loop below and leave nothing to edit)
+    const afterReload = await fromRecorded(page)
+    expect(Object.keys(afterReload).length, 'Curved labels drawn after the reload').toBeGreaterThan(0)
+    for (const [id, d] of Object.entries(afterReload)) expect(d, `${id} at its recorded place after the reload`).toBeLessThan(1)
     // after a shape edit, the reload brings the current rule back instead
-    const first = Object.keys(await fromRecorded(page))[0]!
+    const first = Object.keys(afterReload)[0]!
     await page.evaluate((id) => (window as any).__loop.graph.getState().setEdgeRouting(id, { route: 'orthogonal' }), first)
     await page.evaluate(() => (window as any).__loop.autosave.flush())
     await page.reload()

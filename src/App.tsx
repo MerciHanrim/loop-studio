@@ -16,6 +16,8 @@ import { ShareLoader } from './components/ShareLoader'
 import { Shortcuts } from './components/Shortcuts'
 import { TimelineChart } from './components/TimelineChart'
 import { Toolbar } from './components/Toolbar'
+import { LeftPanel } from './components/workbench/LeftPanel'
+import { StatusBar } from './components/workbench/StatusBar'
 
 export default function App() {
   return (
@@ -28,18 +30,24 @@ export default function App() {
       <AutosaveNotice />
       <div className="app">
         <Toolbar />
-        {/* the notice rail (src/ui/noticeRail.tsx): the first-run update notice
-            and the tier-1 canvas hints render INTO this strip on desktop, under
+        {/* the notice rail (src/ui/noticeRail.tsx): the tier-1 canvas hints
+            render INTO this strip on desktop, under
             the toolbar and above the canvas, so they never cover the diagram;
             empty, it collapses (CSS `:empty`). The phone keeps its own places. */}
         <div className="notice-rail" id="notice-rail" />
+        {/* the workbench (2026-10, step 5): the model list on the left, the
+            canvas with the analysis area under it, the selection's properties
+            on the right, the status bar under everything (desktop; the phone
+            keeps its own layout — LeftPanel and StatusBar render nothing there) */}
         <div className="app__body">
+          <LeftPanel />
           <div className="canvas-col">
             <Canvas />
             <TimelineChart />
           </div>
           <DesktopInspector />
         </div>
+        <StatusBar />
         <MobileRunBar />
         <MobileInspectorSheet />
       </div>

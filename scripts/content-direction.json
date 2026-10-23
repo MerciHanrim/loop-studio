@@ -8,12 +8,12 @@
     "branch-computed": "the attribute is an EXPRESSION and the file contains the declared marker - one element, several branches wanting different directions"
   },
   "totals": {
-    "elements": 97,
+    "elements": 99,
     "byExpect": {
       "auto": 37,
       "branch-computed": 5,
       "locale-direction": 13,
-      "ltr": 42
+      "ltr": 44
     }
   },
   "elements": [
@@ -177,14 +177,6 @@
       ],
       "expect": "ltr",
       "why": "the tour step counter is a PINNED numeric pair. MEASURED under ar: without this the two number runs swap and step 2 of 6 reads 6 / 2. C3.5 - the key was held open precisely because the slash order was a real question, and it was."
-    },
-    {
-      "file": "src/components/Inspector.tsx",
-      "tag": "span",
-      "find": [
-        "inspector__kind--${d.kind}"
-      ],
-      "expect": "ltr"
     },
     {
       "file": "src/components/Inspector.tsx",
@@ -547,9 +539,17 @@
       "file": "src/components/TimelineChart.tsx",
       "tag": "span",
       "find": [
-        "timeline__key--probe"
+        "timeline__past--start"
       ],
-      "expect": "auto"
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/TimelineChart.tsx",
+      "tag": "span",
+      "find": [
+        "timeline__past--end"
+      ],
+      "expect": "ltr"
     },
     {
       "file": "src/components/TimelineSeriesPopover.tsx",
@@ -813,7 +813,8 @@
       "file": "src/components/nodes/nodes.tsx",
       "tag": "span",
       "find": [
-        "nodef__unit"
+        "nodef__unit",
+        "{unit}"
       ],
       "expect": "auto"
     },
@@ -821,7 +822,24 @@
       "file": "src/components/nodes/nodes.tsx",
       "tag": "span",
       "find": [
-        "value"
+        "nodef__unit",
+        ">{aux}<"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/nodes/nodes.tsx",
+      "tag": "span",
+      "find": [
+        "nodef__value"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/nodes/nodes.tsx",
+      "tag": "span",
+      "find": [
+        "\"nodef__aux\""
       ],
       "expect": "ltr"
     }

@@ -98,7 +98,7 @@ function graph() {
   S().newGraph()
   for (const [k, x] of [['pool', 0], ['pool', 320], ['source', 0], ['drain', 640]] as const) S().addNodeAt(k, { x, y: k === 'pool' ? 0 : 300 })
   const [a, b, s, d] = S().nodes.map((n) => n.id)
-  S().onConnect({ source: a!, target: b!, sourceHandle: 'out', targetHandle: 'in' })
+  S().onConnect({ source: a!, target: b!, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
   const e = S().edges[0]!.id
   S().setEdgeData(e, { ...(edge(e).data as object), flow: '3', accent: '#638EA5' } as never)
   S().setEdgeRouting(e, { route: 'orthogonal', waypoints: [{ x: 160, y: 120 }, { x: 200, y: 120 }] })
@@ -131,8 +131,8 @@ describe('reverseEdge — the store action', () => {
 
   it('refused: the reason, nothing recorded, the run kept', () => {
     const { s, a, d, b } = graph()
-    S().onConnect({ source: s, target: a, sourceHandle: 'out', targetHandle: 'in' })
-    S().onConnect({ source: b, target: d, sourceHandle: 'out', targetHandle: 'in' })
+    S().onConnect({ source: s, target: a, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
+    S().onConnect({ source: b, target: d, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
     const fromSource = S().edges.find((x) => x.source === s)!.id
     const intoDrain = S().edges.find((x) => x.target === d)!.id
     const r0 = rev()

@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { expect, openApp, resetAll, test } from './support/loop'
+import { openFileMenu, toolButton } from './support/workbenchMenus'
 
 // Issue #334 — every whole-document replacement is a document BOUNDARY, driven
 // through the real UI (the dev bridge only reads state, it never makes the
@@ -18,7 +19,7 @@ type Bridge = { __loop: Record<string, { getState: () => any }> }
 const MMO = readFileSync(new URL('../examples/mmo-progression.json', import.meta.url), 'utf8') // canvasLocked: true
 const COFFEE = readFileSync(new URL('../examples/coffee-roastery.json', import.meta.url), 'utf8') // no lock
 
-const lockBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-lock')
+const lockBtn = (page: Page) => toolButton(page, 'lock')
 const undoBtn = (page: Page) => page.locator('.toolbar button[title^="Undo"]')
 const redoBtn = (page: Page) => page.locator('.toolbar button[title^="Redo"]')
 const nodeCount = (page: Page) => page.locator('.react-flow__node').count()
@@ -41,8 +42,9 @@ async function fileNew(page: Page): Promise<void> {
   await confirmIfAsked(page)
 }
 async function openTemplate(page: Page, name: string): Promise<void> {
-  await page.getByRole('button', { name: 'Templates', exact: true }).click()
-  await page.locator('[role=menuitem]').filter({ hasText: name }).first().click()
+  // File ▸ Templates (docs/workbench.md §WB2)
+  await openFileMenu(page)
+  await page.locator('.toolbar__filemenu-pop [data-template]').filter({ hasText: name }).first().click()
   await confirmIfAsked(page)
 }
 async function importFile(page: Page, text: string): Promise<void> {
@@ -51,7 +53,8 @@ async function importFile(page: Page, text: string): Promise<void> {
 }
 /** a palette click: adds a node only while the canvas is unlocked */
 async function addPool(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Pool', exact: true }).click()
+  // the palette's Pool: the left list names an added Pool "Pool" too
+  await page.locator('.toolbar__palette').getByRole('button', { name: 'Pool', exact: true }).click()
 }
 /** an edited session: the palette added two Pools, one was undone */
 async function editedSession(page: Page): Promise<void> {
@@ -80,7 +83,8 @@ async function reload(page: Page): Promise<void> {
 // the Storage and privacy area (e2e/storage-sessions.spec.ts has the full flows)
 const storageDialog = (page: Page) => page.locator('.mcdlg--storage')
 async function storageAction(page: Page, action: 'to-temporary' | 'delete-work'): Promise<void> {
-  await page.locator('.toolbar__settingsmenu > button').click()
+  // File ▸ Storage and privacy (docs/workbench.md §WB2)
+  await openFileMenu(page)
   await page.locator('[data-settings-row="storage-privacy"]').click()
   await expect(storageDialog(page)).toHaveAttribute('data-storage-step', 'menu')
   await storageDialog(page).locator(`[data-storage-action="${action}"]`).click()

@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, openApp, routesSettled, test } from './support/loop'
+import { insertStructureFile } from './support/structure'
+import { WORKBENCH_ROOMY_VIEWPORT } from './support/panel'
+import { reachablePointOnEdge } from './support/edgePoint'
 
 // The face handles while a connection is drawn (share note 58): when a drag
 // begins every node mounts its faces and ONE measurement covers every node
@@ -24,6 +27,10 @@ import { expect, openApp, routesSettled, test } from './support/loop'
 // `mouseup` on the document), so the order inside one task is exact.
 
 const FIXTURE = readFileSync(new URL('./fixtures/node-structure-small.json', import.meta.url), 'utf8')
+
+// the fixture's viewport ({x 40, y 60, zoom 1}) was placed for the two-tier
+// bar's 980 px canvas; the workbench's is as wide at 1600 (./support/panel)
+test.use({ viewport: WORKBENCH_ROOMY_VIEWPORT })
 type L = { graph: { getState: () => any }; rf: { setViewport: (v: object, o?: object) => void } }
 const AT_REST = { arrivals: [], waiting: [], triage: [], treated: ['out@bottom'], discharged: ['in@top'], rate: [], occupancy: [] }
 
@@ -253,10 +260,8 @@ test.describe('drawing a connection: the face handles of every node (share note 
     await openApp(page)
     await page.evaluate(() => (window as unknown as { __loop: L }).__loop.graph.getState().newGraph())
     await expect(page.locator('.react-flow__node')).toHaveCount(0)
-    // one undo step that adds every node: a module insert
-    const menu = page.locator('.toolbar__actions .menu', { has: page.getByRole('button', { name: 'Insert module' }) })
-    await menu.getByRole('button', { name: 'Insert module' }).click()
-    await menu.locator('.menu__item').filter({ has: page.locator('.menu__name', { hasText: 'Reward split loop' }) }).click()
+    // one undo step that adds every node: inserting a saved structure
+    await insertStructureFile(page)
     await expect.poll(() => page.locator('.react-flow__node').count()).toBeGreaterThan(2)
     await routesSettled(page)
     await settle(page)
@@ -318,13 +323,10 @@ test.describe('drawing a connection: the face handles of every node (share note 
     const warnings: string[] = []
     await open(page, warnings)
     const before = await edges(page)
-    // select e_leave on its own line, so its end grips show
-    const p = await page.locator('.react-flow__edge[data-id="e_leave"] path.react-flow__edge-path').evaluate((el) => {
-      const s = el as SVGPathElement
-      const q = s.getPointAtLength(s.getTotalLength() * 0.3)
-      const m = s.getScreenCTM()!
-      return { x: q.x * m.a + q.y * m.c + m.e, y: q.x * m.b + q.y * m.d + m.f }
-    })
+    // select e_leave on its own line, so its end grips show — at a point where
+    // the line is what the pointer reaches (./support/edgePoint: where it
+    // crosses the Clinic floor border, the frame's edge strip takes the click)
+    const p = await reachablePointOnEdge(page, 'e_leave')
     await page.mouse.click(p.x, p.y)
     const grip = page.locator('.end-grip[data-end="target"]')
     await expect(grip).toHaveCount(1)

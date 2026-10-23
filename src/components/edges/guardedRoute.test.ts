@@ -197,6 +197,59 @@ describe('guarded router — the shared-trunk cost', () => {
   })
 })
 
+// 2026-10-20 — two end nodes closer than two stubs: a full stub ended inside
+// the other node, no search could leave it, and the last fallback drew the
+// source's stub alone, so the line stopped short of (or ran past) its target.
+// Measured under the previous body widths too: it predates the symbol nodes.
+describe('guarded router — end nodes closer than two stubs', () => {
+  const ends = (r: GuardedResult) => [r.points[0], r.points[r.points.length - 1]]
+  // (at a 0 px gap these box-edge ports are one point: the degenerate case)
+  for (const gap of [24, 16, 8, 4, 1]) {
+    it(`facing at a ${gap} px gap: one straight line from port to port`, () => {
+      const s = box('s', 0, 0, 56, 56)
+      const t = box('t', 56 + gap, 0, 56, 56)
+      const inp = input(s, t, [])
+      const r = computeGuardedRoute(inp)
+      expect(ends(r)).toEqual([inp.source, inp.target])
+      expect(r.points).toHaveLength(2)
+      expect(r.routeClass).not.toBe('blocked')
+    })
+  }
+  for (const [what, t] of [
+    ['offset by half a node, 8 px apart', box('t', 64, 28, 56, 56)],
+    ['overlapping by 20 px', box('t', 36, 0, 56, 56)],
+    ['overlapping and offset', box('t', 30, 40, 56, 56)],
+  ] as const) {
+    it(`${what}: the route still runs from the source's port to the target's`, () => {
+      const s = box('s', 0, 0, 56, 56)
+      const inp = input(s, t, [])
+      const r = computeGuardedRoute(inp)
+      expect(ends(r)).toEqual([inp.source, inp.target])
+      // axis-aligned throughout
+      for (let i = 1; i < r.points.length; i++) {
+        const a = r.points[i - 1]
+        const b = r.points[i]
+        expect(a.x === b.x || a.y === b.y, `segment ${i}`).toBe(true)
+      }
+    })
+  }
+  it('touching boxes, ports inset on the outline (as a symbol\'s are): one straight line', () => {
+    const s = box('s', 0, 0, 56, 56)
+    const t = box('t', 56, 0, 56, 56)
+    const inp = input(s, t, [], { source: { x: 43.17, y: 28 }, target: { x: 68.83, y: 28 } })
+    const r = computeGuardedRoute(inp)
+    expect(ends(r)).toEqual([inp.source, inp.target])
+    expect(r.points).toHaveLength(2)
+  })
+  it('a stub still keeps its full length when the other end is far', () => {
+    const s = box('s', 0, 0, 56, 56)
+    const t = box('t', 56 + 4 * ROUTE_STUB, 200, 56, 56)
+    const r = computeGuardedRoute(input(s, t, []))
+    expect(r.stubs[1]).toEqual({ x: 56 + ROUTE_STUB, y: 28 })
+    expect(r.stubs[2]).toEqual({ x: t.x - ROUTE_STUB, y: 228 })
+  })
+})
+
 describe('guarded router — determinism', () => {
   it('the same input twice, and the obstacles in reverse order, give byte-identical routes', () => {
     const s = box('s', 0, 0)

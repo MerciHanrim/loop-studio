@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { Download, Page } from '@playwright/test'
 import { expect, openApp, resetAll, runMc, test } from './support/loop'
+import { pickTemplate } from './support/workbenchMenus'
 
 // Every CSV this product downloads is BOM-prefixed UTF-8.
 //
@@ -72,8 +73,7 @@ test.describe('every downloaded CSV is BOM-prefixed UTF-8', () => {
     await resetAll(page)
     await setLocale(page, 'ko')
     // a Template gives the timeline real, localized pool labels to write
-    await page.locator('.toolbar__actions .menu').first().locator('> button').click()
-    await page.locator('.menu__pop [role="menuitem"]').first().click()
+    await pickTemplate(page) // File ▸ Templates, the first one
     const confirm = page.locator('.mcdlg--confirm .mcdlg__foot .btn--primary')
     if (await confirm.isVisible().catch(() => false)) await confirm.click()
     await expect(page.locator('.react-flow__node').first()).toBeVisible()
@@ -129,8 +129,7 @@ test.describe('every downloaded CSV is BOM-prefixed UTF-8', () => {
     await openApp(page)
     await resetAll(page)
     await setLocale(page, 'ko')
-    await page.locator('.toolbar__actions .menu').first().locator('> button').click()
-    await page.locator('.menu__pop [role="menuitem"]').first().click()
+    await pickTemplate(page) // File ▸ Templates, the first one
     const confirm = page.locator('.mcdlg--confirm .mcdlg__foot .btn--primary')
     if (await confirm.isVisible().catch(() => false)) await confirm.click()
     await expect(page.locator('.react-flow__node').first()).toBeVisible()

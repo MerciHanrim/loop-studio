@@ -41,7 +41,7 @@ describe('resource handle ids', () => {
     const [src, pool] = useGraphStore.getState().nodes
     useGraphStore
       .getState()
-      .onConnect({ source: src.id, target: pool.id, sourceHandle: 'out', targetHandle: 'in' })
+      .onConnect({ source: src.id, target: pool.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
     const edge = useGraphStore.getState().edges.at(-1)!
     expect(edge.sourceHandle).toBe('out')
     expect(edge.data).toMatchObject({ kind: 'resource' })
@@ -57,7 +57,7 @@ describe('resource handle ids', () => {
     // store must still pin a resource edge to the side ports.
     useGraphStore
       .getState()
-      .onConnect({ source: src.id, target: gate.id, sourceHandle: null, targetHandle: null })
+      .onConnect({ source: src.id, target: gate.id, sourceHandle: null, targetHandle: null }, 'flow')
     const edge = useGraphStore.getState().edges.at(-1)!
     expect(edge.sourceHandle).toBe('out')
     expect(edge.targetHandle).toBe('in')
