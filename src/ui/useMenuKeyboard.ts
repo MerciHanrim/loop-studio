@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type RefObject, type SetStateAction } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type RefObject, type SetStateAction } from 'react'
 import { flushSync } from 'react-dom'
 
 // docs/accessibility.md — the ONE keyboard contract of every menu in the app
@@ -16,6 +16,10 @@ import { flushSync } from 'react-dom'
 //   - Escape closes the menu ONCE and returns focus to its button
 //   - Tab / Shift+Tab close the menu and move on from its BUTTON, to the next
 //     or the previous control: Tab never walks from item to item
+//   - a submenu (File ▸ Templates / Export, docs/workbench.md §WB2.2): Arrow
+//     Right, Enter or Space on its row opens it at its first item; Arrow Left
+//     or Escape closes it alone and returns to the row; Tab closes the whole
+//     menu, moving on from the menu's button (`MenuKeyboardOptions`)
 //   - an item chosen from the keyboard that opens no dialog (an insert, a
 //     download, an outside link, a theme) returns focus to the button; one
 //     that opens a dialog lets the dialog take focus, and the dialog returns
@@ -91,6 +95,23 @@ export function useMenuTrigger(open: boolean, setOpen: Dispatch<SetStateAction<b
   return { entry, triggerProps: { onClick, onKeyDown } }
 }
 
+/** What a menu with a submenu (File ▸ Templates / Export, docs/workbench.md
+ *  §WB2.2) changes in the contract above. A menu without one passes none. */
+export type MenuKeyboardOptions = {
+  /** true while another menu owns the keyboard (focus is in an open
+   *  submenu): this menu then ignores every key */
+  yieldWhile?: () => boolean
+  /** called first on Escape; true means it closed an inner level (an open
+   *  submenu) and this menu stays open */
+  beforeEscape?: () => boolean
+  /** replaces Tab's close-and-move-on-from-the-button: a submenu closes its
+   *  whole menu and moves on from the MENU's button, not its parent row */
+  onTab?: () => void
+  /** where a keyboard choice that opens no dialog returns focus, when it is
+   *  not `triggerRef` (a submenu's choice closes the whole menu, row and all) */
+  returnFocusTo?: RefObject<HTMLElement | null>
+}
+
 /**
  * The keyboard of one open menu popup (see the contract above).
  *
@@ -103,9 +124,15 @@ export function useMenuKeyboard(
   triggerRef: RefObject<HTMLElement | null>,
   close: () => void,
   entry: MenuEntry | boolean = null,
+  options: MenuKeyboardOptions = {},
 ): void {
   const where: MenuEntry = entry === true ? 'first' : entry === false ? null : entry
-  useReturnFocusAfterKeyboardChoice(open, popRef, triggerRef, ITEM)
+  // read at the moment a key arrives (the callbacks close over live state)
+  const optionsRef = useRef(options)
+  useLayoutEffect(() => {
+    optionsRef.current = options
+  })
+  useReturnFocusAfterKeyboardChoice(open, popRef, options.returnFocusTo ?? triggerRef, ITEM)
 
   // focus the entry item once the popup can take focus: a flyout positioned
   // after its first measurement is `visibility: hidden` for a frame or two,
@@ -128,9 +155,12 @@ export function useMenuKeyboard(
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
+      const opts = optionsRef.current
+      if (opts.yieldWhile?.()) return
       if (e.key === 'Escape') {
         e.preventDefault()
         e.stopPropagation()
+        if (opts.beforeEscape?.()) return
         close()
         triggerRef.current?.focus()
         return
@@ -141,6 +171,10 @@ export function useMenuKeyboard(
         const inside = popRef.current?.contains(document.activeElement) || document.activeElement === triggerRef.current
         if (!inside) return
         e.stopPropagation()
+        if (opts.onTab) {
+          opts.onTab()
+          return
+        }
         // the popup must be gone BEFORE the default action, or Tab would land
         // on its first item and focus would then be lost with it
         flushSync(close)

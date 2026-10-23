@@ -136,8 +136,10 @@ state/JSX to a permanent sibling fixes this.
   own popover (when `origin === 'file'`) and the `⋯` overflow menu (whenever
   the acting group is currently collapsed into it) — always *before* the
   dialog/state change that follows. It backs every terminal action, not just
-  ones that open a dialog: New, Export's 5 actions (including the two that
-  open no dialog — Graph JSON's download, Proposal), Import's native file
+  ones that open a dialog: New, Export's 4 formats and Set the export author
+  (File ▸ Export and File's own row since 2026-10-23, `docs/workbench.md`
+  §WB2.2; including the two that open no dialog — Graph JSON's download,
+  Proposal), Import's native file
   picker, Share's confirm, Data's wizard/manage, Help's 4 actions (including
   Take a tour and Send feedback, which open no dialog either), Module's
   insert/pick-file/extract. **Settings (Theme/Language) is the one

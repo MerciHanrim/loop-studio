@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { ensureTimelineOpen, expandMinimap, expect, importGraph, openApp, resetAll, test } from './support/loop'
 import { keepPanelDetailsOpen } from './support/panel'
-import { openFileMenu, toolButton } from './support/workbenchMenus'
+import { openFileSubmenu, toolButton } from './support/workbenchMenus'
 
 // docs/flow-colour-and-compact-nodes.md FC-5 / FC-6 (issue #325, PR 2) — the
 // flow colour beyond the canvas: the minimap and the timeline take a node's
@@ -241,8 +241,7 @@ test.describe('flow colour — the bundled Templates (FC-6)', () => {
       // the minimap starts folded (docs/workbench.md §WB2.1); this reads its marks
       await expandMinimap(page)
       // File ▸ Templates (docs/workbench.md §WB2)
-      await openFileMenu(page)
-      await page.locator('.toolbar__filemenu-pop [data-template]', { hasText: t.name }).click()
+      await (await openFileSubmenu(page, 'templates')).locator('[data-template]', { hasText: t.name }).click()
       const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i })
       await confirm.waitFor({ state: 'visible', timeout: 1200 }).catch(() => {})
       if (await confirm.count()) await confirm.click()

@@ -72,7 +72,8 @@ test('the File menu offers saving and inserting a structure, apart from Import',
   // Import (a whole document) stays its own item, named differently
   expect(names).toContain('Import')
   expect(names.indexOf(INSERT)).toBeGreaterThan(names.indexOf('Import'))
-  await expect(fileItem(page, INSERT).locator('.menu__blurb')).toHaveText(/this document/i)
+  // its description (File's description area, docs/workbench.md §WB2.2)
+  await expect(fileItem(page, INSERT)).toHaveAccessibleDescription(/this document/i)
   // the removed menu is gone
   await expect(page.getByRole('button', { name: 'Insert module' })).toHaveCount(0)
 })

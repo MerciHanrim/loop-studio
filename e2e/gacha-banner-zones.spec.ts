@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, routesSettled, test } from './support/loop'
-import { openFileMenu } from './support/workbenchMenus'
+import { openFileSubmenu } from './support/workbenchMenus'
 
 // docs/gacha-banner-zones.md (GZ) — the 3-zone gacha banner comparison
 // Template, exercised through the app. The engine-level acceptance (GZ8) is
@@ -63,10 +63,7 @@ async function setLocale(page: Page, code: string) {
 
 async function pickDesktopTemplate(page: Page, name: string) {
   // File ▸ Templates (docs/workbench.md §WB2)
-  await openFileMenu(page)
-  await page
-    .locator('.toolbar__filemenu-pop [data-template]', { hasText: name })
-    .click()
+  await (await openFileSubmenu(page, 'templates')).locator('[data-template]', { hasText: name }).click()
   // issue #344 §ER14.5 — its routes are drawn once their first sliced
   // generation commits
   await page.waitForFunction(() => (window as unknown as { __loop: any }).__loop.graph.getState().nodes.length > 0)
@@ -121,8 +118,7 @@ test.describe('3-zone gacha banner comparison Template', () => {
     await openApp(page)
     await resetAll(page)
     // File ▸ Templates (docs/workbench.md §WB2): the template rows only
-    await openFileMenu(page)
-    const names = await page.locator('.toolbar__filemenu-pop [data-template] .menu__name').allInnerTexts()
+    const names = await (await openFileSubmenu(page, 'templates')).locator('[data-template] .menu__name').allInnerTexts()
     const coffeeIdx = names.findIndex((n) => n.includes('Coffee roastery'))
     const gachaIdx = names.findIndex((n) => n === EN_NAME)
     expect(coffeeIdx).toBeGreaterThanOrEqual(0)

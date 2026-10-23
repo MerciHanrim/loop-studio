@@ -220,19 +220,27 @@ test.describe('Early MMO progression example', () => {
 
     const menuPop = page.locator('.toolbar__actions .menu').first().locator('.menu__pop')
 
-    // the menu is open and lists the Templates it offers (Coffee), but not this one
+    // File ▸ Templates is open and lists the Templates it offers (Coffee), but
+    // not this one, nor its description (docs/workbench.md §WB2.2)
     await templatesBtn(page).click()
+    await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
     await expect(menuPop.locator('[role="menuitem"]', { hasText: 'Coffee roastery' })).toBeVisible()
     await expect(menuPop.locator('[role="menuitem"]', { hasText: EN_NAME })).toHaveCount(0)
-    await expect(menuPop.locator('.menu__blurb', { hasText: 'quests, hunts and rewards' })).toHaveCount(0)
+    await expect(menuPop.locator('.dmenu__desc', { hasText: 'Three banners' })).toHaveCount(1) // the descriptions are there
+    await expect(menuPop.locator('.dmenu__desc', { hasText: 'quests, hunts and rewards' })).toHaveCount(0)
+    // the submenu, then File
+    await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
 
     await setLocale(page, 'ko')
     await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('ko')
     await templatesBtn(page).click()
+    await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
     await expect(menuPop.locator('[role="menuitem"]', { hasText: '커피' }).first()).toBeVisible()
     await expect(menuPop.locator('[role="menuitem"]', { hasText: KO_NAME })).toHaveCount(0)
-    await expect(menuPop.locator('.menu__blurb', { hasText: '퀘스트, 사냥, 보상' })).toHaveCount(0)
+    await expect(menuPop.locator('.dmenu__desc', { hasText: '같은 예산으로' })).toHaveCount(1) // the descriptions are there
+    await expect(menuPop.locator('.dmenu__desc', { hasText: '퀘스트, 사냥, 보상' })).toHaveCount(0)
+    await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
 
     const labels = () =>

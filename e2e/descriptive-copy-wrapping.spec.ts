@@ -21,7 +21,10 @@ import { expect, openApp, seedPersonalBrowser, test } from './support/loop'
 // `archive/i18n/e2e/descriptive-copy-wrapping.spec.ts`. What stays is the Korean
 // contract, the English one, and the computed value for both.
 
-const DESC = ['.menu__blurb', '.palette-tip__desc'] as const
+// 2026-10-23: the toolbar menus' descriptive copy is File's, now in its
+// description areas (`.dmenu__desc`, docs/workbench.md §WB2.2); no toolbar menu
+// shows a `.menu__blurb` any more (the sweep still collects one if it does)
+const DESC = ['.dmenu__desc', '.palette-tip__desc'] as const
 
 /** Every rendered descriptive element: an inactive palette tip is
  *  `display: none`, so it is filtered out rather than counted as 0×0. */
@@ -43,18 +46,33 @@ const measure = (els: Element[], sel: string) =>
 
 type Row = ReturnType<typeof measure> extends (infer R)[] ? R : never
 
-/** Open every toolbar menu and hover every palette chip, collecting the
- *  descriptive copy each one reveals. */
+/** Open every toolbar menu (and File's two submenus) and hover every palette
+ *  chip, collecting the descriptive copy each one reveals. */
 async function sweepDescriptiveCopy(page: Page): Promise<Row[]> {
   const rows: Row[] = []
   const menus = page.locator('.toolbar__actions .menu')
+  // File's descriptions are in its description areas (docs/workbench.md
+  // §WB2.2): File's own, then each submenu's, opened in turn
+  const areaDescs = async (panel: string) =>
+    (await page.locator(`${panel} .dmenu__desc:not(.dmenu__hint)`).evaluateAll(measure, '.dmenu__desc')) as Row[]
   for (let i = 0; i < (await menus.count()); i++) {
     await menus.nth(i).locator('> button').click()
     // poll the exact thing we are about to measure: a LAID-OUT blurb. Some
     // menus (Share, Help) carry no blurb at all, so an empty result is fine
     // once the popover itself is open.
-    await expect(page.locator('.menu__pop')).toBeVisible()
+    await expect(page.locator('.menu__pop').first()).toBeVisible()
     rows.push(...((await page.locator('.menu__blurb').evaluateAll(measure, '.menu__blurb')) as Row[]))
+    const subRows = page.locator('.toolbar__filemenu-pop [data-submenu]')
+    if ((await subRows.count()) > 0) {
+      rows.push(...(await areaDescs('.toolbar__filemenu-pop')))
+      for (let s = 0; s < (await subRows.count()); s++) {
+        await subRows.nth(s).click()
+        await expect(page.locator('.dmenu--sub')).toBeVisible()
+        rows.push(...(await areaDescs('.dmenu--sub')))
+      }
+      // the submenu first, then File
+      await page.keyboard.press('Escape')
+    }
     await page.keyboard.press('Escape')
   }
   const chips = page.locator('.palette-item')
@@ -118,6 +136,7 @@ test.describe('Korean keeps its wrapping contract', () => {
     // take 1 line instead of 2 (measured per blurb, 300 against 260 px);
     // 2026-10-20: 36 — the General gacha's blurb (2 lines) joined the menu;
     // 38 — the Standard gacha's (2 lines); 40 — the Pickup gacha's (2 lines)
+    // 2026-10-23: still 40, measured in File's description areas (272 px)
     expect(rows.reduce((n, r) => n + r.lines, 0), 'the agreed Korean line count').toBe(40)
 
     // measured, not assumed: a break is mid-eojeol when two adjacent
@@ -169,7 +188,8 @@ test.describe('English is untouched', () => {
     expect(overflowing(rows).map(describe1)).toEqual([])
     // 0.28.1: 38, was 40 — the Early MMO blurb (2 lines) left the Templates menu;
     // 2026-10-20: 40 — the General gacha's blurb (2 lines) joined it; 42 — the
-    // Standard gacha's (2 lines); 44 — the Pickup gacha's (2 lines)
+    // Standard gacha's (2 lines); 44 — the Pickup gacha's (2 lines);
+    // 2026-10-23: still 44, measured in File's description areas (272 px)
     expect(rows.reduce((n, r) => n + r.lines, 0), 'the English line count is unchanged').toBe(44)
     await ctx.close()
   })

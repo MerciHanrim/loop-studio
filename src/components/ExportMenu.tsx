@@ -12,6 +12,7 @@ import {
 import { makeProposal } from '../ui/revisionActions'
 import { useT } from '../i18n'
 import type { ToolbarDialog } from './toolbar/dialogTypes'
+import { DescribedRow } from './toolbar/DescribedMenu'
 
 const MiB = (n: number) => `${(n / (1024 * 1024)).toFixed(1)} MiB`
 
@@ -30,12 +31,13 @@ function download(text: string, name: string) {
  *  confirms once (a what's-in / what's-out summary, so there is always a
  *  cancel path) and enforces the §W4 8 MiB cap.
  *
- *  Hanrim's visual review (2026-09-15): these 5 actions render directly as
- *  `File ▾`'s own menu rows (a divider below New/Import), not behind a
- *  nested `Export ▾` sub-trigger — the earlier nested version read as a
- *  small pill button awkwardly inserted into the popover. This component
- *  therefore owns no trigger, no popover, and no open/closed state of its
- *  own; `FileMenu.tsx` renders it as a plain fragment of `.menu__item` rows.
+ *  The workbench (docs/workbench.md §WB2.2, 2026-10-23): the four formats are
+ *  the rows of File ▸ Export, a submenu row like any other menu's (the
+ *  2026-09-15 nested `Export ▾` read as a pill button inside the popover; this
+ *  is a menu row). Each row is a name; its description shows in the
+ *  submenu's description area. Set the export author… is File's own row
+ *  (`AuthorMenuItem`). This component owns no trigger, no popover, and no
+ *  open/closed state of its own; `FileMenu.tsx` renders it in the submenu.
  *
  *  Review condition 3: the Project-revision / Workspace-JSON disclosures and
  *  the Author dialog live in `Toolbar.tsx`'s `DialogHost` (a stable
@@ -124,41 +126,26 @@ export function ExportMenuItems({
     })
   }
 
+  const run = t('workbench.file.exportRun')
   return (
     <>
-      <div className="menu__divider" role="separator" />
-      <button type="button" className="menu__item" role="menuitem" onClick={graphJSON}>
-        <span className="menu__name">{t('export.graphJson.name')}</span>
-        <span className="menu__blurb">{t('export.graphJson.blurb')}</span>
-      </button>
-      <button type="button" className="menu__item" role="menuitem" onClick={workspaceJSON}>
-        <span className="menu__name">{t('export.workspaceJson.name')}</span>
-        <span className="menu__blurb">{t('export.workspaceJson.blurb')}</span>
-      </button>
-      <button type="button" className="menu__item" role="menuitem" onClick={projectRevision}>
-        <span className="menu__name">{t('export.projectRevision.name')}</span>
-        <span className="menu__blurb">{t('export.projectRevision.blurb')}</span>
-      </button>
-      <button
-        type="button"
-        className="menu__item"
-        role="menuitem"
-        onClick={proposal}
-        disabled={!projectOpen}
-        title={projectOpen ? undefined : t('export.proposal.needRevision')}
-      >
-        <span className="menu__name">{t('export.proposal.name')}</span>
-        <span className="menu__blurb">{t('export.proposal.blurb')}</span>
-      </button>
-      <button
-        type="button"
-        className="menu__item"
-        role="menuitem"
-        onClick={() => onOpenDialog({ kind: 'export-author' })}
-      >
-        <span className="menu__name">{t('export.author.name')}</span>
-        <span className="menu__blurb">{t('export.author.blurb')}</span>
-      </button>
+      <DescribedRow name={t('export.graphJson.name')} description={t('export.graphJson.blurb')} action={run} onSelect={graphJSON} />
+      <DescribedRow name={t('export.workspaceJson.name')} description={t('export.workspaceJson.blurb')} action={run} onSelect={workspaceJSON} />
+      <DescribedRow name={t('export.projectRevision.name')} description={t('export.projectRevision.blurb')} action={run} onSelect={projectRevision} />
+      <DescribedRow
+        name={t('export.proposal.name')}
+        description={t('export.proposal.blurb')}
+        action={run}
+        onSelect={proposal}
+        disabledNote={projectOpen ? undefined : t('export.proposal.needRevision')}
+      />
     </>
   )
+}
+
+/** File's "Set the export author…" row: its own row in File's settings group,
+ *  not an export format (docs/workbench.md §WB2.2) */
+export function AuthorMenuItem({ onOpenDialog }: { onOpenDialog: (desc: ToolbarDialog) => void }) {
+  const t = useT()
+  return <DescribedRow name={t('export.author.name')} description={t('export.author.blurb')} onSelect={() => onOpenDialog({ kind: 'export-author' })} />
 }

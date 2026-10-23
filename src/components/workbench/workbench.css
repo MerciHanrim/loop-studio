@@ -230,9 +230,12 @@
   font-size: 12px;
   font-weight: 600;
 }
+/* "mark | name" on one line: `.menu__item` is a column (a name over its
+   blurb), which a check row must not inherit */
 .wb-menu__check,
 .wb-viewmenu__toggle {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 8px;
 }
@@ -241,6 +244,94 @@
   flex: none;
   display: inline-flex;
   color: var(--sel);
+}
+
+/* File and its Templates / Export submenus (docs/workbench.md §WB2.2): rows
+   of names, one description area at the foot (`DescribedMenu.tsx`). The rows
+   keep the room: the area gives way first, to two lines, then scrolls, and
+   only then do the rows scroll. Nothing is cut. */
+.dmenu {
+  /* File's old cap (a long top-level menu, 721 × 720 and 820 × 720) */
+  max-height: min(70vh, 480px);
+}
+.dmenu--sub {
+  max-height: calc(100vh - 16px);
+}
+.dmenu__rows {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.dmenu__area {
+  flex: 0 20 auto;
+  min-height: 44px;
+  max-height: 30vh;
+  overflow-y: auto;
+  margin: 4px 2px 0;
+  padding: 7px 7px 3px;
+  border-top: 1px solid var(--line-1);
+}
+/* every description in one cell: the area is as tall as the longest, so it
+   does not jump from row to row; only the current one is visible */
+.dmenu__descs {
+  display: grid;
+}
+.dmenu__desc {
+  grid-area: 1 / 1;
+  /* its own height (the cell is the longest's), not stretched to the cell */
+  align-self: start;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.35;
+  /* the blurb's ink (6.68:1 on `--bg-overlay` in light) */
+  color: var(--ink-2);
+  visibility: hidden;
+}
+.dmenu__desc.is-shown {
+  visibility: visible;
+}
+:lang(ko) .dmenu__desc {
+  word-break: keep-all;
+}
+.dmenu__act {
+  margin-top: 6px;
+}
+/* a submenu's row: name | › on one line */
+.menu__item.dmenu__parent {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+/* the row whose submenu is open stays marked while the pointer is in it */
+.menu__item.dmenu__parent[aria-expanded='true'] {
+  background: var(--bg-hover);
+}
+.dmenu__chev {
+  color: var(--ink-2);
+}
+/* why a row is off, under its name: readable ink, not the row's disabled one */
+.dmenu__note {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-2);
+}
+@media (forced-colors: active) {
+  .dmenu__desc,
+  .dmenu__note,
+  .dmenu__chev {
+    color: CanvasText;
+  }
+  .dmenu__area {
+    border-top-color: CanvasText;
+  }
+  /* the open submenu's row: the override drops its background */
+  .menu__item.dmenu__parent[aria-expanded='true'] {
+    outline: 1px solid CanvasText;
+    outline-offset: -1px;
+  }
 }
 
 /* ---- the left panel: Model / Inputs ---- */

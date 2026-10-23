@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
 import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, snap, test } from './support/loop'
-import { openMonteCarloDialog } from './support/workbenchMenus'
+import { openFileSubmenu, openMonteCarloDialog } from './support/workbenchMenus'
 
 // docs/localization.md §L13 — Slice 3, the REPRESENTATIVE Korean reference
 // screenshots. Lumi's call (over a full ~30-image KO pixel matrix, which is
@@ -188,8 +188,8 @@ test.describe('i18n Slice 3 — representative KO reference screenshots', () => 
     await pickLocale(page, 'ko')
     await expect(page.locator('.react-flow__node[data-id="pool"]')).toBeVisible()
     await pinViewport(page)
-    await page.locator('.toolbar__actions .menu > button', { hasText: /파일/ }).click()
-    await expect(page.locator('.toolbar__actions .menu__pop')).toBeVisible()
+    // File ▸ Export (docs/workbench.md §WB2.2): File and its Export submenu
+    await openFileSubmenu(page, 'export')
     await fontsReady(page)
     await expect(page).toHaveScreenshot(...snap(page, 'ko-export-menu', shot(page)))
   })

@@ -7,6 +7,9 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **A shorter File menu.** The File menu lists names only, one per line: the Templates and the export formats are in two submenus, Templates ▸ and Export ▸, and Set the export author… sits next to Storage & privacy…. The description of the item you point at or move to is shown in full at the foot of the menu — on a touch screen, a press on a Template or an export format shows it with an Open or Export button. An item that is unavailable says why under its name.
+- **Check marks beside their names.** In the View menu (Focus, Filters, Activity overlay, Minimap) and in Edit ▸ Edit lock, the check mark sits on the same line as the item's name again, instead of above it.
+
 ## v0.29.0 — 2026-10-23
 
 The workbench release: the desktop editing screen is redesigned as a workbench ([`docs/workbench.md`](docs/workbench.md)), and the supported languages are English and Korean — if you had chosen another language, Loop Studio starts in English, and your saved documents are kept as they are.

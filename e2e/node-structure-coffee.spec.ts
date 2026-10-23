@@ -26,6 +26,8 @@ async function openCoffee(page: Page, structure: 'outside' | 'inside'): Promise<
   // Templates ▸ Coffee roastery (the same path a user takes)
   const menu = page.locator('.toolbar__actions .menu').first()
   await menu.locator('> button').click()
+  // File ▸ Templates (docs/workbench.md §WB2.2)
+  await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
   await menu.locator('.menu__pop [role="menuitem"]', { hasText: /Coffee roastery/ }).click()
   const confirm = page.locator('.dialog button, .mcdlg button', { hasText: /replace|Load template/i })
   if (await confirm.isVisible().catch(() => false)) await confirm.click()

@@ -129,6 +129,68 @@ export function usePaletteTipPosition<K extends string>(
   return pos
 }
 
+/** A submenu beside its menu (File ▸ Templates / Export, docs/workbench.md
+ *  §WB2.2): at the menu panel's inline end (the right, in English and Korean),
+ *  its top level with its row's; on the left when the right has no room; then
+ *  moved up as far as it runs past the window's bottom. Its CSS caps its
+ *  height inside the window (its rows then scroll), so `sub.height` fits. */
+export function computeSubmenuPos(
+  row: { top: number },
+  menu: { left: number; right: number },
+  sub: { width: number; height: number },
+  view: { width: number; height: number },
+): AnchoredPos {
+  const height = Math.min(sub.height, view.height - 2 * MARGIN)
+  let left = menu.right + 2
+  if (left + sub.width > view.width - MARGIN) {
+    const before = menu.left - 2 - sub.width
+    left = before >= MARGIN ? before : Math.max(MARGIN, view.width - MARGIN - sub.width)
+  }
+  // the submenu's first row level with its parent row (the panel's 4px padding)
+  const top = Math.max(MARGIN, Math.min(row.top - 4, view.height - MARGIN - height))
+  return { top, left }
+}
+
+/** `computeSubmenuPos` for an open submenu: measured on open, on a resize and
+ *  on any scroll (the menu's own rows scroll); `null` until the first
+ *  measurement, so the submenu stays hidden for that frame. A measurement is
+ *  kept with the submenu it was taken for, so none is reset on close: the
+ *  other submenu never takes it, and the same submenu's earlier one is
+ *  replaced by the layout effect before the first paint. */
+export function useSubmenuPosition(
+  rowRef: RefObject<HTMLElement | null>,
+  menuRef: RefObject<HTMLElement | null>,
+  subRef: RefObject<HTMLElement | null>,
+  openKey: string | null,
+): AnchoredPos | null {
+  const [pos, setPos] = useState<(AnchoredPos & { key: string }) | null>(null)
+
+  useLayoutEffect(() => {
+    if (!openKey) return
+    const recompute = () => {
+      const row = rowRef.current?.getBoundingClientRect()
+      const menu = menuRef.current?.getBoundingClientRect()
+      const sub = subRef.current
+      if (!row || !menu || !sub) return
+      const size = { width: sub.offsetWidth, height: sub.offsetHeight }
+      setPos({ key: openKey, ...computeSubmenuPos(row, menu, size, { width: window.innerWidth, height: window.innerHeight }) })
+    }
+    recompute()
+    // and when it grows (a touch choice shows its Open / Export button)
+    const sized = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(recompute)
+    if (subRef.current) sized?.observe(subRef.current)
+    window.addEventListener('resize', recompute)
+    document.addEventListener('scroll', recompute, true)
+    return () => {
+      sized?.disconnect()
+      window.removeEventListener('resize', recompute)
+      document.removeEventListener('scroll', recompute, true)
+    }
+  }, [openKey, rowRef, menuRef, subRef])
+
+  return pos && openKey && pos.key === openKey ? { top: pos.top, left: pos.left } : null
+}
+
 /** Positions a `position: fixed` panel as a SIDE flyout next to `anchorRef` —
  *  default to its LEFT (Settings' own Theme/Language rows sit toward the
  *  right end of the toolbar, so opening further right risks running off

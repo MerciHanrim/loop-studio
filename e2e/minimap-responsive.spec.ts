@@ -177,6 +177,8 @@ const toggleBtn = (p: Page) => p.locator('.minimap-toggle')
 /** open the gacha Template through the real Templates menu (the §MML3 framing path) */
 async function openTemplateFromMenu(page: Page): Promise<void> {
   await page.locator('.toolbar__actions .menu').first().locator('> button').click()
+  // File ▸ Templates (docs/workbench.md §WB2.2)
+  await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
   await page
     .locator('.toolbar__actions .menu')
     .first()

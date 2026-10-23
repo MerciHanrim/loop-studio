@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { Download, Page } from '@playwright/test'
 import { expect, openApp, resetAll, runMc, test } from './support/loop'
+import { openFileSubmenu } from './support/workbenchMenus'
 
 // SEMANTICS-W.md loop-workspace/1 — the `Export ▾` → Graph / Workspace flow,
 // the §W4 size prompts, and the atomic restore, exercised through the real UI.
@@ -13,15 +14,11 @@ type Bridge = {
 
 const textOf = async (dl: Download) => readFileSync((await dl.path())!, 'utf8')
 
-// docs/toolbar-responsive.md — Export's actions are flattened directly into
-// `File ▾`'s own popover (Hanrim's visual review, 2026-09-15); `openFileMenu`
-// opens File first, a no-op once it's already open.
-const fileBtn = (page: Page) =>
-  page.locator('.toolbar__actions .menu > button', { hasText: 'File' })
+// docs/workbench.md §WB2.2 — the export formats are the rows of File ▸
+// Export; `openFileMenu` opens File and that submenu, a no-op once they are
+// open.
 async function openFileMenu(page: Page): Promise<void> {
-  if ((await fileBtn(page).getAttribute('aria-expanded')) !== 'true') {
-    await fileBtn(page).click()
-  }
+  await openFileSubmenu(page, 'export')
 }
 const exportItem = (page: Page, name: RegExp | string) =>
   page.locator('.toolbar__actions .menu__pop').getByRole('menuitem', { name })

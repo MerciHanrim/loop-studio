@@ -7,7 +7,7 @@ import { PARALLEL_GAP } from '../src/components/edges/orthogonalRoute'
 import { edgePortKind, faceOf, rfHandleId, type PortEnd } from '../src/model/ports'
 import type { LoopEdge } from '../src/model/types'
 import { expectShownNoticesAre, manifestNoticesSha, openAbout, openLicences, sha256 } from './support/licenses'
-import { openMonteCarloDialog } from './support/workbenchMenus'
+import { openFileSubmenu, openMonteCarloDialog } from './support/workbenchMenus'
 
 // Runs under playwright.dist.config.ts: production `npm run build` served by
 // `vite preview` at the root `/` — the shape Cloudflare Pages serves. No
@@ -109,7 +109,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     expect(result.recommendedRunConfig).toBeUndefined() // MC JSON export, not a graph doc
 
     // 5 — a graph Export is a valid graph file carrying recommendedRunConfig
-    await page.locator('.toolbar__actions .menu > button', { hasText: 'File' }).click()
+    await openFileSubmenu(page, 'export')
     await page
       .locator('.toolbar__actions .menu__pop')
       .getByRole('menuitem', { name: 'Graph JSON' })
@@ -139,13 +139,8 @@ test.describe('production build (Cloudflare Pages shape)', () => {
       recommendedRunConfig: { runs: number; steps: number; baseSeed: number }
     }
 
-    // Templates ▾ is the first `.menu` in the toolbar actions
-    await page.locator('.toolbar__actions .menu').first().locator('> button').click()
-    await page
-      .locator('.toolbar__actions .menu')
-      .first()
-      .locator('.menu__pop [role="menuitem"]', { hasText: '3-zone gacha banner comparison' })
-      .click()
+    // File ▸ Templates (docs/workbench.md §WB2.2)
+    await (await openFileSubmenu(page, 'templates')).locator('[role="menuitem"]', { hasText: '3-zone gacha banner comparison' }).click()
     const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i })
     if (await confirm.isVisible().catch(() => false)) await confirm.click()
 
@@ -501,7 +496,7 @@ test.describe('production build — the version the release bumped', () => {
 
     // 3 — `meta.tool` in an exported Project revision. This one is not cosmetic:
     // it is written INTO a file a user keeps and sends to someone else.
-    await page.locator('.toolbar__actions .menu > button', { hasText: 'File' }).click()
+    await openFileSubmenu(page, 'export')
     await page
       .locator('.toolbar__actions .menu__pop')
       .getByRole('menuitem', { name: 'Project revision' })

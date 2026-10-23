@@ -204,14 +204,19 @@ test.describe('where focus goes after a choice', () => {
   // opens no dialog.
   test('a command chosen from the keyboard returns focus to the button; chosen with the pointer, focus is left as it was', async ({ page }) => {
     await openApp(page)
+    // File ▸ Export ▸ Graph JSON (docs/workbench.md §WB2.2): the submenu's
+    // choice returns focus to File's button, the submenu's row having gone
     const trigger = toolbarButton(page, 'File')
-    const graphJson = popOf(trigger).locator('[role="menuitem"]').filter({ hasText: 'Graph JSON' }).first()
+    const exportRow = popOf(trigger).locator('[data-submenu="export"]')
+    const graphJson = page.locator('.dmenu--sub [role="menuitem"]').filter({ hasText: 'Graph JSON' }).first()
     await trigger.focus()
     await page.keyboard.press('Enter')
     await expect(popOf(trigger).locator('[role="menuitem"]').first()).toBeFocused()
-    for (let i = 0; i < 16 && !(await graphJson.evaluate((el) => el === document.activeElement)); i++) {
+    for (let i = 0; i < 16 && !(await exportRow.evaluate((el) => el === document.activeElement)); i++) {
       await page.keyboard.press('ArrowDown')
     }
+    await expect(exportRow).toBeFocused()
+    await page.keyboard.press('ArrowRight')
     await expect(graphJson).toBeFocused()
     const download = page.waitForEvent('download')
     await page.keyboard.press('Enter')
@@ -219,6 +224,7 @@ test.describe('where focus goes after a choice', () => {
     await expect(trigger).toBeFocused()
     // the pointer: open and choose by mouse - focus is not pulled to the button
     await trigger.click()
+    await exportRow.click()
     const download2 = page.waitForEvent('download')
     await graphJson.click()
     await download2
@@ -258,9 +264,13 @@ test.describe('where focus goes after a choice', () => {
     const trigger = page.locator('.toolbar__filemenu > .wb-mb')
     await trigger.focus()
     await page.keyboard.press('Enter')
-    // the first Template row (docs/workbench.md §WB2: File ▸ Templates)
-    const first = page.locator('.toolbar__filemenu-pop [data-template]').first()
-    for (let i = 0; i < 16 && !(await first.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press('ArrowDown')
+    // the first Template row (docs/workbench.md §WB2.2: File ▸ Templates,
+    // opened with Enter on its row)
+    const row = page.locator('.toolbar__filemenu-pop [data-submenu="templates"]')
+    for (let i = 0; i < 16 && !(await row.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press('ArrowDown')
+    await expect(row).toBeFocused()
+    await page.keyboard.press('Enter')
+    const first = page.locator('.dmenu--sub [data-template]').first()
     await expect(first).toBeFocused()
     await page.keyboard.press('Enter') // the sample document is not empty
     const confirm = page.locator('.mcdlg--confirm')

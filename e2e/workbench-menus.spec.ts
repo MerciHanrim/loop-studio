@@ -1,10 +1,11 @@
 import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
-import { openFileMenu } from './support/workbenchMenus'
+import { openFileMenu, openFileSubmenu } from './support/workbenchMenus'
 
 // docs/workbench.md §WB2 — the menu bar's menus open from their trigger's
-// start, inside the window; a long one (File, with the Templates in it)
-// scrolls, and the keyboard reaches its last row, which scrolls into view.
+// start, inside the window; where a menu's rows do not fit they scroll, and
+// the keyboard reaches its last row, which scrolls into view. File's two
+// submenus (§WB2.2) open beside it, level with their row, inside the window.
 
 /** a rect inside another, 1 px of slack */
 const inside = (a: DOMRect | { left: number; right: number; top: number; bottom: number }, b: { left: number; right: number; top: number; bottom: number }) =>
@@ -48,12 +49,33 @@ for (const size of [
     const g2 = await geometry(page)
     expect(g2.activeIsLast).toBe(true)
     expect(inside(g2.active, g2.pop)).toBe(true)
-    if (size.height <= 600) expect(g.scrolls, 'a short window scrolls the menu rather than clipping it').toBe(true)
     // and the pointer: the popup's own scroll brings the last row to it
     await page.keyboard.press('Escape')
     await openFileMenu(page)
     const last = page.locator('.toolbar__filemenu-pop [role="menuitem"]').last()
     await last.scrollIntoViewIfNeeded()
     await expect(last).toBeInViewport()
+  })
+
+  test(`File's submenus at ${size.width} × ${size.height}: beside File, level with their row, inside the window`, async ({ page }) => {
+    await page.setViewportSize(size)
+    await openApp(page)
+    await resetAll(page)
+    for (const which of ['templates', 'export'] as const) {
+      const sub = await openFileSubmenu(page, which)
+      const box = await page.evaluate((w) => {
+        const r = (el: Element | null) => el!.getBoundingClientRect().toJSON() as { left: number; right: number; top: number; bottom: number }
+        return {
+          file: r(document.querySelector('.toolbar__filemenu-pop')),
+          row: r(document.querySelector(`[data-submenu="${w}"]`)),
+          sub: r(document.querySelector('.dmenu--sub')),
+          view: { left: 0, right: innerWidth, top: 0, bottom: innerHeight },
+        }
+      }, which)
+      expect(inside(box.sub, box.view), `${which}: inside the window`).toBe(true)
+      expect(box.sub.left >= box.file.right - 1 || box.sub.right <= box.file.left + 1, `${which}: beside File, not over it`).toBe(true)
+      expect(Math.abs(box.sub.top + 4 - box.row.top), `${which}: its first row level with its row`).toBeLessThanOrEqual(1)
+      await expect(sub.locator('[role="menuitem"]').first()).toBeInViewport()
+    }
   })
 }

@@ -7,6 +7,7 @@ import { useT } from '../i18n'
 import { openTemplate } from '../i18n/templateLabels'
 import { ConfirmDialog } from './ConfirmDialog'
 import { TEMPLATE_KEY } from './templateKeys'
+import { DescribedRow } from './toolbar/DescribedMenu'
 import { useMenuOpenStore } from './toolbar/menuOpenStore'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 import { useMenuKeyboard, useMenuTrigger } from '../ui/useMenuKeyboard'
@@ -37,22 +38,24 @@ export function loadTemplate(id: string): void {
   useMcStore.getState().applyRecommended(recommendedRunConfig)
 }
 
-/** the workbench File menu's Templates section: a heading and one item per
- *  listed Template (name and description, as the Templates menu shows them);
- *  `onPick` decides whether to confirm first (the caller owns the dialog,
- *  which must outlive the menu) */
+/** the rows of the workbench's File ▸ Templates submenu: one per listed
+ *  Template, its name; its description shows in the submenu's description
+ *  area (docs/workbench.md §WB2.2). `onPick` decides whether to confirm first
+ *  (the caller owns the dialog, which must outlive the menu) */
 export function TemplateMenuItems({ onPick }: { onPick: (id: string) => void }) {
   const t = useT()
+  const open = t('workbench.file.open')
   return (
     <>
-      <div className="wb-menu__heading" role="presentation">
-        {t('workbench.menu.templates')}
-      </div>
       {MENU_TEMPLATES.map((tpl) => (
-        <button key={tpl.id} type="button" className="menu__item" role="menuitem" data-template={tpl.id} onClick={() => onPick(tpl.id)}>
-          <span className="menu__name">{t(TEMPLATE_KEY[tpl.id as keyof typeof TEMPLATE_KEY].name)}</span>
-          <span className="menu__blurb">{t(TEMPLATE_KEY[tpl.id as keyof typeof TEMPLATE_KEY].blurb)}</span>
-        </button>
+        <DescribedRow
+          key={tpl.id}
+          name={t(TEMPLATE_KEY[tpl.id as keyof typeof TEMPLATE_KEY].name)}
+          description={t(TEMPLATE_KEY[tpl.id as keyof typeof TEMPLATE_KEY].blurb)}
+          action={open}
+          onSelect={() => onPick(tpl.id)}
+          attrs={{ 'data-template': tpl.id }}
+        />
       ))}
     </>
   )

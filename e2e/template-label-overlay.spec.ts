@@ -52,6 +52,8 @@ async function unlockCanvas(page: Page) {
 
 async function pickTemplate(page: Page, hasText: string) {
   await templatesBtn(page).click()
+  // File ▸ Templates (docs/workbench.md §WB2.2)
+  await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
   await page
     .locator('.toolbar__actions .menu').first()
     .locator('.menu__pop [role="menuitem"]', { hasText })

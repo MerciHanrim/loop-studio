@@ -523,6 +523,12 @@ const ui = {
   'workbench.menu.insert': 'Insert',
   'workbench.menu.run': 'Run',
   'workbench.menu.templates': 'Templates',
+  // File ▸ Export (the submenu's row), the description area's hint when no row
+  // is current, and the button a touch press shows for a Template / a format
+  'workbench.file.export': 'Export',
+  'workbench.file.hint': 'Select an item to see its description',
+  'workbench.file.open': 'Open',
+  'workbench.file.exportRun': 'Export',
   'workbench.edit.undo': 'Undo',
   'workbench.edit.redo': 'Redo',
   'workbench.edit.tidy': 'Tidy to grid',

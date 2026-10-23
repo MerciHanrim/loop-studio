@@ -152,13 +152,33 @@ export async function openFileMenu(page: Page): Promise<void> {
   await expect(page.locator('.toolbar__filemenu-pop')).toBeVisible()
 }
 
+/** File's open submenu, Templates or Export (docs/workbench.md §WB2.2) */
+export const fileSubmenu = (page: Page): Locator => page.locator('.toolbar__filemenu .dmenu--sub')
+
+/** File ▸ Templates or File ▸ Export open (desktop): File, then the
+ *  submenu's row, clicked as a user opens it. Returns the submenu. */
+export async function openFileSubmenu(page: Page, which: 'templates' | 'export'): Promise<Locator> {
+  await openFileMenu(page)
+  const row = page.locator(`.toolbar__filemenu-pop [data-submenu="${which}"]`)
+  if ((await row.getAttribute('aria-expanded')) !== 'true') await row.click()
+  await expect(row).toHaveAttribute('aria-expanded', 'true')
+  await expect(fileSubmenu(page)).toBeVisible()
+  return fileSubmenu(page)
+}
+
 /** File ▸ Templates ▸ the template `id` (its `data-template`), or the first
  *  one listed. The replace confirmation, when the open document has nodes,
  *  is left to the caller. */
 export async function pickTemplate(page: Page, id?: string): Promise<void> {
-  await openFileMenu(page)
-  const items = page.locator('.toolbar__filemenu-pop [data-template]')
-  await (id == null ? items.first() : page.locator(`.toolbar__filemenu-pop [data-template="${id}"]`)).click()
+  const sub = await openFileSubmenu(page, 'templates')
+  const items = sub.locator('[data-template]')
+  await (id == null ? items.first() : sub.locator(`[data-template="${id}"]`)).click()
+}
+
+/** a File ▸ Export row by its visible name, with the submenu open */
+export async function fileExportRow(page: Page, name: string | RegExp): Promise<Locator> {
+  const sub = await openFileSubmenu(page, 'export')
+  return sub.locator('[role="menuitem"]').filter({ has: page.locator('.menu__name', { hasText: name }) })
 }
 
 /** pick a language with the real control: View ▸ Language on the desktop,

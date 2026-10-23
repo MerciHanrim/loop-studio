@@ -62,13 +62,17 @@ Share at the far end.
 
 | Menu | Holds |
 | --- | --- |
-| File | New, Import, Export, Templates, the two structure rows (save a selected structure, insert a saved one), Storage & privacy |
+| File | New, Import; Templates ▸ and Export ▸ (two submenus, §WB2.2); the two structure rows (save a selected structure, insert a saved one); Set the export author…, Storage & privacy… |
 | Edit | Undo, Redo, Tidy to grid, the two frame clear actions, Edit lock (a check item) |
 | View | Theme, Language, Focus, Filters, Activity overlay, Minimap, Reset view |
 | Insert | The eight node kinds, Group frame, Suggest frames |
 | Data | The spreadsheet import (unchanged) |
 | Run | Play / Pause, Step, Reset to step 0, Monte Carlo… |
 | Help | Unchanged |
+
+A check row (View's four toggles, Edit lock) reads "mark | name" on one
+line. The mark keeps its column when it is off, so the name starts at the
+same place on and off.
 
 There is no Values table and no Notation entry. A Notation entry is added
 only if the contextual help really explains the symbols and lines. The V / H
@@ -93,9 +97,82 @@ and always on the phone) neither the minimap nor its button is drawn,
 whatever the choice. Where the open minimap sits, docking it elsewhere, or
 moving it out of the nodes' way is not part of this.
 
+### WB2.2 File and its two submenus
+
+File's rows are names on one line, in four groups: New, Import | Templates ›,
+Export › | Save selected structure…, Insert saved structure… | Set the export
+author…, Storage & privacy…. Templates holds the seven Templates (the same
+order as before, no groups). Export holds Graph JSON, Workspace JSON, Project
+revision and Make a proposal. Set the export author… is a row of File's own
+settings group, not an export format. What each row does is unchanged.
+
+**The description area.** File and each submenu end in one description area
+(`DescribedMenu.tsx`). It shows the description of the row under the
+pointer, else of the row that has focus. A row without a description shows
+none, never the previous row's. With no current row it reads "Select an item
+to see its description". Every description is laid out in the area at once,
+all but the current one hidden, so the area is as tall as the longest and
+does not change height from row to row. There is no line clamp: past its cap
+(30% of the window's height) the area scrolls. When the window is short, the
+area gives way first, down to two lines, and only then do the rows scroll; a
+submenu is capped at the window's height.
+
+Each row is described by its own description (`aria-describedby`), read when
+the row takes focus. Pointing at a row changes only what is drawn: focus
+does not move and the area is no live region, so moving the pointer makes a
+screen reader say nothing.
+
+**A row that is off** says why in a short line under its name, which is
+part of its description; its name stays its name: Make a proposal ("Export a
+Project revision first", while no project is open) and Insert saved
+structure… ("Unavailable while editing is locked"). The keyboard never lands
+on a row that is off, so that line is how the keyboard and a screen reader
+learn it; it is not a colour or a tooltip only.
+
+**Opening and closing.** A submenu opens on a click on its row. There is no
+hover timer and no close delay. Its row carries `aria-haspopup="menu"` and
+`aria-expanded`, and stays marked while the submenu is open. One submenu is
+open at a time. A click on its row again closes it; a click outside File
+closes both.
+
+| Where | Key | What happens |
+| --- | --- | --- |
+| A submenu's row | Arrow Right, Enter, Space | Opens it, focus on its first row |
+| File | Arrow Down / Up, Home / End | As every menu (disabled rows skipped, wrapping) |
+| A submenu | Arrow Down / Up, Home / End | The same, inside the submenu |
+| A submenu | Arrow Left, Escape | Closes the submenu alone; focus back on its row |
+| File, no submenu open | Escape | Closes File; focus back on File's button |
+| Anywhere in File | Tab, Shift+Tab | Closes File and moves on from File's button |
+| A row | Enter, Space | Runs it |
+
+Focus moving to another of File's rows closes an open submenu. A choice
+that opens a dialog (a Template's replace confirmation, Workspace JSON,
+Project revision) gives focus to the dialog, which returns it to File's
+button. A choice that opens none (a Template into an empty document, Graph
+JSON) returns focus to File's button.
+
+**Touch.** The two steps belong to the rows of the two submenus only, the
+Templates and the export formats: there the choice is between options whose
+descriptions are read before running one. A press on such a row selects it
+and shows its description with an explicit Open (a Template) or Export (a
+format) button, which runs it; a second press on the same row does not run
+it. File's own rows (New, Import, Save selected structure…, Insert saved
+structure…, Set the export author…, Storage & privacy…) run on a press, as
+before, and a press on Templates › or Export › opens or closes its submenu.
+A mouse click, Enter or Space runs any row at once; so does a screen
+reader's activation, which has read the description already.
+
+**Where a submenu goes.** Beside File at its inline end (the right, in
+English and Korean), its first row level with its row; on the left when the
+right has no room (File inside `⋯`, at the bar's end); then moved up as far
+as it runs past the window's bottom. Measured at 1280 × 800, 1024 × 600, in
+`⋯`, and by touch at 1024 × 768 and 768 × 1024
+(`e2e/file-menu-submenus.spec.ts`, `e2e/workbench-menus.spec.ts`,
+`e2e/toolbar-responsive.spec.ts`).
+
 The menus open from their trigger's start, inside the window (`⋯`, at the bar's
-end, keeps the end anchor). File is the wide popover (300px), as the Templates menu it
-took in was. A popover taller than the window scrolls, and the keyboard reaches its last
+end, keeps the end anchor). File and its submenus are the wide popover
+(300px). A popover taller than the window scrolls, and the keyboard reaches its last
 row: End, or ArrowUp from the closed trigger, scrolls it into view
 (`e2e/workbench-menus.spec.ts`, at 1280 × 800 and 1024 × 600).
 
