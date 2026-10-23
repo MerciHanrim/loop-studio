@@ -37,9 +37,8 @@ const G = JSON.stringify({
  *  Only these are observable in this app: the node and edge descriptions,
  *  everywhere; and React Flow's `<Controls>` (zoom in / out and the rail's own
  *  label) on the phone only — the desktop workbench has no Controls rail, its
- *  zoom is in the status bar (docs/workbench.md §WB8). The MiniMap is given an
- *  explicit `ariaLabel`, and React Flow 12 never reads `handle.ariaLabel` at
- *  all. Asserting on those would be asserting on `null === null`. */
+ *  zoom is in the status bar (docs/workbench.md §WB8). React Flow 12 never
+ *  reads `handle.ariaLabel` at all. Asserting on those would be asserting on `null === null`. */
 const ariaStrings = (page: Page) =>
   page.evaluate(() => {
     const desc = (prefix: string) =>

@@ -46,7 +46,6 @@ import { WORTH_IT_FLOOR } from './frames/autoFrames'
 import { CanvasHintNote, useHintEligible } from './HintNote'
 import { NOTICE_RAIL_ID, RailOrPanel } from '../ui/noticeRail'
 import { canvasFitInsets, viewportForRect } from './canvasFit'
-import { MinimapDock } from './MinimapDock'
 import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../store/hintStore'
 import { useTourStore } from '../store/tourStore'
 import { isolateAuto } from '../i18n/bidiIsolate'
@@ -219,32 +218,17 @@ export function Canvas() {
   }, [nodes, paneW, paneH])
 
 
-  // docs/mobile.md §MV-D10 / docs/mmo-multilingual-layout.md §MML3 — the minimap
-  // (a fixed ~202×152 overlay) only earns its space on a canvas large enough to
-  // want an overview. Below this it is hidden (like on mobile), so a small
-  // desktop window / split view is not two-thirds minimap.
-  const minimapFits = !isMobile && paneW >= 640 && paneH >= 380
-  // the user can collapse the minimap (persisted); `minimapVisible` is whether
-  // it is ACTUALLY on screen right now — the value `applyInitialView` reserves
-  // space for. Read through a ref inside the callback so a collapse / expand
-  // never changes `applyInitialView`'s identity and so cannot re-run the
-  // (untouched) §MML1 fit / measurement-settle effect.
-  const minimapCollapsed = useUiStore((s) => s.minimapCollapsed)
-  const minimapVisible = minimapFits && !minimapCollapsed
-  const minimapVisibleRef = useRef(minimapVisible)
-  minimapVisibleRef.current = minimapVisible
   // the zoom Controls rail is on screen on the phone only (canvasFitInsets)
   const isMobileRef = useRef(isMobile)
   isMobileRef.current = isMobile
   // DEV / E2E only — the last `applyInitialView` result, so a test can assert
-  // whether the minimap inset was reserved. Tree-shaken from the production /
+  // the insets and zoom it framed with. Tree-shaken from the production /
   // portable bundle with the rest of `import.meta.env.DEV`.
-  const lastInitialViewRef = useRef<{ insetR: number; insetB: number; zoom: number } | null>(null)
+  const lastInitialViewRef = useRef<{ insetL: number; insetT: number; zoom: number } | null>(null)
 
   // §MML3 — a menu-opened Template can carry a fixed graph-coordinate `rect` to
   // frame instead of fit-all. Fit `rect` into the pane MINUS the fixed overlays
-  // (the minimap — only when it is actually visible; the zoom Controls, ~44
-  // wide on the left), so the framed nodes never sit under the minimap.
+  // (the zoom Controls, ~44 wide on the left, where they are shown).
   // Left-align `rect` horizontally (a progression graph reads beginning-first);
   // centre it vertically, or top-align when it is taller than the usable
   // height. Clamp the zoom to `[minZoom, 1.2]`. Pure function of the rect + pane
@@ -256,11 +240,11 @@ export function Canvas() {
       // import wizard's post-commit view, docs/data-import.md §DI17); the
       // insets are this Canvas's own overlays. `keep` (issue #344) caps the
       // zoom so the core start nodes stay whole.
-      const insets = canvasFitInsets(minimapVisibleRef.current, 0, isMobileRef.current)
+      const insets = canvasFitInsets(0, isMobileRef.current)
       const vp = viewportForRect(iv.rect, { width: paneW, height: paneH }, insets, { floor: iv.minZoom, ceil: 1.2, keep: iv.keep })
       if (!vp) return void fitAll()
       setViewport(vp, { duration: 0 })
-      if (import.meta.env.DEV) lastInitialViewRef.current = { insetR: insets.right, insetB: insets.bottom, zoom: vp.zoom }
+      if (import.meta.env.DEV) lastInitialViewRef.current = { insetL: insets.left, insetT: insets.top, zoom: vp.zoom }
     },
     [paneW, paneH, setViewport, fitView],
   )
@@ -494,7 +478,7 @@ export function Canvas() {
 
   // structural editing is off on mobile (docs/mobile.md §MV3a) OR when the
   // desktop Canvas is edit-locked (uiStore.canvasLocked). Selection, pan / zoom,
-  // the minimap, the Timeline and the sim are unaffected either way.
+  // the Timeline and the sim are unaffected either way.
   const noEdit = isMobile || canvasLocked
 
   // docs/dense-graph-pan.md — the pan-capture overlay is live on mobile (always
@@ -587,7 +571,7 @@ export function Canvas() {
 
   // React Flow's built-in a11y strings (Controls buttons, the keyboard hints on
   // nodes / edges, the handle label) — localized via the one config prop
-  // (docs/localization.md Slice 2b). The MiniMap keeps its explicit `ariaLabel`.
+  // (docs/localization.md Slice 2b).
   //
   // Memoized on `t`, which is the correct and only dependency: `useT` keys its
   // `useCallback` on `[activeLocale, activeCatalog]` and `setLocale` commits
@@ -602,7 +586,6 @@ export function Canvas() {
     'controls.zoomOut.ariaLabel': t('rf.controls.zoomOut'),
     'controls.fitView.ariaLabel': t('rf.controls.fitView'),
     'controls.interactive.ariaLabel': t('rf.controls.interactive'),
-    'minimap.ariaLabel': t('canvas.minimap'),
     'handle.ariaLabel': t('rf.handle.label'),
     'node.a11yDescription.default': t('rf.node.a11y'),
     // F4 (audit 2026-09-20) — React Flow announces every arrow-key node move in
@@ -621,8 +604,8 @@ export function Canvas() {
     const w = window as unknown as { __loop?: Record<string, unknown> }
     if (w.__loop) {
       w.__loop.rf = { setViewport, getViewport, fitView, fitAll }
-      // the last `applyInitialView` result — lets an e2e assert the minimap
-      // inset was / was not reserved on a menu-open framing (ux/minimap-collapse)
+      // the last `applyInitialView` result — lets an e2e assert the insets and
+      // zoom of a menu-open framing
       w.__loop.canvas = {
         lastInitialView: () => lastInitialViewRef.current,
         // whether a swap's own fit is still to come: its `fitRev` not seen
@@ -1138,7 +1121,7 @@ export function Canvas() {
         {/* docs/dense-graph-pan.md — the pan-capture overlay. A child of
             <ReactFlow> so it sits inside the `.react-flow` stacking context:
             above the node / edge renderer (equal z-index, later in the DOM),
-            below every `.react-flow__panel` (Controls / MiniMap / hints, z 5)
+            below every `.react-flow__panel` (Controls / hints, z 5)
             so those stay clickable while Pan mode is on. `pointer-events` only
             while active — edit gestures are untouched otherwise. Fed the
             connected `setViewport` / `getViewport` from this component, and
@@ -1249,11 +1232,6 @@ export function Canvas() {
         {/* docs/large-graph-readability.md §LGR3.2 — the transient-filter panel,
             desktop only (mobile controls live in the More sheet, §LGR9). */}
         {!isMobile && filterPanelOpen && <FilterPanel />}
-        {/* docs/mobile.md §MV3 / §MV-D10: the minimap is too small to help on a
-            phone (or a small desktop window — see `minimapFits`) and eats
-            space — not docked there. When it IS docked the user can collapse it
-            to a single restore button (MinimapDock, persisted). */}
-        {minimapFits && <MinimapDock />}
         {/* our own edit-lock replaces React Flow's "interactive" toggle, which
             also kills selection (so the Inspector can't open). `canvasLocked`
             keeps selection + a read-only Inspector; it only blocks structural

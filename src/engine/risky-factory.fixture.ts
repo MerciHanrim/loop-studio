@@ -33,7 +33,9 @@ type NodeSpec = {
 }
 
 // Folded into three bands so the whole graph is ~1.8 : 1 rather than one long
-// horizontal chain — the minimap stays legible and the canvas doesn't clip.
+// horizontal chain — so the canvas doesn't clip, and so the minimap the canvas
+// had when this was laid out stayed legible (removed in v0.30.0; the layout is
+// unchanged).
 //   band 1 (y≈20)   ore intake + deterministic routing + refine, with the
 //                   Tailings dead-end dropping just below
 //   band 2 (y≈340)  energy feed + the assembly spine → Components → Quality Gate

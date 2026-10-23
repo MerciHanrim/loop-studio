@@ -276,7 +276,6 @@ test.describe('playback — Slice 3c-b: masked screenshots (depart beat)', () =>
 
   const shot = (page: Page) => ({
     mask: [
-      page.locator('.react-flow__minimap'),
       page.locator('.react-flow__attribution'),
       page.locator('.pstrip__step'),
     ],

@@ -27,7 +27,6 @@ import { DI_COLUMNS_MAX, DI_ROWS_MAX, DI_TABLES_MAX } from '../../model/serializ
 import { useFrameStore } from '../../store/frameStore'
 import { useGraphStore } from '../../store/graphStore'
 import { useUiStore } from '../../store/uiStore'
-import { useIsMobile } from '../../ui/media'
 import { REPO_URL } from '../AboutDialog'
 import { downloadCsv } from '../../ui/download'
 import { canvasFitInsets, viewportForRect } from '../canvasFit'
@@ -142,7 +141,7 @@ const SAMPLE_FILE_NAME = 'loop-studio-sample.csv'
 export const IMPORT_GUIDE_URL = `${REPO_URL}/blob/main/docs/import-guide.md`
 
 // §DI17 -- post-commit view. The created batch is framed inside the USABLE
-// canvas (pane minus Controls / minimap / the top-center hint slot) at a
+// canvas (pane minus Controls / the top-center hint slot) at a
 // zoom in [IMPORT_FIT_FLOOR, IMPORT_FIT_CEIL]; a batch too large for the
 // floor is never shrunk further -- the view anchors its top-left corner at
 // the floor zoom instead (the "start here" a large import needs, not a
@@ -256,8 +255,6 @@ export function DataImportWizard({
   const { screenToFlowPosition, setViewport } = useReactFlow()
   const paneW = useRfStore((s) => s.width)
   const paneH = useRfStore((s) => s.height)
-  const isMobile = useIsMobile()
-  const minimapCollapsed = useUiStore((s) => s.minimapCollapsed)
   const setLastImportBatch = useUiStore((s) => s.setLastImportBatch)
 
   const [step, setStep] = useState<Step>('tables')
@@ -449,8 +446,6 @@ export function DataImportWizard({
     else setFocusSummaryTick((n) => n + 1)
   }
 
-  const minimapVisible = !isMobile && paneW >= 640 && paneH >= 380 && !minimapCollapsed
-
   const commit = () => {
     if (!validation?.ok) return
     let placement: PlacementChoice
@@ -495,7 +490,7 @@ export function DataImportWizard({
       const vp = viewportForRect(
         { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
         { width: paneW, height: paneH },
-        canvasFitInsets(minimapVisible, IMPORT_HINT_INSET_TOP),
+        canvasFitInsets(IMPORT_HINT_INSET_TOP),
         { floor: IMPORT_FIT_FLOOR, ceil: IMPORT_FIT_CEIL },
       )
       if (vp) setViewport(vp, { duration: 0 })

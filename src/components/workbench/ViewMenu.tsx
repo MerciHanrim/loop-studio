@@ -13,10 +13,10 @@ import { Icon } from '../../ui/icons'
 // The workbench (2026-10, step 5) — the menu bar's VIEW: how the canvas is
 // shown, never what the document holds. Theme and Language (Settings' two
 // rows, which open their own lists), then the view toggles that lived on the
-// canvas's control rail — Focus, Filters, Activity overlay, the minimap — and
-// Reset view. A DISCLOSURE like Settings was (issue #307): its content is
-// controls reached with Tab, two of which open their own popups; Escape
-// closes the innermost level first.
+// canvas's control rail — Focus, Filters, Activity overlay — and Reset view
+// (the minimap's row went with the minimap, v0.30.0). A DISCLOSURE like
+// Settings was (issue #307): its content is controls reached with Tab, two of
+// which open their own popups; Escape closes the innermost level first.
 
 export function ViewMenu({ buttonRef }: { buttonRef?: (el: HTMLButtonElement | null) => void }) {
   const t = useT()
@@ -31,8 +31,6 @@ export function ViewMenu({ buttonRef }: { buttonRef?: (el: HTMLButtonElement | n
   const toggleFilterPanel = useUiStore((s) => s.toggleFilterPanel)
   const activity = useUiStore((s) => s.activityOverlay)
   const toggleActivity = useUiStore((s) => s.toggleActivityOverlay)
-  const minimapCollapsed = useUiStore((s) => s.minimapCollapsed)
-  const setMinimapCollapsed = useUiStore((s) => s.setMinimapCollapsed)
   const setSelection = useGraphStore((s) => s.setSelection)
   const fitAll = useFitAll(() => document.querySelector<HTMLElement>('.canvas'))
 
@@ -89,7 +87,6 @@ export function ViewMenu({ buttonRef }: { buttonRef?: (el: HTMLButtonElement | n
           {toggle(focusMode, t('workbench.view.focus'), toggleFocusMode, 'focus')}
           {toggle(filterOpen, t('workbench.view.filter'), toggleFilterPanel, 'filter')}
           {toggle(activity, t('workbench.view.activity'), toggleActivity, 'activity')}
-          {toggle(!minimapCollapsed, t('workbench.view.minimap'), () => setMinimapCollapsed(!minimapCollapsed), 'minimap')}
           <div className="menu__divider" role="separator" />
           <button
             type="button"

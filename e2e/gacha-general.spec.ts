@@ -61,10 +61,7 @@ test.describe('the General gacha Template', () => {
     await page.keyboard.press('Escape')
     await openGeneral(page)
     await expect(page.locator('.canvas.canvas--locked')).toHaveCount(0)
-    // the whole model fitted: every symbol inside the canvas BOUNDS. This is
-    // not "every symbol visible": with the minimap open, Reset view keeps no
-    // room for it, and at 1440 × 900 it covers the Completion signal — an open
-    // item (the fit / minimap overlap), not checked or claimed here
+    // the whole model fitted: every symbol inside the canvas BOUNDS
     await expect
       .poll(() =>
         page.evaluate(() => {

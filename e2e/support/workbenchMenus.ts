@@ -37,18 +37,17 @@ export async function openViewMenu(page: Page): Promise<void> {
   await expect(t).toHaveAttribute('aria-expanded', 'true')
 }
 
-/** a View row — `focus`, `filter`, `activity`, `minimap` (toggles with
- *  `aria-pressed`, as the canvas rail's buttons had) or `reset` — with View
- *  open. View stays open across its rows' clicks; a click elsewhere or
- *  Escape closes it. */
-export async function viewRow(page: Page, hook: 'focus' | 'filter' | 'activity' | 'minimap' | 'reset'): Promise<Locator> {
+/** a View row — `focus`, `filter`, `activity` (toggles with `aria-pressed`,
+ *  as the canvas rail's buttons had) or `reset` — with View open. View stays
+ *  open across its rows' clicks; a click elsewhere or Escape closes it. */
+export async function viewRow(page: Page, hook: 'focus' | 'filter' | 'activity' | 'reset'): Promise<Locator> {
   await openViewMenu(page)
   const row = page.locator(`.wb-viewmenu__pop [data-view-row="${hook}"]`)
   await expect(row).toBeVisible()
   return row
 }
 
-type ViewHook = 'focus' | 'filter' | 'activity' | 'minimap' | 'reset'
+type ViewHook = 'focus' | 'filter' | 'activity' | 'reset'
 /** close View with its own trigger — not Escape, which the canvas's own
  *  surfaces (the filter panel, a selection) may also take */
 async function closeView(page: Page): Promise<void> {

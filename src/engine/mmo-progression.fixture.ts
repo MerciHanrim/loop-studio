@@ -474,7 +474,8 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
   //           / Training) + consumables + gear
   //   TOP-R   the seven reporting Registers, in clear space (no edges reach
   //           them — a Register has no ports)
-  //   BOT-R   left empty for the minimap
+  //   BOT-R   left empty — kept clear for the minimap the canvas had then
+  //           (removed in v0.30.0; the layout is unchanged)
   // Zone centres are far enough apart (720) that each zone's roomy 3-lane grid
   // (below) never bleeds into its neighbour — a first read can zoom a zone and
   // every node stays readable and clickable (§EM13.5.1).
@@ -676,7 +677,7 @@ export const MMO_PROGRESSION_MC = {
   timelineSeries: ['deaths', 'gear_score', 'gold', 'level', 'xp_earned'],
   // the layout is part of the explanation — open in a view-safe EDIT-LOCK so a
   // stray drag can't move a node. Selection + the read-only Inspector + pan /
-  // zoom / minimap / Timeline / the sim all still work; the user flips the 🔓
+  // zoom / Timeline / the sim all still work; the user flips the 🔓
   // control in the Canvas to edit. (recommendedRunConfig.canvasLocked, UI-only.)
   canvasLocked: true,
 }

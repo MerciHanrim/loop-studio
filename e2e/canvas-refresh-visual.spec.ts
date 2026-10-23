@@ -7,7 +7,7 @@ import { expect, importGraph, openApp, resetAll, test, snap } from './support/lo
 //   • 12 committed baselines: 2 device (desktop / mobile — the two Playwright
 //     projects) × 2 theme (light / dark) × 3 zoom (L2 / L1 / L0), from ONE
 //     long-content fixture. Non-deterministic chrome (build stamp) is outside
-//     the `.react-flow` clip; the minimap + attribution are masked; fonts are
+//     the `.react-flow` clip; the attribution is masked; fonts are
 //     awaited and the run cue is frozen before the shot.
 //   • forced-colors: rendered-style evidence for every required cue + a shot.
 //   • reduced-motion: per LOD × device — no motion element, static cue kept.
@@ -153,7 +153,6 @@ async function expectFramed(page: Page, level: Level): Promise<void> {
 // never showed it
 const shotOpts = (page: Page, level?: Level) => ({
   mask: [
-    page.locator('.react-flow__minimap'),
     page.locator('.react-flow__attribution'),
     ...(level === 'L2' && !isMobileViewport(page) ? [page.locator('.react-flow__node[data-id="p_big"] .nodef__sub')] : []),
   ],

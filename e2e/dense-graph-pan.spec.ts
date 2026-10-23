@@ -351,7 +351,7 @@ test.describe('dense-graph pan — desktop Pan mode', () => {
     await page.mouse.up()
     expect(await selectedId(page)).toBe('a')
 
-    // flow (250, 250) — clear of every node box, the Controls and the MiniMap
+    // flow (250, 250) — clear of every node box and the Controls
     const rect = (await page.locator('.canvas').boundingBox())!
     const vp = await page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport())
     await page.mouse.move(rect.x + 250 * vp.zoom + vp.x, rect.y + 250 * vp.zoom + vp.y)

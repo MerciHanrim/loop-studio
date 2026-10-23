@@ -239,7 +239,6 @@ test.describe('workbench tokens — nothing of the earlier sets is left', () => 
     expect(await radius('.pstrip .pb-btn')).toBe('5px')
     expect(await radius('.palette-item .chip, .chip')).toBe('5px')
     expect(await radius('.pstrip__seed'), 'a compact control keeps its own radius').toBe('5px')
-    expect(await radius('.minimap-toggle'), 'a compact control keeps its own radius').toBe('4px')
   })
 })
 

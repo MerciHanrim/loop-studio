@@ -62,8 +62,7 @@ test.describe('the Pickup gacha Template', () => {
     await page.keyboard.press('Escape')
     await openPickup(page)
     await expect(page.locator('.canvas.canvas--locked')).toHaveCount(0)
-    // every symbol inside the canvas BOUNDS (the fit / minimap overlap is an
-    // open item, as in the General and Standard gacha's specs)
+    // every symbol inside the canvas BOUNDS
     await expect
       .poll(() =>
         page.evaluate(() => {

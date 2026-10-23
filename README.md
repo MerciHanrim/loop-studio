@@ -92,7 +92,7 @@ roll's SSR once it hits the ceiling; whether that (or any ordinary) SSR lands
 as pickup or standard depends on the `Pickup owed` guarantee flag, which a
 miss sets and the next SSR consumes.
 
-![The Premium Pickup zone alone after the same completed run, with the minimap, the Timeline and the node list folded away: the hard-pity counter against its ceiling, the Pickup-owed guarantee flag, a real Pickup/Standard hit split, and a selected Pool open in the right panel with its current amount](docs/assets/gacha-pickup-guarantee.png)
+![The Premium Pickup zone alone after the same completed run, with the Timeline and the node list folded away: the hard-pity counter against its ceiling, the Pickup-owed guarantee flag, a real Pickup/Standard hit split, and a selected Pool open in the right panel with its current amount](docs/assets/gacha-pickup-guarantee.png)
 
 ## Develop locally
 

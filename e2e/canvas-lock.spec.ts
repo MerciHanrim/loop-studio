@@ -5,7 +5,7 @@ import { fileExportRow } from './support/workbenchMenus'
 // The Canvas EDIT lock (uiStore.canvasLocked, seeded from
 // `recommendedRunConfig.canvasLocked`). Locked ⇒ nodes don't move / connect,
 // nothing deletes, the Inspector is read-only — but selection, the read-only
-// Inspector, pan / zoom, the minimap, the Timeline and the sim all still work.
+// Inspector, pan / zoom, the Timeline and the sim all still work.
 // UI-only: never the GraphDoc / loop-revision digest / undo / simulationRev.
 
 type Bridge = {

@@ -1,12 +1,11 @@
 import type { Page } from '@playwright/test'
-import { ensureTimelineOpen, expandMinimap, expect, importGraph, openApp, resetAll, snap, test } from './support/loop'
+import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, snap, test } from './support/loop'
 
 // docs/flow-colour-and-compact-nodes.md FC-6 (issue #325, PR 2) — the flow
-// colour beyond the canvas, in pixels: the minimap and the timeline of a
-// coloured graph, light and dark; the same two views under forced colours,
-// back on their kind and series colours; and each coloured Template's whole
-// fit, the minimap folded as it starts (since 2026-10-23; the minimap's own
-// colours are the minimap shots). (Each colour offered once, and the stored Recent order, are
+// colour beyond the canvas, in pixels: the timeline of a coloured graph, light
+// and dark; the same view under forced colours, back on its series colours;
+// and each coloured Template's whole fit. (The minimap these shots also held
+// was removed in v0.30.0.) (Each colour offered once, and the stored Recent order, are
 // held by the DOM tests in flow-colour-views.spec.ts and flow-colour.spec.ts;
 // the phone's one-line summary by flow-colour-mobile.spec.ts.)
 
@@ -38,8 +37,6 @@ const settle = async (page: Page) => {
 /** the coloured graph after five steps, the timeline open */
 async function run(page: Page): Promise<void> {
   await openApp(page)
-  // the minimap starts folded (docs/workbench.md §WB2.1); these shots are of it
-  await expandMinimap(page)
   await resetAll(page)
   await importGraph(page, GRAPH)
   await expect(page.locator('.react-flow__node[data-id="r_plain"]')).toBeVisible()
@@ -54,18 +51,16 @@ async function run(page: Page): Promise<void> {
 }
 
 for (const scheme of ['light', 'dark'] as const) {
-  test(`flow colours in the minimap and the timeline — ${scheme}`, async ({ page }) => {
+  test(`flow colours in the timeline — ${scheme}`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: scheme })
     await run(page)
-    await expect(page.locator('.react-flow__minimap')).toHaveScreenshot(...snap(page, `flow-views-minimap-${scheme}`))
     await expect(page.locator('.timeline__panel')).toHaveScreenshot(...snap(page, `flow-views-timeline-${scheme}`))
   })
 }
 
-test('forced colours: the minimap and the timeline keep their kind and series colours', async ({ page }) => {
+test('forced colours: the timeline keeps its series colours', async ({ page }) => {
   await page.emulateMedia({ forcedColors: 'active' })
   await run(page)
-  await expect(page.locator('.react-flow__minimap')).toHaveScreenshot(...snap(page, 'flow-views-forced-minimap'))
   await expect(page.locator('.timeline__panel')).toHaveScreenshot(...snap(page, 'flow-views-forced-timeline'))
 })
 
@@ -80,12 +75,6 @@ for (const t of TEMPLATES) for (const scheme of ['light', 'dark'] as const) {
   test(`${t.name} — its flow colours, the whole diagram fitted — ${scheme}`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: scheme })
     await openApp(page)
-    // the minimap in its default state, folded (§WB2.1): this shot is the
-    // whole fit; the minimap's own flow colours are the three shots above
-    // (2026-10-23, Hanrim / Lumi: on a whole fit the open minimap only covered
-    // the lower right)
-    await expect(page.locator('.minimap-toggle.is-collapsed')).toBeVisible()
-    await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
     await page.locator('.toolbar__actions .menu').first().locator('> button').click()
     // File ▸ Templates (docs/workbench.md §WB2.2)
     await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()

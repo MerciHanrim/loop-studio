@@ -1,0 +1,1 @@
+{ "type": "user-facing", "changelog": "- **No minimap.** The graph minimap, its button at the canvas's corner and View ▸ Minimap are removed; it repeated the graph as unnamed marks and covered part of the canvas. Reset view and the status bar's Fit show the whole diagram, and panning and zooming are unchanged. A choice an earlier version stored for it is ignored." }
