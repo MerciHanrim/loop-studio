@@ -251,19 +251,30 @@ test.describe('the playback strip in a narrow desktop window stays inside the wi
     // a strip short enough to fold them: the canvas column pinned narrow
     await page.addStyleTag({ content: '.canvas-col { max-width: 360px !important; }' })
     const strip = page.locator('.pstrip')
-    await expect.poll(() => strip.getAttribute('data-fit')).toBe('2')
+    // fit step 2 or 3: both fold Speed and Seed into Run settings (3 also lets
+    // the steady-state text shorten). 360 px sits near the boundary between
+    // them: on a CI runner it measured 3 where this machine measured 2 (PR
+    // #361, 2026-10-23), so the step itself is not what this test pins
+    await expect.poll(() => strip.getAttribute('data-fit')).toMatch(/^[23]$/)
     await expect(strip.locator('.pstrip__mc-btn')).toBeHidden()
     const btn = strip.getByRole('button', { name: 'Run settings' })
     await expect(btn).toBeVisible()
+    // folded: neither input is shown in the row
     await expect(strip.locator('input[type="range"]')).toBeHidden()
+    await expect(strip.locator('input[type="number"]')).toBeHidden()
     await btn.click()
     await expect(btn).toHaveAttribute('aria-expanded', 'true')
     const pop = page.locator(`[id="${await btn.getAttribute('aria-controls')}"]`)
     await expect(pop.locator('input[type="range"]')).toBeVisible()
     await expect(pop.locator('input[type="number"]')).toBeVisible()
-    // the same store: the seed set here is the run's seed
+    // the same store: the seed set here is the run's seed, the speed the run's speed
+    type Sim = { __loop: { sim: { getState: () => { seed: number; speedMs: number } } } }
     await pop.locator('input[type="number"]').fill('7')
-    expect(await page.evaluate(() => (window as unknown as { __loop: { sim: { getState: () => { seed: number } } } }).__loop.sim.getState().seed)).toBe(7)
+    expect(await page.evaluate(() => (window as unknown as Sim).__loop.sim.getState().seed)).toBe(7)
+    const speed0 = await page.evaluate(() => (window as unknown as Sim).__loop.sim.getState().speedMs)
+    const range = pop.locator('input[type="range"]')
+    await range.fill(String(Number(await range.getAttribute('max')) === Number(await range.inputValue()) ? await range.getAttribute('min') : await range.getAttribute('max')))
+    await expect.poll(() => page.evaluate(() => (window as unknown as Sim).__loop.sim.getState().speedMs), { message: 'the speed set here is the run’s speed' }).not.toBe(speed0)
     await page.keyboard.press('Escape')
     await expect(btn).toHaveAttribute('aria-expanded', 'false')
     await expect(btn).toBeFocused()

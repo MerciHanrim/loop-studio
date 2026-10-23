@@ -396,6 +396,34 @@
   unicode-range: U+011E-011F, U+0130, U+015E-015F;
 }
 
+/* The change mark "Δ" (U+0394) on node and connection labels — the same
+ * defect as above, for a symbol rather than a language. READ from the files'
+ * own `cmap` tables (2026-10-23): the `latin` subset of IBM Plex Sans (and of
+ * Plex Mono) maps no glyph to U+0394, so "Δ" fell back per glyph to the OS,
+ * which differs between machines (a CI runner drew it unlike this one);
+ * fontsource's `greek` subset of Plex Sans does map it, at 400 and 600. The
+ * face is declared for that one code point only, after the Latin import, as
+ * the faces above are. "≤" (U+2264) is in no subset of the installed Plex
+ * packages and still falls back. */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('@fontsource/ibm-plex-sans/files/ibm-plex-sans-greek-400-normal.woff2')
+    format('woff2');
+  unicode-range: U+0394;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('@fontsource/ibm-plex-sans/files/ibm-plex-sans-greek-600-normal.woff2')
+    format('woff2');
+  unicode-range: U+0394;
+}
+
 /* docs/localization.md §L2.21 — Vietnamese, the fourth locale whose letters
  * IBM Plex Sans was already a candidate for and did not actually carry.
  *

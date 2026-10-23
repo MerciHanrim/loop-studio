@@ -591,7 +591,30 @@ test.describe('the Timeline panel state (contract §7)', () => {
     await resetAll(page)
     await seed(page)
     const collapse = page.locator('.pstrip__collapse')
-    const keys0 = await page.evaluate(() => Object.keys(localStorage).sort())
+    // storage, every key with its value. The seeded document is autosaved
+    // after a debounce: before the first reading, flush it and wait until the
+    // stored document IS the seeded one (2026-10-23: on a CI runner the first
+    // reading came before that save, which then showed up at the end)
+    type Store = Record<string, string | null>
+    const stored = () =>
+      page.evaluate(() => {
+        ;(window as unknown as { __loop: { autosave: { flush: () => void } } }).__loop.autosave.flush()
+        const out: Record<string, string | null> = {}
+        for (const k of Object.keys(localStorage).sort()) out[k] = localStorage.getItem(k)
+        return out
+      })
+    const seededIds = (s: Store) => {
+      const doc = Object.entries(s).find(([k]) => k === 'loop-studio:graph:v1')?.[1]
+      try {
+        return (JSON.parse(doc ?? 'null')?.nodes ?? []).map((n: { id: string }) => n.id).sort().join(',')
+      } catch {
+        return ''
+      }
+    }
+    const liveIds = await page.evaluate(() => ((window as unknown as Bridge).__loop.graph.getState().nodes as { id: string }[]).map((n) => n.id).sort().join(','))
+    expect(liveIds, 'the seed is in the document').toContain('src')
+    await expect.poll(async () => seededIds(await stored()), { message: 'the seeded document is the stored one' }).toBe(liveIds)
+    const store0 = await stored()
     // before any step: open, at the default height
     await expect(page.locator('.timeline__panel')).toBeVisible()
     await expect(page.locator('.timeline.is-collapsed')).toHaveCount(0)
@@ -617,8 +640,9 @@ test.describe('the Timeline panel state (contract §7)', () => {
     await collapse.click()
     await expect(page.locator('.timeline__panel')).toBeVisible()
     expect(await timelineHeight(page)).toBe(168)
-    // nothing about folding or resizing reached storage
-    expect(await page.evaluate(() => Object.keys(localStorage).sort())).toEqual(keys0)
+    // nothing about folding or resizing reached storage: no key added, none
+    // rewritten — read after flushing any save still waiting on its debounce
+    expect(await stored()).toEqual(store0)
   })
 
   test('a completed Monte-Carlo run shows its distribution in the open panel', async ({ page }) => {
