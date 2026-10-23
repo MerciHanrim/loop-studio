@@ -1472,11 +1472,11 @@ test.describe('LGR Slice 3 — run distinction (evaluated vs effective)', () => 
     await expect(node(page, target)).toHaveCount(0)
   })
 
-  test('VISUAL — a committed step: effective / evaluated / selected+evaluated / invalid / idle / model-nodes, minimap hidden (§LGR10.6 / §LGR9)', async ({ page }) => {
+  test('VISUAL — a committed step: effective / evaluated / selected+evaluated / invalid / idle / model-nodes (§LGR10.6 / §LGR9)', async ({ page }) => {
     await loadRun(page)
-    // hide the minimap + attribution so the shot is the real canvas, no mask
+    // hide the attribution so the shot is the real canvas, no mask
     await page.addStyleTag({
-      content: '.react-flow__minimap,.react-flow__attribution{display:none!important}',
+      content: '.react-flow__attribution{display:none!important}',
     })
     await commitOneStep(page)
     const head = await simHead(page)
@@ -2220,10 +2220,10 @@ test.describe('LGR Slice 4a — the opt-in Activity overlay', () => {
     expect(edgeMotion.an).toBe('none')
   })
 
-  test('VISUAL — frames-activity.png: overlapping frames (one selected), real nodes/edges inside, a tinted fired node + resource + state-event edge tint, an evaluated-only node with only the Slice-3 bracket (minimap hidden)', async ({ page }) => {
+  test('VISUAL — frames-activity.png: overlapping frames (one selected), real nodes/edges inside, a tinted fired node + resource + state-event edge tint, an evaluated-only node with only the Slice-3 bracket', async ({ page }) => {
     await loadAct(page)
     await page.addStyleTag({
-      content: '.react-flow__minimap,.react-flow__attribution{display:none!important}',
+      content: '.react-flow__attribution{display:none!important}',
     })
     // a dedicated viewport so both frame labels clear the left control column
     await page.evaluate(() =>
@@ -2899,10 +2899,10 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
   // need about 0.36 (L0) to hold both, which changes what is shown. So the
   // zoom and the panels stay; shot 1 holds Area 1 selected (✕ + resize) and the
   // structural-only note, shot 2 pans to Area 2, unselected, at the same zoom.
-  test('VISUAL — auto-frames.png + auto-frames-area2.png: fresh Suggest — dashed Area N frames, one selected (x + resize), the structural-only note, minimap hidden', async ({ page }) => {
+  test('VISUAL — auto-frames.png + auto-frames-area2.png: fresh Suggest — dashed Area N frames, one selected (x + resize), the structural-only note', async ({ page }) => {
     await loadAF(page)
     await ensureTimelineOpen(page)
-    await page.addStyleTag({ content: '.react-flow__minimap,.react-flow__attribution{display:none!important}' })
+    await page.addStyleTag({ content: '.react-flow__attribution{display:none!important}' })
     await (await menuRow(page, 'insert', 'Suggest frames')).click()
     await expect(page.locator('.lgr-frame--auto')).toHaveCount(2)
     await page.locator('.lgr-frame--auto .lgr-frame__edge-hit--top').first().click()
@@ -2950,7 +2950,7 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
     await page.goto('/')
     await loadAF(page)
     await ensureTimelineOpen(page)
-    await page.addStyleTag({ content: '.react-flow__minimap,.react-flow__attribution{display:none!important}' })
+    await page.addStyleTag({ content: '.react-flow__attribution{display:none!important}' })
     await (await menuRow(page, 'insert', 'Suggest frames')).click()
     await page.locator('.lgr-frame--auto .lgr-frame__label').first().click()
     await page.locator('.lgr-frame-props__name').press('Enter')

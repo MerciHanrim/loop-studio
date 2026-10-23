@@ -89,8 +89,8 @@ MediaQueryList `change` event. Not `pointer: coarse` alone.
   - `panOnDrag` and `zoomOnPinch` stay default-true (touch pan / pinch)
 - `fitView` runs on mount as today. On rotation it runs again — see MV3c.
 - React Flow `Controls` — 44 px targets, positioned **above** the reserved
-  bottom-bar + safe-area band (MV7) so zoom/fit buttons are never covered; the
-  **`MiniMap` is not rendered** on mobile.
+  bottom-bar + safe-area band (MV7) so zoom/fit buttons are never covered.
+  (There is no minimap: it was removed in v0.30.0.)
 
 ### MV3a. Editing lock — exact boundary
 
@@ -108,7 +108,7 @@ The mobile layout is a **viewer + runner**. Precisely:
 | structural keyboard shortcuts (undo/redo, duplicate, select-all, nudge) | same early-return |
 | double-click / context-menu editing | `zoomOnDoubleClick={false}`; `onContextMenu` preventDefault on the canvas; no context menu wired |
 | change any node/edge property | Inspector renders every field `disabled` / `readOnly` |
-| change a flow colour (issue #325) | the Inspector's Colour section is one line of read-only text with no control: a dot and the colour's name and hex, the hex alone off the palette, Default with an empty ring, Mixed with no dot. A colour set on desktop renders on the phone, in the minimap and the timeline too (`docs/flow-colour-and-compact-nodes.md` FC-5, FC-6) |
+| change a flow colour (issue #325) | the Inspector's Colour section is one line of read-only text with no control: a dot and the colour's name and hex, the hex alone off the palette, Default with an empty ring, Mixed with no dot. A colour set on desktop renders on the phone, in the timeline too (`docs/flow-colour-and-compact-nodes.md` FC-5, FC-6) |
 
 **Allowed on mobile** (these are *not* structural graph mutations):
 
@@ -174,7 +174,7 @@ the mobile lock (MV3a): `nodesDraggable` / `nodesConnectable` /
 context-menu handlers off, structural keyboard shortcuts (`Shortcuts`) suppressed,
 and the desktop Inspector wrapped in `<fieldset disabled>` (read-only, values
 visible). `elementsSelectable` stays **true** — selection, the read-only
-Inspector, pan / zoom, the minimap, the Timeline and the simulation all keep
+Inspector, pan / zoom, the Timeline and the simulation all keep
 working. It replaces React Flow's built-in "interactive" toggle
 (`<Controls showInteractive={false}>` + our own `.rf-lock` `ControlButton`),
 because that toggle also kills selection.
@@ -503,7 +503,7 @@ opening. Its mobile placement rules:
 | MV-D7 | run bar | fixed bottom: Reset / Step / Play·Pause / Monte Carlo + `step N`; **no** speed slider or seed field; the four-step Playback speed lives under `⋯` (§MV4, issue #330 PR 3) |
 | MV-D8 | Timeline | collapsible bottom sheet, collapsed by default |
 | MV-D9 | secondary actions | a `More` menu (Share / Import / Export / Templates / Theme / stamp); palette + undo/redo + New not rendered |
-| MV-D10 | MiniMap | **not rendered** on mobile — and, on desktop, hidden when the canvas pane is smaller than ~640 × 380 px (`Canvas.tsx` `minimapFits`), where the fixed ~202 × 152 overlay would dominate rather than help |
+| MV-D10 | MiniMap | **not rendered** on mobile (and, since v0.30.0, nowhere: the minimap was removed, `docs/workbench.md` §WB2.1) |
 | MV-D11 | exclusive overlays | Inspector / Timeline / `More` / MC dialog / **Share result / Templates / Export** are **mutually exclusive** (opening one closes the others); each has `aria-expanded` on its trigger, a 44 px Close, Escape-to-close, focus-return |
 | MV-D12 | safe area | **reserved as real padding** on both bars and the canvas pane, not just visually honoured |
 | MV-D13 | rotation | close open exclusive overlays, `fitView` **once**; no re-fit on pan/zoom within an orientation |

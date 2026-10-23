@@ -535,7 +535,6 @@ const ui = {
   'workbench.view.focus': 'Focus',
   'workbench.view.filter': 'Filters',
   'workbench.view.activity': 'Activity overlay',
-  'workbench.view.minimap': 'Minimap',
   'workbench.view.reset': 'Reset view',
   'workbench.insert.frame': 'Group frame',
   'workbench.insert.suggest': 'Suggest frames',

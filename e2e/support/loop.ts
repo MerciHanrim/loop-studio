@@ -212,19 +212,6 @@ export async function ensureTimelineOpen(page: Page): Promise<void> {
 }
 
 /**
- * docs/workbench.md §WB2.1 — the minimap starts FOLDED when no choice is
- * stored (2026-10-21). A spec about the open minimap itself (its marks, its
- * corner, the space a framing keeps clear of it) opens it as the user's choice
- * would: the stored preference, set through the store. Whether it is then
- * drawn is still the pane's (`minimapFits`) — the caller asserts that.
- */
-export async function expandMinimap(page: Page): Promise<void> {
-  await page.evaluate(() =>
-    (window as unknown as { __loop: { ui: { getState: () => { setMinimapCollapsed: (v: boolean) => void } } } }).__loop.ui.getState().setMinimapCollapsed(false),
-  )
-}
-
-/**
  * The product's own "Reset view" (Canvas.tsx `resetView`: fit the graph, clear
  * filters / focus). A pixel spec that frames the canvas under the app's camera
  * calls this AFTER the layout it wants is final: the camera is otherwise the

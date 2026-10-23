@@ -531,7 +531,6 @@ const ui = {
   'workbench.view.focus': '포커스',
   'workbench.view.filter': '필터',
   'workbench.view.activity': '활동 표시',
-  'workbench.view.minimap': '미니맵',
   'workbench.view.reset': '보기 초기화',
   'workbench.insert.frame': '그룹 프레임',
   'workbench.insert.suggest': '프레임 제안',

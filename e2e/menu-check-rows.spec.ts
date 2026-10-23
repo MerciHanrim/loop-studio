@@ -3,7 +3,7 @@ import { expect, openApp, resetAll, test } from './support/loop'
 import { closeMenu, openViewMenu, pickLocale } from './support/workbenchMenus'
 
 // docs/workbench.md §WB2 — a menu's check row reads "mark | name" on ONE line:
-// View's four toggles (Focus, Filters, Activity overlay, Minimap) and Edit ▸
+// View's toggles (Focus, Filters, Activity overlay) and Edit ▸
 // Lock editing. The mark keeps its column when it is off, so the name starts
 // at the same place on and off. v0.29.0 stacked the mark over the name (the
 // shared `.menu__item` is a column, and the check rows did not set a row).
@@ -30,7 +30,7 @@ function expectOneLine(g: Geo, what: string) {
   expect(g.mark.right - g.mark.left, `${what}: the mark keeps its column`).toBeGreaterThanOrEqual(13.5)
 }
 
-const VIEW_ROWS = ['focus', 'filter', 'activity', 'minimap'] as const
+const VIEW_ROWS = ['focus', 'filter', 'activity'] as const
 const viewToggle = (page: Page, hook: string) => page.locator(`.wb-viewmenu__pop [data-view-row="${hook}"]`)
 const editTrigger = (page: Page) => page.locator('[data-menu="edit"] > .wb-mb')
 const lockRow = (page: Page) => page.locator('[data-menu="edit"] [role="menuitemcheckbox"]')

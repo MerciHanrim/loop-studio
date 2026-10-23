@@ -57,11 +57,8 @@ examples.
 
 ### Not in scope (named so they are not assumed)
 
-- **Requiring the minimap.** The minimap stays a *secondary* aid
-  (`docs/mobile.md §MV-D10` drops it on phones — and, since the §MML3 work, on
-  any desktop pane below ~640 × 380 px via `Canvas.tsx` `minimapFits`, where the
-  fixed ~202 × 152 overlay would dominate instead of help; regression cover in
-  `e2e/minimap-responsive.spec.ts`); the fix must work with it hidden.
+- **Requiring the minimap.** The fix never relied on it; the minimap was
+  removed in v0.30.0 (`docs/workbench.md` §WB2.1).
 - **Auto-layout / node re-positioning** to create empty space. This doc is about
   *input*, not layout.
 - **A new saved viewport field.** The viewport is session state (Workspace
@@ -82,8 +79,8 @@ pixel on screen:
 - **Mobile** (always view-only): a one-finger touch that lands on a node or edge
   does nothing pannable — the user must fish for a gap. Panning a busy graph is
   near-impossible.
-- **Desktop**: same, minus the minimap. Without the minimap the user hunts for a
-  node-free / edge-free spot to start the drag.
+- **Desktop**: same; the user hunts for a node-free / edge-free spot to start
+  the drag.
 
 ### DGP1.2 What Loop Studio sets on `<ReactFlow>` today
 
@@ -140,7 +137,6 @@ Anything the fix adds has to coexist with:
 | **`preventScrolling` / page scroll** | `touch-action: none` on the pane | any capture surface the fix adds needs the right `touch-action` so a canvas drag never scrolls the page, and a gesture that starts on the toolbar / a sheet still scrolls normally |
 | **Native / OS edge gestures** (back-swipe, pull-to-refresh) | the browser may claim a touch mid-gesture | **not suppressed** (§DGP-C2); the overlay must self-heal — a missed `pointerup` / `pointercancel` is cleared on the next `pointerdown`, so the next touch is normal |
 | **Read-through jump** (`ModelPanels`, `setViewport`) | writes the viewport | independent; unaffected |
-| **Minimap `pannable`** | its own drag surface | unchanged, stays the secondary aid |
 
 ---
 
@@ -332,7 +328,7 @@ stale pointer bookkeeping.
 **Settled by the spike (`spike/dense-graph-pan`):**
 
 - **Mechanism = DGP3-1, the pan-capture overlay** — a transparent `<div>` over
-  the canvas (`z-index: 4`, below RF Controls / Panels / MiniMap;
+  the canvas (`z-index: 4`, below RF Controls / Panels;
   `pointer-events` only when active). Verified with **real** input:
   - a drag **starting on a node** pans by the delta; the node does not move;
     no selection change — **PASS**
@@ -419,8 +415,8 @@ straight to `settling` / `idle` without ever resolving a tap.
   `.react-flow` is its own `z-index: 0` stacking context, so a sibling at any
   `z-index ≥ 1` paints over the Controls too. As a child, `z-index: 4` ties it
   with `.react-flow__renderer` and — later in the DOM — it paints above the
-  nodes / edges but still below every `.react-flow__panel` (Controls, MiniMap,
-  the hint panels), which stay clickable.
+  nodes / edges but still below every `.react-flow__panel` (Controls, the
+  hint panels), which stay clickable.
 - **Zoom is forwarded, not lost.** d3-zoom's `wheel` handler is bound to
   `.react-flow__pane`, which the overlay covers, so the overlay re-dispatches a
   clone of every `wheel` (deltas + client point + `ctrlKey` for trackpad

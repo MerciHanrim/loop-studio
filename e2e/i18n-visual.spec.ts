@@ -14,7 +14,7 @@ import { openFileSubmenu, openMonteCarloDialog } from './support/workbenchMenus'
 //   a long Korean label + a tooltip · a menu/dialog overflow risk (Export).
 //
 // The existing EN visual-regression baselines are untouched, so whole-design
-// regression cover is not lost. The minimap + attribution are masked (the
+// regression cover is not lost. The attribution is masked (the
 // toolbar build stamp no longer renders on the bar since the two-tier toolbar,
 // #207); fonts are awaited; nothing is animated (config `animations:disabled`).
 
@@ -79,7 +79,7 @@ async function pinViewport(page: Page, zoom = 1) {
 }
 
 const shot = (page: Page) => ({
-  mask: [page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')],
+  mask: [page.locator('.react-flow__attribution')],
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -220,7 +220,7 @@ test.describe('i18n Slice 3 — representative KO reference screenshots (mobile)
     ).toBe(1)
     await fontsReady(page)
     await expect(page).toHaveScreenshot(
-      ...snap(page, 'ko-mobile-app', { mask: [page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')] }),
+      ...snap(page, 'ko-mobile-app', { mask: [page.locator('.react-flow__attribution')] }),
     )
   })
 })

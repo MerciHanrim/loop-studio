@@ -51,7 +51,7 @@ async function view(page: Page, zoom: number): Promise<void> {
   await page.mouse.move(2, 2)
   await page.waitForTimeout(150)
 }
-const opts = (page: Page) => ({ mask: [page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')] })
+const opts = (page: Page) => ({ mask: [page.locator('.react-flow__attribution')] })
 // the detail level at 0.85, not 1: the scene is 774 px wide at zoom 1 and the
 // canvas pane is 664 x 548 since the workbench; 0.85 stays inside L2 (>= 0.8)
 const L2_ZOOM = 0.85

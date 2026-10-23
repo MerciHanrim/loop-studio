@@ -555,14 +555,15 @@ Noted in the fixture header comment:
 ### EM13.5.1 Layout acceptance (settled with review, revised after the spacing pass)
 
 Full-fit-with-every-label is **not** a realistic target for a model this size —
-the minimap and pan / zoom exist for that, and review explicitly retracted it.
+pan / zoom and Reset view exist for that, and review explicitly retracted it.
 The layout is accepted when, at the **start / middle / end** stages of a run:
 
 - the main progression axis order is identifiable in the overall view;
 - **zooming a zone, every node in it is readable and reliably clickable** — no
   node boxes abut, and no edge or value badge sits on top of a node body / port
   so as to steal its click target;
-- the minimap reaches the other subsystems;
+- the other subsystems are a pan away (the minimap that reached them was
+  removed in v0.30.0);
 - no nodes permanently overlap or hide behind the Inspector;
 - the current-step run emphasis (the active-edge cue) never fully obscures a
   node body;
@@ -610,7 +611,7 @@ router` plus the three `pull all` XP-meter Gates (§EM13.4 #1), one per zone.
 The template ships `recommendedRunConfig.canvasLocked: true`. On load the Canvas
 opens **edit-locked**: nodes don't move / connect, nothing deletes, the Inspector
 is read-only — but selecting a node, reading its Inspector, pan / zoom, the
-minimap, the Timeline and the simulation all still work. The layout *is* part of
+Timeline and the simulation all still work. The layout *is* part of
 this example's explanation (§EM13.1), so it shouldn't be nudged by accident on a
 first read; the lock button (the tool row's last; the Controls rail's 🔒
 before 2026-10) unlocks editing at any time. Like

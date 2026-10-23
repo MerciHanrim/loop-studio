@@ -162,7 +162,6 @@
 
   /* — data — */
   --dist-band-mix: 11%; /* the p10–p90 band's fill */
-  --minimap-mask: rgba(86, 96, 107, 0.12); /* outside the viewport */
 
   /* — shadows: light lifts floating surfaces a little; dark draws none — */
   --shadow-overlay: 0 10px 28px rgba(20, 30, 45, 0.18);
@@ -654,7 +653,6 @@
     --frame-rose: #c58bab;
 
     --dist-band-mix: 15%;
-    --minimap-mask: rgba(0, 0, 0, 0.28);
 
     --shadow-overlay: none;
     --shadow-node: none;
@@ -746,7 +744,6 @@
   --frame-rose: #c58bab;
 
   --dist-band-mix: 15%;
-  --minimap-mask: rgba(0, 0, 0, 0.28);
 
   --shadow-overlay: none;
   --shadow-node: none;
@@ -1234,7 +1231,6 @@ body {
    outrank the focus rule at the end of this file, or a hovered focused control
    would lose its solid focus boundary. */
 .share-pop__url:hover,
-.minimap-toggle:hover,
 .mcdlg--dataimport :is(input:not([type='checkbox'], [type='radio']), textarea, select):hover:where(:not(:disabled)),
 .pstrip__seed:hover:where(:not(:disabled)),
 .field input:hover:where(:not(:disabled):not([aria-invalid='true'])),
@@ -1620,7 +1616,7 @@ a.sheet__row {
    `.react-flow` (which is its own `z-index: 0` stacking context): z-index 4
    ties it with `.react-flow__renderer` and, being later in the DOM, it paints
    ABOVE the nodes / edges but still BELOW every `.react-flow__panel` (Controls /
-   MiniMap / hints, z-index 5) so those stay clickable while Pan mode is on.
+   hints, z-index 5) so those stay clickable while Pan mode is on.
    Transparent to pointers unless active. */
 .pan-surface {
   position: absolute;
@@ -1989,82 +1985,7 @@ a.sheet__row {
   color: var(--ink-3);
 }
 
-/* React Flow secondary UI — map its internals to tokens. The minimap has to be
-   *navigable*: node hues carry (via MiniMap nodeColor / nodeStrokeColor props),
-   the viewport rectangle is a strong neutral outline (colour review A, step 3:
-   it is "where you are", not a run, and a hue would blend with the node
-   fills), and everything outside it is dimmed by a translucent mask. */
-.react-flow__minimap {
-  background: var(--bg-raise);
-  border: 1px solid var(--line-2);
-  border-radius: 6px;
-  cursor: grab;
-}
-.react-flow__minimap:active {
-  cursor: grabbing;
-}
-
-/* docs/large-graph-readability.md — the minimap collapse / restore control
-   (MinimapDock). Same look in every locale + theme.
-   - expanded: portalled INTO `.react-flow__minimap`, pinned to its own
-     top-right corner (so it tracks the minimap's dynamic size);
-   - collapsed: a compact tile at the pane's bottom-right corner (React Flow's
-     15 px panel offset), where the minimap's corner would be. */
-.minimap-toggle {
-  position: absolute;
-  z-index: 6; /* above the minimap svg, below dialogs */
-  display: grid;
-  place-items: center;
-  padding: 0;
-  line-height: 1; /* the icon is a fixed-size SVG — no text metrics in the box */
-  width: 22px;
-  height: 22px;
-  top: 4px;
-  right: 4px;
-  background: var(--bg-raise);
-  color: var(--ink-2);
-  border: 1px solid var(--line-control);
-  border-radius: 4px;
-  cursor: pointer;
-}
-.minimap-toggle:hover {
-  background: var(--bg-hover);
-  color: var(--ink-1);
-}
-.minimap-toggle.is-collapsed {
-  top: auto;
-  width: 28px;
-  height: 28px;
-  right: 15px;
-  bottom: 15px;
-}
-.minimap-toggle svg {
-  display: block;
-  width: 13px;
-  height: 13px;
-  flex: none;
-}
-@media (forced-colors: active) {
-  .minimap-toggle {
-    border: 1px solid ButtonBorder;
-    color: ButtonText;
-    background: ButtonFace;
-  }
-}
-
-.react-flow__minimap-mask {
-  fill: var(--minimap-mask);
-  fill-opacity: 1;
-  stroke: var(--ink-2); /* = MinimapDock's maskStrokeColor */
-  /* no stroke-width here: a width in this rule is in the minimap's flow units
-     (about 1/24 px on screen for a large graph); React Flow sets the
-     screen-constant width from MinimapDock's maskStrokeWidth (2026-10-21) */
-}
-/* node fill/stroke are set inline by the MiniMap nodeColor / nodeStrokeColor
-   props (per node kind); only the fill opacity is left to CSS */
-.react-flow__minimap-node {
-  fill-opacity: 0.8;
-}
+/* React Flow secondary UI — map its internals to tokens */
 .react-flow__controls {
   border: 1px solid var(--line-1);
   box-shadow: none;
@@ -4682,7 +4603,7 @@ a.sheet__row {
   box-shadow: var(--shadow-overlay);
   color: var(--ink-1);
   font-size: 11.5px;
-  /* over the canvas and its own overlays (hint notes, the minimap: 4–5),
+  /* over the canvas and its own overlays (hint notes: 4–5),
      under the dialogs */
   z-index: 30;
 }
@@ -8060,7 +7981,6 @@ input[type='number']::-webkit-inner-spin-button {
 .share-pop__url:focus-visible,
 .lgr-frame-props__name:focus-visible,
 .band__mean:focus-visible,
-.minimap-toggle:focus-visible,
 .regexpr__op:focus-visible,
 .mcdlg--dataimport :is(input:not([type='checkbox'], [type='radio']), textarea, select):focus-visible:not(:disabled),
 .timeline__viewtab:focus-visible {
@@ -8096,7 +8016,6 @@ input[type='number']::-webkit-inner-spin-button {
   .share-pop__url:focus-visible,
   .lgr-frame-props__name:focus-visible,
   .band__mean:focus-visible,
-  .minimap-toggle:focus-visible,
   .regexpr__op:focus-visible,
   .mcdlg--dataimport :is(input:not([type='checkbox'], [type='radio']), textarea, select):focus-visible:not(:disabled),
   .timeline__viewtab:focus-visible {

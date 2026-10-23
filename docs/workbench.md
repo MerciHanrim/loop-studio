@@ -64,13 +64,13 @@ Share at the far end.
 | --- | --- |
 | File | New, Import; Templates ▸ and Export ▸ (two submenus, §WB2.2); the two structure rows (save a selected structure, insert a saved one); Set the export author…, Storage & privacy… |
 | Edit | Undo, Redo, Tidy to grid, the two frame clear actions, Edit lock (a check item) |
-| View | Theme, Language, Focus, Filters, Activity overlay, Minimap, Reset view |
+| View | Theme, Language, Focus, Filters, Activity overlay, Reset view |
 | Insert | The eight node kinds, Group frame, Suggest frames |
 | Data | The spreadsheet import (unchanged) |
 | Run | Play / Pause, Step, Reset to step 0, Monte Carlo… |
 | Help | Unchanged |
 
-A check row (View's four toggles, Edit lock) reads "mark | name" on one
+A check row (View's toggles, Edit lock) reads "mark | name" on one
 line. The mark keeps its column when it is off, so the name starts at the
 same place on and off.
 
@@ -78,24 +78,21 @@ There is no Values table and no Notation entry. A Notation entry is added
 only if the contextual help really explains the symbols and lines. The V / H
 shortcuts are on hold.
 
-### WB2.1 The minimap starts folded
+### WB2.1 No minimap
 
-With no stored choice the minimap starts folded to its restore button at the
-canvas's bottom-right corner (2026-10-21; it used to start open, and a whole
-fit — Reset view, a Template's opening — could leave nodes under it). The
-choice stays the existing UI preference `loop-studio:minimap-collapsed`
-(`uiStore.minimapCollapsed`): once the user opens or folds it, from the
-button or View ▸ Minimap, that choice is kept, across reloads and for every
-document. No new storage was added.
+The graph minimap, its restore button at the canvas's bottom-right corner
+and View ▸ Minimap were removed in v0.30.0. On a whole fit it showed the
+graph a second time as unnamed marks and covered part of the canvas; the
+whole diagram is reached with Reset view and the status bar's Fit, and any
+part of it by panning and zooming, which are unchanged.
 
-Opening or folding it moves nothing: not the camera (no fit, no
-`setViewport`), not a node, not the selection. A Template, a new document or
-an import does not change it; a Template opened while it is open frames
-clear of it (§MML3 in `docs/mmo-multilingual-layout.md`), as before. Under
-the small-pane auto-hide (`Canvas.tsx` `minimapFits`, pane under 640 × 380,
-and always on the phone) neither the minimap nor its button is drawn,
-whatever the choice. Where the open minimap sits, docking it elsewhere, or
-moving it out of the nodes' way is not part of this.
+A browser that ran an earlier version may still hold the minimap's choice
+under `loop-studio:minimap-collapsed`. It is a retired key
+(`RETIRED_STORAGE_KEYS` in `src/storage/storagePort.ts`): nothing reads it,
+starting the app and reading a document are unaffected
+(`e2e/minimap-removed.spec.ts`), and "Reset all Loop Studio data…" removes
+it (`src/storage/storagePort.test.ts`). React Flow stays the
+canvas, so its licence notice and its on-canvas attribution stay too.
 
 ### WB2.2 File and its two submenus
 

@@ -31,7 +31,7 @@ export const SNAPSHOT_POLICY = {
   'mobile-canvas-clip': { maxDiffPixelRatio: 0.001, size: [390, 734] as const },
   /** `expect(page).toHaveScreenshot` under the `mobile` project (390×844). */
   'mobile-full-page': { maxDiffPixelRatio: 0.001, size: [390, 844] as const },
-  /** A single component (Inspector, dialog, minimap, Distribution panel …). Any size that is not one of the four above. */
+  /** A single component (Inspector, dialog, Distribution panel …). Any size that is not one of the four above. */
   element: { maxDiffPixelRatio: 0.0005, size: null },
 } as const
 
@@ -97,15 +97,12 @@ export const SNAPSHOTS: Record<string, Partial<Record<SnapshotProject, SnapshotK
   'flow-colour-dark-L0': { chromium: 'desktop-canvas-clip' },
   'flow-colour-states': { chromium: 'desktop-canvas-clip' },
   // flow-colour-views-visual.spec.ts — docs/flow-colour-and-compact-nodes.md
-  // FC-6 (PR 2): the minimap and the timeline panel (`element`), and each
-  // Template's whole fit — the canvas pane, a `.react-flow` clip since the
-  // workbench (664 x 548; it was the 980 x 662 pane with the timeline closed,
-  // so `element`, until 2026-10-23)
-  'flow-views-minimap-light': { chromium: 'element' },
-  'flow-views-minimap-dark': { chromium: 'element' },
+  // FC-6 (PR 2): the timeline panel (`element`; the minimap shots went with
+  // the minimap, v0.30.0), and each Template's whole fit — the canvas pane, a
+  // `.react-flow` clip since the workbench (664 x 548; it was the 980 x 662
+  // pane with the timeline closed, so `element`, until 2026-10-23)
   'flow-views-timeline-light': { chromium: 'element' },
   'flow-views-timeline-dark': { chromium: 'element' },
-  'flow-views-forced-minimap': { chromium: 'element' },
   'flow-views-forced-timeline': { chromium: 'element' },
   'flow-views-template-coffee-light': { chromium: 'desktop-canvas-clip' },
   'flow-views-template-coffee-dark': { chromium: 'desktop-canvas-clip' },
@@ -132,11 +129,9 @@ export const SNAPSHOTS: Record<string, Partial<Record<SnapshotProject, SnapshotK
   'mobile-sheet-toggles-dark': { mobile: 'element' },
   'ko-monte-carlo': { chromium: 'element' },
   'ko-review': { chromium: 'element' },
-  // state-ui.spec.ts / minimap.spec.ts / visual.spec.ts — element captures
+  // state-ui.spec.ts / visual.spec.ts — element captures
   'state-inspector-light': { chromium: 'element' },
   'state-inspector-dark': { chromium: 'element' },
-  'minimap-light': { chromium: 'element' },
-  'minimap-dark': { chromium: 'element' },
   'distribution-light': { chromium: 'element' },
   'distribution-dark': { chromium: 'element' },
   // lock-control.spec.ts (#335) — the edit-lock button itself, 26 px, both

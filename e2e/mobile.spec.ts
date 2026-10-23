@@ -18,7 +18,7 @@ import { PACKAGE_VERSION, VERSION_IS_READ_ONCE } from './support/appVersion'
 // docs/mobile.md §MV10 — the mobile View/Run layout. Runs under the `mobile`
 // Playwright project (390x844 portrait; tests rotate to 844x390). Slice 1 scope:
 // dynamic-viewport height, no sideways scroll, safe-area reserved as real space,
-// a full-bleed canvas, no minimap, one re-fit on rotation. The fixed run bar,
+// a full-bleed canvas, one re-fit on rotation. The fixed run bar,
 // the compact top bar, the sheets, and the editing lock land in Slices 2-3.
 
 const PORTRAIT = { width: 390, height: 844 }
@@ -76,15 +76,10 @@ function rectInside(inner: { x: number; y: number; width: number; height: number
 }
 
 test.describe('mobile view/run — Slice 1 layout', () => {
-  test('portrait: full-bleed canvas, no minimap, no sideways scroll', async ({ page }) => {
+  test('portrait: full-bleed canvas, no sideways scroll', async ({ page }) => {
     await loadDiagram(page)
     await noHScroll(page)
 
-    // minimap is not rendered on mobile (§MV-D10) — nor its control: it starts
-    // folded on the desktop (docs/workbench.md §WB2.1), so "no minimap" alone
-    // would hold there too
-    await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
-    await expect(page.locator('.minimap-toggle')).toHaveCount(0)
     // the desktop Inspector column is out of the mobile flow (Slice 3 → sheet)
     await expect(page.locator('.inspector')).toBeHidden()
 
@@ -101,8 +96,6 @@ test.describe('mobile view/run — Slice 1 layout', () => {
     await page.setViewportSize(LANDSCAPE)
     await page.waitForTimeout(120)
     await noHScroll(page)
-    await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
-    await expect(page.locator('.minimap-toggle')).toHaveCount(0)
 
     const canvas = await page.locator('.canvas').boundingBox()
     expect(canvas!.width).toBeGreaterThanOrEqual(LANDSCAPE.width - 2)
@@ -175,14 +168,13 @@ test.describe('mobile view/run — Slice 1 layout', () => {
 
   test('resizing back to a desktop width restores the desktop layout', async ({ page }) => {
     await loadDiagram(page)
-    await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
+    await expect(page.locator('.wb-toolrow')).toHaveCount(0)
 
     await page.setViewportSize({ width: 1200, height: 800 })
     await page.waitForTimeout(150)
 
-    // the minimap's control is back (the minimap itself starts folded,
-    // docs/workbench.md §WB2.1; its button is drawn in either state)
-    await expect(page.locator('.minimap-toggle')).toHaveCount(1)
+    // the desktop tool row is back (docs/workbench.md §WB3)
+    await expect(page.locator('.wb-toolrow')).toBeVisible()
     await expect(page.locator('.inspector')).toBeVisible()
   })
 
@@ -722,7 +714,7 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
 
     await page.setViewportSize({ width: 1200, height: 800 })
     await page.waitForTimeout(150)
-    await expect(page.locator('.minimap-toggle')).toHaveCount(1) // desktop layout is up (the minimap's control; the minimap starts folded)
+    await expect(page.locator('.wb-toolrow')).toBeVisible() // desktop layout is up (the tool row)
     expect(await graphContent(page), 'after mobile -> desktop').toBe(before)
 
     await page.setViewportSize(PORTRAIT)
@@ -758,7 +750,7 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     // desktop width — the full editing UI, where multi-select exists
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.waitForTimeout(150)
-    await expect(page.locator('.minimap-toggle')).toHaveCount(1) // the minimap's control (it starts folded)
+    await expect(page.locator('.wb-toolrow')).toBeVisible() // the desktop layout is up (the tool row)
     await page.evaluate(() =>
       (window as unknown as { __loop: { rf: { fitView: (o: object) => void } } }).__loop.rf.fitView({ padding: 0.3, duration: 0 }),
     )
@@ -829,7 +821,7 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     // → back to desktop: everything as it was, the line back in the right column
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.waitForTimeout(300)
-    await expect(page.locator('.minimap-toggle')).toHaveCount(1) // the minimap's control (it starts folded)
+    await expect(page.locator('.wb-toolrow')).toBeVisible() // the desktop layout is up (the tool row)
     expect(await selectionState(), 'ids + anchor survive the return').toEqual(before)
     await expect(desktopLine).toBeVisible()
     await expect(desktopLine).toHaveText(/3 nodes selected/)

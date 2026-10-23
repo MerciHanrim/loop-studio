@@ -9,8 +9,9 @@ const viewportForRect = (...args: Parameters<typeof viewportForRectOrNull>) => v
 // path must stay byte-identical to the inline code it replaces.
 
 const PANE = { width: 1280, height: 720 }
-const NO_MM = { left: 44, right: 0, bottom: 0, top: 0 }
-const MM = { left: 44, right: 224, bottom: 176, top: 0 }
+// the phone's Controls rail on the left (the minimap's right / bottom bands
+// went with the minimap, v0.30.0)
+const NO_MM = { left: 44, top: 0 }
 
 describe('viewportForRect', () => {
   it('a small rect fits at the ceiling zoom, left-aligned next to the Controls, vertically centred', () => {
@@ -21,11 +22,11 @@ describe('viewportForRect', () => {
     expect(v.y).toBeCloseTo(720 / 2 - (50 + 50) * 1.2)
   })
 
-  it('reproduces the Canvas initial-view formula with the minimap insets (Template fit)', () => {
+  it('reproduces the Canvas initial-view formula (Template fit)', () => {
     const rect = { x: 0, y: 0, width: 2000, height: 900 }
-    const v = viewportForRect(rect, PANE, MM, { floor: 0.35, ceil: 1.2 })
-    const usableW = 1280 - 44 - 224
-    const usableH = 720 - 176
+    const v = viewportForRect(rect, PANE, NO_MM, { floor: 0.35, ceil: 1.2 })
+    const usableW = 1280 - 44
+    const usableH = 720
     const rectW = Math.min(rect.width, (usableW - 8) / 0.35)
     const zoom = Math.min(1.2, Math.max(0.35, Math.min(usableW / (rectW * 1.06), usableH / (rect.height * 1.06))))
     expect(v.zoom).toBeCloseTo(zoom)
@@ -63,52 +64,25 @@ describe('viewportForRect', () => {
 })
 
 // issue #344 (docs/diagram-layout.md §DL5.6) — `keep`: the zoom is capped so
-// the kept rect opens whole; the minimap counts only when the two overlap on
-// both axes.
+// the kept rect opens whole inside the pane.
 describe('viewportForRect — keep', () => {
   // the MMO opening view (src/model/templates.ts)
   const MMO = { x: 44, y: -4, width: 927, height: 368 }
   const MMO_KEEP = { x: 48, y: 36, width: 1188, height: 200 }
   const keepRight = (v: { x: number; zoom: number }, keep: { x: number; width: number }) => v.x + (keep.x + keep.width) * v.zoom
 
-  it('the MMO view at 1600 x 1000 (a 1300 x 862 pane): 1.040, the top row running past the minimap column, above it', () => {
-    const pane = { width: 1300, height: 862 }
-    const plain = viewportForRect(MMO, pane, MM, { floor: 0.6, ceil: 1.2 })
-    expect(plain.zoom).toBeCloseTo(1032 / (927 * 1.06))
-    const v = viewportForRect(MMO, pane, MM, { floor: 0.6, ceil: 1.2, keep: MMO_KEEP })
-    expect(v.zoom).toBeCloseTo((1300 - 8 - 52) / (1236 - 44))
-    expect(keepRight(v, MMO_KEEP)).toBeCloseTo(1300 - 8)
-    expect(keepRight(v, MMO_KEEP)).toBeGreaterThan(1300 - 224) // past the minimap's column…
-    expect(v.y + (MMO_KEEP.y + MMO_KEEP.height) * v.zoom).toBeLessThan(862 - 176) // …above it
-    expect(v.x).toBeCloseTo(52 - 44 * v.zoom) // still left-aligned on the rect
-  })
-
-  it('the MMO view at 1280 x 800 with the minimap collapsed: the keep cap, not the wider fit', () => {
+  it('the MMO view at 1280 x 800 (a 980 x 662 pane): the keep cap, not the wider fit', () => {
     const pane = { width: 980, height: 662 }
     const v = viewportForRect(MMO, pane, NO_MM, { floor: 0.6, ceil: 1.2, keep: MMO_KEEP })
     expect(v.zoom).toBeCloseTo((980 - 8 - 52) / (1236 - 44))
     expect(keepRight(v, MMO_KEEP)).toBeCloseTo(980 - 8)
-    // expanded at the same size the rect fit already shows `keep` whole
-    const e = viewportForRect(MMO, pane, MM, { floor: 0.6, ceil: 1.2, keep: MMO_KEEP })
-    expect(e.zoom).toBeCloseTo(712 / (927 * 1.06))
-    expect(v.zoom).toBeGreaterThanOrEqual(e.zoom)
+    expect(v.x).toBeCloseTo(52 - 44 * v.zoom) // still left-aligned on the rect
   })
 
-  it('a kept rect that would overlap the minimap on both axes clears its corner by the side that keeps the larger zoom', () => {
+  it('a keep that already fits changes nothing', () => {
     const rect = { x: 0, y: 0, width: 1000, height: 600 }
-    const keep = { x: 0, y: 0, width: 1300, height: 640 }
-    const v = viewportForRect(rect, PANE, MM, { floor: 0.35, ceil: 1.2, keep })
-    // horizontally: 52 + 1300 z <= 1056 -> 0.772; vertically: 272 + 340 z <= 544 -> 0.8
-    expect(v.zoom).toBeCloseTo(0.8)
-    expect(v.y + (keep.y + keep.height) * v.zoom).toBeCloseTo(720 - 176)
-  })
-
-  it('without an overlap the minimap does not cap the zoom; a keep that already fits changes nothing', () => {
-    const rect = { x: 0, y: 0, width: 1000, height: 600 }
-    const plain = viewportForRect(rect, PANE, MM, { floor: 0.35, ceil: 1.2 })
-    const past = viewportForRect(rect, PANE, MM, { floor: 0.35, ceil: 1.2, keep: { x: 0, y: 0, width: 1300, height: 600 } })
-    expect(past).toEqual(plain)
-    const inside = viewportForRect(rect, PANE, MM, { floor: 0.35, ceil: 1.2, keep: { x: 100, y: 100, width: 300, height: 200 } })
+    const plain = viewportForRect(rect, PANE, NO_MM, { floor: 0.35, ceil: 1.2 })
+    const inside = viewportForRect(rect, PANE, NO_MM, { floor: 0.35, ceil: 1.2, keep: { x: 100, y: 100, width: 300, height: 200 } })
     expect(inside).toEqual(plain)
   })
 
@@ -122,8 +96,8 @@ describe('viewportForRect — keep', () => {
 // band is kept for one; the phone's rail still takes its ~44 px
 describe('canvasFitInsets', () => {
   it('reserves the left band only where the Controls rail is on screen', () => {
-    expect(canvasFitInsets(false)).toEqual({ left: 0, right: 0, bottom: 0, top: 0 })
-    expect(canvasFitInsets(true, 12)).toEqual({ left: 0, right: 224, bottom: 176, top: 12 })
-    expect(canvasFitInsets(false, 0, true)).toEqual({ left: 44, right: 0, bottom: 0, top: 0 })
+    expect(canvasFitInsets()).toEqual({ left: 0, top: 0 })
+    expect(canvasFitInsets(12)).toEqual({ left: 0, top: 12 })
+    expect(canvasFitInsets(0, true)).toEqual({ left: 44, top: 0 })
   })
 })

@@ -64,7 +64,6 @@ export const STORAGE_KEYS = {
   'loop-studio:focus-mode': 'preference',
   'loop-studio:filter-panel': 'preference',
   'loop-studio:activity-overlay': 'preference',
-  'loop-studio:minimap-collapsed': 'preference',
   'loop-studio:inputs-panel': 'preference',
   'loop-studio:summary-panel': 'preference',
   'loop-studio:recent-accents': 'preference',
@@ -85,8 +84,11 @@ export type StorageKeyKind = (typeof STORAGE_KEYS)[StorageKey]
  *   loop-studio/whats-new/*  which in-app release note a profile was told about,
  *                            and which it opened (issue #296). The in-app notes
  *                            were removed in 2026-10.
+ *   loop-studio:minimap-collapsed  whether the graph minimap was folded. The
+ *                            minimap was removed in 2026-10 (v0.30.0); a stored
+ *                            value is ignored.
  */
-export const RETIRED_STORAGE_KEYS = ['loop-studio/whats-new/announced/1', 'loop-studio/whats-new/opened/1'] as const
+export const RETIRED_STORAGE_KEYS = ['loop-studio/whats-new/announced/1', 'loop-studio/whats-new/opened/1', 'loop-studio:minimap-collapsed'] as const
 
 /** the one key that may be read before the gate and written by a temporary session */
 export const STORAGE_MODE_KEY = 'loop-studio:storage-mode' satisfies StorageKey

@@ -25,11 +25,11 @@ const GRAPH = JSON.stringify({
 /** Deterministic viewport for the pixel baseline: the three Registers (with a
  *  unit, invalid, without a unit — world x 320 … 938, y 195 … 291), whole at
  *  zoom 0.9, centred in the canvas PANE (664 x 548 since the workbench; the
- *  Parameter beside them no longer fits at L2). The minimap + attribution are
- *  hidden (not masked) so nothing overlaps the row. */
+ *  Parameter beside them no longer fits at L2). The attribution is hidden
+ *  (not masked) so nothing overlaps the row. */
 async function centreRegisterRow(page: Page): Promise<void> {
   await page.addStyleTag({
-    content: '.react-flow__minimap,.react-flow__attribution{display:none!important}',
+    content: '.react-flow__attribution{display:none!important}',
   })
   await page.evaluate(() => {
     const w = window as unknown as {
@@ -135,8 +135,8 @@ test.describe('Parameter / Register — chrome & states (hue-independent)', () =
   test('STACKING — a Register that is selected + focused + invalid shows all four cues (§VL3)', async ({ page }) => {
     await load(page)
     const bad = node(page, 'r_bad')
-    // focus + keyboard-select — a raw click on r_bad can be intercepted by the
-    // fixed minimap panel it sits under after fitView (flaky). React Flow's own
+    // focus + keyboard-select — a raw click on r_bad could be intercepted by a
+    // fixed panel it sat under after fitView (flaky). React Flow's own
     // a11y handling selects the focused node on Space, so this gets both the
     // selection ring AND the keyboard-focus ring in one go.
     await bad.focus()

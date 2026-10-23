@@ -7,6 +7,8 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **No minimap.** The graph minimap, its button at the canvas's corner and View ▸ Minimap are removed; it repeated the graph as unnamed marks and covered part of the canvas. Reset view and the status bar's Fit show the whole diagram, and panning and zooming are unchanged. A choice an earlier version stored for it is ignored.
+
 - **A shorter File menu.** The File menu lists names only, one per line: the Templates and the export formats are in two submenus, Templates ▸ and Export ▸, and Set the export author… sits next to Storage & privacy…. The description of the item you point at or move to is shown in full at the foot of the menu — on a touch screen, a press on a Template or an export format shows it with an Open or Export button. An item that is unavailable says why under its name.
 - **Check marks beside their names.** In the View menu (Focus, Filters, Activity overlay, Minimap) and in Edit ▸ Edit lock, the check mark sits on the same line as the item's name again, instead of above it.
 

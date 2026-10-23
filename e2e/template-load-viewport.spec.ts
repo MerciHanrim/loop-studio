@@ -212,7 +212,7 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
     expect(after.zoom, 'opens at or above the L1 detail zoom').toBeGreaterThanOrEqual(0.45)
     expect(await nodeOnScreen(page, 'cmp1_hit_rate_free')).toBe(true)
     expect(await nodeOnScreen(page, 'roll_gate_free')).toBe(true)
-    expect(await nodeOnScreen(page, GACHA_R), 'Pickup zone is off screen (pan / minimap / Focus)').toBe(false)
+    expect(await nodeOnScreen(page, GACHA_R), 'Pickup zone is off screen (pan / Focus)').toBe(false)
 
     // camera-only: positions are exactly the file's, and the framing is not an
     // undo entry (#334 — the Template load empties the history; nothing at all)
@@ -242,7 +242,7 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
     ]
     const FREE_ZONE_NODE = 'roll_gate_free'
 
-    type LastInitialView = { insetR: number; insetB: number; zoom: number } | null
+    type LastInitialView = { insetL: number; insetT: number; zoom: number } | null
     const lastInitialView = (page: Page) =>
       page.evaluate(
         () => (window as unknown as { __loop: { canvas: { lastInitialView: () => LastInitialView } } }).__loop.canvas.lastInitialView(),

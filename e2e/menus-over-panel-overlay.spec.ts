@@ -95,7 +95,7 @@ test.describe('the menu bar over an open side panel (narrow band)', () => {
     const pb = (await pop.boundingBox())!
     expect(pb.x + pb.width, 'the popup ends over the panel').toBeGreaterThan(panel.x)
     expect(await rowsAnswer(pop)).toEqual([])
-    const row = pop.locator('[data-view-row="minimap"]')
+    const row = pop.locator('[data-view-row="activity"]')
     const before = await row.getAttribute('aria-pressed')
     const rb = (await row.boundingBox())!
     expect(rb.x + rb.width - 10, 'the click point lies over the panel').toBeGreaterThan(panel.x)

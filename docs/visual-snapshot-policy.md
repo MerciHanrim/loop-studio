@@ -15,7 +15,7 @@ number. Source of truth: `e2e/support/snapshot-policy.ts`. Runtime: `snap()` in
 | `desktop-roomy-canvas-clip` | `.react-flow` at `WORKBENCH_ROOMY_VIEWPORT` (1600×940): a per-scene exception, see below | 984×688 | **0.0002** (0.02 %) |
 | `mobile-canvas-clip` | `.react-flow` under the `mobile` project | 390×734 (735 before issue #303: the pane now reserves the run bar's measured 53 px) | **0.001** (0.1 %) |
 | `mobile-full-page` | `expect(page)` at the phone viewport | 390×844 | **0.001** (0.1 %) |
-| `element` | one component: Inspector, dialog, review overlay, minimap, Distribution panel | any other size | **0.0005** (0.05 %) |
+| `element` | one component: Inspector, dialog, review overlay, Distribution panel | any other size | **0.0005** (0.05 %) |
 
 The global fallback in `playwright.config.ts` is `SNAPSHOT_FALLBACK_RATIO` =
 the loosest policy (0.005). It can only apply to a shot that bypassed `snap()`,
