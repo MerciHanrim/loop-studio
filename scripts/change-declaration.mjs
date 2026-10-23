@@ -13,7 +13,10 @@
 // - `user-facing` records what users notice in `CHANGELOG.md`, under
 //   `## Unreleased`, in the same change: the declared line must be in that
 //   section now, and must not have been there at the base — an entry an earlier
-//   change already wrote does not stand for this one.
+//   change already wrote does not stand for this one. A release — a change
+//   that raises the app version — moves the Unreleased lines into the section
+//   of exactly that new version (`## v<x.y.z> — <date>`) in the same change;
+//   there, that section is accepted too. No other version's section ever is.
 // - `internal` must say why, in words.
 // - The app version is raised only when a release is approved, never as part
 //   of an ordinary change. A version that changes only goes up, the version at
@@ -135,10 +138,29 @@ export function parseDeclaration(text) {
  * @returns {{lines: string[]} | {problem: string}}
  */
 export function readUnreleased(text) {
+  return readSection(text, (l) => l.trim() === UNRELEASED_HEADING, `"${UNRELEASED_HEADING}"`)
+}
+
+/**
+ * The lines of the CHANGELOG's section for exactly `version`: a heading
+ * `## v<version>` (then the end of the line, or a space and its date), up to
+ * the next `## ` heading. A release change records its lines there (see
+ * `evaluateChange`, step 5).
+ *
+ * @param {string | null | undefined} text
+ * @param {string} version  x.y.z
+ * @returns {{lines: string[]} | {problem: string}}
+ */
+export function readReleaseSection(text, version) {
+  const heading = `## v${version}`
+  return readSection(text, (l) => l === heading || l.startsWith(`${heading} `), `"${heading}"`)
+}
+
+function readSection(text, isHeading, name) {
   if (typeof text !== 'string') return { problem: `${CHANGELOG} could not be read` }
   const all = text.replace(/\r\n?/g, '\n').split('\n')
-  const at = all.findIndex((l) => l.trim() === UNRELEASED_HEADING)
-  if (at < 0) return { problem: `${CHANGELOG} has no "${UNRELEASED_HEADING}" section` }
+  const at = all.findIndex(isHeading)
+  if (at < 0) return { problem: `${CHANGELOG} has no ${name} section` }
   const lines = []
   for (let i = at + 1; i < all.length; i++) {
     if (/^## /.test(all[i])) break
@@ -245,15 +267,30 @@ export function evaluateChange(facts) {
         problems.push(`${added[0].path}: a new user-facing declaration names its line under "${UNRELEASED_HEADING}" in ${CHANGELOG} ("changelog"), not an in-app release note; the in-app notes were removed`)
       } else {
         summary.push(`declared user-facing (${added[0].path}): ${mine.changelog}`)
+        // the line is under "## Unreleased" — or, for a release (a change that
+        // RAISES the app version), under the section of exactly that new
+        // version, which the release writes in the same change. Never another
+        // version's section, and never outside "Unreleased" without a raise.
+        const raised = Boolean(base && head && versionChanged && compareVersions(head, base) > 0)
+        const releaseHeading = `## v${facts.headVersion}`
         const now = readUnreleased(facts.changelog)
+        const release = raised ? readReleaseSection(facts.changelog, facts.headVersion) : null
+        const inRelease = Boolean(release && !release.problem && holds(release.lines, mine.changelog))
         if (now.problem) {
           problems.push(`${added[0].path}: ${now.problem}`)
-        } else if (!holds(now.lines, mine.changelog)) {
-          problems.push(`${added[0].path}: its "changelog" line is not under "${UNRELEASED_HEADING}" in ${CHANGELOG}`)
+        } else if (!holds(now.lines, mine.changelog) && !inRelease) {
+          problems.push(
+            raised
+              ? `${added[0].path}: its "changelog" line is neither under "${UNRELEASED_HEADING}" nor under "${releaseHeading}" in ${CHANGELOG}`
+              : `${added[0].path}: its "changelog" line is not under "${UNRELEASED_HEADING}" in ${CHANGELOG}`,
+          )
         } else {
           const then = readUnreleased(facts.baseChangelog)
+          const thenRelease = raised ? readReleaseSection(facts.baseChangelog, facts.headVersion) : null
           if (!then.problem && holds(then.lines, mine.changelog)) {
             problems.push(`${added[0].path}: its "changelog" line was already under "${UNRELEASED_HEADING}" at the base; an entry an earlier change wrote does not stand for this one`)
+          } else if (thenRelease && !thenRelease.problem && holds(thenRelease.lines, mine.changelog)) {
+            problems.push(`${added[0].path}: its "changelog" line was already under "${releaseHeading}" at the base; an entry an earlier change wrote does not stand for this one`)
           }
         }
       }

@@ -97,18 +97,20 @@ export const SNAPSHOTS: Record<string, Partial<Record<SnapshotProject, SnapshotK
   'flow-colour-dark-L0': { chromium: 'desktop-canvas-clip' },
   'flow-colour-states': { chromium: 'desktop-canvas-clip' },
   // flow-colour-views-visual.spec.ts — docs/flow-colour-and-compact-nodes.md
-  // FC-6 (PR 2): the minimap and the timeline panel, and each Template's full
-  // canvas pane with the timeline closed (980 x 662), light and dark, so `element`
+  // FC-6 (PR 2): the minimap and the timeline panel (`element`), and each
+  // Template's whole fit — the canvas pane, a `.react-flow` clip since the
+  // workbench (664 x 548; it was the 980 x 662 pane with the timeline closed,
+  // so `element`, until 2026-10-23)
   'flow-views-minimap-light': { chromium: 'element' },
   'flow-views-minimap-dark': { chromium: 'element' },
   'flow-views-timeline-light': { chromium: 'element' },
   'flow-views-timeline-dark': { chromium: 'element' },
   'flow-views-forced-minimap': { chromium: 'element' },
   'flow-views-forced-timeline': { chromium: 'element' },
-  'flow-views-template-coffee-light': { chromium: 'element' },
-  'flow-views-template-coffee-dark': { chromium: 'element' },
-  'flow-views-template-gacha-light': { chromium: 'element' },
-  'flow-views-template-gacha-dark': { chromium: 'element' },
+  'flow-views-template-coffee-light': { chromium: 'desktop-canvas-clip' },
+  'flow-views-template-coffee-dark': { chromium: 'desktop-canvas-clip' },
+  'flow-views-template-gacha-light': { chromium: 'desktop-canvas-clip' },
+  'flow-views-template-gacha-dark': { chromium: 'desktop-canvas-clip' },
   // flow-colour-mobile.spec.ts — the phone's one-line Colour summary (FC-5)
   'flow-views-phone-summary': { mobile: 'element' },
   // model-nodes-visual.spec.ts

@@ -4,8 +4,9 @@ import { ensureTimelineOpen, expandMinimap, expect, importGraph, openApp, resetA
 // docs/flow-colour-and-compact-nodes.md FC-6 (issue #325, PR 2) — the flow
 // colour beyond the canvas, in pixels: the minimap and the timeline of a
 // coloured graph, light and dark; the same two views under forced colours,
-// back on their kind and series colours; and each coloured Template's fit view
-// with its minimap. (Each colour offered once, and the stored Recent order, are
+// back on their kind and series colours; and each coloured Template's whole
+// fit, the minimap folded as it starts (since 2026-10-23; the minimap's own
+// colours are the minimap shots). (Each colour offered once, and the stored Recent order, are
 // held by the DOM tests in flow-colour-views.spec.ts and flow-colour.spec.ts;
 // the phone's one-line summary by flow-colour-mobile.spec.ts.)
 
@@ -76,19 +77,35 @@ const TEMPLATES = [
 // the stored colours are drawn unchanged in both themes (D-1), so the dark
 // shots hold them against the dark structure lines, labels and frames
 for (const t of TEMPLATES) for (const scheme of ['light', 'dark'] as const) {
-  test(`${t.name} — its flow colours, fit to the pane, with the minimap — ${scheme}`, async ({ page }) => {
+  test(`${t.name} — its flow colours, the whole diagram fitted — ${scheme}`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: scheme })
     await openApp(page)
-    // "with the minimap": opened as a stored choice (it starts folded, §WB2.1)
-    await expandMinimap(page)
+    // the minimap in its default state, folded (§WB2.1): this shot is the
+    // whole fit; the minimap's own flow colours are the three shots above
+    // (2026-10-23, Hanrim / Lumi: on a whole fit the open minimap only covered
+    // the lower right)
+    await expect(page.locator('.minimap-toggle.is-collapsed')).toBeVisible()
+    await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
     await page.locator('.toolbar__actions .menu').first().locator('> button').click()
     await page.locator('.toolbar__actions .menu').first().locator('.menu__pop [role="menuitem"]', { hasText: t.name }).click()
     const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i })
     await confirm.waitFor({ state: 'visible', timeout: 1200 }).catch(() => {})
     if (await confirm.count()) await confirm.click()
     await expect(page.locator(`.react-flow__node[data-id="${t.waitFor}"]`)).toBeVisible()
-    await page.evaluate(() => (window as any).__loop.rf.fitView({ duration: 0 }))
+    // the product's own whole fit, as a user asks for it: the status bar's
+    // Fit (useFitAll — the outside names counted; React Flow's raw fitView,
+    // used here before 2026-10-23, knew only the node boxes)
+    await page.locator('.wb-status').getByRole('button', { name: 'Fit the whole diagram', exact: true }).click()
     await settle(page)
+    // what the shot checks is on screen: every node body and outside name
+    // inside the canvas
+    const outside = await page.evaluate(() => {
+      const pane = document.querySelector('.react-flow')!.getBoundingClientRect()
+      const out = (b: DOMRect) => b.left < pane.left || b.right > pane.right || b.top < pane.top || b.bottom > pane.bottom
+      const els = [...document.querySelectorAll<HTMLElement>('.react-flow__node .nodef, .react-flow__node .nodef__name')].filter((e) => getComputedStyle(e).visibility !== 'hidden')
+      return els.filter((e) => out(e.getBoundingClientRect())).map((e) => `${e.closest('.react-flow__node')!.getAttribute('data-id')}${e.classList.contains('nodef__name') ? ' (name)' : ''}`)
+    })
+    expect(outside, 'node bodies or names outside the canvas').toEqual([])
     // the React Flow attribution is masked in the canvas's own background, so
     // the mask reads as empty canvas instead of the strongest colour in the shot
     const canvas = await page.locator('.react-flow').evaluate((el) => getComputedStyle(el).backgroundColor)

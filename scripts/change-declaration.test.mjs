@@ -229,6 +229,51 @@ describe('a user-facing change', () => {
   })
 })
 
+// A release raises the app version and, in the same change, moves the
+// Unreleased lines into the section of exactly that version (2026-10-23).
+describe('a user-facing release change', () => {
+  const released = (version, lines = [ENTRY]) => log([], `## v${version} — 2026-10-23\n\n${lines.join('\n')}\n\n## v0.28.4 — 2026-10-17\n\n- an older line\n`)
+  const release = { changed: [SRC, { status: 'M', path: 'CHANGELOG.md' }, { status: 'M', path: 'package.json' }], added: { structures: USER() }, baseVersion: '0.28.4', headVersion: '0.29.0' }
+  it('its line under the section of the version it raises to', () => {
+    expect(problems({ ...release, changelog: released('0.29.0') })).toEqual([])
+  })
+  it('the heading may carry its date or nothing after the version', () => {
+    const bare = log([], `## v0.29.0\n\n${ENTRY}\n`)
+    expect(problems({ ...release, changelog: bare })).toEqual([])
+  })
+  it('its line still under Unreleased, the version raised: accepted as before', () => {
+    expect(problems({ ...release, changelog: HEAD_LOG })).toEqual([])
+  })
+  it('its line missing, or changed, in the new section', () => {
+    expect(problems({ ...release, changelog: released('0.29.0', ['- something else']) }).join('\n')).toMatch(/neither under "## Unreleased" nor under "## v0\.29\.0"/)
+    expect(problems({ ...release, changelog: released('0.29.0', [ENTRY.replace('File menu', 'Edit menu')]) }).join('\n')).toMatch(/neither under "## Unreleased" nor under "## v0\.29\.0"/)
+  })
+  it('its line under another version than the one raised to: an older release', () => {
+    const older = log([], `## v0.29.0 — 2026-10-23\n\n- other\n\n## v0.28.4 — 2026-10-17\n\n${ENTRY}\n`)
+    expect(problems({ ...release, changelog: older }).join('\n')).toMatch(/neither under "## Unreleased" nor under "## v0\.29\.0"/)
+  })
+  it('its line under a section that only starts like the version (v0.29.0 is not v0.29.01)', () => {
+    expect(problems({ ...release, headVersion: '0.29.0', changelog: log([], `## v0.29.01\n\n${ENTRY}\n`) }).join('\n')).toMatch(/neither under/)
+  })
+  it('moved out of Unreleased with no version raised: refused', () => {
+    expect(problems({ ...release, headVersion: '0.28.4', changelog: released('0.28.5') }).join('\n')).toMatch(/its "changelog" line is not under "## Unreleased"/)
+  })
+  it('moved into the section of the CURRENT version, unraised: refused', () => {
+    const current = log([], `## v0.28.4 — 2026-10-17\n\n${ENTRY}\n`)
+    expect(problems({ ...release, headVersion: '0.28.4', changelog: current }).join('\n')).toMatch(/is not under "## Unreleased"/)
+  })
+  it('a line an earlier change already wrote into that section does not stand for this one', () => {
+    expect(problems({ ...release, changelog: released('0.29.0'), baseChangelog: released('0.29.0') }).join('\n')).toMatch(/was already under "## v0\.29\.0" at the base/)
+  })
+  it('the Unreleased heading itself is still required', () => {
+    expect(problems({ ...release, changelog: `# Changelog\n\n## v0.29.0 — 2026-10-23\n\n${ENTRY}\n` }).join('\n')).toMatch(/has no "## Unreleased" section/)
+  })
+  it('the other rules hold for a release: one declaration, the version only goes up', () => {
+    expect(problems({ ...release, changelog: released('0.29.0'), added: { a: USER(), b: INTERNAL } }).join('\n')).toMatch(/2 declarations were added/)
+    expect(problems({ ...release, baseVersion: '0.29.0', headVersion: '0.28.4', changelog: released('0.28.4') }).join('\n')).toMatch(/only goes up/)
+  })
+})
+
 describe('versions are compared as numbers', () => {
   const at = (baseVersion, headVersion) => ({ changed: [SRC], added: { release: INTERNAL }, baseVersion, headVersion })
   it('0.9.9 -> 0.10.0 is a rise, although "0.10.0" sorts before "0.9.9" as text', () => {

@@ -33,6 +33,7 @@ A change that touches anything a build reads or ships, or the app version, adds 
 - **`user-facing`** names one line it adds under `## Unreleased` in `CHANGELOG.md`, in the same change. The line must be in that section, and must not have been there at the base: an entry an earlier change wrote does not stand for this one. A list marker (`- `) may be left out of the declared text.
 - **`internal`** says why no changelog entry is needed.
 - **The version.** An ordinary change does not raise it: the app version is raised only when a release is approved. Whatever a change declares, a version that changes only goes up, and a change of the version alone still needs a declaration.
+- **A release** (2026-10-23) raises the version and, in the same change, moves the lines under `## Unreleased` into a new section `## v<x.y.z> — <date>` of exactly that version, leaving `## Unreleased` empty above it. For that change only, its declared line is accepted in the new version's section too. Without a raise, and in any other version's section, it is not; the date is the release day, corrected before the merge if the release slips.
 - A change that touches nothing that is built or shipped needs no declaration, and may still add one.
 - Declarations are a record. One that is on `main` is never edited, renamed or removed. Before a change is merged its own declaration can still be corrected.
 

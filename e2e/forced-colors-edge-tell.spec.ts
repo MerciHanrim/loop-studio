@@ -384,7 +384,9 @@ async function makeRouteInvalid(page: Page, edgeId: string): Promise<void> {
  *  is the edges. `visibility: hidden` removes only the glyphs — the node shapes and any edge passing
  *  under a label keep every pixel, unlike a `mask` box. Under forced colours `color` is
  *  force-adjusted, so this is the one property that reliably takes the text out. */
-const NODE_TEXT = '.nodef__name, .nodef__title, .nodef__value, .nodef__sub' // the new node's name is outside the body
+// the new node's name is outside the body; its capacity / unit line beside the
+// symbol (`.nodef__cap`, `.nodef__aux`, `.nodef__unit`) is node text too (2026-10-23)
+const NODE_TEXT = '.nodef__name, .nodef__title, .nodef__value, .nodef__sub, .nodef__cap, .nodef__aux, .nodef__unit'
 async function hideNodeText(page: Page, clip: { x: number; y: number; width: number; height: number }): Promise<void> {
   await page.addStyleTag({ content: `${NODE_TEXT} { visibility: hidden }` })
   // the spans to hide really exist inside the clip, and every one of them computes `hidden`
@@ -401,6 +403,21 @@ async function hideNodeText(page: Page, clip: { x: number; y: number; width: num
   )
   expect(r.inClip, 'node text spans exist inside the clip').toBeGreaterThan(0)
   expect(r.notHidden, 'every node text span computes visibility: hidden').toBe(0)
+  // and the rule holds for every text a node draws in the clip, not only the
+  // selector's (2026-10-23: the outside capacity / unit line was missing).
+  // Node text only: edge label chips are not inside a node and stay
+  const left = await page.evaluate((c) => {
+    const out: string[] = []
+    for (const el of document.querySelectorAll<HTMLElement>('.react-flow__node *')) {
+      const own = [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim() !== '')
+      if (!own || getComputedStyle(el).visibility === 'hidden') continue
+      const b = el.getBoundingClientRect()
+      if (b.width === 0 || b.height === 0) continue
+      if (b.right > c.x && b.left < c.x + c.width && b.bottom > c.y && b.top < c.y + c.height) out.push(`${el.tagName.toLowerCase()}.${[...el.classList].join('.')} "${(el.textContent ?? '').trim().slice(0, 12)}"`)
+    }
+    return out
+  }, clip)
+  expect(left, 'node text still shown inside the clip').toEqual([])
 }
 /** Which edge categories have a path bbox intersecting the clip. */
 const categoriesIn = (page: Page, clip: { x: number; y: number; width: number; height: number }) =>

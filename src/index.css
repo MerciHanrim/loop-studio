@@ -4797,6 +4797,21 @@ a.sheet__row {
   font-size: 11px;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
+  /* the value sits on its own line's end, so the line came in under the
+     digits (2026-10-23: "20" / "10" could read as "28" / "18"). A halo in the
+     plot's ground, painted under the glyphs, gives the digits a background of
+     their own: it fills the counters and the gaps between digits and stops
+     2.5 px past them. Nothing moves, the line is drawn as before. */
+  paint-order: stroke;
+  stroke: var(--bg-panel);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+@media (forced-colors: active) {
+  .timeline__endlabel {
+    fill: CanvasText;
+    stroke: Canvas;
+  }
 }
 /* leader from a displaced endpoint label back to its real dot */
 .timeline__lead {

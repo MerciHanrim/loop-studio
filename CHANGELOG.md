@@ -7,6 +7,10 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+## v0.29.0 — 2026-10-23
+
+The workbench release: the desktop editing screen is redesigned as a workbench ([`docs/workbench.md`](docs/workbench.md)), and the supported languages are English and Korean — if you had chosen another language, Loop Studio starts in English, and your saved documents are kept as they are.
+
 - **Languages: English and Korean.** The app is offered in English and Korean only. If you had chosen one of the sixteen other languages it used to offer, Loop Studio now starts in English; the names and text in your documents are not changed. Those translations are kept, unsupported, in [`archive/i18n/`](archive/i18n/README.md).
 - **Structures in the File menu.** "Save selected structure…" saves the selected nodes and the connections between them to a file, and "Insert saved structure…" adds such a file to the open document as one undo step. The Insert module menu and its two bundled blocks are gone.
 - **No in-app release notes.** The update notice, the What's new panel and its Help menu entry are removed; changes are listed here and in the GitHub release notes.
@@ -41,6 +45,9 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 - **What Loop Studio is for.** The installed app's description, like the README, now says what the model is about — how resources flow and how state changes — with game economies as one use case among production, operations, queues and budgets. The examples keep their own, field-specific descriptions.
 - **Korean wording.** A typo in the selection count shown while editing is locked ("unlock to move") is fixed.
 - **The next tap after a touch connection counts.** On a touch screen, after drawing a connection, or moving a connection's end, with a finger lifted while it still moved, the next tap — on Step, a zoom button or anything else — could be ignored and had to be repeated. It now counts the first time. Taps, moving nodes and panning or pinching the canvas work as before.
+- **The run chart's end values read clearly.** The value at the end of each line in the run chart sat on the line itself, so the line ran through the digits and a "20" or a "10" could be taken for "28" or "18". The digits now stand on a background of their own, in light, dark and high-contrast themes; the values, the lines and the chart's scale are unchanged.
+
+**No migration.** Documents, share links and digests open as before; the language change never rewrites a document's names or text. **Not verified:** real tablets and phones (touch was checked under Chromium's touch emulation only), real Windows high-contrast themes, Firefox and Safari, and manual screen-reader passes. A quick swipe on the properties panel or the timeline in portrait can leave the next tap unanswered under that emulation; whether a real tablet does the same is not known.
 
 ## v0.28.4 — 2026-10-17
 

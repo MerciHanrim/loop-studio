@@ -12,7 +12,7 @@ The `changelog` value is one line this change adds under `## Unreleased` in [CHA
 { "type": "internal", "reason": "Why no changelog entry is needed, in words." }
 ```
 
-A change does not raise the app version: that happens only when a release is approved, and then the version only goes up.
+A change does not raise the app version: that happens only when a release is approved, and then the version only goes up. A release moves the Unreleased lines into `## v<x.y.z> — <date>` for exactly the version it raises to, and there its declared line is accepted too.
 
 `npm run check:change-declaration` reads these. The rule and its reasons are in [docs/release-notes.md](../docs/release-notes.md).
 
