@@ -24,6 +24,20 @@
   position: relative;
   z-index: 41;
 }
+/* the control strips — the menu bar, the tool row, the status bar — are
+   commands, not text to copy: a drag that starts in a gap or on a label there
+   (`Connect`, a separator) selects none of their words. Such a selection also
+   stayed: a canvas click cannot clear it (React Flow's pan cancels
+   `selectstart`). The menus open inside the menu bar and keep their text as
+   before, and so does any field there; panels, dialogs and tips are elsewhere */
+.wb-menubar,
+.wb-toolrow,
+.wb-status {
+  user-select: none;
+}
+:is(.wb-menubar, .wb-toolrow, .wb-status) :is(.menu__pop, input, textarea, [contenteditable]) {
+  user-select: text;
+}
 .wb-menubar {
   height: 32px;
   display: flex;

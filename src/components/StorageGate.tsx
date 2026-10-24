@@ -39,9 +39,13 @@ export function StorageGate({ shareLinkWaiting, onAnswer }: Props) {
   const leadId = useId()
 
   // focus goes to the heading, not to either choice: a keyboard user reads the
-  // explanation first and no option is favoured
+  // explanation first and no option is favoured. `focusVisible: false`: the
+  // heading is a reading start, not a control — without it Chromium drew the
+  // keyboard ring round it at the first mouse click on it, like a text field
+  // (2026-10-24). Tab still rings the buttons and the boxes; a browser that
+  // does not know the option ignores it and may still draw that ring
   useEffect(() => {
-    headingRef.current?.focus()
+    headingRef.current?.focus({ focusVisible: false })
   }, [])
 
   return (
