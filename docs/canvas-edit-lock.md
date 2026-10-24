@@ -21,7 +21,7 @@ Copy, cut, paste and duplicate of nodes do not exist today. If they are added, c
 
 ## 2. What stays available
 
-- Selection, region select, the read-only Inspector, pan and zoom, the minimap.
+- Selection, region select, the read-only Inspector, pan and zoom.
 - Focus, Filters, the Activity overlay, Pan mode and every other view setting.
 - Run, Step, Play, Monte Carlo, the seed, the speed, the Timeline series: they change the run, not the document.
 - Export (Graph JSON, Workspace JSON, CSV, a project revision, Make a proposal, Save selection as a module) and creating a share link.

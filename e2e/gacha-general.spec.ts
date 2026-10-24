@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
-import { openFileMenu, openInputsTab, pickLocale, pickTemplate } from './support/workbenchMenus'
+import { openFileSubmenu, openInputsTab, pickLocale, pickTemplate } from './support/workbenchMenus'
 
 // docs/gacha-general.md — the General gacha Template, opened from File ▸
 // Templates as a user opens it: unlocked and fitted whole, its description in
@@ -45,20 +45,23 @@ test.describe('the General gacha Template', () => {
     await pickLocale(page, 'ko')
   })
 
-  test('the menu describes it — the hit rate’s denominator and the stop, in two lines — and it opens unlocked with every node inside the canvas bounds', async ({ page }) => {
-    await openFileMenu(page)
-    const row = page.locator('.toolbar__filemenu-pop [data-template="gacha-general"]')
+  test('the menu describes it — the hit rate’s denominator and the stop — and it opens unlocked with every node inside the canvas bounds', async ({ page }) => {
+    const sub = await openFileSubmenu(page, 'templates')
+    const row = sub.locator('[data-template="gacha-general"]')
     await expect(row.locator('.menu__name')).toHaveText('일반 가챠')
-    // the menu's description is held to two lines (help-menu-readability); the
-    // whole explanation is docs/gacha-general.md
-    await expect(row.locator('.menu__blurb')).toHaveText('천장 없는 배너 하나. 적중률은 목표 뽑기 횟수가 분모이고, 목표에 이르면 끝납니다.')
+    // its description: the row's own, and in the submenu's description area
+    // when pointed at, whole (docs/workbench.md §WB2.2); the whole explanation
+    // is docs/gacha-general.md
+    const blurb = '천장 없는 배너 하나. 적중률은 목표 뽑기 횟수가 분모이고, 목표에 이르면 끝납니다.'
+    await expect(row).toHaveAccessibleDescription(blurb)
+    await row.hover()
+    await expect(sub.locator('.dmenu__desc.is-shown')).toHaveText(blurb)
+    // the submenu, then File
+    await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
     await openGeneral(page)
     await expect(page.locator('.canvas.canvas--locked')).toHaveCount(0)
-    // the whole model fitted: every symbol inside the canvas BOUNDS. This is
-    // not "every symbol visible": with the minimap open, Reset view keeps no
-    // room for it, and at 1440 × 900 it covers the Completion signal — an open
-    // item (the fit / minimap overlap), not checked or claimed here
+    // the whole model fitted: every symbol inside the canvas BOUNDS
     await expect
       .poll(() =>
         page.evaluate(() => {

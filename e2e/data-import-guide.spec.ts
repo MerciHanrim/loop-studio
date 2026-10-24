@@ -74,23 +74,18 @@ async function openWizard(page: Page): Promise<void> {
 }
 
 /** The canvas area a user can actually see nodes in: the React Flow pane
- *  minus the zoom Controls column, the minimap's row/column bands (when it
- *  is on screen) and the top-center hint slot (when a hint is showing). The
- *  right column (Inspector) is outside the pane already. */
+ *  minus the zoom Controls column and the top-center hint slot (when a hint
+ *  is showing). The right column (Inspector) is outside the pane already. */
 async function usableCanvasArea(page: Page, opts: { bands?: boolean } = {}): Promise<{ left: number; top: number; right: number; bottom: number }> {
   // `bands: false` — the pane alone; the caller checks the overlays' own boxes
   return page.evaluate((bands) => {
     const pane = document.querySelector('.react-flow')!.getBoundingClientRect()
     if (!bands) return { left: pane.left, top: pane.top, right: pane.right, bottom: pane.bottom }
     const controls = document.querySelector('.react-flow__controls')?.getBoundingClientRect()
-    const mm = document.querySelector('.react-flow__minimap')?.getBoundingClientRect()
     const hint = document.querySelector('.react-flow__panel.top.center')?.getBoundingClientRect()
-    let { left, top, right, bottom } = pane
+    const { right, bottom } = pane
+    let { left, top } = pane
     if (controls && controls.width > 0) left = Math.max(left, controls.right)
-    if (mm && mm.width > 0) {
-      right = Math.min(right, mm.left)
-      bottom = Math.min(bottom, mm.top)
-    }
     if (hint && hint.height > 0) top = Math.max(top, hint.bottom)
     return { left, top, right, bottom }
   }, opts.bands ?? true)
@@ -230,14 +225,12 @@ test('the quick start is visible before any input; "Use this example" fills a ta
   await page.waitForTimeout(150)
   // every created node AND its outside name on the canvas, under none of its
   // fixed overlays. At 1280 × 800 the workbench canvas is 664 px wide, so the
-  // floor-zoom fit frames the batch's first columns and the fourth lies in
-  // the minimap's COLUMN band, above the minimap (measured 2026-10-20: node
-  // bottom 262, minimap top 375) — on screen and clear; a band test would call
-  // that hidden. The names are checked too: the first one had begun 12 px
-  // under the left list (the fit's rect now holds the name's reach).
+  // floor-zoom fit frames the batch's first columns. The names are checked
+  // too: the first one had begun 12 px under the left list (the fit's rect
+  // now holds the name's reach).
   const pane = await usableCanvasArea(page, { bands: false })
   const overlays = await page.evaluate(() =>
-    ['.react-flow__minimap', '.react-flow__panel.top.center', '.react-flow__controls']
+    ['.react-flow__panel.top.center', '.react-flow__controls']
       .map((s) => document.querySelector(s)?.getBoundingClientRect())
       .filter((r): r is DOMRect => r != null && r.width > 0)
       .map((r) => ({ left: r.left, top: r.top, right: r.right, bottom: r.bottom })),

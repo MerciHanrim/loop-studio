@@ -45,6 +45,8 @@ async function confirmReplaceIfShown(page: Page) {
 
 async function pickDesktopTemplate(page: Page, name: string, waitForNodeId: string) {
   await templatesBtn(page).click()
+  // File ▸ Templates (docs/workbench.md §WB2.2)
+  await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
   await page
     .locator('.toolbar__actions .menu')
     .first()
@@ -157,8 +159,9 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
   // lever whole; positions / undo untouched. At this pane size the Forecast
   // metrics column fits beside it too (it is one pan away only on a narrower
   // pane), so nothing here says it is off screen. (Early MMO, this test's
-  // previous subject with §MML3, left the menu in 0.28.1; the gacha framing,
-  // which does leave a zone off screen, is the next test.)
+  // previous subject with §MML3, was out of the menu in 0.28.1–0.29.0; its
+  // menu-open framing is checked in mmo-progression.spec.ts since 0.30.0. The
+  // gacha framing, which does leave a zone off screen, is the next test.)
   test('desktop: open Coffee from the menu → the camera frames its operating flow at ≥ its floor', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
@@ -210,7 +213,7 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
     expect(after.zoom, 'opens at or above the L1 detail zoom').toBeGreaterThanOrEqual(0.45)
     expect(await nodeOnScreen(page, 'cmp1_hit_rate_free')).toBe(true)
     expect(await nodeOnScreen(page, 'roll_gate_free')).toBe(true)
-    expect(await nodeOnScreen(page, GACHA_R), 'Pickup zone is off screen (pan / minimap / Focus)').toBe(false)
+    expect(await nodeOnScreen(page, GACHA_R), 'Pickup zone is off screen (pan / Focus)').toBe(false)
 
     // camera-only: positions are exactly the file's, and the framing is not an
     // undo entry (#334 — the Template load empties the history; nothing at all)
@@ -240,7 +243,7 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
     ]
     const FREE_ZONE_NODE = 'roll_gate_free'
 
-    type LastInitialView = { insetR: number; insetB: number; zoom: number } | null
+    type LastInitialView = { insetL: number; insetT: number; zoom: number } | null
     const lastInitialView = (page: Page) =>
       page.evaluate(
         () => (window as unknown as { __loop: { canvas: { lastInitialView: () => LastInitialView } } }).__loop.canvas.lastInitialView(),

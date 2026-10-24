@@ -5,6 +5,7 @@ import { useUiStore } from '../store/uiStore'
 import { planSelectionAsModule, readModuleFile } from '../store/moduleIO'
 import { useT } from '../i18n'
 import type { ToolbarDialog } from './toolbar/dialogTypes'
+import { DescribedRow } from './toolbar/DescribedMenu'
 
 // docs/module-system.md §MS6 (2026-10) — the reuse of a saved structure, in the
 // File menu: "Save selected structure…" writes the selected nodes and their
@@ -132,14 +133,15 @@ export function StructureMenuItems({
   return (
     <>
       <div className="menu__divider" role="separator" />
-      <button type="button" className="menu__item" role="menuitem" onClick={saveSelection}>
-        <span className="menu__name">{t('modules.extract')}</span>
-        <span className="menu__blurb">{t('modules.extract.blurb')}</span>
-      </button>
-      <button type="button" className="menu__item" role="menuitem" onClick={pickFile} disabled={editLocked}>
-        <span className="menu__name">{t('modules.insertSaved')}</span>
-        <span className="menu__blurb">{t('modules.insertSaved.blurb')}</span>
-      </button>
+      {/* names on one line; the descriptions show in File's description area
+          (docs/workbench.md §WB2.2) */}
+      <DescribedRow name={t('modules.extract')} description={t('modules.extract.blurb')} onSelect={saveSelection} />
+      <DescribedRow
+        name={t('modules.insertSaved')}
+        description={t('modules.insertSaved.blurb')}
+        onSelect={pickFile}
+        disabledNote={editLocked ? t('modules.insertSaved.locked') : undefined}
+      />
     </>
   )
 }

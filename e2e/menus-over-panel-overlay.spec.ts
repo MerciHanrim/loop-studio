@@ -45,7 +45,7 @@ test.describe('the menu bar over an open side panel (narrow band)', () => {
     await resetAll(page)
   })
 
-  test('File over the list: every row answers at its start, centre and end; a Template row clicked where the panel was opens it', async ({ page }) => {
+  test('File over the list: every row answers at its start, centre and end; a Template row of its submenu answers and opens it', async ({ page }) => {
     await openOverlay(page, 'left')
     const panel = (await overlayBox(page, 'left'))!
     await page.locator('.toolbar__filemenu > .wb-mb').click()
@@ -54,10 +54,17 @@ test.describe('the menu bar over an open side panel (narrow band)', () => {
     const pb = (await pop.boundingBox())!
     expect(pb.x, 'the popup starts over the panel').toBeLessThan(panel.x + panel.width)
     expect(await rowsAnswer(pop)).toEqual([])
-    // a click at the row's start, which lies over the panel
-    const row = pop.locator('[data-template]').first()
+    // a click at the Templates row's start, which lies over the panel, opens
+    // the submenu (docs/workbench.md §WB2.2), in the same layer
+    const parent = pop.locator('[data-submenu="templates"]')
+    const parentBox = (await parent.boundingBox())!
+    expect(parentBox.x + 10, 'the click point lies over the panel').toBeLessThan(panel.x + panel.width)
+    await page.mouse.click(parentBox.x + 10, parentBox.y + parentBox.height / 2)
+    const sub = page.locator('.dmenu--sub')
+    await expect(sub).toBeVisible()
+    expect(await rowsAnswer(sub)).toEqual([])
+    const row = sub.locator('[data-template]').first()
     const rb = (await row.boundingBox())!
-    expect(rb.x + 10, 'the click point lies over the panel').toBeLessThan(panel.x + panel.width)
     await page.mouse.click(rb.x + 10, rb.y + rb.height / 2)
     await expect.poll(() => nodeCount(page), { message: 'the Template opened' }).toBeGreaterThan(0)
   })
@@ -68,8 +75,12 @@ test.describe('the menu bar over an open side panel (narrow band)', () => {
     await trig.focus()
     await page.keyboard.press('Enter')
     await expect(page.locator('.toolbar__filemenu-pop')).toBeVisible()
-    const first = page.locator('.toolbar__filemenu-pop [data-template]').first()
-    for (let i = 0; i < 12 && !(await first.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press('ArrowDown')
+    // File ▸ Templates: Arrow Right on its row opens it at the first Template
+    const parent = page.locator('.toolbar__filemenu-pop [data-submenu="templates"]')
+    for (let i = 0; i < 12 && !(await parent.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press('ArrowDown')
+    await expect(parent).toBeFocused()
+    await page.keyboard.press('ArrowRight')
+    const first = page.locator('.dmenu--sub [data-template]').first()
     await expect(first).toBeFocused()
     await page.keyboard.press('Enter')
     await expect.poll(() => nodeCount(page), { message: 'the Template opened' }).toBeGreaterThan(0)
@@ -84,7 +95,7 @@ test.describe('the menu bar over an open side panel (narrow band)', () => {
     const pb = (await pop.boundingBox())!
     expect(pb.x + pb.width, 'the popup ends over the panel').toBeGreaterThan(panel.x)
     expect(await rowsAnswer(pop)).toEqual([])
-    const row = pop.locator('[data-view-row="minimap"]')
+    const row = pop.locator('[data-view-row="activity"]')
     const before = await row.getAttribute('aria-pressed')
     const rb = (await row.boundingBox())!
     expect(rb.x + rb.width - 10, 'the click point lies over the panel').toBeGreaterThan(panel.x)

@@ -61,6 +61,8 @@ async function loadGachaIn(page: Page, locale: string): Promise<void> {
   )
   expect(name.length, 'the catalog knows the Template name').toBeGreaterThan(0)
   await page.locator('.toolbar__actions .menu').first().locator('> button').click()
+  // File ▸ Templates (docs/workbench.md §WB2.2)
+  await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
   await page.locator('.toolbar__actions .menu').first().locator('.menu__pop [role="menuitem"]', { hasText: name }).click()
   const confirm = page.locator('.mcdlg--confirm .mcdlg__foot .btn--primary')
   if (await confirm.isVisible().catch(() => false)) await confirm.click()

@@ -7,12 +7,11 @@
 //
 // Rules, in order:
 //  - the usable area is the pane minus fixed overlays (left: the zoom
-//    Controls; right + bottom: the minimap when it is on screen; top: the
-//    `top-center` hint slot when the caller reserves it);
+//    Controls; top: the `top-center` hint slot when the caller reserves it);
 //  - the zoom is the largest that fits the rect (with a 6 % pad) in that
 //    area, clamped to [floor, ceil];
 //  - on a small pane, fewer of the rect's COLUMNS are framed rather than
-//    letting its right edge fall under the minimap at the floor zoom;
+//    letting its right edge fall off the pane at the floor zoom;
 //  - the rect is left-aligned (a progression reads beginning-first) and
 //    vertically centred, or top-anchored when it is taller than the area —
 //    so a rect too large for the floor zoom is never shrunk further: the
@@ -20,24 +19,23 @@
 //    here" a large import needs, not a dot;
 //  - issue #344 (docs/diagram-layout.md §DL5.6) — an optional `keep` rect (the
 //    core start nodes at their widest box over the 18 languages) caps the
-//    zoom at the largest one that shows `keep` whole: inside the pane, and
-//    clear of the minimap's corner only when `keep` would overlap it on BOTH
-//    axes (a top row running past the minimap's column, above it, is not
-//    under it). The floor still wins on a pane too small for `keep`.
+//    zoom at the largest one that shows `keep` whole inside the pane. The
+//    floor still wins on a pane too small for `keep`.
+// (v0.30.0: the minimap's right / bottom bands and the corner `keep` cleared
+// went with the minimap; with them at 0 every result is unchanged.)
 
 export type FitRect = { x: number; y: number; width: number; height: number }
-export type FitInsets = { left: number; right: number; bottom: number; top: number }
+export type FitInsets = { left: number; top: number }
 export type FitOptions = { floor: number; ceil: number; keep?: FitRect }
 export type Viewport = { x: number; y: number; zoom: number }
 
 /** The Canvas's fixed overlays: the zoom Controls on the left (~44 px) where
  *  they are on screen — the phone only since the desktop workbench (2026-10,
  *  docs/workbench.md: its zoom is the status bar's; Lumi, 2026-10-20: no space
- *  is kept for a rail that is not there) — and, when it is on screen, the
- *  minimap's column (224 px incl. margin) and row (176 px) bands. `top` is 0
- *  here; the import wizard adds the hint slot. */
-export function canvasFitInsets(minimapVisible: boolean, top = 0, controlsRail = false): FitInsets {
-  return { left: controlsRail ? 44 : 0, right: minimapVisible ? 224 : 0, bottom: minimapVisible ? 176 : 0, top }
+ *  is kept for a rail that is not there). `top` is 0 here; the import wizard
+ *  adds the hint slot. */
+export function canvasFitInsets(top = 0, controlsRail = false): FitInsets {
+  return { left: controlsRail ? 44 : 0, top }
 }
 
 const PAD = 1.06
@@ -51,8 +49,8 @@ export function viewportForRect(
   opts: FitOptions,
 ): Viewport | null {
   if (pane.width <= 0 || pane.height <= 0) return null
-  const usableW = Math.max(160, pane.width - insets.left - insets.right)
-  const usableH = Math.max(120, pane.height - insets.top - insets.bottom)
+  const usableW = Math.max(160, pane.width - insets.left)
+  const usableH = Math.max(120, pane.height - insets.top)
   const rectW = Math.min(rect.width, (usableW - EDGE_GAP) / opts.floor)
   const fit = Math.min(opts.ceil, Math.max(opts.floor, Math.min(usableW / (rectW * PAD), usableH / (rect.height * PAD))))
   const zoom = opts.keep ? Math.max(opts.floor, keepZoom(rect, opts.keep, pane, insets, usableH, fit)) : fit
@@ -94,8 +92,7 @@ function keepBound(rect: FitRect, keep: FitRect, insets: FitInsets, usableH: num
   )
 }
 
-/** The largest zoom <= `fit` at which `keep` is whole inside the pane and, when
- *  it would overlap the minimap's corner on both axes, clear of that corner. */
+/** The largest zoom <= `fit` at which `keep` is whole inside the pane. */
 function keepZoom(rect: FitRect, keep: FitRect, pane: { width: number; height: number }, insets: FitInsets, usableH: number, fit: number): number {
   // the vertical placement switches from top-anchored to centred once the
   // rect fits the area (zoom <= usableH / rect.height)
@@ -108,13 +105,5 @@ function keepZoom(rect: FitRect, keep: FitRect, pane: { width: number; height: n
     return Math.min(z, switchAt, keepBound(rect, keep, insets, usableH, lim, true))
   }
   const paneLim: Limits = { left: insets.left, top: insets.top, right: pane.width - EDGE_GAP, bottom: pane.height - EDGE_GAP }
-  const z = within(paneLim, fit)
-  if (insets.right <= 0 || insets.bottom <= 0) return z
-  const corner = { left: pane.width - insets.right, top: pane.height - insets.bottom }
-  const vp = place(rect, insets, usableH, z)
-  const right = vp.x + (keep.x + keep.width) * z
-  const bottom = vp.y + (keep.y + keep.height) * z
-  if (right <= corner.left || bottom <= corner.top) return z
-  // clear the corner by whichever side keeps the larger zoom
-  return Math.max(within({ ...paneLim, right: corner.left }, z), within({ ...paneLim, bottom: corner.top }, z))
+  return within(paneLim, fit)
 }

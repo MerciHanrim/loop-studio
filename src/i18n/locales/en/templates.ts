@@ -31,6 +31,8 @@ const templates = {
   // not Import, which opens a whole document in place of this one
   'modules.insertSaved': 'Insert saved structure…',
   'modules.insertSaved.blurb': 'Adds a structure file you saved to this document.',
+  // why the row is off, under its name (it inserts into the document)
+  'modules.insertSaved.locked': 'Unavailable while editing is locked',
   'modules.extract': 'Save selected structure…',
   'modules.extract.blurb': 'Saves the selected nodes and the connections between them to a file.',
   'modules.error.title': 'Could not insert the structure',

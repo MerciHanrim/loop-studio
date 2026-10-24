@@ -1,10 +1,11 @@
 import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
+import { fileExportRow } from './support/workbenchMenus'
 
 // The Canvas EDIT lock (uiStore.canvasLocked, seeded from
 // `recommendedRunConfig.canvasLocked`). Locked ⇒ nodes don't move / connect,
 // nothing deletes, the Inspector is read-only — but selection, the read-only
-// Inspector, pan / zoom, the minimap, the Timeline and the sim all still work.
+// Inspector, pan / zoom, the Timeline and the sim all still work.
 // UI-only: never the GraphDoc / loop-revision digest / undo / simulationRev.
 
 type Bridge = {
@@ -388,9 +389,8 @@ test.describe('Canvas edit-lock', () => {
       .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().stepIndex))
       .toBeGreaterThan(0)
 
-    await page.getByRole('button', { name: 'File', exact: true }).click()
     const download = page.waitForEvent('download')
-    await page.locator('[role="menuitem"]').filter({ hasText: 'Graph JSON' }).first().click()
+    await (await fileExportRow(page, 'Graph JSON')).click()
     const file = JSON.parse(await (await (await download).createReadStream()).toArray().then((b) => Buffer.concat(b).toString('utf8')))
     expect(file.recommendedRunConfig.canvasLocked).toBe(true)
 

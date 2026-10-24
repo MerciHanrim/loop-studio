@@ -19,10 +19,11 @@ import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, routesSettl
 //  - Import keeps the file's own labels; a later language switch keeps them too
 //  - re-open in a different locale order → pristine English canonical
 //
-// The menu cases use Coffee (0.28.1: Early MMO, their previous subject, left the
-// Templates menu). The two bulk-switch geometry cases stay on the full MMO
-// document — the largest one — opened from its FILE: it is still a Template
-// entry's document, so a locale switch re-seeds its official names.
+// The menu cases use Coffee (since 0.28.1, when Early MMO, their previous
+// subject, left the Templates menu; MMO is back since 0.30.0). The two
+// bulk-switch geometry cases stay on the full MMO document — the largest one —
+// opened from its FILE: it is a Template entry's document, so a locale switch
+// re-seeds its official names.
 
 type Loop = Record<string, { getState: () => any }>
 const g = (page: Page) => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState())
@@ -52,6 +53,8 @@ async function unlockCanvas(page: Page) {
 
 async function pickTemplate(page: Page, hasText: string) {
   await templatesBtn(page).click()
+  // File ▸ Templates (docs/workbench.md §WB2.2)
+  await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
   await page
     .locator('.toolbar__actions .menu').first()
     .locator('.menu__pop [role="menuitem"]', { hasText })

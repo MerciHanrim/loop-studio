@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { expect, openApp, resetAll, test } from './support/loop'
-import { openFileMenu, toolButton } from './support/workbenchMenus'
+import { openFileMenu, openFileSubmenu, toolButton } from './support/workbenchMenus'
 
 // Issue #334 — every whole-document replacement is a document BOUNDARY, driven
 // through the real UI (the dev bridge only reads state, it never makes the
@@ -43,8 +43,8 @@ async function fileNew(page: Page): Promise<void> {
 }
 async function openTemplate(page: Page, name: string): Promise<void> {
   // File ▸ Templates (docs/workbench.md §WB2)
-  await openFileMenu(page)
-  await page.locator('.toolbar__filemenu-pop [data-template]').filter({ hasText: name }).first().click()
+  const sub = await openFileSubmenu(page, 'templates')
+  await sub.locator('[data-template]').filter({ hasText: name }).first().click()
   await confirmIfAsked(page)
 }
 async function importFile(page: Page, text: string): Promise<void> {
@@ -97,7 +97,7 @@ async function storageAction(page: Page, action: 'to-temporary' | 'delete-work')
 }
 
 test.describe('#334 — a new document starts unlocked, with no history', () => {
-  test('File → New from the locked gacha template (Early MMO left the menu in 0.28.1): unlocked, empty, Undo and Redo disabled; a palette click edits; a reload keeps it unlocked', async ({ page }) => {
+  test('File → New from the locked gacha template: unlocked, empty, Undo and Redo disabled; a palette click edits; a reload keeps it unlocked', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await openTemplate(page, '3-zone gacha banner comparison')

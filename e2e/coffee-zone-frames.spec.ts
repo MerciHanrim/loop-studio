@@ -30,6 +30,8 @@ const templatesBtn = (page: Page) =>
   page.locator('.toolbar__actions .menu').first().locator('> button')
 async function pickCoffee(page: Page) {
   await templatesBtn(page).click()
+  // File ▸ Templates (docs/workbench.md §WB2.2)
+  await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
   await page
     .locator('.toolbar__actions .menu').first()
     .locator('.menu__pop [role="menuitem"]', { hasText: /Coffee roastery|커피 로스터리/ })

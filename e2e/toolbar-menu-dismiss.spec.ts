@@ -169,6 +169,24 @@ test.describe('interactions inside a menu (or its own nested submenu) do not dis
     await expect(pop).toBeVisible()
   })
 
+  test('File ▸ Export: a click inside the submenu (not on a row) keeps it and File open', async ({ page }) => {
+    await menuBtn(page, /^File$/).click()
+    const pop = page.locator('.toolbar__filemenu-pop')
+    await expect(pop).toBeVisible()
+    await pop.locator('[data-submenu="export"]').click()
+    const sub = page.locator('.dmenu--sub')
+    await expect(sub).toBeVisible()
+    // its description area, outside the rows
+    await sub.locator('.dmenu__area').click()
+    await expect(sub).toBeVisible()
+    await expect(pop).toBeVisible()
+    // and a click outside both (the pane's top-right corner) closes both
+    const pane = (await page.locator('.react-flow__pane').boundingBox())!
+    await page.mouse.click(pane.x + pane.width - 20, pane.y + 20)
+    await expect(sub).toHaveCount(0)
+    await expect(pop).toHaveCount(0)
+  })
+
   test('Theme flyout: clicking inside it keeps Settings (its parent) open too', async ({ page }) => {
     await menuBtn(page, /^View$/).click()
     const settingsPop = page.locator('.wb-viewmenu__pop')

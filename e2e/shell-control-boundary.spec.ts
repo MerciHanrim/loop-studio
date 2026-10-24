@@ -155,21 +155,6 @@ const CONTROLS: Ctl[] = [
     },
   },
   {
-    name: 'minimap toggle (.minimap-toggle)',
-    graph: 'risky',
-    focus: 'A',
-    plainToken: true,
-    hoverToken: true,
-    // it sits 4 px inside the minimap frame, whose own 1 px line is 5 px away:
-    // the default sample would read that line, not the surface behind the toggle
-    out: 4,
-    open: async (page) => {
-      const el = page.locator('.minimap-toggle').first()
-      await expect(el).toBeVisible()
-      return el
-    },
-  },
-  {
     name: 'distribution pool select (.band__pool)',
     graph: 'fixture-mc',
     focus: 'A',
@@ -435,7 +420,7 @@ test.describe('the thirteen bordered-control rules — real pixels (§VL8 / WCAG
       // triggers since the workbench, docs/workbench.md §WB2); Seed is in Run
       // settings where the row folds it
       await openRunSettings(page)
-      for (const sel of ['.toolbar__actions .toolbar__slot button.btn', '.pstrip .pb-btn:not(.pb-btn--primary):not(:disabled)', '.pstrip__seed', '.minimap-toggle']) {
+      for (const sel of ['.toolbar__actions .toolbar__slot button.btn', '.pstrip .pb-btn:not(.pb-btn--primary):not(:disabled)', '.pstrip__seed']) {
         const el = page.locator(sel).first()
         await expect(el).toBeVisible()
         await keyboardFocus(page, el)

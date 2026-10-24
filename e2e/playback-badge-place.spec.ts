@@ -15,6 +15,8 @@ async function openCoffee(page: Page, reduced = false) {
   await openApp(page)
   await resetAll(page)
   await page.locator('.toolbar__actions .menu').first().locator('> button').click()
+  // File ▸ Templates (docs/workbench.md §WB2.2)
+  await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
   await page.locator('.toolbar__actions .menu').first().locator('.menu__pop [role="menuitem"]', { hasText: 'Coffee roastery operations flow' }).first().click()
   const confirm = page.locator('.mcdlg--confirm')
   if (await confirm.isVisible().catch(() => false)) await confirm.locator('.btn--primary').click()

@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, readFixture, readRiskyFactory, resetAll, test } from './support/loop'
 import { capturedExports, installProbe } from './support/mc'
-import { openMonteCarloDialog } from './support/workbenchMenus'
+import { openFileSubmenu, openMonteCarloDialog } from './support/workbenchMenus'
 
 // A graph file now carries `recommendedRunConfig` (baseSeed / runs / steps /
 // tracked). Import applies the valid fields to the Monte-Carlo config; Export
@@ -20,9 +20,9 @@ const mcConfig = (page: Page) =>
 const setConfig = (page: Page, c: Record<string, unknown>) =>
   page.evaluate((v) => (window as any).__loop.mc.getState().setConfig(v), c)
 
-/** toolbar `File ▾` → `Graph JSON` */
+/** File ▸ Export ▸ Graph JSON */
 async function exportGraphJSON(page: Page) {
-  await page.locator('.toolbar__actions .menu > button', { hasText: 'File' }).click()
+  await openFileSubmenu(page, 'export')
   await page.locator('.toolbar__actions .menu__pop').getByRole('menuitem', { name: 'Graph JSON' }).click()
 }
 

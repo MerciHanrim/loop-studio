@@ -104,8 +104,9 @@ const measureOpenMenu = async (page: Page, sel: string): Promise<Measured[]> => 
   await installProbe(page)
   return page.evaluate((s) => {
     const m = (window as unknown as { __measure: (e: Element) => object }).__measure
+    // on screen: laid out (a `position: fixed` submenu has no offsetParent)
     const pops = Array.from(document.querySelectorAll('.menu__pop')).filter(
-      (el) => (el as HTMLElement).offsetParent !== null,
+      (el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden',
     )
     return pops.flatMap((pop) => Array.from(pop.querySelectorAll(s)).map((el) => m(el) as Measured))
   }, sel)
@@ -144,25 +145,29 @@ test('KO node tooltips: every description keeps its 어절 whole, at body size a
   }
 })
 
-// the workbench (docs/workbench.md §WB2): the Templates are rows of the File
-// menu, which took the Templates menu's wide popover with them (2026-10-20)
-test('KO File menu Templates: the wide popover, every description whole and inside the 2-line clamp', async ({ page }) => {
+// the workbench (docs/workbench.md §WB2.2): the Templates are the rows of File
+// ▸ Templates, a wide submenu whose description area holds each Template's
+// description, whole (no line clamp; the area scrolls past its cap)
+test('KO File ▸ Templates: the wide submenu, every description whole in its description area', async ({ page }) => {
   await trigger(page, /파일/).click()
   await expect(openPop(page)).toBeVisible()
-  const width = await openPop(page).evaluate((el) => Math.round(el.getBoundingClientRect().width))
-  expect(width, 'File, with the Templates in it, opts into the wide popover').toBe(300)
+  await page.locator('[data-submenu="templates"]').click()
+  const sub = page.locator('.dmenu--sub')
+  await expect(sub).toBeVisible()
+  const width = await sub.evaluate((el) => Math.round(el.getBoundingClientRect().width))
+  expect(width, 'the Templates submenu is the wide popover').toBe(300)
 
-  const blurbs = await measureOpenMenu(page, '[data-template] .menu__blurb')
+  const blurbs = await measureOpenMenu(page, '.dmenu--sub .dmenu__desc:not(.dmenu__hint)')
   // 2026-10-20: the General gacha joined the menu (docs/gacha-general.md), then
-  // the Standard gacha (docs/gacha-standard.md), the Pickup gacha (docs/gacha-pickup.md)
-  expect(blurbs.length, 'one description per template (0.28.1: Early MMO is not in the menu)').toBe(7)
+  // the Standard gacha (docs/gacha-standard.md), the Pickup gacha (docs/gacha-pickup.md);
+  // 0.30.0: Early MMO is in the menu again
+  expect(blurbs.length, 'one description per template').toBe(8)
   for (const b of blurbs) {
     expect(b.fontPx, `"${b.text}": font size`).toBeGreaterThanOrEqual(BODY_MIN_PX)
     expect(b.contrast, `"${b.text}": contrast`).toBeGreaterThanOrEqual(BODY_MIN_CONTRAST)
     expect(b.wordBreak).toBe('keep-all')
-    // the acceptance for the clamp is the geometry, not the width: nothing
-    // may be hidden behind `-webkit-line-clamp: 2`
-    expect(b.clipped, `"${b.text}": ${b.scrollH} > ${b.clientH} would be cut by the clamp`).toBe(false)
+    // whole: no clamp cuts it (the geometry, not the width)
+    expect(b.clipped, `"${b.text}": ${b.scrollH} > ${b.clientH} would be cut`).toBe(false)
     // `keep-all` does not close a break at the interpunct `·`, so the Korean
     // copy uses commas for enumerations instead
     expect(b.broken, `"${b.text}": no word split across lines`).toEqual([])
@@ -172,18 +177,17 @@ test('KO File menu Templates: the wide popover, every description whole and insi
   for (const n of names) expect(n.broken, `"${n.text}": the name is not split`).toEqual([])
 })
 
-test('KO File menu: its own descriptions stay whole in the wide popover it now has', async ({ page }) => {
+test('KO File menu: its own descriptions stay whole in its description area', async ({ page }) => {
   await trigger(page, /파일/).click()
   await expect(openPop(page)).toBeVisible()
   const width = await openPop(page).evaluate((el) => Math.round(el.getBoundingClientRect().width))
-  // was the shared 260 until the Templates moved in (2026-10-20): at 260 three
-  // English template descriptions needed a third line and were clamped
-  expect(width, 'File is widened with the Templates it carries').toBe(300)
-  const blurbs = await measureOpenMenu(page, '.menu__blurb')
-  expect(blurbs.length).toBeGreaterThan(0)
-  // the two structure rows carry descriptions of their own
+  // the wide popover (300, not the shared 260): its description area holds
+  // the structure rows' and the export author's descriptions
+  expect(width, 'File keeps the wide popover').toBe(300)
+  const blurbs = await measureOpenMenu(page, '.toolbar__filemenu-pop .dmenu__desc:not(.dmenu__hint)')
+  // the two structure rows and the export author carry descriptions of their own
   expect(blurbs.map((b) => b.text)).toEqual(
-    expect.arrayContaining(['선택한 노드와 그 사이 연결을 파일로 저장합니다.', '저장해 둔 구조 파일을 지금 문서에 추가합니다.']),
+    expect.arrayContaining(['선택한 노드와 그 사이 연결을 파일로 저장합니다.', '저장해 둔 구조 파일을 지금 문서에 추가합니다.', '기기 로컬 이름표를 파일에 검증 없이 첨부']),
   )
   for (const b of blurbs) {
     expect(b.fontPx).toBeGreaterThanOrEqual(BODY_MIN_PX)
@@ -209,13 +213,13 @@ test('a widened popover still fits inside a narrow desktop viewport', async ({ p
   }
 })
 
-test.describe('menu keyboard — File (with the Templates in it)', () => {
+test.describe('menu keyboard — File (and its Export submenu)', () => {
   for (const [label, name, count] of [
-    // 2026-10: + Save selected structure, Insert saved structure; the
-    // workbench (2026-10-20): + the four Templates (0.28.1: Early MMO is not
-    // among them; the Templates menu itself gone) and Storage & privacy (from
-    // the Settings menu, docs/workbench.md §WB2)
-    ['File', /파일/, 17], // 2026-10-20: + the General, the Standard and the Pickup gacha Templates
+    // docs/workbench.md §WB2.2 (2026-10-23): New, Import, Templates ›,
+    // Export ›, Save selected structure, Insert saved structure, Set the
+    // export author, Storage & privacy — the Templates and the export formats
+    // are in the two submenus
+    ['File', /파일/, 8],
   ] as const) {
     test(`${label}: arrows wrap, Home/End jump, separators are skipped, Esc returns focus`, async ({ page }) => {
       const t = trigger(page, name)
@@ -278,11 +282,15 @@ test.describe('menu keyboard — File (with the Templates in it)', () => {
 
   test('a disabled row is skipped, and activation still runs the command exactly once', async ({ page }) => {
     // `Create proposal` is disabled until a project is open, and it sits in
-    // the middle of the File menu's flattened Export rows.
+    // the middle of File ▸ Export's rows: reached from the keyboard (Arrow
+    // Right on Export opens the submenu at its first row)
     const t = trigger(page, /파일/)
     await t.click()
-    const pop = openPop(page)
-    await expect(pop).toBeVisible()
+    await expect(openPop(page)).toBeVisible()
+    await page.locator('[data-submenu="export"]').focus()
+    await page.keyboard.press('ArrowRight')
+    const pop = page.locator('.dmenu--sub')
+    await expect(pop.getByRole('menuitem').first()).toBeFocused()
     const disabled = await pop.evaluate((el) =>
       Array.from(el.querySelectorAll('[role="menuitem"]'))
         .filter((i) => (i as HTMLButtonElement).disabled || i.getAttribute('aria-disabled') === 'true')
@@ -298,11 +306,15 @@ test.describe('menu keyboard — File (with the Templates in it)', () => {
       if (cur === first) break
       reachable.push(cur ?? '')
     }
+    expect(disabled.length, 'Make a proposal is off (no project is open)').toBe(1)
     for (const d of disabled) expect(reachable, `"${d}" is never focused`).not.toContain(d)
 
     // Enter activates through the browser's own button behaviour — the hook
-    // adds no `.click()`, so the command must not run twice. `New` opens the
-    // confirm dialog exactly once.
+    // adds no `.click()`, so the command must not run twice. `New` (File's
+    // first row, after Escape closes the submenu alone) opens the confirm
+    // dialog exactly once.
+    await page.keyboard.press('Escape')
+    await expect(pop).toBeHidden()
     await page.keyboard.press('Home')
     await page.keyboard.press('Enter')
     await expect(page.locator('.mcdlg, [role="dialog"]')).toHaveCount(1)

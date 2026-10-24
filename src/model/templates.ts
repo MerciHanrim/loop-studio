@@ -31,7 +31,7 @@ export type InitialView = {
   /** issue #344 (docs/diagram-layout.md §DL5.6) — the graph rect that must
    *  open WHOLE (the core start nodes at their widest box over the 18
    *  languages, `layout/templateBoxes.json`): the zoom is capped so it fits the
-   *  pane, clear of the minimap only where the two would overlap on both axes.
+   *  pane.
    *  Above `minZoom` only; absent ⇒ the plain `rect` fit. */
   keep?: { x: number; y: number; width: number; height: number }
 }
@@ -116,8 +116,8 @@ export const TEMPLATES: Template[] = [
   // professional probability/pity verification, each entry a bigger and more
   // specialised step than the last. Coffee moved ahead of MMO (was after it);
   // template ids are unchanged, so no saved/shared file or digest is affected.
-  // Since 0.28.1 MMO keeps its place here but is not listed (`menu: false`), so
-  // the menu reads Coffee → Gacha.
+  // MMO was not listed in 0.28.1–0.29.0 (`menu: false`); since 0.30.0 it is in
+  // the menu again, in this place.
   {
     id: 'coffee-roastery',
     name: 'Coffee roastery operations flow',
@@ -133,7 +133,7 @@ export const TEMPLATES: Template[] = [
     // zones and the dessert lever under them, with room for the left tool
     // column; a 1280 x 800 window opens at about 0.71 (level 1 with room, never
     // at the 0.45 edge). The Forecast metrics column is one pan to the right;
-    // the whole view (Reset view, the minimap) shows all three zones at about
+    // the whole view (Reset view) shows all three zones at about
     // 0.52 there.
     initialView: { rect: { x: -64, y: -40, width: 1344, height: 864 }, minZoom: 0.46 },
   },
@@ -141,13 +141,12 @@ export const TEMPLATES: Template[] = [
   // The canonical graph is examples/mmo-progression.json (built + verified by
   // src/engine/mmo-progression.fixture.ts); this entry loads it, no inline copy
   // (docs/example-mmo-progression.md §EM11 / §EM12 Q5).
-  // 0.28.1 (Hanrim / Lumi, 2026-10-14): NOT in the Templates menu any more — it
-  // shows how far Loop Studio goes, but nobody would build it by hand; it stays
-  // a developer stress / regression fixture. The entry stays so a document made
-  // from it keeps its node labels following a locale switch.
+  // 0.28.1 (Hanrim / Lumi, 2026-10-14) took it out of the Templates menu as a
+  // developer stress / regression fixture; 0.30.0 (Hanrim / Lumi, 2026-10-24)
+  // puts it back in the menu, unchanged — the same graph, start framing and
+  // edit lock. It is still the largest bundled graph the checks read.
   {
     id: 'mmo-progression',
-    menu: false,
     name: 'Early MMO progression (levels 1–15)',
     blurb:
       'A connected play economy: three zone lanes, probabilistic combat, categorised loot, a gold economy with repair and resupply costs, and a rising XP-per-level curve.',
@@ -158,21 +157,19 @@ export const TEMPLATES: Template[] = [
     // map. Frame just the FIRST steps instead — Character creation → Active
     // character → the Starter zone's landmark + encounter / first-combat
     // cluster (bbox ≈ x[40,850] × y[40,400]). Canvas.tsx fits this into the
-    // pane MINUS the fixed overlays (minimap bottom-right, Controls left) so
-    // the framed nodes never sit under the minimap, left-aligned so the graph
-    // reads from its start. `minZoom` is a READABILITY floor (above the L1
-    // threshold `LOD_L1_MIN` = 0.45); tuned by eye at 1280 / 820 px. The rest
-    // of the graph is one pan / minimap away. Fixed graph coords, no locale
-    // branch.
+    // pane MINUS the fixed overlays (Controls left, where shown),
+    // left-aligned so the graph reads from its start. `minZoom` is a
+    // READABILITY floor (above the L1 threshold `LOD_L1_MIN` = 0.45); tuned
+    // by eye at 1280 / 820 px. The rest of the graph is one pan away. Fixed
+    // graph coords, no locale branch.
     // issue #344 steps 4–6 (docs/diagram-layout.md §DL5.5–§DL5.6) —
     // readability first: the rect is sized for a zoom of about 1.05 at
     // 1600 x 1000 (node text >= 12 px on screen) inside the Controls rail's
     // reserved column; `keep` holds the core start nodes — Character creation,
     // Active character, Starter encounters and Starter Lv 1–5 — at their
     // widest box over the 18 languages (Thai Starter Lv 1–5, 196 px, ends at
-    // 1236), so they open whole at any pane size and with the minimap
-    // collapsed (1.040 at 1600 x 1000); later paths may start off screen
-    // (Reset view and the minimap show the whole graph)
+    // 1236), so they open whole at any pane size (1.040 at 1600 x 1000);
+    // later paths may start off screen (Reset view shows the whole graph)
     initialView: {
       rect: { x: 44, y: -4, width: 927, height: 368 },
       minZoom: 0.6,

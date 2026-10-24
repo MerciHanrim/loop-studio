@@ -79,7 +79,7 @@ for (const scheme of ['light', 'dark', 'forced'] as const) {
       await expect(page.locator('.nodef.is-hover')).toHaveCount(0)
       await expect(page.locator('.react-flow__node[data-id="r_bad"] .nodef__flag')).toHaveText('!')
       await expect(page.locator('.react-flow')).toHaveScreenshot(
-        ...snap(page, `node-matrix-${scheme}-${level}`, { mask: [page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')] }),
+        ...snap(page, `node-matrix-${scheme}-${level}`, { mask: [page.locator('.react-flow__attribution')] }),
       )
     })
   }

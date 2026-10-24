@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import { expectAboutIsPackageVersion, readAboutVersion } from './support/appVersion'
 import { expectShownNoticesAre, manifestNoticesSha, openAbout, openLicences, sha256 } from './support/licenses'
-import { openFileMenu, openMonteCarloDialog } from './support/workbenchMenus'
+import { openFileSubmenu, openMonteCarloDialog } from './support/workbenchMenus'
 
 // Runs under playwright.pwa.config.ts — three pre-built `--mode pwa` generations
 // (stamps pwagenA/B/C) served by e2e/support/pwa-serve.mjs, which switches which
@@ -408,9 +408,10 @@ test('applying a waiting update keeps a locked Template locked after reload', as
   await setGen(page, 'a')
   await installAndControl(page)
 
-  // Templates are rows of File (the workbench, docs/workbench.md §WB2)
-  await openFileMenu(page)
-  // a locked Template the menu offers (Early MMO, locked too, left the menu in 0.28.1)
+  // Templates are rows of File ▸ Templates (docs/workbench.md §WB2.2)
+  await openFileSubmenu(page, 'templates')
+  // a locked Template the menu offers (Early MMO, locked too, was out of the
+  // menu in 0.28.1–0.29.0)
   await page.getByRole('menuitem', { name: /3-zone gacha banner comparison/ }).click()
   const replaceDlg = page.locator('.mcdlg--confirm')
   await expect(replaceDlg).toBeVisible()

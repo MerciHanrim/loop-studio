@@ -61,7 +61,7 @@ test.describe('Help ▸ Example notes', () => {
     // focus is inside the dialog; Tab reaches the first example's row
     expect(await dialog(page).evaluate((d) => d.contains(document.activeElement))).toBe(true)
     const rows = dialog(page).locator('.example-notes__toggle')
-    await expect(rows).toHaveCount(7)
+    await expect(rows).toHaveCount(8)
     await rows.first().focus()
     await expect(rows.first()).toHaveAttribute('aria-expanded', 'false')
     await page.keyboard.press('Enter')
@@ -87,7 +87,7 @@ test.describe('Help ▸ Example notes', () => {
     await helpTrigger(page, /^도움말$/).click()
     await page.getByRole('menuitem', { name: '예제 설명' }).click()
     const names = await dialog(page).locator('.example-notes__toggle .contextual-help__name').allTextContents()
-    expect(names).toEqual(['균형 잡힌 생산 라인', '용량 교착', '커피 로스터리 운영 흐름', '일반 가챠', '상시 가챠', '픽업 가챠', '3존 가챠 배너 비교'])
+    expect(names).toEqual(['균형 잡힌 생산 라인', '용량 교착', '커피 로스터리 운영 흐름', '초반 MMO 성장 (1–15레벨)', '일반 가챠', '상시 가챠', '픽업 가챠', '3존 가챠 배너 비교'])
     for (let i = 0; i < names.length; i++) {
       await dialog(page).locator('.example-notes__toggle').nth(i).click()
       await expect(dialog(page).locator('.example-notes__text p').first()).not.toBeEmpty()
@@ -111,6 +111,12 @@ test.describe('Help ▸ Example notes', () => {
     const pickup = dialog(page).locator('.example-notes__row[data-example="gacha-pickup"] .example-notes__text')
     await expect(pickup).toContainText('보장은 다음 뽑기가 아니라 다음 SSR에 적용됩니다.')
     await expect(pickup).toContainText('SR이나 R이 나와도 보장 상태는 그대로 유지됩니다.')
+    // Early MMO's (back in the menu in 0.30.0): the zones in turn, and why it
+    // opens locked and framed
+    await dialog(page).locator('.example-notes__row[data-example="mmo-progression"] .example-notes__toggle').click()
+    const mmo = dialog(page).locator('.example-notes__row[data-example="mmo-progression"] .example-notes__text')
+    await expect(mmo).toContainText('5레벨 전에는 초원 지대, 5–9레벨은 구릉 지대, 10레벨부터는 장비 점수가 4 이상일 때 고지대')
+    await expect(mmo).toContainText('편집 잠금 상태로, 캐릭터 생성부터 초원 지대까지 첫 단계를 보여 주며 열립니다.')
     // no link anywhere in the dialog
     await expect(dialog(page).locator('a')).toHaveCount(0)
   })

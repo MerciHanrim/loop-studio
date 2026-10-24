@@ -7,7 +7,7 @@ import { PARALLEL_GAP } from '../src/components/edges/orthogonalRoute'
 import { edgePortKind, faceOf, rfHandleId, type PortEnd } from '../src/model/ports'
 import type { LoopEdge } from '../src/model/types'
 import { expectShownNoticesAre, manifestNoticesSha, openAbout, openLicences, sha256 } from './support/licenses'
-import { openMonteCarloDialog } from './support/workbenchMenus'
+import { openFileSubmenu, openMonteCarloDialog } from './support/workbenchMenus'
 
 // Runs under playwright.dist.config.ts: production `npm run build` served by
 // `vite preview` at the root `/` — the shape Cloudflare Pages serves. No
@@ -109,7 +109,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     expect(result.recommendedRunConfig).toBeUndefined() // MC JSON export, not a graph doc
 
     // 5 — a graph Export is a valid graph file carrying recommendedRunConfig
-    await page.locator('.toolbar__actions .menu > button', { hasText: 'File' }).click()
+    await openFileSubmenu(page, 'export')
     await page
       .locator('.toolbar__actions .menu__pop')
       .getByRole('menuitem', { name: 'Graph JSON' })
@@ -130,8 +130,8 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     expect(bad, 'no failed or cross-origin requests').toEqual([])
   })
 
-  // The largest Template the menu offers (Early MMO, the previous subject here,
-  // left the menu in 0.28.1 and stays a developer stress fixture).
+  // The 3-zone comparison, a large locked Template (Early MMO, the previous
+  // subject here, was out of the menu in 0.28.1–0.29.0; the check stayed here).
   test('the "3-zone gacha banner comparison" Template loads its bundled graph + recommended MC config', async ({ page }) => {
     const { bad } = await openProd(page)
     const GACHA = JSON.parse(readFileSync(new URL('../examples/gacha-banner-zones.json', import.meta.url), 'utf8')) as {
@@ -139,13 +139,8 @@ test.describe('production build (Cloudflare Pages shape)', () => {
       recommendedRunConfig: { runs: number; steps: number; baseSeed: number }
     }
 
-    // Templates ▾ is the first `.menu` in the toolbar actions
-    await page.locator('.toolbar__actions .menu').first().locator('> button').click()
-    await page
-      .locator('.toolbar__actions .menu')
-      .first()
-      .locator('.menu__pop [role="menuitem"]', { hasText: '3-zone gacha banner comparison' })
-      .click()
+    // File ▸ Templates (docs/workbench.md §WB2.2)
+    await (await openFileSubmenu(page, 'templates')).locator('[role="menuitem"]', { hasText: '3-zone gacha banner comparison' }).click()
     const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i })
     if (await confirm.isVisible().catch(() => false)) await confirm.click()
 
@@ -209,9 +204,9 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     expect(bad, 'no failed or cross-origin requests').toEqual([])
   })
 
-  // 0.28.1 — Early MMO left the Templates menu (a developer stress fixture now):
-  // the document is opened from its FILE, as a user's own file is. It is still
-  // a Template entry, so its node names still follow a locale switch; the
+  // The document is opened from its FILE, as a user's own file is (since
+  // 0.28.1, when Early MMO left the menu; back in it since 0.30.0). It is a
+  // Template entry, so its node names follow a locale switch; the
   // largest graph with parallel sets, it stays the subject of this check.
   test('a bulk locale switch on the MMO document keeps edge endpoints aligned with their real handle positions (no window.__loop)', async ({
     page,
@@ -501,7 +496,7 @@ test.describe('production build — the version the release bumped', () => {
 
     // 3 — `meta.tool` in an exported Project revision. This one is not cosmetic:
     // it is written INTO a file a user keeps and sends to someone else.
-    await page.locator('.toolbar__actions .menu > button', { hasText: 'File' }).click()
+    await openFileSubmenu(page, 'export')
     await page
       .locator('.toolbar__actions .menu__pop')
       .getByRole('menuitem', { name: 'Project revision' })

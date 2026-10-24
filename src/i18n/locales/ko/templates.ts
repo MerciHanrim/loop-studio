@@ -28,6 +28,7 @@ const templates = {
   'templates.replace.confirm': '템플릿 불러오기',
   'modules.insertSaved': '저장한 구조 삽입…',
   'modules.insertSaved.blurb': '저장해 둔 구조 파일을 지금 문서에 추가합니다.',
+  'modules.insertSaved.locked': '편집 잠금 중에는 삽입할 수 없습니다',
   'modules.extract': '선택한 구조 저장…',
   'modules.extract.blurb': '선택한 노드와 그 사이 연결을 파일로 저장합니다.',
   'modules.error.title': '구조를 삽입할 수 없습니다',

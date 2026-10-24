@@ -21,10 +21,13 @@ const i18nState = (page: Page) =>
 const htmlLang = (page: Page) => page.evaluate(() => document.documentElement.lang)
 const stored = (page: Page) => page.evaluate(() => localStorage.getItem('loop-studio/ui-locale/1'))
 
-// a Template the menu offers (Early MMO, the previous subject, left the menu in 0.28.1)
+// a Template the menu offers (Coffee since 0.28.1, when Early MMO, the previous
+// subject, left the menu; MMO is back since 0.30.0)
 const COFFEE = 'Coffee roastery operations flow'
 async function openCoffee(page: Page) {
   await page.locator('.toolbar__actions .menu').first().locator('> button').click()
+  // File ▸ Templates (docs/workbench.md §WB2.2)
+  await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
   await page
     .locator('.toolbar__actions .menu')
     .first()

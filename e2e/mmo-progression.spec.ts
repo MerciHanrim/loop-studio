@@ -1,14 +1,16 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
-import { ensureTimelineOpen, expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
-import { toolButton } from './support/workbenchMenus'
+import { ensureTimelineOpen, expect, openApp, resetAll, routesSettled, seedPersonalBrowser, test } from './support/loop'
+import { pickTemplate, pressViewRow, toolButton } from './support/workbenchMenus'
 
 // docs/example-mmo-progression.md §EM10 — the "Early MMO progression (levels
-// 1–15)" document, exercised through the app. Since 0.28.1 it is a developer
-// stress fixture: no longer offered by Templates ▾ (desktop) or the mobile
-// More → Templates sheet, so it is opened from its FILE, as a user's own file
-// is, and both menus are checked not to list it. Its own behaviour is unchanged:
-// the recommended config applies, it opens edit-locked, its node names follow a
+// 1–15)" document, exercised through the app. Out of the Templates menu in
+// 0.28.1–0.29.0, back in it since 0.30.0 (Hanrim / Lumi, 2026-10-24): File ▸
+// Templates (desktop) and the phone's More → Templates sheet offer it again,
+// with its name and description, and opened from there it frames its first
+// steps, opens edit-locked, runs, and View ▸ Reset view shows it whole. Most
+// tests open its FILE, as a user's own file is, which behaves the same: the
+// recommended config applies, it opens edit-locked, its node names follow a
 // locale switch, it runs to completion deterministically, it round-trips, and
 // the §EM10.1 accounting identities hold in the app's own engine state.
 //
@@ -214,25 +216,38 @@ test.describe('Early MMO progression example', () => {
     await expect(aside.locator('input').first()).toBeEnabled()
   })
 
-  test('the Templates menu does not offer it in EN or KO (0.28.1); opened from its file, its node names follow a locale switch (docs/template-label-overlay.md)', async ({ page }) => {
+  test('File ▸ Templates offers it in EN and KO with its description (0.30.0); its node names follow a locale switch (docs/template-label-overlay.md)', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
 
     const menuPop = page.locator('.toolbar__actions .menu').first().locator('.menu__pop')
+    const row = menuPop.locator('[data-template="mmo-progression"]')
 
-    // the menu is open and lists the Templates it offers (Coffee), but not this one
+    // File ▸ Templates lists it right after Coffee, its description the row's
+    // own and, pointed at, in the submenu's description area (docs/workbench.md §WB2.2)
     await templatesBtn(page).click()
-    await expect(menuPop.locator('[role="menuitem"]', { hasText: 'Coffee roastery' })).toBeVisible()
-    await expect(menuPop.locator('[role="menuitem"]', { hasText: EN_NAME })).toHaveCount(0)
-    await expect(menuPop.locator('.menu__blurb', { hasText: 'quests, hunts and rewards' })).toHaveCount(0)
+    await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
+    const ids = await menuPop.locator('[data-template]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.template))
+    expect(ids.indexOf('mmo-progression')).toBe(ids.indexOf('coffee-roastery') + 1)
+    await expect(row.locator('.menu__name')).toHaveText(EN_NAME)
+    const enBlurb = 'Three zones of quests, hunts and rewards — how long reaching level 15 takes.'
+    await expect(row).toHaveAccessibleDescription(enBlurb)
+    await row.hover()
+    await expect(menuPop.locator('.dmenu__desc.is-shown')).toHaveText(enBlurb)
+    // the submenu, then File
+    await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
 
     await setLocale(page, 'ko')
     await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('ko')
     await templatesBtn(page).click()
-    await expect(menuPop.locator('[role="menuitem"]', { hasText: '커피' }).first()).toBeVisible()
-    await expect(menuPop.locator('[role="menuitem"]', { hasText: KO_NAME })).toHaveCount(0)
-    await expect(menuPop.locator('.menu__blurb', { hasText: '퀘스트, 사냥, 보상' })).toHaveCount(0)
+    await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
+    await expect(row.locator('.menu__name')).toHaveText(KO_NAME)
+    const koBlurb = '세 지역의 퀘스트, 사냥, 보상으로 15레벨까지 걸리는 시간을 봅니다.'
+    await expect(row).toHaveAccessibleDescription(koBlurb)
+    await row.hover()
+    await expect(menuPop.locator('.dmenu__desc.is-shown')).toHaveText(koBlurb)
+    await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
 
     const labels = () =>
@@ -271,6 +286,60 @@ test.describe('Early MMO progression example', () => {
     expect(l).toContain('Gold')
     expect(l).toContain('Reached level 15')
     expect(l).not.toContain('레벨')
+  })
+
+  test('opened from File ▸ Templates (0.30.0): the whole graph and its config, framed on its first steps, edit-locked, a Step runs, Reset view shows it whole', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' }) // a Step settles synchronously
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await openApp(page)
+    await resetAll(page)
+    await pickTemplate(page, 'mmo-progression')
+    const confirm = page.locator('.mcdlg--confirm .btn--primary')
+    if (await confirm.isVisible().catch(() => false)) await confirm.click()
+    await expect(page.locator('.react-flow__node')).toHaveCount(DOC.nodes.length)
+    expect((await graphCounts(page)).edgeIds).toEqual([...DOC.edges.map((e) => e.id)].sort())
+    const cfg = await mcConfig(page)
+    expect({ baseSeed: cfg.baseSeed, runs: cfg.runs, steps: cfg.steps }).toEqual({ baseSeed: 1, runs: 200, steps: 150 })
+
+    // its start framing (templates.ts `initialView`, §MML3): at or above the
+    // 0.6 floor, the core start nodes (its `keep` box) whole inside the pane
+    await page.waitForFunction(() => !(window as any).__loop.canvas.swapFitPending())
+    await routesSettled(page)
+    const iv = await page.evaluate(() => (window as any).__loop.canvas.lastInitialView() as { zoom: number } | null)
+    expect(iv, 'the menu open applied its initialView').not.toBeNull()
+    expect(iv!.zoom).toBeGreaterThanOrEqual(0.6 - 1e-6)
+    const whole = (ids: string[]) =>
+      page.evaluate((ids) => {
+        const p = document.querySelector('.react-flow')!.getBoundingClientRect()
+        return ids.filter((id) => {
+          const r = document.querySelector(`.react-flow__node[data-id="${id}"] .nodef`)!.getBoundingClientRect()
+          return r.left >= p.left - 0.5 && r.right <= p.right + 0.5 && r.top >= p.top - 0.5 && r.bottom <= p.bottom + 0.5
+        })
+      }, ids)
+    const start = ['char_creation', 'active_char', 'z1_enc_src', 'z1_enc']
+    expect(await whole(start)).toEqual(start)
+
+    // it opens edit-locked (recommendedRunConfig.canvasLocked)
+    expect(await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.ui.getState().canvasLocked)).toBe(true)
+    await expect(toolButton(page, 'lock')).toHaveAttribute('aria-pressed', 'true')
+
+    // the run bar's Step runs it while locked
+    await page.locator('.pstrip__step-btn').click()
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.sim.getState().stepIndex)).toBe(1)
+    expect(await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.sim.getState().values['elapsed'])).toBeGreaterThan(0)
+
+    // View ▸ Reset view: every node and every name on the canvas
+    await pressViewRow(page, 'reset')
+    const onCanvas = () =>
+      page.evaluate(() => {
+        const p = document.querySelector('.react-flow')!.getBoundingClientRect()
+        const inside = (el: Element) => { const r = el.getBoundingClientRect(); return r.left >= p.left - 0.5 && r.right <= p.right + 0.5 && r.top >= p.top - 0.5 && r.bottom <= p.bottom + 0.5 }
+        const nodes = [...document.querySelectorAll('.react-flow__node .nodef')]
+        const names = [...document.querySelectorAll('.react-flow__node .nodef__name')]
+        return { nodes: [nodes.filter(inside).length, nodes.length], names: [names.filter(inside).length, names.length] }
+      })
+    await expect.poll(async () => (await onCanvas()).nodes).toEqual([DOC.nodes.length, DOC.nodes.length])
+    expect((await onCanvas()).names).toEqual([DOC.nodes.length, DOC.nodes.length])
   })
 
   test('runs to Level 15 through the End, deterministically, and the §EM10.1 identities hold', async ({ page }) => {
@@ -349,7 +418,7 @@ test.describe('Early MMO progression example', () => {
     )
   })
 
-  test('mobile: the More → Templates sheet does not list it (0.28.1); its file opens on a phone', async ({ browser }) => {
+  test('mobile: the More → Templates sheet lists it with its description (0.30.0) and opens it; its file opens on a phone too', async ({ browser }) => {
     const page = await browser.newPage({
       viewport: { width: 390, height: 844 },
       isMobile: true,
@@ -375,11 +444,15 @@ test.describe('Early MMO progression example', () => {
         .click()
       const templates = page.locator('.sheet[aria-label="Templates"]')
       await expect(templates).toBeVisible()
-      // the sheet lists the Templates it offers (Coffee), but not this one
-      await expect(templates.locator('.sheet__row', { hasText: 'Coffee roastery' })).toBeVisible()
-      await expect(templates.locator('.sheet__row', { hasText: EN_NAME })).toHaveCount(0)
-      await expect(templates.locator('.sheet__row-sub', { hasText: 'quests, hunts and rewards' })).toHaveCount(0)
-      await page.keyboard.press('Escape')
+      // the sheet lists it, with its description, and a press opens it
+      const mmoRow = templates.locator('.sheet__row', { hasText: EN_NAME })
+      await expect(mmoRow).toBeVisible()
+      await expect(mmoRow.locator('.sheet__row-sub')).toHaveText('Three zones of quests, hunts and rewards — how long reaching level 15 takes.')
+      await mmoRow.click()
+      const confirm = page.locator('.mcdlg--confirm .btn--primary')
+      if (await confirm.isVisible().catch(() => false)) await confirm.click()
+      await expect.poll(async () => (await graphCounts(page)).nodes).toBe(DOC.nodes.length)
+      expect(await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.ui.getState().canvasLocked)).toBe(true)
 
       // the phone's own file input (the top bar's Open) still opens the document
       await openMmoFile(page)

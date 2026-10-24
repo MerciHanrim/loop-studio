@@ -9,7 +9,7 @@ import { expectAboutIsPackageVersion, readAboutVersion } from './support/appVers
 import { LEGACY_SHARE_VECTORS } from '../src/model/shareLegacy.fixture'
 import { PORTABLE_TEMPLATE_ID, portableTemplate, sha256 } from '../scripts/third-party-notices/core.mjs'
 import { expectShownNoticesAre, openAbout, openLicences } from './support/licenses'
-import { openMonteCarloDialog } from './support/workbenchMenus'
+import { openFileSubmenu, openMonteCarloDialog } from './support/workbenchMenus'
 
 // SLICE-2 §5–§6: the portable single-file build opened from file://. No dev
 // server, no window.__loop bridge (production build) — driven entirely through
@@ -123,9 +123,9 @@ async function exportJsonText(page: Page): Promise<string> {
   return json!.text
 }
 
-/** toolbar `File ▾` → `Workspace JSON` (accepts the in-app summary dialog) */
+/** File ▸ Export ▸ Workspace JSON (accepts the in-app summary dialog) */
 async function exportWorkspaceText(page: Page): Promise<string> {
-  await page.locator('.toolbar__actions .menu > button', { hasText: 'File' }).click()
+  await openFileSubmenu(page, 'export')
   await page.locator('.toolbar__actions .menu__pop').getByRole('menuitem', { name: 'Workspace JSON' }).click()
   await page.locator('.mcdlg--confirm').getByRole('button', { name: /save workspace/i }).click()
   const exports = await capturedExports(page)

@@ -1,12 +1,12 @@
 import type { Locator, Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { ensureTimelineOpen, expandMinimap, expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, test } from './support/loop'
 import { keepPanelDetailsOpen } from './support/panel'
-import { openFileMenu, toolButton } from './support/workbenchMenus'
+import { openFileSubmenu, toolButton } from './support/workbenchMenus'
 
 // docs/flow-colour-and-compact-nodes.md FC-5 / FC-6 (issue #325, PR 2) — the
-// flow colour beyond the canvas: the minimap and the timeline take a node's
-// colour, the bundled Templates ship theirs, the run and the CSV never change,
+// flow colour beyond the canvas: the timeline takes a node's colour (the
+// minimap that did too was removed in v0.30.0), the bundled Templates ship theirs, the run and the CSV never change,
 // forced colours draw none, the Inspector offers each colour once, and a
 // locked canvas shows the editor read-only.
 
@@ -37,24 +37,9 @@ async function load(page: Page, json: string): Promise<void> {
   await resetAll(page)
   await importGraph(page, json)
   await expect(page.locator('.react-flow__node[data-id="r_plain"]')).toBeVisible()
-  // the minimap starts folded (docs/workbench.md §WB2.1); these read its marks
-  await expandMinimap(page)
-  await expect(page.locator('.react-flow__minimap')).toBeVisible()
   // the Colour section is in the panel's More settings (docs/workbench.md §WB6)
   await keepPanelDetailsOpen(page)
 }
-
-/** each node's minimap mark fill, by node id (a mark sits at its node's position) */
-const minimapFills = (page: Page) =>
-  page.evaluate(() => {
-    const ns = (window as any).__loop.graph.getState().nodes as { id: string; position: { x: number; y: number } }[]
-    const out: Record<string, string> = {}
-    for (const r of document.querySelectorAll('.react-flow__minimap-node')) {
-      const n = ns.find((m) => m.position.x === +r.getAttribute('x')! && m.position.y === +r.getAttribute('y')!)
-      if (n) out[n.id] = getComputedStyle(r).fill
-    }
-    return out
-  })
 
 async function run(page: Page, steps: number): Promise<void> {
   for (let i = 1; i <= steps; i++) {
@@ -86,24 +71,9 @@ async function csv(page: Page): Promise<string> {
   return readFileSync((await dl.path())!, 'utf8')
 }
 
-test.describe('flow colour — the minimap and the timeline (FC-6)', () => {
+test.describe('flow colour — the timeline (FC-6)', () => {
   test.beforeEach(async ({ page }) => {
     await openApp(page)
-  })
-
-  test('the minimap fills a coloured node’s mark with its colour; every other mark keeps its kind fill', async ({ page }) => {
-    await load(page, PLAIN)
-    const plain = await minimapFills(page)
-    expect(Object.keys(plain).sort()).toEqual(['gems', 'gold', 'r_col', 'r_plain', 'sink', 'src'])
-    await load(page, COLOURED)
-    const coloured = await minimapFills(page)
-    expect(coloured).toEqual({
-      ...plain,
-      src: 'rgb(99, 142, 165)',
-      gold: ROSE,
-      sink: 'rgb(167, 130, 67)',
-      r_col: VIOLET,
-    })
   })
 
   test('a coloured Pool or Register draws its series in its colour; the others keep theirs; Registers stay dashed', async ({ page }) => {
@@ -137,17 +107,16 @@ test.describe('flow colour — the minimap and the timeline (FC-6)', () => {
     expect(await csv(page)).toBe(plainCsv)
   })
 
-  test('under forced colours the minimap and the timeline draw no flow colour', async ({ page }) => {
+  test('under forced colours the timeline draws no flow colour', async ({ page }) => {
     await page.emulateMedia({ forcedColors: 'active' })
     await load(page, PLAIN)
     await run(page, 3)
-    const plain = { minimap: await minimapFills(page), timeline: await timeline(page) }
+    const plain = await timeline(page)
     await load(page, COLOURED)
     await run(page, 3)
-    expect({ minimap: await minimapFills(page), timeline: await timeline(page) }).toEqual(plain)
+    expect(await timeline(page)).toEqual(plain)
     // leaving forced colours brings the flow colours back, with no reload
     await page.emulateMedia({ forcedColors: 'none' })
-    await expect.poll(async () => (await minimapFills(page)).gold).toBe(ROSE)
     await expect.poll(async () => (await timeline(page)).lines.gold?.stroke).toBe(ROSE)
   })
 })
@@ -166,9 +135,8 @@ test.describe('flow colour — the Inspector offers each colour once (FC-5)', ()
     await loop(page, `l.graph.getState().setAccent(['r_plain'], [], '#123456')`)
 
     // a palette colour, chosen: it stays in the palette row only. The node is
-    // panned to the middle of the pane first — at the fit the minimap lies over
-    // it under the new node's compact layout, and this test is about the colour
-    // list, not the overlay
+    // panned to the middle of the pane first, clear of any corner overlay —
+    // this test is about the colour list
     await page.evaluate(() => {
       const l = (window as unknown as { __loop: { graph: { getState: () => { nodes: { id: string; position: { x: number; y: number } }[] } }; rf: { setViewport: (v: { x: number; y: number; zoom: number }, o?: { duration: number }) => void } } }).__loop
       const n = l.graph.getState().nodes.find((x) => x.id === 'gold')!
@@ -226,23 +194,20 @@ test.describe('flow colour — the Inspector offers each colour once (FC-5)', ()
 })
 
 test.describe('flow colour — the bundled Templates (FC-6)', () => {
-  // the Templates the menu offers; Early MMO left the menu in 0.28.1 (its colours stay checked from the file, src/engine/templateFlowColours.test.ts)
+  // two of the Templates the menu offers; Early MMO's colours are checked from its file (src/engine/templateFlowColours.test.ts)
   const TEMPLATES = [
     { name: 'Coffee roastery operations flow', waitFor: 'cafe_retail_demand_kg', file: 'coffee-roastery.json' },
     { name: '3-zone gacha banner comparison', waitFor: 'cmp1_hit_rate_free', file: 'gacha-banner-zones.json' },
   ]
   for (const t of TEMPLATES) {
-    test(`${t.name}: opens with its three flow colours, on the canvas and the minimap`, async ({ page }) => {
+    test(`${t.name}: opens with its three flow colours, on the canvas`, async ({ page }) => {
       const doc = JSON.parse(readFileSync(new URL(`../examples/${t.file}`, import.meta.url), 'utf8')) as { nodes: { id: string; data: { accent?: string } }[] }
       const want = Object.fromEntries(doc.nodes.filter((n) => n.data.accent).map((n) => [n.id, n.data.accent!]))
       expect(new Set(Object.values(want)).size).toBe(3)
 
       await openApp(page)
-      // the minimap starts folded (docs/workbench.md §WB2.1); this reads its marks
-      await expandMinimap(page)
       // File ▸ Templates (docs/workbench.md §WB2)
-      await openFileMenu(page)
-      await page.locator('.toolbar__filemenu-pop [data-template]', { hasText: t.name }).click()
+      await (await openFileSubmenu(page, 'templates')).locator('[data-template]', { hasText: t.name }).click()
       const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i })
       await confirm.waitFor({ state: 'visible', timeout: 1200 }).catch(() => {})
       if (await confirm.count()) await confirm.click()
@@ -251,9 +216,6 @@ test.describe('flow colour — the bundled Templates (FC-6)', () => {
       // the store holds exactly the file's colours, and every coloured node is drawn with one
       expect(await loop(page, `return Object.fromEntries(l.graph.getState().nodes.filter((n) => n.data.accent).map((n) => [n.id, n.data.accent]))`)).toEqual(want)
       await expect(page.locator('.react-flow__node .nodef[data-accent]')).toHaveCount(Object.keys(want).length)
-      const fills = await minimapFills(page)
-      const toRgb = (hex: string) => `rgb(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)})`
-      for (const [id, hex] of Object.entries(want)) expect(fills[id], id).toBe(toRgb(hex))
     })
   }
 })

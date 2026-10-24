@@ -6,12 +6,18 @@ toolbar responsive PR). The bundled **MMO progression** template (97 nodes /
 144 edges) has node-box overlaps and an unreadable initial camera; the problem
 is worst in JA but is **not JA-only**.
 
-> **0.28.1 (2026-10-14).** MMO left the Templates menu and is a developer stress
-> fixture opened by Import ([`docs/example-mmo-progression.md`](example-mmo-progression.md)).
-> Its `initialView` (§MML3) is applied on a fresh menu open only, so it no
-> longer applies in the product; it stays in the Template entry, and the
-> menu-framing contract is checked on Coffee and the gacha banner instead. The
-> layout measurements below are the record of the MMO pass.
+> **Now (0.30.0, 2026-10-24).** MMO is in the Templates menu again, and its
+> `initialView` (§MML3) applies on a fresh menu open; that framing is checked
+> in `e2e/mmo-progression.spec.ts`.
+>
+> **0.28.1–0.29.0 (from 2026-10-14), the record of that time.** MMO had left the
+> Templates menu and was a developer stress fixture opened by Import
+> ([`docs/example-mmo-progression.md`](example-mmo-progression.md)). Its
+> `initialView`, applied on a fresh menu open only, did not apply in the product
+> then; it stayed in the Template entry, and the menu-framing contract was
+> checked on Coffee and the gacha banner instead.
+>
+> The layout measurements below are the record of the MMO pass.
 
 ## MML0. What the measurement pass found
 
@@ -175,19 +181,18 @@ EN / KO / JA exactly like MMO. "Coffee 배치 불변" (acceptance #9) means:
 - The framing is a **fixed graph-coordinate rectangle** — **no branch on
   locale**. The zoom may differ per viewport width, but **for one viewport
   width the framing is identical for EN / KO / JA**.
-- The framed nodes must **not sit under the minimap** — the fit uses the pane
-  MINUS the fixed overlays (minimap bottom-right; zoom Controls left, on the phone
-  only since the desktop workbench, 2026-10), and
-  left-aligns the rect (a progression graph reads beginning-first).
+- The fit uses the pane MINUS the fixed overlays (the zoom Controls on the
+  left, on the phone only since the desktop workbench, 2026-10; the minimap's
+  bottom-right bands went with the minimap, v0.30.0), and left-aligns the
+  rect (a progression graph reads beginning-first).
 - Since issue #344 a fixed **`keep`** rectangle (the core start nodes at their
   widest box over the 18 languages, also graph coordinates, no locale branch)
-  caps the zoom so those nodes open whole at any pane size, with the minimap
-  expanded or collapsed; the minimap counts only where the two would overlap
-  on both axes (`docs/diagram-layout.md` §DL5.6).
+  caps the zoom so those nodes open whole at any pane size
+  (`docs/diagram-layout.md` §DL5.6).
 - The camera is **not** re-initialised on: a language change, a plain reload, an
   Import / Share / Workspace restore, or Undo / Redo. A viewport the user has
   panned or zoomed is **never** overwritten by a language change.
-- The rest of the graph stays reachable through the minimap and panning (and
+- The rest of the graph stays reachable through panning and Reset view (and
   Focus).
 
 **As built:** `Template.initialView = { rect, minZoom }` (`src/model/templates.ts`)
@@ -199,22 +204,16 @@ which parks it in a **transient** `graphStore.pendingInitialView` (never
 serialized / diffed / undone; `null` for a paste or any other Template; cleared
 by `newGraph` / `loadDoc`). On the next `fitRev` swap `Canvas.tsx`
 `applyInitialView` frames `rect` into the **usable pane** — `paneW − 44 (left
-Controls)` and, **only while the minimap renders**, `− 224` horizontal and
-`− 176` vertical for it. It clamps the zoom to `[minZoom, 1.2]`, left-aligns
-`rect` at the Controls edge, and centres it vertically OR top-aligns it (12 px
-margin) when `rect` is taller than the usable height. On a small pane it frames
-fewer of the rect's columns rather than let the right edge fall under the
-minimap. Pure function of the rect + pane size, so EN / KO / JA get an
-identical camera at a given width.
-
-**Minimap on a small pane.** The minimap is a fixed ~202 × 152 px overlay; on a
-~520 × 150 px pane (a browser at 820 px, timeline + toolbar open) it would cover
-most of the canvas. So `Canvas.tsx` `minimapFits` hides it below ~640 × 380 px
-of pane (same treatment as mobile, docs/mobile.md §MV-D10), and
-`applyInitialView` then drops the minimap insets — the framing uses the whole
-width. Measured: 1920 → zoom 1.2; 1280 → ≈ 0.76 (readable, clear of the
-minimap); 820 → minimap hidden, `rect` top-left-aligned at the floor zoom 0.6
-so Character creation → Active character read unobstructed. A plain reload boots
+Controls)` where the Controls are shown (until v0.30.0 also `− 224` horizontal
+and `− 176` vertical while the minimap rendered). It clamps the zoom to
+`[minZoom, 1.2]`, left-aligns `rect` at the Controls edge, and centres it
+vertically OR top-aligns it (12 px margin) when `rect` is taller than the
+usable height. On a small pane it frames fewer of the rect's columns rather
+than let the right edge fall off the pane. Pure function of the rect + pane
+size, so EN / KO / JA get an identical camera at a given width. (Measured
+when the minimap was there: 1920 → zoom 1.2; 1280 → ≈ 0.76; 820 → `rect`
+top-left-aligned at the floor zoom 0.6, so Character creation → Active
+character read unobstructed.) A plain reload boots
 a fresh store (`pendingInitialView = null`) → normal mount-time `fitView`; a
 language change / Undo / Import never call `loadGraph`, so the camera is
 untouched.

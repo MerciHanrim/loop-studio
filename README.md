@@ -15,11 +15,12 @@ session neither reads nor saves stored work, author information or settings
 ([docs/storage-sessions.md](docs/storage-sessions.md)).
 
 **Run it now: <https://cozy-loop-studio.pages.dev>** — available in
-[English and Korean](#languages), with four bundled Templates ranging from a small
-production flow to a coffee roastery's daily operations and a three-zone
-probability/pity comparison.
+[English and Korean](#languages), with eight bundled Templates ranging from two
+small production flows and a coffee roastery's daily operations to an early MMO's
+levelling economy and gacha banners: three single-banner rule sets and a
+three-zone probability/pity comparison.
 
-![Loop Studio's two-tier toolbar in a temporary session, its orange-bordered Temporary session button beside the menu buttons, and the Coffee roastery Template in the compact new nodes, each name outside its node, grouped into three labelled zone frames with its money in $/day, a few steps into a run with the Timeline filling in below](docs/assets/hero-coffee.png)
+![Loop Studio's workbench in a temporary session: the menu bar with its Temporary session button at the far end, the tool row, the list of every node on the left, and the Coffee roastery Template as node symbols with each name below, grouped into three labelled zone frames with its money in $/day, a few steps into a run with the Timeline filling in below](docs/assets/hero-coffee.png)
 
 ## Key features
 
@@ -84,14 +85,14 @@ per zone under identical run settings. Once a run completes, its hit and
 pickup rates are easy to compare; run Monte Carlo analysis to inspect the
 distribution across many runs.
 
-![The gacha Template after a completed 200-pull-per-zone run, its comparison row above the zone frames stacked below it: five comparison cards reading real hit-rate/pickup-rate percentages, a Timeline with per-zone SSR/pickup curves, and a Register's expression read-back open in the right column](docs/assets/gacha-overview.png)
+![The gacha Template after a completed 200-pull-per-zone run, its comparison row above the zone frames side by side below it: five comparison cards reading real hit-rate/pickup-rate percentages, a Timeline with per-zone SSR/pickup curves, and a Register's expression read-back open in the right panel](docs/assets/gacha-overview.png)
 
 *Premium Pickup, framed on its own* — the hard-pity counter forces the next
 roll's SSR once it hits the ceiling; whether that (or any ordinary) SSR lands
 as pickup or standard depends on the `Pickup owed` guarantee flag, which a
 miss sets and the next SSR consumes.
 
-![The Premium Pickup zone alone after the same completed run, with the minimap and the Timeline folded away: the hard-pity counter against its ceiling, the Pickup-owed guarantee flag, a real Pickup/Standard hit split, and a selected Pool's Inspector open in the right column with its current amount](docs/assets/gacha-pickup-guarantee.png)
+![The Premium Pickup zone alone after the same completed run, with the Timeline and the node list folded away: the hard-pity counter against its ceiling, the Pickup-owed guarantee flag, a real Pickup/Standard hit split, and a selected Pool open in the right panel with its current amount](docs/assets/gacha-pickup-guarantee.png)
 
 ## Develop locally
 

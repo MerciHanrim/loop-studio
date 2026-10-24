@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { Download, Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
+import { openFileSubmenu } from './support/workbenchMenus'
 
 // SEMANTICS-R.md loop-revision/1 — the Slice 1C surface through the real UI:
 //  • Export ▾ gains "Project revision" / "Make a proposal" (two-phase commit);
@@ -15,17 +16,11 @@ import { expect, openApp, resetAll, test } from './support/loop'
 
 const textOf = async (dl: Download): Promise<string> => readFileSync((await dl.path())!, 'utf8')
 
-// docs/toolbar-responsive.md — Export's actions are flattened directly into
-// `File ▾`'s own popover (Hanrim's visual review, 2026-09-15 — a nested
-// `Export ▾` sub-trigger read as a small pill button awkwardly inserted into
-// the popover); `openFileMenu` opens File first, a no-op once it's already
+// docs/workbench.md §WB2.2 — the export formats are the rows of File ▸
+// Export; `openFileMenu` opens File and that submenu, a no-op once they are
 // open.
-const fileBtn = (page: Page) =>
-  page.locator('.toolbar__actions .menu > button', { hasText: 'File' })
 async function openFileMenu(page: Page): Promise<void> {
-  if ((await fileBtn(page).getAttribute('aria-expanded')) !== 'true') {
-    await fileBtn(page).click()
-  }
+  await openFileSubmenu(page, 'export')
 }
 const exportItem = (page: Page, name: RegExp | string) =>
   page

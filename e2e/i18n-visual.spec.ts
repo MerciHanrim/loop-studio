@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
 import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, snap, test } from './support/loop'
-import { openMonteCarloDialog } from './support/workbenchMenus'
+import { openFileSubmenu, openMonteCarloDialog } from './support/workbenchMenus'
 
 // docs/localization.md §L13 — Slice 3, the REPRESENTATIVE Korean reference
 // screenshots. Lumi's call (over a full ~30-image KO pixel matrix, which is
@@ -14,7 +14,7 @@ import { openMonteCarloDialog } from './support/workbenchMenus'
 //   a long Korean label + a tooltip · a menu/dialog overflow risk (Export).
 //
 // The existing EN visual-regression baselines are untouched, so whole-design
-// regression cover is not lost. The minimap + attribution are masked (the
+// regression cover is not lost. The attribution is masked (the
 // toolbar build stamp no longer renders on the bar since the two-tier toolbar,
 // #207); fonts are awaited; nothing is animated (config `animations:disabled`).
 
@@ -79,7 +79,7 @@ async function pinViewport(page: Page, zoom = 1) {
 }
 
 const shot = (page: Page) => ({
-  mask: [page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')],
+  mask: [page.locator('.react-flow__attribution')],
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -188,8 +188,8 @@ test.describe('i18n Slice 3 — representative KO reference screenshots', () => 
     await pickLocale(page, 'ko')
     await expect(page.locator('.react-flow__node[data-id="pool"]')).toBeVisible()
     await pinViewport(page)
-    await page.locator('.toolbar__actions .menu > button', { hasText: /파일/ }).click()
-    await expect(page.locator('.toolbar__actions .menu__pop')).toBeVisible()
+    // File ▸ Export (docs/workbench.md §WB2.2): File and its Export submenu
+    await openFileSubmenu(page, 'export')
     await fontsReady(page)
     await expect(page).toHaveScreenshot(...snap(page, 'ko-export-menu', shot(page)))
   })
@@ -220,7 +220,7 @@ test.describe('i18n Slice 3 — representative KO reference screenshots (mobile)
     ).toBe(1)
     await fontsReady(page)
     await expect(page).toHaveScreenshot(
-      ...snap(page, 'ko-mobile-app', { mask: [page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')] }),
+      ...snap(page, 'ko-mobile-app', { mask: [page.locator('.react-flow__attribution')] }),
     )
   })
 })

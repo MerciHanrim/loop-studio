@@ -33,7 +33,7 @@ type UiState = {
   /**
    * Canvas EDIT lock (docs/mobile.md §MV3a shape, on desktop). Locked ⇒ no
    * user edit of the document at all (docs/canvas-edit-lock.md §1) — but
-   * selection, the read-only Inspector, pan / zoom, the minimap, the Timeline,
+   * selection, the read-only Inspector, pan / zoom, the Timeline,
    * export and the simulation all still work. UI-only: never the GraphDoc, the
    * `loop-revision/*` digest, undo, or `simulationRev`. Every document
    * boundary (New, a Template, a file, a share link — issue #334,
@@ -64,19 +64,6 @@ type UiState = {
   focusMode: boolean
   setFocusMode: (v: boolean) => void
   toggleFocusMode: () => void
-
-  /**
-   * The graph minimap's collapsed / expanded state. A **global UI preference**
-   * (its own `localStorage` key, like `focusMode`). With nothing stored it is
-   * **true** = folded to its restore button (2026-10-21; was false = shown); a
-   * stored choice is kept. Independent of the small-pane auto-hide
-   * (`Canvas.tsx` `minimapFits`, pane `< 640 × 380`): when the pane grows back
-   * over that line the minimap returns to whichever state this flag holds.
-   * UI-only — never the GraphDoc, viewport, or node coordinates.
-   */
-  minimapCollapsed: boolean
-  setMinimapCollapsed: (v: boolean) => void
-  toggleMinimapCollapsed: () => void
 
   /**
    * docs/large-graph-readability.md §LGR3.2 / §LGR3.4 — the transient-filter
@@ -242,7 +229,6 @@ const CANVAS_LOCKED_KEY = 'loop-studio:canvas-locked'
 const FOCUS_MODE_KEY = 'loop-studio:focus-mode'
 const FILTER_PANEL_KEY = 'loop-studio:filter-panel'
 const ACTIVITY_OVERLAY_KEY = 'loop-studio:activity-overlay'
-const MINIMAP_COLLAPSED_KEY = 'loop-studio:minimap-collapsed'
 const INPUTS_PANEL_KEY = 'loop-studio:inputs-panel'
 const SUMMARY_PANEL_KEY = 'loop-studio:summary-panel'
 
@@ -315,23 +301,6 @@ export const useUiStore = create<UiState>((set, get) => ({
       const v = !s.focusMode
       writeFocusMode(v)
       return { focusMode: v }
-    }),
-
-  // folded unless the user chose otherwise (docs/workbench.md §WB2.1,
-  // 2026-10-21): a stored '0' / '1' is that choice, kept; with nothing stored
-  // the minimap starts folded, so a whole fit has nothing under it
-  minimapCollapsed: readBoolKey(MINIMAP_COLLAPSED_KEY, true),
-  setMinimapCollapsed: (v) =>
-    set((s) => {
-      if (s.minimapCollapsed === v) return s
-      writeBoolKey(MINIMAP_COLLAPSED_KEY, v)
-      return { minimapCollapsed: v }
-    }),
-  toggleMinimapCollapsed: () =>
-    set((s) => {
-      const v = !s.minimapCollapsed
-      writeBoolKey(MINIMAP_COLLAPSED_KEY, v)
-      return { minimapCollapsed: v }
     }),
 
   filterPanelOpen: readBoolKey(FILTER_PANEL_KEY),

@@ -49,7 +49,7 @@ bring every existing node/edge onto one grammar in a single pass.
 > | status | `--ok` `--no` `--warn` |
 > | node kinds | `--k-pool` `--k-source` `--k-drain` `--k-converter` `--k-gate` `--k-end` (Parameter and Register carry no kind hue) |
 > | connection meanings | `--m-flow` `--m-condition` `--m-change`, their `-hi` forms, `--dim-opacity` |
-> | frames, data, shadows, radii | `--frame-*`, `--dist-band-mix` `--minimap-mask`, `--shadow-*`, `--radius` (8 px) `--control-radius` (5 px) |
+> | frames, data, shadows, radii | `--frame-*`, `--dist-band-mix`, `--shadow-*`, `--radius` (8 px) `--control-radius` (5 px) |
 >
 > Three values were CORRECTED from the mock-up, each measured in its comment: the
 > light faint ink `--ink-4` (3.98 → 5.01:1 — no rule ever read it, so it was
@@ -519,7 +519,7 @@ byte-identical across L2/L1/L0 (§VL12.5).
   selection blue. The **brand** mark (logo, toolbar mark) has its own
   `--brand`, at the value it always showed. The run chart's **series** have
   their own `--series-1…6`, at the kind hues' values and order they used to
-  read; node kinds keep `--k-*` (minimap, node wash). Colours a user or an
+  read; node kinds keep `--k-*` (node wash). Colours a user or an
   example stores (a frame's colour, a flow colour) are not theme roles and
   are unchanged. Text on these surfaces is held to 4.5:1 by value, not by
   hue: the light run colour and success colour were darkened in their own
@@ -548,12 +548,7 @@ byte-identical across L2/L1/L0 (§VL12.5).
   (no colour chosen) is a grey wash (`--ink-3` @ 0.05, the opacity it had); the
   selected frame's resize handle is a strong neutral (`--ink-2` — it sits on
   the selected frame's blue dashed outline, and in the selection blue it read
-  as part of that outline; its keyboard focus ring is unchanged); the
-  minimap's view-area outline is a strong neutral (`--ink-2`, in the CSS rule
-  and in MinimapDock's `maskStrokeColor`), at React Flow's screen-constant
-  width from `maskStrokeWidth` (about 1 px whatever the graph's extent or the
-  zoom — the rule no longer sets a width, which was in the minimap's flow
-  units and drew the line at about 1/24 px on a large graph); the guided tour's spotlight ring is
+  as part of that outline; its keyboard focus ring is unchanged); the guided tour's spotlight ring is
   `--ink-1` (the scrim does the emphasising). A frame's chosen colour is
   unchanged.
 - **Contrast** is held to the numeric floors in §VL11.2 and checked
@@ -571,8 +566,8 @@ byte-identical across L2/L1/L0 (§VL12.5).
   the shell it follows the family contract (Cozy Shelter tokens v1.1.0 §3), and
   the class is decided by whether the control normally **shows a boundary**:
   - **A — a visible boundary** (bordered buttons, the play-bar buttons, every
-    bordered input and select, the view tabs, the mean toggle, the minimap
-    toggle, the expression operator keys): the boundary itself takes
+    bordered input and select, the view tabs, the mean toggle, the
+    expression operator keys): the boundary itself takes
     `--line-focus`, a 3 px `--focus-halo` surrounds it, and there is no outline.
     The solid boundary carries the 3:1 obligation — measured 3.78–4.40 light,
     5.14–7.55 dark. The halo is an 18 % tint, 1.25:1 on its own, and is never
@@ -603,7 +598,7 @@ byte-identical across L2/L1/L0 (§VL12.5).
   menu row steps by an RGB distance of 43 in light, 41 in dark; following
   sunken it would be 15). `--line-structure` is **not** a shell token:
   it is drawn only by the node silhouettes, the state handle, the chart axes,
-  the minimap and plot frames and three non-interactive labels; a container's
+  the plot frames and three non-interactive labels; a container's
   boundary is `--line-container` and a control's is `--line-control`.
   **What the shell may and may not move.** The functional token values (hues,
   edges, flow, signal, frame accents, states) are identical to what they were,
@@ -650,7 +645,7 @@ byte-identical across L2/L1/L0 (§VL12.5).
   **The other bordered controls** (2026-10-01) — Inspector fields and selects,
   the Monte-Carlo and author inputs, the language search, the share URL, the
   seed field, the distribution pool select and mean toggle, the view tabs, the
-  minimap toggle, the expression operator keys and the reference-insert pill —
+  expression operator keys and the reference-insert pill —
   drew `--line-structure` until the shell branch and are held to the same
   contract in `e2e/shell-control-boundary.spec.ts`: rest ≥ 4.14 light,
   ≥ 5.46 dark, hover `--line-control-hover`, and a disabled field drops to
@@ -790,7 +785,7 @@ committed pixel matrix in `e2e/canvas-refresh-visual.spec.ts`:
    state edge, a live run cue), plus a `forced-colors: active` frame at L2 and
    L0. The multi-script / CJK / Cyrillic / emoji long label is covered from the
    DOM in `e2e/node-long-label.spec.ts`, not here. Non-deterministic chrome (the build stamp) is outside the `.react-flow`
-   clip; the minimap + attribution are masked; fonts are awaited and the
+   clip; the attribution is masked; fonts are awaited and the
    single-shot run cue is frozen before the shot. Tolerance and platform
    pinning as for the existing Distribution snapshots.
 2. **No off-canvas UI** — at every supported width (desktop + the mobile

@@ -85,7 +85,7 @@ export type RecommendedRunConfig = {
   /**
    * Advisory: open the document with the Canvas **edit-locked** (nodes don't
    * move / connect, nothing deletes, the Inspector is read-only — selection,
-   * pan / zoom, minimap, Timeline and the simulation still work). Absent /
+   * pan / zoom, Timeline and the simulation still work). Absent /
    * falsey ⇒ unlocked (unchanged behaviour). Like `timelineSeries` it is a
    * UI-only preference — applied on load, written back by Export, never in the
    * GraphDoc / digest / undo. The user can flip the Controls lock at any time.

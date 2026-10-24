@@ -66,7 +66,7 @@ const allFaces = (inPort: boolean, outPort: boolean) =>
 const AT_REST = { arrivals: [], waiting: [], triage: [], treated: ['out@bottom'], discharged: ['in@top'], rate: [], occupancy: [] }
 
 /** a click on the empty canvas (clears the selection): the pane's lower right,
- *  left of the minimap, where the small graph at 100 % has nothing */
+ *  where the small graph at 100 % has nothing */
 async function clickEmptyCanvas(page: Page): Promise<void> {
   const pane = (await page.locator('.react-flow__pane').boundingBox())!
   const x = pane.x + pane.width * 0.6

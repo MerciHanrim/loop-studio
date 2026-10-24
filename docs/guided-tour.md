@@ -112,8 +112,7 @@ ending the tour (`Escape`, the explicit close control, `Skip`, or `Done` on step
 
 - the GraphDoc (nodes / edges / project) and the `loop-revision/*` digest;
 - the undo / redo stacks and `simulationRev`;
-- the current **selection**, the React Flow **viewport** (pan / zoom), and the
-  minimap;
+- the current **selection** and the React Flow **viewport** (pan / zoom);
 - `SimState` — `values`, `stepIndex`, `status` (a running / paused / ended run
   keeps running / paused / ended);
 - the Monte-Carlo config and last result;

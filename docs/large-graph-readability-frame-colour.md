@@ -86,7 +86,7 @@ enough that **two overlapping accented frames (≈ 0.116 combined) still do not
 obscure the nodes or edges beneath**. Three-plus overlapping accented frames is
 a degenerate manual arrangement and is not tuned for.
 
-The accent never touches a node, an edge, a handle, the minimap, or any run /
+The accent never touches a node, an edge, a handle, or any run /
 diagnostic cue. It is drawn in the existing 4a **back layer** (z-index 0, below
 the RF pane), so nodes, edges, selection rings, `invalid` / `blocked` flags, the
 `effective` pulse, the `evaluated` bracket, Activity tint, and diagnostic

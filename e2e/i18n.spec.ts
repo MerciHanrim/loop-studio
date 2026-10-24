@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, test, waitForAppReady } from './support/loop'
-import { openMonteCarloDialog } from './support/workbenchMenus'
+import { openFileSubmenu, openMonteCarloDialog } from './support/workbenchMenus'
 
 // docs/localization.md Slice 1 + the language-menu follow-up.
 //   • the language control is a trigger button + a registry-driven overlay
@@ -473,17 +473,20 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
     await resetAll(page)
     await importGraph(page, G)
 
-    const fileBtn = page.locator('.toolbar__actions .menu > button', { hasText: /파일|File/ })
-    const openExport = async () => {
-      if ((await fileBtn.getAttribute('aria-expanded')) !== 'true') await fileBtn.click()
-    }
+    // File ▸ Export (docs/workbench.md §WB2.2)
+    const openExport = () => openFileSubmenu(page, 'export')
     const item = (name: RegExp) =>
       page.locator('.toolbar__actions .menu__pop .menu__name', { hasText: name })
+    // the submenu, then File
+    const closeBoth = async () => {
+      await page.keyboard.press('Escape')
+      await page.keyboard.press('Escape')
+    }
 
     await openExport()
     await expect(item(/^Graph JSON$/)).toBeVisible()
     await expect(item(/^Project revision$/)).toBeVisible()
-    await page.keyboard.press('Escape')
+    await closeBoth()
 
     // the EN Graph JSON export, for the byte comparison
     const enFile = await page.evaluate(() => (window as any).__loop.graph.getState().exportJSON({}))
@@ -493,7 +496,7 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
     await expect(item(/^그래프 JSON$/)).toBeVisible() // display name translated, "JSON" kept
     await expect(item(/^워크스페이스 JSON$/)).toBeVisible()
     await expect(item(/^프로젝트 리비전$/)).toBeVisible()
-    await page.keyboard.press('Escape')
+    await closeBoth()
 
     const koFile = await page.evaluate(() => (window as any).__loop.graph.getState().exportJSON({}))
     expect(koFile).toBe(enFile) // the downloaded file is byte-identical across locales

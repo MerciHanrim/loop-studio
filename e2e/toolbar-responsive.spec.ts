@@ -276,10 +276,33 @@ test.describe('toolbar — nested-menu Escape scoping and dialog survival (revie
     await page.waitForTimeout(150)
   })
 
-  // Export's actions are flattened directly into File's own popover
-  // (Hanrim's visual review, 2026-09-15 — a nested `Export ▾` sub-trigger
-  // read as a small pill button awkwardly inserted into the popover), so
-  // the deepest nesting left is `⋯ → File` (2 levels), not 3.
+  // the deepest nesting is `⋯ → File → Export` (docs/workbench.md §WB2.2):
+  // each Escape closes one level, the innermost first
+  test('Escape with ⋯ → File → Export open closes Export, then File, leaving ⋯', async ({ page }) => {
+    const moreBtn = page.locator('.toolbar__overflow-btn')
+    await moreBtn.click()
+    const overflowPop = page.locator('.toolbar__overflow-pop')
+    await expect(overflowPop).toBeVisible()
+    await overflowPop.locator('button', { hasText: /^File$/ }).click()
+    const filePop = page.locator('.toolbar__filemenu-pop')
+    await expect(filePop).toBeVisible()
+    await filePop.locator('[data-submenu="export"]').click()
+    const sub = page.locator('.dmenu--sub')
+    await expect(sub).toBeVisible()
+    // inside the window, though ⋯ hangs at the bar's end
+    const sb = (await sub.boundingBox())!
+    const vw = page.viewportSize()!.width
+    expect(sb.x).toBeGreaterThanOrEqual(0)
+    expect(sb.x + sb.width).toBeLessThanOrEqual(vw)
+
+    await page.keyboard.press('Escape')
+    await expect(sub).toHaveCount(0)
+    await expect(filePop).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(filePop).toBeHidden()
+    await expect(overflowPop).toBeVisible()
+  })
+
   test('Escape with ⋯ → File both open closes only File', async ({ page }) => {
     const moreBtn = page.locator('.toolbar__overflow-btn')
     await moreBtn.click()
@@ -301,8 +324,9 @@ test.describe('toolbar — nested-menu Escape scoping and dialog survival (revie
     const moreBtn = page.locator('.toolbar__overflow-btn')
     await moreBtn.click()
     await page.locator('.toolbar__overflow-pop button', { hasText: /^File$/ }).click()
+    await page.locator('.toolbar__filemenu-pop [data-submenu="export"]').click()
     await page
-      .locator('.toolbar__overflow-pop .menu__item')
+      .locator('.toolbar__overflow-pop .dmenu--sub .menu__item')
       .filter({ has: page.locator('.menu__name', { hasText: 'Project revision' }) })
       .click()
 
@@ -325,8 +349,9 @@ test.describe('toolbar — nested-menu Escape scoping and dialog survival (revie
 
     const fileBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^File$/ })
     await fileBtn.click()
+    await page.locator('.toolbar__filemenu-pop [data-submenu="export"]').click()
     await page
-      .locator('.toolbar__actions .menu__item')
+      .locator('.toolbar__actions .dmenu--sub .menu__item')
       .filter({ has: page.locator('.menu__name', { hasText: 'Project revision' }) })
       .click()
 
