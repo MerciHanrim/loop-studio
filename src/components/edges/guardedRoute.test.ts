@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { Position } from '@xyflow/react'
 import {
+  ARROW_ROOM,
   type Box,
+  CORNER_R,
   computeGuardedRoute,
   type GuardedInput,
   type GuardedResult,
@@ -316,18 +318,110 @@ describe('guarded router — Manual orthogonal bend points (issue #344 step 3)',
     expect(r.stubs[1]).toEqual(onStubPt)
   })
 
-  // (a guard: the target side already turns in there without the rule)
-  it('a bend point on the target port’s own stub: the point is where the line turns in', () => {
+  // At the TARGET the last run carries the arrowhead (`EdgeMarkers.tsx` draws
+  // it `ARROW_ROOM` wide), so what counts is the run the line is DRAWN with,
+  // not the internal stub (`stubs[2]`): a fold back along the stub is dropped
+  // by `simplify`, and only what is left of the stub is drawn.
+  // (This guard used to pin "the point is where the line turns in" whatever its
+  // distance from the port, which accepted a 4 px last run.)
+  it('the arrowhead fits in a stub (the rule that passes a near bend point on the stub needs it)', () => {
+    expect(ARROW_ROOM).toBeLessThan(ROUTE_STUB)
+  })
+
+  it('a bend point on the target port’s own stub, the arrowhead’s room from the port: the line turns in at it', () => {
     const s = box('s', 0, 0)
     const t = box('t', 400, 172)
     const port = left(t)
-    const onStubPt = { x: port.x - ROUTE_STUB + 3, y: port.y }
+    const onStubPt = { x: port.x - (ARROW_ROOM + ROUTE_STUB) / 2, y: port.y }
     const waypoints = [{ x: onStubPt.x, y: 28 }, onStubPt]
     const r = computeGuardedRoute(input(s, t, [], { waypoints }))
     const n = r.points.length
     expect(r.points[n - 1]).toEqual(port)
     expect(r.points[n - 2], JSON.stringify(r.points)).toEqual(onStubPt)
-    expect(folds(r.points)).toEqual([])
+    expect(port.x - r.points[n - 2].x, 'the drawn last run').toBeGreaterThanOrEqual(ARROW_ROOM)
+  })
+
+  // the General gacha's `e_sr_pull` geometry: the bend point half the
+  // arrowhead's room (4 px today) from the port, reached across the port's line.
+  // The route passes the point on the stub; the price is a step before the
+  // stub (two corners more), recorded in docs/edge-routing.md §ER14.3
+  it('a bend point on the target port’s own stub, nearer the port than the arrowhead’s room: the drawn last run still enters along the normal with that room, and passes the point', () => {
+    const s = box('s', 0, 0)
+    const t = box('t', 400, 172)
+    const port = left(t)
+    const nearPt = { x: port.x - ARROW_ROOM / 2, y: port.y }
+    const waypoints = [{ x: nearPt.x, y: port.y - 80 }, nearPt]
+    const r = computeGuardedRoute(input(s, t, [], { waypoints }))
+    const n = r.points.length
+    const detail = JSON.stringify({ points: r.points, stubs: r.stubs })
+    expect.soft(r.points[n - 1]).toEqual(port)
+    expect.soft(r.points[n - 2].y === port.y && r.points[n - 2].x < port.x, `enters along the normal: ${detail}`).toBe(true)
+    expect.soft(port.x - r.points[n - 2].x, `the drawn last run: ${detail}`).toBeGreaterThanOrEqual(ARROW_ROOM)
+    for (const w of waypoints) expect.soft(onRoute(r.points, w), `through (${w.x}, ${w.y}): ${detail}`).toBe(true)
+  })
+
+  /** the straight run the DRAWN path (`d`, corners rounded) ends with: from
+   *  the end of the last curve or corner to the end point */
+  const lastStraightOfD = (d: string): number => {
+    const t = d.trim().split(/\s+/)
+    let prev: Pt | null = null
+    let cur: Pt | null = null
+    for (let i = 0; i < t.length; ) {
+      const c = t[i++]
+      if (c === 'M' || c === 'L') {
+        prev = cur
+        cur = { x: +t[i++], y: +t[i++] }
+      } else if (c === 'Q') {
+        i += 2
+        prev = cur
+        cur = { x: +t[i++], y: +t[i++] }
+      }
+    }
+    return Math.hypot(cur!.x - prev!.x, cur!.y - prev!.y)
+  }
+  /** the General gacha's `e_sr_pull` as the browser lays it out: a top port,
+   *  the last bend point 4 px above it, and an outside name above the stub
+   *  that halves the free gap, so the stub is 13.5 px */
+  const nameAboveStub = (stubLen: number) => {
+    const s = box('s', 0, 0)
+    const t = box('t', 400, 300)
+    const port = { x: 460, y: 300 }
+    const name = box('name', 430, port.y - 2 * stubLen - 20, 60, 20)
+    const waypoints = [{ x: 360, y: 28 }, { x: 360, y: port.y - 4 }, { x: port.x, y: port.y - 4 }]
+    return { inp: input(s, t, [name], { target: port, targetPosition: Position.Top, waypoints }), port, waypoints }
+  }
+
+  it('the drawn arrival: a 13.5 px last run (an outside name shortens the stub) keeps the arrowhead’s room after its corner is rounded', () => {
+    const { inp, port, waypoints } = nameAboveStub(13.5)
+    const r = computeGuardedRoute(inp)
+    const n = r.points.length
+    const detail = JSON.stringify({ points: r.points, stubs: r.stubs, d: r.d })
+    expect(r.stubs[2], detail).toEqual({ x: port.x, y: port.y - 13.5 })
+    expect(port.y - r.points[n - 2].y, `the last run: ${detail}`).toBeCloseTo(13.5, 6)
+    // with the full radius (6) only 7.5 px of it would be straight
+    expect(lastStraightOfD(r.d), `the drawn straight end: ${detail}`).toBeGreaterThanOrEqual(ARROW_ROOM - 1e-6)
+    for (const w of waypoints) expect(onRoute(r.points, w), `through (${w.x}, ${w.y}): ${detail}`).toBe(true)
+  })
+
+  it('the drawn arrival: a last run long enough for the full radius, and every corner before it, keep the full radius', () => {
+    const s = box('s', 0, 0)
+    const t = box('t', 400, 172)
+    const r = computeGuardedRoute(input(s, t, []))
+    const n = r.points.length
+    const last = Math.hypot(r.points[n - 1].x - r.points[n - 2].x, r.points[n - 1].y - r.points[n - 2].y)
+    expect(last).toBeGreaterThanOrEqual(ARROW_ROOM + CORNER_R)
+    expect(lastStraightOfD(r.d)).toBeCloseTo(last - CORNER_R, 6)
+    // every corner is a full-radius curve
+    const qs = r.d.match(/Q/g) ?? []
+    expect(qs.length, r.d).toBe(n - 2)
+  })
+
+  it('the drawn arrival: a last run SHORTER than the arrowhead’s room (the stub cut to 5 px) is drawn as before — rounding cannot give it the room', () => {
+    const { inp, port } = nameAboveStub(5)
+    const r = computeGuardedRoute(inp)
+    const detail = JSON.stringify({ points: r.points, stubs: r.stubs, d: r.d })
+    expect(r.stubs[2], detail).toEqual({ x: port.x, y: port.y - 5 })
+    expect(lastStraightOfD(r.d), detail).toBeCloseTo(5, 6)
   })
 
   it('a bend point on the stub: the line still leaves along the port’s normal, on every face', () => {

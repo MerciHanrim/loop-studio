@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, test } from './support/loop'
+import { ARROW_ROOM } from '../src/components/edges/orthogonalRoute'
+import { expect, openApp, resetAll, routesSettled, test } from './support/loop'
 import { openFileSubmenu, openInputsTab, pickLocale, pickTemplate } from './support/workbenchMenus'
 
 // docs/gacha-general.md — the General gacha Template, opened from File ▸
@@ -116,6 +117,51 @@ test.describe('the General gacha Template', () => {
     const now = await sim(page)
     expect(now.status).toBe('ended')
   })
+
+  // docs/edge-routing.md §ER14.3 — SR result → Pulls made (`e_sr_pull`): its
+  // last bend point is 4 px above the top port, and the outside name above
+  // shortens the stub, so the drawn line ends in a short run. Read on the
+  // DRAWN path (the edge's SVG `d`, corners rounded), in both languages (the
+  // names, and so the stub, differ): the stored bend points are on it, it ends
+  // going down into the port, and its straight end leaves the arrowhead its room
+  for (const locale of ['en', 'ko'] as const) {
+    test(`${locale}: the SR result → Pulls made line ends on a straight run of the arrowhead’s room, going down, through its stored bend points`, async ({ page }) => {
+      if (locale === 'en') await pickLocale(page, 'en')
+      await openGeneral(page)
+      await page.evaluate(() => document.fonts.ready)
+      await routesSettled(page)
+      const got = await page.evaluate(() => {
+        const p = document.querySelector('.react-flow__edge[data-id="e_sr_pull"] path.react-flow__edge-path')
+        const e = (window as unknown as Bridge).__loop.graph.getState().edges.find((x: { id: string }) => x.id === 'e_sr_pull')
+        return { d: p?.getAttribute('d') ?? '', waypoints: (e?.data?.waypoints ?? []) as { x: number; y: number }[] }
+      })
+      const t = got.d.trim().split(/\s+/)
+      const corners: { x: number; y: number }[] = []
+      const runs: [{ x: number; y: number }, { x: number; y: number }][] = []
+      let cur = { x: 0, y: 0 }
+      for (let i = 0; i < t.length; ) {
+        const c = t[i++]
+        if (c === 'M') cur = { x: +t[i++], y: +t[i++] }
+        else if (c === 'L') {
+          const p = { x: +t[i++], y: +t[i++] }
+          runs.push([cur, p])
+          cur = p
+        } else if (c === 'Q') {
+          corners.push({ x: +t[i++], y: +t[i++] })
+          cur = { x: +t[i++], y: +t[i++] }
+        }
+      }
+      const [a, b] = runs[runs.length - 1]
+      expect(b.x - a.x, got.d).toBe(0)
+      expect(b.y - a.y, `straight end: ${got.d}`).toBeGreaterThanOrEqual(ARROW_ROOM)
+      const near = (u: number, v: number) => Math.abs(u - v) < 0.01
+      const onPath = (w: { x: number; y: number }) =>
+        corners.some((q) => near(q.x, w.x) && near(q.y, w.y)) ||
+        runs.some(([s, e]) => (near(s.x, e.x) && near(w.x, s.x) && w.y >= Math.min(s.y, e.y) - 0.01 && w.y <= Math.max(s.y, e.y) + 0.01) || (near(s.y, e.y) && near(w.y, s.y) && w.x >= Math.min(s.x, e.x) - 0.01 && w.x <= Math.max(s.x, e.x) + 0.01))
+      expect(got.waypoints.length).toBe(3)
+      for (const w of got.waypoints) expect(onPath(w), `bend point ${w.x},${w.y} on ${got.d}`).toBe(true)
+    })
+  }
 
   test('the Roll’s panel: SSR 0.6 %, SR 5.1 %, R 94.3 % of the sum 1,000', async ({ page }) => {
     await openGeneral(page)

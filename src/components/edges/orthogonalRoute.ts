@@ -14,6 +14,10 @@ export const BEND_COST = 20
 export const PARALLEL_GAP = 10
 export const CORNER_R = 6
 export const SELF_LOOP = 28
+/** the arrowhead's size, flow px: `EdgeMarkers.tsx` draws the direction marker
+ *  this wide and high (user-space units), and a route keeps its drawn last run
+ *  at least this long so the arrowhead sits on a straight run (§ER14.3) */
+export const ARROW_ROOM = 8
 export const COORD_EPS = 1e-3
 export const PATH_DECIMALS = 2
 export const MAX_EXPANSIONS = 20000
@@ -85,7 +89,12 @@ const f = (n: number): string => {
   return String(r === 0 ? 0 : r)
 }
 
-function pointsToPath(pts: Pt[]): string {
+/** `arrowRoom` (the guarded router passes `ARROW_ROOM`): the corner into the
+ *  last run is rounded no more than leaves that run this much straight for the
+ *  arrowhead. Only that corner, only when the run is long enough to be rounded
+ *  and the full radius would eat into the room; a last run shorter than the
+ *  room cannot be given it by rounding and is drawn as before. */
+function pointsToPath(pts: Pt[], arrowRoom = 0): string {
   if (pts.length === 0) return ''
   if (pts.length === 1) return `M ${f(pts[0].x)} ${f(pts[0].y)}`
   let d = `M ${f(pts[0].x)} ${f(pts[0].y)}`
@@ -95,10 +104,17 @@ function pointsToPath(pts: Pt[]): string {
     const next = pts[i + 1]
     const inLen = Math.hypot(p.x - prev.x, p.y - prev.y)
     const outLen = Math.hypot(next.x - p.x, next.y - p.y)
-    const rad = Math.min(CORNER_R, inLen / 2, outLen / 2)
+    let rad = Math.min(CORNER_R, inLen / 2, outLen / 2)
     if (rad < CORNER_R - COORD_EPS && (inLen < 2 * CORNER_R || outLen < 2 * CORNER_R)) {
       d += ` L ${f(p.x)} ${f(p.y)}`
       continue
+    }
+    if (i === pts.length - 2 && outLen >= arrowRoom && outLen - rad < arrowRoom) {
+      rad = outLen - arrowRoom
+      if (rad <= COORD_EPS) {
+        d += ` L ${f(p.x)} ${f(p.y)}`
+        continue
+      }
     }
     const dirIn = { x: Math.sign(p.x - prev.x), y: Math.sign(p.y - prev.y) }
     const dirOut = { x: Math.sign(next.x - p.x), y: Math.sign(next.y - p.y) }
@@ -204,6 +220,8 @@ type SearchOpts = {
   firstDir?: number
   /** the only move allowed into the goal */
   lastDir?: number
+  /** a move NOT allowed into the goal */
+  noLastDir?: number
   /** issue #344 step 3 — the move the route ARRIVED at the start with (a bend
    *  point between two spans): leaving along it is free, turning is one bend,
    *  and going straight back counts as two (a U-turn), so a Manual route turns
@@ -441,6 +459,7 @@ function* buildRouteSteps(a: Pt, goal: Pt, aPos: Position | null, bPos: Position
   const maxExp = opts?.maxExpansions ?? MAX_EXPANSIONS
   const firstDir = opts?.firstDir
   const lastDir = opts?.lastDir
+  const noLastDir = opts?.noLastDir
   const occ = opts?.occ
   // the surcharge of one axis-aligned step (0 without `occ`): running along an
   // occupied segment (shared trunk) and crossing one
@@ -504,6 +523,7 @@ function* buildRouteSteps(a: Pt, goal: Pt, aPos: Position | null, bPos: Position
 
       const nb = ni * NY + nj
       if (lastDir != null && nb === goalId && d !== lastDir) continue
+      if (noLastDir != null && nb === goalId && d === noLastDir) continue
       // `near`, not index equality: two ruler lines can sit exactly COORD_EPS
       // apart, and a step between them counts as vertical for the bend test.
       const stepDir = near(X[ni], X[ci]) ? 2 : 1
@@ -778,7 +798,7 @@ function polyResult(s: Pt[]): Pick<RouteResult, 'd' | 'hitD' | 'mid' | 'endAngle
   }
   const p = s.length >= 2 ? s[s.length - 2] : s[0]
   const e = s[s.length - 1]
-  return { d: pointsToPath(s), hitD: pointsToPoly(s), mid, endAngle: Math.atan2(e.y - p.y, e.x - p.x) }
+  return { d: pointsToPath(s, ARROW_ROOM), hitD: pointsToPoly(s), mid, endAngle: Math.atan2(e.y - p.y, e.x - p.x) }
 }
 
 /** the end of a port's stub: `want` (default `ROUTE_STUB`) beyond the node's
@@ -911,6 +931,19 @@ export function* guardedRouteSteps(inp: GuardedInput): Generator<string, Guarded
       stubA = inner[0]
       inner = inner.slice(1)
     }
+    // a last bend point on the TARGET port's own stub, nearer the port than
+    // the arrowhead's room: turning in there would leave the arrowhead less
+    // than its room, so the point is passed on the stub instead — the last span
+    // runs to the stub's end without coming back along the stub, and the stub
+    // runs through the point into the port
+    let passLast = false
+    if (!tf && inner.length > 0) {
+      const w = inner[inner.length - 1]
+      if (onStub(tgt, stubB, w) && Math.abs(w.x - tgt.x) + Math.abs(w.y - tgt.y) < ARROW_ROOM - COORD_EPS) {
+        inner = inner.slice(0, -1)
+        passLast = true
+      }
+    }
     const stubs: [Pt, Pt, Pt, Pt] = [src, stubA, stubB, tgt]
     const anchors: Pt[] = [stubA, ...inner, stubB]
     // the own nodes keep a clearance just inside the shortest branch, so a
@@ -931,6 +964,7 @@ export function* guardedRouteSteps(inp: GuardedInput): Generator<string, Guarded
           ...opts,
           firstDir: i === 0 ? dirs.firstDir : undefined,
           lastDir: i === anchors.length - 2 ? dirs.lastDir : undefined,
+          noLastDir: passLast && i === anchors.length - 2 ? moveOf(normal(inp.targetPosition)) : undefined,
           // issue #344 step 3 — a span after a bend point continues from the
           // way the route arrived there
           arrive: i === 0 ? undefined : arrivalOf(full),

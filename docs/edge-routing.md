@@ -812,14 +812,37 @@ pinned single-edge core (golden + differential tests); the app no longer calls i
     use behind "no label on a shared stub", a route's exemption from its own
     ports' reserved stubs, and the parallel sets.
   - Each member gets its own **branch point** inside the stub. The members are
-    sorted by where their far end lies across the stub, then by edge id;
-    members on the negative side leave toward it, members on the positive side
-    toward that one, at most one (the lowest id among those level with the
-    port) goes straight on, and other level members alternate sides. Within a
-    side the member reaching furthest out branches nearest the node, so
-    siblings never cross; members on opposite sides may share an offset. The
-    offsets split the 16 px evenly. The router fixes the first move after the
-    branch (and, at a target fan, the move into it).
+    sorted by where their route goes next from the port, across the stub —
+    the stored bend point next to that end when the connection has bend
+    points, else its far end — then by edge id; members on the negative side
+    leave toward it, members on the positive side toward that one, at most one
+    (the lowest id among those level with the port) goes straight on, and
+    other level members alternate sides. Within a side the member reaching
+    furthest out branches nearest the node, so siblings never cross; members
+    on opposite sides may share an offset. The offsets split the 16 px evenly.
+    The router fixes the first move after the branch (and, at a target fan,
+    the move into it).
+    - **Bend points next to the port** (2026-10-24): a line whose bend point
+      next to the port is on the port's line now goes straight on to it,
+      instead of being sent aside by its far end and stepping back (the pickup
+      gacha's SR result → Pulls made, `v_sr_pull`, and Off-pickup SSR → Pickup
+      owed, `v_off_owed`: 5 → 3 corners, the bend point back on the drawn
+      line). When that would put two or more members level with the port —
+      bend points sharing a trunk down the port's line, as the gacha
+      Templates' Roll and SSR result fans do — only one could go straight, so
+      the far ends decide, as before.
+    - When the member going straight on reaches its bend point past the stub
+      and comes from one side, the members branching toward that side branch
+      nearer the node, so their first leg keeps `PARALLEL_GAP` from the row of
+      that bend point; never so that a target branch goes under `ARROW_ROOM`,
+      and not one already under it. (Without this, `v_ssr_pull` turned in 4 px
+      beside `v_sr_pull`'s last approach.)
+    - **A connection without bend points can still move:** its own slot is
+      measured from its far end as before, but a sibling's bend points change
+      the fan it shares — which member goes straight, and so its own branch
+      length or lane (the pickup gacha's `v_ssr_pull`: branch 8 → 10 px from
+      the node; `v_pickup_owed`: its lane 6 px aside, the same corners). A
+      fan whose members have no bend points is laid out as before.
   - Every end's stub and every branch's first leg are **reserved** before any
     route: another route pays `FAN_COST` per px to run along them (a route's
     own ports' stubs excepted), so neither a later sibling nor an earlier
@@ -842,8 +865,38 @@ pinned single-edge core (golden + differential tests); the app no longer calls i
     the stub's end in the port's direction and could reach a point behind it
     only by stepping aside and coming back (the standard gacha's `=0` line out
     of SSR result climbed 16 px and crossed the forced-SSR line). Not at a
-    fan's port, whose branch points are shared. The target needs no such rule:
-    its last span may turn back onto the stub, so a point there is already met.
+    fan's port, whose branch points are shared.
+  - **A bend point on the target port's own stub, nearer the port than the
+    arrowhead** (2026-10-24): at the target the drawn last run carries the
+    arrowhead, which `EdgeMarkers.tsx` draws `ARROW_ROOM` (8 px) wide and high
+    from the same constant. When the last stored bend point lies on the target
+    stub less than `ARROW_ROOM` from the port, turning in at it would leave a
+    shorter last run (the General gacha's SR result → Pulls made, `e_sr_pull`:
+    its point 4 px above the top port drew a 4 px run, the arrowhead overlapping
+    the corner, read as coming in from the side). The point is passed on the
+    stub instead: the last span runs to the stub's end without coming back
+    along the stub, and the stub runs through the point into the port. The
+    point keeps its value and stays on the drawn line. Not at a fan's port.
+    - **The price, a constraint conflict:** a point reached across the port's
+      line that close to the port cannot be a corner and leave the arrowhead
+      its room, so the line steps up to the stub's end before it turns in —
+      two corners more (`e_sr_pull`: a 9.5 px step, 3 → 5 corners). The
+      arrival is clearer; the line is not smoother.
+    - A point on the target stub at least `ARROW_ROOM` from the port is still
+      where the line turns in.
+    - **The corner into the last run** is rounded no more than leaves
+      `ARROW_ROOM` of that run straight (`pointsToPath` in the guarded
+      router; the v1 core stays as pinned). Only that corner, and only when
+      the run is long enough to be rounded (12 px or more) but shorter than
+      `ARROW_ROOM` + `CORNER_R`: an outside name can halve the free gap and cut
+      the stub, so `e_sr_pull`'s 13.5 px run kept only 7.5 px straight after a
+      6 px corner; it keeps 8 now (radius 5.5). Every other corner, and an
+      arrival corner with room, keeps the full radius. A last run shorter
+      than `ARROW_ROOM` cannot be given the room by rounding and is drawn as
+      before (a fan branch of 16/3 or 16/4 px, a stub cut under 8 px).
+    - Checked on the drawn line (`points`), not on the internal stub
+      (`stubs[2]`): `simplify` drops a fold back along a stub, so a stub kept
+      inside the router can still be drawn short.
   - **Known, not fixed** (recorded 2026-10-24; separate follow-ups):
     - The search adds the bend cost to the pick order (`f`) but not to the
       choice between two ways into one lattice point, which compares `g`
@@ -861,6 +914,21 @@ pinned single-edge core (golden + differential tests); the app no longer calls i
       leaving that bottom port goes round the name (the gacha Templates'
       result → count lines). The state-fan and stub rules above do not touch
       it; moving the name beside the line is a separate design.
+    - `simplify` drops every collinear point, a reversal included, so a route
+      that runs out and comes back along the same line is drawn without the
+      fold. Most are 1–4 px at a source stub's end and harmless; at a stored
+      bend point the point is left off the drawn line (the gacha Templates' Roll
+      and SSR result fans, whose members share a first bend point on the port's
+      line). Keeping reversals would draw every such fold as a spur, so
+      `simplify` is not changed; folds are to be prevented in the search.
+    - A target fan with three or four members on one side splits the stub into
+      16/3 or 16/4 px branches, shorter than `ARROW_ROOM` (the 3-zone gacha,
+      Early MMO; connections without bend points).
+    - At the pickup gacha's Pulls made top, after the bend-point slots: the
+      SSR result line (`v_ssr_pull`) still comes down on its detour (the
+      search item above) and runs 8 px beside `v_sr_pull`'s last run for
+      about 10 px before it turns into its branch. That closeness comes from
+      the detour's lane, not from the branch spacing; it is not fixed here.
 - The judge (survey and collision check) keeps the same-port trunk as an
   informational count; unrelated line-on-line overlap is a failure.
 - A label takes the first free slot on its own route — the midpoint, then 0.4,

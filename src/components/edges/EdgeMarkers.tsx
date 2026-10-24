@@ -14,6 +14,7 @@
 import { readAccent } from '../../model/model'
 import { useGraphStore } from '../../store/graphStore'
 import { accentMarkerId } from '../../ui/flowColour'
+import { ARROW_ROOM } from './orthogonalRoute'
 
 export const EDGE_MARKER = {
   resource: 'loop-arrow-resource',
@@ -32,8 +33,8 @@ function Arrow({ id, className, fill }: ArrowProps) {
       viewBox="0 0 12 12"
       refX="10"
       refY="6"
-      markerWidth="8"
-      markerHeight="8"
+      markerWidth={ARROW_ROOM}
+      markerHeight={ARROW_ROOM}
       markerUnits="userSpaceOnUse"
       orient="auto-start-reverse"
     >

@@ -31,6 +31,7 @@ import { Position } from '@xyflow/react'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { GRID, PORT_COL, PORT_ROW } from '../model/layout/grid'
 import {
+  ARROW_ROOM,
   type Box,
   computeGuardedRoute,
   computeSoftReroute,
@@ -520,14 +521,58 @@ function plan(nodes: LoopNode[], edges: LoopEdge[]): Plan {
     const pos = endPos(e0, asSource ? 'source' : 'target')
     const at = endPoint(portNode, e0, asSource ? 'source' : 'target')
     const horiz = pos === Position.Left || pos === Position.Right
-    const members: { id: string; delta: number }[] = []
+    // each member is measured by where its route goes next from this port: its
+    // bend point next to this end when it has bend points, else the far end.
+    // When that puts two or more members level with the port (bend points
+    // sharing a trunk down the port's line, or one beside a member going
+    // straight on), only one could go straight: the far ends decide, as before
+    const byNext: { id: string; delta: number }[] = []
+    const byFar: { id: string; delta: number }[] = []
+    // a member whose bend point next to this end is level with the port: how
+    // far past the node's side that point is, and the side its line comes from
+    // (toward) there
+    const levelAt = new Map<string, { reach: number; side: -1 | 0 | 1 }>()
+    const nrm = pos === Position.Left ? { x: -1, y: 0 } : pos === Position.Right ? { x: 1, y: 0 } : pos === Position.Top ? { x: 0, y: -1 } : { x: 0, y: 1 }
+    const pb = boxOf(portNode)
+    const base = Math.max(0, nrm.x > 0 ? pb.x + pb.w - at.x : nrm.x < 0 ? at.x - pb.x : nrm.y > 0 ? pb.y + pb.h - at.y : at.y - pb.y)
     for (const { e, asSource: s } of list) {
       const far = byId.get(s ? e.target : e.source)
       if (!far) continue
       const p = endPoint(far, e, s ? 'target' : 'source')
-      members.push({ id: e.id, delta: horiz ? p.y - at.y : p.x - at.x })
+      const wps = (e.data as { waypoints?: unknown } | undefined)?.waypoints
+      const stored = Array.isArray(wps) ? (wps as Pt[]) : []
+      const next = stored.length > 0 ? stored[s ? 0 : stored.length - 1] : p
+      byFar.push({ id: e.id, delta: horiz ? p.y - at.y : p.x - at.x })
+      byNext.push({ id: e.id, delta: horiz ? next.y - at.y : next.x - at.x })
+      if (stored.length > 0 && Math.abs(horiz ? next.y - at.y : next.x - at.x) <= 1) {
+        const after = stored.length > 1 ? stored[s ? 1 : stored.length - 2] : p
+        const d = horiz ? after.y - at.y : after.x - at.x
+        levelAt.set(e.id, { reach: (next.x - at.x) * nrm.x + (next.y - at.y) * nrm.y - base, side: d < -1 ? -1 : d > 1 ? 1 : 0 })
+      }
     }
-    for (const [id, f] of assignFan(members)) {
+    const members = byNext.filter((m) => Math.abs(m.delta) <= 1).length > 1 ? byFar : byNext
+    const slots = assignFan(members)
+    // a member going straight on to its own bend point on the port's line, past
+    // the stub: the members branching toward the side its line comes from
+    // branch nearer the node, so their first leg keeps `PARALLEL_GAP` from the
+    // row of that bend point (the line's own last approach runs along that
+    // row). Not when that would bring the shortest of them under the
+    // arrowhead's room at a target (under 1 px at a source), nor when it is
+    // already under it
+    if (members === byNext) {
+      for (const [id, f] of slots) {
+        const lv = f.side === 0 ? levelAt.get(id) : undefined
+        if (!lv || lv.side === 0) continue
+        const cap = lv.reach - PARALLEL_GAP
+        if (cap >= ROUTE_STUB) continue
+        const same = [...slots].filter(([, g]) => g.side === lv.side)
+        if (same.length === 0) continue
+        const shortest = Math.min(...same.map(([, g]) => g.len))
+        if ((shortest * cap) / ROUTE_STUB < Math.min(shortest, asSource ? 1 : ARROW_ROOM)) continue
+        for (const [sid, g] of same) slots.set(sid, { ...g, len: (g.len * cap) / ROUTE_STUB })
+      }
+    }
+    for (const [id, f] of slots) {
       const cur = fans.get(id) ?? {}
       if (asSource) cur.src = f
       else cur.tgt = f
@@ -1563,11 +1608,15 @@ export function __syncFreeSlots(nodes: LoopNode[], edges: LoopEdge[]): Map<strin
 }
 /** test hook — which routed connections the plan puts in a fan at each end
  *  (true where that end's port has siblings), and its parallel sets */
-export function __planFans(nodes: LoopNode[], edges: LoopEdge[]): { fans: Record<string, { src: boolean; tgt: boolean }>; sets: string[][] } {
+export function __planFans(nodes: LoopNode[], edges: LoopEdge[]): { fans: Record<string, { src: boolean; tgt: boolean }>; sets: string[][]; ends: Record<string, { src?: FanEnd; tgt?: FanEnd }> } {
   const p = plan(nodes, edges)
   const fans: Record<string, { src: boolean; tgt: boolean }> = {}
-  for (const e of p.ortho) fans[e.id] = { src: p.fans.get(e.id)?.src != null, tgt: p.fans.get(e.id)?.tgt != null }
-  return { fans, sets: [...p.groups.values()].map((s) => [...s].sort()).sort() }
+  const ends: Record<string, { src?: FanEnd; tgt?: FanEnd }> = {}
+  for (const e of p.ortho) {
+    fans[e.id] = { src: p.fans.get(e.id)?.src != null, tgt: p.fans.get(e.id)?.tgt != null }
+    ends[e.id] = { ...p.fans.get(e.id) }
+  }
+  return { fans, sets: [...p.groups.values()].map((s) => [...s].sort()).sort(), ends }
 }
 /** test hook — replace the slice scheduler (null = synchronous) */
 export function __setRouteScheduler(s: Scheduler | null): void {
