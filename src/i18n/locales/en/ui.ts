@@ -62,6 +62,8 @@ const ui = {
   'playbar.steady': 'Steady state — flows continue',
   'playbar.timeline.show': 'Show timeline',
   'playbar.timeline.hide': 'Hide timeline',
+  'playbar.timeline.short': 'Timeline',
+  'playbar.timeline.newResult': 'New results',
   'runbar.ariaLabel': 'Run controls',
   'runbar.mc.cancel': 'MC {pct}% · Cancel',
   'runbar.timeline': 'Timeline',

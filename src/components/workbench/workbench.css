@@ -457,14 +457,27 @@
   font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
+/* a kind's heading: bold, its count at the end, and a small gap above every
+   group but the first (2026-10-25, from Lumi's v6 study — only as much space
+   as tells the groups apart) */
 .wb-list__sub {
-  height: 24px;
+  height: 26px;
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 0 12px 0 34px;
-  color: var(--ink-3);
+  padding: 0 12px;
+  color: var(--ink-2);
   font-size: 12px;
+  font-weight: 600;
+}
+.wb-list__subcount {
+  margin-inline-start: auto;
+  color: var(--ink-3);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.wb-list__group + .wb-list__group {
+  margin-top: 6px;
 }
 .wb-row {
   width: 100%;
@@ -498,6 +511,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* a Parameter's or Pool's value at the row's end: fixed-width digits, never
+   more than a third of the row, so a long value cannot push the name out */
+.wb-row__val {
+  flex: 0 1 auto;
+  max-width: 33%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 /* the row's kind mark (nodes/KindIcon.tsx; was the outline scaled into 14 px
    with a 5-unit stroke, where the End read as a circle and the Register lost

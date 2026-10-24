@@ -917,9 +917,9 @@ body {
 /* PREVIEW — a thin capsule, never louder than the product name */
 .toolbar__tag {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.04em;
   color: var(--ink-3);
   border: 1px solid var(--line-1);
   padding: 1px 5px;
@@ -2849,10 +2849,13 @@ a.sheet__row {
   text-align: start;
   margin-bottom: 12px;
 }
+/* 24 × 24 to press (2026-10-25), laid out as the 16 px it shows: the margin
+   gives the extra 4 px on each side back, so the chip keeps its height */
 .hint-note__x {
   flex: none;
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
+  margin: -4px;
   border: none;
   border-radius: 4px;
   background: transparent;
@@ -4316,11 +4319,11 @@ a.sheet__row {
   margin-inline-start: 0;
   margin-inline-end: auto;
 }
+/* the run strip's and the timeline head's labels and small controls: 11 px in
+   the UI face (2026-10-25 — they were 9 px mono capitals, the smallest text a
+   user had to read); the small controls share one 24 px height */
 .pstrip__field > span {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-size: 11px;
 }
 /* sets a run, does not start one: neutral (colour review A, 2026-10-21) */
 .pstrip__field input[type='range'] {
@@ -4329,6 +4332,7 @@ a.sheet__row {
 }
 .pstrip__seed {
   width: 52px;
+  min-height: 24px;
   font-family: var(--font-mono);
   font-size: 11px;
   padding: 2px 4px;
@@ -4339,8 +4343,35 @@ a.sheet__row {
   font-variant-numeric: tabular-nums;
 }
 .pstrip__collapse {
+  display: inline-flex;
+  align-items: center;
   margin-inline-start: auto;
   padding: 3px 8px;
+}
+/* folded: the button's words and the new-result mark (PlayBar.tsx). The words
+   leave first when the row is short (any fit step); the mark stays — a shape
+   beside the chevron, the name says it too */
+.pstrip__collapse-text {
+  margin-inline-end: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.pstrip[data-fit] .pstrip__collapse-text {
+  display: none;
+}
+.pstrip__new-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-inline-end: 6px;
+  border-radius: 50%;
+  background: var(--sel);
+  vertical-align: middle;
+}
+@media (forced-colors: active) {
+  .pstrip__new-dot {
+    background: CanvasText;
+  }
 }
 
 /* docs/simulation-playback-ordering.md §PBO5 — "Steady state — flows continue",
@@ -4399,11 +4430,8 @@ a.sheet__row {
   align-items: center;
   gap: 12px;
   padding: 5px 12px;
-  font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 400;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
   color: var(--ink-3);
 }
 /* docs/timeline-series-contract.md §5 — ALWAYS ONE ROW. `nowrap` + `min-width: 0`
@@ -4505,7 +4533,8 @@ a.sheet__row {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 1px 3px;
+  min-height: 24px;
+  padding: 0 4px;
   border: 0;
   border-radius: 4px;
   background: transparent;
@@ -4525,7 +4554,8 @@ a.sheet__row {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 1px 6px;
+  min-height: 24px;
+  padding: 0 6px;
   border: 1px solid var(--line-control); /* §VL8 control boundary, as `.btn` */
   border-radius: 4px;
   background: var(--bg-raise);
@@ -4555,12 +4585,11 @@ a.sheet__row {
   flex: none;
   border: 1px solid var(--line-control); /* §VL8 control boundary, as `.btn` */
   border-radius: 4px;
-  padding: 1px 6px;
+  min-height: 24px;
+  padding: 0 8px;
   background: var(--bg-raise);
   color: var(--ink-3);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.12em;
+  font-size: 11px;
   cursor: pointer;
 }
 .timeline__csv:hover:not(:disabled) {
@@ -5912,10 +5941,9 @@ a.sheet__row {
   border: 1px solid var(--line-control);
   background: var(--bg-raise);
   color: var(--ink-3);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  padding: 2px 8px;
+  font-size: 11px;
+  min-height: 24px;
+  padding: 0 10px;
   cursor: pointer;
 }
 .timeline__viewtab:first-child {
@@ -8407,8 +8435,10 @@ input[type='number']::-webkit-inner-spin-button {
 .notice-rail:empty {
   display: none;
 }
+/* 2026-10-25: a thinner strip (39 → 29 px for a one-line note) — the note
+   keeps its place and its text; only the padding around it is less */
 .notice-rail:not(:empty) {
-  padding: 6px 12px;
+  padding: 3px 12px;
   border-bottom: 1px solid var(--line-1);
 }
 .notice-rail > * {
@@ -8420,6 +8450,7 @@ input[type='number']::-webkit-inner-spin-button {
 .notice-rail .hint-note {
   max-width: none;
   white-space: normal;
+  padding-block: 2px;
 }
 .notice-rail .hint-note > span {
   min-width: 0;
