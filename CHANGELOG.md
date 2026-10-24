@@ -7,6 +7,8 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **No stray text selection in the bars, no frame round the first screen's title.** A drag that starts between the menus, on a tool-row label such as Connect, or on the status bar no longer selects their words, which a canvas click could not clear; panels, menus, fields and help text select as before. Clicking the title of the first screen (Before Loop Studio opens) no longer draws a focus frame round it; Tab still shows the focus on its buttons and boxes.
+
 ## v0.30.0 — 2026-10-24
 
 The menus and the canvas, tidied: the File menu is short again, check marks sit beside their names, the graph minimap is gone, and the Early MMO example is back under Templates.
