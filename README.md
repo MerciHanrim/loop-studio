@@ -15,10 +15,10 @@ session neither reads nor saves stored work, author information or settings
 ([docs/storage-sessions.md](docs/storage-sessions.md)).
 
 **Run it now: <https://cozy-loop-studio.pages.dev>** — available in
-[English and Korean](#languages), with seven bundled Templates ranging from two
-small production flows and a coffee roastery's daily operations to gacha
-banners: three single-banner rule sets and a three-zone probability/pity
-comparison.
+[English and Korean](#languages), with eight bundled Templates ranging from two
+small production flows and a coffee roastery's daily operations to an early MMO's
+levelling economy and gacha banners: three single-banner rule sets and a
+three-zone probability/pity comparison.
 
 ![Loop Studio's workbench in a temporary session: the menu bar with its Temporary session button at the far end, the tool row, the list of every node on the left, and the Coffee roastery Template as node symbols with each name below, grouped into three labelled zone frames with its money in $/day, a few steps into a run with the Timeline filling in below](docs/assets/hero-coffee.png)
 

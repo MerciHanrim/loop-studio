@@ -148,6 +148,10 @@ own default open-state and its own messaging in the Templates menu.**
   edit-locked when opened, opened by Import, its documents still open. A change
   that only affects it does not block a release
   ([`docs/example-mmo-progression.md`](example-mmo-progression.md)).
+  **0.30.0 (2026-10-24):** back in the Templates menu, unchanged — the same
+  graph, its start framing and its edit lock. The 0.28.1 exception above ends
+  with it: as a Template users are offered, it is judged for quality and for a
+  release by the same standard as the other Templates.
 
 ---
 

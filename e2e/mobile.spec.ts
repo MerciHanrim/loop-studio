@@ -1784,8 +1784,9 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
     }
     // issue #330 PR 3 — More gained the Playback speed row (its sub names the speed)
     // 0.28.1 — Early MMO left the Templates sheet; 2026-10-20 — the General
-    // gacha joined it, then the Standard and the Pickup gacha
-    expect(checked, 'the walk must reach every text sub-label: 6 More + 7 Templates + 4 enabled Export').toBe(17)
+    // gacha joined it, then the Standard and the Pickup gacha; 0.30.0 — Early
+    // MMO is back
+    expect(checked, 'the walk must reach every text sub-label: 6 More + 8 Templates + 4 enabled Export').toBe(18)
     expect(bad, 'hovered secondary labels below 4.5:1').toEqual([])
   })
 

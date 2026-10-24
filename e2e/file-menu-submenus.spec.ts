@@ -38,7 +38,11 @@ for (const locale of ['en', 'ko'] as const) {
     for (const row of await file(page).locator('[role="menuitem"]').all()) expect(await oneLine(row)).toBe(true)
 
     const templates = await openFileSubmenu(page, 'templates')
-    await expect(templates.locator('[data-template]')).toHaveCount(7)
+    // 0.30.0: eight — Early MMO is in the menu again, after Coffee
+    await expect(templates.locator('[data-template]')).toHaveCount(8)
+    await expect(templates.locator('[data-template="mmo-progression"] .menu__name')).toHaveText(
+      locale === 'en' ? 'Early MMO progression (levels 1–15)' : '초반 MMO 성장 (1–15레벨)',
+    )
     for (const row of await templates.locator('[role="menuitem"]').all()) expect(await oneLine(row)).toBe(true)
     const exports = await openFileSubmenu(page, 'export')
     await expect(templates).toHaveCount(1) // the same panel, now Export: one submenu at a time

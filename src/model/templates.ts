@@ -116,8 +116,8 @@ export const TEMPLATES: Template[] = [
   // professional probability/pity verification, each entry a bigger and more
   // specialised step than the last. Coffee moved ahead of MMO (was after it);
   // template ids are unchanged, so no saved/shared file or digest is affected.
-  // Since 0.28.1 MMO keeps its place here but is not listed (`menu: false`), so
-  // the menu reads Coffee → Gacha.
+  // MMO was not listed in 0.28.1–0.29.0 (`menu: false`); since 0.30.0 it is in
+  // the menu again, in this place.
   {
     id: 'coffee-roastery',
     name: 'Coffee roastery operations flow',
@@ -141,13 +141,12 @@ export const TEMPLATES: Template[] = [
   // The canonical graph is examples/mmo-progression.json (built + verified by
   // src/engine/mmo-progression.fixture.ts); this entry loads it, no inline copy
   // (docs/example-mmo-progression.md §EM11 / §EM12 Q5).
-  // 0.28.1 (Hanrim / Lumi, 2026-10-14): NOT in the Templates menu any more — it
-  // shows how far Loop Studio goes, but nobody would build it by hand; it stays
-  // a developer stress / regression fixture. The entry stays so a document made
-  // from it keeps its node labels following a locale switch.
+  // 0.28.1 (Hanrim / Lumi, 2026-10-14) took it out of the Templates menu as a
+  // developer stress / regression fixture; 0.30.0 (Hanrim / Lumi, 2026-10-24)
+  // puts it back in the menu, unchanged — the same graph, start framing and
+  // edit lock. It is still the largest bundled graph the checks read.
   {
     id: 'mmo-progression',
-    menu: false,
     name: 'Early MMO progression (levels 1–15)',
     blurb:
       'A connected play economy: three zone lanes, probabilistic combat, categorised loot, a gold economy with repair and resupply costs, and a rising XP-per-level curve.',

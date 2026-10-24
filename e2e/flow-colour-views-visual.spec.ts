@@ -64,7 +64,8 @@ test('forced colours: the timeline keeps its series colours', async ({ page }) =
   await expect(page.locator('.timeline__panel')).toHaveScreenshot(...snap(page, 'flow-views-forced-timeline'))
 })
 
-// the Templates the menu offers; Early MMO left the menu in 0.28.1 (Lumi: its two baselines removed)
+// two of the Templates the menu offers; Early MMO's two baselines were removed
+// when it left the menu in 0.28.1 (Lumi) and are not restored with its return in 0.30.0
 const TEMPLATES = [
   { id: 'coffee', name: 'Coffee roastery operations flow', waitFor: 'cafe_retail_demand_kg' },
   { id: 'gacha', name: '3-zone gacha banner comparison', waitFor: 'cmp1_hit_rate_free' },

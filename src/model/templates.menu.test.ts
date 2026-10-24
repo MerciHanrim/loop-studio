@@ -1,23 +1,35 @@
 import { describe, expect, it } from 'vitest'
 import { MENU_TEMPLATES, TEMPLATES } from './templates'
 
-// 0.28.1 (Hanrim / Lumi, 2026-10-14) — a Template in the menu is a starting
-// point a user can grasp and rebuild; Early MMO is a developer stress fixture.
-// It stays in TEMPLATES (its node labels still follow a locale switch in a
-// document made from it, and the developer data and checks keep reading it),
-// but the menu does not offer it.
+// 0.28.1 (Hanrim / Lumi, 2026-10-14) took Early MMO out of the menu as a
+// developer stress fixture; 0.30.0 (Hanrim / Lumi, 2026-10-24) puts it back,
+// unchanged: the same entry, its start framing and its edit lock. `menu: false`
+// stays available for a Template that should not be offered; none uses it now.
 
 describe('the Templates the menu offers', () => {
-  it('are every Template but Early MMO, in the same order', () => {
+  it('are every Template, in the same order (Coffee → MMO → Gacha)', () => {
     // 2026-10-20: the general gacha (docs/gacha-general.md), the standard
     // gacha (docs/gacha-standard.md) and the pickup gacha (docs/gacha-pickup.md),
     // before the 3-zone comparison
-    expect(MENU_TEMPLATES.map((t) => t.id)).toEqual(['equilibrium', 'deadlock', 'coffee-roastery', 'gacha-general', 'gacha-standard', 'gacha-pickup', 'gacha-banner-zones'])
+    expect(MENU_TEMPLATES.map((t) => t.id)).toEqual([
+      'equilibrium',
+      'deadlock',
+      'coffee-roastery',
+      'mmo-progression',
+      'gacha-general',
+      'gacha-standard',
+      'gacha-pickup',
+      'gacha-banner-zones',
+    ])
+    expect(TEMPLATES.filter((t) => t.menu === false)).toEqual([])
   })
-  it('Early MMO stays a Template entry, only not in the menu', () => {
-    const mmo = TEMPLATES.find((t) => t.id === 'mmo-progression')
-    expect(mmo).toBeDefined()
-    expect(mmo!.menu).toBe(false)
-    expect(TEMPLATES.filter((t) => t.menu === false).map((t) => t.id)).toEqual(['mmo-progression'])
+  it('Early MMO comes back as it was: its start framing and opened locked', () => {
+    const mmo = TEMPLATES.find((t) => t.id === 'mmo-progression')!
+    expect(mmo.initialView).toEqual({
+      rect: { x: 44, y: -4, width: 927, height: 368 },
+      minZoom: 0.6,
+      keep: { x: 48, y: 36, width: 1188, height: 200 },
+    })
+    expect(mmo.recommendedRunConfig?.canvasLocked).toBe(true)
   })
 })

@@ -98,8 +98,8 @@ canvas, so its licence notice and its on-canvas attribution stay too.
 
 File's rows are names on one line, in four groups: New, Import | Templates ›,
 Export › | Save selected structure…, Insert saved structure… | Set the export
-author…, Storage & privacy…. Templates holds the seven Templates (the same
-order as before, no groups). Export holds Graph JSON, Workspace JSON, Project
+author…, Storage & privacy…. Templates holds the eight Templates (the same
+order as before, no groups; Early MMO is back after Coffee since 0.30.0). Export holds Graph JSON, Workspace JSON, Project
 revision and Make a proposal. Set the export author… is a row of File's own
 settings group, not an export format. What each row does is unchanged.
 

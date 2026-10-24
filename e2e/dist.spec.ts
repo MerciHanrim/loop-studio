@@ -130,8 +130,8 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     expect(bad, 'no failed or cross-origin requests').toEqual([])
   })
 
-  // The largest Template the menu offers (Early MMO, the previous subject here,
-  // left the menu in 0.28.1 and stays a developer stress fixture).
+  // The 3-zone comparison, a large locked Template (Early MMO, the previous
+  // subject here, was out of the menu in 0.28.1–0.29.0; the check stayed here).
   test('the "3-zone gacha banner comparison" Template loads its bundled graph + recommended MC config', async ({ page }) => {
     const { bad } = await openProd(page)
     const GACHA = JSON.parse(readFileSync(new URL('../examples/gacha-banner-zones.json', import.meta.url), 'utf8')) as {
@@ -204,9 +204,9 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     expect(bad, 'no failed or cross-origin requests').toEqual([])
   })
 
-  // 0.28.1 — Early MMO left the Templates menu (a developer stress fixture now):
-  // the document is opened from its FILE, as a user's own file is. It is still
-  // a Template entry, so its node names still follow a locale switch; the
+  // The document is opened from its FILE, as a user's own file is (since
+  // 0.28.1, when Early MMO left the menu; back in it since 0.30.0). It is a
+  // Template entry, so its node names follow a locale switch; the
   // largest graph with parallel sets, it stays the subject of this check.
   test('a bulk locale switch on the MMO document keeps edge endpoints aligned with their real handle positions (no window.__loop)', async ({
     page,

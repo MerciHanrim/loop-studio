@@ -10,6 +10,13 @@ invariants** in the acceptance conditions (§EM10.1). This is a **non-frozen** d
 marker — and merges as *settled design, implementation pending*, like
 [`docs/localization.md`](localization.md) and [`docs/guided-tour.md`](guided-tour.md).
 
+> **0.30.0 (2026-10-24) — back in the Templates menu.** File → Templates and
+> the phone's More → Templates list it again, after Coffee, unchanged: the same
+> graph, its start framing (§MML3) and its edit lock. The 0.28.1 note below is
+> the record of the time it was out of the menu; its release exception ("a
+> change that only affects it does not block a release") ended with the return —
+> it is judged by the same standard as the other Templates.
+>
 > **0.28.1 (2026-10-14) — no longer in the Templates menu.** The example is now
 > a **developer stress fixture**: it stays a Template entry in
 > `src/model/templates.ts` with `menu: false` (so its translations and the

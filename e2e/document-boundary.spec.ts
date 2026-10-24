@@ -97,7 +97,7 @@ async function storageAction(page: Page, action: 'to-temporary' | 'delete-work')
 }
 
 test.describe('#334 — a new document starts unlocked, with no history', () => {
-  test('File → New from the locked gacha template (Early MMO left the menu in 0.28.1): unlocked, empty, Undo and Redo disabled; a palette click edits; a reload keeps it unlocked', async ({ page }) => {
+  test('File → New from the locked gacha template: unlocked, empty, Undo and Redo disabled; a palette click edits; a reload keeps it unlocked', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await openTemplate(page, '3-zone gacha banner comparison')

@@ -9,9 +9,10 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## v0.30.0 — 2026-10-24
 
-The menus and the canvas, tidied: the File menu is short again, check marks sit beside their names, and the graph minimap is gone.
+The menus and the canvas, tidied: the File menu is short again, check marks sit beside their names, the graph minimap is gone, and the Early MMO example is back under Templates.
 
 - **A shorter File menu.** The File menu lists names only, one per line: the Templates and the export formats are in two submenus, Templates ▸ and Export ▸, and Set the export author… sits next to Storage & privacy…. The description of the item you point at or move to is shown in full at the foot of the menu — on a touch screen, a press on a Template or an export format shows it with an Open or Export button. An item that is unavailable says why under its name.
+- **Early MMO is back under Templates.** File ▸ Templates and the phone's More ▸ Templates offer the Early MMO progression (levels 1–15) example again, after Coffee, as it was: it opens edit-locked and framed on its first steps, and Help ▸ Example notes explains it. There are eight Templates.
 - **Check marks beside their names.** In the View menu (Focus, Filters, Activity overlay) and in Edit ▸ Edit lock, the check mark sits on the same line as the item's name again, instead of above it.
 - **No minimap.** The graph minimap, its button at the canvas's corner and View ▸ Minimap are removed; it repeated the graph as unnamed marks and covered part of the canvas. Reset view and the status bar's Fit show the whole diagram, and panning and zooming are unchanged. A choice an earlier version stored for it is ignored. The canvas is still React Flow, so its licence notice and its attribution on the canvas stay.
 

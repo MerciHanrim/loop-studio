@@ -159,8 +159,9 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
   // lever whole; positions / undo untouched. At this pane size the Forecast
   // metrics column fits beside it too (it is one pan away only on a narrower
   // pane), so nothing here says it is off screen. (Early MMO, this test's
-  // previous subject with §MML3, left the menu in 0.28.1; the gacha framing,
-  // which does leave a zone off screen, is the next test.)
+  // previous subject with §MML3, was out of the menu in 0.28.1–0.29.0; its
+  // menu-open framing is checked in mmo-progression.spec.ts since 0.30.0. The
+  // gacha framing, which does leave a zone off screen, is the next test.)
   test('desktop: open Coffee from the menu → the camera frames its operating flow at ≥ its floor', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
