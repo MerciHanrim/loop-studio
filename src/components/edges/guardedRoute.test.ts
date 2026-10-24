@@ -298,4 +298,103 @@ describe('guarded router — Manual orthogonal bend points (issue #344 step 3)',
     expect(auto.points.length).toBeGreaterThan(2)
     expect(folds(auto.points)).toEqual([])
   })
+
+  // A bend point placed on a port's own stub (the standard gacha's `e_ssr_pity`:
+  // 3 px short of the stub's end): the line leaves the port straight to it and
+  // turns there — it does not run on to the stub's end, step aside and come back
+  it('a bend point on the port’s own stub ends the stub there — source: out of the right port to the point, then down, no overshoot, no fold', () => {
+    const s = box('s', 0, 0)
+    const t = box('t', 400, 172)
+    const port = right(s)
+    const onStubPt = { x: port.x + ROUTE_STUB - 3, y: port.y }
+    const waypoints = [onStubPt, { x: onStubPt.x, y: 200 }]
+    const r = computeGuardedRoute(input(s, t, [], { waypoints }))
+    expect(r.points[0]).toEqual(port)
+    expect(r.points[1], JSON.stringify(r.points)).toEqual(onStubPt)
+    expect(r.points.every((p) => p.x <= onStubPt.x || p.y >= 200 - 1e-6), 'nothing past the point before the turn').toBe(true)
+    expect(folds(r.points)).toEqual([])
+    expect(r.stubs[1]).toEqual(onStubPt)
+  })
+
+  // (a guard: the target side already turns in there without the rule)
+  it('a bend point on the target port’s own stub: the point is where the line turns in', () => {
+    const s = box('s', 0, 0)
+    const t = box('t', 400, 172)
+    const port = left(t)
+    const onStubPt = { x: port.x - ROUTE_STUB + 3, y: port.y }
+    const waypoints = [{ x: onStubPt.x, y: 28 }, onStubPt]
+    const r = computeGuardedRoute(input(s, t, [], { waypoints }))
+    const n = r.points.length
+    expect(r.points[n - 1]).toEqual(port)
+    expect(r.points[n - 2], JSON.stringify(r.points)).toEqual(onStubPt)
+    expect(folds(r.points)).toEqual([])
+  })
+
+  it('a bend point on the stub: the line still leaves along the port’s normal, on every face', () => {
+    const s = box('s', 200, 200)
+    const t = box('t', 600, 600)
+    const faces: [Position, Pt, Pt][] = [
+      [Position.Right, right(s), { x: 1, y: 0 }],
+      [Position.Left, left(s), { x: -1, y: 0 }],
+      [Position.Top, { x: s.x + 60, y: s.y }, { x: 0, y: -1 }],
+      [Position.Bottom, { x: s.x + 60, y: s.y + s.h }, { x: 0, y: 1 }],
+    ]
+    for (const [pos, port, n] of faces) {
+      const onStubPt = { x: port.x + n.x * (ROUTE_STUB - 4), y: port.y + n.y * (ROUTE_STUB - 4) }
+      const next = n.x !== 0 ? { x: onStubPt.x, y: onStubPt.y + 120 } : { x: onStubPt.x + 120, y: onStubPt.y }
+      const r = computeGuardedRoute(input(s, t, [], { source: port, sourcePosition: pos, waypoints: [onStubPt, next] }))
+      const [a, b] = r.points
+      expect(a, pos).toEqual(port)
+      expect(Math.sign(b.x - a.x) === n.x && Math.sign(b.y - a.y) === n.y, `${pos}: first segment along the normal, ${JSON.stringify(r.points)}`).toBe(true)
+      expect(folds(r.points), pos).toEqual([])
+    }
+  })
+
+  it('a bend point on the source stub leaves the target end alone: its stub (the arrow’s room) is the full one', () => {
+    const s = box('s', 0, 0)
+    const t = box('t', 400, 172)
+    const port = right(s)
+    const r = computeGuardedRoute(input(s, t, [], { waypoints: [{ x: port.x + 6, y: port.y }, { x: port.x + 6, y: 200 }] }))
+    const tgt = left(t)
+    expect(r.stubs[2]).toEqual({ x: tgt.x - ROUTE_STUB, y: tgt.y })
+    const n = r.points.length
+    expect(r.points[n - 1]).toEqual(tgt)
+    expect(tgt.x - r.points[n - 2].x, 'the last segment is at least a stub long').toBeGreaterThanOrEqual(ROUTE_STUB - 1e-6)
+  })
+
+  it('a bend point on the source stub: the route after it still keeps off every node', () => {
+    const s = box('s', 0, 0)
+    const t = box('t', 480, 0)
+    const wall = box('wall', 200, -80, 60, 220)
+    const port = right(s)
+    const w = { x: port.x + 8, y: port.y }
+    const inp = input(s, t, [wall], { waypoints: [w] })
+    const r = computeGuardedRoute(inp)
+    // the point is passed (on a straight run on, it is not a vertex of its own)
+    expect(onRoute(r.points, w)).toBe(true)
+    expect(r.stubs[1]).toEqual(w)
+    expect(fillViolations(r, inp)).toEqual([])
+    expect(folds(r.points)).toEqual([])
+  })
+
+  it('not at a fan’s port: with siblings on the port its branch points stay, the bend point is routed to', () => {
+    const s = box('s', 0, 0)
+    const t = box('t', 400, 172)
+    const port = right(s)
+    const w = { x: port.x + 6, y: port.y }
+    const r = computeGuardedRoute(input(s, t, [], { waypoints: [w, { x: w.x, y: 200 }], sourceFan: { len: ROUTE_STUB, side: 1 } }))
+    expect(r.stubs[1]).toEqual({ x: port.x + ROUTE_STUB, y: port.y })
+    expect(onRoute(r.points, w)).toBe(true)
+  })
+
+  it('a bend point beyond the stub, or off the port’s line, is routed to as before', () => {
+    const s = box('s', 0, 0)
+    const t = box('t', 400, 172)
+    const port = right(s)
+    for (const w of [{ x: port.x + ROUTE_STUB + 8, y: port.y }, { x: port.x + 8, y: port.y + 40 }]) {
+      const r = computeGuardedRoute(input(s, t, [], { waypoints: [w] }))
+      expect(r.stubs[1]).toEqual({ x: port.x + ROUTE_STUB, y: port.y })
+      expect(onRoute(r.points, w), `through (${w.x}, ${w.y})`).toBe(true)
+    }
+  })
 })

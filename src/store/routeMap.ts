@@ -364,11 +364,13 @@ const tgtKey = (e: LoopEdge) => endKey(e.target, e.targetHandle)
  *  one port's stub and split at their branch points). For a RESOURCE port it
  *  includes the face (§ER17: the handle id stays plain, the face is in
  *  `data.ports`): an `out` on the bottom face and one on the right face are two
- *  stubs in two places, never one fan. A STATE port keeps one fan across its
- *  faces, as before: grouping state ports by face uncovers an arriving and a
- *  leaving state connection meeting at one anchor of one face, which is not
- *  solved yet (share note 54), so that half is a separate unit. A resource
- *  `in` and `out` stay two fans even where a face puts them on one anchor.
+ *  stubs in two places, never one fan. A STATE port includes the face too,
+ *  except on a node where some face carries an arriving AND a leaving state
+ *  connection (`stateBlind`): the two meet at that face's one anchor, and
+ *  grouping by face lets them run together past the stub (share note 54 —
+ *  not solved yet, a separate unit), so such a node keeps one fan per state
+ *  handle across its faces, as before. A resource `in` and `out` stay two
+ *  fans even where a face puts them on one anchor.
  *  This key decides, per FAN: fan membership (branch points, first legs) and
  *  the sibling relation while routing — a sibling's route is cut at the shared
  *  stub (its stub is not charged) and offered as lanes, a non-sibling is an
@@ -377,10 +379,25 @@ const tgtKey = (e: LoopEdge) => endKey(e.target, e.targetHandle)
  *  decides, per handle: the port use count behind "no label on a shared
  *  stub", the own-port exemption from the reserved stubs, and the parallel
  *  sets. */
-function fanKey(e: LoopEdge, end: PortEnd): string {
+function fanKey(e: LoopEdge, end: PortEnd, stateBlind: ReadonlySet<string>): string {
   const node = end === 'source' ? e.source : e.target
   const handle = end === 'source' ? e.sourceHandle : e.targetHandle
-  return edgePortKind(e) === 'resource' ? `${endKey(node, handle)}@${faceOf(e, end)}` : endKey(node, handle)
+  return edgePortKind(e) === 'state' && stateBlind.has(node) ? endKey(node, handle) : `${endKey(node, handle)}@${faceOf(e, end)}`
+}
+
+/** the nodes whose state ports keep one fan across faces (`fanKey`): some face
+ *  of the node has a routed state connection arriving and one leaving */
+function stateBlindNodes(ortho: LoopEdge[]): Set<string> {
+  const ins = new Set<string>()
+  const outs = new Set<string>()
+  for (const e of ortho) {
+    if (edgePortKind(e) !== 'state') continue
+    outs.add(`${e.source}@${faceOf(e, 'source')}`)
+    ins.add(`${e.target}@${faceOf(e, 'target')}`)
+  }
+  const out = new Set<string>()
+  for (const k of ins) if (outs.has(k)) out.add(k.slice(0, k.lastIndexOf('@')))
+  return out
 }
 const pkey = (e: LoopEdge): string => {
   const a = srcKey(e)
@@ -432,6 +449,8 @@ type Plan = {
   groups: Map<string, string[]>
   /** how many routed edges use each port */
   portUse: Map<string, number>
+  /** the nodes whose state ports keep one fan across faces (`fanKey`) */
+  stateBlind: Set<string>
   /** every routed end's reserved stretch, known before any route: its stub
    *  (port → branch point) and, at a fan, its first leg after the branch. A
    *  route pays `FAN_COST` to run along any of them but its own ports' stubs. */
@@ -481,13 +500,14 @@ function plan(nodes: LoopNode[], edges: LoopEdge[]): Plan {
   const groups = new Map<string, string[]>()
   const portUse = new Map<string, number>()
   const atPort = new Map<string, { e: LoopEdge; asSource: boolean }[]>()
+  const stateBlind = stateBlindNodes(ortho)
   for (const e of ortho) {
     const k = pkey(e)
     ;(groups.get(k) ?? groups.set(k, []).get(k)!).push(e.id)
     portUse.set(srcKey(e), (portUse.get(srcKey(e)) ?? 0) + 1)
     portUse.set(tgtKey(e), (portUse.get(tgtKey(e)) ?? 0) + 1)
-    const fs = fanKey(e, 'source')
-    const ft = fanKey(e, 'target')
+    const fs = fanKey(e, 'source', stateBlind)
+    const ft = fanKey(e, 'target', stateBlind)
     ;(atPort.get(fs) ?? atPort.set(fs, []).get(fs)!).push({ e, asSource: true })
     ;(atPort.get(ft) ?? atPort.set(ft, []).get(ft)!).push({ e, asSource: false })
   }
@@ -555,7 +575,7 @@ function plan(nodes: LoopNode[], edges: LoopEdge[]): Plan {
     const wps = (e.data as { waypoints?: unknown } | undefined)?.waypoints
     if (Array.isArray(wps) && wps.length > 0) bends.set(e.id, wps as Pt[])
   }
-  return { ortho, free, lines, byId, boxes: [...nodes.map(boxOf), ...nameBoxesOf(nodes)], groups, portUse, fans, reserved, bends }
+  return { ortho, free, lines, byId, boxes: [...nodes.map(boxOf), ...nameBoxesOf(nodes)], groups, portUse, stateBlind, fans, reserved, bends }
 }
 
 /** one edge, routed against the current layout and the given placed routes:
@@ -581,8 +601,8 @@ function routeInput(p: Plan, e: LoopEdge, others: ReadonlyMap<string, GuardedRes
     // siblings are members of one FAN (`fanKey`): two resource lines on two
     // faces of one handle are ordinary routes to each other — charged to run
     // along or cross, not excused from a stub they do not share
-    const atS = fanKey(o, 'source') === fanKey(e, 'source')
-    const atT = fanKey(o, 'target') === fanKey(e, 'target')
+    const atS = fanKey(o, 'source', p.stateBlind) === fanKey(e, 'source', p.stateBlind)
+    const atT = fanKey(o, 'target', p.stateBlind) === fanKey(e, 'target', p.stateBlind)
     if (!atS && !atT) {
       busy.push(r.points)
       continue
@@ -1153,8 +1173,8 @@ function report(nodes: LoopNode[], edges: LoopEdge[], map: Map<string, RoutedEdg
       const a = p.ortho[i]
       const b = p.ortho[j]
       if (pkey(a) === pkey(b)) continue
-      const atS = fanKey(a, 'source') === fanKey(b, 'source')
-      const atT = fanKey(a, 'target') === fanKey(b, 'target')
+      const atS = fanKey(a, 'source', p.stateBlind) === fanKey(b, 'source', p.stateBlind)
+      const atT = fanKey(a, 'target', p.stateBlind) === fanKey(b, 'target', p.stateBlind)
       if (!atS && !atT) continue
       const ra = map.get(a.id)
       const rb = map.get(b.id)

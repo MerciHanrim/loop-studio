@@ -792,10 +792,18 @@ pinned single-edge core (golden + differential tests); the app no longer calls i
   - Which connections form one fan (share note 54, Lumi 2026-10-15): for a
     RESOURCE port, the node, the handle id AND the face — the same `out` on the
     bottom and on the right face are two stubs in two places, two fans. A
-    STATE port keeps one fan across its faces, as before: grouping it by face
-    uncovers an arriving and a leaving state connection meeting at one anchor
-    of one face, which is a separate unit. A resource `in` and `out` are never
-    one fan, even where a face puts them on one anchor. The same key decides
+    STATE port is grouped by face too (Lumi, 2026-10-24): three state lines
+    reaching one node on its left, top and right faces are three ports, so none
+    of them gets a third of a stub and a branch turned toward another face —
+    the steps and hooks the gacha Templates showed into Pulls made, and the
+    short drops out of each result's state port. The one exception keeps the
+    reason the state half had waited for (share note 54): on a node where some
+    face carries an arriving AND a leaving state connection (they meet at that
+    face's one anchor), the node's state ports keep one fan per handle across
+    its faces, as before, so the two are not drawn together past the stub (the
+    3-zone gacha's Pity top and Roll — forced, owed bottom). A resource `in` and
+    `out` are never one fan, even where a face puts them on one anchor. The
+    same key decides
     the sibling relation while routing: a sibling's route is cut at the shared
     stub (not charged there) and offered as lanes, anything else is an
     ordinary obstacle — so two resource lines on two faces of one handle no
@@ -827,6 +835,32 @@ pinned single-edge core (golden + differential tests); the app no longer calls i
     offset (§ER3.7).
   - Measured (every connection routed): Early MMO 0 fan overlaps (a port with
     17 connections included), the 3-zone gacha 0; 0 `fanBlocked`.
+  - **A bend point on the source port's own stub** (2026-10-24): when the
+    first stored bend point lies on the source stub — on the port's line, past
+    the port, no further than the stub's end — the stub ends there and the line
+    leaves the port straight to it. Without this, the first span had to leave
+    the stub's end in the port's direction and could reach a point behind it
+    only by stepping aside and coming back (the standard gacha's `=0` line out
+    of SSR result climbed 16 px and crossed the forced-SSR line). Not at a
+    fan's port, whose branch points are shared. The target needs no such rule:
+    its last span may turn back onto the stub, so a point there is already met.
+  - **Known, not fixed** (recorded 2026-10-24; separate follow-ups):
+    - The search adds the bend cost to the pick order (`f`) but not to the
+      choice between two ways into one lattice point, which compares `g`
+      (length, run-along and crossing surcharges) and counts bends only on a
+      tie. So a route with more bends can win when its `g` is lower: the pickup
+      gacha's SSR result → Pulls made (`v_ssr_pull`) takes a detour of 5
+      bends (`g` 847, `g` + bends × `BEND_COST` = 947) over its earlier route
+      of 3 (`g` 867, 927), which is still valid at the same clearance and
+      would score lower. The earlier route's `g` rose by 28 when the state
+      fan was grouped by face: the right-face line to SSR count stopped being
+      its sibling, so crossing it is charged now.
+    - A node whose four faces all carry a connection puts its outside name
+      below (`nameFaceFor`), on its bottom port's line, and the router keeps
+      every line clear of every name, its own node's included — so a line
+      leaving that bottom port goes round the name (the gacha Templates'
+      result → count lines). The state-fan and stub rules above do not touch
+      it; moving the name beside the line is a separate design.
 - The judge (survey and collision check) keeps the same-port trunk as an
   informational count; unrelated line-on-line overlap is a failure.
 - A label takes the first free slot on its own route — the midpoint, then 0.4,
