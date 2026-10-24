@@ -115,6 +115,20 @@ here so a reader does not take it for an approved normal look, nor for a fix.
   phone L2 shots carry the same crossing under the same acceptance; their
   framing is a separate, still-open item.
 
+### What a low-zoom whole-diagram shot does not catch (recorded 2026-10-24)
+
+A pass means no pixel differs by more than the YIQ threshold (0.2) beyond the
+kind's ratio — not that nothing changed. On a whole-diagram fit at a low zoom
+the lines are thin and faint, so a moved line can stay under the threshold
+pixel by pixel. Measured with the state-fan fix (§ER14.3): the 3-zone gacha's
+`flow-views-template-gacha-light` / `-dark` (whole fit, about 0.25) differed in
+2,010 / 2,405 pixels at threshold 0, all on the moved lines and their labels,
+and in 0 pixels at 0.2, so the test passed unchanged; main's router against
+the same baselines differed in 0 pixels at threshold 0. Those two baselines
+were regenerated because the drawing did change. A routing change is
+therefore checked by its route dump and same-view close-ups, not by these
+shots alone. The policy and its numbers are unchanged.
+
 ## Adding a snapshot
 
 1. Register the stem in `SNAPSHOTS` (`e2e/support/snapshot-policy.ts`) with its

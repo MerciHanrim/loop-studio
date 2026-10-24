@@ -811,6 +811,14 @@ function stubEnd(port: Pt, pos: Position, own: Box | null, fills: IBox[], want: 
   return { x: q(port.x + n.x * (base + len)), y: q(port.y + n.y * (base + len)) }
 }
 
+/** is `p` on the stub from `port` to `end` — on its line, past the port and
+ *  no further than the stub's end? */
+function onStub(port: Pt, end: Pt, p: Pt): boolean {
+  if (near(port.x, end.x)) return near(p.x, port.x) && (p.y - port.y) * (end.y - port.y) > COORD_EPS && Math.abs(p.y - port.y) <= Math.abs(end.y - port.y) + COORD_EPS
+  if (near(port.y, end.y)) return near(p.y, port.y) && (p.x - port.x) * (end.x - port.x) > COORD_EPS && Math.abs(p.x - port.x) <= Math.abs(end.x - port.x) + COORD_EPS
+  return false
+}
+
 /** does any segment of `pts` from index `from` to `to` (exclusive end) cross a fill? */
 function crossesFill(pts: Pt[], from: number, to: number, fills: IBox[]): boolean {
   for (let i = from + 1; i <= to; i++) if (!segFree(pts[i - 1], pts[i], fills)) return true
@@ -890,10 +898,21 @@ export function* guardedRouteSteps(inp: GuardedInput): Generator<string, Guarded
   function* solve(fanOn: boolean): Generator<string, GuardedResult | null> {
     const sf = fanOn ? inp.sourceFan : undefined
     const tf = fanOn ? inp.targetFan : undefined
-    const stubA = stubEnd(src, inp.sourcePosition, inp.sourceBox, stubFillsS, sf?.len ?? ROUTE_STUB)
+    let stubA = stubEnd(src, inp.sourcePosition, inp.sourceBox, stubFillsS, sf?.len ?? ROUTE_STUB)
     const stubB = stubEnd(tgt, inp.targetPosition, inp.targetBox, stubFillsT, tf?.len ?? ROUTE_STUB)
+    // a bend point the user placed ON the source port's own stub (between the
+    // port and the stub's end, on the port's line) ends that stub there: the
+    // first span leaves the stub's end in the port's direction, so it could
+    // only reach a point behind it by stepping aside and coming back. Not at a
+    // fan's port, whose branch points are shared. (At the target the last span
+    // may turn back onto the stub, so a point there needs nothing.)
+    let inner = wps
+    if (!sf && inner.length > 0 && onStub(src, stubA, inner[0])) {
+      stubA = inner[0]
+      inner = inner.slice(1)
+    }
     const stubs: [Pt, Pt, Pt, Pt] = [src, stubA, stubB, tgt]
-    const anchors: Pt[] = [stubA, ...wps, stubB]
+    const anchors: Pt[] = [stubA, ...inner, stubB]
     // the own nodes keep a clearance just inside the shortest branch, so a
     // branch point is always outside them
     const ownPad = (pad: number) => Math.max(0, Math.min(pad, Math.min(sf?.len ?? ROUTE_STUB, tf?.len ?? ROUTE_STUB) - 1))

@@ -8,6 +8,7 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 ## Unreleased
 
 - **No stray text selection in the bars, no frame round the first screen's title.** A drag that starts between the menus, on a tool-row label such as Connect, or on the status bar no longer selects their words, which a canvas click could not clear; panels, menus, fields and help text select as before. Clicking the title of the first screen (Before Loop Studio opens) no longer draws a focus frame round it; Tab still shows the focus on its buttons and boxes.
+- **Fewer steps and hooks in automatic lines.** Dashed lines on different sides of one node were wrongly routed as one bundle, which gave them small steps or hooks next to the node; they are now routed per side, so those steps and hooks are reduced. A node where one side has a dashed line coming in and one going out keeps the earlier bundling. A line whose first bend point sits right by its port now leaves straight to it. Not every automatic-line problem is solved: a line leaving a node's bottom can still go round that node's own name when all four sides of the node have connections, and one pickup-gacha line keeps a detour.
 
 ## v0.30.0 — 2026-10-24
 
