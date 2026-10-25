@@ -4264,6 +4264,61 @@ a.sheet__row {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
+/* the desktop run bar's transport (Lumi's run-button study, 2026-10-25, on
+   trial): 24 px high, the 16 px drawings at their own size, Reset and Step
+   30 px wide, the main button filled with the accent. Colours are the theme's
+   tokens; the label on the fill takes --on-focus (white on the light accent,
+   near-black on the dark one, as on the focus blue). Disabled keeps the
+   product's disabled tokens, no opacity. */
+.pb-btn--transport {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 24px;
+  width: 30px;
+  padding: 0;
+}
+.pb-btn--transport > .icon,
+.pb-btn--transport > .icon.icon--lead {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.pb-btn--transport.pb-btn--primary {
+  width: auto;
+  padding: 0 10px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-focus);
+}
+.pb-btn--transport:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bg-raise) 80%, var(--ink-1));
+}
+.pb-btn--transport.pb-btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 86%, var(--ink-1));
+  border-color: color-mix(in srgb, var(--accent) 86%, var(--ink-1));
+}
+.pb-btn--transport:active:not(:disabled) {
+  background: color-mix(in srgb, var(--bg-raise) 68%, var(--ink-1));
+}
+.pb-btn--transport.pb-btn--primary:active:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 72%, var(--ink-1));
+  border-color: color-mix(in srgb, var(--accent) 72%, var(--ink-1));
+}
+.pb-btn--transport.pb-btn--primary:disabled {
+  background: var(--bg-raise);
+  border-color: var(--line-disabled);
+  color: var(--ink-disabled);
+}
+@media (forced-colors: active) {
+  /* the fill is dropped; the main button keeps its weight with a 2 px edge */
+  .pb-btn--transport.pb-btn--primary {
+    border-width: 2px;
+  }
+}
 .pstrip__step {
   font-family: var(--font-mono);
   font-size: 11px;

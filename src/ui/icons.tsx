@@ -59,6 +59,14 @@ export const ICONS = {
   step: [p('M3.5 3V13L10 8Z', { fill: true }), p('M12.5 3V13', { strokeWidth: 2 })],
   reset: [p('M12.5 8A4.5 4.5 0 1 1 9.7 3.84M12.5 3.5V7H9')],
   replay: [p('M3.5 8A4.5 4.5 0 1 0 6.3 3.84M3.5 3.5V7H7')],
+  // the desktop run bar's own transport drawings (Lumi's run-button study,
+  // 2026-10-25): one 1.5 stroke, round ends, the play shapes filled; drawn for
+  // 16 px, the size they are shown at. The phone's run bar keeps the ones above.
+  'run-play': [p('M5.25 3.4Q4.5 2.95 4.5 3.85V12.15Q4.5 13.05 5.25 12.6L12.1 8.55Q13 8 12.1 7.45Z', { fill: true })],
+  'run-pause': [rect(4, 3, 3, 10, 0.7, { fill: true }), rect(9, 3, 3, 10, 0.7, { fill: true })],
+  'run-step': [p('M3.8 3.6Q3.25 3.25 3.25 4V12Q3.25 12.75 3.8 12.4L9.45 8.5Q10.15 8 9.45 7.5Z', { fill: true }), p('M12.25 3.5V12.5', { strokeWidth: 1.5 })],
+  'run-reset': [p('M3.25 6A5 5 0 1 1 3.35 10.25M3.25 2.75V6.25H6.75', { strokeWidth: 1.5 })],
+  'run-replay': [p('M12.75 6A5 5 0 1 0 12.65 10.25M12.75 2.75V6.25H9.25', { strokeWidth: 1.5 })],
   // theme
   sun: [c(8, 8, 3), p('M8 1.5V3M8 13V14.5M1.5 8H3M13 8H14.5M3.4 3.4L4.5 4.5M11.5 11.5L12.6 12.6M3.4 12.6L4.5 11.5M11.5 4.5L12.6 3.4')],
   moon: [p('M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5A5.5 5.5 0 1 0 13.5 9.5Z')],
