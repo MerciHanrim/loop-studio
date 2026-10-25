@@ -196,26 +196,26 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
       data-tour="playback"
     >
       <div className="pstrip__group">
-        <button type="button" className="pb-btn pstrip__reset" onClick={reset} title={t('playbar.reset.title')} aria-label={t('playbar.reset.title')}>
-          <Icon name="reset" />
+        <button type="button" className="pb-btn pb-btn--transport pstrip__reset" onClick={reset} title={t('playbar.reset.title')} aria-label={t('playbar.reset.title')}>
+          <Icon name="run-reset" />
         </button>
         <button
           type="button"
-          className="pb-btn pstrip__step-btn"
+          className="pb-btn pb-btn--transport pstrip__step-btn"
           onClick={stepOnce}
           disabled={running || initError != null}
           title={t('playbar.step.title')}
           aria-label={t('playbar.step.title')}
         >
-          <Icon name="step" />
+          <Icon name="run-step" />
         </button>
         <button
           type="button"
-          className={`pb-btn pb-btn--primary${running ? ' is-running' : ''}`}
+          className={`pb-btn pb-btn--transport pb-btn--primary${running ? ' is-running' : ''}`}
           onClick={onPrimary}
           disabled={initError != null}
         >
-          <Icon name={ended ? 'replay' : running ? 'pause' : 'play'} className="icon--lead" />
+          <Icon name={ended ? 'run-replay' : running ? 'run-pause' : 'run-play'} className="icon--lead" />
           {ended ? t('playbar.replay') : running ? t('playbar.pause') : t('playbar.play')}
         </button>
       </div>

@@ -179,7 +179,7 @@ test.describe('§L9.3 arrows — the drawing follows the reader, or deliberately
         })),
       )
     const before = await read()
-    expect(before.map((s) => s.icon)).toEqual(expect.arrayContaining(['reset', 'step', 'play']))
+    expect(before.map((s) => s.icon)).toEqual(expect.arrayContaining(['run-reset', 'run-step', 'run-play']))
     expect(before.every((s) => s.arrow === null), 'no transport icon is a direction-aware arrow').toBe(true)
     await switchLocale(page, 'ar-XB')
     await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('dir'))).toBe('rtl')

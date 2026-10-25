@@ -7,6 +7,8 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **Clearer run buttons.** In the run bar, Reset, Step and Play are redrawn and shown at their full size instead of squeezed, so their shapes are crisper; Play (Pause while running, Replay at the end) is filled with the accent colour, so the main action stands out. The buttons keep their place, height and names; in high-contrast mode the main button has a thicker edge. The phone's run bar is unchanged.
+
 ## v0.30.1 — 2026-10-25
 
 The workbench and the automatic lines, tidied: values in the model list, larger small text in the run bar and the timeline, no stray text selection in the bars, and fewer steps, hooks and cramped arrowheads in automatic lines.
