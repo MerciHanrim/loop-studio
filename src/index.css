@@ -8085,6 +8085,12 @@ input[type='number']::-webkit-inner-spin-button {
   border-color: var(--focus);
   box-shadow: inset 0 0 0 1px var(--focus);
 }
+/* The run bar's filled Play: the --focus border all but vanishes against the
+   accent fill (about 1.1 : 1), so a 2 px ring in the label's own colour is
+   drawn inside it as well; the border and halo above stay. */
+.pb-btn--transport.pb-btn--primary:focus-visible:not(:disabled) {
+  box-shadow: inset 0 0 0 2px var(--on-focus), 0 0 0 3px var(--focus-halo);
+}
 
 /* forced colours drop `box-shadow`, and a recoloured border is not a focus
    indicator the system promises. Every selector above said `outline: none`, so
