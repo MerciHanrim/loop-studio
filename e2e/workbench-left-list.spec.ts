@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, routesSettled, test } from './support/loop'
+import { expect, importGraph, openApp, resetAll, routesSettled, test } from './support/loop'
 import { pickTemplate } from './support/workbenchMenus'
 
 // docs/workbench.md §WB5 — the left list finds a node and selects it; the view
@@ -209,5 +209,70 @@ test.describe('the left list under Focus mode', () => {
     const s = await state(page)
     expect(s.selectedNodeId).toBe(far)
     expect(s.storeClasses).toEqual([])
+  })
+})
+
+// A row's value (2026-10-25, v0.30.1): the name gives way first. A short value
+// is shown whole beside a long name; only a value wider than a third of the
+// row is cut short, and the row's name and the value's tooltip still carry it
+// whole. Name and value never overlap and stay inside the row.
+const LONG = 'Premium Standard · Hard pity ceiling for the pickup zone'
+const VALUES = JSON.stringify({
+  schema: 'loop-studio/graph',
+  version: 1,
+  nodes: [
+    { id: 'p_ten', type: 'parameter', position: { x: 0, y: 0 }, data: { kind: 'parameter', label: `${LONG} A`, value: 10 } },
+    { id: 'p_two', type: 'parameter', position: { x: 0, y: 120 }, data: { kind: 'parameter', label: `${LONG} B`, value: 200 } },
+    { id: 'p_big', type: 'parameter', position: { x: 0, y: 240 }, data: { kind: 'parameter', label: `${LONG} C`, value: 123456789012.75 } },
+    { id: 'p_short', type: 'parameter', position: { x: 0, y: 360 }, data: { kind: 'parameter', label: 'Rate', value: 123456789012.75 } },
+  ],
+  edges: [],
+})
+
+test.describe('the left list shows each value beside its name', () => {
+  test('at 1280 × 800: 10 and 200 whole beside a long name; a very long value cut within a third of the row', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, VALUES)
+    const read = (id: string) =>
+      page.evaluate((id) => {
+        const row = document.querySelector(`.wb-row[data-node="${id}"]`) as HTMLElement
+        const name = row.querySelector('.wb-row__name') as HTMLElement
+        const val = row.querySelector('.wb-row__val') as HTMLElement
+        const rr = row.getBoundingClientRect()
+        const nr = name.getBoundingClientRect()
+        const vr = val.getBoundingClientRect()
+        const cs = getComputedStyle(row)
+        return {
+          text: val.textContent,
+          title: val.title,
+          valWhole: val.scrollWidth <= val.clientWidth,
+          nameWhole: name.scrollWidth <= name.clientWidth,
+          valShare: vr.width / rr.width,
+          apart: nr.right <= vr.left + 0.5,
+          inside: vr.right <= rr.right - parseFloat(cs.paddingRight) + 0.5 && nr.left >= rr.left,
+        }
+      }, id)
+
+    for (const [id, text] of [['p_ten', '10'], ['p_two', '200']] as const) {
+      const r = await read(id)
+      expect(r.text, `${id}: the value`).toBe(text)
+      expect(r.valWhole, `${id}: ${text} is shown whole`).toBe(true)
+      expect(r.nameWhole, `${id}: the long name gives way`).toBe(false)
+      expect(r.apart, `${id}: name and value do not overlap`).toBe(true)
+      expect(r.inside, `${id}: inside the row`).toBe(true)
+    }
+    for (const id of ['p_big', 'p_short']) {
+      const r = await read(id)
+      expect(r.valWhole, `${id}: a very long value is cut short`).toBe(false)
+      expect(r.valShare, `${id}: within a third of the row`).toBeLessThanOrEqual(1 / 3 + 0.01)
+      expect(r.title, `${id}: the tooltip keeps it whole`).toBe('123456789012.75')
+      expect(r.apart, `${id}: name and value do not overlap`).toBe(true)
+      expect(r.inside, `${id}: inside the row`).toBe(true)
+    }
+    // the name, a comma, and the value whole (the name and the value are flex
+    // items, so the name computation may put a space before the comma)
+    await expect(page.locator('.wb-row[data-node="p_big"]')).toHaveAccessibleName(/ C ?, 123456789012\.75$/)
+    await expect(page.locator('.wb-row[data-node="p_two"]')).toHaveAccessibleName(/ B ?, 200$/)
   })
 })
