@@ -8,6 +8,7 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 ## Unreleased
 
 - **Clearer run buttons.** In the run bar, Reset, Step and Play are redrawn and shown at their full size instead of squeezed, so their shapes are crisper; Play (Pause while running, Replay at the end) is filled with the accent colour, so the main action stands out. The buttons keep their place, height and names; in high-contrast mode the main button has a thicker edge. The phone's run bar is unchanged.
+- **Model list: selection and keyboard focus both visible.** In the left panel's list, a selected row reached with the keyboard keeps its focus ring next to the selection bar; before, the bar covered the ring. In high-contrast mode a selected row is now shown in the system highlight colour and the keyboard-focused row has its own ring; before, neither showed.
 
 ## v0.30.1 — 2026-10-25
 

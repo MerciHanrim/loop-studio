@@ -496,14 +496,22 @@
 .wb-row:hover,
 .wb-row:focus-visible {
   background: var(--bg-hover);
-  outline: none;
 }
+/* keyboard focus is an outline of its own, not a box-shadow: the selected
+   row's bar is the box-shadow, and on the selected row it covered the focus
+   ring (2026-10-25, reproduced by keyboard in light and dark; Lumi's sidebar
+   row study). The outline also survives forced colours, which drop shadows */
 .wb-row:focus-visible {
-  box-shadow: inset 0 0 0 2px var(--focus);
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
 }
 .wb-row.is-sel {
   background: var(--sel-soft);
   box-shadow: inset 2px 0 0 var(--sel);
+}
+/* selected and focused: the bar moves inside the ring, so both stay */
+.wb-row.is-sel:focus-visible {
+  box-shadow: inset 4px 0 0 var(--sel);
 }
 .wb-row__name {
   flex: 1 1 auto;
@@ -926,6 +934,27 @@
   .wb-connect__kind[aria-checked='true']:focus-visible,
   .wb-status .wb-zb[aria-pressed='true']:focus-visible,
   .wb-panel-toggle[aria-expanded='true']:focus-visible {
+    outline-color: HighlightText;
+    outline-offset: -4px;
+  }
+  /* the left list's selected row, the same pair: the override dropped its
+     tint and its bar, so it showed as any other row (Chromium emulation,
+     2026-10-25). Its name, value and kind mark lose their backplate and take
+     HighlightText; keyboard focus is a Highlight ring, HighlightText and 2 px
+     further in on the selected row */
+  .wb-row.is-sel,
+  .wb-row.is-sel:hover {
+    background: Highlight;
+    color: HighlightText;
+  }
+  .wb-row.is-sel :is(.wb-row__name, .wb-row__val, .wb-kindmark) {
+    forced-color-adjust: none;
+    color: HighlightText;
+  }
+  .wb-row:focus-visible {
+    outline-color: Highlight;
+  }
+  .wb-row.is-sel:focus-visible {
     outline-color: HighlightText;
     outline-offset: -4px;
   }
