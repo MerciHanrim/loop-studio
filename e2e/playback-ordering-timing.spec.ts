@@ -385,9 +385,10 @@ test.describe('playback ordering — real-time cascade timing (PR 2)', () => {
     expect(worst).toBe(0)
   })
 
-  /** The MMO beat, and how much a step may run past BEAT_SETTLE · SPEED: the
-   *  straddling frame gap (observation error) capped at MAX_GAP_MS, plus
-   *  SLACK_MS for the settle tick's own work before the store reports it. */
+  /** The MMO beat, and how far a step may land from BEAT_SETTLE · SPEED: past
+   *  it, the straddling frame gap (observation error) capped at MAX_GAP_MS plus
+   *  SLACK_MS for the settle tick's own work before the store reports it;
+   *  short of it, SLACK_MS for the begin tick's work before the start is read. */
   const SPEED = 1200
   const MAX_GAP_MS = 250
   const SLACK_MS = 40
@@ -451,9 +452,11 @@ test.describe('playback ordering — real-time cascade timing (PR 2)', () => {
     // MAX_GAP_MS: a longer stall fails here instead of widening the limit.
     // The frame rate is only logged — it measures the runner, not the beat.
     const due = BEAT_SETTLE * SPEED
+    // null = no recorded frame on one side of the moment: not observed, and
+    // the step then fails as "insufficient observation", never a free allowance
     const gapAround = (at: number) => {
       const i = rec.frames.findIndex((t) => t >= at)
-      return i > 0 ? rec.frames[i] - rec.frames[i - 1] : MAX_GAP_MS
+      return i > 0 ? rec.frames[i] - rec.frames[i - 1] : null
     }
     console.log(`[beat] mmo ${SPEED} ms: ${frames} frames in ${Math.round(elapsed)} ms`)
     expect(rec.ends.length).toBeGreaterThanOrEqual(2)
@@ -461,10 +464,14 @@ test.describe('playback ordering — real-time cascade timing (PR 2)', () => {
       const start = rec.starts[k]
       const end = rec.ends.find((t) => t > start)!
       const lasted = end - start
-      const gap = gapAround(start + due)
+      const seen = gapAround(start + due)
+      expect(seen, `step ${k + 1}: insufficient observation — no frame recorded on both sides of its due moment`).not.toBeNull()
+      const gap = seen!
       const limit = due + Math.min(gap, MAX_GAP_MS) + SLACK_MS
       console.log(`[beat] step ${k + 1}: ${lasted.toFixed(1)} ms (due ${due}, straddling gap ${gap.toFixed(1)} ms, limit ${limit.toFixed(1)} ms)`)
-      expect(lasted, `step ${k + 1} ended before its beat`).toBeGreaterThanOrEqual(due - 1)
+      // the start is read when the store reports the transition, after the begin
+      // tick's own work (the stagger schedule); the beat clock started before it
+      expect(lasted, `step ${k + 1} ended before its beat`).toBeGreaterThanOrEqual(due - SLACK_MS)
       expect(lasted, `step ${k + 1} stretched past its beat`).toBeLessThanOrEqual(limit)
     }
   })
