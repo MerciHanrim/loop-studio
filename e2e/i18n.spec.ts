@@ -336,7 +336,7 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
     await importGraph(page, G)
     await ensureTimelineOpen(page)
 
-    await expect(page.locator('.timeline__head')).toContainText('timeline')
+    await expect(page.locator('.timeline__head')).toContainText('Timeline')
     await page.evaluate(() => {
       const s = (window as any).__loop.sim.getState()
       s.advance()

@@ -62,6 +62,8 @@ const ui = {
   'playbar.steady': '정상 상태 — 흐름은 계속됨',
   'playbar.timeline.show': '타임라인 표시',
   'playbar.timeline.hide': '타임라인 숨기기',
+  'playbar.timeline.short': '타임라인',
+  'playbar.timeline.newResult': '새 결과',
   'runbar.ariaLabel': '실행 컨트롤',
   'runbar.mc.cancel': 'MC {pct}% · 취소',
   'runbar.timeline': '타임라인',

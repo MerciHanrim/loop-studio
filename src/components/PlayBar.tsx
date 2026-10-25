@@ -77,6 +77,18 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   const running = status === 'running'
   const ended = status === 'ended'
 
+  // the step the timeline was last open at: the run going past it while the
+  // timeline is folded is a new result; a reset below it clears the mark
+  // (adjusted while rendering, React's pattern for state that follows a prop)
+  const [seenStep, setSeenStep] = useState(stepIndex)
+  if ((!collapsed || stepIndex < seenStep) && seenStep !== stepIndex) setSeenStep(stepIndex)
+  const newResult = collapsed && stepIndex > seenStep
+  const collapseLabel = collapsed
+    ? newResult
+      ? `${t('playbar.timeline.show')}, ${t('playbar.timeline.newResult')}`
+      : t('playbar.timeline.show')
+    : t('playbar.timeline.hide')
+
   // docs/simulation-playback-ordering.md §PBO5 — the "Steady state — flows
   // continue" status, beside the current step. Its room is kept whether it is
   // shown or not (`visibility`), so it never shifts a control or the strip
@@ -301,15 +313,25 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
 
       <button
         type="button"
-        className="pb-btn pstrip__collapse"
+        className={`pb-btn pstrip__collapse${newResult ? ' has-new' : ''}`}
         onClick={onToggleCollapse}
         // docs/timeline-series-contract.md §7 — the state is exposed, not only
         // implied by the swapped title (the section headers and the legend
         // trigger both expose `aria-expanded`; this one did not)
         aria-expanded={!collapsed}
-        aria-label={collapsed ? t('playbar.timeline.show') : t('playbar.timeline.hide')}
-        title={collapsed ? t('playbar.timeline.show') : t('playbar.timeline.hide')}
+        aria-label={collapseLabel}
+        title={collapseLabel}
       >
+        {/* folded, the button names what it opens and says when the run has
+            gone on since (2026-10-25, Lumi: "결과 보기 · 새 결과" — in words,
+            not by colour alone); the words go first when the row is short */}
+        {collapsed && (
+          <span className="pstrip__collapse-text" aria-hidden="true">
+            {t('playbar.timeline.short')}
+            {newResult && <> · {t('playbar.timeline.newResult')}</>}
+          </span>
+        )}
+        {newResult && <span className="pstrip__new-dot" aria-hidden="true" />}
         <Icon name={collapsed ? 'chevron-up' : 'chevron-down'} />
       </button>
 

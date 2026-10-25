@@ -305,7 +305,7 @@ async function load(page: Page, scheme: 'light' | 'dark', graph: Ctl['graph']) {
   if (graph === 'fixture-mc') {
     await importGraph(page, readFixture())
     await runMc(page, { baseSeed: 1, runs: 20, steps: 6, tracked: FIXTURE_POOLS_4 })
-    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
+    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
     // the Distribution view raises the area to its own minimum (2026-10-20,
     // TimelineChart.tsx `DISTRIBUTION_MIN`): its controls are measured as the
     // view first shows them, nothing resized by the test

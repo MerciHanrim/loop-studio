@@ -157,10 +157,12 @@ export function Toolbar() {
   // undo and redo come out of ONE table, so they swap into each other rather than
   // being two literals that have to stay opposite by hand
   const activeLocale = useI18n((s) => s.activeLocale)
-  const projectOpen = useProjectStore((s) => s.open != null)
+  const projectChip = useProjectStore((s) =>
+    s.open ? `${s.open.role}:${s.open.revisionId}:${s.dirty ? 1 : 0}` : '',
+  )
   const { layout, measuring, setToolbar, setBrand, setCore, setMore, setItem } = useToolbarOverflow(
     activeLocale,
-    projectOpen,
+    projectChip,
   )
   // the tool row gives up its words, not its buttons, when it runs out of
   // width (./workbench/toolRowFit)

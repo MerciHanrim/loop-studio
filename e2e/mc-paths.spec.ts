@@ -176,7 +176,7 @@ for (const path of ['worker', 'coop'] as const) {
       await waitStatus(page, 'done')
       const r0 = await mcResultJson(page)
       expect(JSON.parse(r0!).completedRuns).toBe(120)
-      await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
+      await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
 
       // 2 — start a big run, cancel it mid-flight
       await setConfig(page, BIG)

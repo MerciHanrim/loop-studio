@@ -47,7 +47,7 @@ test.describe('the Distribution view has its own minimum (contract §7)', () => 
     expect(before.area).toBe(152)
 
     await runMc(page, { baseSeed: 1, runs: 200, steps: 30, tracked: FIXTURE_POOLS_4 })
-    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
+    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
     await expect.poll(async () => (await state(page)).area).toBe(DISTRIBUTION_MIN)
     const shown = await state(page)
     expect(shown.chart, 'the band chart is drawn').toBeGreaterThan(60)
@@ -84,7 +84,7 @@ test.describe('the Distribution view has its own minimum (contract §7)', () => 
     for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowUp') // 152 + 192
     await expect.poll(async () => (await state(page)).area).toBe(344)
     await runMc(page, { baseSeed: 1, runs: 50, steps: 20, tracked: FIXTURE_POOLS_4 })
-    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
+    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
     expect((await state(page)).area).toBe(344)
     await viewTab(page, 0).click()
     expect((await state(page)).area).toBe(344)

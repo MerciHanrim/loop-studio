@@ -1,6 +1,7 @@
 import { useId, useMemo, useState } from 'react'
-import type { NodeKind } from '../../model/types'
+import type { NodeData, NodeKind } from '../../model/types'
 import { useGraphStore } from '../../store/graphStore'
+import { useSimStore } from '../../store/simStore'
 import { useT, type MessageKey } from '../../i18n'
 import { useIsMobile } from '../../ui/media'
 import { Icon } from '../../ui/icons'
@@ -31,6 +32,28 @@ const norm = (s: string) => s.toLocaleLowerCase().replace(/\s+/g, ' ').trim()
 /** a node kind's symbol, small: the same mark as the tool row's Add button */
 function KindMark({ kind }: { kind: NodeKind }) {
   return <KindIcon kind={kind} className="wb-kindmark" />
+}
+
+/** the row's value, Parameters and Pools only (2026-10-25, Lumi's v6 study):
+ *  the Parameter's value, the Pool's run value or its start — the number its
+ *  node shows, in the node's format. One subscription per row, so a run step
+ *  re-renders the values, not the list. */
+const fmtValue = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2))
+function RowValue({ id, data }: { id: string; data: NodeData }) {
+  const live = useSimStore((s) => (data.kind === 'pool' && s.values ? s.values[id] : undefined))
+  const v = data.kind === 'parameter' ? data.value : data.kind === 'pool' ? (live ?? data.initial) : undefined
+  if (v === undefined || !Number.isFinite(v)) return null
+  const text = fmtValue(v)
+  // the comma is heard, not seen: the row's name reads "name, value", the
+  // whole value even where the row shows it cut short
+  return (
+    <>
+      <span className="sr-only">, </span>
+      <span className="wb-row__val" dir="ltr" title={text}>
+        {text}
+      </span>
+    </>
+  )
 }
 
 export function LeftPanel() {
@@ -121,7 +144,10 @@ export function LeftPanel() {
               groups.byKind.map((g) => (
                 <div key={g.kind} className="wb-list__group" role="group" aria-label={t(`canvas.nodeKind.${g.kind}` as MessageKey)}>
                   <div className="wb-list__sub" aria-hidden="true">
-                    {t(`canvas.nodeKind.${g.kind}` as MessageKey)} <span dir="ltr">{g.rows.length}</span>
+                    {t(`canvas.nodeKind.${g.kind}` as MessageKey)}{' '}
+                    <span className="wb-list__subcount" dir="ltr">
+                      {g.rows.length}
+                    </span>
                   </div>
                   {g.rows.map((n) => (
                     <button
@@ -137,6 +163,7 @@ export function LeftPanel() {
                       <span className="wb-row__name" dir="auto">
                         {labelOf(n)}
                       </span>
+                      <RowValue id={n.id} data={n.data as NodeData} />
                     </button>
                   ))}
                 </div>

@@ -189,7 +189,7 @@ test('offline Monte-Carlo: the precached worker chunk runs a real distribution',
   await p2.keyboard.press('Escape')
 
   await expect(p2.locator('.dist')).toBeVisible({ timeout: 20_000 })
-  await expect(p2.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
+  await expect(p2.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
 
   await context.setOffline(false)
 })

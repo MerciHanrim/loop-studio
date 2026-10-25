@@ -291,7 +291,7 @@ test.describe('the step reading on the run chart (§7a)', () => {
     await page.mouse.click(v3.x, v3.y)
     await expect(reading(page)).toBeVisible()
     await runMc(page, { baseSeed: 1, runs: 10, steps: 6, tracked: ['p1'] })
-    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
+    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
     await expect(reading(page)).toBeHidden()
     await expect(page.locator('.timeline__pin')).toBeHidden()
   })
