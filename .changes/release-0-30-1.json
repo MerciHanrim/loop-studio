@@ -1,0 +1,1 @@
+{ "type": "user-facing", "changelog": "- **A short value in the model list is shown whole.** Beside a long name, a short value such as 10 or 200 was cut short too (2… or 1…), because the name and the value gave way together. The name now gives way first; only a value wider than a third of the row is cut short, and the row's name and the value's tooltip still read it whole." }

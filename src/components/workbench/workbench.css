@@ -513,9 +513,11 @@
   white-space: nowrap;
 }
 /* a Parameter's or Pool's value at the row's end: fixed-width digits, never
-   more than a third of the row, so a long value cannot push the name out */
+   more than a third of the row, so a long value cannot push the name out.
+   It does not shrink below its own width (v0.30.1): the name gives way first,
+   and only a value wider than the third is cut short */
 .wb-row__val {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   max-width: 33%;
   overflow: hidden;
   text-overflow: ellipsis;
