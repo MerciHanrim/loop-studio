@@ -50,7 +50,7 @@ test.describe('Monte Carlo run', () => {
     // the distribution panel + its header are on screen
     await expect(page.locator('.dist')).toBeVisible()
     await expect(page.locator('.dist__stat', { hasText: 'Ended' })).toContainText('0%')
-    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
+    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
   })
 
   test('the LIVE-view legend is hidden in DISTRIBUTION and returns in LIVE', async ({ page }) => {
@@ -61,13 +61,13 @@ test.describe('Monte Carlo run', () => {
 
     // run() lands on DISTRIBUTION — the LIVE legend must not compete with the
     // distribution stats row
-    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
+    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
     await expect(legend).toBeHidden()
 
-    await tab('LIVE').click()
+    await tab('Live').click()
     await expect(legend).toBeVisible()
 
-    await tab('DISTRIBUTION').click()
+    await tab('Distribution').click()
     await expect(legend).toBeHidden()
   })
 

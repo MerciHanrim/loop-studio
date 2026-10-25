@@ -652,7 +652,7 @@ test.describe('the Timeline panel state (contract §7)', () => {
     await expect(page.locator('.timeline__panel')).toBeVisible()
     await runMc(page, { baseSeed: 1, runs: 20, steps: 6, tracked: FIXTURE_POOLS_4 })
     await expect(page.locator('.timeline__panel')).toBeVisible()
-    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
+    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
   })
 
   test('folded by the user, neither a step nor a Monte-Carlo result opens it', async ({ page }) => {

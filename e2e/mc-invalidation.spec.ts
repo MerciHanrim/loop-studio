@@ -40,7 +40,7 @@ test.describe('MC / sim invalidation', () => {
     await page.evaluate((id) => (window as any).__loop.mc.getState().setConfig({ baseSeed: 1, runs: 120, steps: 20, tracked: [id] }), RF_POOL)
     await run(page)
     expect((await mc(page)).stale).toBe(false)
-    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
+    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
     const exportBtn = page.locator('.dist__stats .menu button', { hasText: 'Export' })
     await expect(exportBtn).toBeEnabled()
 

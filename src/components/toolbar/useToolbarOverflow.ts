@@ -13,7 +13,8 @@ const OVERFLOW_SLACK = 4
 // project/app-command row — Tier 2's node palette is always its own row and
 // is never measured here). It watches Tier 1's width (ResizeObserver) and
 // re-runs a full measurement whenever the active locale or the project
-// chip's presence changes — those alter control widths. `computeToolbarLayout`
+// chip's state (shown, role, revision, unsaved dot) changes — those alter
+// control widths. `computeToolbarLayout`
 // (pure) then decides how many trailing GROUPS collapse into the ⋯ menu. See
 // `toolbarOverflow.ts`.
 
@@ -44,7 +45,7 @@ const gapOf = (el: Element | null): number => {
   return parseFloat(cs.columnGap) || parseFloat(cs.gap) || 0
 }
 
-export function useToolbarOverflow(locale: string, projectOpen: boolean) {
+export function useToolbarOverflow(locale: string, projectChip: string) {
   const [layout, setLayout] = useState<ToolbarLayout>({ collapsed: 0 })
   // while true, the toolbar renders EVERYTHING expanded for one synchronous
   // (pre-paint) pass so every control's width can be read fresh.
@@ -64,10 +65,15 @@ export function useToolbarOverflow(locale: string, projectOpen: boolean) {
     const r = refs.current
     const tb = r.toolbar
     if (!tb) return null
-    const cs = getComputedStyle(tb)
-    const inner = tb.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
-    // the gap BETWEEN brand / actions on Tier 1's line is the column-gap
-    const topGap = parseFloat(cs.columnGap) || parseFloat(cs.gap) || 8
+    // Tier 1's line is the brand's own row (the workbench's menu bar, which
+    // has its own padding and gap), not the toolbar around it
+    const row = r.brand?.parentElement ?? tb
+    const cs = getComputedStyle(row)
+    const inner = row.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+    // the gap BETWEEN brand / actions on Tier 1's line is the column-gap; 0 is
+    // a real gap, only an unreadable one ('normal') falls back
+    const gapPx = parseFloat(cs.columnGap)
+    const topGap = Number.isFinite(gapPx) ? gapPx : 8
 
     const brandBase = boxW(r.brand)
 
@@ -97,10 +103,11 @@ export function useToolbarOverflow(locale: string, projectOpen: boolean) {
     }
   }, [])
 
-  // locale / project-chip change → re-measure from scratch
+  // locale / project-chip change → re-measure from scratch (the unsaved dot
+  // alone widens the chip, so a clean → unsaved change counts too)
   useLayoutEffect(() => {
     setMeasuring(true)
-  }, [locale, projectOpen])
+  }, [locale, projectChip])
 
   // width changes → re-measure from scratch too (debounced). A full pass avoids
   // stale cached widths for controls that were collapsed at the previous width.

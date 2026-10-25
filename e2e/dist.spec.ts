@@ -90,7 +90,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
 
     // 3 — real Worker path (secure-context localhost), correct result
     await expect(page.locator('.dist')).toBeVisible({ timeout: 40_000 })
-    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
+    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
     const probe = await pathProbe(page)
     expect(probe.wk.ctor, 'Workers constructed on the preview server').toBeGreaterThanOrEqual(2)
     expect(probe.wk.job, 'jobs dispatched to Workers').toBeGreaterThanOrEqual(1)

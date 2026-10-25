@@ -22,7 +22,7 @@ async function distributionReady(page: import('@playwright/test').Page): Promise
   await importGraph(page, readFixture())
   await runMc(page, { baseSeed: 1, runs: 200, steps: 30, tracked: FIXTURE_POOLS_4 })
 
-  await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
+  await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
   await page.locator('.band__pool').selectOption({ label: 'Dice Pool' })
 
   const svg = page.locator('.band__svg')

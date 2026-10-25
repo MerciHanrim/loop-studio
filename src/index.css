@@ -4429,7 +4429,10 @@ a.sheet__row {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 5px 12px;
+  /* 2 px above and below: the head's controls are 24 px (2026-10-25), and the
+     head stays no taller than before them (28 px; it was 29), so the plot
+     under it keeps its height */
+  padding: 2px 12px;
   font-size: 11px;
   font-weight: 400;
   color: var(--ink-3);
@@ -5997,6 +6000,11 @@ a.sheet__row {
   padding: 2px 0 8px;
   font-size: 11px;
   color: var(--ink-2);
+}
+/* the Export button shares the CSV control's 24 px (2026-10-25); laid out as
+   18 px, so the stats row keeps its height and the band chart below its room */
+.dist__stats .timeline__csv {
+  margin-block: -3px;
 }
 .dist__stat b {
   font-variant-numeric: tabular-nums;

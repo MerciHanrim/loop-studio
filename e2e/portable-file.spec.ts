@@ -320,7 +320,7 @@ test.describe('portable file://', () => {
     await startMcPrefilled(page, 500, 40, 1)
 
     await expect(page.locator('.dist')).toBeVisible({ timeout: 30_000 })
-    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
+    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
     expect((await pathProbe(page)).wk.ctor, 'no Worker on file://').toBe(0)
 
     await expect(page.locator('.term__line')).toHaveCount(1)
@@ -355,7 +355,7 @@ test.describe('portable file://', () => {
       .toBe('done')
 
     expect(sawMid, 'the strip showed 0 < NN% < 100 while running').toBe(true)
-    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
+    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
   })
 
   test('cancel from the strip stops progress and shows no partial result', async ({ page }) => {
