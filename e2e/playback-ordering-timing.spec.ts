@@ -385,30 +385,87 @@ test.describe('playback ordering — real-time cascade timing (PR 2)', () => {
     expect(worst).toBe(0)
   })
 
+  /** The MMO beat, and how much a step may run past BEAT_SETTLE · SPEED: the
+   *  straddling frame gap (observation error) capped at MAX_GAP_MS, plus
+   *  SLACK_MS for the settle tick's own work before the store reports it. */
+  const SPEED = 1200
+  const MAX_GAP_MS = 250
+  const SLACK_MS = 40
+
   test('MMO — a wide step adds no per-frame graph work and does not stretch the beat', async ({
     page,
   }) => {
     await setup(page, MMO)
-    await call(page, 'setSpeed', 1200)
+    await call(page, 'setSpeed', SPEED)
     const beforeComputes = await page.evaluate(
       () => (window as any).__staggerComputes ?? 0,
     )
+    // Armed BEFORE play: the store's own start / settle moments of each step
+    // (a transition appearing / clearing), and every frame's timestamp.
+    await page.evaluate(() => {
+      const w = window as any
+      const rec = { starts: [] as number[], ends: [] as number[], frames: [] as number[] }
+      w.__beatRec = rec
+      let had = w.__loop.sim.getState().transition != null
+      w.__beatUnsub = w.__loop.sim.subscribe((s: any) => {
+        const has = s.transition != null
+        if (has && !had) rec.starts.push(performance.now())
+        if (!has && had) rec.ends.push(performance.now())
+        had = has
+      })
+      const frame = (t: number) => {
+        rec.frames.push(t)
+        if (w.__beatRec === rec) requestAnimationFrame(frame)
+      }
+      requestAnimationFrame(frame)
+    })
     await call(page, 'play')
     const ids = await page.evaluate(() =>
       (window as any).__loop.graph.getState().edges.slice(0, 8).map((e: any) => e.id),
     )
-    const t0 = Date.now()
     const { peakTokens, frames, elapsed } = await traceCascade(page, 1500, ids)
+    // two whole steps observed, start to settle
+    await expect
+      .poll(() => page.evaluate(() => (window as any).__beatRec.ends.length), { timeout: 3 * SPEED + 2000 })
+      .toBeGreaterThanOrEqual(2)
     await call(page, 'pause')
+    const rec = await page.evaluate(() => {
+      const w = window as any
+      w.__beatUnsub()
+      const r = w.__beatRec
+      w.__beatRec = null
+      return r as { starts: number[]; ends: number[]; frames: number[] }
+    })
     const afterComputes = await page.evaluate(() => (window as any).__staggerComputes ?? 0)
 
     // one schedule computation per transition, not per frame
     const stepsRun = await page.evaluate(() => (window as any).__loop.sim.getState().stepIndex)
     expect(afterComputes - beforeComputes).toBeLessThanOrEqual(stepsRun + 2)
-    // the render kept up (rAF actually ticked through the window)
-    expect(frames).toBeGreaterThan(elapsed / 40) // ≥ ~25fps effective
     // the global 24-pair budget (issue #330 PR 1) still caps concurrent travelling elements
     expect(peakTokens).toBeLessThanOrEqual(24)
-    void t0
+
+    // The beat is not stretched. τ runs on the wall clock, and a step settles on
+    // the first frame at or after τ = BEAT_SETTLE, so a step lasts
+    // BEAT_SETTLE · SPEED (1140 ms) plus, at most, the frame gap that straddles
+    // that moment. The gap counts only as observation error, and only up to
+    // MAX_GAP_MS: a longer stall fails here instead of widening the limit.
+    // The frame rate is only logged — it measures the runner, not the beat.
+    const due = BEAT_SETTLE * SPEED
+    const gapAround = (at: number) => {
+      const i = rec.frames.findIndex((t) => t >= at)
+      return i > 0 ? rec.frames[i] - rec.frames[i - 1] : MAX_GAP_MS
+    }
+    console.log(`[beat] mmo ${SPEED} ms: ${frames} frames in ${Math.round(elapsed)} ms`)
+    expect(rec.ends.length).toBeGreaterThanOrEqual(2)
+    for (let k = 0; k < 2; k++) {
+      const start = rec.starts[k]
+      const end = rec.ends.find((t) => t > start)!
+      const lasted = end - start
+      const gap = gapAround(start + due)
+      const limit = due + Math.min(gap, MAX_GAP_MS) + SLACK_MS
+      console.log(`[beat] step ${k + 1}: ${lasted.toFixed(1)} ms (due ${due}, straddling gap ${gap.toFixed(1)} ms, limit ${limit.toFixed(1)} ms)`)
+      expect(lasted, `step ${k + 1} ended before its beat`).toBeGreaterThanOrEqual(due - 1)
+      expect(lasted, `step ${k + 1} stretched past its beat`).toBeLessThanOrEqual(limit)
+    }
   })
 })
