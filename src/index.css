@@ -4294,8 +4294,11 @@ a.sheet__row {
   height: 16px;
   flex: none;
 }
+/* one width for Play, Pause and Replay, so the bar does not move when the
+   label changes: the widest, Korean Replay, measured 97.84 px, 99.84 px with
+   the forced-colours 2 px edge (2026-10-26); 104 px leaves room (Lumi) */
 .pb-btn--transport.pb-btn--primary {
-  width: auto;
+  width: 104px;
   padding: 0 10px;
   background: var(--accent);
   border-color: var(--accent);
