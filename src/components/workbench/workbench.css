@@ -178,6 +178,13 @@
   outline-color: var(--ink-1);
   outline-offset: -5px;
 }
+/* the same on the chosen connection kind: a radio group, so the keyboard only
+   ever reaches the chosen kind and its focus never showed (2026-10-26). The
+   ring clears the line sample at the icon-only width too */
+.wb-connect__kind.is-on:focus-visible {
+  outline-color: var(--ink-1);
+  outline-offset: -5px;
+}
 .wb-tcap {
   color: var(--ink-3);
   font-size: 12px;
@@ -892,6 +899,14 @@
      colour (>= 3:1 against the unpressed button), not the tint alone */
   box-shadow: inset 0 0 0 2px var(--sel);
 }
+/* the status bar's Focus on and focused: the same hidden focus, but 22 px
+   leaves no room for a ring inside (it would touch the icon) or outside (the
+   bar is 26 px). A dashed ink outline on the pressed ring instead, so pattern,
+   not colour alone, tells focus from pressed (Lumi's study v2, 2026-10-26) */
+.wb-status .wb-zb[aria-pressed='true']:focus-visible {
+  outline: 2px dashed var(--ink-1);
+  outline-offset: -2px;
+}
 .wb-zoom {
   min-width: 40px;
   text-align: center;
@@ -946,7 +961,8 @@
   }
   /* the same two findings on the chosen connection kind, the status bar's
      Focus when on and an open List / Properties toggle (measured on each,
-     2026-10-22): the word only loses its backplate; the ring moves inside */
+     2026-10-22): the word only loses its backplate; the ring moves inside,
+     solid (Focus's dashed edge is for the colour themes only) */
   .wb-connect__kind[aria-checked='true'] .wb-connect__name,
   .wb-status .wb-zb[aria-pressed='true'] .wb-zb__word,
   .wb-panel-toggle[aria-expanded='true'] .wb-zb__word {
@@ -956,6 +972,7 @@
   .wb-connect__kind[aria-checked='true']:focus-visible,
   .wb-status .wb-zb[aria-pressed='true']:focus-visible,
   .wb-panel-toggle[aria-expanded='true']:focus-visible {
+    outline-style: solid;
     outline-color: HighlightText;
     outline-offset: -4px;
   }
