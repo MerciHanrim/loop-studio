@@ -1,0 +1,1 @@
+{ "type": "user-facing", "changelog": "- **Run bar: the main button keeps its width.** Play, Pause and Replay now share one width, so the run bar no longer shifts when the label changes; before, in Korean, Pause and Replay widened the button and pushed the step count and the rest of the bar to the right." }
