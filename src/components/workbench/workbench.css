@@ -162,6 +162,15 @@
   outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
+/* a canvas tool pressed and focused: the focus outline sat on the pressed
+   ring, the same colour in the same place, so focus vanished on the pressed
+   tool (2026-10-26, reproduced by keyboard in light and dark). It moves
+   inside the ring, 1 px clear of it, in ink (Lumi's tool-group study, B);
+   pressed alone and focused alone are unchanged */
+.wb-toolgroup .wb-tb.is-on:focus-visible {
+  outline-color: var(--ink-1);
+  outline-offset: -5px;
+}
 .wb-tcap {
   color: var(--ink-3);
   font-size: 12px;
@@ -921,6 +930,12 @@
   .wb-tb[data-tool='lock'][aria-pressed='true']:focus-visible {
     outline-color: HighlightText;
     outline-offset: -4px;
+  }
+  /* the same on the pressed canvas tool, where the Highlight ring vanished on
+     the Highlight button (Chromium emulation, 2026-10-26); -5 px, as above */
+  .wb-toolgroup .wb-tb[aria-pressed='true']:focus-visible {
+    outline-color: HighlightText;
+    outline-offset: -5px;
   }
   /* the same two findings on the chosen connection kind, the status bar's
      Focus when on and an open List / Properties toggle (measured on each,
