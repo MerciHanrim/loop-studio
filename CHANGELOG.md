@@ -11,6 +11,7 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 - **Model list: selection and keyboard focus both visible.** In the left panel's list, a selected row reached with the keyboard keeps its focus ring next to the selection bar; before, the bar covered the ring. In high-contrast mode a selected row is now shown in the system highlight colour and the keyboard-focused row has its own ring; before, neither showed.
 - **Canvas tools: keyboard focus visible on the chosen tool.** In the tool row, Select, Pan, Select a region and Group frame: when the chosen tool has keyboard focus, a dark ring is now drawn inside its pressed ring; before, the focus ring sat on the pressed ring in the same colour and could not be seen, in high-contrast mode too. A tool that is only chosen, or only focused, looks as before.
 - **Menus: the keyboard focus ring shown whole.** In the File menu and its submenus, the ring around the row reached with the keyboard was cut off at both sides, and above the first row; it is now drawn just inside the row, so all four sides show. The same applies to the rows of every other menu.
+- **Menu bar: the open menu's button stands out.** In the menu bar (File, Edit, View and the others, also inside More), the button of the open menu now takes the menu's own surface and a thin edge, so it reads as that menu's tab; before, it looked the same as a button under the pointer. In high-contrast mode it has a thin outline; before, nothing showed which menu was open.
 
 ## v0.30.1 — 2026-10-25
 
