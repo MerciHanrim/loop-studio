@@ -902,8 +902,11 @@
 /* the status bar's Focus on and focused: the same hidden focus, but 22 px
    leaves no room for a ring inside (it would touch the icon) or outside (the
    bar is 26 px). A dashed ink outline on the pressed ring instead, so pattern,
-   not colour alone, tells focus from pressed (Lumi's study v2, 2026-10-26) */
-.wb-status .wb-zb[aria-pressed='true']:focus-visible {
+   not colour alone, tells focus from pressed (Lumi's study v2, 2026-10-26).
+   The same on an open List / Properties toggle: 22 px, words only, the ring
+   1.5 px clear of the word above and below (measured 2026-10-27) */
+.wb-status .wb-zb[aria-pressed='true']:focus-visible,
+.wb-panel-toggle[aria-expanded='true']:focus-visible {
   outline: 2px dashed var(--ink-1);
   outline-offset: -2px;
 }

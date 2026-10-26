@@ -156,7 +156,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
 // Off forced colours the focus ring on the chosen connection kind and on Focus
 // when on sat on the pressed ring, the same colour in the same place, so focus
 // never showed (2026-10-26): the kind's ring moves 5 px inside, in ink, and
-// Focus (22 px, no room inside or out) takes an ink dashed edge on the ring
+// Focus (22 px, no room inside or out) takes an ink dashed edge on the ring;
+// so do the open List and Properties toggles (2026-10-27), closed as before
 test('forced colours off: the words keep their tokens and the rings their place', async ({ page }) => {
   const focusToggle = '.wb-status .wb-zb[aria-pressed]'
   await keyboardFocus(page, page.locator(focusToggle))
@@ -169,14 +170,26 @@ test('forced colours off: the words keep their tokens and the rings their place'
     for (const [b, word, offset, style, colour] of [
       ['.wb-connect__kind[aria-checked="true"]', '.wb-connect__name', '-5px', 'solid', ink],
       [focusToggle, '.wb-zb__word', '-2px', 'dashed', ink],
-      ['#wb-toggle-left', '.wb-zb__word', '-2px', 'solid', focus],
-      ['#wb-toggle-right', '.wb-zb__word', '-2px', 'solid', focus],
+      ['#wb-toggle-left', '.wb-zb__word', '-2px', 'dashed', ink],
+      ['#wb-toggle-right', '.wb-zb__word', '-2px', 'dashed', ink],
     ] as const) {
       await expect(page.locator(`${b} ${word}`)).toHaveCSS('forced-color-adjust', 'auto')
       await keyboardFocus(page, page.locator(b))
       await expect(page.locator(b)).toHaveCSS('outline-offset', offset)
       await expect(page.locator(b)).toHaveCSS('outline-style', style)
       await expect(page.locator(b)).toHaveCSS('outline-color', colour)
+    }
+    // a closed toggle, focused: the focus ring as before
+    for (const side of ['left', 'right'] as const) {
+      const t = page.locator(`#wb-toggle-${side}`)
+      await keyboardFocus(page, t)
+      await page.keyboard.press('Enter')
+      await expect(t).toHaveAttribute('aria-expanded', 'false')
+      await expect(t).toHaveCSS('outline-style', 'solid')
+      await expect(t).toHaveCSS('outline-color', focus)
+      await expect(t).toHaveCSS('outline-offset', '-2px')
+      await page.keyboard.press('Enter')
+      await expect(t).toHaveAttribute('aria-expanded', 'true')
     }
   }
 })
