@@ -1,0 +1,1 @@
+{ "type": "user-facing", "changelog": "- **Menus: the keyboard focus ring shown whole.** In the File menu and its submenus, the ring around the row reached with the keyboard was cut off at both sides, and above the first row; it is now drawn just inside the row, so all four sides show. The same applies to the rows of every other menu." }

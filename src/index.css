@@ -1425,6 +1425,13 @@ body {
 .menu__item:hover {
   background: var(--bg-hover);
 }
+/* keyboard focus inside the row, not the global 2 px outside it: a described
+   menu's rows scroll (.dmenu__rows), and the scroll box cut the outside ring
+   at both sides and above the first row (File and its submenus, 2026-10-26,
+   reproduced by keyboard in light, dark and forced colours) */
+.menu__item:focus-visible {
+  outline-offset: -2px;
+}
 /* #334 — a row the edit lock turns off (Insert saved structure, the data
    import wizard): a colour, not `opacity`, so forced colours keeps it (GrayText). */
 .menu__item:disabled {
