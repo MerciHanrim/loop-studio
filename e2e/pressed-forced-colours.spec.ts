@@ -71,6 +71,8 @@ async function expectPressedReadable(page: Page, b: Locator, word: Locator, hl: 
   await keyboardFocus(page, b)
   await expect(b).toHaveCSS('outline-color', hlText)
   await expect(b).toHaveCSS('outline-offset', '-4px')
+  // solid: Focus's dashed edge belongs to the colour themes only
+  await expect(b).toHaveCSS('outline-style', 'solid')
 }
 /** not pressed: the UA's forced colours, the ring Highlight as before */
 async function expectReleasedAsBefore(page: Page, b: Locator, word: Locator, hl: string) {
@@ -151,17 +153,30 @@ for (const colorScheme of ['light', 'dark'] as const) {
   })
 }
 
+// Off forced colours the focus ring on the chosen connection kind and on Focus
+// when on sat on the pressed ring, the same colour in the same place, so focus
+// never showed (2026-10-26): the kind's ring moves 5 px inside, in ink, and
+// Focus (22 px, no room inside or out) takes an ink dashed edge on the ring
 test('forced colours off: the words keep their tokens and the rings their place', async ({ page }) => {
+  const focusToggle = '.wb-status .wb-zb[aria-pressed]'
+  await keyboardFocus(page, page.locator(focusToggle))
+  await page.keyboard.press('Enter')
+  await expect(page.locator(focusToggle)).toHaveAttribute('aria-pressed', 'true')
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme, forcedColors: 'none' })
-    for (const [b, word] of [
-      ['.wb-connect__kind[aria-checked="true"]', '.wb-connect__name'],
-      ['#wb-toggle-left', '.wb-zb__word'],
-      ['#wb-toggle-right', '.wb-zb__word'],
+    const ink = await sysColour(page, 'var(--ink-1)')
+    const focus = await sysColour(page, 'var(--focus)')
+    for (const [b, word, offset, style, colour] of [
+      ['.wb-connect__kind[aria-checked="true"]', '.wb-connect__name', '-5px', 'solid', ink],
+      [focusToggle, '.wb-zb__word', '-2px', 'dashed', ink],
+      ['#wb-toggle-left', '.wb-zb__word', '-2px', 'solid', focus],
+      ['#wb-toggle-right', '.wb-zb__word', '-2px', 'solid', focus],
     ] as const) {
       await expect(page.locator(`${b} ${word}`)).toHaveCSS('forced-color-adjust', 'auto')
       await keyboardFocus(page, page.locator(b))
-      await expect(page.locator(b)).toHaveCSS('outline-offset', '-2px')
+      await expect(page.locator(b)).toHaveCSS('outline-offset', offset)
+      await expect(page.locator(b)).toHaveCSS('outline-style', style)
+      await expect(page.locator(b)).toHaveCSS('outline-color', colour)
     }
   }
 })
