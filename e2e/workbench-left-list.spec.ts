@@ -347,11 +347,67 @@ test.describe('the left list follows a single node chosen on the canvas', () => 
     const [above] = await pick(page, 'above')
     await clickNode(page, above)
     await expect.poll(() => placeOfRow(page, above)).toBe('in')
-    const gapAbove = await page.evaluate((id) => {
+    // just below the stuck kind heading (26 px), and not under any heading
+    const atTop = await page.evaluate((id) => {
       const l = document.querySelector('.wb-list')!.getBoundingClientRect()
-      return document.querySelector(`.wb-row[data-node="${id}"]`)!.getBoundingClientRect().top - l.top
+      const r = document.querySelector(`.wb-row[data-node="${id}"]`)!.getBoundingClientRect()
+      const covered = [...document.querySelectorAll('.wb-list__sub')].some((s) => {
+        const h = s.getBoundingClientRect()
+        return h.bottom > r.top + 0.5 && h.top < r.bottom - 0.5
+      })
+      return { gap: r.top - l.top, covered }
     }, above)
-    expect(Math.abs(gapAbove), 'the row just inside the top edge').toBeLessThan(1)
+    expect(Math.abs(atTop.gap - 26), 'the row just below the stuck heading').toBeLessThan(1)
+    expect(atTop.covered, 'no heading drawn over the row').toBe(false)
+  })
+
+  // the kind heading stays at the list's top while its rows scroll under it,
+  // the next kind's pushing it out at its group's end (2026-10-27); a row
+  // reached by Tab lands below it
+  test('the kind heading stays in view; the next one takes its place; a row reached by Tab is not under it', async ({ page }) => {
+    await openTemplate(page, 'gacha-pickup')
+    const headings = () =>
+      page.evaluate(() => {
+        const l = document.querySelector('.wb-list')!.getBoundingClientRect()
+        const subs = [...document.querySelectorAll<HTMLElement>('.wb-list__sub')].map((s) => ({ name: s.textContent!.replace(/\d+$/, '').trim(), r: s.getBoundingClientRect() }))
+        let overlap = false
+        for (let i = 0; i < subs.length; i++)
+          for (let j = i + 1; j < subs.length; j++) if (subs[i].r.bottom > subs[j].r.top + 0.5 && subs[j].r.bottom > subs[i].r.top + 0.5) overlap = true
+        const top = subs.find((s) => Math.abs(s.r.top - l.top) < 0.5)
+        return { top: top?.name ?? null, overlap }
+      })
+    // the Parameter group's middle, then the Pool group's: each one's heading
+    // on top (later groups end too near the list's end to scroll so far)
+    for (const [kind, name] of [
+      ['parameter', 'Parameter'],
+      ['pool', 'Pool'],
+    ] as const) {
+      await page.evaluate((kind) => {
+        const list = document.querySelector('.wb-list') as HTMLElement
+        // the kind's rows, by the heading of the group they sit in
+        const rows = [...list.querySelectorAll<HTMLElement>('.wb-row')].filter((r) => r.closest('.wb-list__group')?.querySelector('.wb-list__sub')?.textContent?.toLowerCase().startsWith(kind))
+        const mid = rows[Math.floor(rows.length / 2)]
+        list.scrollTop += mid.getBoundingClientRect().top - list.getBoundingClientRect().top - 60
+      }, kind)
+      const h = await headings()
+      expect(h.top, `${name}: its heading at the list's top`).toBe(name)
+      expect(h.overlap, 'no two headings overlap').toBe(false)
+    }
+    // Shift+Tab up from the last row: no focused row under a heading
+    const rows = page.locator('.wb-list .wb-row')
+    const n = await rows.count()
+    await rows.nth(n - 1).focus()
+    for (let i = 0; i < n - 1; i++) {
+      await page.keyboard.press('Shift+Tab')
+      const covered = await page.evaluate(() => {
+        const r = document.activeElement!.getBoundingClientRect()
+        return [...document.querySelectorAll('.wb-list__sub')].some((s) => {
+          const h = s.getBoundingClientRect()
+          return h.bottom > r.top + 0.5 && h.top < r.bottom - 0.5
+        })
+      })
+      expect(covered, `row ${i}: not under a heading`).toBe(false)
+    }
   })
 
   test('a row picked in the list, even one cut by its edge, and a multiple selection leave the list where it is', async ({ page }) => {
