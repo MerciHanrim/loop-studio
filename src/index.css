@@ -4338,6 +4338,14 @@ a.sheet__row {
   word-break: keep-all;
   flex-shrink: 0;
 }
+/* the desktop readout keeps room for its longest measured text, "step 10000
+   · ended" (en, 118.8 px; ko "10000단계 · 종료됨", 112.8 px): before, each new
+   digit and the ended note widened it and pushed the steady chip and Run
+   settings along, up to 82 px (2026-10-27). A min-width, so a longer readout
+   still grows rather than clips */
+.pstrip:not(.pstrip--mobile) .pstrip__step {
+  min-width: 120px;
+}
 .pstrip__field {
   display: flex;
   align-items: center;
@@ -4465,6 +4473,22 @@ a.sheet__row {
 /* fit step 3: the last resort — the status may shorten, never go */
 .pstrip[data-fit='3'] .pstrip__steady {
   flex-shrink: 1;
+}
+/* the whole wording, or at fit step 3 a short one of its own ("Steady",
+   "흐름 계속") on 5 px sides, so the chip reads whole at 900 px instead of
+   an ellipsis (2026-10-27); the tooltip and the status region keep the
+   whole text */
+.pstrip__steady-short {
+  display: none;
+}
+.pstrip[data-fit='3'] .pstrip__steady {
+  padding-inline: 5px;
+}
+.pstrip[data-fit='3'] .pstrip__steady-full {
+  display: none;
+}
+.pstrip[data-fit='3'] .pstrip__steady-short {
+  display: inline;
 }
 
 /* ==== A — timeline chart (separate observation panel, not canvas) ======= */

@@ -215,6 +215,29 @@ test.describe('playback — steady-state (§PBO8-7)', () => {
     await page.setViewportSize({ width: 1280, height: 800 })
   })
 
+  test("the run bar's last fit step: the chip shows its short wording whole; the tooltip and the status region keep the whole one", async ({ page }) => {
+    await setup(page)
+    await advanceToSteady(page)
+    await call(page, 'play')
+    await expect.poll(() => chipShown(page), { timeout: 4000 }).toBe(true)
+    // narrowed until the row reaches its last fit step (the desktop strip
+    // holds above the phone query, 720 px)
+    const bar = page.locator('.pstrip')
+    for (let w = 900; w >= 740 && (await bar.getAttribute('data-fit')) !== '3'; w -= 20) {
+      await page.setViewportSize({ width: w, height: 800 })
+      await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))))
+    }
+    await expect(bar).toHaveAttribute('data-fit', '3')
+    await expect(chip(page).locator('.pstrip__steady-short')).toBeVisible()
+    await expect(chip(page).locator('.pstrip__steady-short')).toHaveText('Steady')
+    await expect(chip(page).locator('.pstrip__steady-full')).toBeHidden()
+    expect(await chip(page).evaluate((el) => el.scrollWidth <= el.clientWidth), 'the short wording is not cut').toBe(true)
+    await expect(chip(page)).toHaveAttribute('title', 'Steady state — flows continue')
+    await expect(page.locator('.pstrip [role="status"]')).toHaveText('Steady state — flows continue')
+    await call(page, 'pause')
+    await page.setViewportSize({ width: 1280, height: 800 })
+  })
+
   test('reset / seed change / a simulation-relevant graph edit each clear it', async ({ page }) => {
     await setup(page)
 
@@ -256,12 +279,19 @@ test.describe('playback — steady-state (§PBO8-7)', () => {
     await expect.poll(() => chipShown(page), { timeout: 4000 }).toBe(true)
 
     // §L2.0 (2026-10): the shipped languages
-    for (const [code, text] of [
-      ['en', 'Steady state — flows continue'],
-      ['ko', '정상 상태 — 흐름은 계속됨'],
+    // the chip holds the whole wording and, for the run bar's last fit step
+    // (900 px), a short one; at 1280 the whole one shows, and the tooltip
+    // keeps the whole one at every width
+    for (const [code, text, short] of [
+      ['en', 'Steady state — flows continue', 'Steady'],
+      ['ko', '정상 상태 — 흐름은 계속됨', '흐름 계속'],
     ] as const) {
       await setLocale(page, code)
-      await expect(chip(page)).toHaveText(text)
+      await expect(chip(page).locator('.pstrip__steady-full')).toHaveText(text)
+      await expect(chip(page).locator('.pstrip__steady-full')).toBeVisible()
+      await expect(chip(page).locator('.pstrip__steady-short')).toHaveText(short)
+      await expect(chip(page).locator('.pstrip__steady-short')).toBeHidden()
+      await expect(chip(page)).toHaveAttribute('title', text)
     }
     await setLocale(page, 'en')
     await call(page, 'pause')
