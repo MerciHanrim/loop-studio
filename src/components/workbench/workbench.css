@@ -556,6 +556,11 @@
 .wb-row.is-sel:focus-visible {
   box-shadow: inset 4px 0 0 var(--sel);
 }
+/* one of a multiple selection, not the representative (the right panel's
+   node, which keeps the bar): the selection's tint alone (2026-10-27) */
+.wb-row.is-in-sel {
+  background: var(--sel-soft);
+}
 .wb-row__name {
   flex: 1 1 auto;
   min-width: 0;
@@ -1031,5 +1036,21 @@
   .wb-row.is-sel:focus-visible {
     outline-color: HighlightText;
     outline-offset: -4px;
+  }
+  /* the rest of a multiple selection: the tint is dropped here, so a 4 px
+     Highlight bar at the start edge, its own block 3 px short of the row's
+     top and bottom so neighbours' bars stay apart (a border would join
+     them); the representative keeps its Highlight fill (2026-10-27) */
+  .wb-row.is-in-sel {
+    position: relative;
+  }
+  .wb-row.is-in-sel::before {
+    content: '';
+    position: absolute;
+    inset-inline-start: 0;
+    top: 3px;
+    bottom: 3px;
+    width: 4px;
+    background: Highlight;
   }
 }
