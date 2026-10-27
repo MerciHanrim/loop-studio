@@ -1063,6 +1063,14 @@ so the keyboard gesture stops being the only discovery path.
   tool armed").
 - The tool never survives a context it cannot apply to: the Frame tool arming,
   Pan mode coming on, or the layout turning mobile all disarm it.
+- **A drag from a connection or a frame's name chip draws the box too**
+  (2026-10-28). React Flow starts a box only from a press on the pane itself,
+  so before, such a drag did nothing and left the tool armed. Once the press
+  has moved past the pane's click distance (`PANE_CLICK_DISTANCE`, React
+  Flow's default of 1 px) it is handed to the pane from where it started. A
+  press that does not move stays a click: the connection is selected and the
+  chip opens the frame's properties, as with the tool off. A node, a frame's
+  border, a bend and an end grip keep their own drags.
 
 ### LGR12.2 Mutual exclusion
 

@@ -511,6 +511,90 @@ test.describe('large-graph readability — Slice 1', () => {
     await expect(tool).toHaveAttribute('aria-pressed', 'false')
   })
 
+  // 2026-10-28 (Lumi): a drag started on a connection or on a frame's name chip
+  // draws the box from where it started, as one on the empty pane does; before,
+  // it did nothing and left the tool armed. A click there keeps its meaning.
+  test('§LGR12 region select — a drag from a connection or a frame name chip draws the box; a click there is unchanged', async ({
+    page,
+  }) => {
+    await load(page)
+    await frameForMarquee(page)
+    const tool = toolButton(page, 'region')
+    const midOf = (id: string) =>
+      edge(page, id).evaluate((el) => {
+        const path = el.querySelector('path.react-flow__edge-path') as SVGPathElement
+        const p = path.getPointAtLength(path.getTotalLength() / 2)
+        const m = path.getScreenCTM()!
+        return { x: p.x * m.a + p.y * m.c + m.e, y: p.x * m.b + p.y * m.d + m.f }
+      })
+    const pastMc = async () => {
+      const r = (await node(page, 'mc').boundingBox())!
+      return { x: r.x + r.width + 16, y: r.y + r.height + 16 }
+    }
+    async function drag(from: { x: number; y: number }, to: { x: number; y: number }) {
+      await page.mouse.move(from.x, from.y)
+      await page.mouse.down()
+      for (let i = 1; i <= 10; i++) {
+        await page.mouse.move(from.x + ((to.x - from.x) * i) / 10, from.y + ((to.y - from.y) * i) / 10)
+        await page.waitForTimeout(18)
+      }
+      await page.mouse.up()
+      await page.waitForTimeout(150)
+    }
+
+    // a click on a connection, armed: that connection selected, the tool kept
+    await tool.click()
+    const ab = await midOf('e_ab')
+    expect(await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('.react-flow__edge[data-id="e_ab"]'), ab), 'the press lands on e_ab').toBe(true)
+    await page.mouse.click(ab.x, ab.y)
+    await expect.poll(() => selectedIds(page)).toEqual({ nodes: [], edges: ['e_ab'] })
+    await expect(tool).toHaveAttribute('aria-pressed', 'true')
+
+    // a drag from it: the box from the press, enclosing mid and mc wholly (the
+    // top row is cut at its middle), then the tool spent; nothing moved
+    const before = await viewportTransform(page)
+    await drag(ab, await pastMc())
+    await expect.poll(() => selectedIds(page).then((s) => s.nodes)).toEqual(['mc', 'mid'])
+    await expect(tool).toHaveAttribute('aria-pressed', 'false')
+    expect(await viewportTransform(page)).toBe(before)
+
+    // a frame around ma and mid: its name chip sits above the frame's top
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { frame: { getState: () => { addFrame: (r: object) => string } } } }).__loop.frame
+        .getState()
+        .addFrame({ x: -40, y: 130, w: 420, h: 140 }),
+    )
+    const chip = page.locator('.lgr-frame__label')
+    await expect(chip).toHaveCount(1)
+    const c = (await chip.boundingBox())!
+    const onChip = { x: c.x + c.width / 2, y: c.y + c.height / 2 }
+
+    // a click on the chip, armed: the frame's properties open, as with the tool off
+    await tool.click()
+    await page.mouse.click(onChip.x, onChip.y)
+    await expect(page.locator('.lgr-frame-props')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.lgr-frame-props')).toHaveCount(0)
+
+    // a drag from the chip: the box from the press, the second row inside it
+    const rect = await page.evaluate(() => {
+      const f = (window as unknown as { __loop: { frame: { getState: () => { frames: { rect: object }[] } } } }).__loop.frame.getState()
+      return JSON.stringify(f.frames.map((x) => x.rect))
+    })
+    if ((await tool.getAttribute('aria-pressed')) !== 'true') await tool.click()
+    await drag(onChip, await pastMc())
+    await expect.poll(() => selectedIds(page).then((s) => s.nodes)).toEqual(['ma', 'mc', 'mid'])
+    await expect(tool).toHaveAttribute('aria-pressed', 'false')
+    await expect(page.locator('.lgr-frame-props')).toHaveCount(0)
+    expect(
+      await page.evaluate(() => {
+        const f = (window as unknown as { __loop: { frame: { getState: () => { frames: { rect: object }[] } } } }).__loop.frame.getState()
+        return JSON.stringify(f.frames.map((x) => x.rect))
+      }),
+      'the frame did not move',
+    ).toBe(rect)
+  })
+
   test('§LGR12 region select — Pan mode and region select cancel each other', async ({ page }) => {
     await load(page)
     const tool = toolButton(page, 'region')
