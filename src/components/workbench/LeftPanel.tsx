@@ -76,7 +76,14 @@ export function LeftPanel() {
   // alone moving (2026-10-27, Lumi: before, the row stayed out of sight). Not
   // for a row picked here (it is in view), nor a multiple selection (no one
   // row to follow); a row the search hides is left alone.
-  const single = useGraphStore((s) => s.nodes.reduce((k, n) => k + (n.selected ? 1 : 0), 0) === 1)
+  // every selected node, as one string so the list re-renders only when the
+  // selection changes: a multiple selection marks every row it holds (the
+  // selection's tint), the representative — the node the right panel shows,
+  // `selectedNodeId` — keeping its bar (2026-10-27, Lumi; before, only the
+  // representative was marked)
+  const selectedKey = useGraphStore((s) => s.nodes.filter((n) => n.selected).map((n) => n.id).join('\n'))
+  const selectedSet = useMemo(() => new Set(selectedKey ? selectedKey.split('\n') : []), [selectedKey])
+  const single = selectedSet.size === 1
   const listRef = useRef<HTMLDivElement>(null)
   const pickedHere = useRef<string | null>(null)
   useLayoutEffect(() => {
@@ -177,7 +184,7 @@ export function LeftPanel() {
                     <button
                       key={n.id}
                       type="button"
-                      className={`wb-row${n.id === selectedId ? ' is-sel' : ''}`}
+                      className={`wb-row${n.id === selectedId ? ' is-sel' : selectedSet.has(n.id) ? ' is-in-sel' : ''}`}
                       data-node={n.id}
                       aria-pressed={n.id === selectedId}
                       title={labelOf(n)}

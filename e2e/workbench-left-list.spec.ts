@@ -430,4 +430,55 @@ test.describe('the left list follows a single node chosen on the canvas', () => 
       .toBe(2)
     expect(await scrollTop(page), 'a multiple selection: the list stays').toBe(0)
   })
+
+  // a multiple selection marks every row it holds (2026-10-27): the selection's
+  // tint on each, the representative (the right panel's node: the store's
+  // selectedNodeId, the first in the node order) keeping its bar; under forced
+  // colours the representative is filled and each other row has its own 4 px
+  // Highlight bar, short of the row's top and bottom
+  test('a multiple selection: every row tinted, the bar on the right panel’s node only; forced colours tell the two apart', async ({ page }) => {
+    await openTemplate(page, 'gacha-pickup')
+    await toTop(page)
+    const ids = ['tickets', 'sr_count', 'r_count']
+    await clickNode(page, 'sr_count')
+    await clickNode(page, 'tickets', true)
+    await clickNode(page, 'r_count', true)
+    await expect.poll(() => page.evaluate(() => (window as any).__loop.graph.getState().nodes.filter((n: any) => n.selected).length)).toBe(3)
+    const rep = await page.evaluate(() => (window as any).__loop.graph.getState().selectedNodeId as string)
+    expect(ids).toContain(rep)
+    await page.mouse.move(640, 300)
+    const sel = await page.evaluate(() => getComputedStyle(document.querySelector('.wb-row.is-sel')!).backgroundColor)
+    for (const id of ids) {
+      const row = page.locator(`.wb-row[data-node="${id}"]`)
+      await expect(row).toHaveClass(id === rep ? /\bis-sel\b/ : /\bis-in-sel\b/)
+      await expect(row, `${id}: the selection's tint`).toHaveCSS('background-color', sel)
+      if (id === rep) await expect(row, 'the representative keeps its bar').not.toHaveCSS('box-shadow', 'none')
+      else await expect(row, `${id}: no bar`).toHaveCSS('box-shadow', 'none')
+    }
+    // one of the rest taken off: its row loses the mark
+    const other = ids.find((id) => id !== rep)!
+    await clickNode(page, other, true)
+    await expect(page.locator(`.wb-row[data-node="${other}"]`)).not.toHaveClass(/is-in-sel|is-sel/)
+
+    await clickNode(page, other, true)
+    await page.emulateMedia({ forcedColors: 'active' })
+    await page.mouse.move(640, 300)
+    const hl = await page.evaluate(() => {
+      const p = document.createElement('div')
+      p.style.color = 'Highlight'
+      document.body.appendChild(p)
+      const v = getComputedStyle(p).color
+      p.remove()
+      return v
+    })
+    await expect(page.locator(`.wb-row[data-node="${rep}"]`), 'forced: the representative filled').toHaveCSS('background-color', hl)
+    for (const id of ids.filter((id) => id !== rep)) {
+      const bar = await page.locator(`.wb-row[data-node="${id}"]`).evaluate((el) => {
+        const cs = getComputedStyle(el, '::before')
+        return { content: cs.content, width: cs.width, top: cs.top, bottom: cs.bottom, bg: cs.backgroundColor }
+      })
+      expect(bar, `${id}: its own Highlight bar`).toEqual({ content: '""', width: '4px', top: '3px', bottom: '3px', bg: hl })
+    }
+    await page.emulateMedia({ forcedColors: 'none' })
+  })
 })

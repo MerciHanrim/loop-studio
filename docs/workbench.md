@@ -277,6 +277,16 @@ Two tabs: Model and Inputs (arrow keys move between them).
   sheet's Close clears the selection the same way.
   `e2e/workbench-left-list.spec.ts` checks A → B under Focus, Focus off, a
   list pick against a canvas click, and an off-screen pick.
+- A multiple selection marks every row it holds with the selection's tint
+  (`is-in-sel`). The representative keeps the bar (`is-sel`): the node the
+  right panel shows, the store's `selectedNodeId`, which is the first selected
+  node in the document's node order (`Canvas.tsx`, `onSelectionChange`), not
+  the last one clicked. Under forced colours the tint is dropped, so the
+  representative is filled with Highlight and each other selected row has its
+  own 4 px Highlight bar at the start edge, 3 px short of the row's top and
+  bottom so that neighbouring bars stay apart. A single selection looks as
+  before. Ctrl+click in the list and a count of selected rows out of view are
+  not part of this.
 - Each kind's heading stays at the list's top while that kind's rows scroll
   under it. At the group's end, the next kind's heading pushes it out
   (`workbench.css`, `.wb-list__sub`, sticky at -4 px to meet the list's top
