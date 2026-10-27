@@ -88,7 +88,10 @@ export function LeftPanel() {
     if (!row) return
     const l = list.getBoundingClientRect()
     const r = row.getBoundingClientRect()
-    if (r.top < l.top) list.scrollTop -= l.top - r.top
+    // the top's inset is the stuck kind heading's (the list's
+    // scroll-padding-top, workbench.css): a row under it is out of view too
+    const top = l.top + (parseFloat(getComputedStyle(list).scrollPaddingTop) || 0)
+    if (r.top < top) list.scrollTop -= top - r.top
     else if (r.bottom > l.bottom) list.scrollTop += r.bottom - l.bottom
   }, [selectedId, single, leftOpen, tab])
 
