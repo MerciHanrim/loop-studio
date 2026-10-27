@@ -193,3 +193,34 @@ test('forced colours off: the words keep their tokens and the rings their place'
     }
   }
 })
+
+// A canvas tool focused but not chosen had the pressed ring's twin for its
+// focus ring (2026-10-27): it is dashed now, the chosen tool's ring solid, and
+// the chosen tool with focus keeps its ink ring 5 px inside (#372). Under
+// forced colours the focused one keeps a solid ring (the chosen one is filled)
+test('canvas tools: focused but not chosen, a dashed ring; chosen, solid', async ({ page }) => {
+  const tools = page.locator('.wb-toolgroup .wb-tb')
+  await expect(tools).toHaveCount(4)
+  for (const forcedColors of ['none', 'active'] as const) {
+    for (const colorScheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme, forcedColors })
+      const focus = await sysColour(page, forcedColors === 'active' ? 'Highlight' : 'var(--focus)')
+      for (let i = 0; i < 4; i++) {
+        const t = tools.nth(i)
+        // another tool chosen, this one keyboard-focused
+        await tools.nth(i === 0 ? 1 : 0).click()
+        await expect(t).toHaveAttribute('aria-pressed', 'false')
+        await keyboardFocus(page, t)
+        await expect(t).toHaveCSS('outline-style', forcedColors === 'active' ? 'solid' : 'dashed')
+        await expect(t).toHaveCSS('outline-color', focus)
+        await expect(t).toHaveCSS('outline-offset', '-2px')
+        // chosen and keyboard-focused: as before
+        await page.keyboard.press('Enter')
+        await expect(t).toHaveAttribute('aria-pressed', 'true')
+        await expect(t).toHaveCSS('outline-style', 'solid')
+        await expect(t).toHaveCSS('outline-offset', '-5px')
+      }
+    }
+  }
+  await tools.nth(0).click()
+})

@@ -178,6 +178,14 @@
   outline-color: var(--ink-1);
   outline-offset: -5px;
 }
+/* a canvas tool focused but not chosen: the focus ring was the pressed ring's
+   twin (the same colour, width and place; --focus = --sel), so with Tab past
+   the chosen tool two like rings stood side by side, the tint alone telling
+   them apart, faint in dark (2026-10-27). Dashed, so pattern tells focus from
+   choice; the colour, width and place are kept */
+.wb-toolgroup .wb-tb:not(.is-on):focus-visible {
+  outline-style: dashed;
+}
 /* the same on the chosen connection kind: a radio group, so the keyboard only
    ever reaches the chosen kind and its focus never showed (2026-10-26). The
    ring clears the line sample at the icon-only width too */
@@ -961,6 +969,11 @@
   .wb-toolgroup .wb-tb[aria-pressed='true']:focus-visible {
     outline-color: HighlightText;
     outline-offset: -5px;
+  }
+  /* a tool focused but not chosen keeps the UA's solid ring here: Highlight
+     fill against a ring already tells the two apart */
+  .wb-toolgroup .wb-tb:not(.is-on):focus-visible {
+    outline-style: solid;
   }
   /* the same two findings on the chosen connection kind, the status bar's
      Focus when on and an open List / Properties toggle (measured on each,
