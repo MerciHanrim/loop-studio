@@ -507,6 +507,7 @@ const ui = {
   'workbench.find.placeholder': '모델에서 찾기',
   'workbench.find.none': '맞는 노드가 없습니다',
   'workbench.list.empty': '아직 노드가 없습니다',
+  'workbench.list.shownInProps': '속성에 표시됨',
   'workbench.analysis.resize': '분석 영역 높이',
   'workbench.status.label': '상태',
   'workbench.status.counts': '노드 {nodes, plural, other {#}} · 연결 {edges, plural, other {#}}',

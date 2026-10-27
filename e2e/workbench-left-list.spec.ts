@@ -481,4 +481,35 @@ test.describe('the left list follows a single node chosen on the canvas', () => 
     }
     await page.emulateMedia({ forcedColors: 'none' })
   })
+
+  // what a screen reader hears (2026-10-27): every row a selection holds is
+  // pressed; in a multiple selection the right panel's node is described as
+  // shown in Properties, its name unchanged; a single selection, or a row
+  // picked in the list, leaves one row pressed and that description off (a
+  // row with a value keeps its title, the name, as its description, as before)
+  test('a multiple selection: every row pressed, the right panel’s node described; a single one: one pressed, none described', async ({ page }) => {
+    await openTemplate(page, 'gacha-pickup')
+    await toTop(page)
+    const ids = ['tickets', 'sr_count', 'r_count']
+    const shown = 'Shown in Properties'
+    const pressed = () => page.locator('.wb-list').getByRole('button', { pressed: true })
+    const pressedIds = async () => (await pressed().evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.node!))).sort()
+    await clickNode(page, 'sr_count')
+    await expect(pressed()).toHaveCount(1)
+    await expect(pressed()).not.toHaveAccessibleDescription(shown)
+    await clickNode(page, 'tickets', true)
+    await clickNode(page, 'r_count', true)
+    await expect.poll(pressedIds).toEqual([...ids].sort())
+    const rep = await page.evaluate(() => (window as any).__loop.graph.getState().selectedNodeId as string)
+    for (const id of ids) {
+      const row = page.locator(`.wb-row[data-node="${id}"]`)
+      if (id === rep) await expect(row, `${id}: described`).toHaveAccessibleDescription(shown)
+      else await expect(row, `${id}: not described`).not.toHaveAccessibleDescription(shown)
+      await expect(row, `${id}: its name, unchanged`).not.toHaveAccessibleName(/Properties/)
+    }
+    // a row picked in the list: that node alone, as before
+    await page.locator(`.wb-row[data-node="${ids.find((id) => id !== rep)}"]`).click()
+    await expect.poll(pressedIds).toEqual([ids.find((id) => id !== rep)])
+    await expect(pressed()).not.toHaveAccessibleDescription(shown)
+  })
 })
