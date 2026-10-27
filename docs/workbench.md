@@ -287,6 +287,10 @@ Two tabs: Model and Inputs (arrow keys move between them).
   bottom so that neighbouring bars stay apart. A single selection looks as
   before. Ctrl+click in the list and a count of selected rows out of view are
   not part of this.
+- A screen reader hears the same: every selected row is `aria-pressed`, and in
+  a multiple selection the representative is described as "Shown in
+  Properties" (`aria-describedby`, a hidden text in the list), its name
+  unchanged. A single selection has one pressed row and no such description.
 - Each kind's heading stays at the list's top while that kind's rows scroll
   under it. At the group's end, the next kind's heading pushes it out
   (`workbench.css`, `.wb-list__sub`, sticky at -4 px to meet the list's top

@@ -163,6 +163,9 @@ export function LeftPanel() {
             />
           </label>
           <div className="wb-list" ref={listRef}>
+            <span id={`${ids}-shown`} hidden>
+              {t('workbench.list.shownInProps')}
+            </span>
             <div className="wb-list__head">
               <span>{t('workbench.tab.model')}</span>
               <span className="wb-list__count" dir="ltr">
@@ -186,7 +189,11 @@ export function LeftPanel() {
                       type="button"
                       className={`wb-row${n.id === selectedId ? ' is-sel' : selectedSet.has(n.id) ? ' is-in-sel' : ''}`}
                       data-node={n.id}
-                      aria-pressed={n.id === selectedId}
+                      // heard as seen (2026-10-27): every selected row is
+                      // pressed; in a multiple selection the representative
+                      // is described as shown in Properties, its name kept
+                      aria-pressed={selectedSet.has(n.id)}
+                      aria-describedby={!single && n.id === selectedId ? `${ids}-shown` : undefined}
                       title={labelOf(n)}
                       onClick={() => {
                         pickedHere.current = n.id

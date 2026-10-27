@@ -510,6 +510,7 @@ const ui = {
   'workbench.find.placeholder': 'Find in model',
   'workbench.find.none': 'No node matches',
   'workbench.list.empty': 'No nodes yet',
+  'workbench.list.shownInProps': 'Shown in Properties',
   'workbench.analysis.resize': 'Analysis area height',
   'workbench.status.label': 'Status',
   'workbench.status.counts': '{nodes, plural, one {# node} other {# nodes}} · {edges, plural, one {# connection} other {# connections}}',
