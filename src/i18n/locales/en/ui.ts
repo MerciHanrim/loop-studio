@@ -60,6 +60,8 @@ const ui = {
   'playbar.mc.progress.title': 'Monte-Carlo run in progress',
   'playbar.cancel': 'Cancel',
   'playbar.steady': 'Steady state — flows continue',
+  // the steady chip's short wording, where the run bar is tight (fit step 3)
+  'playbar.steadyShort': 'Steady',
   'playbar.timeline.show': 'Show timeline',
   'playbar.timeline.hide': 'Hide timeline',
   'playbar.timeline.short': 'Timeline',

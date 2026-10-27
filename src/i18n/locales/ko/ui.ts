@@ -49,6 +49,7 @@ const ui = {
   'playbar.speed': '속도',
   'playbar.seed': '시드',
   'playbar.settings': '실행 설정',
+  'playbar.steadyShort': '흐름 계속',
   'playbar.seed.title': '난수 시드 — 같은 시드는 실행을 재현하며, 바꾸면 다시 시작합니다',
   'playbar.mc': '몬테카를로',
   'playbar.mc.withNote': '몬테카를로 · {note}',

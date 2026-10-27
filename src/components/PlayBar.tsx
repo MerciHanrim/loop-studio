@@ -236,7 +236,10 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
       {/* the run's state beside its step: its room is kept while hidden; the
           screen reader hears it once, from the status region below */}
       <span className={`pstrip__steady${showSteady ? ' is-on' : ''}`} aria-hidden="true" title={showSteady ? t('playbar.steady') : undefined}>
-        {t('playbar.steady')}
+        {/* the row's last fit step shows the short wording, not an ellipsis
+            (the whole text stays on the tooltip and in the status region) */}
+        <span className="pstrip__steady-full">{t('playbar.steady')}</span>
+        <span className="pstrip__steady-short">{t('playbar.steadyShort')}</span>
       </span>
 
       <button
