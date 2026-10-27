@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react'
+import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { NodeData, NodeKind } from '../../model/types'
 import { useGraphStore } from '../../store/graphStore'
 import { useSimStore } from '../../store/simStore'
@@ -71,6 +71,27 @@ export function LeftPanel() {
   // (./panelLayout: the width band's default, or the user's choice)
   const { leftOpen, overlay, close } = useWorkbenchPanels()
 
+  // the list follows a SINGLE node chosen elsewhere (the canvas): its row,
+  // when out of the list's view, is brought in by the least scroll, the list
+  // alone moving (2026-10-27, Lumi: before, the row stayed out of sight). Not
+  // for a row picked here (it is in view), nor a multiple selection (no one
+  // row to follow); a row the search hides is left alone.
+  const single = useGraphStore((s) => s.nodes.reduce((k, n) => k + (n.selected ? 1 : 0), 0) === 1)
+  const listRef = useRef<HTMLDivElement>(null)
+  const pickedHere = useRef<string | null>(null)
+  useLayoutEffect(() => {
+    const picked = pickedHere.current
+    pickedHere.current = null
+    const list = listRef.current
+    if (!list || !leftOpen || tab !== 'model' || selectedId == null || !single || picked === selectedId) return
+    const row = list.querySelector<HTMLElement>(`.wb-row[data-node="${CSS.escape(selectedId)}"]`)
+    if (!row) return
+    const l = list.getBoundingClientRect()
+    const r = row.getBoundingClientRect()
+    if (r.top < l.top) list.scrollTop -= l.top - r.top
+    else if (r.bottom > l.bottom) list.scrollTop += r.bottom - l.bottom
+  }, [selectedId, single, leftOpen, tab])
+
   const groups = useMemo(() => {
     const q = norm(query)
     const shown = nodes.filter((n) => !q || norm(labelOf(n)).includes(q))
@@ -131,7 +152,7 @@ export function LeftPanel() {
               autoComplete="off"
             />
           </label>
-          <div className="wb-list">
+          <div className="wb-list" ref={listRef}>
             <div className="wb-list__head">
               <span>{t('workbench.tab.model')}</span>
               <span className="wb-list__count" dir="ltr">
@@ -157,7 +178,10 @@ export function LeftPanel() {
                       data-node={n.id}
                       aria-pressed={n.id === selectedId}
                       title={labelOf(n)}
-                      onClick={() => reveal(n.id, null)}
+                      onClick={() => {
+                        pickedHere.current = n.id
+                        reveal(n.id, null)
+                      }}
                     >
                       <KindMark kind={n.type as NodeKind} />
                       <span className="wb-row__name" dir="auto">

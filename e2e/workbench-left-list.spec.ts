@@ -276,3 +276,102 @@ test.describe('the left list shows each value beside its name', () => {
     await expect(page.locator('.wb-row[data-node="p_two"]')).toHaveAccessibleName(/ B ?, 200$/)
   })
 })
+
+// The list follows a single node chosen on the canvas (2026-10-27): a row out
+// of the list's view comes in by the least scroll; a row in view, a row
+// picked in the list (even one cut by its edge) and a multiple selection
+// leave the list where it is. Gacha pickup at 1280 × 800: 31 rows, about 17
+// in view.
+test.describe('the left list follows a single node chosen on the canvas', () => {
+  const list = (page: Page) => page.locator('.wb-list')
+  const scrollTop = (page: Page) => list(page).evaluate((el) => Math.round(el.scrollTop))
+  /** each row: in the list's view whole, above it, below it, or cut by an edge */
+  const places = (page: Page) =>
+    page.evaluate(() => {
+      const l = document.querySelector('.wb-list')!.getBoundingClientRect()
+      return [...document.querySelectorAll<HTMLElement>('.wb-list .wb-row')].map((r) => {
+        const b = r.getBoundingClientRect()
+        const place = b.bottom <= l.top + 0.5 ? 'above' : b.top >= l.bottom - 0.5 ? 'below' : b.top >= l.top - 0.5 && b.bottom <= l.bottom + 0.5 ? 'in' : 'cut'
+        return { id: r.dataset.node!, place }
+      })
+    })
+  const placeOfRow = async (page: Page, id: string) => (await places(page)).find((p) => p.id === id)!.place
+  /** a node drawn whole inside the canvas pane, so a click lands on it */
+  const onCanvas = (page: Page, id: string) =>
+    page.evaluate((id) => {
+      const b = document.querySelector(`.react-flow__node[data-id="${id}"]`)!.getBoundingClientRect()
+      const p = document.querySelector('.react-flow__pane')!.getBoundingClientRect()
+      return b.left > p.left + 8 && b.right < p.right - 8 && b.top > p.top + 8 && b.bottom < p.bottom - 8
+    }, id)
+  async function clickNode(page: Page, id: string, ctrl = false) {
+    const b = (await page.locator(`.react-flow__node[data-id="${id}"]`).boundingBox())!
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2)
+    if (ctrl) await page.keyboard.down('Control')
+    await page.mouse.down()
+    await page.mouse.up()
+    if (ctrl) await page.keyboard.up('Control')
+  }
+  async function pick(page: Page, where: 'in' | 'below' | 'above', n = 1) {
+    const ids: string[] = []
+    for (const p of await places(page)) if (p.place === where && (await onCanvas(page, p.id))) ids.push(p.id)
+    expect(ids.length, `${n} node(s) with a row ${where} the view, drawn on the canvas`).toBeGreaterThanOrEqual(n)
+    return ids
+  }
+  const toTop = async (page: Page) => {
+    await page.locator('.react-flow__pane').click({ position: { x: 5, y: 5 } })
+    await list(page).evaluate((el) => (el.scrollTop = 0))
+  }
+
+  test('below or above the view: the list scrolls just enough; in view: it stays', async ({ page }) => {
+    await openTemplate(page, 'gacha-pickup')
+    await toTop(page)
+    const [inView] = await pick(page, 'in')
+    await clickNode(page, inView)
+    await expect(page.locator(`.wb-row[data-node="${inView}"]`)).toHaveClass(/is-sel/)
+    expect(await scrollTop(page), 'a row in view: the list stays').toBe(0)
+
+    await toTop(page)
+    const [below] = await pick(page, 'below')
+    await clickNode(page, below)
+    await expect(page.locator(`.wb-row[data-node="${below}"]`)).toHaveClass(/is-sel/)
+    await expect.poll(() => placeOfRow(page, below)).toBe('in')
+    // the least scroll: the row's bottom on the list's bottom edge
+    const gapBelow = await page.evaluate((id) => {
+      const l = document.querySelector('.wb-list')!.getBoundingClientRect()
+      return l.bottom - document.querySelector(`.wb-row[data-node="${id}"]`)!.getBoundingClientRect().bottom
+    }, below)
+    expect(Math.abs(gapBelow), 'the row just inside the bottom edge').toBeLessThan(1)
+
+    await toTop(page)
+    await list(page).evaluate((el) => (el.scrollTop = el.scrollHeight))
+    const [above] = await pick(page, 'above')
+    await clickNode(page, above)
+    await expect.poll(() => placeOfRow(page, above)).toBe('in')
+    const gapAbove = await page.evaluate((id) => {
+      const l = document.querySelector('.wb-list')!.getBoundingClientRect()
+      return document.querySelector(`.wb-row[data-node="${id}"]`)!.getBoundingClientRect().top - l.top
+    }, above)
+    expect(Math.abs(gapAbove), 'the row just inside the top edge').toBeLessThan(1)
+  })
+
+  test('a row picked in the list, even one cut by its edge, and a multiple selection leave the list where it is', async ({ page }) => {
+    await openTemplate(page, 'gacha-pickup')
+    await toTop(page)
+    const cut = (await places(page)).find((p) => p.place === 'cut')
+    expect(cut, 'a row cut by the bottom edge').toBeTruthy()
+    await page.locator(`.wb-row[data-node="${cut!.id}"]`).click({ position: { x: 20, y: 4 } })
+    await expect(page.locator(`.wb-row[data-node="${cut!.id}"]`)).toHaveClass(/is-sel/)
+    expect(await scrollTop(page), 'a pick in the list: the list stays').toBe(0)
+
+    await toTop(page)
+    const [a, b] = await pick(page, 'below', 2)
+    await clickNode(page, a)
+    await expect.poll(() => placeOfRow(page, a)).toBe('in')
+    await list(page).evaluate((el) => (el.scrollTop = 0))
+    await clickNode(page, b, true)
+    await expect
+      .poll(() => page.evaluate(() => (window as any).__loop.graph.getState().nodes.filter((n: any) => n.selected).length))
+      .toBe(2)
+    expect(await scrollTop(page), 'a multiple selection: the list stays').toBe(0)
+  })
+})

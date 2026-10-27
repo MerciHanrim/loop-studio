@@ -277,6 +277,18 @@ Two tabs: Model and Inputs (arrow keys move between them).
   sheet's Close clears the selection the same way.
   `e2e/workbench-left-list.spec.ts` checks A → B under Focus, Focus off, a
   list pick against a canvas click, and an off-screen pick.
+- The list follows a single node chosen elsewhere, such as a canvas click.
+  If that node's row is outside the list's view, the list alone scrolls by the
+  smallest amount that shows the row whole (`LeftPanel.tsx`). Before
+  2026-10-27 the row stayed out of sight. Three cases are left alone:
+  - A row picked in the list, even one cut by the list's edge.
+  - A multiple selection, since there is no one row to follow.
+  - A row the search hides.
+
+  Tab only moves focus, and the browser scrolls the focused row into view.
+  `e2e/workbench-left-list.spec.ts` checks rows below and above the view, a
+  row already in view, a partly cut row picked in the list, and a multiple
+  selection.
 - **Inputs** holds the Parameter and Register panels that used to sit in the
   right column ([`parameter-inputs.md`](parameter-inputs.md)).
 
