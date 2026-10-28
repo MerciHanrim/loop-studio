@@ -1066,14 +1066,12 @@ so the keyboard gesture stops being the only discovery path.
 - **A drag from a connection or a frame's name chip draws the box too**
   (2026-10-28). React Flow starts a box only from a press on the pane itself,
   so before, such a drag did nothing and left the tool armed. Once the press
-  has moved past the pane's click distance (`PANE_CLICK_DISTANCE`, React
-  Flow's default of 1 px) it is handed to the pane from where it started. The
-  name chip opens the frame's properties, so a press on it may drift up to
-  `CHIP_DRAG_DISTANCE` (4 px) and stay a click: with 1 px, a click that
-  drifted 2–3 px made a box instead. A press that moves less stays a click:
-  the connection is selected and the chip opens the frame's properties, as
-  with the tool off. A node, a frame's border, a bend and an end grip keep
-  their own drags.
+  has moved more than `HANDOFF_DRAG_DISTANCE` (4 px) it is handed to the pane
+  from where it started. A press that moves less stays a click: the connection
+  is selected and the chip opens the frame's properties, as with the tool off.
+  The distance is more than the empty pane's 1 px (React Flow's default),
+  because with 1 px a click on either that drifted 2–3 px made a box instead.
+  A node, a frame's border, a bend and an end grip keep their own drags.
 
 ### LGR12.2 Mutual exclusion
 

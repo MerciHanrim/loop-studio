@@ -67,13 +67,12 @@ const DND_TYPE = 'application/loop-node'
 // fit (`zoomFloor` below).
 const MIN_ZOOM = 0.2
 const MAX_ZOOM = 2
-// how far (px) a press on the pane moves before it is a box, not a click:
-// React Flow's own default, named so a box started on a connection or a frame
-// name chip (§LGR12.1) uses the same distance
-const PANE_CLICK_DISTANCE = 1
-// the name chip opens the frame's properties, so a click on it may drift this
-// far (px) and stay a click (2026-10-28, Lumi: 2–3 px of drift made a box)
-const CHIP_DRAG_DISTANCE = 4
+// how far (px) a press on a connection or a frame's name chip may drift and
+// stay a click, while Select a region is armed (§LGR12.1). More than the
+// pane's own 1 px (React Flow's default): a click there selects the
+// connection or opens the frame's properties, and with 1 px a click that
+// drifted 2–3 px made a box instead (2026-10-28, Lumi)
+const HANDOFF_DRAG_DISTANCE = 4
 
 // React Flow's `StoreUpdater` syncs a fixed list of props into its own store and
 // compares each with `===`. `Canvas` re-renders on every pointer move of a node
@@ -573,27 +572,24 @@ export function Canvas() {
   // §LGR12.1 — while armed, a drag that starts on a connection or a frame's
   // name chip draws the box too (2026-10-28, Lumi: before, it did nothing).
   // React Flow starts a box only from a press on the pane itself, so once the
-  // press has moved past the pane's own click distance (the chip's: a little
-  // more) it is handed to the pane, from where it started. A press that moves
-  // less stays a click: the connection is selected, the chip opens the frame's
-  // properties, as before.
+  // press has moved past HANDOFF_DRAG_DISTANCE it is handed to the pane, from
+  // where it started. A press that moves less stays a click: the connection is
+  // selected, the chip opens the frame's properties, as before.
   // Nodes, frame borders, bends and end grips keep their own drags.
   useEffect(() => {
     if (!regionSelectArmed) return
     const pane = rfStore.getState().domNode?.querySelector<HTMLElement>('.react-flow__pane')
     if (!pane) return
-    let from: { x: number; y: number; id: number; type: string; distance: number } | null = null
+    let from: { x: number; y: number; id: number; type: string } | null = null
     const onDown = (e: PointerEvent) => {
       from = null
       if (!e.isTrusted || e.button !== 0 || !e.isPrimary || e.pointerType === 'touch') return
-      const on = (e.target as Element).closest('.react-flow__edge, .lgr-frame__label')
-      if (!on) return
-      const distance = on.classList.contains('lgr-frame__label') ? CHIP_DRAG_DISTANCE : PANE_CLICK_DISTANCE
-      from = { x: e.clientX, y: e.clientY, id: e.pointerId, type: e.pointerType, distance }
+      if (!(e.target as Element).closest('.react-flow__edge, .lgr-frame__label')) return
+      from = { x: e.clientX, y: e.clientY, id: e.pointerId, type: e.pointerType }
     }
     const onMove = (e: PointerEvent) => {
       if (!from || e.pointerId !== from.id) return
-      if (Math.hypot(e.clientX - from.x, e.clientY - from.y) <= from.distance) return
+      if (Math.hypot(e.clientX - from.x, e.clientY - from.y) <= HANDOFF_DRAG_DISTANCE) return
       const s = from
       from = null
       pane.dispatchEvent(
@@ -1146,7 +1142,6 @@ export function Canvas() {
         // all, so scroll-zoom simply stays off until the popover is gone.
         panOnDrag={!frameToolArmed && !regionSelectArmed && !framePropsOpen}
         selectionOnDrag={regionSelectArmed}
-        paneClickDistance={PANE_CLICK_DISTANCE}
         onSelectionStart={() => {
           selectionBeforeBox.current = {
             nodes: nodes.filter((n) => n.selected).map((n) => n.id),

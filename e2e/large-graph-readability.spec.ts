@@ -549,6 +549,16 @@ test.describe('large-graph readability — Slice 1', () => {
     await page.mouse.click(ab.x, ab.y)
     await expect.poll(() => selectedIds(page)).toEqual({ nodes: [], edges: ['e_ab'] })
     await expect(tool).toHaveAttribute('aria-pressed', 'true')
+    // and one that drifts 3 px before release, from nothing selected
+    await page.mouse.click((await emptyPanePoint(page)).x, (await emptyPanePoint(page)).y)
+    await expect.poll(() => selectedIds(page)).toEqual({ nodes: [], edges: [] })
+    if ((await tool.getAttribute('aria-pressed')) !== 'true') await tool.click()
+    await page.mouse.move(ab.x, ab.y)
+    await page.mouse.down()
+    await page.mouse.move(ab.x + 3, ab.y, { steps: 3 })
+    await page.mouse.up()
+    await expect.poll(() => selectedIds(page)).toEqual({ nodes: [], edges: ['e_ab'] })
+    await expect(tool).toHaveAttribute('aria-pressed', 'true')
 
     // a drag from it: the box from the press, enclosing mid and mc wholly (the
     // top row is cut at its middle), then the tool spent; nothing moved
