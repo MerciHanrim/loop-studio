@@ -39,7 +39,8 @@ export async function openViewMenu(page: Page): Promise<void> {
 
 /** a View row — `focus`, `filter`, `activity` (toggles with `aria-pressed`,
  *  as the canvas rail's buttons had) or `reset` — with View open. View stays
- *  open across its rows' clicks; a click elsewhere or Escape closes it. */
+ *  open across Focus and Activity; Filters and Reset view close it, and so do
+ *  a click elsewhere and Escape. */
 export async function viewRow(page: Page, hook: 'focus' | 'filter' | 'activity' | 'reset'): Promise<Locator> {
   await openViewMenu(page)
   const row = page.locator(`.wb-viewmenu__pop [data-view-row="${hook}"]`)
@@ -56,10 +57,12 @@ async function closeView(page: Page): Promise<void> {
   await expect(page.locator('.wb-viewmenu__pop')).toHaveCount(0)
 }
 /** press a View row as a user does — open View, click the row — and close
- *  View again (Reset view closes it itself), so the canvas is not under it */
+ *  View again where the row left it open (Filters and Reset view close it
+ *  themselves), so the canvas is not under it */
 export async function pressViewRow(page: Page, hook: ViewHook): Promise<void> {
   await (await viewRow(page, hook)).click()
-  if (hook !== 'reset') await closeView(page)
+  if (hook === 'filter' || hook === 'reset') await expect(page.locator('.wb-viewmenu__pop')).toHaveCount(0)
+  else await closeView(page)
 }
 /** a View toggle's `aria-pressed`, read with View open, then closed again */
 export async function viewRowPressed(page: Page, hook: ViewHook): Promise<string | null> {

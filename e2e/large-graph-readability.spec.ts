@@ -973,6 +973,50 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
     expect(await viewRowPressed(page, 'filter')).toBe('false')
   })
 
+  // 2026-10-28 (Hanrim's report): View stayed open over the panel its Filters
+  // row had just opened. The row now closes View; from the keyboard, focus
+  // goes into the panel's first checkbox, and back to View when it closes
+  test('View ▸ Filters closes View; from the keyboard, focus goes to the first checkbox and back to View', async ({ page }) => {
+    await loadRT(page)
+    const view = page.locator('.toolbar__actions .wb-viewmenu > .wb-mb')
+    const menu = page.locator('.wb-viewmenu__pop')
+    const notCovered = () =>
+      filterPanel(page).evaluate((el) => {
+        const r = el.getBoundingClientRect()
+        // the panel's top-left quarter, where View's menu had sat
+        const pts = [0.15, 0.35].flatMap((fx) => [0.15, 0.35].map((fy) => [r.left + r.width * fx, r.top + r.height * fy]))
+        return pts.every(([x, y]) => el.contains(document.elementFromPoint(x, y)))
+      })
+
+    // pointer: the row closes View and leaves the panel uncovered
+    await (await viewRow(page, 'filter')).click()
+    await expect(menu).toHaveCount(0)
+    await expect(filterPanel(page)).toBeVisible()
+    expect(await notCovered(), 'nothing over the panel').toBe(true)
+    await (await viewRow(page, 'filter')).click()
+    await expect(menu).toHaveCount(0)
+    await expect(filterPanel(page)).toHaveCount(0)
+
+    // keyboard: Enter on the row opens the panel, focus on its first checkbox
+    await view.focus()
+    await page.keyboard.press('Enter')
+    await expect(menu).toBeVisible()
+    await menu.locator('[data-view-row="filter"]').focus()
+    await page.keyboard.press('Enter')
+    await expect(menu).toHaveCount(0)
+    await expect(filterPanel(page)).toBeVisible()
+    await expect(filterPanel(page).locator('input[type="checkbox"]').first()).toBeFocused()
+    expect(await notCovered(), 'nothing over the panel').toBe(true)
+    // Space on the row closes it, focus back on View
+    await view.focus()
+    await page.keyboard.press('Enter')
+    await menu.locator('[data-view-row="filter"]').focus()
+    await page.keyboard.press('Space')
+    await expect(menu).toHaveCount(0)
+    await expect(filterPanel(page)).toHaveCount(0)
+    await expect(view).toBeFocused()
+  })
+
   test('resource-type list is built from the graph — exactly its strings + untyped (§LGR3.2 / §LGR10.5)', async ({ page }) => {
     await loadRT(page)
     await pressViewRow(page, 'filter')

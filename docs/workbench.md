@@ -74,6 +74,11 @@ A check row (View's toggles, Edit lock) reads "mark | name" on one
 line. The mark keeps its column when it is off, so the name starts at the
 same place on and off.
 
+View stays open across Focus and Activity overlay. Filters opens a panel on
+the canvas, so it closes View, which would cover the panel; from the keyboard,
+focus goes to the panel's first checkbox when it opens and back to View when
+it closes. Reset view closes View too.
+
 There is no Values table and no Notation entry. A Notation entry is added
 only if the contextual help really explains the symbols and lines. The V / H
 shortcuts are on hold.
