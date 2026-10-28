@@ -60,18 +60,20 @@ export function ViewMenu({ buttonRef }: { buttonRef?: (el: HTMLButtonElement | n
   // (a click with no pointer: `detail` 0) focus goes on: into the panel's
   // first checkbox when it opens, back to View when it closes, so it is not
   // left on a row that is gone (Lumi). A pointer's focus is left alone.
-  const pickFilter = (e: React.MouseEvent) => {
+  const pickFilter = (e: React.MouseEvent<HTMLElement>) => {
     const opening = !useUiStore.getState().filterPanelOpen
+    // View's own button, found from the row before the row goes
+    const viewButton = e.currentTarget.closest('.wb-viewmenu')?.querySelector<HTMLElement>(':scope > .wb-mb')
     toggleFilterPanel()
     setOpen(false)
     if (e.detail !== 0) return
     requestAnimationFrame(() => {
       if (opening) document.querySelector<HTMLElement>('.lgr-filter input[type="checkbox"]')?.focus()
-      else btnRef.current?.focus()
+      else viewButton?.focus()
     })
   }
 
-  const toggle = (on: boolean, label: string, onClick: (e: React.MouseEvent) => void, hook: string) => (
+  const toggle = (on: boolean, label: string, onClick: (e: React.MouseEvent<HTMLElement>) => void, hook: string) => (
     <button type="button" className="menu__item wb-viewmenu__toggle" aria-pressed={on} data-view-row={hook} onClick={onClick}>
       <span className="wb-menu__mark" aria-hidden="true">
         {on ? <Icon name="check" /> : null}
