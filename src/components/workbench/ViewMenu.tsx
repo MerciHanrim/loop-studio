@@ -55,7 +55,25 @@ export function ViewMenu({ buttonRef }: { buttonRef?: (el: HTMLButtonElement | n
     return () => useMenuOpenStore.getState().setOpen('view', false)
   }, [open])
 
-  const toggle = (on: boolean, label: string, onClick: () => void, hook: string) => (
+  // Filters opens a panel on the canvas, so its row also closes View, which
+  // would cover the panel (2026-10-28, Hanrim's report). From the keyboard
+  // (a click with no pointer: `detail` 0) focus goes on: into the panel's
+  // first checkbox when it opens, back to View when it closes, so it is not
+  // left on a row that is gone (Lumi). A pointer's focus is left alone.
+  const pickFilter = (e: React.MouseEvent<HTMLElement>) => {
+    const opening = !useUiStore.getState().filterPanelOpen
+    // View's own button, found from the row before the row goes
+    const viewButton = e.currentTarget.closest('.wb-viewmenu')?.querySelector<HTMLElement>(':scope > .wb-mb')
+    toggleFilterPanel()
+    setOpen(false)
+    if (e.detail !== 0) return
+    requestAnimationFrame(() => {
+      if (opening) document.querySelector<HTMLElement>('.lgr-filter input[type="checkbox"]')?.focus()
+      else viewButton?.focus()
+    })
+  }
+
+  const toggle = (on: boolean, label: string, onClick: (e: React.MouseEvent<HTMLElement>) => void, hook: string) => (
     <button type="button" className="menu__item wb-viewmenu__toggle" aria-pressed={on} data-view-row={hook} onClick={onClick}>
       <span className="wb-menu__mark" aria-hidden="true">
         {on ? <Icon name="check" /> : null}
@@ -85,7 +103,7 @@ export function ViewMenu({ buttonRef }: { buttonRef?: (el: HTMLButtonElement | n
           <LanguageSwitch variant="row" open={activeRow === 'language'} onOpenChange={(v) => setActiveRow(v ? 'language' : null)} />
           <div className="menu__divider" role="separator" />
           {toggle(focusMode, t('workbench.view.focus'), toggleFocusMode, 'focus')}
-          {toggle(filterOpen, t('workbench.view.filter'), toggleFilterPanel, 'filter')}
+          {toggle(filterOpen, t('workbench.view.filter'), pickFilter, 'filter')}
           {toggle(activity, t('workbench.view.activity'), toggleActivity, 'activity')}
           <div className="menu__divider" role="separator" />
           <button

@@ -1,0 +1,1 @@
+{ "type": "user-facing", "changelog": "- **View ▸ Filters closes the menu.** Choosing Filters in the View menu now closes the menu, so it no longer covers the filter panel it opened. With the keyboard, focus moves to the panel's first checkbox, and back to View when the panel is closed." }
