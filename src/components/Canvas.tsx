@@ -67,6 +67,12 @@ const DND_TYPE = 'application/loop-node'
 // fit (`zoomFloor` below).
 const MIN_ZOOM = 0.2
 const MAX_ZOOM = 2
+// how far (px) a press on a connection or a frame's name chip may drift and
+// stay a click, while Select a region is armed (§LGR12.1). More than the
+// pane's own 1 px (React Flow's default): a click there selects the
+// connection or opens the frame's properties, and with 1 px a click that
+// drifted 2–3 px made a box instead (2026-10-28, Lumi)
+const HANDOFF_DRAG_DISTANCE = 4
 
 // React Flow's `StoreUpdater` syncs a fixed list of props into its own store and
 // compares each with `===`. `Canvas` re-renders on every pointer move of a node
@@ -562,6 +568,44 @@ export function Canvas() {
       window.removeEventListener('pointercancel', cancelRegionSelect, true)
     }
   }, [regionSelectArmed, disarmRegionSelect, cancelRegionSelect, clearRfSelectionBox, onNodesChange, onEdgesChange])
+
+  // §LGR12.1 — while armed, a drag that starts on a connection or a frame's
+  // name chip draws the box too (2026-10-28, Lumi: before, it did nothing).
+  // React Flow starts a box only from a press on the pane itself, so once the
+  // press has moved past HANDOFF_DRAG_DISTANCE it is handed to the pane, from
+  // where it started. A press that moves less stays a click: the connection is
+  // selected, the chip opens the frame's properties, as before.
+  // Nodes, frame borders, bends and end grips keep their own drags.
+  useEffect(() => {
+    if (!regionSelectArmed) return
+    const pane = rfStore.getState().domNode?.querySelector<HTMLElement>('.react-flow__pane')
+    if (!pane) return
+    let from: { x: number; y: number; id: number; type: string } | null = null
+    const onDown = (e: PointerEvent) => {
+      from = null
+      if (!e.isTrusted || e.button !== 0 || !e.isPrimary || e.pointerType === 'touch') return
+      if (!(e.target as Element).closest('.react-flow__edge, .lgr-frame__label')) return
+      from = { x: e.clientX, y: e.clientY, id: e.pointerId, type: e.pointerType }
+    }
+    const onMove = (e: PointerEvent) => {
+      if (!from || e.pointerId !== from.id) return
+      if (Math.hypot(e.clientX - from.x, e.clientY - from.y) <= HANDOFF_DRAG_DISTANCE) return
+      const s = from
+      from = null
+      pane.dispatchEvent(
+        new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: s.x, clientY: s.y, pointerId: s.id, pointerType: s.type, isPrimary: true, button: 0, buttons: 1 }),
+      )
+    }
+    const onUp = () => (from = null)
+    pane.addEventListener('pointerdown', onDown, true)
+    window.addEventListener('pointermove', onMove, true)
+    window.addEventListener('pointerup', onUp, true)
+    return () => {
+      pane.removeEventListener('pointerdown', onDown, true)
+      window.removeEventListener('pointermove', onMove, true)
+      window.removeEventListener('pointerup', onUp, true)
+    }
+  }, [regionSelectArmed, rfStore])
 
   // never leave the tool armed across a context it cannot apply to: the Frame
   // tool taking over, Pan mode coming on, or the layout turning mobile.
