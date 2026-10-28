@@ -575,6 +575,16 @@ test.describe('large-graph readability — Slice 1', () => {
     await expect(page.locator('.lgr-frame-props')).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(page.locator('.lgr-frame-props')).toHaveCount(0)
+    // a click that drifts 3 px before release is still a click on the chip
+    if ((await tool.getAttribute('aria-pressed')) !== 'true') await tool.click()
+    await page.mouse.move(onChip.x, onChip.y)
+    await page.mouse.down()
+    await page.mouse.move(onChip.x + 3, onChip.y, { steps: 3 })
+    await page.mouse.up()
+    await expect(page.locator('.lgr-frame-props')).toBeVisible()
+    await expect(tool).toHaveAttribute('aria-pressed', 'true')
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.lgr-frame-props')).toHaveCount(0)
 
     // a drag from the chip: the box from the press, the second row inside it
     const rect = await page.evaluate(() => {
