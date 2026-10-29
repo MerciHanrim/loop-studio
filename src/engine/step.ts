@@ -542,10 +542,17 @@ export function step(
   // set for the `gate-route` draw (frozen loop-rng/1 no-spill / no-reroll). A
   // probabilistic pick that lands on a disabled branch simply accepts 0, so the
   // resource stays upstream — no redraw, no re-normalised weights.
+  // The same rule holds for a router that does not FIRE this step for any
+  // other reason (`passive` / `interactive` without a pulse, `onStart` after
+  // step 1): it is not in `order`, so an inbox handed to it would never be
+  // consumed and the amount would vanish (issue #388 A — reproduced with a
+  // passive Gate downstream of a Gate: the share left the source Pool and
+  // reached nothing, reported as fired, no diagnostic).
+  const willFire = new Set(routers.map((r) => r.id))
   const disabledInto = new Set<string>()
   for (const e of resEdges) {
     const k = kindOf(e.target)
-    if (k && ROUTER_KINDS.has(k) && !isEnabled(e.target)) disabledInto.add(e.id)
+    if (k && ROUTER_KINDS.has(k) && !willFire.has(e.target)) disabledInto.add(e.id)
   }
   // deterministic routing / accept / reserve skip both a dead branch and a
   // branch into a disabled router; `pickBranch` (probabilistic) skips only `dead`.
@@ -612,8 +619,9 @@ export function step(
       if (memo.has(id)) return memo.get(id)!
       const k = kindOf(id)
       let v: number
-      // a disabled router is inert — like a zero-weight branch (§S4)
-      if (k && ROUTER_KINDS.has(k) && !isEnabled(id)) v = 0
+      // a router that does not fire this step is inert — like a zero-weight
+      // branch (§S4; disabled by an activator, or not firing — #388 A)
+      if (k && ROUTER_KINDS.has(k) && !willFire.has(id)) v = 0
       else if (k === 'pool') v = Math.max(0, headroom(id))
       else if (k === 'drain' || k === 'end') v = Infinity
       else if (k === 'converter') {
@@ -627,19 +635,33 @@ export function step(
           return 0
         }
         const sumIn = sumInRate(id)
+        // #388 D — a Converter with no LIVE output cannot run: with every
+        // branch skipped (dead, or into a router that does not fire) it must
+        // accept 0, or it pulls its inputs and has nowhere to deliver them
         let fmax = 1
+        let liveOut = false
         for (const e of outOf(id)) {
           if (skipDet(e.id)) continue
           const r = rateOfCached(e)
           if (r <= EPSILON) continue
+          liveOut = true
           fmax = Math.min(fmax, accept(e.target) / r)
         }
+        if (!liveOut) fmax = 0
         v = Math.max(0, Math.min(1, fmax)) * sumIn
       } else if (k === 'gate') {
+        // #388 B — a Gate fed by an upstream router has a reservation standing
+        // in its target Pool(s) on ITS behalf (`planReserve`). Its own accept
+        // must credit that back, exactly as a Converter's does (`back` below),
+        // or the delivery it is about to make counts against it and T comes
+        // out 0: the inbox was already pulled from the source Pool and is lost.
+        const own = ownReserve.get(id)
+        const acceptInto = (target: string): number =>
+          isPool(target) ? Math.max(0, headroom(target) + (own?.get(target) ?? 0)) : accept(target)
         if (isProbGate(byId.get(id))) {
           // one live branch of effective weight 1 (§B4.4)
           const sel = pickBranch(byId.get(id)!)
-          v = sel ? accept(sel.target) : 0
+          v = sel ? acceptInto(sel.target) : 0
         } else {
           const outs = outOf(id).filter((e) => !skipDet(e.id))
           const sumW = outs.reduce((s, e) => s + rateOfCached(e), 0)
@@ -649,7 +671,7 @@ export function step(
             for (const e of outs) {
               const w = rateOfCached(e)
               if (w <= EPSILON) continue
-              v = Math.min(v, accept(e.target) * (sumW / w))
+              v = Math.min(v, acceptInto(e.target) * (sumW / w))
             }
           }
         }
@@ -682,8 +704,10 @@ export function step(
         // the resource stays upstream (no redraw — frozen loop-rng/1).
         const sel = pickBranch(byId.get(destId)!)
         if (sel && !skipDet(sel.id)) {
-          if (isPool(sel.target)) reserved.set(sel.target, reservedOf(sel.target) + nz(amountIn))
-          else planReserve(sel.target, nz(amountIn))
+          if (isPool(sel.target)) {
+            reserved.set(sel.target, reservedOf(sel.target) + nz(amountIn))
+            addOwn(destId, sel.target, nz(amountIn)) // #388 B — the Gate's own, credited back in accept and settled on delivery
+          } else planReserve(sel.target, nz(amountIn))
         }
         return
       }
@@ -692,8 +716,10 @@ export function step(
       for (const e of outs) {
         const share = sumW > EPSILON ? nz((amountIn * rateOfCached(e)) / sumW) : 0
         if (share <= 0) continue
-        if (isPool(e.target)) reserved.set(e.target, reservedOf(e.target) + share)
-        else planReserve(e.target, share)
+        if (isPool(e.target)) {
+          reserved.set(e.target, reservedOf(e.target) + share)
+          addOwn(destId, e.target, share) // #388 B
+        } else planReserve(e.target, share)
       }
     }
     // drain / end / pool: nothing further to reserve
@@ -811,9 +837,20 @@ export function step(
           }
         }
 
+        // #388 B — delivering into a Pool settles the reservation that was made
+        // for THIS Gate there (and only that), the way a Converter's does.
+        const settleOwn = (poolId: string, q: number) => {
+          const own = ownReserve.get(id)
+          const held = Math.min(q, own?.get(poolId) ?? 0)
+          if (held <= 0) return
+          reserved.set(poolId, reservedOf(poolId) - held)
+          own!.set(poolId, own!.get(poolId)! - held)
+        }
+
         if (probabilistic) {
           // the whole of T goes down the one selected branch (§B4.3)
           if (isPool(sel!.target)) {
+            settleOwn(sel!.target, T)
             working[sel!.target] = (working[sel!.target] ?? 0) + T
           } else {
             inbox.set(sel!.target, (inbox.get(sel!.target) ?? 0) + T)
@@ -831,6 +868,7 @@ export function step(
             sumW > EPSILON ? nz((T * rateOfCached(e)) / sumW) : nz(T / Math.max(1, outs.length))
           if (share <= 0) continue
           if (isPool(e.target)) {
+            settleOwn(e.target, share)
             working[e.target] = (working[e.target] ?? 0) + share
           } else {
             inbox.set(e.target, (inbox.get(e.target) ?? 0) + share)
@@ -875,13 +913,21 @@ export function step(
           wouldReceive += a
         }
         let fDry = sumIn > EPSILON ? wouldReceive / sumIn : 0
+        // #388 D — what one output branch can take: a Pool's headroom (plus
+        // this Converter's own reservation there); for a router target its
+        // live `accept` — `headroom` of a router is unbounded, so sizing by it
+        // handed a blocked Gate an inbox it could not deliver (lost at commit)
+        const outRoom = (target: string) =>
+          isPool(target) ? headroom(target) + (own?.get(target) ?? 0) : accept(target)
+        let liveOutDry = false // #388 D — see `makeAccept`
         for (const e of outOf(id)) {
           if (skipDet(e.id)) continue
           const r = rateOfCached(e)
           if (r <= EPSILON) continue
-          const back = own?.get(e.target) ?? 0
-          fDry = Math.min(fDry, (headroom(e.target) + back) / r)
+          liveOutDry = true
+          fDry = Math.min(fDry, outRoom(e.target) / r)
         }
+        if (!liveOutDry) fDry = 0
         fDry = nz(Math.max(0, Math.min(1, fDry)))
         if (mode === 'pullAll' && fDry < 1 - EPSILON) {
           pullShort.add(id) // probe pass: this pullAll Converter cannot reach f = 1
@@ -901,13 +947,15 @@ export function step(
           }
         }
         let f = sumIn > EPSILON ? received / sumIn : 0
+        let liveOut = false // #388 D — see `makeAccept`
         for (const e of outOf(id)) {
           if (skipDet(e.id)) continue
           const r = rateOfCached(e)
           if (r <= EPSILON) continue
-          const back = own?.get(e.target) ?? 0
-          f = Math.min(f, (headroom(e.target) + back) / r)
+          liveOut = true
+          f = Math.min(f, outRoom(e.target) / r)
         }
+        if (!liveOut) f = 0
         f = nz(Math.max(0, Math.min(1, f)))
         if (mode === 'pullAll' && f < 1 - EPSILON) {
           pullShort.add(id)
@@ -919,9 +967,26 @@ export function step(
           if (skipDet(e.id)) continue
           const q = nz(f * rateOfCached(e))
           if (q <= 0) continue
-          const held = Math.min(q, reservedOf(e.target))
-          reserved.set(e.target, reservedOf(e.target) - held)
-          working[e.target] = (working[e.target] ?? 0) + q
+          // #388 C — settle only the reservation made for THIS Converter
+          // (SEMANTICS.md §6). Releasing the Pool's total reservation let a
+          // pool-fed Converter free another router's promise; a later producer
+          // filled that headroom, the owner then delivered on top, and the
+          // commit clamp destroyed the excess.
+          if (isPool(e.target)) {
+            const held = Math.min(q, own?.get(e.target) ?? 0)
+            if (held > 0) {
+              reserved.set(e.target, reservedOf(e.target) - held)
+              own!.set(e.target, own!.get(e.target)! - held)
+            }
+            working[e.target] = (working[e.target] ?? 0) + q
+          } else {
+            // #388 D — a router target takes an INBOX, as a Gate's delivery
+            // does; `working` is summed over Pools only at commit, so writing
+            // there handed the amount to nobody (Converter → Gate / Converter
+            // lost its whole output, silently).
+            inbox.set(e.target, (inbox.get(e.target) ?? 0) + q)
+            planReserve(e.target, q)
+          }
           emit(e, id, e.target, q)
         }
         fired.add(id)

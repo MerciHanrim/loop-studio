@@ -7,6 +7,8 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **Run: nothing disappears between a Gate, a Converter and the next node.** Four shapes made resource vanish during a step, with the step reporting the upstream node as run and no notice: a Gate or Converter routing into a Gate, Converter, Drain or End that does not run this step (passive, or interactive without a pulse); a Gate fed by another Gate or a Converter and delivering into a Pool with a capacity, where the room set aside for it blocked it; a Converter delivering into a Pool with a capacity where other Converters also deliver, which could leave the Pool over its capacity and lose the excess; and a Converter delivering into a Gate or another Converter, whose output was dropped. In each case the amount now stays in its source Pool or arrives where it was routed. The bundled Templates have none of these shapes, so their runs are unchanged.
+
 ## v0.31.0 — 2026-10-29
 
 Eighteen languages again, with Arabic reading right to left in the same layout every language has, and a round of workbench clarity: clearer run buttons, keyboard focus visible on every chosen tool and toggle, and a model list that follows the canvas and marks the whole selection.
