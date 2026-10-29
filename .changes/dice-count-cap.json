@@ -1,0 +1,1 @@
+{ "type": "user-facing", "changelog": "- **Flow: a dice count has a limit.** A flow such as `2D6` may roll at most 10 000 dice; a larger count (a stray digit, as in `99999999D6`) used to be rolled die by die and froze the tab for the whole run. Such a flow now contributes 0 and the run reports it, as it does for `0D6` or `2D0`." }

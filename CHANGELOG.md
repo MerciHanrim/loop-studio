@@ -7,6 +7,7 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **Flow: a dice count has a limit.** A flow such as `2D6` may roll at most 10 000 dice; a larger count (a stray digit, as in `99999999D6`) used to be rolled die by die and froze the tab for the whole run. Such a flow now contributes 0 and the run reports it, as it does for `0D6` or `2D0`.
 - **Run: nothing disappears between a Gate, a Converter and the next node.** Four shapes made resource vanish during a step, with the step reporting the upstream node as run and no notice: a Gate or Converter routing into a Gate, Converter, Drain or End that does not run this step (passive, or interactive without a pulse); a Gate fed by another Gate or a Converter and delivering into a Pool with a capacity, where the room set aside for it blocked it; a Converter delivering into a Pool with a capacity where other Converters also deliver, which could leave the Pool over its capacity and lose the excess; and a Converter delivering into a Gate or another Converter, whose output was dropped. In each case the amount now stays in its source Pool or arrives where it was routed. The bundled Templates have none of these shapes, so their runs are unchanged.
 
 ## v0.31.0 — 2026-10-29

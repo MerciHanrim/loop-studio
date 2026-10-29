@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { MAX_DICE_COUNT } from '../model/limits'
 import type { LoopEdge, LoopNode } from '../model/types'
 import { initSim, step } from './index'
 
@@ -864,6 +865,17 @@ describe('Engine A — mini-cases', () => {
     const r = step(nodes, edges, initSim(nodes), 1)
     expect(near(r.state.values.p, 0)).toBe(true)
     expect(r.report.diagnostics.some((d) => /D0|sides ≥ 1|contributes 0/i.test(d))).toBe(true)
+  })
+
+  it('a dice count over MAX_DICE_COUNT contributes 0 with a diagnostic; the cap itself still rolls (#389)', () => {
+    const nodes = [source('s'), pool('p', 0)]
+    const over = step(nodes, [edge('a', 's', 'p', `${MAX_DICE_COUNT + 1}D6`)], initSim(nodes), 1)
+    expect(near(over.state.values.p, 0)).toBe(true)
+    expect(over.report.diagnostics.some((d) => /"a".*10000-dice limit.*contributes 0/i.test(d))).toBe(true)
+    const at = step(nodes, [edge('a', 's', 'p', `${MAX_DICE_COUNT}D6`)], initSim(nodes), 1)
+    expect(at.state.values.p).toBeGreaterThanOrEqual(MAX_DICE_COUNT)
+    expect(at.state.values.p).toBeLessThanOrEqual(MAX_DICE_COUNT * 6)
+    expect(at.report.diagnostics).toEqual([])
   })
 
   it('End — a positive arrival ends the run and fires End', () => {
