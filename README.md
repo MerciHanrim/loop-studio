@@ -147,52 +147,68 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.28.4
+## Latest — v0.31.0
 
-Starting and finishing a connection responds faster.
+Eighteen languages again, and a round of workbench clarity.
 
-- **Starting to draw**: responds faster, with a larger improvement in large diagrams
-- **Releasing on the empty canvas**: a connection drag released there also responds faster
-- **Every side stays available**: while drawing a connection, handles on every side of every
-  node remain available
+- **Eighteen languages**: besides English and Korean, the interface is available again in
+  Arabic, Chinese (Simplified and Traditional), Dutch, French, German, Italian, Japanese,
+  Portuguese (Brazil and Portugal), Russian, Spanish (Latin America and Spain), Thai, Turkish
+  and Vietnamese; the text added with the redesign is a translation draft in these languages.
+  Arabic text reads right to left while the layout keeps the same places as every language
+- **Clearer run buttons**: Reset, Step and Play are redrawn at full size, Play is filled with
+  the accent colour, and the main button keeps one width while its label changes
+- **Keyboard focus visible everywhere it was not**: on the chosen canvas tool and connection
+  kind, on the open List, Properties and Focus toggles, in the model list next to the selection
+  bar, and around every menu row — in high-contrast mode too
+- **The model list follows the canvas**: it scrolls to a node selected on the canvas, keeps the
+  kind heading in view while you scroll, and marks every selected node of a multiple selection
+- **Smaller fixes**: View ▸ Filters closes the menu; a region-select drag can start on a
+  connection or a frame's name; Run settings stays put as the step count grows
 
-## v0.28.3
+## v0.30.1
 
-Undo and Redo leave nothing selected.
+The workbench and the automatic lines, tidied.
 
-- **Nothing selected after Undo or Redo**: on the canvas or in the Inspector
-- **No hidden highlight**: a connection or node no longer stays highlighted while the Inspector
-  is empty; Delete won't remove it, and the arrow keys won't move a node until you select it
-- **No old selection comes back**: Undo and Redo no longer bring back a selection from an
-  earlier step
-- **Inserting a module is the one exception**: Undo selects again what was selected before the
-  insert, and Redo selects the inserted nodes
+- **Values in the model list**: each Parameter's and Pool's value at the end of its row, with
+  the name giving way first when room is short; bold kind headings with counts
+- **Larger small text**: the run bar's and the timeline's smallest labels and buttons
+- **No stray text selection**: a drag that starts between the menus, on a tool-row label or on
+  the status bar no longer selects their words
+- **Automatic lines**: fewer steps and hooks next to a node, room kept for the arrowhead, and
+  a bend point placed by a port kept on the line
 
-## v0.28.2
+## v0.30.0
 
-Resource connections on two sides of one port branch on their own.
+The menus and the canvas, tidied.
 
-- **Each side branches separately**: resource connections that use the same port from
-  different sides now branch separately, reducing unnecessary detours in some diagrams
-- **Six automatic routes change**: in the bundled templates, one in Coffee roastery
-  operations flow and five in 3-zone gacha banner comparison are drawn differently
-- **State connections unchanged**: connections using different sides of the same state port
-  are still grouped together
+- **A shorter File menu**: names only, with Templates ▸ and Export ▸ submenus; the item you
+  point at is described at the foot of the menu
+- **Early MMO is back under Templates**, after Coffee, as it was — eight Templates
+- **Check marks beside their names** in the View menu and Edit ▸ Edit lock
+- **No minimap**: Reset view and Fit show the whole diagram; panning and zooming are unchanged
 
-## v0.28.1
+## v0.29.0
 
-A connection's label keeps off the bend points you placed on it, where its line has room.
+The workbench release: the desktop editing screen is redesigned as a workbench
+([`docs/workbench.md`](docs/workbench.md)).
 
-- **Labels clear of your bends**: where there is room, a connection's label is placed clear of
-  the bend points you added to it; where there is not enough room, it can still overlap one
-- **Stays put**: selecting a connection, deselecting it or zooming does not by itself change
-  where its label sits
-- **Other connections**: in a dense diagram, a label that moves off a bend can also move the
-  label or the line of another connection
-- **Early MMO example**: no longer listed under Templates; it stays as developer test material
-  for large diagrams, and a document you already made from it still opens and works as before
+- **The workbench**: a menu bar, a tool row, a searchable list of every node on the left, the
+  properties panel on the right (what the selection does in the model first, then its fields),
+  the run controls and timeline under the canvas, and a status bar; the list and the panel fold
+  at narrower widths
+- **Nodes as symbols**: each kind of node is a small symbol with its number inside and its name
+  below; your documents keep their positions, names, formulas and line routes
+- **New colours, light and dark**, and names that stay when you zoom all the way out
+- **Structures in the File menu**: save a selected structure to a file and insert such a file
+  as one undo step; the Insert module menu is gone
+- **Languages at this release**: English and Korean only — the other sixteen returned in
+  v0.31.0
 
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.28.0 (a
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.28.4 (starting
+and finishing a connection responds faster), v0.28.3 (Undo and Redo leave nothing selected),
+v0.28.2 (resource connections on two sides of one port branch on their own), v0.28.1 (a
+connection's label keeps off the bend points you placed on it), v0.28.0 (a
 connection turned around without drawing it again), v0.27.0 (a
 connection's end moves without drawing the connection again), v0.26.2 (playback
 in the chosen colours, and the moving `+N` badges kept off the nodes), v0.26.0 (the
