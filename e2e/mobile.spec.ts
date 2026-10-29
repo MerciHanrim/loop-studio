@@ -388,20 +388,23 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
     await loadDiagram(page)
     expect(await under16(), 'the canvas').toEqual([])
 
-    // the More sheet and its language menu. §L2.0 (2026-10): two languages, no
-    // search box (the search-field size and typing checks went with it) —
-    // focus goes to the listbox; the threshold behaviour is unit-tested in
-    // src/i18n/languageOptions.test.ts
+    // the More sheet, its language menu and the search field — back with the
+    // eighteen languages (§L2.0a): past the six-language threshold the menu
+    // has a search box again, so its size and typing checks are back too
     await more(page).click()
     expect(await under16(), 'the More sheet').toEqual([])
     await sheet(page, 'More').locator('button.lang-switch').click()
-    const list = page.locator('.lang-menu__list[role="listbox"]')
-    await expect(list).toBeVisible()
-    await expect(page.locator('.lang-menu__search')).toHaveCount(0)
+    const search = page.locator('.lang-menu__search')
+    await expect(search).toBeVisible()
+    expect(await search.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16)
     expect(await under16(), 'the language menu').toEqual([])
-    await expect(list).toBeFocused()
+    expect(rectInside(await search.boundingBox(), PORTRAIT.width, PORTRAIT.height, 1)).toBe(true)
+    await search.focus()
+    await page.keyboard.type('fra')
+    await expect(page.locator('.lang-menu__item')).toHaveCount(1)
     await page.keyboard.press('Escape')
-    await expect(list).toBeHidden()
+    await expect(search).toBeHidden()
+    expect(await page.evaluate(() => document.activeElement?.classList.contains('lang-menu__search') ?? false)).toBe(false)
     await page.keyboard.press('Escape')
 
     // the share panel's link field

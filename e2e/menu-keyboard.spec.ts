@@ -415,11 +415,11 @@ test.describe('aria-controls on the toolbar overflow, at a width where it holds 
   })
 })
 
-// §L2.0 (2026-10) — with two languages the picker shows no search field
-// (`LANGUAGE_SEARCH_THRESHOLD`), so focus lands on the listbox itself, which
-// carries `aria-activedescendant`; the entry points are the same.
-test.describe('Language is a listbox', () => {
-  test('Arrow Down on the closed row starts at the first language, Arrow Up at the last; focus stays in the list', async ({ page }) => {
+// §L2.0a — with the eighteen languages back, the picker is past
+// `LANGUAGE_SEARCH_THRESHOLD` again: focus lands in the search field, which
+// carries `aria-activedescendant` (as before §L2.0); the entry points are the same.
+test.describe('Language is a combobox', () => {
+  test('Arrow Down on the closed row starts at the first language, Arrow Up at the last; focus stays in the search field', async ({ page }) => {
     await openApp(page)
     await page.locator('.wb-viewmenu > .wb-mb').click()
     const row = page.locator('.wb-viewmenu__pop .lang-switch')
@@ -428,16 +428,15 @@ test.describe('Language is a listbox', () => {
         const a = document.activeElement as HTMLElement | null
         const id = a?.getAttribute('aria-activedescendant')
         const opts = [...document.querySelectorAll('[role="listbox"] [role="option"]')]
-        return { list: a?.getAttribute('role') === 'listbox', index: id ? opts.findIndex((o) => o.id === id) : -2, count: opts.length }
+        return { input: a?.tagName === 'INPUT' && a.getAttribute('role') === 'combobox', index: id ? opts.findIndex((o) => o.id === id) : -2, count: opts.length }
       })
-    await expect(page.locator('.lang-menu__search')).toHaveCount(0)
     await row.focus()
     await page.keyboard.press('ArrowDown')
-    await expect.poll(() => active().then((a) => a.list && a.index === 0 && a.count >= 2)).toBe(true)
+    await expect.poll(() => active().then((a) => a.input && a.index === 0 && a.count >= 2)).toBe(true)
     await page.keyboard.press('Escape')
     await expect(row).toBeFocused()
     await page.keyboard.press('ArrowUp')
-    await expect.poll(() => active().then((a) => a.list && a.index === a.count - 1)).toBe(true)
+    await expect.poll(() => active().then((a) => a.input && a.index === a.count - 1)).toBe(true)
     await page.keyboard.press('Escape')
     await expect(row).toBeFocused()
   })
