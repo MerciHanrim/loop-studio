@@ -163,7 +163,10 @@ The sim control accepts `seed` and normalises it **once, at input**:
 
 - `range`: `lo`, `hi` integers with `lo ≤ hi`. Non-integer endpoint or
   `lo > hi` → `0` + diagnostic.
-- `dice`: `n ≥ 1`, `d ≥ 1`, both integers. Otherwise → `0` + diagnostic.
+- `dice`: `n ≥ 1`, `d ≥ 1`, both integers, and `n ≤ MAX_DICE_COUNT`
+  (`src/model/limits.ts`, 10 000 — each die is one draw, so the count bounds
+  the work of a step; above it → `0` + its own diagnostic). Otherwise → `0` +
+  diagnostic.
 
 ---
 

@@ -11,9 +11,10 @@ import { initSim, step } from './index'
 // Issue #388 (the 2026-10-29 review): three Phase-2 paths broke this silently,
 // with the upstream router reported as fired and no diagnostic; the sweep
 // below found a fourth. The first cases pin each one with the graph that
-// reproduced it; the last is a randomised sweep over every activation ×
-// router kind so the invariant is guarded as a whole, not only on the shapes
-// already seen.
+// reproduced it; the last is a randomised sweep — a reproducible SAMPLE of
+// 120 small graphs drawn from every activation × router kind, not an
+// exhaustive check of their combinations — so the invariant is probed beyond
+// the shapes already seen.
 
 const P = { x: 0, y: 0 }
 type Act = 'automatic' | 'passive' | 'interactive' | 'onStart'

@@ -13,6 +13,7 @@
 // exactly as in loop-model/1 — v1 execution is untouched.
 
 import { tokenize } from '../model/expr/tokenize'
+import { MAX_DICE_COUNT } from '../model/limits'
 
 export type FlowExpr =
   | { kind: 'const'; value: number }
@@ -71,13 +72,20 @@ export function parseFlow(raw: string | undefined, modelVersion: ModelVersion = 
 
 export const isRandom = (e: FlowExpr): boolean => e.kind === 'range' || e.kind === 'dice'
 
-/** Are the bounds of a random expression usable? (integers, lo ≤ hi / n,d ≥ 1) */
+/** Are the bounds of a random expression usable? (integers, lo ≤ hi / n,d ≥ 1,
+ *  n ≤ `MAX_DICE_COUNT` — #389: one draw per die, so the count bounds the work) */
 export function randomBoundsOk(e: FlowExpr): boolean {
   if (e.kind === 'range') {
     return Number.isInteger(e.lo) && Number.isInteger(e.hi) && e.lo <= e.hi
   }
   if (e.kind === 'dice') {
-    return Number.isInteger(e.count) && Number.isInteger(e.sides) && e.count >= 1 && e.sides >= 1
+    return (
+      Number.isInteger(e.count) &&
+      Number.isInteger(e.sides) &&
+      e.count >= 1 &&
+      e.count <= MAX_DICE_COUNT &&
+      e.sides >= 1
+    )
   }
   return true
 }
@@ -161,7 +169,11 @@ export function evalRand(
   }
   if (e.kind === 'dice') {
     if (!randomBoundsOk(e)) {
-      onBad?.(`dice "${e.count}D${e.sides}" needs integer count ≥ 1 and sides ≥ 1`)
+      onBad?.(
+        e.count > MAX_DICE_COUNT
+          ? `dice "${e.count}D${e.sides}" rolls more than the ${MAX_DICE_COUNT}-dice limit`
+          : `dice "${e.count}D${e.sides}" needs integer count ≥ 1 and sides ≥ 1`,
+      )
       return 0
     }
     let total = 0
