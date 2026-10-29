@@ -1655,6 +1655,15 @@ a.sheet__row {
 :root[data-text-dir='rtl'] body *:not(body [dir], body [dir] *) {
   unicode-bidi: plaintext;
 }
+/* Menus are part of the fixed layout: an Arabic item still READS right to
+   left, but it STARTS where every language's item starts — at the row's left,
+   beside its mark, with a submenu's `›` at the row's end. Left to the
+   paragraph, a row-wide name sat flush right, against the `›` side, and the
+   menu looked mirrored (Lumi, 2026-10-29). Panels are not menus: their Arabic
+   copy keeps its own alignment (accepted for the Properties field names). */
+:root[data-text-dir='rtl'] :is(.menu__item, .settings-row, .dmenu__desc, .sheet__row) {
+  text-align: left;
+}
 
 /* docs/localization.md §L9.2 — keep graph coordinates and the spatial controls
    physically LTR even if `<html dir>` ever mirrors the chrome. Components opt
