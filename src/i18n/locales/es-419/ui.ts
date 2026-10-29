@@ -157,6 +157,7 @@ const ui = {
   'import.error.unexpected': 'Contenido inesperado en el archivo.',
   'import.error.notLoopStudio': 'Esto no parece un archivo de grafo de Loop Studio.',
   'import.error.missingNodesEdges': 'Al archivo de grafo le faltan sus nodos o sus conexiones.',
+  'import.error.badNode': 'Un nodo de este archivo no tiene id o no tiene posición.',
   'import.structuralWarning': 'Este grafo tiene problemas estructurales y esas conexiones se ignoran:\n{detail}',
   'import.modelLayerUnreadable': 'El contenido de la capa de modelo de este archivo no se puede leer ({detail}); sus datos de proyecto se ignoraron.',
   'mobile.more.import': 'Importar un archivo',

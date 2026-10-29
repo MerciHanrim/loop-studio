@@ -12,7 +12,7 @@ import {
   saveToStorage,
   serialize,
 } from './serialize'
-import type { GraphDoc, ImportSourceTable } from './serialize'
+import type { GraphDoc, GraphFileError, ImportSourceTable } from './serialize'
 import type { LoopEdge, LoopNode } from './types'
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -440,6 +440,22 @@ describe('loop-model/2 — schema discriminator (SEMANTICS-M2.md §M2-1)', () =>
     const v99 = JSON.stringify({ schema: 'loop-studio/graph/99', version: 1, nodes: [], edges: [] })
     expect(() => deserialize(v99)).toThrow(/does not look like a Loop Studio graph file/)
     expect(() => deserialize(JSON.stringify({ schema: 'something-else', version: 1, nodes: [], edges: [] }))).toThrow()
+  })
+
+  // issue #392 B — a node the canvas cannot draw is refused at the reader, the
+  // one gate the file import, the share link, the Workspace import and the
+  // autosave boot all pass through; before, such a file reached React Flow,
+  // which threw on the missing position, and the autosave kept the document
+  it('a node without an id or a finite position is rejected with its own code (bad-node)', () => {
+    const file = (nodes: unknown[]) => JSON.stringify({ schema: 'loop-studio/graph', version: 1, layoutVersion: 1, nodes, edges: [] })
+    const code = (text: string) => { try { deserialize(text); return null } catch (e) { return (e as GraphFileError).code } }
+    expect(code(file([{ id: 'a', type: 'pool', data: { kind: 'pool' } }])), 'no position').toBe('bad-node')
+    expect(code(file([{ id: 'a', type: 'pool', position: { x: 0, y: Number.NaN }, data: { kind: 'pool' } }])), 'NaN').toBe('bad-node')
+    expect(code(file([{ id: 'a', type: 'pool', position: { x: '0', y: 0 }, data: { kind: 'pool' } }])), 'a string').toBe('bad-node')
+    expect(code(file([{ type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool' } }])), 'no id').toBe('bad-node')
+    expect(code(file([null])), 'null entry').toBe('bad-node')
+    expect(code(file([{ id: 'a', type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool' } }])), 'a drawable node').toBeNull()
+    expect(code(file([])), 'no nodes').toBeNull()
   })
 
   it('a v1 document with a stray "@foo" flow round-trips byte-identically and stays v1 (§M2-INV-1)', () => {

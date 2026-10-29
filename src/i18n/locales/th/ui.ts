@@ -193,6 +193,7 @@ const ui = {
   'import.error.unexpected': 'เนื้อหาไฟล์ไม่ตรงกับที่คาดไว้',
   'import.error.notLoopStudio': 'ไฟล์นี้ดูไม่เหมือนไฟล์กราฟของ Loop Studio',
   'import.error.missingNodesEdges': 'ไฟล์กราฟขาดโหนดหรือเส้นเชื่อม',
+  'import.error.badNode': 'โหนดในไฟล์นี้ไม่มีรหัสหรือไม่มีตำแหน่ง',
   'import.structuralWarning': 'กราฟนี้มีปัญหาเชิงโครงสร้าง และเส้นเชื่อมเหล่านี้ถูกข้ามไป:\n{detail}',
   'import.modelLayerUnreadable':
     'เนื้อหาชั้นแบบจำลองของไฟล์นี้อ่านไม่ได้ ({detail}) ข้อมูลโปรเจกต์จึงถูกข้ามไป',

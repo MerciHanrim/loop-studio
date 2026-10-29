@@ -30,7 +30,7 @@ import {
 } from '../model/revision'
 import type { LoopEdge, LoopNode } from '../model/types'
 import type { ImportSourceTable, SavedFrame } from '../model/serialize'
-import { bootProjectHeader, isEditBlocked, setAutosaveProjectHeader, setHistorySidecar, useGraphStore } from './graphStore'
+import { bootProjectHeader, isEditBlocked, setAutosaveProjectHeader, setDocumentBoundarySink, setHistorySidecar, useGraphStore } from './graphStore'
 import { useDataImportStore } from './dataImportStore'
 import { useFrameStore } from './frameStore'
 import { storagePort } from '../storage/storagePort'
@@ -725,6 +725,14 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       persist(null)
     },
   }
+})
+
+// issue #392 A — every document boundary in graphStore (New, Template, paste,
+// file, share link, Workspace) ends the open project; the revision paths that
+// open or replace a project set `open` AFTER their `loadDoc`, so the clear
+// never undoes them (`routeImport` clears explicitly as well — harmless twice).
+setDocumentBoundarySink(() => {
+  if (useProjectStore.getState().open) useProjectStore.getState().clear()
 })
 
 // keep the DISPLAY `dirty` flag fresh as the graph is edited — debounced,

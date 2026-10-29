@@ -12,6 +12,7 @@ const KEY: Record<GraphFileErrorCode, MessageKey> = {
   unexpected: 'import.error.unexpected',
   'not-loop-studio': 'import.error.notLoopStudio',
   'missing-nodes-edges': 'import.error.missingNodesEdges',
+  'bad-node': 'import.error.badNode',
 }
 
 export function importErrorMessage(err: unknown, t: (key: MessageKey) => string): string {

@@ -163,6 +163,7 @@ const ui = {
   'import.error.unexpected': 'Onverwachte bestandsinhoud.',
   'import.error.notLoopStudio': 'Dit lijkt geen diagrambestand van Loop Studio te zijn.',
   'import.error.missingNodesEdges': 'Het diagrambestand mist zijn knooppunten of verbindingen.',
+  'import.error.badNode': 'Een knoop in dit bestand heeft geen id of geen positie.',
   'import.structuralWarning': 'Dit diagram heeft structurele problemen en die verbindingen worden genegeerd:\n{detail}',
   'import.modelLayerUnreadable': 'De inhoud van de modellaag van dit bestand is niet leesbaar ({detail}); de projectgegevens zijn genegeerd.',
   'mobile.more.import': 'Bestand importeren',

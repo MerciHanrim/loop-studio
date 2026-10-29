@@ -161,6 +161,7 @@ const ui = {
   'import.error.unexpected': 'Unexpected file contents.',
   'import.error.notLoopStudio': 'This does not look like a Loop Studio graph file.',
   'import.error.missingNodesEdges': 'Graph file is missing its nodes or edges.',
+  'import.error.badNode': 'A node in this file has no id or no position.',
   'import.structuralWarning': 'This graph has structural problems and those connections are ignored:\n{detail}',
   'import.modelLayerUnreadable': "This file's model-layer content is not readable ({detail}); its project data was ignored.",
   'mobile.more.import': 'Import file',

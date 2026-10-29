@@ -7,8 +7,10 @@ import { useProjectStore, type PendingRevisionPlan } from './projectStore'
 // ── a Map-backed localStorage (vitest env is `node`) ───────────────────────
 class MemStorage {
   m = new Map<string, string>()
+  /** every value written to STORAGE_KEY, in order (#392 A: the boundary must never write a half record) */
+  writes: string[] = []
   getItem(k: string) { return this.m.has(k) ? this.m.get(k)! : null }
-  setItem(k: string, v: string) { this.m.set(k, String(v)) }
+  setItem(k: string, v: string) { this.m.set(k, String(v)); if (k === STORAGE_KEY) this.writes.push(String(v)) }
   removeItem(k: string) { this.m.delete(k) }
   clear() { this.m.clear() }
   key(i: number) { return [...this.m.keys()][i] ?? null }
@@ -43,6 +45,54 @@ function promote(now = '2026-09-09T00:00:00Z'): PendingRevisionPlan {
   expect(useProjectStore.getState().commitRevisionExport(p.plan)).toBe('committed')
   return p.plan
 }
+
+// issue #392 A — New / a Template / another document end the open project in
+// the STORE too, not only in the autosaved header: before, the chip kept the
+// old revision (now dirty) and the next Export minted a child of a lineage the
+// new document never descended from.
+describe('projectStore — a document boundary clears the open project (#392 A)', () => {
+  // `projectStore.clear` writes the autosave AT ONCE; the boundary must call
+  // it only when the new document is already in the store, or the record is,
+  // for 400 ms, the OLD graph with its lineage stripped — a reload in that
+  // window brought the old graph back (Lumi, #401 review). So: every write
+  // from the boundary on carries the new document's nodes and no header.
+  const writesSince = (from: number) =>
+    mem.writes.slice(from).map((v) => { const r = JSON.parse(v); return { ids: (r.nodes as { id: string }[]).map((n) => n.id), project: r.project ?? null } })
+
+  it('newGraph clears open; the first write after it is already the empty document without a header', () => {
+    promote()
+    expect(useProjectStore.getState().open).not.toBeNull()
+    const from = mem.writes.length
+    useGraphStore.getState().newGraph()
+    expect(useProjectStore.getState().open).toBeNull()
+    expect(useProjectStore.getState().dirty).toBe(false)
+    expect(autosaveHeader()).toBeNull()
+    const w = writesSince(from)
+    expect(w.length, 'the clear writes once, synchronously').toBeGreaterThan(0)
+    for (const x of w) expect(x, 'never the old graph with the header stripped').toEqual({ ids: [], project: null })
+  })
+
+  it('loadGraph (a Template / a paste) and loadJSON (a plain file) clear it the same way; a revision Apply does not run the boundary', () => {
+    promote()
+    let from = mem.writes.length
+    useGraphStore.getState().loadGraph(
+      { nodes: [{ id: 'q', type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool', label: 'q', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } }] as never, edges: [] },
+      { canvasLocked: false },
+    )
+    expect(useProjectStore.getState().open, 'after loadGraph').toBeNull()
+    for (const x of writesSince(from)) expect(x).toEqual({ ids: ['q'], project: null })
+
+    promote()
+    const plain = useGraphStore.getState().exportJSON()
+    useGraphStore.getState().newGraph()
+    promote()
+    from = mem.writes.length
+    useGraphStore.getState().loadJSON(plain)
+    expect(useProjectStore.getState().open, 'after loadJSON').toBeNull()
+    expect(autosaveHeader()).toBeNull()
+    for (const x of writesSince(from)) expect(x).toEqual({ ids: ['q'], project: null })
+  })
+})
 
 describe('projectStore — promote & the two-phase Export (§R2.1 / §R3)', () => {
   it('planRevision phase 1 commits nothing; commit sets baseline + autosaves the header in the graph record', () => {

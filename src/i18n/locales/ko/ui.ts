@@ -160,6 +160,7 @@ const ui = {
   'import.error.unexpected': '예상하지 못한 파일 내용입니다.',
   'import.error.notLoopStudio': 'Loop Studio 그래프 파일이 아닌 것 같습니다.',
   'import.error.missingNodesEdges': '그래프 파일에 노드 또는 연결이 없습니다.',
+  'import.error.badNode': '이 파일의 노드에 id나 위치가 없습니다.',
   'import.structuralWarning': '이 그래프에는 구조 문제가 있어 해당 연결은 무시됩니다:\n{detail}',
   'import.modelLayerUnreadable': '이 파일의 모델 계층 내용을 읽을 수 없어 ({detail}) 프로젝트 데이터는 무시했습니다.',
   'mobile.more.import': '파일 가져오기',

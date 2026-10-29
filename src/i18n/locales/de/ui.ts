@@ -185,6 +185,7 @@ const ui = {
   'import.error.unexpected': 'Unerwarteter Dateiinhalt.',
   'import.error.notLoopStudio': 'Das sieht nicht nach einer Loop-Studio-Graphdatei aus.',
   'import.error.missingNodesEdges': 'In der Graphdatei fehlen nodes oder edges.',
+  'import.error.badNode': 'Ein Knoten in dieser Datei hat keine ID oder keine Position.',
   'import.structuralWarning':
     'Dieser Graph hat strukturelle Probleme, und diese Verbindungen werden ignoriert:\n{detail}',
   'import.modelLayerUnreadable':

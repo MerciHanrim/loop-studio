@@ -168,6 +168,7 @@ const ui = {
   'import.error.unexpected': '檔案內容不符合預期。',
   'import.error.notLoopStudio': '這看起來不像 Loop Studio 的圖檔。',
   'import.error.missingNodesEdges': '圖檔缺少 nodes 或 edges。',
+  'import.error.badNode': '此檔案中的某個節點缺少 id 或位置。',
   'import.structuralWarning': '這張圖有結構問題，下列連線被忽略：\n{detail}',
   'import.modelLayerUnreadable': '這個檔案的模型層內容無法讀取（{detail}），它的專案資料已被忽略。',
   'mobile.more.import': '匯入檔案',

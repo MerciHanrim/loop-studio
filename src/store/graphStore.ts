@@ -447,6 +447,17 @@ export function setEditGuard(fn: (() => boolean) | null): void {
 export function setDocumentLockSink(fn: ((locked: boolean) => void) | null): void {
   documentLockSink = fn
 }
+// issue #392 A — "another document" (New, a Template, a pasted graph, a file,
+// a share link, a Workspace) also ends the open PROJECT: `projectStore`
+// registers its `clear` here, so the chip, the next Export's lineage and the
+// autosaved header agree with the record (`dropProjectHeader` alone nulled
+// only what autosave writes, and the store kept showing the old revision).
+// A revision Apply (`loadDoc` mode `apply`) is an edit of THIS document and
+// does not fire it. Unregistered (a bare store in a unit test) ⇒ no-op.
+let documentBoundarySink: (() => void) | null = null
+export function setDocumentBoundarySink(fn: (() => void) | null): void {
+  documentBoundarySink = fn
+}
 /** true while the edit lock blocks user edits; `frameStore` and `projectStore`
  *  ask before their own document changes */
 export function isEditBlocked(): boolean {
@@ -1270,6 +1281,11 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       })
       frameSidecar?.set([]) // §SF6 — an empty canvas has no saved frames
       dataImportSidecar?.set([]) // loop-revision/8 — an empty canvas has no import records
+      // #392 A — AFTER the new document and its sidecars are in the store:
+      // `projectStore.clear` writes the autosave at once, and that write must
+      // already be the new document without a header — one complete record,
+      // never the old graph with its lineage stripped (Lumi, #401 review)
+      documentBoundarySink?.()
       bump()
       persist()
     },
@@ -1298,6 +1314,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       // loop-revision/8 — same posture as `frames`; no bundled Template ships
       // any yet, but a future one could.
       dataImportSidecar?.set(dataImports ? [...dataImports] : [])
+      documentBoundarySink?.() // #392 A — after the document and its sidecars, see `newGraph`
       bump()
       persist()
     },
@@ -1352,6 +1369,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       })
       if (frames !== undefined) frameSidecar?.set(frames) // §SF6 — replace with the doc's saved frames
       if (dataImports !== undefined) dataImportSidecar?.set(dataImports) // loop-revision/8 — same rule
+      // #392 A — another document ends the open project; a revision Apply is
+      // an edit of this one. After the document and its sidecars, see `newGraph`.
+      if (opts.mode === 'document-boundary') documentBoundarySink?.()
       bump()
       persist()
     },
