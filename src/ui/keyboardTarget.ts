@@ -13,9 +13,12 @@ export function isTypingTarget(el: EventTarget | null): boolean {
 /** Every modal surface this app can put over the canvas. React Flow's own
  *  delete-key handler listens on `document` and only skips text inputs, so a
  *  dialog's Cancel button used to be enough to delete the node behind it
- *  (audit 2026-09-20, F3). Covers the scrims by class AND the generic ARIA
- *  markers, so a future dialog is guarded by either. */
-const MODAL_SELECTOR = '.mcdlg__scrim, .review-scrim, [role="dialog"], [aria-modal="true"]'
+ *  (audit 2026-09-20, F3). Covers the scrims by class AND the ARIA modal
+ *  marker, so a future dialog is guarded by either. `aria-modal="true"` only
+ *  (issue #393 B): a `role="dialog"` without it is a NON-modal surface by this
+ *  app's own contract (`overlayStack.ts` — a phone sheet, a frame popover),
+ *  whose open state must not switch the keyboard off behind it. */
+const MODAL_SELECTOR = '.mcdlg__scrim, .review-scrim, [aria-modal="true"]'
 
 export function isModalOpen(doc: Document = document): boolean {
   return doc.querySelector(MODAL_SELECTOR) !== null

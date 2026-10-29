@@ -109,6 +109,54 @@ async function closeAndCheck(page: Page, dialog: Locator, before: Awaited<Return
 }
 
 test.describe('desktop: a real dialog makes the page behind it unreachable', () => {
+  // issue #393 B — the global shortcut layer (`Shortcuts.tsx`) did not ask
+  // whether a modal was open: Ctrl+Z undid the document behind About, `]`
+  // walked the selection, `f` toggled Focus. With a dialog open all three
+  // must change nothing; once it closes they work again.
+  test('About: Ctrl+Z, ] and f change nothing behind the dialog, and work again after it closes', async ({ page }) => {
+    await openApp(page)
+    const before = await page.evaluate(() => {
+      const w = window as any
+      const g = w.__loop.graph.getState()
+      g.newGraph()
+      g.addNodeAt('pool', { x: 0, y: 0 })
+      g.addNodeAt('pool', { x: 240, y: 0 })
+      const [a, b] = w.__loop.graph.getState().nodes
+      w.__loop.graph.getState().onConnect({ source: a.id, target: b.id, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
+      w.__loop.graph.getState().updateNodeData(a.id, { capacity: 5 }) // one entry to undo
+      w.__loop.graph.getState().setSelection(a.id, null)
+      w.__loop.ui.getState().setFocusMode(false)
+      const s = w.__loop.graph.getState()
+      return { a: a.id, past: s.past.length, capacity: s.nodes[0].data.capacity, focus: w.__loop.ui.getState().focusMode }
+    })
+    const snapshot = () =>
+      page.evaluate(() => {
+        const w = window as any
+        const s = w.__loop.graph.getState()
+        return { past: s.past.length, capacity: s.nodes[0].data.capacity, selected: s.selectedNodeId, focus: w.__loop.ui.getState().focusMode }
+      })
+    expect(before.capacity).toBe(5)
+    await page.locator('[data-tour="help-trigger"]').click()
+    await page.getByRole('menuitem', { name: 'About Loop Studio' }).click()
+    const dialog = page.locator('.mcdlg--about')
+    await expect(dialog).toBeVisible()
+    // the baseline is read with the dialog open: React Flow syncs its own
+    // selection marks a tick after `addNodeAt`, so which pool is selected by
+    // now is not the point — that the keys do not move it is
+    const open = await snapshot()
+    expect(open.selected, 'a node is selected, so ] would have somewhere to walk').not.toBeNull()
+    expect(open).toMatchObject({ past: before.past, capacity: 5, focus: false })
+    await page.keyboard.press('Control+z')
+    await page.keyboard.press(']')
+    await page.keyboard.press('f')
+    expect(await snapshot(), 'nothing behind the dialog moved').toEqual(open)
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    await page.keyboard.press('Control+z')
+    await expect.poll(async () => (await snapshot()).past, 'after the dialog closes Ctrl+Z undoes again').toBe(before.past - 1)
+    expect((await snapshot()).capacity).not.toBe(5)
+  })
+
   test('About: the update bar is covered and inert while it is open, and back, unchanged, when it closes', async ({ page }) => {
     await openApp(page)
     await showUpdateBar(page)
