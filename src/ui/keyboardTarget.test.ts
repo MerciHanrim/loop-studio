@@ -37,6 +37,9 @@ describe('isModalOpen', () => {
     expect(isModalOpen(doc())).toBe(false)
   })
 
+  // `[role="dialog"]` without `aria-modal` counts too — the frame properties
+  // popover relies on it to keep Delete off the frame (§FC10); issue #393 B
+  // considered narrowing this to `aria-modal` and kept it for that reason
   it.each(['.mcdlg__scrim', '.review-scrim', '[role="dialog"]', '[aria-modal="true"]'])(
     'is true for %s',
     (sel) => {

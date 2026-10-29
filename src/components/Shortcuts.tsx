@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useGraphStore } from '../store/graphStore'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
-import { isTypingTarget } from '../ui/keyboardTarget'
+import { isModalOpen, isTypingTarget } from '../ui/keyboardTarget'
 
 // docs/large-graph-readability.md §LGR4.3 - `]` / `[` step the selection through
 // the drawn-edge neighbours of the node the walk started from. The origin + its
@@ -65,6 +65,10 @@ export function Shortcuts() {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey
       if (!mod || isTypingTarget(e.target)) return
+      // #393 B — a dialog owns the keyboard (the same guard as the canvas
+      // delete key): Ctrl+Z used to undo the document behind About / Monte
+      // Carlo / the import wizard
+      if (isModalOpen()) return
       const key = e.key.toLowerCase()
       if (key === 'z' && !e.shiftKey) {
         e.preventDefault()
@@ -89,6 +93,7 @@ export function Shortcuts() {
     if (isMobile) return
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return
+      if (isModalOpen()) return // #393 B — `f` / `[` / `]` acted on the canvas behind a dialog
       if (e.key.toLowerCase() === 'f') {
         e.preventDefault()
         useUiStore.getState().toggleFocusMode()
