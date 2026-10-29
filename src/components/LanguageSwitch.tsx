@@ -194,7 +194,10 @@ export function LanguageSwitch({
             <span className="settings-row__label">{t('lang.rowLabel')}</span>
             <span className="settings-row__value">
               <span lang={current.code} dir="auto">{current.nativeName}</span>
-              <span aria-hidden="true"> ›</span>
+              {/* points where the submenu opens: the layout's side, not the
+                  text's — pinned ltr so an RTL paragraph does not mirror it
+                  to `‹` (docs/localization.md §L9.2, 2026-10-29) */}
+              <span aria-hidden="true" dir="ltr"> ›</span>
             </span>
           </>
         ) : (

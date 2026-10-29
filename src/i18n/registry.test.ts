@@ -15,13 +15,11 @@ import {
 // metadata set, so the switch UI / resolver / checks never need a per-locale
 // special case.
 //
-// §L2.0 (2026-10) — English and Korean are the supported languages. The resolver
-// rules that only a larger registry exercises (Chinese script mapping, a base
-// subtag owner, regional variants) are kept below against a HYPOTHETICAL
-// registry passed in as `resolveInitialLocale`'s third argument, so the rules
-// stay tested for the day a language is registered again. The earlier version,
-// which ran them against the eighteen shipped entries, is in
-// `archive/i18n/tests/registry.multilocale.test.ts`.
+// §L2.0a — the eighteen languages are registered again (2026-10-28/29), so the
+// real registry exercises the Chinese script mapping, the base-subtag owners and
+// the regional variants once more; the HYPOTHETICAL registry below, passed in as
+// `resolveInitialLocale`'s third argument, keeps those rules pinned on their own
+// shapes as well.
 describe('locale registry metadata', () => {
   it('every registered locale has the required fields, well-typed', () => {
     expect(LOCALES.length).toBeGreaterThan(0)
@@ -59,9 +57,12 @@ describe('locale registry metadata', () => {
     expect(LOCALES.filter((l) => !l.enabled).map((l) => l.code)).toEqual(['ar-XB'])
   })
 
-  it('ships exactly English and Korean, the pseudo-locales aside (§L2.0)', () => {
+  it('ships exactly the restored languages, the pseudo-locales aside (§L2.0, §L2.0a)', () => {
     const shipped = LOCALES.filter((l) => !l.pseudo).map((l) => l.code)
-    expect([...shipped].sort()).toEqual(['en', 'ko'])
+    expect([...shipped].sort()).toEqual([
+      'ar', 'de', 'en', 'es-419', 'es-ES', 'fr', 'it', 'ja', 'ko', 'nl',
+      'pt-BR', 'pt-PT', 'ru', 'th', 'tr', 'vi', 'zh-Hans', 'zh-Hant',
+    ])
   })
 
   // §L5.4 / §L9.2 — SET relations: which locales ship, which are offered, and
@@ -89,10 +90,10 @@ describe('locale registry metadata', () => {
       const disabled = LOCALES.filter((l) => !l.enabled)
       expect(codes(disabled)).toEqual(['ar-XB'])
       expect(disabled.every((l) => l.pseudo)).toBe(true)
-      // §L2.0 — with Arabic archived, the RTL QA pseudo is the only rtl entry;
-      // it keeps the reading-direction layout exercised
+      // §L2.0a — Arabic is back and the RTL QA pseudo stays beside it; both
+      // read rtl, and neither mirrors the layout (§L9.2, 2026-10-29)
       const rtl = LOCALES.filter((l) => l.direction === 'rtl')
-      expect(codes(rtl)).toEqual(['ar-XB'])
+      expect(codes(rtl).sort()).toEqual(['ar', 'ar-XB'])
     })
 
     it('every pseudo-locale is dev-only, so production ships none of them', () => {
@@ -118,14 +119,24 @@ describe('locale registry metadata', () => {
   })
 })
 
-// docs/localization.md §L2.0 — the sixteen languages archived in 2026-10.
+// docs/localization.md §L2.0 — the sixteen languages archived in 2026-10, all
+// restored by §L2.0a (2026-10-28/29). The retired-locale rule stays in place
+// with an empty list; whether to remove it is open for review.
 describe('retired locales (§L2.0)', () => {
-  it('lists the sixteen archived languages, none of them registered', () => {
-    expect([...RETIRED_LOCALES].sort()).toEqual([
-      'ar', 'de', 'es-419', 'es-ES', 'fr', 'it', 'ja', 'nl',
-      'pt-BR', 'pt-PT', 'ru', 'th', 'tr', 'vi', 'zh-Hans', 'zh-Hant',
-    ])
+  it('none remain: every archived language is registered again', () => {
+    expect([...RETIRED_LOCALES]).toEqual([])
     for (const code of RETIRED_LOCALES) expect(isRegistered(code), code).toBe(false)
+  })
+
+  it('the rule still holds for a retired list that is not empty (a hypothetical one)', () => {
+    // the registry without `fr`, and `fr` retired: a stored `fr` starts in
+    // English even under a French or Korean browser
+    const reg = LOCALES.filter((l) => l.code !== 'fr')
+    expect(resolveInitialLocale('fr', [], reg, ['fr'])).toBe('en')
+    expect(resolveInitialLocale('fr', ['ko-KR'], reg, ['fr'])).toBe('en')
+    expect(resolveInitialLocale('fr', ['fr-FR'], reg, ['fr'])).toBe('en')
+    // and a browser asking for it is skipped like any unsupported tag
+    expect(resolveInitialLocale(null, ['fr-FR', 'ko'], reg, ['fr'])).toBe('ko')
   })
 
   it('a STORED retired code starts in English, whatever the browser asks for', () => {
@@ -136,13 +147,26 @@ describe('retired locales (§L2.0)', () => {
     }
   })
 
-  it('a browser asking for a retired language gets English; Korean stays Korean', () => {
-    for (const tag of ['de-DE', 'fr-FR', 'ja-JP', 'zh-CN', 'zh-TW', 'es-MX', 'pt-BR', 'ar-EG', 'ru-RU', 'vi-VN']) {
-      expect(resolveInitialLocale(null, [tag]), tag).toBe('en')
-    }
+  it('a browser asking for a shipped language gets its own; an unknown one English', () => {
+    expect(resolveInitialLocale(null, ['qaa']), 'qaa').toBe('en')
+    expect(resolveInitialLocale(null, ['ar-EG'])).toBe('ar')
     expect(resolveInitialLocale(null, ['ko-KR'])).toBe('ko')
+    expect(resolveInitialLocale(null, ['de-DE'])).toBe('de')
+    expect(resolveInitialLocale(null, ['ja-JP'])).toBe('ja')
+    // §L2.0a — restored 2026-10-28, each through its own resolver step
+    expect(resolveInitialLocale(null, ['fr-FR'])).toBe('fr')
+    expect(resolveInitialLocale(null, ['es-MX'])).toBe('es-419')
+    expect(resolveInitialLocale(null, ['es-ES'])).toBe('es-ES')
+    expect(resolveInitialLocale(null, ['pt-BR'])).toBe('pt-BR')
+    expect(resolveInitialLocale(null, ['pt-PT'])).toBe('pt-PT')
+    expect(resolveInitialLocale(null, ['ru-RU'])).toBe('ru')
+    expect(resolveInitialLocale(null, ['vi-VN'])).toBe('vi')
+    // Chinese by region: no browser sends the script subtag
+    expect(resolveInitialLocale(null, ['zh-CN'])).toBe('zh-Hans')
+    expect(resolveInitialLocale(null, ['zh-TW'])).toBe('zh-Hant')
+    expect(resolveInitialLocale(null, ['zh-HK'])).toBe('zh-Hant')
     // an unsupported first tag does not hide a supported later one
-    expect(resolveInitialLocale(null, ['de-DE', 'ko'])).toBe('ko')
+    expect(resolveInitialLocale(null, ['qaa', 'ko'])).toBe('ko')
   })
 
   it('a stored English or Korean choice is kept', () => {
@@ -194,8 +218,10 @@ describe('resolveInitialLocale — the real registry', () => {
 
     it('a DISABLED locale is never reached from a browser tag', () => {
       expect(getEntry('ar-XB')?.enabled).toBe(false)
-      expect(resolveInitialLocale(null, ['ar-XB'])).toBe('en')
-      expect(resolveInitialLocale(null, ['ar-XB', 'ko'])).toBe('ko')
+      // §L2.0a — with Arabic registered, the tag reaches `ar` through its base
+      // subtag (§L5.2 step 3), never the disabled pseudo itself
+      expect(resolveInitialLocale(null, ['ar-XB'])).toBe('ar')
+      expect(resolveInitialLocale(null, ['qaa', 'ar-XB'])).toBe('ar')
     })
 
     it('every disabled locale is unreachable from a browser tag, whatever it is', () => {
@@ -229,6 +255,7 @@ const entry = (code: string, extra: Partial<LocaleEntry> = {}): LocaleEntry => (
   catalog: () => Promise.resolve(en),
   ...extra,
 })
+// locale-subset: a hypothetical registry, one entry per resolver shape
 const WIDE: readonly LocaleEntry[] = [
   entry('en'),
   entry('ko'),
@@ -273,9 +300,11 @@ describe('resolveInitialLocale — Chinese script / region mapping (hypothetical
     expect(r(null, ['zhuang'])).toBe('en') // not a zh subtag
   })
 
-  it('a registered script locale is only reached when the registry has it', () => {
-    // the real registry has no Chinese locale: every Chinese tag reaches English
-    for (const tag of ['zh-CN', 'zh-TW', 'zh']) expect(resolveInitialLocale(null, [tag]), tag).toBe('en')
+  it('the real registry reaches its script locales the same way', () => {
+    // §L2.0a — Chinese restored (2026-10-28)
+    expect(resolveInitialLocale(null, ['zh-CN'])).toBe('zh-Hans')
+    expect(resolveInitialLocale(null, ['zh'])).toBe('zh-Hans')
+    expect(resolveInitialLocale(null, ['zh-TW'])).toBe('zh-Hant')
   })
 
   it('an earlier acceptable browser language still wins', () => {

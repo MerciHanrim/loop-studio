@@ -340,6 +340,19 @@
 :lang(ko) .dmenu__desc {
   word-break: keep-all;
 }
+/* Japanese and Chinese break by phrase where the engine has the dictionary —
+   the shape of `.menu__blurb` in index.css; this description came after it,
+   in en + ko only */
+:lang(ja) .dmenu__desc,
+:lang(zh) .dmenu__desc {
+  word-break: normal;
+}
+@supports (word-break: auto-phrase) {
+  :lang(ja) .dmenu__desc,
+  :lang(zh) .dmenu__desc {
+    word-break: auto-phrase;
+  }
+}
 .dmenu__act {
   margin-top: 6px;
 }

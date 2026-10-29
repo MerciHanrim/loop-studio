@@ -12,10 +12,13 @@ import { expect, openApp, resetAll, test, waitForAppReady } from './support/loop
 // rows that still mean something are kept here.
 //
 // NOT repeated: what `e2e/i18n.spec.ts` "§L2.0 — retired languages" already pins — a
-// stored retired code boots in English, a stored `ko` is kept, `de-DE` and `ko-KR`
-// browsers, and a stored `ko-KR` ignored under a `de-DE` browser.
+// stored retired code boots in English, a stored `ko` is kept, `ar-EG` and `ko-KR`
+// browsers, and a stored `ko-KR` ignored under an `ar-EG` browser.
 //
 // The pure resolver, including hypothetical registries, is `src/i18n/registry.test.ts`.
+//
+// locale-subset-file: the rows probe resolver STEPS, one each; a language with no
+// step of its own (a bare code like `ru`) is covered by the registry-wide unit test.
 // What only a browser shows is that the BUILT app reads the browser's list and the
 // stored key the way that function says.
 
@@ -36,8 +39,9 @@ async function bootWithStored(page: Page, code: string): Promise<void> {
 
 // ported from the "the other shipped locales are unaffected" tables of i18n-de.spec.ts,
 // i18n-fr.spec.ts, i18n-es-419.spec.ts, i18n-pt-br.spec.ts and i18n-zh-hant.spec.ts,
-// which are archived with their languages (§L2.0, 2026-10). The rows that named a
-// now-retired language moved from "reaches it" to "reaches English".
+// written while those languages were archived (§L2.0, 2026-10) and brought back with
+// them (§L2.0a). Each row probes one resolver step, so not every language has one.
+// locale-subset: one row per resolver STEP, not per language
 for (const [tag, want, why] of [
   ['en-US', 'en', 'the base-subtag step reaches the base locale'],
   // `qaa` — ISO 639-2 reserves `qaa`-`qtz` for LOCAL USE, so this tag can never become
@@ -45,11 +49,21 @@ for (const [tag, want, why] of [
   // `en-x-probe` would also give `en`, but through the base-subtag match on `en`, so it
   // would pass while proving nothing.
   ['qaa', 'en', 'nothing matches, so the final fallback'],
-  // the Chinese-script step only ever returns a REGISTERED code; with no Chinese
-  // locale registered both regions fall through the ordinary rules to English
-  ['zh-CN', 'en', 'the script step finds no registered Simplified locale'],
-  ['zh-TW', 'en', 'the script step finds no registered Traditional locale'],
-  ['ja-JP', 'en', 'a retired language as a browser tag'],
+  // the Chinese-script step maps a REGION onto a registered script locale
+  // (restored 2026-10-28, §L2.0a)
+  ['zh-CN', 'zh-Hans', 'the script step maps a Simplified region'],
+  ['zh-TW', 'zh-Hant', 'the script step maps a Traditional region'],
+  ['ar-EG', 'ar', 'a region tag reaches its base language (Arabic, restored)'],
+  // restored 2026-10-28 (§L2.0a): a browser in one reaches it again
+  ['ja-JP', 'ja', 'a restored language as a browser tag'],
+  ['de-DE', 'de', 'a restored language as a browser tag'],
+  ['fr-CA', 'fr', 'the base-subtag step, no Canadian catalog'],
+  // a regional code that owns its base (`baseFallbackFor`) against one that is the
+  // tag itself (§L5.2 step 1 before step 4)
+  ['es-MX', 'es-419', 'the base owner takes a region it has no exact code for'],
+  ['es-ES', 'es-ES', 'the exact code wins before the base owner'],
+  ['pt-AO', 'pt-BR', 'the base owner takes a region it has no exact code for'],
+  ['pt-PT', 'pt-PT', 'the exact code wins before the base owner'],
 ] as const) {
   test.describe(`a ${tag} browser`, () => {
     test.use({ locale: tag })
@@ -79,7 +93,8 @@ async function browserList(page: Page, tags: readonly string[]): Promise<void> {
 test.describe('§L5.2 a browser language list', () => {
   for (const [tags, want, why] of [
     [['qaa', 'ko-KR'], 'ko', 'an unsupported first tag is skipped and the next one decides'],
-    [['de-DE', 'ko-KR'], 'ko', 'a retired language as a BROWSER tag is skipped like any unsupported one'],
+    [['xx-XX', 'ko-KR'], 'ko', 'an unknown language as a BROWSER tag is skipped'],
+    [['ja-JP', 'ko-KR'], 'ja', 'a restored language first in the list decides'],
     [['qaa', 'en-US', 'ko-KR'], 'en', 'the first tag that matches wins, not the last'],
   ] as const) {
     test(`[${tags.join(', ')}] boots in ${want} — ${why}`, async ({ page }) => {

@@ -17,10 +17,11 @@ import { useGraphStore } from './graphStore'
 // BEFORE it flips `activeLocale`; `activate()` below mirrors the post-load
 // commit, so the dict is pre-loaded once here.
 //
-// §L2.0 (2026-10) — English and Korean are the supported languages, so the
-// switches below go between those two. The earlier version (Japanese as the
-// second language, and the bundled-module pass that was removed with the
-// bundled modules) is in `archive/i18n/tests/relabelOnLocaleSwitch.multilocale.test.ts`.
+// The switches below go between English and Korean; any shipped pair behaves
+// the same (the per-locale dictionaries are checked in relabel.test.ts). The
+// earlier version (Japanese as the second language, and the bundled-module
+// pass that was removed with the bundled modules) is in
+// `archive/i18n/tests/relabelOnLocaleSwitch.multilocale.test.ts`.
 
 beforeAll(async () => {
   await ensureTemplateLabelDict('ko')

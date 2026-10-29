@@ -1640,8 +1640,24 @@ a.sheet__row {
   cursor: grabbing;
 }
 
+/* docs/localization.md §L9.2 (2026-10-29) — the layout never mirrors: `<html
+   dir>` is `ltr` for every locale, and an RTL locale's chrome text takes its
+   reading direction from here instead. `unicode-bidi: plaintext` gives each
+   paragraph the direction of its own first strong character and leaves the
+   `direction` property alone, so no flex order, logical side or popover anchor
+   moves: Arabic copy reads and aligns right to left inside the same boxes, a
+   Latin word in it keeps its place. An element that declares its own `dir` —
+   a user's text `auto`, an expression or a number `ltr`, a catalog string the
+   locale's direction — keeps it, and so does everything inside it.
+   `src/i18n/arCopy.test.ts` keeps every Arabic catalog string's first strong
+   character Arabic, so no Arabic paragraph is turned LTR by a leading Latin
+   word. */
+:root[data-text-dir='rtl'] body *:not(body [dir], body [dir] *) {
+  unicode-bidi: plaintext;
+}
+
 /* docs/localization.md §L9.2 — keep graph coordinates and the spatial controls
-   physically LTR even when `<html dir>` mirrors the chrome. Components opt
+   physically LTR even if `<html dir>` ever mirrors the chrome. Components opt
    their user-facing text into auto / RTL / LTR separately.
    `--ls-canvas-dir` is the ownership mark `e2e/rtl-canvas-contract.spec.ts`
    reads; @xyflow declares the same `direction`, and this says the app means
@@ -4525,6 +4541,12 @@ a.sheet__row {
   font-size: 11px;
   font-weight: 400;
   color: var(--ink-3);
+}
+/* the heading is one word in every language and never gives up room to the
+   legend: squeezed, Japanese broke it mid-word (タイムライ / ン, 2026-10-28) */
+.timeline__title {
+  flex: none;
+  white-space: nowrap;
 }
 /* docs/timeline-series-contract.md §5 — ALWAYS ONE ROW. `nowrap` + `min-width: 0`
    + `overflow: hidden` mean the row can never grow the head. The chips of

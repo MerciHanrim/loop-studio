@@ -45,7 +45,7 @@ const armedState = (page: Page) =>
 async function select(page: Page, id: string) {
   await page.evaluate((n) => (window as any).__loop.graph.getState().setSelection(n, null), id)
 }
-async function setLocale(page: Page, code: 'en' | 'ko') {
+async function setLocale(page: Page, code: string) {
   await page.evaluate((c) => (window as any).__loop.i18n.getState().setLocale(c), code)
 }
 /** put the caret at `pos` in the expression input */
@@ -335,9 +335,25 @@ test('§RXA8.8 — the mode announces enter / block-reason / insert to the statu
 const PICK_LABEL = {
   en: { idle: /^Insert reference$/, armed: /^Selecting a reference$/ },
   ko: { idle: /^참조 삽입$/, armed: /^참조 선택 중$/ },
+  ja: { idle: /^参照を挿入$/, armed: /^参照を選択中$/ },
+  de: { idle: /^Referenz einfügen$/, armed: /^Referenz wird ausgewählt$/ },
+  'zh-Hans': { idle: /^插入引用$/, armed: /^正在选择引用$/ },
+  'zh-Hant': { idle: /^插入引用$/, armed: /^正在選擇引用$/ },
+  fr: { idle: /^Insérer une référence$/, armed: /^Sélection d’une référence$/ },
+  'es-419': { idle: /^Insertar referencia$/, armed: /^Seleccionando una referencia$/ },
+  'es-ES': { idle: /^Insertar referencia$/, armed: /^Seleccionando una referencia$/ },
+  it: { idle: /^Inserisci un riferimento$/, armed: /^Selezione di un riferimento$/ },
+  nl: { idle: /^Verwijzing invoegen$/, armed: /^Bezig met een verwijzing kiezen$/ },
+  'pt-BR': { idle: /^Inserir referência$/, armed: /^Selecionando uma referência$/ },
+  'pt-PT': { idle: /^Inserir referência$/, armed: /^A selecionar uma referência$/ },
+  ru: { idle: /^Вставить ссылку$/, armed: /^Выбор ссылки$/ },
+  th: { idle: /^แทรกการอ้างถึง$/, armed: /^กำลังเลือกการอ้างถึง$/ },
+  tr: { idle: /^Başvuru ekle$/, armed: /^Başvuru seçiliyor$/ },
+  vi: { idle: /^Chèn tham chiếu$/, armed: /^Đang chọn tham chiếu$/ },
+  ar: { idle: /^إدراج مرجع$/, armed: /^جارٍ اختيار مرجع$/ },
 } as const
 
-for (const loc of ['en', 'ko'] as const) { // §L2.0 (2026-10): the shipped languages
+for (const loc of Object.keys(PICK_LABEL) as (keyof typeof PICK_LABEL)[]) { // §L2.0a: every shipped language
   test(`§RXA8.9 — the insert button label, hint, and block reason localise (${loc})`, async ({ page }) => {
     await setLocale(page, loc)
     await expect(pickBtn(page)).toHaveText(PICK_LABEL[loc].idle)

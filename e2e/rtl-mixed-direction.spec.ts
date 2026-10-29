@@ -21,9 +21,19 @@ import { openInputsTab, openViewMenu } from './support/workbenchMenus'
 // WHAT IS MEASURED HERE AND WHAT IS NOT
 //
 // Source-exhaustiveness is scripts/check-content-direction.mjs: it can say "all of
-// them". This file is behaviour, on product paths, under `ar-XB` — where the
-// catalogue is English verbatim, so a catalog fragment reading rtl can only have
-// come from the app's own resolver and never from `auto`.
+// them". This file is behaviour, on product paths, under the shipped Arabic
+// (`ar`).
+//
+// THE CONTRACT (2026-10-29, §L2.0a): the LAYOUT never mirrors — `<html dir>` is
+// `ltr` for every locale — and only the TEXT of an RTL language reads right to
+// left (`<html data-text-dir="rtl">`, the chrome-text `unicode-bidi: plaintext`
+// rule). Everything checked here is TEXT, so it runs under `ar`, with Arabic
+// catalog strings. This file used to run under `ar-XB`, whose English catalog
+// let a catalog fragment reading rtl prove it came from the resolver and not
+// from `auto`; under `ar` that proof is the explicit `dir="rtl"` ATTRIBUTE the
+// resolver writes (an `auto` would show as `auto`). `ar-XB` no longer shows rtl
+// chrome text at all (its English reads ltr under `plaintext`) and is kept for
+// the direction switch itself (rtl-locale-direction.spec.ts).
 //
 // The data-import cell label's three fragments are NOT driven here: reaching them
 // needs the whole spreadsheet wizard, and what could go wrong in it is the join,
@@ -50,10 +60,18 @@ async function switchLocale(page: Page, code: string): Promise<void> {
     .toBe(code)
 }
 
-/** the interface really mirrored, and the canvas still did not */
-async function expectMirrored(page: Page): Promise<void> {
-  await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('dir'))).toBe('rtl')
+/** the Arabic interface is in place: its text reads rtl, its layout stays ltr */
+async function expectArabicText(page: Page): Promise<void> {
+  await expect(page.locator('html')).toHaveAttribute('data-text-dir', 'rtl')
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
 }
+
+/** a string from the active (Arabic) catalog */
+const catalog = (page: Page, key: string) =>
+  page.evaluate(
+    (k) => String((window as unknown as { __loop: { i18n: { getState: () => { activeCatalog: Record<string, string> } } } }).__loop.i18n.getState().activeCatalog[k]),
+    key,
+  )
 
 // ───────────────────────────────────────────────────────────────────────────
 // per-fragment markup: the Inputs panel's flow row, two user node labels
@@ -106,8 +124,8 @@ test.describe('§L9.3 per-fragment markup — two user labels in one row', () =>
 
   test('each label is isolated and takes its own direction', async ({ page }) => {
     await seedFlowRow(page, AR, 'Gold reserve')
-    await switchLocale(page, 'ar-XB')
-    await expectMirrored(page)
+    await switchLocale(page, 'ar')
+    await expectArabicText(page)
 
     const f = await fragments(page)
     expect(f, 'the flow row should be on screen').not.toBeNull()
@@ -123,8 +141,8 @@ test.describe('§L9.3 per-fragment markup — two user labels in one row', () =>
     // The measured defect: with the two labels joined under one `dir="auto"`, the
     // whole sequence reversed when the first value's script changed, so the row
     // read target → source. The DOM order is the contract.
-    await switchLocale(page, 'ar-XB')
-    await expectMirrored(page)
+    await switchLocale(page, 'ar')
+    await expectArabicText(page)
 
     await seedFlowRow(page, AR, 'Gold reserve')
     const arFirst = await fragments(page)
@@ -141,16 +159,16 @@ test.describe('§L9.3 per-fragment markup — two user labels in one row', () =>
     // `2024 Sales` is the shape the census measured as broken: inside an rtl
     // paragraph a joined `dir="auto"` rendered it `Sales 2024`. The comparison is
     // made in the SAME conditions rather than argued - a probe holding the joined
-    // string is placed in the row itself, so both are in one rtl context with one
-    // font, and then removed.
+    // string is placed in the row itself, so both sit in one row of the Arabic
+    // interface with one font, and then removed.
     // ORDER MATTERS in the fixture, and getting it wrong measured nothing: with
     // `2024 Sales` FIRST the joined string's first strong character is `S`, so
     // `dir="auto"` resolves ltr and there is no reordering to see. The broken case
     // is a digit-leading fragment FOLLOWING one that sets the paragraph rtl, so the
     // Arabic label goes first and the digit-leading one second.
     await seedFlowRow(page, AR, '2024 Sales')
-    await switchLocale(page, 'ar-XB')
-    await expectMirrored(page)
+    await switchLocale(page, 'ar')
+    await expectArabicText(page)
 
     const measured = await page.evaluate((ar) => {
       const btn = document.querySelector('.mp-row--flow .mp-row__label') as HTMLElement
@@ -165,7 +183,7 @@ test.describe('§L9.3 per-fragment markup — two user labels in one row', () =>
       const it = digitLeading.firstChild as Text
       const isolated = { digits: spanOf(it, 0, 4), word: spanOf(it, 5, it.length) }
 
-      // the same two values joined, unisolated, in the same row: one rtl context and
+      // the same two values joined, unisolated, in the same row: one context and
       // one font, so the comparison is measured rather than argued
       const probe = document.createElement('span')
       probe.setAttribute('dir', 'auto')
@@ -199,7 +217,8 @@ test.describe('§L9.3 per-fragment markup — two user labels in one row', () =>
 
   test('the markup adds elements and changes nothing a reader consumes', async ({ page }) => {
     await seedFlowRow(page, AR, 'Gold reserve')
-    await switchLocale(page, 'ar-XB')
+    await switchLocale(page, 'ar')
+    await expectArabicText(page)
     const f = await fragments(page)
     // textContent is exactly the two labels around the arrow — <bdi> contributes
     // no text of its own, so what an assistive technology reads is unchanged
@@ -211,7 +230,8 @@ test.describe('§L9.3 per-fragment markup — two user labels in one row', () =>
 
   test('the arrow between them is not mirrored — it names a relation the canvas draws', async ({ page }) => {
     await seedFlowRow(page, AR, 'Gold reserve')
-    await switchLocale(page, 'ar-XB')
+    await switchLocale(page, 'ar')
+    await expectArabicText(page)
     const f = await fragments(page)
     expect(f!.text).toContain('→')
     expect(f!.text).not.toContain('←')
@@ -243,8 +263,8 @@ test.describe('§L9.3 branch-computed — one element, two directions', () => {
       g().setEdgeData(e2, { kind: 'resource', flow: '@nope' })
       return { e1, e2 }
     })
-    await switchLocale(page, 'ar-XB')
-    await expectMirrored(page)
+    await switchLocale(page, 'ar')
+    await expectArabicText(page)
 
     const labels = page.locator('.edge-label')
     await expect(labels).toHaveCount(2)
@@ -265,10 +285,11 @@ test.describe('§L9.3 branch-computed — one element, two directions', () => {
     // branch that produced the text is what decided
     expect(number!.dir).toBe('ltr')
     expect(fallback!.dir).toBe('rtl')
-    // and the fallback really is the catalogue, which under ar-XB is English — so
-    // `auto` would have resolved it ltr and only the resolver makes it rtl
-    expect(fallback!.text.length).toBeGreaterThan(1)
-    expect(/[A-Za-z]/.test(fallback!.text)).toBe(true)
+    // and the fallback really is the Arabic catalogue's phrase, and its direction
+    // is the resolver's explicit `rtl` — not an `auto` that happened to agree
+    expect(fallback!.text).toBe(await catalog(page, 'canvas.edgeLabel.refMissing'))
+    expect(fallback!.attr).toBe('rtl')
+    expect(number!.attr).toBe('ltr')
   })
 
   test('the register total’s class and direction never disagree', async ({ page }) => {
@@ -290,8 +311,8 @@ test.describe('§L9.3 branch-computed — one element, two directions', () => {
       g().updateNodeData(bad, { label: 'Broken', expr: `@${p} / 0` })
       return { ok, bad }
     })
-    await switchLocale(page, 'ar-XB')
-    await expectMirrored(page)
+    await switchLocale(page, 'ar')
+    await expectArabicText(page)
 
     const total = async (nodeId: string) => {
       await page.evaluate((n) => (window as unknown as Bridge).__loop.graph.getState().setSelection(n, null), nodeId)
@@ -379,26 +400,30 @@ test.describe('§L9.3 per-fragment markup — the language menu row', () => {
     expect(before.every((r) => (r.text ?? '').includes(r.bdi ?? ''))).toBe(true)
 
     await page.keyboard.press('Escape')
-    await switchLocale(page, 'ar-XB')
-    await expectMirrored(page)
+    await switchLocale(page, 'ar')
+    await expectArabicText(page)
     await openMenu()
     const during = await rows()
-    // the names and their isolates are untouched by the interface direction
+    // the names and their isolates are untouched by the interface's text direction
     expect(during.map((r) => r.bdi)).toEqual(before.map((r) => r.bdi))
     // The child ORDER is NOT compared row for row here, and the reason is a real
-    // product fact rather than a tolerance: `ar-XB` is a disabled locale (§L9.2), so
-    // it is not offered in the picker and no row is the active one - the `✓ ` text
-    // node that one row carried under `en` is simply absent. Asserting equality
-    // measured the checkmark's position, not the isolate's.
-    expect(during.filter((r) => r.childOrder.includes('#text')).length, 'a disabled locale marks no row active').toBe(0)
+    // product fact rather than a tolerance: the active row carries the check
+    // mark (an `<svg>` icon, `LanguageSwitch.tsx`), and under `ar` the active row
+    // is the Arabic one, not English — so the mark MOVES between rows. Asserting
+    // equality would measure the mark's position, not the isolate's. What must
+    // hold: exactly one row is marked under each reader, and under `ar` it is the
+    // Arabic row.
+    const markedOf = (rs: typeof before) => rs.filter((r) => r.childOrder.includes('svg'))
+    expect(markedOf(before).map((r) => r.lang), 'en marks exactly its own row').toEqual(['en'])
+    expect(markedOf(during).map((r) => r.lang), 'ar marks exactly its own row').toEqual(['ar'])
     for (const r of during) {
       expect(r.childOrder.filter((c) => c === 'bdi').length).toBe(1)
       expect(r.bdiAttr).toBe('auto')
     }
-    // and where a checkmark DOES exist it precedes the isolate - the invariant the
+    // and the mark precedes the isolate under both readers — the invariant the
     // markup change could have broken
-    for (const r of before.filter((x) => x.childOrder.includes('#text'))) {
-      expect(r.childOrder.indexOf('#text')).toBeLessThan(r.childOrder.indexOf('bdi'))
+    for (const r of [...markedOf(before), ...markedOf(during)]) {
+      expect(r.childOrder.indexOf('svg')).toBeLessThan(r.childOrder.indexOf('bdi'))
     }
 
     await page.keyboard.press('Escape')

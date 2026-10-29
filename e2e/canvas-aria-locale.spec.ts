@@ -135,8 +135,11 @@ test.describe("React Flow's ARIA strings follow a language switch", () => {
     for (const k of Object.keys(en) as (keyof typeof en)[])
       expect(ko[k], `${k} must differ from English after switching to ko`).not.toBe(en[k])
 
-    // §L2.0 (2026-10): en and ko are the only shipped languages, so the
-    // non-English → non-English hop (ko → ja) retired with Japanese.
+    // a non-English → non-English hop: nothing can lean on English in between
+    await pickLocale(page, 'ja')
+    const ja = await assertMatchesActiveCatalog('ja')
+    for (const k of Object.keys(en) as (keyof typeof en)[])
+      expect(ja[k], `${k} must differ from Korean after switching to ja`).not.toBe(ko[k])
 
     // and back — no drift, no stale value left behind
     await pickLocale(page, 'en')

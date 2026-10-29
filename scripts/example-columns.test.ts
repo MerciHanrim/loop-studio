@@ -90,9 +90,12 @@ describe('`import.qs.mapping` names the columns EXAMPLE_CSV actually has', () =>
   })
 
   it('covers every shipped locale, so a new language cannot skip the rule', () => {
-    // §L2.0 (2026-10) — English and Korean; the eighteen-locale count is in
+    // §L2.0 (2026-10) — the shipped locales; the eighteen-locale count is in
     // `archive/i18n/tests/example-columns.multilocale.test.ts`
-    expect(REAL.map((l) => l.code).sort(), 'catalogue locales').toEqual(['en', 'ko'])
+    expect(REAL.map((l) => l.code).sort(), 'catalogue locales').toEqual([
+      'ar', 'de', 'en', 'es-419', 'es-ES', 'fr', 'it', 'ja', 'ko', 'nl',
+      'pt-BR', 'pt-PT', 'ru', 'th', 'tr', 'vi', 'zh-Hans', 'zh-Hant',
+    ])
   })
 })
 

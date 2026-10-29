@@ -387,15 +387,17 @@ test.describe('i18n Slice 3 — KO responsive: tablet (820×800)', () => {
   }) => {
     await openApp(page)
     await resetAll(page)
-    await pickLocale(page, 'ko')
-
-    await notCharStacked(page, '.toolbar .btn')
-    await notCharStacked(page, '.toolbar .chip')
-    // the document itself never scrolls sideways
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-    )
-    expect(overflow, 'the page scrolls horizontally in KO at 820px').toBe(false)
+    // Korean, then the two CJK / long-word languages that came back with it
+    for (const code of ['ko', 'ja', 'de', 'zh-Hans', 'zh-Hant']) {
+      await pickLocale(page, code)
+      await notCharStacked(page, '.toolbar .btn')
+      await notCharStacked(page, '.toolbar .chip')
+      // the document itself never scrolls sideways
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+      )
+      expect(overflow, `the page scrolls horizontally in ${code} at 820px`).toBe(false)
+    }
   })
 
   test('the run bar stays inside the canvas column; the properties panel is folded at this width', async ({
@@ -447,18 +449,21 @@ test.describe('i18n Slice 3 — KO responsive: the narrowest docked properties p
     await openApp(page)
     await resetAll(page)
     await importGraph(page, G)
-    await pickLocale(page, 'ko')
     // a node selected, so the Inspector shows its fields, docked beside the
     // canvas (the medium band opens the properties panel; not an overlay)
     await page.locator('.react-flow__node').first().click()
     await expect(page.locator('.rightcol:not(.is-overlay) aside.inspector')).toBeVisible()
-    const report = await runBarReport(page)
-    expect(report.length, 'the run bar has controls on screen to check').toBeGreaterThanOrEqual(3)
-    for (const c of report) {
-      expect(c.inspectorShown, 'the docked Inspector is on screen').toBe(true)
-      expect(c.withinBar, `"${c.t}" spills outside the run bar`).toBe(true)
-      expect(c.overlapsInspector, `"${c.t}" overlaps the Inspector`).toBe(false)
-      expect(c.hitIsInspector, `"${c.t}" is covered by the Inspector (hit-test)`).toBe(false)
+    for (const code of ['ko', 'ja', 'de', 'zh-Hans', 'zh-Hant']) {
+      await pickLocale(page, code)
+      await expect(page.locator('.rightcol:not(.is-overlay) aside.inspector')).toBeVisible()
+      const report = await runBarReport(page)
+      expect(report.length, `the run bar has controls on screen to check (${code})`).toBeGreaterThanOrEqual(3)
+      for (const c of report) {
+        expect(c.inspectorShown, 'the docked Inspector is on screen').toBe(true)
+        expect(c.withinBar, `"${c.t}" spills outside the run bar (${code})`).toBe(true)
+        expect(c.overlapsInspector, `"${c.t}" overlaps the Inspector (${code})`).toBe(false)
+        expect(c.hitIsInspector, `"${c.t}" is covered by the Inspector (hit-test, ${code})`).toBe(false)
+      }
     }
   })
 })
@@ -472,17 +477,20 @@ test.describe('i18n Slice 3 — KO responsive: mobile (390×844)', () => {
     await openApp(page)
     await resetAll(page)
 
-    // contract: on mobile KO is verified for language pick / template open / run
-    await page.locator('.mob-more').click()
-    await pickLocale(page, 'ko', '.sheet')
-    await page.locator('.sheet__x').click()
-
+    // contract: on mobile JA and DE are verified for language pick and the
+    // bar's layout, KO for those plus the run (it ends the loop)
     const bar = page.locator('.pstrip--mobile')
-    await expect(bar).toBeVisible()
-    await notCharStacked(page, '.pstrip--mobile .pb-btn')
-    await notCharStacked(page, '.pstrip--mobile .pstrip__step')
-    const barOverflow = await bar.evaluate((el) => el.scrollWidth > el.clientWidth + 1)
-    expect(barOverflow, 'the mobile run bar overflows its row in KO at 390px').toBe(false)
+    for (const code of ['ja', 'de', 'zh-Hans', 'zh-Hant', 'ko']) {
+      await page.locator('.mob-more').click()
+      await pickLocale(page, code, '.sheet')
+      await page.locator('.sheet__x').click()
+
+      await expect(bar).toBeVisible()
+      await notCharStacked(page, '.pstrip--mobile .pb-btn')
+      await notCharStacked(page, '.pstrip--mobile .pstrip__step')
+      const barOverflow = await bar.evaluate((el) => el.scrollWidth > el.clientWidth + 1)
+      expect(barOverflow, `the mobile run bar overflows its row in ${code} at 390px`).toBe(false)
+    }
 
     // run works from the compact bar
     await bar.getByRole('button', { name: /한 단계 진행|Advance one step/ }).click()

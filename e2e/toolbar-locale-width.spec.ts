@@ -27,11 +27,11 @@ import { expect, openApp, resetAll, test } from './support/loop'
 // fine on one viewport is not on another, and what a reader actually sees is
 // whether anything is cut off.
 //
-// §L2.0 (2026-10) — en and ko are the shipped locales. The RTL pseudo-locale
+// §L2.0 — en, ko, ja and de are the shipped locales. The RTL pseudo-locale
 // `ar-XB` is not listed: its catalog is English verbatim, so it would measure
 // the same labels as `en`.
 
-const SHIPPED = ['en', 'ko'] as const
+const SHIPPED = ['en', 'ko', 'ja', 'de', 'zh-Hans', 'zh-Hant'] as const
 
 type Loop = Record<string, { getState: () => any }>
 

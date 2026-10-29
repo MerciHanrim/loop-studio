@@ -57,6 +57,24 @@ const DEFAULT_BIDI: readonly string[] = []
 const CONTRACT: Record<string, Declared> = {
   en: { position: 'after', gap: 'none' },
   ko: { position: 'after', gap: 'none' },
+  ja: { position: 'after', gap: 'none' },
+  de: { position: 'after', gap: 'nbsp' },
+  'zh-Hans': { position: 'after', gap: 'none' },
+  'zh-Hant': { position: 'after', gap: 'none' },
+  fr: { position: 'after', gap: 'nbsp' },
+  'es-419': { position: 'after', gap: 'none' },
+  'pt-BR': { position: 'after', gap: 'none' },
+  'es-ES': { position: 'after', gap: 'nbsp' },
+  'pt-PT': { position: 'after', gap: 'none' },
+  ru: { position: 'after', gap: 'nbsp' },
+  tr: { position: 'before', gap: 'none' },
+  th: { position: 'after', gap: 'none' },
+  vi: { position: 'after', gap: 'none' },
+  it: { position: 'after', gap: 'none' },
+  nl: { position: 'after', gap: 'none' },
+  // MEASURED: `Intl` wraps the Arabic sign in two LEFT-TO-RIGHT MARKs; the
+  // catalog itself carries none (`bidiControls.test.ts`)
+  ar: { position: 'after', gap: 'none', bidi: ['LRM', 'LRM'] },
 }
 
 const shipped = LOCALES.filter((l) => !l.pseudo)

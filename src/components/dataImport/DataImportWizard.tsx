@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useReactFlow, useStore as useRfStore } from '@xyflow/react'
-import { useT, type MessageKey } from '../../i18n'
+import { useLocaleDirection, useT, type MessageKey } from '../../i18n'
 import type { CsvParseError } from '../../model/csv'
 import { detectDelimiter, parseDelimitedText, stripBom, toCsv } from '../../model/csv'
 import {
@@ -245,6 +245,7 @@ export function DataImportWizard({
   returnFocusTo?: () => HTMLElement | null | undefined
 }) {
   const t = useT()
+  const uiDir = useLocaleDirection()
   // §L9.3 — a direction-aware CHARACTER from the shared table, never a transform
   const ref = useRef<HTMLDivElement>(null)
   const titleId = useId()
@@ -619,7 +620,10 @@ export function DataImportWizard({
                   <p>{t('import.qs.body')}</p>
                   <p className="import__quickstartHeading">{t('import.qs.exampleHeading')}</p>
                   <pre className="import__example" dir="ltr">{EXAMPLE_CSV}</pre>
-                  <p className="import__quickstartMapping">
+                  {/* prose in the reader's direction: its column names are
+                      Latin and open the sentence, so the chrome's plaintext
+                      rule would read it ltr in an rtl locale (§L9.2) */}
+                  <p className="import__quickstartMapping" dir={uiDir}>
                     {t('import.qs.mapping', {
                       key: t('import.role.key'),
                       label: t('import.role.label'),

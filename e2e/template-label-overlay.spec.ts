@@ -332,17 +332,21 @@ test.describe('official template label — locale switch (§TLO11)', () => {
     page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().simulationRev)
 
   // §L2.0 (2026-10): the shipped languages are EN and KO
-  test('KO → EN → KO round-trips the official labels of the bundled templates', async ({ page }) => {
+  test('KO → JA → EN → KO round-trips the official labels of the bundled templates', async ({ page }) => {
     await openApp(page)
     const cases = [
-      { pick: COFFEE_KO, ko: '생두 재고', en: 'Green bean stock' },
-      { pick: '용량 교착', ko: '가공', en: 'Processing' },
+      { pick: COFFEE_KO, ko: '생두 재고', ja: '生豆在庫', en: 'Green bean stock' },
+      { pick: '용량 교착', ko: '가공', ja: '加工', en: 'Processing' },
     ]
     for (const c of cases) {
       await resetAll(page)
       await setLocale(page, 'ko')
       await pickTemplate(page, c.pick)
       expect(await labels(page)).toContain(c.ko)
+      // a non-English → non-English hop first: nothing passes through English
+      await setLocale(page, 'ja')
+      expect(await labels(page)).toContain(c.ja)
+      expect(await labels(page)).not.toContain(c.ko)
       await setLocale(page, 'en')
       expect(await labels(page)).toContain(c.en)
       expect(await labels(page)).not.toContain(c.ko)
@@ -397,6 +401,8 @@ test.describe('official template label — locale switch (§TLO11)', () => {
 
     await setLocale(page, 'ko') // src/i18n/templateLabels/ko.ts
     expect((await labels(page)).sort()).toEqual(['가공', '완제품 재고'])
+    await setLocale(page, 'ja') // and on from a non-English language
+    expect((await labels(page)).sort()).toEqual(['加工', '完成品在庫'])
   })
 
   test('the switch does not bump simulationRev; an undo across it keeps the current UI language', async ({ page }) => {
@@ -478,11 +484,40 @@ test.describe('official template label — locale switch (§TLO11)', () => {
     expect(l).not.toContain('Green bean stock')
   })
 
-  // §L2.0 (2026-10) — a retired language's official labels are user content
-  // now: no shipped locale carries them, so a switch leaves them alone, while a
-  // shipped official label beside them still follows. A STORED retired locale
-  // is not a registered code, so boot falls back (to English in this browser).
-  test('a retired language\'s official label never switches; a stored retired locale boots in English', async ({ page }) => {
+  test('boot reconciles a stored JA preference against KO template labels', async ({ page }) => {
+    // neither side is English: the boot relabel reads a non-English document
+    // into another non-English language
+    await openApp(page)
+    await resetAll(page)
+    await setLocale(page, 'ko')
+    await pickTemplate(page, COFFEE_KO)
+    expect(await labels(page)).toContain('생두 재고')
+
+    await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'ja'))
+    await expect
+      .poll(() =>
+        page.evaluate(
+          (k) => localStorage.getItem(k)?.includes('생두 재고') ?? false,
+          GRAPH_STORAGE_KEY,
+        ),
+      )
+      .toBe(true)
+    await page.reload()
+    await openApp(page)
+
+    expect(await htmlLang(page)).toBe('ja')
+    const l = await labels(page)
+    expect(l).toContain('生豆在庫')
+    expect(l).not.toContain('생두 재고')
+  })
+
+  // §L2.0 (2026-10) — a label no shipped locale carries is user content: a
+  // switch leaves it alone, while a shipped official label beside it still
+  // follows. (Written for the archived languages' labels; every archived
+  // language is back since §L2.0a, so the example is simply not official.) A
+  // STORED code that is not registered is ignored, so boot follows the browser
+  // (English here).
+  test('a label no shipped locale carries never switches; a stored unregistered locale is ignored', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await setLocale(page, 'en')
@@ -491,8 +526,9 @@ test.describe('official template label — locale switch (§TLO11)', () => {
       schema: 'loop-studio/graph',
       version: 1,
       nodes: [
-        // `level` is a bundled-template node id; 'レベル' was its Japanese label
-        { id: 'level', type: 'pool', position: { x: 240, y: 0 }, data: { kind: 'pool', label: 'レベル', activation: 'passive', initial: 0, mode: 'pullAny' } },
+        // `level` is a bundled-template node id; 'My own level' is no
+        // shipped locale's label for it
+        { id: 'level', type: 'pool', position: { x: 240, y: 0 }, data: { kind: 'pool', label: 'My own level', activation: 'passive', initial: 0, mode: 'pullAny' } },
         { id: 'tpl-conv', type: 'converter', position: { x: 0, y: 0 }, data: { kind: 'converter', label: 'Processing', activation: 'automatic', inRate: '2', outRate: '1' } },
       ],
       edges: [
@@ -500,19 +536,19 @@ test.describe('official template label — locale switch (§TLO11)', () => {
       ],
     })
     await importGraph(page, G)
-    expect((await labels(page)).sort()).toEqual(['Processing', 'レベル'])
+    expect((await labels(page)).sort()).toEqual(['My own level', 'Processing'])
 
     await setLocale(page, 'ko')
-    expect((await labels(page)).sort()).toEqual(['レベル', '가공']) // only the shipped official label moved
+    expect((await labels(page)).sort()).toEqual(['My own level', '가공']) // only the shipped official label moved
     await setLocale(page, 'en')
-    expect((await labels(page)).sort()).toEqual(['Processing', 'レベル'])
+    expect((await labels(page)).sort()).toEqual(['My own level', 'Processing'])
 
-    // a stored retired locale ('ja'), then a reload
-    await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'ja'))
+    // a stored unregistered locale ('xx'), then a reload
+    await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'xx'))
     await expect
       .poll(() =>
         page.evaluate(
-          (k) => localStorage.getItem(k)?.includes('レベル') ?? false,
+          (k) => localStorage.getItem(k)?.includes('My own level') ?? false,
           GRAPH_STORAGE_KEY,
         ),
       )
@@ -521,7 +557,7 @@ test.describe('official template label — locale switch (§TLO11)', () => {
     await openApp(page)
 
     expect(await htmlLang(page)).toBe('en')
-    expect((await labels(page)).sort()).toEqual(['Processing', 'レベル'])
+    expect((await labels(page)).sort()).toEqual(['My own level', 'Processing'])
   })
 
   // A locale switch on the full 97-node MMO document relabels many nodes in
@@ -535,7 +571,7 @@ test.describe('official template label — locale switch (§TLO11)', () => {
   // A/B/C comparison, including a dedicated production-bundle check in
   // e2e/dist.spec.ts). These two tests exercise the resulting geometry
   // directly, not just the label text a switch carries.
-  test('KO → EN → KO on the full MMO document keeps every node\'s RF-measured height, handle centring, and edge endpoints consistent', async ({ page }) => {
+  test('KO → JA → EN → KO on the full MMO document keeps every node\'s RF-measured height, handle centring, and edge endpoints consistent', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await setLocale(page, 'en')
@@ -705,7 +741,7 @@ test.describe('official template label — locale switch (§TLO11)', () => {
       return ids
     }
 
-    for (const locale of ['en', 'ko'] as const) { // §L2.0 (2026-10): the shipped languages
+    for (const locale of ['ja', 'en', 'ko'] as const) { // ja first: a KO → JA hop with no English between
       await setLocale(page, locale)
       // routeMap's rebuild (src/store/routeMap.ts) reacts to RF's `node.measured`
       // — a separate, downstream React commit from the wrapper-height DOM sync

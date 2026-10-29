@@ -7,7 +7,9 @@ import { expect, openApp, resetAll, test } from './support/loop'
 // its DISPLAYED labels must be the agreed user-facing names in every
 // locale, never the internal mode name `system`:
 //   EN: Auto / Light / Dark   KO: 자동 / 라이트 / 다크
-// (§L2.0, 2026-10: EN and KO are the shipped languages;
+// (every shipped language since §L2.0a; the table below lists the translated
+// ones, English being the source — locale-subset-file: English is named in
+// prose and the one test that pins it, not in the table;
 // src/components/ThemeToggle.tsx's `theme.option.*` keys — distinct from
 // the internal `Mode` union's `'system'` literal, which must never leak
 // into the UI.)
@@ -19,7 +21,7 @@ async function openSettings(page: Page) {
   // narrowest desktop checkpoint this suite tests) and its label localizes,
   // so match both shipped locales and fall back to opening ⋯ first when
   // Settings isn't inline.
-  const label = /^(View|보기)$/
+  const label = /^(View|보기|表示|Ansicht|视图|檢視|Affichage|Ver|Visualizza|Weergave|Exibir|Вид|มุมมอง|Görünüm|Xem|عرض)$/
   const inline = page.locator('.toolbar__actions .menu > button', { hasText: label })
   if (await inline.isVisible().catch(() => false)) {
     await inline.click()
@@ -200,11 +202,33 @@ test('flips to the right when there is no room on the left', async ({ page }) =>
   }
 })
 
-// §L2.0 (2026-10): the Japanese half was dropped with the language
-test('Korean shows the agreed labels, never a raw mode literal', async ({ page }) => {
-  await page.evaluate(() => (window as any).__loop.i18n.getState().setLocale('ko'))
-  await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('ko')
-  await openThemeSubmenu(page)
-  const texts = (await page.locator('.theme-menu__pop .menu__name').allTextContents()).map((s) => s.trim())
-  expect(texts).toEqual(['자동', '라이트', '다크'])
+test('every shipped language but English shows the agreed labels, never a raw mode literal', async ({ page }) => {
+  // locale-subset: every TRANSLATED locale; English is the source the others are measured against
+  for (const [code, want] of [
+    ['ko', ['자동', '라이트', '다크']],
+    ['ja', ['自動', 'ライト', 'ダーク']],
+    ['de', ['Automatisch', 'Hell', 'Dunkel']],
+    ['zh-Hans', ['自动', '浅色', '深色']],
+    ['zh-Hant', ['自動', '淺色', '深色']],
+    ['fr', ['Auto', 'Clair', 'Sombre']],
+    ['es-419', ['Automático', 'Claro', 'Oscuro']],
+    ['es-ES', ['Automático', 'Claro', 'Oscuro']],
+    ['it', ['Auto', 'Chiaro', 'Scuro']],
+    ['nl', ['Auto', 'Licht', 'Donker']],
+    ['pt-BR', ['Automático', 'Claro', 'Escuro']],
+    ['pt-PT', ['Automático', 'Claro', 'Escuro']],
+    ['ru', ['Авто', 'Светлая', 'Тёмная']],
+    ['th', ['อัตโนมัติ', 'สว่าง', 'มืด']],
+    ['tr', ['Otomatik', 'Açık', 'Koyu']],
+    ['vi', ['Tự động', 'Sáng', 'Tối']],
+    ['ar', ['تلقائي', 'فاتح', 'داكن']],
+  ] as const) {
+    await page.evaluate((c) => (window as any).__loop.i18n.getState().setLocale(c), code)
+    await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(code)
+    await openThemeSubmenu(page)
+    const texts = (await page.locator('.theme-menu__pop .menu__name').allTextContents()).map((s) => s.trim())
+    expect(texts, code).toEqual(want)
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('Escape')
+  }
 })

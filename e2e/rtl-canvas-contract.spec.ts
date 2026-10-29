@@ -1,27 +1,28 @@
 import { expect, openApp, test } from './support/loop'
 
-// docs/localization.md §L9.2 — the canvas is a SPACE, not a paragraph.
+// docs/localization.md §L9.2 / §L2.0a — the canvas is a SPACE, not a paragraph.
 //
-// `<html dir>` follows the UI language, so shipping any RTL locale mirrors the
-// app chrome. The React Flow subtree must NOT mirror with it: node positions,
-// pan, zoom, edge direction and the source/drain sides of a node face are graph
-// coordinates, and mirroring them would contradict the stored `x` of every
-// node.
+// THE CONTRACT (2026-10-29): the app's LAYOUT never mirrors — `<html dir>` is
+// `LAYOUT_DIRECTION`, `ltr` for every locale — and only the TEXT of an RTL
+// language reads right to left. So under the shipped Arabic (`ar`) nothing
+// mirrors: not the chrome, not the canvas. The first describe block below holds
+// that for the real locale, measured as boxes.
 //
-// WHY THIS SPEC EXISTS EVEN THOUGH NO RTL LOCALE SHIPS YET
+// THE CANVAS PIN IS KEPT AS ITS OWN ASSERTION. Node positions, pan, zoom, edge
+// direction and the source/drain sides of a node face are graph coordinates;
+// mirroring them would contradict the stored `x` of every node. The pin
+// (`.react-flow { direction: ltr }`) is inert under a fixed LTR layout but is
+// kept, so it stays correct if a mirrored mode ever returns. The second block
+// therefore forces `<html dir="rtl">` ON PURPOSE — a stress state no locale
+// produces any more — to prove the pin still breaks the cascade exactly at
+// `.react-flow`.
 //
-// `@xyflow/react/dist/style.css` sets `direction: ltr` on `.react-flow`, so the
-// split already holds today — for free, from a vendor file, one line deep, in a
-// dependency this repo upgrades like any other. `src/index.css` now declares
-// the same thing so the app OWNS the contract; this spec is what makes the
-// ownership real. Delete the app's declaration and the vendor still carries it
-// and this stays green, which is why the last test here reads the CASCADE and
-// not only the computed value.
-//
-// It sets `dir` on the document directly rather than switching to a locale.
-// That is exactly what `src/i18n/store.ts` does from a registry entry's
-// `direction`, it needs no Arabic catalog, and it writes nothing to storage —
-// so this spec is a standalone check, not another arm of a locale loop.
+// `@xyflow/react/dist/style.css` sets `direction: ltr` on `.react-flow` too —
+// for free, from a vendor file, one line deep, in a dependency this repo
+// upgrades like any other. `src/index.css` declares the same thing so the app
+// OWNS the contract; delete the app's declaration and the vendor still carries
+// it and the computed checks stay green, which is why the last test here reads
+// the CASCADE and not only the computed value.
 
 const DIR_ATTR = 'dir'
 
@@ -34,7 +35,54 @@ async function setDir(page: import('@playwright/test').Page, dir: 'ltr' | 'rtl')
 const dirOf = (page: import('@playwright/test').Page, selector: string) =>
   page.locator(selector).evaluate((el) => getComputedStyle(el).direction)
 
-test.describe('the canvas keeps its own direction when the chrome mirrors', () => {
+type Bridge = { __loop: { i18n: { getState: () => { activeLocale: string; setLocale: (code: string) => void } } } }
+
+async function switchLocale(page: import('@playwright/test').Page, code: string): Promise<void> {
+  await page.evaluate((c) => (window as unknown as Bridge).__loop.i18n.getState().setLocale(c), code)
+  await expect.poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.i18n.getState().activeLocale)).toBe(code)
+}
+
+/** each node's box relative to `.react-flow`, plus the canvas's own box in the viewport */
+const canvasGeometry = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    const flow = document.querySelector('.react-flow')!.getBoundingClientRect()
+    return {
+      canvas: [Math.round(flow.x), Math.round(flow.width)],
+      nodes: Array.from(document.querySelectorAll('.react-flow__node')).map((el) => {
+        const r = el.getBoundingClientRect()
+        return [el.getAttribute('data-id'), Math.round(r.x - flow.x), Math.round(r.y - flow.y)]
+      }),
+    }
+  })
+
+test.describe('under the shipped Arabic nothing mirrors — chrome or canvas', () => {
+  test.beforeEach(async ({ page }) => {
+    await openApp(page)
+  })
+
+  test('under ar the chrome and the React Flow subtree both lay out ltr', async ({ page }) => {
+    await switchLocale(page, 'ar')
+    // the text direction is rtl (the attribute the chrome-text rule reads) …
+    await expect(page.locator('html')).toHaveAttribute('data-text-dir', 'rtl')
+    // … and nothing on the layout path takes it
+    expect(await dirOf(page, 'html')).toBe('ltr')
+    expect(await dirOf(page, '.app')).toBe('ltr')
+    expect(await dirOf(page, '.canvas')).toBe('ltr')
+    expect(await dirOf(page, '.react-flow')).toBe('ltr')
+  })
+
+  test('under ar the canvas stays where it is and no node moves inside it', async ({ page }) => {
+    // Measured, not read from CSS: the canvas column's box in the viewport (the
+    // chrome did not swap the panel and canvas columns) and every node's box
+    // relative to `.react-flow` (the diagram did not mirror).
+    const before = await canvasGeometry(page)
+    expect(before.nodes.length, 'the default graph should have nodes').toBeGreaterThan(0)
+    await switchLocale(page, 'ar')
+    expect(await canvasGeometry(page)).toEqual(before)
+  })
+})
+
+test.describe('the canvas pin holds even under a forced dir=rtl (a mirrored mode no locale produces)', () => {
   // `openApp` only — no `resetAll`. The default graph is what gives this spec
   // real nodes to measure, and an emptied canvas would make the geometry test
   // pass over nothing.
@@ -42,7 +90,7 @@ test.describe('the canvas keeps its own direction when the chrome mirrors', () =
     await openApp(page)
   })
 
-  test('under dir=rtl the chrome flips and the React Flow subtree does not', async ({ page }) => {
+  test('under a forced dir=rtl the chrome flips and the React Flow subtree does not', async ({ page }) => {
     expect(await dirOf(page, '.canvas')).toBe('ltr')
     expect(await dirOf(page, '.react-flow')).toBe('ltr')
 
@@ -67,9 +115,9 @@ test.describe('the canvas keeps its own direction when the chrome mirrors', () =
     }
   })
 
-  test('node geometry inside the canvas is unchanged when the chrome mirrors', async ({ page }) => {
-    // The point of the contract: a diagram does not move when the reader's
-    // script changes.
+  test('node geometry inside the canvas is unchanged when the chrome is forced to mirror', async ({ page }) => {
+    // The point of the pin: a diagram does not move even if the chrome ever
+    // mirrors again.
     //
     // MEASURED RELATIVE TO `.react-flow`, not to the viewport. The first draft
     // of this test compared `getBoundingClientRect().x` and failed with every
@@ -92,8 +140,9 @@ test.describe('the canvas keeps its own direction when the chrome mirrors', () =
     expect(await offsets()).toEqual(before)
   })
 
-  test('the canvas itself does move — the chrome really is mirroring', async ({ page }) => {
-    // Without this, the test above would also pass if `dir` did nothing at all.
+  test('the canvas itself does move under the forced dir — the stress really mirrors the chrome', async ({ page }) => {
+    // Without this, the test above would also pass if the forced `dir` did
+    // nothing at all (the 58 logical properties are kept, so it still mirrors).
     const canvasX = () => page.locator('.react-flow').evaluate((el) => Math.round(el.getBoundingClientRect().x))
     const before = await canvasX()
     await setDir(page, 'rtl')

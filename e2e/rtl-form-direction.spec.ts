@@ -4,6 +4,17 @@ import { openInputsTab, openRunSettings } from './support/workbenchMenus'
 
 // docs/localization.md §L9.3 — the runtime half of the form direction contract.
 //
+// THE CONTRACT (2026-10-29, §L2.0a): the LAYOUT never mirrors — `<html dir>` is
+// `ltr` for every locale — and only the TEXT of an RTL language reads right to
+// left (`<html data-text-dir="rtl">`, the chrome-text `unicode-bidi: plaintext`
+// rule). A field's direction is per VALUE and is unchanged by that: a user
+// field declares `dir="auto"`, an engine token / expression / number declares
+// `dir="ltr"`. "Under an rtl interface" below therefore means the shipped
+// Arabic (`ar`): its text reads rtl, and these fields must still follow their
+// own values, not the interface. (`ar-XB`, the pseudo-locale, is English
+// verbatim and is kept for the direction switch itself in
+// rtl-locale-direction.spec.ts.)
+//
 // The exhaustive half is a source check (scripts/check-form-direction.mjs): all
 // 35 text-carrying controls, every one declaring a direction. It runs without a
 // browser and it is the only layer that can say "all of them".
@@ -47,6 +58,13 @@ async function switchLocale(page: Page, code: string): Promise<void> {
   await expect
     .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.i18n.getState().activeLocale))
     .toBe(code)
+}
+
+/** the Arabic interface: its text reads rtl, its layout stays ltr */
+async function switchToArabic(page: Page): Promise<void> {
+  await switchLocale(page, 'ar')
+  await expect(page.locator('html')).toHaveAttribute('data-text-dir', 'rtl')
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
 }
 
 /** select the first node so the Inspector's label field is on screen */
@@ -109,22 +127,23 @@ test.describe('form direction — product path', () => {
     expect(await resolvedDirection(page, '.rightcol input[dir="auto"]')).toBe('rtl')
   })
 
-  test('the field keeps the VALUE direction even when the interface direction is the opposite', async ({ page }) => {
+  test('the field keeps the VALUE direction even when the interface text reads the opposite way', async ({ page }) => {
     await openApp(page)
     const field = await openNodeLabelField(page)
     await field.fill('Gold reserve')
-    await switchLocale(page, 'ar-XB')
-    await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('dir'))).toBe('rtl')
+    await switchToArabic(page)
 
-    // the whole interface is rtl and this field is not, because the person
-    // wrote Latin in it. That is the entire point of `auto` over inheritance.
+    // the interface text is Arabic and reads rtl, and this field reads ltr,
+    // because the person wrote Latin in it. That is the point of `auto`.
     await expect.poll(() => resolvedDirection(page, '.rightcol input[dir="auto"]')).toBe('ltr')
+    // and the same field, in the same Arabic interface, follows an Arabic value
+    await field.fill('مبيعات')
+    await expect.poll(() => resolvedDirection(page, '.rightcol input[dir="auto"]')).toBe('rtl')
   })
 
   test('a pinned field stays ltr under an rtl interface', async ({ page }) => {
     await openApp(page)
-    await switchLocale(page, 'ar-XB')
-    await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('dir'))).toBe('rtl')
+    await switchToArabic(page)
     await expect.poll(() => resolvedDirection(page, '.pstrip__seed')).toBe('ltr')
   })
 })
@@ -138,8 +157,7 @@ test.describe('form direction — product path', () => {
 test.describe('form direction - one product path per production kind', () => {
   test('KIND expression: a non-Latin value typed into a grammar field stays ltr under an rtl interface', async ({ page }) => {
     await openApp(page)
-    await switchLocale(page, 'ar-XB')
-    await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('dir'))).toBe('rtl')
+    await switchToArabic(page)
 
     // the edge flow field: operators, ids and numbers, never prose
     await page.locator('.react-flow__edge').first().click({ force: true })
@@ -173,8 +191,7 @@ test.describe('form direction - one product path per production kind', () => {
     await expect(val).toBeVisible()
     expect(await val.getAttribute('dir')).toBe('ltr')
     await val.fill('-12.5')
-    await switchLocale(page, 'ar-XB')
-    await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('dir'))).toBe('rtl')
+    await switchToArabic(page)
     // the pin is what stops `-12.5` rendering `12.5-`
     await expect
       .poll(() => page.evaluate(() => {
@@ -187,9 +204,11 @@ test.describe('form direction - one product path per production kind', () => {
 
   test('KIND generated read-only: a share URL is pinned and holds the generated value', async ({ page }) => {
     await openApp(page)
-    await switchLocale(page, 'ar-XB')
-    await page.locator('.toolbar__actions button', { hasText: /^Share$/ }).click()
-    await page.locator('.mcdlg--confirm').getByRole('button', { name: /create link/i }).click()
+    await switchToArabic(page)
+    // reached STRUCTURALLY — the labels are Arabic now: the menu bar's Share
+    // slot, then the dialog's primary (create) button
+    await page.locator('.toolbar__actions [data-group="share"] button').first().click()
+    await page.locator('.mcdlg--share .mcdlg__foot .btn--primary').click()
     const url = page.locator('.share-pop__url').first()
     await expect(url).toBeVisible()
     expect(await url.getAttribute('dir')).toBe('ltr')

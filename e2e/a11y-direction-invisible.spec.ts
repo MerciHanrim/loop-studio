@@ -17,7 +17,10 @@ import { expect, openApp, test } from './support/loop'
 //     region's string, is EXACTLY the `textContent` the app rendered
 //   * a direction change does not disturb either. `ar-XB` ships the English
 //     catalogue verbatim (§L9.2), so "unchanged" is literally assertable: the
-//     strings and the reference relation must come back identical
+//     strings and the reference relation must come back identical. Since
+//     2026-10-29 (§L2.0a) a direction change is a TEXT-direction change only —
+//     the layout stays ltr for every locale — and the real Arabic (`ar`) arm
+//     checks that the relation holds while the strings DO change
 //   * a state change replaces the phrasing rather than leaving the old one
 //
 // What it deliberately does NOT do, and what no browser test can do: say how a
@@ -177,16 +180,35 @@ test.describe('direction-invisible surfaces: the DOM/AX contract', () => {
     expect((before?.targetText ?? '').length).toBeGreaterThan(0)
     // ar-XB ships the English catalogue verbatim (§L9.2), so these strings must
     // come back character for character. A test against a real translation
-    // could only assert "something changed"; this one can assert identity.
+    // could only assert "something changed"; this one can assert identity — which
+    // is why this DIRECTION-HANDLING check stays on the pseudo-locale. Since
+    // 2026-10-29 the switch changes the TEXT direction (`data-text-dir`) and
+    // leaves the LAYOUT direction (`<html dir>`) ltr.
     await switchLocale(page, 'ar-XB')
-    await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('dir'))).toBe('rtl')
+    await expect(page.locator('html')).toHaveAttribute('data-text-dir', 'rtl')
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
     const during = await describedBy(page)
     await switchLocale(page, 'en')
-    await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('dir'))).toBe('ltr')
+    await expect(page.locator('html')).toHaveAttribute('data-text-dir', 'ltr')
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
     const after = await describedBy(page)
 
     expect(during).toEqual(before)
     expect(after).toEqual(before)
+
+    // and under the real Arabic catalogue the strings change — the reference
+    // relation must not: the same id, still exactly one target, carrying the
+    // Arabic description, and the user's own name still whole in the label
+    await switchLocale(page, 'ar')
+    await expect(page.locator('html')).toHaveAttribute('data-text-dir', 'rtl')
+    const arabic = await describedBy(page)
+    expect(arabic?.id).toBe(before?.id)
+    expect(arabic?.idOccurrences).toBe(1)
+    expect(arabic?.targetText ?? '', 'the description is the Arabic catalogue’s').toMatch(/\p{Script=Arabic}/u)
+    expect(arabic?.targetText).not.toBe(before?.targetText)
+    expect(arabic?.ariaLabel ?? '').toContain(MIXED_LABEL)
+    await switchLocale(page, 'en')
+    expect(await describedBy(page)).toEqual(before)
   })
 
   test('the playback announcer replaces its phrasing on a state change and leaves nothing stale', async ({ page }) => {

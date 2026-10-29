@@ -15,6 +15,7 @@ import {
   BASE_LOCALE,
   directionOf,
   getEntry,
+  LAYOUT_DIRECTION,
   navigatorLanguages,
   readStoredLocale,
   resolveInitialLocale,
@@ -42,9 +43,13 @@ function applyHtml(code: string): void {
   if (typeof document === 'undefined') return
   const el = document.documentElement
   el.setAttribute('lang', code)
-  // §L9.2 — the same `directionOf` a component's `dir` attribute reads, so the
-  // chrome and the elements inside it cannot disagree
-  el.setAttribute('dir', directionOf(code))
+  // §L9.2 (2026-10-29) — the layout never mirrors: `<html dir>` is the layout
+  // direction, LTR for every locale. The TEXT direction — the same `directionOf`
+  // a component's `dir` attribute reads — is `data-text-dir`, which the chrome
+  // text rule in index.css reads, so the chrome and the elements inside it
+  // still agree on how a string reads.
+  el.setAttribute('dir', LAYOUT_DIRECTION)
+  el.setAttribute('data-text-dir', directionOf(code))
 }
 
 /** Both halves a locale needs before it can be activated: its UI catalog and

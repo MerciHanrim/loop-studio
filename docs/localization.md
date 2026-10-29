@@ -67,7 +67,9 @@ format.** Registering `ja` changes what the UI *can say*, never what any file
 
 ## L2. The locale registry
 
-**L2.0 — supported languages: English and Korean (2026-10).** Loop Studio
+**L2.0 — supported languages: English and Korean (2026-10).** *Superseded by
+§L2.0a (2026-10-28/29): every archived language is registered again, and this
+section stays as the record of the archive.* Loop Studio
 officially supports two languages, English (`en`, the base) and Korean (`ko`).
 The sixteen other languages that shipped up to v0.28.4 — `ar`, `de`, `es-419`,
 `es-ES`, `fr`, `it`, `ja`, `nl`, `pt-BR`, `pt-PT`, `ru`, `th`, `tr`, `vi`,
@@ -95,6 +97,74 @@ daily checks, and are **not** updated to new keys.
   against a hypothetical registry (`src/i18n/registry.test.ts`). The
   eighteen-locale versions of those tests are in `archive/i18n/tests/` and
   `archive/i18n/e2e/`.
+
+**L2.0a — restoring the archived languages: review status (2026-10-28).** The
+archived languages are being brought back to the current catalog, one language
+at a time, and land together once all sixteen are checked. A restored language
+is NOT done when its keys are filled in: the strings added or changed since the
+archive are a translation draft until someone who can review that language has
+read them. This table is the record of that, per language. A reviewer's pass
+updates its row with the range they read and the date.
+
+| Locale | Restored | Review status | Reviewed range | Reviewer, date |
+| --- | --- | --- | --- | --- |
+| `de` | 2026-10-28 | Translation draft, before native review | — | — |
+| `ja` | 2026-10-28 | Translation draft, before native review | — | — |
+| `zh-Hans` | 2026-10-28 | Translation draft, before native review | — | — |
+| `zh-Hant` | 2026-10-28 | Translation draft, before native review | — | — |
+| `es-419` | 2026-10-28 | Translation draft, before native review | — | — |
+| `es-ES` | 2026-10-28 | Translation draft, before native review | — | — |
+| `fr` | 2026-10-28 | Translation draft, before native review | — | — |
+| `it` | 2026-10-28 | Translation draft, before native review | — | — |
+| `nl` | 2026-10-28 | Translation draft, before native review | — | — |
+| `pt-BR` | 2026-10-28 | Translation draft, before native review | — | — |
+| `pt-PT` | 2026-10-28 | Translation draft, before native review | — | — |
+| `ru` | 2026-10-28 | Translation draft, before native review | — | — |
+| `th` | 2026-10-28 | Translation draft, before native review | — | — |
+| `tr` | 2026-10-28 | Translation draft, before native review | — | — |
+| `vi` | 2026-10-28 | Translation draft, before native review | — | — |
+| `ar` | 2026-10-29 (registered; the layout-fixed RTL step is under review) | Translation draft, before native review | — | — |
+
+"Draft" covers the 158 keys added and the 12 whose English changed since the
+archive, and the template labels of the three Gacha Templates added after it.
+The 988 keys carried over unchanged keep the review they had when they shipped.
+
+One restored string differs from what German shipped before the archive:
+`green_wholesale_kg` was "Großhandelsbestellungen Rohkaffee (kg)", whose
+23-letter word broke between two letters on the canvas and in the Properties
+panel's connection rows. It is now "Rohkaffee-Großhandelsaufträge (kg)", which
+breaks at its hyphen. A soft hyphen was rejected: the Model list's search
+matches the label as stored, so an invisible U+00AD would make the name fail to
+match what the reader sees and types. The cost of the change: a document that
+received the old German name keeps it on a locale switch (§TLO11 knows only the
+current string), like any other user rename.
+
+Two German run-bar strings were shortened so the run row keeps its contract
+(PlayBar.tsx `fitRunRow`: the whole steady-state text at 1280 px, its short
+"Stabil" whole at 900 px). The steady state, shipped as "Eingeschwungener
+Zustand — die Flüsse laufen weiter", is now "Stabil — läuft weiter"; the Run
+settings button, a key added since the archive, is "Laufoptionen" rather than
+"Laufeinstellungen". Measured with the chip on (2026-10-28): at 1280 px German
+needs the chip at 125 px or less beside a 120 px "Laufeinstellungen", and at
+900 px "Stabil" is cut by 23 px unless the button is about 25 px narrower.
+Both are part of the German draft above. Open for the review: whether "läuft
+weiter" ("keeps running") reads as the intended "the flows continue". Open
+for the final screen check: at 900 px the German row has about 3 px to spare,
+so a font or engine that renders wider may cut "Stabil" again. A language
+restored later checks the same two widths (`e2e/playback-steady-state.spec.ts`).
+
+Arabic returns under a new direction rule (Lumi, 2026-10-28): the app's
+LAYOUT stays LTR for every locale and only Arabic TEXT reads right to left.
+`<html dir>` is now the layout direction (`LAYOUT_DIRECTION`, always `ltr`);
+the text direction is `directionOf`, written to `<html data-text-dir>` and read
+by every element-level `dir`. Chrome text gets its reading direction from
+`unicode-bidi: plaintext` (src/index.css), which changes no `direction`, so no
+flex order or logical side moves; an Arabic catalog string therefore opens
+with an Arabic word (`src/i18n/arCopy.test.ts`), because the catalog carries no
+bidi controls. The arrow ICONS follow the layout. The mirrored-layout rules
+built for the earlier Arabic (the run-bar pin, the timeline fade sides, the
+RTL icon drawings) are kept, inert. With every archived language back,
+`RETIRED_LOCALES` is empty; the rule stays, unit-tested on a hypothetical list.
 
 The registry design below is unchanged: bringing a language back is still one
 catalog plus one registry entry (the archive README lists what else returns with

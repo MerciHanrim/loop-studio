@@ -5,14 +5,11 @@ import { expect, openApp, test } from './support/loop'
 // drawn by the locale's CJK font, while ASCII / Latin letters, digits and code
 // tokens keep IBM Plex Sans.
 //
-// §L2.0 (2026-10) — English and Korean are the shipped languages; Chinese and
-// Japanese are archived. The tests that set `html.lang` to `zh-Hans`,
-// `zh-Hant` or `ja` to check their own punctuation font, their Latin
-// invariance, the absent-font fallback and the no-extra-font-file guard are
-// removed here; the eighteen-locale version of this file is kept in
-// `archive/i18n/e2e/cjk-punctuation-font.spec.ts`. What stays is the regression
-// guard common to the shipped languages: en and ko keep the Latin em dash and
-// pull in no Chinese family.
+// The defect it guards: `--font-sans` starts with `'IBM Plex Sans'`, which
+// COVERS U+2014 / U+201C / U+201D / U+2026, so without the Chinese rules those
+// four marks never reach the CJK font — the em dash pair `——` renders as two
+// short, disconnected Latin strokes instead of one continuous full-width rule.
+// Restored with the Chinese locales on 2026-10-28 (§L2.0a).
 //
 // Everything here is measured, never eyeballed: `CSS.getPlatformFontsForNode`
 // reports the family the engine actually used, and an off-screen canvas scan
@@ -91,10 +88,73 @@ async function probe(page: Page, lang: string, text: string): Promise<Row> {
   }
 }
 
-test.describe('the shipped locales', () => {
-  test('en and ko keep the Latin em dash and pull in no Chinese family', async ({ page }) => {
+const drawnBy = (r: Row, res: RegExp[]) => r.fonts.some((f) => res.some((re) => re.test(f)))
+
+// ------------------------------------------------------------------ 1
+test.describe('the Chinese em dash', () => {
+  test('zh-Hans draws —— with the Simplified font, as one continuous rule', async ({ page }) => {
     await openApp(page)
-    for (const lang of ['en', 'ko']) {
+    const r = await probe(page, 'zh-Hans', '——')
+    expect(drawnBy(r, SC), `expected an SC family, got ${r.fonts.join()}`).toBe(true)
+    expect(r.fonts.some((f) => LATIN.test(f)), 'no Latin family may draw it').toBe(false)
+    // a full-width pair at 22px is ~44px; the Latin em dash pair is ~34px
+    expect(r.width, 'the pair must be full-width').toBeGreaterThan(42)
+    expect(r.runs, 'the two dashes must join into ONE inked run').toBe(1)
+  })
+
+  test('zh-Hant draws —— with the Traditional font, as one continuous rule', async ({ page }) => {
+    await openApp(page)
+    const r = await probe(page, 'zh-Hant', '——')
+    expect(drawnBy(r, TC), `expected a TC family, got ${r.fonts.join()}`).toBe(true)
+    expect(r.fonts.some((f) => LATIN.test(f)), 'no Latin family may draw it').toBe(false)
+    expect(r.width, 'the pair must be full-width').toBeGreaterThan(42)
+    expect(r.runs, 'the two dashes must join into ONE inked run').toBe(1)
+  })
+
+  test('inside a Han run the dash is not a separate Latin island', async ({ page }) => {
+    await openApp(page)
+    for (const [lang, fams] of [['zh-Hans', SC], ['zh-Hant', TC]] as const) {
+      const r = await probe(page, lang, '資——源')
+      expect(r.fonts.filter((f) => LATIN.test(f)), `${lang}: Latin must not appear`).toEqual([])
+      expect(drawnBy(r, fams), `${lang}: expected the CJK family`).toBe(true)
+      expect(r.glyphs, `${lang}: every glyph resolves — no tofu`).toBe(4)
+    }
+  })
+})
+
+// ------------------------------------------------------------------ 2
+test.describe('Latin, digits and code tokens are untouched', () => {
+  test('stay on IBM Plex in both Chinese locales', async ({ page }) => {
+    await openApp(page)
+    for (const lang of ['zh-Hans', 'zh-Hant']) {
+      for (const [text, width] of [
+        ['Ag07', 52.13],
+        ['資CSV源', 83.84],
+        ['資 4900 源', 107.19],
+      ] as const) {
+        const r = await probe(page, lang, text)
+        expect(r.fonts.some((f) => LATIN.test(f)), `${lang} ${text}: IBM Plex must draw the Latin`).toBe(true)
+        expect(r.width, `${lang} ${text}: advance width must not move`).toBeCloseTo(width, 1)
+      }
+    }
+  })
+
+  test('full-width marks that already work are not disturbed', async ({ page }) => {
+    await openApp(page)
+    for (const [lang, fams] of [['zh-Hans', SC], ['zh-Hant', TC]] as const) {
+      const r = await probe(page, lang, '（）。')
+      expect(drawnBy(r, fams)).toBe(true)
+      expect(r.fonts.some((f) => LATIN.test(f))).toBe(false)
+      expect(r.width, 'three full-width marks at 22px').toBe(66)
+    }
+  })
+})
+
+// ------------------------------------------------------------------ 3
+test.describe('non-Chinese locales', () => {
+  test('en, ko and ja keep the Latin em dash and their own CJK fallback', async ({ page }) => {
+    await openApp(page)
+    for (const lang of ['en', 'ko', 'ja']) {
       const dash = await probe(page, lang, '——')
       expect(dash.fonts.some((f) => LATIN.test(f)), `${lang}: em dash stays on IBM Plex`).toBe(true)
       expect(dash.width, `${lang}: em dash width unchanged`).toBeCloseTo(34.33, 1)
@@ -105,5 +165,48 @@ test.describe('the shipped locales', () => {
         `${lang}: no Chinese family may be pulled in`,
       ).toBe(false)
     }
+  })
+})
+
+// ------------------------------------------------------------------ 4
+test.describe('the face is a loan, not a dependency', () => {
+  test('falls back to IBM Plex when no local() candidate is installed', async ({ page }) => {
+    await openApp(page)
+    // the same structure with candidates that cannot exist, so this is exactly
+    // the machine-without-the-font case rather than a simulation of it
+    await page.evaluate(() => {
+      const st = document.createElement('style')
+      st.textContent = `@font-face { font-family: 'LS Absent Probe';
+          src: local('No Such Family 12345'), local('Also Absent 67890');
+          unicode-range: U+2014; }
+        :lang(zh-Hans) { --font-sans: 'LS Absent Probe', 'IBM Plex Sans',
+          'Noto Sans SC', 'Microsoft YaHei UI', sans-serif; }`
+      document.head.append(st)
+    })
+    await page.evaluate(() => document.fonts.ready)
+    const r = await probe(page, 'zh-Hans', '資——源')
+    expect(r.fonts.some((f) => LATIN.test(f)), 'the dash returns to IBM Plex').toBe(true)
+    expect(r.glyphs, 'still no tofu — every glyph resolves').toBe(4)
+    expect(r.width, "today's rendering, unchanged").toBeCloseTo(78.33, 1)
+  })
+
+  test('fetches no CJK font file — Chinese costs no extra byte', async ({ page }) => {
+    const fonts: string[] = []
+    page.on('request', (r) => {
+      if (r.resourceType() === 'font' || /\.(woff2?|ttf|otf|eot)(\?|$)/i.test(r.url())) {
+        fonts.push(r.url())
+      }
+    })
+    await openApp(page)
+    const baseline = [...fonts]
+    await probe(page, 'zh-Hans', '資——源')
+    await probe(page, 'zh-Hant', '資——源')
+    // the two Chinese faces are `local()` only, so rendering Chinese must not
+    // add a single request beyond the Latin subsets the app already ships
+    expect(fonts, 'no font request is added by the Chinese locales').toEqual(baseline)
+    expect(
+      fonts.filter((u) => !/ibm-plex-(sans|mono)-latin/i.test(u)),
+      'every fetched font file is a shipped IBM Plex LATIN subset',
+    ).toEqual([])
   })
 })

@@ -1,0 +1,265 @@
+// docs/localization.md §L3.3 — the Inspector slice of the `fr` catalog.
+// `satisfies Record<InspectorKey, string>` makes `tsc` fail on a missing or an
+// extra key against `../en/inspector`.
+//
+// Glossary: Propriétés Inspector · Nom a node's display name · étiquette the
+// `label` edge mode · déclencheur trigger · activateur activator · valeur
+// calculée Register · réservoir Pool · puits Drain · aiguillage Gate ·
+// connexion edge · tracé Route · capacité capacity · pas a simulation step.
+// Expression operators (`>= <= > < == !=`, `+ - =`, `S`) and the flow
+// placeholder are syntax and stay exactly as they are.
+
+import type { InspectorKey } from '../en/inspector'
+
+const inspector = {
+  'inspector.delete': 'Supprimer',
+  'inspector.field.label': 'Nom',
+  'inspector.empty.title': 'Sélectionnez un nœud ou une connexion à modifier.',
+  'inspector.empty.hint': 'Ajoutez des nœuds avec Ajouter dans la barre d’outils. Pour en relier deux, choisissez un type sous Connecter, puis faites glisser d’un point d’un nœud jusqu’à l’autre.',
+  'inspector.unreadable.note':
+    'Les données de ce nœud sont illisibles ({detail}). Il est chargé tel quel et exclu du modèle — corrigez-le dans le fichier, ou supprimez le nœud.',
+  'inspector.unreadable.detailFallback': 'les données ne sont pas un objet lisible',
+  'inspector.field.rawData': 'Données brutes',
+  'enum.activation.passive': 'passif',
+  'enum.activation.automatic': 'automatique',
+  'enum.activation.onStart': 'au démarrage',
+  'enum.activation.interactive': 'interactif',
+  'enum.flowMode.pullAny': 'tirer depuis une source',
+  'enum.flowMode.pullAll': 'tirer depuis toutes les sources',
+  'enum.flowMode.pushAny': 'pousser vers une cible',
+  'enum.flowMode.pushAll': 'pousser vers toutes les cibles',
+  'enum.distribution.deterministic': 'déterministe',
+  'enum.distribution.probabilistic': 'probabiliste',
+  'enum.format.int': 'entier',
+  'enum.format.float': 'décimal',
+  'enum.format.percent': 'pourcentage',
+  'enum.stateMode.trigger': 'déclencheur',
+  'enum.stateMode.activator': 'activateur',
+  'enum.stateMode.label': 'étiquette',
+  'inspector.field.activation': 'Activation',
+  'inspector.node.endNote': 'Arrête l’exécution dès qu’une ressource l’atteint.',
+  'inspector.field.startingAmount': 'Quantité initiale',
+  'inspector.field.currentAmount': 'Quantité actuelle',
+  'inspector.field.capacity': 'Capacité (vide = illimitée)',
+  'inspector.number.nonNegativeHint': 'Saisissez un nombre supérieur ou égal à 0.',
+  'inspector.field.flowMode': 'Mode de flux',
+  'inspector.field.distribution': 'Répartition',
+  'inspector.field.value': 'Valeur',
+  'inspector.field.unit': 'Unité (indicatif)',
+  'inspector.field.min': 'Minimum (indicatif)',
+  'inspector.field.max': 'Maximum (indicatif)',
+  'inspector.field.step': 'Pas (indicatif)',
+  'inspector.field.expression': 'Expression',
+  'inspector.field.format': 'Format (indicatif)',
+  'inspector.field.resourceType': 'Type de ressource (indicatif)',
+  'inspector.resourceType.placeholder': 'Gold, Energy, XP, Player, Item, ou un nom personnalisé',
+  'inspector.resourceType.tooLong':
+    'Plus de {max} octets — cette étiquette ne sera pas exportée.',
+  'inspector.resourceType.normalised': 'Normalisé en « {value} ».',
+  'inspector.resourceType.custom':
+    'Type personnalisé — pastille générique ; aucune couleur intégrée.',
+  'inspector.resourceType.mismatch':
+    'Types incompatibles : {pairs}. Indicatif seulement — cela ne change aucune quantité et ne bloque aucune exécution.',
+  'inspector.resourceType.pair': '{edge} sur la connexion, {node} sur le nœud',
+  'inspector.parameter.outOfRange':
+    'La valeur est en dehors du minimum/maximum indicatif — conservée telle quelle, sans écrêtage.',
+  'inspector.parameter.hintIncoherent':
+    'Une indication est incohérente et ne sera pas exportée.',
+  'inspector.parameter.noPorts':
+    'Un paramètre n’a pas de points de connexion — référencez-le par son identifiant depuis une expression.',
+  'inspector.register.formatInvalid':
+    'Format non reconnu — retour au format décimal à l’export.',
+  'inspector.register.noStore':
+    'Une valeur calculée ne stocke rien et n’a pas de points de connexion.',
+  'inspector.edge.kindLink': 'connexion de type {kind}',
+  'inspector.field.flow': 'Flux',
+  'inspector.edge.flowPlaceholder': '1, all, 2D6, 1-3, 25%',
+  'inspector.edge.flowParam.pickLabel': 'Piloter par un paramètre',
+  'inspector.edge.flowParam.literalOption': '— valeur fixe —',
+  'inspector.edge.flowParam.resolved': '= {value}',
+  'inspector.edge.flowParam.unknown':
+    'aucun paramètre « {id} » — cette connexion contribue pour 0',
+  'inspector.edge.flowParam.notParam':
+    '« {id} » n’est pas un paramètre — cette connexion contribue pour 0',
+  'inspector.edge.flowParam.malformed':
+    'référence de paramètre invalide — cette connexion contribue pour 0',
+  'inspector.edge.flowParam.hint':
+    'Une référence de paramètre est conservée par identifiant : renommer le paramètre ne pose pas de problème ; le supprimer laisse la référence orpheline (elle n’est pas réécrite).',
+  'inspector.field.route': 'Tracé',
+  'inspector.edge.route.curved': 'Courbe',
+  'inspector.edge.route.orthogonal': 'Orthogonal',
+  'inspector.edge.route.straight': 'Droit',
+  'inspector.edge.route.auto': 'Tracé automatique',
+  'inspector.edge.route.manual': 'Tracé manuel',
+  'inspector.edge.route.reset': 'Revenir au tracé automatique',
+  'inspector.edge.route.addBend': 'Ajouter un coude',
+  'inspector.edge.route.addBendHint': 'Cliquez sur la connexion à l’endroit du coude, ou appuyez sur Entrée pour en ajouter un au milieu de son plus long segment. Échap pour annuler.',
+  'inspector.edge.route.editHint': 'Faites glisser un coude, ou sélectionnez-le et déplacez-le avec les flèches (Maj pour un pas plus grand). Suppr le supprime.',
+  'inspector.ends.title': 'Extrémités',
+  'inspector.ends.summary': '{from} → {to}',
+  'inspector.ends.from': 'Départ',
+  'inspector.ends.to': 'Arrivée',
+  'inspector.ends.node': 'Nœud',
+  'inspector.ends.side': 'Côté',
+  'inspector.ends.side.top': 'Haut',
+  'inspector.ends.side.right': 'Droite',
+  'inspector.ends.side.bottom': 'Bas',
+  'inspector.ends.side.left': 'Gauche',
+  'inspector.ends.apply': 'Appliquer',
+  'inspector.ends.revert': 'Annuler le choix',
+  'inspector.ends.applied': 'Connexion déplacée. Départ {from}, arrivée {to}.',
+  'inspector.ends.option.noInput': 'pas d’entrée',
+  'inspector.ends.option.noOutput': 'pas de sortie',
+  'inspector.ends.option.noPorts': 'pas de points de connexion',
+  'inspector.ends.reason.noInput': '{node} n’a pas d’entrée. Cette connexion ne peut pas y arriver.',
+  'inspector.ends.reason.noOutput': '{node} n’a pas de sortie. Cette connexion ne peut pas en partir.',
+  'inspector.ends.reason.noPorts': '{node} n’a pas de points de connexion. Référencez-le plutôt depuis une expression.',
+  'inspector.ends.reason.duplicate': 'Une connexion de ce type relie déjà {from} et {to}.',
+  'inspector.ends.reason.missing': 'Ce nœud ne fait plus partie du diagramme.',
+  'inspector.ends.noGrip.source': 'Le canevas n’a ici aucune place libre pour la poignée du départ de cette connexion. Déplacez le départ depuis ce groupe.',
+  'inspector.ends.noGrip.target': 'Le canevas n’a ici aucune place libre pour la poignée de l’arrivée de cette connexion. Déplacez l’arrivée depuis ce groupe.',
+  'inspector.ends.bends': 'Un coude de cette connexion se trouverait dans un nœud ou juste à côté de la nouvelle extrémité, et la ligne n’y passera pas. Appliquer conserve les coudes. « Revenir au tracé automatique » les supprime.',
+  'inspector.ends.reverse': 'Inverser',
+  'inspector.ends.reverse.name': 'Inverser le sens',
+  'inspector.ends.reverse.hint': 'Inverser garde la quantité et la condition, qui se lisent alors dans le nouveau sens.',
+  'inspector.ends.reverse.pending': 'Appliquez ou annulez d’abord votre choix, puis inversez.',
+  'inspector.ends.reverse.done': 'Sens inversé. La quantité et la condition sont gardées et se lisent maintenant dans le nouveau sens.',
+  'inspector.ends.reverse.bendsKept': 'Vos coudes restent à leur place.',
+  'inspector.ends.reverse.mayChange': 'Le tracé automatique, la ligne près de chaque extrémité et la place de l’étiquette peuvent changer.',
+  'inspector.ends.reverse.again': 'Elle ne peut pas être inversée de nouveau.',
+  'inspector.ends.reverse.reason.activatorSource': 'Inversé, cet activateur partirait de {node}, qui n’est pas un réservoir. Un activateur doit partir d’un réservoir.',
+  'inspector.ends.reverse.reason.labelPool': 'Inversée, cette étiquette aurait {node}, qui n’est pas un réservoir, à une extrémité. Elle doit avoir un réservoir à chaque extrémité.',
+  'inspector.ends.reverse.reason.labelRouterSource': 'Inversée, cette étiquette partirait de {node}. Une étiquette appliquée quand la source agit doit partir d’un aiguillage, d’un convertisseur, d’un puits ou d’une fin.',
+  'inspector.ends.reverse.reason.labelTarget': 'Inversée, cette étiquette arriverait à {node}, qui n’est pas un réservoir. Une étiquette appliquée quand la source agit doit arriver à un réservoir.',
+  'inspector.ends.reverse.reason.stateMode': 'Le mode ou le moment d’application de cette connexion n’a aucun effet dans Loop Studio, elle n’est donc pas inversée.',
+  'inspector.edge.note':
+    'Modifier les réglages de simulation d’une connexion relance l’exécution en cours. Le tracé, les coudes et la couleur ne concernent que le dessin et ne la relancent pas.',
+  'inspector.field.delay': 'Délai — pas avant que l’impulsion soit livrée',
+  'inspector.delay.ok': 'livrée à (déclenchement + délai + 1) ; 0 signifie le pas suivant.',
+  'inspector.delay.bad':
+    'utilisez un entier ≥ 0 — le moteur exécute toute autre valeur comme 0 et laisse intacte celle que vous avez saisie.',
+  'inspector.field.condition': 'Condition — comparaison avec la source',
+  'inspector.field.modifier': 'Modificateur — variation appliquée à chaque pas',
+  'inspector.expr.activatorPlaceholder': '>= 5',
+  'inspector.expr.labelPlaceholder': '+1   ·   -2   ·   =S',
+  'inspector.stateExpr.noEffect':
+    '{hint} — tant qu’elle ne s’analyse pas, cette connexion reste sans effet.',
+  'inspector.activator.describe': 'la cible est active tant que la source {op} {n}',
+  'inspector.activator.paramPicker.pickLabel': 'Piloter par un paramètre',
+  'inspector.activator.paramPicker.literalOption': '— valeur fixe —',
+  'inspector.activator.offsetLabel': 'Décalage',
+  'inspector.activator.preview.resolved':
+    'la cible est active tant que la source {op} {threshold} (= {paramLabel}{offsetText}, actuellement {paramValue})',
+  'inspector.activator.preview.unknown':
+    'aucun paramètre « {id} » — cet activateur bloque actuellement sa cible',
+  'inspector.activator.preview.notParam':
+    '« {id} » n’est pas un paramètre (type : {kind}) — cet activateur bloque actuellement sa cible',
+  'inspector.activator.preview.nonFinite':
+    'le paramètre « {id} » n’est pas un nombre fini — cet activateur bloque actuellement sa cible',
+  'inspector.activator.preview.overflow':
+    'le paramètre « {id} » donne un nombre trop grand pour être comparé — cet activateur bloque actuellement sa cible',
+  'inspector.label.describe.set': 'fixe le réservoir cible à {amount} à chaque pas',
+  'inspector.label.describe.add': 'ajoute {amount} au réservoir cible à chaque pas',
+  'inspector.label.describe.subtract': 'retire {amount} du réservoir cible à chaque pas',
+  'inspector.label.amountSource': 'la valeur du réservoir source',
+  'inspector.legacy.note':
+    'Connexion non prise en charge. Le mode {mode} n’est pas exécuté — cette liaison n’a aucun effet sur la simulation. Loop Studio ne la convertit jamais automatiquement ; choisissez ce qu’elle doit devenir, puis convertissez-la explicitement.',
+  'inspector.legacy.convertTo': 'Convertir en',
+  'inspector.legacy.convertButton': 'Convertir en {mode}',
+  'stateExpr.activator.hint.empty': 'saisissez une comparaison, par exemple >= 5',
+  'stateExpr.activator.hint.opOnly': 'ajoutez un nombre, par exemple >= 5',
+  'stateExpr.activator.hint.notAComparison': 'utilisez >= <= > < == != puis un nombre',
+  'stateExpr.activator.hint.nonFinite': 'le nombre doit être fini',
+  'stateExpr.label.hint.empty': 'saisissez un modificateur, par exemple +1 ou =S',
+  'stateExpr.label.hint.notAnAssignment': 'utilisez + - ou = puis un nombre ou S',
+  'stateExpr.label.hint.nonFinite': 'le nombre doit être fini',
+  // docs/label-timing-authoring.md — the label-timing preset control (CSU8 slice 3)
+  'inspector.field.labelTiming': 'Moment d’application',
+  'inspector.labelTiming.always': 'Toujours — au début de chaque pas',
+  'inspector.labelTiming.afterPull': 'Quand la source agit — après les résultats de ce pas',
+  'inspector.labelTiming.previewAlways': 'Appliqué au début de chaque pas.',
+  'inspector.labelTiming.previewAfterPull':
+    'Appliqué dès que la source de cette connexion agit à ce pas, juste après le calcul des résultats du pas.',
+  'inspector.labelTiming.warnTargetNotPool': 'la cible doit être un réservoir',
+  'inspector.labelTiming.warnModifierInvalid': 'le modificateur doit être une valeur valide',
+  'inspector.labelTiming.warnSourceNotPool': 'nécessite un réservoir comme source',
+  'inspector.labelTiming.warnSourceNotRouter':
+    'nécessite un aiguillage, un convertisseur, un puits ou une fin comme source',
+  'inspector.labelTiming.warnSForm': 'nécessite un nombre fixe, pas S',
+  'inspector.labelTiming.unsupported':
+    'Cette connexion a une combinaison moment/condition que Loop Studio ne prend pas en charge (actuellement : timing = {timing}, when = {when}) — elle est donc sans effet. Choisissez l’une des deux options ci-dessus pour la remplacer.',
+  'panels.inputs.title': 'Entrées',
+  'panels.summary.title': 'Synthèse',
+  'panels.inputs.collapse': 'Réduire le panneau Entrées',
+  'panels.inputs.expand': 'Développer le panneau Entrées',
+  'panels.summary.collapse': 'Réduire le panneau Synthèse',
+  'panels.summary.expand': 'Développer le panneau Synthèse',
+  'panels.inputs.paramValue': 'Valeur de {label}',
+  'panels.inputs.flowVia': 'flux via {param}',
+  'panels.summary.showCalc': 'Afficher le calcul',
+  'panels.summary.hideCalc': 'Masquer le calcul',
+  'panels.summary.noValue': '— aucune valeur au pas {step}',
+  'panels.empty.inputs': 'Aucun paramètre dans ce graphe.',
+  'panels.empty.summary': 'Aucune valeur calculée dans ce graphe.',
+
+  // docs/register-expression-authoring.md §RXA3
+  'regExpr.pick.listLabel': 'Référencer un réservoir, un paramètre ou une valeur calculée',
+  'regExpr.pick.optionAria': '{name}, {kind}, valeur actuelle {value}',
+  'regExpr.pick.noMatch': 'Aucun nœud correspondant',
+  'regExpr.pick.more': '+{n} de plus — continuez à saisir',
+  'regExpr.block.self': 'ne peut pas se référencer elle-même',
+  'regExpr.block.cycle': 'créerait un cycle avec {name}',
+  'regExpr.empty': 'L’expression est vide.',
+  'regExpr.chip.deleted': '(supprimé)',
+  'regExpr.chip.wrongKind': '(inutilisable)',
+  'regExpr.row.unknownRef': '— référence « {id} » introuvable',
+  'regExpr.row.wrongKind':
+    '— « {name} » n’est pas un réservoir, un paramètre ni une valeur calculée',
+  'regExpr.row.invalidId': '— « {id} » n’est pas une référence valide',
+  'regExpr.row.cycle': '— cycle : {name} → … → {name}',
+  'regExpr.row.divZero': '→ division par 0 impossible',
+  'regExpr.row.notFinite': '→ nombre non fini',
+  'regExpr.row.dependsInvalid': '— dépend d’une référence invalide',
+  'regExpr.row.generic': '— {code}',
+  // §RXA8 — arm-and-click canvas insert
+  'regExpr.insert.title': 'Insérer une référence',
+  'regExpr.insert.armedLabel': 'Sélection d’une référence',
+  'regExpr.insert.hint':
+    'Cliquez sur un réservoir, un paramètre ou une valeur calculée du canevas pour insérer sa référence.',
+  'regExpr.insert.armed':
+    'Insertion de référence armée. Cliquez sur un nœud du canevas, ou appuyez sur Échap pour annuler.',
+  'regExpr.insert.cancelled': 'Insertion de référence annulée.',
+  'regExpr.insert.done': 'Référence à {name} insérée.',
+  'regExpr.insert.wrongKind':
+    'Seuls un réservoir, un paramètre ou une valeur calculée peuvent être insérés.',
+  // §RXA8b — the operator / parenthesis buttons
+  'regExpr.op.groupName': 'Boutons d’opérateur',
+  'regExpr.op.add': 'Addition',
+  'regExpr.op.sub': 'Soustraction',
+  'regExpr.op.mul': 'Multiplication',
+  'regExpr.op.div': 'Division',
+  'regExpr.op.group': 'Parenthèses',
+  'regExpr.op.inserts': '{name} — insère {sym} dans la formule',
+  'regExpr.op.groupTitle':
+    'Parenthèses — encadrer la partie sélectionnée, ou ajouter ( )',
+  'regExpr.op.inserted': '{name} inséré',
+  // docs/flow-colour-and-compact-nodes.md FC-5 — the Colour section
+  'inspector.accent.title': 'Couleur',
+  'inspector.accent.palette': 'Couleurs de flux',
+  'inspector.accent.default': 'Par défaut',
+  'inspector.accent.recent': 'Récentes',
+  'inspector.accent.document': 'Dans ce document',
+  'inspector.accent.hex': 'Hexadécimal',
+  'inspector.accent.picker': 'Autre couleur',
+  'inspector.accent.mixed': 'Mixte',
+  'inspector.accent.appliesTo': '{n, plural, one {S’applique à # élément sélectionné} other {S’applique à # éléments sélectionnés}}',
+  'inspector.accent.error.alpha': 'La transparence n’est pas prise en charge. Saisissez six chiffres hexadécimaux, par exemple #336699.',
+  'inspector.accent.error.format': 'Ce n’est pas une couleur. Saisissez trois ou six chiffres hexadécimaux, par exemple #336699.',
+  'inspector.accent.notice.canvasLight': 'Peu visible sur le canevas clair.',
+  'inspector.accent.notice.canvasDark': 'Peu visible sur le canevas sombre.',
+  'inspector.accent.notice.nodeLight': 'Peu visible sur les nœuds clairs.',
+  'inspector.accent.notice.nodeDark': 'Peu visible sur les nœuds sombres.',
+  'inspector.accent.notice.state': 'Proche d’une couleur que le canevas utilise pour le focus, les avertissements ou une simulation en cours.',
+} satisfies Record<InspectorKey, string>
+
+export default inspector

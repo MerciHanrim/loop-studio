@@ -240,9 +240,9 @@ test('forced colours: the pulse is a 2 px system-colour line under the text, the
 // language — the mark's spot exists, lies inside the drawn outline by 6 px and
 // clear of the title, mode text and chip by 1 px, and is the same on a fresh
 // mount and after a language round trip (no re-fit drift).
-// §L2.0 (2026-10): en and ko are the shipped languages; the eighteen-language
-// version is kept in archive/i18n/e2e/playback-node-cues.spec.ts.
-const LOCALES = ['en', 'ko']
+// §L2.0: the shipped languages; the eighteen-language version is kept in
+// archive/i18n/e2e/playback-node-cues.spec.ts.
+const LOCALES = ['en', 'ko', 'ja', 'de', 'zh-Hans', 'zh-Hant']
 const CONVERTER_TEMPLATES: [string, number][] = [
   ['equilibrium', 1],
   ['deadlock', 1],

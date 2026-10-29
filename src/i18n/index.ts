@@ -108,7 +108,7 @@ export function useArrowGlyph(unit: MirroredArrow): string {
 
 export { MIRRORED_ARROWS, arrowGlyph, type MirroredArrow } from './arrowGlyph'
 export { useI18n, initI18n } from './store'
-export { LOCALES, directionOf, enabledLocales, type LocaleDir, type LocaleEntry } from './registry'
+export { LAYOUT_DIRECTION, LOCALES, directionOf, enabledLocales, type LocaleDir, type LocaleEntry } from './registry'
 export {
   LANGUAGE_SEARCH_THRESHOLD,
   displayLocaleOrder,

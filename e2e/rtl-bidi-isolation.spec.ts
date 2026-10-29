@@ -2,15 +2,26 @@ import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
 import { openPanelDetails } from './support/panel'
 
-// docs/localization.md §L9.3 / §L9.4 — the bidi-isolation contract, under `ar-XB`.
+// docs/localization.md §L9.3 / §L9.4 / §L2.0a — the bidi-isolation contract, under
+// the shipped Arabic (`ar`).
+//
+// THE CONTRACT (2026-10-29): the LAYOUT never mirrors — `<html dir>` is `ltr` for
+// every locale — and only the TEXT of an RTL language reads right to left. A chrome
+// sentence gets its reading direction from `unicode-bidi: plaintext` (src/index.css):
+// its computed `direction` stays `ltr`, and the paragraph reads in the direction of
+// its first strong character, which in the Arabic catalog is Arabic
+// (src/i18n/arCopy.test.ts). Everything here is TEXT, so it runs under `ar`, with
+// Arabic sentences. It ran under `ar-XB` while Arabic was archived; `ar-XB`'s English
+// sentences now read ltr under `plaintext`, so it can no longer show an rtl sentence
+// and is kept for the direction switch itself (rtl-locale-direction.spec.ts).
 //
 // WHERE THIS CAME FROM. These checks were measured in `e2e/i18n-ar-isolation.spec.ts`
-// and `e2e/i18n-ar.spec.ts`, in real Arabic sentences. Both files are archived with
-// Arabic (§L2.0, 2026-10). The isolates themselves never came from the Arabic
+// and `e2e/i18n-ar.spec.ts`, in real Arabic sentences. `i18n-ar.spec.ts` is restored
+// to e2e/; `i18n-ar-isolation.spec.ts` STAYS ARCHIVED (archive/i18n/e2e/): its
+// contract lives here, now under `ar` again. The isolates never came from the Arabic
 // catalogue: `isolateAuto` / `isolateLtr` (src/i18n/bidiIsolate.ts) are called at the
 // RENDER ARGUMENT, in product code, whatever the active locale, and a `dir` pin is an
-// attribute in JSX. So the contract they carry is kept here, under `ar-XB` — the RTL
-// pseudo-locale, whose catalogue is English verbatim under `dir=rtl`.
+// attribute in JSX.
 //
 // WHAT IS KEPT, AND WHAT IS NOT
 //
@@ -23,12 +34,16 @@ import { openPanelDetails } from './support/panel'
 //               equals the same value laid out on its own in the same container.
 //               That comparison does not depend on the sentence around the value,
 //               which is what an isolate is for.
-//   not kept  — the OUTER reading order (head to the right of the value, tail to the
-//               left) and the "necessity" probes (the same value interpolated raw
-//               must reorder). Both were measured against Arabic sentences; with an
-//               English sentence inside an rtl paragraph the outer runs resolve
-//               differently and a digit-leading value after a Latin word does not
-//               reorder at all, so either check would be measuring the catalogue.
+//             — the OUTER reading order (`expectReadingOrder`): the sentence's head
+//               paints to the RIGHT of the value and its tail to the LEFT. Dropped
+//               while this ran under `ar-XB` (an English sentence has no rtl outer
+//               order to measure); back with the Arabic sentences, and it is now the
+//               evidence that a sentence reads rtl, since its computed `direction`
+//               is `ltr` under `plaintext`.
+//   not kept  — the "necessity" probes (the same value interpolated raw must
+//               reorder). They are in the archived i18n-ar-isolation.spec.ts and
+//               are not restored here: they measure the bidi algorithm on a raw
+//               value, not a product path.
 //
 // Already covered elsewhere and not repeated: fragment and endonym isolation
 // (`rtl-mixed-direction.spec.ts`), the frame name's isolate shape in the live
@@ -57,15 +72,24 @@ const FATHA = String.fromCharCode(0x064e)
 const SHAPED = `ت${ZWNJ}ج${FATHA}ربة`
 
 /** `order` is the whole span's visual order (lines top to bottom); `lines` is the
- *  same, one array per rendered line, each in its own visual order. */
-type Span = { kind: string; text: string; width: number; order: number[]; lines: number[][] }
+ *  same, one array per rendered line, each in its own visual order; `chars` the
+ *  glyph boxes, for the outer reading order. */
+type Glyph = { left: number; right: number; top: number }
+type Span = { kind: string; text: string; width: number; order: number[]; lines: number[][]; chars: Glyph[] }
+type Anchor = { ch: string; left: number; right: number; top: number }
 type Measured = {
   found: boolean
   controls: string[]
+  /** the computed `direction` of the element the sentence is in — `ltr` for chrome
+   *  prose under `plaintext`, `rtl` where a component declares the reader's `dir` */
   direction: string
+  unicodeBidi: string
   node: string
   head: string
   tail: string
+  /** the nearest Arabic letter before the first isolate / after the last */
+  headAnchor: Anchor | null
+  tailAnchor: Anchor | null
   between: string[]
   spans: Span[]
 }
@@ -85,15 +109,58 @@ type Bridge = {
   }
 }
 
-async function setLocale(page: Page, code: 'ar-XB' | 'en'): Promise<void> {
+async function setLocale(page: Page, code: 'ar' | 'en'): Promise<void> {
   await page.evaluate((c) => {
     ;(window as unknown as Bridge).__loop.i18n.getState().setLocale(c)
   }, code)
   await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(code)
-  // the direction really is the RTL one, so nothing below is passing on an ltr page
-  await expect
-    .poll(() => page.evaluate(() => document.documentElement.dir))
-    .toBe(code === 'ar-XB' ? 'rtl' : 'ltr')
+  // the TEXT direction really is the RTL one, so nothing below is passing on an ltr
+  // reader — and the LAYOUT direction stays ltr for both
+  await expect(page.locator('html')).toHaveAttribute('data-text-dir', code === 'ar' ? 'rtl' : 'ltr')
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
+}
+
+/** OUTER — in an RTL paragraph the sentence's head paints to the RIGHT of the value
+ *  and its tail to the LEFT, unless the line wrapped between them, in which case the
+ *  later part is simply lower. Restored from the archived i18n-ar-isolation.spec.ts.
+ *
+ *  Returns HOW MANY relations it checked. A head with no Arabic letter (a bare quote)
+ *  has no side of its own and is skipped — and skipping silently is how a file like
+ *  this ends up asserting nothing, so every caller asserts the returned count. */
+function expectReadingOrder(m: Measured, label: string): number {
+  let n = 0
+  const check = (anchor: Anchor, span: Span, side: 'head' | 'tail') => {
+    const onLine = span.chars.filter((c) => Math.abs(c.top - anchor.top) <= 2)
+    if (onLine.length === 0) {
+      const spanTop = Math.min(...span.chars.map((c) => c.top))
+      if (side === 'head') expect(anchor.top, `${label}: head wrapped above the value`).toBeLessThan(spanTop)
+      else expect(anchor.top, `${label}: tail wrapped below the value`).toBeGreaterThan(spanTop)
+    } else if (side === 'head') {
+      expect(anchor.left, `${label}: the head must paint to the right of the value`).toBeGreaterThanOrEqual(
+        Math.max(...onLine.map((c) => c.right)) - 1,
+      )
+    } else {
+      expect(anchor.right, `${label}: the tail must paint to the left of the value`).toBeLessThanOrEqual(
+        Math.min(...onLine.map((c) => c.left)) + 1,
+      )
+    }
+    n += 1
+  }
+  if (m.headAnchor && m.spans[0]?.chars.length) check(m.headAnchor, m.spans[0], 'head')
+  const last = m.spans[m.spans.length - 1]
+  if (m.tailAnchor && last?.chars.length) check(m.tailAnchor, last, 'tail')
+  return n
+}
+
+/** the sentence reads rtl: an element that declares the reader's `dir` computes
+ *  `rtl`; chrome prose keeps `direction: ltr` and reads rtl through `plaintext` —
+ *  either way the outer order is measured, at least once */
+function expectRtlSentence(m: Measured, label: string): void {
+  if (m.direction !== 'rtl') {
+    expect(m.direction, `${label}: the layout direction stays ltr`).toBe('ltr')
+    expect(m.unicodeBidi, `${label}: the chrome text carries plaintext`).toBe('plaintext')
+  }
+  expect(expectReadingOrder(m, label), `${label}: at least one outer relation measured`).toBeGreaterThan(0)
 }
 
 /** Everything one rendered sentence can say about its isolates.
@@ -124,8 +191,9 @@ function measure(page: Page, selector: string, nth = 0): Promise<Measured | null
       // the direction of the element the SENTENCE is in, which is not always the one
       // the selector named (a hint panel can sit in the canvas pane, pinned `ltr`)
       const direction = getComputedStyle(tn?.parentElement ?? el).direction
+      const unicodeBidi = getComputedStyle(tn?.parentElement ?? el).unicodeBidi
       if (!tn) {
-        return { found: false, controls, direction, node: '', head: '', tail: '', between: [] as string[], spans: [] as Span[] }
+        return { found: false, controls, direction, unicodeBidi, node: '', head: '', tail: '', headAnchor: null, tailAnchor: null, between: [] as string[], spans: [] as Span[] }
       }
 
       const text = tn
@@ -163,6 +231,12 @@ function measure(page: Page, selector: string, nth = 0): Promise<Measured | null
         const close = data.indexOf(B.PDI, i)
         if (close < 0) break
         const lines = linesIn(i + 1, close)
+        const chars: Glyph[] = []
+        for (let k = i + 1; k < close; k++) {
+          if (/\s/.test(data[k]!)) continue
+          const b = rectOf(k, k + 1)
+          if (b.width > 0.01) chars.push({ left: b.left, right: b.right, top: Math.round(b.top) })
+        }
         found.push({
           span: {
             kind: opener,
@@ -170,6 +244,7 @@ function measure(page: Page, selector: string, nth = 0): Promise<Measured | null
             width: close > i + 1 ? rectOf(i + 1, close).width : 0,
             order: lines.flat(),
             lines,
+            chars,
           },
           from: i,
           to: close,
@@ -178,10 +253,32 @@ function measure(page: Page, selector: string, nth = 0): Promise<Measured | null
       }
       const between: string[] = []
       for (let k = 1; k < found.length; k++) between.push(data.slice(found[k - 1]!.to + 1, found[k]!.from))
+      // The head / tail ANCHOR: the nearest character on that side that is an Arabic
+      // letter. A union rectangle over the whole head or tail is not usable — once
+      // the sentence wraps it spans every line — and a neutral character (a quote, a
+      // dash) has no side of its own to compare against. One strong letter does.
+      const STRONG = /[֐-ࣿיִ-﷿ﹰ-﻿]/
+      const anchorAt = (k: number) => {
+        const r = rectOf(k, k + 1)
+        return { ch: data[k]!, left: r.left, right: r.right, top: Math.round(r.top) }
+      }
+      let headAnchor: { ch: string; left: number; right: number; top: number } | null = null
+      let tailAnchor: { ch: string; left: number; right: number; top: number } | null = null
+      if (found.length > 0) {
+        let hi = found[0]!.from - 1
+        while (hi >= 0 && !STRONG.test(data[hi]!)) hi--
+        if (hi >= 0) headAnchor = anchorAt(hi)
+        let ti = found[found.length - 1]!.to + 1
+        while (ti < data.length && !STRONG.test(data[ti]!)) ti++
+        if (ti < data.length) tailAnchor = anchorAt(ti)
+      }
       return {
         found: found.length > 0,
         controls,
         direction,
+        unicodeBidi,
+        headAnchor,
+        tailAnchor,
         node: data,
         // an opener with no PDI after it leaves `found` empty: the whole node is head
         head: found.length > 0 ? data.slice(0, found[0]!.from) : data,
@@ -310,16 +407,16 @@ function selectFirstEdge() {
 // ───────────────────────────────────────────────────────────────────────────
 
 test.describe('§L9.3 the tour step counter keeps its order under an rtl interface', () => {
-  // ported from i18n-ar.spec.ts, which is archived with Arabic (§L2.0, 2026-10).
-  // `tour.nav.position` is `{n} / {total}` — two number runs with a neutral slash
-  // between them, so inside an rtl paragraph the runs swap and step 2 of 6 reads
-  // `6 / 2`. The fix is the element's own `dir="ltr"` (GuidedTour.tsx), not the
-  // catalogue, so it holds under `ar-XB` exactly as it did under `ar`. Asserted on
+  // ported from i18n-ar.spec.ts while Arabic was archived; i18n-ar.spec.ts is back
+  // and carries the same check from the Arabic side. `tour.nav.position` is
+  // `{n} / {total}` — two number runs with a neutral slash between them, so inside
+  // an rtl paragraph the runs swap and step 2 of 6 reads `6 / 2`. The fix is the
+  // element's own `dir="ltr"` (GuidedTour.tsx), not the catalogue. Asserted on
   // GEOMETRY: the characters are identical either way.
   test('`{n} / {total}` paints n-then-total', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
-    await setLocale(page, 'ar-XB')
+    await setLocale(page, 'ar')
     await page.evaluate(() => (window as unknown as Bridge).__loop.tour.getState().startReplay('desktop'))
     const pos = page.locator('.tour-popover__pos')
     await expect(pos).toBeVisible()
@@ -350,23 +447,24 @@ test.describe('§L9.3 the tour step counter keeps its order under an rtl interfa
 })
 
 test.describe('§L9.3 the quick-start column mapping is prose, the example above it is data', () => {
-  // ported from i18n-ar.spec.ts, which is archived with Arabic (§L2.0, 2026-10).
-  // The `<pre>` holding EXAMPLE_CSV is `dir="ltr"` because its layout IS the data;
-  // the mapping paragraph under it pairs a column name with a role name, so it takes
-  // the reader's direction. That element-level ruling is product markup and is kept.
+  // ported from i18n-ar.spec.ts while Arabic was archived. The `<pre>` holding
+  // EXAMPLE_CSV is `dir="ltr"` because its layout IS the data; the mapping paragraph
+  // under it pairs a column name with a role name, so it takes the reader's
+  // direction. That element-level ruling is product markup and is kept.
   //
-  // NOT ported: the Arabic test's right-to-left GEOMETRY (`item_id` rightmost). It
-  // held because the Arabic role names are strong right-to-left text. Under `ar-XB`
-  // the paragraph is all Latin, so it lays out as one left-to-right run inside the
-  // rtl paragraph, and a geometric assertion would be measuring the catalogue.
+  // Under the fixed LTR layout the paragraph's computed `direction` is `ltr` and it
+  // reads rtl through `plaintext` — so "takes the reader's direction" is measured on
+  // the glyphs: the first column name, `item_id`, paints to the RIGHT of the last,
+  // `drop_rate` (same line). The full right-to-left geometry is i18n-ar.spec.ts's.
   test('the mapping takes the reader’s direction, the CSV stays ltr, and the four names are intact and in file order', async ({
     page,
   }) => {
     await openApp(page)
     await resetAll(page)
-    await setLocale(page, 'ar-XB')
+    await setLocale(page, 'ar')
 
-    await page.getByRole('button', { name: 'Data' }).click()
+    // Data, reached by its slot — the label is Arabic now
+    await page.locator('.toolbar__actions [data-group="data"] .wb-mb').click()
     await page.getByRole('menuitem').first().click()
     const dlg = page.locator('.mcdlg--dataimport')
     await expect(dlg).toBeVisible()
@@ -379,14 +477,35 @@ test.describe('§L9.3 the quick-start column mapping is prose, the example above
     const read = await dlg.evaluate((d) => {
       const p = d.querySelector('.import__quickstartMapping') as HTMLElement
       const pre = d.querySelector('.import__example') as HTMLElement | null
+      const t = p.firstChild as Text
+      const box = (needle: string) => {
+        const i = t.data.indexOf(needle)
+        const r = document.createRange()
+        r.setStart(t, i)
+        r.setEnd(t, i + needle.length)
+        const b = r.getBoundingClientRect()
+        return { left: b.left, right: b.right, top: Math.round(b.top) }
+      }
       return {
         text: p.textContent ?? '',
         direction: getComputedStyle(p).direction,
+        unicodeBidi: getComputedStyle(p).unicodeBidi,
         preDirection: pre ? getComputedStyle(pre).direction : null,
+        first: box('item_id'),
+        last: box('drop_rate'),
       }
     })
 
-    expect(read.direction, 'prose takes the reader’s direction').toBe('rtl')
+    // the prose carries the locale's `dir` — a text-level direction (its
+    // Latin column names open the sentence, so the chrome's plaintext rule
+    // alone would read it ltr); the layout around it is untouched
+    expect(read.direction, 'the prose takes the reader’s direction').toBe('rtl')
+    // the text half: the paragraph reads rtl — what comes first paints further right
+    if (read.first.top === read.last.top) {
+      expect(read.first.left, `prose takes the reader’s direction: \`item_id\` right of \`drop_rate\` in ${JSON.stringify(read.text)}`).toBeGreaterThanOrEqual(read.last.right - 1)
+    } else {
+      expect(read.last.top, 'a wrap puts the later name on a later line').toBeGreaterThan(read.first.top)
+    }
     expect(read.preDirection, 'the literal CSV is pinned ltr').toBe('ltr')
     // each name is one intact run, and they come in the order the file has them
     const names = ['item_id', 'item_name', 'price', 'drop_rate']
@@ -409,7 +528,7 @@ test.describe('§L9.4 LRI — an id keeps its own left-to-right order under an r
   })
 
   test('a DIGIT-leading revision id is LRI-isolated and reads in its authored order', async ({ page }) => {
-    // ported from i18n-ar-isolation.spec.ts, which is archived with Arabic (§L2.0, 2026-10).
+    // ported from i18n-ar-isolation.spec.ts (archived; its contract lives here).
     // `short()` strips the `rev_` prefix, so the token starts with a digit — which
     // has no strong direction of its own. That is why the obligation is `LRI` and not
     // `FSI`: a first-strong isolate would hand the token the paragraph's direction.
@@ -424,7 +543,7 @@ test.describe('§L9.4 LRI — an id keeps its own left-to-right order under an r
         baselineDigest: 'd'.repeat(64),
       })
     })
-    await setLocale(page, 'ar-XB')
+    await setLocale(page, 'ar')
     await expect(page.locator('.rev-chip')).toBeVisible()
 
     const m = (await measure(page, '.rev-chip'))!
@@ -432,15 +551,16 @@ test.describe('§L9.4 LRI — an id keeps its own left-to-right order under an r
     expect(m.spans.map((s) => s.kind)).toEqual(['LRI'])
     expect(m.spans[0]!.text).toBe('2024ab')
     expect(m.controls).toEqual(['LRI', 'PDI'])
-    expect(m.direction).toBe('rtl')
-    expect(m.head).toContain('rev')
+    // `revChip.rev` in the Arabic catalog: `مراجعة {id}`
+    expect(m.head).toContain('مراجعة')
+    expectRtlSentence(m, 'rev chip')
 
     const p = await expectOwnOrder(page, '.rev-chip', m, 0, 'ltr')
     expect(p.aloneDir).toBe('ltr')
   })
 
   test('a SYMBOL-leading node id in a flow reference is LRI-isolated', async ({ page }) => {
-    // ported from i18n-ar-isolation.spec.ts, which is archived with Arabic (§L2.0, 2026-10).
+    // ported from i18n-ar-isolation.spec.ts (archived; its contract lives here).
     // `@{…}` is the braced reference form, so an id the generator would never produce
     // can still be authored — which is what makes a symbol-leading token reachable.
     await page.evaluate(() => {
@@ -453,18 +573,20 @@ test.describe('§L9.4 LRI — an id keeps its own left-to-right order under an r
       g().setEdgeData(g().edges[0].id, { kind: 'resource', flow: '@{#7-beta}' })
     })
     await page.evaluate(selectFirstEdge)
-    await setLocale(page, 'ar-XB')
+    await setLocale(page, 'ar')
     await expect(page.locator('.inspector__note--warn')).toBeVisible()
 
     const m = (await measure(page, '.inspector__note--warn'))!
     expect(m.spans.map((s) => s.kind)).toEqual(['LRI'])
     expect(m.spans[0]!.text).toBe('#7-beta')
-    expect(m.head).toContain('no parameter')
+    // `inspector.edge.flowParam.unknown`: `لا يوجد مُعامِل باسم “{id}” — …`
+    expect(m.head).toContain('لا يوجد مُعامِل باسم')
+    expectRtlSentence(m, 'flowParam.unknown')
     await expectOwnOrder(page, '.inspector__note--warn', m, 0, 'ltr')
   })
 
   test('an existing non-Parameter node id takes the same isolate on the other branch', async ({ page }) => {
-    // ported from i18n-ar-isolation.spec.ts, which is archived with Arabic (§L2.0, 2026-10).
+    // ported from i18n-ar-isolation.spec.ts (archived; its contract lives here).
     // The closed key set's second branch: `flowParam.notParam`.
     const pool = await page.evaluate(() => {
       const g = () => (window as unknown as Bridge).__loop.graph.getState()
@@ -477,13 +599,15 @@ test.describe('§L9.4 LRI — an id keeps its own left-to-right order under an r
       return ids[1] as string
     })
     await page.evaluate(selectFirstEdge)
-    await setLocale(page, 'ar-XB')
+    await setLocale(page, 'ar')
     await expect(page.locator('.inspector__note--warn')).toBeVisible()
 
     const m = (await measure(page, '.inspector__note--warn'))!
     expect(m.spans.map((s) => s.kind)).toEqual(['LRI'])
     expect(m.spans[0]!.text).toBe(pool)
-    expect(m.tail).toContain('is not a parameter')
+    // `inspector.edge.flowParam.notParam`: `“{id}” ليس مُعامِلًا — …`
+    expect(m.tail).toContain('ليس مُعامِلًا')
+    expectRtlSentence(m, 'flowParam.notParam')
     await expectOwnOrder(page, '.inspector__note--warn', m, 0, 'ltr')
   })
 })
@@ -527,15 +651,15 @@ test.describe('§L9.4 FSI — a value of unknown direction, bounded inside the s
     { name: 'a LATIN value', timing: 'Ember Blade', when: 'after pull' },
     { name: 'a DIGIT-leading value', timing: '2024 Sales', when: '7 days left' },
     { name: 'a BRACKET-leading value', timing: '(Draft) Q1', when: '[wip] later' },
-    // two words each, as the source spec had it: under `ar-XB` the longer English
-    // sentence wraps INSIDE `مبيعات الربع` at the Inspector's width, which is the
-    // case `expectOwnOrder` compares line by line
+    // two words each, as the source spec had it: a sentence that wraps INSIDE
+    // `مبيعات الربع` at the Inspector's width is the case `expectOwnOrder`
+    // compares line by line
     { name: 'an ARABIC value', timing: 'مبيعات الربع', when: 'عند السحب' },
   ]) {
     test(`${c.name} is FSI-isolated in inspector.labelTiming.unsupported and keeps its own layout`, async ({ page }) => {
-      // ported from i18n-ar-isolation.spec.ts, which is archived with Arabic (§L2.0, 2026-10).
+      // ported from i18n-ar-isolation.spec.ts (archived; its contract lives here).
       await seedUnsupportedTiming(page, c.timing, c.when)
-      await setLocale(page, 'ar-XB')
+      await setLocale(page, 'ar')
       await expect(page.locator('.labeltiming__groupline')).toBeVisible()
 
       const m = (await measure(page, '.labeltiming__groupline'))!
@@ -545,9 +669,10 @@ test.describe('§L9.4 FSI — a value of unknown direction, bounded inside the s
       expect(m.spans.map((s) => s.kind)).toEqual(['FSI', 'FSI'])
       expect(m.spans.map((s) => s.text)).toEqual([c.timing, c.when])
       expect(m.controls).toEqual(['FSI', 'PDI', 'FSI', 'PDI'])
-      expect(m.direction).toBe('rtl')
-      expect(m.head).toContain('timing = ')
-      expect(m.between).toEqual([', when = '])
+      // the Arabic catalog: `… (حاليًا: التوقيت = {timing}، والشرط = {when}) …`
+      expect(m.head).toContain('التوقيت = ')
+      expect(m.between).toEqual(['، والشرط = '])
+      expectRtlSentence(m, c.name)
 
       await expectOwnOrder(page, '.labeltiming__groupline', m, 0, 'auto')
       await expectOwnOrder(page, '.labeltiming__groupline', m, 1, 'auto')
@@ -566,7 +691,7 @@ test.describe('§L9.4 FSI — a value of unknown direction, bounded inside the s
   ]) {
     test(`${c.name} that wraps inside the sentence keeps its own layout on every line`, async ({ page }) => {
       await seedUnsupportedTiming(page, c.timing, c.when)
-      await setLocale(page, 'ar-XB')
+      await setLocale(page, 'ar')
       const line = page.locator('.labeltiming__groupline')
       await expect(line).toBeVisible()
       await line.evaluate((el) => {
@@ -582,9 +707,9 @@ test.describe('§L9.4 FSI — a value of unknown direction, bounded inside the s
   }
 
   test('a hostile value is cleaned on the product path, and the sentence keeps exactly one pair per argument', async ({ page }) => {
-    // ported from i18n-ar-isolation.spec.ts, which is archived with Arabic (§L2.0, 2026-10).
+    // ported from i18n-ar-isolation.spec.ts (archived; its contract lives here).
     await seedUnsupportedTiming(page, HOSTILE, SHAPED)
-    await setLocale(page, 'ar-XB')
+    await setLocale(page, 'ar')
     await expect(page.locator('.labeltiming__groupline')).toBeVisible()
 
     const m = (await measure(page, '.labeltiming__groupline'))!
@@ -605,7 +730,7 @@ test.describe('§L9.4 FSI — a value of unknown direction, bounded inside the s
   })
 
   test('a frame name in the keyboard move and resize announcements lays out as it does alone', async ({ page }) => {
-    // ported from i18n-ar-isolation.spec.ts, which is archived with Arabic (§L2.0, 2026-10).
+    // ported from i18n-ar-isolation.spec.ts (archived; its contract lives here).
     // The isolate's SHAPE in this live region is a11y-announcement-contract.spec.ts's;
     // what is kept here is the layout half and the stored name. The region is
     // sr-only, but `clip` is a PAINT-time rule, so the text is still laid out and
@@ -616,34 +741,39 @@ test.describe('§L9.4 FSI — a value of unknown direction, bounded inside the s
       f.renameFrame(fid, '2024 مبيعات')
       return fid as string
     })
-    await setLocale(page, 'ar-XB')
+    await setLocale(page, 'ar')
     const frame = page.locator('.lgr-frame').first()
     await expect(frame).toBeVisible()
     await frame.focus()
     await page.keyboard.press('Enter')
     await page.keyboard.press('ArrowRight')
+    // `canvas.frame.a11y.moved` in the Arabic catalog: `نُقل {label} إلى x {x}، y {y}`
     await expect
       .poll(() => page.evaluate(() => document.querySelector('[data-frame-announce]')?.textContent ?? ''))
-      .toContain('moved to')
+      .toContain('نُقل')
 
     const moved = (await measure(page, '[data-frame-announce]'))!
     expect(moved.spans.map((s) => s.kind)).toEqual(['FSI'])
     expect(moved.spans[0]!.text).toBe('2024 مبيعات')
     expect(moved.spans[0]!.width, 'the announcement is clipped, not unlaid-out').toBeGreaterThan(0)
-    expect(moved.tail).toContain('moved to')
+    expect(moved.head).toContain('نُقل')
+    expect(moved.tail).toContain('إلى x')
+    expectRtlSentence(moved, 'frame moved')
     await expectOwnOrder(page, '[data-frame-announce]', moved, 0, 'auto')
 
-    // the OTHER branch of the closed key set, same frame, same name
+    // the OTHER branch of the closed key set, same frame, same name —
+    // `canvas.frame.a11y.resized`: `غُيّر حجم {label} إلى العرض {w}، الارتفاع {h}`
     await page.locator('.lgr-frame__resize').first().focus()
     await page.keyboard.press('ArrowRight')
     await expect
       .poll(() => page.evaluate(() => document.querySelector('[data-frame-announce]')?.textContent ?? ''))
-      .toContain('resized to')
+      .toContain('غُيّر حجم')
 
     const resized = (await measure(page, '[data-frame-announce]'))!
     expect(resized.spans.map((s) => s.kind)).toEqual(['FSI'])
     expect(resized.spans[0]!.text).toBe('2024 مبيعات')
-    expect(resized.tail).toContain('resized to')
+    expect(resized.tail).toContain('إلى العرض')
+    expectRtlSentence(resized, 'frame resized')
     await expectOwnOrder(page, '[data-frame-announce]', resized, 0, 'auto')
 
     // the stored frame name never grew a control
@@ -665,7 +795,7 @@ test.describe('§L9.4 per-fragment — each table label is isolated, the punctua
   test.use({ hintsSeen: false })
 
   test('three labels, three isolates, and the quotes and commas stay with the sentence', async ({ page }) => {
-    // ported from i18n-ar-isolation.spec.ts, which is archived with Arabic (§L2.0, 2026-10).
+    // ported from i18n-ar-isolation.spec.ts (archived; its contract lives here).
     const LABELS = ['2024 Sales', 'مبيعات الربع', '(Draft) Q1']
     await openApp(page)
     await resetAll(page)
@@ -674,7 +804,7 @@ test.describe('§L9.4 per-fragment — each table label is isolated, the punctua
       l.tour.setState({ phase: 'idle' })
       l.hint.setState({ postTourCooldownActive: false })
     })
-    await setLocale(page, 'ar-XB')
+    await setLocale(page, 'ar')
     await page.evaluate((tables) => {
       ;(window as unknown as Bridge).__loop.ui.getState().setLastImportBatch({ count: 3, firstId: 'param_1', tables })
     }, LABELS)
@@ -685,8 +815,10 @@ test.describe('§L9.4 per-fragment — each table label is isolated, the punctua
     expect(m.controls).toEqual(['FSI', 'PDI', 'FSI', 'PDI', 'FSI', 'PDI'])
     // the sentence follows the READER whatever the panel around it does — on the
     // phone that panel is the React Flow pane pinned `ltr` (§L9.2), in the desktop
-    // notice rail it is the app's own direction; the span inside is the claim
+    // notice rail it is the app's layout; the span inside declares the reader's
+    // `dir` (CanvasHintNote), which is the claim
     expect(m.direction, 'the sentence itself is rtl').toBe('rtl')
+    expectRtlSentence(m, 'import hint')
     expect(m.spans.map((s) => s.text)).toEqual(LABELS)
     // THE point of the shape: the quote and the comma belong to the sentence, so
     // they sit OUTSIDE the isolates. One isolate around the joined list would have
@@ -694,7 +826,8 @@ test.describe('§L9.4 per-fragment — each table label is isolated, the punctua
     expect(m.head.endsWith('"'), 'the opening quote is the sentence’s').toBe(true)
     expect(m.between).toEqual(['", "', '", "'])
     expect(m.tail.startsWith('"')).toBe(true)
-    expect(m.head).toContain('3 Parameters')
+    // the Arabic plural's `few` arm for 3: `أُضيفت # مُعامِلات من {tables}`
+    expect(m.head).toContain('أُضيفت 3 مُعامِلات')
 
     for (const i of [0, 1, 2]) await expectOwnOrder(page, '.hint-note', m, i, 'auto')
   })
@@ -709,11 +842,11 @@ const MIXED_HEADER = '2024 Sales'
 /** an INCOMING column nothing matches */
 const NEW_HEADER = '2024 جديد'
 
-/** The wizard is driven through its labels BEFORE the switch to `ar-XB`, as the
+/** The wizard is driven through its English labels BEFORE the switch to `ar`, as the
  *  source spec did: the flow itself is `e2e/data-import-wizard.spec.ts`'s, and what
  *  is under test here starts after the switch. */
 async function pasteTableWithCell(page: Page, cell: string): Promise<void> {
-  await page.getByRole('button', { name: 'Data' }).click()
+  await page.locator('.toolbar__actions [data-group="data"] .wb-mb').click()
   await page.getByRole('menuitem').first().click()
   const dlg = page.locator('.mcdlg--dataimport')
   await expect(dlg).toBeVisible()
@@ -734,13 +867,13 @@ test.describe('§L9.4 the spreadsheet paths — a user cell and a user header', 
   })
 
   test('a pasted cell carrying bidi controls is cleaned where it is SHOWN and kept where it is STORED', async ({ page }) => {
-    // ported from i18n-ar-isolation.spec.ts, which is archived with Arabic (§L2.0, 2026-10).
+    // ported from i18n-ar-isolation.spec.ts (archived; its contract lives here).
     // The cell goes in through the real paste field: this is the path a user's
     // spreadsheet takes, not a store-level shortcut.
     await pasteTableWithCell(page, HOSTILE)
     await page.locator('.mcdlg--dataimport').getByRole('button', { name: 'Next' }).click()
     await expect(page.locator('.import__issueLink').first()).toBeVisible()
-    await setLocale(page, 'ar-XB')
+    await setLocale(page, 'ar')
 
     // ONE rendered string from TWO catalog calls: `${issueLocation(issue)}: ${desc}`.
     // The table name and the column header in the location half are bounded as well
@@ -754,8 +887,11 @@ test.describe('§L9.4 the spreadsheet paths — a user cell and a user header', 
       HOSTILE_CLEAN,
     ])
     expect(m.controls, 'three pairs, nothing else').toEqual(['FSI', 'PDI', 'FSI', 'PDI', 'FSI', 'PDI'])
-    expect(m.head).toContain('Table')
-    expect(m.tail).toContain('is not a number')
+    // `import.loc.*` opens with `الجدول {table}`; `import.issue.invalid-number`
+    // carries `"{value}" ليس رقمًا…`
+    expect(m.head).toContain('الجدول')
+    expect(m.tail).toContain('ليس رقمًا')
+    expectRtlSentence(m, 'issue line')
     for (const i of [0, 1, 2]) await expectOwnOrder(page, '.import__issueLink', m, i, 'auto')
 
     // the textarea still holds the pasted bytes — the strip is a display copy
@@ -764,7 +900,7 @@ test.describe('§L9.4 the spreadsheet paths — a user cell and a user header', 
   })
 
   test('the three column-event branches each bound the header they name', async ({ page }) => {
-    // ported from i18n-ar-isolation.spec.ts, which is archived with Arabic (§L2.0, 2026-10).
+    // ported from i18n-ar-isolation.spec.ts (archived; its contract lives here).
     // The refresh wizard's closed key set. An existing column whose header now
     // matches two incoming columns is `ambiguous-match`, one that is gone is
     // `missing-header`, and a fourth INCOMING column nothing matches is
@@ -777,7 +913,7 @@ test.describe('§L9.4 the spreadsheet paths — a user cell and a user header', 
     await dlg.getByRole('button', { name: 'Import' }).click()
     await expect(dlg).toBeHidden()
 
-    await page.getByRole('button', { name: 'Data' }).click()
+    await page.locator('.toolbar__actions [data-group="data"] .wb-mb').click()
     await page.getByRole('menuitem', { name: 'Refresh or manage imported tables…' }).click()
     const manage = page.getByRole('dialog', { name: 'Manage spreadsheet bindings' })
     await expect(manage).toBeVisible()
@@ -792,16 +928,17 @@ test.describe('§L9.4 the spreadsheet paths — a user cell and a user header', 
     await expect(rows).toHaveCount(2)
     await refresh.getByRole('button', { name: 'Map more columns…' }).click()
     await expect(rows).toHaveCount(3)
-    await setLocale(page, 'ar-XB')
+    await setLocale(page, 'ar')
 
     const measured = [
       await measure(page, '.import__issues ul li p', 0),
       await measure(page, '.import__issues ul li p', 1),
       await measure(page, '.import__issues ul li p', 2),
     ]
-    const missing = measured.find((m) => m!.tail.includes('no longer in the new data'))!
-    const ambiguous = measured.find((m) => m!.tail.includes('matches more than one'))!
-    const unrecognized = measured.find((m) => m!.tail.includes('is not mapped'))!
+    // the three `import.refresh.columnEvents.*` sentences of the Arabic catalog
+    const missing = measured.find((m) => m!.tail.includes('لم يعد في البيانات الجديدة'))!
+    const ambiguous = measured.find((m) => m!.tail.includes('يطابق أكثر من عمود وارد'))!
+    const unrecognized = measured.find((m) => m!.tail.includes('غير مربوط'))!
     expect(missing, 'the missing-header branch should be on screen').toBeTruthy()
     expect(ambiguous, 'the ambiguous-match branch should be on screen').toBeTruthy()
     expect(unrecognized, 'the unrecognized-header branch should be on screen').toBeTruthy()
@@ -814,22 +951,25 @@ test.describe('§L9.4 the spreadsheet paths — a user cell and a user header', 
       expect(m.spans.map((s) => s.kind)).toEqual(['FSI'])
       expect(m.spans[0]!.text).toBe(header)
       expect(m.controls).toEqual(['FSI', 'PDI'])
-      expect(m.head).toMatch(/column/i)
+      expect(m.head).toContain('العمود')
+      expectRtlSentence(m, `column event ${header}`)
       await expectOwnOrder(page, '.import__issues ul li p', m, 0, 'auto', measured.indexOf(m))
     }
   })
 
   test('the key-column header is bounded in the per-table status line', async ({ page }) => {
-    // ported from i18n-ar-isolation.spec.ts, which is archived with Arabic (§L2.0, 2026-10).
+    // ported from i18n-ar-isolation.spec.ts (archived; its contract lives here).
     await pasteTableWithCell(page, '10')
-    await setLocale(page, 'ar-XB')
+    await setLocale(page, 'ar')
     await expect(page.locator('.import__status').first()).toBeVisible()
 
     const m = (await measure(page, '.import__status'))!
     expect(m.found).toBe(true)
     expect(m.spans.map((s) => s.kind)).toEqual(['FSI'])
     expect(m.spans[0]!.text).toBe('item_key')
-    expect(m.head).toContain('Key')
+    // `import.status.key`: `المفتاح: {header}`
+    expect(m.head).toContain('المفتاح')
+    expectRtlSentence(m, 'status line')
     await expectOwnOrder(page, '.import__status', m, 0, 'auto')
   })
 })
@@ -840,7 +980,7 @@ test.describe('§L9.4 the spreadsheet paths — a user cell and a user header', 
 
 test.describe('§L9.4 display only — the stored document and its digest do not move', () => {
   test('rendering the whole RTL interface leaves the serialization and the digest byte-identical', async ({ page }) => {
-    // ported from i18n-ar-isolation.spec.ts, which is archived with Arabic (§L2.0, 2026-10).
+    // ported from i18n-ar-isolation.spec.ts (archived; its contract lives here).
     await openApp(page)
     await resetAll(page)
     await page.evaluate((hostile) => {
@@ -873,7 +1013,7 @@ test.describe('§L9.4 display only — the stored document and its digest do not
       })
 
     const before = await snapshot()
-    await setLocale(page, 'ar-XB')
+    await setLocale(page, 'ar')
     // render every isolating surface this document reaches: the edge is selected, so
     // the Inspector's timing sentence runs; the canvas paints both node labels and
     // the frame
@@ -891,14 +1031,14 @@ test.describe('§L9.4 display only — the stored document and its digest do not
     expect(after.controls).toBe(before.controls)
   })
 
-  test('ar-XB → en → ar-XB produces the same string, with no second isolate', async ({ page }) => {
-    // ported from i18n-ar-isolation.spec.ts (`ar → en → ar`), which is archived with
-    // Arabic (§L2.0, 2026-10).
+  test('ar → en → ar produces the same string, with no second isolate', async ({ page }) => {
+    // ported from i18n-ar-isolation.spec.ts (`ar → en → ar`; archived, its contract
+    // lives here).
     await openApp(page)
     await resetAll(page)
     await seedUnsupportedTiming(page, '2024 Sales', '(Draft) later')
 
-    await setLocale(page, 'ar-XB')
+    await setLocale(page, 'ar')
     await expect(page.locator('.labeltiming__groupline')).toBeVisible()
     const first = (await measure(page, '.labeltiming__groupline'))!
     expect(first.controls).toEqual(['FSI', 'PDI', 'FSI', 'PDI'])
@@ -910,7 +1050,7 @@ test.describe('§L9.4 display only — the stored document and its digest do not
     expect(inEnglish.controls).toEqual(['FSI', 'PDI', 'FSI', 'PDI'])
     expect(inEnglish.spans.map((s) => s.text)).toEqual(['2024 Sales', '(Draft) later'])
 
-    await setLocale(page, 'ar-XB')
+    await setLocale(page, 'ar')
     const second = (await measure(page, '.labeltiming__groupline'))!
     expect(second.node, 'the round trip must reproduce the same string exactly').toBe(first.node)
     expect(second.controls).toEqual(first.controls)
@@ -928,7 +1068,7 @@ test.describe('§L9.4 the shapes C3.5 added', () => {
   })
 
   test('the resource-type mismatch isolates each TYPE, leaving the connectives and the comma to the sentence', async ({ page }) => {
-    // ported from i18n-ar-isolation.spec.ts, which is archived with Arabic (§L2.0, 2026-10).
+    // ported from i18n-ar-isolation.spec.ts (archived; its contract lives here).
     // The second per-fragment site: this joins PAIRS with `, `, and each pair is a
     // translated phrase around two values (`inspector.resourceType.pair`). The words
     // and the comma belong to the sentence, so four user values produce four
@@ -946,7 +1086,7 @@ test.describe('§L9.4 the shapes C3.5 added', () => {
       g().setEdgeData(g().edges[0].id, { kind: 'resource', flow: '1', resourceType: '  ذهب  ' })
     })
     await page.evaluate(selectFirstEdge)
-    await setLocale(page, 'ar-XB')
+    await setLocale(page, 'ar')
     await expect(page.locator('.inspector__note--warn')).toBeVisible()
 
     const m = (await measure(page, '.inspector__note--warn'))!
@@ -955,11 +1095,15 @@ test.describe('§L9.4 the shapes C3.5 added', () => {
     expect(m.spans.map((s) => s.kind)).toEqual(['FSI', 'FSI', 'FSI', 'FSI'])
     expect(m.spans.map((s) => s.text)).toEqual(['ذهب', '2024 Coins', 'ذهب', '(مسودة) بن'])
     expect(m.controls).toEqual(['FSI', 'PDI', 'FSI', 'PDI', 'FSI', 'PDI', 'FSI', 'PDI'])
-    // the words are BETWEEN a pair's values and the comma between pairs — outside
-    expect(m.between[0], 'the connective belongs to the sentence').toBe(' on the connection, ')
-    expect(m.between[1], 'the tail and the comma belong to the sentence').toBe(' on the node, ')
-    expect(m.between[2]).toBe(' on the connection, ')
-    expect(m.head).toContain('Type mismatch')
+    // the words are BETWEEN a pair's values and the comma between pairs — outside.
+    // The Arabic `inspector.resourceType.pair` is `{edge} على الاتصال و{node} على
+    // العقدة`; the pairs are joined with `, ` in Inspector.tsx.
+    expect(m.between[0], 'the connective belongs to the sentence').toBe(' على الاتصال و')
+    expect(m.between[1], 'the tail and the comma belong to the sentence').toBe(' على العقدة, ')
+    expect(m.between[2]).toBe(' على الاتصال و')
+    // `inspector.resourceType.mismatch`: `عدم تطابق في النوع: {pairs}. …`
+    expect(m.head).toContain('عدم تطابق في النوع')
+    expectRtlSentence(m, 'resource-type mismatch')
     for (const i of [0, 1, 2, 3]) await expectOwnOrder(page, '.inspector__note--warn', m, i, 'auto')
 
     // and the normalised note in the same panel bounds its own value
@@ -969,7 +1113,7 @@ test.describe('§L9.4 the shapes C3.5 added', () => {
   })
 
   test('the bad-reference row bounds a NAME with FSI and an ID with LRI, from one call site', async ({ page }) => {
-    // ported from i18n-ar-isolation.spec.ts, which is archived with Arabic (§L2.0, 2026-10).
+    // ported from i18n-ar-isolation.spec.ts (archived; its contract lives here).
     // One call passes both `{name}` and `{id}` because the key is not known until
     // runtime — but no catalog value uses both, so each rendering carries ONE
     // isolate. What matters is that it is the RIGHT one on each branch.
@@ -988,17 +1132,19 @@ test.describe('§L9.4 the shapes C3.5 added', () => {
       }, expr)
 
     await seed('@{SOURCE}')
-    await setLocale(page, 'ar-XB')
+    await setLocale(page, 'ar')
     await expect(page.locator('.regrb__line--bad')).toBeVisible()
 
     const wrong = (await measure(page, '.regrb__line--bad'))!
     expect(wrong.spans.map((s) => s.kind), 'a user NAME takes the first-strong isolate').toEqual(['FSI'])
     expect(wrong.spans[0]!.text).toBe('2024 مصدر')
     expect(wrong.controls).toEqual(['FSI', 'PDI'])
-    expect(wrong.tail).toContain('is not a Pool')
+    // `regExpr.row.wrongKind`: `— "{name}" ليس مَجمَعًا ولا مُعامِلًا ولا سِجِلًّا`
+    expect(wrong.tail).toContain('ليس مَجمَعًا')
 
     await seed('@{2024-ghost}')
-    await expect.poll(() => page.locator('.regrb__line--bad').innerText()).toContain('not found')
+    // `regExpr.row.unknownRef`: `— المرجع "{id}" غير موجود`
+    await expect.poll(() => page.locator('.regrb__line--bad').innerText()).toContain('غير موجود')
 
     const unknown = (await measure(page, '.regrb__line--bad'))!
     expect(unknown.spans.map((s) => s.kind), 'a node ID takes the forced-ltr isolate').toEqual(['LRI'])

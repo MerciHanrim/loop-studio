@@ -84,7 +84,6 @@ test('a language loaded under an active SW is runtime-cached and works offline',
   await installAndControl(page)
   expect(await localeCachePaths(page)).toEqual([]) // nothing yet — booted EN
 
-  // §L2.0 (2026-10) — Korean is the one lazy (runtime-cached) language left
   await pickLocale(page, 'ko')
   await expect.poll(() => htmlLang(page)).toBe('ko')
   await expect.poll(() => localeCachePaths(page)).toEqual(
@@ -97,9 +96,11 @@ test('a language loaded under an active SW is runtime-cached and works offline',
   await expect(page.locator('.canvas .react-flow')).toBeVisible()
   expect(await htmlLang(page)).toBe('ko')
 
-  // §L2.0 (2026-10) — the "a never-loaded language offline is refused" step is
-  // gone: with en (bundled) and ko (loaded above) the only shipped languages,
-  // no uncached language remains to try.
+  // a never-loaded language, offline → refused, KO kept, notice shown
+  await pickLocale(page, 'ja')
+  await expect(page.locator('.boot-notice[role="status"]')).toBeVisible()
+  expect(await htmlLang(page)).toBe('ko')
+  expect(await page.evaluate(() => localStorage.getItem('loop-studio/ui-locale/1'))).toBe('ja') // intent still recorded
   await context.setOffline(false)
 })
 

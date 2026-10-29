@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { useLocaleDirection } from '../i18n'
+import { LAYOUT_DIRECTION } from '../i18n'
 import { mirrorPathX } from './mirrorPath'
 
 // Issue #298 — the product's own icons, drawn as inline SVG.
@@ -147,9 +147,12 @@ export function Icon({ name, size = '1em', className, style }: Props & { name: I
   )
 }
 
-/** An icon whose sense is defined by the reading flow: drawn the other way round for an RTL reader. */
+/** An icon whose sense is defined by the LAYOUT flow: a submenu opens to the
+ *  side the layout puts it, undo / redo sit in the layout's order. The layout
+ *  does not mirror for an RTL reader (docs/localization.md §L9.2, 2026-10-29),
+ *  so neither does the icon; the RTL drawings stay for a mirrored layout. */
 export function ArrowIcon({ unit, size = '1em', className, style }: Props & { unit: ArrowIconName }) {
-  const dir = useLocaleDirection()
+  const dir = LAYOUT_DIRECTION
   return (
     <svg
       className={`icon icon--${unit}${className ? ` ${className}` : ''}`}

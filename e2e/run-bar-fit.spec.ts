@@ -17,14 +17,18 @@ import { expect, importGraph, test } from './support/loop'
 // in the bar is inside the window. The checks here read the real boxes, in the
 // shipped languages and in right-to-left.
 //
-// §L2.0 (2026-10): en and ko are the shipped languages; the RTL pseudo-locale
-// `ar-XB` (English copy under `dir=rtl`) stands for the retired `ar`. The
-// eighteen-language version is kept in archive/i18n/e2e/run-bar-fit.spec.ts.
+// §L2.0: the eighteen-language version is kept in
+// archive/i18n/e2e/run-bar-fit.spec.ts. Right to left is the shipped Arabic
+// (`ar`), restored 2026-10-29 under the rule that the LAYOUT stays ltr for every
+// locale and only the TEXT reads rtl (docs/localization.md §L2.0a): its bar has
+// the English order and the Arabic labels' widths. (It was the RTL pseudo-locale
+// `ar-XB`, English copy, while Arabic was archived; `ar-XB` is now only for the
+// direction switch itself, rtl-locale-direction.spec.ts.)
 
 const LOCALE_KEY = 'loop-studio/ui-locale/1'
 // the shipped languages, and right-to-left
-const LOCALES = ['en', 'ko', 'ar-XB']
-const ALL = ['en', 'ko']
+const LOCALES = ['en', 'ko', 'ja', 'de', 'zh-Hans', 'zh-Hant', 'ar']
+const ALL = ['en', 'ko', 'ja', 'de', 'zh-Hans', 'zh-Hant']
 const PHONES = [
   [320, 568],
   [320, 640],
@@ -156,10 +160,25 @@ test.describe('the run bar on a phone keeps to its space', () => {
     }
   })
 
-  test('390px right-to-left (ar-XB): the bar is right-to-left and still inside the viewport', async ({ page }) => {
-    await boot(page, 390, 844, 'ar-XB')
-    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+  test('390px right to left (ar): the bar keeps the English control order and stays inside the viewport', async ({ page }) => {
+    // the bar's controls in VISUAL order (left to right), by a key that does not
+    // depend on the language: the class list
+    const order = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll<HTMLElement>('.pstrip--mobile button')]
+          .filter((el) => el.getClientRects().length > 0)
+          .sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left || a.getBoundingClientRect().top - b.getBoundingClientRect().top)
+          .map((el) => el.className),
+      )
+    await boot(page, 390, 844, 'en')
+    const english = await order()
+    await boot(page, 390, 844, 'ar')
+    // the text reads rtl, the layout does not mirror
+    await expect(page.locator('html')).toHaveAttribute('data-text-dir', 'rtl')
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
     expectMobileFit(await mobileFit(page))
+    expect(english.length).toBeGreaterThanOrEqual(5)
+    expect(await order(), 'the Arabic bar has the English order').toEqual(english)
   })
 
   test('the sheets and the Timeline sheet sit on the measured bar, not on the constant', async ({ page }) => {

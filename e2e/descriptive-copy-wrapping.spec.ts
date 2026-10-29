@@ -199,10 +199,14 @@ test.describe('English is untouched', () => {
 
 // ------------------------------------------------------------------ 4
 test.describe('the computed value says what the CSS means', () => {
-  // §L2.0 (2026-10): the ja / zh rows retired with those languages
-  test('ko keep-all, en default', async ({ page }) => {
+  test('ko keep-all, ja and zh phrase-aware (or normal without a dictionary), en default', async ({ page }) => {
+    const supportsAutoPhrase = await page.evaluate(() => CSS.supports('word-break', 'auto-phrase'))
+    const cjk = supportsAutoPhrase ? 'auto-phrase' : 'normal'
     for (const [lang, tag, want] of [
       ['ko', 'ko-KR', 'keep-all'],
+      ['ja', 'ja-JP', cjk],
+      ['zh-Hans', 'zh-CN', cjk],
+      ['zh-Hant', 'zh-TW', cjk],
       ['en', 'en-US', 'normal'],
     ] as const) {
       const { ctx, page: p } = await pageAt(page, tag)
@@ -224,8 +228,8 @@ test.describe('the computed value says what the CSS means', () => {
 // covering two languages. docs/localization.md §L2.11a item 8 is what should
 // have caught it.
 //
-// §L2.0 (2026-10): English and Korean are the shipped languages, so the list is
-// those two; the eighteen-locale version is kept in
+// §L2.0: the list is the shipped languages (en, de, ja, ko); the
+// eighteen-locale version is kept in
 // `archive/i18n/e2e/descriptive-copy-wrapping.spec.ts`. The list stays explicit —
 // each locale needs its own browser context and tag — so ADDING A LANGUAGE MUST
 // ADD A ROW HERE.
@@ -235,10 +239,14 @@ test.describe('the computed value says what the CSS means', () => {
 // proportional to the number of locales, and one test's 30 s budget is not (a
 // single looping test timed out on CI at fifteen locales). A per-locale test
 // also names the failing locale in the test title.
-test.describe('every shipped language (en, ko)', () => {
+test.describe('every shipped language', () => {
   for (const [lang, tag] of [
     ['en', 'en-US'],
+    ['de', 'de-DE'],
+    ['ja', 'ja-JP'],
     ['ko', 'ko-KR'],
+    ['zh-Hans', 'zh-CN'],
+    ['zh-Hant', 'zh-TW'],
   ] as const) {
     test(`${lang}: all descriptive copy fits`, async ({ page }) => {
       const { ctx, page: p } = await pageAt(page, tag)

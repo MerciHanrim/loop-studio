@@ -369,7 +369,7 @@ test.describe('content ⊂ vessel — path-aware (isPointInFill)', () => {
     })
   }
 
-  for (const loc of ['en', 'ko'] as const) { // §L2.0 (2026-10): the shipped languages
+  for (const loc of ['en', 'ko', 'ja', 'de', 'zh-Hans', 'zh-Hant'] as const) { // §L2.0: the shipped languages
     test(`every parameter / register corner is inside the fill — ${loc}`, async ({ page }) => {
       await openApp(page, { structure: 'inside' })
       await resetAll(page)
