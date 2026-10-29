@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import { useFrameStore } from './frameStore'
 import { useGraphStore } from './graphStore'
 
 // `simulationRev` must bump on every change that alters what a simulation
@@ -66,6 +67,41 @@ describe('graphStore.simulationRev', () => {
         useGraphStore.getState().updateNodeData(gid, { distribution: 'probabilistic' }),
       ),
     ).toBeGreaterThan(0)
+  })
+
+  // docs/large-graph-readability-saved-frames.md §SF11.3 — an undo or redo of
+  // ANY frame operation leaves `simulationRev` byte-identical (issue #391: the
+  // decision compared the two snapshots' decoration keys only, so two
+  // identical graphs — a frame rename, recolour, delete — and two graphs that
+  // differ in node positions only — a frame move carrying its nodes — both
+  // fell through to the bump).
+  it('does not bump: undo / redo of a frame-only entry (rename, delete)', () => {
+    base()
+    const fr = useFrameStore.getState()
+    const id = fr.addFrame({ x: -20, y: -20, w: 440, h: 100 })
+    fr.renameFrame(id, 'Economy')
+    expect(bumped(() => useGraphStore.getState().undo()), 'undo of a rename').toBe(0)
+    expect(bumped(() => useGraphStore.getState().redo()), 'redo of a rename').toBe(0)
+    useFrameStore.getState().removeFrame(id)
+    expect(bumped(() => useGraphStore.getState().undo()), 'undo of a delete').toBe(0)
+    expect(useFrameStore.getState().frames.map((f) => f.id)).toEqual([id])
+    expect(bumped(() => useGraphStore.getState().redo()), 'redo of a delete').toBe(0)
+  })
+
+  it('does not bump: undo / redo of a frame move that carried its nodes (positions only)', () => {
+    const { sourceId, poolId } = base()
+    const g = useGraphStore.getState()
+    const fid = useFrameStore.getState().addFrame({ x: -20, y: -20, w: 440, h: 100 })
+    const posOf = (id: string) => useGraphStore.getState().nodes.find((n) => n.id === id)!.position
+    const origin = posOf(sourceId)
+    const snap = g.captureGestureSnapshot()
+    useFrameStore.getState().setRectsSilently({ [fid]: { x: 30, y: 20, w: 440, h: 100 } })
+    g.applyGesturePositions({ [sourceId]: { x: origin.x + 50, y: origin.y + 40 }, [poolId]: { x: 250, y: 40 } }, {})
+    g.pushGestureEntry(snap)
+    expect(bumped(() => useGraphStore.getState().undo()), 'undo of a frame move').toBe(0)
+    expect(posOf(sourceId)).toEqual(origin)
+    expect(bumped(() => useGraphStore.getState().redo()), 'redo of a frame move').toBe(0)
+    expect(posOf(sourceId)).toEqual({ x: origin.x + 50, y: origin.y + 40 })
   })
 
   it('bumps: import (loadGraph / loadJSON) and undo / redo', () => {

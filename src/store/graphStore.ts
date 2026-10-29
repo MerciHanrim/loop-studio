@@ -623,9 +623,11 @@ const withoutAccent = (data: unknown): string => {
   const { accent: _accent, ...rest } = data as Record<string, unknown>
   return JSON.stringify(rest)
 }
-/** true when `a` and `b` differ ONLY in some element's `data.accent` (and at
- *  least one accent does differ): same model version, same elements in the
- *  same order, same positions, handles and every other data field. */
+/** true when `a` and `b` differ in nothing the engine reads but some element's
+ *  `data.accent` — same model version, same elements in the same order, same
+ *  handles and every other data field; positions are layout and not compared,
+ *  and two identical graphs count (#391). Kept for its test; the undo / redo
+ *  decision is `onlyDecorationDiffers` below. */
 export function onlyAccentsDiffer(
   a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
   b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
@@ -633,10 +635,15 @@ export function onlyAccentsDiffer(
   return onlyCosmeticsDiffer(a, b, ['accent'])
 }
 
-/** issue #344 step 3 — the same test with a connection's shape and bend points
- *  (`route`, `waypoints`) also counted as decoration: undoing or redoing a
- *  shape or bend-point edit does not reset the run either (SEMANTICS-R10.md
- *  R10-INV-2) */
+/** Do the two history snapshots differ in NOTHING the engine reads? True for
+ *  decoration-only differences (a flow colour; issue #344 step 3 added a
+ *  connection's shape and bend points, `route` / `waypoints`, SEMANTICS-R10.md
+ *  R10-INV-2; §ER18 a side), for node positions only (a frame move carrying
+ *  its nodes), and for two identical graphs (a frame rename / recolour /
+ *  delete commits the same `nodes` / `edges`). Undo / redo then keep
+ *  `simulationRev` — §SF11.3 promises that for every frame operation (issue
+ *  #391: identical snapshots and position-only ones used to fall through to
+ *  the bump). */
 export function onlyDecorationDiffers(
   a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
   b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
@@ -657,18 +664,16 @@ function onlyCosmeticsDiffer(
     for (const k of edgeKeys) delete rest[k]
     return JSON.stringify(rest)
   }
-  const edgeKeysOf = (data: unknown): string =>
-    JSON.stringify(edgeKeys.map((k) => (data as Record<string, unknown> | undefined)?.[k] ?? null))
   if (a.modelVersion !== b.modelVersion) return false
   if (a.nodes.length !== b.nodes.length || a.edges.length !== b.edges.length) return false
-  let accentChanged = false
+  // a node's `position` is layout, not model (`simulationRev` never moves on
+  // a drag), so it is not compared here either (#391)
   for (let i = 0; i < a.nodes.length; i++) {
     const p = a.nodes[i]!, q = b.nodes[i]!
     if (p === q) continue
-    if (p.id !== q.id || p.type !== q.type || p.position?.x !== q.position?.x || p.position?.y !== q.position?.y) return false
+    if (p.id !== q.id || p.type !== q.type) return false
     if (p.data === q.data) continue
     if (withoutAccent(p.data) !== withoutAccent(q.data)) return false
-    if (accentOf(p.data) !== accentOf(q.data)) accentChanged = true
   }
   for (let i = 0; i < a.edges.length; i++) {
     const p = a.edges[i]!, q = b.edges[i]!
@@ -679,9 +684,8 @@ function onlyCosmeticsDiffer(
     ) return false
     if (p.data === q.data) continue
     if (withoutEdgeKeys(p.data) !== withoutEdgeKeys(q.data)) return false
-    if (edgeKeysOf(p.data) !== edgeKeysOf(q.data)) accentChanged = true
   }
-  return accentChanged
+  return true
 }
 
 /** docs/flow-colour-and-compact-nodes.md FC-5 — what a colour choice applies
