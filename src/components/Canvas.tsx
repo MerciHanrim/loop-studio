@@ -11,7 +11,7 @@ import {
   useStore,
   useStoreApi,
 } from '@xyflow/react'
-import { useGraphStore, type GestureSnapshot } from '../store/graphStore'
+import { selectOnly, useGraphStore, type GestureSnapshot } from '../store/graphStore'
 import type { InitialView } from '../model/templates'
 import { refInsertVerdict, type RefResolveKind } from '../model/exprRefs'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
@@ -127,7 +127,7 @@ export function Canvas() {
   const addNodeAt = useGraphStore((s) => s.addNodeAt)
   const tidyToGrid = useGraphStore((s) => s.tidyToGrid)
   const setSelection = useGraphStore((s) => s.setSelection)
-  const { screenToFlowPosition, fitView, setViewport, getViewport, deleteElements, setEdges: rfSetEdges, setNodes: rfSetNodes } = useReactFlow()
+  const { screenToFlowPosition, fitView, setViewport, getViewport, deleteElements } = useReactFlow()
   // the whole-diagram fit that contains the outside names (./useFitAll), the
   // same one the workbench status bar's Fit runs
   const fitAll = useFitAll(useCallback(() => canvasRef.current, []))
@@ -840,12 +840,18 @@ export function Canvas() {
         if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) continue
         const id = chip.dataset.edgeId
         if (!id || id === edge.id) return
-        rfSetEdges((es) => es.map((x) => (x.selected !== (x.id === id) ? { ...x, selected: x.id === id } : x)))
-        rfSetNodes((ns) => ns.map((n) => (n.selected ? { ...n, selected: false } : n)))
+        // #390 — through `select` changes against the DOCUMENT's elements,
+        // never React Flow's `setEdges` / `setNodes`: on this controlled flow
+        // those send `replace` changes carrying the drawn copies (`facedEdges`'
+        // `out@bottom` handle ids, a filter's `hidden`, Focus's class), which
+        // `onEdgesChange` / `onNodesChange` wrote into the document — autosave,
+        // export, the digest and the route map all moved on a selection click,
+        // and under the edit lock the same click was refused instead.
+        selectOnly({ edge: id })
         return
       }
     },
-    [noEdit, onAddBendClick, rfSetEdges, rfSetNodes],
+    [noEdit, onAddBendClick],
   )
 
   // §LGR6.6 — ONE owner for the destructive canvas keys. React Flow's built-in
