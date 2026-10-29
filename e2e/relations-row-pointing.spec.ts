@@ -47,6 +47,46 @@ const doc = (page: Page) =>
     return JSON.stringify({ nodes: g.nodes.map((n: any) => ({ id: n.id, p: n.position, d: n.data })), edges: g.edges.map((e: any) => ({ id: e.id, s: e.source, t: e.target, d: e.data })) })
   })
 
+// issue #393 C — "Connections that use this value" came from a substring test
+// (`expr.includes('@' + id)` / `flow === '@' + id`): a Parameter whose id is
+// the start of another's listed the other's connections, and the `@{id}`
+// spelling was never listed. The rows now come from the same parsed,
+// exact-id scanner the delete check uses (`findReferences`).
+test.describe('Relations — connections that use a Parameter (#393 C)', () => {
+  const PARAMS = JSON.stringify({
+    schema: 'loop-studio/graph/2',
+    version: 1,
+    nodes: [
+      node('a', 'parameter', { label: 'a', value: 2 }, 0, 200),
+      node('ab', 'parameter', { label: 'ab', value: 3 }, 0, 320),
+      node('src', 'source', { label: 'Supply', activation: 'automatic' }, 0, 0),
+      node('pool', 'pool', { label: 'Store', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' }, 320, 0),
+      node('sink', 'drain', { label: 'Use', activation: 'automatic' }, 640, 0),
+    ],
+    edges: [
+      { ...res('e_ab', 'src', 'pool'), data: { kind: 'resource', flow: '@ab' } },
+      { ...res('e_a_braced', 'pool', 'sink'), data: { kind: 'resource', flow: '@{a}' } },
+      // an activator reading `ab`: the old `expr.includes('@a')` listed it under `a`
+      { id: 'e_act_ab', source: 'pool', target: 'sink', type: 'loop', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'activator', expr: '>=@ab' } },
+    ],
+  })
+  const usesRows = (page: Page) => panel(page).locator('.wb-rel__sec[aria-label="Connections that use this value"] .wb-rel__row')
+  const rowEdges = (page: Page) => usesRows(page).evaluateAll((rows) => rows.map((r) => r.getAttribute('data-edge')))
+  // the plain click (not `pick`): with no row at all the panel shows "none" and `.wb-rel` is absent
+  const select = (page: Page, name: string) => page.locator('.wb-left').getByText(name, { exact: true }).first().click()
+
+  test('`a` lists only the `@{a}` connection; `ab` lists its flow and its activator', async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 940 })
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, PARAMS)
+    await select(page, 'a')
+    await expect.poll(() => rowEdges(page), 'a: the braced reference, and not ab’s activator').toEqual(['e_a_braced'])
+    await select(page, 'ab')
+    await expect.poll(() => rowEdges(page), 'ab: its flow and its activator').toEqual(['e_ab', 'e_act_ab'])
+  })
+})
+
 test.describe('Relations rows', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1600, height: 940 })

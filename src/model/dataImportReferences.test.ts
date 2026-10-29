@@ -48,6 +48,27 @@ describe('findReferences', () => {
     expect(findReferences(nodes, edges, 1, 'target')).toEqual([])
   })
 
+  // issue #393 C — the Properties panel's "Connections that use this value"
+  // rows come from this scanner now; it must match by parsed id, so a
+  // Parameter whose id is the start of another's is not confused with it, and
+  // the `@{id}` spelling the grammar accepts counts too
+  it('matches a reference by id, not by text: `a` is not `ab`, and `@{a}` is `a`', () => {
+    const param = (id: string): LoopNode =>
+      ({ id, type: 'parameter', position: { x: 0, y: 0 }, data: { kind: 'parameter', label: id, value: 1 } }) as LoopNode
+    const nodes = [param('a'), param('ab'), pool('p'), pool('q')]
+    const edge = (id: string, data: LoopEdge['data']): LoopEdge =>
+      ({ id, source: 'p', target: 'q', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data }) as LoopEdge
+    const edges = [
+      edge('flowAb', { kind: 'resource', flow: '@ab' }),
+      edge('flowBraced', { kind: 'resource', flow: '@{a}' }),
+      edge('actAb', { kind: 'state', mode: 'activator', expr: '>=@ab' } as LoopEdge['data']),
+      edge('actA', { kind: 'state', mode: 'activator', expr: '>=@a' } as LoopEdge['data']),
+    ]
+    const edgeIds = (id: string) => findReferences(nodes, edges, 2, id).flatMap((r) => ('edgeId' in r ? [r.edgeId] : []))
+    expect(edgeIds('a')).toEqual(['flowBraced', 'actA'])
+    expect(edgeIds('ab')).toEqual(['flowAb', 'actAb'])
+  })
+
   it('finds a state-edge activator param-term reference by edgeId', () => {
     const nodes = [target(), pool('a'), pool('b')]
     const edges: LoopEdge[] = [
