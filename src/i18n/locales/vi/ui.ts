@@ -36,8 +36,6 @@ const ui = {
   'toolbar.newGraph.confirm': 'Đồ thị mới',
   'toolbar.file.button': 'Tệp',
   'toolbar.file.menuLabel': 'Tệp',
-  'toolbar.settings.button': 'Cài đặt',
-  'toolbar.settings.menuLabel': 'Cài đặt',
   'theme.rowLabel': 'Giao diện',
   'theme.title': 'Giao diện: theo hệ thống / sáng / tối',
   'theme.auto': 'Tự động',

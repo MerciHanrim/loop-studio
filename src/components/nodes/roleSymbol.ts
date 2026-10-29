@@ -67,11 +67,3 @@ export function roleSymbol(kind: NodeKind, data: Partial<NodeData> | undefined, 
   if (kind === 'gate') return GATE[set][d.distribution === 'deterministic' ? 0 : 1]
   return null
 }
-
-/** the symbol as SVG markup (the study's board; the product renders the
- *  primitives as React elements) */
-export function roleSymbolMarkup(prims: SymbolPrim[] | null, size = 20): string {
-  if (!prims) return ''
-  const inner = prims.map((q) => `<${q.tag} ${Object.entries(q.attrs).map(([k, v]) => `${k}="${v}"`).join(' ')}/>`).join('')
-  return `<svg class="nodef__role" viewBox="0 0 22 22" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">${inner}</svg>`
-}

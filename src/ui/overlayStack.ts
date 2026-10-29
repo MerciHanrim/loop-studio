@@ -125,8 +125,3 @@ export function isTopOverlay(el: HTMLElement | null): boolean {
 export function topOverlay(): HTMLElement | null {
   return stack.length > 0 ? stack[stack.length - 1].el : null
 }
-
-/** tests only */
-export function overlayCount(): number {
-  return stack.length
-}

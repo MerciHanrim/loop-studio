@@ -1,13 +1,16 @@
 # Toolbar — fixed two-tier structure (desktop only)
 
-> **Superseded in part (2026-10).** The desktop toolbar is now the
-> workbench's menu bar and tool row: [`workbench.md`](workbench.md) §WB2–§WB3.
-> §TR1–§TR3 and the group lists in §TR4 and §TR6 describe the earlier
-> two-tier bar. §TR5, the start-up theme and the menu keyboard contract
-> below still hold.
+> **Historic document — it does not describe the current screen (2026-10).**
+> The desktop toolbar is now the workbench's menu bar and tool row:
+> [`workbench.md`](workbench.md) §WB2–§WB3. §TR1–§TR3 and the group lists in
+> §TR4 and §TR6 describe the earlier two-tier bar; the grouped dropdown they
+> name, `SettingsMenu.tsx`, was removed on 2026-10-30 as dead code (Theme and
+> Language live in the View menu). §TR5, the start-up theme and the menu
+> keyboard contract below still hold.
 
-**Status: implemented.** The desktop toolbar is a **fixed two-tier
-structure**, not a width-driven row/wrap layout: Tier 1 (brand + project/app
+**Status: implemented at the time (v0.14–v0.28); superseded by the workbench
+in v0.29.0 — what follows describes the earlier toolbar.** That desktop
+toolbar was a **fixed two-tier structure**, not a width-driven row/wrap layout: Tier 1 (brand + project/app
 commands) is always exactly one row; Tier 2 (the 8-item node-creation
 palette) is always its own row, directly below. The row count never varies
 by viewport width or by locale — only how many Tier-1 GROUPS have collapsed

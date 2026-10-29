@@ -27,8 +27,6 @@ const ui = {
   'toolbar.newGraph.confirm': 'Yeni grafik',
   'toolbar.file.button': 'Dosya',
   'toolbar.file.menuLabel': 'Dosya',
-  'toolbar.settings.button': 'Ayarlar',
-  'toolbar.settings.menuLabel': 'Ayarlar',
   'theme.rowLabel': 'Tema',
   'theme.title': 'Tema: sistem / açık / koyu',
   'theme.auto': 'Otomatik',

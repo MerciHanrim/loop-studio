@@ -47,8 +47,6 @@ const ui = {
   'toolbar.newGraph.confirm': 'مخطط جديد',
   'toolbar.file.button': 'ملف',
   'toolbar.file.menuLabel': 'ملف',
-  'toolbar.settings.button': 'الإعدادات',
-  'toolbar.settings.menuLabel': 'الإعدادات',
   'theme.rowLabel': 'المظهر',
   'theme.title': 'المظهر: النظام / فاتح / داكن',
   'theme.auto': 'تلقائي',

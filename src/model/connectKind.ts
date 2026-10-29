@@ -28,7 +28,6 @@ import { stateRefusal } from './reverse'
 
 export type ConnectKind = 'flow' | 'condition' | 'change' | 'trigger'
 export const CONNECT_KINDS: readonly ConnectKind[] = ['flow', 'condition', 'change', 'trigger']
-export const isConnectKind = (v: unknown): v is ConnectKind => v === 'flow' || v === 'condition' || v === 'change' || v === 'trigger'
 
 /** the port kind a connection kind rides */
 export const portKindOf = (k: ConnectKind): PortKind => (k === 'flow' ? 'resource' : 'state')

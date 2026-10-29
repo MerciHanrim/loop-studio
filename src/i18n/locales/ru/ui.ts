@@ -45,8 +45,6 @@ const ui = {
   'toolbar.newGraph.confirm': 'Новый граф',
   'toolbar.file.button': 'Файл',
   'toolbar.file.menuLabel': 'Файл',
-  'toolbar.settings.button': 'Настройки',
-  'toolbar.settings.menuLabel': 'Настройки',
   'theme.rowLabel': 'Тема',
   'theme.title': 'Тема: системная / светлая / тёмная',
   'theme.auto': 'Авто',

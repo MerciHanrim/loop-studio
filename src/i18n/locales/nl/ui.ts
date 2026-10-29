@@ -29,8 +29,6 @@ const ui = {
   'toolbar.newGraph.confirm': 'Nieuw diagram',
   'toolbar.file.button': 'Bestand',
   'toolbar.file.menuLabel': 'Bestand',
-  'toolbar.settings.button': 'Instellingen',
-  'toolbar.settings.menuLabel': 'Instellingen',
   'theme.rowLabel': 'Thema',
   'theme.title': 'Thema: systeem / licht / donker',
   'theme.auto': 'Auto',

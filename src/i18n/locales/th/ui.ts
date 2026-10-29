@@ -50,8 +50,6 @@ const ui = {
   'toolbar.newGraph.confirm': 'กราฟใหม่',
   'toolbar.file.button': 'ไฟล์',
   'toolbar.file.menuLabel': 'ไฟล์',
-  'toolbar.settings.button': 'ตั้งค่า',
-  'toolbar.settings.menuLabel': 'ตั้งค่า',
   'theme.rowLabel': 'ธีม',
   'theme.title': 'ธีม: ระบบ / สว่าง / มืด',
   'theme.auto': 'อัตโนมัติ',

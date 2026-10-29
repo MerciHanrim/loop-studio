@@ -73,7 +73,6 @@ export const STORAGE_KEYS = {
 } as const
 
 export type StorageKey = keyof typeof STORAGE_KEYS
-export type StorageKeyKind = (typeof STORAGE_KEYS)[StorageKey]
 
 /**
  * Keys an earlier version stored and no code reads or writes any more. They are

@@ -25,8 +25,6 @@ const ui = {
   'toolbar.newGraph.confirm': '新しいグラフ',
   'toolbar.file.button': 'ファイル',
   'toolbar.file.menuLabel': 'ファイル',
-  'toolbar.settings.button': '設定',
-  'toolbar.settings.menuLabel': '設定',
   'theme.rowLabel': 'テーマ',
   'theme.title': 'テーマ：システム / ライト / ダーク',
   'theme.auto': '自動',

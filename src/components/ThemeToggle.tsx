@@ -34,8 +34,8 @@ const OPTION_KEY: Record<Mode, MessageKey> = {
  *  Language's own row (Hanrim's visual review, 2026-09-15 — a plain
  *  cycle-on-click row didn't read as clickable at all, unlike Language's
  *  `›`-marked one). `open`/`onOpenChange` are controlled when supplied
- *  (`SettingsMenu.tsx` uses this so Theme's and Language's submenus are
- *  mutually exclusive); otherwise the component manages its own state. */
+ *  (a host that lists Theme and Language together uses this to keep their
+ *  submenus mutually exclusive); otherwise the component manages its own state. */
 export function ThemeToggle({
   variant = 'pill',
   open: controlledOpen,

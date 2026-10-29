@@ -94,8 +94,6 @@ export const P = {
   roastedCoverDays: 2.35, // roasted-supply-margin buffer = this many days of demand
 }
 
-export type CoffeeParams = typeof P
-
 // ── tiny builders ─────────────────────────────────────────────────────────
 type XY = { x: number; y: number }
 

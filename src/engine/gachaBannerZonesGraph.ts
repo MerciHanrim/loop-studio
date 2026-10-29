@@ -560,32 +560,6 @@ export const TRACKED_POOLS = [
  *  set — a first-time viewer sees 4 lines, not 10. */
 export const DEFAULT_TIMELINE_SERIES = ['ssr_count_free', 'ssr_count_standard', 'ssr_count_pickup', 'pickup_count_pickup']
 
-/** Node ids that are activator/pity "control" state, not the main resource
- *  flow — the generator lays these out in their own lower band per zone
- *  (implementation note 3 / Hanrim's "flow on top, control below"), and the
- *  Parameter nodes among them already sort into place via `paramId`.
- *  `pulls_made_*` / `ceiling_hits_*` are reached only via STATE (label)
- *  edges, never a resource edge — the generator's resource-only depth BFS
- *  gives them depth 0 for want of any resource in-edge, which used to stack
- *  them in the SAME flow-band column as the zone's actual entry node
- *  (`fund_*`). That crowded column left no room for a pity activator edge's
- *  condition label to route past without overlapping one of them
- *  (connector-readability review round 2, Hanrim/Lumi, 2026-09-14) — control
- *  classification moves them to the control band's own wrapped grid instead,
- *  where `pity_*` already lives. */
-export function isControlNode(id: string): boolean {
-  return (
-    id.startsWith('zone1_') ||
-    id.startsWith('zone2_') ||
-    id.startsWith('zone3_') ||
-    id === 'pulls_per_zone' ||
-    id.startsWith('pity_') ||
-    id.startsWith('pulls_made_') ||
-    id.startsWith('ceiling_hits_') ||
-    id === 'missed_pickup_pickup'
-  )
-}
-
 /** docs/flow-colour-and-compact-nodes.md FC-6 — each zone's flow nodes take
  *  the colour its frame already carries (General / Free Sage, Premium Standard
  *  Violet, Premium Pickup Rose), so the two say the same thing. The comparison
