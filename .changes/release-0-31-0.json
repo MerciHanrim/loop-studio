@@ -1,0 +1,1 @@
+{ "type": "internal", "reason": "Release v0.31.0: raises the app version to 0.31.0, moves the Unreleased CHANGELOG lines into the v0.31.0 section, and retakes the README's three screenshots for the redrawn run bar; no product change of its own." }
