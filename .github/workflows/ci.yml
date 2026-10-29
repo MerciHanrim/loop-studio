@@ -79,8 +79,13 @@ jobs:
       - name: Change declaration — a change that ships says whether it is user-facing, with its version and release note
         run: npm run check:change-declaration
         env:
-          # a pull request is compared with its base; a push to main with the commit before it
-          CHANGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          # a pull request: its HEAD commit against the base BRANCH as fetched
+          # (fetch-depth 0), so the base is merge-base(main, head) at run time —
+          # not `base.sha`, which lags behind main and made the checked-out MERGE
+          # commit carry another PR's declaration into this one's count (#415);
+          # a push to main: the working tree against the commit before it
+          CHANGE_BASE: ${{ github.event.pull_request.base.ref && format('origin/{0}', github.event.pull_request.base.ref) || github.event.before }}
+          CHANGE_HEAD: ${{ github.event.pull_request.head.sha }}
       - name: E2E shards — every listed test in exactly one shard, every shard within the time budget
         run: npm run check:e2e-shards
       - name: Web build
@@ -114,7 +119,7 @@ jobs:
   # within the budget (`npm run check:e2e-shards`). To change the shard count,
   # change the matrix AND the `/N` in the run step; the check keeps them equal.
   e2e-shard:
-    name: e2e (shard ${{ matrix.shard }}/6)
+    name: e2e (shard ${{ matrix.shard }}/8)
     # Windows so the committed visual baselines (`*-win32.png`) match; public
     # repo ⇒ Actions minutes are free.
     runs-on: windows-latest
@@ -122,7 +127,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -135,7 +140,7 @@ jobs:
       # the default config's `build-portable` setup project self-builds the
       # portable bundle on the one shard that carries the portable spec
       - name: E2E (dev server + portable file://)
-        run: node scripts/e2e-shards.mjs run ${{ matrix.shard }}/6
+        run: node scripts/e2e-shards.mjs run ${{ matrix.shard }}/8
       # the JSON report is the timing sample `scripts/e2e-shard-weights.mjs`
       # reads to refresh the weights; small, kept for two weeks, uploaded always
       - name: Upload the timing report

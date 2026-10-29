@@ -13,7 +13,15 @@
 // check's validation of their list and their languages.
 //
 // The base is `--base`, else `CHANGE_BASE` (CI passes the pull request's base
-// commit, or the previous `main` commit on a push), else `origin/main`.
+// BRANCH, or the previous `main` commit on a push), else `origin/main`. The
+// side under review is the working tree, or — `--head <ref>` / `CHANGE_HEAD` —
+// a commit: CI passes the pull request's head, because the commit it checks
+// out is the pull request's MERGE with the base branch as it is at run time
+// (issue #415: compared against a stale `base.sha`, that merge carried a main
+// commit's declaration into the count — "2 declarations were added" on a
+// comment-only push, minutes after another PR had merged). With a head, the
+// base is `merge-base(base, head)` and the diff is `base..head`, committed
+// only; the working tree is not read.
 //
 // FAILS CLOSED. If git cannot say what changed - no such ref, a shallow clone
 // with no common ancestor - that is an error, never "nothing changed". The same
@@ -49,30 +57,49 @@ const readNow = (path) => {
   }
 }
 
-// ── the base ────────────────────────────────────────────────────────────────
-const arg = process.argv.indexOf('--base')
-const asked = (arg >= 0 ? process.argv[arg + 1] : undefined) ?? process.env.CHANGE_BASE ?? 'origin/main'
+// ── the base, and the side under review ─────────────────────────────────────
+const argOf = (flag) => {
+  const i = process.argv.indexOf(flag)
+  return i >= 0 ? process.argv[i + 1] : undefined
+}
+const asked = argOf('--base') ?? process.env.CHANGE_BASE ?? 'origin/main'
+/** a commit to review instead of the working tree (`--head` / `CHANGE_HEAD`); null = the working tree */
+const headAsked = argOf('--head') ?? process.env.CHANGE_HEAD ?? null
+let head = null
+if (headAsked) {
+  try {
+    head = git('rev-parse', '--verify', `${headAsked}^{commit}`).trim()
+  } catch {
+    fail(`the head to review, "${headAsked}", is not a commit this clone has`)
+  }
+}
 let base = null
 if (!asked || /^0+$/.test(asked)) {
   fail(`no base commit to compare with (got "${asked}")`)
-} else {
+} else if (!headAsked || head) {
   try {
-    base = git('merge-base', asked, 'HEAD').trim()
+    base = git('merge-base', asked, head ?? 'HEAD').trim()
   } catch {
-    fail(`git cannot find a common ancestor of "${asked}" and HEAD - a shallow clone, or a ref that does not exist`)
+    fail(`git cannot find a common ancestor of "${asked}" and ${head ? headAsked : 'HEAD'} - a shallow clone, or a ref that does not exist`)
   }
 }
+/** a file's text on the side under review: the head commit, or the working tree */
+const nowText = (path) => (head ? showAt(head, path) : readNow(path))
 
 if (base) {
-  // ── what differs from the base: committed, staged, unstaged and untracked ──
+  // ── what differs from the base: with a head, its commits; otherwise the
+  //    working tree — committed, staged, unstaged and untracked ──
   const changed = []
-  for (const line of git('diff', '--name-status', '--no-renames', base).split('\n')) {
+  const diffArgs = head ? ['diff', '--name-status', '--no-renames', base, head] : ['diff', '--name-status', '--no-renames', base]
+  for (const line of git(...diffArgs).split('\n')) {
     if (!line.trim()) continue
     const [status, ...rest] = line.split('\t')
     changed.push({ status: status[0], path: rest.join('\t') })
   }
-  for (const path of git('ls-files', '--others', '--exclude-standard').split('\n')) {
-    if (path.trim()) changed.push({ status: 'A', path: path.trim() })
+  if (!head) {
+    for (const path of git('ls-files', '--others', '--exclude-standard').split('\n')) {
+      if (path.trim()) changed.push({ status: 'A', path: path.trim() })
+    }
   }
 
   // ── the app version, then and now ──
@@ -80,25 +107,40 @@ if (base) {
   // "there was none": with no base nobody can say whether the version moved.
   const baseRead = readPackageVersion(showAt(base, 'package.json'))
   if (baseRead.problem) fail(`package.json at the base ${base.slice(0, 7)}: ${baseRead.problem} - the app version this change started from is unknown`)
-  const headRead = readPackageVersion(readNow('package.json'))
+  const headRead = readPackageVersion(nowText('package.json'))
   if (headRead.problem) fail(`package.json: ${headRead.problem}`)
   const baseVersion = baseRead.version ?? null
   const headVersion = headRead.version ?? null
 
-  // ── every declaration in the tree ──
-  const dir = resolve(root, DECLARATION_DIR)
-  const declarationDirEntries = existsSync(dir) ? readdirSync(dir).map((n) => `${DECLARATION_DIR}/${n}`) : []
+  // ── every declaration on the side under review ──
+  let declarationDirEntries = []
   const declarationTexts = {}
-  for (const entry of declarationDirEntries) {
-    if (entry.endsWith('.json')) declarationTexts[entry] = readFileSync(resolve(root, entry), 'utf8')
+  if (head) {
+    const listed = (() => {
+      try {
+        return git('ls-tree', '--name-only', head, `${DECLARATION_DIR}/`).split('\n')
+      } catch {
+        return []
+      }
+    })()
+    declarationDirEntries = listed.map((l) => l.trim()).filter(Boolean)
+    for (const entry of declarationDirEntries) {
+      if (entry.endsWith('.json')) declarationTexts[entry] = showAt(head, entry) ?? ''
+    }
+  } else {
+    const dir = resolve(root, DECLARATION_DIR)
+    declarationDirEntries = existsSync(dir) ? readdirSync(dir).map((n) => `${DECLARATION_DIR}/${n}`) : []
+    for (const entry of declarationDirEntries) {
+      if (entry.endsWith('.json')) declarationTexts[entry] = readFileSync(resolve(root, entry), 'utf8')
+    }
   }
 
   // ── the changelog, then and now: a user-facing change's line goes under
   //    "## Unreleased", and must be new to this change ──
-  const changelog = readNow(CHANGELOG)
+  const changelog = nowText(CHANGELOG)
   const baseChangelog = showAt(base, CHANGELOG)
 
-  console.log(`  base  ${base.slice(0, 7)} (${asked})`)
+  console.log(`  base  ${base.slice(0, 7)} (${asked})${head ? `  head  ${head.slice(0, 7)} (${headAsked})` : ''}`)
   if (baseVersion === null || headVersion === null) {
     fail('change declaration: not checked, the app version is unknown on one side')
   } else {

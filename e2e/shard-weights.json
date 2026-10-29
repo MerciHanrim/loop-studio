@@ -3,938 +3,1518 @@
  "source": {
   "runs": [
    {
-    "sha": "30bf3d4",
-    "run": "38032960035",
-    "date": "2026-10-10"
+    "sha": "6b0b00a2",
+    "run": null,
+    "date": "2026-10-29"
    },
    {
-    "sha": "35acc87",
-    "run": 37097166320,
-    "date": "2026-10-03"
+    "sha": "97295370",
+    "run": null,
+    "date": "2026-10-29"
    },
    {
-    "sha": "1655b01",
-    "run": 37095363930,
-    "date": "2026-10-03"
+    "sha": "5dcddbd6",
+    "run": null,
+    "date": "2026-10-29"
    },
    {
-    "sha": "16020f2",
-    "run": 37090671476,
-    "date": "2026-10-03"
+    "sha": "edfe8826",
+    "run": null,
+    "date": "2026-10-29"
    },
    {
-    "sha": "5bbaf1b",
-    "run": 37089637146,
-    "date": "2026-10-03"
+    "sha": "770f55cc",
+    "run": null,
+    "date": "2026-10-29"
    },
    {
-    "sha": "3ce52f4",
-    "run": 37080825832,
-    "date": "2026-10-03"
+    "sha": "b60e7d65",
+    "run": null,
+    "date": "2026-10-29"
    }
   ],
   "samplesPerFile": 6
  },
  "files": {
   "a11y-announcement-contract.spec.ts": [
-   22.7,
-   20.3,
-   20.8,
-   20.6,
-   16.2,
-   19.2
+   19.3,
+   23.1,
+   23,
+   22.8,
+   24.2,
+   22.7
   ],
   "a11y-direction-invisible.spec.ts": [
-   9.7,
-   7,
-   7.3,
-   7.5,
-   3.9,
-   5.5
-  ],
-  "autosave.spec.ts": [
-   14.6,
-   12.6,
-   12.6,
-   14.4,
-   9.2,
-   11
-  ],
-  "canvas-aria-locale.spec.ts": [
-   3.4,
-   2.6,
-   2.8,
-   8.5,
-   2.3,
-   2.5
-  ],
-  "canvas-lock.spec.ts": [
-   29.3,
-   10.9,
+   11.1,
+   11.4,
+   11.6,
    11.4,
    11.5,
-   6.4,
-   8.4
+   8.6
+  ],
+  "autosave.spec.ts": [
+   13.5,
+   15.1,
+   12,
+   14.8,
+   14,
+   13.7
+  ],
+  "canvas-aria-locale.spec.ts": [
+   7.1,
+   6.9,
+   5.8,
+   6.1,
+   5.9,
+   5.5
+  ],
+  "canvas-lock.spec.ts": [
+   20,
+   29.6,
+   30,
+   30.6,
+   24.7,
+   31.4
   ],
   "canvas-refresh-edges.spec.ts": [
-   16.1,
-   13.7,
-   14.4,
-   15.9,
-   9.5,
-   11.5
+   12.6,
+   18.7,
+   17.5,
+   18,
+   20.3,
+   17.9
   ],
   "canvas-refresh-invariants.spec.ts": [
+   3.5,
+   3.3,
+   2.9,
+   2.9,
    2.6,
-   2.4,
-   2.3,
-   2.8,
-   1.9,
-   2.1
+   2.9
   ],
   "canvas-refresh-lod.spec.ts": [
-   60.1,
-   38.5,
-   39.1,
-   40.7,
-   35.3,
-   37
+   42.5,
+   43.4,
+   43.4,
+   41.9,
+   40.4,
+   40.4
   ],
   "canvas-refresh-visual.spec.ts": [
-   68.5,
-   59,
-   52,
-   55.4,
-   52.5,
-   55.3
+   54.3,
+   70.7,
+   72.6,
+   68.2,
+   54,
+   51.7
   ],
   "cjk-punctuation-font.spec.ts": [
-   12.2,
-   8.8,
-   11.1,
-   9.2,
-   5.2,
-   10.8
+   10.5,
+   11.5,
+   11.6,
+   10,
+   6.9,
+   6.3
   ],
   "coffee-zone-frames.spec.ts": [
-   12.5,
-   9.8,
-   10.4,
-   9.9,
-   11.4,
-   8.7
+   24.5,
+   24,
+   27.1,
+   25.4,
+   27.4,
+   23.3
   ],
   "confirm-dialog.spec.ts": [
    21.9,
-   17.6,
-   18.1,
-   18.7,
-   12,
-   14.9
+   23.9,
+   23.9,
+   23.3,
+   16.6,
+   15.7
   ],
   "contextual-inline-help.spec.ts": [
-   31.9,
-   26.1,
-   27,
-   29.1,
-   17.6,
-   21.9
+   31.6,
+   34.5,
+   23.8,
+   34.4,
+   32,
+   34.9
   ],
   "csv-contract.spec.ts": [
-   8.4,
-   6.6,
-   7,
-   7,
-   4.1,
-   5.3
+   10.2,
+   10.4,
+   8.1,
+   10.4,
+   10.6,
+   10.1
   ],
   "csv-download-encoding.spec.ts": [
-   8,
-   6.4,
-   6.7,
-   7.1,
-   4.2,
-   5.3
+   8.7,
+   8.9,
+   9.4,
+   8.9,
+   9,
+   6.6
   ],
   "data-import-guide.spec.ts": [
-   39,
-   34.2,
-   34.2,
-   35.3,
-   20.6,
-   26.6
+   43.8,
+   54.8,
+   49.5,
+   47.1,
+   42.8,
+   42.7
   ],
   "data-import-refresh.spec.ts": [
-   18.3,
-   15.7,
-   16.3,
-   16.7,
-   9.7,
-   12.5
+   19.2,
+   19.9,
+   20.7,
+   19.3,
+   19.8,
+   14
   ],
   "data-import-wizard.spec.ts": [
-   31.7,
-   27.5,
-   26.8,
-   27.8,
-   18.4,
-   24.2
+   36.8,
+   42.1,
+   42,
+   45.1,
+   45,
+   44.2
   ],
   "dense-graph-pan.spec.ts": [
-   30.5,
-   26.6,
-   26.5,
-   27.9,
-   16.5,
-   19.6
+   32.9,
+   38.3,
+   37.7,
+   41.6,
+   38.7,
+   37.3
   ],
   "descriptive-copy-wrapping.spec.ts": [
-   67.1,
-   61.2,
-   64.3,
-   66.1,
-   57.8,
-   53.4
+   32,
+   35.6,
+   36.4,
+   35.8,
+   32.3,
+   34.5
   ],
   "desktop-btn-boundary.spec.ts": [
-   36.9,
-   36,
-   34.9,
-   33.2,
-   23.9,
-   27.4
+   35.5,
+   39.2,
+   30.5,
+   40.2,
+   41.1,
+   38.9
   ],
   "dialog-layer.spec.ts": [
-   27,
-   19.6,
-   26.2,
-   20.1,
-   11.4,
-   15.9
+   22.7,
+   24.1,
+   24.4,
+   21.7,
+   13.9,
+   13.4
   ],
   "dialogs.spec.ts": [
-   4.1,
-   3.3,
-   4.3,
-   3.5,
-   2.1,
-   2.7
-  ],
-  "edge-label-ref-types.spec.ts": [
-   9.8,
-   5.6,
-   5.9,
-   5.3,
-   2.8,
-   3.9
-  ],
-  "edge-routing.spec.ts": [
-   19.3,
-   15.9,
-   16.6,
-   16.7,
-   11.9,
-   14.1
-  ],
-  "export.spec.ts": [
-   5.1,
-   4.1,
-   5.2,
-   4.5,
-   2.4,
-   3.2
-  ],
-  "forced-colors-edge-tell.spec.ts": [
-   199.4,
-   149.8,
-   151.8,
-   154.1,
-   125.5,
-   139.2
-  ],
-  "frame-a11y.spec.ts": [
-   67.7,
-   58.1,
-   59.7,
-   63.5,
-   38.5,
-   46.8
-  ],
-  "frame-label-locale-switch.spec.ts": [
-   11.6,
-   7.8,
-   8.3,
-   8.6,
-   5.5,
-   7
-  ],
-  "frame-props-popover.spec.ts": [
-   18.7,
-   14.6,
-   15.6,
-   17.6,
-   8.7,
-   11.3
-  ],
-  "gacha-banner-zones.spec.ts": [
-   68.9,
-   64.4,
-   65.9,
-   77.1,
-   37,
-   48.9
-  ],
-  "guided-tour.spec.ts": [
-   47.9,
-   44.2,
-   45.2,
-   50.6,
-   27.3,
-   34.6
-  ],
-  "help-menu-readability.spec.ts": [
-   14.2,
-   13,
-   13.1,
-   15.5,
-   7.2,
-   10.4
-  ],
-  "i18n-acceptance.spec.ts": [
-   26.7,
-   23.8,
-   24.6,
-   27.4,
-   14.8,
-   19.4
-  ],
-  "i18n-lazy.spec.ts": [
-   15.4,
-   13.2,
-   13.2,
-   13.2,
-   13.5,
-   13.2
-  ],
-  "i18n-visual.spec.ts": [
-   13,
-   11.8,
-   11.9,
-   11.2,
-   11.6,
-   11.4
-  ],
-  "i18n.spec.ts": [
-   46.4,
-   39.8,
-   40.6,
-   40,
-   40.7,
-   41.9
-  ],
-  "label-timing.spec.ts": [
-   21.3,
-   19.7,
-   18.5,
-   18.4,
-   20.5,
-   17.4
-  ],
-  "large-graph-readability.spec.ts": [
-   224.1,
-   211.7,
-   214.2,
-   204.4,
-   212.9,
-   209.5
-  ],
-  "mc-invalidation.spec.ts": [
-   11.8,
-   7.9,
-   8,
-   8.3,
-   8.6,
-   8.3
-  ],
-  "mc-paths.spec.ts": [
-   35.9,
-   33.1,
-   35.2,
-   34.8,
-   33.9,
-   33.7
-  ],
-  "mmo-progression.spec.ts": [
-   18.9,
-   15.7,
-   15.5,
-   15,
-   17.6,
-   15.3
-  ],
-  "mobile.spec.ts": [
-   108.8,
-   75.4,
-   44.9,
-   56.1,
-   72.6,
-   78.5
-  ],
-  "model-nodes-visual.spec.ts": [
-   9.8,
-   8.6,
-   8.7,
-   8.3,
-   8.6,
-   8.2
-  ],
-  "model-nodes.spec.ts": [
-   17.6,
-   17,
-   15,
-   15.6,
-   15,
-   14.1
-  ],
-  "model-panels.spec.ts": [
-   22.9,
-   19.4,
-   19.4,
-   21,
-   19.1,
-   17.9
-  ],
-  "model-verification.spec.ts": [
-   12.7,
-   13.5,
-   10.1,
-   12.5,
-   13.8,
-   13
-  ],
-  "module-system.spec.ts": [
-   25.1,
-   20.3,
-   19.2,
-   18,
-   17.9,
-   17.6
-  ],
-  "monte-carlo.spec.ts": [
-   10.4,
-   9.5,
-   9,
-   9.1,
-   8.7,
-   8.7
-  ],
-  "node-hue-edge-label-contract.spec.ts": [
-   10.8,
-   9.4,
-   8.8,
-   8.8,
-   8.8,
-   8.5
-  ],
-  "node-keyboard-move.spec.ts": [
-   57.1,
-   51.1,
-   49.5,
-   48.9,
-   50.4,
-   48.4
-  ],
-  "node-long-label.spec.ts": [
-   25.6,
-   22.9,
-   21.8,
-   22,
-   22.1,
-   21.5
-  ],
-  "palette-tooltip-menu-suppression.spec.ts": [
-   15.8,
-   13.7,
-   12.6,
-   12.8,
-   12.8,
-   12.3
-  ],
-  "palette-tooltip-overflow-clip.spec.ts": [
-   6.3,
-   5.1,
+   4.2,
    4.7,
+   3.2,
    4.8,
-   4.7,
+   4.8,
    4.6
   ],
-  "palette-tooltip.spec.ts": [
-   13.5,
-   11.9,
-   11.7,
-   11.2,
-   11.5,
-   11.4
+  "edge-label-ref-types.spec.ts": [
+   8.4,
+   12.1,
+   9.9,
+   10.8,
+   8.3,
+   8.1
   ],
-  "parameter-activator-authoring.spec.ts": [
-   22.6,
-   19.4,
-   19.1,
-   18.3,
-   18.6,
-   18.2
+  "edge-routing.spec.ts": [
+   18.5,
+   20.3,
+   15.6,
+   19.9,
+   20.3,
+   19.4
   ],
-  "parameter-inputs.spec.ts": [
-   6.9,
-   6,
-   5.8,
-   5.6,
-   5.5,
-   5.4
+  "export.spec.ts": [
+   7,
+   5.7,
+   5.4,
+   4.7,
+   3.3,
+   3.1
   ],
-  "percent-affix.spec.ts": [
-   6.4,
-   5.2,
-   5.6,
-   5.1,
-   5.1,
-   5
+  "forced-colors-edge-tell.spec.ts": [
+   196,
+   246,
+   251,
+   216.9,
+   189.2,
+   183.5
   ],
-  "playback-a11y-background.spec.ts": [
-   70.2,
-   66.2,
-   62.2,
-   63.8,
-   64.8,
-   65.6
+  "frame-a11y.spec.ts": [
+   79.2,
+   72.2,
+   89.5,
+   75.8,
+   76.6,
+   77.3
   ],
-  "playback-caps-perf.spec.ts": [
-   58.4,
-   43.2,
-   42.6,
-   43.9,
-   41.4,
-   41.4
+  "frame-label-locale-switch.spec.ts": [
+   22.7,
+   20.8,
+   21.3,
+   20.7,
+   18.9,
+   18.1
   ],
-  "playback-choreography.spec.ts": [
-   72.1,
-   66.7,
-   64.9,
-   62.4,
-   65.3,
-   65.9
-  ],
-  "playback-fixture.spec.ts": [
+  "frame-props-popover.spec.ts": [
+   23,
+   22.4,
+   24.6,
+   22.3,
    23.6,
-   21.1,
-   21.2,
-   20.1,
-   20.1,
-   20.2
+   16.2
   ],
-  "playback-invariants.spec.ts": [
-   28.4,
+  "gacha-banner-zones.spec.ts": [
+   109.9,
+   106.6,
+   115.3,
+   106.9,
+   110.8,
+   70
+  ],
+  "guided-tour.spec.ts": [
+   47.8,
+   54,
+   38.3,
+   53.8,
+   55,
+   51.4
+  ],
+  "help-menu-readability.spec.ts": [
+   10.8,
+   11.3,
+   12.9,
+   10.1,
+   6.9,
+   6.5
+  ],
+  "i18n-acceptance.spec.ts": [
+   36.6,
+   34.9,
+   34.7,
+   35.2,
+   32.7,
+   32
+  ],
+  "i18n-lazy.spec.ts": [
+   15.1,
+   14.8,
+   14.4,
+   14.4,
+   13.9,
+   13.5
+  ],
+  "i18n-visual.spec.ts": [
+   14.4,
+   13,
+   14.3,
+   14.2,
+   12.3,
+   14
+  ],
+  "i18n.spec.ts": [
+   61.7,
+   59.5,
+   63.4,
+   73.4,
+   52.3,
+   64
+  ],
+  "label-timing.spec.ts": [
+   21.9,
+   24.4,
+   16.1,
+   25.2,
+   26,
+   17.2
+  ],
+  "large-graph-readability.spec.ts": [
+   254.2,
+   289.5,
+   208,
+   292.8,
+   292.1,
+   271.6
+  ],
+  "mc-invalidation.spec.ts": [
+   11.5,
+   11,
+   10.8,
+   9.5,
+   6.3,
+   6.9
+  ],
+  "mc-paths.spec.ts": [
+   37.9,
+   36.6,
+   43.3,
+   37.7,
+   38.6,
+   27.1
+  ],
+  "mmo-progression.spec.ts": [
+   17.6,
+   31.5,
+   33.8,
+   27.3,
+   27.7,
+   25.9
+  ],
+  "mobile.spec.ts": [
+   116.5,
+   116.2,
+   120.7,
+   118.7,
+   117.8,
+   72
+  ],
+  "model-nodes-visual.spec.ts": [
+   18.9,
+   15.2,
+   17,
+   17.1,
+   17,
+   16.2
+  ],
+  "model-nodes.spec.ts": [
+   20.8,
+   16.6,
+   18.3,
+   19.1,
+   16,
+   18.7
+  ],
+  "model-panels.spec.ts": [
+   26,
+   25,
    27.8,
-   27.9,
+   24.6,
+   21.3,
+   23.5
+  ],
+  "model-verification.spec.ts": [
+   16.6,
+   17.6,
+   16.3,
+   15.8,
+   10,
+   8.7
+  ],
+  "module-system.spec.ts": [
+   18.3,
+   25.3,
+   27.3,
    27.4,
    27.5,
-   27.8
+   26
+  ],
+  "monte-carlo.spec.ts": [
+   11.8,
+   11.2,
+   15.3,
+   12.5,
+   13.5,
+   7.4
+  ],
+  "node-hue-edge-label-contract.spec.ts": [
+   10.3,
+   11,
+   9.6,
+   11.4,
+   12.9,
+   11
+  ],
+  "node-keyboard-move.spec.ts": [
+   60.3,
+   55.4,
+   61.4,
+   67.5,
+   66.7,
+   62.4
+  ],
+  "node-long-label.spec.ts": [
+   31.2,
+   33.2,
+   29.7,
+   35,
+   36.7,
+   22.8
+  ],
+  "palette-tooltip-menu-suppression.spec.ts": [
+   22.7,
+   23.2,
+   22.7,
+   22.1,
+   19.6,
+   19.9
+  ],
+  "palette-tooltip-overflow-clip.spec.ts": [
+   6.5,
+   5.5,
+   7.3,
+   5.3,
+   3.7,
+   3.4
+  ],
+  "palette-tooltip.spec.ts": [
+   11.4,
+   14.1,
+   14.4,
+   14.3,
+   15.8,
+   13.6
+  ],
+  "parameter-activator-authoring.spec.ts": [
+   37,
+   27.7,
+   32.5,
+   28.2,
+   28.4,
+   25.9
+  ],
+  "parameter-inputs.spec.ts": [
+   7.5,
+   7,
+   7.8,
+   8.5,
+   9.6,
+   6.1
+  ],
+  "percent-affix.spec.ts": [
+   6.6,
+   6.6,
+   5.1,
+   6.2,
+   6.2,
+   6
+  ],
+  "playback-a11y-background.spec.ts": [
+   62.9,
+   69.2,
+   70,
+   67.3,
+   64.5,
+   60.5
+  ],
+  "playback-caps-perf.spec.ts": [
+   45.7,
+   52.1,
+   53.2,
+   50.6,
+   45.2,
+   38.1
+  ],
+  "playback-choreography.spec.ts": [
+   70.7,
+   75,
+   69.2,
+   69.3,
+   65.1,
+   69.7
+  ],
+  "playback-fixture.spec.ts": [
+   19.5,
+   22.7,
+   23,
+   24.1,
+   24.3,
+   23
+  ],
+  "playback-invariants.spec.ts": [
+   28.8,
+   29.3,
+   29.7,
+   28.5,
+   28.7,
+   28.4
   ],
   "playback-ordering-timing.spec.ts": [
-   19.6,
-   15.4,
-   16.5,
-   15.3,
-   15.5,
-   15.4
+   22.5,
+   21.9,
+   21.8,
+   21.8,
+   19.8,
+   19.7
   ],
   "playback-ordering.spec.ts": [
-   25.7,
-   21.9,
-   22.3,
-   21.6,
-   20.3,
-   21.7
+   27.9,
+   27.8,
+   27.4,
+   26.7,
+   24.1,
+   27.1
   ],
   "playback-steady-state.spec.ts": [
-   12.8,
-   12.8,
-   10.2,
-   12.3,
-   10.3,
-   10.7
+   19.7,
+   17.2,
+   17.4,
+   17.2,
+   21.4,
+   12.7
   ],
   "playback-visual.spec.ts": [
+   62.4,
    66.3,
-   59.7,
-   49.2,
-   55.5,
-   59,
-   57.3
+   52.6,
+   66.8,
+   67.1,
+   63.8
   ],
   "playback.spec.ts": [
-   30.3,
-   26.3,
-   26.5,
-   27.9,
-   27.6,
-   26.1
+   29.6,
+   29,
+   28.8,
+   29.1,
+   29.4,
+   25.9
   ],
   "pool-input-guard.spec.ts": [
+   3.2,
    2.9,
-   2.4,
-   2.8,
-   2.6,
    3.3,
-   2.4
+   2.6,
+   2.7,
+   1.8
   ],
   "portable-file.spec.ts": [
-   60,
-   45.6,
-   27,
-   32.2,
-   44.7,
-   47.6
+   61.3,
+   61.3,
+   64.3,
+   60.7,
+   62.1,
+   40.2
   ],
   "ports.spec.ts": [
-   3.6,
-   3.1,
-   3.5,
-   3.2,
-   3.2,
+   4.1,
+   4,
+   3.9,
+   3.9,
+   4,
    3.1
   ],
   "recommended-config.spec.ts": [
+   5.5,
+   8.1,
    8.6,
-   6.5,
-   6.9,
-   7.4,
-   6.4,
-   6.3
+   8.4,
+   7.5,
+   8.5
   ],
   "register-expr-authoring-slice2.spec.ts": [
-   23.6,
-   20,
-   22.8,
-   19.5,
-   20.3,
-   19.3
+   63.9,
+   50.7,
+   62.2,
+   52.4,
+   45,
+   51.9
   ],
   "register-expr-authoring.spec.ts": [
-   26.6,
-   21.9,
-   25.5,
-   21.8,
-   21.3,
-   21.2
+   40.3,
+   32.4,
+   32.2,
+   30.2,
+   26.3,
+   23.8
   ],
   "register-expr-operators.spec.ts": [
-   17.4,
-   16,
-   16.2,
+   45.4,
+   44.2,
+   45.8,
+   45.5,
+   45.3,
+   33.2
+  ],
+  "revision-fixture.spec.ts": [
+   1.7,
+   2,
+   2,
+   2,
+   2.1,
+   1.7
+  ],
+  "revision.spec.ts": [
+   46.7,
+   39.8,
+   43.2,
+   43.4,
+   43.7,
+   42.5
+  ],
+  "rtl-arrow-direction.spec.ts": [
+   7.3,
+   7.2,
+   7.4,
+   7.2,
+   7.3,
+   6.7
+  ],
+  "rtl-canvas-content-direction.spec.ts": [
+   14.1,
+   21.6,
+   22,
+   22.2,
+   22.1,
+   21.5
+  ],
+  "rtl-canvas-contract.spec.ts": [
+   8.1,
+   8.8,
+   8.9,
+   9,
+   7.8,
+   8.8
+  ],
+  "rtl-form-direction.spec.ts": [
+   16.1,
+   14.3,
+   16.1,
+   16.1,
+   13.2,
+   15.8
+  ],
+  "rtl-locale-direction.spec.ts": [
+   4.9,
+   5.3,
+   5.4,
+   5.4,
+   5,
+   5.4
+  ],
+  "rtl-mixed-direction.spec.ts": [
+   13.8,
+   13.2,
+   13.1,
+   12.9,
+   11.8,
+   11.6
+  ],
+  "rtl-playbar-pin.spec.ts": [
+   8.4,
+   8.1,
+   8.1,
+   8,
+   8.1,
+   7.5
+  ],
+  "run-bar-fit.spec.ts": [
+   85,
+   84,
+   88.2,
+   83.5,
+   86.9,
+   61.3
+  ],
+  "share.spec.ts": [
+   26.7,
+   27.5,
+   28.1,
+   26.3,
+   26,
+   24.2
+  ],
+  "shell-control-boundary.spec.ts": [
+   93.4,
+   100.4,
+   100.3,
+   101,
+   91.9,
+   90.6
+  ],
+  "shell-function-colours.spec.ts": [
+   10.3,
+   11.1,
+   8.4,
+   11.4,
+   11.4,
+   11
+  ],
+  "smoke.spec.ts": [
+   1.1,
+   1.6,
+   1.2,
+   1.6,
+   1.5,
+   1.5
+  ],
+  "state-fixture.spec.ts": [
+   12.5,
+   12.4,
+   13.1,
+   12.4,
+   12.9,
+   8.5
+  ],
+  "state-ui.spec.ts": [
+   36.4,
+   36.1,
+   39.3,
+   35.9,
+   35.8,
+   33.7
+  ],
+  "storage-port-runtime.spec.ts": [
+   13.6,
+   15.6,
+   12.9,
+   15.7,
    15.8,
+   16.7
+  ],
+  "template-label-overlay.spec.ts": [
+   47.5,
+   55.6,
+   39.6,
+   53.5,
+   55.7,
+   52
+  ],
+  "template-load-viewport.spec.ts": [
+   32.5,
+   35.1,
+   26.4,
+   34.9,
+   31.2,
+   34.5
+  ],
+  "theme-boot.spec.ts": [
+   93.1,
+   95,
+   95,
+   94.6,
+   92.8,
+   92.6
+  ],
+  "theme-submenu.spec.ts": [
+   17,
+   18.2,
+   17.3,
+   16.1,
+   15.1,
+   11.5
+  ],
+  "timeline-end-labels.spec.ts": [
+   54.1,
+   48,
+   53.6,
+   45.5,
+   36.2,
+   32.8
+  ],
+  "timeline-rolling-domain.spec.ts": [
+   14,
+   12.4,
+   13.7,
+   13.1,
+   13.8,
+   12.9
+  ],
+  "timeline-series.spec.ts": [
+   45.6,
+   70.3,
+   73.7,
+   57.9,
+   44.2,
+   44.7
+  ],
+  "toolbar-locale-width.spec.ts": [
+   5.2,
+   7.8,
+   8.4,
+   8.5,
+   8.9,
+   8
+  ],
+  "toolbar-menu-dismiss.spec.ts": [
+   26.6,
+   27.9,
+   28.2,
+   27.7,
+   24.6,
+   28.8
+  ],
+  "toolbar-responsive.spec.ts": [
+   40.1,
+   48.7,
+   51,
+   46.6,
+   37.9,
+   35.1
+  ],
+  "visual.spec.ts": [
+   3.3,
+   3.6,
+   3.7,
+   4,
+   3.7,
+   2.7
+  ],
+  "workspace.spec.ts": [
+   21.6,
+   20.4,
+   21.3,
+   21.8,
+   19.3,
+   21.4
+  ],
+  "app-ready-diagnostics.spec.ts": [
+   11.4,
+   12.7,
+   12.9,
+   13.8,
+   13,
+   13.8
+  ],
+  "connection-shapes.spec.ts": [
+   34,
+   30.1,
+   29.9,
+   29.6,
+   26.3,
+   25.9
+  ],
+  "diagram-grid.spec.ts": [
+   15.5,
+   17,
+   16.8,
+   15.5,
+   11.5,
+   11.2
+  ],
+  "document-boundary.spec.ts": [
+   26,
+   24.2,
+   24,
+   25.3,
+   20.3,
+   20.4
+  ],
+  "flow-colour-mobile.spec.ts": [
+   4.8,
+   4.9,
+   4.9,
+   5,
+   5,
+   2.7
+  ],
+  "flow-colour-views-visual.spec.ts": [
+   29.1,
+   29,
+   30.2,
+   28.9,
+   27,
+   29.1
+  ],
+  "flow-colour-views.spec.ts": [
+   30.8,
+   32.5,
+   28.5,
+   32.5,
+   34.2,
+   32
+  ],
+  "flow-colour-visual.spec.ts": [
+   6.3,
+   8.7,
+   9.8,
+   9.2,
+   8.1,
+   9.5
+  ],
+  "flow-colour.spec.ts": [
+   31.2,
+   30.9,
+   32.8,
+   30.3,
+   32.8,
+   29.5
+  ],
+  "focus-edge-dimming.spec.ts": [
+   10.9,
+   10.7,
+   11.3,
+   10.5,
+   11,
+   8
+  ],
+  "licenses.spec.ts": [
+   16.9,
+   22.3,
+   23.5,
+   21,
+   20.8,
+   14.7
+  ],
+  "lock-control.spec.ts": [
+   16.1,
+   14.2,
+   15.6,
+   16.8,
+   14,
+   15.8
+  ],
+  "menu-keyboard.spec.ts": [
+   47.8,
+   42.9,
+   46.6,
+   47.2,
+   47.7,
+   46.4
+  ],
+  "modal-inert.spec.ts": [
+   10.3,
+   17.8,
+   17.5,
+   15.4,
    15.3,
    15
   ],
-  "revision-fixture.spec.ts": [
-   1.8,
-   1.8,
-   1.8,
-   1.7,
-   1.6,
-   1.6
-  ],
-  "revision.spec.ts": [
-   37.4,
-   34.8,
-   32.3,
-   35,
-   33.7,
-   35.3
-  ],
-  "rtl-arrow-direction.spec.ts": [
-   6.4,
-   5.6,
-   15.9,
-   6.3,
-   5.6,
-   5.5
-  ],
-  "rtl-canvas-content-direction.spec.ts": [
-   21.4,
-   16.2,
-   19.1,
-   16.3,
-   16.7,
-   16.8
-  ],
-  "rtl-canvas-contract.spec.ts": [
-   6.2,
-   5.1,
-   5.5,
-   4.9,
-   5.2,
-   5.6
-  ],
-  "rtl-form-direction.spec.ts": [
-   17.2,
-   12.2,
-   13.8,
-   12,
-   12.7,
-   12.7
-  ],
-  "rtl-locale-direction.spec.ts": [
-   3.8,
-   3.1,
-   3.5,
-   3,
-   3.6,
-   3.3
-  ],
-  "rtl-mixed-direction.spec.ts": [
-   11.3,
-   9.6,
-   10.8,
-   9.3,
-   11.2,
-   10
-  ],
-  "rtl-playbar-pin.spec.ts": [
-   5.7,
-   5.1,
-   6,
-   5.1,
-   5.7,
-   6.7
-  ],
-  "run-bar-fit.spec.ts": [
-   115,
-   93.4,
-   102.9,
-   90.7,
-   90.2
-  ],
-  "share.spec.ts": [
-   26.3,
-   19.8,
-   14.4,
-   16.8,
-   20.2,
-   18.4
-  ],
-  "shell-control-boundary.spec.ts": [
-   112.5,
-   92.6,
-   72.5,
-   77.4,
-   93.2,
-   97.4
-  ],
-  "shell-function-colours.spec.ts": [
-   12.1,
-   9.9,
-   6.2,
-   7.7,
-   11.2,
-   10.5
-  ],
-  "smoke.spec.ts": [
-   1.7,
-   1.1,
-   0.6,
-   0.8,
-   1.3,
-   1.1
-  ],
-  "state-fixture.spec.ts": [
-   12.2,
-   10.1,
-   7.6,
-   8.5,
-   11.8,
-   10.6
-  ],
-  "state-ui.spec.ts": [
-   30.2,
-   24.9,
-   16.6,
-   20.1,
-   25,
-   26.1
-  ],
-  "storage-port-runtime.spec.ts": [
-   15,
-   7.6,
-   6.5,
-   6.4,
-   7,
-   7.4
-  ],
-  "template-label-overlay.spec.ts": [
-   69.1,
-   40.2,
-   37.7,
-   30.6,
-   38.4,
-   40.6
-  ],
-  "template-load-viewport.spec.ts": [
-   27.6,
-   26.1,
-   18.6,
-   20.1,
-   24.5,
-   29.8
-  ],
-  "theme-boot.spec.ts": [
-   86.5,
-   75.8,
-   68.4
-  ],
-  "theme-submenu.spec.ts": [
-   12.5,
-   10.7,
-   6.5,
-   8,
-   10.3,
-   13.6
-  ],
-  "timeline-end-labels.spec.ts": [
-   39,
-   31.8,
-   16.1,
-   21.4,
-   30.5,
-   33.1
-  ],
-  "timeline-rolling-domain.spec.ts": [
-   13.5,
-   11.3,
-   7.1,
-   8.8,
-   11.1,
-   11.4
-  ],
-  "timeline-series.spec.ts": [
-   55.4,
-   40,
-   23.7,
-   29.2,
-   38.7,
-   43.1
-  ],
-  "toolbar-locale-width.spec.ts": [
-   24.1,
-   39.7,
-   16.3,
-   15.6,
-   21.2,
-   23.5
-  ],
-  "toolbar-menu-dismiss.spec.ts": [
-   25.6,
-   24.5,
-   12.9,
-   16.1,
-   22,
-   22.5
-  ],
-  "toolbar-responsive.spec.ts": [
-   40.6,
-   33.2,
-   21.2,
-   25.6,
-   33.2,
-   33.6
-  ],
-  "visual.spec.ts": [
-   3.5,
-   3.1,
-   1.7,
-   2.2,
-   3,
-   3.1
-  ],
-  "workspace.spec.ts": [
-   20,
-   17.9,
-   12.1,
-   13.8,
-   17.5,
-   18
-  ],
-  "app-ready-diagnostics.spec.ts": [
-   7.3
-  ],
-  "connection-shapes.spec.ts": [
-   25.5
-  ],
-  "diagram-grid.spec.ts": [
-   15.5
-  ],
-  "document-boundary.spec.ts": [
-   18
-  ],
-  "flow-colour-mobile.spec.ts": [
-   4.5
-  ],
-  "flow-colour-views-visual.spec.ts": [
-   32.8
-  ],
-  "flow-colour-views.spec.ts": [
-   35.4
-  ],
-  "flow-colour-visual.spec.ts": [
-   8.7
-  ],
-  "flow-colour.spec.ts": [
-   23.9
-  ],
-  "focus-edge-dimming.spec.ts": [
-   9.5
-  ],
-  "licenses.spec.ts": [
-   26.2
-  ],
-  "lock-control.spec.ts": [
-   13.8
-  ],
-  "menu-keyboard.spec.ts": [
-   41.9
-  ],
-  "modal-inert.spec.ts": [
-   12.6
-  ],
   "outline-containment.spec.ts": [
-   169.2
+   56.3,
+   46.3,
+   63.5,
+   60.6,
+   58.9,
+   59.9
   ],
   "playback-gate-path.spec.ts": [
-   58.9
+   62.6,
+   59.8,
+   58.6,
+   58.4,
+   57,
+   61.3
   ],
   "playback-node-cues.spec.ts": [
-   106.1
+   66.3,
+   63.6,
+   64.1,
+   65,
+   58.8,
+   65.6
   ],
   "playback-speed-tiers.spec.ts": [
-   37.5
+   33.1,
+   38.3,
+   39.4,
+   36.9,
+   33.4,
+   32.3
   ],
   "share-protected.spec.ts": [
-   49.2
+   51.3,
+   49.6,
+   47.3,
+   47.9,
+   40.1,
+   48.2
   ],
   "smart-guides.spec.ts": [
-   17.6
+   18.9,
+   17.9,
+   17.8,
+   18.3,
+   16.5,
+   16.3
   ],
   "storage-sessions.spec.ts": [
-   37.6
+   40.3,
+   39.8,
+   39,
+   39.1,
+   35.8,
+   39.9
   ],
   "tour-announcement.spec.ts": [
-   28.6
+   28.1,
+   26.5,
+   26.2,
+   27.4,
+   29.2,
+   17.6
   ],
   "value-row-alignment.mobile.spec.ts": [
-   4.7
+   4.1,
+   4.5,
+   4.7,
+   4.7,
+   4.7,
+   4.5
   ],
   "value-row-alignment.spec.ts": [
-   37.8
+   40.7,
+   35.4,
+   39.1,
+   38.7,
+   40.3,
+   28
+  ],
+  "connection-draw-faces.spec.ts": [
+   16,
+   17.8,
+   14.2,
+   17.4,
+   17.8,
+   17.2
+  ],
+  "connection-ends.spec.ts": [
+   56.6,
+   58.5,
+   59.1,
+   55.7,
+   57.8,
+   41.1
+  ],
+  "connection-reverse.spec.ts": [
+   15.4,
+   15.7,
+   16.4,
+   15.5,
+   16.1,
+   15.3
+  ],
+  "control-text-selection.spec.ts": [
+   5,
+   7.2,
+   7.5,
+   7.3,
+   6.9,
+   7.6
+  ],
+  "distribution-area.spec.ts": [
+   6.3,
+   6.9,
+   6.9,
+   6.1,
+   4.5,
+   4.4
+  ],
+  "example-notes.spec.ts": [
+   8.8,
+   8.5,
+   8.4,
+   10.2,
+   7.3,
+   7.3
+  ],
+  "file-menu-submenus.spec.ts": [
+   24.3,
+   32.4,
+   33.9,
+   33.8,
+   31.4,
+   29.9
+  ],
+  "gacha-general.spec.ts": [
+   14.4,
+   12.7,
+   14.7,
+   14.3,
+   14.8,
+   13.4
+  ],
+  "gacha-pickup.spec.ts": [
+   16,
+   15.3,
+   15.2,
+   14.8,
+   13.2,
+   12.5
+  ],
+  "gacha-standard.spec.ts": [
+   10.6,
+   10.7,
+   11.2,
+   9.6,
+   7.2,
+   7
+  ],
+  "gate-chance-panel.spec.ts": [
+   9.1,
+   9.5,
+   9.9,
+   8.7,
+   5.5,
+   5.4
+  ],
+  "help-menu-version.spec.ts": [
+   4.5,
+   4.7,
+   3.4,
+   4.6,
+   4.7,
+   4.5
+  ],
+  "i18n-ar.spec.ts": [
+   7.2,
+   6.5,
+   7.2,
+   7,
+   7.1,
+   6.7
+  ],
+  "i18n-de.spec.ts": [
+   20.9,
+   28,
+   33.7,
+   31.2,
+   27.5,
+   26
+  ],
+  "i18n-es-419.spec.ts": [
+   44.7,
+   43.3,
+   45.8,
+   43.7,
+   44.2,
+   42.1
+  ],
+  "i18n-es-es.spec.ts": [
+   22.2,
+   19,
+   21.6,
+   26.7,
+   23.2,
+   15.4
+  ],
+  "i18n-fr.spec.ts": [
+   51.3,
+   53.6,
+   54.3,
+   60.8,
+   47.1,
+   46.1
+  ],
+  "i18n-it.spec.ts": [
+   31.2,
+   29.7,
+   30.6,
+   35.9,
+   29.5,
+   28.1
+  ],
+  "i18n-negotiation.spec.ts": [
+   26.7,
+   30.5,
+   27.2,
+   25.5,
+   23.8,
+   26.8
+  ],
+  "i18n-nl.spec.ts": [
+   32.4,
+   31.1,
+   30.7,
+   31.9,
+   32.9,
+   21.7
+  ],
+  "i18n-pt-br.spec.ts": [
+   38.3,
+   39.9,
+   38.7,
+   36.2,
+   37.2,
+   36.9
+  ],
+  "i18n-pt-pt.spec.ts": [
+   18.6,
+   21.4,
+   14.1,
+   17.7,
+   12.6,
+   12.4
+  ],
+  "i18n-ru.spec.ts": [
+   25.2,
+   28.8,
+   19.2,
+   28.3,
+   29,
+   26.8
+  ],
+  "i18n-th.spec.ts": [
+   25.6,
+   22,
+   24.8,
+   21.4,
+   14.9,
+   14.5
+  ],
+  "i18n-tr.spec.ts": [
+   25.4,
+   31.3,
+   27.6,
+   23.9,
+   24.6,
+   22.1
+  ],
+  "i18n-vi.spec.ts": [
+   42.8,
+   46.2,
+   45.7,
+   45.2,
+   40.5,
+   40.4
+  ],
+  "i18n-zh-hans.spec.ts": [
+   11.7,
+   15.3,
+   14.6,
+   13.3,
+   13.1,
+   12.8
+  ],
+  "i18n-zh-hant.spec.ts": [
+   21.4,
+   21.1,
+   21.2,
+   20.5,
+   17.4,
+   20
+  ],
+  "label-bends.spec.ts": [
+   3,
+   4.9,
+   4.5,
+   4.4,
+   3.9,
+   4.2
+  ],
+  "menu-check-rows.spec.ts": [
+   8.2,
+   10.8,
+   14.2,
+   12.8,
+   9.7,
+   11.7
+  ],
+  "menus-over-panel-overlay.spec.ts": [
+   6.9,
+   7.6,
+   5.3,
+   7.6,
+   7.8,
+   7.5
+  ],
+  "minimap-removed.spec.ts": [
+   4.2,
+   4.7,
+   6.1,
+   4,
+   4,
+   3.7
+  ],
+  "node-face-handles.spec.ts": [
+   8.3,
+   7,
+   7.9,
+   8,
+   8,
+   7.7
+  ],
+  "node-hover-clear.spec.ts": [
+   20.1,
+   22.1,
+   18.1,
+   25.6,
+   24.5,
+   14.8
+  ],
+  "node-structure-coffee.spec.ts": [
+   14.3,
+   13.5,
+   16.4,
+   15.2,
+   15.4,
+   9.1
+  ],
+  "node-structure-matrix-visual.spec.ts": [
+   17.3,
+   19.2,
+   14.6,
+   19.1,
+   19,
+   18.2
+  ],
+  "node-structure-matrix.spec.ts": [
+   9.1,
+   6.5,
+   8.8,
+   8.3,
+   8.2,
+   4.7
+  ],
+  "node-structure-small.spec.ts": [
+   24.1,
+   28.7,
+   25.2,
+   20.4,
+   15.6,
+   14.1
+  ],
+  "node-value-overflow.mobile.spec.ts": [
+   1.9,
+   3.1,
+   2.1,
+   3.3,
+   3.1,
+   3.1
+  ],
+  "node-value-overflow.spec.ts": [
+   6.4,
+   6.1,
+   6.2,
+   6,
+   5.4,
+   5.4
+  ],
+  "notice-rail.spec.ts": [
+   5.3,
+   3.5,
+   4.3,
+   3.5,
+   3.5,
+   3.3
+  ],
+  "playback-badge-place.spec.ts": [
+   11.4,
+   13.1,
+   13.5,
+   13.7,
+   12.5,
+   13.6
+  ],
+  "pressed-forced-colours.spec.ts": [
+   14.8,
+   16.6,
+   13.8,
+   17.9,
+   16.7,
+   15.4
+  ],
+  "relations-row-pointing.spec.ts": [
+   6,
+   8.1,
+   5.1,
+   5.3,
+   4.3,
+   5.1
+  ],
+  "repeated-change-labels.spec.ts": [
+   8.6,
+   8.2,
+   8.3,
+   8.2,
+   7.8,
+   7.2
+  ],
+  "rtl-bidi-isolation.spec.ts": [
+   37.7,
+   35.1,
+   35.5,
+   36.2,
+   35.7,
+   34.3
+  ],
+  "rtl-layout-fixed.spec.ts": [
+   8.1,
+   8.9,
+   9,
+   7.8,
+   5.8,
+   5.5
+  ],
+  "run-colour.spec.ts": [
+   19.8,
+   19.3,
+   19.2,
+   19.1,
+   20,
+   13.9
+  ],
+  "run-menu-replay.spec.ts": [
+   6.2,
+   5.8,
+   5.7,
+   5.9,
+   5.1,
+   5.2
+  ],
+  "theme-color.spec.ts": [
+   7.6,
+   8.9,
+   5.8,
+   7.4,
+   6.3,
+   4.9
+  ],
+  "timeline-step-reading.spec.ts": [
+   23,
+   21,
+   22.4,
+   19.8,
+   21.3,
+   20.3
+  ],
+  "touch-connect-next-tap.spec.ts": [
+   60.7,
+   56.1,
+   60.4,
+   55.5,
+   48.1,
+   45.7
+  ],
+  "undo-redo-selection.spec.ts": [
+   10.8,
+   9.1,
+   10.2,
+   9.8,
+   10,
+   9.4
+  ],
+  "workbench-left-list.spec.ts": [
+   27.9,
+   23.7,
+   27.6,
+   27.7,
+   22.8,
+   27.3
+  ],
+  "workbench-menus.spec.ts": [
+   5.4,
+   6,
+   4,
+   6.1,
+   6.7,
+   5.8
+  ],
+  "workbench-panels.spec.ts": [
+   7,
+   6.2,
+   6.9,
+   6,
+   4.4,
+   3.9
+  ],
+  "zoom-floor.spec.ts": [
+   9.7,
+   10,
+   10.6,
+   10.9,
+   10,
+   10
   ]
  }
 }
