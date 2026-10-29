@@ -150,7 +150,8 @@ export const FileMenu = forwardRef<FileMenuHandle, Props>(function FileMenu(
       onClick={(e) => (sub === s ? setSub(null) : openSub(s, e.detail === 0 ? 'first' : null))}
     >
       <span className="menu__name">{label}</span>
-      <span className="dmenu__chev" aria-hidden="true">
+      {/* the layout's side, pinned ltr (see LanguageSwitch.tsx) */}
+      <span className="dmenu__chev" aria-hidden="true" dir="ltr">
         ›
       </span>
     </button>

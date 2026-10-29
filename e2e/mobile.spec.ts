@@ -1607,11 +1607,11 @@ test.describe('sheet .btn boundary contrast (§MV5 / WCAG 1.4.11)', () => {
     })
   }
 
-  test('EN / KO at 390 and 320 px: the toggles stay inside their rows and the sheet, one line, no sideways scroll', async ({ page }) => {
+  test('every shipped language at 390 and 320 px: the toggles stay inside their rows and the sheet, one line, no sideways scroll', async ({ page }) => {
     for (const width of [390, 320]) {
       await page.setViewportSize({ width, height: 844 })
       await loadDiagram(page)
-      for (const code of ['en', 'ko']) { // §L2.0 (2026-10): the shipped languages
+      for (const code of ['en', 'ko', 'ja', 'de', 'zh-Hans', 'zh-Hant']) { // §L2.0: the shipped languages
         await page.evaluate((c) => {
           const loop = (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (l: string) => void } } } }).__loop
           loop.i18n.getState().setLocale(c)

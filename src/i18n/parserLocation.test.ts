@@ -2,6 +2,22 @@ import IntlMessageFormat from 'intl-messageformat'
 import { describe, expect, it } from 'vitest'
 import en from './locales/en'
 import ko from './locales/ko'
+import ja from './locales/ja'
+import de from './locales/de'
+import zhHans from './locales/zh-Hans'
+import zhHant from './locales/zh-Hant'
+import fr from './locales/fr'
+import itCat from './locales/it'
+import nl from './locales/nl'
+import es419 from './locales/es-419'
+import esES from './locales/es-ES'
+import ptBR from './locales/pt-BR'
+import ptPT from './locales/pt-PT'
+import ru from './locales/ru'
+import tr from './locales/tr'
+import th from './locales/th'
+import vi from './locales/vi'
+import ar from './locales/ar'
 import { BASE_LOCALE, LOCALES } from './registry'
 
 // docs/localization.md §L2.11 — `{column}` names TWO different things, and a
@@ -23,10 +39,11 @@ import { BASE_LOCALE, LOCALES } from './registry'
 // The two groups must therefore use DIFFERENT words in every language that
 // distinguishes them.
 //
-// §L2.0 (2026-10) — English and Korean are the supported languages. The rows
-// for the sixteen archived ones are in
-// `archive/i18n/tests/parserLocation.multilocale.test.ts`.
-const CATALOGS = { en, ko } as const
+// §L2.0a — every shipped language, the archived ones restored 2026-10-28/29.
+const CATALOGS = {
+  en, ko, ja, de, 'zh-Hans': zhHans, 'zh-Hant': zhHant,
+  fr, it: itCat, nl, 'es-419': es419, 'es-ES': esES, 'pt-BR': ptBR, 'pt-PT': ptPT, ru, tr, th, vi, ar,
+} as const
 type Loc = keyof typeof CATALOGS
 
 /** a position no other number in these messages can collide with */
@@ -68,6 +85,26 @@ const TABLE_KEYS = [
 // drift, not a locale being corrected.
 const VOCAB: Record<Exclude<Loc, 'en'>, { char: string | RegExp; table: string }> = {
   ko: { char: `${N}번째 문자`, table: `${N}열` },
+  ja: { char: `${N}文字目`, table: `${N}列目` },
+  // German splits the same way: `Zeichen` for a character offset,
+  // `Spalte` for a real table column (§L2.12); both approved forms:
+  // `Zeichen {column}` next to the thing at that position,
+  // `an Zeichenposition {column}` as a standalone phrase
+  de: { char: new RegExp(`Zeichen(position)? ${N}`), table: `Spalte ${N}` },
+  'zh-Hans': { char: `第 ${N} 个字符`, table: `第 ${N} 列` },
+  'zh-Hant': { char: `第 ${N} 個字元`, table: `第 ${N} 欄` },
+  fr: { char: `caractère ${N}`, table: `colonne ${N}` },
+  'es-419': { char: `carácter ${N}`, table: `columna ${N}` },
+  'es-ES': { char: `carácter ${N}`, table: `columna ${N}` },
+  'pt-BR': { char: `caractere ${N}`, table: `coluna ${N}` },
+  'pt-PT': { char: `carácter ${N}`, table: `coluna ${N}` },
+  ru: { char: new RegExp(`символ(е)? ${N}`), table: `столбец ${N}` },
+  tr: { char: `${N}. karakter`, table: `sütun ${N}` },
+  th: { char: `ตำแหน่งอักขระ ${N}`, table: `คอลัมน์ ${N}` },
+  vi: { char: `ký tự thứ ${N}`, table: `cột ${N}` },
+  it: { char: `carattere ${N}`, table: `colonna ${N}` },
+  nl: { char: `teken ${N}`, table: `kolom ${N}` },
+  ar: { char: `الموضع ${N}`, table: `العمود ${N}` },
 }
 
 const LOCS = Object.keys(VOCAB) as Exclude<Loc, 'en'>[]

@@ -1,0 +1,168 @@
+// docs/localization.md §L3.3 — Canvas surface slice of the `ja` catalog.
+// `satisfies Record<CanvasKey, string>` makes `tsc` fail on a missing or an
+// extra key against `../en/canvas`. Merged in `./index.ts`.
+//
+// Palette / node-kind names use the product katakana terms (プール / ソース …);
+// `node.default.*` uses the descriptive names from the confirmed JA table
+// (ストック / 供給源 / 排出口 / ゲート / 変換器 / 終点 / パラメーター / 計算値).
+
+import type { CanvasKey } from '../en/canvas'
+
+const canvas = {
+  'palette.pool.name': 'プール',
+  'palette.pool.description':
+    'リソースを保管して現在量を表示します。容量がいっぱいになると、入ってくる流れをせき止めます（背圧）。',
+  'palette.source.name': 'ソース',
+  'palette.source.description':
+    '各ステップで新しいリソースを作り、つながっているノードへ送ります。',
+  'palette.drain.name': 'ドレイン',
+  'palette.drain.description':
+    'つながっているノードからリソースを引き出し、システムの外へ取り除きます。',
+  'palette.gate.name': 'ゲート',
+  'palette.gate.description':
+    '入ってきたリソースを固定比率で分けるか、確率でひとつの経路を選んで送ります。自身は何も保管しません。',
+  'palette.converter.name': 'コンバーター',
+  'palette.converter.description':
+    '設定した比率で入力リソースを消費し、出力リソースを作ります。自身は何も保管しません。',
+  'palette.end.name': 'エンド',
+  'palette.end.description': 'リソースが到達すると実行を終了します。',
+  'palette.parameter.name': 'パラメーター',
+  'palette.parameter.description':
+    '自分で設定する固定値です。ポートはなく、式から id で参照できます。',
+  'palette.register.name': 'レジスター',
+  'palette.register.description':
+    '現在ステップで式を計算し、その結果を表示します。値を蓄積も保管もせず、ポートもありません。',
+  'palette.addAction': 'クリック、またはキャンバスへドラッグして追加します。',
+  'canvas.lock.lock': '編集をロック — 選択と閲覧は有効なまま',
+  'canvas.lock.unlock': '編集をロック解除 — 移動・接続・値の変更ができます',
+  'canvas.lock.name': '編集ロック',
+  'canvas.focus.on': 'フォーカス オフ — クリックで選択ノードにフォーカス',
+  'canvas.focus.off': 'フォーカス オン — クリックでグラフ全体を表示',
+  'canvas.focus.hint': 'フォーカスするノードを選択してください',
+  'canvas.focus.rowLabel': 'フォーカス対象',
+  'canvas.focus.stateOn': 'オン',
+  'canvas.focus.stateOff': 'オフ',
+  'canvas.panMode.off': 'パンモード オフ — 空のキャンバスをドラッグしてパン',
+  'canvas.panMode.on': 'パンモード オン — どこをドラッグしてもパン',
+  'canvas.panMode.rowLabel': 'パンモード',
+  'canvas.filter.open': 'フィルター — 確認しながらグラフの一部を隠します',
+  'canvas.filter.close': 'フィルターパネルを閉じる',
+  'canvas.filter.title': 'フィルター',
+  'canvas.filter.rowLabel': 'フィルター',
+  'canvas.filter.groupEdgeClass': '接続の種類',
+  'canvas.filter.groupResourceType': 'リソースの種類',
+  'canvas.filter.groupNodeKind': 'ノードの種類',
+  'canvas.filter.edgeClass.resource': 'リソース',
+  'canvas.filter.edgeClass.state': '状態',
+  'canvas.filter.edgeClass.hint': '依存のヒント',
+  'canvas.filter.untyped': '種類なし',
+  'canvas.filter.clear': 'フィルターをクリア',
+  'canvas.filter.hiddenCount': '{n} 件を非表示',
+  'canvas.filter.none': '非表示なし',
+  'canvas.filter.checkboxHint': 'チェック = 非表示',
+  'canvas.nodeKind.source': 'ソース',
+  'canvas.nodeKind.pool': 'プール',
+  'canvas.nodeKind.gate': 'ゲート',
+  'canvas.nodeKind.converter': 'コンバーター',
+  'canvas.nodeKind.drain': 'ドレイン',
+  'canvas.nodeKind.end': 'エンド',
+  'canvas.nodeKind.parameter': 'パラメーター',
+  'canvas.nodeKind.register': 'レジスター',
+  'canvas.resetView': '表示をリセット — グラフを合わせ、フィルターとフォーカスを解除',
+  // docs/large-graph-readability.md §LGR12 — ワンショットの領域選択ツール。
+  'canvas.regionSelect.off': '領域を選択 — 空のキャンバスをドラッグして選択。Shift+ドラッグも可',
+  'canvas.regionSelect.on': '領域を選択 — 選択中。空のキャンバスをドラッグ、Esc でキャンセル',
+  'canvas.regionSelect.count': '{n, plural, other {# 個選択中}}',
+  'canvas.regionSelect.countLocked': '{n, plural, other {# 個選択中 · 移動するには編集ロックを解除}}',
+  'canvas.frame.draw': 'グループフレーム — 空のキャンバスをドラッグして描画',
+  'canvas.frame.drawing':
+    'グループフレーム — 描画中。空のキャンバスをドラッグ、Esc で中止',
+  'canvas.frame.defaultName': 'グループ {n}',
+  'canvas.frame.delete': 'このフレームを削除',
+  'canvas.frame.suggest':
+    'フレームを提案 — 構造的につながったノードをおおまかに囲む矩形です。構造のみで、分野的な意味ではありません。',
+  'canvas.frame.suggestStale':
+    'フレームを提案 — グラフが変わりました。クリックで提案グループを再計算',
+  'canvas.frame.suggestRow': 'フレームを提案',
+  'canvas.frame.suggestNote':
+    '構造にもとづく提案グループです。作業の分け方と一致しないことがあります。',
+  'canvas.frame.suggestNoteDismiss': 'この注記を閉じる',
+  'canvas.frame.areaName': 'エリア {n}',
+  'canvas.frame.dismiss': 'この提案フレームを閉じる',
+  'canvas.frame.clearAll': 'すべてのフレームをクリア',
+  'canvas.tidy': 'グリッドに整列 — すべてのノードとフレームをグリッドにそろえます',
+  'canvas.frame.clearSuggested': '提案フレームをクリア',
+  'canvas.frame.clearSuggestedRow': '提案フレームをクリア',
+  'canvas.frame.colorRow': 'フレームの色',
+  'canvas.frame.color.neutral': 'ニュートラル',
+  'canvas.frame.color.slate': 'スレート',
+  'canvas.frame.color.sage': 'セージ',
+  'canvas.frame.color.gold': 'ゴールド',
+  'canvas.frame.color.violet': 'バイオレット',
+  'canvas.frame.color.rose': 'ローズ',
+  'canvas.frame.props.title': 'フレーム設定 — {label}',
+  'canvas.frame.props.name': '名前',
+  'canvas.activity.off': 'アクティビティ表示 オフ — クリックで最近動いた部分に色を付けます',
+  'canvas.activity.on': 'アクティビティ表示 オン — クリックで色を消します',
+  'canvas.activity.rowLabel': 'アクティビティ表示',
+  'canvas.route.invalidFlag': '無効な経路 — 経路の点がノードの内側にあります',
+  'canvas.route.bend': '折れ点 {total} 個中 {n} 個目',
+  'canvas.route.noBendRoom': 'この接続には折れ点を入れられる区間がないため、何も変更していません。',
+  'canvas.endGrip.source': 'この接続の始点：辺を選ぶ',
+  'canvas.endGrip.target': 'この接続の終点：辺を選ぶ',
+  'canvas.edgeLabel.clamp': 'クランプ',
+  'canvas.edgeLabel.clamp.title': 'ターゲットのプールでフェーズ 0 終了時に 1 回クランプされ取り除かれました',
+  'canvas.edgeLabel.blocked': 'ブロック',
+  'canvas.edgeLabel.blocked.title':
+    '届きましたが、ターゲットが発火できませんでした（アクティベーション不一致、またはアクティベーターが閉じたまま）',
+  'canvas.edgeLabel.breakdown.title': 'この接続でのこのステップの移動量',
+  'canvas.edgeLabel.refMissing': 'パラメーター参照エラー',
+  'node.unreadable.title': '読み取れない {kind}',
+  'node.unreadable.sub': 'データを読み取れません — ファイルで修正してください',
+  'node.invalidFlag': 'このノードは無効です',
+  'node.aria.invalid': '無効',
+  'node.aria.selected': '選択中',
+  'node.aria.focused': 'フォーカス中',
+  'node.evaluatedCue': 'このステップで評価されましたが、動作しませんでした',
+  'node.default.pool': 'ストック',
+  'node.default.source': '供給源',
+  'node.default.drain': '排出口',
+  'node.default.gate': 'ゲート',
+  'node.default.converter': '変換器',
+  'node.default.end': '終点',
+  'node.default.parameter': 'パラメーター',
+  'node.default.register': '計算値',
+  'canvas.frame.a11y.roledescription': 'グループフレーム',
+  'canvas.frame.a11y.roledescriptionAuto': '提案されたグループフレーム',
+  'canvas.frame.a11y.name': '{label}、ノード {n, plural, other {# 個}}',
+  'canvas.frame.a11y.desc': 'Enter または Space でこのフレームを選択します。',
+  'canvas.frame.a11y.descSelected': '選択中。矢印キーでフレームと中身を一緒に移動し、Shift を押しながらで大きく動きます。Backspace または Delete で削除し、Escape で選択を解除します。',
+  'canvas.frame.a11y.descReadonly': '読み取り専用 — このフレームは選択と読み取りのみで、編集はできません。',
+  'canvas.frame.a11y.resize': '{label} のサイズ変更 — 幅 {w}、高さ {h}。矢印キーでサイズを変え、Shift を押しながらで大きく変わります。',
+  'canvas.frame.a11y.moved': '{label} を x {x}、y {y} に移動しました',
+  'canvas.frame.a11y.resized': '{label} を幅 {w}、高さ {h} に変更しました',
+  'rf.node.moveCancelled': '移動をキャンセルしました。ノードは x {x}、y {y} に戻りました',
+  'rf.node.moved': '選択したノードを{direction}移動しました。新しい位置 x {x}、y {y}',
+  'rf.dir.left': '左へ',
+  'rf.dir.right': '右へ',
+  'rf.dir.up': '上へ',
+  'rf.dir.down': '下へ',
+  'rf.controls.label': 'キャンバス操作',
+  'rf.controls.zoomIn': '拡大',
+  'rf.controls.zoomOut': '縮小',
+  'rf.controls.fitView': '図を表示に合わせる',
+  'rf.controls.interactive': 'キャンバス編集を切り替え',
+  'rf.handle.label': '接続点',
+  'rf.node.a11y':
+    'Enter または Space でこのノードを選択します。Delete で削除、Escape で取り消します。',
+  'rf.node.a11yKeyboard':
+    'Enter または Space でこのノードを選択し、矢印キーで移動します。Delete で削除、Escape で取り消します。',
+  'rf.edge.a11y':
+    'Enter または Space でこの接続を選択します。Delete で削除、Escape で取り消します。',
+
+  // 2026-10 — the strings added since the archive (the workbench redesign)
+  'canvas.edgeLabel.sr.set': '設定',
+  'canvas.edgeLabel.sr.change': '適用された変更',
+} satisfies Record<CanvasKey, string>
+
+export default canvas

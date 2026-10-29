@@ -2,6 +2,22 @@ import IntlMessageFormat from 'intl-messageformat'
 import { describe, expect, it } from 'vitest'
 import en from './locales/en'
 import ko from './locales/ko'
+import ja from './locales/ja'
+import de from './locales/de'
+import zhHans from './locales/zh-Hans'
+import zhHant from './locales/zh-Hant'
+import fr from './locales/fr'
+import itCat from './locales/it'
+import nl from './locales/nl'
+import es419 from './locales/es-419'
+import esES from './locales/es-ES'
+import ptBR from './locales/pt-BR'
+import ptPT from './locales/pt-PT'
+import ru from './locales/ru'
+import tr from './locales/tr'
+import th from './locales/th'
+import vi from './locales/vi'
+import ar from './locales/ar'
 import { BASE_LOCALE, LOCALES } from './registry'
 
 // docs/localization.md §L12 — the catalog contract that is only visible in the
@@ -12,7 +28,10 @@ import { BASE_LOCALE, LOCALES } from './registry'
 // §L2.0 (2026-10) — Korean is the one translated language. The sixteen
 // archived ones, and the French plural-category checks that went with them,
 // are in `archive/i18n/tests/icuEscaping.multilocale.test.ts`.
-const CATALOGS = { ko } as const
+const CATALOGS = {
+  ko, ja, de, 'zh-Hans': zhHans, 'zh-Hant': zhHant,
+  fr, it: itCat, nl, 'es-419': es419, 'es-ES': esES, 'pt-BR': ptBR, 'pt-PT': ptPT, ru, tr, th, vi, ar,
+} as const
 
 /** Enough of an argument bag to render anything: a number satisfies a plain
  *  slot, `number` and `plural`, and falls through a `select` to its `other`

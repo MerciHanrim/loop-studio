@@ -133,14 +133,14 @@ test.describe('toolbar — the fixed two-tier contract', () => {
     [1600, 900],
     [1920, 900],
   ] as const) {
-    test(`${w}×${h}: exactly 2 rows total, palette is a single row, no h-scroll, no label wrap — EN/KO`, async ({
+    test(`${w}×${h}: exactly 2 rows total, palette is a single row, no h-scroll, no label wrap — EN/JA/DE/KO`, async ({
       page,
     }) => {
       await page.setViewportSize({ width: w, height: h })
       await openApp(page)
       await resetAll(page)
 
-      for (const code of ['en', 'ko']) {
+      for (const code of ['en', 'ja', 'de', 'zh-Hans', 'zh-Hant', 'ko']) {
         await setLocale(page, code)
         const m = await readMetrics(page)
         expect(m.toolbarRows, `${code} @ ${w}×${h} — toolbar rows`).toBe(2)
@@ -156,7 +156,7 @@ test.describe('toolbar — the fixed two-tier contract', () => {
     })
   }
 
-  test('721×720: Tier 1 fits across every RevisionChip state, EN/KO', async ({ page }) => {
+  test('721×720: Tier 1 fits across every RevisionChip state, EN/JA/DE/KO', async ({ page }) => {
     await page.setViewportSize({ width: 721, height: 720 })
     await openApp(page)
     await resetAll(page)
@@ -168,7 +168,7 @@ test.describe('toolbar — the fixed two-tier contract', () => {
       { role: 'proposal', dirty: false },
       { role: 'proposal', dirty: true },
     ]
-    for (const code of ['en', 'ko']) {
+    for (const code of ['en', 'ja', 'de', 'zh-Hans', 'zh-Hant', 'ko']) {
       await setLocale(page, code)
       for (const state of states) {
         await setRevisionChip(page, state)
@@ -553,7 +553,7 @@ test.describe('toolbar — dropdowns are never clipped by the responsive layout'
       await openApp(page)
       await resetAll(page)
 
-      for (const code of ['en', 'ko']) {
+      for (const code of ['en', 'ja', 'de', 'zh-Hans', 'zh-Hant', 'ko']) {
         await setLocale(page, code)
 
         await page.locator('.toolbar__actions .menu > button').first().click() // Templates ▾

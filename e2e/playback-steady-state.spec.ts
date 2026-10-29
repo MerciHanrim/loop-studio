@@ -215,8 +215,15 @@ test.describe('playback — steady-state (§PBO8-7)', () => {
     await page.setViewportSize({ width: 1280, height: 800 })
   })
 
-  test("the run bar's last fit step: the chip shows its short wording whole; the tooltip and the status region keep the whole one", async ({ page }) => {
+  // German has the widest run row of the shipped languages
+  // (docs/localization.md §L2.0a)
+  for (const [code, text, short] of [
+    ['en', 'Steady state — flows continue', 'Steady'],
+    ['de', 'Stabil — läuft weiter', 'Stabil'],
+  ] as const) {
+  test(`the run bar's last fit step: the chip shows its short wording whole; the tooltip and the status region keep the whole one (${code})`, async ({ page }) => {
     await setup(page)
+    if (code !== 'en') await setLocale(page, code)
     await advanceToSteady(page)
     await call(page, 'play')
     await expect.poll(() => chipShown(page), { timeout: 4000 }).toBe(true)
@@ -229,14 +236,15 @@ test.describe('playback — steady-state (§PBO8-7)', () => {
     }
     await expect(bar).toHaveAttribute('data-fit', '3')
     await expect(chip(page).locator('.pstrip__steady-short')).toBeVisible()
-    await expect(chip(page).locator('.pstrip__steady-short')).toHaveText('Steady')
+    await expect(chip(page).locator('.pstrip__steady-short')).toHaveText(short)
     await expect(chip(page).locator('.pstrip__steady-full')).toBeHidden()
     expect(await chip(page).evaluate((el) => el.scrollWidth <= el.clientWidth), 'the short wording is not cut').toBe(true)
-    await expect(chip(page)).toHaveAttribute('title', 'Steady state — flows continue')
-    await expect(page.locator('.pstrip [role="status"]')).toHaveText('Steady state — flows continue')
+    await expect(chip(page)).toHaveAttribute('title', text)
+    await expect(page.locator('.pstrip [role="status"]')).toHaveText(text)
     await call(page, 'pause')
     await page.setViewportSize({ width: 1280, height: 800 })
   })
+  }
 
   test('reset / seed change / a simulation-relevant graph edit each clear it', async ({ page }) => {
     await setup(page)
@@ -259,7 +267,7 @@ test.describe('playback — steady-state (§PBO8-7)', () => {
     expect((await sim(page)).stepIndex).toBe(0)
   })
 
-  test('the label is localised (EN / KO) and moves no digest / undo / autosave', async ({
+  test('the label is localised (EN / KO / JA / DE) and moves no digest / undo / autosave', async ({
     page,
   }) => {
     await setup(page)
@@ -285,6 +293,10 @@ test.describe('playback — steady-state (§PBO8-7)', () => {
     for (const [code, text, short] of [
       ['en', 'Steady state — flows continue', 'Steady'],
       ['ko', '정상 상태 — 흐름은 계속됨', '흐름 계속'],
+      ['ja', '定常状態 — フローは継続', '定常'],
+      ['de', 'Stabil — läuft weiter', 'Stabil'],
+      ['zh-Hans', '稳态——流动仍在继续', '稳态'],
+      ['zh-Hant', '穩態——流動仍在繼續', '穩態'],
     ] as const) {
       await setLocale(page, code)
       await expect(chip(page).locator('.pstrip__steady-full')).toHaveText(text)

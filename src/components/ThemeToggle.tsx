@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import { useT, type MessageKey } from '../i18n'
+import { useLocaleDirection, useT, type MessageKey } from '../i18n'
 import { useMenuKeyboard, useMenuTrigger } from '../ui/useMenuKeyboard'
 import { useSideFlyoutPosition } from './toolbar/useAnchoredPosition'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
@@ -46,6 +46,7 @@ export function ThemeToggle({
   onOpenChange?: (open: boolean) => void
 }) {
   const t = useT()
+  const uiDir = useLocaleDirection()
   const [mode, setMode] = useState<Mode>(readStoredTheme)
   const [localOpen, setLocalOpen] = useState(false)
   const open = controlledOpen ?? localOpen
@@ -101,8 +102,12 @@ export function ThemeToggle({
         >
           <span className="settings-row__label">{t('theme.rowLabel')}</span>
           <span className="settings-row__value">
-            {t(OPTION_KEY[mode])}
-            <span aria-hidden="true"> ›</span>
+            {/* the value in its own element, read in the reader's direction:
+                left bare beside the chevron it made the whole span one rtl
+                paragraph in Arabic, which put the `›` before it (§L9.2) */}
+            <span dir={uiDir}>{t(OPTION_KEY[mode])}</span>
+            {/* the layout's side, pinned ltr (see LanguageSwitch.tsx) */}
+            <span aria-hidden="true" dir="ltr"> ›</span>
           </span>
         </button>
         {open ? (

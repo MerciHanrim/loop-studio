@@ -80,11 +80,24 @@ describe('every shipped frame title is in the known-official index', () => {
     expect(checked).toBeGreaterThan(0)
   })
 
-  // §L2.0 (2026-10) — the named check of the six hyphenated locales left with
-  // them; no hyphenated locale ships now. It is kept, with the rest of the
-  // eighteen-locale version, in
-  // `archive/i18n/tests/frameLabelCoverage.multilocale.test.ts`, and belongs
-  // back here the day a hyphenated code is registered again.
+  // §L2.0a — the six hyphenated locales are registered again (2026-10-28), so
+  // their named check is back from the eighteen-locale version.
+  it('the hyphenated locales are covered by name, not only by the loop', () => {
+    // Named so that narrowing the loop above can never quietly drop exactly the
+    // locales this fix is about.
+    for (const loc of ['zh-Hans', 'zh-Hant', 'es-419', 'es-ES', 'pt-BR', 'pt-PT']) {
+      expect(templateLabelDictLocales, loc).toContain(loc)
+      const dict = loadedTemplateFrameLabelDict(loc)
+      const titles = Object.values(dict ?? {}).flatMap((m) => Object.values(m))
+      expect(titles.length, `${loc}: no frame titles loaded`).toBeGreaterThan(0)
+      for (const t of titles) {
+        const ids = Object.entries(KNOWN_OFFICIAL_FRAME_LABELS)
+          .filter(([, v]) => v.includes(t))
+          .map(([k]) => k)
+        expect(ids.length, `${loc}: ${JSON.stringify(t)} is in no known set`).toBeGreaterThan(0)
+      }
+    }
+  })
 })
 
 describe('a document seeded in one locale still switches', () => {
@@ -123,11 +136,12 @@ describe('a document seeded in one locale still switches', () => {
     expect(bad).toEqual([])
   })
 
-  it('a frame title from an archived language is kept as the user’s (§L2.0)', () => {
-    // a document made in Simplified Chinese keeps its titles in every UI
-    const zhHansGacha = [frame('zone_comparison', '对比'), frame('zone_free', '常驻／免费')]
-    for (const loc of ['en', 'ko']) {
-      expect(relabelFramesForLocale(zhHansGacha, loc), loc).toBe(zhHansGacha)
+  it('a frame title no shipped locale carries is kept as the user’s (§L2.0)', () => {
+    // the rule an archived language's titles fell under; every archived
+    // language is back since §L2.0a, so the example is simply not official
+    const mine = [frame('zone_comparison', 'Head to head'), frame('zone_free', 'No-cost zone')]
+    for (const loc of ['en', 'ko', 'ar']) {
+      expect(relabelFramesForLocale(mine, loc), loc).toBe(mine)
     }
   })
 

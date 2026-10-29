@@ -337,9 +337,11 @@ test('inline errors: the summary takes focus, each item is a button that reveals
   await expect(dialog(page).getByText('Place on the canvas, no frames')).toBeVisible()
 })
 
-// §L2.0 (2026-10): ko is the only shipped non-English language; the ja row retired.
 for (const [loc, needle, dataButton] of [
   ['ko', 'price', '데이터'],
+  ['ja', 'price', 'データ'],
+  ['zh-Hans', 'price', '数据'],
+  ['zh-Hant', 'price', '資料'],
 ] as const) {
   test(`${loc} -- the invalid-number message carries the value and the header, never the internal code`, async ({ page }) => {
     await page.evaluate((l) => (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (s: string) => void } } } }).__loop.i18n.getState().setLocale(l), loc)

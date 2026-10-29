@@ -160,10 +160,12 @@ test('review round 3 -- a validation issue reports the RAW source line number, n
 // CHARACTER offset (`src/model/csv.ts`: "1-based character offset within that
 // row"), so each locale must say so in its own words. `char` is what the
 // message must contain, `notChar` the TABLE-column wording it must not
-// borrow — the same input is line 2, character 1. §L2.0 (2026-10): ko is the
-// only shipped non-English language, so the ja and zh-Hans rows retired.
+// borrow — the same input is line 2, character 1.
 for (const [loc, needle, importLabel, char, notChar] of [
   ['ko', '닫히지 않은 따옴표', '데이터', '1번째 문자', '1열'],
+  ['ja', '閉じられていない引用符', 'データ', '1文字目', '1列目'],
+  ['zh-Hans', '有未闭合的引号', '数据', '第 1 个字符', '第 1 列'],
+  ['zh-Hant', '有未結束的引號', '資料', '第 1 個字元', '第 1 欄'],
 ] as const) {
   test(`review round 3 -- ${loc} shows a translated CSV parse-error message, never the raw internal code`, async ({ page }) => {
     await page.evaluate((l) => (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (s: string) => void } } } }).__loop.i18n.getState().setLocale(l), loc)
@@ -377,8 +379,7 @@ test('adding to an existing frame with a partly-occupied top row finds the free 
   expect(overlapsOccupant).toBe(false)
 })
 
-// §L2.0 (2026-10): ko is the only shipped non-English language; the ja run retired.
-for (const loc of ['ko'] as const) {
+for (const loc of ['ko', 'ja', 'de', 'zh-Hans', 'zh-Hant'] as const) {
   test(`${loc} — real DOM node boxes stay inside their generated frame, never overlapping each other`, async ({ page }) => {
     // NOTE: no second openApp()/resetAll() here — the file's beforeEach already
     // booted and reset. A second navigation right after resetAll used to work
@@ -398,7 +399,7 @@ for (const loc of ['ko'] as const) {
     // the data-import button collapses into the toolbar's ⋯ overflow menu at
     // some viewport/locale combinations (it has the lowest collapse priority
     // of any toolbar control) -- open that first if it isn't directly visible.
-    const importButtonText = '데이터'
+    const importButtonText = { ko: '데이터', ja: 'データ', de: 'Daten', 'zh-Hans': '数据', 'zh-Hant': '資料' }[loc]
     const importBtn = page.getByRole('button', { name: importButtonText, exact: true })
     if (!(await importBtn.isVisible())) {
       await page.locator('.toolbar__overflow-btn').click()

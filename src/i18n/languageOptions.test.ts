@@ -126,11 +126,11 @@ describe('shouldShowLanguageSearch', () => {
     ).toBe(false)
   })
 
-  it('HIDES for the two languages this release ships (§L2.0)', () => {
-    // the box was first reached at six languages; with English and Korean the
-    // picker is a two-row list again
-    expect(LOCALES.filter((l) => !l.pseudo).length).toBeLessThan(LANGUAGE_SEARCH_THRESHOLD)
-    expect(shouldShowLanguageSearch(LOCALES)).toBe(false)
+  it('SHOWS for the languages restored so far (§L2.0a): six reach the threshold', () => {
+    // the box was first reached at six languages; after the 2026-10 archive the
+    // picker was a short list, and restoring Chinese brings it back to six
+    expect(LOCALES.filter((l) => !l.pseudo).length).toBeGreaterThanOrEqual(LANGUAGE_SEARCH_THRESHOLD)
+    expect(shouldShowLanguageSearch(LOCALES)).toBe(true)
   })
 })
 

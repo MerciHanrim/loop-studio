@@ -18,9 +18,9 @@ import {
 // docs/localization.md §L4.5 — per-locale dicts are lazy chunks; a real switch
 // loads the target dict first (src/i18n/store.ts). Mirror that here.
 //
-// §L2.0 (2026-10) — English and Korean are the supported languages, so Korean is
-// the one dictionary here. The eighteen-locale version of this file is in
-// `archive/i18n/tests/relabel.multilocale.test.ts`.
+// §L2.0a — every shipped language has its dictionary again (2026-10-28/29);
+// the cases below switch through Korean, and the per-locale index check names
+// the restored ones.
 
 // registry-driven: a language that ships a dictionary adds a DICT_LOADERS entry,
 // and this helper must pick it up without being edited again.
@@ -44,15 +44,21 @@ describe('officialTemplateLabelIndex', () => {
     __rebuildOfficialTemplateLabelIndex()
     const idx = officialTemplateLabelIndex()
     // one entry per shipped locale — adding a language adds its string here
-    expect([...(idx.known.get('level') ?? [])].sort()).toEqual(['Level', '레벨'])
+    // (a set: Dutch shares `Level` with English, the two Spanish and the two
+    // Portuguese catalogs share theirs)
+    expect([...(idx.known.get('level') ?? [])].sort()).toEqual([
+      'Cấp độ', 'Level', 'Livello', 'Niveau', 'Nivel', 'Nível', 'Seviye', 'Stufe',
+      'Уровень', 'المستوى', 'เลเวล', 'レベル', '等級', '等级', '레벨',
+    ])
   })
 
-  it('a label from an archived language is not in the seed — such a node is the user’s', () => {
-    // §L2.0 — a document made in Japanese keeps its names: they are no longer
-    // official strings, so no locale switch rewrites them
+  it('a label no shipped locale carries is not in the seed — such a node is the user’s', () => {
+    // §L2.0 — the rule an archived language's names fell under (every archived
+    // language is back since §L2.0a): a name that is not an official string is
+    // the user's, so no locale switch rewrites it
     const idx = officialTemplateLabelIndex()
-    expect(idx.known.get('level')?.has('レベル')).toBe(false)
-    const input = [node('level', 'レベル')]
+    expect(idx.known.get('level')?.has('My own level')).toBe(false)
+    const input = [node('level', 'My own level')]
     expect(relabelNodesForLocale(input, 'ko')).toBe(input)
     expect(relabelNodesForLocale(input, 'en')).toBe(input)
   })
@@ -61,6 +67,15 @@ describe('officialTemplateLabelIndex', () => {
     const idx = officialTemplateLabelIndex()
     expect(idx.byLocale.get('en')?.get('level')).toBe('Level')
     expect(idx.byLocale.get('ko')?.get('level')).toBe('레벨')
+    // §L2.0a — the restored dictionaries, as the eighteen-locale version had them
+    expect(idx.byLocale.get('ja')?.get('level')).toBe('レベル')
+    expect(idx.byLocale.get('zh-Hans')?.get('level')).toBe('等级')
+    expect(idx.byLocale.get('zh-Hant')?.get('level')).toBe('等級')
+    expect(idx.byLocale.get('fr')?.get('level')).toBe('Niveau')
+    expect(idx.byLocale.get('vi')?.get('level')).toBe('Cấp độ')
+    expect(idx.byLocale.get('de')?.get('level')).toBe('Stufe')
+    expect(idx.byLocale.get('ar')?.get('level')).toBe('المستوى')
+    expect(idx.byLocale.get('ja')?.get('tpl-src')).toBe('原料供給')
   })
 
   it('covers the production-line templates that share node ids', () => {

@@ -93,11 +93,11 @@ const shipped = (() => {
 })()
 const SHIPPED = new Set(shipped)
 
-// §L2.0 (2026-10) — English and Korean are the only shipped locales. A literal
-// naming two codes cannot be told apart from a spec naming two examples (see
-// THRESHOLD), so with fewer shipped locales than the threshold there is no
-// enumeration this checker could recognise, and nothing for it to judge. It says
-// so and passes; registering locales again up to the threshold brings it back.
+// §L2.0 (2026-10) shipped English and Korean only, and §L2.0a brought the
+// eighteen back. A literal naming two codes cannot be told apart from a spec
+// naming two examples (see THRESHOLD), so with fewer shipped locales than the
+// threshold there is no enumeration this checker could recognise, and nothing
+// for it to judge. It says so and passes.
 if (shipped.length < THRESHOLD) {
   console.log(`shipped locales in the registry: ${shipped.length}   ${shipped.join(' ')}`)
   ok(`fewer shipped locales (${shipped.length}) than the enumeration threshold (${THRESHOLD}) — no locale list to check`)

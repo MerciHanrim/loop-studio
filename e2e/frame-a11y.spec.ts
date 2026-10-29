@@ -546,8 +546,7 @@ test.describe('frame accessibility — announcements and locales (§LGR6.6)', ()
     await expect(region).toContainText(String(Math.round(r.x)))
   })
 
-  // §L2.0 (2026-10): ko is the only shipped non-English language; the ja row retired.
-  for (const [locale, moved] of [['ko', /이동/]] as const) {
+  for (const [locale, moved] of [['ko', /이동/], ['ja', /移動/], ['zh-Hans', /移动/], ['zh-Hant', /移動/]] as const) {
     test(`${locale}: the frame announcement and the React Flow node move message are both localized`, async ({ page }) => {
       await load(page, { locale })
       await seedFrame(page, FRAME)

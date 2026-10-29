@@ -2,18 +2,28 @@ import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
 import { openInputsTab } from './support/workbenchMenus'
 
-// docs/localization.md §L9.3 — the arrow meaning units, at runtime.
+// docs/localization.md §L9.3 / §L2.0a — the arrow meaning units, at runtime.
+//
+// THE CONTRACT (2026-10-29): the LAYOUT never mirrors — it is LTR for every
+// locale — and only the TEXT of an RTL language reads right to left. An arrow
+// ICON points along the layout (a submenu still opens to the right, undo / redo
+// still sit in the layout's order), so under the shipped Arabic (`ar`) every
+// icon keeps its LTR drawing. These tests run under `ar`, the locale a reader
+// sees; `ar-XB` (the pseudo-locale) is only for the switch itself
+// (rtl-locale-direction.spec.ts).
 //
 // MEASURED, and it is the premise of the whole layer: none of these glyphs mirrors
 // on its own. Unicode mirrors only characters carrying `Bidi_Mirrored` — brackets
-// and relational operators — so an arrow keeps pointing the same way while the
-// layout mirrors around it. Every arrow is therefore a product decision.
+// and relational operators — so an arrow keeps pointing the same way inside an
+// RTL paragraph. Every arrow is therefore a product decision.
 //
 // Since issue #298 the arrows that are ICONS (external link, submenu disclosure,
 // undo, redo) are drawn by `ArrowIcon` (src/ui/icons.tsx), which ships two
-// drawings and picks one by the reader's direction; the choice is readable as
-// `data-dir` on the icon. The arrows that are CHARACTERS inside sentences
-// (`→` / `←`) still come from `useArrowGlyph`.
+// drawings and picks one by the LAYOUT direction (`LAYOUT_DIRECTION`); the choice
+// is readable as `data-dir` on the icon. The RTL drawings are kept, inert, for a
+// mirrored layout that no locale produces now. The arrows that are CHARACTERS
+// inside sentences (`→` / `←`) still come from `useArrowGlyph` and follow the
+// TEXT direction.
 //
 // The exhaustive layer is scripts/check-arrow-direction.mjs: every mirroring icon
 // site is an `ArrowIcon`, every mirroring character comes from the one table, the
@@ -23,11 +33,11 @@ import { openInputsTab } from './support/workbenchMenus'
 //
 // This file is the behaviour that a source check cannot see:
 //
-//   * the drawing on screen actually changes with the reader, and changes BACK
-//   * undo and redo swap into each other and are still DISTINCT afterwards — the
-//     failure a pair of independent drawings produces is that both end up the same
-//   * an arrow that KEEPS its orientation keeps it, so the first clause cannot be
-//     satisfied by mirroring everything
+//   * the drawing on screen does NOT change with an RTL reader, through a round
+//     trip — the icons follow the layout, and the layout is fixed
+//   * undo and redo keep their own drawings and stay DISTINCT — the failure a
+//     pair of independent drawings produces is that both end up the same
+//   * the arrows that keep their orientation for every reader keep it
 //   * nothing is mirrored by a transform, read off the live computed style rather
 //     than off the stylesheet
 
@@ -67,37 +77,40 @@ const arrowOf = (page: Page, sel: string): Promise<ArrowRead> =>
 const UNDO = '.wb-toolrow button:has(svg[data-arrow="undo"])'
 const REDO = '.wb-toolrow button:has(svg[data-arrow="redo"])'
 
-test.describe('§L9.3 arrows — the drawing follows the reader, or deliberately does not', () => {
+/** the TEXT direction became rtl while the LAYOUT stayed ltr — the state every
+ *  test below measures in, asserted so a no-op switch cannot pass them */
+async function expectArabicReader(page: Page): Promise<void> {
+  await expect(page.locator('html')).toHaveAttribute('data-text-dir', 'rtl')
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
+}
+
+test.describe('§L9.3 arrows — the icons follow the fixed layout, not the reader', () => {
   test.beforeEach(async ({ page }) => {
     await openApp(page)
   })
 
-  test('undo and redo swap, and stay distinct from each other', async ({ page }) => {
-    // The whole reason both come out of one table: under an rtl reader undo curves
-    // the other way, and it must still be the OPPOSITE of redo, not equal to it.
+  test('undo and redo keep their layout drawings under ar, and stay distinct from each other', async ({ page }) => {
+    // Undo / redo sit in the layout's order, and the layout does not mirror for an
+    // RTL reader — so each keeps the drawing it has for an English reader, and
+    // the two must still be OPPOSITE, not equal.
     const undoLtr = await arrowOf(page, UNDO)
     const redoLtr = await arrowOf(page, REDO)
     expect(undoLtr).toMatchObject({ unit: 'undo', dir: 'ltr' })
     expect(redoLtr).toMatchObject({ unit: 'redo', dir: 'ltr' })
     expect(undoLtr!.d).not.toBe(redoLtr!.d)
 
-    await switchLocale(page, 'ar-XB')
-    await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('dir'))).toBe('rtl')
+    await switchLocale(page, 'ar')
+    await expectArabicReader(page)
 
-    const undoRtl = await arrowOf(page, UNDO)
-    const redoRtl = await arrowOf(page, REDO)
-    expect(undoRtl).toMatchObject({ unit: 'undo', dir: 'rtl' })
-    expect(redoRtl).toMatchObject({ unit: 'redo', dir: 'rtl' })
-    // each is now drawn the way the OTHER was drawn for an ltr reader, and they are
-    // still opposite (compared as path tokens: the derived drawing is spaced
-    // differently from the authored one)
-    const tokens = (d: string) => d.match(/[A-Za-z]|-?[\d.]+/g)
-    expect(tokens(undoRtl!.d)).toEqual(tokens(redoLtr!.d))
-    expect(tokens(redoRtl!.d)).toEqual(tokens(undoLtr!.d))
-    expect(tokens(undoRtl!.d)).not.toEqual(tokens(redoRtl!.d))
+    const undoAr = await arrowOf(page, UNDO)
+    const redoAr = await arrowOf(page, REDO)
+    // the same unit, the same (layout) direction, the same path data
+    expect(undoAr).toEqual(undoLtr)
+    expect(redoAr).toEqual(redoLtr)
+    expect(undoAr!.d).not.toBe(redoAr!.d)
   })
 
-  test('en → ar-XB → en puts every reachable arrow back exactly', async ({ page }) => {
+  test('en → ar → en leaves every reachable arrow exactly as it was', async ({ page }) => {
     await resetAll(page)
     // a parameter makes the model panels appear, which is where the collapsed
     // panel head renders a submenu-disclosure caret
@@ -110,8 +123,8 @@ test.describe('§L9.3 arrows — the drawing follows the reader, or deliberately
     await expect(page.locator('.wb-left .mpanels')).toBeVisible()
 
     // COLLAPSE one head first. An expanded head renders the downward chevron, which
-    // does not mirror — so with every panel open this test would assert the
-    // mirroring of a caret that is not on screen, and pass on the undo/redo pair
+    // has no direction at all — so with every panel open this test would assert
+    // the drawing of a caret that is not on screen, and pass on the undo/redo pair
     // alone. The inline-end caret has to be rendered for the claim to mean anything.
     await page.locator('.mpanel__toggle').first().click()
     await expect(page.locator('.mpanel__caret svg[data-arrow="submenu"]').first()).toBeVisible()
@@ -126,24 +139,23 @@ test.describe('§L9.3 arrows — the drawing follows the reader, or deliberately
     const before = await snapshot()
     expect(before.carets, 'a collapsed head must render the inline-end caret').toContain('submenu:ltr')
 
-    await switchLocale(page, 'ar-XB')
+    await switchLocale(page, 'ar')
+    await expectArabicReader(page)
     const during = await snapshot()
-    expect(during).not.toEqual(before)
-    // the caret specifically moved, not just the undo/redo pair
-    expect(during.carets, 'the collapsed head caret mirrors').toContain('submenu:rtl')
-    // a collapsed head shows the inline-end caret, which mirrors; an expanded one
-    // shows the downward chevron, which has no direction at all
-    for (const c of during.carets) expect(['submenu:rtl', 'chevron-down:any']).toContain(c)
-    expect(during.carets).not.toContain('submenu:ltr')
+    // nothing changed: the caret keeps pointing to the inline end of a layout
+    // that did not mirror, and so do undo / redo
+    expect(during).toEqual(before)
+    expect(during.carets, 'the collapsed head caret keeps the ltr drawing').toContain('submenu:ltr')
+    expect(during.carets).not.toContain('submenu:rtl')
 
     await switchLocale(page, 'en')
     expect(await snapshot()).toEqual(before)
   })
 
-  test('the graph-relation arrow does NOT mirror — it names what the canvas draws', async ({ page }) => {
-    // Without this the mirroring clause could be satisfied by flipping everything.
+  test('the graph-relation arrow does NOT mirror under ar — it names what the canvas draws', async ({ page }) => {
     // This arrow describes the same edge the canvas draws, and the canvas is pinned
-    // ltr (§L9.2), so a panel reading it right to left would contradict the picture.
+    // ltr (§L9.2), so a panel turning it around for an RTL reader would contradict
+    // the picture. It is a character in an Arabic row, so this is the TEXT layer.
     await resetAll(page)
     await page.evaluate(() => {
       const g = () => (window as unknown as Bridge).__loop.graph.getState()
@@ -159,8 +171,8 @@ test.describe('§L9.3 arrows — the drawing follows the reader, or deliberately
     const row = page.locator('.mp-row--flow .mp-row__label')
     await expect(row).toBeVisible()
 
-    await switchLocale(page, 'ar-XB')
-    await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('dir'))).toBe('rtl')
+    await switchLocale(page, 'ar')
+    await expectArabicReader(page)
     const text = (await row.textContent()) ?? ''
     expect(text).toContain('→')
     expect(text).not.toContain('←')
@@ -181,8 +193,8 @@ test.describe('§L9.3 arrows — the drawing follows the reader, or deliberately
     const before = await read()
     expect(before.map((s) => s.icon)).toEqual(expect.arrayContaining(['run-reset', 'run-step', 'run-play']))
     expect(before.every((s) => s.arrow === null), 'no transport icon is a direction-aware arrow').toBe(true)
-    await switchLocale(page, 'ar-XB')
-    await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('dir'))).toBe('rtl')
+    await switchLocale(page, 'ar')
+    await expectArabicReader(page)
     expect(await read()).toEqual(before)
   })
 
@@ -190,8 +202,8 @@ test.describe('§L9.3 arrows — the drawing follows the reader, or deliberately
     // The source check bans the pattern in the stylesheet and the components; this
     // reads what the browser actually resolved, which also covers a transform that
     // arrived from a dependency's stylesheet — and an SVG `transform` attribute.
-    await switchLocale(page, 'ar-XB')
-    await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('dir'))).toBe('rtl')
+    await switchLocale(page, 'ar')
+    await expectArabicReader(page)
 
     const flipped = await page.evaluate(() => {
       const bad: { tag: string; cls: string; transform: string }[] = []

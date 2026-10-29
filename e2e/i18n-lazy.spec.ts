@@ -71,11 +71,10 @@ test.describe('locale lazy-loading — behaviour', () => {
     expect(await i18nState(page)).toEqual(before)
   })
 
-  // §L2.0 (2026-10) — this was a ja → ko burst (two lazy chunks). With en and
-  // ko left, the race worth pinning is a SLOW lazy request overtaken by a fast
-  // one: ko (its own chunk) then en (bundled, resolves at once). The en request
-  // commits first; the ko completion that arrives afterwards is stale and must
-  // be dropped whole.
+  // A SLOW lazy request overtaken by a fast one: ko (its own chunk) then en
+  // (bundled, resolves at once). The en request commits first; the ko
+  // completion that arrives afterwards is stale and must be dropped whole. The
+  // lazy → lazy race (two chunks) is the ja → ko test below.
   test('a fast ko → en burst settles on en, never commits ko', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
@@ -113,6 +112,43 @@ test.describe('locale lazy-loading — behaviour', () => {
     expect(await htmlLang(page)).toBe('en')
     expect((await i18nState(page)).activeLocale).toBe('en')
     expect(await stored(page)).toBe('en')
+  })
+
+  test('a fast ja → ko burst settles on ko, never commits ja', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    const seen: string[] = []
+    await page.exposeFunction('__seenLocale', (c: string) => seen.push(c))
+    await page.evaluate(() => {
+      const s = (window as unknown as { __loop: L }).__loop.i18n
+      s.getState() // subscribe to every activeLocale commit
+      ;(s as unknown as { subscribe: (f: (st: any) => void) => void }).subscribe((st) =>
+        (window as unknown as { __seenLocale: (c: string) => void }).__seenLocale(st.activeLocale),
+      )
+    })
+    await page.evaluate(() => {
+      const api = (window as unknown as { __loop: L }).__loop.i18n.getState()
+      api.setLocale('ja')
+      api.setLocale('ko')
+    })
+    await expect.poll(() => htmlLang(page)).toBe('ko')
+    // both ja halves fetched and nothing loading, so a stale ja commit, had it
+    // not been dropped, would have happened by now
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const urls = (performance.getEntriesByType('resource') as PerformanceResourceTiming[]).map((e) => e.name)
+          return (
+            urls.some((u) => u.includes('/i18n/locales/ja/')) && urls.some((u) => u.includes('/i18n/templateLabels/ja'))
+          )
+        }),
+      )
+      .toBe(true)
+    await expect.poll(async () => (await i18nState(page)).loading).toBe(false)
+    await page.waitForTimeout(200)
+    expect(seen).not.toContain('ja')
+    expect(await htmlLang(page)).toBe('ko')
+    expect(await stored(page)).toBe('ko')
   })
 
   test('a failed load keeps the current language and shows a dismissible notice', async ({

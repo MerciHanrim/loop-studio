@@ -63,10 +63,9 @@ test.describe('locale chunks — production bundle shape', () => {
     expect(localeChunks(await fetched(page))).toEqual(afterKo)
   })
 
-  // §L2.0 (2026-10) — this was "ja then ko" (two lazy languages). With en and
-  // ko the only shipped languages, the remaining case the test above does not
-  // cover is LEAVING Korean and coming back: en is bundled, and the second ko
-  // activation must reuse the chunks the first one fetched.
+  // LEAVING Korean and coming back: en is bundled, and the second ko
+  // activation must reuse the chunks the first one fetched. Two lazy languages
+  // in a row are the ja → ko test below.
   test('ko → en → ko fetches each language chunk at most once and ends on ko', async ({ page }) => {
     await openProd(page)
     await pickLocale(page, 'ko')
@@ -78,6 +77,22 @@ test.describe('locale chunks — production bundle shape', () => {
     expect(chunks.filter((u) => /locale-ko-/.test(u))).toHaveLength(1)
     expect(chunks.filter((u) => /tmpl-labels-ko-/.test(u))).toHaveLength(1)
     expect(chunks.filter((u) => /\/(locale|tmpl-labels)-en-/.test(u))).toEqual([])
+    expect(await page.evaluate(() => document.documentElement.lang)).toBe('ko')
+  })
+
+  test('ja then ko fetches at most one chunk per language and ends on ko', async ({ page }) => {
+    await openProd(page)
+    await pickLocale(page, 'ja')
+    await pickLocale(page, 'ko')
+    const chunks = localeChunks(await fetched(page))
+    // one locale + one tmpl-labels per language, no duplicates
+    expect(chunks).toEqual([...new Set(chunks)])
+    for (const code of ['ja', 'ko']) {
+      expect(chunks.filter((u) => new RegExp(`locale-${code}-`).test(u)), `${code} locale chunk`).toHaveLength(1)
+      expect(chunks.filter((u) => new RegExp(`tmpl-labels-${code}-`).test(u)), `${code} labels chunk`).toHaveLength(1)
+    }
+    // de was never picked, so nothing of it is fetched
+    expect(chunks.filter((u) => /\/(locale|tmpl-labels)-de-/.test(u))).toEqual([])
     expect(await page.evaluate(() => document.documentElement.lang)).toBe('ko')
   })
 })

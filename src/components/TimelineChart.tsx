@@ -512,7 +512,7 @@ export function TimelineChart() {
                 </button>
               </span>
             ) : (
-              <span>{t('timeline.title')}</span>
+              <span className="timeline__title">{t('timeline.title')}</span>
             )}
             <span className="timeline__legend" hidden={showDistribution}>
               {/* every drawn series' chip, in a strip that scrolls sideways;

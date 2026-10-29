@@ -15,7 +15,7 @@ session neither reads nor saves stored work, author information or settings
 ([docs/storage-sessions.md](docs/storage-sessions.md)).
 
 **Run it now: <https://cozy-loop-studio.pages.dev>** — available in
-[English and Korean](#languages), with eight bundled Templates ranging from two
+[18 languages](#languages), with eight bundled Templates ranging from two
 small production flows and a coffee roastery's daily operations to an early MMO's
 levelling economy and gacha banners: three single-banner rule sets and a
 three-zone probability/pity comparison.
@@ -44,7 +44,7 @@ three-zone probability/pity comparison.
   collaboration — no accounts, no server
 - **Runs anywhere** — an installable offline PWA, a portable single-file
   build, shareable links (optionally protected with a password), and a UI in
-  [English and Korean](#languages)
+  [18 languages](#languages)
 
 ## Languages
 
@@ -52,24 +52,38 @@ three-zone probability/pity comparison.
      registry by `src/i18n/readmeLocales.test.ts`. Adding or removing a shipped
      language must update this table in the same change. -->
 
-The UI ships in 2 languages, listed here the way the in-app picker orders
+The UI ships in 18 languages, listed here the way the in-app picker orders
 them. Pick one under **View → Language**; the first visit follows your
-browser's language — Korean for a Korean browser, English for every other —
-and the choice is remembered on that device.
+browser's language when it is one of these, and English otherwise, and the
+choice is remembered on that device.
 
 | Code | Language | In its own words |
 |---|---|---|
+| `ar` | Arabic | العربية |
+| `zh-Hans` | Chinese (Simplified) | 简体中文 |
+| `zh-Hant` | Chinese (Traditional) | 繁體中文 |
+| `nl` | Dutch | Nederlands |
 | `en` | English | English |
+| `fr` | French | Français |
+| `de` | German | Deutsch |
+| `it` | Italian | Italiano |
+| `ja` | Japanese | 日本語 |
 | `ko` | Korean | 한국어 |
+| `pt-BR` | Portuguese (Brazil) | Português (Brasil) |
+| `pt-PT` | Portuguese (Portugal) | Português (Portugal) |
+| `ru` | Russian | Русский |
+| `es-419` | Spanish (Latin America) | Español (Latinoamérica) |
+| `es-ES` | Spanish (Spain) | Español (España) |
+| `th` | Thai | ไทย |
+| `tr` | Turkish | Türkçe |
+| `vi` | Vietnamese | Tiếng Việt |
 
 <!-- LOCALES:END -->
 
-Earlier versions also shipped sixteen other languages. They are no longer
-supported: their translations are kept in [`archive/i18n/`](archive/i18n/README.md),
-outside the build, and are not updated. If you had chosen one of them, Loop
-Studio now starts in English; the names and text in your documents are not
-changed. See [`docs/localization.md`](docs/localization.md) for the resolution
-order.
+The text added or changed in the 2026-10 redesign is a translation draft in
+every language but English and Korean: it has not yet been read by a native
+speaker. [`docs/localization.md`](docs/localization.md) §L2.0a records each
+language's review status, and describes how the language is chosen.
 
 ## Representative use cases
 

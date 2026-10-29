@@ -31,7 +31,7 @@ const rows = (page: Page) => listbox(page).locator('[role="option"]')
 async function select(page: Page, id: string) {
   await page.evaluate((n) => (window as any).__loop.graph.getState().setSelection(n, null), id)
 }
-async function setLocale(page: Page, code: 'en' | 'ko') {
+async function setLocale(page: Page, code: 'en' | 'ko' | 'ja' | 'de' | 'zh-Hans' | 'zh-Hant') {
   await page.evaluate((c) => (window as any).__loop.i18n.getState().setLocale(c), code)
 }
 const modelExpr = (page: Page, id: string) =>
@@ -392,7 +392,7 @@ test('§RXA3.2 cond. 4/5 — the self-candidate value is formatted; its accessib
   expect(inspectorHtml).not.toContain('-7.600000000000001')
 })
 
-for (const loc of ['en', 'ko'] as const) { // §L2.0 (2026-10): the shipped languages
+for (const loc of ['en', 'ko', 'ja', 'de', 'zh-Hans', 'zh-Hant'] as const) { // §L2.0: the shipped languages
   test(`§RXA9.11 — the read-back + @-list localise (${loc})`, async ({ page }) => {
     await setLocale(page, loc)
     await select(page, 'net')

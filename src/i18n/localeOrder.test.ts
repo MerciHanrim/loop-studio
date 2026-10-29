@@ -22,7 +22,10 @@ const codes = (l: readonly LocaleEntry[]) => l.map((e) => e.code)
 /** the shipped languages (§L2.0: English and Korean), in the order the picker
  *  must show them. The eighteen-locale version of this file is in
  *  `archive/i18n/tests/localeOrder.multilocale.test.ts`. */
-const SHIPPED_ORDER = ['en', 'ko']
+const SHIPPED_ORDER = [
+  'ar', 'zh-Hans', 'zh-Hant', 'nl', 'en', 'fr', 'de', 'it', 'ja', 'ko',
+  'pt-BR', 'pt-PT', 'ru', 'es-419', 'es-ES', 'th', 'tr', 'vi',
+]
 
 /** a hypothetical wider registry, so the sort rule is still exercised by more
  *  than two entries — and by codes whose order differs from their names' */

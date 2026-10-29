@@ -4,7 +4,14 @@ import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 // fixture's "every canvas hint already seen" seed is turned off here
 test.use({ hintsSeen: false })
 
-// docs/localization.md §L9.3 — the canvas content direction contract.
+// docs/localization.md §L9.3 / §L2.0a — the canvas content direction contract.
+//
+// THE CONTRACT (2026-10-29): the LAYOUT never mirrors — `<html dir>` is `ltr`
+// for every locale, and the canvas is pinned `ltr` on top of that — and only
+// the TEXT of an RTL language reads right to left. Everything this file checks
+// is TEXT, so it runs under the shipped Arabic (`ar`), with the Arabic catalog.
+// `ar-XB` (the pseudo-locale, English verbatim) is kept for the direction
+// switch itself (rtl-locale-direction.spec.ts).
 //
 // PR A pinned `.react-flow { direction: ltr }` so a diagram does not mirror
 // (§L9.2, e2e/rtl-canvas-contract.spec.ts). That pin is correct for GEOMETRY
@@ -24,12 +31,14 @@ test.use({ hintsSeen: false })
 //
 // WHY THE ASSERTIONS ARE WHAT THEY ARE
 //
-// `ar-XB` ships the `en` catalogue verbatim (§L9.2). That is what makes this
-// spec able to tell the three apart at all: under `ar-XB` every catalog string
-// is still Latin, so `dir="auto"` on catalog prose would resolve LTR and only a
-// declared locale direction resolves RTL. The discrimination is the point — a
-// test that could not distinguish `auto` from the locale direction would pass
-// on either and attest to neither.
+// Under `ar` a catalog string is Arabic, so `dir="auto"` on catalog prose would
+// ALSO compute rtl — the computed direction alone cannot tell `auto` from the
+// locale direction. (This spec used to run under `ar-XB`, whose Latin catalog
+// made that difference visible in the computed value.) The discrimination is
+// therefore the declared ATTRIBUTE: catalog prose carries the resolver's
+// explicit `dir="rtl"`, user text carries `dir="auto"`, and every catalog-prose
+// assertion below reads both. A test that could not distinguish `auto` from the
+// locale direction would pass on either and attest to neither.
 //
 // Where the shipped attribute and its wrong alternative resolve to the SAME
 // computed direction — an engine number is neutral text, and the canvas is
@@ -119,15 +128,22 @@ async function switchLocale(page: Page, code: string): Promise<void> {
     .toBe(code)
 }
 
-/** the interface really did mirror — asserted before every direction claim, so
- *  a locale switch that silently failed cannot read as a passing contract */
-async function expectChromeMirrored(page: Page, mirrored: boolean): Promise<void> {
-  await expect
-    .poll(() => page.evaluate(() => document.documentElement.getAttribute('dir')))
-    .toBe(mirrored ? 'rtl' : 'ltr')
-  // and the canvas still does NOT mirror — §L9.2 holds while §L9.3 is measured
+/** the interface's TEXT direction really changed — asserted before every
+ *  direction claim, so a locale switch that silently failed cannot read as a
+ *  passing contract — while the LAYOUT stayed ltr and the canvas still does NOT
+ *  mirror (§L9.2 holds while §L9.3 is measured) */
+async function expectReaderText(page: Page, rtl: boolean): Promise<void> {
+  await expect(page.locator('html')).toHaveAttribute('data-text-dir', rtl ? 'rtl' : 'ltr')
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
   expect(await dirOf(page, '.react-flow')).toBe('ltr')
 }
+
+/** a string from the active catalog */
+const catalog = (page: Page, key: string) =>
+  page.evaluate(
+    (k) => String((window as unknown as { __loop: { i18n: { getState: () => { activeCatalog: Record<string, string> } } } }).__loop.i18n.getState().activeCatalog[k]),
+    key,
+  )
 
 const dirOf = (page: Page, selector: string) =>
   page.evaluate((sel) => {
@@ -170,15 +186,15 @@ test.describe('§L9.3 — user text takes its own direction inside the ltr-pinne
 
     // English interface: the Arabic label already reads rtl, because `auto`
     // never asked the interface
-    await expectChromeMirrored(page, false)
+    await expectReaderText(page, false)
     expect(await attrOf(page, `${N('feed')} .nodef__name`)).toBe('auto')
     expect(await dirOf(page, `${N('feed')} .nodef__name`)).toBe('rtl')
     expect(await dirOf(page, `${N('tank')} .nodef__name`)).toBe('ltr')
 
     // Arabic interface: neither label moves. The Latin one staying ltr is the
     // half that inheritance would have got wrong.
-    await switchLocale(page, 'ar-XB')
-    await expectChromeMirrored(page, true)
+    await switchLocale(page, 'ar')
+    await expectReaderText(page, true)
     expect(await dirOf(page, `${N('feed')} .nodef__name`)).toBe('rtl')
     expect(await dirOf(page, `${N('tank')} .nodef__name`)).toBe('ltr')
   })
@@ -187,8 +203,8 @@ test.describe('§L9.3 — user text takes its own direction inside the ltr-pinne
     page,
   }) => {
     await load(page)
-    await switchLocale(page, 'ar-XB')
-    await expectChromeMirrored(page, true)
+    await switchLocale(page, 'ar')
+    await expectReaderText(page, true)
 
     // two frames through the app's own store: one the user named in Latin, one
     // left unnamed so the chip falls back to `canvas.frame.defaultName`
@@ -200,13 +216,16 @@ test.describe('§L9.3 — user text takes its own direction inside the ltr-pinne
     const chips = page.locator('.lgr-frame__label')
     await expect(chips).toHaveCount(2)
 
-    // The catalogue is English under `ar-XB`, so the default name is Latin text
-    // too — `auto` would resolve it ltr and only the locale direction makes it
-    // rtl. That is exactly what separates the two branches here.
+    // The default name is the Arabic catalog's `canvas.frame.defaultName`, so
+    // `auto` would compute rtl for it as well; what separates the two branches is
+    // the declared attribute — the resolver's explicit `rtl` against the user
+    // name's `auto`.
     const named = chips.filter({ hasText: 'Gold zone' })
     const dflt = chips.filter({ hasNotText: 'Gold zone' })
     await expect(named).toHaveCount(1)
     await expect(dflt).toHaveCount(1)
+    const defaultName = await catalog(page, 'canvas.frame.defaultName')
+    await expect(dflt).toContainText(defaultName.replace(/\s*\{n\}\s*/, '').trim())
     expect(await named.getAttribute('dir')).toBe('auto')
     expect(await named.evaluate((el) => getComputedStyle(el).direction)).toBe('ltr')
     expect(await dflt.getAttribute('dir')).toBe('rtl')
@@ -219,7 +238,8 @@ test.describe('§L9.3 — user text takes its own direction inside the ltr-pinne
     // AX census in e2e/a11y-direction-invisible.spec.ts missed exactly this
     // one), and the direction has to branch on the same boolean the text does.
     await load(page)
-    await switchLocale(page, 'ar-XB')
+    await switchLocale(page, 'ar')
+    await expectReaderText(page, true)
     await page.evaluate(() => {
       const f = (window as unknown as Bridge).__loop.frame.getState()
       f.adoptFrame({ x: 40, y: 560, w: 420, h: 220 }, 'Gold zone')
@@ -236,8 +256,8 @@ test.describe('§L9.3 — user text takes its own direction inside the ltr-pinne
     page,
   }) => {
     await load(page)
-    await switchLocale(page, 'ar-XB')
-    await expectChromeMirrored(page, true)
+    await switchLocale(page, 'ar')
+    await expectReaderText(page, true)
     await page.evaluate(() => (window as unknown as Bridge).__loop.ui.setState({ filterPanelOpen: true }))
     await expect(page.locator('.lgr-filter')).toBeVisible()
 
@@ -262,8 +282,8 @@ test.describe('§L9.3 — engine tokens stay in author order', () => {
     // like evidence and be none; the declared attribute is the whole claim, and
     // scripts/check-direction-props.mjs is what makes it exhaustive.
     await load(page)
-    await switchLocale(page, 'ar-XB')
-    await expectChromeMirrored(page, true)
+    await switchLocale(page, 'ar')
+    await expectReaderText(page, true)
 
     expect(await attrOf(page, `${N('tank')} .nodef__value`)).toBe('ltr')
     expect(await attrOf(page, `${N('reg')} .nodef__value`)).toBe('ltr')
@@ -302,7 +322,8 @@ test.describe('§L9.3 — engine tokens stay in author order', () => {
     // attribute is removed: the two runs swap, and putting the attribute back
     // restores the order exactly.
     await load(page)
-    await switchLocale(page, 'ar-XB')
+    await switchLocale(page, 'ar')
+    await expectReaderText(page, true)
 
     // The symbol nodes (2026-10-19): the number sits in the symbol and the unit
     // on the line beside it, so the two runs share a box only where a value too
@@ -364,8 +385,8 @@ test.describe('§L9.3 — engine tokens stay in author order', () => {
 
   test('a signed edge delta and the number inside a clamp note both stay ltr', async ({ page }) => {
     await load(page)
-    await switchLocale(page, 'ar-XB')
-    await expectChromeMirrored(page, true)
+    await switchLocale(page, 'ar')
+    await expectReaderText(page, true)
     await stepN(page, 1)
 
     const delta = page.locator('.edge-label[data-edge-id="m1"] .edge-label__delta')
@@ -376,7 +397,7 @@ test.describe('§L9.3 — engine tokens stay in author order', () => {
     // one site where the surrounding direction is genuinely rtl — so here the
     // computed values differ and both are real evidence.
     const clamp = page.locator('.edge-label[data-edge-id="m2"] .edge-label__clamp')
-    await expect(clamp).toHaveText('clamp -1')
+    await expect(clamp).toHaveText(`${await catalog(page, 'canvas.edgeLabel.clamp')} -1`)
     expect(await clamp.getAttribute('dir')).toBe('rtl')
     expect(await clamp.evaluate((el) => getComputedStyle(el).direction)).toBe('rtl')
 
@@ -402,7 +423,7 @@ test.describe('§L9.3 — engine tokens stay in author order', () => {
 })
 
 test.describe('§L9.3 — catalog prose follows the reader', () => {
-  test('the unreadable-node fallback is prose, and it mirrors', async ({ page }) => {
+  test('the unreadable-node fallback is prose, and it reads rtl under ar', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await importGraph(page, UNREADABLE)
@@ -412,10 +433,12 @@ test.describe('§L9.3 — catalog prose follows the reader', () => {
     // the element exists and reads ltr
     expect(await dirOf(page, `${N('bad')} .nodef__name`)).toBe('ltr')
 
-    await switchLocale(page, 'ar-XB')
-    await expectChromeMirrored(page, true)
-    // the catalogue is still English here, so `auto` would have stayed ltr.
-    // These two only read rtl because the component asked the app's resolver.
+    await switchLocale(page, 'ar')
+    await expectReaderText(page, true)
+    // the Arabic catalog's fallback title, with the resolver's explicit `rtl`
+    // (an `auto` would show here as `auto`). `{kind}` is the engine's own kind
+    // token in every locale (nodes.tsx), not a translated noun.
+    await expect(page.locator(`${N('bad')} .nodef__name`)).toHaveText((await catalog(page, 'node.unreadable.title')).replace('{kind}', 'parameter'))
     expect(await attrOf(page, `${N('bad')} .nodef__name`)).toBe('rtl')
     expect(await dirOf(page, `${N('bad')} .nodef__name`)).toBe('rtl')
     if (await page.locator(`${N('bad')} .nodef__sub`).count()) {
@@ -424,10 +447,10 @@ test.describe('§L9.3 — catalog prose follows the reader', () => {
     }
   })
 
-  test('the filter panel’s own copy mirrors, row labels aside', async ({ page }) => {
+  test('the filter panel’s own copy reads rtl under ar, row labels aside', async ({ page }) => {
     await load(page)
-    await switchLocale(page, 'ar-XB')
-    await expectChromeMirrored(page, true)
+    await switchLocale(page, 'ar')
+    await expectReaderText(page, true)
     await page.evaluate(() => (window as unknown as Bridge).__loop.ui.setState({ filterPanelOpen: true }))
     await expect(page.locator('.lgr-filter')).toBeVisible()
 
@@ -442,9 +465,10 @@ test.describe('§L9.3 — catalog prose follows the reader', () => {
     }
   })
 
-  test('the focus hint mirrors', async ({ page }) => {
+  test('the focus hint reads rtl under ar', async ({ page }) => {
     await load(page)
-    await switchLocale(page, 'ar-XB')
+    await switchLocale(page, 'ar')
+    await expectReaderText(page, true)
     await page.evaluate(() => (window as unknown as Bridge).__loop.ui.setState({ focusMode: true }))
     const hint = page.locator('.lgr-focus-hint')
     await expect(hint).toBeVisible()
@@ -452,7 +476,7 @@ test.describe('§L9.3 — catalog prose follows the reader', () => {
     expect(await hint.evaluate((el) => getComputedStyle(el).direction)).toBe('rtl')
   })
 
-  test('a canvas hint note mirrors — the caller states the direction', async ({ page }) => {
+  test('a canvas hint note reads rtl under ar — the caller states the direction', async ({ page }) => {
     // `CanvasHintNote` takes a required `dir`; the empty-canvas hint is the
     // product path that renders one.
     await openApp(page)
@@ -462,17 +486,18 @@ test.describe('§L9.3 — catalog prose follows the reader', () => {
       l.__loop.tour.setState({ phase: 'idle' })
       l.__loop.hint.setState({ postTourCooldownActive: false })
     })
-    await switchLocale(page, 'ar-XB')
+    await switchLocale(page, 'ar')
+    await expectReaderText(page, true)
     const note = page.locator('.hint-note span').first()
     await expect(note).toBeVisible()
     expect(await note.getAttribute('dir')).toBe('rtl')
     expect(await note.evaluate((el) => getComputedStyle(el).direction)).toBe('rtl')
   })
 
-  test('an edge’s blocked note mirrors', async ({ page }) => {
+  test('an edge’s blocked note reads rtl under ar', async ({ page }) => {
     await load(page)
-    await switchLocale(page, 'ar-XB')
-    await expectChromeMirrored(page, true)
+    await switchLocale(page, 'ar')
+    await expectReaderText(page, true)
     await stepN(page, 2) // scheduled on step 1, delivered on step 2
 
     const blocked = page.locator('.edge-label[data-edge-id="t_auto"] .edge-label__blocked')
@@ -482,7 +507,7 @@ test.describe('§L9.3 — catalog prose follows the reader', () => {
   })
 })
 
-test.describe('§L9.3 — en → ar-XB → en recovers exactly', () => {
+test.describe('§L9.3 — en → ar → en recovers exactly', () => {
   test('every measured direction comes back, and the document never moved', async ({ page }) => {
     await load(page)
     await page.evaluate(() => {
@@ -547,8 +572,8 @@ test.describe('§L9.3 — en → ar-XB → en recovers exactly', () => {
       focusHint: 'ltr',
     })
 
-    await switchLocale(page, 'ar-XB')
-    await expectChromeMirrored(page, true)
+    await switchLocale(page, 'ar')
+    await expectReaderText(page, true)
     // exactly the catalog surfaces flip; the user's own text and the engine's
     // numbers do not
     expect(await dirMap(page, SURFACES)).toEqual({
@@ -561,7 +586,7 @@ test.describe('§L9.3 — en → ar-XB → en recovers exactly', () => {
     })
 
     await switchLocale(page, 'en')
-    await expectChromeMirrored(page, false)
+    await expectReaderText(page, false)
     expect(await dirMap(page, SURFACES)).toEqual(enDirs)
     expect(await doc()).toEqual(enDoc)
   })

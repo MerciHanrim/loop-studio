@@ -4,7 +4,7 @@ import { expect, openApp, resetAll, test } from './support/loop'
 // docs/example-coffee-roastery.md §CR17 + docs/template-label-overlay.md §TLO12 —
 // the Coffee roastery Template ships three group frames (`zone_supply`,
 // `zone_roasting`, `zone_forecast`). This spec pins, in EN / KO (the two
-// shipped languages, docs/localization.md §L2.0 (2026-10)), that:
+// shipped languages before de and ja returned; they ride the same checks), that:
 //   • the three frames render and carry the active locale's title;
 //   • every non-Parameter node sits in exactly one frame with ≥ 24 px margin;
 //   • the five y = 0 Parameter nodes touch no frame box and no title chip;
@@ -32,11 +32,9 @@ async function pickCoffee(page: Page) {
   await templatesBtn(page).click()
   // File ▸ Templates (docs/workbench.md §WB2.2)
   await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
-  await page
-    .locator('.toolbar__actions .menu').first()
-    .locator('.menu__pop [role="menuitem"]', { hasText: /Coffee roastery|커피 로스터리/ })
-    .click()
-  const confirm = page.locator('.dialog button, .mcdlg button', { hasText: /replace|바꾸기|교체|불러오기|Load template/i })
+  // by the Template's id, so the row is found in every language
+  await page.locator('.toolbar__actions .menu').first().locator('.menu__pop [data-template="coffee-roastery"]').click()
+  const confirm = page.locator('.mcdlg--confirm .mcdlg__foot .btn--primary')
   if (await confirm.isVisible().catch(() => false)) await confirm.click()
   await expect(page.locator('.lgr-frame')).toHaveCount(3)
   await page.waitForTimeout(300)
@@ -46,6 +44,10 @@ const EXPECTED_TITLES: Record<string, [string, string, string]> = {
   // [zone_supply, zone_roasting, zone_forecast]
   en: ['Supply & inventory', 'Roasting & sales', 'Forecast metrics'],
   ko: ['공급·재고', '로스팅·판매', '예측 지표'],
+  ja: ['供給・在庫', '焙煎・販売', '予測指標'],
+  de: ['Beschaffung und Bestand', 'Rösten und Verkauf', 'Prognosekennzahlen'],
+  'zh-Hans': ['供应与库存', '烘焙与销售', '预测指标'],
+  'zh-Hant': ['供應與庫存', '烘焙與銷售', '預測指標'],
 }
 
 const ZONE_OF: Record<string, string> = {
@@ -96,7 +98,7 @@ const overlaps = (a: { l: number; t: number; r: number; b: number }, b: typeof a
   !(a.r <= b.l || b.r <= a.l || a.b <= b.t || b.b <= a.t)
 
 test.describe('Coffee roastery — zone frames (§CR17 / §TLO12)', () => {
-  for (const locale of ['en', 'ko'] as const) {
+  for (const locale of ['en', 'ko', 'ja', 'de', 'zh-Hans', 'zh-Hant'] as const) {
     test(`${locale}: 3 frames, titled, non-overlapping, nodes ≥24px margin, params + titles clear`, async ({ page }) => {
       await openApp(page)
       await resetAll(page)
@@ -180,10 +182,12 @@ test.describe('Coffee roastery — zone frames (§CR17 / §TLO12)', () => {
         ),
       )
 
-    // §L2.0 (2026-10): en → ko → en → ko, the only shipped pair (the ja leg retired)
+    // en → ko → ja (a hop with no English between) → en → ko
     expect(await titleTexts()).toEqual([...EXPECTED_TITLES.en].sort())
     await setLocale(page, 'ko')
     expect(await titleTexts()).toEqual([...EXPECTED_TITLES.ko].sort())
+    await setLocale(page, 'ja')
+    expect(await titleTexts()).toEqual([...EXPECTED_TITLES.ja].sort())
     await setLocale(page, 'en')
     expect(await titleTexts()).toEqual([...EXPECTED_TITLES.en].sort())
     await setLocale(page, 'ko')
@@ -204,5 +208,10 @@ test.describe('Coffee roastery — zone frames (§CR17 / §TLO12)', () => {
     expect(afterKo.get('zone_supply')).toBe('My inbound zone')
     expect(afterKo.get('zone_roasting')).toBe(EXPECTED_TITLES.ko[1])
     expect(afterKo.get('zone_forecast')).toBe(EXPECTED_TITLES.ko[2])
+    await setLocale(page, 'ja')
+    const afterJa = await frameLabels()
+    expect(afterJa.get('zone_supply')).toBe('My inbound zone')
+    expect(afterJa.get('zone_roasting')).toBe(EXPECTED_TITLES.ja[1])
+    expect(afterJa.get('zone_forecast')).toBe(EXPECTED_TITLES.ja[2])
   })
 })

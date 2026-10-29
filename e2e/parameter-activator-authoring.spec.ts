@@ -178,9 +178,11 @@ test.describe('parameter activator authoring (docs/parameter-activator.md §PA7)
     await expect(page.locator('.activatorfield__param')).toHaveCount(0)
   })
 
-  // §L2.0 (2026-10): ko is the only shipped non-English language; the ja row retired.
   for (const [code, expected] of [
     ['ko', `소스가 >= 2인 동안 대상이 켜집니다 (= ${iso('Hard pity')} − 1, 현재 값 3)`],
+    ['ja', `ソースが >= 2 の間、ターゲットが有効になります（= ${iso('Hard pity')} − 1、現在の値 3）`],
+    ['zh-Hans', `当源 >= 2 时，目标处于启用状态（= ${iso('Hard pity')} − 1，当前为 3）`],
+    ['zh-Hant', `當來源 >= 2 時，目標處於啟用狀態（= ${iso('Hard pity')} − 1，目前為 3）`],
   ] as const) {
     test(`${code}: the live preview reads as a natural localized sentence`, async ({ page }) => {
       await paramSelect(page).selectOption('hard_pity')

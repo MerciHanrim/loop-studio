@@ -11,12 +11,15 @@ import { layoutClashes, nodeBoxes, OUTLINE_GRAPH, OUTLINE_KINDS, outlineMisfits,
 // (src/components/nodes/outlineFit.ts). The bundled Templates moved the least
 // nodes and widened the least frames so that, in every language, no two nodes
 // meet and no node crosses a frame's edge.
+//
+// Right to left runs under the shipped Arabic (`ar`): the layout stays ltr for
+// every locale and only the text reads rtl (docs/localization.md §L2.0a).
 
 type Bridge = { __loop: Record<string, { getState: () => any }> }
 
-// §L2.0 (2026-10): the shipped languages are en and ko; the eighteen-language
-// sweep is kept in archive/i18n/e2e/outline-containment.spec.ts
-const LOCALES = ['en', 'ko']
+// §L2.0: the shipped languages; the eighteen-language sweep is kept in
+// archive/i18n/e2e/outline-containment.spec.ts
+const LOCALES = ['en', 'ko', 'ja', 'de', 'zh-Hans', 'zh-Hant']
 const TEMPLATE_IDS = ['equilibrium', 'deadlock', 'coffee-roastery', 'mmo-progression', 'gacha-banner-zones']
 
 const load = async (page: Page) => {
@@ -81,11 +84,14 @@ test.describe('#337 every element inside the drawn outline', () => {
     }
   })
 
-  // §L2.0 (2026-10): `ar` is retired; the RTL pseudo-locale `ar-XB` carries it
-  test('right to left (ar-XB): the same', async ({ page }) => {
+  // §L2.0a (2026-10-29): the shipped Arabic carries the right-to-left case. The
+  // layout stays ltr for every locale and only the text reads rtl, so this is the
+  // Arabic kind chips and copy inside the same, unmirrored outlines.
+  test('right to left (ar): the same', async ({ page }) => {
     await load(page)
-    await setLocale(page, 'ar-XB')
-    await page.waitForFunction(() => document.documentElement.dir === 'rtl')
+    await setLocale(page, 'ar')
+    await expect(page.locator('html')).toHaveAttribute('data-text-dir', 'rtl')
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
     await page.evaluate(() => document.fonts.ready)
     await frames(page, 2)
     expect(outlineMisfits(await readOutline(page))).toEqual([])

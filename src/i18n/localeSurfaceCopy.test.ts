@@ -46,6 +46,22 @@ type SurfaceMarkers = {
 // `archive/i18n/tests/localeSurfaceCopy.multilocale.test.ts`.
 const MARKERS: Record<string, SurfaceMarkers> = {
   ko: { englishForm: /영문/, newTab: /새 탭/ },
+  ja: { englishForm: /英語/, newTab: /新しいタブ/ },
+  de: { englishForm: /englisch/i, newTab: /Tab/ },
+  'zh-Hans': { englishForm: /英文/, newTab: /新标签页/ },
+  'zh-Hant': { englishForm: /英文/, newTab: /新分頁/ },
+  fr: { englishForm: /anglais/i, newTab: /onglet/i },
+  it: { englishForm: /inglese/i, newTab: /scheda/i },
+  nl: { englishForm: /Engels/i, newTab: /tabblad/i },
+  'es-419': { englishForm: /inglés/i, newTab: /pestaña/i },
+  'es-ES': { englishForm: /inglés/i, newTab: /pestaña/i },
+  'pt-BR': { englishForm: /inglês/i, newTab: /aba/i },
+  'pt-PT': { englishForm: /inglês/i, newTab: /separador/i },
+  ru: { englishForm: /английск/i, newTab: /вкладк/i },
+  tr: { englishForm: /İngilizce/, newTab: /sekme/i },
+  th: { englishForm: /ภาษาอังกฤษ/, newTab: /แท็บ/ },
+  vi: { englishForm: /tiếng Anh/i, newTab: /tab mới/i },
+  ar: { englishForm: /الإنجليزية/, newTab: /تبويب/ },
 }
 
 const catalogOf = async (code: string) => {

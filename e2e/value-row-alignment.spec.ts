@@ -8,6 +8,8 @@ import { outlineMisfits, readOutline } from './support/outlineFit'
 // Register's result and `= expr` start where the title text starts and keep
 // 8 px inside the DRAWN outline at both ends (./src/components/nodes/rowFit).
 // The fit is taken when the content or the size changes, never per frame.
+// Right to left runs under the shipped Arabic (`ar`): the layout stays ltr for
+// every locale and only the text reads rtl (docs/localization.md §L2.0a).
 
 type Bridge = { __loop: Record<string, { getState: () => any }> }
 
@@ -85,12 +87,17 @@ test.describe('#332 value and detail rows inside the vessel', () => {
     })
   }
 
-  // §L2.0 (2026-10): `ar` is retired; the RTL pseudo-locale `ar-XB` carries the
-  // right-to-left check. The Arabic unit is user fixture data (support/rowFit).
-  test('right to left (ar-XB): the rows start on the chip side, physically left, Arabic unit included', async ({ page }) => {
+  // §L2.0a (2026-10-29): the shipped Arabic (`ar`) carries the right-to-left
+  // check. The layout stays ltr for every locale and only the text reads rtl, so
+  // the rows start on the chip side — physically left — exactly as in English.
+  // The Arabic unit is user fixture data (support/rowFit).
+  test('right to left (ar): the rows start on the chip side, physically left, Arabic unit included', async ({ page }) => {
     await load(page, ROWS_GRAPH, 'Converter')
-    await page.evaluate(() => (window as unknown as Bridge).__loop.i18n.getState().setLocale('ar-XB'))
-    await page.waitForFunction(() => document.documentElement.dir === 'rtl')
+    const english = (await readRows(page)).find((r) => r.id === 'Param ar' && r.key === 'sub')!
+    await page.evaluate(() => (window as unknown as Bridge).__loop.i18n.getState().setLocale('ar'))
+    await page.waitForFunction(() => document.documentElement.lang === 'ar')
+    await expect(page.locator('html')).toHaveAttribute('data-text-dir', 'rtl')
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
     await page.evaluate(() => document.fonts.ready)
     await frames(page, 2)
     const rows = await readRows(page)
@@ -98,6 +105,8 @@ test.describe('#332 value and detail rows inside the vessel', () => {
     const ar = rows.find((r) => r.id === 'Param ar' && r.key === 'sub')!
     expect(ar.vsTitle).toBeGreaterThanOrEqual(-0.5)
     expect(ar.vsTitle).toBeLessThan(1)
+    // the same start as under English: the row did not move to the other end
+    expect(Math.abs(ar.vsTitle - english.vsTitle)).toBeLessThanOrEqual(0.5)
   })
 
   // #337 — the Source, Drain and Converter mode rows were left in place here;

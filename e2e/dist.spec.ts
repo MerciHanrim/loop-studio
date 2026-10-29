@@ -170,21 +170,20 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     await page.locator('.toolbar__actions .wb-viewmenu > .wb-mb').click()
     await page.locator('.toolbar .lang-switch').click()
     const opts = page.locator('.lang-menu__pop [role="option"]')
-    // §L2.0 (2026-10) — en and ko are the shipped locales — NO en-XA (and no
-    // ar-XB, which is dev-only and never offered in the picker anyway)
-    await expect(opts).toHaveCount(2)
+    // §L2.0a — the restored languages are the shipped locales — NO en-XA (and
+    // no ar-XB, which is dev-only and never offered in the picker anyway)
+    await expect(opts).toHaveCount(18)
     await expect(page.locator('.lang-menu__pop [data-locale="en-XA"]')).toHaveCount(0)
     // §L5.6 — in PRODUCTION the picker shows exactly the shipped locales, in
-    // English-name order ("English" before "Korean"), with no pseudo-locale to
-    // append. Asserted unsorted here on purpose: the DOM order is the contract.
+    // English-name order, with no pseudo-locale to append. Asserted unsorted
+    // here on purpose: the DOM order is the contract.
     expect(await opts.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.locale))).toEqual([
-      'en',
-      'ko',
+      'ar', 'zh-Hans', 'zh-Hant', 'nl', 'en', 'fr', 'de', 'it', 'ja', 'ko',
+      'pt-BR', 'pt-PT', 'ru', 'es-419', 'es-ES', 'th', 'tr', 'vi',
     ])
-    // §L5.4 — two shipped languages are below the six-language threshold, so
-    // there is no search box.
-    await expect(page.locator('.lang-menu__pop .lang-menu__search')).toHaveCount(0)
-    await expect(page.locator('.lang-menu__pop input[role="combobox"]')).toHaveCount(0)
+    // §L5.4 — the shipped languages are past the threshold, so the search box
+    // shows, and the pseudo-locale (absent here) never counted towards it.
+    await expect(page.locator('.lang-menu__pop input[role="combobox"]')).toHaveCount(1)
 
     // pick KO, reload — it persists
     await page.locator('.lang-menu__item[data-locale="ko"]').click()
@@ -193,6 +192,16 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     await page.reload()
     await waitForAppReady(page)
     expect(await page.evaluate(() => document.documentElement.lang)).toBe('ko')
+
+    // and a restored language the same way — its chunk is in the Production
+    // build, not only in dev
+    await page.locator('.toolbar__actions .wb-viewmenu > .wb-mb').click()
+    await page.locator('.toolbar .lang-switch').click()
+    await page.locator('.lang-menu__item[data-locale="ja"]').click()
+    await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('ja')
+    await page.reload()
+    await waitForAppReady(page)
+    expect(await page.evaluate(() => document.documentElement.lang)).toBe('ja')
 
     // a hand-planted 'en-XA' in storage is not a registered code in Production —
     // the resolver ignores it and falls back rather than selecting it

@@ -14,6 +14,12 @@ import { expect, test, waitForAppReady } from './support/loop'
 // widths, on exactly that profile, and requires the dialog to be the top layer
 // over everything, with its controls reachable, focus held inside it, and focus
 // handed back when it closes.
+//
+// The right-to-left case runs under the shipped Arabic (`ar`). Since 2026-10-29
+// (docs/localization.md §L2.0a) the LAYOUT stays ltr for every locale and only
+// the TEXT reads rtl, so that case also checks the dialog does not mirror;
+// `ar-XB`, the English-catalogue pseudo-locale, is kept for the direction switch
+// itself (rtl-locale-direction.spec.ts).
 
 const WIDTHS = [
   { width: 320, height: 640 },
@@ -239,18 +245,22 @@ test.describe('every dialog is the top layer on a phone', () => {
     })
   }
 
-  test('right-to-left, 390px: the contextual dialog is on top and its close button is reachable', async ({ page }) => {
-    // §L2.0 (2026-10): `ar` is retired; the RTL pseudo-locale `ar-XB` is
-    // registered, so a STORED value of it is honoured at boot (§L9.2).
+  test('right-to-left (ar), 390px: the contextual dialog is on top, its close button is reachable and on the English side', async ({ page }) => {
+    // docs/localization.md §L2.0a (2026-10-29): Arabic (`ar`) is shipped again,
+    // under the rule that the LAYOUT stays ltr for every locale and only the TEXT
+    // reads rtl. A STORED `ar` is honoured at boot; the Arabic catalogue makes the
+    // dialog's own copy (and so its height) the real one.
     await page.addInitScript(() => {
       try {
-        localStorage.setItem('loop-studio/ui-locale/1', 'ar-XB')
+        localStorage.setItem('loop-studio/ui-locale/1', 'ar')
       } catch {
         /* ignore */
       }
     })
     await boot(page, 390, 844)
-    await page.waitForFunction(() => document.documentElement.dir === 'rtl')
+    await expect(page.locator('html')).toHaveAttribute('lang', 'ar')
+    await expect(page.locator('html')).toHaveAttribute('data-text-dir', 'rtl')
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
     await more(page).click()
     await activate(page, page.locator('.sheet__row').last())
     await activate(page, page.locator('.sheet .sheet__row').nth(1))
@@ -260,6 +270,22 @@ test.describe('every dialog is the top layer on a phone', () => {
     expect(l.dialog).toEqual({ topLeft: 'dialog', topRight: 'dialog', centre: 'dialog', bottomLeft: 'dialog', bottomRight: 'dialog' })
     expect(l.controlsNotOnTop).toEqual([])
     expect(l.pageScrollsSideways).toBe(false)
+
+    // the layout does not mirror: the close button keeps the physical side it
+    // has for an English reader — measured under both, in the same dialog
+    const closeSide = () =>
+      dlg.evaluate((el) => {
+        const d = el.getBoundingClientRect()
+        const x = el.querySelector('.mcdlg__x')!.getBoundingClientRect()
+        return x.left + x.width / 2 > d.left + d.width / 2 ? 'right' : 'left'
+      })
+    const arSide = await closeSide()
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (c: string) => void } } } }).__loop.i18n.getState().setLocale('en'),
+    )
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+    await expect(dlg).toBeVisible()
+    expect(arSide, 'the close button sits where it does for an English reader').toBe(await closeSide())
   })
 })
 
