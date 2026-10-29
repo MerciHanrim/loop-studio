@@ -8,8 +8,9 @@
 > Language live in the View menu). §TR5, the start-up theme and the menu
 > keyboard contract below still hold.
 
-**Status: implemented.** The desktop toolbar is a **fixed two-tier
-structure**, not a width-driven row/wrap layout: Tier 1 (brand + project/app
+**Status: implemented at the time (v0.14–v0.28); superseded by the workbench
+in v0.29.0 — what follows describes the earlier toolbar.** That desktop
+toolbar was a **fixed two-tier structure**, not a width-driven row/wrap layout: Tier 1 (brand + project/app
 commands) is always exactly one row; Tier 2 (the 8-item node-creation
 palette) is always its own row, directly below. The row count never varies
 by viewport width or by locale — only how many Tier-1 GROUPS have collapsed
