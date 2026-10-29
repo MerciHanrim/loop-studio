@@ -301,6 +301,14 @@ Two tabs: Model and Inputs (arrow keys move between them).
   (`workbench.css`, `.wb-list__sub`, sticky at -4 px to meet the list's top
   padding). The list's `scroll-padding-top` is the heading's height (26 px),
   so a row the browser scrolls into view lands below the heading.
+- The list is the containing block of its rows' hidden text (`.wb-list` is
+  `position: relative`). A row's heard comma between name and value is an
+  absolutely positioned `.sr-only` span; with the list static, those spans
+  escaped its clip to `.app__body` and a list longer than the window made the
+  page itself scrollable (2026-10-30, the MMO example at 1920 × 1080: a wheel
+  over the right panel, which had nothing to scroll, left the menu bar off the
+  top). `e2e/workbench-left-list.spec.ts` checks the document's height against
+  the window's after a wheel over each side.
 - The list follows a single node chosen elsewhere, such as a canvas click.
   If that node's row is outside the list's view, the list alone scrolls by the
   smallest amount that shows the row whole (`LeftPanel.tsx`). A row under the

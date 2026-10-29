@@ -484,6 +484,11 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  /* the scroller is the containing block of the rows' absolutely positioned
+     `.sr-only` separators (RowValue); left static, they escaped its clip to
+     `.app__body` and a list longer than the window made the PAGE scrollable
+     (issue #425) */
+  position: relative;
   padding: 4px 0 8px;
   /* a row scrolled into view (Tab; LeftPanel.tsx follows the canvas with
      the same inset) lands below the stuck kind heading, not under it: the

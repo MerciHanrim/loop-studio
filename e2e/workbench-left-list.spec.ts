@@ -513,3 +513,34 @@ test.describe('the left list follows a single node chosen on the canvas', () => 
     await expect(pressed()).not.toHaveAccessibleDescription(shown)
   })
 })
+
+// issue #425 — a row's heard comma (RowValue's `.sr-only` span) is absolutely
+// positioned, and the list is its containing block (`.wb-list`, position:
+// relative). Left static, the spans escaped the list's clip to `.app__body`,
+// and a list longer than the window made the PAGE scrollable: a wheel over the
+// right panel, which had nothing of its own to scroll, left the menu bar off
+// the top. At 1920 × 1080 the list is shown and the MMO example's rows run
+// well past the window's bottom.
+test.describe('a list longer than the window scrolls alone; the page never does (#425)', () => {
+  test.use({ viewport: { width: 1920, height: 1080 } })
+  test('MMO at 1920 × 1080: the document is the window’s height, before and after a wheel over the right panel and one over the list', async ({ page }) => {
+    await openTemplate(page, 'mmo-progression')
+    const list = page.locator('.wb-list')
+    const heights = () => page.evaluate(() => ({ doc: document.documentElement.scrollHeight, win: window.innerHeight, y: window.scrollY }))
+    // the list must be far longer than its box, or the check proves nothing
+    const over = await list.evaluate((el) => el.scrollHeight - el.clientHeight)
+    expect(over, 'rows past the list’s bottom').toBeGreaterThan(400)
+    expect(await heights()).toEqual({ doc: 1080, win: 1080, y: 0 })
+
+    // a wheel over the right panel, which has nothing to scroll with no selection
+    const panel = (await page.locator('aside.inspector').boundingBox())!
+    await page.mouse.move(panel.x + panel.width / 2, panel.y + 120)
+    await page.mouse.wheel(0, 500)
+    // then one over the list: the list scrolls (so the wheels were delivered)
+    const box = (await list.boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + 200)
+    await page.mouse.wheel(0, 300)
+    await expect.poll(() => list.evaluate((el) => el.scrollTop), 'the list scrolled').toBeGreaterThan(0)
+    expect(await heights(), 'the page did not').toEqual({ doc: 1080, win: 1080, y: 0 })
+  })
+})
