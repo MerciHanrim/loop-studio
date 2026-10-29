@@ -14,7 +14,11 @@ export function isTypingTarget(el: EventTarget | null): boolean {
  *  delete-key handler listens on `document` and only skips text inputs, so a
  *  dialog's Cancel button used to be enough to delete the node behind it
  *  (audit 2026-09-20, F3). Covers the scrims by class AND the generic ARIA
- *  markers, so a future dialog is guarded by either. */
+ *  markers, so a future dialog is guarded by either. `[role="dialog"]` stays
+ *  on purpose (issue #393 B considered narrowing it to `aria-modal`): the
+ *  frame properties popover is a non-modal `role="dialog"`, and §FC10
+ *  (`e2e/frame-props-popover.spec.ts`) relies on this guard to keep Delete
+ *  from removing the frame while its popover has the keyboard. */
 const MODAL_SELECTOR = '.mcdlg__scrim, .review-scrim, [role="dialog"], [aria-modal="true"]'
 
 export function isModalOpen(doc: Document = document): boolean {
