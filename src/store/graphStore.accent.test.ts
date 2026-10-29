@@ -95,15 +95,18 @@ describe('setAccent', () => {
 })
 
 describe('onlyAccentsDiffer', () => {
-  it('true only when an accent differs and nothing else does', () => {
+  // #391 — the question is "does anything the engine reads differ?": an
+  // accent-only difference, a position-only one and two identical graphs all
+  // answer no (true); a label, a data field or an element answers yes (false)
+  it('true when nothing the engine reads differs — accent, position or nothing at all; false for a label, a field or an element', () => {
     three()
     const a = { nodes: S().nodes, edges: S().edges, modelVersion: S().modelVersion }
-    expect(onlyAccentsDiffer(a, a)).toBe(false)
+    expect(onlyAccentsDiffer(a, a), 'identical').toBe(true)
     const n0 = a.nodes[0]!
     const recoloured = { ...a, nodes: [{ ...n0, data: { ...n0.data, accent: '#638EA5' } }, ...a.nodes.slice(1)] }
     expect(onlyAccentsDiffer(a, recoloured)).toBe(true)
     const moved = { ...a, nodes: [{ ...n0, position: { x: 5, y: 5 }, data: { ...n0.data, accent: '#638EA5' } }, ...a.nodes.slice(1)] }
-    expect(onlyAccentsDiffer(a, moved)).toBe(false)
+    expect(onlyAccentsDiffer(a, moved), 'a position is layout, not model').toBe(true)
     const relabelled = { ...a, nodes: [{ ...n0, data: { ...n0.data, label: 'x', accent: '#638EA5' } }, ...a.nodes.slice(1)] }
     expect(onlyAccentsDiffer(a, relabelled)).toBe(false)
     expect(onlyAccentsDiffer(a, { ...a, edges: a.edges.slice(1) })).toBe(false)
