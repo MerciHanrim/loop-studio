@@ -1264,7 +1264,6 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     newGraph: () => {
       const fresh = enterDocument(false) // #334 — a new document starts unlocked
       dropProjectHeader()
-      documentBoundarySink?.() // #392 A
       set({
         ...fresh,
         nodes: [],
@@ -1282,6 +1281,11 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       })
       frameSidecar?.set([]) // §SF6 — an empty canvas has no saved frames
       dataImportSidecar?.set([]) // loop-revision/8 — an empty canvas has no import records
+      // #392 A — AFTER the new document and its sidecars are in the store:
+      // `projectStore.clear` writes the autosave at once, and that write must
+      // already be the new document without a header — one complete record,
+      // never the old graph with its lineage stripped (Lumi, #401 review)
+      documentBoundarySink?.()
       bump()
       persist()
     },
@@ -1291,7 +1295,6 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       const { nodes, edges } = normalizeGraph(snapshot)
       const fresh = enterDocument(canvasLocked)
       dropProjectHeader()
-      documentBoundarySink?.() // #392 A
       set({
         ...fresh,
         nodes,
@@ -1311,6 +1314,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       // loop-revision/8 — same posture as `frames`; no bundled Template ships
       // any yet, but a future one could.
       dataImportSidecar?.set(dataImports ? [...dataImports] : [])
+      documentBoundarySink?.() // #392 A — after the document and its sidecars, see `newGraph`
       bump()
       persist()
     },
@@ -1350,7 +1354,6 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         lastTag = ''
       }
       dropProjectHeader()
-      if (opts.mode === 'document-boundary') documentBoundarySink?.() // #392 A
       set({
         ...(history ?? {}),
         nodes,
@@ -1366,6 +1369,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       })
       if (frames !== undefined) frameSidecar?.set(frames) // §SF6 — replace with the doc's saved frames
       if (dataImports !== undefined) dataImportSidecar?.set(dataImports) // loop-revision/8 — same rule
+      // #392 A — another document ends the open project; a revision Apply is
+      // an edit of this one. After the document and its sidecars, see `newGraph`.
+      if (opts.mode === 'document-boundary') documentBoundarySink?.()
       bump()
       persist()
     },
