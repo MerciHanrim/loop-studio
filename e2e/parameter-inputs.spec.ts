@@ -37,6 +37,58 @@ async function step1PoolValue(page: Page): Promise<number> {
   })
 }
 
+// issue #393 A — the Parameter's number fields keep what is typed as a draft
+// and commit only a finite parse: before, every keystroke stored
+// `Number(text)`, so a leading minus stored 0 (the sign was lost) and `1e400`
+// stored `Infinity`, which `readParameterData` rejects — the node flipped into
+// the Inspector's unreadable fallback until Undo.
+test.describe('Parameter value field — draft until a finite number (#393 A)', () => {
+  test('typing -5 stores −5; typing 1e400 leaves the stored value and the node readable', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    const id = await page.evaluate(() => {
+      const g = (window as any).__loop.graph.getState()
+      g.newGraph()
+      g.addNodeAt('parameter', { x: 0, y: 0 })
+      const n = (window as any).__loop.graph.getState().nodes[0]
+      ;(window as any).__loop.graph.getState().setSelection(n.id, null)
+      return n.id as string
+    })
+    const stored = () => page.evaluate((nid) => (window as any).__loop.graph.getState().nodes.find((n: any) => n.id === nid).data.value, id)
+    const field = page.locator('.rightcol').getByLabel('Value', { exact: true })
+    await expect(field).toBeVisible()
+
+    await field.click()
+    await field.fill('')
+    await field.pressSequentially('-5')
+    await expect.poll(stored, 'the sign is kept: −5, not 0').toBe(-5)
+    expect(await field.inputValue()).toBe('-5')
+
+    await field.fill('')
+    await field.pressSequentially('1e400')
+    // each finite prefix commits live (1, 1e4, 1e40), as any live field; the
+    // overflow itself does not: a number input sanitises it to '' (the typed
+    // text stays visible), which the old code stored as Number('') = 0
+    expect(await field.inputValue()).toBe('')
+    await expect(field).toHaveAttribute('aria-invalid', 'true')
+    expect(await stored(), 'the stored value is the last finite prefix, never the overflow').toBe(1e40)
+    // the node is still readable: the Parameter fields are still shown
+    await expect(page.locator('.rightcol').getByLabel('Min (advisory)', { exact: true })).toBeVisible()
+    await field.blur()
+    expect(await field.inputValue(), 'blur drops the draft and shows the stored value').toBe('1e+40')
+    expect(await stored()).toBe(1e40)
+
+    // a pasted overflow (one change) stores nothing at all
+    await field.fill('')
+    await field.pressSequentially('7')
+    await expect.poll(stored).toBe(7)
+    await field.fill('1e400')
+    expect(await stored(), 'a pasted overflow is never stored').toBe(7)
+    await field.blur()
+    expect(await field.inputValue()).toBe('7')
+  })
+})
+
 test.describe('loop-model/2 — parameter-driven flow', () => {
   test('an existing v1 "@foo" flow is NOT promoted by open / save; it still runs as the v1 literal (1)', async ({
     page,
