@@ -97,6 +97,12 @@ resolves inside one step (§6).
   corrects sub-`epsilon` drift — a clamp larger than `epsilon` is a bug (I3).
 - **`NaN` and `Infinity` are not valid inputs.** `initSim` rejects a graph whose
   `initial`, `capacity`, or constant flow is non-finite.
+- **A Pool's `initial` above its `capacity` is rejected by `initSim`** (issue
+  #406, 2026-10-30), with the Pool and both numbers named; it is never clamped
+  to the capacity — the first step's Commit clamp is for the sub-`epsilon`
+  drift above, not for an authored pair. The document keeps the pair as
+  written for the user to correct. `initial = capacity`, and any `initial`
+  with no capacity, are valid.
 - Comparisons in tests are `|a − b| ≤ epsilon`.
 - Integer tokens, remainder distribution, and gate round-robin are a **separate
   future mode** (§15), not part of Engine A.
