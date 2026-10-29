@@ -34,8 +34,8 @@ import { Icon } from '../ui/icons'
 // language + `›` — instead of the standalone toolbar pill, so it reads as
 // one unified row with Theme's own row rather than an unrelated-looking
 // button dropped into the menu. `open`/`onOpenChange` are controlled when
-// supplied (`SettingsMenu.tsx` uses this so Language's and Theme's
-// submenus are mutually exclusive); otherwise this manages its own state,
+// supplied (a host that lists Language and Theme together uses this to keep
+// their submenus mutually exclusive); otherwise this manages its own state,
 // unchanged from before (mobile's pill usage never passes these).
 export function LanguageSwitch({
   variant = 'pill',

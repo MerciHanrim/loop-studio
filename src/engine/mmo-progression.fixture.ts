@@ -141,8 +141,6 @@ export const P = {
   deathTimePenalty: 3,
 }
 
-export type MmoParams = typeof P
-
 // ── tiny builders ─────────────────────────────────────────────────────────
 type XY = { x: number; y: number }
 

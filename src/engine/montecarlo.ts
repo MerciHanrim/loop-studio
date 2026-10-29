@@ -13,7 +13,6 @@ import { initSim, step } from './step'
 
 export const MC_SPEC = 'loop-mc/1'
 export const MC_SEED_SPEC = 'loop-mc-seed/1'
-export const RNG_SPEC_REF = 'loop-rng/1'
 
 /** Exact-aggregation cell budget: runs × (steps+1) × trackedPoolCount. */
 export const CELL_LIMIT = 5_000_000

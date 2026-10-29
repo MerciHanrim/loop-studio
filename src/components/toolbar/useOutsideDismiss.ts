@@ -17,7 +17,7 @@ import type { RefObject } from 'react'
 // Help, the ⋯ overflow) and Share's result panel call this
 // the same way. Escape handling is deliberately NOT part of this hook: each
 // caller's own Escape logic already has hard-won nested-menu-ordering fixes
-// (see OverflowMenu.tsx / SettingsMenu.tsx) that this must not disturb.
+// (see OverflowMenu.tsx) that this must not disturb.
 //
 // A DIFFERENT edge case the capture-phase switch surfaced
 // (confirm-dialog.spec.ts "double-clicking Confirm runs the effect once"):

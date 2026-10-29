@@ -68,7 +68,6 @@ function pathOf(e: LoopEdge, s: LoopNode, t: LoopNode, map: ReadonlyMap<string, 
 }
 
 let cache: { sig: string; map: ReadonlyMap<string, RoutedEdge>; places: Map<string, BadgePlace> } | null = null
-let plansMade = 0
 
 /** what a plan reads: the marks, and every resource connection with its path */
 function planInputs(nodes: LoopNode[], edges: LoopEdge[], map: ReadonlyMap<string, RoutedEdge>): { marks: PlanMark[]; plan: (PlanEdge & { d: string })[] } {
@@ -102,19 +101,5 @@ export function badgePlaces(nodes: LoopNode[], edges: LoopEdge[], map: ReadonlyM
   const { marks, plan } = planInputs(nodes, edges, map)
   const places = planBadgePlaces(plan, marks, badgeWidth(PLAN_TEXT))
   cache = { sig, map, places }
-  plansMade++
   return places
 }
-
-/** test seam: forget the cached plan */
-export function __resetBadgePlan(): void {
-  cache = null
-}
-
-/** test seam: how many plans have been made (cache misses) */
-export function __badgePlanCount(): number {
-  return plansMade
-}
-
-/** test seam: the inputs a plan reads, with each connection's path */
-export const __planInputs = planInputs

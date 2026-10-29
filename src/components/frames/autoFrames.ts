@@ -120,31 +120,6 @@ function buildAdj(nodes: AFNode[], edges: AFEdge[]): Map<string, string[]> {
   return adj
 }
 
-/** components over the drawn-edge graph, big-first, each id-sorted. Diagnostic
- *  only — framing is graph-level (§AF2.2). */
-export function connectedComponents(nodes: AFNode[], adj: Map<string, string[]>): string[][] {
-  const seen = new Set<string>()
-  const comps: string[][] = []
-  for (const start of nodes.map((n) => n.id).sort()) {
-    if (seen.has(start)) continue
-    const stack = [start]
-    const c: string[] = []
-    seen.add(start)
-    while (stack.length) {
-      const x = stack.pop()!
-      for (const y of [...new Set(adj.get(x)!)].sort()) {
-        if (!seen.has(y)) {
-          seen.add(y)
-          stack.push(y)
-        }
-      }
-      c.push(x)
-    }
-    comps.push(c.sort())
-  }
-  return comps.sort((a, b) => b.length - a.length || (a[0] < b[0] ? -1 : 1))
-}
-
 // ── deterministic label propagation (§AF3.2 / §AF8) ──────────────────────
 function labelPropagation(compIds: string[], adj: Map<string, string[]>): Map<string, string[]> {
   const order = [...compIds].sort()
