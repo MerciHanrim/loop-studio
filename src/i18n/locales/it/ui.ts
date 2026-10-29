@@ -46,8 +46,6 @@ const ui = {
   'toolbar.newGraph.confirm': 'Nuovo grafo',
   'toolbar.file.button': 'File',
   'toolbar.file.menuLabel': 'File',
-  'toolbar.settings.button': 'Impostazioni',
-  'toolbar.settings.menuLabel': 'Impostazioni',
   'theme.rowLabel': 'Tema',
   'theme.title': 'Tema: sistema / chiaro / scuro',
   'theme.auto': 'Auto',

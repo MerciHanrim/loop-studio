@@ -19,8 +19,6 @@ const ui = {
   'toolbar.newGraph.confirm': 'New graph',
   'toolbar.file.button': 'File',
   'toolbar.file.menuLabel': 'File',
-  'toolbar.settings.button': 'Settings',
-  'toolbar.settings.menuLabel': 'Settings',
   'theme.rowLabel': 'Theme',
   'theme.title': 'Theme: system / light / dark',
   'theme.auto': 'Auto',

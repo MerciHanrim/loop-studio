@@ -26,8 +26,6 @@ const ui = {
   'toolbar.newGraph.confirm': '新建图',
   'toolbar.file.button': '文件',
   'toolbar.file.menuLabel': '文件',
-  'toolbar.settings.button': '设置',
-  'toolbar.settings.menuLabel': '设置',
   'theme.rowLabel': '主题',
   'theme.title': '主题：跟随系统／浅色／深色',
   'theme.auto': '自动',

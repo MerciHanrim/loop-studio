@@ -38,8 +38,6 @@ const ui = {
   'toolbar.newGraph.confirm': 'Neuer Graph',
   'toolbar.file.button': 'Datei',
   'toolbar.file.menuLabel': 'Datei',
-  'toolbar.settings.button': 'Einstellungen',
-  'toolbar.settings.menuLabel': 'Einstellungen',
   'theme.rowLabel': 'Design',
   'theme.title': 'Design: System / Hell / Dunkel',
   'theme.auto': 'Automatisch',

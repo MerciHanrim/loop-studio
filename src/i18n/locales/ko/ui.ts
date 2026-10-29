@@ -19,8 +19,6 @@ const ui = {
   'toolbar.newGraph.confirm': '새 그래프',
   'toolbar.file.button': '파일',
   'toolbar.file.menuLabel': '파일',
-  'toolbar.settings.button': '설정',
-  'toolbar.settings.menuLabel': '설정',
   'theme.rowLabel': '테마',
   'theme.title': '테마: 시스템 / 라이트 / 다크',
   'theme.auto': '자동',

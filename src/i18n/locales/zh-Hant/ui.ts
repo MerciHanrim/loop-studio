@@ -28,8 +28,6 @@ const ui = {
   'toolbar.newGraph.confirm': '新增圖',
   'toolbar.file.button': '檔案',
   'toolbar.file.menuLabel': '檔案',
-  'toolbar.settings.button': '設定',
-  'toolbar.settings.menuLabel': '設定',
   'theme.rowLabel': '佈景主題',
   'theme.title': '佈景主題：跟隨系統／淺色／深色',
   'theme.auto': '自動',
