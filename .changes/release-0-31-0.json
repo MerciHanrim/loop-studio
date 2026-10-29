@@ -1,0 +1,1 @@
+{ "type": "internal", "reason": "Release v0.31.0: raises the app version to 0.31.0, moves the Unreleased CHANGELOG lines into the v0.31.0 section, retakes the README's three screenshots for the redrawn run bar, and makes an Arabic menu item start at its row's left — a fix inside the not-yet-released Arabic support, described in that section's language line." }

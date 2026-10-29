@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
 import { readParagraph } from './support/textDirection'
-import { openFileSubmenu, openViewMenu } from './support/workbenchMenus'
+import { openFileMenu, openFileSubmenu, openViewMenu } from './support/workbenchMenus'
 
 // docs/localization.md §L9.2 / §L2.0a — the layout is fixed; only RTL TEXT reads
 // right to left.
@@ -296,22 +296,28 @@ test.describe('the text reads by its own direction inside the fixed layout', () 
     await openApp(page)
   })
 
-  test('d — Arabic chrome text reads rtl while its container keeps direction ltr', async ({ page }) => {
+  test('d — Arabic chrome text reads rtl while its container keeps direction ltr; menu items start at the left', async ({ page }) => {
     await switchLocale(page, 'ar')
-    // View ▸ Reset view and File ▸ New: menu names in boxes wider than their text,
-    // so the paragraph's own direction shows as its alignment
+    // View ▸ Reset view and File ▸ New: menu names in boxes wider than their
+    // text. A menu is part of the fixed layout, so an Arabic item reads rtl
+    // (plaintext) but starts at the row's LEFT, as in every language (Lumi,
+    // 2026-10-29: a row-wide name flush right made the menu look mirrored)
     await openViewMenu(page)
     const viewName = page.locator('.wb-viewmenu__pop .menu__item:not(.wb-viewmenu__toggle) .menu__name').last()
     const view = await readParagraph(viewName)
     const viewPop = await page.locator('.wb-viewmenu__pop').evaluate((el) => getComputedStyle(el).direction)
     await page.keyboard.press('Escape')
+    await openFileMenu(page)
+    const fileName = page.locator('.toolbar__filemenu-pop .menu__item:not([data-submenu]) .menu__name').first()
+    const file = await readParagraph(fileName)
+    await page.keyboard.press('Escape')
 
-    for (const [where, p] of [['View menu item', view]] as const) {
+    for (const [where, p] of [['View menu item', view], ['File menu item', file]] as const) {
       expect(p.text, `${where}: Arabic text`).toMatch(/\p{Script=Arabic}/u)
       expect(p.unicodeBidi, `${where}: plaintext carries the reading direction`).toBe('plaintext')
       expect(p.direction, `${where}: its own direction stays ltr`).toBe('ltr')
       expect(p.slack, `${where}: a box wider than the text`).toBeGreaterThan(1)
-      expect(p.align, `${where}: the rtl paragraph starts at the right: ${JSON.stringify(p)}`).toBe('right')
+      expect(p.align, `${where}: the item starts at the row's left: ${JSON.stringify(p)}`).toBe('left')
     }
     expect(viewPop, 'the View popover lays out ltr').toBe('ltr')
 
