@@ -18,7 +18,7 @@
       "closed-value": 44
     },
     "recordedNotImplemented": 0,
-    "attributeSink": 22
+    "attributeSink": 21
   },
   "rows": [
     {
@@ -177,9 +177,9 @@
       "key": "panels.inputs.paramValue",
       "arg": "label",
       "ord": 1,
-      "sink": "attr:input.aria-label",
+      "sink": "prop:DraftNumberInput.aria-label",
       "class": "attribute",
-      "evidence": "aria-label on an input. The value is a user PARAMETER LABEL."
+      "evidence": "aria-label on an input: `DraftNumberInput` (#393 A) spreads the prop onto its own `<input>` unchanged, so the value still lands in an HTML attribute, which markup cannot reach; the checker sees the component prop only. The value is a user PARAMETER LABEL."
     },
     {
       "file": "src/components/PlayBar.tsx",

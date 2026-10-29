@@ -31,6 +31,7 @@ import { useSimStore } from '../store/simStore'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { AccentField } from './AccentField'
+import { DraftNumberInput } from './DraftNumberInput'
 import { EdgeEndsField } from './EdgeEndsField'
 import { RegisterExprField } from './RegisterExprField'
 import { EdgeRelation, NodeRelations } from './workbench/Relations'
@@ -1162,29 +1163,16 @@ function NonNegativeNumberField({
   onCommit: (n: number | null) => void
 }) {
   const t = useT()
-  const [draft, setDraft] = useState<string | null>(null)
-  const shown = draft ?? (value == null ? '' : String(value))
-  const draftInvalid =
-    draft !== null &&
-    !(draft === '' ? allowEmpty : Number.isFinite(Number(draft)) && Number(draft) >= 0)
+  const [draftInvalid, setDraftInvalid] = useState(false)
   return (
     <Field label={label}>
-      <input dir="ltr"
-        type="number"
+      <DraftNumberInput
         min={0}
-        value={shown}
-        aria-invalid={draftInvalid || undefined}
-        onChange={(e) => {
-          const text = e.target.value
-          setDraft(text)
-          if (text === '') {
-            if (allowEmpty) onCommit(null)
-            return
-          }
-          const n = Number(text)
-          if (Number.isFinite(n) && n >= 0) onCommit(n)
-        }}
-        onBlur={() => setDraft(null)}
+        value={value}
+        allowEmpty={allowEmpty}
+        valid={(n) => n >= 0}
+        onCommit={onCommit}
+        onInvalidChange={setDraftInvalid}
       />
       {draftInvalid ? (
         <p className="field__hint field__hint--bad">{t('inspector.number.nonNegativeHint')}</p>
@@ -1295,17 +1283,19 @@ function ConverterFields({ d, set }: { d: ConverterData; set: Patch }) {
 
 // ── loop-model/1 (SEMANTICS-M.md) ────────────────────────────────────────
 
-const numOrUndef = (s: string): number | undefined => (s === '' ? undefined : Number(s))
-
 function ParameterFields({ d, set }: { d: ParameterData; set: Patch }) {
   const t = useT()
   // advisory notices from the defensive read (§M1.2) — value-out-of-range etc.
   const read = readParameterData(d)
   const notices = read.ok ? read.notices : []
+  // #393 A — the four number fields take the local-draft-until-valid pattern
+  // (`DraftNumberInput`): only a finite parse is committed, so a leading `-`
+  // or a `1e400` never reaches the store; a blank min / max / step clears it
+  const optional = (key: 'min' | 'max' | 'step') => (n: number | null) => set({ [key]: n ?? undefined })
   return (
     <>
       <Field label={t('inspector.field.value')}>
-        <input dir="ltr" type="number" value={d.value} onChange={(e) => set({ value: Number(e.target.value) })} />
+        <DraftNumberInput value={d.value} allowEmpty={false} onCommit={(n) => { if (n != null) set({ value: n }) }} />
       </Field>
       <Field label={t('inspector.field.unit')}>
         {/* §L9.3 — a unit is user-authored graph data, not an engine token: the
@@ -1313,13 +1303,13 @@ function ParameterFields({ d, set }: { d: ParameterData; set: Patch }) {
         <input dir="auto" value={d.unit ?? ''} onChange={(e) => set({ unit: e.target.value || undefined })} />
       </Field>
       <Field label={t('inspector.field.min')}>
-        <input dir="ltr" type="number" value={d.min ?? ''} onChange={(e) => set({ min: numOrUndef(e.target.value) })} />
+        <DraftNumberInput value={d.min ?? null} allowEmpty onCommit={optional('min')} />
       </Field>
       <Field label={t('inspector.field.max')}>
-        <input dir="ltr" type="number" value={d.max ?? ''} onChange={(e) => set({ max: numOrUndef(e.target.value) })} />
+        <DraftNumberInput value={d.max ?? null} allowEmpty onCommit={optional('max')} />
       </Field>
       <Field label={t('inspector.field.step')}>
-        <input dir="ltr" type="number" value={d.step ?? ''} onChange={(e) => set({ step: numOrUndef(e.target.value) })} />
+        <DraftNumberInput value={d.step ?? null} allowEmpty onCommit={optional('step')} />
       </Field>
       {notices.includes('PARAM_VALUE_OUT_OF_RANGE') && (
         <p className="inspector__note">{t('inspector.parameter.outOfRange')}</p>

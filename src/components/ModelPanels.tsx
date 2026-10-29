@@ -11,6 +11,7 @@ import { useUiStore } from '../store/uiStore'
 import { useT, type MessageKey } from '../i18n'
 import { isolateAuto } from '../i18n/bidiIsolate'
 import { ArrowIcon, Icon } from '../ui/icons'
+import { DraftNumberInput } from './DraftNumberInput'
 
 // docs/module-system.md §MS5 — the Inputs and Summary panels. Two collapsible
 // sections at the top of the desktop right column, above the Inspector. Pure
@@ -148,7 +149,7 @@ function InputsSection({
                 const label = labelOf(n)
                 const raw = (n.data as { value?: unknown }).value
                 const value =
-                  read.ok ? read.data.value : typeof raw === 'number' && Number.isFinite(raw) ? raw : ''
+                  read.ok ? read.data.value : typeof raw === 'number' && Number.isFinite(raw) ? raw : null
                 return (
                   <li key={n.id} className="mp-row">
                     <button
@@ -160,13 +161,14 @@ function InputsSection({
                     >
                       {label}
                     </button>
-                    <input dir="ltr"
-                      type="number"
+                    {/* #393 A — draft until a finite parse, as the Inspector's Value field */}
+                    <DraftNumberInput
                       className="mp-row__val"
                       aria-label={t('panels.inputs.paramValue', { label })}
                       value={value}
+                      allowEmpty={false}
                       disabled={locked}
-                      onChange={(e) => updateNodeData(n.id, { value: Number(e.target.value) })}
+                      onCommit={(v) => { if (v != null) updateNodeData(n.id, { value: v }) }}
                     />
                   </li>
                 )
