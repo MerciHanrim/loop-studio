@@ -82,3 +82,64 @@ test('a file that carries a negative Pool initial loads, disables Play / Step, a
   await expect(page.locator('.pstrip__group .pb-btn--primary')).toBeEnabled()
   expect(await simInitError(page)).toBeNull()
 })
+
+// issue #406 — a Starting amount above the Capacity. Each field is valid on
+// its own, so the Inspector commits both; the engine refuses the pair at
+// initSim (it used to clamp the value at the first step in silence), the run
+// strip names the Pool and both numbers, and the document keeps what was
+// typed until the user corrects either field.
+const poolCapacity = (page: Page) =>
+  page.evaluate(
+    () => (window as unknown as Bridge).__loop.graph.getState().nodes.find((n: any) => n.data.kind === 'pool').data.capacity,
+  )
+const REFUSED = /initial must be ≤ its capacity \(initial 20, capacity 10\)/
+
+test('typing Capacity 10 then Starting amount 20: both stored as typed, Play / Step disabled, the strip names the pair; raising the capacity recovers', async ({
+  page,
+}) => {
+  const id = await poolId(page)
+  await page.evaluate((nid) => (window as unknown as Bridge).__loop.graph.getState().setSelection(nid, null), id)
+  const starting = page.locator('.inspector input[type=number]').nth(0)
+  const capacity = page.locator('.inspector input[type=number]').nth(1)
+  await capacity.fill('10')
+  await expect.poll(() => poolCapacity(page)).toBe(10)
+  await starting.fill('20')
+  await expect.poll(() => poolInitial(page)).toBe(20) // committed: the field alone is valid
+  await expect(page.locator('.inspector .field__hint--bad')).toHaveCount(0)
+  await expect(page.locator('.pstrip__initerr')).toBeVisible()
+  await expect(page.locator('.pstrip__initerr')).toContainText(/Cannot run/)
+  await expect(page.locator('.pstrip__group .pb-btn--primary')).toBeDisabled()
+  expect(await simInitError(page)).toMatch(REFUSED)
+  expect(await poolCapacity(page)).toBe(10) // nothing corrected behind the user's back
+
+  await capacity.fill('25')
+  await expect(page.locator('.pstrip__initerr')).toHaveCount(0)
+  await expect(page.locator('.pstrip__group .pb-btn--primary')).toBeEnabled()
+  expect(await simInitError(page)).toBeNull()
+})
+
+test('a file whose Pool has initial 20 and capacity 10 loads with both values intact and is refused the same way', async ({
+  page,
+}) => {
+  const bad = await page.evaluate(() => {
+    const g = (window as unknown as Bridge).__loop.graph.getState()
+    const doc = JSON.parse(g.exportJSON())
+    const p = doc.nodes.find((n: any) => n.data.kind === 'pool')
+    p.data.initial = 20
+    p.data.capacity = 10
+    return JSON.stringify(doc)
+  })
+  await importGraph(page, bad)
+  expect([await poolInitial(page), await poolCapacity(page)]).toEqual([20, 10])
+  await expect(page.locator('.pstrip__initerr')).toBeVisible()
+  await expect(page.locator('.pstrip__group .pb-btn--primary')).toBeDisabled()
+  expect(await simInitError(page)).toMatch(REFUSED)
+
+  // lowering the Starting amount in the Inspector recovers the run strip
+  const id = await poolId(page)
+  await page.evaluate((nid) => (window as unknown as Bridge).__loop.graph.getState().setSelection(nid, null), id)
+  await page.locator('.inspector input[type=number]').first().fill('10')
+  await expect(page.locator('.pstrip__initerr')).toHaveCount(0)
+  await expect(page.locator('.pstrip__group .pb-btn--primary')).toBeEnabled()
+  expect(await simInitError(page)).toBeNull()
+})

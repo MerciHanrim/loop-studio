@@ -52,7 +52,16 @@ export function initSim(nodes: LoopNode[]): SimState {
   for (const n of nodes) {
     if (n.data.kind !== 'pool') continue
     values[n.id] = requireFinite(n.data.initial, `Pool "${n.data.label}" initial`)
-    if (n.data.capacity != null) requireFinite(n.data.capacity, `Pool "${n.data.label}" capacity`)
+    if (n.data.capacity != null) {
+      requireFinite(n.data.capacity, `Pool "${n.data.label}" capacity`)
+      // issue #406 — a starting amount above the capacity is refused here, not
+      // clamped by the first step's Commit in silence; the document keeps the
+      // pair as authored, for the user to correct
+      if (n.data.initial > n.data.capacity)
+        throw new Error(
+          `Pool "${n.data.label}" initial must be ≤ its capacity (initial ${n.data.initial}, capacity ${n.data.capacity})`,
+        )
+    }
   }
   return { step: 0, values, ended: false, fired: [], triggerQueue: [] }
 }
