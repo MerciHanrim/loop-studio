@@ -888,4 +888,82 @@ test.describe('3-zone gacha banner comparison Template', () => {
     await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2)
     await expect.poll(() => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().selectedEdgeId)).toBe('e_pickup_29')
   })
+
+  // #390 — the hand-off must select through the DOCUMENT's elements. Before
+  // the fix it went through React Flow's `setEdges` / `setNodes`, whose
+  // `replace` changes carry the DRAWN copies of the two connections whose
+  // `selected` flips (the chip's and the line's): under the default node
+  // structure a connection with stored faces is drawn with `out@bottom` /
+  // `in@top` handle ids, and those landed in the document — the handles and
+  // the revision digest moved on a selection click, and under the edit lock
+  // the same click was refused instead (`selectionOnlyReplace` saw the handle
+  // differ). `e_pickup_6` (faced) has its chip over `e_pickup_23`'s line
+  // (faced too), measured on this Template.
+  test('a label click on a faced connection over a faced line changes nothing in the document, unlocked and locked (e_pickup_6, #390)', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await pickDesktopTemplate(page, EN_NAME)
+    await routesSettled(page)
+    type Bridge = { __loop: { graph: { getState: () => any }; ui: { getState: () => any }; rf: any } }
+    const selectedEdge = () => page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().selectedEdgeId)
+    const handles = () =>
+      page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().edges.map((e: any) => [e.id, e.sourceHandle ?? null, e.targetHandle ?? null]))
+    const digest = () =>
+      page.evaluate(async () => {
+        const M = await import('/src/model/revision.ts')
+        const g = (window as unknown as Bridge).__loop.graph.getState()
+        return M.digestOfCanonical(M.canonicalContent({ nodes: g.nodes, edges: g.edges }))
+      })
+    // the Template opens locked (its recommended run config); the first half is the unlocked case
+    await page.evaluate(() => (window as unknown as Bridge).__loop.ui.getState().setCanvasLocked(false))
+    await expect.poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.ui.getState().canvasLocked)).toBe(false)
+    // edge chips show at L2 only: 100 % around the connection's source, then its chip centred
+    await page.evaluate(() => {
+      const l = (window as unknown as Bridge).__loop
+      const g = l.graph.getState()
+      const e = g.edges.find((x: any) => x.id === 'e_pickup_6')
+      const n = g.nodes.find((x: any) => x.id === e.source)
+      const root = document.querySelector('.react-flow')!.getBoundingClientRect()
+      l.rf.setViewport({ x: root.width / 2 - n.position.x, y: root.height / 2 - n.position.y, zoom: 1 }, { duration: 0 })
+    })
+    const chip = page.locator('.edge-label[data-edge-id="e_pickup_6"]:not(.edge-label--measure)')
+    await expect(chip).toHaveCount(1)
+    await page.evaluate(() => {
+      const chip = document.querySelector('.edge-label[data-edge-id="e_pickup_6"]:not(.edge-label--measure)') as HTMLElement
+      const root = document.querySelector('.react-flow')!.getBoundingClientRect()
+      const l = (window as unknown as Bridge).__loop
+      const vp = l.rf.getViewport()
+      const b = chip.getBoundingClientRect()
+      const fx = (b.left + b.width / 2 - root.left - vp.x) / vp.zoom
+      const fy = (b.top + b.height / 2 - root.top - vp.y) / vp.zoom
+      l.rf.setViewport({ x: root.width / 2 - fx, y: root.height / 2 - fy, zoom: 1 }, { duration: 0 })
+    })
+    await page.waitForTimeout(200)
+    const b = (await chip.boundingBox())!
+    const under = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('.react-flow__edge')?.getAttribute('data-id') ?? null, [b.x + b.width / 2, b.y + b.height / 2] as const)
+    expect(under, "another connection's line runs under the chip").not.toBeNull()
+    expect(under).not.toBe('e_pickup_6')
+    const handlesBefore = await handles()
+    const digestBefore = await digest()
+    expect(handlesBefore.find((h: string[]) => h[0] === 'e_pickup_6')?.[1], 'the document keeps the plain handle id').not.toMatch(/@/)
+
+    await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2)
+    await expect.poll(selectedEdge).toBe('e_pickup_6')
+    expect(await handles(), 'handle ids are the document’s, not the drawn copies’').toEqual(handlesBefore)
+    expect(await digest(), 'a selection click does not move the revision digest').toBe(digestBefore)
+
+    // under the edit lock the chip still selects its connection
+    await page.evaluate(() => {
+      const l = (window as unknown as Bridge).__loop
+      l.graph.getState().onEdgesChange([{ id: 'e_pickup_6', type: 'select', selected: false }])
+      l.graph.getState().setSelection(null, null)
+      l.ui.getState().setCanvasLocked(true)
+    })
+    await expect.poll(selectedEdge).toBeNull()
+    await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2)
+    await expect.poll(selectedEdge).toBe('e_pickup_6')
+    expect(await handles()).toEqual(handlesBefore)
+    expect(await digest()).toBe(digestBefore)
+    await page.evaluate(() => (window as unknown as Bridge).__loop.ui.getState().setCanvasLocked(false))
+  })
 })
