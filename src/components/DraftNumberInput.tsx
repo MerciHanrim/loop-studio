@@ -4,12 +4,13 @@ import { useState, type InputHTMLAttributes } from 'react'
  * A number input whose stored value must be a finite number (optionally with a
  * further `valid` rule). The text being typed lives in a local draft and only
  * a VALID parse is committed, so a half-typed `-`, `1e400` or an empty field
- * never reaches the store: `Number('-')` is 0 and `Number('1e400')` is
- * `Infinity`, which `readParameterData` rejects — committing them per
- * keystroke snapped a Parameter's value to 0 as soon as a minus was typed, and
- * flipped the node into the Inspector's "unreadable" fallback on an overflow
- * (issue #393 A). The draft is dropped on blur, snapping the field back to
- * whatever is stored. `allowEmpty` commits `null` for a blank field.
+ * never reaches the store. A number input reports a lone `-` and an overflow
+ * such as `1e400` as `''` (`Number('-')` itself is `NaN`; it is the empty
+ * string that `Number` turns into 0), so committing `Number(text)` per
+ * keystroke snapped a Parameter's value to 0 as soon as a minus was typed and
+ * lost the sign (issue #393 A). The draft is dropped on blur, snapping the
+ * field back to whatever is stored. `allowEmpty` commits `null` for a blank
+ * field.
  *
  * Renders the `<input>` only; the caller wraps it in its own field and shows
  * any hint it wants from `invalid`.
