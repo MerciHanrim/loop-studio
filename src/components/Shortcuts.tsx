@@ -65,8 +65,9 @@ export function Shortcuts() {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey
       if (!mod || isTypingTarget(e.target)) return
-      // #393 B — a real dialog (`aria-modal`) owns the keyboard: Ctrl+Z used
-      // to undo the document behind About / Monte Carlo / the import wizard
+      // #393 B — a dialog owns the keyboard (the same guard as the canvas
+      // delete key): Ctrl+Z used to undo the document behind About / Monte
+      // Carlo / the import wizard
       if (isModalOpen()) return
       const key = e.key.toLowerCase()
       if (key === 'z' && !e.shiftKey) {
