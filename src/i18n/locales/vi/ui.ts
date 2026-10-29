@@ -169,6 +169,7 @@ const ui = {
   'import.error.unexpected': 'Nội dung tệp không như mong đợi.',
   'import.error.notLoopStudio': 'Đây có vẻ không phải tệp đồ thị của Loop Studio.',
   'import.error.missingNodesEdges': 'Tệp đồ thị thiếu phần nút hoặc liên kết.',
+  'import.error.badNode': 'Một nút trong tệp này không có mã định danh hoặc không có vị trí.',
   'import.structuralWarning': 'Đồ thị này có vấn đề về cấu trúc và các liên kết đó bị bỏ qua:\n{detail}',
   'import.modelLayerUnreadable': 'Không đọc được phần nội dung tầng mô hình của tệp này ({detail}); dữ liệu dự án của nó đã bị bỏ qua.',
   'mobile.more.import': 'Nhập tệp',

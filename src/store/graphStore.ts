@@ -447,6 +447,17 @@ export function setEditGuard(fn: (() => boolean) | null): void {
 export function setDocumentLockSink(fn: ((locked: boolean) => void) | null): void {
   documentLockSink = fn
 }
+// issue #392 A — "another document" (New, a Template, a pasted graph, a file,
+// a share link, a Workspace) also ends the open PROJECT: `projectStore`
+// registers its `clear` here, so the chip, the next Export's lineage and the
+// autosaved header agree with the record (`dropProjectHeader` alone nulled
+// only what autosave writes, and the store kept showing the old revision).
+// A revision Apply (`loadDoc` mode `apply`) is an edit of THIS document and
+// does not fire it. Unregistered (a bare store in a unit test) ⇒ no-op.
+let documentBoundarySink: (() => void) | null = null
+export function setDocumentBoundarySink(fn: (() => void) | null): void {
+  documentBoundarySink = fn
+}
 /** true while the edit lock blocks user edits; `frameStore` and `projectStore`
  *  ask before their own document changes */
 export function isEditBlocked(): boolean {
@@ -1253,6 +1264,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     newGraph: () => {
       const fresh = enterDocument(false) // #334 — a new document starts unlocked
       dropProjectHeader()
+      documentBoundarySink?.() // #392 A
       set({
         ...fresh,
         nodes: [],
@@ -1279,6 +1291,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       const { nodes, edges } = normalizeGraph(snapshot)
       const fresh = enterDocument(canvasLocked)
       dropProjectHeader()
+      documentBoundarySink?.() // #392 A
       set({
         ...fresh,
         nodes,
@@ -1337,6 +1350,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         lastTag = ''
       }
       dropProjectHeader()
+      if (opts.mode === 'document-boundary') documentBoundarySink?.() // #392 A
       set({
         ...(history ?? {}),
         nodes,

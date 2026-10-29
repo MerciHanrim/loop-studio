@@ -191,6 +191,7 @@ const ui = {
   'import.error.unexpected': 'Неожиданное содержимое файла.',
   'import.error.notLoopStudio': 'Это не похоже на файл графа Loop Studio.',
   'import.error.missingNodesEdges': 'В файле графа отсутствуют узлы или связи.',
+  'import.error.badNode': 'У узла в этом файле нет id или нет позиции.',
   'import.structuralWarning':
     'В этом графе есть структурные проблемы, и эти связи игнорируются:\n{detail}',
   'import.modelLayerUnreadable':

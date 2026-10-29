@@ -186,6 +186,7 @@ const ui = {
   'import.error.unexpected': 'محتويات ملف غير متوقّعة.',
   'import.error.notLoopStudio': 'لا يبدو هذا ملف مخطط من Loop Studio.',
   'import.error.missingNodesEdges': 'ينقص ملف المخطط عقده أو اتصالاته.',
+  'import.error.badNode': 'إحدى العقد في هذا الملف بلا معرّف أو بلا موضع.',
   'import.structuralWarning': 'لهذا المخطط مشكلات بنيوية وتُتجاهل تلك الاتصالات:\n{detail}',
   'import.modelLayerUnreadable': 'محتوى طبقة النموذج في هذا الملف غير قابل للقراءة ({detail})؛ وتُجوهلت بيانات مشروعه.',
   'mobile.more.import': 'استيراد ملف',

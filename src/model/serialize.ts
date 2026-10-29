@@ -707,7 +707,20 @@ export function serialize(
 /** why `deserialize` rejected a file — a CODE the UI maps to a localized
  *  message (`import.error.*`). `message` keeps the historical English text
  *  for logs / tests. */
-export type GraphFileErrorCode = 'invalid-json' | 'unexpected' | 'not-loop-studio' | 'missing-nodes-edges'
+export type GraphFileErrorCode = 'invalid-json' | 'unexpected' | 'not-loop-studio' | 'missing-nodes-edges' | 'bad-node'
+
+/** issue #392 B — a node entry the canvas can draw: an object with a string
+ *  `id` and a finite `position`. Anything else used to pass this reader, reach
+ *  React Flow (which throws on a missing position), and sit in the autosave
+ *  the next boot read again. The share-link and Workspace paths read through
+ *  here too, so one gate covers them all. */
+function isDrawableNodeEntry(n: unknown): boolean {
+  if (!n || typeof n !== 'object' || Array.isArray(n)) return false
+  const o = n as { id?: unknown; position?: unknown }
+  if (typeof o.id !== 'string' || o.id === '') return false
+  const p = o.position as { x?: unknown; y?: unknown } | undefined
+  return !!p && typeof p === 'object' && Number.isFinite(p.x) && Number.isFinite(p.y)
+}
 export class GraphFileError extends Error {
   code: GraphFileErrorCode
   constructor(code: GraphFileErrorCode, message: string) {
@@ -766,6 +779,9 @@ export function deserialize(text: string): {
   }
   if (!Array.isArray(obj.nodes) || !Array.isArray(obj.edges)) {
     throw new GraphFileError('missing-nodes-edges', 'Graph file is missing its nodes or edges.')
+  }
+  if (!obj.nodes.every(isDrawableNodeEntry)) {
+    throw new GraphFileError('bad-node', 'A node in this file has no id or no position.')
   }
   const rrc =
     obj.recommendedRunConfig && typeof obj.recommendedRunConfig === 'object' && !Array.isArray(obj.recommendedRunConfig)

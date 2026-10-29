@@ -172,6 +172,7 @@ const ui = {
   'import.error.unexpected': 'Beklenmeyen dosya içeriği.',
   'import.error.notLoopStudio': 'Bu bir Loop Studio grafik dosyasına benzemiyor.',
   'import.error.missingNodesEdges': 'Grafik dosyasında düğümler ya da bağlantılar eksik.',
+  'import.error.badNode': 'Bu dosyadaki bir düğümün kimliği ya da konumu yok.',
   'import.structuralWarning':
     'Bu grafikte yapısal sorunlar var ve şu bağlantılar yok sayılıyor:\n{detail}',
   'import.modelLayerUnreadable':

@@ -44,6 +44,32 @@ function promote(now = '2026-09-09T00:00:00Z'): PendingRevisionPlan {
   return p.plan
 }
 
+// issue #392 A — New / a Template / another document end the open project in
+// the STORE too, not only in the autosaved header: before, the chip kept the
+// old revision (now dirty) and the next Export minted a child of a lineage the
+// new document never descended from.
+describe('projectStore — a document boundary clears the open project (#392 A)', () => {
+  it('newGraph clears open and the autosaved header', () => {
+    promote()
+    expect(useProjectStore.getState().open).not.toBeNull()
+    useGraphStore.getState().newGraph()
+    expect(useProjectStore.getState().open).toBeNull()
+    expect(useProjectStore.getState().dirty).toBe(false)
+    expect(autosaveHeader()).toBeNull()
+  })
+
+  it('loadGraph (a Template / a paste) and loadJSON (a plain file) clear it; a revision Apply does not run the boundary', () => {
+    promote()
+    useGraphStore.getState().loadGraph({ nodes: [], edges: [] }, { canvasLocked: false })
+    expect(useProjectStore.getState().open, 'after loadGraph').toBeNull()
+    promote()
+    const plain = useGraphStore.getState().exportJSON()
+    useGraphStore.getState().loadJSON(plain)
+    expect(useProjectStore.getState().open, 'after loadJSON').toBeNull()
+    expect(autosaveHeader()).toBeNull()
+  })
+})
+
 describe('projectStore — promote & the two-phase Export (§R2.1 / §R3)', () => {
   it('planRevision phase 1 commits nothing; commit sets baseline + autosaves the header in the graph record', () => {
     const p = useProjectStore.getState().planRevision({ now: '2026-09-09T00:00:00Z', mint })

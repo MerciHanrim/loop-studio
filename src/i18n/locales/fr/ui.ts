@@ -177,6 +177,7 @@ const ui = {
   'import.error.unexpected': 'Contenu de fichier inattendu.',
   'import.error.notLoopStudio': 'Cela ne ressemble pas à un fichier de graphe Loop Studio.',
   'import.error.missingNodesEdges': 'Il manque nodes ou edges au fichier de graphe.',
+  'import.error.badNode': 'Un nœud de ce fichier n’a pas d’identifiant ou pas de position.',
   'import.structuralWarning':
     'Ce graphe présente des problèmes de structure et ces connexions sont ignorées :\n{detail}',
   'import.modelLayerUnreadable':
