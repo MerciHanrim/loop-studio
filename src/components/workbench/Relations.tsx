@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { connectKindOf, type ConnectKind } from '../../model/connectKind'
+import { findReferences } from '../../model/dataImportReferences'
 import type { LoopEdge, LoopNode } from '../../model/types'
 import { classifyLabelTiming, parseActivatorExpr, parseLabelExpr } from '../../engine/stateExpr'
 import { gateChances, type GateChances } from '../../engine/gateChance'
@@ -134,11 +135,16 @@ export function NodeRelations({ node }: { node: LoopNode }) {
   const kindOf = (e: LoopEdge) => connectKindOf(e)
   const into = (k: ConnectKind) => edges.filter((e) => e.target === id && kindOf(e) === k)
   const outOf = (k: ConnectKind) => edges.filter((e) => e.source === id && kindOf(e) === k)
-  // a Parameter is read by reference (`@id` in an amount or a condition)
-  const refs = edges.filter((e) => {
-    const d = (e.data ?? {}) as { flow?: unknown; expr?: unknown }
-    return (typeof d.flow === 'string' && d.flow.trim() === `@${id}`) || (typeof d.expr === 'string' && d.expr.includes(`@${id}`))
-  })
+  // a Parameter is read by reference (`@id` in an amount or a condition) —
+  // found by the parsers, not by text (#393 C): a substring test matched `@a`
+  // inside `@ab` and never matched the `@{a}` spelling; `findReferences` reads
+  // a v2 `flow` with `parseFlow` and an activator `expr` with
+  // `parseActivatorExpr`, under the document's model version
+  const refEdgeIds = useMemo(
+    () => new Set(findReferences(nodes, edges, modelVersion, id).flatMap((r) => (r.via === 'resource-flow' || r.via === 'activator' ? [r.edgeId] : []))),
+    [nodes, edges, modelVersion, id],
+  )
+  const refs = edges.filter((e) => refEdgeIds.has(e.id))
   const all: Section[] = [
     { key: 'rel.in.flow', rows: into('flow'), other: (e) => e.source },
     { key: 'rel.in.condition', rows: into('condition'), other: (e) => e.source },
