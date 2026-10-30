@@ -2,12 +2,16 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { useGraphStore } from './graphStore'
 import { MC_DEFAULT_CONFIG, useMcStore } from './mcStore'
 
-// issue #407 — reproduction on current main. A Monte Carlo run copies the graph
-// and `simulationRev` when it starts; the graph is edited while the run is in
-// flight (the cooperative runner yields to the event loop between batches, so
-// an edit lands between two batches exactly as a user's edit lands between two
-// Worker progress messages); the result then arrives. Which graph is the result
-// computed from, and how is it labelled?
+// issue #407 — a graph edit while a Monte Carlo run is in flight. The run
+// copies the graph and `simulationRev` when it starts; the cooperative runner
+// (vitest has no Worker) yields to the event loop between batches, so an edit
+// lands between two batches exactly as a user's edit lands between two Worker
+// progress messages. The rule (Lumi, 2026-10-30): the run is NOT cancelled;
+// the result is computed from, and stays bound to, the start graph; on
+// completion the start rev is compared with the document's current rev and a
+// difference marks the result `stale` on arrival — the same mark, with the
+// same export consequence, a post-run edit leaves. A later run completed at
+// the current rev clears it.
 
 function seedGraph() {
   const g = useGraphStore.getState()
@@ -22,58 +26,122 @@ function seedGraph() {
   return { poolId: p.id }
 }
 
+/** start a run and let the runner hand out its first yield; the run's promise
+ *  is boxed so that awaiting this helper does not await the run itself */
+async function startRun(): Promise<{ running: Promise<void> }> {
+  const running = useMcStore.getState().run()
+  expect(useMcStore.getState().status).toBe('running')
+  await new Promise((r) => setTimeout(r, 0))
+  expect(useMcStore.getState().status).toBe('running') // still in flight
+  return { running }
+}
+
 beforeEach(() => {
   useMcStore.getState().clear()
   useMcStore.getState().setConfig(MC_DEFAULT_CONFIG)
 })
 
 describe('a graph edit while a Monte Carlo run is in flight (#407)', () => {
-  it('the result is computed from the graph at run START, and lands labelled as current (stale: false) although the graph has changed', async () => {
+  it('the run is not cancelled; the result is the START graph\'s and lands marked stale, values and runRev preserved', async () => {
     const { poolId } = seedGraph()
     const revAtStart = useGraphStore.getState().simulationRev
     // enough batches for the runner to yield at least once (batchSize 64 ⇒ 4 yields)
     useMcStore.getState().setConfig({ runs: 300, steps: 5, tracked: [poolId] })
+    const { running } = await startRun()
 
-    const running = useMcStore.getState().run()
-    expect(useMcStore.getState().status).toBe('running')
-
-    // the edit arrives after the first batch has been handed its yield
-    await new Promise((r) => setTimeout(r, 0))
-    expect(useMcStore.getState().status).toBe('running') // still in flight
     useGraphStore.getState().updateNodeData(poolId, { initial: 5 })
-    const revAfterEdit = useGraphStore.getState().simulationRev
-    expect(revAfterEdit).toBe(revAtStart + 1)
-    // no result yet ⇒ the rev subscription has nothing to mark; nothing cancels the run
-    expect(useMcStore.getState().stale).toBe(false)
-    expect(useMcStore.getState().status).toBe('running')
+    expect(useGraphStore.getState().simulationRev).toBe(revAtStart + 1)
+    // a first run: no result yet, so the rev subscription has nothing to mark
+    expect(useMcStore.getState()).toMatchObject({ status: 'running', stale: false, result: null })
 
     await running
     const s = useMcStore.getState()
     expect(s.status).toBe('done')
-    expect(s.result?.completedRuns).toBe(300)
+    expect(s.result?.completedRuns).toBe(300) // ran to the end
+    expect(s.view).toBe('distribution')
 
-    // WHICH graph: step 0 of the Pool's band is the initial of the graph at
-    // run start (100), not the current document's (5)
+    // bound to the start graph: step 0 of the Pool's band is 100, not the document's 5
     expect(s.result!.series[poolId].mean[0]).toBe(100)
     expect(s.result!.series[poolId].min[0]).toBe(100)
     expect(s.runGraph!.nodes.find((n) => n.id === poolId)!.data).toMatchObject({ initial: 100 })
+    expect(s.runRev).toBe(revAtStart)
     expect(useGraphStore.getState().nodes.find((n) => n.id === poolId)!.data).toMatchObject({ initial: 5 })
 
-    // HOW it is labelled on current main — the defect: the completion handler
-    // writes `stale: false` and `runRev` = the start rev, without comparing it
-    // to the rev the document has moved to
-    expect(s.runRev).toBe(revAtStart)
-    expect(useGraphStore.getState().simulationRev).toBe(revAfterEdit)
-    expect(s.runRev).not.toBe(useGraphStore.getState().simulationRev)
-    expect(s.stale).toBe(false) // ← current behaviour; the rule will make this `true`
+    // and labelled as such on arrival
+    expect(s.stale).toBe(true)
   })
 
-  it('control: the same edit AFTER the run completes is marked stale by the rev subscription', async () => {
+  it('a second run in flight replaces an older result; the mid-run edit marks the new result stale too, and the old one is gone', async () => {
     const { poolId } = seedGraph()
-    useMcStore.getState().setConfig({ runs: 20, steps: 3, tracked: [poolId] })
+    useMcStore.getState().setConfig({ runs: 300, steps: 5, tracked: [poolId] })
     await useMcStore.getState().run()
+    const first = useMcStore.getState().result
     expect(useMcStore.getState().stale).toBe(false)
+
+    const { running } = await startRun()
     useGraphStore.getState().updateNodeData(poolId, { initial: 5 })
+    // during the run the subscription marks the OLD result, which stays on show
+    expect(useMcStore.getState()).toMatchObject({ status: 'running', stale: true, result: first })
+
+    await running
+    const s = useMcStore.getState()
+    expect(s.result).not.toBe(first)
+    expect(s.result!.series[poolId].mean[0]).toBe(100)
+    expect(s.stale).toBe(true)
+  })
+
+  it('a mid-run edit and a post-run edit leave the same state: done, viewable, stale', async () => {
+    const { poolId } = seedGraph()
+    useMcStore.getState().setConfig({ runs: 300, steps: 5, tracked: [poolId] })
+
+    const { running } = await startRun()
+    useGraphStore.getState().updateNodeData(poolId, { initial: 5 })
+    await running
+    const mid = useMcStore.getState()
+
+    useMcStore.getState().clear()
+    useGraphStore.getState().updateNodeData(poolId, { initial: 100 })
+    await useMcStore.getState().run()
+    useGraphStore.getState().updateNodeData(poolId, { initial: 5 })
+    const post = useMcStore.getState()
+
+    const shape = (s: typeof mid) => ({
+      status: s.status,
+      stale: s.stale,
+      view: s.view,
+      step0: s.result!.series[poolId].mean[0],
+      runGraphInitial: (s.runGraph!.nodes.find((n) => n.id === poolId)!.data as { initial: number }).initial,
+    })
+    expect(shape(mid)).toEqual({ status: 'done', stale: true, view: 'distribution', step0: 100, runGraphInitial: 100 })
+    expect(shape(post)).toEqual(shape(mid))
+  })
+
+  it('a later run completed at the current rev clears the mark; the control edits after completion still mark it', async () => {
+    const { poolId } = seedGraph()
+    useMcStore.getState().setConfig({ runs: 300, steps: 5, tracked: [poolId] })
+    const { running } = await startRun()
+    useGraphStore.getState().updateNodeData(poolId, { initial: 5 })
+    await running
     expect(useMcStore.getState().stale).toBe(true)
+
+    await useMcStore.getState().run() // no edit this time
+    const s = useMcStore.getState()
+    expect(s.stale).toBe(false)
+    expect(s.runRev).toBe(useGraphStore.getState().simulationRev)
+    expect(s.result!.series[poolId].mean[0]).toBe(5) // the current document's graph
+
+    useGraphStore.getState().updateNodeData(poolId, { capacity: 50 })
+    expect(useMcStore.getState().stale).toBe(true)
+  })
+
+  it('an edit that does not move simulationRev (a label) leaves a mid-run result current', async () => {
+    const { poolId } = seedGraph()
+    useMcStore.getState().setConfig({ runs: 300, steps: 5, tracked: [poolId] })
+    const revAtStart = useGraphStore.getState().simulationRev
+    const { running } = await startRun()
+    useGraphStore.getState().updateNodeData(poolId, { label: 'Renamed' })
+    expect(useGraphStore.getState().simulationRev).toBe(revAtStart)
+    await running
+    expect(useMcStore.getState()).toMatchObject({ status: 'done', stale: false, runRev: revAtStart })
   })
 })
