@@ -30,6 +30,15 @@
 //
 // `inert` is restored exactly: an element that was already inert is left alone
 // and never "restored" to active.
+//
+// Two non-modal surfaces answer Escape on their own, outside the stack: the
+// Share result panel (ShareSurface.tsx) and the run row's Run-settings popover
+// (PlayBar.tsx). Since issue #413 (Lumi, 2026-10-30) both check `topOverlay()`
+// first and do nothing — neither close nor stop the event — while any entry is
+// open above them, so the dialog or sheet on top gets the key; the next Escape,
+// with the stack empty again, closes them as before. They are deliberately
+// NOT entries: registering them as sheets would change their focus and inert
+// behaviour, which this rule leaves alone.
 
 export type OverlayKind = 'modal' | 'sheet'
 
