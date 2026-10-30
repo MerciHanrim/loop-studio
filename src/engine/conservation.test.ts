@@ -135,12 +135,10 @@ function lcg(seed: number) {
 describe('I1 conservation — randomised sweep over activations and router kinds', () => {
   const ACTS: Act[] = ['automatic', 'passive', 'interactive', 'onStart']
   const FLOWS = ['1', '2', '3', '5', 'all']
-  // `50%` is kept OFF every edge that touches a Converter: the Converter reads
-  // its edges as per-activation RATES (`rateOf` → 0.5) where a Gate / Drain
-  // reads the same edge as an AMOUNT (`0.5 · S[source]`, SEMANTICS.md §flow
-  // table), so a percent edge into or out of a Converter creates or loses
-  // resource today — a separate defect (issue #396), not one of #388's. The
-  // restriction is lifted there.
+  // `50%` is on every kind of edge: a Gate / Drain reads it as the amount
+  // `0.5 · S[source]` (SEMANTICS.md §8), and on an edge that touches a
+  // Converter it is REFUSED — contributes 0 with a run diagnostic (issue #396,
+  // 2026-10-30), so the sweep also covers a refused edge beside live ones.
   const FLOWS_WITH_PCT = [...FLOWS, '50%']
   for (let g = 1; g <= 120; g++) {
     it(`graph ${g} conserves over 4 steps`, () => {
@@ -170,11 +168,9 @@ describe('I1 conservation — randomised sweep over activations and router kinds
       const pools = nodes.filter((n) => n.data.kind === 'pool').map((n) => n.id)
       const edges: LoopEdge[] = []
       let eid = 0
-      const kindOf = (id: string) => nodes.find((n) => n.id === id)!.data.kind
       const add = (s: string, t: string) => {
         if (s === t) return
-        const touchesConverter = kindOf(s) === 'converter' || kindOf(t) === 'converter'
-        edges.push(edge(`e${eid++}`, s, t, pick(touchesConverter ? FLOWS : FLOWS_WITH_PCT)))
+        edges.push(edge(`e${eid++}`, s, t, pick(FLOWS_WITH_PCT)))
       }
       if (nodes.some((n) => n.id === 'S0')) add('S0', pick(pools))
       // every router gets at least one input and, for gates / converters, one output;
