@@ -1,0 +1,4 @@
+{
+  "type": "internal",
+  "reason": "Engine contract (#419 item 1): step() on an ended state is a fixed point and simStore.play() at ended is a no-op. No screen reaches either path today (Replay resets first; Step is guarded; Monte Carlo stops on ended), so nothing a user sees changes."
+}

@@ -206,7 +206,10 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
 ### Commit
 
 `working` becomes the next `S`. Every Pool is already within `[0, capacity]` by
-construction (I3); the commit asserts it. If `ended` was set, the run stops.
+construction (I3); the commit asserts it. If `ended` was set, the run stops:
+an ended state is a fixed point of `step` — the step count and the values do
+not change, nothing fires, and the report has no events and no diagnostics
+(issue #419). `play()` on an ended run is a no-op; Replay resets first.
 
 ---
 

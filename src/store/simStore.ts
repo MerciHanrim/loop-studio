@@ -609,6 +609,11 @@ export const useSimStore = create<SimStore>((set, get) => {
     advance,
 
     play: () => {
+      // issue #419 item 1 — an ended run does not resume: Play at `ended` is a
+      // no-op (the run bars' Replay calls `reset()` first, as before). Without
+      // this the status flipped to `running` and `head()` then read `ended`
+      // from the status, so the loop stepped the economy past the End.
+      if (get().status === 'ended') return
       head()
       if (get().initError) return // the graph cannot be initialised — see `initError`
       set({ status: 'running' })
