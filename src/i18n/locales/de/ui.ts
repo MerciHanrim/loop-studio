@@ -573,6 +573,7 @@ const ui = {
   'share.open.notice.damaged': 'Dieser geschützte Link ist beschädigt oder unvollständig und lässt sich nicht öffnen. Bitte den Absender um einen neuen Link.',
   'share.open.notice.unavailable': 'Um einen geschützten Link zu öffnen, braucht es einen aktuellen Browser und eine sichere (HTTPS-)Adresse. Der Link steht weiter in der Adressleiste und lässt sich in einem anderen Browser öffnen.',
   'share.open.notice.newer': 'Dieser geschützte Link wurde mit einer neueren Version von Loop Studio erstellt. Aktualisiere die App und öffne den Link erneut: Er steht weiter in der Adressleiste.',
+  'share.open.notice.apply': 'Das Passwort ist richtig, aber das Diagramm in diesem Link konnte nicht vollständig geöffnet werden. Der Lauf wurde angehalten, und die Arbeitsfläche zeigt möglicherweise einen Teil davon. Prüfen Sie, was die Arbeitsfläche zeigt. Wenn Sie Ihr vorheriges Diagramm brauchen, öffnen Sie eine Datei, in der Sie es gespeichert haben. Bitten Sie den Absender um einen neuen Link.',
   'share.open.notice.content': 'Das Passwort stimmt, aber der Link enthält kein Diagramm, das Loop Studio öffnen kann. Bitte den Absender um einen neuen Link.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here

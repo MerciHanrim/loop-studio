@@ -26,13 +26,16 @@ import { create } from 'zustand'
 import { deserialize } from '../model/serialize'
 import { type FragmentKind, shareCompressionAvailable } from '../model/share'
 import { ProtectedShareError, openProtectedBytes, protectedShareAvailable, readProtectedPayload } from '../model/shareProtected'
-import { applySharedGraph, replaceConfirmed } from './shareApply'
+import { type SharedGraph, applySharedGraph, prepareSharedGraph, replaceConfirmed } from './shareApply'
 
 export type ProtectedNotice =
   | 'damaged' // not a well-formed protected link; no password was asked for
   | 'unavailable' // no Web Crypto here; the fragment is left in place
   | 'newer' // a protected link from a newer version; the fragment is left in place
   | 'content' // the password was right and what was sealed is not a diagram
+  // #420 - the password was right, the document passed every check, and the
+  // load itself failed after the run-stop: the canvas may show part of it
+  | 'apply'
   // issue #301 decision 1 - no Compression Streams here, so NO share link opens
   // (there is no bundled fallback, SEMANTICS-U.md SS U1.3). The fragment is left
   // in place so the address can be opened in another browser. Two names only
@@ -49,7 +52,10 @@ export type ProtectedOpenState =
 export type ProtectedOutcome =
   | { kind: 'loaded' }
   | { kind: 'cancelled' }
-  | { kind: 'failed'; reason: 'protected-damaged' | 'protected-unavailable' | 'protected-newer' | 'protected-content' | 'share-unavailable' }
+  | {
+      kind: 'failed'
+      reason: 'protected-damaged' | 'protected-unavailable' | 'protected-newer' | 'protected-content' | 'protected-apply-failed' | 'share-unavailable'
+    }
 
 type ProtectedFragment = Extract<FragmentKind, { kind: 'protected' | 'protected-unsupported' | 'protected-malformed' }>
 
@@ -61,6 +67,7 @@ const LINE = {
   newer: 'Loop Studio: this protected share link needs a newer version of Loop Studio.',
   auth: 'Loop Studio: a protected share link was not opened; the password is wrong or the link is damaged.',
   content: 'Loop Studio: a protected share link opened, but what it carries is not a diagram.',
+  apply: 'Loop Studio: a protected share link failed while it was being applied; the run was stopped and the diagram may be partly replaced.',
   'no-compression': 'Loop Studio: this browser cannot open share links; a current browser is required.',
   'plain-no-compression': 'Loop Studio: this browser cannot open share links; a current browser is required.',
 } as const
@@ -70,6 +77,7 @@ const NOTICE_REASON = {
   unavailable: 'protected-unavailable',
   newer: 'protected-newer',
   content: 'protected-content',
+  apply: 'protected-apply-failed',
   'no-compression': 'share-unavailable',
   'plain-no-compression': 'share-unavailable',
 } as const
@@ -189,14 +197,25 @@ export async function submitProtectedPassword(password: string): Promise<void> {
       return
     }
     if (mine !== generation) return
-    let parsed: ReturnType<typeof deserialize>
+    let parsed: SharedGraph
     try {
-      parsed = deserialize(text)
+      // #420 — an older layout is re-placed here too, before the confirm and
+      // before any store changes; a document the layout code cannot read is
+      // "not a diagram" for this flow, like one that does not parse
+      parsed = prepareSharedGraph(deserialize(text))
     } catch {
       return showNotice('content')
     }
     if (!replaceConfirmed(confirmReplace)) return end({ kind: 'cancelled' })
-    applySharedGraph(parsed)
+    try {
+      applySharedGraph(parsed)
+    } catch {
+      // #420 — NOT the "not a diagram" notice: the run is already stopped and
+      // `loadDoc` may have replaced part of the document (SEMANTICS-U.md
+      // §U5.5). Its own notice says so; the dialog leaves `busy`, and the
+      // promise the boot flow waits on settles when the notice is closed
+      return showNotice('apply')
+    }
     end({ kind: 'loaded' })
   } finally {
     deriving = false

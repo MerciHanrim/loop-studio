@@ -32,6 +32,7 @@ const NOTICE_KEY = {
   unavailable: 'share.open.notice.unavailable',
   newer: 'share.open.notice.newer',
   content: 'share.open.notice.content',
+  apply: 'share.open.notice.apply', // #420 - the load failed after it began
   // issue #301 decision 1 - the same sentence for either kind of link
   'no-compression': 'share.unavailable',
   'plain-no-compression': 'share.unavailable',

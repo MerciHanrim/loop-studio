@@ -500,6 +500,7 @@ const ui = {
   'share.open.notice.damaged': 'Liên kết được bảo vệ này bị hỏng hoặc không đầy đủ nên không mở được. Hãy xin người gửi một liên kết mới.',
   'share.open.notice.unavailable': 'Để mở liên kết được bảo vệ cần một trình duyệt hiện hành và một địa chỉ an toàn (HTTPS). Liên kết vẫn còn trên thanh địa chỉ, nên có thể mở bằng trình duyệt khác.',
   'share.open.notice.newer': 'Liên kết được bảo vệ này được tạo bằng phiên bản Loop Studio mới hơn. Hãy cập nhật ứng dụng rồi mở lại liên kết: nó vẫn còn trên thanh địa chỉ.',
+  'share.open.notice.apply': 'Mật khẩu đúng, nhưng sơ đồ trong liên kết này không mở được trọn vẹn. Lượt chạy đã dừng và khung vẽ có thể đang hiển thị một phần của nó. Hãy kiểm tra những gì khung vẽ đang hiển thị. Nếu cần sơ đồ trước đó, hãy mở một tệp mà bạn đã lưu sơ đồ đó. Đề nghị người gửi tạo liên kết mới.',
   'share.open.notice.content': 'Mật khẩu đúng, nhưng liên kết không chứa sơ đồ mà Loop Studio mở được. Hãy xin người gửi một liên kết mới.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here

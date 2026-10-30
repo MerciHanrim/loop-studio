@@ -495,6 +495,7 @@ const ui = {
   'share.open.notice.damaged': 'Deze beveiligde link is beschadigd of onvolledig en kan niet worden geopend. Vraag de afzender om een nieuwe link.',
   'share.open.notice.unavailable': 'Een beveiligde link openen vraagt om een actuele browser en een beveiligd (HTTPS-)adres. De link staat nog in de adresbalk en kan dus in een andere browser worden geopend.',
   'share.open.notice.newer': 'Deze beveiligde link is gemaakt met een nieuwere versie van Loop Studio. Werk de app bij en open de link opnieuw: hij staat nog in de adresbalk.',
+  'share.open.notice.apply': 'Het wachtwoord is juist, maar het diagram in deze link kon niet volledig worden geopend. De run is gestopt en het tekengebied kan een deel ervan tonen. Controleer wat het tekengebied toont. Heb je je vorige diagram nodig, open dan een bestand waarin je het hebt opgeslagen. Vraag de afzender om een nieuwe link.',
   'share.open.notice.content': 'Het wachtwoord klopt, maar de link bevat geen diagram dat Loop Studio kan openen. Vraag de afzender om een nieuwe link.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here

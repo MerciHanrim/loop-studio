@@ -318,3 +318,35 @@ test('a link carries the document’s saved frames; opening it restores them and
   await expect(page.locator('.frame-layer__label, .lgr-frame__label').filter({ hasText: 'Shared zone' })).toHaveCount(1)
   await expect(page.locator('text=Stale local frame')).toHaveCount(0)
 })
+
+// #420 — a link `deserialize` accepts but the load cannot place: a document of
+// an older layout (`layoutVersion: 0`, issue #344) whose node entry has no
+// `data`. A fixed payload — `encodeShareText` of a `loop-studio/graph` document
+// with `nodes: [a pool "P", { id: 'n', position: { x: 0, y: 80 } }]`, no edges,
+// `layoutVersion: 0` — so the spec does not depend on the encoder at runtime.
+// Before the fix the loader rejected inside `loadDoc`: the fragment stayed (so
+// `freshGoto`'s wait for it to go timed out) and the Welcome card, which waits
+// for the boot to settle, never appeared.
+const UNPLACEABLE_PAYLOAD =
+  'eJxljk0KwjAQhe_y1iNG3cicwpUb6SKa0A7GTGjSYim5u7QqLtw9Pt7fjHzr_MOCEVTTJpfBiW7b3qYOhNH3WTSCd4RgJx3K-UsMIarzGXyZIQ6MBEKZkl-kagAhaZayumc8wXtjCBPYVIKzxS74LtH9AsFefQDjBIJEKWID-FArfSbif-m78mhqbQjeteujpr4ACuxErw'
+
+test('#420 — an unplaceable link on a first run: fragment stripped, the current document kept, the Welcome card still appears', async ({ page }) => {
+  // first-run state: the support fixture seeds the tour as dismissed; override
+  // it the way guided-tour.spec.ts does (registered later, so it wins)
+  await page.addInitScript(() => {
+    try {
+      if (sessionStorage.getItem('__tour_seeded')) return
+      sessionStorage.setItem('__tour_seeded', '1')
+      localStorage.removeItem('loop-studio/guided-tour/1')
+    } catch {
+      /* ignore */
+    }
+  })
+  await freshGoto(page, `/#g1=${UNPLACEABLE_PAYLOAD}`) // waits for the app AND for the fragment to be gone
+  expect((await locationParts(page)).hash).toBe('')
+  // the link's own nodes never arrived (the e2e fixture boots an empty document, so the count itself says nothing)
+  const ids = await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().nodes.map((n: { id: string }) => n.id))
+  expect(ids).not.toContain('n')
+  expect(ids).not.toContain('p')
+  await expect(page.locator('.tour-card')).toBeVisible() // the boot settled: `consumeShareLink` resolved
+})

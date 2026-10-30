@@ -552,6 +552,7 @@ const ui = {
   'share.open.notice.damaged': 'Bu korumalı bağlantı hasarlı veya eksik olduğu için açılamıyor. Gönderenden yeni bir bağlantı isteyin.',
   'share.open.notice.unavailable': 'Korumalı bir bağlantıyı açmak için güncel bir tarayıcı ve güvenli (HTTPS) bir adres gerekir. Bağlantı hâlâ adres çubuğunda, bu yüzden başka bir tarayıcıda açılabilir.',
   'share.open.notice.newer': 'Bu korumalı bağlantı Loop Studio’nun daha yeni bir sürümüyle oluşturulmuş. Uygulamayı güncelleyip bağlantıyı yeniden açın: bağlantı hâlâ adres çubuğunda.',
+  'share.open.notice.apply': 'Parola doğru, ancak bu bağlantıdaki diyagram tamamen açılamadı. Çalıştırma durduruldu ve tuvalde bir kısmı görünüyor olabilir. Tuvalde ne göründüğünü kontrol edin. Önceki diyagramınıza ihtiyacınız varsa onu kaydettiğiniz bir dosyayı açın. Gönderenden yeni bir bağlantı isteyin.',
   'share.open.notice.content': 'Parola doğru, ancak bağlantıda Loop Studio’nun açabileceği bir diyagram yok. Gönderenden yeni bir bağlantı isteyin.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here

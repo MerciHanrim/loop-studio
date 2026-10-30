@@ -265,7 +265,12 @@ For a recognised prefix, run the full §U1.5 pipeline **to completion**:
 1. strict base64url-decode (§U1.4),
 2. zlib-inflate bounded by `SHARE_MAX_DECODED_BYTES` (§U3.2),
 3. `JSON.parse`,
-4. `deserialize()`.
+4. `deserialize()`,
+5. the re-placement an older layout needs (issue #344: a `layoutVersion` below
+   the current one) — the step `loadDoc` performed during the load until #420.
+   It runs here now, so a document the layout code cannot read (a node entry
+   with no `data`, which `deserialize` accepts) fails as a validation failure,
+   before the confirm and before any store changes.
 
 **If any stage fails**, the load is abandoned: the **current graph, sim, and MC
 state — including any run in progress — are left exactly as they were**, one
@@ -273,7 +278,7 @@ console warning is emitted ("a share link was present but could not be read"),
 and the fragment is stripped anyway (§U5.6) so a reload does not repeat the
 error. A damaged link **never mutates the existing graph and never stops a
 run** — the confirm dialog, the run-stop, and `loadDoc` (§U5.4–U5.5) are reached
-**only** after all four stages succeed.
+**only** after all five stages succeed.
 
 ### U5.3 No auto-run
 
@@ -320,6 +325,33 @@ approved or skipped for the pristine sample:
 
 `loadDoc` persists, so the shared graph becomes the working graph. The restore
 is deterministic: the same link always yields the same state.
+
+**A throw from the load itself (#420)** is not a validation failure and is not
+reported as one: the outcome is `failed` / `apply-failed` (a protected link
+shows its own notice, SEMANTICS-P.md §P6), one console warning says that the
+run was stopped and the diagram may be partly replaced, the fragment is
+stripped (§U5.6), and `consumeShareLink` still never rejects, so the boot
+sequence that waits on it (the first-run Welcome card, docs/guided-tour.md
+§GT6.1) always settles. No rollback is attempted. The run is **stopped** in
+every case (step 1 ran first). The rest depends on where the throw is:
+
+- **inside `loadDoc`, before its `set`**: the document is as it was, and the
+  sim is paused at its step (no `simulationRev` bump, so no reset);
+- **inside `loadDoc`, after its `set`** (the document-boundary sink of issue
+  #392 A is the known point): the **link's nodes and edges are on the canvas**,
+  the saved frames / data imports are already the link's, and the sim is
+  paused at its old step (the bump comes after the sink). The load's own
+  autosave (`persist()`, last in `loadDoc`) did not run;
+- **after `loadDoc` returned** (`applyRecommended`): the link's document is
+  fully loaded, the sim was reset to step 0 by the bump, the Monte Carlo
+  settings may be partly applied, and the load's autosave **is scheduled**.
+
+So what a reload brings back is **not guaranteed**: in the last case the
+link's document is saved, and in the other two an autosave scheduled by an
+edit made just before the load can still fire and write the current state.
+The notice therefore asks the person to check the canvas and, if they need the
+previous diagram, to open a file they saved it to; it never offers a reload
+as the way back.
 
 ### U5.6 Strip the fragment — every outcome, path + query preserved
 
