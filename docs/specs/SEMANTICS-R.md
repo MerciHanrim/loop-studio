@@ -593,7 +593,12 @@ the proposal as a document** (§R10.5 — no apply, no new revision), **Cancel**
   account, or the network. **Before the name is stored, the settings UI states
   once that it is written into and travels with every revision / proposal file
   the user exports** (like a diagram label). `name` / `note` are truncated to
-  the §R11 byte caps on export.
+  the §R11 byte caps on export. The setting is read through the storage port,
+  so it is the **session's** (the personal browser's record, or a temporary
+  session's page-lifetime memory), never the document's; the dialog that edits
+  it reads the record again on every closed → open transition, and only then,
+  so after a session switch it shows the current session's value and an
+  untouched Save changes nothing (issue #412, 2026-10-30).
 
 ---
 

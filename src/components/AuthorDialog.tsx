@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import {
   AUTHOR_NAME_KEY,
   AUTHOR_NAME_MAX_BYTES,
@@ -42,6 +42,21 @@ export function AuthorDialog({
   const t = useT()
   const ref = useRef<HTMLDivElement>(null)
   const [{ name, note }, setState] = useState(readAuthor)
+  // issue #412 (Lumi, 2026-10-30) — the draft is the CURRENT session's record,
+  // read again on every closed → open transition, and only then: the dialog
+  // is mounted once at boot, and a session switch (personal ↔ temporary)
+  // changes which store the port reads, so the boot-time read showed the
+  // previous session's value — an empty draft over the browser's stored name
+  // after temporary → personal (whose Save then deleted it), the browser's
+  // name inside a temporary session after personal → temporary. Nothing typed
+  // while the dialog is open is overwritten; a document switch is not a
+  // trigger (the author is the session's, not the document's). Layout effect:
+  // the re-read lands before the opened dialog paints.
+  const wasOpen = useRef(false)
+  useLayoutEffect(() => {
+    if (open && !wasOpen.current) setState(readAuthor())
+    wasOpen.current = open
+  }, [open])
   useDialogFocus(open, ref, onClose, returnFocusTo)
   if (!open) return null
 

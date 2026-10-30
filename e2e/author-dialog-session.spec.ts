@@ -2,11 +2,16 @@ import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
 import { openFileMenu, openFileSubmenu } from './support/workbenchMenus'
 
-// issue #412 — reproduction on current main. The Author dialog reads its
-// fields from the storage port once, when DialogHost mounts it at boot
-// (`useState(readAuthor)`), and never again on open. Which author value does
-// the dialog show, and which store does Save write, after a session switch —
-// and after a document switch?
+// issue #412 — the Author dialog and a session switch (Lumi, 2026-10-30). The
+// dialog is mounted once at boot; its draft is re-read from the storage port
+// on every closed → open transition, and only then, so it shows the CURRENT
+// session's record: the browser's stored name after temporary → personal (and
+// an untouched Save keeps it), nothing after personal → temporary (and a Save
+// there reaches only the temporary memory). Typing is never overwritten while
+// the dialog is open; a document switch is not a trigger, the author being the
+// session's, not the document's. Until v0.31.0 the fields were read once at
+// boot: empty over a stored name after temporary → personal (a Save then
+// deleted the record), the browser's name inside a temporary session.
 
 const AUTHOR_KEY = 'loop-studio:author'
 const storedAuthor = (page: Page) => page.evaluate((k) => localStorage.getItem(k), AUTHOR_KEY)
@@ -30,8 +35,14 @@ async function openAuthorDialog(page: Page) {
   await expect(dialog(page)).toBeVisible()
   return { name: dialog(page).locator('input[type="text"]'), note: dialog(page).locator('textarea') }
 }
-const save = (page: Page) => dialog(page).locator('.btn--primary').click()
-const cancel = (page: Page) => dialog(page).locator('.btn').filter({ hasNotText: /save/i }).first().click()
+async function save(page: Page) {
+  await dialog(page).locator('.btn--primary').click()
+  await expect(dialog(page)).toHaveCount(0)
+}
+async function cancel(page: Page) {
+  await dialog(page).locator('.btn').filter({ hasNotText: /save/i }).first().click()
+  await expect(dialog(page)).toHaveCount(0)
+}
 
 const storageDialog = (page: Page) => page.locator('.mcdlg--storage')
 async function toTemporary(page: Page) {
@@ -52,46 +63,67 @@ async function toPersonal(page: Page) {
   expect(await mode(page)).toBe('personal')
 }
 
-test.describe('the Author dialog across a session switch (#412)', () => {
+test.describe('the Author dialog reads the current session on open (#412)', () => {
   test.describe('booted as a temporary session, then switched to the personal browser', () => {
     test.use({ storageMode: 'temporary' })
-    test('the dialog shows empty fields although the browser holds a name, and Save without typing deletes the stored author', async ({ page }) => {
+    test('the dialog shows the browser\'s stored name, and Save without typing keeps it', async ({ page }) => {
       await seedAuthor(page, 'Ada')
       await openApp(page)
       expect(await mode(page)).toBe('temporary')
-      expect(await storedAuthor(page)).toBe(JSON.stringify({ name: 'Ada' })) // the browser's record, untouched by the temporary session
+      // in the temporary session the dialog shows nothing of the browser's
+      const f0 = await openAuthorDialog(page)
+      await expect(f0.name).toHaveValue('')
+      await cancel(page)
 
       await toPersonal(page)
       const f = await openAuthorDialog(page)
-      // READ: the fields are what the dialog read at mount, from the temporary
-      // session's empty memory — not the personal browser's record
-      await expect(f.name).toHaveValue('') // ← current main (the browser holds "Ada")
-      // WRITE: Save goes to the personal browser now, and an empty value removes the record
+      await expect(f.name).toHaveValue('Ada') // re-read on open: the personal browser's record
       await save(page)
-      await expect(dialog(page)).toHaveCount(0)
-      expect(await storedAuthor(page)).toBeNull() // ← current main: the stored author is gone
+      expect(await storedAuthor(page)).toBe(JSON.stringify({ name: 'Ada' })) // an untouched Save changes nothing
     })
   })
 
   test.describe('booted as the personal browser, then switched to a temporary session', () => {
-    test('the dialog still shows the browser\'s name in the temporary session; Save there writes only to memory', async ({ page }) => {
+    test('the dialog shows nothing of the browser\'s name; a Save there reaches only the temporary memory', async ({ page }) => {
       await seedAuthor(page, 'Ada')
       await openApp(page)
       await resetAll(page)
       const f0 = await openAuthorDialog(page)
-      await expect(f0.name).toHaveValue('Ada') // the personal browser: as expected
+      await expect(f0.name).toHaveValue('Ada')
       await cancel(page)
 
       await toTemporary(page)
       const f = await openAuthorDialog(page)
-      // READ: the value read at mount, from the personal browser, shown on a
-      // surface whose copy says a temporary session reads nothing stored
-      await expect(f.name).toHaveValue('Ada') // ← current main
+      await expect(f.name).toHaveValue('') // re-read on open: the temporary memory, empty
       await f.name.fill('Bob')
       await save(page)
-      // WRITE: the temporary session's memory; the browser's record is untouched
-      expect(await storedAuthor(page)).toBe(JSON.stringify({ name: 'Ada' }))
+      expect(await storedAuthor(page)).toBe(JSON.stringify({ name: 'Ada' })) // the browser's record is untouched
+      // and the temporary session's own record is what it shows next
+      const f2 = await openAuthorDialog(page)
+      await expect(f2.name).toHaveValue('Bob')
+      await cancel(page)
     })
+  })
+
+  test('typing is not overwritten while the dialog is open; Cancel discards it and the next open re-reads the record', async ({ page }) => {
+    await seedAuthor(page, 'Ada')
+    await openApp(page)
+    await resetAll(page)
+    const f = await openAuthorDialog(page)
+    await f.name.fill('Grace')
+    await f.note.fill('a note')
+    // a store change while the dialog is open is not pulled into the draft
+    await page.evaluate((k) => localStorage.setItem(k, JSON.stringify({ name: 'Someone else' })), AUTHOR_KEY)
+    await page.waitForTimeout(100)
+    await expect(f.name).toHaveValue('Grace')
+    await expect(f.note).toHaveValue('a note')
+    await cancel(page)
+    const f2 = await openAuthorDialog(page)
+    await expect(f2.name).toHaveValue('Someone else') // the next open reads the record as it stands
+    await expect(f2.note).toHaveValue('')
+    await f2.name.fill('Grace')
+    await save(page)
+    expect(await storedAuthor(page)).toBe(JSON.stringify({ name: 'Grace' }))
   })
 
   test('a document switch alone: the author is the session\'s, not the document\'s — the same value before and after a Template load', async ({ page }) => {
