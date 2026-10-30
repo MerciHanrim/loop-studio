@@ -23,7 +23,7 @@ type Bridge = {
         setEdgeData: (id: string, d: object) => void
       }
     }
-    sim: { getState: () => { diagnostics: string[]; stepIndex: number } }
+    sim: { getState: () => { diagnostics: string[]; stepIndex: number; values: Record<string, number> | null } }
   }
 }
 
@@ -66,7 +66,26 @@ const seedManyConverterPercents = (page: Page, n: number) =>
       G().setEdgeData(eOut, { kind: 'resource', flow: '1' })
     }
   }, n)
+/** Source (push all) ─2→ Pool P and ─2→ Drain D (#419 item 2); returns the Drain edge's id and the Pool's id */
+const seedPushAllNonPool = (page: Page) =>
+  page.evaluate(() => {
+    const G = () => (window as unknown as Bridge).__loop.graph.getState()
+    G().newGraph()
+    G().addNodeAt('source', { x: 40, y: 120 })
+    G().addNodeAt('pool', { x: 300, y: 40 })
+    G().addNodeAt('drain', { x: 300, y: 220 })
+    const [s, p, d] = G().nodes.map((n) => n.id)
+    G().updateNodeData(s, { mode: 'pushAll' })
+    G().onConnect({ source: s, target: p, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
+    G().onConnect({ source: s, target: d, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
+    const [eP, eD] = G().edges.map((e) => e.id)
+    G().setEdgeData(eP, { kind: 'resource', flow: '2' })
+    G().setEdgeData(eD, { kind: 'resource', flow: '2' })
+    return { eD, p }
+  })
 const simDiag = (page: Page) => page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().diagnostics)
+const poolValue = (page: Page, id: string) =>
+  page.evaluate((pid) => (window as unknown as Bridge).__loop.sim.getState().values?.[pid], id)
 const inViewport = async (page: Page, selector: string) => {
   const vp = page.viewportSize()!
   const b = (await page.locator(selector).first().boundingBox())!
@@ -96,6 +115,25 @@ test.describe('the run strip shows the step diagnostics (#396)', () => {
     await expect(items.first()).toContainText('write 0.5')
     await expect(status(page)).toContainText(`Edge "${e1}" flow "50%"`)
     expect(await simDiag(page)).toHaveLength(1)
+  })
+
+  test('a push-all Source with a Drain among its targets (#419 item 2): one Step shows the line naming that connection, and the Pool stays 0', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    const { eD, p } = await seedPushAllNonPool(page)
+    const line = page.locator('[data-testid="run-diagnostics"]').first()
+    await expect(line).toHaveCount(0)
+    await page.locator('.pstrip .pstrip__step-btn').first().click()
+    await expect(line).toBeVisible()
+    const items = line.locator('.pstrip__diag-list li')
+    await expect(items).toHaveCount(1)
+    await expect(items.first()).toContainText(`Edge "${eD}"`)
+    await expect(items.first()).toContainText('not a Pool')
+    await expect(items.first()).toContainText('push-all Source moves nothing')
+    expect(await poolValue(page, p)).toBe(0)
+    await page.locator('.pstrip .pstrip__step-btn').first().click()
+    await expect(items).toHaveCount(1) // one line per step, replaced, never piling up
+    expect(await poolValue(page, p)).toBe(0)
   })
 
   test('the next Steps do not pile it up; Reset clears it; a document change clears it', async ({ page }) => {
