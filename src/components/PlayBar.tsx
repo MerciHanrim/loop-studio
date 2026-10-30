@@ -3,6 +3,7 @@ import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
 import { useT } from '../i18n'
 import { Icon } from '../ui/icons'
+import { topOverlay } from '../ui/overlayStack'
 // measured on the children's boxes: a right-to-left row spills on its start
 // side, which `scrollWidth` does not count (ar-XB at 900 px, 2026-10-20)
 import { fitsRow } from './workbench/toolRowFit'
@@ -117,6 +118,12 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
+      // issue #413 (Lumi, 2026-10-30) — the popover is not an overlay-stack
+      // entry; while a dialog or a sheet is open above it the Escape is theirs:
+      // this capture listener must neither close the popover nor stop the
+      // event (it runs before the dialog's own listener). The next Escape,
+      // with the stack empty again, closes the popover and returns the focus.
+      if (topOverlay() != null) return
       e.stopPropagation()
       setSettingsOpen(false)
       settingsBtnRef.current?.focus()
