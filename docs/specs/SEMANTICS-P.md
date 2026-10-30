@@ -144,7 +144,8 @@ Fixed order, after the storage gate of issue #297 has let the app start:
 4. key derivation
 5. decrypt and authenticate
 6. bounded inflate (§U3.2)
-7. parse and validate
+7. parse and validate (`deserialize`, then the older-layout re-placement of
+   `loop-share/1` §U5.2 stage 5)
 8. replace confirmation (§U5.4)
 9. exactly one load (§U5.5)
 10. the first-run Welcome card, only after all of the above
@@ -169,6 +170,11 @@ creating dialog.
 
 After a successful open the rules of `loop-share/1` apply: the replace
 confirmation unless the session is the untouched sample, one load, no auto-run.
+A document that decrypts and parses but cannot be opened — its older layout
+cannot be re-placed, or the load itself throws — ends in the same "not a
+diagram" notice (#420): the prompt is never left busy, the current document and
+any run in progress stay as they were when the failure is in step 7, and the
+promise the boot flow waits on settles when the notice is closed.
 
 ## P7. Without Web Crypto
 

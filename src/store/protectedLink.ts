@@ -26,7 +26,7 @@ import { create } from 'zustand'
 import { deserialize } from '../model/serialize'
 import { type FragmentKind, shareCompressionAvailable } from '../model/share'
 import { ProtectedShareError, openProtectedBytes, protectedShareAvailable, readProtectedPayload } from '../model/shareProtected'
-import { applySharedGraph, replaceConfirmed } from './shareApply'
+import { type SharedGraph, applySharedGraph, prepareSharedGraph, replaceConfirmed } from './shareApply'
 
 export type ProtectedNotice =
   | 'damaged' // not a well-formed protected link; no password was asked for
@@ -189,14 +189,23 @@ export async function submitProtectedPassword(password: string): Promise<void> {
       return
     }
     if (mine !== generation) return
-    let parsed: ReturnType<typeof deserialize>
+    let parsed: SharedGraph
     try {
-      parsed = deserialize(text)
+      // #420 — an older layout is re-placed here too, before the confirm and
+      // before any store changes; a document the layout code cannot read is
+      // "not a diagram" for this flow, like one that does not parse
+      parsed = prepareSharedGraph(deserialize(text))
     } catch {
       return showNotice('content')
     }
     if (!replaceConfirmed(confirmReplace)) return end({ kind: 'cancelled' })
-    applySharedGraph(parsed)
+    try {
+      applySharedGraph(parsed)
+    } catch {
+      // #420 — the same notice: the dialog leaves `busy`, and the promise the
+      // boot flow waits on settles when the notice is closed
+      return showNotice('content')
+    }
     end({ kind: 'loaded' })
   } finally {
     deriving = false

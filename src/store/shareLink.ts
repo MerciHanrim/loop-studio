@@ -3,13 +3,17 @@
 // Turns a `#g1=...` fragment into a loaded graph, defensively and atomically:
 //
 //   schedule fragment-strip -> decode -> inflate + size check -> JSON.parse
-//     -> deserialize -> (if not the pristine sample) replace confirm
+//     -> deserialize -> re-place an older layout (#420)
+//     -> (if not the pristine sample) replace confirm
 //     -> stop any active run -> loadDoc  x1
 //
-// Nothing before `loadDoc` in that order changes the graph, the sim, or the MC
-// state. A damaged / oversized / unsupported link, or a Cancel, only removes the
-// URL fragment - the graph and any run in progress are left exactly as they were
-// (no run-stop, no `simulationRev` bump). §U5.
+// Nothing before the run-stop in that order changes the graph, the sim, or the
+// MC state. A damaged / oversized / unsupported link, a link whose layout cannot
+// be re-placed, or a Cancel, only removes the URL fragment - the graph and any
+// run in progress are left exactly as they were (no run-stop, no
+// `simulationRev` bump). §U5. Should the load itself throw after the run-stop,
+// the fragment still goes and the outcome is `bad-graph`: this function never
+// rejects, so what waits on it (the first-run Welcome card) always settles.
 //
 // The Share *encoder* / UI is step 3.
 
@@ -22,7 +26,7 @@ import {
   shareCompressionAvailable,
 } from '../model/share'
 import { type ProtectedOutcome, openProtectedLink, openUnavailableShareLink } from './protectedLink'
-import { applySharedGraph, replaceConfirmed, replacePrompt } from './shareApply'
+import { type SharedGraph, applySharedGraph, prepareSharedGraph, replaceConfirmed, replacePrompt } from './shareApply'
 
 export { replacePrompt }
 
@@ -101,12 +105,22 @@ export async function consumeShareLink(opts: Options = {}): Promise<ShareLoadOut
     return { kind: 'failed', reason }
   }
 
-  let parsed: ReturnType<typeof deserialize>
+  let parsed: SharedGraph
   try {
     parsed = deserialize(text)
   } catch {
     strip()
     console.warn('Loop Studio: ignored a share link whose graph did not parse.')
+    return { kind: 'failed', reason: 'bad-graph' }
+  }
+  // #420 — an older layout is re-placed here, not inside `loadDoc`: a document
+  // the layout code cannot read fails before the confirm and before any store
+  // changes, like every other stage of §U5.2
+  try {
+    parsed = prepareSharedGraph(parsed)
+  } catch {
+    strip()
+    console.warn('Loop Studio: ignored a share link whose graph could not be opened.')
     return { kind: 'failed', reason: 'bad-graph' }
   }
 
@@ -117,7 +131,15 @@ export async function consumeShareLink(opts: Options = {}): Promise<ShareLoadOut
   }
 
   // ---- apply (§U5.5): stop any run, then exactly one loadDoc -------------
-  applySharedGraph(parsed)
+  try {
+    applySharedGraph(parsed)
+  } catch (e) {
+    // #420 — a throw here comes after the run-stop; whatever `loadDoc` left
+    // stays, but the fragment goes and the boot flow ends (never rejects)
+    strip()
+    console.warn('Loop Studio: a share link could not be applied.', e)
+    return { kind: 'failed', reason: 'bad-graph' }
+  }
 
   strip()
   return { kind: 'loaded' }
