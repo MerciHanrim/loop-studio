@@ -212,6 +212,13 @@ export const useMcStore = create<McStore>((set, get) => ({
       // so a result computed under v1 is not mistaken for a current v2 result
       // (and vice versa) after a promotion / cross-version Import.
       const resultGraphDigest = await semanticDigest({ nodes, edges }, config.modelVersion)
+      // issue #407 — the result belongs to the graph captured at START. If the
+      // document's simulation semantics moved on while the run was in flight,
+      // it lands already stale: the values, `runGraph`, `runRev` and the digest
+      // stay the start graph's (viewable, like a post-run edit leaves them),
+      // export is disabled, and the next completed run at the current rev
+      // clears the mark. Nothing cancels a run on an edit (Lumi, 2026-10-30).
+      const stale = rev !== useGraphStore.getState().simulationRev
       set({
         status: 'done',
         result,
@@ -219,7 +226,7 @@ export const useMcStore = create<McStore>((set, get) => ({
         runRev: rev,
         resultGraphDigest,
         lastThroughput: { rev, msPerRunStep: wallMs / denom },
-        stale: false,
+        stale,
         progress: 1,
         completedRuns: result.completedRuns,
         view: 'distribution',
