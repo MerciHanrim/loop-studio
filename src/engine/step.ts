@@ -563,8 +563,22 @@ export function step(
       return { e, want: amountOf(e, 0, 0), pool: isPool(e.target) }
     })
     const pushAll = src.data.kind === 'source' && src.data.mode === 'pushAll'
-    if (pushAll && !plan.every((p) => p.pool && headroom(p.e.target) >= p.want - EPSILON)) {
-      continue // atomic: nothing
+    if (pushAll) {
+      // issue #419 item 2 — a push-all Source with a non-Pool target used to
+      // `continue` here in silence: the atomic check failed on that edge before
+      // the per-edge loop below could report it, so the Source moved nothing on
+      // ANY of its edges and said nothing. Report each such edge (a Source →
+      // Drain / Gate / Converter / End line is drawable); the amount stays 0.
+      for (const p of plan) {
+        if (p.pool) continue
+        const t = byId.get(p.e.target)
+        diagnostics.push(
+          `Edge "${p.e.id}" from Source "${src.data.label}" goes to ${t?.data.kind ?? 'a missing node'} "${t?.data.label ?? p.e.target}", not a Pool; a push-all Source moves nothing while one of its targets is not a Pool.`,
+        )
+      }
+      if (!plan.every((p) => p.pool && headroom(p.e.target) >= p.want - EPSILON)) {
+        continue // atomic: nothing
+      }
     }
     let did = 0
     for (const p of plan) {

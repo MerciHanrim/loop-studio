@@ -133,7 +133,11 @@ Firing Sources in **ascending node-id** order; each Source's outgoing resource
 edges in **edge-creation** order.
 
 1. `push all`: if **any** outgoing edge has `headroom(target) < evalDet(flow)`,
-   the Source pushes **nothing on any edge** this step (atomic). Otherwise:
+   or leads to a non-Pool, the Source pushes **nothing on any edge** this step
+   (atomic). A non-Pool target is reported — one diagnostic per such edge,
+   every step, naming the edge, the Source and the target (issue #419); the
+   `push any` Source reports its non-Pool edge the same way while pushing to
+   its Pools. Otherwise:
 2. per edge: `want = evalDet(flow)` (a Source edge's `all` / `%` / random all
    evaluate to `0`; only a constant supplies resources), `m = min(want,
    headroom(target))`, then `working[target] += m` and emit an event if
