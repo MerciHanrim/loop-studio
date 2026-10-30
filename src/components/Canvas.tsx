@@ -893,10 +893,11 @@ export function Canvas() {
   // the position merely looked restored (audit 2026-09-20).
   //
   // The fix brackets React Flow's own movement with the same transaction the
-  // frame gestures use, without touching the pointer path (which still commits
-  // on its first `dragging: true`) and without reinterpreting `dragging: false`
-  // (a pointer drag ends with one too, and so does React Flow's aborted-drag
-  // restore — committing on that alone would double-count every drag).
+  // frame gestures use, without reinterpreting `dragging: false` (a pointer
+  // drag ends with one too, and so does React Flow's aborted-drag restore —
+  // committing on that alone would double-count every drag). The pointer path
+  // has its own bracket since issue #408: `beginNodeDrag` / `endNodeDrag` on
+  // the React Flow drag callbacks below.
   //
   // A capture-phase keydown runs BEFORE React Flow applies the move (measured),
   // which is what makes the pre-move snapshot possible. The transaction opens
@@ -1080,12 +1081,16 @@ export function Canvas() {
         // (Alt = free move); the store snaps the drag by that node's correction.
         // §ER14.5 — while it lasts only the routes the moved nodes touch are
         // routed again; the drop builds one full generation
-        onNodeDragStart={(e, node, dragged) => { dragSnap.begin(node.id, e.altKey, dragged.map((n) => n.id), useGraphStore.getState().nodes, getViewport().zoom); beginLiveLayout() }}
+        // issue #408 — the drag is ONE undo transaction: `beginNodeDrag` at the
+        // start freezes the pre-drag graph, `endNodeDrag` at the stop pushes
+        // one entry if a position changed (the store ignores a second begin or
+        // stop for the same gesture, and the lock)
+        onNodeDragStart={(e, node, dragged) => { useGraphStore.getState().beginNodeDrag(); dragSnap.begin(node.id, e.altKey, dragged.map((n) => n.id), useGraphStore.getState().nodes, getViewport().zoom); beginLiveLayout() }}
         onNodeDrag={(e) => dragSnap.update(e.altKey)}
-        onNodeDragStop={(e) => { dragSnap.update(e.altKey); dragSnap.end(); useGuideStore.getState().clear(); endLiveLayout() }}
-        onSelectionDragStart={(e, dragged) => { dragSnap.begin(dragged[0]?.id ?? null, e.altKey, dragged.map((n) => n.id), useGraphStore.getState().nodes, getViewport().zoom); beginLiveLayout() }}
+        onNodeDragStop={(e) => { dragSnap.update(e.altKey); dragSnap.end(); useGuideStore.getState().clear(); endLiveLayout(); useGraphStore.getState().endNodeDrag() }}
+        onSelectionDragStart={(e, dragged) => { useGraphStore.getState().beginNodeDrag(); dragSnap.begin(dragged[0]?.id ?? null, e.altKey, dragged.map((n) => n.id), useGraphStore.getState().nodes, getViewport().zoom); beginLiveLayout() }}
         onSelectionDrag={(e) => dragSnap.update(e.altKey)}
-        onSelectionDragStop={(e) => { dragSnap.update(e.altKey); dragSnap.end(); useGuideStore.getState().clear(); endLiveLayout() }}
+        onSelectionDragStop={(e) => { dragSnap.update(e.altKey); dragSnap.end(); useGuideStore.getState().clear(); endLiveLayout(); useGraphStore.getState().endNodeDrag() }}
         onEdgesChange={onEdgesChange}
         // the workbench, direction B (src/model/connectKind.ts): a drawing takes
         // the kind chosen in the tool row; the same check that refuses it in
