@@ -229,12 +229,16 @@ export function MonteCarloDialog() {
               <span>{t('mc.cost.estimating')}</span>
             ) : estimate ? (
               <>
-                <span className="mcdlg__costline">
-                  <span className="mcdlg__costlabel">
-                    {estimate.source === 'measured' ? t('mc.cost.measured') : t('mc.cost.benchmark')}
+                {estimate.source !== 'none' ? (
+                  // #419 item 3 — over the memory limit nothing was probed, so
+                  // there is no time band: the memory line and its warning only
+                  <span className="mcdlg__costline">
+                    <span className="mcdlg__costlabel">
+                      {estimate.source === 'measured' ? t('mc.cost.measured') : t('mc.cost.benchmark')}
+                    </span>
+                    <b dir="ltr">~{fmtMs(estimate.lowMs)}–{fmtMs(estimate.highMs)}</b>
                   </span>
-                  <b dir="ltr">~{fmtMs(estimate.lowMs)}–{fmtMs(estimate.highMs)}</b>
-                </span>
+                ) : null}
                 <span className="mcdlg__costline">
                   <span className="mcdlg__costlabel">{t('mc.cost.execution')}</span>
                   <span className="mcdlg__path">

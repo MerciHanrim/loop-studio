@@ -15,15 +15,34 @@ export type CostEstimate = {
   workers: number
   /** opaque origin (file:// double-click) → local path, may freeze the UI */
   fileProtocol: boolean
-  /** how lowMs/highMs were derived */
-  source: 'benchmark' | 'measured'
+  /** how lowMs/highMs were derived — `none`: not estimated (the memory
+   *  projection is already over the limit, so no probe ran; issue #419) */
+  source: 'benchmark' | 'measured' | 'none'
+  /** 0 when `source` is `none` */
   lowMs: number
+  /** 0 when `source` is `none` */
   highMs: number
   memoryBytes: number
   overLimit: boolean
 }
 
 const ASSUMED_SPAWN_MS = 6 // rough one-off cost per worker
+
+// issue #419 item 3 (Lumi, 2026-10-30) — the synchronous probe limits the STEP
+// COUNT it runs and adjusts its second sample from what it measured. It used to
+// run `min(16, runs)` full-length runs before reading its budget: `steps` has
+// no upper bound, so on a ~100-node graph 16 × 1000 steps froze the dialog for
+// 2.5 s, 16 × 3000 for 8 s, and a two-node graph at 200 000 steps for 11.5 s.
+// Now the first sample is ONE run of at most `PROBE_STEPS` steps; the second
+// sample's run count is chosen from the first sample's time so that the two
+// together aim at `PROBE_BUDGET_MS`; the cost per run-step is extrapolated to
+// `runs × steps` — the model the `measured` prior already uses. The budget is
+// a TARGET, not a guarantee of the running time: a slow enough graph can take
+// longer than it for one run of `PROBE_STEPS` steps, and the second sample's
+// time is a prediction from the first.
+const PROBE_STEPS = 128
+const PROBE_BUDGET_MS = 150
+const PROBE_MAX_RUNS = 64
 
 function effectiveWorkers(runs: number): { workers: number; jobs: number } {
   const cap = defaultWorkerCount()
@@ -51,6 +70,12 @@ export async function estimateMonteCarloCost(
     : nodes.filter((n) => n.data.kind === 'pool').map((n) => n.id)
   const mem = projectMemory(config.runs, config.steps, poolIds.length, parallel ? workers : 1)
 
+  // over the memory limit: the Run button is disabled anyway — no probe, no
+  // time band, only the memory line with its warning (issue #419 item 3)
+  if (mem.overLimit) {
+    return { path, workers, fileProtocol, source: 'none', lowMs: 0, highMs: 0, memoryBytes: mem.projectedBytes, overLimit: true }
+  }
+
   // ── the "work" quantity: total per-run-step cost, in ms ──────────────────
   let workMs: number
   let source: CostEstimate['source']
@@ -58,26 +83,35 @@ export async function estimateMonteCarloCost(
     workMs = opts.prior.msPerRunStep * config.runs * config.steps
     source = 'measured'
   } else {
-    const samples: Array<{ n: number; ms: number }> = []
-    for (const target of [16, 64]) {
-      if (opts.signal?.aborted) break
-      const n = Math.max(1, Math.min(target, config.runs))
+    // every sample runs `probeSteps` steps (the configured count when it is
+    // smaller); `a` is the fitted per-probe fixed cost, `bRun` the cost of one
+    // run at `probeSteps`, so the cost per run-step is `bRun / probeSteps`.
+    const probeSteps = Math.max(1, Math.min(PROBE_STEPS, config.steps))
+    const timeRuns = (n: number): number => {
       const t0 = performance.now()
-      runMonteCarlo(nodes, edges, { ...config, runs: n })
-      const ms = performance.now() - t0
-      samples.push({ n, ms })
-      if (ms >= 150) break // probe budget hit — do not grow it
+      runMonteCarlo(nodes, edges, { ...config, runs: n, steps: probeSteps })
+      return performance.now() - t0
+    }
+    const samples: Array<{ n: number; ms: number }> = [{ n: 1, ms: timeRuns(1) }]
+    if (!opts.signal?.aborted && config.runs > 1) {
+      // the second sample's run count is chosen from the first sample's time
+      // so that both together aim at the budget — a prediction from the
+      // per-run cost the first sample showed, not a bound on the time taken
+      const left = PROBE_BUDGET_MS - samples[0].ms
+      const n2 = Math.min(config.runs, PROBE_MAX_RUNS, Math.floor(left / Math.max(samples[0].ms, 0.01)))
+      if (n2 >= 2) samples.push({ n: n2, ms: timeRuns(n2) })
     }
     let a = 0
-    let b = samples[0].ms / samples[0].n
-    if (samples.length >= 2 && samples[1].n !== samples[0].n) {
+    let bRun = samples[0].ms / samples[0].n
+    if (samples.length >= 2) {
       const [p, q] = samples
-      b = (q.ms - p.ms) / (q.n - p.n)
-      a = p.ms - b * p.n
-      if (b <= 0) b = q.ms / q.n
+      bRun = (q.ms - p.ms) / (q.n - p.n)
+      a = p.ms - bRun * p.n
+      if (bRun <= 0) bRun = q.ms / q.n
       if (a < 0) a = 0
     }
-    workMs = a + b * config.runs // fitted synchronous time for the full run count
+    const msPerRunStep = bRun / probeSteps
+    workMs = a + msPerRunStep * config.runs * config.steps // fitted synchronous time for the full run
     source = 'benchmark'
   }
 
