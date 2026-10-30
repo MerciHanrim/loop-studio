@@ -28,14 +28,18 @@ export type CostEstimate = {
 
 const ASSUMED_SPAWN_MS = 6 // rough one-off cost per worker
 
-// issue #419 item 3 — the synchronous probe is BOUNDED BY CONSTRUCTION (Lumi,
-// 2026-10-30). It used to run `min(16, runs)` full-length runs before reading
-// its budget: `steps` has no upper bound, so on a ~100-node graph 16 × 1000
-// steps froze the dialog for 2.5 s, 16 × 3000 for 8 s, and a two-node graph at
-// 200 000 steps for 11.5 s. Now the first sample is ONE run of at most
-// `PROBE_STEPS` steps; the second sample's run count is sized from the first
-// so the whole probe stays within `PROBE_BUDGET_MS`; the cost per run-step is
-// extrapolated to `runs × steps` — the model the `measured` prior already uses.
+// issue #419 item 3 (Lumi, 2026-10-30) — the synchronous probe limits the STEP
+// COUNT it runs and adjusts its second sample from what it measured. It used to
+// run `min(16, runs)` full-length runs before reading its budget: `steps` has
+// no upper bound, so on a ~100-node graph 16 × 1000 steps froze the dialog for
+// 2.5 s, 16 × 3000 for 8 s, and a two-node graph at 200 000 steps for 11.5 s.
+// Now the first sample is ONE run of at most `PROBE_STEPS` steps; the second
+// sample's run count is chosen from the first sample's time so that the two
+// together aim at `PROBE_BUDGET_MS`; the cost per run-step is extrapolated to
+// `runs × steps` — the model the `measured` prior already uses. The budget is
+// a TARGET, not a guarantee of the running time: a slow enough graph can take
+// longer than it for one run of `PROBE_STEPS` steps, and the second sample's
+// time is a prediction from the first.
 const PROBE_STEPS = 128
 const PROBE_BUDGET_MS = 150
 const PROBE_MAX_RUNS = 64
@@ -90,8 +94,9 @@ export async function estimateMonteCarloCost(
     }
     const samples: Array<{ n: number; ms: number }> = [{ n: 1, ms: timeRuns(1) }]
     if (!opts.signal?.aborted && config.runs > 1) {
-      // the second sample is sized so that the probe as a whole stays within
-      // the budget (assuming the per-run cost the first sample showed)
+      // the second sample's run count is chosen from the first sample's time
+      // so that both together aim at the budget — a prediction from the
+      // per-run cost the first sample showed, not a bound on the time taken
       const left = PROBE_BUDGET_MS - samples[0].ms
       const n2 = Math.min(config.runs, PROBE_MAX_RUNS, Math.floor(left / Math.max(samples[0].ms, 0.01)))
       if (n2 >= 2) samples.push({ n: n2, ms: timeRuns(n2) })

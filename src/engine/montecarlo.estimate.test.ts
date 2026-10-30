@@ -44,7 +44,7 @@ describe('estimateMonteCarloCost', () => {
     expect(e.overLimit).toBe(false)
     expect(e.lowMs).toBeGreaterThan(0)
     expect(e.highMs).toBeGreaterThanOrEqual(e.lowMs)
-    expect(took).toBeLessThan(1500) // 128-step samples within a 150 ms budget, plus slack for a slow CI runner
+    expect(took).toBeLessThan(1500) // 128-step samples aimed at a 150 ms target, plus slack for a slow CI runner
     // the band scales with the work: 10× the steps gives a clearly larger
     // estimate (two independent timings, so not exactly 10×: a loose bound)
     const small = await estimateMonteCarloCost(nodes, edges, { ...cfg, runs: 24, steps: 20_000 })
