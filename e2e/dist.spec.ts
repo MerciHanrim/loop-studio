@@ -130,8 +130,8 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     expect(bad, 'no failed or cross-origin requests').toEqual([])
   })
 
-  // The 3-zone comparison, a large locked Template (Early MMO, the previous
-  // subject here, was out of the menu in 0.28.1–0.29.0; the check stayed here).
+  // The 3-zone comparison, a large Template and the one that opens locked
+  // (Early MMO, the previous subject here, opens editable since issue #428).
   test('the "3-zone gacha banner comparison" Template loads its bundled graph + recommended MC config', async ({ page }) => {
     const { bad } = await openProd(page)
     const GACHA = JSON.parse(readFileSync(new URL('../examples/gacha-banner-zones.json', import.meta.url), 'utf8')) as {

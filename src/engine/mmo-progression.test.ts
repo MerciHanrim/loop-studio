@@ -29,7 +29,6 @@ const RECOMMENDED = {
   steps: MMO_PROGRESSION_MC.steps,
   tracked: [...MMO_PROGRESSION_MC.tracked],
   timelineSeries: [...MMO_PROGRESSION_MC.timelineSeries],
-  canvasLocked: MMO_PROGRESSION_MC.canvasLocked,
 }
 
 function poolTrace(nodes: LoopNode[], edges: LoopEdge[], seed: number, steps: number) {
@@ -99,11 +98,11 @@ describe('mmo-progression example', () => {
     expect(ts.length).toBeLessThan(MMO_PROGRESSION_MC.tracked.length)
   })
 
-  it('opens edit-locked (recommendedRunConfig.canvasLocked) — the layout is part of the explanation', () => {
+  it('opens editable — no recommendedRunConfig.canvasLocked (issue #428; it shipped `true` until v0.31.0)', () => {
     expect(
-      (fixtureDoc as unknown as { recommendedRunConfig: { canvasLocked?: unknown } })
-        .recommendedRunConfig.canvasLocked,
-    ).toBe(true)
+      'canvasLocked' in
+        (fixtureDoc as unknown as { recommendedRunConfig: Record<string, unknown> }).recommendedRunConfig,
+    ).toBe(false)
   })
 
   it('opens on Character creation → the three zone landmarks → Reached level 15, left to right', () => {

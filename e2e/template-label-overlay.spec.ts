@@ -40,9 +40,10 @@ async function setLocale(page: Page, code: string) {
 // Templates ▾ is the first `.menu` in the toolbar actions (locale-agnostic).
 const templatesBtn = (page: Page) =>
   page.locator('.toolbar__actions .menu').first().locator('> button')
-/** #334 — the MMO document opens edit-locked, and the lock now refuses every
- *  user edit at the store too; a test that edits a document lifts the lock
- *  first (if it is on), the way a user has to. */
+/** #334 — a Template may open edit-locked (the 3-zone gacha comparison; the
+ *  MMO did too until issue #428), and the lock refuses every user edit at the
+ *  store too; a test that edits a document lifts the lock first (if it is
+ *  on), the way a user has to. */
 async function unlockCanvas(page: Page) {
   // the edit lock is the tool row's (the workbench, 2026-10): the canvas
   // rail's button it replaced, the same toggle and `aria-pressed`

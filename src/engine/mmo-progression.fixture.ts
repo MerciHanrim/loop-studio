@@ -673,9 +673,9 @@ export const MMO_PROGRESSION_MC = {
   // Upkeep, loot routing, per-zone counters and the accounting Registers are one
   // "+N more" click away.
   timelineSeries: ['deaths', 'gear_score', 'gold', 'level', 'xp_earned'],
-  // the layout is part of the explanation — open in a view-safe EDIT-LOCK so a
-  // stray drag can't move a node. Selection + the read-only Inspector + pan /
-  // zoom / Timeline / the sim all still work; the user flips the 🔓
-  // control in the Canvas to edit. (recommendedRunConfig.canvasLocked, UI-only.)
-  canvasLocked: true,
+  // no `canvasLocked` (issue #428, 2026-10-30): the Template opens editable
+  // like the others. Until v0.31.0 it shipped `canvasLocked: true` so a stray
+  // drag could not move a node of a layout that is part of the explanation;
+  // in practice the lock met the user at the first Inspector edit, and the
+  // layout is as safe behind Undo. The tool row's lock button still locks.
 }

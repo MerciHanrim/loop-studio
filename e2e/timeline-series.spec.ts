@@ -303,9 +303,7 @@ test.describe('recommendedRunConfig.timelineSeries — the three stored states',
     expect(await storedField(page)).toEqual(ts)
     await expect(trigger(page)).toHaveText('Series 55/55')
 
-    // #334 — the MMO file opens edit-locked and the lock refuses every user
-    // edit; lift it before adding the 56th Pool, as a user has to
-    await page.evaluate(() => (window as unknown as Bridge).__loop.ui.getState().setCanvasLocked(false))
+    // the MMO file opens editable (issue #428), so the 56th Pool adds straight away
     await addPool(page)
     await expect(trigger(page)).toHaveText('Series 55/56')
     expect(await seriesState(page)).toHaveLength(55)

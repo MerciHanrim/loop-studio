@@ -10,6 +10,11 @@ invariants** in the acceptance conditions (§EM10.1). This is a **non-frozen** d
 marker — and merges as *settled design, implementation pending*, like
 [`docs/localization.md`](localization.md) and [`docs/guided-tour.md`](guided-tour.md).
 
+> **Unreleased (2026-10-30) — opens editable (issue #428).** The Template no
+> longer ships `recommendedRunConfig.canvasLocked`; it opens unlocked like the
+> other Templates (§EM13.8). The lock button and a user's own saved lock are
+> unchanged.
+>
 > **0.30.0 (2026-10-24) — back in the Templates menu.** File → Templates and
 > the phone's More → Templates list it again, after Coffee, unchanged: the same
 > graph, its start framing (§MML3) and its edit lock. The 0.28.1 note below is
@@ -613,20 +618,21 @@ With §EM13.6 the graph has **seven probabilistic Gates** (three `Combat`, three
 `Loot`, one `Loot category`) and **four deterministic** Gates — the `Reward
 router` plus the three `pull all` XP-meter Gates (§EM13.4 #1), one per zone.
 
-### EM13.8 `recommendedRunConfig.canvasLocked` — opens in a readable edit-lock
+### EM13.8 `recommendedRunConfig.canvasLocked` — opens editable (since issue #428)
 
-The template ships `recommendedRunConfig.canvasLocked: true`. On load the Canvas
-opens **edit-locked**: nodes don't move / connect, nothing deletes, the Inspector
-is read-only — but selecting a node, reading its Inspector, pan / zoom, the
-Timeline and the simulation all still work. The layout *is* part of
-this example's explanation (§EM13.1), so it shouldn't be nudged by accident on a
-first read; the lock button (the tool row's last; the Controls rail's 🔒
-before 2026-10) unlocks editing at any time. Like
-`timelineSeries`, `canvasLocked` is UI-only advisory metadata — never the
-GraphDoc, the `loop-revision/*` digest, undo, or `simulationRev` — and it is
-preserved across Graph / Workspace / Share round-trips. Absent (every older file)
-⇒ unlocked, unchanged. The Canvas view-lock itself landed in a separate
-prerequisite PR (#89); this template only opts in.
+The template ships **no `canvasLocked` field** and opens **editable**, like
+every other Template (Hanrim / Lumi, 2026-10-30, issue #428). From its first
+version to v0.31.0 it shipped `canvasLocked: true` and opened edit-locked, so
+the layout — part of this example's explanation (§EM13.1) — would not be nudged
+by accident on a first read; in practice the lock met the user at the first
+edit (a Pool's Starting amount refused until the tool row's lock button was
+found), and the layout is as safe behind Undo. The lock button still locks the
+document at any time, and a user's lock still travels: like `timelineSeries`,
+`canvasLocked` is UI-only advisory metadata — never the GraphDoc, the
+`loop-revision/*` digest, undo, or `simulationRev` — preserved across Graph /
+Workspace / Share round-trips when a user set it. The lock mechanism itself
+(`docs/canvas-edit-lock.md`, PR #89) is unchanged; the `3-zone gacha banner
+comparison` Template still opts in by its own decision.
 
 ### EM14 Korean labels come from the overlay — no per-locale graph file
 

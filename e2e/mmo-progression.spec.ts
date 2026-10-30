@@ -8,11 +8,12 @@ import { pickTemplate, pressViewRow, toolButton } from './support/workbenchMenus
 // 0.28.1–0.29.0, back in it since 0.30.0 (Hanrim / Lumi, 2026-10-24): File ▸
 // Templates (desktop) and the phone's More → Templates sheet offer it again,
 // with its name and description, and opened from there it frames its first
-// steps, opens edit-locked, runs, and View ▸ Reset view shows it whole. Most
-// tests open its FILE, as a user's own file is, which behaves the same: the
-// recommended config applies, it opens edit-locked, its node names follow a
-// locale switch, it runs to completion deterministically, it round-trips, and
-// the §EM10.1 accounting identities hold in the app's own engine state.
+// steps, opens editable (issue #428; edit-locked until v0.31.0), runs, and
+// View ▸ Reset view shows it whole. Most tests open its FILE, as a user's own
+// file is, which behaves the same: the recommended config applies, it opens
+// editable, its node names follow a locale switch, it runs to completion
+// deterministically, it round-trips, and the §EM10.1 accounting identities
+// hold in the app's own engine state.
 //
 // The canonical graph is examples/mmo-progression.json — the fixture regen guard
 // (src/engine/mmo-progression.test.ts) owns the value-level acceptance.
@@ -27,7 +28,7 @@ const DOC = JSON.parse(DOC_TEXT) as {
     steps: number
     tracked: string[]
     timelineSeries: string[]
-    canvasLocked: boolean
+    canvasLocked?: boolean
   }
 }
 
@@ -181,22 +182,25 @@ test.describe('Early MMO progression example', () => {
     //  test above, and the reload path by timeline-series.spec.ts.)
   })
 
-  test('opens edit-locked — a node still selects into a read-only Inspector; unlock → editable', async ({ page }) => {
+  test('opens editable (#428) — a node selects into an editable Inspector; the lock button still locks, and unlocks again', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await openMmoFile(page)
 
     const isLocked = () =>
       page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.ui.getState().canvasLocked)
-    expect(await isLocked()).toBe(true) // recommendedRunConfig.canvasLocked
-    expect(DOC.recommendedRunConfig.canvasLocked).toBe(true)
-    await expect(page.locator('.canvas.canvas--locked')).toBeVisible()
+    // issue #428 — no recommendedRunConfig.canvasLocked: the Template opens
+    // editable like every other one (it shipped `true` until v0.31.0)
+    expect(DOC.recommendedRunConfig.canvasLocked).toBeUndefined()
+    expect(await isLocked()).toBe(false)
+    await expect(page.locator('.canvas.canvas--locked')).toHaveCount(0)
     // the workbench: the edit lock is the tool row's (docs/workbench.md §WB3),
-    // the canvas rail's button it replaced — the same toggle of `canvasLocked`
-    await expect(toolButton(page, 'lock').locator('svg[data-icon="lock"]')).toHaveCount(1)
-    await expect(toolButton(page, 'lock')).toHaveAttribute('aria-pressed', 'true')
+    // the canvas rail's button it replaced — the same toggle of `canvasLocked`;
+    // it shows the open padlock while editable
+    await expect(toolButton(page, 'lock').locator('svg[data-icon="unlock"]')).toHaveCount(1)
+    await expect(toolButton(page, 'lock')).toHaveAttribute('aria-pressed', 'false')
 
-    // selection + a read-only Inspector still work while locked
+    // selection + an editable Inspector
     await page.locator('.react-flow__node[data-id="level"]').click()
     await expect
       .poll(() =>
@@ -205,14 +209,19 @@ test.describe('Early MMO progression example', () => {
       .toBe('level')
     const aside = page.locator('aside.inspector')
     await expect(aside).toBeVisible()
+    await expect(aside.locator('input').first()).toBeEnabled()
+    await expect(page.locator('.react-flow__node[data-id="level"]')).toHaveClass(/draggable/)
+
+    // the user's lock still works both ways: a read-only Inspector while locked
+    await toolButton(page, 'lock').click()
+    expect(await isLocked()).toBe(true)
+    await expect(toolButton(page, 'lock')).toHaveAttribute('aria-pressed', 'true')
+    await expect(toolButton(page, 'lock').locator('svg[data-icon="lock"]')).toHaveCount(1)
+    await expect(page.locator('.canvas.canvas--locked')).toBeVisible()
     await expect(aside.locator('input').first()).toBeDisabled()
     await expect(page.locator('.react-flow__node[data-id="level"]')).not.toHaveClass(/draggable/)
-
-    // unlocking restores editing
     await toolButton(page, 'lock').click()
     expect(await isLocked()).toBe(false)
-    await expect(toolButton(page, 'lock')).toHaveAttribute('aria-pressed', 'false')
-    await expect(page.locator('.react-flow__node[data-id="level"]')).toHaveClass(/draggable/)
     await expect(aside.locator('input').first()).toBeEnabled()
   })
 
@@ -288,7 +297,7 @@ test.describe('Early MMO progression example', () => {
     expect(l).not.toContain('레벨')
   })
 
-  test('opened from File ▸ Templates (0.30.0): the whole graph and its config, framed on its first steps, edit-locked, a Step runs, Reset view shows it whole', async ({ page }) => {
+  test('opened from File ▸ Templates (0.30.0): the whole graph and its config, framed on its first steps, editable, a Step runs, Reset view shows it whole', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' }) // a Step settles synchronously
     await page.setViewportSize({ width: 1280, height: 800 })
     await openApp(page)
@@ -319,11 +328,11 @@ test.describe('Early MMO progression example', () => {
     const start = ['char_creation', 'active_char', 'z1_enc_src', 'z1_enc']
     expect(await whole(start)).toEqual(start)
 
-    // it opens edit-locked (recommendedRunConfig.canvasLocked)
-    expect(await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.ui.getState().canvasLocked)).toBe(true)
-    await expect(toolButton(page, 'lock')).toHaveAttribute('aria-pressed', 'true')
+    // it opens editable (issue #428; no recommendedRunConfig.canvasLocked)
+    expect(await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.ui.getState().canvasLocked)).toBe(false)
+    await expect(toolButton(page, 'lock')).toHaveAttribute('aria-pressed', 'false')
 
-    // the run bar's Step runs it while locked
+    // the run bar's Step runs it
     await page.locator('.pstrip__step-btn').click()
     await expect.poll(() => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.sim.getState().stepIndex)).toBe(1)
     expect(await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.sim.getState().values['elapsed'])).toBeGreaterThan(0)
@@ -452,7 +461,8 @@ test.describe('Early MMO progression example', () => {
       const confirm = page.locator('.mcdlg--confirm .btn--primary')
       if (await confirm.isVisible().catch(() => false)) await confirm.click()
       await expect.poll(async () => (await graphCounts(page)).nodes).toBe(DOC.nodes.length)
-      expect(await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.ui.getState().canvasLocked)).toBe(true)
+      // editable on the phone too (issue #428); the phone has no lock control
+      expect(await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.ui.getState().canvasLocked)).toBe(false)
 
       // the phone's own file input (the top bar's Open) still opens the document
       await openMmoFile(page)
