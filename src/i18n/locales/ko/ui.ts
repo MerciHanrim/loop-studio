@@ -512,6 +512,7 @@ const ui = {
   'share.open.notice.damaged': '이 보호된 링크는 손상되었거나 불완전해서 열 수 없습니다. 보낸 사람에게 새 링크를 요청하세요.',
   'share.open.notice.unavailable': '보호된 링크를 열려면 최신 브라우저와 보안(HTTPS) 주소가 필요합니다. 링크는 주소 표시줄에 그대로 있으니 다른 브라우저에서 열 수 있습니다.',
   'share.open.notice.newer': '이 보호된 링크는 더 새로운 버전의 Loop Studio로 만들어졌습니다. 앱을 업데이트한 뒤 링크를 다시 여세요. 링크는 주소 표시줄에 그대로 있습니다.',
+  'share.open.notice.apply': '비밀번호는 맞지만 이 링크의 다이어그램을 끝까지 열지 못했습니다. 실행은 멈췄고, 캔버스에 그 일부가 보일 수 있습니다. 페이지를 새로고침하면 마지막으로 저장된 다이어그램으로 돌아갑니다. 보낸 사람에게 새 링크를 요청하세요.',
   'share.open.notice.content': '비밀번호는 맞지만 링크에 Loop Studio가 열 수 있는 다이어그램이 들어 있지 않습니다. 보낸 사람에게 새 링크를 요청하세요.',
   // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here
   'share.unavailable': '이 브라우저에서는 공유 링크를 만들거나 열 수 없습니다. 최신 브라우저에서 다시 시도하세요.',

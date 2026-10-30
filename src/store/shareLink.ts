@@ -35,6 +35,10 @@ export type ShareLoadOutcome =
   | { kind: 'loaded' } // a valid link was applied
   | { kind: 'cancelled' } // a valid link, but the user declined the replace (or the password prompt)
   | { kind: 'failed'; reason: ShareFailure | 'bad-graph' | 'unsupported-version' | 'malformed' }
+  // #420 — the load threw after the run-stop: the run is stopped and the
+  // document may be partly replaced (§U5.5); unlike every reason above, the
+  // state is NOT the one from before the link
+  | { kind: 'failed'; reason: 'apply-failed' }
   | Extract<ProtectedOutcome, { kind: 'failed' }> // a protected link that did not open (SEMANTICS-P.md)
 
 type Options = {
@@ -134,11 +138,13 @@ export async function consumeShareLink(opts: Options = {}): Promise<ShareLoadOut
   try {
     applySharedGraph(parsed)
   } catch (e) {
-    // #420 — a throw here comes after the run-stop; whatever `loadDoc` left
-    // stays, but the fragment goes and the boot flow ends (never rejects)
+    // #420 — a throw here comes AFTER the run-stop and possibly after `loadDoc`
+    // replaced the document: not a validation failure, so not `bad-graph`.
+    // Whatever the throw left stays (§U5.5 says what that can be); the
+    // fragment goes and the boot flow ends (never rejects)
     strip()
-    console.warn('Loop Studio: a share link could not be applied.', e)
-    return { kind: 'failed', reason: 'bad-graph' }
+    console.warn('Loop Studio: a share link failed while it was being applied; the run was stopped and the diagram may be partly replaced.', e)
+    return { kind: 'failed', reason: 'apply-failed' }
   }
 
   strip()

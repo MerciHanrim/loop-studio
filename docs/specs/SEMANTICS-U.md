@@ -326,12 +326,25 @@ approved or skipped for the pristine sample:
 `loadDoc` persists, so the shared graph becomes the working graph. The restore
 is deterministic: the same link always yields the same state.
 
-Should the load itself throw (#420) — after the run-stop, so the run is already
-paused — the loader does not propagate it: the fragment is stripped (§U5.6), one
-console warning is written, the outcome is `failed` / `bad-graph`, and whatever
-the throw left stands. `consumeShareLink` never rejects, so the boot sequence
-that waits on it (the first-run Welcome card, docs/guided-tour.md §GT6.1) always
-settles.
+**A throw from the load itself (#420)** is not a validation failure and is not
+reported as one: the outcome is `failed` / `apply-failed` (a protected link
+shows its own notice, SEMANTICS-P.md §P6), one console warning says that the
+run was stopped and the diagram may be partly replaced, the fragment is
+stripped (§U5.6), and `consumeShareLink` still never rejects, so the boot
+sequence that waits on it (the first-run Welcome card, docs/guided-tour.md
+§GT6.1) always settles. No rollback is attempted. What such a throw leaves,
+by the order inside `loadDoc`:
+
+- the run is **stopped** (step 1 ran) and stays at its step: `simulationRev`
+  is bumped only after the sink, so the sim is paused, not reset;
+- a throw before `loadDoc`'s `set` leaves the document as it was; a throw after
+  it (the document-boundary sink of issue #392 A is the known point) leaves
+  the **link's nodes and edges on the canvas** and the saved frames / data
+  imports already replaced by the link's;
+- the load's own autosave (`persist()`, last in `loadDoc`) **did not run**, so
+  the saved document is still the one from before the link and a reload
+  returns to it — unless an autosave scheduled by an edit made just before the
+  load fires afterwards and writes the current state.
 
 ### U5.6 Strip the fragment — every outcome, path + query preserved
 

@@ -539,6 +539,7 @@ const ui = {
   'share.open.notice.damaged': 'هذا الرابط المحمي تالف أو غير مكتمل ولا يمكن فتحه. اطلب رابطًا جديدًا من المرسل.',
   'share.open.notice.unavailable': 'يتطلب فتح رابط محمي متصفحًا حديثًا وعنوانًا آمنًا (HTTPS). الرابط ما زال في شريط العنوان، ويمكن فتحه في متصفح آخر.',
   'share.open.notice.newer': 'أُنشئ هذا الرابط المحمي بإصدار أحدث من Loop Studio. حدّث التطبيق وافتح الرابط من جديد: ما زال في شريط العنوان.',
+  'share.open.notice.apply': 'كلمة المرور صحيحة، لكن تعذّر فتح المخطط في هذا الرابط بالكامل. توقّف التشغيل، وقد تعرض اللوحة جزءًا منه. أعد تحميل الصفحة للعودة إلى آخر مخطط محفوظ، واطلب من المرسل رابطًا جديدًا.',
   'share.open.notice.content': 'كلمة المرور صحيحة، لكن الرابط لا يحتوي على مخطط يستطيع Loop Studio فتحه. اطلب رابطًا جديدًا من المرسل.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here

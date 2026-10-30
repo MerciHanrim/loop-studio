@@ -517,6 +517,7 @@ const ui = {
   'share.open.notice.damaged': '這個受保護的連結已損壞或不完整，無法開啟。請向傳送者索取新連結。',
   'share.open.notice.unavailable': '開啟受保護的連結需要較新的瀏覽器和安全（HTTPS）位址。連結仍在網址列中，可以在其他瀏覽器中開啟。',
   'share.open.notice.newer': '這個受保護的連結是用更新版本的 Loop Studio 建立的。請更新應用程式後重新開啟連結：它仍在網址列中。',
+  'share.open.notice.apply': '密碼正確，但此連結中的圖表未能完整開啟。執行已停止，畫布上可能顯示了其中一部分。重新載入頁面即可回到上次儲存的圖表，並請向寄件者索取新的連結。',
   'share.open.notice.content': '密碼正確，但連結中沒有 Loop Studio 能開啟的圖表。請向傳送者索取新連結。',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here
