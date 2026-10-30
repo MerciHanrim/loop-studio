@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { selectOnly, selectSelectedNodeCount, useGraphStore } from '../../store/graphStore'
+import { useMcStore } from '../../store/mcStore'
 import { selectOverlay, useUiStore } from '../../store/uiStore'
 import { useIsMobile } from '../../ui/media'
 import { useT } from '../../i18n'
@@ -22,6 +23,7 @@ export function MobileInspectorSheet() {
   const selectedNodeId = useGraphStore((s) => s.selectedNodeId)
   const selectedEdgeId = useGraphStore((s) => s.selectedEdgeId)
   const selectedNodeCount = useGraphStore(selectSelectedNodeCount)
+  const mcDialogOpen = useMcStore((s) => s.dialogOpen)
   const hasSelection = selectedNodeId != null || selectedEdgeId != null
 
   // Close must also clear each element's own `selected` mark, not just the
@@ -33,11 +35,24 @@ export function MobileInspectorSheet() {
   // selection drives the sheet: pick something → open it; clear the selection
   // (empty-canvas tap) → close it. Opening another overlay leaves the selection
   // untouched but takes over the exclusive slot (uiStore), so the sheet hides.
+  //
+  // issue #411 (Lumi, 2026-10-30) — THE SCREEN THE USER OPENED COMES FIRST.
+  // The sheet claims the slot only while nothing else holds it: the slot empty
+  // AND the Monte Carlo dialog closed (the dialog keeps its own flag, and the
+  // moment the mobile chrome closes the sheet for it the slot is already empty
+  // while the dialog is coming up — without the flag the sheet would reopen
+  // there and `openOverlay` would dismiss the dialog). Timeline, the dialog
+  // and the other sheets therefore stay open over a selection; when they
+  // close and the selection still stands, the sheet comes back. Close on the
+  // sheet itself still clears the selection (`dismiss`).
   useEffect(() => {
     if (!isMobile) return
-    if (hasSelection) openOverlay('inspector')
-    else if (overlay === 'inspector') closeOverlay('inspector')
-  }, [isMobile, hasSelection, overlay, openOverlay, closeOverlay])
+    if (!hasSelection) {
+      if (overlay === 'inspector') closeOverlay('inspector')
+      return
+    }
+    if (overlay === 'none' && !mcDialogOpen) openOverlay('inspector')
+  }, [isMobile, hasSelection, overlay, mcDialogOpen, openOverlay, closeOverlay])
 
   if (!isMobile || !hasSelection || overlay !== 'inspector') return null
 
