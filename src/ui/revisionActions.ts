@@ -6,7 +6,7 @@ import {
   SecureRandomUnavailableError,
 } from '../model/revision'
 import { isolateAuto } from '../i18n/bidiIsolate'
-import { useProjectStore, type PlanProposalResult, type PlanRevisionResult } from '../store/projectStore'
+import { type InvalidTargetNode, useProjectStore, type PlanProposalResult, type PlanRevisionResult } from '../store/projectStore'
 import {
   classifyPendingProposal,
   proposedGraph,
@@ -86,7 +86,9 @@ export function makeProposal(): ExportStatus {
 
 // ── the Review model (desktop panel === mobile sheet) ─────────────────────
 
-export type ReviewGate = 'ok' | 'wrong-project' | 'no-target' | 'target-is-proposal' | 'version-mismatch'
+/** `invalid-target` (#420): the OPEN document cannot be projected, so it cannot
+ *  be compared with the proposal — Review shows the refusal, Apply is refused */
+export type ReviewGate = 'ok' | 'wrong-project' | 'no-target' | 'target-is-proposal' | 'version-mismatch' | 'invalid-target'
 
 export type ReviewModel = {
   /** unverified, self-asserted (§R8) — render as "claimed, not verified" */
@@ -97,6 +99,8 @@ export type ReviewModel = {
   gate: ReviewGate
   /** present only when `gate === 'ok'` */
   classification?: 'exact' | 'divergent' | 'unknown'
+  /** present only when `gate === 'invalid-target'` and one node is the cause */
+  invalidNode?: InvalidTargetNode
   diff: RevisionDiff
 }
 
@@ -121,8 +125,21 @@ export function reviewModel(p: PendingProposal): ReviewModel {
     sameProject: p.sameProject,
     gate: c.ok ? 'ok' : c.reason,
     classification: c.ok ? c.classification : undefined,
+    ...(!c.ok && c.reason === 'invalid-target' && c.node ? { invalidNode: c.node } : {}),
     diff,
   }
+}
+
+/**
+ * #420 — the refusal text for an open document that cannot be projected, shown
+ * by Review as its gate and by Apply as its error: the node and its kind when
+ * one node is the cause, the general text otherwise. Neither offers anything
+ * the refused path cannot do; "Open as a document" stays available on its own
+ * button, behind its own confirmation.
+ */
+export function invalidTargetText(node: InvalidTargetNode | undefined): string {
+  if (node) return t('review.gate.invalidTarget', { node: isolateAuto(node.label || node.id), kind: isolateAuto(node.kind) })
+  return t('review.gate.invalidContent')
 }
 
 // §R7A.4 — the loss statement for a non-`exact` whole apply is now the keyed

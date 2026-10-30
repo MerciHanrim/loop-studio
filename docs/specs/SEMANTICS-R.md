@@ -143,7 +143,12 @@ A `revisionId` names **one exact content state** within a project. It is
   projected** (§R4.1 invalid content, e.g. a node of an unknown kind, #420),
   `dirty` is `true`: such content cannot equal a baseline that was taken from
   projectable content. The debounced recompute does not throw; it writes one
-  console warning per distinct cause, not one per edit.
+  console warning per distinct cause, not one per edit. The same holds at the
+  two other places `dirty` is derived: **boot** keeps the stored graph and its
+  valid project header and starts dirty (never dropping the header, never
+  falling back to the sample), and **undo / redo** restore the graph, the
+  history and the header the entry carries, the session dirty. Once the content
+  projects again, `dirty` is the digest comparison as before.
 - **`revisionId` is opaque and random**, not a content hash — two independently
   authored revisions with byte-identical content still have different ids (they
   are on different branches). Equality of `revisionId` therefore means "the same
@@ -495,6 +500,16 @@ confirmation — the user's hunk selection is the consent.
   change. (The user may still **open the proposal as a document**, §R10.5.)
 - **No open project** (target anonymous) → cannot apply; offer only *"open the
   proposal as a document"* (§R10.5) or **Cancel**.
+- **The open document cannot be projected** (§R4.1 invalid content, e.g. a
+  node of an unknown kind, #420) → it cannot be compared with the proposal:
+  Review shows the refusal (naming the node and its kind when one node is the
+  cause) instead of a class, and Apply — whole or per-hunk — is refused with
+  the same reason **before any classification or change**, however often it is
+  pressed. *"Open as a document"* stays offered, but in this state only it
+  first asks for an explicit confirmation that the open document will be
+  replaced and that Undo cannot bring it back; Cancel (or Escape) leaves the
+  document, its history and the project header exactly as they were. In every
+  other state *"Open as a document"* opens at once, as before.
 
 ### R7A.2 Classify the target against the proposal (provable cases only)
 

@@ -258,6 +258,10 @@ const ui = {
   'review.diff.edges': '接続',
   'review.diff.runConfig': '実行設定',
   'review.diff.frames': 'フレーム',
+  'review.gate.invalidTarget': '開いている図に Loop Studio が知らないノードがあるため、この提案をここに適用できません。ノード {node} の種類は {kind} です。そのノードを削除するか置き換えてから、提案をもう一度確認してください。提案をドキュメントとして開くことはできます。',
+  'review.gate.invalidContent': '開いている図に、有限でない数値など比較できない内容があるため、この提案をここに適用できません。提案をドキュメントとして開くことはできます。',
+  'review.openDoc.replace.title': '開いている図を置き換えますか？',
+  'review.openDoc.replace.body': '提案をドキュメントとして開くと、いま開いている図が置き換えられ、元に戻すでは戻せません。キャンセルすると、開いている図はそのまま残ります。',
   'review.gate.wrongProject':
     'この提案は別のプロジェクトのものです。ドキュメントとして開くことはできます。',
   'review.gate.noTarget': '開いているプロジェクトがありません。この提案をドキュメントとして開くか、キャンセルしてください。',

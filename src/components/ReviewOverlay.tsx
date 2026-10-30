@@ -14,7 +14,8 @@ import {
 import { useSimStore } from '../store/simStore'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
-import { reviewModel, type ReviewModel } from '../ui/revisionActions'
+import { invalidTargetText, reviewModel, type ReviewModel } from '../ui/revisionActions'
+import { ConfirmDialog } from './ConfirmDialog'
 import { useArrowGlyph, useT, type MessageKey } from '../i18n'
 import { isolateLtr } from '../i18n/bidiIsolate'
 import { MobileSheet } from './mobile/MobileSheet'
@@ -29,7 +30,9 @@ type TFn = ReturnType<typeof useT>
 // this; nothing in the graph / sim / undo / project moves until Apply or "Open
 // as a document".
 
-const GATE_KEY: Record<Exclude<ReviewModel['gate'], 'ok'>, MessageKey> = {
+// `invalid-target` (#420) is not keyed here: its text names the node, see
+// `invalidTargetText`
+const GATE_KEY: Record<Exclude<ReviewModel['gate'], 'ok' | 'invalid-target'>, MessageKey> = {
   'wrong-project': 'review.gate.wrongProject',
   'no-target': 'review.gate.noTarget',
   'target-is-proposal': 'review.gate.targetIsProposal',
@@ -294,7 +297,7 @@ function HunkRow({
 }
 
 const FAIL_KEY: Record<
-  Exclude<ApplyFailReason, 'needs-confirmation' | 'target-moved' | 'no-effective-change' | 'locked'>,
+  Exclude<ApplyFailReason, 'needs-confirmation' | 'target-moved' | 'no-effective-change' | 'locked' | 'invalid-target'>,
   MessageKey
 > = {
   'wrong-project': 'review.fail.wrongProject',
@@ -325,6 +328,9 @@ export function ReviewOverlay() {
   const [err, setErr] = useState<string | null>(null)
   const [mode, setMode] = useState<'whole' | 'hunks'>('whole')
   const [sel, setSel] = useState<HunkSelection>({ accept: {}, fieldChoices: {} })
+  // #420 — "Open as a document" while Apply is refused for an open document
+  // that cannot be projected asks first: it replaces that document for good
+  const [confirmOpenDoc, setConfirmOpenDoc] = useState(false)
   const { fitView } = useReactFlow()
 
   // Recompute the model against the LIVE store on every relevant change, so a
@@ -356,6 +362,7 @@ export function ReviewOverlay() {
     setArmed(null)
     setErr(null)
     setMode('whole')
+    setConfirmOpenDoc(false)
   }, [pending])
 
   // seed the selection whenever the plan is (re)computed
@@ -366,11 +373,12 @@ export function ReviewOverlay() {
   useEffect(() => {
     if (!pending) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close()
+      // the confirmation's own Escape cancels the confirmation only
+      if (e.key === 'Escape' && !confirmOpenDoc) close()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [pending, close])
+  }, [pending, close, confirmOpenDoc])
 
   if (!pending || !model) return null
 
@@ -393,6 +401,12 @@ export function ReviewOverlay() {
       return
     }
     if (res.reason === 'locked') return // #334 — Apply is disabled while locked
+    if (res.reason === 'invalid-target') {
+      // #420 — refused before anything changed; pressing again refuses again
+      setArmed(null)
+      setErr(invalidTargetText(res.node))
+      return
+    }
     if (res.reason === 'needs-confirmation' || res.reason === 'target-moved') {
       // arm (or re-arm) against the snapshot the store just evaluated
       setArmed({ cls: res.classification ?? 'divergent', digest: res.targetDigest ?? null })
@@ -420,6 +434,10 @@ export function ReviewOverlay() {
       return
     }
     if (res.reason === 'locked') return // #334 — Apply is disabled while locked
+    if (res.reason === 'invalid-target') {
+      setErr(invalidTargetText(res.node)) // #420 — refused before anything changed
+      return
+    }
     if (res.reason === 'target-moved') {
       // planCtx/sel already re-seed from the fresh plan (deps below) — just say so
       setErr(t('review.err.targetMovedList'))
@@ -460,9 +478,17 @@ export function ReviewOverlay() {
       return { ...s, accept }
     })
 
-  const doOpenDoc = () => {
+  const openDocNow = () => {
+    setConfirmOpenDoc(false)
     openPendingProposalAsDocument(pending)
     afterMutation()
+  }
+  // #420 — with Apply refused for an open document that cannot be projected,
+  // "Open as a document" is the one way forward, and it replaces that document
+  // with no Undo back to it: ask first. Every other gate keeps opening at once.
+  const doOpenDoc = () => {
+    if (model.gate === 'invalid-target') setConfirmOpenDoc(true)
+    else openDocNow()
   }
 
   const body = (
@@ -501,8 +527,18 @@ export function ReviewOverlay() {
           </p>
         ) : null
       ) : (
-        <p className="review__class review__class--blocked">{t(GATE_KEY[model.gate])}</p>
+        <p className="review__class review__class--blocked">
+          {model.gate === 'invalid-target' ? invalidTargetText(model.invalidNode) : t(GATE_KEY[model.gate])}
+        </p>
       )}
+      <ConfirmDialog
+        open={confirmOpenDoc}
+        title={t('review.openDoc.replace.title')}
+        body={t('review.openDoc.replace.body')}
+        confirmLabel={t('review.action.openAsDoc')}
+        onConfirm={openDocNow}
+        onCancel={() => setConfirmOpenDoc(false)}
+      />
 
       {armed ? (
         <p className="review__warn">{confirmText(t, { ...model, classification: armed.cls })}</p>

@@ -274,6 +274,10 @@ const ui = {
   'review.diff.edges': 'Bağlantılar',
   'review.diff.runConfig': 'çalıştırma ayarları',
   'review.diff.frames': 'çerçeveler',
+  'review.gate.invalidTarget': 'Bu öneri burada uygulanamıyor, çünkü açık diyagramda Loop Studio tarafından tanınmayan bir düğüm var. {node} düğümünün türü {kind}. Bu düğümü silin ya da değiştirin, sonra öneriyi yeniden inceleyin. Öneriyi yine de belge olarak açabilirsiniz.',
+  'review.gate.invalidContent': 'Bu öneri burada uygulanamıyor, çünkü açık diyagramda, sonlu olmayan bir sayı gibi, karşılaştırılamayan bir içerik var. Öneriyi yine de belge olarak açabilirsiniz.',
+  'review.openDoc.replace.title': 'Açık diyagram değiştirilsin mi?',
+  'review.openDoc.replace.body': 'Öneriyi belge olarak açmak açık diyagramın yerini alır ve Geri al onu geri getirmez. İptal, açık diyagramı olduğu gibi bırakır.',
   'review.gate.wrongProject':
     'Bu öneri başka bir projeye ait. Yine de belge olarak açabilirsiniz.',
   'review.gate.noTarget': 'Açık proje yok. Bu öneriyi belge olarak açın ya da iptal edin.',
