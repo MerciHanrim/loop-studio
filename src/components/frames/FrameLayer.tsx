@@ -551,7 +551,11 @@ export function FrameLayer() {
       if (!d || d.kind === 'draw') return
       if (e.type === 'keydown' && (e as KeyboardEvent).key !== 'Escape') return
       if (e.type === 'visibilitychange' && document.visibilityState !== 'hidden') return
-      if (e.type === 'lostpointercapture' && d.capture && (e as PointerEvent).pointerId !== d.capture.pointerId) return
+      // a lost capture cancels only when it is OURS: a capture was taken, and
+      // the event's pointer and element are that capture's (Lumi's review of
+      // #433: a capture lost by another element, or a drag whose capture
+      // failed, must not end the frame drag)
+      if (e.type === 'lostpointercapture' && (!d.capture || (e as PointerEvent).pointerId !== d.capture.pointerId || e.target !== d.capture.el)) return
       if (e.cancelable) e.preventDefault()
       cancelOpen(d)
     }
