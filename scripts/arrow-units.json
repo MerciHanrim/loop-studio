@@ -7,10 +7,10 @@
     "jsxSites": 1,
     "keepLiterals": 1,
     "iconSites": 14,
-    "catalogKeysMirror": 10,
+    "catalogKeysMirror": 12,
     "catalogKeysKeep": 2,
-    "catalogPairsPerLocale": 12,
-    "catalogOccurrencesPerLocale": 14
+    "catalogPairsPerLocale": 14,
+    "catalogOccurrencesPerLocale": 16
   },
   "units": {
     "before-after": {
@@ -122,6 +122,8 @@
         "import.qs.sources.sheets",
         "share.tooLarge",
         "revision.export.tooLarge",
+        "revision.export.unknownKind",
+        "revision.export.invalidContent",
         "proposal.needProject",
         "proposal.dirtyOrigin",
         "help.examples.intro"

@@ -188,6 +188,8 @@ const ui = {
   'export.proposal.blurb': 'een kopie om te bewerken en terug te sturen ter beoordeling',
   'export.proposal.needRevision': 'Exporteer eerst een Projectrevisie',
   'revision.export.noSecureRandom': 'Deze browser heeft geen veilige bron van willekeur, dus er kan geen revisie-id worden gemaakt. Er is niets geëxporteerd.',
+  'revision.export.unknownKind': 'Dit diagram kan niet als Projectrevisie worden geëxporteerd. Het knooppunt {node} heeft het type {kind}, dat Loop Studio niet kent. Er is niets geëxporteerd. Verwijder of vervang dat knooppunt. Bestand → Diagram-JSON slaat het diagram nog steeds op.',
+  'revision.export.invalidContent': 'Dit diagram bevat inhoud die een Projectrevisie niet kan bevatten, zoals een getal dat niet eindig is. Er is niets geëxporteerd. Bestand → Diagram-JSON slaat het diagram nog steeds op.',
   'revision.export.tooLarge': 'Dit diagram is te groot om als Projectrevisie te exporteren ({size}; limiet {cap}). Gebruik in plaats daarvan Bestand → Diagram-JSON.',
   'proposal.needProject': 'Een voorstel maken vereist een geopend project. Gebruik eerst Bestand → Projectrevisie om er een te maken.',
   'proposal.dirtyOrigin': 'Het document is gewijzigd sinds deze revisie. Gebruik Bestand → Projectrevisie om de wijzigingen vast te leggen en maak daarna een voorstel.',

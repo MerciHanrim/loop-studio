@@ -186,6 +186,8 @@ const ui = {
   'export.proposal.blurb': 'a copy to edit and send back for review',
   'export.proposal.needRevision': 'Export a Project revision first',
   'revision.export.noSecureRandom': 'This browser has no secure random source, so a revision id cannot be created. Nothing was exported.',
+  'revision.export.unknownKind': 'This diagram cannot be exported as a Project revision. The node {node} has the kind {kind}, which Loop Studio does not know. Nothing was exported. Delete or replace that node. File → Graph JSON still saves the diagram.',
+  'revision.export.invalidContent': 'This diagram has content that a Project revision cannot carry, such as a number that is not finite. Nothing was exported. File → Graph JSON still saves the diagram.',
   'revision.export.tooLarge': 'This diagram is too large to export as a Project revision ({size}; limit {cap}). Use File → Graph JSON instead.',
   'proposal.needProject': 'Make a proposal needs an open project. Use File → Project revision first to create one.',
   'proposal.dirtyOrigin': 'The document has changed since this revision. Use File → Project revision to pin the changes, then make a proposal.',

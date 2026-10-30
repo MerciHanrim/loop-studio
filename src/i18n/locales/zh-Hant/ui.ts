@@ -194,6 +194,8 @@ const ui = {
   'export.proposal.needRevision': '請先匯出一份專案修訂',
   'revision.export.noSecureRandom':
     '這個瀏覽器沒有安全的隨機來源，因此無法建立修訂 ID。沒有匯出任何內容。',
+  'revision.export.unknownKind': '這張圖無法匯出為專案修訂。節點 {node} 的類型 {kind} 不是 Loop Studio 認得的類型。沒有匯出任何內容。請刪除或替換該節點。「檔案 → Graph JSON」仍可儲存這張圖。',
+  'revision.export.invalidContent': '這張圖包含專案修訂無法容納的內容，例如非有限的數字。沒有匯出任何內容。「檔案 → Graph JSON」仍可儲存這張圖。',
   'revision.export.tooLarge':
     '這張圖太大，無法匯出為專案修訂（{size}，上限 {cap}）。請改用「檔案 → Graph JSON」。',
   'proposal.needProject':

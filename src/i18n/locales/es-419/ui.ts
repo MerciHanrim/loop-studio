@@ -182,6 +182,8 @@ const ui = {
   'export.proposal.blurb': 'una copia para editar y devolver para su revisión',
   'export.proposal.needRevision': 'Exporte primero un Estado del proyecto',
   'revision.export.noSecureRandom': 'Este navegador no tiene una fuente aleatoria segura, así que no se puede crear un id de estado. No se exportó nada.',
+  'revision.export.unknownKind': 'Este diagrama no se puede exportar como Estado del proyecto. El nodo {node} es de tipo {kind}, que Loop Studio no conoce. No se exportó nada. Elimina o reemplaza ese nodo. Archivo → Graph JSON sigue guardando el diagrama.',
+  'revision.export.invalidContent': 'Este diagrama tiene contenido que un Estado del proyecto no puede llevar, como un número que no es finito. No se exportó nada. Archivo → Graph JSON sigue guardando el diagrama.',
   'revision.export.tooLarge': 'Este diagrama es demasiado grande para exportarlo como Estado del proyecto ({size}; límite {cap}). Use Archivo → Graph JSON.',
   'proposal.needProject': 'Crear una propuesta necesita un proyecto abierto. Use Archivo → Estado del proyecto primero para crear uno.',
   'proposal.dirtyOrigin': 'El documento cambió desde este estado. Use Archivo → Estado del proyecto para fijar los cambios y luego cree una propuesta.',

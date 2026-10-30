@@ -185,6 +185,8 @@ const ui = {
   'export.proposal.blurb': '可编辑并回送复核的副本',
   'export.proposal.needRevision': '请先导出一份项目修订',
   'revision.export.noSecureRandom': '此浏览器没有安全随机源，无法创建修订 ID。没有导出任何内容。',
+  'revision.export.unknownKind': '这张图无法导出为项目修订。节点 {node} 的类型 {kind} 不是 Loop Studio 认识的类型。没有导出任何内容。请删除或替换该节点。“文件 → Graph JSON”仍可保存这张图。',
+  'revision.export.invalidContent': '这张图包含项目修订无法容纳的内容，例如非有限的数字。没有导出任何内容。“文件 → Graph JSON”仍可保存这张图。',
   'revision.export.tooLarge': '这张图太大，无法导出为项目修订（{size}，上限 {cap}）。请改用“文件 → Graph JSON”。',
   'proposal.needProject': '创建提案需要先打开一个项目。请先用“文件 → 项目修订”创建一个。',
   'proposal.dirtyOrigin': '此修订之后文档已有改动。请先用“文件 → 项目修订”固定这些改动，再创建提案。',

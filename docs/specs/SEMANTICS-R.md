@@ -139,7 +139,11 @@ A `revisionId` names **one exact content state** within a project. It is
   `project.revisionId` is a fresh id for the proposed state — see below).
 - **`dirty`** = `fullContentDigest(current graph) !== baselineDigest`. It is a
   pure function of content, recomputed (debounced) on edit. Selection, viewport,
-  run state, undo depth never affect it.
+  run state, undo depth never affect it. When the current graph **cannot be
+  projected** (§R4.1 invalid content, e.g. a node of an unknown kind, #420),
+  `dirty` is `true`: such content cannot equal a baseline that was taken from
+  projectable content. The debounced recompute does not throw; it writes one
+  console warning per distinct cause, not one per edit.
 - **`revisionId` is opaque and random**, not a content hash — two independently
   authored revisions with byte-identical content still have different ids (they
   are on different branches). Equality of `revisionId` therefore means "the same
@@ -253,7 +257,14 @@ blank edge handles to `out` / `in` / `state-*`, backfills edge `data`). Then:
   the same `Number` in JS, so they emit identically without a rounding rule). A
   non-finite number anywhere in the projected content makes the content
   **invalid for revision purposes** (on import: drop `project` + warn; on export
-  it cannot occur — the editor never produces one).
+  it cannot occur — the editor never produces one). So is a node whose `kind`
+  is neither a flow kind nor a model kind (#420): a hand-made file keeps such a
+  node and the canvas draws it, but the projection has no field list for it and
+  raises the same invalid-content error, naming the node and its kind.
+  `Export → Project revision` and `Make a proposal` then **refuse with that
+  cause** (the node's name, or its id when the name is empty, and the kind),
+  never with the secure-random message of R-INV-12, which stays for its own
+  cause; any other error is a defect and is not turned into a refusal.
   - **No rounding.** `position` is preserved to the pixel-fraction, so a
     sub-pixel move is a real content change (it makes the session `dirty`, it
     shows in the diff, and Apply restores the exact coordinate). A UI that wants

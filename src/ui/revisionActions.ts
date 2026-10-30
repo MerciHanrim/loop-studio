@@ -1,9 +1,12 @@
 import {
   canonicalContent,
   computeRevisionDiff,
+  InvalidRevisionContentError,
   type RevisionDiff,
+  SecureRandomUnavailableError,
 } from '../model/revision'
-import { useProjectStore, type PlanRevisionResult } from '../store/projectStore'
+import { isolateAuto } from '../i18n/bidiIsolate'
+import { useProjectStore, type PlanProposalResult, type PlanRevisionResult } from '../store/projectStore'
 import {
   classifyPendingProposal,
   proposedGraph,
@@ -24,6 +27,25 @@ const mib = (n: number) => `${(n / (1024 * 1024)).toFixed(1)} MiB`
 export type ExportStatus = { ok: true } | { ok: false; message: string }
 
 /**
+ * #420 — the message for an error a revision or proposal PLAN threw. The plan
+ * can meet exactly two causes: no secure random source to mint an id, and
+ * content the canonical projection refuses (a node of an unknown kind is named;
+ * a non-finite number or an unseatable model node gets the general text). Each
+ * is told apart by its class — before #420 every throw read "no secure random
+ * source". Anything else is a defect, not a refusal, and still throws.
+ */
+function planFailureMessage(e: unknown): string {
+  if (e instanceof SecureRandomUnavailableError) return t('revision.export.noSecureRandom')
+  if (e instanceof InvalidRevisionContentError) {
+    if (e.node) {
+      return t('revision.export.unknownKind', { node: isolateAuto(e.node.label || e.node.id), kind: isolateAuto(e.node.kind) })
+    }
+    return t('revision.export.invalidContent')
+  }
+  throw e
+}
+
+/**
  * §R2.1 — build the plan (pure), dispatch the download, then commit the
  * baseline. A failure before the download commits nothing.
  */
@@ -31,8 +53,8 @@ export function exportProjectRevision(): ExportStatus {
   let plan: PlanRevisionResult
   try {
     plan = useProjectStore.getState().planRevision({})
-  } catch {
-    return { ok: false, message: t('revision.export.noSecureRandom') }
+  } catch (e) {
+    return { ok: false, message: planFailureMessage(e) }
   }
   if (!plan.ok) {
     return { ok: false, message: t('revision.export.tooLarge', { size: mib(plan.bytes), cap: mib(plan.cap) }) }
@@ -45,7 +67,14 @@ export function exportProjectRevision(): ExportStatus {
 /** §R6 — `Make a proposal`. Refuses (no file, no id) on a dirty or anonymous
  *  origin, or over the file cap; the caller shows the message. */
 export function makeProposal(): ExportStatus {
-  const res = useProjectStore.getState().planProposal({})
+  let res: PlanProposalResult
+  try {
+    res = useProjectStore.getState().planProposal({})
+  } catch (e) {
+    // #420 — the proposal plan projects the live graph and mints an id too;
+    // before, either throw left the click handler with no message at all
+    return { ok: false, message: planFailureMessage(e) }
+  }
   if (!('text' in res) || !res.ok) {
     if (res.reason === 'no-project') return { ok: false, message: t('proposal.needProject') }
     if (res.reason === 'dirty-origin') return { ok: false, message: t('proposal.dirtyOrigin') }
