@@ -6,11 +6,12 @@ import { useSimStore } from './simStore'
 import { useUiStore } from './uiStore'
 import { collectWorkspacePayload, importFile, serializeWorkspaceFile } from './workspaceIO'
 
-// issue #409 — reproduction on current main, through the Workspace round trip
-// the digest exists for (§W3.2, §W4): a loop-model/2 document whose flow is
-// `@p`, a Monte Carlo result, Export Workspace; the Parameter's value is
-// changed in the FILE; Import. Is the saved result attached as current to a
-// graph whose engine input differs?
+// issue #409 — the Workspace round trip the digest exists for (§W3.2, §W4): a
+// loop-model/2 document whose flow is `@p`, a Monte Carlo result, Export
+// Workspace; the Parameter's value is changed in the FILE; Import. Since the
+// §W3.1 erratum (Lumi, 2026-10-30) the digest sees the value under v2, so the
+// saved result is attached stale, with the notice, exactly as a Pool initial
+// changed in the file is; a re-run at the new value clears it.
 
 /** Source ─@p→ Pool, p = 1; the leading-`@` flow commit latches loop-model/2 */
 function buildV2(value = 1) {
@@ -29,6 +30,7 @@ function buildV2(value = 1) {
 }
 const paramValue = (id: string) => (useGraphStore.getState().nodes.find((n) => n.id === id)!.data as { value: number }).value
 const poolInitial = (id: string) => (useGraphStore.getState().nodes.find((n) => n.id === id)!.data as { initial: number }).initial
+const STALE_NOTICE = /earlier version|stale|digest/i
 
 /** the exported file with one node's data field rewritten, as an outside edit would */
 function fileWith(text: string, id: string, patch: Record<string, unknown>): string {
@@ -36,6 +38,13 @@ function fileWith(text: string, id: string, patch: Record<string, unknown>): str
   const n = doc.nodes.find((x) => x.id === id)!
   n.data = { ...n.data, ...patch }
   return JSON.stringify(doc)
+}
+
+async function exportedWithResult(pool: string): Promise<{ text: string; digest: string }> {
+  useMcStore.getState().setConfig({ baseSeed: 1, runs: 4, steps: 3, tracked: [pool] })
+  await useMcStore.getState().run()
+  expect(useMcStore.getState().status).toBe('done')
+  return { text: serializeWorkspaceFile(collectWorkspacePayload({ x: 0, y: 0, zoom: 1 })), digest: useMcStore.getState().resultGraphDigest! }
 }
 
 beforeEach(() => {
@@ -46,44 +55,56 @@ beforeEach(() => {
 })
 
 describe('a Workspace result and a Parameter value changed in the file (#409)', () => {
-  it('p.value 1 → 7 in the file: the result imports as CURRENT (stale: false) although every step now moves 7, not 1', async () => {
+  it('p.value 1 → 7 in the file: the result imports STALE with the notice, its digest kept, and the graph loads with 7; a re-run clears it', async () => {
     const { pool, param } = buildV2(1)
-    useMcStore.getState().setConfig({ baseSeed: 1, runs: 4, steps: 3, tracked: [pool] })
-    await useMcStore.getState().run()
-    expect(useMcStore.getState().status).toBe('done')
+    const { text, digest } = await exportedWithResult(pool)
     expect(useMcStore.getState().result!.series[pool].mean[3]).toBe(3) // 1 per step under p = 1
-    const text = serializeWorkspaceFile(collectWorkspacePayload({ x: 0, y: 0, zoom: 1 }))
-    const savedDigest = useMcStore.getState().resultGraphDigest!
 
     useMcStore.getState().clear()
     const out = await importFile(fileWith(text, param, { value: 7 }))
     expect(out.workspace).toBe(true)
-    expect(out.warnings).toEqual([])
-    expect(paramValue(param)).toBe(7) // the file's value is what loaded
+    expect(out.warnings.some((w) => STALE_NOTICE.test(w))).toBe(true)
+    expect(paramValue(param)).toBe(7)
     expect(useGraphStore.getState().modelVersion).toBe(2)
 
     const mc = useMcStore.getState()
-    expect(mc.status).toBe('done')
+    expect(mc.status).toBe('done') // still viewable
     expect(mc.result!.series[pool].mean[3]).toBe(3) // the result computed under p = 1
-    expect(mc.resultGraphDigest).toBe(savedDigest) // "equal" — the digest did not see the value
-    expect(mc.stale).toBe(false) // ← current main: attached as current
+    expect(mc.resultGraphDigest).toBe(digest) // the file's digest, never relabelled (§W3.2)
+    expect(mc.stale).toBe(true)
 
-    // and the engine input really differs: one step now moves 7
+    // the engine input really differs: one step now moves 7
     useSimStore.getState().stepOnce()
-    expect(useSimStore.getState().values[pool]).toBe(7)
+    expect(useSimStore.getState().values?.[pool]).toBe(7)
+
+    // a re-run at the new value is current again
+    await useMcStore.getState().run()
+    expect(useMcStore.getState().stale).toBe(false)
+    expect(useMcStore.getState().result!.series[pool].mean[3]).toBe(21)
   })
 
-  it('control: the Pool initial changed in the file is seen by the digest, and the result imports stale', async () => {
+  it('an unchanged file imports its result as current; a Pool initial changed in the file imports it stale, as before', async () => {
     const { pool } = buildV2(1)
-    useMcStore.getState().setConfig({ baseSeed: 1, runs: 4, steps: 3, tracked: [pool] })
-    await useMcStore.getState().run()
-    const text = serializeWorkspaceFile(collectWorkspacePayload({ x: 0, y: 0, zoom: 1 }))
+    const { text } = await exportedWithResult(pool)
+
+    useMcStore.getState().clear()
+    const same = await importFile(text)
+    expect(same.warnings).toEqual([])
+    expect(useMcStore.getState()).toMatchObject({ status: 'done', stale: false })
+
     useMcStore.getState().clear()
     const out = await importFile(fileWith(text, pool, { initial: 5 }))
-    expect(out.workspace).toBe(true)
     expect(poolInitial(pool)).toBe(5)
-    expect(useMcStore.getState().status).toBe('done')
-    expect(useMcStore.getState().stale).toBe(true)
-    expect(out.warnings.some((w) => /earlier version|stale|digest/i.test(w))).toBe(true)
+    expect(useMcStore.getState()).toMatchObject({ status: 'done', stale: true })
+    expect(out.warnings.some((w) => STALE_NOTICE.test(w))).toBe(true)
+  })
+
+  it('a Parameter field that is not an engine input (min / max / unit) changed in the file leaves the result current', async () => {
+    const { pool, param } = buildV2(1)
+    const { text } = await exportedWithResult(pool)
+    useMcStore.getState().clear()
+    const out = await importFile(fileWith(text, param, { min: 0, max: 50, unit: 'kg' }))
+    expect(out.warnings).toEqual([])
+    expect(useMcStore.getState()).toMatchObject({ status: 'done', stale: false })
   })
 })
