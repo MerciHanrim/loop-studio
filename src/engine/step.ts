@@ -75,6 +75,18 @@ export function step(
   seed = 1,
   modelVersion: ModelVersion = 1,
 ): StepResult {
+  // SEMANTICS.md §6 — "if `ended` was set, the run stops": an ended state is a
+  // fixed point of `step`. Nothing is evaluated, nothing moves, the step count
+  // and the values stay, and the report is empty (issue #419 item 1: until
+  // now only the callers held this — the PlayBar's Replay resets first, the
+  // Monte-Carlo loops stop on `st.ended` — while `step` itself kept moving
+  // resources past the End).
+  if (prev.ended) {
+    return {
+      state: { step: prev.step, values: prev.values, ended: true, fired: [], triggerQueue: prev.triggerQueue },
+      report: { events: [], activated: [], fired: [], stateEvents: [], diagnostics: [] },
+    }
+  }
   const curStep = prev.step + 1 // the step being computed — the RNG key's `step`
   const byId = new Map(nodes.map((n) => [n.id, n]))
   // loop-model/1: `parameter` / `register` have no ports — the engine ignores
@@ -129,7 +141,7 @@ export function step(
   const activated = new Set<string>()
   const fired = new Set<string>()
   const diagnostics: string[] = [...paramDiagnostics]
-  let ended = prev.ended
+  let ended: boolean = prev.ended // `false` here (the ended fixed point returned above)
 
   // A random draw / gate pick is memoised at `step()` scope so the shadow probe
   // pass (see `pullPass`) reuses the SAME result as the real pass — no extra
