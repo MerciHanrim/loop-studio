@@ -4177,7 +4177,12 @@ key, and the identifiers are **tree-shaken out entirely**.
    - **no empty-string** values;
    - after the `active → en` fallback, **no key referenced by a call site is
      unresolved** (against the full registry).
-   The script is written against the registry loop, never against `ko`.
+   The script is written against the registry loop, never against `ko`. Its
+   slice list is READ from `en/index.ts` — the relative default imports, in
+   spread order (`scripts/catalog-slices.mjs`) — never kept by hand (issue
+   #414, 2026-10-30): a slice added to the merge is covered by every rule
+   above the moment it exists, and a locale folder whose `index.ts` merges
+   another set or order, or that holds a `.ts` file no merge names, fails.
 2. **No missing / unused keys (CI).** Every `t('…')` call-site key exists in
    `en`; every `en` key is referenced somewhere (grep, with an allowlist for
    dynamically-selected `error.<code>.message` keys).
