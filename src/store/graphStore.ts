@@ -233,6 +233,18 @@ type GraphStore = {
     positions: Readonly<Record<string, XY>>,
     waypoints: Readonly<Record<string, readonly XY[]>>,
   ) => void
+  /** issue #408 — the node POINTER drag transaction (Lumi, 2026-10-30). The
+   *  Canvas opens it at `onNodeDragStart` / `onSelectionDragStart` and closes
+   *  it at the matching `…DragStop`. While it is open, `onNodesChange` records
+   *  no 'move' entry for the `dragging: true` changes; the close pushes
+   *  EXACTLY ONE entry, the pre-drag snapshot, and only when some node's
+   *  position differs from where it started. A drag back to its origin, a
+   *  drag the edit lock refused, and a second start or stop for the same
+   *  gesture (the node and selection callbacks overlap) record nothing extra.
+   *  A `dragging: true` change that arrives with NO transaction open (another
+   *  path) still commits per change, as before. */
+  beginNodeDrag: () => void
+  endNodeDrag: () => void
 
   onNodesChange: (changes: NodeChange<LoopNode>[]) => void
   onEdgesChange: (changes: EdgeChange<LoopEdge>[]) => void
@@ -796,6 +808,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
    *  `framesOverride` (LGR Slice 5) lets a caller pin the PRE-gesture saved
    *  frames — e.g. a frame resize/move commits once, at the first move, with
    *  the rect the frame had when the drag started (§SF11.1). */
+  /** issue #408 — the open node pointer-drag transaction, or null */
+  let dragTx: { snapshot: HistoryEntry; positions: Map<string, XY> } | null = null
+
   const commit = (tag: string, framesOverride?: unknown) => {
     const now = Date.now()
     const coalesce = tag !== '' && tag === lastTag && now - lastTagAt < COALESCE_MS
@@ -856,6 +871,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
   const enterDocument = (canvasLocked: boolean) => {
     documentLockSink?.(canvasLocked)
     lastTag = ''
+    dragTx = null // a drag cannot cross into the previous document
     return { past: [], future: [], canUndo: false, canRedo: false, pristineSample: false }
   }
 
@@ -878,6 +894,26 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         canUndo: true,
         canRedo: false,
       })
+    },
+    beginNodeDrag: () => {
+      if (editGuard()) return // #334 — a refused drag opens no transaction
+      if (dragTx) return // the node and selection start callbacks of one gesture: the first wins
+      const { nodes, edges, modelVersion, recordLabels } = get()
+      dragTx = {
+        snapshot: { nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow() },
+        positions: new Map(nodes.map((n) => [n.id, { x: n.position.x, y: n.position.y }])),
+      }
+    },
+    endNodeDrag: () => {
+      const tx = dragTx
+      dragTx = null
+      if (!tx) return // the second stop callback of one gesture, or a drag that never opened
+      const moved = get().nodes.some((n) => {
+        const p = tx.positions.get(n.id)
+        return !!p && (p.x !== n.position.x || p.y !== n.position.y)
+      })
+      if (!moved) return // back at the origin: no entry
+      get().pushGestureEntry(tx.snapshot as unknown as GestureSnapshot) // one entry; refused under the lock
     },
     applyGesturePositions: (positions, waypoints) => {
       if (editGuard()) return // #334 — refused while the edit lock is on
@@ -994,7 +1030,15 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       // cascades arrive as separate calls in the same tick — coalesce them into
       // one history entry so a single undo brings the node AND its edges back.
       if (removed) commit('remove')
-      else if (dragging) commit('move')
+      else if (dragging) {
+        // issue #408 — inside the Canvas's drag transaction the one entry is
+        // pushed at the drop (endNodeDrag), so the 600 ms tag window no longer
+        // splits a paused drag; the first move still ends "pristine". With no
+        // transaction open (another path sends the same change) the
+        // per-change commit stands.
+        if (dragTx) clearPristine()
+        else commit('move')
+      }
       set({ nodes: applyNodeChanges(changes, get().nodes) })
       if (removed) bump()
       if (settled) lastTag = '' // end of a drag gesture
