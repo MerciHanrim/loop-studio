@@ -187,7 +187,9 @@ export function MobileRunBar() {
           like the run refusal above (the bar already wraps; its measured
           height follows). The status region reads the set once per change. */}
       {diagnostics.length > 0 && (
-        <div className="pstrip__diag" data-testid="run-diagnostics">
+        // bounded and scrollable (Lumi's review of #437): the fixed bar must
+        // keep its controls on screen however many connections are refused
+        <div className="pstrip__diag" data-testid="run-diagnostics" role="region" tabIndex={0} aria-label={t('playbar.diag.title', { n: diagnostics.length })}>
           <span className="pstrip__diag-title">{t('playbar.diag.title', { n: diagnostics.length })}</span>
           <ul className="pstrip__diag-list">
             {diagnostics.map((d) => (

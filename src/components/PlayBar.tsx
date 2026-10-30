@@ -359,7 +359,10 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
           never a child of the one-row flex strip, whose own controls would
           wrap around it — gone with Reset or the next clean step. */}
       {diagnostics.length > 0 && (
-        <div className="pstrip-diag" data-testid="run-diagnostics">
+        // a bounded, scrollable region (Lumi's review of #437: many refused
+        // connections must not push the canvas or the Timeline off screen);
+        // every item stays in the list; focusable so the keyboard can scroll it
+        <div className="pstrip-diag" data-testid="run-diagnostics" role="region" tabIndex={0} aria-label={t('playbar.diag.title', { n: diagnostics.length })}>
           <span className="pstrip__diag-title">{t('playbar.diag.title', { n: diagnostics.length })}</span>
           <ul className="pstrip__diag-list">
             {diagnostics.map((d) => (

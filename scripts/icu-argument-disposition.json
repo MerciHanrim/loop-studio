@@ -11,14 +11,14 @@
   },
   "$implemented": "A row classed `auto` / `ltr` / `per-fragment` is an OPEN obligation: the evidence says the value needs bounding and the code does not bound it yet. C3.5 was scoped to fix the two families that were already evidenced — the unrecognized-column header and the five `import.loc.*` calls — and those moved to `isolate-obligations.json`. The checker asserts these rows are NOT wrapped, so implementing one without moving its row is red in both directions.",
   "totals": {
-    "arguments": 272,
+    "arguments": 274,
     "rows": 54,
     "byClass": {
       "attribute": 10,
       "closed-value": 44
     },
     "recordedNotImplemented": 0,
-    "attributeSink": 21
+    "attributeSink": 23
   },
   "rows": [
     {

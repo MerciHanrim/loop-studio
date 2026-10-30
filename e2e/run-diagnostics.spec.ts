@@ -45,7 +45,33 @@ const seedConverterPercent = (page: Page) =>
     G().setEdgeData(e2, { kind: 'resource', flow: '1' })
     return e1
   })
+/** `n` Pools, each ─50%→ its own Converter ─1→ one target Pool: n refused connections in one step */
+const seedManyConverterPercents = (page: Page, n: number) =>
+  page.evaluate((count) => {
+    const G = () => (window as unknown as Bridge).__loop.graph.getState()
+    G().newGraph()
+    G().addNodeAt('pool', { x: 900, y: 120 })
+    const target = G().nodes[0].id
+    for (let i = 0; i < count; i++) {
+      G().addNodeAt('pool', { x: 40, y: 60 + i * 90 })
+      const a = G().nodes[G().nodes.length - 1].id
+      G().updateNodeData(a, { initial: 8 })
+      G().addNodeAt('converter', { x: 420, y: 60 + i * 90 })
+      const c = G().nodes[G().nodes.length - 1].id
+      G().onConnect({ source: a, target: c, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
+      const eIn = G().edges[G().edges.length - 1].id
+      G().setEdgeData(eIn, { kind: 'resource', flow: '50%' })
+      G().onConnect({ source: c, target, sourceHandle: 'out', targetHandle: 'in' }, 'flow')
+      const eOut = G().edges[G().edges.length - 1].id
+      G().setEdgeData(eOut, { kind: 'resource', flow: '1' })
+    }
+  }, n)
 const simDiag = (page: Page) => page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().diagnostics)
+const inViewport = async (page: Page, selector: string) => {
+  const vp = page.viewportSize()!
+  const b = (await page.locator(selector).first().boundingBox())!
+  return b.y >= 0 && b.y + b.height <= vp.height && b.x >= 0 && b.x + b.width <= vp.width
+}
 const isMobile = (page: Page) => (page.viewportSize()?.width ?? 1280) < 500
 
 const strip = (page: Page) => page.locator('.pstrip').first()
@@ -137,6 +163,60 @@ test.describe('the run strip shows the step diagnostics (#396)', () => {
     const l2 = (await diag(page).boundingBox())!
     expect(l2.y).toBeGreaterThanOrEqual(g2.y + g2.height - 1)
     await expect(strip(page).locator('.pstrip__settings-btn')).toBeVisible() // the folded row's own controls are intact
+  })
+
+  test('desktop: eight refused connections at once — the region is bounded and scrolls, every item is in the list, the run buttons and the Timeline stay on screen', async ({ page }) => {
+    test.skip(isMobile(page), 'the desktop run strip')
+    await openApp(page)
+    await resetAll(page)
+    await seedManyConverterPercents(page, 8)
+    await stepBtn(page).click()
+    await expect(diag(page)).toBeVisible()
+    await expect(diag(page).locator('.pstrip__diag-list li')).toHaveCount(8)
+    const box = await diag(page).evaluate((el) => ({ client: el.clientHeight, scroll: el.scrollHeight, overflowY: getComputedStyle(el).overflowY }))
+    expect(box.client).toBeLessThanOrEqual(96)
+    expect(box.scroll).toBeGreaterThan(box.client) // bounded: the rest scrolls
+    expect(box.overflowY).toBe('auto')
+    // the last item is reachable inside the region
+    await diag(page).locator('.pstrip__diag-list li').last().scrollIntoViewIfNeeded()
+    expect(await diag(page).evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
+    await expect(diag(page).locator('.pstrip__diag-list li').last()).toBeInViewport()
+    // the keyboard can reach and scroll it (a focusable region with a name)
+    await expect(diag(page)).toHaveAttribute('tabindex', '0')
+    await expect(diag(page)).toHaveAttribute('role', 'region')
+    // the run controls, the step readout and the Timeline area stay on screen
+    for (const s of ['.pstrip .pstrip__step-btn', '.pstrip .pstrip__reset', '.pstrip .pb-btn--primary', '.pstrip .pstrip__collapse']) {
+      expect(await inViewport(page, s), s).toBe(true)
+    }
+    await expect(page.locator('.timeline__panel')).toBeVisible()
+    await stepBtn(page).click() // still usable with the region shown
+    await expect(diag(page).locator('.pstrip__diag-list li')).toHaveCount(8)
+  })
+
+  test('phone: eight refused connections at once — the bar row is bounded and scrolls, and the bar with its controls stays within the screen', async ({ page }) => {
+    test.skip(!isMobile(page), 'the phone run bar')
+    await openApp(page)
+    await resetAll(page)
+    await seedManyConverterPercents(page, 8)
+    const bar = page.locator('.pstrip--mobile')
+    await bar.locator('.pstrip__step-btn').click()
+    const row = bar.locator('[data-testid="run-diagnostics"]')
+    await expect(row).toBeVisible()
+    await expect(row.locator('.pstrip__diag-list li')).toHaveCount(8)
+    const box = await row.evaluate((el) => ({ client: el.clientHeight, scroll: el.scrollHeight }))
+    expect(box.client).toBeLessThanOrEqual(72)
+    expect(box.scroll).toBeGreaterThan(box.client)
+    await row.locator('.pstrip__diag-list li').last().scrollIntoViewIfNeeded()
+    await expect(row.locator('.pstrip__diag-list li').last()).toBeInViewport()
+    const vp = page.viewportSize()!
+    const b = (await bar.boundingBox())!
+    expect(b.y).toBeGreaterThanOrEqual(0)
+    expect(b.y + b.height).toBeLessThanOrEqual(vp.height + 1)
+    for (const s of ['.pstrip--mobile .pstrip__step-btn', '.pstrip--mobile .pstrip__reset', '.pstrip--mobile .pb-btn--primary', '.pstrip--mobile .pstrip__tl']) {
+      expect(await inViewport(page, s), s).toBe(true)
+    }
+    await bar.locator('.pstrip__step-btn').click()
+    await expect(row.locator('.pstrip__diag-list li')).toHaveCount(8)
   })
 
   test('phone: the run bar shows the same line as a row of the bar', async ({ page }) => {

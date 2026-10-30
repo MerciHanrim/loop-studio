@@ -4376,6 +4376,10 @@ a.sheet__row {
   background: var(--bg-panel);
   border-top: 1px solid var(--line-1);
   flex: none;
+  /* bounded (Lumi's review of #437): about six lines, then the region scrolls
+     — many refused connections never push the Timeline or the canvas away;
+     every item stays in the list */
+  max-height: 96px;
 }
 .pstrip-diag,
 .pstrip__diag {
@@ -4386,9 +4390,18 @@ a.sheet__row {
   color: var(--warn);
   white-space: normal;
   overflow-wrap: anywhere;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.pstrip-diag:focus-visible,
+.pstrip__diag:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
 }
 .pstrip__diag {
   flex-basis: 100%;
+  /* the fixed bar keeps its controls on screen: about four lines, then scroll */
+  max-height: 72px;
 }
 .pstrip__diag-title {
   font-weight: 600;
