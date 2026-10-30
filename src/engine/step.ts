@@ -927,10 +927,13 @@ export function step(
         }
 
         const outs = outOf(id).filter((e) => !skipDet(e.id))
+        // `sumW > ε` here: `accept(gate)` sums the SAME `outs` and returns 0 for
+        // `sumW ≤ ε`, so `T` is 0 and the Gate was left at `T ≤ ε` above. The
+        // equal-split arm that stood here for that case was unreachable (#419
+        // item 4).
         const sumW = outs.reduce((s, e) => s + rateOfCached(e), 0)
         for (const e of outs) {
-          const share =
-            sumW > EPSILON ? nz((T * rateOfCached(e)) / sumW) : nz(T / Math.max(1, outs.length))
+          const share = nz((T * rateOfCached(e)) / sumW)
           if (share <= 0) continue
           if (isPool(e.target)) {
             settleOwn(e.target, share)

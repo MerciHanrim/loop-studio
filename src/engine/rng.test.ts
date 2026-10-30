@@ -143,6 +143,43 @@ describe('rng — categorical inverse-CDF', () => {
   it('zero weight branches are never selected', () => {
     expect(categorical([0, 1], 0.0)).toBe(1)
   })
+  it('#419 item 6 — the float-guard arm names the last POSITIVE weight, never a zero-weight branch', () => {
+    // [1, 4, 1, 0]: the fractions sum to 1 − 2⁻⁵³, so the largest double below 1
+    // falls through the loop; it used to return index 3, whose weight is 0
+    const top = 1 - Math.pow(2, -53)
+    expect(categorical([1, 4, 1, 0], top)).toBe(2)
+    expect(categorical([1, 0, 0], top)).toBe(0)
+    expect(categorical([2, 0, 3, 0, 0], top)).toBe(2)
+  })
+  it('#419 item 6 — for every u the loop-rng/1 sampler can produce, the pick is what the old fall-through gave', () => {
+    // the old function, verbatim, for comparison
+    const old = (weights: number[], u: number): number => {
+      let sum = 0
+      for (const w of weights) {
+        if (!Number.isFinite(w) || w < 0) return -1
+        sum += w
+      }
+      if (sum <= 0) return -1
+      let acc = 0
+      for (let i = 0; i < weights.length; i++) {
+        acc += weights[i] / sum
+        if (u < acc) return i
+      }
+      return weights.length - 1
+    }
+    const sets = [[1, 3], [1, 4, 1, 0], [0, 1], [2, 0, 3], [1, 0, 0], [5, 5, 5, 5, 0], [1, 1, 1]]
+    // real draws: three seeds × 400 steps × one Gate — the keys the engine uses
+    for (let seed = 1; seed <= 3; seed++) {
+      for (let step = 1; step <= 400; step++) {
+        const u = sample(seed, step, 'G', 'gate-route', 0).u
+        for (const w of sets) expect(categorical(w, u), `seed ${seed} step ${step} u ${u}`).toBe(old(w, u))
+      }
+    }
+    // and the sampler's extreme: `out = 2³² − 1`, the largest u it can produce
+    const uMax = 4294967295 / 4294967296
+    for (const w of sets) expect(categorical(w, uMax)).toBe(old(w, uMax))
+    expect(categorical([1, 4, 1, 0], uMax)).toBe(2) // the weight-1 branch, as before — not the fall-through
+  })
   it('invalid → -1: negative, NaN, ±Infinity, or zero sum', () => {
     expect(categorical([-1, 2], 0.5)).toBe(-1)
     expect(categorical([Number.NaN, 2], 0.5)).toBe(-1)

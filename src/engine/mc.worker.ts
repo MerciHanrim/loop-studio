@@ -38,16 +38,10 @@ ctx.onmessage = (ev) => {
       msg.startRun,
       msg.endRun,
     )
+    // the driver (montecarlo.parallel.ts) places the range by run index and
+    // already holds `poolIds` / `steps`; only the trajectories travel back
     ctx.postMessage(
-      {
-        type: 'result',
-        startRun: msg.startRun,
-        endRun: msg.endRun,
-        poolIds: g.poolIds,
-        steps: g.config.steps,
-        values,
-        endedAt,
-      },
+      { type: 'result', startRun: msg.startRun, endRun: msg.endRun, values, endedAt },
       [values.buffer, endedAt.buffer],
     )
   } catch (e) {

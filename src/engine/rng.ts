@@ -131,5 +131,13 @@ export function categorical(weights: number[], u: number): number {
     acc += weights[i] / sum
     if (u < acc) return i
   }
-  return weights.length - 1 // float-guard: fall through ⇒ last
+  // float guard: the summed fractions can land just under 1 (e.g. `[1, 4, 1, 0]`
+  // sums to 1 − 2⁻⁵³), so a `u` at the very top would fall through. With
+  // `loop-rng/1`'s `u = out / 2³²` (≤ 1 − 2⁻³²) that needs a rounding deficit
+  // no realistic branch count produces — but the arm must never name a
+  // zero-weight branch (the Gate panel promises one is never taken), so it
+  // returns the LAST branch with a positive weight (#419 item 6). For every
+  // `u` the sampler can produce the result is unchanged (rng.test.ts).
+  for (let i = weights.length - 1; i >= 0; i--) if (weights[i] > 0) return i
+  return -1 // unreachable: sum > 0 ⇒ some weight > 0
 }
