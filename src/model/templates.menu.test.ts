@@ -23,13 +23,15 @@ describe('the Templates the menu offers', () => {
     ])
     expect(TEMPLATES.filter((t) => t.menu === false)).toEqual([])
   })
-  it('Early MMO comes back as it was: its start framing and opened locked', () => {
+  it('Early MMO comes back with its start framing; it opens editable since issue #428 (locked until v0.31.0)', () => {
     const mmo = TEMPLATES.find((t) => t.id === 'mmo-progression')!
     expect(mmo.initialView).toEqual({
       rect: { x: 44, y: -4, width: 927, height: 368 },
       minZoom: 0.6,
       keep: { x: 48, y: 36, width: 1188, height: 200 },
     })
-    expect(mmo.recommendedRunConfig?.canvasLocked).toBe(true)
+    expect(mmo.recommendedRunConfig?.canvasLocked).toBeUndefined()
+    // the one Template that still opts into the lock, by its own decision (GZ2/GZ3)
+    expect(TEMPLATES.filter((t) => t.recommendedRunConfig?.canvasLocked === true).map((t) => t.id)).toEqual(['gacha-banner-zones'])
   })
 })

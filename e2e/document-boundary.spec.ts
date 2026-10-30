@@ -16,7 +16,9 @@ import { openFileMenu, openFileSubmenu, toolButton } from './support/workbenchMe
 
 type Bridge = { __loop: Record<string, { getState: () => any }> }
 
-const MMO = readFileSync(new URL('../examples/mmo-progression.json', import.meta.url), 'utf8') // canvasLocked: true
+// the locked fixture is the 3-zone gacha comparison, the one Template that
+// opts into the lock (the Early MMO opens editable since issue #428)
+const ZONES = readFileSync(new URL('../examples/gacha-banner-zones.json', import.meta.url), 'utf8') // canvasLocked: true
 const COFFEE = readFileSync(new URL('../examples/coffee-roastery.json', import.meta.url), 'utf8') // no lock
 
 const lockBtn = (page: Page) => toolButton(page, 'lock')
@@ -155,7 +157,7 @@ test.describe('#334 — every other document starts with an empty history and it
     await expect(undoBtn(page)).toBeDisabled()
     await expect(lockBtn(page)).toHaveAttribute('aria-pressed', 'false')
 
-    await importFile(page, MMO)
+    await importFile(page, ZONES)
     expect(await history(page)).toMatchObject({ past: 0, future: 0 })
     await expect(lockBtn(page)).toHaveAttribute('aria-pressed', 'true')
     await reload(page)
@@ -171,7 +173,7 @@ test.describe('#334 — every other document starts with an empty history and it
     const payload = await page.evaluate(async (text) => {
       const M = await import('/src/model/share.ts')
       return (await M.encodeShareText(text)).payload
-    }, MMO)
+    }, ZONES)
     await page.goto('about:blank')
     page.once('dialog', (d) => void d.accept()) // the stored diagram is not the untouched sample
     await page.goto('/#g1=' + payload)
