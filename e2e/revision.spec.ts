@@ -1004,3 +1004,85 @@ test.describe('loop-model/2 — v2 revision files (v0.10.0 legacy recovery + ver
     expect(await modelVersion(page)).toBe(1)
   })
 })
+
+// #420 follow-up — Review of a proposal while the OPEN document holds a node of
+// a kind Loop Studio does not know. Before: `reviewModel` threw during the
+// overlay's render and the whole UI went blank (seen in a browser). Now Review
+// shows a refusal naming the node, Apply is not offered, and "Open as a
+// document" — the one way forward, which replaces the open document for good —
+// asks first; Cancel and Escape leave everything as it was.
+test.describe('#420 — Review onto an open document that cannot be projected', () => {
+  type L = Record<string, { getState: () => any; setState: (p: object) => void }> & { revisionIO: Record<string, (...a: any[]) => any> }
+  /** a project, a routed proposal of it, then a bad node in the open document, then Review */
+  async function openBrokenReview(page: Page): Promise<void> {
+    await page.evaluate(async () => {
+      const l = (window as unknown as { __loop: L }).__loop
+      let s = 0
+      const mint = (p: string) => `${p}_${String(s++).padStart(26, '0')}`
+      const g = l.graph.getState()
+      g.newGraph()
+      g.addNodeAt('pool', { x: 0, y: 0 })
+      const plan = l.project.getState().planRevision({ now: '2026-10-30T00:00:00Z', mint })
+      l.project.getState().commitRevisionExport(plan.plan)
+      const pp = l.project.getState().planProposal({ now: '2026-10-30T01:00:00Z', mint })
+      const routed = await l.revisionIO.routeImport(pp.text)
+      l.graph.setState({
+        nodes: [...l.graph.getState().nodes, { id: 'w', type: 'widget', position: { x: 40, y: 260 }, data: { kind: 'widget', label: 'Wonder' } }],
+      })
+      l.review.getState().open(routed)
+    })
+  }
+  const state = (page: Page) =>
+    page.evaluate(() => {
+      const l = (window as unknown as { __loop: L }).__loop
+      const g = l.graph.getState()
+      return {
+        ids: g.nodes.map((n: { id: string }) => n.id).sort(),
+        past: g.past.length,
+        future: g.future.length,
+        revisionId: l.project.getState().open?.revisionId ?? null,
+      }
+    })
+
+  test('the refusal names the node, the screen stays, Apply is not offered', async ({ page }) => {
+    await openApp(page)
+    await openBrokenReview(page)
+    await expect(page.locator('.review')).toBeVisible()
+    await expect(page.locator('.review__class--blocked')).toContainText(/does not know/)
+    await expect(page.locator('.review__class--blocked')).toContainText('Wonder')
+    await expect(page.locator('.review__class--blocked')).toContainText('widget')
+    await expect(page.locator('.review__actions button', { hasText: 'Apply proposal' })).toHaveCount(0)
+    await expect(page.locator('[role=toolbar]').first()).toBeVisible() // the app is still there
+  })
+
+  test('"Open as a document" asks first; Cancel and Escape change nothing; Confirm replaces the document', async ({ page }) => {
+    await openApp(page)
+    await openBrokenReview(page)
+    const before = await state(page)
+    expect(before.ids).toContain('w')
+    const openAsDoc = page.locator('.review__actions button', { hasText: 'Open as a document' })
+    const confirm = page.locator('.mcdlg--confirm')
+
+    await openAsDoc.click()
+    await expect(confirm).toBeVisible()
+    await expect(confirm).toContainText(/Undo cannot bring it back/)
+    await confirm.getByRole('button', { name: 'Cancel' }).click()
+    await expect(confirm).toHaveCount(0)
+    await expect(page.locator('.review')).toBeVisible()
+    expect(await state(page)).toEqual(before)
+
+    await openAsDoc.click()
+    await expect(confirm).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(confirm).toHaveCount(0)
+    await expect(page.locator('.review')).toBeVisible() // Escape cancels the confirmation only
+    expect(await state(page)).toEqual(before)
+
+    await openAsDoc.click()
+    await confirm.getByRole('button', { name: 'Open as a document' }).click()
+    await expect(page.locator('.review')).toHaveCount(0)
+    const after = await state(page)
+    expect(after.ids).not.toContain('w') // the proposal's document replaced the open one
+    expect(after.past).toBe(0) // another document: no Undo back to the old one
+  })
+})

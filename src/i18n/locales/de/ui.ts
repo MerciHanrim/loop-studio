@@ -288,6 +288,10 @@ const ui = {
   'review.diff.edges': 'Verbindungen',
   'review.diff.runConfig': 'Laufkonfiguration',
   'review.diff.frames': 'Rahmen',
+  'review.gate.invalidTarget': 'Dieser Vorschlag lässt sich hier nicht anwenden, weil das geöffnete Diagramm einen Knoten enthält, den Loop Studio nicht kennt. Der Knoten {node} hat die Art {kind}. Löschen oder ersetzen Sie diesen Knoten und prüfen Sie den Vorschlag dann erneut. Sie können den Vorschlag trotzdem als Dokument öffnen.',
+  'review.gate.invalidContent': 'Dieser Vorschlag lässt sich hier nicht anwenden, weil das geöffnete Diagramm Inhalte enthält, die sich nicht vergleichen lassen, etwa eine Zahl, die nicht endlich ist. Sie können den Vorschlag trotzdem als Dokument öffnen.',
+  'review.openDoc.replace.title': 'Geöffnetes Diagramm ersetzen?',
+  'review.openDoc.replace.body': 'Wenn Sie den Vorschlag als Dokument öffnen, ersetzt er das geöffnete Diagramm, und Rückgängig holt es nicht zurück. Abbrechen lässt das geöffnete Diagramm, wie es ist.',
   'review.gate.wrongProject':
     'Dieser Vorschlag gehört zu einem anderen Projekt. Sie können ihn trotzdem als Dokument öffnen.',
   'review.gate.noTarget':

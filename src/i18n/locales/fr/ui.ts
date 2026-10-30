@@ -281,6 +281,10 @@ const ui = {
   'review.diff.edges': 'Connexions',
   'review.diff.runConfig': 'configuration d’exécution',
   'review.diff.frames': 'cadres',
+  'review.gate.invalidTarget': 'Cette proposition ne peut pas être appliquée ici, car le schéma ouvert contient un nœud que Loop Studio ne connaît pas. Le nœud {node} est de type {kind}. Supprimez ou remplacez ce nœud, puis relisez la proposition. Vous pouvez tout de même l’ouvrir comme document.',
+  'review.gate.invalidContent': 'Cette proposition ne peut pas être appliquée ici, car le schéma ouvert contient des éléments qui ne peuvent pas être comparés, par exemple un nombre non fini. Vous pouvez tout de même l’ouvrir comme document.',
+  'review.openDoc.replace.title': 'Remplacer le schéma ouvert par la proposition',
+  'review.openDoc.replace.body': 'Ouvrir la proposition comme document remplace le schéma ouvert, et Annuler l’action ne le ramène pas. Annuler ici garde le schéma ouvert tel quel.',
   'review.gate.wrongProject':
     'Cette proposition appartient à un autre projet. Vous pouvez tout de même l’ouvrir comme document.',
   'review.gate.noTarget':

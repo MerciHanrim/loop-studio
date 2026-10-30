@@ -67,6 +67,11 @@ export type OpenProject = {
 }
 
 export type ApplyClassification = 'exact' | 'divergent' | 'unknown'
+/** #420 — the node an `invalid-target` refusal names */
+export type InvalidTargetNode = { id: string; label: string; kind: string }
+/** #420 — Review / Apply onto an open document that cannot be projected */
+export type InvalidTargetRefusal = { ok: false; reason: 'invalid-target'; node?: InvalidTargetNode }
+
 export type ApplyFailReason =
   | 'wrong-project'
   | 'no-target'
@@ -82,6 +87,11 @@ export type ApplyFailReason =
   | 'no-effective-change'
   /** #334 — the Canvas edit lock is on; the Review UI disables Apply first */
   | 'locked'
+  /** #420 — the OPEN document cannot be projected (`InvalidRevisionContentError`,
+   *  e.g. a node of an unknown kind), so it cannot be compared with the
+   *  proposal. Refused before any classification or change; `node` names the
+   *  cause when one node is it. */
+  | 'invalid-target'
 export type ApplyResult =
   | { ok: true; classification: ApplyClassification; newRevisionId: string; partial?: boolean }
   | {
@@ -96,6 +106,8 @@ export type ApplyResult =
       detail?: string
       /** `invalid-selection` from full-graph validation — the concrete reasons */
       reasons?: string[]
+      /** `invalid-target` — the node of the open document that cannot be projected */
+      node?: InvalidTargetNode
     }
 
 /** Everything `commitRevisionExport` needs to verify a plan is still current
@@ -149,6 +161,7 @@ type ProjectState = {
   }) =>
     | { ok: true; classification: ApplyClassification }
     | { ok: false; reason: 'wrong-project' | 'no-target' | 'target-is-proposal' | 'version-mismatch' }
+    | InvalidTargetRefusal
   /**
    * §R7 — Apply. Re-gates, re-validates the proposal payload against its own
    * digests. **Whole-proposal** (`opts.selection` absent): RE-CLASSIFIES against
@@ -292,6 +305,18 @@ let invalidWarned: string | null = null
  * `planRevision` / `planProposal` let the error reach their caller, which names
  * the cause.
  */
+/**
+ * #420 — Review / Apply: an `InvalidRevisionContentError` from projecting the
+ * OPEN document becomes the `invalid-target` refusal (naming the node when one
+ * is the cause); any other error is not this case and is rethrown. Called
+ * before anything changes, so a refused Apply leaves the document, its history
+ * and the header exactly as they were, however often it is pressed.
+ */
+function invalidTarget(e: unknown): InvalidTargetRefusal {
+  if (!(e instanceof InvalidRevisionContentError)) throw e
+  return e.node ? { ok: false, reason: 'invalid-target', node: e.node } : { ok: false, reason: 'invalid-target' }
+}
+
 function dirtyAgainst(baselineDigest: string): boolean {
   try {
     const dirty = liveDigest() !== baselineDigest
@@ -357,7 +382,9 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     (rawBoot as Record<string, unknown>).schema === 'loop-revision/1' &&
     (rawBoot as Record<string, unknown>).role === 'proposal'
   if (proposalDropped) setAutosaveProjectHeader(null) // don't keep re-trying on every boot
-  const dirty = open ? liveDigest() !== open.baselineDigest : false
+  // #420 — a stored document that cannot be projected still boots, with its
+  // valid header kept and marked dirty (it was a module-load throw: no app)
+  const dirty = open ? dirtyAgainst(open.baselineDigest) : false
 
   const authoredMeta = (base: ProjectMeta): ProjectMeta => ({
     ...base,
@@ -379,7 +406,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       if (d !== get().dirty) set({ dirty: d })
     },
 
-    _setOpen: (o) => set({ open: o, dirty: o ? liveDigest() !== o.baselineDigest : false }),
+    _setOpen: (o) => set({ open: o, dirty: o ? dirtyAgainst(o.baselineDigest) : false }),
 
     planRevision: (opts = {}) => {
       const now = opts.now ?? new Date().toISOString()
@@ -584,7 +611,11 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       if (o.projectId !== project.projectId) return { ok: false, reason: 'wrong-project' }
       if (o.role === 'proposal') return { ok: false, reason: 'target-is-proposal' }
       if (!sameModelVersion(proposed)) return { ok: false, reason: 'version-mismatch' }
-      return { ok: true, classification: classifyAgainst(o, base, proposed) }
+      try {
+        return { ok: true, classification: classifyAgainst(o, base, proposed) }
+      } catch (e) {
+        return invalidTarget(e) // #420 — the open document cannot be compared
+      }
     },
 
     applyProposal: ({ project, base, proposed }, opts = {}) => {
@@ -615,8 +646,18 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         return { ok: false, reason: 'payload-invalid' }
       }
 
-      const targetDigest = liveDigest()
-      const classification = classifyAgainst(o, base, proposed)
+      // #420 — the open document must project before anything is decided or
+      // changed; a refusal here leaves the graph, its history and the header
+      // as they were (the later `liveContent()` of a per-hunk Apply reads the
+      // same, already-projected state)
+      let targetDigest: string
+      let classification: ApplyClassification
+      try {
+        targetDigest = liveDigest()
+        classification = classifyAgainst(o, base, proposed)
+      } catch (e) {
+        return invalidTarget(e)
+      }
       const g = useGraphStore.getState()
 
       // ── build the resulting graph ──
@@ -794,7 +835,10 @@ setHistorySidecar({
     const open = (h ?? null) as OpenProject | null
     useProjectStore.setState({
       open,
-      dirty: open ? liveDigest() !== open.baselineDigest : false,
+      // #420 — undo/redo onto a state that cannot be projected restores the
+      // header too and marks it dirty; a throw here came after the graph and
+      // the history had moved, and left the header and `dirty` behind
+      dirty: open ? dirtyAgainst(open.baselineDigest) : false,
     })
     persist(open)
   },

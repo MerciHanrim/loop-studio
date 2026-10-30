@@ -266,6 +266,10 @@ const ui = {
   'review.diff.edges': '連線',
   'review.diff.runConfig': '執行設定',
   'review.diff.frames': '群組框',
+  'review.gate.invalidTarget': '開啟的圖中有 Loop Studio 不認得的節點，因此無法在這裡套用這份提案。節點 {node} 的類型為 {kind}。請刪除或替換該節點，然後重新覆核提案。你仍然可以把提案當成文件開啟。',
+  'review.gate.invalidContent': '開啟的圖中有無法比較的內容，例如非有限的數字，因此無法在這裡套用這份提案。你仍然可以把提案當成文件開啟。',
+  'review.openDoc.replace.title': '要取代開啟的圖嗎？',
+  'review.openDoc.replace.body': '把提案當成文件開啟會取代目前開啟的圖，而且無法用復原找回。取消則保留開啟的圖不變。',
   'review.gate.wrongProject': '這份提案屬於另一個專案。你仍然可以把它當成文件開啟。',
   'review.gate.noTarget': '沒有開啟任何專案。可以把這份提案當成文件開啟，或是取消。',
   'review.gate.targetIsProposal':
