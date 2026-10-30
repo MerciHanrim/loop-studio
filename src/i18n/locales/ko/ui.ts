@@ -70,6 +70,7 @@ const ui = {
   'playbar.mc.cancelled': '취소됨',
   'playbar.mc.failed': '실행 실패',
   'playbar.initError': '실행할 수 없습니다: {detail}',
+  'playbar.diag.title': '실행 진단 ({n})',
   'playbar.mc.title': '다이어그램을 여러 번 실행해 분포를 확인합니다',
   'playbar.mc.progress': '몬테카를로 {pct}%',
   'playbar.mc.progress.title': '몬테카를로 실행 중',

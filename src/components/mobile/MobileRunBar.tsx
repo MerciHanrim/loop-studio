@@ -55,6 +55,7 @@ export function MobileRunBar() {
   const status = useSimStore((s) => s.status)
   const stepIndex = useSimStore((s) => s.stepIndex)
   const initError = useSimStore((s) => s.initError)
+  const diagnostics = useSimStore((s) => s.diagnostics)
   const play = useSimStore((s) => s.play)
   const pause = useSimStore((s) => s.pause)
   const stepOnce = useSimStore((s) => s.stepOnce)
@@ -99,6 +100,7 @@ export function MobileRunBar() {
   }
 
   return (
+    <>
     <div
       ref={barRef}
       className={`pstrip pstrip--mobile${initError != null ? ' has-initerr' : ''}`}
@@ -180,6 +182,27 @@ export function MobileRunBar() {
           {t('playbar.initError', { detail: initError })}
         </div>
       ) : null}
+
+      {/* issue #396 — the step's engine diagnostics, a visible row of the bar
+          like the run refusal above (the bar already wraps; its measured
+          height follows). The status region reads the set once per change. */}
+      {diagnostics.length > 0 && (
+        <div className="pstrip__diag" data-testid="run-diagnostics">
+          <span className="pstrip__diag-title">{t('playbar.diag.title', { n: diagnostics.length })}</span>
+          <ul className="pstrip__diag-list">
+            {diagnostics.map((d) => (
+              <li key={d}>{d}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
+    {/* the diagnostics' status region — always mounted, outside the bar (a
+        region that appears with its text is not read; the bar keeps no other
+        status region); it changes only when the set changes */}
+    <div className="sr-only pstrip-diag__status" role="status" aria-live="polite" aria-atomic="true">
+      {diagnostics.length > 0 ? `${t('playbar.diag.title', { n: diagnostics.length })}: ${diagnostics.join(' ')}` : ''}
+    </div>
+    </>
   )
 }

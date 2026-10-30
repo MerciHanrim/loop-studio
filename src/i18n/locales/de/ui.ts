@@ -87,6 +87,7 @@ const ui = {
   'playbar.mc.cancelled': 'Abgebrochen',
   'playbar.mc.failed': 'Lauf fehlgeschlagen',
   'playbar.initError': 'Ausführen nicht möglich: {detail}',
+  'playbar.diag.title': 'Diagnosen des Laufs ({n})',
   'playbar.mc.title': 'Das Diagramm viele Male ausführen und die Verteilung ansehen',
   'playbar.mc.progress': 'Monte Carlo {pct} %',
   'playbar.mc.progress.title': 'Monte-Carlo-Lauf läuft',

@@ -94,6 +94,7 @@ const ui = {
   'playbar.mc.cancelled': 'Annullata',
   'playbar.mc.failed': 'Esecuzione non riuscita',
   'playbar.initError': 'Impossibile eseguire: {detail}',
+  'playbar.diag.title': 'Diagnostica dell’esecuzione ({n})',
   'playbar.mc.title': 'Esegui il diagramma molte volte e osserva la distribuzione',
   'playbar.mc.progress': 'Monte Carlo {pct}%',
   'playbar.mc.progress.title': 'Esecuzione Monte Carlo in corso',

@@ -233,7 +233,7 @@ is decided by the active node at that end.
 | empty | const 1 | `1` |
 | `2`, `0.5` | const | the number (must be finite ≥ 0) |
 | `all` | all | `S[sourcePool] − taken[sourcePool]` (`0` on a Source edge) |
-| `25%` | percent 0.25 | `0.25 · S[sourcePool]` (`0` on a Source edge). **On a connection whose source or target is a Converter: refused — `0` + run diagnostic** (issue #396, 2026-10-30): a Converter reads its edges as per-activation rates (§7), its out-edges and a Converter → Converter edge have no Pool to take a percent of, and the bare fraction gave the token two meanings. The diagnostic names the connection and the expression and says which number (`0.25`) keeps the rate it used to mean; the document is never rewritten. |
+| `25%` | percent 0.25 | `0.25 · S[sourcePool]` (`0` on a Source edge). **On a connection whose source or target is a Converter: refused — `0` + run diagnostic** (issue #396, 2026-10-30): a Converter reads its edges as per-activation rates (§7), its out-edges and a Converter → Converter edge have no Pool to take a percent of, and the bare fraction gave the token two meanings. The diagnostic names the connection and the expression and says which number (`0.25`) keeps the rate it used to mean; the document is never rewritten. The step's diagnostics reach `simStore.diagnostics` (replaced per step, emptied by Reset and a document change) and the run strip shows them on a line under the run row, read once per change by a status region. |
 | `1-3` | range(1,3) | **`0`** + run diagnostic |
 | `2D6`, `D6` | dice(2,6) / dice(1,6) | **`0`** + run diagnostic |
 

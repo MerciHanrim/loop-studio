@@ -84,6 +84,7 @@ const ui = {
   'playbar.mc.cancelled': 'Đã hủy',
   'playbar.mc.failed': 'Lần chạy thất bại',
   'playbar.initError': 'Không chạy được: {detail}',
+  'playbar.diag.title': 'Chẩn đoán lần chạy ({n})',
   'playbar.mc.title': 'Chạy sơ đồ nhiều lần và xem phân phối kết quả',
   'playbar.mc.progress': 'Monte Carlo {pct}%',
   'playbar.mc.progress.title': 'Monte-Carlo đang chạy',

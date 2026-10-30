@@ -94,6 +94,7 @@ const ui = {
   'playbar.mc.cancelled': 'Отменено',
   'playbar.mc.failed': 'Выполнение не удалось',
   'playbar.initError': 'Нельзя выполнить: {detail}',
+  'playbar.diag.title': 'Диагностика запуска ({n})',
   'playbar.mc.title': 'Выполнить диаграмму много раз и посмотреть распределение',
   // MEASURED: `Intl.NumberFormat('ru', {style:'percent'})` puts a NO-BREAK
   // SPACE before the sign, so this string carries U+00A0 — never an escape

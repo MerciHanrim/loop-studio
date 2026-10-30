@@ -75,6 +75,7 @@ const ui = {
   'playbar.mc.cancelled': '已取消',
   'playbar.mc.failed': '运行失败',
   'playbar.initError': '无法运行：{detail}',
+  'playbar.diag.title': '运行诊断（{n}）',
   'playbar.mc.title': '把图运行很多次，查看结果的分布',
   'playbar.mc.progress': '蒙特卡洛 {pct}%',
   'playbar.mc.progress.title': '蒙特卡洛正在运行',

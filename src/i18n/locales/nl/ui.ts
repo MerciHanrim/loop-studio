@@ -78,6 +78,7 @@ const ui = {
   'playbar.mc.cancelled': 'Geannuleerd',
   'playbar.mc.failed': 'Run mislukt',
   'playbar.initError': 'Uitvoeren niet mogelijk: {detail}',
+  'playbar.diag.title': 'Diagnoses van de run ({n})',
   'playbar.mc.title': 'Voer het diagram vaak uit en bekijk de verdeling',
   'playbar.mc.progress': 'Monte Carlo {pct}%',
   'playbar.mc.progress.title': 'Monte Carlo-run bezig',
