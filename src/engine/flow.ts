@@ -116,8 +116,10 @@ export function evalDet(e: FlowExpr, available: number, snapshot: number): numbe
 /**
  * A non-negative scalar reading of an edge label for contexts that treat it as a
  * weight or a per-activation rate rather than an amount (gate split weights,
- * converter consume/produce rates). `all` → 1, random → 0 (Engine A only —
- * Engine B feeds the sampled value in via the flowVal cache; see `rateOfValue`).
+ * converter consume/produce rates). `all` → 1, random → 0: this is the Engine A
+ * reading. The engine's own per-step memo, `rateOfCached` in `step.ts`, draws a
+ * `range` / `dice` weight once per step through `evalRand` and otherwise reads
+ * this function.
  */
 export function rateOf(e: FlowExpr): number {
   switch (e.kind) {
@@ -134,15 +136,6 @@ export function rateOf(e: FlowExpr): number {
     case 'paramBad':
       return 0 // loop-model/2: step() resolves these to `const` before evaluation
   }
-}
-
-/**
- * Weight / rate reading when a per-step sampled value is available for random
- * expressions (Engine B, SEMANTICS-B1.md §B3). `const` → its value, `all` → 1,
- * `percent` → its fraction, `range`/`dice` → the sampled integer `sampled`.
- */
-export function rateOfValue(e: FlowExpr, sampled: number): number {
-  return e.kind === 'range' || e.kind === 'dice' ? sampled : rateOf(e)
 }
 
 /** A closure that returns `u ∈ [0, 1)` for a given purpose + draw index. */

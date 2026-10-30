@@ -1,0 +1,4 @@
+{
+  "type": "internal",
+  "reason": "Engine cleanup (#419 items 4-7): an unreachable equal-split arm in the deterministic Gate, the dead rateOfValue export and its stale comment, two unread fields in the Monte-Carlo worker's result message, and categorical()'s float-guard arm now naming the last positive weight. For every input the sampler produces the results are identical (pinned by a test); nothing a user sees changes."
+}

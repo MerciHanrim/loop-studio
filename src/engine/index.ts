@@ -25,7 +25,6 @@ export {
   parseFlow,
   randomBoundsOk,
   rateOf,
-  rateOfValue,
   type FlowExpr,
   type RandDraw,
 } from './flow'
