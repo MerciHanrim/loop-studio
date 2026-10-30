@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import { useT } from '../../i18n'
 import { selectTemporary, useSessionStore } from '../../store/sessionStore'
+import { topOverlay } from '../../ui/overlayStack'
 import type { ProtectedShareLinkResult } from '../../ui/shareAction'
 import { ShareCreateDialog } from './ShareCreateDialog'
 import { useAnchoredPosition } from './useAnchoredPosition'
@@ -50,7 +51,13 @@ export function ShareSurface({
 
   useEffect(() => {
     if (!panelOpen) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClosePanel()
+    // issue #413 (Lumi, 2026-10-30) — the panel is not an overlay-stack entry;
+    // while a dialog or a sheet is open above it, the Escape is theirs: the
+    // panel neither closes nor touches the event, and answers the next one
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || topOverlay() != null) return
+      onClosePanel()
+    }
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
