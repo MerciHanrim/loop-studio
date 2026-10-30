@@ -1,12 +1,17 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from './support/loop'
 
-// issue #411 — reproduction on current main, under the `mobile` project. The
-// phone's Inspector sheet opens from an effect that lists the exclusive
-// `overlay` among its dependencies and calls `openOverlay('inspector')`
-// whenever something is selected. With a node selected, does opening Timeline
-// or the Monte Carlo dialog hold, or does the Inspector sheet take the slot
-// back? Compared with the same openers after the selection is cleared.
+// issue #411 — the phone's Inspector sheet and the other overlays, under the
+// `mobile` project. The rule (Lumi, 2026-10-30): the screen the user opened
+// comes first. With a node selected, Timeline and the Monte Carlo dialog open
+// and STAY open; the Inspector sheet claims the exclusive slot only while the
+// slot is empty and the dialog is closed, so it never pushes them out — not
+// even in the moment the chrome closes the sheet to bring the dialog up. When
+// Timeline or the dialog closes and the selection still stands, the sheet
+// comes back. Close on the sheet itself still clears the selection. Until
+// v0.31.0 the sheet's effect re-ran on every overlay change and took the
+// slot back: Timeline never stayed open over a selection, and the dialog was
+// dismissed before it could be used.
 
 const runBar = (page: Page) => page.locator('.pstrip--mobile')
 const inspector = (page: Page) => page.locator('.sheet--inspector')
@@ -36,7 +41,7 @@ async function loadWithSelection(page: Page) {
   expect(await overlay(page)).toBe('inspector')
 }
 
-/** what is on screen a moment after an opener, once the effects have settled */
+/** what is on screen once the effects have settled */
 async function settle(page: Page) {
   await page.waitForTimeout(300)
   return {
@@ -49,39 +54,45 @@ async function settle(page: Page) {
   }
 }
 
-test.describe('phone: the Inspector sheet and the other overlays with a node selected (#411)', () => {
-  test('Timeline with a node selected: what shows after the tap, compared with no selection', async ({ page }) => {
+test.describe('phone: the Inspector sheet yields to the screen the user opened (#411)', () => {
+  test('Timeline over a selection stays open; closing it brings the Inspector back with the selection kept', async ({ page }) => {
     await loadWithSelection(page)
-    await runBar(page).getByRole('button', { name: /^Timeline/ }).click()
-    const withSelection = await settle(page)
+    const tl = runBar(page).getByRole('button', { name: /^Timeline/ })
+    await tl.click()
+    expect(await settle(page)).toMatchObject({ overlay: 'timeline', inspector: false, timeline: true, selected: 'ore_stock' })
 
-    // current main: the Inspector effect re-runs on the overlay change and
-    // takes the slot back; Timeline never stays open while a node is selected
-    expect(withSelection).toMatchObject({ overlay: 'inspector', inspector: true, timeline: false, selected: 'ore_stock' })
+    // Timeline closed again (the same button toggles it): the selection still
+    // stands, so the Inspector comes back
+    await tl.click()
+    expect(await settle(page)).toMatchObject({ overlay: 'inspector', inspector: true, timeline: false, selected: 'ore_stock' })
 
-    // the same tap with the selection cleared (Close on the sheet)
+    // Close on the sheet clears the selection, as before
     await inspector(page).locator('.sheet__x').click()
     await expect.poll(() => selected(page)).toBeNull()
-    await expect(inspector(page)).toBeHidden()
-    await runBar(page).getByRole('button', { name: /^Timeline/ }).click()
-    const without = await settle(page)
-    expect(without).toMatchObject({ overlay: 'timeline', inspector: false, timeline: true, selected: null })
+    expect(await settle(page)).toMatchObject({ overlay: 'none', inspector: false })
+    await tl.click()
+    expect(await settle(page)).toMatchObject({ overlay: 'timeline', timeline: true, selected: null })
   })
 
-  test('Monte Carlo with a node selected: what shows after the tap, compared with no selection', async ({ page }) => {
+  test('the Monte Carlo dialog over a selection stays open, through the moment the sheet is closed for it; closing it brings the Inspector back', async ({ page }) => {
     await loadWithSelection(page)
     await runBar(page).getByRole('button', { name: 'Monte Carlo' }).click()
-    const withSelection = await settle(page)
+    await expect(mcDialog(page)).toBeVisible()
+    expect(await settle(page)).toMatchObject({ overlay: 'none', inspector: false, mcDialog: true, mcOpen: true, selected: 'ore_stock' })
 
-    // current main: the dialog's opening closes the sheet (overlay → none),
-    // the Inspector effect re-opens its overlay, and opening an overlay
-    // dismisses the Monte Carlo dialog — the dialog cannot be reached
-    expect(withSelection).toMatchObject({ overlay: 'inspector', inspector: true, mcDialog: false, mcOpen: false, selected: 'ore_stock' })
+    // the dialog's own Close: the selection still stands, so the Inspector comes back
+    await page.locator('.mcdlg__x').click()
+    expect(await settle(page)).toMatchObject({ overlay: 'inspector', inspector: true, mcDialog: false, mcOpen: false, selected: 'ore_stock' })
 
+    // and with no selection the dialog behaves as before
     await inspector(page).locator('.sheet__x').click()
     await expect.poll(() => selected(page)).toBeNull()
     await runBar(page).getByRole('button', { name: 'Monte Carlo' }).click()
-    const without = await settle(page)
-    expect(without).toMatchObject({ overlay: 'none', inspector: false, mcDialog: true, mcOpen: true, selected: null })
+    expect(await settle(page)).toMatchObject({ overlay: 'none', inspector: false, mcDialog: true, mcOpen: true, selected: null })
   })
+
+  // The top bar's More button sits behind the open Inspector sheet's scrim
+  // (`data-covered-by-sheets`), so the More sheet cannot be opened over a
+  // selection from the Inspector; only the run bar's Timeline and Monte Carlo
+  // reach past the scrim, and those are the two cases above.
 })
