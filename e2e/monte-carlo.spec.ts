@@ -53,6 +53,21 @@ test.describe('Monte Carlo run', () => {
     await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
   })
 
+  test('over the memory limit: the dialog shows the memory warning only — no time band, Run disabled (#419 item 3)', async ({ page }) => {
+    await page.evaluate((tracked) => {
+      ;(window as any).__loop.mc.getState().setConfig({ baseSeed: 1, runs: 3_000_000, steps: 1_000_000, tracked })
+    }, FIXTURE_POOLS_4)
+    await openMonteCarloDialog(page)
+    const cost = page.locator('.mcdlg__cost')
+    await expect(cost).toHaveClass(/is-over/)
+    await expect(cost.locator('.mcdlg__over')).toContainText('over the limit')
+    // the time band is not shown: no "Local benchmark" / "Measured" line, only Execution and Memory
+    await expect(cost.locator('.mcdlg__costline')).toHaveCount(2)
+    await expect(cost).not.toContainText('Local benchmark')
+    await expect(cost).not.toContainText('Measured')
+    await expect(page.locator('.mcdlg__foot .btn--primary')).toBeDisabled()
+  })
+
   test('the LIVE-view legend is hidden in DISTRIBUTION and returns in LIVE', async ({ page }) => {
     await runMc(page, { baseSeed: 1, runs: 20, steps: 6, tracked: FIXTURE_POOLS_4 })
 
