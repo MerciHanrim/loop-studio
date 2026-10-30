@@ -362,7 +362,16 @@ Never a layout column.
 
 **Inspector** — hidden until `selectedNodeId || selectedEdgeId`; opens ~55 vh;
 **every field rendered read-only / disabled** (MV3a); Close and an empty-canvas
-tap both dismiss it and clear selection.
+tap both dismiss it and clear selection. **The screen the user opened comes
+first** (issue #411, Lumi, 2026-10-30): the sheet claims the exclusive slot
+only while the slot is empty **and** the Monte Carlo dialog is closed, so
+Timeline, the dialog and the other sheets stay open over a selection — the
+sheet never takes the slot back from them, not even in the moment the chrome
+closes it to bring the dialog up (`dialogOpen` is checked together with the
+overlay). When the other screen closes and the selection still stands, the
+sheet comes back. Until v0.31.0 the sheet's effect re-ran on every overlay
+change and reclaimed the slot, so Timeline never stayed open over a selection
+and the dialog was dismissed before it could be used.
 
 ## MV6. Compact top bar
 
