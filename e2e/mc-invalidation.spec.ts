@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from './support/loop'
-import { simSnapshot } from './support/mc'
+import { forcePath, installProbe, pathProbe, simSnapshot } from './support/mc'
 import { openFileSubmenu } from './support/workbenchMenus'
 
 // SLICE-2 §7 (http): any simulation-relevant graph change bumps simulationRev,
@@ -133,6 +133,80 @@ test.describe('MC / sim invalidation', () => {
     const m = await mc(page)
     expect(m.stale).toBe(true)
     expect(m.tracked).toEqual([]) // still "all" — now the template's pools
+  })
+
+  // issue #407 — an edit while a run is in flight. The run is not cancelled and
+  // the result is the start graph's; on completion the start rev is compared
+  // with the document's and the result lands already stale: the same tag and
+  // the same disabled Export an edit after completion produces. The Worker
+  // path here (the cooperative path is the unit test in
+  // src/store/mcStore.mid-run-edit.test.ts). The edit is issued in the same
+  // task as the start, before the Workers have their job, so it is in flight
+  // by construction; the graph was copied when run() began.
+  test('an edit while a Monte Carlo run is in flight lands the result stale, like an edit after it; a re-run at the current graph clears it (#407)', async ({ page }) => {
+    await installProbe(page)
+    await forcePath(page, 'worker')
+    await importRF(page)
+    await page.evaluate((id) => (window as any).__loop.mc.getState().setConfig({ baseSeed: 1, runs: 800, steps: 40, tracked: [id] }), RF_POOL)
+
+    const started = await page.evaluate((id) => {
+      const l = (window as any).__loop
+      const g = l.graph.getState()
+      const revAtStart = g.simulationRev
+      const initialAtStart = g.nodes.find((n: any) => n.id === id).data.initial as number
+      void l.mc.getState().run()
+      const statusAtEdit = l.mc.getState().status
+      g.updateNodeData(id, { initial: initialAtStart + 7 })
+      return { revAtStart, initialAtStart, statusAtEdit, revAfterEdit: l.graph.getState().simulationRev, staleDuring: l.mc.getState().stale }
+    }, RF_POOL)
+    expect(started.statusAtEdit).toBe('running')
+    expect(started.revAfterEdit).toBe(started.revAtStart + 1)
+    expect(started.staleDuring).toBe(false) // a first run: no result for the subscription to mark
+
+    await expect.poll(() => mc(page).then((m) => m.status), { timeout: 40_000 }).toBe('done')
+    expect((await pathProbe(page)).wk.job, 'the Worker path ran it').toBeGreaterThanOrEqual(1)
+
+    const read = (pool: string) =>
+      page.evaluate((id) => {
+        const l = (window as any).__loop
+        const m = l.mc.getState()
+        return {
+          stale: m.stale as boolean,
+          runRev: m.runRev as number,
+          completed: m.result.completedRuns as number,
+          step0: m.result.series[id].mean[0] as number,
+          runGraphInitial: m.runGraph.nodes.find((n: any) => n.id === id).data.initial as number,
+          docInitial: l.graph.getState().nodes.find((n: any) => n.id === id).data.initial as number,
+        }
+      }, pool)
+    // the result ran to the end, on the START graph, and arrived marked
+    expect(await read(RF_POOL)).toEqual({
+      stale: true,
+      runRev: started.revAtStart,
+      completed: 800,
+      step0: started.initialAtStart,
+      runGraphInitial: started.initialAtStart,
+      docInitial: started.initialAtStart + 7,
+    })
+    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
+    const staleTag = page.locator('.dist__stale')
+    const exportBtn = page.locator('.dist__stats .menu button', { hasText: 'Export' })
+    await expect(staleTag).toBeVisible()
+    await expect(exportBtn).toBeDisabled()
+    const tagMidRun = await staleTag.textContent()
+
+    // a re-run at the current graph clears it
+    await run(page)
+    expect(await read(RF_POOL)).toMatchObject({ stale: false, step0: started.initialAtStart + 7, docInitial: started.initialAtStart + 7 })
+    await expect(staleTag).toBeHidden()
+    await expect(exportBtn).toBeEnabled()
+
+    // the control: the same edit AFTER completion shows exactly the same way
+    await page.evaluate((id) => (window as any).__loop.graph.getState().updateNodeData(id, { initial: 1 }), RF_POOL)
+    expect(await read(RF_POOL)).toMatchObject({ stale: true, step0: started.initialAtStart + 7, docInitial: 1 })
+    await expect(staleTag).toBeVisible()
+    await expect(staleTag).toHaveText(tagMidRun!)
+    await expect(exportBtn).toBeDisabled()
   })
 
   test('template swap while the live sim is running pauses it first', async ({ page }) => {

@@ -184,6 +184,14 @@ so every id that keys a draw is in the projection.
   generated **only when a Monte-Carlo run completes** — `semanticDigest(runGraph)`
   where `runGraph` is the exact graph that run executed against — and then
   travels with the result unchanged.
+- **A result is `stale` on arrival when the document moved on during the run**
+  (issue #407, 2026-10-30). `run()` captures the graph and `simulationRev` at
+  start; the run is never cancelled by an edit. On completion the captured rev
+  is compared with the current `simulationRev`: equal → `stale: false`;
+  different → `stale: true`, with the result, `runGraph`, `runRev` and the
+  digest all the start graph's. The mark, and the disabled Export, are exactly
+  what an edit after completion produces through the `simulationRev`
+  subscription; the next run completed at the current rev clears it.
 - On **Export**: the stored `resultGraphDigest` is written **verbatim**. It is
   **never recomputed against the current graph on export.** In particular, when a
   result was *restored from a Workspace file*, its original `resultGraphDigest` is
