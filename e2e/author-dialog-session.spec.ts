@@ -70,6 +70,11 @@ test.describe('the Author dialog reads the current session on open (#412)', () =
       await seedAuthor(page, 'Ada')
       await openApp(page)
       expect(await mode(page)).toBe('temporary')
+      // a temporary session reads no stored key, so the first-run Welcome card
+      // is offered and its scrim would take the clicks below: skipped through
+      // the product's own action (as storage-port-runtime.spec does)
+      await page.evaluate(() => (window as unknown as { __loop: { tour: { getState: () => { skipWelcome: () => void } } } }).__loop.tour.getState().skipWelcome())
+      await expect(page.locator('.tour-scrim')).toHaveCount(0)
       // in the temporary session the dialog shows nothing of the browser's
       const f0 = await openAuthorDialog(page)
       await expect(f0.name).toHaveValue('')
