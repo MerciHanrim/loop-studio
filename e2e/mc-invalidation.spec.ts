@@ -44,12 +44,16 @@ test.describe('MC / sim invalidation', () => {
     const exportBtn = page.locator('.dist__stats .menu button', { hasText: 'Export' })
     await expect(exportBtn).toBeEnabled()
 
-    // advance the live sim, then make an undoable structural edit
+    // advance the live sim, then make an undoable structural edit. The Risky
+    // Factory reaches its End at step 2, and a step after `ended` is a fixed
+    // point (#419 item 1) — so three advances land on step 2, ended, not 3.
     await page.evaluate(() => {
       const s = (window as any).__loop.sim.getState()
       s.advance(); s.advance(); s.advance()
     })
-    expect((await simSnapshot(page)).stepIndex).toBe(3)
+    const advanced = await simSnapshot(page)
+    expect(advanced.stepIndex).toBe(2)
+    expect(advanced.status).toBe('ended')
     await page.evaluate((id) => (window as any).__loop.graph.getState().updateNodeData(id, { capacity: 999 }), RF_POOL)
     expect((await simSnapshot(page)).canUndo).toBe(true)
 
