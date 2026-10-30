@@ -11,9 +11,9 @@ marker — and merges as *settled design, implementation pending*, like
 [`docs/localization.md`](localization.md) and [`docs/guided-tour.md`](guided-tour.md).
 
 > **Unreleased (2026-10-30) — opens editable (issue #428).** The Template no
-> longer ships `recommendedRunConfig.canvasLocked`; it opens unlocked like the
-> other Templates (§EM13.8). The lock button and a user's own saved lock are
-> unchanged.
+> longer ships `recommendedRunConfig.canvasLocked`; it opens unlocked like most
+> other Templates (§EM13.8; the 3-zone gacha comparison still opts into the
+> lock). The lock button and a user's own saved lock are unchanged.
 >
 > **0.30.0 (2026-10-24) — back in the Templates menu.** File → Templates and
 > the phone's More → Templates list it again, after Coffee, unchanged: the same
@@ -621,7 +621,7 @@ router` plus the three `pull all` XP-meter Gates (§EM13.4 #1), one per zone.
 ### EM13.8 `recommendedRunConfig.canvasLocked` — opens editable (since issue #428)
 
 The template ships **no `canvasLocked` field** and opens **editable**, like
-every other Template (Hanrim / Lumi, 2026-10-30, issue #428). From its first
+most other Templates (Hanrim / Lumi, 2026-10-30, issue #428). From its first
 version to v0.31.0 it shipped `canvasLocked: true` and opened edit-locked, so
 the layout — part of this example's explanation (§EM13.1) — would not be nudged
 by accident on a first read; in practice the lock met the user at the first
