@@ -141,6 +141,8 @@ type Drag =
       raf: number | null
       /** the dragged frame's rect at the last applied Δ (an auto frame's draft / the promote rect) */
       current: FrameRect
+      /** issue #410 — the strip that captured the pointer, released at the end */
+      capture?: { el: Element; pointerId: number }
     }
   | {
       kind: 'resize'
@@ -155,6 +157,8 @@ type Drag =
       free?: boolean
       raf: number | null
       current: FrameRect
+      /** issue #410 — the handle that captured the pointer, released at the end */
+      capture?: { el: Element; pointerId: number }
     }
 
 export function FrameLayer() {
@@ -483,6 +487,17 @@ export function FrameLayer() {
         })
       }
     }
+    /** issue #410 — give the strip / handle's capture back; `lostpointercapture`
+     *  then finds no open gesture and does nothing */
+    const releaseCapture = (d: Extract<Drag, { kind: 'move' | 'resize' }>) => {
+      const c = d.capture
+      if (!c) return
+      try {
+        if ((c.el as Element & { hasPointerCapture?: (id: number) => boolean }).hasPointerCapture?.(c.pointerId)) (c.el as Element & { releasePointerCapture: (id: number) => void }).releasePointerCapture(c.pointerId)
+      } catch {
+        /* already released */
+      }
+    }
     const onUp = (e: PointerEvent) => {
       const d = dragRef.current
       dragRef.current = null
@@ -495,6 +510,7 @@ export function FrameLayer() {
         return
       }
       cancelRaf(d)
+      releaseCapture(d)
       d.free = e.altKey
       applyGesture(d, flowPt(e)) // the exact final Δ, whatever the last frame showed
       endLiveLayout()
@@ -518,25 +534,46 @@ export function FrameLayer() {
     }
     // Esc / pointercancel while a move / resize is in flight: put the origin
     // back, push nothing (D12). The draw tool has its own cancel below.
+    // issue #410 (Lumi, 2026-10-30) — a focus loss (`blur`, the page hidden)
+    // and a capture lost for any other reason take the SAME path: the app
+    // never learns where the pointer was let go, so the origin comes back and
+    // nothing is recorded. Each of these acts only on an OPEN gesture; after a
+    // normal pointerup the `lostpointercapture` that follows finds none.
+    const cancelOpen = (d: Extract<Drag, { kind: 'move' | 'resize' }>) => {
+      dragRef.current = null
+      cancelRaf(d)
+      releaseCapture(d)
+      restoreGesture(d)
+      endLiveLayout()
+    }
     const onCancel = (e: Event) => {
       const d = dragRef.current
       if (!d || d.kind === 'draw') return
       if (e.type === 'keydown' && (e as KeyboardEvent).key !== 'Escape') return
-      e.preventDefault()
-      dragRef.current = null
-      cancelRaf(d)
-      restoreGesture(d)
-      endLiveLayout()
+      if (e.type === 'visibilitychange' && document.visibilityState !== 'hidden') return
+      // a lost capture cancels only when it is OURS: a capture was taken, and
+      // the event's pointer and element are that capture's (Lumi's review of
+      // #433: a capture lost by another element, or a drag whose capture
+      // failed, must not end the frame drag)
+      if (e.type === 'lostpointercapture' && (!d.capture || (e as PointerEvent).pointerId !== d.capture.pointerId || e.target !== d.capture.el)) return
+      if (e.cancelable) e.preventDefault()
+      cancelOpen(d)
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onCancel)
+    window.addEventListener('lostpointercapture', onCancel)
     window.addEventListener('keydown', onCancel)
+    window.addEventListener('blur', onCancel)
+    document.addEventListener('visibilitychange', onCancel)
     return () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onCancel)
+      window.removeEventListener('lostpointercapture', onCancel)
       window.removeEventListener('keydown', onCancel)
+      window.removeEventListener('blur', onCancel)
+      document.removeEventListener('visibilitychange', onCancel)
     }
   }, [flowPt, zoom, nodes, addFrame, disarmTool, adoptFrameSilently, removeAuto, applyGesture, restoreGesture])
 
@@ -595,6 +632,16 @@ export function FrameLayer() {
       const G = useGraphStore.getState()
       const anchor = flowPt(e)
       const snapshot = G.captureGestureSnapshot()
+      // issue #410 — the strip / handle captures the pointer (as RouteBends
+      // does): the moves and the release keep coming to it outside the window,
+      // and a capture lost for any other reason ends the gesture below
+      let capture: { el: Element; pointerId: number } | undefined
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId)
+        capture = { el: e.currentTarget, pointerId: e.pointerId }
+      } catch {
+        /* a pointer that cannot be captured: the window listeners still end the gesture */
+      }
       if (kind === 'move') {
         const origin = captureMoveOrigin({
           frameId: id,
@@ -608,12 +655,12 @@ export function FrameLayer() {
           nodes: G.nodes,
           edges: G.edges,
         })
-        dragRef.current = { kind, id, isAuto, label, origin, snapshot, last: null, raf: null, current: orig }
+        dragRef.current = { kind, id, isAuto, label, origin, snapshot, last: null, raf: null, current: orig, capture }
         // issue #344 §ER14.5 — a carried move re-routes only what it touches
         // until the pointer comes up
         beginLiveLayout()
       } else {
-        dragRef.current = { kind, id, isAuto, label, anchor, orig, snapshot, last: null, raf: null, current: orig }
+        dragRef.current = { kind, id, isAuto, label, anchor, orig, snapshot, last: null, raf: null, current: orig, capture }
       }
       if (isAuto) setAutoDraft({ id, rect: orig })
     }

@@ -533,7 +533,9 @@ drag lands its top-left on the 16 px grid (§DL3.2).
 Moving a **node** never moves a frame. One gesture is **exactly one** undo
 entry through an explicit transaction (§SF11.1 "Move" — not the 600 ms
 coalescing, so a paused drag is still one entry); `Esc` or a `pointercancel`
-mid-drag puts frame, nodes and waypoints back and records nothing. A carried
+mid-drag puts frame, nodes and waypoints back and records nothing, and since
+issue #410 (2026-10-30) so does a focus loss (`blur`, the page hidden) or a lost
+pointer capture — the strip and the resize handle capture the pointer. A carried
 node moves exactly like a hand-dragged one: no engine / `simulationRev` /
 timeline effect, the `loop-revision` content digest moves as for any position
 change. Under the edit-lock and on mobile a saved frame is **view + select
