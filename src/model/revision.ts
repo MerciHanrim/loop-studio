@@ -50,12 +50,17 @@ export class SecureRandomUnavailableError extends Error {
   }
 }
 
-/** Thrown by the canonical projection when it meets a non-finite number
- *  (§R4.1) — the content is invalid for revision purposes. */
+/** Thrown by the canonical projection when it meets content it cannot project:
+ *  a non-finite number (§R4.1), an unseatable model node (§R2-1.1), or — #420 —
+ *  a node whose kind is not a node kind at all. The content is invalid for
+ *  revision purposes. `node` is set when ONE node is the cause, so the UI can
+ *  name it (its id, label and the kind it carries). */
 export class InvalidRevisionContentError extends Error {
-  constructor(where: string) {
-    super(`non-finite number in revision content at ${where}`)
+  readonly node?: { id: string; label: string; kind: string }
+  constructor(where: string, node?: { id: string; label: string; kind: string }) {
+    super(node ? `node ${node.id} has kind "${node.kind}", which is not a node kind` : `non-finite number in revision content at ${where}`)
     this.name = 'InvalidRevisionContentError'
+    if (node) this.node = node
   }
 }
 
@@ -402,7 +407,15 @@ function projectNode(n: LoopNode, modelLayer: boolean): CanonicalNode {
     return { id: n.id, position, data }
   }
 
-  const fields = NODE_FIELDS[kind as FlowNodeKind]
+  const fields = NODE_FIELDS[kind as FlowNodeKind] as readonly string[] | undefined
+  if (!fields) {
+    // #420 — a kind that is neither a flow nor a model kind (a hand-made file:
+    // `deserialize` keeps it and the canvas draws it with the fallback node).
+    // There is no field list to project, and a raw `TypeError` here was
+    // reported by Export as a missing secure random source.
+    const label = typeof rawData?.label === 'string' ? rawData.label : ''
+    throw new InvalidRevisionContentError(`node ${n.id}`, { id: n.id, label, kind: String(kind) })
+  }
   const src = normNodeData(n)
   const data: Record<string, unknown> = {}
   for (const f of fields) {

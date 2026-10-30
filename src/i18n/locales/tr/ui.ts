@@ -200,6 +200,8 @@ const ui = {
   'export.proposal.needRevision': 'Önce bir Proje sürümü dışa aktarın',
   'revision.export.noSecureRandom':
     'Bu tarayıcıda güvenli bir rastgelelik kaynağı yok, bu yüzden sürüm kimliği oluşturulamıyor. Hiçbir şey dışa aktarılmadı.',
+  'revision.export.unknownKind': 'Bu diyagramda, Loop Studio tarafından tanınmayan bir düğüm var. {node} düğümünün türü {kind}. Hiçbir şey dışa aktarılmadı. Bu düğümü silin ya da değiştirin, sonra yeniden deneyin.',
+  'revision.export.invalidContent': 'Bu diyagramda, sonlu olmayan bir sayı gibi, dışa aktarılamayan bir içerik var. Hiçbir şey dışa aktarılmadı.',
   'revision.export.tooLarge':
     'Bu diyagram Proje sürümü olarak dışa aktarılamayacak kadar büyük ({size}; sınır {cap}). Bunun yerine Dosya → Graph JSON kullanın.',
   'proposal.needProject':

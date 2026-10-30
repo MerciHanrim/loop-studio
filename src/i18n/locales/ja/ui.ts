@@ -188,6 +188,8 @@ const ui = {
   'export.proposal.blurb': '編集してレビューのために送り返すためのコピー',
   'export.proposal.needRevision': '先にプロジェクトリビジョンをエクスポートしてください',
   'revision.export.noSecureRandom': 'このブラウザには安全な乱数ソースがないため、リビジョン id を作成できません。何もエクスポートされていません。',
+  'revision.export.unknownKind': 'この図には Loop Studio が知らないノードがあります。ノード {node} の種類は {kind} です。何もエクスポートされていません。そのノードを削除するか置き換えてから、もう一度お試しください。',
+  'revision.export.invalidContent': 'この図には、有限でない数値など、エクスポートできない内容があります。何もエクスポートされていません。',
   'revision.export.tooLarge': 'この図はプロジェクトリビジョンとしてエクスポートするには大きすぎます（{size}、上限 {cap}）。代わりにファイル → グラフ JSON を使ってください。',
   'proposal.needProject': '提案を作成するには、開いているプロジェクトが必要です。先にファイル → プロジェクトリビジョンで作成してください。',
   'proposal.dirtyOrigin': 'このリビジョン以降にドキュメントが変更されています。ファイル → プロジェクトリビジョンで変更を確定してから、提案を作成してください。',

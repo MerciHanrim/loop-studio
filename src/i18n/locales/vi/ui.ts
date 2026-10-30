@@ -194,6 +194,8 @@ const ui = {
   'export.proposal.blurb': 'một bản sao để sửa rồi gửi lại cho người khác xem xét',
   'export.proposal.needRevision': 'Hãy xuất một Bản dự án trước',
   'revision.export.noSecureRandom': 'Trình duyệt này không có nguồn ngẫu nhiên an toàn, nên không tạo được id bản. Chưa xuất gì cả.',
+  'revision.export.unknownKind': 'Sơ đồ này có một nút mà Loop Studio không biết. Nút {node} có loại {kind}. Chưa xuất gì cả. Hãy xóa hoặc thay nút đó rồi thử lại.',
+  'revision.export.invalidContent': 'Sơ đồ này có nội dung không xuất được, chẳng hạn một số không hữu hạn. Chưa xuất gì cả.',
   'revision.export.tooLarge': 'Sơ đồ này quá lớn để xuất thành Bản dự án ({size}; giới hạn {cap}). Hãy dùng Tệp → Graph JSON.',
   'proposal.needProject': 'Tạo đề xuất cần một dự án đang mở. Hãy dùng Tệp → Bản dự án trước để tạo một dự án.',
   'proposal.dirtyOrigin': 'Tài liệu đã thay đổi kể từ bản này. Hãy dùng Tệp → Bản dự án để chốt các thay đổi, rồi tạo đề xuất.',

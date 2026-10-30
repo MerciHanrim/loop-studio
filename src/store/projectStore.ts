@@ -10,6 +10,7 @@ import {
   computeThreeWay,
   countThreeWayConflicts,
   digestOfCanonical,
+  InvalidRevisionContentError,
   validateResultGraph,
   isProjectId,
   isRevisionId,
@@ -117,7 +118,7 @@ export type PlanRevisionResult =
   | { ok: true; text: string; bytes: number; plan: PendingRevisionPlan }
   | { ok: false; reason: 'too-large'; bytes: number; cap: number }
 
-type PlanProposalResult = ProposalExportResult | { ok: false; reason: 'no-project' }
+export type PlanProposalResult = ProposalExportResult | { ok: false; reason: 'no-project' }
 
 type ProjectState = {
   open: OpenProject | null
@@ -276,6 +277,36 @@ function liveDigest(): string {
   return digestOfCanonical(liveContent())
 }
 
+/** the cause last warned about by {@link dirtyAgainst}; `null` once the live
+ *  content projects again */
+let invalidWarned: string | null = null
+
+/**
+ * #420 — the DISPLAY dirty decision against an open header's baseline. Content
+ * the canonical projection refuses (`InvalidRevisionContentError`: a node of an
+ * unknown kind, a non-finite number, an unseatable model node) cannot equal the
+ * baseline, which was taken from content that could be projected — so it is
+ * dirty, never "unchanged". One console warning per distinct cause, not one per
+ * edit (the debounced refresh runs after every change). Any other error is not
+ * this case and still throws. The Export / Proposal DECISION does not use this:
+ * `planRevision` / `planProposal` let the error reach their caller, which names
+ * the cause.
+ */
+function dirtyAgainst(baselineDigest: string): boolean {
+  try {
+    const dirty = liveDigest() !== baselineDigest
+    invalidWarned = null
+    return dirty
+  } catch (e) {
+    if (!(e instanceof InvalidRevisionContentError)) throw e
+    if (invalidWarned !== e.message) {
+      invalidWarned = e.message
+      console.warn(`Loop Studio: this diagram cannot be exported as a Project revision (${e.message}); it counts as changed since the last export.`)
+    }
+    return true
+  }
+}
+
 function persist(open: OpenProject | null): void {
   setAutosaveProjectHeader(open ? headerPayload(open) : null)
 }
@@ -344,7 +375,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 
     refreshDirty: () => {
       const o = get().open
-      const d = o ? liveDigest() !== o.baselineDigest : false
+      const d = o ? dirtyAgainst(o.baselineDigest) : false // #420 — invalid content is dirty
       if (d !== get().dirty) set({ dirty: d })
     },
 

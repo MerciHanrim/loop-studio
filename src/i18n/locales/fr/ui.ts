@@ -206,6 +206,8 @@ const ui = {
   'export.proposal.needRevision': 'Exportez d’abord une révision de projet',
   'revision.export.noSecureRandom':
     'Ce navigateur n’a pas de source aléatoire sûre, un identifiant de révision ne peut donc pas être créé. Rien n’a été exporté.',
+  'revision.export.unknownKind': 'Ce schéma contient un nœud que Loop Studio ne connaît pas. Le nœud {node} est de type {kind}. Rien n’a été exporté. Supprimez ou remplacez ce nœud, puis réessayez.',
+  'revision.export.invalidContent': 'Ce schéma contient des éléments qui ne peuvent pas être exportés, par exemple un nombre non fini. Rien n’a été exporté.',
   'revision.export.tooLarge':
     'Ce schéma est trop volumineux pour être exporté comme révision de projet ({size} ; limite {cap}). Utilisez « Fichier → Graph JSON » à la place.',
   'proposal.needProject':

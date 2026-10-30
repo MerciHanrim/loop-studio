@@ -214,6 +214,8 @@ const ui = {
   'export.proposal.needRevision': 'Exportieren Sie zuerst einen Projektstand',
   'revision.export.noSecureRandom':
     'Dieser Browser hat keine sichere Zufallsquelle, daher lässt sich keine Stand-ID erzeugen. Es wurde nichts exportiert.',
+  'revision.export.unknownKind': 'Dieses Diagramm enthält einen Knoten, den Loop Studio nicht kennt. Der Knoten {node} hat die Art {kind}. Es wurde nichts exportiert. Löschen oder ersetzen Sie diesen Knoten und versuchen Sie es erneut.',
+  'revision.export.invalidContent': 'Dieses Diagramm enthält Inhalte, die sich nicht exportieren lassen, etwa eine Zahl, die nicht endlich ist. Es wurde nichts exportiert.',
   'revision.export.tooLarge':
     'Dieses Diagramm ist zu groß, um es als Projektstand zu exportieren ({size}; Grenze {cap}). Nutzen Sie stattdessen „Datei → Graph JSON“.',
   'proposal.needProject':

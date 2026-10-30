@@ -208,6 +208,8 @@ const ui = {
   'export.proposal.blurb': 'una copia da modificare e rimandare indietro per la revisione',
   'export.proposal.needRevision': 'Esporta prima una Revisione del progetto',
   'revision.export.noSecureRandom': 'Questo browser non ha una sorgente casuale sicura, quindi non è possibile creare un id di revisione. Non è stato esportato nulla.',
+  'revision.export.unknownKind': 'Questo diagramma contiene un nodo che Loop Studio non conosce. Il nodo {node} è di tipo {kind}. Non è stato esportato nulla. Elimina o sostituisci quel nodo, poi riprova.',
+  'revision.export.invalidContent': 'Questo diagramma contiene elementi che non si possono esportare, come un numero non finito. Non è stato esportato nulla.',
   'revision.export.tooLarge': 'Questo diagramma è troppo grande per essere esportato come Revisione del progetto ({size}; limite {cap}). Usa invece File → Grafo JSON.',
   'proposal.needProject': 'Per creare una proposta serve un progetto aperto. Usa prima File → Revisione del progetto per crearne uno.',
   'proposal.dirtyOrigin': 'Il documento è cambiato dopo questa revisione. Usa File → Revisione del progetto per fissare le modifiche, poi crea una proposta.',

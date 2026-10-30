@@ -4,9 +4,9 @@
   "$limit": "This manifest defends the call sites listed here, exactly and in both directions. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together close the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
   "$history": "PR B recorded 11 decision rows and deferred them. C3.5 re-ran the population from the TypeScript type checker — 205 ICU arguments — and found 27 more that carry user or technical values: 8 in its first pass (the unrecognized-column header and the five `import.loc.*` calls) and 19 that its first pass only RECORDED as open. All 27 are implemented here, so no row of the disposition manifest is classed `auto`, `ltr` or `per-fragment` any more.",
   "totals": {
-    "rows": 74,
-    "obligations": 32,
-    "callSites": 54
+    "rows": 76,
+    "obligations": 33,
+    "callSites": 55
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -14,7 +14,8 @@
     "issue-298": 2,
     "er18": 13,
     "er19": 3,
-    "workbench": 18
+    "workbench": 18,
+    "issue-420": 2
   },
   "obligations": [
     {
@@ -886,6 +887,24 @@
             "connect.refused.stateMode"
           ],
           "args": ["node", "from", "to"],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "export-unknown-node-kind",
+      "rows": [
+        "issue-420 revisionActions.ts export refusal {node}",
+        "issue-420 revisionActions.ts export refusal {kind}"
+      ],
+      "file": "src/ui/revisionActions.ts",
+      "enclosing": "planFailureMessage",
+      "carries": "the user's own NODE NAME (or its id when the name is empty) and the KIND string read from the file, in the alert a Project-revision or proposal export shows when the diagram holds a node of a kind Loop Studio does not know",
+      "why": "#420 — the kind is whatever a hand-made file carried, so it is no closed token and takes `auto` like the name; each value is isolated on its own.",
+      "sites": [
+        {
+          "keys": ["revision.export.unknownKind"],
+          "args": ["node", "kind"],
           "kind": "auto"
         }
       ]

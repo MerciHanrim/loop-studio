@@ -185,6 +185,8 @@ const ui = {
   'export.proposal.blurb': '편집해 돌려보낼 검토용 사본',
   'export.proposal.needRevision': '먼저 프로젝트 리비전을 내보내세요',
   'revision.export.noSecureRandom': '이 브라우저에는 안전한 난수 소스가 없어 리비전 id를 만들 수 없습니다. 아무것도 내보내지 않았습니다.',
+  'revision.export.unknownKind': '이 다이어그램에 Loop Studio가 알지 못하는 노드가 있습니다. 노드 {node}의 종류는 {kind}입니다. 아무것도 내보내지 않았습니다. 그 노드를 삭제하거나 바꾼 뒤 다시 시도하세요.',
+  'revision.export.invalidContent': '이 다이어그램에는 유한하지 않은 숫자처럼 내보낼 수 없는 내용이 있습니다. 아무것도 내보내지 않았습니다.',
   'revision.export.tooLarge': '이 다이어그램은 Project revision으로 내보내기에 너무 큽니다 ({size}, 한도 {cap}). 대신 파일 → Graph JSON을 사용하세요.',
   'proposal.needProject': '제안을 만들려면 열린 프로젝트가 필요합니다. 먼저 파일 → Project revision으로 프로젝트를 만드세요.',
   'proposal.dirtyOrigin': '이 리비전 이후 문서가 바뀌었습니다. 파일 → Project revision으로 변경을 고정한 뒤 제안을 만드세요.',
