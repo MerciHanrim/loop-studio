@@ -175,10 +175,13 @@ decrypts and parses but whose older layout cannot be re-placed fails in step 7:
 the "not a diagram" notice, the current document and any run in progress exactly
 as they were. A load that throws in step 9 — after the run-stop, possibly after
 the document was replaced (`loop-share/1` §U5.5 lists what can remain) — shows
-its own notice, which says that the run was stopped, that the canvas may show
-part of the diagram, and that a reload returns to the last saved diagram. In
-both cases the prompt is never left busy, and the promise the boot flow waits
-on settles when the notice is closed.
+its own notice, which says that the run was stopped and that the canvas may
+show part of the diagram, and asks the person to check the canvas and, if they
+need the previous diagram, to open a file they saved it to. It does not offer a
+reload as the way back: depending on where the load stopped, the autosave may
+already hold the link's document (§U5.5). In both cases the prompt is never
+left busy, and the promise the boot flow waits on settles when the notice is
+closed.
 
 ## P7. Without Web Crypto
 
@@ -200,7 +203,7 @@ Web Crypto exists only in a secure context. There is no fallback.
 | no Web Crypto | no | notice: requirement | one fixed line | kept |
 | wrong password, failed authentication, damaged ciphertext | again, without limit | **one** message | **one** fixed line | already removed |
 | authenticated, but the content is not a diagram | no retry | a different notice | one fixed line | already removed |
-| authenticated, the content valid, the load threw (#420) | no retry | its own notice: run stopped, canvas may show part, reload | one fixed line | already removed |
+| authenticated, the content valid, the load threw (#420) | no retry | its own notice: run stopped, canvas may show part, check it, reopen a saved file if needed | one fixed line | already removed |
 
 A wrong password, a changed salt, IV, ciphertext or tag, and a truncated link
 are **indistinguishable**: the same text, the same console line, the same

@@ -567,7 +567,7 @@ const ui = {
   'share.open.notice.damaged': 'Ce lien protégé est endommagé ou incomplet et ne peut pas être ouvert. Demandez un nouveau lien à son expéditeur.',
   'share.open.notice.unavailable': 'Ouvrir un lien protégé demande un navigateur récent et une adresse sécurisée (HTTPS). Le lien est toujours dans la barre d’adresse : il peut être ouvert dans un autre navigateur.',
   'share.open.notice.newer': 'Ce lien protégé a été créé avec une version plus récente de Loop Studio. Mettez l’application à jour et ouvrez de nouveau le lien : il est toujours dans la barre d’adresse.',
-  'share.open.notice.apply': 'Le mot de passe est correct, mais le diagramme de ce lien n’a pas pu être ouvert entièrement. L’exécution a été arrêtée et le canevas peut en afficher une partie. Rechargez la page pour revenir au dernier diagramme enregistré, et demandez un nouveau lien à l’expéditeur.',
+  'share.open.notice.apply': 'Le mot de passe est correct, mais le diagramme de ce lien n’a pas pu être ouvert entièrement. L’exécution a été arrêtée et le canevas peut en afficher une partie. Vérifiez ce qu’affiche le canevas. Si vous avez besoin de votre diagramme précédent, ouvrez un fichier dans lequel vous l’avez enregistré. Demandez un nouveau lien à l’expéditeur.',
   'share.open.notice.content': 'Le mot de passe est correct, mais le lien ne contient pas de diagramme que Loop Studio puisse ouvrir. Demandez un nouveau lien à son expéditeur.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here

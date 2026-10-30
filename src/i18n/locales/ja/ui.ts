@@ -519,7 +519,7 @@ const ui = {
   'share.open.notice.damaged': 'この保護されたリンクは壊れているか不完全なため、開けません。送信者に新しいリンクを依頼してください。',
   'share.open.notice.unavailable': '保護されたリンクを開くには、最新のブラウザーと安全な（HTTPS）アドレスが必要です。リンクはアドレスバーに残っているので、別のブラウザーで開けます。',
   'share.open.notice.newer': 'この保護されたリンクは、より新しいバージョンの Loop Studio で作成されました。アプリを更新してから、もう一度リンクを開いてください。リンクはアドレスバーに残っています。',
-  'share.open.notice.apply': 'パスワードは正しいのですが、このリンクのダイアグラムを最後まで開けませんでした。実行は停止し、キャンバスにその一部が表示されている場合があります。ページを再読み込みすると、最後に保存されたダイアグラムに戻ります。送信者に新しいリンクを依頼してください。',
+  'share.open.notice.apply': 'パスワードは正しいのですが、このリンクのダイアグラムを最後まで開けませんでした。実行は停止し、キャンバスにその一部が表示されている場合があります。キャンバスの状態を確認し、以前のダイアグラムが必要な場合は、別に保存しておいたファイルを開き直してください。送信者に新しいリンクを依頼してください。',
   'share.open.notice.content': 'パスワードは正しいのですが、リンクには Loop Studio で開けるダイアグラムが含まれていません。送信者に新しいリンクを依頼してください。',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here

@@ -492,7 +492,7 @@ const ui = {
   'share.open.notice.damaged': '这个受保护的链接已损坏或不完整，无法打开。请向发送者索取新链接。',
   'share.open.notice.unavailable': '打开受保护的链接需要较新的浏览器和安全（HTTPS）地址。链接仍在地址栏中，可以在其他浏览器中打开。',
   'share.open.notice.newer': '这个受保护的链接是用更新版本的 Loop Studio 创建的。请更新应用后重新打开链接：它仍在地址栏中。',
-  'share.open.notice.apply': '密码正确，但此链接中的图表未能完整打开。运行已停止，画布上可能显示了它的一部分。重新加载页面即可回到上次保存的图表，并请向发送者索取新链接。',
+  'share.open.notice.apply': '密码正确，但此链接中的图表未能完整打开。运行已停止，画布上可能显示了它的一部分。请检查画布的状态。如需之前的图表，请重新打开您另外保存的文件。请向发送者索取新链接。',
   'share.open.notice.content': '密码正确，但链接中没有 Loop Studio 能打开的图表。请向发送者索取新链接。',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here

@@ -515,7 +515,7 @@ const ui = {
   'share.open.notice.damaged': 'This protected link is damaged or incomplete and cannot be opened. Ask its sender for a new link.',
   'share.open.notice.unavailable': 'Opening a protected link needs a current browser and a secure (HTTPS) address. The link is still in the address bar, so it can be opened in another browser.',
   'share.open.notice.newer': 'This protected link was made with a newer version of Loop Studio. Update the app and open the link again: it is still in the address bar.',
-  'share.open.notice.apply': 'The password is correct, but the diagram in this link could not be opened completely. The run was stopped, and the canvas may show part of it. Reload the page to return to the last saved diagram, and ask the sender for a new link.',
+  'share.open.notice.apply': 'The password is correct, but the diagram in this link could not be opened completely. The run was stopped, and the canvas may show part of it. Check what the canvas shows. If you need your previous diagram, open a file you saved it to. Ask the sender for a new link.',
   'share.open.notice.content': 'The password is correct, but the link does not contain a diagram that Loop Studio can open. Ask its sender for a new link.',
   // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here
   'share.unavailable': 'This browser cannot create or open share links. Try again in a current browser.',

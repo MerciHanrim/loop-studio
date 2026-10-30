@@ -264,7 +264,6 @@ describe('ru copy — the first Cyrillic catalog', () => {
       'создаёт',
       // issue #297: the storage gate and the Storage and privacy area
       'сохранённая',
-      'сохранённой', // #420 PR A: share.open.notice.apply
       'сохранённую',
       'сохранённые',
       'сохранённый',

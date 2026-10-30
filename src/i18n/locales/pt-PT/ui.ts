@@ -514,7 +514,7 @@ const ui = {
   'share.open.notice.damaged': 'Esta ligação protegida está danificada ou incompleta e não pode ser aberta. Peça uma nova ligação a quem a enviou.',
   'share.open.notice.unavailable': 'Abrir uma ligação protegida precisa de um navegador atual e de um endereço seguro (HTTPS). A ligação continua na barra de endereços, pelo que pode ser aberta noutro navegador.',
   'share.open.notice.newer': 'Esta ligação protegida foi criada com uma versão mais recente do Loop Studio. Atualize a aplicação e abra a ligação novamente: ela continua na barra de endereços.',
-  'share.open.notice.apply': 'A palavra-passe está correta, mas o diagrama desta ligação não pôde ser aberto por completo. A execução foi parada e a tela pode mostrar parte dele. Recarregue a página para voltar ao último diagrama guardado e peça uma nova ligação a quem a enviou.',
+  'share.open.notice.apply': 'A palavra-passe está correta, mas o diagrama desta ligação não pôde ser aberto por completo. A execução foi parada e a tela pode mostrar parte dele. Verifique o que a tela mostra. Se precisar do diagrama anterior, abra um ficheiro em que o guardou. Peça uma nova ligação a quem a enviou.',
   'share.open.notice.content': 'A palavra-passe está certa, mas a ligação não contém um diagrama que o Loop Studio consiga abrir. Peça uma nova ligação a quem a enviou.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here

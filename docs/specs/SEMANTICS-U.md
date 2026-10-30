@@ -332,19 +332,26 @@ shows its own notice, SEMANTICS-P.md §P6), one console warning says that the
 run was stopped and the diagram may be partly replaced, the fragment is
 stripped (§U5.6), and `consumeShareLink` still never rejects, so the boot
 sequence that waits on it (the first-run Welcome card, docs/guided-tour.md
-§GT6.1) always settles. No rollback is attempted. What such a throw leaves,
-by the order inside `loadDoc`:
+§GT6.1) always settles. No rollback is attempted. The run is **stopped** in
+every case (step 1 ran first). The rest depends on where the throw is:
 
-- the run is **stopped** (step 1 ran) and stays at its step: `simulationRev`
-  is bumped only after the sink, so the sim is paused, not reset;
-- a throw before `loadDoc`'s `set` leaves the document as it was; a throw after
-  it (the document-boundary sink of issue #392 A is the known point) leaves
-  the **link's nodes and edges on the canvas** and the saved frames / data
-  imports already replaced by the link's;
-- the load's own autosave (`persist()`, last in `loadDoc`) **did not run**, so
-  the saved document is still the one from before the link and a reload
-  returns to it — unless an autosave scheduled by an edit made just before the
-  load fires afterwards and writes the current state.
+- **inside `loadDoc`, before its `set`**: the document is as it was, and the
+  sim is paused at its step (no `simulationRev` bump, so no reset);
+- **inside `loadDoc`, after its `set`** (the document-boundary sink of issue
+  #392 A is the known point): the **link's nodes and edges are on the canvas**,
+  the saved frames / data imports are already the link's, and the sim is
+  paused at its old step (the bump comes after the sink). The load's own
+  autosave (`persist()`, last in `loadDoc`) did not run;
+- **after `loadDoc` returned** (`applyRecommended`): the link's document is
+  fully loaded, the sim was reset to step 0 by the bump, the Monte Carlo
+  settings may be partly applied, and the load's autosave **is scheduled**.
+
+So what a reload brings back is **not guaranteed**: in the last case the
+link's document is saved, and in the other two an autosave scheduled by an
+edit made just before the load can still fire and write the current state.
+The notice therefore asks the person to check the canvas and, if they need the
+previous diagram, to open a file they saved it to; it never offers a reload
+as the way back.
 
 ### U5.6 Strip the fragment — every outcome, path + query preserved
 
