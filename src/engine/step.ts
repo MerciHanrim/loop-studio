@@ -180,9 +180,39 @@ export function step(
    *  from the per-step draw cache. */
   const amountOf = (e: LoopEdge, available: number, snapshot: number): number =>
     isRandExpr(e) ? drawnValue(e) : evalDet(fe(e), available, snapshot)
+  // issue #396 (Lumi, 2026-10-30) — a percent on a connection that touches a
+  // Converter is REFUSED: everywhere else `N%` is the amount `frac · S[source
+  // Pool]` (SEMANTICS.md §8), but a Converter reads its edges as per-activation
+  // rates, where a Converter's out-edge and a Converter → Converter edge have
+  // no Pool to take a percent of, and reading the token as the bare fraction
+  // gave "50%" two meanings. The edge contributes 0 and one diagnostic names
+  // the connection and the expression; the document is never rewritten (a
+  // number, 0.5 for what "50%" used to do, is the author's own change). The
+  // diagnostic follows the random-flow pattern: cached per edge, flushed once,
+  // and only on the committed pass.
+  const pctReason = new Map<string, string>() // edgeId → its refused-percent diagnostic
+  const isPctOnConverter = (e: LoopEdge): boolean =>
+    fe(e).kind === 'percent' && (kindOf(e.source) === 'converter' || kindOf(e.target) === 'converter')
+  const refusedPct = (e: LoopEdge): number => {
+    const key = `pct:${e.id}`
+    if (emitDiag && !diagShown.has(key)) {
+      if (!pctReason.has(e.id)) {
+        const raw = String((e.data as { flow?: unknown } | undefined)?.flow ?? '')
+        const frac = (fe(e) as { frac?: number }).frac ?? 0
+        pctReason.set(
+          e.id,
+          `Edge "${e.id}" flow "${raw}" is a percent on a Converter connection; a Converter's rate cannot be a percent — contributes 0 (write ${frac} for the rate "${raw}" used to mean).`,
+        )
+      }
+      diagnostics.push(pctReason.get(e.id)!)
+      diagShown.add(key)
+    }
+    return 0
+  }
   /** Flow as a weight / per-activation rate: `all`→1, `%`→frac, `const`→value,
-   *  random→the drawn integer. */
-  const rateOfCached = (e: LoopEdge): number => (isRandExpr(e) ? drawnValue(e) : rateOf(fe(e)))
+   *  random→the drawn integer; a percent on a Converter connection → 0 (#396). */
+  const rateOfCached = (e: LoopEdge): number =>
+    isPctOnConverter(e) ? refusedPct(e) : isRandExpr(e) ? drawnValue(e) : rateOf(fe(e))
 
   const availOf = (id: string) => (S[id] ?? 0) - (taken.get(id) ?? 0)
   const reservedOf = (id: string) => reserved.get(id) ?? 0

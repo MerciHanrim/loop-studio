@@ -80,6 +80,7 @@ const ui = {
   'playbar.mc.cancelled': 'Cancelado',
   'playbar.mc.failed': 'A execução falhou',
   'playbar.initError': 'Não é possível executar: {detail}',
+  'playbar.diag.title': 'Diagnósticos da execução ({n})',
   'playbar.mc.title': 'Executar o diagrama muitas vezes e ver a distribuição',
   // no space before `%` — that is what `Intl.NumberFormat('pt-BR')` produces
   'playbar.mc.progress': 'Monte Carlo {pct}%',

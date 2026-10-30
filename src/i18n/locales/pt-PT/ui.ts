@@ -92,6 +92,7 @@ const ui = {
   'playbar.mc.cancelled': 'Cancelado',
   'playbar.mc.failed': 'A execução falhou',
   'playbar.initError': 'Não é possível executar: {detail}',
+  'playbar.diag.title': 'Diagnósticos da execução ({n})',
   'playbar.mc.title': 'Executar o diagrama muitas vezes e ver a distribuição',
   // no space before `%` — MEASURED: `Intl.NumberFormat('pt-PT')` produces
   // `84%`, with no space, exactly as `pt-BR` does. Unlike `es-ES`, this

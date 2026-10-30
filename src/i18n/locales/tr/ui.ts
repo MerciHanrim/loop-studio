@@ -76,6 +76,7 @@ const ui = {
   'playbar.mc.cancelled': 'İptal edildi',
   'playbar.mc.failed': 'Çalıştırma başarısız',
   'playbar.initError': 'Çalıştırılamıyor: {detail}',
+  'playbar.diag.title': 'Çalıştırma tanıları ({n})',
   'playbar.mc.title': 'Diyagramı defalarca çalıştırıp dağılımı görün',
   'playbar.mc.progress': 'Monte Carlo %{pct}',
   'playbar.mc.progress.title': 'Monte Carlo çalıştırması sürüyor',

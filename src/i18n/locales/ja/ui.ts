@@ -73,6 +73,7 @@ const ui = {
   'playbar.mc.cancelled': 'キャンセルしました',
   'playbar.mc.failed': '実行に失敗しました',
   'playbar.initError': '実行できません: {detail}',
+  'playbar.diag.title': '実行の診断 ({n})',
   'playbar.mc.title': '図を何度も実行して分布を確認します',
   'playbar.mc.progress': 'モンテカルロ {pct}%',
   'playbar.mc.progress.title': 'モンテカルロ実行中',

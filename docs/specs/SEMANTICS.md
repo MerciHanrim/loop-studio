@@ -217,7 +217,7 @@ construction (I3); the commit asserts it. If `ended` was set, the run stops.
 | **Source** | creates resources from nothing, pushes downstream | amount to push per step | — |
 | **Pool** | passive storage between steps; the only stateful node. Never auto-pulls or auto-pushes in Engine A | amount to move when pulled | `headroom(P)` |
 | **Gate** | pulls, splits by fixed ratio, pushes — holds nothing | split **weight** per outgoing edge | see §6 |
-| **Converter** | consumes inputs, produces outputs at its own ratio — holds nothing; ≤ 1 activation/step | consume-per-activation (in), produce-per-activation (out) | see §6 |
+| **Converter** | consumes inputs, produces outputs at its own ratio — holds nothing; ≤ 1 activation/step | consume-per-activation (in), produce-per-activation (out) — a number or `all`; a percent is refused (§8, issue #396) | see §6 |
 | **Drain** | pulls resources and removes them from the system | amount to pull per step | `∞` |
 | **End** | any arrival `> epsilon` ends the run and marks it `fired` | amount to pull per step (if pool-fed) | `∞` |
 
@@ -233,7 +233,7 @@ is decided by the active node at that end.
 | empty | const 1 | `1` |
 | `2`, `0.5` | const | the number (must be finite ≥ 0) |
 | `all` | all | `S[sourcePool] − taken[sourcePool]` (`0` on a Source edge) |
-| `25%` | percent 0.25 | `0.25 · S[sourcePool]` (`0` on a Source edge) |
+| `25%` | percent 0.25 | `0.25 · S[sourcePool]` (`0` on a Source edge). **On a connection whose source or target is a Converter: refused — `0` + run diagnostic** (issue #396, 2026-10-30): a Converter reads its edges as per-activation rates (§7), its out-edges and a Converter → Converter edge have no Pool to take a percent of, and the bare fraction gave the token two meanings. The diagnostic names the connection and the expression and says which number (`0.25`) keeps the rate it used to mean; the document is never rewritten. The step's diagnostics reach `simStore.diagnostics` (replaced per step, emptied by Reset and a document change) and the run strip shows them on a line under the run row, read once per change by a status region. |
 | `1-3` | range(1,3) | **`0`** + run diagnostic |
 | `2D6`, `D6` | dice(2,6) / dice(1,6) | **`0`** + run diagnostic |
 

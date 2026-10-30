@@ -77,6 +77,7 @@ const ui = {
   'playbar.mc.cancelled': '已取消',
   'playbar.mc.failed': '執行失敗',
   'playbar.initError': '無法執行：{detail}',
+  'playbar.diag.title': '執行診斷（{n}）',
   'playbar.mc.title': '把圖執行很多次，看看結果的分布',
   'playbar.mc.progress': '蒙地卡羅 {pct}%',
   'playbar.mc.progress.title': '蒙地卡羅執行中',

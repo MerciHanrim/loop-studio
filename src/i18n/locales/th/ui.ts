@@ -98,6 +98,7 @@ const ui = {
   'playbar.mc.cancelled': 'ยกเลิกแล้ว',
   'playbar.mc.failed': 'การรันล้มเหลว',
   'playbar.initError': 'รันไม่ได้: {detail}',
+  'playbar.diag.title': 'การวินิจฉัยการรัน ({n})',
   'playbar.mc.title': 'รันไดอะแกรมหลายครั้งเพื่อดูการกระจายของผลลัพธ์',
   'playbar.mc.progress': 'Monte Carlo {pct}%',
   'playbar.mc.progress.title': 'กำลังรัน Monte Carlo',

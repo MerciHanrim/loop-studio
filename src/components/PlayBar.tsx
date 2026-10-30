@@ -60,6 +60,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   const seed = useSimStore((s) => s.seed)
   const steadyState = useSimStore((s) => s.steadyState)
   const initError = useSimStore((s) => s.initError)
+  const diagnostics = useSimStore((s) => s.diagnostics)
   const play = useSimStore((s) => s.play)
   const pause = useSimStore((s) => s.pause)
   const stepOnce = useSimStore((s) => s.stepOnce)
@@ -196,6 +197,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   }, [steadyState, running, t])
 
   return (
+    <>
     <div
       ref={stripRef}
       className="pstrip"
@@ -348,6 +350,35 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {announce}
       </div>
+
     </div>
+      {/* issue #396 — the engine's diagnostics for the step that produced the
+          current head (simStore.diagnostics): a refused percent on a Converter
+          connection names the connection, the expression and the number that
+          keeps the old rate. A block of its own UNDER the strip — a sibling,
+          never a child of the one-row flex strip, whose own controls would
+          wrap around it — gone with Reset or the next clean step. */}
+      {diagnostics.length > 0 && (
+        // a bounded, scrollable region (Lumi's review of #437: many refused
+        // connections must not push the canvas or the Timeline off screen);
+        // every item stays in the list; focusable so the keyboard can scroll it
+        <div className="pstrip-diag" data-testid="run-diagnostics" role="region" tabIndex={0} aria-label={t('playbar.diag.title', { n: diagnostics.length })}>
+          <span className="pstrip__diag-title">{t('playbar.diag.title', { n: diagnostics.length })}</span>
+          <ul className="pstrip__diag-list">
+            {diagnostics.map((d) => (
+              <li key={d}>{d}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {/* the diagnostics' own status region — always mounted (a region that
+          appears with its text is not read), OUTSIDE the strip so the strip's
+          one steady-state status region stays the only one in it; it reads
+          the set once per change — the same text on the next step is not a
+          DOM change, so a repeating diagnostic is not re-announced */}
+      <div className="sr-only pstrip-diag__status" role="status" aria-live="polite" aria-atomic="true">
+        {diagnostics.length > 0 ? `${t('playbar.diag.title', { n: diagnostics.length })}: ${diagnostics.join(' ')}` : ''}
+      </div>
+    </>
   )
 }

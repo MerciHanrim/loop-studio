@@ -69,6 +69,7 @@ const ui = {
   'playbar.mc.cancelled': 'Cancelled',
   'playbar.mc.failed': 'Run failed',
   'playbar.initError': 'Cannot run: {detail}',
+  'playbar.diag.title': 'Run diagnostics ({n})',
   'playbar.mc.title': 'Run the diagram many times and see the distribution',
   'playbar.mc.progress': 'Monte Carlo {pct}%',
   'playbar.mc.progress.title': 'Monte-Carlo run in progress',

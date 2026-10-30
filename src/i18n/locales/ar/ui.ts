@@ -96,6 +96,7 @@ const ui = {
   'playbar.mc.cancelled': 'أُلغي',
   'playbar.mc.failed': 'فشل التشغيل',
   'playbar.initError': 'تعذّر التشغيل: {detail}',
+  'playbar.diag.title': 'تشخيصات التشغيل ({n})',
   'playbar.mc.title': 'شغّل المخطط مرات كثيرة وشاهد التوزيع',
   'playbar.mc.progress': 'مونت كارلو {pct}%',
   'playbar.mc.progress.title': 'تشغيل مونت كارلو قيد التقدّم',

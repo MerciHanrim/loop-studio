@@ -4363,6 +4363,56 @@ a.sheet__row {
   word-break: keep-all;
   flex-shrink: 0;
 }
+/* issue #396 — the engine's step diagnostics (simStore.diagnostics). On the
+   desktop they are a block of their own UNDER the run strip (`.pstrip-diag`,
+   a sibling, never a child of the one-row flex strip, whose own controls
+   would wrap otherwise), so the row's fit and every control in it stay where
+   they are; the block only adds height. On the phone's run bar, which already
+   wraps its rows, the same content is a full-width row of the bar
+   (`.pstrip__diag`, like the run-refusal row). A warning, not a refusal: the
+   run went on; the named connection contributed 0. */
+.pstrip-diag {
+  padding: 4px 12px 6px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--line-1);
+  flex: none;
+  /* bounded (Lumi's review of #437): about six lines, then the region scrolls
+     — many refused connections never push the Timeline or the canvas away;
+     every item stays in the list */
+  max-height: 96px;
+}
+.pstrip-diag,
+.pstrip__diag {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--warn);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.pstrip-diag:focus-visible,
+.pstrip__diag:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.pstrip__diag {
+  flex-basis: 100%;
+  /* the fixed bar keeps its controls on screen: about four lines, then scroll */
+  max-height: 72px;
+}
+.pstrip__diag-title {
+  font-weight: 600;
+}
+.pstrip__diag-list {
+  margin: 2px 0 0;
+  padding-inline-start: 1.2em;
+}
+.pstrip__diag-list li + li {
+  margin-top: 2px;
+}
 /* the desktop readout keeps room for its longest measured text, "step 10000
    · ended" (en, 118.8 px; ko "10000단계 · 종료됨", 112.8 px): before, each new
    digit and the ended note widened it and pushed the steady chip and Run

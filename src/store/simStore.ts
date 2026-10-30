@@ -68,6 +68,8 @@ export type PreparedResult = {
     stateEvents: StateEvent[]
     arrivedPoolIds: string[]
     triggerQueue: TriggerQueueEntry[]
+    /** `StepReport.diagnostics` of this step, deduplicated (issue #396) */
+    diagnostics: string[]
   }
 }
 
@@ -100,6 +102,14 @@ type SimStore = {
   stateEvents: StateEvent[]
   /** pools that received resources on the last step — drives the arrival cue */
   arrivedPoolIds: string[]
+  /** issue #396 (Lumi, 2026-10-30) — the engine's diagnostics from the step
+   *  that produced the current head (`StepReport.diagnostics`, deduplicated):
+   *  a refused percent on a Converter connection, a bad activator expression,
+   *  an unsupported state-edge mode. Replaced on every committed step, never
+   *  accumulated; `[]` at step 0, after Reset, after a document change and
+   *  after a Workspace snapshot restore. The run strip shows them and a status
+   *  region reads them once per change. Session-only, never serialized. */
+  diagnostics: string[]
 
   /** why the current graph cannot be initialised for a run (`initSim` threw —
    *  e.g. a Pool whose `initial` / `capacity` is negative or non-finite, which
@@ -334,6 +344,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       stateEvents: [...r.report.stateEvents],
       arrivedPoolIds: [...arrived],
       triggerQueue: [...r.state.triggerQueue],
+      diagnostics: [...new Set(r.report.diagnostics)],
     }
   }
 
@@ -399,6 +410,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       activatedNodeIds: [...p.derived.activatedNodeIds],
       stateEvents: [...p.derived.stateEvents],
       arrivedPoolIds: [...p.derived.arrivedPoolIds],
+      diagnostics: [...p.derived.diagnostics], // #396 — this step's, replacing the last step's
       // §LGR6-cues — this committed step's `effective` id set, appended to the
       // trailing Activity-overlay window (fired nodes + resource-edge ids from
       // `events` + state-edge ids from `stateEvents`).
@@ -578,6 +590,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     triggerQueue: [],
     stateEvents: [],
     arrivedPoolIds: [],
+    diagnostics: [],
     initError: null,
     activitySteps: [],
     steadyState: false,
@@ -646,6 +659,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         triggerQueue: [],
         stateEvents: [],
         arrivedPoolIds: [],
+        diagnostics: [], // #396 — Reset, a graph edit and a document change leave none behind
         initError: error,
         activitySteps: [],
         steadyState: false,
@@ -674,6 +688,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         series: snap.series,
         activeByEdge: {},
         arrivedPoolIds: [],
+        diagnostics: [], // #396 — a snapshot carries no step report
         initError: null, // a verified snapshot IS a valid head
         activitySteps: [],
         commitEpoch: s.commitEpoch + 1,
