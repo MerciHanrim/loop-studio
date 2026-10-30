@@ -151,6 +151,16 @@ describe('Export ▸ Make a proposal', () => {
     expect(download).not.toHaveBeenCalled()
   })
 
+  it('the two shared refusals name neither action, and promise no other export (review round 1)', () => {
+    // the same text answers Export ▸ Project revision AND Make a proposal, so it
+    // must not say "Project revision"; and a non-finite number would not survive
+    // Graph JSON either (JSON writes it as `null`), so no text offers that way
+    for (const text of [unknownKindText('Wonder', 'widget'), t('revision.export.invalidContent')]) {
+      expect(text).not.toMatch(/Project revision|proposal/i)
+      expect(text).not.toMatch(/Graph JSON/)
+    }
+  })
+
   it('no secure random source: its own text, instead of throwing out of the click; a defect still throws', () => {
     promote()
     const plan = vi.spyOn(useProjectStore.getState(), 'planProposal')

@@ -489,10 +489,9 @@ const ASCII_KEYS = [
   'catalog:review.differentProject',
   'catalog:review.fail.versionMismatch',
   'catalog:review.gate.versionMismatch',
-  'catalog:revision.export.invalidContent', // #420 PR B: `Graph JSON`
   'catalog:revision.export.noSecureRandom',
   'catalog:revision.export.tooLarge',
-  'catalog:revision.export.unknownKind', // #420 PR B: `Loop Studio`, `Graph JSON`
+  'catalog:revision.export.unknownKind', // #420 PR B: `Loop Studio`
   'catalog:rf.edge.a11y',
   'catalog:rf.node.a11y',
   'catalog:rf.node.a11yKeyboard',
@@ -678,7 +677,7 @@ describe('a kept English word is declared, twice over — by key and by word', (
       ([s, id]) => s + ':' + id,
     )
     expect(actual.slice().sort()).toEqual(ASCII_KEYS.slice().sort())
-    expect(ASCII_KEYS).toHaveLength(253) // #420 PR B: +2 (revision.export.unknownKind / invalidContent); 2026-10: −27 (the 25 removed `whatsNew.*` lines and the two removed edge-type strings), +71 (the strings the redesign added, listed above); 0.28.3: +1 (Delete in one release-note line); 0.28.2: +1 (banner gacha, the Template's own name, in one release-note line); 0.28.1: +1 (MMO in the note that the example left the Templates list); §ER19 Reverse: +1 (Loop Studio in the no-effect reason); 0.26.2: +3 (the `+N` of two release-note lines, the Vietnamese `so` of a third); 0.26.0: +2 (Loop Studio in one release-note line, the gacha banner comparison in another); issue #344 Step 3: +2 (Esc / Shift / Delete in the two bend hints), -1 (the edge note no longer names Monte Carlo); issue #344 Step 1: +1 (Alt / Ctrl / Mac in one 0.25.0 release-note line); issue #330 PR 3: +1 (the `+N` of one 0.24.0 release-note line); issue #330 PR 1: +1 (the `+N` of one 0.22.0 release-note line); issue #307: +3 (the three 0.18.1 release-note lines); issue #308: +1 (one 0.18.2 release-note line); issue #325: +1 (one 0.19.0 release-note line)
+    expect(ASCII_KEYS).toHaveLength(252) // #420 PR B: +1 (revision.export.unknownKind, `Loop Studio`); 2026-10: −27 (the 25 removed `whatsNew.*` lines and the two removed edge-type strings), +71 (the strings the redesign added, listed above); 0.28.3: +1 (Delete in one release-note line); 0.28.2: +1 (banner gacha, the Template's own name, in one release-note line); 0.28.1: +1 (MMO in the note that the example left the Templates list); §ER19 Reverse: +1 (Loop Studio in the no-effect reason); 0.26.2: +3 (the `+N` of two release-note lines, the Vietnamese `so` of a third); 0.26.0: +2 (Loop Studio in one release-note line, the gacha banner comparison in another); issue #344 Step 3: +2 (Esc / Shift / Delete in the two bend hints), -1 (the edge note no longer names Monte Carlo); issue #344 Step 1: +1 (Alt / Ctrl / Mac in one 0.25.0 release-note line); issue #330 PR 3: +1 (the `+N` of one 0.24.0 release-note line); issue #330 PR 1: +1 (the `+N` of one 0.22.0 release-note line); issue #307: +3 (the three 0.18.1 release-note lines); issue #308: +1 (one 0.18.2 release-note line); issue #325: +1 (one 0.19.0 release-note line)
   })
 
   it('the kept vocabulary is exactly the declared one', () => {

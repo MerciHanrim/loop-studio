@@ -156,7 +156,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // `separador`, `existências`, `planeado`, `por predefinição`, `repor`,
     // enclisis, no subject pronoun, `você` dropped); every other new key reads
     // the same in both.
-    expect(DELTA).toHaveLength(282) // #420 PR B: +2 — `revision.export.unknownKind` / `invalidContent` (`Ficheiro`, `Elimine`, `continua a guardar`); #420 PR A: +1 — `share.open.notice.apply` (`palavra-passe`, `ligação`, `guardado`); #392: +1 — `import.error.badNode` carries `arquivo`, so pt-PT says `ficheiro`; 0.26.2: +2 — the run-colour and the badge lines carry `conexão` / `rótulos`, so pt-PT says `ligação` / `etiquetas`; the other two lines are written neutrally and identically in both (the quarter bound below: 252 of 1 056 against 264); 0.26.0: +1 — the connections release-note line carries `conexão`, so pt-PT says `ligação`; the other four lines are neutral and identical
+    expect(DELTA).toHaveLength(281) // #420 PR B: +1 — `revision.export.unknownKind` (`Elimine`, not `Exclua`); `invalidContent` is the same sentence in both; #420 PR A: +1 — `share.open.notice.apply` (`palavra-passe`, `ligação`, `guardado`); #392: +1 — `import.error.badNode` carries `arquivo`, so pt-PT says `ficheiro`; 0.26.2: +2 — the run-colour and the badge lines carry `conexão` / `rótulos`, so pt-PT says `ligação` / `etiquetas`; the other two lines are written neutrally and identically in both (the quarter bound below: 252 of 1 056 against 264); 0.26.0: +1 — the connections release-note line carries `conexão`, so pt-PT says `ligação`; the other four lines are neutral and identical
     // and it is a real audit, not a rewrite — most of the catalog agrees.
     //
     // The password strings of issue #300 are counted apart. The word for a
@@ -199,7 +199,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // outside them, the quarter bound stands as it always did
     const rest = KEYS.filter((k) => !isPasswordKey(k))
     const restDelta = DELTA.filter((k) => !isPasswordKey(k))
-    expect(restDelta).toHaveLength(257) // #420 PR B: +2 (revision.export.unknownKind / invalidContent); #392: +1 (`import.error.badNode`, `ficheiro`); 2026-10 restore: 278 − 24 (254 of 1 144, against a bound of 286); 0.26.2: +2 (the run-colour and badge release-note lines, `ligação` / `etiquetas`); 0.26.0: +1 (the connections release-note line, `ligação` not `conexão`)
+    expect(restDelta).toHaveLength(256) // #420 PR B: +1 (revision.export.unknownKind); #392: +1 (`import.error.badNode`, `ficheiro`); 2026-10 restore: 278 − 24 (254 of 1 144, against a bound of 286); 0.26.2: +2 (the run-colour and badge release-note lines, `ligação` / `etiquetas`); 0.26.0: +1 (the connections release-note line, `ligação` not `conexão`)
     expect(restDelta.length).toBeLessThan(rest.length / 4)
   })
 
