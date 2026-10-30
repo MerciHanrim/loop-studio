@@ -249,6 +249,12 @@ document declares model-semantics version 2:
 - The model-semantics version is **declared** (from `schema`), never inferred
   from `{nodes, edges}` — the two byte-identical graphs above are only
   distinguishable by what the file declares.
+- **Erratum (issue #409, 2026-10-30) — the `loop-workspace` semantic digest
+  also projects a `parameter` node's `value` under v2** (`SEMANTICS-W.md` §W3.1
+  / §W11): the discriminator alone told a v1 `@p` fallback from a v2 resolved
+  Parameter, but not two v2 documents that differ in the value the engine
+  resolves. v1 bytes are unchanged (M2-INV-9). The `loop-revision` projection
+  already carried `value` (`SEMANTICS-R2.md` §R2-1) and does not change.
 
 ### M2-8.2 Freeze vehicle — `loop-revision/4`
 

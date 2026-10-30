@@ -163,9 +163,20 @@ bump).
 `semanticDigest(graph)` =
 
 1. **Project** each node to `{ id, kind, activation?, mode?, distribution?,
-   initial?, capacity?, … }` — every engine-relevant field (see §W11 for the
+   initial?, capacity?, value?, … }` — every engine-relevant field (see §W11 for the
    exact list), **dropping** `position`, `label`, `selected`, and any
-   presentation-only field.
+   presentation-only field. **Erratum (issue #409, 2026-10-30):** a `parameter`
+   node's `value` is projected **under the loop-model/2 projection only** — since
+   `SEMANTICS-M2.md` §M2-8 a `flow: "@p"` and the activator param-terms resolve
+   it at every step, so two documents that differ in it compute different runs
+   and must not share a digest. Under v1 the value is not an engine input and
+   the bytes are unchanged (M2-INV-9). `min` / `max` / `step` / `unit`, the
+   data-import provenance keys and a Register's `expr` stay out. No
+   `loop-workspace/2`: the file shape is unchanged. **Compatibility:** a
+   Workspace file exported before this erratum whose v2 graph has a Parameter
+   carries a digest under the old projection; on Import the compare fails and
+   its saved result is attached `stale: true` with the §W3.2 notice, once — a
+   re-run clears it. Files without a Parameter, and v1 files, are unaffected.
 2. **Project** each edge to `{ id, source, target, sourceHandle, targetHandle,
    kind, flow? | weight?, mode?, delay?, expr? }` — every field that affects
    routing, flow, RNG keying, or state semantics; **dropping** presentation-only
@@ -458,9 +469,11 @@ and (c) `view.timeline` falling back to `"live"` if there was no usable result.
 
 - **node** → `id`, `kind`, and by kind: `activation` (source/pool/drain/gate/
   converter), `mode` (pool/source/drain/converter flow mode), `distribution`
-  (gate), `initial` + `capacity` (pool), and any future engine field. **Not**:
-  `position`, `label`, `selected`, `type` (the React-Flow render type), width/
-  height, or any style field.
+  (gate), `initial` + `capacity` (pool), `value` (parameter — **loop-model/2
+  projection only**, erratum of issue #409, 2026-10-30; absent under v1), and
+  any future engine field. **Not**: `position`, `label`, `selected`, `type`
+  (the React-Flow render type), width/ height, any style field, nor a
+  Parameter's `min` / `max` / `step` / `unit` or a Register's `expr`.
 - **edge** → `id`, `source`, `target`, `sourceHandle`, `targetHandle`,
   `data.kind`; for `resource`: `data.flow`; for `state`: `data.mode`,
   `data.delay`, `data.expr`. **Not**: `label`, `selected`, `markerEnd`, style,

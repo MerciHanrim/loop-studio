@@ -69,6 +69,12 @@ type NodeProjection = {
   distribution?: string
   initial?: number
   capacity?: number | null
+  /** issue #409 (erratum to §W3.1 / §W11, 2026-10-30) — a Parameter's `value`,
+   *  under the loop-model/2 projection ONLY: since SEMANTICS-M2 §M2-8 a
+   *  `flow: "@p"` and the activator param-terms resolve it at every step, so
+   *  two documents that differ in it compute different runs. Under v1 the
+   *  value is not an engine input and the bytes stay as they were (M2-INV-9). */
+  value?: number
 }
 type EdgeProjection = {
   id: string
@@ -93,7 +99,7 @@ type EdgeProjection = {
   when?: string
 }
 
-function projectNode(n: LoopNode): NodeProjection {
+function projectNode(n: LoopNode, modelVersion?: 1 | 2): NodeProjection {
   const d = (n.data ?? {}) as LoopNode['data']
   if (typeof d !== 'object') return { id: n.id, kind: undefined as unknown as string }
   const p: NodeProjection = { id: n.id, kind: d.kind }
@@ -104,6 +110,8 @@ function projectNode(n: LoopNode): NodeProjection {
     p.initial = d.initial
     p.capacity = d.capacity
   }
+  // issue #409 — the engine input of loop-model/2 (see NodeProjection.value)
+  if (d.kind === 'parameter' && modelVersion === 2) p.value = d.value
   return p
 }
 
@@ -155,7 +163,7 @@ export function canonicalGraphString(
   modelVersion?: 1 | 2,
 ): string {
   return stableStringify({
-    nodes: [...graph.nodes].map(projectNode).sort(byId),
+    nodes: [...graph.nodes].map((n) => projectNode(n, modelVersion)).sort(byId),
     edges: [...graph.edges].map(projectEdge).sort(byId),
     ...(modelVersion === 2 ? { modelSemantics: 'loop-model/2' } : {}),
   })
