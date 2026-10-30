@@ -13,6 +13,9 @@
 //   • the argument KIND (slot / number / date / time / plural / select /
 //     selectordinal) of each shared argument matches the base
 //   • no rich-text tag syntax (`<tag>…</tag>`) anywhere
+//   • a folder locale merges exactly the base's slices, in the base's order,
+//     and holds no other slice file — the slice list is read from
+//     `en/index.ts`, never kept here (issue #414; `catalog-slices.mjs`)
 // Plus, against the call sites:
 //   • no `t('key')` literal refers to a key absent from the base catalog
 //   • every base key is referenced somewhere in src/ (no dead keys)
@@ -22,8 +25,15 @@ import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
 import { validateCatalog } from '../src/i18n/validate.ts'
 import { sliceKeys } from './catalog-source.mjs'
+import { catalogSlices } from './catalog-slices.mjs'
 
 const root = resolve(import.meta.dirname, '..')
+// issue #414 — the two trees the check reads, overridable so a test can point
+// the SAME script at a fixture (a locale folder with a sixth slice, a stray
+// file, a different merge order) and watch it fail; the product run sets
+// neither.
+const localesDir = resolve(root, process.env.LOOP_I18N_LOCALES_DIR ?? 'src/i18n/locales')
+const callSiteDir = resolve(root, process.env.LOOP_I18N_SRC_DIR ?? 'src')
 let failed = false
 const fail = (m) => {
   console.error(`  FAIL  ${m}`)
@@ -43,13 +53,9 @@ if (!BASE_LOCALE) {
   process.exit(1)
 }
 
-const localesDir = resolve(root, 'src/i18n/locales')
-
 // A locale's entry point is EITHER `locales/<code>.ts` (one flat file) OR
-// `locales/<code>/index.ts` (a folder that merges its domain slices —
-// ui / canvas / inspector / templates). Both forms coexist; the loop never
-// names a locale literally (§L12).
-const DOMAIN_FILES = ['ui', 'canvas', 'inspector', 'templates', 'dataImport']
+// `locales/<code>/index.ts` (a folder that merges its domain slices). Both
+// forms coexist; the loop never names a locale literally (§L12).
 const entries = []
 for (const name of readdirSync(localesDir)) {
   if (/\.test\.ts$/.test(name)) continue
@@ -66,22 +72,66 @@ if (!CODES.includes(BASE_LOCALE)) {
   process.exit(1)
 }
 
+// issue #414 — the slice list is READ from the base locale's `index.ts` (the
+// real merge: its relative default imports, in spread order), never carried
+// here by hand. A slice added to `en/index.ts` is therefore part of every
+// check below the moment it exists; a slice this parser cannot read is a stop.
+const baseEntry = entries.find((e) => e.code === BASE_LOCALE)
+if (!baseEntry.dir) {
+  fail(`base locale "${BASE_LOCALE}" must be a folder locale (locales/${BASE_LOCALE}/index.ts) so its slices can be read`)
+  process.exit(1)
+}
+let DOMAIN_FILES
+try {
+  DOMAIN_FILES = catalogSlices(baseEntry.entry)
+} catch (e) {
+  fail(`${BASE_LOCALE}: ${e.message}`)
+  process.exit(1)
+}
+ok(`${BASE_LOCALE}/index.ts merges ${DOMAIN_FILES.length} slices: ${DOMAIN_FILES.join(', ')}`)
+
 // Node's raw ESM loader (this script) resolves TS with type-stripping only — it
 // will not follow an extensionless relative VALUE import, which is exactly what
 // `<code>/index.ts` uses to pull its slices. So for a folder locale, import the
-// four self-contained domain files here and merge them the same way `index.ts`
-// does (spread in ui → canvas → inspector → templates order). `tsc` already
-// proves `index.ts` itself compiles and that `ko` still `satisfies MessageCatalog`.
+// slices here and merge them the same way `index.ts` does (spread in the
+// base's order). `tsc` already proves `index.ts` itself compiles and that every
+// locale still `satisfies MessageCatalog`. Before the merge, every folder
+// locale's OWN `index.ts` must merge exactly the base's slices in the base's
+// order, and must have no other `.ts` file beside them (a slice nothing merges
+// is a translation that never ships).
 const catalogs = new Map()
 for (const { code, entry, dir } of entries) {
   let cat
   if (dir) {
+    let own
+    try {
+      own = catalogSlices(entry)
+    } catch (e) {
+      fail(`${code}: ${e.message}`)
+      continue
+    }
+    if (own.join(',') !== DOMAIN_FILES.join(',')) {
+      fail(`${code}: index.ts merges [${own.join(', ')}] but ${BASE_LOCALE}/index.ts merges [${DOMAIN_FILES.join(', ')}] (same slices, same order)`)
+      continue
+    }
+    for (const name of readdirSync(dir)) {
+      if (!/\.ts$/.test(name) || /\.test\.ts$/.test(name) || name === 'index.ts') continue
+      const slice = name.replace(/\.ts$/, '')
+      if (!DOMAIN_FILES.includes(slice)) fail(`${code}: ${name} is not a slice ${BASE_LOCALE}/index.ts merges — nothing ships it`)
+    }
+    let missing = false
+    for (const d of DOMAIN_FILES) {
+      if (!existsSync(resolve(dir, `${d}.ts`))) {
+        fail(`${code}: missing domain file ${d}.ts`)
+        missing = true
+      }
+    }
+    if (missing) continue
     const parts = {}
     for (const d of DOMAIN_FILES) {
       parts[d] = (await import(pathToFileURL(resolve(dir, `${d}.ts`)).href)).default
     }
     cat = Object.assign({}, ...DOMAIN_FILES.map((d) => parts[d]))
-    if (!existsSync(resolve(dir, 'index.ts'))) fail(`${code}: folder locale has no index.ts`)
   } else {
     cat = (await import(pathToFileURL(entry).href)).default
   }
@@ -115,7 +165,7 @@ for (const [code, cat] of catalogs) {
 //    "no cross-file duplication". A parser that fails closed is the only way
 //    this sentence means what it says.
 for (const { code, dir } of entries) {
-  if (!dir) continue
+  if (!dir || !catalogs.has(code)) continue
   const where = new Map() // key -> [domain, …]
   let unreadable = false
   for (const d of DOMAIN_FILES) {
@@ -157,7 +207,7 @@ function walk(dir, out = []) {
   return out
 }
 
-const srcFiles = walk(resolve(root, 'src')).filter((p) => !/[\\/]i18n[\\/]locales[\\/]/.test(p))
+const srcFiles = walk(callSiteDir).filter((p) => !/[\\/]i18n[\\/]locales[\\/]/.test(p) && !p.startsWith(localesDir))
 const blob = srcFiles.map((p) => readFileSync(p, 'utf8')).join('\n')
 
 // missing: every t('literal') / useT()('literal') key must exist in base

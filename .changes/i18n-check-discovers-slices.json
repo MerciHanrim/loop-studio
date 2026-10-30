@@ -1,0 +1,1 @@
+{ "type": "internal", "reason": "CI check only (#414): check-i18n reads the catalog slice list from en/index.ts instead of a hand-kept list, so a new slice is covered by the ICU, key-parity and dead-key rules the moment it exists, and a locale folder with a stray slice or another merge order fails. Nothing in the app changes." }
