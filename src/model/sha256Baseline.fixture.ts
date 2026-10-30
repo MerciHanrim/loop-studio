@@ -1061,12 +1061,18 @@ export const SHA256_PUBLISHED: readonly { text: string; hex: string }[] = [
   }
 ]
 
+// issue #409 (2026-10-30, erratum to SEMANTICS-W §W3.1): the loop-model/2
+// semantic-digest projection gained a Parameter's `value`, so the two v2
+// examples with Parameters — coffee-roastery.json and gacha-banner-zones.json —
+// were re-pinned deliberately from the new projection; every other
+// `semanticDigest` here is byte-identical to the 44af9a4 record (v1 bytes,
+// M2-INV-9). The content digests did not move.
 export const EXAMPLE_GRAPH_DIGESTS: readonly { file: string; graph: boolean; modelVersion?: number; semanticDigest?: string; contentDigest?: string; fullContentDigest?: string }[] = [
   {
     "file": "coffee-roastery.json",
     "graph": true,
     "modelVersion": 2,
-    "semanticDigest": "5b174d6a54bdcbf1c60e5651ec47031b4905b4cf99c0bb7305d2b875e22e113e",
+    "semanticDigest": "2336959485435e8fa4b2bd26091f2ba5c142f2fb931debf8958619c978c88996",
     "contentDigest": "a9d63f3b7562e88a7dc842a5966085839c870e79621ad8d70e60cbb8b9c82c87",
     "fullContentDigest": "a9d63f3b7562e88a7dc842a5966085839c870e79621ad8d70e60cbb8b9c82c87"
   },
@@ -1102,7 +1108,7 @@ export const EXAMPLE_GRAPH_DIGESTS: readonly { file: string; graph: boolean; mod
     "file": "gacha-banner-zones.json",
     "graph": true,
     "modelVersion": 2,
-    "semanticDigest": "04fd52f0da05e87fe2e6ba9359546ebb8f3b652c742a9420d03e0eb89c9720e7",
+    "semanticDigest": "8c4f3f607693003de800a9824442f6f3946044308df721d3fff1b852ea0a44a1",
     "contentDigest": "699cfd4908353ca7d5c05e728780585c461d40854d28f1207abe5b72fb62503a",
     "fullContentDigest": "699cfd4908353ca7d5c05e728780585c461d40854d28f1207abe5b72fb62503a"
   },
