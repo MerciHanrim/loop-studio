@@ -16,6 +16,7 @@ import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { invalidTargetText, reviewModel, type ReviewModel } from '../ui/revisionActions'
 import { ConfirmDialog } from './ConfirmDialog'
+import { useDialogFocus } from './useDialogFocus'
 import { useArrowGlyph, useT, type MessageKey } from '../i18n'
 import { isolateLtr } from '../i18n/bidiIsolate'
 import { MobileSheet } from './mobile/MobileSheet'
@@ -370,15 +371,11 @@ export function ReviewOverlay() {
     if (plan) setSel(defaultSelection(plan))
   }, [plan])
 
-  useEffect(() => {
-    if (!pending) return
-    const onKey = (e: KeyboardEvent) => {
-      // the confirmation's own Escape cancels the confirmation only
-      if (e.key === 'Escape' && !confirmOpenDoc) close()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [pending, close, confirmOpenDoc])
+  // #423 — the desktop dialog keeps the shared dialog contract: focus moves in,
+  // Tab stays inside, the page behind is inert, and Escape goes to the top
+  // dialog only (the replace confirmation over Review closes alone). The phone's
+  // sheet has its own hook in MobileSheet.
+  useDialogFocus(Boolean(pending && model) && !isMobile, dialogRef, close)
 
   if (!pending || !model) return null
 
@@ -610,6 +607,7 @@ export function ReviewOverlay() {
         ref={dialogRef}
         className="review"
         role="dialog"
+        aria-modal="true"
         aria-label={t('review.title')}
         onMouseDown={(e) => e.stopPropagation()}
       >
