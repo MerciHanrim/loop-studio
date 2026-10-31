@@ -45,13 +45,14 @@ describe('a node: one entry per field', () => {
     const id = pool()
     const before = past()
     const label0 = node(id).label
+    const capacity0 = node(id).capacity
     S().updateNodeData(id, { label: 'Gold' })
     vi.advanceTimersByTime(200)
     S().updateNodeData(id, { capacity: 50 })
     expect(past()).toBe(before + 2)
     S().undo()
     expect(node(id).label).toBe('Gold')
-    expect(node(id).capacity).toBeUndefined()
+    expect(node(id).capacity).toBe(capacity0)
     S().undo()
     expect(node(id).label).toBe(label0)
   })
@@ -93,6 +94,7 @@ describe('a node: one entry per field', () => {
     const id = pool()
     const before = past()
     const initial0 = node(id).initial
+    const capacity0 = node(id).capacity
     S().updateNodeData(id, { initial: 3, capacity: 9 })
     vi.advanceTimersByTime(100)
     S().updateNodeData(id, { capacity: 12 })
@@ -100,7 +102,7 @@ describe('a node: one entry per field', () => {
     S().undo()
     expect([node(id).initial, node(id).capacity]).toEqual([3, 9])
     S().undo()
-    expect([node(id).initial, node(id).capacity]).toEqual([initial0, undefined])
+    expect([node(id).initial, node(id).capacity]).toEqual([initial0, capacity0])
   })
 
   it('a call that changes nothing records nothing', () => {
@@ -131,9 +133,9 @@ describe('a connection: the fields are the difference of its whole data', () => 
     const id = flow()
     const before = past()
     const flow0 = edge(id).flow
-    S().setEdgeData(id, { ...(edge(id) as never), flow: '3' })
+    S().setEdgeData(id, { ...edge(id), flow: '3' } as never)
     vi.advanceTimersByTime(200)
-    S().setEdgeData(id, { ...(edge(id) as never), resourceType: 'gold' })
+    S().setEdgeData(id, { ...edge(id), resourceType: 'gold' } as never)
     expect(past()).toBe(before + 2)
     S().undo()
     expect([edge(id).flow, edge(id).resourceType]).toEqual(['3', undefined])
@@ -145,7 +147,7 @@ describe('a connection: the fields are the difference of its whole data', () => 
     const id = flow()
     const before = past()
     for (const text of ['1', '1-', '1-3']) {
-      S().setEdgeData(id, { ...(edge(id) as never), flow: text })
+      S().setEdgeData(id, { ...edge(id), flow: text } as never)
       vi.advanceTimersByTime(300)
     }
     expect(past()).toBe(before + 1)
@@ -154,7 +156,7 @@ describe('a connection: the fields are the difference of its whole data', () => 
   it('the whole data passed again unchanged records nothing', () => {
     const id = flow()
     const before = past()
-    S().setEdgeData(id, { ...(edge(id) as never) })
+    S().setEdgeData(id, { ...edge(id) } as never)
     expect(past()).toBe(before)
   })
 })

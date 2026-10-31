@@ -35,7 +35,7 @@ test('a Pool: name, then capacity, confirmed quickly — Undo takes back only th
   const panel = page.locator('.inspector')
   const name = panel.getByLabel('Label', { exact: true })
   const capacity = panel.getByLabel('Capacity (blank = unlimited)')
-  const name0 = (await nodeData(page, id)).label
+  const { label: name0, capacity: capacity0 } = await nodeData(page, id)
   const before = await pastLength(page)
 
   await name.fill('Gold')
@@ -45,7 +45,7 @@ test('a Pool: name, then capacity, confirmed quickly — Undo takes back only th
 
   await undo(page)
   const after1 = await nodeData(page, id)
-  expect([after1.label, after1.capacity]).toEqual(['Gold', undefined])
+  expect([after1.label, after1.capacity]).toEqual(['Gold', capacity0])
   await select(page, id, null) // Undo clears the selection — re-select to read the fields
   await expect(name).toHaveValue('Gold')
   await expect(capacity).toHaveValue('')

@@ -633,10 +633,25 @@ function withRouting(edges: LoopEdge[], id: string, r: EdgeRouting): LoopEdge[] 
 
 // ── save boundary (SEMANTICS of an undo step) ───────────────────────────────
 // One history entry per discrete action. Continuous actions coalesce: a node
-// drag is one entry; rapid edits to the same field within COALESCE_MS are one
-// entry. Selection and simulation never create history.
+// drag is one entry; rapid edits to the same field of the same node or
+// connection are one entry while each follows the last within COALESCE_MS.
+// Selection and simulation never create history.
 const COALESCE_MS = 600
 const HISTORY_MAX = 100
+
+// #420 (Lumi, 2026-10-31) — the coalescing tag of a data edit is the ONE field
+// it changed: confirming another field is another action, however soon after.
+// A call that changes several fields at once is one action and one entry of
+// its own (''), and one that changes nothing records nothing (null). A field
+// that only ever changes WITH another one rides on it: the first keystroke of
+// a hand edit on an auto-composed Parameter label also clears
+// `labelAutoComposed`, and is still typing the label.
+const RIDES_ON: Record<string, string> = { labelAutoComposed: 'label' }
+function fieldTag(prefix: string, id: string, changed: string[]): string | null {
+  const own = changed.filter((k) => !(RIDES_ON[k] !== undefined && changed.includes(RIDES_ON[k])))
+  if (own.length === 0) return null
+  return own.length === 1 ? `${prefix}:${id}:${own[0]}` : ''
+}
 
 // docs/flow-colour-and-compact-nodes.md FC-2.4 — a flow colour is not a model
 // change: setting, removing, undoing or redoing one never resets the run.
@@ -1145,7 +1160,10 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     updateNodeData: (id, patch) => {
       if (editGuard()) return // #334 — refused while the edit lock is on
-      commit(`data:${id}`)
+      const current = get().nodes.find((n) => n.id === id)?.data as Record<string, unknown> | undefined
+      const changed = Object.keys(patch).filter((k) => !Object.is(current?.[k], (patch as Record<string, unknown>)[k]))
+      const tag = fieldTag('data', id, changed)
+      if (tag !== null) commit(tag)
       set({
         nodes: get().nodes.map((n) =>
           n.id === id ? { ...n, data: { ...n.data, ...patch } as LoopNode['data'] } : n,
@@ -1184,18 +1202,20 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     setEdgeData: (id, data) => {
       if (editGuard()) return // #334 — refused while the edit lock is on
-      commit(`edge:${id}`)
       const before = get().edges.find((e) => e.id === id)?.data as Record<string, unknown> | undefined
+      const after = data as unknown as Record<string, unknown>
+      // the Inspector passes the whole `data`: the fields are the difference
+      const touched = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after)])].filter(
+        (k) => !Object.is(before?.[k], after[k]),
+      )
+      const tag = fieldTag('edge', id, touched)
+      if (tag !== null) commit(tag)
       set({ edges: get().edges.map((e) => (e.id === id ? { ...e, data } : e)) })
       // loop-revision/3 §R3-3 — `route` / `waypoints` are cosmetic: they change
       // the canonical digest but NOTHING a simulation computes, so a routing-only
       // edit must not bump `simulationRev` (mirrors the pure-`label` exemption).
-      const after = data as unknown as Record<string, unknown>
       // docs/flow-colour-and-compact-nodes.md FC-2.4 — so is a flow colour
       const COSMETIC = new Set(['route', 'waypoints', 'accent'])
-      const touched = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after)])].filter(
-        (k) => !Object.is(before?.[k], after[k]),
-      )
       // loop-model/2 (SEMANTICS-M2.md §M2-1.1) — the leading-`@` commit boundary:
       // the user editing a resource-edge `flow` and committing a value whose
       // trimmed form starts with `@` (reference well-formed OR malformed) is the
