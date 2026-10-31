@@ -6,6 +6,7 @@
 
 import { toCsv } from './csv'
 import type { DuplicateTripleError } from './dataImportRefresh'
+import { PathIndex } from './dataImportIndex'
 import type { ImportSourceTable } from './serialize'
 import type { LoopNode, ParameterData } from './types'
 
@@ -46,12 +47,17 @@ export function buildChangeProposalCsv(
   // exclude" discipline for the exact same data-integrity condition
   // (§DI-D15), using the identical `DuplicateTripleError` shape so a
   // consumer can show one message regardless of which entry point hit it.
+  // #423 — the Parameters by their (table, row, column) triple, built once for
+  // this export, in node order: `all(...)` is what the per-cell `filter`
+  // returned, and its first entry what the per-cell `find` returned
+  const parameters = hostNodes.filter((n) => paramData(n) !== null)
+  const byTriple = new PathIndex(parameters, (n) => {
+    const d = paramData(n)!
+    return [d.sourceTableId, d.sourceKey, d.sourceColumnId]
+  })
   const duplicateTriples: DuplicateTripleError[] = []
   for (const c of candidates) {
-    const matches = hostNodes.filter((n) => {
-      const d = paramData(n)
-      return d?.sourceTableId === c.table.sourceTableId && d.sourceKey === c.sourceKey && d.sourceColumnId === c.sourceColumnId
-    })
+    const matches = byTriple.all(c.table.sourceTableId, c.sourceKey, c.sourceColumnId)
     if (matches.length >= 2) {
       duplicateTriples.push({ sourceTableId: c.table.sourceTableId, sourceKey: c.sourceKey, sourceColumnId: c.sourceColumnId, nodeIds: matches.map((n) => n.id) })
     }
@@ -60,10 +66,7 @@ export function buildChangeProposalCsv(
 
   const rows: (string | number)[][] = [['source_table', 'source_key', 'source_column', 'previous_value', 'new_value']]
   for (const c of candidates) {
-    const match = hostNodes.find((n) => {
-      const d = paramData(n)
-      return d?.sourceTableId === c.table.sourceTableId && d.sourceKey === c.sourceKey && d.sourceColumnId === c.sourceColumnId
-    })
+    const match = byTriple.all(c.table.sourceTableId, c.sourceKey, c.sourceColumnId)[0]
     if (!match) continue // zero Parameters carrying this triple -- locally-deleted-but-unresolved, or already-discarded; nothing live to report
     const value = paramData(match)!.value
     if (value === c.base) continue // unchanged -- §DI-D1 scopes this export to changed rows only

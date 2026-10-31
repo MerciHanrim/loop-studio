@@ -3,6 +3,7 @@
 // be produced -- `buildImportCommit` (dataImportCommit.ts) accepts nothing
 // else, so a caller cannot skip validation, not just "shouldn't."
 
+import { ImportTableLookup, tableLookup } from './dataImportIndex'
 import { nextId } from './factory'
 import { SOURCE_KEY_MAX_BYTES, utf8Len } from './model'
 import { deepEq } from './revision'
@@ -189,12 +190,14 @@ export function composeRowLabelTerm(table: ValidatedTable, row: ValidatedRow): s
  *  during `validateDrafts` and never reaches this function in that case;
  *  the `null` branch here is a pure defensive fallback). */
 export function resolveForeignKeyLabelTerm(
-  tables: readonly ValidatedTable[],
+  tables: readonly ValidatedTable[] | ImportTableLookup<ValidatedTable>,
   refTableId: string,
   targetSourceKey: string,
 ): { term: string; usedFallback: boolean } {
-  const target = tables.find((t) => t.sourceTableId === refTableId)
-  const targetRow = target?.rows.find((r) => r.sourceKey === targetSourceKey)
+  // #423 — a caller labelling many rows passes one lookup for the operation
+  const lookup = tableLookup(tables)
+  const target = lookup.table(refTableId)
+  const targetRow = target ? lookup.row(target, targetSourceKey) : undefined
   if (!target || !targetRow) return { term: targetSourceKey, usedFallback: true }
   const composed = composeRowLabelTerm(target, targetRow)
   return composed !== null ? { term: composed, usedFallback: false } : { term: targetSourceKey, usedFallback: true }
@@ -206,10 +209,11 @@ export function resolveForeignKeyLabelTerm(
  *  returns which `sourceColumnId`s used the raw-key fallback, for the
  *  non-blocking warning. */
 export function composeFullRowLabel(
-  tables: readonly ValidatedTable[],
+  tables: readonly ValidatedTable[] | ImportTableLookup<ValidatedTable>,
   table: ValidatedTable,
   row: ValidatedRow,
 ): { text: string; fallbackColumnIds: string[] } {
+  tables = tableLookup(tables) // one lookup for all of this row's FK cells
   const parts: string[] = []
   const fallbackColumnIds: string[] = []
   for (const c of table.columns) {
@@ -517,18 +521,20 @@ export function validateDrafts(
   }
 
   // Pass B -- cross-table foreign-key resolution (needs every table's key
-  // set built in pass A) + the label-fallback warning.
+  // set built in pass A) + the label-fallback warning. #423 — one lookup for
+  // the pass, not a scan of the target's rows per FK cell.
+  const lookup = new ImportTableLookup(built)
   for (let ti = 0; ti < built.length; ti++) {
     const table = built[ti]
     for (let ci = 0; ci < table.columns.length; ci++) {
       const col = table.columns[ci]
       if (col.role !== 'foreignKey' || !col.refTableId) continue
-      const target = built.find((t) => t.sourceTableId === col.refTableId)
+      const target = lookup.table(col.refTableId)
       for (let ri = 0; ri < table.rows.length; ri++) {
         const row = table.rows[ri]
         const value = row.foreignKey[col.sourceColumnId]
         if (value === undefined) continue // empty FK cell -- no relation for this row, allowed
-        const targetRow = target?.rows.find((r) => r.sourceKey === value)
+        const targetRow = target ? lookup.row(target, value) : undefined
         if (!targetRow) {
           errors.push({ code: 'orphan-foreign-key', tableIndex: ti, rowIndex: ri, columnIndex: ci, detail: { value, header: col.header } })
           continue

@@ -10,6 +10,7 @@ import { nextId } from './factory'
 import { NODE_H, NODE_W, gridPositions, nodeRect, rectsOverlap, shiftUntilClear, type Rect } from './dataImportCommit'
 import { snapNodePosition } from './layout/grid'
 import { composeFullRowLabel } from './dataImportValidate'
+import { firstByKey, groupByKey, ImportTableLookup, PathIndex, tableLookup } from './dataImportIndex'
 import type { ValidatedRefreshSnapshot } from './dataImportRefreshValidate'
 import { findReferences, type NodeReference } from './dataImportReferences'
 import type { ImportRow, ImportSourceTable, SavedFrame } from './serialize'
@@ -130,6 +131,27 @@ export function findImportForeignKeyDependents(
   return out
 }
 
+/** #423 — `findImportForeignKeyDependents` for every target key at once, built
+ *  with the same walk (tables, then columns, then rows), so each key's list is
+ *  in the same order the per-key scan returned. */
+function foreignKeyDependentsByKey(tables: readonly ImportSourceTable[], targetTableId: string): Map<string, ImportForeignKeyDependency[]> {
+  const out = new Map<string, ImportForeignKeyDependency[]>()
+  for (const t of tables) {
+    for (const col of t.columns) {
+      if (col.role !== 'foreignKey' || col.refTableId !== targetTableId) continue
+      for (const row of t.rows) {
+        const key = row.foreignKey[col.sourceColumnId]
+        if (key === undefined) continue
+        const dep = { dependentTableId: t.sourceTableId, dependentSourceKey: row.sourceKey, sourceColumnId: col.sourceColumnId }
+        const list = out.get(key)
+        if (list) list.push(dep)
+        else out.set(key, [dep])
+      }
+    }
+  }
+  return out
+}
+
 /** §DI-D15 -- two or more ACTIVE Parameters sharing one generating triple is
  *  a data-integrity error, never a state to classify. `sourceTableId` is
  *  included so a cross-table consumer (the CSV exporter) can use the exact
@@ -201,13 +223,22 @@ export function diffRefresh(
   }
   if (duplicateTriples.length > 0) return { ok: false, duplicateTriples }
 
+  // #423 — this table's Parameters by column and by (row, column), and its
+  // foreign-key dependents by key, each built once for this diff
+  const nodesByColumn = groupByKey(tripleNodes, (n) => paramData(n)!.sourceColumnId)
+  const nodesByCell = new PathIndex(tripleNodes, (n) => [paramData(n)!.sourceKey, paramData(n)!.sourceColumnId])
+  let dependentsByKey: Map<string, ImportForeignKeyDependency[]> | null = null
+  const dependentsOf = (sourceKey: string): ImportForeignKeyDependency[] => [
+    ...((dependentsByKey ??= foreignKeyDependentsByKey(tables, refreshingTableId)).get(sourceKey) ?? []),
+  ]
+
   // -- removed columns (a stored column absent from `resolvedColumns`) ----
   const resolvedIds = new Set(snapshot.resolvedColumns.map((c) => c.sourceColumnId))
   const removedColumns: RemovedColumnOutcome[] = []
   for (const c of table.columns) {
     if (resolvedIds.has(c.sourceColumnId)) continue
     if (c.role === 'number') {
-      const nodeIds = tripleNodes.filter((n) => paramData(n)!.sourceColumnId === c.sourceColumnId).map((n) => n.id)
+      const nodeIds = (nodesByColumn.get(c.sourceColumnId) ?? []).map((n) => n.id)
       removedColumns.push({ role: 'number', sourceColumnId: c.sourceColumnId, nodeIds })
     } else if (c.role === 'label') {
       removedColumns.push({ role: 'label', sourceColumnId: c.sourceColumnId })
@@ -244,7 +275,7 @@ export function diffRefresh(
       // dependents here (informational; ENFORCED at commit time by
       // `buildRefreshCommit`, symmetrically with how a graph reference is
       // only enforced by `findReferences` at commit time too, never here).
-      const dependents = findImportForeignKeyDependents(tables, refreshingTableId, sourceKey)
+      const dependents = dependentsOf(sourceKey)
       rows.push({ kind: 'missing', sourceKey, dependents })
       continue
     }
@@ -259,10 +290,7 @@ export function diffRefresh(
         cells.push({ kind: 'added-cell', sourceColumnId: columnId, incoming })
         continue
       }
-      const matches = tripleNodes.filter((n) => {
-        const d = paramData(n)!
-        return d.sourceKey === sourceKey && d.sourceColumnId === columnId
-      })
+      const matches = nodesByCell.all(sourceKey, columnId)
       const base = oldRow.number[columnId]
       if (matches.length === 0) {
         if (base === undefined) continue // already-discarded -- silently skipped, never resurfaces (§DI11 phase 2 item 6)
@@ -309,7 +337,7 @@ export function diffRefresh(
   const crossTableLabelImpact: CrossTableImpact[] = []
   for (const row of rows) {
     if (row.kind !== 'present' || row.labelConstituentChanges.length === 0) continue
-    crossTableLabelImpact.push(...findImportForeignKeyDependents(tables, refreshingTableId, row.sourceKey))
+    crossTableLabelImpact.push(...dependentsOf(row.sourceKey))
   }
 
   const plan: RefreshDiffPlan = {
@@ -365,12 +393,19 @@ function unlinkNode(n: LoopNode): LoopNode {
  *  (§DI-D19 item 2) to reuse the SAME composition this module's own
  *  cross-table recompose uses -- a table-rename cascade must never drift
  *  from what a refresh would compute for the same row/column. */
-export function parameterLabel(tables: readonly ImportSourceTable[], sourceTableId: string, sourceKey: string, sourceColumnId: string): string | null {
-  const table = tables.find((t) => t.sourceTableId === sourceTableId)
-  const row = table?.rows.find((r) => r.sourceKey === sourceKey)
+export function parameterLabel(
+  tables: readonly ImportSourceTable[] | ImportTableLookup<ImportSourceTable>,
+  sourceTableId: string,
+  sourceKey: string,
+  sourceColumnId: string,
+): string | null {
+  // #423 — a caller relabelling many nodes passes one lookup for the operation
+  const lookup = tableLookup(tables)
+  const table = lookup.table(sourceTableId)
+  const row = table ? lookup.row(table, sourceKey) : undefined
   const column = table?.columns.find((c) => c.sourceColumnId === sourceColumnId)
   if (!table || !row || !column) return null
-  const { text } = composeFullRowLabel(tables, table, row)
+  const { text } = composeFullRowLabel(lookup, table, row)
   return `${table.label} · ${text} · ${column.header}`
 }
 
@@ -427,9 +462,14 @@ export function buildRefreshCommit(
     }
   }
   const tripleNodes = host.nodes.filter((n) => paramData(n)?.sourceTableId === refreshingTableId)
+  // #423 — built once for this commit: this table's Parameters by row key, and
+  // every node by id (the first node with an id, as `find` returned)
+  const tripleNodesByKey = groupByKey(tripleNodes, (n) => paramData(n)!.sourceKey)
+  const nodesOfKey = (sourceKey: string) => tripleNodesByKey.get(sourceKey) ?? []
+  const nodeById = firstByKey(host.nodes, (n) => n.id)
   for (const row of plan.rows) {
     if (row.kind !== 'missing' || resolution.missingRowChoices.get(row.sourceKey) !== 'delete') continue
-    const nodeIds = tripleNodes.filter((n) => paramData(n)!.sourceKey === row.sourceKey).map((n) => n.id)
+    const nodeIds = nodesOfKey(row.sourceKey).map((n) => n.id)
     for (const nodeId of nodeIds) {
       const refs = findReferences(host.nodes, host.edges, modelVersion, nodeId)
       if (refs.length > 0) return { ok: false, reason: 'referenced-node', detail: { nodeId, refs } }
@@ -450,7 +490,7 @@ export function buildRefreshCommit(
   for (const rc of plan.removedColumns) {
     if (rc.role !== 'number') continue
     for (const nodeId of rc.nodeIds) {
-      const node = host.nodes.find((n) => n.id === nodeId)
+      const node = nodeById.get(nodeId)
       if (!node) continue
       updatedNodesById.set(nodeId, unlinkNode(node))
       unlinkedThisCommit.add(nodeId)
@@ -467,10 +507,10 @@ export function buildRefreshCommit(
 
     if (row.kind === 'missing') {
       const choice = resolution.missingRowChoices.get(row.sourceKey)
-      const ownedNodeIds = tripleNodes.filter((n) => paramData(n)!.sourceKey === row.sourceKey).map((n) => n.id)
+      const ownedNodeIds = nodesOfKey(row.sourceKey).map((n) => n.id)
       if (choice === 'unlink') {
         for (const nodeId of ownedNodeIds) {
-          const node = host.nodes.find((n) => n.id === nodeId)
+          const node = nodeById.get(nodeId)
           if (!node) continue
           updatedNodesById.set(nodeId, unlinkNode(node))
           unlinkedThisCommit.add(nodeId)
@@ -519,12 +559,12 @@ export function buildRefreshCommit(
       }
       number[cell.sourceColumnId] = cell.incoming // every other state moves base to incoming
       if (cell.state === 'source-only' || cell.state === 'converged') {
-        const node = host.nodes.find((n) => n.id === cell.nodeId)!
+        const node = nodeById.get(cell.nodeId)!
         updatedNodesById.set(cell.nodeId, { ...node, data: { ...paramData(node)!, value: cell.incoming } })
       } else if (cell.state === 'conflict') {
         const choice = resolution.cellChoices.get(pairKey(row.sourceKey, cell.sourceColumnId)) ?? 'keep-mine'
         if (choice === 'apply-incoming') {
-          const node = host.nodes.find((n) => n.id === cell.nodeId)!
+          const node = nodeById.get(cell.nodeId)!
           updatedNodesById.set(cell.nodeId, { ...node, data: { ...paramData(node)!, value: cell.incoming } })
         }
       }
@@ -565,6 +605,8 @@ export function buildRefreshCommit(
   }
   // 2. splice it into the whole batch -- everything else unchanged.
   const postRefreshTables: ImportSourceTable[] = tables.map((t) => (t.sourceTableId === refreshingTableId ? refreshedTable : t))
+  // #423 — one lookup over the post-refresh batch for every relabel below
+  const postLookup = new ImportTableLookup(postRefreshTables)
 
   // 3/4. compose against `postRefreshTables` (NEVER the stale pre-refresh
   // `tables`) and apply as `updatedNodes` -- this table's own Parameters
@@ -573,7 +615,7 @@ export function buildRefreshCommit(
     if (unlinkedThisCommit.has(n.id) || removedThisCommit.has(n.id)) continue
     const d = paramData(n)!
     if (d.labelAutoComposed !== true || !d.sourceKey || !d.sourceColumnId) continue
-    const label = parameterLabel(postRefreshTables, refreshingTableId, d.sourceKey, d.sourceColumnId)
+    const label = parameterLabel(postLookup, refreshingTableId, d.sourceKey, d.sourceColumnId)
     if (label === null || label === d.label) continue // no actual text change -- leave the node out of `updatedNodes` entirely unless something else already touched it
     const base = updatedNodesById.get(n.id) ?? n
     updatedNodesById.set(n.id, { ...base, data: { ...paramData(base)!, label } })
@@ -586,7 +628,7 @@ export function buildRefreshCommit(
       if (!d || d.sourceTableId === refreshingTableId) continue // this table's own nodes handled above
       if (d.labelAutoComposed !== true || !d.sourceTableId || !d.sourceKey || !d.sourceColumnId) continue
       if (!impactedPairs.has(pairKey(d.sourceTableId, d.sourceKey))) continue
-      const label = parameterLabel(postRefreshTables, d.sourceTableId, d.sourceKey, d.sourceColumnId)
+      const label = parameterLabel(postLookup, d.sourceTableId, d.sourceKey, d.sourceColumnId)
       if (label === null || label === d.label) continue
       const base = updatedNodesById.get(n.id) ?? n
       updatedNodesById.set(n.id, { ...base, data: { ...paramData(base)!, label } })
@@ -599,7 +641,7 @@ export function buildRefreshCommit(
   const positions = placeNewNodes(pending.length, newNodeOrigin, host.nodes, existingFrames)
   if (positions === null) return { ok: false, reason: 'placement-failed' } // nothing has been applied yet -- this is a pure function; returning here commits nothing
   const createdNodes: LoopNode[] = pending.map((p, i) => {
-    const label = parameterLabel(postRefreshTables, refreshingTableId, p.sourceKey, p.sourceColumnId) ?? p.sourceKey
+    const label = parameterLabel(postLookup, refreshingTableId, p.sourceKey, p.sourceColumnId) ?? p.sourceKey
     return {
       id: nextId('parameter'),
       type: 'parameter',

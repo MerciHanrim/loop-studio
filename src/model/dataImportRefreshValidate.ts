@@ -12,6 +12,7 @@
 import { deepEq } from './revision'
 import { SOURCE_KEY_MAX_BYTES, utf8Len } from './model'
 import { parseNumberCell } from './dataImportValidate'
+import { ImportTableLookup } from './dataImportIndex'
 import {
   DI_COLUMNS_MAX,
   DI_HEADER_MAX,
@@ -416,13 +417,15 @@ export function validateRefreshSnapshot(
   // directions into one validation pass would fail a genuinely
   // disappearing lookup row as a generic orphan-FK error before it ever
   // reaches that specific, actionable check.
+  // #423 — one lookup for the pass, not a scan of the target's rows per cell
+  const lookup = new ImportTableLookup(tables)
   for (const c of resolvedColumns) {
     if (c.role !== 'foreignKey' || !c.refTableId) continue
-    const target = tables.find((t) => t.sourceTableId === c.refTableId)
+    const target = lookup.table(c.refTableId)
     for (let ri = 0; ri < rows.length; ri++) {
       const value = rows[ri].foreignKey[c.sourceColumnId]
       if (value === undefined) continue
-      const targetRow = target?.rows.find((r) => r.sourceKey === value)
+      const targetRow = target ? lookup.row(target, value) : undefined
       if (!targetRow) {
         errors.push({ code: 'orphan-foreign-key', rowIndex: ri, sourceColumnId: c.sourceColumnId, detail: { value } })
       }
