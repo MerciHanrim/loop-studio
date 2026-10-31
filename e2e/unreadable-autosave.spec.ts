@@ -153,6 +153,48 @@ test.describe('#420 — an unreadable saved diagram', () => {
     await other.close()
   })
 
+  // review round 2: another tab that leaves a readable record, or none, ends the
+  // recovery — the screen says so, offers nothing to download or discard, and
+  // Try again starts the app normally
+  test('another tab saving a readable diagram: the screen says it can be opened now, no Download or Discard, Try again opens it', async ({ page }) => {
+    await seedRecord(page, UNREADABLE['broken JSON'])
+    await page.goto('/')
+    await expect(screen(page)).toBeVisible()
+    const other = await page.context().newPage()
+    await other.goto('about:blank')
+    await other.goto(page.url())
+    await other.evaluate(([k, v]) => localStorage.setItem(k, v), [WORK_KEY, READABLE] as const)
+    const readable = page.locator('[data-recovery="readable"]')
+    await expect(readable).toBeVisible()
+    await expect(readable).toContainText(/can now be opened/i)
+    await expect(readable.getByRole('button', { name: /download|discard/i })).toHaveCount(0)
+    await other.close()
+    await readable.getByRole('button', { name: /try again/i }).click()
+    await expect(readable).toHaveCount(0)
+    await expect(page.locator('.react-flow')).toBeVisible()
+    await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
+    const ids = await page.evaluate(() => (window as unknown as { __loop: { graph: { getState: () => { nodes: { id: string }[] } } } }).__loop.graph.getState().nodes.map((n) => n.id))
+    expect(ids).toEqual(['mine'])
+  })
+
+  test('another tab removing the record: the screen says it is gone, no Download or Discard, Try again starts the app', async ({ page }) => {
+    await seedRecord(page, UNREADABLE['a newer schema'])
+    await page.goto('/')
+    await expect(screen(page)).toBeVisible()
+    const other = await page.context().newPage()
+    await other.goto('about:blank')
+    await other.goto(page.url())
+    await other.evaluate((k) => localStorage.removeItem(k), WORK_KEY)
+    const gone = page.locator('[data-recovery="gone"]')
+    await expect(gone).toBeVisible()
+    await expect(gone).toContainText(/was removed/i)
+    await expect(gone.getByRole('button', { name: /download|discard|reopen/i })).toHaveCount(0)
+    await other.close()
+    await gone.getByRole('button', { name: /try again/i }).click()
+    await expect(gone).toHaveCount(0)
+    await expect(page.locator('.react-flow')).toBeVisible()
+  })
+
   test('Continue in a temporary session: the app works in memory, the saved record never changes, a share link opens in memory', async ({ page }) => {
     const text = UNREADABLE['broken JSON']
     await seedRecord(page, text)

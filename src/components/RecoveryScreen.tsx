@@ -48,7 +48,9 @@ function downloadName(now = new Date()): string {
 
 export function RecoveryScreen({ initial, reread, discardIfUnchanged, onDone }: Props) {
   const t = useT()
-  const [read, setRead] = useState(initial)
+  // what the record is NOW, as far as this screen knows: the boot read, then
+  // every re-read (another tab may make it readable, or remove it)
+  const [read, setRead] = useState<StoredRecordRead>(initial)
   const [stillUnreadable, setStillUnreadable] = useState(false)
   const [changed, setChanged] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
@@ -74,17 +76,19 @@ export function RecoveryScreen({ initial, reread, discardIfUnchanged, onDone }: 
     setStillUnreadable(true)
   }
 
-  /** #420 review — the record is no longer what this screen showed: say so and
-   *  show what is there now. A record that can now be read (or is gone) is
-   *  left for Try again to open; nothing is started or removed behind the
-   *  person's back. */
+  /** #420 review — the record is no longer what this screen showed: show what
+   *  is there NOW. Still unreadable (other text) or a refused read: that state,
+   *  with the "it changed" note. Readable now, or gone: that state too —
+   *  Download / Discard disappear, and Try again starts the app with it (or
+   *  as a first run). Nothing is started or removed behind the person's back. */
   const showChanged = (now: StoredRecordRead) => {
-    if (now.kind === 'unreadable' || now.kind === 'read-failed') setRead(now)
+    setConfirmDiscard(false) // a confirmation was for the record as it WAS shown
+    setRead(now)
     setStillUnreadable(false)
-    setChanged(true)
+    setChanged(now.kind === 'unreadable' || now.kind === 'read-failed')
   }
 
-  /** the text this screen is about, or null when it shows a storage error */
+  /** the text this screen is about, or null when it shows another state */
   const shownText = read.kind === 'unreadable' ? read.text : null
 
   // another tab writing the record while this screen is open: update at once
@@ -129,15 +133,31 @@ export function RecoveryScreen({ initial, reread, discardIfUnchanged, onDone }: 
   }
 
   const unreadable = read.kind === 'unreadable' ? read : null
+  // #420 review — what the screen shows; `readable` / `gone` only after another
+  // tab changed the record while the screen was open
+  const state =
+    read.kind === 'unreadable' ? 'unreadable' : read.kind === 'read-failed' ? 'storage-error' : read.kind === 'ok' ? 'readable' : 'gone'
+  const TITLE = {
+    unreadable: 'recovery.title',
+    'storage-error': 'recovery.storageError.title',
+    readable: 'recovery.changedTitle',
+    gone: 'recovery.changedTitle',
+  } as const
+  const LEAD = {
+    unreadable: 'recovery.body',
+    'storage-error': 'recovery.storageError.body',
+    readable: 'recovery.nowReadable',
+    gone: 'recovery.nowGone',
+  } as const
 
   return (
-    <main className="gate recovery" data-recovery={unreadable ? 'unreadable' : 'storage-error'}>
+    <main className="gate recovery" data-recovery={state}>
       <section className="gate__card" aria-labelledby={titleId} aria-describedby={leadId}>
         <h1 id={titleId} className="gate__title" ref={headingRef} tabIndex={-1}>
-          {t(unreadable ? 'recovery.title' : 'recovery.storageError.title')}
+          {t(TITLE[state])}
         </h1>
         <p id={leadId} className="gate__lead">
-          {t(unreadable ? 'recovery.body' : 'recovery.storageError.body')}
+          {t(LEAD[state])}
         </p>
         {unreadable?.newer ? <p className="gate__note" data-recovery-note="newer">{t('recovery.newer')}</p> : null}
         {stillUnreadable ? (
@@ -179,7 +199,8 @@ export function RecoveryScreen({ initial, reread, discardIfUnchanged, onDone }: 
             </button>
           ) : null}
         </div>
-        <p className="gate__sub">{t('recovery.temporary.sub')}</p>
+        {/* "leaves the saved diagram as it is": not said when there is none */}
+        {state !== 'gone' ? <p className="gate__sub">{t('recovery.temporary.sub')}</p> : null}
       </section>
       <ConfirmDialog
         open={confirmDiscard}
