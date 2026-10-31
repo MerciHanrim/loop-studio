@@ -131,6 +131,9 @@ export async function initI18n(): Promise<void> {
       activeLocale: entry.code,
       activeCatalog: cat,
       requestedLocale: entry.code,
+      // #424 — boot runs this more than once (the gate, the recovery screen,
+      // startApp): an earlier run's failure no longer describes what shows
+      loadError: null,
     })
     applyHtml(entry.code)
   } catch {
