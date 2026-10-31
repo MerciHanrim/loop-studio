@@ -64,7 +64,9 @@ ok(`templates: ${TEMPLATE_IDS.join(', ')}`)
 
 // ── the overlay registration, from src/i18n/templateLabels/ source ──
 const overlaySrc = read('src/i18n/templateLabels/index.ts')
-const dictsSrc = read('src/i18n/templateLabels/dicts.ts')
+// LOOP_TEMPLATE_DICTS_FILE: a fixture copy of dicts.ts for
+// scripts/check-template-labels.test.mjs; the real file otherwise
+const dictsSrc = read(process.env.LOOP_TEMPLATE_DICTS_FILE ?? 'src/i18n/templateLabels/dicts.ts')
 // EN_FALLBACK_TEMPLATES = { ko: ['equilibrium', 'deadlock'] }
 const enFallback = {}
 const efBlock = /EN_FALLBACK_TEMPLATES[^{]*\{([\s\S]*?)\n\}/.exec(overlaySrc)?.[1] ?? ''
@@ -76,6 +78,23 @@ const loaderBlock = /DICT_LOADERS[^{]*\{([\s\S]*?)\n\}/.exec(dictsSrc)?.[1] ?? '
 const dictLocales = [...loaderBlock.matchAll(/^\s*'?([a-zA-Z][\w-]*)'?\s*:\s*\(\)/gm)].map(
   (m) => m[1],
 )
+
+// #424 — the loaders and the registry name the SAME non-base locales, exactly.
+// Before, a locale dropped from DICT_LOADERS was reported as "no dictionary
+// module — every template opens in English" and passed (reproduced with `ja`);
+// a loader for a locale the registry does not ship went unnoticed too. There
+// is no exception list: every shipped non-base locale has a dictionary today.
+if (dictLocales.length === 0) {
+  fail('could not read the DICT_LOADERS block from src/i18n/templateLabels/dicts.ts — the guard cannot run')
+  process.exit(1)
+}
+const missingLoaders = NON_BASE.filter((locale) => !dictLocales.includes(locale))
+const extraLoaders = dictLocales.filter((locale) => !NON_BASE.includes(locale))
+for (const locale of missingLoaders) fail(`${locale}: a non-base locale in the registry with no DICT_LOADERS entry`)
+for (const locale of extraLoaders) fail(`${locale}: a DICT_LOADERS entry for a locale that is not a non-base locale in the registry`)
+const twice = new Set(dictLocales).size !== dictLocales.length
+if (twice) fail(`DICT_LOADERS names a locale twice: ${dictLocales.join(', ')}`)
+if (!missingLoaders.length && !extraLoaders.length && !twice) ok(`DICT_LOADERS = the registry's ${NON_BASE.length} non-base locales`)
 
 // node ids with no user-facing label — exempt from "missing". Empty today.
 const NO_LABEL_NODE_IDS = new Set()
@@ -294,11 +313,8 @@ function checkSharedIdTargets() {
 }
 
 for (const locale of NON_BASE) {
-  if (!dictLocales.includes(locale)) {
-    // no dictionary module for this locale at all → every template is EN
-    ok(`${locale}: no dictionary module — every template opens in English`)
-    continue
-  }
+  // already a failure above (#424): nothing more to check for it
+  if (!dictLocales.includes(locale)) continue
   const dictSrc = read(`src/i18n/templateLabels/${locale}.ts`)
 
   for (const tplId of TEMPLATE_IDS) {
