@@ -48,7 +48,10 @@ test.describe('#420 — an unreadable saved diagram', () => {
       await page.goto('/')
       await expect(screen(page)).toBeVisible()
       await expect(page.locator('.react-flow')).toHaveCount(0) // the app did not start
-      await page.waitForTimeout(2000) // the autosave debounce is 400 ms: give any writer the chance
+      // #424 — a deliberate time wait: what is checked is that NOTHING writes
+      // while time passes, before the app (and its autosave) exists. There is no
+      // state to wait for; 2 s is five times the 400 ms autosave debounce.
+      await page.waitForTimeout(2000)
       await page.evaluate(() => {
         Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
         document.dispatchEvent(new Event('visibilitychange'))
@@ -63,6 +66,9 @@ test.describe('#420 — an unreadable saved diagram', () => {
     await seedRecord(page, text)
     await page.goto('/#g1=eJxLy0jNzMlXSE7MKVHIzEvLLy0BAEPPBv8')
     await expect(screen(page)).toBeVisible()
+    // #424 — a deliberate time wait: what is checked is that the link is NOT
+    // opened or stripped and the record NOT written while time passes; there
+    // is no state to wait for (nothing is supposed to happen)
     await page.waitForTimeout(1000)
     expect(await page.evaluate(() => location.hash)).toMatch(/^#g1=/)
     expect(await record(page)).toBe(text)
@@ -204,7 +210,9 @@ test.describe('#420 — an unreadable saved diagram', () => {
     await expect(page.locator('.react-flow')).toBeVisible()
     await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
     await page.evaluate(() => (window as unknown as { __loop: { graph: { getState: () => { addNodeAt: (k: string, p: object) => void } } } }).__loop.graph.getState().addNodeAt('source', { x: 300, y: 0 }))
-    await page.waitForTimeout(1000)
+    // #424 — not a wait for the 400 ms debounce: the pending autosave is written
+    // now (to memory, in this temporary session), then the page is left
+    await page.evaluate(() => (window as unknown as { __loop: { autosave: { flush: () => void } } }).__loop.autosave.flush())
     await page.evaluate(() => window.dispatchEvent(new Event('pagehide')))
     expect(await record(page)).toBe(text)
   })

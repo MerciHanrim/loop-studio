@@ -63,7 +63,10 @@ test.describe('a node drag is one undo transaction (#408)', () => {
     expect(atPause.pos).not.toEqual(before.pos) // the drag is under way
     expect(atPause.past).toBe(before.past) // and nothing is recorded yet
 
-    await page.waitForTimeout(900) // the hold, button down, longer than the old window
+    // #424 — a deliberate time wait: the hold IS the check. 900 ms, button
+    // down, is longer than the store's 600 ms coalescing window the drag once
+    // leaned on; there is no state to wait for, the pointer is still.
+    await page.waitForTimeout(900)
 
     await page.mouse.move(cx + 120, cy + 72, { steps: 8 })
     await page.mouse.up()
@@ -104,7 +107,7 @@ test.describe('a node drag is one undo transaction (#408)', () => {
     await page.mouse.move(cx, cy)
     await page.mouse.down()
     await page.mouse.move(cx + 40, cy + 24, { steps: 8 })
-    await page.waitForTimeout(900)
+    await page.waitForTimeout(900) // #424 — kept: the hold past the 600 ms window, as in the first case
     await page.mouse.move(cx + 120, cy + 72, { steps: 8 })
     await page.mouse.up()
     const released = await state(page)
@@ -140,7 +143,7 @@ test.describe('a node drag is one undo transaction (#408)', () => {
     // that point is a net offset of zero, and a zero offset of an on-grid
     // node snaps to itself
     await page.mouse.move(gx + 80, gy + 48, { steps: 8 })
-    await page.waitForTimeout(900)
+    await page.waitForTimeout(900) // #424 — kept: the hold past the 600 ms window, as in the first case
     await page.mouse.move(gx + 10, gy + 6, { steps: 8 })
     await page.mouse.up()
     const released = await state(page)

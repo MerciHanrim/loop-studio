@@ -30,7 +30,8 @@ test('a Pool: name, then capacity, confirmed quickly — Undo takes back only th
     g.addNodeAt('pool', { x: 200, y: 100 })
     return (window as unknown as Bridge).__loop.graph.getState().nodes.at(-1).id as string
   })
-  await page.waitForTimeout(700) // the add is its own entry
+  // the add is its own entry without waiting: `addNodeAt` commits with no
+  // coalescing tag (#424 — the 700 ms wait that stood here guarded nothing)
   await select(page, id, null)
   const panel = page.locator('.inspector')
   const name = panel.getByLabel('Label', { exact: true })
@@ -64,7 +65,7 @@ test('a connection: flow, then resource type, confirmed quickly — Undo takes b
     return (window as unknown as Bridge).__loop.graph.getState().edges.at(-1).id as string
   })
   await page.evaluate(() => (window as unknown as Bridge).__loop.ui.getState().setPanelDetailsOpen(true))
-  await page.waitForTimeout(700)
+  // `onConnect` commits with no coalescing tag either (#424 — no wait needed)
   await select(page, null, id)
   const panel = page.locator('.inspector')
   const flow = panel.getByLabel('Flow', { exact: true })

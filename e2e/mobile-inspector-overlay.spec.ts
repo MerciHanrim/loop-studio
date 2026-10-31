@@ -41,18 +41,27 @@ async function loadWithSelection(page: Page) {
   expect(await overlay(page)).toBe('inspector')
 }
 
-/** what is on screen once the effects have settled */
+/** what is on screen */
+const onScreen = async (page: Page) => ({
+  overlay: await overlay(page),
+  inspector: await inspector(page).isVisible(),
+  timeline: await timeline(page).isVisible(),
+  mcDialog: await mcDialog(page).isVisible(),
+  mcOpen: await mcOpen(page),
+  selected: await selected(page),
+})
+
+/** #424 — a deliberate time wait, only for the reads that claim a screen
+ *  STAYS open over a selection: the defect was the Inspector's effect taking
+ *  the slot back after the change, and nothing marks the moment it would
+ *  have; 300 ms is the window in which it must not */
 async function settle(page: Page) {
   await page.waitForTimeout(300)
-  return {
-    overlay: await overlay(page),
-    inspector: await inspector(page).isVisible(),
-    timeline: await timeline(page).isVisible(),
-    mcDialog: await mcDialog(page).isVisible(),
-    mcOpen: await mcOpen(page),
-    selected: await selected(page),
-  }
+  return onScreen(page)
 }
+
+/** #424 — a state the screens move TO is waited for, not timed */
+const reach = (page: Page, want: Record<string, unknown>) => expect.poll(() => onScreen(page)).toMatchObject(want)
 
 test.describe('phone: the Inspector sheet yields to the screen the user opened (#411)', () => {
   test('Timeline over a selection stays open; closing it brings the Inspector back with the selection kept', async ({ page }) => {
@@ -64,14 +73,14 @@ test.describe('phone: the Inspector sheet yields to the screen the user opened (
     // Timeline closed again (the same button toggles it): the selection still
     // stands, so the Inspector comes back
     await tl.click()
-    expect(await settle(page)).toMatchObject({ overlay: 'inspector', inspector: true, timeline: false, selected: 'ore_stock' })
+    await reach(page, { overlay: 'inspector', inspector: true, timeline: false, selected: 'ore_stock' })
 
     // Close on the sheet clears the selection, as before
     await inspector(page).locator('.sheet__x').click()
     await expect.poll(() => selected(page)).toBeNull()
-    expect(await settle(page)).toMatchObject({ overlay: 'none', inspector: false })
+    await reach(page, { overlay: 'none', inspector: false })
     await tl.click()
-    expect(await settle(page)).toMatchObject({ overlay: 'timeline', timeline: true, selected: null })
+    await reach(page, { overlay: 'timeline', timeline: true, selected: null })
   })
 
   test('the Monte Carlo dialog over a selection stays open, through the moment the sheet is closed for it; closing it brings the Inspector back', async ({ page }) => {
@@ -82,13 +91,13 @@ test.describe('phone: the Inspector sheet yields to the screen the user opened (
 
     // the dialog's own Close: the selection still stands, so the Inspector comes back
     await page.locator('.mcdlg__x').click()
-    expect(await settle(page)).toMatchObject({ overlay: 'inspector', inspector: true, mcDialog: false, mcOpen: false, selected: 'ore_stock' })
+    await reach(page, { overlay: 'inspector', inspector: true, mcDialog: false, mcOpen: false, selected: 'ore_stock' })
 
     // and with no selection the dialog behaves as before
     await inspector(page).locator('.sheet__x').click()
     await expect.poll(() => selected(page)).toBeNull()
     await runBar(page).getByRole('button', { name: 'Monte Carlo' }).click()
-    expect(await settle(page)).toMatchObject({ overlay: 'none', inspector: false, mcDialog: true, mcOpen: true, selected: null })
+    await reach(page, { overlay: 'none', inspector: false, mcDialog: true, mcOpen: true, selected: null })
   })
 
   // The top bar's More button sits behind the open Inspector sheet's scrim
