@@ -98,7 +98,8 @@ export async function registerPwa(): Promise<void> {
 
   const { recheck } = wireRegistration(reg, navigator.serviceWorker, usePwaStore.getState())
 
-  // update checks: on focus, and at most hourly (§P4)
+  // update checks: every time the page becomes visible, and hourly while it
+  // is visible (§P4) — the visibility check is not throttled
   const check = (): void => {
     if (document.visibilityState !== 'visible') return
     recheck() // catch a worker that is already waiting

@@ -720,10 +720,10 @@ export type RevisionSideResult = RevisionSideOk | RevisionSideFail
  *      (the common compare model). By R2-INV-2 the bytes are identical; this
  *      function asserts it rather than assuming it.
  *
- * `NodeKind` is not yet widened, so step 1 leaves a `parameter` / `register`
- * node *unchanged* (`normalizeNode` only defaults the six flow kinds) — default
- * fill + field normalisation for model nodes lives in the step-2 defensive read
- * until the editor-wiring slice moves it into `normalizeNode`.
+ * Step 1 already seats a `parameter` / `register` node: `normalizeNode` runs the
+ * same defensive reader and keeps its output (defaults filled, incoherent hints
+ * dropped). A model node it cannot seat is left exactly as authored, so the
+ * step-2 defensive read is where that node fails.
  */
 export function readRevisionSide(
   graph: {

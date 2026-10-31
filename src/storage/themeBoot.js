@@ -29,8 +29,10 @@
 //
 // The same rule as src/theme/theme.ts: `light` and `dark` set `data-theme`,
 // anything else leaves it off (`system`), and an unreadable storage throws
-// nothing. Plain ES5 on purpose: this runs in every browser that loads the page,
-// before any of the app's code, and is never transpiled.
+// nothing. It is never transpiled, and runs before the bundle and any of the
+// app's code: so plain ES5 on purpose, with one exception — a single optional
+// catch binding (`catch {`, ES2019), which the browsers the app supports parse
+// (#420).
 //
 // An explicit theme also sets the browser's chrome colour (`theme-color`, the
 // address bar) to that theme's, as `syncThemeColor` in src/theme/theme.ts does
