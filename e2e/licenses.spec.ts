@@ -126,7 +126,12 @@ test.describe('the licence view in About', () => {
     ])
     const setLocale = async (code: string) => {
       await page.evaluate((c) => (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (c: string) => void } } } }).__loop.i18n.getState().setLocale(c), code)
-      await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(code)
+      // #424 — waited for in the page, not polled from the test: main
+      // `9af99aa5`'s trace showed one `expect.poll` sample (a `page.evaluate`)
+      // that never returned within the 8 s budget while the locale chunks had
+      // answered in milliseconds, and the poll reported its stale first sample.
+      // A page whose main thread stays busy can still time out here.
+      await page.waitForFunction((c) => document.documentElement.lang === c, code)
     }
     const name = (page: Page) => page.evaluate(() => (window as unknown as { __loop: { i18n: { getState: () => { activeCatalog: Record<string, string> } } } }).__loop.i18n.getState().activeCatalog['about.licenses'])
     for (const code of codes) {
