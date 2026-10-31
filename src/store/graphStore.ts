@@ -642,7 +642,8 @@ const HISTORY_MAX = 100
 // #420 (Lumi, 2026-10-31) — the coalescing tag of a data edit is the ONE field
 // it changed: confirming another field is another action, however soon after.
 // A call that changes several fields at once is one action and one entry of
-// its own (''), and one that changes nothing records nothing (null). A field
+// its own (''), and one that changes nothing does nothing at all (null: the
+// callers return before any state change, run reset or save). A field
 // that only ever changes WITH another one rides on it: the first keystroke of
 // a hand edit on an auto-composed Parameter label also clears
 // `labelAutoComposed`, and is still typing the label.
@@ -1162,8 +1163,10 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       if (editGuard()) return // #334 — refused while the edit lock is on
       const current = get().nodes.find((n) => n.id === id)?.data as Record<string, unknown> | undefined
       const changed = Object.keys(patch).filter((k) => !Object.is(current?.[k], (patch as Record<string, unknown>)[k]))
+      // #420 — no field differs: nothing to record, reset or save
       const tag = fieldTag('data', id, changed)
-      if (tag !== null) commit(tag)
+      if (tag === null) return
+      commit(tag)
       set({
         nodes: get().nodes.map((n) =>
           n.id === id ? { ...n, data: { ...n.data, ...patch } as LoopNode['data'] } : n,
@@ -1208,8 +1211,11 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       const touched = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after)])].filter(
         (k) => !Object.is(before?.[k], after[k]),
       )
+      // #420 — no field differs: nothing to record, reset or save (before, the
+      // run was reset with no Undo entry to explain it)
       const tag = fieldTag('edge', id, touched)
-      if (tag !== null) commit(tag)
+      if (tag === null) return
+      commit(tag)
       set({ edges: get().edges.map((e) => (e.id === id ? { ...e, data } : e)) })
       // loop-revision/3 §R3-3 — `route` / `waypoints` are cosmetic: they change
       // the canonical digest but NOTHING a simulation computes, so a routing-only
@@ -1249,7 +1255,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         const parsedAsV2 = parseActivatorExpr(after.expr, 2)
         if (parsedAsV2.ok && parsedAsV2.rhs.kind === 'param') set({ modelVersion: 2 })
       }
-      if (touched.length === 0 || !touched.every((k) => COSMETIC.has(k))) bump()
+      if (!touched.every((k) => COSMETIC.has(k))) bump()
       persist()
     },
 
