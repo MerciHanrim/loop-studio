@@ -11,10 +11,16 @@ on:
 permissions:
   contents: read
 
-# a new commit on the same ref cancels the running CI for that ref
+# A pull request: a new push cancels the running CI for that pull request.
+# `main`: every commit gets its own group, keyed by its SHA, and is never
+# cancelled (#424). With one group for `main`, a merge landing while the
+# previous commit's run was still going cancelled that run and left the commit
+# with no CI record (main `7b77c1ac`, 2026-10-29); and since a group holds only
+# one pending run, scoping just `cancel-in-progress` to pull requests would
+# still let a third quick merge cancel the second one while it waited.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   checks:

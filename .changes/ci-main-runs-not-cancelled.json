@@ -1,0 +1,1 @@
+{ "type": "internal", "reason": "CI only (#424): a run on main is no longer cancelled by the next merge. Pull requests keep one concurrency group per ref with cancel-in-progress; main gets one group per commit SHA and is never cancelled, so every main commit keeps a CI record. Nothing in the app changes." }
