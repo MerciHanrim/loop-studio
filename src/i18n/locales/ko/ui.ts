@@ -510,6 +510,7 @@ const ui = {
   'share.disclosure.temporary': '이 임시 세션에서는 다이어그램이 이 브라우저에 남지 않지만, 링크에는 그대로 모두 들어 있습니다.',
   // issue #297 - the start-up choice as the one stored thing, and a deletion that failed
   'gate.temporary.rememberHelp': '이 시작 선택 하나만 저장됩니다.',
+  'storage.delete.allFailed': '모두 지우지는 못했습니다. 일부 데이터가 이 브라우저에 아직 남아 있을 수 있습니다. 다시 시도하거나, 브라우저 설정에서 이 사이트의 데이터를 지우세요.',
   'storage.delete.workFailed': '저장된 다이어그램을 지우지 못했습니다. 이 브라우저에 아직 남아 있을 수 있습니다. 다시 시도하거나, 브라우저 설정에서 이 사이트의 데이터를 지우세요.',
   'storage.delete.workKeepsTemporary': '지금 하고 있는 임시 작업은 그대로 열려 있습니다.',
   // issue #300 - password protection for share links (loop-share-protected/1)

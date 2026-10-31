@@ -13,6 +13,7 @@ const dataImport = {
   'import.pasteAria': 'CSV or TSV text',
   'import.tableNameRequired': 'Enter a table name to continue.',
   'import.pasteDataRequired': 'Paste or upload CSV/TSV data to continue.',
+  'import.fileReadFailed': 'The file could not be read. Try choosing it again, or paste its contents instead.',
   'import.uploadFile': 'Upload file…',
   'import.delimiter': 'Delimiter',
   'import.delimiterAuto': 'Auto-detect',

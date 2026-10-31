@@ -30,6 +30,7 @@ const dataImport = {
   'import.pasteAria': 'Текст CSV или TSV',
   'import.tableNameRequired': 'Введите название таблицы, чтобы продолжить.',
   'import.pasteDataRequired': 'Вставьте или загрузите данные CSV/TSV, чтобы продолжить.',
+  'import.fileReadFailed': 'Не удалось прочитать файл. Выберите его снова или вставьте его содержимое.',
   'import.uploadFile': 'Загрузить файл…',
   'import.delimiter': 'Разделитель',
   'import.delimiterAuto': 'Определить автоматически',

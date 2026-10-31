@@ -571,6 +571,7 @@ const ui = {
   // issue #297 - the 0.16.0 release notes: the storage gate and temporary sessions
   // issue #297 - the start-up choice as the one stored thing, and a deletion that failed
   'gate.temporary.rememberHelp': 'Nur diese Startauswahl wird gespeichert.',
+  'storage.delete.allFailed': 'Es konnte nicht alles entfernt werden, und einige Daten sind möglicherweise noch in diesem Browser. Versuche es erneut, oder lösche die Daten dieser Website in den Einstellungen des Browsers.',
   'storage.delete.workFailed': 'Das gespeicherte Diagramm konnte nicht entfernt werden und ist möglicherweise noch in diesem Browser. Versuche es erneut, oder lösche die Daten dieser Website in den Einstellungen des Browsers.',
   'storage.delete.workKeepsTemporary': 'Deine aktuelle temporäre Arbeit bleibt geöffnet.',
   // issue #300 - password protection for share links (loop-share-protected/1)

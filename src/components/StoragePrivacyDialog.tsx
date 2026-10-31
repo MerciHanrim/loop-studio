@@ -131,7 +131,14 @@ function StorageArea({ onClose, returnFocusTo, initialStep }: Required<Pick<Prop
       body: t('storage.delete.allBody'),
       confirm: t('storage.delete.allConfirm'),
       run: () => {
-        resetAllData()
+        // #423 — a removal the browser refuses can come after others went
+        // through: the step stays, says some data may still be here, and the
+        // page is not reloaded (the reload is the success path only)
+        try {
+          resetAllData()
+        } catch {
+          setNotice({ kind: 'failed', text: t('storage.delete.allFailed') })
+        }
       },
     },
   }

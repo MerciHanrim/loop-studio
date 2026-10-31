@@ -107,6 +107,8 @@ type DraftUI = {
   delimiter: ',' | '\t'
   delimiterAuto: boolean
   parseError: CsvParseError | null
+  /** #423 — the last picked file could not be read; cleared by the next text */
+  fileReadFailed?: boolean
 }
 
 const ROLE_OPTIONS: DraftColumnRole[] = ['ignored', 'key', 'number', 'label', 'foreignKey']
@@ -427,7 +429,12 @@ export function DataImportWizard({
     input.addEventListener('change', () => {
       const file = input.files?.[0]
       input.remove()
-      if (file) file.text().then((text) => updateTable(idx, { pasteText: text }))
+      // #423 — a read the browser refuses is said in the card, never an unhandled rejection
+      if (file)
+        file.text().then(
+          (text) => updateTable(idx, { pasteText: text, fileReadFailed: false }),
+          () => updateTable(idx, { fileReadFailed: true }),
+        )
     })
     window.addEventListener('focus', () => setTimeout(() => input.remove(), 200), { once: true })
     document.body.appendChild(input)
@@ -744,7 +751,7 @@ export function DataImportWizard({
                       placeholder={t('import.pastePlaceholder')}
                       aria-label={t('import.pasteAria')}
                       value={ui.pasteText}
-                      onChange={(e) => updateTable(ti, { pasteText: e.target.value })}
+                      onChange={(e) => updateTable(ti, { pasteText: e.target.value, fileReadFailed: false })}
                       rows={4}
                     />
                     {dataEmpty(ui) && <p className="import__error">{t('import.pasteDataRequired')}</p>}
@@ -792,6 +799,11 @@ export function DataImportWizard({
                         />
                       </label>
                     </div>
+                    {ui.fileReadFailed && (
+                      <p className="import__error" role="alert" data-import-file-error>
+                        {t('import.fileReadFailed')}
+                      </p>
+                    )}
                     {ui.parseError && (
                       <p className="import__error">
                         {t('import.parseError', {

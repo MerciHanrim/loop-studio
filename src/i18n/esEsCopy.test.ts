@@ -124,6 +124,8 @@ describe('es-ES — the region audit, as a contract', () => {
         'session.temporary.chipTitle',
         'share.disclosure.body',
         'storage.delete.workFailed',
+        'storage.delete.allFailed', // #423 — `Inténtelo`, `borre`, `ajustes`, `No se ha podido`
+        'import.fileReadFailed', // #423 — `Vuelva`, `pegue`, `No se ha podido`
         'storage.delete.workKeepsTemporary',
         'storage.mode.temporary',
         // issue #300 - the password dialogs: `usted` where es-419 says `tú`

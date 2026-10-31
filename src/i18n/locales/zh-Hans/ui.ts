@@ -490,6 +490,7 @@ const ui = {
   // issue #297 - the 0.16.0 release notes: the storage gate and temporary sessions
   // issue #297 - the start-up choice as the one stored thing, and a deletion that failed
   'gate.temporary.rememberHelp': '只会保存这一个启动选择。',
+  'storage.delete.allFailed': '未能全部删除，部分数据可能仍在这个浏览器中。请重试，或在浏览器自身的设置中清除此站点的数据。',
   'storage.delete.workFailed': '无法删除保存的图表，它可能仍在这个浏览器中。请重试，或在浏览器自身的设置中清除此站点的数据。',
   'storage.delete.workKeepsTemporary': '你当前的临时工作保持打开。',
   // issue #300 - password protection for share links (loop-share-protected/1)

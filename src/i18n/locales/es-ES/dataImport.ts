@@ -42,6 +42,7 @@ const dataImport = {
   'import.pasteAria': 'Texto CSV o TSV',
   'import.tableNameRequired': 'Ingrese un nombre de tabla para continuar.',
   'import.pasteDataRequired': 'Pegue o cargue datos CSV/TSV para continuar.',
+  'import.fileReadFailed': 'No se ha podido leer el archivo. Vuelva a elegirlo o pegue su contenido.',
   'import.uploadFile': 'Cargar un archivo…',
   'import.delimiter': 'Separador',
   'import.delimiterAuto': 'Detectar automáticamente',
