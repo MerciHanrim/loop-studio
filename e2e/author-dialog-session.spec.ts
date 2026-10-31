@@ -118,8 +118,9 @@ test.describe('the Author dialog reads the current session on open (#412)', () =
     await f.name.fill('Grace')
     await f.note.fill('a note')
     // a store change while the dialog is open is not pulled into the draft
+    // (the dialog reads the record once, on open, and listens to nothing, so
+    // there is nothing to wait for before reading the fields)
     await page.evaluate((k) => localStorage.setItem(k, JSON.stringify({ name: 'Someone else' })), AUTHOR_KEY)
-    await page.waitForTimeout(100)
     await expect(f.name).toHaveValue('Grace')
     await expect(f.note).toHaveValue('a note')
     await cancel(page)

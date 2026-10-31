@@ -30,6 +30,9 @@ const frameRect = (page: Page, id: string) =>
   page.evaluate((fid) => ({ ...(window as unknown as Bridge).__loop.frame.getState().frames.find((f) => f.id === fid)!.rect }), id)
 const past = (page: Page) => page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().past.length)
 const busy = (page: Page) => page.locator('.canvas[aria-busy="true"]').count()
+/** #424 — the frame layer writes a pointer move only in a requestAnimationFrame
+ *  callback; two frames on, any write the moves before it asked for is done */
+const nextFrames = (page: Page) => page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))))
 
 const swallowNextPointerUp = (page: Page) =>
   page.evaluate(() => {
@@ -96,7 +99,7 @@ test.describe('a frame pointer gesture and a focus loss (#410)', () => {
 
       // the window is back; the pointer moves with no button down
       await page.mouse.move(x0 + 160, y0 + 96, { steps: 4 })
-      await page.waitForTimeout(100)
+      await nextFrames(page)
       expect(await frameRect(page, id)).toEqual(origin) // the frame does not follow
       expect(await past(page)).toBe(pastBefore)
 
@@ -132,7 +135,7 @@ test.describe('a frame pointer gesture and a focus loss (#410)', () => {
     expect(await frameRect(page, id)).toEqual(origin)
     expect(await past(page)).toBe(pastBefore)
     await page.mouse.move(hb.x + 200, hb.y + 120, { steps: 4 })
-    await page.waitForTimeout(100)
+    await nextFrames(page)
     expect(await frameRect(page, id)).toEqual(origin)
   })
 
@@ -147,9 +150,10 @@ test.describe('a frame pointer gesture and a focus loss (#410)', () => {
     const dropped = { ...origin, x: origin.x + 40, y: origin.y + 24 }
     expect(await frameRect(page, id)).toEqual(dropped)
     expect(await past(page)).toBe(pastBefore + 1)
-    // a blur AFTER the release: no open gesture, so nothing to restore
+    // a blur AFTER the release: no open gesture, so nothing to restore (the
+    // blur listener runs inside the dispatch, and the release cancelled the
+    // pending frame, so there is nothing to wait for)
     await blurWindow(page)
-    await page.waitForTimeout(50)
     expect(await frameRect(page, id)).toEqual(dropped)
     expect(await past(page)).toBe(pastBefore + 1)
     expect(await busy(page)).toBe(0)

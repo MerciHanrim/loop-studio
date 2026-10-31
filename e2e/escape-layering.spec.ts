@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from './support/loop'
 
 // issue #413 — Escape with a dialog over a non-modal surface (Lumi,
@@ -37,8 +37,11 @@ async function pickByKeyboard(page: Page, menu: 'File' | 'Run', row: RegExp) {
   await page.keyboard.press('Enter')
 }
 
-async function shown(page: Page) {
-  await page.waitForTimeout(150)
+/** #424 — what is open once `closed` (the screen the Escape was for) has
+ *  closed. Every surface here answers Escape in a keydown listener, so what
+ *  the one key closes is decided in that dispatch and lands in one render. */
+async function shown(page: Page, closed: Locator) {
+  await expect(closed).toBeHidden()
   return { confirm: await confirm(page).isVisible(), panel: await sharePanel(page).isVisible(), dialog: await mcDialog(page).isVisible(), popover: await settingsPop(page).isVisible() }
 }
 
@@ -57,9 +60,9 @@ test.describe('Escape closes only the top screen (#413)', () => {
     await expect(sharePanel(page)).toBeVisible()
 
     await page.keyboard.press('Escape')
-    expect(await shown(page)).toMatchObject({ confirm: false, panel: true })
+    expect(await shown(page, confirm(page))).toMatchObject({ confirm: false, panel: true })
     await page.keyboard.press('Escape')
-    expect(await shown(page)).toMatchObject({ confirm: false, panel: false })
+    expect(await shown(page, sharePanel(page))).toMatchObject({ confirm: false, panel: false })
   })
 
   test('Run-settings popover (folded run row) under the Monte Carlo dialog: the first Escape closes the dialog alone, the second the popover with its focus return', async ({ page }) => {
@@ -79,9 +82,9 @@ test.describe('Escape closes only the top screen (#413)', () => {
     await expect(settingsPop(page)).toBeVisible()
 
     await page.keyboard.press('Escape')
-    expect(await shown(page)).toMatchObject({ dialog: false, popover: true }) // the top screen only
+    expect(await shown(page, mcDialog(page))).toMatchObject({ dialog: false, popover: true }) // the top screen only
     await page.keyboard.press('Escape')
-    expect(await shown(page)).toMatchObject({ dialog: false, popover: false })
+    expect(await shown(page, settingsPop(page))).toMatchObject({ dialog: false, popover: false })
     expect(await focusedIs(page, '.pstrip__settings-btn')).toBe(true) // the popover's own focus return, as before
     await expect(settingsBtn(page)).toHaveAttribute('aria-expanded', 'false')
   })

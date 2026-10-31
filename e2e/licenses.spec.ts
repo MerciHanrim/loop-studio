@@ -130,8 +130,9 @@ test.describe('the licence view in About', () => {
       // `9af99aa5`'s trace showed one `expect.poll` sample (a `page.evaluate`)
       // that never returned within the 8 s budget while the locale chunks had
       // answered in milliseconds, and the poll reported its stale first sample.
-      // A page whose main thread stays busy can still time out here.
-      await page.waitForFunction((c) => document.documentElement.lang === c, code)
+      // The bound stays the 8 s the poll had, not the test's whole timeout; a
+      // page whose main thread stays busy can still time out here.
+      await page.waitForFunction((c) => document.documentElement.lang === c, code, { timeout: 8_000 })
     }
     const name = (page: Page) => page.evaluate(() => (window as unknown as { __loop: { i18n: { getState: () => { activeCatalog: Record<string, string> } } } }).__loop.i18n.getState().activeCatalog['about.licenses'])
     for (const code of codes) {
