@@ -1897,7 +1897,17 @@ function trimAuthor(a: unknown): ProjectAuthor | undefined {
   return out.name != null || out.note != null ? out : undefined
 }
 
-function readMeta(m: unknown): ProjectMeta | undefined {
+/**
+ * §R8 — the ONE reader of a `project.meta` value, wherever it comes from: an
+ * imported file (`readProject`) and, since #420, the autosaved header and every
+ * header an export is built from (`projectStore`). Keeps only the known fields
+ * with the right types — `title`, `createdAt`, `tool` as strings, `author`
+ * through `trimAuthor` (name / note truncated to `AUTHOR_NAME_MAX_BYTES` /
+ * `AUTHOR_NOTE_MAX_BYTES`) — and drops everything else, so a stored header that
+ * was hand-edited or written by something else never reaches an exported file.
+ * `undefined` when nothing valid is left.
+ */
+export function readProjectMeta(m: unknown): ProjectMeta | undefined {
   if (!m || typeof m !== 'object') return undefined
   const o = m as Record<string, unknown>
   const out: ProjectMeta = {}
@@ -1978,7 +1988,7 @@ export function readProject(raw: unknown, loadedContent?: CanonicalContent): Rea
     parentId: (o.parentId as string | null) ?? null,
     role,
     ...(lineage ? { lineage } : {}),
-    ...(readMeta(o.meta) ? { meta: readMeta(o.meta) } : {}),
+    ...(readProjectMeta(o.meta) ? { meta: readProjectMeta(o.meta) } : {}),
     // §R10-6 — kept only in its exact form; anything else reads as absent
     ...(typeof o.semantics === 'string' && SEMANTICS_RE.test(o.semantics) ? { semantics: o.semantics } : {}),
   }

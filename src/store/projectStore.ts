@@ -11,6 +11,7 @@ import {
   countThreeWayConflicts,
   digestOfCanonical,
   InvalidRevisionContentError,
+  readProjectMeta,
   validateResultGraph,
   isProjectId,
   isRevisionId,
@@ -260,7 +261,10 @@ function parseHeader(raw: unknown): OpenProject | null {
     parentId: (o.parentId as string | null) ?? null,
     role: 'revision',
     lineage: Array.isArray(o.lineage) ? o.lineage.filter((x): x is string => isRevisionId(x)) : [],
-    meta: o.meta && typeof o.meta === 'object' ? (o.meta as ProjectMeta) : {},
+    // #420 — the same reader as an imported file: only the known fields, typed,
+    // author name / note truncated; an object check alone let any stored value
+    // through into every later exported header
+    meta: readProjectMeta(o.meta) ?? {},
     baselineDigest: o.contentDigest,
     ...(isAppliedProposalHeader(o.appliedProposal) ? { appliedProposal: o.appliedProposal } : {}),
   }
@@ -386,8 +390,11 @@ export const useProjectStore = create<ProjectState>((set, get) => {
   // valid header kept and marked dirty (it was a module-load throw: no app)
   const dirty = open ? dirtyAgainst(open.baselineDigest) : false
 
+  // #420 — normalised again here, at the one place an export's header meta is
+  // built: whatever `open.meta` was set from, the file carries only the known,
+  // typed, bounded fields (and a valid meta passes through unchanged)
   const authoredMeta = (base: ProjectMeta): ProjectMeta => ({
-    ...base,
+    ...(readProjectMeta(base) ?? {}),
     tool: TOOL,
     ...(readAuthor() ? { author: readAuthor() } : {}),
   })
