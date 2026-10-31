@@ -38,7 +38,9 @@ function exampleHeaders(): string[] {
   const url = new URL('../src/components/dataImport/DataImportWizard.tsx', import.meta.url)
   const src = readFileSync(url, 'utf8')
   const sf = ts.createSourceFile('DataImportWizard.tsx', src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
-  const diags = sf.parseDiagnostics as ts.Diagnostic[] | undefined
+  // `parseDiagnostics` is on every SourceFile at run time but not in the public
+  // typings (#424: the cast hid that from a type check that never ran)
+  const diags = (sf as ts.SourceFile & { parseDiagnostics?: readonly ts.Diagnostic[] }).parseDiagnostics
   if (diags?.length) throw new Error('DataImportWizard.tsx does not parse')
   let csv: string | null = null
   const visit = (n: ts.Node): void => {
@@ -104,7 +106,7 @@ describe('the two HELD keys carry no arrow, so the arrow contract does not gover
   // a key takes an arrow and whether its text is translated are different
   // questions about the same string, and `scripts/arrow-units.json` names neither
   // of these keys.
-  for (const key of ['import.qs.mapping', 'tour.nav.position']) {
+  for (const key of ['import.qs.mapping', 'tour.nav.position'] as const) {
     it(`\`${key}\` has zero tracked arrow glyphs in every catalogue`, async () => {
       const found: string[] = []
       for (const l of REAL) {

@@ -34,8 +34,9 @@ export type TemplateOverlay = {
 // file-wide.
 // locale-subset: non-base locales only, for the reason the comment above states —
 // `BASE_LOCALE` never ships a dictionary because it is the fallback.
-// §L2.0 (2026-10) — Korean is the only non-base locale; the sixteen other
-// dictionaries are archived in `archive/i18n/templateLabels/`.
+// Every shipped non-base locale has an entry here (#386 restored the sixteen
+// that §L2.0 had archived); `check-template-labels` fails when this list and
+// the registry's non-base locales differ in either direction (#424).
 const DICT_LOADERS: Readonly<Record<string, () => Promise<TemplateOverlay>>> = {
   ko: () => import('./ko').then((m) => ({ nodes: m.ko, frames: m.koFrames ?? {} })),
   ja: () => import('./ja').then((m) => ({ nodes: m.ja, frames: m.jaFrames ?? {} })),

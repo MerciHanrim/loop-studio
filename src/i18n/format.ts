@@ -13,11 +13,14 @@ import IntlMessageFormat from 'intl-messageformat'
 
 export type FormatParams = Record<string, string | number> | undefined
 
-const NUL = ' '
+// The cache key's separator is an ordinary SPACE (#424: it was named `NUL`,
+// which it never was). Neither a locale code nor a catalog key contains a
+// space, so the first two spaces still split the key unambiguously.
+const SPACE = ' '
 const cache = new Map<string, IntlMessageFormat>()
 
 function compiled(locale: string, key: string, message: string): IntlMessageFormat {
-  const ck = locale + NUL + key + NUL + message
+  const ck = locale + SPACE + key + SPACE + message
   let f = cache.get(ck)
   if (!f) {
     f = new IntlMessageFormat(message, locale)

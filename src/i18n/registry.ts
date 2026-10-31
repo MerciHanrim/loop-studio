@@ -34,7 +34,9 @@ export type LocaleEntry = {
    *  Required: adding a locale must add its `language.<name>` key to every
    *  catalog, so `check-i18n` fails on a half-added language. */
   displayNameKey: MessageKey
-  /** `<html dir>` — metadata only in v0.8.0 (§L9); no RTL layout is promised */
+  /** the TEXT direction of this language (§L9.2): `data-text-dir` on <html>
+   *  and `directionOf`, which components read for their `dir`. Not `<html
+   *  dir>`, which is the layout direction and LTR for every locale (#386). */
   direction: LocaleDir
   /** BCP-47 tag handed to `Intl.*` when a UI-chrome number is formatted (§L8);
    *  never touches stored / digested data */
