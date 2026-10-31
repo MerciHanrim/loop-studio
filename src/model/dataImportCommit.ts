@@ -12,6 +12,10 @@ import {
   type ValidatedRow,
   type ValidatedTable,
 } from './dataImportValidate'
+import { ImportTableLookup } from './dataImportIndex'
+
+/** #423 — the batch's tables, or one lookup over them built for the operation */
+type TableSet = readonly ValidatedTable[] | ImportTableLookup<ValidatedTable>
 import { validateResultGraph } from './revision'
 import type { ImportSourceTable, SavedFrame } from './serialize'
 import type { LoopEdge, LoopNode } from './types'
@@ -152,7 +156,7 @@ function groupsForTable(table: ValidatedTable, cells: Cell[]): { key: string; ce
  *  FK's RESOLVED label term (e.g. `"Premium Pickup"`) via the same
  *  `resolveForeignKeyLabelTerm` every other FK-derived label term in this
  *  feature uses -- never the raw stored key (`"premium_pickup"`). */
-function groupFrameLabel(table: ValidatedTable, tables: readonly ValidatedTable[], groupKey: string): string {
+function groupFrameLabel(table: ValidatedTable, tables: TableSet, groupKey: string): string {
   if (!groupKey) return table.label
   const groupCol = table.columns.find((c) => c.sourceColumnId === table.groupByColumnId)
   if (!groupCol?.refTableId) return `${table.label} (${groupKey})` // defensive -- validateDrafts already guarantees this is set
@@ -230,7 +234,7 @@ export const CELL_LABEL_SEP = ' · '
  *  one `dir="auto"` picks a single paragraph direction for all three and reorders
  *  whichever fragment does not agree with it. */
 export function cellLabelParts(
-  tables: readonly ValidatedTable[],
+  tables: TableSet,
   cell: ImportCell,
 ): { table: string; row: string; header: string } {
   const { text } = composeFullRowLabel(tables, cell.table, cell.row)
@@ -240,7 +244,7 @@ export function cellLabelParts(
 /** The same three parts joined. This is what a created parameter node STORES as
  *  its label - a node label is a string, not markup - so it is derived from
  *  `cellLabelParts` rather than built separately. */
-export function cellLabel(tables: readonly ValidatedTable[], cell: ImportCell): string {
+export function cellLabel(tables: TableSet, cell: ImportCell): string {
   const p = cellLabelParts(tables, cell)
   return [p.table, p.row, p.header].join(CELL_LABEL_SEP)
 }
@@ -288,6 +292,8 @@ export function buildImportCommit(
 
   // §DI17 -- the same cell list the wizard's counts are computed from
   const cells = summarizeImportPlan(plan, placement.kind).cells
+  // #423 — one lookup for every cell label and group-frame title below
+  const lookup = new ImportTableLookup(plan.tables)
   const hostNodeIds = new Set(host.nodes.map((n) => n.id))
   const mintedIds = new Set<string>()
   const ids: string[] = []
@@ -330,7 +336,7 @@ export function buildImportCommit(
         const finalPositions = groupPositions.map((p) => ({ x: p.x + dx, y: p.y + dy }))
         group.cells.forEach((c, i) => posByCell.set(c, finalPositions[i]))
         placedThisBatch.push(rect)
-        createdFrames.push({ id: nextId('frame'), label: groupFrameLabel(table, plan.tables, group.key), rect })
+        createdFrames.push({ id: nextId('frame'), label: groupFrameLabel(table, lookup, group.key), rect })
         cursor = { x: placement.origin.x, y: rect.y + rect.h + GRID_GAP_Y }
       }
     }
@@ -362,7 +368,7 @@ export function buildImportCommit(
 
   // -- build the Parameter nodes -----------------------------------------
   const createdNodes: LoopNode[] = cells.map((cell, i) => {
-    const label = cellLabel(plan.tables, cell)
+    const label = cellLabel(lookup, cell)
     return {
       id: ids[i],
       type: 'parameter',

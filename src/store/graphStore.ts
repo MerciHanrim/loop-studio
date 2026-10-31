@@ -27,6 +27,7 @@ import { insertGraph, type GraphDocLike } from '../model/moduleGraph'
 import { buildImportCommit, type ImportCommitResult, type PlacementChoice } from '../model/dataImportCommit'
 import type { ValidatedImportPlan } from '../model/dataImportValidate'
 import { buildRefreshCommit, parameterLabel, type RefreshCommitResult, type RefreshDiffPlan, type RefreshResolution } from '../model/dataImportRefresh'
+import { ImportTableLookup } from '../model/dataImportIndex'
 import { parseActivatorExpr } from '../engine'
 import {
   deserialize,
@@ -1562,10 +1563,11 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
       const g = get()
       const updatedNodes: LoopNode[] = []
+      const lookup = new ImportTableLookup(nextTables) // #423 — one lookup for every relabel of this rename
       for (const n of g.nodes) {
         if (n.data.kind !== 'parameter' || n.data.sourceTableId !== id || n.data.labelAutoComposed !== true) continue
         if (!n.data.sourceKey || !n.data.sourceColumnId) continue
-        const label = parameterLabel(nextTables, id, n.data.sourceKey, n.data.sourceColumnId)
+        const label = parameterLabel(lookup, id, n.data.sourceKey, n.data.sourceColumnId)
         if (label === null || label === n.data.label) continue
         updatedNodes.push({ ...n, data: { ...n.data, label } })
       }
