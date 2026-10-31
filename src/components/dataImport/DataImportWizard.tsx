@@ -8,6 +8,7 @@ import {
   formatCellValueForDisplay,
   previewDraftCounts,
   setColumnRole,
+  withValidGroupBy,
   validateDrafts,
   type DraftColumnRole,
   type Issue,
@@ -179,11 +180,13 @@ function sanitizeRowCount(raw: string, min: number): number {
 function reparse(ui: DraftUI): DraftUI {
   const text = stripBom(ui.pasteText)
   if (text.trim() === '') {
-    return { ...ui, parseError: null, draft: { ...ui.draft, parsedRows: [], columns: [] } }
+    return { ...ui, parseError: null, draft: withValidGroupBy({ ...ui.draft, parsedRows: [], columns: [] }) }
   }
   const delimiter = ui.delimiterAuto ? detectDelimiter(text) : ui.delimiter
   const result = parseDelimitedText(text, delimiter)
   if (!result.ok) {
+    // #423 — the last good columns stay in the draft, so fixing the text brings
+    // the role choices back by position; the preview is hidden meanwhile
     return { ...ui, delimiter, parseError: result.error }
   }
   const header = result.rows[Math.max(0, ui.draft.headerRowIndex - 1)] ?? []
@@ -195,7 +198,7 @@ function reparse(ui: DraftUI): DraftUI {
     ...ui,
     delimiter,
     parseError: null,
-    draft: { ...ui.draft, parsedRows: result.rows, columns },
+    draft: withValidGroupBy({ ...ui.draft, parsedRows: result.rows, columns }),
   }
 }
 
@@ -252,7 +255,6 @@ export function DataImportWizard({
   const roleHelpId = useId()
   const qsTitleId = useId()
   const qsBodyId = useId()
-  useDialogFocus(open, ref, onClose, returnFocusTo)
   const { screenToFlowPosition, setViewport } = useReactFlow()
   const paneW = useRfStore((s) => s.width)
   const paneH = useRfStore((s) => s.height)
@@ -330,8 +332,6 @@ export function DataImportWizard({
     card.querySelector<HTMLInputElement>('.import__nameField input')?.focus({ preventScroll: true })
   }, [tables, focusGen])
 
-  if (!open) return null
-
   const reset = () => {
     setStep('tables')
     setTables([newDraftUI()])
@@ -342,10 +342,16 @@ export function DataImportWizard({
     setCommitError(null)
     setQsOverrideEnded(false)
   }
+  // #423 (Lumi, 2026-10-31) — every way of closing gives the same result: the
+  // draft is discarded and the next opening is a fresh one. The wizard stays
+  // mounted while closed, so Escape (the dialog hook) must reset too.
   const close = () => {
     reset()
     onClose()
   }
+  useDialogFocus(open, ref, close, returnFocusTo)
+
+  if (!open) return null
 
   // every input change after a failed check marks it stale (§DI17)
   const touch = () => {
@@ -806,7 +812,8 @@ export function DataImportWizard({
                         ))}
                       </ul>
                     )}
-                    {ui.draft.columns.length > 0 && (
+                    {/* #423 — not the last good table beside a parse error */}
+                    {!ui.parseError && ui.draft.columns.length > 0 && (
                       <>
                         <table className="import__preview">
                           <thead>
