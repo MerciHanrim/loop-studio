@@ -20,6 +20,7 @@ const dataImport = {
   'import.pasteAria': 'CSV 或 TSV 文本',
   'import.tableNameRequired': '请填写表名称后继续。',
   'import.pasteDataRequired': '请粘贴或上传 CSV/TSV 数据后继续。',
+  'import.fileReadFailed': '无法读取该文件。请重新选择，或改为粘贴其内容。',
   'import.uploadFile': '上传文件…',
   'import.delimiter': '分隔符',
   'import.delimiterAuto': '自动检测',

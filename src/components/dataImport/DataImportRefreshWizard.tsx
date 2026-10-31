@@ -107,6 +107,8 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
   const [delimiter, setDelimiter] = useState<',' | '\t'>(',')
   const [delimiterAuto, setDelimiterAuto] = useState(true)
   const [parseError, setParseError] = useState<CsvParseError | null>(null)
+  /** #423 — the last picked file could not be read; cleared by the next text */
+  const [fileReadFailed, setFileReadFailed] = useState(false)
   const [parsedRows, setParsedRows] = useState<string[][]>([])
   const [headerRowIndex, setHeaderRowIndex] = useState(1)
   const [ignoreLastNRows, setIgnoreLastNRows] = useState(0)
@@ -157,10 +159,16 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
     input.addEventListener('change', () => {
       const file = input.files?.[0]
       input.remove()
-      if (file) file.text().then((text) => {
-        setPasteText(text)
-        reparse(text, delimiterAuto, delimiter)
-      })
+      // #423 — a read the browser refuses is said here, never an unhandled rejection
+      if (file)
+        file.text().then(
+          (text) => {
+            setFileReadFailed(false)
+            setPasteText(text)
+            reparse(text, delimiterAuto, delimiter)
+          },
+          () => setFileReadFailed(true),
+        )
     })
     window.addEventListener('focus', () => setTimeout(() => input.remove(), 200), { once: true })
     document.body.appendChild(input)
@@ -296,11 +304,17 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                 placeholder={t('import.pastePlaceholder')}
                 value={pasteText}
                 onChange={(e) => {
+                  setFileReadFailed(false)
                   setPasteText(e.target.value)
                   reparse(e.target.value, delimiterAuto, delimiter)
                 }}
                 rows={6}
               />
+              {fileReadFailed && (
+                <p className="import__error" role="alert" data-import-file-error>
+                  {t('import.fileReadFailed')}
+                </p>
+              )}
               <div className="import__row">
                 <button type="button" className="btn" onClick={pickFile}>
                   {t('import.uploadFile')}

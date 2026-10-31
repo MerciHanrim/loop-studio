@@ -26,6 +26,7 @@ const dataImport = {
   'import.pasteAria': 'Văn bản CSV hoặc TSV',
   'import.tableNameRequired': 'Nhập tên bảng để tiếp tục.',
   'import.pasteDataRequired': 'Dán hoặc tải lên dữ liệu CSV/TSV để tiếp tục.',
+  'import.fileReadFailed': 'Không thể đọc tệp. Hãy chọn lại tệp, hoặc dán nội dung của tệp vào.',
   'import.uploadFile': 'Tải tệp lên…',
   'import.delimiter': 'Ký tự phân cách',
   'import.delimiterAuto': 'Tự nhận dạng',

@@ -14,6 +14,7 @@ const dataImport = {
   'import.pasteAria': 'CSVまたはTSVのテキスト',
   'import.tableNameRequired': '続行するにはテーブル名を入力してください。',
   'import.pasteDataRequired': '続行するにはCSV/TSVデータを貼り付けるかアップロードしてください。',
+  'import.fileReadFailed': 'ファイルを読み込めませんでした。もう一度選ぶか、内容を貼り付けてください。',
   'import.uploadFile': 'ファイルをアップロード…',
   'import.delimiter': '区切り文字',
   'import.delimiterAuto': '自動検出',

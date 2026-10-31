@@ -14,6 +14,7 @@ const dataImport = {
   'import.pasteAria': 'CSV 또는 TSV 텍스트',
   'import.tableNameRequired': '계속하려면 테이블 이름을 입력하세요.',
   'import.pasteDataRequired': '계속하려면 CSV/TSV 데이터를 붙여넣거나 업로드하세요.',
+  'import.fileReadFailed': '파일을 읽지 못했습니다. 다시 선택하거나, 내용을 붙여 넣으세요.',
   'import.uploadFile': '파일 업로드…',
   'import.delimiter': '구분자',
   'import.delimiterAuto': '자동 감지',

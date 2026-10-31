@@ -21,6 +21,7 @@ const dataImport = {
   'import.pasteAria': 'CSV ya da TSV metni',
   'import.tableNameRequired': 'Devam etmek için bir tablo adı girin.',
   'import.pasteDataRequired': 'Devam etmek için CSV/TSV verisi yapıştırın ya da yükleyin.',
+  'import.fileReadFailed': 'Dosya okunamadı. Yeniden seçin veya içeriğini yapıştırın.',
   'import.uploadFile': 'Dosya yükle…',
   'import.delimiter': 'Ayırıcı',
   'import.delimiterAuto': 'Kendiliğinden algıla',

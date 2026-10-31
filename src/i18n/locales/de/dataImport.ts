@@ -29,6 +29,7 @@ const dataImport = {
   'import.pasteAria': 'CSV- oder TSV-Text',
   'import.tableNameRequired': 'Geben Sie einen Tabellennamen ein, um fortzufahren.',
   'import.pasteDataRequired': 'Fügen Sie CSV-/TSV-Daten ein oder laden Sie eine Datei hoch, um fortzufahren.',
+  'import.fileReadFailed': 'Die Datei konnte nicht gelesen werden. Wähle sie erneut aus, oder füge stattdessen ihren Inhalt ein.',
   'import.uploadFile': 'Datei hochladen…',
   'import.delimiter': 'Trennzeichen',
   'import.delimiterAuto': 'Automatisch erkennen',

@@ -511,6 +511,7 @@ const ui = {
   'storage.delete.allBody': 'Removes everything Loop Studio keeps in this browser profile: the diagram and imported data, the author name and note, the theme, the language and the other settings, the guidance you have seen, and the choice made when the app starts. The app then restarts and asks that choice again.',
   'storage.delete.allConfirm': 'Reset everything',
   'storage.delete.workDone': 'The stored diagram was removed.',
+  'storage.delete.allFailed': 'Not everything could be removed: some Loop Studio data may still be in this browser. Try again, or clear this site’s data in the browser’s own settings.',
   'storage.delete.workFailed': 'The stored diagram could not be removed, and it may still be in this browser. Try again, or clear this site’s data in the browser’s own settings.',
   'storage.delete.workKeepsTemporary': 'Your current temporary work stays open.',
   'storage.notSecurity': 'This prevents accidental exposure only. It does not lock anything and does not verify who you are.',

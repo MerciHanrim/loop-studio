@@ -50,6 +50,7 @@ const dataImport = {
   'import.pasteAria': 'نص CSV أو TSV',
   'import.tableNameRequired': 'أدخل اسم الجدول للمتابعة.',
   'import.pasteDataRequired': 'ألصِق بيانات CSV/TSV أو ارفعها للمتابعة.',
+  'import.fileReadFailed': 'تعذّرت قراءة الملف. اختره مرة أخرى، أو الصق محتواه بدلًا من ذلك.',
   'import.uploadFile': 'رفع ملف…',
   'import.delimiter': 'الفاصل',
   'import.delimiterAuto': 'كشف تلقائي',
