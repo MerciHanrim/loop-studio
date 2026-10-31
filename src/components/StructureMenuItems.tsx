@@ -4,6 +4,7 @@ import { useGraphStore } from '../store/graphStore'
 import { useUiStore } from '../store/uiStore'
 import { planSelectionAsModule, readModuleFile } from '../store/moduleIO'
 import { useT } from '../i18n'
+import { downloadText } from '../ui/download'
 import type { ToolbarDialog } from './toolbar/dialogTypes'
 import { DescribedRow } from './toolbar/DescribedMenu'
 
@@ -17,15 +18,6 @@ import { DescribedRow } from './toolbar/DescribedMenu'
 // these two actions are what remains of it, unchanged in behaviour: every insert
 // is one atomic history entry (`graphStore.insertModule`, §MS3.5), a v2 file into
 // a v1 document asks first, and saved frames are never carried.
-
-function download(text: string, name: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
-  const a = document.createElement('a')
-  a.href = url
-  a.download = name
-  a.click()
-  URL.revokeObjectURL(url)
-}
 
 export function StructureMenuItems({
   onOpenDialog,
@@ -120,14 +112,14 @@ export function StructureMenuItems({
         body: t('modules.frames.extractBody'),
         run: () => {
           const p = planSelectionAsModule()
-          if (p.ok) download(p.text, p.filename)
+          if (p.ok) downloadText(p.text, p.filename)
           else window.alert(p.reason)
         },
       })
       return
     }
     onLeave()
-    download(plan.text, plan.filename)
+    downloadText(plan.text, plan.filename)
   }
 
   return (
