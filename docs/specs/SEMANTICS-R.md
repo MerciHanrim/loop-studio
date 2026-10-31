@@ -611,6 +611,15 @@ the proposal as a document** (§R10.5 — no apply, no new revision), **Cancel**
 - **No diff / classify / apply / lineage decision depends on `meta`.** Missing,
   empty, or garbage `author` / `createdAt` / `tool` never blocks or changes an
   outcome; it renders as *"unknown"*.
+- **One reader for `meta`, on the way in and on the way out (#420).** An
+  imported file's `meta`, the **autosaved** open header's `meta` and the `meta`
+  every Project-revision / proposal export is built from all go through the same
+  reader (`readProjectMeta`): only `title`, `createdAt`, `tool` as strings and
+  `author` as `{ name?, note? }` strings, the author fields truncated to the
+  §R11 byte caps; any other key and any value of the wrong type is dropped. A
+  stored header that was hand-edited or written by something else therefore
+  never reaches an exported file, and a valid `meta` passes through unchanged.
+  The reader does **not** cap `title` — no limit is set for it on import either.
 - The trusted structural facts are `projectId`, `revisionId`, `parentId`,
   `base.*`, `appliedProposal.*`, `lineage[]` — trusted **only as opaque
   correlation keys**, never as proof of *who* or *when*.
