@@ -162,6 +162,7 @@ const ui = {
   'recovery.body': 'Loop Studio a trouvé un schéma enregistré dans ce navigateur mais n’a pas pu le lire. Rien n’a été modifié, et rien ne sera enregistré tant que vous n’aurez pas choisi quoi en faire.',
   'recovery.newer': 'Il a été enregistré par une version plus récente de Loop Studio. Rouvrir l’application peut charger cette version et l’ouvrir.',
   'recovery.stillUnreadable': 'Il ne peut toujours pas être lu. Le schéma enregistré est inchangé.',
+  'recovery.changed': 'Le schéma enregistré a changé pendant que cet écran était ouvert, peut-être enregistré par un autre onglet. Rien n’a été supprimé. Vérifiez ce qui est affiché maintenant, ou réessayez de l’ouvrir.',
   'recovery.download': 'Télécharger le schéma enregistré',
   'recovery.retry': 'Réessayer',
   'recovery.reopen': 'Rouvrir l’application',

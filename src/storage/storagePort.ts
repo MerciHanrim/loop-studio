@@ -290,6 +290,17 @@ export const storageSession = {
     localStorage.removeItem(WORK_KEY)
     workHeld = false
   },
+  /** #420 review — call `fn` when ANOTHER tab of this origin changes the
+   *  browser's work record (or clears storage): the browser's `storage` event,
+   *  which never fires for this page's own writes. Returns the unsubscribe. */
+  onOtherTabWorkChange(fn: () => void): () => void {
+    if (typeof window === 'undefined') return () => {}
+    const onEvent = (e: StorageEvent) => {
+      if (e.key === WORK_KEY || e.key === null) fn()
+    }
+    window.addEventListener('storage', onEvent)
+    return () => window.removeEventListener('storage', onEvent)
+  },
   /** #420 — the browser's work record, read straight from `localStorage` whatever
    *  the session (a temporary session switching back to personal checks it
    *  before writing). Throws what the browser throws. */

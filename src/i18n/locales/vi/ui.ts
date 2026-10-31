@@ -157,6 +157,7 @@ const ui = {
   'recovery.body': 'Loop Studio tìm thấy một sơ đồ đã lưu trong trình duyệt này nhưng không đọc được. Chưa có gì bị thay đổi, và sẽ không lưu gì cho đến khi bạn chọn cách xử lý sơ đồ đó.',
   'recovery.newer': 'Sơ đồ này được lưu bởi một phiên bản Loop Studio mới hơn. Mở lại ứng dụng có thể tải phiên bản đó và mở được sơ đồ.',
   'recovery.stillUnreadable': 'Vẫn không đọc được. Sơ đồ đã lưu không bị thay đổi.',
+  'recovery.changed': 'Sơ đồ đã lưu đã thay đổi trong lúc màn hình này đang mở, có thể một thẻ khác đã lưu nó. Chưa có gì bị xóa. Hãy kiểm tra những gì đang hiển thị, hoặc thử mở lại.',
   'recovery.download': 'Tải xuống sơ đồ đã lưu',
   'recovery.retry': 'Thử lại',
   'recovery.reopen': 'Mở lại ứng dụng',

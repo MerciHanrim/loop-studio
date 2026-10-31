@@ -26,6 +26,9 @@ const UNREADABLE: Record<string, string> = {
   'broken JSON': JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes: [MINE], edges: [] }).slice(0, 60),
   'a newer schema': JSON.stringify({ schema: 'loop-studio/graph/99', version: 1, nodes: [MINE], edges: [] }),
   'a node entry without a position': JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes: [{ id: 'mine', data: { kind: 'pool' } }], edges: [] }),
+  // review round 1: the key exists and holds an empty string — that is a record
+  // this build cannot read, not "no record"
+  'an empty value': '',
 }
 const VALID_FILE = JSON.stringify({
   schema: 'loop-studio/graph',
@@ -85,6 +88,45 @@ describe('the stores started over an unreadable record never overwrite it', () =
     expect(mem.getItem(STORAGE_KEY)).not.toBe(VALID_FILE)
     expect((JSON.parse(mem.getItem(STORAGE_KEY)!) as { nodes: unknown[] }).nodes).toHaveLength(2)
     expect(a.useAutosaveStore.getState().failed).toBe(false)
+  })
+
+  it('a running tab: another tab writing a record this build cannot read (a newer version) is never overwritten by the next save', async () => {
+    // review round 1 — an older tab already open, a newer tab saves its newer
+    // record, then the older tab's autosave fires: the change check right
+    // before the write sees a record it did not write and cannot read
+    const { g, a } = await bootOver(VALID_FILE)
+    g.useGraphStore.getState().addNodeAt('pool', { x: 300, y: 0 })
+    g.flushAutosave()
+    expect(a.useAutosaveStore.getState().failed).toBe(false)
+    const newer = UNREADABLE['a newer schema']
+    mem.setItem(STORAGE_KEY, newer) // the other tab
+    g.useGraphStore.getState().addNodeAt('source', { x: 600, y: 0 })
+    g.flushAutosave()
+    expect(mem.getItem(STORAGE_KEY)).toBe(newer)
+    expect(a.useAutosaveStore.getState()).toMatchObject({ failed: true, reason: 'held' })
+    g.useGraphStore.getState().addNodeAt('drain', { x: 900, y: 0 }) // and every save after it
+    g.flushAutosave()
+    expect(mem.getItem(STORAGE_KEY)).toBe(newer)
+  })
+
+  it('a running tab: another tab of the same version writing a READABLE record is overwritten as before (last writer wins; stated limit)', async () => {
+    const { g, a } = await bootOver(VALID_FILE)
+    const other = JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes: [{ id: 'theirs', type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool', label: 'Theirs' } }], edges: [] })
+    mem.setItem(STORAGE_KEY, other)
+    g.useGraphStore.getState().addNodeAt('source', { x: 600, y: 0 })
+    g.flushAutosave()
+    expect(mem.getItem(STORAGE_KEY)).not.toBe(other)
+    expect(a.useAutosaveStore.getState().failed).toBe(false)
+  })
+
+  it('a tab saving again and again with no other writer never holds itself', async () => {
+    const { g, a } = await bootOver(VALID_FILE)
+    for (let i = 0; i < 5; i++) {
+      g.useGraphStore.getState().addNodeAt('pool', { x: 100 * i, y: 200 })
+      g.flushAutosave()
+    }
+    expect(a.useAutosaveStore.getState().failed).toBe(false)
+    expect((JSON.parse(mem.getItem(STORAGE_KEY)!) as { nodes: unknown[] }).nodes).toHaveLength(6)
   })
 
   it('no record at all is written as before (a first run, no hold)', async () => {

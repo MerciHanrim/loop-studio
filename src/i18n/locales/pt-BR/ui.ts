@@ -154,6 +154,7 @@ const ui = {
   'recovery.body': 'O Loop Studio encontrou um diagrama salvo neste navegador, mas não conseguiu lê-lo. Nada foi alterado, e nada será salvo até você escolher o que fazer com ele.',
   'recovery.newer': 'Ele foi salvo por uma versão mais nova do Loop Studio. Abrir o app de novo pode carregar essa versão e abri-lo.',
   'recovery.stillUnreadable': 'Ainda não foi possível lê-lo. O diagrama salvo não foi alterado.',
+  'recovery.changed': 'O diagrama salvo mudou enquanto esta página estava aberta; outra aba pode tê-lo salvado. Nada foi excluído. Verifique o que aparece agora ou tente abri-lo de novo.',
   'recovery.download': 'Baixar o diagrama salvo',
   'recovery.retry': 'Tentar de novo',
   'recovery.reopen': 'Abrir o app de novo',

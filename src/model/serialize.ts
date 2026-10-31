@@ -861,10 +861,23 @@ export function saveToStorage(
         : Array.isArray(timelineSeries) && timelineSeries.length > 0
           ? { timelineSeries: [...timelineSeries] }
           : undefined
-    storagePort.setItem(
-      STORAGE_KEY,
-      serialize(nodes, edges, rrc, undefined, project, modelVersion, frames, dataImports),
-    )
+    // #420 review — the change check right before the write, personal session
+    // only: if the browser's record is no longer what this page last read or
+    // wrote (another tab — perhaps a NEWER version — saved since) and this build
+    // cannot read it, hold it and refuse, instead of overwriting work this
+    // page never saw. A readable record another tab wrote is overwritten as
+    // before (last writer wins across tabs of the same version).
+    const personal = storageSession.mode() === 'personal'
+    if (personal) {
+      const current = storagePort.getItem(STORAGE_KEY)
+      if (current !== null && current !== lastKnownWorkText && classifyStoredText(current).kind === 'unreadable') {
+        storageSession.holdWork()
+        return { ok: false, reason: 'held' }
+      }
+    }
+    const text = serialize(nodes, edges, rrc, undefined, project, modelVersion, frames, dataImports)
+    storagePort.setItem(STORAGE_KEY, text)
+    if (personal) lastKnownWorkText = text
     return { ok: true }
   } catch (e) {
     // #420 — `held`: the record this write would replace could not be read,
@@ -910,7 +923,9 @@ export type StoredRecordRead =
 /** #420 — classify a work-record text (store-free; also used on the browser's
  *  record from a temporary session, before switching back to personal) */
 export function classifyStoredText(text: string | null): Exclude<StoredRecordRead, { kind: 'read-failed' }> {
-  if (!text) return { kind: 'none' }
+  // only an ABSENT key is "no record": a key holding an empty string is a record
+  // this build cannot read, and is protected like any other (#420 review)
+  if (text === null) return { kind: 'none' }
   try {
     return { kind: 'ok', doc: deserialize(text) }
   } catch (e) {
@@ -927,6 +942,11 @@ export function classifyStoredText(text: string | null): Exclude<StoredRecordRea
   }
 }
 
+/** #420 review — the browser work record as this page last read or wrote it
+ *  (personal session only); `undefined` before the first read. `saveToStorage`
+ *  compares the record with it right before writing. */
+let lastKnownWorkText: string | null | undefined
+
 /** #420 — read the work record through the port and classify it. Never throws. */
 export function readStoredRecord(): StoredRecordRead {
   let text: string | null
@@ -935,5 +955,6 @@ export function readStoredRecord(): StoredRecordRead {
   } catch {
     return { kind: 'read-failed' }
   }
+  if (storageSession.mode() === 'personal') lastKnownWorkText = text
   return classifyStoredText(text)
 }

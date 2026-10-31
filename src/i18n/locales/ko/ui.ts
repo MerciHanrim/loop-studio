@@ -147,6 +147,7 @@ const ui = {
   'recovery.body': 'Loop Studio가 이 브라우저에 저장된 다이어그램을 찾았지만 읽지 못했습니다. 아무것도 바뀌지 않았고, 어떻게 할지 고르기 전에는 아무것도 저장하지 않습니다.',
   'recovery.newer': '이 다이어그램은 더 새로운 버전의 Loop Studio로 저장되었습니다. 앱을 다시 열면 그 버전을 불러와 열 수 있을 수도 있습니다.',
   'recovery.stillUnreadable': '여전히 읽을 수 없습니다. 저장된 다이어그램은 바뀌지 않았습니다.',
+  'recovery.changed': '이 화면을 띄운 사이 저장된 다이어그램이 바뀌었습니다. 다른 탭에서 저장했을 수 있습니다. 아무것도 삭제하지 않았습니다. 지금 보이는 상태를 확인하거나 다시 시도해 열어 보세요.',
   'recovery.download': '저장된 다이어그램 내려받기',
   'recovery.retry': '다시 시도',
   'recovery.reopen': '앱 다시 열기',

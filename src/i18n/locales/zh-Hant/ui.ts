@@ -154,6 +154,7 @@ const ui = {
   'recovery.body': 'Loop Studio 在這個瀏覽器中找到一個已儲存的圖表，但無法讀取。沒有做任何變更；在你選擇如何處理之前，不會儲存任何內容。',
   'recovery.newer': '它是由較新版本的 Loop Studio 儲存的。重新開啟應用程式可能會載入那個版本並開啟它。',
   'recovery.stillUnreadable': '仍然無法讀取。已儲存的圖表沒有變更。',
+  'recovery.changed': '這個畫面開啟期間，已儲存的圖表有了變化，可能是另一個分頁儲存的。沒有刪除任何內容。請查看現在顯示的狀態，或重試開啟它。',
   'recovery.download': '下載已儲存的圖表',
   'recovery.retry': '重試',
   'recovery.reopen': '重新開啟應用程式',

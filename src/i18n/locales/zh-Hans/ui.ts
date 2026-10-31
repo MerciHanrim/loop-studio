@@ -148,6 +148,7 @@ const ui = {
   'recovery.body': 'Loop Studio 在此浏览器中找到了一个已保存的图表，但无法读取。没有做任何改动；在你选择如何处理之前，不会保存任何内容。',
   'recovery.newer': '它是由更新版本的 Loop Studio 保存的。重新打开应用可能会加载那个版本并打开它。',
   'recovery.stillUnreadable': '仍然无法读取。已保存的图表没有改动。',
+  'recovery.changed': '此界面打开期间，已保存的图表发生了变化，可能是另一个标签页保存的。没有删除任何内容。请查看现在显示的状态，或重试打开它。',
   'recovery.download': '下载已保存的图表',
   'recovery.retry': '重试',
   'recovery.reopen': '重新打开应用',

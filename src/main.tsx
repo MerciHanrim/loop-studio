@@ -70,7 +70,19 @@ async function recoverIfUnreadable(): Promise<void> {
     }
     root.render(
       <StrictMode>
-        <RecoveryScreen initial={first} reread={readStoredRecord} discard={() => storageSession.discardHeldWork()} onDone={done} />
+        <RecoveryScreen
+          initial={first}
+          reread={readStoredRecord}
+          discardIfUnchanged={(expected) => {
+            // #420 review — read again right before removing: another tab may
+            // have saved since the screen showed `expected`; then nothing goes
+            const now = readStoredRecord()
+            if (now.kind !== 'unreadable' || now.text !== expected) return now
+            storageSession.discardHeldWork()
+            return null
+          }}
+          onDone={done}
+        />
       </StrictMode>,
     )
   })

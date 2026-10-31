@@ -18,6 +18,7 @@ const UNREADABLE: Record<string, string> = {
   'broken JSON': JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes: [MINE], edges: [] }).slice(0, 60),
   'a newer schema': JSON.stringify({ schema: 'loop-studio/graph/99', version: 1, nodes: [MINE], edges: [] }),
   'a node entry without a position': JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes: [{ id: 'mine', data: { kind: 'pool' } }], edges: [] }),
+  'an empty value': '', // review round 1: the key exists — not "no record"
 }
 const READABLE = JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes: [MINE], edges: [] })
 
@@ -117,6 +118,39 @@ test.describe('#420 — an unreadable saved diagram', () => {
     await expect(screen(page)).toHaveCount(0)
     await expect(page.locator('.react-flow')).toBeVisible()
     expect(await record(page)).not.toBe(text)
+  })
+
+  test('Discard re-reads first: a record that changed after the screen read it is not deleted, and the screen shows what is there now', async ({ page }) => {
+    const shown = UNREADABLE['broken JSON']
+    const now = UNREADABLE['a newer schema']
+    await seedRecord(page, shown)
+    await page.goto('/')
+    await button(page, /discard/i).click()
+    const confirm = page.locator('.mcdlg--confirm')
+    await expect(confirm).toBeVisible()
+    // another writer between the screen's read and the confirmation (same page:
+    // no `storage` event, so only the re-read before removing can catch it)
+    await page.evaluate(([k, v]) => localStorage.setItem(k, v), [WORK_KEY, now] as const)
+    await confirm.getByRole('button', { name: /^discard$/i }).click()
+    expect(await record(page)).toBe(now) // nothing deleted
+    await expect(screen(page)).toBeVisible()
+    await expect(screen(page).locator('[data-recovery-note="changed"]')).toBeVisible()
+    await expect(screen(page).locator('[data-recovery-note="newer"]')).toBeVisible() // the screen is now about the newer record
+  })
+
+  test('another tab writing while the screen is open updates it; Download then gives what is stored now', async ({ page }) => {
+    await seedRecord(page, UNREADABLE['broken JSON'])
+    await page.goto('/')
+    await expect(screen(page)).toBeVisible()
+    const other = await page.context().newPage()
+    await other.goto('about:blank')
+    await other.goto(page.url())
+    const newer = UNREADABLE['a newer schema']
+    await other.evaluate(([k, v]) => localStorage.setItem(k, v), [WORK_KEY, newer] as const)
+    await expect(screen(page).locator('[data-recovery-note="changed"]')).toBeVisible()
+    const [dl] = await Promise.all([page.waitForEvent('download'), button(page, /download/i).click()])
+    expect(readFileSync((await dl.path())!, 'utf8')).toBe(newer)
+    await other.close()
   })
 
   test('Continue in a temporary session: the app works in memory, the saved record never changes, a share link opens in memory', async ({ page }) => {

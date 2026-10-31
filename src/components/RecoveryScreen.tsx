@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useT } from '../i18n'
 import type { StoredRecordRead } from '../model/serialize'
+import { storageSession } from '../storage/storagePort'
 import { downloadText } from '../ui/download'
 import { ConfirmDialog } from './ConfirmDialog'
 
@@ -31,8 +32,11 @@ type Props = {
   initial: Extract<StoredRecordRead, { kind: 'unreadable' | 'read-failed' }>
   /** read the record again (the boot module's reader) */
   reread: () => StoredRecordRead
-  /** remove the held record; throws what the browser throws */
-  discard: () => void
+  /** #420 review — remove the held record ONLY if it is still exactly
+   *  `expected` (the text this screen showed): `null` when removed, otherwise
+   *  what is there now, untouched (another tab may have saved meanwhile).
+   *  Throws what the browser throws. */
+  discardIfUnchanged: (expected: string) => StoredRecordRead | null
   onDone: (outcome: RecoveryOutcome) => void
 }
 
@@ -42,10 +46,11 @@ function downloadName(now = new Date()): string {
   return `loop-studio-saved-diagram-${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}.json`
 }
 
-export function RecoveryScreen({ initial, reread, discard, onDone }: Props) {
+export function RecoveryScreen({ initial, reread, discardIfUnchanged, onDone }: Props) {
   const t = useT()
   const [read, setRead] = useState(initial)
   const [stillUnreadable, setStillUnreadable] = useState(false)
+  const [changed, setChanged] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [discardFailed, setDiscardFailed] = useState(false)
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -65,18 +70,62 @@ export function RecoveryScreen({ initial, reread, discard, onDone }: Props) {
       return
     }
     setRead(r)
+    setChanged(false)
     setStillUnreadable(true)
+  }
+
+  /** #420 review — the record is no longer what this screen showed: say so and
+   *  show what is there now. A record that can now be read (or is gone) is
+   *  left for Try again to open; nothing is started or removed behind the
+   *  person's back. */
+  const showChanged = (now: StoredRecordRead) => {
+    if (now.kind === 'unreadable' || now.kind === 'read-failed') setRead(now)
+    setStillUnreadable(false)
+    setChanged(true)
+  }
+
+  /** the text this screen is about, or null when it shows a storage error */
+  const shownText = read.kind === 'unreadable' ? read.text : null
+
+  // another tab writing the record while this screen is open: update at once
+  useEffect(
+    () =>
+      storageSession.onOtherTabWorkChange(() => {
+        const now = reread()
+        if (now.kind === 'unreadable' && now.text === shownText) return
+        showChanged(now)
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [shownText],
+  )
+
+  const download = () => {
+    if (shownText === null) return
+    // the file is what is stored NOW, and only if it is still what the screen
+    // shows; otherwise the screen catches up first
+    const now = reread()
+    if (now.kind !== 'unreadable' || now.text !== shownText) {
+      showChanged(now)
+      return
+    }
+    downloadText(now.text, downloadName())
   }
 
   const doDiscard = () => {
     setConfirmDiscard(false)
+    if (shownText === null) return
+    let now: StoredRecordRead | null
     try {
-      discard()
+      now = discardIfUnchanged(shownText)
     } catch {
       setDiscardFailed(true)
       return
     }
-    onDone('start')
+    if (now === null) {
+      onDone('start')
+      return
+    }
+    showChanged(now) // nothing was deleted: the record changed after it was shown
   }
 
   const unreadable = read.kind === 'unreadable' ? read : null
@@ -96,6 +145,11 @@ export function RecoveryScreen({ initial, reread, discard, onDone }: Props) {
             {t('recovery.stillUnreadable')}
           </p>
         ) : null}
+        {changed ? (
+          <p className="gate__note" role="status" data-recovery-note="changed">
+            {t('recovery.changed')}
+          </p>
+        ) : null}
         {discardFailed ? (
           <p className="gate__note" role="alert" data-recovery-note="discard-failed">
             {t('recovery.discard.failed')}
@@ -104,7 +158,7 @@ export function RecoveryScreen({ initial, reread, discard, onDone }: Props) {
 
         <div className="recovery__actions">
           {unreadable ? (
-            <button type="button" className="btn gate__btn" onClick={() => downloadText(unreadable.text, downloadName())}>
+            <button type="button" className="btn gate__btn" onClick={download}>
               {t('recovery.download')}
             </button>
           ) : null}

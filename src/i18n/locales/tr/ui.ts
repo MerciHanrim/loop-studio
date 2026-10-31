@@ -157,6 +157,7 @@ const ui = {
   'recovery.body': 'Loop Studio bu tarayıcıda kayıtlı bir diyagram buldu ama okuyamadı. Hiçbir şey değiştirilmedi ve onunla ne yapılacağını seçene kadar hiçbir şey kaydedilmeyecek.',
   'recovery.newer': 'Loop Studio’nun daha yeni bir sürümüyle kaydedilmiş. Uygulamayı yeniden açmak o sürümü yükleyip diyagramı açabilir.',
   'recovery.stillUnreadable': 'Hâlâ okunamıyor. Kayıtlı diyagram değişmedi.',
+  'recovery.changed': 'Bu ekran açıkken kayıtlı diyagram değişti; başka bir sekme kaydetmiş olabilir. Hiçbir şey silinmedi. Şu an gösterileni kontrol edin ya da yeniden açmayı deneyin.',
   'recovery.download': 'Kayıtlı diyagramı indir',
   'recovery.retry': 'Yeniden dene',
   'recovery.reopen': 'Uygulamayı yeniden aç',

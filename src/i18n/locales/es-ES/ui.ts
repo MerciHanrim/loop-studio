@@ -159,6 +159,7 @@ const ui = {
   'recovery.body': 'Loop Studio encontró un diagrama guardado en este navegador, pero no pudo leerlo. No se cambió nada, y no se guardará nada hasta que elija qué hacer con él.',
   'recovery.newer': 'Se guardó con una versión más reciente de Loop Studio. Volver a abrir la aplicación puede cargar esa versión y abrirlo.',
   'recovery.stillUnreadable': 'Todavía no se puede leer. El diagrama guardado no cambió.',
+  'recovery.changed': 'El diagrama guardado cambió mientras esta pantalla estaba abierta; puede que otra pestaña lo haya guardado. No se eliminó nada. Revise lo que se muestra ahora o intente abrirlo de nuevo.',
   'recovery.download': 'Descargar el diagrama guardado',
   'recovery.retry': 'Intentar de nuevo',
   'recovery.reopen': 'Volver a abrir la aplicación',

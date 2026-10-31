@@ -151,6 +151,7 @@ const ui = {
   'recovery.body': 'Loop Studio heeft een diagram gevonden dat in deze browser is opgeslagen, maar kon het niet lezen. Er is niets gewijzigd, en er wordt niets opgeslagen tot je kiest wat ermee moet gebeuren.',
   'recovery.newer': 'Het is opgeslagen door een nieuwere versie van Loop Studio. Als je de app opnieuw opent, wordt die versie misschien geladen en kan het worden geopend.',
   'recovery.stillUnreadable': 'Het kan nog steeds niet worden gelezen. Het opgeslagen diagram is ongewijzigd.',
+  'recovery.changed': 'Het opgeslagen diagram is veranderd terwijl dit scherm openstond, misschien heeft een ander tabblad het opgeslagen. Er is niets verwijderd. Controleer wat nu wordt getoond, of probeer het opnieuw te openen.',
   'recovery.download': 'Het opgeslagen diagram downloaden',
   'recovery.retry': 'Opnieuw proberen',
   'recovery.reopen': 'De app opnieuw openen',

@@ -170,6 +170,7 @@ const ui = {
   'recovery.body': 'Loop Studio hat ein in diesem Browser gespeichertes Diagramm gefunden, konnte es aber nicht lesen. Nichts wurde geändert, und nichts wird gespeichert, bis Sie entscheiden, was damit geschehen soll.',
   'recovery.newer': 'Es wurde mit einer neueren Version von Loop Studio gespeichert. Wenn Sie die App erneut öffnen, wird diese Version vielleicht geladen und kann es öffnen.',
   'recovery.stillUnreadable': 'Es lässt sich weiterhin nicht lesen. Das gespeicherte Diagramm ist unverändert.',
+  'recovery.changed': 'Das gespeicherte Diagramm hat sich geändert, während dieser Bildschirm offen war, vielleicht hat ein anderer Tab es gespeichert. Es wurde nichts gelöscht. Prüfen Sie, was jetzt angezeigt wird, oder versuchen Sie erneut, es zu öffnen.',
   'recovery.download': 'Gespeichertes Diagramm herunterladen',
   'recovery.retry': 'Erneut versuchen',
   'recovery.reopen': 'App erneut öffnen',

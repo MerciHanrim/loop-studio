@@ -149,6 +149,7 @@ const ui = {
   'recovery.body': 'Loop Studio found a diagram saved in this browser but could not read it. Nothing has been changed, and nothing will be saved until you choose what to do with it.',
   'recovery.newer': 'It was saved by a newer version of Loop Studio. Reopening the app may load that version and open it.',
   'recovery.stillUnreadable': 'It still could not be read. The saved diagram is unchanged.',
+  'recovery.changed': 'The saved diagram changed while this page was open, perhaps saved by another tab. Nothing was deleted. Check what is shown now, or try again to open it.',
   'recovery.download': 'Download the saved diagram',
   'recovery.retry': 'Try again',
   'recovery.reopen': 'Reopen the app',
