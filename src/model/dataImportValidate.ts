@@ -77,7 +77,21 @@ export function setColumnRole(draft: TableDraft, columnIndex: number, role: Draf
   if (!col) return draft
   const sourceColumnId = role === 'ignored' ? col.sourceColumnId : (col.sourceColumnId ?? nextId('srccol'))
   columns[columnIndex] = { ...col, role, sourceColumnId }
-  return { ...draft, columns }
+  return withValidGroupBy({ ...draft, columns })
+}
+
+/** #423 (Lumi, 2026-10-31) — a group-by the columns no longer support is
+ *  cleared rather than kept: its control (the group-by row) is shown only
+ *  while the table has 2+ foreign keys, so a stale index would otherwise block
+ *  validation, or drive the grouping, with nothing on screen to change it.
+ *  Cleared when the column it names is gone or is not a foreign key, and when
+ *  fewer than two foreign keys are left. */
+export function withValidGroupBy(draft: TableDraft): TableDraft {
+  const i = draft.groupByColumnIndex
+  if (i === undefined) return draft
+  const fks = draft.columns.filter((c) => c.role === 'foreignKey').length
+  if (draft.columns[i]?.role === 'foreignKey' && fks >= 2) return draft
+  return { ...draft, groupByColumnIndex: undefined }
 }
 
 // -- validated, normalised output ------------------------------------------
