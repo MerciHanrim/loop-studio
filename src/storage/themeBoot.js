@@ -29,8 +29,10 @@
 //
 // The same rule as src/theme/theme.ts: `light` and `dark` set `data-theme`,
 // anything else leaves it off (`system`), and an unreadable storage throws
-// nothing. Plain ES5 on purpose: this runs in every browser that loads the page,
-// before any of the app's code, and is never transpiled.
+// nothing. It is never transpiled, and runs before any of the app's code: so
+// plain ES5 on purpose, with one exception — the optional catch binding
+// (`catch {`, ES2019), which every browser that can run the app's bundle (Vite's
+// default ES2020 target) parses (#420).
 //
 // An explicit theme also sets the browser's chrome colour (`theme-color`, the
 // address bar) to that theme's, as `syncThemeColor` in src/theme/theme.ts does

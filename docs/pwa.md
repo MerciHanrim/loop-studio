@@ -248,9 +248,10 @@ result that was never exported. The bar says so:
 
 `onOfflineReady` → a one-time subtle toast *"Ready to work offline."*
 
-**Update checks** — on registration, then `registration.update()` on
-`visibilitychange` → visible, throttled to at most hourly. No Background Sync /
-Periodic Sync for v1.
+**Update checks** — on registration, then `registration.update()` on every
+`visibilitychange` → visible and once an hour while the page is visible
+(`src/pwa/register-sw.ts`); the visibility check is not throttled. No
+Background Sync / Periodic Sync for v1.
 
 The bar is app state, not a route; it never touches `localStorage` or the graph.
 
