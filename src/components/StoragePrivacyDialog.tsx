@@ -97,7 +97,13 @@ function StorageArea({ onClose, returnFocusTo, initialStep }: Required<Pick<Prop
       body: t('storage.switch.toPersonalBody'),
       confirm: t('storage.switch.toPersonalConfirm'),
       run: () => {
-        switchToPersonal()
+        // #420 — refused while the browser holds a diagram that could not be
+        // read: say so and stay in the temporary session, nothing written
+        const r = switchToPersonal()
+        if (!r.ok) {
+          setNotice({ kind: 'failed', text: t(r.reason === 'unreadable' ? 'storage.switch.unreadable' : 'storage.switch.readFailed') })
+          return
+        }
         onClose()
       },
     },

@@ -20,7 +20,7 @@ export function AutosaveNotice() {
   return (
     <div className="boot-notice boot-notice--autosave" role="alert" data-reason={reason ?? undefined}>
       <span className="boot-notice__text">
-        {t(reason === 'quota' ? 'autosave.failed.quota' : 'autosave.failed.unavailable')}
+        {t(reason === 'quota' ? 'autosave.failed.quota' : reason === 'held' ? 'autosave.failed.held' : 'autosave.failed.unavailable')}
       </span>
       <button
         type="button"

@@ -63,6 +63,17 @@ Two deletions, apart:
 - `Delete work data`: the document record only (`loop-studio:graph:v1`): the diagram, group frames, imported spreadsheet data, project lineage and the Timeline series choice. In a personal browser the open diagram is emptied too, and the autosave that follows holds the empty diagram. In a temporary session the browser's stored record is removed and the session's own diagram is left alone. The author name and note, preferences and onboarding state stay.
 - `Reset all Loop Studio data`: every registered key, the mode key included, then the port closes so the flush on the way out stores nothing, and the page reloads into the gate.
 
+## A saved diagram that cannot be read (#420)
+
+Before any store exists, a personal session reads its saved diagram (`readStoredRecord` in `src/model/serialize.ts`, from the boot module). Readable or absent: the app starts as before. Otherwise the record is **held** and a recovery screen (`src/components/RecoveryScreen.tsx`) is drawn **instead of** the app, so nothing exists that could write: no autosave, no New / Template / import, and a share link stays in the address bar unopened.
+
+- **The diagram cannot be read** (broken text, a format this build does not know — including one written by a newer version — or a node entry the reader refuses): Download the saved diagram (the exact stored text; nothing is deleted), Try again (reads it again in place; readable ⇒ the app starts with it, still unreadable ⇒ the screen stays and says so), Continue in a temporary session (the app works in memory; the saved diagram is left as it is), and Discard the saved diagram (only after its own confirmation). A diagram a newer version wrote also gets "Reopen the app", since a reload may load that version.
+- **Storage cannot be read at all**: whether a diagram is saved here cannot be told, so the app never starts a personal session silently — the screen offers Try again and a temporary session only; there is nothing to download or discard.
+- **The hold** is at the storage port: while held, every write and removal of the browser's work record is refused (`StorageHeldError`) and the autosave reports it as a visible failure (`held`), never a silent skip. Only a successful re-read, the confirmed Discard, or the confirmed Delete work data ends it. A temporary session's in-memory writes go on.
+- **Back to personal**: switching a temporary session to personal reads the browser's record first; if it cannot be read, the switch is refused, nothing is written, and the temporary session keeps its work.
+- **Share links in that temporary session** open into memory, as in any temporary session; they never touch the held record.
+- **Space**: the original stays where it is — nothing is copied — so a record near the quota needs no extra space; Download needs none, and Discard frees it.
+
 ## Share links
 
 A share link always carries the whole document and always names the public address. The share dialog states that the link itself contains the whole diagram, that nothing is uploaded, that the link can remain in the browser history, in a messenger or on the clipboard, and that sensitive work should travel as a file. A temporary session guarantees one thing about a link: the document opened from it is not left in Loop Studio's own storage. It promises nothing about the browser's history and does not claim to delete it.

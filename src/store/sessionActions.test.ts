@@ -89,11 +89,14 @@ describe('personal → temporary', () => {
 
 describe('temporary → personal', () => {
   it('the first write happens at the switch: the open diagram replaces the stored one', () => {
-    mem.m.set(WORK_KEY, '{"previous":true}')
+    // a READABLE previous diagram: since #420 a record that cannot be read is
+    // never replaced by this switch (src/storage/unreadableRecord.test.ts)
+    const previous = JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes: [{ id: 'previous', type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool', label: 'Previous' } }], edges: [] })
+    mem.m.set(WORK_KEY, previous)
     storageSession.use('temporary')
     useSessionStore.getState().sync()
     makeWork()
-    expect(mem.m.get(WORK_KEY)).toBe('{"previous":true}') // nothing written yet
+    expect(mem.m.get(WORK_KEY)).toBe(previous) // nothing written yet
     switchToPersonal()
     expect(storageSession.mode()).toBe('personal')
     expect(useSessionStore.getState().mode).toBe('personal')
