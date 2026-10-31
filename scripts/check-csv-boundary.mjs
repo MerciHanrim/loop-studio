@@ -59,15 +59,23 @@ const rel = (f) => f.replace(/\\/g, '/').slice(SRC.replace(/\\/g, '/').length + 
 const CSV_MODULE = 'model/csv.ts'
 const CRLF_LITERAL = '\\r\\n'
 
+// #423 — the same boundary owns every DOWNLOAD, not only the CSV ones: two
+// JSON exports had grown their own copy of `downloadText` (an anchor clicked
+// while detached, which not every browser follows). Outside it, an object URL
+// made in source is the tell.
+const OBJECT_URL = /URL\.createObjectURL\(/g
+
 const files = sourceFiles(SRC)
 const offenders = []
 const eolOffenders = []
+const urlOffenders = []
 for (const file of files) {
   if (rel(file) === BOUNDARY) continue
   const src = readFileSync(file, 'utf8')
   for (const m of src.matchAll(/new Blob\([^)]*\)/g)) {
     if (/csv/i.test(m[0])) offenders.push(`${rel(file)}: ${m[0]}`)
   }
+  if (src.match(OBJECT_URL)) urlOffenders.push(rel(file))
   for (const m of src.matchAll(/['"`]text\/csv[^'"`]*['"`]/g)) {
     offenders.push(`${rel(file)}: ${m[0]}`)
   }
@@ -87,6 +95,9 @@ if (!files.some((f) => rel(f) === BOUNDARY)) problems.push(`${BOUNDARY} not foun
 const boundarySrc = readFileSync(join(SRC, 'ui', 'download.ts'), 'utf8')
 if (!/['"`]text\/csv[^'"`]*['"`]/.test(boundarySrc)) {
   problems.push('the boundary declares no CSV media type — the pattern cannot be right')
+}
+if (!boundarySrc.match(OBJECT_URL)) {
+  problems.push('the boundary makes no object URL — the download pattern cannot be right')
 }
 if (!boundarySrc.includes('0xfeff')) {
   problems.push('the boundary adds no BOM (expected a 0xfeff code point)')
@@ -121,6 +132,15 @@ if (offenders.length) {
   process.exit(1)
 }
 
+if (urlOffenders.length) {
+  console.error(
+    `check-csv-boundary: a download goes through \`downloadText\` / \`downloadCsv\` in src/${BOUNDARY}.\n` +
+      'These files make their own object URL:',
+  )
+  for (const o of urlOffenders) console.error('  ' + o)
+  process.exit(1)
+}
+
 if (eolOffenders.length) {
   console.error(
     `check-csv-boundary: the CSV record separator lives in src/${CSV_MODULE} (CSV_EOL).\n` +
@@ -133,5 +153,6 @@ if (eolOffenders.length) {
 console.log(
   `  ok    ${files.length} source files scanned; src/${BOUNDARY} is the only CSV writer`,
 )
+console.log(`  ok    src/${BOUNDARY} is the only place a download's object URL is made`)
 console.log(`  ok    src/${CSV_MODULE} is the only home of CSV_EOL and the RFC 4180 quoting`)
 console.log('\ncheck-csv-boundary: ok')

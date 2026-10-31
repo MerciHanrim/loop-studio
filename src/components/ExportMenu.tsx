@@ -10,20 +10,12 @@ import {
   type WorkspaceFileOption,
 } from '../store/workspaceIO'
 import { makeProposal } from '../ui/revisionActions'
+import { downloadText } from '../ui/download'
 import { useT } from '../i18n'
 import type { ToolbarDialog } from './toolbar/dialogTypes'
 import { DescribedRow } from './toolbar/DescribedMenu'
 
 const MiB = (n: number) => `${(n / (1024 * 1024)).toFixed(1)} MiB`
-
-function download(text: string, name: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
-  const a = document.createElement('a')
-  a.href = url
-  a.download = name
-  a.click()
-  URL.revokeObjectURL(url)
-}
 
 /** §W8 — Graph JSON (today's file) / Workspace JSON (graph + run config +
  *  last completed distribution + view + canvas + a verified sim snapshot) /
@@ -60,7 +52,7 @@ export function ExportMenuItems({
 
   const graphJSON = () => {
     onLeave()
-    download(exportJSON(recommendedRunConfigForExport()), 'loop-studio-graph.json')
+    downloadText(exportJSON(recommendedRunConfigForExport()), 'loop-studio-graph.json')
   }
 
   const proposal = () => {
@@ -103,7 +95,7 @@ export function ExportMenuItems({
       t('export.workspace.item.liveRun', { step: sim.stepIndex }),
     )
     const summary = `${t('export.workspace.included', { items: items.join(', ') })}\n${t('export.workspace.excluded')}`
-    const write = (opt: WorkspaceFileOption) => () => download(opt.text, 'loop-studio-workspace.json')
+    const write = (opt: WorkspaceFileOption) => () => downloadText(opt.text, 'loop-studio-workspace.json')
 
     if (decision.kind === 'confirm-omit') {
       onOpenDialog({

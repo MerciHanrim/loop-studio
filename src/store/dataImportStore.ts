@@ -2,20 +2,19 @@ import { create } from 'zustand'
 import { setDataImportHistorySidecar } from './graphStore'
 import { loadFromStorage, type ImportSourceTable } from '../model/serialize'
 
-// docs/data-import.md (`loop-revision/8`, `SEMANTICS-R8.md`) — Phase 1A: the
-// storage foundation only. This store holds the CURRENT saved data-import
-// source records and mirrors `frameStore`'s undo-sidecar pattern exactly
-// (`SEMANTICS-R5.md` §SF11 precedent) so a graph undo / redo, and every
-// document load, restores them together with the graph — no separate history
-// entry.
+// docs/data-import.md (`loop-revision/8`, `SEMANTICS-R8.md`) — the CURRENT
+// saved data-import source records. It mirrors `frameStore`'s undo-sidecar
+// pattern exactly (`SEMANTICS-R5.md` §SF11 precedent) so a graph undo / redo,
+// and every document load, restores them together with the graph — no
+// separate history entry.
 //
-// Deliberately minimal: Phase 1A ships NO interactive UI that creates or
-// edits these records, so there is no `addTable` / `renameTable` / etc. here
-// yet, unlike `frameStore`'s rich mutation surface. Phase 1B (the actual
-// CSV/TSV import) adds the one real mutation this needs — "commit an import"
-// — as a single new atomic action once it exists; until then, `loadTables` /
-// `snapshot` (load + serialize) are the whole surface, exercised today only
-// by directly-constructed test fixtures and file load/save.
+// Deliberately minimal: `loadTables` / `snapshot` (load + serialize) are the
+// whole surface, and it has no mutation of its own. The import wizard and the
+// refresh wizard (src/components/dataImport/) change the records only through
+// the graph store's atomic actions — `commitDataImport`, `commitRefresh` and
+// `renameDataImportTable` — which take one history entry each and write the
+// new set through the sidecar below, so a batch and its records always move
+// together (#423: this header used to say no UI wrote them yet).
 
 type DataImportStore = {
   tables: ImportSourceTable[]
