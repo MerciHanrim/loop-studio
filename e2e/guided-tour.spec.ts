@@ -357,11 +357,17 @@ test.describe('guided tour — localStorage unavailable (§GT6.3)', () => {
     await seedKey(page, null) // enable the trigger; storage is broken next
     await breakStorage(page)
     // issue #297 - with storage unreadable nothing can be remembered, so the
-    // storage gate is asked (the fixture's seed could not land); the personal
-    // browser is chosen and the app boots on a storage that throws, as before
+    // storage gate is asked (the fixture's seed could not land). The personal
+    // browser is chosen; since #420 a personal session never starts silently on
+    // a storage it cannot read (whether a diagram is saved there cannot be
+    // told): the storage-error screen comes first, and its temporary session
+    // is how the app boots on such a browser
     await page.goto('/')
     await expect(page.locator('.gate')).toBeVisible()
     await page.locator('.gate [data-gate-choice="personal"] button').click()
+    const storageError = page.locator('[data-recovery="storage-error"]')
+    await expect(storageError).toBeVisible()
+    await storageError.getByRole('button', { name: /temporary session/i }).click()
     // not `openApp()`: that navigates again, and an unreadable storage would
     // bring the gate back
     await waitForAppReady(page)

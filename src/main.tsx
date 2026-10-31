@@ -42,7 +42,54 @@ if (__PWA_ENABLED__) {
   void import('./pwa/register-sw').then((m) => m.registerPwa())
 }
 
+/**
+ * #420 item (3) — before any store exists, a personal session reads its saved
+ * diagram. Readable or absent: on to the app. Unreadable, or storage that
+ * cannot be read: the record is held at the port and the recovery screen is
+ * drawn INSTEAD of the app — nothing that could write exists until the person
+ * chooses. Resolves when the app may start (in the session that choice left).
+ */
+async function recoverIfUnreadable(): Promise<void> {
+  if (storageSession.mode() !== 'personal') return
+  const { readStoredRecord } = await import('./model/serialize')
+  const first = readStoredRecord()
+  if (first.kind === 'ok' || first.kind === 'none') return
+  storageSession.holdWork()
+  await initI18n()
+  const { RecoveryScreen } = await import('./components/RecoveryScreen')
+  await new Promise<void>((resolve) => {
+    const root = createRoot(document.getElementById('root')!)
+    const done = (outcome: 'start' | 'temporary') => {
+      root.unmount()
+      if (outcome === 'temporary') {
+        storageSession.use('temporary') // the held record stays held, untouched
+      } else {
+        storageSession.releaseWork() // read again and readable, or discarded
+      }
+      resolve()
+    }
+    root.render(
+      <StrictMode>
+        <RecoveryScreen
+          initial={first}
+          reread={readStoredRecord}
+          discardIfUnchanged={(expected) => {
+            // #420 review — read again right before removing: another tab may
+            // have saved since the screen showed `expected`; then nothing goes
+            const now = readStoredRecord()
+            if (now.kind !== 'unreadable' || now.text !== expected) return now
+            storageSession.discardHeldWork()
+            return null
+          }}
+          onDone={done}
+        />
+      </StrictMode>,
+    )
+  })
+}
+
 async function start(): Promise<void> {
+  await recoverIfUnreadable()
   // issue #344 §DL2.8 — a legacy autosave record is re-placed on the grid once,
   // here, before `startApp` evaluates the stores that read it (no store is
   // imported by this module, and the session is open by now)

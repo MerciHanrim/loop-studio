@@ -112,7 +112,24 @@ export class StorageGateError extends Error {
   }
 }
 
+/** #420 — thrown by a write or removal of the browser's work record while it is
+ *  HELD: a record was found that this build could not read, and nothing may
+ *  replace it until the person chose (download / try again / discard). The
+ *  autosave reports it as a visible failure (`held`), never a silent skip. */
+export class StorageHeldError extends Error {
+  constructor(op: string) {
+    super(`Loop Studio: the saved diagram could not be read and is kept as it is; storage ${op} refused`)
+    this.name = 'StorageHeldError'
+  }
+}
+
 let state: StorageSessionState = 'gate'
+/** #420 — the browser's work record is held (see `StorageHeldError`). Applies to
+ *  the BROWSER record only: a temporary session's in-memory writes go on. */
+let workHeld = false
+const refuseHeld = (key: StorageKey, op: string) => {
+  if (workHeld && key === WORK_KEY) throw new StorageHeldError(op)
+}
 /** the temporary session's storage: same keys, same strings, page-lifetime only */
 let memory = new Map<string, string>()
 /** what the mode key said when it was last read or written on this page */
@@ -140,6 +157,7 @@ export const storagePort = {
       case 'gate':
         throw new StorageGateError('write', key)
       case 'browser':
+        refuseHeld(key, 'write')
         localStorage.setItem(key, value)
         return
       case 'memory':
@@ -155,6 +173,7 @@ export const storagePort = {
       case 'gate':
         throw new StorageGateError('remove', key)
       case 'browser':
+        refuseHeld(key, 'removal')
         localStorage.removeItem(key)
         return
       case 'memory':
@@ -248,7 +267,45 @@ export const storageSession = {
    * browser holds, not the temporary one. Throws what the browser throws.
    */
   removeFromBrowser(key: StorageKey): void {
+    refuseHeld(key, 'removal')
     localStorage.removeItem(key)
+  },
+
+  /** #420 — hold the browser's work record: every write and removal of it is
+   *  refused (`StorageHeldError`) until `releaseWork` or `discardHeldWork`. */
+  holdWork(): void {
+    workHeld = true
+  },
+  /** #420 — the record was read again and is readable (or gone): writes go on */
+  releaseWork(): void {
+    workHeld = false
+  },
+  isWorkHeld(): boolean {
+    return workHeld
+  },
+  /** #420 — the person confirmed Discard (or Delete work data): the held record
+   *  leaves the browser's storage, and the hold ends. Throws what the browser
+   *  throws, before the hold ends. */
+  discardHeldWork(): void {
+    localStorage.removeItem(WORK_KEY)
+    workHeld = false
+  },
+  /** #420 review — call `fn` when ANOTHER tab of this origin changes the
+   *  browser's work record (or clears storage): the browser's `storage` event,
+   *  which never fires for this page's own writes. Returns the unsubscribe. */
+  onOtherTabWorkChange(fn: () => void): () => void {
+    if (typeof window === 'undefined') return () => {}
+    const onEvent = (e: StorageEvent) => {
+      if (e.key === WORK_KEY || e.key === null) fn()
+    }
+    window.addEventListener('storage', onEvent)
+    return () => window.removeEventListener('storage', onEvent)
+  },
+  /** #420 — the browser's work record, read straight from `localStorage` whatever
+   *  the session (a temporary session switching back to personal checks it
+   *  before writing). Throws what the browser throws. */
+  peekBrowserWork(): string | null {
+    return localStorage.getItem(WORK_KEY)
   },
 
   /**

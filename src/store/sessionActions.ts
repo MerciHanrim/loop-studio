@@ -1,3 +1,4 @@
+import { classifyStoredText } from '../model/serialize'
 import { WORK_KEY, storagePort, storageSession } from '../storage/storagePort'
 import { persistNow, useGraphStore } from './graphStore'
 import { recommendedRunConfigForExport } from './mcStore'
@@ -41,10 +42,28 @@ export function switchToTemporary(carryDocument: boolean): void {
  * document the browser held. Settings made during the session are written
  * as they next change, like any other preference.
  */
-export function switchToPersonal(): void {
+export function switchToPersonal(): { ok: true } | { ok: false; reason: 'unreadable' | 'read-failed' } {
+  // #420 — the read check again: the browser may hold a record this build
+  // cannot read (the person chose a temporary session on the recovery screen,
+  // or it was written since). The confirmation said "replace the stored
+  // diagram"; it was never meant to replace one that could not be opened.
+  // Checked before the switch, so a refusal leaves the temporary session —
+  // and its in-memory work — exactly as it was.
+  let text: string | null
+  try {
+    text = storageSession.peekBrowserWork()
+  } catch {
+    return { ok: false, reason: 'read-failed' }
+  }
+  if (classifyStoredText(text).kind === 'unreadable') {
+    storageSession.holdWork()
+    return { ok: false, reason: 'unreadable' }
+  }
+  storageSession.releaseWork()
   storageSession.use('personal')
   persistNow()
   useSessionStore.getState().sync()
+  return { ok: true }
 }
 
 /**
@@ -56,6 +75,14 @@ export function switchToPersonal(): void {
  * Throws what the browser throws, so the caller can say it failed.
  */
 export function deleteWorkData(): void {
+  // #420 — a held record (one this build could not read) is removed only here
+  // and on the recovery screen's Discard, both behind their own confirmation;
+  // `discardHeldWork` removes it and ends the hold
+  if (storageSession.isWorkHeld()) {
+    storageSession.discardHeldWork()
+    if (storageSession.mode() === 'personal') useGraphStore.getState().newGraph()
+    return
+  }
   if (storageSession.mode() === 'personal') {
     storagePort.removeItem(WORK_KEY)
     useGraphStore.getState().newGraph()

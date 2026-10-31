@@ -3,7 +3,7 @@ import { defaultData } from './factory'
 import { canonicalPorts } from './ports'
 import { readAccent, readParameterData, readRegisterData, SOURCE_ID_MAX_BYTES, SOURCE_KEY_MAX_BYTES, utf8Len } from './model'
 import type { LoopEdge, LoopNode, NodeKind } from './types'
-import { storagePort } from '../storage/storagePort'
+import { StorageHeldError, storagePort, storageSession } from '../storage/storagePort'
 
 export const STORAGE_KEY = 'loop-studio:graph:v1'
 
@@ -817,7 +817,7 @@ export function deserialize(text: string): {
  *  record for size (`QuotaExceededError` — the per-origin localStorage limit,
  *  which differs by browser); `unavailable` = storage is blocked or absent
  *  (private mode, a policy, no `localStorage` at all). */
-export type SaveToStorageResult = { ok: true } | { ok: false; reason: 'quota' | 'unavailable' }
+export type SaveToStorageResult = { ok: true } | { ok: false; reason: 'quota' | 'unavailable' | 'held' }
 
 const isQuotaError = (e: unknown): boolean => {
   if (!e || typeof e !== 'object') return false
@@ -861,12 +861,28 @@ export function saveToStorage(
         : Array.isArray(timelineSeries) && timelineSeries.length > 0
           ? { timelineSeries: [...timelineSeries] }
           : undefined
-    storagePort.setItem(
-      STORAGE_KEY,
-      serialize(nodes, edges, rrc, undefined, project, modelVersion, frames, dataImports),
-    )
+    // #420 review — the change check right before the write, personal session
+    // only: if the browser's record is no longer what this page last read or
+    // wrote (another tab — perhaps a NEWER version — saved since) and this build
+    // cannot read it, hold it and refuse, instead of overwriting work this
+    // page never saw. A readable record another tab wrote is overwritten as
+    // before (last writer wins across tabs of the same version).
+    const personal = storageSession.mode() === 'personal'
+    if (personal) {
+      const current = storagePort.getItem(STORAGE_KEY)
+      if (current !== null && current !== lastKnownWorkText && classifyStoredText(current).kind === 'unreadable') {
+        storageSession.holdWork()
+        return { ok: false, reason: 'held' }
+      }
+    }
+    const text = serialize(nodes, edges, rrc, undefined, project, modelVersion, frames, dataImports)
+    storagePort.setItem(STORAGE_KEY, text)
+    if (personal) lastKnownWorkText = text
     return { ok: true }
   } catch (e) {
+    // #420 — `held`: the record this write would replace could not be read,
+    // and is kept until the person chooses; the refusal is reported, not hidden
+    if (e instanceof StorageHeldError) return { ok: false, reason: 'held' }
     return { ok: false, reason: isQuotaError(e) ? 'quota' : 'unavailable' }
   }
 }
@@ -884,11 +900,61 @@ export function loadFromStorage():
       project?: unknown
     }
   | null {
+  const r = readStoredRecord()
+  if (r.kind === 'ok') return r.doc
+  // #420 — the defence behind the boot screen: stores that start over a record
+  // they cannot read must never replace it, whatever path got them here
+  if (r.kind === 'unreadable') storageSession.holdWork()
+  return null
+}
+
+/** the highest `loop-studio/graph/<n>` this build reads (`SCHEMA_V2`) */
+const KNOWN_SCHEMA_MAX = 2
+
+/** #420 — what is in the work record, told apart: nothing, a document, text this
+ *  build cannot read (kept as it is, with the reason and whether a newer
+ *  version wrote it), or a read the browser refused (storage blocked). */
+export type StoredRecordRead =
+  | { kind: 'none' }
+  | { kind: 'ok'; doc: ReturnType<typeof deserialize> }
+  | { kind: 'unreadable'; text: string; reason: GraphFileErrorCode; newer: boolean }
+  | { kind: 'read-failed' }
+
+/** #420 — classify a work-record text (store-free; also used on the browser's
+ *  record from a temporary session, before switching back to personal) */
+export function classifyStoredText(text: string | null): Exclude<StoredRecordRead, { kind: 'read-failed' }> {
+  // only an ABSENT key is "no record": a key holding an empty string is a record
+  // this build cannot read, and is protected like any other (#420 review)
+  if (text === null) return { kind: 'none' }
   try {
-    const text = storagePort.getItem(STORAGE_KEY)
-    if (!text) return null
-    return deserialize(text)
-  } catch {
-    return null
+    return { kind: 'ok', doc: deserialize(text) }
+  } catch (e) {
+    const reason: GraphFileErrorCode = e instanceof GraphFileError ? e.code : 'unexpected'
+    let newer = false
+    try {
+      const schema = (JSON.parse(text) as { schema?: unknown }).schema
+      const m = typeof schema === 'string' ? /^loop-studio\/graph\/(\d+)$/.exec(schema) : null
+      newer = m != null && Number(m[1]) > KNOWN_SCHEMA_MAX
+    } catch {
+      newer = false
+    }
+    return { kind: 'unreadable', text, reason, newer }
   }
+}
+
+/** #420 review — the browser work record as this page last read or wrote it
+ *  (personal session only); `undefined` before the first read. `saveToStorage`
+ *  compares the record with it right before writing. */
+let lastKnownWorkText: string | null | undefined
+
+/** #420 — read the work record through the port and classify it. Never throws. */
+export function readStoredRecord(): StoredRecordRead {
+  let text: string | null
+  try {
+    text = storagePort.getItem(STORAGE_KEY)
+  } catch {
+    return { kind: 'read-failed' }
+  }
+  if (storageSession.mode() === 'personal') lastKnownWorkText = text
+  return classifyStoredText(text)
 }
