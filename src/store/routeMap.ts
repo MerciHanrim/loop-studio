@@ -1275,6 +1275,32 @@ export function layoutSignature(nodes: LoopNode[], edges: LoopEdge[]): string {
   return JSON.stringify([ns, es])
 }
 
+/** #421 item 3 (Lumi, 2026-11-01) — `layoutSignature`, computed once for a
+ *  layout and reused: a step's badge plan asks for it once per connection that
+ *  shows a token (9–48 times a step on the MMO template), always about the
+ *  same layout. Keyed on what the signature reads:
+ *  - the node and edge ARRAYS by identity — the graph store replaces an array,
+ *    and the node or edge objects in it, on every change; nothing writes a
+ *    position, size, handle, waypoint or `hidden` in place;
+ *  - the route inputs' `rev`, which every name-box, label-size and run-form
+ *    size change bumps (the module maps the signature also reads);
+ *  - the node structure (`symbolNodes()`).
+ *  `__resetRouteCache` (which clears the label sizes without a bump) clears it. */
+let sigMemo: { nodes: LoopNode[]; edges: LoopEdge[]; rev: number; symbols: boolean; sig: string } | null = null
+let sigComputed = 0
+export function layoutSignatureOnce(nodes: LoopNode[], edges: LoopEdge[]): string {
+  const rev = useRouteInputs.getState().rev
+  const symbols = symbolNodes()
+  const m = sigMemo
+  if (m && m.nodes === nodes && m.edges === edges && m.rev === rev && m.symbols === symbols) return m.sig
+  sigComputed++
+  const sig = layoutSignature(nodes, edges)
+  sigMemo = { nodes, edges, rev, symbols, sig }
+  return sig
+}
+/** tests: how many times `layoutSignatureOnce` computed a signature */
+export const __layoutSignatureComputed = (): number => sigComputed
+
 /** a committed full generation, and what it was computed from */
 type Base = {
   sig: string
@@ -1634,6 +1660,7 @@ export function __resetRouteCache(): void {
   genCount = 0
   labelSizes.clear()
   runFormSizes.clear()
+  sigMemo = null
   shownRunForm = NO_RUN_FORM
   runFormOn = true
   live = false
