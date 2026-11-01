@@ -365,6 +365,12 @@ not a tab-scope change. v1 adds only: a shortcut to toggle Focus, and *select
 next / previous connected node* to step the selection along drawn edges. Deeper
 keyboard graph-nav is a later follow-up (`LGR-D5`).
 
+The keys (`f`, `]` / `[`) are canvas commands (#422, 2026-11-01): they act only
+while the canvas has the keyboard — focus inside the canvas, or on no control
+at all (the page itself, as after a click on the empty pane). With focus in the
+left panel, the timeline, the status bar, a field or any other control they do
+nothing to the canvas; a modal dialog and a modifier combo also stop them.
+
 ---
 
 ## LGR5. The run distinction — `evaluated` vs `effective`

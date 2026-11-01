@@ -25,6 +25,17 @@ export function isModalOpen(doc: Document = document): boolean {
   return doc.querySelector(MODAL_SELECTOR) !== null
 }
 
+/** #422 (Lumi, 2026-11-01) — the canvas has the keyboard: focus is inside the
+ *  canvas (`.canvas`, React Flow's nodes and the canvas's own controls), or on
+ *  no control at all — the page itself, as right after the app opens or a
+ *  click on the empty pane, which takes no focus. Focus in the left panel, the
+ *  timeline, the status bar or any other control is not the canvas. */
+export function isCanvasFocus(target: EventTarget | null, doc: Document = document): boolean {
+  const t = target as Element | null
+  if (!t || t === doc.body || t === doc.documentElement) return true
+  return typeof t.closest === 'function' && t.closest('.canvas') !== null
+}
+
 /** true when a destructive canvas key must be ignored for this event */
 export function blocksCanvasKey(target: EventTarget | null, doc: Document = document): boolean {
   return isTypingTarget(target) || isModalOpen(doc)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { blocksCanvasKey, isModalOpen, isTypingTarget } from './keyboardTarget'
+import { blocksCanvasKey, isCanvasFocus, isModalOpen, isTypingTarget } from './keyboardTarget'
 
 // §LGR6.6 — the two guards every destructive canvas key passes. The dialog one
 // is the fix for audit finding F3: React Flow's own delete handler listens on
@@ -46,6 +46,25 @@ describe('isModalOpen', () => {
       expect(isModalOpen(doc(sel))).toBe(true)
     },
   )
+})
+
+describe('isCanvasFocus (#422)', () => {
+  const body = {} as Element
+  const html = {} as Element
+  const page = { body, documentElement: html } as unknown as Document
+  /** an element whose `closest('.canvas')` answers `inCanvas` */
+  const at = (inCanvas: boolean) => ({ closest: (sel: string) => (sel === '.canvas' && inCanvas ? {} : null) }) as unknown as EventTarget
+
+  it('is true inside the canvas, and with focus on no control (the page itself)', () => {
+    expect(isCanvasFocus(at(true), page)).toBe(true)
+    expect(isCanvasFocus(body, page)).toBe(true)
+    expect(isCanvasFocus(html, page)).toBe(true)
+    expect(isCanvasFocus(null, page)).toBe(true)
+  })
+
+  it('is false for a control outside the canvas (left panel, timeline, status bar)', () => {
+    expect(isCanvasFocus(at(false), page)).toBe(false)
+  })
 })
 
 describe('blocksCanvasKey', () => {
