@@ -8,7 +8,7 @@ import { getBezierPath, Position } from '@xyflow/react'
 import type { LoopEdge, LoopNode } from '../../model/types'
 import { edgePortKind, faceOf, type PortEnd } from '../../model/ports'
 import type { PortFace } from '../../model/types'
-import { layoutSignature, nameFootprintsOf, portPoint, type RoutedEdge } from '../../store/routeMap'
+import { layoutSignatureOnce, nameFootprintsOf, portPoint, type RoutedEdge } from '../../store/routeMap'
 import { planBadgePlaces, type PlanEdge, type PlanMark } from './badgePlan'
 import { badgeWidth, type BadgePlace, type Box } from './playbackBadge'
 import { samplePath } from './pathSample'
@@ -96,7 +96,8 @@ function planInputs(nodes: LoopNode[], edges: LoopEdge[], map: ReadonlyMap<strin
 
 /** every resource connection's badge place for this layout */
 export function badgePlaces(nodes: LoopNode[], edges: LoopEdge[], map: ReadonlyMap<string, RoutedEdge>): Map<string, BadgePlace> {
-  const sig = layoutSignature(nodes, edges)
+  // #421 — once per layout, not once per connection asking at a step's start
+  const sig = layoutSignatureOnce(nodes, edges)
   if (cache && cache.sig === sig && cache.map === map) return cache.places
   const { marks, plan } = planInputs(nodes, edges, map)
   const places = planBadgePlaces(plan, marks, badgeWidth(PLAN_TEXT))
