@@ -377,8 +377,6 @@ const LATIN_KEYS = [
   'catalog:recovery.storageError.body',
   'catalog:revision.export.tooLarge',
   'catalog:revision.export.unknownKind', // #420 PR B: `Loop Studio`
-  'catalog:playbar.diag.multiSupplyLoss', // #471 Deploy 2: `Loop Studio`
-  'catalog:playbar.diag.multiSupplyHeld', // #471 Deploy 2: `Loop Studio`
   'catalog:rf.edge.a11y',
   'catalog:rf.node.a11y',
   'catalog:rf.node.a11yKeyboard',
@@ -553,7 +551,7 @@ describe('a Latin run is declared, twice over — by key and by word', () => {
 
   it('the strings carrying a Latin run are exactly the declared ones', () => {
     expect(withLatin.slice().sort()).toEqual(LATIN_KEYS.slice().sort())
-    expect(LATIN_KEYS).toHaveLength(238) // #471 Deploy 2: +2 (playbar.diag.multiSupplyLoss / multiSupplyHeld — `Loop Studio`); #420 item 3: +4 (recovery.body / newer / storageError.body, storage.switch.readFailed — `Loop Studio`); #420 follow-up: +1 (review.gate.invalidTarget, `Loop Studio`); #420 PR B: +1 (revision.export.unknownKind, `Loop Studio`); 2026-10: −20 (the 18 removed `whatsNew.*` lines and the two removed edge-type strings), +70 (the strings the redesign added, listed above); 0.28.3: +1 (Delete in one release-note line); 0.28.1: +1 (MMO in the note that the example left the Templates list); §ER19 Reverse: +1 (Loop Studio in the no-effect reason); 0.26.2: +2 (the `+N` of two release-note lines); 0.26.0: +1 (Loop Studio in one release-note line); issue #344 Step 3: +2 (Esc / Shift / Delete in the two bend hints), -1 (the edge note no longer names Monte Carlo); issue #344 Step 1: +1 (Alt / Ctrl / Mac in one 0.25.0 release-note line); issue #330 PR 3: +1 (the `+N` of one 0.24.0 release-note line); issue #330 PR 1: +1 (the `+N` of one 0.22.0 release-note line); issue #307: +2 (two 0.18.1 release-note lines); issue #308: +1 (one 0.18.2 release-note line); issue #325: +1 (one 0.19.0 release-note line)
+    expect(LATIN_KEYS).toHaveLength(236) // #471 Deploy 2: ±0 (playbar.diag.multiSupplyLoss / multiSupplyHeld carried `Loop Studio` until review 3 dropped the cause sentence); #420 item 3: +4 (recovery.body / newer / storageError.body, storage.switch.readFailed — `Loop Studio`); #420 follow-up: +1 (review.gate.invalidTarget, `Loop Studio`); #420 PR B: +1 (revision.export.unknownKind, `Loop Studio`); 2026-10: −20 (the 18 removed `whatsNew.*` lines and the two removed edge-type strings), +70 (the strings the redesign added, listed above); 0.28.3: +1 (Delete in one release-note line); 0.28.1: +1 (MMO in the note that the example left the Templates list); §ER19 Reverse: +1 (Loop Studio in the no-effect reason); 0.26.2: +2 (the `+N` of two release-note lines); 0.26.0: +1 (Loop Studio in one release-note line); issue #344 Step 3: +2 (Esc / Shift / Delete in the two bend hints), -1 (the edge note no longer names Monte Carlo); issue #344 Step 1: +1 (Alt / Ctrl / Mac in one 0.25.0 release-note line); issue #330 PR 3: +1 (the `+N` of one 0.24.0 release-note line); issue #330 PR 1: +1 (the `+N` of one 0.22.0 release-note line); issue #307: +2 (two 0.18.1 release-note lines); issue #308: +1 (one 0.18.2 release-note line); issue #325: +1 (one 0.19.0 release-note line)
   })
 
   it('the Latin vocabulary is exactly the declared one', () => {

@@ -80,8 +80,10 @@ export type StepNotice = {
    *  than it could use at the fraction it ran, and that amount was lost (D1).
    *  `multiSupplyHeld`: a router was handed an amount this step that it did
    *  not pass on (its inbox is per step), and that amount was lost — the
-   *  same shape's second loss. The multi-supply design is not done; #471
-   *  stays open. */
+   *  same shape's second loss. The run bars word both as the measured fact
+   *  (which node, how much) and name no cause: the plan rule for a Gate
+   *  with more than one supply is a follow-up of #471, not a limit of the
+   *  product. */
   kind: 'multiSupplyLoss' | 'multiSupplyHeld'
   nodeId: string
   /** the node's label at the time of the step */

@@ -213,7 +213,6 @@ describe('ru copy — the first Cyrillic catalog', () => {
     // `продаётся`, `путём`, `счёт`, `счётчик`, `счётчика`, `упрощённая`,
     // `ёмкостью`)
     expect([...yo].sort()).toEqual([
-      'берёт', // #471 Deploy 2: playbar.diag.multiSupplyLoss
       'введённое',
       'вернёт', // #420 follow-up: review.openDoc.replace.body
       'вернётся',
