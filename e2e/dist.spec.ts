@@ -72,7 +72,7 @@ async function runPrefilledMc(page: Page, runs: number, steps: number, seed: num
 }
 
 test.describe('production build (Cloudflare Pages shape)', () => {
-  test('boots at /, imports Risky Factory, runs the Worker path → 424/500, exports, survives reload', async ({ page }) => {
+  test('boots at /, imports Risky Factory, runs the Worker path → 419/500, exports, survives reload', async ({ page }) => {
     const { bad } = await openProd(page)
 
     // 0 — the build stamp is injected and rendered -- the toolbar redesign
@@ -95,7 +95,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     expect(probe.wk.ctor, 'Workers constructed on the preview server').toBeGreaterThanOrEqual(2)
     expect(probe.wk.job, 'jobs dispatched to Workers').toBeGreaterThanOrEqual(1)
     await expect(page.locator('.term__line')).toHaveCount(1)
-    await expect(page.locator('.term__pct b')).toHaveText('85%')
+    await expect(page.locator('.term__pct b')).toHaveText('84%') // 419 / 500 (#471)
 
     // 4 — Export ▾ → JSON; captured via the URL.createObjectURL wrapper
     await page.locator('.dist__stats .menu button', { hasText: 'Export' }).click()
@@ -105,7 +105,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     const result = JSON.parse(file!.text)
     expect(result.spec).toBe('loop-mc/1')
     expect(result.completedRuns).toBe(500)
-    expect(result.endedRuns.atOrBeforeStep.at(-1)).toBe(424)
+    expect(result.endedRuns.atOrBeforeStep.at(-1)).toBe(419)
     expect(result.recommendedRunConfig).toBeUndefined() // MC JSON export, not a graph doc
 
     // 5 — a graph Export is a valid graph file carrying recommendedRunConfig

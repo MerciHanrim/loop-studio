@@ -1,4 +1,4 @@
-// Workspace Export / Import — store wiring (SEMANTICS-W.md, loop-workspace/1).
+// Workspace Export / Import — store wiring (SEMANTICS-W.md / SEMANTICS-W2.md, loop-workspace/2).
 //
 // Slice B: assemble a payload from the stores, and restore a file atomically —
 // the graph loads once (one `simulationRev` bump), then config / result / view /
@@ -37,6 +37,8 @@ export function collectWorkspacePayload(canvas: Viewport): WorkspacePayload {
       config: { ...mc.config },
       ...(hasResult ? { result: mc.result! } : {}),
       ...(mc.resultGraphDigest ? { resultGraphDigest: mc.resultGraphDigest } : {}),
+      // SEMANTICS-W2.md §W2-1 — the revision that produced `result`, verbatim
+      ...(hasResult && mc.resultEngineRevision != null ? { engineRevision: mc.resultEngineRevision } : {}),
       stale: mc.stale,
     },
     view: {

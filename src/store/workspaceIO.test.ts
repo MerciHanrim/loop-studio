@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import { ENGINE_REVISION } from '../engine/revision'
 import { semanticDigest } from '../model/workspace'
 import { useGraphStore } from './graphStore'
 import { useMcStore } from './mcStore'
@@ -86,7 +87,8 @@ describe('Workspace round-trip and atomic restore (§W5.1)', () => {
     useSimStore.getState().stepOnce()
     useSimStore.getState().stepOnce()
     const digest = await semanticDigest(graph())
-    useMcStore.getState().restoreResult({ result: fakeResult(ids.poolId) as never, resultGraphDigest: digest, stale: false })
+    // a result this app computed carries its engine revision (SEMANTICS-W2.md §W2-1)
+    useMcStore.getState().restoreResult({ result: fakeResult(ids.poolId) as never, resultGraphDigest: digest, stale: false, engineRevision: ENGINE_REVISION })
     useMcStore.setState({ distributionPoolId: ids.poolId, showMean: true, view: 'distribution' })
 
     const file = serializeWorkspaceFile(collectWorkspacePayload({ x: 12, y: -8, zoom: 1.5 }))
@@ -201,21 +203,40 @@ describe('a corrupt workspace never blocks the graph; only the bad part is dropp
     expect(useSimStore.getState().stepIndex).toBe(0)
   })
 
-  it('workspace.version must be exactly 1 — 2 / 0 / -1 / 1.5 / "1" all load graph-only', async () => {
-    for (const version of [2, 0, -1, 1.5, '1'] as const) {
+  it('only the exact pairs loop-workspace/2 · 2 and loop-workspace/1 · 1 restore; every other schema / version loads graph-only (SEMANTICS-W2.md §W2-2)', async () => {
+    const bad: [string, unknown][] = [
+      ['loop-workspace/2', 1], ['loop-workspace/2', 0], ['loop-workspace/2', -1], ['loop-workspace/2', 2.5], ['loop-workspace/2', '2'],
+      ['loop-workspace/1', 2], ['loop-workspace/1', 0],
+      ['loop-workspace/3', 3], ['loop-workspace', 2],
+    ]
+    for (const [schema, version] of bad) {
       const out = await importFile(
         wsDoc({
-          schema: 'loop-workspace/1',
+          schema,
           version,
           mc: { config: { baseSeed: 9, runs: 3, steps: 2, tracked: [] }, stale: false },
           view: { timeline: 'live', distributionPoolId: null, showMean: false },
           simulation: { seed: 77, step: 0, ended: false, values: {}, fired: [], triggerQueue: [], stateEvents: [], series: [] },
         }),
       )
-      expect(out.warnings.join(' '), `version ${JSON.stringify(version)}`).toMatch(/not a supported version/)
+      expect(out.warnings.join(' '), `${schema} ${JSON.stringify(version)}`).toMatch(/not a supported version/)
       expect(useGraphStore.getState().nodes).toHaveLength(3) // graph fine
       expect(useSimStore.getState().seed).not.toBe(77) // workspace not restored
       expect(useMcStore.getState().config.baseSeed).not.toBe(9)
+    }
+    for (const [schema, version] of [['loop-workspace/2', 2], ['loop-workspace/1', 1]] as const) {
+      const out = await importFile(
+        wsDoc({
+          schema,
+          version,
+          mc: { config: { baseSeed: 9, runs: 3, steps: 2, tracked: [] }, stale: false },
+          view: { timeline: 'live', distributionPoolId: null, showMean: false },
+          simulation: { seed: 77, step: 0, ended: false, values: {}, fired: [], triggerQueue: [], stateEvents: [], series: [] },
+        }),
+      )
+      expect(out.warnings, `${schema} ${version}`).toEqual([])
+      expect(useSimStore.getState().seed).toBe(77)
+      expect(useMcStore.getState().config.baseSeed).toBe(9)
     }
   })
 

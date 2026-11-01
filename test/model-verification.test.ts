@@ -80,8 +80,9 @@ function regRowFrom(nodes: LoopNode[], values: Record<string, number>): Record<s
 }
 
 /**
- * loop-workspace/1 stays v1 for the model layer (no loop-workspace/2). Prove it
- * with a real round-trip: step the engine, Export a Workspace, and assert the
+ * The model layer adds nothing to the Workspace format (its wire id moved to
+ * loop-workspace/2 on 2026-11-01 for the engine revision, SEMANTICS-W2.md — not
+ * for anything here). Prove it with a real round-trip: step the engine, Export a Workspace, and assert the
  * saved SimState carries pools + step but NOTHING about Registers — no value,
  * no error, no Register series — then re-Import and recompute R(t) from the
  * GraphDoc + the restored S(t). The recomputed values must equal what they were
@@ -322,10 +323,10 @@ describe('model-language verification fixture', () => {
     })
   })
 
-  it('loop-workspace/1 v1 round-trip: the Workspace saves pools + step, never a Register, and R(t) recomputes to the pre-Export values', () => {
+  it('Workspace round-trip: the Workspace saves pools + step, never a Register, and R(t) recomputes to the pre-Export values', () => {
     const w = derived.workspaceRoundTrip
-    expect(w.wireSchema).toBe(WORKSPACE_SCHEMA) // stays 'loop-workspace/1'
-    expect(w.wireVersion).toBe(WORKSPACE_VERSION) // 1 — no loop-workspace/2
+    expect(w.wireSchema).toBe(WORKSPACE_SCHEMA) // the app's wire id (loop-workspace/2 since SEMANTICS-W2.md)
+    expect(w.wireVersion).toBe(WORKSPACE_VERSION)
     expect(w.simulationKeys).toEqual(['ended', 'fired', 'seed', 'series', 'stateEvents', 'step', 'triggerQueue', 'values'])
     expect(w.savedStateMentionsARegister).toBe(false) // no Register value / error / series in SimState
     expect(w.restoredStep).toBe(w.exportStep) // step restored

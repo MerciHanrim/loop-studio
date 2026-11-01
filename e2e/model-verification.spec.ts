@@ -139,8 +139,8 @@ test.describe('model-verification.json — Import → Run → Timeline', () => {
       return L.io.serializeWorkspaceFile(L.io.collectWorkspacePayload({ x: 0, y: 0, zoom: 1 })) as string
     })
     const parsed = JSON.parse(ws)
-    expect(parsed.workspace.schema).toBe('loop-workspace/1')
-    expect(parsed.workspace.version).toBe(1)
+    expect(parsed.workspace.schema).toBe('loop-workspace/2')
+    expect(parsed.workspace.version).toBe(2)
     // the saved SimState mentions no Register — not a value, not an error, not a series
     const regIds = ['r_reserve', 'r_head', 'r_ratio', 'r_gap', 'r_loop']
     const sim = parsed.workspace.simulation

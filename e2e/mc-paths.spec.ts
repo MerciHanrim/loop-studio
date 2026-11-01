@@ -52,7 +52,7 @@ test.describe('MC execution paths (http)', () => {
 
     const r = JSON.parse((await mcResultJson(page))!)
     expect(r.completedRuns).toBe(500)
-    expect(r.endedRuns.atOrBeforeStep.at(-1)).toBe(424)
+    expect(r.endedRuns.atOrBeforeStep.at(-1)).toBe(419) // #471 — was 424 before the Converter plan-before-take rule
   })
 
   test('cooperative path: no worker, event loop interleaves', async ({ page }) => {
@@ -68,7 +68,7 @@ test.describe('MC execution paths (http)', () => {
 
     const r = JSON.parse((await mcResultJson(page))!)
     expect(r.completedRuns).toBe(500)
-    expect(r.endedRuns.atOrBeforeStep.at(-1)).toBe(424)
+    expect(r.endedRuns.atOrBeforeStep.at(-1)).toBe(419) // #471 — was 424 before the Converter plan-before-take rule
   })
 
   test('byte-equal: worker result === cooperative result (whole MonteCarloResult)', async ({ browser }) => {

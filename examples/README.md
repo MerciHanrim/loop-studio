@@ -193,7 +193,7 @@ very early — so the seeds have distinct jobs:
 | goal | seed / config |
 |---|---|
 | **watch the factory run** (steady state) | live sim, **seed 3** — survives all 40 steps |
-| **reproduce an early termination** | live sim, **seed 1** — the Critical Defect fires at step 2 (`Replay` reproduces it exactly — seeded RNG) |
+| **reproduce an early termination** | live sim, **seed 9** — the Critical Defect fires at step 4 (`Replay` reproduces it exactly — seeded RNG) |
 | **see the termination distribution** | Monte Carlo **500 × 40, base seed 1** |
 
 This file carries a `recommendedRunConfig`, so **Import already fills the Monte
@@ -205,14 +205,14 @@ Import  examples/risky-factory.json
 
 Live — seed 3, Play → runs all 40 steps; Ore Stock climbs toward 50,
                       Refined Ore and Energy Pool sit pinned at capacity
-Live — seed 1, Play → a Critical Defect ends it at step 2; Replay repeats it
+Live — seed 9, Play → a Critical Defect ends it at step 4; Replay repeats it
 Live — seed 4 ends ~step 25,  seed 8 ends ~step 36
 
 Monte Carlo → dialog is pre-filled: runs 500, steps 40, base seed 1
   tracked: Ore Stock, Energy Pool, Components, Finished Goods, Scrap Pool, Salvage Pool
   Run → DISTRIBUTION:
     • Finished Goods band has a visible p10–p90 spread
-    • the termination sparkline rises then flattens near ~85 % (424 / 500)
+    • the termination sparkline rises then flattens near ~84 % (419 / 500)
   Export ▾ → Runs CSV / JSON
 Reset and Run again with the same config → identical result
 ```
@@ -298,7 +298,8 @@ Self loop = @r_loop + 1             M_REG_CYCLE at every step
   `advisoryDiff` — the model graph vs the same graph with only `resourceType` /
   a Register `unit` nudged: `engineAffecting: false`, `advisoryAffecting: true`
 - `workspaceRoundTrip` — Export a Workspace after stepping to 3: the wire id
-  stays `loop-workspace/1` v1 (no `loop-workspace/2`); the saved `simulation`
+  is `loop-workspace/2` v2 (`SEMANTICS-W2.md`, 2026-11-01; it was
+  `loop-workspace/1` until then — the model layer adds nothing to it); the saved `simulation`
   keys are pools + step + seed + fired + series only —
   `savedStateMentionsARegister: false`; re-Import restores `S(3)` and
   `registersRecomputedEqualExport: true` (R(t) from the GraphDoc + restored
@@ -329,7 +330,7 @@ Reset → Register values recompute for step 0; nothing about the graph changed.
 
 File ▾ → Workspace JSON at step 3, New graph, Import it back
   → step 3 and the Pool counts are restored; the saved file has no Register
-    values (it is `loop-workspace/1`, unchanged)
+    values (the Workspace format carries no Register state)
   → select "Reserve" → the same "Value at step 3" as before (recomputed)
 ```
 

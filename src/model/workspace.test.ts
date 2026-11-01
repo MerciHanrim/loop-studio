@@ -25,8 +25,8 @@ async function subtleHex(bytes: Uint8Array): Promise<string> {
 
 describe('constants', () => {
   it('are the values pinned in §W11', () => {
-    expect(WORKSPACE_SCHEMA).toBe('loop-workspace/1')
-    expect(WORKSPACE_VERSION).toBe(1)
+    expect(WORKSPACE_SCHEMA).toBe('loop-workspace/2') // SEMANTICS-W2.md §W2-4
+    expect(WORKSPACE_VERSION).toBe(2)
     expect(WORKSPACE_MAX_BYTES).toBe(8 * 1024 * 1024)
   })
 })

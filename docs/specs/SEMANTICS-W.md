@@ -8,7 +8,9 @@ Status:  Frozen
 **Frozen** (2026-08-28). This document is the fixed target for the
 implementation. A behavioural change after this is a new spec id in a new
 document (`loop-workspace/2`), exactly as with `loop-state/1 → loop-state/2`;
-this file only takes typo / clarifying-prose fixes.
+this file only takes typo / clarifying-prose fixes. **That document exists:**
+[`SEMANTICS-W2.md`](./SEMANTICS-W2.md) (`loop-workspace/2`, 2026-11-01) adds
+`mc.engineRevision` and the rule that reads it; it inherits everything here.
 
 Defines *what a Workspace file is*, *what it carries*, and *how it is restored*.
 

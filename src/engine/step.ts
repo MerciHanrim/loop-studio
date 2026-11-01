@@ -702,17 +702,21 @@ export function step(
         const sumIn = sumInRate(id)
         // #388 D — a Converter with no LIVE output cannot run: with every
         // branch skipped (dead, or into a router that does not fire) it must
-        // accept 0, or it pulls its inputs and has nowhere to deliver them
+        // accept 0, or it pulls its inputs and has nowhere to deliver them.
+        // #471 (V3r) — two outputs into one target share what it can take:
+        // the bound is per TARGET, `accept(target) / Σ rate into it`. Per
+        // connection, each of two outputs into one Gate saw the Gate's whole
+        // accept, and the Gate was handed more than it could deliver.
         let fmax = 1
-        let liveOut = false
+        const makeInto = new Map<string, number>()
         for (const e of outOf(id)) {
           if (skipDet(e.id)) continue
           const r = rateOfCached(e)
           if (r <= EPSILON) continue
-          liveOut = true
-          fmax = Math.min(fmax, accept(e.target) / r)
+          makeInto.set(e.target, (makeInto.get(e.target) ?? 0) + r)
         }
-        if (!liveOut) fmax = 0
+        for (const [target, make] of makeInto) fmax = Math.min(fmax, accept(target) / make)
+        if (makeInto.size === 0) fmax = 0
         v = Math.max(0, Math.min(1, fmax)) * sumIn
       } else if (k === 'gate') {
         // #388 B — a Gate fed by an upstream router has a reservation standing
@@ -732,12 +736,18 @@ export function step(
           const sumW = outs.reduce((s, e) => s + rateOfCached(e), 0)
           if (sumW <= EPSILON) v = 0
           else {
-            v = Infinity
+            // #471 (V3g) — two branches into one Pool share its room: the
+            // bound is per target, `acceptInto(target) · sumW / Σ w into it`.
+            // Per branch, each saw the Pool's whole room, the Gate sent twice
+            // it, and the commit clamp cut the excess unreported.
+            const wInto = new Map<string, number>()
             for (const e of outs) {
               const w = rateOfCached(e)
               if (w <= EPSILON) continue
-              v = Math.min(v, acceptInto(e.target) * (sumW / w))
+              wInto.set(e.target, (wInto.get(e.target) ?? 0) + w)
             }
+            v = Infinity
+            for (const [target, w] of wInto) v = Math.min(v, acceptInto(target) * (sumW / w))
           }
         }
       } else v = 0
@@ -961,53 +971,81 @@ export function step(
           .filter((e) => isPool(e.source) && !dead.has(e.id))
           .sort(cmpEdge)
         const sumIn = sumInRate(id)
-        // f is bounded by the input side; recheck output headroom, adding back
-        // this converter's own reservation so it is not blocked by itself.
         const own = ownReserve.get(id)
-        // Dry run: what fraction *would* this converter run at, without moving
-        // anything yet? SEMANTICS.md §9 — a `pullAll` Converter that cannot reach
-        // f = 1 must move 0 from every edge (atomic). Computing f before the pull
-        // keeps a short-fed `pullAll` Converter from draining its input Pools for
-        // a partial amount and then emitting nothing (§11 / I5 — a blocked router
-        // accumulates nothing and destroys nothing). `dryAvail` mirrors the real
-        // loop's per-source depletion so two edges off one Pool see the same
-        // remaining balance here as they will below.
-        let wouldReceive = inboxHave
-        const dryAvail = new Map<string, number>()
+
+        // #471 — plan, then commit (SEMANTICS.md §6 erratum; I2 / I4). The run
+        // fraction is decided from the ledgers BEFORE anything is taken, and
+        // every connection then moves exactly its share of it. The old order,
+        // "pull what each input has, sum it, then divide", did three things
+        // wrong (all measured in #471):
+        //   V1  the output room was short, and the inputs were still taken in
+        //       full — the difference vanished;
+        //   V2  one input was short, the others were taken in full and summed,
+        //       so no single f held per connection;
+        //   V3  two outputs went into one capped Pool, each saw the Pool's
+        //       whole room, and the commit clamp cut the excess unreported.
+        // Inputs are grouped by source Pool and outputs by target (Pool or
+        // router), so two connections off one Pool, or into one target, share
+        // its availability or room (SEMANTICS.md §9 keeps the `pull all` rule:
+        // f < 1 ⇒ nothing moves — a probe pass records it in `pullShort`).
+        //
+        // Pool side: for each source Pool P, `avail_P / Σ rate from P`.
+        const needFrom = new Map<string, number>()
         for (const e of poolIns) {
-          const left = dryAvail.get(e.source) ?? availOf(e.source)
-          const a = nz(Math.max(0, Math.min(rateOfCached(e), left)))
-          dryAvail.set(e.source, left - a)
-          wouldReceive += a
+          const r = rateOfCached(e)
+          if (r <= EPSILON) continue
+          needFrom.set(e.source, (needFrom.get(e.source) ?? 0) + r)
         }
-        let fDry = sumIn > EPSILON ? wouldReceive / sumIn : 0
-        // #388 D — what one output branch can take: a Pool's headroom (plus
-        // this Converter's own reservation there); for a router target its
-        // live `accept` — `headroom` of a router is unbounded, so sizing by it
-        // handed a blocked Gate an inbox it could not deliver (lost at commit)
-        const outRoom = (target: string) =>
-          isPool(target) ? headroom(target) + (own?.get(target) ?? 0) : accept(target)
-        let liveOutDry = false // #388 D — see `makeAccept`
+        let fPool = 1
+        for (const [p, need] of needFrom) fPool = Math.min(fPool, availOf(p) / need)
+        fPool = Math.max(0, fPool)
+        let sumInPool = 0
+        for (const need of needFrom.values()) sumInPool += need
+        // Output side: for each target Q, `room_Q / Σ rate into Q` — a Pool's
+        // headroom plus this Converter's own reservation there (so it is not
+        // blocked by itself; #388 B/C), a router's live `accept` (#388 D — a
+        // router's `headroom` is unbounded, and sizing by it handed a blocked
+        // Gate an inbox it could not deliver). A Pool that is both an input
+        // and an output of this Converter is bounded on the NET amount,
+        // `room / (make − need)`: what the plan takes from it this step is
+        // room it may fill. (#471 item 5 — pinned by a test; the rule is open.)
+        const makeInto = new Map<string, number>()
         for (const e of outOf(id)) {
           if (skipDet(e.id)) continue
           const r = rateOfCached(e)
           if (r <= EPSILON) continue
-          liveOutDry = true
-          fDry = Math.min(fDry, outRoom(e.target) / r)
+          makeInto.set(e.target, (makeInto.get(e.target) ?? 0) + r)
         }
-        if (!liveOutDry) fDry = 0
-        fDry = nz(Math.max(0, Math.min(1, fDry)))
+        let fOut = makeInto.size > 0 ? 1 : 0 // #388 D — no live output, no run
+        for (const [q, make] of makeInto) {
+          if (isPool(q)) {
+            const net = make - (needFrom.get(q) ?? 0)
+            if (net > EPSILON) fOut = Math.min(fOut, (headroom(q) + (own?.get(q) ?? 0)) / net)
+          } else fOut = Math.min(fOut, accept(q) / make)
+        }
+
+        // the fraction, before anything moves — `pull all` is decided on it
+        let fDry = sumIn > EPSILON ? (inboxHave + fPool * sumInPool) / sumIn : 0
+        fDry = nz(Math.max(0, Math.min(1, fDry, fOut)))
         if (mode === 'pullAll' && fDry < 1 - EPSILON) {
           pullShort.add(id) // probe pass: this pullAll Converter cannot reach f = 1
           continue
         }
         if (fDry <= EPSILON) continue
 
+        // What each Pool connection moves. A Converter fed from Pools only:
+        // exactly `f · rate` on every one of them (I2). A Converter with a
+        // router-fed input: the upstream routers already delivered at THEIR
+        // fraction, which this step cannot undo (#471 V2b — the joint plan
+        // across routers, Phase B); its Pool side keeps the rule it had,
+        // `fPool · rate`, and the production below follows what was received,
+        // so nothing is created.
+        const routerFed = inOf(id).some((e) => !isPool(e.source))
+        const fTake = routerFed ? fPool : fDry
         let received = inboxHave
         inbox.set(id, 0)
         for (const e of poolIns) {
-          const r = rateOfCached(e)
-          const a = nz(Math.max(0, Math.min(r, availOf(e.source))))
+          const a = nz(fTake * rateOfCached(e))
           if (a > 0) {
             takeFrom(e.source, a)
             received += a
@@ -1015,16 +1053,7 @@ export function step(
           }
         }
         let f = sumIn > EPSILON ? received / sumIn : 0
-        let liveOut = false // #388 D — see `makeAccept`
-        for (const e of outOf(id)) {
-          if (skipDet(e.id)) continue
-          const r = rateOfCached(e)
-          if (r <= EPSILON) continue
-          liveOut = true
-          f = Math.min(f, outRoom(e.target) / r)
-        }
-        if (!liveOut) f = 0
-        f = nz(Math.max(0, Math.min(1, f)))
+        f = nz(Math.max(0, Math.min(1, f, fOut)))
         if (mode === 'pullAll' && f < 1 - EPSILON) {
           pullShort.add(id)
           f = 0

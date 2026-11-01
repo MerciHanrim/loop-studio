@@ -1,0 +1,542 @@
+{
+  "schema": "loop-studio/graph",
+  "version": 1,
+  "layoutVersion": 1,
+  "nodes": [
+    {
+      "id": "tpl-src",
+      "type": "source",
+      "position": {
+        "x": 48,
+        "y": 196
+      },
+      "data": {
+        "kind": "source",
+        "label": "Material supply",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "tpl-vault",
+      "type": "pool",
+      "position": {
+        "x": 288,
+        "y": 180
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Raw inventory",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 10,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "tpl-gate",
+      "type": "gate",
+      "position": {
+        "x": 528,
+        "y": 180
+      },
+      "data": {
+        "kind": "gate",
+        "label": "Production split",
+        "activation": "automatic",
+        "distribution": "deterministic"
+      }
+    },
+    {
+      "id": "tpl-conv",
+      "type": "converter",
+      "position": {
+        "x": 784,
+        "y": 116
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Processing",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "tpl-prod",
+      "type": "pool",
+      "position": {
+        "x": 1008,
+        "y": 116
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Finished goods",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 3,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "tpl-spill",
+      "type": "drain",
+      "position": {
+        "x": 784,
+        "y": 308
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Scrap",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "tpl-consume",
+      "type": "drain",
+      "position": {
+        "x": 1248,
+        "y": 116
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Shipment",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "tpl-e1",
+      "source": "tpl-src",
+      "target": "tpl-vault",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "3",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "tpl-e2",
+      "source": "tpl-vault",
+      "target": "tpl-gate",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "all",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "tpl-e3",
+      "source": "tpl-gate",
+      "target": "tpl-conv",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "2",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "tpl-e4",
+      "source": "tpl-gate",
+      "target": "tpl-spill",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "tpl-e5",
+      "source": "tpl-conv",
+      "target": "tpl-prod",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "tpl-e6",
+      "source": "tpl-prod",
+      "target": "tpl-consume",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal"
+      }
+    }
+  ],
+  "workspace": {
+    "schema": "loop-workspace/2",
+    "version": 2,
+    "mc": {
+      "config": {
+        "baseSeed": 1,
+        "runs": 20,
+        "steps": 12,
+        "tracked": []
+      },
+      "result": {
+        "spec": "loop-mc/1",
+        "seedSpec": "loop-mc-seed/1",
+        "rngSpec": "loop-rng/1",
+        "config": {
+          "baseSeed": 1,
+          "runs": 20,
+          "steps": 12,
+          "tracked": [],
+          "modelVersion": 1
+        },
+        "completedRuns": 20,
+        "droppedTracked": [],
+        "pools": [
+          {
+            "id": "tpl-vault",
+            "label": "Raw inventory"
+          },
+          {
+            "id": "tpl-prod",
+            "label": "Finished goods"
+          }
+        ],
+        "runSeeds": [
+          1119822658,
+          2846739420,
+          1652246540,
+          2344041868,
+          2234127498,
+          2381107215,
+          3605042148,
+          3442733231,
+          1605759090,
+          2694578655,
+          4181152607,
+          122020486,
+          3335060180,
+          2803748332,
+          4268868962,
+          3704829044,
+          312318351,
+          1935912244,
+          90300690,
+          421168924
+        ],
+        "endedRuns": {
+          "atOrBeforeStep": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "series": {
+          "tpl-vault": {
+            "p10": [
+              0,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3
+            ],
+            "p50": [
+              0,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3
+            ],
+            "p90": [
+              0,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3
+            ],
+            "mean": [
+              0,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3
+            ],
+            "min": [
+              0,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3
+            ],
+            "max": [
+              0,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3
+            ]
+          },
+          "tpl-prod": {
+            "p10": [
+              0,
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            "p50": [
+              0,
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            "p90": [
+              0,
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            "mean": [
+              0,
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            "min": [
+              0,
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            "max": [
+              0,
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          }
+        },
+        "final": {
+          "tpl-vault": {
+            "values": [
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3
+            ],
+            "summary": {
+              "p10": 3,
+              "p50": 3,
+              "p90": 3,
+              "mean": 3,
+              "min": 3,
+              "max": 3
+            }
+          },
+          "tpl-prod": {
+            "values": [
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            "summary": {
+              "p10": 1,
+              "p50": 1,
+              "p90": 1,
+              "mean": 1,
+              "min": 1,
+              "max": 1
+            }
+          }
+        }
+      },
+      "resultGraphDigest": "1a929be61853177d97a81f0d68a18628919ae6f2581d5802b718d3bc5499fbb6",
+      "engineRevision": 1,
+      "stale": false
+    },
+    "view": {
+      "timeline": "distribution",
+      "distributionPoolId": "tpl-vault",
+      "showMean": false
+    },
+    "canvas": {
+      "x": 0,
+      "y": 0,
+      "zoom": 1
+    },
+    "simulation": {
+      "seed": 1,
+      "step": 0,
+      "ended": false,
+      "values": {
+        "tpl-vault": 0,
+        "tpl-prod": 0
+      },
+      "fired": [],
+      "triggerQueue": [],
+      "stateEvents": [],
+      "series": []
+    }
+  }
+}

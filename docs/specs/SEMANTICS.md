@@ -201,6 +201,28 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
   (`working += `, and settle the reservation: `reserved -= ` the amount
   originally reserved for this Converter). `moved[C] = f · Σ inRate`.
 
+  **Erratum (issue #471, 2026-11-01) — plan before take.** As written above, a
+  pool-fed Converter pulled `min(inRate, available)` on each input first and
+  divided afterwards, which broke I2 and I4 whenever an input or the output
+  room was short (#471: V1, V2, V3). The rule is: `f` is decided **before
+  anything moves**, from the ledgers as they stand at the Converter's turn,
+  with inputs grouped by source Pool and outputs grouped by target —
+  `f = min( 1, min over input Pools P of available(P) / Σ inRate from P,
+  min over output targets Q of room(Q) / Σ outRate into Q )`, where `room(Q)`
+  is a Pool's headroom (plus this Converter's own reservation there) or a
+  router's `accept`, and a Pool that is both an input and an output of the
+  Converter bounds `f` on the **net** amount, `room / (Σ outRate into it −
+  Σ inRate from it)`. Then **every** input connection moves exactly
+  `f · inRateᵢ` and every output exactly `f · outRateₖ`; `pull all` is decided
+  on the same `f` (below `1 − epsilon`, nothing moves). A Converter with a
+  router-fed input keeps `received / Σ inRate` for its production and
+  `min(1, available(P) / Σ inRate from P) · inRateᵢ` on its Pool inputs — the
+  routers delivered at their own fraction, which the joint plan across routers
+  (#471, Phase B) will settle; its `inbox` is consumed whole, as before.
+  `accept` is per target as well: two Gate branches into one Pool share that
+  Pool's room (`acceptInto(Q) · Σw / Σ w into Q`), and two Converter outputs
+  into one Pool or one router share that target's room or `accept`.
+
   **Exactly one activation per step, `0 ≤ f ≤ 1`** (gap 1). Because a Gate sizes
   its delivery from `accept(C)` (which already caps at `f ≤ 1` and at live
   output headroom via the reservation ledger), `received` never exceeds what `C`
@@ -337,6 +359,17 @@ deterministic priority rule (I7). `events` are always emitted in this order.
 | **I4** | **Back-pressure retention.** Anything a transfer could not move remains in the upstream Pool, or is not produced by a Source. Nothing is silently dropped. |
 | **I5** | **Router zero-storage.** Gates and Converters hold `0` between steps; every `inbox` is fully consumed in the step it is filled. |
 | **I6** | **Determinism.** `step` is pure and `initSim` is total. Same graph + same start ⇒ identical `state` sequence and identical `report` on every run and after every Reset. |
+
+**Erratum (issue #471, 2026-11-01).** In I1, `Σ Converter net loss` is the
+recipe's difference at the run fraction, `Σ over Converters of f_C · (Σ inRate −
+Σ outRate)` — never an amount measured from the events, which would let any
+loss pass as "net loss". I2 holds per connection, not per sum of inputs. I3's
+clamp is never where a production or a delivery goes: a transfer that would
+exceed a Pool's room is sized by that room before it moves (§11), so a clamp
+above `epsilon` is a defect, not a correction. The acceptance check
+(`src/engine/conservation.test.ts`) tests these four things separately: every
+Pool's change equals its events, one `f` per Converter, the net loss from the
+recipe, and every Gate ending empty.
 | **I7** | **Iteration-order invariance.** The result depends on node/edge iteration order only through the explicit `(topo rank, node id)` / `(sourceNodeId, edgeId)` priority rules; any other ordering of the same nodes yields the same `values` and `events`. |
 
 ---

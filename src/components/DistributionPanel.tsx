@@ -24,7 +24,7 @@ function endedPct(r: MonteCarloResult): number {
   return r.completedRuns ? Math.round((last / r.completedRuns) * 100) : 0
 }
 
-function ExportMenu({ result, disabled }: { result: MonteCarloResult; disabled: boolean }) {
+function ExportMenu({ result, disabled, engineRevision }: { result: MonteCarloResult; disabled: boolean; engineRevision: number | null }) {
   const t = useT()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -78,7 +78,7 @@ function ExportMenu({ result, disabled }: { result: MonteCarloResult; disabled: 
             <span className="menu__name">{t('dist.export.summaryCsv')}</span>
             <span className="menu__blurb">{t('dist.export.summaryCsv.blurb')}</span>
           </button>
-          <button type="button" className="menu__item" role="menuitem" onClick={() => saveJson('result.json', toMonteCarloJson(result))}>
+          <button type="button" className="menu__item" role="menuitem" onClick={() => saveJson('result.json', toMonteCarloJson(result, engineRevision))}>
             <span className="menu__name">JSON</span>
             <span className="menu__blurb">{t('dist.export.json.blurb')}</span>
           </button>
@@ -92,6 +92,7 @@ export function DistributionPanel() {
   const t = useT()
   const result = useMcStore((s) => s.result)
   const stale = useMcStore((s) => s.stale)
+  const engineRevision = useMcStore((s) => s.resultEngineRevision)
   if (!result) return null
 
   return (
@@ -111,7 +112,7 @@ export function DistributionPanel() {
         </span>
         {stale ? <span className="dist__stale">{t('dist.stale')}</span> : null}
         <span className="dist__spacer" />
-        <ExportMenu result={result} disabled={stale} />
+        <ExportMenu result={result} disabled={stale} engineRevision={engineRevision} />
       </div>
 
       {/* the part that scrolls where the analysis area is too low for the
