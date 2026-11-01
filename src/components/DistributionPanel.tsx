@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useMcStore } from '../store/mcStore'
+import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 import { useMenuKeyboard, useMenuTrigger } from '../ui/useMenuKeyboard'
 import { useT } from '../i18n'
 import { BandChart } from './BandChart'
@@ -29,17 +30,13 @@ function ExportMenu({ result, disabled }: { result: MonteCarloResult; disabled: 
   const ref = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
   const popRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    window.addEventListener('mousedown', onDown)
-    return () => window.removeEventListener('mousedown', onDown)
-  }, [open])
   // the menu keyboard contract (issue #307): the shared hook owns Escape, the
   // arrows and Tab; a download chosen from the keyboard returns focus here
   const close = useCallback(() => setOpen(false), [])
+  // #422 — an outside click closes it through the shared hook, as every
+  // toolbar menu does; its own bubble-phase `window` `mousedown` never saw a
+  // click on a canvas node or on the empty pane
+  useOutsideDismiss(open, ref, close)
   const { entry, triggerProps } = useMenuTrigger(open, setOpen)
   useMenuKeyboard(open, popRef, btnRef, close, entry)
 
