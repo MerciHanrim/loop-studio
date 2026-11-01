@@ -175,6 +175,56 @@ test.describe('the hover relation (#444)', () => {
     await page.mouse.up()
   })
 
+  // Lumi's review of c6455845: the selection box (`.react-flow__nodesselection`)
+  // is dragged through React Flow's `onSelectionDrag*`, not `onNodeDrag*`
+  test('with several nodes selected, a drag of one of them, or of the selection box, turns the relation off', async ({ page }) => {
+    await load(page)
+    const hop = await oneHop(page, N)
+    const nb = hop.neighbours[0]
+    // one of several selected nodes, dragged: the mouse rests on it first
+    await node(page, N).locator('.nodef').click()
+    await node(page, nb).locator('.nodef').click({ modifiers: ['Control'] })
+    await expect(node(page, N)).toHaveClass(/selected/)
+    await expect(node(page, nb)).toHaveClass(/selected/)
+    const c = await centreOf(page, N)
+    await page.mouse.move(c.x, c.y)
+    await expect.poll(async () => (await marked(page)).neighbours.length).toBeGreaterThan(0)
+    await page.mouse.down()
+    await page.mouse.move(c.x + 30, c.y + 20, { steps: 6 })
+    await expect.poll(() => marked(page)).toEqual(none)
+    await page.mouse.up()
+
+    // the selection box: drawn around the two with region select, then dragged
+    // while a keyboard-focus relation stands on another node
+    await page.evaluate(() => (window as unknown as { __loop: { ui: { getState: () => { setRegionSelectArmed: (v: boolean) => void } } } }).__loop.ui.getState().setRegionSelectArmed(true))
+    const ra = (await node(page, N).boundingBox())!
+    const rb = (await node(page, nb).boundingBox())!
+    const x0 = Math.min(ra.x, rb.x) - 24, y0 = Math.min(ra.y, rb.y) - 24
+    const x1 = Math.max(ra.x + ra.width, rb.x + rb.width) + 24, y1 = Math.max(ra.y + ra.height, rb.y + rb.height) + 24
+    await page.mouse.move(x0, y0)
+    await page.mouse.down()
+    await page.mouse.move(x1, y1, { steps: 8 })
+    await page.mouse.up()
+    const box = page.locator('.react-flow__nodesselection-rect')
+    await expect(box).toBeVisible()
+    const other = await page.evaluate(({ a, b }) => {
+      const g = (window as unknown as Bridge).__loop.graph.getState()
+      return g.nodes.find((n) => n.id !== a && n.id !== b && g.edges.some((e) => e.source === n.id || e.target === n.id))!.id
+    }, { a: N, b: nb })
+    await page.keyboard.press('Shift') // a keyboard interaction: the focus below is keyboard focus
+    await node(page, other).focus()
+    await expect.poll(() => marked(page)).not.toEqual(none)
+    const bb = (await box.boundingBox())!
+    await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2)
+    await page.mouse.down()
+    // what holds it off: the press takes keyboard focus off the node, and the
+    // pointer is on the box, not on a node (the drag itself is guarded too)
+    expect(await L(page)).toEqual({ hover: null, focus: null })
+    await page.mouse.move(bb.x + bb.width / 2 + 30, bb.y + bb.height / 2 + 20, { steps: 6 })
+    await expect.poll(() => marked(page)).toEqual(none)
+    await page.mouse.up()
+  })
+
   test('a selected node keeps its blue mark alone; hovering another node adds the relation beside it', async ({ page }) => {
     await load(page)
     const hop = await oneHop(page, N)

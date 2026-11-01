@@ -404,7 +404,8 @@ export function Canvas() {
   // (docs/large-graph-readability.md §LGR2.1), drawn on React Flow's copies of
   // the nodes and connections only — the document, the selection, the
   // Inspector and the history never see it. Off under Focus view, while a node
-  // drag or a connection gesture runs, and on a phone (no hover there).
+  // drag (a node, or the selection box: `onNodeDrag*` and `onSelectionDrag*`)
+  // or a connection gesture runs, and on a phone (no hover there).
   const relationHoverId = useUiStore((s) => s.relationHoverId)
   const relationFocusId = useUiStore((s) => s.relationFocusId)
   const connecting = useStore((s) => s.connection.inProgress)
@@ -1175,9 +1176,9 @@ export function Canvas() {
         onNodeDragStart={(e, node, dragged) => { setNodeDragging(true); useGraphStore.getState().beginNodeDrag(); dragSnap.begin(node.id, e.altKey, dragged.map((n) => n.id), useGraphStore.getState().nodes, getViewport().zoom); beginLiveLayout() }}
         onNodeDrag={(e) => dragSnap.update(e.altKey)}
         onNodeDragStop={(e) => { setNodeDragging(false); dragSnap.update(e.altKey); dragSnap.end(); useGuideStore.getState().clear(); endLiveLayout(); useGraphStore.getState().endNodeDrag() }}
-        onSelectionDragStart={(e, dragged) => { useGraphStore.getState().beginNodeDrag(); dragSnap.begin(dragged[0]?.id ?? null, e.altKey, dragged.map((n) => n.id), useGraphStore.getState().nodes, getViewport().zoom); beginLiveLayout() }}
+        onSelectionDragStart={(e, dragged) => { setNodeDragging(true); useGraphStore.getState().beginNodeDrag(); dragSnap.begin(dragged[0]?.id ?? null, e.altKey, dragged.map((n) => n.id), useGraphStore.getState().nodes, getViewport().zoom); beginLiveLayout() }}
         onSelectionDrag={(e) => dragSnap.update(e.altKey)}
-        onSelectionDragStop={(e) => { dragSnap.update(e.altKey); dragSnap.end(); useGuideStore.getState().clear(); endLiveLayout(); useGraphStore.getState().endNodeDrag() }}
+        onSelectionDragStop={(e) => { setNodeDragging(false); dragSnap.update(e.altKey); dragSnap.end(); useGuideStore.getState().clear(); endLiveLayout(); useGraphStore.getState().endNodeDrag() }}
         onEdgesChange={onEdgesChange}
         // the workbench, direction B (src/model/connectKind.ts): a drawing takes
         // the kind chosen in the tool row; the same check that refuses it in
