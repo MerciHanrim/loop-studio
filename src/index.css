@@ -97,6 +97,10 @@
   --sel-name: #1f56c2; /* a selected node's name */
   --focus: #2463d1; /* the solid focus indicator (>= 3:1 on every surface) */
   --focus-halo: rgba(36, 99, 209, 0.18); /* only ever beside the solid one */
+  /* #444 — the one-hop relation (hover / keyboard focus): an amber apart from
+     the selection blue and the run green */
+  --rel: #b45f06;
+  --rel-soft: rgba(180, 95, 6, 0.16);
 
   /* — status — */
   /* CORRECTED for contrast (2026-10-21): #1f8a4c read 4.12:1 as 11.5 px text
@@ -619,6 +623,8 @@
     --sel-soft: rgba(111, 166, 255, 0.15);
     --sel-name: #b9d1ff;
     --focus: #6fa6ff;
+    --rel: #f2a93b;
+    --rel-soft: rgba(242, 169, 59, 0.2);
     --focus-halo: rgba(111, 166, 255, 0.24);
 
     --ok: #6fd0a0;
@@ -710,6 +716,8 @@
   --sel-soft: rgba(111, 166, 255, 0.15);
   --sel-name: #b9d1ff;
   --focus: #6fa6ff;
+  --rel: #f2a93b;
+  --rel-soft: rgba(242, 169, 59, 0.2);
   --focus-halo: rgba(111, 166, 255, 0.24);
 
   --ok: #6fd0a0;
@@ -2771,6 +2779,49 @@ a.sheet__row {
   }
   .react-flow__node.lgr-deemph .nodef__stroke {
     stroke-dasharray: 2 4;
+  }
+}
+
+/* #444 (Lumi, 2026-11-01) — docs/large-graph-readability.md §LGR2.1: the
+   transient one-hop relation of the node the mouse rests on or keyboard focus
+   holds. Only the relation is marked; the rest of the canvas is NOT lowered
+   (candidate A). The node: an amber ring and a soft halo; its neighbours: a
+   thinner ring; its connections: one step heavier with an amber glow under
+   the line's own colour — the dash and the arrowhead stay, so the kind and
+   the direction still read. The name's colour does not change. A connection
+   the pointer is on keeps its own hover look (`.edge-hover`). */
+.react-flow__node.rel-center .nodef {
+  outline: 2.5px solid var(--rel);
+  outline-offset: 4px;
+  border-radius: 8px;
+  box-shadow: 0 0 0 7px var(--rel-soft);
+}
+.react-flow__node.rel-neighbour .nodef {
+  outline: 1.5px solid var(--rel);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+/* (a relation edge is never selected nor de-emphasised: the two `:not`s only
+   lift this above the forced-colours state width further down) */
+.react-flow__edge.rel-edge:not(.selected):not(.lgr-deemph) .react-flow__edge-path:not(.edge-hover) {
+  /* the path's width is an inline style (LoopEdge), hence `!important` */
+  stroke-width: 2.5px !important;
+  filter: drop-shadow(0 0 2px var(--rel));
+}
+/* forced colours: colour and opacity are the user's — the shape carries it: a
+   double ring on the node, a dashed ring on its neighbours (both outside the
+   selection and keyboard-focus rings, which stay `Highlight`), heavier lines */
+@media (forced-colors: active) {
+  .react-flow__node.rel-center .nodef {
+    outline: 3px double CanvasText;
+    box-shadow: none;
+  }
+  .react-flow__node.rel-neighbour .nodef {
+    outline: 2px dashed CanvasText;
+  }
+  .react-flow__edge.rel-edge:not(.selected):not(.lgr-deemph) .react-flow__edge-path:not(.edge-hover) {
+    stroke-width: 4px !important;
+    filter: none;
   }
 }
 

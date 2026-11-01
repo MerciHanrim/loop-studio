@@ -34,7 +34,7 @@ import { nodeTypes } from './nodes/nodes'
 import { edgeTypes } from './edges/LoopEdge'
 import { EdgeMarkers } from './edges/EdgeMarkers'
 import { holdConnectTouch, isFurtherTouchDuringHold, releaseConnectTouch } from './edges/connectTouchHold'
-import { useFocusSet } from './focusSet'
+import { computeFocusSet, useFocusSet } from './focusSet'
 import { useHiddenSet } from './filterSet'
 import { FilterPanel } from './FilterPanel'
 import { FrameLayer } from './frames/FrameLayer'
@@ -55,8 +55,14 @@ import { Icon } from '../ui/icons'
 // out-of-focus node / edge. It fades only the body / silhouette / label; the
 // §VL7.1 required set (rings, invalid flag, run cues) is left full-strength.
 const DEEMPH_CLASS = 'lgr-deemph'
-const withDeemph = (base: string | undefined): string =>
-  base ? `${base} ${DEEMPH_CLASS}` : DEEMPH_CLASS
+const withClass = (base: string | undefined, cls: string): string => (base ? `${base} ${cls}` : cls)
+const withDeemph = (base: string | undefined): string => withClass(base, DEEMPH_CLASS)
+/** #444 — the transient one-hop relation (index.css `.rel-*`) */
+const REL_CENTER = 'rel-center'
+const REL_NEIGHBOUR = 'rel-neighbour'
+const REL_EDGE = 'rel-edge'
+/** how long the mouse rests on a node before its relation shows, ms */
+const RELATION_HOVER_MS = 80
 
 const DND_TYPE = 'application/loop-node'
 
@@ -393,6 +399,19 @@ export function Canvas() {
   // arrays that serialize / diff / undo are never touched (LGR-INV-1), and React
   // Flow's change events still flow back to the store unchanged.
   const focusSet = useFocusSet()
+  // #444 (Lumi, 2026-11-01) — the one-hop relation of the node the mouse rests
+  // on, or of the node holding keyboard focus: a transient emphasis
+  // (docs/large-graph-readability.md §LGR2.1), drawn on React Flow's copies of
+  // the nodes and connections only — the document, the selection, the
+  // Inspector and the history never see it. Off under Focus view, while a node
+  // drag (a node, or the selection box: `onNodeDrag*` and `onSelectionDrag*`)
+  // or a connection gesture runs, and on a phone (no hover there).
+  const relationHoverId = useUiStore((s) => s.relationHoverId)
+  const relationFocusId = useUiStore((s) => s.relationFocusId)
+  const connecting = useStore((s) => s.connection.inProgress)
+  const [nodeDragging, setNodeDragging] = useState(false)
+  const relationId = focusMode || connecting || nodeDragging || isMobile ? null : (relationHoverId ?? relationFocusId)
+  const relation = useMemo(() => computeFocusSet(relationId, edges), [relationId, edges])
   // docs/contextual-inline-help.md §CIH2.3a — the two LGR notices below are
   // TIER 2; CIH's own canvas hints (empty-canvas, Focus/Filter discovery) are
   // TIER 3 and yield the shared top-center slot to either of these.
@@ -429,7 +448,7 @@ export function Canvas() {
   // `LoopEdge` each read their own opacity (`useNode/EdgeActivityOpacity`) and
   // draw a shape-accurate tint themselves.
   const rfNodes = useMemo(() => {
-    if (!hidden && !focusSet) return nodes
+    if (!hidden && !focusSet && !relation) return nodes
     return nodes.map((n) => {
       if (hidden?.nodes.has(n.id)) return { ...n, hidden: true }
       // A SELECTED node is never de-emphasised, whatever the focus set says.
@@ -442,9 +461,11 @@ export function Canvas() {
       // unchanged and still applies to every node the user did NOT select.
       if (focusSet && !focusSet.nodes.has(n.id) && !n.selected)
         return { ...n, className: withDeemph(n.className) }
+      // #444 — a selected node keeps its blue mark alone (the selection wins)
+      if (relation?.nodes.has(n.id) && !n.selected) return { ...n, className: withClass(n.className, n.id === relationId ? REL_CENTER : REL_NEIGHBOUR) }
       return n
     })
-  }, [nodes, hidden, focusSet])
+  }, [nodes, hidden, focusSet, relation, relationId])
   // node structure (src/model/ports.ts) — under the new structure a node offers
   // one DOM handle per face per port, so a connection with a stored face binds
   // to `<id>@<face>`; the document's edge keeps the plain id. Today's structure
@@ -461,16 +482,79 @@ export function Canvas() {
     })
   }, [edges, nodeStructure])
   const rfEdges = useMemo(() => {
-    if (!hidden && !focusSet) return facedEdges
+    if (!hidden && !focusSet && !relation) return facedEdges
     return facedEdges.map((e) => {
       if (hidden?.edges.has(e.id)) return { ...e, hidden: true }
       if (focusSet && !focusSet.edges.has(e.id)) return { ...e, className: withDeemph(e.className) }
+      if (relation?.edges.has(e.id) && !e.selected) return { ...e, className: withClass(e.className, REL_EDGE) }
       return e
     })
-  }, [facedEdges, hidden, focusSet])
+  }, [facedEdges, hidden, focusSet, relation])
   // pointing to read (17-implementation-rules.md §2 cues): the connection under
   // the pointer, so its whole route and its own label are identified together
   const setHoverEdgeId = useUiStore((s) => s.setHoverEdgeId)
+
+  // #444 — what drives the relation. A MOUSE (or pen) that rests on a node for
+  // RELATION_HOVER_MS shows it; leaving the node clears it at once. A touch
+  // never hovers. Keyboard focus on the node element itself (`:focus-visible`,
+  // so a click's focus does not count) shows it at once, until focus leaves.
+  // The pointer is listened to on the DOCUMENT, not the canvas: a re-render can
+  // replace the element under a resting pointer, and the `pointerout` that
+  // follows is then dispatched on the detached element and never bubbles here
+  // — the relation stayed on after the pointer had left (seen in the node
+  // matrix shots). Any `pointerover` outside the node clears it. Only nodes
+  // inside this canvas count. Keyboard focus is listened to on the canvas root.
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el || isMobile) return
+    const ui = useUiStore.getState
+    const nodeIdOf = (t: EventTarget | null): string | null => {
+      const n = t instanceof Element ? t.closest('.react-flow__node') : null
+      return n && el.contains(n) ? n.getAttribute('data-id') : null
+    }
+    let under: string | null = null
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const leave = () => {
+      clearTimeout(timer)
+      under = null
+      ui().setRelationHover(null)
+    }
+    const onOver = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return
+      const id = nodeIdOf(e.target)
+      if (id === under) return
+      leave()
+      if (!id) return
+      under = id
+      timer = setTimeout(() => ui().setRelationHover(id), RELATION_HOVER_MS)
+    }
+    const onOut = (e: PointerEvent) => {
+      if (e.pointerType === 'touch' || under == null) return
+      if (nodeIdOf(e.relatedTarget) === under) return // still on the same node
+      leave()
+    }
+    const onFocusIn = (e: FocusEvent) => {
+      const t = e.target
+      if (!(t instanceof Element) || !t.classList.contains('react-flow__node') || !t.matches(':focus-visible')) return
+      ui().setRelationFocus(t.getAttribute('data-id'))
+    }
+    const onFocusOut = (e: FocusEvent) => {
+      if (e.target instanceof Element && e.target.classList.contains('react-flow__node')) ui().setRelationFocus(null)
+    }
+    document.addEventListener('pointerover', onOver)
+    document.addEventListener('pointerout', onOut)
+    el.addEventListener('focusin', onFocusIn)
+    el.addEventListener('focusout', onFocusOut)
+    return () => {
+      document.removeEventListener('pointerover', onOver)
+      document.removeEventListener('pointerout', onOut)
+      el.removeEventListener('focusin', onFocusIn)
+      el.removeEventListener('focusout', onFocusOut)
+      clearTimeout(timer)
+      ui().setRelationHover(null)
+      ui().setRelationFocus(null)
+    }
+  }, [isMobile])
 
   // docs/large-graph-readability.md §LGR3.4 / LGR-D4 — Reset view: one UI-only
   // action that fits the graph and clears the exploration lens (filter
@@ -1089,12 +1173,12 @@ export function Canvas() {
         // start freezes the pre-drag graph, `endNodeDrag` at the stop pushes
         // one entry if a position changed (the store ignores a second begin or
         // stop for the same gesture, and the lock)
-        onNodeDragStart={(e, node, dragged) => { useGraphStore.getState().beginNodeDrag(); dragSnap.begin(node.id, e.altKey, dragged.map((n) => n.id), useGraphStore.getState().nodes, getViewport().zoom); beginLiveLayout() }}
+        onNodeDragStart={(e, node, dragged) => { setNodeDragging(true); useGraphStore.getState().beginNodeDrag(); dragSnap.begin(node.id, e.altKey, dragged.map((n) => n.id), useGraphStore.getState().nodes, getViewport().zoom); beginLiveLayout() }}
         onNodeDrag={(e) => dragSnap.update(e.altKey)}
-        onNodeDragStop={(e) => { dragSnap.update(e.altKey); dragSnap.end(); useGuideStore.getState().clear(); endLiveLayout(); useGraphStore.getState().endNodeDrag() }}
-        onSelectionDragStart={(e, dragged) => { useGraphStore.getState().beginNodeDrag(); dragSnap.begin(dragged[0]?.id ?? null, e.altKey, dragged.map((n) => n.id), useGraphStore.getState().nodes, getViewport().zoom); beginLiveLayout() }}
+        onNodeDragStop={(e) => { setNodeDragging(false); dragSnap.update(e.altKey); dragSnap.end(); useGuideStore.getState().clear(); endLiveLayout(); useGraphStore.getState().endNodeDrag() }}
+        onSelectionDragStart={(e, dragged) => { setNodeDragging(true); useGraphStore.getState().beginNodeDrag(); dragSnap.begin(dragged[0]?.id ?? null, e.altKey, dragged.map((n) => n.id), useGraphStore.getState().nodes, getViewport().zoom); beginLiveLayout() }}
         onSelectionDrag={(e) => dragSnap.update(e.altKey)}
-        onSelectionDragStop={(e) => { dragSnap.update(e.altKey); dragSnap.end(); useGuideStore.getState().clear(); endLiveLayout(); useGraphStore.getState().endNodeDrag() }}
+        onSelectionDragStop={(e) => { setNodeDragging(false); dragSnap.update(e.altKey); dragSnap.end(); useGuideStore.getState().clear(); endLiveLayout(); useGraphStore.getState().endNodeDrag() }}
         onEdgesChange={onEdgesChange}
         // the workbench, direction B (src/model/connectKind.ts): a drawing takes
         // the kind chosen in the tool row; the same check that refuses it in
