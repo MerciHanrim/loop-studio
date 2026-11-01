@@ -5,6 +5,7 @@ import { useMcStore } from '../store/mcStore'
 import { useT } from '../i18n'
 import { useDialogFocus } from './useDialogFocus'
 import { InlineHintNote } from './HintNote'
+import { DraftNumberInput } from './DraftNumberInput'
 import { DialogScrim } from './DialogScrim'
 import { Icon } from '../ui/icons'
 
@@ -94,7 +95,10 @@ export function MonteCarloDialog() {
 
   const running = status === 'running'
   const overLimit = estimate?.overLimit ?? false
-  const num = (v: string, lo: number) => Math.max(lo, Math.floor(Number(v) || lo))
+  // the fields' range rule, unchanged by #422: a whole number, at least `lo`.
+  // The fields set it on Enter or blur only; a blank or non-finite text never
+  // gets here (`DraftNumberInput`, `commitOnConfirm`)
+  const num = (n: number, lo: number) => Math.max(lo, Math.floor(n))
 
   // tracked-Pool selection. `tracked: []` is the canonical "all" (auto-tracks
   // Pools added later); a strict subset is stored as an explicit graph-order id
@@ -142,37 +146,44 @@ export function MonteCarloDialog() {
         <div className="mcdlg__body">
           <label className="mcdlg__field">
             <span>{t('mc.field.runs')}</span>
-            <input dir="ltr"
-              type="number"
+            <DraftNumberInput
               min={1}
               step={50}
               value={config.runs}
               disabled={running}
-              onChange={(e) => setConfig({ runs: num(e.target.value, 1) })}
+              allowEmpty={false}
+              commitOnConfirm
+              onCommit={(n) => {
+                if (n != null) setConfig({ runs: num(n, 1) })
+              }}
             />
           </label>
           <label className="mcdlg__field">
             <span>{t('mc.field.steps')}</span>
-            <input dir="ltr"
-              type="number"
+            <DraftNumberInput
               min={1}
               step={5}
               value={config.steps}
               disabled={running}
-              onChange={(e) => setConfig({ steps: num(e.target.value, 1) })}
+              allowEmpty={false}
+              commitOnConfirm
+              onCommit={(n) => {
+                if (n != null) setConfig({ steps: num(n, 1) })
+              }}
             />
           </label>
           <label className="mcdlg__field">
             <span>{t('mc.field.baseSeed')}</span>
-            <input dir="ltr"
-              type="number"
+            <DraftNumberInput
               min={0}
               step={1}
               value={config.baseSeed}
               disabled={running}
-              onChange={(e) =>
-                setConfig({ baseSeed: Math.max(0, Math.floor(Number(e.target.value) || 0)) })
-              }
+              allowEmpty={false}
+              commitOnConfirm
+              onCommit={(n) => {
+                if (n != null) setConfig({ baseSeed: num(n, 0) })
+              }}
             />
           </label>
           <div className="mcdlg__pools">
