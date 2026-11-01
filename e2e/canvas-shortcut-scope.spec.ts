@@ -84,12 +84,33 @@ test.describe('f, [ and ] act only while the canvas has the keyboard (#422)', ()
     await expect.poll(async () => (await state(page)).selected).not.toBe('ore_stock')
     await page.keyboard.press('f')
     await expect.poll(async () => (await state(page)).focus).toBe(true)
-    // focus taken away from the canvas, then a click on the empty pane gives it back
-    await page.locator('.wb-tabs [role="tab"]').first().focus()
-    const pane = (await page.locator('.react-flow__pane').boundingBox())!
-    await page.locator('.react-flow__pane').click({ position: { x: pane.width - 20, y: 20 } })
-    expect(await page.evaluate(() => document.activeElement?.classList.contains('canvas'))).toBe(true)
     await page.keyboard.press('f')
     await expect.poll(async () => (await state(page)).focus).toBe(false)
+  })
+
+  test('from the left panel, the timeline, the status bar or a field, a click on the empty canvas moves focus to the canvas, and the keys act again', async ({ page }) => {
+    await load(page)
+    const pane = page.locator('.react-flow__pane')
+    const box = (await pane.boundingBox())!
+    const sources: [string, Locator][] = [
+      ['a left-panel tab', page.locator('.wb-tabs [role="tab"]').first()],
+      ['the timeline’s height handle', page.locator('.timeline [role="separator"][tabindex="0"]').first()],
+      ['a status-bar button', page.locator('.wb-status button').first()],
+      ['the Inspector’s Label field', page.locator('.inspector').getByRole('textbox', { name: 'Label', exact: true })],
+    ]
+    for (const [where, source] of sources) {
+      // the Inspector's field needs a selection to be on screen
+      if (where.includes('Inspector')) await node(page, 'ore_stock').click()
+      await source.focus()
+      await expect(source, where).toBeFocused()
+      await page.keyboard.press('f')
+      expect((await state(page)).focus, `f in ${where}`).toBe(false)
+      await pane.click({ position: { x: box.width - 20, y: 20 } })
+      expect(await page.evaluate(() => document.activeElement?.classList.contains('canvas') ?? false), `focus after the pane click from ${where}`).toBe(true)
+      await page.keyboard.press('f')
+      await expect.poll(async () => (await state(page)).focus, { message: `f on the canvas after ${where}` }).toBe(true)
+      await page.keyboard.press('f')
+      await expect.poll(async () => (await state(page)).focus).toBe(false)
+    }
   })
 })
