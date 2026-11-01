@@ -413,4 +413,23 @@ describe('#471 — a multi-supply group keeps the rule it had, and says when an 
     expect(r2.notices).toEqual([])
     expect(r2.pools.a + r2.pools.p + r2.pools.q + r2.pools.x).toBeCloseTo(before, 6)
   })
+
+  // Review 3 (CI on `ebc5d714`): a Gate hands a terminal its share through the
+  // same inbox as a router, and a terminal consumes everything it is handed.
+  // The held-amount sweep reported the visual matrix fixture's Drain intake
+  // (999 999) as a loss and the phone run bar grew a notice row in the pixel
+  // shots. A Drain or End at the end of a Gate is not a loss.
+  it('a terminal fed by a Gate consumes what it is handed — no held-amount notice', () => {
+    const drain = (id: string): LoopNode => ({ id, type: 'drain', position: P, data: { kind: 'drain', label: id, activation: 'automatic', mode: 'pullAny' } } as LoopNode)
+    const end = (id: string): LoopNode => ({ id, type: 'end', position: P, data: { kind: 'end', label: id, activation: 'automatic' } } as LoopNode)
+    for (const terminal of [drain('t'), end('t')]) {
+      const nodes = [pool('a', 50), gate('g'), terminal]
+      const edges = [res('e1', 'a', 'g', 'all'), res('k1', 'g', 't', '1')]
+      const r = run(nodes, edges)
+      close(r.moved, { e1: 50, k1: 50 })
+      expect(r.pools.a).toBe(0)
+      expect(r.notices).toEqual([])
+      expect(r.diagnostics).toEqual([])
+    }
+  })
 })

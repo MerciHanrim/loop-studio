@@ -1112,7 +1112,12 @@ export function step(
       if (group) planGroup(group)
 
       if (k === 'drain' || k === 'end') {
+        // a terminal consumes what a router handed it: the entry is cleared, or
+        // the held-amount sweep at the end of the pass would report a Drain's
+        // intake as a loss (#471 review 3 — the visual matrix fixture's Gate
+        // hands its Drain 999 999 and the phone run bar grew a notice row)
         let got = inbox.get(id) ?? 0
+        inbox.set(id, 0)
         const ins = inOf(id)
           .filter((e) => isPool(e.source) && !dead.has(e.id))
           .sort(cmpEdge)
