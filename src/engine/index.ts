@@ -1,4 +1,5 @@
 export { initSim, step, ROUTER_KINDS } from './step'
+export { ENGINE_REVISION } from './revision'
 export {
   ACT_HINT,
   LABEL_HINT,

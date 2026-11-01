@@ -44,15 +44,18 @@ test.describe('MC / sim invalidation', () => {
     const exportBtn = page.locator('.dist__stats .menu button', { hasText: 'Export' })
     await expect(exportBtn).toBeEnabled()
 
-    // advance the live sim, then make an undoable structural edit. The Risky
-    // Factory reaches its End at step 2, and a step after `ended` is a fixed
-    // point (#419 item 1) — so three advances land on step 2, ended, not 3.
+    // advance the live sim, then make an undoable structural edit. With seed 9
+    // the Risky Factory reaches its End at step 4 (#471 — seed 1 reached it at
+    // step 2 only through the old Converter's half batch from energy alone),
+    // and a step after `ended` is a fixed point (#419 item 1) — so five
+    // advances land on step 4, ended, not 5.
     await page.evaluate(() => {
       const s = (window as any).__loop.sim.getState()
-      s.advance(); s.advance(); s.advance()
+      s.setSeed(9)
+      s.advance(); s.advance(); s.advance(); s.advance(); s.advance()
     })
     const advanced = await simSnapshot(page)
-    expect(advanced.stepIndex).toBe(2)
+    expect(advanced.stepIndex).toBe(4)
     expect(advanced.status).toBe('ended')
     await page.evaluate((id) => (window as any).__loop.graph.getState().updateNodeData(id, { capacity: 999 }), RF_POOL)
     expect((await simSnapshot(page)).canUndo).toBe(true)

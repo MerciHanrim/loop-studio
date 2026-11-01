@@ -8,6 +8,7 @@ import {
 } from '../engine'
 import type { RecommendedRunConfig } from '../model/serialize'
 import { semanticDigest } from '../model/workspace'
+import { ENGINE_REVISION } from '../engine/revision'
 import { useGraphStore } from './graphStore'
 import { useSimStore } from './simStore'
 import { useUiStore } from './uiStore'
@@ -53,6 +54,10 @@ type McStore = {
    *  Made only on a completed run; carried verbatim through Workspace
    *  export/restore — never recomputed against a later graph. */
   resultGraphDigest: string | null
+  /** the `ENGINE_REVISION` that produced `result` (SEMANTICS-W2.md §W2-1).
+   *  Minted on a completed run; carried verbatim through Workspace
+   *  export/restore, so a restored result keeps the revision that made it. */
+  resultEngineRevision: number | null
 
   view: McView
   /** which Pool the Distribution band chart shows (persisted in a Workspace) */
@@ -71,7 +76,9 @@ type McStore = {
   setShowMean: (v: boolean) => void
   /** attach a result restored from a Workspace file WITHOUT recomputing its
    *  digest (SEMANTICS-W.md §W3.2 / §W5.1). `null` clears any result. */
-  restoreResult: (p: { result: MonteCarloResult; resultGraphDigest: string; stale: boolean } | null) => void
+  restoreResult: (
+    p: { result: MonteCarloResult; resultGraphDigest: string; stale: boolean; engineRevision?: number | null } | null,
+  ) => void
   run: () => Promise<void>
   cancel: () => void
   clear: () => void
@@ -93,6 +100,7 @@ export const useMcStore = create<McStore>((set, get) => ({
   lastThroughput: null,
   stale: false,
   resultGraphDigest: null,
+  resultEngineRevision: null,
   distributionPoolId: null,
   showMean: false,
   view: 'live',
@@ -156,6 +164,7 @@ export const useMcStore = create<McStore>((set, get) => ({
         runGraph: null,
         runRev: rev,
         resultGraphDigest: null,
+        resultEngineRevision: null,
         stale: false,
         progress: 0,
         completedRuns: 0,
@@ -170,6 +179,7 @@ export const useMcStore = create<McStore>((set, get) => ({
       // current rev ⇒ the simulationRev subscription won't re-stale this (§W5.1)
       runRev: rev,
       resultGraphDigest: p.resultGraphDigest,
+      resultEngineRevision: p.engineRevision ?? null,
       stale: p.stale,
       progress: 1,
       completedRuns: p.result.completedRuns,
@@ -225,6 +235,7 @@ export const useMcStore = create<McStore>((set, get) => ({
         runGraph: { nodes, edges },
         runRev: rev,
         resultGraphDigest,
+        resultEngineRevision: ENGINE_REVISION,
         lastThroughput: { rev, msPerRunStep: wallMs / denom },
         stale,
         progress: 1,
@@ -260,6 +271,7 @@ export const useMcStore = create<McStore>((set, get) => ({
       runGraph: null,
       runRev: -1,
       resultGraphDigest: null,
+      resultEngineRevision: null,
       lastThroughput: null,
       stale: false,
       progress: 0,

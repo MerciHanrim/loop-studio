@@ -1,4 +1,5 @@
-// Workspace Export / Import — pure format layer (SEMANTICS-W.md, loop-workspace/1).
+// Workspace Export / Import — pure format layer (SEMANTICS-W.md, loop-workspace/1;
+// SEMANTICS-W2.md, loop-workspace/2 — the engine revision beside a saved result).
 //
 // Slice A: constants, the canonical *semantic* graph digest (§W3.1 / §W11), a
 // Web-Crypto-or-@noble/hashes SHA-256, a UTF-8 byte length.
@@ -7,13 +8,17 @@
 // `src/store/workspaceIO.ts`.
 
 import { sha256 as nobleSha256 } from '@noble/hashes/sha2.js'
+import { ENGINE_REVISION } from '../engine/revision'
 import { MAX_SERIES } from './limits'
 import type { LoopEdge, LoopNode } from './types'
 
-/** the `workspace.schema` string (§W11) */
-export const WORKSPACE_SCHEMA = 'loop-workspace/1'
-/** a reader loads graph-only when the file's `workspace.version` exceeds this (§W11) */
-export const WORKSPACE_VERSION = 1
+/** the `workspace.schema` string written (§W2-4) */
+export const WORKSPACE_SCHEMA = 'loop-workspace/2'
+/** the `workspace.version` written (§W2-4); the reader restores exactly this
+ *  pair, or exactly the `loop-workspace/1` / `1` pair (§W2-2), nothing else */
+export const WORKSPACE_VERSION = 2
+/** the one earlier pair the reader still restores (§W2-2, §W2-3) */
+const WORKSPACE_SCHEMA_1 = 'loop-workspace/1'
 /** hard cap on the serialized Workspace file, measured not estimated (§W4 / §W11) */
 export const WORKSPACE_MAX_BYTES = 8 * 1024 * 1024
 
@@ -35,6 +40,9 @@ export type WorkspacePayload = {
     resultOmitted?: ResultOmittedReason
     /** semantic digest of the graph that PRODUCED the result (§W3.2) */
     resultGraphDigest?: string
+    /** the `ENGINE_REVISION` that produced the result (SEMANTICS-W2.md §W2-1);
+     *  present exactly when `result` is, carried verbatim */
+    engineRevision?: number
     stale: boolean
   }
   view: {
@@ -230,8 +238,9 @@ export const MAX_ZOOM = 16
 export type RestoredWorkspace = {
   /** engine-validated MC config patch (fields present only when valid) */
   mcConfig: { baseSeed?: number; runs?: number; steps?: number; tracked?: string[] }
-  /** a usable restored result, or undefined (none / corrupt / omitted) */
-  result?: { result: unknown; resultGraphDigest: string; stale: boolean }
+  /** a usable restored result, or undefined (none / corrupt / omitted).
+   *  `engineRevision` is the file's value, verbatim — `null` when it had none */
+  result?: { result: unknown; resultGraphDigest: string; engineRevision: number | null; stale: boolean }
   /** present when a result existed in the file but was left out (§W4) */
   resultOmitted?: ResultOmittedReason
   view: { timeline: 'live' | 'distribution'; distributionPoolId: string | null; showMean: boolean }
@@ -283,14 +292,22 @@ export function readWorkspace(
   raw: unknown,
   graph: { nodes: LoopNode[]; edges: LoopEdge[] },
   currentGraphDigest: string,
+  /** the reading app's engine revision — a parameter so a test can stand in
+   *  for another app; the app passes nothing */
+  engineRevision: number = ENGINE_REVISION,
 ): { restored: RestoredWorkspace | null; warnings: string[] } {
   const warnings: string[] = []
   if (!isObj(raw)) return { restored: null, warnings }
 
-  // §W5.3 — restore ONLY an exact `loop-workspace/1` payload. Anything else
-  // (a newer version, a `0` / negative / fractional version, a string `"1"`,
-  // an unknown schema) ⇒ graph only + warning. Never throw.
-  if (raw.schema !== WORKSPACE_SCHEMA || raw.version !== WORKSPACE_VERSION) {
+  // §W5.3 / §W2-2 — restore ONLY an exact `loop-workspace/2` / `2` payload, or
+  // an exact `loop-workspace/1` / `1` one (whose result then has no revision
+  // and is attached stale below). Anything else (a newer version, a `0` /
+  // negative / fractional version, a string `"2"`, an unknown schema) ⇒ graph
+  // only + warning. Never throw. This is the path that keeps an older app safe
+  // from a newer file, and this app safe from the next revision's.
+  const exact2 = raw.schema === WORKSPACE_SCHEMA && raw.version === WORKSPACE_VERSION
+  const exact1 = raw.schema === WORKSPACE_SCHEMA_1 && raw.version === 1
+  if (!exact2 && !exact1) {
     return {
       restored: null,
       warnings: ["this file's saved workspace is not a supported version; the graph opened without it"],
@@ -337,20 +354,32 @@ export function readWorkspace(
   } else if (rawMc.result != null) {
     const r = rawMc.result
     const digest = typeof rawMc.resultGraphDigest === 'string' ? rawMc.resultGraphDigest : ''
+    // §W2-1 — the file's revision, verbatim; `null` when it has none (a
+    // `loop-workspace/1` file, or a hand-edited one)
+    const fileRevision = Number.isInteger(rawMc.engineRevision) ? (rawMc.engineRevision as number) : null
     if (!validateResultShape(r, nodeIds)) {
       warnings.push('the saved distribution was corrupt and has been discarded')
     } else if (!HEX64.test(digest)) {
-      result = { result: r, resultGraphDigest: digest, stale: true }
+      result = { result: r, resultGraphDigest: digest, engineRevision: fileRevision, stale: true }
       warnings.push('the saved distribution could not be verified against this graph and is marked stale')
     } else {
       const matches = digest === currentGraphDigest
+      // §W2-2 (3) — missing or different in EITHER direction is stale: this
+      // app cannot reproduce the number, whichever engine made it
+      const sameEngine = fileRevision === engineRevision
       result = {
         result: r,
         resultGraphDigest: digest, // §W3.2 — verbatim, never recomputed
-        stale: matches ? rawMc.stale === true : true,
+        engineRevision: fileRevision,
+        stale: matches && sameEngine ? rawMc.stale === true : true,
       }
       if (!matches) {
         warnings.push('the saved distribution is from an earlier version of this graph and is marked stale')
+      }
+      if (!sameEngine) {
+        warnings.push(
+          'the saved distribution was computed by a different version of the engine and is marked stale; run Monte Carlo again',
+        )
       }
     }
   }

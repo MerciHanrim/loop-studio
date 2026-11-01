@@ -129,8 +129,8 @@
     }
   ],
   "workspaceRoundTrip": {
-    "wireSchema": "loop-workspace/1",
-    "wireVersion": 1,
+    "wireSchema": "loop-workspace/2",
+    "wireVersion": 2,
     "simulationKeys": [
       "ended",
       "fired",

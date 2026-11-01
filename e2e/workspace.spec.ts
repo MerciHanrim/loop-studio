@@ -119,7 +119,7 @@ test.describe('Export ▾ — Graph JSON vs Workspace JSON', () => {
     const graph = JSON.parse(gText)
     const ws = JSON.parse(wText)
     expect(graph.workspace).toBeUndefined()
-    expect(ws.workspace.schema).toBe('loop-workspace/1')
+    expect(ws.workspace.schema).toBe('loop-workspace/2')
     expect(ws.workspace.simulation.step).toBe(2)
     expect(gText).not.toBe(wText)
   })
@@ -233,7 +233,7 @@ test.describe('Workspace Import — restore is atomic and always paused', () => 
       return JSON.stringify({
         schema: 'loop-studio/graph', version: 1, nodes: g.nodes, edges: g.edges,
         workspace: {
-          schema: 'loop-workspace/1', version: 1,
+          schema: 'loop-workspace/2', version: 2,
           mc: { config: { baseSeed: 1, runs: 3, steps: 2, tracked: [] }, stale: false },
           view: { timeline: 'live', distributionPoolId: null, showMean: false },
           canvas: { x: 25, y: 60, zoom: 999 }, // absurd zoom
@@ -258,7 +258,7 @@ test.describe('Workspace Import — restore is atomic and always paused', () => 
       return JSON.stringify({
         schema: 'loop-studio/graph', version: 1, nodes: g.nodes, edges: g.edges,
         workspace: {
-          schema: 'loop-workspace/1', version: 1,
+          schema: 'loop-workspace/2', version: 2,
           mc: { config: { baseSeed: 1, runs: 3, steps: 2, tracked: [] }, stale: false },
           view: { timeline: 'distribution', distributionPoolId: g.nodes[1].id, showMean: true },
           canvas: { x: 0, y: 0, zoom: 1 },

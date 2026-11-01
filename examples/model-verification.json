@@ -156,9 +156,9 @@
       "id": "e_src_gold",
       "source": "src",
       "target": "gold",
-      "type": "loop",
       "sourceHandle": "out",
       "targetHandle": "in",
+      "type": "loop",
       "data": {
         "kind": "resource",
         "flow": "3",
@@ -169,9 +169,9 @@
       "id": "e_gold_sink",
       "source": "gold",
       "target": "sink",
-      "type": "loop",
       "sourceHandle": "out",
       "targetHandle": "in",
+      "type": "loop",
       "data": {
         "kind": "resource",
         "flow": "2",
@@ -182,9 +182,9 @@
       "id": "e_mana_sink",
       "source": "mana",
       "target": "sink",
-      "type": "loop",
       "sourceHandle": "out",
       "targetHandle": "in",
+      "type": "loop",
       "data": {
         "kind": "resource",
         "flow": "1",

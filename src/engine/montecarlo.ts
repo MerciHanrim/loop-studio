@@ -526,6 +526,8 @@ export function toFinalSummaryCsv(r: MonteCarloResult): string {
 }
 
 /** `MonteCarloResult` as pretty JSON (field order is the frozen contract). */
-export function toMonteCarloJson(r: MonteCarloResult): string {
-  return JSON.stringify(r, null, 2)
+export function toMonteCarloJson(r: MonteCarloResult, engineRevision: number | null = null): string {
+  // SEMANTICS-W2.md §W2-1 — the revision that produced `r`, beside the
+  // `loop-mc/1` fields; absent when the result carries none
+  return JSON.stringify(engineRevision == null ? r : { ...r, engineRevision }, null, 2)
 }

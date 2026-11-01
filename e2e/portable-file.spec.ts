@@ -313,7 +313,7 @@ test.describe('portable file://', () => {
     expect(await snapshot()).toEqual(before)
   })
 
-  test('boots, imports, runs on the cooperative path, exports 424 / 500', async ({ page }) => {
+  test('boots, imports, runs on the cooperative path, exports 419 / 500', async ({ page }) => {
     test.setTimeout(60_000)
     await openPortable(page)
     // the dialog is pre-filled from the file's recommendedRunConfig (500 × 40, seed 1)
@@ -326,7 +326,7 @@ test.describe('portable file://', () => {
     await expect(page.locator('.term__line')).toHaveCount(1)
     await expect(page.locator('.term__bead')).toHaveCount(1)
     await expect(page.locator('.term__empty')).toHaveCount(0)
-    await expect(page.locator('.term__pct b')).toHaveText('85%')
+    await expect(page.locator('.term__pct b')).toHaveText('84%') // 419 / 500 (#471)
 
     const dl = page.waitForEvent('download', { timeout: 3_000 }).then((d) => d.suggestedFilename()).catch(() => null)
     const text = await exportJsonText(page)
@@ -337,7 +337,8 @@ test.describe('portable file://', () => {
     expect(r.config).toMatchObject({ baseSeed: 1, runs: 500, steps: 40 })
     expect(r.completedRuns).toBe(500)
     expect(r.endedRuns.atOrBeforeStep).toHaveLength(41)
-    expect(r.endedRuns.atOrBeforeStep.at(-1)).toBe(424)
+    expect(r.endedRuns.atOrBeforeStep.at(-1)).toBe(419) // #471 — was 424 before the Converter plan-before-take rule
+    expect(r.engineRevision).toBe(1) // the export names the engine that computed it (SEMANTICS-W2 §W2-4)
   })
 
   test('progress is observed mid-run via the strip, then DISTRIBUTION appears', async ({ page }) => {
@@ -419,8 +420,12 @@ test.describe('portable file://', () => {
     const httpJson = await hpage.evaluate(() => JSON.stringify((window as any).__loop.mc.getState().result))
     await hctx.close()
 
-    // whole MonteCarloResult, nothing excluded
-    expect(JSON.parse(portableJson)).toEqual(JSON.parse(httpJson))
+    // whole MonteCarloResult, nothing excluded. The export carries one field
+    // the store's result does not — `engineRevision`, the engine that computed
+    // it (#471, SEMANTICS-W2 §W2-4) — so it is read off and checked on its own.
+    const { engineRevision, ...portableResult } = JSON.parse(portableJson)
+    expect(engineRevision).toBe(1)
+    expect(portableResult).toEqual(JSON.parse(httpJson))
   })
 
   test('Workspace round-trip on file:// — SHA-256 digest works, result restores non-stale', async ({ page }) => {
@@ -432,8 +437,9 @@ test.describe('portable file://', () => {
 
     const wsText = await exportWorkspaceText(page)
     const ws = JSON.parse(wsText).workspace
-    expect(ws.schema).toBe('loop-workspace/1')
+    expect(ws.schema).toBe('loop-workspace/2')
     expect(ws.mc.result).toBeDefined()
+    expect(ws.mc.engineRevision).toBe(1) // SEMANTICS-W2.md §W2-1 — the revision that made the result
     // the digest was minted on file:// (crypto.subtle or the pure-JS fallback)
     expect(ws.mc.resultGraphDigest).toMatch(/^[0-9a-f]{64}$/)
 

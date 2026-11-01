@@ -65,8 +65,8 @@ it:
 - File ▾ → Import `examples/risky-factory.json` → 18 nodes
 - MC dialog **pre-filled** from `recommendedRunConfig` (500 × 40, seed 1)
 - runs on the **real Worker path** (`Worker` constructed, jobs dispatched) →
-  Risky Factory **424 / 500**, populated termination sparkline
-- Distribution panel's **Export ▾ → JSON** (`loop-mc/1`, `endedRuns[-1] === 424`);
+  Risky Factory **419 / 500**, populated termination sparkline
+- Distribution panel's **Export ▾ → JSON** (`loop-mc/1`, `endedRuns[-1] === 419`);
   **File ▾ → Graph JSON** carries `recommendedRunConfig`
 - hard **reload** → app re-boots and restores the graph from `localStorage`
 
@@ -82,10 +82,10 @@ deploy.
    moves
 3. **File → Import** `examples/risky-factory.json`; open **Monte Carlo** —
    fields show `500 / 40 / 1`; **Run**
-4. DISTRIBUTION appears; termination sparkline flattens near **85 %**; the
+4. DISTRIBUTION appears; termination sparkline flattens near **84 %**; the
    pre-run cost line reads *Parallel, N workers* (Worker path, not "Local")
 5. Distribution panel's **Export ▾ → JSON**, reopen it — `"spec": "loop-mc/1"`,
-   `endedRuns.atOrBeforeStep` last value **424**
+   `endedRuns.atOrBeforeStep` last value **419**
 6. **File ▾ → Graph JSON**, **File ▾ → New**, **File ▾ → Import** that file
    back — graph returns and the MC dialog is pre-filled again
 7. hard-refresh the tab — the app reloads and the graph is still there

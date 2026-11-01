@@ -222,7 +222,7 @@ export type GraphDoc = {
    *  spreadsheet-import source records. Emitted only when non-empty. Read
    *  defensively (`readDataImports`). */
   dataImports?: ImportSourceTable[]
-  /** loop-workspace/1 extension (SEMANTICS-W.md) — an opaque blob here; the
+  /** loop-workspace/2 extension (SEMANTICS-W2.md) — an opaque blob here; the
    *  Workspace reader validates it against the loaded graph. Absent on a plain
    *  Graph Export. */
   workspace?: unknown
