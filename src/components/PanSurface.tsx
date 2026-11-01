@@ -431,8 +431,15 @@ export function PanSurface({
         }
       }
     }
-    const onLost = () => {
-      resetAll()
+    // #421 (Lumi, 2026-11-01) — a lift releases the capture, so a
+    // `lostpointercapture` follows every normal `pointerup`: that pointer is
+    // already gone from `pointers`, and the event must not touch the fingers
+    // still down (it used to reset everything, so the `settling` tail above
+    // never held). A capture lost while the pointer is still TRACKED — nothing
+    // lifted — is an interruption: cancelled like a `pointercancel`.
+    const onLost = (e: PointerEvent) => {
+      if (!pointers.has(e.pointerId)) return
+      onCancel(e)
     }
 
     // Zoom stays with React Flow (DGP0). d3-zoom's wheel handler is bound to
