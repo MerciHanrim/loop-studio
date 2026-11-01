@@ -4,6 +4,7 @@ import { useSimStore } from '../store/simStore'
 import { useT } from '../i18n'
 import { Icon } from '../ui/icons'
 import { topOverlay } from '../ui/overlayStack'
+import { DraftNumberInput } from './DraftNumberInput'
 // measured on the children's boxes: a right-to-left row spills on its start
 // side, which `scrollWidth` does not count (ar-XB at 900 px, 2026-10-20)
 import { fitsRow } from './workbench/toolRowFit'
@@ -284,13 +285,18 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
 
       <label className="pstrip__field" title={t('playbar.seed.title')}>
         <span>{t('playbar.seed')}</span>
-        <input dir="ltr"
+        {/* #422 — a blank is no seed (Enter or leaving brings the previous one
+            back); `setSeed` keeps its rule for a number: an integer, uint32 */}
+        <DraftNumberInput
           className="pstrip__seed"
-          type="number"
           min={0}
           step={1}
           value={seed}
-          onChange={(e) => setSeed(Number(e.target.value))}
+          allowEmpty={false}
+          restoreOnBlank
+          onCommit={(n) => {
+            if (n != null) setSeed(n)
+          }}
         />
       </label>
       </div>
