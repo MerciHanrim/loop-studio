@@ -1,4 +1,4 @@
-import { useRef, useState, type InputHTMLAttributes } from 'react'
+import { useState, type InputHTMLAttributes } from 'react'
 import { readDraft } from '../ui/draftNumber'
 
 /**
@@ -13,11 +13,13 @@ import { readDraft } from '../ui/draftNumber'
  * field back to whatever is stored. `allowEmpty` commits `null` for a blank
  * field.
  *
- * `restoreOnBlank` (#422, Lumi 2026-11-01 — Seed, Runs, Steps, Base seed): a
- * blank is being edited, not a value. Enter or leaving the field while it is
- * blank shows the value from before the edit again — committed back if a
- * number typed on the way (backspacing `500` through `50` and `5`) already
- * changed it. Enter also ends the edit when the field holds a number.
+ * `commitOnConfirm` (#422, Lumi 2026-11-01 — Seed, Runs, Steps, Base seed):
+ * typing changes the draft only; a valid number is committed when the edit is
+ * confirmed, by Enter or by leaving the field. Clearing `500` one character at
+ * a time therefore never sets `50` or `5` on the way (for Seed each of those
+ * would reset the run), and a blank confirmed, like anything not a valid
+ * number, commits nothing: the value and the run stay as they were before the
+ * edit, and the field shows that value again.
  *
  * Renders the `<input>` only; the caller wraps it in its own field and shows
  * any hint it wants from `invalid`.
@@ -26,7 +28,7 @@ export function DraftNumberInput({
   value,
   allowEmpty,
   valid,
-  restoreOnBlank,
+  commitOnConfirm,
   onCommit,
   onInvalidChange,
   ...rest
@@ -35,28 +37,26 @@ export function DraftNumberInput({
   allowEmpty: boolean
   /** a further rule on a finite parse (e.g. `n >= 0`); absent ⇒ any finite number */
   valid?: (n: number) => boolean
-  /** a blank confirmed by Enter or blur brings back the value from before the edit */
-  restoreOnBlank?: boolean
+  /** commit on Enter or blur only, never while typing; a blank commits nothing */
+  commitOnConfirm?: boolean
   onCommit: (n: number | null) => void
   /** told whenever the draft turns invalid / valid again, for a hint beside the field */
   onInvalidChange?: (invalid: boolean) => void
 } & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'onBlur' | 'type'>) {
   const [draft, setDraft] = useState<string | null>(null)
-  // the stored value when this edit began (focus, or the last Enter)
-  const editStart = useRef<number | null>(value)
   const shown = draft ?? (value == null ? '' : String(value))
   const isInvalid = (text: string) => {
     const r = readDraft(text, valid)
-    // a blank that will be restored is an edit in progress, not an error
-    return r.kind === 'blank' ? !allowEmpty && !restoreOnBlank : r.kind === 'invalid'
+    // a blank that commits nothing is an edit in progress, not an error
+    return r.kind === 'blank' ? !allowEmpty && !commitOnConfirm : r.kind === 'invalid'
   }
   const draftInvalid = draft !== null && isInvalid(draft)
-  /** end the edit: a blank goes back to the value from before it */
+  /** end the edit: under `commitOnConfirm` a valid number is set now */
   const confirm = () => {
-    if (restoreOnBlank && draft === '' && !allowEmpty) {
-      const back = editStart.current
-      if (back != null && back !== value) onCommit(back)
-    } else editStart.current = value
+    if (commitOnConfirm && draft !== null) {
+      const r = readDraft(draft, valid)
+      if (r.kind === 'value' && r.n !== value) onCommit(r.n)
+    }
     setDraft(null)
     onInvalidChange?.(false)
   }
@@ -67,23 +67,17 @@ export function DraftNumberInput({
       type="number"
       value={shown}
       aria-invalid={draftInvalid || rest['aria-invalid'] || undefined}
-      onFocus={(e) => {
-        editStart.current = value
-        rest.onFocus?.(e)
-      }}
       onKeyDown={(e) => {
         rest.onKeyDown?.(e)
-        if (restoreOnBlank && e.key === 'Enter' && !e.defaultPrevented) confirm()
+        if (commitOnConfirm && e.key === 'Enter' && !e.defaultPrevented) confirm()
       }}
       onChange={(e) => {
         const text = e.target.value
         setDraft(text)
         const invalid = isInvalid(text)
         onInvalidChange?.(invalid)
-        if (invalid) return
-        const r = readDraft(text, valid)
-        if (r.kind === 'value') onCommit(r.n)
-        else if (allowEmpty) onCommit(null)
+        if (invalid || commitOnConfirm) return
+        onCommit(text === '' ? null : Number(text))
       }}
       onBlur={confirm}
     />

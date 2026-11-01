@@ -285,15 +285,16 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
 
       <label className="pstrip__field" title={t('playbar.seed.title')}>
         <span>{t('playbar.seed')}</span>
-        {/* #422 — a blank is no seed (Enter or leaving brings the previous one
-            back); `setSeed` keeps its rule for a number: an integer, uint32 */}
+        {/* #422 — set on Enter or leaving the field, never per keystroke (each
+            new seed resets the run); a blank sets nothing. `setSeed` keeps its
+            rule for a number: an integer, uint32 */}
         <DraftNumberInput
           className="pstrip__seed"
           min={0}
           step={1}
           value={seed}
           allowEmpty={false}
-          restoreOnBlank
+          commitOnConfirm
           onCommit={(n) => {
             if (n != null) setSeed(n)
           }}

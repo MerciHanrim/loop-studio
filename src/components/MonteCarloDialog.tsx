@@ -96,7 +96,8 @@ export function MonteCarloDialog() {
   const running = status === 'running'
   const overLimit = estimate?.overLimit ?? false
   // the fields' range rule, unchanged by #422: a whole number, at least `lo`.
-  // A blank or non-finite text never gets here (`DraftNumberInput`)
+  // The fields set it on Enter or blur only; a blank or non-finite text never
+  // gets here (`DraftNumberInput`, `commitOnConfirm`)
   const num = (n: number, lo: number) => Math.max(lo, Math.floor(n))
 
   // tracked-Pool selection. `tracked: []` is the canonical "all" (auto-tracks
@@ -151,7 +152,7 @@ export function MonteCarloDialog() {
               value={config.runs}
               disabled={running}
               allowEmpty={false}
-              restoreOnBlank
+              commitOnConfirm
               onCommit={(n) => {
                 if (n != null) setConfig({ runs: num(n, 1) })
               }}
@@ -165,7 +166,7 @@ export function MonteCarloDialog() {
               value={config.steps}
               disabled={running}
               allowEmpty={false}
-              restoreOnBlank
+              commitOnConfirm
               onCommit={(n) => {
                 if (n != null) setConfig({ steps: num(n, 1) })
               }}
@@ -179,7 +180,7 @@ export function MonteCarloDialog() {
               value={config.baseSeed}
               disabled={running}
               allowEmpty={false}
-              restoreOnBlank
+              commitOnConfirm
               onCommit={(n) => {
                 if (n != null) setConfig({ baseSeed: num(n, 0) })
               }}
