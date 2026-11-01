@@ -80,7 +80,9 @@ export function InsertMenu({ addCentered }: { addCentered: (kind: NodeKind) => v
 export function RunMenu() {
   const t = useT()
   const status = useSimStore((s) => s.status)
-  const initError = useSimStore((s) => s.initError)
+  // the graph cannot be initialised (`initError`), or a Converter group is
+  // refused (#471, Deploy 2 — `refusals`): Play / Step do not start
+  const cannotRun = useSimStore((s) => s.initError != null || s.refusals.length > 0)
   const play = useSimStore((s) => s.play)
   const pause = useSimStore((s) => s.pause)
   const step = useSimStore((s) => s.stepOnce)
@@ -98,8 +100,8 @@ export function RunMenu() {
     else play()
   }
   const entries: MenuEntry[] = [
-    { kind: 'item', key: 'play', label: ended ? t('playbar.replay') : running ? t('playbar.pause') : t('playbar.play'), onSelect: primary, disabled: initError != null },
-    { kind: 'item', key: 'step', label: t('workbench.run.step'), hint: t('playbar.step.title'), onSelect: step, disabled: running || initError != null },
+    { kind: 'item', key: 'play', label: ended ? t('playbar.replay') : running ? t('playbar.pause') : t('playbar.play'), onSelect: primary, disabled: cannotRun },
+    { kind: 'item', key: 'step', label: t('workbench.run.step'), hint: t('playbar.step.title'), onSelect: step, disabled: running || cannotRun },
     { kind: 'item', key: 'reset', label: t('workbench.run.reset'), onSelect: reset },
     { kind: 'sep', key: 's1' },
     { kind: 'item', key: 'mc', label: t('workbench.run.mc'), onSelect: openMc },

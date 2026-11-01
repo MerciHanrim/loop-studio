@@ -92,6 +92,9 @@ const ui = {
   'playbar.mc.cancelled': 'Cancelado',
   'playbar.mc.failed': 'A execução falhou',
   'playbar.initError': 'Não é possível executar: {detail}',
+  'playbar.refused': 'Não é possível executar: caminhos que se dividem e se voltam a juntar ({n})',
+  'playbar.refused.show': 'Mostrar',
+  'inspector.refused.splitRejoin': 'Não é possível executar: os recursos dividem-se em {split} e voltam a juntar-se em {join}. Esta versão do modelo não suporta caminhos que se dividem e se voltam a juntar, por isso o modelo não é executado. Para o executar, remova um dos caminhos ou adicione um Reservatório num deles. Um Reservatório guarda o que chega, por isso esse caminho avança um passo mais tarde.',
   'playbar.diag.title': 'Diagnósticos da execução ({n})',
   'playbar.mc.title': 'Executar o diagrama muitas vezes e ver a distribuição',
   // no space before `%` — MEASURED: `Intl.NumberFormat('pt-PT')` produces

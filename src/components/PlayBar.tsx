@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useGraphStore } from '../store/graphStore'
 import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
 import { useT } from '../i18n'
@@ -61,6 +62,15 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   const seed = useSimStore((s) => s.seed)
   const steadyState = useSimStore((s) => s.steadyState)
   const initError = useSimStore((s) => s.initError)
+  // #471 (Deploy 2, F1) — a refused Converter group: Play / Step do not start;
+  // one line names the shape, Show selects the first group's split
+  const refusals = useSimStore((s) => s.refusals)
+  const refused = refusals.length > 0
+  const showRefused = () => {
+    const g = refusals[0]
+    if (g) useGraphStore.getState().setSelection(g.split ?? g.members[0], null)
+  }
+  const cannotRun = initError != null || refused
   const diagnostics = useSimStore((s) => s.diagnostics)
   const play = useSimStore((s) => s.play)
   const pause = useSimStore((s) => s.pause)
@@ -213,7 +223,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
           type="button"
           className="pb-btn pb-btn--transport pstrip__step-btn"
           onClick={stepOnce}
-          disabled={running || initError != null}
+          disabled={running || cannotRun}
           title={t('playbar.step.title')}
           aria-label={t('playbar.step.title')}
         >
@@ -223,7 +233,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
           type="button"
           className={`pb-btn pb-btn--transport pb-btn--primary${running ? ' is-running' : ''}`}
           onClick={onPrimary}
-          disabled={initError != null}
+          disabled={cannotRun}
         >
           <Icon name={ended ? 'run-replay' : running ? 'run-pause' : 'run-play'} className="icon--lead" />
           {ended ? t('playbar.replay') : running ? t('playbar.pause') : t('playbar.play')}
@@ -236,6 +246,17 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
         // Step are disabled above; this names the reason (the engine's text).
         <span className="pstrip__step pstrip__initerr" role="alert" title={initError}>
           {t('playbar.initError', { detail: initError })}
+        </span>
+      ) : refused ? (
+        // #471 (Deploy 2, F1) — a split that rejoins is refused before the run
+        // (SEMANTICS.md §6 erratum, part 2): the line counts the groups, Show
+        // selects the first one's split, whose Inspector note says what to
+        // change. Announced when it appears, like the line above.
+        <span className="pstrip__step pstrip__initerr pstrip__refused" role="alert">
+          {t('playbar.refused', { n: refusals.length })}
+          <button type="button" className="btn btn--ghost pstrip__refused-show" onClick={showRefused}>
+            {t('playbar.refused.show')}
+          </button>
         </span>
       ) : (
         <span className="pstrip__step">

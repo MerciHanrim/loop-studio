@@ -1,4 +1,5 @@
 import type { Activation, LoopEdge, LoopNode } from '../model/types'
+import { converterGroups, refusedGroups } from './converterGroups'
 import { evalDet, evalRand, type ModelVersion, rateOf } from './flow'
 import { resolveFlowExprs, routerOrder } from './gateChance'
 import { categorical, sample } from './rng'
@@ -95,6 +96,27 @@ export function step(
   const modelId = (id: string) => MODEL.has(byId.get(id)?.data.kind as string)
   const liveEdges = edges.filter((e) => !modelId(e.source) && !modelId(e.target))
   const resEdges = liveEdges.filter((e) => (e.data?.kind ?? 'resource') === 'resource')
+  // #471 Deploy 2 (F1) — a split that rejoins (two forward paths from one
+  // router meeting again at a later Gate or Converter) has no plan but zero,
+  // and one that happens to agree flips with the branches that are live. The
+  // run bar refuses such a graph before Play, Step or Monte Carlo start
+  // (`refusedGroups`, the same classification); this is the engine's own
+  // refusal for a caller that steps anyway: nothing moves, the step is not
+  // consumed, and the report says why. Never a silent zero.
+  const refused = refusedGroups(nodes, liveEdges)
+  if (refused.length) {
+    const label = (id: string | null) => byId.get(id ?? '')?.data.label ?? id ?? '?'
+    return {
+      state: { step: prev.step, values: prev.values, ended: false, fired: [], triggerQueue: prev.triggerQueue },
+      report: {
+        events: [], activated: [], fired: [], stateEvents: [],
+        diagnostics: refused.map(
+          (g) =>
+            `Can't run: resources split at "${label(g.split)}" and meet again at "${label(g.join)}". This model version does not support paths that split and meet again, so nothing moved. Remove one of the paths, or add a Pool on one of them (that path then moves one step later).`,
+        ),
+      },
+    }
+  }
   // loop-model/2 (SEMANTICS-M2.md §M2-3): in a v2 document, resolve every
   // `@id` / malformed-`@…` flow to a `const` once, before any phase. Every
   // unresolved reference contributes 0 + one diagnostic; a resolved finite
@@ -226,7 +248,13 @@ export function step(
   const rateOfCached = (e: LoopEdge): number =>
     isPctOnConverter(e) ? refusedPct(e) : isRandExpr(e) ? drawnValue(e) : rateOf(fe(e))
 
-  const availOf = (id: string) => (S[id] ?? 0) - (taken.get(id) ?? 0)
+  // #471 Deploy 2 — a tree group's plan claims the Pool inputs of its
+  // Converters at the group's FIRST router's turn (SEMANTICS.md §6 erratum,
+  // part 2: the input reservation). Until that Converter's own turn the claim
+  // is held here, and every other router reads the Pool net of it, as
+  // `headroom` already reads a Pool net of `reserved`.
+  const reservedIn = new Map<string, number>() // poolId → claimed by a planned Converter not yet at its turn
+  const availOf = (id: string) => (S[id] ?? 0) - (taken.get(id) ?? 0) - (reservedIn.get(id) ?? 0)
   const reservedOf = (id: string) => reserved.get(id) ?? 0
   const headroom = (id: string) => {
     const n = byId.get(id)
@@ -824,6 +852,7 @@ export function step(
           working: { ...working },
           taken: new Map(taken),
           reserved: new Map(reserved),
+          reservedIn: new Map(reservedIn),
           inbox: new Map(inbox),
           ownReserve: cloneOwn(ownReserve),
           activated: new Set(activated),
@@ -833,11 +862,252 @@ export function step(
           ended,
         }
 
+    // ── #471 Deploy 2 — Converter groups and the joint plan ─────────────────
+    // (SEMANTICS.md §6 erratum, part 2.) The connections that carry something
+    // THIS step: a router → router connection is live when both ends fire, it
+    // is not dead, its source is not a disabled `pull all` Converter (its
+    // flows are never read on the committed pass), it is the picked branch of
+    // a probabilistic Gate, and its rate is positive; a Pool → router
+    // connection is live when the router fires. Over those, `converterGroups`
+    // finds every group with a router-fed Converter and classes it: a TREE is
+    // planned as one at the turn of its first router in `order` (one free
+    // number `s`; every member's amount is a fixed multiple of it); a MULTI
+    // group (a Gate with two supplies) keeps the rule it had, with a
+    // diagnostic when an amount vanishes (unresolved, #471 stays open). A
+    // split that rejoins was refused at the top of `step`.
+    const liveEdge = (e: LoopEdge): boolean => {
+      if (dead.has(e.id)) return false
+      const sk = kindOf(e.source)
+      const tk = kindOf(e.target)
+      if (tk && ROUTER_KINDS.has(tk) && !willFire.has(e.target)) return false
+      if (sk && ROUTER_KINDS.has(sk) && !willFire.has(e.source)) return false
+      if (sk === 'converter' && disabledPullAll.has(e.source)) return false
+      if (sk === 'pool') return true
+      if (!(tk && ROUTER_KINDS.has(tk))) return true
+      if (sk === 'gate' && isProbGate(byId.get(e.source))) return pickBranch(byId.get(e.source)!) === e
+      return rateOfCached(e) > EPSILON
+    }
+    const orderIdx = new Map(order.map((id, i) => [id, i]))
+    const treeAtRoot = new Map<string, string[]>() // root id → the group's members
+    for (const g of converterGroups(nodes, resEdges, liveEdge)) {
+      if (g.cls !== 'tree') continue
+      const root = g.members.reduce((a, b) => ((orderIdx.get(b) ?? Infinity) < (orderIdx.get(a) ?? Infinity) ? b : a))
+      treeAtRoot.set(root, g.members)
+    }
+    const planned = new Set<string>() // members of a planned tree group
+    const planF = new Map<string, number>() // Converter member → its run fraction
+    const planT = new Map<string, number>() // Gate member → its throughput
+    const planTakes = new Map<string, { e: LoopEdge; a: number }[]>() // Converter member → its Pool takes
+    const liveOuts = (id: string): LoopEdge[] => {
+      const n = byId.get(id)!
+      if (isProbGate(n)) {
+        const sel = pickBranch(n)
+        return sel && !skipDet(sel.id) ? [sel] : []
+      }
+      return outOf(id).filter((e) => !skipDet(e.id))
+    }
+    const planGroup = (members: string[]) => {
+      const inGroup = new Set(members)
+      const cof = new Map<string, number>() // member → its amount per unit of s (a Converter's f, a Gate's T)
+      const W = new Map<string, number>() // Gate → Σ rate over its live branches
+      const gateInto = new Map<string, Map<string, number>>() // Gate → target → Σ rate
+      const convMake = new Map<string, Map<string, number>>() // Converter → target → Σ rate
+      const convNeed = new Map<string, Map<string, number>>() // Converter → source Pool → Σ rate
+      const convPoolIns = new Map<string, LoopEdge[]>()
+      for (const m of members) {
+        const into = new Map<string, number>()
+        let sum = 0
+        for (const e of liveOuts(m)) {
+          const r = rateOfCached(e)
+          if (r <= EPSILON) continue
+          sum += r
+          into.set(e.target, (into.get(e.target) ?? 0) + r)
+        }
+        if (kindOf(m) === 'gate') {
+          W.set(m, sum)
+          gateInto.set(m, into)
+        } else {
+          convMake.set(m, into)
+          const ins = inOf(m).filter((e) => isPool(e.source) && !dead.has(e.id)).sort(cmpEdge)
+          convPoolIns.set(m, ins)
+          const need = new Map<string, number>()
+          for (const e of ins) {
+            const r = rateOfCached(e)
+            if (r <= EPSILON) continue
+            need.set(e.source, (need.get(e.source) ?? 0) + r)
+          }
+          convNeed.set(m, need)
+        }
+      }
+      // the router → router connections inside the group, summed per pair
+      const pair = new Map<string, number>()
+      const fedByRouter = new Set<string>()
+      for (const e of resEdges) {
+        if (!inGroup.has(e.source) || !inGroup.has(e.target) || !liveEdge(e)) continue
+        const key = `${e.source}\u0000${e.target}`
+        pair.set(key, (pair.get(key) ?? 0) + rateOfCached(e))
+        fedByRouter.add(e.target)
+      }
+      // coefficients by traversal from the root (c = 1), in either direction:
+      // Gate g → X scales by the branch share `w / W`; into a Converter the
+      // share is divided by that connection's rate (what one run consumes);
+      // Converter C → X scales by its rate on the connection; into a Gate the
+      // whole amount arrives. So the factor source → target is
+      // (source a Gate ? 1 / W : 1) · (target a Gate ? w : 1).
+      const root = members.reduce((a, b) => ((orderIdx.get(b) ?? Infinity) < (orderIdx.get(a) ?? Infinity) ? b : a))
+      cof.set(root, 1)
+      for (let changed = true; changed && cof.size < members.length; ) {
+        changed = false
+        for (const [key, w] of pair) {
+          const [u, v] = key.split('\u0000')
+          const hasU = cof.has(u)
+          const hasV = cof.has(v)
+          if (hasU === hasV) continue
+          const Wu = kindOf(u) === 'gate' ? (W.get(u) ?? 0) : 1
+          if (Wu <= EPSILON) continue
+          const F = (1 / Wu) * (kindOf(v) === 'gate' ? w : 1)
+          if (hasU) cof.set(v, cof.get(u)! * F)
+          else cof.set(u, cof.get(v)! / F)
+          changed = true
+        }
+      }
+      // the bounds — s is the smallest of them
+      let sMax = Infinity
+      const bound = (v: number) => {
+        if (v < sMax) sMax = v
+      }
+      const inNeed = new Map<string, number>() // Pool → Σ c_C · need
+      const outCoef = new Map<string, number>() // Pool → Σ c · amount delivered per unit of s
+      for (const m of members) {
+        const c = cof.get(m) ?? 0
+        if (kindOf(m) === 'gate') {
+          if ((W.get(m) ?? 0) <= EPSILON) bound(0) // no live branch — delivers nothing (#388 D)
+          const Wm = W.get(m) ?? 1
+          for (const [q, w] of gateInto.get(m)!) if (isPool(q)) outCoef.set(q, (outCoef.get(q) ?? 0) + (c * w) / Wm)
+          continue
+        }
+        if (disabledPullAll.has(m)) bound(0) // an upstream router routes nothing into it (§11 / I5)
+        if (c > EPSILON) bound(1 / c) // f ≤ 1
+        if (convMake.get(m)!.size === 0) bound(0) // no live output, no run (#388 D)
+        // a router input that delivers nothing this step (its router does not
+        // fire, the connection is dead, a probabilistic Gate picked another
+        // branch, a disabled `pull all` Converter): one f on every connection
+        // is 0, for the whole group
+        if (inOf(m).some((e) => !isPool(e.source) && !liveEdge(e) && rateOfCached(e) > EPSILON)) bound(0)
+        const need = convNeed.get(m)!
+        for (const [p, r] of need) inNeed.set(p, (inNeed.get(p) ?? 0) + c * r)
+        for (const [q, make] of convMake.get(m)!) {
+          if (!isPool(q)) continue
+          const net = make - (need.get(q) ?? 0) // a Pool that is input and output: net (#471 item 5)
+          if (net > EPSILON) outCoef.set(q, (outCoef.get(q) ?? 0) + c * net)
+        }
+      }
+      for (const [p, k] of inNeed) if (k > EPSILON) bound(Math.max(0, availOf(p)) / k)
+      for (const [q, k] of outCoef) {
+        if (k <= EPSILON) continue
+        let room = headroom(q)
+        for (const m of members) room += ownReserve.get(m)?.get(q) ?? 0
+        bound(Math.max(0, room) / k)
+      }
+      // a Gate fed from its own Pools (a group's source — a Gate fed by a
+      // router has no Pool input, or the group would be multi): what it can
+      // reach by its greedy pulls, net of what the plan claims from the same
+      // Pools; the reach falls as s grows, so the largest feasible s is found
+      // by bisection when a Pool is shared, and is the plain reach otherwise.
+      const sourceGates: { id: string; demand: number; c: number }[] = []
+      for (const m of members) {
+        if (kindOf(m) !== 'gate' || fedByRouter.has(m)) continue
+        const c = cof.get(m) ?? 0
+        const inb = inbox.get(m) ?? 0
+        const ins = inOf(m).filter((e) => isPool(e.source) && !dead.has(e.id)).sort(cmpEdge)
+        const wants = ins.map((e) => ({ e, want: amountOf(e, availOf(e.source), S[e.source] ?? 0) }))
+        const demand = inb + wants.reduce((t, w) => t + w.want, 0)
+        sourceGates.push({ id: m, demand, c })
+        if (c <= EPSILON) continue
+        const reach = (s: number): number => {
+          const used = new Map<string, number>()
+          let r = inb
+          for (const w of wants) {
+            const avail = Math.max(0, availOf(w.e.source) - s * (inNeed.get(w.e.source) ?? 0) - (used.get(w.e.source) ?? 0))
+            const a = Math.max(0, Math.min(w.want, avail))
+            used.set(w.e.source, (used.get(w.e.source) ?? 0) + a)
+            r += a
+          }
+          return r
+        }
+        const shared = wants.some((w) => (inNeed.get(w.e.source) ?? 0) > EPSILON)
+        let hi = Math.min(sMax, reach(0) / c)
+        if (shared && !(reach(hi) >= c * hi - EPSILON)) {
+          let lo = 0
+          for (let i = 0; i < 64; i++) {
+            const mid = (lo + hi) / 2
+            if (reach(mid) >= c * mid - EPSILON) lo = mid
+            else hi = mid
+          }
+          hi = lo
+        }
+        bound(hi)
+      }
+      let s = Number.isFinite(sMax) ? Math.max(0, sMax) : 0
+      // `pull all` members fix the number: the group runs at it or not at all
+      // (SEMANTICS.md §9; a short one is recorded for the fixpoint).
+      const modeOf = (id: string) => ((byId.get(id)?.data as { mode?: string } | undefined)?.mode ?? 'pullAny')
+      for (const m of members) {
+        if (kindOf(m) !== 'converter' || disabledPullAll.has(m)) continue
+        if (modeOf(m) === 'pullAll' && (cof.get(m) ?? 0) * s < 1 - EPSILON) {
+          pullShort.add(m)
+          s = 0
+        }
+      }
+      for (const g of sourceGates) {
+        if (modeOf(g.id) === 'pullAll' && g.c * s < g.demand - EPSILON) s = 0
+      }
+      // record the plan; claim the inputs (`reservedIn`) and the output room
+      // (`reserved`, owned by the member that delivers it, settled on delivery)
+      for (const m of members) {
+        planned.add(m)
+        const c = cof.get(m) ?? 0
+        if (kindOf(m) === 'gate') {
+          const T = nz(Math.max(0, c * s))
+          planT.set(m, T)
+          const Wm = W.get(m) ?? 1
+          for (const [q, w] of gateInto.get(m)!) {
+            if (!isPool(q)) continue
+            const amt = nz((T * w) / Wm)
+            if (amt <= 0) continue
+            reserved.set(q, reservedOf(q) + amt)
+            addOwn(m, q, amt)
+          }
+          continue
+        }
+        const f = nz(Math.max(0, Math.min(1, c * s)))
+        planF.set(m, f)
+        const takes: { e: LoopEdge; a: number }[] = []
+        for (const e of convPoolIns.get(m)!) {
+          const a = nz(f * rateOfCached(e))
+          if (a <= 0) continue
+          takes.push({ e, a })
+          reservedIn.set(e.source, (reservedIn.get(e.source) ?? 0) + a)
+        }
+        planTakes.set(m, takes)
+        for (const [q, make] of convMake.get(m)!) {
+          if (!isPool(q)) continue
+          const amt = nz(f * make)
+          if (amt <= 0) continue
+          reserved.set(q, reservedOf(q) + amt)
+          addOwn(m, q, amt)
+        }
+      }
+    }
+    const multiLoss = new Set<string>() // Converters whose D1 diagnostic is out this pass
+
     for (const id of order) {
       const n = byId.get(id)!
       activated.add(id)
       const k = n.data.kind
       const accept = makeAccept()
+      const group = treeAtRoot.get(id)
+      if (group) planGroup(group)
 
       if (k === 'drain' || k === 'end') {
         let got = inbox.get(id) ?? 0
@@ -892,7 +1162,13 @@ export function step(
           return { e, want: w }
         })
 
-        let T = nz(Math.max(0, Math.min(demand, inputAvail, accept(id))))
+        // a planned Gate moves exactly its plan's throughput (#471 Deploy 2);
+        // for a Gate fed by a member the inbox IS that amount
+        const plT = planT.get(id)
+        let T =
+          plT !== undefined
+            ? nz(Math.max(0, Math.min(plT, demand, inputAvail)))
+            : nz(Math.max(0, Math.min(demand, inputAvail, accept(id))))
         if (mode === 'pullAll' && T < demand - EPSILON) T = 0
         if (T <= EPSILON) continue
 
@@ -929,7 +1205,7 @@ export function step(
             working[sel!.target] = (working[sel!.target] ?? 0) + T
           } else {
             inbox.set(sel!.target, (inbox.get(sel!.target) ?? 0) + T)
-            planReserve(sel!.target, T)
+            if (!planned.has(sel!.target)) planReserve(sel!.target, T) // a plan member's room is already held
           }
           emit(sel!, id, sel!.target, T)
           fired.add(id)
@@ -950,7 +1226,7 @@ export function step(
             working[e.target] = (working[e.target] ?? 0) + share
           } else {
             inbox.set(e.target, (inbox.get(e.target) ?? 0) + share)
-            planReserve(e.target, share)
+            if (!planned.has(e.target)) planReserve(e.target, share)
           }
           emit(e, id, e.target, share)
         }
@@ -972,6 +1248,73 @@ export function step(
           .sort(cmpEdge)
         const sumIn = sumInRate(id)
         const own = ownReserve.get(id)
+
+        // the outputs at `f`: into a Pool, settling only the reservation made
+        // for THIS Converter (#388 C — releasing the Pool's total let a
+        // pool-fed Converter free another router's promise); into a router,
+        // an INBOX (#388 D — `working` is summed over Pools only at commit)
+        // with its room reserved downstream, unless the target is a member of
+        // a planned group, whose room the plan already holds.
+        const deliver = (f: number) => {
+          for (const e of outOf(id)) {
+            if (skipDet(e.id)) continue
+            const q = nz(f * rateOfCached(e))
+            if (q <= 0) continue
+            if (isPool(e.target)) {
+              const held = Math.min(q, own?.get(e.target) ?? 0)
+              if (held > 0) {
+                reserved.set(e.target, reservedOf(e.target) - held)
+                own!.set(e.target, own!.get(e.target)! - held)
+              }
+              working[e.target] = (working[e.target] ?? 0) + q
+            } else {
+              inbox.set(e.target, (inbox.get(e.target) ?? 0) + q)
+              if (!planned.has(e.target)) planReserve(e.target, q)
+            }
+            emit(e, id, e.target, q)
+          }
+          fired.add(id)
+        }
+
+        // #471 Deploy 2 — a member of a planned tree group runs at the plan's
+        // fraction: it takes exactly the Pool amounts the plan claimed at the
+        // group's first router (releasing that claim), its upstream members
+        // delivered exactly `f · rate`, and it makes `f · rate` on every output.
+        const plF = planF.get(id)
+        if (plF !== undefined) {
+          let received = inboxHave
+          inbox.set(id, 0)
+          for (const { e, a } of planTakes.get(id) ?? []) {
+            reservedIn.set(e.source, (reservedIn.get(e.source) ?? 0) - a)
+            takeFrom(e.source, a)
+            received += a
+            emit(e, e.source, id, a)
+          }
+          // the plan's f, bounded by what arrived (equal, up to rounding)
+          let f = sumIn > EPSILON ? Math.min(plF, received / sumIn) : 0
+          f = nz(Math.max(0, Math.min(1, f)))
+          if (mode === 'pullAll' && f < 1 - EPSILON) {
+            pullShort.add(id)
+            f = 0
+          }
+          if (f <= EPSILON) continue
+          deliver(f)
+          continue
+        }
+
+        // Not planned: either every input is a Pool (the revision-1 rule below),
+        // or a router input delivers nothing this step — its router does not
+        // fire, the connection is dead, or a probabilistic Gate picked another
+        // branch — and one f on every connection (I2) is then 0: the Converter
+        // does not run from its Pools alone (the "half a batch" defect, V2).
+        // Or it is a member of a MULTI group (a live router input), which
+        // keeps the rule it had (unresolved; #471 stays open).
+        const routerIns = inOf(id).filter((e) => !isPool(e.source) && !dead.has(e.id) && rateOfCached(e) > EPSILON)
+        const routerFed = routerIns.some((e) => liveEdge(e))
+        if (!routerFed && inOf(id).some((e) => !isPool(e.source) && rateOfCached(e) > EPSILON)) {
+          if (mode === 'pullAll') pullShort.add(id)
+          continue
+        }
 
         // #471 — plan, then commit (SEMANTICS.md §6 erratum; I2 / I4). The run
         // fraction is decided from the ledgers BEFORE anything is taken, and
@@ -1034,13 +1377,12 @@ export function step(
         if (fDry <= EPSILON) continue
 
         // What each Pool connection moves. A Converter fed from Pools only:
-        // exactly `f · rate` on every one of them (I2). A Converter with a
-        // router-fed input: the upstream routers already delivered at THEIR
-        // fraction, which this step cannot undo (#471 V2b — the joint plan
-        // across routers, Phase B); its Pool side keeps the rule it had,
-        // `fPool · rate`, and the production below follows what was received,
-        // so nothing is created.
-        const routerFed = inOf(id).some((e) => !isPool(e.source))
+        // exactly `f · rate` on every one of them (I2). A Converter in a MULTI
+        // group: the upstream routers already delivered at THEIR fraction,
+        // which this step cannot undo (#471 — the multi-supply design is not
+        // done); its Pool side keeps the rule it had, `fPool · rate`, the
+        // production below follows what was received, so nothing is created,
+        // and what was received above what it could use is reported (D1).
         const fTake = routerFed ? fPool : fDry
         let received = inboxHave
         inbox.set(id, 0)
@@ -1058,35 +1400,17 @@ export function step(
           pullShort.add(id)
           f = 0
         }
-        if (f <= EPSILON) continue
-
-        for (const e of outOf(id)) {
-          if (skipDet(e.id)) continue
-          const q = nz(f * rateOfCached(e))
-          if (q <= 0) continue
-          // #388 C — settle only the reservation made for THIS Converter
-          // (SEMANTICS.md §6). Releasing the Pool's total reservation let a
-          // pool-fed Converter free another router's promise; a later producer
-          // filled that headroom, the owner then delivered on top, and the
-          // commit clamp destroyed the excess.
-          if (isPool(e.target)) {
-            const held = Math.min(q, own?.get(e.target) ?? 0)
-            if (held > 0) {
-              reserved.set(e.target, reservedOf(e.target) - held)
-              own!.set(e.target, own!.get(e.target)! - held)
-            }
-            working[e.target] = (working[e.target] ?? 0) + q
-          } else {
-            // #388 D — a router target takes an INBOX, as a Gate's delivery
-            // does; `working` is summed over Pools only at commit, so writing
-            // there handed the amount to nobody (Converter → Gate / Converter
-            // lost its whole output, silently).
-            inbox.set(e.target, (inbox.get(e.target) ?? 0) + q)
-            planReserve(e.target, q)
+        if (routerFed && emitDiag && !multiLoss.has(id)) {
+          const loss = received - f * sumIn
+          if (loss > 1e-6) {
+            multiLoss.add(id)
+            diagnostics.push(
+              `"${n.data.label}" received ${Number(loss.toFixed(6))} more than it could use this step, and that amount was lost. Loop Studio does not fully handle a Gate that takes from more than one place yet.`,
+            )
           }
-          emit(e, id, e.target, q)
         }
-        fired.add(id)
+        if (f <= EPSILON) continue
+        deliver(f)
         continue
       }
     }
@@ -1098,6 +1422,8 @@ export function step(
       for (const [key, v] of snap.taken) taken.set(key, v)
       reserved.clear()
       for (const [key, v] of snap.reserved) reserved.set(key, v)
+      reservedIn.clear()
+      for (const [key, v] of snap.reservedIn) reservedIn.set(key, v)
       inbox.clear()
       for (const [key, v] of snap.inbox) inbox.set(key, v)
       ownReserve.clear()

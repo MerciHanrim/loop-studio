@@ -189,6 +189,10 @@ export const useMcStore = create<McStore>((set, get) => ({
 
   run: async () => {
     if (get().status === 'running') return
+    // #471 (Deploy 2, F1) — a graph with a refused Converter group does not
+    // run: the dialog's Run is disabled and shows the reason; this guards a
+    // caller that bypasses it (the same line the run bar shows).
+    if (useSimStore.getState().refusals.length > 0) return
     const g = useGraphStore.getState()
     const nodes = g.nodes.map((n) => ({ ...n }))
     const edges = g.edges.map((e) => ({ ...e }))

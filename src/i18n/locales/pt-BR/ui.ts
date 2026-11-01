@@ -80,6 +80,9 @@ const ui = {
   'playbar.mc.cancelled': 'Cancelado',
   'playbar.mc.failed': 'A execução falhou',
   'playbar.initError': 'Não é possível executar: {detail}',
+  'playbar.refused': 'Não é possível executar: caminhos que se dividem e se reencontram ({n})',
+  'playbar.refused.show': 'Mostrar',
+  'inspector.refused.splitRejoin': 'Não é possível executar: os recursos se dividem em {split} e se reencontram em {join}. Esta versão do modelo não suporta caminhos que se dividem e se reencontram, então o modelo não é executado. Para executá-lo, remova um dos caminhos ou adicione um Reservatório em um deles. Um Reservatório guarda o que chega, então esse caminho avança um passo depois.',
   'playbar.diag.title': 'Diagnósticos da execução ({n})',
   'playbar.mc.title': 'Executar o diagrama muitas vezes e ver a distribuição',
   // no space before `%` — that is what `Intl.NumberFormat('pt-BR')` produces

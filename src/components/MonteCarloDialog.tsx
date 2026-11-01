@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { estimateMonteCarloCost, type CostEstimate } from '../engine'
 import { useGraphStore } from '../store/graphStore'
 import { useMcStore } from '../store/mcStore'
+import { useSimStore } from '../store/simStore'
 import { useT } from '../i18n'
 import { useDialogFocus } from './useDialogFocus'
 import { InlineHintNote } from './HintNote'
@@ -22,6 +23,9 @@ export function MonteCarloDialog() {
   const t = useT()
   const open = useMcStore((s) => s.dialogOpen)
   const closeDialog = useMcStore((s) => s.closeDialog)
+  // #471 (Deploy 2, F1) — a refused Converter group: Run does not start, and
+  // the dialog shows the run bar's line (mcStore.run guards it as well)
+  const refusedCount = useSimStore((s) => s.refusals.length)
   // iOS Safari keeps its focus-zoom until the field is blurred — drop focus (and
   // dismiss the soft keyboard) before the dialog unmounts so the page returns to
   // 100% (docs/mobile.md §MV4b). No-op on desktop.
@@ -290,6 +294,12 @@ export function MonteCarloDialog() {
           ) : null}
         </div>
 
+        {refusedCount > 0 ? (
+          <p className="mcdlg__note mcdlg__refused" role="status">
+            {t('playbar.refused', { n: refusedCount })}
+          </p>
+        ) : null}
+
         <div className="mcdlg__foot">
           {running ? (
             <button type="button" className="btn" onClick={cancel}>
@@ -299,7 +309,7 @@ export function MonteCarloDialog() {
             <button
               type="button"
               className="btn btn--primary btn--run"
-              disabled={overLimit || noPools || (estimating && !estimate)}
+              disabled={overLimit || noPools || refusedCount > 0 || (estimating && !estimate)}
               onClick={() => void run()}
             >
               {t('mc.run', { runs: config.runs })}
