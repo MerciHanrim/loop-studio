@@ -83,8 +83,8 @@ export const FileMenu = forwardRef<FileMenuHandle, Props>(function FileMenu(
   // arrow / Home / End / Escape. The hook owns Escape now -- this menu used
   // to close and return focus from its own `window` listener, which would run
   // a second time behind the hook. With a submenu open, the submenu's own
-  // keyboard (below) takes the keys while focus is in it, and File's Escape
-  // closes the submenu first.
+  // keyboard (below) takes the keys while focus is in it and only then; File's
+  // takes them everywhere else, and File's Escape closes the submenu first.
   const close = useCallback(() => setOpen(false), [setOpen])
   const { entry, triggerProps } = useMenuTrigger(open, setOpen)
   useMenuKeyboard(open, popRef, btnRef, close, entry, {
@@ -95,7 +95,12 @@ export const FileMenu = forwardRef<FileMenuHandle, Props>(function FileMenu(
       return true
     },
   })
+  // #422 — one owner per key: the submenu's keyboard takes the keys only while
+  // focus is IN the submenu, File's (above) everywhere else, the submenu's row
+  // included. Both listen on `window`, so without this a submenu opened by
+  // pointer (focus left on its row) let one key reach both hooks
   useMenuKeyboard(sub != null, subMenuRef, subRow, () => setSub(null), subEntry, {
+    yieldWhile: () => !subMenuRef.current?.contains(document.activeElement),
     onTab: () => {
       flushSync(() => setOpen(false))
       btnRef.current?.focus()
