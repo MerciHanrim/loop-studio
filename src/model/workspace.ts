@@ -355,8 +355,10 @@ export function readWorkspace(
     const r = rawMc.result
     const digest = typeof rawMc.resultGraphDigest === 'string' ? rawMc.resultGraphDigest : ''
     // §W2-1 — the file's revision, verbatim; `null` when it has none (a
-    // `loop-workspace/1` file, or a hand-edited one)
-    const fileRevision = Number.isInteger(rawMc.engineRevision) ? (rawMc.engineRevision as number) : null
+    // hand-edited `/2` file). A `loop-workspace/1` file has no such field by
+    // its spec: one found there is not read (§W2-2 (2) — a `/1` result is
+    // always stale), so a `/1` file cannot present a result as current.
+    const fileRevision = exact2 && Number.isInteger(rawMc.engineRevision) ? (rawMc.engineRevision as number) : null
     if (!validateResultShape(r, nodeIds)) {
       warnings.push('the saved distribution was corrupt and has been discarded')
     } else if (!HEX64.test(digest)) {

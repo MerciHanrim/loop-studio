@@ -127,6 +127,20 @@ describe('loop-workspace/2 — reading the revision (§W2-2)', () => {
     expect(useSimStore.getState().seed).toBe(5)
   })
 
+  it('a loop-workspace/1 file carrying engineRevision equal to this app’s: the field is not read, the result is still stale (review of #472, item 2)', async () => {
+    const poolId = buildGraph()
+    const digest = await semanticDigest(graph())
+    const out = await importFile(file(poolId, { result: fakeResult(poolId), resultGraphDigest: digest, engineRevision: ENGINE_REVISION }, 'loop-workspace/1', 1))
+    expect(out.workspace).toBe(true)
+    expect(out.warnings.join(' ')).toMatch(ENGINE_NOTICE)
+    expect(useMcStore.getState()).toMatchObject({ status: 'done', stale: true, resultEngineRevision: null })
+    // and the pure reader, with the file's own `stale: false` and a matching digest
+    const ws = JSON.parse(file(poolId, { result: fakeResult(poolId), resultGraphDigest: digest, engineRevision: ENGINE_REVISION }, 'loop-workspace/1', 1)).workspace
+    const read = readWorkspace(ws, graph(), digest)
+    expect(read.restored?.result).toMatchObject({ stale: true, engineRevision: null })
+    expect(read.warnings.join(' ')).toMatch(ENGINE_NOTICE)
+  })
+
   it('a changed graph and a different revision: both notices, one stale mark', async () => {
     const poolId = buildGraph()
     const out = await importFile(file(poolId, { result: fakeResult(poolId), resultGraphDigest: 'a'.repeat(64), engineRevision: ENGINE_REVISION + 1 }))

@@ -87,7 +87,9 @@ result fields. The CSV exports are unchanged.
 1. Restore the workspace part of an exact `schema === 'loop-workspace/2'` and
    `version === 2`, by the rules of §W5 and this section; **also** of an exact
    `loop-workspace/1` / `1` file, by the same rules (its result has no revision,
-   so it can only be attached stale — rule 3). Anything else ⇒ graph only, with
+   so it can only be attached stale — rule 3; an `mc.engineRevision` found in a
+   `/1` file is **not read**, since no `/1` writer puts one there — a `/1`
+   result is stale whatever the file says). Anything else ⇒ graph only, with
    §W5.3's warning. Never throw.
 2. `mc.result` passes §W3 first (shape; digest compare).
 3. Then the revision: `mc.engineRevision` must be an integer **equal** to the
