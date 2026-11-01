@@ -691,6 +691,13 @@ export const GUARD_PADS = [ROUTE_PAD, 6, 2, 0] as const
 /** the outer corridor's distance from the bounding box of everything */
 export const OUTER_MARGIN = 2 * ROUTE_PAD
 export const OUTER_EXPANSIONS = 10 * MAX_EXPANSIONS
+/** #421 (Lumi, 2026-11-01) — the `blocked` rung's search budget: the outer
+ *  corridor's, on the same lattice. It had none, so one connection whose port
+ *  another node covers could search a large graph to the end inside a single
+ *  route (the provisional map's 5 ms is checked only between routes). A search
+ *  that reaches it gives up: the route is the direct line from end to end
+ *  (`blockedFallback`), as for an anchor sealed in. */
+export const BLOCKED_EXPANSIONS = OUTER_EXPANSIONS
 
 export type GuardedClass = 'orthogonal' | 'tight' | 'outer' | 'blocked' | 'degenerate'
 
@@ -728,6 +735,9 @@ export type GuardedInput = {
    *  at this clearance, with the soft boxes, nothing else; when it is not free
    *  the result is `null` and the caller keeps its route */
   softPad?: number
+  /** the `blocked` search's budget; absent ⇒ BLOCKED_EXPANSIONS (a test sets a
+   *  small one to reach it) */
+  blockedExpansions?: number
 }
 
 export type FanEnd = { len: number; side: -1 | 0 | 1 }
@@ -752,6 +762,9 @@ export type GuardedResult = Omit<RouteResult, 'routeClass'> & {
   /** a fan branch was blocked by obstacles: the route was found without the
    *  branch constraint and may run along a sibling (reported, §ER14.4) */
   fanBlocked: boolean
+  /** #421 — a `blocked` route that is the direct line from end to end, because
+   *  its search reached BLOCKED_EXPANSIONS or an anchor was sealed in */
+  blockedFallback?: true
 }
 
 /** the move index of `buildRoute` (0 up, 1 down, 2 left, 3 right) for a unit vector */
@@ -1046,17 +1059,19 @@ export function* guardedRouteSteps(inp: GuardedInput): Generator<string, Guarded
     })
     const rest = inp.obstacles.filter((_, k) => !covering.has(k))
     const restFills = [...rest, ...ownBoxes].map((b) => inflate(b, 0))
-    // no budget here: on the obstacle-edge grid with the outer corridor, every
-    // anchor outside the remaining fills is connected, so the search ends
-    const blockedOpts: SearchOpts = { ...outerOpts(stubA, stubB), maxExpansions: Infinity }
+    // on the obstacle-edge grid with the outer corridor, every anchor outside
+    // the remaining fills is connected, so the search ends — but on a large
+    // graph only after a long time: #421 bounds it (BLOCKED_EXPANSIONS)
+    const blockedOpts: SearchOpts = { ...outerOpts(stubA, stubB), maxExpansions: inp.blockedExpansions ?? BLOCKED_EXPANSIONS }
     const full: Pt[] = [src]
     for (let i = 0; i < anchors.length - 1; i++) {
       const seg = yield* buildRouteSteps(anchors[i], anchors[i + 1], i === 0 ? inp.sourcePosition : null, i === anchors.length - 2 ? inp.targetPosition : null, restFills, blockedOpts)
       // an anchor sealed inside the fills left after dropping the covering ones
       // (two end nodes that touch or overlap): the direct L from end to end,
       // so the line still says what it connects — it never stops short of
-      // its target (2026-10-20; it used to draw the source's stub alone)
-      if (!seg) return result(lzRoute(src, tgt, inp.sourcePosition), 'blocked', -1, stubs, fanBlocked)
+      // its target (2026-10-20; it used to draw the source's stub alone).
+      // #421 — the same when the search reached its budget
+      if (!seg) return { ...result(lzRoute(src, tgt, inp.sourcePosition), 'blocked', -1, stubs, fanBlocked), blockedFallback: true }
       full.push(...(i === 0 ? seg : seg.slice(1)))
     }
     full.push(tgt)
