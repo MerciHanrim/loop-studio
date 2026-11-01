@@ -47,10 +47,11 @@
       ],
       "file": "src/components/PlayBar.tsx",
       "enclosing": "PlayBar",
-      "carries": "the user's own NODE LABEL of the Converter that lost an amount in a multi-supply group (issue #471, Deploy 2 — the D1 notice, worded by the run bar from `StepNotice`)",
+      "carries": "the user's own NODE LABEL of the Converter that lost an amount, or of the router that held one, in a multi-supply group (issue #471, Deploy 2 — the D1 notices, worded by the run bar from `StepNotice`)",
       "sites": [
         {
           "keys": [
+            "playbar.diag.multiSupplyHeld",
             "playbar.diag.multiSupplyLoss"
           ],
           "args": [
@@ -67,10 +68,11 @@
       ],
       "file": "src/components/mobile/MobileRunBar.tsx",
       "enclosing": "MobileRunBar",
-      "carries": "the same D1 notice label on the phone run bar (issue #471, Deploy 2)",
+      "carries": "the same D1 notice labels on the phone run bar (issue #471, Deploy 2)",
       "sites": [
         {
           "keys": [
+            "playbar.diag.multiSupplyHeld",
             "playbar.diag.multiSupplyLoss"
           ],
           "args": [

@@ -1417,6 +1417,17 @@ export function step(
       }
     }
 
+    // #471 Deploy 2 (review 2) — an amount handed to a router this step that
+    // the router did not pass on is gone at the end of the pass (an inbox is
+    // per step; in G7 the Gate whose Converter accepts nothing keeps what the
+    // upstream Converter delivered). Named like the Converter's loss (D1), so
+    // the notices of a step add up to what the Pools lost. Committed pass only.
+    if (emitDiag) {
+      for (const [rid, v] of [...inbox].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+        if (v > 1e-6) notices.push({ kind: 'multiSupplyHeld', nodeId: rid, label: byId.get(rid)?.data.label ?? rid, amount: Number(v.toFixed(6)) })
+      }
+    }
+
     if (snap) {
       for (const key of Object.keys(working)) delete working[key]
       Object.assign(working, snap.working)

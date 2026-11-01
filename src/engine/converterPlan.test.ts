@@ -394,9 +394,23 @@ describe('#471 — a multi-supply group keeps the rule it had, and says when an 
       res('k1', 'g', 'C', '40'), res('e2', 'q', 'C', '40'), res('o1', 'C', 'x', '80'),
     ]
     const r = run(nodes, edges)
-    // x has room for 10 of the 80 C would make: f = 1/8. C received 40 from g
-    // (the Gate delivered at ITS fraction), needed 10 in all, so 30 was lost
-    expect(r.notices).toEqual([{ kind: 'multiSupplyLoss', nodeId: 'C', label: 'C', amount: 30 }])
+    // x has room for 10 of the 80 C would make: f = 1/8. B delivers 10 to g;
+    // g, whose Converter accepts nothing, passes nothing on and keeps the 10;
+    // C takes 40 from q and uses 10, so 30 is lost at C and 10 at g. The two
+    // notices add up to what the Pools lost (the recipe is 80 in, 80 out).
+    expect(r.notices).toEqual([
+      { kind: 'multiSupplyLoss', nodeId: 'C', label: 'C', amount: 30 },
+      { kind: 'multiSupplyHeld', nodeId: 'g', label: 'g', amount: 10 },
+    ])
+    const before = 100 + 100 + 100
+    const after = r.pools.a + r.pools.p + r.pools.q + r.pools.x
+    expect(before - after).toBeCloseTo(40, 6)
+    expect(r.notices.reduce((t, x) => t + x.amount, 0)).toBeCloseTo(before - after, 6)
     expect(r.diagnostics).toEqual([]) // nothing English for the user from the engine
+    // with the output Pool uncapped the same shape conserves and says nothing
+    const roomy = nodes.map((n) => (n.id === 'x' ? pool('x', 0) : n))
+    const r2 = run(roomy, edges)
+    expect(r2.notices).toEqual([])
+    expect(r2.pools.a + r2.pools.p + r2.pools.q + r2.pools.x).toBeCloseTo(before, 6)
   })
 })

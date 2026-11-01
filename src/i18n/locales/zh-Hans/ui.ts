@@ -80,6 +80,7 @@ const ui = {
   'inspector.refused.splitRejoin': '无法运行：资源在 {split} 分开，又在 {join} 汇合。此模型版本不支持分开后又汇合的路径，因此模型不会运行。要运行，请删除其中一条路径，或在其中一条路径上添加一个资源池。资源池会保存到达的资源，因此该路径会晚一步移动。',
   'playbar.diag.title': '运行诊断（{n}）',
   'playbar.diag.multiSupplyLoss': '{label} 在本步收到的资源比能使用的多 {amount}，这部分已丢失。Loop Studio 尚未完全支持从多处取用的分流门。',
+  'playbar.diag.multiSupplyHeld': '{label} 在本步收到的 {amount} 未能传递出去，这部分已丢失。Loop Studio 尚未完全支持从多处取用的分流门。',
   'playbar.mc.title': '把图运行很多次，查看结果的分布',
   'playbar.mc.progress': '蒙特卡洛 {pct}%',
   'playbar.mc.progress.title': '蒙特卡洛正在运行',

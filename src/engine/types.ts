@@ -76,10 +76,13 @@ export type StepReport = {
 /** A notice `step` reports as data; the catalogs carry its sentence
  *  (`playbar.diag.<kind>`). */
 export type StepNotice = {
-  /** a Converter in a multi-supply group received more than it could use at
-   *  the fraction it ran, and that amount was lost (D1 — the multi-supply
-   *  design is not done; #471 stays open) */
-  kind: 'multiSupplyLoss'
+  /** `multiSupplyLoss`: a Converter in a multi-supply group received more
+   *  than it could use at the fraction it ran, and that amount was lost (D1).
+   *  `multiSupplyHeld`: a router was handed an amount this step that it did
+   *  not pass on (its inbox is per step), and that amount was lost — the
+   *  same shape's second loss. The multi-supply design is not done; #471
+   *  stays open. */
+  kind: 'multiSupplyLoss' | 'multiSupplyHeld'
   nodeId: string
   /** the node's label at the time of the step */
   label: string

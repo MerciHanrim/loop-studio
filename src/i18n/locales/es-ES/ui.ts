@@ -91,6 +91,7 @@ const ui = {
   'inspector.refused.splitRejoin': 'No se puede ejecutar: los recursos se separan en {split} y vuelven a unirse en {join}. Esta versión del modelo no admite rutas que se separan y vuelven a unirse, así que el modelo no se ejecuta. Para ejecutarlo, elimine una de las rutas o añada un Depósito en una de ellas. Un Depósito retiene lo que llega, así que esa ruta avanza un paso después.',
   'playbar.diag.title': 'Diagnósticos de la ejecución ({n})',
   'playbar.diag.multiSupplyLoss': '{label} recibió {amount} más de lo que podía usar en este paso, y esa cantidad se perdió. Loop Studio todavía no gestiona del todo un Distribuidor que toma de más de un lugar.',
+  'playbar.diag.multiSupplyHeld': '{label} recibió {amount} en este paso que no pudo pasar adelante, y esa cantidad se perdió. Loop Studio todavía no gestiona del todo un Distribuidor que toma de más de un lugar.',
   'playbar.mc.title': 'Ejecutar el diagrama muchas veces y ver la distribución',
   'playbar.mc.progress': 'Monte Carlo {pct} %',
   'playbar.mc.progress.title': 'Ejecución de Monte Carlo en curso',

@@ -93,7 +93,12 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   // diagnostics in the same list
   const diagnostics = useMemo(
     () => [
-      ...notices.map((x) => t('playbar.diag.multiSupplyLoss', { label: isolateAuto(x.label), amount: x.amount })),
+      ...notices.map((x) =>
+        t(x.kind === 'multiSupplyHeld' ? 'playbar.diag.multiSupplyHeld' : 'playbar.diag.multiSupplyLoss', {
+          label: isolateAuto(x.label),
+          amount: x.amount,
+        }),
+      ),
       ...engineDiagnostics,
     ],
     [notices, engineDiagnostics, t],
