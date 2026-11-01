@@ -49,21 +49,16 @@ describe('isModalOpen', () => {
 })
 
 describe('isCanvasFocus (#422)', () => {
-  const body = {} as Element
-  const html = {} as Element
-  const page = { body, documentElement: html } as unknown as Document
-  /** an element whose `closest('.canvas')` answers `inCanvas` */
+  /** an element whose `closest('.canvas')` answers `inCanvas` (the canvas itself included) */
   const at = (inCanvas: boolean) => ({ closest: (sel: string) => (sel === '.canvas' && inCanvas ? {} : null) }) as unknown as EventTarget
 
-  it('is true inside the canvas, and with focus on no control (the page itself)', () => {
-    expect(isCanvasFocus(at(true), page)).toBe(true)
-    expect(isCanvasFocus(body, page)).toBe(true)
-    expect(isCanvasFocus(html, page)).toBe(true)
-    expect(isCanvasFocus(null, page)).toBe(true)
+  it('is true on or inside the canvas', () => {
+    expect(isCanvasFocus(at(true))).toBe(true)
   })
 
-  it('is false for a control outside the canvas (left panel, timeline, status bar)', () => {
-    expect(isCanvasFocus(at(false), page)).toBe(false)
+  it('is false for a control outside the canvas (left panel, timeline, status bar), and for no control at all', () => {
+    expect(isCanvasFocus(at(false))).toBe(false) // also <body> / <html>: neither is inside .canvas
+    expect(isCanvasFocus(null)).toBe(false)
   })
 })
 

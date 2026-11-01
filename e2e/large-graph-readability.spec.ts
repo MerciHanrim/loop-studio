@@ -847,13 +847,17 @@ test.describe('large-graph readability — Slice 1', () => {
     await load(page)
     await expect(focusBtn(page)).toHaveAttribute('aria-pressed', 'false')
 
-    await page.locator('body').press('f')
+    // #422 — a canvas command: the canvas takes the keyboard from a click on
+    // its empty pane (with focus on nothing, `f` does nothing)
+    const pane = (await page.locator('.react-flow__pane').boundingBox())!
+    await page.locator('.react-flow__pane').click({ position: { x: pane.width - 20, y: 20 } })
+    await page.keyboard.press('f')
     await expect(focusBtn(page)).toHaveAttribute('aria-pressed', 'true')
-    await page.locator('body').press('f')
+    await page.keyboard.press('f')
     await expect(focusBtn(page)).toHaveAttribute('aria-pressed', 'false')
 
     // Ctrl/Cmd-F must NOT toggle (browser find is left to the UA)
-    await page.locator('body').press('ControlOrMeta+f')
+    await page.keyboard.press('ControlOrMeta+f')
     await expect(focusBtn(page)).toHaveAttribute('aria-pressed', 'false')
 
     // inside a text field, `f` types and does not toggle

@@ -366,9 +366,10 @@ next / previous connected node* to step the selection along drawn edges. Deeper
 keyboard graph-nav is a later follow-up (`LGR-D5`).
 
 The keys (`f`, `]` / `[`) are canvas commands (#422, 2026-11-01): they act only
-while the canvas has the keyboard — focus inside the canvas, or on no control
-at all (the page itself, as after a click on the empty pane). With focus in the
-left panel, the timeline, the status bar, a field or any other control they do
+while the canvas has the keyboard — focus on the canvas itself (a click on the
+empty pane gives it; it is not a Tab stop) or inside it, such as a node. With
+focus in the left panel, the timeline, the status bar, a field or any other
+control, or on no control at all (as right after the app opens), they do
 nothing to the canvas; a modal dialog and a modifier combo also stop them.
 
 ---

@@ -3,9 +3,11 @@ import { ensureTimelineOpen, expect, importGraph, openApp, readRiskyFactory, res
 
 // issue #422 item 3 (Lumi, 2026-11-01) — `f` (Focus view) and `[` / `]` (the
 // neighbour walk) are canvas commands: they act only while the canvas has the
-// keyboard. With focus in the left panel, the timeline, the status bar or a
-// field they do nothing to the canvas. Until now they ran anywhere outside a
-// text field (and, since #403, outside a modal).
+// keyboard: focus on the canvas (a click on the empty pane gives it) or on
+// something inside it, such as a node. With focus in the left panel, the
+// timeline, the status bar or a field, or on nothing at all (right after the
+// app opens), they do nothing to the canvas. Until now they ran anywhere
+// outside a text field (and, since #403, outside a modal).
 
 type Bridge = { __loop: { ui: { getState: () => { focusMode: boolean } }; graph: { getState: () => { selectedNodeId: string | null } } } }
 const state = (page: Page) =>
@@ -64,16 +66,29 @@ test.describe('f, [ and ] act only while the canvas has the keyboard (#422)', ()
     expect(await state(page)).toEqual(before)
   })
 
-  test('on the canvas they act: focus on the selected node, and on no control at all', async ({ page }) => {
+  test('nothing focused (the page itself), as right after the app opens: nothing happens to the canvas', async ({ page }) => {
+    await load(page)
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true)
+    const before = await state(page)
+    for (const key of ['f', ']', '[']) {
+      await page.keyboard.press(key)
+      expect(await state(page), key).toEqual(before)
+    }
+  })
+
+  test('on the canvas they act: focus on the selected node, and on the canvas after a click on the empty pane', async ({ page }) => {
     await load(page)
     await node(page, 'ore_stock').focus()
     await page.keyboard.press(']')
     await expect.poll(async () => (await state(page)).selected).not.toBe('ore_stock')
     await page.keyboard.press('f')
     await expect.poll(async () => (await state(page)).focus).toBe(true)
-    // nothing focused (the page itself), as right after the app opens
-    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
-    expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true)
+    // focus taken away from the canvas, then a click on the empty pane gives it back
+    await page.locator('.wb-tabs [role="tab"]').first().focus()
+    const pane = (await page.locator('.react-flow__pane').boundingBox())!
+    await page.locator('.react-flow__pane').click({ position: { x: pane.width - 20, y: 20 } })
+    expect(await page.evaluate(() => document.activeElement?.classList.contains('canvas'))).toBe(true)
     await page.keyboard.press('f')
     await expect.poll(async () => (await state(page)).focus).toBe(false)
   })

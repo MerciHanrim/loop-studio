@@ -1053,6 +1053,10 @@ export function Canvas() {
       className={`canvas${canvasLocked ? ' canvas--locked' : ''}${refInsertArmed ? ' canvas--ref-insert' : ''}${nodeStructure === 'outside' ? ' canvas--nodes-outside' : ''}`}
       data-tour="canvas"
       data-covered-by-sheets=""
+      // #422 — a click on the empty pane gives the canvas the keyboard (its
+      // canvas commands, `f` / `[` / `]`, need focus IN the canvas); -1 keeps
+      // it out of the Tab order, which reaches the nodes as before
+      tabIndex={-1}
       aria-busy={routesBusy || undefined}
       onDrop={noEdit ? undefined : handleDrop}
       onDragOver={noEdit ? undefined : handleDragOver}
