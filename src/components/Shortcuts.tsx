@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useGraphStore } from '../store/graphStore'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
-import { isModalOpen, isTypingTarget } from '../ui/keyboardTarget'
+import { isCanvasFocus, isModalOpen, isTypingTarget } from '../ui/keyboardTarget'
 
 // docs/large-graph-readability.md §LGR4.3 - `]` / `[` step the selection through
 // the drawn-edge neighbours of the node the walk started from. The origin + its
@@ -86,14 +86,17 @@ export function Shortcuts() {
   //   - bare `f`     : toggle the Focus view
   //   - `]` / `[`    : select the next / previous node one drawn-edge hop from
   //                    the current selection (neighbours sorted by id, cyclic)
-  // Pure view controls, so NOT gated on the edit-lock; they yield to a text
-  // field and to a modifier combo (Ctrl/Cmd-F browser find is left alone). Not
+  // Pure view controls, so NOT gated on the edit-lock; they act only while the
+  // canvas has the keyboard (#422), and yield to a text field and to a modifier combo (Ctrl/Cmd-F browser find is left alone). Not
   // wired on mobile (no hardware keyboard in the view/run layout).
   useEffect(() => {
     if (isMobile) return
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return
       if (isModalOpen()) return // #393 B — `f` / `[` / `]` acted on the canvas behind a dialog
+      // #422 — canvas commands: only while the canvas has the keyboard, not with
+      // focus in the left panel, the timeline, the status bar or another control
+      if (!isCanvasFocus(e.target)) return
       if (e.key.toLowerCase() === 'f') {
         e.preventDefault()
         useUiStore.getState().toggleFocusMode()

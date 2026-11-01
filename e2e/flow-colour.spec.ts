@@ -162,7 +162,10 @@ test.describe('flow colour — the Colour section (FC-5)', () => {
     expect(await accentOf(page, 'nodes', b)).toBe('#A78243')
     expect(await accentOf(page, 'nodes', 'gold')).toBeNull()
     expect(await marked()).toEqual([b])
-    // pressed again, the walk still rotates through Gold's neighbours, the marks with it
+    // pressed again, the walk still rotates through Gold's neighbours, the marks
+    // with it — from the canvas: the swatch click left focus in the Inspector,
+    // where `]` is not a canvas command (#422)
+    await node(page, b).focus()
     await page.keyboard.press(']')
     await expect(label).not.toHaveValue(shown)
     const c = await page.evaluate((l) => (window as any).__loop.graph.getState().nodes.find((n: { data: { label: string } }) => n.data.label === l).id, await label.inputValue())
