@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { EdgeChange, NodeChange, Viewport } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
+import { nameFootprintsOf } from '../store/routeMap'
 import type { LoopEdge, LoopNode } from '../model/types'
 
 // docs/dense-graph-pan.md — a transparent pan-capture layer over the canvas.
@@ -9,8 +10,10 @@ import type { LoopEdge, LoopNode } from '../model/types'
 // `setViewport`; a tap resolves a target and selects it, in the order
 // node → edge → empty canvas (§DGP-C1):
 //   - node: GEOMETRICALLY — screen → flow coords → each node's
-//     `{ position, measured }` box. DOM `elementFromPoint` can't be used
-//     because React Flow makes non-draggable nodes non-hit-testable.
+//     `{ position, measured }` box, and its outside name and the bridge to it
+//     (#421, `nameFootprintsOf`); the top-most by z-index, then node order.
+//     DOM `elementFromPoint` can't be used because React Flow makes
+//     non-draggable nodes non-hit-testable.
 //   - edge: the nearest `.react-flow__edge-path` within `EDGE_TAP_TOL` (edges
 //     are inside the `pointer-events: none` viewport, so `elementFromPoint`
 //     misses them too). A pure-arithmetic reject on each edge's endpoint
@@ -107,20 +110,42 @@ export function PanSurface({
       pinchIds = null
     }
 
-    /** screen point → id of the top-most (last-painted) visible node whose box
-     *  contains it, or null. */
+    /** screen point → id of the top-most visible node whose hit region
+     *  contains it, or null. The region is the node's box AND, with the name
+     *  outside, the name and the bridge between them (#421 — the boxes the
+     *  node draws and publishes, `nameFootprintsOf`; nodes.tsx makes both part
+     *  of the node). Top-most is the browser's own stacking: the node
+     *  element's z-index (React Flow raises a selected node), then its place in
+     *  the node order. */
     const nodeAt = (clientX: number, clientY: number): string | null => {
       const rect = el.getBoundingClientRect()
       const vp = getViewport()
       const fx = (clientX - rect.left - vp.x) / vp.zoom
       const fy = (clientY - rect.top - vp.y) / vp.zoom
+      const inside = (x: number, y: number, w: number, h: number) => fx >= x && fx <= x + w && fy >= y && fy <= y + h
+      const nodes = useGraphStore.getState().nodes as LoopNode[]
+      const named = new Set<string>()
+      for (const f of nameFootprintsOf(nodes)) {
+        if (inside(f.name.x, f.name.y, f.name.w, f.name.h) || inside(f.bridge.x, f.bridge.y, f.bridge.w, f.bridge.h)) named.add(f.id)
+      }
+      const flow = el.closest('.react-flow')
+      const zOf = (id: string): number => {
+        const node = flow?.querySelector(`.react-flow__node[data-id="${CSS.escape(id)}"]`)
+        const z = node ? Number.parseInt(getComputedStyle(node).zIndex, 10) : NaN
+        return Number.isFinite(z) ? z : 0
+      }
       let hit: string | null = null
-      for (const n of useGraphStore.getState().nodes as LoopNode[]) {
+      let hitZ = -Infinity
+      for (const n of nodes) {
         if (n.hidden) continue
         const w = n.measured?.width ?? DEFAULT_W
         const h = n.measured?.height ?? DEFAULT_H
-        if (fx >= n.position.x && fx <= n.position.x + w && fy >= n.position.y && fy <= n.position.y + h) {
+        if (!inside(n.position.x, n.position.y, w, h) && !named.has(n.id)) continue
+        // later in the order paints over earlier at the same z-index
+        const z = zOf(n.id)
+        if (z >= hitZ) {
           hit = n.id
+          hitZ = z
         }
       }
       return hit
