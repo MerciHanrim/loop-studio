@@ -17,10 +17,11 @@ import type { LoopEdge, LoopNode } from '../model/types'
 //                 thing, SEMANTICS §S4). The only exact plan can be zero, and a
 //                 plan that happens to agree flips with the branches that are
 //                 live, so the shape is REFUSED before the run (F1), whatever
-//                 the numbers. Two connections from one router into one
-//                 Converter are two such paths (the Gate's split and the
-//                 Converter's needs are two independent ratios); two into one
-//                 Gate are one (a Gate sums what arrives).
+//                 the numbers. Connections between the same two routers count
+//                 once (rev 3 design): a Gate's share to a connection and a
+//                 Converter's need on it are both that connection's rate, so
+//                 parallel connections always agree on the one fraction, and
+//                 the plan sums them per pair.
 //   multi         a Gate with two supplies: two upstream routers, or one
 //                 upstream router and its own Pool inputs. Two or more free
 //                 numbers — not designed; it keeps the rule it had (unresolved,
@@ -90,7 +91,7 @@ export function converterGroups(
     // a group is about a Converter that is fed by a router
     if (!members.some((m) => kindOf(m) === 'converter' && (ins.get(m)?.length ?? 0) > 0)) continue
 
-    const rejoin = findSplitRejoin(members, outs, kindOf)
+    const rejoin = findSplitRejoin(members, outs)
     const multiGates = members.filter((m) => {
       if (kindOf(m) !== 'gate') return false
       const ups = new Set((ins.get(m) ?? []).map((e) => e.source))
@@ -109,11 +110,10 @@ export function converterGroups(
 
 /** The first router (ascending id) with two forward paths that meet again,
  *  and the first router where they meet. Branches out of a router: one per
- *  connection into a Converter, one per distinct Gate target. */
+ *  distinct target (parallel connections count once). */
 function findSplitRejoin(
   members: string[],
   outs: Map<string, LoopEdge[]>,
-  kindOf: (id: string) => Kind,
 ): { split: string; join: string } | null {
   const reach = (from: string): Set<string> => {
     const set = new Set<string>([from])
@@ -127,12 +127,7 @@ function findSplitRejoin(
   for (const u of members) {
     const es = outs.get(u) ?? []
     if (es.length < 2) continue
-    const branches: string[] = []
-    const gateTargets = new Set<string>()
-    for (const e of [...es].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
-      if (kindOf(e.target) === 'converter') branches.push(e.target)
-      else if (!gateTargets.has(e.target)) { gateTargets.add(e.target); branches.push(e.target) }
-    }
+    const branches = [...new Set(es.map((e) => e.target))].sort()
     if (branches.length < 2) continue
     const sets = branches.map(reach)
     let join: string | null = null

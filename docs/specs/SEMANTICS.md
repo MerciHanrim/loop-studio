@@ -254,8 +254,10 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
     its Converter therefore sees the shared Pool net of the claim (the
     *reservation effect*); one ordered before the group is unaffected.
   - **split that rejoins** — two forward paths from one router meet again at
-    a later Gate or Converter of the group (two connections from one router
-    into one Converter are two such paths; two into one Gate are one). The
+    a later Gate or Converter of the group (connections between the same two
+    routers count once: a Gate's share to a connection and a Converter's need
+    on it are both that connection's rate, so parallel connections always
+    agree on the one fraction and the plan sums them per pair). The
     only exact plan can be zero, and a plan that happens to agree flips with
     the branches that are live, so the shape is **refused before the run**,
     on the full graph and in every model version: Play, Step and Monte Carlo

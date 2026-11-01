@@ -80,6 +80,7 @@ const ui = {
   'playbar.refused.show': 'Göster',
   'inspector.refused.splitRejoin': 'Çalıştırılamıyor: kaynaklar {split} noktasında ayrılıp {join} noktasında yeniden birleşiyor. Bu model sürümü ayrılıp yeniden birleşen yolları desteklemediği için model çalışmıyor. Çalıştırmak için yollardan birini kaldırın ya da birine bir Havuz ekleyin. Havuz gelenleri tuttuğu için o yol bir adım sonra ilerler.',
   'playbar.diag.title': 'Çalıştırma tanıları ({n})',
+  'playbar.diag.multiSupplyLoss': '{label} bu adımda kullanabileceğinden {amount} fazla aldı ve bu miktar kayboldu. Loop Studio birden fazla yerden alan bir Dağıtıcı’yı henüz tam olarak ele almıyor.',
   'playbar.mc.title': 'Diyagramı defalarca çalıştırıp dağılımı görün',
   'playbar.mc.progress': 'Monte Carlo %{pct}',
   'playbar.mc.progress.title': 'Monte Carlo çalıştırması sürüyor',

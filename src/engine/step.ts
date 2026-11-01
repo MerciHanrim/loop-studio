@@ -20,7 +20,7 @@ import {
 // every other direct `from './step'` import of it — unchanged. A bare
 // `import` does not re-export a name, so this line is required.
 export { ROUTER_KINDS } from './stateExpr'
-import { EPSILON, type SimState, type SimValues, type StateEvent, type StepResult, type TriggerQueueEntry } from './types'
+import { EPSILON, type SimState, type SimValues, type StateEvent, type StepNotice, type StepResult, type TriggerQueueEntry } from './types'
 
 // Engine A — the deterministic core. Implements SEMANTICS.md §6 exactly:
 // Phase 1 push (Sources), then Phase 2 pull (Gate / Converter / Drain / End)
@@ -85,7 +85,7 @@ export function step(
   if (prev.ended) {
     return {
       state: { step: prev.step, values: prev.values, ended: true, fired: [], triggerQueue: prev.triggerQueue },
-      report: { events: [], activated: [], fired: [], stateEvents: [], diagnostics: [] },
+      report: { events: [], activated: [], fired: [], stateEvents: [], diagnostics: [], notices: [] },
     }
   }
   const curStep = prev.step + 1 // the step being computed — the RNG key's `step`
@@ -114,6 +114,7 @@ export function step(
           (g) =>
             `Can't run: resources split at "${label(g.split)}" and meet again at "${label(g.join)}". This model version does not support paths that split and meet again, so nothing moved. Remove one of the paths, or add a Pool on one of them (that path then moves one step later).`,
         ),
+        notices: [],
       },
     }
   }
@@ -163,6 +164,7 @@ export function step(
   const activated = new Set<string>()
   const fired = new Set<string>()
   const diagnostics: string[] = [...paramDiagnostics]
+  const notices: StepNotice[] = [] // worded by the UI in the user's language
   let ended: boolean = prev.ended // `false` here (the ended fixed point returned above)
 
   // A random draw / gate pick is memoised at `step()` scope so the shadow probe
@@ -1404,9 +1406,9 @@ export function step(
           const loss = received - f * sumIn
           if (loss > 1e-6) {
             multiLoss.add(id)
-            diagnostics.push(
-              `"${n.data.label}" received ${Number(loss.toFixed(6))} more than it could use this step, and that amount was lost. Loop Studio does not fully handle a Gate that takes from more than one place yet.`,
-            )
+            // D1 — as data; the run bars word it in the user's language
+            // (`playbar.diag.multiSupplyLoss`), with the node and the amount
+            notices.push({ kind: 'multiSupplyLoss', nodeId: id, label: n.data.label, amount: Number(loss.toFixed(6)) })
           }
         }
         if (f <= EPSILON) continue
@@ -1583,6 +1585,7 @@ export function step(
       fired: firedList,
       stateEvents,
       diagnostics,
+      notices,
     },
   }
 }

@@ -84,6 +84,7 @@ const ui = {
   'playbar.refused.show': 'Mostrar',
   'inspector.refused.splitRejoin': 'Não é possível executar: os recursos se dividem em {split} e se reencontram em {join}. Esta versão do modelo não suporta caminhos que se dividem e se reencontram, então o modelo não é executado. Para executá-lo, remova um dos caminhos ou adicione um Reservatório em um deles. Um Reservatório guarda o que chega, então esse caminho avança um passo depois.',
   'playbar.diag.title': 'Diagnósticos da execução ({n})',
+  'playbar.diag.multiSupplyLoss': '{label} recebeu {amount} a mais do que podia usar neste passo, e essa quantidade foi perdida. O Loop Studio ainda não trata por completo um Distribuidor que retira de mais de um lugar.',
   'playbar.mc.title': 'Executar o diagrama muitas vezes e ver a distribuição',
   // no space before `%` — that is what `Intl.NumberFormat('pt-BR')` produces
   'playbar.mc.progress': 'Monte Carlo {pct}%',

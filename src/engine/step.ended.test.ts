@@ -56,7 +56,7 @@ describe('step() on an ended state (#419 item 1)', () => {
     expect(r2.state.ended).toBe(true)
     expect(r2.state.fired).toEqual([])
     expect(r2.state.triggerQueue).toEqual([])
-    expect(r2.report).toEqual({ events: [], activated: [], fired: [], stateEvents: [], diagnostics: [] })
+    expect(r2.report).toEqual({ events: [], activated: [], fired: [], stateEvents: [], diagnostics: [], notices: [] })
     // and it stays there — the Source never pushes again, Q never drains again
     const r3 = step(nodes, edges, r2.state, 7, 2)
     expect(r3.state).toEqual(r2.state)

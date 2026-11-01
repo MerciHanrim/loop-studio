@@ -77,6 +77,7 @@ const ui = {
   'playbar.refused.show': '表示',
   'inspector.refused.splitRejoin': '実行できません: リソースが {split} で分かれ、{join} で再び合流しています。このモデルバージョンは分かれて再び合流する経路に対応していないため、モデルは実行されません。実行するには、いずれかの経路を削除するか、どちらかの経路にプールを追加してください。プールは届いたものを保持するため、その経路は 1 ステップ遅れて動きます。',
   'playbar.diag.title': '実行の診断 ({n})',
+  'playbar.diag.multiSupplyLoss': '{label} は、このステップで使える量より {amount} 多く受け取り、その分は失われました。Loop Studio は複数の場所から受け取るゲートをまだ完全には扱えません。',
   'playbar.mc.title': '図を何度も実行して分布を確認します',
   'playbar.mc.progress': 'モンテカルロ {pct}%',
   'playbar.mc.progress.title': 'モンテカルロ実行中',

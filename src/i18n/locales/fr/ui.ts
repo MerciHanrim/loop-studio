@@ -83,6 +83,7 @@ const ui = {
   'playbar.refused.show': 'Afficher',
   'inspector.refused.splitRejoin': 'Exécution impossible : les ressources se séparent à {split} et se rejoignent à {join}. Cette version du modèle ne prend pas en charge les chemins qui se séparent puis se rejoignent, donc le modèle ne s’exécute pas. Pour l’exécuter, supprimez l’un des chemins ou ajoutez un réservoir sur l’un d’eux. Un réservoir retient ce qui arrive, donc ce chemin avance un pas plus tard.',
   'playbar.diag.title': 'Diagnostics de l’exécution ({n})',
+  'playbar.diag.multiSupplyLoss': '{label} a reçu {amount} de plus que ce qu’il pouvait utiliser à cette étape, et cette quantité est perdue. Loop Studio ne gère pas encore complètement un Aiguillage qui prend à plus d’un endroit.',
   'playbar.mc.title': 'Exécuter le schéma de nombreuses fois et voir la distribution',
   'playbar.mc.progress': 'Monte-Carlo {pct} %',
   'playbar.mc.progress.title': 'Exécution Monte-Carlo en cours',

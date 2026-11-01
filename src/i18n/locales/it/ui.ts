@@ -98,6 +98,7 @@ const ui = {
   'playbar.refused.show': 'Mostra',
   'inspector.refused.splitRejoin': 'Impossibile eseguire: le risorse si dividono in {split} e si ricongiungono in {join}. Questa versione del modello non supporta percorsi che si dividono e si ricongiungono, quindi il modello non viene eseguito. Per eseguirlo, rimuovi uno dei percorsi o aggiungi un Serbatoio su uno di essi. Un Serbatoio trattiene ciò che arriva, quindi quel percorso avanza un passo dopo.',
   'playbar.diag.title': 'Diagnostica dell’esecuzione ({n})',
+  'playbar.diag.multiSupplyLoss': '{label} ha ricevuto {amount} in più di quanto potesse usare in questo passo, e quella quantità è andata persa. Loop Studio non gestisce ancora del tutto un Ripartitore che prende da più di un punto.',
   'playbar.mc.title': 'Esegui il diagramma molte volte e osserva la distribuzione',
   'playbar.mc.progress': 'Monte Carlo {pct}%',
   'playbar.mc.progress.title': 'Esecuzione Monte Carlo in corso',

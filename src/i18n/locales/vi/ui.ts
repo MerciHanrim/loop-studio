@@ -88,6 +88,7 @@ const ui = {
   'playbar.refused.show': 'Hiện',
   'inspector.refused.splitRejoin': 'Không chạy được: tài nguyên tách ra tại {split} và gặp lại nhau tại {join}. Phiên bản mô hình này không hỗ trợ các đường tách ra rồi gặp lại nhau, nên mô hình không chạy. Để chạy, hãy bỏ một trong hai đường, hoặc thêm một Bể chứa trên một đường. Bể chứa giữ lại những gì đến, nên đường đó sẽ di chuyển chậm hơn một bước.',
   'playbar.diag.title': 'Chẩn đoán lần chạy ({n})',
+  'playbar.diag.multiSupplyLoss': '{label} đã nhận nhiều hơn {amount} so với lượng có thể dùng ở bước này, và lượng đó đã mất. Loop Studio chưa xử lý đầy đủ một Bộ chia lấy từ nhiều nơi.',
   'playbar.mc.title': 'Chạy sơ đồ nhiều lần và xem phân phối kết quả',
   'playbar.mc.progress': 'Monte Carlo {pct}%',
   'playbar.mc.progress.title': 'Monte-Carlo đang chạy',

@@ -73,6 +73,7 @@ const ui = {
   'playbar.refused.show': 'Show',
   'inspector.refused.splitRejoin': "Can't run: resources split at {split} and meet again at {join}. This model version doesn't support paths that split and meet again, so the model doesn't run. To run it, remove one of the paths, or add a Pool on one of them. A Pool holds what arrives, so that path moves one step later.",
   'playbar.diag.title': 'Run diagnostics ({n})',
+  'playbar.diag.multiSupplyLoss': '{label} received {amount} more than it could use this step, and that amount was lost. Loop Studio does not fully handle a Gate that takes from more than one place yet.',
   'playbar.mc.title': 'Run the diagram many times and see the distribution',
   'playbar.mc.progress': 'Monte Carlo {pct}%',
   'playbar.mc.progress.title': 'Monte-Carlo run in progress',

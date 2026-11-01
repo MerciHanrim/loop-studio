@@ -53,12 +53,16 @@ describe('converterGroups — the design shapes', () => {
     expect(converterGroups(nodes, edges.filter((e) => e.id !== 'k2'))[0].cls).toBe('split-rejoin')
   })
 
-  it('two connections from one Gate into one Converter are two paths that meet there; two into one Gate are one', () => {
+  it('connections between the same two routers count once (rev 3): two from one Gate into one Converter, or into one Gate, are one path', () => {
     const nodes = [pool('a'), gate('g'), gate('h'), conv('C'), pool('x')]
     const twoIntoC = [res('e1', 'a', 'g'), res('k1', 'g', 'C'), res('k2', 'g', 'C'), res('o1', 'C', 'x')]
-    expect(converterGroups(nodes, twoIntoC)[0]).toMatchObject({ cls: 'split-rejoin', split: 'g', join: 'C' })
+    expect(converterGroups(nodes, twoIntoC)[0]).toMatchObject({ cls: 'tree', split: null, join: null })
+    expect(refusedGroups(nodes, twoIntoC)).toEqual([])
     const twoIntoH = [res('e1', 'a', 'g'), res('k1', 'g', 'h'), res('k2', 'g', 'h'), res('m1', 'h', 'C'), res('o1', 'C', 'x')]
     expect(converterGroups(nodes, twoIntoH)[0].cls).toBe('tree')
+    // a second connection that reaches the Converter THROUGH another router is still a rejoin
+    const viaH = [res('e1', 'a', 'g'), res('k1', 'g', 'C'), res('k2', 'g', 'h'), res('m1', 'h', 'C'), res('o1', 'C', 'x')]
+    expect(converterGroups(nodes, viaH)[0]).toMatchObject({ cls: 'split-rejoin', split: 'g', join: 'C' })
   })
 
   it('G7: a Gate fed by a router AND its own Pool is multi, as is a Gate fed by two routers', () => {

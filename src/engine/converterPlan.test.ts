@@ -39,7 +39,7 @@ function run(nodes: LoopNode[], edges: LoopEdge[]) {
   for (const ev of r.report.events) moved[ev.edgeId] = (moved[ev.edgeId] ?? 0) + ev.amount
   const pools: Record<string, number> = {}
   for (const n of nodes) if (n.data.kind === 'pool') pools[n.id] = r.state.values[n.id]
-  return { moved, pools, fired: r.state.fired, diagnostics: r.report.diagnostics }
+  return { moved, pools, fired: r.state.fired, diagnostics: r.report.diagnostics, notices: r.report.notices }
 }
 const close = (got: Record<string, number>, want: Record<string, number>) => {
   for (const k of Object.keys(want)) expect(got[k], k).toBeCloseTo(want[k], 6)
@@ -306,12 +306,18 @@ describe('#471 — a split that rejoins is refused before the run (Deploy 2, F1)
     }
   })
 
-  it('two connections from one Gate into one Converter are two paths that meet there (refused); two into one Gate are one path (runs)', () => {
-    const nodes = [pool('a', 100), gate('g'), conv('C'), pool('x', 0)]
-    const twoIntoC = [res('e1', 'a', 'g', '20'), res('k1', 'g', 'C', '10'), res('k2', 'g', 'C', '10'), res('o1', 'C', 'x', '20')]
+  it('connections between the same two routers count once (rev 3): two from one Gate into one Converter run, each at the one fraction', () => {
+    // the Gate's share to a connection and the Converter's need on it are both
+    // that connection's rate, so the two connections always agree: with the
+    // supply short (a 20 of the Gate's 40), f = 20 / 40 on BOTH, k1 5 and k2 15
+    const nodes = [pool('a', 20), gate('g'), conv('C'), pool('x', 0)]
+    const twoIntoC = [res('e1', 'a', 'g', '40'), res('k1', 'g', 'C', '10'), res('k2', 'g', 'C', '30'), res('o1', 'C', 'x', '20')]
     const r = run(nodes, twoIntoC)
-    nothingMoved(r)
-    expect(r.diagnostics[0]).toMatch(/split at "g" and meet again at "C"/)
+    close(r.moved, { e1: 20, k1: 5, k2: 15, o1: 10 })
+    expect(r.diagnostics).toEqual([])
+    close(r.pools, { a: 0, x: 10 })
+    // with the supply whole, f = 1 on both
+    close(run([pool('a', 100), gate('g'), conv('C'), pool('x', 0)], twoIntoC).moved, { e1: 40, k1: 10, k2: 30, o1: 20 })
     const nodes2 = [pool('a', 100), gate('g'), gate('h'), conv('C'), pool('x', 0)]
     const twoIntoH = [res('e1', 'a', 'g', '20'), res('k1', 'g', 'h', '10'), res('k2', 'g', 'h', '10'), res('m1', 'h', 'C', '20'), res('o1', 'C', 'x', '20')]
     const r2 = run(nodes2, twoIntoH)
@@ -381,13 +387,16 @@ describe('#471 — a multi-supply group keeps the rule it had, and says when an 
   // G7: g takes from its own Pool a AND from the Converter B; it passes both
   // on to C. Two free numbers — not planned. What C receives above its
   // recipe at the fraction it can run is reported, never silent.
-  it('G7: a Gate with two supplies — the diagnostic names the Converter and the amount', () => {
+  it('G7: a Gate with two supplies — the notice names the Converter and the amount lost, as data for the UI to word (D1)', () => {
     const nodes = [pool('a', 100), pool('p', 100), conv('B'), gate('g'), conv('C'), pool('q', 100), pool('x', 0, 10)]
     const edges = [
       res('e0', 'p', 'B', '20'), res('b1', 'B', 'g', '20'), res('e1', 'a', 'g', '20'),
       res('k1', 'g', 'C', '40'), res('e2', 'q', 'C', '40'), res('o1', 'C', 'x', '80'),
     ]
     const r = run(nodes, edges)
-    expect(r.diagnostics.some((d) => /^"C" received [0-9.]+ more than it could use this step, and that amount was lost\./.test(d))).toBe(true)
+    // x has room for 10 of the 80 C would make: f = 1/8. C received 40 from g
+    // (the Gate delivered at ITS fraction), needed 10 in all, so 30 was lost
+    expect(r.notices).toEqual([{ kind: 'multiSupplyLoss', nodeId: 'C', label: 'C', amount: 30 }])
+    expect(r.diagnostics).toEqual([]) // nothing English for the user from the engine
   })
 })

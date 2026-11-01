@@ -1,8 +1,9 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useGraphStore } from '../store/graphStore'
 import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
 import { useT } from '../i18n'
+import { isolateAuto } from '../i18n/bidiIsolate'
 import { Icon } from '../ui/icons'
 import { topOverlay } from '../ui/overlayStack'
 import { DraftNumberInput } from './DraftNumberInput'
@@ -71,7 +72,8 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
     if (g) useGraphStore.getState().setSelection(g.split ?? g.members[0], null)
   }
   const cannotRun = initError != null || refused
-  const diagnostics = useSimStore((s) => s.diagnostics)
+  const engineDiagnostics = useSimStore((s) => s.diagnostics)
+  const notices = useSimStore((s) => s.notices)
   const play = useSimStore((s) => s.play)
   const pause = useSimStore((s) => s.pause)
   const stepOnce = useSimStore((s) => s.stepOnce)
@@ -86,6 +88,16 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   const cancelMc = useMcStore((s) => s.cancel)
   const mcRunning = mcStatus === 'running'
   const t = useT()
+  // #471 (Deploy 2) — the engine's structured notices, worded here in the
+  // user's language (the node label isolated), ahead of the English engine
+  // diagnostics in the same list
+  const diagnostics = useMemo(
+    () => [
+      ...notices.map((x) => t('playbar.diag.multiSupplyLoss', { label: isolateAuto(x.label), amount: x.amount })),
+      ...engineDiagnostics,
+    ],
+    [notices, engineDiagnostics, t],
+  )
 
   const running = status === 'running'
   const ended = status === 'ended'

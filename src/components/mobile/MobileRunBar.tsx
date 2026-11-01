@@ -1,10 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from 'react'
 import { useGraphStore } from '../../store/graphStore'
 import { useMcStore } from '../../store/mcStore'
 import { useSimStore } from '../../store/simStore'
 import { selectOverlay, useUiStore } from '../../store/uiStore'
 import { useIsMobile } from '../../ui/media'
 import { useT } from '../../i18n'
+import { isolateAuto } from '../../i18n/bidiIsolate'
 import { Icon } from '../../ui/icons'
 
 // docs/mobile.md §MV4 — the fixed bottom run bar. Reset / Step / Play·Pause /
@@ -64,7 +65,8 @@ export function MobileRunBar() {
     const g = refusals[0]
     if (g) useGraphStore.getState().setSelection(g.split ?? g.members[0], null)
   }
-  const diagnostics = useSimStore((s) => s.diagnostics)
+  const engineDiagnostics = useSimStore((s) => s.diagnostics)
+  const notices = useSimStore((s) => s.notices)
   const play = useSimStore((s) => s.play)
   const pause = useSimStore((s) => s.pause)
   const stepOnce = useSimStore((s) => s.stepOnce)
@@ -81,6 +83,16 @@ export function MobileRunBar() {
   const closeOverlay = useUiStore((s) => s.closeOverlay)
   const isMobile = useIsMobile()
   const t = useT()
+  // #471 (Deploy 2) — the engine's structured notices, worded here in the
+  // user's language (the node label isolated), ahead of the English engine
+  // diagnostics in the same list
+  const diagnostics = useMemo(
+    () => [
+      ...notices.map((x) => t('playbar.diag.multiSupplyLoss', { label: isolateAuto(x.label), amount: x.amount })),
+      ...engineDiagnostics,
+    ],
+    [notices, engineDiagnostics, t],
+  )
   const barRef = useRef<HTMLDivElement>(null)
   useRunBarHeight(barRef, isMobile)
 

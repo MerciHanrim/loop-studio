@@ -74,6 +74,7 @@ const ui = {
   'playbar.refused.show': '보기',
   'inspector.refused.splitRejoin': '실행할 수 없어요: 자원이 {split}에서 갈라졌다가 {join}에서 다시 만나요. 이 모델 버전은 분기 후 재합류를 지원하지 않아서 실행하지 않아요. 실행하려면 경로 하나를 지우거나 한쪽 경로에 Pool을 넣어 주세요. Pool은 받은 자원을 담아 두므로, 그 경로는 한 스텝 늦게 움직여요.',
   'playbar.diag.title': '실행 진단 ({n})',
+  'playbar.diag.multiSupplyLoss': '{label}: 이번 스텝에 쓸 수 있는 양보다 {amount}만큼 더 받았고, 그만큼이 사라졌어요. Loop Studio는 여러 곳에서 가져오는 Gate를 아직 완전히 다루지 못해요.',
   'playbar.mc.title': '다이어그램을 여러 번 실행해 분포를 확인합니다',
   'playbar.mc.progress': '몬테카를로 {pct}%',
   'playbar.mc.progress.title': '몬테카를로 실행 중',

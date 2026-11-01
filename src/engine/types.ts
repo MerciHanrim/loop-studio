@@ -67,6 +67,24 @@ export type StepReport = {
   stateEvents: StateEvent[]
   /** human-readable notices (random flow held inactive, router cycles, …) */
   diagnostics: string[]
+  /** structured notices the UI words in the user's language (issue #471,
+   *  Deploy 2 — the Lumi review of #473: a notice the user sees is not an
+   *  English sentence from the engine). Same lifecycle as `diagnostics`. */
+  notices: StepNotice[]
+}
+
+/** A notice `step` reports as data; the catalogs carry its sentence
+ *  (`playbar.diag.<kind>`). */
+export type StepNotice = {
+  /** a Converter in a multi-supply group received more than it could use at
+   *  the fraction it ran, and that amount was lost (D1 — the multi-supply
+   *  design is not done; #471 stays open) */
+  kind: 'multiSupplyLoss'
+  nodeId: string
+  /** the node's label at the time of the step */
+  label: string
+  /** the amount lost, rounded to 6 decimals */
+  amount: number
 }
 
 export type StepResult = {
