@@ -216,6 +216,10 @@ type SearchOpts = {
   extraX?: number[]
   extraY?: number[]
   maxExpansions?: number
+  /** #421 — an expansion budget SHARED by several searches (one per segment
+   *  of a `blocked` route): each expansion takes one, and a search finding it
+   *  spent gives up, so the route's segments together stay within it */
+  budget?: { left: number }
   /** the only move allowed out of the start (0 up, 1 down, 2 left, 3 right) */
   firstDir?: number
   /** the only move allowed into the goal */
@@ -457,6 +461,7 @@ function* buildRouteSteps(a: Pt, goal: Pt, aPos: Position | null, bPos: Position
   push({ f: fOf(startId, startI, startJ), g: 0, x: X[startI], y: Y[startJ], id: startId })
   let expansions = 0
   const maxExp = opts?.maxExpansions ?? MAX_EXPANSIONS
+  const budget = opts?.budget
   const firstDir = opts?.firstDir
   const lastDir = opts?.lastDir
   const noLastDir = opts?.noLastDir
@@ -490,6 +495,7 @@ function* buildRouteSteps(a: Pt, goal: Pt, aPos: Position | null, bPos: Position
     if (e.g !== g[cur] || e.f !== fOf(cur, ci, cj)) continue // superseded entry
     if (cur === goalId) break
     if (++expansions > maxExp) return null
+    if (budget && --budget.left < 0) return null
     if ((expansions & (SEARCH_SLICE - 1)) === 0) yield 'search'
 
     // the nearest existing lattice point in each of the four directions
@@ -691,13 +697,15 @@ export const GUARD_PADS = [ROUTE_PAD, 6, 2, 0] as const
 /** the outer corridor's distance from the bounding box of everything */
 export const OUTER_MARGIN = 2 * ROUTE_PAD
 export const OUTER_EXPANSIONS = 10 * MAX_EXPANSIONS
-/** #421 (Lumi, 2026-11-01) — the `blocked` rung's search budget: the outer
- *  corridor's, on the same lattice. It had none, so one connection whose port
- *  another node covers could search a large graph to the end inside a single
- *  route (the provisional map's 5 ms is checked only between routes). A search
- *  that reaches it gives up: the route is the direct line from end to end
- *  (`blockedFallback`), as for an anchor sealed in. */
-export const BLOCKED_EXPANSIONS = OUTER_EXPANSIONS
+/** #421 (Lumi, 2026-11-01) — the `blocked` route's search budget, for the
+ *  WHOLE route: its segments (stub to waypoint to … to stub) share it, so a
+ *  route with waypoints does not start a fresh budget per segment. It had
+ *  none, so one connection whose port another node covers could search a
+ *  large graph to the end inside a single route (the provisional map's 5 ms is
+ *  checked only between routes; on the MMO template a 14k-expansion blocked
+ *  search took about 20 ms). A route that spends it gives up: it is the direct
+ *  line from end to end (`blockedFallback`), as for an anchor sealed in. */
+export const BLOCKED_EXPANSIONS = MAX_EXPANSIONS
 
 export type GuardedClass = 'orthogonal' | 'tight' | 'outer' | 'blocked' | 'degenerate'
 
@@ -765,6 +773,9 @@ export type GuardedResult = Omit<RouteResult, 'routeClass'> & {
   /** #421 — a `blocked` route that is the direct line from end to end, because
    *  its search reached BLOCKED_EXPANSIONS or an anchor was sealed in */
   blockedFallback?: true
+  /** #421 — a `blocked` route's expansions, all its segments together
+   *  (at most BLOCKED_EXPANSIONS): what the budget is measured against */
+  blockedExpansionsUsed?: number
 }
 
 /** the move index of `buildRoute` (0 up, 1 down, 2 left, 3 right) for a unit vector */
@@ -1061,8 +1072,12 @@ export function* guardedRouteSteps(inp: GuardedInput): Generator<string, Guarded
     const restFills = [...rest, ...ownBoxes].map((b) => inflate(b, 0))
     // on the obstacle-edge grid with the outer corridor, every anchor outside
     // the remaining fills is connected, so the search ends — but on a large
-    // graph only after a long time: #421 bounds it (BLOCKED_EXPANSIONS)
-    const blockedOpts: SearchOpts = { ...outerOpts(stubA, stubB), maxExpansions: inp.blockedExpansions ?? BLOCKED_EXPANSIONS }
+    // graph only after a long time: #421 bounds the whole route by ONE budget
+    // that its segments share (BLOCKED_EXPANSIONS)
+    const allowed = inp.blockedExpansions ?? BLOCKED_EXPANSIONS
+    const budget = { left: allowed }
+    const blockedOpts: SearchOpts = { ...outerOpts(stubA, stubB), maxExpansions: Infinity, budget }
+    const used = (): number => Math.min(allowed, allowed - budget.left)
     const full: Pt[] = [src]
     for (let i = 0; i < anchors.length - 1; i++) {
       const seg = yield* buildRouteSteps(anchors[i], anchors[i + 1], i === 0 ? inp.sourcePosition : null, i === anchors.length - 2 ? inp.targetPosition : null, restFills, blockedOpts)
@@ -1071,10 +1086,10 @@ export function* guardedRouteSteps(inp: GuardedInput): Generator<string, Guarded
       // so the line still says what it connects — it never stops short of
       // its target (2026-10-20; it used to draw the source's stub alone).
       // #421 — the same when the search reached its budget
-      if (!seg) return { ...result(lzRoute(src, tgt, inp.sourcePosition), 'blocked', -1, stubs, fanBlocked), blockedFallback: true }
+      if (!seg) return { ...result(lzRoute(src, tgt, inp.sourcePosition), 'blocked', -1, stubs, fanBlocked), blockedFallback: true, blockedExpansionsUsed: used() }
       full.push(...(i === 0 ? seg : seg.slice(1)))
     }
     full.push(tgt)
-    return result(full, 'blocked', -1, stubs, fanBlocked)
+    return { ...result(full, 'blocked', -1, stubs, fanBlocked), blockedExpansionsUsed: used() }
   }
 }
