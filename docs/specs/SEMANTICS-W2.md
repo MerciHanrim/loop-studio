@@ -49,7 +49,7 @@ model version. It is **not** a model version: the graph file never carries it,
 | revision | since | what changed |
 |---|---|---|
 | absent (read as `0`) | — | every engine before 2026-11-01 |
-| `1` | 2026-11-01, issue #471 | a Converter plans its run fraction before it takes anything, and every connection moves `f · rate` (V1, V2, V3); two Converter outputs into one Pool or one router, and two Gate branches into one Pool, share that target's room (V3, V3g, V3r); a Pool that is both input and output of a Converter is bounded on the net amount |
+| `1` | 2026-11-01, issue #471 | a Converter whose inputs all come from Pools plans its run fraction before it takes anything, and each of its connections moves `f · rate` (V1, V2); two Converter outputs into one Pool or one router, and two Gate branches into one Pool, share that target's room (V3, V3g, V3r); a Pool that is both input and output of a Converter is bounded on the net amount. A Converter with an input from a Gate or another Converter is outside this guarantee until the next revision (V2b, V4) |
 
 Every later row is a deploy that changed a computed number; the row and the
 bump land in the same change as the engine.
