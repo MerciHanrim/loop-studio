@@ -771,7 +771,14 @@ only with `orthogonal`.
 - **`blocked`** — the one case no route can avoid: another node covers a port
   or a stub. The route avoids every node except the covering one. Where even
   that finds nothing (the two end nodes touch or overlap), it is the direct L
-  from port to port: a line always reaches both of its ends.
+  from port to port: a line always reaches both of its ends. The route has one
+  search budget, `BLOCKED_EXPANSIONS` (20,000 expansions; #421, 2026-11-01 —
+  it had none), shared by all its segments (stub to waypoint to … to stub); a
+  route that spends it ends the same way, the direct L, marked
+  `blockedFallback` (`blockedExpansionsUsed` says what it spent). The
+  provisional map's `PROVISIONAL_MS` is checked between routes, so this bounds
+  one route's search, not a strict 5 ms (measured on the MMO template: a
+  blocked route took at most 13,517 expansions, about 20 ms on the dev build).
 
 Every candidate is checked before it is returned: between the stubs no segment
 enters a node fill (own end nodes included), and the stubs enter no other node.

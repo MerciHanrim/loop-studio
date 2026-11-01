@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Position } from '@xyflow/react'
 import {
   ARROW_ROOM,
+  BLOCKED_EXPANSIONS,
   type Box,
   CORNER_R,
   computeGuardedRoute,
@@ -166,6 +167,74 @@ describe('guarded router — no node fill is ever crossed', () => {
     expect(r.routeClass).toBe('blocked')
     const entered = fillViolations(r, inp).filter((v) => !v.includes('cover'))
     expect(entered).toEqual([])
+    // #421 — this search stays well inside the `blocked` budget: no fallback
+    expect(r.blockedFallback).toBeUndefined()
+  })
+
+  // #421 item 1 (Lumi, 2026-11-01) — the `blocked` search has a finite budget
+  // (BLOCKED_EXPANSIONS); a search that reaches it gives up and the route is
+  // the direct L from end to end, still `blocked`, marked `blockedFallback`. It
+  // never stops short: it starts at the source port and ends at the target port.
+  it('a blocked search that reaches its expansion budget falls back to the direct line from end to end', () => {
+    const s = box('s', 0, 0)
+    const t = box('t', 400, 0)
+    const cover = box('cover', 110, 0, 60, 56)
+    const far = box('far', 250, -100, 40, 300)
+    const inp = input(s, t, [cover, far], { blockedExpansions: 1 })
+    const r = computeGuardedRoute(inp)
+    expect(r.routeClass).toBe('blocked')
+    expect(r.blockedFallback).toBe(true)
+    expect(r.points[0]).toEqual(inp.source)
+    expect(r.points.at(-1)).toEqual(inp.target)
+    // the L: no more than one corner, every segment axis-aligned
+    expect(r.points.length).toBeLessThanOrEqual(3)
+    for (let i = 1; i < r.points.length; i++) {
+      const a = r.points[i - 1]
+      const b = r.points[i]
+      expect(a.x === b.x || a.y === b.y).toBe(true)
+    }
+    // with the default budget the same connection is routed around `far`
+    const full = computeGuardedRoute({ ...inp, blockedExpansions: undefined })
+    expect(full.routeClass).toBe('blocked')
+    expect(full.blockedFallback).toBeUndefined()
+    expect(fillViolations(full, inp).filter((v) => !v.includes('cover'))).toEqual([])
+  })
+
+  it('the blocked budget is finite: 20,000 expansions for the whole route', () => {
+    expect(BLOCKED_EXPANSIONS).toBe(20_000)
+  })
+
+  // #421 (Lumi's review of #468) — a route with waypoints is several searches
+  // (stub → waypoint → … → stub); they share ONE budget. Proof: with the
+  // budget set to exactly what the route spent it is found, with one less it
+  // falls back. Were the budget per segment, one less would still do — every
+  // segment spends at least one expansion, so with three segments none spends
+  // more than the total less two.
+  it('a blocked route with waypoints spends one budget across all its segments', () => {
+    const s = box('s', 0, 0)
+    const t = box('t', 400, 0)
+    const cover = box('cover', 110, 0, 60, 56)
+    const far = box('far', 250, -100, 40, 300)
+    const waypoints = [{ x: 200, y: -150 }, { x: 330, y: -150 }]
+    const inp = input(s, t, [cover, far], { waypoints })
+    const free = computeGuardedRoute(inp)
+    expect(free.routeClass).toBe('blocked')
+    expect(free.blockedFallback).toBeUndefined()
+    const used = free.blockedExpansionsUsed!
+    expect(used).toBeGreaterThan(2)
+    // it runs through each waypoint (a segment ends there)
+    const onRoute = (w: Pt) => free.points.some((p, i) => i > 0 && Math.min(p.x, free.points[i - 1].x) - 1 <= w.x && w.x <= Math.max(p.x, free.points[i - 1].x) + 1 && Math.min(p.y, free.points[i - 1].y) - 1 <= w.y && w.y <= Math.max(p.y, free.points[i - 1].y) + 1)
+    for (const w of waypoints) expect(onRoute(w), `passes ${w.x},${w.y}`).toBe(true)
+
+    const exact = computeGuardedRoute({ ...inp, blockedExpansions: used })
+    expect(exact.blockedFallback).toBeUndefined()
+    expect(exact.points).toEqual(free.points)
+
+    const short = computeGuardedRoute({ ...inp, blockedExpansions: used - 1 })
+    expect(short.routeClass).toBe('blocked')
+    expect(short.blockedFallback).toBe(true)
+    expect(short.points[0]).toEqual(inp.source)
+    expect(short.points.at(-1)).toEqual(inp.target)
   })
 
   it('a waypoint inside a fill keeps its §ER4 cue but is not routed through', () => {
