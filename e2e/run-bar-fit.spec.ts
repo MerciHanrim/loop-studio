@@ -289,6 +289,7 @@ test.describe('the playback strip in a narrow desktop window stays inside the wi
     // the same store: the seed set here is the run's seed, the speed the run's speed
     type Sim = { __loop: { sim: { getState: () => { seed: number; speedMs: number } } } }
     await pop.locator('input[type="number"]').fill('7')
+    await pop.locator('input[type="number"]').press('Enter') // #422 — a seed is set on Enter or blur
     expect(await page.evaluate(() => (window as unknown as Sim).__loop.sim.getState().seed)).toBe(7)
     const speed0 = await page.evaluate(() => (window as unknown as Sim).__loop.sim.getState().speedMs)
     const range = pop.locator('input[type="range"]')
