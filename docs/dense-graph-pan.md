@@ -407,7 +407,11 @@ still centre — falls out for free; the flow point under the previous midpoint
 is re-anchored under the new one, and the result is clamped to the same
 `minZoom` / `maxZoom` `<ReactFlow>` itself uses (passed into the overlay as
 props from `Canvas`). `pointercancel` on a driving finger, at any point, drops
-straight to `settling` / `idle` without ever resolving a tap.
+straight to `settling` / `idle` without ever resolving a tap. The
+`lostpointercapture` that follows every normal lift changes nothing (#421,
+2026-11-01 — it used to reset the whole gesture, so `settling` never held: the
+remaining finger was forgotten and a new finger panned alone); a capture lost
+while its pointer is still down is handled as that pointer's `pointercancel`.
 
 ### As built (impl PR, stacked on this doc)
 
