@@ -210,6 +210,14 @@ type UiState = {
    *  whole route and its own label are identified together); UI-only */
   hoverEdgeId: string | null
   setHoverEdgeId: (id: string | null) => void
+  /** #444 (Lumi, 2026-11-01) — the node whose one-hop relation the canvas
+   *  shows for a moment: the node the mouse has rested on (~80 ms), and the
+   *  node holding keyboard focus. UI-only and transient — never persisted,
+   *  never in the document, its history or the selection. */
+  relationHoverId: string | null
+  relationFocusId: string | null
+  setRelationHover: (id: string | null) => void
+  setRelationFocus: (id: string | null) => void
   /** the workbench (2026-10, direction B) — the KIND every drawn connection
    *  takes (src/model/connectKind.ts), chosen in the tool row; a face point
    *  only decides where it attaches. Session only, `flow` at start. */
@@ -397,6 +405,10 @@ export const useUiStore = create<UiState>((set, get) => ({
   setNodeStructure: (v) => set((s) => (s.nodeStructure === v ? s : { nodeStructure: v })),
   hoverEdgeId: null,
   setHoverEdgeId: (id) => set((s) => (s.hoverEdgeId === id ? s : { hoverEdgeId: id })),
+  relationHoverId: null,
+  relationFocusId: null,
+  setRelationHover: (id) => set((s) => (s.relationHoverId === id ? s : { relationHoverId: id })),
+  setRelationFocus: (id) => set((s) => (s.relationFocusId === id ? s : { relationFocusId: id })),
   connectKind: 'flow',
   setConnectKind: (k) => set((s) => (s.connectKind === k && s.connectRefusal == null ? s : { connectKind: k, connectRefusal: null })),
   connectRefusal: null,

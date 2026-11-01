@@ -152,6 +152,23 @@ selecting one or more nodes puts everything outside the *focus set* into the
 de-emphasis tier (§LGR3). Deselecting, pressing `Esc`, or clicking empty canvas
 restores the full-strength canvas. Hover never drives focus.
 
+**The hover relation (#444, Lumi 2026-11-01).** Hover does not change the focus
+set; it only emphasises one hop for a moment. On a computer, when the mouse
+rests on a node for about 80 ms — or at once when keyboard focus lands on the
+node itself — that node, the connections drawn to or from it and the nodes at
+their other ends are marked (the §LGR2.2 set, never more than one hop); leaving
+the node, or focus leaving it, clears the mark at once. The rest of the canvas
+is not lowered. Light and dark: an amber ring on the node and a thinner one on
+its neighbours, its connections one step heavier with an amber glow under
+their own colour (dash and arrowhead kept; names keep their colour). Forced
+colours: a double ring on the node, a dashed ring on its neighbours, heavier
+lines; the selection and keyboard-focus rings stay as they are. It is off while
+Focus is on, during a node drag or a connection gesture, and on touch (a tap
+still selects). A selection stays: its blue mark wins on the selected node, and
+hovering another node adds the amber relation beside it. A connection the
+pointer is on keeps its own hover look. The relation never touches the
+selection, the Inspector, the document, Undo or the digest.
+
 ### LGR2.2 The focus set — closed for v1
 
 The set is anchored on **one** node — `graphStore.selectedNodeId`, which is the
