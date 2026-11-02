@@ -236,6 +236,7 @@ const inspector = {
   'inspector.icon.group.nature': '自然与基础',
   'inspector.icon.group.industry': '工业与生活',
   'inspector.icon.name.cloud': '云',
+  'inspector.icon.name.rain-cloud': '雨云',
   'inspector.icon.name.wind': '风',
   'inspector.icon.name.sun': '太阳',
   'inspector.icon.name.remote': '遥控器',
@@ -249,6 +250,7 @@ const inspector = {
   'inspector.icon.name.warehouse': '仓库',
   'inspector.icon.name.medicine': '药品',
   'inspector.icon.name.game-currency': '游戏货币',
+  'inspector.icon.name.recycling': '回收',
 } satisfies Record<InspectorKey, string>
 
 export default inspector

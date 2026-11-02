@@ -266,6 +266,7 @@ const inspector = {
   'inspector.icon.group.nature': 'الطبيعة والأساسيات',
   'inspector.icon.group.industry': 'الصناعة والحياة اليومية',
   'inspector.icon.name.cloud': 'سحابة',
+  'inspector.icon.name.rain-cloud': 'سحابة ممطرة',
   'inspector.icon.name.wind': 'رياح',
   'inspector.icon.name.sun': 'شمس',
   'inspector.icon.name.remote': 'جهاز تحكم عن بعد',
@@ -279,6 +280,7 @@ const inspector = {
   'inspector.icon.name.warehouse': 'مستودع',
   'inspector.icon.name.medicine': 'دواء',
   'inspector.icon.name.game-currency': 'عملة اللعبة',
+  'inspector.icon.name.recycling': 'إعادة التدوير',
 } as const
 
 export default inspector

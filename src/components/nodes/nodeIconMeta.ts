@@ -8,6 +8,7 @@ import type { NodeIconId } from '../../model/model'
  *  check sees every one used, and `tsc` fails on an id without a name) */
 const NAME_KEY = {
   cloud: 'inspector.icon.name.cloud',
+  'rain-cloud': 'inspector.icon.name.rain-cloud',
   wind: 'inspector.icon.name.wind',
   sun: 'inspector.icon.name.sun',
   remote: 'inspector.icon.name.remote',
@@ -21,6 +22,7 @@ const NAME_KEY = {
   warehouse: 'inspector.icon.name.warehouse',
   medicine: 'inspector.icon.name.medicine',
   'game-currency': 'inspector.icon.name.game-currency',
+  recycling: 'inspector.icon.name.recycling',
 } satisfies Record<NodeIconId, MessageKey>
 
 /** the catalog key of an icon's localized name */

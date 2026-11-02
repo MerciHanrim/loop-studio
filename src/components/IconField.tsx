@@ -28,8 +28,8 @@ import { nodeIconNameKey } from './nodes/nodeIconMeta'
 
 /** the picker's groups, in order (Lumi's first list of 14) */
 const GROUPS: readonly { key: 'inspector.icon.group.nature' | 'inspector.icon.group.industry'; ids: readonly NodeIconId[] }[] = [
-  { key: 'inspector.icon.group.nature', ids: NODE_ICON_IDS.slice(0, 8) },
-  { key: 'inspector.icon.group.industry', ids: NODE_ICON_IDS.slice(8) },
+  { key: 'inspector.icon.group.nature', ids: NODE_ICON_IDS.slice(0, 9) },
+  { key: 'inspector.icon.group.industry', ids: NODE_ICON_IDS.slice(9) },
 ]
 
 export function IconField() {

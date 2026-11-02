@@ -265,6 +265,7 @@ const inspector = {
   'inspector.icon.group.nature': 'Nature et bases',
   'inspector.icon.group.industry': 'Industrie et vie quotidienne',
   'inspector.icon.name.cloud': 'Nuage',
+  'inspector.icon.name.rain-cloud': 'Nuage de pluie',
   'inspector.icon.name.wind': 'Vent',
   'inspector.icon.name.sun': 'Soleil',
   'inspector.icon.name.remote': 'Télécommande',
@@ -278,6 +279,7 @@ const inspector = {
   'inspector.icon.name.warehouse': 'Entrepôt',
   'inspector.icon.name.medicine': 'Médicament',
   'inspector.icon.name.game-currency': 'Monnaie de jeu',
+  'inspector.icon.name.recycling': 'Recyclage',
 } satisfies Record<InspectorKey, string>
 
 export default inspector

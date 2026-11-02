@@ -238,6 +238,7 @@ const inspector = {
   'inspector.icon.group.nature': 'Thiên nhiên và cơ bản',
   'inspector.icon.group.industry': 'Công nghiệp và đời sống',
   'inspector.icon.name.cloud': 'Đám mây',
+  'inspector.icon.name.rain-cloud': 'Mây mưa',
   'inspector.icon.name.wind': 'Gió',
   'inspector.icon.name.sun': 'Mặt trời',
   'inspector.icon.name.remote': 'Điều khiển từ xa',
@@ -251,6 +252,7 @@ const inspector = {
   'inspector.icon.name.warehouse': 'Nhà kho',
   'inspector.icon.name.medicine': 'Thuốc',
   'inspector.icon.name.game-currency': 'Tiền tệ trong trò chơi',
+  'inspector.icon.name.recycling': 'Tái chế',
 } satisfies Record<InspectorKey, string>
 
 export default inspector

@@ -10,6 +10,7 @@
 /** every registered icon id, in the order the picker lists them */
 export const NODE_ICON_IDS = [
   'cloud',
+  'rain-cloud',
   'wind',
   'sun',
   'remote',
@@ -23,6 +24,7 @@ export const NODE_ICON_IDS = [
   'warehouse',
   'medicine',
   'game-currency',
+  'recycling',
 ] as const
 
 export type NodeIconId = (typeof NODE_ICON_IDS)[number]

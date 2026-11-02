@@ -232,6 +232,7 @@ const inspector = {
   'inspector.icon.group.nature': '자연과 기본',
   'inspector.icon.group.industry': '산업과 생활',
   'inspector.icon.name.cloud': '구름',
+  'inspector.icon.name.rain-cloud': '비구름',
   'inspector.icon.name.wind': '바람',
   'inspector.icon.name.sun': '태양',
   'inspector.icon.name.remote': '리모컨',
@@ -245,6 +246,7 @@ const inspector = {
   'inspector.icon.name.warehouse': '물류창고',
   'inspector.icon.name.medicine': '약',
   'inspector.icon.name.game-currency': '게임 재화',
+  'inspector.icon.name.recycling': '재활용',
 } satisfies Record<InspectorKey, string>
 
 export default inspector

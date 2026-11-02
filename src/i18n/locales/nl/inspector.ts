@@ -249,6 +249,7 @@ const inspector = {
   'inspector.icon.group.nature': 'Natuur en basis',
   'inspector.icon.group.industry': 'Industrie en dagelijks leven',
   'inspector.icon.name.cloud': 'Wolk',
+  'inspector.icon.name.rain-cloud': 'Regenwolk',
   'inspector.icon.name.wind': 'Wind',
   'inspector.icon.name.sun': 'Zon',
   'inspector.icon.name.remote': 'Afstandsbediening',
@@ -262,6 +263,7 @@ const inspector = {
   'inspector.icon.name.warehouse': 'Magazijn',
   'inspector.icon.name.medicine': 'Medicijn',
   'inspector.icon.name.game-currency': 'Spelvaluta',
+  'inspector.icon.name.recycling': 'Recycling',
 } as const
 
 export default inspector
