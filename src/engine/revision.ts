@@ -13,4 +13,9 @@
 //   absent (read as 0)  every engine before 2026-11-01
 //   1                   issue #471 — a Converter plans its run fraction before
 //                       it takes anything (V1, V2, V3); shared targets (V3g, V3r)
-export const ENGINE_REVISION = 1
+//   2                   issue #471 — a Converter fed through Gates or other
+//                       Converters is planned with them as one group, at the
+//                       group's first router (V2b, V4); a split that rejoins
+//                       is refused before the run; a Converter whose router
+//                       input delivers nothing this step does not run
+export const ENGINE_REVISION = 2

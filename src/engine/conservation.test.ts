@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LoopEdge, LoopNode } from '../model/types'
+import { converterGroups } from './converterGroups'
 import { initSim, step } from './index'
 
 // docs/specs/SEMANTICS.md §12 — the conservation invariants, checked over one
@@ -66,18 +67,21 @@ const converterRate = (flow: string): number =>
 type Before = ReturnType<typeof initSim>
 type After = ReturnType<typeof step>
 
-/** the four checks over one step; `[]` when all hold. `routerFed` counts the
- *  Converters checks 2 / 3 skipped (a router-fed input — #471 Phase B). */
-function conservation(nodes: LoopNode[], edges: LoopEdge[], before: Before, after: After): { violations: string[]; routerFed: number } {
+/** the four checks over one step; `[]` when all hold. `multi` counts the
+ *  Converters checks 2 / 3 skipped: members of a MULTI group (a Gate with two
+ *  supplies), which keeps the rule it had until its design is done (#471 stays
+ *  open). A Converter in a TREE group is planned with its routers (Deploy 2)
+ *  and is checked like a Pool-fed one. */
+function conservation(nodes: LoopNode[], edges: LoopEdge[], before: Before, after: After): { violations: string[]; multi: number } {
   const violations: string[] = []
-  const kind = new Map(nodes.map((n) => [n.id, n.data.kind]))
   const byEdge = new Map(edges.map((e) => [e.id, e]))
   const moved = new Map<string, number>()
   for (const ev of after.report.events) moved.set(ev.edgeId, (moved.get(ev.edgeId) ?? 0) + ev.amount)
   const into = (id: string) => [...moved].reduce((s, [eid, a]) => s + (byEdge.get(eid)!.target === id ? a : 0), 0)
   const outOf = (id: string) => [...moved].reduce((s, [eid, a]) => s + (byEdge.get(eid)!.source === id ? a : 0), 0)
   const flowOf = (e: LoopEdge) => (e.data as { flow?: string }).flow ?? ''
-  let routerFed = 0
+  const multiMembers = new Set(converterGroups(nodes, edges).filter((g) => g.cls === 'multi').flatMap((g) => g.members))
+  let multi = 0
 
   for (const n of nodes) {
     if (n.data.kind === 'pool') {
@@ -91,8 +95,8 @@ function conservation(nodes: LoopNode[], edges: LoopEdge[], before: Before, afte
     } else if (n.data.kind === 'converter') {
       const ins = edges.filter((e) => e.target === n.id && e.data?.kind === 'resource')
       const outs = edges.filter((e) => e.source === n.id && e.data?.kind === 'resource')
-      if (ins.some((e) => kind.get(e.source) !== 'pool')) {
-        routerFed++
+      if (multiMembers.has(n.id)) {
+        multi++
         continue
       }
       // 2 — one f on the inputs; every output either moved f · rate or is
@@ -126,21 +130,22 @@ function conservation(nodes: LoopNode[], edges: LoopEdge[], before: Before, afte
       }
     }
   }
-  return { violations, routerFed }
+  return { violations, multi }
 }
 
-/** `expect` the four checks over `steps` steps of one graph */
+/** `expect` the four checks over `steps` steps of one graph; returns the
+ *  number of multi-group Converters the checks skipped */
 function holds(nodes: LoopNode[], edges: LoopEdge[], steps: number, label: string): number {
   let s = initSim(nodes)
-  let routerFed = 0
+  let multi = 0
   for (let t = 0; t < steps; t++) {
     const r = step(nodes, edges, s, 3, 2)
     const c = conservation(nodes, edges, s, r)
-    routerFed = Math.max(routerFed, c.routerFed)
+    multi = Math.max(multi, c.multi)
     expect(c.violations, `${label} step ${t + 1}\nnodes=${JSON.stringify(nodes.map((n) => n.data))}\nedges=${JSON.stringify(edges.map((e) => [e.source, e.target, (e.data as { flow?: string }).flow]))}`).toEqual([])
     s = r.state
   }
-  return routerFed
+  return multi
 }
 
 describe('conservation — the #388 shapes', () => {
@@ -279,13 +284,16 @@ describe('conservation — randomised sweep over activations and router kinds', 
     (n, g) => n + g.nodes.filter((x) => x.data.kind === 'converter' && g.edges.some((e) => e.target === x.id && g.nodes.find((y) => y.id === e.source)?.data.kind !== 'pool')).length,
     0,
   )
+  const groups = SWEEP.flatMap((g) => converterGroups(g.nodes, g.edges))
+  const count = (cls: string) => groups.filter((g) => g.cls === cls).length
   SWEEP.forEach((g, i) => {
     it(`graph ${i + 1} conserves over 4 steps`, () => {
       holds(g.nodes, g.edges, 4, `graph ${i + 1}`)
     })
   })
-  it(`the sweep draws ${routerFedConverters} router-fed Converters, on which checks 2 and 3 wait for #471 Phase B`, () => {
-    expect(routerFedConverters).toBeGreaterThan(0) // the count is a fact of the sample, reported here
+  it(`the sweep draws ${routerFedConverters} router-fed Converters in ${count('tree')} tree, ${count('multi')} multi and ${count('split-rejoin')} refused groups; all four checks hold on the trees`, () => {
+    expect(routerFedConverters).toBeGreaterThan(0) // the counts are a fact of the sample, reported here
+    expect(count('tree')).toBeGreaterThan(0)
   })
 })
 
@@ -350,9 +358,10 @@ describe('conservation — a nearly full capped output (#471 V1)', () => {
   }
 })
 
-describe('conservation — two routers into one Converter (#471 V4, Phase B)', () => {
-  /** P1 → g1 → C, P2 → g2 → C, C → x: each Gate sizes its delivery by the
-   *  whole of what C accepts, so C receives more than its recipe needs */
+describe('conservation — two routers into one Converter (#471 V4 — a tree group, planned as one since Deploy 2)', () => {
+  /** P1 → g1 → C, P2 → g2 → C, C → x: before Deploy 2 each Gate sized its
+   *  delivery by the whole of what C accepts, so C received more than its
+   *  recipe needed; the joint plan ties the two Gates to C's recipe */
   const diamond = (s: number) => {
     const rnd = lcg(s * 2147483647)
     const need1 = 1 + Math.floor(rnd() * 5)
@@ -366,12 +375,12 @@ describe('conservation — two routers into one Converter (#471 V4, Phase B)', (
     return { nodes, edges, need: need1 + need2 }
   }
   for (let s = 1; s <= 20; s++) {
-    it(`seed ${s}: the Pools and the Gates balance — what is lost is lost inside the Converter`, () => {
+    it(`seed ${s}: all four checks hold — the two Gates deliver C's recipe at one f`, () => {
       const { nodes, edges } = diamond(s)
-      expect(holds(nodes, edges, 2, `seed ${s}`)).toBe(1) // checks 1 and 4 hold; C is the one router-fed Converter
+      expect(holds(nodes, edges, 2, `seed ${s}`)).toBe(0) // a tree group: nothing skipped
     })
   }
-  it.fails('a Converter fed by two routers receives no more than its recipe uses (#471 V4 — the joint plan across routers, not fixed yet)', () => {
+  it('a Converter fed by two routers receives no more than its recipe uses (#471 V4 — the joint plan across routers)', () => {
     for (let s = 1; s <= 20; s++) {
       const { nodes, edges, need } = diamond(s)
       const s0 = initSim(nodes)

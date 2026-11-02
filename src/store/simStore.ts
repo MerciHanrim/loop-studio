@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { initSim, step } from '../engine'
 import type { FlowEvent, SimState, SimValues, StateEvent, StepResult, TriggerQueueEntry } from '../engine'
+import { type ConverterGroup, refusedGroups } from '../engine/converterGroups'
+import type { StepNotice } from '../engine/types'
 import { MAX_SERIES } from '../model/limits'
 import { readTimelineSeries, type TimelineSeries } from '../model/serialize'
 import {
@@ -70,6 +72,8 @@ export type PreparedResult = {
     triggerQueue: TriggerQueueEntry[]
     /** `StepReport.diagnostics` of this step, deduplicated (issue #396) */
     diagnostics: string[]
+    /** `StepReport.notices` of this step (#471 — worded by the run bars) */
+    notices: StepNotice[]
   }
 }
 
@@ -110,6 +114,10 @@ type SimStore = {
    *  after a Workspace snapshot restore. The run strip shows them and a status
    *  region reads them once per change. Session-only, never serialized. */
   diagnostics: string[]
+  /** #471 (Deploy 2) — the engine's structured notices of the same step
+   *  (`StepReport.notices`), which the run bars word in the user's language;
+   *  the same lifecycle as `diagnostics`. */
+  notices: StepNotice[]
 
   /** why the current graph cannot be initialised for a run (`initSim` threw —
    *  e.g. a Pool whose `initial` / `capacity` is negative or non-finite, which
@@ -121,6 +129,18 @@ type SimStore = {
    *  subscriber registered after the sim store (Monte-Carlo staleness, the
    *  project `dirty` flag) silently missed that graph change. */
   initError: string | null
+
+  /** issue #471 (Deploy 2, F1) — the Converter groups the engine refuses to
+   *  run: a split that rejoins (two forward paths from one router meeting
+   *  again at a later Gate or Converter), in every model version. Computed
+   *  with `initError` from the graph on every simulation-relevant change
+   *  (`refusedGroups`, the same classification `step` applies). While the
+   *  list is not empty, Play, Step and Monte Carlo do not start; the run bars
+   *  show one line with the first group's split and join and a way to select
+   *  the split; every member shows the warning outline; the Inspector shows
+   *  the line for a selected member. Editing, saving and sharing are
+   *  unaffected. Session-only, never serialized. */
+  refusals: ConverterGroup[]
 
   /** docs/simulation-playback-ordering.md §PBO5 — true once the last
    *  `STEADY_N` consecutive committed steps have a pairwise-ε-equal Pool vector
@@ -323,9 +343,11 @@ export const useSimStore = create<SimStore>((set, get) => {
         triggerQueue: s.triggerQueue,
       }
     const { init, error } = safeInit(graph().nodes)
-    set({ values: init.values, stepIndex: 0, triggerQueue: [], series: [{ step: 0, values: init.values }], initError: error })
+    set({ values: init.values, stepIndex: 0, triggerQueue: [], series: [{ step: 0, values: init.values }], initError: error, refusals: refusedGroups(graph().nodes, graph().edges) })
     return init
   }
+  /** #471 — Play / Step do not start while a group is refused (see `refusals`) */
+  const refused = () => get().initError != null || get().refusals.length > 0
 
   const deriveFrom = (r: StepResult): PreparedResult['derived'] => {
     const g = graph()
@@ -345,6 +367,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       arrivedPoolIds: [...arrived],
       triggerQueue: [...r.state.triggerQueue],
       diagnostics: [...new Set(r.report.diagnostics)],
+      notices: [...r.report.notices],
     }
   }
 
@@ -411,6 +434,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       stateEvents: [...p.derived.stateEvents],
       arrivedPoolIds: [...p.derived.arrivedPoolIds],
       diagnostics: [...p.derived.diagnostics], // #396 — this step's, replacing the last step's
+      notices: [...p.derived.notices],
       // §LGR6-cues — this committed step's `effective` id set, appended to the
       // trailing Activity-overlay window (fired nodes + resource-edge ids from
       // `events` + state-edge ids from `stateEvents`).
@@ -591,7 +615,9 @@ export const useSimStore = create<SimStore>((set, get) => {
     stateEvents: [],
     arrivedPoolIds: [],
     diagnostics: [],
+    notices: [],
     initError: null,
+    refusals: [],
     activitySteps: [],
     steadyState: false,
     series: [],
@@ -615,7 +641,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       // from the status, so the loop stepped the economy past the End.
       if (get().status === 'ended') return
       head()
-      if (get().initError) return // the graph cannot be initialised — see `initError`
+      if (refused()) return // the graph cannot be initialised or is refused — see `initError` / `refusals`
       set({ status: 'running' })
       startLoop()
     },
@@ -636,7 +662,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       if (get().activeTransitionId != null) set({ activeTransitionId: null })
       if (get().status === 'running') return // Step is disabled while Play runs
       head()
-      if (get().initError) return // the graph cannot be initialised — see `initError`
+      if (refused()) return // the graph cannot be initialised or is refused — see `initError` / `refusals`
       // issue #330 PR 3 — Step always draws the full tier (§PB6.1)
       beginTransition('full')
       if (typeof requestAnimationFrame === 'undefined' || reducedMotion()) {
@@ -665,7 +691,9 @@ export const useSimStore = create<SimStore>((set, get) => {
         stateEvents: [],
         arrivedPoolIds: [],
         diagnostics: [], // #396 — Reset, a graph edit and a document change leave none behind
+        notices: [],
         initError: error,
+        refusals: refusedGroups(graph().nodes, graph().edges),
         activitySteps: [],
         steadyState: false,
         series: [{ step: 0, values: init.values }],
@@ -694,7 +722,9 @@ export const useSimStore = create<SimStore>((set, get) => {
         activeByEdge: {},
         arrivedPoolIds: [],
         diagnostics: [], // #396 — a snapshot carries no step report
+        notices: [],
         initError: null, // a verified snapshot IS a valid head
+        refusals: refusedGroups(graph().nodes, graph().edges), // a refused shape stays refused: a restored head does not step
         activitySteps: [],
         commitEpoch: s.commitEpoch + 1,
         lastSettledTransitionId: null,

@@ -252,6 +252,7 @@ export function Inspector({ editLocked = false }: { editLocked?: boolean } = {})
         {/* a mismatch is a finding, not a setting: it stays in view, with the
             way to the setting it is about, while that setting is folded */}
         {d.kind === 'pool' && <ResourceMismatchNote findings={mismatches.filter((f) => f.nodeId === node.id)} />}
+        {(d.kind === 'gate' || d.kind === 'converter') && <RefusedGroupNote nodeId={node.id} />}
 
         {/* the flow mode and the resource type are settings most edits never
             touch (Lumi, 2026-10-19): folded, for every kind that has them */}
@@ -1106,6 +1107,26 @@ function ResourceTypeField({ value, onChange }: { value: string | undefined; onC
         <p className="inspector__note">{t('inspector.resourceType.custom')}</p>
       )}
     </>
+  )
+}
+
+/** issue #471 (Deploy 2, F1) — the selected Gate or Converter is a member of
+ *  a Converter group the engine refuses to run (a split that rejoins:
+ *  SEMANTICS.md §6 erratum, part 2). The note names the split and the join
+ *  and says what to change; the run bar shows the count and selects the
+ *  split. A finding, not a setting: it stays in view. */
+function RefusedGroupNote({ nodeId }: { nodeId: string }) {
+  const t = useT()
+  const group = useSimStore((s) => s.refusals.find((g) => g.members.includes(nodeId)) ?? null)
+  const nodes = useGraphStore((s) => s.nodes)
+  if (!group) return null
+  const label = (id: string | null) => nodes.find((n) => n.id === id)?.data.label ?? id ?? ''
+  return (
+    <div className="wb-panel__finding">
+      <p className="inspector__note inspector__note--warn" role="status">
+        {t('inspector.refused.splitRejoin', { split: isolateAuto(label(group.split)), join: isolateAuto(label(group.join)) })}
+      </p>
+    </div>
   )
 }
 

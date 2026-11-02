@@ -1337,6 +1337,7 @@ function GateNode({ id, data, selected }: NodeProps) {
         subDir="ltr"
         selected={selected}
         accent={(data as FlowColour).accent}
+        invalid={useRefusedMember(id)}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
         activity={useNodeActivityOpacity(id)}
@@ -1345,6 +1346,11 @@ function GateNode({ id, data, selected }: NodeProps) {
     </>
   )
 }
+
+/** issue #471 (Deploy 2, F1) — a member of a Converter group the engine
+ *  refuses to run (a split that rejoins) carries the `invalid` outline: the
+ *  run bar's line and the Inspector's note say why */
+const useRefusedMember = (id: string) => useSimStore((s) => s.refusals.some((g) => g.members.includes(id)))
 
 function ConverterNode({ id, data, selected }: NodeProps) {
   const d = data as ConverterData
@@ -1361,6 +1367,7 @@ function ConverterNode({ id, data, selected }: NodeProps) {
         subDir="ltr"
         selected={selected}
         accent={(data as FlowColour).accent}
+        invalid={useRefusedMember(id)}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
         activity={useNodeActivityOpacity(id)}

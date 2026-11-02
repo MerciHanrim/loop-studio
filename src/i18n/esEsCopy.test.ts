@@ -145,6 +145,10 @@ describe('es-ES — the region audit, as a contract', () => {
         // the formatter emits a NO-BREAK SPACE before the percent sign
         'playbar.mc.progress',
         'runbar.mc.cancel',
+        // issue #471 (Deploy 2) — the refused-shape note: Spain says `añada`
+        // where es-419 says `agregue`; the run bar's two short strings read
+        // the same in both
+        'inspector.refused.splitRejoin',
         // `language.spanishSpain` is deliberately NOT in this list: both
         // Spanish catalogs name Spain Spanish the same way, so the new key is
         // identical in the two and the audit did not touch it.

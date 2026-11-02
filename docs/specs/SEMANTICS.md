@@ -223,6 +223,58 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
   Pool's room (`acceptInto(Q) · Σw / Σ w into Q`), and two Converter outputs
   into one Pool or one router share that target's room or `accept`.
 
+  **Erratum, part 2 (issue #471, 2026-11-02) — the joint plan across routers.**
+  The router-fed case above is settled by planning a Converter together with
+  the routers it is joined to. A *Converter group* is a set of Gates and
+  Converters joined by resource connections between routers, containing a
+  Converter fed by a router (`src/engine/converterGroups.ts`); every router →
+  router connection inside it must deliver exactly what its receiver consumes
+  (I5), so the members' fractions are tied together. The group is classed by
+  structure, over the connections that are live this step (both ends fire,
+  not dead, the picked branch of a probabilistic Gate, a positive rate):
+  - **tree** — no split that rejoins, and every Gate has one supply (one
+    upstream router, or its own Pools). The equalities leave one free number
+    `s`; from the group's first router in the canonical order (`c = 1`) each
+    member's amount per unit of `s` follows the connections in either
+    direction, Gate → X by the branch share `w / W` (divided by the rate into
+    a Converter), Converter → X by its rate (whole into a Gate). `s` is the
+    smallest bound: `f ≤ 1` per Converter; `available(P)` per input Pool over
+    the members' needs; `room(Q)` per output Pool over the members' deliveries
+    (a Converter's net on a Pool it also takes from); a source Gate's reach
+    from its own Pools, net of the plan's claims on the same Pools; `0` for a
+    member with no live output, a disabled `pull all` Converter, or a
+    Converter with a router input that delivers nothing this step. `pull all`
+    members fix the number: below `1 − epsilon` the group moves nothing (§9).
+    **The plan is placed at the turn of the group's first router** in the
+    canonical order: it claims the Converters' Pool inputs there (a new ledger,
+    `reservedIn`; every other router reads the Pool net of it, as `headroom`
+    reads a Pool net of `reserved`) and reserves the members' output room; each
+    member then moves exactly its planned amounts at its own turn and releases
+    its claim. An outside router ordered between the group's first router and
+    its Converter therefore sees the shared Pool net of the claim (the
+    *reservation effect*); one ordered before the group is unaffected.
+  - **split that rejoins** — two forward paths from one router meet again at
+    a later Gate or Converter of the group (connections between the same two
+    routers count once: a Gate's share to a connection and a Converter's need
+    on it are both that connection's rate, so parallel connections always
+    agree on the one fraction and the plan sums them per pair). The
+    only exact plan can be zero, and a plan that happens to agree flips with
+    the branches that are live, so the shape is **refused before the run**,
+    on the full graph and in every model version: Play, Step and Monte Carlo
+    do not start, and `step` itself returns the unchanged state with one
+    diagnostic naming the split and the join. Editing, saving and sharing are
+    unaffected. A Pool on one of the paths ends the group (the path then moves
+    one step later).
+  - **multi** — a Gate with two supplies (two upstream routers, or one and its
+    own Pools): two or more free numbers. Not designed: the group keeps the
+    rule above (Pool inputs at `fPool · rate`, production from what was
+    received), and a Converter that received more than `f · Σ inRate` reports
+    the amount as a diagnostic. Unresolved; #471 stays open.
+  A Converter outside every group whose router input delivers nothing this
+  step (its router does not fire, the connection is dead, or a probabilistic
+  Gate picked another branch) does not run from its Pools alone: one `f` on
+  every connection (I2) is `0`.
+
   **Exactly one activation per step, `0 ≤ f ≤ 1`** (gap 1). Because a Gate sizes
   its delivery from `accept(C)` (which already caps at `f ≤ 1` and at live
   output headroom via the reservation ledger), `received` never exceeds what `C`

@@ -94,7 +94,12 @@ const ui = {
   'playbar.mc.cancelled': 'Отменено',
   'playbar.mc.failed': 'Выполнение не удалось',
   'playbar.initError': 'Нельзя выполнить: {detail}',
+  'playbar.refused': 'Нельзя выполнить: пути, которые расходятся и снова сходятся ({n})',
+  'playbar.refused.show': 'Показать',
+  'inspector.refused.splitRejoin': 'Нельзя выполнить: ресурсы расходятся в {split} и снова сходятся в {join}. Эта версия модели не поддерживает пути, которые расходятся и снова сходятся, поэтому модель не выполняется. Чтобы запустить её, удалите один из путей или добавьте на один из них Накопитель. Накопитель удерживает то, что в него приходит, поэтому этот путь сдвинется на шаг позже.',
   'playbar.diag.title': 'Диагностика запуска ({n})',
+  'playbar.diag.multiSupplyLoss': '{label} получил на {amount} больше, чем мог использовать на этом шаге, и это количество потеряно.',
+  'playbar.diag.multiSupplyHeld': '{label} получил на этом шаге {amount}, которые не смог передать дальше, и это количество потеряно.',
   'playbar.mc.title': 'Выполнить диаграмму много раз и посмотреть распределение',
   // MEASURED: `Intl.NumberFormat('ru', {style:'percent'})` puts a NO-BREAK
   // SPACE before the sign, so this string carries U+00A0 — never an escape

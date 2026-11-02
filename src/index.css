@@ -4414,6 +4414,18 @@ a.sheet__row {
   word-break: keep-all;
   flex-shrink: 0;
 }
+/* issue #471 (Deploy 2) — the run refusal for a Converter group: the line
+   plus its Show button, which selects the first group's split */
+.pstrip__refused {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pstrip__refused-show {
+  font-size: 11px;
+  padding: 1px 8px;
+  min-height: 0;
+}
 /* issue #396 — the engine's step diagnostics (simStore.diagnostics). On the
    desktop they are a block of their own UNDER the run strip (`.pstrip-diag`,
    a sibling, never a child of the one-row flex strip, whose own controls

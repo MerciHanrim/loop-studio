@@ -39,7 +39,7 @@ function run(nodes: LoopNode[], edges: LoopEdge[]) {
   for (const ev of r.report.events) moved[ev.edgeId] = (moved[ev.edgeId] ?? 0) + ev.amount
   const pools: Record<string, number> = {}
   for (const n of nodes) if (n.data.kind === 'pool') pools[n.id] = r.state.values[n.id]
-  return { moved, pools, fired: r.state.fired, diagnostics: r.report.diagnostics }
+  return { moved, pools, fired: r.state.fired, diagnostics: r.report.diagnostics, notices: r.report.notices }
 }
 const close = (got: Record<string, number>, want: Record<string, number>) => {
   for (const k of Object.keys(want)) expect(got[k], k).toBeCloseTo(want[k], 6)
@@ -187,30 +187,43 @@ describe('#471 — rules that must not move (pins)', () => {
   })
 })
 
-describe('#471 — Phase B targets: a router-fed input beside a Pool input (the joint plan across routers; not fixed yet)', () => {
+// ── Deploy 2 — the joint plan across routers (SEMANTICS.md §6 erratum, part 2) ──
+// A Converter group (Gates and Converters joined by connections between them,
+// with a Converter fed by a router) that is a TREE is planned as one: one free
+// number, every connection at its fixed multiple of it. In `pull all` the
+// group runs at that number or not at all (§9), so where f < 1 nothing moves.
+
+const nothingMoved = (r: ReturnType<typeof run>) => expect(Object.values(r.moved).every((a) => a === 0)).toBe(true)
+
+describe('#471 — a router-fed input beside a Pool input: the joint plan across routers (Deploy 2)', () => {
   // G1: a 100 →(50) g →(50) C; b 10 →(50) C; C →(100) x. One f = 0.2 means the
-  // Gate delivers 10, not 50. Today the Gate delivers the full 50, the Pool
-  // gives 10, and C makes 60 (V2b).
-  it.fails('G1: the Gate delivers at the same fraction as the short Pool input', () => {
+  // Gate delivers 10, not 50. Before: the Gate delivered the full 50, the Pool
+  // gave 10, and C made 60 (V2b).
+  it('G1: the Gate delivers at the same fraction as the short Pool input', () => {
     const nodes = [pool('a', 100), pool('b', 10), gate('g'), conv('C'), pool('x', 0)]
     const edges = [res('e1', 'a', 'g', '50'), res('g1', 'g', 'C', '50'), res('e2', 'b', 'C', '50'), res('o1', 'C', 'x', '100')]
     const r = run(nodes, edges)
     close(r.moved, { e1: 10, g1: 10, e2: 10, o1: 20 })
     close(r.pools, { a: 90, b: 0, x: 20 })
+    expect(r.diagnostics).toEqual([])
+    const all = run(inMode(nodes, 'pullAll'), edges)
+    nothingMoved(all)
+    close(all.pools, { a: 100, b: 10, x: 0 })
   })
 
   // G2: one Pool b (60) feeds both the Gate and C: 50 s + 50 s ≤ 60 ⇒ s = 0.6.
-  it.fails('G2: one Pool feeding the Gate and the Converter is shared by the plan', () => {
+  it('G2: one Pool feeding the Gate and the Converter is shared by the plan', () => {
     const nodes = [pool('b', 60), gate('g'), conv('C'), pool('x', 0)]
     const edges = [res('e1', 'b', 'g', '50'), res('g1', 'g', 'C', '50'), res('e2', 'b', 'C', '50'), res('o1', 'C', 'x', '100')]
     const r = run(nodes, edges)
     close(r.moved, { e1: 30, g1: 30, e2: 30, o1: 60 })
     close(r.pools, { b: 0, x: 60 })
+    nothingMoved(run(inMode(nodes, 'pullAll'), edges))
   })
 
   // G3: a Gate splits into two Converters; C2's Pool input is short (10 of 50).
   // The fixed split ties the two, so s = 0.2 for the whole group.
-  it.fails('G3: a short input on one branch limits every branch, as a short Pool downstream already does', () => {
+  it('G3: a short input on one branch limits every branch, as a short Pool downstream already does', () => {
     const nodes = [pool('a', 100), pool('b1', 100), pool('b2', 10), gate('g'), conv('C1'), conv('C2'), pool('x1', 0), pool('x2', 0)]
     const edges = [
       res('e1', 'a', 'g', '100'), res('g1', 'g', 'C1', '50'), res('g2', 'g', 'C2', '50'),
@@ -219,20 +232,204 @@ describe('#471 — Phase B targets: a router-fed input beside a Pool input (the 
     const r = run(nodes, edges)
     close(r.moved, { e1: 20, g1: 10, g2: 10, f1: 10, f2: 10, o1: 20, o2: 20 })
     close(r.pools, { a: 80, b1: 90, b2: 0, x1: 20, x2: 20 })
+    nothingMoved(run(inMode(nodes, 'pullAll'), edges))
   })
 
-  // G4: a split that rejoins — g0 splits to g1 and g2, both feed C, and g1
-  // also feeds y. The only exact plan is zero. The new rule refuses this
-  // shape BEFORE the run (nothing moves, with a message); today C receives
-  // 30, needs 20, and 10 vanish (V4). The message text is Deploy 2's.
-  it.fails('G4: a split that rejoins is refused before the run — nothing moves and nothing vanishes', () => {
+  // Two Gates into one Converter (the conservation suite's diamond) are a
+  // tree too: the Converter's recipe ties the two Gates' throughputs.
+  it('two Gates feeding one Converter deliver exactly its recipe at one f', () => {
+    const nodes = [pool('P1', 50), pool('P2', 50), gate('g1'), gate('g2'), conv('C'), pool('x', 0, 30)]
+    const edges = [
+      res('e1', 'P1', 'g1', '7'), res('k1', 'g1', 'C', '3'),
+      res('e2', 'P2', 'g2', '7'), res('k2', 'g2', 'C', '4'),
+      res('o1', 'C', 'x', '7'),
+    ]
+    const r = run(nodes, edges)
+    // f = 1 (the room is 30 ≥ 7): g1 delivers 3, g2 delivers 4, and each Gate
+    // took exactly that from its Pool
+    close(r.moved, { e1: 3, k1: 3, e2: 4, k2: 4, o1: 7 })
+    close(r.pools, { P1: 47, P2: 46, x: 7 })
+  })
+
+  // A Converter whose router input delivers nothing this step (its Gate does
+  // not fire) does not run from its Pool alone: one f on every connection is 0.
+  it('a router input that delivers nothing this step keeps the Converter from running on its Pools alone', () => {
+    const silent = { ...gate('g'), data: { ...gate('g').data, activation: 'passive' } } as LoopNode
+    const nodes = [pool('a', 100), pool('b', 100), silent, conv('C'), pool('x', 0)]
+    const edges = [res('e1', 'a', 'g', '50'), res('g1', 'g', 'C', '50'), res('e2', 'b', 'C', '50'), res('o1', 'C', 'x', '100')]
+    const r = run(nodes, edges)
+    nothingMoved(r)
+    close(r.pools, { a: 100, b: 100, x: 0 })
+  })
+})
+
+describe('#471 — a split that rejoins is refused before the run (Deploy 2, F1)', () => {
+  // G4: g0 splits to g1 and g2, both feed C, and g1 also feeds y. The only
+  // exact plan is zero; before, C received 30, needed 20, and 10 vanished (V4).
+  const G4 = () => {
     const nodes = [pool('a', 100), gate('g0'), gate('g1'), gate('g2'), conv('C'), pool('x', 0), pool('y', 0)]
     const edges = [
       res('e0', 'a', 'g0', '40'), res('h1', 'g0', 'g1', '1'), res('h2', 'g0', 'g2', '1'),
       res('k1', 'g1', 'C', '10'), res('k2', 'g1', 'y', '10'), res('k3', 'g2', 'C', '10'), res('o1', 'C', 'x', '20'),
     ]
+    return { nodes, edges }
+  }
+  const refusedBy = (r: ReturnType<typeof run>) => {
+    nothingMoved(r)
+    expect(r.fired).toEqual([])
+    expect(r.diagnostics).toHaveLength(1)
+    expect(r.diagnostics[0]).toMatch(/^Can't run: resources split at "g0" and meet again at "C"\./)
+  }
+
+  it('G4: nothing moves and nothing vanishes; the report names the split and the join', () => {
+    const { nodes, edges } = G4()
     const r = run(nodes, edges)
-    expect(Object.values(r.moved).every((a) => a === 0)).toBe(true)
+    refusedBy(r)
     close(r.pools, { a: 100, x: 0, y: 0 })
+    refusedBy(run(inMode(nodes, 'pullAll'), edges))
+  })
+
+  it('G4 agreeing: the two paths give C the same fraction and the shape is still refused (the rule is on structure)', () => {
+    const { nodes, edges } = G4()
+    const agreeing = edges.filter((e) => e.id !== 'k2') // g1 → C only: through g1 and through g2, C gets T / 2 each
+    refusedBy(run(nodes, agreeing))
+  })
+
+  it('G4 in a v1 and in a v2 document: refused in both, and the step is not consumed', () => {
+    const { nodes, edges } = G4()
+    for (const v of [1, 2] as const) {
+      const r = step(nodes, edges, initSim(nodes), 1, v)
+      expect(r.report.events, `v${v}`).toEqual([])
+      expect(r.state.step, `v${v}`).toBe(0)
+      expect(r.state.values, `v${v}`).toEqual(initSim(nodes).values)
+      expect(r.report.diagnostics, `v${v}`).toHaveLength(1)
+    }
+  })
+
+  it('connections between the same two routers count once (rev 3): two from one Gate into one Converter run, each at the one fraction', () => {
+    // the Gate's share to a connection and the Converter's need on it are both
+    // that connection's rate, so the two connections always agree: with the
+    // supply short (a 20 of the Gate's 40), f = 20 / 40 on BOTH, k1 5 and k2 15
+    const nodes = [pool('a', 20), gate('g'), conv('C'), pool('x', 0)]
+    const twoIntoC = [res('e1', 'a', 'g', '40'), res('k1', 'g', 'C', '10'), res('k2', 'g', 'C', '30'), res('o1', 'C', 'x', '20')]
+    const r = run(nodes, twoIntoC)
+    close(r.moved, { e1: 20, k1: 5, k2: 15, o1: 10 })
+    expect(r.diagnostics).toEqual([])
+    close(r.pools, { a: 0, x: 10 })
+    // with the supply whole, f = 1 on both
+    close(run([pool('a', 100), gate('g'), conv('C'), pool('x', 0)], twoIntoC).moved, { e1: 40, k1: 10, k2: 30, o1: 20 })
+    const nodes2 = [pool('a', 100), gate('g'), gate('h'), conv('C'), pool('x', 0)]
+    const twoIntoH = [res('e1', 'a', 'g', '20'), res('k1', 'g', 'h', '10'), res('k2', 'g', 'h', '10'), res('m1', 'h', 'C', '20'), res('o1', 'C', 'x', '20')]
+    const r2 = run(nodes2, twoIntoH)
+    close(r2.moved, { e1: 20, k1: 10, k2: 10, m1: 20, o1: 20 })
+    expect(r2.diagnostics).toEqual([])
+  })
+})
+
+describe('#471 — the input reservation and an outside router (Deploy 2, G8)', () => {
+  // The G1 group (Gate k → Converter m, m also reads Pool b 60) plus an outside
+  // Gate O that reads b at rate 50. Router order is ascending id, so O's id
+  // places it before the group (j), between its Gate and its Converter (l),
+  // or after it (n). The group claims b at k's turn, for exactly its plan's
+  // amount; before, m claimed at its own turn. So only `l` changes: it now
+  // sees b net of the group's claim (the reservation effect), which
+  // disappears when O is ordered first (`j`). No amount is lost anywhere:
+  // every connection moves f · rate, and the Pool total is unchanged (m's
+  // recipe is 100 in, 100 out).
+  const G8 = (o: 'j' | 'l' | 'n', mode: Mode) => {
+    const nodes = inMode([pool('a', 100), pool('b', 60), gate('k'), conv('m'), gate(o), pool('x', 0), pool('z', 0)], mode)
+    const edges = [
+      res('e1', 'a', 'k', '50'), res('g1', 'k', 'm', '50'), res('e2', 'b', 'm', '50'), res('o1', 'm', 'x', '100'),
+      res('e3', 'b', o, '50'), res('h1', o, 'z', '50'),
+    ]
+    return { nodes, edges }
+  }
+  const total = (pools: Record<string, number>) => Object.values(pools).reduce((s, v) => s + v, 0)
+
+  it('pull any — j (before the group): O takes 50 first, the group plans on the 10 left: f 0.2', () => {
+    const { nodes, edges } = G8('j', 'pullAny')
+    const r = run(nodes, edges)
+    close(r.moved, { e1: 10, g1: 10, e2: 10, o1: 20, e3: 50, h1: 50 })
+    close(r.pools, { a: 90, b: 0, x: 20, z: 50 })
+    expect(total(r.pools)).toBeCloseTo(160, 6)
+  })
+  it('pull any — l (between k and m): the group claimed b at k\'s turn, O sees 10 — the reservation effect', () => {
+    const { nodes, edges } = G8('l', 'pullAny')
+    const r = run(nodes, edges)
+    close(r.moved, { e1: 50, g1: 50, e2: 50, o1: 100, e3: 10, h1: 10 })
+    close(r.pools, { a: 50, b: 0, x: 100, z: 10 })
+    expect(total(r.pools)).toBeCloseTo(160, 6)
+  })
+  it('pull any — n (after the group): as before the change', () => {
+    const { nodes, edges } = G8('n', 'pullAny')
+    const r = run(nodes, edges)
+    close(r.moved, { e1: 50, g1: 50, e2: 50, o1: 100, e3: 10, h1: 10 })
+    close(r.pools, { a: 50, b: 0, x: 100, z: 10 })
+  })
+  it('pull all — j: O takes 50, the group cannot reach f = 1 and moves nothing', () => {
+    const { nodes, edges } = G8('j', 'pullAll')
+    const r = run(nodes, edges)
+    close(r.moved, { e1: 0, g1: 0, e2: 0, o1: 0, e3: 50, h1: 50 })
+    close(r.pools, { a: 100, b: 10, x: 0, z: 50 })
+  })
+  it('pull all — l and n: the group runs at f = 1 and O, short of its 50, moves nothing', () => {
+    for (const o of ['l', 'n'] as const) {
+      const { nodes, edges } = G8(o, 'pullAll')
+      const r = run(nodes, edges)
+      close(r.moved, { e1: 50, g1: 50, e2: 50, o1: 100, e3: 0, h1: 0 })
+      close(r.pools, { a: 50, b: 10, x: 100, z: 0 })
+      expect(total(r.pools), o).toBeCloseTo(160, 6)
+    }
+  })
+})
+
+describe('#471 — a multi-supply group keeps the rule it had, and says when an amount is lost (unresolved)', () => {
+  // G7: g takes from its own Pool a AND from the Converter B; it passes both
+  // on to C. Two free numbers — not planned. What C receives above its
+  // recipe at the fraction it can run is reported, never silent.
+  it('G7: a Gate with two supplies — the notice names the Converter and the amount lost, as data for the UI to word (D1)', () => {
+    const nodes = [pool('a', 100), pool('p', 100), conv('B'), gate('g'), conv('C'), pool('q', 100), pool('x', 0, 10)]
+    const edges = [
+      res('e0', 'p', 'B', '20'), res('b1', 'B', 'g', '20'), res('e1', 'a', 'g', '20'),
+      res('k1', 'g', 'C', '40'), res('e2', 'q', 'C', '40'), res('o1', 'C', 'x', '80'),
+    ]
+    const r = run(nodes, edges)
+    // x has room for 10 of the 80 C would make: f = 1/8. B delivers 10 to g;
+    // g, whose Converter accepts nothing, passes nothing on and keeps the 10;
+    // C takes 40 from q and uses 10, so 30 is lost at C and 10 at g. The two
+    // notices add up to what the Pools lost (the recipe is 80 in, 80 out).
+    expect(r.notices).toEqual([
+      { kind: 'multiSupplyLoss', nodeId: 'C', label: 'C', amount: 30 },
+      { kind: 'multiSupplyHeld', nodeId: 'g', label: 'g', amount: 10 },
+    ])
+    const before = 100 + 100 + 100
+    const after = r.pools.a + r.pools.p + r.pools.q + r.pools.x
+    expect(before - after).toBeCloseTo(40, 6)
+    expect(r.notices.reduce((t, x) => t + x.amount, 0)).toBeCloseTo(before - after, 6)
+    expect(r.diagnostics).toEqual([]) // nothing English for the user from the engine
+    // with the output Pool uncapped the same shape conserves and says nothing
+    const roomy = nodes.map((n) => (n.id === 'x' ? pool('x', 0) : n))
+    const r2 = run(roomy, edges)
+    expect(r2.notices).toEqual([])
+    expect(r2.pools.a + r2.pools.p + r2.pools.q + r2.pools.x).toBeCloseTo(before, 6)
+  })
+
+  // Review 3 (CI on `ebc5d714`): a Gate hands a terminal its share through the
+  // same inbox as a router, and a terminal consumes everything it is handed.
+  // The held-amount sweep reported the visual matrix fixture's Drain intake
+  // (999 999) as a loss and the phone run bar grew a notice row in the pixel
+  // shots. A Drain or End at the end of a Gate is not a loss.
+  it('a terminal fed by a Gate consumes what it is handed — no held-amount notice', () => {
+    const drain = (id: string): LoopNode => ({ id, type: 'drain', position: P, data: { kind: 'drain', label: id, activation: 'automatic', mode: 'pullAny' } } as LoopNode)
+    const end = (id: string): LoopNode => ({ id, type: 'end', position: P, data: { kind: 'end', label: id, activation: 'automatic' } } as LoopNode)
+    for (const terminal of [drain('t'), end('t')]) {
+      const nodes = [pool('a', 50), gate('g'), terminal]
+      const edges = [res('e1', 'a', 'g', 'all'), res('k1', 'g', 't', '1')]
+      const r = run(nodes, edges)
+      close(r.moved, { e1: 50, k1: 50 })
+      expect(r.pools.a).toBe(0)
+      expect(r.notices).toEqual([])
+      expect(r.diagnostics).toEqual([])
+    }
   })
 })

@@ -92,7 +92,12 @@ const ui = {
   'playbar.mc.cancelled': 'Cancelado',
   'playbar.mc.failed': 'A execução falhou',
   'playbar.initError': 'Não é possível executar: {detail}',
+  'playbar.refused': 'Não é possível executar: caminhos que se dividem e se voltam a juntar ({n})',
+  'playbar.refused.show': 'Mostrar',
+  'inspector.refused.splitRejoin': 'Não é possível executar: os recursos dividem-se em {split} e voltam a juntar-se em {join}. Esta versão do modelo não suporta caminhos que se dividem e se voltam a juntar, por isso o modelo não é executado. Para o executar, remova um dos caminhos ou adicione um Reservatório num deles. Um Reservatório guarda o que chega, por isso esse caminho avança um passo mais tarde.',
   'playbar.diag.title': 'Diagnósticos da execução ({n})',
+  'playbar.diag.multiSupplyLoss': '{label} recebeu {amount} a mais do que podia usar neste passo, e essa quantidade perdeu-se.',
+  'playbar.diag.multiSupplyHeld': '{label} recebeu {amount} neste passo que não conseguiu passar adiante, e essa quantidade perdeu-se.',
   'playbar.mc.title': 'Executar o diagrama muitas vezes e ver a distribuição',
   // no space before `%` — MEASURED: `Intl.NumberFormat('pt-PT')` produces
   // `84%`, with no space, exactly as `pt-BR` does. Unlike `es-ES`, this
