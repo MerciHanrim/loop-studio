@@ -5244,6 +5244,12 @@ a.sheet__row {
   border-inline-start: 1px solid var(--line-1);
   padding: 14px;
   overflow-y: auto;
+  /* issue #474 — the scrollbar's room is reserved whether or not the panel
+     scrolls, so opening Detailed settings (which makes it scroll) no longer
+     narrows the Delete button, the fields and the relation rows by the
+     scrollbar's width. Layout only: the phone's read-only sheet sets
+     `overflow: visible` on this element, where a gutter has no effect. */
+  scrollbar-gutter: stable;
 }
 
 /* ---- docs/module-system.md §MS5 — Inputs / Summary panels ---- */
