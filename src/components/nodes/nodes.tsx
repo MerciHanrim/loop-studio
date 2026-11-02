@@ -425,13 +425,14 @@ export const GATE_WHY_KEY = {
  *  `held` a hollow ring with a bar across it, `fault` a filled disc beside the
  *  `!` flag, `idle` the outline only (a normal zero is not a warning; the
  *  `evaluated` bracket says the Gate ran). Static in every motion mode — no
- *  state blinks. The accessible name is the state's phrase; the numbers are
- *  the Inspector's. */
-function GateLed({ status, title }: { status: GateStatus; title: string }) {
+ *  state blinks. The SVG itself is decorative: it takes no pointer events and
+ *  is hidden from assistive tech; the state's phrase joins the node frame's
+ *  accessible name (`aria` below, after `invalid`), so focusing the node reads
+ *  it; the numbers are the Inspector's. */
+function GateLed({ status }: { status: GateStatus }) {
   const s = status.state
   return (
     <svg className={`nodef__led nodef__led--${s}`} viewBox="0 0 9 9" aria-hidden="true" data-gate-state={s} data-gate-why={status.why}>
-      <title>{title}</title>
       <circle className="nodef__led-outline" cx="4.5" cy="4.5" r="4" />
       {s === 'full' || s === 'fault' ? <circle className="nodef__led-fill" cx="4.5" cy="4.5" r="3.1" /> : null}
       {s === 'partial' ? <path className="nodef__led-fill" d="M4.5 1.4A3.1 3.1 0 0 0 4.5 7.6Z" /> : null}
@@ -905,6 +906,9 @@ function NodeFrame({
     `${tip(`canvas.nodeKind.${kind}` as MessageKey)} ${title}` +
     (roleWord ? `, ${roleWord}` : '') +
     (invalid ? `, ${tip('node.aria.invalid')}` : '') +
+    // issue #477 — a Gate's state this step, in words (the LED is decorative):
+    // the state phrase, and the reason when there is one
+    (gateState ? `, ${tip(GATE_STATE_KEY[gateState.state])}${gateState.why ? ` ${tip(GATE_WHY_KEY[gateState.why])}` : ''}` : '') +
     (selected ? `, ${tip('node.aria.selected')}` : '') +
     (focused ? `, ${tip('node.aria.focused')}` : '')
   return (
@@ -1141,7 +1145,7 @@ function NodeFrame({
       ) : null}
 
       {/* issue #477 — the Gate state LED, top-left (the flag's mirror) */}
-      {gateState ? <GateLed status={gateState} title={tip(GATE_STATE_KEY[gateState.state])} /> : null}
+      {gateState ? <GateLed status={gateState} /> : null}
 
       {/* §LGR5 — `evaluated`: activated this step but did not act. A small
           BOTTOM-LEFT corner bracket (a rounded L: border-left + border-bottom
