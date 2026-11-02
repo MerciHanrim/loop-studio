@@ -39,6 +39,7 @@ import { connectReasonText } from './connectReason'
 import { CONNECT_LABEL } from './connectKindWords'
 import { CONNECT_KINDS, connectKindOf, type ConnectKind } from '../model/connectKind'
 import { useT, type MessageKey } from '../i18n'
+import { GATE_STATE_KEY, GATE_WHY_KEY } from './nodes/nodes'
 import { isolateAuto, isolateLtr } from '../i18n/bidiIsolate'
 import type {
   ConverterData,
@@ -253,6 +254,7 @@ export function Inspector({ editLocked = false }: { editLocked?: boolean } = {})
             way to the setting it is about, while that setting is folded */}
         {d.kind === 'pool' && <ResourceMismatchNote findings={mismatches.filter((f) => f.nodeId === node.id)} />}
         {(d.kind === 'gate' || d.kind === 'converter') && <RefusedGroupNote nodeId={node.id} />}
+        {d.kind === 'gate' && <GateStateNote nodeId={node.id} />}
 
         {/* the flow mode and the resource type are settings most edits never
             touch (Lumi, 2026-10-19): folded, for every kind that has them */}
@@ -1125,6 +1127,27 @@ function RefusedGroupNote({ nodeId }: { nodeId: string }) {
     <div className="wb-panel__finding">
       <p className="inspector__note inspector__note--warn" role="status">
         {t('inspector.refused.splitRejoin', { split: isolateAuto(label(group.split)), join: isolateAuto(label(group.join)) })}
+      </p>
+    </div>
+  )
+}
+
+/** issue #477 — what the selected Gate did with the committed step's supply:
+ *  the state the engine decided (`StepReport.gates`, the LED's phrase), why
+ *  when it was a part or a hold, and the numbers — moved, of its plan-free
+ *  demand, against what its inputs held. A finding, not a setting: it stays
+ *  in view. Nothing while there is no entry (no run, or the Gate did not fire
+ *  this step). */
+function GateStateNote({ nodeId }: { nodeId: string }) {
+  const t = useT()
+  const g = useSimStore((s) => s.gates.find((x) => x.nodeId === nodeId) ?? null)
+  if (!g) return null
+  return (
+    <div className="wb-panel__finding">
+      <p className={`inspector__note${g.state === 'held' || g.state === 'fault' ? ' inspector__note--warn' : ''}`} role="status" data-gate-state={g.state}>
+        {t(GATE_STATE_KEY[g.state])}
+        {g.why ? ` ${t(GATE_WHY_KEY[g.why])}` : ''}
+        {g.state === 'fault' ? '' : ` ${t('node.gate.moved', { moved: g.moved, demand: g.demand, available: g.available })}`}
       </p>
     </div>
   )

@@ -50,6 +50,7 @@ import { useLod } from '../lod'
 import { useNodeActivityOpacity } from '../frames/useActivityTint'
 import { edgePortKind, faceOf, nameFaceFor, rfHandleId } from '../../model/ports'
 import type { LoopEdge, PortFace } from '../../model/types'
+import type { GateStatus } from '../../engine/types'
 import { setNodeNameBox } from '../../store/routeMap'
 import { runNeedsCase } from '../../ui/flowColour'
 import { useCanvasTheme } from '../../ui/media'
@@ -390,6 +391,61 @@ function useFiring(id: string): boolean {
   return useSimStore((s) => s.firedNodeIds.includes(id))
 }
 
+// issue #477 — a Gate's execution evidence of the committed step
+// (`StepReport.gates`); null = no entry = `off` (no run, or the Gate did not
+// fire this step), which draws no LED at all.
+function useGateState(id: string): GateStatus | null {
+  return useSimStore((s) => s.gates.find((g) => g.nodeId === id) ?? null)
+}
+
+/** the state's phrase (the LED's accessible name; the Inspector's first
+ *  sentence) and the reason's phrase, keyed by the engine's tokens — literal
+ *  maps so every key is a call site the i18n checker can see */
+export const GATE_STATE_KEY = {
+  idle: 'node.gate.state.idle',
+  full: 'node.gate.state.full',
+  partial: 'node.gate.state.partial',
+  held: 'node.gate.state.held',
+  fault: 'node.gate.state.fault',
+} satisfies Record<GateStatus['state'], MessageKey>
+export const GATE_WHY_KEY = {
+  supply: 'node.gate.why.supply',
+  upstream: 'node.gate.why.upstream',
+  room: 'node.gate.why.room',
+  pullAll: 'node.gate.why.pullAll',
+  plan: 'node.gate.why.plan',
+  inert: 'node.gate.why.inert',
+  cycle: 'node.gate.why.cycle',
+} satisfies Record<NonNullable<GateStatus['why']>, MessageKey>
+
+/** issue #477 — the Gate state LED: a 9 px disc at the cell's top-left (the
+ *  mirror of the `!` flag), outside the diamond and clear of the fired ticks.
+ *  Every state is a SHAPE as well as a colour (the design: gate-state-design.md
+ *  rev 2, Lumi 2026-11-02): `full` a filled disc, `partial` a half disc,
+ *  `held` a hollow ring with a bar across it, `fault` a filled disc beside the
+ *  `!` flag, `idle` the outline only (a normal zero is not a warning; the
+ *  `evaluated` bracket says the Gate ran). Static in every motion mode — no
+ *  state blinks. The SVG itself is decorative: it takes no pointer events and
+ *  is hidden from assistive tech; the state's phrase joins the node frame's
+ *  accessible name (`aria` below, after `invalid`), so focusing the node reads
+ *  it; the numbers are the Inspector's. */
+function GateLed({ status }: { status: GateStatus }) {
+  const s = status.state
+  return (
+    <svg className={`nodef__led nodef__led--${s}`} viewBox="0 0 9 9" aria-hidden="true" data-gate-state={s} data-gate-why={status.why}>
+      <circle className="nodef__led-outline" cx="4.5" cy="4.5" r="4" />
+      {s === 'full' || s === 'fault' ? <circle className="nodef__led-fill" cx="4.5" cy="4.5" r="3.1" /> : null}
+      {s === 'partial' ? <path className="nodef__led-fill" d="M4.5 1.4A3.1 3.1 0 0 0 4.5 7.6Z" /> : null}
+      {s === 'held' ? (
+        <>
+          <circle className="nodef__led-ring" cx="4.5" cy="4.5" r="2.6" />
+          <line className="nodef__led-ring" x1="2.9" y1="4.5" x2="6.1" y2="4.5" />
+        </>
+      ) : null}
+    </svg>
+  )
+}
+
 // docs/large-graph-readability.md §LGR5 — the lighter run weight: a node the
 // engine *evaluated* as an execution target this step but that did **not** act
 // (`activated \ fired`). Node-only in v1, flow-execution nodes only (Parameter /
@@ -465,6 +521,9 @@ type FrameProps = {
    *  evaluate, or an unreadable model node). A `--warn` dashed outline + a
    *  top-right `!` flag; carries no value (the caller passes `—`). */
   invalid?: boolean
+  /** issue #477 — a Gate's execution evidence of the committed step; draws
+   *  the state LED (`GateLed`). Absent / null ⇒ no LED (`off`). */
+  gateState?: GateStatus | null
   stepKey: number
   /** issue #344 §DL1 — the resource ports this kind has (`in` left, `out`
    *  right); drawn here, where the box height is known, on the fixed port row */
@@ -501,6 +560,7 @@ function NodeFrame({
   pulseKey,
   conversion,
   invalid,
+  gateState,
   stepKey,
   ports,
   aux,
@@ -747,19 +807,28 @@ function NodeFrame({
   const bodyH = outside ? CELL : boxH
   const sym = SYMBOLS[kind] ?? SYMBOLS.pool
 
-  // keyboard focus lands on React Flow's node wrapper, an ancestor of this div
+  const uid = 'nf' + useId().replace(/[^A-Za-z0-9_-]/g, '_')
+  const frameId = `${uid}-frame`
+  // keyboard focus lands on React Flow's node wrapper, an ancestor of this div.
+  // That wrapper is a `role="group"` with no name of its own (React Flow sets
+  // `aria-label` only from `node.ariaLabel`, and a group takes no name from
+  // its content), so what Tab reaches would be nameless: it is labelled by
+  // this frame, whose `aria-label` carries the kind, the label, `invalid`, a
+  // Gate's state this step (#477) and the selection / focus words.
   useEffect(() => {
     const rfNode = frameRef.current?.closest('.react-flow__node')
     if (!rfNode) return
+    rfNode.setAttribute('aria-labelledby', frameId)
     const on = () => setFocused(true)
     const off = () => setFocused(false)
     rfNode.addEventListener('focusin', on)
     rfNode.addEventListener('focusout', off)
     return () => {
+      rfNode.removeAttribute('aria-labelledby')
       rfNode.removeEventListener('focusin', on)
       rfNode.removeEventListener('focusout', off)
     }
-  }, [])
+  }, [frameId])
 
   // #337 — a width-parametric outline is drawn for the node's width (the fit
   // sets it, before the first paint); the others in their 120-wide viewBox
@@ -779,7 +848,6 @@ function NodeFrame({
   // arrival and conversion marks inside it (on the node face)
   const canvasTheme = useCanvasTheme()
   const runCase = accent ? [runNeedsCase(accent, canvasTheme, 'canvas') ? 'out' : '', runNeedsCase(accent, canvasTheme, 'node') ? 'in' : ''].filter(Boolean).join(' ') : ''
-  const uid = 'nf' + useId().replace(/[^A-Za-z0-9_-]/g, '_')
   const box = maskBox(bodyH, pathW)
   // state ports are invisible at rest; they surface on hover / selection /
   // keyboard focus / while a state wire is being dragged. A port that already
@@ -846,11 +914,15 @@ function NodeFrame({
     `${tip(`canvas.nodeKind.${kind}` as MessageKey)} ${title}` +
     (roleWord ? `, ${roleWord}` : '') +
     (invalid ? `, ${tip('node.aria.invalid')}` : '') +
+    // issue #477 — a Gate's state this step, in words (the LED is decorative):
+    // the state phrase, and the reason when there is one
+    (gateState ? `, ${tip(GATE_STATE_KEY[gateState.state])}${gateState.why ? ` ${tip(GATE_WHY_KEY[gateState.why])}` : ''}` : '') +
     (selected ? `, ${tip('node.aria.selected')}` : '') +
     (focused ? `, ${tip('node.aria.focused')}` : '')
   return (
     <div
       ref={frameRef}
+      id={frameId}
       role="img"
       aria-label={aria}
       className={
@@ -1080,6 +1152,9 @@ function NodeFrame({
           !
         </span>
       ) : null}
+
+      {/* issue #477 — the Gate state LED, top-left (the flag's mirror) */}
+      {gateState ? <GateLed status={gateState} /> : null}
 
       {/* §LGR5 — `evaluated`: activated this step but did not act. A small
           BOTTOM-LEFT corner bracket (a rounded L: border-left + border-bottom
@@ -1338,6 +1413,7 @@ function GateNode({ id, data, selected }: NodeProps) {
         selected={selected}
         accent={(data as FlowColour).accent}
         invalid={useRefusedMember(id)}
+        gateState={useGateState(id)}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
         activity={useNodeActivityOpacity(id)}

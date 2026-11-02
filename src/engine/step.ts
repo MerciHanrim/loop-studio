@@ -20,7 +20,7 @@ import {
 // every other direct `from './step'` import of it — unchanged. A bare
 // `import` does not re-export a name, so this line is required.
 export { ROUTER_KINDS } from './stateExpr'
-import { EPSILON, type SimState, type SimValues, type StateEvent, type StepNotice, type StepResult, type TriggerQueueEntry } from './types'
+import { EPSILON, type GateStatus, type SimState, type SimValues, type StateEvent, type StepNotice, type StepResult, type TriggerQueueEntry } from './types'
 
 // Engine A — the deterministic core. Implements SEMANTICS.md §6 exactly:
 // Phase 1 push (Sources), then Phase 2 pull (Gate / Converter / Drain / End)
@@ -85,7 +85,7 @@ export function step(
   if (prev.ended) {
     return {
       state: { step: prev.step, values: prev.values, ended: true, fired: [], triggerQueue: prev.triggerQueue },
-      report: { events: [], activated: [], fired: [], stateEvents: [], diagnostics: [], notices: [] },
+      report: { events: [], activated: [], fired: [], stateEvents: [], diagnostics: [], notices: [], gates: [] },
     }
   }
   const curStep = prev.step + 1 // the step being computed — the RNG key's `step`
@@ -115,6 +115,7 @@ export function step(
             `Can't run: resources split at "${label(g.split)}" and meet again at "${label(g.join)}". This model version does not support paths that split and meet again, so nothing moved. Remove one of the paths, or add a Pool on one of them (that path then moves one step later).`,
         ),
         notices: [],
+        gates: [],
       },
     }
   }
@@ -165,6 +166,7 @@ export function step(
   const fired = new Set<string>()
   const diagnostics: string[] = [...paramDiagnostics]
   const notices: StepNotice[] = [] // worded by the UI in the user's language
+  const gates: GateStatus[] = [] // #477 — the committed pass's per-Gate evidence
   let ended: boolean = prev.ended // `false` here (the ended fixed point returned above)
 
   // A random draw / gate pick is memoised at `step()` scope so the shadow probe
@@ -913,6 +915,80 @@ export function step(
       return outOf(id).filter((e) => !skipDet(e.id))
     }
     const modeOfRouter = (id: string) => ((byId.get(id)?.data as { mode?: string } | undefined)?.mode ?? 'pullAny')
+
+    // ── #477 — a Gate's execution evidence (`GateStatus`, types.ts) ─────────
+    // The design is the QA record gate-state-design.md rev 2 (Lumi,
+    // 2026-11-02). `demand` / `available` are PLAN-FREE: read at the router's
+    // own turn — or at its group's plan, before the plan claims anything —
+    // from rates and what its inputs hold THEN, upstream first. A router input
+    // is the upstream's number propagated through its share, never what the
+    // plan delivered (the inbox IS the plan's limit: read as demand it made
+    // every Gate the plan cut look `full`). Memoised per pass; a probe pass
+    // computes and discards.
+    type Nums = { demand: number; available: number; ownWant: number; ownAvail: number }
+    const routerNums = new Map<string, Nums>()
+    /** what router `up` sends on `e` when it runs at `x` */
+    const sendOf = (up: string, e: LoopEdge, x: number): number => {
+      if (kindOf(up) === 'gate') {
+        if (isProbGate(byId.get(up))) return pickBranch(byId.get(up)!) === e ? x : 0
+        const outs = outOf(up).filter((o) => !skipDet(o.id))
+        const Wsum = outs.reduce((s, o) => s + rateOfCached(o), 0)
+        return Wsum > EPSILON ? (x * rateOfCached(e)) / Wsum : 0
+      }
+      const sumIn = sumInRate(up)
+      return Math.min(1, sumIn > EPSILON ? x / sumIn : 0) * rateOfCached(e)
+    }
+    const numsOf = (id: string): Nums => {
+      const hit = routerNums.get(id)
+      if (hit) return hit
+      const v: Nums = { demand: 0, available: 0, ownWant: 0, ownAvail: 0 }
+      for (const e of inOf(id)) {
+        if (dead.has(e.id)) continue
+        const src = e.source
+        if (isPool(src)) {
+          const want = Math.max(0, amountOf(e, availOf(src), S[src] ?? 0))
+          const have = Math.min(want, Math.max(0, availOf(src)))
+          v.demand += want
+          v.available += have
+          v.ownWant += want
+          v.ownAvail += have
+        } else if (willFire.has(src) && !(kindOf(src) === 'converter' && disabledPullAll.has(src))) {
+          const up = numsOf(src)
+          v.demand += sendOf(src, e, up.demand)
+          v.available += sendOf(src, e, up.available)
+        }
+      }
+      routerNums.set(id, v)
+      return v
+    }
+    const gateEntries = new Map<string, GateStatus>()
+    const planZeroWhy = new Map<string, 'pullAll' | 'plan'>() // a planned Gate that moves nothing, by the plan's cause
+    const cyclicSet = new Set(cyclic)
+    const r6 = (x: number) => Number(x.toFixed(6))
+    /** the Gate's verdict, recorded at the point that decided what it moved */
+    const recordGate = (id: string, moved: number, fault?: 'inert' | 'cycle') => {
+      const { demand, available, ownWant, ownAvail } = numsOf(id)
+      let state: GateStatus['state']
+      let why: GateStatus['why']
+      if (fault) {
+        state = 'fault'
+        why = fault
+      } else if (available <= 1e-6) state = 'idle'
+      else if (moved >= demand - 1e-6) state = 'full'
+      else if (moved <= 1e-6) {
+        // at the reported precision (6 decimals): a bisection against a
+        // disabled `pull all` Converter can leave a residual of ~1e-8
+        state = 'held'
+        why = planZeroWhy.get(id) ?? (modeOfRouter(id) === 'pullAll' && ownAvail < ownWant - 1e-6 ? 'pullAll' : 'room')
+      } else {
+        state = 'partial'
+        why = moved < available - 1e-6 ? 'room' : ownAvail < ownWant - 1e-6 ? 'supply' : 'upstream'
+      }
+      const entry: GateStatus = { nodeId: id, state, demand: r6(demand), available: r6(available), moved: r6(moved) }
+      if (why) entry.why = why
+      gateEntries.set(id, entry)
+    }
+
     /** what a group's plan reads of its members: a Gate's live branches and
      *  their weights, a Converter's live outputs and Pool needs, and the live
      *  router → router connections summed per pair (shared by the tree plan
@@ -1069,16 +1145,22 @@ export function step(
       // `pull all` members fix the number: the group runs at it or not at all
       // (SEMANTICS.md §9; a short one is recorded for the fixpoint).
       const modeOf = (id: string) => ((byId.get(id)?.data as { mode?: string } | undefined)?.mode ?? 'pullAny')
+      let zeroAt: string | null = null // #477 — '' for a short `pull all` Converter, the Gate's id for its own fixed demand
       for (const m of members) {
         if (kindOf(m) !== 'converter' || disabledPullAll.has(m)) continue
         if (modeOf(m) === 'pullAll' && (cof.get(m) ?? 0) * s < 1 - EPSILON) {
           pullShort.add(m)
           s = 0
+          zeroAt ??= ''
         }
       }
       for (const g of sourceGates) {
-        if (modeOf(g.id) === 'pullAll' && g.c * s < g.demand - EPSILON) s = 0
+        if (modeOf(g.id) === 'pullAll' && g.c * s < g.demand - EPSILON) {
+          s = 0
+          zeroAt ??= g.id
+        }
       }
+      if (zeroAt !== null) for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, m === zeroAt ? 'pullAll' : 'plan')
       // record the plan; claim the inputs (`reservedIn`) and the output room
       // (`reserved`, owned by the member that delivers it, settled on delivery)
       for (const m of members) {
@@ -1409,6 +1491,7 @@ export function step(
         return v
       }
       let zero = false
+      let zeroAt: string | null = null // #477 — the `pull all` Gate whose fixed demand could not be met
       for (const G of orderedMulti) {
         const items: Item[] = []
         for (const sup of supplies.get(G)!) {
@@ -1435,7 +1518,7 @@ export function step(
             else sPiece.set(it.p!.id, reach[i])
             fixed.add(keyOf(it.sup))
           })
-          if (!feasible()) { zero = true; break }
+          if (!feasible()) { zero = true; zeroAt = G; break }
         } else for (const it of items) if (!determined(it)) fill(it)
       }
       if (!zero && !feasible()) zero = true // the later Gate of a shared piece could not be met exactly
@@ -1447,6 +1530,9 @@ export function step(
         }
       }
       if (zero) { sPiece.clear(); uOwn.clear(); fixed.clear(); tentative.clear() }
+      // #477 — a zeroed group's Gates say why: the `pull all` Gate whose
+      // fixed demand failed, `pullAll`; every other Gate of the group, `plan`
+      if (zero) for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, m === zeroAt ? 'pullAll' : 'plan')
       // record the plan; claim the inputs (`reservedIn`) and the output room, as the tree plan does
       const c = amountsOf(sOf())
       for (const m of members) {
@@ -1502,8 +1588,19 @@ export function step(
       const k = n.data.kind
       const accept = makeAccept()
       const group = treeAtRoot.get(id)
-      if (group) planGroup(group)
       const mg = multiAtRoot.get(id)
+      // #477 — the plan-free numbers are read BEFORE the plan claims anything;
+      // a group with a `pull all` Converter the fixpoint disabled runs that
+      // piece at nothing, so its Gates that move nothing say `plan`
+      // (a disabled `pull all` Converter's connections are never read on the
+      // committed pass — a random flow only it consumes raises no diagnostic)
+      const isDisabledConverter = (m: string) => kindOf(m) === 'converter' && disabledPullAll.has(m)
+      if (!isDisabledConverter(id)) numsOf(id)
+      const members = group ?? mg?.members ?? []
+      for (const m of members) if (!isDisabledConverter(m)) numsOf(m)
+      if (members.some((m) => kindOf(m) === 'converter' && disabledPullAll.has(m)))
+        for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, 'plan')
+      if (group) planGroup(group)
       if (mg) planMulti(mg.members, mg.multiGates)
 
       if (k === 'drain' || k === 'end') {
@@ -1548,8 +1645,15 @@ export function step(
         const probabilistic = isProbGate(n)
         // invalid / zero-sum weights ⇒ the gate is inert this step (diagnostic
         // already pushed by pickBranch); do not touch the input pools.
+        if (cyclicSet.has(id)) {
+          recordGate(id, 0, 'cycle') // every connection of a router on a zero-storage cycle is dead
+          continue
+        }
         const sel = probabilistic ? pickBranch(n) : null
-        if (probabilistic && !sel) continue
+        if (probabilistic && !sel) {
+          recordGate(id, 0, 'inert')
+          continue
+        }
 
         let T: number
         const plPulls = planPulls.get(id)
@@ -1568,7 +1672,10 @@ export function step(
             emit(e, e.source, id, a)
           }
           T = nz(Math.max(0, got))
-          if (T <= EPSILON) continue
+          if (T <= EPSILON) {
+            recordGate(id, 0)
+            continue
+          }
         } else {
           let inb = inbox.get(id) ?? 0
           const ins = inOf(id)
@@ -1591,7 +1698,10 @@ export function step(
               ? nz(Math.max(0, Math.min(plT, demand, inputAvail)))
               : nz(Math.max(0, Math.min(demand, inputAvail, accept(id))))
           if (mode === 'pullAll' && T < demand - EPSILON) T = 0
-          if (T <= EPSILON) continue
+          if (T <= EPSILON) {
+            recordGate(id, 0)
+            continue
+          }
 
           // consume inbox first, then pull the rest from pools in (source, edge) order
           let need = T
@@ -1631,6 +1741,7 @@ export function step(
           }
           emit(sel!, id, sel!.target, T)
           fired.add(id)
+          recordGate(id, T)
           continue
         }
 
@@ -1653,6 +1764,7 @@ export function step(
           emit(e, id, e.target, share)
         }
         fired.add(id)
+        recordGate(id, T)
         continue
       }
 
@@ -1847,6 +1959,13 @@ export function step(
       for (const [rid, v] of [...inbox].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
         if (v > 1e-6) notices.push({ kind: 'multiSupplyHeld', nodeId: rid, label: byId.get(rid)?.data.label ?? rid, amount: Number(v.toFixed(6)) })
       }
+      // #477 — the committed pass publishes the Gates' evidence, the held
+      // amount (the notice's number) on the Gate it names
+      for (const [rid, v] of inbox) {
+        const g = gateEntries.get(rid)
+        if (g && v > 1e-6) g.held = r6(v)
+      }
+      gates.push(...[...gateEntries.values()].sort((a, b) => (a.nodeId < b.nodeId ? -1 : a.nodeId > b.nodeId ? 1 : 0)))
     }
 
     if (snap) {
@@ -2018,6 +2137,7 @@ export function step(
       stateEvents,
       diagnostics,
       notices,
+      gates,
     },
   }
 }
