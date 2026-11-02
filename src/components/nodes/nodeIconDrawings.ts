@@ -23,6 +23,13 @@ export const NODE_ICON_DRAWINGS: Record<NodeIconId, IconDrawing> = {
     vb: '0 0 48 48',
     big: `<path d="M10 34h25c6 0 9-4 9-9s-4-9-9-9h-1A12 12 0 0 0 11 19a8 8 0 0 0-1 15Z"/>`,
   },
+  // the cloud above, scaled and raised, with three slanted rain strokes; the 16 px
+  // drawing shortens and thickens the rain (follow-up 1 of #478)
+  'rain-cloud': {
+    vb: '0 0 48 48',
+    big: `<g transform="translate(6.2 -1.5) scale(0.78)"><path d="M10 34h25c6 0 9-4 9-9s-4-9-9-9h-1A12 12 0 0 0 11 19a8 8 0 0 0-1 15Z"/></g><g fill="none" stroke="currentColor" stroke-width="4.6" stroke-linecap="round"><path d="M16.75 30L13.25 40.5"/><path d="M25.75 30L22.25 40.5"/><path d="M34.75 30L31.25 40.5"/></g>`,
+    small: `<g transform="translate(5.6 -2.6) scale(0.8)"><path d="M10 34h25c6 0 9-4 9-9s-4-9-9-9h-1A12 12 0 0 0 11 19a8 8 0 0 0-1 15Z"/></g><g fill="none" stroke="currentColor" stroke-width="5.6" stroke-linecap="round"><path d="M16.75 30.5L13.25 40"/><path d="M25.75 30.5L22.25 40"/><path d="M34.75 30.5L31.25 40"/></g>`,
+  },
   wind: {
     vb: '0 0 48 48',
     big: `<g transform="translate(2.4 1.2)"><path d="M4 13c0-1.1.7-1.9 1.7-2L29 8.6v5.6L5.7 15.1C4.7 15 4 14.2 4 13Z"/><path d="M29 11.4a4.8 4.8 0 1 0-4.8-4.8" fill="none" stroke="currentColor" stroke-width="5.6" stroke-linecap="round"/><path d="M4 25c0-1.2.8-2.1 1.9-2.2L36 20.9v6.2L5.9 27.2C4.8 27.1 4 26.2 4 25Z"/><path d="M36 24a5.4 5.4 0 1 1-5.4 5.4" fill="none" stroke="currentColor" stroke-width="6.2" stroke-linecap="round"/><path d="M4 38.5c0-1 .7-1.8 1.6-1.9L21 35.3a3.2 3.2 0 0 1 0 6.4L5.6 40.4C4.7 40.3 4 39.5 4 38.5Z"/></g>`,
@@ -82,5 +89,13 @@ export const NODE_ICON_DRAWINGS: Record<NodeIconId, IconDrawing> = {
   'game-currency': {
     vb: '0 0 44 44',
     big: `<path fill-rule="evenodd" d="M4 22a18 18 0 1 0 36 0a18 18 0 1 0-36 0Z m18-12 3.8 7.7 8.5 1.2-6.2 6 1.5 8.4-7.6-4-7.6 4 1.5-8.4-6.2-6 8.5-1.2Z"/>`,
+  },
+  // three bent arrows chasing round an upright triangle: a bar along one side
+  // that folds at the corner and heads up the next; the 16 px drawing has a
+  // larger triangle, shorter bars and bigger heads (follow-up 1 of #478)
+  recycling: {
+    vb: '0 0 48 48',
+    big: `<g><polyline points="19.51,34.75 40.02,34.75 39.06,33.09" fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="miter" stroke-miterlimit="4"/><polygon points="35.54,26.98 45.99,29.09 32.13,37.09"/></g><g transform="rotate(120 24 25.5)"><polyline points="19.51,34.75 40.02,34.75 39.06,33.09" fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="miter" stroke-miterlimit="4"/><polygon points="35.54,26.98 45.99,29.09 32.13,37.09"/></g><g transform="rotate(240 24 25.5)"><polyline points="19.51,34.75 40.02,34.75 39.06,33.09" fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="miter" stroke-miterlimit="4"/><polygon points="35.54,26.98 45.99,29.09 32.13,37.09"/></g>`,
+    small: `<g><polyline points="22.51,36.75 42.62,36.75 42.25,36.1" fill="none" stroke="currentColor" stroke-width="8.4" stroke-linejoin="miter" stroke-miterlimit="4"/><polygon points="36.66,26.43 49.87,31.71 34.63,40.5"/></g><g transform="rotate(120 24 26)"><polyline points="22.51,36.75 42.62,36.75 42.25,36.1" fill="none" stroke="currentColor" stroke-width="8.4" stroke-linejoin="miter" stroke-miterlimit="4"/><polygon points="36.66,26.43 49.87,31.71 34.63,40.5"/></g><g transform="rotate(240 24 26)"><polyline points="22.51,36.75 42.62,36.75 42.25,36.1" fill="none" stroke="currentColor" stroke-width="8.4" stroke-linejoin="miter" stroke-miterlimit="4"/><polygon points="36.66,26.43 49.87,31.71 34.63,40.5"/></g>`,
   },
 }

@@ -46,15 +46,17 @@ const iconOf = (n: LoopNode | undefined) => (n?.data as { icon?: unknown } | und
 const roundTrip = (g: { nodes: LoopNode[]; edges: LoopEdge[] }) => deserialize(serialize(g.nodes, g.edges, undefined, undefined, undefined, 2))
 
 describe('the registry', () => {
-  it('lists the fourteen ids of the first list, each a stable ASCII word', () => {
-    expect(NODE_ICON_IDS).toHaveLength(14)
+  it('lists the sixteen ids (the first list and its first follow-up), each a stable ASCII word', () => {
+    expect(NODE_ICON_IDS).toHaveLength(16)
     for (const id of NODE_ICON_IDS) expect(id).toMatch(/^[a-z]+(-[a-z]+)*$/)
-    expect(new Set(NODE_ICON_IDS).size).toBe(14)
+    expect(new Set(NODE_ICON_IDS).size).toBe(16)
   })
 
   it('reads a registered id and nothing else', () => {
     expect(readIcon('nuclear-plant')).toBe('nuclear-plant')
-    for (const bad of ['', 'Cloud', 'rain-cloud', 7, null, undefined, {}, ['cloud']]) expect(readIcon(bad)).toBeUndefined()
+    expect(readIcon('rain-cloud')).toBe('rain-cloud')
+    expect(readIcon('recycling')).toBe('recycling')
+    for (const bad of ['', 'Cloud', 'snow-cloud', 7, null, undefined, {}, ['cloud']]) expect(readIcon(bad)).toBeUndefined()
   })
 })
 
@@ -70,7 +72,7 @@ describe('the file', () => {
   })
 
   it('a value that is not a registered id is dropped and the node kept', () => {
-    const n = normalizeGraph(graph({ pool: 'rain-cloud', source: 4, gate: 'CLOUD' }))
+    const n = normalizeGraph(graph({ pool: 'snow-cloud', source: 4, gate: 'CLOUD' }))
     for (const id of ['pool', 'source', 'gate']) {
       const el = n.nodes.find((x) => x.id === id)!
       expect(el, id).toBeDefined()

@@ -60,7 +60,7 @@ describe('setIcon', () => {
     const { a } = nodes()
     const past = S().past.length
     const before = S().nodes
-    S().setIcon([a], 'rain-cloud')
+    S().setIcon([a], 'snow-cloud')
     expect(S().past.length).toBe(past)
     expect(S().nodes).toBe(before)
   })

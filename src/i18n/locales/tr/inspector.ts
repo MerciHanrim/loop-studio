@@ -249,6 +249,7 @@ const inspector = {
   'inspector.icon.group.nature': 'Doğa ve temeller',
   'inspector.icon.group.industry': 'Sanayi ve gündelik yaşam',
   'inspector.icon.name.cloud': 'Bulut',
+  'inspector.icon.name.rain-cloud': 'Yağmur bulutu',
   'inspector.icon.name.wind': 'Rüzgâr',
   'inspector.icon.name.sun': 'Güneş',
   'inspector.icon.name.remote': 'Uzaktan kumanda',
@@ -262,6 +263,7 @@ const inspector = {
   'inspector.icon.name.warehouse': 'Depo',
   'inspector.icon.name.medicine': 'İlaç',
   'inspector.icon.name.game-currency': 'Oyun para birimi',
+  'inspector.icon.name.recycling': 'Geri dönüşüm',
 } as const
 
 export type InspectorKey = keyof typeof inspector

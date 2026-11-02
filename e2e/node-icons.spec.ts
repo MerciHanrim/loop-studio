@@ -143,7 +143,7 @@ test.describe('node icon — the Inspector’s Icon field', () => {
     await page.keyboard.press('Home')
     await expect(page.getByRole('radio', { name: 'None', exact: true })).toBeFocused()
     await page.keyboard.press('End')
-    await expect(page.getByRole('radio', { name: 'Game currency', exact: true })).toBeFocused()
+    await expect(page.getByRole('radio', { name: 'Recycling', exact: true })).toBeFocused()
     // the Tab stop follows focus (Lumi's review of #481): after an arrow move,
     // Tab out and back lands on the option the user left, not on the stored one
     await page.keyboard.press('Home')

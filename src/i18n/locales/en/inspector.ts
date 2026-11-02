@@ -234,6 +234,7 @@ const inspector = {
   'inspector.icon.group.nature': 'Nature and basics',
   'inspector.icon.group.industry': 'Industry and life',
   'inspector.icon.name.cloud': 'Cloud',
+  'inspector.icon.name.rain-cloud': 'Rain cloud',
   'inspector.icon.name.wind': 'Wind',
   'inspector.icon.name.sun': 'Sun',
   'inspector.icon.name.remote': 'Remote control',
@@ -247,6 +248,7 @@ const inspector = {
   'inspector.icon.name.warehouse': 'Warehouse',
   'inspector.icon.name.medicine': 'Medicine',
   'inspector.icon.name.game-currency': 'Game currency',
+  'inspector.icon.name.recycling': 'Recycling',
 } as const
 
 export type InspectorKey = keyof typeof inspector
