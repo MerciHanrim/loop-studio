@@ -115,6 +115,22 @@ const canvas = {
   'node.aria.selected': 'selected',
   'node.aria.focused': 'focused',
   'node.evaluatedCue': 'Evaluated this step but did not act',
+  // issue #477 — the Gate state LED's phrase (its tooltip) and the Inspector's
+  // line: the state the engine decided, why, and the numbers. No node kind is
+  // named: the line sits under the Gate's own header.
+  'node.gate.state.idle': 'Nothing to pass on this step.',
+  'node.gate.state.full': 'Passed on all it could take this step.',
+  'node.gate.state.partial': 'Passed on a part this step.',
+  'node.gate.state.held': 'Held this step: nothing passed on.',
+  'node.gate.state.fault': 'Could not run this step.',
+  'node.gate.why.supply': 'Its inputs held less than it asked for.',
+  'node.gate.why.upstream': 'Supplied in part: what feeds it could deliver no more this step, and it took all of that.',
+  'node.gate.why.room': 'Its outlet had no room left for it.',
+  'node.gate.why.pullAll': 'Its all-or-nothing demand was not met, so it moved nothing.',
+  'node.gate.why.plan': 'The group it runs with moved nothing this step.',
+  'node.gate.why.inert': 'Its branch weights are invalid.',
+  'node.gate.why.cycle': 'It sits on a cycle with no storage in it.',
+  'node.gate.moved': 'Moved {moved} of {demand}; its inputs held {available}.',
   'node.default.pool': 'Pool',
   'node.default.source': 'Source',
   'node.default.drain': 'Drain',

@@ -44,7 +44,7 @@ function run({ nodes, edges }: Graph) {
   for (const ev of r.report.events) moved[ev.edgeId] = (moved[ev.edgeId] ?? 0) + ev.amount
   const pools: Record<string, number> = {}
   for (const n of nodes) if (n.data.kind === 'pool') pools[n.id] = r.state.values[n.id]
-  return { moved, pools, before: before.values, diagnostics: r.report.diagnostics, notices: r.report.notices }
+  return { moved, pools, before: before.values, diagnostics: r.report.diagnostics, notices: r.report.notices, gates: r.report.gates, fired: r.report.fired, activated: r.report.activated }
 }
 const close = (got: Record<string, number>, want: Record<string, number>) => {
   for (const k of Object.keys(want)) expect(got[k], k).toBeCloseTo(want[k], 6)
@@ -76,6 +76,23 @@ function checks({ nodes, edges }: Graph, r: ReturnType<typeof run>) {
   expect(total(r.before) - total(r.pools), 'total − recipe loss').toBeCloseTo(recipe, 6)
   expect(r.notices).toEqual([])
   expect(r.diagnostics).toEqual([])
+  // #477 — every activated Gate has one entry, ascending; its `moved` is its
+  // output events, and its state agrees with the design's inequalities on its
+  // own numbers (gate-state-design.md rev 2 §4a; the per-shape pins are in
+  // gateStatus.test.ts)
+  const gateIds = nodes.filter((n) => n.data.kind === 'gate' && r.activated.includes(n.id)).map((n) => n.id).sort()
+  expect(r.gates.map((g) => g.nodeId), 'one entry per fired Gate').toEqual(gateIds)
+  for (const g of r.gates) {
+    const out = edges.filter((e) => e.source === g.nodeId).reduce((t, e) => t + r.moved[e.id], 0)
+    expect(g.moved, `${g.nodeId} moved`).toBeCloseTo(out, 6)
+    expect(g.available, `${g.nodeId} available ≤ demand`).toBeLessThanOrEqual(g.demand + 1e-6)
+    expect(g.moved, `${g.nodeId} moved ≤ demand`).toBeLessThanOrEqual(g.demand + 1e-6)
+    const want =
+      g.available <= 1e-6 ? 'idle' : g.moved >= g.demand - 1e-6 ? 'full' : g.moved <= 1e-6 ? 'held' : 'partial'
+    expect(g.state, `${g.nodeId} state from its numbers`).toBe(want)
+    expect(g.why === undefined, `${g.nodeId} why only on partial / held`).toBe(want === 'idle' || want === 'full')
+    if (want === 'partial') expect(g.why, `${g.nodeId} partial why`).toBe(g.moved < g.available - 1e-6 ? 'room' : g.why === 'supply' ? 'supply' : 'upstream')
+  }
 }
 const pin = (g: Graph, want: { moved: Record<string, number>; pools: Record<string, number> }) => {
   const r = run(g)

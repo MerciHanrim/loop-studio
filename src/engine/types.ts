@@ -71,6 +71,51 @@ export type StepReport = {
    *  Deploy 2 — the Lumi review of #473: a notice the user sees is not an
    *  English sentence from the engine). Same lifecycle as `diagnostics`. */
   notices: StepNotice[]
+  /** issue #477 — one entry per Gate that was fired this step, ascending
+   *  `nodeId`: what it did with the step's supply, as data (the state LED and
+   *  the Inspector's line read it; the UI never derives the state from the
+   *  amounts). A Gate with no entry is `off` (not fired this step, or no run).
+   *  Same lifecycle as `notices`. */
+  gates: GateStatus[]
+}
+
+/** issue #477 — a Gate's execution evidence for one step (the design: the QA
+ *  record `gate-state-design.md` rev 2, Lumi 2026-11-02). `demand` and
+ *  `available` are PLAN-FREE: computed from rates upstream-first, so a Gate
+ *  the group plan cut never reads as `full` — an own-Pool input wants its
+ *  rate (`all` wants the Pool) and holds `min(want, the Pool's value)`; a
+ *  router input wants what the upstream router would send if it ran at its
+ *  own demand (a Gate: its share of it; a Converter: its output rate at
+ *  `f = min(1, demand / Σ input rates)`) and holds the same of the upstream's
+ *  `available`. For an unplanned Gate they are the `demand` / `inputAvail`
+ *  of its own turn. */
+export type GateStatus = {
+  nodeId: string
+  /** `idle`: nothing to pass (`available ≤ ε`; a normal zero, never a
+   *  warning). `full`: `moved = demand`. `partial`: `0 < moved < demand`.
+   *  `held`: `available > 0` and `moved = 0`. `fault`: a reason names the
+   *  Gate itself (inert branch weights, a zero-storage cycle; a refusal before
+   *  the run is the store's `refusals`, not an entry). */
+  state: 'idle' | 'full' | 'partial' | 'held' | 'fault'
+  /** why a `partial`, `held` or `fault`; absent for `idle` and `full`.
+   *  `supply`: its own Pools held less than it asked for. `upstream`: a
+   *  router that feeds it could deliver no more — it took all it was offered
+   *  (a `pull all` Gate too: the rule binds its own Pools only, D-demand).
+   *  `room`: its outlet had no room left for it (a full target, no live
+   *  branch, or an earlier supply of its group took the room). `pullAll`: its
+   *  all-or-nothing demand on its own Pools was not met. `plan`: the group it
+   *  runs with moved nothing (a `pull all` Converter short of `f = 1`, or a
+   *  shared piece that cannot be met). */
+  why?: 'supply' | 'upstream' | 'room' | 'pullAll' | 'plan' | 'inert' | 'cycle'
+  /** what it would have moved with nothing binding it (rounded to 6 decimals) */
+  demand: number
+  /** what its inputs held against that demand this step (6 decimals) */
+  available: number
+  /** what it moved: Σ its output events this step (6 decimals) */
+  moved: number
+  /** an amount handed to it this step that it did not pass on (the
+   *  `multiSupplyHeld` notice's number), when > 0 */
+  held?: number
 }
 
 /** A notice `step` reports as data; the catalogs carry its sentence

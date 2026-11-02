@@ -2281,6 +2281,55 @@ a.sheet__row {
   border-radius: 50%;
   pointer-events: none;
 }
+/* issue #477 — the Gate state LED: a 9 px disc at the cell's TOP-LEFT, the
+   `!` flag's mirror, outside the diamond and clear of the fired ticks (the
+   corner is 17.7 px from the diamond's edge, the ticks end at 11). Every state
+   is a shape as well as a colour: `full` a filled disc, `partial` a half disc,
+   `held` a hollow ring with a bar across it, `fault` a filled disc beside the
+   flag, `idle` the outline only. Static in every motion mode (Lumi, 2026-11-02:
+   no blinking state). The tokens are the run bar's --ok / --warn / --no; the
+   outline keeps a boundary on both canvas tones. */
+.nodef__led {
+  position: absolute;
+  top: -2.5px;
+  left: -2.5px;
+  width: 9px;
+  height: 9px;
+  overflow: visible;
+  pointer-events: none;
+}
+.nodef__led-outline {
+  fill: var(--bg-node);
+  stroke: var(--node-stroke);
+  stroke-width: 1;
+}
+.nodef__led--full .nodef__led-fill {
+  fill: var(--ok);
+}
+.nodef__led--partial .nodef__led-fill {
+  fill: var(--warn);
+}
+.nodef__led--fault .nodef__led-fill {
+  fill: var(--no);
+}
+.nodef__led-ring {
+  fill: none;
+  stroke: var(--warn);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+@media (forced-colors: active) {
+  .nodef__led-outline {
+    fill: Canvas;
+    stroke: CanvasText;
+  }
+  .nodef__led-fill {
+    fill: CanvasText;
+  }
+  .nodef__led-ring {
+    stroke: CanvasText;
+  }
+}
 /* docs/large-graph-readability.md §LGR5 — `evaluated`: activated but did not
    act. A small BOTTOM-LEFT corner bracket — a rounded L drawn with only
    `border-left` + `border-bottom` (+ one rounded corner). Deliberately NOT a

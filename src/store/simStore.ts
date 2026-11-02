@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { initSim, step } from '../engine'
 import type { FlowEvent, SimState, SimValues, StateEvent, StepResult, TriggerQueueEntry } from '../engine'
 import { type ConverterGroup, refusedGroups } from '../engine/converterGroups'
-import type { StepNotice } from '../engine/types'
+import type { GateStatus, StepNotice } from '../engine/types'
 import { MAX_SERIES } from '../model/limits'
 import { readTimelineSeries, type TimelineSeries } from '../model/serialize'
 import {
@@ -74,6 +74,8 @@ export type PreparedResult = {
     diagnostics: string[]
     /** `StepReport.notices` of this step (#471 — worded by the run bars) */
     notices: StepNotice[]
+    /** `StepReport.gates` of this step (#477 — the Gate state LED and the Inspector's line) */
+    gates: GateStatus[]
   }
 }
 
@@ -118,6 +120,12 @@ type SimStore = {
    *  (`StepReport.notices`), which the run bars word in the user's language;
    *  the same lifecycle as `diagnostics`. */
   notices: StepNotice[]
+  /** #477 — the engine's per-Gate execution evidence of the same step
+   *  (`StepReport.gates`): the Gate's state LED and the Inspector's line read
+   *  it; a Gate with no entry shows no LED (`off`). The same lifecycle as
+   *  `notices`: set at a commit, cleared by Reset, a graph edit, a document
+   *  change and a snapshot restore (a snapshot carries no report). */
+  gates: GateStatus[]
 
   /** why the current graph cannot be initialised for a run (`initSim` threw —
    *  e.g. a Pool whose `initial` / `capacity` is negative or non-finite, which
@@ -368,6 +376,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       triggerQueue: [...r.state.triggerQueue],
       diagnostics: [...new Set(r.report.diagnostics)],
       notices: [...r.report.notices],
+      gates: [...r.report.gates],
     }
   }
 
@@ -435,6 +444,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       arrivedPoolIds: [...p.derived.arrivedPoolIds],
       diagnostics: [...p.derived.diagnostics], // #396 — this step's, replacing the last step's
       notices: [...p.derived.notices],
+      gates: [...p.derived.gates],
       // §LGR6-cues — this committed step's `effective` id set, appended to the
       // trailing Activity-overlay window (fired nodes + resource-edge ids from
       // `events` + state-edge ids from `stateEvents`).
@@ -616,6 +626,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     arrivedPoolIds: [],
     diagnostics: [],
     notices: [],
+    gates: [],
     initError: null,
     refusals: [],
     activitySteps: [],
@@ -692,6 +703,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         arrivedPoolIds: [],
         diagnostics: [], // #396 — Reset, a graph edit and a document change leave none behind
         notices: [],
+        gates: [],
         initError: error,
         refusals: refusedGroups(graph().nodes, graph().edges),
         activitySteps: [],
@@ -723,6 +735,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         arrivedPoolIds: [],
         diagnostics: [], // #396 — a snapshot carries no step report
         notices: [],
+        gates: [],
         initError: null, // a verified snapshot IS a valid head
         refusals: refusedGroups(graph().nodes, graph().edges), // a refused shape stays refused: a restored head does not step
         activitySteps: [],
