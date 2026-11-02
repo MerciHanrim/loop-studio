@@ -59,11 +59,15 @@ export function IconField() {
   }, [targets])
 
   const [open, setOpen] = useState(false)
+  // the roving stop: the one option Tab reaches. It starts on the current
+  // option (None for no icon or a mixed set) and then FOLLOWS focus, so an
+  // arrow move, then Tab out and back, lands where the user left off
+  // (Lumi's review of #481) rather than on the stored value.
+  const [stop, setStop] = useState<NodeIconId | null>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const groupRef = useRef<HTMLDivElement>(null)
 
-  // opening puts focus on the current option; a mixed selection has none, so
-  // None is the stop
+  // opening puts focus on the current option
   useEffect(() => {
     if (!open) return
     const el = groupRef.current?.querySelector<HTMLElement>('[role="radio"][tabindex="0"]')
@@ -97,8 +101,10 @@ export function IconField() {
     buttonRef.current?.focus()
   }
 
-  // the roving stop: the current option, else None (no icon, or a mixed set)
-  const stop: NodeIconId | null = current.mixed ? null : current.value
+  const toggle = () => {
+    if (!open) setStop(current.mixed ? null : current.value)
+    setOpen((v) => !v)
+  }
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Escape') {
@@ -133,6 +139,8 @@ export function IconField() {
         tabIndex={stop === id ? 0 : -1}
         title={nameOf(id)}
         data-icon-option={id ?? 'none'}
+        // the stop follows focus, however it got here (an arrow, a pointer)
+        onFocus={() => setStop(id)}
         onClick={() => apply(id)}
       >
         {id === null ? <span className="icon-option__none">{t('inspector.icon.none')}</span> : <NodeIcon id={id} big className="icon-option__mark" />}
@@ -156,7 +164,7 @@ export function IconField() {
         aria-controls={`${ids}-gallery`}
         // heard as "Icon None" / "Icon Car": the field's title, then the choice
         aria-labelledby={`${ids}-title ${ids}-button`}
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
       >
         {current.mixed || current.value === null ? null : <NodeIcon id={current.value} big={false} className="icon-field__mark" />}
         <span>{current.mixed ? t('inspector.accent.mixed') : nameOf(current.value)}</span>

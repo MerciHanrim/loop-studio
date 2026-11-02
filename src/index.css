@@ -5890,6 +5890,7 @@ a.sheet__row {
   width: 16px;
   height: 16px;
   color: var(--node-stroke);
+  pointer-events: none;
 }
 .icon-gallery {
   display: flex;
@@ -5930,6 +5931,10 @@ a.sheet__row {
   width: 20px;
   height: 20px;
   color: var(--node-stroke);
+  /* decorative: the button is the hit target. A pointer down on a path
+     inside the SVG, then a re-render of the drawing before the pointer up,
+     made Chrome drop the click (the stop moving on focus, #481 review 1). */
+  pointer-events: none;
 }
 /* a NON-hue chosen tell (a ring), so it survives forced colours */
 .icon-option[aria-checked='true'] {

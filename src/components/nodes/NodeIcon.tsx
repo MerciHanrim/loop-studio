@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, useMemo } from 'react'
 import { useStore } from '@xyflow/react'
 import type { NodeIconId } from '../../model/model'
 import { NODE_ICON_BIG_ZOOM } from './nodeIconMeta'
@@ -13,7 +13,9 @@ export function NodeIcon({ id, big, className }: { id: NodeIconId; big: boolean;
   // a mask in the drawing needs an id no other mark on the page shares
   const uid = 'ni' + useId().replace(/[^A-Za-z0-9_-]/g, '_')
   const d = NODE_ICON_DRAWINGS[id]
-  const body = (big ? d.big : (d.small ?? d.big)).replaceAll('{uid}', uid)
+  // one string per drawing: a re-render for any other reason leaves the
+  // SVG's children alone
+  const body = useMemo(() => (big ? d.big : (d.small ?? d.big)).replaceAll('{uid}', uid), [big, d, uid])
   return (
     <svg
       className={className}

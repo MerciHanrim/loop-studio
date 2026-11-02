@@ -144,6 +144,18 @@ test.describe('node icon — the Inspector’s Icon field', () => {
     await expect(page.getByRole('radio', { name: 'None', exact: true })).toBeFocused()
     await page.keyboard.press('End')
     await expect(page.getByRole('radio', { name: 'Game currency', exact: true })).toBeFocused()
+    // the Tab stop follows focus (Lumi's review of #481): after an arrow move,
+    // Tab out and back lands on the option the user left, not on the stored one
+    await page.keyboard.press('Home')
+    await page.keyboard.press('ArrowRight')
+    await expect(page.getByRole('radio', { name: 'Cloud', exact: true })).toBeFocused()
+    await expect(page.locator('.icon-gallery [role="radio"][tabindex="0"]')).toHaveAttribute('data-icon-option', 'cloud')
+    await page.keyboard.press('Shift+Tab')
+    await expect(fieldButton(page)).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('radio', { name: 'Cloud', exact: true })).toBeFocused()
+    await expect(page.locator('.icon-gallery [role="radio"][tabindex="0"]')).toHaveCount(1)
+    expect(await iconOf(page, 'gold')).toBe('wind')
     // Escape closes without a change and gives focus back to the button
     await page.keyboard.press('Escape')
     await expect(page.getByRole('radiogroup', { name: 'Icon' })).toHaveCount(0)
