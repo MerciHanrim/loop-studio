@@ -807,19 +807,28 @@ function NodeFrame({
   const bodyH = outside ? CELL : boxH
   const sym = SYMBOLS[kind] ?? SYMBOLS.pool
 
-  // keyboard focus lands on React Flow's node wrapper, an ancestor of this div
+  const uid = 'nf' + useId().replace(/[^A-Za-z0-9_-]/g, '_')
+  const frameId = `${uid}-frame`
+  // keyboard focus lands on React Flow's node wrapper, an ancestor of this div.
+  // That wrapper is a `role="group"` with no name of its own (React Flow sets
+  // `aria-label` only from `node.ariaLabel`, and a group takes no name from
+  // its content), so what Tab reaches would be nameless: it is labelled by
+  // this frame, whose `aria-label` carries the kind, the label, `invalid`, a
+  // Gate's state this step (#477) and the selection / focus words.
   useEffect(() => {
     const rfNode = frameRef.current?.closest('.react-flow__node')
     if (!rfNode) return
+    rfNode.setAttribute('aria-labelledby', frameId)
     const on = () => setFocused(true)
     const off = () => setFocused(false)
     rfNode.addEventListener('focusin', on)
     rfNode.addEventListener('focusout', off)
     return () => {
+      rfNode.removeAttribute('aria-labelledby')
       rfNode.removeEventListener('focusin', on)
       rfNode.removeEventListener('focusout', off)
     }
-  }, [])
+  }, [frameId])
 
   // #337 — a width-parametric outline is drawn for the node's width (the fit
   // sets it, before the first paint); the others in their 120-wide viewBox
@@ -839,7 +848,6 @@ function NodeFrame({
   // arrival and conversion marks inside it (on the node face)
   const canvasTheme = useCanvasTheme()
   const runCase = accent ? [runNeedsCase(accent, canvasTheme, 'canvas') ? 'out' : '', runNeedsCase(accent, canvasTheme, 'node') ? 'in' : ''].filter(Boolean).join(' ') : ''
-  const uid = 'nf' + useId().replace(/[^A-Za-z0-9_-]/g, '_')
   const box = maskBox(bodyH, pathW)
   // state ports are invisible at rest; they surface on hover / selection /
   // keyboard focus / while a state wire is being dragged. A port that already
@@ -914,6 +922,7 @@ function NodeFrame({
   return (
     <div
       ref={frameRef}
+      id={frameId}
       role="img"
       aria-label={aria}
       className={
