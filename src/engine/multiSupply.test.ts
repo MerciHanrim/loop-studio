@@ -290,7 +290,7 @@ describe('#476 — the shapes the design solver did not cover, on the real engin
     close(r.moved, { e1: 20, g01: 20, e2: 10, g1h: 30, e3: 0, h1c: 30, o1: 30 })
     close(r.pools, { a: 80, b: 90, c: 100, x: 30 })
     checks(g, r)
-    expect(converterGroups(g.nodes, g.edges)[0]).toMatchObject({ cls: 'multi', multiGates: ['g1', 'h1'], jointMulti: false })
+    expect(converterGroups(g.nodes, g.edges)[0]).toMatchObject({ cls: 'multi', multiGates: ['g1', 'h1'] })
   })
   it('the downstream of the multi-supply Gate is a Gate that splits further: its branches\' rooms bound the group', () => {
     // A without C: g →(40) h;  h →(10) y;  h →(30) z (cap 15) → T_h ≤ 15 / (3/4) = 20
@@ -308,16 +308,51 @@ describe('#476 — the shapes the design solver did not cover, on the real engin
     close(r.pools, { a: 80, p: 90, p2: 0, q: 70, x: 60 })
     checks(g, r)
   })
-  it('two multi-supply Gates whose downstreams meet at one Converter (`jointMulti`) keep the previous rule, and what is lost is reported', () => {
-    const g: Graph = {
-      nodes: [pool('a', 100), pool('b', 100), pool('p', 100), pool('r', 100), gate('g0'), gate('g1'), gate('h0'), gate('h1'), conv('C'), pool('x', 0, 10)],
-      edges: [res('e1', 'a', 'g0', '20'), res('g01', 'g0', 'g1', '20'), res('e2', 'p', 'g1', '20'), res('e3', 'b', 'h0', '20'), res('h01', 'h0', 'h1', '20'), res('e4', 'r', 'h1', '20'), res('k1', 'g1', 'C', '40'), res('k2', 'h1', 'C', '40'), res('o1', 'C', 'x', '80')],
-    }
-    expect(converterGroups(g.nodes, g.edges)[0]).toMatchObject({ cls: 'multi', jointMulti: true })
+})
+
+describe('#476 — two multi-supply Gates whose downstreams meet at one Converter (one piece, two heads): the first Gate is filled in order, the second is held to what the Converter\'s one fraction gives it', () => {
+  // a →(20) g0 →(20) g1;  p →(20) g1;  b →(20) h0 →(20) h1;  r →(20) h1;  g1 →(40) C;  h1 →(40) C;  C →(80) x
+  const J = (o: { xCap?: number | null; r?: number; h1Mode?: Mode } = {}): Graph => ({
+    nodes: [pool('a', 100), pool('b', 100), pool('p', 100), pool('r', o.r ?? 100), gate('g0'), gate('g1'), gate('h0'), gate('h1', o.h1Mode), conv('C'), pool('x', 0, o.xCap === undefined ? null : o.xCap)],
+    edges: [res('e1', 'a', 'g0', '20'), res('g01', 'g0', 'g1', '20'), res('e2', 'p', 'g1', '20'), res('e3', 'b', 'h0', '20'), res('h01', 'h0', 'h1', '20'), res('e4', 'r', 'h1', '20'), res('k1', 'g1', 'C', '40'), res('k2', 'h1', 'C', '40'), res('o1', 'C', 'x', '80')],
+  })
+  it('is one multi group with both Gates, not refused', () => {
+    const g = J()
+    expect(converterGroups(g.nodes, g.edges)[0]).toMatchObject({ cls: 'multi', multiGates: ['g1', 'h1'], hasConverter: true })
+  })
+  it('J1: x capped at 10 — C can run at 1/8, so g1 gets 5 (g0 first, p nothing) and h1 must bring exactly 5 (h0 first, r nothing); nothing is lost (was: 30 lost, reported)', () => {
+    const g = J({ xCap: 10 })
     const r = run(g)
-    expect(r.diagnostics).toEqual([])
-    const total = (v: Record<string, number>) => ['a', 'b', 'p', 'r', 'x'].reduce((t, k) => t + v[k], 0)
-    // the previous rule: whatever the Pools lose is in the notices, never silent
-    expect(r.notices.reduce((t, n) => t + n.amount, 0)).toBeCloseTo(total(r.before) - total(r.pools), 6)
+    close(r.moved, { e1: 5, g01: 5, e2: 0, e3: 5, h01: 5, e4: 0, k1: 5, k2: 5, o1: 10 })
+    close(r.pools, { a: 95, b: 95, p: 100, r: 100, x: 10 })
+    checks(g, r)
+  })
+  it('J2: everything sufficient — both Gates at 40, C at f = 1', () => {
+    const g = J()
+    const r = run(g)
+    close(r.moved, { e1: 20, g01: 20, e2: 20, e3: 20, h01: 20, e4: 20, k1: 40, k2: 40, o1: 80 })
+    close(r.pools, { a: 80, b: 80, p: 80, r: 80, x: 80 })
+    checks(g, r)
+  })
+  it('J3: the second Gate\'s own Pool is short (r = 5): the first Gate\'s own Pool yields (p gives 5, not 20) so that the second can reach the throughput the Converter ties it to', () => {
+    const g = J({ r: 5 })
+    const r = run(g)
+    close(r.moved, { e1: 20, g01: 20, e2: 5, e3: 20, h01: 20, e4: 5, k1: 25, k2: 25, o1: 50 })
+    close(r.pools, { a: 80, b: 80, p: 95, r: 0, x: 50 })
+    checks(g, r)
+  })
+  it('J4: the second Gate is pull all with x capped at 10: its fixed demand (20 + 20) is not the 5 the Converter gives it, so the whole group moves nothing (D-fixed)', () => {
+    const g = J({ xCap: 10, h1Mode: 'pullAll' })
+    const r = run(g)
+    close(r.moved, { e1: 0, g01: 0, e2: 0, e3: 0, h01: 0, e4: 0, k1: 0, k2: 0, o1: 0 })
+    close(r.pools, { a: 100, b: 100, p: 100, r: 100, x: 0 })
+    checks(g, r)
+  })
+  it('J5: the second Gate is pull all and everything is sufficient: its demand 40 is exactly what the Converter gives it — runs in full', () => {
+    const g = J({ h1Mode: 'pullAll' })
+    const r = run(g)
+    close(r.moved, { e1: 20, g01: 20, e2: 20, e3: 20, h01: 20, e4: 20, k1: 40, k2: 40, o1: 80 })
+    close(r.pools, { a: 80, b: 80, p: 80, r: 80, x: 80 })
+    checks(g, r)
   })
 })

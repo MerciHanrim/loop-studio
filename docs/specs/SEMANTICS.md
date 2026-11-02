@@ -292,11 +292,16 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
     group of Gates with no Converter in which a Gate has two supplies (two
     Gates merging into one, the gacha shape) is planned the same way; a group
     of Gates only that splits and rejoins is not refused and keeps the per-Gate
-    rule, as before. One shape keeps the revision-1 rule and its loss
-    diagnostic: two multi-supply Gates whose downstreams meet at one member of
-    the group before any Pool (`jointMulti`). The plan is placed at the turn of
-    the group's first router as in a tree; the Gate then moves exactly what
-    the plan gave each of its supplies. Every case of the design is pinned per
+    rule, as before. Two multi-supply Gates whose downstreams meet at one
+    Converter share a piece: the Converter's one fraction sets the second
+    Gate's throughput from the first's, so the first Gate in the order is
+    filled as above while the second is held to exactly that throughput — its
+    supplies, in their order, each up to its own bound, cover it; a supply of
+    the first Gate is smaller when they could not, and a `pull all` second
+    Gate whose fixed demand is not that throughput zeroes the group (D-fixed).
+    The plan is placed at the turn of the group's first router as in a tree;
+    each Gate then moves exactly what the plan gave each of its supplies.
+    Every case of the design, and the shapes beyond it, are pinned per
     connection and Pool in `src/engine/multiSupply.test.ts`.
   A Converter outside every group whose router input delivers nothing this
   step (its router does not fire, the connection is dead, or a probabilistic

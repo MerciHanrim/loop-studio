@@ -29,11 +29,10 @@ import type { LoopEdge, LoopNode } from '../model/types'
 //                 upstream router and its own Pool inputs. Two or more free
 //                 numbers; the split is decided by a fixed priority in the
 //                 engine's existing order (#476, SEMANTICS.md §6 erratum,
-//                 part 3), with or without a Converter behind the Gate. The
-//                 one shape the priority does not cover is two multi-supply
-//                 Gates whose downstreams meet at one Converter without a
-//                 split (`jointMulti`): that group keeps the previous rule and
-//                 the run bars report what it loses.
+//                 part 3), with or without a Converter behind the Gate, and
+//                 also when two multi-supply Gates' downstreams meet at one
+//                 Converter (the Converter's one fraction then sets the second
+//                 Gate's throughput from the first's; step.ts `planMulti`).
 //
 // The classification is on structure only. Over the FULL graph it decides the
 // refusal shown before a run (the simulation and Monte Carlo stores); over the
@@ -56,11 +55,6 @@ export type ConverterGroup = {
   /** the group contains a Converter fed by a router (a Gate-only group does
    *  not; it is planned when `multi`, never refused) */
   hasConverter: boolean
-  /** `multi`: two multi-supply Gates sit in one piece — their downstreams meet
-   *  at one Converter with no split between them — so neither Gate's split is
-   *  free of the other's; the plan does not cover it (kept at the previous
-   *  rule, #476) */
-  jointMulti: boolean
 }
 
 type Kind = string | undefined
@@ -122,40 +116,9 @@ export function converterGroups(
       join: rejoin?.join ?? null,
       multiGates,
       hasConverter,
-      jointMulti: !rejoin && multiGates.length >= 2 && jointMultiPiece(members, rr, new Set(multiGates)),
     })
   }
   return groups
-}
-
-/** True when two multi-supply Gates share one PIECE — the parts of the group
- *  left when every router → router connection INTO a multi-supply Gate is cut
- *  (each piece is a tree whose one free number is set by the Gate at its head
- *  or by its own bounds; the plan fills the Gates' supplies one by one, #476).
- *  Two Gates in one piece means their downstreams meet at a Converter that
- *  ties their throughputs by its one fraction, so neither split is free. */
-function jointMultiPiece(members: string[], rr: LoopEdge[], multi: Set<string>): boolean {
-  const inGroup = new Set(members)
-  const adj = new Map<string, Set<string>>(members.map((m) => [m, new Set()]))
-  for (const e of rr) {
-    if (!inGroup.has(e.source) || !inGroup.has(e.target) || multi.has(e.target)) continue
-    adj.get(e.source)!.add(e.target)
-    adj.get(e.target)!.add(e.source)
-  }
-  const seen = new Set<string>()
-  for (const start of members) {
-    if (seen.has(start)) continue
-    let heads = 0
-    const stack = [start]
-    seen.add(start)
-    while (stack.length) {
-      const v = stack.pop()!
-      if (multi.has(v)) heads++
-      for (const w of adj.get(v)!) if (!seen.has(w)) { seen.add(w); stack.push(w) }
-    }
-    if (heads >= 2) return true
-  }
-  return false
 }
 
 /** The first router (ascending id) with two forward paths that meet again,

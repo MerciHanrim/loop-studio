@@ -67,12 +67,10 @@ const converterRate = (flow: string): number =>
 type Before = ReturnType<typeof initSim>
 type After = ReturnType<typeof step>
 
-/** the four checks over one step; `[]` when all hold. `multi` counts the
- *  Converters checks 2 / 3 skipped: members of the one multi-supply shape the
- *  plan does not cover — two multi-supply Gates whose downstreams meet at one
- *  Converter (`jointMulti`, #476), which keeps the previous rule. Every other
- *  group (a tree, or a multi group planned at its fixed priority) is checked
- *  like a Pool-fed Converter. */
+/** the four checks over one step; `[]` when all hold. Since #476 every group
+ *  (a tree, or a multi group planned at its fixed priority, two multi-supply
+ *  Gates meeting at one Converter included) is checked like a Pool-fed
+ *  Converter; `multi` counts the Converters checks 2 / 3 skipped and is 0. */
 function conservation(nodes: LoopNode[], edges: LoopEdge[], before: Before, after: After): { violations: string[]; multi: number } {
   const violations: string[] = []
   const byEdge = new Map(edges.map((e) => [e.id, e]))
@@ -81,8 +79,8 @@ function conservation(nodes: LoopNode[], edges: LoopEdge[], before: Before, afte
   const into = (id: string) => [...moved].reduce((s, [eid, a]) => s + (byEdge.get(eid)!.target === id ? a : 0), 0)
   const outOf = (id: string) => [...moved].reduce((s, [eid, a]) => s + (byEdge.get(eid)!.source === id ? a : 0), 0)
   const flowOf = (e: LoopEdge) => (e.data as { flow?: string }).flow ?? ''
-  const multiMembers = new Set(converterGroups(nodes, edges).filter((g) => g.cls === 'multi' && g.jointMulti).flatMap((g) => g.members))
-  let multi = 0
+  const multiMembers = new Set<string>()
+  const multi = 0
 
   for (const n of nodes) {
     if (n.data.kind === 'pool') {
@@ -96,10 +94,7 @@ function conservation(nodes: LoopNode[], edges: LoopEdge[], before: Before, afte
     } else if (n.data.kind === 'converter') {
       const ins = edges.filter((e) => e.target === n.id && e.data?.kind === 'resource')
       const outs = edges.filter((e) => e.source === n.id && e.data?.kind === 'resource')
-      if (multiMembers.has(n.id)) {
-        multi++
-        continue
-      }
+      if (multiMembers.has(n.id)) continue
       // 2 — one f on the inputs; every output either moved f · rate or is
       // inert this step (a branch into a router that does not fire, or on a
       // zero-storage cycle: SEMANTICS-S.md §S4 — the Converter makes its other

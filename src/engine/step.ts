@@ -875,10 +875,9 @@ export function step(
     // planned as one at the turn of its first router in `order` (one free
     // number `s`; every member's amount is a fixed multiple of it); a MULTI
     // group (a Gate with two supplies) is planned at the same turn by filling
-    // the Gate's supplies one after the other at a fixed priority (#476,
-    // `planMulti` below); only two multi-supply Gates meeting at one member
-    // (`jointMulti`) keep the rule they had, with a diagnostic when an amount
-    // vanishes. A split that rejoins was refused at the top of `step`.
+    // the Gates' supplies one after the other at a fixed priority (#476,
+    // `planMulti` below), two such Gates meeting at one Converter included.
+    // A split that rejoins was refused at the top of `step`.
     const liveEdge = (e: LoopEdge): boolean => {
       if (dead.has(e.id)) return false
       const sk = kindOf(e.source)
@@ -896,7 +895,6 @@ export function step(
     const multiAtRoot = new Map<string, { members: string[]; multiGates: string[] }>() // #476 — root id → the multi group
     for (const g of converterGroups(nodes, resEdges, liveEdge)) {
       if (g.cls === 'split-rejoin') continue // with a Converter: refused at the top of `step`; Gates only: the per-Gate rule
-      if (g.cls === 'multi' && g.jointMulti) continue // two multi-supply Gates in one piece: the previous rule (reported)
       const root = g.members.reduce((a, b) => ((orderIdx.get(b) ?? Infinity) < (orderIdx.get(a) ?? Infinity) ? b : a))
       if (g.cls === 'tree') treeAtRoot.set(root, g.members)
       else multiAtRoot.set(root, { members: g.members, multiGates: g.multiGates })
@@ -1139,8 +1137,16 @@ export function step(
     // reach, never its connection rate); the plan is that point if it is
     // feasible, else the whole group moves nothing. `pull all` Converters and
     // source Gates keep the tree rule (f = 1 or nothing; the source Gate's
-    // demand or nothing). The two loss notices stay as safety nets: a planned
-    // group never reaches them.
+    // demand or nothing). Two multi-supply Gates whose downstreams meet at one
+    // Converter share a piece: the Converter's one fraction sets the second
+    // Gate's throughput from the first's (`cof · s`), so the first Gate, in
+    // order, is filled as above while the second is held to what that leaves
+    // it — its supplies, in their order, each up to its own bound, cover
+    // exactly the throughput the first Gate implies (`settle`); when they
+    // cannot, the first Gate's supply is smaller, and a `pull all` second Gate
+    // whose fixed demand is not that throughput zeroes the group (D-fixed).
+    // The two loss notices stay as safety nets: a planned group never reaches
+    // them.
     const planMulti = (members: string[], multiGates: string[]) => {
       const { W, gateInto, convMake, convNeed, convPoolIns, pair, fedByRouter } = memberShapes(members)
       const multi = new Set(multiGates)
@@ -1215,16 +1221,64 @@ export function step(
       const orderedMulti = [...multiGates].sort(byOrder)
       const sPiece = new Map<number, number>() // source piece → its number
       const uOwn = new Map<string, number>() // own-Pool supply connection → its amount
-      /** every piece's number: a source piece's own; a headed piece's Gate throughput (its supplies are all upstream, so earlier in the order) */
+      const fixed = new Set<string>() // the supplies filled so far
+      const tentative = new Set<string>() // what `settle` set for a Gate that is not its piece's root; redone on every test
+      const keyOf = (sup: Sup) => (sup.kind === 'own' ? `own:${sup.e.id}` : `piece:${sup.piece}`)
+      const valueOf = (sup: Sup) => (sup.kind === 'own' ? (uOwn.get(sup.e.id) ?? 0) : sup.coef * (sPiece.get(sup.piece) ?? 0))
+      /** every piece's number: a source piece's own; a headed piece's number is the throughput of the Gate at its root (its supplies are all upstream, so earlier in the order) */
       const sOf = (): Map<number, number> => {
         const s = new Map<number, number>()
         for (const p of pieces) if (p.head === null) s.set(p.id, sPiece.get(p.id) ?? 0)
         for (const G of orderedMulti) {
+          const p = pieces[pieceOf.get(G)!]
+          if (p.root !== G) continue
           let T = 0
           for (const sup of supplies.get(G)!) T += sup.kind === 'router' ? sup.coef * (s.get(sup.piece) ?? 0) : (uOwn.get(sup.e.id) ?? 0)
-          s.set(pieceOf.get(G)!, T)
+          s.set(p.id, T)
         }
         return s
+      }
+      /** A multi-supply Gate that is not the root of its piece has its throughput set by the root (`cof · s`). Its supplies
+       *  not yet filled are set here, in their order, each up to its own bound, to cover exactly that throughput — so a test
+       *  of an earlier supply sees the later Gate as its own fill will leave it. False when they cannot cover it (or the
+       *  filled ones already exceed it). */
+      const settle = (): boolean => {
+        for (const k of tentative) {
+          if (fixed.has(k)) continue // its own fill set it while the tests still listed it here: the value stands
+          if (k.startsWith('own:')) uOwn.delete(k.slice(4))
+          else sPiece.delete(Number(k.slice(6)))
+        }
+        tentative.clear()
+        const s = sOf()
+        let ok = true
+        for (const G of orderedMulti) {
+          const p = pieces[pieceOf.get(G)!]
+          if (p.root === G) continue
+          let need = (p.cof.get(G) ?? 0) * (s.get(p.id) ?? 0)
+          const open: Sup[] = []
+          for (const sup of supplies.get(G)!) {
+            if (fixed.has(keyOf(sup)) || (sup.kind === 'router' && sPiece.has(sup.piece))) need -= valueOf(sup)
+            else open.push(sup)
+          }
+          for (const sup of open) {
+            const k = keyOf(sup)
+            if (tentative.has(k)) continue // a second connection from the same source piece: determined with the first
+            tentative.add(k)
+            if (sup.kind === 'own') {
+              const v = Math.max(0, Math.min(need, sup.want, availOf(sup.e.source)))
+              uOwn.set(sup.e.id, v)
+              need -= v
+            } else {
+              const coef = open.reduce((t, o) => (o.kind === 'router' && o.piece === sup.piece ? t + o.coef : t), 0)
+              const cap = coef > EPSILON ? coef * pieceMax(pieces[sup.piece]) : 0
+              const v = Math.max(0, Math.min(need, cap))
+              sPiece.set(sup.piece, coef > EPSILON ? v / coef : 0)
+              need -= v
+            }
+          }
+          if (Math.abs(need) > EPSILON) ok = false
+        }
+        return ok
       }
       /** member → its amount (a Gate's T, a Converter's f) */
       const amountsOf = (s: Map<number, number>) => {
@@ -1238,6 +1292,7 @@ export function step(
       const add = (map: Map<string, number>, k: string, v: number) => map.set(k, (map.get(k) ?? 0) + v)
       /** the tree plan's bounds, as a test of the whole group at once */
       const feasible = (): boolean => {
+        if (!settle()) return false
         const c = amountsOf(sOf())
         const claim = new Map<string, number>() // Pool → taken by the plan
         const give = new Map<string, number>() // Pool → delivered by the plan (a Converter's net on a Pool it also takes from)
@@ -1344,31 +1399,46 @@ export function step(
         return best
       }
       type Item = { sup: Sup; p: Piece | null }
-      const fill = (it: Item): number =>
-        it.sup.kind === 'own'
-          ? largest((v) => uOwn.set((it.sup as { e: LoopEdge }).e.id, v), Math.min(it.sup.want, Math.max(0, availOf(it.sup.e.source))), () => true)
-          : largest((v) => sPiece.set(it.p!.id, v), pieceMax(it.p!), () => pullAllSourcesOk(it.p!))
+      const fill = (it: Item): number => {
+        tentative.delete(keyOf(it.sup)) // from here on this supply is set by its own fill, not by `settle`
+        fixed.add(keyOf(it.sup)) // and `settle` reads the value under test as given
+        const v = it.sup.kind === 'own'
+          ? largest((x) => uOwn.set((it.sup as { e: LoopEdge }).e.id, x), Math.min(it.sup.want, Math.max(0, availOf(it.sup.e.source))), () => true)
+          : largest((x) => sPiece.set(it.p!.id, x), pieceMax(it.p!), () => pullAllSourcesOk(it.p!))
+        fixed.add(keyOf(it.sup))
+        return v
+      }
       let zero = false
       for (const G of orderedMulti) {
         const items: Item[] = []
         for (const sup of supplies.get(G)!) {
           if (sup.kind === 'router') {
             const p = pieces[sup.piece]
-            if (p.head === null && !sPiece.has(p.id)) items.push({ sup, p }) // a supply whose piece is already set is determined
+            if (p.head === null) items.push({ sup, p }) // a supply whose piece is already set (`determined`) is skipped below
           } else items.push({ sup, p: null })
         }
+        const determined = (it: Item) => it.p !== null && sPiece.has(it.p.id) && !tentative.has(`piece:${it.p.id}`)
         if (modeOfRouter(G) === 'pullAll') {
           // D-demand (the reach reading) and D-fixed
           const reach = items.map((it) => {
             if (it.sup.kind === 'own') return it.sup.want
+            if (determined(it)) return NaN
             const v = fill(it)
-            sPiece.set(it.p!.id, 0)
+            sPiece.delete(it.p!.id)
+            fixed.delete(keyOf(it.sup))
             return v
           })
-          items.forEach((it, i) => (it.sup.kind === 'own' ? uOwn.set(it.sup.e.id, reach[i]) : sPiece.set(it.p!.id, reach[i])))
+          items.forEach((it, i) => {
+            if (Number.isNaN(reach[i])) return
+            tentative.delete(keyOf(it.sup))
+            if (it.sup.kind === 'own') uOwn.set(it.sup.e.id, reach[i])
+            else sPiece.set(it.p!.id, reach[i])
+            fixed.add(keyOf(it.sup))
+          })
           if (!feasible()) { zero = true; break }
-        } else for (const it of items) fill(it)
+        } else for (const it of items) if (!determined(it)) fill(it)
       }
+      if (!zero && !feasible()) zero = true // the later Gate of a shared piece could not be met exactly
       if (!zero) {
         const c = amountsOf(sOf())
         for (const m of members) {
@@ -1376,7 +1446,7 @@ export function step(
           if ((c.get(m) ?? 0) < 1 - EPSILON) { pullShort.add(m); zero = true }
         }
       }
-      if (zero) { sPiece.clear(); uOwn.clear() }
+      if (zero) { sPiece.clear(); uOwn.clear(); fixed.clear(); tentative.clear() }
       // record the plan; claim the inputs (`reservedIn`) and the output room, as the tree plan does
       const c = amountsOf(sOf())
       for (const m of members) {
@@ -1729,8 +1799,9 @@ export function step(
         if (fDry <= EPSILON) continue
 
         // What each Pool connection moves. A Converter fed from Pools only:
-        // exactly `f · rate` on every one of them (I2). A Converter in an
-        // unplanned group (`jointMulti`, #476): the upstream routers already
+        // exactly `f · rate` on every one of them (I2). A router-fed Converter
+        // outside every plan (no classified group reaches this since #476; the
+        // safety net behind the loss notice): the upstream routers already
         // delivered at THEIR fraction, which this step cannot undo; its Pool
         // side keeps the rule it had, `fPool · rate`, the production below
         // follows what was received, so nothing is created, and what was

@@ -19,7 +19,7 @@ describe('converterGroups — the design shapes', () => {
   it('G1: Gate → Converter beside a Pool input is one tree group', () => {
     const nodes = [pool('a'), pool('b'), gate('g'), conv('C'), pool('x')]
     const edges = [res('e1', 'a', 'g'), res('g1', 'g', 'C'), res('e2', 'b', 'C'), res('o1', 'C', 'x')]
-    expect(converterGroups(nodes, edges)).toEqual([{ members: ['C', 'g'], cls: 'tree', split: null, join: null, multiGates: [], hasConverter: true, jointMulti: false }])
+    expect(converterGroups(nodes, edges)).toEqual([{ members: ['C', 'g'], cls: 'tree', split: null, join: null, multiGates: [], hasConverter: true }])
     expect(refusedGroups(nodes, edges)).toEqual([])
   })
 
@@ -27,7 +27,7 @@ describe('converterGroups — the design shapes', () => {
   it('a Gate with two supplies and no Converter behind it is a multi group of Gates only (planned, never refused)', () => {
     const nodes = [pool('a'), gate('g0'), pool('b'), gate('g1'), gate('g2'), pool('y')]
     const oneRouterOwnPool = [res('e1', 'a', 'g0'), res('g01', 'g0', 'g1'), res('e2', 'b', 'g1'), res('o1', 'g1', 'y')]
-    expect(converterGroups(nodes, oneRouterOwnPool)).toEqual([{ members: ['g0', 'g1'], cls: 'multi', split: null, join: null, multiGates: ['g1'], hasConverter: false, jointMulti: false }])
+    expect(converterGroups(nodes, oneRouterOwnPool)).toEqual([{ members: ['g0', 'g1'], cls: 'multi', split: null, join: null, multiGates: ['g1'], hasConverter: false }])
     const twoRouters = [res('e1', 'a', 'g0'), res('g01', 'g0', 'g1'), res('e2', 'b', 'g2'), res('g21', 'g2', 'g1'), res('o1', 'g1', 'y')]
     expect(converterGroups(nodes, twoRouters)[0]).toMatchObject({ members: ['g0', 'g1', 'g2'], cls: 'multi', multiGates: ['g1'], hasConverter: false })
     expect(refusedGroups(nodes, twoRouters)).toEqual([])
@@ -37,21 +37,21 @@ describe('converterGroups — the design shapes', () => {
     expect(refusedGroups(nodes, gateDiamond)).toEqual([])
   })
 
-  it('two multi-supply Gates whose downstreams meet at one Converter share a piece (`jointMulti`); in a chain they do not', () => {
+  it('two multi-supply Gates in one group — meeting at one Converter, or in a chain — are one multi group with both Gates listed', () => {
     const nodes = [pool('a'), pool('b'), pool('p'), pool('r'), gate('g0'), gate('g1'), gate('h0'), gate('h1'), conv('C'), pool('x')]
     const joint = [
       res('e1', 'a', 'g0'), res('g01', 'g0', 'g1'), res('e2', 'p', 'g1'),
       res('e3', 'b', 'h0'), res('h01', 'h0', 'h1'), res('e4', 'r', 'h1'),
       res('k1', 'g1', 'C'), res('k2', 'h1', 'C'), res('o1', 'C', 'x'),
     ]
-    expect(converterGroups(nodes, joint)[0]).toMatchObject({ cls: 'multi', multiGates: ['g1', 'h1'], jointMulti: true })
+    expect(converterGroups(nodes, joint)[0]).toMatchObject({ cls: 'multi', multiGates: ['g1', 'h1'], hasConverter: true })
     expect(refusedGroups(nodes, joint)).toEqual([])
     const chain = [
       res('e1', 'a', 'g0'), res('g01', 'g0', 'g1'), res('e2', 'p', 'g1'),
       res('g1h', 'g1', 'h1'), res('e4', 'r', 'h1'),
       res('k2', 'h1', 'C'), res('o1', 'C', 'x'),
     ]
-    expect(converterGroups(nodes, chain)[0]).toMatchObject({ cls: 'multi', multiGates: ['g1', 'h1'], jointMulti: false })
+    expect(converterGroups(nodes, chain)[0]).toMatchObject({ cls: 'multi', multiGates: ['g1', 'h1'], hasConverter: true })
   })
 
   it('G2: one Pool feeding the Gate and the Converter is still a tree (a Pool is not a member)', () => {
@@ -154,6 +154,5 @@ describe('converterGroups — the bundled documents', () => {
     expect(files.filter((f) => groupsOf(f).some((g) => g.hasConverter)).map(name)).toEqual(['deadlock.json', 'equilibrium.json', 'mmo-progression.json'])
     const gateOnly = files.filter((f) => groupsOf(f).some((g) => !g.hasConverter))
     expect(gateOnly.map(name)).toEqual(['gacha-banner-zones.json', 'gacha-pickup.json', 'gacha-standard.json'])
-    for (const f of gateOnly) for (const g of groupsOf(f)) if (!g.hasConverter) expect(g.jointMulti, `${name(f)} ${g.members.join(',')}`).toBe(false)
   })
 })
