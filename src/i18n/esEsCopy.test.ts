@@ -73,6 +73,13 @@ describe('es-ES — the region audit, as a contract', () => {
         'stateExpr.label.hint.empty',
         'inspector.accent.error.alpha',
         'inspector.accent.error.format',
+        // #478 — the node icon: Spain says `Icono`, `vida diaria`, `Mando a
+        // distancia` and `Coche`; Latin America `Ícono`, `vida cotidiana`,
+        // `Control remoto` and `Auto`
+        'inspector.icon.title',
+        'inspector.icon.group.industry',
+        'inspector.icon.name.remote',
+        'inspector.icon.name.car',
         // adding something: Spain says `anadir`, and `agregar` reads Latin
         // American. Found only by the SECOND review — the first pass never
         // had it on the candidate list.

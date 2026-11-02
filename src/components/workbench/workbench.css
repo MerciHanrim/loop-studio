@@ -608,6 +608,7 @@
   height: 16px;
   flex: none;
   color: var(--node-stroke);
+  pointer-events: none;
 }
 .wb-list__none {
   margin: 0;

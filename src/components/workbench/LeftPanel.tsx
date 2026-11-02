@@ -7,6 +7,8 @@ import { useIsMobile } from '../../ui/media'
 import { Icon } from '../../ui/icons'
 import { ModelPanels, useReveal } from '../ModelPanels'
 import { KindIcon } from '../nodes/KindIcon'
+import { NodeIcon } from '../nodes/NodeIcon'
+import { readIcon, type NodeIconId } from '../../model/model'
 import { onOverlayKey, PANEL_ID, useWorkbenchPanels } from './panelLayout'
 import './workbench.css'
 
@@ -30,7 +32,11 @@ const labelOf = (n: { id: string; data?: unknown }): string =>
 const norm = (s: string) => s.toLocaleLowerCase().replace(/\s+/g, ' ').trim()
 
 /** a node kind's symbol, small: the same mark as the tool row's Add button */
-function KindMark({ kind }: { kind: NodeKind }) {
+function KindMark({ kind, icon }: { kind: NodeKind; icon?: NodeIconId }) {
+  // SEMANTICS-R12.md — a node with an icon shows it here, at 16 px, in the kind
+  // mark's place (the list is not on the canvas, so no zoom hides it); the kind
+  // stays in the row's group heading
+  if (icon) return <NodeIcon id={icon} big={false} className="wb-kindmark" />
   return <KindIcon kind={kind} className="wb-kindmark" />
 }
 
@@ -200,7 +206,7 @@ export function LeftPanel() {
                         reveal(n.id, null)
                       }}
                     >
-                      <KindMark kind={n.type as NodeKind} />
+                      <KindMark kind={n.type as NodeKind} icon={readIcon((n.data as { icon?: unknown } | undefined)?.icon)} />
                       <span className="wb-row__name" dir="auto">
                         {labelOf(n)}
                       </span>

@@ -5858,6 +5858,113 @@ a.sheet__row {
     background: Canvas;
   }
 }
+/* SEMANTICS-R12.md — the Inspector's Icon field: a button showing the current
+   icon, and the gallery under it (marks in the symbol's stroke ink) */
+.icon-field {
+  margin: 4px 0 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-1);
+}
+.icon-field__title {
+  margin: 0 0 6px;
+}
+.icon-field__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 3px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink-1);
+  border: 1px solid var(--line-control);
+  border-radius: var(--control-radius);
+  background: var(--bg-field);
+  cursor: pointer;
+}
+.icon-field__button:disabled {
+  cursor: default;
+}
+.icon-field__mark {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--node-stroke);
+  pointer-events: none;
+}
+.icon-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.icon-gallery__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.icon-gallery__heading {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.icon-gallery__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.icon-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink-2);
+  border: 1px solid var(--line-control);
+  border-radius: var(--control-radius);
+  background: var(--bg-raise);
+  cursor: pointer;
+}
+.icon-option__mark {
+  width: 20px;
+  height: 20px;
+  color: var(--node-stroke);
+  /* decorative: the button is the hit target. A pointer down on a path
+     inside the SVG, then a re-render of the drawing before the pointer up,
+     made Chrome drop the click (the stop moving on focus, #481 review 1). */
+  pointer-events: none;
+}
+/* a NON-hue chosen tell (a ring), so it survives forced colours */
+.icon-option[aria-checked='true'] {
+  box-shadow:
+    0 0 0 2px var(--bg-raise),
+    0 0 0 4px var(--ink-1);
+}
+.icon-option:disabled {
+  cursor: default;
+}
+/* the phone's read-only line (MV-D3): the mark and its name */
+.icon-field__summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-1);
+}
+@media (forced-colors: active) {
+  .icon-field__mark,
+  .icon-option__mark {
+    color: CanvasText;
+  }
+  .icon-option[aria-checked='true'] {
+    box-shadow: none;
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+}
 .field__hint {
   margin: 4px 0 0;
   font-size: 11px;

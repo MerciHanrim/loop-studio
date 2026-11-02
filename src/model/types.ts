@@ -1,4 +1,5 @@
 import type { Edge, Node } from '@xyflow/react'
+import type { NodeIconId } from './model/icon'
 
 /**
  * Loop Studio graph model.
@@ -32,7 +33,13 @@ export type GateDistribution = 'deterministic' | 'probabilistic'
  *  to reset a run (`src/model/model/accent.ts`). */
 export type FlowColour = { accent?: string }
 
-export type PoolData = FlowColour & {
+/** SEMANTICS-R12.md — an optional icon on the six flow kinds: an id of the fixed
+ *  registry (`src/model/model/icon.ts`), absent when none. Visual only: outside
+ *  the engine digest, cosmetic in the revision digest, never a reason to reset a
+ *  run. Parameter and Register carry none (a value there is dropped on read). */
+export type FlowIcon = { icon?: NodeIconId }
+
+export type PoolData = FlowColour & FlowIcon & {
   kind: 'pool'
   label: string
   activation: Activation
@@ -45,21 +52,21 @@ export type PoolData = FlowColour & {
   resourceType?: string
 }
 
-export type SourceData = FlowColour & {
+export type SourceData = FlowColour & FlowIcon & {
   kind: 'source'
   label: string
   activation: Activation
   mode: PushMode
 }
 
-export type DrainData = FlowColour & {
+export type DrainData = FlowColour & FlowIcon & {
   kind: 'drain'
   label: string
   activation: Activation
   mode: PullMode
 }
 
-export type GateData = FlowColour & {
+export type GateData = FlowColour & FlowIcon & {
   kind: 'gate'
   label: string
   activation: Activation
@@ -68,14 +75,14 @@ export type GateData = FlowColour & {
   mode?: PullMode
 }
 
-export type ConverterData = FlowColour & {
+export type ConverterData = FlowColour & FlowIcon & {
   kind: 'converter'
   label: string
   activation: Activation
   mode: PullMode
 }
 
-export type EndData = FlowColour & {
+export type EndData = FlowColour & FlowIcon & {
   kind: 'end'
   label: string
   activation: Activation

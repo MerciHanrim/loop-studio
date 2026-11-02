@@ -42,6 +42,7 @@ export {
 } from './registers'
 export { trimUnicodeWhitespace, truncateUtf8, utf8Len } from './text'
 export { ACCENT_STORED, type AccentInput, carryAccent, parseAccentInput, readAccent } from './accent'
+export { isNodeIconId, NODE_ICON_IDS, NODE_ICON_KINDS, type NodeIconId, readIcon } from './icon'
 export {
   formatRegisterValue,
   initialPoolValues,
