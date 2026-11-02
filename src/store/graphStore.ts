@@ -45,7 +45,7 @@ import {
   type SavedFrame,
   type TimelineSeries,
 } from '../model/serialize'
-import { readAccent } from '../model/model'
+import { NODE_ICON_KINDS, readAccent, readIcon } from '../model/model'
 import { connectKindOf, connectVerdict, drawnEdge, kindChangeVerdict, rekindedEdge, type ConnectKind, type ConnectVerdict } from '../model/connectKind'
 import { endMoveVerdict, movedEdge, type EndMove, type EndMoveVerdict } from '../model/endMove'
 import { reversedEdge, reverseVerdict, type ReverseVerdict } from '../model/reverse'
@@ -338,6 +338,11 @@ type GraphStore = {
    *  nodes and edges as ONE undo entry. Elements that already have it are
    *  left alone; when nothing changes, no entry. Never a simulation change. */
   setAccent: (nodeIds: readonly string[], edgeIds: readonly string[], accent: string | null) => void
+  /** SEMANTICS-R12.md — set (a registered icon id) or remove (`null`) the icon of
+   *  these nodes as ONE undo entry. Only the six flow kinds take one; a Parameter
+   *  or Register in the list is left alone. Nodes that already have it are left
+   *  alone; when nothing changes, no entry. Never a simulation change. */
+  setIcon: (nodeIds: readonly string[], icon: string | null) => void
   removeNode: (id: string) => void
   removeEdge: (id: string) => void
   setSelection: (nodeId: string | null, edgeId: string | null) => void
@@ -658,9 +663,11 @@ function fieldTag(prefix: string, id: string, changed: string[]): string | null 
 // docs/flow-colour-and-compact-nodes.md FC-2.4 — a flow colour is not a model
 // change: setting, removing, undoing or redoing one never resets the run.
 const accentOf = (data: unknown): unknown => (data as { accent?: unknown } | undefined)?.accent
+// SEMANTICS-R12.md — a node's icon is just as visual: setting, removing,
+// undoing or redoing one never resets the run either.
 const withoutAccent = (data: unknown): string => {
   if (!data || typeof data !== 'object') return JSON.stringify(data)
-  const { accent: _accent, ...rest } = data as Record<string, unknown>
+  const { accent: _accent, icon: _icon, ...rest } = data as Record<string, unknown>
   return JSON.stringify(rest)
 }
 /** true when `a` and `b` differ in nothing the engine reads but some element's
@@ -1174,8 +1181,32 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         ),
       })
       // a pure `label` rename does not change what a simulation computes, and
-      // neither does a flow colour (FC-2.4)
-      if (Object.keys(patch).some((k) => k !== 'label' && k !== 'accent')) bump()
+      // neither does a flow colour (FC-2.4) or an icon (R12)
+      if (Object.keys(patch).some((k) => k !== 'label' && k !== 'accent' && k !== 'icon')) bump()
+      persist()
+    },
+
+    setIcon: (nodeIds, icon) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
+      const value = icon == null ? undefined : readIcon(icon)
+      if (icon != null && value === undefined) return
+      const nodeSet = new Set(nodeIds)
+      // only the six flow kinds carry an icon; a Parameter or Register is skipped
+      const applies = (n: LoopNode) =>
+        nodeSet.has(n.id) && NODE_ICON_KINDS.has(n.data.kind) &&
+        (n.data as { icon?: string }).icon !== value
+      const { nodes } = get()
+      if (!nodes.some(applies)) return
+      commit('')
+      set({
+        nodes: nodes.map((n) => {
+          if (!applies(n)) return n
+          const next = { ...(n.data as Record<string, unknown>) }
+          if (value === undefined) delete next.icon
+          else next.icon = value
+          return { ...n, data: next as LoopNode['data'] }
+        }),
+      })
       persist()
     },
 

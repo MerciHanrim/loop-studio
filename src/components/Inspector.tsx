@@ -31,6 +31,7 @@ import { useSimStore } from '../store/simStore'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { AccentField } from './AccentField'
+import { IconField } from './IconField'
 import { DraftNumberInput } from './DraftNumberInput'
 import { EdgeEndsField } from './EdgeEndsField'
 import { RegisterExprField } from './RegisterExprField'
@@ -274,6 +275,7 @@ export function Inspector({ editLocked = false }: { editLocked?: boolean } = {})
               </select>
             </Field>
           )}
+          <IconField />
           <AccentField />
         </PanelDetails>
         </Editing>

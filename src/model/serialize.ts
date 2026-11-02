@@ -1,7 +1,7 @@
 import { readRoutingPayload } from './edgeRouting'
 import { defaultData } from './factory'
 import { canonicalPorts } from './ports'
-import { readAccent, readParameterData, readRegisterData, SOURCE_ID_MAX_BYTES, SOURCE_KEY_MAX_BYTES, utf8Len } from './model'
+import { readAccent, readIcon, readParameterData, readRegisterData, SOURCE_ID_MAX_BYTES, SOURCE_KEY_MAX_BYTES, utf8Len } from './model'
 import type { LoopEdge, LoopNode, NodeKind } from './types'
 import { StorageHeldError, storagePort, storageSession } from '../storage/storagePort'
 
@@ -538,6 +538,10 @@ function normalizeNode(n: LoopNode): LoopNode {
   const accent = readAccent(data.accent)
   if (accent === undefined) delete data.accent
   else data.accent = accent
+  // SEMANTICS-R12.md — the same for `icon`: only a registered id survives
+  const icon = readIcon(data.icon)
+  if (icon === undefined) delete data.icon
+  else data.icon = icon
   return { ...n, type: n.type ?? kind, data: data as LoopNode['data'] }
 }
 

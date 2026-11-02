@@ -12,6 +12,7 @@ import { canonicalPorts, edgePortKind } from './ports'
 import {
   normalizeResourceType,
   readAccent,
+  readIcon,
   readParameterData,
   readRegisterData,
 } from './model'
@@ -162,9 +163,10 @@ export type ProjectPayload = {
   semantics?: string
 }
 
-/** the revision semantics this build writes into a header (§R10-6; `/11` since
- *  SEMANTICS-R11.md — the port faces of the node structure) */
-export const REVISION_SEMANTICS = 'loop-revision/11'
+/** the revision semantics this build writes into a header (§R10-6; `/12` since
+ *  SEMANTICS-R12.md — the icon of a flow node; `/11` was the port faces of the
+ *  node structure) */
+export const REVISION_SEMANTICS = 'loop-revision/12'
 const SEMANTICS_RE = /^loop-revision\/([1-9][0-9]{0,3})$/
 /** the `N` of {@link REVISION_SEMANTICS} — what this reader can verify */
 const OWN_SEMANTICS_N = Number(SEMANTICS_RE.exec(REVISION_SEMANTICS)![1])
@@ -224,13 +226,17 @@ function numOrThrow(n: number, where: string): number {
  *  non-empty, so a graph with no resource types projects byte-identically to
  *  `loop-revision/1` (R2-INV-2). */
 const NODE_FIELDS: Record<FlowNodeKind, readonly string[]> = {
-  pool: ['kind', 'label', 'activation', 'initial', 'capacity', 'mode', 'resourceType', 'accent'],
-  source: ['kind', 'label', 'activation', 'mode', 'accent'],
-  drain: ['kind', 'label', 'activation', 'mode', 'accent'],
-  gate: ['kind', 'label', 'activation', 'distribution', 'mode', 'accent'],
-  converter: ['kind', 'label', 'activation', 'mode', 'accent'],
-  end: ['kind', 'label', 'activation', 'mode', 'accent'],
+  pool: ['kind', 'label', 'activation', 'initial', 'capacity', 'mode', 'resourceType', 'accent', 'icon'],
+  source: ['kind', 'label', 'activation', 'mode', 'accent', 'icon'],
+  drain: ['kind', 'label', 'activation', 'mode', 'accent', 'icon'],
+  gate: ['kind', 'label', 'activation', 'distribution', 'mode', 'accent', 'icon'],
+  converter: ['kind', 'label', 'activation', 'mode', 'accent', 'icon'],
+  end: ['kind', 'label', 'activation', 'mode', 'accent', 'icon'],
 }
+// `loop-revision/12` (SEMANTICS-R12.md) appends a trailing `icon` (a registered
+// icon id, `src/model/model/icon.ts`) to the six flow kinds only — emitted only
+// when set, so a document with no icon projects byte-identically to before
+// (R12-INV-1). Parameter and Register never carry one.
 // `loop-revision/9` (SEMANTICS-R9.md) appends a trailing `accent` (the flow
 // colour, docs/flow-colour-and-compact-nodes.md FC-2) to EVERY node and edge
 // list here and below — emitted only when set, so a document with no flow
@@ -431,6 +437,13 @@ function projectNode(n: LoopNode, modelLayer: boolean): CanonicalNode {
       if (!modelLayer) continue
       const a = readAccent(src.accent)
       if (a !== undefined) data.accent = a
+      continue
+    }
+    if (f === 'icon') {
+      // loop-revision/12 — trailing, only when a registered id is present
+      if (!modelLayer) continue
+      const i = readIcon(src.icon)
+      if (i !== undefined) data.icon = i
       continue
     }
     let v = src[f]
@@ -683,6 +696,7 @@ export type SideVersion =
   | 'loop-revision/9' // SEMANTICS-R9.md — the side carries ≥ 1 flow colour (`data.accent`)
   | 'loop-revision/10' // SEMANTICS-R10.md — the side carries ≥ 1 straight connection (`route: "straight"`)
   | 'loop-revision/11' // SEMANTICS-R11.md — the side carries ≥ 1 stored non-default port face (`data.ports`)
+  | 'loop-revision/12' // SEMANTICS-R12.md — the side carries ≥ 1 flow-node icon (`data.icon`)
 export type RevisionSideOk = {
   ok: true
   version: SideVersion
@@ -863,7 +877,14 @@ export function readRevisionSide(
   // drops the key). The newest extension, so the highest label precedence,
   // on the same projection.
   const hasPorts = g.edges.some((e) => canonicalPorts(edgePortKind(e), (e.data as { ports?: unknown } | undefined)?.ports) !== undefined)
-  const version: SideVersion = hasPorts
+  // SEMANTICS-R12.md §R12-1 — ≥ 1 SURVIVING flow-node icon (a value that is not
+  // a registered id, or that sits on a Parameter / Register, was already dropped
+  // by `normalizeGraph`). The newest extension, so the highest label precedence,
+  // on the same projection.
+  const hasIcon = g.nodes.some((n) => readIcon((n.data as { icon?: unknown } | undefined)?.icon) !== undefined)
+  const version: SideVersion = hasIcon
+    ? 'loop-revision/12'
+    : hasPorts
     ? 'loop-revision/11'
     : hasStraight
     ? 'loop-revision/10'
@@ -1033,6 +1054,8 @@ export function fieldTag(kind: 'node' | 'edge', field: string): FieldTag {
   if (kind === 'edge' && field === 'data.ports') return 'cosmetic'
   // loop-revision/9 — the flow colour is decorative on a node and on an edge
   if (field === 'data.accent') return 'cosmetic'
+  // loop-revision/12 — a node's icon is a visual mark
+  if (kind === 'node' && field === 'data.icon') return 'cosmetic'
   if (field === 'data.resourceType') return 'advisory'
   if (kind === 'node') {
     if (
@@ -1576,6 +1599,8 @@ const OPTIONAL_PROJECTED_KEYS = new Set([
   'sourceTableId', 'sourceKey', 'sourceColumnId', 'labelAutoComposed',
   // `loop-revision/9` (SEMANTICS-R9.md) — the flow colour, on nodes and edges
   'accent',
+  // `loop-revision/12` (SEMANTICS-R12.md) — a node's icon
+  'icon',
 ])
 
 export type HunkSelection = {

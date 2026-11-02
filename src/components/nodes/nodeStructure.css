@@ -172,6 +172,24 @@
   line-break: strict;
   text-wrap: balance;
 }
+/* the node's icon (SEMANTICS-R12.md), before the name: a 16 px filled mark in the
+   symbol's stroke ink. It is a detail of the L2 level and nothing else, so at L1
+   and L0 it leaves the line with its gap (`display: none`, not `visibility`: the
+   gap has to fold with it) and the name re-centres under the symbol. It stays in
+   the DOM at every level (§VL7.1). */
+.nodef__icon {
+  display: inline-block;
+  vertical-align: -3px;
+  margin-inline-end: 4px;
+  width: 16px;
+  height: 16px;
+  color: var(--node-stroke);
+  pointer-events: none;
+}
+.nodef.lod-L1 .nodef__icon,
+.nodef.lod-L0 .nodef__icon {
+  display: none;
+}
 .nodef--outside.is-selected .nodef__name {
   font-weight: 600;
   color: var(--sel-name);

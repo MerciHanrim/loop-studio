@@ -392,6 +392,10 @@ describe('es-419 copy — mechanical review', () => {
       s: ['mobile.speed.slow.time', 'mobile.speed.normal.time', 'mobile.speed.fast.time', 'mobile.speed.veryFast.time'],
       // issue #344 step 3 — the Spanish adjective IS `manual` (Trazado manual)
       manual: ['inspector.edge.route.manual'],
+      // #478 — the Spanish words ARE `control` (Control remoto) and `nuclear`
+      // (Central nuclear), the names of two node icons
+      Control: ['inspector.icon.name.remote'],
+      nuclear: ['inspector.icon.name.nuclear-plant'],
     }
 
     const WORD = /[A-Za-zÀ-ÖØ-öø-ÿ]+/gu

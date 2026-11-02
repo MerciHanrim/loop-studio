@@ -22,7 +22,9 @@ import {
   VESSEL_MIN_PAD_Y,
 } from './silhouette'
 import { type Extent, fitOutline, type OutlineFit, type OutlineGeometry, type OutlineRow } from './outlineFit'
-import { formatRegisterValue, readAccent, readParameterData, readRegisterData } from '../../model/model'
+import { formatRegisterValue, readAccent, readIcon, readParameterData, readRegisterData, type NodeIconId } from '../../model/model'
+import { CanvasNodeIcon } from './NodeIcon'
+import { nodeIconNameKey } from './nodeIconMeta'
 import { PORT_ROW } from '../../model/layout/grid'
 import { useGraphStore } from '../../store/graphStore'
 import { useRegisterOutcome } from '../../store/registers'
@@ -41,6 +43,7 @@ import type {
   ConverterData,
   DrainData,
   FlowColour,
+  FlowIcon,
   GateData,
   NodeKind,
   PoolData,
@@ -502,6 +505,9 @@ type FrameProps = {
   /** docs/flow-colour-and-compact-nodes.md FC-4.1 — the node's flow colour as
    *  stored (`data.accent`); re-read here, so only `#RRGGBB` is ever drawn. */
   accent?: string
+  /** SEMANTICS-R12.md — the node's icon (a registered id), drawn before the
+   *  name under the new structure; absent ⇒ no mark and no gap */
+  icon?: NodeIconId
   firing?: boolean
   /** §LGR5 — `evaluated`: activated this step but did not fire. A small static
    *  bottom-left corner bracket, lower weight than `firing`'s outline pulse;
@@ -554,6 +560,7 @@ function NodeFrame({
   subDir,
   selected,
   accent: accentProp,
+  icon,
   firing,
   evaluated,
   activity,
@@ -912,6 +919,9 @@ function NodeFrame({
   const roleWord = outside && roleKey ? tip(roleKey) : null
   const aria =
     `${tip(`canvas.nodeKind.${kind}` as MessageKey)} ${title}` +
+    // SEMANTICS-R12.md — the icon's name, whatever the zoom (the name is not a
+    // detail of the L2 level)
+    (icon ? `, ${tip(nodeIconNameKey(icon))}` : '') +
     (roleWord ? `, ${roleWord}` : '') +
     (invalid ? `, ${tip('node.aria.invalid')}` : '') +
     // issue #477 — a Gate's state this step, in words (the LED is decorative):
@@ -1254,6 +1264,11 @@ function NodeFrame({
               </span>
             ) : null}
             <span className={`nodef__name nodef__name--${nameFace}${phrased ? ' nodef__name--phrased' : ''}`} dir={titleDir}>
+              {/* SEMANTICS-R12.md — the node's icon, before the name; shown at
+                  the L2 detail level only (the CSS takes it, and its gap, out
+                  of the line at L1 and L0), decorative: its name is in the
+                  frame's accessible name */}
+              {icon ? <CanvasNodeIcon id={icon} /> : null}
               {titleNode}
             </span>
           </span>
@@ -1305,6 +1320,10 @@ function NodeFrame({
   )
 }
 
+/** SEMANTICS-R12.md — the node's icon as stored; re-read, so only a registered
+ *  id is ever drawn */
+const iconOf = (data: unknown): NodeIconId | undefined => readIcon((data as FlowIcon | undefined)?.icon)
+
 /** node structure — the view switch, for the node components */
 const useOutside = (): boolean => useUiStore((s) => s.nodeStructure === 'outside')
 
@@ -1323,6 +1342,7 @@ function PoolNode({ id, data, selected }: NodeProps) {
       <NodeFrame
         nodeId={id}
         kind="pool"
+        icon={iconOf(data)}
         ports={{ in: true, out: true }}
         title={d.label}
         titleDir="auto"
@@ -1351,6 +1371,7 @@ function SourceNode({ id, data, selected }: NodeProps) {
       <NodeFrame
         nodeId={id}
         kind="source"
+        icon={iconOf(data)}
         ports={{ out: true }}
         role={roleSymbol('source', d)}
         roleKey={`enum.activation.${d.activation}` as MessageKey}
@@ -1377,6 +1398,7 @@ function DrainNode({ id, data, selected }: NodeProps) {
       <NodeFrame
         nodeId={id}
         kind="drain"
+        icon={iconOf(data)}
         ports={{ in: true }}
         role={roleSymbol('drain', d)}
         roleKey={`enum.activation.${d.activation}` as MessageKey}
@@ -1403,6 +1425,7 @@ function GateNode({ id, data, selected }: NodeProps) {
       <NodeFrame
         nodeId={id}
         kind="gate"
+        icon={iconOf(data)}
         ports={{ in: true, out: true }}
         role={roleSymbol('gate', d)}
         roleKey={`enum.distribution.${d.distribution}` as MessageKey}
@@ -1436,6 +1459,7 @@ function ConverterNode({ id, data, selected }: NodeProps) {
       <NodeFrame
         nodeId={id}
         kind="converter"
+        icon={iconOf(data)}
         ports={{ in: true, out: true }}
         title={d.label}
         titleDir="auto"
@@ -1462,6 +1486,7 @@ function EndNode({ id, data, selected }: NodeProps) {
       <NodeFrame
         nodeId={id}
         kind="end"
+        icon={iconOf(data)}
         ports={{ in: true }}
         title={d.label}
         titleDir="auto"

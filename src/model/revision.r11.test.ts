@@ -45,8 +45,8 @@ describe('R11-1 — version inference', () => {
     const both = side({ ...faced, data: { ...faced.data, route: 'straight', accent: '#AA0000' } } as unknown as LoopEdge)
     expect(both.ok && both.version).toBe('loop-revision/11')
   })
-  it('the header this build writes declares /11', () => {
-    expect(REVISION_SEMANTICS).toBe('loop-revision/11')
+  it('the header this build writes declares /12 (SEMANTICS-R12.md), which includes /11', () => {
+    expect(REVISION_SEMANTICS).toBe('loop-revision/12')
   })
 })
 
@@ -142,7 +142,7 @@ describe('R11-6 — a header that declares a newer format', () => {
   const good = digestOfCanonical(content)
   const wrong = good.replace(/^./, (c) => (c === '0' ? '1' : '0'))
   it('a digest that fails under a header newer than this reader is reported as a newer-version file, not as outside editing', () => {
-    const r = readProject(header('loop-revision/12', wrong), content)
+    const r = readProject(header('loop-revision/13', wrong), content)
     expect(r.ok).toBe(false)
     if (!r.ok) {
       expect(r.reason).toBe('newer-semantics')
@@ -151,14 +151,14 @@ describe('R11-6 — a header that declares a newer format', () => {
     }
   })
   it('a digest that fails under this reader’s own or an older header keeps the outside-editing wording', () => {
-    for (const s of ['loop-revision/11', 'loop-revision/9', undefined]) {
+    for (const s of ['loop-revision/12', 'loop-revision/11', 'loop-revision/9', undefined]) {
       const r = readProject(header(s, wrong), content)
       expect(r.ok).toBe(false)
       if (!r.ok) expect(r.reason).toBe('digest-mismatch')
     }
   })
   it('a newer declaration alone refuses nothing: a verifiable file is accepted', () => {
-    const r = readProject(header('loop-revision/12', good), content)
+    const r = readProject(header('loop-revision/13', good), content)
     expect(r.ok, 'the declaration does not gate a file whose digest verifies').toBe(true)
   })
 })
