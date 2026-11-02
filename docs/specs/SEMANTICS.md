@@ -227,7 +227,8 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
   The router-fed case above is settled by planning a Converter together with
   the routers it is joined to. A *Converter group* is a set of Gates and
   Converters joined by resource connections between routers, containing a
-  Converter fed by a router (`src/engine/converterGroups.ts`); every router →
+  Converter fed by a router or a Gate with two supplies (part 3, below;
+  `src/engine/converterGroups.ts`); every router →
   router connection inside it must deliver exactly what its receiver consumes
   (I5), so the members' fractions are tied together. The group is classed by
   structure, over the connections that are live this step (both ends fire,
@@ -266,10 +267,42 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
     unaffected. A Pool on one of the paths ends the group (the path then moves
     one step later).
   - **multi** — a Gate with two supplies (two upstream routers, or one and its
-    own Pools): two or more free numbers. Not designed: the group keeps the
-    rule above (Pool inputs at `fPool · rate`, production from what was
-    received), and a Converter that received more than `f · Σ inRate` reports
-    the amount as a diagnostic. Unresolved; #471 stays open.
+    own Pools) and no split that rejoins: two or more free numbers.
+    **Erratum, part 3 (issue #476, 2026-11-02) — the fixed priority.** The
+    free numbers are fixed by filling the Gate's supplies **one after the
+    other, at a fixed priority**: the group's routers in the canonical order
+    first, then the Gate's own Pool connections in their order. Cutting the
+    connections into multi-supply Gates divides the group into *pieces*, each
+    a tree with one number of its own; a supply from a router is that router's
+    piece, at the share the Gate's connection takes of it; a supply from the
+    Gate's own Pool is a free amount up to the connection's rate (`all` reads
+    the Pool as it stands at plan time, D-all). Each supply in turn is set to
+    the most it can carry with the earlier supplies fixed and the later ones
+    at zero, under the tree's bounds (`f ≤ 1`, Pools, rooms, a source Gate's
+    reach), so the group has one plan and no choice; a `pull all` Converter
+    below `1 − epsilon` zeroes the group as in a tree. A **`pull all`
+    multi-supply Gate** has a fixed demand: the sum of its supplies' *solitary
+    reaches* — each router supply at the most its piece could carry if it
+    were the only supply, each own connection at its full amount — and the
+    group moves at exactly that point or not at all (D-demand by reach,
+    D-fixed). A Pool read by two supplies, or by a supply and a Converter of
+    the group, is counted against all of them in the feasibility, so a later
+    supply gets what the earlier ones leave; when the fixed demand of a `pull
+    all` Gate cannot be met on such a Pool, the whole group moves nothing. A
+    group of Gates with no Converter in which a Gate has two supplies (two
+    Gates merging into one, the gacha shape) is planned the same way; a group
+    of Gates only that splits and rejoins is not refused and keeps the per-Gate
+    rule, as before. Two multi-supply Gates whose downstreams meet at one
+    Converter share a piece: the Converter's one fraction sets the second
+    Gate's throughput from the first's, so the first Gate in the order is
+    filled as above while the second is held to exactly that throughput — its
+    supplies, in their order, each up to its own bound, cover it; a supply of
+    the first Gate is smaller when they could not, and a `pull all` second
+    Gate whose fixed demand is not that throughput zeroes the group (D-fixed).
+    The plan is placed at the turn of the group's first router as in a tree;
+    each Gate then moves exactly what the plan gave each of its supplies.
+    Every case of the design, and the shapes beyond it, are pinned per
+    connection and Pool in `src/engine/multiSupply.test.ts`.
   A Converter outside every group whose router input delivers nothing this
   step (its router does not fire, the connection is dead, or a probabilistic
   Gate picked another branch) does not run from its Pools alone: one `f` on

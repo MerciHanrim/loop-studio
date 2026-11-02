@@ -383,33 +383,30 @@ describe('#471 — the input reservation and an outside router (Deploy 2, G8)', 
   })
 })
 
-describe('#471 — a multi-supply group keeps the rule it had, and says when an amount is lost (unresolved)', () => {
+describe('#471 / #476 — the multi-supply group is planned at a fixed priority; the loss notices are safety nets', () => {
   // G7: g takes from its own Pool a AND from the Converter B; it passes both
-  // on to C. Two free numbers — not planned. What C receives above its
-  // recipe at the fraction it can run is reported, never silent.
-  it('G7: a Gate with two supplies — the notice names the Converter and the amount lost, as data for the UI to word (D1)', () => {
+  // on to C. Until #476 the shape was not planned and lost 40 here (30 at C,
+  // 10 held at g, reported as two notices). Now the group plans at the
+  // contract order — the upstream router B first, then g's own Pool a — to
+  // what x can take: f = 1/8, B at f 1/4, a gives nothing, nothing is lost.
+  // The full family is in multiSupply.test.ts.
+  it('G7: a Gate with two supplies against a capped output — planned, conserved, no notice (was: 40 lost and reported)', () => {
     const nodes = [pool('a', 100), pool('p', 100), conv('B'), gate('g'), conv('C'), pool('q', 100), pool('x', 0, 10)]
     const edges = [
       res('e0', 'p', 'B', '20'), res('b1', 'B', 'g', '20'), res('e1', 'a', 'g', '20'),
       res('k1', 'g', 'C', '40'), res('e2', 'q', 'C', '40'), res('o1', 'C', 'x', '80'),
     ]
     const r = run(nodes, edges)
-    // x has room for 10 of the 80 C would make: f = 1/8. B delivers 10 to g;
-    // g, whose Converter accepts nothing, passes nothing on and keeps the 10;
-    // C takes 40 from q and uses 10, so 30 is lost at C and 10 at g. The two
-    // notices add up to what the Pools lost (the recipe is 80 in, 80 out).
-    expect(r.notices).toEqual([
-      { kind: 'multiSupplyLoss', nodeId: 'C', label: 'C', amount: 30 },
-      { kind: 'multiSupplyHeld', nodeId: 'g', label: 'g', amount: 10 },
-    ])
-    const before = 100 + 100 + 100
-    const after = r.pools.a + r.pools.p + r.pools.q + r.pools.x
-    expect(before - after).toBeCloseTo(40, 6)
-    expect(r.notices.reduce((t, x) => t + x.amount, 0)).toBeCloseTo(before - after, 6)
+    close(r.moved, { e0: 5, b1: 5, e1: 0, k1: 5, e2: 5, o1: 10 })
+    close(r.pools, { a: 100, p: 95, q: 95, x: 10 })
+    expect(r.notices).toEqual([])
     expect(r.diagnostics).toEqual([]) // nothing English for the user from the engine
-    // with the output Pool uncapped the same shape conserves and says nothing
+    const before = 100 + 100 + 100
+    expect(r.pools.a + r.pools.p + r.pools.q + r.pools.x).toBeCloseTo(before, 6)
+    // with the output Pool uncapped the same shape runs in full
     const roomy = nodes.map((n) => (n.id === 'x' ? pool('x', 0) : n))
     const r2 = run(roomy, edges)
+    close(r2.moved, { e0: 20, b1: 20, e1: 20, k1: 40, e2: 40, o1: 80 })
     expect(r2.notices).toEqual([])
     expect(r2.pools.a + r2.pools.p + r2.pools.q + r2.pools.x).toBeCloseTo(before, 6)
   })

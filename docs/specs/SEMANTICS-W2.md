@@ -51,6 +51,7 @@ model version. It is **not** a model version: the graph file never carries it,
 | absent (read as `0`) | — | every engine before 2026-11-01 |
 | `1` | 2026-11-01, issue #471 | a Converter whose inputs all come from Pools plans its run fraction before it takes anything, and each of its connections moves `f · rate` (V1, V2); two Converter outputs into one Pool or one router, and two Gate branches into one Pool, share that target's room (V3, V3g, V3r); a Pool that is both input and output of a Converter is bounded on the net amount. A Converter with an input from a Gate or another Converter is outside this guarantee until the next revision (V2b, V4) |
 | `2` | 2026-11-02, issue #471 | a Converter fed through a Gate or another Converter is planned together with the routers it is joined to (a Converter group that is a tree), at the turn of the group's first router: one run fraction for the group, every connection in it at `f · rate`, the group's Pool inputs claimed at that turn (V2b, V4; SEMANTICS.md §6 erratum, part 2); a Converter whose router input delivers nothing this step does not run on its Pools alone; a split that rejoins (two forward paths from one router meeting again) is refused before the run, in every model version. A group with a Gate that has two supplies keeps the revision-1 rule and reports an amount it loses (unresolved) |
+| `3` | 2026-11-02, issue #476 | a Gate with two supplies (two upstream routers, or one and its own Pools) is planned with its group at a fixed priority — the group's routers in the canonical order, then the Gate's own Pool connections in their order, each supply filled to the most the group can take with the earlier ones fixed; a `pull all` Gate with two supplies demands the sum of its supplies' solitary reaches and moves at that point or not at all, the whole group moving nothing when that demand cannot be met on a shared Pool (SEMANTICS.md §6 erratum, part 3); a group of Gates with no Converter in which a Gate has two supplies is planned the same way, and two multi-supply Gates whose downstreams meet at one Converter are planned together (the second is held to the throughput the Converter's one fraction gives it). A group of Gates only that splits and rejoins keeps the per-Gate rule |
 
 Every later row is a deploy that changed a computed number; the row and the
 bump land in the same change as the engine.
@@ -123,7 +124,7 @@ result fields. The CSV exports are unchanged.
 |---|---|---|
 | `WORKSPACE_SCHEMA` | `"loop-workspace/2"` | the `workspace.schema` string written |
 | `WORKSPACE_VERSION` | `2` | written; the reader also restores exact `loop-workspace/1` / `1` |
-| `ENGINE_REVISION` | `2` | `src/engine/revision.ts`; the ledger is W2-1 |
+| `ENGINE_REVISION` | `3` | `src/engine/revision.ts`; the ledger is W2-1 |
 
 ---
 
