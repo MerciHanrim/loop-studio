@@ -18,4 +18,10 @@
 //                       group's first router (V2b, V4); a split that rejoins
 //                       is refused before the run; a Converter whose router
 //                       input delivers nothing this step does not run
-export const ENGINE_REVISION = 2
+//   3                   issue #476 — a Gate with two supplies (two upstream
+//                       routers, or one and its own Pools) is planned with its
+//                       group at a fixed priority in the existing order, with
+//                       or without a Converter behind it; `all` on its input
+//                       reads the Pool's available amount at plan time; a
+//                       `pull all` such Gate takes its point or nothing
+export const ENGINE_REVISION = 3

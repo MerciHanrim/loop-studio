@@ -874,9 +874,11 @@ export function step(
     // finds every group with a router-fed Converter and classes it: a TREE is
     // planned as one at the turn of its first router in `order` (one free
     // number `s`; every member's amount is a fixed multiple of it); a MULTI
-    // group (a Gate with two supplies) keeps the rule it had, with a
-    // diagnostic when an amount vanishes (unresolved, #471 stays open). A
-    // split that rejoins was refused at the top of `step`.
+    // group (a Gate with two supplies) is planned at the same turn by filling
+    // the Gate's supplies one after the other at a fixed priority (#476,
+    // `planMulti` below); only two multi-supply Gates meeting at one member
+    // (`jointMulti`) keep the rule they had, with a diagnostic when an amount
+    // vanishes. A split that rejoins was refused at the top of `step`.
     const liveEdge = (e: LoopEdge): boolean => {
       if (dead.has(e.id)) return false
       const sk = kindOf(e.source)
@@ -891,15 +893,19 @@ export function step(
     }
     const orderIdx = new Map(order.map((id, i) => [id, i]))
     const treeAtRoot = new Map<string, string[]>() // root id → the group's members
+    const multiAtRoot = new Map<string, { members: string[]; multiGates: string[] }>() // #476 — root id → the multi group
     for (const g of converterGroups(nodes, resEdges, liveEdge)) {
-      if (g.cls !== 'tree') continue
+      if (g.cls === 'split-rejoin') continue // with a Converter: refused at the top of `step`; Gates only: the per-Gate rule
+      if (g.cls === 'multi' && g.jointMulti) continue // two multi-supply Gates in one piece: the previous rule (reported)
       const root = g.members.reduce((a, b) => ((orderIdx.get(b) ?? Infinity) < (orderIdx.get(a) ?? Infinity) ? b : a))
-      treeAtRoot.set(root, g.members)
+      if (g.cls === 'tree') treeAtRoot.set(root, g.members)
+      else multiAtRoot.set(root, { members: g.members, multiGates: g.multiGates })
     }
-    const planned = new Set<string>() // members of a planned tree group
+    const planned = new Set<string>() // members of a planned group
     const planF = new Map<string, number>() // Converter member → its run fraction
     const planT = new Map<string, number>() // Gate member → its throughput
     const planTakes = new Map<string, { e: LoopEdge; a: number }[]>() // Converter member → its Pool takes
+    const planPulls = new Map<string, { e: LoopEdge; a: number }[]>() // #476 — multi-supply Gate → its own-Pool takes
     const liveOuts = (id: string): LoopEdge[] => {
       const n = byId.get(id)!
       if (isProbGate(n)) {
@@ -908,9 +914,13 @@ export function step(
       }
       return outOf(id).filter((e) => !skipDet(e.id))
     }
-    const planGroup = (members: string[]) => {
+    const modeOfRouter = (id: string) => ((byId.get(id)?.data as { mode?: string } | undefined)?.mode ?? 'pullAny')
+    /** what a group's plan reads of its members: a Gate's live branches and
+     *  their weights, a Converter's live outputs and Pool needs, and the live
+     *  router → router connections summed per pair (shared by the tree plan
+     *  and the multi-supply plan) */
+    const memberShapes = (members: string[]) => {
       const inGroup = new Set(members)
-      const cof = new Map<string, number>() // member → its amount per unit of s (a Converter's f, a Gate's T)
       const W = new Map<string, number>() // Gate → Σ rate over its live branches
       const gateInto = new Map<string, Map<string, number>>() // Gate → target → Σ rate
       const convMake = new Map<string, Map<string, number>>() // Converter → target → Σ rate
@@ -950,6 +960,13 @@ export function step(
         pair.set(key, (pair.get(key) ?? 0) + rateOfCached(e))
         fedByRouter.add(e.target)
       }
+      return { W, gateInto, convMake, convNeed, convPoolIns, pair, fedByRouter }
+    }
+    /** a Pool-fed Gate's own inputs this step, in pull order */
+    const ownIns = (id: string) => inOf(id).filter((e) => isPool(e.source) && !dead.has(e.id)).sort(cmpEdge)
+    const planGroup = (members: string[]) => {
+      const cof = new Map<string, number>() // member → its amount per unit of s (a Converter's f, a Gate's T)
+      const { W, gateInto, convMake, convNeed, convPoolIns, pair, fedByRouter } = memberShapes(members)
       // coefficients by traversal from the root (c = 1), in either direction:
       // Gate g → X scales by the branch share `w / W`; into a Converter the
       // share is divided by that connection's rate (what one run consumes);
@@ -1101,6 +1118,312 @@ export function step(
         }
       }
     }
+    // ── #476 — the multi-supply Gate: a fixed priority in the existing order ──
+    // (SEMANTICS.md §6 erratum, part 3.) A group with a Gate that has two
+    // supplies has one free number per supply beyond the tree's one. Cutting
+    // every router → router connection INTO a multi-supply Gate leaves PIECES,
+    // each a tree: a piece headed by a multi-supply Gate runs at that Gate's
+    // throughput `T = Σ supplies`; a source piece (no Gate at its head) has a
+    // number of its own, set through the supply connection it feeds. The
+    // supplies of each multi-supply Gate are filled one by one — the Gates in
+    // router order; for each, its upstream routers in router order, then its
+    // own Pool connections in `(source, edge)` order — every supply to the
+    // largest amount that keeps the WHOLE group feasible with the earlier ones
+    // fixed and the later ones at zero (closed form without a shared Pool;
+    // bisection with one: every claim grows with the supply, so feasibility
+    // is monotone in it). The throughput is whatever that order leaves, not a
+    // maximum: the order is a contract so the losing supply follows from the
+    // model. A `pull all` multi-supply Gate wants its own Pool connections at
+    // their amounts (`all` = the Pool's available amount at plan time) and
+    // each router supply at what that branch can deliver on its own (its
+    // reach, never its connection rate); the plan is that point if it is
+    // feasible, else the whole group moves nothing. `pull all` Converters and
+    // source Gates keep the tree rule (f = 1 or nothing; the source Gate's
+    // demand or nothing). The two loss notices stay as safety nets: a planned
+    // group never reaches them.
+    const planMulti = (members: string[], multiGates: string[]) => {
+      const { W, gateInto, convMake, convNeed, convPoolIns, pair, fedByRouter } = memberShapes(members)
+      const multi = new Set(multiGates)
+      const byOrder = (a: string, b: string) => (orderIdx.get(a) ?? Infinity) - (orderIdx.get(b) ?? Infinity)
+      // the pieces: components over the pairs that do not enter a multi-supply Gate
+      type Piece = { id: number; members: string[]; head: string | null; root: string; cof: Map<string, number> }
+      const pieces: Piece[] = []
+      const pieceOf = new Map<string, number>()
+      {
+        const adj = new Map<string, Set<string>>(members.map((m) => [m, new Set()]))
+        for (const key of pair.keys()) {
+          const [u, v] = key.split('\u0000')
+          if (multi.has(v)) continue
+          adj.get(u)!.add(v)
+          adj.get(v)!.add(u)
+        }
+        for (const start of [...members].sort(byOrder)) {
+          if (pieceOf.has(start)) continue
+          const ms: string[] = []
+          const stack = [start]
+          pieceOf.set(start, pieces.length)
+          while (stack.length) {
+            const v = stack.pop()!
+            ms.push(v)
+            for (const w of adj.get(v)!) if (!pieceOf.has(w)) { pieceOf.set(w, pieces.length); stack.push(w) }
+          }
+          ms.sort(byOrder)
+          const head = ms.find((m) => multi.has(m)) ?? null
+          pieces.push({ id: pieces.length, members: ms, head, root: head ?? ms[0], cof: new Map() })
+        }
+      }
+      // coefficients within each piece from its root (c = 1), as the tree plan does
+      for (const p of pieces) {
+        p.cof.set(p.root, 1)
+        for (let changed = true; changed && p.cof.size < p.members.length; ) {
+          changed = false
+          for (const [key, w] of pair) {
+            const [u, v] = key.split('\u0000')
+            if (multi.has(v) || pieceOf.get(u) !== p.id || pieceOf.get(v) !== p.id) continue
+            const hasU = p.cof.has(u)
+            const hasV = p.cof.has(v)
+            if (hasU === hasV) continue
+            const Wu = kindOf(u) === 'gate' ? (W.get(u) ?? 0) : 1
+            if (Wu <= EPSILON) continue
+            const F = (1 / Wu) * (kindOf(v) === 'gate' ? w : 1)
+            if (hasU) p.cof.set(v, p.cof.get(u)! * F)
+            else p.cof.set(u, p.cof.get(v)! / F)
+            changed = true
+          }
+        }
+      }
+      // the supplies of each multi-supply Gate, in the contract order
+      type Sup = { kind: 'router'; src: string; piece: number; coef: number } | { kind: 'own'; e: LoopEdge; want: number }
+      const supplies = new Map<string, Sup[]>()
+      for (const G of multiGates) {
+        const list: Sup[] = []
+        const ups: { u: string; w: number }[] = []
+        for (const [key, w] of pair) {
+          const [u, v] = key.split('\u0000')
+          if (v === G) ups.push({ u, w })
+        }
+        ups.sort((a, b) => byOrder(a.u, b.u))
+        for (const { u, w } of ups) {
+          const p = pieces[pieceOf.get(u)!]
+          const Wu = kindOf(u) === 'gate' ? (W.get(u) ?? 0) : 1
+          const coef = Wu > EPSILON ? (p.cof.get(u) ?? 0) * (1 / Wu) * w : 0 // the amount on the connection per unit of the piece's number
+          list.push({ kind: 'router', src: u, piece: p.id, coef })
+        }
+        for (const e of ownIns(G)) list.push({ kind: 'own', e, want: Math.max(0, amountOf(e, availOf(e.source), S[e.source] ?? 0)) })
+        supplies.set(G, list)
+      }
+      const orderedMulti = [...multiGates].sort(byOrder)
+      const sPiece = new Map<number, number>() // source piece → its number
+      const uOwn = new Map<string, number>() // own-Pool supply connection → its amount
+      /** every piece's number: a source piece's own; a headed piece's Gate throughput (its supplies are all upstream, so earlier in the order) */
+      const sOf = (): Map<number, number> => {
+        const s = new Map<number, number>()
+        for (const p of pieces) if (p.head === null) s.set(p.id, sPiece.get(p.id) ?? 0)
+        for (const G of orderedMulti) {
+          let T = 0
+          for (const sup of supplies.get(G)!) T += sup.kind === 'router' ? sup.coef * (s.get(sup.piece) ?? 0) : (uOwn.get(sup.e.id) ?? 0)
+          s.set(pieceOf.get(G)!, T)
+        }
+        return s
+      }
+      /** member → its amount (a Gate's T, a Converter's f) */
+      const amountsOf = (s: Map<number, number>) => {
+        const c = new Map<string, number>()
+        for (const m of members) {
+          const p = pieces[pieceOf.get(m)!]
+          c.set(m, (p.cof.get(m) ?? 0) * (s.get(p.id) ?? 0))
+        }
+        return c
+      }
+      const add = (map: Map<string, number>, k: string, v: number) => map.set(k, (map.get(k) ?? 0) + v)
+      /** the tree plan's bounds, as a test of the whole group at once */
+      const feasible = (): boolean => {
+        const c = amountsOf(sOf())
+        const claim = new Map<string, number>() // Pool → taken by the plan
+        const give = new Map<string, number>() // Pool → delivered by the plan (a Converter's net on a Pool it also takes from)
+        for (const m of members) {
+          const v = c.get(m) ?? 0
+          if (kindOf(m) === 'gate') {
+            if (v <= EPSILON) continue
+            const Wm = W.get(m) ?? 0
+            if (Wm <= EPSILON) return false // no live branch — delivers nothing (#388 D)
+            for (const [q, w] of gateInto.get(m)!) if (isPool(q)) add(give, q, (v * w) / Wm)
+            continue
+          }
+          if (v > 1 + EPSILON) return false // f ≤ 1
+          if (v <= EPSILON) continue
+          if (disabledPullAll.has(m) || convMake.get(m)!.size === 0) return false
+          if (inOf(m).some((e) => !isPool(e.source) && !liveEdge(e) && rateOfCached(e) > EPSILON)) return false
+          const need = convNeed.get(m)!
+          for (const [p, r] of need) add(claim, p, v * r)
+          for (const [q, make] of convMake.get(m)!) {
+            if (!isPool(q)) continue
+            const net = make - (need.get(q) ?? 0)
+            if (net > EPSILON) add(give, q, v * net)
+          }
+        }
+        for (const G of multiGates) {
+          for (const sup of supplies.get(G)!) {
+            if (sup.kind !== 'own') continue
+            const u = uOwn.get(sup.e.id) ?? 0
+            if (u > sup.want + EPSILON) return false
+            add(claim, sup.e.source, u)
+          }
+        }
+        for (const [p, v] of claim) if (v > availOf(p) + EPSILON) return false
+        // a source Gate reaches its T by its greedy pulls, net of the plan's claims
+        const used = new Map<string, number>()
+        for (const m of members) {
+          if (kindOf(m) !== 'gate' || multi.has(m) || fedByRouter.has(m)) continue
+          const T = c.get(m) ?? 0
+          if (T <= EPSILON) continue
+          let r = inbox.get(m) ?? 0
+          for (const e of ownIns(m)) {
+            const want = amountOf(e, availOf(e.source), S[e.source] ?? 0)
+            const avail = Math.max(0, availOf(e.source) - (claim.get(e.source) ?? 0) - (used.get(e.source) ?? 0))
+            const a = Math.max(0, Math.min(want, avail))
+            add(used, e.source, a)
+            r += a
+          }
+          if (r < T - EPSILON) return false
+        }
+        for (const [q, v] of give) {
+          let room = headroom(q)
+          for (const m of members) room += ownReserve.get(m)?.get(q) ?? 0
+          if (v > room + EPSILON) return false
+        }
+        return true
+      }
+      /** a `pull all` source Gate of a piece runs at its demand or not at all (the tree rule) */
+      const pullAllSourcesOk = (p: Piece): boolean => {
+        const c = amountsOf(sOf())
+        for (const m of p.members) {
+          if (kindOf(m) !== 'gate' || multi.has(m) || fedByRouter.has(m) || modeOfRouter(m) !== 'pullAll') continue
+          const T = c.get(m) ?? 0
+          if (T <= EPSILON) continue
+          let demand = inbox.get(m) ?? 0
+          for (const e of ownIns(m)) demand += amountOf(e, availOf(e.source), S[e.source] ?? 0)
+          if (T < demand - EPSILON) return false
+        }
+        return true
+      }
+      /** a finite upper bound for a source piece's number from its own members (the shared constraints are left to `feasible`) */
+      const pieceMax = (p: Piece): number => {
+        let hi = Infinity
+        for (const m of p.members) {
+          const cm = p.cof.get(m) ?? 0
+          if (cm <= EPSILON) continue
+          if (kindOf(m) === 'converter') hi = Math.min(hi, 1 / cm)
+          else if (!multi.has(m) && !fedByRouter.has(m)) {
+            let r = inbox.get(m) ?? 0
+            for (const e of ownIns(m)) r += Math.max(0, Math.min(amountOf(e, availOf(e.source), S[e.source] ?? 0), availOf(e.source)))
+            hi = Math.min(hi, r / cm)
+          }
+        }
+        return Number.isFinite(hi) ? Math.max(0, hi) : 0
+      }
+      /** the largest value of one free number that keeps the group feasible, then its own all-or-nothing rule */
+      const largest = (set: (v: number) => void, hi: number, ok: () => boolean): number => {
+        const test = (v: number) => { set(v); return feasible() }
+        let best = 0
+        if (hi > EPSILON) {
+          if (test(hi)) best = hi
+          else {
+            let lo = 0
+            let h = hi
+            for (let i = 0; i < 64; i++) {
+              const mid = (lo + h) / 2
+              if (test(mid)) lo = mid
+              else h = mid
+            }
+            best = lo
+          }
+        }
+        set(best)
+        if (best > EPSILON && !ok()) { best = 0; set(0) }
+        return best
+      }
+      type Item = { sup: Sup; p: Piece | null }
+      const fill = (it: Item): number =>
+        it.sup.kind === 'own'
+          ? largest((v) => uOwn.set((it.sup as { e: LoopEdge }).e.id, v), Math.min(it.sup.want, Math.max(0, availOf(it.sup.e.source))), () => true)
+          : largest((v) => sPiece.set(it.p!.id, v), pieceMax(it.p!), () => pullAllSourcesOk(it.p!))
+      let zero = false
+      for (const G of orderedMulti) {
+        const items: Item[] = []
+        for (const sup of supplies.get(G)!) {
+          if (sup.kind === 'router') {
+            const p = pieces[sup.piece]
+            if (p.head === null && !sPiece.has(p.id)) items.push({ sup, p }) // a supply whose piece is already set is determined
+          } else items.push({ sup, p: null })
+        }
+        if (modeOfRouter(G) === 'pullAll') {
+          // D-demand (the reach reading) and D-fixed
+          const reach = items.map((it) => {
+            if (it.sup.kind === 'own') return it.sup.want
+            const v = fill(it)
+            sPiece.set(it.p!.id, 0)
+            return v
+          })
+          items.forEach((it, i) => (it.sup.kind === 'own' ? uOwn.set(it.sup.e.id, reach[i]) : sPiece.set(it.p!.id, reach[i])))
+          if (!feasible()) { zero = true; break }
+        } else for (const it of items) fill(it)
+      }
+      if (!zero) {
+        const c = amountsOf(sOf())
+        for (const m of members) {
+          if (kindOf(m) !== 'converter' || disabledPullAll.has(m) || modeOfRouter(m) !== 'pullAll') continue
+          if ((c.get(m) ?? 0) < 1 - EPSILON) { pullShort.add(m); zero = true }
+        }
+      }
+      if (zero) { sPiece.clear(); uOwn.clear() }
+      // record the plan; claim the inputs (`reservedIn`) and the output room, as the tree plan does
+      const c = amountsOf(sOf())
+      for (const m of members) {
+        planned.add(m)
+        if (kindOf(m) === 'gate') {
+          const T = nz(Math.max(0, c.get(m) ?? 0))
+          planT.set(m, T)
+          const Wm = W.get(m) ?? 1
+          for (const [q, w] of gateInto.get(m)!) {
+            if (!isPool(q)) continue
+            const amt = nz((T * w) / Wm)
+            if (amt <= 0) continue
+            reserved.set(q, reservedOf(q) + amt)
+            addOwn(m, q, amt)
+          }
+          if (multi.has(m)) {
+            const pulls: { e: LoopEdge; a: number }[] = []
+            for (const sup of supplies.get(m)!) {
+              if (sup.kind !== 'own') continue
+              const a = nz(uOwn.get(sup.e.id) ?? 0)
+              if (a <= 0) continue
+              pulls.push({ e: sup.e, a })
+              reservedIn.set(sup.e.source, (reservedIn.get(sup.e.source) ?? 0) + a)
+            }
+            planPulls.set(m, pulls)
+          }
+          continue
+        }
+        const f = nz(Math.max(0, Math.min(1, c.get(m) ?? 0)))
+        planF.set(m, f)
+        const takes: { e: LoopEdge; a: number }[] = []
+        for (const e of convPoolIns.get(m)!) {
+          const a = nz(f * rateOfCached(e))
+          if (a <= 0) continue
+          takes.push({ e, a })
+          reservedIn.set(e.source, (reservedIn.get(e.source) ?? 0) + a)
+        }
+        planTakes.set(m, takes)
+        for (const [q, make] of convMake.get(m)!) {
+          if (!isPool(q)) continue
+          const amt = nz(f * make)
+          if (amt <= 0) continue
+          reserved.set(q, reservedOf(q) + amt)
+          addOwn(m, q, amt)
+        }
+      }
+    }
     const multiLoss = new Set<string>() // Converters whose D1 diagnostic is out this pass
 
     for (const id of order) {
@@ -1110,6 +1433,8 @@ export function step(
       const accept = makeAccept()
       const group = treeAtRoot.get(id)
       if (group) planGroup(group)
+      const mg = multiAtRoot.get(id)
+      if (mg) planMulti(mg.members, mg.multiGates)
 
       if (k === 'drain' || k === 'end') {
         // a terminal consumes what a router handed it: the entry is cleared, or
@@ -1156,42 +1481,62 @@ export function step(
         const sel = probabilistic ? pickBranch(n) : null
         if (probabilistic && !sel) continue
 
-        let inb = inbox.get(id) ?? 0
-        const ins = inOf(id)
-          .filter((e) => isPool(e.source) && !dead.has(e.id))
-          .sort(cmpEdge)
-        let demand = inb
-        let inputAvail = inb
-        const wants = ins.map((e) => {
-          const w = amountOf(e, availOf(e.source), S[e.source] ?? 0)
-          demand += w
-          inputAvail += availOf(e.source)
-          return { e, want: w }
-        })
+        let T: number
+        const plPulls = planPulls.get(id)
+        if (plPulls !== undefined) {
+          // #476 — a multi-supply Gate moves exactly its plan: the inbox (its
+          // router supplies, delivered at the plan) plus the own-Pool amounts
+          // the plan claimed at the group's first router, released here. The
+          // plan already applied `pull all` (the point or nothing), so the
+          // demand test below does not run again on the Pool net of the claim.
+          let got = inbox.get(id) ?? 0
+          inbox.set(id, 0)
+          for (const { e, a } of plPulls) {
+            reservedIn.set(e.source, (reservedIn.get(e.source) ?? 0) - a)
+            takeFrom(e.source, a)
+            got += a
+            emit(e, e.source, id, a)
+          }
+          T = nz(Math.max(0, got))
+          if (T <= EPSILON) continue
+        } else {
+          let inb = inbox.get(id) ?? 0
+          const ins = inOf(id)
+            .filter((e) => isPool(e.source) && !dead.has(e.id))
+            .sort(cmpEdge)
+          let demand = inb
+          let inputAvail = inb
+          const wants = ins.map((e) => {
+            const w = amountOf(e, availOf(e.source), S[e.source] ?? 0)
+            demand += w
+            inputAvail += availOf(e.source)
+            return { e, want: w }
+          })
 
-        // a planned Gate moves exactly its plan's throughput (#471 Deploy 2);
-        // for a Gate fed by a member the inbox IS that amount
-        const plT = planT.get(id)
-        let T =
-          plT !== undefined
-            ? nz(Math.max(0, Math.min(plT, demand, inputAvail)))
-            : nz(Math.max(0, Math.min(demand, inputAvail, accept(id))))
-        if (mode === 'pullAll' && T < demand - EPSILON) T = 0
-        if (T <= EPSILON) continue
+          // a planned Gate moves exactly its plan's throughput (#471 Deploy 2);
+          // for a Gate fed by a member the inbox IS that amount
+          const plT = planT.get(id)
+          T =
+            plT !== undefined
+              ? nz(Math.max(0, Math.min(plT, demand, inputAvail)))
+              : nz(Math.max(0, Math.min(demand, inputAvail, accept(id))))
+          if (mode === 'pullAll' && T < demand - EPSILON) T = 0
+          if (T <= EPSILON) continue
 
-        // consume inbox first, then pull the rest from pools in (source, edge) order
-        let need = T
-        const fromInbox = Math.min(need, inb)
-        need -= fromInbox
-        inbox.set(id, inb - fromInbox)
-        inb -= fromInbox
-        for (const w of wants) {
-          if (need <= EPSILON) break
-          const a = nz(Math.min(need, availOf(w.e.source), w.want))
-          if (a > 0) {
-            takeFrom(w.e.source, a)
-            need -= a
-            emit(w.e, w.e.source, id, a)
+          // consume inbox first, then pull the rest from pools in (source, edge) order
+          let need = T
+          const fromInbox = Math.min(need, inb)
+          need -= fromInbox
+          inbox.set(id, inb - fromInbox)
+          inb -= fromInbox
+          for (const w of wants) {
+            if (need <= EPSILON) break
+            const a = nz(Math.min(need, availOf(w.e.source), w.want))
+            if (a > 0) {
+              takeFrom(w.e.source, a)
+              need -= a
+              emit(w.e, w.e.source, id, a)
+            }
           }
         }
 
@@ -1384,12 +1729,12 @@ export function step(
         if (fDry <= EPSILON) continue
 
         // What each Pool connection moves. A Converter fed from Pools only:
-        // exactly `f · rate` on every one of them (I2). A Converter in a MULTI
-        // group: the upstream routers already delivered at THEIR fraction,
-        // which this step cannot undo (#471 — the multi-supply design is not
-        // done); its Pool side keeps the rule it had, `fPool · rate`, the
-        // production below follows what was received, so nothing is created,
-        // and what was received above what it could use is reported (D1).
+        // exactly `f · rate` on every one of them (I2). A Converter in an
+        // unplanned group (`jointMulti`, #476): the upstream routers already
+        // delivered at THEIR fraction, which this step cannot undo; its Pool
+        // side keeps the rule it had, `fPool · rate`, the production below
+        // follows what was received, so nothing is created, and what was
+        // received above what it could use is reported (D1).
         const fTake = routerFed ? fPool : fDry
         let received = inboxHave
         inbox.set(id, 0)

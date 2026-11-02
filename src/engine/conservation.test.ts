@@ -68,10 +68,11 @@ type Before = ReturnType<typeof initSim>
 type After = ReturnType<typeof step>
 
 /** the four checks over one step; `[]` when all hold. `multi` counts the
- *  Converters checks 2 / 3 skipped: members of a MULTI group (a Gate with two
- *  supplies), which keeps the rule it had until its design is done (#471 stays
- *  open). A Converter in a TREE group is planned with its routers (Deploy 2)
- *  and is checked like a Pool-fed one. */
+ *  Converters checks 2 / 3 skipped: members of the one multi-supply shape the
+ *  plan does not cover — two multi-supply Gates whose downstreams meet at one
+ *  Converter (`jointMulti`, #476), which keeps the previous rule. Every other
+ *  group (a tree, or a multi group planned at its fixed priority) is checked
+ *  like a Pool-fed Converter. */
 function conservation(nodes: LoopNode[], edges: LoopEdge[], before: Before, after: After): { violations: string[]; multi: number } {
   const violations: string[] = []
   const byEdge = new Map(edges.map((e) => [e.id, e]))
@@ -80,7 +81,7 @@ function conservation(nodes: LoopNode[], edges: LoopEdge[], before: Before, afte
   const into = (id: string) => [...moved].reduce((s, [eid, a]) => s + (byEdge.get(eid)!.target === id ? a : 0), 0)
   const outOf = (id: string) => [...moved].reduce((s, [eid, a]) => s + (byEdge.get(eid)!.source === id ? a : 0), 0)
   const flowOf = (e: LoopEdge) => (e.data as { flow?: string }).flow ?? ''
-  const multiMembers = new Set(converterGroups(nodes, edges).filter((g) => g.cls === 'multi').flatMap((g) => g.members))
+  const multiMembers = new Set(converterGroups(nodes, edges).filter((g) => g.cls === 'multi' && g.jointMulti).flatMap((g) => g.members))
   let multi = 0
 
   for (const n of nodes) {
@@ -291,7 +292,7 @@ describe('conservation — randomised sweep over activations and router kinds', 
       holds(g.nodes, g.edges, 4, `graph ${i + 1}`)
     })
   })
-  it(`the sweep draws ${routerFedConverters} router-fed Converters in ${count('tree')} tree, ${count('multi')} multi and ${count('split-rejoin')} refused groups; all four checks hold on the trees`, () => {
+  it(`the sweep draws ${routerFedConverters} router-fed Converters in ${count('tree')} tree, ${count('multi')} multi and ${count('split-rejoin')} refused groups; all four checks hold on the trees and the planned multi groups`, () => {
     expect(routerFedConverters).toBeGreaterThan(0) // the counts are a fact of the sample, reported here
     expect(count('tree')).toBeGreaterThan(0)
   })

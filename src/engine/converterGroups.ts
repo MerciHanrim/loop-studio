@@ -1,31 +1,39 @@
 import type { LoopEdge, LoopNode } from '../model/types'
 
-// Converter groups (issue #471, Deploy 2 — SEMANTICS.md §6 erratum, part 2).
+// Converter groups (issue #471, Deploy 2 — SEMANTICS.md §6 erratum, part 2;
+// the multi-supply Gate, issue #476 — part 3).
 //
 // A GROUP is a set of routers (Gates and Converters) joined by resource
 // connections between routers, that contains at least one Converter fed by a
-// router. Inside a group every router → router connection must deliver exactly
-// what its receiver consumes (I5), so the members' run fractions and
-// throughputs are tied together and have to be decided as one plan. The shape
-// of the group decides whether that plan exists:
+// router OR at least one Gate with two supplies. Inside a group every router →
+// router connection must deliver exactly what its receiver consumes (I5), so
+// the members' run fractions and throughputs are tied together and have to be
+// decided as one plan. The shape of the group decides what that plan is:
 //
 //   tree          no split that rejoins, and every Gate has one supply — one
 //                 free number; the plan is the smallest bound (step.ts)
 //   split-rejoin  two forward paths from one router meet again at a later
 //                 router of the group (every connection points forward — this
 //                 is NOT a directed cycle; a zero-storage cycle is a different
-//                 thing, SEMANTICS §S4). The only exact plan can be zero, and a
-//                 plan that happens to agree flips with the branches that are
-//                 live, so the shape is REFUSED before the run (F1), whatever
-//                 the numbers. Connections between the same two routers count
-//                 once (rev 3 design): a Gate's share to a connection and a
-//                 Converter's need on it are both that connection's rate, so
+//                 thing, SEMANTICS §S4). With a Converter in the group the only
+//                 exact plan can be zero, and a plan that happens to agree
+//                 flips with the branches that are live, so the shape is
+//                 REFUSED before the run (F1), whatever the numbers. A group of
+//                 Gates only merges what arrives and is never refused; it keeps
+//                 the per-Gate rule. Connections between the same two routers
+//                 count once (rev 3 design): a Gate's share to a connection and
+//                 a Converter's need on it are both that connection's rate, so
 //                 parallel connections always agree on the one fraction, and
 //                 the plan sums them per pair.
 //   multi         a Gate with two supplies: two upstream routers, or one
 //                 upstream router and its own Pool inputs. Two or more free
-//                 numbers — not designed; it keeps the rule it had (unresolved,
-//                 #471 stays open)
+//                 numbers; the split is decided by a fixed priority in the
+//                 engine's existing order (#476, SEMANTICS.md §6 erratum,
+//                 part 3), with or without a Converter behind the Gate. The
+//                 one shape the priority does not cover is two multi-supply
+//                 Gates whose downstreams meet at one Converter without a
+//                 split (`jointMulti`): that group keeps the previous rule and
+//                 the run bars report what it loses.
 //
 // The classification is on structure only. Over the FULL graph it decides the
 // refusal shown before a run (the simulation and Monte Carlo stores); over the
@@ -45,6 +53,14 @@ export type ConverterGroup = {
   join: string | null
   /** `multi`: the Gates with two supplies */
   multiGates: string[]
+  /** the group contains a Converter fed by a router (a Gate-only group does
+   *  not; it is planned when `multi`, never refused) */
+  hasConverter: boolean
+  /** `multi`: two multi-supply Gates sit in one piece — their downstreams meet
+   *  at one Converter with no split between them — so neither Gate's split is
+   *  free of the other's; the plan does not cover it (kept at the previous
+   *  rule, #476) */
+  jointMulti: boolean
 }
 
 type Kind = string | undefined
@@ -88,24 +104,58 @@ export function converterGroups(
       for (const w of adj.get(v) ?? []) if (!seen.has(w)) { seen.add(w); stack.push(w) }
     }
     members.sort()
-    // a group is about a Converter that is fed by a router
-    if (!members.some((m) => kindOf(m) === 'converter' && (ins.get(m)?.length ?? 0) > 0)) continue
-
-    const rejoin = findSplitRejoin(members, outs)
+    // a group is about a Converter that is fed by a router, or a Gate with
+    // two supplies (#476: the priority applies to every such Gate)
+    const hasConverter = members.some((m) => kindOf(m) === 'converter' && (ins.get(m)?.length ?? 0) > 0)
     const multiGates = members.filter((m) => {
       if (kindOf(m) !== 'gate') return false
       const ups = new Set((ins.get(m) ?? []).map((e) => e.source))
       return ups.size >= 2 || (ups.size >= 1 && ownPoolInput(m))
     })
+    if (!hasConverter && multiGates.length === 0) continue
+
+    const rejoin = findSplitRejoin(members, outs)
     groups.push({
       members,
       cls: rejoin ? 'split-rejoin' : multiGates.length ? 'multi' : 'tree',
       split: rejoin?.split ?? null,
       join: rejoin?.join ?? null,
       multiGates,
+      hasConverter,
+      jointMulti: !rejoin && multiGates.length >= 2 && jointMultiPiece(members, rr, new Set(multiGates)),
     })
   }
   return groups
+}
+
+/** True when two multi-supply Gates share one PIECE — the parts of the group
+ *  left when every router → router connection INTO a multi-supply Gate is cut
+ *  (each piece is a tree whose one free number is set by the Gate at its head
+ *  or by its own bounds; the plan fills the Gates' supplies one by one, #476).
+ *  Two Gates in one piece means their downstreams meet at a Converter that
+ *  ties their throughputs by its one fraction, so neither split is free. */
+function jointMultiPiece(members: string[], rr: LoopEdge[], multi: Set<string>): boolean {
+  const inGroup = new Set(members)
+  const adj = new Map<string, Set<string>>(members.map((m) => [m, new Set()]))
+  for (const e of rr) {
+    if (!inGroup.has(e.source) || !inGroup.has(e.target) || multi.has(e.target)) continue
+    adj.get(e.source)!.add(e.target)
+    adj.get(e.target)!.add(e.source)
+  }
+  const seen = new Set<string>()
+  for (const start of members) {
+    if (seen.has(start)) continue
+    let heads = 0
+    const stack = [start]
+    seen.add(start)
+    while (stack.length) {
+      const v = stack.pop()!
+      if (multi.has(v)) heads++
+      for (const w of adj.get(v)!) if (!seen.has(w)) { seen.add(w); stack.push(w) }
+    }
+    if (heads >= 2) return true
+  }
+  return false
 }
 
 /** The first router (ascending id) with two forward paths that meet again,
@@ -141,9 +191,10 @@ function findSplitRejoin(
   return null
 }
 
-/** The groups a graph cannot run with (the split-rejoin ones), over the full
- *  graph — what the run bar, the Inspector and the Monte Carlo dialog show
- *  before any run, and what `step` refuses to compute. */
+/** The groups a graph cannot run with (a split that rejoins, with a Converter
+ *  in the group), over the full graph — what the run bar, the Inspector and
+ *  the Monte Carlo dialog show before any run, and what `step` refuses to
+ *  compute. A group of Gates only is never refused. */
 export function refusedGroups(nodes: readonly LoopNode[], edges: readonly LoopEdge[]): ConverterGroup[] {
-  return converterGroups(nodes, edges).filter((g) => g.cls === 'split-rejoin')
+  return converterGroups(nodes, edges).filter((g) => g.cls === 'split-rejoin' && g.hasConverter)
 }
