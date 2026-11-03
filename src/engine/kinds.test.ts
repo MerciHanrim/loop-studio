@@ -95,7 +95,8 @@ describe('loop-model/3 — the desalination shapes (design §6, §7)', () => {
     expect(r.state.step).toBe(0)
     expect(r.report.events).toEqual([])
     expect(r.report.diagnostics).toHaveLength(1)
-    expect(r.report.diagnostics[0]).toMatch(/^Can't run: Converter "ro" takes in 100 "water" and puts out 105\./)
+    // loop-model/4 (§M4-5) — the sums and their exact difference, under R≈
+    expect(r.report.diagnostics[0]).toMatch(/^Can't run: Converter "ro" takes in 100 "water" and puts out 105 \(out − in 5\)\./)
     expect(r.report.boundaryOutflow).toBeUndefined()
   })
 

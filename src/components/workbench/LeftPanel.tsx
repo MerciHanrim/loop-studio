@@ -5,7 +5,7 @@ import { useSimStore } from '../../store/simStore'
 import { useT, type MessageKey } from '../../i18n'
 import { useIsMobile } from '../../ui/media'
 import { Icon } from '../../ui/icons'
-import { ModelPanels, useReveal } from '../ModelPanels'
+import { hasModelPanels, ModelPanels, useReveal } from '../ModelPanels'
 import { KindIcon } from '../nodes/KindIcon'
 import { NodeIcon } from '../nodes/NodeIcon'
 import { readIcon, type NodeIconId } from '../../model/model'
@@ -66,6 +66,9 @@ export function LeftPanel() {
   const t = useT()
   const isMobile = useIsMobile()
   const nodes = useGraphStore((s) => s.nodes)
+  // loop-model/3 and /4 — a graph with kinds shows the Kinds panel on Inputs
+  const edges = useGraphStore((s) => s.edges)
+  const kinds = useGraphStore((s) => s.kinds)
   const selectedId = useGraphStore((s) => s.selectedNodeId)
   // a row brings its node into view only if it is not there already, by the
   // least move at the current zoom (Lumi, 2026-10-19)
@@ -220,7 +223,7 @@ export function LeftPanel() {
         </div>
       ) : (
         <div className="wb-left__body wb-left__body--inputs" role="tabpanel" id={panelId('inputs')} aria-labelledby={tabId('inputs')}>
-          {nodes.some((n) => n.type === 'parameter' || n.type === 'register') ? (
+          {hasModelPanels(nodes, edges, kinds) ? (
             <ModelPanels />
           ) : (
             <p className="wb-list__none">{t('panels.empty.inputs')}</p>

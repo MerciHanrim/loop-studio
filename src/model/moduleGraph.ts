@@ -26,9 +26,11 @@ import { nextId } from './factory'
 import { canonicalContent, validateResultGraph } from './revision'
 import { normalizeGraph } from './serialize'
 import type { ModelSemanticsVersion } from './serialize'
-import { mergeKinds, type ResourceKindDecl } from './kinds'
+import { kindsDeclareUnits, mergeKinds, type ResourceKindDecl } from './kinds'
+import { anyFieldUnit } from './engineValues'
 import { normalizeResourceType } from './model/resourceType'
 import type { LoopEdge, LoopNode } from './types'
+import type { DocTime } from './units'
 
 // ── shared shapes ─────────────────────────────────────────────────────────────
 
@@ -38,6 +40,8 @@ export type GraphDocLike = {
   modelVersion: ModelSemanticsVersion
   /** loop-model/3 (SEMANTICS-M3.md) — the kinds table; absent ⇒ none */
   kinds?: readonly ResourceKindDecl[]
+  /** loop-model/4 (SEMANTICS-M4.md §M4-3) — the step length; absent ⇒ none */
+  time?: DocTime
 }
 
 /** Bounding-box top-left of a node set (`{ 0, 0 }` for an empty set). */
@@ -127,6 +131,9 @@ export type InsertOk = {
   /** loop-model/3 — the host's kinds table, then the module's kinds the host
    *  did not declare (`mergeKinds`). */
   kinds: ResourceKindDecl[]
+  /** loop-model/4 — the host's step length; a host without one adopts the
+   *  module's, so the module's per-time fields keep their meaning (§M4-3) */
+  time?: DocTime
   /** fresh ids of the inserted nodes, in module order (for selection). */
   insertedNodeIds: string[]
   insertedEdgeIds: string[]
@@ -217,6 +224,9 @@ export function insertGraph(host: GraphDocLike, mod: GraphDocLike, opts: InsertO
   // loop-model/3 — the host's table first; a module's kind the host did not
   // declare joins it (a `/graph/3` module always lifts the host to 3 above).
   const kinds = mergeKinds(host.kinds ?? [], mod.kinds ?? [])
+  // loop-model/4 — the host's step length wins; a host without one adopts the
+  // module's (a `/graph/4` module lifts the host to 4 above, with consent)
+  const time = host.time ?? mod.time
 
   // 4. build the full candidate, validate it whole, THEN return (§MS3.6 / B4).
   const nodes = [...host.nodes, ...outNodes]
@@ -224,7 +234,7 @@ export function insertGraph(host: GraphDocLike, mod: GraphDocLike, opts: InsertO
   const v = validateResultGraph(nodes, edges)
   if (!v.ok) return { ok: false, reason: `The merged graph is not valid: ${v.reasons.join(' ')}` }
   try {
-    canonicalContent({ nodes, edges, kinds }, { modelVersion })
+    canonicalContent({ nodes, edges, kinds, time }, { modelVersion })
   } catch {
     return { ok: false, reason: 'The merged graph holds a non-finite number.' }
   }
@@ -236,6 +246,7 @@ export function insertGraph(host: GraphDocLike, mod: GraphDocLike, opts: InsertO
     modelVersion,
     promotedTo,
     kinds,
+    ...(time !== undefined ? { time } : {}),
     insertedNodeIds: outNodes.map((n) => n.id),
     insertedEdgeIds: outEdges.map((e) => e.id),
     idMap: Object.fromEntries(idMap),
@@ -253,6 +264,8 @@ export type ExtractOk = {
   modelVersion: ModelSemanticsVersion
   /** loop-model/3 — the source's declared kinds the selection names (`[]` ⇒ no table) */
   kinds: ResourceKindDecl[]
+  /** loop-model/4 — the source's step length, when the selection carries units */
+  time?: DocTime
 }
 export type ExtractResult = ExtractOk | { ok: false; reason: string; dangling?: DanglingRef[] }
 
@@ -319,7 +332,12 @@ export function extractModule(src: GraphDocLike, selectedIds: readonly string[])
     if (rt !== null) named.add(rt)
   }
   const kinds = (src.kinds ?? []).filter((k) => named.has(k.name))
-  const modelVersion: ModelSemanticsVersion = kinds.length > 0 ? 3 : hasParamFlow ? 2 : 1
+  // loop-model/4 — a selection whose kinds declare units or whose fields name
+  // one is a `/graph/4` file (§M4-1), and the source's step length travels
+  // with it so a per-time field keeps its meaning
+  const units = kindsDeclareUnits(kinds) || anyFieldUnit(nodes, selEdges)
+  const modelVersion: ModelSemanticsVersion = units ? 4 : kinds.length > 0 ? 3 : hasParamFlow ? 2 : 1
+  const time = units ? src.time : undefined
 
-  return { ok: true, nodes, edges: selEdges, modelVersion, kinds }
+  return { ok: true, nodes, edges: selEdges, modelVersion, kinds, ...(time !== undefined ? { time } : {}) }
 }

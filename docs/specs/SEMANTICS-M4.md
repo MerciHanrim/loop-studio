@@ -1,0 +1,59 @@
+# SEMANTICS-M4 — `loop-model/4`: units and the step length
+
+Status: normative for a document whose `schema` is `loop-studio/graph/4`. Issue #471, U1 stage 2; design record `units-display-design.md` rev 6 (decided 2026-11-03). Extends SEMANTICS-M3.md (the kinds table and per-kind conservation). Numbering continues the model-semantics axis: `loop-model/1` → `/2` → `/3` → `/4`.
+
+## M4-1. What a document declares
+
+A kind in the table (§M3-1) may carry two unit lists, and the document may carry a top-level `time`:
+
+```json
+"kinds": [
+  { "name": "water", "conserved": true, "baseUnit": "m³",
+    "units":     [{ "name": "L", "factor": "0.001" }],
+    "rateUnits": [{ "name": "MLD", "factor": "1000", "per": "d" }] }
+],
+"time": { "step": { "value": 1, "unit": "h" }, "display": "d" }
+```
+
+- An **amount unit** `{ name, factor }`: one `name` is `factor` base units. A stock or a rate may be authored in it.
+- A **rate unit** `{ name, factor, per }`: one `name` is `factor` base units per `per` (`s`, `min`, `h`, `d`). Only a rate may be authored in it, and only once the document declares a step length.
+- `factor` is a positive plain decimal of at most 15 significant digits, kept as TEXT in its shortest exact form (`1000.0` is written `1000`). A `name` is trimmed, NFC, at most 32 UTF-8 bytes, and may not contain `/`, which separates an amount unit from a time unit in a field's unit text (`L/min`).
+- **Defensive read**: a bad entry is dropped; names are unique across both lists and apart from the base unit (the base unit's name wins, then file order); an empty list is no key.
+- `time.step` is the **step length**: `value` an integer 1…10⁶, `unit` a time unit. It is a model fact. `time.display` is the time unit aggregate panels show rates per; it is presentation. Anything else is no `time` at all.
+- **Version boundary.** A unit list, a `time` or a field `unit` (M4-2) is written only on `loop-studio/graph/4`; writing one at a lower version is refused, never silently dropped. None of them is read from an earlier schema. An older app fails closed on `/graph/4`. Declaring a unit list, a step length or a field unit promotes the document, one-way; a module insert that would promote asks first (§MS3.4). **M4-INV-1:** a document with no unit list, no `time` and no field unit computes, byte for byte, what it computes under `loop-model/3`, and its projection and digest are `loop-model/3`'s apart from the discriminator.
+
+## M4-2. Authored values and engine values (invariant S′)
+
+1. A Pool's `initial` and `capacity`, and a resource connection's constant `flow`, keep what the person typed: the **authored decimal** and the field's **`unit`** (`"L"`, `"L/min"`, `"MW"`; absent = the base unit, per step for a rate). The file stores exactly that.
+2. **Resolution, fail-safe.** A field's unit resolves against its kind's lists and the step length. An unknown name, a rate unit or a per-time unit on a stock, and a per-time or rate unit without a step length all read as the base unit: the number then means what every earlier document meant by it, never a silently scaled amount.
+3. **The engine value** is the nearest double of the exact rational `authored × factor × S ÷ T`, where `S` is the step length in seconds and `T` the seconds of the unit's time (`S ÷ T` = 1 for an amount per step). It is derived when the engine reads the graph and is never persisted. Only a plain decimal is converted: a percent, `all`, a random form or a `@param` reference is read as it is, and a Parameter's value has no unit.
+4. `step()`, Monte Carlo and the engine revision (4) are unchanged: they read the derived graph.
+
+## M4-3. The step length
+
+A step change moves the amount per step of every field authored per time unit, and of no other field. It can therefore change a balance verdict only at a Converter whose connections mix per-time and per-step rates; the change names those Converters and waits for consent before it is applied (M4-4).
+
+## M4-4. Changing a unit, a step length or a factor
+
+- **A unit change of a non-empty field** re-expresses the authored value through exact rationals. When the result terminates within 15 significant digits it is applied at once: the same rational, so the engine value and every verdict are unchanged. Otherwise nothing is applied until the person confirms: the sheet shows the exact value as far as it goes, the 15-digit value that would be stored and its deviation in the base unit (all under M4-5), and the Converters whose verdict would change. There is no "keep the number" action. Cancel leaves the field as it was.
+- **A step-length change** that changes any Converter's verdict lists those Converters first and is applied only on consent. One that changes none is applied at once.
+- Every applied change is one undo entry.
+
+## M4-5. C1 exact, and what a surface prints (R≈)
+
+- **Balance (D4).** The C1 test of §M3-3 is exact: every computable rate is its authored decimal times its unit's ratio to the base unit per step, as a rational, and `Σ in = Σ out` must hold exactly — no epsilon, no double. This supersedes the `1e-9` tolerance of §M3-3 for every version: `0.1 + 0.2 = 0.3` balances, `100 = 50 + 55` breaks by exactly 5. A resolved `@param` takes part at its value, in the base unit.
+- **R≈.** A verdict is taken from the rational, never from printed text. A surface prints a value's exact decimal when it terminates, otherwise `≈` and 15 significant digits, always in plain digits (never an exponent). An approximation is never labelled exact. Authored field text never carries `≈`.
+
+## M4-6. Exports (D6)
+
+- **CSV**: numeric cells stay numbers, in the base unit per step; the header names the unit (`feed [m³]`). A re-expressed or difference value gets two separate columns, `<name> (shown)` for the R≈ text and `<name> (approx)` for whether it is an approximation.
+- **JSON**: numbers stay numbers, with a `units` / `time` header object; a display-bearing quantity is `{ value, unit, approx, display }`. The document itself stores the authored decimal and its `unit` key.
+- No export turns a computed number into a string by prefixing `≈`.
+
+## M4-7. Where it lives
+
+- Model: `src/model/rational.ts` (exact decimals, R≈), `src/model/units.ts` (the reads, field-unit resolution, the engine value, the unit-change preview), `src/model/engineValues.ts` (`applyUnits`, the derived graph; `stripFieldUnits`), `src/model/kinds.ts` (`readKindsAt`, the exact C1, `convertersWhoseVerdictChanges`). Engine: `src/engine/step.ts` and `montecarlo.ts` read the derived graph; the findings read the authored one.
+- File: `time` after `kinds`, field `unit` keys trailing on Pool and resource-connection data. Projection and digest: the unit lists ride their kind entry, `time` follows `kinds` with `step` only, field `unit` keys are projected — all at version 4 only.
+- UI: the Inspector's unit select on a Pool and on a resource connection, and its confirm sheet; the Kinds panel's unit lists and step-length row, which the Inputs tab shows for any graph that names or declares a kind.
+- Pins: `src/model/units.test.ts` (rationals and R≈, the reads, resolution, engine values, unit changes, exact C1, the `/graph/4` boundary and M4-INV-1), `src/model/kinds.test.ts`, `src/engine/kinds.test.ts`.
+- Not in this stage: the CSV and JSON export columns of M4-6 are the contract for the export surfaces, which today export base-unit values only; the Timeline's view-unit conversion and the bundled desalination example are separate kickoffs.

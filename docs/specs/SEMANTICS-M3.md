@@ -36,8 +36,10 @@ Every `resource` connection has exactly one kind, or none, by this resolution (`
 For each Converter where a conserved kind is involved and each conserved kind `k` among its connections, the balance in `k` is **computable** when every connection of the Converter has a kind and every connection of kind `k` has a numeric rate (a `const`, or a `@param` reference resolved to one — the same resolution `step` performs, §M2-3). When computable it must hold:
 
 ```
-Σ inRate(k) = Σ outRate(k)      (to 1e-9), deliveries into Drains and Ends counted among the outputs
+Σ inRate(k) = Σ outRate(k)      (exactly — SEMANTICS-M4.md §M4-5), deliveries into Drains and Ends counted among the outputs
 ```
+
+(Until `loop-model/4` this read "to 1e-9", over doubles. Since §M4-5 the test is exact over the authored decimals, for every version; a recipe that balanced only within the tolerance now reports its exact difference.)
 
 Because every connection of a Converter run scales by the one run fraction `f` (SEMANTICS.md I2), a recipe balanced in rates is balanced in every step and in both modes. **M3-INV-2 (I1-K):** per step and per conserved kind, `Σ Pools(after) = Σ Pools(before) + Source pushes − Drain / End intake`, the sums over the Pools of that kind; no net-loss term exists for a conserved kind, and any other difference is an engine defect. The sum holds only if the kind never crosses into a Pool outside it, which is why a determined connection at a Pool with no kind refuses (M3-2 rule 5). A kind not declared conserved is consumed or produced freely. Gates, Sources, Drains, `pull all` / `pull any`, Parameters in rates (checked after resolution) and the run fraction are untouched.
 

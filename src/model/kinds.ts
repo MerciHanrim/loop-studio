@@ -10,8 +10,10 @@ import { parseFlow, type FlowExpr } from '../engine/flow'
 import { resolveFlowExprs } from '../engine/gateChance'
 import { normalizeResourceType } from './model/resourceType'
 import { trimUnicodeWhitespace, utf8Len } from './model/text'
-import type { ModelSemanticsVersion } from './modelVersion'
+import { hasUnits, type ModelSemanticsVersion } from './modelVersion'
+import { add, displayRational, equals, fromInt, parseDecimal, sub, toDouble, type Rational } from './rational'
 import type { LoopEdge, LoopNode } from './types'
+import { fieldRational, readRateUnitList, readUnitList, resolveFieldUnit, type DocTime, type RateUnitDecl, type UnitDecl } from './units'
 
 // ── the kinds table ───────────────────────────────────────────────────────
 
@@ -20,11 +22,37 @@ export type ResourceKindDecl = {
   name: string
   /** C1 — opt-in: every Converter recipe balances in this kind */
   conserved: boolean
-  /** U1 stage 1 — the base unit's label (`m³`, `kWh`); the input unit. Display only. */
+  /** U1 stage 1 — the base unit's label (`m³`, `kWh`); the unit of every
+   *  field that names no other. */
   baseUnit?: string
+  /** loop-model/4 (SEMANTICS-M4.md §M4-1) — the kind's amount units, each a
+   *  scale of the base unit; a stock or a rate may be authored in one */
+  units?: UnitDecl[]
+  /** loop-model/4 — the kind's rate units, each an amount per time; a rate
+   *  field may be authored in one once the document declares its step length */
+  rateUnits?: RateUnitDecl[]
 }
 
 export const KIND_BASE_UNIT_MAX_BYTES = 32
+
+/** `true` when a kinds table declares any unit list (⇒ loop-model/4 content) */
+export const kindsDeclareUnits = (kinds: readonly ResourceKindDecl[]): boolean =>
+  kinds.some((k) => (k.units?.length ?? 0) > 0 || (k.rateUnits?.length ?? 0) > 0)
+
+/** the table without its unit lists — what a document of a version before
+ *  loop-model/4 can carry (§M4-1: the lists are not read from one) */
+export function stripUnits(kinds: readonly ResourceKindDecl[]): ResourceKindDecl[] {
+  return kinds.map((k) => {
+    const { units: _u, rateUnits: _r, ...rest } = k
+    return rest
+  })
+}
+
+/** `readKinds` at a declared version: the unit lists only from loop-model/4 */
+export function readKindsAt(raw: unknown, modelVersion: ModelSemanticsVersion | number | undefined): ResourceKindDecl[] {
+  const kinds = readKinds(raw)
+  return hasUnits(modelVersion) ? kinds : stripUnits(kinds)
+}
 
 /** The §M3-1 defensive read of a file's `kinds` array: a non-array or an
  *  entry that is not an object with a usable name is dropped; names normalise
@@ -38,7 +66,7 @@ export function readKinds(raw: unknown): ResourceKindDecl[] {
   const seen = new Set<string>()
   for (const entry of raw) {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue
-    const o = entry as { name?: unknown; conserved?: unknown; baseUnit?: unknown }
+    const o = entry as { name?: unknown; conserved?: unknown; baseUnit?: unknown; units?: unknown; rateUnits?: unknown }
     const name = normalizeResourceType(o.name).value
     if (name === null || seen.has(name)) continue
     seen.add(name)
@@ -47,6 +75,14 @@ export function readKinds(raw: unknown): ResourceKindDecl[] {
       const unit = trimUnicodeWhitespace(o.baseUnit).normalize('NFC')
       if (unit !== '' && utf8Len(unit) <= KIND_BASE_UNIT_MAX_BYTES) decl.baseUnit = unit
     }
+    // §M4-1 — the unit lists: names unique across both lists and apart from
+    // the base unit (the base unit's name wins, then file order); a bad entry
+    // is dropped; an empty list is no key
+    const taken = new Set<string>(decl.baseUnit !== undefined ? [decl.baseUnit] : [])
+    const units = readUnitList(o.units, taken)
+    const rateUnits = readRateUnitList(o.rateUnits, taken)
+    if (units.length > 0) decl.units = units
+    if (rateUnits.length > 0) decl.rateUnits = rateUnits
     out.push(decl)
   }
   return out
@@ -221,13 +257,26 @@ export type KindFinding =
    *  connection whose rate is not a number (`all`, a percent, a random form,
    *  a reference that does not resolve), or a connection with no kind */
   | { cls: 'notComputable'; converterId: string; edgeId: string; reason: 'rate' | 'noKind'; rate: string; kind: string | null; refuses: boolean }
-  /** a Converter whose computable balance in a conserved kind differs */
-  | { cls: 'broken'; converterId: string; kind: string; inRate: number; outRate: number; refuses: boolean }
-
-export const KIND_BALANCE_EPSILON = 1e-9
+  /** a Converter whose computable balance in a conserved kind differs.
+   *  `inRate` / `outRate` are the nearest doubles of the two exact sums (in
+   *  the base unit per step); `inText` / `outText` / `diffText` are what a
+   *  surface prints for them under R≈ (§M4-5), `approx` whether any of the
+   *  three is an approximation. The verdict came from the rationals. */
+  | { cls: 'broken'; converterId: string; kind: string; inRate: number; outRate: number; inText: string; outText: string; diffText: string; approx: boolean; refuses: boolean }
 
 const rawFlow = (e: LoopEdge) => String((e.data as { flow?: unknown } | undefined)?.flow ?? '1')
 const numeric = (fx: FlowExpr | undefined): number | null => (fx && fx.kind === 'const' && Number.isFinite(fx.value) ? fx.value : null)
+
+/** §M4-2.4 — the AUTHORED decimal of a computable rate: the field's own text
+ *  when it is a plain decimal (`7`, `0.25`), else the shortest form of the
+ *  value the engine resolved it to (a `@param` reference → the Parameter's
+ *  value, which has no unit). `null` when the rate is not computable. */
+function authoredRate(e: LoopEdge, fx: FlowExpr | undefined): string | null {
+  const raw = rawFlow(e).trim()
+  if (parseDecimal(raw) !== null) return raw
+  const v = numeric(fx)
+  return v === null ? null : String(v)
+}
 
 /**
  * §M3-3 / §M3-4 (design §3.2, §3.5) — the findings of a graph under its kinds
@@ -239,14 +288,23 @@ const numeric = (fx: FlowExpr | undefined): number | null => (fx && fx.kind === 
  * a conflict, one of its kinds is conserved; at a Converter, one of its
  * connections has a determined conserved kind. With an empty table nothing
  * refuses and only the rate findings remain.
+ *
+ * loop-model/4 (SEMANTICS-M4.md §M4-2.4, D4) — the balance is EXACT: every
+ * computable rate is its authored decimal times its field unit's ratio to the
+ * base unit per step, as a rational; the two sides are summed exactly and
+ * must be equal. No epsilon, no double. A document without units is the same
+ * test over its plain decimals, so `100 = 45 + 53 + 2` and `0.1 + 0.2 = 0.3`
+ * balance and `100 ≠ 50 + 55` by exactly 5.
  */
 export function kindFindings(
   nodes: readonly LoopNode[],
   edges: readonly LoopEdge[],
   kinds: readonly ResourceKindDecl[],
   modelVersion: ModelSemanticsVersion,
+  time?: DocTime,
 ): KindFinding[] {
   const conserved = conservedKinds(kinds)
+  const declOf = new Map(kinds.map((k) => [k.name, k]))
   const r = resolveKinds(nodes, edges)
   const out: KindFinding[] = []
   for (const c of r.conflicts) {
@@ -265,32 +323,57 @@ export function kindFindings(
       return k !== null && k !== undefined && conserved.has(k)
     })
     let computable = true
+    const authored = new Map<string, string>()
     for (const e of lines) {
       const k = r.edgeKind.get(e.id) ?? null
       const fx = flowOf.get(e.id) ?? parseFlow(rawFlow(e), modelVersion)
-      if (numeric(fx) === null) {
+      const a = authoredRate(e, fx)
+      if (a === null) {
         out.push({ cls: 'notComputable', converterId: c, edgeId: e.id, reason: 'rate', rate: rawFlow(e).trim(), kind: k, refuses: involved })
         computable = false
       } else if (k === null && involved) {
         out.push({ cls: 'notComputable', converterId: c, edgeId: e.id, reason: 'noKind', rate: rawFlow(e).trim(), kind: null, refuses: true })
         computable = false
-      }
+      } else authored.set(e.id, a)
     }
     if (!involved || !computable) continue
     const kindsHere = [...new Set(lines.map((e) => r.edgeKind.get(e.id)).filter((k): k is string => k !== null && k !== undefined && conserved.has(k)))].sort()
     for (const k of kindsHere) {
-      let inRate = 0
-      let outRate = 0
+      let inSum: Rational = fromInt(0)
+      let outSum: Rational = fromInt(0)
       for (const e of lines) {
         if (r.edgeKind.get(e.id) !== k) continue
-        const v = numeric(flowOf.get(e.id)) ?? 0
-        if (e.target === c) inRate += v
-        else outRate += v
+        // a unit scales only a rate authored as a plain decimal — the engine
+        // reads a resolved `@param` (which has no unit) in the base unit, and
+        // the balance must be the one the engine runs (engineValues.ts)
+        const plain = parseDecimal(rawFlow(e).trim()) !== null
+        const fu = plain ? resolveFieldUnit((e.data as { unit?: unknown } | undefined)?.unit, declOf.get(k), time, 'rate') : ({ kind: 'base' } as const)
+        const v = fieldRational(authored.get(e.id) ?? '0', fu, time) ?? fromInt(0)
+        if (e.target === c) inSum = add(inSum, v)
+        else outSum = add(outSum, v)
       }
-      if (Math.abs(inRate - outRate) > KIND_BALANCE_EPSILON) out.push({ cls: 'broken', converterId: c, kind: k, inRate, outRate, refuses: true })
+      if (!equals(inSum, outSum)) {
+        const i = displayRational(inSum)
+        const o = displayRational(outSum)
+        const d = displayRational(sub(outSum, inSum))
+        out.push({ cls: 'broken', converterId: c, kind: k, inRate: toDouble(inSum), outRate: toDouble(outSum), inText: i.text, outText: o.text, diffText: d.text, approx: i.approx || o.approx || d.approx, refuses: true })
+      }
     }
   }
   return out
+}
+
+/** §M4-4 — the Converters whose balance verdict differs between two finding
+ *  lists (one before an edit, one after it), by id, ascending: what a unit
+ *  change, a step change or a factor change announces before it is applied. */
+export function convertersWhoseVerdictChanges(before: readonly KindFinding[], after: readonly KindFinding[]): string[] {
+  const broken = (fs: readonly KindFinding[]) => new Set(fs.filter((f) => f.cls === 'broken').map((f) => `${f.converterId}\u0001${f.kind}`))
+  const a = broken(before)
+  const b = broken(after)
+  const changed = new Set<string>()
+  for (const key of a) if (!b.has(key)) changed.add(key.split('\u0001')[0]!)
+  for (const key of b) if (!a.has(key)) changed.add(key.split('\u0001')[0]!)
+  return [...changed].sort()
 }
 
 /** The findings that stop a run (D1): those where a conserved kind is involved. */
@@ -299,9 +382,10 @@ export function refusingKindFindings(
   edges: readonly LoopEdge[],
   kinds: readonly ResourceKindDecl[],
   modelVersion: ModelSemanticsVersion,
+  time?: DocTime,
 ): KindFinding[] {
   if (!kinds.some((k) => k.conserved)) return []
-  return kindFindings(nodes, edges, kinds, modelVersion).filter((f) => f.refuses)
+  return kindFindings(nodes, edges, kinds, modelVersion, time).filter((f) => f.refuses)
 }
 
 /** The engine's English diagnostic for a refusing finding — what `step` reports
@@ -333,7 +417,7 @@ export function kindFindingText(f: KindFinding, nodes: readonly LoopNode[], edge
         ? `Can't run: the rate "${f.rate}" on ${conn(f.edgeId)} is not a number, so the ${f.kind === null ? '' : `${q(f.kind)} `}balance of Converter "${label(f.converterId)}" cannot be computed and nothing moved.`
         : `Can't run: ${conn(f.edgeId)} has no kind, so the balance of Converter "${label(f.converterId)}" cannot be computed and nothing moved.`
     case 'broken':
-      return `Can't run: Converter "${label(f.converterId)}" takes in ${f.inRate} ${q(f.kind)} and puts out ${f.outRate}. A conserved kind must balance, so nothing moved.`
+      return `Can't run: Converter "${label(f.converterId)}" takes in ${f.inText} ${q(f.kind)} and puts out ${f.outText} (out − in ${f.diffText}). A conserved kind must balance, so nothing moved.`
   }
 }
 

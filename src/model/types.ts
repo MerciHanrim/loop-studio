@@ -50,6 +50,10 @@ export type PoolData = FlowColour & FlowIcon & {
   mode: ResourceMode
   /** loop-model/1 §M4 — advisory resource-type tag; changes no number. */
   resourceType?: string
+  /** loop-model/4 (SEMANTICS-M4.md §M4-2) — the amount unit `initial` and
+   *  `capacity` are authored in (`L`), one of the kind's declared units.
+   *  Absent / unresolvable ⇒ the base unit. The engine reads the derived value. */
+  unit?: string
 }
 
 export type SourceData = FlowColour & FlowIcon & {
@@ -163,6 +167,10 @@ export type ResourceEdgeData = EdgeRoutingData & FlowColour & {
   flow: string
   /** loop-model/1 §M4 — advisory resource-type tag; changes no number. */
   resourceType?: string
+  /** loop-model/4 (SEMANTICS-M4.md §M4-2) — the unit a constant `flow` is
+   *  authored in (`L`, `L/min`, `MW`). Absent / unresolvable ⇒ the base unit
+   *  per step. The engine reads the derived value. */
+  unit?: string
 }
 
 export type StateEdgeData = EdgeRoutingData & FlowColour & {

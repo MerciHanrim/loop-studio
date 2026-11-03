@@ -1,6 +1,8 @@
 import { useId, useMemo, useState, type ReactNode } from 'react'
-import { kindFindings, kindFindingEdgeId, kindFindingNodeId } from '../model/kinds'
+import { convertersWhoseVerdictChanges, kindFindings, kindFindingEdgeId, kindFindingNodeId, resolveKinds, type ResourceKindDecl } from '../model/kinds'
+import { fieldUnitOptions, fieldUnitText, poolKindName, previewUnitChange, reexpress, resolveFieldUnit, type DocTime, type FieldUnit } from '../model/units'
 import { KindFindingText } from './ModelPanels'
+import { ConfirmDialog } from './ConfirmDialog'
 import {
   classifyLabelTiming,
   eligibleLabelPreset,
@@ -329,7 +331,12 @@ export function Inspector({ editLocked = false }: { editLocked?: boolean } = {})
         <section className="wb-panel__sec" aria-label={t('panel.edit')}>
           <h3 className="wb-panel__h">{t('panel.edit')}</h3>
           {ed.kind === 'resource' ? (
-            <EdgeFlowField flow={ed.flow} params={paramOptions} onChange={(flow) => setData({ ...ed, kind: 'resource', flow })} />
+            <>
+              <EdgeFlowField flow={ed.flow} params={paramOptions} onChange={(flow) => setData({ ...ed, kind: 'resource', flow })} />
+              {/* loop-model/4 — the unit the rate is authored in, keyed per
+                  connection so a pending confirm never carries over */}
+              <EdgeUnitField key={`unit:${edge.id}`} edgeId={edge.id} ed={ed} setData={setData} />
+            </>
           ) : legacyState ? (
             <LegacyStateEdge ed={ed} setData={setData} />
           ) : ed.mode === 'trigger' ? (
@@ -535,6 +542,165 @@ function EdgeFlowField({
       {isRef && <span className="inspector__note">{t('inspector.edge.flowParam.hint')}</span>}
     </Field>
   )
+}
+
+// ── units (loop-model/4, SEMANTICS-M4.md §M4-2 / §M4-4) ─────────────────────
+
+/** the option label of a field unit: the base unit's name (or "base unit"),
+ *  a unit name, `L/min`, `MW`; a rate field says "per step" where the
+ *  amount is per step */
+function unitOptionLabel(t: ReturnType<typeof useT>, fu: FieldUnit, decl: ResourceKindDecl, role: 'stock' | 'rate'): string {
+  const name = fu.kind === 'base' ? (decl.baseUnit ?? t('inspector.unit.base')) : fu.kind === 'rate' ? fu.unit.name : fu.unit.name
+  if (role === 'rate' && (fu.kind === 'base' || (fu.kind === 'amount' && !fu.per))) return t('inspector.unit.perStep', { unit: isolateAuto(name) })
+  return fieldUnitText(fu) || name
+}
+
+/** the §M4-4 confirm sheet's body for a re-expressed value that does not
+ *  terminate within 15 digits: the exact value as far as it goes, the value
+ *  that would be stored and its deviation, every number under R≈ */
+function unitChangeBody(
+  t: ReturnType<typeof useT>,
+  from: string | number,
+  to: FieldUnit,
+  decl: ResourceKindDecl,
+  p: Extract<NonNullable<ReturnType<typeof previewUnitChange>>, { exact: false }>,
+): string {
+  const unit = fieldUnitText(to) || decl.baseUnit || t('inspector.unit.base')
+  return t('inspector.unit.change.body', {
+    from: isolateLtr(String(from)),
+    exact: isolateLtr(p.exactShown),
+    unit: isolateAuto(unit),
+    rounded: isolateLtr(p.rounded),
+    deviation: isolateLtr(p.deviation.text),
+    base: isolateAuto(decl.baseUnit ?? t('inspector.unit.base')),
+  })
+}
+
+type PendingUnitChange = { body: string; apply: () => void }
+
+/** the confirm a unit change that cannot be exact waits for (§M4-4, D10):
+ *  nothing is stored until the person confirms the rounded value; cancel
+ *  leaves the field as it was. There is no "keep the number" action. */
+function UnitChangeConfirm({ pending, onDone }: { pending: PendingUnitChange | null; onDone: () => void }) {
+  const t = useT()
+  return (
+    <ConfirmDialog
+      open={pending !== null}
+      title={t('inspector.unit.change.title')}
+      body={pending?.body ?? ''}
+      confirmLabel={t('inspector.unit.change.confirm')}
+      onConfirm={() => {
+        pending?.apply()
+        onDone()
+      }}
+      onCancel={onDone}
+    />
+  )
+}
+
+/** a Pool's unit select (stock role): the base unit and the kind's amount
+ *  units, never a rate. A change re-expresses `initial` and `capacity`
+ *  exactly or asks first. Nothing while the Pool's kind declares no unit. */
+function PoolUnitField({ d, set }: { d: PoolData; set: Patch }) {
+  const t = useT()
+  const kinds = useGraphStore((s) => s.kinds)
+  const time = useGraphStore((s) => s.time)
+  const [pending, setPending] = useState<PendingUnitChange | null>(null)
+  const decl = kinds.find((k) => k.name === poolKindName(d))
+  if (!decl || !decl.units?.length) return null
+  const options = fieldUnitOptions(decl, time, 'stock')
+  const cur = resolveFieldUnit(d.unit, decl, time, 'stock')
+  const change = (text: string) => {
+    const to = resolveFieldUnit(text, decl, time, 'stock')
+    const unitPatch = text === '' ? { unit: undefined } : { unit: text }
+    const pi = previewUnitChange(d.initial, cur, to, time)
+    const pc = d.capacity == null ? null : previewUnitChange(d.capacity, cur, to, time)
+    const valueOf = (p: NonNullable<ReturnType<typeof previewUnitChange>>) => Number(p.exact ? p.value : p.rounded)
+    const apply = () =>
+      set({
+        ...unitPatch,
+        initial: pi ? valueOf(pi) : d.initial,
+        ...(pc ? { capacity: valueOf(pc) } : {}),
+      })
+    const inexact = pi && !pi.exact ? { p: pi, from: d.initial } : pc && !pc.exact ? { p: pc, from: d.capacity as number } : null
+    if (inexact === null) return apply()
+    setPending({ body: unitChangeBody(t, inexact.from, to, decl, inexact.p), apply })
+  }
+  return (
+    <>
+      <Field label={t('inspector.field.authoredUnit')}>
+        <select value={fieldUnitText(cur)} onChange={(e) => change(e.target.value)}>
+          {options.map((fu) => (
+            <option key={fieldUnitText(fu)} value={fieldUnitText(fu)}>
+              {unitOptionLabel(t, fu, decl, 'stock')}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <UnitChangeConfirm pending={pending} onDone={() => setPending(null)} />
+    </>
+  )
+}
+
+/** a resource connection's unit select (rate role): the base unit per step,
+ *  each amount unit per step and — once the document declares a step length
+ *  — per second / minute / hour / day, and each rate unit. A change
+ *  re-expresses a constant `flow` exactly or asks first; the sheet names the
+ *  Converters whose balance verdict the rounded value would move. Nothing
+ *  while the connection's kind declares no unit. */
+function EdgeUnitField({ edgeId, ed, setData }: { edgeId: string; ed: Extract<LoopEdgeData, { kind: 'resource' }>; setData: (data: LoopEdgeData) => void }) {
+  const t = useT()
+  const nodes = useGraphStore((s) => s.nodes)
+  const edges = useGraphStore((s) => s.edges)
+  const kinds = useGraphStore((s) => s.kinds)
+  const time = useGraphStore((s) => s.time)
+  const modelVersion = useGraphStore((s) => s.modelVersion)
+  const [pending, setPending] = useState<PendingUnitChange | null>(null)
+  const kindName = useMemo(() => resolveKinds(nodes, edges).edgeKind.get(edgeId) ?? null, [nodes, edges, edgeId])
+  const decl = kindName === null ? undefined : kinds.find((k) => k.name === kindName)
+  if (!decl || (!decl.units?.length && !decl.rateUnits?.length)) return null
+  const options = fieldUnitOptions(decl, time, 'rate')
+  const cur = resolveFieldUnit(ed.unit, decl, time, 'rate')
+  const change = (text: string) => {
+    const to = resolveFieldUnit(text, decl, time, 'rate')
+    const unit = text === '' ? undefined : text
+    const p = previewUnitChange(ed.flow, cur, to, time)
+    if (p === null || p.exact) return setData({ ...ed, kind: 'resource', unit, flow: p ? p.value : ed.flow })
+    const next = { ...ed, kind: 'resource' as const, unit, flow: p.rounded }
+    const after = edges.map((e) => (e.id === edgeId ? { ...e, data: next } : e))
+    const moved = convertersWhoseVerdictChanges(kindFindings(nodes, edges, kinds, modelVersion, time), kindFindings(nodes, after, kinds, modelVersion, time))
+    const label = (id: string) => ((nodes.find((n) => n.id === id)?.data as { label?: string } | undefined)?.label || id)
+    const body = unitChangeBody(t, ed.flow, to, decl, p) + (moved.length > 0 ? ` ${t('inspector.unit.change.verdicts', { converters: isolateAuto(moved.map(label).join(', ')) })}` : '')
+    setPending({ body, apply: () => setData(next) })
+  }
+  return (
+    <>
+      <Field label={t('inspector.field.authoredUnit')}>
+        <select value={fieldUnitText(cur)} onChange={(e) => change(e.target.value)}>
+          {options.map((fu) => (
+            <option key={fieldUnitText(fu)} value={fieldUnitText(fu)}>
+              {unitOptionLabel(t, fu, decl, 'rate')}
+            </option>
+          ))}
+        </select>
+        {!time && <span className="inspector__note">{t('inspector.unit.needsStep')}</span>}
+      </Field>
+      <UnitChangeConfirm pending={pending} onDone={() => setPending(null)} />
+    </>
+  )
+}
+
+/** the current amount as the Pool's authored unit shows it (§M4-5, R≈): the
+ *  engine's base-unit value re-expressed exactly through its shortest
+ *  decimal, `≈` where that does not terminate; the authored text before a run */
+function currentAmountText(live: number | undefined, d: PoolData, decl: ResourceKindDecl | undefined, time: DocTime | undefined): string {
+  const fu = resolveFieldUnit(d.unit, decl, time, 'stock')
+  if (fu.kind === 'base') {
+    const shown = live ?? d.initial
+    return Number.isInteger(shown) ? String(shown) : shown.toFixed(2)
+  }
+  const text = live === undefined ? String(d.initial) : reexpress(live, fu, time).text
+  return `${text} ${fieldUnitText(fu)}`
 }
 
 // ── edge routing (loop-revision/3 / docs/edge-routing.md) ─────────────────
@@ -1147,16 +1313,17 @@ function KindFindingNote({ nodeId }: { nodeId: string }) {
   const nodes = useGraphStore((s) => s.nodes)
   const edges = useGraphStore((s) => s.edges)
   const kinds = useGraphStore((s) => s.kinds)
+  const time = useGraphStore((s) => s.time)
   const modelVersion = useGraphStore((s) => s.modelVersion)
   const findings = useMemo(
     () =>
-      kindFindings(nodes, edges, kinds, modelVersion).filter((f) => {
+      kindFindings(nodes, edges, kinds, modelVersion, time).filter((f) => {
         if (kindFindingNodeId(f) === nodeId) return true
         const edgeId = kindFindingEdgeId(f)
         const e = edgeId ? edges.find((x) => x.id === edgeId) : undefined
         return f.cls === 'conflict' && f.conflict.kind === 'poolEnds' && (e?.source === nodeId || e?.target === nodeId)
       }),
-    [nodes, edges, kinds, modelVersion, nodeId],
+    [nodes, edges, kinds, modelVersion, time, nodeId],
   )
   if (findings.length === 0) return null
   return (
@@ -1269,8 +1436,10 @@ function PoolFields({ id, d, set }: { id: string; d: PoolData; set: Patch }) {
   // the count the node SHOWS — the engine's value once a run has started, the
   // authored starting amount before — as the node formats it (`nodes.tsx` fmt)
   const live = useSimStore((s) => (s.values ? s.values[id] : undefined))
-  const shown = live ?? d.initial
-  const shownText = Number.isInteger(shown) ? String(shown) : shown.toFixed(2)
+  // loop-model/4 — in the Pool's authored unit when it has one (§M4-5)
+  const kinds = useGraphStore((s) => s.kinds)
+  const time = useGraphStore((s) => s.time)
+  const shownText = currentAmountText(live, d, kinds.find((k) => k.name === poolKindName(d)), time)
   return (
     <>
       <NonNegativeNumberField
@@ -1279,6 +1448,7 @@ function PoolFields({ id, d, set }: { id: string; d: PoolData; set: Patch }) {
         allowEmpty={false}
         onCommit={(n) => set({ initial: n ?? 0 })}
       />
+      <PoolUnitField d={d} set={set} />
       {/* node structure (Lumi, 2026-10-12): the CURRENT amount, read-only and
           apart from the authored starting amount — the whole number for the
           keyboard and touch paths. On the canvas the row is elided when the

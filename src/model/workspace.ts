@@ -11,8 +11,9 @@ import { sha256 as nobleSha256 } from '@noble/hashes/sha2.js'
 import { ENGINE_REVISION } from '../engine/revision'
 import { MAX_SERIES } from './limits'
 import type { LoopEdge, LoopNode } from './types'
-import { hasKindsTable, hasModelLayer, modelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
-import { canonicalKinds, type ResourceKindDecl } from './kinds'
+import { hasKindsTable, hasModelLayer, hasUnits, modelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
+import { readKindsAt, type ResourceKindDecl } from './kinds'
+import { canonicalDocTime, type DocTime } from './units'
 
 /** the `workspace.schema` string written (§W2-4) */
 export const WORKSPACE_SCHEMA = 'loop-workspace/2'
@@ -85,6 +86,9 @@ type NodeProjection = {
    *  two documents that differ in it compute different runs. Under v1 the
    *  value is not an engine input and the bytes stay as they were (M2-INV-9). */
   value?: number
+  /** loop-model/4 (SEMANTICS-M4.md §M4-6) — a Pool's authored unit, under the
+   *  version-4 projection only */
+  unit?: string
 }
 type EdgeProjection = {
   id: string
@@ -92,6 +96,8 @@ type EdgeProjection = {
   target: string
   sourceHandle: string | null
   targetHandle: string | null
+  /** §M4-6 — a resource connection's authored unit, version 4 only */
+  unit?: string
   kind: string
   flow?: string
   mode?: string
@@ -119,13 +125,17 @@ function projectNode(n: LoopNode, modelVersion?: ModelSemanticsVersion): NodePro
   if (d.kind === 'pool') {
     p.initial = d.initial
     p.capacity = d.capacity
+    // loop-model/4 (SEMANTICS-M4.md §M4-6) — the authored unit scales what the
+    // engine reads, so it is part of the engine-relevant projection; absent ⇒
+    // the earlier bytes
+    if (hasUnits(modelVersion) && typeof d.unit === 'string' && d.unit !== '') p.unit = d.unit
   }
   // issue #409 — the engine input of loop-model/2 (see NodeProjection.value)
   if (d.kind === 'parameter' && hasModelLayer(modelVersion)) p.value = d.value
   return p
 }
 
-function projectEdge(e: LoopEdge): EdgeProjection {
+function projectEdge(e: LoopEdge, modelVersion?: ModelSemanticsVersion): EdgeProjection {
   const p: EdgeProjection = {
     id: e.id,
     source: e.source,
@@ -134,8 +144,11 @@ function projectEdge(e: LoopEdge): EdgeProjection {
     targetHandle: e.targetHandle ?? null,
     kind: e.data?.kind ?? 'resource',
   }
-  if (e.data?.kind === 'resource') p.flow = e.data.flow
-  else if (e.data?.kind === 'state') {
+  if (e.data?.kind === 'resource') {
+    p.flow = e.data.flow
+    // §M4-6 — see projectNode
+    if (hasUnits(modelVersion) && typeof e.data.unit === 'string' && e.data.unit !== '') p.unit = e.data.unit
+  } else if (e.data?.kind === 'state') {
     p.mode = e.data.mode
     p.expr = e.data.expr ?? ''
     p.delay = e.data.delay ?? null
@@ -169,18 +182,23 @@ export function stableStringify(value: unknown): string {
  *  `modelSemantics: "loop-model/2"` key so the same `flow: "@p"` — a v1 fallback
  *  vs. a resolved Parameter — hashes differently. Absent ⇒ v1 bytes untouched. */
 export function canonicalGraphString(
-  graph: { nodes: LoopNode[]; edges: LoopEdge[]; kinds?: readonly ResourceKindDecl[] },
+  graph: { nodes: LoopNode[]; edges: LoopEdge[]; kinds?: readonly ResourceKindDecl[]; time?: DocTime },
   modelVersion?: ModelSemanticsVersion,
 ): string {
   const modelSemantics = modelSemanticsLabel(modelVersion)
   // loop-model/3 (SEMANTICS-M3.md §M3-6) — the kinds table is engine input (a
   // conserved kind can refuse the run), so a different table is a different
   // graph digest; absent / empty ⇒ the key is absent and the bytes are v2's.
-  const kinds = graph.kinds && hasKindsTable(modelVersion) ? canonicalKinds(graph.kinds) : []
+  // loop-model/4 (SEMANTICS-M4.md §M4-6) — the unit lists ride the table at
+  // version 4 and are stripped below it; the step length is engine input too
+  // (`time.step` only — `display` is presentation), under the same rule.
+  const kinds = graph.kinds && hasKindsTable(modelVersion) ? readKindsAt(graph.kinds, modelVersion) : []
+  const time = hasUnits(modelVersion) ? canonicalDocTime(graph.time) : undefined
   return stableStringify({
     nodes: [...graph.nodes].map((n) => projectNode(n, modelVersion)).sort(byId),
-    edges: [...graph.edges].map(projectEdge).sort(byId),
+    edges: [...graph.edges].map((e) => projectEdge(e, modelVersion)).sort(byId),
     ...(kinds.length > 0 ? { kinds } : {}),
+    ...(time !== undefined ? { time: { step: time.step } } : {}),
     ...(modelSemantics !== undefined ? { modelSemantics } : {}),
   })
 }
@@ -193,7 +211,7 @@ export function canonicalGraphString(
  * non-local host).
  */
 export async function semanticDigest(
-  graph: { nodes: LoopNode[]; edges: LoopEdge[]; kinds?: readonly ResourceKindDecl[] },
+  graph: { nodes: LoopNode[]; edges: LoopEdge[]; kinds?: readonly ResourceKindDecl[]; time?: DocTime },
   modelVersion?: ModelSemanticsVersion,
 ): Promise<string> {
   return sha256Hex(utf8Bytes(canonicalGraphString(graph, modelVersion)))

@@ -11,10 +11,10 @@
   },
   "$implemented": "A row classed `auto` / `ltr` / `per-fragment` is an OPEN obligation: the evidence says the value needs bounding and the code does not bound it yet. C3.5 was scoped to fix the two families that were already evidenced — the unrecognized-column header and the five `import.loc.*` calls — and those moved to `isolate-obligations.json`. The checker asserts these rows are NOT wrapped, so implementing one without moving its row is red in both directions.",
   "totals": {
-    "arguments": 328,
-    "rows": 56,
+    "arguments": 338,
+    "rows": 57,
     "byClass": {
-      "attribute": 12,
+      "attribute": 13,
       "closed-value": 44
     },
     "recordedNotImplemented": 0,
@@ -200,6 +200,16 @@
       "sink": "prop:UnitInput.label",
       "class": "attribute",
       "evidence": "TRACED: `UnitInput` puts its `label` prop on its own `<input aria-label>` unchanged, so the value lands in an HTML attribute, which markup cannot reach; the checker sees the component prop only. The value is a user KIND NAME (loop-model/3; issue #471)."
+    },
+    {
+      "file": "src/components/ModelPanels.tsx",
+      "enclosing": "KindsSection",
+      "key": "panels.kinds.unitsFor",
+      "arg": "kind",
+      "ord": 1,
+      "sink": "prop:UnitInput.label",
+      "class": "attribute",
+      "evidence": "TRACED: the same `UnitInput` as the base-unit field — its `label` prop lands on its own `<input aria-label>` unchanged, an HTML attribute markup cannot reach. The value is a user KIND NAME (loop-model/4, the kind's unit lists; issue #471 U1 stage 2)."
     },
     {
       "file": "src/components/PlayBar.tsx",

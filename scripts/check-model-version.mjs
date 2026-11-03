@@ -11,7 +11,7 @@
 // THE RULE IS LEXICAL. In every `src/**/*.ts(x)` that is not a test or a fixture,
 // outside comments, no line matches
 //
-//   modelVersion  ===|!==  1|2          or          === 2 ? 2 : 1
+//   modelVersion  ===|!==  1|2|3        or          === 2 ? 2 : 1
 //
 // A new version comparison that is genuinely about identity — the serializer
 // mapping a version to its schema string — is written as a table lookup
@@ -28,7 +28,7 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const SRC = process.argv[2] ?? join(ROOT, 'src')
-const PATTERNS = [/modelVersion\s*[!=]==\s*[12]\b/, /===\s*2\s*\?\s*2\s*:\s*1\b/]
+const PATTERNS = [/modelVersion\s*[!=]==\s*[123]\b/, /===\s*2\s*\?\s*2\s*:\s*1\b/]
 
 const offenders = []
 function walk(dir) {

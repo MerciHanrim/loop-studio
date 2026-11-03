@@ -14,7 +14,7 @@
 
 /** The model-semantics versions this build can name. Reading a version is
  *  decided in `serialize.ts` (`modelVersionForSchema`), not here. */
-export type ModelSemanticsVersion = 1 | 2 | 3
+export type ModelSemanticsVersion = 1 | 2 | 3 | 4
 
 /** loop-model/2 and later — the model layer (SEMANTICS-M2.md): a `resource`
  *  flow may be an `@id` Parameter reference, an activator may compare against a
@@ -32,6 +32,15 @@ export function hasModelLayer(modelVersion: ModelSemanticsVersion | number | und
  *  A `kinds` key on a document of an earlier version is not read (§M3-1). */
 export function hasKindsTable(modelVersion: ModelSemanticsVersion | number | undefined): boolean {
   return (modelVersion ?? 1) >= 3
+}
+
+/** loop-model/4 and later — units and the step length (SEMANTICS-M4.md): a
+ *  kind may declare amount units and rate units, a document its step length,
+ *  and a number field of a declared kind keeps its authored unit; the engine
+ *  reads the derived value. `units`, `rateUnits`, `time` and a field's `unit`
+ *  on a document of an earlier version are not read (§M4-1). */
+export function hasUnits(modelVersion: ModelSemanticsVersion | number | undefined): boolean {
+  return (modelVersion ?? 1) >= 4
 }
 
 /** The §M2-8 discriminator a model-layer document's canonical projection and

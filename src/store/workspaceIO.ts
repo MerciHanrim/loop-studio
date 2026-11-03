@@ -133,7 +133,7 @@ export async function importFile(
   // one uninterrupted synchronous pass (§W5.1).
   const graphDigest =
     parsed.workspace != null
-      ? await semanticDigest({ nodes: parsed.nodes, edges: parsed.edges, kinds: parsed.kinds }, modelVersion)
+      ? await semanticDigest({ nodes: parsed.nodes, edges: parsed.edges, kinds: parsed.kinds, time: parsed.time }, modelVersion)
       : ''
 
   // ── from here: synchronous ──────────────────────────────────────────
@@ -150,6 +150,7 @@ export async function importFile(
       frames: parsed.frames,
       dataImports: parsed.dataImports,
       kinds: parsed.kinds, // loop-model/3 — the file's table (`[]` before /graph/3)
+      time: parsed.time, // loop-model/4 — the file's step length (absent before /graph/4)
     },
   ) // the ONE bump
   useMcStore.getState().applyRecommended(parsed.recommendedRunConfig)
