@@ -198,6 +198,7 @@ const inspector = {
   'kinds.finding.poolEnds': 'Kết nối từ {from} đến {to}: một Bể chứa là {a}, Bể chứa kia là {b}.',
   'kinds.finding.annotation': 'Kết nối từ {from} đến {to}: được đánh dấu {edgeKind} trên một Bể chứa {poolKind}.',
   'kinds.finding.gateMixes': '{gate} đang mang {kinds}.',
+  'kinds.finding.poolNoKind': 'Kết nối từ {from} đến {to} là {kind}, nhưng Bể chứa {pool} không có loại.',
   'kinds.finding.rate': 'Kết nối từ {from} đến {to}: tốc độ {rate} không phải là số.',
   'kinds.finding.rateConserved': 'Kết nối từ {from} đến {to}: tốc độ {rate} không phải là số, nên không tính được cân bằng {kind} của {converter}.',
   'kinds.finding.noKind': 'Kết nối từ {from} đến {to} không có loại, nên không tính được cân bằng của {converter}.',

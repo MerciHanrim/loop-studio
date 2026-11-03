@@ -222,6 +222,7 @@ const inspector = {
   'kinds.finding.poolEnds': 'الوصلة من {from} إلى {to}: أحد الـ Pool هو {a} والآخر {b}.',
   'kinds.finding.annotation': 'الوصلة من {from} إلى {to}: موسوم بـ {edgeKind} على Pool من نوع {poolKind}.',
   'kinds.finding.gateMixes': '{gate} يحمل {kinds}.',
+  'kinds.finding.poolNoKind': 'الوصلة من {from} إلى {to} نوعها {kind}، لكن الـ Pool {pool} بلا نوع.',
   'kinds.finding.rate': 'الوصلة من {from} إلى {to}: المعدل {rate} ليس رقمًا.',
   'kinds.finding.rateConserved': 'الوصلة من {from} إلى {to}: المعدل {rate} ليس رقمًا، لذا يتعذّر حساب ميزان {kind} لدى {converter}.',
   'kinds.finding.noKind': 'الوصلة من {from} إلى {to} بلا نوع، لذا يتعذّر حساب الميزان لدى {converter}.',

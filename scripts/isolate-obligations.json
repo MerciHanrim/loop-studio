@@ -6,7 +6,7 @@
   "totals": {
     "rows": 85,
     "obligations": 39,
-    "callSites": 67
+    "callSites": 68
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -1006,6 +1006,7 @@
         { "keys": ["kinds.finding.poolEnds"], "args": ["from", "to", "a", "b"], "kind": "auto" },
         { "keys": ["kinds.finding.annotation"], "args": ["from", "to", "edgeKind", "poolKind"], "kind": "auto" },
         { "keys": ["kinds.finding.gateMixes"], "args": ["gate", "kinds"], "kind": "auto" },
+        { "keys": ["kinds.finding.poolNoKind"], "args": ["from", "to", "kind", "pool"], "kind": "auto" },
         { "keys": ["kinds.finding.noKind"], "args": ["from", "to", "converter"], "kind": "auto" },
         { "keys": ["kinds.finding.rate"], "args": ["from", "to", "rate"], "kind": "auto" },
         { "keys": ["kinds.finding.rateConserved"], "args": ["from", "to", "rate", "kind", "converter"], "kind": "auto" },

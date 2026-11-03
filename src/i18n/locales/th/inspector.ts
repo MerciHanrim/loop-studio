@@ -209,6 +209,7 @@ const inspector = {
   'kinds.finding.poolEnds': 'การเชื่อมต่อจาก {from} ไป {to}: ถังพักหนึ่งเป็น {a} อีกถังพักเป็น {b}',
   'kinds.finding.annotation': 'การเชื่อมต่อจาก {from} ไป {to}: ระบุเป็น {edgeKind} บนถังพักชนิด {poolKind}',
   'kinds.finding.gateMixes': '{gate} นำพา {kinds} ไปพร้อมกัน',
+  'kinds.finding.poolNoKind': 'การเชื่อมต่อจาก {from} ไป {to} เป็น {kind} แต่ถังพัก {pool} ไม่มีชนิด',
   'kinds.finding.rate': 'การเชื่อมต่อจาก {from} ไป {to}: อัตรา {rate} ไม่ใช่ตัวเลข',
   'kinds.finding.rateConserved': 'การเชื่อมต่อจาก {from} ไป {to}: อัตรา {rate} ไม่ใช่ตัวเลข จึงคำนวณสมดุล {kind} ของ {converter} ไม่ได้',
   'kinds.finding.noKind': 'การเชื่อมต่อจาก {from} ไป {to} ไม่มีชนิด จึงคำนวณสมดุลของ {converter} ไม่ได้',

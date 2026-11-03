@@ -190,6 +190,7 @@ const inspector = {
   'kinds.finding.poolEnds': 'The connection from {from} to {to}: one Pool is {a}, the other {b}.',
   'kinds.finding.annotation': 'The connection from {from} to {to}: marked {edgeKind} on a {poolKind} Pool.',
   'kinds.finding.gateMixes': '{gate} carries {kinds}.',
+  'kinds.finding.poolNoKind': 'The connection from {from} to {to} is {kind}, but the Pool {pool} has no kind.',
   'kinds.finding.rate': 'The connection from {from} to {to}: the rate {rate} is not a number.',
   'kinds.finding.rateConserved': 'The connection from {from} to {to}: the rate {rate} is not a number, so the {kind} balance of {converter} cannot be computed.',
   'kinds.finding.noKind': 'The connection from {from} to {to} has no kind, so the balance of {converter} cannot be computed.',

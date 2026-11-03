@@ -223,6 +223,7 @@ const inspector = {
   'kinds.finding.poolEnds': 'Die Verbindung von {from} nach {to}: ein Pool ist {a}, der andere {b}.',
   'kinds.finding.annotation': 'Die Verbindung von {from} nach {to}: als {edgeKind} markiert, an einem {poolKind}-Pool.',
   'kinds.finding.gateMixes': '{gate} führt {kinds}.',
+  'kinds.finding.poolNoKind': 'Die Verbindung von {from} nach {to} ist {kind}, aber der Pool {pool} hat keine Art.',
   'kinds.finding.rate': 'Die Verbindung von {from} nach {to}: die Rate {rate} ist keine Zahl.',
   'kinds.finding.rateConserved': 'Die Verbindung von {from} nach {to}: die Rate {rate} ist keine Zahl, daher lässt sich die {kind}-Bilanz von {converter} nicht berechnen.',
   'kinds.finding.noKind': 'Die Verbindung von {from} nach {to} hat keine Art, daher lässt sich die Bilanz von {converter} nicht berechnen.',

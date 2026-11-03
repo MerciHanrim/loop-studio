@@ -202,6 +202,7 @@ const inspector = {
   'kinds.finding.poolEnds': '{from} から {to} への接続: 一方の Pool は {a}、もう一方は {b} です。',
   'kinds.finding.annotation': '{from} から {to} への接続: {poolKind} の Pool に {edgeKind} と記されています。',
   'kinds.finding.gateMixes': '{gate} が {kinds} を一緒に運んでいます。',
+  'kinds.finding.poolNoKind': '{from} から {to} への接続: 種類は {kind} ですが、Pool {pool} に種類がありません。',
   'kinds.finding.rate': '{from} から {to} への接続: レート {rate} は数値ではありません。',
   'kinds.finding.rateConserved': '{from} から {to} への接続: レート {rate} は数値ではないため、{converter} の {kind} の収支を計算できません。',
   'kinds.finding.noKind': '{from} から {to} への接続 に種類がないため、{converter} の収支を計算できません。',

@@ -133,6 +133,26 @@ describe('loop-model/3 — the desalination shapes (design §6, §7)', () => {
     expect(v2.state.values.w).toBe(95)
   })
 
+  it('review 3 — `water Pool → Gate → untyped Pool` with water conserved is refused, naming the Pool; loop-model/2 moves the water out of the only water Pool', () => {
+    const nodes = [pool('w', 100, 'water'), node('g', 'gate'), pool('u', 0)]
+    const edges = [res('a', 'w', 'g', '5'), res('b', 'g', 'u', '5')]
+    // under loop-model/2 the water leaves the only water Pool: a water sum over the water Pools drops by 5 with no outflow — M3-INV-2 needs the refusal
+    const v2 = step(nodes, edges, initSim(nodes), 1, 2)
+    expect(v2.state.values).toEqual({ w: 95, u: 5 })
+    const st = initSim(nodes)
+    const r = step(nodes, edges, st, 1, 3, { kinds: WATER })
+    expect(r.state.values).toEqual(st.values)
+    expect(r.state.step).toBe(0)
+    expect(r.report.events).toEqual([])
+    expect(r.report.diagnostics).toEqual([
+      'Can\'t run: the connection from "g" to "u" is "water", but its Pool "u" has no kind. A conserved kind moves between Pools that declare it, so nothing moved.',
+    ])
+    // not conserved: the same fact is a finding only, and the water moves as under loop-model/2
+    const free = step(nodes, edges, st, 1, 3, { kinds: [{ name: 'water', conserved: false }] })
+    expect(free.state.values).toEqual({ w: 95, u: 5 })
+    // the direct `water Pool → untyped Pool` line is the same conflict at resolution (src/model/kinds.test.ts, review 3); nothing drives it on its own in the engine
+  })
+
   it('M3-INV-1: a /graph/3 document with no kinds table computes, event for event, what loop-model/2 computes', () => {
     const { nodes, edges } = plant('all', '45', '53') // the R6 shape — refused only under a conserved kind
     const v2 = run(nodes, edges, 3)

@@ -71,6 +71,10 @@ export type KindConflict =
   | { kind: 'poolEnds'; edgeId: string; kinds: [string, string] }
   /** a connection annotated with one kind on a Pool of another (the §M4.3 mismatch) */
   | { kind: 'annotation'; edgeId: string; nodeId: string; edgeKind: string; poolKind: string }
+  /** a connection of a determined kind whose Pool end declares no kind — the
+   *  kind would enter or leave a Pool that is not counted as that kind
+   *  (reached by its other Pool end, or by a Gate's propagation) */
+  | { kind: 'poolNoKind'; edgeId: string; nodeId: string; edgeKind: string }
   /** a Gate whose connections carry two or more determined kinds */
   | { kind: 'gateMixes'; nodeId: string; kinds: string[] }
 
@@ -80,7 +84,8 @@ export type KindResolution = {
   how: Map<string, KindHow>
   /** every Gate → the determined kinds among its connections, sorted */
   gateKinds: Map<string, string[]>
-  /** in a stable order: Pool-end and annotation conflicts by edge id, then Gates by node id */
+  /** in a stable order: Pool-end and annotation conflicts by edge id, then
+   *  no-kind Pool conflicts by edge id, then Gates by node id */
   conflicts: KindConflict[]
 }
 
@@ -97,6 +102,8 @@ const isResource = (e: LoopEdge) => (e.data?.kind ?? 'resource') === 'resource'
  * both kinds; (4) what none reaches has no kind. Converters, Sources, Drains
  * and Ends propagate nothing. A Gate carrying two kinds is a conflict and
  * propagates nothing. The result does not depend on the order of ids.
+ * After 1–3, a determined connection whose Pool end has no kind is a
+ * conflict: the kind would move into or out of a Pool that is not of it.
  */
 export function resolveKinds(nodes: readonly LoopNode[], edges: readonly LoopEdge[]): KindResolution {
   const byId = new Map(nodes.map((n) => [n.id, n]))
@@ -186,6 +193,17 @@ export function resolveKinds(nodes: readonly LoopNode[], edges: readonly LoopEdg
       how.set(id, 'gate')
     }
   }
+  // a determined kind at a Pool that declares none (review 3): rule 1 gave the
+  // kind from the other Pool end, or rule 3 carried it through a Gate; either
+  // way the kind would enter or leave a Pool that is not counted as that kind,
+  // which no per-kind sum can hold (M3-INV-2)
+  for (const e of res) {
+    const k = edgeKind.get(e.id)
+    if (k === null || k === undefined) continue
+    for (const id of [e.source, e.target]) {
+      if (nodeKind(id) === 'pool' && poolKind(id) === null) conflicts.push({ kind: 'poolNoKind', edgeId: e.id, nodeId: id, edgeKind: k })
+    }
+  }
   const gateKinds = new Map<string, string[]>()
   for (const g of gates) {
     const ks = carried(g)
@@ -232,7 +250,7 @@ export function kindFindings(
   const r = resolveKinds(nodes, edges)
   const out: KindFinding[] = []
   for (const c of r.conflicts) {
-    const ks = c.kind === 'poolEnds' ? c.kinds : c.kind === 'annotation' ? [c.edgeKind, c.poolKind] : c.kinds
+    const ks = c.kind === 'poolEnds' ? c.kinds : c.kind === 'annotation' ? [c.edgeKind, c.poolKind] : c.kind === 'poolNoKind' ? [c.edgeKind] : c.kinds
     out.push({ cls: 'conflict', conflict: c, refuses: ks.some((k) => conserved.has(k)) })
   }
   const byId = new Map(nodes.map((n) => [n.id, n]))
@@ -306,6 +324,8 @@ export function kindFindingText(f: KindFinding, nodes: readonly LoopNode[], edge
         return `Can't run: ${conn(c.edgeId)} joins a ${q(c.kinds[0])} Pool and a ${q(c.kinds[1])} Pool. A connection carries one kind, so nothing moved.`
       if (c.kind === 'annotation')
         return `Can't run: ${conn(c.edgeId)} is marked ${q(c.edgeKind)} on the ${q(c.poolKind)} Pool "${label(c.nodeId)}", so nothing moved.`
+      if (c.kind === 'poolNoKind')
+        return `Can't run: ${conn(c.edgeId)} is ${q(c.edgeKind)}, but its Pool "${label(c.nodeId)}" has no kind. A conserved kind moves between Pools that declare it, so nothing moved.`
       return `Can't run: Gate "${label(c.nodeId)}" carries ${c.kinds.map(q).join(' and ')}. A Gate carries one kind, so nothing moved.`
     }
     case 'notComputable':

@@ -217,6 +217,7 @@ const inspector = {
   'kinds.finding.poolEnds': 'Соединение от {from} к {to}: один Pool — {a}, другой — {b}.',
   'kinds.finding.annotation': 'Соединение от {from} к {to}: помечено как {edgeKind} на Pool вида {poolKind}.',
   'kinds.finding.gateMixes': '{gate} несёт {kinds}.',
+  'kinds.finding.poolNoKind': 'Соединение от {from} к {to} имеет вид {kind}, но у Pool {pool} вида нет.',
   'kinds.finding.rate': 'Соединение от {from} к {to}: темп {rate} не является числом.',
   'kinds.finding.rateConserved': 'Соединение от {from} к {to}: темп {rate} не является числом, поэтому баланс {kind} у {converter} нельзя вычислить.',
   'kinds.finding.noKind': 'Соединение от {from} к {to} без вида, поэтому баланс у {converter} нельзя вычислить.',

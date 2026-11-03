@@ -199,6 +199,7 @@ const inspector = {
   'kinds.finding.poolEnds': 'A conexão de {from} para {to}: um Reservatório é {a}, o outro é {b}.',
   'kinds.finding.annotation': 'A conexão de {from} para {to}: marcada como {edgeKind} em um Reservatório {poolKind}.',
   'kinds.finding.gateMixes': '{gate} transporta {kinds}.',
+  'kinds.finding.poolNoKind': 'A conexão de {from} para {to} é {kind}, mas o Reservatório {pool} não tem tipo.',
   'kinds.finding.rate': 'A conexão de {from} para {to}: a taxa {rate} não é um número.',
   'kinds.finding.rateConserved': 'A conexão de {from} para {to}: a taxa {rate} não é um número, então o balanço de {kind} de {converter} não pode ser calculado.',
   'kinds.finding.noKind': 'A conexão de {from} para {to} não tem tipo, então o balanço de {converter} não pode ser calculado.',

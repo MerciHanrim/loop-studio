@@ -208,6 +208,7 @@ const inspector = {
   'kinds.finding.poolEnds': '{from} ile {to} arasındaki bağlantı: bir Havuz {a}, diğeri {b}.',
   'kinds.finding.annotation': '{from} ile {to} arasındaki bağlantı: {poolKind} türündeki bir Havuz üzerinde {edgeKind} olarak işaretli.',
   'kinds.finding.gateMixes': '{gate} şunları birlikte taşıyor: {kinds}.',
+  'kinds.finding.poolNoKind': '{from} ile {to} arasındaki bağlantının türü {kind}, ancak {pool} Havuzu türsüz.',
   'kinds.finding.rate': '{from} ile {to} arasındaki bağlantı: {rate} oranı bir sayı değil.',
   'kinds.finding.rateConserved': '{from} ile {to} arasındaki bağlantı: {rate} oranı bir sayı değil, bu yüzden {converter} için {kind} dengesi hesaplanamıyor.',
   'kinds.finding.noKind': '{from} ile {to} arasındaki bağlantı türsüz, bu yüzden {converter} için denge hesaplanamıyor.',

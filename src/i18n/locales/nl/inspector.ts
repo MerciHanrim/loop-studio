@@ -205,6 +205,7 @@ const inspector = {
   'kinds.finding.poolEnds': 'De verbinding van {from} naar {to}: de ene Voorraad is {a}, de andere {b}.',
   'kinds.finding.annotation': 'De verbinding van {from} naar {to}: gemarkeerd als {edgeKind} op een {poolKind}-Voorraad.',
   'kinds.finding.gateMixes': '{gate} voert {kinds}.',
+  'kinds.finding.poolNoKind': 'De verbinding van {from} naar {to} is {kind}, maar de Voorraad {pool} heeft geen soort.',
   'kinds.finding.rate': 'De verbinding van {from} naar {to}: het tempo {rate} is geen getal.',
   'kinds.finding.rateConserved': 'De verbinding van {from} naar {to}: het tempo {rate} is geen getal, dus de {kind}-balans van {converter} kan niet worden berekend.',
   'kinds.finding.noKind': 'De verbinding van {from} naar {to} heeft geen soort, dus de balans van {converter} kan niet worden berekend.',

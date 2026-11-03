@@ -76,6 +76,7 @@ describe('resolveKinds — K1 (design §3.1)', () => {
     expect(r.conflicts).toEqual([
       { kind: 'poolEnds', edgeId: 'a', kinds: ['water', 'power'] },
       { kind: 'annotation', edgeId: 'b', nodeId: 'w', edgeKind: 'Energy', poolKind: 'water' },
+      { kind: 'poolNoKind', edgeId: 'b', nodeId: 'u', edgeKind: 'water' }, // review 3: water into a Pool that declares none
       { kind: 'gateMixes', nodeId: 'g', kinds: ['power', 'water'] },
     ])
     expect(r.edgeKind.get('b')).toBe('water') // the Pool wins over the note
@@ -127,6 +128,28 @@ describe('resolveKinds — K1 (design §3.1)', () => {
       expect(r.edgeKind.get('m2')).toBe('power')
       expect(r.conflicts).toEqual([{ kind: 'gateMixes', nodeId: M, kinds: ['power', 'water'] }])
     }
+  })
+
+  it('review 3 — a determined kind at a Pool that declares none is a conflict: through a Gate, directly from a typed Pool, and out of an untyped Pool; it names the Pool', () => {
+    // w(water) → g → u, and the Gate's Drain line; w → u2 directly; u3 → w directly
+    const nodes = [pool('w', 'water'), node('g', 'gate'), pool('u'), pool('u2'), pool('u3'), node('d', 'drain')]
+    const edges = [res('a', 'w', 'g'), res('b', 'g', 'u'), res('c', 'g', 'd'), res('e', 'w', 'u2'), res('f', 'u3', 'w')]
+    const r = resolveKinds(nodes, edges)
+    expect(r.edgeKind.get('b')).toBe('water') // rule 3 reached it: the Gate carries water on every line
+    expect(r.how.get('b')).toBe('gate')
+    expect(r.edgeKind.get('e')).toBe('water') // rule 1, from the typed end
+    expect(r.conflicts).toEqual([
+      { kind: 'poolNoKind', edgeId: 'b', nodeId: 'u', edgeKind: 'water' },
+      { kind: 'poolNoKind', edgeId: 'e', nodeId: 'u2', edgeKind: 'water' },
+      { kind: 'poolNoKind', edgeId: 'f', nodeId: 'u3', edgeKind: 'water' },
+    ])
+    const f = kindFindings(nodes, edges, WATER, 3)
+    expect(f.map((x) => x.refuses)).toEqual([true, true, true])
+    expect(kindFindingNodeId(f[0])).toBe('u') // the Pool to give a kind
+    expect(kindFindingEdgeId(f[0])).toBe('b')
+    expect(kindFindings(nodes, edges, [{ name: 'water', conserved: false }], 3).map((x) => x.refuses)).toEqual([false, false, false])
+    // two untyped Pools through a Gate, or an untyped Pool on an undetermined line, conflict nowhere (nothing determined reaches them)
+    expect(resolveKinds([pool('p'), node('g', 'gate'), pool('q'), node('cv', 'converter')], [res('x', 'p', 'g'), res('y', 'g', 'q'), res('z', 'q', 'cv')]).conflicts).toEqual([])
   })
 
   it('an untyped document resolves nothing and conflicts nowhere', () => {
@@ -194,8 +217,9 @@ describe('kindFindings — C1 + D1 (design §6)', () => {
     const nodes = [pool('w', 'water'), pool('u')]
     const edges = [res('b', 'w', 'u', '1', 'Energy')]
     const conflict = { kind: 'annotation', edgeId: 'b', nodeId: 'w', edgeKind: 'Energy', poolKind: 'water' }
-    expect(kindFindings(nodes, edges, WATER, 3)).toEqual([{ cls: 'conflict', conflict, refuses: true }])
-    expect(kindFindings(nodes, edges, [{ name: 'water', conserved: false }], 3)).toEqual([{ cls: 'conflict', conflict, refuses: false }])
+    const noKind = { kind: 'poolNoKind', edgeId: 'b', nodeId: 'u', edgeKind: 'water' } // review 3: the same line carries water into a Pool that declares none
+    expect(kindFindings(nodes, edges, WATER, 3)).toEqual([{ cls: 'conflict', conflict, refuses: true }, { cls: 'conflict', conflict: noKind, refuses: true }])
+    expect(kindFindings(nodes, edges, [{ name: 'water', conserved: false }], 3)).toEqual([{ cls: 'conflict', conflict, refuses: false }, { cls: 'conflict', conflict: noKind, refuses: false }])
   })
 
   it('rows 13 and 14 — a Gate between water and energy refuses when water is conserved; two untyped Pools through a Gate are nothing', () => {

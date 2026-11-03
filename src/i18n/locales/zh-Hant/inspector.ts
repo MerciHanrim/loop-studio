@@ -204,6 +204,7 @@ const inspector = {
   'kinds.finding.poolEnds': '從 {from} 到 {to} 的連接：一端 Pool 是 {a}，另一端是 {b}。',
   'kinds.finding.annotation': '從 {from} 到 {to} 的連接：在 {poolKind} 的 Pool 上標為 {edgeKind}。',
   'kinds.finding.gateMixes': '{gate} 同時承載 {kinds}。',
+  'kinds.finding.poolNoKind': '從 {from} 到 {to} 的連接：種類為 {kind}，但 Pool {pool} 沒有種類。',
   'kinds.finding.rate': '從 {from} 到 {to} 的連接：比率 {rate} 不是數字。',
   'kinds.finding.rateConserved': '從 {from} 到 {to} 的連接：比率 {rate} 不是數字，因此無法計算 {converter} 的 {kind} 收支。',
   'kinds.finding.noKind': '從 {from} 到 {to} 的連接 沒有種類，因此無法計算 {converter} 的收支。',

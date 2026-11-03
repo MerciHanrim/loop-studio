@@ -189,6 +189,7 @@ const inspector = {
   'kinds.finding.poolEnds': '{from} 출발 {to} 도착 연결: 한쪽 Pool은 {a}, 다른 쪽 Pool은 {b}.',
   'kinds.finding.annotation': '{from} 출발 {to} 도착 연결: {poolKind} Pool에 {edgeKind} 표시.',
   'kinds.finding.gateMixes': 'Gate {gate}: 종류 {kinds} 혼재.',
+  'kinds.finding.poolNoKind': '{from} 출발 {to} 도착 연결: 종류는 {kind} 이지만 Pool {pool} 쪽에는 종류가 없습니다.',
   'kinds.finding.rate': '{from} 출발 {to} 도착 연결: 비율 {rate} 값이 숫자가 아닙니다.',
   'kinds.finding.rateConserved': '{from} 출발 {to} 도착 연결: 비율 {rate} 값이 숫자가 아니므로 {converter} Converter의 {kind} 수지를 계산할 수 없습니다.',
   'kinds.finding.noKind': '{from} 출발 {to} 도착 연결: 종류가 없어 {converter} Converter의 수지를 계산할 수 없습니다.',

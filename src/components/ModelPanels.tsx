@@ -358,7 +358,9 @@ export function KindFindingText({ f, nodes, edges }: { f: KindFinding; nodes: re
         ? t('kinds.finding.poolEnds', { from: isolateAuto(from(c.edgeId)), to: isolateAuto(to(c.edgeId)), a: isolateAuto(c.kinds[0]), b: isolateAuto(c.kinds[1]) })
         : c.kind === 'annotation'
           ? t('kinds.finding.annotation', { from: isolateAuto(from(c.edgeId)), to: isolateAuto(to(c.edgeId)), edgeKind: isolateAuto(c.edgeKind), poolKind: isolateAuto(c.poolKind) })
-          : t('kinds.finding.gateMixes', { gate: isolateAuto(label(c.nodeId)), kinds: isolateAuto(c.kinds.join(', ')) })
+          : c.kind === 'poolNoKind'
+            ? t('kinds.finding.poolNoKind', { from: isolateAuto(from(c.edgeId)), to: isolateAuto(to(c.edgeId)), kind: isolateAuto(c.edgeKind), pool: isolateAuto(label(c.nodeId)) })
+            : t('kinds.finding.gateMixes', { gate: isolateAuto(label(c.nodeId)), kinds: isolateAuto(c.kinds.join(', ')) })
   } else if (f.cls === 'notComputable') {
     text =
       f.reason === 'noKind'
