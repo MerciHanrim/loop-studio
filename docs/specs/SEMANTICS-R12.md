@@ -42,8 +42,8 @@ precedence changes the reported label only. Survival decides, as for `/5`, `/9`,
 
 `data.icon` is one id of the fixed registry in `src/model/model/icon.ts` (`NODE_ICON_IDS`:
 stable ASCII words such as `cloud` or `nuclear-plant`). The registry is extensible by adding
-ids; it started with fourteen, and the first follow-up added `rain-cloud` and `recycling`
-(sixteen). The reader (`readIcon`) keeps a value only when it is a
+ids; it started with fourteen, the first follow-up added `rain-cloud` and `recycling`
+(sixteen) and the second added `cash` (seventeen). The reader (`readIcon`) keeps a value only when it is a
 registered id; anything else (a string that is not registered, a number, an object) is
 dropped and the node kept, as a malformed `accent` is, so a file from a later version that
 knows more ids still opens here.
@@ -109,6 +109,8 @@ unknowing reader ignores it). The label rule of §R10-6 and the newer-version me
 - The first registry is the fourteen ids of the first list; the coin stack, order, sale,
   recycling and the other candidates are out of it. (Follow-up 1, approved 2026-11-03:
   `rain-cloud` and `recycling` join the registry as two more values of the same field; the
-  revision note is unchanged, since the digest records the id string.)
+  revision note is unchanged, since the digest records the id string. Follow-up 2, approved
+  2026-11-03: `cash` joins after `game-currency` the same way; order and sale are held, to
+  be reviewed again against a model that needs them.)
 - The mark is a detail of the L2 level of the canvas and folds away, with its gap, at L1
   and L0; its name stays in the node frame's accessible name at every zoom.

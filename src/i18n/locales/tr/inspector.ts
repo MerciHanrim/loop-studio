@@ -263,6 +263,7 @@ const inspector = {
   'inspector.icon.name.warehouse': 'Depo',
   'inspector.icon.name.medicine': 'İlaç',
   'inspector.icon.name.game-currency': 'Oyun para birimi',
+  'inspector.icon.name.cash': 'Nakit',
   'inspector.icon.name.recycling': 'Geri dönüşüm',
 } as const
 

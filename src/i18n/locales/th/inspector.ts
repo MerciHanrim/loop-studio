@@ -263,6 +263,7 @@ const inspector = {
   'inspector.icon.name.warehouse': 'โกดัง',
   'inspector.icon.name.medicine': 'ยา',
   'inspector.icon.name.game-currency': 'สกุลเงินในเกม',
+  'inspector.icon.name.cash': 'เงินสด',
   'inspector.icon.name.recycling': 'รีไซเคิล',
 } as const
 

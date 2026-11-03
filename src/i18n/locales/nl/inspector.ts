@@ -263,6 +263,7 @@ const inspector = {
   'inspector.icon.name.warehouse': 'Magazijn',
   'inspector.icon.name.medicine': 'Medicijn',
   'inspector.icon.name.game-currency': 'Spelvaluta',
+  'inspector.icon.name.cash': 'Contant geld',
   'inspector.icon.name.recycling': 'Recycling',
 } as const
 

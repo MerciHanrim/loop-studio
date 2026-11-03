@@ -90,6 +90,15 @@ export const NODE_ICON_DRAWINGS: Record<NodeIconId, IconDrawing> = {
     vb: '0 0 44 44',
     big: `<path fill-rule="evenodd" d="M4 22a18 18 0 1 0 36 0a18 18 0 1 0-36 0Z m18-12 3.8 7.7 8.5 1.2-6.2 6 1.5 8.4-7.6-4-7.6 4 1.5-8.4-6.2-6 8.5-1.2Z"/>`,
   },
+  // a banknote: a landscape note with a printed border (rim, band, panel) and
+  // an oval medallion — the double outline is what tells it from a camera at
+  // 16 px; the 24 px drawing adds a disc in the medallion (follow-up 2 of #478).
+  // Real holes, even-odd, one path: note → band → panel → medallion → disc.
+  cash: {
+    vb: '0 0 48 48',
+    big: `<path fill-rule="evenodd" d="M6 10H42A3 3 0 0 1 45 13V35A3 3 0 0 1 42 38H6A3 3 0 0 1 3 35V13A3 3 0 0 1 6 10Z M6 12.4H42A0.6 0.6 0 0 1 42.6 13V35A0.6 0.6 0 0 1 42 35.6H6A0.6 0.6 0 0 1 5.4 35V13A0.6 0.6 0 0 1 6 12.4Z M7.8 14.8H40.2V33.2H7.8Z M16.5 24a7.5 5.8 0 1 0 15 0a7.5 5.8 0 1 0 -15 0Z M21 24a3 3 0 1 0 6 0a3 3 0 1 0 -6 0Z"/>`,
+    small: `<path fill-rule="evenodd" d="M4 9H44A3 3 0 0 1 47 12V36A3 3 0 0 1 44 39H4A3 3 0 0 1 1 36V12A3 3 0 0 1 4 9Z M4.2 12.2H43.8V35.8H4.2Z M7.4 15.4H40.6V32.6H7.4Z M17 24a7 5 0 1 0 14 0a7 5 0 1 0 -14 0Z"/>`,
+  },
   // three bent arrows chasing round an upright triangle: a bar along one side
   // that folds at the corner and heads up the next; the 16 px drawing has a
   // larger triangle, shorter bars and bigger heads (follow-up 1 of #478)
