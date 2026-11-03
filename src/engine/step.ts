@@ -228,29 +228,41 @@ export function step(
   // number, 0.5 for what "50%" used to do, is the author's own change). The
   // diagnostic follows the random-flow pattern: cached per edge, flushed once,
   // and only on the committed pass.
-  const pctReason = new Map<string, string>() // edgeId → its refused-percent diagnostic
-  const isPctOnConverter = (e: LoopEdge): boolean =>
-    fe(e).kind === 'percent' && (kindOf(e.source) === 'converter' || kindOf(e.target) === 'converter')
-  const refusedPct = (e: LoopEdge): number => {
-    const key = `pct:${e.id}`
+  // issue #471 item 5 (Lumi, 2026-11-03) — `all` on such a connection is
+  // refused the same way: everywhere else the token is the Pool as it stands
+  // (a Gate's demand, a Drain's pull, §8), and a Converter's connection read
+  // it as the rate 1 — one unit per activation, whatever the Pool held. The
+  // edge contributes 0, the diagnostic names the connection and the number
+  // that keeps the rate it used to mean (`1`), the document is never
+  // rewritten. A Converter with no other live input or output does not run.
+  const rateReason = new Map<string, string>() // edgeId → its refused-rate diagnostic
+  const isRefusedRate = (e: LoopEdge): boolean => {
+    const k = fe(e).kind
+    return (k === 'percent' || k === 'all') && (kindOf(e.source) === 'converter' || kindOf(e.target) === 'converter')
+  }
+  const refusedRate = (e: LoopEdge): number => {
+    const key = `rate:${e.id}`
     if (emitDiag && !diagShown.has(key)) {
-      if (!pctReason.has(e.id)) {
+      if (!rateReason.has(e.id)) {
         const raw = String((e.data as { flow?: unknown } | undefined)?.flow ?? '')
-        const frac = (fe(e) as { frac?: number }).frac ?? 0
-        pctReason.set(
+        const x = fe(e)
+        rateReason.set(
           e.id,
-          `Edge "${e.id}" flow "${raw}" is a percent on a Converter connection; a Converter's rate cannot be a percent — contributes 0 (write ${frac} for the rate "${raw}" used to mean).`,
+          x.kind === 'all'
+            ? `Edge "${e.id}" flow "${raw}" is \`all\` on a Converter connection; a Converter's rate cannot be \`all\` — contributes 0 (write 1 for the rate "${raw}" used to mean).`
+            : `Edge "${e.id}" flow "${raw}" is a percent on a Converter connection; a Converter's rate cannot be a percent — contributes 0 (write ${(x as { frac?: number }).frac ?? 0} for the rate "${raw}" used to mean).`,
         )
       }
-      diagnostics.push(pctReason.get(e.id)!)
+      diagnostics.push(rateReason.get(e.id)!)
       diagShown.add(key)
     }
     return 0
   }
-  /** Flow as a weight / per-activation rate: `all`→1, `%`→frac, `const`→value,
-   *  random→the drawn integer; a percent on a Converter connection → 0 (#396). */
+  /** Flow as a weight / per-activation rate: `%`→frac, `const`→value,
+   *  random→the drawn integer, `all`→1 as a Gate's split weight; a percent or
+   *  `all` on a Converter connection → 0 (#396, #471 item 5). */
   const rateOfCached = (e: LoopEdge): number =>
-    isPctOnConverter(e) ? refusedPct(e) : isRandExpr(e) ? drawnValue(e) : rateOf(fe(e))
+    isRefusedRate(e) ? refusedRate(e) : isRandExpr(e) ? drawnValue(e) : rateOf(fe(e))
 
   // #471 Deploy 2 — a tree group's plan claims the Pool inputs of its
   // Converters at the group's FIRST router's turn (SEMANTICS.md §6 erratum,
@@ -1089,18 +1101,76 @@ export function step(
         if (inOf(m).some((e) => !isPool(e.source) && !liveEdge(e) && rateOfCached(e) > EPSILON)) bound(0)
         const need = convNeed.get(m)!
         for (const [p, r] of need) inNeed.set(p, (inNeed.get(p) ?? 0) + c * r)
-        for (const [q, make] of convMake.get(m)!) {
-          if (!isPool(q)) continue
-          const net = make - (need.get(q) ?? 0) // a Pool that is input and output: net (#471 item 5)
-          if (net > EPSILON) outCoef.set(q, (outCoef.get(q) ?? 0) + c * net)
-        }
+        for (const [q, make] of convMake.get(m)!) if (isPool(q)) outCoef.set(q, (outCoef.get(q) ?? 0) + c * make)
       }
       for (const [p, k] of inNeed) if (k > EPSILON) bound(Math.max(0, availOf(p)) / k)
-      for (const [q, k] of outCoef) {
-        if (k <= EPSILON) continue
+      // #471 item 5 (Lumi, 2026-11-03) — a Pool's room is checked ALONG THE
+      // GROUP'S COMMIT ORDER, not on the members' total: from the Pool as it
+      // stands, each member's take lowers the level at its turn and each
+      // member's delivery raises it, and the plan must keep the level within
+      // the capacity at every point. A Converter takes and makes inside one
+      // activation, so a Pool it both takes from and makes into is bounded on
+      // its net; a take by an EARLIER member (the source Gate, an upstream
+      // Converter) is room a later member's delivery may fill; a take by a
+      // later member is not. With a source Gate's take on such a Pool the
+      // level is not linear in `s` (its pulls are greedy and capped), so the
+      // bound is found by bisection on the same walk.
+      const roomOf = (q: string) => {
         let room = headroom(q)
         for (const m of members) room += ownReserve.get(m)?.get(q) ?? 0
-        bound(Math.max(0, room) / k)
+        return Math.max(0, room)
+      }
+      const inOrder = [...members].sort((a, b) => (orderIdx.get(a) ?? Infinity) - (orderIdx.get(b) ?? Infinity))
+      const sourceGate = inOrder.find((m) => kindOf(m) === 'gate' && !fedByRouter.has(m))
+      const gateWants = sourceGate
+        ? inOf(sourceGate)
+            .filter((e) => isPool(e.source) && !dead.has(e.id))
+            .sort(cmpEdge)
+            .map((e) => ({ e, want: amountOf(e, availOf(e.source), S[e.source] ?? 0) }))
+        : []
+      /** the source Gate's greedy pulls at the plan number `s`, per Pool (the commit's own order) */
+      const gateTakes = (s: number): Map<string, number> => {
+        const took = new Map<string, number>()
+        if (!sourceGate) return took
+        let need = (cof.get(sourceGate) ?? 0) * s - (inbox.get(sourceGate) ?? 0)
+        for (const w of gateWants) {
+          if (need <= EPSILON) break
+          const avail = Math.max(0, availOf(w.e.source) - s * (inNeed.get(w.e.source) ?? 0) - (took.get(w.e.source) ?? 0))
+          const a = Math.max(0, Math.min(need, w.want, avail))
+          took.set(w.e.source, (took.get(w.e.source) ?? 0) + a)
+          need -= a
+        }
+        return took
+      }
+      /** the highest level above the Pool's start that the walk reaches at `s` */
+      const peakAt = (q: string, s: number): number => {
+        const gt = gateTakes(s)
+        let level = 0
+        let peak = 0
+        for (const m of inOrder) {
+          const c = cof.get(m) ?? 0
+          if (kindOf(m) === 'gate') {
+            if (m === sourceGate) level -= gt.get(q) ?? 0
+            const Wm = W.get(m) ?? 0
+            if (Wm > EPSILON) level += (c * s * (gateInto.get(m)!.get(q) ?? 0)) / Wm
+          } else {
+            level -= c * s * (convNeed.get(m)!.get(q) ?? 0)
+            level += c * s * (convMake.get(m)!.get(q) ?? 0)
+          }
+          if (level > peak) peak = level
+        }
+        return peak
+      }
+      const gateTouches = (q: string) => gateWants.some((w) => w.e.source === q)
+      const walked: string[] = [] // Pools whose bound needs the bisection
+      for (const [q, k] of outCoef) {
+        if (k <= EPSILON) continue
+        if (gateTouches(q)) {
+          walked.push(q)
+          continue
+        }
+        const peak = peakAt(q, 1) // linear in s without the Gate's pulls
+        if (peak > EPSILON) bound(roomOf(q) / peak)
       }
       // a Gate fed from its own Pools (a group's source — a Gate fed by a
       // router has no Pool input, or the group would be multi): what it can
@@ -1140,6 +1210,22 @@ export function step(
           hi = lo
         }
         bound(hi)
+      }
+      // the Pools the source Gate pulls from and a member delivers into: the
+      // largest `s` under every other bound at which the walk keeps every such
+      // Pool's level within its room (feasible at 0; bisection from there)
+      if (walked.length > 0 && Number.isFinite(sMax) && sMax > 0) {
+        const fits = (s: number) => walked.every((q) => peakAt(q, s) <= roomOf(q) + EPSILON)
+        if (!fits(sMax)) {
+          let lo = 0
+          let hi = sMax
+          for (let i = 0; i < 64; i++) {
+            const mid = (lo + hi) / 2
+            if (fits(mid)) lo = mid
+            else hi = mid
+          }
+          bound(lo)
+        }
       }
       let s = Number.isFinite(sMax) ? Math.max(0, sMax) : 0
       // `pull all` members fix the number: the group runs at it or not at all
@@ -1377,14 +1463,28 @@ export function step(
         if (!settle()) return false
         const c = amountsOf(sOf())
         const claim = new Map<string, number>() // Pool → taken by the plan
-        const give = new Map<string, number>() // Pool → delivered by the plan (a Converter's net on a Pool it also takes from)
+        const give = new Map<string, number>() // Pool → delivered by the plan
+        // per member, in the group's commit order: what it takes from and
+        // delivers into each Pool (#471 item 5 — the room is checked along
+        // that order, below)
+        const takesBy = new Map<string, Map<string, number>>()
+        const givesBy = new Map<string, Map<string, number>>()
+        const addBy = (by: Map<string, Map<string, number>>, m: string, q: string, v: number) => {
+          let row = by.get(m)
+          if (!row) by.set(m, (row = new Map()))
+          row.set(q, (row.get(q) ?? 0) + v)
+        }
         for (const m of members) {
           const v = c.get(m) ?? 0
           if (kindOf(m) === 'gate') {
             if (v <= EPSILON) continue
             const Wm = W.get(m) ?? 0
             if (Wm <= EPSILON) return false // no live branch — delivers nothing (#388 D)
-            for (const [q, w] of gateInto.get(m)!) if (isPool(q)) add(give, q, (v * w) / Wm)
+            for (const [q, w] of gateInto.get(m)!) {
+              if (!isPool(q)) continue
+              add(give, q, (v * w) / Wm)
+              addBy(givesBy, m, q, (v * w) / Wm)
+            }
             continue
           }
           if (v > 1 + EPSILON) return false // f ≤ 1
@@ -1392,11 +1492,14 @@ export function step(
           if (disabledPullAll.has(m) || convMake.get(m)!.size === 0) return false
           if (inOf(m).some((e) => !isPool(e.source) && !liveEdge(e) && rateOfCached(e) > EPSILON)) return false
           const need = convNeed.get(m)!
-          for (const [p, r] of need) add(claim, p, v * r)
+          for (const [p, r] of need) {
+            add(claim, p, v * r)
+            addBy(takesBy, m, p, v * r)
+          }
           for (const [q, make] of convMake.get(m)!) {
             if (!isPool(q)) continue
-            const net = make - (need.get(q) ?? 0)
-            if (net > EPSILON) add(give, q, v * net)
+            add(give, q, v * make)
+            addBy(givesBy, m, q, v * make)
           }
         }
         for (const G of multiGates) {
@@ -1405,6 +1508,7 @@ export function step(
             const u = uOwn.get(sup.e.id) ?? 0
             if (u > sup.want + EPSILON) return false
             add(claim, sup.e.source, u)
+            addBy(takesBy, G, sup.e.source, u)
           }
         }
         for (const [p, v] of claim) if (v > availOf(p) + EPSILON) return false
@@ -1415,19 +1519,35 @@ export function step(
           const T = c.get(m) ?? 0
           if (T <= EPSILON) continue
           let r = inbox.get(m) ?? 0
+          let need = Math.max(0, T - r)
           for (const e of ownIns(m)) {
             const want = amountOf(e, availOf(e.source), S[e.source] ?? 0)
             const avail = Math.max(0, availOf(e.source) - (claim.get(e.source) ?? 0) - (used.get(e.source) ?? 0))
             const a = Math.max(0, Math.min(want, avail))
             add(used, e.source, a)
             r += a
+            // what the commit will actually pull from this Pool: up to what is still needed
+            const pulled = Math.min(a, need)
+            need -= pulled
+            if (pulled > 0) addBy(takesBy, m, e.source, pulled)
           }
           if (r < T - EPSILON) return false
         }
-        for (const [q, v] of give) {
+        // the room, along the commit order (#471 item 5): from the Pool as it
+        // stands, each member's take lowers the level at its turn and its
+        // delivery raises it; the level never passes the room. A Converter's
+        // own take and delivery on one Pool meet at its turn (its net); an
+        // earlier member's take is room a later delivery may fill.
+        const inOrder = [...members].sort((a, b) => (orderIdx.get(a) ?? Infinity) - (orderIdx.get(b) ?? Infinity))
+        for (const q of give.keys()) {
           let room = headroom(q)
           for (const m of members) room += ownReserve.get(m)?.get(q) ?? 0
-          if (v > room + EPSILON) return false
+          let level = 0
+          for (const m of inOrder) {
+            level -= takesBy.get(m)?.get(q) ?? 0
+            level += givesBy.get(m)?.get(q) ?? 0
+            if (level > room + EPSILON) return false
+          }
         }
         return true
       }
@@ -1772,8 +1892,13 @@ export function step(
         // A `pullAll` Converter the fixpoint has already disabled moves nothing
         // — skip it before any edge is read, so its flows are not evaluated on
         // the committed pass (a diagnostic from a branch only this Converter
-        // would have consumed must not surface).
-        if (disabledPullAll.has(id)) continue
+        // would have consumed must not surface). A refused rate on one of its
+        // own connections (#396, #471 item 5) is a fact of the connection, not
+        // of this step's branches, and is still reported.
+        if (disabledPullAll.has(id)) {
+          for (const e of [...inOf(id), ...outOf(id)]) if (isRefusedRate(e)) refusedRate(e)
+          continue
+        }
         const mode = n.data.mode ?? 'pullAny'
         const inboxHave = inbox.get(id) ?? 0
         // pool-fed inputs: pull up to the per-activation rate
@@ -1884,8 +2009,11 @@ export function step(
         // router's `headroom` is unbounded, and sizing by it handed a blocked
         // Gate an inbox it could not deliver). A Pool that is both an input
         // and an output of this Converter is bounded on the NET amount,
-        // `room / (make − need)`: what the plan takes from it this step is
-        // room it may fill. (#471 item 5 — pinned by a test; the rule is open.)
+        // `room / (make − need)`: the take and the make happen inside one
+        // activation, so what it takes is room it may fill, while what it
+        // takes is bounded on the Pool as it stands (#471 item 5, Lumi
+        // 2026-11-03 — the one-Converter case of the rule that a Pool's room
+        // is checked along the plan unit's commit order).
         const makeInto = new Map<string, number>()
         for (const e of outOf(id)) {
           if (skipDet(e.id)) continue

@@ -212,7 +212,10 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
   is a Pool's headroom (plus this Converter's own reservation there) or a
   router's `accept`, and a Pool that is both an input and an output of the
   Converter bounds `f` on the **net** amount, `room / (Σ outRate into it −
-  Σ inRate from it)`. Then **every** input connection moves exactly
+  Σ inRate from it)`, its availability on the gross take (issue #471 item 5,
+  2026-11-03: a Converter takes and makes inside one activation, so what it
+  takes is room it may fill and what it takes must be there; this is the
+  one-Converter case of the commit-order rule in part 2 below). Then **every** input connection moves exactly
   `f · inRateᵢ` and every output exactly `f · outRateₖ`; `pull all` is decided
   on the same `f` (below `1 − epsilon`, nothing moves). A Converter with a
   router-fed input keeps `received / Σ inRate` for its production and
@@ -240,8 +243,14 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
     direction, Gate → X by the branch share `w / W` (divided by the rate into
     a Converter), Converter → X by its rate (whole into a Gate). `s` is the
     smallest bound: `f ≤ 1` per Converter; `available(P)` per input Pool over
-    the members' needs; `room(Q)` per output Pool over the members' deliveries
-    (a Converter's net on a Pool it also takes from); a source Gate's reach
+    the members' needs; `room(Q)` per output Pool **along the group's commit
+    order** (issue #471 item 5, 2026-11-03: from the Pool as it stands, each
+    member's take lowers the level at its turn and each member's delivery
+    raises it, and the level never passes the room at any point — a
+    Converter's own take and delivery on one Pool meet at its turn, its net;
+    an earlier member's take is room a later member's delivery may fill, so a
+    loop routed through a Gate or a Converter is bounded as the direct loop
+    is; a later member's take, or a take by another plan unit, is not); a source Gate's reach
     from its own Pools, net of the plan's claims on the same Pools; `0` for a
     member with no live output, a disabled `pull all` Converter, or a
     Converter with a router input that delivers nothing this step. `pull all`
@@ -331,7 +340,7 @@ not change, nothing fires, and the report has no events and no diagnostics
 | **Source** | creates resources from nothing, pushes downstream | amount to push per step | — |
 | **Pool** | passive storage between steps; the only stateful node. Never auto-pulls or auto-pushes in Engine A | amount to move when pulled | `headroom(P)` |
 | **Gate** | pulls, splits by fixed ratio, pushes — holds nothing | split **weight** per outgoing edge | see §6 |
-| **Converter** | consumes inputs, produces outputs at its own ratio — holds nothing; ≤ 1 activation/step | consume-per-activation (in), produce-per-activation (out) — a number or `all`; a percent is refused (§8, issue #396) | see §6 |
+| **Converter** | consumes inputs, produces outputs at its own ratio — holds nothing; ≤ 1 activation/step | consume-per-activation (in), produce-per-activation (out) — a number; a percent (§8, issue #396) and `all` (§8, issue #471 item 5) are refused | see §6 |
 | **Drain** | pulls resources and removes them from the system | amount to pull per step | `∞` |
 | **End** | any arrival `> epsilon` ends the run and marks it `fired` | amount to pull per step (if pool-fed) | `∞` |
 
@@ -346,7 +355,7 @@ is decided by the active node at that end.
 |---|---|---|
 | empty | const 1 | `1` |
 | `2`, `0.5` | const | the number (must be finite ≥ 0) |
-| `all` | all | `S[sourcePool] − taken[sourcePool]` (`0` on a Source edge) |
+| `all` | all | `S[sourcePool] − taken[sourcePool]` (`0` on a Source edge). **On a connection whose source or target is a Converter: refused — `0` + run diagnostic** (issue #471 item 5, 2026-11-03): a Converter reads its edges as per-activation rates (§7), and the token there was read as the rate `1` — one unit per activation, whatever the Pool held — while everywhere else it is the Pool as it stands. The diagnostic names the connection and the flow and says which number (`1`) keeps the rate it used to mean; the document is never rewritten. A Converter whose only input or only output is refused does not run (no live input / no live output); with another live input it runs on that input. At a Gate's own input, a Drain and an End `all` is unchanged. |
 | `25%` | percent 0.25 | `0.25 · S[sourcePool]` (`0` on a Source edge). **On a connection whose source or target is a Converter: refused — `0` + run diagnostic** (issue #396, 2026-10-30): a Converter reads its edges as per-activation rates (§7), its out-edges and a Converter → Converter edge have no Pool to take a percent of, and the bare fraction gave the token two meanings. The diagnostic names the connection and the expression and says which number (`0.25`) keeps the rate it used to mean; the document is never rewritten. The step's diagnostics reach `simStore.diagnostics` (replaced per step, emptied by Reset and a document change) and the run strip shows them on a line under the run row, read once per change by a status region. |
 | `1-3` | range(1,3) | **`0`** + run diagnostic |
 | `2D6`, `D6` | dice(2,6) / dice(1,6) | **`0`** + run diagnostic |

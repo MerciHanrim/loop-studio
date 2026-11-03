@@ -163,20 +163,23 @@ describe('#471 — rules that must not move (pins)', () => {
     close(r.pools, { a: 50, x: 50 })
   })
 
-  it("`all` on a Converter connection reads as the rate 1 per run, not 'all of the Pool' (#471 item 5 — recorded, the rule is open)", () => {
+  it('`all` on a Converter connection is refused — 0 and a diagnostic, as a percent is (#471 item 5, Lumi 2026-11-03; the table is in all-selfloop.test.ts)', () => {
     const nodes = [pool('a', 100), conv('C'), pool('x', 0)]
     const edges = [res('e1', 'a', 'C', 'all'), res('o1', 'C', 'x', '10')]
     const r = run(nodes, edges)
-    close(r.moved, { e1: 1, o1: 10 })
-    close(r.pools, { a: 99, x: 10 })
-    // and as the output of a Gate into the Converter: weight 1, need 1
+    close(r.moved, { e1: 0, o1: 0 })
+    close(r.pools, { a: 100, x: 0 })
+    expect(r.diagnostics).toEqual([
+      'Edge "e1" flow "all" is `all` on a Converter connection; a Converter\'s rate cannot be `all` — contributes 0 (write 1 for the rate "all" used to mean).',
+    ])
+    // and as the output of a Gate into the Converter: the Gate has no live branch
     const viaGate = [pool('a', 100), gate('g'), conv('C'), pool('x', 0)]
     const gEdges = [res('e1', 'a', 'g', '5'), res('g1', 'g', 'C', 'all'), res('o1', 'C', 'x', '10')]
     const rg = run(viaGate, gEdges)
-    close(rg.moved, { e1: 1, g1: 1, o1: 10 })
+    close(rg.moved, { e1: 0, g1: 0, o1: 0 })
   })
 
-  it('a Pool that is both input and output of one Converter is bounded on the net amount, room / (make − need) (#471 item 5 — recorded, the rule is open)', () => {
+  it('a Pool that is both input and output of one Converter is bounded on the net amount, room / (make − need) (#471 item 5 — the one-Converter case of the commit-order rule; the table is in all-selfloop.test.ts)', () => {
     // P 100 of 120; C takes 50 and makes 80 into P: net +30 per run, room 20 ⇒ f = 2/3
     const nodes = [pool('P', 100, 120), conv('C')]
     const edges = [res('e1', 'P', 'C', '50'), res('o1', 'C', 'P', '80')]
