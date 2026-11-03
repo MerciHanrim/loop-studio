@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { connectKindOf, type ConnectKind } from '../../model/connectKind'
 import { findReferences } from '../../model/dataImportReferences'
 import type { LoopEdge, LoopNode } from '../../model/types'
+import type { ModelSemanticsVersion } from '../../model/modelVersion'
 import { classifyLabelTiming, parseActivatorExpr, parseLabelExpr } from '../../engine/stateExpr'
 import { gateChances, type GateChances } from '../../engine/gateChance'
 import { selectOnly, useGraphStore } from '../../store/graphStore'
@@ -45,7 +46,7 @@ const OP_KEY: Record<string, MessageKey> = {
 type Tr = ReturnType<typeof useT>
 
 /** a connection's effect in a few words: an amount, a comparison, a change */
-function effectText(t: Tr, e: LoopEdge, nodes: LoopNode[], modelVersion: 1 | 2): string {
+function effectText(t: Tr, e: LoopEdge, nodes: LoopNode[], modelVersion: ModelSemanticsVersion): string {
   const d = (e.data ?? {}) as { flow?: unknown; expr?: unknown }
   const k = connectKindOf(e)
   if (k === 'flow') {
@@ -92,7 +93,7 @@ function chanceText(t: Tr, chance: number): string {
 
 /** the weight the engine reads, beside the line's own text where they differ
  *  (`@id` ⇒ the Parameter's value, `all` ⇒ 1, `n%` ⇒ n / 100) */
-function weightText(t: Tr, e: LoopEdge, nodes: LoopNode[], modelVersion: 1 | 2, weight: number | null): string {
+function weightText(t: Tr, e: LoopEdge, nodes: LoopNode[], modelVersion: ModelSemanticsVersion, weight: number | null): string {
   const own = effectText(t, e, nodes, modelVersion)
   if (weight == null) return own
   const w = t('rel.gate.weight', { w: weight })
@@ -111,7 +112,7 @@ export function NodeRelations({ node }: { node: LoopNode }) {
   const t = useT()
   const nodes = useGraphStore((s) => s.nodes)
   const edges = useGraphStore((s) => s.edges)
-  const modelVersion = useGraphStore((s) => (s.modelVersion === 2 ? 2 : 1))
+  const modelVersion = useGraphStore((s) => s.modelVersion)
   const setHover = useUiStore((s) => s.setHoverEdgeId)
   const selectEdge = useSelectEdge()
   const id = node.id
@@ -231,7 +232,7 @@ export function EdgeRelation({ edge }: { edge: LoopEdge }) {
   const t = useT()
   const nodes = useGraphStore((s) => s.nodes)
   const edges = useGraphStore((s) => s.edges)
-  const modelVersion = useGraphStore((s) => (s.modelVersion === 2 ? 2 : 1))
+  const modelVersion = useGraphStore((s) => s.modelVersion)
   const k = connectKindOf(edge)
   // a line out of a probabilistic Gate: the same chance its Gate's row shows
   const chances = useMemo(() => (k === 'flow' ? gateChances(nodes, edges, edge.source, modelVersion) : null), [k, nodes, edges, edge.source, modelVersion])

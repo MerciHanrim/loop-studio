@@ -701,7 +701,7 @@ function ActivatorField({
   const [offsetDraft, setOffsetDraft] = useState<string | null>(null)
 
   const raw = ed.expr ?? ''
-  const res = parseActivatorExpr(raw, modelVersion === 2 ? 2 : 1)
+  const res = parseActivatorExpr(raw, modelVersion)
   const paramKind = t('canvas.nodeKind.parameter')
 
   const currentOp = res.ok ? res.op : '>='

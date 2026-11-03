@@ -1,0 +1,1 @@
+{ "type": "internal", "reason": "Every model-semantics version check in the sources becomes a capability check (hasModelLayer, a >= 2) so a later document version is never read as v1; the readable set and every computed number are unchanged, so nothing a person sees changes." }

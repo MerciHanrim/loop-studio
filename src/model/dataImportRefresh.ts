@@ -13,7 +13,7 @@ import { composeFullRowLabel } from './dataImportValidate'
 import { firstByKey, groupByKey, ImportTableLookup, PathIndex, tableLookup } from './dataImportIndex'
 import type { ValidatedRefreshSnapshot } from './dataImportRefreshValidate'
 import { findReferences, type NodeReference } from './dataImportReferences'
-import type { ImportRow, ImportSourceTable, SavedFrame } from './serialize'
+import type { ImportRow, ImportSourceTable, ModelSemanticsVersion, SavedFrame } from './serialize'
 import type { LoopEdge, LoopNode, ParameterData } from './types'
 
 type Point = { x: number; y: number }
@@ -447,7 +447,7 @@ export function buildRefreshCommit(
   plan: RefreshDiffPlan, // the ONE branded result of `diffRefresh`
   resolution: RefreshResolution,
   host: { nodes: LoopNode[]; edges: LoopEdge[] },
-  modelVersion: 1 | 2,
+  modelVersion: ModelSemanticsVersion,
   newNodeOrigin: Point,
   existingFrames: readonly SavedFrame[],
 ): RefreshCommitResult {

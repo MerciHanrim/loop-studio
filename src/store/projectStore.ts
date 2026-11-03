@@ -31,7 +31,7 @@ import {
   type RevisionExportPlan,
 } from '../model/revision'
 import type { LoopEdge, LoopNode } from '../model/types'
-import type { ImportSourceTable, SavedFrame } from '../model/serialize'
+import type { ImportSourceTable, ModelSemanticsVersion, SavedFrame } from '../model/serialize'
 import { bootProjectHeader, isEditBlocked, setAutosaveProjectHeader, setDocumentBoundarySink, setHistorySidecar, useGraphStore } from './graphStore'
 import { useDataImportStore } from './dataImportStore'
 import { useFrameStore } from './frameStore'
@@ -151,14 +151,14 @@ type ProjectState = {
   openProposalAsDocument: (
     project: ProjectPayload,
     base: ProposalBase,
-    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[] },
+    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: ModelSemanticsVersion; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[] },
   ) => void
   /** §R7A.2 — classify a proposal against the open revision without applying
    *  (for the Review UI). Same gates as `applyProposal`. */
   classifyProposal: (input: {
     project: ProjectPayload
     base: ProposalBase
-    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[] }
+    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: ModelSemanticsVersion; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[] }
   }) =>
     | { ok: true; classification: ApplyClassification }
     | { ok: false; reason: 'wrong-project' | 'no-target' | 'target-is-proposal' | 'version-mismatch' }
@@ -181,7 +181,7 @@ type ProjectState = {
     input: {
       project: ProjectPayload
       base: ProposalBase
-      proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[] }
+      proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: ModelSemanticsVersion; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[] }
     },
     opts?: {
       now?: string
@@ -346,7 +346,7 @@ function persist(open: OpenProject | null): void {
 function classifyAgainst(
   o: OpenProject,
   base: ProposalBase,
-  proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[] },
+  proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: ModelSemanticsVersion; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[] },
 ): ApplyClassification {
   // SEMANTICS-R5.md §R5-6 — the target carries the live saved `frames`, so a
   // frames-only local divergence flips it off `exact` and a `frames` conflict
@@ -362,7 +362,7 @@ function classifyAgainst(
 /** §M2-1 — the Apply / classify version gate: a proposal may only be judged
  *  against, or applied onto, a document of the SAME model-semantics version.
  *  An absent `modelVersion` reads as v1 (a plain `loop-studio/graph` file). */
-function sameModelVersion(proposed: { modelVersion?: 1 | 2 }): boolean {
+function sameModelVersion(proposed: { modelVersion?: ModelSemanticsVersion }): boolean {
   return (proposed.modelVersion ?? 1) === useGraphStore.getState().modelVersion
 }
 

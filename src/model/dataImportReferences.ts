@@ -13,6 +13,7 @@ import { parseFlow } from '../engine/flow'
 import { parseActivatorExpr } from '../engine/stateExpr'
 import { readRegisterData } from './model'
 import type { LoopEdge, LoopNode } from './types'
+import type { ModelSemanticsVersion } from './modelVersion'
 
 /** `register` is the one NODE-carried reference (the Register itself holds
  *  the referencing `expr`). The other three are all EDGE data --
@@ -35,7 +36,7 @@ export type NodeReference =
 export function findReferences(
   nodes: readonly LoopNode[],
   edges: readonly LoopEdge[],
-  modelVersion: 1 | 2,
+  modelVersion: ModelSemanticsVersion,
   targetId: string,
 ): NodeReference[] {
   const out: NodeReference[] = []

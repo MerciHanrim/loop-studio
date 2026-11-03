@@ -20,9 +20,17 @@ const SCHEMA_VERSION = 1
  *  `layoutVersion` is re-placed once when it is opened. */
 export const LAYOUT_VERSION = 1
 
-export type ModelSemanticsVersion = 1 | 2
+import type { ModelSemanticsVersion } from './modelVersion'
+export type { ModelSemanticsVersion } from './modelVersion'
 
-const SCHEMA_BY_MODEL_VERSION: Record<ModelSemanticsVersion, string> = {
+/** The model-semantics versions a document may DECLARE in this build — the
+ *  readable set. `ModelSemanticsVersion` (`modelVersion.ts`) also names 3, the
+ *  version the kinds contract (#471) will introduce as `loop-studio/graph/3`;
+ *  until that deploy no schema string maps to it, so such a file is "a newer
+ *  schema" to this build and fails closed on open (§M2-1). Capability checks
+ *  (`hasModelLayer`) already treat 3 as a model-layer version, so the day it is
+ *  readable no site reads it as v1. */
+const SCHEMA_BY_MODEL_VERSION: Partial<Record<ModelSemanticsVersion, string>> = {
   1: SCHEMA_V1,
   2: SCHEMA_V2,
 }
@@ -31,7 +39,14 @@ const SCHEMA_BY_MODEL_VERSION: Record<ModelSemanticsVersion, string> = {
  *  `loop-revision/*` file builder both go through it, so a v2 document can
  *  never again be written with a v1 envelope. */
 export function schemaForModelVersion(modelVersion: ModelSemanticsVersion | undefined): string {
-  return SCHEMA_BY_MODEL_VERSION[modelVersion ?? 1] ?? SCHEMA_V1
+  const schema = SCHEMA_BY_MODEL_VERSION[modelVersion ?? 1]
+  if (schema === undefined) {
+    // A version this build names but cannot yet declare: writing it with an
+    // older envelope would be the silent downgrade the capability checks exist
+    // to prevent, so refuse loudly instead.
+    throw new Error(`model-semantics version ${modelVersion} has no schema string in this build`)
+  }
+  return schema
 }
 /** The model-semantics version a `schema` string denotes, or `null` if the
  *  string is not a Loop Studio graph schema at all (⇒ the reader rejects it). */

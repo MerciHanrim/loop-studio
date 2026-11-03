@@ -19,6 +19,7 @@ import {
 import { normalizeGraph, readDataImports, readSavedFrames, schemaForModelVersion } from './serialize'
 import type { ImportSourceTable, RecommendedRunConfig, SavedFrame } from './serialize'
 import type { FlowNodeKind, LoopEdge, LoopNode } from './types'
+import { hasModelLayer, isModelSemanticsLabel, modelSemanticsLabel, type ModelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
 import { sha256Hex, sha256Js, utf8ByteLength, utf8Bytes } from './workspace'
 
 // ── constants & formats (§R11) ──────────────────────────────────────────────
@@ -116,18 +117,19 @@ export type CanonicalContent = {
   dataImports?: ImportSourceTable[]
   /**
    * loop-model/2 (SEMANTICS-M2.md §M2-8) — the model-semantics discriminator.
-   * Present (as the literal `"loop-model/2"`) **iff** the document declares
-   * model-semantics version 2. Absent for every v1 document, so a v1 graph's
+   * Present (as `"loop-model/2"`, or `"loop-model/N"` for a later version N)
+   * **iff** the document declares a model-layer version (`hasModelLayer`,
+   * `modelVersion.ts`). Absent for every v1 document, so a v1 graph's
    * canonical bytes — and its `fullContentDigest` — are **unchanged**. A v2
    * document and a byte-identical v1 document therefore hash differently, as
    * they must: the same `flow: "@p"` runs the v1 fallback in one and resolves
    * the Parameter in the other. Ratified into `loop-revision/4`.
    */
-  modelSemantics?: 'loop-model/2'
+  modelSemantics?: ModelSemanticsLabel
 }
 
 /** loop-model/2 — the document model-semantics version a projection is taken at. */
-export type CanonModelVersion = 1 | 2
+export type CanonModelVersion = ModelSemanticsVersion
 
 export type ProposalBase = {
   revisionId: string
@@ -640,8 +642,9 @@ export function canonicalContent(
     }
   }
   // loop-model/2 (SEMANTICS-M2.md §M2-8) — trailing discriminator, ONLY for a
-  // v2 document. Absent ⇒ v1 canonical bytes / digest are untouched (M2-INV-9).
-  if (opts.modelVersion === 2) out.modelSemantics = 'loop-model/2'
+  // model-layer document. Absent ⇒ v1 canonical bytes / digest are untouched (M2-INV-9).
+  const label = modelSemanticsLabel(opts.modelVersion)
+  if (label !== undefined) out.modelSemantics = label
   return out
 }
 
@@ -804,9 +807,9 @@ export function readRevisionSide(
   // loop-model/2 (SEMANTICS-M2.md §M2-8): the model-semantics version is
   // declared (via `schema`), NOT inferred from `{nodes,edges}` — a v1 doc with a
   // stray `@foo` and a v2 doc with a `@foo` reference are byte-identical here.
-  // A v2 declaration ⇒ `loop-revision/4`, which supersedes the v2/v3 label for
-  // this side's projection + digest.
-  const declaredV2 = modelVersion === 2
+  // A model-layer declaration (v2 or later) ⇒ `loop-revision/4`, which
+  // supersedes the v2/v3 label for this side's projection + digest.
+  const declaredV2 = hasModelLayer(modelVersion)
   // SEMANTICS-R5.md §R5-5.1 step 3 — ≥ 1 surviving `frames` entry ⇒ the side is
   // `loop-revision/5` (checked first). A `loop-model/2` declaration still makes
   // it *also* v4 content — both are served by the one `{ modelLayer: true }`
@@ -2110,7 +2113,7 @@ function readCanonicalContent(x: unknown): CanonicalContent | null {
   // loop-model/2 (SEMANTICS-M2.md §M2-8) — a stored base snapshot from a v2
   // document carries the trailing discriminator; keep it verbatim (after rrc,
   // the same key order `canonicalContent` emits) so the stored digest verifies.
-  if (o.modelSemantics === 'loop-model/2') out.modelSemantics = 'loop-model/2'
+  if (isModelSemanticsLabel(o.modelSemantics)) out.modelSemantics = o.modelSemantics
   return out
 }
 

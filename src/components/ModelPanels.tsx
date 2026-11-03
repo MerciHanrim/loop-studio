@@ -5,6 +5,7 @@ import { formatRegisterValue, readParameterData, readRegisterData } from '../mod
 import type { RegisterOutcome } from '../model/model'
 import type { LoopNode } from '../model/types'
 import { selectOnly, useGraphStore } from '../store/graphStore'
+import { hasModelLayer } from '../model/modelVersion'
 import { useRegisterOutcomes } from '../store/registers'
 import { useSimStore } from '../store/simStore'
 import { useUiStore } from '../store/uiStore'
@@ -328,7 +329,7 @@ export function ModelPanels() {
   const params = useMemo(() => nodes.filter((n) => kindOf(n) === 'parameter').sort(byId), [nodes])
   const registers = useMemo(() => nodes.filter((n) => kindOf(n) === 'register').sort(byId), [nodes])
   const paramFlowEdges = useMemo(() => {
-    if (modelVersion !== 2) return []
+    if (!hasModelLayer(modelVersion)) return []
     return edges
       .filter((e) => {
         const f = (e.data as { flow?: unknown } | undefined)?.flow

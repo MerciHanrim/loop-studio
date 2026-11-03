@@ -28,6 +28,7 @@ import { buildImportCommit, type ImportCommitResult, type PlacementChoice } from
 import type { ValidatedImportPlan } from '../model/dataImportValidate'
 import { buildRefreshCommit, parameterLabel, type RefreshCommitResult, type RefreshDiffPlan, type RefreshResolution } from '../model/dataImportRefresh'
 import { ImportTableLookup } from '../model/dataImportIndex'
+import { hasModelLayer } from '../model/modelVersion'
 import { parseActivatorExpr } from '../engine'
 import {
   deserialize,
@@ -1260,7 +1261,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       // explicit action that promotes a v1 document to v2. One-way; opening /
       // saving a stored `@…` string never triggers this (it never calls here).
       if (
-        get().modelVersion === 1 &&
+        !hasModelLayer(get().modelVersion) &&
         after.kind === 'resource' &&
         typeof after.flow === 'string' &&
         after.flow.trim().startsWith('@') &&
@@ -1278,7 +1279,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       // "coincidentally contains an at-sign" (unreachable today, but the
       // parse is cheap and exact rather than a heuristic substring check).
       if (
-        get().modelVersion === 1 &&
+        !hasModelLayer(get().modelVersion) &&
         after.kind === 'state' &&
         after.mode === 'activator' &&
         typeof after.expr === 'string' &&

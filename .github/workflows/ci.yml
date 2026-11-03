@@ -68,6 +68,8 @@ jobs:
         run: npm run check:arrow-direction
       - name: Functional glyphs — no replaced glyph returns to a component or a translation catalog
         run: npm run check:functional-glyphs
+      - name: Model-semantics version — a capability check, never an equality, so a later document is never read as v1
+        run: npm run check:model-version
       - name: Check every deferred isolation obligation is implemented
         run: npm run check:isolate-arguments
       - name: ICU arguments — every interpolated value classified, nothing unexamined

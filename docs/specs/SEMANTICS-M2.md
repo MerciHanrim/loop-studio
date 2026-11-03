@@ -54,6 +54,14 @@ A GraphDoc's **model-semantics version** is carried on its `schema` string:
 | **v2** (`loop-model/2` execution) | `"loop-studio/graph/2"` |
 
 - The token `"loop-studio/graph/2"` is **frozen here**.
+- **One axis, capabilities kept.** The version is a point on one axis, and what
+  a version enables is kept by every version after it. Code therefore asks for
+  the capability — `hasModelLayer(modelVersion)` in `src/model/modelVersion.ts`,
+  a `>= 2` — and never `modelVersion === 2`, which would read a later document
+  as v1. The readable set (the table above) is decided by
+  `modelVersionForSchema` alone; a version the type can name but that function
+  does not return is one no document can declare yet (#471, the version
+  boundary of the kinds contract). `npm run check:model-version` keeps the rule.
 - A reader that does not recognise a `schema` value **rejects the file** — this
   is the existing `loop-model/1` behaviour (`deserialize`: an unrecognised
   `schema` throws "This does not look like a Loop Studio graph file."). So a
@@ -98,14 +106,14 @@ A GraphDoc's **model-semantics version** is carried on its `schema` string:
 
 `parseFlow(raw, modelVersion)` gains the `modelVersion` argument (default `1`).
 
-### v1 (`modelVersion === 1`) — unchanged
+### v1 (no model layer: `!hasModelLayer(modelVersion)`) — unchanged
 
 `parseFlow` is **byte-for-byte** `loop-model/1`: `flow ∈
 { const, all, percent, range, dice }`, and **any** other string — including one
 starting with `@` — is the "unparseable ⇒ `const 1`" fallback, **with no
 diagnostic**. `loop-model/1` execution is untouched.
 
-### v2 (`modelVersion === 2`)
+### v2 and every later version (`hasModelLayer(modelVersion)`)
 
 A `resource` edge's `flow` is **either** a v1 literal (unchanged) **or** a
 **single parameter reference**:
@@ -172,7 +180,7 @@ clamp, floor, or special case of its own:
 ## M2-4. Timing — read once per step, before every phase
 
 `step()` gains a **`modelVersion`** argument (default `1`). It threads to
-`parseFlow`. When `modelVersion === 2`, the resolve pass (M2-3) runs **once**,
+`parseFlow`. When `hasModelLayer(modelVersion)` (v2 and later), the resolve pass (M2-3) runs **once**,
 at the existing `flow`-parse point, **before Phase 0**. Therefore:
 
 - Phase 0 (state), Phase 1 (push), Phase 2 (pull) all see the **same** resolved
