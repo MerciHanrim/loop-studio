@@ -46,10 +46,13 @@ const iconOf = (n: LoopNode | undefined) => (n?.data as { icon?: unknown } | und
 const roundTrip = (g: { nodes: LoopNode[]; edges: LoopEdge[] }) => deserialize(serialize(g.nodes, g.edges, undefined, undefined, undefined, 2))
 
 describe('the registry', () => {
-  it('lists the seventeen ids (the first list and its two follow-ups), each a stable ASCII word', () => {
-    expect(NODE_ICON_IDS).toHaveLength(17)
+  it('lists the twenty-nine ids (the first list and its three follow-ups), each a stable ASCII word', () => {
+    expect(NODE_ICON_IDS).toHaveLength(29)
     for (const id of NODE_ICON_IDS) expect(id).toMatch(/^[a-z]+(-[a-z]+)*$/)
-    expect(new Set(NODE_ICON_IDS).size).toBe(17)
+    expect(new Set(NODE_ICON_IDS).size).toBe(29)
+    // the picker's groups split the list at the first industry id, and End lands on the last
+    expect(NODE_ICON_IDS[15]).toBe('airplane')
+    expect(NODE_ICON_IDS[28]).toBe('recycling')
   })
 
   it('reads a registered id and nothing else', () => {
@@ -57,6 +60,7 @@ describe('the registry', () => {
     expect(readIcon('rain-cloud')).toBe('rain-cloud')
     expect(readIcon('recycling')).toBe('recycling')
     expect(readIcon('cash')).toBe('cash')
+    for (const id of ['snow', 'temperature', 'lightning-risk', 'partly-cloudy', 'strong-wind', 'typhoon', 'oil', 'coal', 'drink', 'food', 'house', 'cargo-ship']) expect(readIcon(id)).toBe(id)
     for (const bad of ['', 'Cloud', 'snow-cloud', 7, null, undefined, {}, ['cloud']]) expect(readIcon(bad)).toBeUndefined()
   })
 })

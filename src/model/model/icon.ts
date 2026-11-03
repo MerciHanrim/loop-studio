@@ -9,19 +9,33 @@
 
 /** every registered icon id, in the order the picker lists them */
 export const NODE_ICON_IDS = [
+  // Nature and basics
   'cloud',
   'rain-cloud',
+  'partly-cloudy',
+  'snow',
+  'lightning-risk',
   'wind',
+  'strong-wind',
+  'typhoon',
+  'temperature',
   'sun',
   'remote',
   'tree',
   'electricity',
   'water',
   'wave',
+  // Industry and life
   'airplane',
   'car',
+  'cargo-ship',
   'nuclear-plant',
+  'oil',
+  'coal',
   'warehouse',
+  'house',
+  'food',
+  'drink',
   'medicine',
   'game-currency',
   'cash',
