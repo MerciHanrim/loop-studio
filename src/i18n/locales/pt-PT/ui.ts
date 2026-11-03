@@ -94,6 +94,7 @@ const ui = {
   'playbar.initError': 'Não é possível executar: {detail}',
   'playbar.refused': 'Não é possível executar: caminhos que se dividem e se voltam a juntar ({n})',
   'playbar.refused.show': 'Mostrar',
+  'playbar.refused.kinds': 'Não é possível executar: constatações num tipo conservado ({n})',
   'inspector.refused.splitRejoin': 'Não é possível executar: os recursos dividem-se em {split} e voltam a juntar-se em {join}. Esta versão do modelo não suporta caminhos que se dividem e se voltam a juntar, por isso o modelo não é executado. Para o executar, remova um dos caminhos ou adicione um Reservatório num deles. Um Reservatório guarda o que chega, por isso esse caminho avança um passo mais tarde.',
   'playbar.diag.title': 'Diagnósticos da execução ({n})',
   'playbar.diag.multiSupplyLoss': '{label} recebeu {amount} a mais do que podia usar neste passo, e essa quantidade perdeu-se.',

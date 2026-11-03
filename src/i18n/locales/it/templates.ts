@@ -48,6 +48,8 @@ const templates = {
   'modules.promote.title': 'Trasformarlo in un modello guidato da parametri (v2)?',
   'modules.promote.body': 'Inserire questa struttura converte il documento in un modello v2 e il digest della semantica del modello cambia. Un solo annullamento riporta indietro sia la conversione sia l’inserimento.',
   'modules.promote.confirm': 'Converti e inserisci',
+  'modules.promote.title.v3': 'Rendere questo documento un modello con tipi di risorsa (v3)?',
+  'modules.promote.body.v3': 'Inserire questa struttura rende il documento un modello v3: dichiara tipi di risorsa e il digest della semantica del modello cambia. Un solo annulla ripristina insieme la modifica del modello e l’inserimento.',
   'modules.frames.title': 'I riquadri salvati non sono inclusi',
   'modules.frames.insertBody': 'Questo file contiene riquadri di gruppo salvati. Inserirlo come struttura non porta i riquadri nel tuo grafo: tutto il resto viene inserito normalmente.',
   'modules.frames.extractBody': 'Il tuo grafo contiene riquadri di gruppo salvati. Non vengono scritti nel file della struttura: ci finiscono solo i nodi selezionati e le connessioni fra loro.',

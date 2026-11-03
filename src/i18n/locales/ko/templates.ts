@@ -35,6 +35,8 @@ const templates = {
   'modules.promote.title': '파라미터 기반(v2) 모델로 전환할까요?',
   'modules.promote.body': '이 구조를 삽입하면 문서가 v2 모델이 되고 모델 시맨틱스 다이제스트가 변경됩니다. 실행 취소 한 번으로 모델 전환과 삽입을 함께 되돌릴 수 있습니다.',
   'modules.promote.confirm': '전환하고 삽입',
+  'modules.promote.title.v3': '이 문서를 자원 종류가 있는 모델(v3)로 전환할까요?',
+  'modules.promote.body.v3': '이 구조를 삽입하면 문서가 v3 모델이 되어 자원 종류를 선언하게 되고 모델 의미 다이제스트가 바뀝니다. 실행 취소 한 번으로 모델 변경과 삽입이 함께 되돌려집니다.',
   'modules.frames.title': '저장된 프레임은 포함되지 않습니다',
   'modules.frames.insertBody': '이 파일에는 저장된 그룹 프레임이 있습니다. 구조로 삽입해도 프레임은 그래프로 들어오지 않으며, 나머지는 평소대로 삽입됩니다.',
   'modules.frames.extractBody': '현재 그래프에는 저장된 그룹 프레임이 있습니다. 프레임은 구조 파일에 기록되지 않으며, 선택한 노드와 그 내부 연결만 포함됩니다.',

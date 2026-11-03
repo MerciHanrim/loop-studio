@@ -11,6 +11,7 @@ import type { LoopEdge, LoopNode } from '../model/types'
 import { mix32 } from './rng'
 import { initSim, step } from './step'
 import type { ModelVersion } from './flow'
+import type { ResourceKindDecl } from '../model/kinds'
 
 export const MC_SPEC = 'loop-mc/1'
 export const MC_SEED_SPEC = 'loop-mc-seed/1'
@@ -33,6 +34,10 @@ export type RunConfig = {
    *  resolution), byte-identical to before. A transient run input, not a
    *  persisted config field. */
   modelVersion?: ModelVersion
+  /** loop-model/3 (SEMANTICS-M3.md) — the document's kinds table, threaded to
+   *  `step()` so a refusing finding stops a Monte Carlo run exactly as it
+   *  stops Play. A transient run input, not a persisted config field. */
+  kinds?: readonly ResourceKindDecl[]
 }
 
 export type RunOptions = {
@@ -216,7 +221,7 @@ export function runRange(
     let ended = false
     for (let t = 1; t <= config.steps; t++) {
       if (!ended) {
-        st = step(nodes, edges, st, seed, config.modelVersion ?? 1).state
+        st = step(nodes, edges, st, seed, config.modelVersion ?? 1, { kinds: config.kinds }).state
         if (st.ended) {
           ended = true
           endedAt[lr] = t
@@ -275,7 +280,7 @@ function fillOneRun(f: RunFill, i: number): void {
   let ended = false
   for (let t = 1; t <= config.steps; t++) {
     if (!ended) {
-      st = step(nodes, edges, st, seed, config.modelVersion ?? 1).state
+      st = step(nodes, edges, st, seed, config.modelVersion ?? 1, { kinds: config.kinds }).state
       if (st.ended) {
         ended = true
         endedAt[i] = t

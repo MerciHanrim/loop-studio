@@ -48,6 +48,8 @@ const templates = {
   'modules.promote.title': 'In ein parametergesteuertes Modell (v2) umwandeln?',
   'modules.promote.body': 'Durch das Einfügen dieser Struktur wird das Dokument zu einem v2-Modell, und der Digest der Modellsemantik ändert sich. Ein einziges Rückgängig macht die Modelländerung und das Einfügen zusammen rückgängig.',
   'modules.promote.confirm': 'Umwandeln und einfügen',
+  'modules.promote.title.v3': 'Dieses Dokument zu einem Modell mit Ressourcenarten (v3) machen?',
+  'modules.promote.body.v3': 'Das Einfügen dieser Struktur macht das Dokument zu einem v3-Modell: Es deklariert Ressourcenarten, und der Modellsemantik-Digest ändert sich. Ein einziges Rückgängig nimmt die Modelländerung und das Einfügen zusammen zurück.',
   'modules.frames.title': 'Gespeicherte Gruppenrahmen sind nicht enthalten',
   'modules.frames.insertBody': 'Diese Datei enthält gespeicherte Gruppenrahmen. Beim Einfügen als Struktur werden keine Rahmen in Ihren Graphen übernommen – alles andere wird wie gewohnt eingefügt.',
   'modules.frames.extractBody': 'Ihr Graph hat gespeicherte Gruppenrahmen. Sie werden nicht in die Strukturdatei geschrieben – nur die ausgewählten Knoten und ihre internen Verbindungen.',

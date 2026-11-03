@@ -69,14 +69,17 @@ describe('model-semantics version — capability checks (#471 version boundary)'
     expect(canonicalContent({ nodes, edges }, { modelVersion: 1 }).modelSemantics).toBeUndefined()
   })
 
-  it('the file envelope: loop-studio/graph/3 is not readable in this build (fail-closed), and cannot be written', () => {
+  it('the file envelope: loop-studio/graph/3 is readable and writable (the kinds contract, SEMANTICS-M3.md); a later schema still fails closed', () => {
     expect(modelVersionForSchema('loop-studio/graph')).toBe(1)
     expect(modelVersionForSchema('loop-studio/graph/2')).toBe(2)
-    expect(modelVersionForSchema('loop-studio/graph/3')).toBeNull()
+    expect(modelVersionForSchema('loop-studio/graph/3')).toBe(3)
+    expect(modelVersionForSchema('loop-studio/graph/4')).toBeNull()
     expect(schemaForModelVersion(1)).toBe('loop-studio/graph')
     expect(schemaForModelVersion(2)).toBe('loop-studio/graph/2')
-    expect(() => schemaForModelVersion(3)).toThrow(/no schema string/)
+    expect(schemaForModelVersion(3)).toBe('loop-studio/graph/3')
     const v3 = JSON.stringify({ schema: 'loop-studio/graph/3', version: 1, nodes: [], edges: [] })
-    expect(() => deserialize(v3)).toThrow()
+    expect(deserialize(v3).modelVersion).toBe(3)
+    const v4 = JSON.stringify({ schema: 'loop-studio/graph/4', version: 1, nodes: [], edges: [] })
+    expect(() => deserialize(v4)).toThrow()
   })
 })

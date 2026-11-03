@@ -48,6 +48,8 @@ const templates = {
   'modules.promote.title': '¿Convertir esto en un modelo con parámetros (v2)?',
   'modules.promote.body': 'Insertar esta estructura convierte el documento en un modelo v2 y cambia el resumen de semántica del modelo. Un solo deshacer revierte a la vez el cambio de modelo y la inserción.',
   'modules.promote.confirm': 'Convertir e insertar',
+  'modules.promote.title.v3': '¿Convertir este documento en un modelo con tipos de recurso (v3)?',
+  'modules.promote.body.v3': 'Insertar esta estructura convierte el documento en un modelo v3: declara tipos de recurso y el resumen de semántica del modelo cambia. Un solo deshacer revierte juntos el cambio de modelo y la inserción.',
   'modules.frames.title': 'Los marcos guardados no se incluyen',
   'modules.frames.insertBody': 'Este archivo tiene marcos de grupo guardados. Insertarlo como estructura no trae los marcos a su grafo — todo lo demás se inserta de la forma habitual.',
   'modules.frames.extractBody': 'Su grafo tiene marcos de grupo guardados. No se escriben en el archivo de estructura — solo se guardan los nodos seleccionados y sus conexiones internas.',

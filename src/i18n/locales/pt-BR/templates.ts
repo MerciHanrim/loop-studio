@@ -48,6 +48,8 @@ const templates = {
   'modules.promote.title': 'Tornar isto um modelo orientado a parâmetros (v2)?',
   'modules.promote.body': 'Inserir esta estrutura converte o documento em um modelo v2 e altera o resumo de semântica do modelo. Um único desfazer reverte de uma vez a mudança de modelo e a inserção.',
   'modules.promote.confirm': 'Converter e inserir',
+  'modules.promote.title.v3': 'Tornar este documento um modelo com tipos de recurso (v3)?',
+  'modules.promote.body.v3': 'Inserir esta estrutura torna o documento um modelo v3: ele declara tipos de recurso e o resumo de semântica do modelo muda. Um único desfazer reverte juntos a mudança de modelo e a inserção.',
   'modules.frames.title': 'Os quadros salvos não são incluídos',
   'modules.frames.insertBody': 'Este arquivo tem quadros de grupo salvos. Inseri-lo como estrutura não traz os quadros para o seu grafo; todo o resto é inserido normalmente.',
   'modules.frames.extractBody': 'Seu grafo tem quadros de grupo salvos. Eles não são gravados no arquivo da estrutura: somente os nós selecionados e suas conexões internas são.',

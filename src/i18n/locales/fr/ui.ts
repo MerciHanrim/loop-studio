@@ -81,6 +81,7 @@ const ui = {
   'playbar.initError': 'Exécution impossible : {detail}',
   'playbar.refused': 'Exécution impossible : des chemins se séparent puis se rejoignent ({n})',
   'playbar.refused.show': 'Afficher',
+  'playbar.refused.kinds': 'Exécution impossible : constats sur un type conservé ({n})',
   'inspector.refused.splitRejoin': 'Exécution impossible : les ressources se séparent à {split} et se rejoignent à {join}. Cette version du modèle ne prend pas en charge les chemins qui se séparent puis se rejoignent, donc le modèle ne s’exécute pas. Pour l’exécuter, supprimez l’un des chemins ou ajoutez un réservoir sur l’un d’eux. Un réservoir retient ce qui arrive, donc ce chemin avance un pas plus tard.',
   'playbar.diag.title': 'Diagnostics de l’exécution ({n})',
   'playbar.diag.multiSupplyLoss': '{label} a reçu {amount} de plus que ce qu’il pouvait utiliser à cette étape, et cette quantité est perdue.',

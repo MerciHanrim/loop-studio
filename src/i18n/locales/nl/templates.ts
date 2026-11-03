@@ -26,6 +26,8 @@ const templates = {
   'modules.promote.title': 'Hier een parametergestuurd (v2) model van maken?',
   'modules.promote.body': 'Deze structuur invoegen maakt van het document een v2-model en de modelsemantiek-digest verandert. Eén keer ongedaan maken draait de modelwijziging en het invoegen samen terug.',
   'modules.promote.confirm': 'Promoveren en invoegen',
+  'modules.promote.title.v3': 'Van dit document een model met resourcesoorten (v3) maken?',
+  'modules.promote.body.v3': 'Het invoegen van deze structuur maakt van het document een v3-model: het declareert resourcesoorten en de modelsemantiek-digest verandert. Eén keer ongedaan maken draait de modelwijziging en het invoegen samen terug.',
   'modules.frames.title': 'Opgeslagen kaders worden niet meegenomen',
   'modules.frames.insertBody': 'Dit bestand bevat opgeslagen groepskaders. Het als structuur invoegen brengt die kaders niet in je diagram — al het andere wordt gewoon ingevoegd.',
   'modules.frames.extractBody': 'Je diagram bevat opgeslagen groepskaders. Die worden niet in het structuurbestand geschreven — alleen de geselecteerde knooppunten en hun onderlinge verbindingen.',

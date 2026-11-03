@@ -26,6 +26,8 @@ import { nextId } from './factory'
 import { canonicalContent, validateResultGraph } from './revision'
 import { normalizeGraph } from './serialize'
 import type { ModelSemanticsVersion } from './serialize'
+import { mergeKinds, type ResourceKindDecl } from './kinds'
+import { normalizeResourceType } from './model/resourceType'
 import type { LoopEdge, LoopNode } from './types'
 
 // ── shared shapes ─────────────────────────────────────────────────────────────
@@ -34,6 +36,8 @@ export type GraphDocLike = {
   nodes: LoopNode[]
   edges: LoopEdge[]
   modelVersion: ModelSemanticsVersion
+  /** loop-model/3 (SEMANTICS-M3.md) — the kinds table; absent ⇒ none */
+  kinds?: readonly ResourceKindDecl[]
 }
 
 /** Bounding-box top-left of a node set (`{ 0, 0 }` for an empty set). */
@@ -117,8 +121,12 @@ export type InsertOk = {
   nodes: LoopNode[]
   edges: LoopEdge[]
   modelVersion: ModelSemanticsVersion
-  /** the host was v1 and the module forced a v1 → v2 promotion (§MS3.4). */
-  promotedToV2: boolean
+  /** the module lifted the host to a later version (§MS3.4): the version the
+   *  result has, or `null` when the host already had it. */
+  promotedTo: ModelSemanticsVersion | null
+  /** loop-model/3 — the host's kinds table, then the module's kinds the host
+   *  did not declare (`mergeKinds`). */
+  kinds: ResourceKindDecl[]
   /** fresh ids of the inserted nodes, in module order (for selection). */
   insertedNodeIds: string[]
   insertedEdgeIds: string[]
@@ -205,7 +213,10 @@ export function insertGraph(host: GraphDocLike, mod: GraphDocLike, opts: InsertO
   // 3. model version (§MS3.4) — a module of a later version lifts the host to
   // it; the result is the later of the two, never the host read as v1.
   const modelVersion: ModelSemanticsVersion = Math.max(mod.modelVersion, host.modelVersion) as ModelSemanticsVersion
-  const promotedToV2 = modelVersion > host.modelVersion
+  const promotedTo = modelVersion > host.modelVersion ? modelVersion : null
+  // loop-model/3 — the host's table first; a module's kind the host did not
+  // declare joins it (a `/graph/3` module always lifts the host to 3 above).
+  const kinds = mergeKinds(host.kinds ?? [], mod.kinds ?? [])
 
   // 4. build the full candidate, validate it whole, THEN return (§MS3.6 / B4).
   const nodes = [...host.nodes, ...outNodes]
@@ -213,7 +224,7 @@ export function insertGraph(host: GraphDocLike, mod: GraphDocLike, opts: InsertO
   const v = validateResultGraph(nodes, edges)
   if (!v.ok) return { ok: false, reason: `The merged graph is not valid: ${v.reasons.join(' ')}` }
   try {
-    canonicalContent({ nodes, edges }, { modelVersion })
+    canonicalContent({ nodes, edges, kinds }, { modelVersion })
   } catch {
     return { ok: false, reason: 'The merged graph holds a non-finite number.' }
   }
@@ -223,7 +234,8 @@ export function insertGraph(host: GraphDocLike, mod: GraphDocLike, opts: InsertO
     nodes,
     edges,
     modelVersion,
-    promotedToV2,
+    promotedTo,
+    kinds,
     insertedNodeIds: outNodes.map((n) => n.id),
     insertedEdgeIds: outEdges.map((e) => e.id),
     idMap: Object.fromEntries(idMap),
@@ -239,6 +251,8 @@ export type ExtractOk = {
   nodes: LoopNode[]
   edges: LoopEdge[]
   modelVersion: ModelSemanticsVersion
+  /** loop-model/3 — the source's declared kinds the selection names (`[]` ⇒ no table) */
+  kinds: ResourceKindDecl[]
 }
 export type ExtractResult = ExtractOk | { ok: false; reason: string; dangling?: DanglingRef[] }
 
@@ -289,11 +303,23 @@ export function extractModule(src: GraphDocLike, selectedIds: readonly string[])
   // schema v2 iff a surviving edge carries an `@param` flow (§MS2.2); every
   // referenced Parameter is guaranteed inside the selection (the dangling guard
   // above refused otherwise).
-  const modelVersion: ModelSemanticsVersion = selEdges.some(
+  const hasParamFlow = selEdges.some(
     (e) => kindOf(e.data) === 'resource' && isParamFlow((e.data as { flow?: unknown }).flow),
   )
-    ? 2
-    : 1
+  // loop-model/3 — the source's declared kinds that the selection names (a
+  // Pool's `resourceType`, a connection's annotation) travel with it; a
+  // module with a table is a `/graph/3` file (§M3-1).
+  const named = new Set<string>()
+  for (const n of nodes) {
+    const rt = normalizeResourceType((n.data as { resourceType?: unknown }).resourceType).value
+    if (rt !== null) named.add(rt)
+  }
+  for (const e of selEdges) {
+    const rt = normalizeResourceType((e.data as { resourceType?: unknown } | undefined)?.resourceType).value
+    if (rt !== null) named.add(rt)
+  }
+  const kinds = (src.kinds ?? []).filter((k) => named.has(k.name))
+  const modelVersion: ModelSemanticsVersion = kinds.length > 0 ? 3 : hasParamFlow ? 2 : 1
 
-  return { ok: true, nodes, edges: selEdges, modelVersion }
+  return { ok: true, nodes, edges: selEdges, modelVersion, kinds }
 }

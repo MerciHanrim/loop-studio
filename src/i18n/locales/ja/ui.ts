@@ -75,6 +75,7 @@ const ui = {
   'playbar.initError': '実行できません: {detail}',
   'playbar.refused': '実行できません: 分かれて再び合流する経路 ({n})',
   'playbar.refused.show': '表示',
+  'playbar.refused.kinds': '実行できません: 保存される種類に関する指摘 ({n})',
   'inspector.refused.splitRejoin': '実行できません: リソースが {split} で分かれ、{join} で再び合流しています。このモデルバージョンは分かれて再び合流する経路に対応していないため、モデルは実行されません。実行するには、いずれかの経路を削除するか、どちらかの経路にプールを追加してください。プールは届いたものを保持するため、その経路は 1 ステップ遅れて動きます。',
   'playbar.diag.title': '実行の診断 ({n})',
   'playbar.diag.multiSupplyLoss': '{label} は、このステップで使える量より {amount} 多く受け取り、その分は失われました。',

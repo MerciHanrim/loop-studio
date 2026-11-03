@@ -10,7 +10,7 @@ import {
   type ProposalBase,
   type ThreeWayPlan,
 } from '../model/revision'
-import { deserialize, type ImportSourceTable, type ModelSemanticsVersion, type SavedFrame } from '../model/serialize'
+import { deserialize, type ImportSourceTable, type ModelSemanticsVersion, type ResourceKindDecl, type SavedFrame } from '../model/serialize'
 import type { LoopEdge, LoopNode } from '../model/types'
 import { t } from '../i18n'
 import { useDataImportStore } from './dataImportStore'
@@ -120,6 +120,9 @@ export async function routeImport(text: string): Promise<RouteResult> {
       // signal through explicitly, or a corrupted-but-real provenance file
       // misclassifies as ≤ v7 (see `readRevisionSide`'s own doc comment).
       rawDataImportSignal: parsed.hasRawDataImportSignal,
+      // loop-model/3 (SEMANTICS-M3.md §M3-6) — a `/graph/3` side's kinds table
+      // is projected with it, so its digest verifies with the table in.
+      kinds: parsed.kinds,
     },
     raw,
     parsed.modelVersion,
@@ -184,9 +187,11 @@ export function proposedGraph(
   modelVersion: ModelSemanticsVersion
   frames: SavedFrame[]
   dataImports: ImportSourceTable[]
+  /** loop-model/3 — the proposal's kinds table (`[]` before `/graph/3`) */
+  kinds: ResourceKindDecl[]
 } {
-  const { nodes, edges, frames, dataImports } = deserialize(p.proposedText)
-  return { nodes, edges, modelVersion: p.modelVersion, frames, dataImports }
+  const { nodes, edges, frames, dataImports, kinds } = deserialize(p.proposedText)
+  return { nodes, edges, modelVersion: p.modelVersion, frames, dataImports, kinds }
 }
 
 /** §R7A.2 — classify without applying, for the Review UI. */
@@ -213,6 +218,7 @@ export function threeWayForPending(p: PendingProposal): ThreeWayPlan {
         edges: g.edges,
         frames: useFrameStore.getState().snapshot(),
         dataImports: useDataImportStore.getState().snapshot(),
+        kinds: g.kinds, // loop-model/3 — the live kinds table is content too
       },
       { modelVersion: g.modelVersion },
     ),
@@ -235,6 +241,7 @@ export function currentTargetDigest(): string {
         edges: g.edges,
         frames: useFrameStore.getState().snapshot(),
         dataImports: useDataImportStore.getState().snapshot(),
+        kinds: g.kinds, // loop-model/3 — the live kinds table is content too
       },
       { modelVersion: g.modelVersion },
     ),

@@ -11,7 +11,8 @@ import { sha256 as nobleSha256 } from '@noble/hashes/sha2.js'
 import { ENGINE_REVISION } from '../engine/revision'
 import { MAX_SERIES } from './limits'
 import type { LoopEdge, LoopNode } from './types'
-import { hasModelLayer, modelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
+import { hasKindsTable, hasModelLayer, modelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
+import { canonicalKinds, type ResourceKindDecl } from './kinds'
 
 /** the `workspace.schema` string written (§W2-4) */
 export const WORKSPACE_SCHEMA = 'loop-workspace/2'
@@ -168,13 +169,18 @@ export function stableStringify(value: unknown): string {
  *  `modelSemantics: "loop-model/2"` key so the same `flow: "@p"` — a v1 fallback
  *  vs. a resolved Parameter — hashes differently. Absent ⇒ v1 bytes untouched. */
 export function canonicalGraphString(
-  graph: { nodes: LoopNode[]; edges: LoopEdge[] },
+  graph: { nodes: LoopNode[]; edges: LoopEdge[]; kinds?: readonly ResourceKindDecl[] },
   modelVersion?: ModelSemanticsVersion,
 ): string {
   const modelSemantics = modelSemanticsLabel(modelVersion)
+  // loop-model/3 (SEMANTICS-M3.md §M3-6) — the kinds table is engine input (a
+  // conserved kind can refuse the run), so a different table is a different
+  // graph digest; absent / empty ⇒ the key is absent and the bytes are v2's.
+  const kinds = graph.kinds && hasKindsTable(modelVersion) ? canonicalKinds(graph.kinds) : []
   return stableStringify({
     nodes: [...graph.nodes].map((n) => projectNode(n, modelVersion)).sort(byId),
     edges: [...graph.edges].map(projectEdge).sort(byId),
+    ...(kinds.length > 0 ? { kinds } : {}),
     ...(modelSemantics !== undefined ? { modelSemantics } : {}),
   })
 }
@@ -187,7 +193,7 @@ export function canonicalGraphString(
  * non-local host).
  */
 export async function semanticDigest(
-  graph: { nodes: LoopNode[]; edges: LoopEdge[] },
+  graph: { nodes: LoopNode[]; edges: LoopEdge[]; kinds?: readonly ResourceKindDecl[] },
   modelVersion?: ModelSemanticsVersion,
 ): Promise<string> {
   return sha256Hex(utf8Bytes(canonicalGraphString(graph, modelVersion)))

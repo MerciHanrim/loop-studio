@@ -86,6 +86,7 @@ const historyEntry = (nodes: any[], frames: SavedFrame[] | null) => ({
   nodes,
   edges: [],
   modelVersion: 1 as const,
+  kinds: [],
   sidecar: { p: null, f: frames },
 })
 

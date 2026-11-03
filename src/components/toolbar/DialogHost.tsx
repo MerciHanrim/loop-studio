@@ -7,6 +7,7 @@ import { StoragePrivacyDialog } from '../StoragePrivacyDialog'
 import { DataImportRefreshMenu } from '../dataImport/DataImportRefreshMenu'
 import { DataImportWizard } from '../dataImport/DataImportWizard'
 import { useT } from '../../i18n'
+import { hasKindsTable } from '../../model/modelVersion'
 import { exportProjectRevision } from '../../ui/revisionActions'
 import type { ToolbarDialog } from './dialogTypes'
 
@@ -96,8 +97,10 @@ export function DialogHost({ activeDialog, onClose, returnFocusTo }: Props) {
       />
       <ConfirmDialog
         open={activeDialog?.kind === 'module-promote'}
-        title={t('modules.promote.title')}
-        body={t('modules.promote.body')}
+        // loop-model/3 — the consent names the version the insert lifts the
+        // document to: the model layer (2) or the kinds table (3)
+        title={t(activeDialog?.kind === 'module-promote' && hasKindsTable(activeDialog.to) ? 'modules.promote.title.v3' : 'modules.promote.title')}
+        body={t(activeDialog?.kind === 'module-promote' && hasKindsTable(activeDialog.to) ? 'modules.promote.body.v3' : 'modules.promote.body')}
         confirmLabel={t('modules.promote.confirm')}
         onConfirm={() => {
           const desc = activeDialog

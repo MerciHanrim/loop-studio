@@ -30,6 +30,8 @@ const templates = {
   'modules.promote.title': '要轉換成參數驅動（v2）模型嗎？',
   'modules.promote.body': '插入這個結構會把文件變成 v2 模型，模型語意摘要也會隨之改變。一次復原會同時退回模型變更與這次插入。',
   'modules.promote.confirm': '轉換並插入',
+  'modules.promote.title.v3': '將此文件變為帶資源種類的模型（v3）？',
+  'modules.promote.body.v3': '插入此結構會使文件成為 v3 模型：它宣告資源種類，模型語意摘要也會改變。一次復原會同時撤回模型變更和插入。',
   'modules.frames.title': '不包含已儲存的群組框',
   'modules.frames.insertBody': '這個檔案存有群組框。以結構方式插入時不會把群組框帶進你的圖——其餘內容照常插入。',
   'modules.frames.extractBody': '你的圖存有群組框。它們不會寫進結構檔案——只有選取的節點及其內部連線會寫入。',

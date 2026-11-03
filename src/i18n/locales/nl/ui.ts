@@ -80,6 +80,7 @@ const ui = {
   'playbar.initError': 'Uitvoeren niet mogelijk: {detail}',
   'playbar.refused': 'Uitvoeren niet mogelijk: paden die splitsen en weer samenkomen ({n})',
   'playbar.refused.show': 'Tonen',
+  'playbar.refused.kinds': 'Kan niet uitvoeren: bevindingen bij een behouden soort ({n})',
   'inspector.refused.splitRejoin': 'Uitvoeren niet mogelijk: middelen splitsen bij {split} en komen bij {join} weer samen. Deze modelversie ondersteunt geen paden die splitsen en weer samenkomen, dus het model draait niet. Verwijder een van de paden, of voeg op een ervan een Voorraad toe. Een Voorraad houdt vast wat binnenkomt, dus dat pad beweegt één stap later.',
   'playbar.diag.title': 'Diagnoses van de run ({n})',
   'playbar.diag.multiSupplyLoss': '{label} ontving in deze stap {amount} meer dan het kon gebruiken, en die hoeveelheid is verloren gegaan.',

@@ -29,6 +29,7 @@ import type { ValidatedImportPlan } from '../model/dataImportValidate'
 import { buildRefreshCommit, parameterLabel, type RefreshCommitResult, type RefreshDiffPlan, type RefreshResolution } from '../model/dataImportRefresh'
 import { ImportTableLookup } from '../model/dataImportIndex'
 import { hasModelLayer } from '../model/modelVersion'
+import { canonicalKinds, type ResourceKindDecl } from '../model/kinds'
 import { parseActivatorExpr } from '../engine'
 import {
   deserialize,
@@ -56,11 +57,14 @@ import type { LoopEdge, LoopEdgeData, LoopNode, NodeKind } from '../model/types'
 type XY = { x: number; y: number }
 type Snapshot = { nodes: LoopNode[]; edges: LoopEdge[] }
 /** docs/module-system.md §MS3 — `insertModule`'s outcome. `reason:
- *  'needs-v2-consent'` is the one non-error refusal: the caller re-invokes with
- *  `confirmedPromotion: true` once the user accepts the v1 → v2 promotion. */
+ *  'needs-promotion-consent'` is the one non-error refusal: the module lifts
+ *  the document to a later model-semantics version (`promotedTo`: 2 for the
+ *  model layer, 3 for the kinds table), and the caller re-invokes with
+ *  `confirmedPromotion: true` once the user accepts that promotion. */
 export type InsertModuleResult =
-  | { ok: true; insertedNodeIds: string[]; promotedToV2: boolean }
-  | { ok: false; reason: string }
+  | { ok: true; insertedNodeIds: string[]; promotedTo: ModelSemanticsVersion | null }
+  | { ok: false; reason: 'needs-promotion-consent'; promotedTo: ModelSemanticsVersion }
+  | { ok: false; reason: string; promotedTo?: undefined }
 /** Issue #334 — what a user-edit action that reports a result returns when the
  *  edit lock refused it. The UI disables those entry points first, so a caller
  *  only has to return quietly on it; it is never shown as a message. */
@@ -97,6 +101,10 @@ export type LoadDocOptions = (
   /** `loop-revision/8` — the doc's saved data-import source records (already
    *  defensively read); same `undefined`-keeps rule as `frames`. */
   dataImports?: readonly ImportSourceTable[]
+  /** loop-model/3 — the doc's kinds table (already defensively read). On a
+   *  document boundary `undefined` means an empty table; on a revision Apply
+   *  it keeps the current one, as `frames` does. */
+  kinds?: readonly ResourceKindDecl[]
 }
 /** a Template load (or a pasted graph) — always a document boundary */
 export type LoadGraphOptions = {
@@ -112,6 +120,9 @@ export type LoadGraphOptions = {
   /** `loop-revision/8` — a bundled Template's saved data-import source
    *  records, if it ever ships any. Absent ⇒ cleared, same posture as `frames`. */
   dataImports?: readonly ImportSourceTable[]
+  /** loop-model/3 — a bundled Template's kinds table, if one ever ships any.
+   *  Absent ⇒ empty, same posture as `frames`. */
+  kinds?: readonly ResourceKindDecl[]
 }
 /** one undo-history frame: the graph, its `modelVersion`, AND an opaque sidecar
  *  (the loop-revision/1 project header at that instant), so a single undo/redo
@@ -123,6 +134,9 @@ type HistoryEntry = {
   nodes: LoopNode[]
   edges: LoopEdge[]
   modelVersion: ModelSemanticsVersion
+  /** loop-model/3 — the kinds table at that instant: a declaration and the
+   *  promotion it latched undo as one unit, like the v2 latch */
+  kinds: ResourceKindDecl[]
   /** issue #344 step 3 — the record label rule in force (`recordLabels`) */
   recordLabels?: boolean
   sidecar: unknown
@@ -191,6 +205,13 @@ type GraphStore = {
    *  Passed to `serialize()` / autosave and to `step()` / Monte-Carlo. One-way
    *  per document: never returns to `1` except on a full new / v1 load. */
   modelVersion: ModelSemanticsVersion
+
+  /** loop-model/3 (SEMANTICS-M3.md §M3-1) — the document's kinds table, in
+   *  its read form. Set from the loaded file (`[]` before `/graph/3`), edited
+   *  by `setKinds`, which latches `modelVersion` to 3 with the first non-empty
+   *  table (one-way, like the v2 latch), reset by `newGraph`. Passed to
+   *  `serialize()` / autosave, to `step()` / Monte Carlo and into the digests. */
+  kinds: ResourceKindDecl[]
 
   /** issue #344 step 3 (docs/edge-routing.md §ER15.1) — the document came
    *  from a revision or proposal whose header declares semantics before
@@ -355,6 +376,11 @@ type GraphStore = {
    *  any) for the caller to apply — its lock is already applied */
   loadJSON: (text: string) => RecommendedRunConfig | undefined
   exportJSON: (recommendedRunConfig?: RecommendedRunConfig) => string
+  /** loop-model/3 (SEMANTICS-M3.md §M3-1) — replace the kinds table: one undo
+   *  entry, one `simulationRev` bump (a conserved kind can refuse the run).
+   *  The first non-empty table promotes the document to `loop-studio/graph/3`,
+   *  one-way; an emptied table leaves the version where it is. */
+  setKinds: (kinds: readonly ResourceKindDecl[]) => void
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined
@@ -567,6 +593,7 @@ function writeAutosaveNow(): void {
       s.modelVersion,
       liveFrames(),
       liveDataImports(),
+      s.kinds,
     ),
   )
 }
@@ -693,8 +720,8 @@ export function onlyAccentsDiffer(
  *  #391: identical snapshots and position-only ones used to fall through to
  *  the bump). */
 export function onlyDecorationDiffers(
-  a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
-  b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
+  a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion; kinds?: readonly ResourceKindDecl[] },
+  b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion; kinds?: readonly ResourceKindDecl[] },
 ): boolean {
   // §ER18 — and a connection's sides (`ports`, cosmetic in SEMANTICS-R11.md):
   // undoing a side-only end move does not reset the run either
@@ -702,8 +729,8 @@ export function onlyDecorationDiffers(
 }
 
 function onlyCosmeticsDiffer(
-  a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
-  b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
+  a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion; kinds?: readonly ResourceKindDecl[] },
+  b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion; kinds?: readonly ResourceKindDecl[] },
   edgeKeys: readonly string[],
 ): boolean {
   const withoutEdgeKeys = (data: unknown): string => {
@@ -713,6 +740,9 @@ function onlyCosmeticsDiffer(
     return JSON.stringify(rest)
   }
   if (a.modelVersion !== b.modelVersion) return false
+  // loop-model/3 — the kinds table is engine input (a conserved kind refuses
+  // a run), so a table change is never decoration
+  if (JSON.stringify(a.kinds ?? []) !== JSON.stringify(b.kinds ?? [])) return false
   if (a.nodes.length !== b.nodes.length || a.edges.length !== b.edges.length) return false
   // a node's `position` is layout, not model (`simulationRev` never moves on
   // a drag), so it is not compared here either (#391)
@@ -846,9 +876,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     if (tag === 'remove') queueMicrotask(() => { if (lastTag === 'remove') lastTag = '' })
     clearPristine() // any edit / load / template — even a coalesced one — ends "pristine"
     if (coalesce) return
-    const { nodes, edges, modelVersion, recordLabels } = get()
+    const { nodes, edges, modelVersion, kinds, recordLabels } = get()
     set({
-      past: [...get().past, { nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow(framesOverride) }].slice(-HISTORY_MAX),
+      past: [...get().past, { nodes, edges, modelVersion, kinds, recordLabels, sidecar: sidecarNow(framesOverride) }].slice(-HISTORY_MAX),
       future: [], // a fresh action discards the redo branch AND its sidecars
       canUndo: true,
       canRedo: false,
@@ -905,8 +935,8 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     notifyFrameChange: () => persist(),
 
     captureGestureSnapshot: () => {
-      const { nodes, edges, modelVersion, recordLabels } = get()
-      const entry: HistoryEntry = { nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow() }
+      const { nodes, edges, modelVersion, kinds, recordLabels } = get()
+      const entry: HistoryEntry = { nodes, edges, modelVersion, kinds, recordLabels, sidecar: sidecarNow() }
       return entry as unknown as GestureSnapshot
     },
     pushGestureEntry: (snapshot) => {
@@ -923,9 +953,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     beginNodeDrag: () => {
       if (editGuard()) return // #334 — a refused drag opens no transaction
       if (dragTx) return // the node and selection start callbacks of one gesture: the first wins
-      const { nodes, edges, modelVersion, recordLabels } = get()
+      const { nodes, edges, modelVersion, kinds, recordLabels } = get()
       dragTx = {
-        snapshot: { nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow() },
+        snapshot: { nodes, edges, modelVersion, kinds, recordLabels, sidecar: sidecarNow() },
         positions: new Map(nodes.map((n) => [n.id, { x: n.position.x, y: n.position.y }])),
       }
     },
@@ -974,6 +1004,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     pendingInitialView: null,
     pristineSample: stored == null,
     modelVersion: bootModelVersion,
+    kinds: stored?.kinds ?? [],
     // issue #344 step 3 (§ER15.1) — the autosaved Project header says which
     // label rule the document had; a header written before the key existed is
     // a record from before `loop-revision/10`. A proposal session is not
@@ -986,21 +1017,22 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     undo: () => {
       if (editGuard()) return // #334 — refused while the edit lock is on
-      const { past, future, nodes, edges, modelVersion, recordLabels } = get()
+      const { past, future, nodes, edges, modelVersion, kinds, recordLabels } = get()
       if (!past.length) return
       const prev = past[past.length - 1]
       lastTag = ''
       set({
         ...restoredSelection(prev, prev.selection?.undo),
         modelVersion: prev.modelVersion,
+        kinds: prev.kinds,
         recordLabels: prev.recordLabels ?? false,
         past: past.slice(0, -1),
-        future: [{ nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow(), ...(prev.selection ? { selection: prev.selection } : {}) }, ...future].slice(0, HISTORY_MAX),
+        future: [{ nodes, edges, modelVersion, kinds, recordLabels, sidecar: sidecarNow(), ...(prev.selection ? { selection: prev.selection } : {}) }, ...future].slice(0, HISTORY_MAX),
         canUndo: past.length > 1,
         canRedo: true,
       })
       // FC-2.4 / R10-INV-2 — undoing a flow colour, a shape or a bend point is not a model change
-      if (onlyDecorationDiffers({ nodes, edges, modelVersion }, prev)) clearPristine()
+      if (onlyDecorationDiffers({ nodes, edges, modelVersion, kinds },prev)) clearPristine()
       else bump()
       persist()
       restoreSidecar(prev.sidecar) // restore the project header + saved frames this entry carried
@@ -1008,21 +1040,22 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     redo: () => {
       if (editGuard()) return // #334 — refused while the edit lock is on
-      const { past, future, nodes, edges, modelVersion, recordLabels } = get()
+      const { past, future, nodes, edges, modelVersion, kinds, recordLabels } = get()
       if (!future.length) return
       const next = future[0]
       lastTag = ''
       set({
         ...restoredSelection(next, next.selection?.redo),
         modelVersion: next.modelVersion,
+        kinds: next.kinds,
         recordLabels: next.recordLabels ?? false,
-        past: [...past, { nodes, edges, modelVersion, recordLabels, sidecar: sidecarNow(), ...(next.selection ? { selection: next.selection } : {}) }].slice(-HISTORY_MAX),
+        past: [...past, { nodes, edges, modelVersion, kinds, recordLabels, sidecar: sidecarNow(), ...(next.selection ? { selection: next.selection } : {}) }].slice(-HISTORY_MAX),
         future: future.slice(1),
         canUndo: true,
         canRedo: future.length > 1,
       })
       // FC-2.4 / R10-INV-2 — redoing a flow colour, a shape or a bend point is not a model change
-      if (onlyDecorationDiffers({ nodes, edges, modelVersion }, next)) clearPristine()
+      if (onlyDecorationDiffers({ nodes, edges, modelVersion, kinds },next)) clearPristine()
       else bump()
       persist()
       restoreSidecar(next.sidecar) // restore the project header + saved frames this entry carried
@@ -1374,6 +1407,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         selectedNodeId: null,
         selectedEdgeId: null,
         modelVersion: 1,
+        kinds: [], // loop-model/3 — an empty canvas declares no kinds
         recordLabels: false,
         loadRev: get().loadRev + 1,
         pendingInitialView: null, // §MML3 — no menu framing survives a New
@@ -1393,7 +1427,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       persist()
     },
 
-    loadGraph: (snapshot, { canvasLocked, modelVersion = 1, initialView = null, frames, dataImports }) => {
+    loadGraph: (snapshot, { canvasLocked, modelVersion = 1, initialView = null, frames, dataImports, kinds }) => {
       // templates and pasted graphs go through the same handle/field backfill
       const { nodes, edges } = normalizeGraph(snapshot)
       const fresh = enterDocument(canvasLocked)
@@ -1405,6 +1439,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         selectedNodeId: null,
         selectedEdgeId: null,
         modelVersion,
+        kinds: kinds ? canonicalKinds(kinds) : [], // loop-model/3 — a Template's table, or none
         recordLabels: false,
         loadRev: get().loadRev + 1,
         fitRev: get().fitRev + 1,
@@ -1423,10 +1458,10 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     loadJSON: (text) => {
-      const { nodes, edges, recommendedRunConfig, modelVersion, layoutVersion, frames, dataImports } = deserialize(text)
+      const { nodes, edges, recommendedRunConfig, modelVersion, layoutVersion, frames, dataImports, kinds } = deserialize(text)
       get().loadDoc(
         { nodes, edges },
-        { mode: 'document-boundary', canvasLocked: recommendedRunConfig?.canvasLocked === true, modelVersion, layoutVersion, frames, dataImports },
+        { mode: 'document-boundary', canvasLocked: recommendedRunConfig?.canvasLocked === true, modelVersion, layoutVersion, frames, dataImports, kinds },
       )
       return recommendedRunConfig
     },
@@ -1438,7 +1473,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
      *  whether this is another document (empty history, its own lock) or a
      *  revision Apply on this one (one undo entry, refused while locked). */
     loadDoc: (doc, opts) => {
-      const { modelVersion = 1, dataImports } = opts
+      const { modelVersion = 1, dataImports, kinds } = opts
       let { nodes, edges } = doc
       let frames = opts.frames
       // issue #344 §DL2.8 — an older layout is re-placed once, here, before
@@ -1464,6 +1499,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         selectedNodeId: null,
         selectedEdgeId: null,
         modelVersion,
+        // loop-model/3 — another document brings its own table (none ⇒ empty);
+        // a revision Apply replaces it only when it carries one, as `frames`
+        kinds: kinds !== undefined ? canonicalKinds(kinds) : opts.mode === 'document-boundary' ? [] : get().kinds,
         // issue #344 step 3 — another document says which label rule it takes;
         // a revision Apply edits this one and keeps its rule
         recordLabels: opts.mode === 'document-boundary' ? opts.recordLabels === true : get().recordLabels,
@@ -1483,15 +1521,16 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       if (editGuard()) return { ok: false, reason: 'locked' } // #334 — the edit lock
       const g = get()
       const built = insertGraph(
-        { nodes: g.nodes, edges: g.edges, modelVersion: g.modelVersion },
+        { nodes: g.nodes, edges: g.edges, modelVersion: g.modelVersion, kinds: g.kinds },
         mod,
         { at: opts.free ? opts.at : snapNodePosition(opts.at) }, // issue #344 §DL3 — the anchor on the grid
       )
       if (!built.ok) return { ok: false, reason: built.reason }
-      // §MS3.4 / MS7-2 — a v1 host + v2 module promotion is never silent. Bail
-      // (changing nothing) until the caller re-invokes with the user's consent.
-      if (built.promotedToV2 && !opts.confirmedPromotion) {
-        return { ok: false, reason: 'needs-v2-consent' }
+      // §MS3.4 / MS7-2 — a promotion (a v1 host + v2 module; any host + a v3
+      // module, loop-model/3) is never silent. Bail (changing nothing) until
+      // the caller re-invokes with the user's consent to THAT version.
+      if (built.promotedTo !== null && !opts.confirmedPromotion) {
+        return { ok: false, reason: 'needs-promotion-consent', promotedTo: built.promotedTo }
       }
       // §MS3.5 / B5 — ONE history entry. `commit('')` snapshots the pre-insert
       // nodes + edges + `modelVersion` + both sidecars; the single `set` below
@@ -1529,12 +1568,13 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         // is not left marked beside the inserted block
         edges: flaggedOnly(built.edges, []),
         modelVersion: built.modelVersion,
+        kinds: built.kinds, // loop-model/3 — the host's table, then the module's new kinds (§MS3.4)
         selectedNodeId: insertedSelection.nodeId,
         selectedEdgeId: null,
       })
       bump()
       persist()
-      return { ok: true, insertedNodeIds: built.insertedNodeIds, promotedToV2: built.promotedToV2 }
+      return { ok: true, insertedNodeIds: built.insertedNodeIds, promotedTo: built.promotedTo }
     },
 
     commitDataImport: (plan, placement) => {
@@ -1635,7 +1675,25 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         get().modelVersion,
         liveFrames(),
         liveDataImports(),
+        get().kinds,
       ),
+
+    setKinds: (next) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
+      const kinds = canonicalKinds(next)
+      const cur = get()
+      if (JSON.stringify(kinds) === JSON.stringify(cur.kinds)) return
+      commit('')
+      lastTag = ''
+      set({
+        kinds,
+        // §M3-1 — the first declaration promotes the document to /graph/3,
+        // one-way: an emptied table does not demote it (the v2 latch's rule)
+        modelVersion: kinds.length > 0 && cur.modelVersion < 3 ? 3 : cur.modelVersion,
+      })
+      bump() // a conserved kind can refuse the run; the sim re-reads the table
+      persist()
+    },
   }
 })
 

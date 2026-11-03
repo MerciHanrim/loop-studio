@@ -25,6 +25,15 @@ export function hasModelLayer(modelVersion: ModelSemanticsVersion | number | und
   return (modelVersion ?? 1) >= 2
 }
 
+/** loop-model/3 and later — the kinds table (SEMANTICS-M3.md): a document may
+ *  declare resource kinds, opt a kind into per-kind conservation and name its
+ *  base unit; the engine reads every connection's kind and refuses a run where
+ *  a conserved kind is involved and a recipe is broken or cannot be computed.
+ *  A `kinds` key on a document of an earlier version is not read (§M3-1). */
+export function hasKindsTable(modelVersion: ModelSemanticsVersion | number | undefined): boolean {
+  return (modelVersion ?? 1) >= 3
+}
+
 /** The §M2-8 discriminator a model-layer document's canonical projection and
  *  digest carry (`"loop-model/2"` for version 2, `"loop-model/N"` for N), and
  *  `undefined` for a version-1 document, whose bytes stay untouched (M2-INV-9). */

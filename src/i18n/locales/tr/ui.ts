@@ -78,6 +78,7 @@ const ui = {
   'playbar.initError': 'Çalıştırılamıyor: {detail}',
   'playbar.refused': 'Çalıştırılamıyor: ayrılıp yeniden birleşen yollar ({n})',
   'playbar.refused.show': 'Göster',
+  'playbar.refused.kinds': 'Çalıştırılamıyor: korunan bir türde bulgular ({n})',
   'inspector.refused.splitRejoin': 'Çalıştırılamıyor: kaynaklar {split} noktasında ayrılıp {join} noktasında yeniden birleşiyor. Bu model sürümü ayrılıp yeniden birleşen yolları desteklemediği için model çalışmıyor. Çalıştırmak için yollardan birini kaldırın ya da birine bir Havuz ekleyin. Havuz gelenleri tuttuğu için o yol bir adım sonra ilerler.',
   'playbar.diag.title': 'Çalıştırma tanıları ({n})',
   'playbar.diag.multiSupplyLoss': '{label} bu adımda kullanabileceğinden {amount} fazla aldı ve bu miktar kayboldu.',

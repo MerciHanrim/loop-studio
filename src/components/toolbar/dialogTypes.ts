@@ -1,4 +1,5 @@
 import type { StorageStep } from '../StoragePrivacyDialog'
+import type { ModelSemanticsVersion } from '../../model/modelVersion'
 
 // docs/toolbar-responsive.md — the modal dialogs that used to live inside
 // ExportMenu / DataImportMenu / HelpMenu / ModuleMenu (removed 2026-10) now
@@ -29,6 +30,8 @@ export type ToolbarDialog =
   | { kind: 'exampleNotes' }
   // issue #297 - the Storage and privacy area; `step` opens it on a confirmation
   | { kind: 'storage-privacy'; step?: StorageStep }
-  | { kind: 'module-promote'; run: () => void }
+  // the version the insert would lift the document to (2: the model layer,
+  // 3: the kinds table, loop-model/3) — the consent names it
+  | { kind: 'module-promote'; to: ModelSemanticsVersion; run: () => void }
   | { kind: 'module-frames'; body: string; run: () => void }
   | null

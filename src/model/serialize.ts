@@ -14,25 +14,28 @@ export const STORAGE_KEY = 'loop-studio:graph:v1'
  *  envelope shape is unchanged). */
 export const SCHEMA_V1 = 'loop-studio/graph'
 export const SCHEMA_V2 = 'loop-studio/graph/2'
+/** loop-model/3 (SEMANTICS-M3.md §M3-1) — a document with a kinds table. */
+export const SCHEMA_V3 = 'loop-studio/graph/3'
 const SCHEMA_VERSION = 1
 /** issue #344, docs/diagram-layout.md §DL2.8 — the current layout rules: 1 =
  *  the 16 px grid with the 28 px port row. A document with a lower (or no)
  *  `layoutVersion` is re-placed once when it is opened. */
 export const LAYOUT_VERSION = 1
 
-import type { ModelSemanticsVersion } from './modelVersion'
+import { hasKindsTable, type ModelSemanticsVersion } from './modelVersion'
+import { canonicalKinds, readKinds, type ResourceKindDecl } from './kinds'
 export type { ModelSemanticsVersion } from './modelVersion'
+export type { ResourceKindDecl } from './kinds'
 
 /** The model-semantics versions a document may DECLARE in this build — the
- *  readable set. `ModelSemanticsVersion` (`modelVersion.ts`) also names 3, the
- *  version the kinds contract (#471) will introduce as `loop-studio/graph/3`;
- *  until that deploy no schema string maps to it, so such a file is "a newer
- *  schema" to this build and fails closed on open (§M2-1). Capability checks
- *  (`hasModelLayer`) already treat 3 as a model-layer version, so the day it is
- *  readable no site reads it as v1. */
+ *  readable set, one schema string per version (§M2-1, §M3-1). A version
+ *  `ModelSemanticsVersion` names but this map does not is one no document can
+ *  declare yet: such a file is "a newer schema" to this build and fails closed
+ *  on open, and `schemaForModelVersion` refuses to write it. */
 const SCHEMA_BY_MODEL_VERSION: Partial<Record<ModelSemanticsVersion, string>> = {
   1: SCHEMA_V1,
   2: SCHEMA_V2,
+  3: SCHEMA_V3,
 }
 /** The envelope `schema` string a document of this model-semantics version is
  *  written with (§M2-1). The ONE writer-side mapping — `serialize()` and the
@@ -53,6 +56,7 @@ export function schemaForModelVersion(modelVersion: ModelSemanticsVersion | unde
 export function modelVersionForSchema(schema: unknown): ModelSemanticsVersion | null {
   if (schema === SCHEMA_V1) return 1
   if (schema === SCHEMA_V2) return 2
+  if (schema === SCHEMA_V3) return 3
   return null
 }
 
@@ -237,6 +241,10 @@ export type GraphDoc = {
    *  spreadsheet-import source records. Emitted only when non-empty. Read
    *  defensively (`readDataImports`). */
   dataImports?: ImportSourceTable[]
+  /** loop-model/3 (SEMANTICS-M3.md §M3-1) — the kinds table. Emitted only when
+   *  non-empty, and then only on a `loop-studio/graph/3` document. Read
+   *  defensively (`readKinds`), and not at all from an earlier schema. */
+  kinds?: ResourceKindDecl[]
   /** loop-workspace/2 extension (SEMANTICS-W2.md) — an opaque blob here; the
    *  Workspace reader validates it against the loaded graph. Absent on a plain
    *  Graph Export. */
@@ -695,7 +703,15 @@ export function serialize(
   /** `loop-revision/8` — the saved data-import source records. Absent / empty
    *  ⇒ no `dataImports` key, byte-identical to a pre-R8 file (R8-INV-2). */
   dataImports?: readonly ImportSourceTable[],
+  /** loop-model/3 — the kinds table. Absent / empty ⇒ no `kinds` key; a
+   *  non-empty table needs `modelVersion` 3 (M3-INV-1: an older envelope may
+   *  not carry one), so writing it with less is refused, never silently dropped. */
+  kinds?: readonly ResourceKindDecl[],
 ): string {
+  const kindsOut = Array.isArray(kinds) ? canonicalKinds(kinds) : []
+  if (kindsOut.length > 0 && !hasKindsTable(modelVersion)) {
+    throw new Error(`a kinds table needs model-semantics version 3, not ${modelVersion}`)
+  }
   const doc: GraphDoc = {
     schema: schemaForModelVersion(modelVersion),
     version: SCHEMA_VERSION,
@@ -714,6 +730,8 @@ export function serialize(
   if (Array.isArray(dataImports) && dataImports.length > 0) {
     doc.dataImports = dataImports.map(toDocImportSourceTable)
   }
+  // §M3-1 — `kinds` after `dataImports`, only when non-empty, in its read form.
+  if (kindsOut.length > 0) doc.kinds = kindsOut
   if (workspace && typeof workspace === 'object') {
     doc.workspace = workspace
   }
@@ -764,7 +782,10 @@ export function deserialize(text: string): {
   /** `loop-revision/8` — the saved data-import source records, already run
    *  through `readDataImports`. `[]` when the file has none. */
   dataImports: ImportSourceTable[]
-  /** `SEMANTICS-R8.md §R8-1` — true when the file's RAW, pre-defensive-read
+  /** loop-model/3 — the kinds table (§M3-1), already run through `readKinds`;
+   *  `[]` when absent, and always `[]` for a document before `/graph/3`. */
+  kinds: ResourceKindDecl[]
+  /**`SEMANTICS-R8.md §R8-1` — true when the file's RAW, pre-defensive-read
    *  content carried a data-import provenance signal that `readDataImports` /
    *  `readParameterData` may have gone on to discard as unreadable (an
    *  invalid-typed provenance key, or a `dataImports` entry that didn't
@@ -825,6 +846,7 @@ export function deserialize(text: string): {
     layoutVersion: Number.isInteger(obj.layoutVersion) && (obj.layoutVersion as number) >= 0 ? (obj.layoutVersion as number) : 0,
     frames: readSavedFrames(obj.frames), // §R5-1.1 — [] when absent / all-bad
     dataImports: readDataImports(obj.dataImports), // §R8-1.1 — [] when absent / all-bad
+    kinds: hasKindsTable(modelVersion) ? readKinds(obj.kinds) : [], // §M3-1 — never from an earlier schema
     hasRawDataImportSignal,
     ...(rrc ? { recommendedRunConfig: rrc } : {}),
     ...(workspace ? { workspace } : {}),
@@ -870,6 +892,8 @@ export function saveToStorage(
   /** `loop-revision/8` — the current saved data-import source records,
    *  atomically in the same write. Absent / empty ⇒ no `dataImports` key. */
   dataImports?: readonly ImportSourceTable[],
+  /** loop-model/3 — the current kinds table, atomically in the same write. */
+  kinds?: readonly ResourceKindDecl[],
 ): SaveToStorageResult {
   try {
     // `'all'` is a deliberate choice and is written; `'auto'` (and the legacy
@@ -894,7 +918,7 @@ export function saveToStorage(
         return { ok: false, reason: 'held' }
       }
     }
-    const text = serialize(nodes, edges, rrc, undefined, project, modelVersion, frames, dataImports)
+    const text = serialize(nodes, edges, rrc, undefined, project, modelVersion, frames, dataImports, kinds)
     storagePort.setItem(STORAGE_KEY, text)
     if (personal) lastKnownWorkText = text
     return { ok: true }
@@ -916,6 +940,7 @@ export function loadFromStorage():
       recommendedRunConfig?: RecommendedRunConfig
       frames: SavedFrame[]
       dataImports: ImportSourceTable[]
+      kinds: ResourceKindDecl[]
       project?: unknown
     }
   | null {
@@ -927,8 +952,8 @@ export function loadFromStorage():
   return null
 }
 
-/** the highest `loop-studio/graph/<n>` this build reads (`SCHEMA_V2`) */
-const KNOWN_SCHEMA_MAX = 2
+/** the highest `loop-studio/graph/<n>` this build reads (`SCHEMA_V3`) */
+const KNOWN_SCHEMA_MAX = 3
 
 /** #420 — what is in the work record, told apart: nothing, a document, text this
  *  build cannot read (kept as it is, with the reason and whether a newer

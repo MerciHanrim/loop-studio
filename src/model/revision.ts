@@ -19,7 +19,8 @@ import {
 import { normalizeGraph, readDataImports, readSavedFrames, schemaForModelVersion } from './serialize'
 import type { ImportSourceTable, RecommendedRunConfig, SavedFrame } from './serialize'
 import type { FlowNodeKind, LoopEdge, LoopNode } from './types'
-import { hasModelLayer, isModelSemanticsLabel, modelSemanticsLabel, type ModelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
+import { hasKindsTable, hasModelLayer, isModelSemanticsLabel, modelSemanticsLabel, type ModelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
+import { canonicalKinds, readKinds, type ResourceKindDecl } from './kinds'
 import { sha256Hex, sha256Js, utf8ByteLength, utf8Bytes } from './workspace'
 
 // ── constants & formats (§R11) ──────────────────────────────────────────────
@@ -115,6 +116,15 @@ export type CanonicalContent = {
    * three-way-merge. Array order is file order — not re-sorted.
    */
   dataImports?: ImportSourceTable[]
+  /**
+   * loop-model/3 (SEMANTICS-M3.md §M3-6) — the kinds table. A trailing key
+   * AFTER `dataImports`, BEFORE `modelSemantics`; present **iff** ≥ 1 entry
+   * survives the §M3-1 read AND the projection runs at a version that has a
+   * kinds table (`hasKindsTable`). Absent ⇒ earlier canonical bytes / digest
+   * unchanged. Engine input (a conserved kind can refuse the run), so a
+   * different table hashes differently. Array order is file order.
+   */
+  kinds?: ResourceKindDecl[]
   /**
    * loop-model/2 (SEMANTICS-M2.md §M2-8) — the model-semantics discriminator.
    * Present (as `"loop-model/2"`, or `"loop-model/N"` for a later version N)
@@ -573,6 +583,9 @@ export function canonicalContent(
     /** `loop-revision/8` — raw or already-clean data-import source records
      *  (§R8-1.1 is applied here defensively, so a caller may pass either). */
     dataImports?: unknown
+    /** loop-model/3 — raw or already-clean kinds table (§M3-1 is applied here
+     *  defensively, so a caller may pass either). */
+    kinds?: unknown
   },
   opts: { modelLayer?: boolean; modelVersion?: CanonModelVersion } = {},
 ): CanonicalContent {
@@ -639,6 +652,16 @@ export function canonicalContent(
           foreignKey: Object.fromEntries(Object.keys(r.foreignKey).sort().map((k) => [k, r.foreignKey[k]])),
         })),
       }))
+    }
+  }
+  // loop-model/3 (SEMANTICS-M3.md §M3-6) — `kinds` AFTER `dataImports`, BEFORE
+  // `modelSemantics`, only at a version with a kinds table, only when ≥ 1
+  // entry survives §M3-1. Array in FILE ORDER, each entry name / conserved /
+  // baseUnit?. Absent ⇒ earlier bytes untouched.
+  if (modelLayer && hasKindsTable(opts.modelVersion)) {
+    const kinds = readKinds(doc.kinds)
+    if (kinds.length > 0) {
+      out.kinds = kinds.map((k) => (k.baseUnit !== undefined ? { name: k.name, conserved: k.conserved, baseUnit: k.baseUnit } : { name: k.name, conserved: k.conserved }))
     }
   }
   // loop-model/2 (SEMANTICS-M2.md §M2-8) — trailing discriminator, ONLY for a
@@ -755,6 +778,10 @@ export function readRevisionSide(
      *  records (from `deserialize`). Same posture as `frames`: ≥ 1 surviving
      *  entry makes the side (at least) `loop-revision/8`. */
     dataImports?: readonly ImportSourceTable[]
+    /** loop-model/3 (SEMANTICS-M3.md §M3-6) — the side's kinds table (from
+     *  `deserialize`; `[]` before `/graph/3`). Projected at the declared
+     *  version, so a v3 side's digest covers it. */
+    kinds?: readonly ResourceKindDecl[]
     /** `SEMANTICS-R8.md` §R8-1 — true when the file's RAW, pre-defensive-read
      *  content carried a data-import provenance signal (an invalid-typed
      *  provenance key, or a `dataImports` entry) that `readDataImports` /
@@ -925,10 +952,13 @@ export function readRevisionSide(
   // `{ modelLayer: true }` projection; v4 additionally carries the §M2-8
   // model-semantics discriminator. The label distinguishes them for the loss
   // report / UI (§R3-5) — it does not change which fields the projection
-  // emits.
+  // emits. The discriminator is the DECLARED version (`loop-model/2`,
+  // `loop-model/3`, …): projecting a later document at 2 would verify it
+  // against a digest it never had (#471, the kinds contract; a `/graph/3`
+  // side also projects its `kinds`).
   const v2 = canonicalContent(graph, {
     modelLayer: true,
-    ...(declaredV2 ? { modelVersion: 2 as const } : {}),
+    ...(declaredV2 ? { modelVersion } : {}),
   })
   if (storedDigest !== undefined && digestOfCanonical(v2) !== storedDigest) {
     return {
@@ -2110,6 +2140,12 @@ function readCanonicalContent(x: unknown): CanonicalContent | null {
   if (Array.isArray(o.dataImports) && o.dataImports.length > 0) {
     out.dataImports = o.dataImports as NonNullable<CanonicalContent['dataImports']>
   }
+  // loop-model/3 (SEMANTICS-M3.md §M3-6) — a stored base snapshot from a v3
+  // document carries the trailing `kinds` array (after `dataImports`), same
+  // verbatim posture.
+  if (Array.isArray(o.kinds) && o.kinds.length > 0) {
+    out.kinds = o.kinds as NonNullable<CanonicalContent['kinds']>
+  }
   // loop-model/2 (SEMANTICS-M2.md §M2-8) — a stored base snapshot from a v2
   // document carries the trailing discriminator; keep it verbatim (after rrc,
   // the same key order `canonicalContent` emits) so the stored digest verifies.
@@ -2154,6 +2190,9 @@ export type GraphDocInput = {
    *  Absent / empty ⇒ no `dataImports` key and no digest contribution
    *  (R8-INV-2 conservative extension). */
   dataImports?: readonly ImportSourceTable[]
+  /** loop-model/3 (SEMANTICS-M3.md §M3-6) — the doc's kinds table. Absent /
+   *  empty ⇒ no `kinds` key and no digest contribution. */
+  kinds?: readonly ResourceKindDecl[]
   workspace?: unknown
 }
 
@@ -2369,6 +2408,8 @@ function buildFile(
   if (Array.isArray(doc.frames) && doc.frames.length > 0) file.frames = doc.frames
   // §R8-2.1 — `dataImports` after `frames`, only when non-empty, same posture.
   if (Array.isArray(doc.dataImports) && doc.dataImports.length > 0) file.dataImports = doc.dataImports
+  // §M3-1 — `kinds` after `dataImports`, only when non-empty, in its read form.
+  if (Array.isArray(doc.kinds) && doc.kinds.length > 0) file.kinds = canonicalKinds(doc.kinds)
   if (doc.workspace && typeof doc.workspace === 'object') file.workspace = doc.workspace
   file.project = project
   return file

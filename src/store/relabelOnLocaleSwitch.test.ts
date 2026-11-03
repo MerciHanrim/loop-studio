@@ -34,6 +34,7 @@ const historyEntry = (nodes: LoopNode[]) => ({
   nodes,
   edges: [],
   modelVersion: 1 as const,
+  kinds: [],
   sidecar: { p: null, f: null, d: null },
 })
 
