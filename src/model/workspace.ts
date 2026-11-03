@@ -11,6 +11,7 @@ import { sha256 as nobleSha256 } from '@noble/hashes/sha2.js'
 import { ENGINE_REVISION } from '../engine/revision'
 import { MAX_SERIES } from './limits'
 import type { LoopEdge, LoopNode } from './types'
+import { hasModelLayer, modelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
 
 /** the `workspace.schema` string written (§W2-4) */
 export const WORKSPACE_SCHEMA = 'loop-workspace/2'
@@ -107,7 +108,7 @@ type EdgeProjection = {
   when?: string
 }
 
-function projectNode(n: LoopNode, modelVersion?: 1 | 2): NodeProjection {
+function projectNode(n: LoopNode, modelVersion?: ModelSemanticsVersion): NodeProjection {
   const d = (n.data ?? {}) as LoopNode['data']
   if (typeof d !== 'object') return { id: n.id, kind: undefined as unknown as string }
   const p: NodeProjection = { id: n.id, kind: d.kind }
@@ -119,7 +120,7 @@ function projectNode(n: LoopNode, modelVersion?: 1 | 2): NodeProjection {
     p.capacity = d.capacity
   }
   // issue #409 — the engine input of loop-model/2 (see NodeProjection.value)
-  if (d.kind === 'parameter' && modelVersion === 2) p.value = d.value
+  if (d.kind === 'parameter' && hasModelLayer(modelVersion)) p.value = d.value
   return p
 }
 
@@ -168,12 +169,13 @@ export function stableStringify(value: unknown): string {
  *  vs. a resolved Parameter — hashes differently. Absent ⇒ v1 bytes untouched. */
 export function canonicalGraphString(
   graph: { nodes: LoopNode[]; edges: LoopEdge[] },
-  modelVersion?: 1 | 2,
+  modelVersion?: ModelSemanticsVersion,
 ): string {
+  const modelSemantics = modelSemanticsLabel(modelVersion)
   return stableStringify({
     nodes: [...graph.nodes].map((n) => projectNode(n, modelVersion)).sort(byId),
     edges: [...graph.edges].map(projectEdge).sort(byId),
-    ...(modelVersion === 2 ? { modelSemantics: 'loop-model/2' } : {}),
+    ...(modelSemantics !== undefined ? { modelSemantics } : {}),
   })
 }
 
@@ -186,7 +188,7 @@ export function canonicalGraphString(
  */
 export async function semanticDigest(
   graph: { nodes: LoopNode[]; edges: LoopEdge[] },
-  modelVersion?: 1 | 2,
+  modelVersion?: ModelSemanticsVersion,
 ): Promise<string> {
   return sha256Hex(utf8Bytes(canonicalGraphString(graph, modelVersion)))
 }

@@ -39,6 +39,7 @@
     "check:change-declaration": "node scripts/check-change-declaration.mjs",
     "check:e2e-shards": "node scripts/e2e-shards.mjs check",
     "check:functional-glyphs": "node scripts/check-functional-glyphs.mjs",
+    "check:model-version": "node scripts/check-model-version.mjs",
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",

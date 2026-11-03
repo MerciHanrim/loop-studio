@@ -8,6 +8,7 @@
 import type { NodeKind } from '../model/types'
 import { tokenize } from '../model/expr/tokenize'
 import type { ModelVersion } from './flow'
+import { hasModelLayer } from '../model/modelVersion'
 
 // The node kinds that actively move resources in Phase 2 (a "routing node").
 // docs/label-timing-authoring.md §LTA4.2 / LTA-D13 — canonical home, so
@@ -100,7 +101,7 @@ export function parseActivatorExpr(raw: string, modelVersion: ModelVersion = 1):
   }
   if (s.trim() === '') return { ok: false, reason: 'empty' }
   if (ACT_OP_ONLY_RE.test(s)) return { ok: false, reason: 'op-only' }
-  if (modelVersion === 2) {
+  if (hasModelLayer(modelVersion)) {
     const opRhs = ACT_OP_PREFIX_RE.exec(s)
     if (opRhs) {
       const term = parseParamTerm(opRhs[2])

@@ -10,6 +10,7 @@ import { toCsv } from '../model/csv'
 import type { LoopEdge, LoopNode } from '../model/types'
 import { mix32 } from './rng'
 import { initSim, step } from './step'
+import type { ModelVersion } from './flow'
 
 export const MC_SPEC = 'loop-mc/1'
 export const MC_SEED_SPEC = 'loop-mc-seed/1'
@@ -31,7 +32,7 @@ export type RunConfig = {
    *  threaded to `step()`. Absent / `1` ⇒ loop-model/1 execution (no `@id` flow
    *  resolution), byte-identical to before. A transient run input, not a
    *  persisted config field. */
-  modelVersion?: 1 | 2
+  modelVersion?: ModelVersion
 }
 
 export type RunOptions = {

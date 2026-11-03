@@ -181,7 +181,7 @@ export function proposedGraph(
 ): {
   nodes: LoopNode[]
   edges: LoopEdge[]
-  modelVersion: 1 | 2
+  modelVersion: ModelSemanticsVersion
   frames: SavedFrame[]
   dataImports: ImportSourceTable[]
 } {

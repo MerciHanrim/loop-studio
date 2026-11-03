@@ -202,9 +202,10 @@ export function insertGraph(host: GraphDocLike, mod: GraphDocLike, opts: InsertO
     outEdges.push({ ...e, id: edgeIdMap.get(e.id)!, source, target, data })
   }
 
-  // 3. model version (§MS3.4) — a v2 module lifts a v1 host.
-  const modelVersion: ModelSemanticsVersion = mod.modelVersion === 2 ? 2 : host.modelVersion
-  const promotedToV2 = host.modelVersion === 1 && modelVersion === 2
+  // 3. model version (§MS3.4) — a module of a later version lifts the host to
+  // it; the result is the later of the two, never the host read as v1.
+  const modelVersion: ModelSemanticsVersion = Math.max(mod.modelVersion, host.modelVersion) as ModelSemanticsVersion
+  const promotedToV2 = modelVersion > host.modelVersion
 
   // 4. build the full candidate, validate it whole, THEN return (§MS3.6 / B4).
   const nodes = [...host.nodes, ...outNodes]

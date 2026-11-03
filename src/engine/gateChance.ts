@@ -23,6 +23,7 @@
 import { parseFlow, rateOf, type FlowExpr, type ModelVersion } from './flow'
 import { ROUTER_KINDS } from './stateExpr'
 import type { LoopEdge, LoopNode } from '../model/types'
+import { hasModelLayer } from '../model/modelVersion'
 
 const MODEL_KINDS = new Set(['parameter', 'register'])
 
@@ -47,7 +48,7 @@ export function resolveFlowExprs(
     resEdges.map((e) => [e.id, parseFlow(e.data?.kind === 'resource' ? e.data.flow : '1', modelVersion)]),
   )
   const paramDiagnostics: string[] = []
-  if (modelVersion === 2) {
+  if (hasModelLayer(modelVersion)) {
     for (const e of resEdges) {
       const fx = flowOf.get(e.id)!
       if (fx.kind !== 'param' && fx.kind !== 'paramBad') continue

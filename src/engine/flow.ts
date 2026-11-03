@@ -13,6 +13,7 @@
 // exactly as in loop-model/1 — v1 execution is untouched.
 
 import { tokenize } from '../model/expr/tokenize'
+import { hasModelLayer, type ModelSemanticsVersion } from '../model/modelVersion'
 import { MAX_DICE_COUNT } from '../model/limits'
 
 export type FlowExpr =
@@ -24,7 +25,7 @@ export type FlowExpr =
   | { kind: 'param'; id: string } // loop-model/2 — a well-formed `@id` reference; not yet a number
   | { kind: 'paramBad'; raw: string } // loop-model/2 — a leading-`@` string that is NOT a well-formed reference
 
-export type ModelVersion = 1 | 2
+export type ModelVersion = ModelSemanticsVersion
 
 const NUM = /^\d+(?:\.\d+)?$/
 
@@ -40,7 +41,7 @@ function parseParamRef(trimmed: string): string | null {
 
 export function parseFlow(raw: string | undefined, modelVersion: ModelVersion = 1): FlowExpr {
   const trimmed = (raw ?? '').trim()
-  if (modelVersion === 2 && trimmed.startsWith('@')) {
+  if (hasModelLayer(modelVersion) && trimmed.startsWith('@')) {
     const id = parseParamRef(trimmed)
     return id != null ? { kind: 'param', id } : { kind: 'paramBad', raw: trimmed }
   }
