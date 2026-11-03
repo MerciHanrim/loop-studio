@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { initSim, step } from '../engine/step'
 import { applyUnits, stripFieldUnits } from './engineValues'
-import { convertersWhoseVerdictChanges, kindFindings, readKinds, readKindsAt, type ResourceKindDecl } from './kinds'
+import { convertersWhoseVerdictChanges, kindFindings, readKinds, readKindsAt, refusingKindFindings, type ResourceKindDecl } from './kinds'
+import { extractModule, insertGraph } from './moduleGraph'
 import { add, displayRational, equals, parseDecimal, rational, terminatingDecimal, toDouble } from './rational'
 import { canonicalContent } from './revision'
-import { deserialize, serialize } from './serialize'
+import { deserialize, normalizeGraph, serialize } from './serialize'
 import type { LoopEdge, LoopNode } from './types'
-import { engineValue, previewUnitChange, readDocTime, resolveFieldUnit, type DocTime } from './units'
+import { engineValue, previewUnitChange, readDocTime, readFactor, resolveFieldUnit, type DocTime } from './units'
 import { canonicalGraphString } from './workspace'
 
 // loop-model/4 (SEMANTICS-M4.md; #471 U1 stage 2, units-display-design.md
@@ -94,6 +95,110 @@ describe('the §M4-1 read — unit lists and the step length', () => {
   it('reads a step length of 1…10⁶ whole s / min / h / d, and nothing else', () => {
     expect(readDocTime({ step: { value: 30, unit: 'min' }, display: 'h' })).toEqual({ step: { value: 30, unit: 'min' }, display: 'h' })
     for (const bad of [{ step: { value: 0, unit: 'h' } }, { step: { value: 1.5, unit: 'h' } }, { step: { value: 1, unit: 'week' } }, { step: 1 }, null]) expect(readDocTime(bad)).toBeUndefined()
+  })
+})
+
+describe('the runnable range of a factor (§M4-1, Lumi review 1 of #488)', () => {
+  it('reads 10⁻¹⁵ … 10¹⁵ and refuses a 15-digit factor outside it, such as 1e400', () => {
+    expect(readFactor('1e15')).toBe('1000000000000000')
+    expect(readFactor('1e-15')).toBe('0.000000000000001')
+    for (const bad of ['1e400', '1e16', '1.000000000000001e15', '1e-16', '9.99e-16', '0', '-1']) expect(readFactor(bad)).toBeNull()
+    expect(readKinds([{ name: 'w', conserved: false, units: [{ name: 'Big', factor: '1e400' }], rateUnits: [{ name: 'Hot', factor: '1e400', per: 's' }] }])).toEqual([{ name: 'w', conserved: false }])
+  })
+
+  it('keeps every engine value finite at the edges: the largest factor, per second, at the longest step', () => {
+    const decl: ResourceKindDecl = { name: 'w', conserved: false, units: [{ name: 'P', factor: '1e15' }], rateUnits: [{ name: 'Pps', factor: '1e15', per: 's' }] }
+    const longest: DocTime = { step: { value: 1_000_000, unit: 'd' } }
+    for (const u of ['P/s', 'Pps']) {
+      const fu = resolveFieldUnit(u, decl, longest, 'rate')
+      expect(Number.isFinite(engineValue('1e280', fu, longest))).toBe(true)
+      expect(engineValue('1', fu, longest)).toBe(8.64e25)
+    }
+    const smallest: ResourceKindDecl = { name: 'w', conserved: false, units: [{ name: 'f', factor: '1e-15' }] }
+    expect(engineValue('1', resolveFieldUnit('f', smallest, HOUR, 'stock'), HOUR)).toBe(1e-15)
+  })
+
+  it('refuses a run on an authored value whose engine value is not finite, conserved kind or not', () => {
+    const decl: ResourceKindDecl[] = [{ name: 'w', conserved: false, rateUnits: [{ name: 'Pps', factor: '1e15', per: 's' }] }]
+    const longest: DocTime = { step: { value: 1_000_000, unit: 'd' } }
+    const source: LoopNode = { id: 'src', type: 'source', position: XY, data: { kind: 'source', label: 'src', activation: 'automatic', mode: 'pushAny' } as unknown as LoopNode['data'] }
+    const nodes = [pool('p', 'w'), source]
+    const edges = [res('e', 'src', 'p', '1e300', 'Pps')]
+    expect(kindFindings(nodes, edges, decl, 4, longest)).toEqual([{ cls: 'outOfRange', nodeId: null, edgeId: 'e', value: '1e300', unit: 'Pps', refuses: true }])
+    expect(refusingKindFindings(nodes, edges, decl, 4, longest)).toHaveLength(1)
+    const r = step(nodes, edges, initSim(nodes, { kinds: decl, time: longest }), 1, 4, { kinds: decl, time: longest })
+    expect(r.state.values.p).toBe(0)
+    expect(r.report.diagnostics[0]).toMatch(/holds 1e300 Pps, which is beyond the numbers a run can hold/)
+    // below 10²⁸⁰ the rate stays finite even at the longest step, and runs
+    expect(refusingKindFindings(nodes, [res('e', 'src', 'p', '1e280', 'Pps')], decl, 4, longest)).toEqual([])
+  })
+})
+
+describe('a module insert keeps every field’s meaning (§M4-4, Lumi review 1 of #488)', () => {
+  const water = (units?: ResourceKindDecl['units'], baseUnit = 'm³'): ResourceKindDecl[] => [{ name: 'water', conserved: false, baseUnit, ...(units ? { units } : {}) }]
+  const source: LoopNode = { id: 'src', type: 'source', position: XY, data: { kind: 'source', label: 'src', activation: 'automatic', mode: 'pushAny' } as unknown as LoopNode['data'] }
+  /** Lumi's module: written at a 1 h step, `24 L/day` = 1 L per step */
+  const mod = (time: DocTime | undefined, units = [{ name: 'L', factor: '0.001' }]) => ({
+    nodes: [source, pool('tank', 'water')], edges: [res('feed', 'src', 'tank', '24', 'L/d')], modelVersion: 4 as const, kinds: water(units), ...(time ? { time } : {}),
+  })
+  const host = (time: DocTime | undefined, kinds = water(), extra: { nodes?: LoopNode[]; edges?: LoopEdge[] } = {}) => ({
+    ...normalizeGraph({ nodes: [pool('h', 'water'), ...(extra.nodes ?? [])], edges: extra.edges ?? [] }), modelVersion: 4 as const, kinds, ...(time ? { time } : {}),
+  })
+
+  it('refuses a module written with another step length: 24 L/day at 1 h into a 1 d document would move 24 L per step, not 1 L', () => {
+    const r = insertGraph(host(DAY), mod(HOUR), { at: XY })
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.reason).toMatch(/written with a step of 1 h and this document's step is 1 d/)
+  })
+
+  it('inserts at an equal step length however it is written (60 min = 1 h), every engine value kept', () => {
+    const r = insertGraph(host({ step: { value: 60, unit: 'min' } }), mod(HOUR), { at: XY })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const derived = applyUnits(r.nodes, r.edges, r.kinds, r.time)
+    expect((derived.edges.at(-1)!.data as { flow: string }).flow).toBe('0.001') // 1 L per step
+  })
+
+  it('a host with no step length adopts the module’s when that changes no field, and refuses when it would', () => {
+    const ok = insertGraph(host(undefined), mod(HOUR), { at: XY })
+    expect(ok.ok && ok.time).toEqual(HOUR)
+    // a host field written `L/min` read as the base unit for want of a step length; adopting 1 h would scale it
+    const hostEdges = [res('hf', 'hsrc', 'h', '5', 'L/min')]
+    const hostSrc: LoopNode = { ...source, id: 'hsrc' }
+    const bad = insertGraph(host(undefined, water([{ name: 'L', factor: '0.001' }]), { nodes: [hostSrc], edges: hostEdges }), mod(HOUR), { at: XY })
+    expect(bad.ok).toBe(false)
+    if (!bad.ok) expect(bad.reason, bad.reason).toMatch(/would change what these fields move: the connection from src to h/)
+  })
+
+  it('brings the module’s units into the host’s kind, and refuses a unit name both declare with another factor', () => {
+    const joined = insertGraph(host(HOUR, water()), mod(HOUR), { at: XY })
+    expect(joined.ok && joined.kinds).toEqual(water([{ name: 'L', factor: '0.001' }]))
+    const clash = insertGraph(host(HOUR, water([{ name: 'L', factor: '1' }])), mod(HOUR), { at: XY })
+    expect(clash.ok).toBe(false)
+    if (!clash.ok) expect(clash.reason).toMatch(/Unit "L" of "water" is 0.001 in the structure and 1 in this document/)
+    const same = insertGraph(host(HOUR, water([{ name: 'L', factor: '0.001' }])), mod(HOUR), { at: XY })
+    expect(same.ok).toBe(true)
+  })
+
+  it('refuses two different base units for one kind: the numbers count different amounts', () => {
+    const r = insertGraph(host(HOUR, water(undefined, 'L')), mod(HOUR), { at: XY })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.reason).toMatch(/counted in "m³" in the structure and in "L" in this document/)
+  })
+
+  it('a module whose rate is a Parameter reference still inserts: the reference is renamed, its meaning is not', () => {
+    const param: LoopNode = { id: 'q', type: 'parameter', position: XY, data: { kind: 'parameter', label: 'q', value: 2 } as unknown as LoopNode['data'] }
+    const m2 = { ...normalizeGraph({ nodes: [source, pool('tank', 'water'), param], edges: [res('feed', 'src', 'tank', '@q')] }), modelVersion: 4 as const, kinds: water(), time: HOUR }
+    const r = insertGraph(host(HOUR), m2, { at: XY })
+    expect(r.ok).toBe(true)
+  })
+
+  it('a selection from a document with a step length carries it, so the insert can compare', () => {
+    const src = { nodes: [source, pool('tank', 'water')], edges: [res('feed', 'src', 'tank', '3')], modelVersion: 4 as const, kinds: water(), time: HOUR }
+    const x = extractModule(src, ['src', 'tank'])
+    expect(x.ok && x.modelVersion).toBe(4)
+    expect(x.ok && x.time).toEqual(HOUR)
   })
 })
 

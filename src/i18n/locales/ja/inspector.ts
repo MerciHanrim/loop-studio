@@ -207,6 +207,7 @@ const inspector = {
   'kinds.finding.rateConserved': '{from} から {to} への接続: レート {rate} は数値ではないため、{converter} の {kind} の収支を計算できません。',
   'kinds.finding.noKind': '{from} から {to} への接続 に種類がないため、{converter} の収支を計算できません。',
   'kinds.finding.broken': '{converter}: {kind} 出力 {out}、入力 {in}。',
+  'kinds.finding.outOfRange': '{value} {unit} は実行で計算できる範囲を超えています。',
   'inspector.field.authoredUnit': '単位',
   'inspector.unit.base': '基本単位',
   'inspector.unit.perStep': 'ステップあたり {unit}',

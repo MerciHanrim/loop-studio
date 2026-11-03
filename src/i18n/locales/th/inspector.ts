@@ -214,6 +214,7 @@ const inspector = {
   'kinds.finding.rateConserved': 'การเชื่อมต่อจาก {from} ไป {to}: อัตรา {rate} ไม่ใช่ตัวเลข จึงคำนวณสมดุล {kind} ของ {converter} ไม่ได้',
   'kinds.finding.noKind': 'การเชื่อมต่อจาก {from} ไป {to} ไม่มีชนิด จึงคำนวณสมดุลของ {converter} ไม่ได้',
   'kinds.finding.broken': '{converter}: {kind} ออก {out} เข้า {in}',
+  'kinds.finding.outOfRange': '{value} {unit} เกินกว่าที่การรันจะคำนวณได้',
   'inspector.field.authoredUnit': 'หน่วย',
   'inspector.unit.base': 'หน่วยฐาน',
   'inspector.unit.perStep': '{unit} ต่อขั้น',

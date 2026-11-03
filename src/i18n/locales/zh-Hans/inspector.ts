@@ -197,6 +197,7 @@ const inspector = {
   'kinds.finding.rateConserved': '从 {from} 到 {to} 的连接：比率 {rate} 不是数字，因此无法计算 {converter} 的 {kind} 收支。',
   'kinds.finding.noKind': '从 {from} 到 {to} 的连接 没有种类，因此无法计算 {converter} 的收支。',
   'kinds.finding.broken': '{converter}：{kind} 输出 {out}，输入 {in}。',
+  'kinds.finding.outOfRange': '{value} {unit} 超出了运行可以计算的范围。',
   'inspector.field.authoredUnit': '单位',
   'inspector.unit.base': '基本单位',
   'inspector.unit.perStep': '每步 {unit}',

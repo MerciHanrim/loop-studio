@@ -377,6 +377,10 @@ export function KindFindingText({ f, nodes, edges }: { f: KindFinding; nodes: re
         : f.kind === null
           ? t('kinds.finding.rate', { from: isolateAuto(from(f.edgeId)), to: isolateAuto(to(f.edgeId)), rate: isolateAuto(f.rate) })
           : t('kinds.finding.rateConserved', { from: isolateAuto(from(f.edgeId)), to: isolateAuto(to(f.edgeId)), rate: isolateAuto(f.rate), kind: isolateAuto(f.kind), converter: isolateAuto(label(f.converterId)) })
+  } else if (f.cls === 'outOfRange') {
+    // loop-model/4 (§M4-2.5) — the authored value is a known-LTR token, the
+    // unit a user name
+    text = t('kinds.finding.outOfRange', { value: isolateLtr(f.value), unit: isolateAuto(f.unit) })
   } else {
     // loop-model/4 (§M4-5, R≈) — the two exact sums as text: the decimal when
     // it terminates, `≈` and 15 significant digits when it does not

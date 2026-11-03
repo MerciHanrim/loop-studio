@@ -222,6 +222,7 @@ const inspector = {
   'kinds.finding.rateConserved': 'Соединение от {from} к {to}: темп {rate} не является числом, поэтому баланс {kind} у {converter} нельзя вычислить.',
   'kinds.finding.noKind': 'Соединение от {from} к {to} без вида, поэтому баланс у {converter} нельзя вычислить.',
   'kinds.finding.broken': '{converter}: {kind} выход {out}, вход {in}.',
+  'kinds.finding.outOfRange': '{value} {unit} выходит за пределы того, что может вычислить запуск.',
   'inspector.field.authoredUnit': 'Единица',
   'inspector.unit.base': 'базовая единица',
   'inspector.unit.perStep': '{unit} за шаг',

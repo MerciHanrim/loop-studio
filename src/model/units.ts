@@ -58,17 +58,35 @@ export function readUnitName(raw: unknown): string | null {
   return name
 }
 
+/** the runnable range of a unit factor (§M4-1): 10⁻¹⁵ … 10¹⁵ base units.
+ *  Wide enough for femto- to peta-scaled units of any base, narrow enough
+ *  that a factor times the largest step ratio (10⁶ days over 1 s, < 10¹¹)
+ *  leaves every authored number below 10²⁸⁰ finite in the engine — a
+ *  15-digit `1e400` would read as a valid decimal and run as `Infinity`. */
+export const FACTOR_MIN = rational(1n, 10n ** 15n)
+export const FACTOR_MAX = rational(10n ** 15n, 1n)
+
 /** a factor as the file keeps it: a positive plain decimal of at most 15
- *  significant digits, in its shortest exact form (`1000.0` → `1000`); `null`
- *  otherwise (a number is accepted through its shortest decimal form) */
+ *  significant digits inside the runnable range, in its shortest exact form
+ *  (`1000.0` → `1000`); `null` otherwise (a number is accepted through its
+ *  shortest decimal form). The same read guards a declaration typed in the
+ *  Kinds panel, so a factor out of range is never committed either. */
 export function readFactor(raw: unknown): string | null {
   const text = typeof raw === 'number' && Number.isFinite(raw) ? String(raw) : typeof raw === 'string' ? raw.trim() : null
   if (text === null) return null
   const r = parseDecimal(text)
   if (r === null || r.num <= 0n) return null
+  if (cmp(r, FACTOR_MIN) < 0 || cmp(r, FACTOR_MAX) > 0) return null
   const sig = significantDigits(text)
   if (sig === null || sig > MAX_SIGNIFICANT_DIGITS) return null
   return exactWithin15Digits(r)
+}
+
+/** whether a field's engine value is a finite number the engine can run on
+ *  (§M4-2.1): with every factor in range this fails only for an authored
+ *  number near the double's limit, which a run then refuses (§M4-2.5) */
+export function engineValueRunnable(authored: string | number, fu: FieldUnit, time: DocTime | undefined): boolean {
+  return fu.kind === 'base' || Number.isFinite(engineValue(authored, fu, time))
 }
 
 /** the §M4-1 defensive read of a kind's amount units: a bad entry is dropped,

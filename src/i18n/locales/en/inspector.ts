@@ -195,6 +195,7 @@ const inspector = {
   'kinds.finding.rateConserved': 'The connection from {from} to {to}: the rate {rate} is not a number, so the {kind} balance of {converter} cannot be computed.',
   'kinds.finding.noKind': 'The connection from {from} to {to} has no kind, so the balance of {converter} cannot be computed.',
   'kinds.finding.broken': '{converter}: {kind} out {out}, in {in}.',
+  'kinds.finding.outOfRange': '{value} {unit} is beyond what a run can compute.',
   // loop-model/4 (SEMANTICS-M4.md; #471 U1 stage 2) — units and the step length
   'inspector.field.authoredUnit': 'Unit',
   'inspector.unit.base': 'base unit',

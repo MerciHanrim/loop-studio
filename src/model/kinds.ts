@@ -13,7 +13,7 @@ import { trimUnicodeWhitespace, utf8Len } from './model/text'
 import { hasUnits, type ModelSemanticsVersion } from './modelVersion'
 import { add, displayRational, equals, fromInt, parseDecimal, sub, toDouble, type Rational } from './rational'
 import type { LoopEdge, LoopNode } from './types'
-import { fieldRational, readRateUnitList, readUnitList, resolveFieldUnit, type DocTime, type RateUnitDecl, type UnitDecl } from './units'
+import { engineValueRunnable, fieldRational, readRateUnitList, readUnitList, resolveFieldUnit, type DocTime, type RateUnitDecl, type UnitDecl } from './units'
 
 // ── the kinds table ───────────────────────────────────────────────────────
 
@@ -263,6 +263,45 @@ export type KindFinding =
    *  surface prints for them under R≈ (§M4-5), `approx` whether any of the
    *  three is an approximation. The verdict came from the rationals. */
   | { cls: 'broken'; converterId: string; kind: string; inRate: number; outRate: number; inText: string; outText: string; diffText: string; approx: boolean; refuses: boolean }
+  /** loop-model/4 (§M4-2.5) — a field whose engine value is not a finite
+   *  number: its authored value in its unit is beyond what a run can hold.
+   *  Always refuses, whether or not a kind is conserved. `value` is the
+   *  authored text, `unit` the field's unit text. */
+  | { cls: 'outOfRange'; nodeId: string | null; edgeId: string | null; value: string; unit: string; refuses: true }
+
+/** §M4-2.5 — every unit-bearing field whose engine value is not finite, the
+ *  Pools first (ascending id, `initial` before `capacity`), then the resource
+ *  connections (ascending id) */
+export function unitRangeFindings(
+  nodes: readonly LoopNode[],
+  edges: readonly LoopEdge[],
+  kinds: readonly ResourceKindDecl[],
+  time: DocTime | undefined,
+): KindFinding[] {
+  const declOf = new Map(kinds.map((k) => [k.name, k]))
+  const out: KindFinding[] = []
+  const unitOf = (d: unknown) => (d as { unit?: unknown } | undefined)?.unit
+  for (const n of [...nodes].sort(byIdAsc)) {
+    if (n.data?.kind !== 'pool' || typeof unitOf(n.data) !== 'string') continue
+    const d = n.data as { initial: number; capacity: number | null; resourceType?: unknown; unit: string }
+    const fu = resolveFieldUnit(d.unit, declOf.get(normalizeResourceType(d.resourceType).value ?? ''), time, 'stock')
+    for (const v of [d.initial, d.capacity]) {
+      if (v == null || engineValueRunnable(v, fu, time)) continue
+      out.push({ cls: 'outOfRange', nodeId: n.id, edgeId: null, value: String(v), unit: d.unit, refuses: true })
+    }
+  }
+  const res = edges.filter((e) => isResource(e) && typeof unitOf(e.data) === 'string')
+  if (res.length === 0) return out
+  const r = resolveKinds(nodes, edges)
+  for (const e of res.slice().sort(byIdAsc)) {
+    const raw = rawFlow(e).trim()
+    const k = r.edgeKind.get(e.id) ?? null
+    if (k === null || parseDecimal(raw) === null) continue
+    const fu = resolveFieldUnit(unitOf(e.data), declOf.get(k), time, 'rate')
+    if (!engineValueRunnable(raw, fu, time)) out.push({ cls: 'outOfRange', nodeId: null, edgeId: e.id, value: raw, unit: String(unitOf(e.data)), refuses: true })
+  }
+  return out
+}
 
 const rawFlow = (e: LoopEdge) => String((e.data as { flow?: unknown } | undefined)?.flow ?? '1')
 const numeric = (fx: FlowExpr | undefined): number | null => (fx && fx.kind === 'const' && Number.isFinite(fx.value) ? fx.value : null)
@@ -311,6 +350,8 @@ export function kindFindings(
     const ks = c.kind === 'poolEnds' ? c.kinds : c.kind === 'annotation' ? [c.edgeKind, c.poolKind] : c.kind === 'poolNoKind' ? [c.edgeKind] : c.kinds
     out.push({ cls: 'conflict', conflict: c, refuses: ks.some((k) => conserved.has(k)) })
   }
+  // loop-model/4 (§M4-2.5) — a field the engine cannot hold refuses the run
+  out.push(...unitRangeFindings(nodes, edges, kinds, time))
   const byId = new Map(nodes.map((n) => [n.id, n]))
   const res = edges.filter(isResource).slice().sort(byIdAsc)
   // the resolved rates: a `@param` reference becomes its Parameter's value, as step() resolves it
@@ -376,7 +417,8 @@ export function convertersWhoseVerdictChanges(before: readonly KindFinding[], af
   return [...changed].sort()
 }
 
-/** The findings that stop a run (D1): those where a conserved kind is involved. */
+/** The findings that stop a run (D1): those where a conserved kind is
+ *  involved, and (§M4-2.5) every field whose engine value is not finite. */
 export function refusingKindFindings(
   nodes: readonly LoopNode[],
   edges: readonly LoopEdge[],
@@ -384,7 +426,7 @@ export function refusingKindFindings(
   modelVersion: ModelSemanticsVersion,
   time?: DocTime,
 ): KindFinding[] {
-  if (!kinds.some((k) => k.conserved)) return []
+  if (!kinds.some((k) => k.conserved)) return unitRangeFindings(nodes, edges, kinds, time)
   return kindFindings(nodes, edges, kinds, modelVersion, time).filter((f) => f.refuses)
 }
 
@@ -418,27 +460,71 @@ export function kindFindingText(f: KindFinding, nodes: readonly LoopNode[], edge
         : `Can't run: ${conn(f.edgeId)} has no kind, so the balance of Converter "${label(f.converterId)}" cannot be computed and nothing moved.`
     case 'broken':
       return `Can't run: Converter "${label(f.converterId)}" takes in ${f.inText} ${q(f.kind)} and puts out ${f.outText} (out − in ${f.diffText}). A conserved kind must balance, so nothing moved.`
+    case 'outOfRange':
+      return `Can't run: ${f.edgeId !== null ? conn(f.edgeId) : `Pool "${label(f.nodeId ?? '')}"`} holds ${f.value} ${f.unit}, which is beyond the numbers a run can hold, so nothing moved.`
   }
 }
 
-/** docs/module-system.md §MS3.4 under loop-model/3 — the kinds table of a host
- *  after a module insert: the host's entries as they are, then the module's
- *  entries the host did not declare, in the module's order. The host's word on
- *  a kind both declare wins. */
+/** docs/module-system.md §MS3.4 under loop-model/3 and /4 — the kinds table of
+ *  a host after a module insert: the host's entries, then the module's entries
+ *  the host did not declare, in the module's order. On a kind both declare the
+ *  host's word wins on `conserved` and the base unit, and (loop-model/4) the
+ *  module's units the host does not name join the host's lists, so a field of
+ *  the module keeps the unit it was written in. A unit the two declare
+ *  differently is a conflict (`kindMergeConflicts`), refused before a merge. */
 export function mergeKinds(host: readonly ResourceKindDecl[], mod: readonly ResourceKindDecl[]): ResourceKindDecl[] {
+  const modOf = new Map(mod.map((k) => [k.name, k]))
   const have = new Set(host.map((k) => k.name))
-  return canonicalKinds([...host, ...mod.filter((k) => !have.has(k.name))])
+  const merged = host.map((h) => {
+    const m = modOf.get(h.name)
+    if (!m) return h
+    const taken = new Set([...(h.baseUnit !== undefined ? [h.baseUnit] : []), ...(h.units ?? []).map((u) => u.name), ...(h.rateUnits ?? []).map((u) => u.name)])
+    const units = [...(h.units ?? []), ...(m.units ?? []).filter((u) => !taken.has(u.name))]
+    const rateUnits = [...(h.rateUnits ?? []), ...(m.rateUnits ?? []).filter((u) => !taken.has(u.name))]
+    return { ...h, ...(units.length > 0 ? { units } : {}), ...(rateUnits.length > 0 ? { rateUnits } : {}) }
+  })
+  return canonicalKinds([...merged, ...mod.filter((k) => !have.has(k.name))])
+}
+
+/** §M4-4 — what a module insert would silently change in a kind both sides
+ *  declare, as English sentences (the module-insert refusal posture): two
+ *  different base units (the numbers count different amounts), and a unit
+ *  name the two declare with a different factor, a different time or in the
+ *  other list. Empty ⇒ `mergeKinds` keeps every field's meaning. */
+export function kindMergeConflicts(host: readonly ResourceKindDecl[], mod: readonly ResourceKindDecl[]): string[] {
+  const hostOf = new Map(host.map((k) => [k.name, k]))
+  const out: string[] = []
+  const q = (s: string) => `"${s}"`
+  for (const m of mod) {
+    const h = hostOf.get(m.name)
+    if (!h) continue
+    if (h.baseUnit !== undefined && m.baseUnit !== undefined && h.baseUnit !== m.baseUnit) {
+      out.push(`Kind ${q(m.name)} is counted in ${q(m.baseUnit)} in the structure and in ${q(h.baseUnit)} in this document.`)
+    }
+    const hostUnit = new Map<string, string>([
+      ...(h.baseUnit !== undefined ? [[h.baseUnit, 'the base unit'] as [string, string]] : []),
+      ...(h.units ?? []).map((u) => [u.name, `${u.factor}`] as [string, string]),
+      ...(h.rateUnits ?? []).map((u) => [u.name, `${u.factor}/${u.per}`] as [string, string]),
+    ])
+    for (const u of [...(m.units ?? []).map((x) => [x.name, x.factor] as const), ...(m.rateUnits ?? []).map((x) => [x.name, `${x.factor}/${x.per}`] as const)]) {
+      const theirs = hostUnit.get(u[0])
+      if (theirs !== undefined && theirs !== u[1]) out.push(`Unit ${q(u[0])} of ${q(m.name)} is ${u[1]} in the structure and ${theirs} in this document.`)
+    }
+  }
+  return out
 }
 
 /** The node a finding is about (for Show / the Inspector): the Converter, the
- *  Gate, or the Pool end of a conflicting connection. */
+ *  Gate, the Pool end of a conflicting connection, or the Pool out of range. */
 export function kindFindingNodeId(f: KindFinding): string | null {
   if (f.cls === 'conflict') return f.conflict.kind === 'poolEnds' ? null : f.conflict.nodeId
+  if (f.cls === 'outOfRange') return f.nodeId
   return f.converterId
 }
 
 /** The connection a finding is about, when it is about one. */
 export function kindFindingEdgeId(f: KindFinding): string | null {
   if (f.cls === 'conflict') return f.conflict.kind === 'gateMixes' ? null : f.conflict.edgeId
+  if (f.cls === 'outOfRange') return f.edgeId
   return f.cls === 'notComputable' ? f.edgeId : null
 }

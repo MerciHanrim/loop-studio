@@ -228,6 +228,7 @@ const inspector = {
   'kinds.finding.rateConserved': 'Die Verbindung von {from} nach {to}: die Rate {rate} ist keine Zahl, daher lässt sich die {kind}-Bilanz von {converter} nicht berechnen.',
   'kinds.finding.noKind': 'Die Verbindung von {from} nach {to} hat keine Art, daher lässt sich die Bilanz von {converter} nicht berechnen.',
   'kinds.finding.broken': '{converter}: {kind} heraus {out}, hinein {in}.',
+  'kinds.finding.outOfRange': '{value} {unit} liegt außerhalb dessen, was ein Lauf berechnen kann.',
   'inspector.field.authoredUnit': 'Einheit',
   'inspector.unit.base': 'Basiseinheit',
   'inspector.unit.perStep': '{unit} pro Schritt',

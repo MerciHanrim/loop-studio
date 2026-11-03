@@ -227,6 +227,7 @@ const inspector = {
   'kinds.finding.rateConserved': 'الوصلة من {from} إلى {to}: المعدل {rate} ليس رقمًا، لذا يتعذّر حساب ميزان {kind} لدى {converter}.',
   'kinds.finding.noKind': 'الوصلة من {from} إلى {to} بلا نوع، لذا يتعذّر حساب الميزان لدى {converter}.',
   'kinds.finding.broken': '{converter}: {kind} خارج {out}، داخل {in}.',
+  'kinds.finding.outOfRange': '{value} {unit} يتجاوز ما يمكن أن يحسبه التشغيل.',
   'inspector.field.authoredUnit': 'الوحدة',
   'inspector.unit.base': 'الوحدة الأساسية',
   'inspector.unit.perStep': '{unit} لكل خطوة',

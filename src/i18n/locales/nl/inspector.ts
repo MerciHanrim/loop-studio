@@ -210,6 +210,7 @@ const inspector = {
   'kinds.finding.rateConserved': 'De verbinding van {from} naar {to}: het tempo {rate} is geen getal, dus de {kind}-balans van {converter} kan niet worden berekend.',
   'kinds.finding.noKind': 'De verbinding van {from} naar {to} heeft geen soort, dus de balans van {converter} kan niet worden berekend.',
   'kinds.finding.broken': '{converter}: {kind} uit {out}, in {in}.',
+  'kinds.finding.outOfRange': '{value} {unit} valt buiten wat een simulatie kan berekenen.',
   'inspector.field.authoredUnit': 'Eenheid',
   'inspector.unit.base': 'basiseenheid',
   'inspector.unit.perStep': '{unit} per stap',

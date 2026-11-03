@@ -203,6 +203,7 @@ const inspector = {
   'kinds.finding.rateConserved': 'Kết nối từ {from} đến {to}: tốc độ {rate} không phải là số, nên không tính được cân bằng {kind} của {converter}.',
   'kinds.finding.noKind': 'Kết nối từ {from} đến {to} không có loại, nên không tính được cân bằng của {converter}.',
   'kinds.finding.broken': '{converter}: {kind} ra {out}, vào {in}.',
+  'kinds.finding.outOfRange': '{value} {unit} vượt quá phạm vi mà một lần chạy có thể tính.',
   'inspector.field.authoredUnit': 'Đơn vị',
   'inspector.unit.base': 'đơn vị cơ sở',
   'inspector.unit.perStep': '{unit} mỗi bước',

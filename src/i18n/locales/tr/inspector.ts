@@ -213,6 +213,7 @@ const inspector = {
   'kinds.finding.rateConserved': '{from} ile {to} arasındaki bağlantı: {rate} oranı bir sayı değil, bu yüzden {converter} için {kind} dengesi hesaplanamıyor.',
   'kinds.finding.noKind': '{from} ile {to} arasındaki bağlantı türsüz, bu yüzden {converter} için denge hesaplanamıyor.',
   'kinds.finding.broken': '{converter}: {kind} çıkış {out}, giriş {in}.',
+  'kinds.finding.outOfRange': '{value} {unit} bir çalıştırmanın hesaplayabileceği aralığın dışında.',
   'inspector.field.authoredUnit': 'Birim',
   'inspector.unit.base': 'temel birim',
   'inspector.unit.perStep': 'adım başına {unit}',

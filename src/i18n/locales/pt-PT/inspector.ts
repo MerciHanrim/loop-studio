@@ -204,6 +204,7 @@ const inspector = {
   'kinds.finding.rateConserved': 'A ligação de {from} para {to}: a taxa {rate} não é um número, pelo que o balanço de {kind} de {converter} não pode ser calculado.',
   'kinds.finding.noKind': 'A ligação de {from} para {to} não tem tipo, pelo que o balanço de {converter} não pode ser calculado.',
   'kinds.finding.broken': '{converter}: {kind} sai {out}, entra {in}.',
+  'kinds.finding.outOfRange': '{value} {unit} ultrapassa o que uma execução consegue calcular.',
   'inspector.field.authoredUnit': 'Unidade',
   'inspector.unit.base': 'unidade base',
   'inspector.unit.perStep': '{unit} por passo',

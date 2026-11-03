@@ -194,6 +194,7 @@ const inspector = {
   'kinds.finding.rateConserved': '{from} 출발 {to} 도착 연결: 비율 {rate} 값이 숫자가 아니므로 {converter} Converter의 {kind} 수지를 계산할 수 없습니다.',
   'kinds.finding.noKind': '{from} 출발 {to} 도착 연결: 종류가 없어 {converter} Converter의 수지를 계산할 수 없습니다.',
   'kinds.finding.broken': '{converter}: {kind} 출력 {out}, 입력 {in}.',
+  'kinds.finding.outOfRange': '{value} {unit} 값은 실행이 계산할 수 있는 범위를 넘습니다.',
   'inspector.field.authoredUnit': '단위',
   'inspector.unit.base': '기본 단위',
   'inspector.unit.perStep': '단계당 {unit}',

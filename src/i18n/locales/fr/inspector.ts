@@ -222,6 +222,7 @@ const inspector = {
   'kinds.finding.rateConserved': 'La connexion de {from} à {to} : le débit {rate} n’est pas un nombre, donc le bilan {kind} de {converter} ne peut pas être calculé.',
   'kinds.finding.noKind': 'La connexion de {from} à {to} n’a pas de type, donc le bilan de {converter} ne peut pas être calculé.',
   'kinds.finding.broken': '{converter} : {kind} sortie {out}, entrée {in}.',
+  'kinds.finding.outOfRange': '{value} {unit} dépasse ce qu’une exécution peut calculer.',
   'inspector.field.authoredUnit': 'Unité',
   'inspector.unit.base': 'unité de base',
   'inspector.unit.perStep': '{unit} par pas',
