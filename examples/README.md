@@ -698,14 +698,27 @@ Kinds: `water` is conserved, base `m³`, with units `L = 0.001`, `MLD = 1000/d` 
 The test computes the residual `r(n) = Σ water Pools − (W₀ + Σ intake − Σ drained)` exactly. Every double is taken at its binary value and every sum is a rational, so what remains is the engine's own rounding.
 
 That rounding has two sources:
-- δ per run;
-- one rounding per Pool update, at most u = 2⁻⁵³ of its result.
+- δ per step the RO could run;
+- one rounding per Pool update, at most u = 2⁻⁵³ of its exact result.
 
-`src/engine/step.ts` applies each event amount once, as one addition into its target and one subtraction from its source. Each result is bounded in advance by the exact predicted stock at the start of the step plus its inflow. Hence:
+`src/engine/step.ts` applies each event amount once, as one addition into its target and one subtraction from its source. The update's result is made from the **actual** stock, which can sit slightly off the exact model value (250.00000000000023 m³ of product water after a day, not 250). So each water Pool carries a **state-error envelope** D, a proven bound on |actual − exact| at the end of each step, built from two terms:
+- the representation errors ρ of the amounts it takes and gives (double − exact, fixed before the run);
+- its own roundings.
 
 ```
-B(n) = n_RO × |δ| + u × Σ_{t ≤ n} Σ_{water Pools} 2 × (S_t + a_t)
+feed           D′ = D + |ρ_intake − ρ_RO in| + r
+product water  D′ = D + |ρ_RO out − ρ_city|  + r
+brine          D′ = |ρ_brine| + r            (`all` takes the actual start out)
+r = 2u × (S + D + a + |ρ_a|)                 (both updates of the step)
+B(n) = n × |δ| + Σ_{t ≤ n} Σ_{water Pools} r_t
 ```
+
+S + D + a + |ρ_a| bounds every actual intermediate result, in either update order. The proof is an induction on the step, with H(t): every actual stock at the end of step t lies within S ± D. It rests on three preconditions, each computed by the test from S, a, ρ and D alone, never from the run:
+- the feed can supply the RO's full pull;
+- product water can supply the city's full pull;
+- the intake's push fits under the feed's 2000 m³ capacity.
+
+All three held at every step. The proof is written out in `desalination.expected.json` under `$bound.proof`. Separately, the test checks that each actual stock lies inside S ± D. That is corroboration, not part of the proof: it held at every step, and the largest deviation used 47.3 % of D. The envelopes and the running sum are rounded up to a multiple of 2⁻¹²⁰ each step, which keeps the rationals small and only widens the bound.
 
 The bound is derived before the run, never from the measured error. It grows with the steps:
 

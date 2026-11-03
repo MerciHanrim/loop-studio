@@ -124,6 +124,26 @@ export const TEMPLATES: Template[] = [
       'The same line with no shipment step, so finished goods have nowhere to go. Finished inventory fills to capacity, raw inventory backs up to its ceiling, supply is throttled to zero, and the whole line stops.',
     graph: tplGraph(deadlockDoc),
   },
+  // #471 — "Desalination plant water balance": the first bundled Template at
+  // `loop-studio/graph/4`. A seawater reverse-osmosis plant written in the
+  // shipped kinds, units and step-length contract (SEMANTICS-M3.md,
+  // SEMANTICS-M4.md): water is a conserved kind, the plant's rates are authored
+  // per day (`1 MLD` in, `0.45 + 0.55 MLD` out) on a 1 h step, and the engine
+  // runs on the derived per-step values. The canonical graph is
+  // examples/desalination.json; its run is pinned against
+  // examples/desalination.expected.json by test/desalination-example.test.ts.
+  // A fixed-ratio model (constant recovery, power per batch), not a validated
+  // process model. Opens UNLOCKED and fitted whole: no `initialView`.
+  // Menu place: after the two basic examples and before Coffee, so Hanrim's
+  // Coffee → MMO → Gacha sequence (below, 2026-09-13) stays as decided.
+  {
+    id: 'desalination',
+    name: 'Desalination plant water balance',
+    blurb:
+      'A seawater reverse-osmosis plant: intake, a feed tank, reverse osmosis at 45 % recovery, product water for the city and brine to the outfall. Water is a conserved kind, the rates are written per day on a one-hour step, and the run keeps intake = product water + brine + the change in storage.',
+    graph: tplGraph(desalinationDoc),
+    ...tplModel(desalinationDoc),
+  },
   // "Coffee roastery operations flow" — the first bundled Template authored at
   // schema `loop-studio/graph/2` (loop-model/2). Its five surfaced levers are
   // `resource`-edge `flow` parameter references (`@<id>`). The canonical graph is
@@ -156,24 +176,6 @@ export const TEMPLATES: Template[] = [
     // the whole view (Reset view) shows all three zones at about
     // 0.52 there.
     initialView: { rect: { x: -64, y: -40, width: 1344, height: 864 }, minZoom: 0.46 },
-  },
-  // #471 — "Desalination plant water balance": the first bundled Template at
-  // `loop-studio/graph/4`. A seawater reverse-osmosis plant written in the
-  // shipped kinds, units and step-length contract (SEMANTICS-M3.md,
-  // SEMANTICS-M4.md): water is a conserved kind, the plant's rates are authored
-  // per day (`1 MLD` in, `0.45 + 0.55 MLD` out) on a 1 h step, and the engine
-  // runs on the derived per-step values. The canonical graph is
-  // examples/desalination.json; its run is pinned against
-  // examples/desalination.expected.json by test/desalination-example.test.ts.
-  // A fixed-ratio model (constant recovery, power per batch), not a validated
-  // process model. Opens UNLOCKED and fitted whole: no `initialView`.
-  {
-    id: 'desalination',
-    name: 'Desalination plant water balance',
-    blurb:
-      'A seawater reverse-osmosis plant: intake, a feed tank, reverse osmosis at 45 % recovery, product water for the city and brine to the outfall. Water is a conserved kind, the rates are written per day on a one-hour step, and the run keeps intake = product water + brine + the change in storage.',
-    graph: tplGraph(desalinationDoc),
-    ...tplModel(desalinationDoc),
   },
   // The "Early MMO progression (levels 1–15)" demo — a connected play economy.
   // The canonical graph is examples/mmo-progression.json (built + verified by

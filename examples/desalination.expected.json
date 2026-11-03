@@ -1,12 +1,22 @@
 {
   "$about": "examples/desalination.json run through the real engine for 720 steps (30 days at a 1 h step). Re-derived and pinned by test/desalination-example.test.ts. Two layers: the authored per-day recipe balances exactly (no kinds finding); the engine runs on doubles, and its water-balance residual, computed exactly from the doubles it holds, stays inside an a-priori bound that grows with the step count.",
   "$bound": {
-    "formula": "B(n) = n_RO(n) × |δ| + u × Σ_{t ≤ n} Σ_{water Pools} 2 × (S_t + a_t)",
-    "u": "unit roundoff of binary64, 2^-53: each addition or subtraction rounds by at most u times its exact result",
-    "delta": "δ = double(0.45 MLD) + double(0.55 MLD) − double(1 MLD), per reverse-osmosis run, exact: 0.000000000000003552713678800500929355621337890625 m³",
-    "updates": "every event amount is applied to a Pool by exactly one addition (into it) or one subtraction (out of it) in src/engine/step.ts; each water Pool takes one inflow and one outflow per step, so two roundings, each of a result no larger than the exact predicted start of the step S_t plus its inflow a_t (feed 500 + 125/3, product water 200 + 25(t−1)/12 + 75/4, brine 275/12 + 275/12, from step 2)",
+    "formula": "B(n) = n × |δ| + Σ_{t ≤ n} Σ_{water Pools} 2u × (S_t + D_{t−1} + a_t + |ρ_a|)",
+    "u": "unit roundoff of binary64, 2^-53: each addition or subtraction rounds by at most u times its exact result (IEEE-754 round to nearest)",
+    "delta": "δ = double(0.45 MLD) + double(0.55 MLD) − double(1 MLD), per reverse-osmosis run, exact: 0.000000000000003552713678800500929355621337890625 m³; counted for every step, whether or not the RO runs",
+    "updates": "every event amount is applied to a Pool by exactly one addition (into it) or one subtraction (out of it) in src/engine/step.ts; each water Pool takes one inflow and one outflow per step, so two roundings, each of an exact result no larger than the actual start plus the actual inflow, in either order",
+    "envelope": "D bounds |actual stock − exact model stock| at the end of a step: feed D′ = D + |ρ_intake − ρ_RO in| + r, product water D′ = D + |ρ_RO out − ρ_city| + r, brine D′ = |ρ_brine| + r (`all` removes the actual start), with r = 2u(S + D + a + |ρ_a|) the step’s rounding for that Pool. D is computed from S, a, ρ and u only, rounded UP to a multiple of 2^-120 at each step (that only widens it)",
+    "proof": "By induction on t. H(t): at the end of step t every actual water stock lies within S_end(t) ± D(t). H(0): the initials 500, 200, 0 are exact doubles and D(0) = 0. H(t−1) ⇒ H(t): the engine reads every pull from the step-start snapshot (`const S = { ...prev.values }` in src/engine/step.ts), so under H(t−1) (1) the feed holds at least 500 − D ≥ double(1 MLD), so the RO’s `pull all` takes the whole double(1 MLD), with power 125 kWh (exact integers, not water); (2) product water holds at least its start − D ≥ double(400 CMD), so the city takes the whole double; (3) the outfall takes the actual brine start; (4) the feed stays at or below 500 + D + 125/3 + |ρ| < 2000, its capacity, so the intake’s push is whole, and product water and brine have no capacity. These three inequalities are checked for every step from S, a, ρ and D alone (`envelope.proofPreconditionsHeldAtEveryStep`). So every moved amount is its double exactly, or the actual brine start, and each water Pool takes exactly one inflow and one outflow: two roundings, each of an exact result at most start + inflow ≤ S + D + a + |ρ_a|, in either order. Its end deviation is then at most D′, which is H(t). The residual is the sum of all these roundings plus δ for each RO run, at most B(n). The run’s own values enter nothing above; the per-step check that each actual stock is inside S ± D (`envelope.corroboration`) corroborates H(t) and is not used to compute B",
+    "exact": "S_t, a_t: the exact model — feed 500 and inflow 125/3; product water 200 + 25(t−1)/12 and 75/4; brine 0 at step 1, then 275/12, and 275/12; ρ_a = double(a) − a for each amount, fixed before the run",
     "notCounted": "amounts that are copies of a value (a Source push, a pull at the full rate, `all` of a Pool) round nothing; the residual is summed in exact rationals, so the check adds no rounding of its own",
-    "why": "the bound is derived from the model and IEEE-754 rounding before the run, never from the measured error; it grows with n (the RO term linearly, the update term about quadratically, as the product-water stock grows)"
+    "why": "every term is derived from the model, the field doubles and IEEE-754 rounding before the run, never from the measured error; B grows with n (the δ term linearly, the update term about quadratically, as the product-water stock grows)"
+  },
+  "envelope": {
+    "proofPreconditionsHeldAtEveryStep": true,
+    "corroboration": {
+      "actualInsideEnvelopeAtEveryStep": true,
+      "largestShareOfEnvelope": 0.473
+    }
   },
   "modelVersion": 4,
   "time": {
@@ -190,7 +200,12 @@
       "maxResidualSoFar": "2.842171e-13",
       "bound": "4.504415e-12",
       "withinBound": true,
-      "shareOfBound": 0.0631
+      "shareOfBound": 0.0631,
+      "stateEnvelope": {
+        "feed": "2.886580e-12",
+        "productWater": "1.321832e-12",
+        "brine": "1.136128e-14"
+      }
     },
     {
       "steps": 168,
@@ -198,7 +213,12 @@
       "maxResidualSoFar": "1.506351e-12",
       "bound": "3.715696e-11",
       "withinBound": true,
-      "shareOfBound": 0.0405
+      "shareOfBound": 0.0405,
+      "stateEnvelope": {
+        "feed": "2.020606e-11",
+        "productWater": "1.484834e-11",
+        "brine": "1.136128e-14"
+      }
     },
     {
       "steps": 720,
@@ -206,7 +226,12 @@
       "maxResidualSoFar": "1.256240e-11",
       "bound": "2.511873e-10",
       "withinBound": true,
-      "shareOfBound": 0.05
+      "shareOfBound": 0.05,
+      "stateEnvelope": {
+        "feed": "8.659740e-11",
+        "productWater": "1.555622e-10",
+        "brine": "1.136128e-14"
+      }
     }
   ],
   "contract": {
