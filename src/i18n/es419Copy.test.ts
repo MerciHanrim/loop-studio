@@ -384,6 +384,8 @@ describe('es-419 copy — mechanical review', () => {
         'modules.promote.body',
         'modules.promote.title.v3', // #471 (b): the kinds-model consent dialog
         'modules.promote.body.v3',
+        'modules.promote.title.v4', // #471 U1 stage 2: the units-model consent dialog
+        'modules.promote.body.v4',
       ],
       x: ['canvas.frame.a11y.moved', 'rf.node.moveCancelled', 'rf.node.moved'],
       y: ['canvas.frame.a11y.moved', 'rf.node.moveCancelled', 'rf.node.moved'],
@@ -391,13 +393,21 @@ describe('es-419 copy — mechanical review', () => {
       // issue #330 PR 3 — the Spanish word IS `Normal` (the phone's Normal
       // speed), and `s` is the seconds symbol of the four per-step times
       Normal: ['mobile.speed.normal'],
-      s: ['mobile.speed.slow.time', 'mobile.speed.normal.time', 'mobile.speed.fast.time', 'mobile.speed.veryFast.time'],
+      // #471 U1 stage 2 — and the plural `(s)` of the four step-length time units
+      s: ['mobile.speed.slow.time', 'mobile.speed.normal.time', 'mobile.speed.fast.time', 'mobile.speed.veryFast.time', 'panels.time.unit.s', 'panels.time.unit.min', 'panels.time.unit.h', 'panels.time.unit.d'],
       // issue #344 step 3 — the Spanish adjective IS `manual` (Trazado manual)
       manual: ['inspector.edge.route.manual'],
       // #478 — the Spanish words ARE `control` (Control remoto) and `nuclear`
       // (Central nuclear), the names of two node icons
       Control: ['inspector.icon.name.remote'],
       nuclear: ['inspector.icon.name.nuclear-plant'],
+      // #471 U1 stage 2 — the Spanish words ARE `balance` (El balance de) and
+      // `factor` (nombre = factor); `MW` and `h` are the rate-unit example a
+      // user types into the unit list (`MW = 1000/h`)
+      balance: ['inspector.unit.change.verdicts', 'panels.time.change.body'],
+      factor: ['panels.kinds.unitsHint'],
+      MW: ['panels.kinds.unitsHint'],
+      h: ['panels.kinds.unitsHint'],
     }
 
     const WORD = /[A-Za-zÀ-ÖØ-öø-ÿ]+/gu

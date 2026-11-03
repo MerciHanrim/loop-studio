@@ -175,7 +175,7 @@ describe('kindFindings — C1 + D1 (design §6)', () => {
 
   it('row 2 — C: water 100 → 50 + 55: broken, +5, refuses', () => {
     const { nodes, edges } = plant('100', '50', '55')
-    expect(kindFindings(nodes, edges, WATER, 3)).toEqual([{ cls: 'broken', converterId: 'ro', kind: 'water', inRate: 100, outRate: 105, refuses: true }])
+    expect(kindFindings(nodes, edges, WATER, 3)).toEqual([{ cls: 'broken', converterId: 'ro', kind: 'water', inRate: 100, outRate: 105, inText: '100', outText: '105', diffText: '5', approx: false, refuses: true }])
   })
 
   it('row 3 — R6: `all` on the feed line: ONE not-computable finding on that line, no derived 100 ≠ 0', () => {
@@ -200,7 +200,7 @@ describe('kindFindings — C1 + D1 (design §6)', () => {
     const nodes = [pool('grid', 'energy'), node('pump', 'converter'), pool('w', 'water'), pool('w2', 'water')]
     const edges = [res('a', 'grid', 'pump', '30'), res('b', 'w', 'pump', '10'), res('c', 'pump', 'w2', '10')]
     expect(kindFindings(nodes, edges, [{ name: 'energy', conserved: true }, { name: 'water', conserved: true }], 3)).toEqual([
-      { cls: 'broken', converterId: 'pump', kind: 'energy', inRate: 30, outRate: 0, refuses: true },
+      { cls: 'broken', converterId: 'pump', kind: 'energy', inRate: 30, outRate: 0, inText: '30', outText: '0', diffText: '-30', approx: false, refuses: true },
     ])
   })
 
@@ -258,6 +258,6 @@ describe('kindFindings — C1 + D1 (design §6)', () => {
       return { nodes: [...nodes, param('p', v)], edges }
     }
     expect(kindFindings(mk(45).nodes, mk(45).edges, WATER, 3)).toEqual([])
-    expect(kindFindings(mk(50).nodes, mk(50).edges, WATER, 3)).toEqual([{ cls: 'broken', converterId: 'ro', kind: 'water', inRate: 100, outRate: 105, refuses: true }])
+    expect(kindFindings(mk(50).nodes, mk(50).edges, WATER, 3)).toEqual([{ cls: 'broken', converterId: 'ro', kind: 'water', inRate: 100, outRate: 105, inText: '100', outText: '105', diffText: '5', approx: false, refuses: true }])
   })
 })

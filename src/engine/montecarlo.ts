@@ -12,6 +12,7 @@ import { mix32 } from './rng'
 import { initSim, step } from './step'
 import type { ModelVersion } from './flow'
 import type { ResourceKindDecl } from '../model/kinds'
+import type { DocTime } from '../model/units'
 
 export const MC_SPEC = 'loop-mc/1'
 export const MC_SEED_SPEC = 'loop-mc-seed/1'
@@ -38,6 +39,10 @@ export type RunConfig = {
    *  `step()` so a refusing finding stops a Monte Carlo run exactly as it
    *  stops Play. A transient run input, not a persisted config field. */
   kinds?: readonly ResourceKindDecl[]
+  /** loop-model/4 (SEMANTICS-M4.md §M4-3) — the document's step length, threaded
+   *  to `initSim()` / `step()` so a per-time field's engine value is the one
+   *  Play uses. A transient run input, not a persisted config field. */
+  time?: DocTime
 }
 
 export type RunOptions = {
@@ -216,12 +221,12 @@ export function runRange(
   for (let r = startRun; r < endRun; r++) {
     const lr = r - startRun
     const seed = runSeed(config.baseSeed, r)
-    let st = initSim(nodes)
+    let st = initSim(nodes, { kinds: config.kinds, time: config.time })
     for (let p = 0; p < poolCount; p++) values[(lr * span + 0) * poolCount + p] = st.values[poolIds[p]] ?? 0
     let ended = false
     for (let t = 1; t <= config.steps; t++) {
       if (!ended) {
-        st = step(nodes, edges, st, seed, config.modelVersion ?? 1, { kinds: config.kinds }).state
+        st = step(nodes, edges, st, seed, config.modelVersion ?? 1, { kinds: config.kinds, time: config.time }).state
         if (st.ended) {
           ended = true
           endedAt[lr] = t
@@ -275,12 +280,12 @@ function fillOneRun(f: RunFill, i: number): void {
   const poolCount = pools.length
   const seed = runSeed(config.baseSeed, i)
   runSeeds[i] = seed
-  let st = initSim(nodes)
+  let st = initSim(nodes, { kinds: config.kinds, time: config.time })
   for (let p = 0; p < poolCount; p++) store[p][i * span] = st.values[pools[p].id] ?? 0
   let ended = false
   for (let t = 1; t <= config.steps; t++) {
     if (!ended) {
-      st = step(nodes, edges, st, seed, config.modelVersion ?? 1, { kinds: config.kinds }).state
+      st = step(nodes, edges, st, seed, config.modelVersion ?? 1, { kinds: config.kinds, time: config.time }).state
       if (st.ended) {
         ended = true
         endedAt[i] = t

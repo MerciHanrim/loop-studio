@@ -66,6 +66,7 @@ export function applySharedGraph(parsed: SharedGraph): void {
       frames: parsed.frames,
       dataImports: parsed.dataImports,
       kinds: parsed.kinds, // loop-model/3 — the shared document's table (`[]` before /graph/3)
+      time: parsed.time, // loop-model/4 — its step length (absent before /graph/4)
     },
   ) // the ONE bump
   useMcStore.getState().applyRecommended(parsed.recommendedRunConfig)

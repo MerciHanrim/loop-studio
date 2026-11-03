@@ -1,5 +1,7 @@
 import type { Activation, LoopEdge, LoopNode } from '../model/types'
 import { kindFindingText, refusingKindFindings, resolveKinds, type ResourceKindDecl } from '../model/kinds'
+import { applyUnits } from '../model/engineValues'
+import type { DocTime } from '../model/units'
 import { boundaryOutflowByKind } from './boundaryOutflow'
 import { converterGroups, refusedGroups } from './converterGroups'
 import { evalDet, evalRand, type ModelVersion, rateOf } from './flow'
@@ -50,7 +52,10 @@ function requireFinite(v: number, what: string): number {
   return v
 }
 
-export function initSim(nodes: LoopNode[]): SimState {
+export function initSim(nodes: LoopNode[], opts: Pick<StepOptions, 'kinds' | 'time'> = {}): SimState {
+  // loop-model/4 (SEMANTICS-M4.md §M4-2.1) — a Pool authored in a unit starts
+  // at its engine value; a graph with no field unit is read as it is
+  nodes = applyUnits(nodes, [], opts.kinds, opts.time).nodes
   const values: SimValues = {}
   for (const n of nodes) {
     if (n.data.kind !== 'pool') continue
@@ -78,6 +83,10 @@ export type StepOptions = {
    *  anything moves, and the report carries `boundaryOutflow` (§M3-5). Absent
    *  or empty ⇒ the loop-model/2 behaviour, event for event (M3-INV-1). */
   kinds?: readonly ResourceKindDecl[]
+  /** loop-model/4 (SEMANTICS-M4.md §M4-3) — the document's step length, which
+   *  a per-time or rate-unit field's engine value depends on. Absent ⇒ no
+   *  per-time field resolves (its number is read as the base unit per step). */
+  time?: DocTime
 }
 
 export function step(
@@ -101,6 +110,13 @@ export function step(
     }
   }
   const curStep = prev.step + 1 // the step being computed — the RNG key's `step`
+  // loop-model/4 (SEMANTICS-M4.md §M4-2.1) — the engine reads the DERIVED
+  // graph: every unit-bearing field at its engine value. The same arrays come
+  // back when no field names a unit (M4-INV-1). The kind findings below read
+  // the authored graph: their balance is exact over the authored decimals.
+  const authoredNodes = nodes
+  const authoredEdges = edges
+  ;({ nodes, edges } = applyUnits(nodes, edges, opts.kinds, opts.time))
   const byId = new Map(nodes.map((n) => [n.id, n]))
   // loop-model/1: `parameter` / `register` have no ports — the engine ignores
   // ANY edge incident to one (a malformed / hand-authored file can carry them).
@@ -138,13 +154,14 @@ export function step(
   const kinds = opts.kinds ?? []
   const kindRes = kinds.length > 0 ? resolveKinds(nodes, liveEdges) : null
   if (kindRes) {
-    const findings = refusingKindFindings(nodes, liveEdges, kinds, modelVersion)
+    const liveAuthored = authoredEdges.filter((e) => !modelId(e.source) && !modelId(e.target))
+    const findings = refusingKindFindings(authoredNodes, liveAuthored, kinds, modelVersion, opts.time)
     if (findings.length) {
       return {
         state: { step: prev.step, values: prev.values, ended: false, fired: [], triggerQueue: prev.triggerQueue },
         report: {
           events: [], activated: [], fired: [], stateEvents: [],
-          diagnostics: findings.map((f) => kindFindingText(f, nodes, liveEdges)),
+          diagnostics: findings.map((f) => kindFindingText(f, authoredNodes, liveAuthored)),
           notices: [],
           gates: [],
         },

@@ -32,6 +32,8 @@ const templates = {
   'modules.promote.confirm': '转换并插入',
   'modules.promote.title.v3': '将此文档变为带资源种类的模型（v3）？',
   'modules.promote.body.v3': '插入此结构会使文档成为 v3 模型：它声明资源种类，模型语义摘要也会改变。一次撤销会同时撤回模型变更和插入。',
+  'modules.promote.title.v4': '要将其变为带单位的模型（v4）吗？',
+  'modules.promote.body.v4': '插入此结构会使文档成为 v4 模型：它声明单位或步长，模型语义摘要也会改变。一次撤销会同时撤回模型变更和插入。',
   'modules.frames.title': '不包含已保存的分组框',
   'modules.frames.insertBody': '该文件保存了分组框。以结构方式插入时不会把分组框带进你的图——其余内容照常插入。',
   'modules.frames.extractBody': '你的图中保存了分组框。它们不会写入结构文件——只有所选节点及其内部连线会被写入。',

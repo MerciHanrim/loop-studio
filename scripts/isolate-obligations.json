@@ -4,9 +4,9 @@
   "$limit": "This manifest defends the call sites listed here, exactly and in both directions. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together close the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
   "$history": "PR B recorded 11 decision rows and deferred them. C3.5 re-ran the population from the TypeScript type checker — 205 ICU arguments — and found 27 more that carry user or technical values: 8 in its first pass (the unrecognized-column header and the five `import.loc.*` calls) and 19 that its first pass only RECORDED as open. All 27 are implemented here, so no row of the disposition manifest is classed `auto`, `ltr` or `per-fragment` any more.",
   "totals": {
-    "rows": 85,
-    "obligations": 39,
-    "callSites": 68
+    "rows": 92,
+    "obligations": 43,
+    "callSites": 73
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -16,7 +16,7 @@
     "er19": 3,
     "workbench": 18,
     "issue-420": 4,
-    "issue-471": 7
+    "issue-471": 14
   },
   "obligations": [
     {
@@ -996,7 +996,9 @@
       "rows": [
         "issue-471 kinds panel finding: the connection's two end labels",
         "issue-471 kinds panel finding: kind names (a Pool's, an annotation's, a Gate's list)",
-        "issue-471 kinds panel finding: the Converter's label and the rate as typed"
+        "issue-471 kinds panel finding: the Converter's label and the rate as typed",
+        "issue-471 kinds panel finding: the two exact sums of a broken balance as decimal text under R≈ (loop-model/4), a known-LTR token",
+        "issue-471 kinds panel finding: a field beyond the runnable range — the authored number (LTR) and the user's unit name (loop-model/4)"
       ],
       "file": "src/components/ModelPanels.tsx",
       "enclosing": "KindFindingText",
@@ -1010,7 +1012,61 @@
         { "keys": ["kinds.finding.noKind"], "args": ["from", "to", "converter"], "kind": "auto" },
         { "keys": ["kinds.finding.rate"], "args": ["from", "to", "rate"], "kind": "auto" },
         { "keys": ["kinds.finding.rateConserved"], "args": ["from", "to", "rate", "kind", "converter"], "kind": "auto" },
-        { "keys": ["kinds.finding.broken"], "args": ["converter", "kind"], "kind": "auto" }
+        { "keys": ["kinds.finding.broken"], "args": ["converter", "kind", "out", "in"], "kind": "auto", "kindByArg": { "out": "ltr", "in": "ltr" } },
+        { "keys": ["kinds.finding.outOfRange"], "args": ["value", "unit"], "kind": "auto", "kindByArg": { "value": "ltr" } }
+      ]
+    },
+    {
+      "id": "units-change-confirm",
+      "rows": [
+        "issue-471 unit change confirm: the unit names (the target unit, the base unit)",
+        "issue-471 unit change confirm: the authored, exact, rounded and deviation numbers under R≈"
+      ],
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "unitChangeBody",
+      "carries": "the user's own UNIT NAMES (a kind's declared unit, its base unit) and four numbers printed as decimal text under R≈ (SEMANTICS-M4.md §M4-4; issue #471 U1 stage 2)",
+      "why": "a unit name is free user text (`m³`, `لتر`) and takes `FSI`; a number printed as text, possibly led by `≈` or `-`, is a known-LTR token and takes `LRI`.",
+      "sites": [
+        { "keys": ["inspector.unit.change.body"], "args": ["unit", "base", "from", "exact", "rounded", "deviation"], "kind": "auto", "kindByArg": { "from": "ltr", "exact": "ltr", "rounded": "ltr", "deviation": "ltr" } }
+      ]
+    },
+    {
+      "id": "units-option-per-step",
+      "rows": [
+        "issue-471 unit select option: the unit name per step"
+      ],
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "unitOptionLabel",
+      "carries": "the user's own UNIT NAME (the base unit or a declared amount unit) in a rate field's option `<name> per step`",
+      "why": "free user text of unknown direction inside a localized phrase.",
+      "sites": [
+        { "keys": ["inspector.unit.perStep"], "args": ["unit"], "kind": "auto" }
+      ]
+    },
+    {
+      "id": "units-verdict-change-converters",
+      "rows": [
+        "issue-471 unit change confirm: the Converters whose balance verdict would change"
+      ],
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "EdgeUnitField>change",
+      "carries": "the user's own Converter LABELS, comma-joined, whose balance verdict the change would move (SEMANTICS-M4.md §M4-4)",
+      "why": "one argument of several user labels joined by a comma, isolated as one run (`auto`), as the Gate's kinds list is.",
+      "sites": [
+        { "keys": ["inspector.unit.change.verdicts"], "args": ["converters"], "kind": "auto" }
+      ]
+    },
+    {
+      "id": "time-change-converters",
+      "rows": [
+        "issue-471 step change confirm: the Converters whose balance verdict would change"
+      ],
+      "file": "src/components/ModelPanels.tsx",
+      "enclosing": "TimeSection>propose",
+      "carries": "the user's own Converter LABELS, comma-joined, whose balance verdict a step-length change would move (SEMANTICS-M4.md §M4-4)",
+      "why": "one argument of several user labels joined by a comma, isolated as one run (`auto`), as in the unit-change sentence.",
+      "sites": [
+        { "keys": ["panels.time.change.body"], "args": ["converters"], "kind": "auto" }
       ]
     },
     {

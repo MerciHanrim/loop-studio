@@ -16,16 +16,21 @@ export const SCHEMA_V1 = 'loop-studio/graph'
 export const SCHEMA_V2 = 'loop-studio/graph/2'
 /** loop-model/3 (SEMANTICS-M3.md §M3-1) — a document with a kinds table. */
 export const SCHEMA_V3 = 'loop-studio/graph/3'
+/** loop-model/4 (SEMANTICS-M4.md §M4-1) — a document with units or a step length. */
+export const SCHEMA_V4 = 'loop-studio/graph/4'
 const SCHEMA_VERSION = 1
 /** issue #344, docs/diagram-layout.md §DL2.8 — the current layout rules: 1 =
  *  the 16 px grid with the 28 px port row. A document with a lower (or no)
  *  `layoutVersion` is re-placed once when it is opened. */
 export const LAYOUT_VERSION = 1
 
-import { hasKindsTable, type ModelSemanticsVersion } from './modelVersion'
-import { canonicalKinds, readKinds, type ResourceKindDecl } from './kinds'
+import { hasKindsTable, hasUnits, type ModelSemanticsVersion } from './modelVersion'
+import { canonicalKinds, kindsDeclareUnits, readKindsAt, type ResourceKindDecl } from './kinds'
+import { canonicalDocTime, readDocTime, type DocTime } from './units'
+import { stripFieldUnits } from './engineValues'
 export type { ModelSemanticsVersion } from './modelVersion'
 export type { ResourceKindDecl } from './kinds'
+export type { DocTime } from './units'
 
 /** The model-semantics versions a document may DECLARE in this build — the
  *  readable set, one schema string per version (§M2-1, §M3-1). A version
@@ -36,6 +41,7 @@ const SCHEMA_BY_MODEL_VERSION: Partial<Record<ModelSemanticsVersion, string>> = 
   1: SCHEMA_V1,
   2: SCHEMA_V2,
   3: SCHEMA_V3,
+  4: SCHEMA_V4,
 }
 /** The envelope `schema` string a document of this model-semantics version is
  *  written with (§M2-1). The ONE writer-side mapping — `serialize()` and the
@@ -57,6 +63,7 @@ export function modelVersionForSchema(schema: unknown): ModelSemanticsVersion | 
   if (schema === SCHEMA_V1) return 1
   if (schema === SCHEMA_V2) return 2
   if (schema === SCHEMA_V3) return 3
+  if (schema === SCHEMA_V4) return 4
   return null
 }
 
@@ -245,6 +252,11 @@ export type GraphDoc = {
    *  non-empty, and then only on a `loop-studio/graph/3` document. Read
    *  defensively (`readKinds`), and not at all from an earlier schema. */
   kinds?: ResourceKindDecl[]
+  /** loop-model/4 (SEMANTICS-M4.md §M4-3) — the step length (and the time unit
+   *  the aggregate panels show rates per). Emitted only when declared, and
+   *  then only on a `loop-studio/graph/4` document. Read defensively
+   *  (`readDocTime`), and not at all from an earlier schema. */
+  time?: DocTime
   /** loop-workspace/2 extension (SEMANTICS-W2.md) — an opaque blob here; the
    *  Workspace reader validates it against the loaded graph. Absent on a plain
    *  Graph Export. */
@@ -643,6 +655,9 @@ function normalizeEdge(e: LoopEdge): LoopEdge {
       // across a round-trip, like `delay` on a state edge. A string is kept
       // as-is here; the canonical projection normalises / drops it (§M4.1).
       ...(typeof prevRes?.resourceType === 'string' ? { resourceType: prevRes.resourceType } : {}),
+      // loop-model/4 — the authored unit is graph structure too (§M4-2); kept
+      // as-is, resolved by the engine against the kinds table, never here
+      ...(typeof prevRes?.unit === 'string' && prevRes.unit !== '' ? { unit: prevRes.unit } : {}),
       ...(routing.route ? { route: routing.route } : {}),
       ...(routing.waypoints ? { waypoints: routing.waypoints } : {}),
       ...(accent !== undefined ? { accent } : {}),
@@ -707,10 +722,18 @@ export function serialize(
    *  non-empty table needs `modelVersion` 3 (M3-INV-1: an older envelope may
    *  not carry one), so writing it with less is refused, never silently dropped. */
   kinds?: readonly ResourceKindDecl[],
+  /** loop-model/4 — the step length. Absent ⇒ no `time` key; a declaration, a
+   *  unit list or a field unit needs `modelVersion` 4 (M4-INV-2), so writing
+   *  one with less is refused, never silently dropped. */
+  time?: DocTime,
 ): string {
   const kindsOut = Array.isArray(kinds) ? canonicalKinds(kinds) : []
   if (kindsOut.length > 0 && !hasKindsTable(modelVersion)) {
     throw new Error(`a kinds table needs model-semantics version 3, not ${modelVersion}`)
+  }
+  const timeOut = canonicalDocTime(time)
+  if (!hasUnits(modelVersion) && (timeOut !== undefined || kindsDeclareUnits(kindsOut) || anyFieldUnitKey(nodes, edges))) {
+    throw new Error(`units and a step length need model-semantics version 4, not ${modelVersion}`)
   }
   const doc: GraphDoc = {
     schema: schemaForModelVersion(modelVersion),
@@ -732,6 +755,8 @@ export function serialize(
   }
   // §M3-1 — `kinds` after `dataImports`, only when non-empty, in its read form.
   if (kindsOut.length > 0) doc.kinds = kindsOut
+  // §M4-3 — `time` after `kinds`, only when declared, in its read form.
+  if (timeOut !== undefined) doc.time = timeOut
   if (workspace && typeof workspace === 'object') {
     doc.workspace = workspace
   }
@@ -739,6 +764,12 @@ export function serialize(
     doc.project = project
   }
   return JSON.stringify(doc, null, 2)
+}
+
+/** `true` when any Pool or resource connection carries a non-empty `unit` key */
+function anyFieldUnitKey(nodes: readonly LoopNode[], edges: readonly LoopEdge[]): boolean {
+  const has = (d: unknown) => typeof (d as { unit?: unknown } | undefined)?.unit === 'string' && (d as { unit: string }).unit !== ''
+  return nodes.some((n) => n.data?.kind === 'pool' && has(n.data)) || edges.some((e) => (e.data?.kind ?? 'resource') === 'resource' && has(e.data))
 }
 
 /** why `deserialize` rejected a file — a CODE the UI maps to a localized
@@ -785,6 +816,9 @@ export function deserialize(text: string): {
   /** loop-model/3 — the kinds table (§M3-1), already run through `readKinds`;
    *  `[]` when absent, and always `[]` for a document before `/graph/3`. */
   kinds: ResourceKindDecl[]
+  /** loop-model/4 — the step length (§M4-3), already run through `readDocTime`;
+   *  `undefined` when absent, and always `undefined` before `/graph/4`. */
+  time?: DocTime
   /**`SEMANTICS-R8.md §R8-1` — true when the file's RAW, pre-defensive-read
    *  content carried a data-import provenance signal that `readDataImports` /
    *  `readParameterData` may have gone on to discard as unreadable (an
@@ -840,13 +874,18 @@ export function deserialize(text: string): {
   // anything unreadable (see `hasRawParameterProvenanceKeys`'s own doc comment).
   const hasRawDataImportSignal =
     hasRawDataImportTableSignal(obj.dataImports) || hasRawParameterProvenanceKeys(obj.nodes)
+  // §M4-1 — a field's `unit` key, the unit lists and `time` are read only from
+  // a `/graph/4` document; on an earlier schema the number is the base unit
+  const graph = normalizeGraph({ nodes: obj.nodes as LoopNode[], edges: obj.edges as LoopEdge[] })
+  const time = hasUnits(modelVersion) ? readDocTime(obj.time) : undefined
   return {
-    ...normalizeGraph({ nodes: obj.nodes as LoopNode[], edges: obj.edges as LoopEdge[] }),
+    ...(hasUnits(modelVersion) ? graph : stripFieldUnits(graph.nodes, graph.edges)),
     modelVersion,
     layoutVersion: Number.isInteger(obj.layoutVersion) && (obj.layoutVersion as number) >= 0 ? (obj.layoutVersion as number) : 0,
     frames: readSavedFrames(obj.frames), // §R5-1.1 — [] when absent / all-bad
     dataImports: readDataImports(obj.dataImports), // §R8-1.1 — [] when absent / all-bad
-    kinds: hasKindsTable(modelVersion) ? readKinds(obj.kinds) : [], // §M3-1 — never from an earlier schema
+    kinds: hasKindsTable(modelVersion) ? readKindsAt(obj.kinds, modelVersion) : [], // §M3-1 — never from an earlier schema
+    ...(time !== undefined ? { time } : {}),
     hasRawDataImportSignal,
     ...(rrc ? { recommendedRunConfig: rrc } : {}),
     ...(workspace ? { workspace } : {}),
@@ -894,6 +933,8 @@ export function saveToStorage(
   dataImports?: readonly ImportSourceTable[],
   /** loop-model/3 — the current kinds table, atomically in the same write. */
   kinds?: readonly ResourceKindDecl[],
+  /** loop-model/4 — the current step length, atomically in the same write. */
+  time?: DocTime,
 ): SaveToStorageResult {
   try {
     // `'all'` is a deliberate choice and is written; `'auto'` (and the legacy
@@ -918,7 +959,7 @@ export function saveToStorage(
         return { ok: false, reason: 'held' }
       }
     }
-    const text = serialize(nodes, edges, rrc, undefined, project, modelVersion, frames, dataImports, kinds)
+    const text = serialize(nodes, edges, rrc, undefined, project, modelVersion, frames, dataImports, kinds, time)
     storagePort.setItem(STORAGE_KEY, text)
     if (personal) lastKnownWorkText = text
     return { ok: true }
@@ -941,6 +982,7 @@ export function loadFromStorage():
       frames: SavedFrame[]
       dataImports: ImportSourceTable[]
       kinds: ResourceKindDecl[]
+      time?: DocTime
       project?: unknown
     }
   | null {
@@ -952,8 +994,8 @@ export function loadFromStorage():
   return null
 }
 
-/** the highest `loop-studio/graph/<n>` this build reads (`SCHEMA_V3`) */
-const KNOWN_SCHEMA_MAX = 3
+/** the highest `loop-studio/graph/<n>` this build reads (`SCHEMA_V4`) */
+const KNOWN_SCHEMA_MAX = 4
 
 /** #420 — what is in the work record, told apart: nothing, a document, text this
  *  build cannot read (kept as it is, with the reason and whether a newer

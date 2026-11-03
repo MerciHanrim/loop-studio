@@ -50,6 +50,8 @@ const templates = {
   'modules.promote.confirm': 'Converter e inserir',
   'modules.promote.title.v3': 'Tornar este documento um modelo com tipos de recurso (v3)?',
   'modules.promote.body.v3': 'Inserir esta estrutura torna o documento um modelo v3: ele declara tipos de recurso e o resumo de semântica do modelo muda. Um único desfazer reverte juntos a mudança de modelo e a inserção.',
+  'modules.promote.title.v4': 'Torná-lo um modelo com unidades (v4)?',
+  'modules.promote.body.v4': 'Inserir esta estrutura torna o documento um modelo v4: ele declara unidades ou uma duração de passo e o resumo de semântica do modelo muda. Um único desfazer reverte juntos a mudança de modelo e a inserção.',
   'modules.frames.title': 'Os quadros salvos não são incluídos',
   'modules.frames.insertBody': 'Este arquivo tem quadros de grupo salvos. Inseri-lo como estrutura não traz os quadros para o seu grafo; todo o resto é inserido normalmente.',
   'modules.frames.extractBody': 'Seu grafo tem quadros de grupo salvos. Eles não são gravados no arquivo da estrutura: somente os nós selecionados e suas conexões internas são.',

@@ -333,7 +333,7 @@ function deepFreeze<T>(v: T): T {
 export const useSimStore = create<SimStore>((set, get) => {
   const graph = () => useGraphStore.getState()
   /** loop-model/3 — the findings that refuse the run under the current kinds table */
-  const kindRefused = () => refusingKindFindings(graph().nodes, graph().edges, graph().kinds, graph().modelVersion)
+  const kindRefused = () => refusingKindFindings(graph().nodes, graph().edges, graph().kinds, graph().modelVersion, graph().time)
 
   // §PB6 — τ maps to this wall-clock span. Reduced motion does NOT get its own
   // (shorter) span here: instead `loop()` drives an RM transition straight to
@@ -347,7 +347,8 @@ export const useSimStore = create<SimStore>((set, get) => {
    *  `initError` instead of letting it escape into a store subscriber. */
   const safeInit = (nodes: ReturnType<typeof graph>['nodes']): { init: SimState; error: string | null } => {
     try {
-      return { init: initSim(nodes), error: null }
+      // loop-model/4 — a Pool authored in a unit starts at its engine value
+      return { init: initSim(nodes, { kinds: graph().kinds, time: graph().time }), error: null }
     } catch (e) {
       return {
         init: { step: 0, values: {}, ended: false, fired: [], triggerQueue: [] },
@@ -403,7 +404,7 @@ export const useSimStore = create<SimStore>((set, get) => {
   const prepareTransition = (): PreparedResult => {
     const g = graph()
     const h = head()
-    const r = step(g.nodes, g.edges, h, get().seed, g.modelVersion, { kinds: g.kinds })
+    const r = step(g.nodes, g.edges, h, get().seed, g.modelVersion, { kinds: g.kinds, time: g.time })
     return {
       fromStep: h.step,
       expectedCommitEpoch: get().commitEpoch,

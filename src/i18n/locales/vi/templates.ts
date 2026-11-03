@@ -36,6 +36,8 @@ const templates = {
   'modules.promote.confirm': 'Chuyển và chèn',
   'modules.promote.title.v3': 'Biến tài liệu này thành mô hình có loại tài nguyên (v3)?',
   'modules.promote.body.v3': 'Chèn cấu trúc này biến tài liệu thành mô hình v3: nó khai báo các loại tài nguyên và tóm lược ngữ nghĩa mô hình thay đổi. Một lần hoàn tác sẽ đảo ngược cả thay đổi mô hình lẫn việc chèn.',
+  'modules.promote.title.v4': 'Biến thành mô hình có đơn vị (v4)?',
+  'modules.promote.body.v4': 'Chèn cấu trúc này biến tài liệu thành mô hình v4: nó khai báo đơn vị hoặc độ dài bước và tóm lược ngữ nghĩa mô hình thay đổi. Một lần hoàn tác sẽ đảo ngược cả thay đổi mô hình lẫn việc chèn.',
   'modules.frames.title': 'Không bao gồm nhóm đã lưu',
   'modules.frames.insertBody': 'Tệp này có các nhóm đã lưu. Chèn nó như một cấu trúc sẽ không mang nhóm vào đồ thị — mọi thứ còn lại được chèn như bình thường.',
   'modules.frames.extractBody': 'Đồ thị có các nhóm đã lưu. Chúng không được ghi vào tệp cấu trúc — chỉ các nút đang chọn và liên kết nội bộ giữa chúng được ghi.',

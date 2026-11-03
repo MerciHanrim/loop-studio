@@ -26,9 +26,11 @@ import { nextId } from './factory'
 import { canonicalContent, validateResultGraph } from './revision'
 import { normalizeGraph } from './serialize'
 import type { ModelSemanticsVersion } from './serialize'
-import { mergeKinds, type ResourceKindDecl } from './kinds'
+import { kindMergeConflicts, kindsDeclareUnits, mergeKinds, type ResourceKindDecl } from './kinds'
+import { anyFieldUnit, applyUnits } from './engineValues'
 import { normalizeResourceType } from './model/resourceType'
 import type { LoopEdge, LoopNode } from './types'
+import { stepSeconds, type DocTime } from './units'
 
 // ── shared shapes ─────────────────────────────────────────────────────────────
 
@@ -38,6 +40,8 @@ export type GraphDocLike = {
   modelVersion: ModelSemanticsVersion
   /** loop-model/3 (SEMANTICS-M3.md) — the kinds table; absent ⇒ none */
   kinds?: readonly ResourceKindDecl[]
+  /** loop-model/4 (SEMANTICS-M4.md §M4-3) — the step length; absent ⇒ none */
+  time?: DocTime
 }
 
 /** Bounding-box top-left of a node set (`{ 0, 0 }` for an empty set). */
@@ -127,6 +131,9 @@ export type InsertOk = {
   /** loop-model/3 — the host's kinds table, then the module's kinds the host
    *  did not declare (`mergeKinds`). */
   kinds: ResourceKindDecl[]
+  /** loop-model/4 — the host's step length; a host without one adopts the
+   *  module's, so the module's per-time fields keep their meaning (§M4-3) */
+  time?: DocTime
   /** fresh ids of the inserted nodes, in module order (for selection). */
   insertedNodeIds: string[]
   insertedEdgeIds: string[]
@@ -216,15 +223,50 @@ export function insertGraph(host: GraphDocLike, mod: GraphDocLike, opts: InsertO
   const promotedTo = modelVersion > host.modelVersion ? modelVersion : null
   // loop-model/3 — the host's table first; a module's kind the host did not
   // declare joins it (a `/graph/3` module always lifts the host to 3 above).
+  // loop-model/4 (SEMANTICS-M4.md §M4-4) — an insert never changes what a
+  // field means. A unit both sides declare differently, or a different base
+  // unit, refuses; otherwise the module's units join the host's lists.
+  const unitConflicts = kindMergeConflicts(host.kinds ?? [], mod.kinds ?? [])
+  if (unitConflicts.length > 0) {
+    return { ok: false, reason: `The structure was not inserted, because its units differ from this document's: ${unitConflicts.join(' ')}` }
+  }
   const kinds = mergeKinds(host.kinds ?? [], mod.kinds ?? [])
+  // the step length is a model fact: two different declared step lengths
+  // refuse (every rate would move a different amount per step); a side that
+  // declares none takes the other's, guarded below
+  const hostStep = stepSeconds(host.time)
+  const modStep = stepSeconds(mod.time)
+  if (hostStep !== undefined && modStep !== undefined && hostStep !== modStep) {
+    const say = (t: DocTime) => `${t.step.value} ${t.step.unit}`
+    return {
+      ok: false,
+      reason: `The structure was not inserted, because it was written with a step of ${say(mod.time!)} and this document's step is ${say(host.time!)}: its rates would move a different amount per step. Give both the same step length first.`,
+    }
+  }
+  const time = host.time ?? mod.time
 
   // 4. build the full candidate, validate it whole, THEN return (§MS3.6 / B4).
   const nodes = [...host.nodes, ...outNodes]
   const edges = [...host.edges, ...outEdges]
   const v = validateResultGraph(nodes, edges)
   if (!v.ok) return { ok: false, reason: `The merged graph is not valid: ${v.reasons.join(' ')}` }
+  // §M4-4 — the backstop: every field's engine value after the insert is the
+  // one it had in its own document, the host's and the module's alike (a
+  // per-time unit that read as the base unit for want of a step length, a
+  // module unit the merge could not keep, …)
+  // (the module side is its RE-ISSUED content: fresh ids, `@ref`s rewritten)
+  const moved = enginesValuesMoved(
+    applyUnits(outNodes, outEdges, mod.kinds, mod.time),
+    applyUnits(host.nodes, host.edges, host.kinds, host.time),
+    applyUnits(nodes, edges, kinds, time),
+    host.nodes.length,
+    host.edges.length,
+  )
+  if (moved.length > 0) {
+    return { ok: false, reason: `The structure was not inserted, because it would change what these fields move: ${moved.join(', ')}.` }
+  }
   try {
-    canonicalContent({ nodes, edges, kinds }, { modelVersion })
+    canonicalContent({ nodes, edges, kinds, time }, { modelVersion })
   } catch {
     return { ok: false, reason: 'The merged graph holds a non-finite number.' }
   }
@@ -236,10 +278,41 @@ export function insertGraph(host: GraphDocLike, mod: GraphDocLike, opts: InsertO
     modelVersion,
     promotedTo,
     kinds,
+    ...(time !== undefined ? { time } : {}),
     insertedNodeIds: outNodes.map((n) => n.id),
     insertedEdgeIds: outEdges.map((e) => e.id),
     idMap: Object.fromEntries(idMap),
   }
+}
+
+/** §M4-4 — the fields whose engine value differs between their own document
+ *  and the merged one, as `label.field` (the merged graph holds the host's
+ *  nodes and edges first, then the module's, in order) */
+function enginesValuesMoved(
+  modAlone: { nodes: LoopNode[]; edges: LoopEdge[] },
+  hostAlone: { nodes: LoopNode[]; edges: LoopEdge[] },
+  merged: { nodes: LoopNode[]; edges: LoopEdge[] },
+  hostNodes: number,
+  hostEdges: number,
+): string[] {
+  const out: string[] = []
+  const label = (n: { id: string; data?: unknown }) => String((n.data as { label?: unknown } | undefined)?.label || n.id)
+  const nodeOf = (i: number) => (i < hostNodes ? hostAlone.nodes[i] : modAlone.nodes[i - hostNodes])
+  merged.nodes.forEach((n, i) => {
+    const before = nodeOf(i)?.data as { initial?: unknown; capacity?: unknown } | undefined
+    const after = n.data as { initial?: unknown; capacity?: unknown }
+    if (n.data?.kind !== 'pool' || !before) return
+    if (!Object.is(before.initial, after.initial)) out.push(`${label(n)}.initial`)
+    if (!Object.is(before.capacity, after.capacity)) out.push(`${label(n)}.capacity`)
+  })
+  const edgeOf = (i: number) => (i < hostEdges ? hostAlone.edges[i] : modAlone.edges[i - hostEdges])
+  const endLabel = (id: string) => label(merged.nodes.find((n) => n.id === id) ?? { id })
+  merged.edges.forEach((e, i) => {
+    const before = (edgeOf(i)?.data as { flow?: unknown } | undefined)?.flow
+    const after = (e.data as { flow?: unknown } | undefined)?.flow
+    if ((e.data?.kind ?? 'resource') === 'resource' && before !== after) out.push(`the connection from ${endLabel(e.source)} to ${endLabel(e.target)}`)
+  })
+  return out
 }
 
 // ── extract ───────────────────────────────────────────────────────────────────
@@ -253,6 +326,8 @@ export type ExtractOk = {
   modelVersion: ModelSemanticsVersion
   /** loop-model/3 — the source's declared kinds the selection names (`[]` ⇒ no table) */
   kinds: ResourceKindDecl[]
+  /** loop-model/4 — the source's step length, when the selection carries units */
+  time?: DocTime
 }
 export type ExtractResult = ExtractOk | { ok: false; reason: string; dangling?: DanglingRef[] }
 
@@ -319,7 +394,13 @@ export function extractModule(src: GraphDocLike, selectedIds: readonly string[])
     if (rt !== null) named.add(rt)
   }
   const kinds = (src.kinds ?? []).filter((k) => named.has(k.name))
-  const modelVersion: ModelSemanticsVersion = kinds.length > 0 ? 3 : hasParamFlow ? 2 : 1
+  // loop-model/4 — a selection whose kinds declare units or whose fields name
+  // one, or whose document declares a step length, is a `/graph/4` file
+  // (§M4-1); the step length is a model fact and travels with it, so an
+  // insert can tell when the two step lengths differ (§M4-4)
+  const units = kindsDeclareUnits(kinds) || anyFieldUnit(nodes, selEdges) || src.time !== undefined
+  const modelVersion: ModelSemanticsVersion = units ? 4 : kinds.length > 0 ? 3 : hasParamFlow ? 2 : 1
+  const time = units ? src.time : undefined
 
-  return { ok: true, nodes, edges: selEdges, modelVersion, kinds }
+  return { ok: true, nodes, edges: selEdges, modelVersion, kinds, ...(time !== undefined ? { time } : {}) }
 }

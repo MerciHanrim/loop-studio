@@ -6,14 +6,16 @@ import type { RegisterOutcome } from '../model/model'
 import type { LoopNode } from '../model/types'
 import { selectOnly, useGraphStore } from '../store/graphStore'
 import { hasModelLayer } from '../model/modelVersion'
-import { kindFindings, kindFindingEdgeId, kindFindingNodeId, type KindFinding, type ResourceKindDecl } from '../model/kinds'
+import { convertersWhoseVerdictChanges, kindFindings, kindFindingEdgeId, kindFindingNodeId, type KindFinding, type ResourceKindDecl } from '../model/kinds'
+import { readRateUnitList, readUnitList, STEP_VALUE_MAX, TIME_UNITS, type DocTime, type RateUnitDecl, type TimeUnit, type UnitDecl } from '../model/units'
 import { normalizeResourceType } from '../model/model/resourceType'
+import { ConfirmDialog } from './ConfirmDialog'
 import type { LoopEdge } from '../model/types'
 import { useRegisterOutcomes } from '../store/registers'
 import { useSimStore } from '../store/simStore'
 import { useUiStore } from '../store/uiStore'
 import { useT, type MessageKey } from '../i18n'
-import { isolateAuto } from '../i18n/bidiIsolate'
+import { isolateAuto, isolateLtr } from '../i18n/bidiIsolate'
 import { ArrowIcon, Icon } from '../ui/icons'
 import { DraftNumberInput } from './DraftNumberInput'
 
@@ -341,6 +343,13 @@ function namedKinds(nodes: readonly LoopNode[], edges: readonly LoopEdge[]): str
   return [...out].sort()
 }
 
+/** whether the Inputs tab has a panel to show: a Parameter or a Register, or
+ *  a kind the graph names or the document declares (the Kinds panel, where
+ *  the unit lists and the step length are authored — loop-model/3 and /4) */
+export function hasModelPanels(nodes: readonly LoopNode[], edges: readonly LoopEdge[], kinds: readonly ResourceKindDecl[]): boolean {
+  return nodes.some((n) => kindOf(n) === 'parameter' || kindOf(n) === 'register') || kinds.length > 0 || namedKinds(nodes, edges).length > 0
+}
+
 /** One finding (§M3-4), worded in the user's language from the data. Every
  *  user label — a node's, a kind's, a rate as typed — enters as its own
  *  isolated ICU argument (docs/localization.md §L9.4). Shared with the
@@ -368,15 +377,127 @@ export function KindFindingText({ f, nodes, edges }: { f: KindFinding; nodes: re
         : f.kind === null
           ? t('kinds.finding.rate', { from: isolateAuto(from(f.edgeId)), to: isolateAuto(to(f.edgeId)), rate: isolateAuto(f.rate) })
           : t('kinds.finding.rateConserved', { from: isolateAuto(from(f.edgeId)), to: isolateAuto(to(f.edgeId)), rate: isolateAuto(f.rate), kind: isolateAuto(f.kind), converter: isolateAuto(label(f.converterId)) })
+  } else if (f.cls === 'outOfRange') {
+    // loop-model/4 (§M4-2.5) — the authored value is a known-LTR token, the
+    // unit a user name
+    text = t('kinds.finding.outOfRange', { value: isolateLtr(f.value), unit: isolateAuto(f.unit) })
   } else {
-    text = t('kinds.finding.broken', { converter: isolateAuto(label(f.converterId)), kind: isolateAuto(f.kind), out: f.outRate, in: f.inRate })
+    // loop-model/4 (§M4-5, R≈) — the two exact sums as text: the decimal when
+    // it terminates, `≈` and 15 significant digits when it does not
+    text = t('kinds.finding.broken', { converter: isolateAuto(label(f.converterId)), kind: isolateAuto(f.kind), out: isolateLtr(f.outText), in: isolateLtr(f.inText) })
   }
   return <>{text}</>
 }
 
+// ── loop-model/4 (SEMANTICS-M4.md §M4-1 / §M4-3) — a kind's unit lists and the
+//    document's step length ─────────────────────────────────────────────────
+
+/** the one-line form of a kind's unit lists: `L=0.001, mL=0.000001, MW=1000/h` */
+function unitListText(units: readonly UnitDecl[] | undefined, rateUnits: readonly RateUnitDecl[] | undefined): string {
+  return [...(units ?? []).map((u) => `${u.name}=${u.factor}`), ...(rateUnits ?? []).map((u) => `${u.name}=${u.factor}/${u.per}`)].join(', ')
+}
+
+/** the inverse: entries the §M4-1 read keeps; an entry it does not read is
+ *  dropped (the committed field shows what survived) */
+function parseUnitListText(text: string, baseUnit: string | undefined): { units: UnitDecl[]; rateUnits: RateUnitDecl[] } {
+  const amount: unknown[] = []
+  const rate: unknown[] = []
+  for (const part of text.split(',')) {
+    const eq = part.indexOf('=')
+    if (eq < 0) continue
+    const name = part.slice(0, eq)
+    const rest = part.slice(eq + 1).trim()
+    const slash = rest.lastIndexOf('/')
+    if (slash >= 0) rate.push({ name, factor: rest.slice(0, slash), per: rest.slice(slash + 1).trim() })
+    else amount.push({ name, factor: rest })
+  }
+  const taken = new Set<string>(baseUnit !== undefined ? [baseUnit] : [])
+  return { units: readUnitList(amount, taken), rateUnits: readRateUnitList(rate, taken) }
+}
+
+/** the step-length row (§M4-3): a count and a time unit, or none. A change
+ *  that would move a Converter's balance verdict (a connection authored per
+ *  time changes its amount per step) is named and confirmed first (§M4-4). */
+function TimeSection({ nodes, edges }: { nodes: LoopNode[]; edges: LoopEdge[] }) {
+  const t = useT()
+  const locked = useUiStore((s) => s.canvasLocked)
+  const kinds = useGraphStore((s) => s.kinds)
+  const modelVersion = useGraphStore((s) => s.modelVersion)
+  const time = useGraphStore((s) => s.time)
+  const setTime = useGraphStore((s) => s.setTime)
+  const [pending, setPending] = useState<{ body: string; next: DocTime | undefined } | null>(null)
+  const [draft, setDraft] = useState<string | null>(null)
+  const unitWord: Record<TimeUnit, MessageKey> = { s: 'panels.time.unit.s', min: 'panels.time.unit.min', h: 'panels.time.unit.h', d: 'panels.time.unit.d' }
+  const propose = (next: DocTime | undefined) => {
+    if (JSON.stringify(next?.step ?? null) === JSON.stringify(time?.step ?? null)) return
+    const moved = convertersWhoseVerdictChanges(kindFindings(nodes, edges, kinds, modelVersion, time), kindFindings(nodes, edges, kinds, modelVersion, next))
+    if (moved.length === 0) return setTime(next)
+    const label = (id: string) => labelOf(nodes.find((n) => n.id === id)) || id
+    setPending({ body: t('panels.time.change.body', { converters: isolateAuto(moved.map(label).join(', ')) }), next })
+  }
+  const commitValue = (text: string) => {
+    setDraft(null)
+    const v = Number(text)
+    if (!Number.isInteger(v) || v < 1 || v > STEP_VALUE_MAX) return
+    propose({ ...(time ?? { step: { value: v, unit: 'h' } }), step: { value: v, unit: time?.step.unit ?? 'h' } })
+  }
+  return (
+    <>
+      <h3 className="mpanel__sub">{t('panels.time.title')}</h3>
+      <div className="mp-row mp-row--time">
+        <span className="mp-row__label">{t('panels.time.step')}</span>
+        <input
+          type="number"
+          className="mp-row__val mp-row__time-value"
+          // §L9.3 — a count, never prose
+          dir="ltr"
+          inputMode="numeric"
+          min={1}
+          max={STEP_VALUE_MAX}
+          step={1}
+          aria-label={t('panels.time.value')}
+          disabled={locked}
+          value={draft ?? String(time?.step.value ?? 1)}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={(e) => commitValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+        />
+        <select
+          className="mp-row__val"
+          aria-label={t('panels.time.title')}
+          disabled={locked}
+          value={time?.step.unit ?? ''}
+          onChange={(e) => {
+            const unit = e.target.value
+            propose(unit === '' ? undefined : { ...(time ?? { step: { value: 1, unit: 'h' } }), step: { value: time?.step.value ?? 1, unit: unit as TimeUnit } })
+          }}
+        >
+          <option value="">{t('panels.time.none')}</option>
+          {TIME_UNITS.map((u) => (
+            <option key={u} value={u}>
+              {t(unitWord[u])}
+            </option>
+          ))}
+        </select>
+      </div>
+      <ConfirmDialog
+        open={pending !== null}
+        title={t('panels.time.change.title')}
+        body={pending?.body ?? ''}
+        confirmLabel={t('panels.time.change.confirm')}
+        onConfirm={() => {
+          if (pending) setTime(pending.next)
+          setPending(null)
+        }}
+        onCancel={() => setPending(null)}
+      />
+    </>
+  )
+}
+
 /** the base-unit field: a draft until blur / Enter, so typing a unit is one
  *  history entry, not one per keystroke */
-function UnitInput({ value, label, placeholder, disabled, onCommit }: { value: string; label: string; placeholder: string; disabled: boolean; onCommit: (v: string) => void }) {
+function UnitInput({ value, label, placeholder, disabled, onCommit, maxLength = 32 }: { value: string; label: string; placeholder: string; disabled: boolean; onCommit: (v: string) => void; maxLength?: number }) {
   const [draft, setDraft] = useState(value)
   const [editing, setEditing] = useState(false)
   const shown = editing ? draft : value
@@ -389,7 +510,7 @@ function UnitInput({ value, label, placeholder, disabled, onCommit }: { value: s
       placeholder={placeholder}
       value={shown}
       disabled={disabled}
-      maxLength={32}
+      maxLength={maxLength}
       onFocus={() => { setDraft(value); setEditing(true) }}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => { setEditing(false); if (draft !== value) onCommit(draft) }}
@@ -411,6 +532,7 @@ function KindsSection({ nodes, edges, named }: { nodes: LoopNode[]; edges: LoopE
   const locked = useUiStore((s) => s.canvasLocked)
   const kinds = useGraphStore((s) => s.kinds)
   const modelVersion = useGraphStore((s) => s.modelVersion)
+  const time = useGraphStore((s) => s.time)
   const setKinds = useGraphStore((s) => s.setKinds)
   const outflow = useSimStore((s) => s.boundaryOutflow)
   const reveal = useReveal()
@@ -419,13 +541,16 @@ function KindsSection({ nodes, edges, named }: { nodes: LoopNode[]; edges: LoopE
     const declared = new Set(kinds.map((k) => k.name))
     return [...kinds, ...named.filter((n) => !declared.has(n)).map((name) => ({ name, conserved: false }))]
   }, [kinds, named])
-  const findings = useMemo(() => kindFindings(nodes, edges, kinds, modelVersion), [nodes, edges, kinds, modelVersion])
+  const findings = useMemo(() => kindFindings(nodes, edges, kinds, modelVersion, time), [nodes, edges, kinds, modelVersion, time])
 
-  const update = (name: string, patch: { conserved?: boolean; baseUnit?: string }) => {
+  const update = (name: string, patch: { conserved?: boolean; baseUnit?: string; units?: UnitDecl[]; rateUnits?: RateUnitDecl[] }) => {
     const cur = kinds.find((k) => k.name === name) ?? { name, conserved: false }
     const next: ResourceKindDecl = { ...cur, ...patch }
     if (next.baseUnit !== undefined && next.baseUnit.trim() === '') delete next.baseUnit
-    const keep = next.conserved || next.baseUnit !== undefined
+    // loop-model/4 — an empty list is no key; a row with a unit list stays in the file
+    if (next.units !== undefined && next.units.length === 0) delete next.units
+    if (next.rateUnits !== undefined && next.rateUnits.length === 0) delete next.rateUnits
+    const keep = next.conserved || next.baseUnit !== undefined || next.units !== undefined || next.rateUnits !== undefined
     const without = kinds.filter((k) => k.name !== name)
     if (!keep) return setKinds(without)
     setKinds(kinds.some((k) => k.name === name) ? kinds.map((k) => (k.name === name ? next : k)) : [...kinds, next])
@@ -468,10 +593,21 @@ function KindsSection({ nodes, edges, named }: { nodes: LoopNode[]; edges: LoopE
                     disabled={locked}
                     onCommit={(v) => update(k.name, { baseUnit: v })}
                   />
+                  {/* loop-model/4 (§M4-1) — the kind's amount and rate units, as
+                      one line; an entry the read drops disappears on commit */}
+                  <UnitInput
+                    value={unitListText(k.units, k.rateUnits)}
+                    label={t('panels.kinds.unitsFor', { kind: k.name })}
+                    placeholder={t('panels.kinds.units')}
+                    disabled={locked}
+                    onCommit={(v) => update(k.name, parseUnitListText(v, k.baseUnit))}
+                  />
                 </li>
               ))}
             </ul>
           )}
+          {rows.length > 0 && <p className="mpanel__empty">{t('panels.kinds.unitsHint')}</p>}
+          {rows.length > 0 && <TimeSection nodes={nodes} edges={edges} />}
           {findings.length > 0 && (
             <>
               <h3 className="mpanel__sub">{t('panels.kinds.findings')}</h3>

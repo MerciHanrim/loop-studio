@@ -35,7 +35,7 @@ export function readModuleFile(text: string): ReadModuleResult {
   if (d.nodes.length === 0) return { ok: false, reason: 'That file has no nodes to insert.' }
   return {
     ok: true,
-    module: { nodes: d.nodes, edges: d.edges, modelVersion: d.modelVersion, kinds: d.kinds },
+    module: { nodes: d.nodes, edges: d.edges, modelVersion: d.modelVersion, kinds: d.kinds, time: d.time },
     hadFrames: d.frames.length > 0,
     hadRunConfig: d.recommendedRunConfig != null,
   }
@@ -52,12 +52,13 @@ export type ExtractPlan =
  *  they are excluded before the download (§MS4a-B3). */
 export function planSelectionAsModule(ids: string[] = selectedNodeIds()): ExtractPlan {
   const g = useGraphStore.getState()
-  const r = extractModule({ nodes: g.nodes, edges: g.edges, modelVersion: g.modelVersion, kinds: g.kinds }, ids)
+  const r = extractModule({ nodes: g.nodes, edges: g.edges, modelVersion: g.modelVersion, kinds: g.kinds, time: g.time }, ids)
   if (!r.ok) return { ok: false, reason: r.reason }
   return {
     ok: true,
-    // loop-model/3 — the kinds the selection names ride along (a `/graph/3` module)
-    text: serialize(r.nodes, r.edges, undefined, undefined, undefined, r.modelVersion, undefined, undefined, r.kinds),
+    // loop-model/3 — the kinds the selection names ride along (a `/graph/3` module);
+    // loop-model/4 — and the step length when the selection carries units
+    text: serialize(r.nodes, r.edges, undefined, undefined, undefined, r.modelVersion, undefined, undefined, r.kinds, r.time),
     filename: 'loop-studio-module.json',
     hadFrames: useFrameStore.getState().snapshot().length > 0,
     nodeCount: r.nodes.length,

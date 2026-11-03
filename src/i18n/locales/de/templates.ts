@@ -50,6 +50,8 @@ const templates = {
   'modules.promote.confirm': 'Umwandeln und einfügen',
   'modules.promote.title.v3': 'Dieses Dokument zu einem Modell mit Ressourcenarten (v3) machen?',
   'modules.promote.body.v3': 'Das Einfügen dieser Struktur macht das Dokument zu einem v3-Modell: Es deklariert Ressourcenarten, und der Modellsemantik-Digest ändert sich. Ein einziges Rückgängig nimmt die Modelländerung und das Einfügen zusammen zurück.',
+  'modules.promote.title.v4': 'Zu einem Modell mit Einheiten (v4) machen?',
+  'modules.promote.body.v4': 'Das Einfügen dieser Struktur macht das Dokument zu einem v4-Modell: Es deklariert Einheiten oder eine Schrittlänge, und der Modellsemantik-Digest ändert sich. Ein einziges Rückgängig nimmt die Modelländerung und das Einfügen zusammen zurück.',
   'modules.frames.title': 'Gespeicherte Gruppenrahmen sind nicht enthalten',
   'modules.frames.insertBody': 'Diese Datei enthält gespeicherte Gruppenrahmen. Beim Einfügen als Struktur werden keine Rahmen in Ihren Graphen übernommen – alles andere wird wie gewohnt eingefügt.',
   'modules.frames.extractBody': 'Ihr Graph hat gespeicherte Gruppenrahmen. Sie werden nicht in die Strukturdatei geschrieben – nur die ausgewählten Knoten und ihre internen Verbindungen.',

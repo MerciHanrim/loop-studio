@@ -19,8 +19,9 @@ import {
 import { normalizeGraph, readDataImports, readSavedFrames, schemaForModelVersion } from './serialize'
 import type { ImportSourceTable, RecommendedRunConfig, SavedFrame } from './serialize'
 import type { FlowNodeKind, LoopEdge, LoopNode } from './types'
-import { hasKindsTable, hasModelLayer, isModelSemanticsLabel, modelSemanticsLabel, type ModelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
-import { canonicalKinds, readKinds, type ResourceKindDecl } from './kinds'
+import { hasKindsTable, hasModelLayer, hasUnits, isModelSemanticsLabel, modelSemanticsLabel, type ModelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
+import { canonicalKinds, readKindsAt, type ResourceKindDecl } from './kinds'
+import { canonicalDocTime, readDocTime, type DocTime } from './units'
 import { sha256Hex, sha256Js, utf8ByteLength, utf8Bytes } from './workspace'
 
 // ── constants & formats (§R11) ──────────────────────────────────────────────
@@ -125,6 +126,14 @@ export type CanonicalContent = {
    * different table hashes differently. Array order is file order.
    */
   kinds?: ResourceKindDecl[]
+  /**
+   * loop-model/4 (SEMANTICS-M4.md §M4-6) — the step length. A trailing key
+   * AFTER `kinds`, BEFORE `modelSemantics`; present **iff** the document
+   * declares one AND the projection runs at a version with units
+   * (`hasUnits`). `step` only — `display` is presentation. Engine input (a
+   * per-time field's engine value depends on it).
+   */
+  time?: { step: DocTime['step'] }
   /**
    * loop-model/2 (SEMANTICS-M2.md §M2-8) — the model-semantics discriminator.
    * Present (as `"loop-model/2"`, or `"loop-model/N"` for a later version N)
@@ -238,7 +247,7 @@ function numOrThrow(n: number, where: string): number {
  *  non-empty, so a graph with no resource types projects byte-identically to
  *  `loop-revision/1` (R2-INV-2). */
 const NODE_FIELDS: Record<FlowNodeKind, readonly string[]> = {
-  pool: ['kind', 'label', 'activation', 'initial', 'capacity', 'mode', 'resourceType', 'accent', 'icon'],
+  pool: ['kind', 'label', 'activation', 'initial', 'capacity', 'mode', 'resourceType', 'accent', 'icon', 'unit'],
   source: ['kind', 'label', 'activation', 'mode', 'accent', 'icon'],
   drain: ['kind', 'label', 'activation', 'mode', 'accent', 'icon'],
   gate: ['kind', 'label', 'activation', 'distribution', 'mode', 'accent', 'icon'],
@@ -283,7 +292,7 @@ const MODEL_NODE_FIELDS: Record<'parameter' | 'register', readonly string[]> = {
 // this field is NOT decided here (open until the older-version round-trip
 // check); this is the projection a face needs to be diffed and dirty-tracked.
 const EDGE_FIELDS: Record<'resource' | 'state', readonly string[]> = {
-  resource: ['kind', 'flow', 'resourceType', 'route', 'waypoints', 'accent', 'ports'],
+  resource: ['kind', 'flow', 'resourceType', 'route', 'waypoints', 'accent', 'ports', 'unit'],
   state: ['kind', 'mode', 'expr', 'delay', 'route', 'waypoints', 'timing', 'when', 'accent', 'ports'],
 }
 
@@ -458,6 +467,14 @@ function projectNode(n: LoopNode, modelLayer: boolean): CanonicalNode {
       if (i !== undefined) data.icon = i
       continue
     }
+    if (f === 'unit') {
+      // loop-model/4 (SEMANTICS-M4.md §M4-6) — trailing, only when a non-empty
+      // unit text is present (a document before /graph/4 never carries one:
+      // `deserialize` drops it), so earlier bytes are untouched
+      if (!modelLayer) continue
+      if (typeof src.unit === 'string' && src.unit !== '') data.unit = src.unit
+      continue
+    }
     let v = src[f]
     if (f === 'capacity') {
       // pool capacity: number (finite) or null (unbounded); absent ⇒ null
@@ -486,6 +503,11 @@ function projectEdge(e: LoopEdge, modelLayer: boolean): CanonicalEdge {
       if (!modelLayer) continue
       const rt = normalizeResourceType(src?.resourceType).value
       if (rt !== null) data.resourceType = rt
+    }
+    else if (f === 'unit') {
+      // loop-model/4 (§M4-6) — trailing, only when a non-empty unit text is present
+      if (!modelLayer) continue
+      if (typeof src?.unit === 'string' && src.unit !== '') data.unit = src.unit
     }
     else if (f === 'route') {
       // loop-revision/3 (§R3-2.1) — conservative: only under the v2/v3
@@ -586,6 +608,9 @@ export function canonicalContent(
     /** loop-model/3 — raw or already-clean kinds table (§M3-1 is applied here
      *  defensively, so a caller may pass either). */
     kinds?: unknown
+    /** loop-model/4 — raw or already-clean step length (§M4-3 is applied here
+     *  defensively, so a caller may pass either). */
+    time?: unknown
   },
   opts: { modelLayer?: boolean; modelVersion?: CanonModelVersion } = {},
 ): CanonicalContent {
@@ -659,10 +684,25 @@ export function canonicalContent(
   // entry survives §M3-1. Array in FILE ORDER, each entry name / conserved /
   // baseUnit?. Absent ⇒ earlier bytes untouched.
   if (modelLayer && hasKindsTable(opts.modelVersion)) {
-    const kinds = readKinds(doc.kinds)
+    const kinds = readKindsAt(doc.kinds, opts.modelVersion)
     if (kinds.length > 0) {
-      out.kinds = kinds.map((k) => (k.baseUnit !== undefined ? { name: k.name, conserved: k.conserved, baseUnit: k.baseUnit } : { name: k.name, conserved: k.conserved }))
+      // loop-model/4 (§M4-6) — `units` / `rateUnits` trail the entry, only at
+      // version 4 (`readKindsAt` strips them below it), only when non-empty
+      out.kinds = kinds.map((k) => ({
+        name: k.name,
+        conserved: k.conserved,
+        ...(k.baseUnit !== undefined ? { baseUnit: k.baseUnit } : {}),
+        ...(k.units ? { units: k.units.map((u) => ({ name: u.name, factor: u.factor })) } : {}),
+        ...(k.rateUnits ? { rateUnits: k.rateUnits.map((u) => ({ name: u.name, factor: u.factor, per: u.per })) } : {}),
+      }))
     }
+  }
+  // loop-model/4 (SEMANTICS-M4.md §M4-6) — `time` AFTER `kinds`, BEFORE
+  // `modelSemantics`, only at a version with units, only when declared, `step`
+  // only. Absent ⇒ earlier bytes untouched.
+  if (modelLayer && hasUnits(opts.modelVersion)) {
+    const time = readDocTime(doc.time)
+    if (time !== undefined) out.time = { step: { value: time.step.value, unit: time.step.unit } }
   }
   // loop-model/2 (SEMANTICS-M2.md §M2-8) — trailing discriminator, ONLY for a
   // model-layer document. Absent ⇒ v1 canonical bytes / digest are untouched (M2-INV-9).
@@ -782,6 +822,9 @@ export function readRevisionSide(
      *  `deserialize`; `[]` before `/graph/3`). Projected at the declared
      *  version, so a v3 side's digest covers it. */
     kinds?: readonly ResourceKindDecl[]
+    /** loop-model/4 (SEMANTICS-M4.md §M4-6) — the side's step length (from
+     *  `deserialize`; absent before `/graph/4`), projected at the declared version. */
+    time?: DocTime
     /** `SEMANTICS-R8.md` §R8-1 — true when the file's RAW, pre-defensive-read
      *  content carried a data-import provenance signal (an invalid-typed
      *  provenance key, or a `dataImports` entry) that `readDataImports` /
@@ -2146,6 +2189,11 @@ function readCanonicalContent(x: unknown): CanonicalContent | null {
   if (Array.isArray(o.kinds) && o.kinds.length > 0) {
     out.kinds = o.kinds as NonNullable<CanonicalContent['kinds']>
   }
+  // loop-model/4 (SEMANTICS-M4.md §M4-6) — a stored base snapshot from a v4
+  // document carries the trailing `time` key (after `kinds`), verbatim.
+  if (o.time && typeof o.time === 'object' && !Array.isArray(o.time)) {
+    out.time = o.time as NonNullable<CanonicalContent['time']>
+  }
   // loop-model/2 (SEMANTICS-M2.md §M2-8) — a stored base snapshot from a v2
   // document carries the trailing discriminator; keep it verbatim (after rrc,
   // the same key order `canonicalContent` emits) so the stored digest verifies.
@@ -2193,6 +2241,9 @@ export type GraphDocInput = {
   /** loop-model/3 (SEMANTICS-M3.md §M3-6) — the doc's kinds table. Absent /
    *  empty ⇒ no `kinds` key and no digest contribution. */
   kinds?: readonly ResourceKindDecl[]
+  /** loop-model/4 (SEMANTICS-M4.md §M4-3) — the doc's step length. Absent ⇒
+   *  no `time` key and no digest contribution. */
+  time?: DocTime
   workspace?: unknown
 }
 
@@ -2410,6 +2461,9 @@ function buildFile(
   if (Array.isArray(doc.dataImports) && doc.dataImports.length > 0) file.dataImports = doc.dataImports
   // §M3-1 — `kinds` after `dataImports`, only when non-empty, in its read form.
   if (Array.isArray(doc.kinds) && doc.kinds.length > 0) file.kinds = canonicalKinds(doc.kinds)
+  // §M4-3 — `time` after `kinds`, only when declared, in its read form.
+  const time = canonicalDocTime(doc.time)
+  if (time !== undefined) file.time = time
   if (doc.workspace && typeof doc.workspace === 'object') file.workspace = doc.workspace
   file.project = project
   return file

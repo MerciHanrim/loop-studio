@@ -200,11 +200,13 @@ export const useMcStore = create<McStore>((set, get) => ({
     const nodes = g.nodes.map((n) => ({ ...n }))
     const edges = g.edges.map((e) => ({ ...e }))
     const kinds = g.kinds
+    const time = g.time
     const rev = g.simulationRev
     // loop-model/2 — thread the document's model-semantics version into this
     // run only (never stored on `config`, never in `recommendedRunConfig`);
-    // loop-model/3 — and the kinds table, the same way.
-    const config = { ...get().config, modelVersion: g.modelVersion, kinds }
+    // loop-model/3 — and the kinds table, the same way; loop-model/4 — and the
+    // step length, which a per-time field's engine value depends on.
+    const config = { ...get().config, modelVersion: g.modelVersion, kinds, time }
 
     useSimStore.getState().pause() // the live run yields to the batch
 
@@ -230,7 +232,7 @@ export const useMcStore = create<McStore>((set, get) => ({
       // loop-model/2 (SEMANTICS-M2.md §M2-8): fold in the model-semantics version
       // so a result computed under v1 is not mistaken for a current v2 result
       // (and vice versa) after a promotion / cross-version Import.
-      const resultGraphDigest = await semanticDigest({ nodes, edges, kinds }, config.modelVersion)
+      const resultGraphDigest = await semanticDigest({ nodes, edges, kinds, time }, config.modelVersion)
       // issue #407 — the result belongs to the graph captured at START. If the
       // document's simulation semantics moved on while the run was in flight,
       // it lands already stale: the values, `runGraph`, `runRev` and the digest
