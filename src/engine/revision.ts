@@ -24,4 +24,12 @@
 //                       or without a Converter behind it; `all` on its input
 //                       reads the Pool's available amount at plan time; a
 //                       `pull all` such Gate takes its point or nothing
-export const ENGINE_REVISION = 3
+//   4                   issue #471 item 5 — `all` on a connection with a
+//                       Converter at either end is refused (0 + a diagnostic
+//                       naming the connection and the number `1`), as a
+//                       percent is; a Pool a Converter group both takes from
+//                       and delivers into is bounded along the group's commit
+//                       order (an earlier member's take is room for a later
+//                       delivery), so a loop routed through a Gate or a
+//                       Converter is bounded as the direct loop is
+export const ENGINE_REVISION = 4
