@@ -41,8 +41,9 @@ export function StructureMenuItems({
     return screenToFlowPosition({ x, y })
   }
 
-  /** Apply one insert. `confirmedPromotion` skips the v2 consent (the dialog
-   *  set it); a `needs-v2-consent` refusal opens that dialog and changes
+  /** Apply one insert. `confirmedPromotion` skips the promotion consent (the
+   *  dialog set it); a `needs-promotion-consent` refusal opens that dialog,
+   *  naming the version the insert lifts the document to, and changes
    *  nothing. */
   const runInsert = (doc: GraphDocLike, confirmedPromotion: boolean) => {
     const r = insertModule(doc, { at: centre(), confirmedPromotion })
@@ -50,8 +51,8 @@ export function StructureMenuItems({
       onLeave()
       return
     }
-    if (r.reason === 'needs-v2-consent') {
-      onOpenDialog({ kind: 'module-promote', run: () => runInsert(doc, true) })
+    if (r.promotedTo !== undefined) {
+      onOpenDialog({ kind: 'module-promote', to: r.promotedTo, run: () => runInsert(doc, true) })
       return
     }
     onLeave()

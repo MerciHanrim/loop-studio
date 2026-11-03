@@ -112,7 +112,7 @@ describe('insertGraph — expression rewrite', () => {
     const r = insertGraph(host(), mod, { at: { x: 0, y: 0 } })
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.promotedToV2).toBe(true)
+    expect(r.promotedTo).toBe(2)
     expect(r.modelVersion).toBe(2)
     const flowEdge = r.edges.find((e) => e.id === r.insertedEdgeIds[0])!
     expect((flowEdge.data as { flow: string }).flow).toBe(`@${r.idMap['m_rate']}`)
@@ -149,7 +149,7 @@ describe('insertGraph — expression rewrite', () => {
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(r.modelVersion).toBe(2)
-    expect(r.promotedToV2).toBe(false)
+    expect(r.promotedTo).toBe(null)
   })
 
   it('refuses a module whose register references a node outside the module', () => {
@@ -204,7 +204,7 @@ describe('extractModule — §MS2', () => {
     expect(r.nodes.find((n) => n.id === 'keep1')!.position).toEqual({ x: 0, y: 0 })
     expect(r.nodes.find((n) => n.id === 'keep2')!.position).toEqual({ x: 200, y: 60 })
     // no run config / frames field on the result shape at all
-    expect(Object.keys(r).sort()).toEqual(['edges', 'modelVersion', 'nodes', 'ok'])
+    expect(Object.keys(r).sort()).toEqual(['edges', 'kinds', 'modelVersion', 'nodes', 'ok'])
   })
 
   it('does not mutate the source graph', () => {

@@ -114,7 +114,7 @@ export function reviewModel(p: PendingProposal): ReviewModel {
     // SEMANTICS-R5.md §R5-6 — carry the proposal's saved `frames` so the diff
     // surfaces the cosmetic `frames` hunk (`base.content` already has it).
     canonicalContent(
-      { nodes: proposed.nodes, edges: proposed.edges, frames: proposed.frames },
+      { nodes: proposed.nodes, edges: proposed.edges, frames: proposed.frames, kinds: proposed.kinds },
       { modelVersion: proposed.modelVersion },
     ),
   )

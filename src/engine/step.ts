@@ -1,4 +1,6 @@
 import type { Activation, LoopEdge, LoopNode } from '../model/types'
+import { kindFindingText, refusingKindFindings, resolveKinds, type ResourceKindDecl } from '../model/kinds'
+import { boundaryOutflowByKind } from './boundaryOutflow'
 import { converterGroups, refusedGroups } from './converterGroups'
 import { evalDet, evalRand, type ModelVersion, rateOf } from './flow'
 import { resolveFlowExprs, routerOrder } from './gateChance'
@@ -69,12 +71,22 @@ export function initSim(nodes: LoopNode[]): SimState {
 
 const TRIGGERABLE = new Set(['passive', 'interactive'])
 
+export type StepOptions = {
+  /** loop-model/3 (SEMANTICS-M3.md) — the document's kinds table. With a
+   *  non-empty one, a refusing finding (§M3-4: a conflict, a not-computable or
+   *  a broken balance where a conserved kind is involved) stops the step before
+   *  anything moves, and the report carries `boundaryOutflow` (§M3-5). Absent
+   *  or empty ⇒ the loop-model/2 behaviour, event for event (M3-INV-1). */
+  kinds?: readonly ResourceKindDecl[]
+}
+
 export function step(
   nodes: LoopNode[],
   edges: LoopEdge[],
   prev: SimState,
   seed = 1,
   modelVersion: ModelVersion = 1,
+  opts: StepOptions = {},
 ): StepResult {
   // SEMANTICS.md §6 — "if `ended` was set, the run stops": an ended state is a
   // fixed point of `step`. Nothing is evaluated, nothing moves, the step count
@@ -117,6 +129,26 @@ export function step(
         notices: [],
         gates: [],
       },
+    }
+  }
+  // loop-model/3 (SEMANTICS-M3.md §M3-4, D1) — with a kinds table, a finding
+  // where a conserved kind is involved refuses the step the same way: nothing
+  // moves, the step is not consumed, one diagnostic per finding. The run bars
+  // refuse before Play with the same findings (`simStore.kindRefusals`).
+  const kinds = opts.kinds ?? []
+  const kindRes = kinds.length > 0 ? resolveKinds(nodes, liveEdges) : null
+  if (kindRes) {
+    const findings = refusingKindFindings(nodes, liveEdges, kinds, modelVersion)
+    if (findings.length) {
+      return {
+        state: { step: prev.step, values: prev.values, ended: false, fired: [], triggerQueue: prev.triggerQueue },
+        report: {
+          events: [], activated: [], fired: [], stateEvents: [],
+          diagnostics: findings.map((f) => kindFindingText(f, nodes, liveEdges)),
+          notices: [],
+          gates: [],
+        },
+      }
     }
   }
   // loop-model/2 (SEMANTICS-M2.md §M2-3): in a v2 document, resolve every
@@ -2266,6 +2298,8 @@ export function step(
       diagnostics,
       notices,
       gates,
+      // §M3-5 (L1) — only for a document with a kinds table; a v2 report has no key
+      ...(kindRes ? { boundaryOutflow: boundaryOutflowByKind(events, nodes, liveEdges, kindRes.edgeKind) } : {}),
     },
   }
 }

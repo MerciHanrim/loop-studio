@@ -28,10 +28,11 @@ const pool = (id: string, over: Partial<LoopNode['data']> = {}, pos = { x: 0, y:
 const rEdge = (id: string, s: string, t: string, flow = '1'): LoopEdge =>
   ({ id, type: 'loop', source: s, target: t, sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow } }) as LoopEdge
 
-const mod = (nodes: LoopNode[], edges: LoopEdge[] = [], modelVersion: 1 | 2 = 1): GraphDocLike => ({
+const mod = (nodes: LoopNode[], edges: LoopEdge[] = [], modelVersion: 1 | 2 | 3 = 1, kinds?: GraphDocLike['kinds']): GraphDocLike => ({
   nodes,
   edges,
   modelVersion,
+  ...(kinds ? { kinds } : {}),
 })
 
 beforeEach(() => {
@@ -128,7 +129,7 @@ describe('insertModule — v1 → v2 consent gate (§MS3.4 / MS7-2)', () => {
       frames: useFrameStore.getState().snapshot(),
     }
     const r = g().insertModule(m, { at: { x: 0, y: 0 } })
-    expect(r).toEqual({ ok: false, reason: 'needs-v2-consent' })
+    expect(r).toEqual({ ok: false, reason: 'needs-promotion-consent', promotedTo: 2 })
     expect(g().nodes).toBe(before.nodes)
     expect(g().edges).toBe(before.edges)
     expect(g().modelVersion).toBe(before.mv)
@@ -136,6 +137,53 @@ describe('insertModule — v1 → v2 consent gate (§MS3.4 / MS7-2)', () => {
     expect(g().selectedNodeId).toBe(before.sel)
     expect(g().simulationRev).toBe(before.rev)
     expect(useFrameStore.getState().snapshot()).toEqual(before.frames)
+  })
+
+  // loop-model/3 (SEMANTICS-M3.md) — a module with a kinds table lifts the host
+  // to version 3; the consent names THAT version, and the table rides the
+  // same one undo unit as the insert.
+  it('a /graph/3 module asks for consent to version 3, and with it the kinds table and the promotion undo as one unit', () => {
+    const KINDS = [{ name: 'water', conserved: true, baseUnit: 'm³' }]
+    const m = mod([pool('a', { resourceType: 'water' } as Partial<LoopNode['data']>), pool('b', { resourceType: 'water' } as Partial<LoopNode['data']>)], [rEdge('e', 'a', 'b', '2')], 3, KINDS)
+    const before = { nodes: g().nodes, mv: g().modelVersion, kinds: g().kinds, past: g().past.length }
+    const refused = g().insertModule(m, { at: { x: 0, y: 0 } })
+    expect(refused).toEqual({ ok: false, reason: 'needs-promotion-consent', promotedTo: 3 })
+    expect(g().nodes).toBe(before.nodes)
+    expect(g().modelVersion).toBe(before.mv)
+    expect(g().kinds).toBe(before.kinds)
+    expect(g().past.length).toBe(before.past)
+
+    const r = g().insertModule(m, { at: { x: 0, y: 0 }, confirmedPromotion: true })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.promotedTo).toBe(3)
+    expect(g().modelVersion).toBe(3)
+    expect(g().kinds).toEqual(KINDS)
+    expect(g().past.length).toBe(before.past + 1)
+
+    g().undo()
+    expect(g().modelVersion).toBe(before.mv)
+    expect(g().kinds).toEqual([])
+    expect(g().nodes).toHaveLength(1)
+    g().redo()
+    expect(g().modelVersion).toBe(3)
+    expect(g().kinds).toEqual(KINDS)
+  })
+
+  it('setKinds: the first declaration promotes the document to version 3 as one undo unit; an emptied table keeps the version', () => {
+    const before = g().modelVersion
+    expect(before).toBe(1)
+    g().setKinds([{ name: 'water', conserved: true }])
+    expect(g().modelVersion).toBe(3)
+    expect(g().kinds).toEqual([{ name: 'water', conserved: true }])
+    g().setKinds([])
+    expect(g().modelVersion).toBe(3)
+    expect(g().kinds).toEqual([])
+    g().undo()
+    expect(g().kinds).toEqual([{ name: 'water', conserved: true }])
+    g().undo()
+    expect(g().modelVersion).toBe(1)
+    expect(g().kinds).toEqual([])
   })
 
   it('with confirmedPromotion the promotion + insert are ONE undo unit back to a v1 document', () => {
@@ -147,7 +195,7 @@ describe('insertModule — v1 → v2 consent gate (§MS3.4 / MS7-2)', () => {
     const r = g().insertModule(m, { at: { x: 0, y: 0 }, confirmedPromotion: true })
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.promotedToV2).toBe(true)
+    expect(r.promotedTo).toBe(2)
     expect(g().modelVersion).toBe(2)
     expect(g().nodes).toHaveLength(4)
 

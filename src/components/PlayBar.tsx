@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useGraphStore } from '../store/graphStore'
+import { kindFindingEdgeId, kindFindingNodeId } from '../model/kinds'
 import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
 import { useT } from '../i18n'
@@ -66,10 +67,18 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   // #471 (Deploy 2, F1) — a refused Converter group: Play / Step do not start;
   // one line names the shape, Show selects the first group's split
   const refusals = useSimStore((s) => s.refusals)
-  const refused = refusals.length > 0
+  // loop-model/3 (SEMANTICS-M3.md §M3-4) — a kind finding that refuses the
+  // run, the same line; Show selects the finding's node (or its connection)
+  const kindRefusals = useSimStore((s) => s.kindRefusals)
+  const refused = refusals.length > 0 || kindRefusals.length > 0
   const showRefused = () => {
     const g = refusals[0]
-    if (g) useGraphStore.getState().setSelection(g.split ?? g.members[0], null)
+    if (g) return useGraphStore.getState().setSelection(g.split ?? g.members[0], null)
+    const f = kindRefusals[0]
+    if (f) {
+      const nodeId = kindFindingNodeId(f)
+      useGraphStore.getState().setSelection(nodeId, nodeId ? null : kindFindingEdgeId(f))
+    }
   }
   const cannotRun = initError != null || refused
   const engineDiagnostics = useSimStore((s) => s.diagnostics)
@@ -88,6 +97,8 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   const cancelMc = useMcStore((s) => s.cancel)
   const mcRunning = mcStatus === 'running'
   const t = useT()
+  // the refusal line: a split that rejoins first, else the kind findings (loop-model/3)
+  const refusedText = refusals.length > 0 ? t('playbar.refused', { n: refusals.length }) : t('playbar.refused.kinds', { n: kindRefusals.length })
   // #471 (Deploy 2) — the engine's structured notices, worded here in the
   // user's language (the node label isolated), ahead of the English engine
   // diagnostics in the same list
@@ -270,7 +281,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
         // selects the first one's split, whose Inspector note says what to
         // change. Announced when it appears, like the line above.
         <span className="pstrip__step pstrip__initerr pstrip__refused" role="alert">
-          {t('playbar.refused', { n: refusals.length })}
+          {refusedText}
           <button type="button" className="btn btn--ghost pstrip__refused-show" onClick={showRefused}>
             {t('playbar.refused.show')}
           </button>

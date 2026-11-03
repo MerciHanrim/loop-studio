@@ -25,7 +25,10 @@ export function MonteCarloDialog() {
   const closeDialog = useMcStore((s) => s.closeDialog)
   // #471 (Deploy 2, F1) — a refused Converter group: Run does not start, and
   // the dialog shows the run bar's line (mcStore.run guards it as well)
-  const refusedCount = useSimStore((s) => s.refusals.length)
+  const groupRefusedCount = useSimStore((s) => s.refusals.length)
+  // loop-model/3 (SEMANTICS-M3.md §M3-4) — a kind finding that refuses the run, same posture
+  const kindRefusedCount = useSimStore((s) => s.kindRefusals.length)
+  const refusedCount = groupRefusedCount + kindRefusedCount
   // iOS Safari keeps its focus-zoom until the field is blurred — drop focus (and
   // dismiss the soft keyboard) before the dialog unmounts so the page returns to
   // 100% (docs/mobile.md §MV4b). No-op on desktop.
@@ -296,7 +299,7 @@ export function MonteCarloDialog() {
 
         {refusedCount > 0 ? (
           <p className="mcdlg__note mcdlg__refused" role="status">
-            {t('playbar.refused', { n: refusedCount })}
+            {groupRefusedCount > 0 ? t('playbar.refused', { n: groupRefusedCount }) : t('playbar.refused.kinds', { n: kindRefusedCount })}
           </p>
         ) : null}
 

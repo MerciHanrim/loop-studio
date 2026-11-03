@@ -1,4 +1,6 @@
-import { useId, useState, type ReactNode } from 'react'
+import { useId, useMemo, useState, type ReactNode } from 'react'
+import { kindFindings, kindFindingEdgeId, kindFindingNodeId } from '../model/kinds'
+import { KindFindingText } from './ModelPanels'
 import {
   classifyLabelTiming,
   eligibleLabelPreset,
@@ -255,6 +257,7 @@ export function Inspector({ editLocked = false }: { editLocked?: boolean } = {})
             way to the setting it is about, while that setting is folded */}
         {d.kind === 'pool' && <ResourceMismatchNote findings={mismatches.filter((f) => f.nodeId === node.id)} />}
         {(d.kind === 'gate' || d.kind === 'converter') && <RefusedGroupNote nodeId={node.id} />}
+        {(d.kind === 'pool' || d.kind === 'gate' || d.kind === 'converter') && <KindFindingNote nodeId={node.id} />}
         {d.kind === 'gate' && <GateStateNote nodeId={node.id} />}
 
         {/* the flow mode and the resource type are settings most edits never
@@ -1130,6 +1133,40 @@ function RefusedGroupNote({ nodeId }: { nodeId: string }) {
       <p className="inspector__note inspector__note--warn" role="status">
         {t('inspector.refused.splitRejoin', { split: isolateAuto(label(group.split)), join: isolateAuto(label(group.join)) })}
       </p>
+    </div>
+  )
+}
+
+/** loop-model/3 (SEMANTICS-M3.md §M3-4) — the kind findings about the
+ *  selected node: a Converter's balance, a Gate's mixed kinds, a Pool end of
+ *  a conflicting connection. Worded by `KindFindingText`, the Kinds panel's
+ *  own sentence; the one that stops the run says so. A finding, not a
+ *  setting: it stays in view. Nothing without a finding. */
+function KindFindingNote({ nodeId }: { nodeId: string }) {
+  const t = useT()
+  const nodes = useGraphStore((s) => s.nodes)
+  const edges = useGraphStore((s) => s.edges)
+  const kinds = useGraphStore((s) => s.kinds)
+  const modelVersion = useGraphStore((s) => s.modelVersion)
+  const findings = useMemo(
+    () =>
+      kindFindings(nodes, edges, kinds, modelVersion).filter((f) => {
+        if (kindFindingNodeId(f) === nodeId) return true
+        const edgeId = kindFindingEdgeId(f)
+        const e = edgeId ? edges.find((x) => x.id === edgeId) : undefined
+        return f.cls === 'conflict' && f.conflict.kind === 'poolEnds' && (e?.source === nodeId || e?.target === nodeId)
+      }),
+    [nodes, edges, kinds, modelVersion, nodeId],
+  )
+  if (findings.length === 0) return null
+  return (
+    <div className="wb-panel__finding">
+      {findings.map((f, i) => (
+        <p key={i} className={`inspector__note${f.refuses ? ' inspector__note--warn' : ''}`} role="status" data-kind-finding={f.cls}>
+          <KindFindingText f={f} nodes={nodes} edges={edges} />
+          {f.refuses && <> {t('panels.kinds.refuses')}</>}
+        </p>
+      ))}
     </div>
   )
 }

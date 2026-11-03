@@ -39,6 +39,8 @@ const templates = {
   'modules.promote.title': 'Bu belge parametre güdümlü (v2) modele dönüşsün mü?',
   'modules.promote.body': 'Bu yapıyı eklemek belgeyi v2 modele dönüştürür ve model anlam özeti değişir. Tek bir geri alma hem model değişikliğini hem eklemeyi birlikte geri alır.',
   'modules.promote.confirm': 'Yükselt ve ekle',
+  'modules.promote.title.v3': 'Bu belge kaynak türleri olan bir modele (v3) dönüştürülsün mü?',
+  'modules.promote.body.v3': 'Bu yapıyı eklemek belgeyi v3 modele dönüştürür: kaynak türleri bildirir ve model anlambilim özeti değişir. Tek bir geri alma model değişikliğini ve eklemeyi birlikte geri alır.',
   'modules.frames.title': 'Kayıtlı çerçeveler dahil değil',
   'modules.frames.insertBody': 'Bu dosyada kayıtlı grup çerçeveleri var. Dosyayı yapı olarak eklemek çerçeveleri grafiğinize taşımaz — geri kalan her şey her zamanki gibi eklenir.',
   'modules.frames.extractBody': 'Grafiğinizde kayıtlı grup çerçeveleri var. Bunlar yapı dosyasına yazılmaz — yalnızca seçili düğümler ve aralarındaki bağlantılar yazılır.',

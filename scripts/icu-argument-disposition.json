@@ -11,10 +11,10 @@
   },
   "$implemented": "A row classed `auto` / `ltr` / `per-fragment` is an OPEN obligation: the evidence says the value needs bounding and the code does not bound it yet. C3.5 was scoped to fix the two families that were already evidenced — the unrecognized-column header and the five `import.loc.*` calls — and those moved to `isolate-obligations.json`. The checker asserts these rows are NOT wrapped, so implementing one without moving its row is red in both directions.",
   "totals": {
-    "arguments": 292,
-    "rows": 54,
+    "arguments": 324,
+    "rows": 56,
     "byClass": {
-      "attribute": 10,
+      "attribute": 12,
       "closed-value": 44
     },
     "recordedNotImplemented": 0,
@@ -180,6 +180,26 @@
       "sink": "prop:DraftNumberInput.aria-label",
       "class": "attribute",
       "evidence": "aria-label on an input: `DraftNumberInput` (#393 A) spreads the prop onto its own `<input>` unchanged, so the value still lands in an HTML attribute, which markup cannot reach; the checker sees the component prop only. The value is a user PARAMETER LABEL."
+    },
+    {
+      "file": "src/components/ModelPanels.tsx",
+      "enclosing": "KindsSection",
+      "key": "panels.kinds.conservedFor",
+      "arg": "kind",
+      "ord": 1,
+      "sink": "attr:input.aria-label",
+      "class": "attribute",
+      "evidence": "aria-label on the Conserved checkbox of a Kinds-panel row (loop-model/3, SEMANTICS-M3.md §M3-1; issue #471). The value is a user KIND NAME (a Pool's `resourceType`); it lands in an HTML attribute, which markup cannot reach."
+    },
+    {
+      "file": "src/components/ModelPanels.tsx",
+      "enclosing": "KindsSection",
+      "key": "panels.kinds.baseUnitFor",
+      "arg": "kind",
+      "ord": 1,
+      "sink": "prop:UnitInput.label",
+      "class": "attribute",
+      "evidence": "TRACED: `UnitInput` puts its `label` prop on its own `<input aria-label>` unchanged, so the value lands in an HTML attribute, which markup cannot reach; the checker sees the component prop only. The value is a user KIND NAME (loop-model/3; issue #471)."
     },
     {
       "file": "src/components/PlayBar.tsx",

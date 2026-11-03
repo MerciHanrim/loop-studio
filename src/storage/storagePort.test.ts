@@ -77,17 +77,18 @@ describe('storagePort — a pass-through to localStorage', () => {
 })
 
 describe('storagePort — the key registry', () => {
+  // #471 (b): sixteen, was fifteen — the Kinds panel's open/folded choice joins
   // v0.30.0: fifteen, was sixteen — the minimap's choice is a retired key now
-  it('lists the fifteen keys Loop Studio stores, by kind', () => {
+  it('lists the sixteen keys Loop Studio stores, by kind', () => {
     const byKind: Record<string, string[]> = {}
     for (const [key, kind] of Object.entries(STORAGE_KEYS)) (byKind[kind] ??= []).push(key)
-    expect(Object.keys(STORAGE_KEYS)).toHaveLength(15)
+    expect(Object.keys(STORAGE_KEYS)).toHaveLength(16)
     // issue #297 - the one key read before the gate and written by a temporary session
     expect(byKind.mode).toEqual(['loop-studio:storage-mode'])
     expect(STORAGE_MODE_KEY).toBe('loop-studio:storage-mode')
     expect(byKind.work).toEqual(['loop-studio:graph:v1'])
     expect(byKind.personal).toEqual(['loop-studio:author'])
-    expect(byKind.preference).toHaveLength(9)
+    expect(byKind.preference).toHaveLength(10) // #471 (b): +1 (loop-studio:kinds-panel)
     expect(byKind.onboarding).toEqual(['loop-studio/guided-tour/1', 'loop-studio/contextual-help/1', 'loop-studio/import-quickstart/1'])
     expect(Object.keys(byKind).sort()).toEqual(['mode', 'onboarding', 'personal', 'preference', 'work'])
   })
@@ -115,6 +116,7 @@ describe('storagePort — the key registry', () => {
         'loop-studio:focus-mode',
         'loop-studio:graph:v1',
         'loop-studio:inputs-panel',
+        'loop-studio:kinds-panel',
         'loop-studio:recent-accents',
         'loop-studio:summary-panel',
         'loop-studio:theme',

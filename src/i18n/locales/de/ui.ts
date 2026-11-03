@@ -89,6 +89,7 @@ const ui = {
   'playbar.initError': 'Ausführen nicht möglich: {detail}',
   'playbar.refused': 'Ausführen nicht möglich: Pfade, die sich teilen und wieder treffen ({n})',
   'playbar.refused.show': 'Anzeigen',
+  'playbar.refused.kinds': 'Kann nicht laufen: Befunde zu einer erhaltenen Art ({n})',
   'inspector.refused.splitRejoin': 'Ausführen nicht möglich: Ressourcen teilen sich bei {split} und treffen sich bei {join} wieder. Diese Modellversion unterstützt keine Pfade, die sich teilen und wieder treffen, daher läuft das Modell nicht. Entfernen Sie einen der Pfade, oder fügen Sie auf einem davon einen Speicher ein. Ein Speicher hält fest, was ankommt, sodass dieser Pfad einen Schritt später weiterläuft.',
   'playbar.diag.title': 'Diagnosen des Laufs ({n})',
   'playbar.diag.multiSupplyLoss': '{label} hat in diesem Schritt {amount} mehr erhalten, als es verwenden konnte; diese Menge ist verloren.',

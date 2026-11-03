@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from 'react'
 import { useGraphStore } from '../../store/graphStore'
+import { kindFindingEdgeId, kindFindingNodeId } from '../../model/kinds'
 import { useMcStore } from '../../store/mcStore'
 import { useSimStore } from '../../store/simStore'
 import { selectOverlay, useUiStore } from '../../store/uiStore'
@@ -59,11 +60,18 @@ export function MobileRunBar() {
   const initError = useSimStore((s) => s.initError)
   // #471 (Deploy 2, F1) — a refused Converter group, as the desktop strip
   const refusals = useSimStore((s) => s.refusals)
-  const refused = refusals.length > 0
+  // loop-model/3 (SEMANTICS-M3.md §M3-4) — a kind finding that refuses the run
+  const kindRefusals = useSimStore((s) => s.kindRefusals)
+  const refused = refusals.length > 0 || kindRefusals.length > 0
   const cannotRun = initError != null || refused
   const showRefused = () => {
     const g = refusals[0]
-    if (g) useGraphStore.getState().setSelection(g.split ?? g.members[0], null)
+    if (g) return useGraphStore.getState().setSelection(g.split ?? g.members[0], null)
+    const f = kindRefusals[0]
+    if (f) {
+      const nodeId = kindFindingNodeId(f)
+      useGraphStore.getState().setSelection(nodeId, nodeId ? null : kindFindingEdgeId(f))
+    }
   }
   const engineDiagnostics = useSimStore((s) => s.diagnostics)
   const notices = useSimStore((s) => s.notices)
@@ -83,6 +91,8 @@ export function MobileRunBar() {
   const closeOverlay = useUiStore((s) => s.closeOverlay)
   const isMobile = useIsMobile()
   const t = useT()
+  // the refusal line: a split that rejoins first, else the kind findings (loop-model/3)
+  const refusedText = refusals.length > 0 ? t('playbar.refused', { n: refusals.length }) : t('playbar.refused.kinds', { n: kindRefusals.length })
   // #471 (Deploy 2) — the engine's structured notices, worded here in the
   // user's language (the node label isolated), ahead of the English engine
   // diagnostics in the same list
@@ -152,7 +162,7 @@ export function MobileRunBar() {
           className={`pb-btn pb-btn--primary${running ? ' is-running' : ''}`}
           onClick={onPrimary}
           disabled={cannotRun}
-          title={initError != null ? t('playbar.initError', { detail: initError }) : refused ? t('playbar.refused', { n: refusals.length }) : undefined}
+          title={initError != null ? t('playbar.initError', { detail: initError }) : refused ? refusedText : undefined}
         >
           <Icon name={ended ? 'replay' : running ? 'pause' : 'play'} className="icon--lead" />
           {ended ? t('playbar.replay') : running ? t('playbar.pause') : t('playbar.play')}
@@ -211,7 +221,7 @@ export function MobileRunBar() {
         // #471 (Deploy 2, F1) — a refused Converter group: the same visible
         // row; Show selects the first group's split (the Inspector says why)
         <div className="pstrip__initerr pstrip__initerr--mobile pstrip__refused" role="alert">
-          {t('playbar.refused', { n: refusals.length })}
+          {refusedText}
           <button type="button" className="btn btn--ghost pstrip__refused-show" onClick={showRefused}>
             {t('playbar.refused.show')}
           </button>

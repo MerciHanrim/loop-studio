@@ -39,6 +39,8 @@ const templates = {
   'modules.promote.title': 'Make this a parameter-driven (v2) model?',
   'modules.promote.body': 'Inserting this structure turns the document into a v2 model and the model-semantics digest changes. A single undo reverses the model change and the insert together.',
   'modules.promote.confirm': 'Promote and insert',
+  'modules.promote.title.v3': 'Make this a model with resource kinds (v3)?',
+  'modules.promote.body.v3': 'Inserting this structure turns the document into a v3 model: it declares resource kinds, and the model-semantics digest changes. A single undo reverses the model change and the insert together.',
   'modules.frames.title': 'Saved frames are not included',
   'modules.frames.insertBody': 'This file has saved group frames. Inserting it as a structure does not bring frames into your graph — everything else is inserted as usual.',
   'modules.frames.extractBody': 'Your graph has saved group frames. They are not written into the structure file — only the selected nodes and their internal connections are.',

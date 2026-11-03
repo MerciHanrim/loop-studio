@@ -38,6 +38,8 @@ const templates = {
   'modules.promote.title': 'Passer à un modèle piloté par paramètres (v2) ?',
   'modules.promote.body': 'Insérer cette structure transforme le document en modèle v2 et l’empreinte de sémantique du modèle change. Une seule annulation revient à la fois sur le changement de modèle et sur l’insertion.',
   'modules.promote.confirm': 'Convertir et insérer',
+  'modules.promote.title.v3': 'Faire de ce document un modèle avec des types de ressource (v3) ?',
+  'modules.promote.body.v3': 'Insérer cette structure fait du document un modèle v3 : il déclare des types de ressource et l’empreinte de sémantique du modèle change. Une seule annulation défait ensemble le changement de modèle et l’insertion.',
   'modules.frames.title': 'Les cadres de groupe enregistrés ne sont pas inclus',
   'modules.frames.insertBody': 'Ce fichier contient des cadres de groupe enregistrés. L’insérer comme structure ne les apporte pas dans votre graphe — tout le reste est inséré normalement.',
   'modules.frames.extractBody': 'Votre graphe contient des cadres de groupe enregistrés. Ils ne sont pas écrits dans le fichier de structure — seuls les nœuds sélectionnés et leurs connexions internes le sont.',

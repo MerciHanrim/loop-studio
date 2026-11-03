@@ -382,6 +382,8 @@ describe('es-419 copy — mechanical review', () => {
         'review.fail.versionMismatch',
         'modules.promote.title',
         'modules.promote.body',
+        'modules.promote.title.v3', // #471 (b): the kinds-model consent dialog
+        'modules.promote.body.v3',
       ],
       x: ['canvas.frame.a11y.moved', 'rf.node.moveCancelled', 'rf.node.moved'],
       y: ['canvas.frame.a11y.moved', 'rf.node.moveCancelled', 'rf.node.moved'],

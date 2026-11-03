@@ -86,6 +86,7 @@ const ui = {
   'playbar.initError': 'Không chạy được: {detail}',
   'playbar.refused': 'Không chạy được: các đường tách ra rồi gặp lại nhau ({n})',
   'playbar.refused.show': 'Hiện',
+  'playbar.refused.kinds': 'Không thể chạy: có phát hiện về một loại được bảo toàn ({n})',
   'inspector.refused.splitRejoin': 'Không chạy được: tài nguyên tách ra tại {split} và gặp lại nhau tại {join}. Phiên bản mô hình này không hỗ trợ các đường tách ra rồi gặp lại nhau, nên mô hình không chạy. Để chạy, hãy bỏ một trong hai đường, hoặc thêm một Bể chứa trên một đường. Bể chứa giữ lại những gì đến, nên đường đó sẽ di chuyển chậm hơn một bước.',
   'playbar.diag.title': 'Chẩn đoán lần chạy ({n})',
   'playbar.diag.multiSupplyLoss': '{label} đã nhận nhiều hơn {amount} so với lượng có thể dùng ở bước này, và lượng đó đã mất.',

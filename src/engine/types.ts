@@ -1,3 +1,5 @@
+import type { BoundaryOutflow } from './boundaryOutflow'
+
 export type SimValues = Record<string, number>
 
 /** A pending delayed state-trigger delivery (SEMANTICS-S.md §S8). */
@@ -77,6 +79,10 @@ export type StepReport = {
    *  amounts). A Gate with no entry is `off` (not fired this step, or no run).
    *  Same lifecycle as `notices`. */
   gates: GateStatus[]
+  /** loop-model/3 (SEMANTICS-M3.md §M3-5, L1) — this step's deliveries into
+   *  Drains and Ends, grouped per kind and per exit node. Present only when
+   *  `step` was given a kinds table; a `loop-model/2` report is unchanged. */
+  boundaryOutflow?: BoundaryOutflow[]
 }
 
 /** issue #477 — a Gate's execution evidence for one step (the design: the QA

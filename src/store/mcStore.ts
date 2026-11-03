@@ -193,13 +193,18 @@ export const useMcStore = create<McStore>((set, get) => ({
     // run: the dialog's Run is disabled and shows the reason; this guards a
     // caller that bypasses it (the same line the run bar shows).
     if (useSimStore.getState().refusals.length > 0) return
+    // loop-model/3 (SEMANTICS-M3.md §M3-4) — a refusing kind finding stops the
+    // batch the same way; `step` would refuse every step of it anyway
+    if (useSimStore.getState().kindRefusals.length > 0) return
     const g = useGraphStore.getState()
     const nodes = g.nodes.map((n) => ({ ...n }))
     const edges = g.edges.map((e) => ({ ...e }))
+    const kinds = g.kinds
     const rev = g.simulationRev
     // loop-model/2 — thread the document's model-semantics version into this
-    // run only (never stored on `config`, never in `recommendedRunConfig`).
-    const config = { ...get().config, modelVersion: g.modelVersion }
+    // run only (never stored on `config`, never in `recommendedRunConfig`);
+    // loop-model/3 — and the kinds table, the same way.
+    const config = { ...get().config, modelVersion: g.modelVersion, kinds }
 
     useSimStore.getState().pause() // the live run yields to the batch
 
@@ -225,7 +230,7 @@ export const useMcStore = create<McStore>((set, get) => ({
       // loop-model/2 (SEMANTICS-M2.md §M2-8): fold in the model-semantics version
       // so a result computed under v1 is not mistaken for a current v2 result
       // (and vice versa) after a promotion / cross-version Import.
-      const resultGraphDigest = await semanticDigest({ nodes, edges }, config.modelVersion)
+      const resultGraphDigest = await semanticDigest({ nodes, edges, kinds }, config.modelVersion)
       // issue #407 — the result belongs to the graph captured at START. If the
       // document's simulation semantics moved on while the run was in flight,
       // it lands already stale: the values, `runGraph`, `runRev` and the digest

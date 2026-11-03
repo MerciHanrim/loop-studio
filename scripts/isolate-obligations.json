@@ -4,9 +4,9 @@
   "$limit": "This manifest defends the call sites listed here, exactly and in both directions. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together close the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
   "$history": "PR B recorded 11 decision rows and deferred them. C3.5 re-ran the population from the TypeScript type checker — 205 ICU arguments — and found 27 more that carry user or technical values: 8 in its first pass (the unrecognized-column header and the five `import.loc.*` calls) and 19 that its first pass only RECORDED as open. All 27 are implemented here, so no row of the disposition manifest is classed `auto`, `ltr` or `per-fragment` any more.",
   "totals": {
-    "rows": 81,
-    "obligations": 37,
-    "callSites": 59
+    "rows": 85,
+    "obligations": 39,
+    "callSites": 67
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -16,7 +16,7 @@
     "er19": 3,
     "workbench": 18,
     "issue-420": 4,
-    "issue-471": 3
+    "issue-471": 7
   },
   "obligations": [
     {
@@ -989,6 +989,40 @@
           "args": ["node", "kind"],
           "kind": "auto"
         }
+      ]
+    },
+    {
+      "id": "kinds-finding-text",
+      "rows": [
+        "issue-471 kinds panel finding: the connection's two end labels",
+        "issue-471 kinds panel finding: kind names (a Pool's, an annotation's, a Gate's list)",
+        "issue-471 kinds panel finding: the Converter's label and the rate as typed"
+      ],
+      "file": "src/components/ModelPanels.tsx",
+      "enclosing": "KindFindingText",
+      "carries": "the user's own NODE LABELS (the two ends of a connection, a Gate, a Converter), the user's own KIND NAMES (a Pool's `resourceType`, a connection's annotation, the comma-joined list a Gate carries) and the RATE as the user typed it, in the loop-model/3 findings (SEMANTICS-M3.md §M3-4; issue #471)",
+      "why": "one sentence per finding, shared by the Kinds panel and the Inspector's note; every user value enters as its own ICU argument so each is isolated on its own — a connection is named by its two end labels (`from`, `to`), never by a joined `A → B` string. The Gate's `kinds` list is one argument of several kind names joined by a comma; each name is a user value and the list is isolated as one run (`auto`).",
+      "sites": [
+        { "keys": ["kinds.finding.poolEnds"], "args": ["from", "to", "a", "b"], "kind": "auto" },
+        { "keys": ["kinds.finding.annotation"], "args": ["from", "to", "edgeKind", "poolKind"], "kind": "auto" },
+        { "keys": ["kinds.finding.gateMixes"], "args": ["gate", "kinds"], "kind": "auto" },
+        { "keys": ["kinds.finding.noKind"], "args": ["from", "to", "converter"], "kind": "auto" },
+        { "keys": ["kinds.finding.rate"], "args": ["from", "to", "rate"], "kind": "auto" },
+        { "keys": ["kinds.finding.rateConserved"], "args": ["from", "to", "rate", "kind", "converter"], "kind": "auto" },
+        { "keys": ["kinds.finding.broken"], "args": ["converter", "kind"], "kind": "auto" }
+      ]
+    },
+    {
+      "id": "kinds-boundary-outflow-row",
+      "rows": [
+        "issue-471 kinds panel boundary outflow: kind name and exit node label"
+      ],
+      "file": "src/components/ModelPanels.tsx",
+      "enclosing": "KindsSection",
+      "carries": "the KIND NAME (a user `resourceType`, or the catalog's `no kind` phrase for a line with none) and the user's own LABEL of the Drain or End it went into, in the boundary-outflow-by-kind row (SEMANTICS-M3.md §M3-5; issue #471)",
+      "why": "two independent user values in one sentence, each isolated on its own; the amount is a number and derives.",
+      "sites": [
+        { "keys": ["panels.kinds.outflow.row"], "args": ["kind", "node"], "kind": "auto" }
       ]
     }
   ]

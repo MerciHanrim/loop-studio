@@ -66,6 +66,7 @@ export const STORAGE_KEYS = {
   'loop-studio:activity-overlay': 'preference',
   'loop-studio:inputs-panel': 'preference',
   'loop-studio:summary-panel': 'preference',
+  'loop-studio:kinds-panel': 'preference',
   'loop-studio:recent-accents': 'preference',
   'loop-studio/guided-tour/1': 'onboarding',
   'loop-studio/contextual-help/1': 'onboarding',

@@ -3,6 +3,8 @@ import { initSim, step } from '../engine'
 import type { FlowEvent, SimState, SimValues, StateEvent, StepResult, TriggerQueueEntry } from '../engine'
 import { type ConverterGroup, refusedGroups } from '../engine/converterGroups'
 import type { GateStatus, StepNotice } from '../engine/types'
+import type { BoundaryOutflow } from '../engine/boundaryOutflow'
+import { refusingKindFindings, type KindFinding } from '../model/kinds'
 import { MAX_SERIES } from '../model/limits'
 import { readTimelineSeries, type TimelineSeries } from '../model/serialize'
 import {
@@ -76,6 +78,8 @@ export type PreparedResult = {
     notices: StepNotice[]
     /** `StepReport.gates` of this step (#477 — the Gate state LED and the Inspector's line) */
     gates: GateStatus[]
+    /** `StepReport.boundaryOutflow` of this step (loop-model/3 §M3-5; `[]` without a kinds table) */
+    boundaryOutflow: BoundaryOutflow[]
   }
 }
 
@@ -149,6 +153,17 @@ type SimStore = {
    *  the line for a selected member. Editing, saving and sharing are
    *  unaffected. Session-only, never serialized. */
   refusals: ConverterGroup[]
+
+  /** loop-model/3 (SEMANTICS-M3.md §M3-4, D1) — the kind findings that refuse
+   *  the run: a conflict, a not-computable or a broken balance where a
+   *  conserved kind is involved. Computed with `refusals` from the graph and
+   *  its kinds table on every simulation-relevant change; `step` refuses with
+   *  the same list. `[]` for a document with no conserved kind. */
+  kindRefusals: KindFinding[]
+  /** loop-model/3 (§M3-5, L1) — the committed step's boundary outflow by kind
+   *  (`StepReport.boundaryOutflow`); `[]` without a kinds table. Same
+   *  lifecycle as `gates`. */
+  boundaryOutflow: BoundaryOutflow[]
 
   /** docs/simulation-playback-ordering.md §PBO5 — true once the last
    *  `STEADY_N` consecutive committed steps have a pairwise-ε-equal Pool vector
@@ -317,6 +332,8 @@ function deepFreeze<T>(v: T): T {
 
 export const useSimStore = create<SimStore>((set, get) => {
   const graph = () => useGraphStore.getState()
+  /** loop-model/3 — the findings that refuse the run under the current kinds table */
+  const kindRefused = () => refusingKindFindings(graph().nodes, graph().edges, graph().kinds, graph().modelVersion)
 
   // §PB6 — τ maps to this wall-clock span. Reduced motion does NOT get its own
   // (shorter) span here: instead `loop()` drives an RM transition straight to
@@ -351,11 +368,12 @@ export const useSimStore = create<SimStore>((set, get) => {
         triggerQueue: s.triggerQueue,
       }
     const { init, error } = safeInit(graph().nodes)
-    set({ values: init.values, stepIndex: 0, triggerQueue: [], series: [{ step: 0, values: init.values }], initError: error, refusals: refusedGroups(graph().nodes, graph().edges) })
+    set({ values: init.values, stepIndex: 0, triggerQueue: [], series: [{ step: 0, values: init.values }], initError: error, refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused() })
     return init
   }
-  /** #471 — Play / Step do not start while a group is refused (see `refusals`) */
-  const refused = () => get().initError != null || get().refusals.length > 0
+  /** #471 — Play / Step do not start while a group is refused (see `refusals`)
+   *  or a kind finding refuses the run (loop-model/3, see `kindRefusals`) */
+  const refused = () => get().initError != null || get().refusals.length > 0 || get().kindRefusals.length > 0
 
   const deriveFrom = (r: StepResult): PreparedResult['derived'] => {
     const g = graph()
@@ -377,6 +395,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       diagnostics: [...new Set(r.report.diagnostics)],
       notices: [...r.report.notices],
       gates: [...r.report.gates],
+      boundaryOutflow: [...(r.report.boundaryOutflow ?? [])],
     }
   }
 
@@ -384,7 +403,7 @@ export const useSimStore = create<SimStore>((set, get) => {
   const prepareTransition = (): PreparedResult => {
     const g = graph()
     const h = head()
-    const r = step(g.nodes, g.edges, h, get().seed, g.modelVersion)
+    const r = step(g.nodes, g.edges, h, get().seed, g.modelVersion, { kinds: g.kinds })
     return {
       fromStep: h.step,
       expectedCommitEpoch: get().commitEpoch,
@@ -445,6 +464,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       diagnostics: [...p.derived.diagnostics], // #396 — this step's, replacing the last step's
       notices: [...p.derived.notices],
       gates: [...p.derived.gates],
+      boundaryOutflow: [...p.derived.boundaryOutflow],
       // §LGR6-cues — this committed step's `effective` id set, appended to the
       // trailing Activity-overlay window (fired nodes + resource-edge ids from
       // `events` + state-edge ids from `stateEvents`).
@@ -627,8 +647,10 @@ export const useSimStore = create<SimStore>((set, get) => {
     diagnostics: [],
     notices: [],
     gates: [],
+    boundaryOutflow: [],
     initError: null,
     refusals: [],
+    kindRefusals: [],
     activitySteps: [],
     steadyState: false,
     series: [],
@@ -704,8 +726,9 @@ export const useSimStore = create<SimStore>((set, get) => {
         diagnostics: [], // #396 — Reset, a graph edit and a document change leave none behind
         notices: [],
         gates: [],
+        boundaryOutflow: [],
         initError: error,
-        refusals: refusedGroups(graph().nodes, graph().edges),
+        refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(),
         activitySteps: [],
         steadyState: false,
         series: [{ step: 0, values: init.values }],
@@ -736,8 +759,9 @@ export const useSimStore = create<SimStore>((set, get) => {
         diagnostics: [], // #396 — a snapshot carries no step report
         notices: [],
         gates: [],
+        boundaryOutflow: [],
         initError: null, // a verified snapshot IS a valid head
-        refusals: refusedGroups(graph().nodes, graph().edges), // a refused shape stays refused: a restored head does not step
+        refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(), // a refused shape stays refused: a restored head does not step
         activitySteps: [],
         commitEpoch: s.commitEpoch + 1,
         lastSettledTransitionId: null,

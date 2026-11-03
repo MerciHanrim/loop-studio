@@ -6,6 +6,9 @@ import type { RegisterOutcome } from '../model/model'
 import type { LoopNode } from '../model/types'
 import { selectOnly, useGraphStore } from '../store/graphStore'
 import { hasModelLayer } from '../model/modelVersion'
+import { kindFindings, kindFindingEdgeId, kindFindingNodeId, type KindFinding, type ResourceKindDecl } from '../model/kinds'
+import { normalizeResourceType } from '../model/model/resourceType'
+import type { LoopEdge } from '../model/types'
 import { useRegisterOutcomes } from '../store/registers'
 import { useSimStore } from '../store/simStore'
 import { useUiStore } from '../store/uiStore'
@@ -319,15 +322,210 @@ function SummarySection({ registers }: { registers: LoopNode[] }) {
   )
 }
 
-/** The two panels. Renders nothing when the graph has no `parameter` and no
- *  `register` node (§MS5.3). Desktop only — mounted by `DesktopInspector`. */
+// ── loop-model/3 (SEMANTICS-M3.md) — the Kinds panel ─────────────────────────
+
+/** the kinds a graph names: every Pool `resourceType` and every connection
+ *  annotation, normalised as §M4.1 identifies them, in ascending order */
+function namedKinds(nodes: readonly LoopNode[], edges: readonly LoopEdge[]): string[] {
+  const out = new Set<string>()
+  for (const n of nodes) {
+    if (kindOf(n) !== 'pool') continue
+    const v = normalizeResourceType((n.data as { resourceType?: unknown }).resourceType).value
+    if (v !== null) out.add(v)
+  }
+  for (const e of edges) {
+    if (kindOf(e) !== 'resource') continue
+    const v = normalizeResourceType((e.data as { resourceType?: unknown } | undefined)?.resourceType).value
+    if (v !== null) out.add(v)
+  }
+  return [...out].sort()
+}
+
+/** One finding (§M3-4), worded in the user's language from the data. Every
+ *  user label — a node's, a kind's, a rate as typed — enters as its own
+ *  isolated ICU argument (docs/localization.md §L9.4). Shared with the
+ *  Inspector's note, so the two say the same thing. */
+export function KindFindingText({ f, nodes, edges }: { f: KindFinding; nodes: readonly LoopNode[]; edges: readonly LoopEdge[] }) {
+  const t = useT()
+  const label = (id: string) => labelOf(nodes.find((n) => n.id === id)) || id
+  const from = (edgeId: string) => label(edges.find((e) => e.id === edgeId)?.source ?? edgeId)
+  const to = (edgeId: string) => label(edges.find((e) => e.id === edgeId)?.target ?? edgeId)
+  let text: string
+  if (f.cls === 'conflict') {
+    const c = f.conflict
+    text =
+      c.kind === 'poolEnds'
+        ? t('kinds.finding.poolEnds', { from: isolateAuto(from(c.edgeId)), to: isolateAuto(to(c.edgeId)), a: isolateAuto(c.kinds[0]), b: isolateAuto(c.kinds[1]) })
+        : c.kind === 'annotation'
+          ? t('kinds.finding.annotation', { from: isolateAuto(from(c.edgeId)), to: isolateAuto(to(c.edgeId)), edgeKind: isolateAuto(c.edgeKind), poolKind: isolateAuto(c.poolKind) })
+          : t('kinds.finding.gateMixes', { gate: isolateAuto(label(c.nodeId)), kinds: isolateAuto(c.kinds.join(', ')) })
+  } else if (f.cls === 'notComputable') {
+    text =
+      f.reason === 'noKind'
+        ? t('kinds.finding.noKind', { from: isolateAuto(from(f.edgeId)), to: isolateAuto(to(f.edgeId)), converter: isolateAuto(label(f.converterId)) })
+        : f.kind === null
+          ? t('kinds.finding.rate', { from: isolateAuto(from(f.edgeId)), to: isolateAuto(to(f.edgeId)), rate: isolateAuto(f.rate) })
+          : t('kinds.finding.rateConserved', { from: isolateAuto(from(f.edgeId)), to: isolateAuto(to(f.edgeId)), rate: isolateAuto(f.rate), kind: isolateAuto(f.kind), converter: isolateAuto(label(f.converterId)) })
+  } else {
+    text = t('kinds.finding.broken', { converter: isolateAuto(label(f.converterId)), kind: isolateAuto(f.kind), out: f.outRate, in: f.inRate })
+  }
+  return <>{text}</>
+}
+
+/** the base-unit field: a draft until blur / Enter, so typing a unit is one
+ *  history entry, not one per keystroke */
+function UnitInput({ value, label, placeholder, disabled, onCommit }: { value: string; label: string; placeholder: string; disabled: boolean; onCommit: (v: string) => void }) {
+  const [draft, setDraft] = useState(value)
+  const [editing, setEditing] = useState(false)
+  const shown = editing ? draft : value
+  return (
+    <input
+      type="text"
+      className="mp-row__val mp-row__unit"
+      dir="auto"
+      aria-label={label}
+      placeholder={placeholder}
+      value={shown}
+      disabled={disabled}
+      maxLength={32}
+      onFocus={() => { setDraft(value); setEditing(true) }}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => { setEditing(false); if (draft !== value) onCommit(draft) }}
+      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+    />
+  )
+}
+
+/** The Kinds panel (§M3-1): one row per kind the graph names or the table
+ *  declares — Conserved opts it into per-kind conservation (C1), the base
+ *  unit is a label (U1 stage 1). A row is in the file only while it is
+ *  conserved or has a unit. Below the rows: the findings (D1), each a
+ *  read-through to its node or connection, marked when it stops the run; and
+ *  the committed step's boundary outflow by kind (L1), never called a loss. */
+function KindsSection({ nodes, edges, named }: { nodes: LoopNode[]; edges: LoopEdge[]; named: string[] }) {
+  const t = useT()
+  const open = useUiStore((s) => s.kindsPanelOpen)
+  const toggle = useUiStore((s) => s.toggleKindsPanel)
+  const locked = useUiStore((s) => s.canvasLocked)
+  const kinds = useGraphStore((s) => s.kinds)
+  const modelVersion = useGraphStore((s) => s.modelVersion)
+  const setKinds = useGraphStore((s) => s.setKinds)
+  const outflow = useSimStore((s) => s.boundaryOutflow)
+  const reveal = useReveal()
+
+  const rows = useMemo<ResourceKindDecl[]>(() => {
+    const declared = new Set(kinds.map((k) => k.name))
+    return [...kinds, ...named.filter((n) => !declared.has(n)).map((name) => ({ name, conserved: false }))]
+  }, [kinds, named])
+  const findings = useMemo(() => kindFindings(nodes, edges, kinds, modelVersion), [nodes, edges, kinds, modelVersion])
+
+  const update = (name: string, patch: { conserved?: boolean; baseUnit?: string }) => {
+    const cur = kinds.find((k) => k.name === name) ?? { name, conserved: false }
+    const next: ResourceKindDecl = { ...cur, ...patch }
+    if (next.baseUnit !== undefined && next.baseUnit.trim() === '') delete next.baseUnit
+    const keep = next.conserved || next.baseUnit !== undefined
+    const without = kinds.filter((k) => k.name !== name)
+    if (!keep) return setKinds(without)
+    setKinds(kinds.some((k) => k.name === name) ? kinds.map((k) => (k.name === name ? next : k)) : [...kinds, next])
+  }
+
+  return (
+    <section className="mpanel mpanel--kinds">
+      <PanelHead
+        title={t('panels.kinds.title')}
+        count={rows.length}
+        open={open}
+        onToggle={toggle}
+        labelKey={{ collapse: 'panels.kinds.collapse', expand: 'panels.kinds.expand' }}
+      />
+      {open && (
+        <div className="mpanel__body">
+          {rows.length === 0 ? (
+            <p className="mpanel__empty">{t('panels.empty.kinds')}</p>
+          ) : (
+            <ul className="mpanel__list">
+              {rows.map((k) => (
+                <li key={k.name} className="mp-row mp-row--kind">
+                  <span className="mp-row__label mp-row__label--name mp-row__kind" dir="auto" title={k.name}>
+                    {k.name}
+                  </span>
+                  <label className="mp-row__check">
+                    <input
+                      type="checkbox"
+                      checked={k.conserved}
+                      disabled={locked}
+                      aria-label={t('panels.kinds.conservedFor', { kind: k.name })}
+                      onChange={(e) => update(k.name, { conserved: e.target.checked })}
+                    />
+                    {t('panels.kinds.conserved')}
+                  </label>
+                  <UnitInput
+                    value={k.baseUnit ?? ''}
+                    label={t('panels.kinds.baseUnitFor', { kind: k.name })}
+                    placeholder={t('panels.kinds.baseUnit')}
+                    disabled={locked}
+                    onCommit={(v) => update(k.name, { baseUnit: v })}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+          {findings.length > 0 && (
+            <>
+              <h3 className="mpanel__sub">{t('panels.kinds.findings')}</h3>
+              <ul className="mpanel__list mpanel__list--findings">
+                {findings.map((f, i) => {
+                  const nodeId = kindFindingNodeId(f)
+                  const edgeId = kindFindingEdgeId(f)
+                  return (
+                    <li key={i} className={`mp-row mp-row--finding${f.refuses ? ' mp-row--refuses' : ''}`}>
+                      <button type="button" className="mp-row__label mp-row__finding" onClick={() => reveal(nodeId, nodeId ? null : edgeId)}>
+                        <KindFindingText f={f} nodes={nodes} edges={edges} />
+                      </button>
+                      {f.refuses && <span className="mp-row__badge">{t('panels.kinds.refuses')}</span>}
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
+          )}
+          {outflow.length > 0 && (
+            <>
+              <h3 className="mpanel__sub">{t('panels.kinds.outflow')}</h3>
+              <ul className="mpanel__list mpanel__list--outflow">
+                {outflow.map((o) => (
+                  <li key={`${o.kind ?? ''}\u0001${o.nodeId}`} className="mp-row mp-row--outflow">
+                    <button type="button" className="mp-row__label" onClick={() => reveal(o.nodeId, null)}>
+                      {t('panels.kinds.outflow.row', {
+                        kind: isolateAuto(o.kind ?? t('panels.kinds.outflow.noKind')),
+                        node: isolateAuto(labelOf(nodes.find((n) => n.id === o.nodeId)) || o.nodeId),
+                        amount: o.amount,
+                      })}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+/** The panels. Renders nothing when the graph has no `parameter`, no
+ *  `register` node (§MS5.3) and names no kind (loop-model/3). Desktop only —
+ *  mounted by `DesktopInspector`. */
 export function ModelPanels() {
   const nodes = useGraphStore((s) => s.nodes)
   const edges = useGraphStore((s) => s.edges)
   const modelVersion = useGraphStore((s) => s.modelVersion)
+  const declaredKinds = useGraphStore((s) => s.kinds)
 
   const params = useMemo(() => nodes.filter((n) => kindOf(n) === 'parameter').sort(byId), [nodes])
   const registers = useMemo(() => nodes.filter((n) => kindOf(n) === 'register').sort(byId), [nodes])
+  const named = useMemo(() => namedKinds(nodes, edges), [nodes, edges])
+  const hasKinds = named.length > 0 || declaredKinds.length > 0
   const paramFlowEdges = useMemo(() => {
     if (!hasModelLayer(modelVersion)) return []
     return edges
@@ -344,12 +542,13 @@ export function ModelPanels() {
       .sort(byId)
   }, [edges, modelVersion])
 
-  if (params.length === 0 && registers.length === 0) return null
+  if (params.length === 0 && registers.length === 0 && !hasKinds) return null
 
   return (
     <div className="mpanels">
-      <InputsSection params={params} paramFlowEdges={paramFlowEdges} nodes={nodes} />
-      <SummarySection registers={registers} />
+      {(params.length > 0 || registers.length > 0) && <InputsSection params={params} paramFlowEdges={paramFlowEdges} nodes={nodes} />}
+      {hasKinds && <KindsSection nodes={nodes} edges={edges} named={named} />}
+      {(params.length > 0 || registers.length > 0) && <SummarySection registers={registers} />}
     </div>
   )
 }

@@ -96,6 +96,9 @@ type UiState = {
   toggleInputsPanel: () => void
   summaryPanelOpen: boolean
   toggleSummaryPanel: () => void
+  /** loop-model/3 — the Kinds panel (SEMANTICS-M3.md), same persistence */
+  kindsPanelOpen: boolean
+  toggleKindsPanel: () => void
 
   /**
    * docs/dense-graph-pan.md — the desktop Pan mode. While on, a left-drag
@@ -239,6 +242,7 @@ const FILTER_PANEL_KEY = 'loop-studio:filter-panel'
 const ACTIVITY_OVERLAY_KEY = 'loop-studio:activity-overlay'
 const INPUTS_PANEL_KEY = 'loop-studio:inputs-panel'
 const SUMMARY_PANEL_KEY = 'loop-studio:summary-panel'
+const KINDS_PANEL_KEY = 'loop-studio:kinds-panel'
 
 function readBoolKey(key: StorageKey, dflt = false): boolean {
   try {
@@ -352,6 +356,13 @@ export const useUiStore = create<UiState>((set, get) => ({
       const v = !s.summaryPanelOpen
       writeBoolKey(SUMMARY_PANEL_KEY, v)
       return { summaryPanelOpen: v }
+    }),
+  kindsPanelOpen: readBoolKey(KINDS_PANEL_KEY, true),
+  toggleKindsPanel: () =>
+    set((s) => {
+      const v = !s.kindsPanelOpen
+      writeBoolKey(KINDS_PANEL_KEY, v)
+      return { kindsPanelOpen: v }
     }),
 
   // docs/dense-graph-pan.md — session-only, no persistence.
