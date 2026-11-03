@@ -43,6 +43,8 @@ const templates = {
   'modules.promote.body.v3': 'Inserting this structure turns the document into a v3 model: it declares resource kinds, and the model-semantics digest changes. A single undo reverses the model change and the insert together.',
   'modules.promote.title.v4': 'Make this a model with units (v4)?',
   'modules.promote.body.v4': 'Inserting this structure turns the document into a v4 model: it declares units or a step length, and the model-semantics digest changes. A single undo reverses the model change and the insert together.',
+  'templates.desalination.name': 'Desalination plant water balance',
+  'templates.desalination.blurb': 'A seawater reverse-osmosis plant in day units on a one-hour step, whose water balance holds: intake = product water + brine + the change in storage.',
   'modules.frames.title': 'Saved frames are not included',
   'modules.frames.insertBody': 'This file has saved group frames. Inserting it as a structure does not bring frames into your graph — everything else is inserted as usual.',
   'modules.frames.extractBody': 'Your graph has saved group frames. They are not written into the structure file — only the selected nodes and their internal connections are.',

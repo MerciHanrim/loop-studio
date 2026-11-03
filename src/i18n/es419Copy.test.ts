@@ -404,10 +404,16 @@ describe('es-419 copy — mechanical review', () => {
       // #471 U1 stage 2 — the Spanish words ARE `balance` (El balance de) and
       // `factor` (nombre = factor); `MW` and `h` are the rate-unit example a
       // user types into the unit list (`MW = 1000/h`)
-      balance: ['inspector.unit.change.verdicts', 'panels.time.change.body'],
+      balance: ['inspector.unit.change.verdicts', 'panels.time.change.body', 'help.examples.desalination.p3', 'templates.desalination.blurb'],
       factor: ['panels.kinds.unitsHint'],
-      MW: ['panels.kinds.unitsHint'],
+      MW: ['panels.kinds.unitsHint', 'help.examples.desalination.p2'],
       h: ['panels.kinds.unitsHint'],
+      // #471 desalination — `Balance hídrico` names the Template; `MLD`, `CMD`
+      // and the `m` of `m³` are the plant's units, written as in English
+      Balance: ['templates.desalination.name'],
+      MLD: ['help.examples.desalination.p2'],
+      CMD: ['help.examples.desalination.p2'],
+      m: ['help.examples.desalination.p2'],
     }
 
     const WORD = /[A-Za-zÀ-ÖØ-öø-ÿ]+/gu

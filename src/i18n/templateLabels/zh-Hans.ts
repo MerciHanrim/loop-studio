@@ -226,6 +226,18 @@ export const zhHans: TemplateLabelDict = {
   },
   // 2026-10 — the three gacha templates added since the archive; the banner
   // comparison's names where the node is the same
+  // #471 — "Desalination plant water balance" (`examples/desalination.json`)
+  'desalination': {
+    sea: '海水取水',
+    feed: '原水箱',
+    grid: '电网供电',
+    power: '电力供应',
+    ro: '反渗透',
+    permeate: '产品水',
+    brine: '浓盐水',
+    city: '城市需求',
+    outfall: '浓盐水排放',
+  },
   'gacha-general': {
     target_pulls: '目标抽数（整数）',
     w_ssr: 'SSR 权重',

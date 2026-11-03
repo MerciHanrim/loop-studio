@@ -228,6 +228,19 @@ export const ko: TemplateLabelDict = {
   // docs/gacha-general.md — node ids from scripts/gen-gacha-general-example.ts
   // (`examples/gacha-general.json`); names for a standalone example (share
   // note 94), the English canonical in the file
+  // #471 — "Desalination plant water balance" (`examples/desalination.json`);
+  // water-treatment terms as Korean plants write them
+  'desalination': {
+    sea: '해수 취수',
+    feed: '원수 탱크',
+    grid: '전력망',
+    power: '전력 공급',
+    ro: '역삼투',
+    permeate: '생산수',
+    brine: '농축수',
+    city: '도시 수요',
+    outfall: '농축수 방류',
+  },
   'gacha-general': {
     target_pulls: '목표 뽑기 횟수(정수)',
     w_ssr: 'SSR 가중치',

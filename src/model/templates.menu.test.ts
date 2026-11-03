@@ -7,13 +7,16 @@ import { MENU_TEMPLATES, TEMPLATES } from './templates'
 // stays available for a Template that should not be offered; none uses it now.
 
 describe('the Templates the menu offers', () => {
-  it('are every Template, in the same order (Coffee → MMO → Gacha)', () => {
+  it('are every Template, in the same order (Desalination → Coffee → MMO → Gacha)', () => {
     // 2026-10-20: the general gacha (docs/gacha-general.md), the standard
     // gacha (docs/gacha-standard.md) and the pickup gacha (docs/gacha-pickup.md),
-    // before the 3-zone comparison
+    // before the 3-zone comparison. #471 (2026-11-04): the desalination plant
+    // after the two basic examples and before Coffee, so Coffee → MMO → Gacha
+    // (Hanrim, 2026-09-13) stays adjacent as decided
     expect(MENU_TEMPLATES.map((t) => t.id)).toEqual([
       'equilibrium',
       'deadlock',
+      'desalination',
       'coffee-roastery',
       'mmo-progression',
       'gacha-general',

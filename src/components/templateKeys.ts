@@ -15,6 +15,10 @@ export const TEMPLATE_KEY = {
     name: 'templates.coffeeRoastery.name',
     blurb: 'templates.coffeeRoastery.blurb',
   },
+  desalination: {
+    name: 'templates.desalination.name',
+    blurb: 'templates.desalination.blurb',
+  },
   'gacha-general': {
     name: 'templates.gachaGeneral.name',
     blurb: 'templates.gachaGeneral.blurb',

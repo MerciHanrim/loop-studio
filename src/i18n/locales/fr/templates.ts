@@ -42,6 +42,8 @@ const templates = {
   'modules.promote.body.v3': 'Insérer cette structure fait du document un modèle v3 : il déclare des types de ressource et l’empreinte de sémantique du modèle change. Une seule annulation défait ensemble le changement de modèle et l’insertion.',
   'modules.promote.title.v4': 'En faire un modèle avec unités (v4) ?',
   'modules.promote.body.v4': 'Insérer cette structure fait du document un modèle v4 : il déclare des unités ou une durée de pas, et l’empreinte de sémantique du modèle change. Une seule annulation défait ensemble le changement de modèle et l’insertion.',
+  'templates.desalination.name': 'Bilan hydrique d’une usine de dessalement',
+  'templates.desalination.blurb': 'Une usine d’osmose inverse d’eau de mer écrite en unités par jour, avec un pas d’une heure, dont le bilan hydrique tient : prise = eau produite + saumure + variation du stock.',
   'modules.frames.title': 'Les cadres de groupe enregistrés ne sont pas inclus',
   'modules.frames.insertBody': 'Ce fichier contient des cadres de groupe enregistrés. L’insérer comme structure ne les apporte pas dans votre graphe — tout le reste est inséré normalement.',
   'modules.frames.extractBody': 'Votre graphe contient des cadres de groupe enregistrés. Ils ne sont pas écrits dans le fichier de structure — seuls les nœuds sélectionnés et leurs connexions internes le sont.',

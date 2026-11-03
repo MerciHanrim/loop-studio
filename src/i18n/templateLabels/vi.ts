@@ -243,6 +243,18 @@ export const vi: TemplateLabelDict = {
   },
   // 2026-10 — the three gacha templates added since the archive; the banner
   // comparison's names where the node is the same
+  // #471 — "Desalination plant water balance" (`examples/desalination.json`)
+  'desalination': {
+    sea: 'Lấy nước biển',
+    feed: 'Bể nước cấp',
+    grid: 'Lưới điện',
+    power: 'Nguồn điện',
+    ro: 'Thẩm thấu ngược',
+    permeate: 'Nước thành phẩm',
+    brine: 'Nước muối đậm đặc',
+    city: 'Nhu cầu thành phố',
+    outfall: 'Xả nước muối đậm đặc',
+  },
   'gacha-general': {
     target_pulls: 'Số lần quay mục tiêu (số nguyên)',
     w_ssr: 'Trọng số SSR',

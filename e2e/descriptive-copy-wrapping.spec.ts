@@ -138,7 +138,9 @@ test.describe('Korean keeps its wrapping contract', () => {
     // 38 — the Standard gacha's (2 lines); 40 — the Pickup gacha's (2 lines)
     // 2026-10-23: still 40, measured in File's description areas (272 px)
     // 0.30.0: 42 — the Early MMO blurb (2 lines) is in the menu again
-    expect(rows.reduce((n, r) => n + r.lines, 0), 'the agreed Korean line count').toBe(42)
+    // #471 (2026-11-04): 45 — the desalination plant's blurb (3 lines,
+    // measured on the PR CI run 41666013185)
+    expect(rows.reduce((n, r) => n + r.lines, 0), 'the agreed Korean line count').toBe(45)
 
     // measured, not assumed: a break is mid-eojeol when two adjacent
     // NON-space characters end up on different lines
@@ -192,7 +194,9 @@ test.describe('English is untouched', () => {
     // Standard gacha's (2 lines); 44 — the Pickup gacha's (2 lines);
     // 2026-10-23: still 44, measured in File's description areas (272 px)
     // 0.30.0: 46 — the Early MMO blurb (2 lines) is in the menu again
-    expect(rows.reduce((n, r) => n + r.lines, 0), 'the English line count is unchanged').toBe(46)
+    // #471 (2026-11-04): 50 — the desalination plant's blurb (4 lines,
+    // measured on the PR CI run 41666013185)
+    expect(rows.reduce((n, r) => n + r.lines, 0), 'the English line count is unchanged').toBe(50)
     await ctx.close()
   })
 })

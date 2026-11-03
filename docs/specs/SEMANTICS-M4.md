@@ -50,6 +50,7 @@ A step change moves the amount per step of every field authored per time unit, a
 
 - **Balance (D4).** The C1 test of §M3-3 is exact: every computable rate is its authored decimal times its unit's ratio to the base unit per step, as a rational, and `Σ in = Σ out` must hold exactly — no epsilon, no double. This supersedes the `1e-9` tolerance of §M3-3 for every version: `0.1 + 0.2 = 0.3` balances, `100 = 50 + 55` breaks by exactly 5. A resolved `@param` takes part at its value, in the base unit.
 - **R≈.** A verdict is taken from the rational, never from printed text. A surface prints a value's exact decimal when it terminates, otherwise `≈` and 15 significant digits, always in plain digits (never an exponent). An approximation is never labelled exact. Authored field text never carries `≈`.
+- **An engine value on screen.** A surface that re-expresses an engine value in a field's unit (the Properties panel's current amount of a Pool) takes the double's exact binary value in that unit. It shows at most 15 significant digits and adds `≈` exactly when the shown text is not that value. After 720 steps of 1000/24 m³, the engine's 1699.999999999984 m³ shows as `≈ 1699999.99999998 L`; an exact 200 m³ shows as `200000 L`. The stored value and every verdict are untouched. A Pool in the base unit keeps the node's two-decimal format.
 
 ## M4-6. Exports (D6)
 

@@ -30,6 +30,8 @@ const templates = {
   'modules.promote.body.v3': 'Het invoegen van deze structuur maakt van het document een v3-model: het declareert resourcesoorten en de modelsemantiek-digest verandert. Eén keer ongedaan maken draait de modelwijziging en het invoegen samen terug.',
   'modules.promote.title.v4': 'Er een model met eenheden (v4) van maken?',
   'modules.promote.body.v4': 'Het invoegen van deze structuur maakt van het document een v4-model: het declareert eenheden of een staplengte en de modelsemantiek-digest verandert. Eén keer ongedaan maken draait de modelwijziging en het invoegen samen terug.',
+  'templates.desalination.name': 'Waterbalans van een ontziltingsinstallatie',
+  'templates.desalination.blurb': 'Een omgekeerde-osmose-installatie voor zeewater, geschreven in dageenheden met een stap van een uur, waarvan de waterbalans klopt: inname = productwater + pekel + verandering van de voorraad.',
   'modules.frames.title': 'Opgeslagen kaders worden niet meegenomen',
   'modules.frames.insertBody': 'Dit bestand bevat opgeslagen groepskaders. Het als structuur invoegen brengt die kaders niet in je diagram — al het andere wordt gewoon ingevoegd.',
   'modules.frames.extractBody': 'Je diagram bevat opgeslagen groepskaders. Die worden niet in het structuurbestand geschreven — alleen de geselecteerde knooppunten en hun onderlinge verbindingen.',

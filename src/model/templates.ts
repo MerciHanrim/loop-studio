@@ -1,5 +1,6 @@
 import coffeeRoasteryDoc from '../../examples/coffee-roastery.json'
 import deadlockDoc from '../../examples/deadlock.json'
+import desalinationDoc from '../../examples/desalination.json'
 import equilibriumDoc from '../../examples/equilibrium.json'
 import gachaBannerZonesDoc from '../../examples/gacha-banner-zones.json'
 import gachaGeneralDoc from '../../examples/gacha-general.json'
@@ -15,6 +16,9 @@ import {
   type SavedFrame,
 } from './serialize'
 import type { LoopEdge, LoopNode } from './types'
+import { readKindsAt, type ResourceKindDecl } from './kinds'
+import { hasKindsTable, hasUnits } from './modelVersion'
+import { readDocTime, type DocTime } from './units'
 
 /** docs/mmo-multilingual-layout.md §MML3 — a fixed graph-coordinate rectangle
  *  the camera frames when this Template is opened FROM THE MENU, instead of
@@ -55,6 +59,11 @@ export type Template = {
    *  (from its file's `schema`). Absent ⇒ v1. A bundled v2 Template loads as v2
    *  as authored — not the explicit-user-promotion path (§CR2.1a). */
   modelVersion?: ModelSemanticsVersion
+  /** loop-model/3 and /4 — the Template's kinds table (with its unit lists) and
+   *  step length, read from its file at its declared version exactly as an
+   *  Import reads them (`readKindsAt`, `readDocTime`). Absent ⇒ none. */
+  kinds?: ResourceKindDecl[]
+  time?: DocTime
   /** `false`: kept here — its node labels still follow a locale switch in a
    *  document made from it, and the developer data and checks keep reading it —
    *  but not offered in the Templates menu (desktop or phone). A Template there
@@ -89,6 +98,17 @@ function tplGraph(doc: unknown): Template['graph'] {
   return frames.length > 0 ? { ...base, frames } : base
 }
 
+/** loop-model/3 and /4 — a Template's model version, kinds table and step
+ *  length, read from its file as an Import reads them: the unit lists, the
+ *  step length and the field units only at version 4 (§M4-1) */
+function tplModel(doc: unknown): Pick<Template, 'modelVersion' | 'kinds' | 'time'> {
+  const d = doc as { schema?: unknown; kinds?: unknown; time?: unknown }
+  const modelVersion = modelVersionForSchema(d.schema) ?? 1
+  const kinds = hasKindsTable(modelVersion) ? readKindsAt(d.kinds, modelVersion) : []
+  const time = hasUnits(modelVersion) ? readDocTime(d.time) : undefined
+  return { modelVersion, ...(kinds.length > 0 ? { kinds } : {}), ...(time ? { time } : {}) }
+}
+
 export const TEMPLATES: Template[] = [
   {
     id: 'equilibrium',
@@ -103,6 +123,26 @@ export const TEMPLATES: Template[] = [
     blurb:
       'The same line with no shipment step, so finished goods have nowhere to go. Finished inventory fills to capacity, raw inventory backs up to its ceiling, supply is throttled to zero, and the whole line stops.',
     graph: tplGraph(deadlockDoc),
+  },
+  // #471 — "Desalination plant water balance": the first bundled Template at
+  // `loop-studio/graph/4`. A seawater reverse-osmosis plant written in the
+  // shipped kinds, units and step-length contract (SEMANTICS-M3.md,
+  // SEMANTICS-M4.md): water is a conserved kind, the plant's rates are authored
+  // per day (`1 MLD` in, `0.45 + 0.55 MLD` out) on a 1 h step, and the engine
+  // runs on the derived per-step values. The canonical graph is
+  // examples/desalination.json; its run is pinned against
+  // examples/desalination.expected.json by test/desalination-example.test.ts.
+  // A fixed-ratio model (constant recovery, power per batch), not a validated
+  // process model. Opens UNLOCKED and fitted whole: no `initialView`.
+  // Menu place: after the two basic examples and before Coffee, so Hanrim's
+  // Coffee → MMO → Gacha sequence (below, 2026-09-13) stays as decided.
+  {
+    id: 'desalination',
+    name: 'Desalination plant water balance',
+    blurb:
+      'A seawater reverse-osmosis plant: intake, a feed tank, reverse osmosis at 45 % recovery, product water for the city and brine to the outfall. Water is a conserved kind, the rates are written per day on a one-hour step, and the run keeps intake = product water + brine + the change in storage.',
+    graph: tplGraph(desalinationDoc),
+    ...tplModel(desalinationDoc),
   },
   // "Coffee roastery operations flow" — the first bundled Template authored at
   // schema `loop-studio/graph/2` (loop-model/2). Its five surfaced levers are

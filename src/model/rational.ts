@@ -130,6 +130,28 @@ export function toDouble(r: Rational): number {
   return neg ? -v : v
 }
 
+/** a double as the exact rational of its BINARY value (`0.1` →
+ *  3602879701896397 / 2⁵⁵), not of its shortest decimal — what the engine
+ *  actually holds, so a display can say whether it shows that value exactly */
+export function exactDouble(x: number): Rational {
+  if (!Number.isFinite(x)) throw new Error(`rational: not finite: ${x}`)
+  if (x === 0) return { num: 0n, den: 1n }
+  const view = new DataView(new ArrayBuffer(8))
+  view.setFloat64(0, x)
+  const hi = view.getUint32(0)
+  const lo = view.getUint32(4)
+  const sign = hi >>> 31 ? -1n : 1n
+  const biased = (hi >>> 20) & 0x7ff
+  let mant = (BigInt(hi & 0xfffff) << 32n) | BigInt(lo)
+  let e: number
+  if (biased === 0) e = -1074
+  else {
+    mant |= 1n << 52n
+    e = biased - 1075
+  }
+  return e >= 0 ? rational(sign * mant * 2n ** BigInt(e), 1n) : rational(sign * mant, 2n ** BigInt(-e))
+}
+
 /** a double as the exact rational of its SHORTEST decimal form (the text
  *  `String(x)` prints, which is the number a user sees and reads back) */
 export function fromDouble(x: number): Rational {

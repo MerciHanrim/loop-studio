@@ -234,6 +234,18 @@ export const tr: TemplateLabelDict = {
   },
   // 2026-10 — the three gacha templates added since the archive; the banner
   // comparison's names where the node is the same
+  // #471 — "Desalination plant water balance" (`examples/desalination.json`)
+  'desalination': {
+    sea: 'Deniz suyu alımı',
+    feed: 'Besleme tankı',
+    grid: 'Şebeke elektriği',
+    power: 'Güç kaynağı',
+    ro: 'Ters ozmoz',
+    permeate: 'Ürün suyu',
+    brine: 'Konsantre',
+    city: 'Şehir talebi',
+    outfall: 'Konsantre deşarjı',
+  },
   'gacha-general': {
     target_pulls: 'Hedef çekiliş (tam sayı)',
     w_ssr: 'SSR ağırlığı',

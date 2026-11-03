@@ -1,6 +1,6 @@
 import { useId, useMemo, useState, type ReactNode } from 'react'
 import { convertersWhoseVerdictChanges, kindFindings, kindFindingEdgeId, kindFindingNodeId, resolveKinds, type ResourceKindDecl } from '../model/kinds'
-import { fieldUnitOptions, fieldUnitText, poolKindName, previewUnitChange, reexpress, resolveFieldUnit, type DocTime, type FieldUnit } from '../model/units'
+import { currentAmountText, fieldUnitOptions, fieldUnitText, poolKindName, previewUnitChange, resolveFieldUnit, type DocTime, type FieldUnit } from '../model/units'
 import { KindFindingText } from './ModelPanels'
 import { ConfirmDialog } from './ConfirmDialog'
 import {
@@ -690,17 +690,11 @@ function EdgeUnitField({ edgeId, ed, setData }: { edgeId: string; ed: Extract<Lo
   )
 }
 
-/** the current amount as the Pool's authored unit shows it (§M4-5, R≈): the
- *  engine's base-unit value re-expressed exactly through its shortest
- *  decimal, `≈` where that does not terminate; the authored text before a run */
-function currentAmountText(live: number | undefined, d: PoolData, decl: ResourceKindDecl | undefined, time: DocTime | undefined): string {
-  const fu = resolveFieldUnit(d.unit, decl, time, 'stock')
-  if (fu.kind === 'base') {
-    const shown = live ?? d.initial
-    return Number.isInteger(shown) ? String(shown) : shown.toFixed(2)
-  }
-  const text = live === undefined ? String(d.initial) : reexpress(live, fu, time).text
-  return `${text} ${fieldUnitText(fu)}`
+/** the current amount as the Pool's authored unit shows it (§M4-5): the
+ *  engine value to 15 significant digits, `≈` when that is not exactly the
+ *  engine value (`currentAmountText` in units.ts); the authored text before a run */
+function poolCurrentAmount(live: number | undefined, d: PoolData, decl: ResourceKindDecl | undefined, time: DocTime | undefined): string {
+  return currentAmountText(live, d.initial, undefined, resolveFieldUnit(d.unit, decl, time, 'stock'), time)
 }
 
 // ── edge routing (loop-revision/3 / docs/edge-routing.md) ─────────────────
@@ -1439,7 +1433,7 @@ function PoolFields({ id, d, set }: { id: string; d: PoolData; set: Patch }) {
   // loop-model/4 — in the Pool's authored unit when it has one (§M4-5)
   const kinds = useGraphStore((s) => s.kinds)
   const time = useGraphStore((s) => s.time)
-  const shownText = currentAmountText(live, d, kinds.find((k) => k.name === poolKindName(d)), time)
+  const shownText = poolCurrentAmount(live, d, kinds.find((k) => k.name === poolKindName(d)), time)
   return (
     <>
       <NonNegativeNumberField
