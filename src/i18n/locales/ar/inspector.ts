@@ -280,6 +280,7 @@ const inspector = {
   'inspector.icon.name.warehouse': 'مستودع',
   'inspector.icon.name.medicine': 'دواء',
   'inspector.icon.name.game-currency': 'عملة اللعبة',
+  'inspector.icon.name.cash': 'نقد',
   'inspector.icon.name.recycling': 'إعادة التدوير',
 } as const
 

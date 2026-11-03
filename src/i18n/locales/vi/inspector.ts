@@ -252,6 +252,7 @@ const inspector = {
   'inspector.icon.name.warehouse': 'Nhà kho',
   'inspector.icon.name.medicine': 'Thuốc',
   'inspector.icon.name.game-currency': 'Tiền tệ trong trò chơi',
+  'inspector.icon.name.cash': 'Tiền mặt',
   'inspector.icon.name.recycling': 'Tái chế',
 } satisfies Record<InspectorKey, string>
 

@@ -261,6 +261,7 @@ const inspector = {
   'inspector.icon.name.warehouse': '倉庫',
   'inspector.icon.name.medicine': '藥品',
   'inspector.icon.name.game-currency': '遊戲貨幣',
+  'inspector.icon.name.cash': '現金',
   'inspector.icon.name.recycling': '回收',
 } satisfies Record<InspectorKey, string>
 

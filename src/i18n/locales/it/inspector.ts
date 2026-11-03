@@ -261,6 +261,7 @@ const inspector = {
   'inspector.icon.name.warehouse': 'Magazzino',
   'inspector.icon.name.medicine': 'Medicinale',
   'inspector.icon.name.game-currency': 'Valuta di gioco',
+  'inspector.icon.name.cash': 'Contanti',
   'inspector.icon.name.recycling': 'Riciclo',
 } satisfies Record<InspectorKey, string>
 

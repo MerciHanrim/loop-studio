@@ -46,16 +46,17 @@ const iconOf = (n: LoopNode | undefined) => (n?.data as { icon?: unknown } | und
 const roundTrip = (g: { nodes: LoopNode[]; edges: LoopEdge[] }) => deserialize(serialize(g.nodes, g.edges, undefined, undefined, undefined, 2))
 
 describe('the registry', () => {
-  it('lists the sixteen ids (the first list and its first follow-up), each a stable ASCII word', () => {
-    expect(NODE_ICON_IDS).toHaveLength(16)
+  it('lists the seventeen ids (the first list and its two follow-ups), each a stable ASCII word', () => {
+    expect(NODE_ICON_IDS).toHaveLength(17)
     for (const id of NODE_ICON_IDS) expect(id).toMatch(/^[a-z]+(-[a-z]+)*$/)
-    expect(new Set(NODE_ICON_IDS).size).toBe(16)
+    expect(new Set(NODE_ICON_IDS).size).toBe(17)
   })
 
   it('reads a registered id and nothing else', () => {
     expect(readIcon('nuclear-plant')).toBe('nuclear-plant')
     expect(readIcon('rain-cloud')).toBe('rain-cloud')
     expect(readIcon('recycling')).toBe('recycling')
+    expect(readIcon('cash')).toBe('cash')
     for (const bad of ['', 'Cloud', 'snow-cloud', 7, null, undefined, {}, ['cloud']]) expect(readIcon(bad)).toBeUndefined()
   })
 })

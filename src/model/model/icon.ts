@@ -24,6 +24,7 @@ export const NODE_ICON_IDS = [
   'warehouse',
   'medicine',
   'game-currency',
+  'cash',
   'recycling',
 ] as const
 

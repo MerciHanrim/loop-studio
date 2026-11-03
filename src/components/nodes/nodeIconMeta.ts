@@ -22,6 +22,7 @@ const NAME_KEY = {
   warehouse: 'inspector.icon.name.warehouse',
   medicine: 'inspector.icon.name.medicine',
   'game-currency': 'inspector.icon.name.game-currency',
+  cash: 'inspector.icon.name.cash',
   recycling: 'inspector.icon.name.recycling',
 } satisfies Record<NodeIconId, MessageKey>
 
