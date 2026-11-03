@@ -89,12 +89,14 @@ const isResource = (e: LoopEdge) => (e.data?.kind ?? 'resource') === 'resource'
 
 /**
  * §M3-2 (design §3.1, K1) — in this order: (1) a Pool end gives its kind;
- * (2) with no Pool end, the connection's own `resourceType` annotation;
- * (3) to a fixpoint, a Gate with exactly one determined kind among its
- * connections gives it to its undetermined ones — a Gate carries one kind on
- * every connection, through chains of Gates; (4) what none reaches has no
- * kind. Converters, Sources, Drains and Ends propagate nothing. A Gate with
- * two determined kinds is a conflict and propagates nothing.
+ * (2) with no Pool end — and only then — the connection's own `resourceType`
+ * annotation; (3) in synchronous rounds to a fixpoint, a Gate carrying exactly
+ * one kind gives it to its undetermined connections — a Gate carries one kind
+ * on every connection, through chains of Gates; a connection two Gates offer
+ * two kinds to in the same round stays undetermined and both Gates carry
+ * both kinds; (4) what none reaches has no kind. Converters, Sources, Drains
+ * and Ends propagate nothing. A Gate carrying two kinds is a conflict and
+ * propagates nothing. The result does not depend on the order of ids.
  */
 export function resolveKinds(nodes: readonly LoopNode[], edges: readonly LoopEdge[]): KindResolution {
   const byId = new Map(nodes.map((n) => [n.id, n]))
@@ -124,36 +126,69 @@ export function resolveKinds(nodes: readonly LoopNode[], edges: readonly LoopEdg
           if (pk !== null && pk !== annotation) conflicts.push({ kind: 'annotation', edgeId: e.id, nodeId: id, edgeKind: annotation, poolKind: pk })
         }
       }
-    } else if (annotation !== null) {
+    } else if (ends.length === 0 && annotation !== null) {
       edgeKind.set(e.id, annotation)
       how.set(e.id, 'annotation')
     } else {
+      // a Pool end whose Pool has no kind leaves the line undetermined: rule 2
+      // reads the annotation on Pool-less lines only; beside a Pool it is a note
       edgeKind.set(e.id, null)
       how.set(e.id, 'none')
     }
   }
 
+  // rule 3, in synchronous rounds so the result does not depend on the order
+  // of Gate ids: every Gate carrying exactly one kind proposes it to its
+  // undetermined lines, all proposals of a round reading the state at the
+  // round's start. A line two Gates propose two kinds to in one round is
+  // CONTESTED: it stays undetermined for good, and both Gates carry both
+  // kinds from then on (so neither propagates further and both are conflicts).
   const gates = nodes.filter((n) => n.data.kind === 'gate').map((n) => n.id).sort()
   const linesOf = new Map<string, LoopEdge[]>(gates.map((g) => [g, res.filter((e) => e.source === g || e.target === g)]))
-  const determined = (g: string) => [...new Set((linesOf.get(g) ?? []).map((e) => edgeKind.get(e.id)).filter((k): k is string => k !== null))].sort()
+  const contested = new Set<string>()
+  const contestKinds = new Map<string, Set<string>>()
+  const carried = (g: string) =>
+    [...new Set([...(linesOf.get(g) ?? []).map((e) => edgeKind.get(e.id)).filter((k): k is string => k !== null), ...(contestKinds.get(g) ?? [])])].sort()
   for (let round = 0; round < 1 + res.length; round++) {
-    let changed = false
+    const proposals = new Map<string, Map<string, string[]>>()
     for (const g of gates) {
-      const ks = determined(g)
+      const ks = carried(g)
       if (ks.length !== 1) continue
       for (const e of linesOf.get(g) ?? []) {
-        if (edgeKind.get(e.id) === null) {
-          edgeKind.set(e.id, ks[0])
-          how.set(e.id, 'gate')
-          changed = true
+        if (edgeKind.get(e.id) !== null || contested.has(e.id)) continue
+        const byKind = proposals.get(e.id) ?? new Map<string, string[]>()
+        byKind.set(ks[0], [...(byKind.get(ks[0]) ?? []), g])
+        proposals.set(e.id, byKind)
+      }
+    }
+    if (proposals.size === 0) break
+    // the contests of this round first: a Gate that turns out to carry two
+    // kinds propagates nothing, so its other offers of the round are dropped
+    const contestants = new Set<string>()
+    for (const [id, byKind] of proposals) {
+      if (byKind.size === 1) continue
+      contested.add(id)
+      const ks = [...byKind.keys()].sort()
+      for (const gs of byKind.values()) {
+        for (const g of gs) {
+          contestants.add(g)
+          const s = contestKinds.get(g) ?? new Set<string>()
+          for (const k of ks) s.add(k)
+          contestKinds.set(g, s)
         }
       }
     }
-    if (!changed) break
+    for (const [id, byKind] of proposals) {
+      if (byKind.size !== 1) continue
+      const [k, gs] = [...byKind.entries()][0]
+      if (gs.every((g) => contestants.has(g))) continue
+      edgeKind.set(id, k)
+      how.set(id, 'gate')
+    }
   }
   const gateKinds = new Map<string, string[]>()
   for (const g of gates) {
-    const ks = determined(g)
+    const ks = carried(g)
     gateKinds.set(g, ks)
     if (ks.length > 1) conflicts.push({ kind: 'gateMixes', nodeId: g, kinds: ks })
   }

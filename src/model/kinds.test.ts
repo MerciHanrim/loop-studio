@@ -82,6 +82,53 @@ describe('resolveKinds — K1 (design §3.1)', () => {
     expect(r.edgeKind.get('e')).toBeNull() // the mixing Gate gave the Drain line nothing
   })
 
+  it('review 1 — a Pool with no kind leaves its line undetermined even when the line is annotated: the annotation is read on Pool-less lines only', () => {
+    const nodes = [pool('u'), node('cv', 'converter'), pool('w', 'water'), node('d', 'drain')]
+    const edges = [res('a', 'u', 'cv', '1', 'water'), res('b', 'cv', 'w', '1'), res('c', 'cv', 'd', '1', 'water')]
+    const r = resolveKinds(nodes, edges)
+    expect(r.edgeKind.get('a')).toBeNull() // a Pool end, no kind: the annotation does not count
+    expect(r.how.get('a')).toBe('none')
+    expect(r.edgeKind.get('c')).toBe('water') // no Pool end: the annotation counts
+    expect(r.how.get('c')).toBe('annotation')
+    expect(r.conflicts).toEqual([])
+    // and so the Converter's water balance is not computable on that line
+    expect(kindFindings(nodes, edges, WATER, 3)).toEqual([
+      { cls: 'notComputable', converterId: 'cv', edgeId: 'a', reason: 'noKind', rate: '1', kind: null, refuses: true },
+    ])
+  })
+
+  it('review 2 — a Gate chain fed two kinds from its ends: the contested line stays undetermined and both Gates mix, whichever Gate id sorts first', () => {
+    // w(water) → L → m → R → p(power), each Gate also feeding a Drain line
+    const mk = (L: string, R: string) => {
+      const nodes = [pool('w', 'water'), pool('p', 'power'), node(L, 'gate'), node(R, 'gate'), node('d', 'drain')]
+      const edges = [res('e_w', 'w', L), res('m', L, R), res('e_p', R, 'p'), res('x', L, 'd'), res('y', R, 'd')]
+      return resolveKinds(nodes, edges)
+    }
+    for (const [L, R] of [['a', 'z'], ['z', 'a']] as const) {
+      const r = mk(L, R)
+      expect(r.edgeKind.get('m')).toBeNull()
+      expect(r.how.get('m')).toBe('none')
+      expect(r.edgeKind.get('x')).toBeNull() // a mixing Gate propagates nothing
+      expect(r.edgeKind.get('y')).toBeNull()
+      expect(r.conflicts).toEqual([
+        { kind: 'gateMixes', nodeId: 'a', kinds: ['power', 'water'] },
+        { kind: 'gateMixes', nodeId: 'z', kinds: ['power', 'water'] },
+      ])
+    }
+    // with a Gate in the middle the two kinds meet there: the outer lines are determined, only the middle Gate mixes
+    const mk3 = (L: string, M: string, R: string) => {
+      const nodes = [pool('w', 'water'), pool('p', 'power'), node(L, 'gate'), node(M, 'gate'), node(R, 'gate')]
+      const edges = [res('e_w', 'w', L), res('m1', L, M), res('m2', M, R), res('e_p', R, 'p')]
+      return resolveKinds(nodes, edges)
+    }
+    for (const [L, M, R] of [['a', 'b', 'c'], ['c', 'b', 'a'], ['b', 'c', 'a']] as const) {
+      const r = mk3(L, M, R)
+      expect(r.edgeKind.get('m1')).toBe('water')
+      expect(r.edgeKind.get('m2')).toBe('power')
+      expect(r.conflicts).toEqual([{ kind: 'gateMixes', nodeId: M, kinds: ['power', 'water'] }])
+    }
+  })
+
   it('an untyped document resolves nothing and conflicts nowhere', () => {
     const nodes = [pool('a'), pool('b'), node('g', 'gate')]
     const r = resolveKinds(nodes, [res('x', 'a', 'g'), res('y', 'g', 'b')])
