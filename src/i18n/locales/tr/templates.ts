@@ -43,6 +43,8 @@ const templates = {
   'modules.promote.body.v3': 'Bu yapıyı eklemek belgeyi v3 modele dönüştürür: kaynak türleri bildirir ve model anlambilim özeti değişir. Tek bir geri alma model değişikliğini ve eklemeyi birlikte geri alır.',
   'modules.promote.title.v4': 'Birimli bir modele (v4) dönüştürülsün mü?',
   'modules.promote.body.v4': 'Bu yapıyı eklemek belgeyi v4 modele dönüştürür: birimler veya bir adım uzunluğu bildirir ve model anlambilim özeti değişir. Tek bir geri alma model değişikliğini ve eklemeyi birlikte geri alır.',
+  'templates.desalination.name': 'Tuzdan arındırma tesisinin su dengesi',
+  'templates.desalination.blurb': 'Günlük birimlerle yazılmış, bir saatlik adımla çalışan bir deniz suyu ters ozmoz tesisi; su dengesi tutar: alım = ürün suyu + konsantre + depodaki değişim.',
   'modules.frames.title': 'Kayıtlı çerçeveler dahil değil',
   'modules.frames.insertBody': 'Bu dosyada kayıtlı grup çerçeveleri var. Dosyayı yapı olarak eklemek çerçeveleri grafiğinize taşımaz — geri kalan her şey her zamanki gibi eklenir.',
   'modules.frames.extractBody': 'Grafiğinizde kayıtlı grup çerçeveleri var. Bunlar yapı dosyasına yazılmaz — yalnızca seçili düğümler ve aralarındaki bağlantılar yazılır.',

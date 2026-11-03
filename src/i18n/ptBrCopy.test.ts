@@ -379,11 +379,12 @@ describe('pt-BR copy — mechanical review', () => {
     const ids = new Set(Object.values(ptBRTemplates).flatMap((m) => Object.keys(m)))
     // 2026-10 — the three gacha Templates added with the redesign bring 69
     // labels over 31 new node ids, and 3 frames; the 19 module labels left
-    // with the bundled modules in v0.29.0
+    // with the bundled modules in v0.29.0; #471 (2026-11-04): the desalination
+    // Template brings 9 labels over 9 new node ids
     expect({ slotCount, frameCount, ids: ids.size }).toEqual({
-      slotCount: 265,
+      slotCount: 274,
       frameCount: 10,
-      ids: 221,
+      ids: 230,
     })
   })
 })

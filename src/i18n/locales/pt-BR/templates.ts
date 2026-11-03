@@ -52,6 +52,8 @@ const templates = {
   'modules.promote.body.v3': 'Inserir esta estrutura torna o documento um modelo v3: ele declara tipos de recurso e o resumo de semântica do modelo muda. Um único desfazer reverte juntos a mudança de modelo e a inserção.',
   'modules.promote.title.v4': 'Torná-lo um modelo com unidades (v4)?',
   'modules.promote.body.v4': 'Inserir esta estrutura torna o documento um modelo v4: ele declara unidades ou uma duração de passo e o resumo de semântica do modelo muda. Um único desfazer reverte juntos a mudança de modelo e a inserção.',
+  'templates.desalination.name': 'Balanço hídrico de uma usina de dessalinização',
+  'templates.desalination.blurb': 'Uma usina de osmose reversa de água do mar escrita em unidades por dia com um passo de uma hora, cujo balanço hídrico fecha: captação = água produzida + salmoura + variação do armazenamento.',
   'modules.frames.title': 'Os quadros salvos não são incluídos',
   'modules.frames.insertBody': 'Este arquivo tem quadros de grupo salvos. Inseri-lo como estrutura não traz os quadros para o seu grafo; todo o resto é inserido normalmente.',
   'modules.frames.extractBody': 'Seu grafo tem quadros de grupo salvos. Eles não são gravados no arquivo da estrutura: somente os nós selecionados e suas conexões internas são.',

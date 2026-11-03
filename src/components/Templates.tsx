@@ -24,7 +24,7 @@ export function loadTemplate(id: string): void {
   useSimStore.getState().pause() // stop any run before the swap
   // docs/template-label-overlay.md — a deep clone with the current locale's
   // node-label + frame-title overlay; the canonical TEMPLATES[i] is never touched.
-  const { graph, recommendedRunConfig, modelVersion } = openTemplate(tpl)
+  const { graph, recommendedRunConfig, modelVersion, kinds, time } = openTemplate(tpl)
   // §MML3 — a Template may frame a sub-region on menu-open instead of fit-all.
   // §TLO12 — and may carry group `frames` (undefined ⇒ frameStore cleared, as before).
   // #334 — a document boundary: the history starts empty, and the Template's
@@ -34,6 +34,9 @@ export function loadTemplate(id: string): void {
     modelVersion,
     initialView: tpl.initialView ?? null,
     frames: graph.frames,
+    // loop-model/3 and /4 — the Template's kinds table and step length
+    kinds,
+    time,
   }) // sim resets off structureRev
   useMcStore.getState().applyRecommended(recommendedRunConfig)
 }

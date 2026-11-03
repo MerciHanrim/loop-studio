@@ -38,6 +38,8 @@ const templates = {
   'modules.promote.body.v3': 'Chèn cấu trúc này biến tài liệu thành mô hình v3: nó khai báo các loại tài nguyên và tóm lược ngữ nghĩa mô hình thay đổi. Một lần hoàn tác sẽ đảo ngược cả thay đổi mô hình lẫn việc chèn.',
   'modules.promote.title.v4': 'Biến thành mô hình có đơn vị (v4)?',
   'modules.promote.body.v4': 'Chèn cấu trúc này biến tài liệu thành mô hình v4: nó khai báo đơn vị hoặc độ dài bước và tóm lược ngữ nghĩa mô hình thay đổi. Một lần hoàn tác sẽ đảo ngược cả thay đổi mô hình lẫn việc chèn.',
+  'templates.desalination.name': 'Cân bằng nước của nhà máy khử mặn',
+  'templates.desalination.blurb': 'Một nhà máy thẩm thấu ngược nước biển được viết theo đơn vị ngày với bước một giờ, có cân bằng nước luôn đúng: lượng lấy vào = nước thành phẩm + nước muối đậm đặc + thay đổi lượng tích trữ.',
   'modules.frames.title': 'Không bao gồm nhóm đã lưu',
   'modules.frames.insertBody': 'Tệp này có các nhóm đã lưu. Chèn nó như một cấu trúc sẽ không mang nhóm vào đồ thị — mọi thứ còn lại được chèn như bình thường.',
   'modules.frames.extractBody': 'Đồ thị có các nhóm đã lưu. Chúng không được ghi vào tệp cấu trúc — chỉ các nút đang chọn và liên kết nội bộ giữa chúng được ghi.',

@@ -13,6 +13,8 @@ import {
   cmp,
   displayRational,
   div,
+  equals,
+  exactDouble,
   exactWithin15Digits,
   fromInt,
   mul,
@@ -266,12 +268,31 @@ export function previewUnitChange(authored: string | number, from: FieldUnit, to
   return { exact: false, rounded, exactShown: displayRational(inTo).text, deviation: displayRational(dev), deviationSign: cmp(dev, fromInt(0)) }
 }
 
-/** a value in the base unit per step re-expressed for a panel (§M4-5, R≈):
- *  through the double's shortest decimal, exactly, then the display rule */
+/** an ENGINE value in the base unit per step re-expressed for a panel
+ *  (§M4-5): the double's exact binary value in the field's unit, shown to at
+ *  most 15 significant digits, `≈` exactly when the shown text is not that
+ *  value. A float residue never reads as exact: the engine's
+ *  1699.999999999984 m³ shows as `≈ 1700000` L, its exact 200 m³ as `200000`.
+ *  Display only — the stored value and every balance verdict are untouched. */
 export function reexpress(baseValue: number, fu: FieldUnit, time: DocTime | undefined): { text: string; approx: boolean } {
-  const r = parseDecimal(String(baseValue))
-  if (r === null) return { text: String(baseValue), approx: false }
-  return displayRational(div(r, unitRatio(fu, time)))
+  if (!Number.isFinite(baseValue)) return { text: String(baseValue), approx: false }
+  const r = div(exactDouble(baseValue), unitRatio(fu, time))
+  const shown = roundTo15Digits(r)
+  const approx = !equals(parseDecimal(shown) ?? r, r)
+  return { text: approx ? `≈ ${shown}` : shown, approx }
+}
+
+/** the Inspector's current amount of a Pool (§M4-5): before a run its
+ *  authored starting amount as typed; during one the engine value re-expressed
+ *  in the Pool's unit (`reexpress`), with the unit. A Pool in the base unit
+ *  keeps the node's own two-decimal format. */
+export function currentAmountText(live: number | undefined, initial: number, unitText: string | undefined, fu: FieldUnit, time: DocTime | undefined): string {
+  if (fu.kind === 'base') {
+    const shown = live ?? initial
+    return Number.isInteger(shown) ? String(shown) : shown.toFixed(2)
+  }
+  const text = live === undefined ? String(initial) : reexpress(live, fu, time).text
+  return `${text} ${unitText ?? fieldUnitText(fu)}`
 }
 
 /** the kind a Pool's `resourceType` names, normalised (`null` when none) */

@@ -34,6 +34,8 @@ const templates = {
   'modules.promote.body.v3': '插入此結構會使文件成為 v3 模型：它宣告資源種類，模型語意摘要也會改變。一次復原會同時撤回模型變更和插入。',
   'modules.promote.title.v4': '要將其變為帶單位的模型（v4）嗎？',
   'modules.promote.body.v4': '插入此結構會使文件成為 v4 模型：它宣告單位或步長，模型語意摘要也會改變。一次復原會同時撤回模型變更和插入。',
+  'templates.desalination.name': '海水淡化廠水量平衡',
+  'templates.desalination.blurb': '以日為單位填寫的海水逆滲透廠，按一小時步長執行，並保持取水 = 產品水 + 濃鹽水 + 儲量變化。',
   'modules.frames.title': '不包含已儲存的群組框',
   'modules.frames.insertBody': '這個檔案存有群組框。以結構方式插入時不會把群組框帶進你的圖——其餘內容照常插入。',
   'modules.frames.extractBody': '你的圖存有群組框。它們不會寫進結構檔案——只有選取的節點及其內部連線會寫入。',

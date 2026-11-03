@@ -17,7 +17,7 @@
 // (./dicts.ts); `openTemplate` reads the resident one, which the atomic
 // locale-switch (src/i18n/store.ts) guarantees is loaded for the active locale.
 
-import type { ModelSemanticsVersion, RecommendedRunConfig, SavedFrame } from '../../model/serialize'
+import type { DocTime, ModelSemanticsVersion, RecommendedRunConfig, ResourceKindDecl, SavedFrame } from '../../model/serialize'
 import type { Template } from '../../model/templates'
 import type { LoopEdge, LoopNode } from '../../model/types'
 import { BASE_LOCALE } from '../registry'
@@ -55,6 +55,9 @@ export type OpenedTemplate = {
    *  (from the Template's `modelVersion`, i.e. its file's `schema`). v1 unless
    *  the Template is authored at `loop-studio/graph/2`. */
   modelVersion: ModelSemanticsVersion
+  /** loop-model/3 and /4 — the Template's kinds table and step length, cloned */
+  kinds?: ResourceKindDecl[]
+  time?: DocTime
 }
 
 /**
@@ -98,5 +101,7 @@ export function openTemplate(
       ? cloneJSON(tpl.recommendedRunConfig)
       : undefined,
     modelVersion: tpl.modelVersion ?? 1,
+    ...(tpl.kinds ? { kinds: cloneJSON(tpl.kinds) } : {}),
+    ...(tpl.time ? { time: cloneJSON(tpl.time) } : {}),
   }
 }

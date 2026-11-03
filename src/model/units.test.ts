@@ -7,7 +7,7 @@ import { add, displayRational, equals, parseDecimal, rational, terminatingDecima
 import { canonicalContent } from './revision'
 import { deserialize, normalizeGraph, serialize } from './serialize'
 import type { LoopEdge, LoopNode } from './types'
-import { engineValue, previewUnitChange, readDocTime, readFactor, resolveFieldUnit, type DocTime } from './units'
+import { currentAmountText, engineValue, previewUnitChange, readDocTime, readFactor, reexpress, resolveFieldUnit, type DocTime } from './units'
 import { canonicalGraphString } from './workspace'
 
 // loop-model/4 (SEMANTICS-M4.md; #471 U1 stage 2, units-display-design.md
@@ -220,6 +220,30 @@ describe('a field unit — fail-safe to the base unit (§M4-2.2)', () => {
     expect(engineValue('1', resolveFieldUnit('L/min', decl, HOUR, 'rate'), HOUR)).toBe(0.06)
     expect(engineValue('1000', resolveFieldUnit('L', decl, HOUR, 'stock'), HOUR)).toBe(1)
     expect(engineValue('7', { kind: 'base' }, HOUR)).toBe(7)
+  })
+})
+
+describe('an engine value shown in its Pool unit — 15 significant digits, ≈ when it is not the engine value (§M4-5, Lumi review of the desalination example)', () => {
+  const L = resolveFieldUnit('L', WATER[0], HOUR, 'stock')
+  it('marks the float residue of 1000/24 m³ steps with ≈ at 15 significant digits, never as an exact 1699999.999999984', () => {
+    // 720 steps: the residue (−1.6 × 10⁻¹¹ m³, 9.4 × 10⁻¹⁵ relative) is just above 15-digit resolution
+    expect(reexpress(1699.999999999984, L, HOUR)).toEqual({ text: '≈ 1699999.99999998', approx: true })
+    expect(currentAmountText(1699.999999999984, 200000, 'L', L, HOUR)).toBe('≈ 1699999.99999998 L')
+    // 24 steps: the residue (+2.3 × 10⁻¹³ m³) is below it, and the text is the model value, marked
+    expect(currentAmountText(250.00000000000023, 200000, 'L', L, HOUR)).toBe('≈ 250000 L')
+    expect(currentAmountText(202.08333333333334, 200000, 'L', L, HOUR)).toBe('≈ 202083.333333333 L')
+  })
+  it('shows an engine value it holds exactly with no ≈, and the authored value before a run', () => {
+    expect(reexpress(200, L, HOUR)).toEqual({ text: '200000', approx: false })
+    expect(reexpress(18.75, L, HOUR)).toEqual({ text: '18750', approx: false })
+    expect(currentAmountText(undefined, 200000, 'L', L, HOUR)).toBe('200000 L')
+  })
+  it('a double that is not its decimal is marked: 0.1 m³ is 100.000000000000005551… L', () => {
+    expect(reexpress(0.1, L, HOUR)).toEqual({ text: '≈ 100', approx: true })
+  })
+  it('a Pool in the base unit keeps the two-decimal format, and nothing here touches a stored value', () => {
+    expect(currentAmountText(499.99999999999994, 500, undefined, { kind: 'base' }, HOUR)).toBe('500.00')
+    expect(currentAmountText(undefined, 500, undefined, { kind: 'base' }, HOUR)).toBe('500')
   })
 })
 

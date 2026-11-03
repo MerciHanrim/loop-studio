@@ -235,6 +235,18 @@ export const th: TemplateLabelDict = {
   },
   // 2026-10 — the three gacha templates added since the archive; the banner
   // comparison's names where the node is the same
+  // #471 — "Desalination plant water balance" (`examples/desalination.json`)
+  'desalination': {
+    sea: 'การรับน้ำทะเล',
+    feed: 'ถังน้ำดิบ',
+    grid: 'ไฟฟ้าจากระบบ',
+    power: 'แหล่งจ่ายไฟ',
+    ro: 'ออสโมซิสผันกลับ',
+    permeate: 'น้ำผลิต',
+    brine: 'น้ำเกลือเข้มข้น',
+    city: 'ความต้องการของเมือง',
+    outfall: 'การปล่อยน้ำเกลือเข้มข้น',
+  },
   'gacha-general': {
     target_pulls: 'จำนวนการสุ่มเป้าหมาย (จำนวนเต็ม)',
     w_ssr: 'น้ำหนัก SSR',
