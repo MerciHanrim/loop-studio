@@ -43,7 +43,12 @@ precedence changes the reported label only. Survival decides, as for `/5`, `/9`,
 `data.icon` is one id of the fixed registry in `src/model/model/icon.ts` (`NODE_ICON_IDS`:
 stable ASCII words such as `cloud` or `nuclear-plant`). The registry is extensible by adding
 ids; it started with fourteen, the first follow-up added `rain-cloud` and `recycling`
-(sixteen) and the second added `cash` (seventeen). The reader (`readIcon`) keeps a value only when it is a
+(sixteen), the second added `cash` (seventeen) and the third added the twelve of the
+review — `partly-cloudy`, `snow`, `lightning-risk`, `strong-wind`, `typhoon`, `temperature`,
+`cargo-ship`, `oil`, `coal`, `house`, `food`, `drink` (twenty-nine). The list is in the
+picker's order, the weather ids together and the industry ids together; the order is a
+detail of the picker, not of the file, since the file stores the id string. The reader
+(`readIcon`) keeps a value only when it is a
 registered id; anything else (a string that is not registered, a number, an object) is
 dropped and the node kept, as a malformed `accent` is, so a file from a later version that
 knows more ids still opens here.
@@ -111,6 +116,10 @@ unknowing reader ignores it). The label rule of §R10-6 and the newer-version me
   `rain-cloud` and `recycling` join the registry as two more values of the same field; the
   revision note is unchanged, since the digest records the id string. Follow-up 2, approved
   2026-11-03: `cash` joins after `game-currency` the same way; order and sale are held, to
-  be reviewed again against a model that needs them.)
+  be reviewed again against a model that needs them. Follow-up 3, approved 2026-11-03: the
+  twelve remaining candidates join the same way, each placed beside its shipped neighbour —
+  the nature group grows from nine to fifteen ids, the industry group from eight to
+  fourteen; `strong-wind` is a tree bent by the wind, chosen over a windsock that read as a
+  flag at 16 px.)
 - The mark is a detail of the L2 level of the canvas and folds away, with its gap, at L1
   and L0; its name stays in the node frame's accessible name at every zoom.
