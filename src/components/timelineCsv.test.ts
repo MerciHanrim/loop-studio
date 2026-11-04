@@ -59,7 +59,7 @@ describe('buildRunCsv', () => {
     expect(csv).toBe('step,P [a],P [b]\r\n0,0,0\r\n1,3,7\r\n')
   })
 
-  it('a Pool with a unit keeps plain numeric cells: no shown form in this download (§M4-6)', () => {
+  it('a Pool with a unit keeps plain numeric cells (§M4-6)', () => {
     const csv = buildRunCsv([{ id: 'a', label: 'feed', unit: 'm³' }, { id: 'b', label: 'P' }], series)
     expect(csv).toBe('step,feed [m³] [a],P [b]\r\n0,0,0\r\n1,3,7\r\n')
   })

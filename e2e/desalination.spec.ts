@@ -25,7 +25,7 @@ const model = (page: Page) =>
 
 /** a downloaded file's text, without the BOM a CSV carries */
 const textOf = async (dl: Download): Promise<string> => readFileSync((await dl.path())!, 'utf8').replace(String.fromCodePoint(0xfeff), '')
-/** these files hold no quoted field: the labels are plain and the shown text has no comma */
+/** these files hold no quoted field: the labels are plain */
 const rowsOf = (csv: string): string[][] => csv.trim().split('\r\n').map((l) => l.split(','))
 
 test.describe('the desalination Template', () => {
@@ -103,15 +103,16 @@ test.describe('the desalination Template', () => {
     expect(rowsOf(await fromMenu(1))[0]).toContain('생산수 [m³]')
 
     const summary = rowsOf(await fromMenu(2))
-    expect(summary[0].slice(0, 2)).toEqual(['pool', 'unit'])
+    expect(summary[0]).toEqual(['pool', 'unit', 'p10', 'p50', 'p90', 'mean', 'min', 'max'])
     const row = summary.find((r) => r[0] === '생산수')!
     expect(row[1]).toBe('m³')
     expect(Number(row[summary[0].indexOf('p50')])).toBeCloseTo(250, 9)
 
     const json = JSON.parse(await fromMenu(3))
     expect(json.spec).toBe('loop-mc/1')
-    expect(json.units).toMatchObject({ permeate: 'm³', power: 'kWh' })
-    expect(json.time).toEqual({ step: { value: 1, unit: 'h' } })
+    expect(json.units).toEqual({ feed: 'm³', power: 'kWh', permeate: 'm³', brine: 'm³' })
+    expect(json.config.time.step, 'the one home of the step length').toEqual({ value: 1, unit: 'h' })
+    expect(json).not.toHaveProperty('time')
     expect(typeof json.final.permeate.summary.p50).toBe('number')
   })
 })

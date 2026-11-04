@@ -1848,6 +1848,6 @@ useI18n.subscribe((s) => {
 /** SEMANTICS-M4.md §M4-6 — the open document's unit table, read when an export
  *  is written */
 export function documentExportUnits(): ExportUnits {
-  const { nodes, kinds, time } = useGraphStore.getState()
-  return exportUnits(nodes, kinds, time)
+  const { nodes, kinds } = useGraphStore.getState()
+  return exportUnits(nodes, kinds)
 }

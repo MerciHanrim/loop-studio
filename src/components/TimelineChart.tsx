@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { poolBaseUnit } from '../model/exportUnits'
 import { formatRegisterValue, readAccent, registerSeriesRuns, registersOfSnapshot } from '../model/model'
 import { resolveTimelineSeries } from '../model/timelineSeries'
 import { documentExportUnits, useGraphStore } from '../store/graphStore'
@@ -57,7 +56,7 @@ function niceCeil(v: number): number {
 
 function exportRunCsv(pools: { id: string; label: string }[], series: { step: number; values: Record<string, number> }[]) {
   const units = documentExportUnits()
-  downloadCsv(buildRunCsv(pools.map((p) => ({ ...p, unit: poolBaseUnit(units, p.id) })), series), 'loop-studio-run.csv')
+  downloadCsv(buildRunCsv(pools.map((p) => ({ ...p, unit: units.get(p.id) })), series), 'loop-studio-run.csv')
 }
 
 export function TimelineChart() {

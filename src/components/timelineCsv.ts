@@ -34,7 +34,7 @@ import { withUnit } from '../model/exportUnits'
 //
 // SEMANTICS-M4.md §M4-6 — a Pool whose kind names a base unit has it in the
 // readable half, `feed [m³] [pool_1]`, so the last bracket is the id in every
-// column. The cells stay the values themselves: this download has no shown form.
+// column. The cells stay the values themselves.
 
 export type RunCsvPool = { id: string; label: string; unit?: string }
 export type RunCsvPoint = { step: number; values: Record<string, number> }
