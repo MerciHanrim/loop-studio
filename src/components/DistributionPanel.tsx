@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import { documentExportUnits } from '../store/graphStore'
 import { useMcStore } from '../store/mcStore'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 import { useMenuKeyboard, useMenuTrigger } from '../ui/useMenuKeyboard'
@@ -66,19 +67,19 @@ function ExportMenu({ result, disabled, engineRevision }: { result: MonteCarloRe
       </button>
       {open ? (
         <div className="menu__pop menu__pop--up" role="menu" ref={popRef}>
-          <button type="button" className="menu__item" role="menuitem" onClick={() => saveCsv('series.csv', toSeriesCsv(result))}>
+          <button type="button" className="menu__item" role="menuitem" onClick={() => saveCsv('series.csv', toSeriesCsv(result, documentExportUnits()))}>
             <span className="menu__name">{t('dist.export.seriesCsv')}</span>
             <span className="menu__blurb">{t('dist.export.seriesCsv.blurb')}</span>
           </button>
-          <button type="button" className="menu__item" role="menuitem" onClick={() => saveCsv('runs.csv', toFinalCsv(result))}>
+          <button type="button" className="menu__item" role="menuitem" onClick={() => saveCsv('runs.csv', toFinalCsv(result, documentExportUnits()))}>
             <span className="menu__name">{t('dist.export.runsCsv')}</span>
             <span className="menu__blurb">{t('dist.export.runsCsv.blurb')}</span>
           </button>
-          <button type="button" className="menu__item" role="menuitem" onClick={() => saveCsv('summary.csv', toFinalSummaryCsv(result))}>
+          <button type="button" className="menu__item" role="menuitem" onClick={() => saveCsv('summary.csv', toFinalSummaryCsv(result, documentExportUnits()))}>
             <span className="menu__name">{t('dist.export.summaryCsv')}</span>
             <span className="menu__blurb">{t('dist.export.summaryCsv.blurb')}</span>
           </button>
-          <button type="button" className="menu__item" role="menuitem" onClick={() => saveJson('result.json', toMonteCarloJson(result, engineRevision))}>
+          <button type="button" className="menu__item" role="menuitem" onClick={() => saveJson('result.json', toMonteCarloJson(result, engineRevision, documentExportUnits()))}>
             <span className="menu__name">JSON</span>
             <span className="menu__blurb">{t('dist.export.json.blurb')}</span>
           </button>

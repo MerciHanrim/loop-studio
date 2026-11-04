@@ -1,4 +1,5 @@
 import { toCsv } from '../model/csv'
+import { withUnit } from '../model/exportUnits'
 
 // docs/data-import.md §CSV — the Timeline's "run CSV": one row per committed
 // step, one column per Pool. Pure, so the column-naming contract can be tested
@@ -30,13 +31,18 @@ import { toCsv } from '../model/csv'
 //     only the colliding ones growing a prefix.
 //
 // The localized label stays in front, so the file is still readable by a person.
+//
+// SEMANTICS-M4.md §M4-6 — a Pool whose kind names a base unit has it in the
+// readable half, `feed [m³] [pool_1]`, so the last bracket is the id in every
+// column. The cells stay the values themselves.
 
-export type RunCsvPool = { id: string; label: string }
+export type RunCsvPool = { id: string; label: string; unit?: string }
 export type RunCsvPoint = { step: number; values: Record<string, number> }
 
-/** `<label> [<node-id>]` — readable half first, identifying half last. */
+/** `<label> [<node-id>]`, or `<label> [<unit>] [<node-id>]` — readable half
+ *  first, identifying half last. */
 export function runCsvColumnName(pool: RunCsvPool): string {
-  return `${pool.label} [${pool.id}]`
+  return `${withUnit(pool.label, pool.unit)} [${pool.id}]`
 }
 
 /** The whole document. Quoting and the CRLF record separator come from the

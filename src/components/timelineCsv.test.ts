@@ -36,6 +36,16 @@ describe('runCsvColumnName', () => {
     expect(runCsvColumnName({ id: 'p1', label: '' })).toBe(' [p1]')
     expect(runCsvColumnName({ id: 'p1', label: 'renamed by the user' })).toBe('renamed by the user [p1]')
   })
+
+  it('names the base unit in the readable half, so the last bracket stays the id (§M4-6)', () => {
+    const name = runCsvColumnName({ id: 'p1', label: 'feed', unit: 'm³' })
+    expect(name).toBe('feed [m³] [p1]')
+    expect(/\[([^\]]+)\]$/.exec(name)?.[1]).toBe('p1')
+  })
+
+  it('an empty unit is no unit', () => {
+    expect(runCsvColumnName({ id: 'p1', label: 'feed', unit: '' })).toBe('feed [p1]')
+  })
 })
 
 describe('buildRunCsv', () => {
@@ -47,6 +57,11 @@ describe('buildRunCsv', () => {
   it('writes CRLF records and ends with one', () => {
     const csv = buildRunCsv(POOLS(['a', 'b'], () => 'P'), series)
     expect(csv).toBe('step,P [a],P [b]\r\n0,0,0\r\n1,3,7\r\n')
+  })
+
+  it('a Pool with a unit keeps plain numeric cells (§M4-6)', () => {
+    const csv = buildRunCsv([{ id: 'a', label: 'feed', unit: 'm³' }, { id: 'b', label: 'P' }], series)
+    expect(csv).toBe('step,feed [m³] [a],P [b]\r\n0,0,0\r\n1,3,7\r\n')
   })
 
   it('a missing value reads 0, exactly as the chart does', () => {
