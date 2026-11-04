@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { expect, importGraph, openApp, resetAll, snap, test } from './support/loop'
+import { expect, importGraph, openApp, resetAll, routesSettled, snap, test } from './support/loop'
 import { viewRow } from './support/workbenchMenus'
 
 // docs/large-graph-readability.md §LGR9 — the Activity overlay's edge tell
@@ -36,8 +36,12 @@ const toggleActivity = async (page: Page) => {
  *  Activity overlay sets, without opening the menu around each screenshot. The
  *  menu row itself is what `toggleActivity` drives, once per test, and the
  *  computed contract below reads its `aria-pressed`. */
-const overlay = (page: Page, on: boolean) =>
-  page.evaluate((v) => (window as unknown as { __loop: { ui: { getState: () => { setActivityOverlay: (x: boolean) => void } } } }).__loop.ui.getState().setActivityOverlay(v), on)
+const overlay = async (page: Page, on: boolean) => {
+  await page.evaluate((v) => (window as unknown as { __loop: { ui: { getState: () => { setActivityOverlay: (x: boolean) => void } } } }).__loop.ui.getState().setActivityOverlay(v), on)
+  // the menu's trip also gave the routes and labels time to settle: without it a
+  // screenshot could land before they had, and a reading moved by a pixel
+  await routesSettled(page)
+}
 const activityPressed = async (page: Page) => {
   const v = await (await viewRow(page, 'activity')).getAttribute('aria-pressed')
   await page.keyboard.press('Escape')
