@@ -1659,6 +1659,10 @@ person: `ตั๋ว [ticket_free]`.
 The Monte-Carlo CSVs are unchanged in shape — they carry `pool` as a *value*
 column, not one column per Pool, so no name can collide there.
 
+A Pool whose kind names a base unit has it in the readable half, in front of
+the id: `feed [m³] [pool_1]`. The last bracket is the id in every column, so a
+reader that takes the id from the end still finds it (SEMANTICS-M4.md §M4-6).
+
 ### Tests
 
 - `src/model/csv.test.ts` — `csvField` / `toCsv`, and a hostile-label round trip

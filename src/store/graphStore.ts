@@ -30,6 +30,7 @@ import { buildRefreshCommit, parameterLabel, type RefreshCommitResult, type Refr
 import { ImportTableLookup } from '../model/dataImportIndex'
 import { hasModelLayer, hasUnits } from '../model/modelVersion'
 import { canonicalKinds, kindsDeclareUnits, type ResourceKindDecl } from '../model/kinds'
+import { exportUnits, type ExportUnits } from '../model/exportUnits'
 import { canonicalDocTime, type DocTime } from '../model/units'
 import { parseActivatorExpr } from '../engine'
 import {
@@ -1843,3 +1844,10 @@ useI18n.subscribe((s) => {
   // no write.
   if (liveNodesChanged || liveFramesChanged) writeAutosaveNow()
 })
+
+/** SEMANTICS-M4.md §M4-6 — the open document's unit table, read when an export
+ *  is written */
+export function documentExportUnits(): ExportUnits {
+  const { nodes, kinds, time } = useGraphStore.getState()
+  return exportUnits(nodes, kinds, time)
+}

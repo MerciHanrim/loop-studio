@@ -397,6 +397,10 @@ run,seed,<PoolLabelA>,<PoolLabelB>,...
 pool,p10,p50,p90,mean,min,max
 ```
 
+A document that names a unit adds to these files as SEMANTICS-M4.md §M4-6 sets
+out, and to the JSON after the fields of MC8.1. For every other document these
+are the files.
+
 ---
 
 ## MC9. Draft test vectors

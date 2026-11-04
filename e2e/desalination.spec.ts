@@ -1,5 +1,6 @@
-import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, test } from './support/loop'
+import { readFileSync } from 'node:fs'
+import type { Download, Page } from '@playwright/test'
+import { expect, openApp, resetAll, runMc, test } from './support/loop'
 import { openFileSubmenu, pickLocale, pickTemplate } from './support/workbenchMenus'
 
 // #471 — the desalination Template (examples/desalination.json), opened from
@@ -21,6 +22,11 @@ const model = (page: Page) =>
       labels: Object.fromEntries((g.nodes as { id: string; data: { label: string } }[]).map((n) => [n.id, n.data.label])),
     }
   })
+
+/** a downloaded file's text, without the BOM a CSV carries */
+const textOf = async (dl: Download): Promise<string> => readFileSync((await dl.path())!, 'utf8').replace(String.fromCodePoint(0xfeff), '')
+/** these files hold no quoted field: the labels are plain and the shown text has no comma */
+const rowsOf = (csv: string): string[][] => csv.trim().split('\r\n').map((l) => l.split(','))
 
 test.describe('the desalination Template', () => {
   test.beforeEach(async ({ page }) => {
@@ -63,5 +69,49 @@ test.describe('the desalination Template', () => {
     await page.evaluate(() => (window as unknown as Bridge).__loop.graph.setState({ selectedNodeId: 'permeate', selectedEdgeId: null }))
     const current = page.locator('.inspector .field').filter({ has: page.locator('.field__label', { hasText: '현재 수량' }) }).locator('input')
     await expect(current).toHaveValue('≈ 250000 L')
+  })
+
+  // SEMANTICS-M4.md §M4-6 — what a person actually downloads: numbers in the
+  // base unit, the unit named beside them, the node id still the last bracket
+  test('its downloads keep numbers in the base unit and name the unit', async ({ page }) => {
+    await pickTemplate(page, 'desalination')
+    const confirm = page.locator('.mcdlg--confirm .btn--primary')
+    if (await confirm.isVisible().catch(() => false)) await confirm.click()
+    await expect(page.locator('.react-flow__node')).toHaveCount(9)
+    await page.evaluate(() => {
+      const l = (window as unknown as Bridge).__loop
+      l.sim.getState().reset()
+      for (let i = 0; i < 24; i++) l.sim.getState().advance()
+    })
+
+    const csvBtn = page.locator('.timeline__csv').filter({ hasNotText: /▾/ }).first()
+    await expect(csvBtn).toBeEnabled()
+    const [run] = await Promise.all([page.waitForEvent('download'), csvBtn.click()])
+    const runRows = rowsOf(await textOf(run))
+    expect(runRows[0]).toEqual(expect.arrayContaining(['생산수 [m³] [permeate]', '농축수 [m³] [brine]']))
+    const permeate = runRows[0].indexOf('생산수 [m³] [permeate]')
+    expect(Number(runRows[1][permeate]), 'the Pool is authored as 200000 L').toBe(200)
+    expect(Number(runRows.at(-1)![permeate])).toBeCloseTo(250, 9)
+
+    await runMc(page, { baseSeed: 1, runs: 3, steps: 24, tracked: [] })
+    const fromMenu = async (item: number) => {
+      await page.locator('.dist__stats .menu button').first().click()
+      const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem').nth(item).click()])
+      return textOf(dl)
+    }
+    expect(rowsOf(await fromMenu(0))[0].slice(0, 3)).toEqual(['step', 'pool', 'unit'])
+    expect(rowsOf(await fromMenu(1))[0]).toContain('생산수 [m³]')
+
+    const summary = rowsOf(await fromMenu(2))
+    expect(summary[0].slice(0, 2)).toEqual(['pool', 'unit'])
+    const row = summary.find((r) => r[0] === '생산수')!
+    expect(row[1]).toBe('m³')
+    expect(Number(row[summary[0].indexOf('p50')])).toBeCloseTo(250, 9)
+
+    const json = JSON.parse(await fromMenu(3))
+    expect(json.spec).toBe('loop-mc/1')
+    expect(json.units).toMatchObject({ permeate: 'm³', power: 'kWh' })
+    expect(json.time).toEqual({ step: { value: 1, unit: 'h' } })
+    expect(typeof json.final.permeate.summary.p50).toBe('number')
   })
 })

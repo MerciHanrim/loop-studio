@@ -57,11 +57,26 @@ A step change moves the amount per step of every field authored per time unit, a
 - **CSV**: numeric cells stay numbers, in the base unit per step; the header names the unit (`feed [m³]`). A re-expressed or difference value gets two separate columns, `<name> (shown)` for the R≈ text and `<name> (approx)` for whether it is an approximation.
 - **JSON**: numbers stay numbers, with a `units` / `time` header object; a display-bearing quantity is `{ value, unit, approx, display }`. The document itself stores the authored decimal and its `unit` key.
 - No export turns a computed number into a string by prefixing `≈`.
+- **A document that names no unit** writes every export as it always did, byte for byte. A Pool's unit is its kind's `baseUnit`; a Pool of no kind, or of a kind with none, names no unit, and a file may hold both.
+
+Each export applies this as follows.
+
+| Export | The unit | A shown form |
+|---|---|---|
+| Timeline run CSV | in the column name, before the node id: `feed [m³] [pool_1]`. The last bracket is always the id (DI-D19) | none: its cells are the values themselves |
+| Monte Carlo runs CSV | in the column name: `feed [m³]` | none: one plain value per run |
+| Monte Carlo series CSV | a `unit` column after `pool`, because one header serves every Pool in this long form | none: a series stays plain values |
+| Monte Carlo summary CSV | a `unit` column after `pool` | for a Pool authored in another unit, `<stat> (shown)` and `<stat> (approx)` beside each figure, blank for a Pool in the base unit |
+| Monte Carlo JSON | top-level `units`, by node id because labels may repeat, and `time` with the step length | top-level `shown`, by node id and figure, for a Pool authored in another unit |
+
+- The new JSON keys follow `engineRevision`, after the `loop-mc/1` fields, which do not change: `final` and `series` stay numbers. A key with nothing to say is left out.
+- A shown text is the value in the Pool's own unit, under M4-5, with that unit: `≈ 250000 L`. `approx` is derived when the file is written and never stored.
 
 ## M4-7. Where it lives
 
 - Model: `src/model/rational.ts` (exact decimals, R≈), `src/model/units.ts` (the reads, field-unit resolution, the engine value, the unit-change preview), `src/model/engineValues.ts` (`applyUnits`, the derived graph; `stripFieldUnits`), `src/model/kinds.ts` (`readKindsAt`, the exact C1, `convertersWhoseVerdictChanges`). Engine: `src/engine/step.ts` and `montecarlo.ts` read the derived graph; the findings read the authored one.
 - File: `time` after `kinds`, field `unit` keys trailing on Pool and resource-connection data. Projection and digest: the unit lists ride their kind entry, `time` follows `kinds` with `step` only, field `unit` keys are projected — all at version 4 only.
 - UI: the Inspector's unit select on a Pool and on a resource connection, and its confirm sheet; the Kinds panel's unit lists and step-length row, which the Inputs tab shows for any graph that names or declares a kind.
-- Pins: `src/model/units.test.ts` (rationals and R≈, the reads and the factor range, resolution, engine values and the out-of-range refusal, unit changes, exact C1, module inserts, the `/graph/4` boundary and M4-INV-1), `src/model/kinds.test.ts`, `src/engine/kinds.test.ts`; in the browser, `e2e/units.spec.ts` (the confirm sheet's cancel, confirm and undo, an exact change, the step-length sheet).
-- Not in this stage: the CSV and JSON export columns of M4-6 are the contract for the export surfaces, which today export base-unit values only; the Timeline's view-unit conversion and the bundled desalination example are separate kickoffs.
+- Exports: `src/model/exportUnits.ts` (the table of a document's Pools, the shown form, the JSON header); the writers are `src/components/timelineCsv.ts` and the exports of `src/engine/montecarlo.ts`.
+- Pins: `src/model/units.test.ts` (rationals and R≈, the reads and the factor range, resolution, engine values and the out-of-range refusal, unit changes, exact C1, module inserts, the `/graph/4` boundary and M4-INV-1), `src/model/kinds.test.ts`, `src/engine/kinds.test.ts`, `src/model/exportUnits.test.ts` (M4-6, and the readers of a result file); in the browser, `e2e/units.spec.ts` (the confirm sheet's cancel, confirm and undo, an exact change, the step-length sheet) and `e2e/desalination.spec.ts` (the real downloads).
+- Not in this stage: the Timeline's view-unit conversion is a separate kickoff.

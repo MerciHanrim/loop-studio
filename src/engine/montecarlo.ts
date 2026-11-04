@@ -7,6 +7,18 @@
 // bit-for-bit.
 
 import { toCsv } from '../model/csv'
+import {
+  hasShownForm,
+  namesAUnit,
+  NO_EXPORT_UNITS,
+  poolBaseUnit,
+  shownCells,
+  shownQuantity,
+  unitsHeader,
+  withUnit,
+  type ExportUnits,
+  type ShownQuantity,
+} from '../model/exportUnits'
 import type { LoopEdge, LoopNode } from '../model/types'
 import { mix32 } from './rng'
 import { initSim, step } from './step'
@@ -504,41 +516,84 @@ export function aggregateRuns(params: {
 // newline the user had typed was silently replaced by a space and could not be
 // read back. The label is the user's text; an export must not edit it.
 // The BOM belongs to the download boundary, not here.
+//
+// SEMANTICS-M4.md §M4-6 — every number here is in the base unit per step. With
+// no `units` argument, or for a document that names no unit, each writer's
+// output is what it was before units existed. A series and a per-run list stay
+// plain values; only the final summary, the figures a person reads off, carries
+// a display form, for a Pool authored in another unit.
 
-/** `montecarlo-series.csv` — one row per (step, pool). */
-export function toSeriesCsv(r: MonteCarloResult): string {
-  const rows: (string | number)[][] = [['step', 'pool', 'p10', 'p50', 'p90', 'mean', 'min', 'max']]
+const STATS = ['p10', 'p50', 'p90', 'mean', 'min', 'max'] as const
+
+/** `montecarlo-series.csv` — one row per (step, pool). One header serves every
+ *  Pool in this long form, so the unit is a column of its own. */
+export function toSeriesCsv(r: MonteCarloResult, units: ExportUnits = NO_EXPORT_UNITS): string {
+  const named = namesAUnit(units, r.pools.map((p) => p.id))
+  const rows: (string | number)[][] = [['step', 'pool', ...(named ? ['unit'] : []), ...STATS]]
   for (let t = 0; t < r.endedRuns.atOrBeforeStep.length; t++) {
     for (const pool of r.pools) {
       const s = r.series[pool.id]
-      rows.push([t, pool.label, s.p10[t], s.p50[t], s.p90[t], s.mean[t], s.min[t], s.max[t]])
+      rows.push([t, pool.label, ...(named ? [poolBaseUnit(units, pool.id)] : []), s.p10[t], s.p50[t], s.p90[t], s.mean[t], s.min[t], s.max[t]])
     }
   }
   return toCsv(rows)
 }
 
 /** `montecarlo-final.csv` — one row per run, run-index order, seed inline. */
-export function toFinalCsv(r: MonteCarloResult): string {
-  const rows: (string | number)[][] = [['run', 'seed', ...r.pools.map((p) => p.label)]]
+export function toFinalCsv(r: MonteCarloResult, units: ExportUnits = NO_EXPORT_UNITS): string {
+  const rows: (string | number)[][] = [['run', 'seed', ...r.pools.map((p) => withUnit(p.label, poolBaseUnit(units, p.id)))]]
   for (let i = 0; i < r.completedRuns; i++) {
     rows.push([i, r.runSeeds[i], ...r.pools.map((p) => r.final[p.id].values[i])])
   }
   return toCsv(rows)
 }
 
-/** `montecarlo-final-summary.csv` — one row per Pool. */
-export function toFinalSummaryCsv(r: MonteCarloResult): string {
-  const rows: (string | number)[][] = [['pool', 'p10', 'p50', 'p90', 'mean', 'min', 'max']]
+/** `montecarlo-final-summary.csv` — one row per Pool. A Pool authored in another
+ *  unit has each figure beside it as `<stat> (shown)` and `<stat> (approx)`. */
+export function toFinalSummaryCsv(r: MonteCarloResult, units: ExportUnits = NO_EXPORT_UNITS): string {
+  const ids = r.pools.map((p) => p.id)
+  const named = namesAUnit(units, ids)
+  const shown = hasShownForm(units, ids)
+  const rows: (string | number)[][] = [
+    ['pool', ...(named ? ['unit'] : []), ...STATS.flatMap((k) => (shown ? [k, `${k} (shown)`, `${k} (approx)`] : [k]))],
+  ]
   for (const pool of r.pools) {
     const s = r.final[pool.id].summary
-    rows.push([pool.label, s.p10, s.p50, s.p90, s.mean, s.min, s.max])
+    rows.push([
+      pool.label,
+      ...(named ? [poolBaseUnit(units, pool.id)] : []),
+      ...STATS.flatMap((k) => (shown ? [s[k], ...shownCells(s[k], pool.id, units)] : [s[k]])),
+    ])
   }
   return toCsv(rows)
 }
 
+/** the final summary's display forms, by Pool id; the `loop-mc/1` numbers in
+ *  `final` stay numbers, so this sits beside them */
+function shownSummaries(r: MonteCarloResult, units: ExportUnits): Record<string, Record<string, ShownQuantity>> {
+  const out: Record<string, Record<string, ShownQuantity>> = {}
+  for (const { id } of r.pools) {
+    if (!hasShownForm(units, [id])) continue
+    const s = r.final[id].summary
+    out[id] = Object.fromEntries(STATS.map((k) => [k, shownQuantity(s[k], id, units)!]))
+  }
+  return out
+}
+
 /** `MonteCarloResult` as pretty JSON (field order is the frozen contract). */
-export function toMonteCarloJson(r: MonteCarloResult, engineRevision: number | null = null): string {
+export function toMonteCarloJson(r: MonteCarloResult, engineRevision: number | null = null, units: ExportUnits = NO_EXPORT_UNITS): string {
+  const ids = r.pools.map((p) => p.id)
   // SEMANTICS-W2.md §W2-1 — the revision that produced `r`, beside the
-  // `loop-mc/1` fields; absent when the result carries none
-  return JSON.stringify(engineRevision == null ? r : { ...r, engineRevision }, null, 2)
+  // `loop-mc/1` fields; absent when the result carries none. §M4-6 — the unit
+  // header and the display forms follow it, absent when there are none.
+  return JSON.stringify(
+    {
+      ...r,
+      ...(engineRevision == null ? {} : { engineRevision }),
+      ...unitsHeader(units, ids),
+      ...(hasShownForm(units, ids) ? { shown: shownSummaries(r, units) } : {}),
+    },
+    null,
+    2,
+  )
 }
