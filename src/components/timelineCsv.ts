@@ -1,5 +1,6 @@
 import { toCsv } from '../model/csv'
 import { withUnit } from '../model/exportUnits'
+import { fullShown, type PoolView } from '../model/viewUnits'
 
 // docs/data-import.md §CSV — the Timeline's "run CSV": one row per committed
 // step, one column per Pool. Pure, so the column-naming contract can be tested
@@ -35,6 +36,10 @@ import { withUnit } from '../model/exportUnits'
 // SEMANTICS-M4.md §M4-6 — a Pool whose kind names a base unit has it in the
 // readable half, `feed [m³] [pool_1]`, so the last bracket is the id in every
 // column. The cells stay the values themselves.
+//
+// SEMANTICS-M4.md §M4-8 — the plain file never depends on the screen. A person
+// who has a view unit on may ask for a second file, `buildShownRunCsv`: the same
+// columns, with `(shown)` and `(approx)` beside each Pool the view re-expresses.
 
 export type RunCsvPool = { id: string; label: string; unit?: string }
 export type RunCsvPoint = { step: number; values: Record<string, number> }
@@ -54,5 +59,23 @@ export function buildRunCsv(pools: readonly RunCsvPool[], series: readonly RunCs
   // a Pool with no entry in a committed snapshot reads 0, exactly as the chart
   // draws it — the CSV never disagrees with what is on screen
   const rows = series.map((pt) => [pt.step, ...pools.map((p) => pt.values[p.id] ?? 0)])
+  return toCsv([head, ...rows])
+}
+
+/** The file with shown values. Every number stays where the plain file has it;
+ *  a re-expressed Pool adds `<label> (shown) [L] [id]`, the step reading's text,
+ *  and `<label> (approx) [id]`, `true` or `false`. A Pool the view does not
+ *  re-express adds nothing, so no cell is blank. */
+export function buildShownRunCsv(pools: readonly (RunCsvPool & { view?: PoolView })[], series: readonly RunCsvPoint[]): string {
+  const head = ['step', ...pools.flatMap((p) => (p.view?.fu ? [runCsvColumnName(p), `${withUnit(`${p.label} (shown)`, p.view.unit)} [${p.id}]`, `${p.label} (approx) [${p.id}]`] : [runCsvColumnName(p)]))]
+  const rows = series.map((pt) => [
+    pt.step,
+    ...pools.flatMap((p) => {
+      const value = pt.values[p.id] ?? 0
+      if (!p.view?.fu) return [value]
+      const shown = fullShown(value, p.view.fu)
+      return [value, shown.text, String(shown.approx)]
+    }),
+  ])
   return toCsv([head, ...rows])
 }

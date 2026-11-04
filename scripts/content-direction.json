@@ -29,7 +29,7 @@
       "file": "src/components/BandChart.tsx",
       "tag": "b",
       "find": [
-        "fmt(view.lastP50)"
+        "compactText(view.lastP50"
       ],
       "expect": "ltr"
     },
@@ -45,7 +45,7 @@
       "file": "src/components/BandChart.tsx",
       "tag": "text",
       "find": [
-        "fmt(v)"
+        "view.mark(v)"
       ],
       "expect": "ltr"
     },
@@ -571,7 +571,7 @@
       "file": "src/components/TimelineChart.tsx",
       "tag": "text",
       "find": [
-        "fmt(v)"
+        "view.mark(v)"
       ],
       "expect": "ltr"
     },

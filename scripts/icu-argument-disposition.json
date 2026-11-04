@@ -11,14 +11,14 @@
   },
   "$implemented": "A row classed `auto` / `ltr` / `per-fragment` is an OPEN obligation: the evidence says the value needs bounding and the code does not bound it yet. C3.5 was scoped to fix the two families that were already evidenced — the unrecognized-column header and the five `import.loc.*` calls — and those moved to `isolate-obligations.json`. The checker asserts these rows are NOT wrapped, so implementing one without moving its row is red in both directions.",
   "totals": {
-    "arguments": 340,
-    "rows": 57,
+    "arguments": 341,
+    "rows": 58,
     "byClass": {
-      "attribute": 13,
+      "attribute": 14,
       "closed-value": 44
     },
     "recordedNotImplemented": 0,
-    "attributeSink": 24
+    "attributeSink": 25
   },
   "rows": [
     {
@@ -180,6 +180,16 @@
       "sink": "prop:DraftNumberInput.aria-label",
       "class": "attribute",
       "evidence": "aria-label on an input: `DraftNumberInput` (#393 A) spreads the prop onto its own `<input>` unchanged, so the value still lands in an HTML attribute, which markup cannot reach; the checker sees the component prop only. The value is a user PARAMETER LABEL."
+    },
+    {
+      "file": "src/components/TimelineSeriesPopover.tsx",
+      "enclosing": "TimelineSeriesPopover",
+      "key": "timeline.units.for",
+      "arg": "kind",
+      "ord": 1,
+      "sink": "attr:select.aria-label",
+      "class": "attribute",
+      "evidence": "aria-label on a Timeline view-unit select (SEMANTICS-M4.md §M4-8; issue #471). The value is a user KIND NAME, as in the Kinds panel's own labels."
     },
     {
       "file": "src/components/ModelPanels.tsx",

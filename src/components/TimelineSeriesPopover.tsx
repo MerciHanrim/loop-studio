@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useT } from '../i18n'
 import { DEFAULT_SERIES_CAP } from '../model/timelineSeries'
+import type { ViewUnitChoice } from '../model/viewUnits'
 import { useAnchoredPosition } from './toolbar/useAnchoredPosition'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 
@@ -34,6 +35,8 @@ export function TimelineSeriesPopover({
   onShowAll,
   onResetAuto,
   onClose,
+  unitChoices,
+  onViewUnit,
 }: {
   /** the element id the trigger's `aria-controls` names */
   id: string
@@ -52,6 +55,10 @@ export function TimelineSeriesPopover({
   /** `focusAnchor` is false when the close came from a click elsewhere:
    *  pulling focus back to the trigger would steal it from what was clicked */
   onClose: (opts: { focusAnchor: boolean }) => void
+  /** SEMANTICS-M4.md §M4-8 — the kinds a view unit can be chosen for; empty
+   *  when the document declares no amount unit, and then nothing shows */
+  unitChoices: readonly ViewUnitChoice[]
+  onViewUnit: (kind: string, unit: string) => void
 }) {
   const t = useT()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -143,6 +150,33 @@ export function TimelineSeriesPopover({
       <p className="tl-series__note" role="status">
         {refused ? t('timeline.series.minOne') : ''}
       </p>
+
+      {unitChoices.length > 0 ? (
+        <div className="tl-series__units">
+          <h3 className="tl-series__title">{t('timeline.units.title')}</h3>
+          {unitChoices.map((c) => (
+            <label key={c.kind} className="tl-series__unit">
+              <span className="tl-series__unitkind" dir="auto">
+                {c.kind}
+              </span>
+              <select
+                className="band__pool"
+                value={c.value}
+                aria-label={t('timeline.units.for', { kind: c.kind })}
+                onChange={(e) => onViewUnit(c.kind, e.target.value)}
+              >
+                <option value="">{c.baseUnit ?? t('inspector.unit.base')}</option>
+                {c.options.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+          <p className="tl-series__hint">{t('timeline.units.note')}</p>
+        </div>
+      ) : null}
 
       <div className="tl-series__actions">
         <button
