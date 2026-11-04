@@ -32,4 +32,11 @@
 //                       order (an earlier member's take is room for a later
 //                       delivery), so a loop routed through a Gate or a
 //                       Converter is bounded as the direct loop is
-export const ENGINE_REVISION = 4
+//   5                   issue #471 — a group of Gates only that splits and
+//                       rejoins is planned as one group at #476's priority,
+//                       each choice the most the whole group can carry; a
+//                       `pull all` Gate of it that misses its fixed demand
+//                       zeroes the group; the group planners accept no value
+//                       past an availability or a room (no epsilon slack),
+//                       so a planned amount is never clipped at the commit
+export const ENGINE_REVISION = 5

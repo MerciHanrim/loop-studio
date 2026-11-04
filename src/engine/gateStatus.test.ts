@@ -9,7 +9,8 @@ import type { GateStatus } from './types'
 // `demand` / `available` are plan-free, so a Gate the group plan cut never
 // reads as `full`. The T / A / B rows are the design's §4a table (one step
 // each, the numbers computed on the engine before this field existed and
-// confirmed by Lumi); the rest pin the faults, the held amount, the absence of
+// confirmed by Lumi); the rest pin the faults, a Gate-only rejoin that holds
+// nothing once it is planned (#471, ENGINE_REVISION 5), the absence of
 // an entry for a Gate that does not fire, and the empty field.
 
 const P = { x: 0, y: 0 }
@@ -159,20 +160,21 @@ describe('#477 — the Gate state is decided by the engine, against a plan-free 
   })
 
   // ── the held amount ──────────────────────────────────────────────────────
-  it('a Gate-only split that rejoins at a full target: the merging Gate carries the held amount of its notice', () => {
-    // a(100) →40 g0; g0 →20 g1, →20 g2; g1 →20 g3; g2 →20 g3; g3 →40 y[cap 10] — the per-Gate rule
+  it('a Gate-only split that rejoins at a full target is planned as one group: nothing is held, so no Gate carries a held amount (#471, erratum part 4)', () => {
+    // a(100) →40 g0; g0 →20 g1, →20 g2; g1 →20 g3; g2 →20 g3; g3 →40 y[cap 10]
+    // — under the per-Gate rule g3 was handed 40 and held 30 (the held amount
+    // this test pinned until ENGINE_REVISION 5); planned, the group runs at
+    // y's room. The held field stays a safety net, as the notice does.
     const g: Graph = {
       nodes: [pool('a', 100), gate('g0'), gate('g1'), gate('g2'), gate('g3'), pool('y', 0, 10)],
       edges: [res('e1', 'a', 'g0', '40'), res('g01', 'g0', 'g1', '20'), res('g02', 'g0', 'g2', '20'), res('g13', 'g1', 'g3', '20'), res('g23', 'g2', 'g3', '20'), res('o1', 'g3', 'y', '40')],
     }
     const r = run(g)
-    const held = r.report.notices.filter((n) => n.kind === 'multiSupplyHeld')
-    expect(held.map((n) => n.nodeId)).toEqual(['g3'])
-    const e = only(r.gates, 'g3')
-    expect(e.held).toBeCloseTo(held[0].amount, 6)
-    expect(e.state).toBe('partial')
-    expect(e.why).toBe('room')
-    for (const x of r.gates) if (x.nodeId !== 'g3') expect(x.held).toBeUndefined()
+    expect(r.report.notices).toEqual([])
+    expect(r.moved).toEqual({ e1: 10, g01: 5, g02: 5, g13: 5, g23: 5, o1: 10 })
+    expectGate(r.gates, 'g3', { state: 'partial', why: 'room', demand: 40, available: 40, moved: 10 })
+    expectGate(r.gates, 'g0', { state: 'partial', why: 'room', demand: 40, available: 40, moved: 10 })
+    for (const x of r.gates) expect(x.held, x.nodeId).toBeUndefined()
   })
 
   // ── absence ──────────────────────────────────────────────────────────────
