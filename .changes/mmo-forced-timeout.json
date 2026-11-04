@@ -1,0 +1,1 @@
+{ "type": "internal", "reason": "A test-only change: the forced-colours edge tell spec spends less of its 30 s budget on setup, with the same assertions, thresholds and baselines (#490). Nothing built or shipped changes." }

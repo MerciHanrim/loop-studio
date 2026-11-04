@@ -32,6 +32,12 @@ const toggleActivity = async (page: Page) => {
   await (await viewRow(page, 'activity')).click()
   await page.keyboard.press('Escape')
 }
+/** #490 — the overlay flipped inside a measuring loop: the store value View ▸
+ *  Activity overlay sets, without opening the menu around each screenshot. The
+ *  menu row itself is what `toggleActivity` drives, once per test, and the
+ *  computed contract below reads its `aria-pressed`. */
+const overlay = (page: Page, on: boolean) =>
+  page.evaluate((v) => (window as unknown as { __loop: { ui: { getState: () => { setActivityOverlay: (x: boolean) => void } } } }).__loop.ui.getState().setActivityOverlay(v), on)
 const activityPressed = async (page: Page) => {
   const v = await (await viewRow(page, 'activity')).getAttribute('aria-pressed')
   await page.keyboard.press('Escape')
@@ -46,11 +52,21 @@ async function loadFixture(page: Page, file: string): Promise<void> {
   await page.evaluate(() => (window as unknown as { __loop: { rf: { fitView: (o: object) => void } } }).__loop.rf.fitView({ duration: 0, padding: 0.1 }))
   await page.waitForTimeout(300)
 }
+/** #490 — `n` committed steps, as setup. `stepOnce` plays the Step button's whole
+ *  choreography, which is what these tests were waiting for: about 0.7 s a step
+ *  on the MMO, 40 % of a dash test, and more on a loaded runner. Nothing here
+ *  measures that animation, and with `prefers-reduced-motion` the same step
+ *  settles at once (§PB9) and records the same activity, so the media feature
+ *  is on for the steps only: every measurement below reads the normal page. */
 async function commitSteps(page: Page, n: number): Promise<void> {
-  for (let i = 1; i <= n; i++) {
-    await page.evaluate(() => (window as unknown as { __loop: { sim: { getState: () => { stepOnce: () => void } } } }).__loop.sim.getState().stepOnce())
-    await page.waitForFunction((k) => (window as unknown as { __loop: { sim: { getState: () => { stepIndex: number } } } }).__loop.sim.getState().stepIndex >= k, i)
-  }
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  // one trip: settled at once, the steps need no frame between them
+  await page.evaluate((count) => {
+    const sim = (window as unknown as { __loop: { sim: { getState: () => { stepOnce: () => void } } } }).__loop.sim
+    for (let i = 0; i < count; i++) sim.getState().stepOnce()
+  }, n)
+  await page.waitForFunction((k) => (window as unknown as { __loop: { sim: { getState: () => { stepIndex: number } } } }).__loop.sim.getState().stepIndex >= k, n)
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
   await page.waitForTimeout(250)
 }
 /** the system colour `Highlight` as this browser paints it (a probe element) */
@@ -212,8 +228,12 @@ async function cleanStretch(
       // its 144 paths, which cost a second or more per candidate on a runner)
       const near = new Map<string, { x: number; y: number }[]>()
       if (edgeId) {
-        const xs = pts.map((q) => q.x)
-        const ys = pts.map((q) => q.y)
+        // only the points inside the pane are ever judged: a window that leaves
+        // it is skipped first (#490). At zoom 0.75 a long edge runs far outside
+        const box = document.querySelector('.react-flow')!.getBoundingClientRect()
+        const seen = pts.filter((q) => q.x > box.left && q.x < box.right && q.y > box.top && q.y < box.bottom)
+        const xs = seen.map((q) => q.x)
+        const ys = seen.map((q) => q.y)
         const reachBox = { left: Math.min(...xs) - 4, right: Math.max(...xs) + 4, top: Math.min(...ys) - 4, bottom: Math.max(...ys) + 4 }
         for (const g of document.querySelectorAll('.react-flow__edge')) {
           if (g.getAttribute('data-id') === edgeId) continue
@@ -233,13 +253,18 @@ async function cleanStretch(
           }
         }
       }
+      const crowdedAt = new Map<{ x: number; y: number }, boolean>() // windows overlap: each point is judged once (#490)
       const crowded = (q: { x: number; y: number }): boolean => {
+        const hit = crowdedAt.get(q)
+        if (hit !== undefined) return hit
         const bx = Math.floor(q.x / 4)
         const by = Math.floor(q.y / 4)
-        for (let dx = -1; dx <= 1; dx++)
-          for (let dy = -1; dy <= 1; dy++)
-            for (const o of near.get(`${bx + dx},${by + dy}`) ?? []) if (Math.hypot(o.x - q.x, o.y - q.y) < 3) return true
-        return false
+        let c = false
+        for (let dx = -1; dx <= 1 && !c; dx++)
+          for (let dy = -1; dy <= 1 && !c; dy++)
+            for (const o of near.get(`${bx + dx},${by + dy}`) ?? []) if (Math.hypot(o.x - q.x, o.y - q.y) < 3) c = true
+        crowdedAt.set(q, c)
+        return c
       }
       const im = new Image()
       im.src = `data:image/png;base64,${b64}`
@@ -314,10 +339,10 @@ async function cleanStretch(
       let bestShare = -1
       for (let a = 0; a + W <= pts.length; a += 20) {
         const win = pts.slice(a, a + W)
-        const inside = win.every((p) => p.x > pane.left && p.x < pane.right && p.y > pane.top && p.y < pane.bottom)
+        // the cheap test first: either one skips the window (#490)
+        if (!win.every((p) => p.x > pane.left && p.x < pane.right && p.y > pane.top && p.y < pane.bottom)) continue
         // a crossing touches a few points; a line running alongside, many
         if (edgeId && win.filter(crowded).length > W / 4) continue
-        if (!inside) continue
         const { inkShare, runs } = scan(a, a + W, 0.15, 1)
         const score = inkShare - 0.05 * runs // a stretch under a label/crossing breaks into pieces
         if (score > bestShare) {
@@ -494,7 +519,7 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
           if (results.filter((r) => r.ok).length >= 3) break
           await centreOn(page, id, zoom)
           // OFF reference (same viewport): the plain grey line
-          await toggleActivity(page)
+          await overlay(page, false)
           await page.waitForTimeout(150)
           const offPng = await page.screenshot()
           const pts = await pathPoints(page, id)
@@ -502,13 +527,13 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
           const picked = await cleanStretch(page, offPng, pts, 0.15, 2, id)
           if (!picked) {
             // shorter than 80 screen px at this zoom — too few periods to count
-            await toggleActivity(page)
+            await overlay(page, true)
             await page.waitForTimeout(150)
             continue
           }
           const [a, b] = picked.stretch
           const off = picked.off
-          await toggleActivity(page)
+          await overlay(page, true)
           await page.waitForTimeout(150)
           const onPng = await page.screenshot()
           const on = await dashCount(page, onPng, pts, a, b, 0.2, 1)
@@ -583,7 +608,7 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
       for (const id of await longestActive(page, 'edge-state', 6)) {
         if (measured === 2) break
         await centreOn(page, id, zoom)
-        await toggleActivity(page)
+        await overlay(page, false)
         await page.waitForTimeout(150)
         const offPng = await page.screenshot()
         const pts = await pathPoints(page, id)
@@ -592,14 +617,14 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
         // an activator-OFF state edge is painted at opacity 0.5 in the plain state → a very low presence threshold
         const picked = await cleanStretch(page, offPng, pts, 0.06, 2, id)
         if (!picked) {
-          await toggleActivity(page) // back ON for the next candidate
+          await overlay(page, true) // back ON for the next candidate
           await page.waitForTimeout(150)
           continue
         }
         measured++
         const [a, b] = picked!.stretch
         const off = picked!.off
-        await toggleActivity(page)
+        await overlay(page, true)
         await page.waitForTimeout(150)
         const onPng = await page.screenshot()
         const on = await dashCount(page, onPng, pts, a, b, 0.2, 1)
