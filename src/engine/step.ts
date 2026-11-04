@@ -940,7 +940,8 @@ export function step(
     // group (a Gate with two supplies) is planned at the same turn by filling
     // the Gates' supplies one after the other at a fixed priority (#476,
     // `planMulti` below), two such Gates meeting at one Converter included.
-    // A split that rejoins was refused at the top of `step`.
+    // A split that rejoins was refused at the top of `step` when the group has
+    // a Converter; a group of Gates only that rejoins is a multi group (#471).
     const liveEdge = (e: LoopEdge): boolean => {
       if (dead.has(e.id)) return false
       const sk = kindOf(e.source)
@@ -955,12 +956,16 @@ export function step(
     }
     const orderIdx = new Map(order.map((id, i) => [id, i]))
     const treeAtRoot = new Map<string, string[]>() // root id → the group's members
-    const multiAtRoot = new Map<string, { members: string[]; multiGates: string[] }>() // #476 — root id → the multi group
+    const multiAtRoot = new Map<string, { members: string[]; multiGates: string[]; rejoin: boolean }>() // #476 — root id → the multi group (#471 part 4: a Gate-only split that rejoins is one)
     for (const g of converterGroups(nodes, resEdges, liveEdge)) {
-      if (g.cls === 'split-rejoin') continue // with a Converter: refused at the top of `step`; Gates only: the per-Gate rule
+      // with a Converter: refused at the top of `step`. Gates only (#471,
+      // erratum part 4): the join has two supplies, so the group is a multi
+      // group — the cut at the join's inputs leaves trees, and the join's two
+      // supplies from one piece sum that piece's paths
+      if (g.cls === 'split-rejoin' && g.hasConverter) continue
       const root = g.members.reduce((a, b) => ((orderIdx.get(b) ?? Infinity) < (orderIdx.get(a) ?? Infinity) ? b : a))
       if (g.cls === 'tree') treeAtRoot.set(root, g.members)
-      else multiAtRoot.set(root, { members: g.members, multiGates: g.multiGates })
+      else multiAtRoot.set(root, { members: g.members, multiGates: g.multiGates, rejoin: g.cls === 'split-rejoin' })
     }
     const planned = new Set<string>() // members of a planned group
     const planF = new Map<string, number>() // Converter member → its run fraction
@@ -1249,11 +1254,12 @@ export function step(
         }
         const shared = wants.some((w) => (inNeed.get(w.e.source) ?? 0) > EPSILON)
         let hi = Math.min(sMax, reach(0) / c)
-        if (shared && !(reach(hi) >= c * hi - EPSILON)) {
+        // no slack (#471, erratum part 4): a value kept is one the Gate reaches
+        if (shared && !(reach(hi) >= c * hi)) {
           let lo = 0
           for (let i = 0; i < 64; i++) {
             const mid = (lo + hi) / 2
-            if (reach(mid) >= c * mid - EPSILON) lo = mid
+            if (reach(mid) >= c * mid) lo = mid
             else hi = mid
           }
           hi = lo
@@ -1264,7 +1270,7 @@ export function step(
       // largest `s` under every other bound at which the walk keeps every such
       // Pool's level within its room (feasible at 0; bisection from there)
       if (walked.length > 0 && Number.isFinite(sMax) && sMax > 0) {
-        const fits = (s: number) => walked.every((q) => peakAt(q, s) <= roomOf(q) + EPSILON)
+        const fits = (s: number) => walked.every((q) => peakAt(q, s) <= roomOf(q)) // no slack (#471, erratum part 4)
         if (!fits(sMax)) {
           let lo = 0
           let hi = sMax
@@ -1364,7 +1370,21 @@ export function step(
     // whose fixed demand is not that throughput zeroes the group (D-fixed).
     // The two loss notices stay as safety nets: a planned group never reaches
     // them.
-    const planMulti = (members: string[], multiGates: string[]) => {
+    //
+    // #471 (erratum part 4): a group of Gates only that splits and rejoins is
+    // planned here too (`rejoin`). The join has two supplies from one piece,
+    // so the piece's paths sum (G-R2); every free number is filled in the
+    // same order, `pull all` or not (G-R5); then a `pull all` Gate whose
+    // planned throughput is below its fixed demand — its throughput with
+    // every entry at its full amount — zeroes the whole group, side exits and
+    // entries that never reach it included (G-R6, D-fixed).
+    //
+    // Every bound below is checked with no slack (#471 review of rev 2): a
+    // value the bisection keeps is feasible against the actual availability
+    // and room, so the commit never clips a planned amount. A tolerance only
+    // classifies a difference already computed (a `pull all` demand met, two
+    // supplies covering a throughput).
+    const planMulti = (members: string[], multiGates: string[], rejoin = false) => {
       const { W, gateInto, convMake, convNeed, convPoolIns, pair, fedByRouter } = memberShapes(members)
       const multi = new Set(multiGates)
       const byOrder = (a: string, b: string) => (orderIdx.get(a) ?? Infinity) - (orderIdx.get(b) ?? Infinity)
@@ -1526,7 +1546,9 @@ export function step(
         for (const m of members) {
           const v = c.get(m) ?? 0
           if (kindOf(m) === 'gate') {
-            if (v <= EPSILON) continue
+            // a positive amount, however small, is checked: skipping one below
+            // epsilon let the bisection plan ~1e-9 into a full Pool (#471)
+            if (v <= 0) continue
             const Wm = W.get(m) ?? 0
             if (Wm <= EPSILON) return false // no live branch — delivers nothing (#388 D)
             for (const [q, w] of gateInto.get(m)!) {
@@ -1536,8 +1558,8 @@ export function step(
             }
             continue
           }
-          if (v > 1 + EPSILON) return false // f ≤ 1
-          if (v <= EPSILON) continue
+          if (v > 1) return false // f ≤ 1
+          if (v <= 0) continue
           if (disabledPullAll.has(m) || convMake.get(m)!.size === 0) return false
           if (inOf(m).some((e) => !isPool(e.source) && !liveEdge(e) && rateOfCached(e) > EPSILON)) return false
           const need = convNeed.get(m)!
@@ -1555,18 +1577,18 @@ export function step(
           for (const sup of supplies.get(G)!) {
             if (sup.kind !== 'own') continue
             const u = uOwn.get(sup.e.id) ?? 0
-            if (u > sup.want + EPSILON) return false
+            if (u > sup.want) return false
             add(claim, sup.e.source, u)
             addBy(takesBy, G, sup.e.source, u)
           }
         }
-        for (const [p, v] of claim) if (v > availOf(p) + EPSILON) return false
+        for (const [p, v] of claim) if (v > availOf(p)) return false
         // a source Gate reaches its T by its greedy pulls, net of the plan's claims
         const used = new Map<string, number>()
         for (const m of members) {
           if (kindOf(m) !== 'gate' || multi.has(m) || fedByRouter.has(m)) continue
           const T = c.get(m) ?? 0
-          if (T <= EPSILON) continue
+          if (T <= 0) continue
           let r = inbox.get(m) ?? 0
           let need = Math.max(0, T - r)
           for (const e of ownIns(m)) {
@@ -1580,7 +1602,7 @@ export function step(
             need -= pulled
             if (pulled > 0) addBy(takesBy, m, e.source, pulled)
           }
-          if (r < T - EPSILON) return false
+          if (r < T) return false
         }
         // the room, along the commit order (#471 item 5): from the Pool as it
         // stands, each member's take lowers the level at its turn and its
@@ -1595,7 +1617,7 @@ export function step(
           for (const m of inOrder) {
             level -= takesBy.get(m)?.get(q) ?? 0
             level += givesBy.get(m)?.get(q) ?? 0
-            if (level > room + EPSILON) return false
+            if (level > room) return false
           }
         }
         return true
@@ -1655,7 +1677,7 @@ export function step(
         fixed.add(keyOf(it.sup)) // and `settle` reads the value under test as given
         const v = it.sup.kind === 'own'
           ? largest((x) => uOwn.set((it.sup as { e: LoopEdge }).e.id, x), Math.min(it.sup.want, Math.max(0, availOf(it.sup.e.source))), () => true)
-          : largest((x) => sPiece.set(it.p!.id, x), pieceMax(it.p!), () => pullAllSourcesOk(it.p!))
+          : largest((x) => sPiece.set(it.p!.id, x), pieceMax(it.p!), () => rejoin || pullAllSourcesOk(it.p!)) // a rejoin's `pull all` Gates: G-R6, after the fill
         fixed.add(keyOf(it.sup))
         return v
       }
@@ -1670,7 +1692,7 @@ export function step(
           } else items.push({ sup, p: null })
         }
         const determined = (it: Item) => it.p !== null && sPiece.has(it.p.id) && !tentative.has(`piece:${it.p.id}`)
-        if (modeOfRouter(G) === 'pullAll') {
+        if (!rejoin && modeOfRouter(G) === 'pullAll') {
           // D-demand (the reach reading) and D-fixed
           const reach = items.map((it) => {
             if (it.sup.kind === 'own') return it.sup.want
@@ -1691,6 +1713,28 @@ export function step(
         } else for (const it of items) if (!determined(it)) fill(it)
       }
       if (!zero && !feasible()) zero = true // the later Gate of a shared piece could not be met exactly
+      const failedPullAll = new Set<string>() // G-R6 — every `pull all` Gate of a rejoin whose fixed demand was missed
+      if (!zero && rejoin) {
+        // the fixed demand: every entry at its full amount (a source piece at
+        // its own maximum, an own-Pool connection at min(rate, availability)),
+        // through the same coefficients as the plan
+        const full = new Map<number, number>()
+        for (const p of pieces) if (p.head === null) full.set(p.id, pieceMax(p))
+        for (const G of orderedMulti) {
+          const p = pieces[pieceOf.get(G)!]
+          if (p.root !== G) continue
+          let T = 0
+          for (const sup of supplies.get(G)!) T += sup.kind === 'router' ? sup.coef * (full.get(sup.piece) ?? 0) : Math.min(sup.want, Math.max(0, availOf(sup.e.source)))
+          full.set(p.id, T)
+        }
+        const demand = amountsOf(full)
+        const plan = amountsOf(sOf())
+        for (const m of members) {
+          if (kindOf(m) !== 'gate' || modeOfRouter(m) !== 'pullAll') continue
+          if ((plan.get(m) ?? 0) < (demand.get(m) ?? 0) - EPSILON) failedPullAll.add(m)
+        }
+        if (failedPullAll.size) zero = true
+      }
       if (!zero) {
         const c = amountsOf(sOf())
         for (const m of members) {
@@ -1701,7 +1745,7 @@ export function step(
       if (zero) { sPiece.clear(); uOwn.clear(); fixed.clear(); tentative.clear() }
       // #477 — a zeroed group's Gates say why: the `pull all` Gate whose
       // fixed demand failed, `pullAll`; every other Gate of the group, `plan`
-      if (zero) for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, m === zeroAt ? 'pullAll' : 'plan')
+      if (zero) for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, m === zeroAt || failedPullAll.has(m) ? 'pullAll' : 'plan')
       // record the plan; claim the inputs (`reservedIn`) and the output room, as the tree plan does
       const c = amountsOf(sOf())
       for (const m of members) {
@@ -1770,7 +1814,7 @@ export function step(
       if (members.some((m) => kindOf(m) === 'converter' && disabledPullAll.has(m)))
         for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, 'plan')
       if (group) planGroup(group)
-      if (mg) planMulti(mg.members, mg.multiGates)
+      if (mg) planMulti(mg.members, mg.multiGates, mg.rejoin)
 
       if (k === 'drain' || k === 'end') {
         // a terminal consumes what a router handed it: the entry is cleared, or

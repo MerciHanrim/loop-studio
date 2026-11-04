@@ -269,8 +269,9 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
     on it are both that connection's rate, so parallel connections always
     agree on the one fraction and the plan sums them per pair). The
     only exact plan can be zero, and a plan that happens to agree flips with
-    the branches that are live, so the shape is **refused before the run**,
-    on the full graph and in every model version: Play, Step and Monte Carlo
+    the branches that are live, so the shape with a Converter in the group is
+    **refused before the run** (a group of Gates only is planned instead,
+    part 4), on the full graph and in every model version: Play, Step and Monte Carlo
     do not start, and `step` itself returns the unchanged state with one
     diagnostic naming the split and the join. Editing, saving and sharing are
     unaffected. A Pool on one of the paths ends the group (the path then moves
@@ -300,8 +301,8 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
     all` Gate cannot be met on such a Pool, the whole group moves nothing. A
     group of Gates with no Converter in which a Gate has two supplies (two
     Gates merging into one, the gacha shape) is planned the same way; a group
-    of Gates only that splits and rejoins is not refused and keeps the per-Gate
-    rule, as before. Two multi-supply Gates whose downstreams meet at one
+    of Gates only that splits and rejoins is not refused and is planned as one
+    group too (part 4, below). Two multi-supply Gates whose downstreams meet at one
     Converter share a piece: the Converter's one fraction sets the second
     Gate's throughput from the first's, so the first Gate in the order is
     filled as above while the second is held to exactly that throughput — its
@@ -312,6 +313,52 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
     each Gate then moves exactly what the plan gave each of its supplies.
     Every case of the design, and the shapes beyond it, are pinned per
     connection and Pool in `src/engine/multiSupply.test.ts`.
+    **Erratum, part 4 (issue #471, 2026-11-04) — Gates only, split and
+    rejoined; no slack in a plan.** A group of Gates only (no Converter) in
+    which two forward paths from one router meet again at a later Gate is
+    planned, never refused: its join has two supplies, so it is a multi group,
+    and the cut at the join's inputs leaves trees. Before `ENGINE_REVISION` 5
+    it kept the per-Gate rule, under which each branch read the join's whole
+    `accept`; whenever the join or anything after it was short, the join's
+    inflow minus its outflow was lost, reported only by the held notice.
+    - *One plan.* A supply from a router is its piece at the share the join's
+      connection takes of it; two supplies from one piece add up, so every
+      connection is a path-summed multiple of the piece's number (G-R1, G-R2).
+      The bounds are the tree's, along the group's commit order (G-R3); one
+      free number is the largest value under them (G-R4).
+    - *Several free numbers (G-R5).* They are filled in part 3's order, and
+      **each choice is the largest value that keeps the whole group
+      feasible** with the earlier choices fixed and the later ones at zero —
+      the balances of every Gate it passes through and every rejoin it feeds
+      included, not the most its own connection or Pool could carry (a
+      Gate splitting 1 : 1 into a full join and an empty side Pool moves
+      nothing: it cannot send its side share without its join share).
+    - *`pull all` (G-R6, after G-R5).* A `pull all` Gate of the group has a
+      fixed demand: its throughput with every entry at its full amount,
+      `min(rate, its Pool's availability)`. When its planned throughput is
+      below that, **the whole group moves nothing** (D-fixed) — side exits
+      and entries that never reach that Gate included. A `pull all` source
+      Gate is the one-entry case. A zeroed group's Gates read `held`, with
+      `why: 'pullAll'` on the Gate that missed its demand and `'plan'` on the
+      others.
+    - *Placement (G-R7)* is the tree's: at the turn of the group's first
+      router, every member then moving exactly its planned amounts.
+    The held notice stays as a safety net; a planned group never reaches it.
+    **No slack.** Every group planner (the tree's and the multi-supply one)
+    accepts a value only when it is feasible against the actual availability
+    and room — no `+ epsilon` on a bound, and a member whose planned amount
+    is positive but below epsilon is still checked — so the commit never
+    clips a planned amount, and every Pool's change equals its recorded
+    events. A tolerance only classifies a difference already computed (a
+    `pull all` demand met, two supplies covering a throughput). Until
+    revision 5 the bisections settled up to `1e-9` past a room or a reach:
+    a capped Pool took `4` from an event of `4.000000001`, a Converter
+    sharing a Pool with its source Gate ran at two fractions `1e-9` apart,
+    and a Gate planned just under epsilon into a full Pool left its source
+    Gate holding about `1e-9`. Pinned per connection, Pool and Gate status
+    to `1e-12` in `src/engine/gateRejoin.test.ts`; seeded in
+    `src/engine/conservation.test.ts`. The 14 bundled documents are unchanged
+    at full precision over 5 seeds × 300 steps.
   A Converter outside every group whose router input delivers nothing this
   step (its router does not fire, the connection is dead, or a probabilistic
   Gate picked another branch) does not run from its Pools alone: one `f` on
