@@ -768,6 +768,58 @@ export function step(
   // no-`pullAll`-Converter graph, so behaviour there is byte-identical.
   let disabledPullAll = new Set<string>()
 
+  // #492 (SEMANTICS.md §6 erratum, part 5) — a plain tree of routers, outside
+  // every group, can reach one Pool by two paths. `accept` bounds each branch on
+  // its own, so each read the Pool's whole room: the router at the root sent
+  // more than the Pool could take, its reservations passed the room, and the
+  // Gates below were handed what they could not deliver. `branches` is what the
+  // router sends into each of its targets per unit it moves; this follows them
+  // through the firing Gates below and returns the largest number of units that
+  // fits every Pool reached by two or more paths: its room, plus what those
+  // Gates (and `own`) already hold there, over its path-summed share. A
+  // Converter's `takes` come off the share: what it takes from a Pool in the
+  // same activation is room it may fill. A Pool reached by one path is left to
+  // `accept`, whose arithmetic stays as it was. (A pick is memoised, so reading
+  // a probabilistic Gate's branch here makes no extra draw.)
+  const sharedPoolBound = (branches: Map<string, number>, own?: Map<string, number>, takes?: Map<string, number>): number => {
+    const share = new Map<string, number>()
+    const paths = new Map<string, number>()
+    const held = new Map<string, number>(own)
+    const follow = (target: string, c: number) => {
+      if (isPool(target)) {
+        share.set(target, (share.get(target) ?? 0) + c)
+        paths.set(target, (paths.get(target) ?? 0) + 1)
+        return
+      }
+      // any other router or terminal bounds its branch through `accept`
+      if (kindOf(target) !== 'gate' || !willFire.has(target)) return
+      for (const [q, a] of ownReserve.get(target) ?? []) held.set(q, (held.get(q) ?? 0) + a)
+      const g = byId.get(target)!
+      if (isProbGate(g)) {
+        const sel = pickBranch(g)
+        if (sel && !skipDet(sel.id)) follow(sel.target, c)
+        return
+      }
+      const outs = outOf(target).filter((e) => !skipDet(e.id))
+      const sumW = outs.reduce((s, e) => s + rateOfCached(e), 0)
+      if (sumW <= EPSILON) return
+      const wInto = new Map<string, number>() // two connections into one target are one path
+      for (const e of outs) {
+        const w = rateOfCached(e)
+        if (w > EPSILON) wInto.set(e.target, (wInto.get(e.target) ?? 0) + w)
+      }
+      for (const [t, w] of wInto) follow(t, (c * w) / sumW)
+    }
+    for (const [t, c] of branches) follow(t, c)
+    let bound = Infinity
+    for (const [q, n] of paths) {
+      if (n < 2) continue
+      const net = (share.get(q) ?? 0) - (takes?.get(q) ?? 0)
+      if (net > EPSILON) bound = Math.min(bound, Math.max(0, headroom(q) + (held.get(q) ?? 0)) / net)
+    }
+    return bound
+  }
+
   // `accept(id)` — max the node can take on its input side, live. Memo is valid
   // only while `working`/`reserved` are stable, so it is rebuilt per router turn.
   const makeAccept = () => {
@@ -841,6 +893,10 @@ export function step(
             }
             v = Infinity
             for (const [target, w] of wInto) v = Math.min(v, acceptInto(target) * (sumW / w))
+            // #492 — a Pool reached through the Gates below by two paths
+            const shares = new Map<string, number>()
+            for (const [target, w] of wInto) shares.set(target, w / sumW)
+            v = Math.min(v, sharedPoolBound(shares, own))
           }
         }
       } else v = 0
@@ -1869,6 +1925,12 @@ export function step(
         }
 
         let T: number
+        // #492 — what came through the inbox: `planReserve` already walked it
+        // down to the Pools when the upstream router handed it over, so only
+        // the rest of T reserves room as it is passed on. Reserving it again
+        // cancelled out on a chain (the Gate's own credit) but ate the room of
+        // a sibling that shares the Pool
+        let fromInboxT = 0
         const plPulls = planPulls.get(id)
         if (plPulls !== undefined) {
           // #476 — a multi-supply Gate moves exactly its plan: the inbox (its
@@ -1919,6 +1981,7 @@ export function step(
           // consume inbox first, then pull the rest from pools in (source, edge) order
           let need = T
           const fromInbox = Math.min(need, inb)
+          fromInboxT = fromInbox
           need -= fromInbox
           inbox.set(id, inb - fromInbox)
           inb -= fromInbox
@@ -1950,7 +2013,7 @@ export function step(
             working[sel!.target] = (working[sel!.target] ?? 0) + T
           } else {
             inbox.set(sel!.target, (inbox.get(sel!.target) ?? 0) + T)
-            if (!planned.has(sel!.target)) planReserve(sel!.target, T) // a plan member's room is already held
+            if (!planned.has(sel!.target) && T > fromInboxT) planReserve(sel!.target, T - fromInboxT) // a plan member's room is already held
           }
           emit(sel!, id, sel!.target, T)
           fired.add(id)
@@ -1972,7 +2035,7 @@ export function step(
             working[e.target] = (working[e.target] ?? 0) + share
           } else {
             inbox.set(e.target, (inbox.get(e.target) ?? 0) + share)
-            if (!planned.has(e.target)) planReserve(e.target, share)
+            if (!planned.has(e.target) && T > fromInboxT) planReserve(e.target, fromInboxT > 0 ? (share * (T - fromInboxT)) / T : share)
           }
           emit(e, id, e.target, share)
         }
@@ -2121,6 +2184,7 @@ export function step(
             if (net > EPSILON) fOut = Math.min(fOut, (headroom(q) + (own?.get(q) ?? 0)) / net)
           } else fOut = Math.min(fOut, accept(q) / make)
         }
+        fOut = Math.min(fOut, sharedPoolBound(makeInto, own, needFrom)) // #492 — a Pool reached by two paths
 
         // the fraction, before anything moves — `pull all` is decided on it
         let fDry = sumIn > EPSILON ? (inboxHave + fPool * sumInPool) / sumIn : 0

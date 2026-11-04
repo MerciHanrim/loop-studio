@@ -224,7 +224,8 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
   (#471, Phase B) will settle; its `inbox` is consumed whole, as before.
   `accept` is per target as well: two Gate branches into one Pool share that
   Pool's room (`acceptInto(Q) · Σw / Σ w into Q`), and two Converter outputs
-  into one Pool or one router share that target's room or `accept`.
+  into one Pool or one router share that target's room or `accept`. Two paths
+  into one Pool through the Gates below share it the same way (part 5, below).
 
   **Erratum, part 2 (issue #471, 2026-11-02) — the joint plan across routers.**
   The router-fed case above is settled by planning a Converter together with
@@ -359,6 +360,29 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
     to `1e-12` in `src/engine/gateRejoin.test.ts`; seeded in
     `src/engine/conservation.test.ts`. The 14 bundled documents are unchanged
     at full precision over 5 seeds × 300 steps.
+
+  **Erratum, part 5 (issue #492, 2026-11-04) — a plain tree that shares a
+  Pool.** A tree of routers outside every group (no router-fed Converter, no
+  Gate with two supplies, no rejoin) can reach one Pool by two or more paths.
+  The router that sizes the tree, a Gate at its turn or a Pool-fed Converter at
+  its turn, is also bounded by every such Pool: what it moves times the Pool's
+  path-summed share never passes the Pool's room. The share follows each
+  deterministic Gate's branches by their weights and a probabilistic Gate's
+  picked branch; two connections into one target are one path; the room counts
+  what the Gates on the way already hold there; a Converter's take from that
+  Pool in the same activation comes off its share. A Pool reached by one path
+  keeps the per-branch bound. An amount a router hands to a Gate is reserved
+  once, down to the Pools, when it is handed over; the Gate reserves only what
+  it pulled itself as it passes the amount on. Until revision 6 each branch read
+  the Pool's whole room, the root sent more than the Pool could take, and the
+  Gates below held what they could not deliver, reported only by the held
+  notice; and an amount passed down a chain was reserved at every Gate, which
+  took the room of a sibling or of an outside router. Pinned per connection,
+  Pool and Gate status to `1e-12` in `src/engine/gateTreeSharedPool.test.ts`;
+  seeded, probabilistic Gates included, in `src/engine/conservation.test.ts`.
+  The 14 bundled documents are unchanged at full precision over 5 seeds × 300
+  steps.
+
   A Converter outside every group whose router input delivers nothing this
   step (its router does not fire, the connection is dead, or a probabilistic
   Gate picked another branch) does not run from its Pools alone: one `f` on

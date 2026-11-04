@@ -389,16 +389,41 @@ describe('conservation — two routers into one Converter (#471 V4 — a tree gr
   })
 })
 
+/** the four checks over four steps, then no notice, every Pool exactly its
+ *  events and within its room, and the Pools' total kept, all to 1e-12 */
+function keptExactly(nodes: LoopNode[], edges: LoopEdge[], label: string) {
+  holds(nodes, edges, 4, label)
+  let st = initSim(nodes)
+  for (let t = 0; t < 4; t++) {
+    const r = step(nodes, edges, st, 3, 2)
+    expect(r.report.notices, `${label} step ${t + 1}`).toEqual([])
+    const moved = new Map<string, number>()
+    for (const ev of r.report.events) moved.set(ev.edgeId, (moved.get(ev.edgeId) ?? 0) + ev.amount)
+    let before = 0
+    let after = 0
+    for (const p of nodes) {
+      if (p.data.kind !== 'pool') continue
+      const inflow = edges.filter((e) => e.target === p.id).reduce((a, e) => a + (moved.get(e.id) ?? 0), 0)
+      const outflow = edges.filter((e) => e.source === p.id).reduce((a, e) => a + (moved.get(e.id) ?? 0), 0)
+      const b = st.values[p.id] ?? 0
+      const v = r.state.values[p.id] ?? 0
+      expect(Math.abs(v - b - (inflow - outflow)), `${label} step ${t + 1} Pool ${p.id}`).toBeLessThanOrEqual(1e-12)
+      const cap = (p.data as { capacity?: number | null }).capacity
+      if (cap != null) expect(b + inflow - outflow, `${label} step ${t + 1} Pool ${p.id} room`).toBeLessThanOrEqual(cap)
+      before += b
+      after += v
+    }
+    expect(Math.abs(after - before), `${label} step ${t + 1} total`).toBeLessThanOrEqual(1e-12)
+    st = r.state
+  }
+}
+
 describe('conservation — Gates only that split and rejoin (#471, erratum part 4 — planned as one group, ENGINE_REVISION 5)', () => {
   /** a diamond G0 → G1, G2 → G3 always, plus 0–3 more Gates; random rates,
    *  `pull all` Gates, extra Pool entries, side exits, later rejoins, and
    *  capped output Pools — Gates and Pools only, so the Pools' total is kept
-   *  exactly. Deterministic Gates only: every Gate then belongs to the one
-   *  planned group at every step. (A probabilistic pick can leave a live tree
-   *  of Gates with no group, which the per-Gate rule runs; two of its Gates
-   *  into one capped Pool lose resource there on main as well — a separate
-   *  finding, not this rule. R11 in gateRejoin.test.ts pins a probabilistic
-   *  split.) */
+   *  exactly. A Gate may be probabilistic: its pick can leave a live tree with
+   *  no group at that step, which the per-router path runs (#492). */
   const rejoinGraph = (s: number) => {
     const rnd = lcg(s * 104729)
     const pick = picker(rnd)
@@ -414,7 +439,7 @@ describe('conservation — Gates only that split and rejoin (#471, erratum part 
     const gates: string[] = []
     for (let i = 0; i < n; i++) {
       gates.push(`G${i}`)
-      nodes.push(gate(`G${i}`, 'automatic', 'deterministic', rnd() < 0.25 ? 'pullAll' : 'pullAny'))
+      nodes.push(gate(`G${i}`, 'automatic', i > 0 && rnd() < 0.15 ? 'probabilistic' : 'deterministic', rnd() < 0.25 ? 'pullAll' : 'pullAny'))
     }
     const edges: LoopEdge[] = []
     let eid = 0
@@ -438,30 +463,56 @@ describe('conservation — Gates only that split and rejoin (#471, erratum part 
     it(`seed ${s}: the four checks, no held amount, every Pool exactly its events and within its room, the total kept`, () => {
       const { nodes, edges } = rejoinGraph(s)
       expect(converterGroups(nodes, edges).some((g) => g.cls === 'split-rejoin' && !g.hasConverter)).toBe(true)
-      holds(nodes, edges, 4, `seed ${s}`)
-      let st = initSim(nodes)
-      for (let t = 0; t < 4; t++) {
-        const r = step(nodes, edges, st, 3, 2)
-        expect(r.report.notices, `seed ${s} step ${t + 1}`).toEqual([])
-        const moved = new Map<string, number>()
-        for (const ev of r.report.events) moved.set(ev.edgeId, (moved.get(ev.edgeId) ?? 0) + ev.amount)
-        let before = 0
-        let after = 0
-        for (const p of nodes) {
-          if (p.data.kind !== 'pool') continue
-          const inflow = edges.filter((e) => e.target === p.id).reduce((a, e) => a + (moved.get(e.id) ?? 0), 0)
-          const outflow = edges.filter((e) => e.source === p.id).reduce((a, e) => a + (moved.get(e.id) ?? 0), 0)
-          const b = st.values[p.id] ?? 0
-          const v = r.state.values[p.id] ?? 0
-          expect(Math.abs(v - b - (inflow - outflow)), `seed ${s} step ${t + 1} Pool ${p.id}`).toBeLessThanOrEqual(1e-12)
-          const cap = (p.data as { capacity?: number | null }).capacity
-          if (cap != null) expect(b + inflow - outflow, `seed ${s} step ${t + 1} Pool ${p.id} room`).toBeLessThanOrEqual(cap)
-          before += b
-          after += v
-        }
-        expect(Math.abs(after - before), `seed ${s} step ${t + 1} total`).toBeLessThanOrEqual(1e-12)
-        st = r.state
-      }
+      keptExactly(nodes, edges, `seed ${s}`)
     })
   }
+})
+
+describe('conservation — a plain tree of Gates sharing capped Pools (#492, erratum part 5 — ENGINE_REVISION 6)', () => {
+  /** one root Gate fed from P; every later Gate has exactly one upstream Gate,
+   *  so the graph is outside every group; the leaves deliver into three Pools
+   *  that the branches share, capped or not. Random rates, `pull all` Gates and
+   *  probabilistic Gates. Gates and Pools only, so the total is kept exactly. */
+  const treeGraph = (s: number) => {
+    const rnd = lcg(s * 15485863)
+    const pick = picker(rnd)
+    const rate = () => pick(['1', '2', '3', '5'])
+    const nodes: LoopNode[] = [pool('P', 10 + Math.floor(rnd() * 40))]
+    const outs: string[] = []
+    for (let i = 0; i < 3; i++) {
+      const cap = rnd() < 0.75 ? 2 + Math.floor(rnd() * 10) : null
+      nodes.push(pool(`T${i}`, cap == null ? 0 : Math.floor(rnd() * cap), cap))
+      outs.push(`T${i}`)
+    }
+    const n = 3 + Math.floor(rnd() * 6)
+    const edges: LoopEdge[] = []
+    let eid = 0
+    const add = (a: string, b: string, flow = rate()) => edges.push(edge(`e${eid++}`, a, b, flow))
+    const hasOut = new Set<string>()
+    for (let i = 0; i < n; i++) {
+      nodes.push(gate(`G${i}`, 'automatic', rnd() < 0.2 ? 'probabilistic' : 'deterministic', rnd() < 0.2 ? 'pullAll' : 'pullAny'))
+      if (i === 0) continue
+      const parent = `G${Math.floor(rnd() * i)}`
+      add(parent, `G${i}`)
+      hasOut.add(parent)
+    }
+    add('P', 'G0', pick(['5', '10', 'all']))
+    for (let i = 0; i < n; i++) {
+      if (!hasOut.has(`G${i}`) || rnd() < 0.35) add(`G${i}`, pick(outs))
+    }
+    return { nodes, edges }
+  }
+  const SEEDS = 60
+  for (let s = 1; s <= SEEDS; s++) {
+    it(`seed ${s}: no group, the four checks, no held amount, every Pool exactly its events and within its room, the total kept`, () => {
+      const { nodes, edges } = treeGraph(s)
+      expect(converterGroups(nodes, edges)).toEqual([])
+      keptExactly(nodes, edges, `seed ${s}`)
+    })
+  }
+  it('the family reaches a shared capped Pool by two paths', () => {
+    const shared = Array.from({ length: SEEDS }, (_, i) => treeGraph(i + 1)).filter(({ nodes, edges }) =>
+      nodes.some((p) => (p.data as { capacity?: number | null }).capacity != null && edges.filter((e) => e.target === p.id).length >= 2))
+    expect(shared.length).toBeGreaterThan(SEEDS / 3)
+  })
 })
