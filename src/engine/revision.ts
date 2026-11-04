@@ -39,4 +39,9 @@
 //                       zeroes the group; the group planners accept no value
 //                       past an availability or a room (no epsilon slack),
 //                       so a planned amount is never clipped at the commit
-export const ENGINE_REVISION = 5
+//   6                   issue #492 — a plain tree of routers outside every group
+//                       that reaches one Pool by two or more paths is bounded
+//                       by that Pool's room over the path-summed share, and an
+//                       amount handed to a Gate is reserved once, not again at
+//                       each Gate it passes
+export const ENGINE_REVISION = 6
