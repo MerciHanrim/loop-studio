@@ -262,6 +262,15 @@ not open — there is nothing to choose from.
 `hiddenCount > 0`, so the old chip would otherwise reappear beside the new trigger — two
 controls for overlapping jobs.
 
+### 6.4 Units
+
+When the document has a kind with an amount unit and a Pool of that kind, the popover
+holds a **Units** section between the series list and the actions: one select per kind.
+It is screen state, not project state: unlike a series choice it is stored nowhere and
+ends with the document (`docs/specs/SEMANTICS-M4.md` §M4-8). Any other document has no
+section, and the popover is as it was. It sits here rather than in the header because the
+header row is full: a button there cut the chips from four to two at 660px.
+
 ## 7. Timeline panel state
 
 **Revised 2026-10-20 (the workbench, [`workbench.md`](workbench.md) §WB7).** The

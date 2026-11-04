@@ -8,6 +8,7 @@ import { flushAutosave, useGraphStore } from './store/graphStore'
 import './store/editPolicy' // #334 — registers the edit-lock guard on the document stores
 import { useAutosaveStore } from './store/autosaveStore'
 import { useMcStore } from './store/mcStore'
+import { useViewUnitsStore } from './store/viewUnitsStore'
 import { useProjectStore } from './store/projectStore'
 import { usePwaStore } from './store/pwaStore'
 import { useReviewStore } from './store/reviewStore'
@@ -67,6 +68,7 @@ export async function startApp(): Promise<void> {
       autosave: { store: useAutosaveStore, flush: flushAutosave },
       sim: useSimStore,
       mc: useMcStore,
+      viewUnits: useViewUnitsStore,
       ui: useUiStore,
       filter: useFilterStore,
       frame: useFrameStore,

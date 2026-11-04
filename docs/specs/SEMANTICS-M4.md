@@ -70,7 +70,7 @@ Each export applies this as follows.
 
 **The step length of a Monte Carlo JSON is `config.time.step`.** That path is the one source: the run's own input, written with the result, and absent when the document declares no step length. `config.time.display` beside it is presentation. No other key repeats it.
 
-**A re-expressed or difference value.** No export holds one: every number above is the engine value in the base unit. The columns and fields that would carry one, with the R≈ text and an approximation flag kept apart from the number, are designed with the Timeline's view-unit conversion, together with the value shown on screen.
+**A re-expressed value.** No export above holds one: every number is the engine value in the base unit, whatever the screen shows. The one file that does is the Timeline's separate download of M4-8. The Monte Carlo files and the JSON never do, so the object form `{ value, unit, approx, display }` of the design record stays unused.
 
 ## M4-7. Where it lives
 
@@ -78,5 +78,38 @@ Each export applies this as follows.
 - File: `time` after `kinds`, field `unit` keys trailing on Pool and resource-connection data. Projection and digest: the unit lists ride their kind entry, `time` follows `kinds` with `step` only, field `unit` keys are projected — all at version 4 only.
 - UI: the Inspector's unit select on a Pool and on a resource connection, and its confirm sheet; the Kinds panel's unit lists and step-length row, which the Inputs tab shows for any graph that names or declares a kind.
 - Exports: `src/model/exportUnits.ts` (the table of a document's Pools, the JSON header); the writers are `src/components/timelineCsv.ts` and the exports of `src/engine/montecarlo.ts`.
-- Pins: `src/model/units.test.ts` (rationals and R≈, the reads and the factor range, resolution, engine values and the out-of-range refusal, unit changes, exact C1, module inserts, the `/graph/4` boundary and M4-INV-1), `src/model/kinds.test.ts`, `src/engine/kinds.test.ts`, `src/model/exportUnits.test.ts` (M4-6, and the readers of a result file); in the browser, `e2e/units.spec.ts` (the confirm sheet's cancel, confirm and undo, an exact change, the step-length sheet) and `e2e/desalination.spec.ts` (the real downloads).
-- Not in this stage: the Timeline's view-unit conversion, and with it the export of a re-expressed value, is a separate kickoff.
+- View units (M4-8): `src/model/viewUnits.ts` (how a Pool reads, the text of a number, the axis), `src/store/viewUnitsStore.ts` (the session choice); the surfaces are `TimelineChart.tsx`, `TimelineSeriesPopover.tsx`, `TimelineCsvMenu.tsx` and `BandChart.tsx`.
+- Pins: `src/model/units.test.ts` (rationals and R≈, the reads and the factor range, resolution, engine values and the out-of-range refusal, unit changes, exact C1, module inserts, the `/graph/4` boundary and M4-INV-1), `src/model/kinds.test.ts`, `src/engine/kinds.test.ts`, `src/model/exportUnits.test.ts` (M4-6, and the readers of a result file), `src/model/viewUnits.test.ts` (M4-8); in the browser, `e2e/units.spec.ts` (the confirm sheet's cancel, confirm and undo, an exact change, the step-length sheet), `e2e/desalination.spec.ts` (the real downloads) and `e2e/timeline-view-units.spec.ts` (M4-8 on the real screen and downloads).
+- Not built: the Kinds panel's boundary outflow still prints the base unit. `time.display` has no reader, because no surface shows a rate per time unit.
+
+## M4-8. The Timeline's view unit
+
+A person may read a kind's Pools in another of its amount units. Every Timeline series is a stock, so only amount units apply, and `time.display` has nothing to act on here.
+
+- **It is screen state.** One choice per kind, starting at the base unit, held for the session and dropped when another whole graph loads. It is not in the document, a Workspace file, the undo history or an autosave, and it runs no engine code: `serialize()`, the digest, `series`, `values` and every result are the same under every view. `ENGINE_REVISION` and the schema do not change.
+- **Resolved on every read.** The chosen name goes through §M4-2.2 as a stock field. A unit removed from the kind reads as the base unit at once, a rate unit never applies, and an edited factor applies at once.
+- **The control.** A Units section in the Series popover, one select per kind that has an amount unit and a Pool. A document with none has no section.
+- **One number line.** A point's height is the number shown for it, and a tick is true of every series in its own unit. The Pools of one kind keep their proportions; two kinds drawn together do not, and that comparison never meant anything.
+- **The axis says what its numbers are in.** With one unit across the drawn Pools it names that unit once, above the ticks. With different units, a Pool that names none among them included, it says **Mixed units**, and each chip, end label and step reading carries its own unit, so two amounts are not read as one scale. With no unit at all it says nothing. Register lines keep their own range and are not counted.
+- **The Distribution tab** uses the same view on screen. It draws one Pool, so it always has one unit.
+
+**The text of a number.**
+
+| Surface | Base view | A view unit |
+|---|---|---|
+| Chip, end label, the Distribution p50 | the chart format and the unit | compact: six significant digits or the whole integer part, `≈` exactly when the text is not the engine value |
+| Step reading | the chart format and the unit | full R≈: at most 15 significant digits (§M4-5) |
+| Tick | the chart format | plain digits with no float residue and no `≈`: a tick is a round mark, not an engine value |
+
+A Pool that names no unit prints what it always printed. As in §M4-5, a Pool in the base unit keeps the chart's own format, so `499.99999999999994` prints `500.0 m³`, and the same value in L prints `≈ 500000 L`.
+
+**The file with shown values.** The plain Timeline CSV never depends on the screen: the same run gives the same bytes under every view. While a view unit is on, the CSV control also offers `loop-studio-run-shown.csv`. Each Pool the view re-expresses gains two columns beside its number, and only such a Pool, so no cell is blank:
+
+```
+step,feed [m³] [feed],feed (shown) [L] [feed],feed (approx) [feed],power [kWh] [power]
+1,499.99999999999994,≈ 500000,true,125
+```
+
+- `(shown)` is the step reading's text without its unit, which the header names. `(approx)` is `true` or `false`, derived and never stored. The last bracket is the id in every column (DI-D19).
+- With the added columns removed, the file is the plain file, byte for byte.
+- No number becomes a string: the numeric column stays as §M4-6 has it.

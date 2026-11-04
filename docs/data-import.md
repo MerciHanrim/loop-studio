@@ -1662,6 +1662,8 @@ column, not one column per Pool, so no name can collide there.
 A Pool whose kind names a base unit has it in the readable half, in front of
 the id: `feed [m³] [pool_1]`. The last bracket is the id in every column, so a
 reader that takes the id from the end still finds it (SEMANTICS-M4.md §M4-6).
+The same holds in the separate file with shown values, whose added columns are
+`feed (shown) [L] [pool_1]` and `feed (approx) [pool_1]` (§M4-8).
 
 ### Tests
 

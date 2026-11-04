@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { MonteCarloResult } from '../engine'
+import { axisMark, axisPad, axisUnit, chartNumber, compactText, shownNumber, viewIsOn } from '../model/viewUnits'
 import { useMcStore } from '../store/mcStore'
+import { usePoolViews } from '../store/viewUnitsStore'
 import { useT } from '../i18n'
 
 // P2 band chart — one Pool. Low-opacity p10–p90 area (data, not decoration),
@@ -21,7 +23,6 @@ function niceCeil(v: number): number {
   const n = v / mag
   return (NICE.find((s) => n <= s + 1e-9) ?? 10) * mag
 }
-const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 
 export function BandChart({ result }: { result: MonteCarloResult }) {
   const t = useT()
@@ -64,17 +65,26 @@ export function BandChart({ result }: { result: MonteCarloResult }) {
   const poolIndex = Math.max(0, pools.findIndex((p) => p.id === poolId))
   const band = result.series[poolId]
   const steps = result.config.steps
+  // SEMANTICS-M4.md §M4-8 — the same view unit as the live chart. The chart draws
+  // one Pool, so its axis always has one unit. The result itself is untouched.
+  const poolView = usePoolViews().get(poolId)
 
   const view = useMemo(() => {
     const { w, h } = size
-    const iw = w - PAD.l - PAD.r
-    const ih = h - PAD.t - PAD.b
+    const ids = [poolId]
+    const views = new Map(poolView ? [[poolId, poolView]] : [])
     if (!band) return null
     let peak = 0
-    for (const v of band.p90) peak = Math.max(peak, v)
+    for (const v of band.p90) peak = Math.max(peak, shownNumber(v, poolView))
     const top = niceCeil(peak * 1.1) || 1
-    const x = (s: number) => PAD.l + (steps === 0 ? 0 : (s / steps) * iw)
-    const y = (v: number) => PAD.t + ih - (v / top) * ih
+    const on = viewIsOn(ids, views)
+    const mark = on ? axisMark : chartNumber
+    const padL = on ? axisPad([mark(top), mark(top / 2)], PAD.l) : PAD.l
+    const iw = w - padL - PAD.r
+    const ih = h - PAD.t - PAD.b
+    const x = (s: number) => padL + (steps === 0 ? 0 : (s / steps) * iw)
+    const y = (raw: number) => PAD.t + ih - (shownNumber(raw, poolView) / top) * ih
+    const yMark = (v: number) => PAD.t + ih - (v / top) * ih
 
     const line = (arr: number[]) =>
       arr.map((v, s) => `${s === 0 ? 'M' : 'L'} ${x(s).toFixed(1)} ${y(v).toFixed(1)}`).join(' ')
@@ -93,6 +103,10 @@ export function BandChart({ result }: { result: MonteCarloResult }) {
       w,
       h,
       top,
+      padL,
+      mark,
+      yMark,
+      unit: axisUnit(ids, views),
       x,
       y,
       area,
@@ -102,7 +116,7 @@ export function BandChart({ result }: { result: MonteCarloResult }) {
       beadY: y(band.p50[lastS] ?? 0),
       lastP50: band.p50[lastS] ?? 0,
     }
-  }, [band, size, steps])
+  }, [band, size, steps, poolId, poolView])
 
   if (!band || !view) return null
   const hue = hueVar(poolIndex)
@@ -129,7 +143,7 @@ export function BandChart({ result }: { result: MonteCarloResult }) {
         )}
         <span className="band__key" style={{ color: hue }}>
           <span className="band__swatch" style={{ background: hue }} /> p10–p90 · p50{' '}
-          <b dir="ltr">{fmt(view.lastP50)}</b>
+          <b dir="ltr">{compactText(view.lastP50, poolView)}</b>
         </span>
         <button
           type="button"
@@ -143,16 +157,21 @@ export function BandChart({ result }: { result: MonteCarloResult }) {
 
       <div className="band__plot" ref={wrapRef}>
         <svg className="band__svg" viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
-          <line className="band__axis" x1={PAD.l} y1={h - PAD.b} x2={w - PAD.r} y2={h - PAD.b} />
-          <line className="band__axis" x1={PAD.l} y1={PAD.t} x2={PAD.l} y2={h - PAD.b} />
+          <line className="band__axis" x1={view.padL} y1={h - PAD.b} x2={w - PAD.r} y2={h - PAD.b} />
+          <line className="band__axis" x1={view.padL} y1={PAD.t} x2={view.padL} y2={h - PAD.b} />
           {[0, view.top / 2, view.top].map((v) => (
             <g key={v}>
-              <line className="band__grid" x1={PAD.l} x2={w - PAD.r} y1={view.y(v)} y2={view.y(v)} />
-              <text className="band__tick" x={PAD.l - 6} y={view.y(v) + 3.5} textAnchor="end" direction="ltr">
-                {fmt(v)}
+              <line className="band__grid" x1={view.padL} x2={w - PAD.r} y1={view.yMark(v)} y2={view.yMark(v)} />
+              <text className="band__tick" x={view.padL - 6} y={view.yMark(v) + 3.5} textAnchor="end" direction="ltr">
+                {view.mark(v)}
               </text>
             </g>
           ))}
+          {view.unit.kind === 'one' ? (
+            <text className="band__tick band__tick--unit" x={view.padL + 4} y={10} textAnchor="start" direction="ltr">
+              {view.unit.unit}
+            </text>
+          ) : null}
           <text className="band__tick" x={w - PAD.r} y={h - 6} textAnchor="end">
             {t('timeline.axis.step', { n: steps })}
           </text>
