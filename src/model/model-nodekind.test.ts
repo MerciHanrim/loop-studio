@@ -21,8 +21,14 @@ import type { LoopEdge, LoopNode } from './types'
 const node = (id: string, data: Record<string, unknown>): LoopNode =>
   ({ id, type: data.kind as string, position: { x: 0, y: 0 }, data }) as unknown as LoopNode
 
-const risky = () =>
-  JSON.parse(JSON.stringify(RISKY)) as { nodes: LoopNode[]; edges: LoopEdge[]; recommendedRunConfig?: never }
+// the bundled file as v1 content: its Recycler's icon (#478) is a
+// loop-revision/12 extension, so it is taken off here — these tests are about
+// a v1 document, which the icon is not
+const risky = () => {
+  const doc = JSON.parse(JSON.stringify(RISKY)) as { nodes: LoopNode[]; edges: LoopEdge[]; recommendedRunConfig?: never }
+  for (const n of doc.nodes) delete (n.data as { icon?: unknown }).icon
+  return doc
+}
 
 describe('NodeKind widening — factory', () => {
   it('defaultData covers the two model kinds with the frozen defaults', () => {

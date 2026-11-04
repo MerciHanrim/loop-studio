@@ -223,6 +223,7 @@
       "data": {
         "kind": "converter",
         "label": "Recycler",
+        "icon": "recycling",
         "activation": "automatic",
         "mode": "pullAny"
       }

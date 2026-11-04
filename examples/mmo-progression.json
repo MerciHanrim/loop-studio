@@ -267,6 +267,7 @@
       "data": {
         "kind": "pool",
         "label": "Gold",
+        "icon": "game-currency",
         "activation": "passive",
         "initial": 10,
         "capacity": null,
@@ -285,6 +286,7 @@
       "data": {
         "kind": "pool",
         "label": "Gold earned",
+        "icon": "game-currency",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -302,6 +304,7 @@
       "data": {
         "kind": "pool",
         "label": "Vendor revenue",
+        "icon": "game-currency",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -319,6 +322,7 @@
       "data": {
         "kind": "pool",
         "label": "Repair spend",
+        "icon": "game-currency",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -336,6 +340,7 @@
       "data": {
         "kind": "pool",
         "label": "Resupply spend",
+        "icon": "game-currency",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -353,6 +358,7 @@
       "data": {
         "kind": "pool",
         "label": "Training spend",
+        "icon": "game-currency",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -370,6 +376,7 @@
       "data": {
         "kind": "pool",
         "label": "Water (units)",
+        "icon": "water",
         "activation": "passive",
         "initial": 12,
         "capacity": null,
@@ -387,6 +394,7 @@
       "data": {
         "kind": "pool",
         "label": "Food (units)",
+        "icon": "food",
         "activation": "passive",
         "initial": 12,
         "capacity": null,
@@ -404,6 +412,7 @@
       "data": {
         "kind": "pool",
         "label": "Water bought (units)",
+        "icon": "water",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -420,6 +429,7 @@
       "data": {
         "kind": "pool",
         "label": "Food bought (units)",
+        "icon": "food",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -436,6 +446,7 @@
       "data": {
         "kind": "pool",
         "label": "Water consumed (units)",
+        "icon": "water",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -452,6 +463,7 @@
       "data": {
         "kind": "pool",
         "label": "Food consumed (units)",
+        "icon": "food",
         "activation": "passive",
         "initial": 0,
         "capacity": null,

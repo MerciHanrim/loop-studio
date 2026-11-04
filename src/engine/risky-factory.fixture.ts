@@ -1,4 +1,5 @@
 import { defaultData } from '../model/factory'
+import type { NodeIconId } from '../model/model'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 
 // Builder for examples/risky-factory.json — the hands-on "try every feature"
@@ -30,6 +31,8 @@ type NodeSpec = {
   initial?: number
   capacity?: number | null
   distribution?: 'deterministic' | 'probabilistic'
+  /** SEMANTICS-R12.md — a visual mark only (#478: the Recycler) */
+  icon?: NodeIconId
 }
 
 // Folded into three bands so the whole graph is ~1.8 : 1 rather than one long
@@ -61,7 +64,7 @@ const NODES: NodeSpec[] = [
   { id: 'sales_drain', kind: 'drain', label: 'Sales Drain', at: [1300, 60] },
   { id: 'finished', kind: 'pool', label: 'Finished Goods', at: [1300, 220], initial: 0, capacity: 25 },
   { id: 'scrap', kind: 'pool', label: 'Scrap Pool', at: [1300, 460], initial: 0, capacity: 12 },
-  { id: 'recycler', kind: 'converter', label: 'Recycler', at: [1300, 620] },
+  { id: 'recycler', kind: 'converter', label: 'Recycler', at: [1300, 620], icon: 'recycling' },
   { id: 'salvage', kind: 'pool', label: 'Salvage Pool', at: [1300, 780], initial: 0, capacity: 10 },
   { id: 'salvage_drain', kind: 'drain', label: 'Salvage Drain', at: [1080, 780] },
   { id: 'end_defect', kind: 'end', label: 'Critical Defect', at: [1080, 560] },
@@ -99,6 +102,7 @@ export function buildRiskyFactory(): { nodes: LoopNode[]; edges: LoopEdge[] } {
     if (s.initial !== undefined && data.kind === 'pool') data.initial = s.initial
     if (s.capacity !== undefined && data.kind === 'pool') data.capacity = s.capacity
     if (s.distribution && data.kind === 'gate') data.distribution = s.distribution
+    if (s.icon) (data as { icon?: NodeIconId }).icon = s.icon
     return { id: s.id, type: s.kind, position: { x: s.at[0], y: s.at[1] }, data }
   })
 

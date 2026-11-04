@@ -61,9 +61,11 @@ const TEMPLATES: { file: string; flows: TemplateFlows; colours: string[]; conten
     // re-pinned 2026-10-12 twice (coffee-roastery rev 13: the money unit is
     // `$/day`; rev 14: re-placed for the node structure — positions, frames
     // and one connection's port faces are content, never engine data; the
-    // engine digest below is unchanged by both)
-    contentDigest: '1bb29617ad5888570bdfd22c2db8c6faf268c04a8fdb15181880ff0a185b0545',
-    fullContentDigest: '1bb29617ad5888570bdfd22c2db8c6faf268c04a8fdb15181880ff0a185b0545',
+    // engine digest below is unchanged by both). Re-pinned 2026-11-04 (#478):
+    // the dessert source and stock carry the food icon — content, never engine
+    // data (src/model/exampleIcons.test.ts: without the icons, 1bb29617…0545)
+    contentDigest: '8680c749fdf093647bf6b2257de85a9f50947cf43699b7221329a79b4ff06bb8',
+    fullContentDigest: '8680c749fdf093647bf6b2257de85a9f50947cf43699b7221329a79b4ff06bb8',
   },
   {
     file: 'gacha-banner-zones.json',
@@ -82,8 +84,12 @@ const TEMPLATES: { file: string; flows: TemplateFlows; colours: string[]; conten
     file: 'mmo-progression.json',
     flows: MMO_PROGRESSION_FLOWS,
     colours: ['sage', 'gold', 'violet'],
-    contentDigest: '41674ea763b2330552878d7bbe72c88c2794a12ad406e98a5a478e9a430ed983',
-    fullContentDigest: '41674ea763b2330552878d7bbe72c88c2794a12ad406e98a5a478e9a430ed983',
+    // re-pinned 2026-11-04 (#478): the Gold-denominated Pools carry the
+    // game-currency icon and the Water / Food Pools water / food — content,
+    // never engine data (src/model/exampleIcons.test.ts: without the icons,
+    // 41674ea7…d983)
+    contentDigest: '1b74e1c5b9d9068710993cdf8b0752bf236fbac984a0a749b8e40fc807f76770',
+    fullContentDigest: '1b74e1c5b9d9068710993cdf8b0752bf236fbac984a0a749b8e40fc807f76770',
   },
 ]
 
