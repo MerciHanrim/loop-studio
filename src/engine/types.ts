@@ -132,9 +132,9 @@ export type StepNotice = {
    *  `multiSupplyHeld`: a router was handed an amount this step that it did
    *  not pass on (its inbox is per step), and that amount was lost — the
    *  same shape's second loss. Since #476 every group with a multi-supply
-   *  Gate is planned and never reaches either; both remain as safety nets
-   *  (a group of Gates only that splits and rejoins keeps the per-Gate rule
-   *  and can still hold an amount at a full target). The run bars word both
+   *  Gate is planned and never reaches either, and since ENGINE_REVISION 5
+   *  so is a group of Gates only that splits and rejoins (#471); both remain
+   *  as safety nets for a router outside every group. The run bars word both
    *  as the measured fact (which node, how much) and name no cause. */
   kind: 'multiSupplyLoss' | 'multiSupplyHeld'
   nodeId: string

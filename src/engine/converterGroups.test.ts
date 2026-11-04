@@ -31,7 +31,7 @@ describe('converterGroups — the design shapes', () => {
     const twoRouters = [res('e1', 'a', 'g0'), res('g01', 'g0', 'g1'), res('e2', 'b', 'g2'), res('g21', 'g2', 'g1'), res('o1', 'g1', 'y')]
     expect(converterGroups(nodes, twoRouters)[0]).toMatchObject({ members: ['g0', 'g1', 'g2'], cls: 'multi', multiGates: ['g1'], hasConverter: false })
     expect(refusedGroups(nodes, twoRouters)).toEqual([])
-    // a split of Gates that meets again at a Gate is not refused (a Gate merges what arrives); it keeps the per-Gate rule
+    // a split of Gates that meets again at a Gate is not refused (a Gate merges what arrives); `step` plans it as one group (#471, erratum part 4)
     const gateDiamond = [res('e1', 'a', 'g0'), res('g01', 'g0', 'g1'), res('g02', 'g0', 'g2'), res('g21', 'g2', 'g1'), res('o1', 'g1', 'y')]
     expect(converterGroups(nodes, gateDiamond)[0]).toMatchObject({ cls: 'split-rejoin', split: 'g0', join: 'g1', hasConverter: false })
     expect(refusedGroups(nodes, gateDiamond)).toEqual([])

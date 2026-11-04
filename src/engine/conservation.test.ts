@@ -388,3 +388,80 @@ describe('conservation — two routers into one Converter (#471 V4 — a tree gr
     }
   })
 })
+
+describe('conservation — Gates only that split and rejoin (#471, erratum part 4 — planned as one group, ENGINE_REVISION 5)', () => {
+  /** a diamond G0 → G1, G2 → G3 always, plus 0–3 more Gates; random rates,
+   *  `pull all` Gates, extra Pool entries, side exits, later rejoins, and
+   *  capped output Pools — Gates and Pools only, so the Pools' total is kept
+   *  exactly. Deterministic Gates only: every Gate then belongs to the one
+   *  planned group at every step. (A probabilistic pick can leave a live tree
+   *  of Gates with no group, which the per-Gate rule runs; two of its Gates
+   *  into one capped Pool lose resource there on main as well — a separate
+   *  finding, not this rule. R11 in gateRejoin.test.ts pins a probabilistic
+   *  split.) */
+  const rejoinGraph = (s: number) => {
+    const rnd = lcg(s * 104729)
+    const pick = picker(rnd)
+    const rate = () => pick(['1', '2', '3', '5'])
+    const nodes: LoopNode[] = [pool('P0', 5 + Math.floor(rnd() * 20)), pool('P1', Math.floor(rnd() * 20))]
+    const outs: string[] = []
+    for (let i = 0; i < 3; i++) {
+      const cap = rnd() < 0.7 ? 2 + Math.floor(rnd() * 10) : null
+      nodes.push(pool(`T${i}`, cap == null ? 0 : Math.floor(rnd() * cap), cap))
+      outs.push(`T${i}`)
+    }
+    const n = 4 + Math.floor(rnd() * 4)
+    const gates: string[] = []
+    for (let i = 0; i < n; i++) {
+      gates.push(`G${i}`)
+      nodes.push(gate(`G${i}`, 'automatic', 'deterministic', rnd() < 0.25 ? 'pullAll' : 'pullAny'))
+    }
+    const edges: LoopEdge[] = []
+    let eid = 0
+    const add = (a: string, b: string, flow = rate()) => edges.push(edge(`e${eid++}`, a, b, flow))
+    add('P0', 'G0', pick(['5', '10', 'all']))
+    add('G0', 'G1')
+    add('G0', 'G2')
+    add('G1', 'G3')
+    add('G2', 'G3')
+    for (let i = 1; i < n; i++) if (rnd() < 0.3) add(pick(['P0', 'P1']), gates[i], pick(['2', '5']))
+    for (let i = 3; i < n; i++) add(gates[i - 1 - Math.floor(rnd() * Math.min(2, i - 1))], gates[i]) // later rejoins
+    for (let i = 0; i < n; i++) {
+      const later = gates.slice(i + 1)
+      if (i === n - 1 || rnd() < 0.5) add(gates[i], pick(outs))
+      if (later.length && rnd() < 0.25) add(gates[i], pick(later))
+    }
+    return { nodes, edges }
+  }
+  const SEEDS = 40
+  for (let s = 1; s <= SEEDS; s++) {
+    it(`seed ${s}: the four checks, no held amount, every Pool exactly its events and within its room, the total kept`, () => {
+      const { nodes, edges } = rejoinGraph(s)
+      expect(converterGroups(nodes, edges).some((g) => g.cls === 'split-rejoin' && !g.hasConverter)).toBe(true)
+      holds(nodes, edges, 4, `seed ${s}`)
+      let st = initSim(nodes)
+      for (let t = 0; t < 4; t++) {
+        const r = step(nodes, edges, st, 3, 2)
+        expect(r.report.notices, `seed ${s} step ${t + 1}`).toEqual([])
+        const moved = new Map<string, number>()
+        for (const ev of r.report.events) moved.set(ev.edgeId, (moved.get(ev.edgeId) ?? 0) + ev.amount)
+        let before = 0
+        let after = 0
+        for (const p of nodes) {
+          if (p.data.kind !== 'pool') continue
+          const inflow = edges.filter((e) => e.target === p.id).reduce((a, e) => a + (moved.get(e.id) ?? 0), 0)
+          const outflow = edges.filter((e) => e.source === p.id).reduce((a, e) => a + (moved.get(e.id) ?? 0), 0)
+          const b = st.values[p.id] ?? 0
+          const v = r.state.values[p.id] ?? 0
+          expect(Math.abs(v - b - (inflow - outflow)), `seed ${s} step ${t + 1} Pool ${p.id}`).toBeLessThanOrEqual(1e-12)
+          const cap = (p.data as { capacity?: number | null }).capacity
+          if (cap != null) expect(b + inflow - outflow, `seed ${s} step ${t + 1} Pool ${p.id} room`).toBeLessThanOrEqual(cap)
+          before += b
+          after += v
+        }
+        expect(Math.abs(after - before), `seed ${s} step ${t + 1} total`).toBeLessThanOrEqual(1e-12)
+        st = r.state
+      }
+    })
+  }
+})

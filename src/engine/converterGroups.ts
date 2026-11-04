@@ -19,8 +19,9 @@ import type { LoopEdge, LoopNode } from '../model/types'
 //                 exact plan can be zero, and a plan that happens to agree
 //                 flips with the branches that are live, so the shape is
 //                 REFUSED before the run (F1), whatever the numbers. A group of
-//                 Gates only merges what arrives and is never refused; it keeps
-//                 the per-Gate rule. Connections between the same two routers
+//                 Gates only merges what arrives and is never refused; its join
+//                 has two supplies, so `step` plans it as a multi group (#471,
+//                 SEMANTICS.md §6 erratum, part 4). Connections between the same two routers
 //                 count once (rev 3 design): a Gate's share to a connection and
 //                 a Converter's need on it are both that connection's rate, so
 //                 parallel connections always agree on the one fraction, and
