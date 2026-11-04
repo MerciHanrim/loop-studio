@@ -1,4 +1,5 @@
 import { defaultData } from '../model/factory'
+import type { NodeIconId } from '../model/model'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { withTemplateFlowColours, type TemplateFlows } from './templateFlowColours'
 import { placeTemplate } from '../model/layout/templatePlacement'
@@ -155,11 +156,14 @@ const mkNode = (
   return { id, type: kind, position: at, data }
 }
 
-const pool = (id: string, label: string, at: XY, opts: { initial?: number; capacity?: number | null; resourceType?: string } = {}) =>
+// `icon` (SEMANTICS-R12.md) is a visual mark only (#478): the Gold-denominated
+// Pools carry game-currency, the Water and Food Pools water and food
+const pool = (id: string, label: string, at: XY, opts: { initial?: number; capacity?: number | null; resourceType?: string; icon?: NodeIconId } = {}) =>
   mkNode('pool', id, label, at, {
     initial: opts.initial ?? 0,
     capacity: opts.capacity ?? null,
     ...(opts.resourceType ? { resourceType: opts.resourceType } : {}),
+    ...(opts.icon ? { icon: opts.icon } : {}),
   })
 
 const res = (id: string, source: string, target: string, flow: string): LoopEdge => ({
@@ -255,26 +259,27 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
   N(pool('deaths', 'Deaths (count)', { x: 1660, y: 620 }))
 
   // gold economy
-  N(pool('gold', 'Gold', { x: 1900, y: 460 }, { initial: P.goldStart, resourceType: 'currency' }))
-  N(pool('gold_earned', 'Gold earned', { x: 2080, y: 400 }))
-  N(pool('vendor_revenue', 'Vendor revenue', { x: 2080, y: 460 }))
-  N(pool('repair_spend', 'Repair spend', { x: 2080, y: 520 }))
-  N(pool('resupply_spend', 'Resupply spend', { x: 2080, y: 580 }))
-  N(pool('training_spend', 'Training spend', { x: 2080, y: 640 }))
+  const gc = 'game-currency' as const
+  N(pool('gold', 'Gold', { x: 1900, y: 460 }, { initial: P.goldStart, resourceType: 'currency', icon: gc }))
+  N(pool('gold_earned', 'Gold earned', { x: 2080, y: 400 }, { icon: gc }))
+  N(pool('vendor_revenue', 'Vendor revenue', { x: 2080, y: 460 }, { icon: gc }))
+  N(pool('repair_spend', 'Repair spend', { x: 2080, y: 520 }, { icon: gc }))
+  N(pool('resupply_spend', 'Resupply spend', { x: 2080, y: 580 }, { icon: gc }))
+  N(pool('training_spend', 'Training spend', { x: 2080, y: 640 }, { icon: gc }))
 
   // consumables
   // the live supply balances + their "bought" counters — Hanrim's screen review
   // flagged the bare numbers as unit-ambiguous, so each carries a " (units)"
   // suffix (label-only, overlay-carried; same undefined-unit quantity as
   // `Water consumed` / `Food consumed`).
-  N(pool('water', 'Water (units)', { x: 1900, y: 720 }, { initial: P.waterStart, resourceType: 'supply' }))
-  N(pool('food', 'Food (units)', { x: 1900, y: 800 }, { initial: P.foodStart, resourceType: 'supply' }))
-  N(pool('water_bought', 'Water bought (units)', { x: 2080, y: 720 }))
-  N(pool('food_bought', 'Food bought (units)', { x: 2080, y: 800 }))
+  N(pool('water', 'Water (units)', { x: 1900, y: 720 }, { initial: P.waterStart, resourceType: 'supply', icon: 'water' }))
+  N(pool('food', 'Food (units)', { x: 1900, y: 800 }, { initial: P.foodStart, resourceType: 'supply', icon: 'food' }))
+  N(pool('water_bought', 'Water bought (units)', { x: 2080, y: 720 }, { icon: 'water' }))
+  N(pool('food_bought', 'Food bought (units)', { x: 2080, y: 800 }, { icon: 'food' }))
   // both on the default Timeline + the §EM10.1 water / food identities — a
   // " (units)" suffix names the otherwise unit-less quantity. Label-only.
-  N(pool('water_consumed', 'Water consumed (units)', { x: 1720, y: 720 }))
-  N(pool('food_consumed', 'Food consumed (units)', { x: 1720, y: 800 }))
+  N(pool('water_consumed', 'Water consumed (units)', { x: 1720, y: 720 }, { icon: 'water' }))
+  N(pool('food_consumed', 'Food consumed (units)', { x: 1720, y: 800 }, { icon: 'food' }))
   N(mkNode('converter', 'water_upkeep', 'Water upkeep', { x: 1800, y: 720 }))
   N(mkNode('converter', 'food_upkeep', 'Food upkeep', { x: 1800, y: 800 }))
   E(res('e_water_up', 'water', 'water_upkeep', num(P.waterPerStep)))

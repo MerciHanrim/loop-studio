@@ -1,4 +1,5 @@
 import { defaultData } from '../model/factory'
+import type { NodeIconId } from '../model/model'
 import type { EdgePorts, LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { withTemplateFlowColours, type TemplateFlows } from './templateFlowColours'
 import { placeTemplate } from '../model/layout/templatePlacement'
@@ -117,8 +118,8 @@ const pool = (
   id: string,
   label: string,
   at: XY,
-  opts: { initial?: number; capacity?: number | null } = {},
-) => mkNode('pool', id, label, at, { initial: opts.initial ?? 0, capacity: opts.capacity ?? null })
+  opts: { initial?: number; capacity?: number | null; icon?: NodeIconId } = {},
+) => mkNode('pool', id, label, at, { initial: opts.initial ?? 0, capacity: opts.capacity ?? null, ...(opts.icon ? { icon: opts.icon } : {}) })
 
 // `unit` is an advisory display hint (loop-model/2 §M2): it renders as the
 // Register node's sub-line and carries no locale, so the three money proxies
@@ -204,8 +205,9 @@ function buildCoffeeRoasteryAuthored(): { nodes: LoopNode[]; edges: LoopEdge[] }
 
   // ── dessert: lever #5 preps into the dessert pool; sales are demand-bounded,
   // most of the day's leftover does not carry over (§CR3.4). ────────────────
-  N(mkNode('source', 'dessert_prep_src', 'Dessert prep', { x: 48, y: 516 }))
-  N(pool('dessert_stock', 'Dessert stock', { x: 240, y: 516 }))
+  // `icon` (SEMANTICS-R12.md) is a visual mark only (#478): the dessert line is food
+  N(mkNode('source', 'dessert_prep_src', 'Dessert prep', { x: 48, y: 516 }, { icon: 'food' }))
+  N(pool('dessert_stock', 'Dessert stock', { x: 240, y: 516 }, { icon: 'food' }))
   N(mkNode('drain', 'dessert_sales', 'Dessert sales', { x: 528, y: 452 }))
   N(mkNode('drain', 'dessert_wrapup', 'End-of-day leftover', { x: 528, y: 580 }))
   E(res('e_dessert_in', 'dessert_prep_src', 'dessert_stock', '@dessert_prep'))

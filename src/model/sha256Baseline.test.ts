@@ -122,6 +122,20 @@ const readBefore = (file: string): string => {
 // silence.
 const REMOVED_SINCE = new Set(['module-buffered-step.json', 'module-reward-split.json'])
 
+// #478 (2026-11-04) — a bundled example that gained node icons since the
+// baseline (SEMANTICS-R12.md: a visual mark, never engine data). Its engine
+// digest is the recorded one as it stands; its content digests are the
+// recorded ones once the icons are taken off, and differ with them. (The
+// coloured Templates that gained icons are re-pinned in
+// src/engine/templateFlowColours.test.ts; src/model/exampleIcons.test.ts pins
+// every icon.)
+const ICONED_SINCE = new Set(['risky-factory.json'])
+const withoutIcons = (text: string): string => {
+  const doc = JSON.parse(text) as { nodes: { data?: Record<string, unknown> }[] }
+  for (const n of doc.nodes) if (n.data) delete n.data.icon
+  return JSON.stringify(doc)
+}
+
 const docOf = (p: ReturnType<typeof deserialize>) => ({
   nodes: p.nodes,
   edges: p.edges,
@@ -170,8 +184,18 @@ describe('the digests of real documents are unchanged', () => {
       })
       continue
     }
-    it(`examples/${g.file}: semantic, content and full-content digests`, async () => {
-      const p = deserialize(read(g.file))
+    if (ICONED_SINCE.has(g.file)) {
+      it(`examples/${g.file}: with its icons (#478) the engine digest is the recorded one and the content digests differ`, async () => {
+        const p = deserialize(read(g.file))
+        const doc = docOf(p)
+        expect(await semanticDigest({ nodes: p.nodes, edges: p.edges }, p.modelVersion)).toBe(g.semanticDigest)
+        expect(digestOfCanonical(canonicalContent(doc, { modelVersion: p.modelVersion }))).not.toBe(g.contentDigest)
+        expect(await fullContentDigest(doc, p.modelVersion)).not.toBe(g.fullContentDigest)
+      })
+    }
+    it(`examples/${g.file}: semantic, content and full-content digests${ICONED_SINCE.has(g.file) ? ' (without its icons)' : ''}`, async () => {
+      const text = read(g.file)
+      const p = deserialize(ICONED_SINCE.has(g.file) ? withoutIcons(text) : text)
       const doc = docOf(p)
       expect(p.modelVersion).toBe(g.modelVersion)
       expect(await semanticDigest({ nodes: p.nodes, edges: p.edges }, p.modelVersion)).toBe(g.semanticDigest)

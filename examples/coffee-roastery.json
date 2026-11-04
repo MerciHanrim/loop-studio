@@ -217,6 +217,7 @@
       "data": {
         "kind": "source",
         "label": "Dessert prep",
+        "icon": "food",
         "activation": "automatic",
         "mode": "pushAny",
         "accent": "#B47599"
@@ -232,6 +233,7 @@
       "data": {
         "kind": "pool",
         "label": "Dessert stock",
+        "icon": "food",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
