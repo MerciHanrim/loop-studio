@@ -44,4 +44,8 @@
 //                       by that Pool's room over the path-summed share, and an
 //                       amount handed to a Gate is reserved once, not again at
 //                       each Gate it passes
-export const ENGINE_REVISION = 6
+//   7                   a rate with a unit whose engine value is below 1e-6 or
+//                       from 1e21 per step runs at that value: the derived
+//                       graph wrote it as exponent text, which `parseFlow`
+//                       cannot read, so it ran as 1
+export const ENGINE_REVISION = 7

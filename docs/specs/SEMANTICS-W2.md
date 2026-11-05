@@ -55,6 +55,7 @@ model version. It is **not** a model version: the graph file never carries it,
 | `4` | 2026-11-03, issue #471 item 5 | `all` on a connection whose source or target is a Converter is refused as a percent is: the connection moves `0` and one run diagnostic names it and the number `1` that keeps the rate it used to mean (SEMANTICS.md §8; a Converter whose only input or output is refused does not run); a Pool that a Converter group both takes from and delivers into is bounded along the group's commit order — an earlier member's take is room a later member's delivery may fill — so a loop routed through a Gate or a Converter is bounded on the net as the direct loop is (SEMANTICS.md §6 erratum, part 2); the direct loop's numbers do not change. The table of cases is `src/engine/all-selfloop.test.ts`; none of the bundled documents changes |
 | `5` | 2026-11-04, issue #471 | a group of Gates only that splits and rejoins is planned as one group instead of the per-Gate rule, which lost the join's inflow minus its outflow whenever the join or anything after it was short: several free numbers are filled in #476's order, each to the most the whole group can carry, and a `pull all` Gate of the group that misses its fixed demand (every entry at its full amount) zeroes the whole group (SEMANTICS.md §6 erratum, part 4); the group planners accept no value past an availability or a room, so a capped Pool no longer takes `4` from an event of `4.000000001` and a Converter sharing a Pool with its source Gate runs at one fraction. The table of cases is `src/engine/gateRejoin.test.ts`; none of the 14 bundled documents changes, at full precision over 5 seeds × 300 steps |
 | `6` | 2026-11-04, issue #492 | a plain tree of routers outside every group that reaches one Pool by two or more paths is bounded by that Pool's room over the path-summed share, where each branch used to read the whole room and the Gates below lost what they could not deliver; an amount handed to a Gate is reserved once, not again at each Gate it passes, so a sibling or an outside router keeps its room (SEMANTICS.md §6 erratum, part 5). The table of cases is `src/engine/gateTreeSharedPool.test.ts`; none of the 14 bundled documents changes, at full precision over 5 seeds × 300 steps |
+| `7` | 2026-11-06 | a rate with a unit whose engine value is below 1e-6 or from 1e21 per step runs at that value (SEMANTICS-M4.md §M4-2, 3). The derived graph wrote such a value as exponent text, `parseFlow` could not read it, and the line ran as `1` per step with no message: `0.00002 CMD` on a 1 h step moved 1 m³ where it should move 0.00000083. The table of cases is `src/model/engineValues.test.ts`; none of the 14 bundled documents changes, at full precision over 5 seeds × 300 steps, run with their kinds, step length and tables |
 
 Every later row is a deploy that changed a computed number; the row and the
 bump land in the same change as the engine.
@@ -127,7 +128,7 @@ result fields. The CSV exports are unchanged.
 |---|---|---|
 | `WORKSPACE_SCHEMA` | `"loop-workspace/2"` | the `workspace.schema` string written |
 | `WORKSPACE_VERSION` | `2` | written; the reader also restores exact `loop-workspace/1` / `1` |
-| `ENGINE_REVISION` | `4` | `src/engine/revision.ts`; the ledger is W2-1 |
+| `ENGINE_REVISION` | `7` | `src/engine/revision.ts`; the ledger is W2-1 |
 
 ---
 
