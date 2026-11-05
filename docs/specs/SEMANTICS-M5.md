@@ -1,6 +1,6 @@
 # SEMANTICS-M5 — `loop-model/5`: timetables
 
-Status: normative for a document whose `schema` is `loop-studio/graph/5`. It extends `loop-model/4` ([`SEMANTICS-M4.md`](SEMANTICS-M4.md)): everything there holds here. A document with no timetable is not written at this version and computes as before, so `ENGINE_REVISION` does not change.
+Status: normative for a document whose `schema` is `loop-studio/graph/5`. Issue #505. It extends `loop-model/4` ([`SEMANTICS-M4.md`](SEMANTICS-M4.md)): everything there holds here. A document with no timetable is not written at this version and computes as before, so `ENGINE_REVISION` does not change.
 
 ## M5-1. What a document declares
 
@@ -118,4 +118,23 @@ A constant line stays as it is.
 
 ## M5-9. Not in this version
 
-The controller and run fractions, calendar dates and time zones, editing points on screen, tables on Converter or Gate lines, splines, and random noise on a table.
+The controller and run fractions, calendar dates and time zones, editing a table's points after it is made, tables on Converter or Gate lines, splines, and random noise on a table.
+
+## M5-10. Making a table on screen
+
+Data ▸ New timetable takes pasted text or a CSV file. A first row with no number in it is a header, and a row with nothing in it is not data. With more than two columns, the person picks the time and rate columns. A column choice lasts while the columns do. A gap choice and a typed `end` belong to the rows they were made on: any change to the text or the columns asks for them again.
+
+- **A gap stops the import.** A row with a time and no rate blocks Add until the person chooses, for all such rows: remove them, hold the last value, or draw a straight line across the gap. `hold` needs a value before each gap, and `line` one on both sides, so a choice that cannot apply is not offered. Each choice writes real points, and `source` gains a note naming the rows. A value a straight line gives that 15 digits cannot reach is the nearest 15-digit decimal, which is then the point the file shows.
+- **`end` is proposed, shown and editable.** `hold`: the last point plus the last interval. `linear`, not repeating: the last point. A repeating table whose last value equals its first: that row is dropped and its time is `end`. A `linear` repeating table whose last value differs: no proposal, and the screen says why, because closing the period would invent a jump. With one point there is no interval, so the person gives it.
+- Every other rule is the file's own: the rows and fields go through the M5-2 read, and a problem names the file's own row.
+- A table's `unit` is chosen from the kinds' rate units, then amount units per time. With none declared, the screen says to declare them first.
+
+The Inspector's flow field offers the document's tables, and a choice writes `~id`. The Inputs tab lists the tables, and one no line reads can be removed. A table is not edited once made: a changed table is a new one.
+
+## M5-11. The rate chart
+
+Each table a line reads has a strip of its own under the Timeline chart, with its name, its unit and its own axis. A rate and a stock are different quantities and never share an axis. The strip uses the same step scale as the chart above, and draws the table, not the run: `hold` as stairs, `linear` as straight stretches, and nothing past the end of a `stop` table. A table with more corners than the strip has pixels keeps each pixel's lowest and highest rate, so a spike between two reads is still drawn, and the axis reaches it. The analysis area rises to make room, by the rule of the Distribution view, and returns to its height when no line reads a table.
+
+## M5-12. How a step fills a Pool
+
+Help ▸ How a step fills and empties a Pool states the order inside a step, which a varying input makes visible. Arriving resources fill a Pool first, up to its capacity. A line that takes from the Pool then takes from what it held when the step began, so what arrived in this step waits for the next. The Timeline draws the end of the step. `src/engine/stepOrderHelp.test.ts` pins the text's numbers against the engine.

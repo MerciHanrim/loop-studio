@@ -6,6 +6,7 @@ import type { RegisterOutcome } from '../model/model'
 import type { LoopNode } from '../model/types'
 import { selectOnly, useGraphStore } from '../store/graphStore'
 import { hasModelLayer } from '../model/modelVersion'
+import { timetableLines } from '../model/timetable'
 import { convertersWhoseVerdictChanges, kindFindings, kindFindingEdgeId, kindFindingNodeId, type KindFinding, type ResourceKindDecl } from '../model/kinds'
 import { fieldUnitText, readRateUnitList, readUnitList, STEP_VALUE_MAX, TIME_UNITS, type DocTime, type FieldUnit, type RateUnitDecl, type TimeUnit, type UnitDecl } from '../model/units'
 import { outflowOptions, outflowReading, outflowShown } from '../model/viewUnits'
@@ -418,6 +419,37 @@ function parseUnitListText(text: string, baseUnit: string | undefined): { units:
   return { units: readUnitList(amount, taken), rateUnits: readRateUnitList(rate, taken) }
 }
 
+/** SEMANTICS-M5.md §M5-10 — the document's timetables: name, size and unit. A table
+ *  comes in through Data ▸ New timetable; one no line reads can be removed. */
+function TimetablesSection({ edges }: { edges: LoopEdge[] }) {
+  const t = useT()
+  const locked = useUiStore((s) => s.canvasLocked)
+  const timetables = useGraphStore((s) => s.timetables)
+  const setTimetables = useGraphStore((s) => s.setTimetables)
+  const read = new Set(timetableLines(edges).map((l) => l.tableId))
+  if (timetables.length === 0) return null
+  return (
+    <section className="mpanel">
+      <div className="mpanel__body">
+      <h3 className="mpanel__sub">{t('panels.timetables.title')}</h3>
+      {timetables.map((x) => (
+        <div key={x.id} className="mp-row mp-row--timetable">
+          <span className="mp-row__label">{x.label}</span>
+          <span className="mp-row__val">{t('panels.timetables.row', { n: x.points.length, unit: isolateAuto(x.unit) })}</span>
+          {read.has(x.id) ? (
+            <span className="mp-row__val">{t('panels.timetables.inUse')}</span>
+          ) : (
+            <button type="button" className="btn btn--ghost" disabled={locked} aria-label={t('panels.timetables.removeAria', { label: x.label })} onClick={() => setTimetables(timetables.filter((y) => y.id !== x.id))}>
+              {t('panels.timetables.remove')}
+            </button>
+          )}
+        </div>
+      ))}
+      </div>
+    </section>
+  )
+}
+
 /** the step-length row (§M4-3): a count and a time unit, or none. A change
  *  that would move a Converter's balance verdict (a connection authored per
  *  time changes its amount per step) is named and confirmed first (§M4-4). */
@@ -742,6 +774,7 @@ export function ModelPanels() {
     <div className="mpanels">
       {(params.length > 0 || registers.length > 0) && <InputsSection params={params} paramFlowEdges={paramFlowEdges} nodes={nodes} />}
       {hasKinds && <KindsSection nodes={nodes} edges={edges} named={named} />}
+      <TimetablesSection edges={edges} />
       {(params.length > 0 || registers.length > 0) && <SummarySection registers={registers} />}
     </div>
   )

@@ -12,6 +12,7 @@ import { useForcedColors, useIsMobile } from '../ui/media'
 import { useT } from '../i18n'
 import { downloadCsv } from '../ui/download'
 import { buildRunCsv, buildShownRunCsv } from './timelineCsv'
+import { RATE_STRIP_H, TimetableRateChart, useReadTables } from './TimetableRateChart'
 import { DistributionPanel } from './DistributionPanel'
 import { PlayBar } from './PlayBar'
 import { TimelineCsvMenu } from './TimelineCsvMenu'
@@ -117,19 +118,25 @@ export function TimelineChart() {
     const col = areaRef.current?.closest('.canvas-col') as HTMLElement | null
     return Math.max(ANALYSIS_MIN, (col?.clientHeight ?? 600) - ANALYSIS_CANVAS_MIN)
   }
-  const areaMin = showDistribution ? Math.min(DISTRIBUTION_MIN, areaMax()) : ANALYSIS_MIN
+  // SEMANTICS-M5.md §M5-11 — a table's rate strip needs room under the chart too,
+  // by the same rule: raised to it, a taller area left as it is, and the height
+  // from before coming back when no line reads a table any more
+  const readTables = useReadTables()
+  const rateStrips = showDistribution ? 0 : Math.min(readTables.length, 2)
+  const floorWanted = showDistribution ? DISTRIBUTION_MIN : rateStrips > 0 ? ANALYSIS_DEFAULT + rateStrips * RATE_STRIP_H : null
+  const areaMin = floorWanted != null ? Math.min(floorWanted, areaMax()) : ANALYSIS_MIN
   useLayoutEffect(() => {
     if (isMobile) return
-    if (showDistribution) {
+    if (floorWanted != null) {
       if (heightBeforeDistribution.current == null) heightBeforeDistribution.current = height
-      const floor = Math.min(DISTRIBUTION_MIN, areaMax())
+      const floor = Math.min(floorWanted, areaMax())
       if (height < floor) setHeight(floor)
     } else if (heightBeforeDistribution.current != null) {
       setHeight(heightBeforeDistribution.current)
       heightBeforeDistribution.current = null
     }
     // the switch alone decides; a resize inside the view is the splitter's
-  }, [showDistribution, isMobile])
+  }, [floorWanted, isMobile])
 
   useEffect(() => {
     const el = plotRef.current
@@ -843,6 +850,7 @@ export function TimelineChart() {
               ) : null}
             </svg>
           </div>
+          {!showDistribution ? <TimetableRateChart tables={readTables} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} /> : null}
           {/* outside the plot, which clips: the reading stands on the plot's
               bottom beside its line and opens UPWARD over the canvas as far
               as it needs (./TimelineStepReading) */}

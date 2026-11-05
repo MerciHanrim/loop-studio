@@ -281,7 +281,8 @@ test.describe('Canvas edit-lock', () => {
     const data = page.locator('.menu__pop[role="menu"] [role="menuitem"]')
     await expect(data.nth(0)).toBeDisabled() // Import
     await expect(data.nth(1)).toBeEnabled() // Manage bindings (its refresh / rename are disabled inside)
-    await expect(data.nth(2)).toBeDisabled() // the in-app guide opens the same wizard
+    await expect(data.nth(2)).toBeDisabled() // a new timetable is an edit too
+    await expect(data.nth(3)).toBeDisabled() // the in-app guide opens the same wizard
     await page.keyboard.press('Escape')
 
     expect(await graphDigest(page)).toBe(digest0)

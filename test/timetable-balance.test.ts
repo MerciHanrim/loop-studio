@@ -81,8 +81,9 @@ describe('level 2: the exact path, while nothing clamps', () => {
     for (const s of steps) {
       const a = plan(intake, s.k)
       const b = plan(demand, s.k)
-      // the model alone: the Pool can give its whole outflow and fit its whole inflow
-      if (cmp(add(S, a), capacity) > 0 || cmp(add(S, a), b) < 0) {
+      // the model alone: the Pool can fit its whole inflow, and give its whole
+      // outflow from what it held when the step began
+      if (cmp(add(S, a), capacity) > 0 || cmp(S, b) < 0) {
         failed = s.k
         break
       }

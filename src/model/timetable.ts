@@ -249,6 +249,85 @@ export function timetableRateAt(t: Timetable, x: Rational): Rational {
   return add(c.rates[i], mul(div(sub(nextRate(c, i, t.after), c.rates[i]), sub(to, c.times[i])), sub(at, c.times[i])))
 }
 
+/** the corners of the table's rate from `from` to `to`, in its own time and rate
+ *  units, for a chart. Past `end`, a `stop` table has no line. A table with more
+ *  corners than `budget` keeps each bin's lowest and highest rate, so a spike
+ *  between two reads is still drawn: `budget` is at most what comes back, plus one. */
+export function timetablePolyline(t: Timetable, from: number, to: number, budget: number): { time: number; rate: number }[] {
+  const c = compile(t)
+  const end = toDouble(c.end)
+  const stopAt = t.after === 'stop' ? Math.min(to, end) : to
+  if (stopAt <= from) return []
+  const at = (x: number) => toDouble(timetableRateAt(t, fromNumber(x)))
+  const corners: number[] = []
+  const times = c.times.map(toDouble)
+  const periods = t.after === 'repeat' ? Math.ceil(stopAt / end) : 1
+  if (periods * times.length > budget) {
+    return envelope(t, times, c.rates.map(toDouble), end, from, stopAt, Math.max(1, Math.floor(budget / 2)), at)
+  }
+  for (let p = 0; p < periods; p++) for (const x of times) corners.push(p * end + x)
+  if (t.after !== 'repeat' && end < stopAt) corners.push(end)
+  const inside = [from, ...corners.filter((x) => x > from && x < stopAt), stopAt]
+  const out: { time: number; rate: number }[] = []
+  inside.forEach((x, i) => {
+    // a hold table's rate jumps at a corner: draw the old rate up to it first
+    const prev = inside[i - 1]
+    if (t.read === 'hold' && prev !== undefined) out.push({ time: x, rate: at(prev) })
+    if (i < inside.length - 1 || t.read === 'linear') out.push({ time: x, rate: at(x) })
+  })
+  return out
+}
+
+const fromNumber = (x: number): Rational => exactDouble(x)
+
+/** the first index whose time is after `x` */
+function firstAfter(times: readonly number[], x: number): number {
+  let lo = 0
+  let hi = times.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (times[mid] > x) hi = mid
+    else lo = mid + 1
+  }
+  return lo
+}
+
+/** each bin's lowest and highest rate, in time order. Both readings are piecewise
+ *  straight, so a bin's extremes lie at its edges or at a corner inside it. */
+function envelope(t: Timetable, times: readonly number[], rates: readonly number[], end: number, from: number, to: number, bins: number, at: (x: number) => number): { time: number; rate: number }[] {
+  const width = (to - from) / bins
+  const out: { time: number; rate: number }[] = []
+  const lowest = Math.min(...rates)
+  const highest = Math.max(...rates)
+  for (let i = 0; i < bins; i++) {
+    const a = from + width * i
+    const b = i === bins - 1 ? to : a + width
+    let lo = { time: a, rate: at(a) }
+    let hi = lo
+    const see = (time: number, rate: number) => {
+      if (rate < lo.rate) lo = { time, rate }
+      if (rate > hi.rate) hi = { time, rate }
+    }
+    if (t.read === 'linear') see(b, at(b))
+    if (t.after === 'repeat' && width >= end) {
+      see(a + width / 3, lowest) // the bin holds a whole period, so it holds both
+      see(a + (2 * width) / 3, highest)
+    } else {
+      const first = t.after === 'repeat' ? Math.floor(a / end) : 0
+      const last = t.after === 'repeat' ? Math.floor(b / end) : 0
+      for (let p = first; p <= last; p++) {
+        const base = p * end
+        for (let k = firstAfter(times, a - base); k < times.length && base + times[k] < b; k++) see(base + times[k], rates[k])
+      }
+    }
+    if (lo.rate === hi.rate) out.push(lo)
+    else if (lo.time <= hi.time) out.push(lo, hi)
+    else out.push(hi, lo)
+  }
+  out.push({ time: to, rate: at(to) })
+  return out
+}
+
 /** the step length in the table's own time unit */
 function stepInTableTime(t: Timetable, time: DocTime): Rational {
   return rational(BigInt(stepSeconds(time)!), BigInt(TIME_UNIT_SECONDS[t.timeUnit]))
