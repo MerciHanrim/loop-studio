@@ -78,9 +78,8 @@ Each export applies this as follows.
 - File: `time` after `kinds`, field `unit` keys trailing on Pool and resource-connection data. Projection and digest: the unit lists ride their kind entry, `time` follows `kinds` with `step` only, field `unit` keys are projected — all at version 4 only.
 - UI: the Inspector's unit select on a Pool and on a resource connection, and its confirm sheet; the Kinds panel's unit lists and step-length row, which the Inputs tab shows for any graph that names or declares a kind.
 - Exports: `src/model/exportUnits.ts` (the table of a document's Pools, the JSON header); the writers are `src/components/timelineCsv.ts` and the exports of `src/engine/montecarlo.ts`.
-- View units (M4-8, M4-9): `src/model/viewUnits.ts` (how a Pool reads, the text of a number, the axis, the outflow reading), `src/store/viewUnitsStore.ts` (the session choices); the surfaces are `TimelineChart.tsx`, `TimelineSeriesPopover.tsx`, `TimelineCsvMenu.tsx`, `BandChart.tsx` and the Kinds panel in `ModelPanels.tsx`.
-- Pins: `src/model/units.test.ts` (rationals and R≈, the reads and the factor range, resolution, engine values and the out-of-range refusal, unit changes, exact C1, module inserts, the `/graph/4` boundary and M4-INV-1), `src/model/kinds.test.ts`, `src/engine/kinds.test.ts`, `src/model/exportUnits.test.ts` (M4-6, and the readers of a result file), `src/model/viewUnits.test.ts` (M4-8); in the browser, `e2e/units.spec.ts` (the confirm sheet's cancel, confirm and undo, an exact change, the step-length sheet), `e2e/desalination.spec.ts` (the real downloads), `e2e/timeline-view-units.spec.ts` (M4-8 on the real screen and downloads) and `e2e/kinds-outflow-reading.spec.ts` (M4-9).
-- Not built: the Inspector's current amount does not follow a view unit, and a field has no read-only hint of its value in another unit. The design record lists both; neither is implied by M4-8 or M4-9.
+- View units (M4-8, M4-9, M4-10): `src/model/viewUnits.ts` (how a Pool reads, the text of a number, the axis, the outflow reading, a field's hint), `src/store/viewUnitsStore.ts` (the session choices); the surfaces are `TimelineChart.tsx`, `TimelineSeriesPopover.tsx`, `TimelineCsvMenu.tsx`, `BandChart.tsx`, the Kinds panel in `ModelPanels.tsx` and `Inspector.tsx`.
+- Pins: `src/model/units.test.ts` (rationals and R≈, the reads and the factor range, resolution, engine values and the out-of-range refusal, unit changes, exact C1, module inserts, the `/graph/4` boundary and M4-INV-1), `src/model/kinds.test.ts`, `src/engine/kinds.test.ts`, `src/model/exportUnits.test.ts` (M4-6, and the readers of a result file), `src/model/viewUnits.test.ts` (M4-8, M4-10); in the browser, `e2e/units.spec.ts` (the confirm sheet's cancel, confirm and undo, an exact change, the step-length sheet), `e2e/desalination.spec.ts` (the real downloads), `e2e/timeline-view-units.spec.ts` (M4-8 on the real screen and downloads), `e2e/kinds-outflow-reading.spec.ts` (M4-9) and `e2e/inspector-view-unit.spec.ts` (M4-10).
 
 ## M4-8. The Timeline's view unit
 
@@ -133,3 +132,16 @@ A boundary-outflow row (§M3-5) is the last committed step's delivery. It is an 
 | A rate or an amount per time | `raw` under §M4-5 and the unit: `≈ 0.4 MLD`, `≈ 400 m³/d` |
 
 `≈` stays on `≈ 0.4 MLD` because the engine holds the nearest double of 400/24, not the exact value. No export holds a row.
+
+## M4-10. The Inspector reads through the same choices
+
+The Inspector adds no choice of its own. A stock reads through the Timeline's view unit (M4-8), and a rate reads through the Kinds panel's reading (M4-9). Both are the screen state those sections describe, so nothing here reaches a file, the undo history, the digest or the engine.
+
+**The current amount** is a stock. While a view unit is on for the Pool's kind, it reads in that unit; otherwise it reads as §M4-5 says, in the Pool's own unit. During a run the engine value is re-expressed under §M4-5. Before a run the authored starting amount is re-expressed from its exact decimal, so `0.1` m³ reads `100 L`, with no `≈`.
+
+**The hint under a field** is one read-only line under a Pool's starting amount, a Pool's capacity and a resource connection's flow. It gives the field's authored value in the reading of its role, from the exact decimal: `= 200000 L`, `= 3000 kWh/d`, `≈ 277.777777777778 L/min`. A field always shows its own number and unit, and the hint never edits it.
+
+- **`=` or `≈`.** `=` when the shown text is the value, `≈` under §M4-5 when it is not. An amount per step says so, as a Kinds panel row does: `≈ 16.6666666666667 m³ per step`.
+- **The reading in force.** A stock uses the Timeline's unit, which is the base unit until a view unit is chosen. A rate uses the Kinds panel's reading, including its start from `time.display`.
+- **When there is no hint.** The field is empty; its text is not a number a run reads as that number (`all`, `25%`, `1-3`, `2D6`, `@id`, `~id`, `1e3`); the reading has no name; or the reading has the field's own scale. `21000 CMD` has no hint in `m³/d`, because the same number under another name adds nothing.
+- **Accessible name.** The hint sits outside the field's label, so the field keeps its name, and the field points at it with `aria-describedby`.

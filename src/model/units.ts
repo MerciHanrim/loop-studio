@@ -276,17 +276,34 @@ export function previewUnitChange(authored: string | number, from: FieldUnit, to
  *  Display only — the stored value and every balance verdict are untouched. */
 export function reexpress(baseValue: number, fu: FieldUnit, time: DocTime | undefined): { text: string; approx: boolean } {
   if (!Number.isFinite(baseValue)) return { text: String(baseValue), approx: false }
-  const r = div(exactDouble(baseValue), unitRatio(fu, time))
+  return shownRational(div(exactDouble(baseValue), unitRatio(fu, time)))
+}
+
+/** at most 15 significant digits, `≈` exactly when that is not the value (§M4-5) */
+function shownRational(r: Rational): { text: string; approx: boolean } {
   const shown = roundTo15Digits(r)
   const approx = !equals(parseDecimal(shown) ?? r, r)
   return { text: approx ? `≈ ${shown}` : shown, approx }
 }
 
+/** an AUTHORED value read in another unit (§M4-10): exact from its decimal, so
+ *  no double stands between the field and the text. `null` when the text is not
+ *  a plain decimal. */
+export function reexpressField(authored: string | number, from: FieldUnit, to: FieldUnit, time: DocTime | undefined): { text: string; approx: boolean } | null {
+  const r = fieldRational(authored, from, time)
+  return r === null ? null : shownRational(div(r, unitRatio(to, time)))
+}
+
 /** the Inspector's current amount of a Pool (§M4-5): before a run its
  *  authored starting amount as typed; during one the engine value re-expressed
  *  in the Pool's unit (`reexpress`), with the unit. A Pool in the base unit
- *  keeps the node's own two-decimal format. */
-export function currentAmountText(live: number | undefined, initial: number, unitText: string | undefined, fu: FieldUnit, time: DocTime | undefined): string {
+ *  keeps the node's own two-decimal format. A view unit (§M4-10) takes the
+ *  Pool's unit's place in both cases. */
+export function currentAmountText(live: number | undefined, initial: number, unitText: string | undefined, fu: FieldUnit, time: DocTime | undefined, view?: FieldUnit): string {
+  if (view) {
+    const text = live === undefined ? (reexpressField(initial, fu, view, time) ?? reexpress(engineValue(initial, fu, time), view, time)).text : reexpress(live, view, time).text
+    return `${text} ${fieldUnitText(view)}`
+  }
   if (fu.kind === 'base') {
     const shown = live ?? initial
     return Number.isInteger(shown) ? String(shown) : shown.toFixed(2)

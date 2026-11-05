@@ -6031,6 +6031,11 @@ a.sheet__row {
 .field__hint--bad {
   color: var(--no); /* an error */
 }
+/* §M4-10 — a sibling of its field, not inside the label: closes the field's
+   10 px bottom margin down to the hint's own 4 px */
+.field__hint--unit {
+  margin: -6px 0 10px;
+}
 
 /* docs/register-expression-authoring.md §RXA3 — the reference-aware Register
    expression editor: the `@` picker popover + the two read-back lines. */

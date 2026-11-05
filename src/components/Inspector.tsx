@@ -1,6 +1,8 @@
 import { useId, useMemo, useState, type ReactNode } from 'react'
 import { convertersWhoseVerdictChanges, kindFindings, kindFindingEdgeId, kindFindingNodeId, resolveKinds, type ResourceKindDecl } from '../model/kinds'
-import { currentAmountText, fieldUnitOptions, fieldUnitText, poolKindName, previewUnitChange, resolveFieldUnit, type DocTime, type FieldUnit } from '../model/units'
+import { currentAmountText, fieldUnitOptions, fieldUnitText, poolKindName, previewUnitChange, resolveFieldUnit, type FieldUnit } from '../model/units'
+import { fieldHint, outflowReading, stockReading, type FieldHint } from '../model/viewUnits'
+import { useViewUnitsStore } from '../store/viewUnitsStore'
 import { KindFindingText, unitOptionLabel } from './ModelPanels'
 import { ConfirmDialog } from './ConfirmDialog'
 import {
@@ -335,7 +337,7 @@ export function Inspector({ editLocked = false }: { editLocked?: boolean } = {})
           <h3 className="wb-panel__h">{t('panel.edit')}</h3>
           {ed.kind === 'resource' ? (
             <>
-              <EdgeFlowField flow={ed.flow} params={paramOptions} onChange={(flow) => setData({ ...ed, kind: 'resource', flow })} />
+              <EdgeFlowWithHint edgeId={edge.id} ed={ed} params={paramOptions} onChange={(flow) => setData({ ...ed, kind: 'resource', flow })} />
               {/* loop-model/4 — the unit the rate is authored in, keyed per
                   connection so a pending confirm never carries over; a line
                   that reads a table takes the table's unit */}
@@ -471,10 +473,12 @@ function EdgeFlowField({
   flow,
   params,
   onChange,
+  describedBy,
 }: {
   flow: string
   params: { id: string; label: string; value: number | null }[]
   onChange: (flow: string) => void
+  describedBy?: string
 }) {
   const t = useT()
   const timetables = useGraphStore((s) => s.timetables)
@@ -544,6 +548,7 @@ function EdgeFlowField({
         placeholder={t('inspector.edge.flowPlaceholder')}
         // §L9.3 — flow syntax: operators, ids and numbers, never prose
         dir="ltr"
+        aria-describedby={describedBy}
       />
       {status && (
         <span
@@ -732,11 +737,36 @@ function EdgeUnitField({ edgeId, ed, setData }: { edgeId: string; ed: Extract<Lo
   )
 }
 
-/** the current amount as the Pool's authored unit shows it (§M4-5): the
- *  engine value to 15 significant digits, `≈` when that is not exactly the
- *  engine value (`currentAmountText` in units.ts); the authored text before a run */
-function poolCurrentAmount(live: number | undefined, d: PoolData, decl: ResourceKindDecl | undefined, time: DocTime | undefined): string {
-  return currentAmountText(live, d.initial, undefined, resolveFieldUnit(d.unit, decl, time, 'stock'), time)
+/** §M4-10 — the read-only line under a number field. It sits outside the field's
+ *  label so the field keeps its name; the field points at it by `id`. */
+function FieldUnitHint({ id, hint }: { id: string; hint: FieldHint }) {
+  const t = useT()
+  const text = `${hint.number} ${hint.unit}`
+  return (
+    <p id={id} className="field__hint field__hint--unit">
+      {hint.perStep ? t('inspector.unit.perStep', { unit: isolateAuto(text) }) : isolateAuto(text)}
+    </p>
+  )
+}
+
+/** a resource connection's flow field, with its value in the Kinds panel's
+ *  reading under it (§M4-10) */
+function EdgeFlowWithHint({ edgeId, ed, params, onChange }: { edgeId: string; ed: Extract<LoopEdgeData, { kind: 'resource' }>; params: { id: string; label: string; value: number | null }[]; onChange: (flow: string) => void }) {
+  const hintId = useId()
+  const nodes = useGraphStore((s) => s.nodes)
+  const edges = useGraphStore((s) => s.edges)
+  const kinds = useGraphStore((s) => s.kinds)
+  const time = useGraphStore((s) => s.time)
+  const outflowViews = useViewUnitsStore((s) => s.outflowViews)
+  const kindName = useMemo(() => resolveKinds(nodes, edges).edgeKind.get(edgeId) ?? null, [nodes, edges, edgeId])
+  const decl = kindName === null ? undefined : kinds.find((k) => k.name === kindName)
+  const hint = decl ? fieldHint(ed.flow, resolveFieldUnit(ed.unit, decl, time, 'rate'), outflowReading(outflowViews, decl, time), decl, time, 'rate') : null
+  return (
+    <>
+      <EdgeFlowField flow={ed.flow} params={params} onChange={onChange} describedBy={hint ? hintId : undefined} />
+      {hint && <FieldUnitHint id={hintId} hint={hint} />}
+    </>
+  )
 }
 
 // ── edge routing (loop-revision/3 / docs/edge-routing.md) ─────────────────
@@ -1442,28 +1472,35 @@ function NonNegativeNumberField({
   value,
   allowEmpty,
   onCommit,
+  hint,
 }: {
   label: string
   value: number | null
   allowEmpty: boolean
   onCommit: (n: number | null) => void
+  hint?: FieldHint | null
 }) {
   const t = useT()
+  const hintId = useId()
   const [draftInvalid, setDraftInvalid] = useState(false)
   return (
-    <Field label={label}>
-      <DraftNumberInput
-        min={0}
-        value={value}
-        allowEmpty={allowEmpty}
-        valid={(n) => n >= 0}
-        onCommit={onCommit}
-        onInvalidChange={setDraftInvalid}
-      />
-      {draftInvalid ? (
-        <p className="field__hint field__hint--bad">{t('inspector.number.nonNegativeHint')}</p>
-      ) : null}
-    </Field>
+    <>
+      <Field label={label}>
+        <DraftNumberInput
+          min={0}
+          value={value}
+          allowEmpty={allowEmpty}
+          valid={(n) => n >= 0}
+          onCommit={onCommit}
+          onInvalidChange={setDraftInvalid}
+          aria-describedby={hint ? hintId : undefined}
+        />
+        {draftInvalid ? (
+          <p className="field__hint field__hint--bad">{t('inspector.number.nonNegativeHint')}</p>
+        ) : null}
+      </Field>
+      {hint && <FieldUnitHint id={hintId} hint={hint} />}
+    </>
   )
 }
 
@@ -1472,10 +1509,16 @@ function PoolFields({ id, d, set }: { id: string; d: PoolData; set: Patch }) {
   // the count the node SHOWS — the engine's value once a run has started, the
   // authored starting amount before — as the node formats it (`nodes.tsx` fmt)
   const live = useSimStore((s) => (s.values ? s.values[id] : undefined))
-  // loop-model/4 — in the Pool's authored unit when it has one (§M4-5)
+  // loop-model/4 — in the Pool's authored unit when it has one (§M4-5), and in
+  // the Timeline's view unit while one is on (§M4-10)
   const kinds = useGraphStore((s) => s.kinds)
   const time = useGraphStore((s) => s.time)
-  const shownText = poolCurrentAmount(live, d, kinds.find((k) => k.name === poolKindName(d)), time)
+  const views = useViewUnitsStore((s) => s.views)
+  const decl = kinds.find((k) => k.name === poolKindName(d))
+  const fu = resolveFieldUnit(d.unit, decl, time, 'stock')
+  const reading = decl ? stockReading(views, decl) : undefined
+  const shownText = currentAmountText(live, d.initial, undefined, fu, time, reading?.kind === 'base' ? undefined : reading)
+  const hintOf = (value: number | null) => (decl && reading ? fieldHint(value, fu, reading, decl, time, 'stock') : null)
   return (
     <>
       <NonNegativeNumberField
@@ -1483,6 +1526,7 @@ function PoolFields({ id, d, set }: { id: string; d: PoolData; set: Patch }) {
         value={d.initial}
         allowEmpty={false}
         onCommit={(n) => set({ initial: n ?? 0 })}
+        hint={hintOf(d.initial)}
       />
       <PoolUnitField d={d} set={set} />
       {/* node structure (Lumi, 2026-10-12): the CURRENT amount, read-only and
@@ -1499,6 +1543,7 @@ function PoolFields({ id, d, set }: { id: string; d: PoolData; set: Patch }) {
         value={d.capacity}
         allowEmpty
         onCommit={(n) => set({ capacity: n })}
+        hint={hintOf(d.capacity)}
       />
     </>
   )
