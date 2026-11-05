@@ -84,6 +84,7 @@ const ui = {
   'playbar.refused.timetable.noKind': 'Çalıştırılamıyor: {label}, türü olmayan bir bağlantıda',
   'playbar.refused.timetable.unit': 'Çalıştırılamıyor: {label} birimi, bağlantının türüne ait bir akış değil',
   'playbar.refused.timetable.twoKinds': 'Çalıştırılamıyor: {label} iki türden bağlantıda kullanılıyor',
+  'playbar.refused.timetable.range': 'Çalıştırılamıyor: {label} aralık dışında bir değer içeriyor',
   'playbar.refused.kinds': 'Çalıştırılamıyor: korunan bir türde bulgular ({n})',
   'inspector.refused.splitRejoin': 'Çalıştırılamıyor: kaynaklar {split} noktasında ayrılıp {join} noktasında yeniden birleşiyor. Bu model sürümü ayrılıp yeniden birleşen yolları desteklemediği için model çalışmıyor. Çalıştırmak için yollardan birini kaldırın ya da birine bir Havuz ekleyin. Havuz gelenleri tuttuğu için o yol bir adım sonra ilerler.',
   'playbar.diag.title': 'Çalıştırma tanıları ({n})',

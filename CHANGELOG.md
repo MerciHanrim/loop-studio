@@ -7,7 +7,7 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
-- **Timetables can drive a line.** A document can hold a named list of times and rates, and a Source to Pool or Pool to Drain or End line can read one as `~id`. Each step moves the table added up over that step, exactly, read as hold or linear, and the table says what follows its last time. The run reports planned against moved, says when an amount is unmet or a table ends, and the Timeline CSV gains planned and moved columns. Tables come in through a file for now.
+- **Timetables can drive a line.** A document can hold a named list of times and rates, and a Source to Pool or Pool to Drain or End line can read one as `~id`. Each step moves the table added up over that step, exactly, read as hold or linear, and the table says what follows its last time. The run reports planned against moved, says when an amount is unmet or a table ends, and the Timeline CSV gains planned and moved columns. There is no screen for making a table yet: one comes in through a hand-written document file.
 
 - **About says what Loop Studio does.** The About dialog now opens with a description of the product: building and simulating resource flows, processes, state changes and probabilistic rules. The independence note stays below it as small print.
 

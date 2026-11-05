@@ -77,6 +77,7 @@ const ui = {
   'playbar.refused.timetable.noKind': 'Can’t run: {label} is on a connection with no kind',
   'playbar.refused.timetable.unit': 'Can’t run: the unit of {label} is not a rate of the connection’s kind',
   'playbar.refused.timetable.twoKinds': 'Can’t run: {label} is used on connections of two kinds',
+  'playbar.refused.timetable.range': 'Can’t run: {label} holds a value out of range',
   'playbar.refused.kinds': "Can't run: findings on a conserved kind ({n})",
   'inspector.refused.splitRejoin': "Can't run: resources split at {split} and meet again at {join}. This model version doesn't support paths that split and meet again, so the model doesn't run. To run it, remove one of the paths, or add a Pool on one of them. A Pool holds what arrives, so that path moves one step later.",
   'playbar.diag.title': 'Run diagnostics ({n})',

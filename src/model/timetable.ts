@@ -29,6 +29,10 @@ export type Timetable = {
 
 /** the data import's existing row limit */
 export const MAX_TIMETABLE_POINTS = 20_000
+/** the largest time or rate a table may hold. A step's amount is at most a rate
+ *  times the longest step times the largest factor (§M5-2): 10⁶⁰ × 8.64 × 10¹⁰ ×
+ *  10¹⁵ is about 10⁸⁶, so every plan a good table makes is a finite double. */
+export const MAX_TIMETABLE_DECIMAL = rational(10n ** 60n, 1n)
 export const TIMETABLE_FLOW_PREFIX = '~'
 const TIMETABLE_ID = /^[A-Za-z_][A-Za-z0-9_-]{0,63}$/
 const PLAIN_DECIMAL = /^\d+(?:\.\d+)?$/
@@ -56,12 +60,14 @@ export type TimetableProblemCode =
 /** why a table is refused. `row` is the 1-based point that broke it, when one did. */
 export type TimetableProblem = { code: TimetableProblemCode; tableId: string | null; row?: number }
 
-/** a decimal a table may hold: plain, not negative, at most 15 significant digits */
+/** a decimal a table may hold: plain, not negative, at most 15 significant
+ *  digits, at most `MAX_TIMETABLE_DECIMAL` */
 function readDecimal(text: unknown): Rational | null {
   if (typeof text !== 'string' || !PLAIN_DECIMAL.test(text)) return null
   const sig = significantDigits(text)
   if (sig === null || sig > MAX_SIGNIFICANT_DIGITS) return null
-  return parseDecimal(text)
+  const value = parseDecimal(text)
+  return value !== null && cmp(value, MAX_TIMETABLE_DECIMAL) <= 0 ? value : null
 }
 
 /** the §M5-3 rule, for a table whose points are already good */
@@ -302,9 +308,21 @@ export function timetableRef(flow: unknown): string | null {
   return s.startsWith(TIMETABLE_FLOW_PREFIX) ? s.slice(TIMETABLE_FLOW_PREFIX.length) : null
 }
 
-export type TimetableFindingCode = 'unknown-table' | 'bad-line' | 'no-step' | 'no-kind' | 'bad-unit' | 'two-kinds'
+export type TimetableFindingCode = 'unknown-table' | 'bad-line' | 'no-step' | 'no-kind' | 'bad-unit' | 'two-kinds' | 'out-of-range'
 
 export type TimetableFinding = { code: TimetableFindingCode; edgeId: string; tableId: string }
+
+const checked = new WeakMap<Timetable, boolean>()
+/** a table the §M5-2 read accepts. A file cannot hand the engine any other, but
+ *  a caller can, and the integral must never meet one. */
+function tableIsGood(t: Timetable): boolean {
+  let ok = checked.get(t)
+  if (ok === undefined) {
+    ok = checkTimetable(t).ok
+    checked.set(t, ok)
+  }
+  return ok
+}
 
 const resourceData = (e: LoopEdge): ResourceEdgeData | null => ((e.data?.kind ?? 'resource') === 'resource' ? (e.data as ResourceEdgeData) : null)
 
@@ -341,6 +359,10 @@ export function timetableFindings(
     const t = tables.get(tableId)
     if (!t) {
       found('unknown-table')
+      continue
+    }
+    if (!tableIsGood(t)) {
+      found('out-of-range')
       continue
     }
     const from = byId.get(edge.source)?.data.kind
@@ -382,6 +404,7 @@ export function timetableFindingText(f: TimetableFinding, nodes: readonly LoopNo
     'no-kind': `${line} reads a timetable, and has no kind for its unit to resolve against`,
     'bad-unit': `${line} reads a timetable whose unit is not a rate of the line's kind`,
     'two-kinds': `${line} reads a timetable another line uses with a different kind`,
+    'out-of-range': `${line} reads a timetable with a value out of range`,
   }
   return `Can't run: ${why[f.code]} ("${f.tableId}"). Nothing moved.`
 }
@@ -402,25 +425,29 @@ export function applyTimetables(
   kinds: readonly ResourceKindDecl[] | undefined,
   time: DocTime,
   k: number,
-): { edges: LoopEdge[]; lines: PlannedLine[]; endedBy: Timetable | null } {
+): { edges: LoopEdge[]; lines: PlannedLine[]; endedBy: Timetable | null; notFinite: TimetableFinding | null } {
   const tables = new Map(timetables.map((t) => [t.id, t]))
   const declOf = new Map((kinds ?? []).map((d) => [d.name, d]))
   const used = timetableLines(edges)
   for (const { tableId } of used) {
     const t = tables.get(tableId)!
     const first = firstUncoveredStep(t, time)
-    if (first !== null && k >= first) return { edges, lines: [], endedBy: t }
+    if (first !== null && k >= first) return { edges, lines: [], endedBy: t, notFinite: null }
   }
   const edgeKind = resolveKinds(nodes, edges).edgeKind
   const planned = new Map<string, PlannedLine>()
   for (const { edge, tableId } of used) {
     const t = tables.get(tableId)!
     const factor = timetableRateFactor(t, declOf.get(edgeKind.get(edge.id) ?? ''), time)!
-    planned.set(edge.id, { edgeId: edge.id, tableId, planned: enginePlan(t, k, factor, time) })
+    const amount = enginePlan(t, k, factor, time)
+    // a good table under a factor from the file is always finite; a caller's own
+    // kinds table may not be, and that is a refusal, never a throw
+    if (!Number.isFinite(amount)) return { edges, lines: [], endedBy: null, notFinite: { code: 'out-of-range', edgeId: edge.id, tableId } }
+    planned.set(edge.id, { edgeId: edge.id, tableId, planned: amount })
   }
   const out = edges.map((e) => {
     const line = planned.get(e.id)
     return line ? ({ ...e, data: { ...(e.data as ResourceEdgeData), flow: plainDecimal(line.planned) } } as LoopEdge) : e
   })
-  return { edges: out, lines: [...planned.values()].sort((a, b) => (a.edgeId < b.edgeId ? -1 : 1)), endedBy: null }
+  return { edges: out, lines: [...planned.values()].sort((a, b) => (a.edgeId < b.edgeId ? -1 : 1)), endedBy: null, notFinite: null }
 }

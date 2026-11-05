@@ -92,6 +92,7 @@ const ui = {
   'playbar.refused.timetable.noKind': 'Không thể chạy: {label} nằm trên liên kết không có loại',
   'playbar.refused.timetable.unit': 'Không thể chạy: đơn vị của {label} không phải lưu lượng của loại liên kết',
   'playbar.refused.timetable.twoKinds': 'Không thể chạy: {label} được dùng trên liên kết thuộc hai loại',
+  'playbar.refused.timetable.range': 'Không thể chạy: {label} có giá trị nằm ngoài phạm vi',
   'playbar.refused.kinds': 'Không thể chạy: có phát hiện về một loại được bảo toàn ({n})',
   'inspector.refused.splitRejoin': 'Không chạy được: tài nguyên tách ra tại {split} và gặp lại nhau tại {join}. Phiên bản mô hình này không hỗ trợ các đường tách ra rồi gặp lại nhau, nên mô hình không chạy. Để chạy, hãy bỏ một trong hai đường, hoặc thêm một Bể chứa trên một đường. Bể chứa giữ lại những gì đến, nên đường đó sẽ di chuyển chậm hơn một bước.',
   'playbar.diag.title': 'Chẩn đoán lần chạy ({n})',

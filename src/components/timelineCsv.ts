@@ -84,7 +84,7 @@ export function buildRunCsv(pools: readonly RunCsvPool[], series: readonly RunCs
  *  and `<label> (approx) [id]`, `true` or `false`. A Pool the view does not
  *  re-express adds nothing, so no cell is blank. */
 export function buildShownRunCsv(pools: readonly (RunCsvPool & { view?: PoolView })[], series: readonly RunCsvPoint[], lines: readonly RunCsvTableLine[] = []): string {
-  const head = ['step', ...pools.flatMap((p) => (p.view?.fu ? [runCsvColumnName(p), `${withUnit(`${p.label} (shown)`, p.view.unit)} [${p.id}]`, `${p.label} (approx) [${p.id}]`] : [runCsvColumnName(p)]))]
+  const head = ['step', ...pools.flatMap((p) => (p.view?.fu ? [runCsvColumnName(p), `${withUnit(`${p.label} (shown)`, p.view.unit)} [${p.id}]`, `${p.label} (approx) [${p.id}]`] : [runCsvColumnName(p)])), ...tableHead(lines)]
   const rows = series.map((pt) => [
     pt.step,
     ...pools.flatMap((p) => {

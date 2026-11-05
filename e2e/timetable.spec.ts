@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { unwrapIsolates } from '../src/i18n/bidiIsolate'
 import { expect, importGraph, openApp, test } from './support/loop'
@@ -72,6 +73,23 @@ test('the run keeps planned and moved per step, and a file round trip keeps the 
   const saved = await page.evaluate(() => JSON.parse((window as unknown as Bridge).__loop.graph.getState().exportJSON()))
   expect(saved.schema).toBe('loop-studio/graph/5')
   expect(saved.timetables).toEqual([table])
+})
+
+test('the file with shown values has as many columns in its head as in every row', async ({ page }) => {
+  await openApp(page)
+  await importGraph(page, doc())
+  await advance(page, 4)
+  await page.locator('.timeline__series').click()
+  await page.locator('.tl-series__unit select').selectOption('L')
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.tl-series')).toHaveCount(0)
+  await page.locator('.timeline__legend .timeline__csv').click()
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: /CSV with shown values/ }).click()])
+  expect(dl.suggestedFilename()).toBe('loop-studio-run-shown.csv')
+  const rows = readFileSync((await dl.path())!, 'utf8').replace(/^\uFEFF/, '').trimEnd().split('\r\n').map((r) => r.split(','))
+  expect(rows[0].slice(-2)).toEqual(['Intake by tide (planned) [m³] [e]', 'Intake by tide (moved) [m³] [e]'])
+  for (const row of rows) expect(row).toHaveLength(rows[0].length)
+  expect(rows[5].slice(-2)).toEqual(['20', '5']) // step 4, under the head and step 0
 })
 
 test('a table on a line that cannot read one refuses the run before Play, and Show selects the line', async ({ page }) => {

@@ -32,9 +32,11 @@ A resource connection reads a table as `"flow": "~tide_intake"`, as `@id` reads 
 - `label` and `source`: non-empty text. `source` says where the numbers came from and is shown beside the table.
 - `unit`: a rate of the line's kind (M5-5). `timeUnit`: `s`, `min`, `h` or `d`.
 - `read`: `hold` or `linear`. `after`: `stop`, `hold`, `zero` or `repeat`; absent reads as `stop`.
-- `points`: 1 to 20,000 pairs of time and rate. Both are plain non-negative decimal text of at most 15 significant digits, kept as typed. The first time is 0, and times strictly increase. Time is elapsed from the start of the run. It is not a calendar date.
+- `points`: 1 to 20,000 pairs of time and rate. Both are plain non-negative decimal text of at most 15 significant digits and at most 10⁶⁰, kept as typed. So is `end`. The first time is 0, and times strictly increase. Time is elapsed from the start of the run. It is not a calendar date.
 
 **A table with any bad entry refuses the file, with the table and the row named.** It is not repaired on read, because dropping a row changes what the table means. This differs from the defensive read of §M4-1 on purpose.
+
+**Why 10⁶⁰.** Fifteen significant digits bound precision, not size: a 1 followed by 400 zeros has one. A step's amount is at most a rate times the longest step times the largest factor, 10⁶⁰ × 8.64 × 10¹⁰ × 10¹⁵, about 10⁸⁶. So every plan of a good table under a file's factors is a finite double. A table that reaches `step` by another way is refused as M5-5 says, and a plan that is still not finite refuses the step with a diagnostic. It never throws.
 
 ## M5-3. The end of a table
 
@@ -76,7 +78,8 @@ A table's values are rates per time, never an amount per step, so it keeps its m
 - the document has no step length;
 - the line has no kind;
 - the unit is not a rate of that kind;
-- two lines of different kinds read one table.
+- two lines of different kinds read one table;
+- the table breaks M5-2, or a plan is not a finite number.
 
 A refused run moves nothing and consumes no step. The run bars and Monte Carlo refuse before they start, with the same findings.
 
@@ -94,7 +97,7 @@ Four numbers exist for a table line at step k, and they are kept apart.
 - A line that was not clamped has m equal to p, bit for bit.
 - Each step, |exact(p) − P| is at most 2⁻⁵³ × P, one conversion's rounding. Σ P equals the exact integral. Σ exact(p) differs from it by at most the sum of those roundings. The two claims are never written as one.
 - The report holds p and m unrounded. A step with no table line has no `timetableLines` key.
-- **The run CSV** gains `<table> (planned) [<unit>] [<edge-id>]` and `<table> (moved) [<unit>] [<edge-id>]` for each table line, in the base unit per step. A cell is that double, in the shortest decimal text that reads back as the same double, so a reader can subtract the two columns. P is not written, because it is not a number the engine used. Unmet is not written, because a third column would be a rounded subtraction. A step with no plan, such as step 0, reads 0.
+- **The run CSV**, plain or with shown values, gains `<table> (planned) [<unit>] [<edge-id>]` and `<table> (moved) [<unit>] [<edge-id>]` for each table line, in the base unit per step. A cell is that double, in the shortest decimal text that reads back as the same double, so a reader can subtract the two columns. P is not written, because it is not a number the engine used. Unmet is not written, because a third column would be a rounded subtraction. A step with no plan, such as step 0, reads 0.
 - **The message** appears when u passes the engine's `EPSILON` (10⁻⁹). A want below it moves nothing, because the engine snaps it to 0: that is unmet in the file, and not worth a message. It shows the double nearest u, in the base unit.
 
 A constant line stays as it is.

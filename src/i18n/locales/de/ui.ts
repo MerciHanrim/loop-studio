@@ -95,6 +95,7 @@ const ui = {
   'playbar.refused.timetable.noKind': 'Kann nicht laufen: {label} liegt auf einer Verbindung ohne Art',
   'playbar.refused.timetable.unit': 'Kann nicht laufen: Die Einheit von {label} ist keine Rate der Art dieser Verbindung',
   'playbar.refused.timetable.twoKinds': 'Kann nicht laufen: {label} wird auf Verbindungen zweier Arten verwendet',
+  'playbar.refused.timetable.range': 'Kann nicht laufen: {label} enthält einen Wert außerhalb des Bereichs',
   'playbar.refused.kinds': 'Kann nicht laufen: Befunde zu einer erhaltenen Art ({n})',
   'inspector.refused.splitRejoin': 'Ausführen nicht möglich: Ressourcen teilen sich bei {split} und treffen sich bei {join} wieder. Diese Modellversion unterstützt keine Pfade, die sich teilen und wieder treffen, daher läuft das Modell nicht. Entfernen Sie einen der Pfade, oder fügen Sie auf einem davon einen Speicher ein. Ein Speicher hält fest, was ankommt, sodass dieser Pfad einen Schritt später weiterläuft.',
   'playbar.diag.title': 'Diagnosen des Laufs ({n})',

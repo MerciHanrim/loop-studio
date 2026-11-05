@@ -326,6 +326,56 @@ describe('a bad table is refused whole, with the row named', () => {
   })
 })
 
+describe('the size of a number', () => {
+  const ones = (zeros: number) => `1${'0'.repeat(zeros)}`
+  const read = (over: object) => {
+    const out = readTimetables([{ ...table(), ...over }])
+    return out.ok ? 'ok' : out.problem
+  }
+
+  it('takes 10⁶⁰ and refuses the next power, naming the row', () => {
+    expect(read({ points: [['0', ones(60)]] })).toBe('ok')
+    expect(read({ points: [['0', ones(61)]] })).toEqual({ code: 'bad-point', tableId: 'intake', row: 1 })
+    expect(read({ points: [['0', '1'], ['2', ones(400)]] })).toEqual({ code: 'bad-point', tableId: 'intake', row: 2 })
+    expect(read({ points: [['0', '1'], [ones(61), '1']], end: ones(62) })).toEqual({ code: 'bad-point', tableId: 'intake', row: 2 })
+  })
+
+  it('holds end to the same range', () => {
+    expect(read({ end: ones(60) })).toBe('ok')
+    expect(read({ end: ones(61) })).toEqual({ code: 'bad-end', tableId: 'intake' })
+  })
+
+  it('a plan at the largest rate, the longest step and the largest factor is finite, and the run moves it', () => {
+    const widest: ResourceKindDecl = { name: 'water', conserved: true, baseUnit: 'm³', rateUnits: [{ name: 'big', factor: '1000000000000000', per: 's' }] }
+    const t = table({ unit: 'big', timeUnit: 's', end: '1', after: 'hold', points: [['0', ones(60)]] })
+    const time: DocTime = { step: { value: 1_000_000, unit: 'd' } }
+    const d = intakeDoc(t, time)
+    const res = step(d.nodes, d.edges, initSim(d.nodes, { kinds: [widest], time }), 1, 5, { kinds: [widest], time, timetables: [t] })
+    expect(res.report.diagnostics).toEqual([])
+    expect(res.report.timetableLines![0].planned).toBe(8.64e85)
+    expect(res.state.values.tank).toBe(8.64e85)
+  })
+
+  it('a table that reaches the engine past the read refuses the step with a diagnostic, and throws nothing', () => {
+    const t = table({ points: [['0', ones(400)]] })
+    const d = intakeDoc(t)
+    const res = step(d.nodes, d.edges, initSim(d.nodes, { kinds, time: d.time }), 1, 5, { kinds, time: d.time, timetables: d.timetables })
+    expect(res.state.step).toBe(0)
+    expect(res.report.events).toEqual([])
+    expect(res.report.diagnostics.join(' ')).toContain('out of range')
+  })
+
+  it('a plan that is not finite under a caller’s own factor refuses the step, and throws nothing', () => {
+    const huge: ResourceKindDecl = { name: 'water', conserved: true, baseUnit: 'm³', rateUnits: [{ name: 'CMH', factor: `1${'0'.repeat(300)}`, per: 'h' }] }
+    const t = table({ points: [['0', ones(60)]] })
+    const d = intakeDoc(t)
+    const res = step(d.nodes, d.edges, initSim(d.nodes, { kinds: [huge], time: d.time }), 1, 5, { kinds: [huge], time: d.time, timetables: d.timetables })
+    expect(res.state.step).toBe(0)
+    expect(res.report.events).toEqual([])
+    expect(res.report.diagnostics.join(' ')).toContain('out of range')
+  })
+})
+
 describe('no timetable, no change', () => {
   it('a version 4 document reads a leading ~ as it always did', () => {
     const d = intakeDoc(table())

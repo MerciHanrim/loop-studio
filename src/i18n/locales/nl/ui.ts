@@ -86,6 +86,7 @@ const ui = {
   'playbar.refused.timetable.noKind': 'Kan niet uitvoeren: {label} staat op een verbinding zonder soort',
   'playbar.refused.timetable.unit': 'Kan niet uitvoeren: de eenheid van {label} is geen snelheid van de soort van de verbinding',
   'playbar.refused.timetable.twoKinds': 'Kan niet uitvoeren: {label} wordt gebruikt op verbindingen van twee soorten',
+  'playbar.refused.timetable.range': 'Kan niet uitvoeren: {label} bevat een waarde buiten het bereik',
   'playbar.refused.kinds': 'Kan niet uitvoeren: bevindingen bij een behouden soort ({n})',
   'inspector.refused.splitRejoin': 'Uitvoeren niet mogelijk: middelen splitsen bij {split} en komen bij {join} weer samen. Deze modelversie ondersteunt geen paden die splitsen en weer samenkomen, dus het model draait niet. Verwijder een van de paden, of voeg op een ervan een Voorraad toe. Een Voorraad houdt vast wat binnenkomt, dus dat pad beweegt één stap later.',
   'playbar.diag.title': 'Diagnoses van de run ({n})',

@@ -87,6 +87,7 @@ const ui = {
   'playbar.refused.timetable.noKind': 'Exécution impossible : {label} est sur une connexion sans type',
   'playbar.refused.timetable.unit': 'Exécution impossible : l’unité de {label} n’est pas un débit du type de la connexion',
   'playbar.refused.timetable.twoKinds': 'Exécution impossible : {label} sert sur des connexions de deux types',
+  'playbar.refused.timetable.range': 'Exécution impossible : {label} contient une valeur hors limites',
   'playbar.refused.kinds': 'Exécution impossible : constats sur un type conservé ({n})',
   'inspector.refused.splitRejoin': 'Exécution impossible : les ressources se séparent à {split} et se rejoignent à {join}. Cette version du modèle ne prend pas en charge les chemins qui se séparent puis se rejoignent, donc le modèle ne s’exécute pas. Pour l’exécuter, supprimez l’un des chemins ou ajoutez un réservoir sur l’un d’eux. Un réservoir retient ce qui arrive, donc ce chemin avance un pas plus tard.',
   'playbar.diag.title': 'Diagnostics de l’exécution ({n})',

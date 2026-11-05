@@ -28,5 +28,7 @@ export function timetableRefusalText(f: TimetableFinding, timetables: readonly T
       return t('playbar.refused.timetable.unit', { label: isolateAuto(name) })
     case 'two-kinds':
       return t('playbar.refused.timetable.twoKinds', { label: isolateAuto(name) })
+    case 'out-of-range':
+      return t('playbar.refused.timetable.range', { label: isolateAuto(name) })
   }
 }

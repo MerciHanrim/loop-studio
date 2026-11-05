@@ -1,7 +1,7 @@
 // loop-model/5 (SEMANTICS-M5.md) — a timetable through the file, the digests, a
 // module and the run CSV.
 import { describe, expect, it } from 'vitest'
-import { buildRunCsv } from '../components/timelineCsv'
+import { buildRunCsv, buildShownRunCsv } from '../components/timelineCsv'
 import { insertGraph, extractModule } from './moduleGraph'
 import { canonicalContent, canonicalJson } from './revision'
 import { deserialize, GraphFileError, serialize } from './serialize'
@@ -129,6 +129,13 @@ describe('the run CSV', () => {
     expect(rows[2]).toBe('1,0.1,0.30000000000000004,0.1')
     expect(rows[3]).toBe('2,0.1,0.0000001,0')
     expect(Number('0.30000000000000004')).toBe(series[1].timetableLines![0].planned)
+  })
+
+  it('the file with shown values names the same columns it fills', () => {
+    const rows = buildShownRunCsv(pools, series, [{ edgeId: 'in', label: 'Intake', unit: 'm³' }]).trim().split('\r\n').map((r) => r.split(','))
+    expect(rows[0].slice(-2)).toEqual(['Intake (planned) [m³] [in]', 'Intake (moved) [m³] [in]'])
+    for (const row of rows) expect(row).toHaveLength(rows[0].length)
+    expect(rows[2].slice(-2)).toEqual(['0.30000000000000004', '0.1'])
   })
 
   it('a document with no table line keeps its file byte for byte', () => {

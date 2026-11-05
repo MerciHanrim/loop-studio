@@ -6,7 +6,7 @@
   "totals": {
     "rows": 98,
     "obligations": 49,
-    "callSites": 88
+    "callSites": 89
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -1245,6 +1245,15 @@
         {
           "keys": [
             "playbar.refused.timetable.twoKinds"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "playbar.refused.timetable.range"
           ],
           "args": [
             "label"

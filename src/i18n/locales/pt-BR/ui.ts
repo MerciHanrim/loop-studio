@@ -88,6 +88,7 @@ const ui = {
   'playbar.refused.timetable.noKind': 'Não é possível executar: {label} está em uma conexão sem tipo',
   'playbar.refused.timetable.unit': 'Não é possível executar: a unidade de {label} não é uma taxa do tipo da conexão',
   'playbar.refused.timetable.twoKinds': 'Não é possível executar: {label} é usada em conexões de dois tipos',
+  'playbar.refused.timetable.range': 'Não é possível executar: {label} contém um valor fora do intervalo',
   'playbar.refused.kinds': 'Não é possível executar: achados em um tipo conservado ({n})',
   'inspector.refused.splitRejoin': 'Não é possível executar: os recursos se dividem em {split} e se reencontram em {join}. Esta versão do modelo não suporta caminhos que se dividem e se reencontram, então o modelo não é executado. Para executá-lo, remova um dos caminhos ou adicione um Reservatório em um deles. Um Reservatório guarda o que chega, então esse caminho avança um passo depois.',
   'playbar.diag.title': 'Diagnósticos da execução ({n})',

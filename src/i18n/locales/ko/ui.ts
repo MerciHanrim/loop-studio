@@ -78,6 +78,7 @@ const ui = {
   'playbar.refused.timetable.noKind': '실행할 수 없어요: 종류가 없는 연결입니다 ({label})',
   'playbar.refused.timetable.unit': '실행할 수 없어요: {label}의 단위가 연결 종류의 비율이 아닙니다',
   'playbar.refused.timetable.twoKinds': '실행할 수 없어요: 서로 다른 두 종류의 연결에 같은 시간표를 씁니다 ({label})',
+  'playbar.refused.timetable.range': '실행할 수 없어요: 범위를 벗어난 값이 있습니다 ({label})',
   'playbar.refused.kinds': '실행할 수 없어요: 보존 종류에 대한 발견 사항 ({n})',
   'inspector.refused.splitRejoin': '실행할 수 없어요: 자원이 {split}에서 갈라졌다가 {join}에서 다시 만나요. 이 모델 버전은 분기 후 재합류를 지원하지 않아서 실행하지 않아요. 실행하려면 경로 하나를 지우거나 한쪽 경로에 Pool을 넣어 주세요. Pool은 받은 자원을 담아 두므로, 그 경로는 한 스텝 늦게 움직여요.',
   'playbar.diag.title': '실행 진단 ({n})',

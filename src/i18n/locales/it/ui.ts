@@ -102,6 +102,7 @@ const ui = {
   'playbar.refused.timetable.noKind': 'Impossibile eseguire: {label} è su una connessione senza tipo',
   'playbar.refused.timetable.unit': 'Impossibile eseguire: l’unità di {label} non è una portata del tipo della connessione',
   'playbar.refused.timetable.twoKinds': 'Impossibile eseguire: {label} è usata su connessioni di due tipi',
+  'playbar.refused.timetable.range': 'Impossibile eseguire: {label} contiene un valore fuori intervallo',
   'playbar.refused.kinds': 'Impossibile eseguire: rilievi su un tipo conservato ({n})',
   'inspector.refused.splitRejoin': 'Impossibile eseguire: le risorse si dividono in {split} e si ricongiungono in {join}. Questa versione del modello non supporta percorsi che si dividono e si ricongiungono, quindi il modello non viene eseguito. Per eseguirlo, rimuovi uno dei percorsi o aggiungi un Serbatoio su uno di essi. Un Serbatoio trattiene ciò che arriva, quindi quel percorso avanza un passo dopo.',
   'playbar.diag.title': 'Diagnostica dell’esecuzione ({n})',

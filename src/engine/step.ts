@@ -141,6 +141,12 @@ export function step(
       }
     }
     tablePlan = applyTimetables(nodes, edges, opts.timetables!, opts.kinds, opts.time!, curStep)
+    if (tablePlan.notFinite) {
+      return {
+        state: { step: prev.step, values: prev.values, ended: false, fired: [], triggerQueue: prev.triggerQueue },
+        report: { events: [], activated: [], fired: [], stateEvents: [], diagnostics: [timetableFindingText(tablePlan.notFinite, nodes, edges)], notices: [], gates: [] },
+      }
+    }
     edges = tablePlan.edges
   }
   const byId = new Map(nodes.map((n) => [n.id, n]))

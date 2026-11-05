@@ -81,6 +81,7 @@ const ui = {
   'playbar.refused.timetable.noKind': '実行できません: {label} は種類のない接続にあります',
   'playbar.refused.timetable.unit': '実行できません: {label} の単位は接続の種類のレートではありません',
   'playbar.refused.timetable.twoKinds': '実行できません: {label} は 2 つの種類の接続で使われています',
+  'playbar.refused.timetable.range': '実行できません: {label} に範囲外の値があります',
   'playbar.refused.kinds': '実行できません: 保存される種類に関する指摘 ({n})',
   'inspector.refused.splitRejoin': '実行できません: リソースが {split} で分かれ、{join} で再び合流しています。このモデルバージョンは分かれて再び合流する経路に対応していないため、モデルは実行されません。実行するには、いずれかの経路を削除するか、どちらかの経路にプールを追加してください。プールは届いたものを保持するため、その経路は 1 ステップ遅れて動きます。',
   'playbar.diag.title': '実行の診断 ({n})',

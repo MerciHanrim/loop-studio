@@ -94,6 +94,7 @@ const ui = {
   'playbar.refused.timetable.noKind': 'No se puede ejecutar: {label} está en una conexión sin tipo',
   'playbar.refused.timetable.unit': 'No se puede ejecutar: la unidad de {label} no es un caudal del tipo de la conexión',
   'playbar.refused.timetable.twoKinds': 'No se puede ejecutar: {label} se usa en conexiones de dos tipos',
+  'playbar.refused.timetable.range': 'No se puede ejecutar: {label} contiene un valor fuera de rango',
   'playbar.refused.kinds': 'No se puede ejecutar: hallazgos en un tipo conservado ({n})',
   'inspector.refused.splitRejoin': 'No se puede ejecutar: los recursos se separan en {split} y vuelven a unirse en {join}. Esta versión del modelo no admite rutas que se separan y vuelven a unirse, así que el modelo no se ejecuta. Para ejecutarlo, elimine una de las rutas o añada un Depósito en una de ellas. Un Depósito retiene lo que llega, así que esa ruta avanza un paso después.',
   'playbar.diag.title': 'Diagnósticos de la ejecución ({n})',

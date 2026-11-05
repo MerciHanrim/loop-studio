@@ -85,6 +85,7 @@ const ui = {
   'playbar.refused.timetable.noKind': '無法執行：{label} 所在的連線沒有種類',
   'playbar.refused.timetable.unit': '無法執行：{label} 的單位不是該連線種類的速率',
   'playbar.refused.timetable.twoKinds': '無法執行：{label} 用在兩種種類的連線上',
+  'playbar.refused.timetable.range': '無法執行：{label} 含有超出範圍的值',
   'playbar.refused.kinds': '無法執行：守恆種類有發現項目（{n}）',
   'inspector.refused.splitRejoin': '無法執行：資源在 {split} 分開，又在 {join} 會合。此模型版本不支援分開後又會合的路徑，因此模型不會執行。若要執行，請刪除其中一條路徑，或在其中一條路徑上加入一個資源池。資源池會保留到達的資源，因此該路徑會晚一步移動。',
   'playbar.diag.title': '執行診斷（{n}）',
