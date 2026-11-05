@@ -7,6 +7,8 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **Very small rates run at their own value.** A rate with a unit below 0.000001 per step ran as 1 per step, with no message: 0.00002 CMD on a 1 h step moved 1 m³. Rates of 1e21 or more per step did the same. Both now run as written. A saved Monte Carlo result is shown as stale, because the engine revision changed.
+
 - **Make a timetable on screen.** Data ▸ New timetable takes pasted text or a CSV file. A gap stops the import until you choose how to fill it, and the end of the table is proposed for you to check. The Inspector lets a line read the table, and each table’s rate has its own chart under the Timeline. Help now explains how a step fills and empties a Pool.
 
 - **Timetables can drive a line.** A document can hold a named list of times and rates, and a Source to Pool or Pool to Drain or End line can read one as `~id`. Each step moves the table added up over that step, exactly, read as hold or linear, and the table says what follows its last time. The run reports planned against moved, says when an amount is unmet or a table ends, and the Timeline CSV gains planned and moved columns. There is no screen for making a table yet: one comes in through a hand-written document file.

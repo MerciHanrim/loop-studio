@@ -7,7 +7,7 @@
 // names a unit comes back as the SAME arrays (M4-INV-1: every earlier
 // document steps on its own numbers, byte for byte).
 import { resolveKinds, type ResourceKindDecl } from './kinds'
-import { parseDecimal } from './rational'
+import { parseDecimal, plainDecimal } from './rational'
 import type { LoopEdge, LoopNode, PoolData, ResourceEdgeData } from './types'
 import { engineValue, poolKindName, resolveFieldUnit, type DocTime } from './units'
 
@@ -64,7 +64,11 @@ export function applyUnits(
     if (fu.kind === 'base') return e
     const raw = String(d.flow ?? '1').trim()
     if (parseDecimal(raw) === null) return e // a percent, `all`, a random form, a reference: never converted (D3)
-    return { ...e, data: { ...d, flow: String(engineValue(raw, fu, time)) } } as LoopEdge
+    // plain digits, because `parseFlow` reads no other number and runs what it
+    // cannot read as 1: `String` writes an exponent below 1e-6 and from 1e21. A
+    // value that is not finite is left as text: the `outOfRange` finding refuses it.
+    const value = engineValue(raw, fu, time)
+    return { ...e, data: { ...d, flow: Number.isFinite(value) ? plainDecimal(value) : String(value) } } as LoopEdge
   })
   return { nodes: outNodes, edges: outEdges }
 }

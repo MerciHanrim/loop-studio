@@ -1,0 +1,1 @@
+{"type":"user-facing","changelog":"- **Very small rates run at their own value.** A rate with a unit below 0.000001 per step ran as 1 per step, with no message: 0.00002 CMD on a 1 h step moved 1 m³. Rates of 1e21 or more per step did the same. Both now run as written. A saved Monte Carlo result is shown as stale, because the engine revision changed."}
