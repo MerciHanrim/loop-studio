@@ -187,6 +187,7 @@ const inspector = {
   'panels.kinds.outflow': 'Boundary outflow by kind',
   'panels.kinds.outflow.row': '{kind} into {node}: {amount}',
   'panels.kinds.outflow.noKind': 'no kind',
+  'panels.kinds.outflow.unitFor': 'Unit to read {kind} outflow in',
   'kinds.finding.poolEnds': 'The connection from {from} to {to}: one Pool is {a}, the other {b}.',
   'kinds.finding.annotation': 'The connection from {from} to {to}: marked {edgeKind} on a {poolKind} Pool.',
   'kinds.finding.gateMixes': '{gate} carries {kinds}.',

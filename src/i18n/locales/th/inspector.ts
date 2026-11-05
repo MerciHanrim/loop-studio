@@ -206,6 +206,7 @@ const inspector = {
   'panels.kinds.outflow': 'ปริมาณไหลออกที่ขอบเขตตามชนิด',
   'panels.kinds.outflow.row': '{kind} ไปยัง {node}: {amount}',
   'panels.kinds.outflow.noKind': 'ไม่มีชนิด',
+  'panels.kinds.outflow.unitFor': 'หน่วยสำหรับอ่านปริมาณไหลออกของ {kind}',
   'kinds.finding.poolEnds': 'การเชื่อมต่อจาก {from} ไป {to}: ถังพักหนึ่งเป็น {a} อีกถังพักเป็น {b}',
   'kinds.finding.annotation': 'การเชื่อมต่อจาก {from} ไป {to}: ระบุเป็น {edgeKind} บนถังพักชนิด {poolKind}',
   'kinds.finding.gateMixes': '{gate} นำพา {kinds} ไปพร้อมกัน',

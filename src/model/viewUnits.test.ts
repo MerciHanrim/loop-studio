@@ -8,6 +8,7 @@ import { useViewUnitsStore } from '../store/viewUnitsStore'
 import type { ResourceKindDecl } from './kinds'
 import { serialize } from './serialize'
 import type { LoopNode } from './types'
+import { fieldUnitText, type DocTime } from './units'
 import {
   NO_VIEW_UNITS,
   axisMark,
@@ -17,6 +18,9 @@ import {
   compactText,
   fullShown,
   fullText,
+  outflowOptions,
+  outflowReading,
+  outflowShown,
   poolViews,
   shownNumber,
   viewIsOn,
@@ -204,5 +208,64 @@ describe('the view touches nothing stored (§M4-8)', () => {
     expect(useViewUnitsStore.getState().views).toEqual({ water: 'L' })
     useGraphStore.setState({ loadRev: useGraphStore.getState().loadRev + 1 })
     expect(useViewUnitsStore.getState().views).toEqual(NO_VIEW_UNITS)
+  })
+})
+
+// SEMANTICS-M4.md §M4-9 — the Kinds panel's reading of a boundary outflow.
+describe('the outflow reading', () => {
+  const water = KINDS[0]!
+  const hourly: DocTime = { step: { value: 1, unit: 'h' } }
+  const daily: DocTime = { step: { value: 1, unit: 'd' } }
+  const shown = (raw: number, reading: string, time: DocTime | undefined) =>
+    outflowShown(raw, raw, outflowReading({ water: reading }, water, time), water, time)
+
+  it('offers the rate list and the base unit per time, and with no step length only the amounts', () => {
+    expect(outflowOptions(water, hourly).map(fieldUnitText)).toEqual(['', 'm³/s', 'm³/min', 'm³/h', 'm³/d', 'L', 'L/s', 'L/min', 'L/h', 'L/d', 'MLD'])
+    expect(outflowOptions(water, undefined).map(fieldUnitText)).toEqual(['', 'L'])
+    expect(outflowOptions({ name: 'ore', conserved: false }, hourly).map(fieldUnitText)).toEqual([''])
+  })
+
+  it('starts from time.display, and a chosen base reading stays chosen', () => {
+    const shownPerDay: DocTime = { ...hourly, display: 'd' }
+    expect(fieldUnitText(outflowReading({}, water, shownPerDay))).toBe('m³/d')
+    expect(fieldUnitText(outflowReading({}, water, hourly))).toBe('')
+    expect(fieldUnitText(outflowReading({ water: '' }, water, shownPerDay))).toBe('')
+    // with no base unit name there is no base-per-time option to start from
+    const unnamed: ResourceKindDecl = { name: 'ore', conserved: false, units: [{ name: 'kg', factor: '2' }] }
+    expect(fieldUnitText(outflowReading({}, unnamed, shownPerDay))).toBe('')
+  })
+
+  it('reads a name no option carries as the base unit per step', () => {
+    expect(fieldUnitText(outflowReading({ water: 'gal' }, water, hourly))).toBe('')
+    expect(fieldUnitText(outflowReading({ water: 'MLD' }, water, undefined))).toBe('')
+  })
+
+  it('the design cases, under the §M4-5 rule', () => {
+    expect(shown(100, 'L/d', hourly)).toEqual({ number: '2400000', unit: 'L/d', perStep: false })
+    // 0.06 is not exact as a double, so the row is honest about it
+    expect(shown(0.06, 'L/min', hourly)).toEqual({ number: '≈ 1', unit: 'L/min', perStep: false })
+    expect(shown(100, 'm³/h', hourly)).toEqual({ number: '100', unit: 'm³/h', perStep: false })
+    expect(shown(100, 'm³/h', daily)).toEqual({ number: '≈ 4.16666666666667', unit: 'm³/h', perStep: false })
+  })
+
+  it('re-expresses the raw sum, never the rounded amount, whose error a conversion would multiply', () => {
+    const fu = outflowReading({ water: 'MLD' }, water, hourly)
+    expect(outflowShown(16.666666667, 16.666666666666668, fu, water, hourly)?.number).toBe('≈ 0.4')
+    expect(outflowShown(16.666666667, 16.666666667, fu, water, hourly)?.number).toBe('≈ 0.400000000008')
+  })
+
+  it('says per step where the unit is an amount, keeps the report number in the base reading, and leaves an unnamed row alone', () => {
+    const base = outflowReading({}, water, hourly)
+    expect(outflowShown(16.666666667, 16.666666666666668, base, water, hourly)).toEqual({ number: '16.666666667', unit: 'm³', perStep: true })
+    expect(shown(2, 'L', hourly)).toEqual({ number: '2000', unit: 'L', perStep: true })
+    expect(outflowShown(2, 2, { kind: 'base' }, undefined, hourly)).toBeNull()
+    expect(outflowShown(2, 2, { kind: 'base' }, { name: 'ore', conserved: false }, hourly)).toBeNull()
+  })
+
+  it('is session state: another graph drops it and the Timeline choice is separate', () => {
+    useViewUnitsStore.getState().setOutflowView('water', 'MLD')
+    expect(useViewUnitsStore.getState().views).toEqual({})
+    useGraphStore.setState({ loadRev: useGraphStore.getState().loadRev + 1 })
+    expect(useViewUnitsStore.getState().outflowViews).toEqual(NO_VIEW_UNITS)
   })
 })

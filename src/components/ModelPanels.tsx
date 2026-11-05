@@ -7,7 +7,10 @@ import type { LoopNode } from '../model/types'
 import { selectOnly, useGraphStore } from '../store/graphStore'
 import { hasModelLayer } from '../model/modelVersion'
 import { convertersWhoseVerdictChanges, kindFindings, kindFindingEdgeId, kindFindingNodeId, type KindFinding, type ResourceKindDecl } from '../model/kinds'
-import { readRateUnitList, readUnitList, STEP_VALUE_MAX, TIME_UNITS, type DocTime, type RateUnitDecl, type TimeUnit, type UnitDecl } from '../model/units'
+import { fieldUnitText, readRateUnitList, readUnitList, STEP_VALUE_MAX, TIME_UNITS, type DocTime, type FieldUnit, type RateUnitDecl, type TimeUnit, type UnitDecl } from '../model/units'
+import { outflowOptions, outflowReading, outflowShown } from '../model/viewUnits'
+import { useViewUnitsStore } from '../store/viewUnitsStore'
+import type { BoundaryOutflow } from '../engine/boundaryOutflow'
 import { normalizeResourceType } from '../model/model/resourceType'
 import { ConfirmDialog } from './ConfirmDialog'
 import type { LoopEdge } from '../model/types'
@@ -519,12 +522,32 @@ function UnitInput({ value, label, placeholder, disabled, onCommit, maxLength = 
   )
 }
 
+/** the option label of a field unit: the base unit's name (or "base unit"),
+ *  a unit name, `L/min`, `MW`; a rate field says "per step" where the
+ *  amount is per step */
+export function unitOptionLabel(t: ReturnType<typeof useT>, fu: FieldUnit, decl: ResourceKindDecl, role: 'stock' | 'rate'): string {
+  const name = fu.kind === 'base' ? (decl.baseUnit ?? t('inspector.unit.base')) : fu.kind === 'rate' ? fu.unit.name : fu.unit.name
+  if (role === 'rate' && (fu.kind === 'base' || (fu.kind === 'amount' && !fu.per))) return t('inspector.unit.perStep', { unit: isolateAuto(name) })
+  return fieldUnitText(fu) || name
+}
+
+/** §M4-9 — the amount of a boundary-outflow row under its kind's reading. A row
+ *  with nothing to name keeps the report's number. */
+function outflowAmount(t: ReturnType<typeof useT>, o: BoundaryOutflow, fu: FieldUnit, decl: ResourceKindDecl | undefined, time: DocTime | undefined): string | number {
+  const shown = outflowShown(o.amount, o.raw, fu, decl, time)
+  if (!shown) return o.amount
+  const text = `${shown.number} ${shown.unit}`
+  if (shown.perStep) return t('inspector.unit.perStep', { unit: isolateAuto(text) })
+  return isolateAuto(text)
+}
+
 /** The Kinds panel (§M3-1): one row per kind the graph names or the table
  *  declares — Conserved opts it into per-kind conservation (C1), the base
  *  unit is a label (U1 stage 1). A row is in the file only while it is
  *  conserved or has a unit. Below the rows: the findings (D1), each a
  *  read-through to its node or connection, marked when it stops the run; and
- *  the committed step's boundary outflow by kind (L1), never called a loss. */
+ *  the committed step's boundary outflow by kind (L1), never called a loss,
+ *  read in a per-kind unit that is session state (§M4-9). */
 function KindsSection({ nodes, edges, named }: { nodes: LoopNode[]; edges: LoopEdge[]; named: string[] }) {
   const t = useT()
   const open = useUiStore((s) => s.kindsPanelOpen)
@@ -535,6 +558,8 @@ function KindsSection({ nodes, edges, named }: { nodes: LoopNode[]; edges: LoopE
   const time = useGraphStore((s) => s.time)
   const setKinds = useGraphStore((s) => s.setKinds)
   const outflow = useSimStore((s) => s.boundaryOutflow)
+  const outflowViews = useViewUnitsStore((s) => s.outflowViews)
+  const setOutflowView = useViewUnitsStore((s) => s.setOutflowView)
   const reveal = useReveal()
 
   const rows = useMemo<ResourceKindDecl[]>(() => {
@@ -542,6 +567,17 @@ function KindsSection({ nodes, edges, named }: { nodes: LoopNode[]; edges: LoopE
     return [...kinds, ...named.filter((n) => !declared.has(n)).map((name) => ({ name, conserved: false }))]
   }, [kinds, named])
   const findings = useMemo(() => kindFindings(nodes, edges, kinds, modelVersion, time), [nodes, edges, kinds, modelVersion, time])
+  const declOf = (name: string | null) => kinds.find((k) => k.name === name)
+  const readingOf = (name: string | null): FieldUnit => {
+    const decl = declOf(name)
+    return decl ? outflowReading(outflowViews, decl, time) : { kind: 'base' }
+  }
+  // a select for each kind on a row that has more than one way to read it
+  const outflowChoices = [...new Set(outflow.map((o) => o.kind))].flatMap((name) => {
+    const decl = declOf(name)
+    const options = decl ? outflowOptions(decl, time) : []
+    return decl && options.length > 1 ? [{ decl, options }] : []
+  })
 
   const update = (name: string, patch: { conserved?: boolean; baseUnit?: string; units?: UnitDecl[]; rateUnits?: RateUnitDecl[] }) => {
     const cur = kinds.find((k) => k.name === name) ?? { name, conserved: false }
@@ -630,6 +666,26 @@ function KindsSection({ nodes, edges, named }: { nodes: LoopNode[]; edges: LoopE
           {outflow.length > 0 && (
             <>
               <h3 className="mpanel__sub">{t('panels.kinds.outflow')}</h3>
+              {/* reading a number is not an edit, so the edit lock leaves this on */}
+              {outflowChoices.map(({ decl, options }) => (
+                <label key={decl.name} className="mp-row mp-row--reading">
+                  <span className="mp-row__kind" dir="auto" title={decl.name}>
+                    {decl.name}
+                  </span>
+                  <select
+                    className="mp-row__reading"
+                    aria-label={t('panels.kinds.outflow.unitFor', { kind: decl.name })}
+                    value={fieldUnitText(readingOf(decl.name))}
+                    onChange={(e) => setOutflowView(decl.name, e.target.value)}
+                  >
+                    {options.map((fu) => (
+                      <option key={fieldUnitText(fu)} value={fieldUnitText(fu)}>
+                        {unitOptionLabel(t, fu, decl, 'rate')}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
               <ul className="mpanel__list mpanel__list--outflow">
                 {outflow.map((o) => (
                   <li key={`${o.kind ?? ''}\u0001${o.nodeId}`} className="mp-row mp-row--outflow">
@@ -637,7 +693,7 @@ function KindsSection({ nodes, edges, named }: { nodes: LoopNode[]; edges: LoopE
                       {t('panels.kinds.outflow.row', {
                         kind: isolateAuto(o.kind ?? t('panels.kinds.outflow.noKind')),
                         node: isolateAuto(labelOf(nodes.find((n) => n.id === o.nodeId)) || o.nodeId),
-                        amount: o.amount,
+                        amount: outflowAmount(t, o, readingOf(o.kind), declOf(o.kind), time),
                       })}
                     </button>
                   </li>

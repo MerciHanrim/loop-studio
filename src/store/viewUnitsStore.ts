@@ -12,6 +12,10 @@ type ViewUnitsState = {
   views: ViewUnits
   /** `''` is the base unit, which is simply no entry */
   setViewUnit: (kind: string, unit: string) => void
+  /** §M4-9 — the Kinds panel's outflow reading, the same kind of state. `''` IS
+   *  an entry here: no entry means the kind still starts from `time.display` */
+  outflowViews: ViewUnits
+  setOutflowView: (kind: string, reading: string) => void
 }
 
 export const useViewUnitsStore = create<ViewUnitsState>((set) => ({
@@ -23,13 +27,15 @@ export const useViewUnitsStore = create<ViewUnitsState>((set) => ({
       else views[kind] = unit
       return { views }
     }),
+  outflowViews: NO_VIEW_UNITS,
+  setOutflowView: (kind, reading) => set((s) => ({ outflowViews: { ...s.outflowViews, [kind]: reading } })),
 }))
 
 let lastLoadRev = useGraphStore.getState().loadRev
 useGraphStore.subscribe((g) => {
   if (g.loadRev === lastLoadRev) return
   lastLoadRev = g.loadRev
-  useViewUnitsStore.setState({ views: NO_VIEW_UNITS })
+  useViewUnitsStore.setState({ views: NO_VIEW_UNITS, outflowViews: NO_VIEW_UNITS })
 })
 
 /** how every Pool of the document reads on the Timeline right now */

@@ -219,6 +219,7 @@ const inspector = {
   'panels.kinds.outflow': 'التدفق الخارج عند الحدود حسب النوع',
   'panels.kinds.outflow.row': '{kind} إلى {node}: {amount}',
   'panels.kinds.outflow.noKind': 'بلا نوع',
+  'panels.kinds.outflow.unitFor': 'وحدة قراءة التدفق الخارج من {kind}',
   'kinds.finding.poolEnds': 'الوصلة من {from} إلى {to}: أحد الـ Pool هو {a} والآخر {b}.',
   'kinds.finding.annotation': 'الوصلة من {from} إلى {to}: موسوم بـ {edgeKind} على Pool من نوع {poolKind}.',
   'kinds.finding.gateMixes': '{gate} يحمل {kinds}.',

@@ -199,6 +199,7 @@ const inspector = {
   'panels.kinds.outflow': '種類別の境界流出量',
   'panels.kinds.outflow.row': '{node} への {kind}: {amount}',
   'panels.kinds.outflow.noKind': '種類なし',
+  'panels.kinds.outflow.unitFor': '{kind}の流出量を読む単位',
   'kinds.finding.poolEnds': '{from} から {to} への接続: 一方の Pool は {a}、もう一方は {b} です。',
   'kinds.finding.annotation': '{from} から {to} への接続: {poolKind} の Pool に {edgeKind} と記されています。',
   'kinds.finding.gateMixes': '{gate} が {kinds} を一緒に運んでいます。',

@@ -214,6 +214,7 @@ const inspector = {
   'panels.kinds.outflow': 'Sortie aux limites par type',
   'panels.kinds.outflow.row': '{kind} vers {node} : {amount}',
   'panels.kinds.outflow.noKind': 'sans type',
+  'panels.kinds.outflow.unitFor': 'Unité de lecture de la sortie de {kind}',
   'kinds.finding.poolEnds': 'La connexion de {from} à {to} : un Pool est {a}, l’autre {b}.',
   'kinds.finding.annotation': 'La connexion de {from} à {to} : marquée {edgeKind} sur un Pool {poolKind}.',
   'kinds.finding.gateMixes': '{gate} transporte {kinds}.',

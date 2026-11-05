@@ -202,6 +202,7 @@ const inspector = {
   'panels.kinds.outflow': 'Uitstroom over de grens per soort',
   'panels.kinds.outflow.row': '{kind} naar {node}: {amount}',
   'panels.kinds.outflow.noKind': 'geen soort',
+  'panels.kinds.outflow.unitFor': 'Eenheid voor de uitstroom van {kind}',
   'kinds.finding.poolEnds': 'De verbinding van {from} naar {to}: de ene Voorraad is {a}, de andere {b}.',
   'kinds.finding.annotation': 'De verbinding van {from} naar {to}: gemarkeerd als {edgeKind} op een {poolKind}-Voorraad.',
   'kinds.finding.gateMixes': '{gate} voert {kinds}.',

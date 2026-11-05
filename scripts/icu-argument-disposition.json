@@ -11,14 +11,14 @@
   },
   "$implemented": "A row classed `auto` / `ltr` / `per-fragment` is an OPEN obligation: the evidence says the value needs bounding and the code does not bound it yet. C3.5 was scoped to fix the two families that were already evidenced — the unrecognized-column header and the five `import.loc.*` calls — and those moved to `isolate-obligations.json`. The checker asserts these rows are NOT wrapped, so implementing one without moving its row is red in both directions.",
   "totals": {
-    "arguments": 341,
-    "rows": 58,
+    "arguments": 343,
+    "rows": 59,
     "byClass": {
-      "attribute": 14,
+      "attribute": 15,
       "closed-value": 44
     },
     "recordedNotImplemented": 0,
-    "attributeSink": 25
+    "attributeSink": 26
   },
   "rows": [
     {
@@ -190,6 +190,16 @@
       "sink": "attr:select.aria-label",
       "class": "attribute",
       "evidence": "aria-label on a Timeline view-unit select (SEMANTICS-M4.md §M4-8; issue #471). The value is a user KIND NAME, as in the Kinds panel's own labels."
+    },
+    {
+      "file": "src/components/ModelPanels.tsx",
+      "enclosing": "KindsSection",
+      "key": "panels.kinds.outflow.unitFor",
+      "arg": "kind",
+      "ord": 1,
+      "sink": "attr:select.aria-label",
+      "class": "attribute",
+      "evidence": "aria-label on a Kinds-panel outflow reading select (SEMANTICS-M4.md §M4-9; issue #471). The value is a user KIND NAME, as in the Kinds panel's own labels."
     },
     {
       "file": "src/components/ModelPanels.tsx",
