@@ -76,6 +76,16 @@ const inspector = {
   'inspector.edge.flowParam.notParam': '«{id}» bir parametre değil — bu bağlantı 0 katkı verir',
   'inspector.edge.flowParam.malformed':
     'geçerli bir parametre başvurusu değil — bu bağlantı 0 katkı verir',
+  'inspector.edge.timetable.unknown': 'bu belgede «{id}» zaman tablosu yok',
+  'inspector.edge.timetable.name': 'Zaman tablosu: {label}',
+  'inspector.edge.timetable.source': 'Kaynak: {source}',
+  'inspector.edge.timetable.read.hold': 'Her akış bir sonraki noktaya kadar sürer',
+  'inspector.edge.timetable.read.linear': 'Akış noktalar arasında düz bir çizgiyle değişir',
+  'inspector.edge.timetable.after.stop': 'Son zamandan sonra: çalışma durur',
+  'inspector.edge.timetable.lastStep': 'Çalışma {step}. adımdan sonra durur',
+  'inspector.edge.timetable.after.hold': 'Son zamandan sonra: son akış sürer',
+  'inspector.edge.timetable.after.zero': 'Son zamandan sonra: akış 0 olur',
+  'inspector.edge.timetable.after.repeat': 'Son zamandan sonra: tablo baştan başlar',
   'inspector.edge.flowParam.hint':
     'Parametre başvurusu id ile tutulur: parametreyi yeniden adlandırmak sorun çıkarmaz; silmek başvuruyu boşta bırakır (başvuru yeniden yazılmaz).',
   'inspector.field.route': 'Güzergâh',

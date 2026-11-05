@@ -7,7 +7,8 @@ import {
   type RunConfig,
 } from '../engine'
 import type { RecommendedRunConfig } from '../model/serialize'
-import { semanticDigest } from '../model/workspace'
+import { canonicalTimetable } from '../model/timetable'
+import { semanticDigest, sha256Js, utf8Bytes } from '../model/workspace'
 import { ENGINE_REVISION } from '../engine/revision'
 import { useGraphStore } from './graphStore'
 import { useSimStore } from './simStore'
@@ -196,17 +197,29 @@ export const useMcStore = create<McStore>((set, get) => ({
     // loop-model/3 (SEMANTICS-M3.md §M3-4) — a refusing kind finding stops the
     // batch the same way; `step` would refuse every step of it anyway
     if (useSimStore.getState().kindRefusals.length > 0) return
+    if (useSimStore.getState().timetableRefusals.length > 0) return // loop-model/5 — so does a table line
     const g = useGraphStore.getState()
     const nodes = g.nodes.map((n) => ({ ...n }))
     const edges = g.edges.map((e) => ({ ...e }))
     const kinds = g.kinds
     const time = g.time
+    const timetables = g.timetables
     const rev = g.simulationRev
     // loop-model/2 — thread the document's model-semantics version into this
     // run only (never stored on `config`, never in `recommendedRunConfig`);
     // loop-model/3 — and the kinds table, the same way; loop-model/4 — and the
     // step length, which a per-time field's engine value depends on.
-    const config = { ...get().config, modelVersion: g.modelVersion, kinds, time }
+    // loop-model/5 — and the timetables; the result keeps each one's id and digest,
+    // never its points, and a document with no table adds no key at all
+    const config = {
+      ...get().config,
+      modelVersion: g.modelVersion,
+      kinds,
+      time,
+      ...(timetables.length > 0
+        ? { timetables, timetableDigests: timetables.map((t) => ({ id: t.id, digest: sha256Js(utf8Bytes(JSON.stringify(canonicalTimetable(t)))) })) }
+        : {}),
+    }
 
     useSimStore.getState().pause() // the live run yields to the batch
 
@@ -232,7 +245,7 @@ export const useMcStore = create<McStore>((set, get) => ({
       // loop-model/2 (SEMANTICS-M2.md §M2-8): fold in the model-semantics version
       // so a result computed under v1 is not mistaken for a current v2 result
       // (and vice versa) after a promotion / cross-version Import.
-      const resultGraphDigest = await semanticDigest({ nodes, edges, kinds, time }, config.modelVersion)
+      const resultGraphDigest = await semanticDigest({ nodes, edges, kinds, time, timetables }, config.modelVersion)
       // issue #407 — the result belongs to the graph captured at START. If the
       // document's simulation semantics moved on while the run was in flight,
       // it lands already stale: the values, `runGraph`, `runRev` and the digest

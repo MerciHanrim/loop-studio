@@ -9,6 +9,8 @@ import {
 } from '@xyflow/react'
 import { useLocaleDirection, useT } from '../../i18n'
 import type { ContentDir } from '../../i18n/contentDirection'
+import { hasTimetables } from '../../model/modelVersion'
+import { timetableRef } from '../../model/timetable'
 import { useGraphStore } from '../../store/graphStore'
 import { BEAT_ARRIVE, BEAT_DEPART_END, BEAT_SETTLE, useSimStore, type PlaybackPhase } from '../../store/simStore'
 import type { CueRole } from '../../store/playbackRank'
@@ -283,6 +285,9 @@ function LoopEdge({
   // where a rounded amount is fine; a canvas condition/value chip is meant
   // to match the engine's own number exactly, not approximate it).
   const modelVersion = useGraphStore((s) => s.modelVersion)
+  // loop-model/5 — a line that reads a table shows the table's name, not a number
+  const tableId = d.kind === 'resource' && hasTimetables(modelVersion) ? timetableRef(d.flow) : null
+  const tableName = useGraphStore((s) => (tableId === null ? null : (s.timetables.find((x) => x.id === tableId)?.label ?? null)))
   const refErrorLabel = t('canvas.edgeLabel.refMissing')
   const findParamForRhs = (id: string): { kind: string; value?: unknown } | undefined => {
     const node = gNodes.find((n) => n.id === id)
@@ -308,7 +313,9 @@ function LoopEdge({
   let label: EdgeText
   if (d.kind === 'resource') {
     const raw = d.flow || '1'
-    if (raw.includes('@')) {
+    if (tableId !== null) {
+      label = tableName !== null ? prose(tableName) : token(raw)
+    } else if (raw.includes('@')) {
       const fx = parseFlow(raw, modelVersion)
       const value = fx.kind === 'param' ? resolveParamValue(fx.id) : null
       label = value != null ? token(canonicalNumber(value)) : prose(refErrorLabel)

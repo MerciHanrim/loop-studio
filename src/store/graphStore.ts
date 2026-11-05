@@ -28,10 +28,11 @@ import { buildImportCommit, type ImportCommitResult, type PlacementChoice } from
 import type { ValidatedImportPlan } from '../model/dataImportValidate'
 import { buildRefreshCommit, parameterLabel, type RefreshCommitResult, type RefreshDiffPlan, type RefreshResolution } from '../model/dataImportRefresh'
 import { ImportTableLookup } from '../model/dataImportIndex'
-import { hasModelLayer, hasUnits } from '../model/modelVersion'
-import { canonicalKinds, kindsDeclareUnits, type ResourceKindDecl } from '../model/kinds'
+import { hasModelLayer, hasTimetables, hasUnits } from '../model/modelVersion'
+import { canonicalKinds, kindsDeclareUnits, resolveKinds, type ResourceKindDecl } from '../model/kinds'
 import { exportUnits, type ExportUnits } from '../model/exportUnits'
 import { canonicalDocTime, type DocTime } from '../model/units'
+import { canonicalTimetable, timetableLines, type Timetable } from '../model/timetable'
 import { parseActivatorExpr } from '../engine'
 import {
   deserialize,
@@ -112,6 +113,9 @@ export type LoadDocOptions = (
    *  `replaceTime` says the proposal's (possibly absent) value is adopted. */
   time?: DocTime
   replaceTime?: boolean
+  /** loop-model/5 — the doc's timetables. On a document boundary absent means
+   *  none; on a revision Apply it keeps the current ones, as `kinds` does. */
+  timetables?: readonly Timetable[]
 }
 /** a Template load (or a pasted graph) — always a document boundary */
 export type LoadGraphOptions = {
@@ -132,6 +136,8 @@ export type LoadGraphOptions = {
   kinds?: readonly ResourceKindDecl[]
   /** loop-model/4 — a bundled Template's step length, if one ever ships one. */
   time?: DocTime
+  /** loop-model/5 — a bundled Template's timetables, if one ever ships any. */
+  timetables?: readonly Timetable[]
 }
 /** one undo-history frame: the graph, its `modelVersion`, AND an opaque sidecar
  *  (the loop-revision/1 project header at that instant), so a single undo/redo
@@ -148,6 +154,8 @@ type HistoryEntry = {
   kinds: ResourceKindDecl[]
   /** loop-model/4 — the step length at that instant, undone with the edit */
   time?: DocTime
+  /** loop-model/5 — the timetables at that instant */
+  timetables?: Timetable[]
   /** issue #344 step 3 — the record label rule in force (`recordLabels`) */
   recordLabels?: boolean
   sidecar: unknown
@@ -230,6 +238,13 @@ type GraphStore = {
    *  by `newGraph`. Passed to `serialize()` / autosave, to `step()` / Monte
    *  Carlo and into the digests (`step` only; `display` is presentation). */
   time?: DocTime
+
+  /** loop-model/5 (SEMANTICS-M5.md) — the document's timetables, or none. Set
+   *  from the loaded file (absent before `/graph/5`), replaced by
+   *  `setTimetables`, which latches `modelVersion` to 5 (one-way), reset by
+   *  `newGraph`. Passed to `serialize()` / autosave, to `step()` / Monte Carlo
+   *  and into the digests. */
+  timetables: Timetable[]
 
   /** issue #344 step 3 (docs/edge-routing.md §ER15.1) — the document came
    *  from a revision or proposal whose header declares semantics before
@@ -405,6 +420,10 @@ type GraphStore = {
    *  `loop-studio/graph/4`, one-way. The caller has already shown the §M4-4
    *  impact (the Converters whose verdict changes) and holds the consent. */
   setTime: (time: DocTime | undefined) => void
+  /** loop-model/5 — replace the document's timetables: one undo entry, one
+   *  `simulationRev` bump. A table promotes the document to `loop-studio/graph/5`,
+   *  one-way. */
+  setTimetables: (timetables: readonly Timetable[]) => void
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined
@@ -619,6 +638,7 @@ function writeAutosaveNow(): void {
       liveDataImports(),
       s.kinds,
       s.time,
+      s.timetables,
     ),
   )
 }
@@ -745,8 +765,8 @@ export function onlyAccentsDiffer(
  *  #391: identical snapshots and position-only ones used to fall through to
  *  the bump). */
 export function onlyDecorationDiffers(
-  a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion; kinds?: readonly ResourceKindDecl[]; time?: DocTime },
-  b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion; kinds?: readonly ResourceKindDecl[]; time?: DocTime },
+  a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion; kinds?: readonly ResourceKindDecl[]; time?: DocTime; timetables?: readonly Timetable[] },
+  b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion; kinds?: readonly ResourceKindDecl[]; time?: DocTime; timetables?: readonly Timetable[] },
 ): boolean {
   // §ER18 — and a connection's sides (`ports`, cosmetic in SEMANTICS-R11.md):
   // undoing a side-only end move does not reset the run either
@@ -754,8 +774,8 @@ export function onlyDecorationDiffers(
 }
 
 function onlyCosmeticsDiffer(
-  a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion; kinds?: readonly ResourceKindDecl[]; time?: DocTime },
-  b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion; kinds?: readonly ResourceKindDecl[]; time?: DocTime },
+  a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion; kinds?: readonly ResourceKindDecl[]; time?: DocTime; timetables?: readonly Timetable[] },
+  b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion; kinds?: readonly ResourceKindDecl[]; time?: DocTime; timetables?: readonly Timetable[] },
   edgeKeys: readonly string[],
 ): boolean {
   const withoutEdgeKeys = (data: unknown): string => {
@@ -770,6 +790,8 @@ function onlyCosmeticsDiffer(
   if (JSON.stringify(a.kinds ?? []) !== JSON.stringify(b.kinds ?? [])) return false
   // loop-model/4 — the step length scales every per-time field's engine value
   if (JSON.stringify(a.time?.step ?? null) !== JSON.stringify(b.time?.step ?? null)) return false
+  // loop-model/5 — a table's points set what every step moves
+  if (a.timetables !== b.timetables && JSON.stringify(a.timetables ?? []) !== JSON.stringify(b.timetables ?? [])) return false
   if (a.nodes.length !== b.nodes.length || a.edges.length !== b.edges.length) return false
   // a node's `position` is layout, not model (`simulationRev` never moves on
   // a drag), so it is not compared here either (#391)
@@ -903,9 +925,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     if (tag === 'remove') queueMicrotask(() => { if (lastTag === 'remove') lastTag = '' })
     clearPristine() // any edit / load / template — even a coalesced one — ends "pristine"
     if (coalesce) return
-    const { nodes, edges, modelVersion, kinds, time, recordLabels } = get()
+    const { nodes, edges, modelVersion, kinds, time, timetables, recordLabels } = get()
     set({
-      past: [...get().past, { nodes, edges, modelVersion, kinds, time, recordLabels, sidecar: sidecarNow(framesOverride) }].slice(-HISTORY_MAX),
+      past: [...get().past, { nodes, edges, modelVersion, kinds, time, timetables, recordLabels, sidecar: sidecarNow(framesOverride) }].slice(-HISTORY_MAX),
       future: [], // a fresh action discards the redo branch AND its sidecars
       canUndo: true,
       canRedo: false,
@@ -962,8 +984,8 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     notifyFrameChange: () => persist(),
 
     captureGestureSnapshot: () => {
-      const { nodes, edges, modelVersion, kinds, time, recordLabels } = get()
-      const entry: HistoryEntry = { nodes, edges, modelVersion, kinds, time, recordLabels, sidecar: sidecarNow() }
+      const { nodes, edges, modelVersion, kinds, time, timetables, recordLabels } = get()
+      const entry: HistoryEntry = { nodes, edges, modelVersion, kinds, time, timetables, recordLabels, sidecar: sidecarNow() }
       return entry as unknown as GestureSnapshot
     },
     pushGestureEntry: (snapshot) => {
@@ -980,9 +1002,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     beginNodeDrag: () => {
       if (editGuard()) return // #334 — a refused drag opens no transaction
       if (dragTx) return // the node and selection start callbacks of one gesture: the first wins
-      const { nodes, edges, modelVersion, kinds, time, recordLabels } = get()
+      const { nodes, edges, modelVersion, kinds, time, timetables, recordLabels } = get()
       dragTx = {
-        snapshot: { nodes, edges, modelVersion, kinds, time, recordLabels, sidecar: sidecarNow() },
+        snapshot: { nodes, edges, modelVersion, kinds, time, timetables, recordLabels, sidecar: sidecarNow() },
         positions: new Map(nodes.map((n) => [n.id, { x: n.position.x, y: n.position.y }])),
       }
     },
@@ -1033,6 +1055,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     modelVersion: bootModelVersion,
     kinds: stored?.kinds ?? [],
     time: stored?.time,
+    timetables: stored?.timetables ?? [],
     // issue #344 step 3 (§ER15.1) — the autosaved Project header says which
     // label rule the document had; a header written before the key existed is
     // a record from before `loop-revision/10`. A proposal session is not
@@ -1045,7 +1068,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     undo: () => {
       if (editGuard()) return // #334 — refused while the edit lock is on
-      const { past, future, nodes, edges, modelVersion, kinds, time, recordLabels } = get()
+      const { past, future, nodes, edges, modelVersion, kinds, time, timetables, recordLabels } = get()
       if (!past.length) return
       const prev = past[past.length - 1]
       lastTag = ''
@@ -1054,14 +1077,15 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         modelVersion: prev.modelVersion,
         kinds: prev.kinds,
         time: prev.time,
+        timetables: prev.timetables ?? [],
         recordLabels: prev.recordLabels ?? false,
         past: past.slice(0, -1),
-        future: [{ nodes, edges, modelVersion, kinds, time, recordLabels, sidecar: sidecarNow(), ...(prev.selection ? { selection: prev.selection } : {}) }, ...future].slice(0, HISTORY_MAX),
+        future: [{ nodes, edges, modelVersion, kinds, time, timetables, recordLabels, sidecar: sidecarNow(), ...(prev.selection ? { selection: prev.selection } : {}) }, ...future].slice(0, HISTORY_MAX),
         canUndo: past.length > 1,
         canRedo: true,
       })
       // FC-2.4 / R10-INV-2 — undoing a flow colour, a shape or a bend point is not a model change
-      if (onlyDecorationDiffers({ nodes, edges, modelVersion, kinds, time },prev)) clearPristine()
+      if (onlyDecorationDiffers({ nodes, edges, modelVersion, kinds, time, timetables },prev)) clearPristine()
       else bump()
       persist()
       restoreSidecar(prev.sidecar) // restore the project header + saved frames this entry carried
@@ -1069,7 +1093,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     redo: () => {
       if (editGuard()) return // #334 — refused while the edit lock is on
-      const { past, future, nodes, edges, modelVersion, kinds, time, recordLabels } = get()
+      const { past, future, nodes, edges, modelVersion, kinds, time, timetables, recordLabels } = get()
       if (!future.length) return
       const next = future[0]
       lastTag = ''
@@ -1078,14 +1102,15 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         modelVersion: next.modelVersion,
         kinds: next.kinds,
         time: next.time,
+        timetables: next.timetables ?? [],
         recordLabels: next.recordLabels ?? false,
-        past: [...past, { nodes, edges, modelVersion, kinds, time, recordLabels, sidecar: sidecarNow(), ...(next.selection ? { selection: next.selection } : {}) }].slice(-HISTORY_MAX),
+        past: [...past, { nodes, edges, modelVersion, kinds, time, timetables, recordLabels, sidecar: sidecarNow(), ...(next.selection ? { selection: next.selection } : {}) }].slice(-HISTORY_MAX),
         future: future.slice(1),
         canUndo: true,
         canRedo: future.length > 1,
       })
       // FC-2.4 / R10-INV-2 — redoing a flow colour, a shape or a bend point is not a model change
-      if (onlyDecorationDiffers({ nodes, edges, modelVersion, kinds, time },next)) clearPristine()
+      if (onlyDecorationDiffers({ nodes, edges, modelVersion, kinds, time, timetables },next)) clearPristine()
       else bump()
       persist()
       restoreSidecar(next.sidecar) // restore the project header + saved frames this entry carried
@@ -1453,6 +1478,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         modelVersion: 1,
         kinds: [], // loop-model/3 — an empty canvas declares no kinds
         time: undefined, // loop-model/4 — and no step length
+        timetables: [], // loop-model/5 — and no timetables
         recordLabels: false,
         loadRev: get().loadRev + 1,
         pendingInitialView: null, // §MML3 — no menu framing survives a New
@@ -1472,7 +1498,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       persist()
     },
 
-    loadGraph: (snapshot, { canvasLocked, modelVersion = 1, initialView = null, frames, dataImports, kinds, time }) => {
+    loadGraph: (snapshot, { canvasLocked, modelVersion = 1, initialView = null, frames, dataImports, kinds, time, timetables }) => {
       // templates and pasted graphs go through the same handle/field backfill
       const { nodes, edges } = normalizeGraph(snapshot)
       const fresh = enterDocument(canvasLocked)
@@ -1486,6 +1512,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         modelVersion,
         kinds: kinds ? canonicalKinds(kinds) : [], // loop-model/3 — a Template's table, or none
         time: canonicalDocTime(time), // loop-model/4 — a Template's step length, or none
+        timetables: timetables ? timetables.map(canonicalTimetable) : [], // loop-model/5 — its timetables, or none
         recordLabels: false,
         loadRev: get().loadRev + 1,
         fitRev: get().fitRev + 1,
@@ -1504,10 +1531,10 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     loadJSON: (text) => {
-      const { nodes, edges, recommendedRunConfig, modelVersion, layoutVersion, frames, dataImports, kinds, time } = deserialize(text)
+      const { nodes, edges, recommendedRunConfig, modelVersion, layoutVersion, frames, dataImports, kinds, time, timetables } = deserialize(text)
       get().loadDoc(
         { nodes, edges },
-        { mode: 'document-boundary', canvasLocked: recommendedRunConfig?.canvasLocked === true, modelVersion, layoutVersion, frames, dataImports, kinds, time },
+        { mode: 'document-boundary', canvasLocked: recommendedRunConfig?.canvasLocked === true, modelVersion, layoutVersion, frames, dataImports, kinds, time, timetables },
       )
       return recommendedRunConfig
     },
@@ -1551,6 +1578,8 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         // loop-model/4 — the step length, the same way: another document brings
         // its own (none ⇒ none); a revision Apply replaces it only when asked
         time: opts.mode === 'document-boundary' || opts.replaceTime ? canonicalDocTime(opts.time) : get().time,
+        // loop-model/5 — the timetables, as the kinds table
+        timetables: opts.timetables !== undefined ? opts.timetables.map(canonicalTimetable) : opts.mode === 'document-boundary' ? [] : get().timetables,
         // issue #344 step 3 — another document says which label rule it takes;
         // a revision Apply edits this one and keeps its rule
         recordLabels: opts.mode === 'document-boundary' ? opts.recordLabels === true : get().recordLabels,
@@ -1570,7 +1599,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       if (editGuard()) return { ok: false, reason: 'locked' } // #334 — the edit lock
       const g = get()
       const built = insertGraph(
-        { nodes: g.nodes, edges: g.edges, modelVersion: g.modelVersion, kinds: g.kinds, time: g.time },
+        { nodes: g.nodes, edges: g.edges, modelVersion: g.modelVersion, kinds: g.kinds, time: g.time, timetables: g.timetables },
         mod,
         { at: opts.free ? opts.at : snapNodePosition(opts.at) }, // issue #344 §DL3 — the anchor on the grid
       )
@@ -1619,6 +1648,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         modelVersion: built.modelVersion,
         kinds: built.kinds, // loop-model/3 — the host's table, then the module's new kinds (§MS3.4)
         time: built.time, // loop-model/4 — the host's step length, or the module's when the host had none
+        timetables: built.timetables, // loop-model/5 — the host's tables, then the module's
         selectedNodeId: insertedSelection.nodeId,
         selectedEdgeId: null,
       })
@@ -1727,6 +1757,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         liveDataImports(),
         get().kinds,
         get().time,
+        get().timetables,
       ),
 
     setKinds: (next) => {
@@ -1762,6 +1793,22 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       // `display` alone is presentation, but the store does not tell the two
       // apart here: a per-time field's engine value depends on `step`, and the
       // caller changes `display` rarely; one bump is the safe reading
+      bump()
+      persist()
+    },
+
+    setTimetables: (next) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
+      const timetables = next.map(canonicalTimetable)
+      const cur = get()
+      if (JSON.stringify(timetables) === JSON.stringify(cur.timetables)) return
+      commit('')
+      lastTag = ''
+      set({
+        timetables,
+        // §M5-1 — a table promotes the document to /graph/5, one-way
+        modelVersion: timetables.length > 0 && !hasTimetables(cur.modelVersion) ? 5 : cur.modelVersion,
+      })
       bump()
       persist()
     },
@@ -1847,6 +1894,18 @@ useI18n.subscribe((s) => {
 
 /** SEMANTICS-M4.md §M4-6 — the open document's unit table, read when an export
  *  is written */
+/** loop-model/5 (SEMANTICS-M5.md §M5-6) — the lines of the document that read a
+ *  table, as the Timeline CSV names them: base unit per step, under the line's kind */
+export function documentTableLines(): { edgeId: string; label: string; unit?: string }[] {
+  const { nodes, edges, kinds, timetables, modelVersion } = useGraphStore.getState()
+  if (!hasTimetables(modelVersion)) return []
+  const edgeKind = resolveKinds(nodes, edges).edgeKind
+  return timetableLines(edges).map(({ edge, tableId }) => {
+    const unit = kinds.find((k) => k.name === edgeKind.get(edge.id))?.baseUnit
+    return { edgeId: edge.id, label: timetables.find((t) => t.id === tableId)?.label ?? tableId, ...(unit ? { unit } : {}) }
+  })
+}
+
 export function documentExportUnits(): ExportUnits {
   const { nodes, kinds } = useGraphStore.getState()
   return exportUnits(nodes, kinds)

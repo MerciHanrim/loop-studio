@@ -2,7 +2,9 @@ import { create } from 'zustand'
 import { initSim, step } from '../engine'
 import type { FlowEvent, SimState, SimValues, StateEvent, StepResult, TriggerQueueEntry } from '../engine'
 import { type ConverterGroup, refusedGroups } from '../engine/converterGroups'
-import type { GateStatus, StepNotice } from '../engine/types'
+import type { GateStatus, StepNotice, TimetableLineReport } from '../engine/types'
+import { hasTimetables } from '../model/modelVersion'
+import { timetableFindings, type TimetableFinding } from '../model/timetable'
 import type { BoundaryOutflow } from '../engine/boundaryOutflow'
 import { refusingKindFindings, type KindFinding } from '../model/kinds'
 import { MAX_SERIES } from '../model/limits'
@@ -76,6 +78,8 @@ export type PreparedResult = {
     diagnostics: string[]
     /** `StepReport.notices` of this step (#471 — worded by the run bars) */
     notices: StepNotice[]
+    /** `StepReport.timetableLines` of this step (loop-model/5) */
+    timetableLines: TimetableLineReport[]
     /** `StepReport.gates` of this step (#477 — the Gate state LED and the Inspector's line) */
     gates: GateStatus[]
     /** `StepReport.boundaryOutflow` of this step (loop-model/3 §M3-5; `[]` without a kinds table) */
@@ -160,6 +164,9 @@ type SimStore = {
    *  its kinds table on every simulation-relevant change; `step` refuses with
    *  the same list. `[]` for a document with no conserved kind. */
   kindRefusals: KindFinding[]
+  /** loop-model/5 (SEMANTICS-M5.md §M5-5) — the table lines that refuse the run,
+   *  worded by the run bars. Play, Step and Monte Carlo do not start. */
+  timetableRefusals: TimetableFinding[]
   /** loop-model/3 (§M3-5, L1) — the committed step's boundary outflow by kind
    *  (`StepReport.boundaryOutflow`); `[]` without a kinds table. Same
    *  lifecycle as `gates`. */
@@ -181,7 +188,7 @@ type SimStore = {
    *  (§LGR3.4). (There is no "seek" today; a future jump-to-step must clear it.) */
   activitySteps: string[][]
 
-  series: { step: number; values: SimValues }[]
+  series: { step: number; values: SimValues; timetableLines?: TimetableLineReport[] }[]
 
   /** which series the timeline plots — the three-state model of
    *  `docs/timeline-series-contract.md` §3: `'auto'` (the automatic default; the
@@ -294,7 +301,7 @@ export type SimSnapshot = {
   fired: string[]
   triggerQueue: TriggerQueueEntry[]
   stateEvents: StateEvent[]
-  series: { step: number; values: SimValues }[]
+  series: { step: number; values: SimValues; timetableLines?: TimetableLineReport[] }[]
 }
 
 // ── module-private scheduler state (not in the store; disposable) ─────────
@@ -334,6 +341,8 @@ export const useSimStore = create<SimStore>((set, get) => {
   const graph = () => useGraphStore.getState()
   /** loop-model/3 — the findings that refuse the run under the current kinds table */
   const kindRefused = () => refusingKindFindings(graph().nodes, graph().edges, graph().kinds, graph().modelVersion, graph().time)
+  /** loop-model/5 — the findings that refuse the run under the current tables */
+  const tableRefused = () => (hasTimetables(graph().modelVersion) ? timetableFindings(graph().nodes, graph().edges, graph().timetables, graph().kinds, graph().time) : [])
 
   // §PB6 — τ maps to this wall-clock span. Reduced motion does NOT get its own
   // (shorter) span here: instead `loop()` drives an RM transition straight to
@@ -369,12 +378,12 @@ export const useSimStore = create<SimStore>((set, get) => {
         triggerQueue: s.triggerQueue,
       }
     const { init, error } = safeInit(graph().nodes)
-    set({ values: init.values, stepIndex: 0, triggerQueue: [], series: [{ step: 0, values: init.values }], initError: error, refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused() })
+    set({ values: init.values, stepIndex: 0, triggerQueue: [], series: [{ step: 0, values: init.values }], initError: error, refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(), timetableRefusals: tableRefused() })
     return init
   }
   /** #471 — Play / Step do not start while a group is refused (see `refusals`)
    *  or a kind finding refuses the run (loop-model/3, see `kindRefusals`) */
-  const refused = () => get().initError != null || get().refusals.length > 0 || get().kindRefusals.length > 0
+  const refused = () => get().initError != null || get().refusals.length > 0 || get().kindRefusals.length > 0 || get().timetableRefusals.length > 0
 
   const deriveFrom = (r: StepResult): PreparedResult['derived'] => {
     const g = graph()
@@ -395,6 +404,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       triggerQueue: [...r.state.triggerQueue],
       diagnostics: [...new Set(r.report.diagnostics)],
       notices: [...r.report.notices],
+      timetableLines: [...(r.report.timetableLines ?? [])],
       gates: [...r.report.gates],
       boundaryOutflow: [...(r.report.boundaryOutflow ?? [])],
     }
@@ -404,7 +414,7 @@ export const useSimStore = create<SimStore>((set, get) => {
   const prepareTransition = (): PreparedResult => {
     const g = graph()
     const h = head()
-    const r = step(g.nodes, g.edges, h, get().seed, g.modelVersion, { kinds: g.kinds, time: g.time })
+    const r = step(g.nodes, g.edges, h, get().seed, g.modelVersion, { kinds: g.kinds, time: g.time, timetables: g.timetables })
     return {
       fromStep: h.step,
       expectedCommitEpoch: get().commitEpoch,
@@ -479,7 +489,11 @@ export const useSimStore = create<SimStore>((set, get) => {
           ]),
         ].sort(),
       ].slice(-ACTIVITY_WINDOW),
-      series: [...s.series, { step: p.toState.step, values: p.toState.values }].slice(-MAX_SERIES),
+      // a `stop` table ends the run without consuming the step: no new point
+      series:
+        p.toState.step === p.fromStep
+          ? s.series
+          : [...s.series, { step: p.toState.step, values: p.toState.values, ...(p.derived.timetableLines.length > 0 ? { timetableLines: p.derived.timetableLines } : {}) }].slice(-MAX_SERIES),
       status: p.toState.ended ? 'ended' : s.status === 'idle' ? 'paused' : s.status,
       commitEpoch: s.commitEpoch + 1,
       lastSettledTransitionId: p.transitionId,
@@ -652,6 +666,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     initError: null,
     refusals: [],
     kindRefusals: [],
+    timetableRefusals: [],
     activitySteps: [],
     steadyState: false,
     series: [],
@@ -729,7 +744,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         gates: [],
         boundaryOutflow: [],
         initError: error,
-        refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(),
+        refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(), timetableRefusals: tableRefused(),
         activitySteps: [],
         steadyState: false,
         series: [{ step: 0, values: init.values }],
@@ -762,7 +777,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         gates: [],
         boundaryOutflow: [],
         initError: null, // a verified snapshot IS a valid head
-        refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(), // a refused shape stays refused: a restored head does not step
+        refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(), timetableRefusals: tableRefused(), // a refused shape stays refused: a restored head does not step
         activitySteps: [],
         commitEpoch: s.commitEpoch + 1,
         lastSettledTransitionId: null,

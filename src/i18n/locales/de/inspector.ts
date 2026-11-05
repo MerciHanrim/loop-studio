@@ -87,6 +87,16 @@ const inspector = {
     '„{id}“ ist kein Parameter — diese Verbindung trägt 0 bei',
   'inspector.edge.flowParam.malformed':
     'keine gültige Parameterreferenz — diese Verbindung trägt 0 bei',
+  'inspector.edge.timetable.unknown': 'keine Zeittabelle „{id}“ in diesem Dokument',
+  'inspector.edge.timetable.name': 'Zeittabelle: {label}',
+  'inspector.edge.timetable.source': 'Quelle: {source}',
+  'inspector.edge.timetable.read.hold': 'Jede Rate gilt bis zum nächsten Punkt',
+  'inspector.edge.timetable.read.linear': 'Die Rate ändert sich zwischen den Punkten geradlinig',
+  'inspector.edge.timetable.after.stop': 'Nach der letzten Zeit: Der Lauf stoppt',
+  'inspector.edge.timetable.lastStep': 'Der Lauf stoppt nach Schritt {step}',
+  'inspector.edge.timetable.after.hold': 'Nach der letzten Zeit: Die letzte Rate gilt weiter',
+  'inspector.edge.timetable.after.zero': 'Nach der letzten Zeit: Die Rate ist 0',
+  'inspector.edge.timetable.after.repeat': 'Nach der letzten Zeit: Die Tabelle beginnt von vorn',
   'inspector.edge.flowParam.hint':
     'Eine Parameterreferenz wird über die ID gehalten: Umbenennen ist unproblematisch; beim Löschen bleibt die Referenz ins Leere zeigen (sie wird nicht umgeschrieben).',
   'inspector.field.route': 'Linienführung',

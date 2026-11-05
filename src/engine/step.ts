@@ -1,6 +1,8 @@
 import type { Activation, LoopEdge, LoopNode } from '../model/types'
 import { kindFindingText, refusingKindFindings, resolveKinds, type ResourceKindDecl } from '../model/kinds'
 import { applyUnits } from '../model/engineValues'
+import { hasTimetables } from '../model/modelVersion'
+import { applyTimetables, timetableFindings, timetableFindingText, timetableLines, unmetAmount, type PlannedLine, type Timetable } from '../model/timetable'
 import type { DocTime } from '../model/units'
 import { boundaryOutflowByKind } from './boundaryOutflow'
 import { converterGroups, refusedGroups } from './converterGroups'
@@ -24,7 +26,7 @@ import {
 // every other direct `from './step'` import of it — unchanged. A bare
 // `import` does not re-export a name, so this line is required.
 export { ROUTER_KINDS } from './stateExpr'
-import { EPSILON, type GateStatus, type SimState, type SimValues, type StateEvent, type StepNotice, type StepResult, type TriggerQueueEntry } from './types'
+import { EPSILON, type FlowEvent, type GateStatus, type SimState, type SimValues, type StateEvent, type StepNotice, type StepResult, type TimetableLineReport, type TriggerQueueEntry } from './types'
 
 // Engine A — the deterministic core. Implements SEMANTICS.md §6 exactly:
 // Phase 1 push (Sources), then Phase 2 pull (Gate / Converter / Drain / End)
@@ -76,6 +78,11 @@ export function initSim(nodes: LoopNode[], opts: Pick<StepOptions, 'kinds' | 'ti
 
 const TRIGGERABLE = new Set(['passive', 'interactive'])
 
+/** §M5-6 — what each table line actually moved this step */
+function withMoved(lines: readonly PlannedLine[], events: readonly FlowEvent[]): TimetableLineReport[] {
+  return lines.map((l) => ({ ...l, moved: events.reduce((sum, ev) => (ev.edgeId === l.edgeId ? sum + ev.amount : sum), 0) }))
+}
+
 export type StepOptions = {
   /** loop-model/3 (SEMANTICS-M3.md) — the document's kinds table. With a
    *  non-empty one, a refusing finding (§M3-4: a conflict, a not-computable or
@@ -87,6 +94,9 @@ export type StepOptions = {
    *  a per-time or rate-unit field's engine value depends on. Absent ⇒ no
    *  per-time field resolves (its number is read as the base unit per step). */
   time?: DocTime
+  /** loop-model/5 (SEMANTICS-M5.md) — the document's timetables, which a `~id`
+   *  flow reads. A document with no table line steps as it did, event for event. */
+  timetables?: readonly Timetable[]
 }
 
 export function step(
@@ -117,6 +127,28 @@ export function step(
   const authoredNodes = nodes
   const authoredEdges = edges
   ;({ nodes, edges } = applyUnits(nodes, edges, opts.kinds, opts.time))
+  // loop-model/5 (SEMANTICS-M5.md §M5-5) — a table line that cannot run refuses
+  // the step: nothing moves and the step is not consumed. Otherwise each table
+  // line carries this step's amount as a constant from here on, so every phase
+  // below reads it as it reads any other number.
+  let tablePlan: ReturnType<typeof applyTimetables> | null = null
+  if (hasTimetables(modelVersion) && timetableLines(edges).length > 0) {
+    const found = timetableFindings(nodes, edges, opts.timetables, opts.kinds, opts.time)
+    if (found.length) {
+      return {
+        state: { step: prev.step, values: prev.values, ended: false, fired: [], triggerQueue: prev.triggerQueue },
+        report: { events: [], activated: [], fired: [], stateEvents: [], diagnostics: found.map((f) => timetableFindingText(f, nodes, edges)), notices: [], gates: [] },
+      }
+    }
+    tablePlan = applyTimetables(nodes, edges, opts.timetables!, opts.kinds, opts.time!, curStep)
+    if (tablePlan.notFinite) {
+      return {
+        state: { step: prev.step, values: prev.values, ended: false, fired: [], triggerQueue: prev.triggerQueue },
+        report: { events: [], activated: [], fired: [], stateEvents: [], diagnostics: [timetableFindingText(tablePlan.notFinite, nodes, edges)], notices: [], gates: [] },
+      }
+    }
+    edges = tablePlan.edges
+  }
   const byId = new Map(nodes.map((n) => [n.id, n]))
   // loop-model/1: `parameter` / `register` have no ports — the engine ignores
   // ANY edge incident to one (a malformed / hand-authored file can carry them).
@@ -166,6 +198,17 @@ export function step(
           gates: [],
         },
       }
+    }
+  }
+  // loop-model/5 (§M5-4) — a `stop` table does not cover this step: the run ends
+  // before it. Nothing is invented for the part of the step it does not describe.
+  if (tablePlan?.endedBy) {
+    return {
+      state: { step: prev.step, values: prev.values, ended: true, fired: [], triggerQueue: prev.triggerQueue },
+      report: {
+        events: [], activated: [], fired: [], stateEvents: [], diagnostics: [], gates: [],
+        notices: [{ kind: 'timetableEnded', tableId: tablePlan.endedBy.id, label: tablePlan.endedBy.label }],
+      },
     }
   }
   // loop-model/2 (SEMANTICS-M2.md §M2-3): in a v2 document, resolve every
@@ -2413,6 +2456,14 @@ export function step(
 
   const firedList = [...fired].sort()
 
+  // §M5-6 — a table line short of its plan says so. A want below `EPSILON` moves
+  // nothing by the engine's own rule: unmet in the numbers, not worth a message.
+  const tableLines = tablePlan ? withMoved(tablePlan.lines, events) : null
+  for (const l of tableLines ?? []) {
+    const amount = unmetAmount(l.planned, l.moved)
+    if (amount > EPSILON) notices.push({ kind: 'timetableUnmet', edgeId: l.edgeId, tableId: l.tableId, label: opts.timetables!.find((t) => t.id === l.tableId)!.label, amount })
+  }
+
   return {
     state: { step: curStep, values: working, ended, fired: firedList, triggerQueue },
     report: {
@@ -2423,6 +2474,7 @@ export function step(
       diagnostics,
       notices,
       gates,
+      ...(tableLines ? { timetableLines: tableLines } : {}),
       // §M3-5 (L1) — only for a document with a kinds table; a v2 report has no key
       ...(kindRes ? { boundaryOutflow: boundaryOutflowByKind(events, nodes, liveEdges, kindRes.edgeKind) } : {}),
     },

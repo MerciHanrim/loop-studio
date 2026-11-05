@@ -19,8 +19,9 @@ import {
 import { normalizeGraph, readDataImports, readSavedFrames, schemaForModelVersion } from './serialize'
 import type { ImportSourceTable, RecommendedRunConfig, SavedFrame } from './serialize'
 import type { FlowNodeKind, LoopEdge, LoopNode } from './types'
-import { hasKindsTable, hasModelLayer, hasUnits, isModelSemanticsLabel, modelSemanticsLabel, type ModelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
+import { hasKindsTable, hasModelLayer, hasTimetables, hasUnits, isModelSemanticsLabel, modelSemanticsLabel, type ModelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
 import { canonicalKinds, readKindsAt, type ResourceKindDecl } from './kinds'
+import { canonicalTimetable, readTimetables, type Timetable } from './timetable'
 import { canonicalDocTime, readDocTime, type DocTime } from './units'
 import { sha256Hex, sha256Js, utf8ByteLength, utf8Bytes } from './workspace'
 
@@ -134,6 +135,13 @@ export type CanonicalContent = {
    * per-time field's engine value depends on it).
    */
   time?: { step: DocTime['step'] }
+  /**
+   * loop-model/5 (SEMANTICS-M5.md §M5-7) — the timetables, as decimal text. A
+   * trailing key AFTER `time`, BEFORE `modelSemantics`; present **iff** a table
+   * survives the §M5-2 read AND the projection runs at a version with tables.
+   * Engine input: a table's points set what every step moves.
+   */
+  timetables?: Timetable[]
   /**
    * loop-model/2 (SEMANTICS-M2.md §M2-8) — the model-semantics discriminator.
    * Present (as `"loop-model/2"`, or `"loop-model/N"` for a later version N)
@@ -611,6 +619,8 @@ export function canonicalContent(
     /** loop-model/4 — raw or already-clean step length (§M4-3 is applied here
      *  defensively, so a caller may pass either). */
     time?: unknown
+    /** loop-model/5 — raw or already-clean timetables (§M5-2 is applied here) */
+    timetables?: unknown
   },
   opts: { modelLayer?: boolean; modelVersion?: CanonModelVersion } = {},
 ): CanonicalContent {
@@ -703,6 +713,12 @@ export function canonicalContent(
   if (modelLayer && hasUnits(opts.modelVersion)) {
     const time = readDocTime(doc.time)
     if (time !== undefined) out.time = { step: { value: time.step.value, unit: time.step.unit } }
+  }
+  // loop-model/5 (SEMANTICS-M5.md §M5-7) — `timetables` AFTER `time`, BEFORE
+  // `modelSemantics`, only at a version with tables, only when ≥ 1 is present.
+  if (modelLayer && hasTimetables(opts.modelVersion)) {
+    const tables = readTimetables(doc.timetables)
+    if (tables.ok && tables.tables.length > 0) out.timetables = tables.tables.map(canonicalTimetable)
   }
   // loop-model/2 (SEMANTICS-M2.md §M2-8) — trailing discriminator, ONLY for a
   // model-layer document. Absent ⇒ v1 canonical bytes / digest are untouched (M2-INV-9).
@@ -825,6 +841,8 @@ export function readRevisionSide(
     /** loop-model/4 (SEMANTICS-M4.md §M4-6) — the side's step length (from
      *  `deserialize`; absent before `/graph/4`), projected at the declared version. */
     time?: DocTime
+    /** loop-model/5 — the side's timetables, projected at the declared version. */
+    timetables?: readonly Timetable[]
     /** `SEMANTICS-R8.md` §R8-1 — true when the file's RAW, pre-defensive-read
      *  content carried a data-import provenance signal (an invalid-typed
      *  provenance key, or a `dataImports` entry) that `readDataImports` /
@@ -2194,6 +2212,10 @@ function readCanonicalContent(x: unknown): CanonicalContent | null {
   if (o.time && typeof o.time === 'object' && !Array.isArray(o.time)) {
     out.time = o.time as NonNullable<CanonicalContent['time']>
   }
+  // loop-model/5 — and a v5 one carries the trailing `timetables`, verbatim.
+  if (Array.isArray(o.timetables) && o.timetables.length > 0) {
+    out.timetables = o.timetables as NonNullable<CanonicalContent['timetables']>
+  }
   // loop-model/2 (SEMANTICS-M2.md §M2-8) — a stored base snapshot from a v2
   // document carries the trailing discriminator; keep it verbatim (after rrc,
   // the same key order `canonicalContent` emits) so the stored digest verifies.
@@ -2244,6 +2266,8 @@ export type GraphDocInput = {
   /** loop-model/4 (SEMANTICS-M4.md §M4-3) — the doc's step length. Absent ⇒
    *  no `time` key and no digest contribution. */
   time?: DocTime
+  /** loop-model/5 (§M5-7) — the doc's timetables. Absent / empty ⇒ no key. */
+  timetables?: readonly Timetable[]
   workspace?: unknown
 }
 
@@ -2464,6 +2488,8 @@ function buildFile(
   // §M4-3 — `time` after `kinds`, only when declared, in its read form.
   const time = canonicalDocTime(doc.time)
   if (time !== undefined) file.time = time
+  // §M5-1 — `timetables` after `time`, only when non-empty.
+  if (Array.isArray(doc.timetables) && doc.timetables.length > 0) file.timetables = doc.timetables.map(canonicalTimetable)
   if (doc.workspace && typeof doc.workspace === 'object') file.workspace = doc.workspace
   file.project = project
   return file

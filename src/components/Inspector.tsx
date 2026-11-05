@@ -32,6 +32,7 @@ import { useGraphStore } from '../store/graphStore'
 import { useRegisterOutcome } from '../store/registers'
 import { useRouteEditStore } from '../store/routeEditStore'
 import { useSimStore } from '../store/simStore'
+import { timetableRefusalText } from '../ui/runMessages'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { AccentField } from './AccentField'
@@ -46,6 +47,8 @@ import { CONNECT_KINDS, connectKindOf, type ConnectKind } from '../model/connect
 import { useT, type MessageKey } from '../i18n'
 import { GATE_STATE_KEY, GATE_WHY_KEY } from './nodes/nodes'
 import { isolateAuto, isolateLtr } from '../i18n/bidiIsolate'
+import { hasTimetables } from '../model/modelVersion'
+import { firstUncoveredStep, timetableRef } from '../model/timetable'
 import type {
   ConverterData,
   DrainData,
@@ -334,8 +337,9 @@ export function Inspector({ editLocked = false }: { editLocked?: boolean } = {})
             <>
               <EdgeFlowField flow={ed.flow} params={paramOptions} onChange={(flow) => setData({ ...ed, kind: 'resource', flow })} />
               {/* loop-model/4 — the unit the rate is authored in, keyed per
-                  connection so a pending confirm never carries over */}
-              <EdgeUnitField key={`unit:${edge.id}`} edgeId={edge.id} ed={ed} setData={setData} />
+                  connection so a pending confirm never carries over; a line
+                  that reads a table takes the table's unit */}
+              {timetableRef(ed.flow) === null && <EdgeUnitField key={`unit:${edge.id}`} edgeId={edge.id} ed={ed} setData={setData} />}
             </>
           ) : legacyState ? (
             <LegacyStateEdge ed={ed} setData={setData} />
@@ -540,9 +544,45 @@ function EdgeFlowField({
         </span>
       )}
       {isRef && <span className="inspector__note">{t('inspector.edge.flowParam.hint')}</span>}
+      <TimetableNote flow={flow} />
     </Field>
   )
 }
+
+/** loop-model/5 (SEMANTICS-M5.md §M5-2) — what a line's table says: its name,
+ *  where the numbers came from, how it is read and what follows its end. A table
+ *  is read-only here: its points come in through a file. */
+function TimetableNote({ flow }: { flow: string }) {
+  const t = useT()
+  const modelVersion = useGraphStore((s) => s.modelVersion)
+  const id = hasTimetables(modelVersion) ? timetableRef(flow) : null
+  const table = useGraphStore((s) => (id === null ? undefined : s.timetables.find((x) => x.id === id)))
+  const time = useGraphStore((s) => s.time)
+  const timetables = useGraphStore((s) => s.timetables)
+  const edgeId = useGraphStore((s) => s.selectedEdgeId)
+  const refusal = useSimStore((s) => s.timetableRefusals.find((f) => f.edgeId === edgeId) ?? null)
+  if (id === null) return null
+  if (!table) return <span className="inspector__note inspector__note--warn">{t('inspector.edge.timetable.unknown', { id: isolateLtr(id) })}</span>
+  const first = time ? firstUncoveredStep(table, time) : null
+  const lastStep = first === null ? null : first - 1
+  return (
+    <span className="inspector__notes">
+      {refusal && <span className="inspector__note inspector__note--warn">{timetableRefusalText(refusal, timetables, t)}</span>}
+      <span className="inspector__note">{t('inspector.edge.timetable.name', { label: isolateAuto(table.label) })}</span>
+      <span className="inspector__note">{t('inspector.edge.timetable.source', { source: isolateAuto(table.source) })}</span>
+      <span className="inspector__note">{t(table.read === 'hold' ? 'inspector.edge.timetable.read.hold' : 'inspector.edge.timetable.read.linear')}</span>
+      <span className="inspector__note">{t(TIMETABLE_AFTER_KEY[table.after])}</span>
+      {lastStep !== null && <span className="inspector__note">{t('inspector.edge.timetable.lastStep', { step: lastStep })}</span>}
+    </span>
+  )
+}
+
+const TIMETABLE_AFTER_KEY = {
+  stop: 'inspector.edge.timetable.after.stop',
+  hold: 'inspector.edge.timetable.after.hold',
+  zero: 'inspector.edge.timetable.after.zero',
+  repeat: 'inspector.edge.timetable.after.repeat',
+} as const
 
 // ── units (loop-model/4, SEMANTICS-M4.md §M4-2 / §M4-4) ─────────────────────
 

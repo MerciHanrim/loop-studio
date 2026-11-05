@@ -83,6 +83,16 @@ const inspector = {
     '« {id} » n’est pas un paramètre — cette connexion contribue pour 0',
   'inspector.edge.flowParam.malformed':
     'référence de paramètre invalide — cette connexion contribue pour 0',
+  'inspector.edge.timetable.unknown': 'aucune table horaire « {id} » dans ce document',
+  'inspector.edge.timetable.name': 'Table horaire : {label}',
+  'inspector.edge.timetable.source': 'Source : {source}',
+  'inspector.edge.timetable.read.hold': 'Chaque débit dure jusqu’au point suivant',
+  'inspector.edge.timetable.read.linear': 'Le débit varie en ligne droite entre les points',
+  'inspector.edge.timetable.after.stop': 'Après le dernier temps : l’exécution s’arrête',
+  'inspector.edge.timetable.lastStep': 'L’exécution s’arrête après le pas {step}',
+  'inspector.edge.timetable.after.hold': 'Après le dernier temps : le dernier débit continue',
+  'inspector.edge.timetable.after.zero': 'Après le dernier temps : le débit est 0',
+  'inspector.edge.timetable.after.repeat': 'Après le dernier temps : la table reprend au début',
   'inspector.edge.flowParam.hint':
     'Une référence de paramètre est conservée par identifiant : renommer le paramètre ne pose pas de problème ; le supprimer laisse la référence orpheline (elle n’est pas réécrite).',
   'inspector.field.route': 'Tracé',

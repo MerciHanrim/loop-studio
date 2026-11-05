@@ -7,6 +7,7 @@ import { selectOverlay, useUiStore } from '../../store/uiStore'
 import { useIsMobile } from '../../ui/media'
 import { useT } from '../../i18n'
 import { isolateAuto } from '../../i18n/bidiIsolate'
+import { timetableNoticeText, timetableRefusalText } from '../../ui/runMessages'
 import { Icon } from '../../ui/icons'
 
 // docs/mobile.md §MV4 — the fixed bottom run bar. Reset / Step / Play·Pause /
@@ -62,7 +63,11 @@ export function MobileRunBar() {
   const refusals = useSimStore((s) => s.refusals)
   // loop-model/3 (SEMANTICS-M3.md §M3-4) — a kind finding that refuses the run
   const kindRefusals = useSimStore((s) => s.kindRefusals)
-  const refused = refusals.length > 0 || kindRefusals.length > 0
+  // loop-model/5 (SEMANTICS-M5.md §M5-5) — a table line that refuses the run, the
+  // same line; Show selects the connection
+  const timetableRefusals = useSimStore((s) => s.timetableRefusals)
+  const timetables = useGraphStore((s) => s.timetables)
+  const refused = refusals.length > 0 || kindRefusals.length > 0 || timetableRefusals.length > 0
   const cannotRun = initError != null || refused
   const showRefused = () => {
     const g = refusals[0]
@@ -71,7 +76,10 @@ export function MobileRunBar() {
     if (f) {
       const nodeId = kindFindingNodeId(f)
       useGraphStore.getState().setSelection(nodeId, nodeId ? null : kindFindingEdgeId(f))
+      return
     }
+    const line = timetableRefusals[0]
+    if (line) useGraphStore.getState().setSelection(null, line.edgeId)
   }
   const engineDiagnostics = useSimStore((s) => s.diagnostics)
   const notices = useSimStore((s) => s.notices)
@@ -92,17 +100,26 @@ export function MobileRunBar() {
   const isMobile = useIsMobile()
   const t = useT()
   // the refusal line: a split that rejoins first, else the kind findings (loop-model/3)
-  const refusedText = refusals.length > 0 ? t('playbar.refused', { n: refusals.length }) : t('playbar.refused.kinds', { n: kindRefusals.length })
+  const refusedText =
+    refusals.length > 0
+      ? t('playbar.refused', { n: refusals.length })
+      : kindRefusals.length > 0
+        ? t('playbar.refused.kinds', { n: kindRefusals.length })
+        : timetableRefusals.length > 0
+          ? timetableRefusalText(timetableRefusals[0], timetables, t)
+          : ''
   // #471 (Deploy 2) — the engine's structured notices, worded here in the
   // user's language (the node label isolated), ahead of the English engine
   // diagnostics in the same list
   const diagnostics = useMemo(
     () => [
       ...notices.map((x) =>
-        t(x.kind === 'multiSupplyHeld' ? 'playbar.diag.multiSupplyHeld' : 'playbar.diag.multiSupplyLoss', {
-          label: isolateAuto(x.label),
-          amount: x.amount,
-        }),
+        x.kind === 'timetableEnded' || x.kind === 'timetableUnmet'
+          ? timetableNoticeText(x, t)
+          : t(x.kind === 'multiSupplyHeld' ? 'playbar.diag.multiSupplyHeld' : 'playbar.diag.multiSupplyLoss', {
+              label: isolateAuto(x.label),
+              amount: x.amount,
+            }),
       ),
       ...engineDiagnostics,
     ],

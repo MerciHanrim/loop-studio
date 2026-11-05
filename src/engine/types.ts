@@ -79,6 +79,10 @@ export type StepReport = {
    *  amounts). A Gate with no entry is `off` (not fired this step, or no run).
    *  Same lifecycle as `notices`. */
   gates: GateStatus[]
+  /** loop-model/5 (SEMANTICS-M5.md §M5-6) — planned against moved for each
+   *  table line, ascending `edgeId`, unrounded. Present only on a step that
+   *  read a table. */
+  timetableLines?: TimetableLineReport[]
   /** loop-model/3 (SEMANTICS-M3.md §M3-5, L1) — this step's deliveries into
    *  Drains and Ends, grouped per kind and per exit node. Present only when
    *  `step` was given a kinds table; a `loop-model/2` report is unchanged. */
@@ -126,7 +130,9 @@ export type GateStatus = {
 
 /** A notice `step` reports as data; the catalogs carry its sentence
  *  (`playbar.diag.<kind>`). */
-export type StepNotice = {
+export type StepNotice = NodeLossNotice | TimetableEndedNotice | TimetableUnmetNotice
+
+export type NodeLossNotice = {
   /** `multiSupplyLoss`: a Converter in a multi-supply group received more
    *  than it could use at the fraction it ran, and that amount was lost (D1).
    *  `multiSupplyHeld`: a router was handed an amount this step that it did
@@ -143,6 +149,18 @@ export type StepNotice = {
   /** the amount lost, rounded to 6 decimals */
   amount: number
 }
+
+/** loop-model/5 (§M5-4) — a `stop` table does not cover the next step, so the
+ *  run ended before it: nothing moved and the step was not consumed. */
+export type TimetableEndedNotice = { kind: 'timetableEnded'; tableId: string; label: string }
+
+/** loop-model/5 (§M5-6) — a table line moved less than its plan by more than
+ *  `EPSILON`. `amount` is the double nearest the exact unmet amount. */
+export type TimetableUnmetNotice = { kind: 'timetableUnmet'; edgeId: string; tableId: string; label: string; amount: number }
+
+/** one table line of a step (§M5-6). `planned` is p, the nearest double of the
+ *  exact plan, and `moved` is m. Unmet is derived on reading, never stored. */
+export type TimetableLineReport = { edgeId: string; tableId: string; planned: number; moved: number }
 
 export type StepResult = {
   state: SimState

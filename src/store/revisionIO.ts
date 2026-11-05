@@ -10,7 +10,7 @@ import {
   type ProposalBase,
   type ThreeWayPlan,
 } from '../model/revision'
-import { deserialize, type DocTime, type ImportSourceTable, type ModelSemanticsVersion, type ResourceKindDecl, type SavedFrame } from '../model/serialize'
+import { deserialize, type DocTime, type ImportSourceTable, type ModelSemanticsVersion, type ResourceKindDecl, type SavedFrame, type Timetable } from '../model/serialize'
 import type { LoopEdge, LoopNode } from '../model/types'
 import { t } from '../i18n'
 import { useDataImportStore } from './dataImportStore'
@@ -125,6 +125,8 @@ export async function routeImport(text: string): Promise<RouteResult> {
       kinds: parsed.kinds,
       // loop-model/4 (SEMANTICS-M4.md §M4-6) — and a `/graph/4` side's step length
       time: parsed.time,
+      // loop-model/5 (SEMANTICS-M5.md §M5-7) — and a `/graph/5` side's timetables
+      timetables: parsed.timetables,
     },
     raw,
     parsed.modelVersion,
@@ -193,9 +195,11 @@ export function proposedGraph(
   kinds: ResourceKindDecl[]
   /** loop-model/4 — the proposal's step length (absent before `/graph/4`) */
   time?: DocTime
+  /** loop-model/5 — the proposal's timetables (`[]` before `/graph/5`) */
+  timetables: Timetable[]
 } {
-  const { nodes, edges, frames, dataImports, kinds, time } = deserialize(p.proposedText)
-  return { nodes, edges, modelVersion: p.modelVersion, frames, dataImports, kinds, ...(time !== undefined ? { time } : {}) }
+  const { nodes, edges, frames, dataImports, kinds, time, timetables } = deserialize(p.proposedText)
+  return { nodes, edges, modelVersion: p.modelVersion, frames, dataImports, kinds, ...(time !== undefined ? { time } : {}), timetables }
 }
 
 /** §R7A.2 — classify without applying, for the Review UI. */
@@ -224,6 +228,7 @@ export function threeWayForPending(p: PendingProposal): ThreeWayPlan {
         dataImports: useDataImportStore.getState().snapshot(),
         kinds: g.kinds, // loop-model/3 — the live kinds table is content too
         time: g.time, // loop-model/4 — and the step length
+        timetables: g.timetables, // loop-model/5 — and the timetables
       },
       { modelVersion: g.modelVersion },
     ),
@@ -248,6 +253,7 @@ export function currentTargetDigest(): string {
         dataImports: useDataImportStore.getState().snapshot(),
         kinds: g.kinds, // loop-model/3 — the live kinds table is content too
         time: g.time, // loop-model/4 — and the step length
+        timetables: g.timetables, // loop-model/5 — and the timetables
       },
       { modelVersion: g.modelVersion },
     ),

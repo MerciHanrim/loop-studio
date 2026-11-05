@@ -7,6 +7,8 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **Timetables can drive a line.** A document can hold a named list of times and rates, and a Source to Pool or Pool to Drain or End line can read one as `~id`. Each step moves the table added up over that step, exactly, read as hold or linear, and the table says what follows its last time. The run reports planned against moved, says when an amount is unmet or a table ends, and the Timeline CSV gains planned and moved columns. There is no screen for making a table yet: one comes in through a hand-written document file.
+
 - **About says what Loop Studio does.** The About dialog now opens with a description of the product: building and simulating resource flows, processes, state changes and probabilistic rules. The independence note stays below it as small print.
 
 - **The desalination Template is now a real process example.** Seawater desalination process replaces the small sample: a facility flow from intake through pretreatment, reverse osmosis with energy recovery, post-treatment and delivery, to discharge and solids, in five numbered areas with water, power and chemical lines. It opens on an overview, and each area reads at 100 %. Its numbers are example assumptions, and salinity, pressure and water quality are not computed.

@@ -14,6 +14,7 @@ import { initSim, step } from './step'
 import type { ModelVersion } from './flow'
 import type { ResourceKindDecl } from '../model/kinds'
 import type { DocTime } from '../model/units'
+import type { Timetable } from '../model/timetable'
 
 export const MC_SPEC = 'loop-mc/1'
 export const MC_SEED_SPEC = 'loop-mc-seed/1'
@@ -44,6 +45,12 @@ export type RunConfig = {
    *  to `initSim()` / `step()` so a per-time field's engine value is the one
    *  Play uses. A transient run input, not a persisted config field. */
   time?: DocTime
+  /** loop-model/5 (SEMANTICS-M5.md) — the document's timetables, the same in
+   *  every run. A transient run input, not a persisted config field. */
+  timetables?: readonly Timetable[]
+  /** each table's id and digest. This is what a result and its JSON keep in
+   *  `config`: a table can be 500 KB of points, and the document holds it. */
+  timetableDigests?: readonly { id: string; digest: string }[]
 }
 
 export type RunOptions = {
@@ -227,10 +234,10 @@ export function runRange(
     let ended = false
     for (let t = 1; t <= config.steps; t++) {
       if (!ended) {
-        st = step(nodes, edges, st, seed, config.modelVersion ?? 1, { kinds: config.kinds, time: config.time }).state
+        st = step(nodes, edges, st, seed, config.modelVersion ?? 1, { kinds: config.kinds, time: config.time, timetables: config.timetables }).state
         if (st.ended) {
           ended = true
-          endedAt[lr] = t
+          endedAt[lr] = st.step // a `stop` table ends the run before step `t`
         }
       }
       for (let p = 0; p < poolCount; p++)
@@ -286,10 +293,10 @@ function fillOneRun(f: RunFill, i: number): void {
   let ended = false
   for (let t = 1; t <= config.steps; t++) {
     if (!ended) {
-      st = step(nodes, edges, st, seed, config.modelVersion ?? 1, { kinds: config.kinds, time: config.time }).state
+      st = step(nodes, edges, st, seed, config.modelVersion ?? 1, { kinds: config.kinds, time: config.time, timetables: config.timetables }).state
       if (st.ended) {
         ended = true
-        endedAt[i] = t
+        endedAt[i] = st.step
       }
     }
     for (let p = 0; p < poolCount; p++) store[p][i * span + t] = st.values[pools[p].id] ?? 0
@@ -482,11 +489,12 @@ export function aggregateRuns(params: {
     final[pools[p].id] = { values, summary: summarise(sorted) }
   }
 
+  const { timetables: _points, ...resultConfig } = config
   return {
     spec: 'loop-mc/1',
     seedSpec: 'loop-mc-seed/1',
     rngSpec: 'loop-rng/1',
-    config,
+    config: resultConfig,
     completedRuns: runs,
     droppedTracked,
     pools,
