@@ -79,7 +79,7 @@ Each export applies this as follows.
 - UI: the Inspector's unit select on a Pool and on a resource connection, and its confirm sheet; the Kinds panel's unit lists and step-length row, which the Inputs tab shows for any graph that names or declares a kind.
 - Exports: `src/model/exportUnits.ts` (the table of a document's Pools, the JSON header); the writers are `src/components/timelineCsv.ts` and the exports of `src/engine/montecarlo.ts`.
 - View units (M4-8, M4-9, M4-10): `src/model/viewUnits.ts` (how a Pool reads, the text of a number, the axis, the outflow reading, a field's hint), `src/store/viewUnitsStore.ts` (the session choices); the surfaces are `TimelineChart.tsx`, `TimelineSeriesPopover.tsx`, `TimelineCsvMenu.tsx`, `BandChart.tsx`, the Kinds panel in `ModelPanels.tsx` and `Inspector.tsx`.
-- Pins: `src/model/units.test.ts` (rationals and R≈, the reads and the factor range, resolution, engine values and the out-of-range refusal, unit changes, exact C1, module inserts, the `/graph/4` boundary and M4-INV-1), `src/model/kinds.test.ts`, `src/engine/kinds.test.ts`, `src/model/exportUnits.test.ts` (M4-6, and the readers of a result file), `src/model/viewUnits.test.ts` (M4-8, M4-10); in the browser, `e2e/units.spec.ts` (the confirm sheet's cancel, confirm and undo, an exact change, the step-length sheet), `e2e/desalination.spec.ts` (the real downloads), `e2e/timeline-view-units.spec.ts` (M4-8 on the real screen and downloads), `e2e/kinds-outflow-reading.spec.ts` (M4-9) and `e2e/inspector-view-unit.spec.ts` (M4-10).
+- Pins: `src/model/units.test.ts` (rationals and R≈, the reads and the factor range, resolution, engine values and the out-of-range refusal, unit changes, exact C1, module inserts, the `/graph/4` boundary and M4-INV-1), `src/model/kinds.test.ts`, `src/engine/kinds.test.ts`, `src/model/exportUnits.test.ts` (M4-6, and the readers of a result file), `src/model/viewUnits.test.ts` (M4-8, M4-10); in the browser, `e2e/units.spec.ts` (the confirm sheet's cancel, confirm and undo, an exact change, the step-length sheet), `e2e/desalination.spec.ts` (the real downloads), `e2e/timeline-view-units.spec.ts` (M4-8 on the real screen and downloads), `e2e/kinds-outflow-reading.spec.ts` (M4-9), `e2e/inspector-view-unit.spec.ts` (M4-10) and `e2e/chip-unit.spec.ts` (M4-11).
 
 ## M4-8. The Timeline's view unit
 
@@ -145,3 +145,14 @@ The Inspector adds no choice of its own. A stock reads through the Timeline's vi
 - **The reading in force.** A stock uses the Timeline's unit, which is the base unit until a view unit is chosen. A rate uses the Kinds panel's reading, including its start from `time.display`.
 - **When there is no hint.** The field is empty; its text is not a number a run reads as that number (`all`, `25%`, `1-3`, `2D6`, `@id`, `~id`, `1e3`); the reading has no name; or the reading has the field's own scale. `21000 CMD` has no hint in `m³/d`, because the same number under another name adds nothing.
 - **Accessible name.** The hint sits outside the field's label, so the field keeps its name, and the field points at it with `aria-describedby`.
+
+## M4-11. The unit on a connection's chip
+
+A connection's chip prints the unit its field is authored in, beside the number: `21000 CMD`, `5 L/min`, `5 L`. It is the field's own text, so a language adds no form of its own, and a chip with an amount unit, `5 L`, means that amount per step, as a chip with no unit always has.
+
+- **Authored, not read.** A chip does not follow the Timeline's view unit or the Kinds panel's reading. A chip's size is an input to routing and label places, so a session choice would otherwise move lines.
+- **Exactly what the engine converts.** The unit prints only where `applyUnits` converts the number. A unit that does not resolve (§M4-2.2) prints nothing, because the number is not in it. So does a flow that is not a plain decimal: `all`, `25%`, `1-3`, `2D6`, a reference and an empty field. A line that reads a table shows the table's name.
+- **A connection with no unit** keeps its chip, and a document with none keeps every chip and label place.
+- **Direction.** The chip stays pinned left to right, so the number comes first in every language. The unit is user text in that token.
+- **Room.** A chip with a unit is wider, so on a short line it could cover the arrow. `docs/edge-routing.md` §ER15.3 moves such a chip.
+- It is a display: nothing here reaches a file, the digest or the engine.

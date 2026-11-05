@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { initSim, step } from '../engine/step'
-import { applyUnits } from './engineValues'
+import { applyUnits, chipUnits } from './engineValues'
+import type { ResourceKindDecl } from './kinds'
 import { deserialize } from './serialize'
 
 // SEMANTICS-M4.md §M4-2.1 — a rate reaches the engine as the double nearest its
@@ -92,5 +93,43 @@ describe('a rate with a unit reaches the engine as its own value', () => {
     const r = first(d)
     expect(r.report.events).toEqual([])
     expect(r.state.values.tank).toBe(1000)
+  })
+})
+
+describe('the unit on a chip (§M4-11)', () => {
+  const kinds: ResourceKindDecl[] = [{ name: 'water', conserved: true, baseUnit: 'm³', units: [{ name: 'L', factor: '0.001' }], rateUnits: [{ name: 'CMD', factor: '1', per: 'd' }] }]
+  const line = (flow: string, unit: string) => [{ source: 'tank', target: 'city', flow, unit }]
+  const units = (flow: string, unit: string) => {
+    const d = doc(line(flow, unit), 1, 'h')
+    return chipUnits(d.nodes, d.edges, kinds, d.time)
+  }
+  const of = (flow: string, unit: string) => units(flow, unit).get('e0')
+
+  it('prints the authored text of each form: a rate unit, an amount per time, an amount per step', () => {
+    expect(of('21000', 'CMD')).toBe('CMD')
+    expect(of('5', 'L/min')).toBe('L/min')
+    expect(of('5', 'L')).toBe('L')
+  })
+
+  it('a connection with no unit has none, and a graph with none returns no entries', () => {
+    expect(of('5', '')).toBeUndefined()
+    expect(units('5', '').size).toBe(0)
+  })
+
+  it('a unit that does not resolve prints nothing, because the number is not in it', () => {
+    expect(of('5', 'gone')).toBeUndefined()
+  })
+
+  it('follows what the engine converts: only a plain decimal is in the unit', () => {
+    for (const flow of ['all', '25%', '1-3', '2D6', '@rate']) expect(of(flow, 'CMD')).toBeUndefined()
+    // a field cleared on screen runs as 1 per step: the unit is not applied to it
+    const d = doc(line('5', 'CMD'), 1, 'h')
+    const cleared = d.edges.map((e) => ({ ...e, data: { ...e.data, flow: '' } })) as typeof d.edges
+    expect(chipUnits(d.nodes, cleared, kinds, d.time).size).toBe(0)
+  })
+
+  it('a per-time unit needs a step length, as the engine does', () => {
+    const d = doc(line('5', 'CMD'), 1, 'h')
+    expect(chipUnits(d.nodes, d.edges, kinds, undefined).size).toBe(0)
   })
 })

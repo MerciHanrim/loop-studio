@@ -1128,6 +1128,30 @@ The place is chosen at rest. A run reads the same map, so nothing moves.
 - The step runs in the full generation only. A provisional map during a drag
   keeps the last full generation's places for what it does not redo.
 
+### ER15.3 A chip with a unit leaves its line's ends showing (#500, 2026-11-06)
+
+A chip with a unit (SEMANTICS-M4.md §M4-11) is wider than the number it replaced.
+On a short line it covered the arrow, so the reader lost the line's direction.
+Measured on the desalination document: 5 of its 41 lines kept less than 10 flow
+px at the target end, where the number alone had covered 1.
+
+**What is placed.** A last step of the full generation, after §ER15.2, looks at
+each connection that names a unit. A chip that leaves less than `LABEL_END_ROOM`
+(14 flow px: the arrow and a little line) at either end of its own line moves:
+- first to a slot on its line that leaves both ends;
+- then beside its line, as §ER15.2 hangs a chip, with the same gaps, leader and
+  side rules. It is clear of every node box and outside name, every other label,
+  every other line and the shared stubs, with `RUN_FORM_MARGIN` around it.
+
+No line and no other label moves. A chip with no such spot stays where it is, and
+is reported in `routeDiagnostics().runForm.endRoom`.
+
+**Only a chip with a unit.** A chip with no unit keeps today's place, so a document
+with none is unchanged. A short line with a long plain number can still cover its
+arrow, as it always could. A record keeps its recorded places (§ER15.1).
+
+**Limits.** As in §ER15.2, the step runs in the full generation only.
+
 ## ER16. Shapes and bend points in the editor (issue #344 step 3, v0.25.0)
 
 ### ER16.1 The Inspector

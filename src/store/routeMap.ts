@@ -817,7 +817,7 @@ export const RUN_FORM_SLOTS: readonly number[] = Array.from({ length: 29 }, (_, 
   (a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5) || a - b,
 )
 
-type RunFormReport = { groups: number; moved: string[]; unresolved: string[]; unchanged: string[][]; candidates: number; ms: number }
+type RunFormReport = { groups: number; moved: string[]; unresolved: string[]; unchanged: string[][]; candidates: number; ms: number; endRoom?: { moved: string[]; kept: string[] } }
 const NO_RUN_FORM: RunFormReport = { groups: 0, moved: [], unresolved: [], unchanged: [], candidates: 0, ms: 0 }
 /** the pass's report for the generation on screen (kept with each generation) */
 let shownRunForm: RunFormReport = NO_RUN_FORM
@@ -857,6 +857,129 @@ export function besideBox(near: Pt, side: LabelSide, s: LabelSize, id: string): 
 }
 
 type RunFormSpot = { box: Box; c: Pt; f: number; beside?: Beside }
+
+/** every spot beside a line, nearest gap first, in the order `orderSides` gives
+ *  at each point: off the line itself, with a leader that crosses no other line */
+function* besideSpots(own: Pt[], size: LabelSize, id: string, others: Pt[][], orderSides: (at: Pt, across: [LabelSide, LabelSide]) => LabelSide[]): Generator<RunFormSpot> {
+  for (const gap of RUN_FORM_GAPS) {
+    for (const f of RUN_FORM_SLOTS) {
+      const { p: at, t } = pointAndDirAt(own, f)
+      for (const side of orderSides(at, Math.abs(t.x) >= Math.abs(t.y) ? ['up', 'down'] : ['left', 'right'])) {
+        const dir = SIDE_DIR[side]
+        const near = { x: at.x + dir.x * gap, y: at.y + dir.y * gap }
+        const box = besideBox(near, side, size, id)
+        if (polyHits(own, grown(box, 1))) continue
+        // the leader (line point → near edge) crosses no other line
+        const leader: Box = { id: 'leader', x: Math.min(at.x, near.x) - 0.5, y: Math.min(at.y, near.y) - 0.5, w: Math.abs(near.x - at.x) + 1, h: Math.abs(near.y - at.y) + 1 }
+        if (others.some((pts) => polyHits(pts, leader))) continue
+        yield { box, c: near, f, beside: { anchor: at, side, gap } }
+      }
+    }
+  }
+}
+
+/** §ER15.3 — the line a chip must leave showing at each end, flow px: the arrow
+ *  and a little of the line behind it, so a reader can still tell its direction */
+export const LABEL_END_ROOM = 14
+
+/** how far along `pts` a box starts, from its first point; the whole length when
+ *  the line never enters it. Sampled at 1 flow px: a chip is far larger. */
+function roomBefore(pts: Pt[], box: Box): number {
+  let acc = 0
+  for (let i = 1; i < pts.length; i++) {
+    const seg = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y)
+    for (let s = 0; s <= seg; s += 1) {
+      const r = seg > 0 ? s / seg : 0
+      const x = pts[i - 1].x + (pts[i].x - pts[i - 1].x) * r
+      const y = pts[i - 1].y + (pts[i].y - pts[i - 1].y) * r
+      if (x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h) return acc + s
+    }
+    acc += seg
+  }
+  return acc
+}
+const leavesBothEnds = (pts: Pt[], box: Box): boolean => roomBefore(pts, box) >= LABEL_END_ROOM && roomBefore([...pts].reverse(), box) >= LABEL_END_ROOM
+
+/** a connection whose chip carries a unit (§M4-11): the only chips this pass moves,
+ *  so a document with no unit keeps every label where it was */
+const carriesUnit = (e: LoopEdge): boolean => {
+  const unit = (e.data as { unit?: unknown } | undefined)?.unit
+  return (e.data?.kind ?? 'resource') === 'resource' && typeof unit === 'string' && unit !== ''
+}
+
+/** §ER15.3 — the end-room pass, after every route and label is final: a chip with
+ *  a unit is wider than the number it replaced, and on a short line it can cover
+ *  the arrow. Such a chip goes to a slot on its line that leaves both ends showing,
+ *  then beside the line. It moves no line and no other label. A chip with no spot
+ *  stays where it is and is reported. */
+function endRoomPass(
+  p: Plan,
+  edges: LoopEdge[],
+  routes: ReadonlyMap<string, GuardedResult>,
+  labels: Map<string, Pt | null>,
+  free: Map<string, FreeSlot>,
+  stubs: Pt[][],
+  beside: Map<string, Beside>,
+): { moved: string[]; kept: string[] } {
+  const moved: string[] = []
+  const kept: string[] = []
+  if (recordLabels) return { moved, kept }
+  const lineOf = (id: string): Pt[] | undefined => routes.get(id)?.points ?? p.lines.get(id)
+  const centreOf = (id: string): Pt | null => labels.get(id) ?? free.get(id)?.at ?? null
+  const covering = edges.filter((e) => {
+    const own = lineOf(e.id)
+    const c = centreOf(e.id)
+    const s = labelSizes.get(e.id)
+    return carriesUnit(e) && own && c && s && !beside.has(e.id) && !free.get(e.id)?.beside && !leavesBothEnds(own, labelBoxAt(c, s, e.id))
+  })
+  if (covering.length === 0) return { moved, kept }
+  const nodes = p.boxes.map((b) => grown(b, LABEL_NODE_MARGIN))
+  const boxes = new Map<string, Box>()
+  for (const e of edges) {
+    const c = centreOf(e.id)
+    const s = runFormSizes.get(e.id) ?? labelSizes.get(e.id)
+    if (c && s) boxes.set(e.id, labelBoxAt(c, s, e.id))
+  }
+  const lines: [string, Pt[]][] = [...[...routes].map(([id, r]): [string, Pt[]] => [id, r.points]), ...p.lines]
+  for (const e of covering) {
+    const id = e.id
+    const own = lineOf(id)!
+    const size = labelSizes.get(id)!
+    const others = lines.filter(([oid, pts]) => oid !== id && !sameLine(pts, own)).map(([, pts]) => pts)
+    const clear = (box: Box): boolean => {
+      const b = grown(box, RUN_FORM_MARGIN)
+      if (nodes.some((n) => hit(n, b))) return false
+      for (const [oid, ob] of boxes) if (oid !== id && hit(ob, b)) return false
+      return !others.some((pts) => polyHits(pts, b)) && !stubs.some((s) => polyHits(s, b))
+    }
+    const onLine = (): RunFormSpot | null => {
+      for (const f of LABEL_SLOTS) {
+        const c = pointAt(own, f)
+        const box = labelBoxAt(c, size, id)
+        if (leavesBothEnds(own, box) && clear(box)) return { box, c, f }
+      }
+      return null
+    }
+    const near = (): RunFormSpot | null => {
+      for (const s of besideSpots(own, size, id, others, (_at, across) => across)) if (clear(s.box)) return s
+      return null
+    }
+    const spot = onLine() ?? near()
+    if (!spot) {
+      kept.push(id)
+      continue
+    }
+    boxes.set(id, spot.box)
+    moved.push(id)
+    if (routes.has(id)) {
+      labels.set(id, spot.c)
+      if (spot.beside) beside.set(id, spot.beside)
+    } else {
+      free.set(id, spot.beside ? { f: spot.f, at: spot.c, beside: spot.beside } : { f: spot.f, at: spot.c })
+    }
+  }
+  return { moved, kept }
+}
 
 /** the run-form pass over a generation's routes and labels: rewrites the
  *  members' entries in `labels` (routed) and `free` (Curved / Straight) and
@@ -915,30 +1038,17 @@ function runFormPass(
           const box = labelBoxAt(c, rf, id)
           if (clear(box)) return { box, c, f }
         }
-        for (const gap of RUN_FORM_GAPS) {
-          for (const f of RUN_FORM_SLOTS) {
-            const { p: at, t } = pointAndDirAt(own, f)
-            const across = Math.abs(t.x) >= Math.abs(t.y) ? (['up', 'down'] as const) : (['left', 'right'] as const)
-            // the side away from a sibling's separate line first; a coincident
-            // group alternates by its order
-            let sides: LabelSide[] = [...across]
-            if (sib) {
-              const q = sib.reduce((m, x) => (Math.hypot(x.x - at.x, x.y - at.y) < Math.hypot(m.x - at.x, m.y - at.y) ? x : m))
-              const d0 = SIDE_DIR[sides[0]]
-              if ((q.x - at.x) * d0.x + (q.y - at.y) * d0.y > 0) sides = [sides[1], sides[0]]
-            } else if (g.indexOf(id) % 2 === 1) sides = [sides[1], sides[0]]
-            for (const side of sides) {
-              const dir = SIDE_DIR[side]
-              const near = { x: at.x + dir.x * gap, y: at.y + dir.y * gap }
-              const box = besideBox(near, side, rf, id)
-              if (polyHits(own, grown(box, 1))) continue
-              // the leader (line point → near edge) crosses no other line
-              const leader: Box = { id: 'leader', x: Math.min(at.x, near.x) - 0.5, y: Math.min(at.y, near.y) - 0.5, w: Math.abs(near.x - at.x) + 1, h: Math.abs(near.y - at.y) + 1 }
-              if (others.some((pts) => polyHits(pts, leader))) continue
-              if (clear(box)) return { box, c: near, f, beside: { anchor: at, side, gap } }
-            }
+        const orderSides = (at: Pt, across: [LabelSide, LabelSide]): LabelSide[] => {
+          // the side away from a sibling's separate line first; a coincident
+          // group alternates by its order
+          if (sib) {
+            const q = sib.reduce((m, x) => (Math.hypot(x.x - at.x, x.y - at.y) < Math.hypot(m.x - at.x, m.y - at.y) ? x : m))
+            const d0 = SIDE_DIR[across[0]]
+            return (q.x - at.x) * d0.x + (q.y - at.y) * d0.y > 0 ? [across[1], across[0]] : across
           }
+          return g.indexOf(id) % 2 === 1 ? [across[1], across[0]] : across
         }
+        for (const s of besideSpots(own, rf, id, others, orderSides)) if (clear(s.box)) return s
         return null
       }
       // a member that cannot move stays put; the others then keep clear of
@@ -1049,7 +1159,8 @@ function* fullSteps(nodes: LoopNode[], edges: LoopEdge[], out: GenOut): Generato
   }
   // §ER15.2 — last: the repeated Value change groups, everything else final
   const { beside: besides, report: runForm } = runFormPass(p, edges, routes, labels, free, stubs)
-  out.runForm = runForm
+  // §ER15.3 — then the chips with a unit that cover their own line's ends
+  out.runForm = { ...runForm, endRoom: endRoomPass(p, edges, routes, labels, free, stubs, besides) }
   yield 'run form'
   const map = new Map<string, RoutedEdge>()
   for (const e of p.ortho) {

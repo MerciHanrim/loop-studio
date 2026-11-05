@@ -7,6 +7,8 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **A connection’s chip shows its unit.** A number with a unit reads `21000 CMD`, `5 L/min` or `5 L` on the canvas, so flows of different kinds are no longer told apart only in the Inspector. A connection with no unit keeps its chip. On a short line a chip with a unit moves along or beside the line, so the arrow stays visible.
+
 - **The Inspector reads in the units you chose.** While a Timeline view unit is on, a Pool’s current amount reads in it. Under a Pool’s starting amount and capacity, and under a line’s flow, a read-only line shows the same value in the unit the Timeline or the Kinds panel reads: `= 200000 L`, `≈ 277.777777777778 L/min`. The field and the file keep their own number and unit.
 
 - **Very small rates run at their own value.** A rate with a unit below 0.000001 per step ran as 1 per step, with no message: 0.00002 CMD on a 1 h step moved 1 m³. Rates of 1e21 or more per step did the same. Both now run as written. A saved Monte Carlo result is shown as stale, because the engine revision changed.
