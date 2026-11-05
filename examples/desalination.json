@@ -124,7 +124,7 @@
       "type": "converter",
       "position": {
         "x": 825,
-        "y": 230
+        "y": 370
       },
       "data": {
         "kind": "converter",
@@ -138,7 +138,7 @@
       "type": "pool",
       "position": {
         "x": 825,
-        "y": 90
+        "y": 230
       },
       "data": {
         "kind": "pool",
@@ -155,8 +155,8 @@
       "id": "filtered",
       "type": "pool",
       "position": {
-        "x": 975,
-        "y": 230
+        "x": 945,
+        "y": 370
       },
       "data": {
         "kind": "pool",
@@ -709,11 +709,11 @@
         "waypoints": [
           {
             "x": 853,
-            "y": 495
+            "y": 492
           },
           {
             "x": 700,
-            "y": 495
+            "y": 492
           },
           {
             "x": 700,
@@ -738,7 +738,11 @@
         "flow": "20000",
         "unit": "CMD",
         "route": "orthogonal",
-        "accent": "#638EA5"
+        "accent": "#638EA5",
+        "ports": {
+          "source": "top",
+          "target": "left"
+        }
       }
     },
     {
@@ -1477,7 +1481,7 @@
         "x": 20,
         "y": 40,
         "w": 660,
-        "h": 450
+        "h": 440
       },
       "color": "sage"
     },
@@ -1488,7 +1492,7 @@
         "x": 720,
         "y": 40,
         "w": 640,
-        "h": 450
+        "h": 440
       },
       "color": "violet"
     },
