@@ -87,7 +87,7 @@ test.describe('Help ▸ Example notes', () => {
     await helpTrigger(page, /^도움말$/).click()
     await page.getByRole('menuitem', { name: '예제 설명' }).click()
     const names = await dialog(page).locator('.example-notes__toggle .contextual-help__name').allTextContents()
-    expect(names).toEqual(['균형 잡힌 생산 라인', '용량 교착', '해수 담수화 플랜트 물 수지', '커피 로스터리 운영 흐름', '초반 MMO 성장 (1–15레벨)', '일반 가챠', '상시 가챠', '픽업 가챠', '3존 가챠 배너 비교'])
+    expect(names).toEqual(['균형 잡힌 생산 라인', '용량 교착', '담수화 단위·수지 임시 샘플', '커피 로스터리 운영 흐름', '초반 MMO 성장 (1–15레벨)', '일반 가챠', '상시 가챠', '픽업 가챠', '3존 가챠 배너 비교'])
     for (let i = 0; i < names.length; i++) {
       await dialog(page).locator('.example-notes__toggle').nth(i).click()
       await expect(dialog(page).locator('.example-notes__text p').first()).not.toBeEmpty()

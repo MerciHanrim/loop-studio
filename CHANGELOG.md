@@ -7,7 +7,7 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
-- **Boundary outflow can be read in the units of its kind.** In the Kinds panel, choose a unit for each kind: an amount per step, or a rate such as `m³/d` or `MLD`. Rows now name their unit. Only the display changes; saved values and results stay the same, and the run keeps going. A row with no unit to name looks as it did.
+- **Boundary outflow can be read in the units of its kind.** In the Kinds panel, choose a unit for each kind: an amount per step, or a rate such as `m³/d` or `MLD`. Rows now name their unit. Only the display changes; saved values and results stay the same, and the run keeps going. A row with no unit to name looks as it did. The desalination Template is now called Desalination balance: temporary sample: it is a simplified sample for checking units and a water balance, not a model of a facility's process, and a verified process example will replace it.
 
 - **The Timeline can show a kind's Pools in another of its units.** Choose the unit in the Series popover: the chart, its labels, the step reading and the Distribution tab follow it, and the axis says **Mixed units** when the drawn Pools are in different units. Only the display changes; saved values, results and the plain CSV stay the same. While a unit is chosen, the CSV control also offers a file with the shown values beside the numbers. Documents with no extra units look as they did.
 

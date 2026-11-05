@@ -124,8 +124,8 @@ export const TEMPLATES: Template[] = [
       'The same line with no shipment step, so finished goods have nowhere to go. Finished inventory fills to capacity, raw inventory backs up to its ceiling, supply is throttled to zero, and the whole line stops.',
     graph: tplGraph(deadlockDoc),
   },
-  // #471 — "Desalination plant water balance": the first bundled Template at
-  // `loop-studio/graph/4`. A seawater reverse-osmosis plant written in the
+  // #471 — "Desalination balance: temporary sample": the first bundled Template at
+  // `loop-studio/graph/4`. A temporary sample, to be replaced by a verified process example, written in the
   // shipped kinds, units and step-length contract (SEMANTICS-M3.md,
   // SEMANTICS-M4.md): water is a conserved kind, the plant's rates are authored
   // per day (`1 MLD` in, `0.45 + 0.55 MLD` out) on a 1 h step, and the engine
@@ -138,9 +138,9 @@ export const TEMPLATES: Template[] = [
   // Coffee → MMO → Gacha sequence (below, 2026-09-13) stays as decided.
   {
     id: 'desalination',
-    name: 'Desalination plant water balance',
+    name: 'Desalination balance: temporary sample',
     blurb:
-      'A seawater reverse-osmosis plant: intake, a feed tank, reverse osmosis at 45 % recovery, product water for the city and brine to the outfall. Water is a conserved kind, the rates are written per day on a one-hour step, and the run keeps intake = product water + brine + the change in storage.',
+      'A temporary, simplified sample for checking units and a water balance, not a model of a desalination facility. Rates in day units run on a one-hour step.',
     graph: tplGraph(desalinationDoc),
     ...tplModel(desalinationDoc),
   },

@@ -38,7 +38,7 @@ test.describe('the desalination Template', () => {
 
   test('opens from File ▸ Templates in Korean with its kinds, units and step length, and runs a day with the water balance held', async ({ page }) => {
     const sub = await openFileSubmenu(page, 'templates')
-    await expect(sub.locator('[data-template="desalination"] .menu__name')).toHaveText('해수 담수화 플랜트 물 수지')
+    await expect(sub.locator('[data-template="desalination"] .menu__name')).toHaveText('담수화 단위·수지 임시 샘플')
     await pickTemplate(page, 'desalination')
     const confirm = page.locator('.mcdlg--confirm .btn--primary')
     if (await confirm.isVisible().catch(() => false)) await confirm.click()
