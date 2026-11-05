@@ -20,7 +20,7 @@ const NOTES: Record<string, readonly MessageKey[]> = {
   equilibrium: ['help.examples.equilibrium.p1', 'help.examples.equilibrium.p2'],
   deadlock: ['help.examples.deadlock.p1', 'help.examples.deadlock.p2'],
   'coffee-roastery': ['help.examples.coffeeRoastery.p1', 'help.examples.coffeeRoastery.p2', 'help.examples.coffeeRoastery.p3'],
-  desalination: ['help.examples.desalination.p1', 'help.examples.desalination.p2', 'help.examples.desalination.p3'],
+  desalination: ['help.examples.desalination.p1', 'help.examples.desalination.p2', 'help.examples.desalination.p3', 'help.examples.desalination.p4', 'help.examples.desalination.p5', 'help.examples.desalination.p6'],
   'mmo-progression': ['help.examples.mmoProgression.p1', 'help.examples.mmoProgression.p2', 'help.examples.mmoProgression.p3'],
   'gacha-general': ['help.examples.gachaGeneral.p1', 'help.examples.gachaGeneral.p2', 'help.examples.gachaGeneral.p3'],
   'gacha-standard': ['help.examples.gachaStandard.p1', 'help.examples.gachaStandard.p2', 'help.examples.gachaStandard.p3'],

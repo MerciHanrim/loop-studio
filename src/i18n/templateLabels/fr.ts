@@ -226,17 +226,45 @@ export const fr: TemplateLabelDict = {
   },
   // 2026-10 — the three gacha templates added since the archive; the banner
   // comparison's names where the node is the same
-  // #471 — "Desalination plant water balance" (`examples/desalination.json`)
+  // #471 — "Seawater desalination process" (`examples/desalination.json`)
   'desalination': {
-    sea: 'Prise d’eau de mer',
-    feed: 'Bassin d’alimentation',
-    grid: 'Réseau électrique',
-    power: 'Alimentation électrique',
+    sea: 'Eau de mer',
+    basin: 'Bassin de prise d’eau',
+    screen: 'Dégrilleur',
+    ipump: 'Pompe de prise d’eau',
+    naocl: 'Cuve d’hypochlorite',
+    gridA: 'Alimentation réseau A',
+    panelA: 'Tableau électrique A',
+    filter: 'Filtre de coagulation',
+    coag: 'Cuve de coagulant',
+    filtered: 'Réservoir d’eau filtrée',
+    cartridge: 'Filtre à cartouches',
+    anti: 'Cuve d’antitartre',
+    fpump: 'Pompe d’alimentation',
+    hp: 'Pompe haute pression',
     ro: 'Osmose inverse',
-    permeate: 'Eau produite',
-    brine: 'Saumure',
-    city: 'Demande de la ville',
-    outfall: 'Rejet de saumure',
+    permeate: 'Réservoir de perméat',
+    turbine: 'Turbine à saumure',
+    recovered: 'Énergie récupérée',
+    panelB: 'Tableau électrique B',
+    gridB: 'Alimentation réseau B',
+    remin: 'Reminéralisation',
+    lime: 'Cuve de chaux',
+    disinfect: 'Désinfection',
+    naocl2: 'Cuve de désinfectant',
+    product: 'Réservoir d’eau produite',
+    dpump: 'Pompe de distribution',
+    city: 'Alimentation de la ville',
+    panelC: 'Tableau électrique C',
+    gridC: 'Alimentation réseau C',
+    brine: 'Réservoir de rejet',
+    adjust: 'Ajustement du rejet',
+    adj: 'Cuve réactif qualité eau',
+    outfall: 'Émissaire en mer',
+    backwash: 'Cuve eaux de lavage usées',
+    thick: 'Épaississeur',
+    dewater: 'Déshydratation',
+    cake: 'Eau du gâteau déshydraté',
   },
   'gacha-general': {
     target_pulls: 'Tirages cibles (entier)',
@@ -316,6 +344,13 @@ export const fr: TemplateLabelDict = {
 }
 
 export const frFrames: TemplateLabelMap = {
+  'desalination': {
+    f_intake: '1 Prise d’eau',
+    f_pre: '2 Prétraitement',
+    f_ro: '3 Osmose inverse',
+    f_post: '4 Post-traitement et distribution',
+    f_out: '5 Rejet et solides',
+  },
   'coffee-roastery': {
     zone_supply: 'Approvisionnement et stock',
     zone_roasting: 'Torréfaction et ventes',

@@ -234,17 +234,45 @@ export const tr: TemplateLabelDict = {
   },
   // 2026-10 — the three gacha templates added since the archive; the banner
   // comparison's names where the node is the same
-  // #471 — "Desalination plant water balance" (`examples/desalination.json`)
+  // #471 — "Seawater desalination process" (`examples/desalination.json`)
   'desalination': {
-    sea: 'Deniz suyu alımı',
-    feed: 'Besleme tankı',
-    grid: 'Şebeke elektriği',
-    power: 'Güç kaynağı',
+    sea: 'Deniz suyu',
+    basin: 'Su alma havuzu',
+    screen: 'Çubuk ızgara',
+    ipump: 'Su alma pompası',
+    naocl: 'Hipoklorit tankı',
+    gridA: 'Şebeke beslemesi A',
+    panelA: 'Elektrik panosu A',
+    filter: 'Koagülasyon filtresi',
+    coag: 'Koagülant tankı',
+    filtered: 'Süzülmüş su tankı',
+    cartridge: 'Kartuş filtre',
+    anti: 'Antiskalant tankı',
+    fpump: 'Besleme pompası',
+    hp: 'Yüksek basınç pompası',
     ro: 'Ters ozmoz',
-    permeate: 'Ürün suyu',
-    brine: 'Konsantre',
-    city: 'Şehir talebi',
-    outfall: 'Konsantre deşarjı',
+    permeate: 'Permeat tankı',
+    turbine: 'Konsantre türbini',
+    recovered: 'Geri kazanılan enerji',
+    panelB: 'Elektrik panosu B',
+    gridB: 'Şebeke beslemesi B',
+    remin: 'Remineralizasyon',
+    lime: 'Kireç tankı',
+    disinfect: 'Dezenfeksiyon',
+    naocl2: 'Dezenfektan tankı',
+    product: 'Ürün suyu tankı',
+    dpump: 'Teslim pompası',
+    city: 'Şehre su temini',
+    panelC: 'Elektrik panosu C',
+    gridC: 'Şebeke beslemesi C',
+    brine: 'Deşarj tankı',
+    adjust: 'Deşarj ayarı',
+    adj: 'Su kalitesi kimyasal tankı',
+    outfall: 'Deniz deşarjı',
+    backwash: 'Geri yıkama atık tankı',
+    thick: 'Yoğunlaştırıcı',
+    dewater: 'Susuzlaştırma',
+    cake: 'Susuzlaştırılmış kekteki su',
   },
   'gacha-general': {
     target_pulls: 'Hedef çekiliş (tam sayı)',
@@ -324,6 +352,13 @@ export const tr: TemplateLabelDict = {
 }
 
 export const trFrames: TemplateLabelMap = {
+  'desalination': {
+    f_intake: '1 Su alımı',
+    f_pre: '2 Ön arıtma',
+    f_ro: '3 Ters ozmoz',
+    f_post: '4 Son arıtma ve teslim',
+    f_out: '5 Deşarj ve katılar',
+  },
   'coffee-roastery': {
     zone_supply: 'Tedarik ve stok',
     zone_roasting: 'Kavurma ve satış',

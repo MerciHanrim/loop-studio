@@ -3,29 +3,1527 @@
   "version": 1,
   "layoutVersion": 1,
   "nodes": [
-    { "id": "sea", "type": "source", "position": { "x": 48, "y": 196 }, "data": { "kind": "source", "label": "Seawater intake", "icon": "wave", "activation": "automatic", "mode": "pushAny" } },
-    { "id": "feed", "type": "pool", "position": { "x": 240, "y": 196 }, "data": { "kind": "pool", "label": "Feed tank", "icon": "water", "activation": "passive", "initial": 500, "capacity": 2000, "mode": "pullAny", "resourceType": "water" } },
-    { "id": "grid", "type": "source", "position": { "x": 48, "y": 452 }, "data": { "kind": "source", "label": "Grid power", "icon": "electricity", "activation": "automatic", "mode": "pushAny" } },
-    { "id": "power", "type": "pool", "position": { "x": 240, "y": 452 }, "data": { "kind": "pool", "label": "Power supply", "icon": "electricity", "activation": "passive", "initial": 125, "capacity": null, "mode": "pullAny", "resourceType": "power" } },
-    { "id": "ro", "type": "converter", "position": { "x": 464, "y": 324 }, "data": { "kind": "converter", "label": "Reverse osmosis", "activation": "automatic", "mode": "pullAll" } },
-    { "id": "permeate", "type": "pool", "position": { "x": 704, "y": 196 }, "data": { "kind": "pool", "label": "Product water", "icon": "water", "activation": "passive", "initial": 200000, "capacity": null, "mode": "pullAny", "resourceType": "water", "unit": "L" } },
-    { "id": "brine", "type": "pool", "position": { "x": 704, "y": 452 }, "data": { "kind": "pool", "label": "Brine", "icon": "water", "activation": "passive", "initial": 0, "capacity": null, "mode": "pullAny", "resourceType": "water" } },
-    { "id": "city", "type": "drain", "position": { "x": 928, "y": 196 }, "data": { "kind": "drain", "label": "City demand", "activation": "automatic", "mode": "pullAny" } },
-    { "id": "outfall", "type": "drain", "position": { "x": 928, "y": 452 }, "data": { "kind": "drain", "label": "Brine outfall", "activation": "automatic", "mode": "pullAny" } }
+    {
+      "id": "sea",
+      "type": "source",
+      "position": {
+        "x": 170,
+        "y": 230
+      },
+      "data": {
+        "kind": "source",
+        "label": "Seawater",
+        "icon": "wave",
+        "accent": "#638EA5",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "basin",
+      "type": "pool",
+      "position": {
+        "x": 325,
+        "y": 230
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Intake basin",
+        "activation": "passive",
+        "initial": 3000,
+        "capacity": 12000,
+        "mode": "pullAny",
+        "resourceType": "water",
+        "icon": "water",
+        "accent": "#638EA5"
+      }
+    },
+    {
+      "id": "screen",
+      "type": "converter",
+      "position": {
+        "x": 500,
+        "y": 230
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Bar screen",
+        "activation": "automatic",
+        "mode": "pullAll"
+      }
+    },
+    {
+      "id": "ipump",
+      "type": "converter",
+      "position": {
+        "x": 500,
+        "y": 370
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Intake pump",
+        "activation": "automatic",
+        "mode": "pullAll"
+      }
+    },
+    {
+      "id": "naocl",
+      "type": "pool",
+      "position": {
+        "x": 500,
+        "y": 90
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Hypochlorite tank",
+        "activation": "passive",
+        "initial": 2000,
+        "capacity": null,
+        "mode": "pullAny",
+        "resourceType": "hypochlorite",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "gridA",
+      "type": "source",
+      "position": {
+        "x": 170,
+        "y": 370
+      },
+      "data": {
+        "kind": "source",
+        "label": "Grid feed A",
+        "icon": "electricity",
+        "accent": "#A78243",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "panelA",
+      "type": "pool",
+      "position": {
+        "x": 325,
+        "y": 370
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Electrical panel A",
+        "activation": "passive",
+        "initial": 1000,
+        "capacity": 4000,
+        "mode": "pullAny",
+        "resourceType": "power",
+        "icon": "electricity",
+        "accent": "#A78243"
+      }
+    },
+    {
+      "id": "filter",
+      "type": "converter",
+      "position": {
+        "x": 825,
+        "y": 230
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Coagulation filter",
+        "activation": "automatic",
+        "mode": "pullAll"
+      }
+    },
+    {
+      "id": "coag",
+      "type": "pool",
+      "position": {
+        "x": 825,
+        "y": 90
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Coagulant tank",
+        "activation": "passive",
+        "initial": 10000,
+        "capacity": null,
+        "mode": "pullAny",
+        "resourceType": "coagulant",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "filtered",
+      "type": "pool",
+      "position": {
+        "x": 975,
+        "y": 230
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Filtered water tank",
+        "activation": "passive",
+        "initial": 3000,
+        "capacity": 12000,
+        "mode": "pullAny",
+        "resourceType": "water",
+        "icon": "water",
+        "accent": "#638EA5"
+      }
+    },
+    {
+      "id": "cartridge",
+      "type": "converter",
+      "position": {
+        "x": 1120,
+        "y": 230
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Cartridge filter",
+        "activation": "automatic",
+        "mode": "pullAll"
+      }
+    },
+    {
+      "id": "anti",
+      "type": "pool",
+      "position": {
+        "x": 1120,
+        "y": 90
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Antiscalant tank",
+        "activation": "passive",
+        "initial": 2000,
+        "capacity": null,
+        "mode": "pullAny",
+        "resourceType": "antiscalant",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "fpump",
+      "type": "converter",
+      "position": {
+        "x": 1120,
+        "y": 370
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Feed pump",
+        "activation": "automatic",
+        "mode": "pullAll"
+      }
+    },
+    {
+      "id": "hp",
+      "type": "converter",
+      "position": {
+        "x": 1120,
+        "y": 700
+      },
+      "data": {
+        "kind": "converter",
+        "label": "High-pressure pump",
+        "activation": "automatic",
+        "mode": "pullAll"
+      }
+    },
+    {
+      "id": "ro",
+      "type": "converter",
+      "position": {
+        "x": 975,
+        "y": 700
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Reverse osmosis",
+        "activation": "automatic",
+        "mode": "pullAll"
+      }
+    },
+    {
+      "id": "permeate",
+      "type": "pool",
+      "position": {
+        "x": 825,
+        "y": 700
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Permeate tank",
+        "activation": "passive",
+        "initial": 1500,
+        "capacity": 6000,
+        "mode": "pullAny",
+        "resourceType": "water",
+        "icon": "water",
+        "accent": "#638EA5"
+      }
+    },
+    {
+      "id": "turbine",
+      "type": "converter",
+      "position": {
+        "x": 975,
+        "y": 830
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Brine turbine",
+        "activation": "automatic",
+        "mode": "pullAll"
+      }
+    },
+    {
+      "id": "recovered",
+      "type": "pool",
+      "position": {
+        "x": 1120,
+        "y": 830
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Recovered energy",
+        "activation": "passive",
+        "initial": 1250,
+        "capacity": 5000,
+        "mode": "pullAny",
+        "resourceType": "power",
+        "icon": "electricity",
+        "accent": "#A78243"
+      }
+    },
+    {
+      "id": "panelB",
+      "type": "pool",
+      "position": {
+        "x": 1225,
+        "y": 700
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Electrical panel B",
+        "activation": "passive",
+        "initial": 2000,
+        "capacity": 8000,
+        "mode": "pullAny",
+        "resourceType": "power",
+        "icon": "electricity",
+        "accent": "#A78243"
+      }
+    },
+    {
+      "id": "gridB",
+      "type": "source",
+      "position": {
+        "x": 1225,
+        "y": 830
+      },
+      "data": {
+        "kind": "source",
+        "label": "Grid feed B",
+        "icon": "electricity",
+        "accent": "#A78243",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "remin",
+      "type": "converter",
+      "position": {
+        "x": 500,
+        "y": 700
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Remineralization",
+        "activation": "automatic",
+        "mode": "pullAll"
+      }
+    },
+    {
+      "id": "lime",
+      "type": "pool",
+      "position": {
+        "x": 500,
+        "y": 570
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Lime tank",
+        "activation": "passive",
+        "initial": 20000,
+        "capacity": null,
+        "mode": "pullAny",
+        "resourceType": "remineralizer",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "disinfect",
+      "type": "converter",
+      "position": {
+        "x": 325,
+        "y": 700
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Disinfection",
+        "activation": "automatic",
+        "mode": "pullAll"
+      }
+    },
+    {
+      "id": "naocl2",
+      "type": "pool",
+      "position": {
+        "x": 325,
+        "y": 570
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Disinfectant tank",
+        "activation": "passive",
+        "initial": 1000,
+        "capacity": null,
+        "mode": "pullAny",
+        "resourceType": "hypochlorite",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "product",
+      "type": "pool",
+      "position": {
+        "x": 170,
+        "y": 700
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Product water tank",
+        "activation": "passive",
+        "initial": 1500000,
+        "capacity": 6000000,
+        "mode": "pullAny",
+        "resourceType": "water",
+        "icon": "water",
+        "accent": "#638EA5",
+        "unit": "L"
+      }
+    },
+    {
+      "id": "dpump",
+      "type": "converter",
+      "position": {
+        "x": 170,
+        "y": 830
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Delivery pump",
+        "activation": "automatic",
+        "mode": "pullAll"
+      }
+    },
+    {
+      "id": "city",
+      "type": "drain",
+      "position": {
+        "x": 170,
+        "y": 960
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Supply to the city",
+        "activation": "automatic",
+        "mode": "pullAny",
+        "icon": "house",
+        "accent": "#638EA5"
+      }
+    },
+    {
+      "id": "panelC",
+      "type": "pool",
+      "position": {
+        "x": 500,
+        "y": 830
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Electrical panel C",
+        "activation": "passive",
+        "initial": 400,
+        "capacity": 1600,
+        "mode": "pullAny",
+        "resourceType": "power",
+        "icon": "electricity",
+        "accent": "#A78243"
+      }
+    },
+    {
+      "id": "gridC",
+      "type": "source",
+      "position": {
+        "x": 500,
+        "y": 960
+      },
+      "data": {
+        "kind": "source",
+        "label": "Grid feed C",
+        "icon": "electricity",
+        "accent": "#A78243",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "brine",
+      "type": "pool",
+      "position": {
+        "x": 975,
+        "y": 1190
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Discharge tank",
+        "activation": "passive",
+        "initial": 1500,
+        "capacity": 6000,
+        "mode": "pullAny",
+        "resourceType": "water",
+        "icon": "water",
+        "accent": "#638EA5"
+      }
+    },
+    {
+      "id": "adjust",
+      "type": "converter",
+      "position": {
+        "x": 1120,
+        "y": 1190
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Discharge adjustment",
+        "activation": "automatic",
+        "mode": "pullAll"
+      }
+    },
+    {
+      "id": "adj",
+      "type": "pool",
+      "position": {
+        "x": 1120,
+        "y": 1050
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Water-quality chemical tank",
+        "activation": "passive",
+        "initial": 2000,
+        "capacity": null,
+        "mode": "pullAny",
+        "resourceType": "adjuster",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "outfall",
+      "type": "drain",
+      "position": {
+        "x": 1262,
+        "y": 1190
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Sea outfall",
+        "activation": "automatic",
+        "mode": "pullAny",
+        "icon": "wave",
+        "accent": "#638EA5"
+      }
+    },
+    {
+      "id": "backwash",
+      "type": "pool",
+      "position": {
+        "x": 825,
+        "y": 1330
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Used backwash tank",
+        "activation": "passive",
+        "initial": 200,
+        "capacity": 1000,
+        "mode": "pullAny",
+        "resourceType": "water",
+        "icon": "water",
+        "accent": "#638EA5"
+      }
+    },
+    {
+      "id": "thick",
+      "type": "converter",
+      "position": {
+        "x": 975,
+        "y": 1330
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Thickener",
+        "activation": "automatic",
+        "mode": "pullAll"
+      }
+    },
+    {
+      "id": "dewater",
+      "type": "converter",
+      "position": {
+        "x": 1120,
+        "y": 1330
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Dewatering",
+        "activation": "automatic",
+        "mode": "pullAll"
+      }
+    },
+    {
+      "id": "cake",
+      "type": "drain",
+      "position": {
+        "x": 1262,
+        "y": 1330
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Water in dewatered cake",
+        "activation": "automatic",
+        "mode": "pullAny",
+        "icon": "water",
+        "accent": "#638EA5"
+      }
+    }
   ],
   "edges": [
-    { "id": "e_intake", "source": "sea", "target": "feed", "sourceHandle": "out", "targetHandle": "in", "type": "loop", "data": { "kind": "resource", "flow": "1", "unit": "MLD" } },
-    { "id": "e_feed_ro", "source": "feed", "target": "ro", "sourceHandle": "out", "targetHandle": "in", "type": "loop", "data": { "kind": "resource", "flow": "1", "unit": "MLD" } },
-    { "id": "e_grid", "source": "grid", "target": "power", "sourceHandle": "out", "targetHandle": "in", "type": "loop", "data": { "kind": "resource", "flow": "0.125", "unit": "MW" } },
-    { "id": "e_power_ro", "source": "power", "target": "ro", "sourceHandle": "out", "targetHandle": "in", "type": "loop", "data": { "kind": "resource", "flow": "0.125", "unit": "MW" } },
-    { "id": "e_ro_permeate", "source": "ro", "target": "permeate", "sourceHandle": "out", "targetHandle": "in", "type": "loop", "data": { "kind": "resource", "flow": "0.45", "unit": "MLD" } },
-    { "id": "e_ro_brine", "source": "ro", "target": "brine", "sourceHandle": "out", "targetHandle": "in", "type": "loop", "data": { "kind": "resource", "flow": "0.55", "unit": "MLD" } },
-    { "id": "e_city", "source": "permeate", "target": "city", "sourceHandle": "out", "targetHandle": "in", "type": "loop", "data": { "kind": "resource", "flow": "400", "unit": "CMD" } },
-    { "id": "e_outfall", "source": "brine", "target": "outfall", "sourceHandle": "out", "targetHandle": "in", "type": "loop", "data": { "kind": "resource", "flow": "all" } }
+    {
+      "id": "e_sea_basin",
+      "source": "sea",
+      "target": "basin",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "21000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5"
+      }
+    },
+    {
+      "id": "e_basin_screen",
+      "source": "basin",
+      "target": "screen",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "21000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5"
+      }
+    },
+    {
+      "id": "e_screen_ipump",
+      "source": "screen",
+      "target": "ipump",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "21000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
+        "resourceType": "water"
+      }
+    },
+    {
+      "id": "e_ipump_filter",
+      "source": "ipump",
+      "target": "filter",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "21000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "resourceType": "water"
+      }
+    },
+    {
+      "id": "e_filter_filtered",
+      "source": "filter",
+      "target": "filtered",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "20000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5"
+      }
+    },
+    {
+      "id": "e_filter_backwash",
+      "source": "filter",
+      "target": "backwash",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "waypoints": [
+          {
+            "x": 853,
+            "y": 495
+          },
+          {
+            "x": 700,
+            "y": 495
+          },
+          {
+            "x": 700,
+            "y": 1358
+          }
+        ],
+        "ports": {
+          "source": "bottom",
+          "target": "left"
+        }
+      }
+    },
+    {
+      "id": "e_filtered_cartridge",
+      "source": "filtered",
+      "target": "cartridge",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "20000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5"
+      }
+    },
+    {
+      "id": "e_cartridge_fpump",
+      "source": "cartridge",
+      "target": "fpump",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "20000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
+        "resourceType": "water"
+      }
+    },
+    {
+      "id": "e_fpump_hp",
+      "source": "fpump",
+      "target": "hp",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "20000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
+        "resourceType": "water"
+      }
+    },
+    {
+      "id": "e_hp_ro",
+      "source": "hp",
+      "target": "ro",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "20000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "ports": {
+          "source": "left",
+          "target": "right"
+        },
+        "resourceType": "water"
+      }
+    },
+    {
+      "id": "e_ro_permeate",
+      "source": "ro",
+      "target": "permeate",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "9000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "ports": {
+          "source": "left",
+          "target": "right"
+        }
+      }
+    },
+    {
+      "id": "e_ro_turbine",
+      "source": "ro",
+      "target": "turbine",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "11000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
+        "resourceType": "water"
+      }
+    },
+    {
+      "id": "e_turbine_brine",
+      "source": "turbine",
+      "target": "brine",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "11000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_permeate_remin",
+      "source": "permeate",
+      "target": "remin",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "9000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "ports": {
+          "source": "left",
+          "target": "right"
+        }
+      }
+    },
+    {
+      "id": "e_remin_disinfect",
+      "source": "remin",
+      "target": "disinfect",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "9000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "ports": {
+          "source": "left",
+          "target": "right"
+        },
+        "resourceType": "water"
+      }
+    },
+    {
+      "id": "e_disinfect_product",
+      "source": "disinfect",
+      "target": "product",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "9000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "ports": {
+          "source": "left",
+          "target": "right"
+        }
+      }
+    },
+    {
+      "id": "e_product_dpump",
+      "source": "product",
+      "target": "dpump",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "9000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_dpump_city",
+      "source": "dpump",
+      "target": "city",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "9000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        },
+        "resourceType": "water"
+      }
+    },
+    {
+      "id": "e_backwash_thick",
+      "source": "backwash",
+      "target": "thick",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1000",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5"
+      }
+    },
+    {
+      "id": "e_thick_dewater",
+      "source": "thick",
+      "target": "dewater",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "50",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "resourceType": "water"
+      }
+    },
+    {
+      "id": "e_thick_brine",
+      "source": "thick",
+      "target": "brine",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "950",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "ports": {
+          "source": "top",
+          "target": "bottom"
+        }
+      }
+    },
+    {
+      "id": "e_dewater_brine",
+      "source": "dewater",
+      "target": "brine",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "45",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "ports": {
+          "source": "top",
+          "target": "bottom"
+        }
+      }
+    },
+    {
+      "id": "e_dewater_cake",
+      "source": "dewater",
+      "target": "cake",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "5",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "resourceType": "water"
+      }
+    },
+    {
+      "id": "e_brine_adjust",
+      "source": "brine",
+      "target": "adjust",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "11995",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5"
+      }
+    },
+    {
+      "id": "e_adjust_outfall",
+      "source": "adjust",
+      "target": "outfall",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "11995",
+        "unit": "CMD",
+        "route": "orthogonal",
+        "accent": "#638EA5",
+        "resourceType": "water"
+      }
+    },
+    {
+      "id": "e_gridA_panelA",
+      "source": "gridA",
+      "target": "panelA",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.125",
+        "unit": "MW",
+        "route": "orthogonal",
+        "accent": "#A78243"
+      }
+    },
+    {
+      "id": "e_panelA_ipump",
+      "source": "panelA",
+      "target": "ipump",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.125",
+        "unit": "MW",
+        "route": "orthogonal",
+        "accent": "#A78243"
+      }
+    },
+    {
+      "id": "e_gridB_panelB",
+      "source": "gridB",
+      "target": "panelB",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1.225",
+        "unit": "MW",
+        "route": "orthogonal",
+        "accent": "#A78243",
+        "ports": {
+          "source": "right",
+          "target": "right"
+        }
+      }
+    },
+    {
+      "id": "e_panelB_hp",
+      "source": "panelB",
+      "target": "hp",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "unit": "MW",
+        "route": "orthogonal",
+        "accent": "#A78243",
+        "ports": {
+          "source": "left",
+          "target": "right"
+        }
+      }
+    },
+    {
+      "id": "e_panelB_fpump",
+      "source": "panelB",
+      "target": "fpump",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.225",
+        "unit": "MW",
+        "route": "orthogonal",
+        "accent": "#A78243",
+        "ports": {
+          "source": "top",
+          "target": "right"
+        }
+      }
+    },
+    {
+      "id": "e_recovered_hp",
+      "source": "recovered",
+      "target": "hp",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.625",
+        "unit": "MW",
+        "route": "orthogonal",
+        "accent": "#A78243",
+        "ports": {
+          "source": "top",
+          "target": "bottom"
+        }
+      }
+    },
+    {
+      "id": "e_turbine_recovered",
+      "source": "turbine",
+      "target": "recovered",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.625",
+        "unit": "MW",
+        "route": "orthogonal",
+        "accent": "#A78243"
+      }
+    },
+    {
+      "id": "e_gridC_panelC",
+      "source": "gridC",
+      "target": "panelC",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.15",
+        "unit": "MW",
+        "route": "orthogonal",
+        "accent": "#A78243",
+        "ports": {
+          "source": "right",
+          "target": "right"
+        }
+      }
+    },
+    {
+      "id": "e_panelC_remin",
+      "source": "panelC",
+      "target": "remin",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.05",
+        "unit": "MW",
+        "route": "orthogonal",
+        "accent": "#A78243",
+        "ports": {
+          "source": "top",
+          "target": "bottom"
+        }
+      }
+    },
+    {
+      "id": "e_panelC_dpump",
+      "source": "panelC",
+      "target": "dpump",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.1",
+        "unit": "MW",
+        "route": "orthogonal",
+        "accent": "#A78243",
+        "ports": {
+          "source": "left",
+          "target": "right"
+        }
+      }
+    },
+    {
+      "id": "e_naocl_screen",
+      "source": "naocl",
+      "target": "screen",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "21",
+        "unit": "kg per day",
+        "route": "orthogonal",
+        "accent": "#B47599",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_coag_filter",
+      "source": "coag",
+      "target": "filter",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "210",
+        "unit": "kg per day",
+        "route": "orthogonal",
+        "accent": "#B47599",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_anti_cartridge",
+      "source": "anti",
+      "target": "cartridge",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "40",
+        "unit": "kg per day",
+        "route": "orthogonal",
+        "accent": "#B47599",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_lime_remin",
+      "source": "lime",
+      "target": "remin",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "360",
+        "unit": "kg per day",
+        "route": "orthogonal",
+        "accent": "#B47599",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_naocl2_disinfect",
+      "source": "naocl2",
+      "target": "disinfect",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "9",
+        "unit": "kg per day",
+        "route": "orthogonal",
+        "accent": "#B47599",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_adj_adjust",
+      "source": "adj",
+      "target": "adjust",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "50",
+        "unit": "kg per day",
+        "route": "orthogonal",
+        "accent": "#B47599",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    }
   ],
   "kinds": [
-    { "name": "water", "conserved": true, "baseUnit": "m³", "units": [{ "name": "L", "factor": "0.001" }], "rateUnits": [{ "name": "MLD", "factor": "1000", "per": "d" }, { "name": "CMD", "factor": "1", "per": "d" }] },
-    { "name": "power", "conserved": false, "baseUnit": "kWh", "rateUnits": [{ "name": "MW", "factor": "1000", "per": "h" }] }
+    {
+      "name": "water",
+      "conserved": true,
+      "baseUnit": "m³",
+      "units": [
+        {
+          "name": "L",
+          "factor": "0.001"
+        }
+      ],
+      "rateUnits": [
+        {
+          "name": "MLD",
+          "factor": "1000",
+          "per": "d"
+        },
+        {
+          "name": "CMD",
+          "factor": "1",
+          "per": "d"
+        }
+      ]
+    },
+    {
+      "name": "power",
+      "conserved": false,
+      "baseUnit": "kWh",
+      "rateUnits": [
+        {
+          "name": "MW",
+          "factor": "1000",
+          "per": "h"
+        }
+      ]
+    },
+    {
+      "name": "hypochlorite",
+      "conserved": false,
+      "baseUnit": "kg",
+      "rateUnits": [
+        {
+          "name": "kg per day",
+          "factor": "1",
+          "per": "d"
+        }
+      ]
+    },
+    {
+      "name": "coagulant",
+      "conserved": false,
+      "baseUnit": "kg",
+      "rateUnits": [
+        {
+          "name": "kg per day",
+          "factor": "1",
+          "per": "d"
+        }
+      ]
+    },
+    {
+      "name": "antiscalant",
+      "conserved": false,
+      "baseUnit": "kg",
+      "rateUnits": [
+        {
+          "name": "kg per day",
+          "factor": "1",
+          "per": "d"
+        }
+      ]
+    },
+    {
+      "name": "adjuster",
+      "conserved": false,
+      "baseUnit": "kg",
+      "rateUnits": [
+        {
+          "name": "kg per day",
+          "factor": "1",
+          "per": "d"
+        }
+      ]
+    },
+    {
+      "name": "remineralizer",
+      "conserved": false,
+      "baseUnit": "kg",
+      "rateUnits": [
+        {
+          "name": "kg per day",
+          "factor": "1",
+          "per": "d"
+        }
+      ]
+    }
   ],
-  "time": { "step": { "value": 1, "unit": "h" }, "display": "d" }
+  "time": {
+    "step": {
+      "value": 1,
+      "unit": "h"
+    },
+    "display": "d"
+  },
+  "frames": [
+    {
+      "id": "f_intake",
+      "label": "1 Intake",
+      "rect": {
+        "x": 20,
+        "y": 40,
+        "w": 660,
+        "h": 450
+      },
+      "color": "sage"
+    },
+    {
+      "id": "f_pre",
+      "label": "2 Pretreatment",
+      "rect": {
+        "x": 720,
+        "y": 40,
+        "w": 640,
+        "h": 450
+      },
+      "color": "violet"
+    },
+    {
+      "id": "f_ro",
+      "label": "3 Reverse osmosis",
+      "rect": {
+        "x": 720,
+        "y": 520,
+        "w": 640,
+        "h": 450
+      },
+      "color": "sage"
+    },
+    {
+      "id": "f_post",
+      "label": "4 Post-treatment and delivery",
+      "rect": {
+        "x": 20,
+        "y": 520,
+        "w": 660,
+        "h": 530
+      },
+      "color": "violet"
+    },
+    {
+      "id": "f_out",
+      "label": "5 Discharge and solids",
+      "rect": {
+        "x": 720,
+        "y": 1000,
+        "w": 640,
+        "h": 450
+      },
+      "color": "violet"
+    }
+  ]
 }

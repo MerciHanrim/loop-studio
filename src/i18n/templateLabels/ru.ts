@@ -234,17 +234,45 @@ export const ru: TemplateLabelDict = {
   },
   // 2026-10 — the three gacha templates added since the archive; the banner
   // comparison's names where the node is the same
-  // #471 — "Desalination plant water balance" (`examples/desalination.json`)
+  // #471 — "Seawater desalination process" (`examples/desalination.json`)
   'desalination': {
-    sea: 'Забор морской воды',
-    feed: 'Питающий резервуар',
-    grid: 'Электросеть',
-    power: 'Электроснабжение',
+    sea: 'Морская вода',
+    basin: 'Приёмный бассейн',
+    screen: 'Стержневая решётка',
+    ipump: 'Насос забора воды',
+    naocl: 'Бак гипохлорита',
+    gridA: 'Ввод от сети A',
+    panelA: 'Электрощит A',
+    filter: 'Коагуляционный фильтр',
+    coag: 'Бак коагулянта',
+    filtered: 'Резервуар фильтрата',
+    cartridge: 'Картриджный фильтр',
+    anti: 'Бак антискаланта',
+    fpump: 'Питающий насос',
+    hp: 'Насос высокого давления',
     ro: 'Обратный осмос',
-    permeate: 'Очищенная вода',
-    brine: 'Рассол',
-    city: 'Потребление города',
-    outfall: 'Сброс рассола',
+    permeate: 'Резервуар пермеата',
+    turbine: 'Турбина рассола',
+    recovered: 'Рекуперированная энергия',
+    panelB: 'Электрощит B',
+    gridB: 'Ввод от сети B',
+    remin: 'Реминерализация',
+    lime: 'Бак извести',
+    disinfect: 'Обеззараживание',
+    naocl2: 'Бак дезинфектанта',
+    product: 'Резервуар очищенной воды',
+    dpump: 'Насос подачи',
+    city: 'Подача в город',
+    panelC: 'Электрощит C',
+    gridC: 'Ввод от сети C',
+    brine: 'Резервуар сброса',
+    adjust: 'Корректировка сброса',
+    adj: 'Бак реагента качества воды',
+    outfall: 'Сброс в море',
+    backwash: 'Бак отработанной промывки',
+    thick: 'Сгуститель',
+    dewater: 'Обезвоживание',
+    cake: 'Вода в обезвоженном кеке',
   },
   'gacha-general': {
     target_pulls: 'Цель по призывам (целое число)',
@@ -324,6 +352,13 @@ export const ru: TemplateLabelDict = {
 }
 
 export const ruFrames: TemplateLabelMap = {
+  'desalination': {
+    f_intake: '1 Забор воды',
+    f_pre: '2 Предочистка',
+    f_ro: '3 Обратный осмос',
+    f_post: '4 Доочистка и подача',
+    f_out: '5 Сброс и твёрдые вещества',
+  },
   'coffee-roastery': {
     zone_supply: 'Поставки и запасы',
     zone_roasting: 'Обжарка и продажи',

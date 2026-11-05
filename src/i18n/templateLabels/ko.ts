@@ -228,18 +228,46 @@ export const ko: TemplateLabelDict = {
   // docs/gacha-general.md — node ids from scripts/gen-gacha-general-example.ts
   // (`examples/gacha-general.json`); names for a standalone example (share
   // note 94), the English canonical in the file
-  // #471 — "Desalination plant water balance" (`examples/desalination.json`);
+  // #471 — "Seawater desalination process" (`examples/desalination.json`);
   // water-treatment terms as Korean plants write them
   'desalination': {
-    sea: '해수 취수',
-    feed: '원수 탱크',
-    grid: '전력망',
-    power: '전력 공급',
+    sea: '해수',
+    basin: '취수조',
+    screen: '바 스크린',
+    ipump: '취수 펌프',
+    naocl: '차아염소산 탱크',
+    gridA: '전력망 공급 A',
+    panelA: '전기 패널 A',
+    filter: '응집 여과기',
+    coag: '응집제 탱크',
+    filtered: '여과수 탱크',
+    cartridge: '카트리지 필터',
+    anti: '스케일 방지제 탱크',
+    fpump: '공급 펌프',
+    hp: '고압 펌프',
     ro: '역삼투',
-    permeate: '생산수',
-    brine: '농축수',
-    city: '도시 수요',
-    outfall: '농축수 방류',
+    permeate: '생산수 탱크',
+    turbine: '농축수 터빈',
+    recovered: '회수 에너지',
+    panelB: '전기 패널 B',
+    gridB: '전력망 공급 B',
+    remin: '재광화',
+    lime: '석회 탱크',
+    disinfect: '소독',
+    naocl2: '소독제 탱크',
+    product: '정수 탱크',
+    dpump: '송수 펌프',
+    city: '도시 공급',
+    panelC: '전기 패널 C',
+    gridC: '전력망 공급 C',
+    brine: '방류 탱크',
+    adjust: '방류수 조정',
+    adj: '수질조정제 탱크',
+    outfall: '바다 방류',
+    backwash: '사용 역세척수 탱크',
+    thick: '농축조',
+    dewater: '탈수',
+    cake: '탈수 케이크 속 물',
   },
   'gacha-general': {
     target_pulls: '목표 뽑기 횟수(정수)',
@@ -332,6 +360,13 @@ export const ko: TemplateLabelDict = {
 // source-text checks parse it independently. `check:template-labels` fails if a
 // shipped frame lacks an entry here (or vice-versa).
 export const koFrames: TemplateLabelMap = {
+  'desalination': {
+    f_intake: '1 취수',
+    f_pre: '2 전처리',
+    f_ro: '3 역삼투',
+    f_post: '4 후처리·송수',
+    f_out: '5 방류·슬러지',
+  },
   'coffee-roastery': {
     zone_supply: '공급·재고',
     zone_roasting: '로스팅·판매',

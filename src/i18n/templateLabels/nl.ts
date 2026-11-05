@@ -251,17 +251,45 @@ export const nl: TemplateLabelDict = {
   },
   // 2026-10 — the three gacha templates added since the archive; the banner
   // comparison's names where the node is the same
-  // #471 — "Desalination plant water balance" (`examples/desalination.json`)
+  // #471 — "Seawater desalination process" (`examples/desalination.json`)
   'desalination': {
-    sea: 'Zeewaterinname',
-    feed: 'Voedingstank',
-    grid: 'Elektriciteitsnet',
-    power: 'Stroomvoorziening',
+    sea: 'Zeewater',
+    basin: 'Innamebekken',
+    screen: 'Staafrooster',
+    ipump: 'Innamepomp',
+    naocl: 'Hypochloriettank',
+    gridA: 'Netvoeding A',
+    panelA: 'Schakelkast A',
+    filter: 'Coagulatiefilter',
+    coag: 'Coagulanttank',
+    filtered: 'Tank gefilterd water',
+    cartridge: 'Patroonfilter',
+    anti: 'Antiscalanttank',
+    fpump: 'Voedingspomp',
+    hp: 'Hogedrukpomp',
     ro: 'Omgekeerde osmose',
-    permeate: 'Productwater',
-    brine: 'Pekel',
-    city: 'Vraag van de stad',
-    outfall: 'Pekellozing',
+    permeate: 'Permeaattank',
+    turbine: 'Pekelturbine',
+    recovered: 'Teruggewonnen energie',
+    panelB: 'Schakelkast B',
+    gridB: 'Netvoeding B',
+    remin: 'Remineralisatie',
+    lime: 'Kalktank',
+    disinfect: 'Desinfectie',
+    naocl2: 'Desinfectiemiddeltank',
+    product: 'Productwatertank',
+    dpump: 'Leveringspomp',
+    city: 'Levering aan de stad',
+    panelC: 'Schakelkast C',
+    gridC: 'Netvoeding C',
+    brine: 'Lozingstank',
+    adjust: 'Lozingsaanpassing',
+    adj: 'Tank waterkwaliteitsmiddel',
+    outfall: 'Zeelozing',
+    backwash: 'Tank gebruikt spoelwater',
+    thick: 'Indikker',
+    dewater: 'Ontwatering',
+    cake: 'Water in ontwaterde koek',
   },
   'gacha-general': {
     target_pulls: 'Doelaantal pulls (geheel getal)',
@@ -341,6 +369,13 @@ export const nl: TemplateLabelDict = {
 }
 
 export const nlFrames: TemplateLabelMap = {
+  'desalination': {
+    f_intake: '1 Inname',
+    f_pre: '2 Voorbehandeling',
+    f_ro: '3 Omgekeerde osmose',
+    f_post: '4 Nabehandeling en levering',
+    f_out: '5 Lozing en vaste stoffen',
+  },
   'coffee-roastery': {
     zone_supply: 'Aanvoer & voorraad',
     zone_roasting: 'Branden & verkoop',

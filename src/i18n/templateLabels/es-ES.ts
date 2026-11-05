@@ -235,17 +235,45 @@ export const esES: TemplateLabelDict = {
   },
   // 2026-10 — the three gacha templates added since the archive; the banner
   // comparison's names where the node is the same
-  // #471 — "Desalination plant water balance" (`examples/desalination.json`)
+  // #471 — "Seawater desalination process" (`examples/desalination.json`)
   'desalination': {
-    sea: 'Toma de agua de mar',
-    feed: 'Tanque de alimentación',
-    grid: 'Red eléctrica',
-    power: 'Suministro eléctrico',
+    sea: 'Agua de mar',
+    basin: 'Cámara de toma',
+    screen: 'Reja de barras',
+    ipump: 'Bomba de toma',
+    naocl: 'Tanque de hipoclorito',
+    gridA: 'Alimentación de red A',
+    panelA: 'Panel eléctrico A',
+    filter: 'Filtro de coagulación',
+    coag: 'Tanque de coagulante',
+    filtered: 'Tanque de agua filtrada',
+    cartridge: 'Filtro de cartucho',
+    anti: 'Tanque de antiincrustante',
+    fpump: 'Bomba de alimentación',
+    hp: 'Bomba de alta presión',
     ro: 'Ósmosis inversa',
-    permeate: 'Agua producto',
-    brine: 'Salmuera',
-    city: 'Demanda de la ciudad',
-    outfall: 'Vertido de salmuera',
+    permeate: 'Tanque de permeado',
+    turbine: 'Turbina de salmuera',
+    recovered: 'Energía recuperada',
+    panelB: 'Panel eléctrico B',
+    gridB: 'Alimentación de red B',
+    remin: 'Remineralización',
+    lime: 'Tanque de cal',
+    disinfect: 'Desinfección',
+    naocl2: 'Tanque de desinfectante',
+    product: 'Tanque de agua producto',
+    dpump: 'Bomba de entrega',
+    city: 'Suministro a la ciudad',
+    panelC: 'Panel eléctrico C',
+    gridC: 'Alimentación de red C',
+    brine: 'Tanque de vertido',
+    adjust: 'Ajuste de vertido',
+    adj: 'Tanque químico de calidad',
+    outfall: 'Vertido al mar',
+    backwash: 'Tanque de retrolavado usado',
+    thick: 'Espesador',
+    dewater: 'Deshidratación',
+    cake: 'Agua en torta deshidratada',
   },
   'gacha-general': {
     target_pulls: 'Tiradas objetivo (entero)',
@@ -325,6 +353,13 @@ export const esES: TemplateLabelDict = {
 }
 
 export const esESFrames: TemplateLabelMap = {
+  'desalination': {
+    f_intake: '1 Toma',
+    f_pre: '2 Pretratamiento',
+    f_ro: '3 Ósmosis inversa',
+    f_post: '4 Postratamiento y entrega',
+    f_out: '5 Vertido y sólidos',
+  },
   'coffee-roastery': {
     zone_supply: 'Suministro e inventario',
     zone_roasting: 'Tostado y venta',

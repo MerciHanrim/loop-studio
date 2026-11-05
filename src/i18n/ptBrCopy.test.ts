@@ -382,9 +382,9 @@ describe('pt-BR copy — mechanical review', () => {
     // with the bundled modules in v0.29.0; #471 (2026-11-04): the desalination
     // Template brings 9 labels over 9 new node ids
     expect({ slotCount, frameCount, ids: ids.size }).toEqual({
-      slotCount: 274,
-      frameCount: 10,
-      ids: 230,
+      slotCount: 302,
+      frameCount: 15,
+      ids: 258,
     })
   })
 })
