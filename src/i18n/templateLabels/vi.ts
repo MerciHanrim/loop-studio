@@ -243,17 +243,45 @@ export const vi: TemplateLabelDict = {
   },
   // 2026-10 — the three gacha templates added since the archive; the banner
   // comparison's names where the node is the same
-  // #471 — "Desalination plant water balance" (`examples/desalination.json`)
+  // #471 — "Seawater desalination process" (`examples/desalination.json`)
   'desalination': {
-    sea: 'Lấy nước biển',
-    feed: 'Bể nước cấp',
-    grid: 'Lưới điện',
-    power: 'Nguồn điện',
+    sea: 'Nước biển',
+    basin: 'Bể lấy nước',
+    screen: 'Song chắn rác',
+    ipump: 'Bơm lấy nước',
+    naocl: 'Bể hypoclorit',
+    gridA: 'Lưới điện A',
+    panelA: 'Tủ điện A',
+    filter: 'Bộ lọc keo tụ',
+    coag: 'Bể chất keo tụ',
+    filtered: 'Bể nước đã lọc',
+    cartridge: 'Bộ lọc tinh',
+    anti: 'Bể chất chống cáu cặn',
+    fpump: 'Bơm nước cấp',
+    hp: 'Bơm cao áp',
     ro: 'Thẩm thấu ngược',
-    permeate: 'Nước thành phẩm',
-    brine: 'Nước muối đậm đặc',
-    city: 'Nhu cầu thành phố',
-    outfall: 'Xả nước muối đậm đặc',
+    permeate: 'Bể nước thấm qua màng',
+    turbine: 'Tua-bin nước muối đậm đặc',
+    recovered: 'Năng lượng thu hồi',
+    panelB: 'Tủ điện B',
+    gridB: 'Lưới điện B',
+    remin: 'Tái khoáng hóa',
+    lime: 'Bể vôi',
+    disinfect: 'Khử trùng',
+    naocl2: 'Bể chất khử trùng',
+    product: 'Bể nước thành phẩm',
+    dpump: 'Bơm phân phối',
+    city: 'Cấp cho thành phố',
+    panelC: 'Tủ điện C',
+    gridC: 'Lưới điện C',
+    brine: 'Bể xả',
+    adjust: 'Điều chỉnh nước xả',
+    adj: 'Bể hóa chất chỉnh nước',
+    outfall: 'Cửa xả ra biển',
+    backwash: 'Bể nước rửa ngược đã dùng',
+    thick: 'Bể cô đặc',
+    dewater: 'Tách nước',
+    cake: 'Nước trong bánh bùn',
   },
   'gacha-general': {
     target_pulls: 'Số lần quay mục tiêu (số nguyên)',
@@ -333,6 +361,13 @@ export const vi: TemplateLabelDict = {
 }
 
 export const viFrames: TemplateLabelMap = {
+  'desalination': {
+    f_intake: '1 Lấy nước',
+    f_pre: '2 Tiền xử lý',
+    f_ro: '3 Thẩm thấu ngược',
+    f_post: '4 Hậu xử lý và phân phối',
+    f_out: '5 Xả và chất rắn',
+  },
   'coffee-roastery': {
     zone_supply: 'Cung ứng & tồn kho',
     zone_roasting: 'Rang & bán hàng',

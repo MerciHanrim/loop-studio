@@ -151,7 +151,7 @@ describe('converterGroups — the bundled documents', () => {
       }
     }
     const name = (f: string) => f.split('/').pop()
-    expect(files.filter((f) => groupsOf(f).some((g) => g.hasConverter)).map(name)).toEqual(['deadlock.json', 'equilibrium.json', 'mmo-progression.json'])
+    expect(files.filter((f) => groupsOf(f).some((g) => g.hasConverter)).map(name)).toEqual(['deadlock.json', 'desalination.json', 'equilibrium.json', 'mmo-progression.json'])
     const gateOnly = files.filter((f) => groupsOf(f).some((g) => !g.hasConverter))
     expect(gateOnly.map(name)).toEqual(['gacha-banner-zones.json', 'gacha-pickup.json', 'gacha-standard.json'])
   })

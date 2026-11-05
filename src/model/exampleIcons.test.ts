@@ -6,8 +6,9 @@ import { semanticDigest } from './workspace'
 
 // #478 (2026-11-04) — the bundled examples' node icons. An icon is a visual
 // mark before a node's name with no simulation meaning (SEMANTICS-R12.md), put
-// only where the meaning is plain: water, electricity and the sea in the
-// desalination plant, the MMO's Gold-denominated Pools and its Water / Food
+// only where the meaning is plain: water, electricity, the sea and the city in
+// the desalination process (a chemical tank carries none: a capsule reads as
+// medicine), the MMO's Gold-denominated Pools and its Water / Food
 // Pools, the factory's Recycler, the roastery's dessert line. Not inferred from
 // names at run time; the verification fixtures, the generic Templates and the
 // gacha tickets stay unmarked, and no sales Drain carries cash (it receives
@@ -23,7 +24,12 @@ const GRAPHS = Object.entries(EXAMPLE_TEXT)
 /** every icon of every bundled example, by file and node id */
 const ICONS: Record<string, Record<string, string>> = {
   'coffee-roastery.json': { dessert_prep_src: 'food', dessert_stock: 'food' },
-  'desalination.json': { sea: 'wave', feed: 'water', permeate: 'water', brine: 'water', grid: 'electricity', power: 'electricity' },
+  'desalination.json': {
+    sea: 'wave', outfall: 'wave', city: 'house', cake: 'water',
+    basin: 'water', filtered: 'water', permeate: 'water', product: 'water', brine: 'water', backwash: 'water',
+    gridA: 'electricity', gridB: 'electricity', gridC: 'electricity',
+    panelA: 'electricity', panelB: 'electricity', panelC: 'electricity', recovered: 'electricity',
+  },
   'mmo-progression.json': {
     gold: 'game-currency', gold_earned: 'game-currency', vendor_revenue: 'game-currency',
     repair_spend: 'game-currency', resupply_spend: 'game-currency', training_spend: 'game-currency',
@@ -36,7 +42,7 @@ const ICONS: Record<string, Record<string, string>> = {
 /** the content digest of each file above with its icons taken off — main's file before #478 */
 const WITHOUT_ICONS: Record<string, string> = {
   'coffee-roastery.json': '1bb29617ad5888570bdfd22c2db8c6faf268c04a8fdb15181880ff0a185b0545',
-  'desalination.json': '1f0ffb582ee491ed9c7c497b7ecba546a422c03a089ccea73fa8a817548fa520',
+  'desalination.json': '8a352ea8a5578390ff53f825ac1f6b3732e5a420996c4e1422ac0a6134b87e82', // #471: the process example
   'mmo-progression.json': '41674ea763b2330552878d7bbe72c88c2794a12ad406e98a5a478e9a430ed983',
   'risky-factory.json': '76f4a6a98749fbd93bc3ec2c22d8b3d7aa990b1e905fb8064aa4c8c0d83e792b',
 }

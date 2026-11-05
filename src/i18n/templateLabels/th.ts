@@ -235,17 +235,45 @@ export const th: TemplateLabelDict = {
   },
   // 2026-10 — the three gacha templates added since the archive; the banner
   // comparison's names where the node is the same
-  // #471 — "Desalination plant water balance" (`examples/desalination.json`)
+  // #471 — "Seawater desalination process" (`examples/desalination.json`)
   'desalination': {
-    sea: 'การรับน้ำทะเล',
-    feed: 'ถังน้ำดิบ',
-    grid: 'ไฟฟ้าจากระบบ',
-    power: 'แหล่งจ่ายไฟ',
+    sea: 'น้ำทะเล',
+    basin: 'บ่อรับน้ำ',
+    screen: 'ตะแกรงดักขยะ',
+    ipump: 'ปั๊มรับน้ำ',
+    naocl: 'ถังไฮโปคลอไรต์',
+    gridA: 'ไฟฟ้าจากระบบ A',
+    panelA: 'แผงไฟฟ้า A',
+    filter: 'ตัวกรองโคแอกกูเลชัน',
+    coag: 'ถังสารสร้างตะกอน',
+    filtered: 'ถังน้ำกรอง',
+    cartridge: 'ตัวกรองคาร์ทริดจ์',
+    anti: 'ถังสารป้องกันตะกรัน',
+    fpump: 'ปั๊มป้อนน้ำ',
+    hp: 'ปั๊มแรงดันสูง',
     ro: 'ออสโมซิสผันกลับ',
-    permeate: 'น้ำผลิต',
-    brine: 'น้ำเกลือเข้มข้น',
-    city: 'ความต้องการของเมือง',
-    outfall: 'การปล่อยน้ำเกลือเข้มข้น',
+    permeate: 'ถังน้ำผ่านเมมเบรน',
+    turbine: 'กังหันน้ำเกลือเข้มข้น',
+    recovered: 'พลังงานที่ได้คืน',
+    panelB: 'แผงไฟฟ้า B',
+    gridB: 'ไฟฟ้าจากระบบ B',
+    remin: 'การเติมแร่ธาตุ',
+    lime: 'ถังปูนขาว',
+    disinfect: 'การฆ่าเชื้อ',
+    naocl2: 'ถังสารฆ่าเชื้อ',
+    product: 'ถังน้ำผลิต',
+    dpump: 'ปั๊มส่งจ่ายน้ำ',
+    city: 'ส่งจ่ายให้เมือง',
+    panelC: 'แผงไฟฟ้า C',
+    gridC: 'ไฟฟ้าจากระบบ C',
+    brine: 'ถังน้ำปล่อยทิ้ง',
+    adjust: 'ปรับน้ำก่อนปล่อยทิ้ง',
+    adj: 'ถังสารปรับคุณภาพน้ำ',
+    outfall: 'จุดปล่อยลงทะเล',
+    backwash: 'ถังน้ำล้างย้อนใช้แล้ว',
+    thick: 'ถังทำข้นตะกอน',
+    dewater: 'การรีดน้ำ',
+    cake: 'น้ำในเค้กตะกอน',
   },
   'gacha-general': {
     target_pulls: 'จำนวนการสุ่มเป้าหมาย (จำนวนเต็ม)',
@@ -325,6 +353,13 @@ export const th: TemplateLabelDict = {
 }
 
 export const thFrames: TemplateLabelMap = {
+  'desalination': {
+    f_intake: '1 รับน้ำ',
+    f_pre: '2 บำบัดขั้นต้น',
+    f_ro: '3 ออสโมซิสผันกลับ',
+    f_post: '4 บำบัดขั้นหลังและส่งจ่าย',
+    f_out: '5 ปล่อยทิ้งและของแข็ง',
+  },
   'coffee-roastery': {
     zone_supply: 'การจัดหาและสต็อก',
     zone_roasting: 'การคั่วและการขาย',

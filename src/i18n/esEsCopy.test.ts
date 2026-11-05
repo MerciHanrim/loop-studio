@@ -111,6 +111,7 @@ describe('es-ES — the region audit, as a contract', () => {
         // `Puntuación de equipo` where es-419 says `Puntaje de equipo`
         'help.examples.coffeeRoastery.p3',
         'help.examples.mmoProgression.p1',
+        'help.examples.desalination.p2', // #471 process example: `iconos`
         // issue #344 step 3 — the Add bend button, and its hint (`pulse
         // Intro`, `añadir`); the keyboard notice says `no se ha cambiado`
         'inspector.edge.route.addBend',

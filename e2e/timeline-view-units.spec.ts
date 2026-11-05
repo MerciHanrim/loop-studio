@@ -1,23 +1,23 @@
 import { readFileSync } from 'node:fs'
 import type { Download, Page } from '@playwright/test'
-import { expect, openApp, resetAll, runMc, test } from './support/loop'
+import { expect, importGraph, openApp, resetAll, runMc, test } from './support/loop'
 import { pickTemplate } from './support/workbenchMenus'
 
-// SEMANTICS-M4.md §M4-8 (#471) — the Timeline's view unit on the desalination
-// Template, the one bundled document with an amount unit: `water` has L beside
-// its base m³, `power` has none. The screen changes; the document, the run and
-// the plain file do not. The text rules themselves are in src/model/viewUnits.test.ts.
+// SEMANTICS-M4.md §M4-8 (#471) — the Timeline's view unit on a small plant kept
+// for this spec, so the contract does not depend on a bundled example: `water`
+// has L beside its base m³, `power` has none. The screen changes; the document,
+// the run and the plain file do not. The text rules themselves are in
+// src/model/viewUnits.test.ts.
 
 type Bridge = { __loop: Record<string, { getState: () => any }> }
 
 const STEPS = 24
+const PLANT = readFileSync(new URL('./fixtures/units-plant.json', import.meta.url), 'utf8')
 
-async function openDesalination(page: Page) {
+async function openPlant(page: Page) {
   await openApp(page)
   await resetAll(page)
-  await pickTemplate(page, 'desalination')
-  const confirm = page.locator('.mcdlg--confirm .btn--primary')
-  if (await confirm.isVisible().catch(() => false)) await confirm.click()
+  await importGraph(page, PLANT)
   await expect(page.locator('.react-flow__node')).toHaveCount(9)
   await page.evaluate((steps) => {
     const sim = (window as unknown as Bridge).__loop.sim.getState()
@@ -47,7 +47,7 @@ const axisNote = (page: Page) => page.locator('.timeline__tick--unit')
 const textOf = async (dl: Download): Promise<string> => readFileSync((await dl.path())!, 'utf8')
 
 test('a view unit changes the screen and nothing stored, and the base view comes back exactly', async ({ page }) => {
-  await openDesalination(page)
+  await openPlant(page)
   const before = await stored(page)
   const svgBefore = await page.locator('.timeline__svg').innerHTML()
 
@@ -70,7 +70,7 @@ test('a view unit changes the screen and nothing stored, and the base view comes
 })
 
 test('one shared unit is named once on the axis', async ({ page }) => {
-  await openDesalination(page)
+  await openPlant(page)
   await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().setTimelineSeries(['feed', 'permeate', 'brine']))
   await expect(axisNote(page)).toHaveText('m³')
   await chooseUnit(page, 'L')
@@ -78,7 +78,7 @@ test('one shared unit is named once on the axis', async ({ page }) => {
 })
 
 test('the plain CSV ignores the view; the file with shown values reduces to it and matches the step reading', async ({ page }) => {
-  await openDesalination(page)
+  await openPlant(page)
   const save = async (click: () => Promise<void>) => {
     const [dl] = await Promise.all([page.waitForEvent('download'), click()])
     return { name: dl.suggestedFilename(), text: await textOf(dl) }
@@ -123,7 +123,7 @@ test('the plain CSV ignores the view; the file with shown values reduces to it a
 })
 
 test('the Distribution tab reads in the same unit; its files do not change', async ({ page }) => {
-  await openDesalination(page)
+  await openPlant(page)
   await runMc(page, { baseSeed: 1, runs: 5, steps: STEPS, tracked: [] })
   const save = async () => {
     await page.locator('.dist__stats .menu button').first().click()
@@ -189,16 +189,15 @@ test('from an empty document, a person makes a Pool, a kind and a unit on screen
 })
 
 test('another document starts in its base units, and one with no amount unit shows nothing new', async ({ page }) => {
-  await openDesalination(page)
+  await openPlant(page)
   await chooseUnit(page, 'L')
-  await pickTemplate(page, 'desalination')
-  const confirm = page.locator('.mcdlg--confirm .btn--primary')
-  if (await confirm.isVisible().catch(() => false)) await confirm.click()
+  await importGraph(page, PLANT)
   await expect
     .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.viewUnits?.getState().views))
     .toEqual({})
 
   await pickTemplate(page, 'equilibrium')
+  const confirm = page.locator('.mcdlg--confirm .btn--primary')
   if (await confirm.isVisible().catch(() => false)) await confirm.click()
   await page.locator('.timeline__series').click()
   await expect(page.locator('.tl-series')).toBeVisible()

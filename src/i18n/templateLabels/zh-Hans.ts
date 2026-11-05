@@ -226,17 +226,45 @@ export const zhHans: TemplateLabelDict = {
   },
   // 2026-10 — the three gacha templates added since the archive; the banner
   // comparison's names where the node is the same
-  // #471 — "Desalination plant water balance" (`examples/desalination.json`)
+  // #471 — "Seawater desalination process" (`examples/desalination.json`)
   'desalination': {
-    sea: '海水取水',
-    feed: '原水箱',
-    grid: '电网供电',
-    power: '电力供应',
+    sea: '海水',
+    basin: '取水池',
+    screen: '格栅',
+    ipump: '取水泵',
+    naocl: '次氯酸盐罐',
+    gridA: '电网供电 A',
+    panelA: '配电柜 A',
+    filter: '混凝过滤器',
+    coag: '混凝剂罐',
+    filtered: '过滤水箱',
+    cartridge: '保安过滤器',
+    anti: '阻垢剂罐',
+    fpump: '进水泵',
+    hp: '高压泵',
     ro: '反渗透',
-    permeate: '产品水',
-    brine: '浓盐水',
-    city: '城市需求',
-    outfall: '浓盐水排放',
+    permeate: '渗透水箱',
+    turbine: '浓盐水涡轮',
+    recovered: '回收能量',
+    panelB: '配电柜 B',
+    gridB: '电网供电 B',
+    remin: '再矿化',
+    lime: '石灰罐',
+    disinfect: '消毒',
+    naocl2: '消毒剂罐',
+    product: '产品水箱',
+    dpump: '送水泵',
+    city: '向城市供水',
+    panelC: '配电柜 C',
+    gridC: '电网供电 C',
+    brine: '排放水箱',
+    adjust: '排放调节',
+    adj: '水质调节剂罐',
+    outfall: '海洋排放口',
+    backwash: '废反洗水箱',
+    thick: '浓缩池',
+    dewater: '脱水',
+    cake: '脱水泥饼中的水',
   },
   'gacha-general': {
     target_pulls: '目标抽数（整数）',
@@ -316,6 +344,13 @@ export const zhHans: TemplateLabelDict = {
 }
 
 export const zhHansFrames: TemplateLabelMap = {
+  'desalination': {
+    f_intake: '1 取水',
+    f_pre: '2 预处理',
+    f_ro: '3 反渗透',
+    f_post: '4 后处理与送水',
+    f_out: '5 排放与固体物',
+  },
   'coffee-roastery': {
     zone_supply: '供应与库存',
     zone_roasting: '烘焙与销售',

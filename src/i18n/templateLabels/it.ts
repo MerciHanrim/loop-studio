@@ -251,17 +251,45 @@ export const it: TemplateLabelDict = {
   },
   // 2026-10 — the three gacha templates added since the archive; the banner
   // comparison's names where the node is the same
-  // #471 — "Desalination plant water balance" (`examples/desalination.json`)
+  // #471 — "Seawater desalination process" (`examples/desalination.json`)
   'desalination': {
-    sea: 'Presa di acqua di mare',
-    feed: 'Serbatoio di alimentazione',
-    grid: 'Rete elettrica',
-    power: 'Alimentazione elettrica',
+    sea: 'Acqua di mare',
+    basin: 'Vasca di presa',
+    screen: 'Griglia a barre',
+    ipump: 'Pompa di presa',
+    naocl: 'Serbatoio ipoclorito',
+    gridA: 'Alimentazione di rete A',
+    panelA: 'Quadro elettrico A',
+    filter: 'Filtro di coagulazione',
+    coag: 'Serbatoio coagulante',
+    filtered: 'Serbatoio acqua filtrata',
+    cartridge: 'Filtro a cartuccia',
+    anti: 'Serbatoio antincrostante',
+    fpump: 'Pompa di alimentazione',
+    hp: 'Pompa ad alta pressione',
     ro: 'Osmosi inversa',
-    permeate: 'Acqua prodotta',
-    brine: 'Salamoia',
-    city: 'Domanda della città',
-    outfall: 'Scarico della salamoia',
+    permeate: 'Serbatoio permeato',
+    turbine: 'Turbina della salamoia',
+    recovered: 'Energia recuperata',
+    panelB: 'Quadro elettrico B',
+    gridB: 'Alimentazione di rete B',
+    remin: 'Remineralizzazione',
+    lime: 'Serbatoio calce',
+    disinfect: 'Disinfezione',
+    naocl2: 'Serbatoio disinfettante',
+    product: 'Serbatoio acqua prodotta',
+    dpump: 'Pompa di erogazione',
+    city: 'Fornitura alla città',
+    panelC: 'Quadro elettrico C',
+    gridC: 'Alimentazione di rete C',
+    brine: 'Serbatoio di scarico',
+    adjust: 'Correzione dello scarico',
+    adj: 'Vasca chimici qualità acqua',
+    outfall: 'Scarico in mare',
+    backwash: 'Vasca controlavaggio usato',
+    thick: 'Ispessitore',
+    dewater: 'Disidratazione',
+    cake: 'Acqua nel fango disidratato',
   },
   'gacha-general': {
     target_pulls: 'Pull obiettivo (numero intero)',
@@ -343,6 +371,13 @@ export const it: TemplateLabelDict = {
 /** docs/localization.md §L4.5b — the saved-frame title overlay. Same shape and
  *  the same rule as the node dict above: `label` only, keyed by frame id. */
 export const itFrames: TemplateLabelMap = {
+  'desalination': {
+    f_intake: '1 Presa',
+    f_pre: '2 Pretrattamento',
+    f_ro: '3 Osmosi inversa',
+    f_post: '4 Post-trattamento ed erogazione',
+    f_out: '5 Scarico e solidi',
+  },
   'coffee-roastery': {
     zone_supply: 'Fornitura e scorte',
     zone_roasting: 'Tostatura e vendite',

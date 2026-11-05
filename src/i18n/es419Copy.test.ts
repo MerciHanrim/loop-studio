@@ -404,16 +404,24 @@ describe('es-419 copy — mechanical review', () => {
       // #471 U1 stage 2 — the Spanish words ARE `balance` (El balance de) and
       // `factor` (nombre = factor); `MW` and `h` are the rate-unit example a
       // user types into the unit list (`MW = 1000/h`)
-      balance: ['inspector.unit.change.verdicts', 'panels.time.change.body', 'help.examples.desalination.p3', 'templates.desalination.blurb'],
+      balance: ['inspector.unit.change.verdicts', 'panels.time.change.body'],
       factor: ['panels.kinds.unitsHint'],
       MW: ['panels.kinds.unitsHint', 'help.examples.desalination.p2'],
       h: ['panels.kinds.unitsHint'],
-      // #471 desalination — `Balance hídrico` names the Template; `MLD`, `CMD`
-      // and the `m` of `m³` are the plant's units, written as in English
-      Balance: ['templates.desalination.name'],
-      MLD: ['help.examples.desalination.p2'],
+      // #471 desalination — `CMD` and the `m` of `m³` are the plant's units,
+      // written as in English
       CMD: ['help.examples.desalination.p2'],
-      m: ['help.examples.desalination.p2'],
+      m: ['help.examples.desalination.p6'],
+      // #471 process example — grid feeds A, B and C; `kg` and `kWh`, written as in
+      // English; the citation in the last note
+      A: ['help.examples.desalination.p4'],
+      B: ['help.examples.desalination.p4'],
+      C: ['help.examples.desalination.p4'],
+      kg: ['help.examples.desalination.p2'],
+      kWh: ['help.examples.desalination.p6'],
+      Schunke: ['help.examples.desalination.p6'],
+      et: ['help.examples.desalination.p6'],
+      al: ['help.examples.desalination.p6'],
     }
 
     const WORD = /[A-Za-zÀ-ÖØ-öø-ÿ]+/gu

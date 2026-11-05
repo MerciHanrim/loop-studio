@@ -219,17 +219,45 @@ export const ja: TemplateLabelDict = {
   },
   // 2026-10 — the three gacha templates added since the archive; the banner
   // comparison's names where the node is the same
-  // #471 — "Desalination plant water balance" (`examples/desalination.json`)
+  // #471 — "Seawater desalination process" (`examples/desalination.json`)
   'desalination': {
-    sea: '海水取水',
-    feed: '原水タンク',
-    grid: '系統電力',
-    power: '電力供給',
+    sea: '海水',
+    basin: '取水槽',
+    screen: 'バースクリーン',
+    ipump: '取水ポンプ',
+    naocl: '次亜塩素酸タンク',
+    gridA: '系統電力 A',
+    panelA: '配電盤 A',
+    filter: '凝集ろ過器',
+    coag: '凝集剤タンク',
+    filtered: 'ろ過水タンク',
+    cartridge: 'カートリッジフィルター',
+    anti: 'スケール防止剤タンク',
+    fpump: '供給ポンプ',
+    hp: '高圧ポンプ',
     ro: '逆浸透',
-    permeate: '生産水',
-    brine: '濃縮水',
-    city: '都市需要',
-    outfall: '濃縮水放流',
+    permeate: '透過水タンク',
+    turbine: '濃縮水タービン',
+    recovered: '回収エネルギー',
+    panelB: '配電盤 B',
+    gridB: '系統電力 B',
+    remin: '再ミネラル化',
+    lime: '石灰タンク',
+    disinfect: '消毒',
+    naocl2: '消毒剤タンク',
+    product: '生産水タンク',
+    dpump: '送水ポンプ',
+    city: '都市への供給',
+    panelC: '配電盤 C',
+    gridC: '系統電力 C',
+    brine: '放流タンク',
+    adjust: '放流調整',
+    adj: '水質調整剤タンク',
+    outfall: '海洋放流',
+    backwash: '使用済み逆洗水タンク',
+    thick: '濃縮槽',
+    dewater: '脱水',
+    cake: '脱水ケーキ中の水',
   },
   'gacha-general': {
     target_pulls: '目標の連数（整数）',
@@ -312,6 +340,13 @@ export const ja: TemplateLabelDict = {
 // `templateId -> (frameId -> title)`. Flat sibling of `ja` above. `check:template-labels`
 // fails if a shipped frame lacks an entry here (or vice-versa).
 export const jaFrames: TemplateLabelMap = {
+  'desalination': {
+    f_intake: '1 取水',
+    f_pre: '2 前処理',
+    f_ro: '3 逆浸透',
+    f_post: '4 後処理と送水',
+    f_out: '5 放流と固形物',
+  },
   'coffee-roastery': {
     zone_supply: '供給・在庫',
     zone_roasting: '焙煎・販売',

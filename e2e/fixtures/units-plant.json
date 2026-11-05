@@ -1,0 +1,31 @@
+{
+  "schema": "loop-studio/graph/4",
+  "version": 1,
+  "layoutVersion": 1,
+  "nodes": [
+    { "id": "sea", "type": "source", "position": { "x": 48, "y": 196 }, "data": { "kind": "source", "label": "Seawater intake", "icon": "wave", "activation": "automatic", "mode": "pushAny" } },
+    { "id": "feed", "type": "pool", "position": { "x": 240, "y": 196 }, "data": { "kind": "pool", "label": "Feed tank", "icon": "water", "activation": "passive", "initial": 500, "capacity": 2000, "mode": "pullAny", "resourceType": "water" } },
+    { "id": "grid", "type": "source", "position": { "x": 48, "y": 452 }, "data": { "kind": "source", "label": "Grid power", "icon": "electricity", "activation": "automatic", "mode": "pushAny" } },
+    { "id": "power", "type": "pool", "position": { "x": 240, "y": 452 }, "data": { "kind": "pool", "label": "Power supply", "icon": "electricity", "activation": "passive", "initial": 125, "capacity": null, "mode": "pullAny", "resourceType": "power" } },
+    { "id": "ro", "type": "converter", "position": { "x": 464, "y": 324 }, "data": { "kind": "converter", "label": "Reverse osmosis", "activation": "automatic", "mode": "pullAll" } },
+    { "id": "permeate", "type": "pool", "position": { "x": 704, "y": 196 }, "data": { "kind": "pool", "label": "Product water", "icon": "water", "activation": "passive", "initial": 200000, "capacity": null, "mode": "pullAny", "resourceType": "water", "unit": "L" } },
+    { "id": "brine", "type": "pool", "position": { "x": 704, "y": 452 }, "data": { "kind": "pool", "label": "Brine", "icon": "water", "activation": "passive", "initial": 0, "capacity": null, "mode": "pullAny", "resourceType": "water" } },
+    { "id": "city", "type": "drain", "position": { "x": 928, "y": 196 }, "data": { "kind": "drain", "label": "City demand", "activation": "automatic", "mode": "pullAny" } },
+    { "id": "outfall", "type": "drain", "position": { "x": 928, "y": 452 }, "data": { "kind": "drain", "label": "Brine outfall", "activation": "automatic", "mode": "pullAny" } }
+  ],
+  "edges": [
+    { "id": "e_intake", "source": "sea", "target": "feed", "sourceHandle": "out", "targetHandle": "in", "type": "loop", "data": { "kind": "resource", "flow": "1", "unit": "MLD" } },
+    { "id": "e_feed_ro", "source": "feed", "target": "ro", "sourceHandle": "out", "targetHandle": "in", "type": "loop", "data": { "kind": "resource", "flow": "1", "unit": "MLD" } },
+    { "id": "e_grid", "source": "grid", "target": "power", "sourceHandle": "out", "targetHandle": "in", "type": "loop", "data": { "kind": "resource", "flow": "0.125", "unit": "MW" } },
+    { "id": "e_power_ro", "source": "power", "target": "ro", "sourceHandle": "out", "targetHandle": "in", "type": "loop", "data": { "kind": "resource", "flow": "0.125", "unit": "MW" } },
+    { "id": "e_ro_permeate", "source": "ro", "target": "permeate", "sourceHandle": "out", "targetHandle": "in", "type": "loop", "data": { "kind": "resource", "flow": "0.45", "unit": "MLD" } },
+    { "id": "e_ro_brine", "source": "ro", "target": "brine", "sourceHandle": "out", "targetHandle": "in", "type": "loop", "data": { "kind": "resource", "flow": "0.55", "unit": "MLD" } },
+    { "id": "e_city", "source": "permeate", "target": "city", "sourceHandle": "out", "targetHandle": "in", "type": "loop", "data": { "kind": "resource", "flow": "400", "unit": "CMD" } },
+    { "id": "e_outfall", "source": "brine", "target": "outfall", "sourceHandle": "out", "targetHandle": "in", "type": "loop", "data": { "kind": "resource", "flow": "all" } }
+  ],
+  "kinds": [
+    { "name": "water", "conserved": true, "baseUnit": "m³", "units": [{ "name": "L", "factor": "0.001" }], "rateUnits": [{ "name": "MLD", "factor": "1000", "per": "d" }, { "name": "CMD", "factor": "1", "per": "d" }] },
+    { "name": "power", "conserved": false, "baseUnit": "kWh", "rateUnits": [{ "name": "MW", "factor": "1000", "per": "h" }] }
+  ],
+  "time": { "step": { "value": 1, "unit": "h" }, "display": "d" }
+}

@@ -238,17 +238,45 @@ export const ar: TemplateLabelDict = {
   },
   // 2026-10 — the three gacha templates added since the archive; the banner
   // comparison's names where the node is the same
-  // #471 — "Desalination plant water balance" (`examples/desalination.json`)
+  // #471 — "Seawater desalination process" (`examples/desalination.json`)
   'desalination': {
-    sea: 'مأخذ مياه البحر',
-    feed: 'خزان التغذية',
-    grid: 'شبكة الكهرباء',
-    power: 'إمداد الكهرباء',
+    sea: 'مياه البحر',
+    basin: 'حوض المأخذ',
+    screen: 'مصفاة قضبان',
+    ipump: 'مضخة المأخذ',
+    naocl: 'خزان الهيبوكلوريت',
+    gridA: 'تغذية الشبكة A',
+    panelA: 'لوحة كهربائية A',
+    filter: 'مرشح التخثير',
+    coag: 'خزان المادة المخثرة',
+    filtered: 'خزان المياه المرشحة',
+    cartridge: 'مرشح الخرطوشة',
+    anti: 'خزان مانع الترسبات',
+    fpump: 'مضخة التغذية',
+    hp: 'مضخة الضغط العالي',
     ro: 'التناضح العكسي',
-    permeate: 'المياه المنتجة',
-    brine: 'المحلول الملحي',
-    city: 'طلب المدينة',
-    outfall: 'مصرف المحلول الملحي',
+    permeate: 'خزان المياه النافذة',
+    turbine: 'توربين المحلول الملحي',
+    recovered: 'الطاقة المستردة',
+    panelB: 'لوحة كهربائية B',
+    gridB: 'تغذية الشبكة B',
+    remin: 'إعادة التمعدن',
+    lime: 'خزان الجير',
+    disinfect: 'التطهير',
+    naocl2: 'خزان المطهر',
+    product: 'خزان المياه المنتجة',
+    dpump: 'مضخة التوصيل',
+    city: 'الإمداد إلى المدينة',
+    panelC: 'لوحة كهربائية C',
+    gridC: 'تغذية الشبكة C',
+    brine: 'خزان التصريف',
+    adjust: 'ضبط التصريف',
+    adj: 'خزان كيماويات جودة المياه',
+    outfall: 'المصرف البحري',
+    backwash: 'خزان مياه الغسيل العكسي',
+    thick: 'مكثّف الحمأة',
+    dewater: 'نزع الماء',
+    cake: 'الماء في كعكة الحمأة',
   },
   'gacha-general': {
     target_pulls: 'عدد Pulls المستهدف (عدد صحيح)',
@@ -328,6 +356,13 @@ export const ar: TemplateLabelDict = {
 }
 
 export const arFrames: TemplateLabelMap = {
+  'desalination': {
+    f_intake: '1 المأخذ',
+    f_pre: '2 المعالجة الأولية',
+    f_ro: '3 التناضح العكسي',
+    f_post: '4 المعالجة اللاحقة والتوصيل',
+    f_out: '5 التصريف والمواد الصلبة',
+  },
   'coffee-roastery': {
     zone_supply: 'التوريد والمخزون',
     zone_roasting: 'التحميص والمبيعات',

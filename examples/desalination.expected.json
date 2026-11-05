@@ -1,21 +1,22 @@
 {
-  "$about": "examples/desalination.json run through the real engine for 720 steps (30 days at a 1 h step). Re-derived and pinned by test/desalination-example.test.ts. Two layers: the authored per-day recipe balances exactly (no kinds finding); the engine runs on doubles, and its water-balance residual, computed exactly from the doubles it holds, stays inside an a-priori bound that grows with the step count.",
+  "$about": "examples/desalination.json run through the real engine for 720 steps (30 days at a 1 h step). Re-derived and pinned by test/desalination-example.test.ts. A fixed-ratio flow model: its plant size, stage power and doses are example assumptions, not design data.",
   "$bound": {
-    "formula": "B(n) = n × |δ| + Σ_{t ≤ n} Σ_{water Pools} 2u × (S_t + D_{t−1} + a_t + |ρ_a|)",
+    "formula": "B(n) = n × Σ|δ_c| + Σ_{t ≤ n} Σ_{water Pools} k u × (S + D_{t−1} + a)",
     "u": "unit roundoff of binary64, 2^-53: each addition or subtraction rounds by at most u times its exact result (IEEE-754 round to nearest)",
-    "delta": "δ = double(0.45 MLD) + double(0.55 MLD) − double(1 MLD), per reverse-osmosis run, exact: 0.000000000000003552713678800500929355621337890625 m³; counted for every step, whether or not the RO runs",
-    "updates": "every event amount is applied to a Pool by exactly one addition (into it) or one subtraction (out of it) in src/engine/step.ts; each water Pool takes one inflow and one outflow per step, so two roundings, each of an exact result no larger than the actual start plus the actual inflow, in either order",
-    "envelope": "D bounds |actual stock − exact model stock| at the end of a step: feed D′ = D + |ρ_intake − ρ_RO in| + r, product water D′ = D + |ρ_RO out − ρ_city| + r, brine D′ = |ρ_brine| + r (`all` removes the actual start), with r = 2u(S + D + a + |ρ_a|) the step’s rounding for that Pool. D is computed from S, a, ρ and u only, rounded UP to a multiple of 2^-120 at each step (that only widens it)",
-    "proof": "By induction on t. H(t): at the end of step t every actual water stock lies within S_end(t) ± D(t). H(0): the initials 500, 200, 0 are exact doubles and D(0) = 0. H(t−1) ⇒ H(t): the engine reads every pull from the step-start snapshot (`const S = { ...prev.values }` in src/engine/step.ts), so under H(t−1) (1) the feed holds at least 500 − D ≥ double(1 MLD), so the RO’s `pull all` takes the whole double(1 MLD), with power 125 kWh (exact integers, not water); (2) product water holds at least its start − D ≥ double(400 CMD), so the city takes the whole double; (3) the outfall takes the actual brine start; (4) the feed stays at or below 500 + D + 125/3 + |ρ| < 2000, its capacity, so the intake’s push is whole, and product water and brine have no capacity. These three inequalities are checked for every step from S, a, ρ and D alone (`envelope.proofPreconditionsHeldAtEveryStep`). So every moved amount is its double exactly, or the actual brine start, and each water Pool takes exactly one inflow and one outflow: two roundings, each of an exact result at most start + inflow ≤ S + D + a + |ρ_a|, in either order. Its end deviation is then at most D′, which is H(t). The residual is the sum of all these roundings plus δ for each RO run, at most B(n). The run’s own values enter nothing above; the per-step check that each actual stock is inside S ± D (`envelope.corroboration`) corroborates H(t) and is not used to compute B",
-    "exact": "S_t, a_t: the exact model — feed 500 and inflow 125/3; product water 200 + 25(t−1)/12 and 75/4; brine 0 at step 1, then 275/12, and 275/12; ρ_a = double(a) − a for each amount, fixed before the run",
-    "notCounted": "amounts that are copies of a value (a Source push, a pull at the full rate, `all` of a Pool) round nothing; the residual is summed in exact rationals, so the check adds no rounding of its own",
-    "why": "every term is derived from the model, the field doubles and IEEE-754 rounding before the run, never from the measured error; B grows with n (the δ term linearly, the update term about quadratically, as the product-water stock grows)"
+    "delta": "Σ over Converters of |Σ double(out) − Σ double(in)|, per run, exact: 0.0000000000000973943148352418575086630880832672119140625 m³; counted for every step",
+    "updates": "every event amount is applied to a Pool by exactly one addition (into it) or one subtraction (out of it) in src/engine/step.ts; k is the number of water connections at the Pool",
+    "envelope": "D bounds |actual stock − exact model stock| at the end of a step: D′ = D + |Σρ_in − Σρ_out| + k u (S + D + a)",
+    "proof": "By induction on t. H(t): at the end of step t every actual water stock lies within S ± D(t). H(0): the initials are exact doubles and D(0) = 0. Step: under H(t−1) the preconditions, computed from the model and D alone, give each Pool its whole outflow and fit its whole inflow, so every connection moves its double, and each update rounds by at most u × (S + D + a).",
+    "exact": "every water Pool is steady in the exact model: its authored inflows sum exactly to its authored outflows, so its exact stock is S at every step",
+    "notCounted": "amounts that are copies of a value round nothing; the residual is summed in exact rationals, so the check itself adds no rounding",
+    "why": "every term is derived from the model, the field doubles and IEEE-754 rounding before the run, never from the measured error; B grows with n"
   },
   "envelope": {
+    "everyPoolSteadyInTheExactModel": true,
     "proofPreconditionsHeldAtEveryStep": true,
     "corroboration": {
       "actualInsideEnvelopeAtEveryStep": true,
-      "largestShareOfEnvelope": 0.473
+      "largestShareOfEnvelope": 0.246
     }
   },
   "modelVersion": 4,
@@ -28,210 +29,751 @@
   },
   "authoredBalance": {
     "finding": "none",
-    "recipe": "1 MLD = 0.45 MLD + 0.55 MLD; per 1 h step 125/3 = 75/4 + 275/12 m³"
+    "recoveryPercent": "45"
   },
   "fields": [
     {
-      "field": "feed.initial",
-      "authored": "500",
-      "exactPerStep": "500",
-      "engine": 500,
+      "field": "basin.initial",
+      "authored": "3000",
+      "exactPerStep": "3000",
+      "engine": 3000,
       "roundingError": "0"
     },
     {
-      "field": "feed.capacity",
+      "field": "basin.capacity",
+      "authored": "12000",
+      "exactPerStep": "12000",
+      "engine": 12000,
+      "roundingError": "0"
+    },
+    {
+      "field": "naocl.initial",
       "authored": "2000",
       "exactPerStep": "2000",
       "engine": 2000,
       "roundingError": "0"
     },
     {
-      "field": "power.initial",
-      "authored": "125",
-      "exactPerStep": "125",
-      "engine": 125,
+      "field": "panelA.initial",
+      "authored": "1000",
+      "exactPerStep": "1000",
+      "engine": 1000,
+      "roundingError": "0"
+    },
+    {
+      "field": "panelA.capacity",
+      "authored": "4000",
+      "exactPerStep": "4000",
+      "engine": 4000,
+      "roundingError": "0"
+    },
+    {
+      "field": "coag.initial",
+      "authored": "10000",
+      "exactPerStep": "10000",
+      "engine": 10000,
+      "roundingError": "0"
+    },
+    {
+      "field": "filtered.initial",
+      "authored": "3000",
+      "exactPerStep": "3000",
+      "engine": 3000,
+      "roundingError": "0"
+    },
+    {
+      "field": "filtered.capacity",
+      "authored": "12000",
+      "exactPerStep": "12000",
+      "engine": 12000,
+      "roundingError": "0"
+    },
+    {
+      "field": "anti.initial",
+      "authored": "2000",
+      "exactPerStep": "2000",
+      "engine": 2000,
       "roundingError": "0"
     },
     {
       "field": "permeate.initial",
-      "authored": "200000 L",
+      "authored": "1500",
+      "exactPerStep": "1500",
+      "engine": 1500,
+      "roundingError": "0"
+    },
+    {
+      "field": "permeate.capacity",
+      "authored": "6000",
+      "exactPerStep": "6000",
+      "engine": 6000,
+      "roundingError": "0"
+    },
+    {
+      "field": "recovered.initial",
+      "authored": "1250",
+      "exactPerStep": "1250",
+      "engine": 1250,
+      "roundingError": "0"
+    },
+    {
+      "field": "recovered.capacity",
+      "authored": "5000",
+      "exactPerStep": "5000",
+      "engine": 5000,
+      "roundingError": "0"
+    },
+    {
+      "field": "panelB.initial",
+      "authored": "2000",
+      "exactPerStep": "2000",
+      "engine": 2000,
+      "roundingError": "0"
+    },
+    {
+      "field": "panelB.capacity",
+      "authored": "8000",
+      "exactPerStep": "8000",
+      "engine": 8000,
+      "roundingError": "0"
+    },
+    {
+      "field": "lime.initial",
+      "authored": "20000",
+      "exactPerStep": "20000",
+      "engine": 20000,
+      "roundingError": "0"
+    },
+    {
+      "field": "naocl2.initial",
+      "authored": "1000",
+      "exactPerStep": "1000",
+      "engine": 1000,
+      "roundingError": "0"
+    },
+    {
+      "field": "product.initial",
+      "authored": "1500000 L",
+      "exactPerStep": "1500",
+      "engine": 1500,
+      "roundingError": "0"
+    },
+    {
+      "field": "product.capacity",
+      "authored": "6000000 L",
+      "exactPerStep": "6000",
+      "engine": 6000,
+      "roundingError": "0"
+    },
+    {
+      "field": "panelC.initial",
+      "authored": "400",
+      "exactPerStep": "400",
+      "engine": 400,
+      "roundingError": "0"
+    },
+    {
+      "field": "panelC.capacity",
+      "authored": "1600",
+      "exactPerStep": "1600",
+      "engine": 1600,
+      "roundingError": "0"
+    },
+    {
+      "field": "brine.initial",
+      "authored": "1500",
+      "exactPerStep": "1500",
+      "engine": 1500,
+      "roundingError": "0"
+    },
+    {
+      "field": "brine.capacity",
+      "authored": "6000",
+      "exactPerStep": "6000",
+      "engine": 6000,
+      "roundingError": "0"
+    },
+    {
+      "field": "adj.initial",
+      "authored": "2000",
+      "exactPerStep": "2000",
+      "engine": 2000,
+      "roundingError": "0"
+    },
+    {
+      "field": "backwash.initial",
+      "authored": "200",
       "exactPerStep": "200",
       "engine": 200,
       "roundingError": "0"
     },
     {
-      "field": "brine.initial",
-      "authored": "0",
-      "exactPerStep": "0",
-      "engine": 0,
+      "field": "backwash.capacity",
+      "authored": "1000",
+      "exactPerStep": "1000",
+      "engine": 1000,
       "roundingError": "0"
     },
     {
-      "field": "e_intake",
+      "field": "e_sea_basin",
       "kind": "water",
-      "authored": "1 MLD",
+      "authored": "21000 CMD",
+      "exactPerStep": "875",
+      "engine": 875,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_basin_screen",
+      "kind": "water",
+      "authored": "21000 CMD",
+      "exactPerStep": "875",
+      "engine": 875,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_screen_ipump",
+      "kind": "water",
+      "authored": "21000 CMD",
+      "exactPerStep": "875",
+      "engine": 875,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_ipump_filter",
+      "kind": "water",
+      "authored": "21000 CMD",
+      "exactPerStep": "875",
+      "engine": 875,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_filter_filtered",
+      "kind": "water",
+      "authored": "20000 CMD",
+      "exactPerStep": "≈ 833.333333333333",
+      "engine": 833.3333333333334,
+      "roundingError": "≈ 0.000000000000037895612573872"
+    },
+    {
+      "field": "e_filter_backwash",
+      "kind": "water",
+      "authored": "1000 CMD",
       "exactPerStep": "≈ 41.6666666666667",
       "engine": 41.666666666666664,
       "roundingError": "≈ -0.000000000000002368475785867"
     },
     {
-      "field": "e_feed_ro",
+      "field": "e_filtered_cartridge",
       "kind": "water",
-      "authored": "1 MLD",
-      "exactPerStep": "≈ 41.6666666666667",
-      "engine": 41.666666666666664,
-      "roundingError": "≈ -0.000000000000002368475785867"
+      "authored": "20000 CMD",
+      "exactPerStep": "≈ 833.333333333333",
+      "engine": 833.3333333333334,
+      "roundingError": "≈ 0.000000000000037895612573872"
     },
     {
-      "field": "e_grid",
-      "kind": "power",
-      "authored": "0.125 MW",
-      "exactPerStep": "125",
-      "engine": 125,
-      "roundingError": "0"
+      "field": "e_cartridge_fpump",
+      "kind": "water",
+      "authored": "20000 CMD",
+      "exactPerStep": "≈ 833.333333333333",
+      "engine": 833.3333333333334,
+      "roundingError": "≈ 0.000000000000037895612573872"
     },
     {
-      "field": "e_power_ro",
-      "kind": "power",
-      "authored": "0.125 MW",
-      "exactPerStep": "125",
-      "engine": 125,
-      "roundingError": "0"
+      "field": "e_fpump_hp",
+      "kind": "water",
+      "authored": "20000 CMD",
+      "exactPerStep": "≈ 833.333333333333",
+      "engine": 833.3333333333334,
+      "roundingError": "≈ 0.000000000000037895612573872"
+    },
+    {
+      "field": "e_hp_ro",
+      "kind": "water",
+      "authored": "20000 CMD",
+      "exactPerStep": "≈ 833.333333333333",
+      "engine": 833.3333333333334,
+      "roundingError": "≈ 0.000000000000037895612573872"
     },
     {
       "field": "e_ro_permeate",
       "kind": "water",
-      "authored": "0.45 MLD",
-      "exactPerStep": "18.75",
-      "engine": 18.75,
+      "authored": "9000 CMD",
+      "exactPerStep": "375",
+      "engine": 375,
       "roundingError": "0"
     },
     {
-      "field": "e_ro_brine",
+      "field": "e_ro_turbine",
       "kind": "water",
-      "authored": "0.55 MLD",
-      "exactPerStep": "≈ 22.9166666666667",
-      "engine": 22.916666666666668,
-      "roundingError": "≈ 0.0000000000000011842378929335"
+      "authored": "11000 CMD",
+      "exactPerStep": "≈ 458.333333333333",
+      "engine": 458.3333333333333,
+      "roundingError": "≈ -0.000000000000018947806286936"
     },
     {
-      "field": "e_city",
+      "field": "e_turbine_brine",
       "kind": "water",
-      "authored": "400 CMD",
-      "exactPerStep": "≈ 16.6666666666667",
-      "engine": 16.666666666666668,
-      "roundingError": "≈ 0.0000000000000011842378929335"
+      "authored": "11000 CMD",
+      "exactPerStep": "≈ 458.333333333333",
+      "engine": 458.3333333333333,
+      "roundingError": "≈ -0.000000000000018947806286936"
     },
     {
-      "field": "e_outfall",
+      "field": "e_permeate_remin",
       "kind": "water",
-      "authored": "all",
-      "exactPerStep": null,
-      "engine": null,
-      "roundingError": null
+      "authored": "9000 CMD",
+      "exactPerStep": "375",
+      "engine": 375,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_remin_disinfect",
+      "kind": "water",
+      "authored": "9000 CMD",
+      "exactPerStep": "375",
+      "engine": 375,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_disinfect_product",
+      "kind": "water",
+      "authored": "9000 CMD",
+      "exactPerStep": "375",
+      "engine": 375,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_product_dpump",
+      "kind": "water",
+      "authored": "9000 CMD",
+      "exactPerStep": "375",
+      "engine": 375,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_dpump_city",
+      "kind": "water",
+      "authored": "9000 CMD",
+      "exactPerStep": "375",
+      "engine": 375,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_backwash_thick",
+      "kind": "water",
+      "authored": "1000 CMD",
+      "exactPerStep": "≈ 41.6666666666667",
+      "engine": 41.666666666666664,
+      "roundingError": "≈ -0.000000000000002368475785867"
+    },
+    {
+      "field": "e_thick_dewater",
+      "kind": "water",
+      "authored": "50 CMD",
+      "exactPerStep": "≈ 2.08333333333333",
+      "engine": 2.0833333333333335,
+      "roundingError": "≈ 0.000000000000000148029736616688"
+    },
+    {
+      "field": "e_thick_brine",
+      "kind": "water",
+      "authored": "950 CMD",
+      "exactPerStep": "≈ 39.5833333333333",
+      "engine": 39.583333333333336,
+      "roundingError": "≈ 0.000000000000002368475785867"
+    },
+    {
+      "field": "e_dewater_brine",
+      "kind": "water",
+      "authored": "45 CMD",
+      "exactPerStep": "1.875",
+      "engine": 1.875,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_dewater_cake",
+      "kind": "water",
+      "authored": "5 CMD",
+      "exactPerStep": "≈ 0.208333333333333",
+      "engine": 0.20833333333333334,
+      "roundingError": "≈ 0.00000000000000000925185853854297"
+    },
+    {
+      "field": "e_brine_adjust",
+      "kind": "water",
+      "authored": "11995 CMD",
+      "exactPerStep": "≈ 499.791666666667",
+      "engine": 499.7916666666667,
+      "roundingError": "≈ 0.000000000000018947806286936"
+    },
+    {
+      "field": "e_adjust_outfall",
+      "kind": "water",
+      "authored": "11995 CMD",
+      "exactPerStep": "≈ 499.791666666667",
+      "engine": 499.7916666666667,
+      "roundingError": "≈ 0.000000000000018947806286936"
+    },
+    {
+      "field": "e_gridA_panelA",
+      "kind": "power",
+      "authored": "0.125 MW",
+      "exactPerStep": "125",
+      "engine": 125,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_panelA_ipump",
+      "kind": "power",
+      "authored": "0.125 MW",
+      "exactPerStep": "125",
+      "engine": 125,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_gridB_panelB",
+      "kind": "power",
+      "authored": "1.225 MW",
+      "exactPerStep": "1225",
+      "engine": 1225,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_panelB_hp",
+      "kind": "power",
+      "authored": "1 MW",
+      "exactPerStep": "1000",
+      "engine": 1000,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_panelB_fpump",
+      "kind": "power",
+      "authored": "0.225 MW",
+      "exactPerStep": "225",
+      "engine": 225,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_recovered_hp",
+      "kind": "power",
+      "authored": "0.625 MW",
+      "exactPerStep": "625",
+      "engine": 625,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_turbine_recovered",
+      "kind": "power",
+      "authored": "0.625 MW",
+      "exactPerStep": "625",
+      "engine": 625,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_gridC_panelC",
+      "kind": "power",
+      "authored": "0.15 MW",
+      "exactPerStep": "150",
+      "engine": 150,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_panelC_remin",
+      "kind": "power",
+      "authored": "0.05 MW",
+      "exactPerStep": "50",
+      "engine": 50,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_panelC_dpump",
+      "kind": "power",
+      "authored": "0.1 MW",
+      "exactPerStep": "100",
+      "engine": 100,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_naocl_screen",
+      "kind": "hypochlorite",
+      "authored": "21 kg per day",
+      "exactPerStep": "0.875",
+      "engine": 0.875,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_coag_filter",
+      "kind": "coagulant",
+      "authored": "210 kg per day",
+      "exactPerStep": "8.75",
+      "engine": 8.75,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_anti_cartridge",
+      "kind": "antiscalant",
+      "authored": "40 kg per day",
+      "exactPerStep": "≈ 1.66666666666667",
+      "engine": 1.6666666666666667,
+      "roundingError": "≈ 0.0000000000000000740148683083438"
+    },
+    {
+      "field": "e_lime_remin",
+      "kind": "remineralizer",
+      "authored": "360 kg per day",
+      "exactPerStep": "15",
+      "engine": 15,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_naocl2_disinfect",
+      "kind": "hypochlorite",
+      "authored": "9 kg per day",
+      "exactPerStep": "0.375",
+      "engine": 0.375,
+      "roundingError": "0"
+    },
+    {
+      "field": "e_adj_adjust",
+      "kind": "adjuster",
+      "authored": "50 kg per day",
+      "exactPerStep": "≈ 2.08333333333333",
+      "engine": 2.0833333333333335,
+      "roundingError": "≈ 0.000000000000000148029736616688"
     }
   ],
   "run": {
     "steps": 720,
     "seed": 1,
-    "roRuns": 720,
     "diagnostics": 0,
     "notices": 0,
-    "maxResidual": "1.256240e-11"
+    "maxResidual": "1.500600e-10",
+    "fired": {
+      "adjust": 720,
+      "cake": 720,
+      "cartridge": 720,
+      "city": 720,
+      "dewater": 720,
+      "disinfect": 720,
+      "dpump": 720,
+      "filter": 720,
+      "fpump": 720,
+      "gridA": 720,
+      "gridB": 720,
+      "gridC": 720,
+      "hp": 720,
+      "ipump": 720,
+      "outfall": 720,
+      "remin": 720,
+      "ro": 720,
+      "screen": 720,
+      "sea": 720,
+      "thick": 720,
+      "turbine": 720
+    }
   },
   "checkpoints": [
     {
       "step": 1,
       "values": {
-        "feed": 499.99999999999994,
-        "permeate": 202.08333333333334,
-        "brine": 22.916666666666668,
-        "power": 125
+        "basin": 3000,
+        "naocl": 1999.125,
+        "panelA": 1000,
+        "coag": 9991.25,
+        "filtered": 3000,
+        "anti": 1998.3333333333333,
+        "permeate": 1500,
+        "recovered": 1250,
+        "panelB": 2000,
+        "lime": 19985,
+        "naocl2": 999.625,
+        "product": 1500,
+        "panelC": 400,
+        "brine": 1499.9999999999998,
+        "adj": 1997.9166666666667,
+        "backwash": 200
       },
-      "intakeTotal": 41.666666666666664,
-      "drainedTotal": 16.666666666666668,
-      "productWaterShown": "≈ 202083.333333333 L",
-      "productWaterExact": "≈ 202.083333333333"
+      "intakeTotal": 875,
+      "drainedTotal": 875,
+      "productWaterShown": "1500000 L"
     },
     {
       "step": 24,
       "values": {
-        "feed": 499.99999999999994,
-        "permeate": 250.00000000000023,
-        "brine": 22.916666666666668,
-        "power": 125
+        "basin": 3000,
+        "naocl": 1979,
+        "panelA": 1000,
+        "coag": 9790,
+        "filtered": 3000,
+        "anti": 1959.9999999999982,
+        "permeate": 1500,
+        "recovered": 1250,
+        "panelB": 2000,
+        "lime": 19640,
+        "naocl2": 991,
+        "product": 1500,
+        "panelC": 400,
+        "brine": 1499.9999999999945,
+        "adj": 1950.0000000000018,
+        "backwash": 200
       },
-      "intakeTotal": 999.9999999999999,
-      "drainedTotal": 927.0833333333334,
-      "productWaterShown": "≈ 250000 L",
-      "productWaterExact": "250"
+      "intakeTotal": 21000,
+      "drainedTotal": 21000,
+      "productWaterShown": "1500000 L"
     },
     {
       "step": 168,
       "values": {
-        "feed": 499.99999999999994,
-        "permeate": 549.9999999999982,
-        "brine": 22.916666666666668,
-        "power": 125
+        "basin": 3000,
+        "naocl": 1853,
+        "panelA": 1000,
+        "coag": 8530,
+        "filtered": 3000,
+        "anti": 1719.9999999999873,
+        "permeate": 1500,
+        "recovered": 1250,
+        "panelB": 2000,
+        "lime": 17480,
+        "naocl2": 937,
+        "product": 1500,
+        "panelC": 400,
+        "brine": 1499.9999999999618,
+        "adj": 1650.0000000000127,
+        "backwash": 200
       },
-      "intakeTotal": 7000,
-      "drainedTotal": 6627.083333333334,
-      "productWaterShown": "≈ 549999.999999998 L",
-      "productWaterExact": "550"
+      "intakeTotal": 147000,
+      "drainedTotal": 147000,
+      "productWaterShown": "1500000 L"
     },
     {
       "step": 720,
       "values": {
-        "feed": 499.99999999999994,
-        "permeate": 1699.999999999984,
-        "brine": 22.916666666666668,
-        "power": 125
+        "basin": 3000,
+        "naocl": 1370,
+        "panelA": 1000,
+        "coag": 3700,
+        "filtered": 3000,
+        "anti": 799.9999999999608,
+        "permeate": 1500,
+        "recovered": 1250,
+        "panelB": 2000,
+        "lime": 9200,
+        "naocl2": 730,
+        "product": 1500,
+        "panelC": 400,
+        "brine": 1499.9999999998363,
+        "adj": 500.00000000002626,
+        "backwash": 200
       },
-      "intakeTotal": 30000,
-      "drainedTotal": 28477.083333333336,
-      "productWaterShown": "≈ 1699999.99999998 L",
-      "productWaterExact": "1700"
+      "intakeTotal": 630000,
+      "drainedTotal": 630000,
+      "productWaterShown": "1500000 L"
     }
   ],
   "balance": [
     {
       "steps": 24,
-      "residual": "2.842171e-13",
-      "maxResidualSoFar": "2.842171e-13",
-      "bound": "4.504415e-12",
+      "residual": "-5.001999e-12",
+      "maxResidualSoFar": "5.001999e-12",
+      "bound": "8.600165e-11",
       "withinBound": true,
-      "shareOfBound": 0.0631,
-      "stateEnvelope": {
-        "feed": "2.886580e-12",
-        "productWater": "1.321832e-12",
-        "brine": "1.136128e-14"
+      "shareOfBound": 0.0582,
+      "envelope": {
+        "basin": "2.065015e-11",
+        "filtered": "2.042810e-11",
+        "permeate": "9.992007e-12",
+        "product": "9.992007e-12",
+        "brine": "2.216671e-11",
+        "backwash": "1.287859e-12"
       }
     },
     {
       "steps": 168,
-      "residual": "-1.080025e-12",
-      "maxResidualSoFar": "1.506351e-12",
-      "bound": "3.715696e-11",
+      "residual": "-3.501399e-11",
+      "maxResidualSoFar": "3.501399e-11",
+      "bound": "6.020116e-10",
       "withinBound": true,
-      "shareOfBound": 0.0405,
-      "stateEnvelope": {
-        "feed": "2.020606e-11",
-        "productWater": "1.484834e-11",
-        "brine": "1.136128e-14"
+      "shareOfBound": 0.0582,
+      "envelope": {
+        "basin": "1.445510e-10",
+        "filtered": "1.429967e-10",
+        "permeate": "6.994405e-11",
+        "product": "6.994405e-11",
+        "brine": "1.551670e-10",
+        "backwash": "9.015011e-12"
       }
     },
     {
       "steps": 720,
-      "residual": "-1.256240e-11",
-      "maxResidualSoFar": "1.256240e-11",
-      "bound": "2.511873e-10",
+      "residual": "-1.500600e-10",
+      "maxResidualSoFar": "1.500600e-10",
+      "bound": "2.580050e-9",
       "withinBound": true,
-      "shareOfBound": 0.05,
-      "stateEnvelope": {
-        "feed": "8.659740e-11",
-        "productWater": "1.555622e-10",
-        "brine": "1.136128e-14"
+      "shareOfBound": 0.0582,
+      "envelope": {
+        "basin": "6.195044e-10",
+        "filtered": "6.128431e-10",
+        "permeate": "2.997602e-10",
+        "product": "2.997602e-10",
+        "brine": "6.650014e-10",
+        "backwash": "3.863576e-11"
       }
+    }
+  ],
+  "energy": {
+    "gridKwhPerDay": "36000",
+    "deliveredM3PerDay": "9000",
+    "kwhPerM3": "4"
+  },
+  "chemicals": [
+    {
+      "tank": "naocl",
+      "kind": "hypochlorite",
+      "kgPerDay": "21",
+      "exactLeft": "1370",
+      "engineLeft": 1370,
+      "difference": 0
+    },
+    {
+      "tank": "coag",
+      "kind": "coagulant",
+      "kgPerDay": "210",
+      "exactLeft": "3700",
+      "engineLeft": 3700,
+      "difference": 0
+    },
+    {
+      "tank": "anti",
+      "kind": "antiscalant",
+      "kgPerDay": "40",
+      "exactLeft": "800",
+      "engineLeft": 799.9999999999608,
+      "difference": 3.922195901395753e-11
+    },
+    {
+      "tank": "lime",
+      "kind": "remineralizer",
+      "kgPerDay": "360",
+      "exactLeft": "9200",
+      "engineLeft": 9200,
+      "difference": 0
+    },
+    {
+      "tank": "naocl2",
+      "kind": "hypochlorite",
+      "kgPerDay": "9",
+      "exactLeft": "730",
+      "engineLeft": 730,
+      "difference": 0
+    },
+    {
+      "tank": "adj",
+      "kind": "adjuster",
+      "kgPerDay": "50",
+      "exactLeft": "500",
+      "engineLeft": 500.00000000002626,
+      "difference": 2.6261659513693303e-11
     }
   ],
   "contract": {
@@ -240,14 +782,15 @@
         "broken"
       ],
       "moved": 0,
-      "diagnostic": "Can't run: Converter \"Reverse osmosis\" takes in ≈ 41.6666666666667 \"water\" and puts out 43.75 (out − in ≈ 2.08333333333333). A conserved kind must balance, so nothing moved."
+      "diagnostic": "Can't run: Converter \"Reverse osmosis\" takes in ≈ 833.333333333333 \"water\" and puts out ≈ 854.166666666667 (out − in ≈ 20.8333333333333). A conserved kind must balance, so nothing moved."
     },
     "allOnFeed": {
       "findings": [
+        "notComputable",
         "notComputable"
       ],
       "moved": 0,
-      "diagnostic": "Can't run: the rate \"all\" on the connection from \"Feed tank\" to \"Reverse osmosis\" is not a number, so the \"water\" balance of Converter \"Reverse osmosis\" cannot be computed and nothing moved."
+      "diagnostic": "Can't run: the rate \"all\" on the connection from \"High-pressure pump\" to \"Reverse osmosis\" is not a number, so the \"water\" balance of Converter \"High-pressure pump\" cannot be computed and nothing moved."
     }
   }
 }

@@ -232,17 +232,45 @@ export const ptBR: TemplateLabelDict = {
   },
   // 2026-10 — the three gacha templates added since the archive; the banner
   // comparison's names where the node is the same
-  // #471 — "Desalination plant water balance" (`examples/desalination.json`)
+  // #471 — "Seawater desalination process" (`examples/desalination.json`)
   'desalination': {
-    sea: 'Captação de água do mar',
-    feed: 'Tanque de alimentação',
-    grid: 'Rede elétrica',
-    power: 'Fornecimento de energia',
+    sea: 'Água do mar',
+    basin: 'Bacia de captação',
+    screen: 'Grade de barras',
+    ipump: 'Bomba de captação',
+    naocl: 'Tanque de hipoclorito',
+    gridA: 'Alimentação da rede A',
+    panelA: 'Painel elétrico A',
+    filter: 'Filtro de coagulação',
+    coag: 'Tanque de coagulante',
+    filtered: 'Tanque de água filtrada',
+    cartridge: 'Filtro de cartucho',
+    anti: 'Tanque de anti-incrustante',
+    fpump: 'Bomba de alimentação',
+    hp: 'Bomba de alta pressão',
     ro: 'Osmose reversa',
-    permeate: 'Água produzida',
-    brine: 'Salmoura',
-    city: 'Demanda da cidade',
-    outfall: 'Descarte de salmoura',
+    permeate: 'Tanque de permeado',
+    turbine: 'Turbina de salmoura',
+    recovered: 'Energia recuperada',
+    panelB: 'Painel elétrico B',
+    gridB: 'Alimentação da rede B',
+    remin: 'Remineralização',
+    lime: 'Tanque de cal',
+    disinfect: 'Desinfecção',
+    naocl2: 'Tanque de desinfetante',
+    product: 'Tanque de água produzida',
+    dpump: 'Bomba de entrega',
+    city: 'Abastecimento à cidade',
+    panelC: 'Painel elétrico C',
+    gridC: 'Alimentação da rede C',
+    brine: 'Tanque de descarte',
+    adjust: 'Ajuste do descarte',
+    adj: 'Tanque químico de qualidade',
+    outfall: 'Descarte no mar',
+    backwash: 'Tanque de retrolavagem usada',
+    thick: 'Adensador',
+    dewater: 'Desidratação',
+    cake: 'Água na torta desidratada',
   },
   'gacha-general': {
     target_pulls: 'Meta de invocações (número inteiro)',
@@ -322,6 +350,13 @@ export const ptBR: TemplateLabelDict = {
 }
 
 export const ptBRFrames: TemplateLabelMap = {
+  'desalination': {
+    f_intake: '1 Captação',
+    f_pre: '2 Pré-tratamento',
+    f_ro: '3 Osmose reversa',
+    f_post: '4 Pós-tratamento e entrega',
+    f_out: '5 Descarte e sólidos',
+  },
   'coffee-roastery': {
     zone_supply: 'Fornecimento e estoque',
     zone_roasting: 'Torra e venda',

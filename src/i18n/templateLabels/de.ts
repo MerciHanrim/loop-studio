@@ -228,17 +228,45 @@ export const de: TemplateLabelDict = {
   },
   // 2026-10 — the three gacha templates added since the archive; the banner
   // comparison's names where the node is the same
-  // #471 — "Desalination plant water balance" (`examples/desalination.json`)
+  // #471 — "Seawater desalination process" (`examples/desalination.json`)
   'desalination': {
-    sea: 'Meerwasserentnahme',
-    feed: 'Rohwasserbecken',
-    grid: 'Netzstrom',
-    power: 'Stromversorgung',
+    sea: 'Meerwasser',
+    basin: 'Entnahmebecken',
+    screen: 'Stabrechen',
+    ipump: 'Entnahmepumpe',
+    naocl: 'Hypochlorittank',
+    gridA: 'Netzstrom A',
+    panelA: 'Schaltschrank A',
+    filter: 'Flockungsfilter',
+    coag: 'Flockungsmitteltank',
+    filtered: 'Filtrattank',
+    cartridge: 'Patronenfilter',
+    anti: 'Antiscalant-Tank',
+    fpump: 'Speisepumpe',
+    hp: 'Hochdruckpumpe',
     ro: 'Umkehrosmose',
-    permeate: 'Reinwasser',
-    brine: 'Sole',
-    city: 'Bedarf der Stadt',
-    outfall: 'Soleauslass',
+    permeate: 'Permeattank',
+    turbine: 'Soleturbine',
+    recovered: 'Rückgewonnene Energie',
+    panelB: 'Schaltschrank B',
+    gridB: 'Netzstrom B',
+    remin: 'Remineralisierung',
+    lime: 'Kalktank',
+    disinfect: 'Desinfektion',
+    naocl2: 'Desinfektionsmitteltank',
+    product: 'Reinwassertank',
+    dpump: 'Abgabepumpe',
+    city: 'Versorgung der Stadt',
+    panelC: 'Schaltschrank C',
+    gridC: 'Netzstrom C',
+    brine: 'Ableitungstank',
+    adjust: 'Anpassung der Ableitung',
+    adj: 'Chemietank Wasserqualität',
+    outfall: 'Meeresauslass',
+    backwash: 'Rückspülabwassertank',
+    thick: 'Eindicker',
+    dewater: 'Entwässerung',
+    cake: 'Wasser im Filterkuchen',
   },
   'gacha-general': {
     target_pulls: 'Zielziehungen (ganze Zahl)',
@@ -318,6 +346,13 @@ export const de: TemplateLabelDict = {
 }
 
 export const deFrames: TemplateLabelMap = {
+  'desalination': {
+    f_intake: '1 Entnahme',
+    f_pre: '2 Vorbehandlung',
+    f_ro: '3 Umkehrosmose',
+    f_post: '4 Nachbehandlung und Abgabe',
+    f_out: '5 Ableitung und Feststoffe',
+  },
   'coffee-roastery': {
     zone_supply: 'Beschaffung und Bestand',
     zone_roasting: 'Rösten und Verkauf',

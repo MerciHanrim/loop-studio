@@ -124,25 +124,26 @@ export const TEMPLATES: Template[] = [
       'The same line with no shipment step, so finished goods have nowhere to go. Finished inventory fills to capacity, raw inventory backs up to its ceiling, supply is throttled to zero, and the whole line stops.',
     graph: tplGraph(deadlockDoc),
   },
-  // #471 — "Desalination balance: temporary sample": the first bundled Template at
-  // `loop-studio/graph/4`. A temporary sample, to be replaced by a verified process example, written in the
-  // shipped kinds, units and step-length contract (SEMANTICS-M3.md,
-  // SEMANTICS-M4.md): water is a conserved kind, the plant's rates are authored
-  // per day (`1 MLD` in, `0.45 + 0.55 MLD` out) on a 1 h step, and the engine
-  // runs on the derived per-step values. The canonical graph is
-  // examples/desalination.json; its run is pinned against
-  // examples/desalination.expected.json by test/desalination-example.test.ts.
-  // A fixed-ratio model (constant recovery, power per batch), not a validated
-  // process model. Opens UNLOCKED and fitted whole: no `initialView`.
+  // #471 — "Seawater desalination process": a facility process flow from intake
+  // to the city and the sea, in five numbered frames, at `loop-studio/graph/4`:
+  // water is a conserved kind, power and each chemical are not, the rates are
+  // authored per day on a 1 h step, and the engine runs on the derived per-step
+  // values. The canonical graph is examples/desalination.json; its run is pinned
+  // against examples/desalination.expected.json by
+  // test/desalination-example.test.ts. A fixed-ratio model with example
+  // assumptions, not a validated process model. Opens UNLOCKED on the five
+  // frames: an overview map at 1280 (about 0.38, below the chips), a frame is
+  // read at 100 %. `minZoom` lets that overview fit a small window.
   // Menu place: after the two basic examples and before Coffee, so Hanrim's
   // Coffee → MMO → Gacha sequence (below, 2026-09-13) stays as decided.
   {
     id: 'desalination',
-    name: 'Desalination balance: temporary sample',
+    name: 'Seawater desalination process',
     blurb:
-      'A temporary, simplified sample for checking units and a water balance, not a model of a desalination facility. Rates in day units run on a one-hour step.',
+      'A seawater reverse-osmosis plant drawn as a process flow, from intake to the city and the sea. It opens on an overview map. Numbers are example assumptions; salinity, pressure and water quality are not computed.',
     graph: tplGraph(desalinationDoc),
     ...tplModel(desalinationDoc),
+    initialView: { rect: { x: 10, y: 25, width: 1360, height: 1435 }, minZoom: 0.2 },
   },
   // "Coffee roastery operations flow" — the first bundled Template authored at
   // schema `loop-studio/graph/2` (loop-model/2). Its five surfaced levers are
