@@ -46,6 +46,8 @@ import { CONNECT_KINDS, connectKindOf, type ConnectKind } from '../model/connect
 import { useT, type MessageKey } from '../i18n'
 import { GATE_STATE_KEY, GATE_WHY_KEY } from './nodes/nodes'
 import { isolateAuto, isolateLtr } from '../i18n/bidiIsolate'
+import { hasTimetables } from '../model/modelVersion'
+import { timetableRef } from '../model/timetable'
 import type {
   ConverterData,
   DrainData,
@@ -540,9 +542,37 @@ function EdgeFlowField({
         </span>
       )}
       {isRef && <span className="inspector__note">{t('inspector.edge.flowParam.hint')}</span>}
+      <TimetableNote flow={flow} />
     </Field>
   )
 }
+
+/** loop-model/5 (SEMANTICS-M5.md §M5-2) — what a line's table says: its name,
+ *  where the numbers came from, how it is read and what follows its end. A table
+ *  is read-only here: its points come in through a file. */
+function TimetableNote({ flow }: { flow: string }) {
+  const t = useT()
+  const modelVersion = useGraphStore((s) => s.modelVersion)
+  const id = hasTimetables(modelVersion) ? timetableRef(flow) : null
+  const table = useGraphStore((s) => (id === null ? undefined : s.timetables.find((x) => x.id === id)))
+  if (id === null) return null
+  if (!table) return <span className="inspector__note inspector__note--warn">{t('inspector.edge.timetable.unknown', { id: isolateLtr(id) })}</span>
+  return (
+    <>
+      <span className="inspector__note">{t('inspector.edge.timetable.name', { label: isolateAuto(table.label) })}</span>
+      <span className="inspector__note">{t('inspector.edge.timetable.source', { source: isolateAuto(table.source) })}</span>
+      <span className="inspector__note">{t(table.read === 'hold' ? 'inspector.edge.timetable.read.hold' : 'inspector.edge.timetable.read.linear')}</span>
+      <span className="inspector__note">{t(TIMETABLE_AFTER_KEY[table.after])}</span>
+    </>
+  )
+}
+
+const TIMETABLE_AFTER_KEY = {
+  stop: 'inspector.edge.timetable.after.stop',
+  hold: 'inspector.edge.timetable.after.hold',
+  zero: 'inspector.edge.timetable.after.zero',
+  repeat: 'inspector.edge.timetable.after.repeat',
+} as const
 
 // ── units (loop-model/4, SEMANTICS-M4.md §M4-2 / §M4-4) ─────────────────────
 

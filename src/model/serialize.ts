@@ -18,19 +18,23 @@ export const SCHEMA_V2 = 'loop-studio/graph/2'
 export const SCHEMA_V3 = 'loop-studio/graph/3'
 /** loop-model/4 (SEMANTICS-M4.md §M4-1) — a document with units or a step length. */
 export const SCHEMA_V4 = 'loop-studio/graph/4'
+/** loop-model/5 (SEMANTICS-M5.md §M5-1) — a document with timetables. */
+export const SCHEMA_V5 = 'loop-studio/graph/5'
 const SCHEMA_VERSION = 1
 /** issue #344, docs/diagram-layout.md §DL2.8 — the current layout rules: 1 =
  *  the 16 px grid with the 28 px port row. A document with a lower (or no)
  *  `layoutVersion` is re-placed once when it is opened. */
 export const LAYOUT_VERSION = 1
 
-import { hasKindsTable, hasUnits, type ModelSemanticsVersion } from './modelVersion'
+import { hasKindsTable, hasTimetables, hasUnits, type ModelSemanticsVersion } from './modelVersion'
 import { canonicalKinds, kindsDeclareUnits, readKindsAt, type ResourceKindDecl } from './kinds'
 import { canonicalDocTime, readDocTime, type DocTime } from './units'
 import { stripFieldUnits } from './engineValues'
+import { canonicalTimetable, readTimetables, type Timetable } from './timetable'
 export type { ModelSemanticsVersion } from './modelVersion'
 export type { ResourceKindDecl } from './kinds'
 export type { DocTime } from './units'
+export type { Timetable } from './timetable'
 
 /** The model-semantics versions a document may DECLARE in this build — the
  *  readable set, one schema string per version (§M2-1, §M3-1). A version
@@ -42,6 +46,7 @@ const SCHEMA_BY_MODEL_VERSION: Partial<Record<ModelSemanticsVersion, string>> = 
   2: SCHEMA_V2,
   3: SCHEMA_V3,
   4: SCHEMA_V4,
+  5: SCHEMA_V5,
 }
 /** The envelope `schema` string a document of this model-semantics version is
  *  written with (§M2-1). The ONE writer-side mapping — `serialize()` and the
@@ -64,6 +69,7 @@ export function modelVersionForSchema(schema: unknown): ModelSemanticsVersion | 
   if (schema === SCHEMA_V2) return 2
   if (schema === SCHEMA_V3) return 3
   if (schema === SCHEMA_V4) return 4
+  if (schema === SCHEMA_V5) return 5
   return null
 }
 
@@ -257,6 +263,10 @@ export type GraphDoc = {
    *  then only on a `loop-studio/graph/4` document. Read defensively
    *  (`readDocTime`), and not at all from an earlier schema. */
   time?: DocTime
+  /** loop-model/5 (SEMANTICS-M5.md §M5-1) — the timetables. Emitted only when
+   *  non-empty, and then only on a `loop-studio/graph/5` document. Read whole:
+   *  a bad table refuses the file. Not read at all from an earlier schema. */
+  timetables?: Timetable[]
   /** loop-workspace/2 extension (SEMANTICS-W2.md) — an opaque blob here; the
    *  Workspace reader validates it against the loaded graph. Absent on a plain
    *  Graph Export. */
@@ -726,6 +736,9 @@ export function serialize(
    *  unit list or a field unit needs `modelVersion` 4 (M4-INV-2), so writing
    *  one with less is refused, never silently dropped. */
   time?: DocTime,
+  /** loop-model/5 — the timetables. Absent / empty ⇒ no `timetables` key; a
+   *  table needs `modelVersion` 5, so writing one with less is refused. */
+  timetables?: readonly Timetable[],
 ): string {
   const kindsOut = Array.isArray(kinds) ? canonicalKinds(kinds) : []
   if (kindsOut.length > 0 && !hasKindsTable(modelVersion)) {
@@ -734,6 +747,10 @@ export function serialize(
   const timeOut = canonicalDocTime(time)
   if (!hasUnits(modelVersion) && (timeOut !== undefined || kindsDeclareUnits(kindsOut) || anyFieldUnitKey(nodes, edges))) {
     throw new Error(`units and a step length need model-semantics version 4, not ${modelVersion}`)
+  }
+  const tablesOut = Array.isArray(timetables) ? timetables.map(canonicalTimetable) : []
+  if (tablesOut.length > 0 && !hasTimetables(modelVersion)) {
+    throw new Error(`a timetable needs model-semantics version 5, not ${modelVersion}`)
   }
   const doc: GraphDoc = {
     schema: schemaForModelVersion(modelVersion),
@@ -757,6 +774,8 @@ export function serialize(
   if (kindsOut.length > 0) doc.kinds = kindsOut
   // §M4-3 — `time` after `kinds`, only when declared, in its read form.
   if (timeOut !== undefined) doc.time = timeOut
+  // §M5-1 — `timetables` after `time`, only when non-empty.
+  if (tablesOut.length > 0) doc.timetables = tablesOut
   if (workspace && typeof workspace === 'object') {
     doc.workspace = workspace
   }
@@ -775,7 +794,7 @@ function anyFieldUnitKey(nodes: readonly LoopNode[], edges: readonly LoopEdge[])
 /** why `deserialize` rejected a file — a CODE the UI maps to a localized
  *  message (`import.error.*`). `message` keeps the historical English text
  *  for logs / tests. */
-export type GraphFileErrorCode = 'invalid-json' | 'unexpected' | 'not-loop-studio' | 'missing-nodes-edges' | 'bad-node'
+export type GraphFileErrorCode = 'invalid-json' | 'unexpected' | 'not-loop-studio' | 'missing-nodes-edges' | 'bad-node' | 'bad-timetable'
 
 /** issue #392 B — a node entry the canvas can draw: an object with a string
  *  `id` and a finite `position`. Anything else used to pass this reader, reach
@@ -791,10 +810,13 @@ function isDrawableNodeEntry(n: unknown): boolean {
 }
 export class GraphFileError extends Error {
   code: GraphFileErrorCode
-  constructor(code: GraphFileErrorCode, message: string) {
+  /** `bad-timetable` — which table and which row, for the message */
+  table?: { id: string | null; row: number | null }
+  constructor(code: GraphFileErrorCode, message: string, table?: { id: string | null; row: number | null }) {
     super(message)
     this.name = 'GraphFileError'
     this.code = code
+    if (table) this.table = table
   }
 }
 
@@ -819,6 +841,9 @@ export function deserialize(text: string): {
   /** loop-model/4 — the step length (§M4-3), already run through `readDocTime`;
    *  `undefined` when absent, and always `undefined` before `/graph/4`. */
   time?: DocTime
+  /** loop-model/5 — the timetables; `[]` when absent, and always `[]` before
+   *  `/graph/5`. A bad table refuses the file (§M5-2). */
+  timetables: Timetable[]
   /**`SEMANTICS-R8.md §R8-1` — true when the file's RAW, pre-defensive-read
    *  content carried a data-import provenance signal that `readDataImports` /
    *  `readParameterData` may have gone on to discard as unreadable (an
@@ -878,6 +903,13 @@ export function deserialize(text: string): {
   // a `/graph/4` document; on an earlier schema the number is the base unit
   const graph = normalizeGraph({ nodes: obj.nodes as LoopNode[], edges: obj.edges as LoopEdge[] })
   const time = hasUnits(modelVersion) ? readDocTime(obj.time) : undefined
+  // §M5-2 — a bad table refuses the file whole, with the row named: dropping a
+  // row would change what the table means. Never read from an earlier schema.
+  const tables = readTimetables(hasTimetables(modelVersion) ? obj.timetables : undefined)
+  if (!tables.ok) {
+    const { code, tableId, row } = tables.problem
+    throw new GraphFileError('bad-timetable', `Timetable "${tableId ?? '?'}" was refused (${code}${row !== undefined ? `, row ${row}` : ''}).`, { id: tableId, row: row ?? null })
+  }
   return {
     ...(hasUnits(modelVersion) ? graph : stripFieldUnits(graph.nodes, graph.edges)),
     modelVersion,
@@ -886,6 +918,7 @@ export function deserialize(text: string): {
     dataImports: readDataImports(obj.dataImports), // §R8-1.1 — [] when absent / all-bad
     kinds: hasKindsTable(modelVersion) ? readKindsAt(obj.kinds, modelVersion) : [], // §M3-1 — never from an earlier schema
     ...(time !== undefined ? { time } : {}),
+    timetables: tables.tables,
     hasRawDataImportSignal,
     ...(rrc ? { recommendedRunConfig: rrc } : {}),
     ...(workspace ? { workspace } : {}),
@@ -935,6 +968,8 @@ export function saveToStorage(
   kinds?: readonly ResourceKindDecl[],
   /** loop-model/4 — the current step length, atomically in the same write. */
   time?: DocTime,
+  /** loop-model/5 — the current timetables, atomically in the same write. */
+  timetables?: readonly Timetable[],
 ): SaveToStorageResult {
   try {
     // `'all'` is a deliberate choice and is written; `'auto'` (and the legacy
@@ -959,7 +994,7 @@ export function saveToStorage(
         return { ok: false, reason: 'held' }
       }
     }
-    const text = serialize(nodes, edges, rrc, undefined, project, modelVersion, frames, dataImports, kinds, time)
+    const text = serialize(nodes, edges, rrc, undefined, project, modelVersion, frames, dataImports, kinds, time, timetables)
     storagePort.setItem(STORAGE_KEY, text)
     if (personal) lastKnownWorkText = text
     return { ok: true }
@@ -983,6 +1018,7 @@ export function loadFromStorage():
       dataImports: ImportSourceTable[]
       kinds: ResourceKindDecl[]
       time?: DocTime
+      timetables?: Timetable[]
       project?: unknown
     }
   | null {

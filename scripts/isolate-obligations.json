@@ -4,9 +4,9 @@
   "$limit": "This manifest defends the call sites listed here, exactly and in both directions. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together close the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
   "$history": "PR B recorded 11 decision rows and deferred them. C3.5 re-ran the population from the TypeScript type checker — 205 ICU arguments — and found 27 more that carry user or technical values: 8 in its first pass (the unrecognized-column header and the five `import.loc.*` calls) and 19 that its first pass only RECORDED as open. All 27 are implemented here, so no row of the disposition manifest is classed `auto`, `ltr` or `per-fragment` any more.",
   "totals": {
-    "rows": 94,
-    "obligations": 45,
-    "callSites": 75
+    "rows": 98,
+    "obligations": 49,
+    "callSites": 88
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -16,7 +16,7 @@
     "er19": 3,
     "workbench": 18,
     "issue-420": 4,
-    "issue-471": 16
+    "issue-471": 20
   },
   "obligations": [
     {
@@ -1116,6 +1116,171 @@
       "why": "free user text of unknown direction inside a localized phrase.",
       "sites": [
         { "keys": ["inspector.unit.perStep"], "args": ["unit"], "kind": "auto" }
+      ]
+    },
+    {
+      "id": "inspector-timetable-note",
+      "rows": [
+        "issue-471 Inspector timetable note"
+      ],
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "TimetableNote",
+      "carries": "the table's id, and the user's own table name and source text (SEMANTICS-M5.md §M5-2)",
+      "why": "The id is a technical token, as a Parameter reference is. The name and the source are free text of unknown direction.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.edge.timetable.unknown"
+          ],
+          "args": [
+            "id"
+          ],
+          "kind": "ltr"
+        },
+        {
+          "keys": [
+            "inspector.edge.timetable.name"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "inspector.edge.timetable.source"
+          ],
+          "args": [
+            "source"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "run-messages-timetable-notice",
+      "rows": [
+        "issue-471 run bars timetable notice label"
+      ],
+      "file": "src/ui/runMessages.ts",
+      "enclosing": "timetableNoticeText",
+      "carries": "the user's own table name in a run message (SEMANTICS-M5.md §M5-4, §M5-6)",
+      "why": "Free text of unknown direction; the amount is a number and derives.",
+      "sites": [
+        {
+          "keys": [
+            "playbar.diag.timetableEnded"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "playbar.diag.timetableUnmet"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "run-messages-timetable-refusal",
+      "rows": [
+        "issue-471 run bars timetable refusal label"
+      ],
+      "file": "src/ui/runMessages.ts",
+      "enclosing": "timetableRefusalText",
+      "carries": "the user's own table name, or the table id a line names, in a refusal (SEMANTICS-M5.md §M5-5)",
+      "why": "Free text of unknown direction; a table id that resolves to nothing is shown as it stands.",
+      "sites": [
+        {
+          "keys": [
+            "playbar.refused.timetable.unknown"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "playbar.refused.timetable.line"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "playbar.refused.timetable.noStep"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "playbar.refused.timetable.noKind"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "playbar.refused.timetable.unit"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "playbar.refused.timetable.twoKinds"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "import-error-timetable",
+      "rows": [
+        "issue-471 import error timetable id"
+      ],
+      "file": "src/ui/importError.ts",
+      "enclosing": "importErrorMessage",
+      "carries": "a table id read from the file being refused (SEMANTICS-M5.md §M5-2)",
+      "why": "The file is unread at this point, so the id is unknown text; the row is a number and derives.",
+      "sites": [
+        {
+          "keys": [
+            "import.error.badTimetable"
+          ],
+          "args": [
+            "table"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "import.error.badTimetableWhole"
+          ],
+          "args": [
+            "table"
+          ],
+          "kind": "auto"
+        }
       ]
     }
   ]

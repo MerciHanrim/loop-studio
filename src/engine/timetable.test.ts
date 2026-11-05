@@ -136,7 +136,7 @@ describe('the end of a table', () => {
     expect(out.st.ended).toBe(true)
     expect(out.st.step).toBe(2)
     expect(out.st.values.tank).toBe(20 + 30)
-    expect(out.reports[2].timetableEnded).toEqual({ tableId: 'intake', label: 'Intake' })
+    expect(out.reports[2].notices).toEqual([{ kind: 'timetableEnded', tableId: 'intake', label: 'Intake' }])
     expect(out.reports[2].events).toEqual([])
   })
 
@@ -184,6 +184,12 @@ describe('planned against moved', () => {
     expect(out.map((l) => l.moved)).toEqual([10, 10, 5, 0])
     expect(out.map((l) => l.planned)).toEqual([10, 10, 10, 20])
     for (const l of out) expect(cmp(sub(exact(l.planned), exact(l.moved)), fromInt(0))).toBeGreaterThanOrEqual(0)
+  })
+
+  it('a shortfall says so, with the amount, and a met step says nothing', () => {
+    const { reports } = run(intakeDoc(table(), hours(1), { capacity: 25 }), 3)
+    expect(reports[1].notices).toEqual([])
+    expect(reports[2].notices).toEqual([{ kind: 'timetableUnmet', edgeId: 'in', tableId: 'intake', label: 'Intake', amount: 5 }])
   })
 
   it('a tank that empties: a Drain takes only what is there', () => {

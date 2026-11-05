@@ -2,7 +2,7 @@ import type { Activation, LoopEdge, LoopNode } from '../model/types'
 import { kindFindingText, refusingKindFindings, resolveKinds, type ResourceKindDecl } from '../model/kinds'
 import { applyUnits } from '../model/engineValues'
 import { hasTimetables } from '../model/modelVersion'
-import { applyTimetables, timetableFindings, timetableFindingText, timetableLines, type PlannedLine, type Timetable } from '../model/timetable'
+import { applyTimetables, timetableFindings, timetableFindingText, timetableLines, unmetAmount, type PlannedLine, type Timetable } from '../model/timetable'
 import type { DocTime } from '../model/units'
 import { boundaryOutflowByKind } from './boundaryOutflow'
 import { converterGroups, refusedGroups } from './converterGroups'
@@ -200,8 +200,8 @@ export function step(
     return {
       state: { step: prev.step, values: prev.values, ended: true, fired: [], triggerQueue: prev.triggerQueue },
       report: {
-        events: [], activated: [], fired: [], stateEvents: [], diagnostics: [], notices: [], gates: [],
-        timetableEnded: { tableId: tablePlan.endedBy.id, label: tablePlan.endedBy.label },
+        events: [], activated: [], fired: [], stateEvents: [], diagnostics: [], gates: [],
+        notices: [{ kind: 'timetableEnded', tableId: tablePlan.endedBy.id, label: tablePlan.endedBy.label }],
       },
     }
   }
@@ -2450,6 +2450,14 @@ export function step(
 
   const firedList = [...fired].sort()
 
+  // §M5-6 — a table line short of its plan says so. A want below `EPSILON` moves
+  // nothing by the engine's own rule: unmet in the numbers, not worth a message.
+  const tableLines = tablePlan ? withMoved(tablePlan.lines, events) : null
+  for (const l of tableLines ?? []) {
+    const amount = unmetAmount(l.planned, l.moved)
+    if (amount > EPSILON) notices.push({ kind: 'timetableUnmet', edgeId: l.edgeId, tableId: l.tableId, label: opts.timetables!.find((t) => t.id === l.tableId)!.label, amount })
+  }
+
   return {
     state: { step: curStep, values: working, ended, fired: firedList, triggerQueue },
     report: {
@@ -2460,7 +2468,7 @@ export function step(
       diagnostics,
       notices,
       gates,
-      ...(tablePlan ? { timetableLines: withMoved(tablePlan.lines, events) } : {}),
+      ...(tableLines ? { timetableLines: tableLines } : {}),
       // §M3-5 (L1) — only for a document with a kinds table; a v2 report has no key
       ...(kindRes ? { boundaryOutflow: boundaryOutflowByKind(events, nodes, liveEdges, kindRes.edgeKind) } : {}),
     },

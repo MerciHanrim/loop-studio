@@ -4,7 +4,7 @@
 // nearest double. Nothing here uses a numeric grid: a hold or linear table has
 // a closed form, so the amount of a step never depends on how the time is cut.
 import { resolveKinds, type ResourceKindDecl } from './kinds'
-import { add, cmp, div, fromInt, mul, parseDecimal, plainDecimal, rational, significantDigits, sub, toDouble, MAX_SIGNIFICANT_DIGITS, type Rational } from './rational'
+import { add, cmp, div, exactDouble, fromInt, mul, parseDecimal, plainDecimal, rational, significantDigits, sub, toDouble, MAX_SIGNIFICANT_DIGITS, type Rational } from './rational'
 import type { LoopEdge, LoopNode, ResourceEdgeData } from './types'
 import { isTimeUnit, resolveFieldUnit, stepSeconds, TIME_UNIT_SECONDS, type DocTime, type TimeUnit } from './units'
 
@@ -385,6 +385,9 @@ export function timetableFindingText(f: TimetableFinding, nodes: readonly LoopNo
   }
   return `Can't run: ${why[f.code]} ("${f.tableId}"). Nothing moved.`
 }
+
+/** u: the double nearest exact(p) − exact(m), never negative (§M5-6) */
+export const unmetAmount = (planned: number, moved: number): number => toDouble(sub(exactDouble(planned), exactDouble(moved)))
 
 /** one table line of a step: what the engine is asked to move (§M5-6) */
 export type PlannedLine = { edgeId: string; tableId: string; planned: number }

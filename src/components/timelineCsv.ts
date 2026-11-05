@@ -1,5 +1,7 @@
 import { toCsv } from '../model/csv'
 import { withUnit } from '../model/exportUnits'
+import { plainDecimal } from '../model/rational'
+import type { TimetableLineReport } from '../engine/types'
 import { fullShown, type PoolView } from '../model/viewUnits'
 
 // docs/data-import.md §CSV — the Timeline's "run CSV": one row per committed
@@ -42,7 +44,22 @@ import { fullShown, type PoolView } from '../model/viewUnits'
 // columns, with `(shown)` and `(approx)` beside each Pool the view re-expresses.
 
 export type RunCsvPool = { id: string; label: string; unit?: string }
-export type RunCsvPoint = { step: number; values: Record<string, number> }
+export type RunCsvPoint = { step: number; values: Record<string, number>; timetableLines?: readonly TimetableLineReport[] }
+/** a line that reads a timetable (SEMANTICS-M5.md §M5-6): the table's name, its
+ *  base unit and the connection's id */
+export type RunCsvTableLine = { edgeId: string; label: string; unit?: string }
+
+const tableHead = (lines: readonly RunCsvTableLine[]): string[] =>
+  lines.flatMap((l) => [`${withUnit(`${l.label} (planned)`, l.unit)} [${l.edgeId}]`, `${withUnit(`${l.label} (moved)`, l.unit)} [${l.edgeId}]`])
+
+/** §M5-6 — each cell is the double itself, in the shortest decimal text that
+ *  reads back as the same double, so a reader can subtract the two columns. A
+ *  step with no plan, such as step 0, moved nothing and planned nothing. */
+const tableCells = (lines: readonly RunCsvTableLine[], pt: RunCsvPoint): string[] =>
+  lines.flatMap((l) => {
+    const hit = pt.timetableLines?.find((x) => x.edgeId === l.edgeId)
+    return [plainDecimal(hit?.planned ?? 0), plainDecimal(hit?.moved ?? 0)]
+  })
 
 /** `<label> [<node-id>]`, or `<label> [<unit>] [<node-id>]` — readable half
  *  first, identifying half last. */
@@ -54,11 +71,11 @@ export function runCsvColumnName(pool: RunCsvPool): string {
  *  shared writer, so a label containing a comma, a quote or a newline survives
  *  a round trip through this product's own importer instead of being replaced
  *  by spaces. */
-export function buildRunCsv(pools: readonly RunCsvPool[], series: readonly RunCsvPoint[]): string {
-  const head = ['step', ...pools.map(runCsvColumnName)]
+export function buildRunCsv(pools: readonly RunCsvPool[], series: readonly RunCsvPoint[], lines: readonly RunCsvTableLine[] = []): string {
+  const head = ['step', ...pools.map(runCsvColumnName), ...tableHead(lines)]
   // a Pool with no entry in a committed snapshot reads 0, exactly as the chart
   // draws it — the CSV never disagrees with what is on screen
-  const rows = series.map((pt) => [pt.step, ...pools.map((p) => pt.values[p.id] ?? 0)])
+  const rows = series.map((pt) => [pt.step, ...pools.map((p) => pt.values[p.id] ?? 0), ...tableCells(lines, pt)])
   return toCsv([head, ...rows])
 }
 
@@ -66,7 +83,7 @@ export function buildRunCsv(pools: readonly RunCsvPool[], series: readonly RunCs
  *  a re-expressed Pool adds `<label> (shown) [L] [id]`, the step reading's text,
  *  and `<label> (approx) [id]`, `true` or `false`. A Pool the view does not
  *  re-express adds nothing, so no cell is blank. */
-export function buildShownRunCsv(pools: readonly (RunCsvPool & { view?: PoolView })[], series: readonly RunCsvPoint[]): string {
+export function buildShownRunCsv(pools: readonly (RunCsvPool & { view?: PoolView })[], series: readonly RunCsvPoint[], lines: readonly RunCsvTableLine[] = []): string {
   const head = ['step', ...pools.flatMap((p) => (p.view?.fu ? [runCsvColumnName(p), `${withUnit(`${p.label} (shown)`, p.view.unit)} [${p.id}]`, `${p.label} (approx) [${p.id}]`] : [runCsvColumnName(p)]))]
   const rows = series.map((pt) => [
     pt.step,
@@ -76,6 +93,7 @@ export function buildShownRunCsv(pools: readonly (RunCsvPool & { view?: PoolView
       const shown = fullShown(value, p.view.fu)
       return [value, shown.text, String(shown.approx)]
     }),
+    ...tableCells(lines, pt),
   ])
   return toCsv([head, ...rows])
 }

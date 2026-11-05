@@ -63,7 +63,7 @@ export function collectWorkspacePayload(canvas: Viewport): WorkspacePayload {
 /** The full file string for a Workspace Export (graph + optional workspace). */
 export function serializeWorkspaceFile(payload: WorkspacePayload): string {
   const g = useGraphStore.getState()
-  return serialize(g.nodes, g.edges, recommendedRunConfigForExport(), payload, undefined, g.modelVersion, useFrameStore.getState().snapshot(), useDataImportStore.getState().snapshot())
+  return serialize(g.nodes, g.edges, recommendedRunConfigForExport(), payload, undefined, g.modelVersion, useFrameStore.getState().snapshot(), useDataImportStore.getState().snapshot(), g.kinds, g.time, g.timetables)
 }
 
 // ── §W4 size handling ───────────────────────────────────────────────────
@@ -79,10 +79,10 @@ export function planWorkspaceExport(canvas: Viewport): {
   const g = useGraphStore.getState()
   const cfg = recommendedRunConfigForExport()
   const payload = collectWorkspacePayload(canvas)
-  const fullText = serialize(g.nodes, g.edges, cfg, payload, undefined, g.modelVersion, useFrameStore.getState().snapshot(), useDataImportStore.getState().snapshot())
+  const fullText = serialize(g.nodes, g.edges, cfg, payload, undefined, g.modelVersion, useFrameStore.getState().snapshot(), useDataImportStore.getState().snapshot(), g.kinds, g.time, g.timetables)
   const full: WorkspaceFileOption = { text: fullText, bytes: utf8ByteLength(fullText), resultOmitted: false }
   if (payload.mc.result === undefined) return { full, lean: null }
-  const leanText = serialize(g.nodes, g.edges, cfg, omitResult(payload), undefined, g.modelVersion, useFrameStore.getState().snapshot(), useDataImportStore.getState().snapshot())
+  const leanText = serialize(g.nodes, g.edges, cfg, omitResult(payload), undefined, g.modelVersion, useFrameStore.getState().snapshot(), useDataImportStore.getState().snapshot(), g.kinds, g.time, g.timetables)
   return { full, lean: { text: leanText, bytes: utf8ByteLength(leanText), resultOmitted: true } }
 }
 
@@ -133,7 +133,7 @@ export async function importFile(
   // one uninterrupted synchronous pass (§W5.1).
   const graphDigest =
     parsed.workspace != null
-      ? await semanticDigest({ nodes: parsed.nodes, edges: parsed.edges, kinds: parsed.kinds, time: parsed.time }, modelVersion)
+      ? await semanticDigest({ nodes: parsed.nodes, edges: parsed.edges, kinds: parsed.kinds, time: parsed.time, timetables: parsed.timetables }, modelVersion)
       : ''
 
   // ── from here: synchronous ──────────────────────────────────────────

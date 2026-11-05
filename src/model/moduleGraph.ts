@@ -31,6 +31,7 @@ import { anyFieldUnit, applyUnits } from './engineValues'
 import { normalizeResourceType } from './model/resourceType'
 import type { LoopEdge, LoopNode } from './types'
 import { stepSeconds, type DocTime } from './units'
+import { canonicalTimetable, timetableLines, type Timetable } from './timetable'
 
 // ── shared shapes ─────────────────────────────────────────────────────────────
 
@@ -42,6 +43,8 @@ export type GraphDocLike = {
   kinds?: readonly ResourceKindDecl[]
   /** loop-model/4 (SEMANTICS-M4.md §M4-3) — the step length; absent ⇒ none */
   time?: DocTime
+  /** loop-model/5 (SEMANTICS-M5.md) — the timetables; absent ⇒ none */
+  timetables?: readonly Timetable[]
 }
 
 /** Bounding-box top-left of a node set (`{ 0, 0 }` for an empty set). */
@@ -134,6 +137,8 @@ export type InsertOk = {
   /** loop-model/4 — the host's step length; a host without one adopts the
    *  module's, so the module's per-time fields keep their meaning (§M4-3) */
   time?: DocTime
+  /** loop-model/5 — the host's tables, then the module's the host did not hold */
+  timetables: Timetable[]
   /** fresh ids of the inserted nodes, in module order (for selection). */
   insertedNodeIds: string[]
   insertedEdgeIds: string[]
@@ -244,6 +249,17 @@ export function insertGraph(host: GraphDocLike, mod: GraphDocLike, opts: InsertO
     }
   }
   const time = host.time ?? mod.time
+  // loop-model/5 (§M5-7) — a table id names one table: an id both sides hold
+  // with different content refuses, because either line would change meaning
+  const hostTables = new Map((host.timetables ?? []).map((t) => [t.id, t]))
+  const clash = (mod.timetables ?? []).filter((t) => {
+    const held = hostTables.get(t.id)
+    return held !== undefined && JSON.stringify(canonicalTimetable(held)) !== JSON.stringify(canonicalTimetable(t))
+  })
+  if (clash.length > 0) {
+    return { ok: false, reason: `The structure was not inserted, because this document already holds a different timetable with the same id: ${clash.map((t) => t.id).join(', ')}.` }
+  }
+  const timetables = [...(host.timetables ?? []), ...(mod.timetables ?? []).filter((t) => !hostTables.has(t.id))]
 
   // 4. build the full candidate, validate it whole, THEN return (§MS3.6 / B4).
   const nodes = [...host.nodes, ...outNodes]
@@ -266,7 +282,7 @@ export function insertGraph(host: GraphDocLike, mod: GraphDocLike, opts: InsertO
     return { ok: false, reason: `The structure was not inserted, because it would change what these fields move: ${moved.join(', ')}.` }
   }
   try {
-    canonicalContent({ nodes, edges, kinds, time }, { modelVersion })
+    canonicalContent({ nodes, edges, kinds, time, timetables }, { modelVersion })
   } catch {
     return { ok: false, reason: 'The merged graph holds a non-finite number.' }
   }
@@ -279,6 +295,7 @@ export function insertGraph(host: GraphDocLike, mod: GraphDocLike, opts: InsertO
     promotedTo,
     kinds,
     ...(time !== undefined ? { time } : {}),
+    timetables,
     insertedNodeIds: outNodes.map((n) => n.id),
     insertedEdgeIds: outEdges.map((e) => e.id),
     idMap: Object.fromEntries(idMap),
@@ -328,6 +345,8 @@ export type ExtractOk = {
   kinds: ResourceKindDecl[]
   /** loop-model/4 — the source's step length, when the selection carries units */
   time?: DocTime
+  /** loop-model/5 — the tables the selection's lines read, when any */
+  timetables?: Timetable[]
 }
 export type ExtractResult = ExtractOk | { ok: false; reason: string; dangling?: DanglingRef[] }
 
@@ -399,8 +418,11 @@ export function extractModule(src: GraphDocLike, selectedIds: readonly string[])
   // (§M4-1); the step length is a model fact and travels with it, so an
   // insert can tell when the two step lengths differ (§M4-4)
   const units = kindsDeclareUnits(kinds) || anyFieldUnit(nodes, selEdges) || src.time !== undefined
-  const modelVersion: ModelSemanticsVersion = units ? 4 : kinds.length > 0 ? 3 : hasParamFlow ? 2 : 1
+  // loop-model/5 — the tables the selection's lines read travel with them
+  const read = new Set(timetableLines(selEdges).map((l) => l.tableId))
+  const timetables = (src.timetables ?? []).filter((t) => read.has(t.id))
+  const modelVersion: ModelSemanticsVersion = timetables.length > 0 ? 5 : units ? 4 : kinds.length > 0 ? 3 : hasParamFlow ? 2 : 1
   const time = units ? src.time : undefined
 
-  return { ok: true, nodes, edges: selEdges, modelVersion, kinds, ...(time !== undefined ? { time } : {}) }
+  return { ok: true, nodes, edges: selEdges, modelVersion, kinds, ...(time !== undefined ? { time } : {}), ...(timetables.length > 0 ? { timetables } : {}) }
 }

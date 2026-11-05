@@ -11,9 +11,10 @@ import { sha256 as nobleSha256 } from '@noble/hashes/sha2.js'
 import { ENGINE_REVISION } from '../engine/revision'
 import { MAX_SERIES } from './limits'
 import type { LoopEdge, LoopNode } from './types'
-import { hasKindsTable, hasModelLayer, hasUnits, modelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
+import { hasKindsTable, hasModelLayer, hasTimetables, hasUnits, modelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
 import { readKindsAt, type ResourceKindDecl } from './kinds'
 import { canonicalDocTime, type DocTime } from './units'
+import { canonicalTimetable, type Timetable } from './timetable'
 
 /** the `workspace.schema` string written (§W2-4) */
 export const WORKSPACE_SCHEMA = 'loop-workspace/2'
@@ -182,7 +183,7 @@ export function stableStringify(value: unknown): string {
  *  `modelSemantics: "loop-model/2"` key so the same `flow: "@p"` — a v1 fallback
  *  vs. a resolved Parameter — hashes differently. Absent ⇒ v1 bytes untouched. */
 export function canonicalGraphString(
-  graph: { nodes: LoopNode[]; edges: LoopEdge[]; kinds?: readonly ResourceKindDecl[]; time?: DocTime },
+  graph: { nodes: LoopNode[]; edges: LoopEdge[]; kinds?: readonly ResourceKindDecl[]; time?: DocTime; timetables?: readonly Timetable[] },
   modelVersion?: ModelSemanticsVersion,
 ): string {
   const modelSemantics = modelSemanticsLabel(modelVersion)
@@ -194,11 +195,15 @@ export function canonicalGraphString(
   // (`time.step` only — `display` is presentation), under the same rule.
   const kinds = graph.kinds && hasKindsTable(modelVersion) ? readKindsAt(graph.kinds, modelVersion) : []
   const time = hasUnits(modelVersion) ? canonicalDocTime(graph.time) : undefined
+  // loop-model/5 (SEMANTICS-M5.md §M5-7) — a table's points set what every step
+  // moves, so a different table is a different graph digest
+  const timetables = hasTimetables(modelVersion) ? (graph.timetables ?? []).map(canonicalTimetable) : []
   return stableStringify({
     nodes: [...graph.nodes].map((n) => projectNode(n, modelVersion)).sort(byId),
     edges: [...graph.edges].map((e) => projectEdge(e, modelVersion)).sort(byId),
     ...(kinds.length > 0 ? { kinds } : {}),
     ...(time !== undefined ? { time: { step: time.step } } : {}),
+    ...(timetables.length > 0 ? { timetables } : {}),
     ...(modelSemantics !== undefined ? { modelSemantics } : {}),
   })
 }
@@ -211,7 +216,7 @@ export function canonicalGraphString(
  * non-local host).
  */
 export async function semanticDigest(
-  graph: { nodes: LoopNode[]; edges: LoopEdge[]; kinds?: readonly ResourceKindDecl[]; time?: DocTime },
+  graph: { nodes: LoopNode[]; edges: LoopEdge[]; kinds?: readonly ResourceKindDecl[]; time?: DocTime; timetables?: readonly Timetable[] },
   modelVersion?: ModelSemanticsVersion,
 ): Promise<string> {
   return sha256Hex(utf8Bytes(canonicalGraphString(graph, modelVersion)))

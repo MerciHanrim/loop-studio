@@ -31,7 +31,7 @@ import {
   type RevisionExportPlan,
 } from '../model/revision'
 import type { LoopEdge, LoopNode } from '../model/types'
-import type { DocTime, ImportSourceTable, ModelSemanticsVersion, ResourceKindDecl, SavedFrame } from '../model/serialize'
+import type { DocTime, ImportSourceTable, ModelSemanticsVersion, ResourceKindDecl, SavedFrame, Timetable } from '../model/serialize'
 import { bootProjectHeader, isEditBlocked, setAutosaveProjectHeader, setDocumentBoundarySink, setHistorySidecar, useGraphStore } from './graphStore'
 import { useDataImportStore } from './dataImportStore'
 import { useFrameStore } from './frameStore'
@@ -151,14 +151,14 @@ type ProjectState = {
   openProposalAsDocument: (
     project: ProjectPayload,
     base: ProposalBase,
-    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: ModelSemanticsVersion; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[]; kinds?: readonly ResourceKindDecl[]; time?: DocTime },
+    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: ModelSemanticsVersion; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[]; kinds?: readonly ResourceKindDecl[]; time?: DocTime; timetables?: readonly Timetable[] },
   ) => void
   /** §R7A.2 — classify a proposal against the open revision without applying
    *  (for the Review UI). Same gates as `applyProposal`. */
   classifyProposal: (input: {
     project: ProjectPayload
     base: ProposalBase
-    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: ModelSemanticsVersion; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[]; kinds?: readonly ResourceKindDecl[]; time?: DocTime }
+    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: ModelSemanticsVersion; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[]; kinds?: readonly ResourceKindDecl[]; time?: DocTime; timetables?: readonly Timetable[] }
   }) =>
     | { ok: true; classification: ApplyClassification }
     | { ok: false; reason: 'wrong-project' | 'no-target' | 'target-is-proposal' | 'version-mismatch' }
@@ -181,7 +181,7 @@ type ProjectState = {
     input: {
       project: ProjectPayload
       base: ProposalBase
-      proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: ModelSemanticsVersion; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[]; kinds?: readonly ResourceKindDecl[]; time?: DocTime }
+      proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: ModelSemanticsVersion; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[]; kinds?: readonly ResourceKindDecl[]; time?: DocTime; timetables?: readonly Timetable[] }
     },
     opts?: {
       now?: string
@@ -285,6 +285,7 @@ function liveContent() {
       // full revision content too, same posture as `frames` above.
       dataImports: useDataImportStore.getState().snapshot(), kinds: useGraphStore.getState().kinds, // loop-model/3 — the table is content too
       time: useGraphStore.getState().time, // loop-model/4 — and the step length
+      timetables: useGraphStore.getState().timetables, // loop-model/5 — and the timetables
     },
     { modelVersion: g.modelVersion },
   )
@@ -347,7 +348,7 @@ function persist(open: OpenProject | null): void {
 function classifyAgainst(
   o: OpenProject,
   base: ProposalBase,
-  proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: ModelSemanticsVersion; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[]; kinds?: readonly ResourceKindDecl[]; time?: DocTime },
+  proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: ModelSemanticsVersion; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[]; kinds?: readonly ResourceKindDecl[]; time?: DocTime; timetables?: readonly Timetable[] },
 ): ApplyClassification {
   // SEMANTICS-R5.md §R5-6 — the target carries the live saved `frames`, so a
   // frames-only local divergence flips it off `exact` and a `frames` conflict
@@ -445,6 +446,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
             frames: useFrameStore.getState().snapshot(),
             dataImports: useDataImportStore.getState().snapshot(), kinds: useGraphStore.getState().kinds, // loop-model/3 — the table is content too
             time: useGraphStore.getState().time, // loop-model/4 — and the step length
+            timetables: useGraphStore.getState().timetables, // loop-model/5 — and the timetables
           },
           modelVersion: g.modelVersion,
           project: { projectId, revisionId: mkId('rev'), parentId: null, lineage: [] },
@@ -465,6 +467,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
             frames: useFrameStore.getState().snapshot(),
             dataImports: useDataImportStore.getState().snapshot(), kinds: useGraphStore.getState().kinds, // loop-model/3 — the table is content too
             time: useGraphStore.getState().time, // loop-model/4 — and the step length
+            timetables: useGraphStore.getState().timetables, // loop-model/5 — and the timetables
           },
           modelVersion: g.modelVersion,
           project: { projectId: o.projectId, revisionId: o.revisionId, parentId: o.parentId, lineage: o.lineage },
@@ -550,6 +553,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           frames: useFrameStore.getState().snapshot(),
           dataImports: useDataImportStore.getState().snapshot(), kinds: useGraphStore.getState().kinds, // loop-model/3 — the table is content too
           time: useGraphStore.getState().time, // loop-model/4 — and the step length
+          timetables: useGraphStore.getState().timetables, // loop-model/5 — and the timetables
         },
         project: { projectId: o.projectId, revisionId: o.revisionId, lineage: o.lineage },
         dirty: isDirty,
@@ -601,6 +605,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           dataImports: proposed.dataImports,
           kinds: proposed.kinds, // loop-model/3 — the proposal's own table
           time: proposed.time, // loop-model/4 — and its step length
+          timetables: proposed.timetables, // loop-model/5 — and its timetables
         },
       )
       const digest = digestOfCanonical(canonicalContent(proposed, { modelVersion: proposed.modelVersion }))
@@ -689,6 +694,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       let resultKinds: readonly ResourceKindDecl[] | undefined
       // loop-model/4 — the step length, the same way (no time hunk yet)
       let resultTime: DocTime | undefined
+      // loop-model/5 — the timetables, the same way (no table hunk yet)
+      let resultTimetables: readonly Timetable[] | undefined
       let adoptTime = false
       let partial = false
       if (opts.selection) {
@@ -731,6 +738,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
               dataImports: resultDataImports ?? useDataImportStore.getState().snapshot(),
               kinds: g.kinds,
               time: g.time,
+              timetables: g.timetables,
             },
             { modelVersion: g.modelVersion },
           ),
@@ -757,6 +765,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         resultDataImports = proposed.dataImports // same, for the data-import records
         resultKinds = proposed.kinds ?? [] // loop-model/3 — and the kinds table
         resultTime = proposed.time // loop-model/4 — and the step length (none ⇒ cleared)
+        resultTimetables = proposed.timetables ?? [] // loop-model/5 — and the timetables
         adoptTime = true
       }
 
@@ -773,7 +782,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       // that same version, so `dirty` is false right after an Apply.
       useGraphStore.getState().loadDoc(
         { nodes: resultNodes, edges: resultEdges },
-        { mode: 'revision-apply', modelVersion: g.modelVersion, frames: resultFrames, dataImports: resultDataImports, kinds: resultKinds, ...(adoptTime ? { time: resultTime, replaceTime: true } : {}) },
+        { mode: 'revision-apply', modelVersion: g.modelVersion, frames: resultFrames, dataImports: resultDataImports, kinds: resultKinds, timetables: resultTimetables, ...(adoptTime ? { time: resultTime, replaceTime: true } : {}) },
       )
       // the new baseline is the WHOLE post-apply content — `frameStore` /
       // `dataImportStore` now hold the effective values (swapped when
@@ -787,6 +796,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
             frames: useFrameStore.getState().snapshot(),
             dataImports: useDataImportStore.getState().snapshot(), kinds: useGraphStore.getState().kinds, // loop-model/3 — the table is content too
             time: useGraphStore.getState().time, // loop-model/4 — and the step length
+            timetables: useGraphStore.getState().timetables, // loop-model/5 — and the timetables
           },
           { modelVersion: g.modelVersion },
         ),
