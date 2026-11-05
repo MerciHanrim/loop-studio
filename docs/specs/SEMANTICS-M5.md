@@ -122,7 +122,7 @@ The controller and run fractions, calendar dates and time zones, editing a table
 
 ## M5-10. Making a table on screen
 
-Data ▸ New timetable takes pasted text or a CSV file. A first row with no number in it is a header, and a row with nothing in it is not data. With more than two columns, the person picks the time and rate columns. A text with other columns starts over: its column, gap and `end` choices do not carry over from the last text.
+Data ▸ New timetable takes pasted text or a CSV file. A first row with no number in it is a header, and a row with nothing in it is not data. With more than two columns, the person picks the time and rate columns. A column choice lasts while the columns do. A gap choice and a typed `end` belong to the rows they were made on: any change to the text or the columns asks for them again.
 
 - **A gap stops the import.** A row with a time and no rate blocks Add until the person chooses, for all such rows: remove them, hold the last value, or draw a straight line across the gap. `hold` needs a value before each gap, and `line` one on both sides, so a choice that cannot apply is not offered. Each choice writes real points, and `source` gains a note naming the rows. A value a straight line gives that 15 digits cannot reach is the nearest 15-digit decimal, which is then the point the file shows.
 - **`end` is proposed, shown and editable.** `hold`: the last point plus the last interval. `linear`, not repeating: the last point. A repeating table whose last value equals its first: that row is dropped and its time is `end`. A `linear` repeating table whose last value differs: no proposal, and the screen says why, because closing the period would invent a jump. With one point there is no interval, so the person gives it.

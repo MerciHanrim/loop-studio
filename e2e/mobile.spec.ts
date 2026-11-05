@@ -2201,3 +2201,50 @@ test.describe('sheet row disabled distinction (§MV5)', () => {
     expect(tapped.cursor).toBe('default')
   })
 })
+
+// SEMANTICS-M5.md §M5-11 — a table's rate strip in the phone's Timeline sheet. A
+// table cannot be made on a phone, but a document that holds one can be run here.
+test('the Timeline sheet draws each table on its own strip, inside the screen and on the chart’s step scale', async ({ page }) => {
+  const table = (id: string, label: string, read: string, points: string[][]) => ({ id, label, source: 'Example assumption', unit: 'CMH', timeUnit: 'h', read, end: '24', after: 'repeat', points })
+  await openApp(page)
+  await importGraph(
+    page,
+    JSON.stringify({
+      schema: 'loop-studio/graph/5',
+      version: 1,
+      nodes: [
+        { id: 'sea', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Sea', activation: 'automatic' } },
+        { id: 'tank', type: 'pool', position: { x: 320, y: 0 }, data: { kind: 'pool', label: 'Tank', initial: 800, capacity: 1500, resourceType: 'water', activation: 'automatic' } },
+        { id: 'city', type: 'drain', position: { x: 640, y: 0 }, data: { kind: 'drain', label: 'City', activation: 'automatic' } },
+      ],
+      edges: [
+        { id: 'a', source: 'sea', target: 'tank', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '~intake' } },
+        { id: 'b', source: 'tank', target: 'city', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '~demand' } },
+      ],
+      kinds: [{ name: 'water', conserved: true, baseUnit: 'm³', units: [{ name: 'L', factor: '0.001' }], rateUnits: [{ name: 'CMH', factor: '1', per: 'h' }] }],
+      time: { step: { value: 1, unit: 'h' } },
+      timetables: [table('intake', 'Intake by tide', 'linear', [['0', '310'], ['13', '280']]), table('demand', 'City demand', 'hold', [['0', '250'], ['7', '640']])],
+    }),
+  )
+  await page.evaluate(() => {
+    for (let i = 0; i < 12; i++) (window as any).__loop.sim.getState().advance()
+  })
+  await page.getByRole('button', { name: /Timeline/ }).first().click()
+  const strips = page.locator('.timeline--sheet .timeline__rate')
+  await expect(strips).toHaveCount(2)
+  await expect(strips.nth(0).locator('.timeline__rate-name')).toHaveText('Intake by tide (CMH)')
+  const m = await page.evaluate(() => {
+    const plot = document.querySelector('.timeline__plot')!.getBoundingClientRect()
+    const runBar = document.querySelector('.pstrip--mobile')!.getBoundingClientRect()
+    return {
+      sideways: document.documentElement.scrollWidth > innerWidth,
+      plot: [plot.left, plot.right],
+      bottom: Math.max(...[...document.querySelectorAll('.timeline__rate')].map((e) => e.getBoundingClientRect().bottom)),
+      strips: [...document.querySelectorAll('.timeline__rate')].map((e) => [e.getBoundingClientRect().left, e.getBoundingClientRect().right]),
+      runBarTop: runBar.top,
+    }
+  })
+  expect(m.sideways).toBe(false)
+  for (const strip of m.strips) expect(strip).toEqual(m.plot)
+  expect(m.bottom).toBeLessThanOrEqual(m.runBarTop)
+})

@@ -188,6 +188,54 @@ test('a new text does not inherit the last text’s column, gap or end choice', 
   expect(table.end).toBe('4')
 })
 
+test('a new text with the same columns keeps the column choice and asks again about its gap and its end', async ({ page }) => {
+  await openApp(page)
+  await importGraph(page, withKinds([]))
+  await page.getByRole('button', { name: 'Data', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'New timetable…' }).click()
+  const dialog = page.locator('.mcdlg--timetable')
+  const paste = dialog.getByLabel('Paste times and rates')
+  const add = dialog.getByRole('button', { name: 'Add timetable' })
+  const end = dialog.getByLabel('The table ends at')
+  await dialog.getByLabel('Name').fill('Second file')
+  await dialog.getByLabel('Where the numbers came from').fill('Example assumption')
+
+  // the first file: columns chosen, its gap held, its end typed
+  await paste.fill('site,hour,flow\nA,0,10\nA,2,\nA,4,30\n')
+  await dialog.getByLabel('Time column').selectOption({ label: 'hour' })
+  await dialog.getByLabel('Rate column').selectOption({ label: 'flow' })
+  await dialog.getByLabel('Hold the last value').check()
+  await end.fill('9')
+  await expect(add).toBeEnabled()
+
+  // another file, the same columns: they stay, and nothing else does
+  await paste.fill('site,hour,flow\nB,0,50\nB,2,\nB,4,70\n')
+  await expect(dialog.getByLabel('Time column')).toHaveValue('1')
+  await expect(dialog.getByLabel('Rate column')).toHaveValue('2')
+  await expect(dialog.getByText('These rows have no rate: 3.', { exact: false })).toBeVisible()
+  await expect(dialog.getByLabel('Hold the last value')).not.toBeChecked()
+  await expect(add).toBeDisabled() // the new gap waits for its own choice
+
+  await dialog.getByLabel('Draw a straight line across the gap').check()
+  await expect(end).toHaveValue('6') // proposed from these rows, not the 9 typed for the last ones
+  await add.click()
+  const table = await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().timetables[0])
+  expect(table.points).toEqual([['0', '50'], ['2', '60'], ['4', '70']])
+  expect(table.end).toBe('6')
+})
+
+test('a choice made on a text is asked again when the rate column changes', async ({ page }) => {
+  await openApp(page)
+  await importGraph(page, withKinds([]))
+  await page.getByRole('button', { name: 'Data', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'New timetable…' }).click()
+  const dialog = page.locator('.mcdlg--timetable')
+  await dialog.getByLabel('Paste times and rates').fill('hour,a,b\n0,1,5\n1,,\n2,3,7\n')
+  await dialog.getByLabel('Hold the last value').check()
+  await dialog.getByLabel('Rate column').selectOption({ label: 'b' })
+  await expect(dialog.getByLabel('Hold the last value')).not.toBeChecked()
+})
+
 test('a one-point spike in a table of 20,000 points reaches the chart and its axis', async ({ page }) => {
   // hour 12345 is day 514, inside the chart’s last 400 steps at step 600
   await openApp(page)

@@ -83,15 +83,21 @@ function Form({ rootRef, onClose }: { rootRef: React.RefObject<HTMLDivElement | 
   const [endDraft, setEndDraft] = useState<string | null>(null)
 
   const parsed = useMemo(() => parseTableText(text), [text])
-  // another table's columns are not this one's: a choice made on the last text
-  // does not carry over to a text with other columns, and neither does a gap
-  // choice or an end typed for rows that have gone
+  // another table's columns are not this one's: the column choice lasts only
+  // while the columns do
   const shape = parsed ? JSON.stringify(parsed.columns) : ''
   const [seenShape, setSeenShape] = useState(shape)
   if (shape !== seenShape) {
     setSeenShape(shape)
     setTimeColumn(0)
     setRateColumn(1)
+  }
+  // a gap choice and a typed end were made on these rows: other rows are decided
+  // again, whatever their columns, or a new file's gap would be filled unasked
+  const input = JSON.stringify([text, timeColumn, rateColumn])
+  const [seenInput, setSeenInput] = useState(input)
+  if (input !== seenInput) {
+    setSeenInput(input)
     setGapChoice(null)
     setEndDraft(null)
   }
