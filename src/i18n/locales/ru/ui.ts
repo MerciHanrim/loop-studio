@@ -466,6 +466,7 @@ const ui = {
   'about.createdBy': 'Автор',
   'about.repo': 'Репозиторий на GitHub',
   'about.repoAria': 'Репозиторий Loop Studio на GitHub',
+  'about.description': 'Loop Studio — инструмент для наглядного построения и симуляции потоков ресурсов, процессов, изменений состояния и вероятностных правил.',
   'about.notAffiliated':
     'Loop Studio — независимый проект, не связанный с Machinations.io и не одобренный ею.',
   'about.licenses': 'Лицензии открытого ПО сторонних разработчиков',

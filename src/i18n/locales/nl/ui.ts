@@ -404,6 +404,7 @@ const ui = {
   'about.createdBy': 'Gemaakt door',
   'about.repo': 'GitHub-repository',
   'about.repoAria': 'GitHub-repository van Loop Studio',
+  'about.description': 'Loop Studio is een hulpmiddel om stromen van middelen, processen, toestandswijzigingen en kansregels visueel op te bouwen en te simuleren.',
   'about.notAffiliated': 'Loop Studio is een onafhankelijk project en is niet verbonden aan of onderschreven door Machinations.io.',
   'about.licenses': 'Opensourcelicenties van derden',
   'licenses.back': 'Terug',

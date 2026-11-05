@@ -732,6 +732,13 @@ test.describe('guided tour — About dialog (§GT7.1)', () => {
     await expect(repoLink).toHaveText('GitHub repository')
     await expect(repoLink).toHaveAttribute('aria-label', 'Loop Studio GitHub repository')
     const enNote = await dlg.locator('.about__note').innerText()
+    // the product comes first, and the affiliation sentence is the smaller note
+    const description = dlg.locator('.about__description')
+    await expect(description).toContainText('resource flows, processes, state changes and probabilistic rules')
+    const order = await dlg.locator('.about > p').evaluateAll((rows) => rows.map((p) => p.className))
+    expect(order.indexOf('about__description')).toBeLessThan(order.indexOf('about__note'))
+    const size = (el: Element) => parseFloat(getComputedStyle(el).fontSize)
+    expect(await description.evaluate(size)).toBeGreaterThan(await dlg.locator('.about__note').evaluate(size))
 
     // KO: copyright line byte-identical; the note + the repo link text/aria switch
     await page.evaluate(() => (window as unknown as Bridge).__loop.i18n.getState().setLocale('ko'))
@@ -741,6 +748,7 @@ test.describe('guided tour — About dialog (§GT7.1)', () => {
     await expect(repoLink).toHaveAttribute('aria-label', 'Loop Studio GitHub 저장소')
     await expect(repoLink).toHaveAttribute('href', 'https://github.com/MerciHanrim/loop-studio') // href never changes
     expect(await dlg.locator('.about__note').innerText()).not.toBe(enNote)
+    await expect(description).toContainText('자원 흐름')
 
     // §GT9 case 19 — each of Escape / backdrop / close returns focus to the Help trigger
     await page.keyboard.press('Escape')

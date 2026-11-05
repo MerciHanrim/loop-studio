@@ -410,6 +410,7 @@ const ui = {
   'about.createdBy': 'Được tạo bởi',
   'about.repo': 'Kho GitHub',
   'about.repoAria': 'Kho GitHub của Loop Studio',
+  'about.description': 'Loop Studio là công cụ để xây dựng trực quan và mô phỏng các luồng tài nguyên, quy trình, thay đổi trạng thái và quy tắc xác suất.',
   'about.notAffiliated': 'Loop Studio là một dự án độc lập, không liên kết với và không được Machinations.io bảo trợ.',
   'about.licenses': 'Giấy phép nguồn mở của bên thứ ba',
   'licenses.back': 'Quay lại',

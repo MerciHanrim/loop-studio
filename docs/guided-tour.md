@@ -401,6 +401,9 @@ static, **read-only** dialog that fixes that.
 Loop Studio
 v0.8.0-dev · build 2b6d504
 
+Loop Studio is a tool for visually building and simulating
+resource flows, processes, state changes and probabilistic rules.
+
 Created by Hanrim
 GitHub repository
 
@@ -416,6 +419,9 @@ Korean:
 ```
 Loop Studio
 v0.8.0-dev · 빌드 2b6d504
+
+Loop Studio는 자원 흐름, 공정, 상태 변화, 확률적 규칙을
+시각적으로 만들고 시뮬레이션하는 도구입니다.
 
 제작: Hanrim
 GitHub 저장소
@@ -511,7 +517,9 @@ and KO `satisfies MessageCatalog`, e.g.:
   repeats the visible text and adds "opens in a new tab")
 - `about.createdBy` (= `"Created by"` / `"제작:"`), `about.repo` (the GitHub
   link text, `"GitHub repository"` / `"GitHub 저장소"`), `about.repoAria` (its
-  accessible name), and `about.notAffiliated` (the Machinations.io sentence).
+  accessible name), `about.description` (what the product does, read first
+  and in the dialog's strongest ink), and `about.notAffiliated` (the
+  Machinations.io sentence, a smaller secondary note).
   The product name, `v{version} · build {sha}` line, the GitHub link **href**
   (`https://github.com/MerciHanrim/loop-studio`), and `Copyright © 2026 Hanrim.
   All rights reserved.` are **not** catalog strings — they are shown verbatim
