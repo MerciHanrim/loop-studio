@@ -244,7 +244,7 @@ test.describe('3-zone gacha banner comparison Template', () => {
   }) => {
     // #502 — the recommended 2000 runs take 15 to over 30 s on CI, and the same
     // commit differs by 2× between runners. The run count stays: "every run" is
-    // the claim, and at 256 runs a fault in one run of 300 passes unseen.
+    // the claim, and at 256 runs a planted fault in 1 of 2000 runs passed unseen.
     test.setTimeout(90_000)
     await openApp(page)
     await resetAll(page)
