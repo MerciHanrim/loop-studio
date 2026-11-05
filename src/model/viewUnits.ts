@@ -6,7 +6,8 @@
 import type { ResourceKindDecl } from './kinds'
 import type { LoopNode } from './types'
 import { div, equals, exactDouble, parseDecimal, plainDecimal, toDouble, toSignificant15, MAX_SIGNIFICANT_DIGITS } from './rational'
-import { fieldUnitOptions, fieldUnitText, poolKindName, reexpress, resolveFieldUnit, TIME_UNITS, unitRatio, UNIT_SEPARATOR, type DocTime, type FieldUnit } from './units'
+import { isPlainNumber } from '../engine/flow'
+import { authoredText, fieldUnitOptions, fieldUnitText, poolKindName, reexpress, reexpressField, resolveFieldUnit, TIME_UNITS, unitRatio, UNIT_SEPARATOR, type DocTime, type FieldRole, type FieldUnit } from './units'
 
 /** the chosen unit by kind name; a kind with no entry reads in its base unit */
 export type ViewUnits = Readonly<Record<string, string>>
@@ -148,4 +149,28 @@ export function outflowShown(amount: number, raw: number, fu: FieldUnit, decl: R
   if (fu.kind === 'base') return decl?.baseUnit ? { number: String(amount), unit: decl.baseUnit, perStep: true } : null
   const number = reexpress(raw, fu, time).text
   return fu.kind === 'amount' && !fu.per ? { number, unit: fu.unit.name, perStep: true } : { number, unit: fieldUnitText(fu), perStep: false }
+}
+
+// ── SEMANTICS-M4.md §M4-10 — the Inspector reads through the same choices ──
+
+/** the Timeline's reading of a kind, resolved on every read */
+export const stockReading = (views: ViewUnits, decl: ResourceKindDecl): FieldUnit => resolveFieldUnit(views[decl.name], decl, undefined, 'stock')
+
+/** the text under a field: its number and unit, `perStep` as in `OutflowShown`.
+ *  `number` opens with `=` or `≈`, so the line never reads as a second input. */
+export type FieldHint = { number: string; unit: string; perStep: boolean }
+
+/** the read-only hint under a field: its authored value in the reading of its
+ *  role, the Timeline's for a stock and the Kinds panel's for a rate. `null`
+ *  when there is nothing to add: the field does not hold a number a run reads,
+ *  the reading has no name, or the reading is the field's own scale (`21000 CMD`
+ *  and `21000 m³/d` say the same thing). */
+export function fieldHint(authored: string | number | null | undefined, fu: FieldUnit, reading: FieldUnit, decl: ResourceKindDecl, time: DocTime | undefined, role: FieldRole): FieldHint | null {
+  if (authored == null || !isPlainNumber(authoredText(authored))) return null
+  if (equals(unitRatio(fu, time), unitRatio(reading, time))) return null
+  const unit = reading.kind === 'base' ? decl.baseUnit : fieldUnitText(reading)
+  const shown = reexpressField(authored, fu, reading, time)
+  if (!unit || !shown) return null
+  const perStep = role === 'rate' && (reading.kind === 'base' || (reading.kind === 'amount' && !reading.per))
+  return { number: shown.approx ? shown.text : `= ${shown.text}`, unit, perStep }
 }

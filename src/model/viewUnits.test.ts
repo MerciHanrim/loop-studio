@@ -8,7 +8,7 @@ import { useViewUnitsStore } from '../store/viewUnitsStore'
 import type { ResourceKindDecl } from './kinds'
 import { serialize } from './serialize'
 import type { LoopNode } from './types'
-import { fieldUnitText, type DocTime } from './units'
+import { fieldUnitText, resolveFieldUnit, type DocTime } from './units'
 import {
   NO_VIEW_UNITS,
   axisMark,
@@ -16,6 +16,7 @@ import {
   axisUnit,
   chartNumber,
   compactText,
+  fieldHint,
   fullShown,
   fullText,
   outflowOptions,
@@ -23,8 +24,10 @@ import {
   outflowShown,
   poolViews,
   shownNumber,
+  stockReading,
   viewIsOn,
   viewUnitChoices,
+  type ViewUnits,
 } from './viewUnits'
 
 const pool = (id: string, resourceType?: string): LoopNode =>
@@ -267,5 +270,64 @@ describe('the outflow reading', () => {
     expect(useViewUnitsStore.getState().views).toEqual({})
     useGraphStore.setState({ loadRev: useGraphStore.getState().loadRev + 1 })
     expect(useViewUnitsStore.getState().outflowViews).toEqual(NO_VIEW_UNITS)
+  })
+})
+
+describe('the hint under a field (§M4-10)', () => {
+  const water = KINDS[0]!
+  const hour: DocTime = { step: { value: 1, unit: 'h' } }
+  const stock = (text: string) => resolveFieldUnit(text, water, hour, 'stock')
+  const rate = (text: string) => resolveFieldUnit(text, water, hour, 'rate')
+  const stockHint = (value: number | null, field: string, views: ViewUnits) => fieldHint(value, stock(field), stockReading(views, water), water, hour, 'stock')
+  const rateHint = (flow: string, field: string, reading: string) => fieldHint(flow, rate(field), rate(reading), water, hour, 'rate')
+
+  it('a stock reads in the Timeline view unit, exactly from its decimal', () => {
+    expect(stockHint(200, '', { water: 'L' })).toEqual({ number: '= 200000', unit: 'L', perStep: false })
+    expect(stockHint(0.1, '', { water: 'L' })).toEqual({ number: '= 100', unit: 'L', perStep: false })
+  })
+
+  it('a field in another unit reads in the base unit when no view unit is on', () => {
+    expect(stockHint(200000, 'L', NO_VIEW_UNITS)).toEqual({ number: '= 200', unit: 'm³', perStep: false })
+  })
+
+  it('says nothing when the reading is the field\'s own unit', () => {
+    expect(stockHint(200, '', NO_VIEW_UNITS)).toBeNull()
+    expect(stockHint(200000, 'L', { water: 'L' })).toBeNull()
+  })
+
+  it('says nothing when the reading is the same scale under another name', () => {
+    const named: ResourceKindDecl = { ...water, units: [{ name: 'm³', factor: '1' }], rateUnits: [{ name: 'CMD', factor: '1', per: 'd' }] }
+    const cmd = resolveFieldUnit('CMD', named, hour, 'rate')
+    const perDay = resolveFieldUnit('m³/d', named, hour, 'rate')
+    expect(fieldHint('21000', cmd, perDay, named, hour, 'rate')).toBeNull()
+  })
+
+  it('a rate carries the time, and a value no decimal holds is marked', () => {
+    expect(rateHint('0.4', 'MLD', 'L/min')).toEqual({ number: '≈ 277.777777777778', unit: 'L/min', perStep: false })
+  })
+
+  it('a rate starts from the display time, as the Kinds panel does', () => {
+    const daily: DocTime = { ...hour, display: 'd' }
+    expect(fieldHint('0.4', rate('MLD'), outflowReading(NO_VIEW_UNITS, water, daily), water, daily, 'rate')).toEqual({ number: '= 400', unit: 'm³/d', perStep: false })
+  })
+
+  it('an amount per step names the step, the base unit included', () => {
+    expect(rateHint('0.4', 'MLD', 'L')).toEqual({ number: '≈ 16666.6666666667', unit: 'L', perStep: true })
+    expect(fieldHint('0.48', rate('MLD'), { kind: 'base' }, water, hour, 'rate')).toEqual({ number: '= 20', unit: 'm³', perStep: true })
+  })
+
+  it('says nothing for a reading with no name', () => {
+    const unnamed: ResourceKindDecl = { name: 'water', conserved: true, units: [{ name: 'L', factor: '0.001' }] }
+    expect(fieldHint(5, resolveFieldUnit('L', unnamed, hour, 'stock'), { kind: 'base' }, unnamed, hour, 'stock')).toBeNull()
+  })
+
+  it('says nothing for what a run does not read as that number', () => {
+    for (const flow of ['all', '25%', '1-3', '2D6', '@rate', '~table', '', '1e3', '-5']) expect(rateHint(flow, '', 'L/min')).toBeNull()
+    expect(stockHint(null, '', { water: 'L' })).toBeNull()
+  })
+
+  it('a view unit removed from the kind reads as the base unit', () => {
+    expect(stockReading({ water: 'gone' }, water)).toEqual({ kind: 'base' })
+    expect(stockReading({ water: 'MLD' }, water)).toEqual({ kind: 'base' })
   })
 })

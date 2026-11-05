@@ -30,6 +30,10 @@ export type ModelVersion = ModelSemanticsVersion
 
 const NUM = /^\d+(?:\.\d+)?$/
 
+/** the only number form a `flow` string runs as: anything else that looks like a
+ *  number, such as `1e3`, is unparseable here and runs as `const 1` */
+export const isPlainNumber = (text: string): boolean => NUM.test(text)
+
 /** A `flow` string whose trimmed form is a single well-formed `@id` / `@{id}`
  *  reference (loop-expr/1 §X3, same tokeniser) ⇒ the decoded target id;
  *  otherwise `null`. Used only in a v2 document. */

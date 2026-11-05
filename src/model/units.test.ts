@@ -245,6 +245,19 @@ describe('an engine value shown in its Pool unit — 15 significant digits, ≈ 
     expect(currentAmountText(499.99999999999994, 500, undefined, { kind: 'base' }, HOUR)).toBe('500.00')
     expect(currentAmountText(undefined, 500, undefined, { kind: 'base' }, HOUR)).toBe('500')
   })
+  it('a view unit takes the Pool\'s unit\'s place, before a run and during one (§M4-10)', () => {
+    const kL = resolveFieldUnit('kL', { ...WATER[0]!, units: [{ name: 'kL', factor: '1' }, { name: 'L', factor: '0.001' }] }, HOUR, 'stock')
+    // a Pool in the base unit: the same m³ read in L
+    expect(currentAmountText(undefined, 200, undefined, { kind: 'base' }, HOUR, L)).toBe('200000 L')
+    expect(currentAmountText(202.08333333333334, 200, undefined, { kind: 'base' }, HOUR, L)).toBe('≈ 202083.333333333 L')
+    // a Pool in L read in another amount unit
+    expect(currentAmountText(undefined, 200000, undefined, L, HOUR, kL)).toBe('200 kL')
+    expect(currentAmountText(250, 200000, undefined, L, HOUR, kL)).toBe('250 kL')
+    // the authored decimal, not its double: 0.1 m³ is 100 L exactly here
+    expect(currentAmountText(undefined, 0.1, undefined, { kind: 'base' }, HOUR, L)).toBe('100 L')
+    // a starting amount with no plain decimal text still reads, through the engine value
+    expect(currentAmountText(undefined, 1e21, undefined, { kind: 'base' }, HOUR, L)).toBe('1000000000000000000000000 L')
+  })
 })
 
 describe('a unit change — exact or confirmed, never silent (§M4-4, D10)', () => {
