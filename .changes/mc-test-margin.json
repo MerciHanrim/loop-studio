@@ -1,0 +1,1 @@
+{ "type": "internal", "reason": "A test's time limit only: the banner-zones Monte Carlo spec gets 90 s, because a slow CI runner took it past 30 s." }
