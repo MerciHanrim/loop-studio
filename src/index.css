@@ -4914,6 +4914,25 @@ a.sheet__row {
   overflow: hidden;
   position: relative; /* the step reading sits on the plot */
 }
+/* SEMANTICS-M5.md §M5-11 — each table's rate, on its own axis under the chart */
+.timeline__rates {
+  flex: none;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.timeline__rate {
+  display: block;
+  color: var(--ink-2);
+}
+.timeline__rate-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.timeline__rate-guide {
+  stroke: var(--sel);
+  stroke-width: 1;
+}
 .timeline__plot:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: -2px;
@@ -8209,6 +8228,51 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 /* About dialog — reuses the .mcdlg shell */
+/* SEMANTICS-M5.md §M5-10 — Data ▸ New timetable */
+.mcdlg--timetable {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+}
+.ttable {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+.ttable__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.ttable__field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.ttable__field textarea {
+  font-family: var(--font-mono);
+  resize: vertical;
+}
+.ttable__gap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+}
+.ttable__note,
+.ttable__problem {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.ttable__problem {
+  color: var(--ink-1);
+  font-weight: 600;
+}
 .mcdlg--about {
   width: min(340px, calc(100vw - 24px));
 }

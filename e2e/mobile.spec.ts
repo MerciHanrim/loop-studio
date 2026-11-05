@@ -263,14 +263,15 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
     const help = sheet(page, 'Help')
     await expect(help).toBeVisible()
     const rows = help.locator('.sheet__row')
-    // the same five rows as the desktop menu (What's new was removed in
+    // the same six rows as the desktop menu (What's new was removed in
     // 2026-10; Example notes joined on 2026-10-20)
-    await expect(rows).toHaveCount(5)
+    await expect(rows).toHaveCount(6)
     await expect(rows.nth(0)).toHaveText(/Restart the tour|둘러보기 다시 시작/)
     await expect(rows.nth(1)).toHaveText(/Turn contextual tips back on|상황별 안내 다시 켜기/)
     await expect(rows.nth(2)).toHaveText(/Example notes|예제 설명/)
-    await expect(rows.nth(3)).toHaveText(/Send feedback|피드백 보내기/)
-    await expect(rows.nth(4)).toHaveText(/About Loop Studio|Loop Studio 정보/)
+    await expect(rows.nth(3)).toHaveText(/How a step fills and empties a Pool/)
+    await expect(rows.nth(4)).toHaveText(/Send feedback|피드백 보내기/)
+    await expect(rows.nth(5)).toHaveText(/About Loop Studio|Loop Studio 정보/)
 
     const link = help.locator('a.sheet__row', { hasText: /Send feedback|피드백 보내기/ })
     await expect(link).toHaveAttribute('href', 'https://tally.so/r/9qkk6Y')

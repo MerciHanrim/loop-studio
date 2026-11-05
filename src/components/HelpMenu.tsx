@@ -129,6 +129,17 @@ export function HelpMenu({
           >
             <span className="menu__name">{t('help.examples.menuLabel')}</span>
           </button>
+          <button
+            type="button"
+            className="menu__item"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false)
+              onOpenDialog({ kind: 'stepOrder' })
+            }}
+          >
+            <span className="menu__name">{t('help.stepOrder.title')}</span>
+          </button>
           <div className="menu__divider" role="separator" />
           <a
             className="menu__item"

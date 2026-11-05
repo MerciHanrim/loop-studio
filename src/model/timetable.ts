@@ -249,6 +249,39 @@ export function timetableRateAt(t: Timetable, x: Rational): Rational {
   return add(c.rates[i], mul(div(sub(nextRate(c, i, t.after), c.rates[i]), sub(to, c.times[i])), sub(at, c.times[i])))
 }
 
+/** the corners of the table's rate from `from` to `to`, in its own time and rate
+ *  units, for a chart. Past `end`, a `stop` table has no line. A table with more
+ *  corners than `budget` is read at `budget` even times instead. */
+export function timetablePolyline(t: Timetable, from: number, to: number, budget: number): { time: number; rate: number }[] {
+  const c = compile(t)
+  const end = toDouble(c.end)
+  const stopAt = t.after === 'stop' ? Math.min(to, end) : to
+  if (stopAt <= from) return []
+  const at = (x: number) => toDouble(timetableRateAt(t, fromNumber(x)))
+  const corners: number[] = []
+  const times = c.times.map(toDouble)
+  const periods = t.after === 'repeat' ? Math.ceil(stopAt / end) : 1
+  if (periods * times.length > budget) {
+    return Array.from({ length: budget + 1 }, (_, i) => {
+      const time = from + ((stopAt - from) * i) / budget
+      return { time, rate: at(time) }
+    })
+  }
+  for (let p = 0; p < periods; p++) for (const x of times) corners.push(p * end + x)
+  if (t.after !== 'repeat' && end < stopAt) corners.push(end)
+  const inside = [from, ...corners.filter((x) => x > from && x < stopAt), stopAt]
+  const out: { time: number; rate: number }[] = []
+  inside.forEach((x, i) => {
+    // a hold table's rate jumps at a corner: draw the old rate up to it first
+    const prev = inside[i - 1]
+    if (t.read === 'hold' && prev !== undefined) out.push({ time: x, rate: at(prev) })
+    if (i < inside.length - 1 || t.read === 'linear') out.push({ time: x, rate: at(x) })
+  })
+  return out
+}
+
+const fromNumber = (x: number): Rational => exactDouble(x)
+
 /** the step length in the table's own time unit */
 function stepInTableTime(t: Timetable, time: DocTime): Rational {
   return rational(BigInt(stepSeconds(time)!), BigInt(TIME_UNIT_SECONDS[t.timeUnit]))

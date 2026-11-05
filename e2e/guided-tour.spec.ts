@@ -156,22 +156,23 @@ test.describe('guided tour — Help menu', () => {
   // Five items in two groups, named for what each one does (the What's new
   // group between them was removed in 2026-10 with the in-app release notes;
   // Example notes joined the first group on 2026-10-20).
-  test('exactly five items in two groups, in order: Restart the tour, Turn contextual tips back on, Example notes | Send feedback, About', async ({ page }) => {
+  test('exactly six items in two groups, in order: Restart the tour, Turn contextual tips back on, Example notes, How a step fills and empties a Pool | Send feedback, About', async ({ page }) => {
     await seedKey(page, 'completed')
     await openApp(page)
     await openHelp(page)
     const items = page.locator('.menu__pop[role="menu"] .menu__item')
-    await expect(items).toHaveCount(5)
+    await expect(items).toHaveCount(6)
     await expect(items.nth(0)).toHaveText(/Restart the tour|둘러보기 다시 시작/)
     await expect(items.nth(1)).toHaveText(/Turn contextual tips back on|상황별 안내 다시 켜기/)
     await expect(items.nth(2)).toHaveText(/Example notes|예제 설명/)
-    await expect(items.nth(3)).toHaveText(/Send feedback|피드백 보내기/)
-    await expect(items.nth(4)).toHaveText(/About Loop Studio|Loop Studio 정보/)
+    await expect(items.nth(3)).toHaveText(/How a step fills and empties a Pool/)
+    await expect(items.nth(4)).toHaveText(/Send feedback|피드백 보내기/)
+    await expect(items.nth(5)).toHaveText(/About Loop Studio|Loop Studio 정보/)
     // one separator, between the two groups
     const children = await page
       .locator('.menu__pop[role="menu"]')
       .evaluate((pop) => [...pop.children].map((c) => (c.getAttribute('role') === 'separator' ? '|' : 'item')))
-    expect(children).toEqual(['item', 'item', 'item', '|', 'item', 'item'])
+    expect(children).toEqual(['item', 'item', 'item', 'item', '|', 'item', 'item'])
   })
 
   test('the Send feedback item is a fixed external link opening a new tab', async ({ page }) => {

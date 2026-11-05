@@ -11,14 +11,14 @@
   },
   "$implemented": "A row classed `auto` / `ltr` / `per-fragment` is an OPEN obligation: the evidence says the value needs bounding and the code does not bound it yet. C3.5 was scoped to fix the two families that were already evidenced — the unrecognized-column header and the five `import.loc.*` calls — and those moved to `isolate-obligations.json`. The checker asserts these rows are NOT wrapped, so implementing one without moving its row is red in both directions.",
   "totals": {
-    "arguments": 360,
-    "rows": 59,
+    "arguments": 372,
+    "rows": 66,
     "byClass": {
-      "attribute": 15,
-      "closed-value": 44
+      "attribute": 18,
+      "closed-value": 48
     },
     "recordedNotImplemented": 0,
-    "attributeSink": 26
+    "attributeSink": 29
   },
   "rows": [
     {
@@ -610,6 +610,76 @@
       "sink": "text",
       "class": "closed-value",
       "evidence": "A probabilistic Gate branch's chance, formatted by `chanceText()` through the catalog's own `rel.gate.chance` / `rel.gate.chanceBelow` number messages (`::percent .#`) — a formatted number, no user text (src/engine/gateChance.ts)."
+    },
+    {
+      "file": "src/components/dataImport/TimetableImportDialog.tsx",
+      "enclosing": "Form>note",
+      "key": "timetable.import.note.remove",
+      "arg": "rows",
+      "ord": 1,
+      "sink": "text",
+      "class": "closed-value",
+      "evidence": "The file's own row numbers joined by `, `: digits and ASCII punctuation, built by `gapRows`, never the file's text."
+    },
+    {
+      "file": "src/components/dataImport/TimetableImportDialog.tsx",
+      "enclosing": "Form>note",
+      "key": "timetable.import.note.hold",
+      "arg": "rows",
+      "ord": 1,
+      "sink": "text",
+      "class": "closed-value",
+      "evidence": "The file's own row numbers joined by `, `: digits and ASCII punctuation, built by `gapRows`, never the file's text."
+    },
+    {
+      "file": "src/components/dataImport/TimetableImportDialog.tsx",
+      "enclosing": "Form>note",
+      "key": "timetable.import.note.line",
+      "arg": "rows",
+      "ord": 1,
+      "sink": "text",
+      "class": "closed-value",
+      "evidence": "The file's own row numbers joined by `, `: digits and ASCII punctuation, built by `gapRows`, never the file's text."
+    },
+    {
+      "file": "src/components/dataImport/TimetableImportDialog.tsx",
+      "enclosing": "Form",
+      "key": "timetable.import.gap",
+      "arg": "rows",
+      "ord": 1,
+      "sink": "text",
+      "class": "closed-value",
+      "evidence": "The file's own row numbers joined by `, `: digits and ASCII punctuation, built by `gapRows`, never the file's text."
+    },
+    {
+      "file": "src/components/ModelPanels.tsx",
+      "enclosing": "TimetablesSection",
+      "key": "panels.timetables.removeAria",
+      "arg": "label",
+      "ord": 1,
+      "sink": "attr:button.aria-label",
+      "class": "attribute",
+      "evidence": "aria-label on a table's Remove button (SEMANTICS-M5.md §M5-10). The value is the user's own table name."
+    },
+    {
+      "file": "src/components/TimetableRateChart.tsx",
+      "enclosing": "Strip",
+      "key": "timeline.rate.aria",
+      "arg": "label",
+      "ord": 1,
+      "sink": "attr:svg.aria-label",
+      "class": "attribute",
+      "evidence": "aria-label on a table's rate strip (SEMANTICS-M5.md §M5-11). The value is the user's own table name."
+    },
+    {
+      "file": "src/components/TimetableRateChart.tsx",
+      "enclosing": "Strip",
+      "key": "timeline.rate.aria",
+      "arg": "unit",
+      "ord": 1,
+      "sink": "attr:svg.aria-label",
+      "class": "attribute",
+      "evidence": "aria-label on a table's rate strip (SEMANTICS-M5.md §M5-11). The value is the user's own unit name."
     }
   ]
 }

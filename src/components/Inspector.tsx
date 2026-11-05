@@ -477,6 +477,7 @@ function EdgeFlowField({
   onChange: (flow: string) => void
 }) {
   const t = useT()
+  const timetables = useGraphStore((s) => s.timetables)
   // §RXA7 — the picker lists candidates in the same shape as the Register `@`
   // list (`Name · Parameter · = value`); it still writes a single `@id` and the
   // rest of the `flow` field (literal entry, status line) is unchanged.
@@ -523,6 +524,16 @@ function EdgeFlowField({
           {params.map((p) => (
             <option key={p.id} value={p.id}>
               {p.label} · {paramKind} · = {p.value == null ? '—' : String(p.value)}
+            </option>
+          ))}
+        </select>
+      )}
+      {timetables.length > 0 && (
+        <select aria-label={t('inspector.edge.timetable.pick')} value={timetableRef(flow) ?? ''} onChange={(e) => onChange(e.target.value === '' ? '1' : `~${e.target.value}`)}>
+          <option value="">{t('inspector.edge.flowParam.literalOption')}</option>
+          {timetables.map((x) => (
+            <option key={x.id} value={x.id}>
+              {x.label}
             </option>
           ))}
         </select>

@@ -90,6 +90,19 @@ export function DataImportMenu({
           >
             <span className="menu__name">{t('import.menu.manage')}</span>
           </button>
+          {/* SEMANTICS-M5.md §M5-10 — a timetable: times and rates a line reads */}
+          <button
+            type="button"
+            className="menu__item"
+            role="menuitem"
+            disabled={editLocked}
+            onClick={() => {
+              setMenuOpen(false)
+              onOpenDialog({ kind: 'timetable-import' })
+            }}
+          >
+            <span className="menu__name">{t('import.menu.timetable')}</span>
+          </button>
           {/* docs/data-import.md §DI17 — the in-app guide entry: the same
               wizard, with its quick-start block forced open. */}
           <button

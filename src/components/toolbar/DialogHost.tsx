@@ -6,6 +6,8 @@ import { ExampleNotesDialog } from '../ExampleNotesDialog'
 import { StoragePrivacyDialog } from '../StoragePrivacyDialog'
 import { DataImportRefreshMenu } from '../dataImport/DataImportRefreshMenu'
 import { DataImportWizard } from '../dataImport/DataImportWizard'
+import { TimetableImportDialog } from '../dataImport/TimetableImportDialog'
+import { StepOrderDialog } from '../StepOrderDialog'
 import { useT } from '../../i18n'
 import { hasKindsTable, hasUnits } from '../../model/modelVersion'
 import { exportProjectRevision } from '../../ui/revisionActions'
@@ -68,6 +70,11 @@ export function DialogHost({ activeDialog, onClose, returnFocusTo }: Props) {
         onClose={onClose}
         returnFocusTo={returnFocusTo}
       />
+      <TimetableImportDialog
+        open={activeDialog?.kind === 'timetable-import'}
+        onClose={onClose}
+        returnFocusTo={returnFocusTo}
+      />
       <DataImportRefreshMenu
         open={activeDialog?.kind === 'dataImport-manage'}
         onClose={onClose}
@@ -85,6 +92,11 @@ export function DialogHost({ activeDialog, onClose, returnFocusTo }: Props) {
       />
       <ExampleNotesDialog
         open={activeDialog?.kind === 'exampleNotes'}
+        onClose={onClose}
+        returnFocusTo={returnFocusTo}
+      />
+      <StepOrderDialog
+        open={activeDialog?.kind === 'stepOrder'}
         onClose={onClose}
         returnFocusTo={returnFocusTo}
       />

@@ -128,6 +128,7 @@ const ui = {
   'timeline.csv.shown': 'CSV with shown values',
   'timeline.csv.shown.blurb': 'Adds the values in the units shown here',
   'timeline.axis.step': 'step {n}',
+  'timeline.rate.aria': '{label}: rate in {unit}, on its own axis',
   'timeline.reading.label': 'Run chart. Select a point, or use the left and right arrow keys, to read the values at a recorded step.',
   'timeline.reading.step': 'Step {n}',
   'timeline.reading.close': 'Close the step reading',
@@ -441,6 +442,10 @@ const ui = {
   'help.contextual.menuLabel': 'Turn contextual tips back on',
   // Help ▸ Example notes (2026-10-20): each Templates-menu example explained,
   // readable at any time (ExampleNotesDialog)
+  'help.stepOrder.title': 'How a step fills and empties a Pool',
+  'help.stepOrder.p1': 'A step starts from what each Pool holds. Resources arriving fill the Pool first, up to its capacity. A connection that takes from the Pool then takes from what it held when the step began, so what arrived in this step waits for the next one.',
+  'help.stepOrder.p2': 'The Timeline draws each Pool at the end of the step. A tank of 3000 that is filled every step and gives 800 reads 2200 at the end of each one, so its line flattens at 2200, not at 3000.',
+  'help.stepOrder.p3': 'In the same way, a tank that receives 360 a step while a demand asks for 800 reads 360 at every step. The demand takes the 360 that was there when the step began.',
   'help.examples.menuLabel': 'Example notes',
   'help.examples.title': 'Example notes',
   'help.examples.intro': 'What each example in File → Templates models and how it runs. Choose one to read its note.',

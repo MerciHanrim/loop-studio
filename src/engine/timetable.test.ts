@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ResourceKindDecl } from '../model/kinds'
 import { add, cmp, exactDouble, fromInt, mul, parseDecimal, rational, sub, type Rational } from '../model/rational'
-import { checkTimetable, exactPlan, firstUncoveredStep, readTimetables, timetableIntegral, timetableRateFactor, type Timetable } from '../model/timetable'
+import { checkTimetable, exactPlan, firstUncoveredStep, readTimetables, timetableIntegral, timetablePolyline, timetableRateFactor, type Timetable } from '../model/timetable'
 import type { LoopEdge, LoopNode } from '../model/types'
 import type { DocTime, TimeUnit } from '../model/units'
 import { initSim, step } from './step'
@@ -373,6 +373,40 @@ describe('the size of a number', () => {
     expect(res.state.step).toBe(0)
     expect(res.report.events).toEqual([])
     expect(res.report.diagnostics.join(' ')).toContain('out of range')
+  })
+})
+
+describe('the corners a chart draws', () => {
+  it('hold is stairs, and a stop table has no line past its end', () => {
+    expect(timetablePolyline(table(), 0, 9, 100)).toEqual([
+      { time: 0, rate: 10 },
+      { time: 3, rate: 10 },
+      { time: 3, rate: 20 },
+      { time: 6, rate: 20 },
+    ])
+  })
+
+  it('linear is straight stretches, and repeat wraps to the first value at end', () => {
+    const t = table({ read: 'linear', after: 'repeat', end: '6', points: [['0', '10'], ['3', '20']] })
+    expect(timetablePolyline(t, 0, 9, 100)).toEqual([
+      { time: 0, rate: 10 },
+      { time: 3, rate: 20 },
+      { time: 6, rate: 10 },
+      { time: 9, rate: 20 },
+    ])
+  })
+
+  it('hold after the end keeps the last rate, zero draws 0', () => {
+    expect(timetablePolyline(table({ after: 'hold' }), 0, 8, 100).at(-1)).toEqual({ time: 8, rate: 20 })
+    expect(timetablePolyline(table({ after: 'zero' }), 0, 8, 100).at(-1)).toEqual({ time: 8, rate: 0 })
+  })
+
+  it('more corners than the budget are read at even times', () => {
+    const points = Array.from({ length: 500 }, (_, i): [string, string] => [String(i), String(i % 7)])
+    const line = timetablePolyline(table({ points, end: '500' }), 0, 500, 50)
+    expect(line).toHaveLength(51)
+    expect(line[0].time).toBe(0)
+    expect(line[50].time).toBe(500)
   })
 })
 

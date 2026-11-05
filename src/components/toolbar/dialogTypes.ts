@@ -24,10 +24,14 @@ export type ToolbarDialog =
   // block expanded regardless of the persisted collapsed state.
   | { kind: 'dataImport-wizard'; quickStart?: boolean }
   | { kind: 'dataImport-manage' }
+  // SEMANTICS-M5.md §M5-10 — Data ▸ New timetable
+  | { kind: 'timetable-import' }
   | { kind: 'about' }
   | { kind: 'contextualHelp' }
   // Help ▸ Example notes (2026-10-20): each menu Template's explanation, in the app
   | { kind: 'exampleNotes' }
+  // SEMANTICS-M5.md §M5-12 — Help ▸ how a step fills and empties a Pool
+  | { kind: 'stepOrder' }
   // issue #297 - the Storage and privacy area; `step` opens it on a confirmation
   | { kind: 'storage-privacy'; step?: StorageStep }
   // the version the insert would lift the document to (2: the model layer,
