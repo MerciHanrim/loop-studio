@@ -1,7 +1,7 @@
 import { useId, useMemo, useState, type ReactNode } from 'react'
 import { convertersWhoseVerdictChanges, kindFindings, kindFindingEdgeId, kindFindingNodeId, resolveKinds, type ResourceKindDecl } from '../model/kinds'
 import { currentAmountText, fieldUnitOptions, fieldUnitText, poolKindName, previewUnitChange, resolveFieldUnit, type DocTime, type FieldUnit } from '../model/units'
-import { KindFindingText } from './ModelPanels'
+import { KindFindingText, unitOptionLabel } from './ModelPanels'
 import { ConfirmDialog } from './ConfirmDialog'
 import {
   classifyLabelTiming,
@@ -545,15 +545,6 @@ function EdgeFlowField({
 }
 
 // ── units (loop-model/4, SEMANTICS-M4.md §M4-2 / §M4-4) ─────────────────────
-
-/** the option label of a field unit: the base unit's name (or "base unit"),
- *  a unit name, `L/min`, `MW`; a rate field says "per step" where the
- *  amount is per step */
-function unitOptionLabel(t: ReturnType<typeof useT>, fu: FieldUnit, decl: ResourceKindDecl, role: 'stock' | 'rate'): string {
-  const name = fu.kind === 'base' ? (decl.baseUnit ?? t('inspector.unit.base')) : fu.kind === 'rate' ? fu.unit.name : fu.unit.name
-  if (role === 'rate' && (fu.kind === 'base' || (fu.kind === 'amount' && !fu.per))) return t('inspector.unit.perStep', { unit: isolateAuto(name) })
-  return fieldUnitText(fu) || name
-}
 
 /** the §M4-4 confirm sheet's body for a re-expressed value that does not
  *  terminate within 15 digits: the exact value as far as it goes, the value

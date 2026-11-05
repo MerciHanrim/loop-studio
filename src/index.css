@@ -8921,10 +8921,33 @@ input[type='number']::-webkit-inner-spin-button {
   align-items: baseline;
   gap: 6px;
 }
-.mp-row--finding .mp-row__finding {
+.mp-row--finding .mp-row__finding,
+.mp-row--outflow .mp-row__label {
   white-space: normal;
   text-align: start;
   line-height: 1.35;
+}
+/* §M4-9 — a kind's outflow reading: a 15-digit row wraps, the select keeps its unit whole */
+.mp-row--outflow .mp-row__label {
+  overflow-wrap: anywhere;
+}
+.mp-row--reading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+.mp-row--reading .mp-row__kind {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mp-row__reading {
+  flex: none;
+  max-width: 60%;
+  font-size: 12px;
 }
 .mp-row__badge {
   flex: none;

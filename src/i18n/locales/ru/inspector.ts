@@ -214,6 +214,7 @@ const inspector = {
   'panels.kinds.outflow': 'Отток через границу по видам',
   'panels.kinds.outflow.row': '{kind} в {node}: {amount}',
   'panels.kinds.outflow.noKind': 'без вида',
+  'panels.kinds.outflow.unitFor': 'Единица для оттока {kind}',
   'kinds.finding.poolEnds': 'Соединение от {from} к {to}: один Pool — {a}, другой — {b}.',
   'kinds.finding.annotation': 'Соединение от {from} к {to}: помечено как {edgeKind} на Pool вида {poolKind}.',
   'kinds.finding.gateMixes': '{gate} несёт {kinds}.',

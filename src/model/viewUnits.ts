@@ -6,7 +6,7 @@
 import type { ResourceKindDecl } from './kinds'
 import type { LoopNode } from './types'
 import { div, equals, exactDouble, parseDecimal, plainDecimal, toDouble, toSignificant15, MAX_SIGNIFICANT_DIGITS } from './rational'
-import { fieldUnitOptions, fieldUnitText, poolKindName, reexpress, resolveFieldUnit, unitRatio, type FieldUnit } from './units'
+import { fieldUnitOptions, fieldUnitText, poolKindName, reexpress, resolveFieldUnit, TIME_UNITS, unitRatio, UNIT_SEPARATOR, type DocTime, type FieldUnit } from './units'
 
 /** the chosen unit by kind name; a kind with no entry reads in its base unit */
 export type ViewUnits = Readonly<Record<string, string>>
@@ -111,4 +111,41 @@ export const viewIsOn = (ids: readonly string[], views: PoolViews): boolean => i
  *  marks need it. 6.7 px is one character of the 11 px axis face. */
 export function axisPad(marks: readonly string[], least: number): number {
   return Math.max(least, Math.ceil(Math.max(...marks.map((m) => m.length)) * 6.7) + 10)
+}
+
+// ── SEMANTICS-M4.md §M4-9 — the Kinds panel's reading of a boundary outflow ──
+// A row is a rate, an amount per step, where a Timeline series is a stock, so it
+// has its own per-kind choice. A chosen entry is the text of a reading, `''` for
+// the base unit per step; a kind with no entry starts from `time.display`.
+
+/** what a person may read a kind's outflow in: the rate field's list (§M4-2.3)
+ *  plus the base unit per time, which no field offers */
+export function outflowOptions(decl: ResourceKindDecl, time: DocTime | undefined): FieldUnit[] {
+  const [base, ...rest] = fieldUnitOptions(decl, time, 'rate')
+  const baseUnit = decl.baseUnit
+  const perTime: FieldUnit[] = baseUnit && time ? TIME_UNITS.map((per) => ({ kind: 'amount', unit: { name: baseUnit, factor: '1' }, per })) : []
+  return [base!, ...perTime, ...rest]
+}
+
+/** the reading a kind opens with: per `time.display` when the document declares
+ *  it and the base unit has a name, otherwise the base unit per step */
+const startingOutflow = (decl: ResourceKindDecl, time: DocTime | undefined): string => (decl.baseUnit && time?.display ? `${decl.baseUnit}${UNIT_SEPARATOR}${time.display}` : '')
+
+/** the reading in force, resolved on every read: a name no option carries any
+ *  more (a removed unit, a removed step length) reads as the base unit per step */
+export function outflowReading(views: ViewUnits, decl: ResourceKindDecl, time: DocTime | undefined): FieldUnit {
+  const text = views[decl.name] ?? startingOutflow(decl, time)
+  return outflowOptions(decl, time).find((fu) => fieldUnitText(fu) === text) ?? { kind: 'base' }
+}
+
+/** a row's number and unit, `perStep` when the unit is an amount and the words
+ *  "per step" must carry the time. `null` is a row with nothing to name, which
+ *  prints the report's number as it always did. The base reading keeps that
+ *  number; every other reading re-expresses `raw` under §M4-5. */
+export type OutflowShown = { number: string; unit: string; perStep: boolean }
+
+export function outflowShown(amount: number, raw: number, fu: FieldUnit, decl: ResourceKindDecl | undefined, time: DocTime | undefined): OutflowShown | null {
+  if (fu.kind === 'base') return decl?.baseUnit ? { number: String(amount), unit: decl.baseUnit, perStep: true } : null
+  const number = reexpress(raw, fu, time).text
+  return fu.kind === 'amount' && !fu.per ? { number, unit: fu.unit.name, perStep: true } : { number, unit: fieldUnitText(fu), perStep: false }
 }

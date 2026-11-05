@@ -78,9 +78,9 @@ Each export applies this as follows.
 - File: `time` after `kinds`, field `unit` keys trailing on Pool and resource-connection data. Projection and digest: the unit lists ride their kind entry, `time` follows `kinds` with `step` only, field `unit` keys are projected — all at version 4 only.
 - UI: the Inspector's unit select on a Pool and on a resource connection, and its confirm sheet; the Kinds panel's unit lists and step-length row, which the Inputs tab shows for any graph that names or declares a kind.
 - Exports: `src/model/exportUnits.ts` (the table of a document's Pools, the JSON header); the writers are `src/components/timelineCsv.ts` and the exports of `src/engine/montecarlo.ts`.
-- View units (M4-8): `src/model/viewUnits.ts` (how a Pool reads, the text of a number, the axis), `src/store/viewUnitsStore.ts` (the session choice); the surfaces are `TimelineChart.tsx`, `TimelineSeriesPopover.tsx`, `TimelineCsvMenu.tsx` and `BandChart.tsx`.
-- Pins: `src/model/units.test.ts` (rationals and R≈, the reads and the factor range, resolution, engine values and the out-of-range refusal, unit changes, exact C1, module inserts, the `/graph/4` boundary and M4-INV-1), `src/model/kinds.test.ts`, `src/engine/kinds.test.ts`, `src/model/exportUnits.test.ts` (M4-6, and the readers of a result file), `src/model/viewUnits.test.ts` (M4-8); in the browser, `e2e/units.spec.ts` (the confirm sheet's cancel, confirm and undo, an exact change, the step-length sheet), `e2e/desalination.spec.ts` (the real downloads) and `e2e/timeline-view-units.spec.ts` (M4-8 on the real screen and downloads).
-- Not built: the Kinds panel's boundary outflow still prints the base unit. `time.display` has no reader, because no surface shows a rate per time unit.
+- View units (M4-8, M4-9): `src/model/viewUnits.ts` (how a Pool reads, the text of a number, the axis, the outflow reading), `src/store/viewUnitsStore.ts` (the session choices); the surfaces are `TimelineChart.tsx`, `TimelineSeriesPopover.tsx`, `TimelineCsvMenu.tsx`, `BandChart.tsx` and the Kinds panel in `ModelPanels.tsx`.
+- Pins: `src/model/units.test.ts` (rationals and R≈, the reads and the factor range, resolution, engine values and the out-of-range refusal, unit changes, exact C1, module inserts, the `/graph/4` boundary and M4-INV-1), `src/model/kinds.test.ts`, `src/engine/kinds.test.ts`, `src/model/exportUnits.test.ts` (M4-6, and the readers of a result file), `src/model/viewUnits.test.ts` (M4-8); in the browser, `e2e/units.spec.ts` (the confirm sheet's cancel, confirm and undo, an exact change, the step-length sheet), `e2e/desalination.spec.ts` (the real downloads), `e2e/timeline-view-units.spec.ts` (M4-8 on the real screen and downloads) and `e2e/kinds-outflow-reading.spec.ts` (M4-9).
+- Not built: the Inspector's current amount does not follow a view unit, and a field has no read-only hint of its value in another unit. The design record lists both; neither is implied by M4-8 or M4-9.
 
 ## M4-8. The Timeline's view unit
 
@@ -113,3 +113,23 @@ step,feed [m³] [feed],feed (shown) [L] [feed],feed (approx) [feed],power [kWh] 
 - `(shown)` is the step reading's text without its unit, which the header names. `(approx)` is `true` or `false`, derived and never stored. The last bracket is the id in every column (DI-D19).
 - With the added columns removed, the file is the plain file, byte for byte.
 - No number becomes a string: the numeric column stays as §M4-6 has it.
+
+## M4-9. The Kinds panel's outflow reading
+
+A boundary-outflow row (§M3-5) is the last committed step's delivery. It is an amount per step, so it reads as a rate, where a Timeline series reads as a stock. It has its own per-kind choice, and the Timeline's view unit does not move it.
+
+- **It is screen state**, as M4-8 is: held for the session, dropped when another whole graph loads, in no file, undo entry or autosave. It runs no engine code and does not reset the run. It stays available under the edit lock, because reading a number is not an edit.
+- **The control.** One select per kind on a row, when that kind has more than one reading. The list is a rate field's (§M4-2.3) plus the base unit per each time unit.
+- **The starting reading.** A document that declares `time.display` opens in the base unit per that time. Otherwise, and when the base unit has no name, a kind opens in the base unit per step. The panel reads `time.display` and never writes it: `setTime` would reset the run.
+- **Resolved on every read.** A reading no option carries any more reads as the base unit per step.
+
+**The report's two numbers.** `amount` is rounded to 9 decimals, and `raw` is the engine's sum for the same row before that rounding. A conversion multiplies a rounding error, so `≈ 0.400000000008` would show where 400 CMD was authored. No step result, state, event or Pool value changes, and `ENGINE_REVISION` does not change. `raw` is still a double, so §M4-5 applies to it.
+
+| Row | It prints |
+|---|---|
+| A line with no kind, or a kind that names no base unit, in the base reading | the report's `amount`, as before |
+| A named base unit, in the base reading | `amount`, the unit and "per step": `16.666666667 m³ per step` |
+| Another amount unit | `raw` under §M4-5, the unit and "per step": `≈ 16666.6666666667 L per step` |
+| A rate or an amount per time | `raw` under §M4-5 and the unit: `≈ 0.4 MLD`, `≈ 400 m³/d` |
+
+`≈` stays on `≈ 0.4 MLD` because the engine holds the nearest double of 400/24, not the exact value. No export holds a row.

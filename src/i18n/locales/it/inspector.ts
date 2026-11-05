@@ -204,6 +204,7 @@ const inspector = {
   'panels.kinds.outflow': 'Deflusso al confine per tipo',
   'panels.kinds.outflow.row': '{kind} verso {node}: {amount}',
   'panels.kinds.outflow.noKind': 'senza tipo',
+  'panels.kinds.outflow.unitFor': 'Unità per leggere il deflusso di {kind}',
   'kinds.finding.poolEnds': 'La connessione da {from} a {to}: un Serbatoio è {a}, l’altro {b}.',
   'kinds.finding.annotation': 'La connessione da {from} a {to}: segnata come {edgeKind} su un Serbatoio {poolKind}.',
   'kinds.finding.gateMixes': '{gate} trasporta {kinds}.',

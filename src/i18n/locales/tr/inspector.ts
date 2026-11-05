@@ -205,6 +205,7 @@ const inspector = {
   'panels.kinds.outflow': 'Türe göre sınır çıkışı',
   'panels.kinds.outflow.row': '{node} hedefine giden {kind}: {amount}',
   'panels.kinds.outflow.noKind': 'türsüz',
+  'panels.kinds.outflow.unitFor': '{kind} çıkışının okunacağı birim',
   'kinds.finding.poolEnds': '{from} ile {to} arasındaki bağlantı: bir Havuz {a}, diğeri {b}.',
   'kinds.finding.annotation': '{from} ile {to} arasındaki bağlantı: {poolKind} türündeki bir Havuz üzerinde {edgeKind} olarak işaretli.',
   'kinds.finding.gateMixes': '{gate} şunları birlikte taşıyor: {kinds}.',

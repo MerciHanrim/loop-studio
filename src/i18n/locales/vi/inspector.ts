@@ -195,6 +195,7 @@ const inspector = {
   'panels.kinds.outflow': 'Lượng chảy ra biên theo loại',
   'panels.kinds.outflow.row': '{kind} vào {node}: {amount}',
   'panels.kinds.outflow.noKind': 'không có loại',
+  'panels.kinds.outflow.unitFor': 'Đơn vị để đọc lượng chảy ra của {kind}',
   'kinds.finding.poolEnds': 'Kết nối từ {from} đến {to}: một Bể chứa là {a}, Bể chứa kia là {b}.',
   'kinds.finding.annotation': 'Kết nối từ {from} đến {to}: được đánh dấu {edgeKind} trên một Bể chứa {poolKind}.',
   'kinds.finding.gateMixes': '{gate} đang mang {kinds}.',

@@ -196,6 +196,7 @@ const inspector = {
   'panels.kinds.outflow': 'Saída na fronteira por tipo',
   'panels.kinds.outflow.row': '{kind} para {node}: {amount}',
   'panels.kinds.outflow.noKind': 'sem tipo',
+  'panels.kinds.outflow.unitFor': 'Unidade para ler a saída de {kind}',
   'kinds.finding.poolEnds': 'A conexão de {from} para {to}: um Reservatório é {a}, o outro é {b}.',
   'kinds.finding.annotation': 'A conexão de {from} para {to}: marcada como {edgeKind} em um Reservatório {poolKind}.',
   'kinds.finding.gateMixes': '{gate} transporta {kinds}.',

@@ -66,7 +66,7 @@ describe('loop-model/3 — the desalination shapes (design §6, §7)', () => {
       const { boundaryOutflow: _ignored, ...rest } = v3.reports[i]!
       expect(rest).toEqual(v2.reports[i])
       // L1 — the evaporation line is water into "evap": an outflow, never a loss
-      expect(v3.reports[i]!.boundaryOutflow).toEqual([{ kind: 'water', nodeId: 'evap', amount: 2 }])
+      expect(v3.reports[i]!.boundaryOutflow).toEqual([{ kind: 'water', nodeId: 'evap', amount: 2, raw: 2 }])
       expect(v2.reports[i]!.boundaryOutflow).toBeUndefined()
     }
     expect(v3.state.values).toEqual({ sea: 500, power: 850, permeate: 225, brine: 265 })
@@ -120,7 +120,14 @@ describe('loop-model/3 — the desalination shapes (design §6, §7)', () => {
     ])
     const free = step(nodes, edges, st, 1, 3, { kinds: [{ name: 'water', conserved: false }] })
     expect(free.state.values.permeate).toBe(45)
-    expect(free.report.boundaryOutflow).toEqual([{ kind: null, nodeId: 'evap', amount: 2 }])
+    expect(free.report.boundaryOutflow).toEqual([{ kind: null, nodeId: 'evap', amount: 2, raw: 2 }])
+  })
+
+  it('§M4-9: `raw` is the engine sum before the report rounds it to 9 decimals, and `amount` does not move', () => {
+    const nodes = [pool('w', 100, 'water'), node('d', 'drain')]
+    const edges = [res('a', 'w', 'd', String(50 / 3))]
+    const r = step(nodes, edges, initSim(nodes), 1, 3, { kinds: [{ name: 'water', conserved: false }] })
+    expect(r.report.boundaryOutflow).toEqual([{ kind: 'water', nodeId: 'd', amount: 16.666666667, raw: 50 / 3 }])
   })
 
   it('a Gate whose connections carry two kinds is refused when one of them is conserved', () => {

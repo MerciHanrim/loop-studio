@@ -4,9 +4,9 @@
   "$limit": "This manifest defends the call sites listed here, exactly and in both directions. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together close the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
   "$history": "PR B recorded 11 decision rows and deferred them. C3.5 re-ran the population from the TypeScript type checker — 205 ICU arguments — and found 27 more that carry user or technical values: 8 in its first pass (the unrecognized-column header and the five `import.loc.*` calls) and 19 that its first pass only RECORDED as open. All 27 are implemented here, so no row of the disposition manifest is classed `auto`, `ltr` or `per-fragment` any more.",
   "totals": {
-    "rows": 92,
-    "obligations": 43,
-    "callSites": 73
+    "rows": 94,
+    "obligations": 45,
+    "callSites": 75
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -16,7 +16,7 @@
     "er19": 3,
     "workbench": 18,
     "issue-420": 4,
-    "issue-471": 14
+    "issue-471": 16
   },
   "obligations": [
     {
@@ -1035,7 +1035,7 @@
       "rows": [
         "issue-471 unit select option: the unit name per step"
       ],
-      "file": "src/components/Inspector.tsx",
+      "file": "src/components/ModelPanels.tsx",
       "enclosing": "unitOptionLabel",
       "carries": "the user's own UNIT NAME (the base unit or a declared amount unit) in a rate field's option `<name> per step`",
       "why": "free user text of unknown direction inside a localized phrase.",
@@ -1077,9 +1077,45 @@
       "file": "src/components/ModelPanels.tsx",
       "enclosing": "KindsSection",
       "carries": "the KIND NAME (a user `resourceType`, or the catalog's `no kind` phrase for a line with none) and the user's own LABEL of the Drain or End it went into, in the boundary-outflow-by-kind row (SEMANTICS-M3.md §M3-5; issue #471)",
-      "why": "two independent user values in one sentence, each isolated on its own; the amount is a number and derives.",
+      "why": "two independent user values in one sentence, each isolated on its own; the amount is claimed by `kinds-boundary-outflow-amount`.",
       "sites": [
         { "keys": ["panels.kinds.outflow.row"], "args": ["kind", "node"], "kind": "auto" }
+      ]
+    },
+    {
+      "id": "kinds-boundary-outflow-amount",
+      "rows": [
+        "issue-471 kinds panel boundary outflow: the amount with its unit"
+      ],
+      "file": "src/components/ModelPanels.tsx",
+      "enclosing": "KindsSection",
+      "carries": "a number printed as text under R≈ with the user's own UNIT NAME, on the branch that names a rate (SEMANTICS-M4.md §M4-9; issue #471)",
+      "why": "A PRODUCER site: of `outflowAmount`'s three returns, one is the report's plain number, which needs nothing, one is a catalog phrase whose own argument is isolated, and one is the number and unit, wrapped whole so a unit name of either direction sits correctly beside its number.",
+      "shape": "producer",
+      "sites": [
+        {
+          "keys": [
+            "panels.kinds.outflow.row"
+          ],
+          "producerFn": "outflowAmount",
+          "producerArg": "amount",
+          "totalReturns": 3,
+          "wrappedReturns": 1,
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "kinds-boundary-outflow-per-step",
+      "rows": [
+        "issue-471 kinds panel boundary outflow: the amount per step"
+      ],
+      "file": "src/components/ModelPanels.tsx",
+      "enclosing": "outflowAmount",
+      "carries": "a number printed as text with the user's own UNIT NAME inside the localized `<amount> per step`",
+      "why": "free user text of unknown direction inside a localized phrase.",
+      "sites": [
+        { "keys": ["inspector.unit.perStep"], "args": ["unit"], "kind": "auto" }
       ]
     }
   ]

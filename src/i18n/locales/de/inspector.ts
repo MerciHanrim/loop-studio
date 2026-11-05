@@ -220,6 +220,7 @@ const inspector = {
   'panels.kinds.outflow': 'Grenzabfluss nach Art',
   'panels.kinds.outflow.row': '{kind} nach {node}: {amount}',
   'panels.kinds.outflow.noKind': 'keine Art',
+  'panels.kinds.outflow.unitFor': 'Einheit für den Abfluss von {kind}',
   'kinds.finding.poolEnds': 'Die Verbindung von {from} nach {to}: ein Pool ist {a}, der andere {b}.',
   'kinds.finding.annotation': 'Die Verbindung von {from} nach {to}: als {edgeKind} markiert, an einem {poolKind}-Pool.',
   'kinds.finding.gateMixes': '{gate} führt {kinds}.',

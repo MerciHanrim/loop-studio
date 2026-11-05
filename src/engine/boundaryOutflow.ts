@@ -12,6 +12,10 @@ export type BoundaryOutflow = {
   nodeId: string
   /** the sum of this step's deliveries on that kind into that node, rounded to 9 decimals */
   amount: number
+  /** the same engine sum before that rounding. A surface that re-expresses the
+   *  amount in another unit reads this, because a conversion multiplies the
+   *  rounding error too (§M4-9); it is still a double, so §M4-5's `≈` applies */
+  raw: number
 }
 
 const EXIT_KINDS = new Set(['drain', 'end'])
@@ -32,12 +36,12 @@ export function boundaryOutflowByKind(
     if (!EXIT_KINDS.has(nodeKind.get(ev.to) ?? '')) continue
     const kind = edgeById.has(ev.edgeId) ? (edgeKind.get(ev.edgeId) ?? null) : null
     const key = `${kind ?? '\u0000'}\u0001${ev.to}`
-    const row = sums.get(key) ?? { kind, nodeId: ev.to, amount: 0 }
-    row.amount += ev.amount
+    const row = sums.get(key) ?? { kind, nodeId: ev.to, amount: 0, raw: 0 }
+    row.raw += ev.amount
     sums.set(key, row)
   }
   return [...sums.values()]
-    .map((r) => ({ ...r, amount: Math.round(r.amount * 1e9) / 1e9 }))
+    .map((r) => ({ ...r, amount: Math.round(r.raw * 1e9) / 1e9 }))
     .sort((a, b) => {
       if (a.kind === b.kind) return a.nodeId < b.nodeId ? -1 : a.nodeId > b.nodeId ? 1 : 0
       if (a.kind === null) return 1

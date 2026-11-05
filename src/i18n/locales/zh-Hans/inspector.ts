@@ -189,6 +189,7 @@ const inspector = {
   'panels.kinds.outflow': '按种类的边界流出量',
   'panels.kinds.outflow.row': '流入 {node} 的 {kind}：{amount}',
   'panels.kinds.outflow.noKind': '无种类',
+  'panels.kinds.outflow.unitFor': '读取 {kind} 流出量的单位',
   'kinds.finding.poolEnds': '从 {from} 到 {to} 的连接：一端 Pool 是 {a}，另一端是 {b}。',
   'kinds.finding.annotation': '从 {from} 到 {to} 的连接：在 {poolKind} 的 Pool 上标为 {edgeKind}。',
   'kinds.finding.gateMixes': '{gate} 同时承载 {kinds}。',

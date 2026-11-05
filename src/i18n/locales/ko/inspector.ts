@@ -186,6 +186,7 @@ const inspector = {
   'panels.kinds.outflow': '종류별 경계 유출량',
   'panels.kinds.outflow.row': '{node} 방향 {kind}: {amount}',
   'panels.kinds.outflow.noKind': '종류 없음',
+  'panels.kinds.outflow.unitFor': '{kind} 유출량을 읽을 단위',
   'kinds.finding.poolEnds': '{from} 출발 {to} 도착 연결: 한쪽 Pool은 {a}, 다른 쪽 Pool은 {b}.',
   'kinds.finding.annotation': '{from} 출발 {to} 도착 연결: {poolKind} Pool에 {edgeKind} 표시.',
   'kinds.finding.gateMixes': 'Gate {gate}: 종류 {kinds} 혼재.',
