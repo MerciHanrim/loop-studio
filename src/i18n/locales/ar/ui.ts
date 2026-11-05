@@ -446,6 +446,7 @@ const ui = {
   'about.createdBy': 'أنشأه',
   'about.repo': 'مستودع GitHub',
   'about.repoAria': 'مستودع Loop Studio على GitHub',
+  'about.description': 'أداة Loop Studio مخصّصة لبناء تدفقات الموارد والعمليات وتغيّرات الحالة والقواعد الاحتمالية بصريًا ومحاكاتها.',
   'about.notAffiliated': 'مشروع Loop Studio مستقل وغير تابع لـ Machinations.io ولا معتمد منها.',
   'about.licenses': 'تراخيص المصادر المفتوحة للجهات الخارجية',
   'licenses.back': 'رجوع',

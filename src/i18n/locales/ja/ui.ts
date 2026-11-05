@@ -425,6 +425,7 @@ const ui = {
   'about.createdBy': '作成者',
   'about.repo': 'GitHub リポジトリ',
   'about.repoAria': 'Loop Studio の GitHub リポジトリ',
+  'about.description': 'Loop Studio は、リソースの流れ、工程、状態の変化、確率的なルールを視覚的に組み立ててシミュレーションするツールです。',
   'about.notAffiliated':
     'Loop Studio は独立したプロジェクトであり、Machinations.io とは提携しておらず、その承認も受けていません。',
   'about.licenses': 'サードパーティのオープンソースライセンス',

@@ -451,6 +451,7 @@ const ui = {
   'about.createdBy': 'Yapan',
   'about.repo': 'GitHub deposu',
   'about.repoAria': 'Loop Studio GitHub deposu',
+  'about.description': 'Loop Studio; kaynak akışlarını, süreçleri, durum değişikliklerini ve olasılıksal kuralları görsel olarak kurmak ve simüle etmek için bir araçtır.',
   'about.notAffiliated':
     'Loop Studio bağımsız bir projedir; Machinations.io ile bağlantılı değildir ve onun tarafından onaylanmamıştır.',
   'about.licenses': 'Üçüncü taraf açık kaynak lisansları',

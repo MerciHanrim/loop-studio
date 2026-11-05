@@ -424,6 +424,7 @@ const ui = {
   'about.createdBy': 'Criado por',
   'about.repo': 'Repositório no GitHub',
   'about.repoAria': 'Repositório do Loop Studio no GitHub',
+  'about.description': 'O Loop Studio é uma ferramenta para criar de forma visual e simular fluxos de recursos, processos, alterações de estado e regras probabilísticas.',
   'about.notAffiliated': 'O Loop Studio é um projeto independente e não tem vínculo com a Machinations.io nem é endossado por ela.',
   'about.licenses': 'Licenças de código aberto de terceiros',
   'licenses.back': 'Voltar',

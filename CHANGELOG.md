@@ -7,6 +7,8 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **About says what Loop Studio does.** The About dialog now opens with a description of the product: building and simulating resource flows, processes, state changes and probabilistic rules. The independence note stays below it as small print.
+
 - **The desalination Template is now a real process example.** Seawater desalination process replaces the small sample: a facility flow from intake through pretreatment, reverse osmosis with energy recovery, post-treatment and delivery, to discharge and solids, in five numbered areas with water, power and chemical lines. It opens on an overview, and each area reads at 100 %. Its numbers are example assumptions, and salinity, pressure and water quality are not computed.
 
 - **Boundary outflow can be read in the units of its kind.** In the Kinds panel, choose a unit for each kind: an amount per step, or a rate such as `m³/d` or `MLD`. Rows now name their unit. Only the display changes; saved values and results stay the same, and the run keeps going. A row with no unit to name looks as it did. The desalination Template is now called Desalination balance: temporary sample: it is a simplified sample for checking units and a water balance, not a model of a facility's process, and a verified process example will replace it.

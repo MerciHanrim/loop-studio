@@ -401,6 +401,7 @@ const ui = {
   'about.createdBy': '作者',
   'about.repo': 'GitHub 仓库',
   'about.repoAria': 'Loop Studio 的 GitHub 仓库',
+  'about.description': 'Loop Studio 是一款以可视化方式构建并模拟资源流动、流程、状态变化和概率规则的工具。',
   'about.notAffiliated': 'Loop Studio 是独立项目，与 Machinations.io 没有任何隶属或背书关系。',
   'about.licenses': '第三方开源许可证',
   'licenses.back': '返回',

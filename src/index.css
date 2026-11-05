@@ -1495,8 +1495,9 @@ a.sheet__row {
   overflow: hidden;
 }
 
-/* §DESCRIPTIVE-WRAP — how the two multi-line descriptive surfaces
-   (`.menu__blurb`, `.palette-tip__desc`) break, by language.
+/* §DESCRIPTIVE-WRAP — how the multi-line descriptive surfaces
+   (`.menu__blurb`, `.palette-tip__desc`, and the About dialog's description
+   and note) break, by language.
 
    Both carried a bare `word-break: keep-all`. It was added for KOREAN: a
    particle (e.g. "협업용") otherwise breaks mid-word and strands one character
@@ -1516,16 +1517,16 @@ a.sheet__row {
    future CJK locale is not trapped behind a wrong shared default. English is
    left on the initial value; its computed `keep-all` was incidental, and the
    rendered line count is unchanged (measured: 40 before and after). */
-:lang(ko) :is(.menu__blurb, .palette-tip__desc) {
+:lang(ko) :is(.menu__blurb, .palette-tip__desc, .about__description, .about__note) {
   word-break: keep-all;
 }
-:lang(ja) :is(.menu__blurb, .palette-tip__desc),
-:lang(zh) :is(.menu__blurb, .palette-tip__desc) {
+:lang(ja) :is(.menu__blurb, .palette-tip__desc, .about__description, .about__note),
+:lang(zh) :is(.menu__blurb, .palette-tip__desc, .about__description, .about__note) {
   word-break: normal;
 }
 @supports (word-break: auto-phrase) {
-  :lang(ja) :is(.menu__blurb, .palette-tip__desc),
-  :lang(zh) :is(.menu__blurb, .palette-tip__desc) {
+  :lang(ja) :is(.menu__blurb, .palette-tip__desc, .about__description, .about__note),
+  :lang(zh) :is(.menu__blurb, .palette-tip__desc, .about__description, .about__note) {
     word-break: auto-phrase;
   }
 }
@@ -8199,6 +8200,10 @@ input[type='number']::-webkit-inner-spin-button {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--ink-3);
+}
+.about__description {
+  font-size: 14px;
+  color: var(--ink-1);
 }
 .about__copyright {
   color: var(--ink-2);

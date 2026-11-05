@@ -93,6 +93,7 @@ export function AboutDialog({ open, onClose, returnFocusTo }: Props) {
               v{__APP_VERSION__}
               {__BUILD_SHA__ ? ` · build ${__BUILD_SHA__}` : ''}
             </p>
+            <p className="about__description">{t('about.description')}</p>
             <p className="about__by">
               {t('about.createdBy')} Hanrim
               <br />
