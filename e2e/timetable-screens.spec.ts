@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { Download, Page } from '@playwright/test'
 import { unwrapIsolates } from '../src/i18n/bidiIsolate'
-import { dragHandle, expect, openApp, test } from './support/loop'
+import { dragHandle, expect, importGraph, openApp, test } from './support/loop'
 import { fileExportRow, openFileMenu, openInputsTab } from './support/workbenchMenus'
 
 // SEMANTICS-M5.md §M5-10 to §M5-12 — a timetable made with the screen alone: from
@@ -145,6 +145,61 @@ test('an empty document, a table made on screen, a run, a save and a reopen give
   await run(page)
   const again = await sim(page)
   expect(again).toEqual(first)
+})
+
+const withKinds = (timetables: object[], unit = 'h') =>
+  JSON.stringify({
+    schema: 'loop-studio/graph/5', version: 1,
+    nodes: [
+      { id: 'sea', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Sea', activation: 'automatic' } },
+      { id: 'tank', type: 'pool', position: { x: 320, y: 0 }, data: { kind: 'pool', label: 'Tank', initial: 0, capacity: null, resourceType: 'water', activation: 'automatic' } },
+    ],
+    edges: [{ id: 'e', source: 'sea', target: 'tank', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: timetables.length ? '~big' : '1' } }],
+    kinds: [{ name: 'water', conserved: true, baseUnit: 'm³', rateUnits: [{ name: 'CMH', factor: '1', per: 'h' }] }],
+    time: { step: { value: 1, unit } },
+    timetables,
+  })
+
+test('a new text does not inherit the last text’s column, gap or end choice', async ({ page }) => {
+  await openApp(page)
+  await importGraph(page, withKinds([]))
+  await page.getByRole('button', { name: 'Data', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'New timetable…' }).click()
+  const dialog = page.locator('.mcdlg--timetable')
+  const paste = dialog.getByLabel('Paste times and rates')
+
+  // three columns, rate in the last, an end typed by hand
+  await paste.fill('site,hour,flow\nA,0,10\nA,2,\nA,4,30\n')
+  await dialog.getByLabel('Time column').selectOption({ label: 'hour' })
+  await dialog.getByLabel('Rate column').selectOption({ label: 'flow' })
+  await dialog.getByLabel('Hold the last value').check()
+  await dialog.getByLabel('The table ends at').fill('9')
+
+  // a two-column text: both columns are its own, no gap, and the end is proposed again
+  await paste.fill('hour,flow\n0,10\n2,20\n')
+  await expect(dialog.getByLabel('Time column')).toHaveCount(0)
+  await expect(dialog.getByText('These rows have no rate', { exact: false })).toHaveCount(0)
+  await expect(dialog.getByLabel('The table ends at')).toHaveValue('4')
+  await dialog.getByLabel('Name').fill('Second table')
+  await dialog.getByLabel('Where the numbers came from').fill('Example assumption')
+  await dialog.getByRole('button', { name: 'Add timetable' }).click()
+  const table = await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().timetables[0])
+  expect(table.points).toEqual([['0', '10'], ['2', '20']])
+  expect(table.end).toBe('4')
+})
+
+test('a one-point spike in a table of 20,000 points reaches the chart and its axis', async ({ page }) => {
+  // hour 12345 is day 514, inside the chart’s last 400 steps at step 600
+  await openApp(page)
+  const points = Array.from({ length: 20_000 }, (_, i) => [String(i), i === 12_345 ? '9000' : '100'])
+  await importGraph(page, withKinds([{ id: 'big', label: 'Big', source: 'Example assumption', unit: 'CMH', timeUnit: 'h', read: 'hold', end: '20000', after: 'stop', points }], 'd'))
+  await page.evaluate(() => {
+    for (let i = 0; i < 600; i++) (window as unknown as Bridge).__loop.sim.getState().advance()
+  })
+  const strip = page.locator('.timeline__rate')
+  await expect(strip.locator('.timeline__tick').first()).toHaveText('10000')
+  const height = await strip.locator('.timeline__rate-line').evaluate((p) => (p as SVGPathElement).getBBox().height)
+  expect(height).toBeGreaterThan(30) // from the baseline of 100 up to the spike
 })
 
 test('Help says a tank fills first, in the words the engine test pins', async ({ page }) => {

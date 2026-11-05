@@ -42,7 +42,7 @@ function Strip({ table, width, padL, padR, minStep, maxStep, stepSec }: { table:
   const iw = Math.max(1, width - padL - padR)
   const span = Math.max(1, maxStep - minStep)
   const x = (step: number) => padL + ((step - minStep) / span) * iw
-  const line = useMemo(() => timetablePolyline(table, toTime(minStep), toTime(maxStep), Math.max(32, Math.round(iw))), [table, minStep, maxStep, iw, stepSec])
+  const line = useMemo(() => timetablePolyline(table, toTime(minStep), toTime(maxStep), Math.max(64, Math.round(iw) * 2)), [table, minStep, maxStep, iw, stepSec])
   const top = niceTop(Math.max(0, ...line.map((p) => p.rate)))
   const y = (v: number) => RATE_STRIP_H - PAD_BOTTOM - (v / top) * (RATE_STRIP_H - PAD_TOP - PAD_BOTTOM)
   const path = line.map((p, i) => `${i === 0 ? 'M' : 'L'}${x((p.time * unitSec) / stepSec).toFixed(2)} ${y(p.rate).toFixed(2)}`).join(' ')

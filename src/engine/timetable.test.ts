@@ -401,12 +401,49 @@ describe('the corners a chart draws', () => {
     expect(timetablePolyline(table({ after: 'zero' }), 0, 8, 100).at(-1)).toEqual({ time: 8, rate: 0 })
   })
 
-  it('more corners than the budget are read at even times', () => {
-    const points = Array.from({ length: 500 }, (_, i): [string, string] => [String(i), String(i % 7)])
-    const line = timetablePolyline(table({ points, end: '500' }), 0, 500, 50)
-    expect(line).toHaveLength(51)
+  const big = (over: Partial<Timetable> = {}, at = 12_345) => {
+    const points = Array.from({ length: 20_000 }, (_, i): [string, string] => [String(i), i === at ? '9000' : i === at + 1 ? '1' : '100'])
+    return table({ points, end: '20000', ...over })
+  }
+  const rates = (line: { rate: number }[]) => line.map((p) => p.rate)
+
+  it('more corners than the budget stay inside it, from the first time to the last', () => {
+    const line = timetablePolyline(big(), 0, 20_000, 400)
+    expect(line.length).toBeLessThanOrEqual(401)
     expect(line[0].time).toBe(0)
-    expect(line[50].time).toBe(500)
+    expect(line[line.length - 1].time).toBe(20_000)
+    for (let i = 1; i < line.length; i++) expect(line[i].time).toBeGreaterThanOrEqual(line[i - 1].time)
+  })
+
+  it.each([
+    ['hold', table({ after: 'stop' }).read],
+    ['linear', 'linear' as const],
+  ])('a one-point spike and a one-point dip in 20,000 points are still drawn: %s', (_n, read) => {
+    const t = big(read === 'linear' ? { read, end: '19999' } : {})
+    const line = rates(timetablePolyline(t, 0, 19_999, 400))
+    expect(Math.max(...line)).toBe(9000)
+    expect(Math.min(...line)).toBe(1)
+  })
+
+  it('wherever the spike falls, in any window of the run', () => {
+    for (const at of [1, 7_777, 19_990]) {
+      expect(Math.max(...rates(timetablePolyline(big({}, at), 0, 20_000, 64)))).toBe(9000)
+    }
+    expect(Math.max(...rates(timetablePolyline(big(), 12_000, 13_000, 64)))).toBe(9000)
+    expect(Math.max(...rates(timetablePolyline(big(), 0, 12_000, 64)))).toBe(100)
+  })
+
+  it('a repeating table keeps its spike in every period, and in a bin wider than a period', () => {
+    const t = big({ after: 'repeat' })
+    expect(Math.max(...rates(timetablePolyline(t, 20_000, 40_000, 400)))).toBe(9000)
+    const wide = timetablePolyline(t, 0, 2_000_000, 40)
+    expect(wide.length).toBeLessThanOrEqual(41)
+    expect(Math.max(...rates(wide))).toBe(9000)
+    expect(Math.min(...rates(wide))).toBe(1)
+  })
+
+  it('a table that fits the budget draws every corner as it did', () => {
+    expect(timetablePolyline(table(), 0, 6, 100)).toHaveLength(4)
   })
 })
 
