@@ -89,6 +89,7 @@ const inspector = {
   'inspector.edge.timetable.read.hold': 'Ogni portata dura fino al punto successivo',
   'inspector.edge.timetable.read.linear': 'La portata cambia in linea retta tra i punti',
   'inspector.edge.timetable.after.stop': 'Dopo l’ultimo tempo: l’esecuzione si ferma',
+  'inspector.edge.timetable.lastStep': 'L’esecuzione si ferma dopo il passo {step}',
   'inspector.edge.timetable.after.hold': 'Dopo l’ultimo tempo: l’ultima portata continua',
   'inspector.edge.timetable.after.zero': 'Dopo l’ultimo tempo: la portata è 0',
   'inspector.edge.timetable.after.repeat': 'Dopo l’ultimo tempo: la tabella ricomincia',

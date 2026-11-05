@@ -74,6 +74,7 @@ const inspector = {
   'inspector.edge.timetable.read.hold': 'Cada caudal dura hasta el punto siguiente',
   'inspector.edge.timetable.read.linear': 'El caudal cambia en línea recta entre los puntos',
   'inspector.edge.timetable.after.stop': 'Después de su último tiempo: la ejecución se detiene',
+  'inspector.edge.timetable.lastStep': 'La ejecución se detiene después del paso {step}',
   'inspector.edge.timetable.after.hold': 'Después de su último tiempo: el último caudal continúa',
   'inspector.edge.timetable.after.zero': 'Después de su último tiempo: el caudal es 0',
   'inspector.edge.timetable.after.repeat': 'Después de su último tiempo: la tabla empieza de nuevo',

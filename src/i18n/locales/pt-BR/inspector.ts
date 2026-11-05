@@ -81,6 +81,7 @@ const inspector = {
   'inspector.edge.timetable.read.hold': 'Cada taxa dura até chegar ao ponto seguinte',
   'inspector.edge.timetable.read.linear': 'A taxa muda em linha reta entre os pontos',
   'inspector.edge.timetable.after.stop': 'Depois do último tempo: a execução para',
+  'inspector.edge.timetable.lastStep': 'A execução para depois do passo {step}',
   'inspector.edge.timetable.after.hold': 'Depois do último tempo: a última taxa continua',
   'inspector.edge.timetable.after.zero': 'Depois do último tempo: a taxa é 0',
   'inspector.edge.timetable.after.repeat': 'Depois do último tempo: a tabela recomeça',

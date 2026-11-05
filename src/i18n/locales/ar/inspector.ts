@@ -100,6 +100,7 @@ const inspector = {
   'inspector.edge.timetable.read.hold': 'يستمر كل معدّل حتى النقطة التالية',
   'inspector.edge.timetable.read.linear': 'يتغيّر المعدّل في خط مستقيم بين النقاط',
   'inspector.edge.timetable.after.stop': 'بعد آخر وقت: يتوقف التشغيل',
+  'inspector.edge.timetable.lastStep': 'يتوقف التشغيل بعد الخطوة {step}',
   'inspector.edge.timetable.after.hold': 'بعد آخر وقت: يستمر آخر معدّل',
   'inspector.edge.timetable.after.zero': 'بعد آخر وقت: المعدّل 0',
   'inspector.edge.timetable.after.repeat': 'بعد آخر وقت: يبدأ الجدول من جديد',

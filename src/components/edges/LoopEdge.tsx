@@ -314,7 +314,7 @@ function LoopEdge({
   if (d.kind === 'resource') {
     const raw = d.flow || '1'
     if (tableId !== null) {
-      label = prose(tableName ?? refErrorLabel)
+      label = tableName !== null ? prose(tableName) : token(raw)
     } else if (raw.includes('@')) {
       const fx = parseFlow(raw, modelVersion)
       const value = fx.kind === 'param' ? resolveParamValue(fx.id) : null

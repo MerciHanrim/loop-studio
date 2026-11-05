@@ -151,6 +151,7 @@ export async function importFile(
       dataImports: parsed.dataImports,
       kinds: parsed.kinds, // loop-model/3 — the file's table (`[]` before /graph/3)
       time: parsed.time, // loop-model/4 — the file's step length (absent before /graph/4)
+      timetables: parsed.timetables, // loop-model/5 — the file's timetables (`[]` before /graph/5)
     },
   ) // the ONE bump
   useMcStore.getState().applyRecommended(parsed.recommendedRunConfig)

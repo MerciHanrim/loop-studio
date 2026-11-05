@@ -90,6 +90,7 @@ const inspector = {
   'inspector.edge.timetable.read.hold': 'Каждый поток действует до следующей точки',
   'inspector.edge.timetable.read.linear': 'Поток меняется по прямой между точками',
   'inspector.edge.timetable.after.stop': 'После последнего времени: запуск останавливается',
+  'inspector.edge.timetable.lastStep': 'Запуск остановится после шага {step}',
   'inspector.edge.timetable.after.hold': 'После последнего времени: последний поток продолжается',
   'inspector.edge.timetable.after.zero': 'После последнего времени: поток равен 0',
   'inspector.edge.timetable.after.repeat': 'После последнего времени: таблица начинается заново',

@@ -83,6 +83,7 @@ const inspector = {
   'inspector.edge.timetable.read.hold': 'แต่ละอัตราคงอยู่จนถึงจุดถัดไป',
   'inspector.edge.timetable.read.linear': 'อัตราเปลี่ยนเป็นเส้นตรงระหว่างจุด',
   'inspector.edge.timetable.after.stop': 'หลังเวลาสุดท้าย: การรันหยุด',
+  'inspector.edge.timetable.lastStep': 'การรันหยุดหลังขั้นที่ {step}',
   'inspector.edge.timetable.after.hold': 'หลังเวลาสุดท้าย: อัตราสุดท้ายดำเนินต่อ',
   'inspector.edge.timetable.after.zero': 'หลังเวลาสุดท้าย: อัตราเป็น 0',
   'inspector.edge.timetable.after.repeat': 'หลังเวลาสุดท้าย: ตารางเริ่มใหม่',

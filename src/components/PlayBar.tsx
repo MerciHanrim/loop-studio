@@ -298,7 +298,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
         // selects the first one's split, whose Inspector note says what to
         // change. Announced when it appears, like the line above.
         <span className="pstrip__step pstrip__initerr pstrip__refused" role="alert">
-          {refusedText}
+          <span className="pstrip__refused-text" title={refusedText}>{refusedText}</span>
           <button type="button" className="btn btn--ghost pstrip__refused-show" onClick={showRefused}>
             {t('playbar.refused.show')}
           </button>

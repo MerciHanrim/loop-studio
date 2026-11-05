@@ -4471,7 +4471,25 @@ a.sheet__row {
   align-items: center;
   gap: 6px;
 }
+/* the strip is one row: a long reason is cut here, with its whole text in the
+   title and in the Inspector, so Show and Run settings stay in reach */
+.pstrip:not(.pstrip--mobile) .pstrip__refused {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+/* a refused run has no state to show and no run to tune: the reason takes that room */
+.pstrip__refused ~ .pstrip__steady,
+.pstrip:not(.pstrip--mobile) .pstrip__refused ~ .pstrip__settings:not(.is-open) {
+  display: none;
+}
+.pstrip:not(.pstrip--mobile) .pstrip__refused-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .pstrip__refused-show {
+  flex: none;
   font-size: 11px;
   padding: 1px 8px;
   min-height: 0;
@@ -5535,6 +5553,14 @@ a.sheet__row {
   color: var(--ink-3);
   font-size: 12px;
   margin-top: 8px;
+}
+.inspector__notes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.inspector__notes .inspector__note {
+  margin: 0;
 }
 .inspector__note {
   margin: 0 0 12px;

@@ -80,6 +80,7 @@ const inspector = {
   'inspector.edge.timetable.read.hold': 'Mỗi lưu lượng kéo dài đến điểm kế tiếp',
   'inspector.edge.timetable.read.linear': 'Lưu lượng thay đổi theo đường thẳng giữa các điểm',
   'inspector.edge.timetable.after.stop': 'Sau thời điểm cuối: lần chạy dừng',
+  'inspector.edge.timetable.lastStep': 'Lần chạy dừng sau bước {step}',
   'inspector.edge.timetable.after.hold': 'Sau thời điểm cuối: lưu lượng cuối tiếp tục',
   'inspector.edge.timetable.after.zero': 'Sau thời điểm cuối: lưu lượng bằng 0',
   'inspector.edge.timetable.after.repeat': 'Sau thời điểm cuối: bảng bắt đầu lại',

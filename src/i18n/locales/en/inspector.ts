@@ -70,6 +70,7 @@ const inspector = {
   'inspector.edge.timetable.read.hold': 'Each rate lasts until the next point',
   'inspector.edge.timetable.read.linear': 'The rate changes in a straight line between points',
   'inspector.edge.timetable.after.stop': 'After its last time: the run stops',
+  'inspector.edge.timetable.lastStep': 'The run stops after step {step}',
   'inspector.edge.timetable.after.hold': 'After its last time: the last rate continues',
   'inspector.edge.timetable.after.zero': 'After its last time: the rate is 0',
   'inspector.edge.timetable.after.repeat': 'After its last time: the table starts again',

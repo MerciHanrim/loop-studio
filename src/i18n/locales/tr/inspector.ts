@@ -82,6 +82,7 @@ const inspector = {
   'inspector.edge.timetable.read.hold': 'Her akış bir sonraki noktaya kadar sürer',
   'inspector.edge.timetable.read.linear': 'Akış noktalar arasında düz bir çizgiyle değişir',
   'inspector.edge.timetable.after.stop': 'Son zamandan sonra: çalışma durur',
+  'inspector.edge.timetable.lastStep': 'Çalışma {step}. adımdan sonra durur',
   'inspector.edge.timetable.after.hold': 'Son zamandan sonra: son akış sürer',
   'inspector.edge.timetable.after.zero': 'Son zamandan sonra: akış 0 olur',
   'inspector.edge.timetable.after.repeat': 'Son zamandan sonra: tablo baştan başlar',

@@ -79,6 +79,7 @@ const inspector = {
   'inspector.edge.timetable.read.hold': '每個速率維持到下一個點',
   'inspector.edge.timetable.read.linear': '速率在點與點之間呈直線變化',
   'inspector.edge.timetable.after.stop': '最後時刻之後：執行停止',
+  'inspector.edge.timetable.lastStep': '執行在第 {step} 步後停止',
   'inspector.edge.timetable.after.hold': '最後時刻之後：最後的速率繼續',
   'inspector.edge.timetable.after.zero': '最後時刻之後：速率為 0',
   'inspector.edge.timetable.after.repeat': '最後時刻之後：時間表重新開始',

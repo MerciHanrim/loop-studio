@@ -70,6 +70,7 @@ const inspector = {
   'inspector.edge.timetable.read.hold': '각 비율이 다음 지점까지 유지됩니다',
   'inspector.edge.timetable.read.linear': '지점 사이에서 비율이 직선으로 변합니다',
   'inspector.edge.timetable.after.stop': '마지막 시간 이후: 실행이 멈춥니다',
+  'inspector.edge.timetable.lastStep': '{step}단계 뒤에 실행이 멈춥니다',
   'inspector.edge.timetable.after.hold': '마지막 시간 이후: 마지막 비율이 이어집니다',
   'inspector.edge.timetable.after.zero': '마지막 시간 이후: 비율이 0입니다',
   'inspector.edge.timetable.after.repeat': '마지막 시간 이후: 시간표가 처음부터 다시 시작됩니다',

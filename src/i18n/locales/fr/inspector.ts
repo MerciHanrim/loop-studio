@@ -89,6 +89,7 @@ const inspector = {
   'inspector.edge.timetable.read.hold': 'Chaque débit dure jusqu’au point suivant',
   'inspector.edge.timetable.read.linear': 'Le débit varie en ligne droite entre les points',
   'inspector.edge.timetable.after.stop': 'Après le dernier temps : l’exécution s’arrête',
+  'inspector.edge.timetable.lastStep': 'L’exécution s’arrête après le pas {step}',
   'inspector.edge.timetable.after.hold': 'Après le dernier temps : le dernier débit continue',
   'inspector.edge.timetable.after.zero': 'Après le dernier temps : le débit est 0',
   'inspector.edge.timetable.after.repeat': 'Après le dernier temps : la table reprend au début',

@@ -93,6 +93,7 @@ const inspector = {
   'inspector.edge.timetable.read.hold': 'Jede Rate gilt bis zum nächsten Punkt',
   'inspector.edge.timetable.read.linear': 'Die Rate ändert sich zwischen den Punkten geradlinig',
   'inspector.edge.timetable.after.stop': 'Nach der letzten Zeit: Der Lauf stoppt',
+  'inspector.edge.timetable.lastStep': 'Der Lauf stoppt nach Schritt {step}',
   'inspector.edge.timetable.after.hold': 'Nach der letzten Zeit: Die letzte Rate gilt weiter',
   'inspector.edge.timetable.after.zero': 'Nach der letzten Zeit: Die Rate ist 0',
   'inspector.edge.timetable.after.repeat': 'Nach der letzten Zeit: Die Tabelle beginnt von vorn',

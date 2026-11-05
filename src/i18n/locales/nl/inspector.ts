@@ -86,6 +86,7 @@ const inspector = {
   'inspector.edge.timetable.read.hold': 'Elke snelheid geldt tot het volgende punt',
   'inspector.edge.timetable.read.linear': 'De snelheid verandert in een rechte lijn tussen de punten',
   'inspector.edge.timetable.after.stop': 'Na de laatste tijd: de uitvoering stopt',
+  'inspector.edge.timetable.lastStep': 'De uitvoering stopt na stap {step}',
   'inspector.edge.timetable.after.hold': 'Na de laatste tijd: de laatste snelheid loopt door',
   'inspector.edge.timetable.after.zero': 'Na de laatste tijd: de snelheid is 0',
   'inspector.edge.timetable.after.repeat': 'Na de laatste tijd: de tabel begint opnieuw',

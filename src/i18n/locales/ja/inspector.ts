@@ -77,6 +77,7 @@ const inspector = {
   'inspector.edge.timetable.read.hold': '各レートは次の点まで続きます',
   'inspector.edge.timetable.read.linear': '点と点の間でレートが直線的に変わります',
   'inspector.edge.timetable.after.stop': '最後の時刻の後: 実行が止まります',
+  'inspector.edge.timetable.lastStep': 'ステップ {step} の後で実行が止まります',
   'inspector.edge.timetable.after.hold': '最後の時刻の後: 最後のレートが続きます',
   'inspector.edge.timetable.after.zero': '最後の時刻の後: レートは 0 です',
   'inspector.edge.timetable.after.repeat': '最後の時刻の後: タイムテーブルが最初から始まります',
