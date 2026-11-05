@@ -14,7 +14,7 @@
 
 /** The model-semantics versions this build can name. Reading a version is
  *  decided in `serialize.ts` (`modelVersionForSchema`), not here. */
-export type ModelSemanticsVersion = 1 | 2 | 3 | 4
+export type ModelSemanticsVersion = 1 | 2 | 3 | 4 | 5
 
 /** loop-model/2 and later — the model layer (SEMANTICS-M2.md): a `resource`
  *  flow may be an `@id` Parameter reference, an activator may compare against a
@@ -41,6 +41,14 @@ export function hasKindsTable(modelVersion: ModelSemanticsVersion | number | und
  *  on a document of an earlier version are not read (§M4-1). */
 export function hasUnits(modelVersion: ModelSemanticsVersion | number | undefined): boolean {
   return (modelVersion ?? 1) >= 4
+}
+
+/** loop-model/5 and later — timetables (SEMANTICS-M5.md): a document may hold
+ *  named lists of times and rates, and a resource flow may read one as
+ *  `~id`. A `timetables` key on a document of an earlier version is not read,
+ *  and a leading `~` there is the unparseable literal it always was. */
+export function hasTimetables(modelVersion: ModelSemanticsVersion | number | undefined): boolean {
+  return (modelVersion ?? 1) >= 5
 }
 
 /** The §M2-8 discriminator a model-layer document's canonical projection and

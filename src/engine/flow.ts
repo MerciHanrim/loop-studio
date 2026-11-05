@@ -13,7 +13,7 @@
 // exactly as in loop-model/1 — v1 execution is untouched.
 
 import { tokenize } from '../model/expr/tokenize'
-import { hasModelLayer, type ModelSemanticsVersion } from '../model/modelVersion'
+import { hasModelLayer, hasTimetables, type ModelSemanticsVersion } from '../model/modelVersion'
 import { MAX_DICE_COUNT } from '../model/limits'
 
 export type FlowExpr =
@@ -24,6 +24,7 @@ export type FlowExpr =
   | { kind: 'dice'; count: number; sides: number }
   | { kind: 'param'; id: string } // loop-model/2 — a well-formed `@id` reference; not yet a number
   | { kind: 'paramBad'; raw: string } // loop-model/2 — a leading-`@` string that is NOT a well-formed reference
+  | { kind: 'table'; id: string } // loop-model/5 — a `~id` timetable; `step()` puts the step's amount in its place
 
 export type ModelVersion = ModelSemanticsVersion
 
@@ -45,6 +46,7 @@ export function parseFlow(raw: string | undefined, modelVersion: ModelVersion = 
     const id = parseParamRef(trimmed)
     return id != null ? { kind: 'param', id } : { kind: 'paramBad', raw: trimmed }
   }
+  if (hasTimetables(modelVersion) && trimmed.startsWith('~')) return { kind: 'table', id: trimmed.slice(1) }
   const s = trimmed.toLowerCase()
   if (s === '') return { kind: 'const', value: 1 }
   if (s === 'all') return { kind: 'all' }
@@ -110,7 +112,8 @@ export function evalDet(e: FlowExpr, available: number, snapshot: number): numbe
       return 0 // random flow is inactive in Engine A
     case 'param':
     case 'paramBad':
-      return 0 // loop-model/2: step() resolves these to `const` before evaluation
+    case 'table':
+      return 0 // loop-model/2 and /5: step() resolves these to `const` before evaluation
   }
 }
 
@@ -135,7 +138,8 @@ export function rateOf(e: FlowExpr): number {
       return 0
     case 'param':
     case 'paramBad':
-      return 0 // loop-model/2: step() resolves these to `const` before evaluation
+    case 'table':
+      return 0 // loop-model/2 and /5: step() resolves these to `const` before evaluation
   }
 }
 

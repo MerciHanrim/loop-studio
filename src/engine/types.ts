@@ -79,6 +79,13 @@ export type StepReport = {
    *  amounts). A Gate with no entry is `off` (not fired this step, or no run).
    *  Same lifecycle as `notices`. */
   gates: GateStatus[]
+  /** loop-model/5 (SEMANTICS-M5.md §M5-6) — planned against moved for each
+   *  table line, ascending `edgeId`, unrounded. Present only on a step that
+   *  read a table. */
+  timetableLines?: TimetableLineReport[]
+  /** loop-model/5 (§M5-4) — the `stop` table that ended the run before this
+   *  step: nothing moved and the step was not consumed. */
+  timetableEnded?: { tableId: string; label: string }
   /** loop-model/3 (SEMANTICS-M3.md §M3-5, L1) — this step's deliveries into
    *  Drains and Ends, grouped per kind and per exit node. Present only when
    *  `step` was given a kinds table; a `loop-model/2` report is unchanged. */
@@ -143,6 +150,10 @@ export type StepNotice = {
   /** the amount lost, rounded to 6 decimals */
   amount: number
 }
+
+/** one table line of a step (§M5-6). `planned` is p, the nearest double of the
+ *  exact plan, and `moved` is m. Unmet is derived on reading, never stored. */
+export type TimetableLineReport = { edgeId: string; tableId: string; planned: number; moved: number }
 
 export type StepResult = {
   state: SimState
