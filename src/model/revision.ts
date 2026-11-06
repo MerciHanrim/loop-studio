@@ -259,7 +259,7 @@ const NODE_FIELDS: Record<FlowNodeKind, readonly string[]> = {
   source: ['kind', 'label', 'activation', 'mode', 'accent', 'icon'],
   drain: ['kind', 'label', 'activation', 'mode', 'accent', 'icon'],
   gate: ['kind', 'label', 'activation', 'distribution', 'mode', 'accent', 'icon'],
-  converter: ['kind', 'label', 'activation', 'mode', 'accent', 'icon'],
+  converter: ['kind', 'label', 'activation', 'mode', 'accent', 'icon', 'run'],
   end: ['kind', 'label', 'activation', 'mode', 'accent', 'icon'],
 }
 // `loop-revision/12` (SEMANTICS-R12.md) appends a trailing `icon` (a registered
@@ -473,6 +473,12 @@ function projectNode(n: LoopNode, modelLayer: boolean): CanonicalNode {
       if (!modelLayer) continue
       const i = readIcon(src.icon)
       if (i !== undefined) data.icon = i
+      continue
+    }
+    if (f === 'run') {
+      // loop-model/6 (SEMANTICS-M6.md) — trailing, only when a rule is present (a
+      // document before /graph/6 never carries one: `deserialize` drops it)
+      if (modelLayer && src.run !== undefined) data.run = src.run
       continue
     }
     if (f === 'unit') {
@@ -1695,6 +1701,8 @@ const OPTIONAL_PROJECTED_KEYS = new Set([
   'accent',
   // `loop-revision/12` (SEMANTICS-R12.md) — a node's icon
   'icon',
+  // loop-model/6 (SEMANTICS-M6.md) — a Converter's run rule
+  'run',
 ])
 
 export type HunkSelection = {

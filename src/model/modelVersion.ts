@@ -14,7 +14,7 @@
 
 /** The model-semantics versions this build can name. Reading a version is
  *  decided in `serialize.ts` (`modelVersionForSchema`), not here. */
-export type ModelSemanticsVersion = 1 | 2 | 3 | 4 | 5
+export type ModelSemanticsVersion = 1 | 2 | 3 | 4 | 5 | 6
 
 /** loop-model/2 and later — the model layer (SEMANTICS-M2.md): a `resource`
  *  flow may be an `@id` Parameter reference, an activator may compare against a
@@ -49,6 +49,13 @@ export function hasUnits(modelVersion: ModelSemanticsVersion | number | undefine
  *  and a leading `~` there is the unparseable literal it always was. */
 export function hasTimetables(modelVersion: ModelSemanticsVersion | number | undefined): boolean {
   return (modelVersion ?? 1) >= 5
+}
+
+/** loop-model/6 and later — run rules (SEMANTICS-M6.md): a Converter may hold a rule
+ *  that reads a tank and a timetable and sets the fraction its group may run at. A
+ *  `run` key on a document of an earlier version is not read. */
+export function hasRunRules(modelVersion: ModelSemanticsVersion | number | undefined): boolean {
+  return (modelVersion ?? 1) >= 6
 }
 
 /** The §M2-8 discriminator a model-layer document's canonical projection and

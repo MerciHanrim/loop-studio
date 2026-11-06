@@ -28,6 +28,7 @@ import { normalizeGraph } from './serialize'
 import type { ModelSemanticsVersion } from './serialize'
 import { kindMergeConflicts, kindsDeclareUnits, mergeKinds, type ResourceKindDecl } from './kinds'
 import { anyFieldUnit, applyUnits } from './engineValues'
+import { anyRunRule, type RunRule } from './runRule'
 import { normalizeResourceType } from './model/resourceType'
 import type { LoopEdge, LoopNode } from './types'
 import { stepSeconds, type DocTime } from './units'
@@ -188,6 +189,14 @@ export function insertGraph(host: GraphDocLike, mod: GraphDocLike, opts: InsertO
         }
       }
       data = { ...data, expr: canonicalPrint(remapAst(r.ast, idMap)) } as LoopNode['data']
+    }
+    // loop-model/6 — a rule's tank and 100 % line are ids, and they take the new ones
+    const run = (data as { run?: RunRule }).run
+    if (run) {
+      if (run.tank !== undefined && !idMap.has(run.tank)) return { ok: false, reason: `The run rule on "${n.id}" reads "${run.tank}", which is not part of the module.` }
+      if (run.rated !== undefined && !edgeIdMap.has(run.rated)) return { ok: false, reason: `The run rule on "${n.id}" names the line "${run.rated}", which is not part of the module.` }
+      const moved = { ...run, ...(run.tank !== undefined ? { tank: idMap.get(run.tank) } : {}), ...(run.rated !== undefined ? { rated: edgeIdMap.get(run.rated) } : {}) }
+      data = { ...data, run: moved } as unknown as LoopNode['data']
     }
     outNodes.push(
       stripDataImportProvenance({
@@ -419,9 +428,10 @@ export function extractModule(src: GraphDocLike, selectedIds: readonly string[])
   // insert can tell when the two step lengths differ (§M4-4)
   const units = kindsDeclareUnits(kinds) || anyFieldUnit(nodes, selEdges) || src.time !== undefined
   // loop-model/5 — the tables the selection's lines read travel with them
-  const read = new Set(timetableLines(selEdges).map((l) => l.tableId))
+  // loop-model/6 — and so do the tables its rules read
+  const read = new Set([...timetableLines(selEdges).map((l) => l.tableId), ...nodes.flatMap((n) => (n.data as { run?: RunRule }).run?.table ?? [])])
   const timetables = (src.timetables ?? []).filter((t) => read.has(t.id))
-  const modelVersion: ModelSemanticsVersion = timetables.length > 0 ? 5 : units ? 4 : kinds.length > 0 ? 3 : hasParamFlow ? 2 : 1
+  const modelVersion: ModelSemanticsVersion = anyRunRule(nodes) ? 6 : timetables.length > 0 ? 5 : units ? 4 : kinds.length > 0 ? 3 : hasParamFlow ? 2 : 1
   const time = units ? src.time : undefined
 
   return { ok: true, nodes, edges: selEdges, modelVersion, kinds, ...(time !== undefined ? { time } : {}), ...(timetables.length > 0 ? { timetables } : {}) }
