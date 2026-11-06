@@ -16,9 +16,10 @@ const FRAME = {
   time: { step: { value: 1, unit: 'h' } },
   timetables: [{ id: 'demand', label: 'Demand', source: 'test', unit: 'CMH', timeUnit: 'h', read: 'hold', after: 'hold', end: '10', points: [['0', '25']] }],
 }
-const plant = (feed = 1000) =>
+const plant = (feed = 1000, wanted = '25', tableName = 'Demand') =>
   JSON.stringify({
     ...FRAME,
+    timetables: [{ ...FRAME.timetables[0], label: tableName, points: [['0', wanted]] }],
     nodes: [
       pool('tank', 0, 0, feed),
       { id: 'ro', type: 'converter', position: { x: 260, y: 0 }, data: { kind: 'converter', label: 'RO', activation: 'automatic', mode: 'pullAny', run: { table: 'demand', rated: 'feed' } } },
@@ -46,7 +47,7 @@ test('a stage that met its target says how far it ran, and no more', async ({ pa
   await importGraph(page, plant())
   await advance(page)
   await expect.poll(() => words(page, 'ro')).toBe('Run 25 % · reads Demand')
-  await expect(page.locator('.react-flow__node[data-id="ro"] [role="img"]')).toHaveAttribute('aria-label', /Run 25 % · reads .?Demand/)
+  await expect(page.locator('.react-flow__node[data-id="ro"] [role="img"]')).toHaveAttribute('aria-label', /Run .?25.? % · reads .?Demand/)
 })
 
 test('a stage held short says both numbers', async ({ page }) => {
@@ -70,6 +71,48 @@ test('a step moves no line and changes no block', async ({ page }) => {
   await expect(shown(page, 'ro')).toContainText('target')
   expect(await layout()).toEqual(before)
 })
+
+// what a run can print is the block's limit: the words of these two steps must fit the
+// block that was sized before the run, and the step must move nothing
+const CASES: [string, number, string, string][] = [
+  // with this name the widest words before #517's review filled their lines exactly
+  ['a near miss', 24.96, '25.04', 'Run 24.96 %, target 25.04 % · reads City water demand'],
+  ['a run far under 1 %', 1000, '0.0000005', 'Run <0.01 % · reads City water demand'],
+  ['a stage stopped far under 1 %', 0.00000004, '0.0000005', 'Stopped, target <0.01 % · reads City water demand'],
+]
+for (const [name, feed, wanted, words_] of CASES) {
+  test(`${name} fits the block, and the step moves no line or chip`, async ({ page }) => {
+    await openApp(page)
+    await importGraph(page, plant(feed, wanted, 'City water demand'))
+    const layout = () =>
+      page.evaluate(() => {
+        const l = (window as unknown as { __loop: Record<string, any> }).__loop
+        const block = document.querySelector<HTMLElement>('.react-flow__node[data-id="ro"] .nodef__label')!
+        return {
+          block: [block.offsetWidth, block.offsetHeight],
+          lines: [...l.routeMap.all().values()].map((r: any) => r.d),
+          chips: [...document.querySelectorAll<HTMLElement>('.edge-label[data-edge-id]')].map((c) => c.style.transform),
+        }
+      })
+    const before = await layout()
+    await advance(page)
+    await expect.poll(() => words(page, 'ro')).toBe(words_)
+    expect(await layout()).toEqual(before)
+    await select(page, 'ro')
+    await expect(full(page, 'ro')).toBeVisible()
+    const over = await page.evaluate(() => {
+      const tag = document.querySelector('[data-stage-tag="ro"]')!
+      const room = tag.querySelector('.stage-tag__size')!.getBoundingClientRect()
+      const past = (el: Element) => {
+        const r = document.createRange()
+        r.selectNodeContents(el)
+        return Math.max(...[...r.getClientRects()].map((w) => Math.max(room.left - w.left, w.right - room.right, room.top - w.top, w.bottom - room.bottom)))
+      }
+      return [past(tag.querySelector('.stage-tag__shown')!), past(tag.querySelector('.stage-tag__full')!)]
+    })
+    expect(Math.max(...over)).toBeLessThanOrEqual(0.5)
+  })
+}
 
 test('a folded tag names its tank when the stage or the tank is chosen, or the line pointed at', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 })
@@ -103,6 +146,21 @@ test('a folded tag names its tank when the stage or the tank is chosen, or the l
   })
   await page.mouse.move(mid.x, mid.y)
   await expect(full(page, 'filter')).toBeVisible()
+})
+
+test('a tag with no room even for … shows no words, and still opens', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 })
+  await openApp(page)
+  const doc = JSON.parse(readFileSync(new URL('../examples/desalination.json', import.meta.url), 'utf8'))
+  const rules: [string, string][] = [['remin', 'product'], ['ro', 'permeate'], ['filter', 'filtered'], ['adjust', 'brine'], ['thick', 'backwash']]
+  for (const [stage, tank] of rules) doc.nodes.find((n: { id: string }) => n.id === stage).data.run = { tank, level: '1', band: '1', side: 'fill', table: 'demand' }
+  doc.nodes.find((n: { id: string }) => n.id === 'dpump').data.run = { table: 'demand' }
+  const timetables = [{ ...FRAME.timetables[0], label: 'City demand' }]
+  await importGraph(page, JSON.stringify({ ...doc, schema: FRAME.schema, timetables, time: doc.time ?? FRAME.time }))
+  await expect.poll(() => words(page, 'remin')).toBe('')
+  await select(page, 'remin')
+  await expect(full(page, 'remin')).toBeVisible()
+  await expect(full(page, 'remin')).toContainText('Product water tank')
 })
 
 test('a stage whose line cannot be drawn says so and names the tank', async ({ page }) => {

@@ -168,10 +168,16 @@
   line-height: 14px;
   color: var(--ink-2);
   overflow-wrap: anywhere;
+  /* one width for every digit, so the widest number is widest whatever its digits */
+  font-variant-numeric: tabular-nums;
 }
+/* every state in one cell: the block is the largest of them, in any language */
 .stage-tag__size {
-  display: block;
+  display: grid;
   visibility: hidden;
+}
+.stage-tag__size > span {
+  grid-area: 1 / 1;
 }
 .stage-tag__measure {
   position: absolute;

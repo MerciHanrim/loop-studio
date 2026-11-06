@@ -11,11 +11,11 @@
   },
   "$implemented": "A row classed `auto` / `ltr` / `per-fragment` is an OPEN obligation: the evidence says the value needs bounding and the code does not bound it yet. C3.5 was scoped to fix the two families that were already evidenced — the unrecognized-column header and the five `import.loc.*` calls — and those moved to `isolate-obligations.json`. The checker asserts these rows are NOT wrapped, so implementing one without moving its row is red in both directions.",
   "totals": {
-    "arguments": 418,
-    "rows": 72,
+    "arguments": 421,
+    "rows": 66,
     "byClass": {
       "attribute": 18,
-      "closed-value": 54
+      "closed-value": 48
     },
     "recordedNotImplemented": 0,
     "attributeSink": 29
@@ -680,66 +680,6 @@
       "sink": "attr:svg.aria-label",
       "class": "attribute",
       "evidence": "aria-label on a table's rate strip (SEMANTICS-M5.md §M5-11). The value is the user's own unit name."
-    },
-    {
-      "file": "src/ui/stageTag.ts",
-      "enclosing": "stateWords",
-      "key": "run.tag.stopped",
-      "arg": "target",
-      "ord": 1,
-      "sink": "indirect",
-      "class": "closed-value",
-      "evidence": "A share of a full run, formatted by `percentText` to plain digits: no user text can reach it."
-    },
-    {
-      "file": "src/ui/stageTag.ts",
-      "enclosing": "stateWords",
-      "key": "run.tag.shortCompact",
-      "arg": "pct",
-      "ord": 1,
-      "sink": "indirect",
-      "class": "closed-value",
-      "evidence": "A share of a full run, formatted by `percentText` to plain digits: no user text can reach it."
-    },
-    {
-      "file": "src/ui/stageTag.ts",
-      "enclosing": "stateWords",
-      "key": "run.tag.shortCompact",
-      "arg": "target",
-      "ord": 1,
-      "sink": "indirect",
-      "class": "closed-value",
-      "evidence": "A share of a full run, formatted by `percentText` to plain digits: no user text can reach it."
-    },
-    {
-      "file": "src/ui/stageTag.ts",
-      "enclosing": "stateWords",
-      "key": "run.tag.short",
-      "arg": "pct",
-      "ord": 1,
-      "sink": "indirect",
-      "class": "closed-value",
-      "evidence": "A share of a full run, formatted by `percentText` to plain digits: no user text can reach it."
-    },
-    {
-      "file": "src/ui/stageTag.ts",
-      "enclosing": "stateWords",
-      "key": "run.tag.short",
-      "arg": "target",
-      "ord": 1,
-      "sink": "indirect",
-      "class": "closed-value",
-      "evidence": "A share of a full run, formatted by `percentText` to plain digits: no user text can reach it."
-    },
-    {
-      "file": "src/ui/stageTag.ts",
-      "enclosing": "stateWords",
-      "key": "run.tag.run",
-      "arg": "pct",
-      "ord": 1,
-      "sink": "indirect",
-      "class": "closed-value",
-      "evidence": "A share of a full run, formatted by `percentText` to plain digits: no user text can reach it."
     }
   ]
 }

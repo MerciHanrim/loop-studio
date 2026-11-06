@@ -33,17 +33,26 @@ export function useStageTag(id: string, data: unknown): StageTagText | null {
 }
 
 export function StageTag({ id, tank, text }: { id: string; tank: string | undefined; text: StageTagText }) {
-  const form = useTagForms((s) => Math.min(s.forms[id] ?? 0, text.forms.length - 1))
+  const form = useTagForms((s) => Math.min(s.forms[id] ?? 0, text.forms.length))
   const lineId = useGraphStore((s) => graphReadEdges(s.nodes, s.edges).find((e) => e.target === id)?.id)
   const chosen = useGraphStore((s) => s.selectedNodeId === id || (tank !== undefined && s.selectedNodeId === tank))
   const linePointed = useUiStore((s) => lineId !== undefined && s.hoverEdgeId === lineId)
-  const { state, rest } = text.forms[form]!
+  // past the last form no words show, until the tag opens
+  const { state, rest } = text.forms[form] ?? { state: '', rest: '' }
   return (
     <span className={`stage-tag${chosen || linePointed ? ' is-open' : ''}${text.noLine ? ' stage-tag--no-line' : ''}`} data-stage-tag={id} data-form={form} dir="auto">
-      <span className="stage-tag__size" aria-hidden="true">{text.widest[0]}</span>
-      {text.widest.map((w, i) => (
-        <span key={i} className="stage-tag__measure" data-measure={i} aria-hidden="true">{w}</span>
-      ))}
+      <span className="stage-tag__size" aria-hidden="true">
+        {text.widest[0]!.map((w, i) => (
+          <span key={i}>{w}</span>
+        ))}
+      </span>
+      {text.widest.flatMap((words, form) =>
+        words.map((w, i) => (
+          <span key={`${form}.${i}`} className="stage-tag__measure" data-measure={form} aria-hidden="true">
+            {w}
+          </span>
+        )),
+      )}
       <span className="stage-tag__shown">
         <span className="stage-tag__state">{state}</span>
         {rest === '' ? null : <span className="stage-tag__rest">{rest === FOLDED ? ` ${FOLDED}` : ` · ${rest}`}</span>}
@@ -79,17 +88,21 @@ export function useStageTagFold(): void {
         if (!node || !home) continue
         const others = [...chips, ...marks.filter((m) => m.id !== id).flatMap((m) => [m.body, m.name])]
         const measures = [...el.querySelectorAll<HTMLElement>('[data-measure]')]
-        let chosen = measures.length - 1
-        for (const [i, m] of measures.entries()) {
-          const range = document.createRange()
-          range.selectNodeContents(m)
-          const words = [...range.getClientRects()].map((r) => ({ x: node.position.x + (r.left - home.left) / zoom, y: node.position.y + (r.top - home.top) / zoom, w: r.width / zoom, h: r.height / zoom }))
-          if (words.length > 0 && words.every((w) => others.every((o) => gapBetween(w, o) >= TAG_GAP))) {
-            chosen = i
-            break
-          }
-        }
-        next[id] = chosen
+        const last = Math.max(0, ...measures.map((m) => Number(m.dataset.measure)))
+        // a form clears when every state's words do
+        const clears = (form: number): boolean =>
+          measures
+            .filter((m) => Number(m.dataset.measure) === form)
+            .every((m) => {
+              const range = document.createRange()
+              range.selectNodeContents(m)
+              const words = [...range.getClientRects()].map((r) => ({ x: node.position.x + (r.left - home.left) / zoom, y: node.position.y + (r.top - home.top) / zoom, w: r.width / zoom, h: r.height / zoom }))
+              return words.length > 0 && words.every((w) => others.every((o) => gapBetween(w, o) >= TAG_GAP))
+            })
+        let chosen = 0
+        while (chosen <= last && !clears(chosen)) chosen++
+        // words that must show stay, however close: no line says what nothing else does
+        next[id] = el.classList.contains('stage-tag--no-line') ? Math.min(chosen, last) : chosen
       }
       const was = useTagForms.getState().forms
       const same = Object.keys(next).length === Object.keys(was).length && Object.keys(next).every((k) => was[k] === next[k])
