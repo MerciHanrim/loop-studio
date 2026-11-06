@@ -7,6 +7,8 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **Run rules.** A Converter can hold a rule that reads a tank, a timetable or both, and sets the fraction its group may run at. Every line of the group keeps its ratio, and `pull all` means reaching the target. A rule cannot steer a group with a Gate, which refuses the run. There is no screen for a rule yet: one comes in through a hand-written document file.
+
 - **The icon gallery opens over the panel.** Choosing a node’s icon no longer pushes the fields below it down, or runs past the bottom of the window: the gallery is a popover beside its button, and opens upward when there is no room below. A press outside it, or moving focus away, closes it with no change.
 
 - **Go to a frame.** The Model list now opens with the document’s saved frames, and a click on a row fits the view to that frame. It moves only the view, so it also works under the edit lock, and Find searches frame names too.

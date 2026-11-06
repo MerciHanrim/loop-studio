@@ -11,7 +11,7 @@ import { sha256 as nobleSha256 } from '@noble/hashes/sha2.js'
 import { ENGINE_REVISION } from '../engine/revision'
 import { MAX_SERIES } from './limits'
 import type { LoopEdge, LoopNode } from './types'
-import { hasKindsTable, hasModelLayer, hasTimetables, hasUnits, modelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
+import { hasKindsTable, hasModelLayer, hasRunRules, hasTimetables, hasUnits, modelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
 import { readKindsAt, type ResourceKindDecl } from './kinds'
 import { canonicalDocTime, type DocTime } from './units'
 import { canonicalTimetable, type Timetable } from './timetable'
@@ -76,6 +76,8 @@ export type WorkspacePayload = {
 type NodeProjection = {
   id: string
   kind: string
+  /** loop-model/6 — the stored rule, whole */
+  run?: unknown
   activation?: string
   mode?: string
   distribution?: string
@@ -133,6 +135,10 @@ function projectNode(n: LoopNode, modelVersion?: ModelSemanticsVersion): NodePro
   }
   // issue #409 — the engine input of loop-model/2 (see NodeProjection.value)
   if (d.kind === 'parameter' && hasModelLayer(modelVersion)) p.value = d.value
+  // loop-model/6 (SEMANTICS-M6.md) — a run rule sets what the stage moves. Whatever
+  // node holds it: a rule on the wrong kind refuses the run, so it moves the digest too
+  const run = (d as unknown as { run?: unknown }).run
+  if (hasRunRules(modelVersion) && run !== undefined) p.run = run
   return p
 }
 

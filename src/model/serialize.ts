@@ -20,13 +20,16 @@ export const SCHEMA_V3 = 'loop-studio/graph/3'
 export const SCHEMA_V4 = 'loop-studio/graph/4'
 /** loop-model/5 (SEMANTICS-M5.md §M5-1) — a document with timetables. */
 export const SCHEMA_V5 = 'loop-studio/graph/5'
+/** loop-model/6 (SEMANTICS-M6.md §M6-1) — a document with run rules. */
+export const SCHEMA_V6 = 'loop-studio/graph/6'
 const SCHEMA_VERSION = 1
 /** issue #344, docs/diagram-layout.md §DL2.8 — the current layout rules: 1 =
  *  the 16 px grid with the 28 px port row. A document with a lower (or no)
  *  `layoutVersion` is re-placed once when it is opened. */
 export const LAYOUT_VERSION = 1
 
-import { hasKindsTable, hasTimetables, hasUnits, type ModelSemanticsVersion } from './modelVersion'
+import { hasKindsTable, hasRunRules, hasTimetables, hasUnits, type ModelSemanticsVersion } from './modelVersion'
+import { anyRunRule, readRunRule, stripRunRules } from './runRule'
 import { canonicalKinds, kindsDeclareUnits, readKindsAt, type ResourceKindDecl } from './kinds'
 import { canonicalDocTime, readDocTime, type DocTime } from './units'
 import { stripFieldUnits } from './engineValues'
@@ -47,6 +50,7 @@ const SCHEMA_BY_MODEL_VERSION: Partial<Record<ModelSemanticsVersion, string>> = 
   3: SCHEMA_V3,
   4: SCHEMA_V4,
   5: SCHEMA_V5,
+  6: SCHEMA_V6,
 }
 /** The envelope `schema` string a document of this model-semantics version is
  *  written with (§M2-1). The ONE writer-side mapping — `serialize()` and the
@@ -70,6 +74,7 @@ export function modelVersionForSchema(schema: unknown): ModelSemanticsVersion | 
   if (schema === SCHEMA_V3) return 3
   if (schema === SCHEMA_V4) return 4
   if (schema === SCHEMA_V5) return 5
+  if (schema === SCHEMA_V6) return 6
   return null
 }
 
@@ -752,6 +757,9 @@ export function serialize(
   if (tablesOut.length > 0 && !hasTimetables(modelVersion)) {
     throw new Error(`a timetable needs model-semantics version 5, not ${modelVersion}`)
   }
+  if (anyRunRule(nodes) && !hasRunRules(modelVersion)) {
+    throw new Error(`a run rule needs model-semantics version 6, not ${modelVersion}`)
+  }
   const doc: GraphDoc = {
     schema: schemaForModelVersion(modelVersion),
     version: SCHEMA_VERSION,
@@ -808,6 +816,15 @@ function isDrawableNodeEntry(n: unknown): boolean {
   const p = o.position as { x?: unknown; y?: unknown } | undefined
   return !!p && typeof p === 'object' && Number.isFinite(p.x) && Number.isFinite(p.y)
 }
+/** a node with its rule in canonical form; a rule that does not read refuses the file */
+function canonicalRuleOn(n: LoopNode): LoopNode {
+  const raw = (n.data as { run?: unknown } | undefined)?.run
+  if (raw === undefined) return n
+  const read = readRunRule(raw)
+  if (!read.ok) throw new GraphFileError('unexpected', `The run rule on "${n.id}" was refused: ${read.detail}.`)
+  return { ...n, data: { ...n.data, run: read.rule } } as unknown as LoopNode
+}
+
 export class GraphFileError extends Error {
   code: GraphFileErrorCode
   /** `bad-timetable` — which table and which row, for the message */
@@ -910,8 +927,12 @@ export function deserialize(text: string): {
     const { code, tableId, row } = tables.problem
     throw new GraphFileError('bad-timetable', `Timetable "${tableId ?? '?'}" was refused (${code}${row !== undefined ? `, row ${row}` : ''}).`, { id: tableId, row: row ?? null })
   }
+  // §M6-1 — the same for a run rule: one that cannot mean anything refuses the file.
+  // A plant that quietly ran at a default would look like a result. Never read from
+  // an earlier schema.
+  const ruled = hasRunRules(modelVersion) ? graph.nodes.map(canonicalRuleOn) : stripRunRules(graph.nodes)
   return {
-    ...(hasUnits(modelVersion) ? graph : stripFieldUnits(graph.nodes, graph.edges)),
+    ...(hasUnits(modelVersion) ? { ...graph, nodes: ruled } : stripFieldUnits(ruled, graph.edges)),
     modelVersion,
     layoutVersion: Number.isInteger(obj.layoutVersion) && (obj.layoutVersion as number) >= 0 ? (obj.layoutVersion as number) : 0,
     frames: readSavedFrames(obj.frames), // §R5-1.1 — [] when absent / all-bad

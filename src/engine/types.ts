@@ -58,6 +58,29 @@ export type StateEvent = {
     | { kind: 'label'; applied: boolean; delta: number; clampAdjustment: number }
 }
 
+/** what held a ruled group below its target: a Pool's supply or a Pool's room, what
+ *  the target needed of it, and what was there at the group's turn */
+export type RunLimit = { why: 'supply' | 'room'; pool: string; needed: number; had: number }
+
+/** SEMANTICS-M6.md §M6-5 — one group's step under its rules. `moved` is the amount on
+ *  the `basis` line over that line's rate. `met` is within a ratio of 10⁻⁹ of the
+ *  target, so it does not say the target was filled exactly. */
+export type RunGroupReport = {
+  members: string[]
+  rules: { stage: string; wanted: number; target: number }[]
+  target: number
+  decidedBy: string
+  capped: boolean
+  moved: number
+  basis: string | null
+  state: 'off' | 'stopped' | 'met' | 'short'
+  why: 'rule' | 'lowest' | 'activator' | 'floor' | 'pullAll' | 'supply' | 'room' | null
+  cause: 'supply' | 'room' | null
+  pool: string | null
+  needed: number | null
+  had: number | null
+}
+
 export type StepReport = {
   /** transfers with amount > epsilon, in deterministic emission order */
   events: FlowEvent[]
@@ -83,6 +106,9 @@ export type StepReport = {
    *  table line, ascending `edgeId`, unrounded. Present only on a step that
    *  read a table. */
   timetableLines?: TimetableLineReport[]
+  /** loop-model/6 (SEMANTICS-M6.md §M6-5) — one entry per group that holds a rule,
+   *  ascending by first member. Present only on a step of a document with a rule. */
+  runs?: RunGroupReport[]
   /** loop-model/3 (SEMANTICS-M3.md §M3-5, L1) — this step's deliveries into
    *  Drains and Ends, grouped per kind and per exit node. Present only when
    *  `step` was given a kinds table; a `loop-model/2` report is unchanged. */

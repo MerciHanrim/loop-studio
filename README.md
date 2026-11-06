@@ -132,7 +132,7 @@ new spec id, never an edit to a frozen one.
 
 - **Engine & simulation** — [`SEMANTICS.md`](docs/specs/SEMANTICS.md), [`SEMANTICS-B1.md`](docs/specs/SEMANTICS-B1.md) (seeded RNG), [`SEMANTICS-B2.md`](docs/specs/SEMANTICS-B2.md) (Monte Carlo)
 - **State connections** — [`SEMANTICS-S4.md`](docs/specs/SEMANTICS-S4.md) (`trigger` / `activator` / `label`; the latest of a sequential S1→S4 series, each frozen on its own)
-- **Model language & expressions** — [`SEMANTICS-X.md`](docs/specs/SEMANTICS-X.md), [`SEMANTICS-M5.md`](docs/specs/SEMANTICS-M5.md) (timetables — the latest of a sequential M1→M5 series; [`SEMANTICS-M4.md`](docs/specs/SEMANTICS-M4.md) is units and the step length, [`SEMANTICS-M3.md`](docs/specs/SEMANTICS-M3.md) resource kinds and per-kind conservation)
+- **Model language & expressions** — [`SEMANTICS-X.md`](docs/specs/SEMANTICS-X.md), [`SEMANTICS-M6.md`](docs/specs/SEMANTICS-M6.md) (run rules — the latest of a sequential M1→M6 series; [`SEMANTICS-M5.md`](docs/specs/SEMANTICS-M5.md) is timetables, [`SEMANTICS-M4.md`](docs/specs/SEMANTICS-M4.md) units and the step length, [`SEMANTICS-M3.md`](docs/specs/SEMANTICS-M3.md) resource kinds and per-kind conservation)
 - **File formats & revisions** — [`SEMANTICS-W2.md`](docs/specs/SEMANTICS-W2.md) (Workspace — the latest of a sequential W1→W2 series), [`SEMANTICS-U.md`](docs/specs/SEMANTICS-U.md) (Share links, with [errata](docs/specs/SEMANTICS-U-ERRATA.md)), [`SEMANTICS-P.md`](docs/specs/SEMANTICS-P.md) (password-protected share links), [`SEMANTICS-R8.md`](docs/specs/SEMANTICS-R8.md) (revision projection/diff/Apply — the latest of a sequential R1→R8 series)
 
 **Project revisions & proposals** — a worked, file-based walkthrough of the

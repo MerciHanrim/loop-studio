@@ -1,7 +1,8 @@
 import type { Activation, LoopEdge, LoopNode } from '../model/types'
 import { kindFindingText, refusingKindFindings, resolveKinds, type ResourceKindDecl } from '../model/kinds'
 import { applyUnits } from '../model/engineValues'
-import { hasTimetables } from '../model/modelVersion'
+import { hasRunRules, hasTimetables } from '../model/modelVersion'
+import { anyRunRule, planRuns, runFindings, runFindingText, runReports } from '../model/runRule'
 import { applyTimetables, timetableFindings, timetableFindingText, timetableLines, unmetAmount, type PlannedLine, type Timetable } from '../model/timetable'
 import type { DocTime } from '../model/units'
 import { boundaryOutflowByKind } from './boundaryOutflow'
@@ -26,7 +27,7 @@ import {
 // every other direct `from './step'` import of it — unchanged. A bare
 // `import` does not re-export a name, so this line is required.
 export { ROUTER_KINDS } from './stateExpr'
-import { EPSILON, type FlowEvent, type GateStatus, type SimState, type SimValues, type StateEvent, type StepNotice, type StepResult, type TimetableLineReport, type TriggerQueueEntry } from './types'
+import { EPSILON, type FlowEvent, type GateStatus, type RunLimit, type SimState, type SimValues, type StateEvent, type StepNotice, type StepResult, type TimetableLineReport, type TriggerQueueEntry } from './types'
 
 // Engine A — the deterministic core. Implements SEMANTICS.md §6 exactly:
 // Phase 1 push (Sources), then Phase 2 pull (Gate / Converter / Drain / End)
@@ -127,10 +128,13 @@ export function step(
   // a Converter's target, and what `pull all` must reach of it. A ratio, so a small
   // target cannot pass with nothing moved; at a target of 1 it is the `1 − EPSILON`
   // this test has always been.
-  const runOf = (id: string): number => opts.runTargets?.[id] ?? 1
+  let runTargets = opts.runTargets
+  const runOf = (id: string): number => runTargets?.[id] ?? 1
   const RUN_REACHED = 1 - EPSILON
   /** a planned group's `pull all` need per member: the target its number asks for */
   const planNeed = new Map<string, number>()
+  /** SEMANTICS-M6.md §M6-5 — what held a ruled stage below its target, by member */
+  const runLimit = new Map<string, RunLimit>()
   // loop-model/4 (SEMANTICS-M4.md §M4-2.1) — the engine reads the DERIVED
   // graph: every unit-bearing field at its engine value. The same arrays come
   // back when no field names a unit (M4-INV-1). The kind findings below read
@@ -138,6 +142,19 @@ export function step(
   const authoredNodes = nodes
   const authoredEdges = edges
   ;({ nodes, edges } = applyUnits(nodes, edges, opts.kinds, opts.time))
+  // loop-model/6 (SEMANTICS-M6.md §M6-3) — a rule that cannot run refuses the step:
+  // nothing moves and the step is not consumed. A broken rule stops the run, because
+  // a plant that quietly ran at a default would look like a result.
+  const ruled = hasRunRules(modelVersion) && anyRunRule(authoredNodes)
+  if (ruled) {
+    const found = runFindings(authoredNodes, authoredEdges, opts.timetables, opts.kinds, opts.time, modelVersion)
+    if (found.length) {
+      return {
+        state: { step: prev.step, values: prev.values, ended: false, fired: [], triggerQueue: prev.triggerQueue },
+        report: { events: [], activated: [], fired: [], stateEvents: [], diagnostics: found.map((f) => runFindingText(f, nodes)), notices: [], gates: [] },
+      }
+    }
+  }
   // loop-model/5 (SEMANTICS-M5.md §M5-5) — a table line that cannot run refuses
   // the step: nothing moves and the step is not consumed. Otherwise each table
   // line carries this step's amount as a constant from here on, so every phase
@@ -213,15 +230,30 @@ export function step(
   }
   // loop-model/5 (§M5-4) — a `stop` table does not cover this step: the run ends
   // before it. Nothing is invented for the part of the step it does not describe.
-  if (tablePlan?.endedBy) {
+  // A table a rule reads ends it the same way, before any rule is used.
+  const runPlan = ruled ? planRuns(authoredNodes, authoredEdges, opts.timetables, opts.kinds, opts.time, prev.values, curStep, modelVersion) : null
+  const endedBy = tablePlan?.endedBy ?? runPlan?.endedBy
+  if (endedBy) {
     return {
       state: { step: prev.step, values: prev.values, ended: true, fired: [], triggerQueue: prev.triggerQueue },
       report: {
         events: [], activated: [], fired: [], stateEvents: [], diagnostics: [], gates: [],
-        notices: [{ kind: 'timetableEnded', tableId: tablePlan.endedBy.id, label: tablePlan.endedBy.label }],
+        notices: [{ kind: 'timetableEnded', tableId: endedBy.id, label: endedBy.label }],
       },
     }
   }
+  // loop-model/6 (§M6-4) — each rule has read the step's start state; a fraction that
+  // is not finite refuses the step, as a table plan does
+  if (runPlan?.outOfRange) {
+    return {
+      state: { step: prev.step, values: prev.values, ended: false, fired: [], triggerQueue: prev.triggerQueue },
+      report: {
+        events: [], activated: [], fired: [], stateEvents: [], notices: [], gates: [],
+        diagnostics: [`Can't run "${byId.get(runPlan.outOfRange)?.data.label ?? runPlan.outOfRange}": its run rule asks for a fraction out of range. Nothing moved.`],
+      },
+    }
+  }
+  if (runPlan) runTargets = runPlan.targets
   // loop-model/2 (SEMANTICS-M2.md §M2-3): in a v2 document, resolve every
   // `@id` / malformed-`@…` flow to a `const` once, before any phase. Every
   // unresolved reference contributes 0 + one diagnostic; a resolved finite
@@ -1267,7 +1299,18 @@ export function step(
         for (const [p, r] of need) inNeed.set(p, (inNeed.get(p) ?? 0) + c * r)
         for (const [q, make] of convMake.get(m)!) if (isPool(q)) outCoef.set(q, (outCoef.get(q) ?? 0) + c * make)
       }
-      for (const [p, k] of inNeed) if (k > EPSILON) bound(Math.max(0, availOf(p)) / k)
+      // §M6-5 — the tightest limit on the group's number, for the report
+      let lim: { why: 'supply' | 'room'; pool: string; per: number; had: number } | null = null
+      let limV = Infinity
+      for (const [p, k] of inNeed) {
+        if (k <= EPSILON) continue
+        const v = Math.max(0, availOf(p)) / k
+        if (v < limV) {
+          limV = v
+          lim = { why: 'supply', pool: p, per: k, had: Math.max(0, availOf(p)) }
+        }
+        bound(v)
+      }
       // #471 item 5 (Lumi, 2026-11-03) — a Pool's room is checked ALONG THE
       // GROUP'S COMMIT ORDER, not on the members' total: from the Pool as it
       // stands, each member's take lowers the level at its turn and each
@@ -1334,7 +1377,14 @@ export function step(
           continue
         }
         const peak = peakAt(q, 1) // linear in s without the Gate's pulls
-        if (peak > EPSILON) bound(roomOf(q) / peak)
+        if (peak > EPSILON) {
+          const v = roomOf(q) / peak
+          if (v < limV) {
+            limV = v
+            lim = { why: 'room', pool: q, per: peak, had: roomOf(q) }
+          }
+          bound(v)
+        }
       }
       // a Gate fed from its own Pools (a group's source — a Gate fed by a
       // router has no Pool input, or the group would be multi): what it can
@@ -1398,8 +1448,11 @@ export function step(
       const modeOf = (id: string) => ((byId.get(id)?.data as { mode?: string } | undefined)?.mode ?? 'pullAny')
       let zeroAt: string | null = null // #477 — '' for a short `pull all` Converter, the Gate's id for its own fixed demand
       // the number the targets alone allow: what a `pull all` member must reach
-      const targeted = members.some((m) => opts.runTargets?.[m] !== undefined)
+      const targeted = members.some((m) => runTargets?.[m] !== undefined)
       const sCap = targeted ? Math.min(...members.filter((m) => kindOf(m) === 'converter' && (cof.get(m) ?? 0) > EPSILON).map((m) => runOf(m) / cof.get(m)!)) : 1
+      if (ruled && lim && limV < sCap * RUN_REACHED) {
+        for (const m of members) if (!runLimit.has(m)) runLimit.set(m, { why: lim.why, pool: lim.pool, needed: lim.per * sCap, had: lim.had })
+      }
       for (const m of members) {
         if (kindOf(m) !== 'converter' || disabledPullAll.has(m)) continue
         const need = targeted ? Math.min(1, (cof.get(m) ?? 0) * sCap) : 1
@@ -2245,6 +2298,32 @@ export function step(
         }
         fOut = Math.min(fOut, sharedPoolBound(makeInto, own, needFrom)) // #492 — a Pool reached by two paths
 
+        // §M6-5 — the tightest limit below the target, for the report
+        if (ruled && !runLimit.has(id)) {
+          const T = runOf(id)
+          let v = T
+          let rec: RunLimit | null = null
+          for (const [p, need] of needFrom) {
+            const x = availOf(p) / need
+            if (x < v * RUN_REACHED) {
+              v = x
+              rec = { why: 'supply', pool: p, needed: T * need, had: availOf(p) }
+            }
+          }
+          for (const [q, make] of makeInto) {
+            if (!isPool(q)) continue
+            const net = make - (needFrom.get(q) ?? 0)
+            if (net <= EPSILON) continue
+            const room = headroom(q) + (own?.get(q) ?? 0)
+            const x = room / net
+            if (x < v * RUN_REACHED) {
+              v = x
+              rec = { why: 'room', pool: q, needed: T * net, had: room }
+            }
+          }
+          if (rec) runLimit.set(id, rec)
+        }
+
         // the fraction, before anything moves — `pull all` is decided on it
         let fDry = sumIn > EPSILON ? (inboxHave + fPool * sumInPool) / sumIn : 0
         fDry = nz(Math.max(0, Math.min(runOf(id), fDry, fOut)))
@@ -2491,6 +2570,8 @@ export function step(
       notices,
       gates,
       ...(tableLines ? { timetableLines: tableLines } : {}),
+      // §M6-5 — one entry per group with a rule; a document with none has no key
+      ...(runPlan ? { runs: runReports(runPlan.rules, nodes, edges, events, stateEvents, runLimit) } : {}),
       // §M3-5 (L1) — only for a document with a kinds table; a v2 report has no key
       ...(kindRes ? { boundaryOutflow: boundaryOutflowByKind(events, nodes, liveEdges, kindRes.edgeKind) } : {}),
     },
