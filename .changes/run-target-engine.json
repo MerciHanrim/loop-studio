@@ -1,0 +1,1 @@
+{"type":"internal","reason":"The engine gains an internal option to run a Converter at a target fraction, with `pull all` meaning reaching it. No document can set it yet, and no result changes."}
