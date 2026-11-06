@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import desalDoc from '../../examples/desalination.json'
 import { useGraphStore } from '../store/graphStore'
-import { __syncFullGeneration, currentRouteGeneration } from '../store/routeMap'
+import { __planFans, __syncFullGeneration, currentRouteGeneration } from '../store/routeMap'
 import { useUiStore } from '../store/uiStore'
 import { graphReadEdges, isReadEdge, READ_PORT_OFFSET, readEdges, withReadEdges } from './readEdges'
 import { fullContentDigest } from './revision'
@@ -112,6 +112,25 @@ describe('read connections', () => {
     const after = __syncFullGeneration(ruled(PAIRS), edges)
     expect(pointsOf(after, ids)).toEqual(before)
     expect(PAIRS.every(([, s]) => after.has(`read:${s}`))).toBe(true)
+  })
+
+  it('take another id when a stored line already holds theirs', () => {
+    const nodes = [pool('t', 0, 0), stage('s', 300, 0, 't'), pool('u', 600, 0)]
+    const edges = [line('read:s', 's', 'u', 'right'), line('a', 't', 's', 'right')]
+    const reads = graphReadEdges(nodes, edges)
+    expect(reads).toHaveLength(1)
+    const ids = withReadEdges(nodes, edges).map((e) => e.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    const map = __syncFullGeneration(nodes, edges)
+    expect(map.get('read:s')!.points).not.toEqual(map.get(reads[0]!.id)!.points)
+  })
+
+  it('never take a stored line for one, whatever its id', () => {
+    const nodes = [pool('t', 0, 0), stage('s', 300, 0)]
+    const stored = line('read:x', 't', 's', 'right')
+    expect(isReadEdge(stored)).toBe(false)
+    // `__planFans` reports the document lines the plan holds
+    expect(__planFans(nodes, [stored]).fans['read:x']).toBeDefined()
   })
 
   it('leave both digests of the document as they were', async () => {

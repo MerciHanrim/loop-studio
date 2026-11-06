@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { EdgeChange, NodeChange, Viewport } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
 import { nameFootprintsOf } from '../store/routeMap'
-import { graphReadEdges, isReadEdge, readStageOf } from '../model/readEdges'
+import { graphReadEdges } from '../model/readEdges'
 import type { LoopEdge, LoopNode } from '../model/types'
 
 // docs/dense-graph-pan.md — a transparent pan-capture layer over the canvas.
@@ -391,7 +391,9 @@ export function PanSurface({
       const nid = nodeAt(e.clientX, e.clientY)
       const eid = nid ? null : edgeAt(e.clientX, e.clientY)
       // §M6-7 — a read connection is no connection: a tap on it selects its stage
-      if (eid && isReadEdge({ id: eid })) applySelection(readStageOf(eid), null)
+      const g = useGraphStore.getState()
+      const read = eid ? graphReadEdges(g.nodes, g.edges).find((r) => r.id === eid) : undefined
+      if (read) applySelection(read.target, null)
       else applySelection(nid, eid)
     }
 

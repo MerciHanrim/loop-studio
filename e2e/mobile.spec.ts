@@ -2299,3 +2299,22 @@ test('a read connection shows on the phone, and a tap on it selects the stage', 
   const edge = await page.evaluate(() => (window as unknown as { __loop: Record<string, { getState: () => { selectedEdgeId: string | null } }> }).__loop.graph.getState().selectedEdgeId)
   expect(edge).toBeNull()
 })
+
+test('a tap on a stored line whose id starts as a read connection’s does selects that line', async ({ page }) => {
+  await openApp(page)
+  const pool = (id: string, x: number) => ({ id, type: 'pool', position: { x, y: 0 }, data: { kind: 'pool', label: id, activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } })
+  await importGraph(
+    page,
+    JSON.stringify({
+      schema: 'loop-studio/graph/6',
+      version: 1,
+      nodes: [pool('a', 0), pool('b', 300)],
+      edges: [{ id: 'read:x', source: 'a', target: 'b', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '10' } }],
+    }),
+  )
+  const box = (await page.locator('.edge-label[data-edge-id="read:x"]').boundingBox())!
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2)
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __loop: Record<string, { getState: () => { selectedEdgeId: string | null } }> }).__loop.graph.getState().selectedEdgeId)).toBe('read:x')
+  const node = await page.evaluate(() => (window as unknown as { __loop: Record<string, { getState: () => { selectedNodeId: string | null } }> }).__loop.graph.getState().selectedNodeId)
+  expect(node).toBeNull()
+})

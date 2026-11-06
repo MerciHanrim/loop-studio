@@ -11,14 +11,15 @@ import { faceOf, nameFaceFor } from './ports'
 import { ruleOf } from './runRule'
 import type { LoopEdge, LoopNode, PortFace } from './types'
 
-export const READ_EDGE_PREFIX = 'read:'
+const READ_EDGE_PREFIX = 'read:'
 /** how far beside a face's centre a read connection's own port sits, px: more than
  *  the router's 10 px parallel gap, and inside a Converter's flat side of ±16 */
 export const READ_PORT_OFFSET = 12
 
-export const isReadEdge = (e: { id: string }): boolean => e.id.startsWith(READ_EDGE_PREFIX)
-/** the stage a read connection's id belongs to */
-export const readStageOf = (id: string): string => id.slice(READ_EDGE_PREFIX.length)
+/** A read connection is known by `data.readPort`, which only `readEdges` sets: a file
+ *  may give a stored line any id or type, but reading a file rebuilds `data` from the
+ *  keys it knows, so this one never comes from a file. */
+export const isReadEdge = (e: { data?: unknown }): boolean => (e.data as { readPort?: unknown } | undefined)?.readPort !== undefined
 
 function occupied(id: string, edges: readonly LoopEdge[]): { used: Set<PortFace>; name: PortFace } {
   const used = new Set<PortFace>()
@@ -76,6 +77,14 @@ export function readEdges(nodes: readonly LoopNode[], edges: readonly LoopEdge[]
   // a spot holds one line: a tank that two stages read gives each its own
   const taken = new Set<string>()
   const key = (id: string, s: Spot) => `${id}|${s.face}|${s.d}`
+  // a stored line may already hold the id: routes and React Flow key on it
+  const ids = new Set(edges.map((e) => e.id))
+  const freeId = (stageId: string): string => {
+    let id = `${READ_EDGE_PREFIX}${stageId}`
+    while (ids.has(id)) id += '~'
+    ids.add(id)
+    return id
+  }
   for (const stage of nodes) {
     if (stage.data?.kind !== 'converter') continue
     const tankId = ruleOf(stage)?.tank
@@ -91,7 +100,7 @@ export function readEdges(nodes: readonly LoopNode[], edges: readonly LoopEdge[]
     taken.add(key(tank.id, a))
     taken.add(key(stage.id, b))
     out.push({
-      id: `${READ_EDGE_PREFIX}${stage.id}`,
+      id: freeId(stage.id),
       type: 'read',
       source: tank.id,
       target: stage.id,

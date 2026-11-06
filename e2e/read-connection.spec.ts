@@ -96,6 +96,54 @@ test('it stays out of the document, the undo history, the run and the connection
   await expect(page.locator('.wb-rel__row')).toHaveCount(2)
 })
 
+// a file may give a stored line any id or type, so neither says what a line is
+const storedAs = (run: unknown, change: (e: Record<string, any>) => void) => {
+  const doc = JSON.parse(plant(run))
+  change(doc.edges[1])
+  return JSON.stringify(doc)
+}
+const chip = (page: Page, id: string) => page.locator(`.edge-label[data-edge-id="${id}"]`)
+/** a chip takes no pointer: this presses the line under it */
+const pressLineAt = async (page: Page, id: string) => {
+  const box = (await chip(page, id).boundingBox())!
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+}
+
+test('a stored line holding the id a read connection would take stays a stored line', async ({ page }) => {
+  await openApp(page)
+  await importGraph(page, storedAs(RULE, (e) => (e.id = 'read:ro')))
+  await expect(page.locator('.react-flow__edge')).toHaveCount(3)
+  await expect(page.locator('[data-read-edge]')).toHaveCount(1)
+  expect(await page.locator('[data-read-edge]').getAttribute('data-read-edge')).not.toBe('read:ro')
+  await pressLineAt(page, 'read:ro')
+  await expect.poll(async () => (await graph(page)).edge).toBe('read:ro')
+  expect((await graph(page)).node).toBeNull()
+  const box = (await page.locator('[data-read-edge] .read-edge__line').boundingBox())!
+  await page.mouse.click(box.x + box.width / 2, box.y + (box.height < 4 ? box.height / 2 : 0.75))
+  await expect.poll(async () => (await graph(page)).node).toBe('ro')
+  expect((await graph(page)).edge).toBeNull()
+})
+
+test('a stored line whose id starts as a read connection’s does is selected as itself', async ({ page }) => {
+  await openApp(page)
+  await importGraph(page, storedAs(null, (e) => (e.id = 'read:x')))
+  await expect(page.locator('[data-read-edge]')).toHaveCount(0)
+  await pressLineAt(page, 'read:x')
+  await expect.poll(async () => (await graph(page)).edge).toBe('read:x')
+  expect((await graph(page)).node).toBeNull()
+})
+
+test('a file cannot make a stored line look or route as a read connection', async ({ page }) => {
+  await openApp(page)
+  await importGraph(page, storedAs(null, (e) => {
+    e.type = 'read'
+    e.data.readPort = { source: 12, target: 12 }
+  }))
+  await expect(chip(page, 'out')).toBeVisible()
+  await expect(page.locator('[data-read-edge]')).toHaveCount(0)
+  expect((await graph(page)).doc).not.toContain('readPort')
+})
+
 test('it goes when the rule goes', async ({ page }) => {
   await openApp(page)
   await importGraph(page, plant(RULE))

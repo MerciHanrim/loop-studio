@@ -18,6 +18,7 @@ import type { CueRole } from '../../store/playbackRank'
 import { useUiStore } from '../../store/uiStore'
 import { currentRouteGeneration, setRouteLabelSize, setRouteRunFormSize, useRouteInputs, type LabelSide } from '../../store/routeMap'
 import { freeLinePoints, pointAlong } from './freeLine'
+import { isReadEdge } from '../../model/readEdges'
 import { ReadEdge } from './ReadEdge'
 import { RouteBends } from './RouteBends'
 import { EndGrips } from './EndGrips'
@@ -1072,7 +1073,10 @@ function stateVisual(ev: StateEvent | undefined): StateVisual | null {
   return { kind: 'label', delta: ev.effect.delta, clampAdjustment: ev.effect.clampAdjustment }
 }
 
+/** §M6-7 — a file may name any type, so `read` alone does not make a read connection */
+const ReadOrStoredEdge = (props: EdgeProps) => (isReadEdge(props) ? <ReadEdge {...props} /> : <LoopEdge {...props} />)
+
 export const edgeTypes: EdgeTypes = {
   loop: LoopEdge,
-  read: ReadEdge,
+  read: ReadOrStoredEdge,
 }

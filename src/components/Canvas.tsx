@@ -32,7 +32,7 @@ import { type MessageKey, useLocaleDirection, useT } from '../i18n'
 import { useFilterStore } from '../store/filterStore'
 import { nodeTypes } from './nodes/nodes'
 import { edgeTypes } from './edges/LoopEdge'
-import { graphReadEdges, isReadEdge, readStageOf } from '../model/readEdges'
+import { graphReadEdges, isReadEdge } from '../model/readEdges'
 import { EdgeMarkers } from './edges/EdgeMarkers'
 import { holdConnectTouch, isFurtherTouchDuringHold, releaseConnectTouch } from './edges/connectTouchHold'
 import { computeFocusSet, useFocusSet } from './focusSet'
@@ -926,7 +926,7 @@ export function Canvas() {
     (e: React.MouseEvent, edge: LoopEdge) => {
       // §M6-7 — a read connection is no connection: a click on it selects its stage
       if (isReadEdge(edge)) {
-        selectOnly({ node: readStageOf(edge.id) })
+        selectOnly({ node: edge.target })
         return
       }
       if (useRouteEditStore.getState().addBendFor != null && !noEdit) {
