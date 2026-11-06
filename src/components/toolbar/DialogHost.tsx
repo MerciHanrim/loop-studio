@@ -7,6 +7,7 @@ import { StoragePrivacyDialog } from '../StoragePrivacyDialog'
 import { DataImportRefreshMenu } from '../dataImport/DataImportRefreshMenu'
 import { DataImportWizard } from '../dataImport/DataImportWizard'
 import { TimetableImportDialog } from '../dataImport/TimetableImportDialog'
+import { RunRuleHelpDialog } from '../RunRuleHelpDialog'
 import { StepOrderDialog } from '../StepOrderDialog'
 import { useT } from '../../i18n'
 import { hasKindsTable, hasUnits } from '../../model/modelVersion'
@@ -97,6 +98,11 @@ export function DialogHost({ activeDialog, onClose, returnFocusTo }: Props) {
       />
       <StepOrderDialog
         open={activeDialog?.kind === 'stepOrder'}
+        onClose={onClose}
+        returnFocusTo={returnFocusTo}
+      />
+      <RunRuleHelpDialog
+        open={activeDialog?.kind === 'runRule'}
         onClose={onClose}
         returnFocusTo={returnFocusTo}
       />

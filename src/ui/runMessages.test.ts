@@ -8,7 +8,7 @@ import type { RunFindingCode } from '../model/runRule'
 import { GraphFileError } from '../model/serialize'
 import type { LoopEdge, LoopNode } from '../model/types'
 import { importErrorMessage } from './importError'
-import { runNoticeText, runRefusalText, runStreak } from './runMessages'
+import { fullPercent, poolAmounts, runNoticeText, runOffText, runRefusalText, runStreak, runWarningText } from './runMessages'
 
 // SEMANTICS-M6.md — what a person reads about a run rule. The words are the catalog's,
 // with each slot filled, so a test here reads as the run bar does.
@@ -52,22 +52,62 @@ describe('a refusal names the stage, and says what to fix', () => {
   })
 })
 
+describe('why a stage is off, and what a step length asks', () => {
+  const off = (why: RunGroupReport['why'], wanted = 0): RunGroupReport => ({ members: ['ro'], rules: [{ stage: 'ro', wanted, target: 0 }], target: 0, decidedBy: 'ro', capped: false, moved: 0, basis: null, state: 'off', why, cause: null, pool: null, needed: null, had: null })
+
+  it('each reason has its words, and the lowest case both numbers', () => {
+    expect(runOffText(off('rule'), undefined, t as never)).toBe('The rule asks for 0.')
+    expect(runOffText(off('activator'), undefined, t as never)).toBe('An activator holds this stage off.')
+    expect(runOffText(off('lowest', 0.3), '0.5', t as never)).toBe('Wanted 30 %, below the lowest run of 50 %.')
+  })
+
+  it('a warning gives both numbers in the tank’s reading', () => {
+    const tank = [{ id: 'store', data: { kind: 'pool', label: 'Store' } }] as unknown as LoopNode[]
+    const amount = (_p: string, n: number) => `${n} m³`
+    expect(runWarningText({ code: 'band-under-step', stage: 'ro', tank: 'store', band: 10, amount: 45 }, tank, t as never, amount)).toContain('The band of 10 m³ is under the 45 m³ this stage moves at Store')
+    expect(runWarningText({ code: 'level-under-pull', stage: 'ro', tank: 'store', level: 270, amount: 284 }, tank, t as never, amount)).toContain('The target level of 270 m³ is under the 284 m³ taken from Store')
+    expect(runWarningText({ code: 'tank-under-take', stage: 'ro', tank: 'store', capacity: 1200, amount: 1800 }, tank, t as never, amount)).toContain('Store holds at most 1200 m³, under the 1800 m³')
+  })
+})
+
 describe('a notice says what held the stage, and for how long', () => {
-  const held = (state: 'short' | 'stopped', why: 'supply' | 'room' = 'supply'): RunNotice => ({ kind: 'runHeld', group: 'ro', label: 'RO', state, limit: { why, pool: 'Feed', needed: 50, had: 30 } })
+  const held = (state: 'short' | 'stopped', why: 'supply' | 'room' = 'supply'): RunNotice => ({ kind: 'runHeld', group: 'ro', label: 'RO', state, limit: { why, pool: 'Feed', poolId: 'feed', needed: 50, had: 30 } })
+  const plain = (_pool: string, base: number) => String(base)
 
   it('short and stopped, supply and room', () => {
-    expect(runNoticeText(held('short'), 3, t as never)).toBe('RO ran below its target: Feed held 30 of the 50 it needed. Steps in a row: 3.')
-    expect(runNoticeText(held('short', 'room'), 1, t as never)).toBe('RO ran below its target: Feed had room for 30 of 50. Steps in a row: 1.')
-    expect(runNoticeText(held('stopped'), 2, t as never)).toBe('RO did not run: Feed held 30 of the 50 it needed. Steps in a row: 2.')
-    expect(runNoticeText(held('stopped', 'room'), 2, t as never)).toBe('RO did not run: Feed had room for 30 of 50. Steps in a row: 2.')
+    expect(runNoticeText(held('short'), 3, t as never, plain)).toBe('RO ran below its target: Feed held 30 of the 50 it needed. Steps in a row: 3.')
+    expect(runNoticeText(held('short', 'room'), 1, t as never, plain)).toBe('RO ran below its target: Feed had room for 30 of 50. Steps in a row: 1.')
+    expect(runNoticeText(held('stopped'), 2, t as never, plain)).toBe('RO did not run: Feed held 30 of the 50 it needed. Steps in a row: 2.')
+    expect(runNoticeText(held('stopped', 'room'), 2, t as never, plain)).toBe('RO did not run: Feed had room for 30 of 50. Steps in a row: 2.')
+  })
+
+  it('reads a Pool’s amounts in the unit it is authored in', () => {
+    const feed = { id: 'feed', data: { kind: 'pool', label: 'Feed', resourceType: 'water', unit: 'L' } } as unknown as LoopNode
+    const kinds = [{ name: 'water', conserved: false, baseUnit: 'm³', units: [{ name: 'L', factor: '0.001' }] }] as never
+    expect(runNoticeText(held('short'), 1, t as never, poolAmounts([feed], kinds, undefined))).toBe('RO ran below its target: Feed held 30000 L of the 50000 L it needed. Steps in a row: 1.')
+  })
+
+  it('a Pool in no unit reads in its kind’s base unit, and with no kind as a bare number', () => {
+    const named = { id: 'a', data: { kind: 'pool', label: 'A', resourceType: 'water' } } as unknown as LoopNode
+    const bare = { id: 'b', data: { kind: 'pool', label: 'B' } } as unknown as LoopNode
+    const amount = poolAmounts([named, bare], [{ name: 'water', conserved: false, baseUnit: 'm³' }] as never, undefined)
+    expect(amount('a', 12.5)).toBe('12.5 m³')
+    expect(amount('b', 12.5)).toBe('12.5')
+  })
+
+  it('cuts an amount to six figures, and never writes one with an exponent', () => {
+    const amount = poolAmounts([], [], undefined)
+    expect(amount('x', 1234.56789)).toBe('1234.57')
+    expect(amount('x', 0.00000005)).toBe('0.00000005')
+    expect(fullPercent(0.0000000005)).toBe('0.00000005')
   })
 
   it('the engine’s floor has no Pool to name', () => {
-    expect(runNoticeText({ kind: 'runHeld', group: 'ro', label: 'RO', state: 'stopped', limit: null }, 4, t as never)).toBe('RO did not run: its target is too small to move anything. Steps in a row: 4.')
+    expect(runNoticeText({ kind: 'runHeld', group: 'ro', label: 'RO', state: 'stopped', limit: null }, 4, t as never, plain)).toBe('RO did not run: its target is too small to move anything. Steps in a row: 4.')
   })
 
   it('a rule above a full run', () => {
-    expect(runNoticeText({ kind: 'runCapped', group: 'ro', label: 'RO', wanted: 1.3 }, 1, t as never)).toBe('The run rule on RO asks for 130 % of a full run, and it stops at 100 %.')
+    expect(runNoticeText({ kind: 'runCapped', group: 'ro', label: 'RO', wanted: 1.3 }, 1, t as never, plain)).toBe('The run rule on RO asks for 130 % of a full run, and it stops at 100 %.')
   })
 
   it('the words never say a target was filled exactly', () => {

@@ -42,6 +42,7 @@ import { IconField } from './IconField'
 import { DraftNumberInput } from './DraftNumberInput'
 import { EdgeEndsField } from './EdgeEndsField'
 import { RegisterExprField } from './RegisterExprField'
+import { RunRuleSection } from './RunRuleSection'
 import { EdgeRelation, NodeRelations } from './workbench/Relations'
 import { connectReasonText } from './connectReason'
 import { CONNECT_LABEL } from './connectKindWords'
@@ -50,6 +51,7 @@ import { useT, type MessageKey } from '../i18n'
 import { GATE_STATE_KEY, GATE_WHY_KEY } from './nodes/nodes'
 import { isolateAuto, isolateLtr } from '../i18n/bidiIsolate'
 import { hasTimetables } from '../model/modelVersion'
+import { rulesFollowingTank } from '../model/runRule'
 import { firstUncoveredStep, timetableRef } from '../model/timetable'
 import type {
   ConverterData,
@@ -259,6 +261,8 @@ export function Inspector({ editLocked = false }: { editLocked?: boolean } = {})
         {d.kind === 'parameter' && <ParameterFields d={d} set={set} />}
         {d.kind === 'register' && <RegisterFields id={node.id} d={d} set={set} />}
         </section>
+        {/* keyed per node, so a half-made rule never carries over to the next stage */}
+        {d.kind === 'converter' && <RunRuleSection key={node.id} node={node} />}
 
         {/* a mismatch is a finding, not a setting: it stays in view, with the
             way to the setting it is about, while that setting is folded */}
@@ -648,10 +652,12 @@ function UnitChangeConfirm({ pending, onDone }: { pending: PendingUnitChange | n
 /** a Pool's unit select (stock role): the base unit and the kind's amount
  *  units, never a rate. A change re-expresses `initial` and `capacity`
  *  exactly or asks first. Nothing while the Pool's kind declares no unit. */
-function PoolUnitField({ d, set }: { d: PoolData; set: Patch }) {
+function PoolUnitField({ id, d, set }: { id: string; d: PoolData; set: Patch }) {
   const t = useT()
   const kinds = useGraphStore((s) => s.kinds)
   const time = useGraphStore((s) => s.time)
+  const nodes = useGraphStore((s) => s.nodes)
+  const changePoolUnit = useGraphStore((s) => s.changePoolUnit)
   const [pending, setPending] = useState<PendingUnitChange | null>(null)
   const decl = kinds.find((k) => k.name === poolKindName(d))
   if (!decl || !decl.units?.length) return null
@@ -662,14 +668,19 @@ function PoolUnitField({ d, set }: { d: PoolData; set: Patch }) {
     const unitPatch = text === '' ? { unit: undefined } : { unit: text }
     const pi = previewUnitChange(d.initial, cur, to, time)
     const pc = d.capacity == null ? null : previewUnitChange(d.capacity, cur, to, time)
-    const valueOf = (p: NonNullable<ReturnType<typeof previewUnitChange>>) => Number(p.exact ? p.value : p.rounded)
-    const apply = () =>
-      set({
-        ...unitPatch,
-        initial: pi ? valueOf(pi) : d.initial,
-        ...(pc ? { capacity: valueOf(pc) } : {}),
-      })
-    const inexact = pi && !pi.exact ? { p: pi, from: d.initial } : pc && !pc.exact ? { p: pc, from: d.capacity as number } : null
+    const textOf = (p: NonNullable<ReturnType<typeof previewUnitChange>>) => (p.exact ? p.value : p.rounded)
+    const valueOf = (p: NonNullable<ReturnType<typeof previewUnitChange>>) => Number(textOf(p))
+    // §M6-9 — a rule in this Pool's own unit moves with it, as `initial` and `capacity`
+    // do, so the same amount stays the same amount
+    const followers = rulesFollowingTank(nodes, id).map(({ stage, rule }) => ({ stage, rule, level: previewUnitChange(rule.level!, cur, to, time), band: previewUnitChange(rule.band!, cur, to, time) }))
+    const rules = followers.map(({ stage, rule, level, band }) => ({ stage, rule: { ...rule, level: level ? textOf(level) : rule.level, band: band ? textOf(band) : rule.band } }))
+    const patch = { ...unitPatch, initial: pi ? valueOf(pi) : d.initial, ...(pc ? { capacity: valueOf(pc) } : {}) }
+    const apply = () => (rules.length > 0 ? changePoolUnit(id, patch, rules) : set(patch))
+    const ruled = followers.flatMap(({ rule, level, band }) => [
+      ...(level && !level.exact ? [{ p: level, from: rule.level! }] : []),
+      ...(band && !band.exact ? [{ p: band, from: rule.band! }] : []),
+    ])
+    const inexact = pi && !pi.exact ? { p: pi, from: d.initial as string | number } : pc && !pc.exact ? { p: pc, from: d.capacity as string | number } : (ruled[0] ?? null)
     if (inexact === null) return apply()
     setPending({ body: unitChangeBody(t, inexact.from, to, decl, inexact.p), apply })
   }
@@ -1528,7 +1539,7 @@ function PoolFields({ id, d, set }: { id: string; d: PoolData; set: Patch }) {
         onCommit={(n) => set({ initial: n ?? 0 })}
         hint={hintOf(d.initial)}
       />
-      <PoolUnitField d={d} set={set} />
+      <PoolUnitField id={id} d={d} set={set} />
       {/* node structure (Lumi, 2026-10-12): the CURRENT amount, read-only and
           apart from the authored starting amount — the whole number for the
           keyboard and touch paths. On the canvas the row is elided when the

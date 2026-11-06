@@ -50,6 +50,9 @@ function stateWords(t: Words, r: RunGroupReport | null, compact: boolean): strin
   return t('run.tag.run', { pct: isolateLtr(percentText(r.moved)) })
 }
 
+/** a step's state in the tag's own words, for a surface that reads one step */
+export const stageStateText = (t: Words, r: RunGroupReport): string => stateWords(t, r, false)
+
 /** every state's words at their widest numbers. Which is widest depends on the language
  *  and its font, so the block takes them all and the browser finds the size. */
 function everyState(t: Words, compact: boolean): string[] {

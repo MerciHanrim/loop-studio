@@ -43,7 +43,7 @@ test('a stage held below its target says which Pool held it', async ({ page }) =
   await importGraph(page, document().replace('"initial":1000', '"initial":10'))
   await advance(page)
   // the run bar's line, and its live region for a screen reader, say the same
-  await expect(page.getByText(/ran below its target: .*tank.* held 10 of the 25 it needed\. Steps in a row: 1\./).first()).toBeVisible()
+  await expect(page.getByText(/ran below its target: .*tank.* held .*10 m³.* of the .*25 m³.* it needed\. Steps in a row: 1\./).first()).toBeVisible()
 })
 
 test('a bad rule refuses the file, naming the stage', async ({ page }) => {

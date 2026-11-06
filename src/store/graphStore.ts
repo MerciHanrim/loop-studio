@@ -29,7 +29,7 @@ import type { ValidatedImportPlan } from '../model/dataImportValidate'
 import { buildRefreshCommit, parameterLabel, type RefreshCommitResult, type RefreshDiffPlan, type RefreshResolution } from '../model/dataImportRefresh'
 import { ImportTableLookup } from '../model/dataImportIndex'
 import { hasModelLayer, hasRunRules, hasTimetables, hasUnits } from '../model/modelVersion'
-import { anyRunRule, ruleOf, runGroupOf } from '../model/runRule'
+import { anyRunRule, ruleOf, runGroupOf, type RunRule } from '../model/runRule'
 import { canonicalKinds, kindsDeclareUnits, resolveKinds, type ResourceKindDecl } from '../model/kinds'
 import { exportUnits, type ExportUnits } from '../model/exportUnits'
 import { canonicalDocTime, type DocTime } from '../model/units'
@@ -425,6 +425,14 @@ type GraphStore = {
    *  `simulationRev` bump. A table promotes the document to `loop-studio/graph/5`,
    *  one-way. */
   setTimetables: (timetables: readonly Timetable[]) => void
+  /** loop-model/6 — set a Converter's run rule, or remove it with `null`: one undo entry
+   *  per field, one `simulationRev` bump. The first rule promotes the document to
+   *  `loop-studio/graph/6`, one-way. The caller hands a rule `readRunRule` accepts, so a
+   *  document never holds one that would refuse its own file. */
+  setRunRule: (id: string, rule: RunRule | null) => void
+  /** §M6-9 — a Pool's unit change with the rules that read in that unit, re-expressed by
+   *  the caller: one undo entry, so the Pool and its rules never part. */
+  changePoolUnit: (id: string, patch: Record<string, unknown>, rules: readonly { stage: string; rule: RunRule }[]) => void
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined
@@ -1810,6 +1818,43 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         // §M5-1 — a table promotes the document to /graph/5, one-way
         modelVersion: timetables.length > 0 && !hasTimetables(cur.modelVersion) ? 5 : cur.modelVersion,
       })
+      bump()
+      persist()
+    },
+
+    setRunRule: (id, rule) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
+      const node = get().nodes.find((n) => n.id === id)
+      if (node?.data.kind !== 'converter') return
+      const was = ((node.data as { run?: RunRule }).run ?? {}) as Record<string, unknown>
+      const next = (rule ?? {}) as Record<string, unknown>
+      const changed = [...new Set([...Object.keys(was), ...Object.keys(next)])].filter((k) => was[k] !== next[k])
+      if (changed.length === 0) return
+      commit(changed.length === 1 ? `data:${id}:run.${changed[0]}` : '')
+      set({
+        nodes: get().nodes.map((n) => {
+          if (n.id !== id) return n
+          const { run: _old, ...rest } = n.data as unknown as Record<string, unknown>
+          return { ...n, data: (rule ? { ...rest, run: rule } : rest) as unknown as LoopNode['data'] }
+        }),
+        // §M6-1 — a rule promotes the document to /graph/6, one-way
+        ...(rule && !hasRunRules(get().modelVersion) ? { modelVersion: 6 as const } : {}),
+      })
+      bump()
+      persist()
+    },
+
+    changePoolUnit: (id, patch, rules) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
+      commit('')
+      set({
+        nodes: get().nodes.map((n) => {
+          if (n.id === id) return { ...n, data: { ...n.data, ...patch } as LoopNode['data'] }
+          const held = rules.find((r) => r.stage === n.id)
+          return held ? { ...n, data: { ...n.data, run: held.rule } as unknown as LoopNode['data'] } : n
+        }),
+      })
+      if (typeof patch.unit === 'string' && patch.unit !== '' && !hasUnits(get().modelVersion)) set({ modelVersion: 4 })
       bump()
       persist()
     },

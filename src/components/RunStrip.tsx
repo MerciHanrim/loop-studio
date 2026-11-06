@@ -1,0 +1,107 @@
+import { useMemo, useState } from 'react'
+import type { RunGroupReport } from '../engine/types'
+import { useT } from '../i18n'
+import { isolateAuto } from '../i18n/bidiIsolate'
+import { hasRunRules } from '../model/modelVersion'
+import { anyRunRule, ruleOf, runGroupOf } from '../model/runRule'
+import { useGraphStore } from '../store/graphStore'
+import { fullPercent } from '../ui/runMessages'
+import { runStripPath } from '../ui/runStrip'
+import { RATE_STRIP_H } from './TimetableRateChart'
+
+// SEMANTICS-M6.md §M6-9 — what a ruled group was asked for and did, step by step, under
+// the rate strips. A fraction is neither a stock nor a rate, so it has its own 0 to 100 %
+// axis. Target and run differ by line pattern, so neither rests on colour.
+
+const PAD_TOP = 14
+const PAD_BOTTOM = 4
+
+export type RunStripGroup = {
+  /** the group's first member, as the report and the CSV name it */
+  id: string
+  /** the stages that hold its rules */
+  label: string
+}
+
+type Series = readonly { step: number; runs?: readonly RunGroupReport[] }[]
+
+/** the document's ruled groups, by first member */
+export function useRunStrips(): RunStripGroup[] {
+  const nodes = useGraphStore((s) => s.nodes)
+  const edges = useGraphStore((s) => s.edges)
+  const modelVersion = useGraphStore((s) => s.modelVersion)
+  return useMemo(() => {
+    if (!hasRunRules(modelVersion) || !anyRunRule(nodes)) return []
+    const groups = new Map<string, string[]>()
+    for (const n of nodes) {
+      if (ruleOf(n) === null) continue
+      const first = runGroupOf(nodes, edges, n.id).members[0]!
+      groups.set(first, [...(groups.get(first) ?? []), n.data.label || n.id])
+    }
+    return [...groups.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([id, labels]) => ({ id, label: labels.join(', ') }))
+  }, [nodes, edges, modelVersion])
+}
+
+function Strip({ group, series, width, padL, padR, minStep, maxStep }: { group: RunStripGroup; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number }) {
+  const t = useT()
+  const [hover, setHover] = useState<number | null>(null)
+  const iw = Math.max(1, width - padL - padR)
+  const span = Math.max(1, maxStep - minStep)
+  const x = (step: number) => padL + ((step - minStep) / span) * iw
+  const y = (v: number) => RATE_STRIP_H - PAD_BOTTOM - v * (RATE_STRIP_H - PAD_TOP - PAD_BOTTOM)
+  const reports = useMemo(() => series.map((p) => ({ step: p.step, report: p.runs?.find((r) => r.members[0] === group.id) ?? null })), [series, group.id])
+  const target = runStripPath(reports.map((p) => ({ step: p.step, value: p.report?.target ?? null })), x, y, minStep)
+  const moved = runStripPath(reports.map((p) => ({ step: p.step, value: p.report?.moved ?? null })), x, y, minStep)
+  const last = reports[reports.length - 1]?.report ?? null
+  const at = hover === null ? null : (reports.find((p) => p.step === hover) ?? null)
+  const stepAt = (clientX: number, box: DOMRect) => Math.min(maxStep, Math.max(minStep, Math.round(minStep + ((clientX - box.left - padL) / iw) * span)))
+  return (
+    <svg
+      className="timeline__rate timeline__run"
+      data-run-strip={group.id}
+      viewBox={`0 0 ${width} ${RATE_STRIP_H}`}
+      width={width}
+      height={RATE_STRIP_H}
+      role="img"
+      aria-label={
+        last
+          ? t('timeline.run.aria', { label: isolateAuto(group.label), target: isolateAuto(fullPercent(last.target)), moved: isolateAuto(fullPercent(last.moved)) })
+          : t('timeline.run.ariaIdle', { label: isolateAuto(group.label) })
+      }
+      onPointerMove={(e) => setHover(stepAt(e.clientX, e.currentTarget.getBoundingClientRect()))}
+      onPointerLeave={() => setHover(null)}
+    >
+      <line className="timeline__axis" x1={padL} y1={PAD_TOP} x2={padL} y2={RATE_STRIP_H - PAD_BOTTOM} />
+      <line className="timeline__axis" x1={padL} y1={RATE_STRIP_H - PAD_BOTTOM} x2={width - padR} y2={RATE_STRIP_H - PAD_BOTTOM} />
+      <text className="timeline__tick" direction="ltr" x={padL - 6} y={PAD_TOP + 4} textAnchor="end">
+        100
+      </text>
+      <text className="timeline__tick" direction="ltr" x={padL - 6} y={RATE_STRIP_H - PAD_BOTTOM} textAnchor="end">
+        0
+      </text>
+      <text className="timeline__tick timeline__rate-name" x={padL + 4} y={10}>
+        {t('timeline.run.name', { label: isolateAuto(group.label) })}
+      </text>
+      <path className="timeline__run-target" d={target} />
+      <path className="timeline__rate-line" d={moved} />
+      {at?.report ? (
+        <>
+          <line className="timeline__rate-guide" x1={x(at.step)} y1={PAD_TOP} x2={x(at.step)} y2={RATE_STRIP_H - PAD_BOTTOM} />
+          <text className="timeline__tick" x={width - padR} y={10} textAnchor="end">
+            {t('timeline.run.at', { step: at.step, target: isolateAuto(fullPercent(at.report.target)), moved: isolateAuto(fullPercent(at.report.moved)) })}
+          </text>
+        </>
+      ) : null}
+    </svg>
+  )
+}
+
+export function RunStrips({ groups, series, width, padL, padR, minStep, maxStep }: { groups: readonly RunStripGroup[]; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number }) {
+  return (
+    <>
+      {groups.map((g) => (
+        <Strip key={g.id} group={g} series={series} width={width} padL={padL} padR={padR} minStep={minStep} maxStep={maxStep} />
+      ))}
+    </>
+  )
+}

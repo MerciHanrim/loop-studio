@@ -30,7 +30,7 @@ export type RunRule = {
 
 const PLAIN = /^\d+(?:\.\d+)?$/
 /** a decimal text under the §M5-2 bound, or `null` */
-function decimal(v: unknown): Rational | null {
+export function decimal(v: unknown): Rational | null {
   if (typeof v !== 'string' || !PLAIN.test(v)) return null
   const r = parseDecimal(v)
   return r !== null && cmp(r, MAX_TIMETABLE_DECIMAL) <= 0 ? r : null
@@ -96,6 +96,18 @@ const holdsRule = (n: LoopNode): boolean => (n.data as { run?: unknown } | undef
 
 /** `true` when any node holds a `run` key */
 export const anyRunRule = (nodes: readonly LoopNode[]): boolean => nodes.some(holdsRule)
+
+/** §M6-9 — the rules whose level and band are in a tank's own unit: they name no `unit`,
+ *  so a change of that unit must carry them, or the same figure reads as another amount */
+export function rulesFollowingTank(nodes: readonly LoopNode[], tank: string): { stage: string; rule: RunRule }[] {
+  return nodes.flatMap((n) => {
+    const rule = ruleOf(n)
+    return rule?.tank === tank && rule.unit === undefined ? [{ stage: n.id, rule }] : []
+  })
+}
+
+/** the tables the document's rules read */
+export const ruleTables = (nodes: readonly LoopNode[]): string[] => nodes.flatMap((n) => ruleOf(n)?.table ?? [])
 
 /** a document's nodes with every `run` key dropped: the same array when none holds one */
 export function stripRunRules<T extends LoopNode>(nodes: T[]): T[] {
@@ -383,7 +395,7 @@ export function runNotices(reports: readonly RunGroupReport[], nodes: readonly L
     const stage = r.decidedBy
     if (r.state === 'short' || r.state === 'stopped') {
       const why = r.cause ?? (r.why === 'supply' || r.why === 'room' ? r.why : null)
-      const limit = why && r.pool !== null && r.needed !== null && r.had !== null ? { why, pool: label(r.pool), needed: r.needed, had: r.had } : null
+      const limit = why && r.pool !== null && r.needed !== null && r.had !== null ? { why, pool: label(r.pool), poolId: r.pool, needed: r.needed, had: r.had } : null
       out.push({ kind: 'runHeld', group: r.members[0]!, label: label(stage), state: r.state, limit })
     }
     if (r.capped) out.push({ kind: 'runCapped', group: r.members[0]!, label: label(stage), wanted: r.rules.find((x) => x.stage === stage)!.wanted })

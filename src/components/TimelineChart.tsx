@@ -12,6 +12,8 @@ import { useForcedColors, useIsMobile } from '../ui/media'
 import { useT } from '../i18n'
 import { downloadCsv } from '../ui/download'
 import { buildRunCsv, buildShownRunCsv } from './timelineCsv'
+import { stageStateText } from '../ui/stageTag'
+import { RunStrips, useRunStrips } from './RunStrip'
 import { RATE_STRIP_H, TimetableRateChart, useReadTables } from './TimetableRateChart'
 import { DistributionPanel } from './DistributionPanel'
 import { PlayBar } from './PlayBar'
@@ -122,7 +124,8 @@ export function TimelineChart() {
   // by the same rule: raised to it, a taller area left as it is, and the height
   // from before coming back when no line reads a table any more
   const readTables = useReadTables()
-  const rateStrips = showDistribution ? 0 : Math.min(readTables.length, 2)
+  const runStrips = useRunStrips()
+  const rateStrips = showDistribution ? 0 : Math.min(readTables.length + runStrips.length, 2)
   const floorWanted = showDistribution ? DISTRIBUTION_MIN : rateStrips > 0 ? ANALYSIS_DEFAULT + rateStrips * RATE_STRIP_H : null
   const areaMin = floorWanted != null ? Math.min(floorWanted, areaMax()) : ANALYSIS_MIN
   useLayoutEffect(() => {
@@ -514,6 +517,11 @@ export function TimelineChart() {
         const o = outcomes?.get(r.id)
         return { id: r.id, label: r.label, color: r.color, value: o && !o.invalid ? formatRegisterValue(o.value) : '—', isRegister: true }
       }),
+      // the strips' numbers, for a keyboard that has no pointer to hover them with
+      ...runStrips.map((g) => {
+        const report = pt.runs?.find((r) => r.members[0] === g.id)
+        return { id: `run:${g.id}`, label: g.label, color: 'var(--ink-2)', value: report ? stageStateText(t, report) : '—', isRegister: false }
+      }),
     ]
   }
   const pinX = pinIdx >= 0 ? view.x(series[pinIdx].step) : null
@@ -850,7 +858,12 @@ export function TimelineChart() {
               ) : null}
             </svg>
           </div>
-          {!showDistribution ? <TimetableRateChart tables={readTables} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} /> : null}
+          {!showDistribution && readTables.length + runStrips.length > 0 ? (
+            <div className="timeline__rates">
+              <TimetableRateChart tables={readTables} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} />
+              <RunStrips groups={runStrips} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} />
+            </div>
+          ) : null}
           {/* outside the plot, which clips: the reading stands on the plot's
               bottom beside its line and opens UPWARD over the canvas as far
               as it needs (./TimelineStepReading) */}

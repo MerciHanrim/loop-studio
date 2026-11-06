@@ -364,6 +364,13 @@ export function exactPlan(t: Timetable, k: number, factor: RateFactor, time: Doc
   return mul(sub(timetableIntegral(t, to), timetableIntegral(t, from)), factor)
 }
 
+/** the most one step can ask of the table, in the base unit: its highest rate held for
+ *  a whole step. No step reads more, so a step-length warning can rest on it (§M6-9). */
+export function peakPlan(t: Timetable, factor: RateFactor, time: DocTime): Rational {
+  const top = compile(t).rates.reduce((a, b) => (cmp(a, b) >= 0 ? a : b))
+  return mul(mul(top, stepInTableTime(t, time)), factor)
+}
+
 /** p: the nearest double of P, what the engine is asked to move. Worked out once
  *  per table, factor, step length and step, so a replay or a Monte Carlo run
  *  pays for it once. */

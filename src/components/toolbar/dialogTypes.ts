@@ -32,6 +32,8 @@ export type ToolbarDialog =
   | { kind: 'exampleNotes' }
   // SEMANTICS-M5.md §M5-12 — Help ▸ how a step fills and empties a Pool
   | { kind: 'stepOrder' }
+  // SEMANTICS-M6.md §M6-9 — Help ▸ how a run rule reads a tank
+  | { kind: 'runRule' }
   // issue #297 - the Storage and privacy area; `step` opens it on a confirmation
   | { kind: 'storage-privacy'; step?: StorageStep }
   // the version the insert would lift the document to (2: the model layer,

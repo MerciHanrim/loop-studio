@@ -5,7 +5,7 @@ import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
 import { useT } from '../i18n'
 import { isolateAuto } from '../i18n/bidiIsolate'
-import { runNoticeText, runRefusalText, runStreak, timetableNoticeText, timetableRefusalText } from '../ui/runMessages'
+import { documentPoolAmounts, runNoticeText, runRefusalText, runStreak, timetableNoticeText, timetableRefusalText } from '../ui/runMessages'
 import { Icon } from '../ui/icons'
 import { topOverlay } from '../ui/overlayStack'
 import { DraftNumberInput } from './DraftNumberInput'
@@ -127,7 +127,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
     () => [
       ...notices.map((x) =>
         x.kind === 'runHeld' || x.kind === 'runCapped'
-          ? runNoticeText(x, runStreak(useSimStore.getState().series, x.group), t)
+          ? runNoticeText(x, runStreak(useSimStore.getState().series, x.group), t, documentPoolAmounts())
           : x.kind === 'timetableEnded' || x.kind === 'timetableUnmet'
           ? timetableNoticeText(x, t)
           : t(x.kind === 'multiSupplyHeld' ? 'playbar.diag.multiSupplyHeld' : 'playbar.diag.multiSupplyLoss', {

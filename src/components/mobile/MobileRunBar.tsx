@@ -7,7 +7,7 @@ import { selectOverlay, useUiStore } from '../../store/uiStore'
 import { useIsMobile } from '../../ui/media'
 import { useT } from '../../i18n'
 import { isolateAuto } from '../../i18n/bidiIsolate'
-import { runNoticeText, runRefusalText, runStreak, timetableNoticeText, timetableRefusalText } from '../../ui/runMessages'
+import { documentPoolAmounts, runNoticeText, runRefusalText, runStreak, timetableNoticeText, timetableRefusalText } from '../../ui/runMessages'
 import { Icon } from '../../ui/icons'
 
 // docs/mobile.md §MV4 — the fixed bottom run bar. Reset / Step / Play·Pause /
@@ -121,7 +121,7 @@ export function MobileRunBar() {
     () => [
       ...notices.map((x) =>
         x.kind === 'runHeld' || x.kind === 'runCapped'
-          ? runNoticeText(x, runStreak(useSimStore.getState().series, x.group), t)
+          ? runNoticeText(x, runStreak(useSimStore.getState().series, x.group), t, documentPoolAmounts())
           : x.kind === 'timetableEnded' || x.kind === 'timetableUnmet'
           ? timetableNoticeText(x, t)
           : t(x.kind === 'multiSupplyHeld' ? 'playbar.diag.multiSupplyHeld' : 'playbar.diag.multiSupplyLoss', {
