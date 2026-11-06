@@ -57,6 +57,18 @@ export function viewportForRect(
   return place(rect, insets, usableH, zoom)
 }
 
+/** the room kept above a frame for its title, which sits on its top edge, flow px */
+export const FRAME_TITLE_ROOM = 24
+
+/** docs/workbench.md §WB5 — a frame filling the pane, under the whole fit's 1.2
+ *  ceiling, centred across when it is narrower than the pane */
+export function viewportForFrame(rect: { x: number; y: number; w: number; h: number }, pane: { width: number; height: number }, floor: number): Viewport | null {
+  const r: FitRect = { x: rect.x, y: rect.y - FRAME_TITLE_ROOM, width: rect.w, height: rect.h + FRAME_TITLE_ROOM }
+  const v = viewportForRect(r, pane, canvasFitInsets(), { floor, ceil: 1.2 })
+  if (!v) return null
+  return r.width * v.zoom <= pane.width ? { ...v, x: pane.width / 2 - (r.x + r.width / 2) * v.zoom } : v
+}
+
 /** Left-aligned; vertically centred, or top-anchored when taller than the area. */
 function place(rect: FitRect, insets: FitInsets, usableH: number, zoom: number): Viewport {
   const contentH = rect.height * zoom

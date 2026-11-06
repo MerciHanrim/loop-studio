@@ -324,6 +324,28 @@ Two tabs: Model and Inputs (arrow keys move between them).
   (above: just below the stuck heading), a row already in view, a partly cut
   row picked in the list, a multiple selection, the heading in view and its
   swap, and rows reached by Tab clear of the heading.
+- **Saved frames** (#499) open the Model list, when the document has any, one row
+  per frame.
+  - **Order:** stored order, which is the order the author made them. Titles are
+    not sorted, because a number in a title is the author's text.
+  - **Which frames:** a saved frame. A suggested frame is a session proposal, and
+    it joins the list when it is promoted.
+  - **A row goes to the frame.** It fits the view to the frame, title included,
+    and centres it across when it is narrower than the pane. Nothing else moves:
+    it selects nothing, opens nothing and leaves no undo entry. So it works under
+    the edit lock, and Fit is the way back to the whole.
+  - **Zoom:** the whole fit's range, up to 1.2 and down to the canvas's floor, so
+    a small frame stops at 120 %, not 100 %.
+  - **Keyboard:** a row is a button, in the list's Tab order. Enter or Space goes
+    to the frame, and focus stays on the row.
+  - **Find** filters these rows by name as it does nodes. The count beside the list
+    heading stays a count of nodes.
+  - The left panel is not on a phone, so neither is this list. While the panel
+    is an overlay, the fit takes the whole pane, so the overlay can cover part of
+    the frame until it is closed.
+
+  `e2e/frame-list.spec.ts` checks the order, the fit, the lock, the keyboard and
+  Find. `src/components/canvasFit.test.ts` holds the fit's numbers.
 - **Inputs** holds the Parameter and Register panels that used to sit in the
   right column ([`parameter-inputs.md`](parameter-inputs.md)).
 
