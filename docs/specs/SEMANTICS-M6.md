@@ -43,6 +43,7 @@ Each refuses the step: nothing moves, and the step is not consumed. The run bars
 | A rule that does not read | `bad-rule` |
 | A Gate in the group, a Gate on a line of a lone Converter, or a `multi` group | `group-shape` |
 | The tank is not in the file, or is not a Pool | `unknown-tank`, `bad-tank` |
+| `unit` is set and is not an amount unit of the tank's kind, or its base unit by name | `bad-tank-unit` |
 | The document does not hold the table | `unknown-table` |
 | A table and no `rated` | `rated-needed` |
 | `rated` and no table | `rated-unused` |
@@ -56,6 +57,8 @@ Each refuses the step: nothing moves, and the step is not consumed. The run bars
 | The rate has no unit, or an amount unit with no time | `rated-no-time` |
 | The exact rate is 0 or less | `rated-zero` |
 | The exact rate is positive, and its double is not finite or is 0 | `rated-out-of-range` |
+
+**A rule's explicit `unit` never falls back.** A field whose unit does not resolve reads as the base unit (§M4-2.2), so its number keeps a meaning. A rule's `level` written in L and read as m³ would ask for a different run, and nothing would say so. So `bad-tank-unit` refuses it, with a tank of no declared kind included. With no `unit`, a rule reads the tank's own unit, and follows that field's reading.
 
 **`group-shape` is checked before anything else about a rule.** A router-fed Converter takes from its Pools on a path a target does not hold, and rules were measured on one Converter and on a chain of them only. So no rule may steer a group with a Gate until that path is measured. A wanted fraction that is not finite refuses the step too.
 

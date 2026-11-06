@@ -132,6 +132,7 @@ export type RunFindingCode =
   | 'group-shape'
   | 'unknown-tank'
   | 'bad-tank'
+  | 'bad-tank-unit'
   | 'unknown-table'
   | 'rated-needed'
   | 'rated-unused'
@@ -161,6 +162,13 @@ function ratedRate(e: LoopEdge, decl: ResourceKindDecl | undefined, time: DocTim
   const d = toDouble(r)
   return Number.isFinite(d) && d !== 0 ? r : 'rated-out-of-range'
 }
+
+/** a rule's explicit `unit` is one the tank's kind can read a stock in. A field with a
+ *  unit that does not resolve reads as the base unit, its number unchanged (§M4-2.2).
+ *  A rule must not: `level` written in L and read as m³ would ask for another run,
+ *  and nothing would say so. The base unit by its own name means what it says. */
+const namesAmountUnit = (unit: string, decl: ResourceKindDecl | undefined, time: DocTime | undefined): boolean =>
+  decl !== undefined && (resolveFieldUnit(unit, decl, time, 'stock').kind !== 'base' || decl.baseUnit === unit)
 
 /** every reason a run cannot use its rules (§M6-3), first per stage. The run bars
  *  refuse before Play with these, and `step` refuses with them for a caller that
@@ -208,6 +216,10 @@ export function runFindings(
       }
       if (tank.data.kind !== 'pool') {
         found('bad-tank')
+        continue
+      }
+      if (rule.unit !== undefined && !namesAmountUnit(rule.unit, declOf.get(poolKindName(tank.data as { resourceType?: unknown }) ?? ''), time)) {
+        found('bad-tank-unit')
         continue
       }
     }
@@ -269,6 +281,7 @@ export function runFindingText(f: RunFinding, nodes: readonly LoopNode[]): strin
     'group-shape': 'a run rule cannot steer a group with a Gate, or one with two supplies',
     'unknown-tank': 'its run rule names a tank this document does not hold',
     'bad-tank': 'its run rule names a tank that is not a Pool',
+    'bad-tank-unit': 'its run rule gives a level in a unit the tank’s kind does not hold',
     'unknown-table': 'its run rule names a timetable this document does not hold',
     'rated-needed': 'its run rule reads a table and names no 100 % line',
     'rated-unused': 'its run rule names a 100 % line and reads no table',

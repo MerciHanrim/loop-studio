@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ResourceKindDecl } from '../model/kinds'
 import { planRuns, readRunRule, runFindings, runGroupOf, type RunRule } from '../model/runRule'
+import { deserialize } from '../model/serialize'
 import type { Timetable } from '../model/timetable'
 import type { LoopEdge, LoopNode } from '../model/types'
 import type { DocTime } from '../model/units'
@@ -351,6 +352,72 @@ describe('findings refuse the step', () => {
     expect(r.report.events).toEqual([])
     expect(r.report.diagnostics).toHaveLength(1)
     expect(r.state.step).toBe(0)
+  })
+})
+
+describe('a tank rule’s explicit unit must mean what it says (§M6-3)', () => {
+  // 500 L is 0.5 m³: read as m³ the same rule would ask for 500, and run at full
+  const KINDS: ResourceKindDecl[] = [{ name: 'water', conserved: false, baseUnit: 'm³', units: [{ name: 'L', factor: '0.001' }], rateUnits: [{ name: 'MLD', factor: '1000', per: 'd' }] }]
+  const rule = (unit?: string): RunRule => ({ tank: 'sig', level: '500', band: '1000', side: 'fill', ...(unit ? { unit } : {}) })
+  const doc = (run: RunRule, resourceType: string | undefined = 'water') => ({
+    nodes: [pool('sig', 0, null, resourceType), pool('tank', 1e6, null, 'water'), stage('ro', 'pullAny', run), pool('store', 0, null, 'water')],
+    edges: [line('feed', 'tank', 'ro', '100'), line('out', 'ro', 'store', '100')],
+  })
+  const o = { kinds: KINDS, time: HOUR }
+  const findings = (g: G, kinds = KINDS) => runFindings(g.nodes, g.edges, [], kinds, HOUR, MV)
+
+  /** the same rule, by way of a file */
+  const fromFile = (run: RunRule) => {
+    const g = doc(run)
+    return deserialize(JSON.stringify({ schema: 'loop-studio/graph/6', version: 1, nodes: g.nodes, edges: g.edges, kinds: KINDS, time: HOUR }))
+  }
+
+  const refused = (r: StepResult) => {
+    expect(r.report.events).toEqual([])
+    expect(r.report.runs).toBeUndefined()
+    expect(r.report.diagnostics).toHaveLength(1)
+    expect(r.report.diagnostics[0]).toContain('unit')
+    expect(r.state.step).toBe(0)
+  }
+
+  it('a unit the tank’s kind does not hold refuses the run, given straight to `step()`', () => {
+    const g = doc(rule('gone'))
+    expect(findings(g)).toEqual([{ code: 'bad-tank-unit', stage: 'ro' }])
+    refused(go(g, o))
+  })
+
+  it('and the same rule read from a file', () => {
+    const d = fromFile(rule('gone'))
+    expect(runFindings(d.nodes, d.edges, [], d.kinds, d.time, MV)).toEqual([{ code: 'bad-tank-unit', stage: 'ro' }])
+    refused(step(d.nodes, d.edges, initSim(d.nodes, { kinds: d.kinds, time: d.time }), 1, MV, { kinds: d.kinds, time: d.time }))
+  })
+
+  it('a rate unit on a tank is refused: a level is an amount', () => {
+    expect(findings(doc(rule('MLD')))).toEqual([{ code: 'bad-tank-unit', stage: 'ro' }])
+  })
+
+  it('a tank with no declared kind has no units to name', () => {
+    expect(findings(doc(rule('L'), 'unnamed'))).toEqual([{ code: 'bad-tank-unit', stage: 'ro' }])
+    expect(findings(doc(rule('L')), [])).toEqual([{ code: 'bad-tank-unit', stage: 'ro' }])
+  })
+
+  it('a unit the kind holds is read in it, and the base unit by name is accepted', () => {
+    expect(findings(doc(rule('L')))).toEqual([])
+    const litres = go(doc(rule('L')), o).report.runs![0]!
+    expect(litres.target).toBe(0.5)
+    expect(findings(doc({ ...rule('m³'), level: '0.5', band: '1' }))).toEqual([])
+    expect(go(doc({ ...rule('m³'), level: '0.5', band: '1' }), o).report.runs![0]!.target).toBe(0.5)
+  })
+
+  it('a file’s rule in a valid unit runs as the same rule does', () => {
+    const d = fromFile(rule('L'))
+    const r = step(d.nodes, d.edges, initSim(d.nodes, { kinds: d.kinds, time: d.time }), 1, MV, { kinds: d.kinds, time: d.time })
+    expect(r.report.runs![0]!.target).toBe(0.5)
+  })
+
+  it('no `unit` key still reads the tank’s own unit', () => {
+    expect(findings(doc(rule()))).toEqual([])
+    expect(go(doc({ ...rule(), level: '0.5', band: '1' }), o).report.runs![0]!.target).toBe(0.5)
   })
 })
 
