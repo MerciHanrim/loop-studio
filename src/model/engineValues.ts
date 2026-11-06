@@ -9,7 +9,7 @@
 import { resolveKinds, type ResourceKindDecl } from './kinds'
 import { parseDecimal, plainDecimal } from './rational'
 import type { LoopEdge, LoopNode, PoolData, ResourceEdgeData } from './types'
-import { engineValue, poolKindName, resolveFieldUnit, type DocTime } from './units'
+import { engineValue, fieldUnitText, poolKindName, resolveFieldUnit, type DocTime } from './units'
 
 const hasUnitKey = (data: unknown) => typeof (data as { unit?: unknown } | undefined)?.unit === 'string' && (data as { unit: string }).unit !== ''
 
@@ -71,4 +71,25 @@ export function applyUnits(
     return { ...e, data: { ...d, flow: Number.isFinite(value) ? plainDecimal(value) : String(value) } } as LoopEdge
   })
   return { nodes: outNodes, edges: outEdges }
+}
+
+const NO_CHIP_UNITS: ReadonlyMap<string, string> = new Map()
+
+/**
+ * §M4-11 — the unit a connection's chip prints beside its number, by edge id.
+ * Exactly the connections `applyUnits` converts: a unit that does not resolve,
+ * or a flow that is not a plain decimal, means the unit does not apply to what
+ * the chip shows, so the chip says nothing about it.
+ */
+export function chipUnits(nodes: readonly LoopNode[], edges: readonly LoopEdge[], kinds: readonly ResourceKindDecl[] | undefined, time: DocTime | undefined): ReadonlyMap<string, string> {
+  if (!kinds || kinds.length === 0 || !edges.some((e) => (e.data?.kind ?? 'resource') === 'resource' && hasUnitKey(e.data))) return NO_CHIP_UNITS
+  const res = resolveKinds(nodes, edges)
+  const out = new Map<string, string>()
+  for (const e of edges) {
+    if ((e.data?.kind ?? 'resource') !== 'resource' || !hasUnitKey(e.data)) continue
+    const d = e.data as ResourceEdgeData & { unit?: string }
+    const fu = resolveFieldUnit(d.unit, kinds.find((k) => k.name === res.edgeKind.get(e.id)), time, 'rate')
+    if (fu.kind !== 'base' && parseDecimal(String(d.flow ?? '1').trim()) !== null) out.set(e.id, fieldUnitText(fu))
+  }
+  return out
 }

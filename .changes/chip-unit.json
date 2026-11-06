@@ -1,0 +1,1 @@
+{"type":"user-facing","changelog":"- **A connection’s chip shows its unit.** A number with a unit reads `21000 CMD`, `5 L/min` or `5 L` on the canvas, so flows of different kinds are no longer told apart only in the Inspector. A connection with no unit keeps its chip. On a short line a chip with a unit moves along or beside the line, so the arrow stays visible."}

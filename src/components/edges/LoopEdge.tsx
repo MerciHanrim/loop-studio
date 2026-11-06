@@ -9,6 +9,7 @@ import {
 } from '@xyflow/react'
 import { useLocaleDirection, useT } from '../../i18n'
 import type { ContentDir } from '../../i18n/contentDirection'
+import { chipUnits } from '../../model/engineValues'
 import { hasTimetables } from '../../model/modelVersion'
 import { timetableRef } from '../../model/timetable'
 import { useGraphStore } from '../../store/graphStore'
@@ -55,6 +56,14 @@ const LABEL_MIN_ZOOM = LOD_L1_MIN
 // τ axis. The store owns τ (Slice 1); this layer only reads it.
 const PB_TRAVEL_START = 0.15
 const PB_TRAVEL_END = 0.8
+
+/** one `chipUnits` per graph, not one per connection: every edge renders with
+ *  the same four inputs, and kinds resolve over the whole graph */
+let chipUnitsMemo: { args: Parameters<typeof chipUnits>; value: ReturnType<typeof chipUnits> } | null = null
+function chipUnitsOf(...args: Parameters<typeof chipUnits>): ReturnType<typeof chipUnits> {
+  if (!chipUnitsMemo || args.some((a, i) => a !== chipUnitsMemo!.args[i])) chipUnitsMemo = { args, value: chipUnits(...args) }
+  return chipUnitsMemo.value
+}
 
 const fmtAmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 const fmtSigned = (n: number) => `${n > 0 ? '+' : ''}${fmtAmt(n)}`
@@ -148,7 +157,7 @@ const RunCaseRing = ({ role, cx, cy, r }: { role: string; cx: number; cy: number
 
 /** §L9.3 - an edge label's text together with what KIND of text it is. The two
  *  are one value so a branch cannot set the text and forget the kind. */
-type EdgeText = { s: string; kind: 'token' | 'prose'; mark?: 'trigger' }
+type EdgeText = { s: string; kind: 'token' | 'prose'; mark?: 'trigger'; unit?: true }
 
 /** §ER18 — a refused grip drop's reason, the same sentences as the Ends group's */
 const END_REASON_KEY: Record<EndMoveReason, MessageKey> = {
@@ -285,6 +294,8 @@ function LoopEdge({
   // where a rounded amount is fine; a canvas condition/value chip is meant
   // to match the engine's own number exactly, not approximate it).
   const modelVersion = useGraphStore((s) => s.modelVersion)
+  const gKinds = useGraphStore((s) => s.kinds)
+  const gTime = useGraphStore((s) => s.time)
   // loop-model/5 — a line that reads a table shows the table's name, not a number
   const tableId = d.kind === 'resource' && hasTimetables(modelVersion) ? timetableRef(d.flow) : null
   const tableName = useGraphStore((s) => (tableId === null ? null : (s.timetables.find((x) => x.id === tableId)?.label ?? null)))
@@ -320,7 +331,9 @@ function LoopEdge({
       const value = fx.kind === 'param' ? resolveParamValue(fx.id) : null
       label = value != null ? token(canonicalNumber(value)) : prose(refErrorLabel)
     } else {
-      label = token(raw)
+      // §M4-11 — the authored unit, in the token: a chip reads as its field does
+      const unit = chipUnitsOf(gNodes, gEdges, gKinds, gTime).get(id)
+      label = unit ? { ...token(`${raw} ${unit}`), unit: true } : token(raw)
     }
   } else if (d.mode === 'trigger') {
     // issue #298 — the trigger mark is a shared icon, not a character an OS font
@@ -551,7 +564,7 @@ function LoopEdge({
   // unscaled), never per frame; no other connection's label is tested.
   const labelRef = useRef<HTMLDivElement>(null)
   const [labelSize, setLabelSize] = useState<{ w: number; h: number } | null>(null)
-  const labelKey = `${text}|${label.mark ?? ''}|${showLabel}|${selected}|${stepIndex}`
+  const labelKey = `${text}|${label.mark ?? ''}|${label.unit ?? ''}|${showLabel}|${selected}|${stepIndex}`
   // issue #344 §ER14.3 — the router places labels from their REST size only
   // (shown, not selected, no run value), so a run or a selection never moves a
   // route
@@ -560,7 +573,7 @@ function LoopEdge({
     const el = labelRef.current
     const next = el ? { w: el.offsetWidth, h: el.offsetHeight } : null
     setLabelSize((prev) => (prev && next && prev.w === next.w && prev.h === next.h ? prev : next))
-    if (next && reportsRestSize) setRouteLabelSize(id, next.w, next.h)
+    if (next && reportsRestSize) setRouteLabelSize(id, next.w, next.h, label.unit === true)
   }, [labelKey, reportsRestSize, id])
   // docs/edge-routing.md §ER15.2 — a label that grows in a run (a Value change:
   // Δ row and clamp note; a Trigger: its blocked note) also reports its RUN
