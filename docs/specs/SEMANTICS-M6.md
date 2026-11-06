@@ -104,7 +104,7 @@ A group runs at the smallest target of its members. `pull all` means reaching th
 
 `pool`, `needed` and `had` name the tightest limit in `stopped` and `short`: what the target needed from that Pool or of its room, and what was there at the group's turn. On a tie, supply before room.
 
-**Notices.** `short` and `stopped` raise `runHeld`, and a rule above a full run raises `runCapped`. `off` raises none, because nothing is wrong. The run bar shows one line per group with the steps in a row, not one per step.
+**Notices.** `short` and `stopped` raise `runHeld`, and a rule above a full run raises `runCapped`. `off` raises none, because nothing is wrong. The run bar shows one line per group with the steps in a row, not one per step. The count follows the group, named by its first member, so it carries on when the rule that decides changes.
 
 **The run CSV** adds three columns per ruled group, by its first member: `<label> (target) [id]`, `(moved)` and `(state)`, in the plain and the shown file. A step with no report, such as step 0, leaves them empty. A document with no rule writes the same bytes.
 

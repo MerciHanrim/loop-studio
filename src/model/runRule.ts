@@ -384,9 +384,9 @@ export function runNotices(reports: readonly RunGroupReport[], nodes: readonly L
     if (r.state === 'short' || r.state === 'stopped') {
       const why = r.cause ?? (r.why === 'supply' || r.why === 'room' ? r.why : null)
       const limit = why && r.pool !== null && r.needed !== null && r.had !== null ? { why, pool: label(r.pool), needed: r.needed, had: r.had } : null
-      out.push({ kind: 'runHeld', stage, label: label(stage), state: r.state, limit })
+      out.push({ kind: 'runHeld', group: r.members[0]!, label: label(stage), state: r.state, limit })
     }
-    if (r.capped) out.push({ kind: 'runCapped', stage, label: label(stage), wanted: r.rules.find((x) => x.stage === stage)!.wanted })
+    if (r.capped) out.push({ kind: 'runCapped', group: r.members[0]!, label: label(stage), wanted: r.rules.find((x) => x.stage === stage)!.wanted })
   }
   return out
 }

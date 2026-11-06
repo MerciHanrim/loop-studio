@@ -81,4 +81,9 @@ test('a rule on a group with a Gate is refused before Play, and moves nothing', 
   await expect.poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().selectedNodeId)).toBe('ro')
   await advance(page)
   expect((await values(page))?.tank ?? 1000).toBe(1000)
+
+  // Monte Carlo reads the same refusal: the dialog says it, and a batch does not start
+  await page.evaluate(() => (window as unknown as Bridge).__loop.mc.getState().openDialog())
+  await expect(page.locator('.mcdlg__refused')).toContainText('cannot steer a group with a Gate')
+  await expect(page.getByRole('button', { name: /^Run \d+ runs$/ })).toBeDisabled()
 })

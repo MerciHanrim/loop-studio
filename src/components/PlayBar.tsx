@@ -127,7 +127,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
     () => [
       ...notices.map((x) =>
         x.kind === 'runHeld' || x.kind === 'runCapped'
-          ? runNoticeText(x, runStreak(useSimStore.getState().series, x.stage), t)
+          ? runNoticeText(x, runStreak(useSimStore.getState().series, x.group), t)
           : x.kind === 'timetableEnded' || x.kind === 'timetableUnmet'
           ? timetableNoticeText(x, t)
           : t(x.kind === 'multiSupplyHeld' ? 'playbar.diag.multiSupplyHeld' : 'playbar.diag.multiSupplyLoss', {

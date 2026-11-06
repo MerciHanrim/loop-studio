@@ -49,11 +49,12 @@ export function runRefusalText(f: RunFinding, nodes: readonly LoopNode[], t: T):
 /** a number from the report, short enough for a line of text */
 const shown = (n: number): number => Number(n.toPrecision(6))
 
-/** the steps in a row, ending at the head, this stage's group has been held */
-export function runStreak(series: readonly { runs?: readonly RunGroupReport[] }[], stage: string): number {
+/** the steps in a row, ending at the head, a group has been held. By the group, named
+ *  by its first member: which of its rules decides can change at any step. */
+export function runStreak(series: readonly { runs?: readonly RunGroupReport[] }[], group: string): number {
   let n = 0
   for (let i = series.length - 1; i >= 0; i--) {
-    const r = series[i]!.runs?.find((x) => x.decidedBy === stage)
+    const r = series[i]!.runs?.find((x) => x.members[0] === group)
     if (!r || (r.state !== 'short' && r.state !== 'stopped')) break
     n++
   }

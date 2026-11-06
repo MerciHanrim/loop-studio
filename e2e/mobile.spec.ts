@@ -2248,3 +2248,28 @@ test('the Timeline sheet draws each table on its own strip, inside the screen an
   for (const strip of m.strips) expect(strip).toEqual(m.plot)
   expect(m.bottom).toBeLessThanOrEqual(m.runBarTop)
 })
+
+test('a run rule that cannot run is refused on the phone before Play, and Show finds the stage', async ({ page }) => {
+  await openApp(page)
+  const pool = (id: string, initial: number) => ({ id, type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool', label: id, activation: 'passive', initial, capacity: null, mode: 'pullAny' } })
+  const line = (id: string, source: string, target: string) => ({ id, source, target, sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '10' } })
+  await importGraph(
+    page,
+    JSON.stringify({
+      schema: 'loop-studio/graph/6',
+      version: 1,
+      nodes: [
+        pool('tank', 100),
+        { id: 'g', type: 'gate', position: { x: 120, y: 0 }, data: { kind: 'gate', label: 'Split', activation: 'automatic', distribution: 'deterministic', mode: 'pullAny' } },
+        { id: 'ro', type: 'converter', position: { x: 240, y: 0 }, data: { kind: 'converter', label: 'RO', activation: 'automatic', mode: 'pullAny', run: { tank: 'tank', level: '50', band: '100', side: 'fill' } } },
+        pool('store', 0),
+      ],
+      edges: [line('in', 'tank', 'g'), line('gr', 'g', 'ro'), line('out', 'ro', 'store')],
+    }),
+  )
+  const refusal = page.locator('.pstrip__initerr--mobile')
+  await expect(refusal).toContainText('cannot steer a group with a Gate')
+  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeDisabled()
+  await refusal.getByRole('button', { name: 'Show', exact: true }).click()
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __loop: Record<string, { getState: () => { selectedNodeId: string | null } }> }).__loop.graph.getState().selectedNodeId)).toBe('ro')
+})
