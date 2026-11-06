@@ -333,8 +333,10 @@ export async function routesSettled(page: Page): Promise<void> {
     const ids = new Set(g.nodes.map((n: { id: string }) => n.id))
     const routed = g.edges.filter(
       (e: { source: string; target: string; data?: { route?: string } }) => e.data?.route === 'orthogonal' && ids.has(e.source) && ids.has(e.target),
-    ).length
-    return !l.routeMap.pending() && !l.routeMap.busy() && l.routeMap.all().size === routed
+    )
+    // a read connection (§M6-7) is routed in the same generation, and is no document edge
+    const all = l.routeMap.all()
+    return !l.routeMap.pending() && !l.routeMap.busy() && routed.every((e: { id: string }) => all.has(e.id))
   })
 }
 

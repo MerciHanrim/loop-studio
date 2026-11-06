@@ -140,6 +140,20 @@ export function symbolAnchor(kind: NodeKind, face: PortFace, _port: 'in' | 'out'
   return { x: CENTRE + f.x, y: CENTRE + f.y }
 }
 
+/** a point on the outline `d` px along a face from its centre, in CELL coordinates:
+ *  where a read connection's own port sits (SEMANTICS-M6.md §M6-7) */
+export function symbolAnchorAt(kind: NodeKind, face: PortFace, d: number): Pt {
+  const f = (SYMBOLS[kind] ?? SYMBOLS.pool).face[face]
+  const along = face === 'top' || face === 'bottom'
+  const depth = (full: number): number => {
+    if (kind === 'pool') return Math.sqrt(Math.max(0, full * full - d * d))
+    if (kind === 'converter' && !along) return full - (Math.abs(d) * 14) / 22
+    return full
+  }
+  const out = along ? depth(Math.abs(f.y)) * Math.sign(f.y) : depth(Math.abs(f.x)) * Math.sign(f.x)
+  return along ? { x: CENTRE + d, y: CENTRE + out } : { x: CENTRE + out, y: CENTRE + d }
+}
+
 /** the symbol's bounding box in CELL coordinates — what the router keeps lines
  *  out of (it can overflow the cell by a few px) */
 export function symbolBox(kind: NodeKind): { x: number; y: number; w: number; h: number } {

@@ -32,6 +32,7 @@ import { type MessageKey, useLocaleDirection, useT } from '../i18n'
 import { useFilterStore } from '../store/filterStore'
 import { nodeTypes } from './nodes/nodes'
 import { edgeTypes } from './edges/LoopEdge'
+import { graphReadEdges, isReadEdge } from '../model/readEdges'
 import { EdgeMarkers } from './edges/EdgeMarkers'
 import { holdConnectTouch, isFurtherTouchDuringHold, releaseConnectTouch } from './edges/connectTouchHold'
 import { computeFocusSet, useFocusSet } from './focusSet'
@@ -481,15 +482,25 @@ export function Canvas() {
       return sh === e.sourceHandle && th === e.targetHandle ? e : { ...e, sourceHandle: sh, targetHandle: th }
     })
   }, [edges, nodeStructure])
+  // SEMANTICS-M6.md §M6-7 — the read connections join only here, the copy React Flow
+  // draws. No handle ids: the line is drawn from its route, and it never connects.
+  const nodesForReads = useGraphStore((s) => s.nodes)
+  const readLines = useMemo(
+    () =>
+      graphReadEdges(nodesForReads, edges)
+        .filter((e) => !hidden?.nodes.has(e.source) && !hidden?.nodes.has(e.target))
+        .map((e) => ({ ...e, sourceHandle: null, targetHandle: null, selectable: false, focusable: false, deletable: false, reconnectable: false })),
+    [nodesForReads, edges, hidden],
+  )
   const rfEdges = useMemo(() => {
-    if (!hidden && !focusSet && !relation) return facedEdges
-    return facedEdges.map((e) => {
+    if (!hidden && !focusSet && !relation) return readLines.length > 0 ? [...facedEdges, ...readLines] : facedEdges
+    return [...facedEdges.map((e) => {
       if (hidden?.edges.has(e.id)) return { ...e, hidden: true }
       if (focusSet && !focusSet.edges.has(e.id)) return { ...e, className: withDeemph(e.className) }
       if (relation?.edges.has(e.id) && !e.selected) return { ...e, className: withClass(e.className, REL_EDGE) }
       return e
-    })
-  }, [facedEdges, hidden, focusSet, relation])
+    }), ...readLines.map((e) => (focusSet && !(focusSet.nodes.has(e.source) && focusSet.nodes.has(e.target)) ? { ...e, className: withDeemph(e.className) } : e))]
+  }, [facedEdges, hidden, focusSet, relation, readLines])
   // pointing to read (17-implementation-rules.md §2 cues): the connection under
   // the pointer, so its whole route and its own label are identified together
   const setHoverEdgeId = useUiStore((s) => s.setHoverEdgeId)
@@ -913,6 +924,11 @@ export function Canvas() {
   // different connection, the selection goes to the chip's connection.
   const onEdgeClick = useCallback(
     (e: React.MouseEvent, edge: LoopEdge) => {
+      // §M6-7 — a read connection is no connection: a click on it selects its stage
+      if (isReadEdge(edge)) {
+        selectOnly({ node: edge.target })
+        return
+      }
       if (useRouteEditStore.getState().addBendFor != null && !noEdit) {
         onAddBendClick(e, edge)
         return

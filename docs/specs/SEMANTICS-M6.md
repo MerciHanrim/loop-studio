@@ -114,6 +114,18 @@ A group runs at the smallest target of its members. `pull all` means reaching th
 - File and digests: `src/model/serialize.ts`, `src/model/revision.ts`, `src/model/workspace.ts`, `src/model/moduleGraph.ts`.
 - Engine: `src/engine/step.ts`, with `runTargets` as its seam.
 - Words: `src/ui/runMessages.ts`, and `runRefusals` in `src/store/simStore.ts`.
-- Pins: `src/engine/run-target.test.ts`, `src/engine/run-rule.test.ts`, `src/model/runRuleFile.test.ts`, `src/ui/runMessages.test.ts`; in the browser, `e2e/run-rule.spec.ts`.
+- Canvas: `src/model/readEdges.ts`, `src/components/edges/ReadEdge.tsx`.
+- Pins: `src/engine/run-target.test.ts`, `src/engine/run-rule.test.ts`, `src/model/runRuleFile.test.ts`, `src/ui/runMessages.test.ts`, `src/model/readEdges.test.ts`; in the browser, `e2e/run-rule.spec.ts`, `e2e/read-connection.spec.ts`.
 
-Not built yet: every screen for making or reading a rule. A fraction that is not finite is known only inside a step, so it refuses with the engine’s English diagnostic.
+Not built yet: the screens for making a rule, and the stage tag. A fraction that is not finite is known only inside a step, so it refuses with the engine’s English diagnostic.
+
+## M6-7. The read connection
+
+A stage whose rule names a tank has a line from that tank to the stage. It says what the rule reads. It is a picture of the rule, not a connection.
+
+- **Derived, never stored.** `src/model/readEdges.ts` works it out from `data.run.tank`. Only the router and the canvas see it. It reaches no document, digest, undo entry, engine input, connection list or CSV, and a rule whose tank is missing or is no Pool draws nothing.
+- **Known by its data, not its id.** A file may give a stored line any id or `type`, `read:ro` and `read` included, so neither says what a line is. `isReadEdge` reads `data.readPort`, which only `readEdges` sets: reading a file rebuilds `data` from the keys it knows. A read connection's id is `read:<stage>`, with `~` added until no stored line holds it, so routes and React Flow never meet two lines with one id.
+- **Its look.** Dash-dot, 2.5 px, no arrowhead, no chip, a ring just outside the tank. A flow is solid with an arrow and an activator dashed with an arrow and a chip, so the pattern tells it apart in every mode. In forced colours it is CanvasText. Selecting the stage or the tank, or pointing at the line, thickens it.
+- **A click or a tap selects the stage,** and nothing else: the line cannot be selected, deleted, reconnected or reached by Tab. Canvas handles the click, and `PanSurface` the tap on the phone and in Pan mode, where it takes the pointer before React Flow does.
+- **Its own port.** A read connection shares no stub with another line: docs/edge-routing.md §ER20.
+- **Not drawn when a tank has no spot left.** That takes more stages reading one tank than it has spots, six on a tank with a line on three faces. `readEdges` reports them as `blocked`, and sharing a stub is not the fallback, because the shared stub would hide what the line says. No screen shows `blocked` yet.

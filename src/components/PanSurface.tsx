@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { EdgeChange, NodeChange, Viewport } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
 import { nameFootprintsOf } from '../store/routeMap'
+import { graphReadEdges } from '../model/readEdges'
 import type { LoopEdge, LoopNode } from '../model/types'
 
 // docs/dense-graph-pan.md — a transparent pan-capture layer over the canvas.
@@ -219,6 +220,9 @@ export function PanSurface({
         const pad = tapTolFlow + (routing.route === 'orthogonal' ? ORTHOGONAL_PAD : BEZIER_PAD)
         if (fx >= minX - pad && fx <= maxX + pad && fy >= minY - pad && fy <= maxY + pad) candidates.add(e.id)
       }
+      // SEMANTICS-M6.md §M6-7 — a read connection is in no document, and it can wander
+      // far from its two ends' box, so each one is a candidate
+      for (const e of graphReadEdges(g.nodes, g.edges)) candidates.add(e.id)
       if (!candidates.size) return null
 
       // one forward scan of the (already-existing) edge list, skipping non-
@@ -385,7 +389,12 @@ export function PanSurface({
       if (moved) return // a completed drag — no selection change
       // a tap — node beats edge beats empty canvas (§DGP-C1)
       const nid = nodeAt(e.clientX, e.clientY)
-      applySelection(nid, nid ? null : edgeAt(e.clientX, e.clientY))
+      const eid = nid ? null : edgeAt(e.clientX, e.clientY)
+      // §M6-7 — a read connection is no connection: a tap on it selects its stage
+      const g = useGraphStore.getState()
+      const read = eid ? graphReadEdges(g.nodes, g.edges).find((r) => r.id === eid) : undefined
+      if (read) applySelection(read.target, null)
+      else applySelection(nid, eid)
     }
 
     // Belt-and-braces: if a pointerup / cancel is ever missed (an OS gesture

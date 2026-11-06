@@ -1462,3 +1462,13 @@ for moving an end. The investigation behind the rules is share note 48 (Lumi,
   is disabled as a whole; the phone stays read-only. Not on the canvas in this unit.
 - **Compatibility.** Nothing new is stored: the ends, `data.ports` and `waypoints` are
   written and read as before.
+
+## ER20. Read connections (run rules, SEMANTICS-M6.md §M6-7)
+
+A read connection is routed by the guarded router, but it is planned apart from the document's lines.
+
+- **Last.** `plan()` keeps read connections out of `ortho`. Every document line, chip, reserved stub and fan is settled as if no rule existed, and `fullSteps` routes the read connections after that, against all of it. So a rule moves no line and no chip. Sorting them last would not be enough: a reserved stub or a placed route would still push a document line aside, as it did on 141 of 400 random graphs while they were planned together.
+- **Round the chips.** A read connection that runs through a chip is routed again with the chips it crossed as soft obstacles, and the new route is kept only when it crosses fewer of them and is not a lower rung.
+- **In the provisional map** a read connection is routed after the document's lines too. One out of time keeps its last route.
+- **Its own port.** Each end takes the first spot left, in this order: the centre of a free face; then a face beside its centre, by `READ_PORT_OFFSET` (12 px), on the side the other end lies; then the same face on the other side; then the next face. The face that holds the node's name is never used, and a Converter takes only its top or bottom face beside the centre, because its left and right faces are points. A spot holds one read connection. The offset is more than `PARALLEL_GAP` and inside a Converter's flat side of ±16 px.
+- **On the outline.** `symbolAnchorAt` puts the port on the symbol's outline at that offset, so the line meets a Pool's curve and a Converter's flat side.

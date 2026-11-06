@@ -1,0 +1,4 @@
+{
+  "type": "user-facing",
+  "changelog": "- **A rule shows what it reads.** A stage whose run rule reads a tank now has a dash-dot line from that tank, with a ring at the tank and no arrow. It is drawn from the rule alone: it has its own port, moves no line or chip already on the canvas, and a click on it selects the stage."
+}

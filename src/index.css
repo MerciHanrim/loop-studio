@@ -42,6 +42,7 @@
      (1.5:1); a control boundary is a product contract, so it reads the
      tertiary ink instead */
   --line-control: #56606b;
+  --read-line: #5b3a9e; /* a read connection: what a rule reads, not what moves */
   /* a node SYMBOL's outline (step 4): the workbench's edge colour, which the
      connections share */
   --node-stroke: #4b5561;
@@ -605,6 +606,7 @@
 
     --ink-1: #e9ebee;
     --ink-2: #c3c9d0;
+    --read-line: #b9a2e6;
     --ink-3: #a4abb5;
     /* CORRECTED (correction 2): 3.24:1 on the panel, 3.40:1 on a bar, against
        a live label's 10–15 */
@@ -698,6 +700,7 @@
 
   --ink-1: #e9ebee;
   --ink-2: #c3c9d0;
+  --read-line: #b9a2e6;
   --ink-3: #a4abb5;
   /* CORRECTED (correction 2): 3.24:1 on the panel, 3.40:1 on a bar, against
      a live label's 10–15 */
@@ -5159,6 +5162,43 @@ a.sheet__row {
 }
 
 /* ---- edge label ---- */
+/* SEMANTICS-M6.md §M6-7 — a read connection. The pattern carries it, in every mode. */
+.read-edge__halo {
+  fill: none;
+  stroke: var(--bg-canvas);
+  stroke-width: 7;
+  vector-effect: non-scaling-stroke;
+}
+.read-edge__line.react-flow__edge-path {
+  fill: none;
+  stroke: var(--read-line);
+  stroke-width: 2.5;
+  stroke-dasharray: 10 4 2 4;
+  vector-effect: non-scaling-stroke;
+}
+.read-edge__ring {
+  fill: var(--bg-canvas);
+  stroke: var(--read-line);
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+.read-edge.is-related .read-edge__line.react-flow__edge-path {
+  stroke-width: 3.5;
+}
+@media (forced-colors: active) {
+  .read-edge__halo {
+    forced-color-adjust: none;
+    stroke: Canvas;
+  }
+  .read-edge__line.react-flow__edge-path,
+  .read-edge__ring {
+    forced-color-adjust: none;
+    stroke: CanvasText;
+  }
+  .read-edge__ring {
+    fill: Canvas;
+  }
+}
 .edge-label {
   position: absolute;
   /* docs/large-graph-readability.md §LGR4.1 — a label chip drawn over a node
