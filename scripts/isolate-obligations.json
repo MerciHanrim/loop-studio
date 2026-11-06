@@ -4,9 +4,9 @@
   "$limit": "This manifest defends the call sites listed here, exactly and in both directions. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together close the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
   "$history": "PR B recorded 11 decision rows and deferred them. C3.5 re-ran the population from the TypeScript type checker — 205 ICU arguments — and found 27 more that carry user or technical values: 8 in its first pass (the unrecognized-column header and the five `import.loc.*` calls) and 19 that its first pass only RECORDED as open. All 27 are implemented here, so no row of the disposition manifest is classed `auto`, `ltr` or `per-fragment` any more.",
   "totals": {
-    "rows": 105,
-    "obligations": 56,
-    "callSites": 111
+    "rows": 113,
+    "obligations": 64,
+    "callSites": 127
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -17,7 +17,7 @@
     "workbench": 18,
     "issue-420": 4,
     "issue-471": 22,
-    "run-rules": 5
+    "run-rules": 13
   },
   "obligations": [
     {
@@ -1488,7 +1488,7 @@
       "file": "src/ui/runMessages.ts",
       "enclosing": "runNoticeText",
       "carries": "the user's own stage and Pool names in a run message (SEMANTICS-M6.md §M6-5)",
-      "why": "Free text of unknown direction; the numbers derive.",
+      "why": "Free text of unknown direction: a name, or an amount with the unit a person gave it.",
       "sites": [
         {
           "keys": [
@@ -1514,7 +1514,9 @@
           ],
           "args": [
             "label",
-            "pool"
+            "pool",
+            "had",
+            "needed"
           ],
           "kind": "auto"
         },
@@ -1524,7 +1526,9 @@
           ],
           "args": [
             "label",
-            "pool"
+            "pool",
+            "had",
+            "needed"
           ],
           "kind": "auto"
         },
@@ -1534,7 +1538,9 @@
           ],
           "args": [
             "label",
-            "pool"
+            "pool",
+            "had",
+            "needed"
           ],
           "kind": "auto"
         },
@@ -1544,7 +1550,9 @@
           ],
           "args": [
             "label",
-            "pool"
+            "pool",
+            "had",
+            "needed"
           ],
           "kind": "auto"
         }
@@ -1862,6 +1870,260 @@
             "pct"
           ],
           "kind": "ltr"
+        }
+      ]
+    },
+    {
+      "id": "run-panels-warnings",
+      "rows": [
+        "run-rules the amounts and tank of a step-length warning"
+      ],
+      "file": "src/ui/runMessages.ts",
+      "enclosing": "runWarningText",
+      "carries": "a tank's name and amounts in its own unit (SEMANTICS-M6.md §M6-9)",
+      "why": "Free text of unknown direction, or a figure beside it, in a sentence in the reader’s direction.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.run.warn.band"
+          ],
+          "args": [
+            "band",
+            "tank",
+            "step"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "inspector.run.warn.level"
+          ],
+          "args": [
+            "level",
+            "tank",
+            "step"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "inspector.run.warn.take"
+          ],
+          "args": [
+            "capacity",
+            "tank",
+            "step"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "run-panels-off",
+      "rows": [
+        "run-rules the two shares of a stage under its lowest run"
+      ],
+      "file": "src/ui/runMessages.ts",
+      "enclosing": "runOffText",
+      "carries": "two shares of a full run, as percent text (SEMANTICS-M6.md §M6-9)",
+      "why": "Free text of unknown direction, or a figure beside it, in a sentence in the reader’s direction.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.run.off.lowest"
+          ],
+          "args": [
+            "wanted",
+            "lowest"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "run-panels-step-change",
+      "rows": [
+        "run-rules the stages a step-length change warns"
+      ],
+      "file": "src/components/ModelPanels.tsx",
+      "enclosing": "TimeSection>propose",
+      "carries": "the user's own stage names (SEMANTICS-M6.md §M6-9)",
+      "why": "Free text of unknown direction, or a figure beside it, in a sentence in the reader’s direction.",
+      "sites": [
+        {
+          "keys": [
+            "panels.time.change.runBody"
+          ],
+          "args": [
+            "stages"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "run-panels-reading",
+      "rows": [
+        "run-rules what the Inspector reads of a step"
+      ],
+      "file": "src/components/RunRuleSection.tsx",
+      "enclosing": "RunReading",
+      "carries": "a stage's name and its shares of a full run (SEMANTICS-M6.md §M6-9)",
+      "why": "Free text of unknown direction, or a figure beside it, in a sentence in the reader’s direction.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.run.now"
+          ],
+          "args": [
+            "target",
+            "moved"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "inspector.run.ruleDecides"
+          ],
+          "args": [
+            "label",
+            "target"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "inspector.run.rule"
+          ],
+          "args": [
+            "label",
+            "target"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "run-panels-section",
+      "rows": [
+        "run-rules the names in the Target run section"
+      ],
+      "file": "src/components/RunRuleSection.tsx",
+      "enclosing": "RunRuleSection",
+      "carries": "a stage's name and a unit's name (SEMANTICS-M6.md §M6-9)",
+      "why": "Free text of unknown direction, or a figure beside it, in a sentence in the reader’s direction.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.run.group"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "inspector.run.unit"
+          ],
+          "args": [
+            "unit"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "run-panels-missing",
+      "rows": [
+        "run-rules an id a rule still names"
+      ],
+      "file": "src/components/RunRuleSection.tsx",
+      "enclosing": "RunRuleSection>missing",
+      "carries": "the id of a tank, table or line that is gone (SEMANTICS-M6.md §M6-9)",
+      "why": "Free text of unknown direction, or a figure beside it, in a sentence in the reader’s direction.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.run.missing"
+          ],
+          "args": [
+            "id"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "run-panels-line",
+      "rows": [
+        "run-rules the two ends of a 100 % line"
+      ],
+      "file": "src/components/RunRuleSection.tsx",
+      "enclosing": "RunRuleSection>lineText",
+      "carries": "the user's own node names at a line's ends (SEMANTICS-M6.md §M6-9)",
+      "why": "Free text of unknown direction, or a figure beside it, in a sentence in the reader’s direction.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.ends.summary"
+          ],
+          "args": [
+            "from",
+            "to"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "run-panels-strip",
+      "rows": [
+        "run-rules what a run strip says"
+      ],
+      "file": "src/components/RunStrip.tsx",
+      "enclosing": "Strip",
+      "carries": "a stage's name and its shares of a full run (SEMANTICS-M6.md §M6-9)",
+      "why": "Free text of unknown direction, or a figure beside it, in a sentence in the reader’s direction.",
+      "sites": [
+        {
+          "keys": [
+            "timeline.run.aria"
+          ],
+          "args": [
+            "label",
+            "target",
+            "moved"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "timeline.run.ariaIdle"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "timeline.run.name"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "timeline.run.at"
+          ],
+          "args": [
+            "target",
+            "moved"
+          ],
+          "kind": "auto"
         }
       ]
     }

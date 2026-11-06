@@ -4936,6 +4936,13 @@ a.sheet__row {
   stroke: var(--sel);
   stroke-width: 1;
 }
+/* SEMANTICS-M6.md §M6-9 — a ruled group's target, told from its run by the pattern */
+.timeline__run-target {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
 .timeline__plot:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: -2px;
@@ -5530,6 +5537,34 @@ a.sheet__row {
 }
 .mp-row--reg {
   flex-wrap: wrap;
+}
+/* SEMANTICS-M6.md §M6-9 — a rule's row: the stage, then its words at full width */
+.mp-row--run {
+  flex-wrap: wrap;
+}
+.mp-row--run .mp-row__label {
+  flex-basis: 100%;
+}
+.mp-row--run .mp-row__val {
+  flex: 1 1 100%;
+  width: auto;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.run-reading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.run-reading .inspector__note {
+  margin: 0;
+}
+.run-reading__state {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-1);
+  overflow-wrap: anywhere;
 }
 /* v2 `@param` flow edges — a compact read-only pointer, one line, both halves
    truncate rather than wrap */

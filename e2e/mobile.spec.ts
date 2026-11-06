@@ -263,15 +263,16 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
     const help = sheet(page, 'Help')
     await expect(help).toBeVisible()
     const rows = help.locator('.sheet__row')
-    // the same six rows as the desktop menu (What's new was removed in
+    // the same seven rows as the desktop menu (What's new was removed in
     // 2026-10; Example notes joined on 2026-10-20)
-    await expect(rows).toHaveCount(6)
+    await expect(rows).toHaveCount(7)
     await expect(rows.nth(0)).toHaveText(/Restart the tour|둘러보기 다시 시작/)
     await expect(rows.nth(1)).toHaveText(/Turn contextual tips back on|상황별 안내 다시 켜기/)
     await expect(rows.nth(2)).toHaveText(/Example notes|예제 설명/)
     await expect(rows.nth(3)).toHaveText(/How a step fills and empties a Pool/)
-    await expect(rows.nth(4)).toHaveText(/Send feedback|피드백 보내기/)
-    await expect(rows.nth(5)).toHaveText(/About Loop Studio|Loop Studio 정보/)
+    await expect(rows.nth(4)).toHaveText(/How a run rule reads a tank/)
+    await expect(rows.nth(5)).toHaveText(/Send feedback|피드백 보내기/)
+    await expect(rows.nth(6)).toHaveText(/About Loop Studio|Loop Studio 정보/)
 
     const link = help.locator('a.sheet__row', { hasText: /Send feedback|피드백 보내기/ })
     await expect(link).toHaveAttribute('href', 'https://tally.so/r/9qkk6Y')
@@ -2323,6 +2324,33 @@ test('a tap on a ruled stage opens its tag, which names the tank', async ({ page
   await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2)
   await expect(full).toBeVisible()
   await expect(full).toContainText('store')
+})
+
+test('a rule is read on the phone and not made there, and Help explains it', async ({ page }) => {
+  await openApp(page)
+  const pool = (id: string, x: number) => ({ id, type: 'pool', position: { x, y: 0 }, data: { kind: 'pool', label: id, activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } })
+  const line = (id: string, source: string, target: string) => ({ id, source, target, sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '10' } })
+  await importGraph(
+    page,
+    JSON.stringify({
+      schema: 'loop-studio/graph/6',
+      version: 1,
+      nodes: [
+        pool('feed', 0),
+        { id: 'ro', type: 'converter', position: { x: 260, y: 0 }, data: { kind: 'converter', label: 'RO', activation: 'automatic', mode: 'pullAny', run: { tank: 'store', level: '50', band: '10', side: 'fill' } } },
+        pool('store', 520),
+      ],
+      edges: [line('in', 'feed', 'ro'), line('out', 'ro', 'store')],
+    }),
+  )
+  const box = (await page.locator('.react-flow__node[data-id="ro"] svg').first().boundingBox())!
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2)
+  const section = page.locator('.sheet--inspector [data-run-rule="ro"]')
+  await expect(section.locator('[data-run-reading]')).toContainText('reads')
+  await expect(section.locator('[data-run-reading]')).toContainText('store')
+  await expect(section.getByLabel('Runs at')).toHaveValue('rule')
+  await expect(section.getByLabel('Runs at')).toBeDisabled()
+  await expect(section.getByLabel('Band')).toBeDisabled()
 })
 
 test('a tap on a stored line whose id starts as a read connection’s does selects that line', async ({ page }) => {

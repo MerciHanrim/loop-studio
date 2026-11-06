@@ -1,0 +1,98 @@
+// SEMANTICS-M6.md §M6-9 — what a rule's numbers ask of the step length. A rule is read
+// once a step, so a rule that was calm can hunt or stall after the step changes. These
+// are warnings, not refusals: the run still goes, and says what held it.
+import { resolveKinds, type ResourceKindDecl } from './kinds'
+import { parseDecimal, toDouble } from './rational'
+import { groupLines, ruleOf, runGroupOf } from './runRule'
+import { peakPlan, timetableRateFactor, timetableRef, type Timetable } from './timetable'
+import type { LoopEdge, LoopNode } from './types'
+import { engineValue, poolKindName, resolveFieldUnit, type DocTime } from './units'
+
+export type RunWarning =
+  /** the stage moves more into or out of the tank in one full step than the band */
+  | { code: 'band-under-step'; stage: string; tank: string; band: number; amount: number }
+  /** one step of what others pull from the tank is more than the target level */
+  | { code: 'level-under-pull'; stage: string; tank: string; level: number; amount: number }
+  /** a `pull all` take of one step is more than the Pool can hold */
+  | { code: 'tank-under-take'; stage: string; tank: string; capacity: number; amount: number }
+
+/** a line's amount in one full step, in the base unit: a number's rate, or a table's
+ *  highest. `null` for what has no one amount, such as `all` or a dice roll. */
+function stepAmount(e: LoopEdge, decl: ResourceKindDecl | undefined, tables: ReadonlyMap<string, Timetable>, time: DocTime | undefined): number | null {
+  const d = e.data as { flow?: unknown; unit?: unknown }
+  const raw = String(d.flow ?? '').trim()
+  const tableId = timetableRef(raw)
+  if (tableId !== null) {
+    const table = tables.get(tableId)
+    const factor = table ? timetableRateFactor(table, decl, time) : null
+    return table && factor && time ? toDouble(peakPlan(table, factor, time)) : null
+  }
+  return parseDecimal(raw) === null ? null : engineValue(raw, resolveFieldUnit(d.unit, decl, time, 'rate'), time)
+}
+
+/** one stage's warnings. Takes the authored graph, and reads the rule as it stands: a
+ *  rule the run refuses gets its refusal, and may get these too. */
+export function runWarnings(
+  nodes: readonly LoopNode[],
+  edges: readonly LoopEdge[],
+  timetables: readonly Timetable[] | undefined,
+  kinds: readonly ResourceKindDecl[] | undefined,
+  time: DocTime | undefined,
+  stage: string,
+): RunWarning[] {
+  const node = nodes.find((n) => n.id === stage)
+  const rule = node ? ruleOf(node) : null
+  if (!rule) return []
+  const { members } = runGroupOf(nodes, edges, stage)
+  const edgeKind = resolveKinds(nodes as LoopNode[], edges as LoopEdge[]).edgeKind
+  const declOf = new Map((kinds ?? []).map((k) => [k.name, k]))
+  const tables = new Map((timetables ?? []).map((t) => [t.id, t]))
+  const lines = edges.filter((e) => (e.data?.kind ?? 'resource') === 'resource')
+  const amountOf = (e: LoopEdge) => stepAmount(e, declOf.get(edgeKind.get(e.id) ?? ''), tables, time)
+  const sum = (list: readonly LoopEdge[]) => list.reduce((a, e) => a + (amountOf(e) ?? 0), 0)
+  const out: RunWarning[] = []
+
+  const tank = rule.tank === undefined ? undefined : nodes.find((n) => n.id === rule.tank)
+  if (tank?.data.kind === 'pool') {
+    const fu = resolveFieldUnit(rule.unit ?? tank.data.unit, declOf.get(poolKindName(tank.data) ?? ''), time, 'stock')
+    const band = engineValue(rule.band!, fu, time)
+    const level = engineValue(rule.level!, fu, time)
+    const between = groupLines(lines, members)
+    const moved = Math.max(sum(between.filter((e) => e.target === tank.id)), sum(between.filter((e) => e.source === tank.id)))
+    if (moved > band) out.push({ code: 'band-under-step', stage, tank: tank.id, band, amount: moved })
+    const pull = sum(lines.filter((e) => e.source === tank.id && !members.includes(e.target)))
+    if (pull > level) out.push({ code: 'level-under-pull', stage, tank: tank.id, level, amount: pull })
+  }
+
+  const pullsAll = members.some((m) => (nodes.find((n) => n.id === m)?.data as { mode?: string } | undefined)?.mode === 'pullAll')
+  if (pullsAll) {
+    for (const e of lines.filter((x) => members.includes(x.target))) {
+      const from = nodes.find((n) => n.id === e.source)
+      if (from?.data.kind !== 'pool' || from.data.capacity === null) continue
+      const fu = resolveFieldUnit(from.data.unit, declOf.get(poolKindName(from.data) ?? ''), time, 'stock')
+      const capacity = engineValue(from.data.capacity, fu, time)
+      const amount = amountOf(e)
+      if (amount !== null && amount > capacity) out.push({ code: 'tank-under-take', stage, tank: from.id, capacity, amount })
+    }
+  }
+  return out
+}
+
+/** the stages that gain a warning between two step lengths (§M4-4's announcement) */
+export function stagesNewlyWarned(
+  nodes: readonly LoopNode[],
+  edges: readonly LoopEdge[],
+  timetables: readonly Timetable[] | undefined,
+  kinds: readonly ResourceKindDecl[] | undefined,
+  before: DocTime | undefined,
+  after: DocTime | undefined,
+): string[] {
+  const keys = (time: DocTime | undefined, stage: string) => new Set(runWarnings(nodes, edges, timetables, kinds, time, stage).map((w) => `${w.code}\n${w.tank}`))
+  return nodes
+    .filter((n) => ruleOf(n) !== null)
+    .map((n) => n.id)
+    .filter((stage) => {
+      const was = keys(before, stage)
+      return [...keys(after, stage)].some((k) => !was.has(k))
+    })
+}

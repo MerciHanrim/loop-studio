@@ -6,7 +6,11 @@ import type { RegisterOutcome } from '../model/model'
 import type { LoopNode } from '../model/types'
 import { selectOnly, useGraphStore } from '../store/graphStore'
 import { hasModelLayer } from '../model/modelVersion'
+import { anyRunRule, ruleOf, ruleTables, runFindings } from '../model/runRule'
+import { stagesNewlyWarned } from '../model/runWarnings'
 import { timetableLines } from '../model/timetable'
+import { runRefusalText } from '../ui/runMessages'
+import { useStageTag } from './nodes/StageTag'
 import { convertersWhoseVerdictChanges, kindFindings, kindFindingEdgeId, kindFindingNodeId, type KindFinding, type ResourceKindDecl } from '../model/kinds'
 import { fieldUnitText, readRateUnitList, readUnitList, STEP_VALUE_MAX, TIME_UNITS, type DocTime, type FieldUnit, type RateUnitDecl, type TimeUnit, type UnitDecl } from '../model/units'
 import { outflowOptions, outflowReading, outflowShown } from '../model/viewUnits'
@@ -351,7 +355,7 @@ function namedKinds(nodes: readonly LoopNode[], edges: readonly LoopEdge[]): str
  *  a kind the graph names or the document declares (the Kinds panel, where
  *  the unit lists and the step length are authored — loop-model/3 and /4) */
 export function hasModelPanels(nodes: readonly LoopNode[], edges: readonly LoopEdge[], kinds: readonly ResourceKindDecl[]): boolean {
-  return nodes.some((n) => kindOf(n) === 'parameter' || kindOf(n) === 'register') || kinds.length > 0 || namedKinds(nodes, edges).length > 0
+  return nodes.some((n) => kindOf(n) === 'parameter' || kindOf(n) === 'register') || kinds.length > 0 || namedKinds(nodes, edges).length > 0 || anyRunRule(nodes)
 }
 
 /** One finding (§M3-4), worded in the user's language from the data. Every
@@ -421,12 +425,12 @@ function parseUnitListText(text: string, baseUnit: string | undefined): { units:
 
 /** SEMANTICS-M5.md §M5-10 — the document's timetables: name, size and unit. A table
  *  comes in through Data ▸ New timetable; one no line reads can be removed. */
-function TimetablesSection({ edges }: { edges: LoopEdge[] }) {
+function TimetablesSection({ nodes, edges }: { nodes: LoopNode[]; edges: LoopEdge[] }) {
   const t = useT()
   const locked = useUiStore((s) => s.canvasLocked)
   const timetables = useGraphStore((s) => s.timetables)
   const setTimetables = useGraphStore((s) => s.setTimetables)
-  const read = new Set(timetableLines(edges).map((l) => l.tableId))
+  const read = new Set([...timetableLines(edges).map((l) => l.tableId), ...ruleTables(nodes)])
   if (timetables.length === 0) return null
   return (
     <section className="mpanel">
@@ -450,6 +454,46 @@ function TimetablesSection({ edges }: { edges: LoopEdge[] }) {
   )
 }
 
+/** one rule's row: its stage, which the row selects, and the words the stage's tag has
+ *  when nothing folds them */
+function RunRuleRow({ node, refusal, onShow }: { node: LoopNode; refusal: string | null; onShow: () => void }) {
+  const tag = useStageTag(node.id, node.data)
+  return (
+    <div className="mp-row mp-row--run" data-run-row={node.id}>
+      <button type="button" className="mp-row__label" onClick={onShow}>
+        {labelOf(node) || node.id}
+      </button>
+      <span className="mp-row__val" dir="auto">{tag?.full}</span>
+      {refusal !== null && <span className="mp-row__val mp-row__val--invalid">{refusal}</span>}
+    </div>
+  )
+}
+
+/** SEMANTICS-M6.md §M6-9 — the document's rules, next to the timetables they read: a
+ *  stage's rule can be read here whatever its tag shows */
+function RunRulesSection({ nodes, edges }: { nodes: LoopNode[]; edges: LoopEdge[] }) {
+  const t = useT()
+  const reveal = useReveal()
+  const kinds = useGraphStore((s) => s.kinds)
+  const time = useGraphStore((s) => s.time)
+  const timetables = useGraphStore((s) => s.timetables)
+  const modelVersion = useGraphStore((s) => s.modelVersion)
+  const findings = useMemo(() => runFindings(nodes, edges, timetables, kinds, time, modelVersion), [nodes, edges, timetables, kinds, time, modelVersion])
+  const stages = useMemo(() => nodes.filter((n) => ruleOf(n) !== null).sort(byId), [nodes])
+  if (stages.length === 0) return null
+  return (
+    <section className="mpanel">
+      <div className="mpanel__body">
+        <h3 className="mpanel__sub">{t('panels.runRules.title')}</h3>
+        {stages.map((n) => {
+          const f = findings.find((x) => x.stage === n.id)
+          return <RunRuleRow key={n.id} node={n} refusal={f ? runRefusalText(f, nodes, t) : null} onShow={() => reveal(n.id, null)} />
+        })}
+      </div>
+    </section>
+  )
+}
+
 /** the step-length row (§M4-3): a count and a time unit, or none. A change
  *  that would move a Converter's balance verdict (a connection authored per
  *  time changes its amount per step) is named and confirmed first (§M4-4). */
@@ -459,6 +503,7 @@ function TimeSection({ nodes, edges }: { nodes: LoopNode[]; edges: LoopEdge[] })
   const kinds = useGraphStore((s) => s.kinds)
   const modelVersion = useGraphStore((s) => s.modelVersion)
   const time = useGraphStore((s) => s.time)
+  const timetables = useGraphStore((s) => s.timetables)
   const setTime = useGraphStore((s) => s.setTime)
   const [pending, setPending] = useState<{ body: string; next: DocTime | undefined } | null>(null)
   const [draft, setDraft] = useState<string | null>(null)
@@ -466,9 +511,14 @@ function TimeSection({ nodes, edges }: { nodes: LoopNode[]; edges: LoopEdge[] })
   const propose = (next: DocTime | undefined) => {
     if (JSON.stringify(next?.step ?? null) === JSON.stringify(time?.step ?? null)) return
     const moved = convertersWhoseVerdictChanges(kindFindings(nodes, edges, kinds, modelVersion, time), kindFindings(nodes, edges, kinds, modelVersion, next))
-    if (moved.length === 0) return setTime(next)
+    const warned = stagesNewlyWarned(nodes, edges, timetables, kinds, time, next)
+    if (moved.length === 0 && warned.length === 0) return setTime(next)
     const label = (id: string) => labelOf(nodes.find((n) => n.id === id)) || id
-    setPending({ body: t('panels.time.change.body', { converters: isolateAuto(moved.map(label).join(', ')) }), next })
+    const body = [
+      ...(moved.length > 0 ? [t('panels.time.change.body', { converters: isolateAuto(moved.map(label).join(', ')) })] : []),
+      ...(warned.length > 0 ? [t('panels.time.change.runBody', { stages: isolateAuto(warned.map(label).join(', ')) })] : []),
+    ].join(' ')
+    setPending({ body, next })
   }
   const commitValue = (text: string) => {
     setDraft(null)
@@ -495,7 +545,13 @@ function TimeSection({ nodes, edges }: { nodes: LoopNode[]; edges: LoopEdge[] })
           value={draft ?? String(time?.step.value ?? 1)}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={(e) => commitValue(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+          // the Enter must end here: left to run on, it pressed the button of the dialog
+          // the change had just opened, and the change was gone before it could be read
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return
+            e.preventDefault()
+            ;(e.target as HTMLInputElement).blur()
+          }}
         />
         <select
           className="mp-row__val"
@@ -768,13 +824,14 @@ export function ModelPanels() {
       .sort(byId)
   }, [edges, modelVersion])
 
-  if (params.length === 0 && registers.length === 0 && !hasKinds) return null
+  if (params.length === 0 && registers.length === 0 && !hasKinds && !anyRunRule(nodes)) return null
 
   return (
     <div className="mpanels">
       {(params.length > 0 || registers.length > 0) && <InputsSection params={params} paramFlowEdges={paramFlowEdges} nodes={nodes} />}
       {hasKinds && <KindsSection nodes={nodes} edges={edges} named={named} />}
-      <TimetablesSection edges={edges} />
+      <TimetablesSection nodes={nodes} edges={edges} />
+      <RunRulesSection nodes={nodes} edges={edges} />
       {(params.length > 0 || registers.length > 0) && <SummarySection registers={registers} />}
     </div>
   )

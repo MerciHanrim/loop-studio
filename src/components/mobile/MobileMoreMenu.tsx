@@ -30,6 +30,7 @@ import { AuthorDialog } from '../AuthorDialog'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { ContextualHelpDialog } from '../ContextualHelpDialog'
 import { ExampleNotesDialog } from '../ExampleNotesDialog'
+import { RunRuleHelpDialog } from '../RunRuleHelpDialog'
 import { StepOrderDialog } from '../StepOrderDialog'
 import { FilterControls } from '../FilterPanel'
 import { InlineHintNote } from '../HintNote'
@@ -155,6 +156,7 @@ export function MobileMoreMenu({
   const [contextualOpen, setContextualOpen] = useState(false)
   const [examplesOpen, setExamplesOpen] = useState(false)
   const [stepOrderOpen, setStepOrderOpen] = useState(false)
+  const [runRuleOpen, setRunRuleOpen] = useState(false)
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null)
 
   // docs/localization.md Slice 2b — the §U4 disclosure is an in-app ConfirmDialog
@@ -585,6 +587,9 @@ export function MobileMoreMenu({
         <button type="button" className="sheet__row" onClick={() => setStepOrderOpen(true)}>
           {t('help.stepOrder.title')}
         </button>
+        <button type="button" className="sheet__row" onClick={() => setRunRuleOpen(true)}>
+          {t('help.runRule.title')}
+        </button>
         <div className="menu__divider" role="separator" />
         <a
           className="sheet__row"
@@ -606,6 +611,7 @@ export function MobileMoreMenu({
         />
         <ExampleNotesDialog open={examplesOpen} onClose={() => setExamplesOpen(false)} returnFocusTo={backToMore} />
         <StepOrderDialog open={stepOrderOpen} onClose={() => setStepOrderOpen(false)} returnFocusTo={backToMore} />
+        <RunRuleHelpDialog open={runRuleOpen} onClose={() => setRunRuleOpen(false)} returnFocusTo={backToMore} />
         <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} returnFocusTo={backToMore} />
       </MobileSheet>
       </>

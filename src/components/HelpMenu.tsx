@@ -140,6 +140,17 @@ export function HelpMenu({
           >
             <span className="menu__name">{t('help.stepOrder.title')}</span>
           </button>
+          <button
+            type="button"
+            className="menu__item"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false)
+              onOpenDialog({ kind: 'runRule' })
+            }}
+          >
+            <span className="menu__name">{t('help.runRule.title')}</span>
+          </button>
           <div className="menu__divider" role="separator" />
           <a
             className="menu__item"

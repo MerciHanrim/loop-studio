@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useT } from '../i18n'
 import { exactDouble, plainDecimal, toDouble, toSignificant15 } from '../model/rational'
+import { ruleTables } from '../model/runRule'
 import { timetableLines, timetablePolyline, timetableRateAt, type Timetable } from '../model/timetable'
 import { stepSeconds, TIME_UNIT_SECONDS } from '../model/units'
 import { useGraphStore } from '../store/graphStore'
@@ -24,14 +25,15 @@ function niceTop(v: number): number {
 
 const shown = (x: number) => plainDecimal(toSignificant15(x))
 
-/** the tables the document's lines read */
+/** the tables the document's lines and rules read */
 export function useReadTables(): Timetable[] {
+  const nodes = useGraphStore((s) => s.nodes)
   const edges = useGraphStore((s) => s.edges)
   const timetables = useGraphStore((s) => s.timetables)
   return useMemo(() => {
-    const read = new Set(timetableLines(edges).map((l) => l.tableId))
+    const read = new Set([...timetableLines(edges).map((l) => l.tableId), ...ruleTables(nodes)])
     return timetables.filter((t) => read.has(t.id))
-  }, [edges, timetables])
+  }, [nodes, edges, timetables])
 }
 
 function Strip({ table, width, padL, padR, minStep, maxStep, stepSec }: { table: Timetable; width: number; padL: number; padR: number; minStep: number; maxStep: number; stepSec: number }) {
@@ -91,10 +93,10 @@ export function TimetableRateChart({ tables, width, padL, padR, minStep, maxStep
   const stepSec = stepSeconds(time)
   if (stepSec === undefined || tables.length === 0) return null
   return (
-    <div className="timeline__rates">
+    <>
       {tables.map((table) => (
         <Strip key={table.id} table={table} width={width} padL={padL} padR={padR} minStep={minStep} maxStep={maxStep} stepSec={stepSec} />
       ))}
-    </div>
+    </>
   )
 }

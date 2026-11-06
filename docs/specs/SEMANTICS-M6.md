@@ -4,7 +4,7 @@ A run rule is a fixed rule on a Converter. It reads one tank, one timetable, or 
 
 This is a modelling rule, not a plant controller. It has no integral term, ramp or hold, and it does not compute part-load efficiency, pressure, or the cost of a start. Its result depends on the step length, unlike a timetable's amount.
 
-There is no screen for a rule yet. It comes in through a hand-written document file.
+A rule is made in the Inspector (§M6-9), or comes in through a document file.
 
 ## M6-1. The file
 
@@ -104,7 +104,7 @@ A group runs at the smallest target of its members. `pull all` means reaching th
 
 `pool`, `needed` and `had` name the tightest limit in `stopped` and `short`: what the target needed from that Pool or of its room, and what was there at the group's turn. On a tie, supply before room.
 
-**Notices.** `short` and `stopped` raise `runHeld`, and a rule above a full run raises `runCapped`. `off` raises none, because nothing is wrong. The run bar shows one line per group with the steps in a row, not one per step. The count follows the group, named by its first member, so it carries on when the rule that decides changes.
+**Notices.** `short` and `stopped` raise `runHeld`, and a rule above a full run raises `runCapped`. `off` raises none, because nothing is wrong. The run bar shows one line per group with the steps in a row, not one per step. The count follows the group, named by its first member, so it carries on when the rule that decides changes. A notice gives its amounts in the unit the Pool is authored in, cut to six figures: a Pool in no unit reads in its kind's base unit, and with no kind as a bare number.
 
 **The run CSV** adds three columns per ruled group, by its first member: `<label> (target) [id]`, `(moved)` and `(state)`, in the plain and the shown file. A step with no report, such as step 0, leaves them empty. A document with no rule writes the same bytes.
 
@@ -115,9 +115,10 @@ A group runs at the smallest target of its members. `pull all` means reaching th
 - Engine: `src/engine/step.ts`, with `runTargets` as its seam.
 - Words: `src/ui/runMessages.ts`, and `runRefusals` in `src/store/simStore.ts`.
 - Canvas: `src/model/readEdges.ts`, `src/components/edges/ReadEdge.tsx`, `src/components/nodes/StageTag.tsx`, `src/ui/stageTag.ts`.
-- Pins: `src/engine/run-target.test.ts`, `src/engine/run-rule.test.ts`, `src/model/runRuleFile.test.ts`, `src/ui/runMessages.test.ts`, `src/model/readEdges.test.ts`; in the browser, `e2e/run-rule.spec.ts`, `e2e/read-connection.spec.ts`.
+- Panels: `src/components/RunRuleSection.tsx`, `src/components/RunStrip.tsx`, `src/components/RunRuleHelpDialog.tsx`, `src/ui/runRuleForm.ts`, `src/ui/runStrip.ts`, `src/model/runWarnings.ts`, and `setRunRule` in `src/store/graphStore.ts`.
+- Pins: `src/engine/run-target.test.ts`, `src/engine/run-rule.test.ts`, `src/engine/runRuleHelp.test.ts`, `src/model/runRuleFile.test.ts`, `src/model/runWarnings.test.ts`, `src/ui/runMessages.test.ts`, `src/model/readEdges.test.ts`; in the browser, `e2e/run-rule.spec.ts`, `e2e/read-connection.spec.ts`, `e2e/stage-tag.spec.ts`, `e2e/run-panels.spec.ts`.
 
-Not built yet: the screens for making a rule. A fraction that is not finite is known only inside a step, so it refuses with the engine’s English diagnostic.
+A fraction that is not finite is known only inside a step, so it refuses with the engine’s English diagnostic.
 
 ## M6-7. The read connection
 
@@ -150,3 +151,32 @@ Plain text under a ruled stage's name, at the name's 136 px. It says what the st
 - **A folded tag opens.** Choosing the stage or its tank, pointing at or focusing the stage, or pointing at its line shows the full form over the block, so the tank can always be named. A tap on the phone chooses the stage. The full form is also in the stage's accessible name.
 - **No line.** A stage whose read connection has no spot left says `no line to <tank>: no free port`. Those words are never folded away, so its last form can sit closer than 6 px.
 - **Detail levels.** At L1 only the state shows, and at L0 nothing, except that a stage with no line keeps its words at L1.
+
+## M6-9. The panels
+
+What a folded tag leaves out is on three other surfaces, so no stage depends on its tag to be read.
+
+**Inspector, a Converter's "Target run" section.** It reads first, then edits.
+
+- It reads: the tag's longest form, whatever form the canvas shows; this step's target and run in full figures, with no bound; why a stage is off; each rule's target and which one decides, when a group has two; and the run bar's own notice sentence. A member of a group whose rule sits on another stage says so, and shows the group's numbers.
+- It edits: Full or a rule, then Tank with Target level, Band and Side, Timetable with its 100 % line, and Lowest run, as a percent. Tank and table options keep a name that no longer exists, as `Missing: <id>`.
+- **A document only ever holds a rule that reads,** because `bad-run-rule` would refuse its file. A tank waiting for its level and band stays in the form and says it is not in use yet, and nothing changes in the document, its version or its run. A number is set on Enter or on leaving the field, so clearing `500` never runs a level of `50`.
+- The first rule promotes the document to `graph/6`, one-way, and one undo takes both back. Each field is its own undo entry.
+- A group a rule cannot steer offers no rule, and says why. A finding stands beside the fields, in the words the run bar refuses with.
+- The phone reads and does not make a rule: the sheet is read-only, as it is for every field.
+
+**Step-length warnings** (`src/model/runWarnings.ts`) are warnings, not refusals, in the tank's unit with both numbers.
+
+| Warning | When |
+|---|---|
+| `band-under-step` | the stage moves more in one full step into, or out of, the tank than the band |
+| `level-under-pull` | what lines outside the group take from the tank in one step is more than the target level |
+| `tank-under-take` | a group that pulls all takes more in one full step from a Pool than that Pool's capacity |
+
+A line counts at its rate, and a table line at the table's highest rate for a whole step: no step reads more. A line with no one amount, such as `all` or a dice roll, adds nothing. A stage with no line to its tank gets no band warning, because what it moves there is not known. A step-length change that gives a stage a warning names that stage and waits for consent, as §M4-4 does for a balance.
+
+**Inputs list.** One row per rule, under the timetables, with the tag's longest form and any finding. The row selects the stage. A table a rule reads counts as in use, so it cannot be removed, and it draws its rate strip.
+
+**Timeline.** One strip per ruled group under the rate strips, 0 to 100 %, on the chart's step scale: the run solid and the target dashed, so neither rests on colour. A step's fraction holds for the whole step, so the line is stairs. Past one step per pixel a column keeps its lowest and highest, so one stopped step in a long run still shows. Pointing at a strip reads the step, and the step reading gives the same state to a keyboard. The strips count with the rate strips in the analysis area's rise.
+
+**Help.** Help ▸ How a run rule reads a tank says the rule, the one-step delay, the three warnings and what the rule does not compute. Its numbers are pinned in `src/engine/runRuleHelp.test.ts`.

@@ -42,6 +42,7 @@ import { IconField } from './IconField'
 import { DraftNumberInput } from './DraftNumberInput'
 import { EdgeEndsField } from './EdgeEndsField'
 import { RegisterExprField } from './RegisterExprField'
+import { RunRuleSection } from './RunRuleSection'
 import { EdgeRelation, NodeRelations } from './workbench/Relations'
 import { connectReasonText } from './connectReason'
 import { CONNECT_LABEL } from './connectKindWords'
@@ -259,6 +260,8 @@ export function Inspector({ editLocked = false }: { editLocked?: boolean } = {})
         {d.kind === 'parameter' && <ParameterFields d={d} set={set} />}
         {d.kind === 'register' && <RegisterFields id={node.id} d={d} set={set} />}
         </section>
+        {/* keyed per node, so a half-made rule never carries over to the next stage */}
+        {d.kind === 'converter' && <RunRuleSection key={node.id} node={node} />}
 
         {/* a mismatch is a finding, not a setting: it stays in view, with the
             way to the setting it is about, while that setting is folded */}
