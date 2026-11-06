@@ -51,7 +51,8 @@ import { freeLinePoints, pointAlong } from '../components/edges/freeLine'
 import { edgePortKind, faceOf, type PortEnd } from '../model/ports'
 import { repeatedChangeGroups } from '../model/endMove'
 import type { PortFace } from '../model/types'
-import { symbolAnchor, symbolBox } from '../components/nodes/symbol'
+import { symbolAnchor, symbolAnchorAt, symbolBox } from '../components/nodes/symbol'
+import { isReadEdge, withReadEdges } from '../model/readEdges'
 import { useUiStore } from './uiStore'
 
 // the size of a node React Flow has not measured yet; the height is the node's
@@ -242,7 +243,15 @@ export function portPoint(n: LoopNode, pos: Position, port: 'in' | 'out' | 'stat
 }
 
 /** the anchor of one end of a connection */
-const endPoint = (n: LoopNode, e: LoopEdge, end: PortEnd): Pt => portPoint(n, endPos(e, end), endPort(e, end))
+const endPoint = (n: LoopNode, e: LoopEdge, end: PortEnd): Pt => {
+  const d = (e.data as { readPort?: { source: number; target: number } } | undefined)?.readPort?.[end]
+  if (d === undefined || d === 0 || !symbolNodes()) return portPoint(n, endPos(e, end), endPort(e, end))
+  const a = symbolAnchorAt(n.type as NodeKind, faceOf(e, end), d)
+  return { x: n.position.x + a.x, y: n.position.y + a.y }
+}
+
+/** a read connection's own port: it shares no stub, so it is in no other line's fan */
+const readTag = (e: LoopEdge): string => ((e.data as { readPort?: unknown } | undefined)?.readPort ? '#read' : '')
 
 /** a node's box for the router: a symbol node's is its symbol's own (it can
  *  overflow the 56 px cell React Flow measures by a few px) */
@@ -360,8 +369,8 @@ const CLASS_RANK: Record<GuardedClass, number> = { orthogonal: 0, degenerate: 0,
 // ── ports, fans and the shared stub (§ER14.3) ─────────────────────────────
 
 const endKey = (node: string, handle: string | null | undefined) => `${node}:${handle ?? ''}`
-const srcKey = (e: LoopEdge) => endKey(e.source, e.sourceHandle)
-const tgtKey = (e: LoopEdge) => endKey(e.target, e.targetHandle)
+const srcKey = (e: LoopEdge) => endKey(e.source, e.sourceHandle) + readTag(e)
+const tgtKey = (e: LoopEdge) => endKey(e.target, e.targetHandle) + readTag(e)
 
 /** §ER14.3 — the key of the FAN an end belongs to (the connections that share
  *  one port's stub and split at their branch points). For a RESOURCE port it
@@ -384,7 +393,8 @@ const tgtKey = (e: LoopEdge) => endKey(e.target, e.targetHandle)
  *  sets. */
 function fanKey(e: LoopEdge, end: PortEnd, stateBlind: ReadonlySet<string>): string {
   const node = end === 'source' ? e.source : e.target
-  const handle = end === 'source' ? e.sourceHandle : e.targetHandle
+  const handle = `${end === 'source' ? e.sourceHandle : e.targetHandle}${readTag(e)}`
+  if (readTag(e)) return `${endKey(node, handle)}@${e.id}`
   return edgePortKind(e) === 'state' && stateBlind.has(node) ? endKey(node, handle) : `${endKey(node, handle)}@${faceOf(e, end)}`
 }
 
@@ -440,6 +450,9 @@ function sharedStubSegments(r: GuardedResult, atSource: boolean, atTarget: boole
 
 type Plan = {
   ortho: LoopEdge[]
+  /** §M6-7 — the read connections, kept apart from `ortho`: no document line, chip or
+   *  reserved stub is planned around them */
+  reads: LoopEdge[]
   /** §ER15 — the Curved and Straight connections with both ends present, in id
    *  order, and each one's line (from the same port anchors the routes use):
    *  not routed, but their labels take a free slot and every other label keeps
@@ -498,7 +511,10 @@ function assignFan(members: { id: string; delta: number }[]): Map<string, FanEnd
 }
 
 function plan(nodes: LoopNode[], edges: LoopEdge[]): Plan {
-  const ortho = edges.filter(isOrtho).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+  // §M6-7 — a read connection takes no part in this plan: it is routed after every
+  // document line and chip is final, so a rule moves nothing that was already there
+  const ortho = edges.filter((e) => isOrtho(e) && !isReadEdge(e)).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+  const reads = edges.filter(isReadEdge)
   const byId = new Map(nodes.map((n) => [n.id, n]))
   const groups = new Map<string, string[]>()
   const portUse = new Map<string, number>()
@@ -622,7 +638,7 @@ function plan(nodes: LoopNode[], edges: LoopEdge[]): Plan {
     const wps = (e.data as { waypoints?: unknown } | undefined)?.waypoints
     if (Array.isArray(wps) && wps.length > 0) bends.set(e.id, wps as Pt[])
   }
-  return { ortho, free, lines, byId, boxes: [...nodes.map(boxOf), ...nameBoxesOf(nodes)], groups, portUse, stateBlind, fans, reserved, bends }
+  return { ortho, reads, free, lines, byId, boxes: [...nodes.map(boxOf), ...nameBoxesOf(nodes)], groups, portUse, stateBlind, fans, reserved, bends }
 }
 
 /** one edge, routed against the current layout and the given placed routes:
@@ -634,12 +650,12 @@ function routeInput(p: Plan, e: LoopEdge, others: ReadonlyMap<string, GuardedRes
   if (!s || !t) return null
   const sPos = endPos(e, 'source')
   const tPos = endPos(e, 'target')
-  const set = p.groups.get(pkey(e))!
+  const set = p.groups.get(pkey(e)) ?? [e.id]
   const busy: Pt[][] = []
   const fanRoutes: Pt[][] = []
   const laneX: number[] = []
   const laneY: number[] = []
-  for (const o of p.ortho) {
+  for (const o of isReadEdge(e) ? [...p.ortho, ...p.reads] : p.ortho) {
     if (o.id === e.id) continue
     const r = others.get(o.id)
     if (!r) continue
@@ -1158,8 +1174,23 @@ function* fullSteps(nodes: LoopNode[], edges: LoopEdge[], out: GenOut): Generato
   // §ER15.3 — then the chips with a unit that cover their own line's ends
   out.runForm = { ...runForm, endRoom: endRoomPass(p, edges, routes, labels, free, stubs, besides) }
   yield 'run form'
+  // §M6-7 — last of all, the read connections, which go round the chips when they can
+  const chips = [...labels].flatMap(([id, c]) => (c && labelSizes.has(id) ? [labelBoxAt(c, labelSizes.get(id)!, id)] : []))
+  for (const e of p.reads) {
+    const r = yield* routeOneSteps(p, e, routes, [])
+    if (!r) continue
+    routes.set(e.id, r)
+    const crossed = chips.filter((b) => polyHits(r.points, b))
+    for (const pad of crossed.length > 0 ? SOFT_PADS : []) {
+      const r2 = yield* routeOneSteps(p, e, routes, crossed, pad)
+      if (!r2) continue
+      if (CLASS_RANK[r2.routeClass] <= CLASS_RANK[r.routeClass] && crossed.filter((b) => polyHits(r2.points, b)).length < crossed.length) routes.set(e.id, r2)
+      break
+    }
+    yield `read ${e.id}`
+  }
   const map = new Map<string, RoutedEdge>()
-  for (const e of p.ortho) {
+  for (const e of [...p.ortho, ...p.reads]) {
     const r = routes.get(e.id)
     const b = besides.get(e.id)
     if (r) map.set(e.id, { ...r, label: labels.get(e.id) ?? null, ...(b ? { beside: b } : {}) })
@@ -1179,7 +1210,7 @@ function rebuildFull(nodes: LoopNode[], edges: LoopEdge[]): Required<GenOut> {
 
 /** each routed edge's own routing input, to tell which changed */
 const edgeKey = (e: LoopEdge): string =>
-  JSON.stringify([e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, (e.data as { route?: unknown }).route ?? null, (e.data as { waypoints?: unknown }).waypoints ?? null, labelSizes.get(e.id) ?? null, faceOf(e, 'source'), faceOf(e, 'target'), runFormSizes.get(e.id) ?? null])
+  JSON.stringify([e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, (e.data as { route?: unknown }).route ?? null, (e.data as { waypoints?: unknown }).waypoints ?? null, labelSizes.get(e.id) ?? null, faceOf(e, 'source'), faceOf(e, 'target'), runFormSizes.get(e.id) ?? null, (e.data as { readPort?: unknown }).readPort ?? null])
 
 /** the provisional map: the last full generation, with the routes this change
  *  touches routed again — an edge that is new or whose own input changed, one
@@ -1251,6 +1282,14 @@ function provisional(nodes: LoopNode[], edges: LoopEdge[], from: Base): Required
   for (const e of freeRedo) {
     const s = placeFreeLabel(p, e, placed, out, [])
     if (s) free.set(e.id, s)
+  }
+  // §M6-7 — the read connections last here too; one out of time keeps its last route
+  for (const e of p.reads) {
+    const r = from.map.get(e.id)
+    const stale = !r || from.keys.get(e.id) !== edgeKey(e) || moved.has(e.source) || moved.has(e.target) || movedBoxes.some((b) => polyHits(r.points, b))
+    const again = stale && now() - t0 + longest <= PROVISIONAL_MS ? routeOne(p, e, out, []) : null
+    const route = again ? { ...again, label: null } : r
+    if (route) out.set(e.id, route)
   }
   lastProvisional.ms = +(now() - tStart).toFixed(2)
   provisionalPeakMs = Math.max(provisionalPeakMs, lastProvisional.ms)
@@ -1377,7 +1416,8 @@ export function layoutSignature(nodes: LoopNode[], edges: LoopEdge[]): string {
     // node structure — the faces decide where a route starts and ends
     // §ER15.2 — and a label's run-form size (read by the last pass only)
     const rs = runFormSizes.get(e.id)
-    es.push([e.id, shape, e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, shape === 'o' && Array.isArray(wp) ? wp : null, ls ? [ls.w, ls.h] : null, faceOf(e, 'source'), faceOf(e, 'target'), rs ? [rs.w, rs.h] : null])
+    const rp = (e.data as { readPort?: unknown } | undefined)?.readPort
+    es.push([...(rp ? [rp] : []), e.id, shape, e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, shape === 'o' && Array.isArray(wp) ? wp : null, ls ? [ls.w, ls.h] : null, faceOf(e, 'source'), faceOf(e, 'target'), rs ? [rs.w, rs.h] : null])
   }
   return JSON.stringify([ns, es])
 }
@@ -1540,7 +1580,9 @@ const NO_SLOTS: ReadonlyMap<string, FreeSlot> = new Map()
 
 /** The generation to draw for the current routing input — the routes and the
  *  Curved / Straight label slots — shared by every `LoopEdge` in the render. */
-export function currentRouteGeneration(nodes: LoopNode[], edges: LoopEdge[]): { map: ReadonlyMap<string, RoutedEdge>; free: ReadonlyMap<string, FreeSlot> } {
+// SEMANTICS-M6.md §M6-7 — the router sees the read connections as well; nothing else does
+export function currentRouteGeneration(nodes: LoopNode[], documentEdges: LoopEdge[]): { map: ReadonlyMap<string, RoutedEdge>; free: ReadonlyMap<string, FreeSlot> } {
+  const edges = withReadEdges(nodes, documentEdges)
   const rev = useRouteInputs.getState().rev
   if (committed && idKey && idKey.nodes === nodes && idKey.edges === edges && idKey.rev === rev) return committed
   lastInput = { nodes, edges }
@@ -1733,11 +1775,11 @@ export function __routeGenCount(): number {
  *  (the cache, the job and the diagnostics are untouched): what a committed
  *  sliced generation must equal */
 export function __syncFullGeneration(nodes: LoopNode[], edges: LoopEdge[]): Map<string, RoutedEdge> {
-  return rebuildFull(nodes, edges).map
+  return rebuildFull(nodes, withReadEdges(nodes, edges)).map
 }
 /** test hook — the synchronous Curved / Straight label slots for this input */
 export function __syncFreeSlots(nodes: LoopNode[], edges: LoopEdge[]): Map<string, FreeSlot> {
-  return rebuildFull(nodes, edges).free
+  return rebuildFull(nodes, withReadEdges(nodes, edges)).free
 }
 /** test hook — which routed connections the plan puts in a fan at each end
  *  (true where that end's port has siblings), and its parallel sets */

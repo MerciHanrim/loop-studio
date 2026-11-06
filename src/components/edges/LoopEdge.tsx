@@ -18,6 +18,7 @@ import type { CueRole } from '../../store/playbackRank'
 import { useUiStore } from '../../store/uiStore'
 import { currentRouteGeneration, setRouteLabelSize, setRouteRunFormSize, useRouteInputs, type LabelSide } from '../../store/routeMap'
 import { freeLinePoints, pointAlong } from './freeLine'
+import { ReadEdge } from './ReadEdge'
 import { RouteBends } from './RouteBends'
 import { EndGrips } from './EndGrips'
 import type { EndMoveReason, EndMoveVerdict } from '../../model/endMove'
@@ -1073,4 +1074,5 @@ function stateVisual(ev: StateEvent | undefined): StateVisual | null {
 
 export const edgeTypes: EdgeTypes = {
   loop: LoopEdge,
+  read: ReadEdge,
 }

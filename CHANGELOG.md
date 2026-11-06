@@ -7,6 +7,7 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **A rule shows what it reads.** A stage whose run rule reads a tank now has a dash-dot line from that tank, with a ring at the tank and no arrow. It is drawn from the rule alone: it has its own port, moves no line or chip already on the canvas, and a click on it selects the stage.
 - **Run rules say what they do.** A rule that cannot run now refuses before Play, with the stage named, in all 18 languages. While a run goes, a stage held below its target says which Pool held it and for how many steps, and the run CSV gains each ruled group’s target, moved fraction and state.
 
 - **Run rules.** A Converter can hold a rule that reads a tank, a timetable or both, and sets the fraction its group may run at. Every line of the group keeps its ratio, and `pull all` means reaching the target. A rule cannot steer a group with a Gate, which refuses the run. There is no screen for a rule yet: one comes in through a hand-written document file.
