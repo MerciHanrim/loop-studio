@@ -28,7 +28,8 @@ import { buildImportCommit, type ImportCommitResult, type PlacementChoice } from
 import type { ValidatedImportPlan } from '../model/dataImportValidate'
 import { buildRefreshCommit, parameterLabel, type RefreshCommitResult, type RefreshDiffPlan, type RefreshResolution } from '../model/dataImportRefresh'
 import { ImportTableLookup } from '../model/dataImportIndex'
-import { hasModelLayer, hasTimetables, hasUnits } from '../model/modelVersion'
+import { hasModelLayer, hasRunRules, hasTimetables, hasUnits } from '../model/modelVersion'
+import { anyRunRule, ruleOf, runGroupOf } from '../model/runRule'
 import { canonicalKinds, kindsDeclareUnits, resolveKinds, type ResourceKindDecl } from '../model/kinds'
 import { exportUnits, type ExportUnits } from '../model/exportUnits'
 import { canonicalDocTime, type DocTime } from '../model/units'
@@ -1904,6 +1905,15 @@ export function documentTableLines(): { edgeId: string; label: string; unit?: st
     const unit = kinds.find((k) => k.name === edgeKind.get(edge.id))?.baseUnit
     return { edgeId: edge.id, label: timetables.find((t) => t.id === tableId)?.label ?? tableId, ...(unit ? { unit } : {}) }
   })
+}
+
+/** loop-model/6 (SEMANTICS-M6.md §M6-5) — the groups that hold a rule, as the Timeline
+ *  CSV names them: by the group's first member */
+export function documentRunRules(): { id: string; label: string }[] {
+  const { nodes, edges, modelVersion } = useGraphStore.getState()
+  if (!hasRunRules(modelVersion) || !anyRunRule(nodes)) return []
+  const first = new Set(nodes.filter((n) => ruleOf(n) !== null).map((n) => runGroupOf(nodes, edges, n.id).members[0]!))
+  return [...first].sort().map((id) => ({ id, label: nodes.find((n) => n.id === id)?.data.label ?? id }))
 }
 
 export function documentExportUnits(): ExportUnits {

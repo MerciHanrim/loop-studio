@@ -6,7 +6,7 @@
 // state alone still decides the next step (I6′).
 import { converterGroups } from '../engine/converterGroups'
 import { parseFlow, type ModelVersion } from '../engine/flow'
-import { EPSILON, type FlowEvent, type RunGroupReport, type RunLimit, type StateEvent } from '../engine/types'
+import { EPSILON, type FlowEvent, type RunGroupReport, type RunLimit, type RunNotice, type StateEvent } from '../engine/types'
 import { resolveKinds, type ResourceKindDecl } from './kinds'
 import { cmp, div, fromInt, parseDecimal, toDouble, type Rational } from './rational'
 import { exactPlan, firstUncoveredStep, MAX_TIMETABLE_DECIMAL, timetableLines, timetableRateFactor, type Timetable } from './timetable'
@@ -372,6 +372,23 @@ export function planRuns(
     plan.targets[n.id] = target
   }
   return plan
+}
+
+/** §M6-5 — the step's notices: a group held below its target, or a rule that asked for
+ *  more than a full run. `off` raises none, because nothing is wrong. */
+export function runNotices(reports: readonly RunGroupReport[], nodes: readonly LoopNode[]): RunNotice[] {
+  const label = (id: string) => nodes.find((n) => n.id === id)?.data.label ?? id
+  const out: RunNotice[] = []
+  for (const r of reports) {
+    const stage = r.decidedBy
+    if (r.state === 'short' || r.state === 'stopped') {
+      const why = r.cause ?? (r.why === 'supply' || r.why === 'room' ? r.why : null)
+      const limit = why && r.pool !== null && r.needed !== null && r.had !== null ? { why, pool: label(r.pool), needed: r.needed, had: r.had } : null
+      out.push({ kind: 'runHeld', stage, label: label(stage), state: r.state, limit })
+    }
+    if (r.capped) out.push({ kind: 'runCapped', stage, label: label(stage), wanted: r.rules.find((x) => x.stage === stage)!.wanted })
+  }
+  return out
 }
 
 /** the share of a target a group must reach to read `met`, and `pull all` to run. It

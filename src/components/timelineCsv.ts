@@ -1,7 +1,7 @@
 import { toCsv } from '../model/csv'
 import { withUnit } from '../model/exportUnits'
 import { plainDecimal } from '../model/rational'
-import type { TimetableLineReport } from '../engine/types'
+import type { RunGroupReport, TimetableLineReport } from '../engine/types'
 import { fullShown, type PoolView } from '../model/viewUnits'
 
 // docs/data-import.md §CSV — the Timeline's "run CSV": one row per committed
@@ -44,7 +44,9 @@ import { fullShown, type PoolView } from '../model/viewUnits'
 // columns, with `(shown)` and `(approx)` beside each Pool the view re-expresses.
 
 export type RunCsvPool = { id: string; label: string; unit?: string }
-export type RunCsvPoint = { step: number; values: Record<string, number>; timetableLines?: readonly TimetableLineReport[] }
+export type RunCsvPoint = { step: number; values: Record<string, number>; timetableLines?: readonly TimetableLineReport[]; runs?: readonly RunGroupReport[] }
+/** a ruled group (SEMANTICS-M6.md §M6-5), named by its first member */
+export type RunCsvRule = { id: string; label: string }
 /** a line that reads a timetable (SEMANTICS-M5.md §M5-6): the table's name, its
  *  base unit and the connection's id */
 export type RunCsvTableLine = { edgeId: string; label: string; unit?: string }
@@ -61,6 +63,16 @@ const tableCells = (lines: readonly RunCsvTableLine[], pt: RunCsvPoint): string[
     return [plainDecimal(hit?.planned ?? 0), plainDecimal(hit?.moved ?? 0)]
   })
 
+const ruleHead = (rules: readonly RunCsvRule[]): string[] => rules.flatMap((r) => [`${r.label} (target) [${r.id}]`, `${r.label} (moved) [${r.id}]`, `${r.label} (state) [${r.id}]`])
+
+/** §M6-5 — a group's target, moved fraction and state; a step with no report, such
+ *  as step 0, has none of the three */
+const ruleCells = (rules: readonly RunCsvRule[], pt: RunCsvPoint): (string | number)[] =>
+  rules.flatMap((r) => {
+    const hit = pt.runs?.find((x) => x.members[0] === r.id)
+    return hit ? [plainDecimal(hit.target), plainDecimal(hit.moved), hit.state] : ['', '', '']
+  })
+
 /** `<label> [<node-id>]`, or `<label> [<unit>] [<node-id>]` — readable half
  *  first, identifying half last. */
 export function runCsvColumnName(pool: RunCsvPool): string {
@@ -71,11 +83,11 @@ export function runCsvColumnName(pool: RunCsvPool): string {
  *  shared writer, so a label containing a comma, a quote or a newline survives
  *  a round trip through this product's own importer instead of being replaced
  *  by spaces. */
-export function buildRunCsv(pools: readonly RunCsvPool[], series: readonly RunCsvPoint[], lines: readonly RunCsvTableLine[] = []): string {
-  const head = ['step', ...pools.map(runCsvColumnName), ...tableHead(lines)]
+export function buildRunCsv(pools: readonly RunCsvPool[], series: readonly RunCsvPoint[], lines: readonly RunCsvTableLine[] = [], rules: readonly RunCsvRule[] = []): string {
+  const head = ['step', ...pools.map(runCsvColumnName), ...tableHead(lines), ...ruleHead(rules)]
   // a Pool with no entry in a committed snapshot reads 0, exactly as the chart
   // draws it — the CSV never disagrees with what is on screen
-  const rows = series.map((pt) => [pt.step, ...pools.map((p) => pt.values[p.id] ?? 0), ...tableCells(lines, pt)])
+  const rows = series.map((pt) => [pt.step, ...pools.map((p) => pt.values[p.id] ?? 0), ...tableCells(lines, pt), ...ruleCells(rules, pt)])
   return toCsv([head, ...rows])
 }
 
@@ -83,8 +95,8 @@ export function buildRunCsv(pools: readonly RunCsvPool[], series: readonly RunCs
  *  a re-expressed Pool adds `<label> (shown) [L] [id]`, the step reading's text,
  *  and `<label> (approx) [id]`, `true` or `false`. A Pool the view does not
  *  re-express adds nothing, so no cell is blank. */
-export function buildShownRunCsv(pools: readonly (RunCsvPool & { view?: PoolView })[], series: readonly RunCsvPoint[], lines: readonly RunCsvTableLine[] = []): string {
-  const head = ['step', ...pools.flatMap((p) => (p.view?.fu ? [runCsvColumnName(p), `${withUnit(`${p.label} (shown)`, p.view.unit)} [${p.id}]`, `${p.label} (approx) [${p.id}]`] : [runCsvColumnName(p)])), ...tableHead(lines)]
+export function buildShownRunCsv(pools: readonly (RunCsvPool & { view?: PoolView })[], series: readonly RunCsvPoint[], lines: readonly RunCsvTableLine[] = [], rules: readonly RunCsvRule[] = []): string {
+  const head = ['step', ...pools.flatMap((p) => (p.view?.fu ? [runCsvColumnName(p), `${withUnit(`${p.label} (shown)`, p.view.unit)} [${p.id}]`, `${p.label} (approx) [${p.id}]`] : [runCsvColumnName(p)])), ...tableHead(lines), ...ruleHead(rules)]
   const rows = series.map((pt) => [
     pt.step,
     ...pools.flatMap((p) => {
@@ -94,6 +106,7 @@ export function buildShownRunCsv(pools: readonly (RunCsvPool & { view?: PoolView
       return [value, shown.text, String(shown.approx)]
     }),
     ...tableCells(lines, pt),
+    ...ruleCells(rules, pt),
   ])
   return toCsv([head, ...rows])
 }

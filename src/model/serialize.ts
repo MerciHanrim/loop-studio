@@ -802,7 +802,7 @@ function anyFieldUnitKey(nodes: readonly LoopNode[], edges: readonly LoopEdge[])
 /** why `deserialize` rejected a file — a CODE the UI maps to a localized
  *  message (`import.error.*`). `message` keeps the historical English text
  *  for logs / tests. */
-export type GraphFileErrorCode = 'invalid-json' | 'unexpected' | 'not-loop-studio' | 'missing-nodes-edges' | 'bad-node' | 'bad-timetable'
+export type GraphFileErrorCode = 'invalid-json' | 'unexpected' | 'not-loop-studio' | 'missing-nodes-edges' | 'bad-node' | 'bad-timetable' | 'bad-run-rule'
 
 /** issue #392 B — a node entry the canvas can draw: an object with a string
  *  `id` and a finite `position`. Anything else used to pass this reader, reach
@@ -821,7 +821,7 @@ function canonicalRuleOn(n: LoopNode): LoopNode {
   const raw = (n.data as { run?: unknown } | undefined)?.run
   if (raw === undefined) return n
   const read = readRunRule(raw)
-  if (!read.ok) throw new GraphFileError('unexpected', `The run rule on "${n.id}" was refused: ${read.detail}.`)
+  if (!read.ok) throw new GraphFileError('bad-run-rule', `The run rule on "${n.id}" was refused: ${read.detail}.`, undefined, n.id)
   return { ...n, data: { ...n.data, run: read.rule } } as unknown as LoopNode
 }
 
@@ -829,9 +829,12 @@ export class GraphFileError extends Error {
   code: GraphFileErrorCode
   /** `bad-timetable` — which table and which row, for the message */
   table?: { id: string | null; row: number | null }
-  constructor(code: GraphFileErrorCode, message: string, table?: { id: string | null; row: number | null }) {
+  /** `bad-run-rule` — the stage, for the message */
+  stage?: string
+  constructor(code: GraphFileErrorCode, message: string, table?: { id: string | null; row: number | null }, stage?: string) {
     super(message)
     this.name = 'GraphFileError'
+    this.stage = stage
     this.code = code
     if (table) this.table = table
   }

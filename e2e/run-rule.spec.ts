@@ -38,6 +38,28 @@ test('a rule that alone reads a table sets the run', async ({ page }) => {
   await expect.poll(async () => (await values(page))?.store).toBe(50)
 })
 
+test('a stage held below its target says which Pool held it', async ({ page }) => {
+  await openApp(page)
+  await importGraph(page, document().replace('"initial":1000', '"initial":10'))
+  await advance(page)
+  // the run bar's line, and its live region for a screen reader, say the same
+  await expect(page.getByText(/ran below its target: .*tank.* held 10 of the 25 it needed\. Steps in a row: 1\./).first()).toBeVisible()
+})
+
+test('a bad rule refuses the file, naming the stage', async ({ page }) => {
+  await openApp(page)
+  const bad = document().replace('"rated":"feed"', '"rated":"feed","lowest":"2"')
+  const error = await page.evaluate((text) => {
+    try {
+      ;(window as unknown as Bridge).__loop.graph.getState().loadJSON(text)
+      return null
+    } catch (e) {
+      return (e as Error).message
+    }
+  }, bad)
+  expect(error).toContain('"ro"')
+})
+
 test('a `/graph/6` file opens at version 6, with its rule', async ({ page }) => {
   await openApp(page)
   await importGraph(page, document())
@@ -48,11 +70,15 @@ test('a `/graph/6` file opens at version 6, with its rule', async ({ page }) => 
   expect(run).toEqual({ version: 6, run: { table: 'demand', rated: 'feed' } })
 })
 
-test('a rule on a group with a Gate moves nothing, and says why', async ({ page }) => {
+test('a rule on a group with a Gate is refused before Play, and moves nothing', async ({ page }) => {
   await openApp(page)
   const gate = { id: 'g', type: 'gate', position: { x: 120, y: 0 }, data: { kind: 'gate', label: 'Split', activation: 'automatic', distribution: 'deterministic', mode: 'pullAny' } }
   await importGraph(page, document([gate], [line('in', 'tank', 'g', '100')], 'ro').replace('"source":"tank","target":"ro"', '"source":"g","target":"ro"'))
+  // before any step: the run bar says so, Play is off, and Show finds the stage
+  await expect(page.getByText(/Can’t run: the run rule on .*RO.* cannot steer a group with a Gate/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeDisabled()
+  await page.getByRole('button', { name: 'Show', exact: true }).click()
+  await expect.poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().selectedNodeId)).toBe('ro')
   await advance(page)
-  await expect.poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().diagnostics?.join(' ') ?? '')).toContain('a run rule cannot steer a group with a Gate')
   expect((await values(page))?.tank ?? 1000).toBe(1000)
 })

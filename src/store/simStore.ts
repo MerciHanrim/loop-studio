@@ -2,8 +2,9 @@ import { create } from 'zustand'
 import { initSim, step } from '../engine'
 import type { FlowEvent, SimState, SimValues, StateEvent, StepResult, TriggerQueueEntry } from '../engine'
 import { type ConverterGroup, refusedGroups } from '../engine/converterGroups'
-import type { GateStatus, StepNotice, TimetableLineReport } from '../engine/types'
-import { hasTimetables } from '../model/modelVersion'
+import type { GateStatus, RunGroupReport, StepNotice, TimetableLineReport } from '../engine/types'
+import { hasRunRules, hasTimetables } from '../model/modelVersion'
+import { runFindings, type RunFinding } from '../model/runRule'
 import { timetableFindings, type TimetableFinding } from '../model/timetable'
 import type { BoundaryOutflow } from '../engine/boundaryOutflow'
 import { refusingKindFindings, type KindFinding } from '../model/kinds'
@@ -80,6 +81,8 @@ export type PreparedResult = {
     notices: StepNotice[]
     /** `StepReport.timetableLines` of this step (loop-model/5) */
     timetableLines: TimetableLineReport[]
+    /** `StepReport.runs` of this step (loop-model/6) */
+    runs: RunGroupReport[]
     /** `StepReport.gates` of this step (#477 — the Gate state LED and the Inspector's line) */
     gates: GateStatus[]
     /** `StepReport.boundaryOutflow` of this step (loop-model/3 §M3-5; `[]` without a kinds table) */
@@ -167,6 +170,8 @@ type SimStore = {
   /** loop-model/5 (SEMANTICS-M5.md §M5-5) — the table lines that refuse the run,
    *  worded by the run bars. Play, Step and Monte Carlo do not start. */
   timetableRefusals: TimetableFinding[]
+  /** loop-model/6 (SEMANTICS-M6.md §M6-3) — the rules that refuse the run, before Play */
+  runRefusals: RunFinding[]
   /** loop-model/3 (§M3-5, L1) — the committed step's boundary outflow by kind
    *  (`StepReport.boundaryOutflow`); `[]` without a kinds table. Same
    *  lifecycle as `gates`. */
@@ -188,7 +193,7 @@ type SimStore = {
    *  (§LGR3.4). (There is no "seek" today; a future jump-to-step must clear it.) */
   activitySteps: string[][]
 
-  series: { step: number; values: SimValues; timetableLines?: TimetableLineReport[] }[]
+  series: { step: number; values: SimValues; timetableLines?: TimetableLineReport[]; runs?: RunGroupReport[] }[]
 
   /** which series the timeline plots — the three-state model of
    *  `docs/timeline-series-contract.md` §3: `'auto'` (the automatic default; the
@@ -342,6 +347,8 @@ export const useSimStore = create<SimStore>((set, get) => {
   /** loop-model/3 — the findings that refuse the run under the current kinds table */
   const kindRefused = () => refusingKindFindings(graph().nodes, graph().edges, graph().kinds, graph().modelVersion, graph().time)
   /** loop-model/5 — the findings that refuse the run under the current tables */
+  /** loop-model/6 — the findings that refuse the run under the current rules */
+  const ruleRefused = () => (hasRunRules(graph().modelVersion) ? runFindings(graph().nodes, graph().edges, graph().timetables, graph().kinds, graph().time, graph().modelVersion) : [])
   const tableRefused = () => (hasTimetables(graph().modelVersion) ? timetableFindings(graph().nodes, graph().edges, graph().timetables, graph().kinds, graph().time) : [])
 
   // §PB6 — τ maps to this wall-clock span. Reduced motion does NOT get its own
@@ -383,7 +390,7 @@ export const useSimStore = create<SimStore>((set, get) => {
   }
   /** #471 — Play / Step do not start while a group is refused (see `refusals`)
    *  or a kind finding refuses the run (loop-model/3, see `kindRefusals`) */
-  const refused = () => get().initError != null || get().refusals.length > 0 || get().kindRefusals.length > 0 || get().timetableRefusals.length > 0
+  const refused = () => get().initError != null || get().refusals.length > 0 || get().kindRefusals.length > 0 || get().timetableRefusals.length > 0 || get().runRefusals.length > 0
 
   const deriveFrom = (r: StepResult): PreparedResult['derived'] => {
     const g = graph()
@@ -405,6 +412,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       diagnostics: [...new Set(r.report.diagnostics)],
       notices: [...r.report.notices],
       timetableLines: [...(r.report.timetableLines ?? [])],
+      runs: [...(r.report.runs ?? [])],
       gates: [...r.report.gates],
       boundaryOutflow: [...(r.report.boundaryOutflow ?? [])],
     }
@@ -493,7 +501,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       series:
         p.toState.step === p.fromStep
           ? s.series
-          : [...s.series, { step: p.toState.step, values: p.toState.values, ...(p.derived.timetableLines.length > 0 ? { timetableLines: p.derived.timetableLines } : {}) }].slice(-MAX_SERIES),
+          : [...s.series, { step: p.toState.step, values: p.toState.values, ...(p.derived.timetableLines.length > 0 ? { timetableLines: p.derived.timetableLines } : {}), ...(p.derived.runs.length > 0 ? { runs: p.derived.runs } : {}) }].slice(-MAX_SERIES),
       status: p.toState.ended ? 'ended' : s.status === 'idle' ? 'paused' : s.status,
       commitEpoch: s.commitEpoch + 1,
       lastSettledTransitionId: p.transitionId,
@@ -667,6 +675,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     refusals: [],
     kindRefusals: [],
     timetableRefusals: [],
+    runRefusals: [],
     activitySteps: [],
     steadyState: false,
     series: [],
@@ -744,7 +753,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         gates: [],
         boundaryOutflow: [],
         initError: error,
-        refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(), timetableRefusals: tableRefused(),
+        refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(), timetableRefusals: tableRefused(), runRefusals: ruleRefused(),
         activitySteps: [],
         steadyState: false,
         series: [{ step: 0, values: init.values }],
@@ -777,7 +786,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         gates: [],
         boundaryOutflow: [],
         initError: null, // a verified snapshot IS a valid head
-        refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(), timetableRefusals: tableRefused(), // a refused shape stays refused: a restored head does not step
+        refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(), timetableRefusals: tableRefused(), runRefusals: ruleRefused(), // a refused shape stays refused: a restored head does not step
         activitySteps: [],
         commitEpoch: s.commitEpoch + 1,
         lastSettledTransitionId: null,

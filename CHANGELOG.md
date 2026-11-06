@@ -7,6 +7,8 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **Run rules say what they do.** A rule that cannot run now refuses before Play, with the stage named, in all 18 languages. While a run goes, a stage held below its target says which Pool held it and for how many steps, and the run CSV gains each ruled group’s target, moved fraction and state.
+
 - **Run rules.** A Converter can hold a rule that reads a tank, a timetable or both, and sets the fraction its group may run at. Every line of the group keeps its ratio, and `pull all` means reaching the target. A rule cannot steer a group with a Gate, which refuses the run. There is no screen for a rule yet: one comes in through a hand-written document file.
 
 - **The icon gallery opens over the panel.** Choosing a node’s icon no longer pushes the fields below it down, or runs past the bottom of the window: the gallery is a popover beside its button, and opens upward when there is no room below. A press outside it, or moving focus away, closes it with no change.

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { estimateMonteCarloCost, type CostEstimate } from '../engine'
 import { useGraphStore } from '../store/graphStore'
-import { timetableRefusalText } from '../ui/runMessages'
+import { runRefusalText, timetableRefusalText } from '../ui/runMessages'
 import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
 import { useT } from '../i18n'
@@ -30,8 +30,9 @@ export function MonteCarloDialog() {
   // loop-model/3 (SEMANTICS-M3.md §M3-4) — a kind finding that refuses the run, same posture
   const kindRefusedCount = useSimStore((s) => s.kindRefusals.length)
   const timetableRefusals = useSimStore((s) => s.timetableRefusals)
+  const runRefusals = useSimStore((s) => s.runRefusals)
   const timetables = useGraphStore((s) => s.timetables)
-  const refusedCount = groupRefusedCount + kindRefusedCount + timetableRefusals.length
+  const refusedCount = groupRefusedCount + kindRefusedCount + timetableRefusals.length + runRefusals.length
   // iOS Safari keeps its focus-zoom until the field is blurred — drop focus (and
   // dismiss the soft keyboard) before the dialog unmounts so the page returns to
   // 100% (docs/mobile.md §MV4b). No-op on desktop.
@@ -306,7 +307,9 @@ export function MonteCarloDialog() {
               ? t('playbar.refused', { n: groupRefusedCount })
               : kindRefusedCount > 0
                 ? t('playbar.refused.kinds', { n: kindRefusedCount })
-                : timetableRefusalText(timetableRefusals[0], timetables, t)}
+                : timetableRefusals.length > 0
+                  ? timetableRefusalText(timetableRefusals[0], timetables, t)
+                  : runRefusalText(runRefusals[0], useGraphStore.getState().nodes, t)}
           </p>
         ) : null}
 

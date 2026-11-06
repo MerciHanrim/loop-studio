@@ -2,7 +2,7 @@ import type { Activation, LoopEdge, LoopNode } from '../model/types'
 import { kindFindingText, refusingKindFindings, resolveKinds, type ResourceKindDecl } from '../model/kinds'
 import { applyUnits } from '../model/engineValues'
 import { hasRunRules, hasTimetables } from '../model/modelVersion'
-import { anyRunRule, planRuns, runFindings, runFindingText, runReports } from '../model/runRule'
+import { anyRunRule, planRuns, runFindings, runFindingText, runNotices, runReports } from '../model/runRule'
 import { applyTimetables, timetableFindings, timetableFindingText, timetableLines, unmetAmount, type PlannedLine, type Timetable } from '../model/timetable'
 import type { DocTime } from '../model/units'
 import { boundaryOutflowByKind } from './boundaryOutflow'
@@ -2559,6 +2559,10 @@ export function step(
     if (amount > EPSILON) notices.push({ kind: 'timetableUnmet', edgeId: l.edgeId, tableId: l.tableId, label: opts.timetables!.find((t) => t.id === l.tableId)!.label, amount })
   }
 
+  // §M6-5 — one entry per group with a rule; a document with none has no key
+  const runs = runPlan ? runReports(runPlan.rules, nodes, edges, events, stateEvents, runLimit) : null
+  if (runs) notices.push(...runNotices(runs, nodes))
+
   return {
     state: { step: curStep, values: working, ended, fired: firedList, triggerQueue },
     report: {
@@ -2570,8 +2574,7 @@ export function step(
       notices,
       gates,
       ...(tableLines ? { timetableLines: tableLines } : {}),
-      // §M6-5 — one entry per group with a rule; a document with none has no key
-      ...(runPlan ? { runs: runReports(runPlan.rules, nodes, edges, events, stateEvents, runLimit) } : {}),
+      ...(runs ? { runs } : {}),
       // §M3-5 (L1) — only for a document with a kinds table; a v2 report has no key
       ...(kindRes ? { boundaryOutflow: boundaryOutflowByKind(events, nodes, liveEdges, kindRes.edgeKind) } : {}),
     },

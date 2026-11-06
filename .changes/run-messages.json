@@ -1,0 +1,1 @@
+{"type":"user-facing","changelog":"- **Run rules say what they do.** A rule that cannot run now refuses before Play, with the stage named, in all 18 languages. While a run goes, a stage held below its target says which Pool held it and for how many steps, and the run CSV gains each ruled group’s target, moved fraction and state."}
