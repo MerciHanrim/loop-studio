@@ -4,9 +4,9 @@
   "$limit": "This manifest defends the call sites listed here, exactly and in both directions. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together close the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
   "$history": "PR B recorded 11 decision rows and deferred them. C3.5 re-ran the population from the TypeScript type checker — 205 ICU arguments — and found 27 more that carry user or technical values: 8 in its first pass (the unrecognized-column header and the five `import.loc.*` calls) and 19 that its first pass only RECORDED as open. All 27 are implemented here, so no row of the disposition manifest is classed `auto`, `ltr` or `per-fragment` any more.",
   "totals": {
-    "rows": 100,
-    "obligations": 51,
-    "callSites": 91
+    "rows": 103,
+    "obligations": 54,
+    "callSites": 103
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -16,7 +16,8 @@
     "er19": 3,
     "workbench": 18,
     "issue-420": 4,
-    "issue-471": 22
+    "issue-471": 22,
+    "run-rules": 3
   },
   "obligations": [
     {
@@ -1129,6 +1130,54 @@
       "why": "free user text of unknown direction inside a localized phrase.",
       "sites": [
         { "keys": ["inspector.unit.perStep"], "args": ["unit"], "kind": "auto" }
+      ]
+    },
+    {
+      "id": "run-messages-rule-refusal",
+      "rows": [
+        "run-rules the stage named in a refusal"
+      ],
+      "file": "src/ui/runMessages.ts",
+      "enclosing": "runRefusalText",
+      "carries": "the user's own stage name in a refusal (SEMANTICS-M6.md §M6-3)",
+      "why": "Free text of unknown direction; the numbers derive.",
+      "sites": [
+        { "keys": ["playbar.refused.run.shape"], "args": ["label"], "kind": "auto" },
+        { "keys": ["playbar.refused.run.tank"], "args": ["label"], "kind": "auto" },
+        { "keys": ["playbar.refused.run.table"], "args": ["label"], "kind": "auto" },
+        { "keys": ["playbar.refused.run.rated"], "args": ["label"], "kind": "auto" },
+        { "keys": ["playbar.refused.run.rule"], "args": ["label"], "kind": "auto" }
+      ]
+    },
+    {
+      "id": "run-messages-rule-notice",
+      "rows": [
+        "run-rules the stage and Pool named in a notice"
+      ],
+      "file": "src/ui/runMessages.ts",
+      "enclosing": "runNoticeText",
+      "carries": "the user's own stage and Pool names in a run message (SEMANTICS-M6.md §M6-5)",
+      "why": "Free text of unknown direction; the numbers derive.",
+      "sites": [
+        { "keys": ["playbar.diag.runCapped"], "args": ["label"], "kind": "auto" },
+        { "keys": ["playbar.diag.runStoppedFloor"], "args": ["label"], "kind": "auto" },
+        { "keys": ["playbar.diag.runShortRoom"], "args": ["label", "pool"], "kind": "auto" },
+        { "keys": ["playbar.diag.runShortSupply"], "args": ["label", "pool"], "kind": "auto" },
+        { "keys": ["playbar.diag.runStoppedRoom"], "args": ["label", "pool"], "kind": "auto" },
+        { "keys": ["playbar.diag.runStoppedSupply"], "args": ["label", "pool"], "kind": "auto" }
+      ]
+    },
+    {
+      "id": "import-error-run-rule",
+      "rows": [
+        "run-rules the stage named when a file is refused"
+      ],
+      "file": "src/ui/importError.ts",
+      "enclosing": "importErrorMessage",
+      "carries": "a node id from the file, which is free text",
+      "why": "Free text of unknown direction; the numbers derive.",
+      "sites": [
+        { "keys": ["import.error.badRunRule"], "args": ["node"], "kind": "auto" }
       ]
     },
     {

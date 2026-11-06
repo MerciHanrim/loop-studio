@@ -156,7 +156,16 @@ export type GateStatus = {
 
 /** A notice `step` reports as data; the catalogs carry its sentence
  *  (`playbar.diag.<kind>`). */
-export type StepNotice = NodeLossNotice | TimetableEndedNotice | TimetableUnmetNotice
+export type StepNotice = NodeLossNotice | TimetableEndedNotice | TimetableUnmetNotice | RunNotice
+
+/** loop-model/6 (SEMANTICS-M6.md §M6-5) — a ruled group that did not reach its target
+ *  (`limit` is null when the engine's floor held it, `pool` is the Pool's label), or a
+ *  rule that asked for more than a full run. `met` and `off` raise none. `group` is the
+ *  group's first member, ascending by id, so it does not change while the graph does
+ *  not. `label` names the deciding stage, which can change from step to step. */
+export type RunNotice =
+  | { kind: 'runHeld'; group: string; label: string; state: 'short' | 'stopped'; limit: { why: 'supply' | 'room'; pool: string; needed: number; had: number } | null }
+  | { kind: 'runCapped'; group: string; label: string; wanted: number }
 
 export type NodeLossNotice = {
   /** `multiSupplyLoss`: a Converter in a multi-supply group received more

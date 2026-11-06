@@ -15,6 +15,7 @@ const KEY: Record<GraphFileErrorCode, MessageKey> = {
   'missing-nodes-edges': 'import.error.missingNodesEdges',
   'bad-node': 'import.error.badNode',
   'bad-timetable': 'import.error.badTimetable',
+  'bad-run-rule': 'import.error.badRunRule',
 }
 
 export function importErrorMessage(err: unknown, t: (key: MessageKey, params?: Record<string, string | number>) => string): string {
@@ -22,6 +23,7 @@ export function importErrorMessage(err: unknown, t: (key: MessageKey, params?: R
     const { id, row } = err.table
     return row === null ? t('import.error.badTimetableWhole', { table: isolateAuto(id ?? '?') }) : t('import.error.badTimetable', { table: isolateAuto(id ?? '?'), row })
   }
+  if (err instanceof GraphFileError && err.stage !== undefined) return t('import.error.badRunRule', { node: isolateAuto(err.stage) })
   if (err instanceof GraphFileError) return t(KEY[err.code])
   if (err instanceof Error && err.message) return err.message
   return t('import.readError')

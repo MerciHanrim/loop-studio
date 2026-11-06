@@ -198,6 +198,7 @@ export const useMcStore = create<McStore>((set, get) => ({
     // batch the same way; `step` would refuse every step of it anyway
     if (useSimStore.getState().kindRefusals.length > 0) return
     if (useSimStore.getState().timetableRefusals.length > 0) return // loop-model/5 — so does a table line
+    if (useSimStore.getState().runRefusals.length > 0) return // loop-model/6 — and a run rule
     const g = useGraphStore.getState()
     const nodes = g.nodes.map((n) => ({ ...n }))
     const edges = g.edges.map((e) => ({ ...e }))

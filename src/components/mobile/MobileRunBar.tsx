@@ -7,7 +7,7 @@ import { selectOverlay, useUiStore } from '../../store/uiStore'
 import { useIsMobile } from '../../ui/media'
 import { useT } from '../../i18n'
 import { isolateAuto } from '../../i18n/bidiIsolate'
-import { timetableNoticeText, timetableRefusalText } from '../../ui/runMessages'
+import { runNoticeText, runRefusalText, runStreak, timetableNoticeText, timetableRefusalText } from '../../ui/runMessages'
 import { Icon } from '../../ui/icons'
 
 // docs/mobile.md §MV4 — the fixed bottom run bar. Reset / Step / Play·Pause /
@@ -66,8 +66,10 @@ export function MobileRunBar() {
   // loop-model/5 (SEMANTICS-M5.md §M5-5) — a table line that refuses the run, the
   // same line; Show selects the connection
   const timetableRefusals = useSimStore((s) => s.timetableRefusals)
+  // loop-model/6 (SEMANTICS-M6.md §M6-3) — a rule that refuses the run; Show selects its stage
+  const runRefusals = useSimStore((s) => s.runRefusals)
   const timetables = useGraphStore((s) => s.timetables)
-  const refused = refusals.length > 0 || kindRefusals.length > 0 || timetableRefusals.length > 0
+  const refused = refusals.length > 0 || kindRefusals.length > 0 || timetableRefusals.length > 0 || runRefusals.length > 0
   const cannotRun = initError != null || refused
   const showRefused = () => {
     const g = refusals[0]
@@ -79,7 +81,9 @@ export function MobileRunBar() {
       return
     }
     const line = timetableRefusals[0]
-    if (line) useGraphStore.getState().setSelection(null, line.edgeId)
+    if (line) return useGraphStore.getState().setSelection(null, line.edgeId)
+    const rule = runRefusals[0]
+    if (rule) useGraphStore.getState().setSelection(rule.stage, null)
   }
   const engineDiagnostics = useSimStore((s) => s.diagnostics)
   const notices = useSimStore((s) => s.notices)
@@ -107,14 +111,18 @@ export function MobileRunBar() {
         ? t('playbar.refused.kinds', { n: kindRefusals.length })
         : timetableRefusals.length > 0
           ? timetableRefusalText(timetableRefusals[0], timetables, t)
-          : ''
+          : runRefusals.length > 0
+            ? runRefusalText(runRefusals[0], useGraphStore.getState().nodes, t)
+            : ''
   // #471 (Deploy 2) — the engine's structured notices, worded here in the
   // user's language (the node label isolated), ahead of the English engine
   // diagnostics in the same list
   const diagnostics = useMemo(
     () => [
       ...notices.map((x) =>
-        x.kind === 'timetableEnded' || x.kind === 'timetableUnmet'
+        x.kind === 'runHeld' || x.kind === 'runCapped'
+          ? runNoticeText(x, runStreak(useSimStore.getState().series, x.group), t)
+          : x.kind === 'timetableEnded' || x.kind === 'timetableUnmet'
           ? timetableNoticeText(x, t)
           : t(x.kind === 'multiSupplyHeld' ? 'playbar.diag.multiSupplyHeld' : 'playbar.diag.multiSupplyLoss', {
               label: isolateAuto(x.label),

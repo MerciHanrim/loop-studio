@@ -21,7 +21,7 @@ There is no screen for a rule yet. It comes in through a hand-written document f
 - `lowest`, from 0 to 1, optional.
 - A rule needs a tank, a table, or both. Numbers are plain decimal text, at most 10⁶⁰, and `band` is above 0.
 
-A rule that does not read refuses the file, naming the stage. There is no fallback fraction.
+A rule that does not read refuses the file, naming the stage (`bad-run-rule`). There is no fallback fraction.
 
 The rule is engine input: it is in the file, the graph digest, the revision content, the Monte Carlo digest and a module. An insert gives its `tank` and `rated` their new ids, and refuses a rule that reads outside the module. `ENGINE_REVISION` does not change, because no earlier document holds a rule.
 
@@ -35,7 +35,7 @@ The table's amount and the line's rate are both taken to the base unit per step,
 
 ## M6-3. Findings
 
-Each refuses the step: nothing moves, and the step is not consumed. The run bars do not yet refuse before Play, so the refusal shows when a step is asked for.
+Each refuses the step: nothing moves, and the step is not consumed. The run bars and Monte Carlo refuse before they start, with the same findings, and Show selects the stage. Each finding belongs to one of five sentences, one per thing a person has to fix: the group, the tank, the table, the 100 % line, or the rule itself.
 
 | Case | Finding |
 |---|---|
@@ -104,11 +104,16 @@ A group runs at the smallest target of its members. `pull all` means reaching th
 
 `pool`, `needed` and `had` name the tightest limit in `stopped` and `short`: what the target needed from that Pool or of its room, and what was there at the group's turn. On a tie, supply before room.
 
+**Notices.** `short` and `stopped` raise `runHeld`, and a rule above a full run raises `runCapped`. `off` raises none, because nothing is wrong. The run bar shows one line per group with the steps in a row, not one per step. The count follows the group, named by its first member, so it carries on when the rule that decides changes.
+
+**The run CSV** adds three columns per ruled group, by its first member: `<label> (target) [id]`, `(moved)` and `(state)`, in the plain and the shown file. A step with no report, such as step 0, leaves them empty. A document with no rule writes the same bytes.
+
 ## M6-6. Where it lives
 
 - Model: `src/model/runRule.ts` (the read, the findings, the plan, the report), `hasRunRules` in `src/model/modelVersion.ts`.
 - File and digests: `src/model/serialize.ts`, `src/model/revision.ts`, `src/model/workspace.ts`, `src/model/moduleGraph.ts`.
 - Engine: `src/engine/step.ts`, with `runTargets` as its seam.
-- Pins: `src/engine/run-target.test.ts`, `src/engine/run-rule.test.ts`, `src/model/runRuleFile.test.ts`.
+- Words: `src/ui/runMessages.ts`, and `runRefusals` in `src/store/simStore.ts`.
+- Pins: `src/engine/run-target.test.ts`, `src/engine/run-rule.test.ts`, `src/model/runRuleFile.test.ts`, `src/ui/runMessages.test.ts`; in the browser, `e2e/run-rule.spec.ts`.
 
-Not built yet: the refusal before Play, notices, the CSV columns, and every screen.
+Not built yet: every screen for making or reading a rule. A fraction that is not finite is known only inside a step, so it refuses with the engine’s English diagnostic.

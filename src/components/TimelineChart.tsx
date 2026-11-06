@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useSta
 import { formatRegisterValue, readAccent, registerSeriesRuns, registersOfSnapshot } from '../model/model'
 import { resolveTimelineSeries } from '../model/timelineSeries'
 import { axisMark, axisPad, axisUnit, chartNumber as fmt, compactText, fullText, shownNumber, viewIsOn, viewUnitChoices, type PoolViews } from '../model/viewUnits'
-import { documentExportUnits, documentTableLines, useGraphStore } from '../store/graphStore'
+import { documentExportUnits, documentRunRules, documentTableLines, useGraphStore } from '../store/graphStore'
 import { currentRegisterOutcomes } from '../store/registers'
 import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
@@ -58,14 +58,14 @@ function niceCeil(v: number): number {
 
 function exportRunCsv(pools: { id: string; label: string }[], series: { step: number; values: Record<string, number> }[]) {
   const units = documentExportUnits()
-  downloadCsv(buildRunCsv(pools.map((p) => ({ ...p, unit: units.get(p.id) })), series, documentTableLines()), 'loop-studio-run.csv')
+  downloadCsv(buildRunCsv(pools.map((p) => ({ ...p, unit: units.get(p.id) })), series, documentTableLines(), documentRunRules()), 'loop-studio-run.csv')
 }
 
 /** SEMANTICS-M4.md §M4-8 — the file with shown values, its own name so it is
  *  never taken for the plain one */
 function exportShownRunCsv(pools: { id: string; label: string }[], series: { step: number; values: Record<string, number> }[], views: PoolViews) {
   const units = documentExportUnits()
-  downloadCsv(buildShownRunCsv(pools.map((p) => ({ ...p, unit: units.get(p.id), view: views.get(p.id) })), series, documentTableLines()), 'loop-studio-run-shown.csv')
+  downloadCsv(buildShownRunCsv(pools.map((p) => ({ ...p, unit: units.get(p.id), view: views.get(p.id) })), series, documentTableLines(), documentRunRules()), 'loop-studio-run-shown.csv')
 }
 
 export function TimelineChart() {
