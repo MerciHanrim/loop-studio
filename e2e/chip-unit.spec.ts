@@ -59,6 +59,42 @@ test('a chip follows its field, and a reading moves neither the chip nor the lin
   await expect(chip(page, 'rate')).toHaveText('21000')
 })
 
+test('a chip that prints no unit keeps its place, whatever the unit key says', async ({ page }) => {
+  await openApp(page)
+  // each covers its short line, and neither prints a unit: one names a unit the
+  // kind no longer has, the other is a range, which is not in any unit
+  // `shown` prints its unit and does move: seeing it moved says the pass has run
+  const lines = (stale?: string, range?: string) => {
+    const doc = JSON.parse(DOCUMENT)
+    doc.nodes = [pool('a', 0, 0), drain('b', 170, 0), pool('c', 0, 240), drain('d', 170, 240), pool('e', 0, 480), drain('f', 170, 480)]
+    doc.edges = [line('stale', 'a', 'b', '123456789012345', stale), line('range', 'c', 'd', '1000000000-2000000000', range), line('shown', 'e', 'f', '123456789012345', 'CMD')]
+    return JSON.stringify(doc)
+  }
+  const moved = () => page.evaluate(() => (window as unknown as Bridge).__loop.routeMap.diagnostics().runForm.endRoom?.moved ?? null)
+  const places = () =>
+    page.evaluate(() => {
+      const l = (window as unknown as Bridge).__loop
+      const of = (id: string) => {
+        const r = l.routeMap.get(id)
+        return { d: r.d, label: r.label, beside: r.beside ?? null }
+      }
+      return { stale: of('stale'), range: of('range') }
+    })
+  await importGraph(page, lines())
+  await expect.poll(moved).toEqual(['shown'])
+  const bare = await places()
+  expect(bare.stale.beside).toBeNull()
+  expect(bare.range.beside).toBeNull()
+
+  // a cleared cache: the route key does not hold a document's `unit` keys
+  await page.evaluate(() => (window as unknown as Bridge).__loop.routeMap.reset())
+  await importGraph(page, lines('gone', 'CMD'))
+  await expect(chip(page, 'stale')).toHaveText('123456789012345')
+  await expect(chip(page, 'range')).toHaveText('1000000000-2000000000')
+  await expect.poll(moved).toEqual(['shown'])
+  expect(await places()).toEqual(bare)
+})
+
 test('on a short line the chip leaves the arrow showing', async ({ page }) => {
   await openApp(page)
   const short = JSON.parse(DOCUMENT)
@@ -82,4 +118,13 @@ test('on a short line the chip leaves the arrow showing', async ({ page }) => {
     }, id)
     expect(covered, id).toBe(false)
   }
+
+  // a wide chip that stops printing its unit goes back onto its line
+  await page.evaluate(() => {
+    const g = (window as unknown as Bridge).__loop.graph.getState()
+    const e = g.edges.find((x: { id: string }) => x.id === 'routed')
+    g.setEdgeData('routed', { ...e.data, flow: '123456789012345', unit: undefined })
+  })
+  await expect(chip(page, 'routed')).toHaveText('123456789012345')
+  await expect.poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.routeMap.get('routed').beside ?? null)).toBeNull()
 })

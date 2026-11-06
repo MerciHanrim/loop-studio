@@ -157,7 +157,7 @@ const RunCaseRing = ({ role, cx, cy, r }: { role: string; cx: number; cy: number
 
 /** §L9.3 - an edge label's text together with what KIND of text it is. The two
  *  are one value so a branch cannot set the text and forget the kind. */
-type EdgeText = { s: string; kind: 'token' | 'prose'; mark?: 'trigger' }
+type EdgeText = { s: string; kind: 'token' | 'prose'; mark?: 'trigger'; unit?: true }
 
 /** §ER18 — a refused grip drop's reason, the same sentences as the Ends group's */
 const END_REASON_KEY: Record<EndMoveReason, MessageKey> = {
@@ -333,7 +333,7 @@ function LoopEdge({
     } else {
       // §M4-11 — the authored unit, in the token: a chip reads as its field does
       const unit = chipUnitsOf(gNodes, gEdges, gKinds, gTime).get(id)
-      label = token(unit ? `${raw} ${unit}` : raw)
+      label = unit ? { ...token(`${raw} ${unit}`), unit: true } : token(raw)
     }
   } else if (d.mode === 'trigger') {
     // issue #298 — the trigger mark is a shared icon, not a character an OS font
@@ -564,7 +564,7 @@ function LoopEdge({
   // unscaled), never per frame; no other connection's label is tested.
   const labelRef = useRef<HTMLDivElement>(null)
   const [labelSize, setLabelSize] = useState<{ w: number; h: number } | null>(null)
-  const labelKey = `${text}|${label.mark ?? ''}|${showLabel}|${selected}|${stepIndex}`
+  const labelKey = `${text}|${label.mark ?? ''}|${label.unit ?? ''}|${showLabel}|${selected}|${stepIndex}`
   // issue #344 §ER14.3 — the router places labels from their REST size only
   // (shown, not selected, no run value), so a run or a selection never moves a
   // route
@@ -573,7 +573,7 @@ function LoopEdge({
     const el = labelRef.current
     const next = el ? { w: el.offsetWidth, h: el.offsetHeight } : null
     setLabelSize((prev) => (prev && next && prev.w === next.w && prev.h === next.h ? prev : next))
-    if (next && reportsRestSize) setRouteLabelSize(id, next.w, next.h)
+    if (next && reportsRestSize) setRouteLabelSize(id, next.w, next.h, label.unit === true)
   }, [labelKey, reportsRestSize, id])
   // docs/edge-routing.md §ER15.2 — a label that grows in a run (a Value change:
   // Δ row and clamp note; a Trigger: its blocked note) also reports its RUN

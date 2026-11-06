@@ -105,7 +105,9 @@ type GenOut = { map?: Map<string, RoutedEdge>; free?: Map<string, FreeSlot>; run
 // ── the routing inputs that are not graph data: label sizes, the live flag ──
 
 type LabelSize = { w: number; h: number }
-const labelSizes = new Map<string, LabelSize>()
+/** `showsUnit`: the chip as drawn prints a unit (§ER15.3). It comes with the size
+ *  because the chip is what knows: a `unit` key alone does not mean it prints one. */
+const labelSizes = new Map<string, LabelSize & { showsUnit?: boolean }>()
 /** §ER15.2 — a label's RUN FORM, flow px: its rendered border box at the
  *  largest it can grow to in a run (a Value change: set value, Δ row and clamp
  *  note, every row at the chip's width cap; a Trigger: its blocked note too).
@@ -145,10 +147,10 @@ function setBusy(b: boolean): void {
 /** a label's REST size (visible, not selected, no run value), in flow px; the
  *  last known size stays while the label is hidden, so zooming never moves a
  *  route */
-export function setRouteLabelSize(edgeId: string, w: number, h: number): void {
+export function setRouteLabelSize(edgeId: string, w: number, h: number, showsUnit = false): void {
   const prev = labelSizes.get(edgeId)
-  if (prev && prev.w === w && prev.h === h) return
-  labelSizes.set(edgeId, { w, h })
+  if (prev && prev.w === w && prev.h === h && (prev.showsUnit ?? false) === showsUnit) return
+  labelSizes.set(edgeId, showsUnit ? { w, h, showsUnit } : { w, h })
   bump()
 }
 /** §ER15.2 — a label's run-form size (`LoopEdge`'s off-screen copy) */
@@ -900,18 +902,12 @@ function roomBefore(pts: Pt[], box: Box): number {
 }
 const leavesBothEnds = (pts: Pt[], box: Box): boolean => roomBefore(pts, box) >= LABEL_END_ROOM && roomBefore([...pts].reverse(), box) >= LABEL_END_ROOM
 
-/** a connection whose chip carries a unit (§M4-11): the only chips this pass moves,
- *  so a document with no unit keeps every label where it was */
-const carriesUnit = (e: LoopEdge): boolean => {
-  const unit = (e.data as { unit?: unknown } | undefined)?.unit
-  return (e.data?.kind ?? 'resource') === 'resource' && typeof unit === 'string' && unit !== ''
-}
-
-/** §ER15.3 — the end-room pass, after every route and label is final: a chip with
- *  a unit is wider than the number it replaced, and on a short line it can cover
- *  the arrow. Such a chip goes to a slot on its line that leaves both ends showing,
- *  then beside the line. It moves no line and no other label. A chip with no spot
- *  stays where it is and is reported. */
+/** §ER15.3 — the end-room pass, after every route and label is final: a chip that
+ *  prints a unit is wider than the number it replaced, and on a short line it can
+ *  cover the arrow. Such a chip goes to a slot on its line that leaves both ends
+ *  showing, then beside the line. Only those chips move, so a chip that prints no
+ *  unit keeps its place, whatever its data holds. It moves no line and no other
+ *  label. A chip with no spot stays where it is and is reported. */
 function endRoomPass(
   p: Plan,
   edges: LoopEdge[],
@@ -930,7 +926,7 @@ function endRoomPass(
     const own = lineOf(e.id)
     const c = centreOf(e.id)
     const s = labelSizes.get(e.id)
-    return carriesUnit(e) && own && c && s && !beside.has(e.id) && !free.get(e.id)?.beside && !leavesBothEnds(own, labelBoxAt(c, s, e.id))
+    return s?.showsUnit && own && c && !beside.has(e.id) && !free.get(e.id)?.beside && !leavesBothEnds(own, labelBoxAt(c, s, e.id))
   })
   if (covering.length === 0) return { moved, kept }
   const nodes = p.boxes.map((b) => grown(b, LABEL_NODE_MARGIN))

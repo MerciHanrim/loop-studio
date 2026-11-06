@@ -1136,7 +1136,7 @@ Measured on the desalination document: 5 of its 41 lines kept less than 10 flow
 px at the target end, where the number alone had covered 1.
 
 **What is placed.** A last step of the full generation, after §ER15.2, looks at
-each connection that names a unit. A chip that leaves less than `LABEL_END_ROOM`
+each chip that prints a unit. A chip that leaves less than `LABEL_END_ROOM`
 (14 flow px: the arrow and a little line) at either end of its own line moves:
 - first to a slot on its line that leaves both ends;
 - then beside its line, as §ER15.2 hangs a chip, with the same gaps, leader and
@@ -1146,9 +1146,13 @@ each connection that names a unit. A chip that leaves less than `LABEL_END_ROOM`
 No line and no other label moves. A chip with no such spot stays where it is, and
 is reported in `routeDiagnostics().runForm.endRoom`.
 
-**Only a chip with a unit.** A chip with no unit keeps today's place, so a document
-with none is unchanged. A short line with a long plain number can still cover its
-arrow, as it always could. A record keeps its recorded places (§ER15.1).
+**Only a chip that prints a unit.** The chip reports this with its size, so the
+router and the screen cannot disagree: a `unit` key alone moves nothing. A chip
+that prints no unit keeps today's place, whether its line names no unit, a unit
+the kind no longer has, or a unit on a flow that is not a plain decimal. So a
+document with no printed unit is unchanged. A short line with a long plain number
+can still cover its arrow, as it always could. A record keeps its recorded places
+(§ER15.1).
 
 **Limits.** As in §ER15.2, the step runs in the full generation only.
 
