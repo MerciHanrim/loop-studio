@@ -33,6 +33,7 @@ import { useFilterStore } from '../store/filterStore'
 import { nodeTypes } from './nodes/nodes'
 import { edgeTypes } from './edges/LoopEdge'
 import { graphReadEdges, isReadEdge } from '../model/readEdges'
+import { useStageTagFold } from './nodes/StageTag'
 import { EdgeMarkers } from './edges/EdgeMarkers'
 import { holdConnectTouch, isFurtherTouchDuringHold, releaseConnectTouch } from './edges/connectTouchHold'
 import { computeFocusSet, useFocusSet } from './focusSet'
@@ -485,6 +486,7 @@ export function Canvas() {
   // SEMANTICS-M6.md §M6-7 — the read connections join only here, the copy React Flow
   // draws. No handle ids: the line is drawn from its route, and it never connects.
   const nodesForReads = useGraphStore((s) => s.nodes)
+  useStageTagFold()
   const readLines = useMemo(
     () =>
       graphReadEdges(nodesForReads, edges)

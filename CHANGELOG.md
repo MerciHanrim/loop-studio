@@ -7,6 +7,7 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **A ruled stage says what it reads and did.** Under its name, a tag names the tank and the table and says how far the stage ran, or that it was held short, stopped or off. It folds when a chip or a name is close, and opens in full when the stage or its tank is chosen or its line pointed at. A stage whose line has no free port says so, and names the tank. The tag’s space is reserved, so lines near a ruled stage can move once, and no step moves them.
 - **A rule shows what it reads.** A stage whose run rule reads a tank now has a dash-dot line from that tank, with a ring at the tank and no arrow. It is drawn from the rule alone: it has its own port, moves no line or chip already on the canvas, and a click on it selects the stage.
 - **Run rules say what they do.** A rule that cannot run now refuses before Play, with the stage named, in all 18 languages. While a run goes, a stage held below its target says which Pool held it and for how many steps, and the run CSV gains each ruled group’s target, moved fraction and state.
 

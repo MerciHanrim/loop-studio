@@ -1578,6 +1578,22 @@ function waiting(nodes: LoopNode[], edges: LoopEdge[], gen: { map: ReadonlyMap<s
 
 const NO_SLOTS: ReadonlyMap<string, FreeSlot> = new Map()
 
+/** §M6-8 — where every chip of a generation sits, flow px */
+export function chipBoxesOf(gen: { map: ReadonlyMap<string, RoutedEdge>; free: ReadonlyMap<string, FreeSlot> }): Box[] {
+  const out: Box[] = []
+  const add = (id: string, at: Pt | null, beside?: Beside) => {
+    const s = labelSizes.get(id)
+    if (!s || !at) return
+    const side = beside?.side
+    const x = side === 'left' ? at.x - s.w : side === 'right' ? at.x : at.x - s.w / 2
+    const y = side === 'up' ? at.y - s.h : side === 'down' ? at.y : at.y - s.h / 2
+    out.push({ id: `label:${id}`, x, y, w: s.w, h: s.h })
+  }
+  for (const [id, r] of gen.map) add(id, r.label, r.beside)
+  for (const [id, f] of gen.free) add(id, f.at, f.beside)
+  return out
+}
+
 /** The generation to draw for the current routing input — the routes and the
  *  Curved / Straight label slots — shared by every `LoopEdge` in the render. */
 // SEMANTICS-M6.md §M6-7 — the router sees the read connections as well; nothing else does

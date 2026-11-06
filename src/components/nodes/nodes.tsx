@@ -55,6 +55,8 @@ import { edgePortKind, faceOf, nameFaceFor, rfHandleId } from '../../model/ports
 import type { LoopEdge, PortFace } from '../../model/types'
 import type { GateStatus } from '../../engine/types'
 import { setNodeNameBox } from '../../store/routeMap'
+import type { StageTagText } from '../../ui/stageTag'
+import { StageTag, useStageTag } from './StageTag'
 import { runNeedsCase } from '../../ui/flowColour'
 import { useCanvasTheme } from '../../ui/media'
 import { roleSymbol, type SymbolPrim } from './roleSymbol'
@@ -546,6 +548,9 @@ type FrameProps = {
    *  name and the symbol's tooltip, so the meaning does not rest on the symbol
    *  alone (Lumi, 2026-10-12) */
   roleKey?: MessageKey
+  /** SEMANTICS-M6.md §M6-8 — a ruled stage's tag, and the tank it reads */
+  stageTag?: StageTagText | null
+  stageTagTank?: string
 } & SubProps
 
 function NodeFrame({
@@ -573,6 +578,8 @@ function NodeFrame({
   aux,
   role,
   roleKey,
+  stageTag,
+  stageTagTank,
 }: FrameProps) {
   const tip = useT()
   const lod = useLod()
@@ -927,6 +934,8 @@ function NodeFrame({
     // issue #477 — a Gate's state this step, in words (the LED is decorative):
     // the state phrase, and the reason when there is one
     (gateState ? `, ${tip(GATE_STATE_KEY[gateState.state])}${gateState.why ? ` ${tip(GATE_WHY_KEY[gateState.why])}` : ''}` : '') +
+    // SEMANTICS-M6.md §M6-8 — the whole tag, whichever form shows
+    (stageTag ? `, ${stageTag.full}` : '') +
     (selected ? `, ${tip('node.aria.selected')}` : '') +
     (focused ? `, ${tip('node.aria.focused')}` : '')
   return (
@@ -1271,6 +1280,7 @@ function NodeFrame({
               {icon ? <CanvasNodeIcon id={icon} /> : null}
               {titleNode}
             </span>
+            {stageTag ? <StageTag id={nodeId} tank={stageTagTank} text={stageTag} /> : null}
           </span>
         </>
       ) : null}
@@ -1454,6 +1464,7 @@ const useRefusedMember = (id: string) => useSimStore((s) => s.refusals.some((g) 
 function ConverterNode({ id, data, selected }: NodeProps) {
   const d = data as ConverterData
   const stepKey = useSimStore((s) => s.stepIndex)
+  const stageTag = useStageTag(id, data)
   return (
     <>
       <NodeFrame
@@ -1473,6 +1484,8 @@ function ConverterNode({ id, data, selected }: NodeProps) {
         activity={useNodeActivityOpacity(id)}
         conversion={useConversionMark(id)}
         stepKey={stepKey}
+        stageTag={stageTag}
+        stageTagTank={(data as { run?: { tank?: string } }).run?.tank}
       />
     </>
   )

@@ -1,0 +1,4 @@
+{
+  "type": "user-facing",
+  "changelog": "- **A ruled stage says what it reads and did.** Under its name, a tag names the tank and the table and says how far the stage ran, or that it was held short, stopped or off. It folds when a chip or a name is close, and opens in full when the stage or its tank is chosen or its line pointed at. A stage whose line has no free port says so, and names the tank. The tag’s space is reserved, so lines near a ruled stage can move once, and no step moves them."
+}
