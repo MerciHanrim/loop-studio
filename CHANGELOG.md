@@ -7,6 +7,8 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **The icon gallery opens over the panel.** Choosing a node’s icon no longer pushes the fields below it down, or runs past the bottom of the window: the gallery is a popover beside its button, and opens upward when there is no room below. A press outside it, or moving focus away, closes it with no change.
+
 - **Go to a frame.** The Model list now opens with the document’s saved frames, and a click on a row fits the view to that frame. It moves only the view, so it also works under the edit lock, and Find searches frame names too.
 
 - **A connection’s chip shows its unit.** A number with a unit reads `21000 CMD`, `5 L/min` or `5 L` on the canvas, so flows of different kinds are no longer told apart only in the Inspector. A connection with no unit keeps its chip. On a short line a chip with a unit moves along or beside the line, so the arrow stays visible.

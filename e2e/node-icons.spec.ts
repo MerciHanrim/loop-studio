@@ -98,6 +98,84 @@ test.describe('node icon — the file and the canvas', () => {
   })
 })
 
+test.describe('node icon — the gallery is a popover', () => {
+  const gallery = (page: Page) => page.getByRole('radiogroup', { name: 'Icon' })
+  /** where the Inspector's content is, and how much of it there is */
+  const layout = (page: Page) =>
+    page.evaluate(() => {
+      const panel = document.querySelector('.icon-field')!.closest('aside')!
+      return { height: panel.scrollHeight, top: panel.scrollTop, field: document.querySelector('.icon-field')!.getBoundingClientRect().bottom }
+    })
+
+  test('it opens over the panel: nothing below it moves, and all of it is on screen', async ({ page }) => {
+    await load(page)
+    await node(page, 'gold').click()
+    await fieldButton(page).scrollIntoViewIfNeeded()
+    const closed = await layout(page)
+    await fieldButton(page).click()
+    await expect(gallery(page)).toBeInViewport({ ratio: 1 })
+    await expect(page.getByRole('radio', { name: 'None', exact: true })).toBeFocused()
+    expect(await layout(page)).toEqual(closed)
+    // it is not clipped by the panel's own scroller: the topmost element at its far
+    // corner is still the gallery, and it is wider than the panel can show
+    const hit = await page.evaluate(() => {
+      const g = document.querySelector('.icon-gallery')!
+      const r = g.getBoundingClientRect()
+      return g.contains(document.elementFromPoint(r.right - 3, r.bottom - 3))
+    })
+    expect(hit).toBe(true)
+  })
+
+  test('near the bottom of the window it opens upward, still whole', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 520 })
+    await load(page)
+    await node(page, 'gold').click()
+    await fieldButton(page).scrollIntoViewIfNeeded()
+    await fieldButton(page).click()
+    await expect(gallery(page)).toBeInViewport({ ratio: 1 })
+  })
+
+  test('a press outside closes it with no change, and the button toggles it', async ({ page }) => {
+    await load(page, graphDoc('wind'))
+    await node(page, 'gold').click()
+    await fieldButton(page).click()
+    await expect(gallery(page)).toBeVisible()
+    // inside the Inspector, so the node stays selected and the field stays on screen
+    await field(page).locator('.icon-field__title').click()
+    await expect(gallery(page)).toHaveCount(0)
+    await expect(fieldButton(page)).toBeVisible()
+    expect(await iconOf(page, 'gold')).toBe('wind')
+
+    await fieldButton(page).click()
+    await expect(gallery(page)).toBeVisible()
+    await fieldButton(page).click()
+    await expect(gallery(page)).toHaveCount(0)
+  })
+
+  test('focus that leaves closes it and stays where it went; Escape on the button closes it too', async ({ page }) => {
+    await load(page, graphDoc('wind'))
+    await node(page, 'gold').click()
+    await fieldButton(page).focus()
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('radio', { name: 'Wind', exact: true })).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(gallery(page)).toHaveCount(0)
+    await expect(fieldButton(page)).not.toBeFocused()
+    expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe('BODY')
+    expect(await iconOf(page, 'gold')).toBe('wind')
+
+    await fieldButton(page).focus()
+    await page.keyboard.press('Enter')
+    await expect(gallery(page)).toBeVisible()
+    await page.keyboard.press('Shift+Tab')
+    await expect(fieldButton(page)).toBeFocused()
+    await expect(gallery(page)).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(gallery(page)).toHaveCount(0)
+    await expect(fieldButton(page)).toBeFocused()
+  })
+})
+
 test.describe('node icon — the Inspector’s Icon field', () => {
   test('choose an icon: one undo entry, the mark and the name follow, and the run is not reset', async ({ page }) => {
     await load(page)

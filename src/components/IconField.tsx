@@ -1,5 +1,7 @@
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react'
 import { useT } from '../i18n'
+import { useAnchoredPosition } from './toolbar/useAnchoredPosition'
+import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 import { NODE_ICON_IDS, NODE_ICON_KINDS, readIcon, type NodeIconId } from '../model/model'
 import { accentTargets, useGraphStore } from '../store/graphStore'
 import { useIsMobile } from '../ui/media'
@@ -14,14 +16,14 @@ import { nodeIconNameKey } from './nodes/nodeIconMeta'
 // One choice is one `setIcon` call: one undo entry, never a simulation change.
 //
 // A button shows the current icon (or "None", or "Mixed" for a selection that
-// differs) and opens the gallery below it. The gallery is one `role="radiogroup"`
+// differs) and opens the gallery, a popover. The gallery is one `role="radiogroup"`
 // named "Icon": "None" first, then the icons under their group headings; each
 // option is a `role="radio"` button named by the icon's localized name (ids never
 // show). Keys: Enter / Space on the button opens with focus on the current
 // option (a roving tabindex); arrows move (the list is linear, so Right / Down
 // go on and Left / Up go back), Home / End jump; Enter / Space chooses and closes
-// with focus back on the button; Escape closes without a change. The choice
-// applies on selection.
+// with focus back on the button; Escape closes without a change, and so does a
+// press outside it or focus that leaves it. The choice applies on selection.
 //
 // On the phone the Inspector is a read-only sheet (docs/mobile.md MV-D3): the
 // field is one line of read-only text there, the mark and its name.
@@ -67,12 +69,20 @@ export function IconField() {
   const buttonRef = useRef<HTMLButtonElement>(null)
   const groupRef = useRef<HTMLDivElement>(null)
 
-  // opening puts focus on the current option
+  // the gallery floats over the Inspector, so the fields below it
+  // stay where they are. It stays next to its button in the document, not in a
+  // portal: Shift+Tab to the button and Tab back to the option is a contract
+  // (Lumi's review of #481), and `position: fixed` escapes the panel's scroller.
+  const pos = useAnchoredPosition(buttonRef, groupRef, open, 'start')
+  useOutsideDismiss(open, groupRef, () => setOpen(false), { alsoInside: buttonRef })
+
+  // opening puts focus on the current option, once it has a place: `focus()` on
+  // a hidden element does nothing
   useEffect(() => {
-    if (!open) return
+    if (!open || !pos) return
     const el = groupRef.current?.querySelector<HTMLElement>('[role="radio"][tabindex="0"]')
     el?.focus()
-  }, [open])
+  }, [open, pos])
 
   if (targets.length === 0) return null
 
@@ -104,6 +114,14 @@ export function IconField() {
   const toggle = () => {
     if (!open) setStop(current.mixed ? null : current.value)
     setOpen((v) => !v)
+  }
+
+  // focus that leaves both the button and the gallery closes it, and stays where
+  // it went: a floating panel must not sit over the field a person tabbed to
+  const leaveGallery = (e: FocusEvent<HTMLElement>) => {
+    const to = e.relatedTarget as Node | null
+    if (!open || to === null || buttonRef.current?.contains(to) || groupRef.current?.contains(to)) return
+    setOpen(false)
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -165,6 +183,13 @@ export function IconField() {
         // heard as "Icon None" / "Icon Car": the field's title, then the choice
         aria-labelledby={`${ids}-title ${ids}-button`}
         onClick={toggle}
+        onKeyDown={(e) => {
+          if (e.key !== 'Escape' || !open) return
+          e.preventDefault()
+          e.stopPropagation()
+          setOpen(false)
+        }}
+        onBlur={leaveGallery}
       >
         {current.mixed || current.value === null ? null : <NodeIcon id={current.value} big={false} className="icon-field__mark" />}
         <span>{current.mixed ? t('inspector.accent.mixed') : nameOf(current.value)}</span>
@@ -176,7 +201,9 @@ export function IconField() {
           role="radiogroup"
           aria-label={t('inspector.icon.title')}
           className="icon-gallery"
+          style={pos ? { top: pos.top, left: pos.left } : { top: 0, left: 0, visibility: 'hidden' }}
           onKeyDown={onKeyDown}
+          onBlur={leaveGallery}
         >
           <div className="icon-gallery__row">{option(null)}</div>
           {GROUPS.map((g) => (

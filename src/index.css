@@ -5942,11 +5942,25 @@ a.sheet__row {
   color: var(--node-stroke);
   pointer-events: none;
 }
+/* a popover over the Inspector: `position: fixed` leaves the panel's scroller, and
+   its place comes from the button (`useAnchoredPosition`). Eight options across,
+   so a group takes two rows at any Inspector width. */
 .icon-gallery {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  width: 342px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 8px;
+  padding: 10px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-overlay);
 }
 .icon-gallery__group {
   display: flex;
