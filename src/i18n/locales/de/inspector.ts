@@ -303,6 +303,7 @@ const inspector = {
   'inspector.run.warn.take': '{tank} fasst höchstens {capacity}, weniger als die {step}, die diese Stufe in einem vollen Schritt nimmt, sodass von allen Quellen ziehen keinen Volllauf erreicht.',
   'panels.runRules.title': 'Laufregeln',
   'panels.time.change.runBody': 'Die Laufregeln von {stages} wären für diesen Schritt zu grob. Wählen Sie die Stufe, um den Grund zu lesen.',
+  'inspector.run.keeps': 'Bis dahin liest die Regel weiter {tank}.',
   'regExpr.pick.listLabel': 'Einen Speicher, Parameter oder berechneten Wert referenzieren',
   'regExpr.pick.optionAria': '{name}, {kind}, aktueller Wert {value}',
   'regExpr.pick.noMatch': 'Kein passender Knoten',

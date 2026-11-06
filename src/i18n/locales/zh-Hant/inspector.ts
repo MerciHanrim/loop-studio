@@ -284,6 +284,7 @@ const inspector = {
   'inspector.run.warn.take': '{tank} 最多容納 {capacity}，小於此環節滿載一步取走的 {step}，因此 從所有路徑拉取 無法達到滿載。',
   'panels.runRules.title': '運轉規則',
   'panels.time.change.runBody': '{stages} 的運轉規則對這個步長來說太粗。選取該環節即可看到原因。',
+  'inspector.run.keeps': '在此之前，規則繼續讀取 {tank}。',
 
   // docs/register-expression-authoring.md §RXA3
   'regExpr.pick.listLabel': '引用資源池、參數或計算值',

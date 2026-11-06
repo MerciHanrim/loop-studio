@@ -289,6 +289,7 @@ const inspector = {
   'inspector.run.warn.take': '{tank} จุได้มากสุด {capacity} น้อยกว่า {step} ที่ขั้นตอนนี้ดึงในหนึ่งขั้นเต็ม ดึงจากทุกทางจึงไปไม่ถึงการทำงานเต็มที่',
   'panels.runRules.title': 'กฎการทำงาน',
   'panels.time.change.runBody': 'กฎการทำงานของ {stages} จะหยาบเกินไปสำหรับขั้นนี้ เลือกขั้นตอนเพื่ออ่านเหตุผล',
+  'inspector.run.keeps': 'จนกว่าจะถึงตอนนั้น กฎยังคงอ่าน {tank}',
   'regExpr.pick.listLabel': 'อ้างถึงถังพัก พารามิเตอร์ หรือค่าที่คำนวณ',
   'regExpr.pick.optionAria': '{name}, {kind}, ค่าปัจจุบัน {value}',
   'regExpr.pick.noMatch': 'ไม่พบโหนดที่ตรงกัน',

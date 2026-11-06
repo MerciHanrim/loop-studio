@@ -97,6 +97,15 @@ const holdsRule = (n: LoopNode): boolean => (n.data as { run?: unknown } | undef
 /** `true` when any node holds a `run` key */
 export const anyRunRule = (nodes: readonly LoopNode[]): boolean => nodes.some(holdsRule)
 
+/** §M6-9 — the rules whose level and band are in a tank's own unit: they name no `unit`,
+ *  so a change of that unit must carry them, or the same figure reads as another amount */
+export function rulesFollowingTank(nodes: readonly LoopNode[], tank: string): { stage: string; rule: RunRule }[] {
+  return nodes.flatMap((n) => {
+    const rule = ruleOf(n)
+    return rule?.tank === tank && rule.unit === undefined ? [{ stage: n.id, rule }] : []
+  })
+}
+
 /** the tables the document's rules read */
 export const ruleTables = (nodes: readonly LoopNode[]): string[] => nodes.flatMap((n) => ruleOf(n)?.table ?? [])
 

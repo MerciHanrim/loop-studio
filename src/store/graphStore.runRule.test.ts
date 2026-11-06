@@ -84,6 +84,20 @@ describe('setRunRule', () => {
     expect(hasKey()).toBe(false)
   })
 
+  it('a Pool’s unit change and its rules are one undo entry', () => {
+    S().addNodeAt('pool', { x: 200, y: 0 })
+    const pool = S().nodes[S().nodes.length - 1]!.id
+    S().setRunRule(stage, { ...RULE, tank: pool })
+    vi.advanceTimersByTime(1000)
+    const past = S().past.length
+    S().changePoolUnit(pool, { unit: 'L', initial: 0 }, [{ stage, rule: { ...RULE, tank: pool, level: '10000', band: '5000' } }])
+    expect(S().past.length).toBe(past + 1)
+    expect(runOf()).toEqual({ ...RULE, tank: pool, level: '10000', band: '5000' })
+    S().undo()
+    expect(runOf()).toEqual({ ...RULE, tank: pool })
+    expect(S().nodes.find((n) => n.id === pool)!.data).not.toHaveProperty('unit', 'L')
+  })
+
   it('a rule made here goes through the file and comes back the same', () => {
     S().setRunRule(stage, RULE)
     const { nodes, edges, modelVersion } = S()

@@ -282,6 +282,7 @@ const inspector = {
   'inspector.run.warn.take': '{tank} の最大量 {capacity} は、このステージがフル運転の 1 ステップで取る {step} を下回るため、すべてから引く ではフル運転に届きません。',
   'panels.runRules.title': '運転ルール',
   'panels.time.change.runBody': '{stages} の運転ルールはこのステップには粗すぎます。ステージを選ぶと理由が表示されます。',
+  'inspector.run.keeps': 'それまでルールは引き続き {tank} を読みます。',
 
   // docs/register-expression-authoring.md §RXA3 — 参照認識レジスター式エディター
   'regExpr.pick.listLabel': 'プール・パラメーター・レジスターを参照',

@@ -36,11 +36,12 @@ const graph = (page: Page) =>
 const advance = (page: Page) => page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().advance())
 const choose = (page: Page, id: string) => page.evaluate((x) => (window as unknown as Bridge).__loop.graph.getState().setSelection(x, null), id)
 const section = (page: Page) => page.locator('[data-run-rule="ro"]')
+const field = (page: Page, name: string) => section(page).locator('label.field').filter({ has: page.locator('.field__label', { hasText: new RegExp(`^${name}$`) }) }).locator('select, input')
 
 async function makeRule(page: Page) {
   await choose(page, 'ro')
   await section(page).getByLabel('Runs at').selectOption('rule')
-  await section(page).getByLabel('Tank').selectOption('store')
+  await field(page, 'Tank').selectOption('store')
   await section(page).getByLabel('Target level').fill('150')
   await section(page).getByLabel('Target level').press('Tab')
   await section(page).getByLabel('Band').fill('150')
@@ -54,7 +55,7 @@ test('a rule made in the Inspector is stored only once it reads, and promotes th
   await expect(section(page).getByLabel('Runs at')).toHaveValue('full')
   await section(page).getByLabel('Runs at').selectOption('rule')
   await expect(section(page).getByText('Choose a tank, a timetable, or both.')).toBeVisible()
-  await section(page).getByLabel('Tank').selectOption('store')
+  await field(page, 'Tank').selectOption('store')
   await expect(section(page).getByText('Not in use yet')).toBeVisible()
   expect(await graph(page)).toEqual({ version: 5, run: undefined })
   await section(page).getByLabel('Target level').fill('150')
@@ -68,6 +69,92 @@ test('a rule made in the Inspector is stored only once it reads, and promotes th
   // the canvas takes it at once: the tag and the read line
   await expect(page.locator('[data-stage-tag="ro"]')).toBeVisible()
   await expect(page.locator('.read-edge__line').first()).toBeAttached()
+})
+
+/** the plant with a second tank, in litres, that nothing runs through */
+const twoUnits = () => {
+  const doc = JSON.parse(plant())
+  doc.kinds[0].units = [{ name: 'L', factor: '0.001' }]
+  doc.nodes.push({ ...pool('litres', 520, 0), position: { x: 520, y: 240 } })
+  doc.nodes.at(-1).data.unit = 'L'
+  return JSON.stringify(doc)
+}
+const runState = (page: Page) =>
+  page.evaluate(() => {
+    const l = (window as unknown as Bridge).__loop
+    return { rev: l.graph.getState().simulationRev as number, steps: l.sim.getState().series.length as number }
+  })
+
+test('choosing a tank in another unit changes no rule and no run until its level and band are typed', async ({ page }) => {
+  await openApp(page)
+  await importGraph(page, twoUnits())
+  await makeRule(page)
+  const stored = (await graph(page)).run
+  await advance(page)
+  await expect.poll(async () => (await runState(page)).steps).toBeGreaterThan(1)
+  const before = await runState(page)
+
+  await field(page, 'Tank').selectOption('litres')
+  // the choice alone: the same rule, the same run, and nothing typed for the new tank
+  expect((await graph(page)).run).toEqual(stored)
+  expect(await runState(page)).toEqual(before)
+  await expect(section(page).getByLabel('Target level')).toHaveValue('')
+  await expect(section(page).getByLabel('Band')).toHaveValue('')
+  await expect(section(page).getByText(/Level and band are in .*L/)).toBeVisible()
+  await expect(section(page).getByText('Not in use yet')).toBeVisible()
+  await expect(section(page).getByText(/Until then the rule keeps reading .*store/)).toBeVisible()
+
+  // one value is still not a rule
+  await section(page).getByLabel('Target level').fill('150000')
+  await section(page).getByLabel('Target level').press('Tab')
+  expect((await graph(page)).run).toEqual(stored)
+  expect(await runState(page)).toEqual(before)
+
+  await section(page).getByLabel('Band').fill('150000')
+  await section(page).getByLabel('Band').press('Tab')
+  await expect.poll(async () => (await graph(page)).run).toEqual({ tank: 'litres', level: '150000', band: '150000', side: 'fill' })
+  await expect(section(page).getByText('Not in use yet')).toHaveCount(0)
+})
+
+test('going back to the tank the rule reads ends the draft, with its numbers', async ({ page }) => {
+  await openApp(page)
+  await importGraph(page, twoUnits())
+  await makeRule(page)
+  await field(page, 'Tank').selectOption('litres')
+  await expect(section(page).getByText('Not in use yet')).toBeVisible()
+  await field(page, 'Tank').selectOption('store')
+  await expect(section(page).getByText('Not in use yet')).toHaveCount(0)
+  await expect(section(page).getByLabel('Target level')).toHaveValue('150')
+  await expect(section(page).getByLabel('Band')).toHaveValue('150')
+})
+
+test('a Pool’s unit change keeps the amount its rule reads, in one undo', async ({ page }) => {
+  await openApp(page)
+  await importGraph(page, twoUnits())
+  await makeRule(page)
+  await section(page).getByLabel('Band').fill('300')
+  await section(page).getByLabel('Band').press('Tab')
+  await choose(page, 'store')
+  await page.locator('.inspector label.field').filter({ has: page.locator('.field__label', { hasText: /^Unit$/ }) }).locator('select').selectOption('L')
+  await expect.poll(async () => (await graph(page)).run).toEqual({ tank: 'store', level: '150000', band: '300000', side: 'fill' })
+  await choose(page, 'ro')
+  await advance(page)
+  await expect.poll(async () => (await section(page).locator('[data-run-reading]').innerText()).replace(/[⁦-⁩]/g, '')).toContain('This step: target 50 %, ran 50 %.')
+  await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().undo())
+  await expect.poll(async () => (await graph(page)).run?.band).toBe('300')
+  expect(await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().nodes.find((n: { id: string }) => n.id === 'store').data.unit)).toBeUndefined()
+})
+
+test('a rule that names its own unit keeps it when the Pool’s unit changes', async ({ page }) => {
+  await openApp(page)
+  const doc = JSON.parse(twoUnits())
+  doc.schema = 'loop-studio/graph/6'
+  doc.nodes.find((n: { id: string }) => n.id === 'ro').data.run = { tank: 'store', level: '150', band: '300', side: 'fill', unit: 'm³' }
+  await importGraph(page, JSON.stringify(doc))
+  await choose(page, 'store')
+  await page.locator('.inspector label.field').filter({ has: page.locator('.field__label', { hasText: /^Unit$/ }) }).locator('select').selectOption('L')
+  await expect.poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().nodes.find((n: { id: string }) => n.id === 'store').data.unit)).toBe('L')
+  expect((await graph(page)).run).toEqual({ tank: 'store', level: '150', band: '300', side: 'fill', unit: 'm³' })
 })
 
 test('a band of 0 and a letter in a field never reach the document', async ({ page }) => {

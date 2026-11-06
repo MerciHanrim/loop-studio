@@ -46,8 +46,12 @@ describe('a draft', () => {
     expect(nextDraft({ table: 't', rated: 'l', tank: 'a', level: '1', band: '1', side: 'fill' }, { table: undefined })).toEqual({ tank: 'a', level: '1', band: '1', side: 'fill' })
   })
 
-  it('drops a unit written for another tank, and keeps the level to be read again', () => {
-    expect(nextDraft({ tank: 'a', level: '1', band: '1', side: 'fill', unit: 'L' }, { tank: 'b' })).toEqual({ tank: 'b', level: '1', band: '1', side: 'fill' })
+  it('a new tank takes no number from the last one: the same figure can be another amount', () => {
+    expect(nextDraft({ tank: 'a', level: '1', band: '1', side: 'fill', unit: 'L' }, { tank: 'b' })).toEqual({ tank: 'b', side: 'fill' })
+    expect(draftState(nextDraft({ tank: 'a', level: '1', band: '1', side: 'fill' }, { tank: 'b' }))).toEqual({ kind: 'draft' })
+  })
+
+  it('a change on the same tank keeps its numbers and its unit', () => {
     expect(nextDraft({ tank: 'a', level: '1', band: '1', side: 'fill', unit: 'L' }, { level: '2' })).toEqual({ tank: 'a', level: '2', band: '1', side: 'fill', unit: 'L' })
   })
 

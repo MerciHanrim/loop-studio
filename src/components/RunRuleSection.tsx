@@ -121,7 +121,9 @@ export function RunRuleSection({ node }: { node: LoopNode }) {
   const amount = poolAmounts(nodes, kinds, time)
 
   const change = (patch: Partial<RuleDraft>) => {
-    const next = nextDraft(form, patch)
+    // back on the tank the rule reads, its own numbers are good again
+    const back = stored !== null && patch.tank !== undefined && patch.tank === stored.tank && form.tank !== stored.tank
+    const next = nextDraft(back ? { ...form, tank: stored.tank, level: stored.level, band: stored.band, unit: stored.unit } : form, patch)
     const state = draftState(next)
     if (state.kind === 'empty') {
       setRunRule(id, null)
@@ -235,6 +237,7 @@ export function RunRuleSection({ node }: { node: LoopNode }) {
           )}
           {form.tank === undefined && form.table === undefined && <p className="inspector__note">{t('inspector.run.choose')}</p>}
           {draft !== null && <p className="inspector__note inspector__note--warn">{t('inspector.run.incomplete')}</p>}
+          {draft !== null && stored?.tank !== undefined && <p className="inspector__note inspector__note--warn">{t('inspector.run.keeps', { tank: isolateAuto(labelOf(stored.tank)) })}</p>}
         </>
       )}
       {stored && findings.map((f) => <p key={f.code} className="inspector__note inspector__note--warn">{runRefusalText(f, nodes, t)}</p>)}

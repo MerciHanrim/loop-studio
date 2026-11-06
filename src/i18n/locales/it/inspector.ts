@@ -287,6 +287,7 @@ const inspector = {
   'inspector.run.warn.take': '{tank} contiene al massimo {capacity}, meno dei {step} che questa fase prende in un passo pieno, quindi tira da tutte le sorgenti non raggiunge una marcia piena.',
   'panels.runRules.title': 'Regole di marcia',
   'panels.time.change.runBody': 'Le regole di marcia di {stages} sarebbero troppo grossolane per questo passo. Seleziona la fase per leggere il perché.',
+  'inspector.run.keeps': 'Fino ad allora la regola continua a leggere {tank}.',
 
   'regExpr.pick.listLabel': 'Richiama un Serbatoio, un Parametro o un Valore calcolato',
   'regExpr.pick.optionAria': '{name}, {kind}, valore attuale {value}',

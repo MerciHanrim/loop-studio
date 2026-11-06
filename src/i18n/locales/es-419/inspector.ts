@@ -272,6 +272,7 @@ const inspector = {
   'inspector.run.warn.take': '{tank} contiene como máximo {capacity}, menos que los {step} que esta etapa toma en un paso completo, así que tomar todo no puede llegar a una marcha completa.',
   'panels.runRules.title': 'Reglas de marcha',
   'panels.time.change.runBody': 'Las reglas de marcha de {stages} serían demasiado gruesas para este paso. Seleccione la etapa para leer por qué.',
+  'inspector.run.keeps': 'Hasta entonces la regla sigue leyendo {tank}.',
 
   'regExpr.pick.listLabel': 'Referenciar un Depósito, Parámetro o Valor calculado',
   'regExpr.pick.optionAria': '{name}, {kind}, valor actual {value}',

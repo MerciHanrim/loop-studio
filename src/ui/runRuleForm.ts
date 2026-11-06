@@ -27,17 +27,21 @@ export const isAboveZero = (text: string): boolean => {
 export type RuleDraft = RunRule
 
 /** the rule with what no longer belongs dropped. A rule keeps a level only with a tank,
- *  and a 100 % line only with a table. A new tank starts on the Fill side, and an
- *  explicit unit belonged to the tank it was written for. */
+ *  and a 100 % line only with a table. A new tank starts on the Fill side. A level, a
+ *  band and a unit belong to the tank they were written for: the same figure on a tank
+ *  in another unit is another amount, so a new tank takes none of them, and its rule
+ *  waits for numbers a person has typed for it. */
 export function nextDraft(form: RuleDraft, patch: Partial<RuleDraft>): RuleDraft {
   const merged: RuleDraft = { ...form, ...patch }
   const out: RuleDraft = {}
   if (merged.tank !== undefined) {
     out.tank = merged.tank
-    if (merged.level !== undefined) out.level = merged.level
-    if (merged.band !== undefined) out.band = merged.band
+    if (merged.tank === form.tank) {
+      if (merged.level !== undefined) out.level = merged.level
+      if (merged.band !== undefined) out.band = merged.band
+      if (merged.unit !== undefined) out.unit = merged.unit
+    }
     out.side = merged.side ?? 'fill'
-    if (merged.unit !== undefined && merged.tank === form.tank) out.unit = merged.unit
   }
   if (merged.table !== undefined) {
     out.table = merged.table

@@ -285,6 +285,7 @@ const inspector = {
   'inspector.run.warn.take': '{tank} bevat hoogstens {capacity}, minder dan de {step} die dit deel in één volle stap neemt, dus dit deel haalt met zijn modus geen volle loop.',
   'panels.runRules.title': 'Loopregels',
   'panels.time.change.runBody': 'De loopregels van {stages} zouden te grof zijn voor deze stap. Selecteer dit deel om te lezen waarom.',
+  'inspector.run.keeps': 'Tot die tijd blijft de regel {tank} lezen.',
 
   // docs/register-expression-authoring.md §RXA3 — the reference-aware Register
   // expression editor: the `@` picker, the two read-back lines, edge-case rows.

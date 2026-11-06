@@ -302,6 +302,7 @@ const inspector = {
   'inspector.run.warn.take': 'يتسع {tank} لـ {capacity} على الأكثر، وهو أقل من {step} التي تأخذها المرحلة في خطوة كاملة، لذا لا يبلغ السحب من كل المصادر تشغيلًا كاملًا.',
   'panels.runRules.title': 'قواعد التشغيل',
   'panels.time.change.runBody': 'ستكون قواعد التشغيل في {stages} خشنة جدًا لهذه الخطوة. اختر المرحلة لتقرأ السبب.',
+  'inspector.run.keeps': 'إلى ذلك الحين تواصل القاعدة قراءة {tank}.',
 
   // docs/register-expression-authoring.md §RXA3 — the reference-aware Register
   // expression editor: the `@` picker, the two read-back lines, edge-case rows.

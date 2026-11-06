@@ -288,6 +288,7 @@ const inspector = {
   'inspector.run.warn.take': '{tank} en çok {capacity} tutar; bu, aşamanın tam bir adımda aldığı {step} miktarın altında, bu yüzden hepsinden çek tam çalışmaya ulaşamaz.',
   'panels.runRules.title': 'Çalışma kuralları',
   'panels.time.change.runBody': '{stages} çalışma kuralları bu adım için fazla kaba kalır. Nedenini okumak için aşamayı seçin.',
+  'inspector.run.keeps': 'O zamana kadar kural {tank} okumaya devam eder.',
   'regExpr.pick.listLabel': 'Havuz, Parametre ya da Hesaplanan değere başvur',
   'regExpr.pick.optionAria': '{name}, {kind}, şu anki değer {value}',
   'regExpr.pick.noMatch': 'Eşleşen düğüm yok',

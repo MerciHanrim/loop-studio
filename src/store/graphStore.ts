@@ -430,6 +430,9 @@ type GraphStore = {
    *  `loop-studio/graph/6`, one-way. The caller hands a rule `readRunRule` accepts, so a
    *  document never holds one that would refuse its own file. */
   setRunRule: (id: string, rule: RunRule | null) => void
+  /** §M6-9 — a Pool's unit change with the rules that read in that unit, re-expressed by
+   *  the caller: one undo entry, so the Pool and its rules never part. */
+  changePoolUnit: (id: string, patch: Record<string, unknown>, rules: readonly { stage: string; rule: RunRule }[]) => void
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined
@@ -1837,6 +1840,21 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         // §M6-1 — a rule promotes the document to /graph/6, one-way
         ...(rule && !hasRunRules(get().modelVersion) ? { modelVersion: 6 as const } : {}),
       })
+      bump()
+      persist()
+    },
+
+    changePoolUnit: (id, patch, rules) => {
+      if (editGuard()) return // #334 — refused while the edit lock is on
+      commit('')
+      set({
+        nodes: get().nodes.map((n) => {
+          if (n.id === id) return { ...n, data: { ...n.data, ...patch } as LoopNode['data'] }
+          const held = rules.find((r) => r.stage === n.id)
+          return held ? { ...n, data: { ...n.data, run: held.rule } as unknown as LoopNode['data'] } : n
+        }),
+      })
+      if (typeof patch.unit === 'string' && patch.unit !== '' && !hasUnits(get().modelVersion)) set({ modelVersion: 4 })
       bump()
       persist()
     },

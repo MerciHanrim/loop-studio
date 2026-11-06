@@ -6,7 +6,7 @@
   "totals": {
     "rows": 113,
     "obligations": 64,
-    "callSites": 127
+    "callSites": 128
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -2028,6 +2028,15 @@
           ],
           "args": [
             "unit"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "inspector.run.keeps"
+          ],
+          "args": [
+            "tank"
           ],
           "kind": "auto"
         }

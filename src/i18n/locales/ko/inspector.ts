@@ -269,6 +269,7 @@ const inspector = {
   'inspector.run.warn.take': '{tank}의 최대 용량 {capacity}: 이 단계가 전체 가동 한 단계에 가져가는 양 {step}보다 작습니다. 모든 경로에서 당기기로는 전체 가동에 이를 수 없습니다.',
   'panels.runRules.title': '가동 규칙',
   'panels.time.change.runBody': '{stages}의 가동 규칙은 이 단계 길이에 비해 너무 성깁니다. 단계를 선택하면 이유가 나옵니다.',
+  'inspector.run.keeps': '그때까지 규칙이 읽는 탱크: {tank}',
 
   // docs/register-expression-authoring.md §RXA3 — 참조 인식 레지스터 수식 편집기
   'regExpr.pick.listLabel': '풀·파라미터·레지스터 참조',

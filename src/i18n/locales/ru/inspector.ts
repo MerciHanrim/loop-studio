@@ -297,6 +297,7 @@ const inspector = {
   'inspector.run.warn.take': '{tank} вмещает не больше {capacity}, меньше {step}, которые стадия берёт за полный шаг, поэтому тянуть из всех не достигает полной работы.',
   'panels.runRules.title': 'Правила работы',
   'panels.time.change.runBody': 'Правила работы {stages} были бы слишком грубыми для этого шага. Выберите стадию, чтобы прочитать причину.',
+  'inspector.run.keeps': 'До тех пор правило продолжает читать {tank}.',
 
   'regExpr.pick.listLabel': 'Сослаться на Накопитель, Параметр или Вычисляемое значение',
   'regExpr.pick.optionAria': '{name}, {kind}, текущее значение {value}',

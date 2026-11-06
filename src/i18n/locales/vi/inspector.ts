@@ -278,6 +278,7 @@ const inspector = {
   'inspector.run.warn.take': '{tank} chứa tối đa {capacity}, nhỏ hơn {step} mà công đoạn này lấy trong một bước chạy hết mức, nên kéo từ mọi phía không đạt được chạy hết mức.',
   'panels.runRules.title': 'Quy tắc vận hành',
   'panels.time.change.runBody': 'Quy tắc vận hành của {stages} sẽ quá thô với bước này. Chọn công đoạn để đọc lý do.',
+  'inspector.run.keeps': 'Cho đến lúc đó, quy tắc vẫn đọc {tank}.',
 
   'regExpr.pick.listLabel': 'Tham chiếu tới một Bể chứa, Tham số hoặc Giá trị tính toán',
   'regExpr.pick.optionAria': '{name}, {kind}, giá trị hiện tại {value}',

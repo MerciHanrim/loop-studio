@@ -271,6 +271,7 @@ const inspector = {
   'inspector.run.warn.take': '{tank} holds at most {capacity}, under the {step} this stage takes in one full step, so pull all cannot reach a full run.',
   'panels.runRules.title': 'Run rules',
   'panels.time.change.runBody': 'The run rules of {stages} would be too coarse for this step. Select the stage to read why.',
+  'inspector.run.keeps': 'Until then the rule keeps reading {tank}.',
 
   // docs/register-expression-authoring.md §RXA3 — the reference-aware Register
   // expression editor: the `@` picker, the two read-back lines, edge-case rows.

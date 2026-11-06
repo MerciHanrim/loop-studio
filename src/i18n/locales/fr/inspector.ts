@@ -297,6 +297,7 @@ const inspector = {
   'inspector.run.warn.take': '{tank} contient au plus {capacity}, moins que les {step} que cette étape prend en un pas complet, donc tirer depuis toutes les sources n’atteint pas une marche complète.',
   'panels.runRules.title': 'Règles de marche',
   'panels.time.change.runBody': 'Les règles de marche de {stages} seraient trop grossières pour ce pas. Sélectionnez l’étape pour lire pourquoi.',
+  'inspector.run.keeps': 'D’ici là, la règle continue de lire {tank}.',
 
   // docs/register-expression-authoring.md §RXA3
   'regExpr.pick.listLabel': 'Référencer un réservoir, un paramètre ou une valeur calculée',

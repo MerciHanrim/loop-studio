@@ -272,6 +272,7 @@ const inspector = {
   'inspector.run.warn.take': '{tank} 最多容纳 {capacity}，小于此环节满负荷一步取走的 {step}，因此 从所有路径拉取 无法达到满负荷。',
   'panels.runRules.title': '运行规则',
   'panels.time.change.runBody': '{stages} 的运行规则对这个步长来说太粗。选中该环节即可看到原因。',
+  'inspector.run.keeps': '在此之前，规则继续读取 {tank}。',
 
   // docs/register-expression-authoring.md §RXA3 — the reference-aware Register
   // expression editor: the `@` picker, the two read-back lines, edge-case rows.
