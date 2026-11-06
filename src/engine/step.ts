@@ -97,6 +97,10 @@ export type StepOptions = {
   /** loop-model/5 (SEMANTICS-M5.md) — the document's timetables, which a `~id`
    *  flow reads. A document with no table line steps as it did, event for event. */
   timetables?: readonly Timetable[]
+  /** the fraction each Converter may run at this step, by node id: 0 to 1, and
+   *  absent means 1. The engine reaches for it and no further, and `pull all`
+   *  means reaching it (SEMANTICS.md §9). With no entry a step is what it was. */
+  runTargets?: Readonly<Record<string, number>>
 }
 
 export function step(
@@ -120,6 +124,13 @@ export function step(
     }
   }
   const curStep = prev.step + 1 // the step being computed — the RNG key's `step`
+  // a Converter's target, and what `pull all` must reach of it. A ratio, so a small
+  // target cannot pass with nothing moved; at a target of 1 it is the `1 − EPSILON`
+  // this test has always been.
+  const runOf = (id: string): number => opts.runTargets?.[id] ?? 1
+  const RUN_REACHED = 1 - EPSILON
+  /** a planned group's `pull all` need per member: the target its number asks for */
+  const planNeed = new Map<string, number>()
   // loop-model/4 (SEMANTICS-M4.md §M4-2.1) — the engine reads the DERIVED
   // graph: every unit-bearing field at its engine value. The same arrays come
   // back when no field names a unit (M4-INV-1). The kind findings below read
@@ -1245,7 +1256,7 @@ export function step(
           continue
         }
         if (disabledPullAll.has(m)) bound(0) // an upstream router routes nothing into it (§11 / I5)
-        if (c > EPSILON) bound(1 / c) // f ≤ 1
+        if (c > EPSILON) bound(runOf(m) / c) // f ≤ the target ≤ 1
         if (convMake.get(m)!.size === 0) bound(0) // no live output, no run (#388 D)
         // a router input that delivers nothing this step (its router does not
         // fire, the connection is dead, a probabilistic Gate picked another
@@ -1386,9 +1397,14 @@ export function step(
       // (SEMANTICS.md §9; a short one is recorded for the fixpoint).
       const modeOf = (id: string) => ((byId.get(id)?.data as { mode?: string } | undefined)?.mode ?? 'pullAny')
       let zeroAt: string | null = null // #477 — '' for a short `pull all` Converter, the Gate's id for its own fixed demand
+      // the number the targets alone allow: what a `pull all` member must reach
+      const targeted = members.some((m) => opts.runTargets?.[m] !== undefined)
+      const sCap = targeted ? Math.min(...members.filter((m) => kindOf(m) === 'converter' && (cof.get(m) ?? 0) > EPSILON).map((m) => runOf(m) / cof.get(m)!)) : 1
       for (const m of members) {
         if (kindOf(m) !== 'converter' || disabledPullAll.has(m)) continue
-        if (modeOf(m) === 'pullAll' && (cof.get(m) ?? 0) * s < 1 - EPSILON) {
+        const need = targeted ? Math.min(1, (cof.get(m) ?? 0) * sCap) : 1
+        planNeed.set(m, need)
+        if (modeOf(m) === 'pullAll' && (cof.get(m) ?? 0) * s < need * RUN_REACHED) {
           pullShort.add(m)
           s = 0
           zeroAt ??= ''
@@ -2151,7 +2167,7 @@ export function step(
           // the plan's f, bounded by what arrived (equal, up to rounding)
           let f = sumIn > EPSILON ? Math.min(plF, received / sumIn) : 0
           f = nz(Math.max(0, Math.min(1, f)))
-          if (mode === 'pullAll' && f < 1 - EPSILON) {
+          if (mode === 'pullAll' && f < (planNeed.get(id) ?? 1) * RUN_REACHED) {
             pullShort.add(id)
             f = 0
           }
@@ -2231,8 +2247,8 @@ export function step(
 
         // the fraction, before anything moves — `pull all` is decided on it
         let fDry = sumIn > EPSILON ? (inboxHave + fPool * sumInPool) / sumIn : 0
-        fDry = nz(Math.max(0, Math.min(1, fDry, fOut)))
-        if (mode === 'pullAll' && fDry < 1 - EPSILON) {
+        fDry = nz(Math.max(0, Math.min(runOf(id), fDry, fOut)))
+        if (mode === 'pullAll' && fDry < runOf(id) * RUN_REACHED) {
           pullShort.add(id) // probe pass: this pullAll Converter cannot reach f = 1
           continue
         }
@@ -2259,7 +2275,7 @@ export function step(
         }
         let f = sumIn > EPSILON ? received / sumIn : 0
         f = nz(Math.max(0, Math.min(1, f, fOut)))
-        if (mode === 'pullAll' && f < 1 - EPSILON) {
+        if (mode === 'pullAll' && f < runOf(id) * RUN_REACHED) {
           pullShort.add(id)
           f = 0
         }
