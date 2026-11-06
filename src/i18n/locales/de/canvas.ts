@@ -144,6 +144,17 @@ const canvas = {
   'node.invalidFlag': 'Dieser Knoten ist ungültig',
   'node.aria.invalid': 'ungültig',
   'node.aria.selected': 'ausgewählt',
+  'run.tag.idle': 'Laufregel',
+  'run.tag.run': 'Lauf {pct} %',
+  'run.tag.short': 'Lauf {pct} %, Ziel {target} %',
+  'run.tag.stopped': 'Gestoppt, Ziel {target} %',
+  'run.tag.shortCompact': 'Lauf {pct}/{target} %',
+  'run.tag.stoppedCompact': 'Gestoppt',
+  'run.tag.off': 'Aus',
+  'run.tag.readsBoth': 'liest {tank} und {table}',
+  'run.tag.readsTank': 'liest {tank}',
+  'run.tag.readsTable': 'liest {table}',
+  'run.tag.noLine': 'keine Linie zu {tank}: kein freier Anschluss',
   // keyboard focus, not the Focus-dimming feature (which this UI also calls
   // `Fokus`) — see the same distinction in `fr`
   'node.aria.focused': 'im Tastaturfokus',

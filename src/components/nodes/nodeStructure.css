@@ -157,6 +157,71 @@
   align-items: flex-end;
   text-align: end;
 }
+/* SEMANTICS-M6.md §M6-8 — the stage tag. The block is sized by the hidden widest form,
+   and what shows sits over it, so neither a fold nor a step changes the block. */
+.stage-tag {
+  position: relative;
+  display: block;
+  align-self: stretch;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+.stage-tag__size {
+  display: block;
+  visibility: hidden;
+}
+.stage-tag__measure {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  visibility: hidden;
+}
+.stage-tag__shown,
+.stage-tag__full {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+}
+.stage-tag__state {
+  font-weight: 600;
+}
+.stage-tag__full {
+  display: none;
+  z-index: 1;
+  background: var(--bg-canvas);
+  color: var(--ink-1);
+}
+.nodef.is-selected .stage-tag__full,
+.nodef.is-hover .stage-tag__full,
+.nodef.is-focused .stage-tag__full,
+.stage-tag.is-open .stage-tag__full {
+  display: block;
+}
+.nodef.is-selected .stage-tag__shown,
+.nodef.is-hover .stage-tag__shown,
+.nodef.is-focused .stage-tag__shown,
+.stage-tag.is-open .stage-tag__shown {
+  visibility: hidden;
+}
+.nodef.lod-L1 .stage-tag:not(.stage-tag--no-line) .stage-tag__rest {
+  display: none;
+}
+.nodef.lod-L0 .stage-tag__shown,
+.nodef.lod-L0 .stage-tag__full {
+  display: none;
+}
+@media (forced-colors: active) {
+  .stage-tag,
+  .stage-tag__full {
+    color: CanvasText;
+  }
+  .stage-tag__full {
+    background: Canvas;
+  }
+}
 /* the name — the workbench's 500 13 px in the second ink, at most 136 px
    wide and two lines */
 .nodef__name {

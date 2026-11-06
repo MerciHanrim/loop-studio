@@ -114,10 +114,10 @@ A group runs at the smallest target of its members. `pull all` means reaching th
 - File and digests: `src/model/serialize.ts`, `src/model/revision.ts`, `src/model/workspace.ts`, `src/model/moduleGraph.ts`.
 - Engine: `src/engine/step.ts`, with `runTargets` as its seam.
 - Words: `src/ui/runMessages.ts`, and `runRefusals` in `src/store/simStore.ts`.
-- Canvas: `src/model/readEdges.ts`, `src/components/edges/ReadEdge.tsx`.
+- Canvas: `src/model/readEdges.ts`, `src/components/edges/ReadEdge.tsx`, `src/components/nodes/StageTag.tsx`, `src/ui/stageTag.ts`.
 - Pins: `src/engine/run-target.test.ts`, `src/engine/run-rule.test.ts`, `src/model/runRuleFile.test.ts`, `src/ui/runMessages.test.ts`, `src/model/readEdges.test.ts`; in the browser, `e2e/run-rule.spec.ts`, `e2e/read-connection.spec.ts`.
 
-Not built yet: the screens for making a rule, and the stage tag. A fraction that is not finite is known only inside a step, so it refuses with the engine’s English diagnostic.
+Not built yet: the screens for making a rule. A fraction that is not finite is known only inside a step, so it refuses with the engine’s English diagnostic.
 
 ## M6-7. The read connection
 
@@ -128,4 +128,24 @@ A stage whose rule names a tank has a line from that tank to the stage. It says 
 - **Its look.** Dash-dot, 2.5 px, no arrowhead, no chip, a ring just outside the tank. A flow is solid with an arrow and an activator dashed with an arrow and a chip, so the pattern tells it apart in every mode. In forced colours it is CanvasText. Selecting the stage or the tank, or pointing at the line, thickens it.
 - **A click or a tap selects the stage,** and nothing else: the line cannot be selected, deleted, reconnected or reached by Tab. Canvas handles the click, and `PanSurface` the tap on the phone and in Pan mode, where it takes the pointer before React Flow does.
 - **Its own port.** A read connection shares no stub with another line: docs/edge-routing.md §ER20.
-- **Not drawn when a tank has no spot left.** That takes more stages reading one tank than it has spots, six on a tank with a line on three faces. `readEdges` reports them as `blocked`, and sharing a stub is not the fallback, because the shared stub would hide what the line says. No screen shows `blocked` yet.
+- **Not drawn when a tank has no spot left.** That takes more stages reading one tank than it has spots, six on a tank with a line on three faces. `readEdges` reports them as `blocked`, and sharing a stub is not the fallback, because the shared stub would hide what the line says. The stage tag says it: §M6-8.
+
+## M6-8. The stage tag
+
+Plain text under a ruled stage's name, at the name's 136 px. It says what the stage reads and what it did.
+
+| State | The tag's state |
+|---|---|
+| No step yet | Run rule |
+| `met` | Run 50 % |
+| `short` | Run 30 %, target 50 % |
+| `stopped` | Stopped, target 50 % |
+| `off` | Off |
+
+- **`met` says how far the stage ran, and no more.** `met` is a judgement within a ratio (§M6-5), so its words carry no target and nothing that reads as the target being hit. In every language they are the run clause of the `short` words alone, and a test holds that. Two `short` numbers that round alike take more digits, so a held stage never reads as if it ran at its target.
+- **The forms,** longest first: the state and what it reads; the state and the table, because the line shows the tank and nothing else shows the table; the state in its short words, `Run 30/50 % …` or `Stopped …`; then `…` alone.
+- **The rule:** the longest form whose words stay at least 6 px from every chip, other node and other name. It is judged at the widest state, so a step cannot change it.
+- **The block keeps the widest full form's size,** whichever form shows and whatever the state. The router and the chips treat it as part of the name block. So a rule can move a line near its stage once, when it is added, and neither a step nor a fold moves anything.
+- **A folded tag opens.** Choosing the stage or its tank, pointing at or focusing the stage, or pointing at its line shows the full form over the block, so the tank can always be named. A tap on the phone chooses the stage. The full form is also in the stage's accessible name.
+- **No line.** A stage whose read connection has no spot left says `no line to <tank>: no free port`. Those words are never folded away, so its last form can sit closer than 6 px.
+- **Detail levels.** At L1 only the state shows, and at L0 nothing, except that a stage with no line keeps its words at L1.

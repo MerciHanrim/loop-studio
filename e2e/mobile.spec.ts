@@ -2300,6 +2300,31 @@ test('a read connection shows on the phone, and a tap on it selects the stage', 
   expect(edge).toBeNull()
 })
 
+test('a tap on a ruled stage opens its tag, which names the tank', async ({ page }) => {
+  await openApp(page)
+  const pool = (id: string, x: number) => ({ id, type: 'pool', position: { x, y: 0 }, data: { kind: 'pool', label: id, activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } })
+  const line = (id: string, source: string, target: string) => ({ id, source, target, sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '10' } })
+  await importGraph(
+    page,
+    JSON.stringify({
+      schema: 'loop-studio/graph/6',
+      version: 1,
+      nodes: [
+        pool('feed', 0),
+        { id: 'ro', type: 'converter', position: { x: 260, y: 0 }, data: { kind: 'converter', label: 'RO', activation: 'automatic', mode: 'pullAny', run: { tank: 'store', level: '50', band: '10', side: 'fill' } } },
+        pool('store', 520),
+      ],
+      edges: [line('in', 'feed', 'ro'), line('out', 'ro', 'store')],
+    }),
+  )
+  const full = page.locator('[data-stage-tag="ro"] .stage-tag__full')
+  await expect(full).toBeHidden()
+  const box = (await page.locator('.react-flow__node[data-id="ro"] svg').first().boundingBox())!
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2)
+  await expect(full).toBeVisible()
+  await expect(full).toContainText('store')
+})
+
 test('a tap on a stored line whose id starts as a read connection’s does selects that line', async ({ page }) => {
   await openApp(page)
   const pool = (id: string, x: number) => ({ id, type: 'pool', position: { x, y: 0 }, data: { kind: 'pool', label: id, activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } })

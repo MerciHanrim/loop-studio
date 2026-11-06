@@ -113,17 +113,20 @@ export function readEdges(nodes: readonly LoopNode[], edges: readonly LoopEdge[]
   return { edges: out, blocked }
 }
 
-let memo: { nodes: readonly LoopNode[]; edges: readonly LoopEdge[]; all: LoopEdge[]; reads: LoopEdge[] } | null = null
+let memo: { nodes: readonly LoopNode[]; edges: readonly LoopEdge[]; all: LoopEdge[]; reads: LoopEdge[]; blocked: ReadEdgeResult['blocked'] } | null = null
 
-function derive(nodes: LoopNode[], edges: LoopEdge[]): { all: LoopEdge[]; reads: LoopEdge[] } {
+function derive(nodes: LoopNode[], edges: LoopEdge[]): NonNullable<typeof memo> {
   if (memo && memo.nodes === nodes && memo.edges === edges) return memo
-  const reads = readEdges(nodes, edges).edges
-  memo = { nodes, edges, reads, all: reads.length > 0 ? [...edges, ...reads] : edges }
+  const { edges: reads, blocked } = readEdges(nodes, edges)
+  memo = { nodes, edges, reads, blocked, all: reads.length > 0 ? [...edges, ...reads] : edges }
   return memo
 }
 
 /** the read connections of this graph, one array per graph */
 export const graphReadEdges = (nodes: LoopNode[], edges: LoopEdge[]): LoopEdge[] => derive(nodes, edges).reads
+
+/** the read connections with no spot left, which the stage tag says */
+export const graphReadBlocked = (nodes: LoopNode[], edges: LoopEdge[]): ReadEdgeResult['blocked'] => derive(nodes, edges).blocked
 
 /** what the router sees: the document's connections, then the read connections. The
  *  same array when there is none. */

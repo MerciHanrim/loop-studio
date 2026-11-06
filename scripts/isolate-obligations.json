@@ -4,9 +4,9 @@
   "$limit": "This manifest defends the call sites listed here, exactly and in both directions. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together close the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
   "$history": "PR B recorded 11 decision rows and deferred them. C3.5 re-ran the population from the TypeScript type checker — 205 ICU arguments — and found 27 more that carry user or technical values: 8 in its first pass (the unrecognized-column header and the five `import.loc.*` calls) and 19 that its first pass only RECORDED as open. All 27 are implemented here, so no row of the disposition manifest is classed `auto`, `ltr` or `per-fragment` any more.",
   "totals": {
-    "rows": 103,
-    "obligations": 54,
-    "callSites": 103
+    "rows": 104,
+    "obligations": 55,
+    "callSites": 107
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -17,7 +17,7 @@
     "workbench": 18,
     "issue-420": 4,
     "issue-471": 22,
-    "run-rules": 3
+    "run-rules": 4
   },
   "obligations": [
     {
@@ -900,17 +900,112 @@
       "carries": "the user's own NODE NAMES (a node's label, else its id) in the right panel's one-sentence account of a connection; and, for a condition, the comparison (a catalog phrase holding a number or a Parameter's name)",
       "why": "The workbench (2026-10, step 5), the right panel's relation layer. Each name is its own argument and is isolated on its own where it enters the sentence, so a Hebrew or Arabic name does not reorder the words around it; the comparison is isolated as one run because it can hold a Parameter's name.",
       "sites": [
-        { "keys": ["rel.flow.when"], "args": ["from", "to"], "kind": "auto" },
-        { "keys": ["rel.condition.when"], "args": ["source", "cond"], "kind": "auto" },
-        { "keys": ["rel.condition.effect"], "args": ["target"], "kind": "auto" },
-        { "keys": ["rel.change.whenFires"], "args": ["source"], "kind": "auto" },
-        { "keys": ["rel.change.addSource", "rel.change.subSource", "rel.change.setSource"], "args": ["target", "source"], "kind": "auto" },
-        { "keys": ["rel.change.add", "rel.change.sub", "rel.change.set"], "args": ["target"], "kind": "auto" },
-        { "keys": ["rel.trigger.when"], "args": ["source"], "kind": "auto" },
-        { "keys": ["rel.trigger.effect"], "args": ["target"], "kind": "auto" },
-        { "keys": ["rel.gate.edgeChance"], "args": ["gate"], "kind": "auto" },
-        { "keys": ["rel.gate.edgeInert"], "args": ["gate"], "kind": "auto" },
-        { "keys": ["rel.gate.edgeRuntime"], "args": ["gate"], "kind": "auto" }
+        {
+          "keys": [
+            "rel.flow.when"
+          ],
+          "args": [
+            "from",
+            "to"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "rel.condition.when"
+          ],
+          "args": [
+            "source",
+            "cond"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "rel.condition.effect"
+          ],
+          "args": [
+            "target"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "rel.change.whenFires"
+          ],
+          "args": [
+            "source"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "rel.change.addSource",
+            "rel.change.subSource",
+            "rel.change.setSource"
+          ],
+          "args": [
+            "target",
+            "source"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "rel.change.add",
+            "rel.change.sub",
+            "rel.change.set"
+          ],
+          "args": [
+            "target"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "rel.trigger.when"
+          ],
+          "args": [
+            "source"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "rel.trigger.effect"
+          ],
+          "args": [
+            "target"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "rel.gate.edgeChance"
+          ],
+          "args": [
+            "gate"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "rel.gate.edgeInert"
+          ],
+          "args": [
+            "gate"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "rel.gate.edgeRuntime"
+          ],
+          "args": [
+            "gate"
+          ],
+          "kind": "auto"
+        }
       ]
     },
     {
@@ -923,7 +1018,20 @@
       "carries": "a condition compared against a Parameter: its name (the user's text) and any offset, in the right panel's relation rows and sentence",
       "why": "The workbench (2026-10, step 5). The literal form of the same comparison passes a number and needs nothing; the Parameter form carries a user's name, isolated as one run with its offset.",
       "sites": [
-        { "keys": ["rel.op.ge", "rel.op.le", "rel.op.gt", "rel.op.lt", "rel.op.eq", "rel.op.ne"], "args": ["n"], "kind": "auto" }
+        {
+          "keys": [
+            "rel.op.ge",
+            "rel.op.le",
+            "rel.op.gt",
+            "rel.op.lt",
+            "rel.op.eq",
+            "rel.op.ne"
+          ],
+          "args": [
+            "n"
+          ],
+          "kind": "auto"
+        }
       ]
     },
     {
@@ -951,7 +1059,11 @@
             "connect.refused.changeTarget",
             "connect.refused.stateMode"
           ],
-          "args": ["node", "from", "to"],
+          "args": [
+            "node",
+            "from",
+            "to"
+          ],
           "kind": "auto"
         }
       ]
@@ -968,8 +1080,13 @@
       "why": "#420 — the kind is whatever a hand-made file carried, so it is no closed token and takes `auto` like the name; each value is isolated on its own.",
       "sites": [
         {
-          "keys": ["revision.export.unknownKind"],
-          "args": ["node", "kind"],
+          "keys": [
+            "revision.export.unknownKind"
+          ],
+          "args": [
+            "node",
+            "kind"
+          ],
           "kind": "auto"
         }
       ]
@@ -986,8 +1103,13 @@
       "why": "#420 follow-up — the same values as the export refusal, shown by Review; each isolated on its own, `auto` for both.",
       "sites": [
         {
-          "keys": ["review.gate.invalidTarget"],
-          "args": ["node", "kind"],
+          "keys": [
+            "review.gate.invalidTarget"
+          ],
+          "args": [
+            "node",
+            "kind"
+          ],
           "kind": "auto"
         }
       ]
@@ -1006,15 +1128,116 @@
       "carries": "the user's own NODE LABELS (the two ends of a connection, a Gate, a Converter), the user's own KIND NAMES (a Pool's `resourceType`, a connection's annotation, the comma-joined list a Gate carries) and the RATE as the user typed it, in the loop-model/3 findings (SEMANTICS-M3.md §M3-4; issue #471)",
       "why": "one sentence per finding, shared by the Kinds panel and the Inspector's note; every user value enters as its own ICU argument so each is isolated on its own — a connection is named by its two end labels (`from`, `to`), never by a joined `A → B` string. The Gate's `kinds` list is one argument of several kind names joined by a comma; each name is a user value and the list is isolated as one run (`auto`).",
       "sites": [
-        { "keys": ["kinds.finding.poolEnds"], "args": ["from", "to", "a", "b"], "kind": "auto" },
-        { "keys": ["kinds.finding.annotation"], "args": ["from", "to", "edgeKind", "poolKind"], "kind": "auto" },
-        { "keys": ["kinds.finding.gateMixes"], "args": ["gate", "kinds"], "kind": "auto" },
-        { "keys": ["kinds.finding.poolNoKind"], "args": ["from", "to", "kind", "pool"], "kind": "auto" },
-        { "keys": ["kinds.finding.noKind"], "args": ["from", "to", "converter"], "kind": "auto" },
-        { "keys": ["kinds.finding.rate"], "args": ["from", "to", "rate"], "kind": "auto" },
-        { "keys": ["kinds.finding.rateConserved"], "args": ["from", "to", "rate", "kind", "converter"], "kind": "auto" },
-        { "keys": ["kinds.finding.broken"], "args": ["converter", "kind", "out", "in"], "kind": "auto", "kindByArg": { "out": "ltr", "in": "ltr" } },
-        { "keys": ["kinds.finding.outOfRange"], "args": ["value", "unit"], "kind": "auto", "kindByArg": { "value": "ltr" } }
+        {
+          "keys": [
+            "kinds.finding.poolEnds"
+          ],
+          "args": [
+            "from",
+            "to",
+            "a",
+            "b"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "kinds.finding.annotation"
+          ],
+          "args": [
+            "from",
+            "to",
+            "edgeKind",
+            "poolKind"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "kinds.finding.gateMixes"
+          ],
+          "args": [
+            "gate",
+            "kinds"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "kinds.finding.poolNoKind"
+          ],
+          "args": [
+            "from",
+            "to",
+            "kind",
+            "pool"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "kinds.finding.noKind"
+          ],
+          "args": [
+            "from",
+            "to",
+            "converter"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "kinds.finding.rate"
+          ],
+          "args": [
+            "from",
+            "to",
+            "rate"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "kinds.finding.rateConserved"
+          ],
+          "args": [
+            "from",
+            "to",
+            "rate",
+            "kind",
+            "converter"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "kinds.finding.broken"
+          ],
+          "args": [
+            "converter",
+            "kind",
+            "out",
+            "in"
+          ],
+          "kind": "auto",
+          "kindByArg": {
+            "out": "ltr",
+            "in": "ltr"
+          }
+        },
+        {
+          "keys": [
+            "kinds.finding.outOfRange"
+          ],
+          "args": [
+            "value",
+            "unit"
+          ],
+          "kind": "auto",
+          "kindByArg": {
+            "value": "ltr"
+          }
+        }
       ]
     },
     {
@@ -1028,7 +1251,26 @@
       "carries": "the user's own UNIT NAMES (a kind's declared unit, its base unit) and four numbers printed as decimal text under R≈ (SEMANTICS-M4.md §M4-4; issue #471 U1 stage 2)",
       "why": "a unit name is free user text (`m³`, `لتر`) and takes `FSI`; a number printed as text, possibly led by `≈` or `-`, is a known-LTR token and takes `LRI`.",
       "sites": [
-        { "keys": ["inspector.unit.change.body"], "args": ["unit", "base", "from", "exact", "rounded", "deviation"], "kind": "auto", "kindByArg": { "from": "ltr", "exact": "ltr", "rounded": "ltr", "deviation": "ltr" } }
+        {
+          "keys": [
+            "inspector.unit.change.body"
+          ],
+          "args": [
+            "unit",
+            "base",
+            "from",
+            "exact",
+            "rounded",
+            "deviation"
+          ],
+          "kind": "auto",
+          "kindByArg": {
+            "from": "ltr",
+            "exact": "ltr",
+            "rounded": "ltr",
+            "deviation": "ltr"
+          }
+        }
       ]
     },
     {
@@ -1041,7 +1283,15 @@
       "carries": "the user's own UNIT NAME (the base unit or a declared amount unit) in a rate field's option `<name> per step`",
       "why": "free user text of unknown direction inside a localized phrase.",
       "sites": [
-        { "keys": ["inspector.unit.perStep"], "args": ["unit"], "kind": "auto" }
+        {
+          "keys": [
+            "inspector.unit.perStep"
+          ],
+          "args": [
+            "unit"
+          ],
+          "kind": "auto"
+        }
       ]
     },
     {
@@ -1054,7 +1304,15 @@
       "carries": "the user's own Converter LABELS, comma-joined, whose balance verdict the change would move (SEMANTICS-M4.md §M4-4)",
       "why": "one argument of several user labels joined by a comma, isolated as one run (`auto`), as the Gate's kinds list is.",
       "sites": [
-        { "keys": ["inspector.unit.change.verdicts"], "args": ["converters"], "kind": "auto" }
+        {
+          "keys": [
+            "inspector.unit.change.verdicts"
+          ],
+          "args": [
+            "converters"
+          ],
+          "kind": "auto"
+        }
       ]
     },
     {
@@ -1067,7 +1325,15 @@
       "carries": "the user's own Converter LABELS, comma-joined, whose balance verdict a step-length change would move (SEMANTICS-M4.md §M4-4)",
       "why": "one argument of several user labels joined by a comma, isolated as one run (`auto`), as in the unit-change sentence.",
       "sites": [
-        { "keys": ["panels.time.change.body"], "args": ["converters"], "kind": "auto" }
+        {
+          "keys": [
+            "panels.time.change.body"
+          ],
+          "args": [
+            "converters"
+          ],
+          "kind": "auto"
+        }
       ]
     },
     {
@@ -1080,7 +1346,16 @@
       "carries": "the KIND NAME (a user `resourceType`, or the catalog's `no kind` phrase for a line with none) and the user's own LABEL of the Drain or End it went into, in the boundary-outflow-by-kind row (SEMANTICS-M3.md §M3-5; issue #471)",
       "why": "two independent user values in one sentence, each isolated on its own; the amount is claimed by `kinds-boundary-outflow-amount`.",
       "sites": [
-        { "keys": ["panels.kinds.outflow.row"], "args": ["kind", "node"], "kind": "auto" }
+        {
+          "keys": [
+            "panels.kinds.outflow.row"
+          ],
+          "args": [
+            "kind",
+            "node"
+          ],
+          "kind": "auto"
+        }
       ]
     },
     {
@@ -1116,7 +1391,15 @@
       "carries": "a number printed as text with the user's own UNIT NAME inside the localized `<amount> per step`",
       "why": "free user text of unknown direction inside a localized phrase.",
       "sites": [
-        { "keys": ["inspector.unit.perStep"], "args": ["unit"], "kind": "auto" }
+        {
+          "keys": [
+            "inspector.unit.perStep"
+          ],
+          "args": [
+            "unit"
+          ],
+          "kind": "auto"
+        }
       ]
     },
     {
@@ -1129,7 +1412,15 @@
       "carries": "a number printed as text with the user's own UNIT NAME, alone or inside the localized `<amount> per step`",
       "why": "free user text of unknown direction inside a localized phrase.",
       "sites": [
-        { "keys": ["inspector.unit.perStep"], "args": ["unit"], "kind": "auto" }
+        {
+          "keys": [
+            "inspector.unit.perStep"
+          ],
+          "args": [
+            "unit"
+          ],
+          "kind": "auto"
+        }
       ]
     },
     {
@@ -1142,11 +1433,51 @@
       "carries": "the user's own stage name in a refusal (SEMANTICS-M6.md §M6-3)",
       "why": "Free text of unknown direction; the numbers derive.",
       "sites": [
-        { "keys": ["playbar.refused.run.shape"], "args": ["label"], "kind": "auto" },
-        { "keys": ["playbar.refused.run.tank"], "args": ["label"], "kind": "auto" },
-        { "keys": ["playbar.refused.run.table"], "args": ["label"], "kind": "auto" },
-        { "keys": ["playbar.refused.run.rated"], "args": ["label"], "kind": "auto" },
-        { "keys": ["playbar.refused.run.rule"], "args": ["label"], "kind": "auto" }
+        {
+          "keys": [
+            "playbar.refused.run.shape"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "playbar.refused.run.tank"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "playbar.refused.run.table"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "playbar.refused.run.rated"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "playbar.refused.run.rule"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        }
       ]
     },
     {
@@ -1159,12 +1490,64 @@
       "carries": "the user's own stage and Pool names in a run message (SEMANTICS-M6.md §M6-5)",
       "why": "Free text of unknown direction; the numbers derive.",
       "sites": [
-        { "keys": ["playbar.diag.runCapped"], "args": ["label"], "kind": "auto" },
-        { "keys": ["playbar.diag.runStoppedFloor"], "args": ["label"], "kind": "auto" },
-        { "keys": ["playbar.diag.runShortRoom"], "args": ["label", "pool"], "kind": "auto" },
-        { "keys": ["playbar.diag.runShortSupply"], "args": ["label", "pool"], "kind": "auto" },
-        { "keys": ["playbar.diag.runStoppedRoom"], "args": ["label", "pool"], "kind": "auto" },
-        { "keys": ["playbar.diag.runStoppedSupply"], "args": ["label", "pool"], "kind": "auto" }
+        {
+          "keys": [
+            "playbar.diag.runCapped"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "playbar.diag.runStoppedFloor"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "playbar.diag.runShortRoom"
+          ],
+          "args": [
+            "label",
+            "pool"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "playbar.diag.runShortSupply"
+          ],
+          "args": [
+            "label",
+            "pool"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "playbar.diag.runStoppedRoom"
+          ],
+          "args": [
+            "label",
+            "pool"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "playbar.diag.runStoppedSupply"
+          ],
+          "args": [
+            "label",
+            "pool"
+          ],
+          "kind": "auto"
+        }
       ]
     },
     {
@@ -1177,7 +1560,15 @@
       "carries": "a node id from the file, which is free text",
       "why": "Free text of unknown direction; the numbers derive.",
       "sites": [
-        { "keys": ["import.error.badRunRule"], "args": ["node"], "kind": "auto" }
+        {
+          "keys": [
+            "import.error.badRunRule"
+          ],
+          "args": [
+            "node"
+          ],
+          "kind": "auto"
+        }
       ]
     },
     {
@@ -1370,6 +1761,55 @@
           ],
           "args": [
             "unit"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "stage-tag-names",
+      "rows": [
+        "run-rules the tank and table a stage tag names"
+      ],
+      "file": "src/ui/stageTag.ts",
+      "enclosing": "stageTagText",
+      "carries": "the user's own Pool and timetable names in a stage tag (SEMANTICS-M6.md §M6-8)",
+      "why": "Free text of unknown direction, beside words in the reader’s direction.",
+      "sites": [
+        {
+          "keys": [
+            "run.tag.readsTable"
+          ],
+          "args": [
+            "table"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "run.tag.readsBoth"
+          ],
+          "args": [
+            "tank",
+            "table"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "run.tag.readsTank"
+          ],
+          "args": [
+            "tank"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "run.tag.noLine"
+          ],
+          "args": [
+            "tank"
           ],
           "kind": "auto"
         }
