@@ -1,0 +1,1 @@
+{"type":"user-facing","changelog":"- **Go to a frame.** The Model list now opens with the document’s saved frames, and a click on a row fits the view to that frame. It moves only the view, so it also works under the edit lock, and Find searches frame names too."}

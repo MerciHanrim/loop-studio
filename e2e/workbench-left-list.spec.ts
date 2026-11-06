@@ -289,7 +289,7 @@ test.describe('the left list follows a single node chosen on the canvas', () => 
   const places = (page: Page) =>
     page.evaluate(() => {
       const l = document.querySelector('.wb-list')!.getBoundingClientRect()
-      return [...document.querySelectorAll<HTMLElement>('.wb-list .wb-row')].map((r) => {
+      return [...document.querySelectorAll<HTMLElement>('.wb-list .wb-row[data-node]')].map((r) => {
         const b = r.getBoundingClientRect()
         const place = b.bottom <= l.top + 0.5 ? 'above' : b.top >= l.bottom - 0.5 ? 'below' : b.top >= l.top - 0.5 && b.bottom <= l.bottom + 0.5 ? 'in' : 'cut'
         return { id: r.dataset.node!, place }

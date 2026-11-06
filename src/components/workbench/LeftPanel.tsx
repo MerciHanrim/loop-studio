@@ -1,7 +1,10 @@
 import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { NodeData, NodeKind } from '../../model/types'
+import { useReactFlow, useStore } from '@xyflow/react'
+import { useFrameStore, type Frame } from '../../store/frameStore'
 import { useGraphStore } from '../../store/graphStore'
 import { useSimStore } from '../../store/simStore'
+import { viewportForFrame } from '../canvasFit'
 import { useT, type MessageKey } from '../../i18n'
 import { useIsMobile } from '../../ui/media'
 import { Icon } from '../../ui/icons'
@@ -120,6 +123,21 @@ export function LeftPanel() {
     }
   }, [nodes, query])
 
+  // §WB5 — a frame's row goes to the frame: it moves the view and nothing else,
+  // so it selects nothing and works under the edit lock. In stored order, which is
+  // the order the author made them, and never a sort of their titles.
+  const frames = useFrameStore((s) => s.frames)
+  const frameName = (f: Frame) => f.label || t('canvas.frame.defaultName', { n: f.n })
+  const frameRows = frames.filter((f) => !query || norm(frameName(f)).includes(norm(query)))
+  const { setViewport } = useReactFlow()
+  const zoomFloor = useStore((s) => s.minZoom)
+  const goToFrame = (f: Frame) => {
+    const pane = document.querySelector('.react-flow')?.getBoundingClientRect()
+    const v = pane ? viewportForFrame(f.rect, { width: pane.width, height: pane.height }, zoomFloor) : null
+    // a plain `setViewport`: see `useReveal`
+    if (v) void setViewport(v)
+  }
+
   if (isMobile) return null
   const tabId = (k: 'model' | 'inputs') => `${ids}-tab-${k}`
   const panelId = (k: 'model' | 'inputs') => `${ids}-panel-${k}`
@@ -181,7 +199,25 @@ export function LeftPanel() {
                 {query ? `${groups.shown} / ${nodes.length}` : nodes.length}
               </span>
             </div>
-            {groups.byKind.length === 0 ? (
+            {frameRows.length > 0 && (
+              <div className="wb-list__group" role="group" aria-label={t('review.hunk.framesTitle')}>
+                <div className="wb-list__sub" aria-hidden="true">
+                  {t('review.hunk.framesTitle')}{' '}
+                  <span className="wb-list__subcount" dir="ltr">
+                    {frameRows.length}
+                  </span>
+                </div>
+                {frameRows.map((f) => (
+                  <button key={f.id} type="button" className="wb-row" data-frame={f.id} title={frameName(f)} onClick={() => goToFrame(f)}>
+                    <Icon name="frame" className="wb-kindmark" />
+                    <span className="wb-row__name" dir="auto">
+                      {frameName(f)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {groups.byKind.length === 0 && frameRows.length > 0 ? null : groups.byKind.length === 0 ? (
               <p className="wb-list__none">{nodes.length === 0 ? t('workbench.list.empty') : t('workbench.find.none')}</p>
             ) : (
               groups.byKind.map((g) => (

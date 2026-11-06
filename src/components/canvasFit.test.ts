@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canvasFitInsets, viewportForRect as viewportForRectOrNull } from './canvasFit'
+import { canvasFitInsets, FRAME_TITLE_ROOM, viewportForFrame, viewportForRect as viewportForRectOrNull } from './canvasFit'
 
 const viewportForRect = (...args: Parameters<typeof viewportForRectOrNull>) => viewportForRectOrNull(...args)!
 
@@ -99,5 +99,37 @@ describe('canvasFitInsets', () => {
     expect(canvasFitInsets()).toEqual({ left: 0, top: 0 })
     expect(canvasFitInsets(12)).toEqual({ left: 0, top: 12 })
     expect(canvasFitInsets(0, true)).toEqual({ left: 44, top: 0 })
+  })
+})
+
+describe('viewportForFrame (docs/workbench.md §WB5)', () => {
+  const FLOOR = 0.35
+  const of = (rect: { x: number; y: number; w: number; h: number }) => viewportForFrame(rect, PANE, FLOOR)!
+
+  it('a frame the pane can hold stays whole, its title included, and is centred across', () => {
+    const f = { x: 100, y: 200, w: 800, h: 520 }
+    const v = of(f)
+    const left = f.x * v.zoom + v.x
+    const top = (f.y - FRAME_TITLE_ROOM) * v.zoom + v.y
+    expect(left).toBeGreaterThanOrEqual(0)
+    expect(top).toBeGreaterThanOrEqual(0)
+    expect((f.x + f.w) * v.zoom + v.x).toBeLessThanOrEqual(PANE.width)
+    expect((f.y + f.h) * v.zoom + v.y).toBeLessThanOrEqual(PANE.height)
+    expect(left).toBeCloseTo(PANE.width - ((f.x + f.w) * v.zoom + v.x), 6)
+  })
+
+  it('a small frame stops at the whole fit ceiling', () => {
+    expect(of({ x: 0, y: 0, w: 100, h: 60 }).zoom).toBe(1.2)
+  })
+
+  it('a frame too large for the floor keeps its start in view', () => {
+    const f = { x: 50, y: 0, w: 20000, h: 300 }
+    const v = of(f)
+    expect(v.zoom).toBe(FLOOR)
+    expect(f.x * v.zoom + v.x).toBeGreaterThanOrEqual(0)
+  })
+
+  it('an unmeasured pane gives no viewport', () => {
+    expect(viewportForFrame({ x: 0, y: 0, w: 10, h: 10 }, { width: 0, height: 0 }, FLOOR)).toBeNull()
   })
 })
