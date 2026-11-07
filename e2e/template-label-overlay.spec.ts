@@ -137,32 +137,32 @@ test.describe('template label overlay', () => {
     expect(l).not.toContain('생두 재고')
   })
 
-  test('the equilibrium sample opens with KO node labels under a KO locale, EN canonical under EN', async ({ page }) => {
+  test('the general gacha opens with KO node labels under a KO locale, EN canonical under EN', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
 
-    // KO menu open → the Korean production-line labels
+    // KO menu open → the Korean labels
     await setLocale(page, 'ko')
     const koName = await page.evaluate(
       () =>
         (window as unknown as { __loop: Loop }).__loop.i18n.getState().activeCatalog[
-          'templates.equilibrium.name'
+          'templates.gachaGeneral.name'
         ] as string,
     )
     await pickTemplate(page, koName)
     let l = await labels(page)
-    expect(l).toContain('원료 재고')
-    expect(l).toContain('가공')
-    expect(l).not.toContain('Raw inventory')
+    expect(l).toContain('티켓')
+    expect(l).toContain('뽑기 판정')
+    expect(l).not.toContain('Tickets')
 
     // fresh EN open → the English canonical
     await resetAll(page)
     await setLocale(page, 'en')
-    await pickTemplate(page, 'Balanced production line')
+    await pickTemplate(page, 'General gacha')
     l = await labels(page)
-    expect(l).toContain('Raw inventory')
-    expect(l).toContain('Processing')
-    expect(l).not.toContain('원료 재고')
+    expect(l).toContain('Tickets')
+    expect(l).toContain('Roll')
+    expect(l).not.toContain('티켓')
   })
 
   test('overlay is menu-only: an Import under KO keeps the file\'s own labels', async ({ page }) => {
@@ -337,7 +337,7 @@ test.describe('official template label — locale switch (§TLO11)', () => {
     await openApp(page)
     const cases = [
       { pick: COFFEE_KO, ko: '생두 재고', ja: '生豆在庫', en: 'Green bean stock' },
-      { pick: '용량 교착', ko: '가공', ja: '加工', en: 'Processing' },
+      { pick: '일반 가챠', ko: '티켓', ja: 'チケット', en: 'Tickets' },
     ]
     for (const c of cases) {
       await resetAll(page)

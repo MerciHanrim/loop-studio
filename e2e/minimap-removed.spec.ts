@@ -25,7 +25,7 @@ for (const stored of ['0', '1'] as const) {
     await importGraph(page, readRiskyFactory())
     await expect(page.locator('.react-flow__node')).toHaveCount(18)
     // and a Template opens
-    await pickTemplate(page, 'equilibrium')
+    await pickTemplate(page, 'coffee-roastery')
     const confirm = page.locator('.mcdlg--confirm .btn--primary')
     if (await confirm.isVisible({ timeout: 1500 }).catch(() => false)) await confirm.click()
     await expect(page.locator('.react-flow__node').first()).toBeVisible()

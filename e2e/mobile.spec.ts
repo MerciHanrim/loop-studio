@@ -974,6 +974,8 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     const revBefore = await simRev(page)
 
     await openTemplatesSheet(page)
+    // the two basic examples are not offered here either
+    for (const name of ['Balanced production line', 'Capacity deadlock']) await expect(page.locator('.sheet[aria-label="Templates"] .sheet__row', { hasText: name })).toHaveCount(0)
     await page.locator('.sheet[aria-label="Templates"] .sheet__row').first().click()
 
     await expect(page.locator('.sheet[aria-label="Templates"]')).toBeHidden()
@@ -1790,8 +1792,9 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
     // issue #330 PR 3 — More gained the Playback speed row (its sub names the speed)
     // 0.28.1 — Early MMO left the Templates sheet; 2026-10-20 — the General
     // gacha joined it, then the Standard and the Pickup gacha; 0.30.0 — Early
-    // MMO is back; #471 (2026-11-04) — the desalination plant joined it
-    expect(checked, 'the walk must reach every text sub-label: 6 More + 9 Templates + 4 enabled Export').toBe(19)
+    // MMO is back; #471 (2026-11-04) — the desalination plant joined it;
+    // 2026-11-07 — the two basic examples left it
+    expect(checked, 'the walk must reach every text sub-label: 6 More + 7 Templates + 4 enabled Export').toBe(17)
     expect(bad, 'hovered secondary labels below 4.5:1').toEqual([])
   })
 

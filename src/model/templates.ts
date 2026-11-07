@@ -75,6 +75,9 @@ export type Template = {
   menu?: false
 }
 
+// Out of the menu since 2026-11-07 (Hanrim / Lumi): beside the other Templates
+// they show too little, but the files and their checks stay, and a document
+// made from one keeps following the language.
 // The two acceptance diagrams from SEMANTICS.md §14, framed as a production
 // line. Structure and engine numbers are the frozen §14 Variant A / Variant B —
 // only the node labels and menu name/blurb carry the production framing.
@@ -123,6 +126,7 @@ export const TEMPLATES: Template[] = [
     blurb:
       'Raw material flows in, production is split between processing and scrap, and finished goods ship out. Raw and finished inventory settle within a few steps and hold flat.',
     graph: tplGraph(equilibriumDoc),
+    menu: false,
   },
   {
     id: 'deadlock',
@@ -130,6 +134,7 @@ export const TEMPLATES: Template[] = [
     blurb:
       'The same line with no shipment step, so finished goods have nowhere to go. Finished inventory fills to capacity, raw inventory backs up to its ceiling, supply is throttled to zero, and the whole line stops.',
     graph: tplGraph(deadlockDoc),
+    menu: false,
   },
   // #471 — "Seawater desalination process": a facility process flow from intake
   // to the city and the sea, in five numbered frames, at `loop-studio/graph/6`:

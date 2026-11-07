@@ -78,7 +78,7 @@ deploy.
 
 1. open `https://cozy-loop-studio.pages.dev/` — canvas + toolbar render, no console
    errors
-2. **File → Templates → Balanced production line**, press Play — the timeline
+2. **File → Templates → Coffee roastery operations flow**, press Play — the timeline
    moves
 3. **File → Import** `examples/risky-factory.json`; open **Monte Carlo** —
    fields show `500 / 40 / 1`; **Run**

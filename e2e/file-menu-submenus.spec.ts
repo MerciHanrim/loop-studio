@@ -39,8 +39,10 @@ for (const locale of ['en', 'ko'] as const) {
 
     const templates = await openFileSubmenu(page, 'templates')
     // 0.30.0: eight — Early MMO is in the menu again, after Coffee;
-    // #471 (2026-11-04): nine — the desalination plant, before Coffee
-    await expect(templates.locator('[data-template]')).toHaveCount(9)
+    // #471 (2026-11-04): nine — the desalination plant, before Coffee;
+    // 2026-11-07: seven — Balanced production line and Capacity deadlock left it
+    await expect(templates.locator('[data-template]')).toHaveCount(7)
+    await expect(templates.locator('[data-template="equilibrium"], [data-template="deadlock"]')).toHaveCount(0)
     await expect(templates.locator('[data-template="mmo-progression"] .menu__name')).toHaveText(
       locale === 'en' ? 'Early MMO progression (levels 1–15)' : '초반 MMO 성장 (1–15레벨)',
     )
@@ -356,8 +358,8 @@ for (const size of [
     expect(await nodes()).toBe(0)
     await expect(open).toBeVisible()
     // another row: its description and the button
-    await tap(sub.locator('[data-template="deadlock"]'))
-    await expect(shown(sub)).toHaveText('The same line with no shipment step: stock fills to capacity and everything stops.')
+    await tap(sub.locator('[data-template="coffee-roastery"]'))
+    await expect(shown(sub)).toHaveText('How roasting, sales and stock pull against each other over a day of trading.')
     // nothing ran so far: the document is still the empty one
     expect(await page.evaluate(() => (window as any).__loop.graph.getState().nodes.length)).toBe(0)
     // Open runs it (into the empty document: no replace confirmation)
@@ -397,9 +399,9 @@ for (const size of [
     // the mouse: pointing at another row
     await tap(pickup)
     await expect(open).toBeVisible()
-    const deadlock = sub.locator('[data-template="deadlock"]')
-    await deadlock.hover()
-    await expect(shown(sub)).toHaveText((await descOf(deadlock))!)
+    const coffee = sub.locator('[data-template="coffee-roastery"]')
+    await coffee.hover()
+    await expect(shown(sub)).toHaveText((await descOf(coffee))!)
     await expect(open).toHaveCount(0)
     // nothing ran
     expect(await page.evaluate(() => (window as any).__loop.graph.getState().nodes.length)).toBe(0)

@@ -99,12 +99,11 @@ describe('es-ES — the region audit, as a contract', () => {
         'hint.importFirstCommit.body',
         'timeline.series.showAllHint',
         // 2026-10 - the workbench's Add tool and the strings that name it, the
-        // saved-structure insert, and the Balanced line's example note
+        // saved-structure insert
         'workbench.tool.add',
         'hint.emptyCanvas.body',
         'inspector.empty.hint',
         'modules.insertSaved.blurb',
-        'help.examples.equilibrium.p1',
         // 2026-10 - the Coffee roastery note: `previsión` and `suministro`
         // where es-419 says `pronóstico` and `abasto` (the frame and label
         // split pinned below); the Early MMO note quotes the score node,

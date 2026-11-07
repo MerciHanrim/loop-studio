@@ -61,12 +61,13 @@ test.describe('Help ▸ Example notes', () => {
     // focus is inside the dialog; Tab reaches the first example's row
     expect(await dialog(page).evaluate((d) => d.contains(document.activeElement))).toBe(true)
     const rows = dialog(page).locator('.example-notes__toggle')
-    await expect(rows).toHaveCount(9) // #471 (2026-11-04): + the desalination plant
+    await expect(rows).toHaveCount(7) // #471 (2026-11-04): + the desalination plant; 2026-11-07: the two basic examples left
+    await expect(dialog(page).locator('[data-example="equilibrium"], [data-example="deadlock"]')).toHaveCount(0)
     await rows.first().focus()
     await expect(rows.first()).toHaveAttribute('aria-expanded', 'false')
     await page.keyboard.press('Enter')
     await expect(rows.first()).toHaveAttribute('aria-expanded', 'true')
-    await expect(dialog(page).locator('.example-notes__text')).toContainText('Material supply adds 3 units a step')
+    await expect(dialog(page).locator('.example-notes__text')).toContainText('Five numbered areas')
     // the next row by Tab, opened with Space: the first one closes
     await page.keyboard.press('Tab')
     await expect(rows.nth(1)).toBeFocused()
@@ -87,7 +88,7 @@ test.describe('Help ▸ Example notes', () => {
     await helpTrigger(page, /^도움말$/).click()
     await page.getByRole('menuitem', { name: '예제 설명' }).click()
     const names = await dialog(page).locator('.example-notes__toggle .contextual-help__name').allTextContents()
-    expect(names).toEqual(['균형 잡힌 생산 라인', '용량 교착', '해수 담수화 공정', '커피 로스터리 운영 흐름', '초반 MMO 성장 (1–15레벨)', '일반 가챠', '상시 가챠', '픽업 가챠', '3존 가챠 배너 비교'])
+    expect(names).toEqual(['해수 담수화 공정', '커피 로스터리 운영 흐름', '초반 MMO 성장 (1–15레벨)', '일반 가챠', '상시 가챠', '픽업 가챠', '3존 가챠 배너 비교'])
     for (let i = 0; i < names.length; i++) {
       await dialog(page).locator('.example-notes__toggle').nth(i).click()
       await expect(dialog(page).locator('.example-notes__text p').first()).not.toBeEmpty()
@@ -126,7 +127,7 @@ test.describe('Help ▸ Example notes', () => {
     await page.setViewportSize({ width: 1280, height: 520 })
     await helpTrigger(page, /^Help$/).click()
     await page.getByRole('menuitem', { name: 'Example notes' }).click()
-    await dialog(page).locator('.example-notes__row[data-example="coffee-roastery"] .example-notes__toggle').click()
+    await dialog(page).locator('.example-notes__row[data-example="gacha-banner-zones"] .example-notes__toggle').click()
     const box = await dialog(page).boundingBox()
     expect(box!.y).toBeGreaterThanOrEqual(0)
     expect(box!.y + box!.height).toBeLessThanOrEqual(520)
@@ -134,7 +135,7 @@ test.describe('Help ▸ Example notes', () => {
     const sizes = await body.evaluate((b) => ({ scroll: b.scrollHeight, client: b.clientHeight }))
     expect(sizes.scroll, 'the note is taller than the room').toBeGreaterThan(sizes.client)
     // the note's last paragraph scrolls into view inside the body
-    const last = dialog(page).locator('.example-notes__row[data-example="coffee-roastery"] .example-notes__text p').last()
+    const last = dialog(page).locator('.example-notes__row[data-example="gacha-banner-zones"] .example-notes__text p').last()
     await last.scrollIntoViewIfNeeded()
     const lb = await last.boundingBox()
     const bb = await body.boundingBox()

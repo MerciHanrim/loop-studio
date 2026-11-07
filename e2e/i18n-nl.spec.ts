@@ -226,8 +226,8 @@ test.describe('the two plural arms', () => {
     const cat = await catalog(page)
     // File ▸ Templates; the row's Dutch name also proves the submenu is Dutch
     const sub = await openFileSubmenu(page, 'templates')
-    const tpl = sub.locator('[data-template="equilibrium"]')
-    await expect(tpl).toContainText(cat['templates.equilibrium.name']!)
+    const tpl = sub.locator('[data-template="coffee-roastery"]')
+    await expect(tpl).toContainText(cat['templates.coffeeRoastery.name']!)
     await tpl.click()
     const confirm = page.locator('.mcdlg--confirm .btn--primary')
     if (await confirm.isVisible().catch(() => false)) await confirm.click()
