@@ -134,6 +134,77 @@ test('a table left as a plan keeps the plan as it was: /graph/5, no `means`, the
   await expect(page.locator('.timeline__rate-name')).toHaveText('Grid feed (CMH)')
 })
 
+// #530 review — the strip's reading of an available table is the hovered step's: what the
+// step made available and what each line moved, both as the table's rate averaged over the
+// step. A linear ramp from 0 to 2 an hour over the first hour averages 1, so near the end
+// of step 1 the rate at the instant (about 1.9) must not stand beside the moved 1.
+const RAMP_DOC = (twoLines: boolean) =>
+  JSON.stringify({
+    schema: 'loop-studio/graph/7', version: 1,
+    nodes: [
+      { id: 'src', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Src', activation: 'automatic' } },
+      { id: 'tank', type: 'pool', position: { x: 320, y: 0 }, data: { kind: 'pool', label: 'Tank', initial: 0, capacity: null, resourceType: 'water', activation: 'automatic' } },
+      ...(twoLines ? [{ id: 'tankB', type: 'pool', position: { x: 320, y: 200 }, data: { kind: 'pool', label: 'Tank B', initial: 0, capacity: 0.5, resourceType: 'water', activation: 'automatic' } }] : []),
+    ],
+    edges: [
+      { id: 'e', source: 'src', target: 'tank', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '~ramp' } },
+      ...(twoLines ? [{ id: 'e2', source: 'src', target: 'tankB', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '~ramp' } }] : []),
+    ],
+    kinds: [{ name: 'water', conserved: true, baseUnit: 'm³', rateUnits: [{ name: 'CMH', factor: '1', per: 'h' }] }],
+    time: { step: { value: 1, unit: 'h' } },
+    timetables: [{ id: 'ramp', label: 'Ramp', source: 'Example assumption', unit: 'CMH', timeUnit: 'h', read: 'linear', end: '1', after: 'hold', means: 'available', points: [['0', '0'], ['1', '2']] }],
+  })
+
+/** the strip's reading with the pointer just before the end of step 1, on the chart's own step scale */
+async function readingNearEndOfStep1(page: Page): Promise<string> {
+  const x1 = await page.locator('.timeline__line[data-series="tank"]').evaluate((el) => {
+    const nums = (el.getAttribute('d') ?? '').match(/-?\d+(\.\d+)?/g)!.map(Number)
+    return (el as SVGPathElement).ownerSVGElement!.getBoundingClientRect().left + nums[2]!
+  })
+  const box = (await strip(page).boundingBox())!
+  await page.mouse.move(x1 - 3, box.y + box.height / 2)
+  // by its place, the strip's top row and not its name, so the same locator reads an older
+  // build, where the reading stood at the row's end
+  const text = strip(page).locator('text[y="10"]:not(.timeline__rate-name)')
+  await expect(text).toHaveCount(1)
+  return unwrapIsolates((await text.textContent()) ?? '')
+}
+
+test('a linear table moved in full reads the same available and moved rate for the hovered step', async ({ page }) => {
+  await openApp(page)
+  await importGraph(page, RAMP_DOC(false))
+  await expect(page.locator('.react-flow__node')).toHaveCount(2)
+  for (let i = 1; i <= 2; i++) {
+    await stepBtn(page).click()
+    await expect.poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().stepIndex)).toBe(i)
+  }
+  expect(await readingNearEndOfStep1(page)).toBe('Step 1: available 1, moved 1 CMH')
+})
+
+test('two lines reading one available table: the reading names each line by its ends, with what it moved', async ({ page }) => {
+  await openApp(page)
+  await importGraph(page, RAMP_DOC(true))
+  await expect(page.locator('.react-flow__node')).toHaveCount(3)
+  for (let i = 1; i <= 2; i++) {
+    await stepBtn(page).click()
+    await expect.poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().stepIndex)).toBe(i)
+  }
+  await expect(strip(page).locator('.timeline__rate-moved')).toHaveCount(2)
+  // Tank B holds 0.5, so its line moves half of what is available
+  expect(await readingNearEndOfStep1(page)).toBe('Step 1: available 1 CMH on each connection, moved Src → Tank 1; Src → Tank B 0.5')
+  // the long reading takes the name's place rather than running into it, and stays in the strip
+  await expect(strip(page).locator('.timeline__rate-name')).toHaveCount(0)
+  const fits = await strip(page).evaluate((svg) => {
+    const box = svg.getBoundingClientRect()
+    const r = svg.querySelector('.timeline__rate-reading')!.getBoundingClientRect()
+    return r.left >= box.left && r.right <= box.right
+  })
+  expect(fits).toBe(true)
+  // leaving the strip brings the name back
+  await page.mouse.move(4, 4)
+  await expect(strip(page).locator('.timeline__rate-name')).toHaveCount(1)
+})
+
 test('Help ▸ How a timetable is read says that every connection reading a table shares its meaning', async ({ page }) => {
   await openApp(page)
   await page.getByRole('button', { name: 'Help', exact: true }).click()

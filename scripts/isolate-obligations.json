@@ -6,7 +6,7 @@
   "totals": {
     "rows": 115,
     "obligations": 66,
-    "callSites": 135
+    "callSites": 137
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -2210,6 +2210,30 @@
             "available": "ltr",
             "moved": "ltr"
           }
+        },
+        {
+          "keys": [
+            "timeline.rate.availableAtLines"
+          ],
+          "args": [
+            "available",
+            "unit",
+            "lines"
+          ],
+          "kind": "auto",
+          "kindByArg": {
+            "available": "ltr"
+          }
+        },
+        {
+          "keys": [
+            "inspector.ends.summary"
+          ],
+          "args": [
+            "from",
+            "to"
+          ],
+          "kind": "auto"
         }
       ]
     },

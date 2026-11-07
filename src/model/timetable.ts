@@ -377,6 +377,15 @@ export function amountAsRate(t: Timetable, factor: RateFactor, time: DocTime, am
   return amount / toDouble(mul(factor, stepInTableTime(t, time)))
 }
 
+/** #530 review — one step of a line reading a table, both numbers on ONE basis: what the
+ *  step made available and what moved, each as the table's rate averaged over the step.
+ *  The table's rate at an instant is another quantity: under `linear` a step from 0 to 2
+ *  averages 1, so an instant near its end (1.8) beside the step's moved rate (1) would
+ *  compare two bases. */
+export function stepRates(t: Timetable, factor: RateFactor, time: DocTime, line: { planned: number; moved: number }): { available: number; moved: number } {
+  return { available: amountAsRate(t, factor, time, line.planned), moved: amountAsRate(t, factor, time, line.moved) }
+}
+
 /** P: the exact plan of step `k`, in the base unit (§M5-6). Never stored. */
 export function exactPlan(t: Timetable, k: number, factor: RateFactor, time: DocTime): Rational {
   const S = stepInTableTime(t, time)

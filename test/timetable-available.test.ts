@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest'
 import { initSim, step } from '../src/engine/step'
 import { canonicalContent, digestOfCanonical } from '../src/model/revision'
 import { deserialize, serialize } from '../src/model/serialize'
-import { canonicalTimetable, type Timetable } from '../src/model/timetable'
+import { exactDouble, toDouble } from '../src/model/rational'
+import { canonicalTimetable, stepRates, timetableRateAt, timetableRateFactor, type Timetable } from '../src/model/timetable'
 import type { LoopEdge, LoopNode } from '../src/model/types'
 
 // #519, SEMANTICS-M7.md — a table that says what a supply can give, not what it must
@@ -91,6 +92,35 @@ describe('a table of what a supply can give (#519)', () => {
     const a = run(outageDoc(undefined))
     expect(a.unmet).toEqual(plan.unmet)
     expect(a.values).toEqual(plan.values)
+  })
+})
+
+describe('the strip reads a step on one basis (#530 review)', () => {
+  // a linear table from 0 to 2 per hour over the first hour, then 2; nothing clamps
+  const RAMP: Timetable = { id: 'ramp', label: 'Ramp', source: 'Example assumption', unit: 'CMH', timeUnit: 'h', read: 'linear', end: '1', after: 'hold', means: 'available', points: [['0', '0'], ['1', '2']] }
+  const kinds = [{ name: 'water', conserved: true, baseUnit: 'm³', rateUnits: [{ name: 'CMH', factor: '1', per: 'h' }] }]
+  const time = { step: { value: 1, unit: 'h' as const } }
+  const nodes = [
+    { id: 'src', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Src', activation: 'automatic', mode: 'pushAny' } },
+    { id: 'tank', type: 'pool', position: { x: 200, y: 0 }, data: { kind: 'pool', label: 'Tank', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny', resourceType: 'water' } },
+  ] as unknown as LoopNode[]
+  const edges = [{ id: 'e', source: 'src', target: 'tank', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '~ramp' } }] as unknown as LoopEdge[]
+  const opts = { kinds: kinds as never, time, timetables: [RAMP] }
+
+  it('a linear table moved in full reads the same available and moved rate at every step, and not the rate at an instant', () => {
+    const factor = timetableRateFactor(RAMP, kinds[0] as never, time)!
+    let st = initSim(nodes, opts)
+    const read: { available: number; moved: number }[] = []
+    for (let k = 1; k <= 3; k++) {
+      const r = step(nodes, edges, st, 1, 7, opts)
+      expect(r.report.diagnostics).toEqual([])
+      st = r.state
+      read.push(stepRates(RAMP, factor, time, r.report.timetableLines![0]!))
+    }
+    // step 1 averages the ramp, 1; steps 2 and 3 hold 2
+    expect(read).toEqual([{ available: 1, moved: 1 }, { available: 2, moved: 2 }, { available: 2, moved: 2 }])
+    // the old reading put the instant's rate beside the step's: near the end of step 1, 1.9
+    expect(toDouble(timetableRateAt(RAMP, exactDouble(0.95)))).toBeCloseTo(1.9, 12)
   })
 })
 
