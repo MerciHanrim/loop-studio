@@ -7,6 +7,7 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **Pointing at the Timeline previews a step.** The chart now shows the values of the step under the mouse, as the strips below it do. A click still pins a step; with one pinned, pointing elsewhere previews that step and moving away brings the pinned values back. Touch and the keyboard work as before.
 - **The Timeline legend shows its marks in forced colours.** Each series' square mark had disappeared, so the legend, the series list and a step's reading named a series without tying it to its line. The marks now keep the colour the line keeps, with an outline, and a line's pattern shows where two series share a colour.
 - **A stall at the start now says so.** A pull all group that starts with less than one step needs, from a tank only that group refills, may never run. The stage now warns in the Inspector with both numbers, with or without a run rule, and a longer step that would cause it is announced before it applies.
 - **Two small Templates left the menu.** Balanced production line and Capacity deadlock are no longer offered under File ▸ Templates or in Help ▸ Example notes. Their example files stay, and a document made from one still opens and follows the language.

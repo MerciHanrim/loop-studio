@@ -596,6 +596,7 @@ const ui = {
   'timeline.rate.aria': '{label}: portata in {unit}, su un asse proprio',
   'timeline.reading.label': 'Grafico dell’esecuzione. Seleziona un punto, oppure usa i tasti freccia sinistra e destra, per leggere i valori a un passo registrato.',
   'timeline.reading.step': 'Passo {n}',
+  'timeline.reading.preview': 'Anteprima',
   'timeline.reading.close': 'Chiudi la lettura del passo',
   'help.stepOrder.title': 'Come un passo riempie e svuota un Serbatoio',
   'help.stepOrder.p1': 'Un passo parte da ciò che ogni Serbatoio contiene. Le risorse in arrivo riempiono prima il Serbatoio, fino alla capacità. Una connessione che preleva dal Serbatoio preleva poi da ciò che conteneva all’inizio del passo, quindi ciò che è arrivato in questo passo aspetta il successivo.',

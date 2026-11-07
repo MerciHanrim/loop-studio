@@ -4979,6 +4979,18 @@ a.sheet__row {
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
 }
+/* #525 — a hovered step's line: the pick's colour, told from it by the dashes */
+.timeline__peek {
+  stroke: var(--sel);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+/* a preview with no step picked: the pointer under it still reads the plot */
+.timeline__reading--bare {
+  pointer-events: none;
+}
 /* placed by TimelineStepReading.tsx (bottom / left or right / max sizes): on
    the plot's bottom, opening upward over the canvas */
 .timeline__reading {
@@ -5008,6 +5020,22 @@ a.sheet__row {
 .timeline__reading-step {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+/* #525 — the values are a hovered step's, not the picked one's: told in words, and
+   dashed like the hovered step's line. Right after the step; the close button keeps
+   the end. */
+.timeline__reading-tag {
+  margin-inline-end: auto;
+  padding: 0 5px;
+  border: 1px dashed var(--sel);
+  border-radius: 3px;
+  color: var(--ink-2);
+  font-size: 10.5px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.timeline__reading-tag.is-off {
+  visibility: hidden;
 }
 .timeline__reading-x {
   width: 22px;

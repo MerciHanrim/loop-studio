@@ -596,6 +596,7 @@ const ui = {
   'timeline.rate.aria': '{label}: taxa em {unit}, em eixo próprio',
   'timeline.reading.label': 'Gráfico da execução. Selecione um ponto, ou use as setas para a esquerda e para a direita, para ler os valores de um passo registado.',
   'timeline.reading.step': 'Passo {n}',
+  'timeline.reading.preview': 'Pré-visualização',
   'timeline.reading.close': 'Fechar a leitura do passo',
   'help.stepOrder.title': 'Como um passo enche e esvazia um Reservatório',
   'help.stepOrder.p1': 'Um passo parte do que cada Reservatório contém. Os recursos que chegam enchem primeiro o Reservatório, até à capacidade. Quem retira do Reservatório retira depois do que ele tinha no início do passo, por isso o que chegou neste passo espera pelo seguinte.',

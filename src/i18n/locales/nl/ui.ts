@@ -577,6 +577,7 @@ const ui = {
   'timeline.rate.aria': '{label}: snelheid in {unit}, op een eigen as',
   'timeline.reading.label': 'Rungrafiek. Selecteer een punt, of gebruik de pijltoetsen links en rechts, om de waarden bij een vastgelegde stap te lezen.',
   'timeline.reading.step': 'Stap {n}',
+  'timeline.reading.preview': 'Voorbeeld',
   'timeline.reading.close': 'De stapweergave sluiten',
   'help.stepOrder.title': 'Hoe een stap een Voorraad vult en leegt',
   'help.stepOrder.p1': 'Een stap begint bij wat elke Voorraad bevat. Binnenkomende middelen vullen de Voorraad eerst, tot de capaciteit. Een verbinding die uit de Voorraad neemt, neemt daarna uit wat er aan het begin van de stap in zat, dus wat in deze stap binnenkwam wacht op de volgende.',

@@ -580,6 +580,7 @@ const ui = {
   'timeline.rate.aria': '{label}: caudal en {unit}, en su propio eje',
   'timeline.reading.label': 'Gráfico de la ejecución. Seleccione un punto, o use las flechas izquierda y derecha, para leer los valores de un paso registrado.',
   'timeline.reading.step': 'Paso {n}',
+  'timeline.reading.preview': 'Vista previa',
   'timeline.reading.close': 'Cerrar la lectura del paso',
   'help.stepOrder.title': 'Cómo un paso llena y vacía un Depósito',
   'help.stepOrder.p1': 'Un paso parte de lo que tiene cada Depósito. Los recursos que llegan llenan primero el Depósito, hasta su capacidad. Una conexión que toma del Depósito toma después de lo que tenía al empezar el paso, así que lo que llegó en este paso espera al siguiente.',

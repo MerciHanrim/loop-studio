@@ -655,6 +655,7 @@ const ui = {
   'timeline.rate.aria': '{label}: Rate in {unit}, auf eigener Achse',
   'timeline.reading.label': 'Laufdiagramm. Einen Punkt auswählen oder mit den Pfeiltasten nach links und rechts die Werte eines aufgezeichneten Schritts lesen.',
   'timeline.reading.step': 'Schritt {n}',
+  'timeline.reading.preview': 'Vorschau',
   'timeline.reading.close': 'Schrittanzeige schließen',
   'help.stepOrder.title': 'Wie ein Schritt einen Speicher füllt und leert',
   'help.stepOrder.p1': 'Ein Schritt beginnt mit dem, was jeder Speicher enthält. Ankommende Ressourcen füllen den Speicher zuerst, bis zu seiner Kapazität. Eine Verbindung, die aus dem Speicher entnimmt, entnimmt danach aus dem, was er zu Beginn des Schritts enthielt. Was in diesem Schritt ankam, wartet also auf den nächsten.',

@@ -323,6 +323,18 @@ feature and is not built.
   Registers as their formatted value, `—` where R(t) is invalid).
 - **Move.** A click elsewhere moves the pick. A second click on the same point keeps it;
   it is not a toggle.
+- **Preview** (#525, Hanrim and Lumi, 2026-11-07). A mouse or a pen over the plot
+  previews the recorded step nearest to it, as the strips below read the step under the
+  pointer: a dashed line at that step and the panel with its values. The pointer leaving
+  the plot ends it. With a step picked, the panel shows the hovered step's values and
+  returns to the picked ones when the pointer leaves; the picked line stays, and the
+  panel stays beside it, since a panel that followed the pointer would move away from
+  its close button. With nothing picked, the panel stands beside the hovered line, has no
+  close button and takes no pointer events. Either way a dashed **Preview** tag stands
+  after the step heading (Lumi's review), so values beside the picked line are never
+  read as the picked step's. A preview's step heading is not a live region. The preview is held by its entry like the pick, so a step recorded during Play
+  does not move it, and a reset or another document ends it. The arrow keys read the
+  picked step and end a preview. Touch has no preview. Not on the distribution.
 - **End.** The panel's close button, or `Escape` while the chart has focus. Either way the
   focus is (back) on the chart.
 - **Keyboard.** The chart is focusable once a run has steps (`role="group"`, an
@@ -348,7 +360,8 @@ feature and is not built.
 - **Not on the distribution.** The Monte-Carlo distribution view shows no reading.
 - Screen state only: never saved, exported or shared.
 
-Tests: `e2e/timeline-step-reading.spec.ts`. It reads each step's place from the drawn
+Tests: `e2e/timeline-step-reading.spec.ts`, and `e2e/timeline-hover-preview.spec.ts` for
+the preview. Each reads each step's place from the drawn
 line's own vertices, not from the chart's x mapping.
 
 ## 8. Summary panel calculations

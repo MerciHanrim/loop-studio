@@ -634,6 +634,7 @@ const ui = {
   'timeline.rate.aria': '{label}: {unit} akışı, kendi ekseninde',
   'timeline.reading.label': 'Çalıştırma grafiği. Kaydedilmiş bir adımdaki değerleri okumak için bir nokta seçin ya da sol ve sağ ok tuşlarını kullanın.',
   'timeline.reading.step': '{n}. adım',
+  'timeline.reading.preview': 'Önizleme',
   'timeline.reading.close': 'Adım okumasını kapat',
   'help.stepOrder.title': 'Bir adım Havuzu nasıl doldurur ve boşaltır',
   'help.stepOrder.p1': 'Bir adım, her Havuzun içindekiyle başlar. Gelen kaynaklar Havuzu önce kapasitesine kadar doldurur. Havuzdan alan bağlantı sonra adım başında orada olandan alır; bu adımda gelen miktar bir sonraki adımı bekler.',

@@ -601,6 +601,7 @@ const ui = {
   'timeline.rate.aria': '{label}: {unit} のレート、別の軸',
   'timeline.reading.label': '実行チャート。点を選ぶか、左右の矢印キーで、記録されたステップの値を読み取ります。',
   'timeline.reading.step': 'ステップ {n}',
+  'timeline.reading.preview': 'プレビュー',
   'timeline.reading.close': 'ステップの読み取りを閉じる',
   'help.stepOrder.title': '1 ステップでプールが満ちて減る順序',
   'help.stepOrder.p1': 'ステップは各プールの保有量から始まります。入ってくるリソースが先にプールを容量まで満たします。プールから取り出す接続は、その後でステップ開始時にあった量から取り出すので、このステップに入った量は次のステップまで待ちます。',

@@ -142,6 +142,7 @@ const ui = {
   'timeline.rate.aria': '{label}: rate in {unit}, on its own axis',
   'timeline.reading.label': 'Run chart. Select a point, or use the left and right arrow keys, to read the values at a recorded step.',
   'timeline.reading.step': 'Step {n}',
+  'timeline.reading.preview': 'Preview',
   'timeline.reading.close': 'Close the step reading',
   'timeline.sheetTitle': 'Timeline',
   'mobile.inspector.title': 'Inspector — read only',
