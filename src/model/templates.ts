@@ -194,7 +194,8 @@ export const TEMPLATES: Template[] = [
   // 0.28.1 (Hanrim / Lumi, 2026-10-14) took it out of the Templates menu as a
   // developer stress / regression fixture; 0.30.0 (Hanrim / Lumi, 2026-10-24)
   // puts it back in the menu, unchanged — the same graph, start framing and
-  // edit lock. It is still the largest bundled graph the checks read.
+  // edit lock. #428 dropped the lock: it opens editable. It is still the largest
+  // bundled graph the checks read.
   {
     id: 'mmo-progression',
     name: 'Early MMO progression (levels 1–15)',
