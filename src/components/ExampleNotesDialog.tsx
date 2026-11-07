@@ -17,8 +17,6 @@ import { ArrowIcon, Icon } from '../ui/icons'
 // docs/localization.md §L7 precedent — a `Record`-typed table of literal
 // `MessageKey`s, so `check-i18n.mjs`'s call-site scan sees every key.
 const NOTES: Record<string, readonly MessageKey[]> = {
-  equilibrium: ['help.examples.equilibrium.p1', 'help.examples.equilibrium.p2'],
-  deadlock: ['help.examples.deadlock.p1', 'help.examples.deadlock.p2'],
   'coffee-roastery': ['help.examples.coffeeRoastery.p1', 'help.examples.coffeeRoastery.p2', 'help.examples.coffeeRoastery.p3'],
   desalination: ['help.examples.desalination.p1', 'help.examples.desalination.p2', 'help.examples.desalination.p7', 'help.examples.desalination.p8', 'help.examples.desalination.p3', 'help.examples.desalination.p4', 'help.examples.desalination.p5', 'help.examples.desalination.p6'],
   'mmo-progression': ['help.examples.mmoProgression.p1', 'help.examples.mmoProgression.p2', 'help.examples.mmoProgression.p3'],

@@ -261,26 +261,18 @@ test('a bundled Template opens with Portuguese node labels', async ({ page }) =>
   await resetAll(page)
   await setLocale(page, 'pt-BR')
   const sub = await openFileSubmenu(page, 'templates')
-  const row = sub.locator('[data-template="equilibrium"]')
-  await expect(row).toContainText('Linha de produção equilibrada')
+  const row = sub.locator('[data-template="coffee-roastery"]')
+  await expect(row).toContainText('Fluxo de operações de uma torrefação de café')
   await row.click()
   const confirm = page.locator('.mcdlg--confirm .btn--primary')
   if (await confirm.isVisible().catch(() => false)) await confirm.click()
   await expect
-    .poll(() =>
-      page.evaluate(() =>
-        [...document.querySelectorAll('.nodef__name')].map((t) => t.textContent?.trim()),
-      ),
-    )
-    .toContain('Fornecimento de material')
-  const titles = await page.evaluate(() =>
-    [...document.querySelectorAll('.nodef__name')].map((t) => t.textContent?.trim()),
-  )
-  expect(titles, 'the dictionary loaded, so no English canonical is left').not.toContain(
-    'Material supply',
-  )
-  expect(titles).toContain('Processamento')
-  expect(titles).toContain('Refugo')
+    .poll(() => page.evaluate(() => (window as any).__loop.graph.getState().nodes.length))
+    .toBeGreaterThan(20)
+  const labels: string[] = await page.evaluate(() => (window as any).__loop.graph.getState().nodes.map((n: any) => n.data.label))
+  expect(labels, 'the dictionary loaded, so no English canonical is left').not.toContain('Green bean stock')
+  expect(labels).toContain('Estoque de café verde')
+  expect(labels).toContain('Estoque de café torrado')
 })
 
 // ------------------------------------------------------------------ 7

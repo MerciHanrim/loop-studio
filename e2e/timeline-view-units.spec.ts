@@ -196,7 +196,7 @@ test('another document starts in its base units, and one with no amount unit sho
     .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.viewUnits?.getState().views))
     .toEqual({})
 
-  await pickTemplate(page, 'equilibrium')
+  await pickTemplate(page, 'coffee-roastery')
   const confirm = page.locator('.mcdlg--confirm .btn--primary')
   if (await confirm.isVisible().catch(() => false)) await confirm.click()
   await page.locator('.timeline__series').click()

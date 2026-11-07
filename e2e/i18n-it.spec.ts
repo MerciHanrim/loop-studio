@@ -234,7 +234,7 @@ test.describe('the three-arm plural', () => {
     // a plural that is right in the catalog and wrong on screen is the defect
     // worth catching.
     const cat = await catalog(page)
-    await loadTemplate(page, 'equilibrium', cat['templates.equilibrium.name']!)
+    await loadTemplate(page, 'coffee-roastery', cat['templates.coffeeRoastery.name']!)
     await expect.poll(() => page.locator('.react-flow__node').count()).toBeGreaterThan(3)
 
     const counter = page.locator('.lgr-selection-count').first()

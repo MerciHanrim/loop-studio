@@ -433,11 +433,11 @@ test('French typography reaches the DOM as the exact codepoints', async ({ page 
 
   // load one Template, then ask for a second — the replace dialog is the one
   // place that renders both French spacing rules at once
-  await pickTemplate(page, 'equilibrium')
+  await pickTemplate(page, 'coffee-roastery')
   const firstConfirm = page.locator('.mcdlg--confirm .btn--primary')
   if (await firstConfirm.isVisible().catch(() => false)) await firstConfirm.click()
   await expect(page.locator('.react-flow__node').first()).toBeVisible()
-  await pickTemplate(page, 'deadlock')
+  await pickTemplate(page, 'gacha-general')
 
   const dlg = page.locator('.mcdlg--confirm')
   await expect(dlg).toBeVisible()

@@ -105,19 +105,20 @@ test.describe('MC / sim invalidation', () => {
 
     // the workbench: Templates are rows of File ▸ Templates (docs/workbench.md §WB2.2)
     await openFileSubmenu(page, 'templates')
-    await page.getByRole('menuitem', { name: 'Balanced production line' }).click()
+    await page.getByRole('menuitem', { name: 'Seawater desalination process' }).click()
     await page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i }).click()
 
     // graph replaced
-    await expect(page.locator('.react-flow__node')).toHaveCount(7)
+    await expect(page.locator('.react-flow__node')).toHaveCount(37)
     const pools = await poolIds(page)
-    expect(pools).toEqual(['tpl-vault', 'tpl-prod'])
+    expect(pools).toContain('product')
+    expect(pools).not.toContain('ore_stock')
 
     const m = await mc(page)
     expect(m.stale).toBe(true)
     expect(m.hasResult).toBe(true) // still viewable
     // empty intersection with ['ore_stock','components'] + pools remain ⇒ first pool
-    expect(m.tracked).toEqual(['tpl-vault'])
+    expect(m.tracked).toEqual([pools[0]])
 
     const s = await simSnapshot(page)
     expect(s.status).toBe('idle')
@@ -133,9 +134,9 @@ test.describe('MC / sim invalidation', () => {
     expect((await mc(page)).tracked).toEqual([])
 
     await openFileSubmenu(page, 'templates')
-    await page.getByRole('menuitem', { name: 'Capacity deadlock' }).click()
+    await page.getByRole('menuitem', { name: 'Seawater desalination process' }).click()
     await page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i }).click()
-    await expect(page.locator('.react-flow__node')).toHaveCount(6)
+    await expect(page.locator('.react-flow__node')).toHaveCount(37)
 
     const m = await mc(page)
     expect(m.stale).toBe(true)
@@ -223,9 +224,9 @@ test.describe('MC / sim invalidation', () => {
     await expect.poll(() => simSnapshot(page).then((s) => s.status)).toBe('running')
 
     await openFileSubmenu(page, 'templates')
-    await page.getByRole('menuitem', { name: 'Balanced production line' }).click()
+    await page.getByRole('menuitem', { name: 'Seawater desalination process' }).click()
     await page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i }).click()
-    await expect(page.locator('.react-flow__node')).toHaveCount(7)
+    await expect(page.locator('.react-flow__node')).toHaveCount(37)
 
     const s = await simSnapshot(page)
     expect(s.status).not.toBe('running')
