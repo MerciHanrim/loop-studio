@@ -32,6 +32,7 @@ const officialFrameStrings = new Set(Object.values(FRAME_OFFICIAL).flatMap((m) =
 const officialNodeStrings = new Set(Object.values(NODE_OFFICIAL).flatMap((m) => Object.values(m)))
 
 vi.mock('../i18n/templateLabels/relabel', () => ({
+  relabelTablesForLocale: (tables: unknown) => tables,
   relabelNodesForLocale: (nodes: readonly any[], loc: string) => {
     let changed = false
     const out = nodes.map((n) => {

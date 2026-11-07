@@ -10,7 +10,7 @@ import { create } from 'zustand'
 import { useAutosaveStore } from './autosaveStore'
 import { useI18n } from '../i18n/store'
 import { defaultNodeLabel } from '../i18n/nodeDefaults'
-import { relabelFramesForLocale, relabelNodesForLocale } from '../i18n/templateLabels/relabel'
+import { relabelFramesForLocale, relabelNodesForLocale, relabelTablesForLocale } from '../i18n/templateLabels/relabel'
 import { createNode, defaultData, nextId } from '../model/factory'
 import { dragSnap, snapDrag } from '../model/layout/dragSnap'
 import { useGuideStore } from './guideStore'
@@ -1895,6 +1895,10 @@ useI18n.subscribe((s) => {
   const relFrames = relabelFramesForLocale(curFrames, loc)
   const liveFramesChanged = relFrames !== curFrames
 
+  // live tables: their names follow the language as node labels do
+  const timetables = relabelTablesForLocale(g.timetables, loc)
+  const liveTablesChanged = timetables !== g.timetables
+
   // history — remap both the node labels and the frame sidecar of every entry
   const remap = (h: HistoryEntry): HistoryEntry => {
     const n = relabelNodesForLocale(h.nodes, loc)
@@ -1903,10 +1907,13 @@ useI18n.subscribe((s) => {
     const f1 = f0 ? relabelFramesForLocale(f0, loc) : f0
     const nChg = n !== h.nodes
     const fChg = f1 !== f0
-    if (!nChg && !fChg) return h
+    const t = h.timetables ? relabelTablesForLocale(h.timetables, loc) : h.timetables
+    const tChg = t !== h.timetables
+    if (!nChg && !fChg && !tChg) return h
     return {
       ...h,
       ...(nChg ? { nodes: n } : {}),
+      ...(tChg ? { timetables: t } : {}),
       ...(fChg ? { sidecar: { ...(sc ?? { p: null, f: null, d: null }), f: f1 } } : {}),
     }
   }
@@ -1916,7 +1923,7 @@ useI18n.subscribe((s) => {
   const futureChanged = future.some((h, i) => h !== g.future[i])
   const historyChanged = pastChanged || futureChanged
 
-  if (!liveNodesChanged && !liveFramesChanged && !historyChanged) return
+  if (!liveNodesChanged && !liveFramesChanged && !liveTablesChanged && !historyChanged) return
 
   // live frame titles: a label-only remap — no undo entry, no autosave here
   if (liveFramesChanged) {
@@ -1925,9 +1932,10 @@ useI18n.subscribe((s) => {
     frameSidecar?.relabel(titles)
   }
 
-  if (liveNodesChanged || historyChanged) {
+  if (liveNodesChanged || liveTablesChanged || historyChanged) {
     useGraphStore.setState({
       ...(liveNodesChanged ? { nodes } : {}),
+      ...(liveTablesChanged ? { timetables } : {}),
       ...(pastChanged ? { past } : {}),
       ...(futureChanged ? { future } : {}),
     })
@@ -1935,7 +1943,7 @@ useI18n.subscribe((s) => {
 
   // persist once — autosave stores the LIVE doc, so a history-only remap needs
   // no write.
-  if (liveNodesChanged || liveFramesChanged) writeAutosaveNow()
+  if (liveNodesChanged || liveFramesChanged || liveTablesChanged) writeAutosaveNow()
 })
 
 /** SEMANTICS-M4.md §M4-6 — the open document's unit table, read when an export

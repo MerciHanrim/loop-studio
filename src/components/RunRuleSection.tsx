@@ -150,6 +150,8 @@ export function RunRuleSection({ node }: { node: LoopNode }) {
   const unit = tank ? fieldUnitText(resolveFieldUnit(form.unit ?? tankData?.unit, kinds.find((k) => k.name === poolKindName(tankData)), time, 'stock')) || kinds.find((k) => k.name === poolKindName(tankData))?.baseUnit : undefined
   const labelOf = (x: string) => nodes.find((n) => n.id === x)?.data.label ?? x
   const lines = groupLines(edges, group.members)
+  // a table read only by a rule shows where its numbers came from nowhere else
+  const tableSource = timetables.find((x) => x.id === form.table)?.source
   const missing = (x: string) => t('inspector.run.missing', { id: isolateAuto(x) })
   const lineText = (e: (typeof lines)[number]) => {
     const d = e.data as { flow?: unknown; unit?: unknown }
@@ -213,6 +215,7 @@ export function RunRuleSection({ node }: { node: LoopNode }) {
               </select>
             </Field>
           )}
+          {tableSource !== undefined && <p className="inspector__note">{t('inspector.edge.timetable.source', { source: isolateAuto(tableSource) })}</p>}
           {form.table !== undefined && (
             <Field label={t('inspector.run.rated')}>
               <select value={form.rated ?? ''} onChange={(e) => change({ rated: e.target.value === '' ? undefined : e.target.value })}>

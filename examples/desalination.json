@@ -1,5 +1,5 @@
 {
-  "schema": "loop-studio/graph/4",
+  "schema": "loop-studio/graph/6",
   "version": 1,
   "layoutVersion": 1,
   "nodes": [
@@ -30,7 +30,7 @@
         "kind": "pool",
         "label": "Intake basin",
         "activation": "passive",
-        "initial": 3000,
+        "initial": 12000,
         "capacity": 12000,
         "mode": "pullAny",
         "resourceType": "water",
@@ -130,7 +130,13 @@
         "kind": "converter",
         "label": "Coagulation filter",
         "activation": "automatic",
-        "mode": "pullAll"
+        "mode": "pullAll",
+        "run": {
+          "tank": "filtered",
+          "level": "5500",
+          "band": "3000",
+          "side": "fill"
+        }
       }
     },
     {
@@ -241,14 +247,20 @@
         "kind": "converter",
         "label": "Reverse osmosis",
         "activation": "automatic",
-        "mode": "pullAll"
+        "mode": "pullAll",
+        "run": {
+          "tank": "permeate",
+          "level": "2750",
+          "band": "1500",
+          "side": "fill"
+        }
       }
     },
     {
       "id": "permeate",
       "type": "pool",
       "position": {
-        "x": 825,
+        "x": 845,
         "y": 700
       },
       "data": {
@@ -288,7 +300,7 @@
         "kind": "pool",
         "label": "Recovered energy",
         "activation": "passive",
-        "initial": 1250,
+        "initial": 2500,
         "capacity": 5000,
         "mode": "pullAny",
         "resourceType": "power",
@@ -342,7 +354,13 @@
         "kind": "converter",
         "label": "Remineralization",
         "activation": "automatic",
-        "mode": "pullAll"
+        "mode": "pullAll",
+        "run": {
+          "tank": "product",
+          "level": "4400000",
+          "band": "3500000",
+          "side": "fill"
+        }
       }
     },
     {
@@ -426,7 +444,11 @@
         "kind": "converter",
         "label": "Delivery pump",
         "activation": "automatic",
-        "mode": "pullAll"
+        "mode": "pullAll",
+        "run": {
+          "table": "demand",
+          "rated": "e_dpump_city"
+        }
       }
     },
     {
@@ -484,8 +506,8 @@
       "id": "brine",
       "type": "pool",
       "position": {
-        "x": 975,
-        "y": 1190
+        "x": 1655,
+        "y": 710
       },
       "data": {
         "kind": "pool",
@@ -503,22 +525,28 @@
       "id": "adjust",
       "type": "converter",
       "position": {
-        "x": 1120,
-        "y": 1190
+        "x": 1800,
+        "y": 710
       },
       "data": {
         "kind": "converter",
         "label": "Discharge adjustment",
         "activation": "automatic",
-        "mode": "pullAll"
+        "mode": "pullAll",
+        "run": {
+          "tank": "brine",
+          "level": "250",
+          "band": "1500",
+          "side": "empty"
+        }
       }
     },
     {
       "id": "adj",
       "type": "pool",
       "position": {
-        "x": 1120,
-        "y": 1050
+        "x": 1800,
+        "y": 570
       },
       "data": {
         "kind": "pool",
@@ -535,8 +563,8 @@
       "id": "outfall",
       "type": "drain",
       "position": {
-        "x": 1262,
-        "y": 1190
+        "x": 1942,
+        "y": 710
       },
       "data": {
         "kind": "drain",
@@ -551,8 +579,8 @@
       "id": "backwash",
       "type": "pool",
       "position": {
-        "x": 825,
-        "y": 1330
+        "x": 1505,
+        "y": 850
       },
       "data": {
         "kind": "pool",
@@ -570,22 +598,28 @@
       "id": "thick",
       "type": "converter",
       "position": {
-        "x": 975,
-        "y": 1330
+        "x": 1655,
+        "y": 850
       },
       "data": {
         "kind": "converter",
         "label": "Thickener",
         "activation": "automatic",
-        "mode": "pullAll"
+        "mode": "pullAll",
+        "run": {
+          "tank": "backwash",
+          "level": "35",
+          "band": "200",
+          "side": "empty"
+        }
       }
     },
     {
       "id": "dewater",
       "type": "converter",
       "position": {
-        "x": 1120,
-        "y": 1330
+        "x": 1800,
+        "y": 850
       },
       "data": {
         "kind": "converter",
@@ -598,8 +632,8 @@
       "id": "cake",
       "type": "drain",
       "position": {
-        "x": 1262,
-        "y": 1330
+        "x": 1942,
+        "y": 850
       },
       "data": {
         "kind": "drain",
@@ -706,20 +740,6 @@
         "unit": "CMD",
         "route": "orthogonal",
         "accent": "#638EA5",
-        "waypoints": [
-          {
-            "x": 853,
-            "y": 492
-          },
-          {
-            "x": 700,
-            "y": 492
-          },
-          {
-            "x": 700,
-            "y": 1358
-          }
-        ],
         "ports": {
           "source": "bottom",
           "target": "left"
@@ -930,7 +950,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "9000",
+        "flow": "12000",
         "unit": "CMD",
         "route": "orthogonal",
         "accent": "#638EA5",
@@ -949,7 +969,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "9000",
+        "flow": "12000",
         "unit": "CMD",
         "route": "orthogonal",
         "accent": "#638EA5",
@@ -1206,7 +1226,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "0.15",
+        "flow": "0.19",
         "unit": "MW",
         "route": "orthogonal",
         "accent": "#A78243",
@@ -1244,7 +1264,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "0.1",
+        "flow": "0.14",
         "unit": "MW",
         "route": "orthogonal",
         "accent": "#A78243",
@@ -1522,12 +1542,130 @@
       "id": "f_out",
       "label": "5 Discharge and solids",
       "rect": {
-        "x": 720,
-        "y": 1000,
+        "x": 1400,
+        "y": 520,
         "w": 640,
         "h": 450
       },
       "color": "violet"
     }
-  ]
+  ],
+  "timetables": [
+    {
+      "id": "demand",
+      "label": "City water demand",
+      "source": "Example assumption, not measured data",
+      "unit": "CMD",
+      "timeUnit": "h",
+      "read": "hold",
+      "after": "repeat",
+      "end": "24",
+      "points": [
+        [
+          "0",
+          "3600"
+        ],
+        [
+          "1",
+          "3600"
+        ],
+        [
+          "2",
+          "3600"
+        ],
+        [
+          "3",
+          "3600"
+        ],
+        [
+          "4",
+          "4400"
+        ],
+        [
+          "5",
+          "6000"
+        ],
+        [
+          "6",
+          "8400"
+        ],
+        [
+          "7",
+          "10400"
+        ],
+        [
+          "8",
+          "11200"
+        ],
+        [
+          "9",
+          "10000"
+        ],
+        [
+          "10",
+          "8800"
+        ],
+        [
+          "11",
+          "8000"
+        ],
+        [
+          "12",
+          "7600"
+        ],
+        [
+          "13",
+          "7600"
+        ],
+        [
+          "14",
+          "8000"
+        ],
+        [
+          "15",
+          "8800"
+        ],
+        [
+          "16",
+          "10000"
+        ],
+        [
+          "17",
+          "11200"
+        ],
+        [
+          "18",
+          "11600"
+        ],
+        [
+          "19",
+          "10000"
+        ],
+        [
+          "20",
+          "8000"
+        ],
+        [
+          "21",
+          "6000"
+        ],
+        [
+          "22",
+          "4800"
+        ],
+        [
+          "23",
+          "3600"
+        ]
+      ]
+    }
+  ],
+  "recommendedRunConfig": {
+    "timelineSeries": [
+      "brine",
+      "filtered",
+      "permeate",
+      "product"
+    ]
+  }
 }

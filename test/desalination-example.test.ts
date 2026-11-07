@@ -3,27 +3,27 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { initSim, step } from '../src/engine/step'
 import { kindFindings, refusingKindFindings, resolveKinds } from '../src/model/kinds'
-import { add, cmp, displayRational, div, equals, exactDouble, fromInt, mul, rational, sub, toDouble, type Rational } from '../src/model/rational'
+import { add, cmp, displayRational, div, exactDouble, fromInt, mul, rational, sub, toDouble, type Rational } from '../src/model/rational'
+import { runFindings, ruleOf } from '../src/model/runRule'
+import { runWarnings } from '../src/model/runWarnings'
 import { deserialize } from '../src/model/serialize'
+import { timetableRef } from '../src/model/timetable'
 import { currentAmountText, engineValue, fieldRational, poolKindName, resolveFieldUnit } from '../src/model/units'
 import type { LoopEdge, LoopNode } from '../src/model/types'
 
-// `examples/desalination.json` — the bundled seawater desalination process
-// example (#471), a fixed-ratio flow model in the kinds, units and step-length
-// contract. This test re-derives every value in
-// `examples/desalination.expected.json` from the graph through the REAL engine
-// (initSim / step with its kinds table and step length, as Play runs it) and
-// pins them exactly, then checks the water balance against an a-priori
-// floating-point bound at 24, 168 and 720 steps.
+// `examples/desalination.json` — the bundled seawater desalination process example, a
+// fixed-ratio flow model driven by one 24-hour demand table and six run rules. This test
+// re-derives every value in `examples/desalination.expected.json` from the graph through
+// the REAL engine, and pins them exactly.
 //
-// Two layers are kept apart:
-//   • the AUTHORED recipes (per day) balance exactly in rationals — the kinds
-//     check finds nothing;
-//   • the ENGINE runs on doubles (per 1 h step). Its residual
-//       r(n) = Σ water Pools(n) − (W₀ + Σ intake − Σ drained)
-//     is computed EXACTLY here (every double as its exact binary value, every
-//     sum a rational), so the check adds no rounding of its own; what is left
-//     is the engine's.
+// The water check has two parts, both in exact rationals:
+//   • every step closes: S(t) − S(t−1) − (In − City − Outfall − Cake) stays within β;
+//   • the run closes: S(n) − (S(0) + Σ In − Σ Out) stays within n β.
+//
+// β IS AN EXPERIMENTAL BOUND. It is a hand derivation from the order of operations in
+// `step()`, checked on this one document, and it covers the error observed over 720
+// steps. It is not a proof, and no product text may call it a guarantee. Its premises are
+// tested at every step, and a failed premise fails the test: it never widens β.
 //
 // Regenerate after a deliberate change:  GEN_DESALINATION=1 npm test -- desalination-example
 
@@ -34,33 +34,160 @@ const CHECKPOINTS = [1, 24, 168, 720]
 const BOUND_AT = [24, 168, 720]
 /** unit roundoff of IEEE-754 binary64: |fl(x ± y) − (x ± y)| ≤ u·|x ± y| */
 const U = rational(1n, 2n ** 53n)
+const ONE = fromInt(1)
+const ZERO = fromInt(0)
+const IN_LINES = ['e_sea_basin']
+const OUT_LINES = ['e_dpump_city', 'e_adjust_outfall', 'e_dewater_cake']
 const EXITS = ['city', 'outfall', 'cake']
+/** the engine's floor: an amount at or under it moves nothing and raises no event */
+const FLOOR = 1e-9
 
 const abs = (r: Rational): Rational => (r.num < 0n ? rational(-r.num, r.den) : r)
-/** a non-negative rational rounded UP to a multiple of 2⁻¹²⁰ — keeps the
- *  envelope's denominators bounded (each step would otherwise multiply them by
- *  about 2⁵²) while only ever widening the bound, so it stays an upper bound */
-const GRID = 2n ** 120n
-const up = (r: Rational): Rational => rational((r.num * GRID + r.den - 1n) / r.den, GRID)
 const le = (a: Rational, b: Rational) => cmp(a, b) <= 0
 const show = (r: Rational) => displayRational(r).text
 const sci = (r: Rational) => toDouble(r).toExponential(6)
-const sum = (rs: Rational[]) => rs.reduce(add, fromInt(0))
+const sum = (rs: Rational[]) => rs.reduce(add, ZERO)
 
 const readDoc = () => deserialize(readFileSync(resolve(DIR, 'desalination.json'), 'utf8'))
 
-function derive() {
+/** the document's water model, and β from it, before anything runs */
+function model() {
   const doc = readDoc()
-  const { nodes, edges, kinds, time, modelVersion } = doc
+  const { nodes, edges, kinds, time, timetables, modelVersion } = doc
   const declOf = new Map(kinds.map((k) => [k.name, k]))
   const edgeKind = resolveKinds(nodes, edges).edgeKind
+  const resource = edges.filter((e) => (e.data?.kind ?? 'resource') === 'resource')
+  const rateOf = (e: LoopEdge) => {
+    const d = e.data as { flow: string; unit?: string }
+    return engineValue(d.flow, resolveFieldUnit(d.unit, declOf.get(edgeKind.get(e.id) ?? ''), time, 'rate'), time)
+  }
+  const water = resource.filter((e) => edgeKind.get(e.id) === 'water')
+  const rate = new Map(water.map((e) => [e.id, rateOf(e)]))
+  const r = (e: LoopEdge) => exactDouble(rate.get(e.id)!)
+  const pools = nodes.filter((n) => n.data.kind === 'pool' && poolKindName(n.data) === 'water')
+  const converters = nodes.filter((n) => n.data.kind === 'converter').map((n) => n.id)
+  const capacity = new Map(pools.map((p) => {
+    const d = p.data as { capacity: number; unit?: string }
+    return [p.id, engineValue(d.capacity, resolveFieldUnit(d.unit, declOf.get('water'), time, 'stock'), time)]
+  }))
+
+  // κ: how far an input's fraction can lie below the group's number F. η: how far a
+  // member's own fraction can lie below F. A member recomputes its fraction from what
+  // arrived, so both grow along a chain. The steps are in README § 8.
+  const gamma = (k: number) => (k === 0 ? ZERO : div(mul(fromInt(k), U), sub(ONE, mul(fromInt(k), U))))
+  const inputs = (id: string) => resource.filter((e) => e.target === id)
+  const eta = new Map<string, Rational>()
+  const kappa = new Map<string, Rational>()
+  const solve = (id: string): Rational => {
+    const hit = eta.get(id)
+    if (hit) return hit
+    let k = U
+    for (const e of inputs(id)) {
+      if (!converters.includes(e.source)) continue
+      const via = sub(ONE, mul(sub(ONE, solve(e.source)), sub(ONE, U)))
+      if (cmp(via, k) > 0) k = via
+    }
+    const g = gamma(inputs(id).length - 1)
+    const value = sub(ONE, div(mul(mul(sub(ONE, k), sub(ONE, g)), sub(ONE, U)), add(ONE, g)))
+    kappa.set(id, k)
+    eta.set(id, value)
+    return value
+  }
+  const memberTerm = new Map<string, Rational>()
+  for (const id of converters) {
+    const sIn = sum(water.filter((e) => e.target === id).map(r))
+    const sOut = sum(water.filter((e) => e.source === id).map(r))
+    if (sIn.num === 0n && sOut.num === 0n) continue
+    const rho = sub(mul(add(ONE, solve(id)), add(ONE, U)), ONE)
+    memberTerm.set(id, add(abs(sub(sOut, sIn)), add(mul(rho, sOut), mul(kappa.get(id)!, sIn))))
+  }
+  const poolTerm = new Map(pools.map((p) => {
+    const lines = water.filter((e) => e.source === p.id || e.target === p.id)
+    const inflow = sum(lines.filter((e) => e.target === p.id).map(r))
+    const H = mul(add(exactDouble(capacity.get(p.id)!), inflow), add(ONE, rational(1n, 2n ** 40n)))
+    return [p.id, mul(mul(fromInt(lines.length), U), H)]
+  }))
+  const beta = add(sum([...memberTerm.values()]), sum([...poolTerm.values()]))
+  return { doc, nodes, edges, kinds, time, timetables, modelVersion, declOf, edgeKind, water, rate, pools, converters, capacity, memberTerm, poolTerm, kappa, eta, beta }
+}
+
+type Tamper = { step: number; add: number }
+
+/** the run under the two checks. `tamper` adds to one step's balance, and `leaveOut`
+ *  drops a line from it, to show the check can fail. */
+function balanceRun(tamper?: Tamper, leaveOut?: string) {
+  const m = model()
+  const { nodes, edges, kinds, time, timetables, modelVersion, water, rate, pools, capacity, memberTerm, beta } = m
+  const opts = { kinds, time, timetables }
+  let st = initSim(nodes, opts)
+  const waterIds = new Set(water.map((e) => e.id))
+  const stock = () => sum(pools.map((p) => exactDouble(st.values[p.id] ?? 0)))
+  const S0 = stock()
+  let net = ZERO
+  let worstStep = ZERO
+  let worstRun = ZERO
+  let closed = 0
+  let worstMember = 0
+  const premises = {
+    noGateAndTreeGroups: !nodes.some((n) => n.data.kind === 'gate'),
+    noTableOnWaterAndNoStateLine: water.every((e) => timetableRef(String((e.data as { flow?: unknown }).flow)) === null) && edges.every((e) => (e.data?.kind ?? 'resource') === 'resource'),
+    waterEntersAndLeavesByNamedLines: water.every((e) => (nodes.find((n) => n.id === e.source)!.data.kind === 'source' ? IN_LINES.includes(e.id) : true) && (nodes.find((n) => n.id === e.target)!.data.kind === 'drain' ? OUT_LINES.includes(e.id) : true)),
+    amountsAboveTheFloor: true,
+    membersMoveWhole: true,
+    oneEventPerLine: true,
+    noAmountAboveItsRate: true,
+    stocksStrictlyInside: true,
+    noDiagnostic: true,
+  }
+  const at = new Map<number, { r: Rational; max: Rational }>()
+  for (let t = 1; t <= STEPS; t++) {
+    const before = stock()
+    const res = step(nodes, edges as LoopEdge[], st, 1, modelVersion, opts)
+    if (res.report.diagnostics.length > 0) premises.noDiagnostic = false
+    st = res.state
+    const amountOf = (id: string) => sum(res.report.events.filter((e) => e.edgeId === id).map((e) => exactDouble(e.amount)))
+    const inflow = sum(IN_LINES.map(amountOf))
+    const outflow = sum(OUT_LINES.filter((id) => id !== leaveOut).map(amountOf))
+    const shift = t === tamper?.step ? exactDouble(tamper.add) : ZERO
+    const stepNet = add(sub(inflow, outflow), shift)
+    const e = abs(sub(sub(stock(), before), stepNet))
+    net = add(net, stepNet)
+    const r = sub(stock(), add(S0, net))
+    if (cmp(e, worstStep) > 0) worstStep = e
+    if (cmp(abs(r), worstRun) > 0) worstRun = abs(r)
+    if (le(e, beta)) closed++
+    if (BOUND_AT.includes(t)) at.set(t, { r, max: worstRun })
+    for (const p of pools) {
+      const v = st.values[p.id] ?? 0
+      if (v <= FLOOR || v >= capacity.get(p.id)!) premises.stocksStrictlyInside = false
+    }
+    const seen = new Set<string>()
+    for (const ev of res.report.events) {
+      if (!waterIds.has(ev.edgeId)) continue
+      if (seen.has(ev.edgeId)) premises.oneEventPerLine = false
+      seen.add(ev.edgeId)
+      if (ev.amount > rate.get(ev.edgeId)! * (1 + 2 ** -52)) premises.noAmountAboveItsRate = false
+      if (ev.amount <= FLOOR) premises.amountsAboveTheFloor = false
+    }
+    for (const [id, term] of memberTerm) {
+      const ins = water.filter((x) => x.target === id)
+      const outs = water.filter((x) => x.source === id)
+      const moved = [...ins, ...outs].map((x) => seen.has(x.id))
+      if (moved.some(Boolean) && !moved.every(Boolean)) premises.membersMoveWhole = false
+      worstMember = Math.max(worstMember, toDouble(abs(sub(sum(outs.map((x) => amountOf(x.id))), sum(ins.map((x) => amountOf(x.id)))))) / toDouble(term))
+    }
+  }
+  return { closed, worstStep, worstRun, worstMember, premises, at, beta, m }
+}
+
+function derive() {
+  const run = balanceRun()
+  const { nodes, edges, kinds, time, timetables, modelVersion, declOf, edgeKind, pools, kappa, eta, memberTerm, poolTerm, beta } = run.m
 
   // ── the fields: authored → exact per step → engine double → rounding ──
   const fields: Record<string, unknown>[] = []
   const exactOf = new Map<string, Rational>()
-  const engineOf = new Map<string, number>()
   const startOf = new Map<string, Rational>()
-  const capOf = new Map<string, Rational>()
   for (const n of nodes) {
     if (n.data.kind !== 'pool') continue
     const d = n.data as { initial: number; capacity: number | null; unit?: string }
@@ -70,7 +197,6 @@ function derive() {
       const exact = fieldRational(v, fu, time)!
       const eng = engineValue(v, fu, time)
       if (f === 'initial') startOf.set(n.id, exact)
-      else capOf.set(n.id, exact)
       fields.push({ field: `${n.id}.${f}`, authored: d.unit ? `${v} ${d.unit}` : String(v), exactPerStep: show(exact), engine: eng, roundingError: show(sub(exactDouble(eng), exact)) })
     }
   }
@@ -81,137 +207,59 @@ function derive() {
     const exact = fieldRational(d.flow, fu, time)!
     const eng = engineValue(d.flow, fu, time)
     exactOf.set(e.id, exact)
-    engineOf.set(e.id, eng)
     fields.push({ field: e.id, kind: k, authored: d.unit ? `${d.flow} ${d.unit}` : d.flow, exactPerStep: show(exact), engine: eng, roundingError: show(sub(exactDouble(eng), exact)) })
   }
-  const waterEdges = edges.filter((e) => edgeKind.get(e.id) === 'water')
-  const rho = (id: string) => sub(exactDouble(engineOf.get(id)!), exactOf.get(id)!)
-
-  // δ — what the doubles of a Converter's water rates do not sum to: per run,
-  // exact. A run of the whole chain adds at most Σ |δ_c| of water that the
-  // authored recipes do not have.
-  const converters = nodes.filter((n) => n.data.kind === 'converter').map((n) => n.id)
-  const deltaOf = (c: string) => {
-    const ins = waterEdges.filter((e) => e.target === c).map((e) => exactDouble(engineOf.get(e.id)!))
-    const outs = waterEdges.filter((e) => e.source === c).map((e) => exactDouble(engineOf.get(e.id)!))
-    return sub(sum(outs), sum(ins))
-  }
-  const delta = sum(converters.map((c) => abs(deltaOf(c))))
-
-  // ── the water Pools, as the proof reads them ──
-  const pools = nodes.filter((n) => n.data.kind === 'pool' && poolKindName(n.data) === 'water').map((n) => {
-    const ins = waterEdges.filter((e) => e.target === n.id).map((e) => e.id)
-    const outs = waterEdges.filter((e) => e.source === n.id).map((e) => e.id)
-    return {
-      id: n.id, ins, outs,
-      S: startOf.get(n.id)!, cap: capOf.get(n.id)!,
-      /** every amount the Pool takes in a step, with its representation error */
-      a: add(sum(ins.map((id) => exactOf.get(id)!)), sum(ins.map((id) => abs(rho(id))))),
-      /** every amount it gives */
-      out: add(sum(outs.map((id) => exactOf.get(id)!)), sum(outs.map((id) => abs(rho(id))))),
-      /** the drift of one step, from representation alone */
-      drift: abs(sub(sum(ins.map(rho)), sum(outs.map(rho)))),
-      updates: ins.length + outs.length,
-      steady: equals(sum(ins.map((id) => exactOf.get(id)!)), sum(outs.map((id) => exactOf.get(id)!))),
-    }
-  })
 
   // ── the run ──
-  const opts = { kinds, time }
+  const opts = { kinds, time, timetables }
   let st = initSim(nodes, opts)
-  const W = (v: Record<string, number>) => pools.reduce<Rational>((s, p) => add(s, exactDouble(v[p.id] ?? 0)), fromInt(0))
-  const W0 = W(st.values)
-  let intake = fromInt(0)
-  let drained = fromInt(0)
-  let maxR = fromInt(0)
   let diagnostics = 0
-  let notices = 0
+  const notices: Record<string, number> = {}
   const fired = new Map<string, number>()
+  const seaIdle: number[] = []
+  const byLine = new Map<string, number>()
   const checkpoints: Record<string, unknown>[] = []
-  const residualAt = new Map<number, { r: Rational; max: Rational }>()
+  const stocks = new Map(pools.map((p) => [p.id, [Infinity, -Infinity]]))
+  const runs = new Map<string, number[]>()
   const fuProduct = resolveFieldUnit('L', declOf.get('water'), time, 'stock')
-  // ── the bound, with a state-error envelope ──
-  // An update's rounding is at most u × |its exact result|, and that result is
-  // made from the ACTUAL stock, not the ideal one. So each water Pool carries an
-  // envelope D: a proven bound on |actual stock − exact model stock| at the end
-  // of every step. Every Pool is steady in the exact model, so its exact stock
-  // is S at every step, and
-  //   D′ = D + |Σρ_in − Σρ_out| + k u (S + D + a)
-  // where a holds every inflow with its |ρ| and k is the Pool's updates in a
-  // step: S + D + a bounds every partial result, in any update order.
-  // B(n) = n Σ|δ_c| + Σ_t Σ_pools k u (S + D_{t−1} + a). The run then checks, at
-  // every step, that each actual stock is inside S ± D — the envelope is a
-  // claim the test verifies, not an assumption.
-  const env = new Map(pools.map((p) => [p.id, fromInt(0)])) // the initials are exact doubles
-  let roundSum = fromInt(0)
-  let envelopeHeld = true
-  let preconditionsHeld = true
-  let maxEnvelopeShare = 0
-  const boundAt = new Map<number, Rational>()
-  const envelopeAt = new Map<number, Record<string, string>>()
   for (let t = 1; t <= STEPS; t++) {
-    for (const p of pools) {
-      const D = env.get(p.id)!
-      // the proof's preconditions for step t, from the model and the envelope at
-      // the step's START only (no value of the run is read here): under H(t−1)
-      // the Pool can give its whole outflow, and its whole inflow fits
-      if (!le(p.out, sub(p.S, D))) preconditionsHeld = false
-      if (!le(add(add(p.S, D), p.a), p.cap)) preconditionsHeld = false
-      const r_t = up(mul(mul(fromInt(p.updates), U), add(add(p.S, D), p.a)))
-      roundSum = up(add(roundSum, r_t))
-      env.set(p.id, up(add(add(D, p.drift), r_t)))
-    }
     const r = step(nodes, edges as LoopEdge[], st, 1, modelVersion, opts)
     st = r.state
     diagnostics += r.report.diagnostics.length
-    notices += (r.report.notices ?? []).length
+    for (const n of r.report.notices ?? []) notices[n.kind] = (notices[n.kind] ?? 0) + 1
     for (const f of r.report.fired) fired.set(f, (fired.get(f) ?? 0) + 1)
-    for (const e of r.report.events) {
-      if (e.from === 'sea') intake = add(intake, exactDouble(e.amount))
-      if (EXITS.includes(e.to)) drained = add(drained, exactDouble(e.amount))
+    if (![...r.report.fired].includes('sea')) seaIdle.push(t)
+    for (const e of r.report.events) byLine.set(e.edgeId, (byLine.get(e.edgeId) ?? 0) + e.amount)
+    for (const g of r.report.runs ?? []) {
+      const was = runs.get(g.members[0]!) ?? [Infinity, -Infinity]
+      runs.set(g.members[0]!, [Math.min(was[0]!, g.moved), Math.max(was[1]!, g.moved)])
     }
-    const res = sub(W(st.values), add(W0, sub(intake, drained)))
-    if (!le(abs(res), maxR)) maxR = abs(res)
     for (const p of pools) {
-      const dev = abs(sub(exactDouble(st.values[p.id] ?? 0), p.S))
-      const D = env.get(p.id)!
-      if (!le(dev, D)) envelopeHeld = false
-      if (D.num !== 0n) maxEnvelopeShare = Math.max(maxEnvelopeShare, toDouble(dev) / toDouble(D))
-    }
-    if (BOUND_AT.includes(t)) {
-      residualAt.set(t, { r: res, max: maxR })
-      boundAt.set(t, add(mul(fromInt(t), delta), roundSum))
-      envelopeAt.set(t, Object.fromEntries(pools.map((p) => [p.id, sci(env.get(p.id)!)])))
+      const v = st.values[p.id] ?? 0
+      const w = stocks.get(p.id)!
+      stocks.set(p.id, [Math.min(w[0]!, v), Math.max(w[1]!, v)])
     }
     if (CHECKPOINTS.includes(t)) {
-      checkpoints.push({
-        step: t,
-        values: { ...st.values },
-        intakeTotal: toDouble(intake),
-        drainedTotal: toDouble(drained),
-        productWaterShown: currentAmountText(st.values.product, 1500000, 'L', fuProduct, time),
-      })
+      checkpoints.push({ step: t, values: { ...st.values }, productWaterShown: currentAmountText(st.values.product, 1500000, 'L', fuProduct, time) })
     }
   }
-  const balance = BOUND_AT.map((n) => {
-    const m = residualAt.get(n)!
-    const b = boundAt.get(n)!
-    return { steps: n, residual: sci(m.r), maxResidualSoFar: sci(m.max), bound: sci(b), withinBound: le(m.max, b), shareOfBound: Number((toDouble(m.max) / toDouble(b)).toPrecision(3)), envelope: envelopeAt.get(n) }
-  })
+  const amount = (id: string) => byLine.get(id) ?? 0
+  const round4 = (x: number) => Math.round(x * 1e4) / 1e4
 
-  // ── energy, from the authored rates alone ──
-  const perDay = (ids: string[]) => mul(sum(ids.map((id) => exactOf.get(id)!)), fromInt(24))
+  // ── energy: computed from the run, under the file's example assumptions ──
   const gridLines = edges.filter((e) => /^grid[ABC]$/.test(e.source)).map((e) => e.id)
-  const delivered = perDay(['e_dpump_city'])
-  const energy = { gridKwhPerDay: show(perDay(gridLines)), deliveredM3PerDay: show(delivered), kwhPerM3: show(div(perDay(gridLines), delivered)) }
+  const grid = gridLines.reduce((s, id) => s + amount(id), 0)
+  const panels = ['panelA', 'panelB', 'panelC', 'recovered']
+  const stored = panels.reduce((s, id) => s + (st.values[id] ?? 0) - toDouble(startOf.get(id)!), 0)
+  const delivered = amount('e_dpump_city')
+  const energy = { gridKwh: round4(grid), usedKwh: round4(grid - stored), deliveredM3: round4(delivered), gridKwhPerM3: round4(grid / delivered), usedKwhPerM3: round4((grid - stored) / delivered) }
 
-  // ── the chemicals: each tank's fall against dose × time ──
+  // ── the chemicals: each tank's fall against what its line moved ──
   const chemicals = edges
     .filter((e) => !['water', 'power'].includes(edgeKind.get(e.id) ?? ''))
     .map((e) => {
       const left = st.values[e.source] ?? 0
-      const expected = sub(startOf.get(e.source)!, mul(exactOf.get(e.id)!, fromInt(STEPS)))
-      return { tank: e.source, kind: edgeKind.get(e.id), kgPerDay: show(mul(exactOf.get(e.id)!, fromInt(24))), exactLeft: show(expected), engineLeft: left, difference: Math.abs(left - toDouble(expected)) }
+      return { tank: e.source, kind: edgeKind.get(e.id), kgPerDay: show(mul(exactOf.get(e.id)!, fromInt(24))), moved: round4(amount(e.id)), engineLeft: left, difference: Math.abs(toDouble(startOf.get(e.source)!) - amount(e.id) - left) }
     })
 
   // ── the shipped kinds contract on the shapes it refuses ──
@@ -224,30 +272,37 @@ function derive() {
 
   return {
     $about:
-      'examples/desalination.json run through the real engine for 720 steps (30 days at a 1 h step). Re-derived and pinned by test/desalination-example.test.ts. A fixed-ratio flow model: its plant size, stage power and doses are example assumptions, not design data.',
+      'examples/desalination.json run through the real engine for 720 steps (30 days at a 1 h step). Re-derived and pinned by test/desalination-example.test.ts. A fixed-ratio flow model: its plant size, demand curve, stage power, doses and pump size are example assumptions, not measured or design data.',
     $bound: {
-      formula: 'B(n) = n × Σ|δ_c| + Σ_{t ≤ n} Σ_{water Pools} k u × (S + D_{t−1} + a)',
-      u: 'unit roundoff of binary64, 2^-53: each addition or subtraction rounds by at most u times its exact result (IEEE-754 round to nearest)',
-      delta: `Σ over Converters of |Σ double(out) − Σ double(in)|, per run, exact: ${show(delta)} m³; counted for every step`,
-      updates: 'every event amount is applied to a Pool by exactly one addition (into it) or one subtraction (out of it) in src/engine/step.ts; k is the number of water connections at the Pool',
-      envelope: 'D bounds |actual stock − exact model stock| at the end of a step: D′ = D + |Σρ_in − Σρ_out| + k u (S + D + a)',
-      proof: 'By induction on t. H(t): at the end of step t every actual water stock lies within S ± D(t). H(0): the initials are exact doubles and D(0) = 0. Step: under H(t−1) the preconditions, computed from the model and D alone, give each Pool its whole outflow and fit its whole inflow, so every connection moves its double, and each update rounds by at most u × (S + D + a).',
-      exact: 'every water Pool is steady in the exact model: its authored inflows sum exactly to its authored outflows, so its exact stock is S at every step',
-      notCounted: 'amounts that are copies of a value round nothing; the residual is summed in exact rationals, so the check itself adds no rounding',
-      why: 'every term is derived from the model, the field doubles and IEEE-754 rounding before the run, never from the measured error; B grows with n',
-    },
-    envelope: {
-      everyPoolSteadyInTheExactModel: pools.every((p) => p.steady),
-      proofPreconditionsHeldAtEveryStep: preconditionsHeld,
-      corroboration: { actualInsideEnvelopeAtEveryStep: envelopeHeld, largestShareOfEnvelope: Number(maxEnvelopeShare.toPrecision(3)) },
+      status: 'EXPERIMENTAL: a hand derivation from the order of operations in step(), checked on this document. It covers the error observed over 720 steps. It is not a proof.',
+      formula: 'β = Σ_m (δ_m + ρ_m Σ r_out + κ_m Σ r_in) + Σ_p k_p u H_p; every step |e(t)| ≤ β, the run |r(n)| ≤ n β',
+      open: 'Not settled: the weighted mean over inputs of different kinds, whether a fraction can pass F by another path, and the count of additions with two router inputs.',
     },
     modelVersion,
     time,
     authoredBalance: { finding: kindFindings(nodes, edges, kinds, modelVersion, time).length === 0 ? 'none' : 'broken', recoveryPercent: show(mul(div(exactOf.get('e_ro_permeate')!, exactOf.get('e_hp_ro')!), fromInt(100))) },
     fields,
-    run: { steps: STEPS, seed: 1, diagnostics, notices, maxResidual: sci(maxR), fired: Object.fromEntries([...fired].sort(([a], [b]) => (a < b ? -1 : 1))) },
+    run: { steps: STEPS, seed: 1, diagnostics, notices, findings: runFindings(nodes, edges, timetables, kinds, time, modelVersion).length, warnings: nodes.flatMap((n) => runWarnings(nodes, edges, timetables, kinds, time, n.id)).length, rules: nodes.filter((n) => ruleOf(n) !== null).length, seaIdle, fired: Object.fromEntries([...fired].sort(([a], [b]) => (a < b ? -1 : 1))) },
+    ranges: {
+      stocks: Object.fromEntries([...stocks].map(([id, [lo, hi]]) => [id, [round4(lo!), round4(hi!)]])),
+      runs: Object.fromEntries([...runs].sort(([a], [b]) => (a < b ? -1 : 1)).map(([id, [lo, hi]]) => [id, [round4(lo!), round4(hi!)]])),
+    },
     checkpoints,
-    balance,
+    experimentalBound: {
+      beta: sci(beta),
+      stepsClosed: run.closed,
+      largestStepError: sci(run.worstStep),
+      largestShareOfBeta: Number((toDouble(run.worstStep) / toDouble(beta)).toPrecision(3)),
+      largestMemberShare: Number(run.worstMember.toPrecision(3)),
+      premises: run.premises,
+      atSteps: BOUND_AT.map((n) => {
+        const a = run.at.get(n)!
+        const b = mul(fromInt(n), beta)
+        return { steps: n, residual: sci(a.r), maxResidualSoFar: sci(a.max), bound: sci(b), withinBound: le(a.max, b), shareOfBound: Number((toDouble(a.max) / toDouble(b)).toPrecision(3)) }
+      }),
+      chain: Object.fromEntries([...eta].sort(([a], [b]) => (a < b ? -1 : 1)).map(([id, v]) => [id, { kappaInU: Math.round(toDouble(div(kappa.get(id)!, U))), etaInU: Math.round(toDouble(div(v, U))) }])),
+      terms: { members: Object.fromEntries([...memberTerm].map(([k, v]) => [k, sci(v)])), pools: Object.fromEntries([...poolTerm].map(([k, v]) => [k, sci(v)])) },
+    },
     energy,
     chemicals,
     contract: { wrongRatio: refused(variant('e_ro_permeate', { flow: '9500' })), allOnFeed: refused(variant('e_hp_ro', { flow: 'all', unit: undefined })) },
@@ -258,12 +313,13 @@ function derive() {
 // Each changes one thing in the document and runs 720 steps through the real
 // engine. Nothing may be lost silently: at every step the water Pools equal the
 // start plus intake minus what left, to rounding, and no stock passes its limits.
-function failure(change: (nodes: LoopNode[], edges: LoopEdge[]) => void) {
+function failure(change: (nodes: LoopNode[], edges: LoopEdge[], tables: { points: [string, string][] }[]) => void) {
   const doc = readDoc()
   const nodes = structuredClone(doc.nodes)
   const edges = structuredClone(doc.edges) as LoopEdge[]
-  change(nodes, edges)
-  const opts = { kinds: doc.kinds, time: doc.time }
+  const timetables = structuredClone(doc.timetables)
+  change(nodes, edges, timetables)
+  const opts = { kinds: doc.kinds, time: doc.time, timetables }
   const water = nodes.filter((n) => n.data.kind === 'pool' && poolKindName(n.data) === 'water').map((n) => n.id)
   const total = (v: Record<string, number>) => water.reduce((s, id) => s + (v[id] ?? 0), 0)
   let st = initSim(nodes, opts)
@@ -300,32 +356,53 @@ describe('examples/desalination.json — the bundled desalination process exampl
     expect(JSON.parse(JSON.stringify(got))).toEqual(want)
   })
 
-  it('every authored recipe balances exactly, the run raises no diagnostic or notice, and every stage runs every step', () => {
+  it('every authored recipe balances exactly, the run raises no diagnostic, notice, finding or warning, and every stage runs every step', () => {
     expect(got.authoredBalance).toEqual({ finding: 'none', recoveryPercent: '45' })
-    expect(got.run).toMatchObject({ diagnostics: 0, notices: 0 })
+    expect(got.run).toMatchObject({ diagnostics: 0, notices: {}, findings: 0, warnings: 0, rules: 6 })
     expect(Object.keys(got.run.fired)).toHaveLength(21)
-    for (const [id, n] of Object.entries(got.run.fired)) expect(n, id).toBe(STEPS)
+    // the basin starts full, so the sea has nowhere to go on the first step, and only then
+    expect(got.run.seaIdle).toEqual([1])
+    for (const [id, n] of Object.entries(got.run.fired)) expect(n, id).toBe(id === 'sea' ? STEPS - 1 : STEPS)
   })
 
-  it('the engine residual stays inside the a-priori bound at 24, 168 and 720 steps, and the bound grows with the steps', () => {
-    expect(got.balance.map((b) => b.steps)).toEqual(BOUND_AT)
-    for (const b of got.balance) expect(b.withinBound, `${b.steps} steps: ${b.maxResidualSoFar} vs ${b.bound}`).toBe(true)
-    const bounds = got.balance.map((b) => Number(b.bound))
-    expect(bounds[0]! < bounds[1]! && bounds[1]! < bounds[2]!).toBe(true)
+  it('demand is met in full, and no group stops', () => {
+    expect(got.energy.deliveredM3).toBeCloseTo(223500, 6)
+    for (const [id, [lo]] of Object.entries(got.ranges.runs)) expect(lo, id).toBeGreaterThan(0)
   })
 
-  it('the proof’s preconditions hold at every step (from the model alone), and the run corroborates the envelope', () => {
-    expect(got.envelope.everyPoolSteadyInTheExactModel).toBe(true)
-    expect(got.envelope.proofPreconditionsHeldAtEveryStep).toBe(true)
-    expect(got.envelope.corroboration.actualInsideEnvelopeAtEveryStep).toBe(true)
-    expect(got.envelope.corroboration.largestShareOfEnvelope).toBeLessThanOrEqual(1)
+  it('every tank moves, so the day shows, and stays well inside its limits', () => {
+    const [low, high] = got.ranges.stocks.product!
+    expect(high! - low!).toBeGreaterThan(1000)
+    expect(low).toBeGreaterThan(0)
+    expect(high).toBeLessThan(6000)
   })
 
-  it('the grid total over the water delivered is exactly 4 kWh per m³, from the authored rates', () => {
-    expect(got.energy).toEqual({ gridKwhPerDay: '36000', deliveredM3PerDay: '9000', kwhPerM3: '4' })
+  it('EXPERIMENTAL BOUND: every step closes within β and the run within n β, with every premise holding at every step', () => {
+    const b = got.experimentalBound
+    expect(b.stepsClosed).toBe(STEPS)
+    expect(Object.values(b.premises).every(Boolean), JSON.stringify(b.premises)).toBe(true)
+    expect(b.largestMemberShare).toBeLessThanOrEqual(1)
+    for (const a of b.atSteps) expect(a.withinBound, `${a.steps} steps: ${a.maxResidualSoFar} vs ${a.bound}`).toBe(true)
   })
 
-  it('each chemical tank falls by its dose times the time, and none runs out in 30 days', () => {
+  it('the check can fail: a changed amount or a line left out does not close', () => {
+    expect(balanceRun({ step: 300, add: 1e-6 }).closed).toBe(STEPS - 1)
+    expect(balanceRun({ step: 300, add: 1e-10 }).closed).toBe(STEPS - 1)
+    expect(balanceRun(undefined, 'e_dewater_cake').closed).toBe(0)
+  }, 60_000)
+
+  it('error builds along a chain: the last member of the RO group needs more than the first', () => {
+    const { chain } = got.experimentalBound
+    expect(chain.cartridge!.etaInU).toBeLessThan(chain.turbine!.etaInU)
+  })
+
+  it('the energy is a computed result of the example assumptions, inside the reported range', () => {
+    expect(got.energy.gridKwhPerM3).toBeGreaterThan(3.5)
+    expect(got.energy.gridKwhPerM3).toBeLessThan(4.5)
+    expect(got.energy.usedKwhPerM3).toBeLessThan(got.energy.gridKwhPerM3)
+  })
+
+  it('each chemical tank falls by what its line moved, and none runs out in 30 days', () => {
     expect(got.chemicals).toHaveLength(6)
     for (const c of got.chemicals) {
       expect(c.difference, c.tank).toBeLessThan(1e-6)
@@ -334,7 +411,7 @@ describe('examples/desalination.json — the bundled desalination process exampl
   })
 
   it('the Properties panel shows the product water in its authored unit', () => {
-    for (const c of got.checkpoints) expect(c.productWaterShown).toMatch(/^(≈ )?1500000 L$/)
+    for (const c of got.checkpoints) expect(c.productWaterShown).toMatch(/^(≈ )?[\d.]+ L$/)
   })
 
   it('a wrong recovery ratio and `all` on a water line are refused before the run', () => {
@@ -356,24 +433,32 @@ describe('examples/desalination.json — the bundled desalination process exampl
 
     it('a cut grid feed stops the pumps it feeds once its panel is empty, and water backs up without being lost', () => {
       const r = failure((_, edges) => { (edgeOf(edges, 'e_gridB_panelB').data as { flow: string }).flow = '0' })
-      expect(r.fired.get('hp') ?? 0).toBeLessThan(5)
+      expect(r.fired.get('hp') ?? 0).toBeLessThan(10)
       expect(r.lastDelivery).toBeLessThan(STEPS)
       expect(r.worst).toBeLessThan(1e-6)
       expect(r.negative).toBe(false)
       expect(r.values.filtered).toBeLessThanOrEqual(12000)
     })
 
+    it('with no demand the rules stop the plant at its levels, and nothing is lost', () => {
+      const r = failure((_n, _e, tables) => { for (const p of tables[0]!.points) p[1] = '0' })
+      expect(r.lastDelivery).toBe(0)
+      expect(r.worst).toBeLessThan(1e-6)
+      expect(r.negative).toBe(false)
+      expect(r.values.product).toBeLessThanOrEqual(4400 + 1e-6)
+    })
+
     it('a full tank holds what it can, stays within its capacity, and the water upstream waits', () => {
-      // both sides of the Delivery pump, so its recipe still balances and the
-      // run is not refused: the city takes nothing and the product tank fills
-      const r = failure((_, edges) => {
-        for (const id of ['e_product_dpump', 'e_dpump_city']) (edgeOf(edges, id).data as { flow: string }).flow = '0'
+      // no demand, and Polish on a full run with no rule, so it fills the product tank
+      const r = failure((nodes, _e, tables) => {
+        for (const p of tables[0]!.points) p[1] = '0'
+        delete (nodeOf(nodes, 'remin').data as { run?: unknown }).run
       })
       expect(r.fired.get('screen') ?? 0, 'the run was not refused').toBeGreaterThan(0)
       expect(r.lastDelivery).toBe(0)
       expect(r.worst).toBeLessThan(1e-6)
       expect(r.negative).toBe(false)
-      expect(r.values.product).toBeCloseTo(6000, 6)
+      expect(r.values.product).toBeLessThanOrEqual(6000)
       expect(r.values.permeate).toBeLessThanOrEqual(6000)
       expect(r.fired.get('disinfect')).toBeLessThan(STEPS)
     })

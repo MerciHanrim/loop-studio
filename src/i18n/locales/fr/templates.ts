@@ -43,7 +43,7 @@ const templates = {
   'modules.promote.title.v4': 'En faire un modèle avec unités (v4) ?',
   'modules.promote.body.v4': 'Insérer cette structure fait du document un modèle v4 : il déclare des unités ou une durée de pas, et l’empreinte de sémantique du modèle change. Une seule annulation défait ensemble le changement de modèle et l’insertion.',
   'templates.desalination.name': 'Procédé de dessalement d’eau de mer',
-  'templates.desalination.blurb': 'Usine d’osmose inverse d’eau de mer en flux de procédé, de la prise d’eau à la ville et à la mer. Ouverture sur une carte d’ensemble. Les nombres sont des hypothèses d’exemple ; salinité, pression et qualité de l’eau ne sont pas calculées.',
+  'templates.desalination.blurb': 'Une usine d’osmose inverse d’eau de mer dessinée comme un flux de procédé, de la prise d’eau à la ville et à la mer. La demande de la ville suit une courbe d’exemple sur 24 heures, et des règles de marche tiennent chaque réservoir. Chaque nombre est une hypothèse d’exemple, pas une mesure ; la salinité, la pression et la qualité de l’eau ne sont pas calculées.',
   'modules.frames.title': 'Les cadres de groupe enregistrés ne sont pas inclus',
   'modules.frames.insertBody': 'Ce fichier contient des cadres de groupe enregistrés. L’insérer comme structure ne les apporte pas dans votre graphe — tout le reste est inséré normalement.',
   'modules.frames.extractBody': 'Votre graphe contient des cadres de groupe enregistrés. Ils ne sont pas écrits dans le fichier de structure — seuls les nœuds sélectionnés et leurs connexions internes le sont.',

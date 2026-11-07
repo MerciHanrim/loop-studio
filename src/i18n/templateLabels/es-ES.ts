@@ -380,3 +380,12 @@ export const esESFrames: TemplateLabelMap = {
     pickup_block: 'Garantía de UP',
   },
 }
+
+// a Template table's name and source, `templateId -> (tableId -> label, `tableId:source`
+// -> source)`. Flat, so the source-text checks read it as they read the frames.
+export const esESTables: TemplateLabelMap = {
+  'desalination': {
+    demand: 'Demanda de agua de la ciudad',
+    'demand:source': 'Supuesto de ejemplo, no datos medidos',
+  },
+}

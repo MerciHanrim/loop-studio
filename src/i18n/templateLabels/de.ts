@@ -373,3 +373,12 @@ export const deFrames: TemplateLabelMap = {
     pickup_block: 'UP-Garantie',
   },
 }
+
+// a Template table's name and source, `templateId -> (tableId -> label, `tableId:source`
+// -> source)`. Flat, so the source-text checks read it as they read the frames.
+export const deTables: TemplateLabelMap = {
+  'desalination': {
+    demand: 'Wasserbedarf der Stadt',
+    'demand:source': 'Beispielannahme, keine Messdaten',
+  },
+}

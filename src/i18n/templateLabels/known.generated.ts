@@ -295,6 +295,12 @@ export const KNOWN_OFFICIAL_FRAME_LABELS: Readonly<Record<string, readonly strin
   "zone_supply": ["Aanvoer & voorraad", "Abasto e inventario", "Approvisionnement et stock", "Beschaffung und Bestand", "Cung ứng & tồn kho", "Fornecimento e estoque", "Fornecimento e existências", "Fornitura e scorte", "Suministro e inventario", "Supply & inventory", "Tedarik ve stok", "Поставки и запасы", "التوريد والمخزون", "การจัดหาและสต็อก", "供应与库存", "供應與庫存", "供給・在庫", "공급·재고"],
 }
 
+/** a table id, or `<id>:source` → every official string for it in some shipped locale */
+export const KNOWN_OFFICIAL_TABLE_LABELS: Readonly<Record<string, readonly string[]>> = {
+  "demand": ["City water demand", "Demanda de agua de la ciudad", "Demanda de água da cidade", "Demande en eau de la ville", "Domanda idrica della città", "Nhu cầu nước của thành phố", "Procura de água da cidade", "Wasserbedarf der Stadt", "Watervraag van de stad", "Şehrin su talebi", "Спрос города на воду", "طلب المدينة على الماء", "ความต้องการน้ำของเมือง", "城市用水需求", "都市の水需要", "도시 물 수요"],
+  "demand:source": ["Beispielannahme, keine Messdaten", "Example assumption, not measured data", "Giả định ví dụ, không phải dữ liệu đo", "Hypothèse d’exemple, pas des données mesurées", "Ipotesi di esempio, non dati misurati", "Suposição de exemplo, não dados medidos", "Supuesto de ejemplo, no datos medidos", "Voorbeeldaanname, geen meetgegevens", "Örnek varsayım, ölçülmüş veri değil", "Условный пример, не измеренные данные", "افتراض على سبيل المثال وليس بيانات مقيسة", "สมมติฐานตัวอย่าง ไม่ใช่ข้อมูลจากการวัด", "例としての仮定で、実測データではありません", "示例假设，不是实测数据", "範例假設，不是實測資料", "예시 가정이며 실측 자료가 아닙니다"],
+}
+
 /** §TLO12 — frame ids shared by two templates whose official title is not
  *  identical across every locale — never switched (the CI drift check fails
  *  first). */

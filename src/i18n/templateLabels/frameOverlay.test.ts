@@ -61,7 +61,7 @@ vi.mock('./dicts', async (imp) => {
     loadedTemplateLabelDict: (loc: string) => (resident(loc) ? NODE_DICTS[loc] : undefined),
     loadedTemplateOverlay: (loc: string) =>
       resident(loc) && NODE_DICTS[loc]
-        ? { nodes: NODE_DICTS[loc], frames: FRAME_DICTS[loc] }
+        ? { nodes: NODE_DICTS[loc], frames: FRAME_DICTS[loc], tables: {} }
         : undefined,
   }
 })

@@ -132,15 +132,16 @@ export const TEMPLATES: Template[] = [
     graph: tplGraph(deadlockDoc),
   },
   // #471 — "Seawater desalination process": a facility process flow from intake
-  // to the city and the sea, in five numbered frames, at `loop-studio/graph/4`:
+  // to the city and the sea, in five numbered frames, at `loop-studio/graph/6`:
   // water is a conserved kind, power and each chemical are not, the rates are
   // authored per day on a 1 h step, and the engine runs on the derived per-step
   // values. The canonical graph is examples/desalination.json; its run is pinned
   // against examples/desalination.expected.json by
   // test/desalination-example.test.ts. A fixed-ratio model with example
-  // assumptions, not a validated process model. Opens UNLOCKED on the five
-  // frames: an overview map at 1280 (about 0.38, below the chips), a frame is
-  // read at 100 %. `minZoom` lets that overview fit a small window.
+  // assumptions, not a validated process model. A 24-hour demand table and six
+  // run rules move it. Opens UNLOCKED on the five frames, two rows wide, so the
+  // overview stays readable above the Timeline: about 0.31 at 1280 and 0.59 at
+  // 1920. `minZoom` lets that overview fit a small window.
   // Menu place: after the two basic examples and before Coffee, so Hanrim's
   // Coffee → MMO → Gacha sequence (below, 2026-09-13) stays as decided.
   {
@@ -151,7 +152,7 @@ export const TEMPLATES: Template[] = [
     graph: tplGraph(desalinationDoc),
     ...tplModel(desalinationDoc),
     recommendedRunConfig: (desalinationDoc as { recommendedRunConfig?: RecommendedRunConfig }).recommendedRunConfig,
-    initialView: { rect: { x: 10, y: 25, width: 1360, height: 1435 }, minZoom: 0.2 },
+    initialView: { rect: { x: 10, y: 25, width: 2040, height: 1035 }, minZoom: 0.2 },
   },
   // "Coffee roastery operations flow" — the first bundled Template authored at
   // schema `loop-studio/graph/2` (loop-model/2). Its five surfaced levers are

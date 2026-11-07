@@ -377,3 +377,12 @@ export const ptBRFrames: TemplateLabelMap = {
     pickup_block: 'Garantia de UP',
   },
 }
+
+// a Template table's name and source, `templateId -> (tableId -> label, `tableId:source`
+// -> source)`. Flat, so the source-text checks read it as they read the frames.
+export const ptBRTables: TemplateLabelMap = {
+  'desalination': {
+    demand: 'Demanda de água da cidade',
+    'demand:source': 'Suposição de exemplo, não dados medidos',
+  },
+}

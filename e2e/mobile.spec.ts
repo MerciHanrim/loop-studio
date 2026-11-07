@@ -2327,19 +2327,6 @@ test('a tap on a ruled stage opens its tag, which names the tank', async ({ page
 })
 
 test('a Template with a timetable opens from the phone’s menu and steps', async ({ page }) => {
-  const pool = (id: string, x: number, initial: number) => ({ id, type: 'pool', position: { x, y: 0 }, data: { kind: 'pool', label: id, activation: 'passive', initial, capacity: null, mode: 'pullAny', resourceType: 'water' } })
-  const line = (id: string, source: string, target: string) => ({ id, source, target, sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '100', unit: 'CMH' } })
-  const doc = {
-    schema: 'loop-studio/graph/6',
-    version: 1,
-    nodes: [pool('feed', 0, 1000), { id: 'ro', type: 'converter', position: { x: 260, y: 0 }, data: { kind: 'converter', label: 'RO', activation: 'automatic', mode: 'pullAny', run: { table: 'demand', rated: 'made' } } }, pool('store', 520, 0)],
-    edges: [line('in', 'feed', 'ro'), line('made', 'ro', 'store')],
-    kinds: [{ name: 'water', conserved: false, baseUnit: 'm³', rateUnits: [{ name: 'CMH', factor: '1', per: 'h' }] }],
-    time: { step: { value: 1, unit: 'h' } },
-    timetables: [{ id: 'demand', label: 'Demand', source: 'test', unit: 'CMH', timeUnit: 'h', read: 'hold', after: 'hold', end: '10', points: [['0', '25']] }],
-  }
-  // no bundled Template holds a table yet, so the dev server answers for one
-  await page.route('**/examples/desalination.json*', (route) => route.fulfill({ contentType: 'text/javascript', body: `export default ${JSON.stringify(doc)}` }))
   await openApp(page)
   await page.locator('.pstrip--mobile').waitFor()
   await page.getByRole('button', { name: /More/ }).first().click()
@@ -2347,9 +2334,10 @@ test('a Template with a timetable opens from the phone’s menu and steps', asyn
   await page.locator('.sheet[aria-label="Templates"] .sheet__row', { hasText: 'Seawater desalination' }).click()
   const confirm = page.locator('.mcdlg--confirm .btn--primary')
   if (await confirm.isVisible().catch(() => false)) await confirm.click()
-  await expect(page.locator('.react-flow__node')).toHaveCount(3)
+  await expect(page.locator('.react-flow__node')).toHaveCount(37)
   await page.locator('.pstrip--mobile').getByRole('button', { name: 'Advance one step' }).click()
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop.sim.getState().values?.store)).toBe(25)
+  // a rule that lost its table is refused, and the step would not happen
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop.sim.getState().stepIndex)).toBe(1)
 })
 
 test('a rule is read on the phone and not made there, and Help explains it', async ({ page }) => {

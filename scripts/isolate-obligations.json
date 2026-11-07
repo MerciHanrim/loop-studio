@@ -6,7 +6,7 @@
   "totals": {
     "rows": 113,
     "obligations": 64,
-    "callSites": 128
+    "callSites": 129
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -2010,9 +2010,18 @@
       ],
       "file": "src/components/RunRuleSection.tsx",
       "enclosing": "RunRuleSection",
-      "carries": "a stage's name and a unit's name (SEMANTICS-M6.md §M6-9)",
+      "carries": "a stage's name, a unit's name and a table's source (SEMANTICS-M6.md §M6-9)",
       "why": "Free text of unknown direction, or a figure beside it, in a sentence in the reader’s direction.",
       "sites": [
+        {
+          "keys": [
+            "inspector.edge.timetable.source"
+          ],
+          "args": [
+            "source"
+          ],
+          "kind": "auto"
+        },
         {
           "keys": [
             "inspector.run.group"
