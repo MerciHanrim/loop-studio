@@ -32,6 +32,7 @@ export type ToolbarDialog =
   | { kind: 'exampleNotes' }
   // SEMANTICS-M5.md §M5-12 — Help ▸ how a step fills and empties a Pool
   | { kind: 'stepOrder' }
+  | { kind: 'timetableHelp' }
   // SEMANTICS-M6.md §M6-9 — Help ▸ how a run rule reads a tank
   | { kind: 'runRule' }
   // issue #297 - the Storage and privacy area; `step` opens it on a confirmation

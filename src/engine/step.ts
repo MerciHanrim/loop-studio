@@ -1,9 +1,9 @@
 import type { Activation, LoopEdge, LoopNode } from '../model/types'
 import { kindFindingText, refusingKindFindings, resolveKinds, type ResourceKindDecl } from '../model/kinds'
 import { applyUnits } from '../model/engineValues'
-import { hasRunRules, hasTimetables } from '../model/modelVersion'
+import { hasRunRules, hasTableMeaning, hasTimetables } from '../model/modelVersion'
 import { anyRunRule, planRuns, runFindings, runFindingText, runNotices, runReports } from '../model/runRule'
-import { applyTimetables, timetableFindings, timetableFindingText, timetableLines, unmetAmount, type PlannedLine, type Timetable } from '../model/timetable'
+import { applyTimetables, meaningOf, timetableFindings, timetableFindingText, timetableLines, unmetAmount, type PlannedLine, type Timetable } from '../model/timetable'
 import type { DocTime } from '../model/units'
 import { boundaryOutflowByKind } from './boundaryOutflow'
 import { converterGroups, refusedGroups } from './converterGroups'
@@ -2553,10 +2553,14 @@ export function step(
 
   // §M5-6 — a table line short of its plan says so. A want below `EPSILON` moves
   // nothing by the engine's own rule: unmet in the numbers, not worth a message.
+  // SEMANTICS-M7.md §M7-2 — a table of what a line CAN move has no shortfall: moving less
+  // is normal. It moves exactly as a plan does, and its report entry is the same.
   const tableLines = tablePlan ? withMoved(tablePlan.lines, events) : null
   for (const l of tableLines ?? []) {
+    const table = opts.timetables!.find((t) => t.id === l.tableId)!
+    if (hasTableMeaning(modelVersion) && meaningOf(table) === 'available') continue
     const amount = unmetAmount(l.planned, l.moved)
-    if (amount > EPSILON) notices.push({ kind: 'timetableUnmet', edgeId: l.edgeId, tableId: l.tableId, label: opts.timetables!.find((t) => t.id === l.tableId)!.label, amount })
+    if (amount > EPSILON) notices.push({ kind: 'timetableUnmet', edgeId: l.edgeId, tableId: l.tableId, label: table.label, amount })
   }
 
   // §M6-5 — one entry per group with a rule; a document with none has no key

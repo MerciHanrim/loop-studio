@@ -86,6 +86,8 @@ const inspector = {
   'inspector.edge.flowParam.malformed': 'некорректная ссылка на параметр — эта связь даёт 0',
   'inspector.edge.timetable.unknown': 'в этом документе нет таблицы времени «{id}»',
   'inspector.edge.timetable.name': 'Таблица времени: {label}',
+  'inspector.edge.timetable.means.available': 'Доступно: связь может перемещать до этого потока. Перемещать меньше нормально, об этом не сообщается.',
+  'inspector.edge.timetable.availableMoved': 'Шаг {step}: доступно {available} {unit}, перемещено {moved} {unit}',
   'inspector.edge.timetable.source': 'Источник: {source}',
   'inspector.edge.timetable.read.hold': 'Каждый поток действует до следующей точки',
   'inspector.edge.timetable.read.linear': 'Поток меняется по прямой между точками',

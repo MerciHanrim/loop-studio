@@ -84,6 +84,8 @@ const inspector = {
   'inspector.edge.flowParam.malformed': 'no es una referencia válida a un parámetro: esta conexión aporta 0',
   'inspector.edge.timetable.unknown': 'no hay tabla horaria “{id}” en este documento',
   'inspector.edge.timetable.name': 'Tabla horaria: {label}',
+  'inspector.edge.timetable.means.available': 'Disponible: la conexión puede mover hasta este caudal. Mover menos es normal y no se avisa.',
+  'inspector.edge.timetable.availableMoved': 'Paso {step}: {available} {unit} disponible, {moved} {unit} movido',
   'inspector.edge.timetable.source': 'Fuente: {source}',
   'inspector.edge.timetable.read.hold': 'Cada caudal dura hasta el punto siguiente',
   'inspector.edge.timetable.read.linear': 'El caudal cambia en línea recta entre los puntos',

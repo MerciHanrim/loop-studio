@@ -98,7 +98,7 @@ Four numbers exist for a table line at step k, and they are kept apart.
 - Each step, |exact(p) − P| is at most 2⁻⁵³ × P, one conversion's rounding. Σ P equals the exact integral. Σ exact(p) differs from it by at most the sum of those roundings. The two claims are never written as one.
 - The report holds p and m unrounded. A step with no table line has no `timetableLines` key.
 - **The run CSV**, plain or with shown values, gains `<table> (planned) [<unit>] [<edge-id>]` and `<table> (moved) [<unit>] [<edge-id>]` for each table line, in the base unit per step. A cell is that double, in the shortest decimal text that reads back as the same double, so a reader can subtract the two columns. P is not written, because it is not a number the engine used. Unmet is not written, because a third column would be a rounded subtraction. A step with no plan, such as step 0, reads 0.
-- **The message** appears when u passes the engine's `EPSILON` (10⁻⁹). A want below it moves nothing, because the engine snaps it to 0: that is unmet in the file, and not worth a message. It shows the double nearest u, in the base unit.
+- **The message** appears when u passes the engine's `EPSILON` (10⁻⁹), for a plan. A table of what a line can move (`"means": "available"`, [`SEMANTICS-M7.md`](SEMANTICS-M7.md)) has no shortfall and raises none. A want below it moves nothing, because the engine snaps it to 0: that is unmet in the file, and not worth a message. It shows the double nearest u, in the base unit.
 
 A constant line stays as it is.
 

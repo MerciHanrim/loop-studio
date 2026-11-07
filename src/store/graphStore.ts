@@ -28,12 +28,12 @@ import { buildImportCommit, type ImportCommitResult, type PlacementChoice } from
 import type { ValidatedImportPlan } from '../model/dataImportValidate'
 import { buildRefreshCommit, parameterLabel, type RefreshCommitResult, type RefreshDiffPlan, type RefreshResolution } from '../model/dataImportRefresh'
 import { ImportTableLookup } from '../model/dataImportIndex'
-import { hasModelLayer, hasRunRules, hasTimetables, hasUnits } from '../model/modelVersion'
+import { hasModelLayer, hasRunRules, hasTableMeaning, hasTimetables, hasUnits } from '../model/modelVersion'
 import { anyRunRule, ruleOf, runGroupOf, type RunRule } from '../model/runRule'
 import { canonicalKinds, kindsDeclareUnits, resolveKinds, type ResourceKindDecl } from '../model/kinds'
 import { exportUnits, type ExportUnits } from '../model/exportUnits'
 import { canonicalDocTime, type DocTime } from '../model/units'
-import { canonicalTimetable, timetableLines, type Timetable } from '../model/timetable'
+import { canonicalTimetable, meaningOf, timetableLines, type Timetable } from '../model/timetable'
 import { parseActivatorExpr } from '../engine'
 import {
   deserialize,
@@ -1813,11 +1813,10 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       if (JSON.stringify(timetables) === JSON.stringify(cur.timetables)) return
       commit('')
       lastTag = ''
-      set({
-        timetables,
-        // §M5-1 — a table promotes the document to /graph/5, one-way
-        modelVersion: timetables.length > 0 && !hasTimetables(cur.modelVersion) ? 5 : cur.modelVersion,
-      })
+      // §M5-1 — a table promotes the document to /graph/5, one-way; §M7-1 — a table of
+      // what a line can move, to /graph/7
+      const wants = timetables.some((x) => x.means === 'available') ? 7 : timetables.length > 0 ? 5 : 1
+      set({ timetables, modelVersion: Math.max(cur.modelVersion ?? 1, wants) as ModelSemanticsVersion })
       bump()
       persist()
     },
@@ -1950,13 +1949,16 @@ useI18n.subscribe((s) => {
  *  is written */
 /** loop-model/5 (SEMANTICS-M5.md §M5-6) — the lines of the document that read a
  *  table, as the Timeline CSV names them: base unit per step, under the line's kind */
-export function documentTableLines(): { edgeId: string; label: string; unit?: string }[] {
+export function documentTableLines(): { edgeId: string; label: string; unit?: string; available?: boolean }[] {
   const { nodes, edges, kinds, timetables, modelVersion } = useGraphStore.getState()
   if (!hasTimetables(modelVersion)) return []
   const edgeKind = resolveKinds(nodes, edges).edgeKind
   return timetableLines(edges).map(({ edge, tableId }) => {
     const unit = kinds.find((k) => k.name === edgeKind.get(edge.id))?.baseUnit
-    return { edgeId: edge.id, label: timetables.find((t) => t.id === tableId)?.label ?? tableId, ...(unit ? { unit } : {}) }
+    const table = timetables.find((t) => t.id === tableId)
+    // SEMANTICS-M7.md §M7-3 — the first column says what the table means
+    const available = hasTableMeaning(modelVersion) && table !== undefined && meaningOf(table) === 'available'
+    return { edgeId: edge.id, label: table?.label ?? tableId, ...(unit ? { unit } : {}), ...(available ? { available } : {}) }
   })
 }
 

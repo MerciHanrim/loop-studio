@@ -75,6 +75,8 @@ const inspector = {
   'inspector.edge.flowParam.malformed': '不是有效的參數引用——這條連線的貢獻為 0',
   'inspector.edge.timetable.unknown': '此文件中沒有時間表「{id}」',
   'inspector.edge.timetable.name': '時間表：{label}',
+  'inspector.edge.timetable.means.available': '可用：此連線最多可移動這個速率。移動得少是正常的，不會提示。',
+  'inspector.edge.timetable.availableMoved': '第 {step} 步：可用 {available} {unit}，已移動 {moved} {unit}',
   'inspector.edge.timetable.source': '來源：{source}',
   'inspector.edge.timetable.read.hold': '每個速率維持到下一個點',
   'inspector.edge.timetable.read.linear': '速率在點與點之間呈直線變化',

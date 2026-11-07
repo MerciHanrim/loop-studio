@@ -82,6 +82,8 @@ const inspector = {
   'inspector.edge.flowParam.malformed': 'geen geldige parameterverwijzing — deze verbinding draagt 0 bij',
   'inspector.edge.timetable.unknown': 'geen tijdtabel “{id}” in dit document',
   'inspector.edge.timetable.name': 'Tijdtabel: {label}',
+  'inspector.edge.timetable.means.available': 'Beschikbaar: de verbinding kan tot deze snelheid verplaatsen. Minder verplaatsen is normaal en wordt niet gemeld.',
+  'inspector.edge.timetable.availableMoved': 'Stap {step}: {available} {unit} beschikbaar, {moved} {unit} verplaatst',
   'inspector.edge.timetable.source': 'Bron: {source}',
   'inspector.edge.timetable.read.hold': 'Elke snelheid geldt tot het volgende punt',
   'inspector.edge.timetable.read.linear': 'De snelheid verandert in een rechte lijn tussen de punten',

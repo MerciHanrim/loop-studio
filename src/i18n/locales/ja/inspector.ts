@@ -73,6 +73,8 @@ const inspector = {
   'inspector.edge.flowParam.malformed': '有効なパラメーター参照ではありません — この接続の寄与は 0 です',
   'inspector.edge.timetable.unknown': 'この文書にタイムテーブル「{id}」はありません',
   'inspector.edge.timetable.name': 'タイムテーブル: {label}',
+  'inspector.edge.timetable.means.available': '利用可能: この接続はこのレートまで移動できます。少なく移動しても正常で、報告されません。',
+  'inspector.edge.timetable.availableMoved': 'ステップ {step}: 利用可能 {available} {unit}、移動 {moved} {unit}',
   'inspector.edge.timetable.source': '出典: {source}',
   'inspector.edge.timetable.read.hold': '各レートは次の点まで続きます',
   'inspector.edge.timetable.read.linear': '点と点の間でレートが直線的に変わります',

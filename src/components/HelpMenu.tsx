@@ -146,6 +146,17 @@ export function HelpMenu({
             role="menuitem"
             onClick={() => {
               setOpen(false)
+              onOpenDialog({ kind: 'timetableHelp' })
+            }}
+          >
+            <span className="menu__name">{t('help.timetable.title')}</span>
+          </button>
+          <button
+            type="button"
+            className="menu__item"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false)
               onOpenDialog({ kind: 'runRule' })
             }}
           >

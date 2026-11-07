@@ -48,11 +48,12 @@ export type RunCsvPoint = { step: number; values: Record<string, number>; timeta
 /** a ruled group (SEMANTICS-M6.md §M6-5), named by its first member */
 export type RunCsvRule = { id: string; label: string }
 /** a line that reads a timetable (SEMANTICS-M5.md §M5-6): the table's name, its
- *  base unit and the connection's id */
-export type RunCsvTableLine = { edgeId: string; label: string; unit?: string }
+ *  base unit and the connection's id; `available` when the table says what the line
+ *  can move (SEMANTICS-M7.md §M7-3), so its first column is not a plan */
+export type RunCsvTableLine = { edgeId: string; label: string; unit?: string; available?: boolean }
 
 const tableHead = (lines: readonly RunCsvTableLine[]): string[] =>
-  lines.flatMap((l) => [`${withUnit(`${l.label} (planned)`, l.unit)} [${l.edgeId}]`, `${withUnit(`${l.label} (moved)`, l.unit)} [${l.edgeId}]`])
+  lines.flatMap((l) => [`${withUnit(`${l.label} (${l.available ? 'available' : 'planned'})`, l.unit)} [${l.edgeId}]`, `${withUnit(`${l.label} (moved)`, l.unit)} [${l.edgeId}]`])
 
 /** §M5-6 — each cell is the double itself, in the shortest decimal text that
  *  reads back as the same double, so a reader can subtract the two columns. A

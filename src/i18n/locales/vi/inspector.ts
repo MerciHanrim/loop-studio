@@ -76,6 +76,8 @@ const inspector = {
   'inspector.edge.flowParam.malformed': 'không phải tham chiếu tham số hợp lệ — liên kết này đóng góp 0',
   'inspector.edge.timetable.unknown': 'không có bảng thời gian “{id}” trong tài liệu này',
   'inspector.edge.timetable.name': 'Bảng thời gian: {label}',
+  'inspector.edge.timetable.means.available': 'Khả dụng: liên kết có thể chuyển tới mức lưu lượng này. Chuyển ít hơn là bình thường và không được báo.',
+  'inspector.edge.timetable.availableMoved': 'Bước {step}: khả dụng {available} {unit}, đã chuyển {moved} {unit}',
   'inspector.edge.timetable.source': 'Nguồn: {source}',
   'inspector.edge.timetable.read.hold': 'Mỗi lưu lượng kéo dài đến điểm kế tiếp',
   'inspector.edge.timetable.read.linear': 'Lưu lượng thay đổi theo đường thẳng giữa các điểm',

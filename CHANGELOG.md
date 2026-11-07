@@ -7,6 +7,7 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **A timetable can say what a supply can give.** When a table is made, its rates are either a plan or what is available. A supply read as available can move less, as during a planned outage, without a shortfall warning, and its Timeline strip, the connection's details and the run CSV show what was available beside what moved. Help ▸ How a timetable is read explains both. A document with such a table is saved as `loop-studio/graph/7`, so an older version refuses it instead of reading it as a plan.
 - **Pointing at the Timeline previews a step.** The chart now shows the values of the step under the mouse, as the strips below it do. A click still pins a step; with one pinned, pointing elsewhere previews that step and moving away brings the pinned values back. Touch and the keyboard work as before.
 - **The Timeline legend shows its marks in forced colours.** Each series' square mark had disappeared, so the legend, the series list and a step's reading named a series without tying it to its line. The marks now keep the colour the line keeps, with an outline, and a line's pattern shows where two series share a colour.
 - **A stall at the start now says so.** A pull all group that starts with less than one step needs, from a tank only that group refills, may never run. The stage now warns in the Inspector with both numbers, with or without a run rule, and a longer step that would cause it is announced before it applies.
