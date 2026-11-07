@@ -44,7 +44,7 @@ const templates = {
   'modules.promote.title.v4': 'Birimli bir modele (v4) dönüştürülsün mü?',
   'modules.promote.body.v4': 'Bu yapıyı eklemek belgeyi v4 modele dönüştürür: birimler veya bir adım uzunluğu bildirir ve model anlambilim özeti değişir. Tek bir geri alma model değişikliğini ve eklemeyi birlikte geri alır.',
   'templates.desalination.name': 'Deniz suyu tuzdan arındırma süreci',
-  'templates.desalination.blurb': 'Su alımından şehre ve denize uzanan süreç akışı olarak çizilmiş bir deniz suyu ters ozmoz tesisi. Genel bakış haritasıyla açılır. Sayılar örnek varsayımlardır; tuzluluk, basınç ve su kalitesi hesaplanmaz.',
+  'templates.desalination.blurb': 'Su alımından şehre ve denize kadar süreç akışı olarak çizilmiş bir deniz suyu ters ozmoz tesisi. Şehrin talebi 24 saatlik örnek bir eğriyi izler ve çalışma kuralları her tankı tutar. Her sayı örnek bir varsayımdır, ölçülmüş veri değildir; tuzluluk, basınç ve su kalitesi hesaplanmaz.',
   'modules.frames.title': 'Kayıtlı çerçeveler dahil değil',
   'modules.frames.insertBody': 'Bu dosyada kayıtlı grup çerçeveleri var. Dosyayı yapı olarak eklemek çerçeveleri grafiğinize taşımaz — geri kalan her şey her zamanki gibi eklenir.',
   'modules.frames.extractBody': 'Grafiğinizde kayıtlı grup çerçeveleri var. Bunlar yapı dosyasına yazılmaz — yalnızca seçili düğümler ve aralarındaki bağlantılar yazılır.',

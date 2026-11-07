@@ -23,6 +23,8 @@ export type TemplateLabelDict = TemplateLabelMap
 export type TemplateOverlay = {
   nodes: TemplateLabelMap
   frames: TemplateLabelMap
+  /** `templateId -> (tableId -> label, `tableId:source` -> source)` */
+  tables: TemplateLabelMap
 }
 
 /** Registered non-base locales that ship a dictionary chunk. English
@@ -38,29 +40,29 @@ export type TemplateOverlay = {
 // that §L2.0 had archived); `check-template-labels` fails when this list and
 // the registry's non-base locales differ in either direction (#424).
 const DICT_LOADERS: Readonly<Record<string, () => Promise<TemplateOverlay>>> = {
-  ko: () => import('./ko').then((m) => ({ nodes: m.ko, frames: m.koFrames ?? {} })),
-  ja: () => import('./ja').then((m) => ({ nodes: m.ja, frames: m.jaFrames ?? {} })),
-  de: () => import('./de').then((m) => ({ nodes: m.de, frames: m.deFrames ?? {} })),
+  ko: () => import('./ko').then((m) => ({ nodes: m.ko, frames: m.koFrames ?? {}, tables: m.koTables ?? {} })),
+  ja: () => import('./ja').then((m) => ({ nodes: m.ja, frames: m.jaFrames ?? {}, tables: m.jaTables ?? {} })),
+  de: () => import('./de').then((m) => ({ nodes: m.de, frames: m.deFrames ?? {}, tables: m.deTables ?? {} })),
   'zh-Hans': () =>
-    import('./zh-Hans').then((m) => ({ nodes: m.zhHans, frames: m.zhHansFrames ?? {} })),
+    import('./zh-Hans').then((m) => ({ nodes: m.zhHans, frames: m.zhHansFrames ?? {}, tables: m.zhHansTables ?? {} })),
   'zh-Hant': () =>
-    import('./zh-Hant').then((m) => ({ nodes: m.zhHant, frames: m.zhHantFrames ?? {} })),
-  fr: () => import('./fr').then((m) => ({ nodes: m.fr, frames: m.frFrames ?? {} })),
+    import('./zh-Hant').then((m) => ({ nodes: m.zhHant, frames: m.zhHantFrames ?? {}, tables: m.zhHantTables ?? {} })),
+  fr: () => import('./fr').then((m) => ({ nodes: m.fr, frames: m.frFrames ?? {}, tables: m.frTables ?? {} })),
   'es-419': () =>
-    import('./es-419').then((m) => ({ nodes: m.es419, frames: m.es419Frames ?? {} })),
+    import('./es-419').then((m) => ({ nodes: m.es419, frames: m.es419Frames ?? {}, tables: m.es419Tables ?? {} })),
   'pt-BR': () =>
-    import('./pt-BR').then((m) => ({ nodes: m.ptBR, frames: m.ptBRFrames ?? {} })),
+    import('./pt-BR').then((m) => ({ nodes: m.ptBR, frames: m.ptBRFrames ?? {}, tables: m.ptBRTables ?? {} })),
   'es-ES': () =>
-    import('./es-ES').then((m) => ({ nodes: m.esES, frames: m.esESFrames ?? {} })),
+    import('./es-ES').then((m) => ({ nodes: m.esES, frames: m.esESFrames ?? {}, tables: m.esESTables ?? {} })),
   'pt-PT': () =>
-    import('./pt-PT').then((m) => ({ nodes: m.ptPT, frames: m.ptPTFrames ?? {} })),
-  ru: () => import('./ru').then((m) => ({ nodes: m.ru, frames: m.ruFrames ?? {} })),
-  tr: () => import('./tr').then((m) => ({ nodes: m.tr, frames: m.trFrames ?? {} })),
-  th: () => import('./th').then((m) => ({ nodes: m.th, frames: m.thFrames ?? {} })),
-  vi: () => import('./vi').then((m) => ({ nodes: m.vi, frames: m.viFrames ?? {} })),
-  it: () => import('./it').then((m) => ({ nodes: m.it, frames: m.itFrames ?? {} })),
-  nl: () => import('./nl').then((m) => ({ nodes: m.nl, frames: m.nlFrames ?? {} })),
-  ar: () => import('./ar').then((m) => ({ nodes: m.ar, frames: m.arFrames ?? {} })),
+    import('./pt-PT').then((m) => ({ nodes: m.ptPT, frames: m.ptPTFrames ?? {}, tables: m.ptPTTables ?? {} })),
+  ru: () => import('./ru').then((m) => ({ nodes: m.ru, frames: m.ruFrames ?? {}, tables: m.ruTables ?? {} })),
+  tr: () => import('./tr').then((m) => ({ nodes: m.tr, frames: m.trFrames ?? {}, tables: m.trTables ?? {} })),
+  th: () => import('./th').then((m) => ({ nodes: m.th, frames: m.thFrames ?? {}, tables: m.thTables ?? {} })),
+  vi: () => import('./vi').then((m) => ({ nodes: m.vi, frames: m.viFrames ?? {}, tables: m.viTables ?? {} })),
+  it: () => import('./it').then((m) => ({ nodes: m.it, frames: m.itFrames ?? {}, tables: m.itTables ?? {} })),
+  nl: () => import('./nl').then((m) => ({ nodes: m.nl, frames: m.nlFrames ?? {}, tables: m.nlTables ?? {} })),
+  ar: () => import('./ar').then((m) => ({ nodes: m.ar, frames: m.arFrames ?? {}, tables: m.arTables ?? {} })),
 }
 
 /** The loaded overlays, filled by `ensureTemplateLabelDict`. */
@@ -106,6 +108,11 @@ export function loadedTemplateLabelDict(loc: string): TemplateLabelMap | undefin
 /** A resident locale's FRAME-title map, or `undefined` if not loaded. */
 export function loadedTemplateFrameLabelDict(loc: string): TemplateLabelMap | undefined {
   return DICTS[loc]?.frames
+}
+
+/** A resident locale's TIMETABLE map, or `undefined` if not loaded. */
+export function loadedTemplateTableLabelDict(loc: string): TemplateLabelMap | undefined {
+  return DICTS[loc]?.tables
 }
 
 /** The locales that HAVE a dictionary loader (for checks / diagnostics).

@@ -44,7 +44,7 @@ const templates = {
   'modules.promote.title.v4': 'Make this a model with units (v4)?',
   'modules.promote.body.v4': 'Inserting this structure turns the document into a v4 model: it declares units or a step length, and the model-semantics digest changes. A single undo reverses the model change and the insert together.',
   'templates.desalination.name': 'Seawater desalination process',
-  'templates.desalination.blurb': 'A seawater reverse-osmosis plant drawn as a process flow, from intake to the city and the sea. It opens on an overview map. Numbers are example assumptions; salinity, pressure and water quality are not computed.',
+  'templates.desalination.blurb': 'A seawater reverse-osmosis plant drawn as a process flow, from intake to the city and the sea. City demand follows a 24-hour example curve, and run rules hold each tank. Every number is an example assumption, not measured data; salinity, pressure and water quality are not computed.',
   'modules.frames.title': 'Saved frames are not included',
   'modules.frames.insertBody': 'This file has saved group frames. Inserting it as a structure does not bring frames into your graph — everything else is inserted as usual.',
   'modules.frames.extractBody': 'Your graph has saved group frames. They are not written into the structure file — only the selected nodes and their internal connections are.',

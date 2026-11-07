@@ -42,7 +42,7 @@ const ICONS: Record<string, Record<string, string>> = {
 /** the content digest of each file above with its icons taken off — main's file before #478 */
 const WITHOUT_ICONS: Record<string, string> = {
   'coffee-roastery.json': '1bb29617ad5888570bdfd22c2db8c6faf268c04a8fdb15181880ff0a185b0545',
-  'desalination.json': '8a352ea8a5578390ff53f825ac1f6b3732e5a420996c4e1422ac0a6134b87e82', // #471: the process example
+  'desalination.json': '864921c43f2d596a11d56650ff3bd13da94b0c75e068d418d050303785f1f6e3', // #471: the process example
   'mmo-progression.json': '41674ea763b2330552878d7bbe72c88c2794a12ad406e98a5a478e9a430ed983',
   'risky-factory.json': '76f4a6a98749fbd93bc3ec2c22d8b3d7aa990b1e905fb8064aa4c8c0d83e792b',
 }

@@ -35,7 +35,7 @@ const templates = {
   'modules.promote.title.v4': '要将其变为带单位的模型（v4）吗？',
   'modules.promote.body.v4': '插入此结构会使文档成为 v4 模型：它声明单位或步长，模型语义摘要也会改变。一次撤销会同时撤回模型变更和插入。',
   'templates.desalination.name': '海水淡化工艺',
-  'templates.desalination.blurb': '以工艺流程呈现的海水反渗透设施，从取水一直到城市和大海。打开时显示总览图。数值均为示例假设；盐度、压力和水质不作计算。',
+  'templates.desalination.blurb': '以工艺流程绘制的海水反渗透厂，从取水到城市和大海。城市需求遵循 24 小时示例曲线，运行规则维持各储罐。所有数字都是示例假设，不是实测数据；盐度、压力和水质不作计算。',
   'modules.frames.title': '不包含已保存的分组框',
   'modules.frames.insertBody': '该文件保存了分组框。以结构方式插入时不会把分组框带进你的图——其余内容照常插入。',
   'modules.frames.extractBody': '你的图中保存了分组框。它们不会写入结构文件——只有所选节点及其内部连线会被写入。',

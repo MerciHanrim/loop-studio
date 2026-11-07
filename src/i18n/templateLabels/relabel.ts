@@ -24,14 +24,16 @@
 
 import type { SavedFrame } from '../../model/serialize'
 import { TEMPLATES } from '../../model/templates'
+import type { Timetable } from '../../model/timetable'
 import type { LoopNode } from '../../model/types'
 import { BASE_LOCALE } from '../registry'
-import { loadedTemplateFrameLabelDict, loadedTemplateLabelDict, templateLabelDictLocales } from './dicts'
+import { loadedTemplateFrameLabelDict, loadedTemplateLabelDict, loadedTemplateTableLabelDict, templateLabelDictLocales } from './dicts'
 import {
   AMBIGUOUS_FRAME_IDS,
   AMBIGUOUS_NODE_IDS,
   KNOWN_OFFICIAL_FRAME_LABELS,
   KNOWN_OFFICIAL_LABELS,
+  KNOWN_OFFICIAL_TABLE_LABELS,
 } from './known.generated'
 
 export type OfficialTemplateLabelIndex = {
@@ -179,6 +181,47 @@ export function relabelFramesForLocale(
     return { ...f, label: want }
   })
   return changed ? next : (frames as SavedFrame[])
+}
+
+// ── a table's name and source, on the same rule ──────────────────────────
+
+const sourceKey = (id: string) => `${id}:source`
+
+/** one locale's official strings for every Template's tables, or `undefined` for a
+ *  registered locale whose chunk is not resident */
+function tableTargetsFor(locale: string): ReadonlyMap<string, string> | undefined {
+  const dict = locale === BASE_LOCALE || !templateLabelDictLocales.includes(locale) ? {} : loadedTemplateTableLabelDict(locale)
+  if (!dict) return undefined
+  const m = new Map<string, string>()
+  for (const tpl of TEMPLATES) {
+    for (const t of tpl.timetables ?? []) {
+      m.set(t.id, dict[tpl.id]?.[t.id] ?? t.label)
+      m.set(sourceKey(t.id), dict[tpl.id]?.[sourceKey(t.id)] ?? t.source)
+    }
+  }
+  return m
+}
+
+/** re-seed the official label and source of a document's tables for `targetLocale`: a
+ *  string is switched only when it is exactly an official one for that id, so a table
+ *  a person renamed stays as it is. Returns the same array when nothing changed. */
+export function relabelTablesForLocale(tables: readonly Timetable[], targetLocale: string): Timetable[] {
+  if (tables.length === 0) return tables as Timetable[]
+  const targets = tableTargetsFor(targetLocale)
+  if (!targets) {
+    console.error(`[i18n] relabelTablesForLocale("${targetLocale}"): dictionary not resident — tables left unchanged.`)
+    return tables as Timetable[]
+  }
+  const switched = (key: string, now: string) => (KNOWN_OFFICIAL_TABLE_LABELS[key]?.includes(now) ? (targets.get(key) ?? now) : now)
+  let changed = false
+  const next = tables.map((t) => {
+    const label = switched(t.id, t.label)
+    const source = switched(sourceKey(t.id), t.source)
+    if (label === t.label && source === t.source) return t
+    changed = true
+    return { ...t, label, source }
+  })
+  return changed ? next : (tables as Timetable[])
 }
 
 /** Test seam — drop the caches so a stubbed `TEMPLATES` / dictionary / a

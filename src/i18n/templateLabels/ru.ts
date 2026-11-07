@@ -379,3 +379,12 @@ export const ruFrames: TemplateLabelMap = {
     pickup_block: 'Гарантия Pickup',
   },
 }
+
+// a Template table's name and source, `templateId -> (tableId -> label, `tableId:source`
+// -> source)`. Flat, so the source-text checks read it as they read the frames.
+export const ruTables: TemplateLabelMap = {
+  'desalination': {
+    demand: 'Спрос города на воду',
+    'demand:source': 'Условный пример, не измеренные данные',
+  },
+}

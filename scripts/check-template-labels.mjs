@@ -243,6 +243,38 @@ function checkFrameTranslations() {
 // §TLO12 drift — `relabelFramesForLocale` keys ONLY on frame id, so a frame id
 // shared by two templates must resolve to the SAME official title in every
 // locale, or it could never be switched. Fail if a shared id diverges.
+// a table's name and source: a template with tables has both strings in every locale,
+// and no stale key. A table a Template holds would otherwise stay English.
+function checkTableTranslations() {
+  for (const locale of NON_BASE) {
+    if (!dictLocales.includes(locale)) continue
+    const src = read(`src/i18n/templateLabels/${locale}.ts`)
+    const at = src.search(/^export const [A-Za-z_$][\w$]*Tables\b/m)
+    const rest = at < 0 ? '' : src.slice(at)
+    const next = rest.slice(1).search(/\nexport const /)
+    const slice = next < 0 ? rest : rest.slice(0, next + 1)
+    for (const tplId of TEMPLATE_IDS) {
+      let tables = []
+      try {
+        tables = JSON.parse(read(`examples/${tplId}.json`)).timetables ?? []
+      } catch {
+        tables = []
+      }
+      const want = tables.flatMap((t) => [t.id, `${t.id}:source`])
+      const block = new RegExp(`'${tplId}'\\s*:\\s*\\{([\\s\\S]*?)\\n\\s*\\}`).exec(slice)
+      const kv = [...(block?.[1] ?? '').matchAll(/^\s*([A-Za-z_$][\w$]*|'[^']+')\s*:\s*'([^']*)'/gm)]
+      const have = kv.map((m) => m[1].replace(/'/g, ''))
+      const missing = want.filter((k) => !have.includes(k))
+      const stale = have.filter((k) => !want.includes(k))
+      const empty = kv.filter((m) => !m[2].trim()).map((m) => m[1])
+      if (missing.length) fail(`${tplId} / ${locale}: missing table text for: ${missing.join(', ')}`)
+      if (stale.length) fail(`${tplId} / ${locale}: stale table key(s): ${stale.join(', ')}`)
+      if (empty.length) fail(`${tplId} / ${locale}: empty table text for: ${empty.join(', ')}`)
+      if (want.length && !missing.length && !stale.length && !empty.length) ok(`${tplId} / ${locale}: ${want.length} table string(s), complete`)
+    }
+  }
+}
+
 function checkSharedFrameIdTargets() {
   const raw = {} // locale -> id -> { title, template }
   const record = (locale, id, title, tplId) => {
@@ -373,6 +405,7 @@ for (const locale of NON_BASE) {
 checkSharedIdTargets()
 checkFrameShapes()
 checkFrameTranslations()
+checkTableTranslations()
 checkSharedFrameIdTargets()
 
 // the overlay function must not translate anything but `label` — guard the

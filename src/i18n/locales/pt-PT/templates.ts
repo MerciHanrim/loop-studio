@@ -52,7 +52,7 @@ const templates = {
   'modules.promote.title.v4': 'Torná-lo um modelo com unidades (v4)?',
   'modules.promote.body.v4': 'Inserir esta estrutura torna o documento um modelo v4: declara unidades ou uma duração de passo e o resumo de semântica do modelo muda. Um único anular reverte em conjunto a alteração de modelo e a inserção.',
   'templates.desalination.name': 'Dessalinização de água do mar',
-  'templates.desalination.blurb': 'Uma central de osmose inversa de água do mar desenhada como fluxo de processo, da captação à cidade e ao mar. Abre num mapa geral. Os números são pressupostos de exemplo; salinidade, pressão e qualidade da água não são calculadas.',
+  'templates.desalination.blurb': 'Uma instalação de osmose reversa de água do mar desenhada como fluxo de processo, da captação à cidade e ao mar. A procura da cidade segue uma curva de exemplo de 24 horas, e regras de marcha sustentam cada tanque. Cada número é uma suposição de exemplo, não dados medidos; salinidade, pressão e qualidade da água não são calculadas.',
   'modules.frames.title': 'Os quadros guardados não são incluídos',
   'modules.frames.insertBody': 'Este ficheiro tem quadros de grupo guardados. Inseri-lo como estrutura não traz os quadros para o seu grafo; todo o resto é inserido normalmente.',
   'modules.frames.extractBody': 'O seu grafo tem quadros de grupo guardados. Não são gravados no ficheiro da estrutura: somente os nós selecionados e as suas ligações internas são.',

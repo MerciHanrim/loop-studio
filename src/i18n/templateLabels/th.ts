@@ -380,3 +380,12 @@ export const thFrames: TemplateLabelMap = {
     pickup_block: 'การการันตี Pickup',
   },
 }
+
+// a Template table's name and source, `templateId -> (tableId -> label, `tableId:source`
+// -> source)`. Flat, so the source-text checks read it as they read the frames.
+export const thTables: TemplateLabelMap = {
+  'desalination': {
+    demand: 'ความต้องการน้ำของเมือง',
+    'demand:source': 'สมมติฐานตัวอย่าง ไม่ใช่ข้อมูลจากการวัด',
+  },
+}

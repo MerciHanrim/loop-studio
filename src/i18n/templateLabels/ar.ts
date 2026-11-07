@@ -383,3 +383,12 @@ export const arFrames: TemplateLabelMap = {
     pickup_block: 'ضمان Pickup',
   },
 }
+
+// a Template table's name and source, `templateId -> (tableId -> label, `tableId:source`
+// -> source)`. Flat, so the source-text checks read it as they read the frames.
+export const arTables: TemplateLabelMap = {
+  'desalination': {
+    demand: 'طلب المدينة على الماء',
+    'demand:source': 'افتراض على سبيل المثال وليس بيانات مقيسة',
+  },
+}

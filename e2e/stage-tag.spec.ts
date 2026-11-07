@@ -118,6 +118,8 @@ test('a folded tag names its tank when the stage or the tank is chosen, or the l
   await page.setViewportSize({ width: 1920, height: 1080 })
   await openApp(page)
   const doc = JSON.parse(readFileSync(new URL('../examples/desalination.json', import.meta.url), 'utf8'))
+  // one rule, so one read line to point at
+  for (const n of doc.nodes) delete n.data.run
   const stage = doc.nodes.find((n: { id: string }) => n.id === 'filter')
   stage.data.run = { tank: 'filtered', level: '1', band: '1', side: 'fill' }
   await importGraph(page, JSON.stringify({ ...doc, schema: 'loop-studio/graph/6' }))

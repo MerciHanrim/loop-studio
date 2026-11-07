@@ -504,6 +504,18 @@ fallback in `relabelFramesForLocale` is defense-in-depth only).
 
 ---
 
+## TLO13. Timetable name and source overlay
+
+A Template's timetable has a name and a source a reader sees, so both follow the same rule as a node label. Each locale file exports `<ident>Tables`: per Template, `<table id>` for the name and `<table id>:source` for the source. `openTemplate` overlays them on the clone, and nothing else in a table changes.
+
+**Switch.** `relabelTablesForLocale` re-seeds the live tables and every history entry in the same subscription as §TLO11. A string switches only when it is exactly an official one for that id (`KNOWN_OFFICIAL_TABLE_LABELS`), so a name a person gave a table stays, and a person's own table of the same id is left alone. The name and the source are judged apart.
+
+**CI.** `check:template-labels` holds each dict-shipping locale to the canonical table ids: nothing missing, stale or empty.
+
+**Tests.** `src/i18n/templateLabels/tableOverlay.test.ts`.
+
+---
+
 ## TLO10. Scope boundary
 
 - A **fresh-open seeding** mechanism for **bundled** Templates / Examples /

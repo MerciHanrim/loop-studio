@@ -386,3 +386,12 @@ export const koFrames: TemplateLabelMap = {
     pickup_block: '픽업 보장',
   },
 }
+
+// a Template table's name and source, `templateId -> (tableId -> label, `tableId:source`
+// -> source)`. Flat, so the source-text checks read it as they read the frames.
+export const koTables: TemplateLabelMap = {
+  'desalination': {
+    demand: '도시 물 수요',
+    'demand:source': '예시 가정이며 실측 자료가 아닙니다',
+  },
+}

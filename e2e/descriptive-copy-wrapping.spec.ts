@@ -140,7 +140,8 @@ test.describe('Korean keeps its wrapping contract', () => {
     // 0.30.0: 42 — the Early MMO blurb (2 lines) is in the menu again
     // #471 (2026-11-04): 45 — the desalination plant's blurb (3 lines,
     // measured on the PR CI run 41666013185); 46 — the process example's (4 lines)
-    expect(rows.reduce((n, r) => n + r.lines, 0), 'the agreed Korean line count').toBe(46)
+    // 47 — the same blurb, now naming the demand table and rules (5 lines)
+    expect(rows.reduce((n, r) => n + r.lines, 0), 'the agreed Korean line count').toBe(47)
 
     // measured, not assumed: a break is mid-eojeol when two adjacent
     // NON-space characters end up on different lines
@@ -196,7 +197,8 @@ test.describe('English is untouched', () => {
     // 0.30.0: 46 — the Early MMO blurb (2 lines) is in the menu again
     // #471 (2026-11-04): 50 — the desalination plant's blurb (4 lines,
     // measured on the PR CI run 41666013185); 51 — the process example's (5 lines)
-    expect(rows.reduce((n, r) => n + r.lines, 0), 'the English line count is unchanged').toBe(51)
+    // 53 — the same blurb, now naming the demand table and rules (7 lines)
+    expect(rows.reduce((n, r) => n + r.lines, 0), 'the English line count is unchanged').toBe(53)
     await ctx.close()
   })
 })

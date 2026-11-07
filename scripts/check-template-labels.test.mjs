@@ -15,7 +15,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 const root = resolve(import.meta.dirname, '..')
 const script = resolve(root, 'scripts/check-template-labels.mjs')
 const DICTS = readFileSync(resolve(root, 'src/i18n/templateLabels/dicts.ts'), 'utf8')
-const JA_LINE = "  ja: () => import('./ja').then((m) => ({ nodes: m.ja, frames: m.jaFrames ?? {} })),\n"
+const JA_LINE = "  ja: () => import('./ja').then((m) => ({ nodes: m.ja, frames: m.jaFrames ?? {}, tables: m.jaTables ?? {} })),\n"
 
 const dirs = []
 afterEach(() => {

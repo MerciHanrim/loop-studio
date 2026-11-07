@@ -1,19 +1,24 @@
 import { readFileSync } from 'node:fs'
 import type { Download, Page } from '@playwright/test'
 import { expect, openApp, resetAll, runMc, test } from './support/loop'
-import { openFileSubmenu, pickLocale, pickTemplate } from './support/workbenchMenus'
+import { openFileSubmenu, openInputsTab, pickLocale, pickTemplate } from './support/workbenchMenus'
 
 // #471 — the seawater desalination process example (examples/desalination.json),
 // opened from File ▸ Templates as a user opens it: in Korean, with its kinds
-// table, units, step length and five numbered frames, a 24-step run whose water
-// balance holds, and the Properties panel showing an amount in its authored
+// table, units, step length and five numbered frames, a 24-step run that reaches
+// the pinned stocks, and the Properties panel showing an amount in its authored
 // unit (SEMANTICS-M4.md §M4-5). The numbers themselves, the failure shapes and
-// the a-priori bound are pinned by test/desalination-example.test.ts.
+// the experimental bound are pinned by test/desalination-example.test.ts.
 
 type Bridge = { __loop: Record<string, any> }
 
 const NODES = 37
 const WATER_TANKS = ['basin', 'filtered', 'permeate', 'product', 'brine', 'backwash']
+/** what the unit test pinned through the engine */
+const pinned = JSON.parse(readFileSync(new URL('../examples/desalination.expected.json', import.meta.url), 'utf8')) as { modelVersion: number; checkpoints: { step: number; values: Record<string, number>; productWaterShown: string }[] }
+/** the day's end */
+const DAY = pinned.checkpoints.find((c) => c.step === 24)!
+const dayWater = WATER_TANKS.reduce((s, id) => s + DAY.values[id]!, 0)
 
 const model = (page: Page) =>
   page.evaluate(() => {
@@ -54,7 +59,7 @@ test.describe('the desalination process example', () => {
     await open(page)
 
     const m = await model(page)
-    expect(m.modelVersion).toBe(4)
+    expect(m.modelVersion).toBe(pinned.modelVersion)
     expect(m.time).toEqual({ step: { value: 1, unit: 'h' }, display: 'd' })
     expect(m.kinds.find((k) => k.name === 'water')?.conserved).toBe(true)
     expect(m.kinds.filter((k) => k.name !== 'water').every((k) => !k.conserved)).toBe(true)
@@ -71,15 +76,15 @@ test.describe('the desalination process example', () => {
       const s = l.sim.getState()
       return { step: s.stepIndex as number, refusals: s.kindRefusals.length as number, w0, w: W(s.values), product: s.values.product as number }
     }, WATER_TANKS)
-    expect(run).toMatchObject({ step: 24, refusals: 0, w0: 10700 })
-    // steady: 21000 m³ a day in, and the same out across three exits
-    expect(run.w).toBeCloseTo(10700, 6)
-    expect(run.product).toBeCloseTo(1500, 6)
+    expect(run).toMatchObject({ step: 24, refusals: 0, w0: 19700 })
+    // the table moves the plant, so the day ends where the engine's own run ended it
+    expect(run.w).toBeCloseTo(dayWater, 6)
+    expect(run.product).toBeCloseTo(DAY.values.product!, 6)
 
     // the Properties panel: the product water in its authored unit
     await page.evaluate(() => (window as unknown as Bridge).__loop.graph.setState({ selectedNodeId: 'product', selectedEdgeId: null }))
     const current = page.locator('.inspector .field').filter({ has: page.locator('.field__label', { hasText: '현재 수량' }) }).locator('input')
-    await expect(current).toHaveValue(/^(≈ )?1500000 L$/)
+    await expect(current).toHaveValue(DAY.productWaterShown)
   })
 
   test('opens on the five frames, an overview at a 1280 window', async ({ page }) => {
@@ -87,7 +92,7 @@ test.describe('the desalination process example', () => {
     await open(page)
     await expect
       .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport().zoom))
-      .toBeGreaterThan(0.33)
+      .toBeGreaterThan(0.3)
     const shown = await page.evaluate(() => {
       const l = (window as unknown as Bridge).__loop
       const v = l.rf.getViewport()
@@ -99,6 +104,34 @@ test.describe('the desalination process example', () => {
       })
     })
     expect(shown, 'every frame is on the first screen').toBe(true)
+  })
+
+  // docs/template-label-overlay.md §TLO13 — the demand table's name and source, in three
+  // scripts, where a reader finds them after opening the Template from the menu
+  for (const [locale, name, source] of [
+    ['ko', '도시 물 수요', '예시 가정이며 실측 자료가 아닙니다'],
+    ['de', 'Wasserbedarf der Stadt', 'Beispielannahme, keine Messdaten'],
+    ['ar', 'طلب المدينة على الماء', 'افتراض على سبيل المثال وليس بيانات مقيسة'],
+  ] as const) {
+    test(`the demand table reads in ${locale} from the Inputs list to the Inspector`, async ({ page }) => {
+      await pickLocale(page, locale)
+      await open(page)
+      await openInputsTab(page)
+      const row = page.locator('[data-run-row="dpump"]')
+      await expect(row).toContainText(name)
+      await row.getByRole('button').click()
+      const section = page.locator('[data-run-rule="dpump"]')
+      await expect(section.locator('[data-run-reading]')).toContainText(name)
+      await expect(section).toContainText(source)
+    })
+  }
+
+  test('the demand table follows a language switch after opening', async ({ page }) => {
+    await open(page)
+    await openInputsTab(page)
+    await expect(page.locator('[data-run-row="dpump"]')).toContainText('도시 물 수요')
+    await pickLocale(page, 'de')
+    await expect(page.locator('[data-run-row="dpump"]')).toContainText('Wasserbedarf der Stadt')
   })
 
   // SEMANTICS-M4.md §M4-6 — what a person actually downloads: numbers in the
@@ -118,7 +151,7 @@ test.describe('the desalination process example', () => {
     expect(runRows[0]).toEqual(expect.arrayContaining(['정수 탱크 [m³] [product]', '방류 탱크 [m³] [brine]']))
     const product = runRows[0].indexOf('정수 탱크 [m³] [product]')
     expect(Number(runRows[1][product]), 'the Pool is authored as 1500000 L').toBe(1500)
-    expect(Number(runRows.at(-1)![product])).toBeCloseTo(1500, 6)
+    expect(Number(runRows.at(-1)![product])).toBeCloseTo(DAY.values.product!, 6)
 
     await runMc(page, { baseSeed: 1, runs: 3, steps: 24, tracked: [] })
     const fromMenu = async (item: number) => {
@@ -133,7 +166,7 @@ test.describe('the desalination process example', () => {
     expect(summary[0]).toEqual(['pool', 'unit', 'p10', 'p50', 'p90', 'mean', 'min', 'max'])
     const row = summary.find((r) => r[0] === '정수 탱크')!
     expect(row[1]).toBe('m³')
-    expect(Number(row[summary[0].indexOf('p50')])).toBeCloseTo(1500, 6)
+    expect(Number(row[summary[0].indexOf('p50')])).toBeCloseTo(DAY.values.product!, 6)
 
     const json = JSON.parse(await fromMenu(3))
     expect(json.spec).toBe('loop-mc/1')

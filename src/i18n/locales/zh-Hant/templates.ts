@@ -35,7 +35,7 @@ const templates = {
   'modules.promote.title.v4': '要將其變為帶單位的模型（v4）嗎？',
   'modules.promote.body.v4': '插入此結構會使文件成為 v4 模型：它宣告單位或步長，模型語意摘要也會改變。一次復原會同時撤回模型變更和插入。',
   'templates.desalination.name': '海水淡化製程',
-  'templates.desalination.blurb': '以製程流程圖呈現的海水逆滲透設施，從取水一路到城市與海洋。開啟時顯示總覽圖。數值皆為範例假設；鹽度、壓力和水質不予計算。',
+  'templates.desalination.blurb': '以製程流程繪製的海水逆滲透廠，從取水到城市和大海。城市需求遵循 24 小時範例曲線，運轉規則維持各儲槽。所有數字都是範例假設，不是實測資料；鹽度、壓力和水質都不予計算。',
   'modules.frames.title': '不包含已儲存的群組框',
   'modules.frames.insertBody': '這個檔案存有群組框。以結構方式插入時不會把群組框帶進你的圖——其餘內容照常插入。',
   'modules.frames.extractBody': '你的圖存有群組框。它們不會寫進結構檔案——只有選取的節點及其內部連線會寫入。',

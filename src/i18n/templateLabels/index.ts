@@ -98,6 +98,16 @@ export function openTemplate(
     }
   }
 
+  // a table's name and where it came from read like the node labels: overlaid on the clone
+  const timetables = tpl.timetables ? cloneJSON(tpl.timetables) : undefined
+  const tableDict = overlay?.tables[tpl.id]
+  if (tableDict && timetables) {
+    for (const t of timetables) {
+      t.label = tableDict[t.id] ?? t.label
+      t.source = tableDict[`${t.id}:source`] ?? t.source
+    }
+  }
+
   return {
     graph,
     recommendedRunConfig: tpl.recommendedRunConfig
@@ -106,6 +116,6 @@ export function openTemplate(
     modelVersion: tpl.modelVersion ?? 1,
     ...(tpl.kinds ? { kinds: cloneJSON(tpl.kinds) } : {}),
     ...(tpl.time ? { time: cloneJSON(tpl.time) } : {}),
-    ...(tpl.timetables ? { timetables: cloneJSON(tpl.timetables) } : {}),
+    ...(timetables ? { timetables } : {}),
   }
 }

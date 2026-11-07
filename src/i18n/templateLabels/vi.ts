@@ -388,3 +388,12 @@ export const viFrames: TemplateLabelMap = {
     pickup_block: 'Bảo đảm Pickup',
   },
 }
+
+// a Template table's name and source, `templateId -> (tableId -> label, `tableId:source`
+// -> source)`. Flat, so the source-text checks read it as they read the frames.
+export const viTables: TemplateLabelMap = {
+  'desalination': {
+    demand: 'Nhu cầu nước của thành phố',
+    'demand:source': 'Giả định ví dụ, không phải dữ liệu đo',
+  },
+}

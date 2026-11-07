@@ -371,3 +371,12 @@ export const zhHantFrames: TemplateLabelMap = {
     pickup_block: 'UP 必得',
   },
 }
+
+// a Template table's name and source, `templateId -> (tableId -> label, `tableId:source`
+// -> source)`. Flat, so the source-text checks read it as they read the frames.
+export const zhHantTables: TemplateLabelMap = {
+  'desalination': {
+    demand: '城市用水需求',
+    'demand:source': '範例假設，不是實測資料',
+  },
+}

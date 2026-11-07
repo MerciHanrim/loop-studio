@@ -398,3 +398,12 @@ export const itFrames: TemplateLabelMap = {
     pickup_block: 'Garanzia di Pickup',
   },
 }
+
+// a Template table's name and source, `templateId -> (tableId -> label, `tableId:source`
+// -> source)`. Flat, so the source-text checks read it as they read the frames.
+export const itTables: TemplateLabelMap = {
+  'desalination': {
+    demand: 'Domanda idrica della città',
+    'demand:source': 'Ipotesi di esempio, non dati misurati',
+  },
+}

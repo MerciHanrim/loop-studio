@@ -371,3 +371,12 @@ export const frFrames: TemplateLabelMap = {
     pickup_block: 'Garantie UP',
   },
 }
+
+// a Template table's name and source, `templateId -> (tableId -> label, `tableId:source`
+// -> source)`. Flat, so the source-text checks read it as they read the frames.
+export const frTables: TemplateLabelMap = {
+  'desalination': {
+    demand: 'Demande en eau de la ville',
+    'demand:source': 'Hypothèse d’exemple, pas des données mesurées',
+  },
+}

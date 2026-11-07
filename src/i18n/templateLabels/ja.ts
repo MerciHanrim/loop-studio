@@ -367,3 +367,12 @@ export const jaFrames: TemplateLabelMap = {
     pickup_block: 'ピックアップ保証',
   },
 }
+
+// a Template table's name and source, `templateId -> (tableId -> label, `tableId:source`
+// -> source)`. Flat, so the source-text checks read it as they read the frames.
+export const jaTables: TemplateLabelMap = {
+  'desalination': {
+    demand: '都市の水需要',
+    'demand:source': '例としての仮定で、実測データではありません',
+  },
+}
