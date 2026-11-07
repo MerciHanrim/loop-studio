@@ -19,6 +19,7 @@
 
 import type { DocTime, ModelSemanticsVersion, RecommendedRunConfig, ResourceKindDecl, SavedFrame } from '../../model/serialize'
 import type { Template } from '../../model/templates'
+import type { Timetable } from '../../model/timetable'
 import type { LoopEdge, LoopNode } from '../../model/types'
 import { BASE_LOCALE } from '../registry'
 import { useI18n } from '../store'
@@ -58,6 +59,8 @@ export type OpenedTemplate = {
   /** loop-model/3 and /4 — the Template's kinds table and step length, cloned */
   kinds?: ResourceKindDecl[]
   time?: DocTime
+  /** loop-model/5 — the Template's timetables, cloned */
+  timetables?: Timetable[]
 }
 
 /**
@@ -103,5 +106,6 @@ export function openTemplate(
     modelVersion: tpl.modelVersion ?? 1,
     ...(tpl.kinds ? { kinds: cloneJSON(tpl.kinds) } : {}),
     ...(tpl.time ? { time: cloneJSON(tpl.time) } : {}),
+    ...(tpl.timetables ? { timetables: cloneJSON(tpl.timetables) } : {}),
   }
 }

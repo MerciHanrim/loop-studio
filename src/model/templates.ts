@@ -17,7 +17,8 @@ import {
 } from './serialize'
 import type { LoopEdge, LoopNode } from './types'
 import { readKindsAt, type ResourceKindDecl } from './kinds'
-import { hasKindsTable, hasUnits } from './modelVersion'
+import { hasKindsTable, hasTimetables, hasUnits } from './modelVersion'
+import { readTimetables, type Timetable } from './timetable'
 import { readDocTime, type DocTime } from './units'
 
 /** docs/mmo-multilingual-layout.md §MML3 — a fixed graph-coordinate rectangle
@@ -64,6 +65,8 @@ export type Template = {
    *  Import reads them (`readKindsAt`, `readDocTime`). Absent ⇒ none. */
   kinds?: ResourceKindDecl[]
   time?: DocTime
+  /** loop-model/5 — the Template's timetables, read as an Import reads them */
+  timetables?: Timetable[]
   /** `false`: kept here — its node labels still follow a locale switch in a
    *  document made from it, and the developer data and checks keep reading it —
    *  but not offered in the Templates menu (desktop or phone). A Template there
@@ -101,12 +104,16 @@ function tplGraph(doc: unknown): Template['graph'] {
 /** loop-model/3 and /4 — a Template's model version, kinds table and step
  *  length, read from its file as an Import reads them: the unit lists, the
  *  step length and the field units only at version 4 (§M4-1) */
-function tplModel(doc: unknown): Pick<Template, 'modelVersion' | 'kinds' | 'time'> {
-  const d = doc as { schema?: unknown; kinds?: unknown; time?: unknown }
+function tplModel(doc: unknown): Pick<Template, 'modelVersion' | 'kinds' | 'time' | 'timetables'> {
+  const d = doc as { schema?: unknown; kinds?: unknown; time?: unknown; timetables?: unknown }
   const modelVersion = modelVersionForSchema(d.schema) ?? 1
   const kinds = hasKindsTable(modelVersion) ? readKindsAt(d.kinds, modelVersion) : []
   const time = hasUnits(modelVersion) ? readDocTime(d.time) : undefined
-  return { modelVersion, ...(kinds.length > 0 ? { kinds } : {}), ...(time ? { time } : {}) }
+  const read = hasTimetables(modelVersion) ? readTimetables(d.timetables) : null
+  // a bundled file is checked by its tests: one that does not read must not ship
+  if (read && !read.ok) throw new Error(`a Template's timetables do not read: ${read.problem.code}`)
+  const timetables = read?.ok ? read.tables : []
+  return { modelVersion, ...(kinds.length > 0 ? { kinds } : {}), ...(time ? { time } : {}), ...(timetables.length > 0 ? { timetables } : {}) }
 }
 
 export const TEMPLATES: Template[] = [
@@ -143,6 +150,7 @@ export const TEMPLATES: Template[] = [
       'A seawater reverse-osmosis plant drawn as a process flow, from intake to the city and the sea. It opens on an overview map. Numbers are example assumptions; salinity, pressure and water quality are not computed.',
     graph: tplGraph(desalinationDoc),
     ...tplModel(desalinationDoc),
+    recommendedRunConfig: (desalinationDoc as { recommendedRunConfig?: RecommendedRunConfig }).recommendedRunConfig,
     initialView: { rect: { x: 10, y: 25, width: 1360, height: 1435 }, minZoom: 0.2 },
   },
   // "Coffee roastery operations flow" — the first bundled Template authored at

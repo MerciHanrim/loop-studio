@@ -148,6 +148,8 @@ Until the split exists, this clause is a **requirement, not a property**.
 
 The cap applies to what is rendered — line, segment and bead — not only to the legend.
 
+**Lines that share a colour.** A flow colour says what a Pool holds, so several Pools can draw in one hue, and the palette repeats past its end. Where two drawn Pool lines share a colour, the first stays solid and each later one takes the next line pattern, in `src/ui/seriesDash.ts`. A line's place is its rank in the document over every Pool of that colour, so hiding one never passes a pattern to a neighbour. Where nothing drawn shares a colour, every line is solid. The legend, the selector and the step reading show a short stretch of the line in place of the square, and a displaced end label's leader carries the pattern. A Register keeps its own `4 3`, which no Pool pattern uses. Forced colours ignore flow colours, so patterns appear there only where the palette itself repeats.
+
 ## 5. Header: always one row
 
 The rule is **one row**, not "eight chips". A fixed count re-compresses the plot at

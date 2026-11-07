@@ -4892,6 +4892,15 @@ a.sheet__row {
   background: var(--series-1);
   flex: none;
 }
+/* a series that shares its colour shows its line, pattern and all */
+.timeline__mark--line {
+  width: 18px;
+  border-radius: 0;
+  background: none;
+}
+.timeline__mark--line line {
+  stroke-width: 2;
+}
 .timeline__csv {
   flex: none;
   border: 1px solid var(--line-control); /* §VL8 control boundary, as `.btn` */

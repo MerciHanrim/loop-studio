@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import { useT } from '../i18n'
 import { Icon } from '../ui/icons'
+import { SeriesMark } from './SeriesMark'
 
 // The timeline's step reading (2026-10, Hanrim's request, Lumi's scope): a
 // recorded step the user picked on the chart — by a click or a tap, or the
@@ -19,7 +20,7 @@ import { Icon } from '../ui/icons'
 // analysis area's height, the zoom or the run. It sits beside the line on
 // the side with more room, kept inside the column.
 
-export type StepReadingRow = { id: string; label: string; color: string; value: string; isRegister: boolean }
+export type StepReadingRow = { id: string; label: string; color: string; dash?: string; value: string; isRegister: boolean }
 
 /** the box the reading may use: what is above the plot's bottom, inside the
  *  canvas column (the analysis area's own column on the desktop, the sheet on
@@ -92,7 +93,7 @@ export function TimelineStepReading({
       <ul className="timeline__reading-rows">
         {rows.map((r) => (
           <li key={r.id} className="timeline__reading-row" data-series={r.id}>
-            <span className={`timeline__mark${r.isRegister ? ' timeline__mark--reg' : ''}`} style={{ background: r.color }} aria-hidden="true" />
+            <SeriesMark color={r.color} dash={r.dash} className={r.isRegister ? 'timeline__mark--reg' : undefined} />
             <span className="timeline__reading-name" dir="auto">
               {r.label}
             </span>

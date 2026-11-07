@@ -242,6 +242,62 @@ test('the step reading gives a ruled stage’s numbers to a keyboard', async ({ 
   expect((await reading.innerText()).replace(/[⁦-⁩]/g, '')).toContain('Run 50 %')
 })
 
+test('strips follow the frames, then the position inside a frame, not the ids', async ({ page }) => {
+  await openApp(page)
+  const stage = (id: string, x: number, y: number, tank: string) => ({ id, type: 'converter', position: { x, y }, data: { kind: 'converter', label: id, activation: 'automatic', mode: 'pullAny', run: { tank, level: '10', band: '10', side: 'fill' } } })
+  const doc = {
+    schema: 'loop-studio/graph/6', version: 1,
+    nodes: [
+      pool('t1', 0, 0), stage('zz_first', 200, 100, 't1'), pool('s1', 400, 0),
+      { ...pool('t2', 1000, 0), position: { x: 1000, y: 100 } }, stage('aa_last', 1200, 200, 't2'), { ...pool('s2', 1400, 0), position: { x: 1400, y: 200 } },
+      { ...pool('t3', 1000, 0), position: { x: 1000, y: 0 } }, stage('mm_middle', 1200, 50, 't3'), { ...pool('s3', 1400, 0), position: { x: 1400, y: 50 } },
+    ],
+    edges: [line('a', 't1', 'zz_first', '1'), line('b', 'zz_first', 's1', '1'), line('c', 't2', 'aa_last', '1'), line('d', 'aa_last', 's2', '1'), line('e', 't3', 'mm_middle', '1'), line('f', 'mm_middle', 's3', '1')],
+    frames: [{ id: 'one', label: '1', rect: { x: 0, y: -50, w: 600, h: 400 }, color: 'sage' }, { id: 'two', label: '2', rect: { x: 900, y: -50, w: 700, h: 400 }, color: 'sage' }],
+  }
+  await importGraph(page, JSON.stringify(doc))
+  await ensureTimelineOpen(page)
+  await expect.poll(() => page.locator('[data-run-strip]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.runStrip))).toEqual(['zz_first', 'mm_middle', 'aa_last'])
+})
+
+test('a document with strips keeps a chart a change can be read on', async ({ page }) => {
+  await openApp(page)
+  await importGraph(page, plant())
+  await ensureTimelineOpen(page)
+  await makeRule(page)
+  await expect.poll(() => page.locator('.timeline__plot').evaluate((el) => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(130)
+})
+
+test('lines that share a colour differ by pattern, in the chart, the legend and the reading, and hiding one repaints no other', async ({ page }) => {
+  await openApp(page)
+  const doc = JSON.parse(plant())
+  for (const n of doc.nodes) if (n.data.kind === 'pool') n.data.accent = '#638EA5'
+  doc.recommendedRunConfig = { timelineSeries: ['feed', 'store'] }
+  doc.nodes.push({ ...pool('third', 520, 5), position: { x: 520, y: 240 } })
+  doc.nodes.at(-1).data.accent = '#638EA5'
+  doc.recommendedRunConfig.timelineSeries = 'all'
+  await importGraph(page, JSON.stringify(doc))
+  await ensureTimelineOpen(page)
+  await advance(page)
+  await advance(page)
+  const dash = (id: string) => page.locator(`.timeline__line[data-series="${id}"]`).evaluate((el) => (el as SVGPathElement).style.strokeDasharray)
+  await expect.poll(() => dash('feed')).toBe('')
+  const second = await dash('store')
+  const third = await dash('third')
+  expect(second).not.toBe('')
+  expect(third).not.toBe('')
+  expect(third).not.toBe(second)
+  await expect(page.locator('.timeline__key .timeline__mark--line')).toHaveCount(2)
+  await expect(page.locator(`.timeline__key .timeline__mark--line[data-dash="${second.replace(/px/g, '').replace(/, /g, ' ')}"]`)).toHaveCount(1)
+  // hide the solid line: the other two keep their own patterns
+  await page.locator('.timeline__key', { hasText: 'feed' }).click()
+  await expect.poll(() => dash('store')).toBe(second)
+  expect(await dash('third')).toBe(third)
+  // hide one more: nothing left shares the colour, so nothing needs a pattern
+  await page.locator('.timeline__key', { hasText: 'store' }).click()
+  await expect.poll(() => dash('third')).toBe('')
+})
+
 test('a table read only by a rule cannot be removed, and draws its rate', async ({ page }) => {
   await openApp(page)
   const doc = JSON.parse(plant())

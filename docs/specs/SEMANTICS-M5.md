@@ -133,7 +133,9 @@ The Inspector's flow field offers the document's tables, and a choice writes `~i
 
 ## M5-11. The rate chart
 
-Each table a line reads has a strip of its own under the Timeline chart, with its name, its unit and its own axis. A rate and a stock are different quantities and never share an axis. The strip uses the same step scale as the chart above, and draws the table, not the run: `hold` as stairs, `linear` as straight stretches, and nothing past the end of a `stop` table. A table with more corners than the strip has pixels keeps each pixel's lowest and highest rate, so a spike between two reads is still drawn, and the axis reaches it. The analysis area rises to make room, by the rule of the Distribution view, and returns to its height when no line reads a table.
+Each table a line reads has a strip of its own under the Timeline chart, with its name, its unit and its own axis. A rate and a stock are different quantities and never share an axis. The strip uses the same step scale as the chart above, and draws the table, not the run: `hold` as stairs, `linear` as straight stretches, and nothing past the end of a `stop` table. A table with more corners than the strip has pixels keeps each pixel's lowest and highest rate, so a spike between two reads is still drawn, and the axis reaches it. The analysis area rises to make room, by the rule of the Distribution view, and returns to its height when no line reads a table. A table a run rule reads counts as read, and the rise also adds 72 px for the chart above the strips.
+
+A Template carries its tables as it carries its kinds and step length: `tplModel` reads them as an Import does, `openTemplate` clones them, and both menus pass them to `loadGraph`. Its `recommendedRunConfig` comes from its file.
 
 ## M5-12. How a step fills a Pool
 
