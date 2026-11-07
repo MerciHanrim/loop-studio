@@ -113,11 +113,12 @@ test.describe('Help ▸ Example notes', () => {
     await expect(pickup).toContainText('보장은 다음 뽑기가 아니라 다음 SSR에 적용됩니다.')
     await expect(pickup).toContainText('SR이나 R이 나와도 보장 상태는 그대로 유지됩니다.')
     // Early MMO's (back in the menu in 0.30.0): the zones in turn, and why it
-    // opens locked and framed
+    // opens framed. It opens editable since #428, so the note names no lock
     await dialog(page).locator('.example-notes__row[data-example="mmo-progression"] .example-notes__toggle').click()
     const mmo = dialog(page).locator('.example-notes__row[data-example="mmo-progression"] .example-notes__text')
     await expect(mmo).toContainText('5레벨 전에는 초원 지대, 5–9레벨은 구릉 지대, 10레벨부터는 장비 점수가 4 이상일 때 고지대')
-    await expect(mmo).toContainText('편집 잠금 상태로, 캐릭터 생성부터 초원 지대까지 첫 단계를 보여 주며 열립니다.')
+    await expect(mmo).toContainText('가장 큰 예제라 캐릭터 생성부터 초원 지대까지 첫 단계를 보여 주며 열립니다.')
+    await expect(mmo).not.toContainText('잠금')
     // no link anywhere in the dialog
     await expect(dialog(page).locator('a')).toHaveCount(0)
   })
