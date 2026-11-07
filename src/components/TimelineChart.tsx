@@ -12,7 +12,9 @@ import { useForcedColors, useIsMobile } from '../ui/media'
 import { useT } from '../i18n'
 import { downloadCsv } from '../ui/download'
 import { buildRunCsv, buildShownRunCsv } from './timelineCsv'
+import { seriesDashes } from '../ui/seriesDash'
 import { stageStateText } from '../ui/stageTag'
+import { SeriesMark } from './SeriesMark'
 import { RunStrips, useRunStrips } from './RunStrip'
 import { RATE_STRIP_H, TimetableRateChart, useReadTables } from './TimetableRateChart'
 import { DistributionPanel } from './DistributionPanel'
@@ -126,7 +128,7 @@ export function TimelineChart() {
   const readTables = useReadTables()
   const runStrips = useRunStrips()
   const rateStrips = showDistribution ? 0 : Math.min(readTables.length + runStrips.length, 2)
-  const floorWanted = showDistribution ? DISTRIBUTION_MIN : rateStrips > 0 ? ANALYSIS_DEFAULT + rateStrips * RATE_STRIP_H : null
+  const floorWanted = showDistribution ? DISTRIBUTION_MIN : rateStrips > 0 ? ANALYSIS_DEFAULT + STRIP_PLOT_EXTRA + rateStrips * RATE_STRIP_H : null
   const areaMin = floorWanted != null ? Math.min(floorWanted, areaMax()) : ANALYSIS_MIN
   useLayoutEffect(() => {
     if (isMobile) return
@@ -194,7 +196,8 @@ export function TimelineChart() {
     [timelineSeries, allSeriesIds],
   )
   const drawnSet = useMemo(() => new Set(drawnIds), [drawnIds])
-  const shownPools = useMemo(() => pools.filter((p) => drawnSet.has(p.id)), [pools, drawnSet])
+  const dashes = useMemo(() => seriesDashes(pools, drawnSet), [pools, drawnSet])
+  const shownPools = useMemo(() => pools.filter((p) => drawnSet.has(p.id)).map((p) => ({ ...p, dash: dashes.get(p.id) })), [pools, drawnSet, dashes])
   const shownRegisters = useMemo(() => registers.filter((r) => drawnSet.has(r.id)), [registers, drawnSet])
   // one `registersOfSnapshot` per UNIQUE historical snapshot (§M3.5). The live
   // "current step" read reuses the shared `currentRegisterOutcomes` cache so
@@ -224,7 +227,7 @@ export function TimelineChart() {
   const chips = useMemo(
     () => [
       ...shownPools.map((p) => ({ ...p, isReg: false })),
-      ...shownRegisters.map((r) => ({ ...r, isReg: true })),
+      ...shownRegisters.map((r) => ({ ...r, dash: undefined, isReg: true })),
     ],
     [shownPools, shownRegisters],
   )
@@ -312,10 +315,10 @@ export function TimelineChart() {
   const [selectorOpen, setSelectorOpen] = useState(false)
   const selectorItems = useMemo<SeriesItem[]>(
     () => [
-      ...pools.map((p) => ({ id: p.id, label: p.label, color: p.color, isRegister: false })),
+      ...pools.map((p) => ({ id: p.id, label: p.label, color: p.color, dash: dashes.get(p.id), isRegister: false })),
       ...registers.map((r) => ({ id: r.id, label: r.label, color: r.color, isRegister: true })),
     ],
-    [pools, registers],
+    [pools, registers, dashes],
   )
   const closeSelector = (opts: { focusAnchor: boolean }) => {
     setSelectorOpen(false)
@@ -417,6 +420,7 @@ export function TimelineChart() {
       return {
         id: p.id,
         color: p.color,
+        dash: p.dash,
         last,
         d: series
           .map(
@@ -443,7 +447,7 @@ export function TimelineChart() {
     const bandFit = Math.max(1, Math.floor((labelHi - labelLo) / LABEL_GAP) + 1)
 
     let endLabels = lines
-      .map((l, rank) => ({ id: l.id, color: l.color, x: l.endX, dotY: l.endY, text: compactText(l.last, views.get(l.id)), labelY: l.endY, rank }))
+      .map((l, rank) => ({ id: l.id, color: l.color, dash: l.dash, x: l.endX, dotY: l.endY, text: compactText(l.last, views.get(l.id)), labelY: l.endY, rank }))
       .sort((a, b) => a.dotY - b.dotY || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
 
     let endMore: { count: number; x: number; y: number } | null = null
@@ -512,7 +516,7 @@ export function TimelineChart() {
     const pt = series[pinIdx]
     const outcomes = regByStep[pinIdx]?.outcomes
     return [
-      ...shownPools.map((p) => ({ id: p.id, label: p.label, color: p.color, value: fullText(pt.values[p.id] ?? 0, views.get(p.id)), isRegister: false })),
+      ...shownPools.map((p) => ({ id: p.id, label: p.label, color: p.color, dash: p.dash, value: fullText(pt.values[p.id] ?? 0, views.get(p.id)), isRegister: false })),
       ...shownRegisters.map((r) => {
         const o = outcomes?.get(r.id)
         return { id: r.id, label: r.label, color: r.color, value: o && !o.invalid ? formatRegisterValue(o.value) : '—', isRegister: true }
@@ -580,7 +584,7 @@ export function TimelineChart() {
                       onFocus={(e) => e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' })}
                       title={t('timeline.legend.hide', { label: c.label })}
                     >
-                      <span className="timeline__mark" style={{ background: c.color }} />
+                      <SeriesMark color={c.color} dash={c.dash} />
                       {c.label} {chipText(c.id, c.isReg)}
                     </button>
                   ))}
@@ -753,7 +757,7 @@ export function TimelineChart() {
                       data-series={l.id}
                       d={l.d}
                       fill="none"
-                      style={{ stroke: l.color }}
+                      style={{ stroke: l.color, strokeDasharray: l.dash }}
                     />
                   ))
                 : null}
@@ -826,7 +830,7 @@ export function TimelineChart() {
                         <polyline
                           className="timeline__lead"
                           points={`${e.x},${e.dotY} ${e.x - 4},${e.dotY} ${e.x - 8},${e.labelY} ${e.x - 12},${e.labelY}`}
-                          style={{ stroke: e.color }}
+                          style={{ stroke: e.color, strokeDasharray: e.dash }}
                         />
                       ) : null}
                       <text
@@ -926,6 +930,9 @@ export function TimelineChart() {
  *  range: at least the run row and a short chart; at most what leaves the
  *  canvas `ANALYSIS_CANVAS_MIN` px */
 export const ANALYSIS_DEFAULT = 152
+/** a document with strips is read for how its lines change, and the chart above them
+ *  must still show that: what the area adds for the plot on top of the strips' own room */
+const STRIP_PLOT_EXTRA = 72
 const ANALYSIS_MIN = 96
 const ANALYSIS_CANVAS_MIN = 160
 const ANALYSIS_STEP = 16

@@ -1,5 +1,28 @@
 import { describe, expect, it } from 'vitest'
-import { runStripPath } from './runStrip'
+import { compareStripPlace, runStripPath, stripPlace } from './runStrip'
+
+describe('where a strip stands', () => {
+  const frames = [{ rect: { x: 0, y: 0, w: 100, h: 100 } }, { rect: { x: 200, y: 0, w: 100, h: 100 } }]
+  const at = (id: string, x: number, y: number) => stripPlace({ id, position: { x, y } }, frames)
+  const order = (...places: ReturnType<typeof at>[]) => [...places].sort(compareStripPlace).map((p) => p[3])
+
+  it('follows the frames’ order, not the id', () => {
+    expect(order(at('a', 250, 10), at('z', 10, 90))).toEqual(['z', 'a'])
+  })
+
+  it('goes top to bottom, then left to right, inside a frame', () => {
+    expect(order(at('low', 10, 60), at('right', 60, 10), at('left', 10, 10))).toEqual(['left', 'right', 'low'])
+  })
+
+  it('puts a stage in no frame after every frame', () => {
+    expect(order(at('out', -50, -50), at('in', 250, 90))).toEqual(['in', 'out'])
+  })
+
+  it('reads position alone in a document with no frames, and the id settles a tie', () => {
+    const plain = (id: string, x: number, y: number) => stripPlace({ id, position: { x, y } }, [])
+    expect([plain('b', 5, 5), plain('a', 5, 5), plain('c', 0, 9)].sort(compareStripPlace).map((p) => p[3])).toEqual(['a', 'b', 'c'])
+  })
+})
 
 const x = (step: number) => step * 10
 const y = (v: number) => 100 - v * 100

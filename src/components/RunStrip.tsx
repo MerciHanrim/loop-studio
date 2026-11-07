@@ -4,9 +4,10 @@ import { useT } from '../i18n'
 import { isolateAuto } from '../i18n/bidiIsolate'
 import { hasRunRules } from '../model/modelVersion'
 import { anyRunRule, ruleOf, runGroupOf } from '../model/runRule'
+import { useFrameStore } from '../store/frameStore'
 import { useGraphStore } from '../store/graphStore'
 import { fullPercent } from '../ui/runMessages'
-import { runStripPath } from '../ui/runStrip'
+import { compareStripPlace, runStripPath, stripPlace } from '../ui/runStrip'
 import { RATE_STRIP_H } from './TimetableRateChart'
 
 // SEMANTICS-M6.md §M6-9 — what a ruled group was asked for and did, step by step, under
@@ -25,21 +26,25 @@ export type RunStripGroup = {
 
 type Series = readonly { step: number; runs?: readonly RunGroupReport[] }[]
 
-/** the document's ruled groups, by first member */
+/** the document's ruled groups, by first member, in the order a reader follows the
+ *  document: by frame, then by position. A group stands where its earliest rule does. */
 export function useRunStrips(): RunStripGroup[] {
   const nodes = useGraphStore((s) => s.nodes)
   const edges = useGraphStore((s) => s.edges)
   const modelVersion = useGraphStore((s) => s.modelVersion)
+  const frames = useFrameStore((s) => s.frames)
   return useMemo(() => {
     if (!hasRunRules(modelVersion) || !anyRunRule(nodes)) return []
-    const groups = new Map<string, string[]>()
+    const groups = new Map<string, { labels: string[]; place: ReturnType<typeof stripPlace> }>()
     for (const n of nodes) {
       if (ruleOf(n) === null) continue
       const first = runGroupOf(nodes, edges, n.id).members[0]!
-      groups.set(first, [...(groups.get(first) ?? []), n.data.label || n.id])
+      const place = stripPlace(n, frames)
+      const was = groups.get(first)
+      groups.set(first, { labels: [...(was?.labels ?? []), n.data.label || n.id], place: was && compareStripPlace(was.place, place) < 0 ? was.place : place })
     }
-    return [...groups.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([id, labels]) => ({ id, label: labels.join(', ') }))
-  }, [nodes, edges, modelVersion])
+    return [...groups.entries()].sort(([, a], [, b]) => compareStripPlace(a.place, b.place)).map(([id, g]) => ({ id, label: g.labels.join(', ') }))
+  }, [nodes, edges, modelVersion, frames])
 }
 
 function Strip({ group, series, width, padL, padR, minStep, maxStep }: { group: RunStripGroup; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number }) {

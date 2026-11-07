@@ -1,3 +1,4 @@
+import { SeriesMark } from './SeriesMark'
 import { useEffect, useId, useRef, useState, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useT } from '../i18n'
@@ -23,6 +24,8 @@ export type SeriesItem = {
   id: string
   label: string
   color: string
+  /** the line pattern, when another series shares the colour */
+  dash?: string
   isRegister: boolean
 }
 
@@ -135,7 +138,7 @@ export function TimelineSeriesPopover({
                 checked={drawn.has(s.id)}
                 onChange={() => flip(s.id)}
               />
-              <span className="timeline__mark" style={{ background: s.color }} aria-hidden="true" />
+              <SeriesMark color={s.color} dash={s.dash} />
               <span className="tl-series__label" dir="auto">
                 {s.label}
               </span>

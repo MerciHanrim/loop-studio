@@ -229,7 +229,7 @@ export function MobileMoreMenu({
     if (!tpl) return
     useSimStore.getState().pause()
     // docs/template-label-overlay.md — deep clone + current-locale label overlay
-    const { graph, recommendedRunConfig, modelVersion, kinds, time } = openTemplate(tpl)
+    const { graph, recommendedRunConfig, modelVersion, kinds, time, timetables } = openTemplate(tpl)
     // §MML3 — one bump; MMO frames its early band. #334 — a document boundary
     loadGraph(graph, {
       canvasLocked: recommendedRunConfig?.canvasLocked === true,
@@ -238,6 +238,7 @@ export function MobileMoreMenu({
       frames: graph.frames,
       kinds, // loop-model/3 and /4 — the Template's kinds table and step length
       time,
+      timetables, // loop-model/5
     })
     useMcStore.getState().applyRecommended(recommendedRunConfig)
     closeOverlay()

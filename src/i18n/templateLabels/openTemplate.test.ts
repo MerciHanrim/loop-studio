@@ -21,6 +21,22 @@ const tpl = (id: string) => {
   return t
 }
 
+describe('openTemplate — a Template’s timetables', () => {
+  const table = { id: 'demand', label: 'Demand', source: 'test', unit: 'CMH', timeUnit: 'h' as const, read: 'hold' as const, end: '10', after: 'hold' as const, points: [['0', '25']] as [string, string][] }
+
+  it('carries them as a clone, so a document can never reach the canonical', () => {
+    const src = { ...tpl('equilibrium'), timetables: [table] }
+    const opened = openTemplate(src, 'en')
+    expect(opened.timetables).toEqual([table])
+    expect(opened.timetables![0]).not.toBe(table)
+    expect(opened.timetables![0]!.points).not.toBe(table.points)
+  })
+
+  it('adds no key to a Template that holds none', () => {
+    expect(openTemplate(tpl('equilibrium'), 'en')).not.toHaveProperty('timetables')
+  })
+})
+
 describe('openTemplate — deep clone', () => {
   it('shares no reference with the canonical (nodes / data / position / edges)', () => {
     const src = tpl('mmo-progression')

@@ -5,6 +5,22 @@
 
 export type StripPoint = { step: number; value: number | null }
 
+type Rect = { x: number; y: number; w: number; h: number }
+
+/** where a stage stands in the reading of a document: the first frame that holds it, in
+ *  the document's frame order, then top to bottom and left to right inside it. A stage
+ *  in no frame comes after every frame. The id settles a tie, so the order repeats. */
+export function stripPlace(stage: { id: string; position: { x: number; y: number } }, frames: readonly { rect: Rect }[]): [number, number, number, string] {
+  const { x, y } = stage.position
+  const at = frames.findIndex(({ rect: r }) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h)
+  return [at < 0 ? frames.length : at, y, x, stage.id]
+}
+
+/** ascending by `stripPlace` */
+export function compareStripPlace(a: readonly [number, number, number, string], b: readonly [number, number, number, string]): number {
+  return a[0] - b[0] || a[1] - b[1] || a[2] - b[2] || (a[3] < b[3] ? -1 : a[3] > b[3] ? 1 : 0)
+}
+
 type Column = { x: number; first: number; last: number; lo: number; hi: number }
 
 export function runStripPath(points: readonly StripPoint[], x: (step: number) => number, y: (value: number) => number, minStep: number): string {
