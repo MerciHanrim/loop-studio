@@ -1,6 +1,7 @@
 // SEMANTICS-M6.md §M6-9 — what a rule's numbers ask of the step length. A rule is read
 // once a step, so a rule that was calm can hunt or stall after the step changes. These
 // are warnings, not refusals: the run still goes, and says what held it.
+import { classifyLabelTiming, parseLabelExpr, ROUTER_KINDS } from '../engine/stateExpr'
 import { resolveKinds, type ResourceKindDecl } from './kinds'
 import { parseDecimal, toDouble } from './rational'
 import { groupLines, ruleOf, RUN_REACHED, runGroupOf } from './runRule'
@@ -31,6 +32,27 @@ function stepAmount(e: LoopEdge, decl: ResourceKindDecl | undefined, tables: Rea
     return table && factor && time ? toDouble(peakPlan(table, factor, time)) : null
   }
   return parseDecimal(raw) === null ? null : engineValue(raw, resolveFieldUnit(d.unit, decl, time, 'rate'), time)
+}
+
+/** can this line, from outside a group, put stock into a Pool? Held to what the engine
+ *  does, and one hop deep: what feeds a Source or a Converter upstream is not followed.
+ *  A state line fills only as a `label` that can raise the balance; an activator or a
+ *  trigger never does. A resource line from a Pool moves nothing by itself. */
+function canFill(e: LoopEdge, nodes: readonly LoopNode[], edges: readonly LoopEdge[], need: number, amountOf: (e: LoopEdge) => number | null): boolean {
+  const from = nodes.find((n) => n.id === e.source)
+  if (!from) return false
+  if (e.data?.kind === 'state') {
+    if (e.data.mode !== 'label') return false
+    const timing = classifyLabelTiming(e.data.timing, e.data.when)
+    const reads = timing === 'phase0' ? from.data.kind === 'pool' : timing === 'afterPull' && ROUTER_KINDS.has(from.data.kind)
+    const label = parseLabelExpr(e.data.expr ?? '')
+    if (!reads || !label.ok || label.op === '-') return false
+    if (label.token === 'S') return true // the source's stock can change, so this may fill
+    return label.op === '+' ? label.n > 0 : label.n >= need * RUN_REACHED
+  }
+  if (amountOf(e) === 0 || from.data.kind === 'pool') return false
+  const waits = (from.data.kind === 'source' || from.data.kind === 'converter') && from.data.activation === 'passive'
+  return !waits || edges.some((x) => x.target === from.id && x.data?.kind === 'state' && x.data.mode === 'trigger')
 }
 
 /** one stage's warnings. Takes the authored graph, and reads the rule as it stands: a
@@ -80,18 +102,17 @@ export function runWarnings(
     }
   }
 
-  // #520 — a shape, not a number: a Pool with anything else coming in fills in a later
-  // step, so its low start costs a step or two. One that only the group refills waits for
-  // a run that waits for it.
+  // #520 — a shape, not a number: a Pool that something else can fill gets there in a
+  // later step, so its low start costs a step or two. One that only the group refills
+  // waits for a run that waits for it.
   if (pullsAll) {
     const takes = lines.filter((x) => members.includes(x.target))
     for (const id of new Set(takes.map((x) => x.source))) {
       const from = nodes.find((n) => n.id === id)
       if (from?.data.kind !== 'pool') continue
-      const outside = edges.some((e) => e.target === id && !members.includes(e.source) && ['resource', 'state'].includes(e.data?.kind ?? 'resource'))
-      if (outside) continue
       const own = takes.filter((x) => x.source === id)
       const amount = sum(own)
+      if (edges.some((e) => e.target === id && !members.includes(e.source) && canFill(e, nodes, edges, amount, amountOf))) continue
       const fu = resolveFieldUnit(from.data.unit, declOf.get(poolKindName(from.data) ?? ''), time, 'stock')
       const start = engineValue(from.data.initial, fu, time)
       if (start < amount * RUN_REACHED) out.push({ code: 'start-under-take', stage, taker: own[0]!.target, tank: id, start, amount })

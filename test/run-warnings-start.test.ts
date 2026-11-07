@@ -85,6 +85,78 @@ describe('a low start that is no deadlock', () => {
   })
 })
 
+// #527 review: being connected is not being supplied. Each outside connection is run
+// through the engine, and the warning has to agree with what the tank really got.
+describe('what comes into the Pool from outside the group', () => {
+  const state = (id: string, from: string, to: string, mode: string, expr = '') =>
+    ({ id, type: 'loop', source: from, target: to, sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode, expr } }) as unknown as LoopEdge
+  const passive = { ...source('s'), data: { ...source('s').data, activation: 'passive' } } as LoopNode
+  const interactive = { ...source('s'), data: { ...source('s').data, activation: 'interactive' } } as LoopNode
+  const up = pool('up', 500)
+  const sw = pool('sw', 5)
+  const added = (nodes: LoopNode[], edges: LoopEdge[]): Shape => {
+    const s = loop(1)
+    return { nodes: [...s.nodes, ...nodes], edges: [...s.edges, ...edges] }
+  }
+
+  const NOT_A_SUPPLY: [string, Shape][] = [
+    ['a line from a Source at 0', added([source('s')], [line('x', 's', 'own', '0')])],
+    ['a passive Source nothing triggers', added([passive], [line('x', 's', 'own', '1')])],
+    ['a passive Converter nothing triggers', added([pool('f2', 500), { ...stage('c', 'pullAny'), data: { ...stage('c', 'pullAny').data, activation: 'passive' } } as LoopNode], [line('c1', 'f2', 'c', '3'), line('x', 'c', 'own', '3')])],
+    ['a line from a Pool, which moves nothing by itself', added([up], [line('x', 'up', 'own', '10')])],
+    ['an activator', added([sw], [state('x', 'sw', 'own', 'activator', '>= 1')])],
+    ['a trigger', added([source('s')], [line('t', 's', 'store', '1'), state('x', 's', 'own', 'trigger')])],
+    ['a label that takes away', added([sw], [state('x', 'sw', 'own', 'label', '-1')])],
+    ['a label of +0', added([sw], [state('x', 'sw', 'own', 'label', '+0')])],
+    ['a label that sets under one step', added([sw], [state('x', 'sw', 'own', 'label', '=3')])],
+    ['a label from a Source, which is inert', added([source('s')], [state('x', 's', 'own', 'label', '+5')])],
+    ['a label that does not parse', added([sw], [state('x', 'sw', 'own', 'label', 'nonsense')])],
+  ]
+  for (const [name, shape] of NOT_A_SUPPLY) {
+    it(`${name}: the group never runs, and the warning stays`, () => {
+      expect(fired(shape, 'a')).toBe(0)
+      expect(warned(shape, 'a')).toHaveLength(1)
+    })
+  }
+
+  const A_SUPPLY: [string, Shape][] = [
+    ['a Source above 0', added([source('s')], [line('x', 's', 'own', '1')])],
+    ['a Converter outside the group', added([pool('f2', 500), stage('c', 'pullAny')], [line('c1', 'f2', 'c', '3'), line('x', 'c', 'own', '3')])],
+    ['a passive Source with a trigger', added([passive, source('t')], [line('x', 's', 'own', '1'), line('t2', 't', 'store', '1'), state('y', 't', 's', 'trigger')])],
+    ['a label that adds', added([sw], [state('x', 'sw', 'own', 'label', '+5')])],
+    ['a label that sets one step or more', added([sw], [state('x', 'sw', 'own', 'label', '=10')])],
+    ['a label that sets from a stocked Pool', added([sw], [state('x', 'sw', 'own', 'label', '=S')])],
+    [
+      'a label that adds after an outside Converter runs',
+      added([pool('f2', 500), stage('c', 'pullAny'), pool('s2', 0, null)], [line('c1', 'f2', 'c', '3'), line('c2', 'c', 's2', '3'), { ...state('x', 'c', 'own', 'label', '+5'), data: { kind: 'state', mode: 'label', expr: '+5', timing: 'afterPull', when: 'source-fired' } } as unknown as LoopEdge]),
+    ],
+  ]
+  for (const [name, shape] of A_SUPPLY) {
+    it(`${name}: the group runs, and nothing is raised`, () => {
+      expect(fired(shape, 'a')).toBeGreaterThan(30)
+      expect(warned(shape, 'a')).toEqual([])
+    })
+  }
+
+  it('an interactive Source counts, because a person can press it', () => {
+    const s = added([interactive], [line('x', 's', 'own', '1')])
+    expect(fired(s, 'a'), 'not pressed here').toBe(0)
+    expect(warned(s, 'a')).toEqual([])
+  })
+
+  it('a Converter outside with nothing to run on still counts: the check stops at one hop', () => {
+    const s = added([pool('f2', 0), stage('c', 'pullAny')], [line('c1', 'f2', 'c', '3'), line('x', 'c', 'own', '3')])
+    expect(fired(s, 'a')).toBe(0)
+    expect(warned(s, 'a')).toEqual([])
+  })
+
+  it('a label reading an empty Pool still counts: its stock can change', () => {
+    const s = added([pool('sw', 0)], [state('x', 'sw', 'own', 'label', '=S')])
+    expect(fired(s, 'a')).toBe(0)
+    expect(warned(s, 'a')).toEqual([])
+  })
+})
+
 describe('a rule', () => {
   it('asking for a full run stalls the same', () => {
     const s = loop(1, 'pullAll', 'pullAny', { tank: 'store', level: '100000', band: '1', side: 'fill' })
