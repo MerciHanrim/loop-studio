@@ -160,8 +160,9 @@ test('KO File ▸ Templates: the wide submenu, every description whole in its de
   const blurbs = await measureOpenMenu(page, '.dmenu--sub .dmenu__desc:not(.dmenu__hint)')
   // 2026-10-20: the General gacha joined the menu (docs/gacha-general.md), then
   // the Standard gacha (docs/gacha-standard.md), the Pickup gacha (docs/gacha-pickup.md);
-  // 0.30.0: Early MMO is in the menu again; #471 (2026-11-04): the desalination plant
-  expect(blurbs.length, 'one description per template').toBe(9)
+  // 0.30.0: Early MMO is in the menu again; #471 (2026-11-04): the desalination plant;
+  // 2026-11-07: the two basic examples left it
+  expect(blurbs.length, 'one description per template').toBe(7)
   for (const b of blurbs) {
     expect(b.fontPx, `"${b.text}": font size`).toBeGreaterThanOrEqual(BODY_MIN_PX)
     expect(b.contrast, `"${b.text}": contrast`).toBeGreaterThanOrEqual(BODY_MIN_CONTRAST)
