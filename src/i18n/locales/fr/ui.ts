@@ -649,6 +649,7 @@ const ui = {
   'timeline.rate.aria': '{label} : débit en {unit}, sur son propre axe',
   'timeline.reading.label': 'Graphique de l’exécution. Sélectionnez un point, ou utilisez les flèches gauche et droite, pour lire les valeurs d’un pas enregistré.',
   'timeline.reading.step': 'Pas {n}',
+  'timeline.reading.preview': 'Aperçu',
   'timeline.reading.close': 'Fermer la lecture du pas',
   'help.stepOrder.title': 'Comment un pas remplit et vide un Réservoir',
   'help.stepOrder.p1': 'Un pas part de ce que contient chaque Réservoir. Les ressources qui arrivent remplissent d’abord le Réservoir, jusqu’à sa capacité. Une connexion qui prend dans le Réservoir prend ensuite dans ce qu’il contenait au début du pas : ce qui est arrivé pendant ce pas attend le suivant.',

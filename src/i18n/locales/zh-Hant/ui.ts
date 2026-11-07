@@ -599,6 +599,7 @@ const ui = {
   'timeline.rate.aria': '{label}：{unit} 速率，獨立座標軸',
   'timeline.reading.label': '執行圖表。選取一個點，或使用左右方向鍵，即可讀取某個已記錄步驟的數值。',
   'timeline.reading.step': '第 {n} 步',
+  'timeline.reading.preview': '預覽',
   'timeline.reading.close': '關閉步驟讀數',
   'help.stepOrder.title': '一步之內資源池如何注入和取出',
   'help.stepOrder.p1': '每一步從各資源池的存量開始。到達的資源先注入資源池，最多到容量。從資源池取出的連線隨後從本步開始時的存量中取出，所以本步到達的量要等到下一步。',

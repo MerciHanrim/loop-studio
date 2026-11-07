@@ -141,6 +141,7 @@ const ui = {
   'timeline.rate.aria': '{label}: {unit} 단위 비율, 별도 축',
   'timeline.reading.label': '실행 차트. 지점을 누르거나 왼쪽·오른쪽 화살표 키로 기록된 단계의 값을 읽습니다.',
   'timeline.reading.step': '{n}단계',
+  'timeline.reading.preview': '미리보기',
   'timeline.reading.close': '단계 값 닫기',
   'timeline.sheetTitle': '타임라인',
   'mobile.inspector.title': '인스펙터 — 읽기 전용',

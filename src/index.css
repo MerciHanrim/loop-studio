@@ -5021,6 +5021,22 @@ a.sheet__row {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+/* #525 — the values are a hovered step's, not the picked one's: told in words, and
+   dashed like the hovered step's line. Right after the step; the close button keeps
+   the end. */
+.timeline__reading-tag {
+  margin-inline-end: auto;
+  padding: 0 5px;
+  border: 1px dashed var(--sel);
+  border-radius: 3px;
+  color: var(--ink-2);
+  font-size: 10.5px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.timeline__reading-tag.is-off {
+  visibility: hidden;
+}
 .timeline__reading-x {
   width: 22px;
   height: 22px;

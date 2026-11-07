@@ -88,12 +88,35 @@ export function TimelineStepReading({
     }
   }, [lineX, plotRef, rows.length])
 
+  // #525 — over a picked step a preview keeps the box's width, so its close button
+  // stays where it was: the pointer reaching for it ends the preview, and a box that
+  // then narrowed could slide the button out from under it. A wider value shortens
+  // its name (ellipsis) instead. Set on the element, outside the `place` style.
+  const heldWidth = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    if (preview && closable) {
+      if (heldWidth.current != null) el.style.width = `${heldWidth.current}px`
+    } else {
+      el.style.width = ''
+      heldWidth.current = el.getBoundingClientRect().width
+    }
+  })
+
   return (
     <div ref={ref} className={closable ? 'timeline__reading' : 'timeline__reading timeline__reading--bare'} style={place} data-step={step} data-preview={preview ? '' : undefined}>
       <div className="timeline__reading-head">
         <span className="timeline__reading-step" aria-live={preview ? undefined : 'polite'}>
           {t('timeline.reading.step', { n: step })}
         </span>
+        {/* #525 review (Lumi) — beside a picked line the box can hold another step's
+            values; the tag says they are a preview, with its dashes for the dashed line.
+            A picked reading keeps the tag's room, hidden, so the box does not widen when
+            a preview starts */}
+        {preview || closable ? (
+          <span className={preview ? 'timeline__reading-tag' : 'timeline__reading-tag is-off'}>{t('timeline.reading.preview')}</span>
+        ) : null}
         {closable ? (
           <button type="button" className="timeline__reading-x" aria-label={t('timeline.reading.close')} title={t('timeline.reading.close')} onClick={onClose}>
             <Icon name="close" />

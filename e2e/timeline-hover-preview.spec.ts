@@ -50,6 +50,8 @@ const vertex = (page: Page, i: number) =>
 const reading = (page: Page) => page.locator('.timeline__reading')
 const value = (page: Page) => reading(page).locator('[data-series="p1"] .timeline__reading-value')
 const closeButton = (page: Page) => reading(page).getByRole('button', { name: 'Close the step reading' })
+/** the words in the box that say its values are a preview (Lumi's review) */
+const tag = (page: Page) => reading(page).locator('.timeline__reading-tag')
 const lineX = (page: Page, cls: string) => page.locator(cls).evaluate((l) => (l as SVGLineElement).getBoundingClientRect().x)
 /** off the plot: the page's top-left corner */
 const leave = (page: Page) => page.mouse.move(4, 4)
@@ -70,6 +72,7 @@ test.describe('the hover preview on the run chart (#525)', () => {
     await page.mouse.move(v2.x + 3, v2.y - 20) // near step 2, not on it
     await expect(reading(page)).toHaveAttribute('data-step', String(before.steps[2]))
     await expect(reading(page)).toHaveAttribute('data-preview', '')
+    await expect(tag(page)).toHaveText('Preview')
     await expect(value(page)).toHaveText(String(before.values[2]))
     await expect(reading(page).locator('[data-series="reg"] .timeline__reading-value')).toHaveText(String(before.values[2]! * 2))
     expect(Math.abs((await lineX(page, '.timeline__peek')) - v2.x)).toBeLessThan(2)
@@ -95,12 +98,16 @@ test.describe('the hover preview on the run chart (#525)', () => {
     await page.mouse.click(v1.x, v1.y)
     await expect(reading(page)).toHaveAttribute('data-step', String(before.steps[1]))
     await expect(reading(page)).not.toHaveAttribute('data-preview', '')
+    await expect(tag(page)).toBeHidden()
     await expect(reading(page).locator('.timeline__reading-step')).toHaveAttribute('aria-live', 'polite')
     const box = await reading(page).boundingBox()
     const v4 = await vertex(page, 4)
     await page.mouse.move(v4.x, v4.y)
     await expect(reading(page)).toHaveAttribute('data-step', String(before.steps[4]))
     await expect(reading(page)).toHaveAttribute('data-preview', '')
+    // beside the picked line, the box says in words that these are another step's values
+    await expect(tag(page)).toHaveText('Preview')
+    await expect(tag(page)).toBeVisible()
     await expect(value(page)).toHaveText(String(before.values[4]))
     await expect(reading(page).locator('[aria-live]')).toHaveCount(0)
     // the pick keeps its line; the preview has its own
@@ -111,6 +118,7 @@ test.describe('the hover preview on the run chart (#525)', () => {
     await expect(reading(page)).toHaveAttribute('data-step', String(before.steps[1]))
     await expect(reading(page)).not.toHaveAttribute('data-preview', '')
     await expect(value(page)).toHaveText(String(before.values[1]))
+    await expect(tag(page)).toBeHidden()
     await expect(page.locator('.timeline__peek')).toHaveCount(0)
     // from a preview straight to the close button: the box has not moved away from it
     await page.mouse.move(v4.x, v4.y)
@@ -157,6 +165,7 @@ test.describe('the hover preview on the run chart (#525)', () => {
     await page.keyboard.press('ArrowRight')
     await expect(reading(page)).toHaveAttribute('data-step', String(s[3]))
     await expect(reading(page)).not.toHaveAttribute('data-preview', '')
+    await expect(tag(page)).toBeHidden()
     await expect(page.locator('.timeline__peek')).toHaveCount(0)
   })
 
@@ -187,6 +196,7 @@ test.describe('the hover preview by touch, 1024 × 768', () => {
     await expect(reading(page)).toHaveAttribute('data-step', String(s[4]))
     await expect(reading(page)).not.toHaveAttribute('data-preview', '')
     await expect(closeButton(page)).toBeVisible()
+    await expect(tag(page)).toBeHidden()
     await expect(page.locator('.timeline__peek')).toHaveCount(0)
   })
 })

@@ -582,6 +582,7 @@ const ui = {
   'timeline.rate.aria': '{label}: lưu lượng theo {unit}, trên trục riêng',
   'timeline.reading.label': 'Biểu đồ lần chạy. Chọn một điểm, hoặc dùng phím mũi tên trái và phải, để đọc giá trị ở một bước đã ghi.',
   'timeline.reading.step': 'Bước {n}',
+  'timeline.reading.preview': 'Xem trước',
   'timeline.reading.close': 'Đóng phần đọc bước',
   'help.stepOrder.title': 'Một bước làm đầy và rút Bể chứa thế nào',
   'help.stepOrder.p1': 'Một bước bắt đầu từ lượng mà mỗi Bể chứa đang có. Tài nguyên đến làm đầy Bể chứa trước, tối đa đến sức chứa. Sau đó liên kết lấy từ Bể chứa sẽ lấy từ lượng có lúc bước bắt đầu, nên lượng đến trong bước này phải chờ bước sau.',

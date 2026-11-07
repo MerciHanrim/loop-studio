@@ -574,6 +574,7 @@ const ui = {
   'timeline.rate.aria': '{label}：{unit} 速率，独立坐标轴',
   'timeline.reading.label': '运行图表。选择一个点，或使用左右方向键，读取某个已记录步的数值。',
   'timeline.reading.step': '第 {n} 步',
+  'timeline.reading.preview': '预览',
   'timeline.reading.close': '关闭该步的读数',
   'help.stepOrder.title': '一步之内资源池如何注入和取出',
   'help.stepOrder.p1': '每一步从各资源池的存量开始。到达的资源先注入资源池，最多到容量。从资源池取出的连线随后从本步开始时的存量中取出，所以本步到达的量要等到下一步。',
