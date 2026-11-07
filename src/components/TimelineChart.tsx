@@ -336,6 +336,14 @@ export function TimelineChart() {
   useEffect(() => {
     if (pinned && pinIdx < 0) setPinned(null)
   }, [pinned, pinIdx])
+  // #525 — a mouse or a pen over the plot PREVIEWS the recorded step nearest to it, as
+  // the strips below read the step under the pointer. Held by its entry like the pick,
+  // so a step recorded during Play does not move it; the pointer leaving ends it. With
+  // a step picked, the reading shows the previewed values and returns to the picked
+  // ones; the picked line stays. Never on touch, never on the distribution. An entry a
+  // reset or another document dropped is simply not found, so it previews nothing.
+  const [peek, setPeek] = useState<(typeof series)[number] | null>(null)
+  const peekIdx = peek && !showDistribution ? series.indexOf(peek) : -1
 
   const view = useMemo(() => {
     const { w, h } = size
@@ -511,10 +519,10 @@ export function TimelineChart() {
     const pt = series[i]
     if (pt) setPinned(pt)
   }
-  const readingRows = (): StepReadingRow[] => {
-    if (pinIdx < 0) return []
-    const pt = series[pinIdx]
-    const outcomes = regByStep[pinIdx]?.outcomes
+  const readingRows = (idx: number): StepReadingRow[] => {
+    if (idx < 0) return []
+    const pt = series[idx]
+    const outcomes = regByStep[idx]?.outcomes
     return [
       ...shownPools.map((p) => ({ id: p.id, label: p.label, color: p.color, dash: p.dash, value: fullText(pt.values[p.id] ?? 0, views.get(p.id)), isRegister: false })),
       ...shownRegisters.map((r) => {
@@ -529,6 +537,10 @@ export function TimelineChart() {
     ]
   }
   const pinX = pinIdx >= 0 ? view.x(series[pinIdx].step) : null
+  /** a preview of a step other than the picked one */
+  const previewing = peekIdx >= 0 && peekIdx !== pinIdx
+  const peekX = previewing ? view.x(series[peekIdx].step) : null
+  const readIdx = previewing ? peekIdx : pinIdx
   const panel = (
         <div className="timeline__panel">
           <div className="timeline__head">
@@ -673,6 +685,8 @@ export function TimelineChart() {
               }
               if (next == null) return
               e.preventDefault()
+              // the keys read the picked step, even with the mouse resting on the plot
+              setPeek(null)
               pinAt(next)
             }}
           >
@@ -686,6 +700,13 @@ export function TimelineChart() {
                 const r = e.currentTarget.getBoundingClientRect()
                 pinAt(nearestIdx(e.clientX - r.left))
               }}
+              onPointerMove={(e) => {
+                if (!hasRun || e.pointerType === 'touch') return
+                const r = e.currentTarget.getBoundingClientRect()
+                const pt = series[nearestIdx(e.clientX - r.left)]
+                if (pt && pt !== peek) setPeek(pt)
+              }}
+              onPointerLeave={() => setPeek(null)}
             >
               <line
                 className="timeline__axis"
@@ -748,6 +769,8 @@ export function TimelineChart() {
 
               {/* the step reading's line, at the picked recorded step */}
               {pinX != null ? <line className="timeline__pin" x1={pinX} y1={PAD.t} x2={pinX} y2={h - PAD.b} /> : null}
+              {/* #525 — the previewed step's line, dashed, so it is told from the pick by its pattern */}
+              {peekX != null ? <line className="timeline__peek" x1={peekX} y1={PAD.t} x2={peekX} y2={h - PAD.b} /> : null}
 
               {hasRun
                 ? view.lines.map((l) => (
@@ -871,12 +894,17 @@ export function TimelineChart() {
           {/* outside the plot, which clips: the reading stands on the plot's
               bottom beside its line and opens UPWARD over the canvas as far
               as it needs (./TimelineStepReading) */}
-          {pinned && pinX != null && !showDistribution ? (
+          {/* #525 — with a step picked the box stays beside its line and only its values
+              follow a preview; a box that followed the pointer would run from it on the way
+              to its close button */}
+          {readIdx >= 0 && !showDistribution ? (
             <TimelineStepReading
-              step={series[pinIdx].step}
-              rows={readingRows()}
-              lineX={pinX}
+              step={series[readIdx].step}
+              rows={readingRows(readIdx)}
+              lineX={pinX ?? peekX ?? 0}
               plotRef={plotRef}
+              preview={previewing}
+              closable={pinX != null}
               onClose={() => {
                 setPinned(null)
                 plotRef.current?.focus()

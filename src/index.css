@@ -4979,6 +4979,18 @@ a.sheet__row {
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
 }
+/* #525 — a hovered step's line: the pick's colour, told from it by the dashes */
+.timeline__peek {
+  stroke: var(--sel);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+/* a preview with no step picked: the pointer under it still reads the plot */
+.timeline__reading--bare {
+  pointer-events: none;
+}
 /* placed by TimelineStepReading.tsx (bottom / left or right / max sizes): on
    the plot's bottom, opening upward over the canvas */
 .timeline__reading {

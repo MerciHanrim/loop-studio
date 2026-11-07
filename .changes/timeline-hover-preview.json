@@ -1,0 +1,1 @@
+{"type":"user-facing","changelog":"- **Pointing at the Timeline previews a step.** The chart now shows the values of the step under the mouse, as the strips below it do. A click still pins a step; with one pinned, pointing elsewhere previews that step and moving away brings the pinned values back. Touch and the keyboard work as before."}

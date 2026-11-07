@@ -36,6 +36,8 @@ export function TimelineStepReading({
   rows,
   lineX,
   plotRef,
+  preview = false,
+  closable = true,
   onClose,
 }: {
   step: number
@@ -43,6 +45,12 @@ export function TimelineStepReading({
   /** the picked step's x in the plot, to stand beside its line */
   lineX: number
   plotRef: RefObject<HTMLDivElement | null>
+  /** #525 — the values are a hovered step's: the heading is not a live region, so a
+   *  moving mouse does not have a screen reader speak every step it crosses */
+  preview?: boolean
+  /** false for a preview with no step picked: nothing to close, and the box takes no
+   *  pointer events, so the pointer under it still reads the plot */
+  closable?: boolean
   onClose: () => void
 }) {
   const t = useT()
@@ -81,14 +89,16 @@ export function TimelineStepReading({
   }, [lineX, plotRef, rows.length])
 
   return (
-    <div ref={ref} className="timeline__reading" style={place} data-step={step}>
+    <div ref={ref} className={closable ? 'timeline__reading' : 'timeline__reading timeline__reading--bare'} style={place} data-step={step} data-preview={preview ? '' : undefined}>
       <div className="timeline__reading-head">
-        <span className="timeline__reading-step" aria-live="polite">
+        <span className="timeline__reading-step" aria-live={preview ? undefined : 'polite'}>
           {t('timeline.reading.step', { n: step })}
         </span>
-        <button type="button" className="timeline__reading-x" aria-label={t('timeline.reading.close')} title={t('timeline.reading.close')} onClick={onClose}>
-          <Icon name="close" />
-        </button>
+        {closable ? (
+          <button type="button" className="timeline__reading-x" aria-label={t('timeline.reading.close')} title={t('timeline.reading.close')} onClick={onClose}>
+            <Icon name="close" />
+          </button>
+        ) : null}
       </div>
       <ul className="timeline__reading-rows">
         {rows.map((r) => (
