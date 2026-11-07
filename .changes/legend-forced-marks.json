@@ -1,0 +1,1 @@
+{"type":"user-facing","changelog":"- **The Timeline legend shows its marks in forced colours.** Each series' square mark had disappeared, so the legend, the series list and a step's reading named a series without tying it to its line. The marks now keep the colour the line keeps, with an outline, and a line's pattern shows where two series share a colour."}

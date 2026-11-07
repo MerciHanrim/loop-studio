@@ -4901,6 +4901,19 @@ a.sheet__row {
 .timeline__mark--line line {
   stroke-width: 2;
 }
+/* #523 — forced colours drop a background, and a square mark is only its background, so
+   it vanished and the legend tied no name to a line. The chart's lines keep their series
+   colours there (FC-3.4), so the mark keeps its own, with a system-colour edge so a pale
+   series still reads against Canvas. */
+@media (forced-colors: active) {
+  .timeline__mark {
+    forced-color-adjust: none;
+    outline: 1px solid CanvasText;
+  }
+  .timeline__mark--line {
+    outline: none;
+  }
+}
 .timeline__csv {
   flex: none;
   border: 1px solid var(--line-control); /* §VL8 control boundary, as `.btn` */
