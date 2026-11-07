@@ -1,7 +1,7 @@
 import { useId, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useT, type MessageKey } from '../../i18n'
 import { fieldUnitOptions, fieldUnitText, TIME_UNITS, type TimeUnit } from '../../model/units'
-import type { TimetableAfter, TimetableProblemCode, TimetableRead } from '../../model/timetable'
+import type { TimetableAfter, TimetableMeaning, TimetableProblemCode, TimetableRead } from '../../model/timetable'
 import { buildTable, fillGaps, gapChoiceFits, gapRows, parseTableText, pickColumns, proposeEnd, type GapChoice } from '../../model/timetableImport'
 import { useGraphStore } from '../../store/graphStore'
 import { Icon } from '../../ui/icons'
@@ -23,6 +23,10 @@ const AFTER_WORD: Record<TimetableAfter, MessageKey> = {
   repeat: 'inspector.edge.timetable.after.repeat',
 }
 const READS: readonly TimetableRead[] = ['hold', 'linear']
+// SEMANTICS-M7.md §M7-4 — what the rates mean, asked once per table
+const MEANS: readonly TimetableMeaning[] = ['plan', 'available']
+const MEANS_WORD: Record<TimetableMeaning, MessageKey> = { plan: 'timetable.import.means.plan', available: 'timetable.import.means.available' }
+const MEANS_NOTE: Record<TimetableMeaning, MessageKey> = { plan: 'timetable.import.means.planNote', available: 'timetable.import.means.availableNote' }
 const AFTERS: readonly TimetableAfter[] = ['stop', 'hold', 'zero', 'repeat']
 const GAPS: readonly GapChoice[] = ['remove', 'hold', 'line']
 
@@ -80,6 +84,7 @@ function Form({ rootRef, onClose }: { rootRef: React.RefObject<HTMLDivElement | 
   const [timeUnit, setTimeUnit] = useState<TimeUnit>(time?.step.unit ?? 'h')
   const [read, setRead] = useState<TimetableRead>('hold')
   const [after, setAfter] = useState<TimetableAfter>('stop')
+  const [means, setMeans] = useState<TimetableMeaning>('plan')
   const [endDraft, setEndDraft] = useState<string | null>(null)
 
   const parsed = useMemo(() => parseTableText(text), [text])
@@ -111,8 +116,8 @@ function Form({ rootRef, onClose }: { rootRef: React.RefObject<HTMLDivElement | 
   const finalRows = closes ? filled.slice(0, -1) : filled
   const taken = timetables.map((x) => x.id)
   const built = useMemo(
-    () => (waiting || finalRows.length === 0 ? null : buildTable(finalRows, { label, source, unit: unit || '-', timeUnit, read, after, end }, taken)),
-    [waiting, finalRows, label, source, unit, timeUnit, read, after, end, taken],
+    () => (waiting || finalRows.length === 0 ? null : buildTable(finalRows, { label, source, unit: unit || '-', timeUnit, read, after, end, means }, taken)),
+    [waiting, finalRows, label, source, unit, timeUnit, read, after, end, means, taken],
   )
 
   const problemText = (): string | null => {
@@ -218,6 +223,13 @@ function Form({ rootRef, onClose }: { rootRef: React.RefObject<HTMLDivElement | 
           </label>
         </div>
         {units.length === 0 ? <p className="ttable__problem">{t('timetable.import.noUnits')}</p> : null}
+        <label className="ttable__field">
+          <span>{t('timetable.import.means')}</span>
+          <select value={means} onChange={(e) => setMeans(e.target.value as TimetableMeaning)}>
+            {MEANS.map((m) => <option key={m} value={m}>{t(MEANS_WORD[m])}</option>)}
+          </select>
+        </label>
+        <p className="ttable__note" data-means-note={means}>{t(MEANS_NOTE[means])}</p>
         <label className="ttable__field">
           <span>{t('timetable.import.read')}</span>
           <select value={read} onChange={(e) => { setRead(e.target.value as TimetableRead); setEndDraft(null) }}>

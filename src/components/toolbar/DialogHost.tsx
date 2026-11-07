@@ -9,6 +9,7 @@ import { DataImportWizard } from '../dataImport/DataImportWizard'
 import { TimetableImportDialog } from '../dataImport/TimetableImportDialog'
 import { RunRuleHelpDialog } from '../RunRuleHelpDialog'
 import { StepOrderDialog } from '../StepOrderDialog'
+import { TimetableHelpDialog } from '../TimetableHelpDialog'
 import { useT } from '../../i18n'
 import { hasKindsTable, hasUnits } from '../../model/modelVersion'
 import { exportProjectRevision } from '../../ui/revisionActions'
@@ -98,6 +99,11 @@ export function DialogHost({ activeDialog, onClose, returnFocusTo }: Props) {
       />
       <StepOrderDialog
         open={activeDialog?.kind === 'stepOrder'}
+        onClose={onClose}
+        returnFocusTo={returnFocusTo}
+      />
+      <TimetableHelpDialog
+        open={activeDialog?.kind === 'timetableHelp'}
         onClose={onClose}
         returnFocusTo={returnFocusTo}
       />

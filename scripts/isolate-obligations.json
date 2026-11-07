@@ -4,9 +4,9 @@
   "$limit": "This manifest defends the call sites listed here, exactly and in both directions. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together close the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
   "$history": "PR B recorded 11 decision rows and deferred them. C3.5 re-ran the population from the TypeScript type checker — 205 ICU arguments — and found 27 more that carry user or technical values: 8 in its first pass (the unrecognized-column header and the five `import.loc.*` calls) and 19 that its first pass only RECORDED as open. All 27 are implemented here, so no row of the disposition manifest is classed `auto`, `ltr` or `per-fragment` any more.",
   "totals": {
-    "rows": 113,
-    "obligations": 64,
-    "callSites": 131
+    "rows": 115,
+    "obligations": 66,
+    "callSites": 137
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -17,7 +17,8 @@
     "workbench": 18,
     "issue-420": 4,
     "issue-471": 22,
-    "run-rules": 13
+    "run-rules": 13,
+    "issue-519": 2
   },
   "obligations": [
     {
@@ -2162,6 +2163,104 @@
             "moved"
           ],
           "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "timetable-available-strip",
+      "rows": [
+        "issue-519 what a strip of an available table says"
+      ],
+      "file": "src/components/TimetableRateChart.tsx",
+      "enclosing": "Strip",
+      "carries": "a table's name and unit, and its available and moved rates at a step (SEMANTICS-M7.md §M7-3)",
+      "why": "A table name and a unit are free user text and take FSI; a rate printed as text is a known-LTR token and takes LRI.",
+      "sites": [
+        {
+          "keys": [
+            "timeline.rate.availableAria"
+          ],
+          "args": [
+            "label",
+            "unit"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "timeline.rate.availableName"
+          ],
+          "args": [
+            "label",
+            "unit"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "timeline.rate.availableAt"
+          ],
+          "args": [
+            "available",
+            "moved",
+            "unit"
+          ],
+          "kind": "auto",
+          "kindByArg": {
+            "available": "ltr",
+            "moved": "ltr"
+          }
+        },
+        {
+          "keys": [
+            "timeline.rate.availableAtLines"
+          ],
+          "args": [
+            "available",
+            "unit",
+            "lines"
+          ],
+          "kind": "auto",
+          "kindByArg": {
+            "available": "ltr"
+          }
+        },
+        {
+          "keys": [
+            "inspector.ends.summary"
+          ],
+          "args": [
+            "from",
+            "to"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "timetable-available-inspector",
+      "rows": [
+        "issue-519 what the Inspector says of an available table's last step"
+      ],
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "TimetableNote",
+      "carries": "what a line could move and what it moved in the last step, and the base unit of its kind (SEMANTICS-M7.md §M7-3)",
+      "why": "An amount printed as text is a known-LTR token and takes LRI; a unit is free user text and takes FSI.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.edge.timetable.availableMoved"
+          ],
+          "args": [
+            "available",
+            "moved",
+            "unit"
+          ],
+          "kind": "auto",
+          "kindByArg": {
+            "available": "ltr",
+            "moved": "ltr"
+          }
         }
       ]
     }

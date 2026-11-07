@@ -66,6 +66,8 @@ const inspector = {
   'inspector.edge.flowParam.malformed': 'not a valid parameter reference — this connection contributes 0',
   'inspector.edge.timetable.unknown': 'no timetable “{id}” in this document',
   'inspector.edge.timetable.name': 'Timetable: {label}',
+  'inspector.edge.timetable.means.available': 'Available: the connection can move up to this rate. Moving less is normal and is not reported.',
+  'inspector.edge.timetable.availableMoved': 'Step {step}: {available} {unit} available, {moved} {unit} moved',
   'inspector.edge.timetable.source': 'Origin: {source}',
   'inspector.edge.timetable.read.hold': 'Each rate lasts until the next point',
   'inspector.edge.timetable.read.linear': 'The rate changes in a straight line between points',

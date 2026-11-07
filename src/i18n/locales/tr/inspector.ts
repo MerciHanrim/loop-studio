@@ -78,6 +78,8 @@ const inspector = {
     'geçerli bir parametre başvurusu değil — bu bağlantı 0 katkı verir',
   'inspector.edge.timetable.unknown': 'bu belgede «{id}» zaman tablosu yok',
   'inspector.edge.timetable.name': 'Zaman tablosu: {label}',
+  'inspector.edge.timetable.means.available': 'Kullanılabilir: bağlantı bu akışa kadar taşıyabilir. Daha az taşımak normaldir ve bildirilmez.',
+  'inspector.edge.timetable.availableMoved': '{step}. adım: {available} {unit} kullanılabilir, {moved} {unit} taşındı',
   'inspector.edge.timetable.source': 'Kaynak: {source}',
   'inspector.edge.timetable.read.hold': 'Her akış bir sonraki noktaya kadar sürer',
   'inspector.edge.timetable.read.linear': 'Akış noktalar arasında düz bir çizgiyle değişir',

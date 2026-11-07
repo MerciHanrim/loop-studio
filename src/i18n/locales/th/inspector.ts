@@ -79,6 +79,8 @@ const inspector = {
   'inspector.edge.flowParam.malformed': 'ไม่ใช่การอ้างถึงพารามิเตอร์ที่ถูกต้อง — เส้นเชื่อมนี้ให้ค่า 0',
   'inspector.edge.timetable.unknown': 'ไม่มีตารางเวลา “{id}” ในเอกสารนี้',
   'inspector.edge.timetable.name': 'ตารางเวลา: {label}',
+  'inspector.edge.timetable.means.available': 'ที่มีให้: การเชื่อมต่อนี้ย้ายได้ถึงอัตรานี้ การย้ายน้อยกว่าเป็นเรื่องปกติและไม่มีการแจ้ง',
+  'inspector.edge.timetable.availableMoved': 'ขั้นที่ {step}: มีให้ {available} {unit} ย้ายแล้ว {moved} {unit}',
   'inspector.edge.timetable.source': 'แหล่งที่มา: {source}',
   'inspector.edge.timetable.read.hold': 'แต่ละอัตราคงอยู่จนถึงจุดถัดไป',
   'inspector.edge.timetable.read.linear': 'อัตราเปลี่ยนเป็นเส้นตรงระหว่างจุด',

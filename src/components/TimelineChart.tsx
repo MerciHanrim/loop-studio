@@ -887,7 +887,7 @@ export function TimelineChart() {
           </div>
           {!showDistribution && readTables.length + runStrips.length > 0 ? (
             <div className="timeline__rates">
-              <TimetableRateChart tables={readTables} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} />
+              <TimetableRateChart tables={readTables} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} />
               <RunStrips groups={runStrips} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} />
             </div>
           ) : null}

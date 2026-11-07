@@ -72,6 +72,8 @@ const inspector = {
   'inspector.edge.flowParam.malformed': '不是有效的参数引用——这条连线的贡献为 0',
   'inspector.edge.timetable.unknown': '此文档中没有时间表“{id}”',
   'inspector.edge.timetable.name': '时间表：{label}',
+  'inspector.edge.timetable.means.available': '可用：此连线最多可移动这个速率。移动得少是正常的，不会提示。',
+  'inspector.edge.timetable.availableMoved': '第 {step} 步：可用 {available} {unit}，已移动 {moved} {unit}',
   'inspector.edge.timetable.source': '来源：{source}',
   'inspector.edge.timetable.read.hold': '每个速率保持到下一个点',
   'inspector.edge.timetable.read.linear': '速率在点与点之间呈直线变化',

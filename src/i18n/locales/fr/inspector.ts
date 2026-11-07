@@ -85,6 +85,8 @@ const inspector = {
     'référence de paramètre invalide — cette connexion contribue pour 0',
   'inspector.edge.timetable.unknown': 'aucune table horaire « {id} » dans ce document',
   'inspector.edge.timetable.name': 'Table horaire : {label}',
+  'inspector.edge.timetable.means.available': 'Disponible : la connexion peut déplacer jusqu’à ce débit. Déplacer moins est normal et n’est pas signalé.',
+  'inspector.edge.timetable.availableMoved': 'Pas {step} : {available} {unit} disponible, {moved} {unit} déplacé',
   'inspector.edge.timetable.source': 'Source : {source}',
   'inspector.edge.timetable.read.hold': 'Chaque débit dure jusqu’au point suivant',
   'inspector.edge.timetable.read.linear': 'Le débit varie en ligne droite entre les points',

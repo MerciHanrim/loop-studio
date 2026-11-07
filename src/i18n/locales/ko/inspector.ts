@@ -66,6 +66,8 @@ const inspector = {
   'inspector.edge.flowParam.malformed': '올바른 파라미터 참조가 아닙니다 — 이 연결의 흐름은 0입니다',
   'inspector.edge.timetable.unknown': '이 문서에 “{id}” 시간표가 없습니다',
   'inspector.edge.timetable.name': '시간표: {label}',
+  'inspector.edge.timetable.means.available': '가용: 이 연결은 이 비율까지 옮길 수 있습니다. 덜 옮겨도 정상이며 알리지 않습니다.',
+  'inspector.edge.timetable.availableMoved': '{step}단계: 가용 {available} {unit}, 이동 {moved} {unit}',
   'inspector.edge.timetable.source': '출처: {source}',
   'inspector.edge.timetable.read.hold': '각 비율이 다음 지점까지 유지됩니다',
   'inspector.edge.timetable.read.linear': '지점 사이에서 비율이 직선으로 변합니다',

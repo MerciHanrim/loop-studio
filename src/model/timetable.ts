@@ -23,9 +23,17 @@ export type Timetable = {
   /** the time the table stops describing (§M5-3); under `repeat`, the period */
   end: string
   after: TimetableAfter
+  /** SEMANTICS-M7.md (#519) — `available`: the rate is what a line CAN move, so moving
+   *  less is no shortfall. Absent is a plan, and a written `"plan"` reads as absent, so a
+   *  plan table keeps its bytes. Read only on `loop-studio/graph/7` and later. */
+  means?: 'available'
   /** `[time, rate]`, both decimal text kept as typed */
   points: [string, string][]
 }
+
+/** what a table's rate says (SEMANTICS-M7.md): what a line should move, or what it can */
+export type TimetableMeaning = 'plan' | 'available'
+export const meaningOf = (t: Pick<Timetable, 'means'>): TimetableMeaning => t.means ?? 'plan'
 
 /** the data import's existing row limit */
 export const MAX_TIMETABLE_POINTS = 20_000
@@ -50,6 +58,7 @@ export type TimetableProblemCode =
   | 'bad-time-unit'
   | 'bad-read'
   | 'bad-after'
+  | 'bad-means'
   | 'no-points'
   | 'too-many-points'
   | 'bad-point'
@@ -79,7 +88,7 @@ function endHolds(end: Rational, last: Rational, read: TimetableRead, after: Tim
 
 /** the first thing wrong with one entry, or the table it reads as. A table is
  *  never repaired: dropping a row would change what it means (§M5-2). */
-export function checkTimetable(raw: unknown): { ok: true; table: Timetable } | { ok: false; problem: TimetableProblem } {
+export function checkTimetable(raw: unknown, readMeaning = false): { ok: true; table: Timetable } | { ok: false; problem: TimetableProblem } {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, problem: { code: 'bad-entry', tableId: null } }
   const o = raw as Record<string, unknown>
   const tableId = typeof o.id === 'string' ? o.id : null
@@ -92,6 +101,9 @@ export function checkTimetable(raw: unknown): { ok: true; table: Timetable } | {
   if (typeof o.read !== 'string' || !READS.includes(o.read)) return fail('bad-read')
   const after = o.after === undefined ? 'stop' : o.after
   if (typeof after !== 'string' || !AFTERS.includes(after)) return fail('bad-after')
+  // SEMANTICS-M7.md — before /graph/7 the key is not read; from it, only these two words
+  const means = readMeaning ? o.means : undefined
+  if (means !== undefined && means !== 'plan' && means !== 'available') return fail('bad-means')
   if (!Array.isArray(o.points) || o.points.length === 0) return fail('no-points')
   if (o.points.length > MAX_TIMETABLE_POINTS) return fail('too-many-points')
   const points: [string, string][] = []
@@ -111,18 +123,18 @@ export function checkTimetable(raw: unknown): { ok: true; table: Timetable } | {
   if (end === null || last === null || !endHolds(end, last, read, after as TimetableAfter)) return fail('bad-end')
   return {
     ok: true,
-    table: { id: tableId, label: o.label, source: o.source, unit: o.unit, timeUnit: o.timeUnit, read, end: o.end as string, after: after as TimetableAfter, points },
+    table: { id: tableId, label: o.label, source: o.source, unit: o.unit, timeUnit: o.timeUnit, read, end: o.end as string, after: after as TimetableAfter, ...(means === 'available' ? { means } : {}), points },
   }
 }
 
 /** every table of a file, or the first problem: one bad table refuses them all */
-export function readTimetables(raw: unknown): { ok: true; tables: Timetable[] } | { ok: false; problem: TimetableProblem } {
+export function readTimetables(raw: unknown, readMeaning = false): { ok: true; tables: Timetable[] } | { ok: false; problem: TimetableProblem } {
   if (raw === undefined) return { ok: true, tables: [] }
   if (!Array.isArray(raw)) return { ok: false, problem: { code: 'not-a-list', tableId: null } }
   const tables: Timetable[] = []
   const seen = new Set<string>()
   for (const entry of raw) {
-    const r = checkTimetable(entry)
+    const r = checkTimetable(entry, readMeaning)
     if (!r.ok) return r
     if (seen.has(r.table.id)) return { ok: false, problem: { code: 'duplicate-id', tableId: r.table.id } }
     seen.add(r.table.id)
@@ -141,6 +153,8 @@ export const canonicalTimetable = (t: Timetable): Timetable => ({
   read: t.read,
   end: t.end,
   after: t.after,
+  // SEMANTICS-M7.md — only `available` is written, so a plan table keeps its bytes and digest
+  ...(t.means === 'available' ? { means: 'available' as const } : {}),
   points: t.points.map(([time, rate]) => [time, rate]),
 })
 
@@ -354,6 +368,22 @@ export function timetableRateFactor(t: Timetable, decl: ResourceKindDecl | undef
   if (!per) return null
   const f = parseDecimal(fu.unit.factor)
   return f === null ? null : mul(f, rational(BigInt(TIME_UNIT_SECONDS[t.timeUnit]), BigInt(TIME_UNIT_SECONDS[per])))
+}
+
+/** SEMANTICS-M7.md §M7-3 — what a line moved in one step, as the table's own rate over
+ *  that step: the base amount ÷ (factor × the step in table time), the inverse of a
+ *  step's plan. For a chart beside the table, never for the engine. */
+export function amountAsRate(t: Timetable, factor: RateFactor, time: DocTime, amount: number): number {
+  return amount / toDouble(mul(factor, stepInTableTime(t, time)))
+}
+
+/** #530 review — one step of a line reading a table, both numbers on ONE basis: what the
+ *  step made available and what moved, each as the table's rate averaged over the step.
+ *  The table's rate at an instant is another quantity: under `linear` a step from 0 to 2
+ *  averages 1, so an instant near its end (1.8) beside the step's moved rate (1) would
+ *  compare two bases. */
+export function stepRates(t: Timetable, factor: RateFactor, time: DocTime, line: { planned: number; moved: number }): { available: number; moved: number } {
+  return { available: amountAsRate(t, factor, time, line.planned), moved: amountAsRate(t, factor, time, line.moved) }
 }
 
 /** P: the exact plan of step `k`, in the base unit (§M5-6). Never stored. */

@@ -4,7 +4,7 @@
 // writes real points, and `end` is proposed and shown, never written unseen.
 import { detectDelimiter, parseDelimitedText, stripBom } from './csv'
 import { add, cmp, div, mul, parseDecimal, roundTo15Digits, sub, terminatingDecimal, type Rational } from './rational'
-import { checkTimetable, type Timetable, type TimetableAfter, type TimetableProblem, type TimetableRead } from './timetable'
+import { checkTimetable, type Timetable, type TimetableAfter, type TimetableMeaning, type TimetableProblem, type TimetableRead } from './timetable'
 import type { TimeUnit } from './units'
 
 /** a data row: the file's own 1-based row number, and the two cells as text */
@@ -121,6 +121,8 @@ export type TableForm = {
   read: TimetableRead
   after: TimetableAfter
   end: string
+  /** SEMANTICS-M7.md §M7-4 — what the rates mean; absent is a plan */
+  means?: TimetableMeaning
 }
 
 /** an id from the name, unique in the document. A name with no ASCII letter in
@@ -143,8 +145,9 @@ export function buildTable(rows: readonly ImportRow[], form: TableForm, taken: r
     read: form.read,
     end: form.end.trim(),
     after: form.after,
+    ...(form.means === 'available' ? { means: 'available' } : {}),
     points: rows.map((x) => [x.time, x.rate]),
-  })
+  }, true)
   if (r.ok || r.problem.row === undefined) return r
   return { ok: false, problem: { ...r.problem, row: rows[r.problem.row - 1]?.row ?? r.problem.row } }
 }

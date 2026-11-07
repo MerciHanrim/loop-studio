@@ -96,6 +96,8 @@ const inspector = {
   'inspector.edge.flowParam.malformed': 'ليس مرجع مُعامِل صالحًا — مساهمة هذا الاتصال 0',
   'inspector.edge.timetable.unknown': 'لا يوجد جدول زمني باسم “{id}” في هذا المستند',
   'inspector.edge.timetable.name': 'الجدول الزمني: {label}',
+  'inspector.edge.timetable.means.available': 'متاح: يستطيع هذا الاتصال نقل ما يصل إلى هذا المعدّل. نقل أقل أمر طبيعي ولا يُبلَّغ عنه.',
+  'inspector.edge.timetable.availableMoved': 'الخطوة {step}: المتاح {available} {unit}، المنقول {moved} {unit}',
   'inspector.edge.timetable.source': 'المصدر: {source}',
   'inspector.edge.timetable.read.hold': 'يستمر كل معدّل حتى النقطة التالية',
   'inspector.edge.timetable.read.linear': 'يتغيّر المعدّل في خط مستقيم بين النقاط',
