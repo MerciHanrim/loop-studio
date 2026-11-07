@@ -66,15 +66,18 @@ describe('a target level under one step of pull', () => {
 })
 
 describe('an input tank under one step of a pull all take', () => {
+  // this plant's feed starts empty, so `start-under-take` is true of it too: that is
+  // test/run-warnings-start.test.ts
+  const takes = (p: { nodes: LoopNode[]; edges: LoopEdge[] }) => warnings(p).filter((w) => w.code === 'tank-under-take')
   it('is the panel of §4.4, and only under pull all', () => {
     const run = rule('1000')
-    expect(warnings(plant(run, 'pullAll', 44.9))).toEqual([{ code: 'tank-under-take', stage: 'ro', tank: 'feed', capacity: 44.9, amount: 45 }])
-    expect(warnings(plant(run, 'pullAny', 44.9))).toEqual([])
-    expect(warnings(plant(run, 'pullAll', 45))).toEqual([])
+    expect(takes(plant(run, 'pullAll', 44.9))).toEqual([{ code: 'tank-under-take', stage: 'ro', tank: 'feed', capacity: 44.9, amount: 45 }])
+    expect(takes(plant(run, 'pullAny', 44.9))).toEqual([])
+    expect(takes(plant(run, 'pullAll', 45))).toEqual([])
   })
 
   it('never warns of a tank with no capacity', () => {
-    expect(warnings(plant(rule('1000'), 'pullAll', null))).toEqual([])
+    expect(takes(plant(rule('1000'), 'pullAll', null))).toEqual([])
   })
 })
 

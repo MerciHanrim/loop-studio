@@ -7,6 +7,7 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **A stall at the start now says so.** A pull all group that starts with less than one step needs, from a tank only that group refills, may never run. The stage now warns in the Inspector with both numbers, with or without a run rule, and a longer step that would cause it is announced before it applies.
 - **Two small Templates left the menu.** Balanced production line and Capacity deadlock are no longer offered under File ▸ Templates or in Help ▸ Example notes. Their example files stay, and a document made from one still opens and follows the language.
 - **The Early MMO note no longer says the example opens locked.** It has opened ready to edit since the lock was removed, and the note in every language now matches.
 - **The Seawater desalination Template now runs on a day of demand.** A 24-hour demand table and six run rules move the plant: the Delivery pump follows the demand, and each stage before it refills the tank after it, so every tank takes up part of the day. The demand curve and every plant figure are example assumptions, and the notes say so. The Template opens on a wider overview of its five frames. A table's name and source now follow the language, and the Target run section shows the source of the table it reads.

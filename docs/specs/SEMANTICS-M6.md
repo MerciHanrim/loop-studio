@@ -174,6 +174,9 @@ What a folded tag leaves out is on three other surfaces, so no stage depends on 
 | `band-under-step` | the stage moves more in one full step into, or out of, the tank than the band |
 | `level-under-pull` | what lines outside the group take from the tank in one step is more than the target level |
 | `tank-under-take` | a group that pulls all takes more in one full step from a Pool than that Pool's capacity |
+| `start-under-take` | a group that pulls all takes more in one full step from a Pool than that Pool starts with, and nothing outside the group fills it |
+
+`start-under-take` is the one warning a Converter with no rule gets, on any member of the group. It is a shape, not a number: a Pool with a line from outside the group, or a state line, fills in a later step, so its low start costs a step or two and raises nothing. The test is one full step, so a rule that asks for a small first run can still start, and the words say *may*. The Inspector shows it in the Target run section. Help's run rule page does not list it, because no rule is needed for it.
 
 A line counts at its rate, and a table line at the table's highest rate for a whole step: no step reads more. A line with no one amount, such as `all` or a dice roll, adds nothing. A stage with no line to its tank gets no band warning, because what it moves there is not known. A step-length change that gives a stage a warning names that stage and waits for consent, as §M4-4 does for a balance.
 

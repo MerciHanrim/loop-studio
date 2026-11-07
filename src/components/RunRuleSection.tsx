@@ -244,7 +244,7 @@ export function RunRuleSection({ node }: { node: LoopNode }) {
         </>
       )}
       {stored && findings.map((f) => <p key={f.code} className="inspector__note inspector__note--warn">{runRefusalText(f, nodes, t)}</p>)}
-      {stored && warnings.map((w) => <p key={`${w.code}:${w.tank}`} className="inspector__note inspector__note--warn">{runWarningText(w, nodes, t, amount)}</p>)}
+      {warnings.filter((w) => stored || w.code === 'start-under-take').map((w) => <p key={`${w.code}:${w.tank}`} className="inspector__note inspector__note--warn">{runWarningText(w, nodes, t, amount)}</p>)}
     </section>
   )
 }

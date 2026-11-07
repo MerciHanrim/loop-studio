@@ -37,7 +37,7 @@ A step change moves the amount per step of every field authored per time unit, a
 ## M4-4. Changing a unit, a step length or a factor
 
 - **A unit change of a non-empty field** re-expresses the authored value through exact rationals. When the result terminates within 15 significant digits it is applied at once: the same rational, so the engine value and every verdict are unchanged. Otherwise nothing is applied until the person confirms: the sheet shows the exact value as far as it goes, the 15-digit value that would be stored and its deviation in the base unit (all under M4-5), and the Converters whose verdict would change. There is no "keep the number" action. Cancel leaves the field as it was.
-- **A step-length change** that changes any Converter's verdict lists those Converters first and is applied only on consent. One that changes none is applied at once.
+- **A step-length change** that changes any Converter's verdict lists those Converters first and is applied only on consent. So does one that gives a rule a new warning, or newly leaves a `pull all` group short at the start (SEMANTICS-M6.md §M6-9). One that does none of these is applied at once.
 - Every applied change is one undo entry.
 - **A module insert never changes what a field means** (§MS3.4). It is refused, with the reason, when:
   - the module and the document declare different step lengths (compared in seconds, so 60 min = 1 h);

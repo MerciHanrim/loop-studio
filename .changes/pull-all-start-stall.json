@@ -1,0 +1,1 @@
+{"type":"user-facing","changelog":"- **A stall at the start now says so.** A pull all group that starts with less than one step needs, from a tank only that group refills, may never run. The stage now warns in the Inspector with both numbers, with or without a run rule, and a longer step that would cause it is announced before it applies."}

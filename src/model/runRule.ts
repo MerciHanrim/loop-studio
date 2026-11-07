@@ -405,7 +405,7 @@ export function runNotices(reports: readonly RunGroupReport[], nodes: readonly L
 
 /** the share of a target a group must reach to read `met`, and `pull all` to run. It
  *  scales with the target, so a small target cannot pass with nothing moved. */
-const RUN_REACHED = 1 - EPSILON
+export const RUN_REACHED = 1 - EPSILON
 
 const lowestId = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0)
 

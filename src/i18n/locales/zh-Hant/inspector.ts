@@ -282,8 +282,10 @@ const inspector = {
   'inspector.run.warn.band': '帶寬 {band} 小於此環節滿載一步在 {tank} 移動的 {step}，因此運轉可能逐步擺動。',
   'inspector.run.warn.level': '目標液位 {level} 低於一步從 {tank} 取走的 {step}，因此即使環節在運轉，需求也可能得不到滿足。',
   'inspector.run.warn.take': '{tank} 最多容納 {capacity}，小於此環節滿載一步取走的 {step}，因此 從所有路徑拉取 無法達到滿載。',
+  'inspector.run.warn.start': '{tank} 起始量為 {start}，小於此組滿載一步取走的 {step}，且只有此組為其補充，因此 從所有路徑拉取 可能永遠無法啟動。',
   'panels.runRules.title': '運轉規則',
   'panels.time.change.runBody': '{stages} 的運轉規則對這個步長來說太粗。選取該環節即可看到原因。',
+  'panels.time.change.startBody': '在此步長下，{stages} 可能無法啟動：其取用的儲槽起始量低於一步的用量。選擇該環節可查看原因。',
   'inspector.run.keeps': '在此之前，規則繼續讀取 {tank}。',
 
   // docs/register-expression-authoring.md §RXA3

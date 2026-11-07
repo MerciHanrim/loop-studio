@@ -352,6 +352,45 @@ test('a longer step that a rule cannot stand is announced before it applies', as
   expect(await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().time.step.value)).toBe(1)
 })
 
+// #520 — no rule here: the warning belongs to any `pull all` group
+test('a step that leaves a pull all loop short at the start is announced, and the stage says why', async ({ page }) => {
+  await openApp(page)
+  await importGraph(
+    page,
+    JSON.stringify({
+      schema: 'loop-studio/graph/5',
+      version: 1,
+      nodes: [
+        pool('feed', 0, 100000),
+        pool('own', 0, 100, 1000),
+        { id: 'ro', type: 'converter', position: { x: 260, y: 0 }, data: { kind: 'converter', label: 'RO', activation: 'automatic', mode: 'pullAll' } },
+        pool('store', 520, 0),
+      ],
+      edges: [line('in', 'feed', 'ro', '100', 'CMH'), line('take', 'own', 'ro', '60', 'CMH'), line('made', 'ro', 'store', '100', 'CMH'), line('back', 'ro', 'own', '60', 'CMH')],
+      kinds: [{ name: 'water', conserved: false, baseUnit: 'm³', rateUnits: [{ name: 'CMH', factor: '1', per: 'h' }] }],
+      time: { step: { value: 1, unit: 'h' } },
+    }),
+  )
+  await choose(page, 'ro')
+  await expect(section(page)).toBeVisible()
+  await expect(section(page)).not.toContainText('starts with')
+
+  await openInputsTab(page)
+  const value = page.getByRole('spinbutton', { name: 'Step length value' })
+  await value.fill('6')
+  await value.press('Enter')
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toContainText('may not start')
+  await expect(dialog).toContainText('RO')
+  await expect(dialog).not.toContainText('too coarse')
+  expect(await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().time.step.value)).toBe(1)
+
+  await dialog.locator('.btn--primary').click()
+  await expect.poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().time.step.value)).toBe(6)
+  await expect(section(page)).toContainText('starts with')
+  await expect(section(page)).toContainText('pull all may never start')
+})
+
 test('a stage whose tag shows no words can be read in the Inspector and the Inputs list', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 })
   await openApp(page)
