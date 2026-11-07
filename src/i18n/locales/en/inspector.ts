@@ -269,8 +269,10 @@ const inspector = {
   'inspector.run.warn.band': 'The band of {band} is under the {step} this stage moves at {tank} in one full step, so the run can swing from step to step.',
   'inspector.run.warn.level': 'The target level of {level} is under the {step} taken from {tank} in one step, so demand can go unmet while the stage runs.',
   'inspector.run.warn.take': '{tank} holds at most {capacity}, under the {step} this stage takes in one full step, so pull all cannot reach a full run.',
+  'inspector.run.warn.start': '{tank} starts with {start}, under the {step} this group takes from it in one full step, and only this group refills it, so pull all may never start.',
   'panels.runRules.title': 'Run rules',
   'panels.time.change.runBody': 'The run rules of {stages} would be too coarse for this step. Select the stage to read why.',
+  'panels.time.change.startBody': '{stages} may not start at this step: a tank each takes from starts under one step’s take. Select the stage to read why.',
   'inspector.run.keeps': 'Until then the rule keeps reading {tank}.',
 
   // docs/register-expression-authoring.md §RXA3 — the reference-aware Register

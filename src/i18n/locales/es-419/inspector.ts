@@ -270,8 +270,10 @@ const inspector = {
   'inspector.run.warn.band': 'La banda de {band} es menor que los {step} que esta etapa mueve en {tank} en un paso completo, así que la marcha puede oscilar de un paso a otro.',
   'inspector.run.warn.level': 'El nivel objetivo de {level} es menor que los {step} que salen de {tank} en un paso, así que la demanda puede quedar sin cubrir con la etapa en marcha.',
   'inspector.run.warn.take': '{tank} contiene como máximo {capacity}, menos que los {step} que esta etapa toma en un paso completo, así que tomar todo no puede llegar a una marcha completa.',
+  'inspector.run.warn.start': '{tank} empieza con {start}, menos que los {step} que este grupo toma de él en un paso completo, y solo este grupo lo rellena, así que tomar todo puede no arrancar nunca.',
   'panels.runRules.title': 'Reglas de marcha',
   'panels.time.change.runBody': 'Las reglas de marcha de {stages} serían demasiado gruesas para este paso. Seleccione la etapa para leer por qué.',
+  'panels.time.change.startBody': '{stages} puede no arrancar con este paso: un tanque del que toma empieza por debajo de la cantidad de un paso. Selecciona la etapa para leer por qué.',
   'inspector.run.keeps': 'Hasta entonces la regla sigue leyendo {tank}.',
 
   'regExpr.pick.listLabel': 'Referenciar un Depósito, Parámetro o Valor calculado',

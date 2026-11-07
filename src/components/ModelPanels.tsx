@@ -7,7 +7,7 @@ import type { LoopNode } from '../model/types'
 import { selectOnly, useGraphStore } from '../store/graphStore'
 import { hasModelLayer } from '../model/modelVersion'
 import { anyRunRule, ruleOf, ruleTables, runFindings } from '../model/runRule'
-import { stagesNewlyWarned } from '../model/runWarnings'
+import { stagesNewlyStalled, stagesNewlyWarned } from '../model/runWarnings'
 import { timetableLines } from '../model/timetable'
 import { runRefusalText } from '../ui/runMessages'
 import { useStageTag } from './nodes/StageTag'
@@ -512,11 +512,13 @@ function TimeSection({ nodes, edges }: { nodes: LoopNode[]; edges: LoopEdge[] })
     if (JSON.stringify(next?.step ?? null) === JSON.stringify(time?.step ?? null)) return
     const moved = convertersWhoseVerdictChanges(kindFindings(nodes, edges, kinds, modelVersion, time), kindFindings(nodes, edges, kinds, modelVersion, next))
     const warned = stagesNewlyWarned(nodes, edges, timetables, kinds, time, next)
-    if (moved.length === 0 && warned.length === 0) return setTime(next)
+    const stalled = stagesNewlyStalled(nodes, edges, timetables, kinds, time, next)
+    if (moved.length === 0 && warned.length === 0 && stalled.length === 0) return setTime(next)
     const label = (id: string) => labelOf(nodes.find((n) => n.id === id)) || id
     const body = [
       ...(moved.length > 0 ? [t('panels.time.change.body', { converters: isolateAuto(moved.map(label).join(', ')) })] : []),
       ...(warned.length > 0 ? [t('panels.time.change.runBody', { stages: isolateAuto(warned.map(label).join(', ')) })] : []),
+      ...(stalled.length > 0 ? [t('panels.time.change.startBody', { stages: isolateAuto(stalled.map(label).join(', ')) })] : []),
     ].join(' ')
     setPending({ body, next })
   }

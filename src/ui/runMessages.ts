@@ -112,6 +112,7 @@ export function runWarningText(w: RunWarning, nodes: readonly LoopNode[], t: T, 
   const step = amount(w.tank, w.amount)
   if (w.code === 'band-under-step') return t('inspector.run.warn.band', { band: isolateAuto(amount(w.tank, w.band)), tank: isolateAuto(tank), step: isolateAuto(step) })
   if (w.code === 'level-under-pull') return t('inspector.run.warn.level', { level: isolateAuto(amount(w.tank, w.level)), tank: isolateAuto(tank), step: isolateAuto(step) })
+  if (w.code === 'start-under-take') return t('inspector.run.warn.start', { start: isolateAuto(amount(w.tank, w.start)), tank: isolateAuto(tank), step: isolateAuto(step) })
   return t('inspector.run.warn.take', { capacity: isolateAuto(amount(w.tank, w.capacity)), tank: isolateAuto(tank), step: isolateAuto(step) })
 }
 

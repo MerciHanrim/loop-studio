@@ -66,6 +66,7 @@ describe('why a stage is off, and what a step length asks', () => {
     const amount = (_p: string, n: number) => `${n} m³`
     expect(runWarningText({ code: 'band-under-step', stage: 'ro', tank: 'store', band: 10, amount: 45 }, tank, t as never, amount)).toContain('The band of 10 m³ is under the 45 m³ this stage moves at Store')
     expect(runWarningText({ code: 'level-under-pull', stage: 'ro', tank: 'store', level: 270, amount: 284 }, tank, t as never, amount)).toContain('The target level of 270 m³ is under the 284 m³ taken from Store')
+    expect(runWarningText({ code: 'start-under-take', stage: 'ro', taker: 'ro', tank: 'store', start: 1250, amount: 1875 }, tank, t as never, amount)).toContain('Store starts with 1250 m³, under the 1875 m³')
     expect(runWarningText({ code: 'tank-under-take', stage: 'ro', tank: 'store', capacity: 1200, amount: 1800 }, tank, t as never, amount)).toContain('Store holds at most 1200 m³, under the 1800 m³')
   })
 })

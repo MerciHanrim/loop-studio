@@ -300,8 +300,10 @@ const inspector = {
   'inspector.run.warn.band': 'النطاق {band} أقل من {step} التي تنقلها هذه المرحلة عند {tank} في خطوة كاملة، لذا قد يتأرجح التشغيل من خطوة إلى أخرى.',
   'inspector.run.warn.level': 'المستوى المستهدف {level} أقل من {step} المأخوذة من {tank} في خطوة، لذا قد يبقى الطلب غير ملبّى والمرحلة تعمل.',
   'inspector.run.warn.take': 'يتسع {tank} لـ {capacity} على الأكثر، وهو أقل من {step} التي تأخذها المرحلة في خطوة كاملة، لذا لا يبلغ السحب من كل المصادر تشغيلًا كاملًا.',
+  'inspector.run.warn.start': 'يبدأ {tank} بـ {start}، وهو أقل من {step} التي تأخذها هذه المجموعة منه في خطوة كاملة، ولا تعيد ملأه إلا هذه المجموعة، لذا قد لا يبدأ السحب من كل المصادر أبدًا.',
   'panels.runRules.title': 'قواعد التشغيل',
   'panels.time.change.runBody': 'ستكون قواعد التشغيل في {stages} خشنة جدًا لهذه الخطوة. اختر المرحلة لتقرأ السبب.',
+  'panels.time.change.startBody': 'قد لا تبدأ {stages} عند هذه الخطوة: يبدأ خزان تأخذ منه المرحلة بأقل من كمية خطوة واحدة. حدّد المرحلة لقراءة السبب.',
   'inspector.run.keeps': 'إلى ذلك الحين تواصل القاعدة قراءة {tank}.',
 
   // docs/register-expression-authoring.md §RXA3 — the reference-aware Register

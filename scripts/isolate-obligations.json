@@ -6,7 +6,7 @@
   "totals": {
     "rows": 113,
     "obligations": 64,
-    "callSites": 129
+    "callSites": 131
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -1907,6 +1907,17 @@
         },
         {
           "keys": [
+            "inspector.run.warn.start"
+          ],
+          "args": [
+            "start",
+            "tank",
+            "step"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
             "inspector.run.warn.take"
           ],
           "args": [
@@ -1953,6 +1964,15 @@
         {
           "keys": [
             "panels.time.change.runBody"
+          ],
+          "args": [
+            "stages"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "panels.time.change.startBody"
           ],
           "args": [
             "stages"

@@ -280,8 +280,10 @@ const inspector = {
   'inspector.run.warn.band': '幅 {band} は、このステージがフル運転の 1 ステップで {tank} で動かす {step} を下回るため、運転がステップごとに振れることがあります。',
   'inspector.run.warn.level': '目標レベル {level} は、1 ステップで {tank} から取られる {step} を下回るため、ステージが運転中でも需要を満たせないことがあります。',
   'inspector.run.warn.take': '{tank} の最大量 {capacity} は、このステージがフル運転の 1 ステップで取る {step} を下回るため、すべてから引く ではフル運転に届きません。',
+  'inspector.run.warn.start': '{tank} の開始量 {start} は、このグループがフル運転の 1 ステップで取る {step} を下回り、補充するのもこのグループだけなので、すべてから引く では開始できないことがあります。',
   'panels.runRules.title': '運転ルール',
   'panels.time.change.runBody': '{stages} の運転ルールはこのステップには粗すぎます。ステージを選ぶと理由が表示されます。',
+  'panels.time.change.startBody': 'このステップ長では {stages} が開始できないことがあります。取り込むタンクの開始量が 1 ステップ分を下回ります。理由はそのステージを選択して確認してください。',
   'inspector.run.keeps': 'それまでルールは引き続き {tank} を読みます。',
 
   // docs/register-expression-authoring.md §RXA3 — 参照認識レジスター式エディター
