@@ -873,8 +873,15 @@
 }
 .timeline.wb-analysis .pstrip-diag {
   flex: 0 1 auto;
-  min-height: var(--notice-min, 41px);
+  min-height: var(--notice-min, 37px);
   overflow-y: auto;
+  /* the bottom padding moves inside the list: a scroller's own padding is inside its
+     clip, so at the floor the next line showed through it (Lumi, 2026-11-08); the list
+     ends exactly at the first line's end, and its last line keeps the room at the end */
+  padding-bottom: 0;
+}
+.timeline.wb-analysis .pstrip__diag-list {
+  padding-bottom: 6px;
 }
 .wb-splitter {
   flex: none;

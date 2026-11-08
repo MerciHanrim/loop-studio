@@ -18,7 +18,7 @@ dialog-survival (§TR5), start-up theme and menu keyboard sections still hold.
 | Tool row | 42px tall | `Toolbar.tsx`, `workbench/toolRowFit.ts` |
 | Left list | 272px wide | `workbench/LeftPanel.tsx` |
 | Right panel | 344px wide | `Inspector.tsx`, `workbench/Relations.tsx` |
-| Analysis area | 152px by default, resizable | `TimelineChart.tsx` |
+| Analysis area | its least height by default (the chart at 140px), resizable | `TimelineChart.tsx` |
 | Status bar | 26px tall | `workbench/StatusBar.tsx` |
 
 The styles are in `src/components/workbench/workbench.css`.
@@ -421,7 +421,7 @@ which misses a right-to-left row's overflow) after every render, so an ended run
 text never wraps the row. The phone's run bar (`.pstrip--mobile`) keeps wrapping as
 before. A splitter (`role="separator"`, pointer or
 arrow keys in 16px steps) sets the height, and the canvas
-keeps at least 160px. The default height is 152px; the Distribution view's least is
+keeps at least 160px. The area opens at its least height (below); the Distribution view's least is
 280px (the area rises to it on entering the view and returns on leaving it). The collapsed / expanded
 rule is [`timeline-series-contract.md`](timeline-series-contract.md) §7.
 
@@ -431,15 +431,19 @@ the run row, one notice row when the run has notices, the panel's head, the char
 from the page, because the run row wraps in a narrow window or a long language). It is
 never under 96px, and never so tall that the canvas falls under its 160px. Short of room,
 the notices and the strips give way first, each down to one row or one strip, and scroll
-inside; the chart keeps its 140px, so its axis labels stay apart. When notices or a strip
-appear, an area under its least rises to it; with strips the area still rises to the
-earlier comfortable height, so two strips show by default.
+inside; the chart keeps its 140px, so its axis labels stay apart. The one notice row
+ends where the first notice's first line ends (measured, as a fallback font can make a
+line taller), and the list has no bottom padding there, so no part of the next line
+shows, a wrapped notice's second line included; scrolling shows the rest. When notices
+or a strip appear, an area under its least rises to it; with strips the area still rises
+to the earlier comfortable height, so two strips show by default.
 
 Measured 2026-11-08 on the desalination Template, at the least: 216px with no notices or
-strips, 272px with strips, 313px with strips and notices, at windows 1080, 900, 768 and
-600 tall. The cost is the canvas: at a 600px window it keeps 187px, and the drawing fits at
-about 20% zoom. That is the price of the chart's least height, kept on purpose; the
-splitter or the collapse gives the canvas its room back.
+strips, 272px with strips, 309px with strips and notices (1920px wide). The cost is the
+canvas: at a 600px window it keeps 191px, and the drawing fits at
+about 20% zoom. The area also opens at its least height, 64px over the earlier 152px
+default, so the canvas gives up that room at every window. That is the price of the
+chart's least height, kept on purpose; the collapse gives the canvas its room back.
 
 ## WB8. Status bar
 

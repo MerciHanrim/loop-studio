@@ -13,6 +13,8 @@ const PLOT_MIN = 140
 const CANVAS_MIN = 160
 /** the desalination Template's six run rules; lifted, the document has no strips */
 const RULED = ['filter', 'ro', 'remin', 'dpump', 'adjust', 'thick']
+/** a long Korean name for discharge treatment, as a user may give one */
+const LONG_NAME = '방류수 수질 조정 설비 (2호기, 응집제와 pH 조정제를 함께 투입하는 계통)'
 
 async function desalination(page: Page, opts: { steps: number; strips: boolean; labels?: Record<string, string> }): Promise<void> {
   await resetAll(page)
@@ -89,6 +91,37 @@ const inView = (page: Page, list: string, item: string) =>
     [list, item] as const,
   )
 
+/** the run notices' lines, as drawn (from the text's own line boxes), against the list's
+ *  visible box (inside its border, where its content is clipped) */
+const noticeLines = (page: Page) =>
+  page.evaluate(() => {
+    const diag = document.querySelector('.pstrip-diag') as HTMLElement
+    const d = diag.getBoundingClientRect()
+    const clip = { top: d.top + diag.clientTop, bottom: d.top + diag.clientTop + diag.clientHeight }
+    const items = [...diag.querySelectorAll('li')].map((li) => {
+      const range = document.createRange()
+      range.selectNodeContents(li)
+      const rects = [...range.getClientRects()].filter((r) => r.width > 0 && r.height > 0)
+      const tops = [...new Set(rects.map((r) => Math.round(r.top)))].sort((a, b) => a - b)
+      return tops.map((t) => {
+        const line = rects.filter((r) => Math.abs(Math.round(r.top) - t) < 1)
+        return { top: Math.min(...line.map((r) => r.top)), bottom: Math.max(...line.map((r) => r.bottom)) }
+      })
+    })
+    return { clip, items }
+  })
+
+/** at the floor, scrolled to the top: the first notice's first line wholly in view and no
+ *  part of any later line (the same notice's next line or the next notice) inside the list */
+async function expectOneCleanLine(page: Page) {
+  const { clip, items } = await noticeLines(page)
+  const [first, ...rest] = items.flat()
+  expect(first!.top, 'the first line starts inside the list').toBeGreaterThanOrEqual(clip.top - 0.5)
+  expect(first!.bottom, 'the first line ends inside the list').toBeLessThanOrEqual(clip.bottom + 0.5)
+  const peeking = rest.filter((l) => l.top < clip.bottom - 0.5).map((l) => `${Math.round(l.top)}–${Math.round(l.bottom)} over ${Math.round(clip.bottom)}`)
+  expect(peeking, 'no part of the next line shows under the first').toEqual([])
+}
+
 async function expectChartWhole(page: Page) {
   const l = await layout(page)
   expect(l.plot, 'the chart keeps its least height').toBeGreaterThanOrEqual(PLOT_MIN)
@@ -114,8 +147,10 @@ test.describe('#534 — the analysis area keeps the chart readable', () => {
     await toFloor(page)
     const l = await expectChartWhole(page)
     expect(l.plot).toBe(PLOT_MIN)
+    await test.info().attach('600 px at the floor', { body: await page.screenshot(), contentType: 'image/png' })
 
-    // the notices give way to one row and scroll; the wheel reaches the last notice
+    // the notices give way to one row, cut cleanly, and scroll; the wheel reaches the last notice
+    await expectOneCleanLine(page)
     const notices = await inView(page, '.pstrip-diag', 'li')
     expect(notices[0], 'the first notice is in view').toBe(true)
     expect(notices.at(-1), 'the last notice starts out of view').toBe(false)
@@ -134,7 +169,12 @@ test.describe('#534 — the analysis area keeps the chart readable', () => {
     await expect.poll(async () => (await inView(page, '.timeline__rates', 'svg.timeline__rate')).at(-1), { message: 'scrolling reaches the last strip' }).toBe(true)
 
     // scrolling the lists moves nothing else: the chart and the run row stay whole
-    await expectChartWhole(page)
+    const after = await expectChartWhole(page)
+    // the cost, recorded (docs/workbench.md §WB7): the canvas's height and the drawing's zoom
+    const zoom = await page.evaluate(() => (window as unknown as { __loop: { rf: { getViewport: () => { zoom: number } } } }).__loop.rf.getViewport().zoom)
+    const floor = await page.locator('.wb-splitter').getAttribute('aria-valuemin')
+    test.info().annotations.push({ type: 'canvas at 600 px', description: `area floor ${floor} px, canvas ${after.canvas} px, zoom ${Math.round(zoom * 100)} %` })
+    await test.info().attach('600 px at the floor, lists scrolled', { body: await page.screenshot(), contentType: 'image/png' })
   })
 
   test('a document with no notices and no strips: the chart keeps 140 px at the floor, its labels apart', async ({ page }) => {
@@ -156,16 +196,41 @@ test.describe('#534 — the analysis area keeps the chart readable', () => {
     await page.setViewportSize({ width: 1024, height: 600 })
     await openApp(page)
     await pickLocale(page, 'ko')
-    await desalination(page, { steps: 1300, strips: true, labels: { adjust: '방류수 수질 조정 설비 (2호기, 응집제와 pH 조정제를 함께 투입하는 계통)' } })
+    await desalination(page, { steps: 1300, strips: true, labels: { adjust: LONG_NAME } })
     await expect(page.locator('.pstrip-diag li')).toHaveCount(9)
     await toFloor(page)
-    // at least one notice runs to more than one line
-    const lines = await page.locator('.pstrip-diag li').evaluateAll((items) =>
-      items.map((li) => Math.round(li.getBoundingClientRect().height / parseFloat(getComputedStyle(li).lineHeight))),
-    )
-    expect(Math.max(...lines), `a notice wraps (lines per notice: ${lines.join(', ')})`).toBeGreaterThan(1)
+    // the two notices that name the long process are drawn on two lines or more: the
+    // lines counted from the text's own line boxes, not from the item's height
+    const lines = await page.locator('.pstrip-diag li').evaluateAll((items, name) =>
+      items
+        .filter((li) => (li.textContent ?? '').includes(name))
+        .map((li) => {
+          const range = document.createRange()
+          range.selectNodeContents(li)
+          const tops = [...range.getClientRects()].filter((r) => r.width > 0).map((r) => Math.round(r.top))
+          return new Set(tops).size
+        }),
+    LONG_NAME)
+    expect(lines, 'two notices name the long process').toHaveLength(2)
+    for (const n of lines) expect(n, `a notice naming the long process is drawn on ${n} line(s)`).toBeGreaterThanOrEqual(2)
+    test.info().annotations.push({ type: 'lines per long notice', description: lines.join(', ') })
+    await test.info().attach('1024 × 600, Korean, at the floor', { body: await page.screenshot(), contentType: 'image/png' })
     const l = await expectChartWhole(page)
     expect(l.plot).toBe(PLOT_MIN)
+
+    // one line in view, cut at the list's edge: none of the wrapped notice's second line shows
+    await expectOneCleanLine(page)
+    // a short scroll brings the rest of that notice into view, whole
+    await page.locator('.pstrip-diag').hover()
+    await page.mouse.wheel(0, 20)
+    await expect
+      .poll(async () => {
+        const { clip, items } = await noticeLines(page)
+        const second = items[0]![1]!
+        return second.top >= clip.top - 0.5 && second.bottom <= clip.bottom + 0.5
+      }, { message: 'scrolling shows the wrapped notice’s second line whole' })
+      .toBe(true)
+    await test.info().attach('1024 × 600, Korean, the wrapped notice scrolled', { body: await page.screenshot(), contentType: 'image/png' })
     await page.locator('.pstrip-diag').hover()
     await page.mouse.wheel(0, 2000)
     await expect.poll(async () => (await inView(page, '.pstrip-diag', 'li')).at(-1), { message: 'scrolling reaches the last notice' }).toBe(true)

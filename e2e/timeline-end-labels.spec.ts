@@ -40,6 +40,10 @@ const clusterGraph = (bigFlow: number, caps: number[], reverse = false) => {
 
 // the reported case: 305 alongside 4 / 5 / 6 / 10 (p0=6, p1=4, p2=10, p3=5)
 const G = clusterGraph(1, [6, 4, 10, 5])
+// more close values than a 140 px chart's band holds: the large one and twelve small
+const MANY_CAPS = [6, 4, 10, 5, 7, 8, 9, 3, 11, 12, 2, 13]
+const MANY = clusterGraph(1, MANY_CAPS)
+const MANY_SERIES = MANY_CAPS.length + 1
 
 const stepK = (page: Page, k: number) =>
   page.evaluate((n) => {
@@ -102,11 +106,12 @@ async function setup(page: Page, graph = G, opts: { grow?: boolean } = {}) {
   await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().reset())
   await ensureTimelineOpen(page) // desktop: collapsed until the first run; mobile: the sheet
   await expect(page.locator('.timeline__svg')).toBeVisible()
-  // The collision cases need a plot tall enough to hold five labels. The
-  // workbench's analysis area opens at 152 px (timeline-series-contract §7,
-  // 2026-10-20), a 76 px plot, whose label band holds two and folds the rest
-  // into "+N" (its own test below); the user's splitter, +64 px, gives the
-  // band the room these cases are about. The phone's sheet is unchanged.
+  // The collision cases need a plot tall enough to hold five labels with room
+  // to spare. The workbench's analysis area opens at its least height, a
+  // 140 px plot (#534, docs/workbench.md §WB7; 152 px and a 76 px plot before);
+  // the user's splitter, +64 px, gives the band the room these cases are
+  // about. The fold into "+N" has its own test below, with more series than a
+  // 140 px band holds. The phone's sheet is unchanged.
   if (opts.grow !== false && !isMobile(page)) await growArea(page, 4)
 }
 
@@ -138,15 +143,21 @@ test.describe('Timeline — endpoint label collision avoidance', () => {
     expect(new Set(g.labels.map((l) => l.dy))).toEqual(new Set(['0.32em']))
   })
 
-  test('at the default 152 px area the band holds what fits and folds the rest into "+N"; still nothing overlaps', async ({ page }) => {
-    await setup(page, G, { grow: false })
+  test('at the default height the band holds what fits and folds the rest into "+N"; still nothing overlaps', async ({ page }) => {
+    // a 140 px chart's band holds the reported five; twelve small values
+    // beside the large one are more than it holds
+    await setup(page, MANY, { grow: false })
     await stepK(page, PRIME)
     const g = (await geom(page))!
     const real = g.labels.filter((l) => l.id !== '__more__')
     const more = g.labels.find((l) => l.id === '__more__')
     if (!isMobile(page)) {
       expect(more, 'the fold chip').toBeTruthy()
-      expect(real.length + Number(more!.text!.replace(/\D/g, '')), 'every series is counted').toBe(5)
+      // the chart draws its default share of the thirteen; every drawn series is counted
+      const drawn = await page.locator('.timeline__svg path.timeline__line').count()
+      expect(drawn, 'more series drawn than the reported five').toBeGreaterThan(5)
+      expect(drawn).toBeLessThanOrEqual(MANY_SERIES)
+      expect(real.length + Number(more!.text!.replace(/\D/g, '')), 'every drawn series is counted').toBe(drawn)
     }
     for (let i = 0; i < g.labels.length; i++) {
       for (let j = i + 1; j < g.labels.length; j++) expect(overlaps(g.labels[i], g.labels[j]), `${g.labels[i].text} vs ${g.labels[j].text}`).toBe(false)

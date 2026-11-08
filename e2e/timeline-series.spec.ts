@@ -500,7 +500,7 @@ test.describe('the header is always one row (contract §5)', () => {
     return JSON.stringify(doc)
   }
 
-  // Revised 2026-10-20 (Lumi): the analysis area is 152 px by default and
+  // Revised 2026-10-20 (Lumi): the analysis area has a default height and is
   // resizable (§7), so no fixed plot height holds. What the rule protects is
   // that the HEADER never takes the plot's room: one row at every width and
   // series count, so the plot is the area's height less the fixed run row and
@@ -578,13 +578,14 @@ test.describe('the header is always one row (contract §5)', () => {
   })
 })
 
-// Revised 2026-10-20 (Lumi): the analysis area is open from the start at
-// 152 px; the user folds it, opens it and resizes it; nothing automatic
-// changes it, and none of it is stored.
+// Revised 2026-10-20 (Lumi): the analysis area is open from the start; the
+// user folds it, opens it and resizes it; none of it is stored. Since #534
+// (2026-11-08) it opens at its least height, which keeps the chart at 140 px
+// (docs/workbench.md §WB7), no longer at 152 px.
 test.describe('the Timeline panel state (contract §7)', () => {
   const timelineHeight = (page: Page) => page.evaluate(() => Math.round((document.querySelector('.timeline') as HTMLElement).getBoundingClientRect().height))
 
-  test('open from the start at 152 px, before any run; folding, opening and resizing are the user\'s, and nothing is stored', async ({ page }) => {
+  test('open from the start at its least height, before any run; folding, opening and resizing are the user\'s, and nothing is stored', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await seed(page)
@@ -617,14 +618,17 @@ test.describe('the Timeline panel state (contract §7)', () => {
     await expect(page.locator('.timeline__panel')).toBeVisible()
     await expect(page.locator('.timeline.is-collapsed')).toHaveCount(0)
     await expect(collapse).toHaveAttribute('aria-expanded', 'true')
-    expect(await timelineHeight(page)).toBe(152)
+    const splitter = page.getByRole('separator', { name: 'Analysis area height' })
+    const floor = Number(await splitter.getAttribute('aria-valuemin'))
+    expect(await timelineHeight(page)).toBe(floor)
+    expect(await page.evaluate(() => Math.round((document.querySelector('.timeline__svg') as SVGSVGElement).getBoundingClientRect().height)), 'the chart at its 140 px').toBe(140)
 
     // the splitter: the arrow keys resize it in 16 px steps
-    const splitter = page.getByRole('separator', { name: 'Analysis area height' })
+    const chosen = floor + 16
     await splitter.focus()
     await page.keyboard.press('ArrowUp')
-    await expect.poll(() => timelineHeight(page)).toBe(168)
-    await expect(splitter).toHaveAttribute('aria-valuenow', '168')
+    await expect.poll(() => timelineHeight(page)).toBe(chosen)
+    await expect(splitter).toHaveAttribute('aria-valuenow', String(chosen))
 
     // the user folds it: a step, a reset and more steps leave it folded
     await collapse.click()
@@ -637,7 +641,7 @@ test.describe('the Timeline panel state (contract §7)', () => {
     // and opens it again, at the height it chose
     await collapse.click()
     await expect(page.locator('.timeline__panel')).toBeVisible()
-    expect(await timelineHeight(page)).toBe(168)
+    expect(await timelineHeight(page)).toBe(chosen)
     // nothing about folding or resizing reached storage: no key added, none
     // rewritten — read after flushing any save still waiting on its debounce
     expect(await stored()).toEqual(store0)

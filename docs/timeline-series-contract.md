@@ -174,7 +174,7 @@ narrow widths: at 800px, eight chips wrap to three rows and the plot drops to 11
 - No chip covers the trigger or the CSV control, and the header never reaches into the
   plot.
 
-**Revised 2026-10-20.** The analysis area is 152px by default and resizable (§7), so a
+**Revised 2026-10-20.** The analysis area has a default height and is resizable (§7), so a
 fixed plot height (170px, then "at least 160px") no longer holds. What the rule protects
 is that the header never takes the plot's room. The plot is the area's height less the
 fixed run row and header. So it is the same height with one series or 55, at 1440px or
@@ -276,19 +276,24 @@ header row is full: a button there cut the chips from four to two at 660px.
 ## 7. Timeline panel state
 
 **Revised 2026-10-20 (the workbench, [`workbench.md`](workbench.md) §WB7).** The
-analysis area under the canvas is **open from the start at 152px**. The user can fold it
-to the run row (`.pstrip__collapse`), open it again, and resize it with the splitter
-above it.
+analysis area under the canvas is **open from the start at its least height**. The user
+can fold it to the run row (`.pstrip__collapse`), open it again, and resize it with the
+splitter above it.
 
 ```
-on open                    -> expanded, 152px
+on open                    -> expanded, at its least height
 the collapse control       -> folded / expanded, the user's choice
-the splitter               -> any height from 96px, the canvas keeping 160px
+the splitter               -> any height from its least, the canvas keeping 160px
 ```
+
+**Revised 2026-11-08 (#534).** The least height is what the area must show, with the
+chart at 140px ([`workbench.md`](workbench.md) §WB7): 216px for a document with no run
+notices and no strips. It was 96px, and the default 152px, which left the chart 76px.
 
 - Only the user folds or opens it. A run, a step, pause, reset or a completed
-  Monte-Carlo run never changes it.
-- **The Distribution view has its own minimum, 280px** (Lumi, 2026-10-20). At 152px its
+  Monte-Carlo run never folds or opens it. When run notices or strips appear, an area
+  under its least height rises to it.
+- **The Distribution view has its own minimum, 280px** (Lumi, 2026-10-20). At the then 152px its
   band chart was 0px tall and its Pool select sat past the area's edge.
   - Entering the view raises a lower area to 280px. An area that is already taller stays
     as it is.
@@ -345,7 +350,7 @@ feature and is not built.
   The run going on appends entries and keeps it. A reset, a restored snapshot, another
   document (each builds a new `series`) or the record dropping its oldest entries
   (`MAX_SERIES` = 400) removes the entry, and the reading ends with it.
-- **Where it stands** (Lumi, 2026-10-20). The plot under the 152px area is short, so
+- **Where it stands** (Lumi, 2026-10-20). The plot under the default area is short, so
   the panel is not kept inside it. It stands on the plot's bottom beside the line, on
   the side with more room, and opens upward over the canvas as far as its rows need,
   above the status bar and inside the window. It is **at most 320px tall**, heading
