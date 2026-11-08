@@ -492,7 +492,8 @@ describe('the long run the example note describes (#533)', () => {
     expect([...firstMiss.values()].every((k) => k > 1160)).toBe(true)
   })
 
-  it('the Water-quality chemical tank is spent by step 1160, and around day 48 (step 1161) Discharge adjustment stops first', () => {
+  // the tank still holds 0.30 then: it is short of a step's need, not empty (Lumi, #535)
+  it('the Water-quality chemical tank is short of a step by step 1160, and about 48 days in (step 1161) Discharge adjustment stops first', () => {
     expect(adjAt.get(720)!).toBeGreaterThan(700)
     expect(adjAt.get(1160)!).toBeLessThan(1)
     const first = Math.min(...firstMiss.values())
