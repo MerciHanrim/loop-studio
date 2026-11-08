@@ -709,6 +709,18 @@ test.describe('§LGR9 forced-colors — visual baselines (element policy)', () =
     await loadFixture(page, 'coffee-roastery.json')
     await toggleActivity(page)
     await commitSteps(page, 10)
+    // #534 — the steps ran under reduced motion, which holds a static `+N` badge per
+    // edge; an edge reads the media feature when it renders, so the badges stay until
+    // the edges render again. Before, the pointer left on View ▸ Activity overlay lay
+    // on a Parameter node and its hover re-rendered them; with the analysis area opening
+    // at its least height the fitted canvas has empty space there. The pointer goes off
+    // the canvas and the overlay is turned off and on, so the edges render the normal
+    // page, which is what this baseline shows
+    const bar = (await page.locator('.wb-status').boundingBox())!
+    await page.mouse.move(bar.x + bar.width - 40, bar.y + bar.height / 2)
+    await overlay(page, false)
+    await overlay(page, true)
+    await expect(page.locator('.pb-badge'), 'no badge held from the reduced-motion steps').toHaveCount(0)
     await centreOn(page, 'e_green_roast', 0.5)
     await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
     const pane = (await page.locator('.react-flow').boundingBox())!

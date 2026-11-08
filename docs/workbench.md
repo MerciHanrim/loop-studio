@@ -18,7 +18,7 @@ dialog-survival (§TR5), start-up theme and menu keyboard sections still hold.
 | Tool row | 42px tall | `Toolbar.tsx`, `workbench/toolRowFit.ts` |
 | Left list | 272px wide | `workbench/LeftPanel.tsx` |
 | Right panel | 344px wide | `Inspector.tsx`, `workbench/Relations.tsx` |
-| Analysis area | 152px by default, resizable | `TimelineChart.tsx` |
+| Analysis area | its least height by default (the chart at 140px), resizable | `TimelineChart.tsx` |
 | Status bar | 26px tall | `workbench/StatusBar.tsx` |
 
 The styles are in `src/components/workbench/workbench.css`.
@@ -420,10 +420,33 @@ The step is the first that fits, measured on the row's children (not with `scrol
 which misses a right-to-left row's overflow) after every render, so an ended run's longer
 text never wraps the row. The phone's run bar (`.pstrip--mobile`) keeps wrapping as
 before. A splitter (`role="separator"`, pointer or
-arrow keys in 16px steps) sets the height: at least 96px, and the canvas
-keeps at least 160px. The default height is 152px; the Distribution view's least is
+arrow keys in 16px steps) sets the height, and the canvas
+keeps at least 160px. The area opens at its least height (below); the Distribution view's least is
 280px (the area rises to it on entering the view and returns on leaving it). The collapsed / expanded
 rule is [`timeline-series-contract.md`](timeline-series-contract.md) §7.
+
+**The area's least height** (#534, Lumi, 2026-11-08) is what it must show: the splitter,
+the run row, one notice row when the run has notices, the panel's head, the chart at
+**140px** (`PLOT_MIN`) and one strip when there are strips (`TimelineChart.tsx`, measured
+from the page, because the run row wraps in a narrow window or a long language). It is
+never under 96px, and never so tall that the canvas falls under its 160px. Short of room,
+the notices and the strips give way first, each down to one row or one strip, and scroll
+inside; the chart keeps its 140px, so its axis labels stay apart. The one notice row
+ends where the first notice's first line ends (measured, as a fallback font can make a
+line taller), and the list has no bottom padding there, so no part of the next line
+shows, a wrapped notice's second line included; scrolling shows the rest. When notices
+or a strip appear, an area under its least rises to it; with strips the area still rises
+to the earlier comfortable height, so two strips show by default.
+
+Measured 2026-11-08 on the desalination Template, at the least: 216px with no notices or
+strips, 272px with strips, 309px with strips and notices (1920px wide). The cost is the
+canvas: at a 600px window it keeps 191px, and the drawing fits at
+about 20% zoom. The area also opens at its least height, 64px over the earlier 152px
+default, so the canvas gives up that room at every window. A drawing fitted near a level
+of detail can fall under it: the gacha Pickup Template at a 1440 × 900 window fits at zoom
+0.413, under the 0.45 from which connection labels and value chips are drawn (0.458
+before), so they show once the canvas is zoomed in. That is the price of the
+chart's least height, kept on purpose; the collapse gives the canvas its room back.
 
 ## WB8. Status bar
 

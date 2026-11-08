@@ -76,11 +76,13 @@ export function TimelineChart() {
   const t = useT()
   // docs/timeline-series-contract.md §7 — screen state only, never persisted.
   // The workbench (2026-10, step 5): the analysis area is OPEN from the start
-  // at its default height (`ANALYSIS_DEFAULT`, the mock-up's 152 px); the
-  // user can fold it to the run row and open it again, and resize it with
-  // the splitter above it. Only the user folds or opens it: a run, a step or
-  // a Monte-Carlo result never changes it (Lumi, 2026-10-20). The one height
-  // change of its own is the Distribution view's minimum, below.
+  // (`ANALYSIS_DEFAULT`, the mock-up's 152 px, raised before the first paint to
+  // the measured least height below, #534); the user can fold it to the run
+  // row and open it again, and resize it with the splitter above it. Only the
+  // user folds or opens it: a run, a step or a Monte-Carlo result never does
+  // (Lumi, 2026-10-20). Its own height changes are rises to a floor: the
+  // least height, the comfortable height with strips and the Distribution
+  // view's minimum, below.
   const [collapsed, setCollapsed] = useState(false)
   const [height, setHeight] = useState(ANALYSIS_DEFAULT)
   const plotRef = useRef<HTMLDivElement>(null)
@@ -129,7 +131,35 @@ export function TimelineChart() {
   const runStrips = useRunStrips()
   const rateStrips = showDistribution ? 0 : Math.min(readTables.length + runStrips.length, 2)
   const floorWanted = showDistribution ? DISTRIBUTION_MIN : rateStrips > 0 ? ANALYSIS_DEFAULT + STRIP_PLOT_EXTRA + rateStrips * RATE_STRIP_H : null
-  const areaMin = floorWanted != null ? Math.min(floorWanted, areaMax()) : ANALYSIS_MIN
+  // #534 (decided 2026-11-08) — the least the area can be is what is on screen: the
+  // splitter, the run row, one notice row when there are run notices, the panel's head,
+  // the chart's floor (`PLOT_MIN`) and one strip when there are strips. Short of room, the
+  // notices and the strips give way first and scroll inside (workbench.css); the chart keeps
+  // its floor. Measured from the page after every render, because the run row wraps in a
+  // narrow window or a long language; state changes only when a number does.
+  const [measured, setMeasured] = useState<{ floor: number; panel: number; notice: number } | null>(null)
+  useLayoutEffect(() => {
+    const area = areaRef.current
+    const next = (() => {
+      if (!area || collapsed || isMobile || showDistribution) return null
+      const h = (sel: string) => (area.querySelector(sel) as HTMLElement | null)?.offsetHeight ?? 0
+      const diag = area.querySelector('.pstrip-diag') as HTMLElement | null
+      const notice = diag ? noticeRowEnd(diag) : 0
+      const strips = area.querySelector('.timeline__rates') ? RATE_STRIP_H : 0
+      const panel = Math.ceil(PANEL_BORDER + h('.timeline__head') + PLOT_MIN + strips)
+      return { floor: Math.ceil(h('.wb-splitter') + h('.pstrip') + notice) + panel, panel, notice }
+    })()
+    if (next?.floor !== measured?.floor || next?.panel !== measured?.panel || next?.notice !== measured?.notice) setMeasured(next)
+  })
+  const measuredFloor = measured?.floor ?? null
+  const maxHeight = areaMax()
+  const areaMin = Math.min(showDistribution ? DISTRIBUTION_MIN : Math.max(ANALYSIS_MIN, measuredFloor ?? ANALYSIS_MIN), maxHeight)
+  // an area under its floor (notices or a strip just appeared) rises to it; a hard
+  // floor, unlike the comfortable height below, so the height is one of its inputs
+  useLayoutEffect(() => {
+    if (isMobile || collapsed) return
+    if (height < areaMin) setHeight(areaMin)
+  }, [areaMin, height, isMobile, collapsed])
   useLayoutEffect(() => {
     if (isMobile) return
     if (floorWanted != null) {
@@ -942,7 +972,17 @@ export function TimelineChart() {
       ref={areaRef}
       className={`timeline wb-analysis${collapsed ? ' is-collapsed' : ''}${showDistribution ? ' is-distribution' : ''}`}
       data-tour="timeline"
-      style={collapsed ? undefined : { height }}
+      style={
+        collapsed
+          ? undefined
+          : ({
+              height,
+              '--plot-min': `${PLOT_MIN}px`,
+              '--strip-min': `${RATE_STRIP_H}px`,
+              ...(measured ? { '--panel-min': `${measured.panel}px` } : {}),
+              ...(measured?.notice ? { '--notice-min': `${measured.notice}px` } : {}),
+            } as React.CSSProperties)
+      }
     >
       {!collapsed ? <AnalysisSplitter height={height} min={areaMin} onHeight={setHeight} label={t('workbench.analysis.resize')} /> : null}
       <PlayBar
@@ -954,15 +994,47 @@ export function TimelineChart() {
   )
 }
 
-/** the analysis area's default height (the workbench mock-up's 152 px) and its
- *  range: at least the run row and a short chart; at most what leaves the
- *  canvas `ANALYSIS_CANVAS_MIN` px */
+/** the analysis area's starting height (the workbench mock-up's 152 px), raised
+ *  at once to its least height (#534), and the base of the comfortable height
+ *  with strips; its range: at least the run row and a short chart; at most
+ *  what leaves the canvas `ANALYSIS_CANVAS_MIN` px */
 export const ANALYSIS_DEFAULT = 152
 /** a document with strips is read for how its lines change, and the chart above them
  *  must still show that: what the area adds for the plot on top of the strips' own room */
 const STRIP_PLOT_EXTRA = 72
 const ANALYSIS_MIN = 96
 const ANALYSIS_CANVAS_MIN = 160
+/** #534 — the chart's own floor: its three axis labels stay 39 px apart and its end labels
+ *  have room (measured 2026-11-08 at 140, 120 and 100 px; Lumi chose 140) */
+export const PLOT_MIN = 140
+/** #534 — one run notice in view: the list's border and top padding, its title and one
+ *  line, when the line cannot be measured (the CSS fallback is the same) */
+const NOTICE_ROW_MIN = 37
+/** the panel's top border */
+const PANEL_BORDER = 1
+
+/** #534 — the run notices' least height: from the list's top edge to the end of the first
+ *  notice's first line, so at the floor the list ends where that line ends and shows no
+ *  part of the next line (a wrapped notice's second line included; Lumi, 2026-11-08). The
+ *  list has no bottom padding there (workbench.css); measured, because a fallback font
+ *  for Korean or another script can make a line taller than the line-height */
+function noticeRowEnd(diag: HTMLElement): number {
+  const li = diag.querySelector('li')
+  if (!li) return NOTICE_ROW_MIN
+  const range = document.createRange()
+  range.selectNodeContents(li)
+  const rects = [...range.getClientRects()].filter((r) => r.width > 0 && r.height > 0)
+  if (rects.length === 0) return NOTICE_ROW_MIN
+  const top = Math.min(...rects.map((r) => r.top))
+  const firstLineBottom = Math.max(...rects.filter((r) => r.top < top + 1).map((r) => r.bottom))
+  const later = rects.filter((r) => r.top >= firstLineBottom - 1)
+  const origin = diag.getBoundingClientRect().top - diag.scrollTop
+  // one line: the notice's whole line box; wrapped: up to where its second line's text
+  // begins, so none of that line shows
+  return later.length === 0
+    ? Math.ceil(li.getBoundingClientRect().bottom - origin)
+    : Math.floor(Math.min(...later.map((r) => r.top)) - origin)
+}
 const ANALYSIS_STEP = 16
 /** the least the area is while the Distribution view shows: its band chart
  *  and controls on screen (measured 2026-10-20 at 1280 × 800: 280 px gives the

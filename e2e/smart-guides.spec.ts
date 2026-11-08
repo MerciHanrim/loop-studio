@@ -25,7 +25,10 @@ async function load(page: Page) {
   await resetAll(page)
   await importGraph(page, SCENE)
   await expect(page.locator('.react-flow__node')).toHaveCount(4)
-  await page.evaluate(() => (window as any).__loop.rf.setViewport({ x: 100, y: 100, zoom: 1 }, { duration: 0 }))
+  // y 36: the scene sits 64 px higher than it did before #534, as the canvas's bottom
+  // edge did when the analysis area opened at its least height; a drag that ends near
+  // that edge auto-pans the canvas, which would move the dragged nodes on its own
+  await page.evaluate(() => (window as any).__loop.rf.setViewport({ x: 100, y: 36, zoom: 1 }, { duration: 0 }))
   await page.waitForTimeout(250)
 }
 

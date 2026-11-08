@@ -855,7 +855,33 @@
 .timeline.wb-analysis .timeline__panel {
   flex: 1 1 auto;
   height: auto;
-  min-height: 0;
+  /* #534 — the panel cannot shrink below its head, the plot's floor and one strip
+     (`--panel-min`, measured by TimelineChart). Not `auto`: that counts the chart's svg at
+     the size it had, and the area could not shrink (the first prototype run). */
+  min-height: var(--panel-min, 0px);
+}
+/* #534 — the chart keeps a readable height (`--plot-min`, set by TimelineChart from
+   `PLOT_MIN`); when the area is short, the run notices and the strips give way first, each
+   down to one row or one strip, and scroll inside */
+.timeline.wb-analysis .timeline__plot {
+  flex: 1 1 auto;
+  min-height: var(--plot-min, 140px);
+}
+.timeline.wb-analysis .timeline__rates {
+  flex: 0 1 auto;
+  min-height: var(--strip-min, 56px);
+}
+.timeline.wb-analysis .pstrip-diag {
+  flex: 0 1 auto;
+  min-height: var(--notice-min, 37px);
+  overflow-y: auto;
+  /* the bottom padding moves inside the list: a scroller's own padding is inside its
+     clip, so at the floor the next line showed through it (Lumi, 2026-11-08); the list
+     ends exactly at the first line's end, and its last line keeps the room at the end */
+  padding-bottom: 0;
+}
+.timeline.wb-analysis .pstrip__diag-list {
+  padding-bottom: 6px;
 }
 .wb-splitter {
   flex: none;

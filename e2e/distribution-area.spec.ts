@@ -2,7 +2,8 @@ import type { Page } from '@playwright/test'
 import { expect, FIXTURE_POOLS_4, importGraph, openApp, readFixture, readRiskyFactory, resetAll, runMc, test } from './support/loop'
 
 // docs/timeline-series-contract.md §7 — the Distribution view's own minimum
-// (Lumi, 2026-10-20). The live timeline keeps the 152 px default; the
+// (Lumi, 2026-10-20). The live timeline opens at its least height, which keeps
+// the chart at 140 px (#534, docs/workbench.md §WB7); the
 // Distribution view, which did not fit it (a 0 px band chart, its Pool select
 // past the area's edge), raises a lower area to 280 px on entering, keeps a
 // taller one, holds the splitter at its minimum, still folds, and gives the
@@ -38,13 +39,16 @@ async function stepOnce(page: Page) {
 }
 
 test.describe('the Distribution view has its own minimum (contract §7)', () => {
-  test('152 → 280 on entering, not below 280 there, folds, 152 again on leaving; the run and the zoom stay', async ({ page }) => {
+  test('the least height → 280 on entering, not below 280 there, folds, the earlier height again on leaving; the run and the zoom stay', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await importGraph(page, readFixture())
     await stepOnce(page)
     const before = await state(page)
-    expect(before.area).toBe(152)
+    // the live timeline opens at its least height (#534), under the view's 280
+    const floor = Number(await splitter(page).getAttribute('aria-valuemin'))
+    expect(before.area).toBe(floor)
+    expect(floor).toBeLessThan(DISTRIBUTION_MIN)
 
     await runMc(page, { baseSeed: 1, runs: 200, steps: 30, tracked: FIXTURE_POOLS_4 })
     await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
@@ -68,8 +72,8 @@ test.describe('the Distribution view has its own minimum (contract §7)', () => 
 
     // leaving gives the earlier height back; entering again raises it again
     await viewTab(page, 0).click()
-    await expect.poll(async () => (await state(page)).area).toBe(152)
-    await expect(splitter(page)).toHaveAttribute('aria-valuemin', '96')
+    await expect.poll(async () => (await state(page)).area).toBe(floor)
+    await expect(splitter(page)).toHaveAttribute('aria-valuemin', String(floor))
     await viewTab(page, 1).click()
     await expect.poll(async () => (await state(page)).area).toBe(DISTRIBUTION_MIN)
     const last = await state(page)
@@ -81,13 +85,15 @@ test.describe('the Distribution view has its own minimum (contract §7)', () => 
     await resetAll(page)
     await importGraph(page, readFixture())
     await splitter(page).focus()
-    for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowUp') // 152 + 192
-    await expect.poll(async () => (await state(page)).area).toBe(344)
+    const tall = (await state(page)).area + 192
+    expect(tall).toBeGreaterThan(DISTRIBUTION_MIN)
+    for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowUp') // + 192
+    await expect.poll(async () => (await state(page)).area).toBe(tall)
     await runMc(page, { baseSeed: 1, runs: 50, steps: 20, tracked: FIXTURE_POOLS_4 })
     await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('Distribution')
-    expect((await state(page)).area).toBe(344)
+    expect((await state(page)).area).toBe(tall)
     await viewTab(page, 0).click()
-    expect((await state(page)).area).toBe(344)
+    expect((await state(page)).area).toBe(tall)
   })
 
   test('a window too low for it: the canvas keeps 160 px and the view scrolls inside to its end', async ({ page }) => {

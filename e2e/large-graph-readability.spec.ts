@@ -3577,7 +3577,12 @@ test.describe('frames and outside names — kept cases', () => {
     await page.mouse.click(c.x + 6, c.y + c.height / 2)
     expect((await frameHead(page)).selectedId).toBe(under)
     await expect(page.locator('.lgr-frame-props__name')).toBeVisible()
+    // #534 — Escape closes the popover from its name field, which takes the focus once the
+    // popover is placed; pressed before that, Escape went to the document and the popover
+    // stayed over Over's border, where the next click landed (intermittently, 2026-11-08)
+    await expect(page.locator('.lgr-frame-props__name')).toBeFocused()
     await page.keyboard.press('Escape')
+    await expect(page.locator('.lgr-frame-props')).toHaveCount(0)
 
     // Over: selected, then moved, from its left border below the title
     await fcSelect(page, null)

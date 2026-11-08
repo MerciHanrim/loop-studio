@@ -163,9 +163,10 @@ test.describe('the step reading on the run chart (§7a)', () => {
   })
 
   // Lumi, 2026-10-20: the reading is not held inside the short plot of the
-  // 152 px analysis area — it opens upward over the canvas as far as its rows
-  // need; the area, the zoom and the run stay as they are
-  test('four series at the default 152 px: every row shown without a scroll, the step and close button with them, all on screen above the status bar; nothing else changes', async ({ page }) => {
+  // analysis area at its default height (152 px then; its least height, with
+  // the chart at 140 px, since #534) — it opens upward over the canvas as far
+  // as its rows need; the area, the zoom and the run stay as they are
+  test('four series at the default height: every row shown without a scroll, the step and close button with them, all on screen above the status bar; nothing else changes', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await openApp(page)
     await resetAll(page)
@@ -173,7 +174,8 @@ test.describe('the step reading on the run chart (§7a)', () => {
     await steps(page, 8)
     await expect(page.locator('.timeline__line[data-series="q0"]')).toBeVisible()
     const areaH = () => page.evaluate(() => Math.round((document.querySelector('.timeline') as HTMLElement).getBoundingClientRect().height))
-    expect(await areaH()).toBe(152)
+    const area0 = await areaH()
+    expect(area0, 'the default is the least height').toBe(Number(await page.locator('.wb-splitter').getAttribute('aria-valuemin')))
     const vp0 = await page.evaluate(() => (window as any).__loop.rf.getViewport())
     const run0 = await sim(page)
     const v = await page.locator('.timeline__line[data-series="q0"]').evaluate((el) => {
@@ -209,7 +211,7 @@ test.describe('the step reading on the run chart (§7a)', () => {
     expect(g.box.left).toBeGreaterThanOrEqual(0)
     expect(g.box.right).toBeLessThanOrEqual(g.vw)
     // the reading changed nothing else
-    expect(await areaH(), 'the analysis area keeps its height').toBe(152)
+    expect(await areaH(), 'the analysis area keeps its height').toBe(area0)
     expect(await page.evaluate(() => (window as any).__loop.rf.getViewport())).toEqual(vp0)
     expect(await sim(page)).toEqual(run0)
   })
