@@ -464,3 +464,45 @@ describe('examples/desalination.json — the bundled desalination process exampl
     })
   })
 })
+
+// #533 — `help.examples.desalination.p9`, pinned against the engine: the Template is checked
+// over 30 days, and its chemical tanks are never refilled. Measured on main 9d5d0186 and
+// matched point for point by a run CSV of the app (steps 1005–1404).
+describe('the long run the example note describes (#533)', () => {
+  const doc = readDoc()
+  const opts = { kinds: doc.kinds, time: doc.time, timetables: doc.timetables }
+  const converters = doc.nodes.filter((n) => n.data.kind === 'converter').map((n) => n.id)
+  const chemicals = ['naocl', 'coag', 'anti', 'lime', 'naocl2', 'adj']
+  let st = initSim(doc.nodes, opts)
+  const firstMiss = new Map<string, number>()
+  const adjAt = new Map<number, number>()
+  for (let k = 1; k <= 1240; k++) {
+    const r = step(doc.nodes, doc.edges as LoopEdge[], st, 1, doc.modelVersion, opts)
+    st = r.state
+    for (const c of converters) if (!r.report.fired.includes(c) && !firstMiss.has(c)) firstMiss.set(c, k)
+    if (k === 720 || k === 1160) adjAt.set(k, st.values.adj!)
+  }
+
+  it('nothing refills the six chemical tanks', () => {
+    const filled = new Set(doc.edges.filter((e) => (e.data?.kind ?? 'resource') === 'resource' || (e.data?.kind === 'state' && (e.data as { mode?: string }).mode === 'label')).map((e) => e.target))
+    expect(chemicals.filter((id) => filled.has(id))).toEqual([])
+  })
+
+  it('every stage runs at every step of the 30 days, and to step 1160', () => {
+    expect([...firstMiss.values()].every((k) => k > 1160)).toBe(true)
+  })
+
+  it('the Water-quality chemical tank is spent by step 1160, and around day 48 (step 1161) Discharge adjustment stops first', () => {
+    expect(adjAt.get(720)!).toBeGreaterThan(700)
+    expect(adjAt.get(1160)!).toBeLessThan(1)
+    const first = Math.min(...firstMiss.values())
+    expect(first).toBe(1161)
+    expect([...firstMiss].filter(([, k]) => k === first).map(([c]) => c)).toEqual(['adjust'])
+    expect(Math.floor(first / 24)).toBe(48)
+  })
+
+  it('then Reverse osmosis stops, and then the Delivery pump', () => {
+    expect(firstMiss.get('ro')).toBe(1172)
+    expect(firstMiss.get('dpump')).toBe(1181)
+  })
+})
