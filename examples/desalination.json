@@ -1,5 +1,5 @@
 {
-  "schema": "loop-studio/graph/6",
+  "schema": "loop-studio/graph/7",
   "version": 1,
   "layoutVersion": 1,
   "nodes": [
@@ -78,10 +78,25 @@
         "label": "Hypochlorite tank",
         "activation": "passive",
         "initial": 2000,
-        "capacity": null,
+        "capacity": 2000,
         "mode": "pullAny",
         "resourceType": "hypochlorite",
         "accent": "#B47599"
+      }
+    },
+    {
+      "id": "naoclDel",
+      "type": "source",
+      "position": {
+        "x": 250,
+        "y": 90
+      },
+      "data": {
+        "kind": "source",
+        "label": "Hypochlorite delivery",
+        "accent": "#B47599",
+        "activation": "automatic",
+        "mode": "pushAny"
       }
     },
     {
@@ -151,10 +166,25 @@
         "label": "Coagulant tank",
         "activation": "passive",
         "initial": 10000,
-        "capacity": null,
+        "capacity": 10000,
         "mode": "pullAny",
         "resourceType": "coagulant",
         "accent": "#B47599"
+      }
+    },
+    {
+      "id": "coagDel",
+      "type": "source",
+      "position": {
+        "x": 825,
+        "y": 90
+      },
+      "data": {
+        "kind": "source",
+        "label": "Coagulant delivery",
+        "accent": "#B47599",
+        "activation": "automatic",
+        "mode": "pushAny"
       }
     },
     {
@@ -202,10 +232,25 @@
         "label": "Antiscalant tank",
         "activation": "passive",
         "initial": 2000,
-        "capacity": null,
+        "capacity": 2000,
         "mode": "pullAny",
         "resourceType": "antiscalant",
         "accent": "#B47599"
+      }
+    },
+    {
+      "id": "antiDel",
+      "type": "source",
+      "position": {
+        "x": 1300,
+        "y": 90
+      },
+      "data": {
+        "kind": "source",
+        "label": "Antiscalant delivery",
+        "accent": "#B47599",
+        "activation": "automatic",
+        "mode": "pushAny"
       }
     },
     {
@@ -348,7 +393,7 @@
       "type": "converter",
       "position": {
         "x": 500,
-        "y": 700
+        "y": 810
       },
       "data": {
         "kind": "converter",
@@ -368,25 +413,40 @@
       "type": "pool",
       "position": {
         "x": 500,
-        "y": 570
+        "y": 680
       },
       "data": {
         "kind": "pool",
         "label": "Lime tank",
         "activation": "passive",
         "initial": 20000,
-        "capacity": null,
+        "capacity": 20000,
         "mode": "pullAny",
         "resourceType": "remineralizer",
         "accent": "#B47599"
       }
     },
     {
+      "id": "limeDel",
+      "type": "source",
+      "position": {
+        "x": 500,
+        "y": 570
+      },
+      "data": {
+        "kind": "source",
+        "label": "Lime delivery",
+        "accent": "#B47599",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
       "id": "disinfect",
       "type": "converter",
       "position": {
-        "x": 325,
-        "y": 700
+        "x": 300,
+        "y": 810
       },
       "data": {
         "kind": "converter",
@@ -399,18 +459,33 @@
       "id": "naocl2",
       "type": "pool",
       "position": {
-        "x": 325,
-        "y": 570
+        "x": 300,
+        "y": 680
       },
       "data": {
         "kind": "pool",
         "label": "Disinfectant tank",
         "activation": "passive",
         "initial": 1000,
-        "capacity": null,
+        "capacity": 1000,
         "mode": "pullAny",
         "resourceType": "hypochlorite",
         "accent": "#B47599"
+      }
+    },
+    {
+      "id": "naocl2Del",
+      "type": "source",
+      "position": {
+        "x": 300,
+        "y": 570
+      },
+      "data": {
+        "kind": "source",
+        "label": "Disinfectant delivery",
+        "accent": "#B47599",
+        "activation": "automatic",
+        "mode": "pushAny"
       }
     },
     {
@@ -418,7 +493,7 @@
       "type": "pool",
       "position": {
         "x": 170,
-        "y": 700
+        "y": 810
       },
       "data": {
         "kind": "pool",
@@ -438,7 +513,7 @@
       "type": "converter",
       "position": {
         "x": 170,
-        "y": 830
+        "y": 940
       },
       "data": {
         "kind": "converter",
@@ -456,7 +531,7 @@
       "type": "drain",
       "position": {
         "x": 170,
-        "y": 960
+        "y": 1030
       },
       "data": {
         "kind": "drain",
@@ -472,7 +547,7 @@
       "type": "pool",
       "position": {
         "x": 500,
-        "y": 830
+        "y": 940
       },
       "data": {
         "kind": "pool",
@@ -490,8 +565,8 @@
       "id": "gridC",
       "type": "source",
       "position": {
-        "x": 500,
-        "y": 960
+        "x": 590,
+        "y": 1030
       },
       "data": {
         "kind": "source",
@@ -553,10 +628,25 @@
         "label": "Water-quality chemical tank",
         "activation": "passive",
         "initial": 2000,
-        "capacity": null,
+        "capacity": 2000,
         "mode": "pullAny",
         "resourceType": "adjuster",
         "accent": "#B47599"
+      }
+    },
+    {
+      "id": "adjDel",
+      "type": "source",
+      "position": {
+        "x": 1500,
+        "y": 570
+      },
+      "data": {
+        "kind": "source",
+        "label": "Water-quality chemical delivery",
+        "accent": "#B47599",
+        "activation": "automatic",
+        "mode": "pushAny"
       }
     },
     {
@@ -1231,7 +1321,7 @@
         "route": "orthogonal",
         "accent": "#A78243",
         "ports": {
-          "source": "right",
+          "source": "top",
           "target": "right"
         }
       }
@@ -1275,6 +1365,18 @@
       }
     },
     {
+      "id": "e_naoclDel_naocl",
+      "source": "naoclDel",
+      "target": "naocl",
+      "data": {
+        "kind": "resource",
+        "flow": "~naoclDeliveries",
+        "unit": "kg per day",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
       "id": "e_naocl_screen",
       "source": "naocl",
       "target": "screen",
@@ -1284,6 +1386,22 @@
       "data": {
         "kind": "resource",
         "flow": "21",
+        "unit": "kg per day",
+        "route": "orthogonal",
+        "accent": "#B47599",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_coagDel_coag",
+      "source": "coagDel",
+      "target": "coag",
+      "data": {
+        "kind": "resource",
+        "flow": "~coagDeliveries",
         "unit": "kg per day",
         "route": "orthogonal",
         "accent": "#B47599",
@@ -1313,6 +1431,22 @@
       }
     },
     {
+      "id": "e_antiDel_anti",
+      "source": "antiDel",
+      "target": "anti",
+      "data": {
+        "kind": "resource",
+        "flow": "~antiDeliveries",
+        "unit": "kg per day",
+        "route": "orthogonal",
+        "accent": "#B47599",
+        "ports": {
+          "source": "left",
+          "target": "right"
+        }
+      }
+    },
+    {
       "id": "e_anti_cartridge",
       "source": "anti",
       "target": "cartridge",
@@ -1322,6 +1456,22 @@
       "data": {
         "kind": "resource",
         "flow": "40",
+        "unit": "kg per day",
+        "route": "orthogonal",
+        "accent": "#B47599",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
+      "id": "e_limeDel_lime",
+      "source": "limeDel",
+      "target": "lime",
+      "data": {
+        "kind": "resource",
+        "flow": "~limeDeliveries",
         "unit": "kg per day",
         "route": "orthogonal",
         "accent": "#B47599",
@@ -1351,6 +1501,22 @@
       }
     },
     {
+      "id": "e_naocl2Del_naocl2",
+      "source": "naocl2Del",
+      "target": "naocl2",
+      "data": {
+        "kind": "resource",
+        "flow": "~naocl2Deliveries",
+        "unit": "kg per day",
+        "route": "orthogonal",
+        "accent": "#B47599",
+        "ports": {
+          "source": "bottom",
+          "target": "top"
+        }
+      }
+    },
+    {
       "id": "e_naocl2_disinfect",
       "source": "naocl2",
       "target": "disinfect",
@@ -1367,6 +1533,18 @@
           "source": "bottom",
           "target": "top"
         }
+      }
+    },
+    {
+      "id": "e_adjDel_adj",
+      "source": "adjDel",
+      "target": "adj",
+      "data": {
+        "kind": "resource",
+        "flow": "~adjDeliveries",
+        "unit": "kg per day",
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1511,7 +1689,7 @@
       "rect": {
         "x": 720,
         "y": 40,
-        "w": 640,
+        "w": 680,
         "h": 440
       },
       "color": "violet"
@@ -1534,7 +1712,7 @@
         "x": 20,
         "y": 520,
         "w": 660,
-        "h": 530
+        "h": 600
       },
       "color": "violet"
     },
@@ -1656,6 +1834,132 @@
         [
           "23",
           "3600"
+        ]
+      ]
+    },
+    {
+      "id": "naoclDeliveries",
+      "label": "Hypochlorite deliveries",
+      "source": "Example assumption, not measured data",
+      "unit": "kg per day",
+      "timeUnit": "d",
+      "read": "hold",
+      "after": "repeat",
+      "end": "14",
+      "means": "available",
+      "points": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "13",
+          "294"
+        ]
+      ]
+    },
+    {
+      "id": "coagDeliveries",
+      "label": "Coagulant deliveries",
+      "source": "Example assumption, not measured data",
+      "unit": "kg per day",
+      "timeUnit": "d",
+      "read": "hold",
+      "after": "repeat",
+      "end": "14",
+      "means": "available",
+      "points": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "13",
+          "2940"
+        ]
+      ]
+    },
+    {
+      "id": "antiDeliveries",
+      "label": "Antiscalant deliveries",
+      "source": "Example assumption, not measured data",
+      "unit": "kg per day",
+      "timeUnit": "d",
+      "read": "hold",
+      "after": "repeat",
+      "end": "14",
+      "means": "available",
+      "points": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "13",
+          "560"
+        ]
+      ]
+    },
+    {
+      "id": "naocl2Deliveries",
+      "label": "Disinfectant deliveries",
+      "source": "Example assumption, not measured data",
+      "unit": "kg per day",
+      "timeUnit": "d",
+      "read": "hold",
+      "after": "repeat",
+      "end": "14",
+      "means": "available",
+      "points": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "13",
+          "126"
+        ]
+      ]
+    },
+    {
+      "id": "limeDeliveries",
+      "label": "Lime deliveries",
+      "source": "Example assumption, not measured data",
+      "unit": "kg per day",
+      "timeUnit": "d",
+      "read": "hold",
+      "after": "repeat",
+      "end": "14",
+      "means": "available",
+      "points": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "13",
+          "5040"
+        ]
+      ]
+    },
+    {
+      "id": "adjDeliveries",
+      "label": "Water-quality chemical deliveries",
+      "source": "Example assumption, not measured data",
+      "unit": "kg per day",
+      "timeUnit": "d",
+      "read": "hold",
+      "after": "repeat",
+      "end": "14",
+      "means": "available",
+      "points": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "13",
+          "700"
         ]
       ]
     }

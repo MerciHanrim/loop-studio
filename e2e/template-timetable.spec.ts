@@ -24,11 +24,12 @@ test('a Template with a timetable opens from the menu and steps', async ({ page 
   await pickTemplate(page, 'desalination')
   const confirm = page.locator('.mcdlg--confirm .btn--primary')
   if (await confirm.isVisible().catch(() => false)) await confirm.click()
-  await expect(page.locator('.react-flow__node')).toHaveCount(37)
+  await expect(page.locator('.react-flow__node')).toHaveCount(43)
 
   const state = await opened(page)
   expect(state.version).toBe(pinned.modelVersion)
-  expect(state.tables).toEqual(['demand'])
+  // the demand, and a delivery table per chemical tank (#533)
+  expect(state.tables).toEqual(['demand', 'naoclDeliveries', 'coagDeliveries', 'antiDeliveries', 'naocl2Deliveries', 'limeDeliveries', 'adjDeliveries'])
   expect(state.series).toEqual(['brine', 'filtered', 'permeate', 'product'])
   await expect(page.getByText(/Can.t run/)).toHaveCount(0)
 

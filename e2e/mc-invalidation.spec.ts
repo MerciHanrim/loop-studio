@@ -109,7 +109,7 @@ test.describe('MC / sim invalidation', () => {
     await page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i }).click()
 
     // graph replaced
-    await expect(page.locator('.react-flow__node')).toHaveCount(37)
+    await expect(page.locator('.react-flow__node')).toHaveCount(43)
     const pools = await poolIds(page)
     expect(pools).toContain('product')
     expect(pools).not.toContain('ore_stock')
@@ -136,7 +136,7 @@ test.describe('MC / sim invalidation', () => {
     await openFileSubmenu(page, 'templates')
     await page.getByRole('menuitem', { name: 'Seawater desalination process' }).click()
     await page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i }).click()
-    await expect(page.locator('.react-flow__node')).toHaveCount(37)
+    await expect(page.locator('.react-flow__node')).toHaveCount(43)
 
     const m = await mc(page)
     expect(m.stale).toBe(true)
@@ -226,7 +226,7 @@ test.describe('MC / sim invalidation', () => {
     await openFileSubmenu(page, 'templates')
     await page.getByRole('menuitem', { name: 'Seawater desalination process' }).click()
     await page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i }).click()
-    await expect(page.locator('.react-flow__node')).toHaveCount(37)
+    await expect(page.locator('.react-flow__node')).toHaveCount(43)
 
     const s = await simSnapshot(page)
     expect(s.status).not.toBe('running')

@@ -13,12 +13,20 @@ const PLOT_MIN = 140
 const CANVAS_MIN = 160
 /** the desalination Template's six run rules; lifted, the document has no strips */
 const RULED = ['filter', 'ro', 'remin', 'dpump', 'adjust', 'thick']
+/** the Template's six chemical deliveries (#533). Taken out, the plant stops about 48 days
+ *  in, as before them, and the run notices and the strips this spec measures come back */
+const DELIVERIES = ['naoclDel', 'coagDel', 'antiDel', 'limeDel', 'naocl2Del', 'adjDel']
 /** a long Korean name for discharge treatment, as a user may give one */
 const LONG_NAME = '방류수 수질 조정 설비 (2호기, 응집제와 pH 조정제를 함께 투입하는 계통)'
 
 async function desalination(page: Page, opts: { steps: number; strips: boolean; labels?: Record<string, string> }): Promise<void> {
   await resetAll(page)
   await pickTemplate(page, 'desalination')
+  await expect(page.locator('.react-flow__node')).toHaveCount(43)
+  await page.evaluate((ids: string[]) => {
+    const g = (window as unknown as Bridge).__loop.graph.getState()
+    for (const id of ids) g.removeNode(id)
+  }, DELIVERIES)
   await expect(page.locator('.react-flow__node')).toHaveCount(37)
   if (opts.labels) {
     await page.evaluate((labels: Record<string, string>) => {

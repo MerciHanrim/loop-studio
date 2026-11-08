@@ -1,11 +1,11 @@
 {
-  "$about": "examples/desalination.json run through the real engine for 720 steps (30 days at a 1 h step). Re-derived and pinned by test/desalination-example.test.ts. A fixed-ratio flow model: its plant size, demand curve, stage power, doses and pump size are example assumptions, not measured or design data.",
+  "$about": "examples/desalination.json run through the real engine for 2160 steps (90 days at a 1 h step), the same 24-hour demand every day, the chemical tanks refilled every 14 days. Re-derived and pinned by test/desalination-example.test.ts. A fixed-ratio flow model: its plant size, demand curve, stage power, doses, deliveries and pump size are example assumptions, not measured or design data.",
   "$bound": {
-    "status": "EXPERIMENTAL: a hand derivation from the order of operations in step(), checked on this document. It covers the error observed over 720 steps. It is not a proof.",
+    "status": "EXPERIMENTAL: a hand derivation from the order of operations in step(), checked on this document. It covers the error observed over 2160 steps. It is not a proof.",
     "formula": "β = Σ_m (δ_m + ρ_m Σ r_out + κ_m Σ r_in) + Σ_p k_p u H_p; every step |e(t)| ≤ β, the run |r(n)| ≤ n β",
     "open": "Not settled: the weighted mean over inputs of different kinds, whether a fraction can pass F by another path, and the count of additions with two router inputs."
   },
-  "modelVersion": 6,
+  "modelVersion": 7,
   "time": {
     "step": {
       "value": 1,
@@ -40,6 +40,13 @@
       "roundingError": "0"
     },
     {
+      "field": "naocl.capacity",
+      "authored": "2000",
+      "exactPerStep": "2000",
+      "engine": 2000,
+      "roundingError": "0"
+    },
+    {
       "field": "panelA.initial",
       "authored": "1000",
       "exactPerStep": "1000",
@@ -61,6 +68,13 @@
       "roundingError": "0"
     },
     {
+      "field": "coag.capacity",
+      "authored": "10000",
+      "exactPerStep": "10000",
+      "engine": 10000,
+      "roundingError": "0"
+    },
+    {
       "field": "filtered.initial",
       "authored": "3000",
       "exactPerStep": "3000",
@@ -76,6 +90,13 @@
     },
     {
       "field": "anti.initial",
+      "authored": "2000",
+      "exactPerStep": "2000",
+      "engine": 2000,
+      "roundingError": "0"
+    },
+    {
+      "field": "anti.capacity",
       "authored": "2000",
       "exactPerStep": "2000",
       "engine": 2000,
@@ -131,7 +152,21 @@
       "roundingError": "0"
     },
     {
+      "field": "lime.capacity",
+      "authored": "20000",
+      "exactPerStep": "20000",
+      "engine": 20000,
+      "roundingError": "0"
+    },
+    {
       "field": "naocl2.initial",
+      "authored": "1000",
+      "exactPerStep": "1000",
+      "engine": 1000,
+      "roundingError": "0"
+    },
+    {
+      "field": "naocl2.capacity",
       "authored": "1000",
       "exactPerStep": "1000",
       "engine": 1000,
@@ -181,6 +216,13 @@
     },
     {
       "field": "adj.initial",
+      "authored": "2000",
+      "exactPerStep": "2000",
+      "engine": 2000,
+      "roundingError": "0"
+    },
+    {
+      "field": "adj.capacity",
       "authored": "2000",
       "exactPerStep": "2000",
       "engine": 2000,
@@ -481,12 +523,24 @@
       "roundingError": "0"
     },
     {
+      "field": "e_naoclDel_naocl",
+      "kind": "hypochlorite",
+      "authored": "~naoclDeliveries kg per day",
+      "table": "naoclDeliveries"
+    },
+    {
       "field": "e_naocl_screen",
       "kind": "hypochlorite",
       "authored": "21 kg per day",
       "exactPerStep": "0.875",
       "engine": 0.875,
       "roundingError": "0"
+    },
+    {
+      "field": "e_coagDel_coag",
+      "kind": "coagulant",
+      "authored": "~coagDeliveries kg per day",
+      "table": "coagDeliveries"
     },
     {
       "field": "e_coag_filter",
@@ -497,12 +551,24 @@
       "roundingError": "0"
     },
     {
+      "field": "e_antiDel_anti",
+      "kind": "antiscalant",
+      "authored": "~antiDeliveries kg per day",
+      "table": "antiDeliveries"
+    },
+    {
       "field": "e_anti_cartridge",
       "kind": "antiscalant",
       "authored": "40 kg per day",
       "exactPerStep": "≈ 1.66666666666667",
       "engine": 1.6666666666666667,
       "roundingError": "≈ 0.0000000000000000740148683083438"
+    },
+    {
+      "field": "e_limeDel_lime",
+      "kind": "remineralizer",
+      "authored": "~limeDeliveries kg per day",
+      "table": "limeDeliveries"
     },
     {
       "field": "e_lime_remin",
@@ -513,12 +579,24 @@
       "roundingError": "0"
     },
     {
+      "field": "e_naocl2Del_naocl2",
+      "kind": "hypochlorite",
+      "authored": "~naocl2Deliveries kg per day",
+      "table": "naocl2Deliveries"
+    },
+    {
       "field": "e_naocl2_disinfect",
       "kind": "hypochlorite",
       "authored": "9 kg per day",
       "exactPerStep": "0.375",
       "engine": 0.375,
       "roundingError": "0"
+    },
+    {
+      "field": "e_adjDel_adj",
+      "kind": "adjuster",
+      "authored": "~adjDeliveries kg per day",
+      "table": "adjDeliveries"
     },
     {
       "field": "e_adj_adjust",
@@ -530,7 +608,7 @@
     }
   ],
   "run": {
-    "steps": 720,
+    "steps": 2160,
     "seed": 1,
     "diagnostics": 0,
     "notices": {},
@@ -541,27 +619,33 @@
       1
     ],
     "fired": {
-      "adjust": 720,
-      "cake": 720,
-      "cartridge": 720,
-      "city": 720,
-      "dewater": 720,
-      "disinfect": 720,
-      "dpump": 720,
-      "filter": 720,
-      "fpump": 720,
-      "gridA": 720,
-      "gridB": 720,
-      "gridC": 720,
-      "hp": 720,
-      "ipump": 720,
-      "outfall": 720,
-      "remin": 720,
-      "ro": 720,
-      "screen": 720,
-      "sea": 719,
-      "thick": 720,
-      "turbine": 720
+      "adjDel": 144,
+      "adjust": 2160,
+      "antiDel": 144,
+      "cake": 2160,
+      "cartridge": 2160,
+      "city": 2160,
+      "coagDel": 144,
+      "dewater": 2160,
+      "disinfect": 2160,
+      "dpump": 2160,
+      "filter": 2160,
+      "fpump": 2160,
+      "gridA": 2160,
+      "gridB": 2160,
+      "gridC": 2160,
+      "hp": 2160,
+      "ipump": 2160,
+      "limeDel": 144,
+      "naocl2Del": 144,
+      "naoclDel": 144,
+      "outfall": 2160,
+      "remin": 2160,
+      "ro": 2160,
+      "screen": 2160,
+      "sea": 2159,
+      "thick": 2160,
+      "turbine": 2160
     }
   },
   "ranges": {
@@ -689,20 +773,42 @@
       "step": 720,
       "values": {
         "basin": 11222.786906391146,
-        "naocl": 1479.157619000444,
+        "naocl": 1964.4561202397247,
         "panelA": 3888.9695580558778,
-        "coag": 4791.576190004429,
+        "coag": 9644.56120239724,
         "filtered": 2797.15464470998,
-        "anti": 1007.5135835759871,
+        "anti": 1932.2211423879282,
         "permeate": 1362.861031517437,
         "recovered": 2499.999999999998,
         "panelB": 6855.872988459903,
-        "lime": 11062.136693444509,
-        "naocl2": 776.5534173361092,
+        "lime": 19390.54359678667,
+        "naocl2": 984.7635899196662,
         "product": 1446.5826638875453,
         "panelC": 1513.1453226222006,
         "brine": 1602.2822203603823,
-        "adj": 759.8741795066006,
+        "adj": 1915.3688076158614,
+        "backwash": 203.32262512694547
+      },
+      "productWaterShown": "≈ 1446582.66388755 L"
+    },
+    {
+      "step": 2160,
+      "values": {
+        "basin": 11222.786906391146,
+        "naocl": 1894.9227869063918,
+        "panelA": 3888.9695580558778,
+        "coag": 8949.227869063898,
+        "filtered": 2797.15464470998,
+        "anti": 1799.7766979434857,
+        "permeate": 1362.861031517437,
+        "recovered": 2499.999999999998,
+        "panelB": 6855.872988459903,
+        "lime": 18198.543596786683,
+        "naocl2": 954.9635899196655,
+        "product": 1446.5826638875453,
+        "panelC": 1513.1453226222006,
+        "brine": 1602.2822203603823,
+        "adj": 1749.8132520603058,
         "backwash": 203.32262512694547
       },
       "productWaterShown": "≈ 1446582.66388755 L"
@@ -710,7 +816,7 @@
   ],
   "experimentalBound": {
     "beta": "2.646681e-11",
-    "stepsClosed": 720,
+    "stepsClosed": 2160,
     "largestStepError": "2.031764e-12",
     "largestShareOfBeta": 0.0768,
     "largestMemberShare": 0.408,
@@ -749,6 +855,14 @@
         "bound": "1.905610e-8",
         "withinBound": true,
         "shareOfBound": 0.00503
+      },
+      {
+        "steps": 2160,
+        "residual": "4.165488e-10",
+        "maxResidualSoFar": "4.165488e-10",
+        "bound": "5.716831e-8",
+        "withinBound": true,
+        "shareOfBound": 0.00729
       }
     ],
     "chain": {
@@ -837,60 +951,67 @@
     }
   },
   "energy": {
-    "gridKwh": 905114.4361,
-    "usedKwh": 896256.4482,
-    "deliveredM3": 223500,
-    "gridKwhPerM3": 4.0497,
-    "usedKwhPerM3": 4.0101
+    "gridKwh": 2699074.4361,
+    "usedKwh": 2690216.4482,
+    "deliveredM3": 670500,
+    "gridKwhPerM3": 4.0255,
+    "usedKwhPerM3": 4.0123
   },
+  "demandM3": 670500,
   "chemicals": [
     {
       "tank": "naocl",
       "kind": "hypochlorite",
       "kgPerDay": "21",
-      "moved": 520.8424,
-      "engineLeft": 1479.157619000444,
-      "difference": 1.5916157281026244e-12
+      "moved": 1563.8424,
+      "delivered": 1458.7652,
+      "engineLeft": 1894.9227869063918,
+      "difference": 4.547473508864641e-12
     },
     {
       "tank": "coag",
       "kind": "coagulant",
       "kgPerDay": "210",
-      "moved": 5208.4238,
-      "engineLeft": 4791.576190004429,
-      "difference": 0
+      "moved": 15638.4238,
+      "delivered": 14587.6517,
+      "engineLeft": 8949.227869063898,
+      "difference": 5.4569682106375694e-11
     },
     {
       "tank": "anti",
       "kind": "antiscalant",
       "kgPerDay": "40",
-      "moved": 992.4864,
-      "engineLeft": 1007.5135835759871,
-      "difference": 1.0231815394945443e-11
+      "moved": 2979.1531,
+      "delivered": 2778.9298,
+      "engineLeft": 1799.7766979434857,
+      "difference": 1.9326762412674725e-11
     },
     {
       "tank": "lime",
       "kind": "remineralizer",
       "kgPerDay": "360",
-      "moved": 8937.8633,
-      "engineLeft": 11062.136693444509,
-      "difference": 1.6370904631912708e-11
+      "moved": 26817.8633,
+      "delivered": 25016.4069,
+      "engineLeft": 18198.543596786683,
+      "difference": 2.2919266484677792e-10
     },
     {
       "tank": "naocl2",
       "kind": "hypochlorite",
       "kgPerDay": "9",
-      "moved": 223.4466,
-      "engineLeft": 776.5534173361092,
-      "difference": 3.410605131648481e-12
+      "moved": 670.4466,
+      "delivered": 625.4102,
+      "engineLeft": 954.9635899196655,
+      "difference": 7.844391802791506e-12
     },
     {
       "tank": "adj",
       "kind": "adjuster",
       "kgPerDay": "50",
-      "moved": 1240.1258,
-      "engineLeft": 759.8741795066006,
-      "difference": 1.0231815394945443e-12
+      "moved": 3723.4592,
+      "delivered": 3473.2724,
+      "engineLeft": 1749.8132520603058,
+      "difference": 4.547473508864641e-12
     }
   ],
   "contract": {

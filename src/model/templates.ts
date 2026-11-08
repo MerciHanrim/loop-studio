@@ -137,16 +137,19 @@ export const TEMPLATES: Template[] = [
     menu: false,
   },
   // #471 — "Seawater desalination process": a facility process flow from intake
-  // to the city and the sea, in five numbered frames, at `loop-studio/graph/6`:
+  // to the city and the sea, in five numbered frames, at `loop-studio/graph/7`:
   // water is a conserved kind, power and each chemical are not, the rates are
   // authored per day on a 1 h step, and the engine runs on the derived per-step
   // values. The canonical graph is examples/desalination.json; its run is pinned
   // against examples/desalination.expected.json by
   // test/desalination-example.test.ts. A fixed-ratio model with example
   // assumptions, not a validated process model. A 24-hour demand table and six
-  // run rules move it. Opens UNLOCKED on the five frames, two rows wide, so the
-  // overview stays readable above the Timeline: about 0.31 at 1280 and 0.59 at
-  // 1920. `minZoom` lets that overview fit a small window.
+  // run rules move it; #533: six delivery tables (`available`, graph/7) refill the
+  // chemical tanks every 14 days, so it runs the 90 days its test checks. Frame 4
+  // is 70 taller for the deliveries above its two tanks. Opens UNLOCKED on the
+  // five frames, two rows wide, so the overview stays readable above the
+  // Timeline: about 0.31 at 1280 and 0.55 at 1920 (#533, measured 2026-11-09).
+  // `minZoom` lets that overview fit a small window.
   // Menu place: after the two basic examples and before Coffee, so Hanrim's
   // Coffee → MMO → Gacha sequence (below, 2026-09-13) stays as decided.
   {
@@ -157,7 +160,7 @@ export const TEMPLATES: Template[] = [
     graph: tplGraph(desalinationDoc),
     ...tplModel(desalinationDoc),
     recommendedRunConfig: (desalinationDoc as { recommendedRunConfig?: RecommendedRunConfig }).recommendedRunConfig,
-    initialView: { rect: { x: 10, y: 25, width: 2040, height: 1035 }, minZoom: 0.2 },
+    initialView: { rect: { x: 10, y: 25, width: 2040, height: 1105 }, minZoom: 0.2 },
   },
   // "Coffee roastery operations flow" — the first bundled Template authored at
   // schema `loop-studio/graph/2` (loop-model/2). Its five surfaced levers are

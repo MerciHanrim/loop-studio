@@ -2339,7 +2339,7 @@ test('a Template with a timetable opens from the phone’s menu and steps', asyn
   await page.locator('.sheet[aria-label="Templates"] .sheet__row', { hasText: 'Seawater desalination' }).click()
   const confirm = page.locator('.mcdlg--confirm .btn--primary')
   if (await confirm.isVisible().catch(() => false)) await confirm.click()
-  await expect(page.locator('.react-flow__node')).toHaveCount(37)
+  await expect(page.locator('.react-flow__node')).toHaveCount(43)
   await page.locator('.pstrip--mobile').getByRole('button', { name: 'Advance one step' }).click()
   // a rule that lost its table is refused, and the step would not happen
   await expect.poll(() => page.evaluate(() => (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop.sim.getState().stepIndex)).toBe(1)

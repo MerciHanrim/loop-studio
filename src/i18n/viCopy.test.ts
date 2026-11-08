@@ -126,7 +126,7 @@ describe('vi copy — the first locale English hides inside', () => {
     expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(1477) // #533: +1 (`help.examples.desalination.p9`); #520: +1 (`help.runRule.p6`); #519: +15 (`timeline.rate.available*` ×4, `help.timetable.*` ×4, `inspector.edge.timetable.means.available` / `availableMoved`, `timetable.import.means*` ×5); #525: +1 (`timeline.reading.preview`); #520: +2 (`inspector.run.warn.start`, `panels.time.change.startBody`); two example notes removed: -4 (`help.examples.equilibrium.*`, `help.examples.deadlock.*`); desalination Template: +2 (`help.examples.desalination.p7`, `p8`); run panels: +46 (`inspector.run.*`, `timeline.run.*`, `help.runRule.*`, two panels keys); stage tag: +11 (`run.tag.*`);  timetable screens: +46 (timetable.import.*, panels.timetables.*, help.stepOrder.*, timeline.rate.aria, import.menu.timetable, inspector.edge.timetable.pick); timetables: +21 (playbar.refused.timetable.range, inspector.edge.timetable.lastStep, import.error.badTimetable*, playbar.diag.timetable*, playbar.refused.timetable.*, inspector.edge.timetable.*); About description: +1 (about.description); #471 process example: +3 (help.examples.desalination.p4 to p6); #471 outflow reading: +1 (panels.kinds.outflow.unitFor); #471 view units: +7 (timeline.units.*, timeline.axis.mixedUnits, timeline.csv.*); #471 desalination: +5; #471 U1 stage 2: +25; #471 (b): +24;#478 follow-up 3: +12 (inspector.icon.name.*, the twelve of the review); follow-up 2: +1 (inspector.icon.name.cash); follow-up 1: +2 (inspector.icon.name.rain-cloud / recycling); #478: +18; #477: +13; #471 Deploy 2: +5; #423 B: +2; #420 item 3: +23; #420 follow-up: +4; #420 PR B: +2; #420 PR A: +1 (share.open.notice.apply); #396: +1 (playbar.diag.title); #417: −2 (toolbar.settings.*); #392: +1 (import.error.badNode)
     // 2026-10 — the three new gacha Templates add 69 labels and 3 frames; the
     // 19 module labels left with the modules (v0.29.0)
-    expect(RUNTIME.filter(([s]) => s.startsWith('template/'))).toHaveLength(302) // #471 process example: +28; #471 desalination: +9
+    expect(RUNTIME.filter(([s]) => s.startsWith('template/'))).toHaveLength(308) // #471 process example: +28; #471 desalination: +9; #533 deliveries: +6
     expect(RUNTIME.filter(([s]) => s.startsWith('frame/'))).toHaveLength(15)
   })
 
@@ -958,7 +958,7 @@ describe('one English noun, one Vietnamese term, everywhere English names it', (
     // non-vacuous: the overlay surfaces ARE being read, and they do have
     // English originals to test
     const overlay = RUNTIME.filter(([s]) => s !== 'catalog')
-    expect(overlay).toHaveLength(317) // #471 process example: +28 labels, +5 frames; #471 desalination: +9 node labels
+    expect(overlay).toHaveLength(323) // #471 process example: +28 labels, +5 frames; #471 desalination: +9 node labels; #533: +6 delivery labels
     expect(overlay.filter(([s, id]) => !englishFor(s, id))).toEqual([])
   })
 

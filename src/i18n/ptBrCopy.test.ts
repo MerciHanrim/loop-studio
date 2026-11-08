@@ -380,11 +380,12 @@ describe('pt-BR copy — mechanical review', () => {
     // 2026-10 — the three gacha Templates added with the redesign bring 69
     // labels over 31 new node ids, and 3 frames; the 19 module labels left
     // with the bundled modules in v0.29.0; #471 (2026-11-04): the desalination
-    // Template brings 9 labels over 9 new node ids
+    // Template brings 9 labels over 9 new node ids; #533: its six chemical deliveries,
+    // 6 labels over 6 new node ids
     expect({ slotCount, frameCount, ids: ids.size }).toEqual({
-      slotCount: 302,
+      slotCount: 308,
       frameCount: 15,
-      ids: 258,
+      ids: 264,
     })
   })
 })
