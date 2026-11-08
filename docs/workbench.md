@@ -420,10 +420,26 @@ The step is the first that fits, measured on the row's children (not with `scrol
 which misses a right-to-left row's overflow) after every render, so an ended run's longer
 text never wraps the row. The phone's run bar (`.pstrip--mobile`) keeps wrapping as
 before. A splitter (`role="separator"`, pointer or
-arrow keys in 16px steps) sets the height: at least 96px, and the canvas
+arrow keys in 16px steps) sets the height, and the canvas
 keeps at least 160px. The default height is 152px; the Distribution view's least is
 280px (the area rises to it on entering the view and returns on leaving it). The collapsed / expanded
 rule is [`timeline-series-contract.md`](timeline-series-contract.md) §7.
+
+**The area's least height** (#534, Lumi, 2026-11-08) is what it must show: the splitter,
+the run row, one notice row when the run has notices, the panel's head, the chart at
+**140px** (`PLOT_MIN`) and one strip when there are strips (`TimelineChart.tsx`, measured
+from the page, because the run row wraps in a narrow window or a long language). It is
+never under 96px, and never so tall that the canvas falls under its 160px. Short of room,
+the notices and the strips give way first, each down to one row or one strip, and scroll
+inside; the chart keeps its 140px, so its axis labels stay apart. When notices or a strip
+appear, an area under its least rises to it; with strips the area still rises to the
+earlier comfortable height, so two strips show by default.
+
+Measured 2026-11-08 on the desalination Template, at the least: 216px with no notices or
+strips, 272px with strips, 313px with strips and notices, at windows 1080, 900, 768 and
+600 tall. The cost is the canvas: at a 600px window it keeps 187px, and the drawing fits at
+about 20% zoom. That is the price of the chart's least height, kept on purpose; the
+splitter or the collapse gives the canvas its room back.
 
 ## WB8. Status bar
 

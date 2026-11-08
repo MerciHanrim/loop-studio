@@ -129,24 +129,21 @@ export function TimelineChart() {
   const runStrips = useRunStrips()
   const rateStrips = showDistribution ? 0 : Math.min(readTables.length + runStrips.length, 2)
   const floorWanted = showDistribution ? DISTRIBUTION_MIN : rateStrips > 0 ? ANALYSIS_DEFAULT + STRIP_PLOT_EXTRA + rateStrips * RATE_STRIP_H : null
-  // #534 prototype — the least the area can be is what is on screen: the splitter, the run
-  // row, one notice row when there are notices, the panel's head, the chart's floor
-  // (`--plot-min`) and one strip when there are strips. The notices and the strips give way
-  // first and scroll (workbench.css); the chart keeps its floor.
+  // #534 (decided 2026-11-08) — the least the area can be is what is on screen: the
+  // splitter, the run row, one notice row when there are run notices, the panel's head,
+  // the chart's floor (`PLOT_MIN`) and one strip when there are strips. Short of room, the
+  // notices and the strips give way first and scroll inside (workbench.css); the chart keeps
+  // its floor. Measured from the page after every render, because the run row wraps in a
+  // narrow window or a long language; state changes only when a number does.
   const [measured, setMeasured] = useState<{ floor: number; panel: number } | null>(null)
   useLayoutEffect(() => {
     const area = areaRef.current
     const next = (() => {
       if (!area || collapsed || isMobile || showDistribution) return null
-      const css = getComputedStyle(area)
-      const px = (name: string, d: number) => {
-        const v = parseFloat(css.getPropertyValue(name))
-        return Number.isFinite(v) ? v : d
-      }
       const h = (sel: string) => (area.querySelector(sel) as HTMLElement | null)?.offsetHeight ?? 0
-      const notices = area.querySelector('.pstrip-diag') ? px('--diag-min', 41) : 0
-      const strips = area.querySelector('.timeline__rates') ? px('--strip-min', 56) : 0
-      const panel = Math.ceil(1 + h('.timeline__head') + px('--plot-min', 140) + strips)
+      const notices = area.querySelector('.pstrip-diag') ? NOTICE_ROW_MIN : 0
+      const strips = area.querySelector('.timeline__rates') ? RATE_STRIP_H : 0
+      const panel = Math.ceil(PANEL_BORDER + h('.timeline__head') + PLOT_MIN + strips)
       return { floor: Math.ceil(h('.wb-splitter') + h('.pstrip') + notices) + panel, panel }
     })()
     if (next?.floor !== measured?.floor || next?.panel !== measured?.panel) setMeasured(next)
@@ -970,7 +967,17 @@ export function TimelineChart() {
       ref={areaRef}
       className={`timeline wb-analysis${collapsed ? ' is-collapsed' : ''}${showDistribution ? ' is-distribution' : ''}`}
       data-tour="timeline"
-      style={collapsed ? undefined : ({ height, ...(measured ? { '--panel-min': `${measured.panel}px` } : {}) } as React.CSSProperties)}
+      style={
+        collapsed
+          ? undefined
+          : ({
+              height,
+              '--plot-min': `${PLOT_MIN}px`,
+              '--notice-min': `${NOTICE_ROW_MIN}px`,
+              '--strip-min': `${RATE_STRIP_H}px`,
+              ...(measured ? { '--panel-min': `${measured.panel}px` } : {}),
+            } as React.CSSProperties)
+      }
     >
       {!collapsed ? <AnalysisSplitter height={height} min={areaMin} onHeight={setHeight} label={t('workbench.analysis.resize')} /> : null}
       <PlayBar
@@ -991,6 +998,13 @@ export const ANALYSIS_DEFAULT = 152
 const STRIP_PLOT_EXTRA = 72
 const ANALYSIS_MIN = 96
 const ANALYSIS_CANVAS_MIN = 160
+/** #534 — the chart's own floor: its three axis labels stay 39 px apart and its end labels
+ *  have room (measured 2026-11-08 at 140, 120 and 100 px; Lumi chose 140) */
+export const PLOT_MIN = 140
+/** #534 — one run notice in view: the list's padding and border, its title and one line */
+export const NOTICE_ROW_MIN = 41
+/** the panel's top border */
+const PANEL_BORDER = 1
 const ANALYSIS_STEP = 16
 /** the least the area is while the Distribution view shows: its band chart
  *  and controls on screen (measured 2026-10-20 at 1280 × 800: 280 px gives the
