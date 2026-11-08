@@ -129,7 +129,35 @@ export function TimelineChart() {
   const runStrips = useRunStrips()
   const rateStrips = showDistribution ? 0 : Math.min(readTables.length + runStrips.length, 2)
   const floorWanted = showDistribution ? DISTRIBUTION_MIN : rateStrips > 0 ? ANALYSIS_DEFAULT + STRIP_PLOT_EXTRA + rateStrips * RATE_STRIP_H : null
-  const areaMin = floorWanted != null ? Math.min(floorWanted, areaMax()) : ANALYSIS_MIN
+  // #534 prototype — the least the area can be is what is on screen: the splitter, the run
+  // row, one notice row when there are notices, the panel's head, the chart's floor
+  // (`--plot-min`) and one strip when there are strips. The notices and the strips give way
+  // first and scroll (workbench.css); the chart keeps its floor.
+  const [measured, setMeasured] = useState<{ floor: number; panel: number } | null>(null)
+  useLayoutEffect(() => {
+    const area = areaRef.current
+    const next = (() => {
+      if (!area || collapsed || isMobile || showDistribution) return null
+      const css = getComputedStyle(area)
+      const px = (name: string, d: number) => {
+        const v = parseFloat(css.getPropertyValue(name))
+        return Number.isFinite(v) ? v : d
+      }
+      const h = (sel: string) => (area.querySelector(sel) as HTMLElement | null)?.offsetHeight ?? 0
+      const notices = area.querySelector('.pstrip-diag') ? px('--diag-min', 41) : 0
+      const strips = area.querySelector('.timeline__rates') ? px('--strip-min', 56) : 0
+      const panel = Math.ceil(1 + h('.timeline__head') + px('--plot-min', 140) + strips)
+      return { floor: Math.ceil(h('.wb-splitter') + h('.pstrip') + notices) + panel, panel }
+    })()
+    if (next?.floor !== measured?.floor || next?.panel !== measured?.panel) setMeasured(next)
+  })
+  const measuredFloor = measured?.floor ?? null
+  const areaMin = showDistribution ? Math.min(DISTRIBUTION_MIN, areaMax()) : Math.min(Math.max(ANALYSIS_MIN, measuredFloor ?? ANALYSIS_MIN), areaMax())
+  // an area under its floor (notices or a strip just appeared) rises to it
+  useLayoutEffect(() => {
+    if (isMobile || collapsed) return
+    if (height < areaMin) setHeight(areaMin)
+  }, [areaMin, isMobile, collapsed])
   useLayoutEffect(() => {
     if (isMobile) return
     if (floorWanted != null) {
@@ -942,7 +970,7 @@ export function TimelineChart() {
       ref={areaRef}
       className={`timeline wb-analysis${collapsed ? ' is-collapsed' : ''}${showDistribution ? ' is-distribution' : ''}`}
       data-tour="timeline"
-      style={collapsed ? undefined : { height }}
+      style={collapsed ? undefined : ({ height, ...(measured ? { '--panel-min': `${measured.panel}px` } : {}) } as React.CSSProperties)}
     >
       {!collapsed ? <AnalysisSplitter height={height} min={areaMin} onHeight={setHeight} label={t('workbench.analysis.resize')} /> : null}
       <PlayBar

@@ -855,7 +855,26 @@
 .timeline.wb-analysis .timeline__panel {
   flex: 1 1 auto;
   height: auto;
-  min-height: 0;
+  /* #534 — the panel cannot shrink below its head, the plot's floor and one strip
+     (`--panel-min`, measured by TimelineChart). Not `auto`: that counts the chart's svg at
+     the size it had, and the area could not shrink (the first prototype run). */
+  min-height: var(--panel-min, 0px);
+}
+/* #534 — the chart keeps a readable height (`--plot-min`, set by TimelineChart); when the
+   area is short, the run notices and the strips give way first, each down to one row or
+   one strip, and scroll inside */
+.timeline.wb-analysis .timeline__plot {
+  flex: 1 1 auto;
+  min-height: var(--plot-min, 140px);
+}
+.timeline.wb-analysis .timeline__rates {
+  flex: 0 1 auto;
+  min-height: var(--strip-min, 56px);
+}
+.timeline.wb-analysis .pstrip-diag {
+  flex: 0 1 auto;
+  min-height: var(--diag-min, 41px);
+  overflow-y: auto;
 }
 .wb-splitter {
   flex: none;
