@@ -8,6 +8,7 @@ import { useFrameStore } from '../store/frameStore'
 import { useGraphStore } from '../store/graphStore'
 import { fullPercent } from '../ui/runMessages'
 import { compareStripPlace, runStripPath, stripPlace } from '../ui/runStrip'
+import { endLabelBaselines } from '../ui/stripEndLabels'
 import { RATE_STRIP_H } from './TimetableRateChart'
 
 // SEMANTICS-M6.md §M6-9 — what a ruled group was asked for and did, step by step, under
@@ -58,6 +59,9 @@ function Strip({ group, series, width, padL, padR, minStep, maxStep }: { group: 
   const target = runStripPath(reports.map((p) => ({ step: p.step, value: p.report?.target ?? null })), x, y, minStep)
   const moved = runStripPath(reports.map((p) => ({ step: p.step, value: p.report?.moved ?? null })), x, y, minStep)
   const last = reports[reports.length - 1]?.report ?? null
+  // #532 prototype — the words at the end of each line
+  const lastPoint = [...reports].reverse().find((p) => p.report !== null && p.step > minStep) ?? null
+  const ends = lastPoint?.report ? endLabelBaselines(y(lastPoint.report.target), y(lastPoint.report.moved), PAD_TOP, RATE_STRIP_H - PAD_BOTTOM) : null
   const at = hover === null ? null : (reports.find((p) => p.step === hover) ?? null)
   const stepAt = (clientX: number, box: DOMRect) => Math.min(maxStep, Math.max(minStep, Math.round(minStep + ((clientX - box.left - padL) / iw) * span)))
   return (
@@ -89,6 +93,16 @@ function Strip({ group, series, width, padL, padR, minStep, maxStep }: { group: 
       </text>
       <path className="timeline__run-target" d={target} />
       <path className="timeline__rate-line" d={moved} />
+      {lastPoint && ends ? (
+        <>
+          <text className="timeline__tick timeline__strip-end" data-end="target" x={x(lastPoint.step) - 2} y={ends[0]} textAnchor="end">
+            {t('timeline.run.endTarget')}
+          </text>
+          <text className="timeline__tick timeline__strip-end" data-end="ran" x={x(lastPoint.step) - 2} y={ends[1]} textAnchor="end">
+            {t('timeline.run.endRan')}
+          </text>
+        </>
+      ) : null}
       {at?.report ? (
         <>
           <line className="timeline__rate-guide" x1={x(at.step)} y1={PAD_TOP} x2={x(at.step)} y2={RATE_STRIP_H - PAD_BOTTOM} />
