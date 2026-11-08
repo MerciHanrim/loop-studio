@@ -77,6 +77,8 @@ const inspector = {
   'inspector.edge.flowParam.malformed': 'não é uma referência de parâmetro válida — esta conexão contribui com 0',
   'inspector.edge.timetable.unknown': 'não há tabela horária “{id}” neste documento',
   'inspector.edge.timetable.name': 'Tabela horária: {label}',
+  'inspector.edge.timetable.means.available': 'Disponível: a linha pode mover até esta taxa. Mover menos é normal e não é avisado.',
+  'inspector.edge.timetable.availableMoved': 'Passo {step}: {available} {unit} disponível, {moved} {unit} movido',
   'inspector.edge.timetable.source': 'Fonte: {source}',
   'inspector.edge.timetable.read.hold': 'Cada taxa dura até chegar ao ponto seguinte',
   'inspector.edge.timetable.read.linear': 'A taxa muda em linha reta entre os pontos',

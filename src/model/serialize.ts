@@ -22,13 +22,15 @@ export const SCHEMA_V4 = 'loop-studio/graph/4'
 export const SCHEMA_V5 = 'loop-studio/graph/5'
 /** loop-model/6 (SEMANTICS-M6.md §M6-1) — a document with run rules. */
 export const SCHEMA_V6 = 'loop-studio/graph/6'
+/** loop-model/7 (SEMANTICS-M7.md §M7-1) — a document with a table of what a line can move. */
+export const SCHEMA_V7 = 'loop-studio/graph/7'
 const SCHEMA_VERSION = 1
 /** issue #344, docs/diagram-layout.md §DL2.8 — the current layout rules: 1 =
  *  the 16 px grid with the 28 px port row. A document with a lower (or no)
  *  `layoutVersion` is re-placed once when it is opened. */
 export const LAYOUT_VERSION = 1
 
-import { hasKindsTable, hasRunRules, hasTimetables, hasUnits, type ModelSemanticsVersion } from './modelVersion'
+import { hasKindsTable, hasRunRules, hasTableMeaning, hasTimetables, hasUnits, type ModelSemanticsVersion } from './modelVersion'
 import { anyRunRule, readRunRule, stripRunRules } from './runRule'
 import { canonicalKinds, kindsDeclareUnits, readKindsAt, type ResourceKindDecl } from './kinds'
 import { canonicalDocTime, readDocTime, type DocTime } from './units'
@@ -51,6 +53,7 @@ const SCHEMA_BY_MODEL_VERSION: Partial<Record<ModelSemanticsVersion, string>> = 
   4: SCHEMA_V4,
   5: SCHEMA_V5,
   6: SCHEMA_V6,
+  7: SCHEMA_V7,
 }
 /** The envelope `schema` string a document of this model-semantics version is
  *  written with (§M2-1). The ONE writer-side mapping — `serialize()` and the
@@ -75,6 +78,7 @@ export function modelVersionForSchema(schema: unknown): ModelSemanticsVersion | 
   if (schema === SCHEMA_V4) return 4
   if (schema === SCHEMA_V5) return 5
   if (schema === SCHEMA_V6) return 6
+  if (schema === SCHEMA_V7) return 7
   return null
 }
 
@@ -757,6 +761,11 @@ export function serialize(
   if (tablesOut.length > 0 && !hasTimetables(modelVersion)) {
     throw new Error(`a timetable needs model-semantics version 5, not ${modelVersion}`)
   }
+  // SEMANTICS-M7.md §M7-1 — an older build drops an unknown table key without a word,
+  // so it would read an `available` table as a plan and lose the meaning on save
+  if (tablesOut.some((x) => x.means === 'available') && !hasTableMeaning(modelVersion)) {
+    throw new Error(`a table of what a line can move needs model-semantics version 7, not ${modelVersion}`)
+  }
   if (anyRunRule(nodes) && !hasRunRules(modelVersion)) {
     throw new Error(`a run rule needs model-semantics version 6, not ${modelVersion}`)
   }
@@ -925,7 +934,7 @@ export function deserialize(text: string): {
   const time = hasUnits(modelVersion) ? readDocTime(obj.time) : undefined
   // §M5-2 — a bad table refuses the file whole, with the row named: dropping a
   // row would change what the table means. Never read from an earlier schema.
-  const tables = readTimetables(hasTimetables(modelVersion) ? obj.timetables : undefined)
+  const tables = readTimetables(hasTimetables(modelVersion) ? obj.timetables : undefined, hasTableMeaning(modelVersion))
   if (!tables.ok) {
     const { code, tableId, row } = tables.problem
     throw new GraphFileError('bad-timetable', `Timetable "${tableId ?? '?'}" was refused (${code}${row !== undefined ? `, row ${row}` : ''}).`, { id: tableId, row: row ?? null })
@@ -1054,8 +1063,9 @@ export function loadFromStorage():
   return null
 }
 
-/** the highest `loop-studio/graph/<n>` this build reads (`SCHEMA_V4`) */
-const KNOWN_SCHEMA_MAX = 4
+/** the highest `loop-studio/graph/<n>` this build reads (`SCHEMA_V7`). It had stayed at
+ *  4 through /graph/5 and /6, so an unreadable /5 or /6 record was called newer. */
+const KNOWN_SCHEMA_MAX = 7
 
 /** #420 — what is in the work record, told apart: nothing, a document, text this
  *  build cannot read (kept as it is, with the reason and whether a newer

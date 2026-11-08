@@ -85,6 +85,8 @@ const inspector = {
   'inspector.edge.flowParam.malformed': 'non è un riferimento valido a un parametro — questa connessione contribuisce 0',
   'inspector.edge.timetable.unknown': 'nessuna tabella oraria “{id}” in questo documento',
   'inspector.edge.timetable.name': 'Tabella oraria: {label}',
+  'inspector.edge.timetable.means.available': 'Disponibile: la connessione può spostare fino a questa portata. Spostare meno è normale e non viene segnalato.',
+  'inspector.edge.timetable.availableMoved': 'Passo {step}: {available} {unit} disponibile, {moved} {unit} spostato',
   'inspector.edge.timetable.source': 'Fonte: {source}',
   'inspector.edge.timetable.read.hold': 'Ogni portata dura fino al punto successivo',
   'inspector.edge.timetable.read.linear': 'La portata cambia in linea retta tra i punti',

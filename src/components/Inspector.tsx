@@ -50,9 +50,10 @@ import { CONNECT_KINDS, connectKindOf, type ConnectKind } from '../model/connect
 import { useT, type MessageKey } from '../i18n'
 import { GATE_STATE_KEY, GATE_WHY_KEY } from './nodes/nodes'
 import { isolateAuto, isolateLtr } from '../i18n/bidiIsolate'
-import { hasTimetables } from '../model/modelVersion'
+import { hasTableMeaning, hasTimetables } from '../model/modelVersion'
+import { plainDecimal, toSignificant15 } from '../model/rational'
 import { rulesFollowingTank } from '../model/runRule'
-import { firstUncoveredStep, timetableRef } from '../model/timetable'
+import { firstUncoveredStep, meaningOf, timetableRef } from '../model/timetable'
 import type {
   ConverterData,
   DrainData,
@@ -581,14 +582,30 @@ function TimetableNote({ flow }: { flow: string }) {
   const timetables = useGraphStore((s) => s.timetables)
   const edgeId = useGraphStore((s) => s.selectedEdgeId)
   const refusal = useSimStore((s) => s.timetableRefusals.find((f) => f.edgeId === edgeId) ?? null)
+  // SEMANTICS-M7.md §M7-3 — the last step's amounts, base unit per step, for a table of
+  // what the line can move: what was available and what moved are two numbers
+  const lastLine = useSimStore((s) => s.series[s.series.length - 1]?.timetableLines?.find((x) => x.edgeId === edgeId) ?? null)
+  const lastStepRun = useSimStore((s) => s.series[s.series.length - 1]?.step ?? 0)
+  const baseUnit = useGraphStore((s) => {
+    const e = s.edges.find((x) => x.id === edgeId)
+    return e ? s.kinds.find((k) => k.name === resolveKinds(s.nodes, s.edges).edgeKind.get(e.id))?.baseUnit : undefined
+  })
   if (id === null) return null
   if (!table) return <span className="inspector__note inspector__note--warn">{t('inspector.edge.timetable.unknown', { id: isolateLtr(id) })}</span>
   const first = time ? firstUncoveredStep(table, time) : null
   const lastStep = first === null ? null : first - 1
+  const available = hasTableMeaning(modelVersion) && meaningOf(table) === 'available'
+  const amount = (x: number) => plainDecimal(toSignificant15(x))
   return (
     <span className="inspector__notes">
       {refusal && <span className="inspector__note inspector__note--warn">{timetableRefusalText(refusal, timetables, t)}</span>}
       <span className="inspector__note">{t('inspector.edge.timetable.name', { label: isolateAuto(table.label) })}</span>
+      {available && <span className="inspector__note" data-means="available">{t('inspector.edge.timetable.means.available')}</span>}
+      {available && lastLine && (
+        <span className="inspector__note" data-step-amounts="">
+          {t('inspector.edge.timetable.availableMoved', { step: lastStepRun, available: isolateLtr(amount(lastLine.planned)), moved: isolateLtr(amount(lastLine.moved)), unit: isolateAuto(baseUnit ?? '') })}
+        </span>
+      )}
       <span className="inspector__note">{t('inspector.edge.timetable.source', { source: isolateAuto(table.source) })}</span>
       <span className="inspector__note">{t(table.read === 'hold' ? 'inspector.edge.timetable.read.hold' : 'inspector.edge.timetable.read.linear')}</span>
       <span className="inspector__note">{t(TIMETABLE_AFTER_KEY[table.after])}</span>

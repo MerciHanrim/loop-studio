@@ -89,6 +89,8 @@ const inspector = {
     'keine gültige Parameterreferenz — diese Verbindung trägt 0 bei',
   'inspector.edge.timetable.unknown': 'keine Zeittabelle „{id}“ in diesem Dokument',
   'inspector.edge.timetable.name': 'Zeittabelle: {label}',
+  'inspector.edge.timetable.means.available': 'Verfügbar: Die Verbindung kann bis zu dieser Rate bewegen. Weniger zu bewegen ist normal und wird nicht gemeldet.',
+  'inspector.edge.timetable.availableMoved': 'Schritt {step}: {available} {unit} verfügbar, {moved} {unit} bewegt',
   'inspector.edge.timetable.source': 'Quelle: {source}',
   'inspector.edge.timetable.read.hold': 'Jede Rate gilt bis zum nächsten Punkt',
   'inspector.edge.timetable.read.linear': 'Die Rate ändert sich zwischen den Punkten geradlinig',

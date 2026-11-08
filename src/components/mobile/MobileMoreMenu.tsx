@@ -32,6 +32,7 @@ import { ContextualHelpDialog } from '../ContextualHelpDialog'
 import { ExampleNotesDialog } from '../ExampleNotesDialog'
 import { RunRuleHelpDialog } from '../RunRuleHelpDialog'
 import { StepOrderDialog } from '../StepOrderDialog'
+import { TimetableHelpDialog } from '../TimetableHelpDialog'
 import { FilterControls } from '../FilterPanel'
 import { InlineHintNote } from '../HintNote'
 import { LanguageSwitch } from '../LanguageSwitch'
@@ -156,6 +157,7 @@ export function MobileMoreMenu({
   const [contextualOpen, setContextualOpen] = useState(false)
   const [examplesOpen, setExamplesOpen] = useState(false)
   const [stepOrderOpen, setStepOrderOpen] = useState(false)
+  const [timetableHelpOpen, setTimetableHelpOpen] = useState(false)
   const [runRuleOpen, setRunRuleOpen] = useState(false)
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null)
 
@@ -588,6 +590,9 @@ export function MobileMoreMenu({
         <button type="button" className="sheet__row" onClick={() => setStepOrderOpen(true)}>
           {t('help.stepOrder.title')}
         </button>
+        <button type="button" className="sheet__row" onClick={() => setTimetableHelpOpen(true)}>
+          {t('help.timetable.title')}
+        </button>
         <button type="button" className="sheet__row" onClick={() => setRunRuleOpen(true)}>
           {t('help.runRule.title')}
         </button>
@@ -612,6 +617,7 @@ export function MobileMoreMenu({
         />
         <ExampleNotesDialog open={examplesOpen} onClose={() => setExamplesOpen(false)} returnFocusTo={backToMore} />
         <StepOrderDialog open={stepOrderOpen} onClose={() => setStepOrderOpen(false)} returnFocusTo={backToMore} />
+        <TimetableHelpDialog open={timetableHelpOpen} onClose={() => setTimetableHelpOpen(false)} returnFocusTo={backToMore} />
         <RunRuleHelpDialog open={runRuleOpen} onClose={() => setRunRuleOpen(false)} returnFocusTo={backToMore} />
         <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} returnFocusTo={backToMore} />
       </MobileSheet>

@@ -19,7 +19,7 @@ import {
 import { normalizeGraph, readDataImports, readSavedFrames, schemaForModelVersion } from './serialize'
 import type { ImportSourceTable, RecommendedRunConfig, SavedFrame } from './serialize'
 import type { FlowNodeKind, LoopEdge, LoopNode } from './types'
-import { hasKindsTable, hasModelLayer, hasTimetables, hasUnits, isModelSemanticsLabel, modelSemanticsLabel, type ModelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
+import { hasKindsTable, hasModelLayer, hasTableMeaning, hasTimetables, hasUnits, isModelSemanticsLabel, modelSemanticsLabel, type ModelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
 import { canonicalKinds, readKindsAt, type ResourceKindDecl } from './kinds'
 import { canonicalTimetable, readTimetables, type Timetable } from './timetable'
 import { canonicalDocTime, readDocTime, type DocTime } from './units'
@@ -723,7 +723,7 @@ export function canonicalContent(
   // loop-model/5 (SEMANTICS-M5.md §M5-7) — `timetables` AFTER `time`, BEFORE
   // `modelSemantics`, only at a version with tables, only when ≥ 1 is present.
   if (modelLayer && hasTimetables(opts.modelVersion)) {
-    const tables = readTimetables(doc.timetables)
+    const tables = readTimetables(doc.timetables, hasTableMeaning(opts.modelVersion))
     if (tables.ok && tables.tables.length > 0) out.timetables = tables.tables.map(canonicalTimetable)
   }
   // loop-model/2 (SEMANTICS-M2.md §M2-8) — trailing discriminator, ONLY for a

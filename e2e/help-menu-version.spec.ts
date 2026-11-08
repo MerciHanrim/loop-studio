@@ -28,7 +28,7 @@ test.describe('the Help menu, word for word', () => {
   test('desktop, English: two groups, in the decided order and wording', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
-    expect(await helpMenuRows(page)).toEqual(['Restart the tour', 'Turn contextual tips back on', 'Example notes', 'How a step fills and empties a Pool', 'How a run rule reads a tank', '-', 'Send feedback', 'About Loop Studio'])
+    expect(await helpMenuRows(page)).toEqual(['Restart the tour', 'Turn contextual tips back on', 'Example notes', 'How a step fills and empties a Pool', 'How a timetable is read', 'How a run rule reads a tank', '-', 'Send feedback', 'About Loop Studio'])
     await expect(page.getByRole('menuitem', { name: 'Send feedback — opens in a new tab', exact: true })).toBeVisible()
   })
 
@@ -36,7 +36,7 @@ test.describe('the Help menu, word for word', () => {
     await openApp(page)
     await resetAll(page)
     await pickLocale(page, 'ko')
-    expect(await helpMenuRows(page)).toEqual(['둘러보기 다시 시작', '상황별 안내 다시 켜기', '예제 설명', '한 단계에서 풀이 채워지고 비워지는 순서', '가동 규칙이 탱크를 읽는 방식', '-', '피드백 보내기 · 영문', 'Loop Studio 정보'])
+    expect(await helpMenuRows(page)).toEqual(['둘러보기 다시 시작', '상황별 안내 다시 켜기', '예제 설명', '한 단계에서 풀이 채워지고 비워지는 순서', '시간표를 읽는 방법', '가동 규칙이 탱크를 읽는 방식', '-', '피드백 보내기 · 영문', 'Loop Studio 정보'])
     await expect(page.getByRole('menuitem', { name: '피드백 보내기 · 영문 — 새 탭에서 열림', exact: true })).toBeVisible()
   })
 })

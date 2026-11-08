@@ -17,7 +17,7 @@ import {
 } from './serialize'
 import type { LoopEdge, LoopNode } from './types'
 import { readKindsAt, type ResourceKindDecl } from './kinds'
-import { hasKindsTable, hasTimetables, hasUnits } from './modelVersion'
+import { hasKindsTable, hasTableMeaning, hasTimetables, hasUnits } from './modelVersion'
 import { readTimetables, type Timetable } from './timetable'
 import { readDocTime, type DocTime } from './units'
 
@@ -112,7 +112,7 @@ function tplModel(doc: unknown): Pick<Template, 'modelVersion' | 'kinds' | 'time
   const modelVersion = modelVersionForSchema(d.schema) ?? 1
   const kinds = hasKindsTable(modelVersion) ? readKindsAt(d.kinds, modelVersion) : []
   const time = hasUnits(modelVersion) ? readDocTime(d.time) : undefined
-  const read = hasTimetables(modelVersion) ? readTimetables(d.timetables) : null
+  const read = hasTimetables(modelVersion) ? readTimetables(d.timetables, hasTableMeaning(modelVersion)) : null
   // a bundled file is checked by its tests: one that does not read must not ship
   if (read && !read.ok) throw new Error(`a Template's timetables do not read: ${read.problem.code}`)
   const timetables = read?.ok ? read.tables : []

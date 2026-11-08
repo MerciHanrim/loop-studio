@@ -55,9 +55,10 @@ describe('the file', () => {
     expect(deserialize(JSON.stringify(raw)).timetables).toEqual([])
   })
 
-  it('an older reader has no schema to accept: /graph/7 fails closed here as /graph/5 does there', () => {
+  // /graph/7 is read since #519 (SEMANTICS-M7.md), so the schema past this build is /graph/8
+  it('an older reader has no schema to accept: /graph/8 fails closed here as /graph/5 does there', () => {
     const raw = JSON.parse(write([table()]))
-    raw.schema = 'loop-studio/graph/7'
+    raw.schema = 'loop-studio/graph/8'
     expect(() => deserialize(JSON.stringify(raw))).toThrow(GraphFileError)
   })
 
