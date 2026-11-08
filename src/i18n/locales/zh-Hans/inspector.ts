@@ -272,7 +272,7 @@ const inspector = {
   'inspector.run.warn.band': '带宽 {band} 小于此环节满负荷一步在 {tank} 移动的 {step}，因此运行可能逐步摆动。',
   'inspector.run.warn.level': '目标液位 {level} 低于一步从 {tank} 取走的 {step}，因此即使环节在运行，需求也可能得不到满足。',
   'inspector.run.warn.take': '{tank} 最多容纳 {capacity}，小于此环节满负荷一步取走的 {step}，因此 从所有路径拉取 无法达到满负荷。',
-  'inspector.run.warn.start': '{tank} 起始量为 {start}，小于此组满负荷一步取走的 {step}，且只有此组为其补充，因此 从所有路径拉取 可能永远无法启动。',
+  'inspector.run.warn.start': '{tank} 起始量为 {start}，小于此组满负荷一步取走的 {step}，且此组不先运行就没有供给能到达它，因此 从所有路径拉取 可能永远无法启动。',
   'panels.runRules.title': '运行规则',
   'panels.time.change.runBody': '{stages} 的运行规则对这个步长来说太粗。选中该环节即可看到原因。',
   'panels.time.change.startBody': '在此步长下，{stages} 可能无法启动：其取用的储罐起始量低于一步的用量。选择该环节可查看原因。',

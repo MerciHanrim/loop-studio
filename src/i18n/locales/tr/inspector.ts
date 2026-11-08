@@ -288,7 +288,7 @@ const inspector = {
   'inspector.run.warn.band': '{band} bandı, bu aşamanın tam bir adımda {tank} üzerinde taşıdığı {step} miktarın altında, bu yüzden çalışma adımdan adıma salınabilir.',
   'inspector.run.warn.level': '{level} hedef seviyesi, bir adımda {tank} içinden alınan {step} miktarın altında, bu yüzden aşama çalışırken talep karşılanmayabilir.',
   'inspector.run.warn.take': '{tank} en çok {capacity} tutar; bu, aşamanın tam bir adımda aldığı {step} miktarın altında, bu yüzden hepsinden çek tam çalışmaya ulaşamaz.',
-  'inspector.run.warn.start': '{tank} {start} ile başlar; bu, bu grubun tam bir adımda ondan aldığı {step} miktarın altında ve onu yalnızca bu grup doldurur, bu yüzden hepsinden çek hiç başlamayabilir.',
+  'inspector.run.warn.start': '{tank} {start} ile başlar; bu, bu grubun tam bir adımda ondan aldığı {step} miktarın altında ve bu grup önce çalışmadıkça ona hiçbir besleme ulaşmaz, bu yüzden hepsinden çek hiç başlamayabilir.',
   'panels.runRules.title': 'Çalışma kuralları',
   'panels.time.change.runBody': '{stages} çalışma kuralları bu adım için fazla kaba kalır. Nedenini okumak için aşamayı seçin.',
   'panels.time.change.startBody': '{stages} bu adımda başlamayabilir: aldığı bir tank, bir adımlık miktarın altında başlıyor. Nedenini okumak için aşamayı seçin.',

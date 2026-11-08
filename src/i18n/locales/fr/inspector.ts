@@ -297,7 +297,7 @@ const inspector = {
   'inspector.run.warn.band': 'La bande de {band} est sous les {step} que cette étape déplace sur {tank} en un pas complet, donc la marche peut osciller d’un pas à l’autre.',
   'inspector.run.warn.level': 'Le niveau cible de {level} est sous les {step} prélevés sur {tank} en un pas, donc la demande peut rester non servie pendant que l’étape marche.',
   'inspector.run.warn.take': '{tank} contient au plus {capacity}, moins que les {step} que cette étape prend en un pas complet, donc tirer depuis toutes les sources n’atteint pas une marche complète.',
-  'inspector.run.warn.start': '{tank} commence à {start}, moins que les {step} que ce groupe y prend en un pas complet, et seul ce groupe le remplit, donc tirer depuis toutes les sources peut ne jamais démarrer.',
+  'inspector.run.warn.start': '{tank} commence à {start}, moins que les {step} que ce groupe y prend en un pas complet, et aucun apport ne l’atteint tant que ce groupe ne marche pas d’abord, donc tirer depuis toutes les sources peut ne jamais démarrer.',
   'panels.runRules.title': 'Règles de marche',
   'panels.time.change.runBody': 'Les règles de marche de {stages} seraient trop grossières pour ce pas. Sélectionnez l’étape pour lire pourquoi.',
   'panels.time.change.startBody': '{stages} peut ne pas démarrer avec ce pas : un réservoir où l’étape prend commence sous la quantité d’un pas. Sélectionnez l’étape pour lire pourquoi.',

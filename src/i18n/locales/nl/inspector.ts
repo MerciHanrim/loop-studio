@@ -285,7 +285,7 @@ const inspector = {
   'inspector.run.warn.band': 'De bandbreedte van {band} ligt onder de {step} die dit deel in één volle stap bij {tank} verplaatst, dus de loop kan per stap schommelen.',
   'inspector.run.warn.level': 'Het doelniveau van {level} ligt onder de {step} die in één stap uit {tank} gaat, dus de vraag kan onvervuld blijven terwijl dit deel loopt.',
   'inspector.run.warn.take': '{tank} bevat hoogstens {capacity}, minder dan de {step} die dit deel in één volle stap neemt, dus dit deel haalt met zijn modus geen volle loop.',
-  'inspector.run.warn.start': '{tank} begint met {start}, minder dan de {step} die deze groep er in één volle stap uit neemt, en alleen deze groep vult het bij, dus deze groep komt met zijn modus misschien nooit op gang.',
+  'inspector.run.warn.start': '{tank} begint met {start}, minder dan de {step} die deze groep er in één volle stap uit neemt, en geen aanvoer bereikt het zolang deze groep niet eerst loopt, dus deze groep komt met zijn modus misschien nooit op gang.',
   'panels.runRules.title': 'Loopregels',
   'panels.time.change.runBody': 'De loopregels van {stages} zouden te grof zijn voor deze stap. Selecteer dit deel om te lezen waarom.',
   'panels.time.change.startBody': '{stages} komt bij deze stap misschien niet op gang: een tank waar het deel uit neemt, begint onder de hoeveelheid van één stap. Selecteer het deel om de reden te lezen.',

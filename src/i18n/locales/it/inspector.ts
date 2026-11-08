@@ -287,7 +287,7 @@ const inspector = {
   'inspector.run.warn.band': 'La banda di {band} è sotto i {step} che questa fase muove su {tank} in un passo pieno, quindi la marcia può oscillare da un passo all’altro.',
   'inspector.run.warn.level': 'Il livello obiettivo di {level} è sotto i {step} presi da {tank} in un passo, quindi la domanda può restare scoperta mentre la fase funziona.',
   'inspector.run.warn.take': '{tank} contiene al massimo {capacity}, meno dei {step} che questa fase prende in un passo pieno, quindi tira da tutte le sorgenti non raggiunge una marcia piena.',
-  'inspector.run.warn.start': '{tank} parte da {start}, meno dei {step} che questo gruppo ne prende in un passo pieno, e solo questo gruppo lo riempie, quindi tira da tutte le sorgenti può non partire mai.',
+  'inspector.run.warn.start': '{tank} parte da {start}, meno dei {step} che questo gruppo ne prende in un passo pieno, e nessuna fornitura lo raggiunge se questo gruppo non funziona prima, quindi tira da tutte le sorgenti può non partire mai.',
   'panels.runRules.title': 'Regole di marcia',
   'panels.time.change.runBody': 'Le regole di marcia di {stages} sarebbero troppo grossolane per questo passo. Seleziona la fase per leggere il perché.',
   'panels.time.change.startBody': '{stages} può non partire con questo passo: un serbatoio da cui prende parte sotto la quantità di un passo. Seleziona la fase per leggere il motivo.',

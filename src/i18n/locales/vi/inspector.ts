@@ -278,7 +278,7 @@ const inspector = {
   'inspector.run.warn.band': 'Dải {band} nhỏ hơn {step} mà công đoạn này chuyển ở {tank} trong một bước chạy hết mức, nên mức chạy có thể dao động giữa các bước.',
   'inspector.run.warn.level': 'Mức mục tiêu {level} nhỏ hơn {step} lấy từ {tank} trong một bước, nên nhu cầu có thể không được đáp ứng khi công đoạn đang chạy.',
   'inspector.run.warn.take': '{tank} chứa tối đa {capacity}, nhỏ hơn {step} mà công đoạn này lấy trong một bước chạy hết mức, nên kéo từ mọi phía không đạt được chạy hết mức.',
-  'inspector.run.warn.start': '{tank} bắt đầu với {start}, nhỏ hơn {step} mà nhóm này lấy từ đó trong một bước chạy hết mức, và chỉ nhóm này nạp lại, nên kéo từ mọi phía có thể không bao giờ khởi động.',
+  'inspector.run.warn.start': '{tank} bắt đầu với {start}, nhỏ hơn {step} mà nhóm này lấy từ đó trong một bước chạy hết mức, và không nguồn cấp nào đến được nếu nhóm này không chạy trước, nên kéo từ mọi phía có thể không bao giờ khởi động.',
   'panels.runRules.title': 'Quy tắc vận hành',
   'panels.time.change.runBody': 'Quy tắc vận hành của {stages} sẽ quá thô với bước này. Chọn công đoạn để đọc lý do.',
   'panels.time.change.startBody': '{stages} có thể không khởi động ở bước này: một bồn mà công đoạn lấy từ đó bắt đầu dưới lượng của một bước. Chọn công đoạn để đọc lý do.',

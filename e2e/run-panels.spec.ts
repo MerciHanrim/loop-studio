@@ -388,7 +388,37 @@ test('a step that leaves a pull all loop short at the start is announced, and th
   await dialog.locator('.btn--primary').click()
   await expect.poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().time.step.value)).toBe(6)
   await expect(section(page)).toContainText('starts with')
-  await expect(section(page)).toContainText('pull all may never start')
+  await expect(section(page)).toContainText('no supply reaches it unless this group runs first, so pull all may never start')
+})
+
+// #520, Lumi's review of #531 — two pull all groups that refill each other: the other
+// group does refill each tank, so the warning must not say only this group does. It says
+// what the supply waits on.
+test('two groups that refill each other: each stage says no supply reaches its tank unless it runs first', async ({ page }) => {
+  await openApp(page)
+  const stage = (id: string, label: string, x: number) => ({ id, type: 'converter', position: { x, y: 200 }, data: { kind: 'converter', label, activation: 'automatic', mode: 'pullAll' } })
+  await importGraph(
+    page,
+    JSON.stringify({
+      schema: 'loop-studio/graph/5',
+      version: 1,
+      nodes: [pool('feedA', 0, 100000), pool('tankA', 200, 1, 1000), stage('ga', 'Stage A', 0), pool('feedB', 400, 100000), pool('tankB', 600, 1, 1000), stage('gb', 'Stage B', 400)],
+      edges: [
+        line('fa', 'feedA', 'ga', '10'), line('ta', 'tankA', 'ga', '5'), line('ab', 'ga', 'tankB', '5'),
+        line('fb', 'feedB', 'gb', '10'), line('tb', 'tankB', 'gb', '5'), line('ba', 'gb', 'tankA', '5'),
+      ],
+      kinds: [{ name: 'water', conserved: false, baseUnit: 'm³', rateUnits: [{ name: 'CMH', factor: '1', per: 'h' }] }],
+      time: { step: { value: 1, unit: 'h' } },
+    }),
+  )
+  for (const [id, tank] of [['ga', 'tankA'], ['gb', 'tankB']] as const) {
+    await choose(page, id)
+    const warning = page.locator(`[data-run-rule="${id}"]`)
+    await expect(warning).toContainText(tank)
+    await expect(warning).toContainText('starts with')
+    await expect(warning).toContainText('no supply reaches it unless this group runs first, so pull all may never start')
+    await expect(warning).not.toContainText('only this group refills it')
+  }
 })
 
 test('a stage whose tag shows no words can be read in the Inspector and the Inputs list', async ({ page }) => {

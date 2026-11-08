@@ -279,7 +279,7 @@ const inspector = {
   'inspector.run.warn.band': 'A banda de {band} é menor que os {step} que esta etapa move em {tank} num passo completo, por isso a marcha pode oscilar de passo para passo.',
   'inspector.run.warn.level': 'O nível alvo de {level} é menor que os {step} tirados de {tank} num passo, por isso a procura pode ficar por cobrir com a etapa em marcha.',
   'inspector.run.warn.take': '{tank} contém no máximo {capacity}, menos que os {step} que esta etapa toma num passo completo, por isso puxar todos não chega a uma marcha completa.',
-  'inspector.run.warn.start': '{tank} começa com {start}, menos que os {step} que este grupo toma dele num passo completo, e só este grupo o reabastece, por isso puxar todos pode nunca arrancar.',
+  'inspector.run.warn.start': '{tank} começa com {start}, menos que os {step} que este grupo toma dele num passo completo, e nenhum abastecimento lhe chega se este grupo não funcionar antes, por isso puxar todos pode nunca arrancar.',
   'panels.runRules.title': 'Regras de marcha',
   'panels.time.change.runBody': 'As regras de marcha de {stages} seriam grosseiras demais para este passo. Selecione a etapa para ler o motivo.',
   'panels.time.change.startBody': '{stages} pode não arrancar com este passo: um tanque de onde toma começa abaixo da quantidade de um passo. Selecione a etapa para ler o motivo.',

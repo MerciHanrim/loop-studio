@@ -16,8 +16,9 @@ export type RunWarning =
   | { code: 'level-under-pull'; stage: string; tank: string; level: number; amount: number }
   /** a `pull all` take of one step is more than the Pool can hold */
   | { code: 'tank-under-take'; stage: string; tank: string; capacity: number; amount: number }
-  /** a Pool a `pull all` group takes from starts under one full step's take, and only
-   *  the group refills it, so the group may never start. `taker` is a member that takes. */
+  /** a Pool a `pull all` group takes from starts under its first step's take, and no
+   *  supply reaches it unless the group runs first, so the group may never start.
+   *  `taker` is a member that takes. */
   | { code: 'start-under-take'; stage: string; taker: string; tank: string; start: number; amount: number }
 
 /** a line's amount in one full step, in the base unit: a number's rate, or a table's
