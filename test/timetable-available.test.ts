@@ -131,9 +131,13 @@ function revisionDigestOf(text: string): string {
 }
 
 describe('the meaning survives a file (#519)', () => {
+  // the Template's own delivery tables are `available` (#533) and need version 7; a file
+  // before version 7 keeps them as plans here, so the outage table is the only meaning
+  // these writes test
   const write = (means: 'plan' | 'available' | undefined, version: 5 | 6 | 7) => {
     const d = outageDoc(means)
-    return serialize(d.nodes, d.edges, d.recommendedRunConfig, undefined, d.project, version, d.frames, d.dataImports, d.kinds, d.time, d.timetables)
+    const tables = version >= 7 ? d.timetables : d.timetables.map((t) => (t.id === OUTAGE.id ? t : { ...t, means: undefined }))
+    return serialize(d.nodes, d.edges, d.recommendedRunConfig, undefined, d.project, version, d.frames, d.dataImports, d.kinds, d.time, tables)
   }
 
   it('an available table is written on `loop-studio/graph/7` and reads back as available', () => {

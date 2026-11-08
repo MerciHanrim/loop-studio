@@ -392,7 +392,7 @@ describe('ru copy — the first Cyrillic catalog', () => {
     // 2026-10: 203 → 275, the three gacha Templates added with the redesign
     // (69 labels and 3 frames); #471 (2026-11-04): 275 → 284, the nine node
     // labels of the desalination Template
-    expect(Object.keys(flat)).toHaveLength(317) // #471 process example: +28 labels, +5 frames
+    expect(Object.keys(flat)).toHaveLength(323) // #471 process example: +28 labels, +5 frames; #533: +6 delivery labels
 
     // the gacha mechanism names and rarity letters stay Latin on purpose
     const LATIN_LABEL_OK = /^(SSR|SR|R|XP|Pity|Premium|Standard|Pickup|Hard|pity|вес|Доля)$/

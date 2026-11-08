@@ -12,7 +12,7 @@ import { openFileSubmenu, openInputsTab, pickLocale, pickTemplate } from './supp
 
 type Bridge = { __loop: Record<string, any> }
 
-const NODES = 37
+const NODES = 43
 const WATER_TANKS = ['basin', 'filtered', 'permeate', 'product', 'brine', 'backwash']
 /** what the unit test pinned through the engine */
 const pinned = JSON.parse(readFileSync(new URL('../examples/desalination.expected.json', import.meta.url), 'utf8')) as { modelVersion: number; checkpoints: { step: number; values: Record<string, number>; productWaterShown: string }[] }
