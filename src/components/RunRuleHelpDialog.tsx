@@ -34,6 +34,8 @@ export function RunRuleHelpDialog({ open, onClose, returnFocusTo }: Props) {
           <p className="contextual-help__intro">{t('help.runRule.p2')}</p>
           <p className="contextual-help__intro">{t('help.runRule.p3')}</p>
           <p className="contextual-help__intro">{t('help.runRule.p4')}</p>
+          {/* #520 — the start warning, which holds with or without a rule */}
+          <p className="contextual-help__intro">{t('help.runRule.p6')}</p>
           <p className="contextual-help__intro">{t('help.runRule.p5')}</p>
         </div>
       </div>

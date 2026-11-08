@@ -174,9 +174,27 @@ What a folded tag leaves out is on three other surfaces, so no stage depends on 
 | `band-under-step` | the stage moves more in one full step into, or out of, the tank than the band |
 | `level-under-pull` | what lines outside the group take from the tank in one step is more than the target level |
 | `tank-under-take` | a group that pulls all takes more in one full step from a Pool than that Pool's capacity |
-| `start-under-take` | a group that pulls all takes more in one full step from a Pool than that Pool starts with, and nothing outside the group fills it |
+| `start-under-take` | a group that pulls all takes more at its first step from a Pool than that Pool starts with, and nothing outside the group can fill it before the group runs |
 
-`start-under-take` is the one warning a Converter with no rule gets, on any member of the group. It is a shape, not a number: a Pool that something outside the group can fill gets there in a later step, so its low start costs a step or two and raises nothing. What can fill is held to the engine, one hop deep. A resource line above 0 from a Source or a Converter can, unless it is passive with no trigger; an interactive Source counts, because a person can press it. A resource line from a Pool cannot, because a Pool moves nothing by itself. Of the state lines only a `label` can: `+` above 0, `=` of one step's take or more, or `+S` and `=S` from a stocked or stockable Pool. An activator, a trigger, a `-` label and a label the engine ignores cannot. What feeds that Source or Converter is not followed, so one with nothing to run on still counts. The test is one full step, so a rule that asks for a small first run can still start, and the words say *may*. The Inspector shows it in the Target run section. Help's run rule page does not list it, because no rule is needed for it.
+`start-under-take` is the one warning a Converter with no rule gets, on any member of the group. It is a shape, not a number: a Pool that something outside the group can fill gets there in a later step, so its low start costs a step or two and raises nothing.
+
+**What can fill is decided over the whole graph** (#520, measured on main `776c0870`). It is a least fixed point, held to the engine, in which the group's own members never count. A node outside the group is live once it can fire without the group firing first:
+
+- a Source that is `automatic` or `onStart`;
+- a `passive` or `interactive` node, only on a trigger from a live node. Nothing in the app presses a node (§4 of `SEMANTICS.md`), so an interactive Source is a passive one;
+- a Converter or Gate only with input: pull all needs every input Pool to reach its line's amount, otherwise one input will do.
+
+A Pool reaches an amount when its start holds it, or when something live fills it.
+
+- A resource line above 0 from a live node can fill. A line from a Pool cannot, because a Pool moves nothing by itself.
+- Of the state lines only a `label` can: `+` above 0, `=` of the need or more, and `=S` only from a Pool that can reach the need. A label read after a pull needs its router live.
+- An activator, a trigger, a `-` label and a label the engine ignores cannot.
+
+So a supply that leads only to empty Pools, or back to the group, is no supply: an outside Converter with nothing to run on, a `=S` on an empty Pool or on the group's store, and two groups that refill each other, each warned for the tank it waits on. Capacity is not followed: a live line is taken to fill a Pool over enough steps.
+
+**The first step.** A rule reads its tank as the run starts, so the share it asks for at step 1 is known. The test is that share of one step's take, and a group with no rule takes the full step. On the 36 rule cases measured, this agreed with the engine every time. A rule whose target later falls because something else raises its tank can still start later, so the words say *may*.
+
+On the desalination Template, a 6 h step names hp and remin, and a 12 h step also names the delivery pump; none of them runs in 120 steps. At 6 h the delivery pump's first share fits, so it runs once and then waits on remin, which is named. The Inspector shows the warning in the Target run section, and Help's run rule page explains it, with or without a rule.
 
 A line counts at its rate, and a table line at the table's highest rate for a whole step: no step reads more. A line with no one amount, such as `all` or a dice roll, adds nothing. A stage with no line to its tank gets no band warning, because what it moves there is not known. A step-length change that gives a stage a warning names that stage and waits for consent, as §M4-4 does for a balance.
 

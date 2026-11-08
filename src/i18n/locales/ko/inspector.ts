@@ -269,7 +269,7 @@ const inspector = {
   'inspector.run.warn.band': '폭 {band}: 이 단계가 전체 가동 한 단계에 {tank}에서 옮기는 양 {step}보다 작습니다. 가동이 단계마다 흔들릴 수 있습니다.',
   'inspector.run.warn.level': '목표 수위 {level}: 한 단계에 {tank}에서 빠지는 양 {step}보다 낮습니다. 단계가 가동 중이어도 수요를 채우지 못할 수 있습니다.',
   'inspector.run.warn.take': '{tank}의 최대 용량 {capacity}: 이 단계가 전체 가동 한 단계에 가져가는 양 {step}보다 작습니다. 모든 경로에서 당기기로는 전체 가동에 이를 수 없습니다.',
-  'inspector.run.warn.start': '{tank}의 시작량 {start}: 이 묶음이 전체 가동 한 단계에 가져가는 양 {step}보다 작고, 이 묶음만 채웁니다. 모든 경로에서 당기기로는 시작하지 못할 수 있습니다.',
+  'inspector.run.warn.start': '{tank}의 시작량 {start}: 이 묶음이 전체 가동 한 단계에 가져가는 양 {step}보다 작고, 이 묶음이 먼저 가동하지 않으면 이 탱크에 공급이 닿지 않습니다. 모든 경로에서 당기기로는 시작하지 못할 수 있습니다.',
   'panels.runRules.title': '가동 규칙',
   'panels.time.change.runBody': '{stages}의 가동 규칙은 이 단계 길이에 비해 너무 성깁니다. 단계를 선택하면 이유가 나옵니다.',
   'panels.time.change.startBody': '이 단계 길이에서 시작하지 못할 수 있는 항목: {stages}. 가져오는 탱크의 시작량이 한 단계 양보다 작습니다. 항목을 선택하면 이유가 나옵니다.',
