@@ -5005,11 +5005,14 @@ a.sheet__row {
   stroke-width: 1;
 }
 /* SEMANTICS-M6.md §M6-9 — a ruled group's target, told from its run by the pattern */
+/* #532 prototype — a reference (a target, what is available) is dotted with round ends, a
+   family no series and no Register uses, at the run line's own 2 px: never thinner */
 .timeline__run-target {
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.5;
-  stroke-dasharray: 4 3;
+  stroke-width: 2;
+  stroke-dasharray: 0 4;
+  stroke-linecap: round;
 }
 .timeline__plot:focus-visible,
 .timeline__strip-read:focus-visible {

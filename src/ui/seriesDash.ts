@@ -7,7 +7,8 @@
 
 /** solid first, then patterns that stay apart at a 1.5 px line. A Register's `4 3` is not
  *  among them: that pattern says Register. */
-export const SERIES_DASHES: readonly (string | undefined)[] = [undefined, '8 3', '2 3', '9 3 2 3', '12 3 2 3 2 3']
+// #532 prototype: the short `2 3` left the family, because a strip's reference is now dotted
+export const SERIES_DASHES: readonly (string | undefined)[] = [undefined, '8 3', '9 3 2 3', '12 3 2 3 2 3', '16 3 4 3']
 
 export function seriesDashes(series: readonly { id: string; color: string }[], drawn: ReadonlySet<string>): Map<string, string | undefined> {
   const shared = new Map<string, number>()
