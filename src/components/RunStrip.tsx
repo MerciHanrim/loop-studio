@@ -47,9 +47,11 @@ export function useRunStrips(): RunStripGroup[] {
   }, [nodes, edges, modelVersion, frames])
 }
 
-function Strip({ group, series, width, padL, padR, minStep, maxStep }: { group: RunStripGroup; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number }) {
+function Strip({ group, series, width, padL, padR, minStep, maxStep, pinStep }: { group: RunStripGroup; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number; pinStep?: number | null }) {
   const t = useT()
-  const [hover, setHover] = useState<number | null>(null)
+  const [pointed, setHover] = useState<number | null>(null)
+  // #534 tab prototype — off the pointer, the strip reads the step picked on the chart
+  const hover = pointed ?? pinStep ?? null
   const iw = Math.max(1, width - padL - padR)
   const span = Math.max(1, maxStep - minStep)
   const x = (step: number) => padL + ((step - minStep) / span) * iw
@@ -101,11 +103,11 @@ function Strip({ group, series, width, padL, padR, minStep, maxStep }: { group: 
   )
 }
 
-export function RunStrips({ groups, series, width, padL, padR, minStep, maxStep }: { groups: readonly RunStripGroup[]; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number }) {
+export function RunStrips({ groups, series, width, padL, padR, minStep, maxStep, pinStep, only }: { groups: readonly RunStripGroup[]; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number; pinStep?: number | null; only?: string | null }) {
   return (
     <>
-      {groups.map((g) => (
-        <Strip key={g.id} group={g} series={series} width={width} padL={padL} padR={padR} minStep={minStep} maxStep={maxStep} />
+      {groups.filter((g) => only === undefined || `run:${g.id}` === only).map((g) => (
+        <Strip key={g.id} group={g} series={series} width={width} padL={padL} padR={padR} minStep={minStep} maxStep={maxStep} pinStep={pinStep} />
       ))}
     </>
   )

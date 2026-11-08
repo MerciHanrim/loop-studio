@@ -855,7 +855,40 @@
 .timeline.wb-analysis .timeline__panel {
   flex: 1 1 auto;
   height: auto;
+  /* #534 tab prototype — #536's floor: the panel keeps its head and the chart's floor
+     (`--panel-min`, measured by TimelineChart) */
+  min-height: var(--panel-min, 0px);
+}
+.timeline.wb-analysis .timeline__plot {
+  flex: 1 1 auto;
+  min-height: var(--plot-min, 76px);
+}
+/* #534 tab prototype — one strip at a time, in the chart's place */
+.timeline.wb-analysis .timeline__rates {
+  flex: 1 1 auto;
   min-height: 0;
+}
+/* #536's notice rule, kept: one row at the floor, scrolling inside, cut at its edge */
+.timeline.wb-analysis .pstrip-diag {
+  flex: 0 1 auto;
+  min-height: var(--notice-min, 37px);
+  overflow-y: auto;
+  padding-bottom: 0;
+}
+.timeline.wb-analysis .pstrip__diag-list {
+  padding-bottom: 6px;
+}
+.timeline__tabs {
+  display: inline-flex;
+  gap: 2px;
+  flex: none;
+}
+.timeline__pick {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 260px;
+  font: inherit;
+  font-size: 11px;
 }
 .wb-splitter {
   flex: none;

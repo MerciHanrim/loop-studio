@@ -72,9 +72,11 @@ function useMovedRates(table: Timetable, series: Series): { edgeId: string; from
   }, [table, series, nodes, edges, kinds, time, modelVersion])
 }
 
-function Strip({ table, series, width, padL, padR, minStep, maxStep, stepSec }: { table: Timetable; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number; stepSec: number }) {
+function Strip({ table, series, width, padL, padR, minStep, maxStep, stepSec, pinStep }: { table: Timetable; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number; stepSec: number; pinStep?: number | null }) {
   const t = useT()
-  const [hover, setHover] = useState<number | null>(null)
+  const [pointed, setHover] = useState<number | null>(null)
+  // #534 tab prototype — off the pointer, the strip reads the step picked on the chart
+  const hover = pointed ?? pinStep ?? null
   const unitSec = TIME_UNIT_SECONDS[table.timeUnit]
   const toTime = (step: number) => (step * stepSec) / unitSec
   const iw = Math.max(1, width - padL - padR)
@@ -166,14 +168,14 @@ function Strip({ table, series, width, padL, padR, minStep, maxStep, stepSec }: 
   )
 }
 
-export function TimetableRateChart({ tables, series, width, padL, padR, minStep, maxStep }: { tables: readonly Timetable[]; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number }) {
+export function TimetableRateChart({ tables, series, width, padL, padR, minStep, maxStep, pinStep, only }: { tables: readonly Timetable[]; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number; pinStep?: number | null; only?: string | null }) {
   const time = useGraphStore((s) => s.time)
   const stepSec = stepSeconds(time)
   if (stepSec === undefined || tables.length === 0) return null
   return (
     <>
-      {tables.map((table) => (
-        <Strip key={table.id} table={table} series={series} width={width} padL={padL} padR={padR} minStep={minStep} maxStep={maxStep} stepSec={stepSec} />
+      {tables.filter((table) => only === undefined || `table:${table.id}` === only).map((table) => (
+        <Strip key={table.id} table={table} series={series} width={width} padL={padL} padR={padR} minStep={minStep} maxStep={maxStep} stepSec={stepSec} pinStep={pinStep} />
       ))}
     </>
   )

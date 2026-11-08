@@ -16,7 +16,7 @@ import { seriesDashes } from '../ui/seriesDash'
 import { stageStateText } from '../ui/stageTag'
 import { SeriesMark } from './SeriesMark'
 import { RunStrips, useRunStrips } from './RunStrip'
-import { RATE_STRIP_H, TimetableRateChart, useReadTables } from './TimetableRateChart'
+import { TimetableRateChart, useReadTables } from './TimetableRateChart'
 import { DistributionPanel } from './DistributionPanel'
 import { PlayBar } from './PlayBar'
 import { TimelineCsvMenu } from './TimelineCsvMenu'
@@ -127,9 +127,41 @@ export function TimelineChart() {
   // from before coming back when no line reads a table any more
   const readTables = useReadTables()
   const runStrips = useRunStrips()
-  const rateStrips = showDistribution ? 0 : Math.min(readTables.length + runStrips.length, 2)
-  const floorWanted = showDistribution ? DISTRIBUTION_MIN : rateStrips > 0 ? ANALYSIS_DEFAULT + STRIP_PLOT_EXTRA + rateStrips * RATE_STRIP_H : null
-  const areaMin = floorWanted != null ? Math.min(floorWanted, areaMax()) : ANALYSIS_MIN
+  // #534 tab prototype — the strips no longer stack under the chart: one shows at a time,
+  // in the chart's place, so the area does not rise for them
+  const floorWanted = showDistribution ? DISTRIBUTION_MIN : null
+  // the tab (Stock | Timetables & runs) and the one strip it shows: screen state, kept
+  // while the document keeps that strip
+  const [tabChoice, setTab] = useState<'stock' | 'rates'>('stock')
+  const [pick, setPick] = useState<string | null>(null)
+  const stripItems = [
+    ...readTables.map((table) => ({ key: `table:${table.id}`, label: `${table.label} (${table.unit})` })),
+    ...runStrips.map((g) => ({ key: `run:${g.id}`, label: t('timeline.run.name', { label: g.label }) })),
+  ]
+  const hasStrips = !showDistribution && stripItems.length > 0
+  const tab = hasStrips ? tabChoice : 'stock'
+  const picked = stripItems.find((s) => s.key === pick)?.key ?? stripItems[0]?.key ?? null
+  // #536's measured floor, with the chart's floor at what the 152 px default leaves it:
+  // the splitter, the run row, one notice row when there are notices, the head and the chart
+  const [measured, setMeasured] = useState<{ floor: number; panel: number; notice: number } | null>(null)
+  useLayoutEffect(() => {
+    const area = areaRef.current
+    const next = (() => {
+      if (!area || collapsed || isMobile || showDistribution) return null
+      const h = (sel: string) => (area.querySelector(sel) as HTMLElement | null)?.offsetHeight ?? 0
+      const diag = area.querySelector('.pstrip-diag') as HTMLElement | null
+      const notice = diag ? noticeRowEnd(diag) : 0
+      const panel = Math.ceil(1 + h('.timeline__head') + PLOT_MIN)
+      return { floor: Math.ceil(h('.wb-splitter') + h('.pstrip') + notice) + panel, panel, notice }
+    })()
+    if (next?.floor !== measured?.floor || next?.panel !== measured?.panel || next?.notice !== measured?.notice) setMeasured(next)
+  })
+  const maxHeight = areaMax()
+  const areaMin = Math.min(floorWanted ?? Math.max(ANALYSIS_MIN, measured?.floor ?? ANALYSIS_MIN), maxHeight)
+  useLayoutEffect(() => {
+    if (isMobile || collapsed || floorWanted != null) return
+    if (height < areaMin) setHeight(areaMin)
+  }, [areaMin, height, isMobile, collapsed, floorWanted])
   useLayoutEffect(() => {
     if (isMobile) return
     if (floorWanted != null) {
@@ -568,6 +600,26 @@ export function TimelineChart() {
             ) : (
               <span className="timeline__title">{t('timeline.title')}</span>
             )}
+            {/* #534 tab prototype — the stock chart or one strip, in the same room */}
+            {hasStrips ? (
+              <span className="timeline__tabs" role="tablist">
+                <button type="button" role="tab" aria-selected={tab === 'stock'} className={`timeline__viewtab${tab === 'stock' ? ' is-on' : ''}`} onClick={() => setTab('stock')}>
+                  {t('timeline.tab.stock')}
+                </button>
+                <button type="button" role="tab" aria-selected={tab === 'rates'} className={`timeline__viewtab${tab === 'rates' ? ' is-on' : ''}`} onClick={() => setTab('rates')}>
+                  {t('timeline.tab.rates')}
+                </button>
+              </span>
+            ) : null}
+            {hasStrips && tab === 'rates' && stripItems.length > 1 ? (
+              <select className="timeline__pick" aria-label={t('timeline.tab.pick')} value={picked ?? ''} onChange={(e) => setPick(e.target.value)}>
+                {stripItems.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             <span className="timeline__legend" hidden={showDistribution}>
               {/* every drawn series' chip, in a strip that scrolls sideways;
                   "+N" on a side says how many lie past that edge (pointer
@@ -662,7 +714,7 @@ export function TimelineChart() {
           <div
             className="timeline__plot"
             ref={plotRef}
-            hidden={showDistribution}
+            hidden={showDistribution || tab === 'rates'}
             // the reading's keyboard: focus the chart, then the arrow keys walk
             // the recorded steps; Escape closes the reading
             tabIndex={hasRun ? 0 : -1}
@@ -717,7 +769,7 @@ export function TimelineChart() {
               />
               <line className="timeline__axis" x1={view.padL} y1={PAD.t} x2={view.padL} y2={h - PAD.b} />
 
-              {[0, view.top / 2, view.top].map((v) => (
+              {(TICKS_PARAM === '2' || (TICKS_PARAM !== '3' && h - PAD.t - PAD.b < 60) ? [0, view.top] : [0, view.top / 2, view.top]).map((v) => (
                 <g key={v}>
                   <line
                     className="timeline__grid"
@@ -885,10 +937,10 @@ export function TimelineChart() {
               ) : null}
             </svg>
           </div>
-          {!showDistribution && readTables.length + runStrips.length > 0 ? (
+          {hasStrips && tab === 'rates' ? (
             <div className="timeline__rates">
-              <TimetableRateChart tables={readTables} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} />
-              <RunStrips groups={runStrips} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} />
+              <TimetableRateChart tables={readTables} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} pinStep={pinned?.step ?? null} only={picked} />
+              <RunStrips groups={runStrips} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} pinStep={pinned?.step ?? null} only={picked} />
             </div>
           ) : null}
           {/* outside the plot, which clips: the reading stands on the plot's
@@ -897,7 +949,7 @@ export function TimelineChart() {
           {/* #525 — with a step picked the box stays beside its line and only its values
               follow a preview; a box that followed the pointer would run from it on the way
               to its close button */}
-          {readIdx >= 0 && !showDistribution ? (
+          {readIdx >= 0 && !showDistribution && tab === 'stock' ? (
             <TimelineStepReading
               step={series[readIdx].step}
               rows={readingRows(readIdx)}
@@ -942,7 +994,16 @@ export function TimelineChart() {
       ref={areaRef}
       className={`timeline wb-analysis${collapsed ? ' is-collapsed' : ''}${showDistribution ? ' is-distribution' : ''}`}
       data-tour="timeline"
-      style={collapsed ? undefined : { height }}
+      style={
+        collapsed
+          ? undefined
+          : ({
+              height,
+              '--plot-min': `${PLOT_MIN}px`,
+              ...(measured ? { '--panel-min': `${measured.panel}px` } : {}),
+              ...(measured?.notice ? { '--notice-min': `${measured.notice}px` } : {}),
+            } as React.CSSProperties)
+      }
     >
       {!collapsed ? <AnalysisSplitter height={height} min={areaMin} onHeight={setHeight} label={t('workbench.analysis.resize')} /> : null}
       <PlayBar
@@ -958,9 +1019,28 @@ export function TimelineChart() {
  *  range: at least the run row and a short chart; at most what leaves the
  *  canvas `ANALYSIS_CANVAS_MIN` px */
 export const ANALYSIS_DEFAULT = 152
-/** a document with strips is read for how its lines change, and the chart above them
- *  must still show that: what the area adds for the plot on top of the strips' own room */
-const STRIP_PLOT_EXTRA = 72
+/** #534 tab prototype — the chart's floor: what the 152 px default leaves it with no notice */
+const PLOT_MIN = 76
+/** one run notice in view when it cannot be measured */
+const NOTICE_ROW_MIN = 37
+/** #536 — the notices' least height: from the list's top edge to where the first notice's
+ *  first line ends (one line) or its second line's text begins (wrapped) */
+function noticeRowEnd(diag: HTMLElement): number {
+  const li = diag.querySelector('li')
+  if (!li) return NOTICE_ROW_MIN
+  const range = document.createRange()
+  range.selectNodeContents(li)
+  const rects = [...range.getClientRects()].filter((r) => r.width > 0 && r.height > 0)
+  if (rects.length === 0) return NOTICE_ROW_MIN
+  const top = Math.min(...rects.map((r) => r.top))
+  const firstLineBottom = Math.max(...rects.filter((r) => r.top < top + 1).map((r) => r.bottom))
+  const later = rects.filter((r) => r.top >= firstLineBottom - 1)
+  const origin = diag.getBoundingClientRect().top - diag.scrollTop
+  return later.length === 0 ? Math.ceil(li.getBoundingClientRect().bottom - origin) : Math.floor(Math.min(...later.map((r) => r.top)) - origin)
+}
+/** #534 tab prototype, for measuring only: `?ticks=3` or `?ticks=2` on the URL; otherwise
+ *  two (0 and the top) when the chart's inner height is under 60 px */
+const TICKS_PARAM = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('ticks')
 const ANALYSIS_MIN = 96
 const ANALYSIS_CANVAS_MIN = 160
 const ANALYSIS_STEP = 16
