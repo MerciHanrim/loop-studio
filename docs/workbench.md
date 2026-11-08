@@ -442,7 +442,10 @@ Measured 2026-11-08 on the desalination Template, at the least: 216px with no no
 strips, 272px with strips, 309px with strips and notices (1920px wide). The cost is the
 canvas: at a 600px window it keeps 191px, and the drawing fits at
 about 20% zoom. The area also opens at its least height, 64px over the earlier 152px
-default, so the canvas gives up that room at every window. That is the price of the
+default, so the canvas gives up that room at every window. A drawing fitted near a level
+of detail can fall under it: the gacha Pickup Template at a 1440 × 900 window fits at zoom
+0.413, under the 0.45 from which connection labels and value chips are drawn (0.458
+before), so they show once the canvas is zoomed in. That is the price of the
 chart's least height, kept on purpose; the collapse gives the canvas its room back.
 
 ## WB8. Status bar

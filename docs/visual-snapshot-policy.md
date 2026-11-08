@@ -11,8 +11,8 @@ number. Source of truth: `e2e/support/snapshot-policy.ts`. Runtime: `snap()` in
 | kind | what it frames | size | `maxDiffPixelRatio` |
 |---|---|---|---|
 | `desktop-full-page` | `expect(page)` at 1280×800 | 1280×800 | **0.005** (0.5 %) |
-| `desktop-canvas-clip` | `.react-flow` at the desktop viewport | 664×548 (980×462 before the workbench; see below) | **0.0002** (0.02 %) |
-| `desktop-roomy-canvas-clip` | `.react-flow` at `WORKBENCH_ROOMY_VIEWPORT` (1600×940): a per-scene exception, see below | 984×688 | **0.0002** (0.02 %) |
+| `desktop-canvas-clip` | `.react-flow` at the desktop viewport | 664×484 (664×548 before #534; 980×462 before the workbench; see below) | **0.0002** (0.02 %) |
+| `desktop-roomy-canvas-clip` | `.react-flow` at `WORKBENCH_ROOMY_VIEWPORT` (1600×940): a per-scene exception, see below | 984×624 (984×688 before #534) | **0.0002** (0.02 %) |
 | `mobile-canvas-clip` | `.react-flow` under the `mobile` project | 390×734 (735 before issue #303: the pane now reserves the run bar's measured 53 px) | **0.001** (0.1 %) |
 | `mobile-full-page` | `expect(page)` at the phone viewport | 390×844 | **0.001** (0.1 %) |
 | `element` | one component: Inspector, dialog, review overlay, Distribution panel | any other size | **0.0005** (0.05 %) |
@@ -63,8 +63,12 @@ The desktop shots run at the `chromium` project's 1280×800, with the
 workbench's side panels as the product opens them there: 1280 px is the wide
 band (`src/components/workbench/panelLayout.ts`), so the model list (272 px)
 and the properties panel (344 px) are both open and the `.react-flow` pane is
-**664×548**. The earlier 980×462 was the pane beside the old 300 px right
-column; no panel is folded to bring it back.
+**664×484**. The earlier 980×462 was the pane beside the old 300 px right
+column; no panel is folded to bring it back. It was 664×548 until #534
+(2026-11-08), when the analysis area began to open at its least height, 64 px
+over the earlier 152 px (`docs/workbench.md` §WB7); the 46 baselines that changed
+with it were each compared against main rendered with only that default at
+216 px.
 
 A spec that compares node symbols, state rings or colours frames its scene so
 every node it shows is whole in that pane: it pans
@@ -88,7 +92,8 @@ re-measured on the smaller pane.
   holds is whole in the pane.
 - **`auto-frames-mixed`** (large-graph-readability) — the one
   `desktop-roomy-canvas-clip`. Its frame is drawn over a row that a 664 px pane
-  does not hold, so the test runs at 1600×940 (canvas 984×688, panels open).
+  does not hold, so the test runs at 1600×940 (canvas 984×624, panels open;
+  984×688 before #534).
   For the capture the zoom is lowered from the drag's 0.62 only as far as
   fitting every node and frame (titles included) needs — 0.52, still L1 — and
   the test fails if that would go below L1.

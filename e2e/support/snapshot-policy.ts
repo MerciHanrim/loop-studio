@@ -16,16 +16,18 @@
 export const SNAPSHOT_POLICY = {
   /** `expect(page).toHaveScreenshot` at the desktop viewport (1280×800). */
   'desktop-full-page': { maxDiffPixelRatio: 0.005, size: [1280, 800] as const },
-  /** `.react-flow` clip at the desktop viewport (664×548: since the workbench,
+  /** `.react-flow` clip at the desktop viewport (664×484: since the workbench,
    *  1280 px is the wide band, with the model list (272) and the properties
-   *  panel (344) both open; it was 980×462 beside the old 300 px right column). */
-  'desktop-canvas-clip': { maxDiffPixelRatio: 0.0002, size: [664, 548] as const },
-  /** `.react-flow` clip at `WORKBENCH_ROOMY_VIEWPORT` (1600×940 → 984×688). A
+   *  panel (344) both open; it was 980×462 beside the old 300 px right column,
+   *  and 664×548 until #534 opened the analysis area at its least height, 64 px
+   *  over the earlier 152 px). */
+  'desktop-canvas-clip': { maxDiffPixelRatio: 0.0002, size: [664, 484] as const },
+  /** `.react-flow` clip at `WORKBENCH_ROOMY_VIEWPORT` (1600×940 → 984×624; 984×688 before #534). A
    *  per-scene EXCEPTION, not a second desktop condition: registered only for
    *  a shot whose gesture needs the wider canvas (auto-frames-mixed: a frame
    *  drawn over a row that a 664 px pane does not hold). The canvas clip's
    *  ratio — the same capture, wider. */
-  'desktop-roomy-canvas-clip': { maxDiffPixelRatio: 0.0002, size: [984, 688] as const },
+  'desktop-roomy-canvas-clip': { maxDiffPixelRatio: 0.0002, size: [984, 624] as const },
   /** `.react-flow` clip under the `mobile` project (390×734: the canvas pane
    *  reserves the run bar's measured 53 px, not a 52 px constant, since issue #303). */
   'mobile-canvas-clip': { maxDiffPixelRatio: 0.001, size: [390, 734] as const },
@@ -89,7 +91,7 @@ export const SNAPSHOTS: Record<string, Partial<Record<SnapshotProject, SnapshotK
   'frame-colours-overlap': { chromium: 'desktop-full-page' },
   'frame-colours-forced': { chromium: 'desktop-full-page' },
   // flow-colour-visual.spec.ts — docs/flow-colour-and-compact-nodes.md FC-4;
-  // the canvas pane, now the canvas clip's own 664 x 548 (it was 980 x 662
+  // the canvas pane, now the canvas clip's own 664 x 484 (it was 980 x 662
   // with the timeline closed, so `element`, before the workbench)
   'flow-colour-light-L2': { chromium: 'desktop-canvas-clip' },
   'flow-colour-light-L0': { chromium: 'desktop-canvas-clip' },
@@ -99,7 +101,7 @@ export const SNAPSHOTS: Record<string, Partial<Record<SnapshotProject, SnapshotK
   // flow-colour-views-visual.spec.ts — docs/flow-colour-and-compact-nodes.md
   // FC-6 (PR 2): the timeline panel (`element`; the minimap shots went with
   // the minimap, v0.30.0), and each Template's whole fit — the canvas pane, a
-  // `.react-flow` clip since the workbench (664 x 548; it was the 980 x 662
+  // `.react-flow` clip since the workbench (664 x 484; it was the 980 x 662
   // pane with the timeline closed, so `element`, until 2026-10-23)
   'flow-views-timeline-light': { chromium: 'element' },
   'flow-views-timeline-dark': { chromium: 'element' },

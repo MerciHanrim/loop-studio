@@ -151,6 +151,17 @@ test.describe('the Pickup gacha Template', () => {
       return -1
     })
     expect(step, 'an off-pickup SSR came').toBeGreaterThan(0)
+    // the chips are drawn from L1 (zoom 0.45) up. Fitted at 1440 x 900 the Template sits
+    // at 0.458 before #534 and 0.413 after it, as the analysis area opens at its least
+    // height: zoom to 0.5 around the canvas's centre, where the chips are read
+    await page.evaluate(() => {
+      const rf = (window as unknown as Bridge).__loop.rf as unknown as { getViewport: () => { x: number; y: number; zoom: number }; setViewport: (v: object, o: object) => void }
+      const vp = rf.getViewport()
+      const r = (document.querySelector('.react-flow') as HTMLElement).getBoundingClientRect()
+      const fx = (r.width / 2 - vp.x) / vp.zoom
+      const fy = (r.height / 2 - vp.y) / vp.zoom
+      rf.setViewport({ x: r.width / 2 - fx * 0.5, y: r.height / 2 - fy * 0.5, zoom: 0.5 }, { duration: 0 })
+    })
     const on = page.locator('.edge-label[data-edge-id="v_off_owed"]')
     await expect(on).toHaveClass(/edge-label--two/)
     const rows = on.locator('.edge-label__row')
