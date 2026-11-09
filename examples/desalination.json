@@ -8,7 +8,7 @@
       "type": "source",
       "position": {
         "x": 170,
-        "y": 230
+        "y": 220
       },
       "data": {
         "kind": "source",
@@ -24,7 +24,7 @@
       "type": "pool",
       "position": {
         "x": 325,
-        "y": 230
+        "y": 220
       },
       "data": {
         "kind": "pool",
@@ -42,8 +42,8 @@
       "id": "screen",
       "type": "converter",
       "position": {
-        "x": 500,
-        "y": 230
+        "x": 475,
+        "y": 220
       },
       "data": {
         "kind": "converter",
@@ -56,7 +56,7 @@
       "id": "ipump",
       "type": "converter",
       "position": {
-        "x": 500,
+        "x": 475,
         "y": 340
       },
       "data": {
@@ -70,7 +70,7 @@
       "id": "naocl",
       "type": "pool",
       "position": {
-        "x": 500,
+        "x": 475,
         "y": 90
       },
       "data": {
@@ -138,7 +138,7 @@
       "id": "filter",
       "type": "converter",
       "position": {
-        "x": 825,
+        "x": 795,
         "y": 340
       },
       "data": {
@@ -158,7 +158,7 @@
       "id": "coag",
       "type": "pool",
       "position": {
-        "x": 825,
+        "x": 795,
         "y": 215
       },
       "data": {
@@ -176,8 +176,8 @@
       "id": "coagDel",
       "type": "source",
       "position": {
-        "x": 825,
-        "y": 90
+        "x": 795,
+        "y": 55
       },
       "data": {
         "kind": "source",
@@ -191,7 +191,7 @@
       "id": "filtered",
       "type": "pool",
       "position": {
-        "x": 945,
+        "x": 935,
         "y": 340
       },
       "data": {
@@ -357,7 +357,7 @@
       "id": "panelB",
       "type": "pool",
       "position": {
-        "x": 1225,
+        "x": 1255,
         "y": 700
       },
       "data": {
@@ -376,8 +376,8 @@
       "id": "gridB",
       "type": "source",
       "position": {
-        "x": 1225,
-        "y": 830
+        "x": 1259,
+        "y": 865
       },
       "data": {
         "kind": "source",
@@ -445,7 +445,7 @@
       "id": "disinfect",
       "type": "converter",
       "position": {
-        "x": 300,
+        "x": 290,
         "y": 790
       },
       "data": {
@@ -459,7 +459,7 @@
       "id": "naocl2",
       "type": "pool",
       "position": {
-        "x": 300,
+        "x": 290,
         "y": 660
       },
       "data": {
@@ -477,7 +477,7 @@
       "id": "naocl2Del",
       "type": "source",
       "position": {
-        "x": 300,
+        "x": 290,
         "y": 550
       },
       "data": {
@@ -513,7 +513,7 @@
       "type": "converter",
       "position": {
         "x": 170,
-        "y": 920
+        "y": 926
       },
       "data": {
         "kind": "converter",
@@ -531,7 +531,7 @@
       "type": "drain",
       "position": {
         "x": 170,
-        "y": 1010
+        "y": 1016
       },
       "data": {
         "kind": "drain",
@@ -547,7 +547,7 @@
       "type": "pool",
       "position": {
         "x": 500,
-        "y": 920
+        "y": 926
       },
       "data": {
         "kind": "pool",
@@ -565,8 +565,8 @@
       "id": "gridC",
       "type": "source",
       "position": {
-        "x": 590,
-        "y": 1010
+        "x": 598,
+        "y": 1016
       },
       "data": {
         "kind": "source",
@@ -582,7 +582,7 @@
       "type": "pool",
       "position": {
         "x": 1655,
-        "y": 710
+        "y": 702
       },
       "data": {
         "kind": "pool",
@@ -601,7 +601,7 @@
       "type": "converter",
       "position": {
         "x": 1800,
-        "y": 710
+        "y": 702
       },
       "data": {
         "kind": "converter",
@@ -654,7 +654,7 @@
       "type": "drain",
       "position": {
         "x": 1942,
-        "y": 710
+        "y": 702
       },
       "data": {
         "kind": "drain",
@@ -670,7 +670,7 @@
       "type": "pool",
       "position": {
         "x": 1505,
-        "y": 850
+        "y": 845
       },
       "data": {
         "kind": "pool",
@@ -689,7 +689,7 @@
       "type": "converter",
       "position": {
         "x": 1655,
-        "y": 850
+        "y": 845
       },
       "data": {
         "kind": "converter",
@@ -709,7 +709,7 @@
       "type": "converter",
       "position": {
         "x": 1800,
-        "y": 850
+        "y": 845
       },
       "data": {
         "kind": "converter",
@@ -723,7 +723,7 @@
       "type": "drain",
       "position": {
         "x": 1942,
-        "y": 850
+        "y": 845
       },
       "data": {
         "kind": "drain",
@@ -1269,7 +1269,7 @@
         "accent": "#A78243",
         "ports": {
           "source": "top",
-          "target": "right"
+          "target": "left"
         }
       }
     },
@@ -1711,7 +1711,7 @@
       "rect": {
         "x": 20,
         "y": 520,
-        "w": 670,
+        "w": 680,
         "h": 600
       },
       "color": "violet"
