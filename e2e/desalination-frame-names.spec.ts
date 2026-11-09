@@ -75,11 +75,22 @@ function measure(page: Page) {
           const room = { left: box.l - f.rect.x, top: box.t - f.rect.y, right: f.rect.x + f.rect.w - box.r, bottom: f.rect.y + f.rect.h - box.b }
           for (const [side, by] of Object.entries(room)) if (by < -0.5) problems.push(`${f.id} ${b.id} ${what}: past the ${side} edge by ${(-by).toFixed(1)}`)
         }
-        if (!b.name) continue
-        for (const o of boxes) {
-          if (o.id === b.id) continue
-          if (o.node && hit(b.name, o.node)) problems.push(`${f.id} ${b.id} name over the node ${o.id}`)
-          if (o.name && b.id < o.id && hit(b.name, o.name)) problems.push(`${f.id} ${b.id} name over the name of ${o.id}`)
+        // a name and a run-rule line, each against every other node, name and run-rule line of
+        // the frame. The name's box holds the run-rule line under it, but the line is checked
+        // on its own too, so a run-rule line over a neighbour is named as such (#540 began with
+        // the Coagulation filter's run-rule line over the Filtered water tank's name).
+        const texts = [['name', b.name], ['run rule', b.rule]] as const
+        for (const [what, box] of texts) {
+          if (!box) continue
+          for (const o of boxes) {
+            if (o.id === b.id) continue
+            if (o.node && hit(box, o.node)) problems.push(`${f.id} ${b.id} ${what} over the node ${o.id}`)
+            for (const [whatO, boxO] of [['name', o.name], ['run rule', o.rule]] as const) {
+              // each pair of texts once: the same kinds in id order, mixed kinds both ways
+              if (!boxO || (what === whatO && b.id > o.id)) continue
+              if (hit(box, boxO)) problems.push(`${f.id} ${b.id} ${what} over the ${whatO === 'name' ? 'name' : 'run-rule line'} of ${o.id}`)
+            }
+          }
         }
       }
     }
