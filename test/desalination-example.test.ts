@@ -584,5 +584,6 @@ describe('the deliveries the example note describes (#533)', () => {
     expect(Math.floor(first / 24)).toBe(48)
     expect(firstMiss.get('ro')).toBe(1172)
     expect(firstMiss.get('dpump')).toBe(1181)
-  })
+    // 1,240 steps of its own: 5.2 s on a CI runner (#541's first run), over the 5 s default
+  }, 60_000)
 })
