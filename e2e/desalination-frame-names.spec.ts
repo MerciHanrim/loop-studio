@@ -43,7 +43,9 @@ function crossings(page: Page) {
     const frames = (l.frame.getState().frames as { id: string; rect: { x: number; y: number; w: number; h: number } }[]).filter((f) => watched.includes(f.id))
     const nodes = l.graph.getState().nodes as { id: string; position: { x: number; y: number } }[]
     const out: string[] = []
-    let measured = 0
+    /** what was measured, by kind of box, and the stages whose run-rule line was among them */
+    const measured: Record<string, number> = { node: 0, name: 0, 'run rule': 0 }
+    const ruleStages: string[] = []
     for (const f of frames) {
       const members = nodes.filter((n) => n.position.x >= f.rect.x && n.position.x <= f.rect.x + f.rect.w && n.position.y >= f.rect.y && n.position.y <= f.rect.y + f.rect.h)
       for (const n of members) {
@@ -57,14 +59,15 @@ function crossings(page: Page) {
           if (!b) continue
           const r = b.getBoundingClientRect()
           if (r.width === 0 && r.height === 0) continue
-          measured++
+          measured[what]!++
+          if (what === 'run rule') ruleStages.push(n.id)
           const d = toCanvas(r)
           const room = { left: d.l - f.rect.x, top: d.t - f.rect.y, right: f.rect.x + f.rect.w - d.r, bottom: f.rect.y + f.rect.h - d.b }
           for (const [side, by] of Object.entries(room)) if (by < -0.5) out.push(`${f.id} ${n.id} ${what}: past the ${side} edge by ${(-by).toFixed(1)}`)
         }
       }
     }
-    return { out, measured, frames: frames.length }
+    return { out, measured, ruleStages: ruleStages.sort(), frames: frames.length }
   }, FRAMES)
 }
 
@@ -73,9 +76,14 @@ test.describe('#533 — the desalination Template keeps its names inside frames 
     test(`${locale}: no name or run-rule line in frames 2 and 4 passes a frame edge at 100 %`, async ({ page }) => {
       await openAt100(page, locale)
       const r = await crossings(page)
-      // the check reached both frames and their names: 18 nodes, each with its box and name
       expect(r.frames).toBe(2)
-      expect(r.measured).toBeGreaterThanOrEqual(36)
+      // both kinds the test is for were measured, not only found: the 19 nodes of frames 2 and 4
+      // (8 and 11), each with its outside name, and the run-rule lines of the three stages
+      // there that hold a rule. The same in every language when the test was written.
+      expect(r.measured.node, 'node boxes').toBeGreaterThanOrEqual(19)
+      expect(r.measured.name, 'outside names').toBeGreaterThanOrEqual(19)
+      expect(r.measured['run rule'], 'run-rule lines').toBeGreaterThanOrEqual(3)
+      expect(r.ruleStages).toEqual(expect.arrayContaining(['dpump', 'filter', 'remin']))
       expect(r.out, r.out.join('\n')).toEqual([])
     })
   }
