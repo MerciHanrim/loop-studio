@@ -428,6 +428,10 @@ test('a stage whose tag shows no words can be read in the Inspector and the Inpu
   const rules: [string, string][] = [['remin', 'product'], ['ro', 'permeate'], ['filter', 'filtered'], ['adjust', 'brine'], ['thick', 'backwash']]
   for (const [stage, tank] of rules) doc.nodes.find((n: { id: string }) => n.id === stage).data.run = { tank, level: '1', band: '1', side: 'fill', table: 'demand' }
   doc.nodes.find((n: { id: string }) => n.id === 'dpump').data.run = { table: 'demand' }
+  // Electrical panel C 130 below Remineralization, as the Template had it before #540, leaves
+  // Remineralization's tag no room for words
+  const remin = doc.nodes.find((n: { id: string }) => n.id === 'remin')
+  doc.nodes.find((n: { id: string }) => n.id === 'panelC').position.y = remin.position.y + 130
   const timetables = [{ id: 'demand', label: 'City demand', source: 'test', unit: 'CMH', timeUnit: 'h', read: 'hold', after: 'hold', end: '10', points: [['0', '25']] }]
   await importGraph(page, JSON.stringify({ ...doc, schema: 'loop-studio/graph/6', timetables, time: doc.time ?? { step: { value: 1, unit: 'h' } } }))
   // no words on the canvas, with nothing chosen

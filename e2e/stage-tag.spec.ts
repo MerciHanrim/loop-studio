@@ -122,6 +122,9 @@ test('a folded tag names its tank when the stage or the tank is chosen, or the l
   for (const n of doc.nodes) delete n.data.run
   const stage = doc.nodes.find((n: { id: string }) => n.id === 'filter')
   stage.data.run = { tank: 'filtered', level: '1', band: '1', side: 'fill' }
+  // the tank 120 to the right of the stage, as the Template had it before #540, leaves the
+  // tag too little room for its words, so it folds
+  doc.nodes.find((n: { id: string }) => n.id === 'filtered').position.x = stage.position.x + 120
   await importGraph(page, JSON.stringify({ ...doc, schema: 'loop-studio/graph/6' }))
   const tank = 'Filtered water tank'
   await expect.poll(() => page.locator('[data-stage-tag="filter"]').getAttribute('data-form')).not.toBe('0')
@@ -157,6 +160,10 @@ test('a tag with no room even for … shows no words, and still opens', async ({
   const rules: [string, string][] = [['remin', 'product'], ['ro', 'permeate'], ['filter', 'filtered'], ['adjust', 'brine'], ['thick', 'backwash']]
   for (const [stage, tank] of rules) doc.nodes.find((n: { id: string }) => n.id === stage).data.run = { tank, level: '1', band: '1', side: 'fill', table: 'demand' }
   doc.nodes.find((n: { id: string }) => n.id === 'dpump').data.run = { table: 'demand' }
+  // Electrical panel C 130 below Remineralization, as the Template had it before #540, leaves
+  // Remineralization's tag no room even for …
+  const remin = doc.nodes.find((n: { id: string }) => n.id === 'remin')
+  doc.nodes.find((n: { id: string }) => n.id === 'panelC').position.y = remin.position.y + 130
   const timetables = [{ ...FRAME.timetables[0], label: 'City demand' }]
   await importGraph(page, JSON.stringify({ ...doc, schema: FRAME.schema, timetables, time: doc.time ?? FRAME.time }))
   await expect.poll(() => words(page, 'remin')).toBe('')
