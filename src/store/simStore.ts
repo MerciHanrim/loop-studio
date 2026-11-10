@@ -20,6 +20,7 @@ import { computeStagger } from './playbackRank'
 import { type PlaybackProfile, type PlaybackTier, tierOf } from './playbackTier'
 import { MOBILE_MEDIA_QUERY } from '../ui/media'
 import { flowTotals, isSteady, STEADY_N, type SteadySample } from './steadyState'
+import { guideFor, type ActiveGuide } from '../model/runGuide'
 
 // docs/large-graph-readability.md §LGR6-cues — the trailing Activity-overlay
 // window length. Kept in sync with `ACTIVITY_WINDOW` in
@@ -184,6 +185,9 @@ type SimStore = {
    *  chip; never serialized, no digest / undo / autosave effect. Cleared on
    *  reset / snapshot restore / graph edit / seed change. */
   steadyState: boolean
+  /** PROTOTYPE #537 — the last pause auto-play made at a core process's first stop, kept
+   *  in the run row until Reset; null when none */
+  autoPause: AutoPause | null
 
   /** docs/large-graph-readability.md §LGR6-cues — the opt-in Activity overlay's
    *  history: a ring buffer (OLDEST first, ≤ 8 entries) of the ids that were
@@ -319,6 +323,16 @@ let arriveFired = false
 // derived `steadyState` boolean is reactive). A prepared step that fails the
 // commit ladder never enters this window.
 let steadyWindow: SteadySample[] = []
+
+// PROTOTYPE #537 — a pause at a core process's first stop, and the causes (group : why)
+// that already paused this run, so playing on does not pause again for them
+export type AutoPause = { step: number; stage: string; cause: 'supply' | 'room'; pool: string | null }
+const pausedKeys = new Set<string>()
+let guideCache: { rev: number; guide: ActiveGuide | null } | null = null
+const activeGuide = (g: ReturnType<typeof useGraphStore.getState>): ActiveGuide | null => {
+  if (guideCache?.rev !== g.simulationRev) guideCache = { rev: g.simulationRev, guide: guideFor(g, g.modelVersion) }
+  return guideCache.guide
+}
 
 const now = (): number =>
   typeof performance !== 'undefined' ? performance.now() : Date.now()
@@ -468,6 +482,27 @@ export const useSimStore = create<SimStore>((set, get) => {
     ].slice(-STEADY_N)
     const nextSteadyState = isSteady(nextWindow)
 
+    // PROTOTYPE #537 — auto-play pauses once at the first stop of each core process of a
+    // guided example, for lack of supply or of room ("short" and "capped" never pause).
+    // Only while running: a manual Step and Monte Carlo (the engine, not this store) go on.
+    // A stop first seen on a manual Step counts as seen: Play does not then pause at once.
+    let pause: AutoPause | null = null
+    const ag = activeGuide(g)
+    if (ag) {
+      const running = get().status === 'running'
+      for (const r of p.derived.runs) {
+        if (r.state !== 'stopped' || (r.cause !== 'supply' && r.cause !== 'room')) continue
+        if (!r.members.some((m) => ag.guide.pauseOn.includes(m))) continue
+        const key = `${r.members[0]}:${r.cause}`
+        if (pausedKeys.has(key)) continue
+        pausedKeys.add(key)
+        if (!running || pause) continue
+        const n = p.derived.notices.find((x) => x.kind === 'runHeld' && x.group === r.members[0]) as { limit?: { pool: string } | null } | undefined
+        const labelOf = (id: string) => (g.nodes.find((x) => x.id === id)?.data as { label?: string } | undefined)?.label ?? id
+        pause = { step: p.toState.step, stage: labelOf(r.decidedBy), cause: r.cause, pool: n?.limit?.pool ?? null }
+      }
+    }
+
     // one atomic transaction (§PB1.2 / PB-INV-2). `p.toState` / `p.derived` are
     // frozen (dev); everything is copied by value / reference into fresh fields.
     set((s) => ({
@@ -502,7 +537,8 @@ export const useSimStore = create<SimStore>((set, get) => {
         p.toState.step === p.fromStep
           ? s.series
           : [...s.series, { step: p.toState.step, values: p.toState.values, ...(p.derived.timetableLines.length > 0 ? { timetableLines: p.derived.timetableLines } : {}), ...(p.derived.runs.length > 0 ? { runs: p.derived.runs } : {}) }].slice(-MAX_SERIES),
-      status: p.toState.ended ? 'ended' : s.status === 'idle' ? 'paused' : s.status,
+      status: p.toState.ended ? 'ended' : pause ? 'paused' : s.status === 'idle' ? 'paused' : s.status,
+      autoPause: pause ?? s.autoPause,
       commitEpoch: s.commitEpoch + 1,
       lastSettledTransitionId: p.transitionId,
       activeTransitionId: null,
@@ -678,6 +714,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     runRefusals: [],
     activitySteps: [],
     steadyState: false,
+    autoPause: null,
     series: [],
     // seeded from the autosave record (serialize.ts) so a plain reload keeps the
     // Timeline legend's visible set; 'auto' when the record has none.
@@ -737,6 +774,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       discardTransition()
       steadyWindow = [] // §PBO5 — covers Reset, setSeed (calls reset), and every
       // graph edit / template load (the simulationRev subscription calls reset)
+      pausedKeys.clear() // PROTOTYPE #537 — a new run pauses again at each core stop
       const { init, error } = safeInit(graph().nodes)
       set((s) => ({
         status: 'idle',
@@ -756,6 +794,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(), timetableRefusals: tableRefused(), runRefusals: ruleRefused(),
         activitySteps: [],
         steadyState: false,
+        autoPause: null,
         series: [{ step: 0, values: init.values }],
         commitEpoch: s.commitEpoch + 1,
         lastSettledTransitionId: null,
@@ -765,11 +804,13 @@ export const useSimStore = create<SimStore>((set, get) => {
     restoreSnapshot: (snap) => {
       discardTransition()
       steadyWindow = [] // §PBO5 — a restored head starts a fresh window
+      pausedKeys.clear()
       set((s) => ({
         status: snap.ended ? 'ended' : 'paused',
         stepIndex: snap.step,
         values: snap.values,
         steadyState: false,
+        autoPause: null,
         firedNodeIds: snap.fired,
         // a Workspace snapshot carries `fired` only — no `activated`. The
         // `evaluated` cue simply re-derives on the next Step (§LGR5.1).

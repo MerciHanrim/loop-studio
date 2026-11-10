@@ -101,6 +101,10 @@ const ui = {
   'playbar.mc.progress.title': 'Monte-Carlo run in progress',
   'playbar.cancel': 'Cancel',
   'playbar.steady': 'Steady state — flows continue',
+  'playbar.guide.pausedSupply': 'Auto-play paused at step {step}: {stage} stopped, short of what it needs from {pool}.',
+  'playbar.guide.pausedRoom': 'Auto-play paused at step {step}: {stage} stopped, with no room left in {pool}.',
+  'playbar.guide.paused': 'Auto-play paused at step {step}: {stage} stopped.',
+  'playbar.guide.checked': 'Past the {days} days this example is checked over ({steps} steps).',
   // the steady chip's short wording, where the run bar is tight (fit step 3)
   'playbar.steadyShort': 'Steady',
   'playbar.timeline.show': 'Show timeline',

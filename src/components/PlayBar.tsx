@@ -9,6 +9,7 @@ import { documentPoolAmounts, runNoticeText, runRefusalText, runStreak, timetabl
 import { Icon } from '../ui/icons'
 import { topOverlay } from '../ui/overlayStack'
 import { DraftNumberInput } from './DraftNumberInput'
+import { guideFor } from '../model/runGuide'
 // measured on the children's boxes: a right-to-left row spills on its start
 // side, which `scrollWidth` does not count (ar-XB at 900 px, 2026-10-20)
 import { fitsRow } from './workbench/toolRowFit'
@@ -77,7 +78,16 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   // loop-model/6 (SEMANTICS-M6.md §M6-3) — a rule that refuses the run; Show selects its stage
   const runRefusals = useSimStore((s) => s.runRefusals)
   const timetables = useGraphStore((s) => s.timetables)
-  const refused = refusals.length > 0 || kindRefusals.length > 0 || timetableRefusals.length > 0 || runRefusals.length > 0
+  // PROTOTYPE #537 — the run guide: the pause at a core process's first stop, and the
+  // checked-range note, valid only while the model is the example's
+  const autoPause = useSimStore((s) => s.autoPause)
+  const gNodes = useGraphStore((s) => s.nodes)
+  const gEdges = useGraphStore((s) => s.edges)
+  const gKinds = useGraphStore((s) => s.kinds)
+  const gTime = useGraphStore((s) => s.time)
+  const gVersion = useGraphStore((s) => s.modelVersion)
+  const activeGuide = useMemo(() => guideFor({ nodes: gNodes, edges: gEdges, kinds: gKinds, time: gTime, timetables }, gVersion), [gNodes, gEdges, gKinds, gTime, timetables, gVersion])
+  const refused =refusals.length > 0 || kindRefusals.length > 0 || timetableRefusals.length > 0 || runRefusals.length > 0
   const showRefused = () => {
     const g = refusals[0]
     if (g) return useGraphStore.getState().setSelection(g.split ?? g.members[0], null)
@@ -260,6 +270,20 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
     }
   }, [steadyState, running, t])
 
+  // PROTOTYPE #537 — the two guide lines, each read to a screen reader once from its own
+  // always-mounted status region: a region's text that does not change is not read again
+  const pauseText = autoPause
+    ? t(autoPause.pool ? (autoPause.cause === 'supply' ? 'playbar.guide.pausedSupply' : 'playbar.guide.pausedRoom') : 'playbar.guide.paused', {
+        step: autoPause.step,
+        stage: isolateAuto(autoPause.stage),
+        pool: isolateAuto(autoPause.pool ?? ''),
+      })
+    : ''
+  const checkedText =
+    activeGuide?.isExample && stepIndex > activeGuide.guide.checkedSteps
+      ? t('playbar.guide.checked', { days: activeGuide.guide.checkedDays, steps: activeGuide.guide.checkedSteps })
+      : ''
+
   return (
     <>
     <div
@@ -433,6 +457,18 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
       </div>
 
     </div>
+      {(pauseText || checkedText) && (
+        <div className="pstrip-guide" data-testid="run-guide">
+          {pauseText && <p className="pstrip-guide__line pstrip-guide__line--pause" data-guide="pause">{pauseText}</p>}
+          {checkedText && <p className="pstrip-guide__line pstrip-guide__line--checked" data-guide="checked">{checkedText}</p>}
+        </div>
+      )}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-guide-status="pause">
+        {pauseText}
+      </div>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-guide-status="checked">
+        {checkedText}
+      </div>
       {/* issue #396 — the engine's diagnostics for the step that produced the
           current head (simStore.diagnostics): a refused percent on a Converter
           connection names the connection, the expression and the number that

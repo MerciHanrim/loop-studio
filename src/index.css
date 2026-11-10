@@ -4527,6 +4527,27 @@ a.sheet__row {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+/* PROTOTYPE #537 — the run guide under the run strip: the pause at a core process's
+   first stop, and the checked-range note; one line each, kept in view */
+.pstrip-guide {
+  flex: none;
+  padding: 3px 12px 4px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--line-1);
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-1);
+}
+.pstrip-guide__line {
+  margin: 0;
+}
+.pstrip-guide__line--pause {
+  color: var(--warn);
+  font-weight: 600;
+}
+.pstrip-guide__line--checked {
+  color: var(--ink-2);
+}
 .pstrip-diag:focus-visible,
 .pstrip__diag:focus-visible {
   outline: 2px solid var(--focus);
