@@ -63,7 +63,7 @@ async function assignTable(page: Page) {
 async function expectAvailable(page: Page) {
   expect(await doc(page)).toEqual({ modelVersion: 7, tables: [{ id: 'grid_feed', means: 'available' }] })
   await expect(strip(page)).toHaveAttribute('data-means', 'available')
-  await expect.poll(async () => unwrapIsolates((await page.locator('.timeline__rate-name').textContent()) ?? '')).toBe('Grid feed (CMH): available (dashed), moved (solid)')
+  await expect.poll(async () => unwrapIsolates((await page.locator('.timeline__rate-name').textContent()) ?? '')).toBe('Grid feed (CMH): available (dotted), moved (solid)')
 }
 
 test('a table chosen as available on the import screen raises no shortfall, shows what was available beside what moved, and keeps its meaning through a reload, an Export and an Import', async ({ page }) => {
