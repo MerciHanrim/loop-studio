@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { TimetableLineReport } from '../engine/types'
 import { useT } from '../i18n'
 import { isolateAuto, isolateLtr } from '../i18n/bidiIsolate'
@@ -72,9 +72,13 @@ function useMovedRates(table: Timetable, series: Series): { edgeId: string; from
   }, [table, series, nodes, edges, kinds, time, modelVersion])
 }
 
-function Strip({ table, series, width, padL, padR, minStep, maxStep, stepSec }: { table: Timetable; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number; stepSec: number }) {
+function Strip({ table, series, width, padL, padR, minStep, maxStep, stepSec, pinStep }: { table: Timetable; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number; stepSec: number; pinStep: number | null }) {
   const t = useT()
-  const [hover, setHover] = useState<number | null>(null)
+  // #538 (Lumi's review of #546) — in the strips tab the chart's pinned step is read here too:
+  // its guide and its values while the pointer is elsewhere; the pointer's step wins over it
+  const [pointer, setHover] = useState<number | null>(null)
+  const hover = pointer ?? pinStep
+  const pinnedOnly = pointer === null && pinStep !== null
   const unitSec = TIME_UNIT_SECONDS[table.timeUnit]
   const toTime = (step: number) => (step * stepSec) / unitSec
   const iw = Math.max(1, width - padL - padR)
@@ -116,7 +120,18 @@ function Strip({ table, series, width, padL, padR, minStep, maxStep, stepSec }: 
     const raw = minStep + ((clientX - box.left - padL) / iw) * span
     return Math.min(maxStep, Math.max(minStep, raw))
   }
+  // #538 — the pinned step's reading, said once in a status line: only while the pointer is
+  // off the strip (then the shown reading IS the pinned one), and kept as the pointer moves
+  // over it, so a screen reader hears the pinned step, not every pointer move
+  const pinnedText = !pinnedOnly ? null : moved ? (availableReading ?? '') : at !== null ? t('timeline.rate.at', { step: pinStep!, value: isolateLtr(shown(at)), unit: isolateAuto(table.unit) }) : ''
+  const [said, setSaid] = useState('')
+  useEffect(() => {
+    if (pinStep === null) setSaid('')
+    else if (pinnedText !== null) setSaid(pinnedText)
+  }, [pinStep, pinnedText])
+  const guide = `timeline__rate-guide${pinnedOnly ? ' timeline__rate-guide--pin' : ''}`
   return (
+    <>
     <svg
       className="timeline__rate"
       viewBox={`0 0 ${width} ${RATE_STRIP_H}`}
@@ -149,31 +164,39 @@ function Strip({ table, series, width, padL, padR, minStep, maxStep, stepSec }: 
       ))}
       {hover !== null && moved && availableReading !== null ? (
         <>
-          <line className="timeline__rate-guide" x1={x(hover)} y1={PAD_TOP} x2={x(hover)} y2={RATE_STRIP_H - PAD_BOTTOM} />
+          <line className={guide} x1={x(hover)} y1={PAD_TOP} x2={x(hover)} y2={RATE_STRIP_H - PAD_BOTTOM} />
           <text className="timeline__tick timeline__rate-reading" x={padL + 4} y={10}>
             {availableReading}
           </text>
         </>
       ) : hover !== null && !moved && at !== null ? (
         <>
-          <line className="timeline__rate-guide" x1={x(hover)} y1={PAD_TOP} x2={x(hover)} y2={RATE_STRIP_H - PAD_BOTTOM} />
-          <text className="timeline__tick" direction="ltr" x={width - padR} y={10} textAnchor="end">
-            {shown(at)} {table.unit}
+          <line className={guide} x1={x(hover)} y1={PAD_TOP} x2={x(hover)} y2={RATE_STRIP_H - PAD_BOTTOM} />
+          {/* the pointer's reading is a number and its unit; the pinned step's names its step
+              in the reader's own wording (`timeline.rate.at`) */}
+          <text className="timeline__tick timeline__rate-value" direction={pinnedOnly ? undefined : 'ltr'} x={width - padR} y={10} textAnchor="end">
+            {pinnedOnly && pinnedText ? pinnedText : `${shown(at)} ${table.unit}`}
           </text>
         </>
       ) : null}
     </svg>
+    {pinStep !== null ? (
+      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-strip-reading={table.id}>
+        {said}
+      </span>
+    ) : null}
+    </>
   )
 }
 
-export function TimetableRateChart({ tables, series, width, padL, padR, minStep, maxStep }: { tables: readonly Timetable[]; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number }) {
+export function TimetableRateChart({ tables, series, width, padL, padR, minStep, maxStep, pinStep = null }: { tables: readonly Timetable[]; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number; pinStep?: number | null }) {
   const time = useGraphStore((s) => s.time)
   const stepSec = stepSeconds(time)
   if (stepSec === undefined || tables.length === 0) return null
   return (
     <>
       {tables.map((table) => (
-        <Strip key={table.id} table={table} series={series} width={width} padL={padL} padR={padR} minStep={minStep} maxStep={maxStep} stepSec={stepSec} />
+        <Strip key={table.id} table={table} series={series} width={width} padL={padL} padR={padR} minStep={minStep} maxStep={maxStep} stepSec={stepSec} pinStep={pinStep} />
       ))}
     </>
   )

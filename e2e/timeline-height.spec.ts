@@ -1,11 +1,13 @@
 // #534 — the analysis area's least height keeps the chart readable. The area's floor is
 // what it must show (the splitter, the run row, one notice row when there are notices,
-// the panel's head, the chart at PLOT_MIN and one strip when there are strips); when the
-// area is short the notices and the strips give way first and scroll inside, and the
-// chart keeps its 140 px. docs/workbench.md §WB7.
+// the panel's head, the chart at PLOT_MIN and one strip when there is one strip); when the
+// area is short the notices give way first and scroll inside, and the chart keeps its
+// 140 px. Two or more strips are a tab of their own (#538), never under the chart.
+// docs/workbench.md §WB7.
 import type { Page } from '@playwright/test'
 import { ensureTimelineOpen, expect, openApp, resetAll, test } from './support/loop'
 import { pickLocale, pickTemplate } from './support/workbenchMenus'
+import { showStrip, stripKeys } from './support/timelineTabs'
 
 type Bridge = { __loop: Record<string, { getState: () => any }> }
 
@@ -145,13 +147,15 @@ async function expectChartWhole(page: Page) {
 }
 
 test.describe('#534 — the analysis area keeps the chart readable', () => {
-  test('a 600 px window with nine notices and seven strips: the chart keeps 140 px, and the notices and strips scroll to reach', async ({ page }) => {
+  test('a 600 px window with nine notices and seven strips: the chart keeps 140 px, the notices scroll, and the strips tab shows each strip whole at the same height', async ({ page }) => {
     test.setTimeout(120_000)
     await page.setViewportSize({ width: 1920, height: 600 })
     await openApp(page)
     await desalination(page, { steps: 1300, strips: true })
     await expect(page.locator('.pstrip-diag li')).toHaveCount(9)
-    await expect(page.locator('.timeline__rates svg.timeline__rate')).toHaveCount(7)
+    // #538 — seven strips: they are a tab of their own, not stacked under the chart
+    await expect(page.locator('.timeline__tabs [role="tab"]')).toHaveCount(2)
+    await expect(page.locator('.timeline__rates'), 'the strips panel is there, hidden, on the Pools tab').toBeHidden()
     await toFloor(page)
     const l = await expectChartWhole(page)
     expect(l.plot).toBe(PLOT_MIN)
@@ -166,17 +170,22 @@ test.describe('#534 — the analysis area keeps the chart readable', () => {
     await page.mouse.wheel(0, 2000)
     await expect.poll(async () => (await inView(page, '.pstrip-diag', 'li')).at(-1), { message: 'scrolling reaches the last notice' }).toBe(true)
 
-    // the strips give way to one strip and scroll; the wheel reaches the next strip, then the last
-    const strips = await inView(page, '.timeline__rates', 'svg.timeline__rate')
-    expect(strips[0], 'the first strip is in view').toBe(true)
-    expect(strips[1], 'the next strip starts out of view').toBe(false)
-    await page.locator('.timeline__rates').hover()
-    await page.locator('.timeline__rates').evaluate((el) => el.scrollBy({ top: (el.querySelector('svg.timeline__rate') as SVGElement).getBoundingClientRect().height }))
-    await expect.poll(async () => (await inView(page, '.timeline__rates', 'svg.timeline__rate'))[1], { message: 'scrolling reaches the next strip' }).toBe(true)
-    await page.mouse.wheel(0, 2000)
-    await expect.poll(async () => (await inView(page, '.timeline__rates', 'svg.timeline__rate')).at(-1), { message: 'scrolling reaches the last strip' }).toBe(true)
+    // #538 — the strips tab: every one of the seven, picked in turn, whole in the area, which
+    // keeps its height; then back to the pools' chart, whole
+    const areaH = () => page.locator('.timeline.wb-analysis').evaluate((el) => Math.round(el.getBoundingClientRect().height))
+    const before = await areaH()
+    await showStrip(page)
+    const keys = await stripKeys(page)
+    expect(keys).toHaveLength(7)
+    for (const key of keys) {
+      await showStrip(page, key)
+      await expect(page.locator('.timeline__rates svg.timeline__rate')).toHaveCount(1)
+      expect((await inView(page, '.timeline.wb-analysis', '.timeline__rates svg.timeline__rate'))[0], `${key} is whole`).toBe(true)
+      expect(await areaH(), `${key}: the area keeps its height`).toBe(before)
+    }
+    await page.locator('.timeline__tabs [data-tab="stock"]').click()
 
-    // scrolling the lists moves nothing else: the chart and the run row stay whole
+    // the tabs and the notice list move nothing else: the chart and the run row stay whole
     const after = await expectChartWhole(page)
     // the cost, recorded (docs/workbench.md §WB7): the canvas's height and the drawing's zoom
     const zoom = await page.evaluate(() => (window as unknown as { __loop: { rf: { getViewport: () => { zoom: number } } } }).__loop.rf.getViewport().zoom)

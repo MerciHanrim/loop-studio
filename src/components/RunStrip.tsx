@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { RunGroupReport } from '../engine/types'
 import { useT } from '../i18n'
 import { isolateAuto } from '../i18n/bidiIsolate'
@@ -47,9 +47,13 @@ export function useRunStrips(): RunStripGroup[] {
   }, [nodes, edges, modelVersion, frames])
 }
 
-function Strip({ group, series, width, padL, padR, minStep, maxStep }: { group: RunStripGroup; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number }) {
+function Strip({ group, series, width, padL, padR, minStep, maxStep, pinStep }: { group: RunStripGroup; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number; pinStep: number | null }) {
   const t = useT()
-  const [hover, setHover] = useState<number | null>(null)
+  // #538 (Lumi's review of #546) — in the strips tab the chart's pinned step is read here too:
+  // its guide and its shares while the pointer is elsewhere; the pointer's step wins over it
+  const [pointer, setHover] = useState<number | null>(null)
+  const hover = pointer ?? pinStep
+  const pinnedOnly = pointer === null && pinStep !== null
   const iw = Math.max(1, width - padL - padR)
   const span = Math.max(1, maxStep - minStep)
   const x = (step: number) => padL + ((step - minStep) / span) * iw
@@ -60,7 +64,16 @@ function Strip({ group, series, width, padL, padR, minStep, maxStep }: { group: 
   const last = reports[reports.length - 1]?.report ?? null
   const at = hover === null ? null : (reports.find((p) => p.step === hover) ?? null)
   const stepAt = (clientX: number, box: DOMRect) => Math.min(maxStep, Math.max(minStep, Math.round(minStep + ((clientX - box.left - padL) / iw) * span)))
+  const reading = at?.report ? t('timeline.run.at', { step: at.step, target: isolateAuto(fullPercent(at.report.target)), moved: isolateAuto(fullPercent(at.report.moved)) }) : null
+  // #538 — the pinned step's reading, said once in a status line (see TimetableRateChart)
+  const pinnedText = pinnedOnly ? (reading ?? '') : null
+  const [said, setSaid] = useState('')
+  useEffect(() => {
+    if (pinStep === null) setSaid('')
+    else if (pinnedText !== null) setSaid(pinnedText)
+  }, [pinStep, pinnedText])
   return (
+    <>
     <svg
       className="timeline__rate timeline__run"
       data-run-strip={group.id}
@@ -91,21 +104,27 @@ function Strip({ group, series, width, padL, padR, minStep, maxStep }: { group: 
       <path className="timeline__rate-line" d={moved} />
       {at?.report ? (
         <>
-          <line className="timeline__rate-guide" x1={x(at.step)} y1={PAD_TOP} x2={x(at.step)} y2={RATE_STRIP_H - PAD_BOTTOM} />
-          <text className="timeline__tick" x={width - padR} y={10} textAnchor="end">
-            {t('timeline.run.at', { step: at.step, target: isolateAuto(fullPercent(at.report.target)), moved: isolateAuto(fullPercent(at.report.moved)) })}
+          <line className={`timeline__rate-guide${pinnedOnly ? ' timeline__rate-guide--pin' : ''}`} x1={x(at.step)} y1={PAD_TOP} x2={x(at.step)} y2={RATE_STRIP_H - PAD_BOTTOM} />
+          <text className="timeline__tick timeline__rate-value" x={width - padR} y={10} textAnchor="end">
+            {reading}
           </text>
         </>
       ) : null}
     </svg>
+    {pinStep !== null ? (
+      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-strip-reading={group.id}>
+        {said}
+      </span>
+    ) : null}
+    </>
   )
 }
 
-export function RunStrips({ groups, series, width, padL, padR, minStep, maxStep }: { groups: readonly RunStripGroup[]; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number }) {
+export function RunStrips({ groups, series, width, padL, padR, minStep, maxStep, pinStep = null }: { groups: readonly RunStripGroup[]; series: Series; width: number; padL: number; padR: number; minStep: number; maxStep: number; pinStep?: number | null }) {
   return (
     <>
       {groups.map((g) => (
-        <Strip key={g.id} group={g} series={series} width={width} padL={padL} padR={padR} minStep={minStep} maxStep={maxStep} />
+        <Strip key={g.id} group={g} series={series} width={width} padL={padL} padR={padR} minStep={minStep} maxStep={maxStep} pinStep={pinStep} />
       ))}
     </>
   )

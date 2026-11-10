@@ -5011,9 +5011,19 @@ a.sheet__row {
   stroke-width: 1.5;
   stroke-dasharray: 4 3;
 }
-.timeline__plot:focus-visible {
+.timeline__plot:focus-visible,
+.timeline__strip-read:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: -2px;
+}
+/* #538 — on the strips tab the chart's pinned step: the chart's pin line, as the strip draws it */
+.timeline__rate-guide--pin {
+  stroke-width: 1.5;
+}
+@media (forced-colors: active) {
+  .timeline__rate-guide--pin {
+    stroke: Highlight;
+  }
 }
 .timeline__plot:not([tabindex='-1']) .timeline__svg {
   cursor: crosshair;

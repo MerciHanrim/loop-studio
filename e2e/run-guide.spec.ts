@@ -9,6 +9,7 @@
 import type { Page } from '@playwright/test'
 import { ensureTimelineOpen, expect, iso, openApp, resetAll, test } from './support/loop'
 import { pickTemplate } from './support/workbenchMenus'
+import { showStrip } from './support/timelineTabs'
 
 type Bridge = { __loop: Record<string, { getState: () => any }> }
 
@@ -122,7 +123,7 @@ test.describe('#537 — the desalination example’s run guide', () => {
     await expect(guide(page, 'checked')).toHaveText(CHECKED_TEXT)
   })
 
-  test('a 600 px window with the pause line, the notices and the strips: the chart keeps 140 px and the first strip stays whole', async ({ page }) => {
+  test('a 600 px window with the pause line, the notices and the strips: the chart keeps 140 px, and the strips tab shows a whole strip at the same height', async ({ page }) => {
     test.setTimeout(180_000)
     await page.setViewportSize({ width: 1920, height: 600 })
     await template(page, { deliveries: false })
@@ -130,7 +131,6 @@ test.describe('#537 — the desalination example’s run guide', () => {
     await play(page)
     await expect.poll(() => sim(page), { timeout: 30_000 }).toEqual({ step: 1161, status: 'paused' })
     await expect(guide(page, 'pause')).toBeVisible()
-    await expect(page.locator('.timeline__rates svg.timeline__rate').first()).toBeVisible()
 
     const splitter = page.locator('.wb-splitter')
     await splitter.focus()
@@ -142,21 +142,34 @@ test.describe('#537 — the desalination example’s run guide', () => {
       const within = (a: DOMRect, o: DOMRect) => a.top >= o.top - 0.5 && a.bottom <= o.bottom + 0.5
       const area = document.querySelector('.timeline.wb-analysis') as HTMLElement
       const a = area.getBoundingClientRect()
-      const rates = r('.timeline__rates')
-      const first = r('.timeline__rates svg.timeline__rate')
       return {
+        area: Math.round(a.height),
         plot: Math.round(r('.timeline__svg').height),
         guide: Math.round(r('.pstrip-guide').height),
         guideWhole: within(r('.pstrip-guide'), a),
-        firstStripWhole: within(first, rates) && within(first, a),
         areaOverflows: area.scrollHeight > area.clientHeight + 1,
       }
     })
     test.info().annotations.push({ type: 'guide line', description: `${l.guide} px` })
     expect(l.plot, 'the chart keeps its least height').toBe(PLOT_MIN)
     expect(l.guideWhole, 'the guide line lies inside the area').toBe(true)
-    expect(l.firstStripWhole, 'the first strip is whole').toBe(true)
     expect(l.areaOverflows, 'the area does not overflow').toBe(false)
     await test.info().attach('600 px at the floor, paused at 1161', { body: await page.screenshot(), contentType: 'image/png' })
+
+    // #538 — the strips are a tab of their own: the picked strip whole, the area unchanged
+    await showStrip(page)
+    const s = await page.evaluate(() => {
+      const within = (x: DOMRect, o: DOMRect) => x.top >= o.top - 0.5 && x.bottom <= o.bottom + 0.5
+      const area = document.querySelector('.timeline.wb-analysis') as HTMLElement
+      const a = area.getBoundingClientRect()
+      const strips = [...document.querySelectorAll('.timeline__rates svg.timeline__rate')]
+      return { area: Math.round(a.height), shown: strips.length, whole: strips.length === 1 && within(strips[0]!.getBoundingClientRect(), a), guideWhole: within(document.querySelector('.pstrip-guide')!.getBoundingClientRect(), a), areaOverflows: area.scrollHeight > area.clientHeight + 1 }
+    })
+    expect(s.area, 'the strips tab keeps the area’s height').toBe(l.area)
+    expect(s.shown, 'one strip at a time').toBe(1)
+    expect(s.whole, 'the strip is whole').toBe(true)
+    expect(s.guideWhole).toBe(true)
+    expect(s.areaOverflows).toBe(false)
+    await test.info().attach('600 px at the floor, paused at 1161, the strips tab', { body: await page.screenshot(), contentType: 'image/png' })
   })
 })

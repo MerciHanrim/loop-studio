@@ -875,6 +875,53 @@
   flex: 0 1 auto;
   min-height: var(--strip-min, 56px);
 }
+/* #538 — the pools' tab panel holds the chart in the chart's own place; the panel not
+   chosen is hidden and takes no height */
+.timeline.wb-analysis .timeline__tabpanel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: var(--plot-min, 140px);
+}
+/* as specific as the `display: flex` above, which would otherwise keep a hidden panel shown */
+.timeline.wb-analysis .timeline__tabpanel[hidden],
+.timeline.wb-analysis .timeline__rates[hidden] {
+  display: none;
+}
+/* #538 — the strips tab takes the chart's place, at the chart's floor, so a tab switch
+   leaves the area's height as it is; one strip under its picker fits with room to spare */
+.timeline.wb-analysis .timeline__rates.timeline__rates--tab {
+  flex: 1 1 auto;
+  min-height: var(--plot-min, 140px);
+  max-height: none;
+  overflow: visible;
+}
+.timeline__strip-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.timeline__strip-pick select {
+  font: inherit;
+  color: var(--ink-1);
+  min-height: 24px;
+  max-width: min(60ch, 70%);
+  background: var(--bg-raise);
+  border: 1px solid var(--line-control);
+  border-radius: var(--control-radius);
+}
+/* the tabs follow the title; the legend keeps the head's far end */
+.timeline__tabs {
+  flex: none;
+  margin-inline-end: auto;
+}
+/* the pools' chips give way on the strips tab, keeping their room */
+.timeline__keyrow.is-off {
+  visibility: hidden;
+}
 .timeline.wb-analysis .pstrip-diag {
   flex: 0 1 auto;
   min-height: var(--notice-min, 37px);
