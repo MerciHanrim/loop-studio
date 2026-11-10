@@ -16,9 +16,10 @@ session neither reads nor saves stored work, author information or settings
 
 **Run it now: <https://cozy-loop-studio.pages.dev>** — available in
 [18 languages](#languages), with seven bundled Templates: a seawater
-desalination plant from intake to the city and the sea, a coffee roastery's daily
-operations, and, under Games, an early MMO's levelling economy and gacha banners:
-three single-banner rule sets and a three-zone probability/pity comparison.
+desalination plant from intake to the city and the sea, checked over 90 days with
+chemical deliveries every 14 days; a coffee roastery's daily operations; and, under
+Games, an early MMO's levelling economy and gacha banners: three single-banner rule
+sets and a three-zone probability/pity comparison.
 
 ![Loop Studio's workbench in a temporary session: the menu bar with its Temporary session button at the far end, the tool row, the list of every node on the left, and the Coffee roastery Template as node symbols with each name below, grouped into three labelled zone frames with its money in $/day, three steps into a run: the run row with Play and its Observation view button, and the Timeline filling in below](docs/assets/hero-coffee.png)
 
@@ -92,10 +93,19 @@ language's review status, and describes how the language is chosen.
 
 The bundled Templates come from different fields — a desalination plant's water
 balance, a coffee roastery's daily operations, and a game's probability rules — because
-the model is about flows and states, not about one genre. The one with the most
-moving parts is a game example:
+the model is about flows and states, not about one genre.
 
-The *3-zone gacha banner comparison* Template runs three pity/pickup rule
+The *Seawater desalination process* Template follows water from intake through
+pretreatment, reverse osmosis and post-treatment to the city and the sea, in five
+numbered frames. A day of demand drives it, six run rules move its stages, and its
+six chemical tanks are refilled by deliveries every 14 days; it is checked over 90
+days. The Timeline shows the tanks in one tab and each stage's run against its
+target in the other.
+
+![The Seawater desalination Template two days into a run: its five numbered process frames from Intake to Discharge and solids on the canvas, the list of every node on the left with each Pool's amount, the run row with Play and the Observation view button, and the Timeline on its Timetables and run rules tab showing the Delivery pump's run, solid, over its target, dotted, with the words "target" and "ran" at the line ends](docs/assets/desalination-process.png)
+
+The game example with the most moving parts is the *3-zone gacha banner
+comparison* Template, which runs three pity/pickup rule
 sets — **General/Free**, **Premium Standard** (hard-pity ceiling), and
 **Premium Pickup** (hard-pity + a pickup guarantee) — side by side, 200 pulls
 per zone under identical run settings. Once a run completes, its hit and
@@ -104,12 +114,9 @@ distribution across many runs.
 
 ![The gacha Template after a completed 200-pull-per-zone run, its comparison row above the zone frames side by side below it: five comparison cards reading real hit-rate/pickup-rate percentages, the run row at its end with Replay and the Observation view button, a Timeline with per-zone SSR/pickup curves, and a Register's expression read-back open in the right panel](docs/assets/gacha-overview.png)
 
-*Premium Pickup, framed on its own* — the hard-pity counter forces the next
-roll's SSR once it hits the ceiling; whether that (or any ordinary) SSR lands
-as pickup or standard depends on the `Pickup owed` guarantee flag, which a
-miss sets and the next SSR consumes.
-
-![The Premium Pickup zone alone after the same completed run, with the Timeline and the node list folded away and only the run row left under the canvas: the hard-pity counter against its ceiling, the Pickup-owed guarantee flag, a real Pickup/Standard hit split, and a selected Pool open in the right panel with its current amount](docs/assets/gacha-pickup-guarantee.png)
+How the Premium Pickup zone's hard-pity counter and pickup guarantee work, with
+that zone framed on its own, is in
+[`docs/gacha-banner-zones.md` §GZ5](docs/gacha-banner-zones.md#gz5-engine-mapping--the-pickup-guarantee-zone-3-only).
 
 ## Develop locally
 
@@ -162,7 +169,8 @@ Timeline built for reading a run.
   one step is, and keep a kind balanced; the Inspector, the Timeline and downloads read in the
   units you chose
 - **The seawater desalination process**: a facility example from intake to the city and the
-  sea, checked over 90 days, with chemical refills and a pause when the plant first stops
+  sea, checked over 90 days, with chemical deliveries every 14 days and a pause when the plant
+  first stops
 - **A Timeline for reading a run**: one height whatever it holds, strips in a tab of their own,
   a step preview under the pointer, and one meaning for each line pattern
 - **An observation view**: hides the side panels and the tool row while a run plays
