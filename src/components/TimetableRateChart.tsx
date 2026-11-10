@@ -8,7 +8,7 @@ import { exactDouble, plainDecimal, toDouble, toSignificant15 } from '../model/r
 import { ruleTables } from '../model/runRule'
 import { meaningOf, stepRates, timetableLines, timetablePolyline, timetableRateAt, timetableRateFactor, type Timetable } from '../model/timetable'
 import { stepSeconds, TIME_UNIT_SECONDS } from '../model/units'
-import { endLabelBaselines } from '../ui/stripEndLabels'
+import { endWordCentres, WORD_GAP } from '../ui/stripEndLabels'
 import { useGraphStore } from '../store/graphStore'
 
 // SEMANTICS-M5.md §M5-11 — a table's rate on its own chart under the tanks. A rate
@@ -95,10 +95,11 @@ function Strip({ table, series, width, padL, padR, minStep, maxStep, stepSec, pi
     edgeId: m.edgeId,
     d: m.rates.filter((r) => r.step > minStep).map((r) => `M${x(Math.max(minStep, r.step - 1)).toFixed(2)} ${y(r.moved).toFixed(2)}H${x(r.step).toFixed(2)}`).join(''),
   }))
-  // #532 prototype — the words at the end of the available line and the first moved line
+  // #532 prototype — the words at the end of the available line and the first moved line,
+  // in the gutter right of the plot
   const lastMoved = moved?.[0]?.rates.filter((r) => r.step > minStep).at(-1) ?? null
   const lastAvail = line.at(-1) ?? null
-  const endsAt = moved && lastMoved && lastAvail ? { x: x(lastMoved.step) - 2, ys: endLabelBaselines(y(lastAvail.rate), y(lastMoved.moved), PAD_TOP, RATE_STRIP_H - PAD_BOTTOM) } : null
+  const endsAt = moved && lastMoved && lastAvail ? { x: width - padR + WORD_GAP, ys: endWordCentres(y(lastAvail.rate), y(lastMoved.moved), PAD_TOP, RATE_STRIP_H - 1) } : null
   const at = hover === null ? null : toDouble(timetableRateAt(table, exactDouble(toTime(hover))))
   // #530 review — an available table's reading is the hovered STEP's: what it made
   // available and what each line moved, both averaged over the step, never the table's
@@ -169,10 +170,10 @@ function Strip({ table, series, width, padL, padR, minStep, maxStep, stepSec, pi
       ))}
       {endsAt ? (
         <>
-          <text className="timeline__tick timeline__strip-end" data-end="available" x={endsAt.x} y={endsAt.ys[0]} textAnchor="end">
+          <text className="timeline__tick timeline__strip-end" data-end="available" direction="ltr" x={endsAt.x} y={endsAt.ys[0]} dy="0.32em">
             {t('timeline.rate.endAvailable')}
           </text>
-          <text className="timeline__tick timeline__strip-end" data-end="moved" x={endsAt.x} y={endsAt.ys[1]} textAnchor="end">
+          <text className="timeline__tick timeline__strip-end" data-end="moved" direction="ltr" x={endsAt.x} y={endsAt.ys[1]} dy="0.32em">
             {t('timeline.rate.endMoved')}
           </text>
         </>

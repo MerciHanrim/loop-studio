@@ -8,7 +8,7 @@ import { useFrameStore } from '../store/frameStore'
 import { useGraphStore } from '../store/graphStore'
 import { fullPercent } from '../ui/runMessages'
 import { compareStripPlace, runStripPath, stripPlace } from '../ui/runStrip'
-import { endLabelBaselines } from '../ui/stripEndLabels'
+import { endWordCentres, WORD_GAP } from '../ui/stripEndLabels'
 import { RATE_STRIP_H } from './TimetableRateChart'
 
 // SEMANTICS-M6.md §M6-9 — what a ruled group was asked for and did, step by step, under
@@ -63,9 +63,9 @@ function Strip({ group, series, width, padL, padR, minStep, maxStep, pinStep }: 
   const target = runStripPath(reports.map((p) => ({ step: p.step, value: p.report?.target ?? null })), x, y, minStep)
   const moved = runStripPath(reports.map((p) => ({ step: p.step, value: p.report?.moved ?? null })), x, y, minStep)
   const last = reports[reports.length - 1]?.report ?? null
-  // #532 prototype — the words at the end of each line
+  // #532 prototype — the words at the end of each line, in the gutter right of the plot
   const lastPoint = [...reports].reverse().find((p) => p.report !== null && p.step > minStep) ?? null
-  const ends = lastPoint?.report ? endLabelBaselines(y(lastPoint.report.target), y(lastPoint.report.moved), PAD_TOP, RATE_STRIP_H - PAD_BOTTOM) : null
+  const ends = lastPoint?.report ? endWordCentres(y(lastPoint.report.target), y(lastPoint.report.moved), PAD_TOP, RATE_STRIP_H - 1) : null
   const at = hover === null ? null : (reports.find((p) => p.step === hover) ?? null)
   const stepAt = (clientX: number, box: DOMRect) => Math.min(maxStep, Math.max(minStep, Math.round(minStep + ((clientX - box.left - padL) / iw) * span)))
   const reading = at?.report ? t('timeline.run.at', { step: at.step, target: isolateAuto(fullPercent(at.report.target)), moved: isolateAuto(fullPercent(at.report.moved)) }) : null
@@ -108,10 +108,10 @@ function Strip({ group, series, width, padL, padR, minStep, maxStep, pinStep }: 
       <path className="timeline__rate-line" d={moved} />
       {lastPoint && ends ? (
         <>
-          <text className="timeline__tick timeline__strip-end" data-end="target" x={x(lastPoint.step) - 2} y={ends[0]} textAnchor="end">
+          <text className="timeline__tick timeline__strip-end" data-end="target" direction="ltr" x={width - padR + WORD_GAP} y={ends[0]} dy="0.32em">
             {t('timeline.run.endTarget')}
           </text>
-          <text className="timeline__tick timeline__strip-end" data-end="ran" x={x(lastPoint.step) - 2} y={ends[1]} textAnchor="end">
+          <text className="timeline__tick timeline__strip-end" data-end="ran" direction="ltr" x={width - padR + WORD_GAP} y={ends[1]} dy="0.32em">
             {t('timeline.run.endRan')}
           </text>
         </>
