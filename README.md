@@ -15,12 +15,13 @@ session neither reads nor saves stored work, author information or settings
 ([docs/storage-sessions.md](docs/storage-sessions.md)).
 
 **Run it now: <https://cozy-loop-studio.pages.dev>** — available in
-[18 languages](#languages), with eight bundled Templates ranging from two
-small production flows and a coffee roastery's daily operations to an early MMO's
-levelling economy and gacha banners: three single-banner rule sets and a
-three-zone probability/pity comparison.
+[18 languages](#languages), with seven bundled Templates: a seawater
+desalination plant from intake to the city and the sea, checked over 90 days with
+chemical deliveries every 14 days; a coffee roastery's daily operations; and, under
+Games, an early MMO's levelling economy and gacha banners: three single-banner rule
+sets and a three-zone probability/pity comparison.
 
-![Loop Studio's workbench in a temporary session: the menu bar with its Temporary session button at the far end, the tool row, the list of every node on the left, and the Coffee roastery Template as node symbols with each name below, grouped into three labelled zone frames with its money in $/day, a few steps into a run with the Timeline filling in below](docs/assets/hero-coffee.png)
+![Loop Studio's workbench in a temporary session: the menu bar with its Temporary session button at the far end, the tool row, the list of every node on the left, and the Coffee roastery Template as node symbols with each name below, grouped into three labelled zone frames with its money in $/day, three steps into a run: the run row with Play and its Observation view button, and the Timeline filling in below](docs/assets/hero-coffee.png)
 
 ## Key features
 
@@ -28,6 +29,9 @@ three-zone probability/pity comparison.
   resources move between them on a deterministic, discrete-step simulation;
   select a region of nodes from the rail and move them together, or place nodes
   in a named frame that moves with its contents
+- **Kinds, units, timetables and run rules** — name a document's resource
+  kinds and their units, say how long a step is, keep a kind balanced, drive a
+  connection from a timetable, and run a stage by a rule, all made on screen
 - **Seeded RNG + Monte Carlo** — probabilistic gates and flows, and
   many-run outcome distributions with percentile bands
 - **A small model language** — `parameter` / `register` nodes with a safe
@@ -87,26 +91,32 @@ language's review status, and describes how the language is chosen.
 
 ## Representative use cases
 
-The bundled Templates come from different fields — a small production flow, a
-coffee roastery's daily operations, and a game's probability rules — because
-the model is about flows and states, not about one genre. The one with the most
-moving parts is a game example:
+The bundled Templates come from different fields — a desalination plant's water
+balance, a coffee roastery's daily operations, and a game's probability rules — because
+the model is about flows and states, not about one genre.
 
-The *3-zone gacha banner comparison* Template runs three pity/pickup rule
+The *Seawater desalination process* Template follows water from intake through
+pretreatment, reverse osmosis and post-treatment to the city and the sea, in five
+numbered frames. A day of demand drives it, six run rules move its stages, and its
+six chemical tanks are refilled by deliveries every 14 days; it is checked over 90
+days. The Timeline shows the tanks in one tab and, in the other, each stage's run
+against its target and each delivery against what moved.
+
+![The Seawater desalination Template fifteen days into a run: its five numbered process frames from Intake to Discharge and solids on the canvas, the list of every node on the left with each Pool's amount, the run row with Play and the Observation view button, and the Timeline on its Timetables and run rules tab showing the hypochlorite deliveries: what a delivery made available, dotted, standing at 300 kg per day above what moved, solid, with the words "available" and "moved" at the line ends](docs/assets/desalination-process.png)
+
+The game example with the most moving parts is the *3-zone gacha banner
+comparison* Template, which runs three pity/pickup rule
 sets — **General/Free**, **Premium Standard** (hard-pity ceiling), and
 **Premium Pickup** (hard-pity + a pickup guarantee) — side by side, 200 pulls
 per zone under identical run settings. Once a run completes, its hit and
 pickup rates are easy to compare; run Monte Carlo analysis to inspect the
 distribution across many runs.
 
-![The gacha Template after a completed 200-pull-per-zone run, its comparison row above the zone frames side by side below it: five comparison cards reading real hit-rate/pickup-rate percentages, a Timeline with per-zone SSR/pickup curves, and a Register's expression read-back open in the right panel](docs/assets/gacha-overview.png)
+![The 3-zone gacha Template after a completed 200-pull-per-zone run, its Comparison row across the top of the canvas with five cards: 200 pulls per zone, the hit rates of General / Free at 0.5 %, Premium Standard at 1 % and Premium Pickup at 2 %, and Premium Pickup's pickup rate at 1.5 %; below them only the top of the General / Free zone and the left edge of Premium Standard; the run row at its end with Replay and the Observation view button; the Timeline with each zone's SSR count and the Pickup wins as stepped lines; and the selected pickup-rate Register's read-back, Pickup wins 3 / Pulls per zone 200 = 1.5 %, in the right panel](docs/assets/gacha-overview.png)
 
-*Premium Pickup, framed on its own* — the hard-pity counter forces the next
-roll's SSR once it hits the ceiling; whether that (or any ordinary) SSR lands
-as pickup or standard depends on the `Pickup owed` guarantee flag, which a
-miss sets and the next SSR consumes.
-
-![The Premium Pickup zone alone after the same completed run, with the Timeline and the node list folded away: the hard-pity counter against its ceiling, the Pickup-owed guarantee flag, a real Pickup/Standard hit split, and a selected Pool open in the right panel with its current amount](docs/assets/gacha-pickup-guarantee.png)
+How the Premium Pickup zone's hard-pity counter and pickup guarantee work, with
+that zone framed on its own, is in
+[`docs/gacha-banner-zones.md` §GZ5](docs/gacha-banner-zones.md#gz5-engine-mapping--the-pickup-guarantee-zone-3-only).
 
 ## Develop locally
 
@@ -147,7 +157,27 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.31.0
+## Latest — v0.32.0
+
+Timetables, run rules and units, shown in a seawater desalination process example, and a
+Timeline built for reading a run.
+
+- **Timetables and run rules**: a connection can follow a rate that changes over time, as a
+  plan or as what a supply can give, and a stage can be run by a rule; both are made on screen,
+  and the Timeline draws each under the chart, with a word at each line's end
+- **Resource kinds with units**: a document can name its kinds and their units, say how long
+  one step is, and keep a kind balanced; the Inspector, the Timeline and downloads read in the
+  units you chose
+- **The seawater desalination process**: a facility example from intake to the city and the
+  sea, checked over 90 days, with chemical deliveries every 14 days and a pause when the plant
+  first stops
+- **A Timeline for reading a run**: one height whatever it holds, strips in a tab of their own,
+  a step preview under the pointer, and one meaning for each line pattern
+- **An observation view**: hides the side panels and the tool row while a run plays
+- **Node icons**, a state light on every Gate, and the game examples under Templates ▸ Games
+- **The run engine no longer loses resources** between Gates, Converters and capped Pools
+
+## v0.31.0
 
 Eighteen languages again, and a round of workbench clarity.
 
@@ -188,24 +218,9 @@ The menus and the canvas, tidied.
 - **Check marks beside their names** in the View menu and Edit ▸ Edit lock
 - **No minimap**: Reset view and Fit show the whole diagram; panning and zooming are unchanged
 
-## v0.29.0
-
-The workbench release: the desktop editing screen is redesigned as a workbench
-([`docs/workbench.md`](docs/workbench.md)).
-
-- **The workbench**: a menu bar, a tool row, a searchable list of every node on the left, the
-  properties panel on the right (what the selection does in the model first, then its fields),
-  the run controls and timeline under the canvas, and a status bar; the list and the panel fold
-  at narrower widths
-- **Nodes as symbols**: each kind of node is a small symbol with its number inside and its name
-  below; your documents keep their positions, names, formulas and line routes
-- **New colours, light and dark**, and names that stay when you zoom all the way out
-- **Structures in the File menu**: save a selected structure to a file and insert such a file
-  as one undo step; the Insert module menu is gone
-- **Languages at this release**: English and Korean only — the other sixteen returned in
-  v0.31.0
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.28.4 (starting
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.29.0 (the
+workbench: a menu bar, a tool row, the node list and the properties panel around the canvas,
+and nodes as symbols; [`docs/workbench.md`](docs/workbench.md)), v0.28.4 (starting
 and finishing a connection responds faster), v0.28.3 (Undo and Redo leave nothing selected),
 v0.28.2 (resource connections on two sides of one port branch on their own), v0.28.1 (a
 connection's label keeps off the bend points you placed on it), v0.28.0 (a

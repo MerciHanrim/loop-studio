@@ -485,6 +485,10 @@ probabilistic `roll_gate_free`, nothing else (GZ-D2).
 `docs/parameter-activator.md` (which only reviewed the pity ceiling) — this
 is this document's own contribution.
 
+*Premium Pickup, framed on its own* (v0.32.0; it was the README's third screenshot until then): the hard-pity counter forces the next roll's SSR once it hits the ceiling, and whether that SSR, or any ordinary one, lands as pickup or standard depends on the `Pickup owed` guarantee flag, which a miss sets and the next SSR consumes.
+
+![The Premium Pickup zone alone after a completed 200-pull-per-zone run, with the Timeline and the node list folded away and only the run row left under the canvas: the hard-pity counter against its ceiling, the Pickup-owed guarantee flag, a real Pickup/Standard hit split, and a selected Pool open in the right panel with its current amount](assets/gacha-pickup-guarantee.png)
+
 ### GZ5.0 Why the original relay-Pool shape (rounds 1–2) was wrong
 
 The first two drafts routed every SSR result into a relay Pool
