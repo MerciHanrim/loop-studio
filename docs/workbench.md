@@ -496,7 +496,10 @@ A tab switch never changes it, and nothing raises the area for strips. On the st
 - the pinned step is kept and shows again on the Pools tab.
 
 The tabs are a tablist: one Tab stop on the chosen tab, and Left, Right, Home and End move
-and choose. One strip stays under the chart, with no tabs, as above. The phone's sheet keeps
+and choose. Both panels stay in the document, each a `tabpanel` named by its tab
+(`aria-labelledby`) and named by that tab's `aria-controls`: the chart in its own panel,
+the strips in theirs. The panel not chosen is `hidden`, so it takes no height and has no
+Tab stop, and it is not in the accessibility tree (Lumi's review of #546). One strip stays under the chart, with no tabs, as above. The phone's sheet keeps
 its stacked strips. The Live / Distribution switch is a separate control, and the tabs are
 not shown in the Distribution view.
 

@@ -875,6 +875,19 @@
   flex: 0 1 auto;
   min-height: var(--strip-min, 56px);
 }
+/* #538 — the pools' tab panel holds the chart in the chart's own place; the panel not
+   chosen is hidden and takes no height */
+.timeline.wb-analysis .timeline__tabpanel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: var(--plot-min, 140px);
+}
+/* as specific as the `display: flex` above, which would otherwise keep a hidden panel shown */
+.timeline.wb-analysis .timeline__tabpanel[hidden],
+.timeline.wb-analysis .timeline__rates[hidden] {
+  display: none;
+}
 /* #538 — the strips tab takes the chart's place, at the chart's floor, so a tab switch
    leaves the area's height as it is; one strip under its picker fits with room to spare */
 .timeline.wb-analysis .timeline__rates.timeline__rates--tab {

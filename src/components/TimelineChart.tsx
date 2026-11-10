@@ -232,7 +232,8 @@ export function TimelineChart() {
     const ro = new ResizeObserver(apply)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [collapsed, isMobile, overlay])
+    // `tabbed`: the plot moves into (or out of) its tab panel, a new element to observe
+  }, [collapsed, isMobile, overlay, tabbed])
 
   const pools = useMemo(
     () =>
@@ -667,7 +668,7 @@ export function TimelineChart() {
                     role="tab"
                     data-tab={k}
                     aria-selected={tab === k}
-                    aria-controls={k === 'stock' ? `${tabsId}-plot` : `${tabsId}-panel-strips`}
+                    aria-controls={`${tabsId}-panel-${k}`}
                     tabIndex={tab === k ? 0 : -1}
                     className={`timeline__viewtab${tab === k ? ' is-on' : ''}`}
                     onClick={() => setTab(k)}
@@ -770,11 +771,11 @@ export function TimelineChart() {
 
           {showDistribution ? <DistributionPanel /> : null}
 
+          <TabPanelWrap on={tabbed} id={`${tabsId}-panel-stock`} labelledBy={`${tabsId}-tab-stock`} hidden={onStrips}>
           <div
             className="timeline__plot"
             ref={plotRef}
-            id={`${tabsId}-plot`}
-            hidden={showDistribution || onStrips}
+            hidden={showDistribution}
             // the reading's keyboard: focus the chart, then the arrow keys walk
             // the recorded steps; Escape closes the reading
             tabIndex={hasRun ? 0 : -1}
@@ -997,10 +998,15 @@ export function TimelineChart() {
               ) : null}
             </svg>
           </div>
-          {!showDistribution && stripCount > 0 && (!tabbed || onStrips) ? (
+          </TabPanelWrap>
+          {/* #538 — with tabs both panels stay in the document, the one not chosen hidden
+              (no height, out of the Tab order and the accessibility tree), so each tab's
+              aria-controls always names an element */}
+          {!showDistribution && stripCount > 0 ? (
             <div
               className={`timeline__rates${tabbed ? ' timeline__rates--tab' : ''}`}
               ref={ratesRef}
+              hidden={tabbed && !onStrips}
               {...(tabbed ? { id: `${tabsId}-panel-strips`, role: 'tabpanel', 'aria-labelledby': `${tabsId}-tab-strips` } : {})}
             >
               {tabbed && picked ? (
@@ -1088,6 +1094,17 @@ export function TimelineChart() {
         onToggleCollapse={() => setCollapsed((c) => !c)}
       />
       {!collapsed ? panel : null}
+    </div>
+  )
+}
+
+/** #538 — with tabs, the pools' chart sits in its tab's panel (`role="tabpanel"`, named by its
+ *  tab); without tabs it stands alone, as before */
+function TabPanelWrap({ on, id, labelledBy, hidden, children }: { on: boolean; id: string; labelledBy: string; hidden: boolean; children: React.ReactNode }) {
+  if (!on) return <>{children}</>
+  return (
+    <div className="timeline__tabpanel" role="tabpanel" id={id} aria-labelledby={labelledBy} hidden={hidden}>
+      {children}
     </div>
   )
 }

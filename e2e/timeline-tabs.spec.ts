@@ -59,7 +59,7 @@ test.describe('#538 — the Timeline tabs', () => {
     await expect(tab(page, 'stock')).toHaveAttribute('aria-selected', 'true')
     expect(await areaH(page), 'the area opens at 216 px, not raised for 13 strips').toBe(216)
     expect(await plotH(page)).toBe(140)
-    await expect(page.locator('.timeline__rates')).toHaveCount(0)
+    await expect(page.locator('.timeline__rates')).toBeHidden()
 
     await tab(page, 'strips').click()
     expect(await areaH(page), 'the strips tab keeps the height').toBe(216)
@@ -79,6 +79,57 @@ test.describe('#538 — the Timeline tabs', () => {
       await expect(page.locator('.timeline__rates svg.timeline__rate')).toHaveCount(1)
       expect(await areaH(page), `${key}: the area keeps its height`).toBe(216)
     }
+  })
+
+  test('both panels stay in the document, each a tabpanel named by its tab; the hidden one takes no height and no Tab stop', async ({ page }) => {
+    await template(page, 'desalination', 24)
+    /** each tab, its panel by `aria-controls`, and what the panel is */
+    const panels = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll('.timeline__tabs [role="tab"]')].map((t) => {
+          const p = document.getElementById(t.getAttribute('aria-controls') ?? '')
+          return {
+            tab: t.getAttribute('data-tab'),
+            selected: t.getAttribute('aria-selected'),
+            panel: !!p,
+            role: p?.getAttribute('role') ?? null,
+            labelledByTab: !!p && p.getAttribute('aria-labelledby') === t.id,
+            hidden: p ? p.hidden : null,
+            height: p ? Math.round(p.getBoundingClientRect().height) : null,
+          }
+        }),
+      )
+    /** Tab both ways from the chosen tab: any stop inside a hidden panel */
+    const stopsInHidden = async (k: 'stock' | 'strips') => {
+      const hits: string[] = []
+      for (const key of ['Tab', 'Shift+Tab']) {
+        await tab(page, k).focus()
+        for (let i = 0; i < 15; i++) {
+          await page.keyboard.press(key)
+          if (await page.evaluate(() => !!document.activeElement?.closest('[role="tabpanel"][hidden]'))) hits.push(`${key} ${i + 1}`)
+        }
+      }
+      return hits
+    }
+
+    const onPools = await panels()
+    expect(onPools).toEqual([
+      { tab: 'stock', selected: 'true', panel: true, role: 'tabpanel', labelledByTab: true, hidden: false, height: expect.any(Number) },
+      { tab: 'strips', selected: 'false', panel: true, role: 'tabpanel', labelledByTab: true, hidden: true, height: 0 },
+    ])
+    expect(onPools[0]!.height, 'the Pools panel holds the 140 px chart').toBeGreaterThanOrEqual(140)
+    expect(await areaH(page)).toBe(216)
+    // the hidden panel is out of the accessibility tree too: one tabpanel is exposed
+    await expect(page.locator('.timeline.wb-analysis').getByRole('tabpanel')).toHaveCount(1)
+    expect(await stopsInHidden('stock'), 'Tab never stops inside the hidden strips panel').toEqual([])
+
+    await tab(page, 'strips').click()
+    const onStrips = await panels()
+    expect(onStrips[0]).toMatchObject({ tab: 'stock', selected: 'false', panel: true, role: 'tabpanel', labelledByTab: true, hidden: true, height: 0 })
+    expect(onStrips[1]).toMatchObject({ tab: 'strips', selected: 'true', panel: true, role: 'tabpanel', labelledByTab: true, hidden: false })
+    expect(await areaH(page)).toBe(216)
+    await expect(page.locator('.timeline.wb-analysis').getByRole('tabpanel')).toHaveCount(1)
+    expect(await stopsInHidden('strips'), 'Tab never stops on the hidden chart').toEqual([])
   })
 
   test('a switch keeps the pinned step, the CSV and the picked strip', async ({ page }) => {

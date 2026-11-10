@@ -155,7 +155,7 @@ test.describe('#534 — the analysis area keeps the chart readable', () => {
     await expect(page.locator('.pstrip-diag li')).toHaveCount(9)
     // #538 — seven strips: they are a tab of their own, not stacked under the chart
     await expect(page.locator('.timeline__tabs [role="tab"]')).toHaveCount(2)
-    await expect(page.locator('.timeline__rates')).toHaveCount(0)
+    await expect(page.locator('.timeline__rates'), 'the strips panel is there, hidden, on the Pools tab').toBeHidden()
     await toFloor(page)
     const l = await expectChartWhole(page)
     expect(l.plot).toBe(PLOT_MIN)
