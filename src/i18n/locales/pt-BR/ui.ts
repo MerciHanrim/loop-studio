@@ -591,6 +591,7 @@ const ui = {
   'timeline.rate.availableName': '{label} ({unit}): disponível (tracejada), movido (contínua)',
   'timeline.rate.availableAria': '{label}: taxa disponível em {unit} tracejada, o movido contínuo, em eixo próprio',
   'timeline.rate.availableAt': 'Passo {step}: disponível {available}, movido {moved} {unit}',
+  'timeline.rate.at': 'Passo {step}: {value} {unit}',
   'timeline.rate.availableAtLines': 'Passo {step}: disponível {available} {unit} por linha, movido {lines}',
   'timeline.reading.label': 'Gráfico da execução. Selecione um ponto, ou use as setas para a esquerda e para a direita, para ler os valores de um passo registrado.',
   'timeline.reading.step': 'Passo {n}',

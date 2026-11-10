@@ -586,6 +586,7 @@ const ui = {
   'timeline.rate.availableName': '{label} ({unit}): beschikbaar (gestreept), verplaatst (doorgetrokken)',
   'timeline.rate.availableAria': '{label}: beschikbare snelheid in {unit} gestreept, het verplaatste doorgetrokken, op een eigen as',
   'timeline.rate.availableAt': 'Stap {step}: beschikbaar {available}, verplaatst {moved} {unit}',
+  'timeline.rate.at': 'Stap {step}: {value} {unit}',
   'timeline.rate.availableAtLines': 'Stap {step}: beschikbaar {available} {unit} per verbinding, verplaatst {lines}',
   'timeline.reading.label': 'Rungrafiek. Selecteer een punt, of gebruik de pijltoetsen links en rechts, om de waarden bij een vastgelegde stap te lezen.',
   'timeline.reading.step': 'Stap {n}',

@@ -493,7 +493,11 @@ A tab switch never changes it, and nothing raises the area for strips. On the st
 - the chart and its step reading are hidden;
 - the legend's chips give way but keep their room, so Series and CSV do not move;
 - the CSV is the same file from either tab;
-- the pinned step is kept and shows again on the Pools tab.
+- the pinned step is kept, and the picked strip reads it while the pointer is elsewhere:
+  - the strip draws the pinned step's guide, as the chart's pin line is drawn;
+  - its values are shown in the reader's wording (`timeline.run.at`, `timeline.rate.at`, or an available table's own reading);
+  - a status line says the reading once for a screen reader, the pinned step's, never the pointer's;
+- the strip takes the chart's step keys: Left, Right, Home and End move the pinned step, Escape lets it go, and the Pools tab reads the step it moved to (Lumi's review of #546).
 
 The tabs are a tablist: one Tab stop on the chosen tab, and Left, Right, Home and End move
 and choose. Both panels stay in the document, each a `tabpanel` named by its tab

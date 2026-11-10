@@ -605,6 +605,7 @@ const ui = {
   'timeline.rate.availableName': '{label} ({unit}): disponibile (tratteggiata), spostato (continua)',
   'timeline.rate.availableAria': '{label}: portata disponibile in {unit} tratteggiata, lo spostato continuo, su un asse proprio',
   'timeline.rate.availableAt': 'Passo {step}: disponibile {available}, spostato {moved} {unit}',
+  'timeline.rate.at': 'Passo {step}: {value} {unit}',
   'timeline.rate.availableAtLines': 'Passo {step}: disponibile {available} {unit} per connessione, spostato {lines}',
   'timeline.reading.label': 'Grafico dell’esecuzione. Seleziona un punto, oppure usa i tasti freccia sinistra e destra, per leggere i valori a un passo registrato.',
   'timeline.reading.step': 'Passo {n}',

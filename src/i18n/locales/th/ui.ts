@@ -650,6 +650,7 @@ const ui = {
   'timeline.rate.availableName': '{label} ({unit}): ที่มีให้ (เส้นประ) ที่ย้ายแล้ว (เส้นทึบ)',
   'timeline.rate.availableAria': '{label}: อัตราที่มีให้เป็น {unit} เส้นประ ที่ย้ายแล้วเส้นทึบ บนแกนของตัวเอง',
   'timeline.rate.availableAt': 'ขั้นที่ {step}: มีให้ {available} ย้ายแล้ว {moved} {unit}',
+  'timeline.rate.at': 'ขั้นที่ {step}: {value} {unit}',
   'timeline.rate.availableAtLines': 'ขั้นที่ {step}: มีให้ {available} {unit} ต่อการเชื่อมต่อ ย้ายแล้ว {lines}',
   'timeline.reading.label': 'แผนภูมิการรัน เลือกจุด หรือใช้ปุ่มลูกศรซ้ายและขวา เพื่ออ่านค่าที่ขั้นที่บันทึกไว้',
   'timeline.reading.step': 'ขั้นที่ {n}',

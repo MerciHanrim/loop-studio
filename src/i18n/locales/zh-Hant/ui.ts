@@ -608,6 +608,7 @@ const ui = {
   'timeline.rate.availableName': '{label}（{unit}）：可用（虛線），已移動（實線）',
   'timeline.rate.availableAria': '{label}：{unit} 可用速率為虛線，已移動的量為實線，獨立座標軸',
   'timeline.rate.availableAt': '第 {step} 步：可用 {available}，已移動 {moved} {unit}',
+  'timeline.rate.at': '第 {step} 步：{value} {unit}',
   'timeline.rate.availableAtLines': '第 {step} 步：每條連線可用 {available} {unit}，已移動 {lines}',
   'timeline.reading.label': '執行圖表。選取一個點，或使用左右方向鍵，即可讀取某個已記錄步驟的數值。',
   'timeline.reading.step': '第 {n} 步',

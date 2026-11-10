@@ -658,6 +658,7 @@ const ui = {
   'timeline.rate.availableName': '{label} ({unit}) : disponible (tirets), déplacé (trait plein)',
   'timeline.rate.availableAria': '{label} : débit disponible en {unit} en tirets, déplacé en trait plein, sur son propre axe',
   'timeline.rate.availableAt': 'Pas {step} : disponible {available}, déplacé {moved} {unit}',
+  'timeline.rate.at': 'Pas {step} : {value} {unit}',
   'timeline.rate.availableAtLines': 'Pas {step} : disponible {available} {unit} par connexion, déplacé {lines}',
   'timeline.reading.label': 'Graphique de l’exécution. Sélectionnez un point, ou utilisez les flèches gauche et droite, pour lire les valeurs d’un pas enregistré.',
   'timeline.reading.step': 'Pas {n}',

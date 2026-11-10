@@ -658,6 +658,7 @@ const ui = {
   'timeline.rate.availableName': '{label} ({unit}): доступно (пунктир), перемещено (сплошная)',
   'timeline.rate.availableAria': '{label}: доступный поток в {unit} пунктиром, перемещённое сплошной, на отдельной оси',
   'timeline.rate.availableAt': 'Шаг {step}: доступно {available}, перемещено {moved} {unit}',
+  'timeline.rate.at': 'Шаг {step}: {value} {unit}',
   'timeline.rate.availableAtLines': 'Шаг {step}: доступно {available} {unit} на каждую связь, перемещено {lines}',
   'timeline.reading.label': 'График выполнения. Выберите точку или используйте стрелки влево и вправо, чтобы прочитать значения на записанном шаге.',
   'timeline.reading.step': 'Шаг {n}',

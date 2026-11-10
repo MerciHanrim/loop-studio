@@ -151,6 +151,7 @@ const ui = {
   'timeline.rate.availableName': '{label} ({unit}): available (dashed), moved (solid)',
   'timeline.rate.availableAria': '{label}: available rate in {unit}, dashed, and what moved, solid, on its own axis',
   'timeline.rate.availableAt': 'Step {step}: available {available}, moved {moved} {unit}',
+  'timeline.rate.at': 'Step {step}: {value} {unit}',
   'timeline.rate.availableAtLines': 'Step {step}: available {available} {unit} on each connection, moved {lines}',
   'timeline.reading.label': 'Run chart. Select a point, or use the left and right arrow keys, to read the values at a recorded step.',
   'timeline.reading.step': 'Step {n}',

@@ -143,14 +143,60 @@ test.describe('#538 — the Timeline tabs', () => {
     const csvStock = await csvText(page)
 
     await showStrip(page, 'run:dpump')
-    await expect(reading, 'the reading stands beside the chart, so it shows on the pools tab only').toHaveCount(0)
+    await expect(reading, 'the chart’s reading box stands beside the chart, so it shows on the pools tab only').toHaveCount(0)
+    // the strips tab reads the pinned step on the picked strip: its guide, its values, a status line
+    const strip = page.locator('[data-run-strip="dpump"]')
+    await page.mouse.move(5, 5)
+    await expect(strip.locator('.timeline__rate-guide--pin'), 'the pinned step’s guide on the strip').toHaveCount(1)
+    await expect(strip.locator('.timeline__rate-value')).toHaveText(/^Step 47: target .+ %, ran .+ %$/)
+    await expect(page.locator('[data-strip-reading="dpump"]'), 'a screen reader hears the pinned step').toHaveText(/^Step 47: target/)
+    // the guide stands at the pinned step: the same fraction of the strip's span as the chart's pin line
+    const guideX = await strip.locator('.timeline__rate-guide--pin').getAttribute('x1')
+    expect(Number(guideX)).toBeGreaterThan(0)
     expect(await csvText(page), 'the CSV does not depend on the tab').toBe(csvStock)
+    // a plain timetable strip reads the step too, in its own wording
+    await showStrip(page, 'table:demand')
+    // (the value and the unit are bidi-isolated, U+2066 / U+2068 to U+2069, as the chart's are)
+    await expect(page.locator('.timeline__rates .timeline__rate-value')).toHaveText(/^Step 47: \W?3600\W? \W?CMD\W?$/u)
+    await expect(page.locator('[data-strip-reading="demand"]')).toHaveText(/^Step 47: \W?3600\W? \W?CMD\W?$/u)
+
     await tab(page, 'stock').click()
     await expect(reading, 'the pinned step comes back with the chart').toHaveAttribute('data-step', '47')
     expect(await reading.innerText(), 'with the same reading').toBe(before)
-    await tab(page, 'strips').click()
+    await showStrip(page, 'run:dpump')
     await expect(page.locator('.timeline__strip-pick select'), 'the picked strip is kept').toHaveValue('run:dpump')
     await expect(page.locator('[data-run-strip="dpump"]')).toBeVisible()
+  })
+
+  test('the strips tab moves the pinned step from the keyboard, and the Pools tab reads where it went', async ({ page }) => {
+    await template(page, 'desalination', 48)
+    await page.locator('.timeline__plot').focus()
+    await page.keyboard.press('ArrowLeft')
+    await page.keyboard.press('ArrowLeft')
+    await expect(page.locator('.timeline__reading')).toHaveAttribute('data-step', '47')
+    await showStrip(page, 'run:dpump')
+    await page.mouse.move(5, 5)
+    const read = page.locator('.timeline__strip-read')
+    await expect(read).toHaveAttribute('role', 'group')
+    await read.focus()
+    await page.keyboard.press('ArrowLeft')
+    await page.keyboard.press('ArrowLeft')
+    await expect(page.locator('[data-run-strip="dpump"] .timeline__rate-value')).toHaveText(/^Step 45:/)
+    await expect(page.locator('[data-strip-reading="dpump"]')).toHaveText(/^Step 45:/)
+    await page.keyboard.press('End')
+    await expect(page.locator('[data-strip-reading="dpump"]')).toHaveText(/^Step 48:/)
+    await page.keyboard.press('ArrowLeft')
+    await expect(page.locator('[data-strip-reading="dpump"]')).toHaveText(/^Step 47:/)
+    // the Pools tab reads the step the strip moved it to
+    await tab(page, 'stock').click()
+    await expect(page.locator('.timeline__reading')).toHaveAttribute('data-step', '47')
+    // back on the strip, Escape lets the step go: no pinned guide, nothing said
+    await tab(page, 'strips').click()
+    await read.focus()
+    await page.keyboard.press('Escape')
+    await expect(page.locator('[data-run-strip="dpump"] .timeline__rate-guide--pin')).toHaveCount(0)
+    await tab(page, 'stock').click()
+    await expect(page.locator('.timeline__reading')).toHaveCount(0)
   })
 
   test('the keyboard: one Tab stop, Left / Right / Home / End move and choose, then Tab reaches the picker past the hidden chips', async ({ page }) => {
@@ -181,6 +227,9 @@ test.describe('#538 — the Timeline tabs', () => {
     expect(reached, 'Tab reaches the strip picker').toBe(true)
     await page.keyboard.press('ArrowDown')
     await expect(page.locator('.timeline__rates svg.timeline__rate')).toHaveCount(1)
+    // the next stop is the strip, which reads and moves the pinned step
+    await page.keyboard.press('Tab')
+    await expect(page.locator('.timeline__strip-read')).toBeFocused()
   })
 
   test('one strip: no tabs, the strip under the chart as before', async ({ page }) => {

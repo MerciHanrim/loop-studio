@@ -610,6 +610,7 @@ const ui = {
   'timeline.rate.availableName': '{label}（{unit}）: 利用可能（破線）、移動（実線）',
   'timeline.rate.availableAria': '{label}: {unit} の利用可能なレートは破線、移動した量は実線、別の軸',
   'timeline.rate.availableAt': 'ステップ {step}: 利用可能 {available}、移動 {moved} {unit}',
+  'timeline.rate.at': 'ステップ {step}: {value} {unit}',
   'timeline.rate.availableAtLines': 'ステップ {step}: 接続ごとに利用可能 {available} {unit}、移動 {lines}',
   'timeline.reading.label': '実行チャート。点を選ぶか、左右の矢印キーで、記録されたステップの値を読み取ります。',
   'timeline.reading.step': 'ステップ {n}',

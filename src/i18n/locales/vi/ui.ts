@@ -591,6 +591,7 @@ const ui = {
   'timeline.rate.availableName': '{label} ({unit}): khả dụng (nét đứt), đã chuyển (nét liền)',
   'timeline.rate.availableAria': '{label}: lưu lượng khả dụng theo {unit} nét đứt, lượng đã chuyển nét liền, trên trục riêng',
   'timeline.rate.availableAt': 'Bước {step}: khả dụng {available}, đã chuyển {moved} {unit}',
+  'timeline.rate.at': 'Bước {step}: {value} {unit}',
   'timeline.rate.availableAtLines': 'Bước {step}: khả dụng {available} {unit} cho mỗi liên kết, đã chuyển {lines}',
   'timeline.reading.label': 'Biểu đồ lần chạy. Chọn một điểm, hoặc dùng phím mũi tên trái và phải, để đọc giá trị ở một bước đã ghi.',
   'timeline.reading.step': 'Bước {n}',

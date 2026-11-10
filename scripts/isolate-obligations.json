@@ -6,7 +6,7 @@
   "totals": {
     "rows": 117,
     "obligations": 68,
-    "callSites": 139
+    "callSites": 140
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -2254,6 +2254,19 @@
           "kindByArg": {
             "available": "ltr",
             "moved": "ltr"
+          }
+        },
+        {
+          "keys": [
+            "timeline.rate.at"
+          ],
+          "args": [
+            "value",
+            "unit"
+          ],
+          "kind": "auto",
+          "kindByArg": {
+            "value": "ltr"
           }
         },
         {

@@ -630,6 +630,7 @@ const ui = {
   'timeline.rate.availableName': '{label} ({unit}): المتاح (متقطع)، المنقول (متصل)',
   'timeline.rate.availableAria': '{label}: المعدّل المتاح بوحدة {unit} متقطعًا، والمنقول متصلًا، على محوره الخاص',
   'timeline.rate.availableAt': 'الخطوة {step}: المتاح {available}، المنقول {moved} {unit}',
+  'timeline.rate.at': 'الخطوة {step}: {value} {unit}',
   'timeline.rate.availableAtLines': 'الخطوة {step}: المتاح {available} {unit} لكل اتصال، المنقول {lines}',
   'timeline.reading.label': 'الرسم البياني للتشغيل. حدّد نقطة، أو استخدم مفتاحي السهمين الأيمن والأيسر، لقراءة القيم عند خطوة مسجّلة.',
   'timeline.reading.step': 'الخطوة {n}',

@@ -603,6 +603,7 @@ const ui = {
   'timeline.rate.availableName': '{label} ({unit}): disponible (discontinua), movido (continua)',
   'timeline.rate.availableAria': '{label}: caudal disponible en {unit} en discontinua, lo movido en continua, en su propio eje',
   'timeline.rate.availableAt': 'Paso {step}: disponible {available}, movido {moved} {unit}',
+  'timeline.rate.at': 'Paso {step}: {value} {unit}',
   'timeline.rate.availableAtLines': 'Paso {step}: disponible {available} {unit} por conexión, movido {lines}',
   'timeline.reading.label': 'Gráfico de la ejecución. Seleccione un punto, o use las flechas izquierda y derecha, para leer los valores de un paso registrado.',
   'timeline.reading.step': 'Paso {n}',

@@ -664,6 +664,7 @@ const ui = {
   'timeline.rate.availableName': '{label} ({unit}): verfügbar (gestrichelt), bewegt (durchgezogen)',
   'timeline.rate.availableAria': '{label}: verfügbare Rate in {unit} gestrichelt, Bewegtes durchgezogen, auf eigener Achse',
   'timeline.rate.availableAt': 'Schritt {step}: verfügbar {available}, bewegt {moved} {unit}',
+  'timeline.rate.at': 'Schritt {step}: {value} {unit}',
   'timeline.rate.availableAtLines': 'Schritt {step}: je Verbindung verfügbar {available} {unit}, bewegt {lines}',
   'timeline.reading.label': 'Laufdiagramm. Einen Punkt auswählen oder mit den Pfeiltasten nach links und rechts die Werte eines aufgezeichneten Schritts lesen.',
   'timeline.reading.step': 'Schritt {n}',

@@ -616,6 +616,31 @@ export function TimelineChart() {
   const previewing = peekIdx >= 0 && peekIdx !== pinIdx
   const peekX = previewing ? view.x(series[peekIdx].step) : null
   const readIdx = previewing ? peekIdx : pinIdx
+  /** the step reading's keyboard, on the chart and (#538) on the strips tab's strip: the
+   *  arrow keys walk the recorded steps, Home / End go to the ends, Escape lets go */
+  const onReadingKey = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (!hasRun || e.target !== e.currentTarget) return
+    const last = series.length - 1
+    const from = pinIdx >= 0 ? pinIdx : null
+    let next: number | null = null
+    if (e.key === 'ArrowLeft') next = from == null ? last : Math.max(0, from - 1)
+    else if (e.key === 'ArrowRight') next = from == null ? last : Math.min(last, from + 1)
+    else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = last
+    else if (e.key === 'Escape' && pinned) {
+      e.preventDefault()
+      e.stopPropagation()
+      setPinned(null)
+      return
+    }
+    if (next == null) return
+    e.preventDefault()
+    // the keys read the picked step, even with the mouse resting on the plot
+    setPeek(null)
+    pinAt(next)
+  }
+  /** #538 — the pinned step, read on the strips tab's strip too */
+  const pinStep = tabbed && pinIdx >= 0 ? series[pinIdx].step : null
   const panel = (
         <div className="timeline__panel">
           <div className="timeline__head">
@@ -781,27 +806,7 @@ export function TimelineChart() {
             tabIndex={hasRun ? 0 : -1}
             role="group"
             aria-label={t('timeline.reading.label')}
-            onKeyDown={(e) => {
-              if (!hasRun || e.target !== e.currentTarget) return
-              const last = series.length - 1
-              const from = pinIdx >= 0 ? pinIdx : null
-              let next: number | null = null
-              if (e.key === 'ArrowLeft') next = from == null ? last : Math.max(0, from - 1)
-              else if (e.key === 'ArrowRight') next = from == null ? last : Math.min(last, from + 1)
-              else if (e.key === 'Home') next = 0
-              else if (e.key === 'End') next = last
-              else if (e.key === 'Escape' && pinned) {
-                e.preventDefault()
-                e.stopPropagation()
-                setPinned(null)
-                return
-              }
-              if (next == null) return
-              e.preventDefault()
-              // the keys read the picked step, even with the mouse resting on the plot
-              setPeek(null)
-              pinAt(next)
-            }}
+            onKeyDown={onReadingKey}
           >
             <svg
               className="timeline__svg"
@@ -1021,8 +1026,20 @@ export function TimelineChart() {
                   </select>
                 </label>
               ) : null}
-              <TimetableRateChart tables={tabbed ? readTables.filter((tb) => `table:${tb.id}` === picked?.key) : readTables} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} />
-              <RunStrips groups={tabbed ? runStrips.filter((g) => `run:${g.id}` === picked?.key) : runStrips} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} />
+              {tabbed ? (
+                // #538 — the picked strip reads the pinned step (its guide, its values and a
+                // status line) and takes the chart's step keys, so the strips tab can read
+                // and move the step the Pools tab pinned
+                <div className="timeline__strip-read" tabIndex={hasRun ? 0 : -1} role="group" aria-label={t('timeline.reading.label')} onKeyDown={onReadingKey}>
+                  <TimetableRateChart tables={readTables.filter((tb) => `table:${tb.id}` === picked?.key)} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} pinStep={pinStep} />
+                  <RunStrips groups={runStrips.filter((g) => `run:${g.id}` === picked?.key)} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} pinStep={pinStep} />
+                </div>
+              ) : (
+                <>
+                  <TimetableRateChart tables={readTables} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} />
+                  <RunStrips groups={runStrips} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} />
+                </>
+              )}
             </div>
           ) : null}
           {/* outside the plot, which clips: the reading stands on the plot's
