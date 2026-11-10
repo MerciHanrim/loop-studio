@@ -1,6 +1,6 @@
 import { useId, useRef, useState } from 'react'
 import { useT, type MessageKey } from '../i18n'
-import { MENU_TEMPLATES } from '../model/templates'
+import { MENU_GAME_TEMPLATES, MENU_TEMPLATES, MENU_TOP_TEMPLATES } from '../model/templates'
 import { TEMPLATE_KEY } from './templateKeys'
 import { useDialogFocus } from './useDialogFocus'
 import { DialogScrim } from './DialogScrim'
@@ -29,6 +29,9 @@ const NOTES: Record<string, readonly MessageKey[]> = {
 /** the menu's Templates that have notes, in the menu's order (every one does —
  *  `ExampleNotesDialog.test.ts` keeps it so) */
 export const EXAMPLE_NOTE_IDS: readonly string[] = MENU_TEMPLATES.map((t) => t.id).filter((id) => NOTES[id])
+/** #545 — the same, split as the menus list them: outside a group, then the games */
+const TOP_NOTE_IDS: readonly string[] = MENU_TOP_TEMPLATES.map((t) => t.id).filter((id) => NOTES[id])
+const GAME_NOTE_IDS: readonly string[] = MENU_GAME_TEMPLATES.map((t) => t.id).filter((id) => NOTES[id])
 
 type Props = {
   open: boolean
@@ -63,8 +66,16 @@ export function ExampleNotesDialog({ open, onClose, returnFocusTo }: Props) {
         </div>
         <div className="mcdlg__body contextual-help example-notes">
           <p className="contextual-help__intro">{t('help.examples.intro')}</p>
+          {/* #545 — the game examples' notes under a "Games" heading, as the menus group them */}
+          {[TOP_NOTE_IDS, GAME_NOTE_IDS].map((ids, g) => (
+          <div key={g} className="example-notes__group" role={g === 1 ? 'group' : undefined} aria-labelledby={g === 1 ? `${baseId}-games` : undefined}>
+          {g === 1 && ids.length > 0 ? (
+            <h3 id={`${baseId}-games`} className="example-notes__heading">
+              {t('templates.group.games')}
+            </h3>
+          ) : null}
           <ul className="contextual-help__list">
-            {EXAMPLE_NOTE_IDS.map((id) => {
+            {ids.map((id) => {
               const expanded = openId === id
               const panelId = `${baseId}-${id}`
               const key = TEMPLATE_KEY[id as keyof typeof TEMPLATE_KEY]
@@ -97,6 +108,8 @@ export function ExampleNotesDialog({ open, onClose, returnFocusTo }: Props) {
               )
             })}
           </ul>
+          </div>
+          ))}
         </div>
       </div>
     </DialogScrim>

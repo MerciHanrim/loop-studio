@@ -11,6 +11,8 @@ import type { TemplatesKey } from '../en/templates'
 const templates = {
   'templates.button': 'テンプレート',
   'templates.menuLabel': 'テンプレート',
+  'templates.group.games': 'ゲーム',
+  'templates.group.gamesBlurb': 'MMO とガチャの例',
   'templates.equilibrium.name': 'バランスの取れた生産ライン',
   'templates.equilibrium.blurb':
     '原料の投入から加工、廃棄、出荷まで。数ステップで安定します。',

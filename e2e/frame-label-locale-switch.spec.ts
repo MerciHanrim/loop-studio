@@ -92,6 +92,8 @@ async function openGachaInEnglish(page: Page) {
   await templatesMenu(page).locator('> button').click()
   // File ▸ Templates (docs/workbench.md §WB2.2)
   await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
+  // #545 — a game Template, in the submenu's Games group
+  await page.locator('.toolbar__filemenu [data-template-group="games"]').click()
   await templatesMenu(page)
     .locator('.menu__pop [role="menuitem"]', { hasText: /gacha banner comparison/i })
     .click()

@@ -16,6 +16,8 @@
 const templates = {
   'templates.button': 'Şablonlar',
   'templates.menuLabel': 'Şablonlar',
+  'templates.group.games': 'Oyunlar',
+  'templates.group.gamesBlurb': 'MMO ve gacha örnekleri',
   'templates.equilibrium.name': 'Dengeli üretim hattı',
   'templates.equilibrium.blurb':
     'Giren malzeme, işleme ve fire, çıkan ürün — birkaç adımda dengeye oturan bir hat.',

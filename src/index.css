@@ -7782,6 +7782,26 @@ input[type='number']::-webkit-inner-spin-button {
     font-size: 12px;
     color: var(--ink-3);
   }
+  /* #545 — a Template row: the name on its own line across the whole row, its description
+     under it (side by side, a long name broke over several lines in a narrow column) */
+  .sheet__row--stacked {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 3px;
+    padding-block: 10px;
+  }
+  .sheet__row--stacked .sheet__row-name {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+  .sheet__row--stacked .sheet__row-sub {
+    margin-inline-start: 0;
+    line-height: 1.45;
+  }
   /* Hovering or keyboard-focusing a row swaps it onto `--bg-hover`, and
      in LIGHT that pulls the secondary label from 4.61:1 down to 3.92:1
      (#6c746e on #e9e8e2). Lift the label in exactly those two states: resting
@@ -8618,6 +8638,17 @@ input[type='number']::-webkit-inner-spin-button {
 .mcdlg--example-notes .mcdlg__body {
   min-height: 0;
   overflow-y: auto;
+}
+/* #545 — the game examples' notes under their own heading, as the menus group them */
+.example-notes__group + .example-notes__group {
+  margin-top: 14px;
+}
+.example-notes__heading {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  text-transform: none;
 }
 .example-notes__row {
   padding: 4px 0;

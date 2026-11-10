@@ -7,6 +7,8 @@ import type { TemplatesKey } from '../en/templates'
 const templates = {
   'templates.button': '템플릿',
   'templates.menuLabel': '템플릿',
+  'templates.group.games': '게임',
+  'templates.group.gamesBlurb': 'MMO와 가챠 예제',
   'templates.equilibrium.name': '균형 잡힌 생산 라인',
   'templates.equilibrium.blurb': '원료 투입부터 가공, 폐기, 출하까지 이어지며 몇 단계 만에 안정됩니다.',
   'templates.deadlock.name': '용량 교착',

@@ -301,7 +301,7 @@ describe('es-419 copy — mechanical review', () => {
       // gacha vocabulary, only in the Templates that are about gacha — since
       // 2026-10 four of them, plus their Help ▸ Example notes
       // (`help.examples.gacha*`), both added with the redesign
-      gacha: ['templates.gachaBannerZones.name'],
+      gacha: ['templates.gachaBannerZones.name', 'templates.group.gamesBlurb'], // #545: the Games group's description
       Gacha: [
         'help.examples.gachaStandard.p1',
         'help.examples.gachaStandard.p3',
@@ -357,7 +357,7 @@ describe('es-419 copy — mechanical review', () => {
       ],
       SR: ['help.examples.gachaGeneral.p1', 'help.examples.gachaStandard.p1', 'help.examples.gachaPickup.p3'],
       R: ['help.examples.gachaGeneral.p1', 'help.examples.gachaStandard.p1', 'help.examples.gachaPickup.p3'],
-      MMO: ['help.examples.mmoProgression.p1', 'templates.mmoProgression.name'],
+      MMO: ['help.examples.mmoProgression.p1', 'templates.group.gamesBlurb', 'templates.mmoProgression.name'], // #545: the Games group's description
       // 2026-10 — an acronym in the Coffee roastery's example note
       ERP: ['help.examples.coffeeRoastery.p3'],
       // the Spanish word IS `series` — the capitalised form starts these two

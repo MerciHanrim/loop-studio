@@ -172,9 +172,28 @@ export async function openFileSubmenu(page: Page, which: 'templates' | 'export')
  *  one listed. The replace confirmation, when the open document has nodes,
  *  is left to the caller. */
 export async function pickTemplate(page: Page, id?: string): Promise<void> {
+  if (id == null) {
+    await (await openFileSubmenu(page, 'templates')).locator('[data-template]').first().click()
+    return
+  }
+  await (await openTemplateRow(page, id)).click()
+}
+
+/** #545 — File ▸ Templates open at the row of the Template `which` (its `data-template`
+ *  id, or its visible name): a game Template is in the submenu's Games group, which is
+ *  opened first, as a person does. The row is returned, not chosen. */
+export async function openTemplateRow(page: Page, which: string | RegExp): Promise<Locator> {
   const sub = await openFileSubmenu(page, 'templates')
-  const items = sub.locator('[data-template]')
-  await (id == null ? items.first() : sub.locator(`[data-template="${id}"]`)).click()
+  const find = () =>
+    typeof which === 'string' && /^[a-z0-9-]+$/.test(which)
+      ? sub.locator(`[data-template="${which}"]`)
+      : sub.locator('[data-template]').filter({ has: page.locator('.menu__name', { hasText: which }) })
+  if ((await find().count()) === 0) {
+    await sub.locator('[data-template-group="games"]').click()
+    await expect(sub.locator('[data-template-back]')).toBeVisible()
+  }
+  await expect(find().first()).toBeVisible()
+  return find().first()
 }
 
 /** a File ▸ Export row by its visible name, with the submenu open */

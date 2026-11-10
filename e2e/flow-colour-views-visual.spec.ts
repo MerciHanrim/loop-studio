@@ -79,6 +79,8 @@ for (const t of TEMPLATES) for (const scheme of ['light', 'dark'] as const) {
     await page.locator('.toolbar__actions .menu').first().locator('> button').click()
     // File ▸ Templates (docs/workbench.md §WB2.2)
     await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
+    // #545 — the gacha Template is in the submenu's Games group
+    if (t.id === 'gacha') await page.locator('.toolbar__filemenu [data-template-group="games"]').click()
     await page.locator('.toolbar__actions .menu').first().locator('.menu__pop [role="menuitem"]', { hasText: t.name }).click()
     const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i })
     await confirm.waitFor({ state: 'visible', timeout: 1200 }).catch(() => {})

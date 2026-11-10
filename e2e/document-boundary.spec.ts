@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { expect, openApp, resetAll, test } from './support/loop'
-import { openFileMenu, openFileSubmenu, toolButton } from './support/workbenchMenus'
+import { openFileMenu, openTemplateRow, toolButton } from './support/workbenchMenus'
 
 // Issue #334 — every whole-document replacement is a document BOUNDARY, driven
 // through the real UI (the dev bridge only reads state, it never makes the
@@ -44,9 +44,8 @@ async function fileNew(page: Page): Promise<void> {
   await confirmIfAsked(page)
 }
 async function openTemplate(page: Page, name: string): Promise<void> {
-  // File ▸ Templates (docs/workbench.md §WB2)
-  const sub = await openFileSubmenu(page, 'templates')
-  await sub.locator('[data-template]').filter({ hasText: name }).first().click()
+  // File ▸ Templates (docs/workbench.md §WB2); a game Template through its Games group (#545)
+  await (await openTemplateRow(page, name)).click()
   await confirmIfAsked(page)
 }
 async function importFile(page: Page, text: string): Promise<void> {

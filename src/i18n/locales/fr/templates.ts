@@ -15,6 +15,8 @@ import type { TemplatesKey } from '../en/templates'
 const templates = {
   'templates.button': 'Modèles',
   'templates.menuLabel': 'Modèles',
+  'templates.group.games': 'Jeux',
+  'templates.group.gamesBlurb': 'Les exemples MMO et gacha',
   'templates.equilibrium.name': 'Ligne de production équilibrée',
   'templates.equilibrium.blurb':
     'Matière en entrée, transformation et rebut, produits en sortie — stable en quelques pas.',
