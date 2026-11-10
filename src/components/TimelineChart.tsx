@@ -24,6 +24,7 @@ import { TimelineCsvMenu } from './TimelineCsvMenu'
 import { TimelineSeriesPopover, type SeriesItem } from './TimelineSeriesPopover'
 import { TimelineStepReading, type StepReadingRow } from './TimelineStepReading'
 import { Icon } from '../ui/icons'
+import { stripWordPad } from '../ui/stripEndLabels'
 
 // A — chart discipline: the canvas token, carried down onto the time axis.
 // Data line = resource-track weight; current value = the same solid Bead;
@@ -139,7 +140,11 @@ export function TimelineChart() {
   // only the run guide line and the notices raise it. One strip stays under the chart as before.
   // The phone's sheet keeps its stacked strips.
   const stripCount = readTables.length + runStrips.length
-  const tabbed = !isMobile && !showDistribution && stripCount >= 2
+  // #532 — the strips' end words stand in a gutter right of the plot; the chart keeps the same
+  // right padding, so a step sits at one x in the chart and in its strips. The chart's own end
+  // values stay inside its plot (Lumi, 2026-11-11).
+  const padR = stripCount > 0 ? stripWordPad([t('timeline.run.endTarget'), t('timeline.run.endRan'), t('timeline.rate.endAvailable'), t('timeline.rate.endMoved')], PAD.r) : PAD.r
+  const tabbed =!isMobile && !showDistribution && stripCount >= 2
   const [tab, setTab] = useState<'stock' | 'strips'>('stock')
   const onStrips = tabbed && tab === 'strips'
   const tabsId = useId()
@@ -440,7 +445,7 @@ export function TimelineChart() {
     const on = viewIsOn(poolIds, views)
     const mark = on ? axisMark : fmt
     const padL = on ? axisPad([mark(top), mark(top / 2)], PAD.l) : PAD.l
-    const iw = w - padL - PAD.r
+    const iw = w - padL - padR
     const ih = h - PAD.t - PAD.b
     const x = (stp: number) => padL + ((stp - minStep) / domainSpan) * iw
     const y = (v: number) => PAD.t + ih - (v / top) * ih
@@ -572,7 +577,7 @@ export function TimelineChart() {
 
     const guideX = status === 'paused' && maxStep > 0 ? x(stepIndex) : null
     return { w, h, top, padL, mark, axis: axisUnit(poolIds, views), minStep, maxStep, x, y, lines, regLines, guideX, endLabels: endLabelsOut, endMore }
-  }, [series, shownPools, shownRegisters, regByStep, status, stepIndex, size, views])
+  }, [series, shownPools, shownRegisters, regByStep, status, stepIndex, size, views, padR])
 
   const rm = reducedMotion()
   const { w, h } = view
@@ -830,7 +835,7 @@ export function TimelineChart() {
                 className="timeline__axis"
                 x1={view.padL}
                 y1={h - PAD.b}
-                x2={w - PAD.r}
+                x2={w - padR}
                 y2={h - PAD.b}
               />
               <line className="timeline__axis" x1={view.padL} y1={PAD.t} x2={view.padL} y2={h - PAD.b} />
@@ -840,7 +845,7 @@ export function TimelineChart() {
                   <line
                     className="timeline__grid"
                     x1={view.padL}
-                    x2={w - PAD.r}
+                    x2={w - padR}
                     y1={view.y(v)}
                     y2={view.y(v)}
                   />
@@ -869,7 +874,7 @@ export function TimelineChart() {
                       {t('timeline.axis.step', { n: view.minStep })}
                     </text>
                   ) : null}
-                  <text className="timeline__tick" x={w - PAD.r} y={h - 6} textAnchor="end">
+                  <text className="timeline__tick" x={w - padR} y={h - 6} textAnchor="end">
                     {t('timeline.axis.step', { n: view.maxStep })}
                   </text>
                 </>
@@ -1031,13 +1036,13 @@ export function TimelineChart() {
                 // status line) and takes the chart's step keys, so the strips tab can read
                 // and move the step the Pools tab pinned
                 <div className="timeline__strip-read" tabIndex={hasRun ? 0 : -1} role="group" aria-label={t('timeline.reading.label')} onKeyDown={onReadingKey}>
-                  <TimetableRateChart tables={readTables.filter((tb) => `table:${tb.id}` === picked?.key)} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} pinStep={pinStep} />
-                  <RunStrips groups={runStrips.filter((g) => `run:${g.id}` === picked?.key)} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} pinStep={pinStep} />
+                  <TimetableRateChart tables={readTables.filter((tb) => `table:${tb.id}` === picked?.key)} series={series} width={w} padL={view.padL} padR={padR} minStep={view.minStep} maxStep={view.maxStep} pinStep={pinStep} />
+                  <RunStrips groups={runStrips.filter((g) => `run:${g.id}` === picked?.key)} series={series} width={w} padL={view.padL} padR={padR} minStep={view.minStep} maxStep={view.maxStep} pinStep={pinStep} />
                 </div>
               ) : (
                 <>
-                  <TimetableRateChart tables={readTables} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} />
-                  <RunStrips groups={runStrips} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} />
+                  <TimetableRateChart tables={readTables} series={series} width={w} padL={view.padL} padR={padR} minStep={view.minStep} maxStep={view.maxStep} />
+                  <RunStrips groups={runStrips} series={series} width={w} padL={view.padL} padR={padR} minStep={view.minStep} maxStep={view.maxStep} />
                 </>
               )}
             </div>

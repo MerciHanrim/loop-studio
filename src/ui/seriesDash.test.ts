@@ -11,7 +11,7 @@ describe('a series told apart by more than its colour', () => {
   })
 
   it('gives each later series of a colour the next pattern', () => {
-    expect(dashes(series('a', 'b', 'a', 'a'))).toEqual([undefined, undefined, '8 3', '2 3'])
+    expect(dashes(series('a', 'b', 'a', 'a'))).toEqual([undefined, undefined, '8 3', '9 3 2 3'])
   })
 
   it('leaves a line solid when nothing drawn shares its colour, hidden series or not', () => {
@@ -21,7 +21,7 @@ describe('a series told apart by more than its colour', () => {
 
   it('keeps a line’s pattern when another of its colour is hidden: it never passes to a neighbour', () => {
     const list = series('a', 'a', 'a')
-    expect(dashes(list, new Set(['s1', 's2']))).toEqual([undefined, '8 3', '2 3'])
+    expect(dashes(list, new Set(['s1', 's2']))).toEqual([undefined, '8 3', '9 3 2 3'])
   })
 
   it('wraps past the last pattern rather than running out', () => {
@@ -31,5 +31,11 @@ describe('a series told apart by more than its colour', () => {
 
   it('never uses a Register’s own pattern', () => {
     expect(SERIES_DASHES).not.toContain('4 3')
+  })
+
+  // #532 — a strip's reference is dotted (`0 4`); the short `2 3` read like it beside the strips
+  it('never uses a reference’s dots or the short dash that read like them', () => {
+    expect(SERIES_DASHES).not.toContain('0 4')
+    expect(SERIES_DASHES).not.toContain('2 3')
   })
 })
