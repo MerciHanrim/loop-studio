@@ -230,11 +230,12 @@ test.describe('playback — steady-state (§PBO8-7)', () => {
     // narrowed until the row reaches its last fit step (the desktop strip
     // holds above the phone query, 720 px)
     const bar = page.locator('.pstrip')
-    for (let w = 900; w >= 740 && (await bar.getAttribute('data-fit')) !== '3'; w -= 20) {
+    // (#538: the last step is 4 since the observation view toggle folds at 3)
+    for (let w = 900; w >= 740 && (await bar.getAttribute('data-fit')) !== '4'; w -= 20) {
       await page.setViewportSize({ width: w, height: 800 })
       await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))))
     }
-    await expect(bar).toHaveAttribute('data-fit', '3')
+    await expect(bar).toHaveAttribute('data-fit', '4')
     await expect(chip(page).locator('.pstrip__steady-short')).toBeVisible()
     await expect(chip(page).locator('.pstrip__steady-short')).toHaveText(short)
     await expect(chip(page).locator('.pstrip__steady-full')).toBeHidden()

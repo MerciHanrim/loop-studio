@@ -56,6 +56,7 @@ const ui = {
   'playbar.reset.title': '0단계로 초기화',
   'playbar.step.title': '한 단계 진행',
   'playbar.play': '재생',
+  'playbar.observe': '관찰 보기',
   'playbar.pause': '일시정지',
   'playbar.replay': '다시 재생',
   'playbar.step': '{n}단계',

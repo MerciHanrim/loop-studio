@@ -56,6 +56,7 @@ const ui = {
   'playbar.reset.title': 'Reset to step 0',
   'playbar.step.title': 'Advance one step',
   'playbar.play': 'Play',
+  'playbar.observe': 'Observation view',
   'playbar.pause': 'Pause',
   'playbar.replay': 'Replay',
   'playbar.step': 'step {n}',

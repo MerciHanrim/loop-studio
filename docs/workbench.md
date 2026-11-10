@@ -55,6 +55,36 @@ really work by touch (select, move, connect, edit properties) in landscape and p
 The phone is not promised full editing; whether a view-only phone layout stays is decided
 separately. The phone code is not removed meanwhile.
 
+### WB1b. The observation view
+
+**Decided** (#538, Hanrim and Lumi, 2026-11-10). One toggle hides both side panels and the
+tool row, so the canvas and the analysis area take the window while a run is watched. The
+menu bar, the run row (Reset, Step, Play, speed, the run guide line and the run notices),
+the Timeline and the status bar stay.
+
+- **Ways in.** The run row's "Observation view" toggle (`aria-pressed`), after Play, and
+  View ▸ Observation view, which is always there. The run row folds the toggle at its fit
+  step 3, after the Monte Carlo button and the run settings and before the steady-state text
+  shortens (`PlayBar.tsx` `fitRunRow`): at 900 px with the properties panel open the row has
+  no room for it in any of the 18 languages. In the view the row has room and the toggle
+  comes back.
+- **Ways out.** A second press, View ▸ Observation view, Esc, or a status-bar panel toggle,
+  which also opens its panel. Esc goes to whatever is open on top first: a menu, a dialog or
+  sheet, the run-settings popover. Only the next Esc leaves the view.
+- **The canvas.** The zoom stays, and the model point at the pane's centre before the switch
+  is at its centre after it. The drawing is not enlarged; Fit in the status bar does that.
+  Leaving puts the saved viewport back exactly.
+- **The panels.** The view never writes the panels' per-band choice (§WB1a); it hides them
+  while on, so leaving restores the choice as it was by construction.
+- **The run.** Screen state only: the simulation is not touched, so Play keeps running across
+  the switch, and nothing is saved to the document or to storage.
+- **Focus.** Focus never stays on what the view hides. Entering with focus in a panel or the
+  tool row moves it to the toggle. Entering from View moves it to the toggle when the toggle
+  is shown, else back to View. Leaving at a width where the row folds the toggle moves focus
+  from the toggle to View.
+- **The phone** has no side panels or tool row: no toggle, no View row, and the view ends if
+  the window narrows to the phone layout.
+
 ## WB2. Menus
 
 The menu bar reads: File · Edit · View · Insert · Data · Run · Help, with
@@ -64,7 +94,7 @@ Share at the far end.
 | --- | --- |
 | File | New, Import; Templates ▸ and Export ▸ (two submenus, §WB2.2); the two structure rows (save a selected structure, insert a saved one); Set the export author…, Storage & privacy… |
 | Edit | Undo, Redo, Tidy to grid, the two frame clear actions, Edit lock (a check item) |
-| View | Theme, Language, Focus, Filters, Activity overlay, Reset view |
+| View | Theme, Language, Focus, Filters, Activity overlay, Observation view (§WB1b), Reset view |
 | Insert | The eight node kinds, Group frame, Suggest frames |
 | Data | The spreadsheet import (unchanged) |
 | Run | Play / Pause, Step, Reset to step 0, Monte Carlo… |
@@ -77,7 +107,8 @@ same place on and off.
 View stays open across Focus and Activity overlay. Filters opens a panel on
 the canvas, so it closes View, which would cover the panel; from the keyboard,
 focus goes to the panel's first checkbox when it opens and back to View when
-it closes. Reset view closes View too.
+it closes. Reset view closes View too. Observation view closes View and puts focus on the run
+row's toggle when it is shown, else back on View (§WB1b).
 
 There is no Values table and no Notation entry. A Notation entry is added
 only if the contextual help really explains the symbols and lines. The V / H
@@ -410,7 +441,9 @@ way in:
    (pulled in where the row's end is near) holding the same two inputs, closed with
    Escape or a click outside; under a right-to-left reader the pair keeps its physical
    order, as the row does (docs/localization.md §L9.3),
-3. last, the state's text may shorten (an ellipsis, the whole text on its tooltip).
+3. then the Observation view toggle (#538; View ▸ Observation view is always there, and in
+   the view the row has room for the toggle again, §WB1b),
+4. last, the state's text may shorten (an ellipsis, the whole text on its tooltip).
 
 Measured 2026-10-20 (default panels): at 1440, 1600 and 1920 the row keeps everything;
 at 1024 and 1280 it takes step 2, idle or running alike, because the state's room is

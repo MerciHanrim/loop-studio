@@ -4320,7 +4320,7 @@ a.sheet__row {
 .pstrip:not(.pstrip--mobile) {
   flex-wrap: nowrap;
 }
-/* Speed and Seed: in the row, or folded into "Run settings" (fit steps 2, 3) */
+/* Speed and Seed: in the row, or folded into "Run settings" (fit steps 2 to 4) */
 .pstrip__settings {
   display: flex;
   align-items: center;
@@ -4329,13 +4329,13 @@ a.sheet__row {
 .pstrip__settings-btn {
   display: none;
 }
-.pstrip:is([data-fit='2'], [data-fit='3']) .pstrip__settings-btn {
+.pstrip:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .pstrip__settings-btn {
   display: inline-flex;
 }
-.pstrip:is([data-fit='2'], [data-fit='3']) .pstrip__settings {
+.pstrip:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .pstrip__settings {
   display: none;
 }
-.pstrip:is([data-fit='2'], [data-fit='3']) .pstrip__settings.is-open {
+.pstrip:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .pstrip__settings.is-open {
   display: flex;
   position: absolute;
   bottom: calc(100% + 6px);
@@ -4367,6 +4367,28 @@ a.sheet__row {
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+}
+/* #538 — fit step 3: the observation view toggle gives way (View ▸ Observation view is
+   its other way in); in the view the row has room and it comes back */
+.pstrip:is([data-fit='3'], [data-fit='4']) .pstrip__observe {
+  display: none;
+}
+/* #538 — the observation view toggle, on: the same pressed tell as the canvas rail's toggles
+   (accent ink, soft fill, an inset ring); under forced colours the system selected pair, not
+   an outline, which is the focus ring (§LGR9) */
+.pb-btn.pstrip__observe[aria-pressed='true'],
+.pb-btn.pstrip__observe[aria-pressed='true']:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+@media (forced-colors: active) {
+  .pb-btn.pstrip__observe[aria-pressed='true'],
+  .pb-btn.pstrip__observe[aria-pressed='true']:hover {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
 }
 .pb-btn {
   font-family: var(--font-sans);
@@ -4703,24 +4725,24 @@ a.sheet__row {
 .pstrip__steady.is-on {
   visibility: visible;
 }
-/* fit step 3: the last resort — the status may shorten, never go */
-.pstrip[data-fit='3'] .pstrip__steady {
+/* fit step 4: the last resort — the status may shorten, never go */
+.pstrip[data-fit='4'] .pstrip__steady {
   flex-shrink: 1;
 }
-/* the whole wording, or at fit step 3 a short one of its own ("Steady",
+/* the whole wording, or at fit step 4 a short one of its own ("Steady",
    "흐름 계속") on 5 px sides, so the chip reads whole at 900 px instead of
    an ellipsis (2026-10-27); the tooltip and the status region keep the
    whole text */
 .pstrip__steady-short {
   display: none;
 }
-.pstrip[data-fit='3'] .pstrip__steady {
+.pstrip[data-fit='4'] .pstrip__steady {
   padding-inline: 5px;
 }
-.pstrip[data-fit='3'] .pstrip__steady-full {
+.pstrip[data-fit='4'] .pstrip__steady-full {
   display: none;
 }
-.pstrip[data-fit='3'] .pstrip__steady-short {
+.pstrip[data-fit='4'] .pstrip__steady-short {
   display: inline;
 }
 

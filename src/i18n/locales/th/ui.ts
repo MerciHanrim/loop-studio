@@ -86,6 +86,7 @@ const ui = {
   'playbar.reset.title': 'รีเซ็ตไปที่ขั้นที่ 0',
   'playbar.step.title': 'เดินหน้าหนึ่งขั้น',
   'playbar.play': 'เล่น',
+  'playbar.observe': 'มุมมองสังเกตการณ์',
   'playbar.pause': 'หยุดชั่วคราว',
   'playbar.replay': 'เล่นซ้ำ',
   'playbar.step': 'ขั้นที่ {n}',

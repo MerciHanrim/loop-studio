@@ -194,9 +194,9 @@ test.describe('the run strip shows the step diagnostics (#396)', () => {
     expect(line.y).toBeGreaterThanOrEqual(group.y + group.height - 1) // the line is below the row
     expect(await strip(page).getAttribute('data-fit')).toBe(fitBefore) // the fold step is the row's own, unchanged
 
-    // the folded row (fit step 2 or 3, as run-bar-fit.spec pins it): the line still sits below
+    // the folded row (fit step 2 to 4, as run-bar-fit.spec pins it): the line still sits below
     await page.addStyleTag({ content: '.canvas-col { max-width: 360px !important; }' })
-    await expect.poll(() => strip(page).getAttribute('data-fit')).toMatch(/^[23]$/)
+    await expect.poll(() => strip(page).getAttribute('data-fit')).toMatch(/^[234]$/)
     const g2 = (await strip(page).locator('.pstrip__group').first().boundingBox())!
     const l2 = (await diag(page).boundingBox())!
     expect(l2.y).toBeGreaterThanOrEqual(g2.y + g2.height - 1)

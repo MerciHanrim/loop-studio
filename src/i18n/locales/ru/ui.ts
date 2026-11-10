@@ -81,6 +81,7 @@ const ui = {
   'playbar.reset.title': 'Сбросить на шаг 0',
   'playbar.step.title': 'Сделать один шаг',
   'playbar.play': 'Запустить',
+  'playbar.observe': 'Режим наблюдения',
   'playbar.pause': 'Пауза',
   'playbar.replay': 'Повторить',
   'playbar.step': 'шаг {n}',

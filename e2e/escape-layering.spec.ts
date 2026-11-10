@@ -69,10 +69,10 @@ test.describe('Escape closes only the top screen (#413)', () => {
     await openApp(page)
     await resetAll(page)
     await importGraph(page, readRiskyFactory())
-    // the run row folds Speed / Seed into Run settings (fit step 2 or 3) when
+    // the run row folds Speed / Seed into Run settings (fit step 2 to 4) when
     // the strip is short: the canvas column pinned narrow, as run-bar-fit.spec does
     await page.addStyleTag({ content: '.canvas-col { max-width: 360px !important; }' })
-    await expect.poll(() => page.locator('.pstrip').first().getAttribute('data-fit')).toMatch(/^[23]$/)
+    await expect.poll(() => page.locator('.pstrip').first().getAttribute('data-fit')).toMatch(/^[234]$/)
     await expect(settingsBtn(page)).toBeVisible()
     await settingsBtn(page).click()
     await expect(settingsPop(page)).toBeVisible()
@@ -101,7 +101,7 @@ test.describe('Escape closes only the top screen (#413)', () => {
     await expect(sharePanel(page)).toBeHidden()
 
     await page.addStyleTag({ content: '.canvas-col { max-width: 360px !important; }' })
-    await expect.poll(() => page.locator('.pstrip').first().getAttribute('data-fit')).toMatch(/^[23]$/)
+    await expect.poll(() => page.locator('.pstrip').first().getAttribute('data-fit')).toMatch(/^[234]$/)
     await settingsBtn(page).click()
     await expect(settingsPop(page)).toBeVisible()
     await page.keyboard.press('Escape')

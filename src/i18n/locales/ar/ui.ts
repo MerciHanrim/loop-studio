@@ -84,6 +84,7 @@ const ui = {
   'playbar.reset.title': 'إعادة الضبط إلى الخطوة 0',
   'playbar.step.title': 'التقدّم خطوة واحدة',
   'playbar.play': 'تشغيل',
+  'playbar.observe': 'عرض المراقبة',
   'playbar.pause': 'إيقاف مؤقت',
   'playbar.replay': 'إعادة التشغيل',
   'playbar.step': 'الخطوة {n}',

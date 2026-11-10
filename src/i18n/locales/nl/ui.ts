@@ -66,6 +66,7 @@ const ui = {
   'playbar.reset.title': 'Terug naar stap 0',
   'playbar.step.title': 'Eén stap vooruit',
   'playbar.play': 'Afspelen',
+  'playbar.observe': 'Observatieweergave',
   'playbar.pause': 'Pauzeren',
   'playbar.replay': 'Opnieuw afspelen',
   'playbar.step': 'stap {n}',

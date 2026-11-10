@@ -9,6 +9,9 @@ import { useMenuOpenStore } from '../toolbar/menuOpenStore'
 import { useOutsideDismiss } from '../toolbar/useOutsideDismiss'
 import { useFitAll } from '../useFitAll'
 import { Icon } from '../../ui/icons'
+import { useIsMobile } from '../../ui/media'
+import { useReactFlow } from '@xyflow/react'
+import { enterObserve, leaveObserve, useObserve } from './panelLayout'
 
 // The workbench (2026-10, step 5) — the menu bar's VIEW: how the canvas is
 // shown, never what the document holds. Theme and Language (Settings' two
@@ -73,6 +76,25 @@ export function ViewMenu({ buttonRef }: { buttonRef?: (el: HTMLButtonElement | n
     })
   }
 
+  // #538 — the observation view's other way in, always here (Lumi, 2026-11-10): the run row's
+  // toggle gives way when the row is short (PlayBar.tsx fit step 3). The menu closes; focus
+  // goes to the run row's toggle when it is shown (in the view the row has room), else back to
+  // View, so it is never left on a row that is gone
+  const observing = useObserve((s) => s.on)
+  const isMobile = useIsMobile()
+  const { getViewport } = useReactFlow()
+  const pickObserve = (e: React.MouseEvent<HTMLElement>) => {
+    const viewButton = e.currentTarget.closest('.wb-viewmenu')?.querySelector<HTMLElement>(':scope > .wb-mb')
+    if (useObserve.getState().on) leaveObserve()
+    else enterObserve(getViewport())
+    setOpen(false)
+    requestAnimationFrame(() => {
+      const btn = document.querySelector<HTMLElement>('.pstrip__observe')
+      if (btn && btn.getClientRects().length > 0) btn.focus()
+      else viewButton?.focus()
+    })
+  }
+
   const toggle = (on: boolean, label: string, onClick: (e: React.MouseEvent<HTMLElement>) => void, hook: string) => (
     <button type="button" className="menu__item wb-viewmenu__toggle" aria-pressed={on} data-view-row={hook} onClick={onClick}>
       <span className="wb-menu__mark" aria-hidden="true">
@@ -105,6 +127,7 @@ export function ViewMenu({ buttonRef }: { buttonRef?: (el: HTMLButtonElement | n
           {toggle(focusMode, t('workbench.view.focus'), toggleFocusMode, 'focus')}
           {toggle(filterOpen, t('workbench.view.filter'), pickFilter, 'filter')}
           {toggle(activity, t('workbench.view.activity'), toggleActivity, 'activity')}
+          {!isMobile && toggle(observing, t('playbar.observe'), pickObserve, 'observe')}
           <div className="menu__divider" role="separator" />
           <button
             type="button"

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { paneSize, useObserve } from './workbench/panelLayout'
 import type { DragEvent } from 'react'
 import {
   Background,
@@ -141,6 +142,24 @@ export function Canvas() {
   const fitAll = useFitAll(useCallback(() => canvasRef.current, []))
   const rfStore = useStoreApi()
   const isMobile = useIsMobile()
+  // #538 — the observation view: after the commit that hides (or brings back) the panels and
+  // the tool row, and before paint, the canvas keeps its zoom with the model point that was at
+  // the old centre at the new centre; leaving puts the saved viewport back exactly
+  const observeSeq = useObserve((s) => s.seq)
+  useLayoutEffect(() => {
+    const { on, saved, centre } = useObserve.getState()
+    if (on && saved && centre) {
+      const pane = paneSize()
+      if (pane) setViewport({ x: pane.w / 2 - centre.x * saved.zoom, y: pane.h / 2 - centre.y * saved.zoom, zoom: saved.zoom })
+    } else if (!on && saved) {
+      setViewport(saved)
+      useObserve.setState({ saved: null, centre: null })
+    }
+  }, [observeSeq, setViewport])
+  // the phone has no panels or tool row to hide: the view ends there, the canvas as it is
+  useEffect(() => {
+    if (isMobile && useObserve.getState().on) useObserve.setState((s) => ({ on: false, saved: null, centre: null, seq: s.seq + 1 }))
+  }, [isMobile])
   const canvasLocked = useUiStore((s) => s.canvasLocked)
   // issue #344 §ER14.5 — routed connections not drawn yet (their first sliced
   // generation is running): the canvas says it is busy

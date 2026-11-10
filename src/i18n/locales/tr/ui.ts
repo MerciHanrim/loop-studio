@@ -63,6 +63,7 @@ const ui = {
   'playbar.reset.title': '0. adıma sıfırla',
   'playbar.step.title': 'Bir adım ilerlet',
   'playbar.play': 'Çalıştır',
+  'playbar.observe': 'Gözlem görünümü',
   'playbar.pause': 'Duraklat',
   'playbar.replay': 'Yeniden oynat',
   'playbar.step': '{n}. adım',

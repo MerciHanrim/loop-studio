@@ -26,6 +26,7 @@ import { ViewMenu } from './workbench/ViewMenu'
 import { EditMenu, InsertMenu, RunMenu } from './workbench/WorkbenchMenus'
 import { activeTool, chooseTool, type CanvasTool } from './workbench/canvasTools'
 import { useToolRowFit } from './workbench/toolRowFit'
+import { useObserve } from './workbench/panelLayout'
 import { CONNECT_KINDS, type ConnectKind } from '../model/connectKind'
 import { CONNECT_HINT, CONNECT_LABEL } from './connectKindWords'
 import { useFrameStore } from '../store/frameStore'
@@ -153,6 +154,8 @@ export function Toolbar() {
   const { screenToFlowPosition, getViewport, setViewport } = useReactFlow()
   const isMobile = useIsMobile()
   const t = useT()
+  // #538 — the observation view hides the tool row (desktop only; the phone has none)
+  const observing = useObserve((s) => s.on) && !isMobile
   // §L9.3 — a direction-aware CHARACTER from the shared table, never a transform
   // undo and redo come out of ONE table, so they swap into each other rather than
   // being two literals that have to stay opposite by hand
@@ -537,7 +540,7 @@ export function Toolbar() {
           Redo, Add (the eight node kinds: click to add at the centre, drag
           to place), the connection kind every drawn connection takes
           (direction B, ../model/connectKind), and the edit lock */}
-      <div ref={toolRowRef} className="wb-toolrow" role="toolbar" aria-label={t('workbench.tool.label')}>
+      <div ref={toolRowRef} className="wb-toolrow" role="toolbar" aria-label={t('workbench.tool.label')} hidden={observing}>
         <span className="wb-toolgroup">
           {(['select', 'pan', 'region', 'frame'] as CanvasTool[]).map((k) => (
             <button

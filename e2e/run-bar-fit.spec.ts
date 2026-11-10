@@ -270,11 +270,12 @@ test.describe('the playback strip in a narrow desktop window stays inside the wi
     // a strip short enough to fold them: the canvas column pinned narrow
     await page.addStyleTag({ content: '.canvas-col { max-width: 360px !important; }' })
     const strip = page.locator('.pstrip')
-    // fit step 2 or 3: both fold Speed and Seed into Run settings (3 also lets
-    // the steady-state text shorten). 360 px sits near the boundary between
-    // them: on a CI runner it measured 3 where this machine measured 2 (PR
-    // #361, 2026-10-23), so the step itself is not what this test pins
-    await expect.poll(() => strip.getAttribute('data-fit')).toMatch(/^[23]$/)
+    // fit step 2, 3 or 4: all fold Speed and Seed into Run settings (3 also
+    // folds the observation view toggle, #538; 4 also lets the steady-state
+    // text shorten). 360 px sits near the boundaries between them: on a CI
+    // runner it measured one step more than this machine (PR #361,
+    // 2026-10-23), so the step itself is not what this test pins
+    await expect.poll(() => strip.getAttribute('data-fit')).toMatch(/^[234]$/)
     await expect(strip.locator('.pstrip__mc-btn')).toBeHidden()
     const btn = strip.getByRole('button', { name: 'Run settings' })
     await expect(btn).toBeVisible()

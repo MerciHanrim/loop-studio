@@ -66,6 +66,7 @@ const ui = {
   'playbar.reset.title': 'Réinitialiser au pas 0',
   'playbar.step.title': 'Avancer d’un pas',
   'playbar.play': 'Lecture',
+  'playbar.observe': 'Vue d’observation',
   'playbar.pause': 'Pause',
   'playbar.replay': 'Rejouer',
   'playbar.step': 'pas {n}',

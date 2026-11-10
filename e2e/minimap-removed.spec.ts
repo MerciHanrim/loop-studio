@@ -34,7 +34,7 @@ for (const stored of ['0', '1'] as const) {
     await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
     await expect(page.locator('.minimap-toggle')).toHaveCount(0)
     await openViewMenu(page)
-    await expect(page.locator('.wb-viewmenu__pop [data-view-row]')).toHaveCount(4) // Focus, Filters, Activity overlay, Reset view
+    await expect(page.locator('.wb-viewmenu__pop [data-view-row]')).toHaveCount(5) // Focus, Filters, Activity overlay, Observation view (#538), Reset view
     await expect(page.locator('.wb-viewmenu__pop [data-view-row="minimap"]')).toHaveCount(0)
 
     // the stored value is left as it was
