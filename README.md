@@ -99,10 +99,10 @@ The *Seawater desalination process* Template follows water from intake through
 pretreatment, reverse osmosis and post-treatment to the city and the sea, in five
 numbered frames. A day of demand drives it, six run rules move its stages, and its
 six chemical tanks are refilled by deliveries every 14 days; it is checked over 90
-days. The Timeline shows the tanks in one tab and each stage's run against its
-target in the other.
+days. The Timeline shows the tanks in one tab and, in the other, each stage's run
+against its target and each delivery against what moved.
 
-![The Seawater desalination Template two days into a run: its five numbered process frames from Intake to Discharge and solids on the canvas, the list of every node on the left with each Pool's amount, the run row with Play and the Observation view button, and the Timeline on its Timetables and run rules tab showing the Delivery pump's run, solid, over its target, dotted, with the words "target" and "ran" at the line ends](docs/assets/desalination-process.png)
+![The Seawater desalination Template fifteen days into a run: its five numbered process frames from Intake to Discharge and solids on the canvas, the list of every node on the left with each Pool's amount, the run row with Play and the Observation view button, and the Timeline on its Timetables and run rules tab showing the hypochlorite deliveries: what a delivery made available, dotted, standing at 300 kg per day above what moved, solid, with the words "available" and "moved" at the line ends](docs/assets/desalination-process.png)
 
 The game example with the most moving parts is the *3-zone gacha banner
 comparison* Template, which runs three pity/pickup rule
@@ -112,7 +112,7 @@ per zone under identical run settings. Once a run completes, its hit and
 pickup rates are easy to compare; run Monte Carlo analysis to inspect the
 distribution across many runs.
 
-![The gacha Template after a completed 200-pull-per-zone run, its comparison row above the zone frames side by side below it: five comparison cards reading real hit-rate/pickup-rate percentages, the run row at its end with Replay and the Observation view button, a Timeline with per-zone SSR/pickup curves, and a Register's expression read-back open in the right panel](docs/assets/gacha-overview.png)
+![The 3-zone gacha Template after a completed 200-pull-per-zone run, its Comparison row across the top of the canvas with five cards: 200 pulls per zone, the hit rates of General / Free at 0.5 %, Premium Standard at 1 % and Premium Pickup at 2 %, and Premium Pickup's pickup rate at 1.5 %; below them only the top of the General / Free zone and the left edge of Premium Standard; the run row at its end with Replay and the Observation view button; the Timeline with each zone's SSR count and the Pickup wins as stepped lines; and the selected pickup-rate Register's read-back, Pickup wins 3 / Pulls per zone 200 = 1.5 %, in the right panel](docs/assets/gacha-overview.png)
 
 How the Premium Pickup zone's hard-pity counter and pickup guarantee work, with
 that zone framed on its own, is in
