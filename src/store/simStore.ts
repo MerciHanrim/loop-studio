@@ -20,6 +20,7 @@ import { computeStagger } from './playbackRank'
 import { type PlaybackProfile, type PlaybackTier, tierOf } from './playbackTier'
 import { MOBILE_MEDIA_QUERY } from '../ui/media'
 import { flowTotals, isSteady, STEADY_N, type SteadySample } from './steadyState'
+import { pauseStages } from '../model/runGuide'
 
 // docs/large-graph-readability.md §LGR6-cues — the trailing Activity-overlay
 // window length. Kept in sync with `ACTIVITY_WINDOW` in
@@ -184,6 +185,9 @@ type SimStore = {
    *  chip; never serialized, no digest / undo / autosave effect. Cleared on
    *  reset / snapshot restore / graph edit / seed change. */
   steadyState: boolean
+  /** #537 — the pause auto-play made at the run's first stop of a core process
+   *  (`model/runGuide.ts`), kept in the run row until Reset; null when none */
+  autoPause: AutoPause | null
 
   /** docs/large-graph-readability.md §LGR6-cues — the opt-in Activity overlay's
    *  history: a ring buffer (OLDEST first, ≤ 8 entries) of the ids that were
@@ -319,6 +323,19 @@ let arriveFired = false
 // derived `steadyState` boolean is reactive). A prepared step that fails the
 // commit ladder never enters this window.
 let steadyWindow: SteadySample[] = []
+
+// #537 — auto-play pauses once per run, at the first step on which a core process (a stage
+// marked `pauseOnStop`) is in a run-rule group held "stopped" for lack of supply or of room.
+// `pauseSpent` is set by that first stop whether auto-play was running or the reader stepped
+// by hand: a stop already seen does not pause Play later, and the later stops of the run
+// stay in the run notices. Reset (and a restored head) clear it.
+export type AutoPause = { step: number; stage: string; cause: 'supply' | 'room'; pool: string | null }
+let pauseSpent = false
+let coreCache: { rev: number; ids: string[] } | null = null
+const coreStages = (g: ReturnType<typeof useGraphStore.getState>): string[] => {
+  if (coreCache?.rev !== g.simulationRev) coreCache = { rev: g.simulationRev, ids: pauseStages(g.nodes) }
+  return coreCache.ids
+}
 
 const now = (): number =>
   typeof performance !== 'undefined' ? performance.now() : Date.now()
@@ -468,6 +485,21 @@ export const useSimStore = create<SimStore>((set, get) => {
     ].slice(-STEADY_N)
     const nextSteadyState = isSteady(nextWindow)
 
+    // #537 — the run's first stop of a core process: a pause when auto-play is running
+    let pause: AutoPause | null = null
+    if (!pauseSpent) {
+      const core = coreStages(g)
+      const r = core.length === 0 ? undefined : p.derived.runs.find((x) => x.state === 'stopped' && (x.cause === 'supply' || x.cause === 'room') && x.members.some((m) => core.includes(m)))
+      if (r) {
+        pauseSpent = true
+        if (get().status === 'running') {
+          const n = p.derived.notices.find((x) => x.kind === 'runHeld' && x.group === r.members[0]) as { limit?: { pool: string } | null } | undefined
+          const stage = (g.nodes.find((x) => x.id === r.decidedBy)?.data as { label?: string } | undefined)?.label ?? r.decidedBy
+          pause = { step: p.toState.step, stage, cause: r.cause as 'supply' | 'room', pool: n?.limit?.pool ?? null }
+        }
+      }
+    }
+
     // one atomic transaction (§PB1.2 / PB-INV-2). `p.toState` / `p.derived` are
     // frozen (dev); everything is copied by value / reference into fresh fields.
     set((s) => ({
@@ -502,7 +534,8 @@ export const useSimStore = create<SimStore>((set, get) => {
         p.toState.step === p.fromStep
           ? s.series
           : [...s.series, { step: p.toState.step, values: p.toState.values, ...(p.derived.timetableLines.length > 0 ? { timetableLines: p.derived.timetableLines } : {}), ...(p.derived.runs.length > 0 ? { runs: p.derived.runs } : {}) }].slice(-MAX_SERIES),
-      status: p.toState.ended ? 'ended' : s.status === 'idle' ? 'paused' : s.status,
+      status: p.toState.ended ? 'ended' : pause ? 'paused' : s.status === 'idle' ? 'paused' : s.status,
+      autoPause: pause ?? s.autoPause,
       commitEpoch: s.commitEpoch + 1,
       lastSettledTransitionId: p.transitionId,
       activeTransitionId: null,
@@ -678,6 +711,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     runRefusals: [],
     activitySteps: [],
     steadyState: false,
+    autoPause: null,
     series: [],
     // seeded from the autosave record (serialize.ts) so a plain reload keeps the
     // Timeline legend's visible set; 'auto' when the record has none.
@@ -737,6 +771,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       discardTransition()
       steadyWindow = [] // §PBO5 — covers Reset, setSeed (calls reset), and every
       // graph edit / template load (the simulationRev subscription calls reset)
+      pauseSpent = false // #537 — a new run pauses again at its first core stop
       const { init, error } = safeInit(graph().nodes)
       set((s) => ({
         status: 'idle',
@@ -756,6 +791,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(), timetableRefusals: tableRefused(), runRefusals: ruleRefused(),
         activitySteps: [],
         steadyState: false,
+        autoPause: null,
         series: [{ step: 0, values: init.values }],
         commitEpoch: s.commitEpoch + 1,
         lastSettledTransitionId: null,
@@ -765,11 +801,15 @@ export const useSimStore = create<SimStore>((set, get) => {
     restoreSnapshot: (snap) => {
       discardTransition()
       steadyWindow = [] // §PBO5 — a restored head starts a fresh window
+      // #537 — a restored head is past its steps: whether a core process stopped among them
+      // is not known, so the run may pause at the next one it meets
+      pauseSpent = false
       set((s) => ({
         status: snap.ended ? 'ended' : 'paused',
         stepIndex: snap.step,
         values: snap.values,
         steadyState: false,
+        autoPause: null,
         firedNodeIds: snap.fired,
         // a Workspace snapshot carries `fired` only — no `activated`. The
         // `evaluated` cue simply re-derives on the next Step (§LGR5.1).

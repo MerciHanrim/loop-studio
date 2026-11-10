@@ -151,7 +151,8 @@
           "level": "5500",
           "band": "3000",
           "side": "fill"
-        }
+        },
+        "pauseOnStop": true
       }
     },
     {
@@ -298,7 +299,8 @@
           "level": "2750",
           "band": "1500",
           "side": "fill"
-        }
+        },
+        "pauseOnStop": true
       }
     },
     {
@@ -405,7 +407,8 @@
           "level": "4400000",
           "band": "3500000",
           "side": "fill"
-        }
+        },
+        "pauseOnStop": true
       }
     },
     {
@@ -523,7 +526,8 @@
         "run": {
           "table": "demand",
           "rated": "e_dpump_city"
-        }
+        },
+        "pauseOnStop": true
       }
     },
     {
@@ -613,7 +617,8 @@
           "level": "250",
           "band": "1500",
           "side": "empty"
-        }
+        },
+        "pauseOnStop": true
       }
     },
     {

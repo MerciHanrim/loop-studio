@@ -720,6 +720,12 @@ Each chemical tank holds at most what it starts with: its capacity is its start.
 
 The deliveries are an example assumption, like the doses. The demand is the same 24-hour curve every day: seasons, changing seawater and maintenance are not in the model, so the 90-day result says nothing about them.
 
+## The run guide
+
+The five water-path stages, Coagulation filter, Reverse osmosis, Remineralization, Delivery pump and Discharge adjustment, carry `"pauseOnStop": true` in their node data. When one of them first stops because what it needs is short or there is no room downstream, auto-play pauses once and the run row says which stage stopped, at which step, and which tank ran short or full; played on, it does not pause again in that run, and the later stops stay in the run notices. A stop already passed by manual steps does not pause Play later, and Reset starts a new run that can pause again. The Thickener is not marked. The shipped example never pauses: its stages run at every step. With the deliveries removed, the pause comes at step 1161, at Discharge adjustment, short of the Water-quality chemical tank. The mark is document data, so a save, the autosave and a share link keep it. No control sets it: a document of your own can carry it, written in the file, on any stage with a run rule.
+
+Past the 2,160 steps (90 days) the example is checked over, the run row says so without pausing. The note holds only while the model's engine content is the example's (`src/model/runGuide.ts` compares it with the Template's): moving a node, renaming a node or a table, or opening it in another language keeps the note; changing a dose, a rule or a delivery removes it, and reopening the saved example brings it back.
+
 ## Numbers
 
 Plant size, the 45 % recovery, the demand curve, the split of power between stages, the Delivery pump's size, every dose and every delivery are **example assumptions**, not design or rated values.
