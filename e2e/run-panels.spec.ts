@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { ensureTimelineOpen, expect, importGraph, openApp, test } from './support/loop'
 import { openInputsTab } from './support/workbenchMenus'
+import { showStrip, stripKeys } from './support/timelineTabs'
 
 // SEMANTICS-M6.md §M6-9 — a rule made on the screen and read on the others, through the
 // real controls. The rule's numbers are in src/engine/run-rule.test.ts.
@@ -221,6 +222,8 @@ test('the Inspector, the Inputs list and the strip read the same step', async ({
   await choose(page, 'store')
   await row.getByRole('button').click()
   await expect.poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().selectedNodeId)).toBe('ro')
+  // #538 — the rule's strip and the demand table's: two strips, so they are in the strips tab
+  await showStrip(page, 'run:ro')
   const strip = page.locator('[data-run-strip="ro"]')
   await expect(strip).toBeVisible()
   expect((await strip.getAttribute('aria-label'))!.replace(/[⁦-⁩]/g, '')).toBe('Run of RO. Last step: target 50 %, ran 50 %.')
@@ -257,7 +260,10 @@ test('strips follow the frames, then the position inside a frame, not the ids', 
   }
   await importGraph(page, JSON.stringify(doc))
   await ensureTimelineOpen(page)
-  await expect.poll(() => page.locator('[data-run-strip]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.runStrip))).toEqual(['zz_first', 'mm_middle', 'aa_last'])
+  // #538 — three strips are in the strips tab; their order is the picker's
+  await expect(page.locator('.timeline__tabs [data-tab="strips"]')).toHaveCount(1)
+  await showStrip(page)
+  await expect.poll(() => stripKeys(page)).toEqual(['run:zz_first', 'run:mm_middle', 'run:aa_last'])
 })
 
 test('a document with strips keeps a chart a change can be read on', async ({ page }) => {
@@ -310,6 +316,8 @@ test('a table read only by a rule cannot be removed, and draws its rate', async 
   await section(page).getByLabel('Timetable').selectOption('demand')
   await expect(page.getByRole('button', { name: 'Remove timetable Demand' })).toHaveCount(0)
   await ensureTimelineOpen(page)
+  // #538 — the table's rate and the rule's run: two strips, in the strips tab
+  await showStrip(page, 'table:demand')
   await expect(page.locator('.timeline__rate:not(.timeline__run)')).toHaveCount(1)
 })
 

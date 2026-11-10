@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, openApp, test } from './support/loop'
 import { pickTemplate } from './support/workbenchMenus'
+import { showStrip } from './support/timelineTabs'
 
 // SEMANTICS-M5.md §M5-10 — a Template that holds a timetable, opened from the menu as a
 // person opens it, and stepped with the real button. Import has its own path, so a file
@@ -37,5 +38,7 @@ test('a Template with a timetable opens from the menu and steps', async ({ page 
   await page.getByRole('button', { name: 'Advance one step' }).click()
   await expect.poll(async () => (await opened(page)).step).toBe(1)
   expect((await opened(page)).product).toBeCloseTo(pinned.checkpoints[0]!.values.product!, 6)
+  // #538 — the Template's 13 strips are in the strips tab, one at a time
+  await showStrip(page, 'run:dpump')
   await expect(page.locator('[data-run-strip="dpump"]')).toHaveAttribute('aria-label', /target\D+30\D+ran\D+30\D/)
 })

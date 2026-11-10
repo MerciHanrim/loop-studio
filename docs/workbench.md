@@ -460,7 +460,7 @@ rule is [`timeline-series-contract.md`](timeline-series-contract.md) §7.
 
 **The area's least height** (#534, Lumi, 2026-11-08) is what it must show: the splitter,
 the run row, the run guide's line when it shows (#537: an auto-play pause or the checked-range note, `.pstrip-guide`), one notice row when the run has notices, the panel's head, the chart at
-**140px** (`PLOT_MIN`) and one strip when there are strips (`TimelineChart.tsx`, measured
+**140px** (`PLOT_MIN`) and one strip when there is one strip (two or more are a tab of their own, below; `TimelineChart.tsx`, measured
 from the page, because the run row wraps in a narrow window or a long language). It is
 never under 96px, and never so tall that the canvas falls under its 160px. Short of room,
 the notices and the strips give way first, each down to one row or one strip, and scroll
@@ -468,8 +468,8 @@ inside; the chart keeps its 140px, so its axis labels stay apart. The one notice
 ends where the first notice's first line ends (measured, as a fallback font can make a
 line taller), and the list has no bottom padding there, so no part of the next line
 shows, a wrapped notice's second line included; scrolling shows the rest. When notices
-or a strip appear, an area under its least rises to it; with strips the area still rises
-to the earlier comfortable height, so two strips show by default.
+or a strip appear, an area under its least rises to it; with one strip the area still
+rises to the earlier comfortable height (280px), and two or more strips are tabs (below).
 
 Measured 2026-11-08 on the desalination Template, at the least: 216px with no notices or
 strips, 272px with strips, 309px with strips and notices (1920px wide). The cost is the
@@ -480,6 +480,38 @@ of detail can fall under it: the gacha Pickup Template at a 1440 × 900 window f
 0.413, under the 0.45 from which connection labels and value chips are drawn (0.458
 before), so they show once the canvas is zoomed in. That is the price of the
 chart's least height, kept on purpose; the collapse gives the canvas its room back.
+
+**Tabs for two or more strips** (#538, Hanrim and Lumi, 2026-11-10). A document with two
+or more strips (timetable rates and run rules together) shows the pools' chart and the
+strips as two tabs, **Pools** and **Timetables and run rules**, after the "Timeline"
+heading. Both tabs share one area. Its least height is the one above without the strip:
+216px with nothing over the chart, and only the run guide line and the notices raise it.
+A tab switch never changes it, and nothing raises the area for strips. On the strips tab:
+
+- one strip shows, picked from a **Chart** list in that tab (by id, so the pick survives
+  a switch and an edit, and a strip that is gone falls back to the first);
+- the chart and its step reading are hidden;
+- the legend's chips give way but keep their room, so Series and CSV do not move;
+- the CSV is the same file from either tab;
+- the pinned step is kept and shows again on the Pools tab.
+
+The tabs are a tablist: one Tab stop on the chosen tab, and Left, Right, Home and End move
+and choose. One strip stays under the chart, with no tabs, as above. The phone's sheet keeps
+its stacked strips. The Live / Distribution switch is a separate control, and the tabs are
+not shown in the Distribution view.
+
+Measured on the prototype, 2026-11-10 (the desalination Template, en, ko, de and ru, at
+1920, 1280 and 1024 px): the area is 216px with the chart at 140px on both tabs, and the
+height changes by 0px across a switch in all 34 readings. At a 1920 × 600 window the
+canvas goes from 164px (stacked strips) to 284px. With the #537 line and notices, the area
+rises by 61px, or by 77px when the line wraps; the chart keeps 140px and the picked strip
+is whole.
+
+**The end labels keep clear of the step label.** The lowest end label (and "+N") is
+centred at most 6px above the x axis (`END_LABEL_CLEAR`), so its box ends above the
+"step N" label under the chart's right end. Centred on the axis, it had overlapped that
+label by 4px (the MMO Template's Deaths at step 30, at the 140px floor). The test checks
+every end label against the axis labels and the other end labels on five Templates.
 
 ## WB8. Status bar
 

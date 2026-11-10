@@ -10,6 +10,7 @@ import { selectOverlay, useUiStore } from '../store/uiStore'
 import { usePoolViews, useViewUnitsStore } from '../store/viewUnitsStore'
 import { useForcedColors, useIsMobile } from '../ui/media'
 import { useT } from '../i18n'
+import { isolateAuto } from '../i18n/bidiIsolate'
 import { downloadCsv } from '../ui/download'
 import { buildRunCsv, buildShownRunCsv } from './timelineCsv'
 import { seriesDashes } from '../ui/seriesDash'
@@ -29,6 +30,9 @@ import { Icon } from '../ui/icons'
 // only the latest point is marked. No area fill, no gradient.
 
 const PAD = { l: 40, r: 20, t: 14, b: 20 }
+/** #538 — how far above the x axis the lowest end label's centre may sit, so its box ends
+ *  above the "step N" label's (measured: 4 px of overlap when centred on the axis) */
+const END_LABEL_CLEAR = 6
 // stable per-series colour by index — the series' own tokens (index.css
 // `--series-*`, 2026-10-21), at the node hues' values and order they used to
 // read, so a series' colour no longer claims a node kind
@@ -129,7 +133,28 @@ export function TimelineChart() {
   // from before coming back when no line reads a table any more
   const readTables = useReadTables()
   const runStrips = useRunStrips()
-  const rateStrips = showDistribution ? 0 : Math.min(readTables.length + runStrips.length, 2)
+  // #538 — the Timeline tabs (Lumi, 2026-11-10): with two or more strips the pools' chart and
+  // the strips are two tabs in ONE area of a fixed height (216 px with nothing above the chart),
+  // one strip at a time, picked from a list in its tab. A tab never changes the area's height;
+  // only the run guide line and the notices raise it. One strip stays under the chart as before.
+  // The phone's sheet keeps its stacked strips.
+  const stripCount = readTables.length + runStrips.length
+  const tabbed = !isMobile && !showDistribution && stripCount >= 2
+  const [tab, setTab] = useState<'stock' | 'strips'>('stock')
+  const onStrips = tabbed && tab === 'strips'
+  const tabsId = useId()
+  const stripChoices = useMemo(
+    () => [
+      ...readTables.map((tb) => ({ key: `table:${tb.id}`, label: `${tb.label} (${tb.unit})` })),
+      ...runStrips.map((g) => ({ key: `run:${g.id}`, label: t('timeline.run.name', { label: isolateAuto(g.label) }) })),
+    ],
+    [readTables, runStrips, t],
+  )
+  // the picked strip by its id, so it stays picked across tab switches and edits; a strip
+  // that is gone falls back to the first
+  const [pickedKey, setPickedKey] = useState<string | null>(null)
+  const picked = stripChoices.find((s) => s.key === pickedKey) ?? stripChoices[0]
+  const rateStrips = showDistribution || tabbed ? 0 : Math.min(stripCount, 2)
   const floorWanted = showDistribution ? DISTRIBUTION_MIN : rateStrips > 0 ? ANALYSIS_DEFAULT + STRIP_PLOT_EXTRA + rateStrips * RATE_STRIP_H : null
   // #534 (decided 2026-11-08) — the least the area can be is what is on screen: the
   // splitter, the run row, one notice row when there are run notices, the panel's head,
@@ -147,7 +172,8 @@ export function TimelineChart() {
       const h = (sel: string) => (area.querySelector(sel) as HTMLElement | null)?.offsetHeight ?? 0
       const diag = area.querySelector('.pstrip-diag') as HTMLElement | null
       const notice = diag ? noticeRowEnd(diag) : 0
-      const strips = area.querySelector('.timeline__rates') ? RATE_STRIP_H : 0
+      // #538 — in tabs a strip is a tab of its own, never under the chart: no strip term
+      const strips = !tabbed && area.querySelector('.timeline__rates') ? RATE_STRIP_H : 0
       const panel = Math.ceil(PANEL_BORDER + h('.timeline__head') + PLOT_MIN + strips)
       return { floor: Math.ceil(h('.wb-splitter') + h('.pstrip') + h('.pstrip-guide') + notice) + panel, panel, notice }
     })()
@@ -175,6 +201,19 @@ export function TimelineChart() {
     // the switch alone decides; a resize inside the view is the splitter's
   }, [floorWanted, isMobile])
 
+  // #538 — on the strips tab the chart is hidden, so its box gives no width: the strip's
+  // own panel gives it (the height stays the chart's, unchanged)
+  const ratesRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = ratesRef.current
+    if (!el || !onStrips || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => {
+      const w = Math.round(el.getBoundingClientRect().width)
+      if (w > 0) setSize((prev) => (prev.w === w ? prev : { w, h: prev.h }))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [onStrips])
   useEffect(() => {
     const el = plotRef.current
     if (!el) return
@@ -483,7 +522,10 @@ export function TimelineChart() {
     // legend already lists every series and its value). ──────────────────────
     const LABEL_GAP = 16 // ≈ .timeline__endlabel rendered box (~14px) + breathing
     const labelLo = PAD.t + 2
-    const labelHi = h - PAD.b
+    // #538 (Lumi, 2026-11-10) — the lowest label (and "+N") stays clear of the x axis's
+    // "step N" label under the chart's right end: centred on the axis line it overlapped
+    // that label by 4 px (the MMO Template's Deaths at step 30, at the 140 px floor)
+    const labelHi = h - PAD.b - END_LABEL_CLEAR
     const bandFit = Math.max(1, Math.floor((labelHi - labelLo) / LABEL_GAP) + 1)
 
     let endLabels = lines
@@ -600,6 +642,41 @@ export function TimelineChart() {
             ) : (
               <span className="timeline__title">{t('timeline.title')}</span>
             )}
+            {tabbed ? (
+              // #538 — a tablist: one Tab stop on the chosen tab, Left / Right / Home / End
+              // move and choose (selection follows focus), each tab controls its panel
+              <span
+                className="timeline__viewswitch timeline__tabs"
+                role="tablist"
+                aria-label={t('timeline.title')}
+                onKeyDown={(e) => {
+                  const order: ('stock' | 'strips')[] = ['stock', 'strips']
+                  const at = order.indexOf(tab)
+                  const next = e.key === 'ArrowRight' ? order[(at + 1) % 2] : e.key === 'ArrowLeft' ? order[(at + 1) % 2] : e.key === 'Home' ? 'stock' : e.key === 'End' ? 'strips' : null
+                  if (!next) return
+                  e.preventDefault()
+                  setTab(next)
+                  e.currentTarget.querySelector<HTMLElement>(`[data-tab="${next}"]`)?.focus()
+                }}
+              >
+                {(['stock', 'strips'] as const).map((k) => (
+                  <button
+                    key={k}
+                    id={`${tabsId}-tab-${k}`}
+                    type="button"
+                    role="tab"
+                    data-tab={k}
+                    aria-selected={tab === k}
+                    aria-controls={k === 'stock' ? `${tabsId}-plot` : `${tabsId}-panel-strips`}
+                    tabIndex={tab === k ? 0 : -1}
+                    className={`timeline__viewtab${tab === k ? ' is-on' : ''}`}
+                    onClick={() => setTab(k)}
+                  >
+                    {t(k === 'stock' ? 'timeline.tab.stock' : 'timeline.tab.strips')}
+                  </button>
+                ))}
+              </span>
+            ) : null}
             <span className="timeline__legend" hidden={showDistribution}>
               {/* every drawn series' chip, in a strip that scrolls sideways;
                   "+N" on a side says how many lie past that edge (pointer
@@ -609,7 +686,9 @@ export function TimelineChart() {
                   room (an empty one is invisible), so the strip's width does
                   not change as it scrolls — a mark appearing had narrowed it
                   and left the last chip short of the edge (2026-10-20) */}
-              <span className={`timeline__keyrow${past.start ? ' has-past-start' : ''}${past.end ? ' has-past-end' : ''}`}>
+              {/* #538 — the chips name the pools' lines, so on the strips tab they give way;
+                  their room stays (visibility), so Series and CSV do not move with the tab */}
+              <span className={`timeline__keyrow${past.start ? ' has-past-start' : ''}${past.end ? ' has-past-end' : ''}${onStrips ? ' is-off' : ''}`}>
                 {past.start || past.end ? (
                   <span className={`timeline__past timeline__past--start${past.start ? '' : ' is-empty'}`} dir="ltr" aria-hidden="true" {...pressToScroll(-1)}>
                     +{past.start || past.end}
@@ -694,7 +773,8 @@ export function TimelineChart() {
           <div
             className="timeline__plot"
             ref={plotRef}
-            hidden={showDistribution}
+            id={`${tabsId}-plot`}
+            hidden={showDistribution || onStrips}
             // the reading's keyboard: focus the chart, then the arrow keys walk
             // the recorded steps; Escape closes the reading
             tabIndex={hasRun ? 0 : -1}
@@ -917,10 +997,26 @@ export function TimelineChart() {
               ) : null}
             </svg>
           </div>
-          {!showDistribution && readTables.length + runStrips.length > 0 ? (
-            <div className="timeline__rates">
-              <TimetableRateChart tables={readTables} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} />
-              <RunStrips groups={runStrips} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} />
+          {!showDistribution && stripCount > 0 && (!tabbed || onStrips) ? (
+            <div
+              className={`timeline__rates${tabbed ? ' timeline__rates--tab' : ''}`}
+              ref={ratesRef}
+              {...(tabbed ? { id: `${tabsId}-panel-strips`, role: 'tabpanel', 'aria-labelledby': `${tabsId}-tab-strips` } : {})}
+            >
+              {tabbed && picked ? (
+                <label className="timeline__strip-pick">
+                  <span>{t('timeline.tab.pick')}</span>
+                  <select value={picked.key} onChange={(e) => setPickedKey(e.target.value)}>
+                    {stripChoices.map((s) => (
+                      <option key={s.key} value={s.key}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              <TimetableRateChart tables={tabbed ? readTables.filter((tb) => `table:${tb.id}` === picked?.key) : readTables} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} />
+              <RunStrips groups={tabbed ? runStrips.filter((g) => `run:${g.id}` === picked?.key) : runStrips} series={series} width={w} padL={view.padL} padR={PAD.r} minStep={view.minStep} maxStep={view.maxStep} />
             </div>
           ) : null}
           {/* outside the plot, which clips: the reading stands on the plot's
@@ -929,7 +1025,7 @@ export function TimelineChart() {
           {/* #525 — with a step picked the box stays beside its line and only its values
               follow a preview; a box that followed the pointer would run from it on the way
               to its close button */}
-          {readIdx >= 0 && !showDistribution ? (
+          {readIdx >= 0 && !showDistribution && !onStrips ? (
             <TimelineStepReading
               step={series[readIdx].step}
               rows={readingRows(readIdx)}
