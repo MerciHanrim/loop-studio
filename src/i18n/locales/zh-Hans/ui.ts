@@ -63,6 +63,7 @@ const ui = {
   'playbar.reset.title': '重置到第 0 步',
   'playbar.step.title': '前进一步',
   'playbar.play': '播放',
+  'playbar.observe': '观察视图',
   'playbar.pause': '暂停',
   'playbar.replay': '重放',
   'playbar.step': '第 {n} 步',

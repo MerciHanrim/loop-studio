@@ -74,6 +74,7 @@ const ui = {
   'playbar.reset.title': 'Auf Schritt 0 zurücksetzen',
   'playbar.step.title': 'Einen Schritt weiter',
   'playbar.play': 'Abspielen',
+  'playbar.observe': 'Beobachtungsansicht',
   'playbar.pause': 'Pause',
   'playbar.replay': 'Erneut abspielen',
   'playbar.step': 'Schritt {n}',

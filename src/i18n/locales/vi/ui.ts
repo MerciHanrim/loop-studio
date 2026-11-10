@@ -72,6 +72,7 @@ const ui = {
   'playbar.reset.title': 'Đặt lại về bước 0',
   'playbar.step.title': 'Tiến một bước',
   'playbar.play': 'Chạy',
+  'playbar.observe': 'Chế độ quan sát',
   'playbar.pause': 'Tạm dừng',
   'playbar.replay': 'Chạy lại',
   'playbar.step': 'bước {n}',

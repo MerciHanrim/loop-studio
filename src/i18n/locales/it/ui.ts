@@ -82,6 +82,7 @@ const ui = {
   'playbar.reset.title': 'Torna al passo 0',
   'playbar.step.title': 'Avanza di un passo',
   'playbar.play': 'Avvia',
+  'playbar.observe': 'Vista di osservazione',
   'playbar.pause': 'Pausa',
   'playbar.replay': 'Riavvia',
   'playbar.step': 'passo {n}',

@@ -13,6 +13,9 @@ import { checkedRangeOf } from '../model/runGuide'
 // measured on the children's boxes: a right-to-left row spills on its start
 // side, which `scrollWidth` does not count (ar-XB at 900 px, 2026-10-20)
 import { fitsRow } from './workbench/toolRowFit'
+import { useReactFlow } from '@xyflow/react'
+import { enterObserve, leaveObserve, useObserve } from './workbench/panelLayout'
+import { anyMenuOpenSelector, useMenuOpenStore } from './toolbar/menuOpenStore'
 
 // P2 — playback lives in the chart-header strip, treated as part of the time
 // axis rather than the editing toolbar.
@@ -44,13 +47,16 @@ type Props = {
 //       a run in progress keeps its progress and Cancel here)
 //   2 — also Speed and Seed, folded into "Run settings" (the same two inputs,
 //       in a popover over the row)
-//   3 — last, the steady-state text may shorten (an ellipsis, its whole text
+//   3 — also the Observation view toggle (#538, Lumi 2026-11-10: View ▸
+//       Observation view is always there; in the view the row has room and the
+//       toggle comes back)
+//   4 — last, the steady-state text may shorten (an ellipsis, its whole text
 //       on the tooltip and announced as before)
 // The step is the first that fits, measured on the row itself after every
 // render: the step readout, the ended note and a Monte-Carlo progress change
 // its width as a run goes on. The steady-state status keeps its room whether
 // shown or not, so it never moves a control when it appears.
-const RUN_ROW_STEPS = 3
+const RUN_ROW_STEPS = 4
 function fitRunRow(row: HTMLElement): void {
   for (let step = 0; step <= RUN_ROW_STEPS; step++) {
     if (step === 0) delete row.dataset.fit
@@ -218,7 +224,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
     const measure = () => {
       fitRunRow(strip)
       // a fold the row no longer needs closes its popover
-      if (strip.dataset.fit !== '2' && strip.dataset.fit !== '3' && settingsOpen) setSettingsOpen(false)
+      if (strip.dataset.fit !== '2' && strip.dataset.fit !== '3' && strip.dataset.fit !== '4' && settingsOpen) setSettingsOpen(false)
       // the open popover stands over its button (2026-10-20: it was pinned to
       // the row's start, and drifted from the button once the steady state
       // took its room beside the step), pulled in where the row's end is near
@@ -283,6 +289,49 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
     : ''
   const checkedText = checkedRange && stepIndex > checkedRange.steps ? t('playbar.guide.checked', { days: checkedRange.days, steps: checkedRange.steps }) : ''
 
+  // #538 — the observation view's toggle (Lumi, 2026-11-10: a text button, no icon). The view
+  // hides both panels and the tool row (workbench/panelLayout.ts); the canvas keeps its zoom
+  // and the model point at its centre (Canvas.tsx)
+  const observing = useObserve((s) => s.on)
+  const { getViewport } = useReactFlow()
+  const observeBtnRef = useRef<HTMLButtonElement>(null)
+  const toggleObserve = () => (useObserve.getState().on ? leaveObserve() : enterObserve(getViewport()))
+  // focus never stays on what the view hides: when the view comes on with focus inside a
+  // hidden panel or the tool row (or already lost to the page), it moves to this toggle.
+  // Before paint, while the hidden element still holds focus, so the check sees it
+  useLayoutEffect(() => {
+    const btn = observeBtnRef.current
+    if (observing) {
+      const a = document.activeElement
+      if (!a || a === document.body || a.closest('[hidden]')) btn?.focus()
+      return
+    }
+    // leaving at a width where the row folds the toggle (fit step 3, set by the fit effect
+    // above in this same commit): focus on it would be left on nothing, so it goes to View,
+    // the toggle's other way in
+    if (btn && document.activeElement === btn && btn.getClientRects().length === 0) document.querySelector<HTMLElement>('.wb-viewmenu > .wb-mb')?.focus()
+  }, [observing])
+  // Esc leaves the view only when nothing is open on top: an open menu (each reports to
+  // menuOpenStore), a dialog or sheet (the overlay stack) or the run-settings popover takes
+  // it first. Capture phase, registered as the view is entered, so this runs before a menu
+  // opened later closes itself (the View menu closes in its own capture listener without
+  // marking the event; MEASURED: in the bubble phase the first Esc closed the menu and left
+  // the view too)
+  const settingsOpenRef = useRef(false)
+  useEffect(() => {
+    settingsOpenRef.current = settingsOpen
+  }, [settingsOpen])
+  useEffect(() => {
+    if (!observing) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      if (anyMenuOpenSelector(useMenuOpenStore.getState()) || topOverlay() != null || settingsOpenRef.current) return
+      leaveObserve()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [observing])
+
   return (
     <>
     <div
@@ -313,6 +362,9 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
         >
           <Icon name={ended ? 'run-replay' : running ? 'run-pause' : 'run-play'} className="icon--lead" />
           {ended ? t('playbar.replay') : running ? t('playbar.pause') : t('playbar.play')}
+        </button>
+        <button ref={observeBtnRef} type="button" className="pb-btn pstrip__observe" aria-pressed={observing} onClick={toggleObserve}>
+          {t('playbar.observe')}
         </button>
       </div>
 

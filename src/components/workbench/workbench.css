@@ -97,6 +97,10 @@
   outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
+/* #538 — the observation view hides the tool row; `display: flex` below would beat the UA rule */
+.wb-toolrow[hidden] {
+  display: none;
+}
 .wb-toolrow {
   height: 42px;
   display: flex;
