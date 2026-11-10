@@ -411,7 +411,8 @@ test('applying a waiting update keeps a locked Template locked after reload', as
   // Templates are rows of File ▸ Templates (docs/workbench.md §WB2.2)
   await openFileSubmenu(page, 'templates')
   // the one Template that opens locked (the Early MMO opens editable since
-  // issue #428)
+  // issue #428); #545 — in the submenu's Games group
+  await page.locator('.toolbar__filemenu [data-template-group="games"]').click()
   await page.getByRole('menuitem', { name: /3-zone gacha banner comparison/ }).click()
   const replaceDlg = page.locator('.mcdlg--confirm')
   await expect(replaceDlg).toBeVisible()

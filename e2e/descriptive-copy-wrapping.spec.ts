@@ -69,6 +69,16 @@ async function sweepDescriptiveCopy(page: Page): Promise<Row[]> {
         await subRows.nth(s).click()
         await expect(page.locator('.dmenu--sub')).toBeVisible()
         rows.push(...(await areaDescs('.dmenu--sub')))
+        // #545 — the Templates submenu's Games group holds the game Templates' descriptions:
+        // in, measured, and back to the Templates
+        const games = page.locator('.dmenu--sub [data-template-group="games"]')
+        if ((await games.count()) > 0) {
+          await games.click()
+          await expect(page.locator('.dmenu--sub [data-template-back]')).toBeVisible()
+          rows.push(...(await areaDescs('.dmenu--sub')))
+          await page.locator('.dmenu--sub [data-template-back]').click()
+          await expect(games).toBeVisible()
+        }
       }
       // the submenu first, then File
       await page.keyboard.press('Escape')
@@ -142,7 +152,9 @@ test.describe('Korean keeps its wrapping contract', () => {
     // measured on the PR CI run 41666013185); 46 — the process example's (4 lines)
     // 47 — the same blurb, now naming the demand table and rules (5 lines)
     // 2026-11-07: 43 — the two basic examples' blurbs left the menu
-    expect(rows.reduce((n, r) => n + r.lines, 0), 'the agreed Korean line count').toBe(43)
+    // #545: 44, was 43 — the Games group's row has a description of its own (1 line); the
+    // game Templates' descriptions are measured inside the group, as before at the top
+    expect(rows.reduce((n, r) => n + r.lines, 0), 'the agreed Korean line count').toBe(44)
 
     // measured, not assumed: a break is mid-eojeol when two adjacent
     // NON-space characters end up on different lines
@@ -200,7 +212,9 @@ test.describe('English is untouched', () => {
     // measured on the PR CI run 41666013185); 51 — the process example's (5 lines)
     // 53 — the same blurb, now naming the demand table and rules (7 lines)
     // 2026-11-07: 49 — the two basic examples' blurbs left the menu
-    expect(rows.reduce((n, r) => n + r.lines, 0), 'the agreed English line count').toBe(49)
+    // #545: 50, was 49 — the Games group's row has a description of its own (1 line); the
+    // game Templates' descriptions are measured inside the group, as before at the top
+    expect(rows.reduce((n, r) => n + r.lines, 0), 'the agreed English line count').toBe(50)
     await ctx.close()
   })
 })

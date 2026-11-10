@@ -7,7 +7,7 @@ import { PARALLEL_GAP } from '../src/components/edges/orthogonalRoute'
 import { edgePortKind, faceOf, rfHandleId, type PortEnd } from '../src/model/ports'
 import type { LoopEdge } from '../src/model/types'
 import { expectShownNoticesAre, manifestNoticesSha, openAbout, openLicences, sha256 } from './support/licenses'
-import { openFileSubmenu, openMonteCarloDialog } from './support/workbenchMenus'
+import { openFileSubmenu, openMonteCarloDialog, openTemplateRow } from './support/workbenchMenus'
 
 // Runs under playwright.dist.config.ts: production `npm run build` served by
 // `vite preview` at the root `/` — the shape Cloudflare Pages serves. No
@@ -140,7 +140,8 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     }
 
     // File ▸ Templates (docs/workbench.md §WB2.2)
-    await (await openFileSubmenu(page, 'templates')).locator('[role="menuitem"]', { hasText: '3-zone gacha banner comparison' }).click()
+    // #545 — a game Template, through the submenu's Games group
+    await (await openTemplateRow(page, '3-zone gacha banner comparison')).click()
     const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i })
     if (await confirm.isVisible().catch(() => false)) await confirm.click()
 
