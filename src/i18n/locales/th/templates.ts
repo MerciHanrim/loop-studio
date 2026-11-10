@@ -12,6 +12,8 @@
 const templates = {
   'templates.button': 'เทมเพลต',
   'templates.menuLabel': 'เทมเพลต',
+  'templates.group.games': 'เกม',
+  'templates.group.gamesBlurb': 'ตัวอย่าง MMO และกาชา',
   'templates.equilibrium.name': 'สายการผลิตที่สมดุล',
   'templates.equilibrium.blurb':
     'วัตถุดิบเข้า การแปรรูปและของเสีย สินค้าสำเร็จรูปออก — สายการผลิตที่เข้าสู่สมดุลภายในไม่กี่ขั้น',

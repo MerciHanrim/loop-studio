@@ -9,6 +9,7 @@ import {
   useState,
   type CSSProperties,
   type FocusEvent as ReactFocusEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -83,6 +84,9 @@ export function DescribedRow({
   onSelect,
   disabledNote,
   attrs,
+  lead,
+  trail,
+  onKeyDown,
 }: {
   name: string
   description?: string
@@ -90,6 +94,11 @@ export function DescribedRow({
   onSelect: () => void
   disabledNote?: string
   attrs?: Record<string, string>
+  /** #545 — a mark before / after the name (a group's "›", the way back's "‹") */
+  lead?: ReactNode
+  trail?: ReactNode
+  /** #545 — keys of the row's own (Arrow Right into a group) */
+  onKeyDown?: (e: ReactKeyboardEvent<HTMLButtonElement>) => void
 }) {
   const nameId = useId()
   const noteId = useId()
@@ -109,10 +118,13 @@ export function DescribedRow({
         if (intercept(e)) return
         onSelect()
       }}
+      onKeyDown={onKeyDown}
     >
+      {lead}
       <span className="menu__name" id={nameId}>
         {name}
       </span>
+      {trail}
       {disabledNote ? (
         <span className="dmenu__note" id={noteId}>
           {disabledNote}

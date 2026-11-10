@@ -8,6 +8,8 @@
 const templates = {
   'templates.button': 'Sjablonen',
   'templates.menuLabel': 'Sjablonen',
+  'templates.group.games': 'Spellen',
+  'templates.group.gamesBlurb': 'De MMO- en gacha-voorbeelden',
   'templates.equilibrium.name': 'Gebalanceerde productielijn',
   'templates.equilibrium.blurb': 'Materiaal in, bewerking en uitval, eindproduct uit — een lijn die na enkele stappen stabiliseert.',
   'templates.deadlock.name': 'Capaciteitsimpasse',

@@ -14,6 +14,8 @@
 const templates = {
   'templates.button': 'Шаблоны',
   'templates.menuLabel': 'Шаблоны',
+  'templates.group.games': 'Игры',
+  'templates.group.gamesBlurb': 'Примеры MMO и гачи',
   'templates.equilibrium.name': 'Сбалансированная производственная линия',
   'templates.equilibrium.blurb':
     'Материал, обработка, брак и готовый выпуск — баланс за несколько шагов.',

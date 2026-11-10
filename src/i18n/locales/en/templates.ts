@@ -7,6 +7,8 @@
 const templates = {
   'templates.button': 'Templates',
   'templates.menuLabel': 'Templates',
+  'templates.group.games': 'Games',
+  'templates.group.gamesBlurb': 'The MMO and gacha examples',
   'templates.equilibrium.name': 'Balanced production line',
   'templates.equilibrium.blurb': 'Material in, processing and scrap, finished goods out — a line that settles within a few steps.',
   'templates.deadlock.name': 'Capacity deadlock',

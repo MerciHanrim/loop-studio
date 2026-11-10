@@ -12,6 +12,8 @@ import type { TemplatesKey } from '../en/templates'
 const templates = {
   'templates.button': '範本',
   'templates.menuLabel': '範本',
+  'templates.group.games': '遊戲',
+  'templates.group.gamesBlurb': 'MMO 和轉蛋範例',
   'templates.equilibrium.name': '平衡的生產線',
   'templates.equilibrium.blurb': '原料進場，加工與廢料，成品出貨——幾步之內就會穩定下來的產線。',
   'templates.deadlock.name': '產能死鎖',

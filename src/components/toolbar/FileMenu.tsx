@@ -10,6 +10,7 @@ import { useMenuOpenStore } from './menuOpenStore'
 import { useOutsideDismiss } from './useOutsideDismiss'
 import { useSubmenuPosition } from './useAnchoredPosition'
 import { useMenuKeyboard, useMenuTrigger, type MenuEntry } from '../../ui/useMenuKeyboard'
+import { templateMenuBack } from '../Templates'
 
 // docs/workbench.md §WB2.2 — the menu bar's File: New, Import; Templates ▸
 // and Export ▸, two submenus; the two structure rows (save a selected
@@ -101,6 +102,8 @@ export const FileMenu = forwardRef<FileMenuHandle, Props>(function FileMenu(
   // pointer (focus left on its row) let one key reach both hooks
   useMenuKeyboard(sub != null, subMenuRef, subRow, () => setSub(null), subEntry, {
     yieldWhile: () => !subMenuRef.current?.contains(document.activeElement),
+    // #545 — in the Templates submenu's Games group, Escape goes back to the Templates
+    beforeEscape: () => templateMenuBack.current?.() ?? false,
     onTab: () => {
       flushSync(() => setOpen(false))
       btnRef.current?.focus()
@@ -124,6 +127,8 @@ export const FileMenu = forwardRef<FileMenuHandle, Props>(function FileMenu(
         if (!subMenuRef.current?.contains(at)) return
         e.preventDefault()
         e.stopPropagation()
+        // #545 — in the Games group, Arrow Left goes back to the Templates first
+        if (templateMenuBack.current?.()) return
         closeSub()
       }
     }

@@ -9,6 +9,8 @@
 const templates = {
   'templates.button': 'Plantillas',
   'templates.menuLabel': 'Plantillas',
+  'templates.group.games': 'Juegos',
+  'templates.group.gamesBlurb': 'Los ejemplos de MMO y gacha',
   'templates.equilibrium.name': 'Línea de producción equilibrada',
   // Measured in the real 272 px box (line-height 16.875, clamp 2): the literal
   // rendering of the English noun-phrase list needed a third line, and a first

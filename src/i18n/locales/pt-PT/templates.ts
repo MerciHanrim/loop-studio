@@ -23,6 +23,8 @@
 const templates = {
   'templates.button': 'Templates',
   'templates.menuLabel': 'Templates',
+  'templates.group.games': 'Jogos',
+  'templates.group.gamesBlurb': 'Os exemplos de MMO e gacha',
   'templates.equilibrium.name': 'Linha de produção equilibrada',
   // Same shape the Spanish blurb was measured into: an action sentence with
   // the four beats intact (material in, goods out, scrap discarded, the line

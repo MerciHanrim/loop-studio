@@ -20,6 +20,8 @@
 const templates = {
   'templates.button': 'القوالب',
   'templates.menuLabel': 'القوالب',
+  'templates.group.games': 'الألعاب',
+  'templates.group.gamesBlurb': 'أمثلة MMO وgacha',
   'templates.equilibrium.name': 'خط إنتاج متوازن',
   'templates.equilibrium.blurb': 'مواد داخلة، ومعالجة وهدر، وبضائع تامة خارجة — خط يستقر خلال خطوات قليلة.',
   'templates.deadlock.name': 'جمود السعة',

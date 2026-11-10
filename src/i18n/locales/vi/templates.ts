@@ -16,6 +16,8 @@
 const templates = {
   'templates.button': 'Mẫu',
   'templates.menuLabel': 'Mẫu',
+  'templates.group.games': 'Trò chơi',
+  'templates.group.gamesBlurb': 'Các ví dụ MMO và gacha',
   'templates.equilibrium.name': 'Dây chuyền sản xuất cân bằng',
   'templates.equilibrium.blurb': 'Nguyên liệu vào, gia công và phế phẩm, thành phẩm ra — một dây chuyền ổn định sau vài bước.',
   'templates.deadlock.name': 'Tắc nghẽn do hết sức chứa',

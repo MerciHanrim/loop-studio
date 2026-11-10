@@ -73,6 +73,10 @@ export type Template = {
    *  is a starting point whose purpose and structure are easy to grasp and that
    *  a user could rebuild; a stress fixture is not (Hanrim / Lumi, 2026-10-14). */
   menu?: false
+  /** #545 (Hanrim / Lumi, 2026-11-10) — the menu's group: the game examples are listed
+   *  together under "Games" (File ▸ Templates, the phone's Templates sheet, Help ▸ Example
+   *  notes), the process and industry ones at the top. Where it is listed, never what it holds. */
+  group?: 'games'
 }
 
 // Out of the menu since 2026-11-07 (Hanrim / Lumi): beside the other Templates
@@ -206,6 +210,7 @@ export const TEMPLATES: Template[] = [
   // bundled graph the checks read.
   {
     id: 'mmo-progression',
+    group: 'games',
     name: 'Early MMO progression (levels 1–15)',
     blurb:
       'A connected play economy: three zone lanes, probabilistic combat, categorised loot, a gold economy with repair and resupply costs, and a rising XP-per-level curve.',
@@ -245,6 +250,7 @@ export const TEMPLATES: Template[] = [
   // `initialView`.
   {
     id: 'gacha-general',
+    group: 'games',
     name: 'General gacha',
     blurb:
       'One banner with no pity. For each ticket the roll picks SSR, SR or R by weight (chance = weight ÷ the sum of the weights), and the result counts and the pulls made add up. The SSR hit rate is computed with the target pulls as its denominator. It differs from the ratio over the pulls actually made during a run, and equals the observed hit rate once the target is reached. The completion signal is a pool holding 1; the step after the pulls made reach the target, the end takes that 1 and the run stops.',
@@ -263,6 +269,7 @@ export const TEMPLATES: Template[] = [
   // `initialView`. Its pity block is a saved frame.
   {
     id: 'gacha-standard',
+    group: 'games',
     name: 'Standard gacha',
     blurb:
       'One banner with a hard pity ceiling. The pity counter goes up by one on an SR or an R and back to 0 on an SSR; once it reaches the ceiling − 1, the next pull is a forced SSR, which goes through the same SSR result as a natural one and is also counted in the ceiling hits. The hit rate and the end are as in the General gacha.',
@@ -282,6 +289,7 @@ export const TEMPLATES: Template[] = [
   // `initialView`. Its two blocks are saved frames.
   {
     id: 'gacha-pickup',
+    group: 'games',
     name: 'Pickup gacha',
     blurb:
       'One banner with a hard pity ceiling and a pickup guarantee. Every SSR, natural or forced, goes through one SSR result; while no pickup is owed, the pickup split decides pickup or off-pickup by weight, and an off-pickup SSR makes the next SSR a certain pickup. SR and R pulls keep the guarantee; the pickup SSR uses it. The hit rates and the end are as in the General gacha.',
@@ -297,6 +305,7 @@ export const TEMPLATES: Template[] = [
   // (GZ2/GZ3 — every zone's own `recommendedRunConfig.canvasLocked`).
   {
     id: 'gacha-banner-zones',
+    group: 'games',
     name: '3-zone gacha banner comparison',
     blurb:
       'Compare three banner rule sets under the same 200-pull budget: a free zone with no pity, a Premium Standard zone with a tunable hard-pity ceiling, and a Premium Pickup zone that adds a pickup-guarantee on top. Run it or Monte-Carlo it to see how pity and the guarantee reshape the outcome distribution.',
@@ -351,3 +360,6 @@ export const TEMPLATES: Template[] = [
 /** the Templates the menu offers (desktop and phone): every entry but the ones
  *  marked `menu: false` */
 export const MENU_TEMPLATES: readonly Template[] = TEMPLATES.filter((t) => t.menu !== false)
+/** #545 — the menu's Templates outside a group (process and industry), and the game ones */
+export const MENU_TOP_TEMPLATES: readonly Template[] = MENU_TEMPLATES.filter((t) => t.group === undefined)
+export const MENU_GAME_TEMPLATES: readonly Template[] = MENU_TEMPLATES.filter((t) => t.group === 'games')

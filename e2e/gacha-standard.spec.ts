@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, routesSettled, test } from './support/loop'
-import { openFileSubmenu, openInputsTab, pickLocale, pickTemplate } from './support/workbenchMenus'
+import { fileSubmenu, openInputsTab, openTemplateRow, pickLocale, pickTemplate } from './support/workbenchMenus'
 
 // docs/gacha-standard.md — the Standard gacha Template, opened from File ▸
 // Templates as a user opens it: unlocked and fitted whole, the pity block
@@ -48,8 +48,9 @@ test.describe('the Standard gacha Template', () => {
   })
 
   test('the menu describes it; it opens unlocked, every node inside the canvas bounds, the pity block framed, no route-point warning in Korean or English', async ({ page }) => {
-    const sub = await openFileSubmenu(page, 'templates')
-    const row = sub.locator('[data-template="gacha-standard"]')
+    // #545 — through the Templates submenu's Games group
+    const row = await openTemplateRow(page, 'gacha-standard')
+    const sub = fileSubmenu(page)
     await expect(row.locator('.menu__name')).toHaveText('상시 가챠')
     // its description: the row's own, and in the submenu's description area
     // when pointed at, whole (docs/workbench.md §WB2.2)
@@ -57,7 +58,8 @@ test.describe('the Standard gacha Template', () => {
     await expect(row).toHaveAccessibleDescription(blurb)
     await row.hover()
     await expect(sub.locator('.dmenu__desc.is-shown')).toHaveText(blurb)
-    // the submenu, then File
+    // the Games group (#545), the submenu, then File
+    await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
     await openStandard(page)

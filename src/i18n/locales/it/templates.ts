@@ -23,6 +23,8 @@ import type { TemplatesKey } from '../en/templates'
 const templates = {
   'templates.button': 'Modelli',
   'templates.menuLabel': 'Modelli',
+  'templates.group.games': 'Giochi',
+  'templates.group.gamesBlurb': 'Gli esempi MMO e gacha',
   'templates.equilibrium.name': 'Linea di produzione bilanciata',
   // Deliberately shorter than a literal rendering of the English. The menu
   // blurb box fits TWO lines at 298 px and Italian runs long: the first draft

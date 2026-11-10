@@ -47,11 +47,10 @@ async function pickDesktopTemplate(page: Page, name: string, waitForNodeId: stri
   await templatesBtn(page).click()
   // File ▸ Templates (docs/workbench.md §WB2.2)
   await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
-  await page
-    .locator('.toolbar__actions .menu')
-    .first()
-    .locator('.menu__pop [role="menuitem"]', { hasText: name })
-    .click()
+  const row = page.locator('.toolbar__actions .menu').first().locator('.menu__pop [role="menuitem"]', { hasText: name })
+  // #545 — a game Template is in the submenu's Games group: open it first
+  if ((await row.count()) === 0) await page.locator('.toolbar__filemenu [data-template-group="games"]').click()
+  await row.click()
   await confirmReplaceIfShown(page)
   await expect(page.locator(`.react-flow__node[data-id="${waitForNodeId}"]`)).toBeVisible()
 }
@@ -61,7 +60,12 @@ async function pickMobileTemplate(page: Page, name: string, waitForNodeId: strin
   await page.locator('.sheet[aria-label="More"] .sheet__row', { hasText: 'Templates' }).click()
   const sheet = page.locator('.sheet[aria-label="Templates"]')
   await expect(sheet).toBeVisible()
-  await sheet.locator('.sheet__row', { hasText: name }).click()
+  // #545 — a game Template is in the sheet's Games group: open it first
+  if ((await sheet.locator('.sheet__row', { hasText: name }).count()) === 0) {
+    await sheet.locator('[data-template-group="games"]').click()
+    await expect(page.locator('.sheet[aria-label="Games"]')).toBeVisible()
+  }
+  await page.locator('.sheet').locator('.sheet__row', { hasText: name }).click()
   await confirmReplaceIfShown(page)
   await expect(page.locator(`.react-flow__node[data-id="${waitForNodeId}"]`)).toBeVisible()
 }

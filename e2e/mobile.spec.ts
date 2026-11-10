@@ -1716,12 +1716,14 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
   const nameOf = (row: Locator) =>
     row.evaluate((el) => (el.childNodes[0]?.textContent ?? el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 24))
 
-  async function openSheet(page: Page, which: 'More' | 'Templates' | 'Export') {
+  async function openSheet(page: Page, which: Sheet) {
     await page.locator('.mob-more').click() // by class: the accessible name is localized
     const more = page.locator('.sheet[aria-label="More"]')
     await expect(more).toBeVisible()
     if (which !== 'More') {
-      await more.locator('.sheet__row', { hasText: which }).click()
+      // #545 — the Games sheet is the Templates sheet's group
+      await more.locator('.sheet__row', { hasText: which === 'Games' ? 'Templates' : which }).click()
+      if (which === 'Games') await page.locator('.sheet[aria-label="Templates"] [data-template-group="games"]').click()
       await expect(page.locator(`.sheet[aria-label="${which}"]`)).toBeVisible()
     }
     await page.mouse.move(2, 2) // nothing hovered until a case asks for it
@@ -1731,8 +1733,14 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
   /** Escape out of the sheet `openSheet` opened. Issue #307: Escape in a sheet
    *  opened from More goes back to More, on the row that opened it; a second
    *  Escape closes More. */
-  async function escapeSheet(page: Page, which: 'More' | 'Templates' | 'Export') {
+  async function escapeSheet(page: Page, which: Sheet) {
     await page.keyboard.press('Escape')
+    // #545 — Escape in the Games sheet goes back to the Templates, on the Games row
+    if (which === 'Games') {
+      await expect(page.locator('.sheet[aria-label="Templates"] [data-template-group="games"]')).toBeFocused()
+      which = 'Templates'
+      await page.keyboard.press('Escape')
+    }
     if (which !== 'More') {
       const more = page.locator('.sheet[aria-label="More"]')
       await expect(more).toBeVisible()
@@ -1741,6 +1749,8 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
     }
     await expect(page.locator('.sheet')).toHaveCount(0)
   }
+
+  type Sheet = 'More' | 'Templates' | 'Games' | 'Export'
 
   /** every row whose sub-label is really painted in the sub colour */
   async function textSubRows(page: Page, sheet: Locator) {
@@ -1770,7 +1780,7 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
     return false
   }
 
-  const SHEETS = ['More', 'Templates', 'Export'] as const
+  const SHEETS = ['More', 'Templates', 'Games', 'Export'] as const
 
   test('light: every enabled secondary label keeps ≥ 4.5:1 while its row is hovered, in all three sheets', async ({ page }) => {
     await loadDiagram(page)
@@ -1795,8 +1805,9 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
     // 0.28.1 — Early MMO left the Templates sheet; 2026-10-20 — the General
     // gacha joined it, then the Standard and the Pickup gacha; 0.30.0 — Early
     // MMO is back; #471 (2026-11-04) — the desalination plant joined it;
-    // 2026-11-07 — the two basic examples left it
-    expect(checked, 'the walk must reach every text sub-label: 6 More + 7 Templates + 4 enabled Export').toBe(17)
+    // 2026-11-07 — the two basic examples left it; #545 — the five game examples moved to
+    // the Templates sheet's Games group, whose row is described too
+    expect(checked, 'the walk must reach every text sub-label: 6 More + 3 Templates + 5 Games + 4 enabled Export').toBe(18)
     expect(bad, 'hovered secondary labels below 4.5:1').toEqual([])
   })
 

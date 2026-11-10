@@ -56,10 +56,10 @@ async function pickTemplate(page: Page, hasText: string) {
   await templatesBtn(page).click()
   // File ▸ Templates (docs/workbench.md §WB2.2)
   await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
-  await page
-    .locator('.toolbar__actions .menu').first()
-    .locator('.menu__pop [role="menuitem"]', { hasText })
-    .click()
+  const rows = page.locator('.toolbar__actions .menu').first().locator('.menu__pop [role="menuitem"]', { hasText })
+  // #545 — a game Template is in the submenu's Games group: open it first
+  if ((await rows.count()) === 0) await page.locator('.toolbar__filemenu [data-template-group="games"]').click()
+  await rows.click()
   // pristine first boot loads without a confirm; if a confirm appears, accept it
   const confirm = page.locator('.dialog button', { hasText: /replace|바꾸기|교체/i })
   if (await confirm.isVisible().catch(() => false)) await confirm.click()

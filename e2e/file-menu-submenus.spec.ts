@@ -40,9 +40,14 @@ for (const locale of ['en', 'ko'] as const) {
     const templates = await openFileSubmenu(page, 'templates')
     // 0.30.0: eight — Early MMO is in the menu again, after Coffee;
     // #471 (2026-11-04): nine — the desalination plant, before Coffee;
-    // 2026-11-07: seven — Balanced production line and Capacity deadlock left it
-    await expect(templates.locator('[data-template]')).toHaveCount(7)
+    // 2026-11-07: seven — Balanced production line and Capacity deadlock left it;
+    // #545 (2026-11-10): two, then the Games group, which holds the other five
+    await expect(templates.locator('[data-template]')).toHaveCount(2)
+    await expect(templates.locator('[data-template-group="games"] .menu__name')).toHaveText(locale === 'en' ? 'Games' : '게임')
     await expect(templates.locator('[data-template="equilibrium"], [data-template="deadlock"]')).toHaveCount(0)
+    for (const row of await templates.locator('[role="menuitem"]').all()) expect(await oneLine(row)).toBe(true)
+    await templates.locator('[data-template-group="games"]').click()
+    await expect(templates.locator('[data-template]')).toHaveCount(5)
     await expect(templates.locator('[data-template="mmo-progression"] .menu__name')).toHaveText(
       locale === 'en' ? 'Early MMO progression (levels 1–15)' : '초반 MMO 성장 (1–15레벨)',
     )
@@ -94,7 +99,7 @@ test('the submenu rows: menu semantics, open by a click only (no hover timer), o
     await row.dispatchEvent('click', { detail: 1 })
   }
   for (const [from, to, row] of [
-    [tRow, eRow, '[data-template="gacha-pickup"]'],
+    [tRow, eRow, '[data-template="desalination"]'],
     [eRow, tRow, '[role="menuitem"]:has-text("Graph JSON")'],
   ] as const) {
     await from.click()
@@ -118,8 +123,11 @@ test('the description area: the pointed row, else the focused one; none for a ro
   await expect(shown(sub)).toHaveClass(/dmenu__hint/)
   const area = sub.locator('.dmenu__area')
   const h0 = (await area.boundingBox())!.height
-  const rows = sub.locator('[data-template]')
-  for (let i = 0; i < 7; i++) {
+  // #545 — the Templates' rows: the two Templates and the Games group's row, each described
+  const rows = sub.locator('[role="menuitem"]')
+  const count = await rows.count()
+  expect(count).toBe(3)
+  for (let i = 0; i < count; i++) {
     const row = rows.nth(i)
     await row.hover()
     const desc = await shown(sub).innerText()
@@ -163,9 +171,10 @@ test('the keyboard: Arrow Right / Enter / Space open a submenu at its first row;
   const first = sub.locator('[data-template]').first()
   await expect(first).toBeFocused()
   await expect(shown(sub)).toHaveText(await first.evaluate((el) => document.getElementById(el.getAttribute('aria-describedby')!)!.textContent!))
-  // the arrows stay in the submenu, and wrap
+  // the arrows stay in the submenu, and wrap (to the last row, the Games group's, #545)
   await page.keyboard.press('ArrowUp')
-  await expect(sub.locator('[data-template]').last()).toBeFocused()
+  await expect(sub.locator('[role="menuitem"]').last()).toBeFocused()
+  await expect(sub.locator('[role="menuitem"]').last()).toHaveAttribute('data-template-group', 'games')
   await page.keyboard.press('Home')
   await expect(first).toBeFocused()
   // Arrow Left: out, back on its row
@@ -313,7 +322,9 @@ test('a long Korean description reads whole; a short window: the area gives way 
   // the area gave way first: rows that do not fit only once it is at its floor
   if (g.rowsAll > g.rowsShown + 1) expect(g.areaShown).toBeLessThanOrEqual(46)
   expect(g.rowsShown, 'the rows keep more room than the area').toBeGreaterThan(g.areaShown)
-  // the longest description (Pickup) is reached whole by the area's own scroll
+  // the longest description (Pickup, in the Games group since #545) is reached whole by the
+  // area's own scroll
+  await sub.locator('[data-template-group="games"]').click()
   await sub.locator('[data-template="gacha-pickup"]').hover()
   const pickup = shown(sub)
   await expect(pickup).toHaveText('천장과 픽업 보장이 있는 배너 하나. 픽업 외 SSR 다음에 나오는 SSR은 픽업으로 확정됩니다.')
@@ -344,6 +355,9 @@ for (const size of [
     const sb = (await sub.boundingBox())!
     expect(sb.x).toBeGreaterThanOrEqual(0)
     expect(sb.x + sb.width, 'the submenu inside the window').toBeLessThanOrEqual(size.width)
+    // #545 — a press on the Games group's row (it has no Open) opens the group at once
+    await tap(sub.locator('[data-template-group="games"]'))
+    await expect(sub.locator('[data-template-back]')).toBeVisible()
     const pickup = sub.locator('[data-template="gacha-pickup"]')
     await tap(pickup)
     // selected, described, not run: the document unchanged, the menu open
@@ -357,7 +371,8 @@ for (const size of [
     await page.waitForTimeout(300)
     expect(await nodes()).toBe(0)
     await expect(open).toBeVisible()
-    // another row: its description and the button
+    // another row: its description and the button (back to the Templates first, #545)
+    await tap(sub.locator('[data-template-back]'))
     await tap(sub.locator('[data-template="coffee-roastery"]'))
     await expect(shown(sub)).toHaveText('How roasting, sales and stock pull against each other over a day of trading.')
     // nothing ran so far: the document is still the empty one
@@ -371,6 +386,7 @@ for (const size of [
     // the replace confirmation)
     await trigger(page).click()
     await file(page).locator('[data-submenu="templates"]').click()
+    await fileSubmenu(page).locator('[data-template-group="games"]').click()
     await fileSubmenu(page).locator('[data-template="gacha-pickup"]').click()
     await expect(page.locator('.mcdlg--confirm')).toBeVisible()
   })
@@ -385,6 +401,8 @@ for (const size of [
     await tap(trigger(page))
     await tap(file(page).locator('[data-submenu="templates"]'))
     const sub = fileSubmenu(page)
+    // #545 — the rows below are in the Games group
+    await tap(sub.locator('[data-template-group="games"]'))
     const pickup = sub.locator('[data-template="gacha-pickup"]')
     const open = sub.locator('.dmenu__act')
     const descOf = (row: Locator) => row.evaluate((el) => document.getElementById(el.getAttribute('aria-describedby')!)!.textContent)
@@ -399,9 +417,9 @@ for (const size of [
     // the mouse: pointing at another row
     await tap(pickup)
     await expect(open).toBeVisible()
-    const coffee = sub.locator('[data-template="coffee-roastery"]')
-    await coffee.hover()
-    await expect(shown(sub)).toHaveText((await descOf(coffee))!)
+    const general = sub.locator('[data-template="gacha-general"]')
+    await general.hover()
+    await expect(shown(sub)).toHaveText((await descOf(general))!)
     await expect(open).toHaveCount(0)
     // nothing ran
     expect(await page.evaluate(() => (window as any).__loop.graph.getState().nodes.length)).toBe(0)

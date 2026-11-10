@@ -232,18 +232,25 @@ test.describe('Early MMO progression example', () => {
     const menuPop = page.locator('.toolbar__actions .menu').first().locator('.menu__pop')
     const row = menuPop.locator('[data-template="mmo-progression"]')
 
-    // File ▸ Templates lists it right after Coffee, its description the row's
-    // own and, pointed at, in the submenu's description area (docs/workbench.md §WB2.2)
+    // File ▸ Templates ▸ Games lists it first (#545: the game examples are a group, after
+    // the process and industry Templates), its description the row's own and, pointed at,
+    // in the submenu's description area (docs/workbench.md §WB2.2)
     await templatesBtn(page).click()
     await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
+    const top = await menuPop.locator('[data-template]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.template))
+    expect(top).not.toContain('mmo-progression')
+    expect(top).toContain('coffee-roastery')
+    await menuPop.locator('[data-template-group="games"]').click()
     const ids = await menuPop.locator('[data-template]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.template))
-    expect(ids.indexOf('mmo-progression')).toBe(ids.indexOf('coffee-roastery') + 1)
+    expect(ids[0]).toBe('mmo-progression')
     await expect(row.locator('.menu__name')).toHaveText(EN_NAME)
     const enBlurb = 'Three zones of quests, hunts and rewards — how long reaching level 15 takes.'
     await expect(row).toHaveAccessibleDescription(enBlurb)
     await row.hover()
-    await expect(menuPop.locator('.dmenu__desc.is-shown')).toHaveText(enBlurb)
-    // the submenu, then File
+    // the submenu's own area (with focus in the submenu, File's area shows its hint)
+    await expect(page.locator('.toolbar__filemenu .dmenu--sub .dmenu__desc.is-shown')).toHaveText(enBlurb)
+    // the Games group, the submenu, then File
+    await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
 
@@ -251,11 +258,13 @@ test.describe('Early MMO progression example', () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('ko')
     await templatesBtn(page).click()
     await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').click()
+    await menuPop.locator('[data-template-group="games"]').click()
     await expect(row.locator('.menu__name')).toHaveText(KO_NAME)
     const koBlurb = '세 지역의 퀘스트, 사냥, 보상으로 15레벨까지 걸리는 시간을 봅니다.'
     await expect(row).toHaveAccessibleDescription(koBlurb)
     await row.hover()
-    await expect(menuPop.locator('.dmenu__desc.is-shown')).toHaveText(koBlurb)
+    await expect(page.locator('.toolbar__filemenu .dmenu--sub .dmenu__desc.is-shown')).toHaveText(koBlurb)
+    await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
 
@@ -453,8 +462,11 @@ test.describe('Early MMO progression example', () => {
         .click()
       const templates = page.locator('.sheet[aria-label="Templates"]')
       await expect(templates).toBeVisible()
-      // the sheet lists it, with its description, and a press opens it
-      const mmoRow = templates.locator('.sheet__row', { hasText: EN_NAME })
+      // #545 — the sheet lists it in its Games group, with its description, and a press opens it
+      await templates.locator('[data-template-group="games"]').click()
+      const games = page.locator('.sheet[aria-label="Games"]')
+      await expect(games).toBeVisible()
+      const mmoRow = games.locator('.sheet__row', { hasText: EN_NAME })
       await expect(mmoRow).toBeVisible()
       await expect(mmoRow.locator('.sheet__row-sub')).toHaveText('Three zones of quests, hunts and rewards — how long reaching level 15 takes.')
       await mmoRow.click()

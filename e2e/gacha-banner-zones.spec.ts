@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, routesSettled, test } from './support/loop'
-import { openFileSubmenu } from './support/workbenchMenus'
+import { openFileSubmenu, openTemplateRow } from './support/workbenchMenus'
 
 // docs/gacha-banner-zones.md (GZ) — the 3-zone gacha banner comparison
 // Template, exercised through the app. The engine-level acceptance (GZ8) is
@@ -69,7 +69,7 @@ async function setLocale(page: Page, code: string) {
 
 async function pickDesktopTemplate(page: Page, name: string) {
   // File ▸ Templates (docs/workbench.md §WB2)
-  await (await openFileSubmenu(page, 'templates')).locator('[data-template]', { hasText: name }).click()
+  await (await openTemplateRow(page, name)).click()
   // issue #344 §ER14.5 — its routes are drawn once their first sliced
   // generation commits
   await page.waitForFunction(() => (window as unknown as { __loop: any }).__loop.graph.getState().nodes.length > 0)
@@ -120,19 +120,21 @@ test.describe('3-zone gacha banner comparison Template', () => {
     await expect(page.locator('.canvas.canvas--locked')).toBeVisible()
   })
 
-  test('menu order: Coffee, then Early MMO, then Gacha, last (Hanrim, 2026-09-13 reorder; MMO back in 0.30.0)', async ({ page }) => {
+  test('menu order: Coffee among the Templates; in the Games group, Early MMO first and this comparison last (Hanrim, 2026-09-13 reorder; MMO back in 0.30.0; the group, #545)', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     // File ▸ Templates (docs/workbench.md §WB2): the template rows only
-    const names = await (await openFileSubmenu(page, 'templates')).locator('[data-template] .menu__name').allInnerTexts()
-    const coffeeIdx = names.findIndex((n) => n.includes('Coffee roastery'))
+    const sub = await openFileSubmenu(page, 'templates')
+    const top = await sub.locator('[data-template] .menu__name').allInnerTexts()
+    expect(top.some((n) => n.includes('Coffee roastery'))).toBe(true)
+    // #545 — the game examples are in the Games group, the last row of the Templates
+    await sub.locator('[data-template-group="games"]').click()
+    const names = await sub.locator('[data-template] .menu__name').allInnerTexts()
     const mmoIdx = names.findIndex((n) => n.includes('Early MMO progression'))
     const gachaIdx = names.findIndex((n) => n === EN_NAME)
-    expect(coffeeIdx).toBeGreaterThanOrEqual(0)
     // out of the menu in 0.28.1 (Hanrim / Lumi, 2026-10-14), back in 0.30.0
-    // (2026-10-24), right after Coffee
-    expect(mmoIdx).toBe(coffeeIdx + 1)
-    expect(gachaIdx).toBeGreaterThan(mmoIdx)
+    // (2026-10-24), first of the games
+    expect(mmoIdx).toBe(0)
     expect(gachaIdx).toBe(names.length - 1)
   })
 

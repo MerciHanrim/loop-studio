@@ -2,7 +2,7 @@ import { useRef, useState, type RefObject } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { FEEDBACK_URL } from '../../feedback'
 import { openTemplate } from '../../i18n/templateLabels'
-import { MENU_TEMPLATES, TEMPLATES } from '../../model/templates'
+import { MENU_GAME_TEMPLATES, MENU_TEMPLATES, MENU_TOP_TEMPLATES, TEMPLATES } from '../../model/templates'
 import { WORKSPACE_MAX_BYTES } from '../../model/workspace'
 import { useFilterStore } from '../../store/filterStore'
 import { useAutoFrameStore, hasAutoFrames } from '../../store/autoFrameStore'
@@ -82,6 +82,10 @@ export function MobileMoreMenu({
   // with focus on the row that opened the sub-sheet. Close and a tap on the
   // scrim still close everything, as they always did.
   const returnRow = useRef<string | null>(null)
+  // #545 — the Templates sheet's group shown (null: the Templates themselves), and whether
+  // the sheet was reached back from the group (focus then goes to the Games row)
+  const [tplGroup, setTplGroup] = useState<'games' | null>(null)
+  const tplBack = useRef(false)
   const backToMoreFrom = (row: string, before?: () => void) => () => {
     before?.()
     returnRow.current = row
@@ -382,7 +386,15 @@ export function MobileMoreMenu({
         <button type="button" className="sheet__row" data-more-row="export" onClick={() => openOverlay('export')}>
           {t('export.menuLabel')}<span className="sheet__row-sub"><ArrowIcon unit="submenu" /></span>
         </button>
-        <button type="button" className="sheet__row" data-more-row="templates" onClick={() => openOverlay('templates')}>
+        <button
+          type="button"
+          className="sheet__row"
+          data-more-row="templates"
+          onClick={() => {
+            setTplGroup(null)
+            openOverlay('templates')
+          }}
+        >
           {t('templates.menuLabel')}<span className="sheet__row-sub"><ArrowIcon unit="submenu" /></span>
         </button>
         <InlineHintNote id="focus-filter-discovery" trigger={focusFilterHintTrigger} ready={focusFilterHintReady}>
@@ -509,24 +521,59 @@ export function MobileMoreMenu({
   }
 
   if (overlay === 'templates') {
+    // #545 (Lumi, 2026-11-10) — each Template a full-width row, its name on its own line and
+    // its description under it (a two-column row broke a long name over several lines); the
+    // game examples in a "Games" group, a row that opens them in the same sheet. Escape there
+    // goes back to the Templates, to the Games row; opening a Template is as before.
+    const row = (tpl: (typeof MENU_TEMPLATES)[number]) => (
+      <button key={tpl.id} type="button" className="sheet__row sheet__row--stacked" data-template={tpl.id} onClick={() => pickTemplate(tpl.id)}>
+        <span className="sheet__row-name">{t(TEMPLATE_KEY[tpl.id as keyof typeof TEMPLATE_KEY].name)}</span>
+        <span className="sheet__row-sub">{t(TEMPLATE_KEY[tpl.id as keyof typeof TEMPLATE_KEY].blurb)}</span>
+      </button>
+    )
+    const gamesRow = () => document.querySelector<HTMLElement>('.sheet [data-template-group="games"]')
     return (
       <>
-      <MobileSheet
-        key="templates"
-        title={t('templates.menuLabel')}
-        onClose={() => closeOverlay('templates')}
-        onEscape={backToMoreFrom('templates')}
-        returnFocusTo={backToMore}
-      >
-        {MENU_TEMPLATES.map((tpl) => (
-          <button key={tpl.id} type="button" className="sheet__row" onClick={() => pickTemplate(tpl.id)}>
-            {t(TEMPLATE_KEY[tpl.id as keyof typeof TEMPLATE_KEY].name)}
-            <span className="sheet__row-sub">
-              {t(TEMPLATE_KEY[tpl.id as keyof typeof TEMPLATE_KEY].blurb)}
-            </span>
-          </button>
-        ))}
-      </MobileSheet>
+      {tplGroup === 'games' ? (
+        <MobileSheet
+          key="templates-games"
+          title={t('templates.group.games')}
+          onClose={() => closeOverlay('templates')}
+          onEscape={() => {
+            tplBack.current = true
+            setTplGroup(null)
+          }}
+          returnFocusTo={backToMore}
+        >
+          {MENU_GAME_TEMPLATES.map(row)}
+        </MobileSheet>
+      ) : (
+        <MobileSheet
+          key="templates"
+          title={t('templates.menuLabel')}
+          onClose={() => closeOverlay('templates')}
+          onEscape={backToMoreFrom('templates')}
+          returnFocusTo={backToMore}
+          initialFocus={() => {
+            if (!tplBack.current) return null
+            setTimeout(() => {
+              tplBack.current = false
+            })
+            return gamesRow()
+          }}
+        >
+          {MENU_TOP_TEMPLATES.map(row)}
+          {MENU_GAME_TEMPLATES.length > 0 ? (
+            <button type="button" className="sheet__row sheet__row--stacked sheet__row--group" data-template-group="games" onClick={() => setTplGroup('games')}>
+              <span className="sheet__row-name">
+                {t('templates.group.games')}
+                <ArrowIcon unit="submenu" />
+              </span>
+              <span className="sheet__row-sub">{t('templates.group.gamesBlurb')}</span>
+            </button>
+          ) : null}
+        </MobileSheet>
+      )}
       {pendingDlg}
       </>
     )

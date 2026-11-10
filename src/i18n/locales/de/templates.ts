@@ -19,6 +19,8 @@ import type { TemplatesKey } from '../en/templates'
 const templates = {
   'templates.button': 'Vorlagen',
   'templates.menuLabel': 'Vorlagen',
+  'templates.group.games': 'Spiele',
+  'templates.group.gamesBlurb': 'Die MMO- und Gacha-Beispiele',
   'templates.equilibrium.name': 'Ausgeglichene Produktionslinie',
   // shortened deliberately: this blurb has the tightest budget of all
   // sixteen (+6 % over English at 272 px, measured) — see §L2.12
