@@ -136,7 +136,9 @@ export function TimelineChart() {
   // the chart's floor (`PLOT_MIN`) and one strip when there are strips. Short of room, the
   // notices and the strips give way first and scroll inside (workbench.css); the chart keeps
   // its floor. Measured from the page after every render, because the run row wraps in a
-  // narrow window or a long language; state changes only when a number does.
+  // narrow window or a long language; state changes only when a number does. #537 — the run
+  // guide's lines under the run row (a pause's reason, the checked-range note) count whole:
+  // they stay in view, so they must not take the strip's or the chart's room.
   const [measured, setMeasured] = useState<{ floor: number; panel: number; notice: number } | null>(null)
   useLayoutEffect(() => {
     const area = areaRef.current
@@ -147,7 +149,7 @@ export function TimelineChart() {
       const notice = diag ? noticeRowEnd(diag) : 0
       const strips = area.querySelector('.timeline__rates') ? RATE_STRIP_H : 0
       const panel = Math.ceil(PANEL_BORDER + h('.timeline__head') + PLOT_MIN + strips)
-      return { floor: Math.ceil(h('.wb-splitter') + h('.pstrip') + notice) + panel, panel, notice }
+      return { floor: Math.ceil(h('.wb-splitter') + h('.pstrip') + h('.pstrip-guide') + notice) + panel, panel, notice }
     })()
     if (next?.floor !== measured?.floor || next?.panel !== measured?.panel || next?.notice !== measured?.notice) setMeasured(next)
   })

@@ -557,6 +557,14 @@ being advanced to `settle` (PB3.3, PB8), that advance is atomic and near-instant
 `settle` commits `S(t+1)` first, *then* the clock stops with no
 `preparedTransition` pending. Pause never freezes a half-applied `settle`.
 
+**PB5.5 — The auto-pause at a core stop** (#537, Lumi, 2026-11-10). A committed step whose
+run reports a stage marked `pauseOnStop` (node data) as `stopped` for `supply` or `room`
+sets the status to `paused` when Play was running: the step itself is committed whole, as
+any settle is (PB-INV-2), and Play stops after it. Once per run: the first such stop spends
+it, whether Play or a manual Step reached it, and only Reset or a restored head arms it
+again. The reason (`simStore.autoPause`: step, stage, cause, the short or full tank) stays
+in the run row's guide line and its status region until Reset. Monte Carlo is untouched.
+
 ## PB6. Speed
 
 **PB6.1 — speed scales wall-clock only.** The speed control maps `τ`'s `[0,1]` to

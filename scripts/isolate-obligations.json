@@ -4,9 +4,9 @@
   "$limit": "This manifest defends the call sites listed here, exactly and in both directions. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together close the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
   "$history": "PR B recorded 11 decision rows and deferred them. C3.5 re-ran the population from the TypeScript type checker — 205 ICU arguments — and found 27 more that carry user or technical values: 8 in its first pass (the unrecognized-column header and the five `import.loc.*` calls) and 19 that its first pass only RECORDED as open. All 27 are implemented here, so no row of the disposition manifest is classed `auto`, `ltr` or `per-fragment` any more.",
   "totals": {
-    "rows": 115,
-    "obligations": 66,
-    "callSites": 137
+    "rows": 116,
+    "obligations": 67,
+    "callSites": 138
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -18,7 +18,8 @@
     "issue-420": 4,
     "issue-471": 22,
     "run-rules": 13,
-    "issue-519": 2
+    "issue-519": 2,
+    "issue-537": 1
   },
   "obligations": [
     {
@@ -58,6 +59,29 @@
           ],
           "args": [
             "label"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "playbar-run-guide-pause",
+      "rows": [
+        "issue-537 run guide pause stage and pool"
+      ],
+      "file": "src/components/PlayBar.tsx",
+      "enclosing": "PlayBar",
+      "carries": "the user's own NODE LABELS of the core process that stopped and of the Pool it lacked supply from or room in (issue #537 — the pause auto-play makes at a run's first stop of a core process, worded by the run bar from `simStore.autoPause`)",
+      "sites": [
+        {
+          "keys": [
+            "playbar.guide.paused",
+            "playbar.guide.pausedRoom",
+            "playbar.guide.pausedSupply"
+          ],
+          "args": [
+            "pool",
+            "stage"
           ],
           "kind": "auto"
         }

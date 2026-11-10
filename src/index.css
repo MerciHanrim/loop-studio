@@ -4527,6 +4527,30 @@ a.sheet__row {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+/* #537 — the run guide under the run strip: the pause auto-play made at the run's first
+   stop of a core process, and the note past the steps a bundled example is checked over.
+   One line each, kept in view; a block of its own like `.pstrip-diag`, counted in the
+   analysis area's least height */
+.pstrip-guide {
+  flex: none;
+  padding: 3px 12px 4px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--line-1);
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-1);
+  overflow-wrap: anywhere;
+}
+.pstrip-guide__line {
+  margin: 0;
+}
+.pstrip-guide__line--pause {
+  color: var(--warn);
+  font-weight: 600;
+}
+.pstrip-guide__line--checked {
+  color: var(--ink-2);
+}
 .pstrip-diag:focus-visible,
 .pstrip__diag:focus-visible {
   outline: 2px solid var(--focus);

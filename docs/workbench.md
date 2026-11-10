@@ -426,7 +426,7 @@ keeps at least 160px. The area opens at its least height (below); the Distributi
 rule is [`timeline-series-contract.md`](timeline-series-contract.md) §7.
 
 **The area's least height** (#534, Lumi, 2026-11-08) is what it must show: the splitter,
-the run row, one notice row when the run has notices, the panel's head, the chart at
+the run row, the run guide's line when it shows (#537: an auto-play pause or the checked-range note, `.pstrip-guide`), one notice row when the run has notices, the panel's head, the chart at
 **140px** (`PLOT_MIN`) and one strip when there are strips (`TimelineChart.tsx`, measured
 from the page, because the run row wraps in a narrow window or a long language). It is
 never under 96px, and never so tall that the canvas falls under its 160px. Short of room,
