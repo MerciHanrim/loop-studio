@@ -13,7 +13,7 @@ import { useT } from '../i18n'
 import { isolateAuto } from '../i18n/bidiIsolate'
 import { downloadCsv } from '../ui/download'
 import { buildRunCsv, buildShownRunCsv } from './timelineCsv'
-import { seriesDashes } from '../ui/seriesDash'
+import { seriesColours, seriesDashes } from '../ui/seriesDash'
 import { stageStateText } from '../ui/stageTag'
 import { SeriesMark } from './SeriesMark'
 import { RunStrips, useRunStrips } from './RunStrip'
@@ -240,7 +240,9 @@ export function TimelineChart() {
     // `tabbed`: the plot moves into (or out of) its tab panel, a new element to observe
   }, [collapsed, isMobile, overlay, tabbed])
 
-  const pools = useMemo(
+  // each Pool's own colour (its flow colour, else the palette by index); `pools` below is what
+  // the chart draws, once a shared colour is told apart
+  const poolsOwn = useMemo(
     () =>
       nodes
         .filter((n) => n.data.kind === 'pool')
@@ -253,8 +255,8 @@ export function TimelineChart() {
     () =>
       nodes
         .filter((n) => n.data.kind === 'register')
-        .map((n, i) => ({ id: n.id, label: n.data.label, color: seriesColor(n.data.accent, pools.length + i, forced) })),
-    [nodes, pools.length, forced],
+        .map((n, i) => ({ id: n.id, label: n.data.label, color: seriesColor(n.data.accent, poolsOwn.length + i, forced) })),
+    [nodes, poolsOwn.length, forced],
   )
 
   // `timelineSeries` (simStore, UI-only) is the stored choice — `auto`, `'all'`
@@ -265,15 +267,23 @@ export function TimelineChart() {
   // itself minus ids that no longer exist. The cap applies to what is
   // rendered — line, segment and bead — not only to the legend.
   const allSeriesIds = useMemo(
-    () => [...pools.map((p) => p.id), ...registers.map((r) => r.id)],
-    [pools, registers],
+    () => [...poolsOwn.map((p) => p.id), ...registers.map((r) => r.id)],
+    [poolsOwn, registers],
   )
   const drawnIds = useMemo(
     () => resolveTimelineSeries(timelineSeries, allSeriesIds),
     [timelineSeries, allSeriesIds],
   )
   const drawnSet = useMemo(() => new Set(drawnIds), [drawnIds])
-  const dashes = useMemo(() => seriesDashes(pools, drawnSet), [pools, drawnSet])
+  // the pattern follows the OWN colour; where it applies, a later line also takes a palette
+  // colour of its own (Hanrim / Lumi, 2026-11-11), the same in the line, the legend, the series
+  // list and the step reading. Not under forced colours: the palette there is by index already.
+  const dashes = useMemo(() => seriesDashes(poolsOwn, drawnSet), [poolsOwn, drawnSet])
+  const pools = useMemo(() => {
+    if (forced) return poolsOwn
+    const colours = seriesColours(poolsOwn, drawnSet)
+    return poolsOwn.map((p) => ({ ...p, color: colours.get(p.id) ?? p.color }))
+  }, [poolsOwn, drawnSet, forced])
   const shownPools = useMemo(() => pools.filter((p) => drawnSet.has(p.id)).map((p) => ({ ...p, dash: dashes.get(p.id) })), [pools, drawnSet, dashes])
   const shownRegisters = useMemo(() => registers.filter((r) => drawnSet.has(r.id)), [registers, drawnSet])
   // one `registersOfSnapshot` per UNIQUE historical snapshot (§M3.5). The live

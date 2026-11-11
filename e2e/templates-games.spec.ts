@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
-import { fileSubmenu, openFileMenu, openFileSubmenu, pickTemplate } from './support/workbenchMenus'
+import { fileSubmenu, openFileMenu, openFileSubmenu, pickLocale, pickTemplate } from './support/workbenchMenus'
 
 type Bridge = { __loop: Record<string, any> }
 const GAMES = ['mmo-progression', 'gacha-general', 'gacha-standard', 'gacha-pickup', 'gacha-banner-zones']
@@ -36,6 +36,36 @@ test.describe('#545 — the game examples as a group', () => {
     await expect.poll(() => shownIds(page)).toEqual(TOP)
     await expect(sub.locator('[data-template-group="games"]')).toBeFocused()
   })
+
+  // #545 follow-up (Hanrim / Lumi, 2026-11-11): the "›" of Games and the "‹" of the way back
+  // dropped under their names, as the rows stacked their marks like a description
+  for (const locale of ['en', 'ko'] as const) {
+    test(`${locale}: "Games ›" and "‹ Templates" keep the mark on the name's line`, async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height: 800 })
+      await openApp(page)
+      if (locale !== 'en') await pickLocale(page, locale)
+      const sub = await openFileSubmenu(page, 'templates')
+      const place = (row: string) =>
+        sub.locator(row).evaluate((el) => {
+          const n = el.querySelector('.menu__name')!.getBoundingClientRect()
+          const c = el.querySelector('.dmenu__chev')!.getBoundingClientRect()
+          const r = el.getBoundingClientRect()
+          return { oneLine: c.top < n.bottom - 1 && c.bottom > n.top + 1, after: c.left >= n.right, before: c.right <= n.left, atEnd: r.right - c.right, h: Math.round(r.height) }
+        })
+      // the height to match is File's own "Templates ›" row: a name and its mark on one line
+      // (a plain row without a mark is lower, as the mark's glyph is the larger)
+      const plainH = await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').evaluate((el) => Math.round(el.getBoundingClientRect().height))
+      const games = await place('[data-template-group="games"]')
+      expect(games, 'Games: "›" on the name’s line, after it, at the row’s end').toMatchObject({ oneLine: true, after: true })
+      expect(games.atEnd).toBeLessThan(24)
+      expect(games.h).toBeLessThanOrEqual(plainH)
+      await sub.locator('[data-template-group="games"]').click()
+      await expect(sub.locator('[data-template-back]')).toBeVisible()
+      const back = await place('[data-template-back]')
+      expect(back, 'the way back: "‹" on the name’s line, before it').toMatchObject({ oneLine: true, before: true })
+      expect(back.h).toBeLessThanOrEqual(plainH)
+    })
+  }
 
   test('the keyboard: Arrow Right or Enter into Games, Escape or Arrow Left back to the Templates, and Escape again closes the submenu', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })

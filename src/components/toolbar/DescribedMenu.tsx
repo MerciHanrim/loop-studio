@@ -107,7 +107,8 @@ export function DescribedRow({
   return (
     <button
       type="button"
-      className="menu__item"
+      // a row with a mark ("›" into a group, "‹" back) keeps the mark on the name's line
+      className={lead || trail ? 'menu__item dmenu__marked' : 'menu__item'}
       role="menuitem"
       {...rowProps}
       {...attrs}
