@@ -7,6 +7,8 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **Tanks of one colour read apart in the Timeline, and Games keeps its arrow on its line.** When several Pools drawn in the Timeline share a flow colour, as the desalination example's four water tanks do, each after the first now takes a chart colour of its own, the same in the chart, its legend and the step reading; each keeps its line pattern, and the tanks keep their colour on the canvas. In File ▸ Templates, the "›" of Games and the "‹" of the row back to the Templates now stand on the same line as their names; in v0.32.0 each fell to a line of its own.
+
 ## v0.32.0 — 2026-11-11
 
 Timetables, run rules and resource kinds with their own units, shown in a new seawater desalination process example; a Timeline that keeps one height, shows its strips in a tab of their own and gives each line pattern one meaning; an observation view for watching a run; node icons; the game examples grouped under Templates ▸ Games; and a run engine that no longer loses resources between Gates and Converters.
