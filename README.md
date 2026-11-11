@@ -252,6 +252,11 @@ Storage and privacy area), the v0.15 releases and every earlier one.
 
 Created by Hanrim · [Cozy Shelter](https://cozyshelter.tistory.com/).
 
+Loop Studio is directed by Hanrim, who defines the product direction and
+concept and tests the application. Lumi (OpenAI Codex) works on design and
+review; Daisy (Claude) writes the documentation and code. Lumi and Daisy also
+help with testing when needed.
+
 Loop Studio is an independent project and is not affiliated with or
 endorsed by Machinations.io. Its modeling approach is informed by
 publicly documented academic work on game-economy diagrams.
