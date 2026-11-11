@@ -367,6 +367,18 @@
   justify-content: space-between;
   gap: 12px;
 }
+/* #545 follow-up — a described row with a mark: Templates' "Games ›" and its "‹ Templates" way
+   back. The mark stands on the name's line, as on a submenu's row; the name takes the room
+   between, so "›" sits at the row's end and "‹" just before the name */
+.menu__item.dmenu__marked {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.menu__item.dmenu__marked > .menu__name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 /* the row whose submenu is open stays marked while the pointer is in it */
 .menu__item.dmenu__parent[aria-expanded='true'] {
   background: var(--bg-hover);
