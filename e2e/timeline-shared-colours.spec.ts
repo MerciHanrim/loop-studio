@@ -75,6 +75,45 @@ test.describe('shared-colour Pools in the Timeline', () => {
     })
   }
 
+  // Lumi (2026-11-11): a colour is chosen among the lines drawn, so hiding or showing a line can
+  // change another's colour — the line, its chip and its reading row must still agree right
+  // after each switch, and the lines in view must still differ
+  test('right after hiding a tank and showing it again, line, legend and reading agree, and the lines in view differ', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await openApp(page)
+    await resetAll(page)
+    await pickTemplate(page, 'desalination')
+    await ensureTimelineOpen(page)
+    await advance(page, 24)
+    const before = await read(page)
+    const target = before[1]
+    const label = await page.evaluate((id: string) => (window as unknown as Bridge).__loop.graph.getState().nodes.find((n: { id: string }) => n.id === id)?.data.label as string, target.id)
+    const toggle = async () => {
+      await page.locator('.timeline__series').click()
+      await page.locator('.tl-series__item', { hasText: label }).locator('.tl-series__check').click()
+      await page.keyboard.press('Escape')
+      await expect(page.locator('.tl-series')).toHaveCount(0)
+    }
+    const agree = async (n: number) => {
+      if (!(await page.locator('.timeline__reading').isVisible())) await pinStep(page)
+      const s = await read(page)
+      expect(s.length).toBe(n)
+      expect(new Set(s.map((x) => x.line.color)).size, 'the lines in view differ').toBe(n)
+      for (const x of s) {
+        expect(x.chip, `${x.id}: the legend chip`).toEqual(x.line)
+        expect(x.reading, `${x.id}: the reading row`).toEqual(x.line)
+      }
+      return s
+    }
+    await toggle()
+    const hidden = await agree(3)
+    expect(hidden.map((x) => x.id)).not.toContain(target.id)
+    await toggle()
+    const shown = await agree(4)
+    // the pattern never moves with a switch
+    expect(shown.find((x) => x.id === target.id)!.line.dash).toBe(target.line.dash)
+  })
+
   test('forced colours: the palette by index as before, the patterns kept', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.emulateMedia({ colorScheme: 'dark', forcedColors: 'active' })

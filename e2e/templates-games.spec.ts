@@ -52,8 +52,9 @@ test.describe('#545 — the game examples as a group', () => {
           const r = el.getBoundingClientRect()
           return { oneLine: c.top < n.bottom - 1 && c.bottom > n.top + 1, after: c.left >= n.right, before: c.right <= n.left, atEnd: r.right - c.right, h: Math.round(r.height) }
         })
-      // an ordinary row of one line is the height to match
-      const plainH = await sub.locator('[data-template="coffee-roastery"]').evaluate((el) => Math.round(el.getBoundingClientRect().height))
+      // the height to match is File's own "Templates ›" row: a name and its mark on one line
+      // (a plain row without a mark is lower, as the mark's glyph is the larger)
+      const plainH = await page.locator('.toolbar__filemenu-pop [data-submenu="templates"]').evaluate((el) => Math.round(el.getBoundingClientRect().height))
       const games = await place('[data-template-group="games"]')
       expect(games, 'Games: "›" on the name’s line, after it, at the row’s end').toMatchObject({ oneLine: true, after: true })
       expect(games.atEnd).toBeLessThan(24)
