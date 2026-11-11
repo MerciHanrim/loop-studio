@@ -159,7 +159,10 @@
 }
 .wb-tb.is-on {
   background: var(--sel-soft);
-  color: var(--sel);
+  /* the word in the selected-name blue, darker than the ring's --sel: 4.05–4.07
+     → 4.84–4.89:1 in light (colour review 2026-11-11, `uisel`); the ring
+     keeps --sel. Forced colours set their own pair further down. */
+  color: var(--sel-name);
   /* #335 / §LGR9 — the pressed tell is the tint AND a 2 px ring in the signal
      colour (>= 3:1 against the unpressed button), the canvas rail's rule; a
      tint alone is too faint to be the state */
@@ -1027,7 +1030,8 @@
 }
 .wb-zb.is-on {
   background: var(--sel-soft);
-  color: var(--sel);
+  /* the word in --sel-name, as `.wb-tb.is-on` above; the ring keeps --sel */
+  color: var(--sel-name);
   /* #335 / §LGR9 — the pressed tell is the tint AND a 2 px ring in the signal
      colour (>= 3:1 against the unpressed button), not the tint alone */
   box-shadow: inset 0 0 0 2px var(--sel);

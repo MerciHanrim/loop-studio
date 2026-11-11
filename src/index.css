@@ -2136,6 +2136,35 @@ a.sheet__row {
   fill: none;
   stroke: var(--sel);
   vector-effect: non-scaling-stroke;
+  /* FC-4.1 low zoom — the canvas zoom is a CSS scale non-scaling strokes do
+     not undo, so the ring would shrink with it (0.4 px wide at the overview).
+     Its band keeps max(2 × zoom, 1.5) px ON SCREEN and its gap max(2.5 × zoom,
+     0.75) px; at zoom 1 these are the NODE_RINGS 2.5 – 4.5. The widths are in
+     node-local px, hence `/ --canvas-zoom` (Canvas.tsx `CanvasZoomVar`). */
+  stroke-width: calc(2 * var(--sel-to));
+}
+.nodef {
+  --sel-gap: max(2.5px, calc(0.75px / var(--canvas-zoom, 1)));
+  --sel-to: calc(var(--sel-gap) + max(2px, calc(1.5px / var(--canvas-zoom, 1))));
+  /* the invalid ring on a selected node (below) */
+  --inv-from: calc(var(--sel-to) + max(2px, calc(0.75px / var(--canvas-zoom, 1))));
+  --inv-to: calc(var(--inv-from) + max(2px, calc(1.5px / var(--canvas-zoom, 1))));
+}
+.nodef__sel-cut {
+  stroke-width: calc(2 * var(--sel-gap));
+}
+/* the invalid ring stays the outermost and never under the selection ring: on
+   a selected node it starts outside the ring's outer edge with the same
+   on-screen floors — a gap of max(2 × zoom, 0.75) px, a band of max(2 × zoom,
+   1.5) px, and its `4 3` dashes at least 3 on / 2.25 off on screen — so at the
+   overview it is still a dashed ring outside the selection, not a 0.4 px hair.
+   At zoom 1: 6.5 – 8.5 px, dashes 4 3, as before. */
+.nodef.is-selected .nodef__inv-cut {
+  stroke-width: calc(2 * var(--inv-from));
+}
+.nodef.is-selected .nodef__invalid {
+  stroke-width: calc(2 * var(--inv-to));
+  stroke-dasharray: max(4px, calc(3px / var(--canvas-zoom, 1))) max(3px, calc(2.25px / var(--canvas-zoom, 1)));
 }
 /* docs/flow-colour-and-compact-nodes.md FC-4.1 — the flow-colour band, just
    inside the neutral structure line (clipped to the silhouette in nodes.tsx).
@@ -2264,6 +2293,60 @@ a.sheet__row {
   .nodef__sel,
   .nodef__focus {
     stroke: Highlight;
+  }
+}
+/* FC-4.1 low zoom — keyboard focus at the two lowest detail levels (L0, L1):
+   the inside dashed ring is under a pixel there, so the focus is four short
+   corner marks OUTSIDE the node instead: arms 3.5 px, 1.5 px thick, on screen.
+   They sit 1 px clear of the amber relation ring (`.rel-center`, 6.5 × zoom px
+   out on screen), at max(3.5, 6.5 × zoom + 1) px, in every state, so they never
+   move when that ring comes or goes; drawn whether or not the node is also
+   selected. From L2 up the dashed ring is the focus again. */
+.nodef.is-focused:is(.lod-L0, .lod-L1) .nodef__focus {
+  display: none;
+}
+.nodef.is-focused:is(.lod-L0, .lod-L1)::before {
+  --fc: var(--focus);
+  --fc-a: calc(3.5px / var(--canvas-zoom, 1));
+  --fc-t: calc(1.5px / var(--canvas-zoom, 1));
+  --fc-off: max(calc(3.5px / var(--canvas-zoom, 1)), calc(6.5px + 1px / var(--canvas-zoom, 1)));
+  --fc-g: linear-gradient(var(--fc), var(--fc));
+  content: '';
+  position: absolute;
+  inset: calc(-1 * var(--fc-off));
+  z-index: 3;
+  pointer-events: none;
+  forced-color-adjust: none;
+  background:
+    var(--fc-g) top left / var(--fc-a) var(--fc-t) no-repeat,
+    var(--fc-g) top left / var(--fc-t) var(--fc-a) no-repeat,
+    var(--fc-g) top right / var(--fc-a) var(--fc-t) no-repeat,
+    var(--fc-g) top right / var(--fc-t) var(--fc-a) no-repeat,
+    var(--fc-g) bottom left / var(--fc-a) var(--fc-t) no-repeat,
+    var(--fc-g) bottom left / var(--fc-t) var(--fc-a) no-repeat,
+    var(--fc-g) bottom right / var(--fc-a) var(--fc-t) no-repeat,
+    var(--fc-g) bottom right / var(--fc-t) var(--fc-a) no-repeat;
+}
+/* the renders fit a background tile to whole node-local px before the zoom (a
+   reading of the colour-review renders, not a documented browser rule): a
+   1.5 px mark could show 0.8 px. Rounding the arm and the thickness UP to whole
+   node-local px keeps them at least 3.5 / 1.5 px on screen */
+/* an invalid node (a Register): its dashed ring would run under the corners
+   (the Register's outline fills its box across), so the corners sit 1 px clear
+   of the invalid ring's outer edge — where that edge is on a SELECTED node, the
+   farther of its two places, so selecting the node never moves them */
+.nodef.is-invalid.is-focused:is(.lod-L0, .lod-L1)::before {
+  --fc-off: max(calc(3.5px / var(--canvas-zoom, 1)), calc(6.5px + 1px / var(--canvas-zoom, 1)), calc(var(--inv-to) + 1px / var(--canvas-zoom, 1)));
+}
+@supports (width: round(up, 1.5px, 1px)) {
+  .nodef.is-focused:is(.lod-L0, .lod-L1)::before {
+    --fc-a: round(up, calc(3.5px / var(--canvas-zoom, 1)), 1px);
+    --fc-t: round(up, calc(1.5px / var(--canvas-zoom, 1)), 1px);
+  }
+}
+@media (forced-colors: active) {
+  .nodef.is-focused:is(.lod-L0, .lod-L1)::before {
+    --fc: Highlight;
   }
 }
 .nodef__flag {
