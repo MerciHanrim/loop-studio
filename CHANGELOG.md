@@ -7,6 +7,7 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **Selection and keyboard focus stay visible when zoomed out.** Below 75 % the selection ring no longer thins with the zoom: it keeps a visible band close to the node's outline, so a selected node still reads at the overview. Below 80 %, where the inside dashed focus ring was under a pixel, keyboard focus is shown as four short corner marks just outside the node, also on a selected node and clear of the hover highlight's ring; from 80 % up the dashed ring is back. On a selected Register with an error, the dashed error ring stays outside the selection ring and readable as dashes. A pressed tool, connect kind or status toggle now writes its word in a darker blue, easier to read on its tint; its ring is unchanged.
 - **Tanks of one colour read apart in the Timeline, and Games keeps its arrow on its line.** When several Pools drawn in the Timeline share a flow colour, as the desalination example's four water tanks do, each after the first now takes a chart colour of its own, the same in the chart, its legend and the step reading; each keeps its line pattern, and the tanks keep their colour on the canvas. In File ▸ Templates, the "›" of Games and the "‹" of the row back to the Templates now stand on the same line as their names; in v0.32.0 each fell to a line of its own.
 
 ## v0.32.0 — 2026-11-11

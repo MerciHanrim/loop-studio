@@ -34,8 +34,10 @@ export const BASE_NODE_H = 56
 const CAP_RUN_H = 64
 
 /** docs/flow-colour-and-compact-nodes.md FC-4.1 — the rings' distance from the
- *  silhouette, in screen px (every stroke is non-scaling, so these hold at any
- *  node size, height and zoom). From the inside out: focus, the flow-colour
+ *  silhouette, in node-local px (every stroke is non-scaling, so these hold at
+ *  any node size and height; screen px at zoom 1 — the canvas zoom is a CSS
+ *  scale they follow, apart from the selection ring's and the focus corners'
+ *  low-zoom floors in `index.css`, FC-4.1 "Low zoom"). From the inside out: focus, the flow-colour
  *  band, the structure line on the silhouette, selection, invalid. Each ring
  *  is cut out of a wider stroke by a mask (`nodes.tsx`), so they never overlap
  *  and nothing is painted in the gaps between them (an edge reaching a port

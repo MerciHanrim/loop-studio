@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { paneSize, useObserve } from './workbench/panelLayout'
-import type { DragEvent } from 'react'
+import type { DragEvent, RefObject } from 'react'
 import {
   Background,
   ControlButton,
@@ -119,6 +119,21 @@ const FIT_VIEW_OPTIONS = { padding: 0.3, maxZoom: 1.2 } as const
 function LodGrid() {
   const showGrid = useStore((s) => s.transform[2] >= 0.8)
   return showGrid ? <Background gap={16} color="var(--grid)" /> : null
+}
+
+/** docs/flow-colour-and-compact-nodes.md FC-4.1 — the canvas zoom as a CSS
+ *  variable (`--canvas-zoom`) on the `.canvas` element. React Flow zooms with a
+ *  CSS scale on the whole viewport, which `vector-effect: non-scaling-stroke`
+ *  does not undo, so a size that must hold ON SCREEN (the selection ring's
+ *  floors, the low-zoom focus corners) is written in node-local px as
+ *  `calc(<screen px> / var(--canvas-zoom))`. Renders nothing; only this
+ *  component re-renders on zoom. */
+function CanvasZoomVar({ target }: { target: RefObject<HTMLDivElement | null> }) {
+  const zoom = useStore((s) => s.transform[2])
+  useLayoutEffect(() => {
+    target.current?.style.setProperty('--canvas-zoom', String(zoom || 1))
+  }, [target, zoom])
+  return null
 }
 
 export function Canvas() {
@@ -1317,6 +1332,7 @@ export function Canvas() {
         />
         <EdgeMarkers />
         <LodGrid />
+        <CanvasZoomVar target={canvasRef} />
         {/* docs/large-graph-readability.md §LGR6 — transient group frames
             (behind the nodes) + their interactive chrome. Render / UI-only. */}
         <FrameLayer />

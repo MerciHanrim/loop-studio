@@ -1049,8 +1049,8 @@ function NodeFrame({
                 <path d={path} />
               </clipPath>
             ) : null}
-            {selected ? <OutsideMask id={`${uid}-sel`} d={path} box={box} from={NODE_RINGS.selection.from} /> : null}
-            {invalid ? <OutsideMask id={`${uid}-inv`} d={path} box={box} from={NODE_RINGS.invalid.from} /> : null}
+            {selected ? <OutsideMask id={`${uid}-sel`} d={path} box={box} from={NODE_RINGS.selection.from} cutClass="nodef__sel-cut" /> : null}
+            {invalid ? <OutsideMask id={`${uid}-inv`} d={path} box={box} from={NODE_RINGS.invalid.from} cutClass="nodef__inv-cut" /> : null}
             {focused ? <InsideMask id={`${uid}-foc`} d={path} box={box} from={NODE_RINGS.focus.from} /> : null}
             {pulseKey != null ? <InsideMask id={`${uid}-pul`} d={path} box={box} from={POOL_PULSE_INSET} /> : null}
           </defs>

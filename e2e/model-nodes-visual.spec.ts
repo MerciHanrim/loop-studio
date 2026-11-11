@@ -126,6 +126,9 @@ test.describe('Parameter / Register — chrome & states (hue-independent)', () =
     await expect(node(page, 'p_rate').locator('.nodef__sel')).toBeVisible()
     await expect(node(page, 'p_rate').locator('.nodef__sel')).toHaveCSS('stroke-dasharray', /none|^$/)
 
+    // the dashed ring is the focus from L2 up; below it, corner marks
+    // (canvas-low-zoom-tells.spec.ts), so this is read at zoom 0.9
+    await centreRegisterRow(page)
     await node(page, 'r_ok').focus()
     const focus = node(page, 'r_ok').locator('.nodef__focus')
     await expect(focus).toBeVisible()
@@ -134,6 +137,9 @@ test.describe('Parameter / Register — chrome & states (hue-independent)', () =
 
   test('STACKING — a Register that is selected + focused + invalid shows all four cues (§VL3)', async ({ page }) => {
     await load(page)
+    // the rings at L2 (zoom 0.9): below it the focus is corner marks
+    // (canvas-low-zoom-tells.spec.ts)
+    await centreRegisterRow(page)
     const bad = node(page, 'r_bad')
     // focus + keyboard-select — a raw click on r_bad could be intercepted by a
     // fixed panel it sat under after fitView (flaky). React Flow's own
@@ -168,7 +174,8 @@ test.describe('Parameter / Register — chrome & states (hue-independent)', () =
         const m = id ? document.getElementById(id) : null
         const cut = m?.querySelector('path')
         return {
-          width: Number(el.getAttribute('stroke-width')),
+          // the drawn width: CSS sets the selection and invalid rings' (FC-4.1 low zoom)
+          width: parseFloat(getComputedStyle(el).strokeWidth),
           // an inside mask is a white silhouette; an outside one a white box
           inside: cut?.getAttribute('fill') === 'white',
         }
@@ -210,6 +217,9 @@ test.describe('Parameter / Register — chrome & states (hue-independent)', () =
     test(`forced colours (${colorScheme}): invalid CanvasText, selection and focus Highlight, tells unchanged`, async ({ page }) => {
       await page.emulateMedia({ colorScheme, forcedColors: 'active' })
       await load(page)
+      // the rings at L2 (zoom 0.9); the low-zoom corners' Highlight is in
+      // canvas-low-zoom-tells.spec.ts
+      await centreRegisterRow(page)
       const canvasText = await systemColour(page, 'CanvasText')
       const highlight = await systemColour(page, 'Highlight')
       expect(canvasText).not.toBe(highlight)
