@@ -49,11 +49,13 @@ semantic token so it can move independently later:
 | id | token | light | dark | reuses | why safe |
 |---|---|---|---|---|---|
 | `neutral` *(default)* | — (existing `--line-strong` border, a grey `--ink-3` fill @ 0.05 — 2026-10-21, colour review A step 3; it was the run colour) | — | — | — | today's frame |
-| `slate` | `--frame-accent-slate` | `#527a91` | `#78a6be` | `--hue-pool` | blue-grey; clear of teal |
-| `sage` | `--frame-accent-sage` | `#66805e` | `#91af85` | `--hue-source` | green |
-| `gold` | `--frame-accent-gold` | `#9a7639` | `#c6a05b` | `--hue-gate` | yellow-brown; heavier + `!`-glyphed `invalid` cue and the orange `--warning` stay distinct at border weight |
-| `violet` | `--frame-accent-violet` | `#78678f` | `#a99bc0` | `--hue-converter` | purple |
-| `rose` | `--frame-accent-rose` | `#9e5a83` | `#c58bab` | **new** | magenta-shifted, clear of `--danger` red |
+| `slate` | `--frame-slate` | `#077eae` | `#3eabdc` | `--hue-pool` | blue-grey; clear of teal |
+| `sage` | `--frame-sage` | `#51883f` | `#80b669` | `--hue-source` | green |
+| `gold` | `--frame-gold` | `#a37309` | `#cd9e44` | `--hue-gate` | yellow-brown; heavier + `!`-glyphed `invalid` cue and the orange `--warning` stay distinct at border weight |
+| `violet` | `--frame-violet` | `#7f5da9` | `#b190e1` | `--hue-converter` | purple |
+| `rose` | `--frame-rose` | `#a45585` | `#d480b0` | **new** | magenta-shifted, clear of `--danger` red |
+
+**Stronger zone edges (colour review, 2026-11-11).** Each accent is the earlier value's own OKLCH lightness and hue at chroma 0.12, in light and in dark; the earlier values were light `#527a91` `#66805e` `#9a7639` `#78678f` `#9e5a83` and dark `#78a6be` `#91af85` `#c6a05b` `#a99bc0` `#c58bab`. One token draws three things, so all three change together: the zone's edge, the label chip's border, and the colour picker's swatch (`.lgr-frame__swatch`). The tokens were always named `--frame-<id>` in `src/index.css`; earlier versions of this table said `--frame-accent-<id>`.
 
 **Deliberately excluded hues:** teal (`--signal-primary` — selection, Activity
 overlay, the effective pulse, the evaluated bracket) and red / orange
@@ -76,7 +78,7 @@ On the frame's own chrome only, one accent value driving three surfaces:
 
 | surface | neutral | accent |
 |---|---|---|
-| **back-rect border** (`.lgr-frame__fill` stroke) | `--line-strong` @ 0.5 | the accent token @ **0.7** |
+| **back-rect border** (`.lgr-frame__fill` stroke) | `--line-strong` @ 0.5 | the accent token @ **1** (0.7 until the 2026-11-11 colour review) |
 | **label chip** (`.lgr-frame__label` text + border) | `--text-secondary` / `--line-hairline` | border: the accent token; text: the chip's own ink (2026-10-21 — as text the accents read 3.3–4.0:1 on the chip in light) |
 | **back-rect fill** | `--ink-3` @ **0.05** (2026-10-21; was `--signal-primary`) | the accent token @ **0.06** |
 
@@ -211,7 +213,7 @@ export type Frame = { id; n; label; rect; color?: FrameColor }   // absent ⇒ n
 **e2e** (`large-graph-readability.spec.ts`, Slice 4a/4b blocks):
 
 - select a manual frame → swatch row visible → pick `slate` → the back-rect
-  stroke, the label's border, and the fill all read `--frame-accent-slate`
+  stroke, the label's border, and the fill all read `--frame-slate`
   (the label's text stays in ink since 2026-10-21);
   `aria-pressed` moves to that swatch;
 - pick `neutral` again → back to the default look;
@@ -271,7 +273,7 @@ export type Frame = { id; n; label; rect; color?: FrameColor }   // absent ⇒ n
   `data-color` on the back `<rect>` and the chrome `<div>`; the swatch row
   (desktop, selected, not a mobile auto frame); the auto-frame colour-commit →
   promote path; the picker Esc / click-away = no-op.
-- `src/index.css` — the five `--frame-accent-*` tokens (light / dark /
+- `src/index.css` — the five `--frame-*` tokens (light / dark /
   `[data-theme]`), `.lgr-frame__fill[data-color=…]` + `.lgr-frame[data-color=…]
   .lgr-frame__label` rules, the selection **outline** on `.lgr-frame.is-selected`
   (replacing the `--signal-primary` recolour), the `.lgr-frame__swatches` row,

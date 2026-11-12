@@ -64,6 +64,8 @@ const withDeemph = (base: string | undefined): string => withClass(base, DEEMPH_
 const REL_CENTER = 'rel-center'
 const REL_NEIGHBOUR = 'rel-neighbour'
 const REL_EDGE = 'rel-edge'
+/** colour review `hsel` — a connection touching a selected node (index.css `.lgr-selpath`) */
+const SELPATH_CLASS = 'lgr-selpath'
 /** how long the mouse rests on a node before its relation shows, ms */
 const RELATION_HOVER_MS = 80
 
@@ -528,15 +530,31 @@ export function Canvas() {
         .map((e) => ({ ...e, sourceHandle: null, targetHandle: null, selectable: false, focusable: false, deletable: false, reconnectable: false })),
     [nodesForReads, edges, hidden],
   )
+  // colour review 2026-11-11 (`hsel`) — the connections that touch a SELECTED
+  // node (React Flow's own `selected`, the flag the selection ring is drawn
+  // from) are drawn 2 px on screen at every zoom (`.lgr-selpath`, index.css), so
+  // a selected node's own paths can be followed at the overview. Only the
+  // drawn connections of the document; the read lines are not tagged. Keyed on
+  // the selected ids, not the node array, so a drag (a new array on every move)
+  // never rebuilds the connections React Flow draws.
+  const selectedKey = useMemo(() => nodes.filter((n) => n.selected).map((n) => n.id).join('\n'), [nodes])
+  const selPath = useMemo(() => {
+    if (!selectedKey) return null
+    const ids = new Set(selectedKey.split('\n'))
+    const set = new Set<string>()
+    for (const e of edges) if (ids.has(e.source) || ids.has(e.target)) set.add(e.id)
+    return set.size ? set : null
+  }, [selectedKey, edges])
   const rfEdges = useMemo(() => {
-    if (!hidden && !focusSet && !relation) return readLines.length > 0 ? [...facedEdges, ...readLines] : facedEdges
+    if (!hidden && !focusSet && !relation && !selPath) return readLines.length > 0 ? [...facedEdges, ...readLines] : facedEdges
     return [...facedEdges.map((e) => {
       if (hidden?.edges.has(e.id)) return { ...e, hidden: true }
-      if (focusSet && !focusSet.edges.has(e.id)) return { ...e, className: withDeemph(e.className) }
-      if (relation?.edges.has(e.id) && !e.selected) return { ...e, className: withClass(e.className, REL_EDGE) }
-      return e
+      const base = selPath?.has(e.id) ? withClass(e.className, SELPATH_CLASS) : e.className
+      if (focusSet && !focusSet.edges.has(e.id)) return { ...e, className: withDeemph(base) }
+      if (relation?.edges.has(e.id) && !e.selected) return { ...e, className: withClass(base, REL_EDGE) }
+      return base === e.className ? e : { ...e, className: base }
     }), ...readLines.map((e) => (focusSet && !(focusSet.nodes.has(e.source) && focusSet.nodes.has(e.target)) ? { ...e, className: withDeemph(e.className) } : e))]
-  }, [facedEdges, hidden, focusSet, relation, readLines])
+  }, [facedEdges, hidden, focusSet, relation, readLines, selPath])
   // pointing to read (17-implementation-rules.md §2 cues): the connection under
   // the pointer, so its whole route and its own label are identified together
   const setHoverEdgeId = useUiStore((s) => s.setHoverEdgeId)

@@ -158,12 +158,15 @@
      beside 1.19:1 (ratio 1.21); dark is 1.41:1 beside 1.18:1 (ratio 1.19) */
   --dim-opacity: 0.3;
 
-  /* — group frames: five accents a user can give a frame — */
-  --frame-slate: #527a91;
-  --frame-sage: #66805e;
-  --frame-gold: #9a7639;
-  --frame-violet: #78678f;
-  --frame-rose: #9e5a83;
+  /* — group frames: five accents a user can give a frame — each the old
+     accent's own OKLCH lightness and hue at chroma 0.12 (colour review
+     2026-11-11: stronger zone edges; was #527a91 #66805e #9a7639 #78678f
+     #9e5a83). Also the label chip's border and the colour picker's swatch. */
+  --frame-slate: #077eae;
+  --frame-sage: #51883f;
+  --frame-gold: #a37309;
+  --frame-violet: #7f5da9;
+  --frame-rose: #a45585;
 
   /* — data — */
   --dist-band-mix: 11%; /* the p10–p90 band's fill */
@@ -654,11 +657,13 @@
     --m-change-hi: #e3d79c;
     --dim-opacity: 0.26; /* 1.41:1 dimmed beside a 1.18:1 grid */
 
-    --frame-slate: #78a6be;
-    --frame-sage: #91af85;
-    --frame-gold: #c6a05b;
-    --frame-violet: #a99bc0;
-    --frame-rose: #c58bab;
+    /* the dark frame accents, made the same way (was #78a6be #91af85 #c6a05b
+       #a99bc0 #c58bab) */
+    --frame-slate: #3eabdc;
+    --frame-sage: #80b669;
+    --frame-gold: #cd9e44;
+    --frame-violet: #b190e1;
+    --frame-rose: #d480b0;
 
     --dist-band-mix: 15%;
 
@@ -748,11 +753,12 @@
   --m-change-hi: #e3d79c;
   --dim-opacity: 0.26; /* 1.41:1 dimmed beside a 1.18:1 grid */
 
-  --frame-slate: #78a6be;
-  --frame-sage: #91af85;
-  --frame-gold: #c6a05b;
-  --frame-violet: #a99bc0;
-  --frame-rose: #c58bab;
+  /* the dark frame accents (see the media block above) */
+  --frame-slate: #3eabdc;
+  --frame-sage: #80b669;
+  --frame-gold: #cd9e44;
+  --frame-violet: #b190e1;
+  --frame-rose: #d480b0;
 
   --dist-band-mix: 15%;
 
@@ -2960,6 +2966,26 @@ a.sheet__row {
     filter: none;
   }
 }
+/* colour review 2026-11-11 (`hsel`) — a connection touching a SELECTED node
+   (`.lgr-selpath`, Canvas.tsx) keeps 2 px ON SCREEN at every zoom and is never
+   drawn thinner than its own width (`--edge-w`, LoopEdge), so a selected node's
+   paths can be followed at the overview; other connections are unchanged. The
+   width is in world px under the canvas scale, hence `/ --canvas-zoom`. In
+   forced colours an unselected STATE line keeps its pinned 1.5 px (the rule
+   further down outranks this one); that case is decided separately. */
+.react-flow__edge.lgr-selpath .react-flow__edge-path {
+  stroke-width: max(var(--edge-w, 1.5px), calc(2px / var(--canvas-zoom, 1))) !important;
+}
+/* a selected node's connection that is also in the hover relation (#444): one
+   step heavier, as the relation draws it, but never under the 2 px on screen */
+.react-flow__edge.lgr-selpath.rel-edge:not(.selected):not(.lgr-deemph) .react-flow__edge-path:not(.edge-hover) {
+  stroke-width: max(2.5px, calc(2px / var(--canvas-zoom, 1))) !important;
+}
+@media (forced-colors: active) {
+  .react-flow__edge.lgr-selpath.rel-edge:not(.selected):not(.lgr-deemph) .react-flow__edge-path:not(.edge-hover) {
+    stroke-width: max(4px, calc(2px / var(--canvas-zoom, 1))) !important;
+  }
+}
 
 /* docs/large-graph-readability.md §LGR2.1 — the Focus toggle. It is a MODE, not
    a momentary action, so its ON state must read at a glance: a signal-coloured
@@ -3255,7 +3281,9 @@ a.sheet__row {
    the 0.15 Activity ceiling). A pure auto frame never carries one. */
 .lgr-frame__fill[data-color] {
   fill-opacity: 0.06;
-  stroke-opacity: 0.7;
+  /* the accent edge at full strength (colour review 2026-11-11; was 0.7), the
+     fill kept at 0.06 */
+  stroke-opacity: 1;
 }
 .lgr-frame__fill[data-color='slate'] {
   fill: var(--frame-slate);

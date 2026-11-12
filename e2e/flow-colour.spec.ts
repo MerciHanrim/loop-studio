@@ -415,7 +415,9 @@ test.describe('flow colour — the pinned colours are the stylesheet’s', () =>
           // the node face has its own token since the workbench palette (2026-10)
           canvas: g('--bg-canvas'), node: g('--bg-node'),
           signal: g('--accent'), focus: g('--focus'), warning: g('--warn'),
-          frames: ['slate', 'sage', 'gold', 'violet', 'rose'].map((c) => g(`--frame-accent-${c}`)),
+          // the stylesheet's frame tokens are `--frame-<id>` (the design doc's
+          // `--frame-accent-<id>` names were never declared, so this read '')
+          frames: ['slate', 'sage', 'gold', 'violet', 'rose'].map((c) => g(`--frame-${c}`)),
         }
       })
       // a token may be declared through another one; resolve to a hex the same way
@@ -423,6 +425,7 @@ test.describe('flow colour — the pinned colours are the stylesheet’s', () =>
       expect(v.signal).toBe(NOTICE_STATE_COLOURS.signal[scheme])
       expect(v.focus).toBe(NOTICE_STATE_COLOURS.focus[scheme])
       expect(v.warning).toBe(NOTICE_STATE_COLOURS.warning[scheme])
+      for (const f of v.frames) expect(f, 'a frame token is declared').toMatch(/^#[0-9a-f]{6}$/)
       for (const p of FLOW_PALETTE) expect(v.frames).not.toContain(p.hex.toLowerCase())
     })
   }

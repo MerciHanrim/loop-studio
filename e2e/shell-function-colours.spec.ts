@@ -80,11 +80,12 @@ const LIGHT: Table = {
   '--m-flow-hi': 'rgb(27, 32, 39)',
   '--m-condition-hi': 'rgb(31, 79, 158)',
   '--m-change-hi': 'rgb(107, 86, 0)',
-  '--frame-slate': 'rgb(82, 122, 145)',
-  '--frame-sage': 'rgb(102, 128, 94)',
-  '--frame-gold': 'rgb(154, 118, 57)',
-  '--frame-violet': 'rgb(120, 103, 143)',
-  '--frame-rose': 'rgb(158, 90, 131)',
+  // the frame accents at chroma 0.12 since the colour review (2026-11-11)
+  '--frame-slate': 'rgb(7, 126, 174)',
+  '--frame-sage': 'rgb(81, 136, 63)',
+  '--frame-gold': 'rgb(163, 115, 9)',
+  '--frame-violet': 'rgb(127, 93, 169)',
+  '--frame-rose': 'rgb(164, 85, 133)',
 }
 
 const DARK: Table = {
@@ -146,11 +147,11 @@ const DARK: Table = {
   '--m-flow-hi': 'rgb(211, 216, 223)',
   '--m-condition-hi': 'rgb(183, 203, 239)',
   '--m-change-hi': 'rgb(227, 215, 156)',
-  '--frame-slate': 'rgb(120, 166, 190)',
-  '--frame-sage': 'rgb(145, 175, 133)',
-  '--frame-gold': 'rgb(198, 160, 91)',
-  '--frame-violet': 'rgb(169, 155, 192)',
-  '--frame-rose': 'rgb(197, 139, 171)',
+  '--frame-slate': 'rgb(62, 171, 220)',
+  '--frame-sage': 'rgb(128, 182, 105)',
+  '--frame-gold': 'rgb(205, 158, 68)',
+  '--frame-violet': 'rgb(177, 144, 225)',
+  '--frame-rose': 'rgb(212, 128, 176)',
 }
 
 /** non-colour tokens, compared as declared text */
