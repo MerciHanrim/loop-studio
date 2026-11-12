@@ -22,6 +22,8 @@ export type LayerZone = { id: string; text: string; rect: FrameRect }
 
 type NodeGeom = { sym: Box; body: Box; name: string }
 type Geometry = { nodes: Map<string, NodeGeom>; pts: Float32Array; edgeCount: number; linesRead: boolean }
+/** one line's sampled points in world coordinates, and what they were sampled from (`d` + the path's own transform) */
+type LineSample = { key: string; pts: Float32Array }
 
 /** world px between two sampled points of a line */
 const LINE_STEP = 3
@@ -65,6 +67,8 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
     const zoneSlots = new Map<string, ZoneSlot>()
     let nodeSlot: NodeSlot | null = null
     let geom: Geometry = { nodes: new Map(), pts: new Float32Array(0), edgeCount: 0, linesRead: false }
+    // each line's sampled world points, with the path and transform they were sampled from
+    let lineCache = new Map<SVGGeometryElement, LineSample>()
     const sizes = new Map<string, { w: number; h: number }>()
     const chips = new Map<string, HTMLDivElement>()
     let raf = 0
@@ -92,18 +96,33 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
       const paths = root.querySelectorAll<SVGGeometryElement>('.react-flow__edge-path')
       let pts = geom.pts
       if (withLines) {
-        const out: number[] = []
+        // a line whose path (`d`) and own transform are what they were keeps its
+        // world points; only a changed or a new line is sampled again (#554)
+        const next = new Map<SVGGeometryElement, LineSample>()
+        let total = 0
         for (const p of paths) {
-          let n = 0
-          try { n = p.getTotalLength() } catch { continue }
-          const m = p.getScreenCTM()
-          if (!m || !n) continue
-          for (let s = 0; s <= n; s += LINE_STEP) {
-            const q = p.getPointAtLength(s)
-            out.push((m.a * q.x + m.c * q.y + m.e - o.left - tx) / z, (m.b * q.x + m.d * q.y + m.f - o.top - ty) / z)
+          const local = p.getCTM()
+          const key = `${p.getAttribute('d') ?? ''}|${local ? `${local.a},${local.b},${local.c},${local.d},${local.e},${local.f}` : ''}`
+          let line = lineCache.get(p)
+          if (!line || line.key !== key) {
+            let n = 0
+            try { n = p.getTotalLength() } catch { continue }
+            const m = p.getScreenCTM()
+            if (!m || !n) continue
+            const out: number[] = []
+            for (let s = 0; s <= n; s += LINE_STEP) {
+              const q = p.getPointAtLength(s)
+              out.push((m.a * q.x + m.c * q.y + m.e - o.left - tx) / z, (m.b * q.x + m.d * q.y + m.f - o.top - ty) / z)
+            }
+            line = { key, pts: Float32Array.from(out) }
           }
+          next.set(p, line)
+          total += line.pts.length
         }
-        pts = Float32Array.from(out)
+        lineCache = next
+        pts = new Float32Array(total)
+        let at = 0
+        for (const line of next.values()) { pts.set(line.pts, at); at += line.pts.length }
       }
       geom = { nodes, pts, edgeCount: paths.length, linesRead: withLines || geom.linesRead }
     }
