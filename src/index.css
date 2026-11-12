@@ -3468,6 +3468,74 @@ a.sheet__row {
     border-color: Highlight;
   }
 }
+/* docs/canvas-text-layer.md — while the canvas text layer draws a zone's name,
+   the zone's own small chip shows nothing (the layer's name stands for it) but
+   keeps its place, its click target and its keyboard focus. After the accent
+   and forced-colours rules above, which it overrides; `forced-color-adjust`
+   keeps a UA colour override from painting the text back. */
+.lgr-frame.is-layer-named .lgr-frame__label,
+.lgr-frame.is-layer-named[data-color] .lgr-frame__label {
+  forced-color-adjust: none;
+  color: transparent;
+  background: transparent;
+  border-color: transparent;
+}
+/* the canvas text layer itself: above the nodes and lines (the renderer's
+   z-index, later in the DOM), below the panels (5); never takes the pointer */
+.canvas-text {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  overflow: hidden;
+  pointer-events: none;
+}
+.canvas-text__chip {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 0 6px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-1);
+  background: var(--bg-raise);
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.canvas-text__chip[data-kind='zone'] {
+  font-weight: 600;
+}
+/* keyboard focus on a zone, shown on the name the reader sees (the layer takes
+   no focus itself): on the zone's own chip, a SOLID ring (the chip keeps its own
+   ring too); on the zone itself, a DASHED ring (the zone keeps its own ring,
+   which at the overview lies on the zone's edge and barely shows). A selected
+   zone's dashed outline runs around the zone's box, never around the name. */
+.canvas-text__chip[data-focus='chip'] {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.canvas-text__chip[data-focus='zone'] {
+  outline: 2px dashed var(--focus);
+  outline-offset: 2px;
+}
+.canvas-text__chip[data-kind='node'] {
+  max-width: 200px;
+  font-weight: 500;
+  white-space: normal;
+  text-align: center;
+}
+@media (forced-colors: active) {
+  .canvas-text__chip {
+    color: CanvasText;
+    background: Canvas;
+    border-color: CanvasText;
+  }
+  .canvas-text__chip[data-focus] {
+    outline-color: Highlight;
+  }
+}
 /* §AF-INV-7 — a mobile auto-frame label is display-only */
 .lgr-frame__label--static {
   pointer-events: none;

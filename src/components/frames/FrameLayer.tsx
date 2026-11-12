@@ -10,6 +10,7 @@ import { FRAME_MIN_SCREEN_PX, frameIsCreatable, normaliseRect } from './frameGeo
 import { applyMoveDelta, captureMoveOrigin, moveTargets, type MoveOrigin, type Pt } from './frameMoveGesture'
 import { createKeyGesture } from '../../ui/keyGestureLifetime'
 import { FramePropsPopover } from './FramePropsPopover'
+import { CanvasTextLayer } from '../canvasText/CanvasTextLayer'
 import { isolateAuto } from '../../i18n/bidiIsolate'
 import { Icon } from '../../ui/icons'
 import { GRID, snapPoint } from '../../model/layout/grid'
@@ -816,6 +817,8 @@ export function FrameLayer() {
               key={rf.id}
               className={`lgr-frame${rf.auto ? ' lgr-frame--auto' : ''}${sel ? ' is-selected' : ''}`}
               data-color={rf.color ?? undefined}
+              // the canvas text layer marks the frame whose name it draws (CanvasTextLayer)
+              data-frame-id={rf.id}
               style={{ transform: `translate(${rf.rect.x}px, ${rf.rect.y}px)`, width: rf.rect.w, height: rf.rect.h }}
               // the focus unit. Present on a locked / mobile canvas too — role,
               // name, focus and selection are the read-only minimum; only the
@@ -977,6 +980,17 @@ export function FrameLayer() {
           }}
         />
       ) : null}
+
+      {/* docs/canvas-text-layer.md — at low zoom, each zone's name (the title
+          its chip shows) and the selected node's name, on a layer that takes
+          no clicks */}
+      <CanvasTextLayer
+        zones={ordered.map((rf) => ({
+          id: rf.id,
+          text: rf.label || t(rf.auto ? 'canvas.frame.areaName' : 'canvas.frame.defaultName', { n: rf.ord }),
+          rect: rf.rect,
+        }))}
+      />
     </>
   )
 }

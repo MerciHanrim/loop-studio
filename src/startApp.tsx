@@ -98,6 +98,9 @@ export async function startApp(): Promise<void> {
         // the last provisional map and job, and whether a job is still running
         diagnostics: routeDiagnostics,
         pending: () => routeDiagnostics().pending,
+        // docs/canvas-text-layer.md CTL3 — the route inputs (`busy`), so a test
+        // can hold the routes unsettled and see a name still appear
+        inputs: useRouteInputs,
         resetProvisionalPeak: __resetProvisionalPeak,
         // §ER15.2 — the repeated Value change run-form pass on / off (before / after in one page)
         setRunFormPass: __setRunFormPass,
