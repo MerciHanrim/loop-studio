@@ -38,7 +38,10 @@ Code: `src/components/canvasText/textPlacement.ts` (the placement rules, pure, u
 ## CTL5. Geometry and cost
 
 - The node symbols, the node names and the lines' points are read from the rendered canvas only when they change (a node moved or resized, a route settled, a language switch), converted to world coordinates and kept. A pan or a zoom only transforms them.
-- During a node drag the lines are not read again; they are read once the drag ends.
+- Reading the lines is the costly step: every line is sampled every 3 world px. On the MMO (144 lines, about 52,000 points) one read took about 0.9 s on the development machine (#554). So what each change asks for is decided per change (`geometryNeed.ts`):
+  - **the lines too:** a node or a line added or removed; a line's path (`d`) changed; the routes settling; a drag ending;
+  - **the nodes only:** a node moved or resized (its box style, or its position or measured size in the graph); anything inside a node rewritten (its name, its value, its symbol);
+  - **a draw only:** a line's colour, width or activity tint (`style` on its path), the same `d` written again, an edge label, a selection, a pan or a zoom.- During a node drag the lines are not read again; they are read once the drag ends.
 - Nothing is read while nothing goes on the layer (zoom above both thresholds).
 
 ## CTL6. Accepted costs (from the review)

@@ -5,15 +5,17 @@
 // come from `textPlacement.ts`; they are kept between draws.
 //
 // Geometry is read from the rendered canvas only when it changes (a node or a
-// line moved, a route settled, a node appeared), converted to WORLD
-// coordinates and kept; a pan or a zoom only transforms it. During a node
-// drag the lines are not re-read (no label is chosen against lines then).
+// line moved, a route settled, a node appeared — `geometryNeed.ts`), converted
+// to WORLD coordinates and kept; a pan or a zoom only transforms it. A line's
+// colour or activity tint is not a change. During a node drag the lines are
+// not re-read (no label is chosen against lines then).
 
 import { useEffect, useRef } from 'react'
 import { useStoreApi } from '@xyflow/react'
 import { useGraphStore } from '../../store/graphStore'
 import { routeDiagnostics, useRouteInputs } from '../../store/routeMap'
 import type { FrameRect } from '../../store/frameStore'
+import { DRAW, LINES, NODES, needOf, nodesMoved, type Need } from './geometryNeed'
 import { nodeDirs, nodeOnLayer, placeNode, placeZone, TEXT_SHOW_PX, ZONE_TEXT_PX, zoneOnLayer, type Box, type NodeSlot, type Obstacles, type ZoneSlot } from './textPlacement'
 
 export type LayerZone = { id: string; text: string; rect: FrameRect }
@@ -49,11 +51,11 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
   const store = useStoreApi()
   const layerRef = useRef<HTMLDivElement>(null)
   const zonesRef = useRef(zones)
-  const scheduleRef = useRef<(geom: boolean) => void>(() => {})
+  const scheduleRef = useRef<(need: Need) => void>(() => {})
 
   useEffect(() => {
     zonesRef.current = zones
-    scheduleRef.current(false)
+    scheduleRef.current(DRAW)
   }, [zones])
 
   useEffect(() => {
@@ -66,7 +68,8 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
     const sizes = new Map<string, { w: number; h: number }>()
     const chips = new Map<string, HTMLDivElement>()
     let raf = 0
-    let wantGeom = true
+    // what the next frame reads before it draws (the highest asked for since the last read)
+    let want: Need = LINES
     let wasDragging = false
     // since when a name has been held back as provisional (null: none is), and the timer that ends the wait
     let heldSince: number | null = null
@@ -256,7 +259,7 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
       else {
         heldSince ??= now
         // (a draw only: re-reading the lines first would delay the name past the wait)
-        if (!settleTimer) settleTimer = window.setTimeout(() => { settleTimer = 0; schedule(false) }, Math.max(0, SETTLE_WAIT_MS - SHOW_SLACK_MS - (now - heldSince)))
+        if (!settleTimer) settleTimer = window.setTimeout(() => { settleTimer = 0; schedule(DRAW) }, Math.max(0, SETTLE_WAIT_MS - SHOW_SLACK_MS - (now - heldSince)))
       }
     }
 
@@ -269,44 +272,55 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
       // a held-back name whose wait is over is shown first, on the geometry
       // already read, before any slower re-read
       if (heldSince !== null && performance.now() - heldSince >= SETTLE_WAIT_MS - SHOW_SLACK_MS) draw()
-      if (active && (wantGeom || (wasDragging && !drag))) {
+      const dragEnded = wasDragging && !drag
+      if (active && (want !== DRAW || dragEnded)) {
         // lines are read again once a drag ends; while dragging only the nodes
-        readGeometry(!drag)
-        wantGeom = false
+        readGeometry(!drag && (want === LINES || dragEnded))
+        want = DRAW
       }
       wasDragging = drag
       draw()
     }
-    const schedule = (g: boolean) => {
-      if (g) wantGeom = true
+    const schedule = (need: Need) => {
+      if (need > want) want = need
       if (!raf) raf = requestAnimationFrame(frame)
     }
     scheduleRef.current = schedule
 
     // the viewport, the pane's size: transform only
     const unStore = store.subscribe((s, prev) => {
-      if (s.transform !== prev.transform || s.width !== prev.width || s.height !== prev.height) schedule(false)
+      if (s.transform !== prev.transform || s.width !== prev.width || s.height !== prev.height) schedule(DRAW)
     })
-    // a selection or a drag
-    const unGraph = useGraphStore.subscribe((s, prev) => { if (s.nodes !== prev.nodes) schedule(true) })
+    // a node moved, resized, added or removed: the nodes again (their lines
+    // follow as `d` changes, below); a selection or a drag's start and end: a draw
+    const unGraph = useGraphStore.subscribe((s, prev) => { if (s.nodes !== prev.nodes) schedule(nodesMoved(s.nodes, prev.nodes) ? NODES : DRAW) })
     // the routes settling (a provisional place becomes a kept one)
-    const unRoutes = useRouteInputs.subscribe(() => schedule(true))
+    const unRoutes = useRouteInputs.subscribe(() => schedule(LINES))
     // a zone chip taking or losing keyboard focus (its name on the layer shows it)
-    const onFocus = () => schedule(false)
+    const onFocus = () => schedule(DRAW)
     root.addEventListener('focusin', onFocus)
     root.addEventListener('focusout', onFocus)
     // a node or a line drawn somewhere else (a route settling, a node resized,
     // a language switch): watched inside the viewport only — never this layer's
-    // own writes — and not the viewport's own transform (a pan or a zoom)
+    // own writes — and not the viewport's own transform (a pan or a zoom).
+    // Only what can move the read geometry counts (`needOf`): a line's colour or
+    // activity tint asks for a draw only, a node's content rewritten for the
+    // nodes only, a line's new path for the lines.
     const viewport = root.querySelector('.react-flow__viewport')
     const mo = new MutationObserver((records) => {
-      if (records.some((r) => r.target !== viewport)) schedule(true)
+      let need: Need = DRAW
+      for (const r of records) {
+        if (r.target === viewport) continue
+        need = Math.max(need, needOf(r)) as Need
+        if (need === LINES) break
+      }
+      if (need !== DRAW) schedule(need)
     })
-    if (viewport) mo.observe(viewport, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['d', 'style'] })
+    if (viewport) mo.observe(viewport, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['d', 'style'], attributeOldValue: true })
     // the fonts arrive late: measure again
-    const onFonts = () => { sizes.clear(); schedule(false) }
+    const onFonts = () => { sizes.clear(); schedule(DRAW) }
     document.fonts?.addEventListener?.('loadingdone', onFonts)
-    schedule(true)
+    schedule(LINES)
     return () => {
       if (raf) cancelAnimationFrame(raf)
       if (settleTimer) clearTimeout(settleTimer)
