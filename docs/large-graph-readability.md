@@ -273,6 +273,21 @@ a failure mode. What is *not* changed here: the 1-hop depth, the single anchor,
 the treatment of non-selected nodes, and the selection outline itself — no new
 selection decoration was added.
 
+**A selected node's own connections keep 2 px on screen (colour review,
+2026-11-11, `hsel`).** Every connection that touches a selected node (React
+Flow's `selected`, the flag the selection ring is drawn from; several selected
+nodes add up) carries `.lgr-selpath` and is drawn at max(its own width, 2 px on
+screen) at every zoom, so the selected node's paths can be followed at the
+overview, where a 1.5 px line is a quarter of a pixel. Nothing else changes:
+other connections keep their width with or without a selection, the class
+leaves with the selection, and Focus mode composes with it (the selected node's
+connections are in the focus set, so they stay at full strength while the rest
+dims). With the hover relation (#444) on the same connections they are one step
+heavier, as the relation draws them, but never under the 2 px. The read lines
+are not tagged. Under forced colours an unselected **state** line keeps its
+pinned 1.5 px (§LGR9); a selected node's state lines in forced colours are
+decided separately. `e2e/selected-path-zone-edges.spec.ts` holds these.
+
 ### LGR3.2 Transient filters
 
 A filter panel (toolbar / More sheet) toggles visibility by:

@@ -503,6 +503,10 @@ function LoopEdge({
   const stPt = stTravels ? pointOnPath(path, stReverse ? 1 - stFrac : stFrac) : null
   const stTargetPt = !rm && stv?.kind === 'activator' && stPhase === 'arrive' ? pointOnPath(path, 1) : null
 
+  // the path's own width (world px): selected 2, a satisfied activator 1.8, a
+  // state line 1, a flow 1.5
+  const pathWidth = selected ? 2 : activatorOn === true ? 1.8 : isState ? 1 : 1.5
+
   // start-of-flow dot only when the edge is selected and idle; hidden during a
   // transition so it never doubles up with the token.
   const startDot = selected && !isState && transition == null
@@ -737,7 +741,10 @@ function LoopEdge({
           .join(' ')}
         style={{
           stroke: baseStroke,
-          strokeWidth: selected ? 2 : activatorOn === true ? 1.8 : isState ? 1 : 1.5,
+          strokeWidth: pathWidth,
+          // the same width for CSS: a selected node's path (`.lgr-selpath`) is
+          // never drawn thinner than it
+          ['--edge-w' as string]: `${pathWidth}px`,
           ...(activityOp > 0 ? { ['--lgr-activity' as string]: activityOp } : null),
         }}
       />
