@@ -3278,6 +3278,13 @@ test.describe('LGR frame colour (§FC)', () => {
     await expect(swatch(page, 'violet')).toHaveAttribute('aria-pressed', 'true')
     await expect(neutralSwatch(page)).toHaveAttribute('aria-pressed', 'false')
 
+    // the chip's own look is read at zoom 1: below 8 / 11 the canvas text layer
+    // draws the title and the chip shows nothing (docs/canvas-text-layer.md)
+    await page.evaluate(() => {
+      const rf = (window as unknown as { __loop: { rf: { getViewport: () => { x: number; y: number; zoom: number }; setViewport: (v: unknown, o?: unknown) => void } } }).__loop.rf
+      rf.setViewport({ ...rf.getViewport(), zoom: 1 }, { duration: 0 })
+    })
+    await expect(page.locator('.lgr-frame.is-layer-named')).toHaveCount(0)
     const back = await cssOf(page, '.lgr-frame-back rect.lgr-frame__fill[data-color="violet"]')
     const label = await cssOf(page, '.lgr-frame[data-color="violet"] .lgr-frame__label')
     expect(back?.stroke).toBe(back?.fill)
