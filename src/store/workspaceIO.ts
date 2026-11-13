@@ -63,7 +63,7 @@ export function collectWorkspacePayload(canvas: Viewport): WorkspacePayload {
 /** The full file string for a Workspace Export (graph + optional workspace). */
 export function serializeWorkspaceFile(payload: WorkspacePayload): string {
   const g = useGraphStore.getState()
-  return serialize(g.nodes, g.edges, recommendedRunConfigForExport(), payload, undefined, g.modelVersion, useFrameStore.getState().snapshot(), useDataImportStore.getState().snapshot(), g.kinds, g.time, g.timetables)
+  return serialize(g.nodes, g.edges, recommendedRunConfigForExport(), payload, undefined, g.modelVersion, useFrameStore.getState().snapshot(), useDataImportStore.getState().snapshot(), g.kinds, g.time, g.timetables, g.phases)
 }
 
 // ── §W4 size handling ───────────────────────────────────────────────────
@@ -79,10 +79,10 @@ export function planWorkspaceExport(canvas: Viewport): {
   const g = useGraphStore.getState()
   const cfg = recommendedRunConfigForExport()
   const payload = collectWorkspacePayload(canvas)
-  const fullText = serialize(g.nodes, g.edges, cfg, payload, undefined, g.modelVersion, useFrameStore.getState().snapshot(), useDataImportStore.getState().snapshot(), g.kinds, g.time, g.timetables)
+  const fullText = serialize(g.nodes, g.edges, cfg, payload, undefined, g.modelVersion, useFrameStore.getState().snapshot(), useDataImportStore.getState().snapshot(), g.kinds, g.time, g.timetables, g.phases)
   const full: WorkspaceFileOption = { text: fullText, bytes: utf8ByteLength(fullText), resultOmitted: false }
   if (payload.mc.result === undefined) return { full, lean: null }
-  const leanText = serialize(g.nodes, g.edges, cfg, omitResult(payload), undefined, g.modelVersion, useFrameStore.getState().snapshot(), useDataImportStore.getState().snapshot(), g.kinds, g.time, g.timetables)
+  const leanText = serialize(g.nodes, g.edges, cfg, omitResult(payload), undefined, g.modelVersion, useFrameStore.getState().snapshot(), useDataImportStore.getState().snapshot(), g.kinds, g.time, g.timetables, g.phases)
   return { full, lean: { text: leanText, bytes: utf8ByteLength(leanText), resultOmitted: true } }
 }
 
@@ -152,6 +152,7 @@ export async function importFile(
       kinds: parsed.kinds, // loop-model/3 — the file's table (`[]` before /graph/3)
       time: parsed.time, // loop-model/4 — the file's step length (absent before /graph/4)
       timetables: parsed.timetables, // loop-model/5 — the file's timetables (`[]` before /graph/5)
+      phases: parsed.phases, // docs/run-phases.md — the file's phases
     },
   ) // the ONE bump
   useMcStore.getState().applyRecommended(parsed.recommendedRunConfig)

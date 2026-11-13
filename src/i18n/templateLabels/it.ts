@@ -458,3 +458,17 @@ export const itTables: TemplateLabelMap = {
     'discharge:source': 'Ipotesi di esempio, non dati misurati',
   },
 }
+
+// a Template phase's name (docs/run-phases.md), `templateId -> (phaseId -> name)`. Flat, so
+// the source-text checks read it as they read the tables.
+export const itPhases: TemplateLabelMap = {
+  'coffee-roasting-batch': {
+    roast_charge: 'Carico',
+    roast_drying: 'Essiccazione',
+    roast_browning: 'Imbrunimento',
+    roast_development: 'Sviluppo',
+    roast_drop: 'Scarico',
+    roast_cooling: 'Raffreddamento',
+    roast_discharge: 'Consegna',
+  },
+}

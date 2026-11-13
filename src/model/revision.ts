@@ -22,6 +22,7 @@ import type { FlowNodeKind, LoopEdge, LoopNode } from './types'
 import { hasKindsTable, hasModelLayer, hasTableMeaning, hasTimetables, hasUnits, isModelSemanticsLabel, modelSemanticsLabel, type ModelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
 import { canonicalKinds, readKindsAt, type ResourceKindDecl } from './kinds'
 import { canonicalTimetable, readTimetables, type Timetable } from './timetable'
+import { canonicalPhase, type DocPhase } from './phases'
 import { canonicalDocTime, readDocTime, type DocTime } from './units'
 import { sha256Hex, sha256Js, utf8ByteLength, utf8Bytes } from './workspace'
 
@@ -2276,6 +2277,10 @@ export type GraphDocInput = {
   time?: DocTime
   /** loop-model/5 (§M5-7) — the doc's timetables. Absent / empty ⇒ no key. */
   timetables?: readonly Timetable[]
+  /** docs/run-phases.md — the doc's phases. Written to the file so a revision
+   *  opened as a document keeps them, but NOT revision content: no digest, no
+   *  diff and no hunk covers them, and an Apply keeps the target's. */
+  phases?: readonly DocPhase[]
   workspace?: unknown
 }
 
@@ -2498,6 +2503,8 @@ function buildFile(
   if (time !== undefined) file.time = time
   // §M5-1 — `timetables` after `time`, only when non-empty.
   if (Array.isArray(doc.timetables) && doc.timetables.length > 0) file.timetables = doc.timetables.map(canonicalTimetable)
+  // docs/run-phases.md — `phases` after `timetables`, only when non-empty; outside the digest
+  if (Array.isArray(doc.phases) && doc.phases.length > 0) file.phases = doc.phases.map(canonicalPhase)
   if (doc.workspace && typeof doc.workspace === 'object') file.workspace = doc.workspace
   file.project = project
   return file

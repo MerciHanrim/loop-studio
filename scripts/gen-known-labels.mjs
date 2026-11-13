@@ -166,6 +166,32 @@ function localizedTables(tplId, locale) {
   return out
 }
 
+// canonical `phaseId -> name` from examples/<id>.json (docs/run-phases.md)
+function canonicalPhases(tplId) {
+  try {
+    const doc = JSON.parse(read(`examples/${tplId}.json`))
+    return new Map((doc.phases ?? []).map((p) => [p.id, p.label]))
+  } catch {
+    return new Map()
+  }
+}
+
+// the same, localized, from the one `<name>Phases` export of a dict source
+function localizedPhases(tplId, locale) {
+  const src = read(`src/i18n/templateLabels/${locale}.ts`)
+  const hit = /^export const [A-Za-z_$][\w$]*Phases\b/m.exec(src)
+  const out = new Map()
+  if (!hit) return out
+  const rest = src.slice(hit.index)
+  const nextExport = rest.slice(1).search(/\nexport const /)
+  const slice = nextExport < 0 ? rest : rest.slice(0, nextExport + 1)
+  const block = new RegExp(`'${tplId}'\\s*:\\s*\\{([\\s\\S]*?)\\n\\s*\\}`).exec(slice)
+  for (const m of (block?.[1] ?? '').matchAll(/^\s*([A-Za-z_$][\w$]*|'[^']+')\s*:\s*'([^']*)'/gm)) {
+    out.set(m[1].replace(/'/g, ''), m[2])
+  }
+  return out
+}
+
 // ── build the index ──
 const known = new Map() // id -> Set<string>
 const targetByLocale = new Map() // locale -> Map<id, label>
@@ -271,6 +297,27 @@ const tableEntries = [...knownTables.keys()]
   .map((key) => `  ${JSON.stringify(key)}: [${[...knownTables.get(key)].sort().map((s) => JSON.stringify(s)).join(', ')}],`)
   .join('\n')
 
+// ── a phase's name — every official string per phase id ──
+const knownPhases = new Map()
+for (const tplId of TEMPLATE_IDS) {
+  const canon = canonicalPhases(tplId)
+  const add = (key, text) => {
+    if (text == null || text === '') return
+    if (!knownPhases.has(key)) knownPhases.set(key, new Set())
+    knownPhases.get(key).add(text)
+  }
+  for (const [key, text] of canon) add(key, text)
+  for (const locale of NON_BASE) {
+    if (!DICT_LOCALES.includes(locale)) continue
+    const loc = localizedPhases(tplId, locale)
+    for (const key of canon.keys()) add(key, loc.get(key))
+  }
+}
+const phaseEntries = [...knownPhases.keys()]
+  .sort()
+  .map((key) => `  ${JSON.stringify(key)}: [${[...knownPhases.get(key)].sort().map((s) => JSON.stringify(s)).join(', ')}],`)
+  .join('\n')
+
 const sortedFrameIds = [...knownFrames.keys()].sort()
 const frameEntries = sortedFrameIds
   .map((id) => {
@@ -314,6 +361,11 @@ export const KNOWN_OFFICIAL_FRAME_LABELS: Readonly<Record<string, readonly strin
 /** a table id, or \`<id>:source\` → every official string for it in some shipped locale */
 export const KNOWN_OFFICIAL_TABLE_LABELS: Readonly<Record<string, readonly string[]>> = {${
   tableEntries ? `\n${tableEntries}\n` : ''
+}}
+
+/** docs/run-phases.md — a phase id → every official name for it in some shipped locale */
+export const KNOWN_OFFICIAL_PHASE_LABELS: Readonly<Record<string, readonly string[]>> = {${
+  phaseEntries ? `\n${phaseEntries}\n` : ''
 }}
 
 /** §TLO12 — frame ids shared by two templates whose official title is not

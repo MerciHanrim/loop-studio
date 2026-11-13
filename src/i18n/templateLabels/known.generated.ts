@@ -346,6 +346,17 @@ export const KNOWN_OFFICIAL_TABLE_LABELS: Readonly<Record<string, readonly strin
   "volatiles:source": ["Beispielannahme, keine Messdaten", "Example assumption, not measured data", "Giả định ví dụ, không phải dữ liệu đo", "Hypothèse d’exemple, pas des données mesurées", "Ipotesi di esempio, non dati misurati", "Suposição de exemplo, não dados medidos", "Supuesto de ejemplo, no datos medidos", "Voorbeeldaanname, geen meetgegevens", "Örnek varsayım, ölçülmüş veri değil", "Условный пример, не измеренные данные", "افتراض على سبيل المثال وليس بيانات مقيسة", "สมมติฐานตัวอย่าง ไม่ใช่ข้อมูลจากการวัด", "例としての仮定で、実測データではありません", "示例假设，不是实测数据", "範例假設，不是實測資料", "예시 가정이며 실측 자료가 아닙니다"],
 }
 
+/** docs/run-phases.md — a phase id → every official name for it in some shipped locale */
+export const KNOWN_OFFICIAL_PHASE_LABELS: Readonly<Record<string, readonly string[]>> = {
+  "roast_browning": ["Browning", "Bruinen", "Brunissement", "Bräunung", "Escurecimento", "Esmerleşme", "Hóa nâu", "Imbrunimento", "Pardeamiento", "Потемнение", "الاسمرار", "เปลี่ยนเป็นสีน้ำตาล", "褐变", "褐変", "褐變", "갈변"],
+  "roast_charge": ["Carga", "Carico", "Charge", "Chargement", "Füllen", "Nạp", "Vullen", "Yükleme", "Загрузка", "الشحن", "เติมเมล็ด", "投入", "投料", "투입"],
+  "roast_cooling": ["Arrefecimento", "Cooling", "Enfriamiento", "Koelen", "Kühlung", "Làm nguội", "Raffreddamento", "Refroidissement", "Resfriamento", "Soğutma", "Охлаждение", "التبريد", "ระบายความร้อน", "冷却", "冷卻", "냉각"],
+  "roast_development": ["Desarrollo", "Desenvolvimento", "Development", "Développement", "Entwicklung", "Gelişim", "Ontwikkeling", "Phát triển", "Sviluppo", "Развитие", "التطوّر", "พัฒนา", "发展", "発達", "發展", "발달"],
+  "roast_discharge": ["Afgeven", "Ausgabe", "Consegna", "Discharge", "Entrega", "Lấy ra", "Sortie", "Çıkarma", "Выдача", "الإخراج", "นำออก", "出豆", "取り出し", "냉각 완료"],
+  "roast_drop": ["Boşaltma", "Descarga", "Drop", "Entleeren", "Lossen", "Scarico", "Vidange", "Xả", "Выгрузка", "التفريغ", "ปล่อยเมล็ด", "排出", "排豆", "드롭"],
+  "roast_drying": ["Drogen", "Drying", "Essiccazione", "Kurutma", "Làm khô", "Secado", "Secagem", "Séchage", "Trocknung", "Сушка", "التجفيف", "อบแห้ง", "乾燥", "脫水", "脱水", "건조"],
+}
+
 /** §TLO12 — frame ids shared by two templates whose official title is not
  *  identical across every locale — never switched (the CI drift check fails
  *  first). */

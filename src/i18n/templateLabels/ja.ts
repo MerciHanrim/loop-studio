@@ -427,3 +427,17 @@ export const jaTables: TemplateLabelMap = {
     'discharge:source': '例としての仮定で、実測データではありません',
   },
 }
+
+// a Template phase's name (docs/run-phases.md), `templateId -> (phaseId -> name)`. Flat, so
+// the source-text checks read it as they read the tables.
+export const jaPhases: TemplateLabelMap = {
+  'coffee-roasting-batch': {
+    roast_charge: '投入',
+    roast_drying: '乾燥',
+    roast_browning: '褐変',
+    roast_development: '発達',
+    roast_drop: '排出',
+    roast_cooling: '冷却',
+    roast_discharge: '取り出し',
+  },
+}

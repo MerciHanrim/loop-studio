@@ -431,3 +431,17 @@ export const zhHantTables: TemplateLabelMap = {
     'discharge:source': '範例假設，不是實測資料',
   },
 }
+
+// a Template phase's name (docs/run-phases.md), `templateId -> (phaseId -> name)`. Flat, so
+// the source-text checks read it as they read the tables.
+export const zhHantPhases: TemplateLabelMap = {
+  'coffee-roasting-batch': {
+    roast_charge: '投料',
+    roast_drying: '脫水',
+    roast_browning: '褐變',
+    roast_development: '發展',
+    roast_drop: '排豆',
+    roast_cooling: '冷卻',
+    roast_discharge: '出豆',
+  },
+}

@@ -10,7 +10,7 @@ import {
   type ProposalBase,
   type ThreeWayPlan,
 } from '../model/revision'
-import { deserialize, type DocTime, type ImportSourceTable, type ModelSemanticsVersion, type ResourceKindDecl, type SavedFrame, type Timetable } from '../model/serialize'
+import { deserialize, type DocPhase, type DocTime, type ImportSourceTable, type ModelSemanticsVersion, type ResourceKindDecl, type SavedFrame, type Timetable } from '../model/serialize'
 import type { LoopEdge, LoopNode } from '../model/types'
 import { t } from '../i18n'
 import { useDataImportStore } from './dataImportStore'
@@ -197,9 +197,11 @@ export function proposedGraph(
   time?: DocTime
   /** loop-model/5 — the proposal's timetables (`[]` before `/graph/5`) */
   timetables: Timetable[]
+  /** docs/run-phases.md — the proposal file's phases; used only when it is opened as a document */
+  phases: DocPhase[]
 } {
-  const { nodes, edges, frames, dataImports, kinds, time, timetables } = deserialize(p.proposedText)
-  return { nodes, edges, modelVersion: p.modelVersion, frames, dataImports, kinds, ...(time !== undefined ? { time } : {}), timetables }
+  const { nodes, edges, frames, dataImports, kinds, time, timetables, phases } = deserialize(p.proposedText)
+  return { nodes, edges, modelVersion: p.modelVersion, frames, dataImports, kinds, ...(time !== undefined ? { time } : {}), timetables, phases }
 }
 
 /** §R7A.2 — classify without applying, for the Review UI. */

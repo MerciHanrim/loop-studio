@@ -31,7 +31,7 @@ import {
   type RevisionExportPlan,
 } from '../model/revision'
 import type { LoopEdge, LoopNode } from '../model/types'
-import type { DocTime, ImportSourceTable, ModelSemanticsVersion, ResourceKindDecl, SavedFrame, Timetable } from '../model/serialize'
+import type { DocPhase, DocTime, ImportSourceTable, ModelSemanticsVersion, ResourceKindDecl, SavedFrame, Timetable } from '../model/serialize'
 import { bootProjectHeader, isEditBlocked, setAutosaveProjectHeader, setDocumentBoundarySink, setHistorySidecar, useGraphStore } from './graphStore'
 import { useDataImportStore } from './dataImportStore'
 import { useFrameStore } from './frameStore'
@@ -151,7 +151,7 @@ type ProjectState = {
   openProposalAsDocument: (
     project: ProjectPayload,
     base: ProposalBase,
-    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: ModelSemanticsVersion; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[]; kinds?: readonly ResourceKindDecl[]; time?: DocTime; timetables?: readonly Timetable[] },
+    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: ModelSemanticsVersion; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[]; kinds?: readonly ResourceKindDecl[]; time?: DocTime; timetables?: readonly Timetable[]; phases?: readonly DocPhase[] },
   ) => void
   /** §R7A.2 — classify a proposal against the open revision without applying
    *  (for the Review UI). Same gates as `applyProposal`. */
@@ -447,6 +447,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
             dataImports: useDataImportStore.getState().snapshot(), kinds: useGraphStore.getState().kinds, // loop-model/3 — the table is content too
             time: useGraphStore.getState().time, // loop-model/4 — and the step length
             timetables: useGraphStore.getState().timetables, // loop-model/5 — and the timetables
+            phases: useGraphStore.getState().phases, // docs/run-phases.md — in the file, outside the digest
           },
           modelVersion: g.modelVersion,
           project: { projectId, revisionId: mkId('rev'), parentId: null, lineage: [] },
@@ -468,6 +469,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
             dataImports: useDataImportStore.getState().snapshot(), kinds: useGraphStore.getState().kinds, // loop-model/3 — the table is content too
             time: useGraphStore.getState().time, // loop-model/4 — and the step length
             timetables: useGraphStore.getState().timetables, // loop-model/5 — and the timetables
+            phases: useGraphStore.getState().phases, // docs/run-phases.md — in the file, outside the digest
           },
           modelVersion: g.modelVersion,
           project: { projectId: o.projectId, revisionId: o.revisionId, parentId: o.parentId, lineage: o.lineage },
@@ -554,6 +556,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           dataImports: useDataImportStore.getState().snapshot(), kinds: useGraphStore.getState().kinds, // loop-model/3 — the table is content too
           time: useGraphStore.getState().time, // loop-model/4 — and the step length
           timetables: useGraphStore.getState().timetables, // loop-model/5 — and the timetables
+          phases: useGraphStore.getState().phases, // docs/run-phases.md — in the file, outside the digest
         },
         project: { projectId: o.projectId, revisionId: o.revisionId, lineage: o.lineage },
         dirty: isDirty,
@@ -606,6 +609,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           kinds: proposed.kinds, // loop-model/3 — the proposal's own table
           time: proposed.time, // loop-model/4 — and its step length
           timetables: proposed.timetables, // loop-model/5 — and its timetables
+          phases: proposed.phases, // docs/run-phases.md — and its phases
         },
       )
       const digest = digestOfCanonical(canonicalContent(proposed, { modelVersion: proposed.modelVersion }))

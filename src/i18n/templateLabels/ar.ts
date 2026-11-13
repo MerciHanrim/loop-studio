@@ -443,3 +443,17 @@ export const arTables: TemplateLabelMap = {
     'discharge:source': 'افتراض على سبيل المثال وليس بيانات مقيسة',
   },
 }
+
+// a Template phase's name (docs/run-phases.md), `templateId -> (phaseId -> name)`. Flat, so
+// the source-text checks read it as they read the tables.
+export const arPhases: TemplateLabelMap = {
+  'coffee-roasting-batch': {
+    roast_charge: 'الشحن',
+    roast_drying: 'التجفيف',
+    roast_browning: 'الاسمرار',
+    roast_development: 'التطوّر',
+    roast_drop: 'التفريغ',
+    roast_cooling: 'التبريد',
+    roast_discharge: 'الإخراج',
+  },
+}

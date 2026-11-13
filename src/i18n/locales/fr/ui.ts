@@ -71,6 +71,10 @@ const ui = {
   'playbar.replay': 'Rejouer',
   'playbar.step': 'pas {n}',
   'playbar.stepEnded': 'pas {n} · terminé',
+  'playbar.phase.range': 'pas {from}–{to}',
+  'playbar.phase.full': '{name} ({range})',
+  'playbar.phase.sr': 'Phase {name}, {range}',
+  'playbar.phase.note': 'Une phase nommée par l’auteur du document : un repère, pas un résultat calculé par l’exécution.',
   'playbar.speed': 'Vitesse',
   'playbar.seed': 'Graine',
   'playbar.seed.title':
@@ -127,6 +131,7 @@ const ui = {
   'a11y.playback.endedAtStep': 'Terminé au pas {n}',
   'a11y.playback.resetToZero': 'Réinitialisé au pas 0',
   'a11y.playback.stepN': 'Pas {n}',
+  'a11y.playback.stepNPhase': 'Pas {n}, phase {phase}',
   'a11y.playback.pausedAtStep': 'En pause au pas {n}',
   'timeline.title': 'Chronologie',
   'timeline.tab.stock': 'Réservoirs',

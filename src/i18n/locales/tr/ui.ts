@@ -68,6 +68,10 @@ const ui = {
   'playbar.replay': 'Yeniden oynat',
   'playbar.step': '{n}. adım',
   'playbar.stepEnded': '{n}. adım · bitti',
+  'playbar.phase.range': '{from}–{to}. adımlar',
+  'playbar.phase.full': '{name} ({range})',
+  'playbar.phase.sr': '{name} aşaması, {range}',
+  'playbar.phase.note': 'Belgenin yazarının adlandırdığı bir aşama: bir kılavuzdur, çalışmanın hesapladığı bir sonuç değildir.',
   'playbar.speed': 'Hız',
   'playbar.seed': 'Tohum',
   'playbar.seed.title':
@@ -124,6 +128,7 @@ const ui = {
   'a11y.playback.endedAtStep': '{n}. adımda bitti',
   'a11y.playback.resetToZero': '0. adıma sıfırlandı',
   'a11y.playback.stepN': '{n}. adım',
+  'a11y.playback.stepNPhase': '{n}. adım, {phase} aşaması',
   'a11y.playback.pausedAtStep': '{n}. adımda duraklatıldı',
   'timeline.title': 'Zaman çizelgesi',
   'timeline.tab.stock': 'Havuzlar',

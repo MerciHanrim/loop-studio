@@ -456,3 +456,17 @@ export const nlTables: TemplateLabelMap = {
     'discharge:source': 'Voorbeeldaanname, geen meetgegevens',
   },
 }
+
+// a Template phase's name (docs/run-phases.md), `templateId -> (phaseId -> name)`. Flat, so
+// the source-text checks read it as they read the tables.
+export const nlPhases: TemplateLabelMap = {
+  'coffee-roasting-batch': {
+    roast_charge: 'Vullen',
+    roast_drying: 'Drogen',
+    roast_browning: 'Bruinen',
+    roast_development: 'Ontwikkeling',
+    roast_drop: 'Lossen',
+    roast_cooling: 'Koelen',
+    roast_discharge: 'Afgeven',
+  },
+}

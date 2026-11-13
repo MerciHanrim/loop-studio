@@ -439,3 +439,17 @@ export const trTables: TemplateLabelMap = {
     'discharge:source': 'Örnek varsayım, ölçülmüş veri değil',
   },
 }
+
+// a Template phase's name (docs/run-phases.md), `templateId -> (phaseId -> name)`. Flat, so
+// the source-text checks read it as they read the tables.
+export const trPhases: TemplateLabelMap = {
+  'coffee-roasting-batch': {
+    roast_charge: 'Yükleme',
+    roast_drying: 'Kurutma',
+    roast_browning: 'Esmerleşme',
+    roast_development: 'Gelişim',
+    roast_drop: 'Boşaltma',
+    roast_cooling: 'Soğutma',
+    roast_discharge: 'Çıkarma',
+  },
+}

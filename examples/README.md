@@ -826,6 +826,8 @@ It differs from the *Coffee roastery operations flow* (§ 7), which follows a da
 
 Charge, drop and discharge each take a step of their own because the engine moves an amount once per step. They are a modelling step, not roasting or cooling time.
 
+The file names these spans as seven **phases** (Charge, Drying, Browning, Development, Drop, Cooling, Discharge), and during a run the run row shows the one the current step belongs to ([`docs/run-phases.md`](../docs/run-phases.md)). A phase name is the author's guide to where the run is. It is not computed: "Browning" marks steps 6–9 of the tables, not a temperature or a reaction.
+
 The four cooling steps are an **example time display** only. The beans stay in the tray for four steps and no temperature is computed, so the example says nothing about how long cooling takes or how warm the beans are.
 
 ## What it wires

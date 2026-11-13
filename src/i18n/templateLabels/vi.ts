@@ -448,3 +448,17 @@ export const viTables: TemplateLabelMap = {
     'discharge:source': 'Giả định ví dụ, không phải dữ liệu đo',
   },
 }
+
+// a Template phase's name (docs/run-phases.md), `templateId -> (phaseId -> name)`. Flat, so
+// the source-text checks read it as they read the tables.
+export const viPhases: TemplateLabelMap = {
+  'coffee-roasting-batch': {
+    roast_charge: 'Nạp',
+    roast_drying: 'Làm khô',
+    roast_browning: 'Hóa nâu',
+    roast_development: 'Phát triển',
+    roast_drop: 'Xả',
+    roast_cooling: 'Làm nguội',
+    roast_discharge: 'Lấy ra',
+  },
+}

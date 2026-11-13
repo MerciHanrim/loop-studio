@@ -10,6 +10,7 @@ import { Icon } from '../ui/icons'
 import { topOverlay } from '../ui/overlayStack'
 import { DraftNumberInput } from './DraftNumberInput'
 import { checkedRangeOf } from '../model/runGuide'
+import { phaseTexts, shownPhase } from '../ui/runPhase'
 // measured on the children's boxes: a right-to-left row spills on its start
 // side, which `scrollWidth` does not count (ar-XB at 900 px, 2026-10-20)
 import { fitsRow } from './workbench/toolRowFit'
@@ -181,6 +182,71 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   const stripRef = useRef<HTMLDivElement>(null)
   const showSteady = steadyState && running
 
+  // docs/run-phases.md — the phase the document's author named for the current step, in
+  // the same room: the step readout keeps its place and no control moves. A state wording
+  // comes first (the steady state here; the end is on the step readout), and the phase is
+  // then not shown. Where a name has no room it is never cut: EVERY phase of the document
+  // then shows as one small button whose press or focus opens the name and range, so the
+  // form does not change from step to step (Lumi, 2026-11-13). Judged again after every
+  // render and on a window resize, with the row's fit below.
+  const phases = useGraphStore((s) => s.phases)
+  const phase = showSteady ? null : shownPhase(phases, stepIndex, ended, cannotRun)
+  const phaseText = phase ? phaseTexts(phase, t) : null
+  const stateRef = useRef<HTMLSpanElement>(null)
+  const phaseProbeRef = useRef<HTMLSpanElement>(null)
+  const phaseBtnRef = useRef<HTMLButtonElement>(null)
+  const phasePopRef = useRef<HTMLDivElement>(null)
+  const [phaseAsButton, setPhaseAsButton] = useState(false)
+  // the button's popover: pressed open, or shown while the keyboard focus or the pointer is on it
+  const [phasePinned, setPhasePinned] = useState(false)
+  const [phasePeek, setPhasePeek] = useState(false)
+  const phaseOpen = phase != null && phaseAsButton && (phasePinned || phasePeek)
+  const phasePopId = useId()
+  const phaseNoteId = useId()
+  // the popover belongs to the phase it was opened on: another phase, or none, closes it
+  const [phaseOpenedOn, setPhaseOpenedOn] = useState<string | null>(null)
+  if ((phase?.id ?? null) !== phaseOpenedOn) {
+    setPhaseOpenedOn(phase?.id ?? null)
+    if (phasePinned) setPhasePinned(false)
+  }
+  useEffect(() => {
+    if (!phaseOpen) return
+    const onDown = (e: PointerEvent) => {
+      const target = e.target as Node
+      if (phaseBtnRef.current?.contains(target) || phasePopRef.current?.contains(target)) return
+      setPhasePinned(false)
+      setPhasePeek(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      // as the run settings popover below: an overlay above takes its own Escape first
+      if (e.key !== 'Escape' || topOverlay() != null) return
+      e.stopPropagation()
+      setPhasePinned(false)
+      setPhasePeek(false)
+    }
+    window.addEventListener('pointerdown', onDown, true)
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      window.removeEventListener('pointerdown', onDown, true)
+      window.removeEventListener('keydown', onKey, true)
+    }
+  }, [phaseOpen])
+  // the button goes when the phase does (the end, the steady state, a wider room): focus
+  // that was on it is not left on nothing, it moves to Play beside it
+  const primaryBtnRef = useRef<HTMLButtonElement>(null)
+  const phaseBtnFocused = useRef(false)
+  useLayoutEffect(() => {
+    const btn = phaseBtnRef.current
+    if (btn) {
+      phaseBtnFocused.current = document.activeElement === btn
+      return
+    }
+    if (!phaseBtnFocused.current) return
+    phaseBtnFocused.current = false
+    const a = document.activeElement
+    if (!a || a === document.body) primaryBtnRef.current?.focus()
+  })
+
   // Re-check after every render (PlayBar re-renders on step / status / speed /
   // seed / MC changes — frequent enough during a run that a stale verdict
   // self-corrects within a frame) and on window resize. No ResizeObserver — a
@@ -237,6 +303,25 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
       } else if (pop) {
         pop.style.left = ''
         pop.style.right = ''
+      }
+      // docs/run-phases.md — after the fit, which sets the room's width: does every phase
+      // name of the document fit the room? One that does not turns them all into the button
+      const room = stateRef.current
+      const probe = phaseProbeRef.current
+      if (room && probe && room.clientWidth > 0) {
+        const cs = getComputedStyle(probe)
+        const space = probe.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+        let widest = 0
+        for (const el of probe.children) widest = Math.max(widest, el.getBoundingClientRect().width)
+        const asButton = widest > space + 0.5
+        setPhaseAsButton((was) => (was === asButton ? was : asButton))
+      }
+      // the open phase popover stands over its button, pulled in at the row's end
+      const pbtn = phaseBtnRef.current
+      const ppop = phasePopRef.current
+      if (pbtn && ppop && room) {
+        const at = room.offsetLeft + pbtn.offsetLeft
+        ppop.style.left = `${Math.max(12, Math.min(at, strip.clientWidth - ppop.offsetWidth - 12))}px`
       }
     }
     measure()
@@ -319,8 +404,9 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   // the view too)
   const settingsOpenRef = useRef(false)
   useEffect(() => {
-    settingsOpenRef.current = settingsOpen
-  }, [settingsOpen])
+    // either popover of the row: the run settings, or the phase button's
+    settingsOpenRef.current = settingsOpen || phaseOpen
+  }, [settingsOpen, phaseOpen])
   useEffect(() => {
     if (!observing) return
     const onKey = (e: KeyboardEvent) => {
@@ -355,6 +441,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
           <Icon name="run-step" />
         </button>
         <button
+          ref={primaryBtnRef}
           type="button"
           className={`pb-btn pb-btn--transport pb-btn--primary${running ? ' is-running' : ''}`}
           onClick={onPrimary}
@@ -394,12 +481,77 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
 
       {/* the run's state beside its step: its room is kept while hidden; the
           screen reader hears it once, from the status region below */}
-      <span className={`pstrip__steady${showSteady ? ' is-on' : ''}`} aria-hidden="true" title={showSteady ? t('playbar.steady') : undefined}>
-        {/* the row's last fit step shows the short wording, not an ellipsis
-            (the whole text stays on the tooltip and in the status region) */}
-        <span className="pstrip__steady-full">{t('playbar.steady')}</span>
-        <span className="pstrip__steady-short">{t('playbar.steadyShort')}</span>
+      <span ref={stateRef} className="pstrip__state">
+        <span className={`pstrip__steady${showSteady ? ' is-on' : ''}`} aria-hidden="true" title={showSteady ? t('playbar.steady') : undefined}>
+          {/* the row's last fit step shows the short wording, not an ellipsis
+              (the whole text stays on the tooltip and in the status region) */}
+          <span className="pstrip__steady-full">{t('playbar.steady')}</span>
+          <span className="pstrip__steady-short">{t('playbar.steadyShort')}</span>
+        </span>
+        {/* docs/run-phases.md — every phase name of the document, unseen, in the name's own
+            box: the measure above reads from it whether they all fit the room */}
+        {phases.length > 0 && (
+          <span ref={phaseProbeRef} className="pstrip__phase pstrip__phase--probe" aria-hidden="true">
+            {phases.map((p) => (
+              <span key={p.id}>{p.label}</span>
+            ))}
+          </span>
+        )}
+        {phase && phaseText && !phaseAsButton && (
+          // the short name; its range and what a phase is are on the tooltip, and a screen
+          // reader reads the name with its range
+          <span className="pstrip__phase" data-testid="run-phase" data-phase={phase.id} title={`${phaseText.full}\n${t('playbar.phase.note')}`}>
+            <span className="pstrip__phase-name" aria-hidden="true" dir="auto">
+              {phase.label}
+            </span>
+            <span className="sr-only">{phaseText.sr}</span>
+          </span>
+        )}
+        {phase && phaseText && phaseAsButton && (
+          <>
+            <button
+              ref={phaseBtnRef}
+              type="button"
+              className={`pb-btn pstrip__phase-btn${phaseOpen ? ' is-open' : ''}`}
+              data-testid="run-phase"
+              data-phase={phase.id}
+              aria-label={phaseText.sr}
+              aria-describedby={phaseNoteId}
+              aria-expanded={phaseOpen}
+              aria-controls={phaseOpen ? phasePopId : undefined}
+              onClick={() => {
+                // pressed while only peeked at (focus, pointer): it stays; pressed while pinned: it closes
+                setPhasePinned((v) => !v)
+                if (phasePinned) setPhasePeek(false)
+              }}
+              onFocus={(e) => {
+                if (e.currentTarget.matches(':focus-visible')) setPhasePeek(true)
+              }}
+              onBlur={() => {
+                setPhasePeek(false)
+                setPhasePinned(false)
+              }}
+              onPointerEnter={(e) => {
+                if (e.pointerType === 'mouse') setPhasePeek(true)
+              }}
+              onPointerLeave={(e) => {
+                if (e.pointerType === 'mouse' && !e.currentTarget.matches(':focus-visible')) setPhasePeek(false)
+              }}
+            >
+              <Icon name="info" />
+            </button>
+            <span id={phaseNoteId} className="sr-only">
+              {t('playbar.phase.note')}
+            </span>
+          </>
+        )}
       </span>
+      {phaseOpen && phaseText && (
+        <div ref={phasePopRef} id={phasePopId} className="pstrip__phase-pop" role="tooltip" data-testid="run-phase-pop">
+          <span className="pstrip__phase-pop-name">{phaseText.full}</span>
+          <span className="pstrip__phase-pop-note">{t('playbar.phase.note')}</span>
+        </div>
+      )}
 
       <button
         ref={settingsBtnRef}

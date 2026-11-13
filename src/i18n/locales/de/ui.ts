@@ -79,6 +79,10 @@ const ui = {
   'playbar.replay': 'Erneut abspielen',
   'playbar.step': 'Schritt {n}',
   'playbar.stepEnded': 'Schritt {n} · beendet',
+  'playbar.phase.range': 'Schritte {from}–{to}',
+  'playbar.phase.full': '{name} ({range})',
+  'playbar.phase.sr': 'Phase {name}, {range}',
+  'playbar.phase.note': 'Eine im Dokument benannte Phase: ein Hinweis, kein vom Lauf berechnetes Ergebnis.',
   'playbar.speed': 'Tempo',
   'playbar.seed': 'Startwert',
   'playbar.seed.title':
@@ -135,6 +139,7 @@ const ui = {
   'a11y.playback.endedAtStep': 'Bei Schritt {n} beendet',
   'a11y.playback.resetToZero': 'Auf Schritt 0 zurückgesetzt',
   'a11y.playback.stepN': 'Schritt {n}',
+  'a11y.playback.stepNPhase': 'Schritt {n}, Phase {phase}',
   'a11y.playback.pausedAtStep': 'Bei Schritt {n} angehalten',
   'timeline.title': 'Zeitverlauf',
   'timeline.tab.stock': 'Speicher',

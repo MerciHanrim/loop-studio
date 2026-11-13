@@ -25,6 +25,8 @@ export type TemplateOverlay = {
   frames: TemplateLabelMap
   /** `templateId -> (tableId -> label, `tableId:source` -> source)` */
   tables: TemplateLabelMap
+  /** docs/run-phases.md — `templateId -> (phaseId -> name)` */
+  phases: TemplateLabelMap
 }
 
 /** Registered non-base locales that ship a dictionary chunk. English
@@ -40,29 +42,29 @@ export type TemplateOverlay = {
 // that §L2.0 had archived); `check-template-labels` fails when this list and
 // the registry's non-base locales differ in either direction (#424).
 const DICT_LOADERS: Readonly<Record<string, () => Promise<TemplateOverlay>>> = {
-  ko: () => import('./ko').then((m) => ({ nodes: m.ko, frames: m.koFrames ?? {}, tables: m.koTables ?? {} })),
-  ja: () => import('./ja').then((m) => ({ nodes: m.ja, frames: m.jaFrames ?? {}, tables: m.jaTables ?? {} })),
-  de: () => import('./de').then((m) => ({ nodes: m.de, frames: m.deFrames ?? {}, tables: m.deTables ?? {} })),
+  ko: () => import('./ko').then((m) => ({ nodes: m.ko, frames: m.koFrames ?? {}, tables: m.koTables ?? {}, phases: m.koPhases ?? {} })),
+  ja: () => import('./ja').then((m) => ({ nodes: m.ja, frames: m.jaFrames ?? {}, tables: m.jaTables ?? {}, phases: m.jaPhases ?? {} })),
+  de: () => import('./de').then((m) => ({ nodes: m.de, frames: m.deFrames ?? {}, tables: m.deTables ?? {}, phases: m.dePhases ?? {} })),
   'zh-Hans': () =>
-    import('./zh-Hans').then((m) => ({ nodes: m.zhHans, frames: m.zhHansFrames ?? {}, tables: m.zhHansTables ?? {} })),
+    import('./zh-Hans').then((m) => ({ nodes: m.zhHans, frames: m.zhHansFrames ?? {}, tables: m.zhHansTables ?? {}, phases: m.zhHansPhases ?? {} })),
   'zh-Hant': () =>
-    import('./zh-Hant').then((m) => ({ nodes: m.zhHant, frames: m.zhHantFrames ?? {}, tables: m.zhHantTables ?? {} })),
-  fr: () => import('./fr').then((m) => ({ nodes: m.fr, frames: m.frFrames ?? {}, tables: m.frTables ?? {} })),
+    import('./zh-Hant').then((m) => ({ nodes: m.zhHant, frames: m.zhHantFrames ?? {}, tables: m.zhHantTables ?? {}, phases: m.zhHantPhases ?? {} })),
+  fr: () => import('./fr').then((m) => ({ nodes: m.fr, frames: m.frFrames ?? {}, tables: m.frTables ?? {}, phases: m.frPhases ?? {} })),
   'es-419': () =>
-    import('./es-419').then((m) => ({ nodes: m.es419, frames: m.es419Frames ?? {}, tables: m.es419Tables ?? {} })),
+    import('./es-419').then((m) => ({ nodes: m.es419, frames: m.es419Frames ?? {}, tables: m.es419Tables ?? {}, phases: m.es419Phases ?? {} })),
   'pt-BR': () =>
-    import('./pt-BR').then((m) => ({ nodes: m.ptBR, frames: m.ptBRFrames ?? {}, tables: m.ptBRTables ?? {} })),
+    import('./pt-BR').then((m) => ({ nodes: m.ptBR, frames: m.ptBRFrames ?? {}, tables: m.ptBRTables ?? {}, phases: m.ptBRPhases ?? {} })),
   'es-ES': () =>
-    import('./es-ES').then((m) => ({ nodes: m.esES, frames: m.esESFrames ?? {}, tables: m.esESTables ?? {} })),
+    import('./es-ES').then((m) => ({ nodes: m.esES, frames: m.esESFrames ?? {}, tables: m.esESTables ?? {}, phases: m.esESPhases ?? {} })),
   'pt-PT': () =>
-    import('./pt-PT').then((m) => ({ nodes: m.ptPT, frames: m.ptPTFrames ?? {}, tables: m.ptPTTables ?? {} })),
-  ru: () => import('./ru').then((m) => ({ nodes: m.ru, frames: m.ruFrames ?? {}, tables: m.ruTables ?? {} })),
-  tr: () => import('./tr').then((m) => ({ nodes: m.tr, frames: m.trFrames ?? {}, tables: m.trTables ?? {} })),
-  th: () => import('./th').then((m) => ({ nodes: m.th, frames: m.thFrames ?? {}, tables: m.thTables ?? {} })),
-  vi: () => import('./vi').then((m) => ({ nodes: m.vi, frames: m.viFrames ?? {}, tables: m.viTables ?? {} })),
-  it: () => import('./it').then((m) => ({ nodes: m.it, frames: m.itFrames ?? {}, tables: m.itTables ?? {} })),
-  nl: () => import('./nl').then((m) => ({ nodes: m.nl, frames: m.nlFrames ?? {}, tables: m.nlTables ?? {} })),
-  ar: () => import('./ar').then((m) => ({ nodes: m.ar, frames: m.arFrames ?? {}, tables: m.arTables ?? {} })),
+    import('./pt-PT').then((m) => ({ nodes: m.ptPT, frames: m.ptPTFrames ?? {}, tables: m.ptPTTables ?? {}, phases: m.ptPTPhases ?? {} })),
+  ru: () => import('./ru').then((m) => ({ nodes: m.ru, frames: m.ruFrames ?? {}, tables: m.ruTables ?? {}, phases: m.ruPhases ?? {} })),
+  tr: () => import('./tr').then((m) => ({ nodes: m.tr, frames: m.trFrames ?? {}, tables: m.trTables ?? {}, phases: m.trPhases ?? {} })),
+  th: () => import('./th').then((m) => ({ nodes: m.th, frames: m.thFrames ?? {}, tables: m.thTables ?? {}, phases: m.thPhases ?? {} })),
+  vi: () => import('./vi').then((m) => ({ nodes: m.vi, frames: m.viFrames ?? {}, tables: m.viTables ?? {}, phases: m.viPhases ?? {} })),
+  it: () => import('./it').then((m) => ({ nodes: m.it, frames: m.itFrames ?? {}, tables: m.itTables ?? {}, phases: m.itPhases ?? {} })),
+  nl: () => import('./nl').then((m) => ({ nodes: m.nl, frames: m.nlFrames ?? {}, tables: m.nlTables ?? {}, phases: m.nlPhases ?? {} })),
+  ar: () => import('./ar').then((m) => ({ nodes: m.ar, frames: m.arFrames ?? {}, tables: m.arTables ?? {}, phases: m.arPhases ?? {} })),
 }
 
 /** The loaded overlays, filled by `ensureTemplateLabelDict`. */
@@ -113,6 +115,11 @@ export function loadedTemplateFrameLabelDict(loc: string): TemplateLabelMap | un
 /** A resident locale's TIMETABLE map, or `undefined` if not loaded. */
 export function loadedTemplateTableLabelDict(loc: string): TemplateLabelMap | undefined {
   return DICTS[loc]?.tables
+}
+
+/** A resident locale's PHASE-name map, or `undefined` if not loaded. */
+export function loadedTemplatePhaseLabelDict(loc: string): TemplateLabelMap | undefined {
+  return DICTS[loc]?.phases
 }
 
 /** The locales that HAVE a dictionary loader (for checks / diagnostics).

@@ -86,6 +86,10 @@ const ui = {
   'playbar.replay': 'Повторить',
   'playbar.step': 'шаг {n}',
   'playbar.stepEnded': 'шаг {n} · завершено',
+  'playbar.phase.range': 'шаги {from}–{to}',
+  'playbar.phase.full': '{name} ({range})',
+  'playbar.phase.sr': 'Этап «{name}», {range}',
+  'playbar.phase.note': 'Этап, названный автором документа: это подсказка, а не результат расчёта.',
   'playbar.speed': 'Скорость',
   'playbar.seed': 'Зерно',
   'playbar.seed.title':
@@ -144,6 +148,7 @@ const ui = {
   'a11y.playback.endedAtStep': 'Завершено на шаге {n}',
   'a11y.playback.resetToZero': 'Сброшено на шаг 0',
   'a11y.playback.stepN': 'Шаг {n}',
+  'a11y.playback.stepNPhase': 'Шаг {n}, этап «{phase}»',
   'a11y.playback.pausedAtStep': 'Пауза на шаге {n}',
   'timeline.title': 'Шкала времени',
   'timeline.tab.stock': 'Накопители',
