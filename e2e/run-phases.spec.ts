@@ -363,6 +363,152 @@ test.describe('run phases — the playback announcement', () => {
   })
 })
 
+// SEMANTICS-R13.md — phases are revision content. The coffee batch is the open project; a
+// proposal moves the drying / browning boundary from minute 5 to minute 7 in the three
+// release tables, with or without moving its phases (Drying 2–7, Browning 8–9) too.
+type Change = { tables?: boolean; phases?: boolean; rename?: boolean }
+const NOTICE_TIMING = 'The timetables or the step length change, and the phase names stay as they are. After this Apply, the current phase shown may differ from the real process.'
+const NOTICE_PHASES = 'The phase names are taken, but the timetables and the step length stay yours. After this Apply, the current phase shown may differ from the real process.'
+const NOTE_CHOOSE = 'The proposal’s timetables or step length differ from yours. Choosing changes does not take them: only applying the whole proposal does.'
+
+/** commit the open document as a project revision, and build a proposal of it with `change`, its digest honest */
+const makeProposal = (page: Page, change: Change) =>
+  page.evaluate(async (change) => {
+    const M = await import('/src/model/revision.ts')
+    const S = await import('/src/model/serialize.ts')
+    const P = (window as unknown as Bridge).__loop.project.getState()
+    P.commitRevisionExport(P.planRevision({}).plan)
+    const f = JSON.parse((window as unknown as Bridge).__loop.project.getState().planProposal({}).text)
+    if (change.tables) {
+      for (const t of f.timetables) if (['moisture', 'volatiles', 'chaff'].includes(t.id)) t.points = t.points.map((p: [string, string]) => (p[0] === '5' ? ['7', p[1]] : p))
+    }
+    if (change.phases) f.phases = f.phases.map((p: { id: string }) => (p.id === 'roast_drying' ? { ...p, to: 7 } : p.id === 'roast_browning' ? { ...p, from: 8 } : p))
+    if (change.rename) f.phases = f.phases.map((p: { id: string }) => (p.id === 'roast_browning' ? { ...p, label: 'Maillard' } : p))
+    const d = S.deserialize(JSON.stringify(f))
+    f.project.contentDigest = M.digestOfCanonical(
+      M.canonicalContent({ nodes: d.nodes, edges: d.edges, recommendedRunConfig: d.recommendedRunConfig, frames: d.frames, dataImports: d.dataImports, kinds: d.kinds, time: d.time, timetables: d.timetables, phases: d.phases }, { modelVersion: d.modelVersion }),
+    )
+    return JSON.stringify(f)
+  }, change)
+const importFile = (page: Page, text: string) => page.setInputFiles('.toolbar__actions input[type=file]', { name: 'proposal.json', mimeType: 'application/json', buffer: Buffer.from(text, 'utf8') })
+/** the open document: where its release tables change rate, and its two roasting phases */
+const docState = (page: Page) =>
+  page.evaluate(() => {
+    const g = (window as unknown as Bridge).__loop.graph.getState()
+    return {
+      boundary: g.timetables.find((t: { id: string }) => t.id === 'moisture').points[2][0] as string,
+      phases: (g.phases as { id: string; label: string; from: number; to: number }[]).filter((p) => p.id === 'roast_drying' || p.id === 'roast_browning').map((p) => `${p.label} ${p.from}–${p.to}`),
+    }
+  })
+const undo = (page: Page) => page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().undo())
+
+test.describe('run phases — a revision review', () => {
+  test.beforeEach(async ({ page }) => {
+    await openCoffee(page, 'en')
+    await page.evaluate(() => {
+      const L = (window as unknown as Bridge).__loop
+      L.project.getState().clear()
+      L.review.getState().close()
+    })
+  })
+
+  test('a proposal that moved its timetables and its phases: both are named, the Apply takes both, and one Undo takes both back', async ({ page }) => {
+    await importFile(page, await makeProposal(page, { tables: true, phases: true }))
+    const review = page.locator('.review')
+    await expect(review).toBeVisible()
+    // the summary names what differs: before, a change of the timetables alone read "No graph changes"
+    await expect(review.locator('.review__diff [data-diff="timetables"]')).toHaveText('Timetables')
+    await expect(review.locator('.review__diff [data-diff="phases"]')).toHaveText('phases')
+    await expect(review.locator('.review__diff')).not.toContainText('No graph changes')
+    // names and timing come from the same side: nothing to warn of
+    await expect(page.getByTestId('review-phase-notice')).toHaveCount(0)
+
+    await review.locator('.review__actions button', { hasText: 'Apply proposal' }).click()
+    await expect(review).toBeHidden()
+    expect(await docState(page)).toEqual({ boundary: '7', phases: ['Drying 2–7', 'Browning 8–9'] })
+    await advanceTo(page, 6)
+    await expect(phaseEl(page).locator('.pstrip__phase-name')).toHaveText('Drying') // it was Browning before the Apply
+    await advanceTo(page, 8)
+    await expect(phaseEl(page).locator('.pstrip__phase-name')).toHaveText('Browning')
+
+    await undo(page)
+    expect(await docState(page)).toEqual({ boundary: '5', phases: ['Drying 2–5', 'Browning 6–9'] })
+    await advanceTo(page, 6)
+    await expect(phaseEl(page).locator('.pstrip__phase-name')).toHaveText('Browning')
+  })
+
+  test('the proposer moved the timetables and left the phases: the review says what follows, and asks nothing more', async ({ page }) => {
+    await importFile(page, await makeProposal(page, { tables: true }))
+    const review = page.locator('.review')
+    await expect(review).toBeVisible()
+    await expect(review.locator('.review__diff [data-diff="timetables"]')).toHaveText('Timetables')
+    await expect(review.locator('.review__diff [data-diff="phases"]')).toHaveCount(0)
+    const notice = page.getByTestId('review-phase-notice')
+    await expect(notice).toHaveText(NOTICE_TIMING)
+    await expect(notice).toHaveAttribute('data-split', 'timing-only')
+
+    // a notice, not a gate: one press applies, with no confirmation in between
+    await review.locator('.review__actions button', { hasText: 'Apply proposal' }).click()
+    await expect(review).toBeHidden()
+    await expect(page.locator('.mcdlg--confirm')).toHaveCount(0)
+    expect(await docState(page)).toEqual({ boundary: '7', phases: ['Drying 2–5', 'Browning 6–9'] })
+    // what the notice said: step 6 is named Browning on tables that still release at the drying rate
+    await advanceTo(page, 6)
+    await expect(phaseEl(page).locator('.pstrip__phase-name')).toHaveText('Browning')
+  })
+
+  test('choosing changes: the timetables are not taken and it says so; the phases line starts on "keep mine", and taking it warns first', async ({ page }) => {
+    await importFile(page, await makeProposal(page, { tables: true, phases: true }))
+    const review = page.locator('.review')
+    await expect(review).toBeVisible()
+    await review.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+    await expect(page.getByTestId('review-timing-note')).toHaveText(NOTE_CHOOSE)
+    const row = review.locator('.review__hunk', { hasText: 'Run phases' })
+    await expect(row).toHaveCount(1)
+    await expect(row).toContainText('Take the proposal’s phases (yours: 7, the proposal’s: 7)')
+    const box = row.locator('input[type=checkbox]')
+    // clean, but the proposal's timetables differ: kept by default
+    await expect(box).not.toBeChecked()
+    await expect(page.getByTestId('review-phase-notice')).toHaveCount(0)
+
+    await box.check()
+    await expect(page.getByTestId('review-phase-notice')).toHaveText(NOTICE_PHASES)
+    await expect(page.getByTestId('review-phase-notice')).toHaveAttribute('data-split', 'phases-only')
+    await box.uncheck()
+    await expect(page.getByTestId('review-phase-notice')).toHaveCount(0)
+
+    // keeping mine with nothing else chosen changes nothing, and is said to
+    await review.locator('.review__actions button', { hasText: /^Apply \d+ selected/ }).click()
+    await expect(review).toBeVisible()
+    expect(await docState(page)).toEqual({ boundary: '5', phases: ['Drying 2–5', 'Browning 6–9'] })
+
+    // taking the phases: the proposal's names on this document's tables, as warned; one Undo takes them back
+    await box.check()
+    await review.locator('.review__actions button', { hasText: /^Apply 1 selected/ }).click()
+    await expect(review).toBeHidden()
+    expect(await docState(page)).toEqual({ boundary: '5', phases: ['Drying 2–7', 'Browning 8–9'] })
+    await undo(page)
+    expect(await docState(page)).toEqual({ boundary: '5', phases: ['Drying 2–5', 'Browning 6–9'] })
+  })
+
+  test('a proposal that only renames a phase: the line is pre-selected, nothing is warned of, and the row shows the new name', async ({ page }) => {
+    await importFile(page, await makeProposal(page, { rename: true }))
+    const review = page.locator('.review')
+    await expect(review).toBeVisible()
+    await expect(review.locator('.review__diff [data-diff="phases"]')).toHaveText('phases')
+    await expect(review.locator('.review__diff [data-diff="timetables"]')).toHaveCount(0)
+    await review.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+    await expect(page.getByTestId('review-timing-note')).toHaveCount(0)
+    await expect(review.locator('.review__hunk')).toHaveCount(1)
+    await expect(review.locator('.review__hunk input[type=checkbox]')).toBeChecked()
+    await expect(page.getByTestId('review-phase-notice')).toHaveCount(0)
+    await review.locator('.review__actions button', { hasText: /^Apply 1 selected/ }).click()
+    await expect(review).toBeHidden()
+    await advanceTo(page, 8)
+    await expect(phaseEl(page).locator('.pstrip__phase-name')).toHaveText('Maillard')
+  })
+})
+
 // Every shipped language: the Template's own names, and one long name its author might
 // write, on the desktop row and on the narrower phone (360 px).
 const LONG: Record<string, string> = {

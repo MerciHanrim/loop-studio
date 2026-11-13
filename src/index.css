@@ -8410,6 +8410,19 @@ input[type='number']::-webkit-inner-spin-button {
   font-size: 12px;
   line-height: 1.45;
 }
+/* SEMANTICS-R13.md §R13-5 / §R13-6 — the two sentences about phases and timing: read as
+   prose, at the body size, a Korean phrase breaking between its words */
+.review__phase-notice,
+.review__timing-note {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.review__timing-note {
+  margin: 6px 0 0;
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 1.45;
+}
 .review__actions {
   display: flex;
   flex-wrap: wrap;

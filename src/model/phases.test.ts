@@ -124,16 +124,22 @@ describe('a document with phases', () => {
     expect(back.phases).toEqual([P('b', 'B', 4, 6)])
   })
 
-  it('is in neither digest: the engine digest and the revision content are the same with and without', async () => {
+  it('is not in the engine digest, and is revision content (SEMANTICS-R13.md): the revision digest moves with the phases and is the old one without them', async () => {
     const graph = { nodes: [pool], edges: [] }
     expect(await semanticDigest({ ...graph, phases: THREE } as never, 1)).toBe(await semanticDigest(graph, 1))
-    const a = canonicalContent({ ...graph, phases: THREE } as never, { modelVersion: 1 })
+    const a = canonicalContent({ ...graph, phases: THREE }, { modelVersion: 1 })
     const b = canonicalContent(graph, { modelVersion: 1 })
-    expect('phases' in a).toBe(false)
-    expect(digestOfCanonical(a)).toBe(digestOfCanonical(b))
+    expect(a.phases).toEqual(THREE)
+    expect('phases' in b).toBe(false)
+    expect(digestOfCanonical(a)).not.toBe(digestOfCanonical(b))
+    // no surviving phase is no phases: the same bytes as a document that never had the key
+    expect(JSON.stringify(canonicalContent({ ...graph, phases: [] }, { modelVersion: 1 }))).toBe(JSON.stringify(b))
+    expect(JSON.stringify(canonicalContent({ ...graph, phases: [{ id: 'x', label: ' ', from: 1, to: 1 }] }, { modelVersion: 1 }))).toBe(JSON.stringify(b))
+    // and the literal loop-revision/1 projection never carries them
+    expect('phases' in canonicalContent({ ...graph, phases: THREE }, { modelLayer: false })).toBe(false)
   })
 
-  it('rides in a revision file outside its digest, so the file opened as a document keeps the phases', () => {
+  it('rides in a revision file inside its digest: the file reads back with its phases, and its digest is not the digest without them', () => {
     const plan = (phases?: typeof THREE) =>
       planRevisionExport({
         doc: { nodes: [pool], edges: [], ...(phases ? { phases } : {}) },
@@ -151,6 +157,8 @@ describe('a document with phases', () => {
     expect('phases' in JSON.parse(noP.text)).toBe(false)
     const digest = (text: string) => (JSON.parse(text).project as { contentDigest?: string }).contentDigest
     expect(digest(withP.text)).toBeDefined()
-    expect(digest(withP.text)).toBe(digest(noP.text))
+    expect(digest(withP.text)).not.toBe(digest(noP.text))
+    expect(digest(withP.text)).toBe(digestOfCanonical(canonicalContent({ nodes: [pool], edges: [], phases: THREE }, { modelVersion: 1 })))
+    expect(digest(noP.text)).toBe(digestOfCanonical(canonicalContent({ nodes: [pool], edges: [] }, { modelVersion: 1 })))
   })
 })

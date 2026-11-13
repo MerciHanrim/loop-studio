@@ -119,8 +119,8 @@ export type LoadDocOptions = (
    *  none; on a revision Apply it keeps the current ones, as `kinds` does. */
   timetables?: readonly Timetable[]
   /** docs/run-phases.md — the doc's phases (already defensively read). On a
-   *  document boundary absent means none; a revision Apply always keeps the
-   *  current ones (a revision does not carry them). */
+   *  document boundary absent means none; on a revision Apply it keeps the
+   *  current ones, and an array (also `[]`) replaces them (SEMANTICS-R13.md §R13-4). */
   phases?: readonly DocPhase[]
 }
 /** a Template load (or a pasted graph) — always a document boundary */
@@ -164,6 +164,9 @@ type HistoryEntry = {
   time?: DocTime
   /** loop-model/5 — the timetables at that instant */
   timetables?: Timetable[]
+  /** SEMANTICS-R13.md §R13-4 — the phases at that instant: a revision Apply that
+   *  takes the proposal's phases is undone, graph and phases, by one Undo */
+  phases?: DocPhase[]
   /** issue #344 step 3 — the record label rule in force (`recordLabels`) */
   recordLabels?: boolean
   sidecar: unknown
@@ -255,11 +258,12 @@ type GraphStore = {
   timetables: Timetable[]
 
   /** docs/run-phases.md — the phases of a run as the document's author named
-   *  them, or none. Set only where a document begins (a file, a Template, a
-   *  share link, a Workspace, the autosave), where the undo history starts
-   *  again too, so no history entry carries them; a revision Apply and an
-   *  inserted module keep them. Passed to `serialize()` / autosave and shown
-   *  beside the current step; never to `step()`, Monte Carlo or a digest. */
+   *  them, or none. Set where a document begins (a file, a Template, a share
+   *  link, a Workspace, the autosave) and by a revision Apply that takes the
+   *  proposal's (SEMANTICS-R13.md); every undo entry carries them, so that
+   *  Apply is one Undo. An inserted module keeps them. Passed to `serialize()`
+   *  / autosave, into the REVISION digest, and shown beside the current step;
+   *  never to `step()`, Monte Carlo or the engine digest. */
   phases: DocPhase[]
 
   /** issue #344 step 3 (docs/edge-routing.md §ER15.1) — the document came
@@ -950,9 +954,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     if (tag === 'remove') queueMicrotask(() => { if (lastTag === 'remove') lastTag = '' })
     clearPristine() // any edit / load / template — even a coalesced one — ends "pristine"
     if (coalesce) return
-    const { nodes, edges, modelVersion, kinds, time, timetables, recordLabels } = get()
+    const { nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels } = get()
     set({
-      past: [...get().past, { nodes, edges, modelVersion, kinds, time, timetables, recordLabels, sidecar: sidecarNow(framesOverride) }].slice(-HISTORY_MAX),
+      past: [...get().past, { nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels, sidecar: sidecarNow(framesOverride) }].slice(-HISTORY_MAX),
       future: [], // a fresh action discards the redo branch AND its sidecars
       canUndo: true,
       canRedo: false,
@@ -1009,8 +1013,8 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     notifyFrameChange: () => persist(),
 
     captureGestureSnapshot: () => {
-      const { nodes, edges, modelVersion, kinds, time, timetables, recordLabels } = get()
-      const entry: HistoryEntry = { nodes, edges, modelVersion, kinds, time, timetables, recordLabels, sidecar: sidecarNow() }
+      const { nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels } = get()
+      const entry: HistoryEntry = { nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels, sidecar: sidecarNow() }
       return entry as unknown as GestureSnapshot
     },
     pushGestureEntry: (snapshot) => {
@@ -1027,9 +1031,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     beginNodeDrag: () => {
       if (editGuard()) return // #334 — a refused drag opens no transaction
       if (dragTx) return // the node and selection start callbacks of one gesture: the first wins
-      const { nodes, edges, modelVersion, kinds, time, timetables, recordLabels } = get()
+      const { nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels } = get()
       dragTx = {
-        snapshot: { nodes, edges, modelVersion, kinds, time, timetables, recordLabels, sidecar: sidecarNow() },
+        snapshot: { nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels, sidecar: sidecarNow() },
         positions: new Map(nodes.map((n) => [n.id, { x: n.position.x, y: n.position.y }])),
       }
     },
@@ -1094,7 +1098,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     undo: () => {
       if (editGuard()) return // #334 — refused while the edit lock is on
-      const { past, future, nodes, edges, modelVersion, kinds, time, timetables, recordLabels } = get()
+      const { past, future, nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels } = get()
       if (!past.length) return
       const prev = past[past.length - 1]
       lastTag = ''
@@ -1104,9 +1108,10 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         kinds: prev.kinds,
         time: prev.time,
         timetables: prev.timetables ?? [],
+        phases: prev.phases ?? phases,
         recordLabels: prev.recordLabels ?? false,
         past: past.slice(0, -1),
-        future: [{ nodes, edges, modelVersion, kinds, time, timetables, recordLabels, sidecar: sidecarNow(), ...(prev.selection ? { selection: prev.selection } : {}) }, ...future].slice(0, HISTORY_MAX),
+        future: [{ nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels, sidecar: sidecarNow(), ...(prev.selection ? { selection: prev.selection } : {}) }, ...future].slice(0, HISTORY_MAX),
         canUndo: past.length > 1,
         canRedo: true,
       })
@@ -1119,7 +1124,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     redo: () => {
       if (editGuard()) return // #334 — refused while the edit lock is on
-      const { past, future, nodes, edges, modelVersion, kinds, time, timetables, recordLabels } = get()
+      const { past, future, nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels } = get()
       if (!future.length) return
       const next = future[0]
       lastTag = ''
@@ -1129,8 +1134,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         kinds: next.kinds,
         time: next.time,
         timetables: next.timetables ?? [],
+        phases: next.phases ?? phases,
         recordLabels: next.recordLabels ?? false,
-        past: [...past, { nodes, edges, modelVersion, kinds, time, timetables, recordLabels, sidecar: sidecarNow(), ...(next.selection ? { selection: next.selection } : {}) }].slice(-HISTORY_MAX),
+        past: [...past, { nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels, sidecar: sidecarNow(), ...(next.selection ? { selection: next.selection } : {}) }].slice(-HISTORY_MAX),
         future: future.slice(1),
         canUndo: true,
         canRedo: future.length > 1,
@@ -1609,8 +1615,8 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         // loop-model/5 — the timetables, as the kinds table
         timetables: opts.timetables !== undefined ? opts.timetables.map(canonicalTimetable) : opts.mode === 'document-boundary' ? [] : get().timetables,
         // docs/run-phases.md — another document brings its own phases (none ⇒ none);
-        // a revision Apply edits this one and keeps them
-        phases: opts.mode === 'document-boundary' ? (opts.phases ?? []).map(canonicalPhase) : get().phases,
+        // a revision Apply replaces them only when it carries some (§R13-4), as `kinds`
+        phases: opts.phases !== undefined ? opts.phases.map(canonicalPhase) : opts.mode === 'document-boundary' ? [] : get().phases,
         // issue #344 step 3 — another document says which label rule it takes;
         // a revision Apply edits this one and keeps its rule
         recordLabels: opts.mode === 'document-boundary' ? opts.recordLabels === true : get().recordLabels,
@@ -1921,7 +1927,7 @@ useI18n.subscribe((s) => {
   const timetables = relabelTablesForLocale(g.timetables, loc)
   const liveTablesChanged = timetables !== g.timetables
 
-  // live phases (docs/run-phases.md): their names too; no history entry holds them
+  // live phases (docs/run-phases.md): their names too, here and in every history entry below
   const phases = relabelPhasesForLocale(g.phases, loc)
   const livePhasesChanged = phases !== g.phases
 
@@ -1935,11 +1941,14 @@ useI18n.subscribe((s) => {
     const fChg = f1 !== f0
     const t = h.timetables ? relabelTablesForLocale(h.timetables, loc) : h.timetables
     const tChg = t !== h.timetables
-    if (!nChg && !fChg && !tChg) return h
+    const ph = h.phases ? relabelPhasesForLocale(h.phases, loc) : h.phases
+    const phChg = ph !== h.phases
+    if (!nChg && !fChg && !tChg && !phChg) return h
     return {
       ...h,
       ...(nChg ? { nodes: n } : {}),
       ...(tChg ? { timetables: t } : {}),
+      ...(phChg ? { phases: ph } : {}),
       ...(fChg ? { sidecar: { ...(sc ?? { p: null, f: null, d: null }), f: f1 } } : {}),
     }
   }

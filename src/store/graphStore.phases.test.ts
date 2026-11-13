@@ -61,7 +61,35 @@ describe('the phases of a document, in the store', () => {
     expect(g().phases).toEqual([])
   })
 
-  it('stay through an edit, its undo, and a revision Apply, which carries none', () => {
+  it('a revision Apply that carries phases replaces them, an empty list clears them, and one Undo or Redo moves the graph and the phases together (SEMANTICS-R13.md)', () => {
+    const NEXT = [{ id: 'a', label: 'Warm up', from: 1, to: 5 }]
+    g().loadJSON(withPhases)
+    const before = g().past.length
+    g().loadDoc({ nodes: [pool('r')], edges: [] }, { mode: 'revision-apply', modelVersion: 1, phases: NEXT })
+    expect(g().phases).toEqual(NEXT)
+    expect(g().past.length).toBe(before + 1) // one entry for the Apply
+    g().undo()
+    expect(g().nodes.map((n) => n.id)).toEqual(['a'])
+    expect(g().phases).toEqual(PH)
+    g().redo()
+    expect(g().nodes.map((n) => n.id)).toEqual(['r'])
+    expect(g().phases).toEqual(NEXT)
+    g().loadDoc({ nodes: [pool('r')], edges: [] }, { mode: 'revision-apply', modelVersion: 1, phases: [] })
+    expect(g().phases).toEqual([])
+    g().undo()
+    expect(g().phases).toEqual(NEXT)
+  })
+
+  it('the names in the undo history follow a language switch too', () => {
+    const o = openTemplate(coffee, 'en')
+    g().loadGraph(o.graph, { canvasLocked: false, modelVersion: o.modelVersion, kinds: o.kinds, time: o.time, timetables: o.timetables, phases: o.phases })
+    g().loadDoc({ nodes: g().nodes, edges: g().edges }, { mode: 'revision-apply', modelVersion: g().modelVersion, phases: g().phases.slice(0, 3) })
+    activate('ko', koCatalog)
+    g().undo() // back to the seven, which were English when the entry was made
+    expect(g().phases.map((p) => p.label)).toEqual(['투입', '건조', '갈변', '발달', '드롭', '냉각', '냉각 완료'])
+  })
+
+  it('stay through an edit, its undo, and a revision Apply that carries none', () => {
     g().loadJSON(withPhases)
     g().addNodeAt('pool', { x: 200, y: 0 })
     expect(g().phases).toEqual(PH)

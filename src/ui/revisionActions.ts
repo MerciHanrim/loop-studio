@@ -111,12 +111,12 @@ export function reviewModel(p: PendingProposal): ReviewModel {
   const proposed = proposedGraph(p)
   const diff = computeRevisionDiff(
     p.base.content,
-    // SEMANTICS-R5.md §R5-6 — carry the proposal's saved `frames` so the diff
-    // surfaces the cosmetic `frames` hunk (`base.content` already has it).
-    canonicalContent(
-      { nodes: proposed.nodes, edges: proposed.edges, frames: proposed.frames, kinds: proposed.kinds },
-      { modelVersion: proposed.modelVersion },
-    ),
+    // the WHOLE proposed content, as `base.content` is whole: its saved `frames`
+    // (SEMANTICS-R5.md §R5-6), and — SEMANTICS-R13.md §R13-4 / §R13-5 — its
+    // phases, timetables, step length and data-import records, so the summary
+    // names a difference in any of them and never reports one that is not there
+    // (the timetables and the phases used to be left out of this side)
+    canonicalContent(proposed, { modelVersion: proposed.modelVersion }),
   )
   return {
     authorName: p.project.meta?.author?.name,

@@ -178,9 +178,9 @@ describe('issue #344 step 3 — opening a record writes nothing of /10 into it (
     expect(JSON.parse(text), 'the opened text itself is untouched').toEqual(original)
   })
 
-  it('a record exported by this build declares the current semantics (/12 since SEMANTICS-R12.md); opening it takes the current rule', async () => {
+  it('a record exported by this build declares the current semantics (/13 since SEMANTICS-R13.md); opening it takes the current rule', async () => {
     const text = makeRevisionFile()
-    expect(JSON.parse(text).project.semantics).toBe('loop-revision/12')
+    expect(JSON.parse(text).project.semantics).toBe('loop-revision/13')
     useGraphStore.getState().newGraph()
     useProjectStore.setState({ open: null, dirty: false, activePlanId: null })
     await routeImport(text)
