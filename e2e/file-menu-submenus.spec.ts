@@ -42,7 +42,7 @@ for (const locale of ['en', 'ko'] as const) {
     // #471 (2026-11-04): nine — the desalination plant, before Coffee;
     // 2026-11-07: seven — Balanced production line and Capacity deadlock left it;
     // #545 (2026-11-10): two, then the Games group, which holds the other five;
-    // 2026-11-14: three — the coffee roasting batch, after the desalination plant
+    // 2026-11-13: three — the coffee roasting batch, after the desalination plant
     await expect(templates.locator('[data-template]')).toHaveCount(3)
     await expect(templates.locator('[data-template-group="games"] .menu__name')).toHaveText(locale === 'en' ? 'Games' : '게임')
     await expect(templates.locator('[data-template="equilibrium"], [data-template="deadlock"]')).toHaveCount(0)
@@ -125,7 +125,7 @@ test('the description area: the pointed row, else the focused one; none for a ro
   const area = sub.locator('.dmenu__area')
   const h0 = (await area.boundingBox())!.height
   // #545 — the Templates' rows: the three Templates (the coffee roasting batch since
-  // 2026-11-14) and the Games group's row, each described
+  // 2026-11-13) and the Games group's row, each described
   const rows = sub.locator('[role="menuitem"]')
   const count = await rows.count()
   expect(count).toBe(4)

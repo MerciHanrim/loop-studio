@@ -431,7 +431,7 @@ export const trTables: TemplateLabelMap = {
     'moisture:source': 'Örnek varsayım, ölçülmüş veri değil',
     volatiles: 'Uçucu çıkışı',
     'volatiles:source': 'Örnek varsayım, ölçülmüş veri değil',
-    chaff: 'Kavuz çıkışı',
+    chaff: 'Kavuz çıkışı programı',
     'chaff:source': 'Örnek varsayım, ölçülmüş veri değil',
     drop: 'Boşaltma programı',
     'drop:source': 'Örnek varsayım, ölçülmüş veri değil',

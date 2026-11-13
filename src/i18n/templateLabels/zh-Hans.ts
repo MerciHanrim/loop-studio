@@ -423,7 +423,7 @@ export const zhHansTables: TemplateLabelMap = {
     'moisture:source': '示例假设，不是实测数据',
     volatiles: '挥发物释放',
     'volatiles:source': '示例假设，不是实测数据',
-    chaff: '银皮释放',
+    chaff: '银皮释放计划',
     'chaff:source': '示例假设，不是实测数据',
     drop: '排豆计划',
     'drop:source': '示例假设，不是实测数据',

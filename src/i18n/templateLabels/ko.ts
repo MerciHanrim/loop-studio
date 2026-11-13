@@ -438,7 +438,7 @@ export const koTables: TemplateLabelMap = {
     'moisture:source': '예시 가정이며 실측 자료가 아닙니다',
     volatiles: '휘발분 배출',
     'volatiles:source': '예시 가정이며 실측 자료가 아닙니다',
-    chaff: '왕겨 배출',
+    chaff: '왕겨 배출 일정',
     'chaff:source': '예시 가정이며 실측 자료가 아닙니다',
     drop: '드롭 일정',
     'drop:source': '예시 가정이며 실측 자료가 아닙니다',

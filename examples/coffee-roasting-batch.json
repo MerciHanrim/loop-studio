@@ -502,7 +502,7 @@
     },
     {
       "id": "chaff",
-      "label": "Chaff release",
+      "label": "Chaff release schedule",
       "source": "Example assumption, not measured data",
       "unit": "kg per min",
       "timeUnit": "min",

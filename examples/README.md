@@ -827,7 +827,7 @@ Kind: `coffee mass` is conserved, base `kg`, with `kg per min`. Green beans, roa
 
 - **The three moves of the whole batch** (Charge, Drop, Discharge) are Converters with a run rule that reads a schedule table. Each table is at its line's own rate for one minute and 0 otherwise, so the stage runs at 100 % in that step and is off in every other.
 - **Water vapour and volatiles** leave on two lines from the drum to a Drain, each reading its own table. A table may drive a line from a Pool to a Drain, and no line that touches a Converter.
-- **Chaff** leaves the drum through Chaff release, a Converter whose run rule reads the Chaff release table against its line's 0.08 kg per min: half rate in drying, full rate in browning, off in development. What it takes from the drum reaches Released chaff in the same step, so that Pool shows the total. Chaff release is a calculation node that moves the table's amount, as Charge, Drop and Discharge are: a table cannot drive a line from one Pool to another. It is not a model of a cyclone.
+- **Chaff** leaves the drum through Chaff release, a Converter whose run rule reads the Chaff release schedule against its line's 0.08 kg per min: half rate in drying, full rate in browning, off in development. What it takes from the drum reaches Released chaff in the same step, so that Pool shows the total. Chaff release is a calculation node that moves the table's amount, as Charge, Drop and Discharge are: a table cannot drive a line from one Pool to another. It is not a model of a cyclone.
 - Only the Discharge schedule ends the run (`after: stop`). The other five tables read 0 after their last point, so the message at the end names the Discharge schedule.
 
 ## Numbers
@@ -863,7 +863,7 @@ The canvas holds the bean mass path only. A real roaster also has a gas and heat
 - part of the hot gas may be recirculated to the drum;
 - cooling air is drawn through the beans in the cooling tray.
 
-None of these flows is drawn or computed, and neither are fuel use, heat, temperature, the roasting reactions, flavour or emissions. So the example makes no claim about gas mass balance or energy efficiency. The amount of chaff released is computed, from the Chaff release table; how the cyclone separates that chaff from the exhaust gas is not modelled, and no cyclone is on the canvas. A line with no amount would be drawn like a flow while the engine moved nothing along it, so the gas side stays in this text until the engine can hold an explanation-only connection.
+None of these flows is drawn or computed, and neither are fuel use, heat, temperature, the roasting reactions, flavour or emissions. So the example makes no claim about gas mass balance or energy efficiency. The amount of chaff released is computed, from the Chaff release schedule; how the cyclone separates that chaff from the exhaust gas is not modelled, and no cyclone is on the canvas. A line with no amount would be drawn like a flow while the engine moved nothing along it, so the gas side stays in this text until the engine can hold an explanation-only connection.
 
 ## The check
 

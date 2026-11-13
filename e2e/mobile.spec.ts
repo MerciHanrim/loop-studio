@@ -1806,7 +1806,7 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
     // gacha joined it, then the Standard and the Pickup gacha; 0.30.0 — Early
     // MMO is back; #471 (2026-11-04) — the desalination plant joined it;
     // 2026-11-07 — the two basic examples left it; #545 — the five game examples moved to
-    // the Templates sheet's Games group, whose row is described too; 2026-11-14 — the
+    // the Templates sheet's Games group, whose row is described too; 2026-11-13 — the
     // coffee roasting batch joined the Templates sheet
     expect(checked, 'the walk must reach every text sub-label: 6 More + 4 Templates + 5 Games + 4 enabled Export').toBe(19)
     expect(bad, 'hovered secondary labels below 4.5:1').toEqual([])

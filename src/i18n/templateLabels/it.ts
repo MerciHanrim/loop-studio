@@ -450,7 +450,7 @@ export const itTables: TemplateLabelMap = {
     'moisture:source': 'Ipotesi di esempio, non dati misurati',
     volatiles: 'Uscita dei volatili',
     'volatiles:source': 'Ipotesi di esempio, non dati misurati',
-    chaff: 'Uscita delle pellicole',
+    chaff: 'Programma di uscita delle pellicole',
     'chaff:source': 'Ipotesi di esempio, non dati misurati',
     drop: 'Programma di scarico',
     'drop:source': 'Ipotesi di esempio, non dati misurati',

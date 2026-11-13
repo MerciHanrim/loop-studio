@@ -440,7 +440,7 @@ export const viTables: TemplateLabelMap = {
     'moisture:source': 'Giả định ví dụ, không phải dữ liệu đo',
     volatiles: 'Thoát chất bay hơi',
     'volatiles:source': 'Giả định ví dụ, không phải dữ liệu đo',
-    chaff: 'Thoát vỏ lụa',
+    chaff: 'Lịch thoát vỏ lụa',
     'chaff:source': 'Giả định ví dụ, không phải dữ liệu đo',
     drop: 'Lịch xả',
     'drop:source': 'Giả định ví dụ, không phải dữ liệu đo',

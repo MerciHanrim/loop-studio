@@ -82,7 +82,7 @@ test.describe('the coffee roasting batch example', () => {
     expect(m.labels).toMatchObject({ bean_hopper: '호퍼(생두)', roast_drum: '로스팅 드럼', chaff_release: '왕겨 배출', released_chaff: '배출 왕겨', roasted_beans: '로스팅 원두' })
     expect(m.frames).toEqual(['1 투입', '2 로스팅', '3 냉각', '4 배기·왕겨'])
     // every table says in Korean that it is an assumption
-    expect(m.tables.map((t) => t[1])).toEqual(['투입 일정', '수분 배출', '휘발분 배출', '왕겨 배출', '드롭 일정', '냉각 완료 일정'])
+    expect(m.tables.map((t) => t[1])).toEqual(['투입 일정', '수분 배출', '휘발분 배출', '왕겨 배출 일정', '드롭 일정', '냉각 완료 일정'])
     for (const t of m.tables) expect(t[2]).toBe('예시 가정이며 실측 자료가 아닙니다')
     await expect(page.getByText(/실행할 수 없/)).toHaveCount(0)
 

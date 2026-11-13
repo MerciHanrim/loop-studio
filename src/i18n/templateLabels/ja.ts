@@ -419,7 +419,7 @@ export const jaTables: TemplateLabelMap = {
     'moisture:source': '例としての仮定で、実測データではありません',
     volatiles: '揮発分の放出',
     'volatiles:source': '例としての仮定で、実測データではありません',
-    chaff: 'チャフの放出',
+    chaff: 'チャフ放出スケジュール',
     'chaff:source': '例としての仮定で、実測データではありません',
     drop: '排出スケジュール',
     'drop:source': '例としての仮定で、実測データではありません',

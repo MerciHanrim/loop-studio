@@ -448,7 +448,7 @@ export const nlTables: TemplateLabelMap = {
     'moisture:source': 'Voorbeeldaanname, geen meetgegevens',
     volatiles: 'Afgifte vluchtige stoffen',
     'volatiles:source': 'Voorbeeldaanname, geen meetgegevens',
-    chaff: 'Vliesjesafgifte',
+    chaff: 'Vliesjesafgifteschema',
     'chaff:source': 'Voorbeeldaanname, geen meetgegevens',
     drop: 'Losschema',
     'drop:source': 'Voorbeeldaanname, geen meetgegevens',

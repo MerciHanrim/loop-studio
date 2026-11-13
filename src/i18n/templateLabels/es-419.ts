@@ -424,7 +424,7 @@ export const es419Tables: TemplateLabelMap = {
     'moisture:source': 'Supuesto de ejemplo, no datos medidos',
     volatiles: 'Salida de volátiles',
     'volatiles:source': 'Supuesto de ejemplo, no datos medidos',
-    chaff: 'Salida de cascarilla',
+    chaff: 'Programa de salida de cascarilla',
     'chaff:source': 'Supuesto de ejemplo, no datos medidos',
     drop: 'Programa de descarga',
     'drop:source': 'Supuesto de ejemplo, no datos medidos',

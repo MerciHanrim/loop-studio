@@ -443,7 +443,7 @@ export const ptPTTables: TemplateLabelMap = {
     'moisture:source': 'Suposição de exemplo, não dados medidos',
     volatiles: 'Saída de voláteis',
     'volatiles:source': 'Suposição de exemplo, não dados medidos',
-    chaff: 'Saída de película',
+    chaff: 'Programa de saída de película',
     'chaff:source': 'Suposição de exemplo, não dados medidos',
     drop: 'Programa de descarga',
     'drop:source': 'Suposição de exemplo, não dados medidos',

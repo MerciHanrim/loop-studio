@@ -425,7 +425,7 @@ export const deTables: TemplateLabelMap = {
     'moisture:source': 'Beispielannahme, keine Messdaten',
     volatiles: 'Abgabe flüchtiger Stoffe',
     'volatiles:source': 'Beispielannahme, keine Messdaten',
-    chaff: 'Häutchenabgabe',
+    chaff: 'Häutchenabgabeplan',
     'chaff:source': 'Beispielannahme, keine Messdaten',
     drop: 'Entleerplan',
     'drop:source': 'Beispielannahme, keine Messdaten',

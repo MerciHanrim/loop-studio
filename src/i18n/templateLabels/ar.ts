@@ -435,7 +435,7 @@ export const arTables: TemplateLabelMap = {
     'moisture:source': 'افتراض على سبيل المثال وليس بيانات مقيسة',
     volatiles: 'خروج المتطايرات',
     'volatiles:source': 'افتراض على سبيل المثال وليس بيانات مقيسة',
-    chaff: 'خروج القشرة',
+    chaff: 'جدول خروج القشرة',
     'chaff:source': 'افتراض على سبيل المثال وليس بيانات مقيسة',
     drop: 'جدول التفريغ',
     'drop:source': 'افتراض على سبيل المثال وليس بيانات مقيسة',

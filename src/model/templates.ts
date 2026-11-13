@@ -175,7 +175,7 @@ export const TEMPLATES: Template[] = [
   // two table lines and one run rule take the roasting losses out of the drum in steps
   // 2-13, and the last table ends the run after step 19. Steps 15-18 only keep the beans
   // in the tray: no temperature is computed. Burner, afterburner, stack and cooling air
-  // are not drawn, because the engine would move nothing along them (Lumi, 2026-11-14).
+  // are not drawn, because the engine would move nothing along them (Lumi, 2026-11-13).
   // Every number is an example assumption, not a plant value. The canonical graph is
   // examples/coffee-roasting-batch.json; its run is pinned against
   // examples/coffee-roasting-batch.expected.json by test/coffee-roasting-batch.test.ts.

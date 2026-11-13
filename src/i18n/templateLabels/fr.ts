@@ -423,7 +423,7 @@ export const frTables: TemplateLabelMap = {
     'moisture:source': 'Hypothèse d’exemple, pas des données mesurées',
     volatiles: 'Départ des volatils',
     'volatiles:source': 'Hypothèse d’exemple, pas des données mesurées',
-    chaff: 'Départ des pellicules',
+    chaff: 'Programme de départ des pellicules',
     'chaff:source': 'Hypothèse d’exemple, pas des données mesurées',
     drop: 'Programme de vidange',
     'drop:source': 'Hypothèse d’exemple, pas des données mesurées',
