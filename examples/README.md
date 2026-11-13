@@ -30,6 +30,20 @@ re-issues every id, rewrites expression references, and merges such a file into
 the open graph as one undo step. The two bundled Building blocks that used to
 sit here were removed in 2026-10.
 
+## Writing an example's description
+
+When an example's description is written or revised, compose it as § 9 (Coffee roasting batch) is composed (Lumi, 2026-11-13). Keep these parts apart, in this order:
+
+1. **Purpose and scope**: what the example models, in a sentence or two.
+2. **Behaviour**: what happens as it runs, by step or by stage.
+3. **Wiring**: the frames and nodes, and why each engine form is used.
+4. **Numbers**: every assumption named as an example assumption, with what it gives.
+5. **What is not computed**: said outright, including real equipment or effects that are left out.
+6. **The check**: what the test proves.
+7. **Manual check in the app**: a short numbered walk-through.
+
+Take the structure, not the length. Each example gets the detail it needs, and § 9's sentence length and step table are not to be copied. Text inside the app (the menu description and Help ▸ Example notes) stays short, and the detailed grounds belong in this file. The sections written before this standard (§ 1–8) stay as they are until each is next revised.
+
 ---
 
 # 1 — Engine B verification fixture
