@@ -288,8 +288,8 @@ export const ptBR: TemplateLabelDict = {
     roasted_beans: 'Café torrado',
     water_vapour: 'Vapor de água (exaustão)',
     volatiles_out: 'Voláteis (exaustão)',
-    chaff_cyclone: 'Ciclone (película)',
-    chaff_bin: 'Depósito de película',
+    chaff_release: 'Saída de película',
+    released_chaff: 'Película removida',
   },
   'gacha-general': {
     target_pulls: 'Meta de invocações (número inteiro)',

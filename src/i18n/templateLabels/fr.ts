@@ -282,8 +282,8 @@ export const fr: TemplateLabelDict = {
     roasted_beans: 'Café torréfié',
     water_vapour: 'Vapeur d’eau (échappement)',
     volatiles_out: 'Volatils (échappement)',
-    chaff_cyclone: 'Cyclone (pellicules)',
-    chaff_bin: 'Bac à pellicules',
+    chaff_release: 'Départ des pellicules',
+    released_chaff: 'Pellicules évacuées',
   },
   'gacha-general': {
     target_pulls: 'Tirages cibles (entier)',

@@ -307,8 +307,8 @@ export const it: TemplateLabelDict = {
     roasted_beans: 'Caffè tostato',
     water_vapour: 'Vapore acqueo (ai fumi)',
     volatiles_out: 'Volatili (ai fumi)',
-    chaff_cyclone: 'Ciclone (pellicole)',
-    chaff_bin: 'Contenitore pellicole',
+    chaff_release: 'Uscita delle pellicole',
+    released_chaff: 'Pellicole uscite',
   },
   'gacha-general': {
     target_pulls: 'Pull obiettivo (numero intero)',

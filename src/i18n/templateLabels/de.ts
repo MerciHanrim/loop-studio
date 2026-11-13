@@ -284,8 +284,8 @@ export const de: TemplateLabelDict = {
     roasted_beans: 'Röstkaffee',
     water_vapour: 'Wasserdampf (zur Abluft)',
     volatiles_out: 'Flüchtige Stoffe (zur Abluft)',
-    chaff_cyclone: 'Zyklon (Häutchenabscheidung)',
-    chaff_bin: 'Häutchenbehälter',
+    chaff_release: 'Häutchenabgabe',
+    released_chaff: 'Abgegebene Häutchen',
   },
   'gacha-general': {
     target_pulls: 'Zielziehungen (ganze Zahl)',

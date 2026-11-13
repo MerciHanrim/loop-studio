@@ -821,13 +821,13 @@ The four cooling steps are an **example time display** only. The beans stay in t
 | 1 Charge | Green bean hopper (Pool, starts at 54 kg), Charge (Converter) |
 | 2 Roasting | Roasting drum (Pool), Drop (Converter) |
 | 3 Cooling | Cooling tray (Pool), Discharge (Converter), Roasted beans (Pool) |
-| 4 Exhaust and chaff | Water vapour and Volatiles (Drains), Cyclone (Converter), Chaff bin (Pool) |
+| 4 Exhaust and chaff | Water vapour and Volatiles (Drains), Chaff release (Converter), Released chaff (Pool) |
 
 Kind: `coffee mass` is conserved, base `kg`, with `kg per min`. Green beans, roasted beans, water vapour, volatiles and chaff are all this one kind, which is what lets the engine check the balance.
 
 - **The three moves of the whole batch** (Charge, Drop, Discharge) are Converters with a run rule that reads a schedule table. Each table is at its line's own rate for one minute and 0 otherwise, so the stage runs at 100 % in that step and is off in every other.
 - **Water vapour and volatiles** leave on two lines from the drum to a Drain, each reading its own table. A table may drive a line from a Pool to a Drain, and no line that touches a Converter.
-- **Chaff** leaves the drum through the Cyclone, a Converter whose run rule reads the Chaff release table against its line's 0.08 kg per min: half rate in drying, full rate in browning, off in development. What it takes from the drum reaches the Chaff bin in the same step.
+- **Chaff** leaves the drum through Chaff release, a Converter whose run rule reads the Chaff release table against its line's 0.08 kg per min: half rate in drying, full rate in browning, off in development. What it takes from the drum reaches Released chaff in the same step, so that Pool shows the total. Chaff release is a calculation node that moves the table's amount, as Charge, Drop and Discharge are: a table cannot drive a line from one Pool to another. It is not a model of a cyclone.
 - Only the Discharge schedule ends the run (`after: stop`). The other five tables read 0 after their last point, so the message at the end names the Discharge schedule.
 
 ## Numbers
@@ -863,7 +863,7 @@ The canvas holds the bean mass path only. A real roaster also has a gas and heat
 - part of the hot gas may be recirculated to the drum;
 - cooling air is drawn through the beans in the cooling tray.
 
-None of these flows is drawn or computed, and neither are fuel use, heat, temperature, the roasting reactions, flavour or emissions. So the example makes no claim about gas mass balance or energy efficiency. The Cyclone on the canvas is the chaff separation only; the gas that carries the chaff to it is not there. A line with no amount would be drawn like a flow while the engine moved nothing along it, so the gas side stays in this text until the engine can hold an explanation-only connection.
+None of these flows is drawn or computed, and neither are fuel use, heat, temperature, the roasting reactions, flavour or emissions. So the example makes no claim about gas mass balance or energy efficiency. The amount of chaff released is computed, from the Chaff release table; how the cyclone separates that chaff from the exhaust gas is not modelled, and no cyclone is on the canvas. A line with no amount would be drawn like a flow while the engine moved nothing along it, so the gas side stays in this text until the engine can hold an explanation-only connection.
 
 ## The check
 
@@ -872,7 +872,7 @@ None of these flows is drawn or computed, and neither are fuel use, heat, temper
 - **The formula, in exact rationals.** From the tables alone, the amounts in the five Pools and the two Drains add up to exactly 54 kg at every step from 0 to 19, the totals are the mass balance of the three fractions above, and each step moves what the table above names.
 - **The engine, in doubles.** Every value of every step lies within 1e-9 kg of the exact one (the largest difference observed is about 1.4e-14 kg). That is a tolerance checked on this document's 19 steps, not a bound on the engine.
 
-It also checks that each run rule moves its table's amount on its own steps and nothing on any other, that no notice is raised in the 19 steps, that the drop and the discharge leave nothing behind, that the run ends before step 20 with a message naming the Discharge schedule, and that a cyclone made to give out more chaff than it takes is refused before anything moves.
+It also checks that each run rule moves its table's amount on its own steps and nothing on any other, that no notice is raised in the 19 steps, that the drop and the discharge leave nothing behind, that the run ends before step 20 with a message naming the Discharge schedule, and that a Chaff release made to put out more chaff than it takes is refused before anything moves.
 
 `coffee-roasting-batch.expected.json` pins the exact and the engine value of every place at every step.
 
@@ -880,7 +880,7 @@ It also checks that each run rule moves its table's amount on its own steps and 
 
 1. **File ▸ Templates ▸ Coffee roasting batch.** Four frames open on one screen: Charge, Roasting and Cooling in a row, Exhaust and chaff above the drum.
 2. Press **Step** once: the hopper reads 0 and the drum 54.
-3. Step to 13: the drum reads 44.64 and the Chaff bin 0.48. The **Timetables and run rules** tab of the Timeline shows each table's rate.
+3. Step to 13: the drum reads 44.64 and Released chaff 0.48. The **Timetables and run rules** tab of the Timeline shows each table's rate.
 4. Step 14 moves the 44.64 into the Cooling tray, steps 15–18 change nothing, and step 19 moves it into Roasted beans.
 5. Press **Step** again: the step count stays at 19, and the run row says the run ended because the Discharge schedule has no data for the next step.
 

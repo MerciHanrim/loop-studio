@@ -16,8 +16,8 @@ type Bridge = { __loop: Record<string, any> }
 const NODES = 11
 const FRAMES = ['f_charge', 'f_roast', 'f_cool', 'f_exhaust']
 /** the stages that hold a run rule, so their run-rule line is drawn under their name */
-const RULED = ['chaff_cyclone', 'charge_drum', 'discharge_beans', 'drop_beans']
-const POOLS = ['bean_hopper', 'roast_drum', 'cooling_tray', 'roasted_beans', 'chaff_bin']
+const RULED = ['chaff_release', 'charge_drum', 'discharge_beans', 'drop_beans']
+const POOLS = ['bean_hopper', 'roast_drum', 'cooling_tray', 'roasted_beans', 'released_chaff']
 /** what the unit test pinned through the engine */
 const pinned = JSON.parse(readFileSync(new URL('../examples/coffee-roasting-batch.expected.json', import.meta.url), 'utf8')) as {
   modelVersion: number
@@ -79,7 +79,7 @@ test.describe('the coffee roasting batch example', () => {
     expect(m.modelVersion).toBe(pinned.modelVersion)
     expect(m.time).toEqual({ step: { value: 1, unit: 'min' }, display: 'min' })
     expect(m.kinds).toEqual([['coffee mass', true]])
-    expect(m.labels).toMatchObject({ bean_hopper: '호퍼(생두)', roast_drum: '로스팅 드럼', chaff_cyclone: '사이클론(왕겨 분리)', roasted_beans: '로스팅 원두' })
+    expect(m.labels).toMatchObject({ bean_hopper: '호퍼(생두)', roast_drum: '로스팅 드럼', chaff_release: '왕겨 배출', released_chaff: '배출 왕겨', roasted_beans: '로스팅 원두' })
     expect(m.frames).toEqual(['1 투입', '2 로스팅', '3 냉각', '4 배기·왕겨'])
     // every table says in Korean that it is an assumption
     expect(m.tables.map((t) => t[1])).toEqual(['투입 일정', '수분 배출', '휘발분 배출', '왕겨 배출', '드롭 일정', '냉각 완료 일정'])

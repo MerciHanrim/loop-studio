@@ -294,8 +294,8 @@ export const ar: TemplateLabelDict = {
     roasted_beans: 'البن المحمّص',
     water_vapour: 'بخار الماء (إلى العادم)',
     volatiles_out: 'المتطايرات (إلى العادم)',
-    chaff_cyclone: 'السيكلون (فصل القشرة)',
-    chaff_bin: 'وعاء القشرة',
+    chaff_release: 'خروج القشرة',
+    released_chaff: 'القشرة الخارجة',
   },
   'gacha-general': {
     target_pulls: 'عدد Pulls المستهدف (عدد صحيح)',

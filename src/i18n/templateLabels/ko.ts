@@ -285,8 +285,8 @@ export const ko: TemplateLabelDict = {
     roasted_beans: '로스팅 원두',
     water_vapour: '수증기(배기로)',
     volatiles_out: '휘발분(배기로)',
-    chaff_cyclone: '사이클론(왕겨 분리)',
-    chaff_bin: '왕겨 통',
+    chaff_release: '왕겨 배출',
+    released_chaff: '배출 왕겨',
   },
   'gacha-general': {
     target_pulls: '목표 뽑기 횟수(정수)',

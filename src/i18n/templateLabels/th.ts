@@ -291,8 +291,8 @@ export const th: TemplateLabelDict = {
     roasted_beans: 'เมล็ดคั่ว',
     water_vapour: 'ไอน้ำ (ไปไอเสีย)',
     volatiles_out: 'สารระเหย (ไปไอเสีย)',
-    chaff_cyclone: 'ไซโคลน (แยกเยื่อเมล็ด)',
-    chaff_bin: 'ถังเยื่อเมล็ด',
+    chaff_release: 'การปล่อยเยื่อเมล็ด',
+    released_chaff: 'เยื่อเมล็ดที่ปล่อยออก',
   },
   'gacha-general': {
     target_pulls: 'จำนวนการสุ่มเป้าหมาย (จำนวนเต็ม)',

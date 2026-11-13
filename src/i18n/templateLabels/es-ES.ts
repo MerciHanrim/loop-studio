@@ -291,8 +291,8 @@ export const esES: TemplateLabelDict = {
     roasted_beans: 'Café tostado',
     water_vapour: 'Vapor de agua (al escape)',
     volatiles_out: 'Volátiles (al escape)',
-    chaff_cyclone: 'Ciclón (separa cascarilla)',
-    chaff_bin: 'Depósito de cascarilla',
+    chaff_release: 'Salida de cascarilla',
+    released_chaff: 'Cascarilla expulsada',
   },
   'gacha-general': {
     target_pulls: 'Tiradas objetivo (entero)',

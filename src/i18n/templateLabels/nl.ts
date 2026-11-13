@@ -307,8 +307,8 @@ export const nl: TemplateLabelDict = {
     roasted_beans: 'Gebrande bonen',
     water_vapour: 'Waterdamp (naar afvoer)',
     volatiles_out: 'Vluchtige stoffen (afvoer)',
-    chaff_cyclone: 'Cycloon (vliesjes)',
-    chaff_bin: 'Vliesjesbak',
+    chaff_release: 'Vliesjesafgifte',
+    released_chaff: 'Afgegeven vliesjes',
   },
   'gacha-general': {
     target_pulls: 'Doelaantal pulls (geheel getal)',

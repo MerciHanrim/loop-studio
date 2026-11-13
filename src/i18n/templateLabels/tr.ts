@@ -290,8 +290,8 @@ export const tr: TemplateLabelDict = {
     roasted_beans: 'Kavrulmuş çekirdek',
     water_vapour: 'Su buharı (egzoza)',
     volatiles_out: 'Uçucular (egzoza)',
-    chaff_cyclone: 'Siklon (kavuz ayırma)',
-    chaff_bin: 'Kavuz kabı',
+    chaff_release: 'Kavuz çıkışı',
+    released_chaff: 'Çıkan kavuz',
   },
   'gacha-general': {
     target_pulls: 'Hedef çekiliş (tam sayı)',

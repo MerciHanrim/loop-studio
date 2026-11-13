@@ -299,8 +299,8 @@ export const vi: TemplateLabelDict = {
     roasted_beans: 'Hạt đã rang',
     water_vapour: 'Hơi nước (ra khí thải)',
     volatiles_out: 'Chất bay hơi (ra khí thải)',
-    chaff_cyclone: 'Xyclon (tách vỏ lụa)',
-    chaff_bin: 'Thùng vỏ lụa',
+    chaff_release: 'Thoát vỏ lụa',
+    released_chaff: 'Vỏ lụa đã thoát',
   },
   'gacha-general': {
     target_pulls: 'Số lần quay mục tiêu (số nguyên)',

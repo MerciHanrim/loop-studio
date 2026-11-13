@@ -290,8 +290,8 @@ export const ru: TemplateLabelDict = {
     roasted_beans: 'Обжаренное зерно',
     water_vapour: 'Водяной пар (в вытяжку)',
     volatiles_out: 'Летучие (в вытяжку)',
-    chaff_cyclone: 'Циклон (шелуха)',
-    chaff_bin: 'Сборник шелухи',
+    chaff_release: 'Выход шелухи',
+    released_chaff: 'Вышедшая шелуха',
   },
   'gacha-general': {
     target_pulls: 'Цель по призывам (целое число)',

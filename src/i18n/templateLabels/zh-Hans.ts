@@ -282,8 +282,8 @@ export const zhHans: TemplateLabelDict = {
     roasted_beans: '熟豆',
     water_vapour: '水蒸气（去排气）',
     volatiles_out: '挥发物（去排气）',
-    chaff_cyclone: '旋风分离器（分离银皮）',
-    chaff_bin: '银皮桶',
+    chaff_release: '银皮释放',
+    released_chaff: '已释放银皮',
   },
   'gacha-general': {
     target_pulls: '目标抽数（整数）',

@@ -45,7 +45,7 @@ const GEN = !!process.env.GEN_COFFEE_ROASTING
 const LAST = 19
 /** how far an engine value may lie from the exact one, in kg */
 const TOLERANCE = 1e-9
-const POOLS = ['bean_hopper', 'roast_drum', 'cooling_tray', 'roasted_beans', 'chaff_bin']
+const POOLS = ['bean_hopper', 'roast_drum', 'cooling_tray', 'roasted_beans', 'released_chaff']
 /** the two Drains keep no state, so what they took is added up from the step events */
 const DRAINS = { water_vapour: 'e_drum_steam', volatiles_out: 'e_drum_voc' } as const
 const PLACES = [...POOLS, ...Object.keys(DRAINS)]
@@ -92,7 +92,7 @@ function exactPath(m: ReturnType<typeof model>) {
   const moved: Record<string, Rational>[] = [{}]
   for (let k = 1; k <= LAST; k++) {
     const charge = mul(fraction(m, 'charge', 'e_hopper_charge', k), m.rate('e_hopper_charge'))
-    const chaff = mul(fraction(m, 'chaff', 'e_drum_cyclone', k), m.rate('e_drum_cyclone'))
+    const chaff = mul(fraction(m, 'chaff', 'e_drum_chaff', k), m.rate('e_drum_chaff'))
     const drop = mul(fraction(m, 'drop', 'e_drum_drop', k), m.rate('e_drum_drop'))
     const discharge = mul(fraction(m, 'discharge', 'e_cooler_discharge', k), m.rate('e_cooler_discharge'))
     const moisture = m.plan('moisture', k)
@@ -106,7 +106,7 @@ function exactPath(m: ReturnType<typeof model>) {
     s.roast_drum = sub(add(start.roast_drum!, charge), asked.roast_drum)
     s.water_vapour = add(start.water_vapour!, moisture)
     s.volatiles_out = add(start.volatiles_out!, volatiles)
-    s.chaff_bin = add(start.chaff_bin!, chaff)
+    s.released_chaff = add(start.released_chaff!, chaff)
     s.cooling_tray = sub(add(start.cooling_tray!, drop), discharge)
     s.roasted_beans = add(start.roasted_beans!, discharge)
     rows.push({ ...s })
@@ -202,7 +202,7 @@ describe('the coffee roasting batch example', () => {
     // every constant line is in kg per min on a 1 min step, so its text is its amount per step
     for (const e of m.edges) expect((e.data as { unit?: string }).unit).toBe('kg per min')
     // no gas or heat equipment is drawn: the model holds the bean mass path only
-    expect(m.nodes.map((n) => n.id).sort()).toEqual([...PLACES, 'charge_drum', 'chaff_cyclone', 'discharge_beans', 'drop_beans'].sort())
+    expect(m.nodes.map((n) => n.id).sort()).toEqual([...PLACES, 'charge_drum', 'chaff_release', 'discharge_beans', 'drop_beans'].sort())
   })
 
   it('the formula closes in exact rationals: the kinds add up to 54 kg at every step', () => {
@@ -221,7 +221,7 @@ describe('the coffee roasting batch example', () => {
     const end = rows[LAST]!
     expect(cmp(end.water_vapour!, water)).toBe(0)
     expect(cmp(end.volatiles_out!, volatiles)).toBe(0)
-    expect(cmp(end.chaff_bin!, chaff)).toBe(0)
+    expect(cmp(end.released_chaff!, chaff)).toBe(0)
     expect(cmp(end.roasted_beans!, roasted)).toBe(0)
     for (const p of ['bean_hopper', 'roast_drum', 'cooling_tray']) expect(end[p]!.num).toBe(0n)
     // the per-phase tables add up to those totals
@@ -262,7 +262,7 @@ describe('the coffee roasting batch example', () => {
   it('each run rule moves what its table says on its steps, and nothing on any other', () => {
     const ruled = [
       { stage: 'charge_drum', take: 'e_hopper_charge', make: 'e_charge_drum', key: 'charge' },
-      { stage: 'chaff_cyclone', take: 'e_drum_cyclone', make: 'e_cyclone_bin', key: 'chaff' },
+      { stage: 'chaff_release', take: 'e_drum_chaff', make: 'e_chaff_released', key: 'chaff' },
       { stage: 'drop_beans', take: 'e_drum_drop', make: 'e_drop_cooler', key: 'drop' },
       { stage: 'discharge_beans', take: 'e_cooler_discharge', make: 'e_discharge_roasted', key: 'discharge' },
     ]
@@ -283,8 +283,8 @@ describe('the coffee roasting batch example', () => {
       }
     }
     // the chaff rule at half and at full rate: 0.04 kg in drying, 0.08 kg in browning
-    expect(run[1]!.events.e_drum_cyclone).toBe(0.04)
-    expect(run[5]!.events.e_drum_cyclone).toBe(0.08)
+    expect(run[1]!.events.e_drum_chaff).toBe(0.04)
+    expect(run[5]!.events.e_drum_chaff).toBe(0.08)
     // nothing moves while the beans cool
     for (let k = 15; k <= 18; k++) expect(run[k - 1]!.events).toEqual({})
     // the drop and the discharge leave nothing behind
@@ -300,9 +300,9 @@ describe('the coffee roasting batch example', () => {
     expect(after.notices).toEqual([{ kind: 'timetableEnded', tableId: 'discharge', label: 'Discharge schedule' }])
   })
 
-  it('a cyclone that would make more chaff than it takes is refused, and nothing moves', () => {
+  it('a chaff release that would put out more chaff than it takes is refused, and nothing moves', () => {
     const edges = structuredClone(m.edges)
-    ;(edges.find((e) => e.id === 'e_cyclone_bin')!.data as { flow: string }).flow = '0.09'
+    ;(edges.find((e) => e.id === 'e_chaff_released')!.data as { flow: string }).flow = '0.09'
     expect(refusingKindFindings(m.nodes, edges, m.kinds, m.modelVersion, m.time).length).toBeGreaterThan(0)
     const first = engineRun(m, edges)[0]!
     expect(first.consumed).toBe(false)

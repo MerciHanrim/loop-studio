@@ -160,7 +160,7 @@
       }
     },
     {
-      "id": "chaff_cyclone",
+      "id": "chaff_release",
       "type": "converter",
       "position": {
         "x": 660,
@@ -168,17 +168,17 @@
       },
       "data": {
         "kind": "converter",
-        "label": "Cyclone (chaff separation)",
+        "label": "Chaff release",
         "activation": "automatic",
         "mode": "pullAll",
         "run": {
           "table": "chaff",
-          "rated": "e_drum_cyclone"
+          "rated": "e_drum_chaff"
         }
       }
     },
     {
-      "id": "chaff_bin",
+      "id": "released_chaff",
       "type": "pool",
       "position": {
         "x": 830,
@@ -186,7 +186,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "Chaff bin",
+        "label": "Released chaff",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -258,9 +258,9 @@
       }
     },
     {
-      "id": "e_drum_cyclone",
+      "id": "e_drum_chaff",
       "source": "roast_drum",
-      "target": "chaff_cyclone",
+      "target": "chaff_release",
       "sourceHandle": "out",
       "targetHandle": "in",
       "type": "loop",
@@ -273,9 +273,9 @@
       }
     },
     {
-      "id": "e_cyclone_bin",
-      "source": "chaff_cyclone",
-      "target": "chaff_bin",
+      "id": "e_chaff_released",
+      "source": "chaff_release",
+      "target": "released_chaff",
       "sourceHandle": "out",
       "targetHandle": "in",
       "type": "loop",
@@ -576,8 +576,8 @@
   "recommendedRunConfig": {
     "timelineSeries": [
       "bean_hopper",
-      "chaff_bin",
       "cooling_tray",
+      "released_chaff",
       "roast_drum",
       "roasted_beans"
     ]

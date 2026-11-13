@@ -275,8 +275,8 @@ export const ja: TemplateLabelDict = {
     roasted_beans: '焙煎豆',
     water_vapour: '水蒸気（排気へ）',
     volatiles_out: '揮発分（排気へ）',
-    chaff_cyclone: 'サイクロン（チャフ分離）',
-    chaff_bin: 'チャフ容器',
+    chaff_release: 'チャフの放出',
+    released_chaff: '放出チャフ',
   },
   'gacha-general': {
     target_pulls: '目標の連数（整数）',
