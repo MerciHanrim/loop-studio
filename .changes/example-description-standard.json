@@ -1,0 +1,1 @@
+{ "type": "internal", "reason": "Adds a short standard for composing an example's description to examples/README.md. No example's text, no file the app reads and no behaviour changes." }
