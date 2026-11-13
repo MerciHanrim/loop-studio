@@ -38,6 +38,8 @@ const templates = {
   'modules.promote.body.v4': '插入此結構會使文件成為 v4 模型：它宣告單位或步長，模型語意摘要也會改變。一次復原會同時撤回模型變更和插入。',
   'templates.desalination.name': '海水淡化製程',
   'templates.desalination.blurb': '以製程流程繪製的海水逆滲透廠，從取水到城市和大海。城市需求遵循 24 小時範例曲線，運轉規則維持各儲槽。所有數字都是範例假設，不是實測資料；鹽度、壓力和水質都不予計算。',
+  'templates.coffeeRoastingBatch.name': '咖啡烘焙：一個批次',
+  'templates.coffeeRoastingBatch.blurb': '一批 54 kg 的生豆從料斗經滾筒和冷卻盤變成熟豆，每步一分鐘。只計算豆的質量；燃燒器、後燃器和煙囪的氣體與熱量都不予計算。所有數字都是範例假設。',
   'modules.frames.title': '不包含已儲存的群組框',
   'modules.frames.insertBody': '這個檔案存有群組框。以結構方式插入時不會把群組框帶進你的圖——其餘內容照常插入。',
   'modules.frames.extractBody': '你的圖存有群組框。它們不會寫進結構檔案——只有選取的節點及其內部連線會寫入。',

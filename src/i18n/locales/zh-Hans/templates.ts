@@ -38,6 +38,8 @@ const templates = {
   'modules.promote.body.v4': '插入此结构会使文档成为 v4 模型：它声明单位或步长，模型语义摘要也会改变。一次撤销会同时撤回模型变更和插入。',
   'templates.desalination.name': '海水淡化工艺',
   'templates.desalination.blurb': '以工艺流程绘制的海水反渗透厂，从取水到城市和大海。城市需求遵循 24 小时示例曲线，运行规则维持各储罐。所有数字都是示例假设，不是实测数据；盐度、压力和水质不作计算。',
+  'templates.coffeeRoastingBatch.name': '咖啡烘焙：一个批次',
+  'templates.coffeeRoastingBatch.blurb': '一批 54 kg 的生豆从料斗经滚筒和冷却盘变成熟豆，每步一分钟。只计算豆的质量；燃烧器、后燃器和烟囱的气体与热量不作计算。所有数字都是示例假设。',
   'modules.frames.title': '不包含已保存的分组框',
   'modules.frames.insertBody': '该文件保存了分组框。以结构方式插入时不会把分组框带进你的图——其余内容照常插入。',
   'modules.frames.extractBody': '你的图中保存了分组框。它们不会写入结构文件——只有所选节点及其内部连线会被写入。',

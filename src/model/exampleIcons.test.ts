@@ -56,8 +56,10 @@ const contentOf = (p: ReturnType<typeof deserialize>) =>
   digestOfCanonical(canonicalContent({ nodes: p.nodes, edges: p.edges, recommendedRunConfig: p.recommendedRunConfig, frames: p.frames, dataImports: p.dataImports }, { modelVersion: p.modelVersion }))
 
 describe('the bundled examples carry node icons only where the meaning is plain (#478)', () => {
-  it('reads all 14 bundled graphs', () => {
-    expect(GRAPHS.length).toBe(14)
+  it('reads all 15 bundled graphs', () => {
+    // the coffee roasting batch is the fifteenth, and carries no icon: none of the
+    // drawn icons names beans, vapour or chaff
+    expect(GRAPHS.length).toBe(15)
   })
 
   for (const [file, text] of GRAPHS) {

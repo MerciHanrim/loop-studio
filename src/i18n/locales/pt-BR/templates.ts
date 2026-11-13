@@ -56,6 +56,8 @@ const templates = {
   'modules.promote.body.v4': 'Inserir esta estrutura torna o documento um modelo v4: ele declara unidades ou uma duração de passo e o resumo de semântica do modelo muda. Um único desfazer reverte juntos a mudança de modelo e a inserção.',
   'templates.desalination.name': 'Dessalinização de água do mar',
   'templates.desalination.blurb': 'Uma instalação de osmose reversa de água do mar desenhada como fluxo de processo, da captação à cidade e ao mar. A demanda da cidade segue uma curva de exemplo de 24 horas, e regras de marcha sustentam cada tanque. Cada número é uma suposição de exemplo, não dados medidos; salinidade, pressão e qualidade da água não são calculadas.',
+  'templates.coffeeRoastingBatch.name': 'Torra de café: um lote',
+  'templates.coffeeRoastingBatch.blurb': 'Um lote de 54 kg da moega, pelo tambor e pela bandeja de resfriamento, até o café torrado, um minuto por passo. Só a massa dos grãos é calculada; o gás e o calor do queimador, do pós-queimador e da chaminé não são. Cada número é uma suposição de exemplo.',
   'modules.frames.title': 'Os quadros salvos não são incluídos',
   'modules.frames.insertBody': 'Este arquivo tem quadros de grupo salvos. Inseri-lo como estrutura não traz os quadros para o seu grafo; todo o resto é inserido normalmente.',
   'modules.frames.extractBody': 'Seu grafo tem quadros de grupo salvos. Eles não são gravados no arquivo da estrutura: somente os nós selecionados e suas conexões internas são.',

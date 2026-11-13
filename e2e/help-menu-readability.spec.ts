@@ -161,9 +161,10 @@ test('KO File ▸ Templates: the wide submenu, every description whole in its de
   // the Standard gacha (docs/gacha-standard.md), the Pickup gacha (docs/gacha-pickup.md);
   // 0.30.0: Early MMO is in the menu again; #471 (2026-11-04): the desalination plant;
   // 2026-11-07: the two basic examples left it; #545: the five game Templates are in the
-  // Games group, whose row is described too — both lists are read
+  // Games group, whose row is described too — both lists are read; 2026-11-13: the
+  // coffee roasting batch joined the top list
   const top = await measureOpenMenu(page, '.dmenu--sub .dmenu__desc:not(.dmenu__hint)')
-  expect(top.length, 'one description per Template, and the Games row’s').toBe(3)
+  expect(top.length, 'one description per Template, and the Games row’s').toBe(4)
   await sub.locator('[data-template-group="games"]').click()
   await expect(sub.locator('[data-template-back]')).toBeVisible()
   const games = await measureOpenMenu(page, '.dmenu--sub .dmenu__desc:not(.dmenu__hint)')

@@ -239,7 +239,9 @@ describe('es-419 copy — mechanical review', () => {
         'HTTPS ' +
         // 2026-10 — Spanish/English homographs in the strings the workbench
         // redesign added (the Example notes, the Gate panel, the zoom control)
-        'extra general General natural real total Zoom'
+        'extra general General natural real total Zoom ' +
+        // the coffee roasting batch: `gas` is the Spanish word too
+        'gas'
       ).split(' '),
     )
     // allowed ONLY on the surface that owns it — the key set is the contract,
@@ -417,7 +419,8 @@ describe('es-419 copy — mechanical review', () => {
       A: ['help.examples.desalination.p4'],
       B: ['help.examples.desalination.p4'],
       C: ['help.examples.desalination.p4'],
-      kg: ['help.examples.desalination.p2'],
+      // the coffee roasting batch gives its masses in `kg` too
+      kg: ['help.examples.coffeeRoastingBatch.p1', 'help.examples.coffeeRoastingBatch.p2', 'help.examples.coffeeRoastingBatch.p3', 'help.examples.desalination.p2', 'templates.coffeeRoastingBatch.blurb'],
       kWh: ['help.examples.desalination.p6'],
       Schunke: ['help.examples.desalination.p6'],
       et: ['help.examples.desalination.p6'],

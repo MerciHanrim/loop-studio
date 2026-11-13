@@ -10,7 +10,7 @@ import { fileSubmenu, openFileMenu, openFileSubmenu, pickLocale, pickTemplate } 
 
 type Bridge = { __loop: Record<string, any> }
 const GAMES = ['mmo-progression', 'gacha-general', 'gacha-standard', 'gacha-pickup', 'gacha-banner-zones']
-const TOP = ['desalination', 'coffee-roastery']
+const TOP = ['desalination', 'coffee-roasting-batch', 'coffee-roastery']
 
 const shownIds = (page: Page) => fileSubmenu(page).locator('[data-template]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.template))
 const focusedHtml = (page: Page) => page.evaluate(() => (document.activeElement as HTMLElement | null)?.outerHTML.slice(0, 140) ?? 'none')
@@ -157,7 +157,7 @@ test.describe('#545 — the game examples as a group', () => {
         return { nameAbove: n.bottom <= d.top + 0.5, nameWide: n.width > b.width * 0.8, inside: b.right <= window.innerWidth + 0.5 }
       }),
     )
-    expect(layout).toHaveLength(3)
+    expect(layout).toHaveLength(4) // three Templates and the Games row
     for (const l of layout) expect(l).toEqual({ nameAbove: true, nameWide: true, inside: true })
     await sheet.locator('[data-template-group="games"]').click()
     expect(await sheet.locator('[data-template]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.template))).toEqual(GAMES)

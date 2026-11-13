@@ -42,6 +42,8 @@ const templates = {
   'modules.promote.body.v4': 'Chèn cấu trúc này biến tài liệu thành mô hình v4: nó khai báo đơn vị hoặc độ dài bước và tóm lược ngữ nghĩa mô hình thay đổi. Một lần hoàn tác sẽ đảo ngược cả thay đổi mô hình lẫn việc chèn.',
   'templates.desalination.name': 'Quy trình khử mặn nước biển',
   'templates.desalination.blurb': 'Nhà máy thẩm thấu ngược nước biển được vẽ như một dòng quy trình, từ lấy nước đến thành phố và biển. Nhu cầu của thành phố theo một đường cong ví dụ 24 giờ, và quy tắc vận hành giữ từng bể. Mọi con số đều là giả định ví dụ, không phải dữ liệu đo; không tính độ mặn, áp suất và chất lượng nước.',
+  'templates.coffeeRoastingBatch.name': 'Rang cà phê: một mẻ',
+  'templates.coffeeRoastingBatch.blurb': 'Một mẻ 54 kg từ phễu nạp, qua trống rang và khay làm nguội, đến hạt đã rang, mỗi bước một phút. Chỉ tính khối lượng hạt; không tính khí và nhiệt của đầu đốt, buồng đốt sau và ống khói. Mọi con số đều là giả định ví dụ.',
   'modules.frames.title': 'Không bao gồm nhóm đã lưu',
   'modules.frames.insertBody': 'Tệp này có các nhóm đã lưu. Chèn nó như một cấu trúc sẽ không mang nhóm vào đồ thị — mọi thứ còn lại được chèn như bình thường.',
   'modules.frames.extractBody': 'Đồ thị có các nhóm đã lưu. Chúng không được ghi vào tệp cấu trúc — chỉ các nút đang chọn và liên kết nội bộ giữa chúng được ghi.',
