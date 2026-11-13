@@ -381,11 +381,12 @@ describe('pt-BR copy — mechanical review', () => {
     // labels over 31 new node ids, and 3 frames; the 19 module labels left
     // with the bundled modules in v0.29.0; #471 (2026-11-04): the desalination
     // Template brings 9 labels over 9 new node ids; #533: its six chemical deliveries,
-    // 6 labels over 6 new node ids
+    // 6 labels over 6 new node ids; the coffee roasting batch: 11 labels over 11 new
+    // node ids, and 4 frames
     expect({ slotCount, frameCount, ids: ids.size }).toEqual({
-      slotCount: 308,
-      frameCount: 15,
-      ids: 264,
+      slotCount: 319,
+      frameCount: 19,
+      ids: 275,
     })
   })
 })

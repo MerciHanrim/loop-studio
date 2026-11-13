@@ -154,7 +154,8 @@ test.describe('Korean keeps its wrapping contract', () => {
     // 2026-11-07: 43 — the two basic examples' blurbs left the menu
     // #545: 44, was 43 — the Games group's row has a description of its own (1 line); the
     // game Templates' descriptions are measured inside the group, as before at the top
-    expect(rows.reduce((n, r) => n + r.lines, 0), 'the agreed Korean line count').toBe(44)
+    // 2026-11-14: 49 — the coffee roasting batch's blurb (5 lines, measured locally)
+    expect(rows.reduce((n, r) => n + r.lines, 0), 'the agreed Korean line count').toBe(49)
 
     // measured, not assumed: a break is mid-eojeol when two adjacent
     // NON-space characters end up on different lines
@@ -214,7 +215,8 @@ test.describe('English is untouched', () => {
     // 2026-11-07: 49 — the two basic examples' blurbs left the menu
     // #545: 50, was 49 — the Games group's row has a description of its own (1 line); the
     // game Templates' descriptions are measured inside the group, as before at the top
-    expect(rows.reduce((n, r) => n + r.lines, 0), 'the agreed English line count').toBe(50)
+    // 2026-11-14: 56 — the coffee roasting batch's blurb (6 lines, measured locally)
+    expect(rows.reduce((n, r) => n + r.lines, 0), 'the agreed English line count').toBe(56)
     await ctx.close()
   })
 })

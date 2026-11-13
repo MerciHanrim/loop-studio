@@ -1,4 +1,5 @@
 import coffeeRoasteryDoc from '../../examples/coffee-roastery.json'
+import coffeeRoastingBatchDoc from '../../examples/coffee-roasting-batch.json'
 import deadlockDoc from '../../examples/deadlock.json'
 import desalinationDoc from '../../examples/desalination.json'
 import equilibriumDoc from '../../examples/equilibrium.json'
@@ -165,6 +166,33 @@ export const TEMPLATES: Template[] = [
     ...tplModel(desalinationDoc),
     recommendedRunConfig: (desalinationDoc as { recommendedRunConfig?: RecommendedRunConfig }).recommendedRunConfig,
     initialView: { rect: { x: 10, y: 25, width: 2040, height: 1105 }, minZoom: 0.2 },
+  },
+  // "Coffee roasting batch": one batch of beans from the hopper through the drum and the
+  // cooling tray to roasted beans, at `loop-studio/graph/6`, one minute per step. Coffee
+  // mass is one conserved kind, so the 54 kg charged is found again at every step as
+  // beans, water vapour, volatiles and chaff. Six timetables set the time: three run
+  // rules move the whole batch (charge at step 1, drop at step 14, discharge at step 19),
+  // two table lines and one run rule take the roasting losses out of the drum in steps
+  // 2-13, and the last table ends the run after step 19. Steps 15-18 only keep the beans
+  // in the tray: no temperature is computed. Burner, afterburner, stack and cooling air
+  // are not drawn, because the engine would move nothing along them (Lumi, 2026-11-14).
+  // Every number is an example assumption, not a plant value. The canonical graph is
+  // examples/coffee-roasting-batch.json; its run is pinned against
+  // examples/coffee-roasting-batch.expected.json by test/coffee-roasting-batch.test.ts.
+  // Menu place: after the desalination process, so the two process examples sit together
+  // and Coffee → MMO → Gacha (Hanrim, 2026-09-13) stays adjacent.
+  {
+    id: 'coffee-roasting-batch',
+    name: 'Coffee roasting batch',
+    blurb:
+      'One 54 kg batch from the hopper through the drum and the cooling tray to roasted beans, one minute per step. Only bean mass is computed: the gas and heat of the burner, afterburner and stack are not. Every number is an example assumption.',
+    graph: tplGraph(coffeeRoastingBatchDoc),
+    ...tplModel(coffeeRoastingBatchDoc),
+    recommendedRunConfig: (coffeeRoastingBatchDoc as { recommendedRunConfig?: RecommendedRunConfig }).recommendedRunConfig,
+    // the four frames with their titles, so the whole batch is on the first screen; the
+    // floor keeps the names readable in a small window, where the cooling end is one pan
+    // to the right
+    initialView: { rect: { x: 20, y: -70, width: 1180, height: 730 }, minZoom: 0.5 },
   },
   // "Coffee roastery operations flow" — the first bundled Template authored at
   // schema `loop-studio/graph/2` (loop-model/2). Its five surfaced levers are

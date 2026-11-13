@@ -56,6 +56,8 @@ const templates = {
   'modules.promote.body.v4': 'Inserire questa struttura rende il documento un modello v4: dichiara unità o una durata del passo e il digest della semantica del modello cambia. Un solo annulla ripristina insieme la modifica del modello e l’inserimento.',
   'templates.desalination.name': 'Processo di dissalazione marina',
   'templates.desalination.blurb': 'Un impianto di osmosi inversa di acqua di mare disegnato come flusso di processo, dalla presa alla città e al mare. La domanda della città segue una curva di esempio di 24 ore e le regole di marcia tengono ogni serbatoio. Ogni numero è un’ipotesi di esempio, non un dato misurato; salinità, pressione e qualità dell’acqua non sono calcolate.',
+  'templates.coffeeRoastingBatch.name': 'Tostatura del caffè: un lotto',
+  'templates.coffeeRoastingBatch.blurb': 'Un lotto di 54 kg dalla tramoggia, attraverso il tamburo e la vasca di raffreddamento, fino al caffè tostato, un minuto per passo. Si calcola solo la massa dei chicchi; gas e calore di bruciatore, postbruciatore e camino non sono calcolati. Ogni numero è un’ipotesi di esempio.',
   'modules.frames.title': 'I riquadri salvati non sono inclusi',
   'modules.frames.insertBody': 'Questo file contiene riquadri di gruppo salvati. Inserirlo come struttura non porta i riquadri nel tuo grafo: tutto il resto viene inserito normalmente.',
   'modules.frames.extractBody': 'Il tuo grafo contiene riquadri di gruppo salvati. Non vengono scritti nel file della struttura: ci finiscono solo i nodi selezionati e le connessioni fra loro.',

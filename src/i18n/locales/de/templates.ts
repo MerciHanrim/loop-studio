@@ -56,6 +56,8 @@ const templates = {
   'modules.promote.body.v4': 'Das Einfügen dieser Struktur macht das Dokument zu einem v4-Modell: Es deklariert Einheiten oder eine Schrittlänge, und der Modellsemantik-Digest ändert sich. Ein einziges Rückgängig nimmt die Modelländerung und das Einfügen zusammen zurück.',
   'templates.desalination.name': 'Prozess der Meerwasserentsalzung',
   'templates.desalination.blurb': 'Eine Meerwasser-Umkehrosmoseanlage als Prozessfluss, von der Entnahme bis zur Stadt und zum Meer. Der Bedarf der Stadt folgt einer 24-Stunden-Beispielkurve, und Laufregeln halten jeden Tank. Jede Zahl ist eine Beispielannahme, keine Messung; Salzgehalt, Druck und Wasserqualität werden nicht berechnet.',
+  'templates.coffeeRoastingBatch.name': 'Kaffeeröstung: eine Charge',
+  'templates.coffeeRoastingBatch.blurb': 'Eine Charge von 54 kg vom Trichter über die Trommel und das Kühlsieb bis zum Röstkaffee, eine Minute pro Schritt. Berechnet wird nur die Bohnenmasse; Gas und Wärme von Brenner, Nachbrenner und Kamin werden nicht berechnet. Jede Zahl ist eine Beispielannahme.',
   'modules.frames.title': 'Gespeicherte Gruppenrahmen sind nicht enthalten',
   'modules.frames.insertBody': 'Diese Datei enthält gespeicherte Gruppenrahmen. Beim Einfügen als Struktur werden keine Rahmen in Ihren Graphen übernommen – alles andere wird wie gewohnt eingefügt.',
   'modules.frames.extractBody': 'Ihr Graph hat gespeicherte Gruppenrahmen. Sie werden nicht in die Strukturdatei geschrieben – nur die ausgewählten Knoten und ihre internen Verbindungen.',

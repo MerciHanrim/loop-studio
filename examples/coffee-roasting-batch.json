@@ -1,0 +1,585 @@
+{
+  "schema": "loop-studio/graph/6",
+  "version": 1,
+  "layoutVersion": 1,
+  "nodes": [
+    {
+      "id": "bean_hopper",
+      "type": "pool",
+      "position": {
+        "x": 100,
+        "y": 490
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Green bean hopper",
+        "activation": "passive",
+        "initial": 54,
+        "capacity": null,
+        "mode": "pullAny",
+        "resourceType": "coffee mass",
+        "accent": "#A78243"
+      }
+    },
+    {
+      "id": "charge_drum",
+      "type": "converter",
+      "position": {
+        "x": 250,
+        "y": 490
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Charge",
+        "activation": "automatic",
+        "mode": "pullAll",
+        "run": {
+          "table": "charge",
+          "rated": "e_hopper_charge"
+        }
+      }
+    },
+    {
+      "id": "roast_drum",
+      "type": "pool",
+      "position": {
+        "x": 410,
+        "y": 490
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Roasting drum",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "resourceType": "coffee mass",
+        "accent": "#A78243"
+      }
+    },
+    {
+      "id": "drop_beans",
+      "type": "converter",
+      "position": {
+        "x": 590,
+        "y": 490
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Drop",
+        "activation": "automatic",
+        "mode": "pullAll",
+        "run": {
+          "table": "drop",
+          "rated": "e_drum_drop"
+        }
+      }
+    },
+    {
+      "id": "cooling_tray",
+      "type": "pool",
+      "position": {
+        "x": 760,
+        "y": 490
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Cooling tray",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "resourceType": "coffee mass",
+        "accent": "#A78243"
+      }
+    },
+    {
+      "id": "discharge_beans",
+      "type": "converter",
+      "position": {
+        "x": 910,
+        "y": 490
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Discharge",
+        "activation": "automatic",
+        "mode": "pullAll",
+        "run": {
+          "table": "discharge",
+          "rated": "e_cooler_discharge"
+        }
+      }
+    },
+    {
+      "id": "roasted_beans",
+      "type": "pool",
+      "position": {
+        "x": 1060,
+        "y": 490
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Roasted beans",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "resourceType": "coffee mass",
+        "accent": "#A78243"
+      }
+    },
+    {
+      "id": "water_vapour",
+      "type": "drain",
+      "position": {
+        "x": 660,
+        "y": 20
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Water vapour (to exhaust)",
+        "activation": "automatic",
+        "mode": "pullAny",
+        "accent": "#638EA5"
+      }
+    },
+    {
+      "id": "volatiles_out",
+      "type": "drain",
+      "position": {
+        "x": 660,
+        "y": 130
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Volatiles (to exhaust)",
+        "activation": "automatic",
+        "mode": "pullAny",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "chaff_cyclone",
+      "type": "converter",
+      "position": {
+        "x": 660,
+        "y": 240
+      },
+      "data": {
+        "kind": "converter",
+        "label": "Cyclone (chaff separation)",
+        "activation": "automatic",
+        "mode": "pullAll",
+        "run": {
+          "table": "chaff",
+          "rated": "e_drum_cyclone"
+        }
+      }
+    },
+    {
+      "id": "chaff_bin",
+      "type": "pool",
+      "position": {
+        "x": 830,
+        "y": 240
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Chaff bin",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "resourceType": "coffee mass",
+        "accent": "#74906B"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_hopper_charge",
+      "source": "bean_hopper",
+      "target": "charge_drum",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "54",
+        "unit": "kg per min",
+        "route": "orthogonal",
+        "accent": "#A78243"
+      }
+    },
+    {
+      "id": "e_charge_drum",
+      "source": "charge_drum",
+      "target": "roast_drum",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "54",
+        "unit": "kg per min",
+        "route": "orthogonal",
+        "accent": "#A78243"
+      }
+    },
+    {
+      "id": "e_drum_steam",
+      "source": "roast_drum",
+      "target": "water_vapour",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "~moisture",
+        "unit": "kg per min",
+        "route": "orthogonal",
+        "accent": "#638EA5"
+      }
+    },
+    {
+      "id": "e_drum_voc",
+      "source": "roast_drum",
+      "target": "volatiles_out",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "~volatiles",
+        "unit": "kg per min",
+        "route": "orthogonal",
+        "accent": "#B47599"
+      }
+    },
+    {
+      "id": "e_drum_cyclone",
+      "source": "roast_drum",
+      "target": "chaff_cyclone",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.08",
+        "unit": "kg per min",
+        "route": "orthogonal",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "e_cyclone_bin",
+      "source": "chaff_cyclone",
+      "target": "chaff_bin",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.08",
+        "unit": "kg per min",
+        "route": "orthogonal",
+        "accent": "#74906B"
+      }
+    },
+    {
+      "id": "e_drum_drop",
+      "source": "roast_drum",
+      "target": "drop_beans",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "44.64",
+        "unit": "kg per min",
+        "route": "orthogonal",
+        "accent": "#A78243"
+      }
+    },
+    {
+      "id": "e_drop_cooler",
+      "source": "drop_beans",
+      "target": "cooling_tray",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "44.64",
+        "unit": "kg per min",
+        "route": "orthogonal",
+        "accent": "#A78243"
+      }
+    },
+    {
+      "id": "e_cooler_discharge",
+      "source": "cooling_tray",
+      "target": "discharge_beans",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "44.64",
+        "unit": "kg per min",
+        "route": "orthogonal",
+        "accent": "#A78243"
+      }
+    },
+    {
+      "id": "e_discharge_roasted",
+      "source": "discharge_beans",
+      "target": "roasted_beans",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "44.64",
+        "unit": "kg per min",
+        "route": "orthogonal",
+        "accent": "#A78243"
+      }
+    }
+  ],
+  "kinds": [
+    {
+      "name": "coffee mass",
+      "conserved": true,
+      "baseUnit": "kg",
+      "rateUnits": [
+        {
+          "name": "kg per min",
+          "factor": "1",
+          "per": "min"
+        }
+      ]
+    }
+  ],
+  "time": {
+    "step": {
+      "value": 1,
+      "unit": "min"
+    },
+    "display": "min"
+  },
+  "frames": [
+    {
+      "id": "f_charge",
+      "label": "1 Charge",
+      "rect": {
+        "x": 40,
+        "y": 430,
+        "w": 320,
+        "h": 210
+      },
+      "color": "sage"
+    },
+    {
+      "id": "f_roast",
+      "label": "2 Roasting",
+      "rect": {
+        "x": 370,
+        "y": 430,
+        "w": 330,
+        "h": 210
+      },
+      "color": "gold"
+    },
+    {
+      "id": "f_cool",
+      "label": "3 Cooling",
+      "rect": {
+        "x": 710,
+        "y": 430,
+        "w": 470,
+        "h": 210
+      },
+      "color": "slate"
+    },
+    {
+      "id": "f_exhaust",
+      "label": "4 Exhaust and chaff",
+      "rect": {
+        "x": 450,
+        "y": -30,
+        "w": 500,
+        "h": 420
+      },
+      "color": "rose"
+    }
+  ],
+  "timetables": [
+    {
+      "id": "charge",
+      "label": "Charge schedule",
+      "source": "Example assumption, not measured data",
+      "unit": "kg per min",
+      "timeUnit": "min",
+      "read": "hold",
+      "after": "zero",
+      "end": "19",
+      "points": [
+        [
+          "0",
+          "54"
+        ],
+        [
+          "1",
+          "0"
+        ]
+      ]
+    },
+    {
+      "id": "moisture",
+      "label": "Moisture release",
+      "source": "Example assumption, not measured data",
+      "unit": "kg per min",
+      "timeUnit": "min",
+      "read": "hold",
+      "after": "zero",
+      "end": "19",
+      "points": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "1",
+          "1.2"
+        ],
+        [
+          "5",
+          "0.25"
+        ],
+        [
+          "9",
+          "0.05"
+        ],
+        [
+          "13",
+          "0"
+        ]
+      ]
+    },
+    {
+      "id": "volatiles",
+      "label": "Volatiles release",
+      "source": "Example assumption, not measured data",
+      "unit": "kg per min",
+      "timeUnit": "min",
+      "read": "hold",
+      "after": "zero",
+      "end": "19",
+      "points": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "1",
+          "0.03"
+        ],
+        [
+          "5",
+          "0.19"
+        ],
+        [
+          "9",
+          "0.5"
+        ],
+        [
+          "13",
+          "0"
+        ]
+      ]
+    },
+    {
+      "id": "chaff",
+      "label": "Chaff release",
+      "source": "Example assumption, not measured data",
+      "unit": "kg per min",
+      "timeUnit": "min",
+      "read": "hold",
+      "after": "zero",
+      "end": "19",
+      "points": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "1",
+          "0.04"
+        ],
+        [
+          "5",
+          "0.08"
+        ],
+        [
+          "9",
+          "0"
+        ]
+      ]
+    },
+    {
+      "id": "drop",
+      "label": "Drop schedule",
+      "source": "Example assumption, not measured data",
+      "unit": "kg per min",
+      "timeUnit": "min",
+      "read": "hold",
+      "after": "zero",
+      "end": "19",
+      "points": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "13",
+          "44.64"
+        ],
+        [
+          "14",
+          "0"
+        ]
+      ]
+    },
+    {
+      "id": "discharge",
+      "label": "Discharge schedule",
+      "source": "Example assumption, not measured data",
+      "unit": "kg per min",
+      "timeUnit": "min",
+      "read": "hold",
+      "after": "stop",
+      "end": "19",
+      "points": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "18",
+          "44.64"
+        ]
+      ]
+    }
+  ],
+  "recommendedRunConfig": {
+    "timelineSeries": [
+      "bean_hopper",
+      "chaff_bin",
+      "cooling_tray",
+      "roast_drum",
+      "roasted_beans"
+    ]
+  }
+}

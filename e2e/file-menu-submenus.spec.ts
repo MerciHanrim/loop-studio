@@ -41,8 +41,9 @@ for (const locale of ['en', 'ko'] as const) {
     // 0.30.0: eight — Early MMO is in the menu again, after Coffee;
     // #471 (2026-11-04): nine — the desalination plant, before Coffee;
     // 2026-11-07: seven — Balanced production line and Capacity deadlock left it;
-    // #545 (2026-11-10): two, then the Games group, which holds the other five
-    await expect(templates.locator('[data-template]')).toHaveCount(2)
+    // #545 (2026-11-10): two, then the Games group, which holds the other five;
+    // 2026-11-14: three — the coffee roasting batch, after the desalination plant
+    await expect(templates.locator('[data-template]')).toHaveCount(3)
     await expect(templates.locator('[data-template-group="games"] .menu__name')).toHaveText(locale === 'en' ? 'Games' : '게임')
     await expect(templates.locator('[data-template="equilibrium"], [data-template="deadlock"]')).toHaveCount(0)
     for (const row of await templates.locator('[role="menuitem"]').all()) expect(await oneLine(row)).toBe(true)
@@ -123,10 +124,11 @@ test('the description area: the pointed row, else the focused one; none for a ro
   await expect(shown(sub)).toHaveClass(/dmenu__hint/)
   const area = sub.locator('.dmenu__area')
   const h0 = (await area.boundingBox())!.height
-  // #545 — the Templates' rows: the two Templates and the Games group's row, each described
+  // #545 — the Templates' rows: the three Templates (the coffee roasting batch since
+  // 2026-11-14) and the Games group's row, each described
   const rows = sub.locator('[role="menuitem"]')
   const count = await rows.count()
-  expect(count).toBe(3)
+  expect(count).toBe(4)
   for (let i = 0; i < count; i++) {
     const row = rows.nth(i)
     await row.hover()

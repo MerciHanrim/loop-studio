@@ -1,0 +1,477 @@
+{
+  "$about": "examples/coffee-roasting-batch.json run through the real engine for 19 steps of one minute: charge at step 1, 12 minutes of roasting in steps 2-13, drop at step 14, 4 minutes of cooling in steps 15-18, discharge at step 19. Re-derived and pinned by test/coffee-roasting-batch.test.ts. Every number is an example assumption, not a measurement, a typical plant value or a validated prediction. The cooling steps show time passing only: no temperature is computed. Gas and heat are not in the model.",
+  "modelVersion": 6,
+  "time": {
+    "step": {
+      "value": 1,
+      "unit": "min"
+    },
+    "display": "min"
+  },
+  "assumptions": {
+    "batch": "54",
+    "moistureDryBasis": "0.125",
+    "volatilesOfDry": "0.06",
+    "chaffOfDry": "0.01"
+  },
+  "findings": {
+    "kinds": 0,
+    "rules": 0,
+    "warnings": 0
+  },
+  "phases": [
+    {
+      "name": "drying",
+      "from": 2,
+      "to": 5,
+      "waterVapour": "4.8",
+      "volatiles": "0.12",
+      "chaff": "0.16"
+    },
+    {
+      "name": "browning",
+      "from": 6,
+      "to": 9,
+      "waterVapour": "1",
+      "volatiles": "0.76",
+      "chaff": "0.32"
+    },
+    {
+      "name": "development",
+      "from": 10,
+      "to": 13,
+      "waterVapour": "0.2",
+      "volatiles": "2",
+      "chaff": "0"
+    }
+  ],
+  "engine": {
+    "tolerance": 1e-9,
+    "largestDifference": 1.4210854715202004e-14
+  },
+  "checkpoints": [
+    {
+      "step": 0,
+      "exact": {
+        "bean_hopper": "54",
+        "roast_drum": "0",
+        "cooling_tray": "0",
+        "roasted_beans": "0",
+        "chaff_bin": "0",
+        "water_vapour": "0",
+        "volatiles_out": "0"
+      }
+    },
+    {
+      "step": 1,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "54",
+        "cooling_tray": "0",
+        "roasted_beans": "0",
+        "chaff_bin": "0",
+        "water_vapour": "0",
+        "volatiles_out": "0"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 54,
+        "cooling_tray": 0,
+        "roasted_beans": 0,
+        "chaff_bin": 0,
+        "water_vapour": 0,
+        "volatiles_out": 0
+      }
+    },
+    {
+      "step": 2,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "52.73",
+        "cooling_tray": "0",
+        "roasted_beans": "0",
+        "chaff_bin": "0.04",
+        "water_vapour": "1.2",
+        "volatiles_out": "0.03"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 52.73,
+        "cooling_tray": 0,
+        "roasted_beans": 0,
+        "chaff_bin": 0.04,
+        "water_vapour": 1.2,
+        "volatiles_out": 0.03
+      }
+    },
+    {
+      "step": 3,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "51.46",
+        "cooling_tray": "0",
+        "roasted_beans": "0",
+        "chaff_bin": "0.08",
+        "water_vapour": "2.4",
+        "volatiles_out": "0.06"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 51.459999999999994,
+        "cooling_tray": 0,
+        "roasted_beans": 0,
+        "chaff_bin": 0.08,
+        "water_vapour": 2.4,
+        "volatiles_out": 0.06
+      }
+    },
+    {
+      "step": 4,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "50.19",
+        "cooling_tray": "0",
+        "roasted_beans": "0",
+        "chaff_bin": "0.12",
+        "water_vapour": "3.6",
+        "volatiles_out": "0.09"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 50.18999999999999,
+        "cooling_tray": 0,
+        "roasted_beans": 0,
+        "chaff_bin": 0.12,
+        "water_vapour": 3.5999999999999996,
+        "volatiles_out": 0.09
+      }
+    },
+    {
+      "step": 5,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "48.92",
+        "cooling_tray": "0",
+        "roasted_beans": "0",
+        "chaff_bin": "0.16",
+        "water_vapour": "4.8",
+        "volatiles_out": "0.12"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 48.91999999999999,
+        "cooling_tray": 0,
+        "roasted_beans": 0,
+        "chaff_bin": 0.16,
+        "water_vapour": 4.8,
+        "volatiles_out": 0.12
+      }
+    },
+    {
+      "step": 6,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "48.4",
+        "cooling_tray": "0",
+        "roasted_beans": "0",
+        "chaff_bin": "0.24",
+        "water_vapour": "5.05",
+        "volatiles_out": "0.31"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 48.39999999999999,
+        "cooling_tray": 0,
+        "roasted_beans": 0,
+        "chaff_bin": 0.24,
+        "water_vapour": 5.05,
+        "volatiles_out": 0.31
+      }
+    },
+    {
+      "step": 7,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "47.88",
+        "cooling_tray": "0",
+        "roasted_beans": "0",
+        "chaff_bin": "0.32",
+        "water_vapour": "5.3",
+        "volatiles_out": "0.5"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 47.879999999999995,
+        "cooling_tray": 0,
+        "roasted_beans": 0,
+        "chaff_bin": 0.32,
+        "water_vapour": 5.3,
+        "volatiles_out": 0.5
+      }
+    },
+    {
+      "step": 8,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "47.36",
+        "cooling_tray": "0",
+        "roasted_beans": "0",
+        "chaff_bin": "0.4",
+        "water_vapour": "5.55",
+        "volatiles_out": "0.69"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 47.36,
+        "cooling_tray": 0,
+        "roasted_beans": 0,
+        "chaff_bin": 0.4,
+        "water_vapour": 5.55,
+        "volatiles_out": 0.69
+      }
+    },
+    {
+      "step": 9,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "46.84",
+        "cooling_tray": "0",
+        "roasted_beans": "0",
+        "chaff_bin": "0.48",
+        "water_vapour": "5.8",
+        "volatiles_out": "0.88"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 46.84,
+        "cooling_tray": 0,
+        "roasted_beans": 0,
+        "chaff_bin": 0.48000000000000004,
+        "water_vapour": 5.8,
+        "volatiles_out": 0.8799999999999999
+      }
+    },
+    {
+      "step": 10,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "46.29",
+        "cooling_tray": "0",
+        "roasted_beans": "0",
+        "chaff_bin": "0.48",
+        "water_vapour": "5.85",
+        "volatiles_out": "1.38"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 46.290000000000006,
+        "cooling_tray": 0,
+        "roasted_beans": 0,
+        "chaff_bin": 0.48000000000000004,
+        "water_vapour": 5.85,
+        "volatiles_out": 1.38
+      }
+    },
+    {
+      "step": 11,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "45.74",
+        "cooling_tray": "0",
+        "roasted_beans": "0",
+        "chaff_bin": "0.48",
+        "water_vapour": "5.9",
+        "volatiles_out": "1.88"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 45.74000000000001,
+        "cooling_tray": 0,
+        "roasted_beans": 0,
+        "chaff_bin": 0.48000000000000004,
+        "water_vapour": 5.8999999999999995,
+        "volatiles_out": 1.88
+      }
+    },
+    {
+      "step": 12,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "45.19",
+        "cooling_tray": "0",
+        "roasted_beans": "0",
+        "chaff_bin": "0.48",
+        "water_vapour": "5.95",
+        "volatiles_out": "2.38"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 45.19000000000001,
+        "cooling_tray": 0,
+        "roasted_beans": 0,
+        "chaff_bin": 0.48000000000000004,
+        "water_vapour": 5.949999999999999,
+        "volatiles_out": 2.38
+      }
+    },
+    {
+      "step": 13,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "44.64",
+        "cooling_tray": "0",
+        "roasted_beans": "0",
+        "chaff_bin": "0.48",
+        "water_vapour": "6",
+        "volatiles_out": "2.88"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 44.640000000000015,
+        "cooling_tray": 0,
+        "roasted_beans": 0,
+        "chaff_bin": 0.48000000000000004,
+        "water_vapour": 5.999999999999999,
+        "volatiles_out": 2.88
+      }
+    },
+    {
+      "step": 14,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "0",
+        "cooling_tray": "44.64",
+        "roasted_beans": "0",
+        "chaff_bin": "0.48",
+        "water_vapour": "6",
+        "volatiles_out": "2.88"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 0,
+        "cooling_tray": 44.64,
+        "roasted_beans": 0,
+        "chaff_bin": 0.48000000000000004,
+        "water_vapour": 5.999999999999999,
+        "volatiles_out": 2.88
+      }
+    },
+    {
+      "step": 15,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "0",
+        "cooling_tray": "44.64",
+        "roasted_beans": "0",
+        "chaff_bin": "0.48",
+        "water_vapour": "6",
+        "volatiles_out": "2.88"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 0,
+        "cooling_tray": 44.64,
+        "roasted_beans": 0,
+        "chaff_bin": 0.48000000000000004,
+        "water_vapour": 5.999999999999999,
+        "volatiles_out": 2.88
+      }
+    },
+    {
+      "step": 16,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "0",
+        "cooling_tray": "44.64",
+        "roasted_beans": "0",
+        "chaff_bin": "0.48",
+        "water_vapour": "6",
+        "volatiles_out": "2.88"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 0,
+        "cooling_tray": 44.64,
+        "roasted_beans": 0,
+        "chaff_bin": 0.48000000000000004,
+        "water_vapour": 5.999999999999999,
+        "volatiles_out": 2.88
+      }
+    },
+    {
+      "step": 17,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "0",
+        "cooling_tray": "44.64",
+        "roasted_beans": "0",
+        "chaff_bin": "0.48",
+        "water_vapour": "6",
+        "volatiles_out": "2.88"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 0,
+        "cooling_tray": 44.64,
+        "roasted_beans": 0,
+        "chaff_bin": 0.48000000000000004,
+        "water_vapour": 5.999999999999999,
+        "volatiles_out": 2.88
+      }
+    },
+    {
+      "step": 18,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "0",
+        "cooling_tray": "44.64",
+        "roasted_beans": "0",
+        "chaff_bin": "0.48",
+        "water_vapour": "6",
+        "volatiles_out": "2.88"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 0,
+        "cooling_tray": 44.64,
+        "roasted_beans": 0,
+        "chaff_bin": 0.48000000000000004,
+        "water_vapour": 5.999999999999999,
+        "volatiles_out": 2.88
+      }
+    },
+    {
+      "step": 19,
+      "exact": {
+        "bean_hopper": "0",
+        "roast_drum": "0",
+        "cooling_tray": "0",
+        "roasted_beans": "44.64",
+        "chaff_bin": "0.48",
+        "water_vapour": "6",
+        "volatiles_out": "2.88"
+      },
+      "engine": {
+        "bean_hopper": 0,
+        "roast_drum": 0,
+        "cooling_tray": 0,
+        "roasted_beans": 44.64,
+        "chaff_bin": 0.48000000000000004,
+        "water_vapour": 5.999999999999999,
+        "volatiles_out": 2.88
+      }
+    }
+  ],
+  "end": {
+    "step": 20,
+    "consumed": false,
+    "ended": true,
+    "notices": [
+      {
+        "kind": "timetableEnded",
+        "tableId": "discharge",
+        "label": "Discharge schedule"
+      }
+    ]
+  }
+}

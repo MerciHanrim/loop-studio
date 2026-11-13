@@ -34,6 +34,8 @@ const templates = {
   'modules.promote.body.v4': 'Het invoegen van deze structuur maakt van het document een v4-model: het declareert eenheden of een staplengte en de modelsemantiek-digest verandert. Eén keer ongedaan maken draait de modelwijziging en het invoegen samen terug.',
   'templates.desalination.name': 'Ontziltingsproces voor zeewater',
   'templates.desalination.blurb': 'Een omgekeerde-osmose-installatie voor zeewater, getekend als processtroom, van de inname tot de stad en de zee. De vraag van de stad volgt een voorbeeldcurve van 24 uur, en loopregels houden elke tank op peil. Elk getal is een voorbeeldaanname, geen meetgegeven; zoutgehalte, druk en waterkwaliteit worden niet berekend.',
+  'templates.coffeeRoastingBatch.name': 'Koffie branden: één batch',
+  'templates.coffeeRoastingBatch.blurb': 'Eén batch van 54 kg van de trechter via de trommel en de koelbak naar gebrande bonen, één minuut per stap. Alleen de massa van de bonen wordt berekend; gas en warmte van brander, naverbrander en schoorsteen niet. Elk getal is een voorbeeldaanname.',
   'modules.frames.title': 'Opgeslagen kaders worden niet meegenomen',
   'modules.frames.insertBody': 'Dit bestand bevat opgeslagen groepskaders. Het als structuur invoegen brengt die kaders niet in je diagram — al het andere wordt gewoon ingevoegd.',
   'modules.frames.extractBody': 'Je diagram bevat opgeslagen groepskaders. Die worden niet in het structuurbestand geschreven — alleen de geselecteerde knooppunten en hun onderlinge verbindingen.',
