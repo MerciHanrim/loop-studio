@@ -267,10 +267,10 @@ describe('a value read in another unit is refused', () => {
   it('the value without the declaration would read 0.9 bag as 0.9 kg: named before the Apply, refused by it, nothing changed', async () => {
     const p = await proposal(bags)
     const sel: HunkSelection = { ...defaults(p), kinds: 'yours' }
-    expect(diag(p, sel).unitMisreads).toEqual([{ elementType: 'node', id: 'bean_hopper', unit: 'bag', origin: 'proposed' }])
+    expect(diag(p, sel).unitMisreads).toEqual([{ elementType: 'node', id: 'bean_hopper', unit: 'bag', origin: 'proposed', via: 'unit' }])
     const before = g().past.length
     const res = applyPendingProposal(p, { selection: sel })
-    expect(res).toMatchObject({ ok: false, reason: 'invalid-selection', unitMisreads: [{ elementType: 'node', id: 'bean_hopper', unit: 'bag', origin: 'proposed' }] })
+    expect(res).toMatchObject({ ok: false, reason: 'invalid-selection', unitMisreads: [{ elementType: 'node', id: 'bean_hopper', unit: 'bag', origin: 'proposed', via: 'unit' }] })
     expect(g().past.length).toBe(before)
     expect((g().nodes.find((n) => n.id === 'bean_hopper')!.data as { initial: number; unit?: string })).toMatchObject({ initial: 54 })
     expect(hopperAtStart()).toBe(54)
@@ -284,8 +284,8 @@ describe('a value read in another unit is refused', () => {
     })
     const sel: HunkSelection = { ...defaults(p), kinds: 'yours' }
     expect(diag(p, sel).unitMisreads).toEqual([
-      { elementType: 'edge', id: 'e_chaff_released', unit: 'g per min', origin: 'proposed' },
-      { elementType: 'edge', id: 'e_drum_chaff', unit: 'g per min', origin: 'proposed' },
+      { elementType: 'edge', id: 'e_chaff_released', unit: 'g per min', origin: 'proposed', via: 'unit' },
+      { elementType: 'edge', id: 'e_drum_chaff', unit: 'g per min', origin: 'proposed', via: 'unit' },
     ])
     expect(applyPendingProposal(p, { selection: sel })).toMatchObject({ ok: false, reason: 'invalid-selection' })
     expect(applyPendingProposal(p, { selection: defaults(p) }).ok).toBe(true)
@@ -303,9 +303,135 @@ describe('a value read in another unit is refused', () => {
     const sel: HunkSelection = { ...defaults(p), fieldChoices: {} }
     expect(sel.kinds).toBe('proposed')
     const found = diag(p, sel).unitMisreads
-    expect(found).toEqual([{ elementType: 'edge', id: 'e_drum_chaff', unit: 'kg per min', origin: 'yours' }])
+    expect(found).toEqual([{ elementType: 'edge', id: 'e_drum_chaff', unit: 'kg per min', origin: 'yours', via: 'unit' }])
     expect(applyPendingProposal(p, { selection: sel })).toMatchObject({ ok: false, reason: 'invalid-selection' })
     // a value both sides hold alike is on the proposal's side too, and reads as the proposal reads it
+    expect(diag(p, defaults(p)).unitMisreads).toEqual([])
+  })
+
+  describe('a value that names no unit is counted in the base unit of its kind', () => {
+    /** the kind counted in g instead of kg: its base unit renamed, "kg per min" kept as 1 000 g per minute, and the
+     *  one amount written in the base unit, the hopper's 54 (kg), rewritten as 54 000 (g). Every line and every
+     *  table is in "kg per min", so the proposal's run is the same batch. */
+    const grams = (f: Doc) => {
+      f.kinds[0].baseUnit = 'g'
+      f.kinds[0].rateUnits[0].factor = '1000'
+      f.nodes.find((n) => n.id === 'bean_hopper').data.initial = 54000
+    }
+    const hopper = () => (g().nodes.find((n) => n.id === 'bean_hopper')!.data as { initial: number; unit?: string }).initial
+    const baseUnit = () => g().kinds[0]!.baseUnit
+
+    it('the proposal itself is the same batch in grams', async () => {
+      const p = await proposal(grams)
+      expect(applyPendingProposal(p).ok).toBe(true)
+      expect(refusals()).toEqual([])
+      expect(run()).toMatchObject({ lastStep: 19, roasted: 44640 })
+    })
+
+    it('the base unit alone: the kept 54, written for kg, would be counted as 54 g. Named before the Apply, refused by it, nothing changed', async () => {
+      const p = await proposal(grams)
+      const sel: HunkSelection = { ...defaults(p), fieldChoices: {} }
+      expect(sel.kinds).toBe('proposed')
+      const expected = [{ elementType: 'node', id: 'bean_hopper', unit: 'kg', origin: 'yours', via: 'base', now: 'g' }]
+      expect(diag(p, sel).unitMisreads).toEqual(expected)
+      const before = g().past.length
+      expect(applyPendingProposal(p, { selection: sel })).toMatchObject({ ok: false, reason: 'invalid-selection', unitMisreads: expected })
+      expect(g().past.length).toBe(before)
+      expect([hopper(), baseUnit()]).toEqual([54, 'kg'])
+      expect(hopperAtStart()).toBe(54)
+    })
+
+    it('the value and the base unit together: 54 000 g, and the run is the batch it was', async () => {
+      const p = await proposal(grams)
+      const sel = defaults(p)
+      expect(sel.kinds).toBe('proposed')
+      expect(sel.fieldChoices.bean_hopper).toEqual({ 'data.initial': 'proposed' })
+      expect(diag(p, sel).unitMisreads).toEqual([])
+      expect(applyPendingProposal(p, { selection: sel }).ok).toBe(true)
+      expect([hopper(), baseUnit()]).toEqual([54000, 'g'])
+      expect(refusals()).toEqual([])
+      expect(run()).toMatchObject({ lastStep: 19, roasted: 44640 })
+      g().undo()
+      expect([hopper(), baseUnit()]).toEqual([54, 'kg'])
+    })
+
+    it('the other way round: the value alone, 54 000 written for g, would be counted as 54 000 kg. Refused, nothing changed', async () => {
+      const p = await proposal(grams)
+      const sel: HunkSelection = { ...defaults(p), kinds: 'yours' }
+      const expected = [{ elementType: 'node', id: 'bean_hopper', unit: 'g', origin: 'proposed', via: 'base', now: 'kg' }]
+      expect(diag(p, sel).unitMisreads).toEqual(expected)
+      expect(applyPendingProposal(p, { selection: sel })).toMatchObject({ ok: false, reason: 'invalid-selection', unitMisreads: expected })
+      expect([hopper(), baseUnit()]).toEqual([54, 'kg'])
+    })
+
+    it('a line whose rate is a plain number is judged the same way; `all`, a share and a table line are not amounts', async () => {
+      // the open document's chaff line written without a unit first: 0.08 is then 0.08 kg per step
+      const plain = (f: Doc) => {
+        const d = f.edges.find((e) => e.id === 'e_chaff_released').data
+        delete d.unit
+        d.flow = '0.08'
+      }
+      g().loadJSON(JSON.stringify({ ...JSON.parse(COFFEE), edges: (() => { const f = JSON.parse(COFFEE) as Doc; plain(f); return f.edges })() }))
+      const commit = useProjectStore.getState().planRevision({ now: '2026-11-13T00:00:00Z', mint })
+      if (!commit.ok) throw new Error('promote plan')
+      expect(useProjectStore.getState().commitRevisionExport(commit.plan)).toBe('committed')
+      const p = await proposal((f) => {
+        grams(f)
+        f.edges.find((e) => e.id === 'e_chaff_released').data.flow = '80'
+      })
+      const found = diag(p, { ...defaults(p), fieldChoices: {} }).unitMisreads
+      expect(found).toEqual([
+        { elementType: 'node', id: 'bean_hopper', unit: 'kg', origin: 'yours', via: 'base', now: 'g' },
+        { elementType: 'edge', id: 'e_chaff_released', unit: 'kg', origin: 'yours', via: 'base', now: 'g' },
+      ])
+      // the two table lines name a unit and are the same on both sides: they are not in the list
+      expect(found.some((m) => m.id === 'e_drum_steam' || m.id === 'e_drum_voc')).toBe(false)
+    })
+
+    it('a proposal that renames the base unit and rewrites no value: every value is the proposal’s too, and the result is the proposal itself', async () => {
+      // the boundary of the rule, stated: nothing here is on the other side. The Kinds line says the kind changed;
+      // taking it gives the document the proposal's author made, as applying the whole proposal does.
+      const p = await proposal((f) => {
+        f.kinds[0].baseUnit = 'g'
+      })
+      const sel = defaults(p)
+      expect(sel.kinds).toBe('proposed')
+      expect(diag(p, sel).unitMisreads).toEqual([])
+      expect(applyPendingProposal(p, { selection: sel }).ok).toBe(true)
+      expect([hopper(), baseUnit()]).toEqual([54, 'g'])
+    })
+
+    it('a kind that had no base unit and gains one is named, not renamed: nothing is refused', async () => {
+      const noBase = JSON.parse(COFFEE) as Doc
+      delete noBase.kinds[0].baseUnit
+      g().loadJSON(JSON.stringify(noBase))
+      const commit = useProjectStore.getState().planRevision({ now: '2026-11-13T00:00:00Z', mint })
+      if (!commit.ok) throw new Error('promote plan')
+      expect(useProjectStore.getState().commitRevisionExport(commit.plan)).toBe('committed')
+      const p = await proposal((f) => {
+        f.kinds[0].baseUnit = 'kg'
+        f.nodes.find((n) => n.id === 'bean_hopper').data.initial = 55
+      })
+      expect(diag(p, { ...defaults(p), fieldChoices: {} }).unitMisreads).toEqual([])
+    })
+  })
+
+  it('a timetable is a value in its own unit: kept under a kinds table that declares that unit another way, it is refused', async () => {
+    // the proposal reads "kg per min" as an hourly figure (factor 1/60) and rewrites the chaff table for it
+    const p = await proposal((f) => {
+      f.kinds[0].rateUnits[0] = { name: 'kg per min', factor: '0.5', per: 'min' }
+      const t = f.timetables.find((x) => x.id === 'chaff')
+      t.points = t.points.map((x: [string, string]) => [x[0], String(Number(x[1]) * 2)])
+    })
+    // the kinds table taken, the proposal's table kept back
+    const found = diag(p, { ...defaults(p), timetables: 'yours' }).unitMisreads
+    expect(found.filter((m) => m.elementType === 'timetable')).toEqual([{ elementType: 'timetable', id: 'chaff', unit: 'kg per min', origin: 'yours', via: 'unit' }])
+    // the tables the two sides hold alike are the proposal's too, and are not named
+    expect(found.some((m) => m.elementType === 'timetable' && m.id !== 'chaff')).toBe(false)
+    // the other way round: the proposal's table without its kinds table
+    const reverse = diag(p, { ...defaults(p), kinds: 'yours' }).unitMisreads
+    expect(reverse.filter((m) => m.elementType === 'timetable')).toEqual([{ elementType: 'timetable', id: 'chaff', unit: 'kg per min', origin: 'proposed', via: 'unit' }])
+    // both taken: the proposal
     expect(diag(p, defaults(p)).unitMisreads).toEqual([])
   })
 

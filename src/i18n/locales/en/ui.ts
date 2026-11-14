@@ -383,6 +383,8 @@ const ui = {
   'review.diag.tableKeptPlain': 'The lines and rules you keep ({readers}) would read the proposal’s definition of {table}, not yours.',
   'review.fail.unitProposed': 'The value of {name} is in {unit}, and this document would not read that unit as the proposal does. Take the proposal’s kinds and units as well (and its step length, if that differs), or leave this change.',
   'review.fail.unitYours': 'The value of {name} is in {unit}, and the proposal’s kinds and units read that unit another way. Keep your kinds and units, or take the proposal’s change of this value as well.',
+  'review.fail.baseProposed': 'These values name no unit and are counted in the base unit of their kind, which is {unit} in the proposal and {now} in this document: {names}. Take the proposal’s kinds and units as well, or leave these changes.',
+  'review.fail.baseYours': 'These values name no unit and are counted in the base unit of their kind, which is {unit} in this document and {now} in the proposal’s kinds and units: {names}. Keep your kinds and units, or take the proposal’s changes of these values as well.',
   'review.phases.timingOnly': 'The timetables or the step length change, and the phase names stay as they are. After this Apply, the current phase shown may differ from the real process.',
   'review.phases.phasesOnly': 'The phase names are taken, but the timetables or the step length are not the proposal’s. After this Apply, the current phase shown may differ from the real process.',
   'review.field.base': 'base',

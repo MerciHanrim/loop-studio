@@ -16,7 +16,7 @@ import {
   phaseTimingForPending,
   threeWayForPending,
 } from '../store/revisionIO'
-import { diagnosticLines, LINE_TITLE, unitMisreadText } from '../ui/applyDiagnosticsText'
+import { diagnosticLines, LINE_TITLE, unitMisreadTexts } from '../ui/applyDiagnosticsText'
 import { useSimStore } from '../store/simStore'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
@@ -568,7 +568,7 @@ export function ReviewOverlay() {
     }
     if (res.reason === 'invalid-selection' && res.unitMisreads?.length && diagnostics) {
       // #558 — the store's own gate, should the button have been reached anyway
-      setErr(res.unitMisreads.map((m) => unitMisreadText(m, [diagnostics.result, diagnostics.theirs], t)).join(' '))
+      setErr(unitMisreadTexts(res.unitMisreads, [diagnostics.result, diagnostics.theirs], t).map((x) => x.text).join(' '))
       return
     }
     if (res.reason === 'invalid-selection') {

@@ -88,20 +88,47 @@ changes and recomputes them with every choice.
 
 ### R14-6.1 A value read in another unit — REFUSED
 
-A Pool amount or a resource line written in a unit is judged by the side it came from: the
-side whose element holds the same value in the same unit (a Pool: starting amount,
-capacity, unit and kind; a line: rate text and unit). If the resulting document would read
-that unit another way than that side does — another declaration of the name, or none, so
-that the number is read in the base unit (§M4-2.2) — the Apply is refused as
-`invalid-selection` and nothing changes. The reading compared is the unit's declaration
-under the element's kind, never the amount per step: a rate per minute is the same rate
-under another step length.
+A value is judged by the side it came from: the side whose element holds the same value in
+the same unit. The values are
+
+- the amounts of a Pool (starting amount, capacity, unit and kind);
+- the rate of a resource line (rate text and unit): one that names a unit, and one that
+  names none when its rate is a plain number. `all`, a share, a reference and a table line
+  are not amounts in a unit;
+- a timetable some line or rule reads (its definition, §R14-6.3): its rates are in its own
+  unit, read under the kind of the line that reads it.
+
+If the resulting document would read the value's unit another way than that side does, the
+Apply is refused as `invalid-selection` and nothing changes.
+
+- **A value that names a unit.** The reading is the unit's declaration under the element's
+  kind (which list it is in, its factor, its time, and the kind's base unit), never the
+  amount per step: a rate per minute is the same rate under another step length. Another
+  declaration of the name is a misread, and so is none, where the number would be read in
+  the base unit (§M4-2.2). A timetable whose unit would resolve to no rate at all is the
+  exception: the run refuses it and says so (§R14-6.2).
+- **A value that names no unit** is counted in the base unit of its kind. It is misread
+  when the side it came from and the result both name a base unit for that kind and the
+  names differ: `54` written for kg, kept under a kinds table that counts the kind in g,
+  would be 54 g. A kind that gains a base unit where it had none is named, not renamed, and
+  is not a misread. The review says these in one sentence per pair of base units, with the
+  values listed, since a renamed base unit meets every such value of the kind at once.
+
+Cases:
 
 - A value taken from the proposal without the kinds table that declares its unit:
   `0.9 bag` would become 0.9 of the base unit.
-- A value the user keeps while taking a kinds table that declares its unit another way.
+- A value the user keeps while taking a kinds table that declares its unit, or names its
+  base unit, another way; and the reverse, the proposal's value under the user's own table.
 - A value and a unit the user puts together field by field belong to neither side and are
-  not judged. A value both sides hold alike is on both sides and is read as either reads it.
+  not judged.
+- A value both sides hold alike is on both sides and is read as either reads it. So a
+  proposal that renames a base unit and rewrites no value is not refused line by line:
+  with its kinds table taken, every such value is the proposal's own, and the result is
+  the document its author made, as a whole Apply gives it.
+
+The level and the band of a run rule are not judged here. A rule whose own unit the tank's
+kind cannot read is refused by the run (§M6-3), which is told under §R14-6.2.
 
 It is refused, where §R14-6.2 only tells, because the document would then hold another
 number and nothing in it would say so (Lumi, 2026-11-14).

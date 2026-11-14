@@ -376,6 +376,8 @@ const ui = {
   'review.diag.tableKeptPlain': 'De lijnen en regels die je houdt ({readers}) zouden de definitie van {table} uit het voorstel lezen, niet die van jou.',
   'review.fail.unitProposed': 'De waarde van {name} staat in {unit}, en dit document zou die eenheid niet lezen zoals het voorstel. Neem ook de soorten en eenheden van het voorstel over (en de staplengte, als die verschilt), of laat deze wijziging weg.',
   'review.fail.unitYours': 'De waarde van {name} staat in {unit}, en de soorten en eenheden van het voorstel lezen die eenheid anders. Houd je eigen soorten en eenheden, of neem ook de wijziging van het voorstel aan deze waarde over.',
+  'review.fail.baseProposed': 'Deze waarden noemen geen eenheid en worden geteld in de basiseenheid van hun soort, die in het voorstel {unit} is en in dit document {now}: {names}. Neem ook de soorten en eenheden van het voorstel over, of laat deze wijzigingen weg.',
+  'review.fail.baseYours': 'Deze waarden noemen geen eenheid en worden geteld in de basiseenheid van hun soort, die in dit document {unit} is en in de soorten en eenheden van het voorstel {now}: {names}. Houd je eigen soorten en eenheden, of neem ook de wijzigingen van het voorstel aan deze waarden over.',
   'review.phases.timingOnly': 'De tijdtabellen of de staplengte veranderen, en de fasenamen blijven zoals ze zijn. Na het toepassen kan de getoonde huidige fase afwijken van het werkelijke proces.',
   'review.phases.phasesOnly': 'De fasenamen worden overgenomen, maar de tijdtabellen of de staplengte zijn niet die van het voorstel. Na het toepassen kan de getoonde huidige fase afwijken van het werkelijke proces.',
   'review.field.base': 'basis',

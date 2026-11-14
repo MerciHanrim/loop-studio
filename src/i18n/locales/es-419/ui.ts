@@ -370,6 +370,8 @@ const ui = {
   'review.diag.tableKeptPlain': 'Las líneas y reglas que conserva ({readers}) leerían la definición de {table} de la propuesta, no la suya.',
   'review.fail.unitProposed': 'El valor de {name} está en {unit}, y este documento no leería esa unidad como la propuesta. Tome también los tipos y unidades de la propuesta (y su duración del paso, si difiere), o deje este cambio.',
   'review.fail.unitYours': 'El valor de {name} está en {unit}, y los tipos y unidades de la propuesta leen esa unidad de otra manera. Conserve sus tipos y unidades, o tome también el cambio de la propuesta en este valor.',
+  'review.fail.baseProposed': 'Estos valores no indican unidad y se cuentan en la unidad base de su tipo, que es {unit} en la propuesta y {now} en este documento: {names}. Tome también los tipos y unidades de la propuesta, o deje estos cambios.',
+  'review.fail.baseYours': 'Estos valores no indican unidad y se cuentan en la unidad base de su tipo, que es {unit} en este documento y {now} en los tipos y unidades de la propuesta: {names}. Conserve sus tipos y unidades, o tome también los cambios de la propuesta en estos valores.',
   'review.phases.timingOnly': 'Las tablas horarias o la duración del paso cambian, y los nombres de las fases quedan como están. Después de aplicar, la fase actual que se muestra puede no coincidir con el proceso real.',
   'review.phases.phasesOnly': 'Se toman los nombres de las fases, pero las tablas horarias o la duración del paso no son las de la propuesta. Después de aplicar, la fase actual que se muestra puede no coincidir con el proceso real.',
   'review.field.base': 'base',

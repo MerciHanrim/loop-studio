@@ -425,6 +425,8 @@ const ui = {
   'review.diag.tableKeptPlain': 'Die beibehaltenen Linien und Regeln ({readers}) würden die Definition von {table} aus dem Vorschlag lesen, nicht die eigene.',
   'review.fail.unitProposed': 'Der Wert von {name} steht in {unit}, und dieses Dokument würde diese Einheit nicht so lesen wie der Vorschlag. Auch die Arten und Einheiten des Vorschlags übernehmen (und seine Schrittlänge, falls sie abweicht) oder diese Änderung weglassen.',
   'review.fail.unitYours': 'Der Wert von {name} steht in {unit}, und die Arten und Einheiten des Vorschlags lesen diese Einheit anders. Die eigenen Arten und Einheiten behalten oder auch die Änderung des Vorschlags an diesem Wert übernehmen.',
+  'review.fail.baseProposed': 'Diese Werte nennen keine Einheit und werden in der Basiseinheit ihrer Art gezählt, die im Vorschlag {unit} und in diesem Dokument {now} ist: {names}. Auch die Arten und Einheiten des Vorschlags übernehmen oder diese Änderungen weglassen.',
+  'review.fail.baseYours': 'Diese Werte nennen keine Einheit und werden in der Basiseinheit ihrer Art gezählt, die in diesem Dokument {unit} und in den Arten und Einheiten des Vorschlags {now} ist: {names}. Die eigenen Arten und Einheiten behalten oder auch die Änderungen des Vorschlags an diesen Werten übernehmen.',
   'review.phases.timingOnly': 'Die Zeittabellen oder die Schrittlänge ändern sich, die Phasennamen bleiben, wie sie sind. Nach dem Anwenden kann die angezeigte aktuelle Phase vom tatsächlichen Prozess abweichen.',
   'review.phases.phasesOnly': 'Die Phasennamen werden übernommen, aber die Zeittabellen oder die Schrittlänge sind nicht die des Vorschlags. Nach dem Anwenden kann die angezeigte aktuelle Phase vom tatsächlichen Prozess abweichen.',
   'review.field.base': 'Ausgangswert',

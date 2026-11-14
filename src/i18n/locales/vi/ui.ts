@@ -382,6 +382,8 @@ const ui = {
   'review.diag.tableKeptPlain': 'Các đường và quy tắc bạn giữ ({readers}) sẽ đọc định nghĩa {table} của đề xuất, không phải của bạn.',
   'review.fail.unitProposed': 'Giá trị của {name} được ghi bằng {unit}, và tài liệu này sẽ không đọc đơn vị đó như đề xuất. Hãy lấy thêm loại và đơn vị của đề xuất (và độ dài bước của đề xuất nếu khác), hoặc bỏ thay đổi này.',
   'review.fail.unitYours': 'Giá trị của {name} được ghi bằng {unit}, và loại và đơn vị của đề xuất đọc đơn vị đó theo cách khác. Hãy giữ loại và đơn vị của bạn, hoặc lấy thêm thay đổi của đề xuất cho giá trị này.',
+  'review.fail.baseProposed': 'Các giá trị này không ghi đơn vị và được tính bằng đơn vị cơ sở của loại, là {unit} ở đề xuất và {now} ở tài liệu này: {names}. Hãy lấy thêm loại và đơn vị của đề xuất, hoặc bỏ các thay đổi này.',
+  'review.fail.baseYours': 'Các giá trị này không ghi đơn vị và được tính bằng đơn vị cơ sở của loại, là {unit} ở tài liệu này và {now} ở loại và đơn vị của đề xuất: {names}. Hãy giữ loại và đơn vị của bạn, hoặc lấy thêm thay đổi của đề xuất cho các giá trị này.',
   'review.phases.timingOnly': 'Bảng thời gian hoặc độ dài bước thay đổi, còn tên giai đoạn giữ nguyên. Sau khi áp dụng, giai đoạn hiện tại được hiển thị có thể khác với quy trình thực tế.',
   'review.phases.phasesOnly': 'Tên giai đoạn được lấy, nhưng bảng thời gian hoặc độ dài bước không phải của đề xuất. Sau khi áp dụng, giai đoạn hiện tại được hiển thị có thể khác với quy trình thực tế.',
   'review.field.base': 'gốc',

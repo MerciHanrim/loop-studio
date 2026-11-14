@@ -6,8 +6,9 @@
 //
 //   - a UNIT MISREAD: a value whose unit would be read another way than on the side
 //     the value came from (`0.9 bag` taken into a document that does not declare
-//     `bag` reads as 0.9 of the base unit). Nothing in the document would say so
-//     afterwards, so the Apply is REFUSED;
+//     `bag` reads as 0.9 of the base unit; `54` written for kg, kept under a kinds
+//     table that counts the kind in g, reads as 54 g). Nothing in the document would
+//     say so afterwards, so the Apply is REFUSED;
 //   - a NEW REFUSAL: the run checks would refuse the result for a reason the open
 //     document does not have now (a table it does not hold, a table whose unit is no
 //     rate of the line's kind). The document says why and one Undo takes it back, so
@@ -20,7 +21,7 @@
 // Pure functions of the three documents; nothing here changes one.
 import { refusingKindFindings, resolveKinds, type KindFinding, type ResourceKindDecl } from './kinds'
 import { hasRunRules, hasTimetables, type ModelSemanticsVersion } from './modelVersion'
-import { add, equals, fromInt, type Rational } from './rational'
+import { add, equals, fromInt, parseDecimal, type Rational } from './rational'
 import type { HunkSelection, ThreeWayPlan } from './revision'
 import { groupLines, ruleOf, runFindings, runGroupOf, type RunFinding } from './runRule'
 import { exactPlan, timetableFindings, timetableRateFactor, timetableRef, type Timetable, type TimetableFinding } from './timetable'
@@ -47,8 +48,26 @@ export type RunRefusal = { from: 'timetable'; finding: TimetableFinding } | { fr
 /** `resolvedBy`: the fewest lines not taken whose taking removes the refusal; empty when none does */
 export type NewRefusal = RunRefusal & { resolvedBy: UnitLine[] }
 
-/** `origin`: the side the value came from, where its unit reads another way */
-export type UnitMisread = ElementRef & { unit: string; origin: 'proposed' | 'yours' }
+/**
+ * A value whose unit the result would read another way than the side it came from
+ * (`origin`).
+ *   - `via: 'unit'` — the value names a unit (`unit`), and the result declares that
+ *     name another way, or not at all;
+ *   - `via: 'base'` — the value names none, so it is counted in the base unit of its
+ *     kind, and the result names that base unit otherwise (`unit` is the base unit on
+ *     the side the value came from): `54` written for kg under a kinds table that
+ *     counts the kind in g.
+ * A timetable is a value too: its rates are in its own unit.
+ */
+export type UnitMisread = {
+  elementType: 'node' | 'edge' | 'timetable'
+  id: string
+  unit: string
+  origin: 'proposed' | 'yours'
+  via: 'unit' | 'base'
+  /** `via: 'base'` — the base unit the result would count the value in */
+  now?: string
+}
 
 export type TableSplit = {
   tableId: string
@@ -93,46 +112,63 @@ function subsets(lines: readonly UnitLine[]): UnitLine[][] {
 
 // ── a unit read another way ───────────────────────────────────────────────
 
-type UnitField = ElementRef & { unit: string; signature: string; reading: string }
+type UnitField = {
+  elementType: UnitMisread['elementType']
+  id: string
+  /** the unit the value names; `''` when it names none and is counted in the base unit */
+  unit: string
+  /** the base unit of the value's kind in this document, when the kind names one */
+  base: string | null
+  /** what the element holds: the same signature on a side means the value came from it */
+  signature: string
+  /** how this document reads `unit` (the declaration, never the per-step ratio: a rate
+   *  per minute is the same rate under another step length) */
+  reading: string
+  /** the unit resolves to nothing but the base unit */
+  readsAsBase: boolean
+}
 
-/** every Pool and resource line written in a unit, with what it holds and how the
- *  document reads that unit (the declaration, never the per-step ratio: a rate per
- *  minute is the same rate under another step length) */
+/** every value a unit gives its meaning to: the amounts of a Pool, the rate of a
+ *  resource line (one that names a unit, or a plain number, which is in the base unit),
+ *  and a timetable some line or rule reads */
 function unitFields(d: DiagDoc): Map<string, UnitField> {
   const declOf = new Map(d.kinds.map((k) => [k.name, k]))
   const out = new Map<string, UnitField>()
-  const reading = (unit: string, kind: string | null, role: FieldRole): string => {
+  const read = (unit: string, kind: string | null, role: FieldRole): Pick<UnitField, 'base' | 'reading' | 'readsAsBase'> => {
     const decl = kind === null ? undefined : declOf.get(kind)
     const fu = resolveFieldUnit(unit, decl, d.time, role)
-    const read = fu.kind === 'base' ? { as: 'base' } : fu.kind === 'rate' ? { as: 'rate', name: fu.unit.name, factor: fu.unit.factor, per: fu.unit.per } : { as: 'amount', name: fu.unit.name, factor: fu.unit.factor, per: fu.per ?? null }
-    return JSON.stringify({ read, base: decl?.baseUnit ?? null })
+    const as = fu.kind === 'base' ? { as: 'base' } : fu.kind === 'rate' ? { as: 'rate', name: fu.unit.name, factor: fu.unit.factor, per: fu.unit.per } : { as: 'amount', name: fu.unit.name, factor: fu.unit.factor, per: fu.per ?? null }
+    const base = decl?.baseUnit ?? null
+    return { base, reading: JSON.stringify({ as, base }), readsAsBase: fu.kind === 'base' }
   }
   for (const n of d.nodes) {
     const data = n.data as { kind?: unknown; unit?: unknown; initial?: unknown; capacity?: unknown; resourceType?: unknown } | undefined
-    if (data?.kind !== 'pool' || typeof data.unit !== 'string' || data.unit === '') continue
-    out.set(`node:${n.id}`, {
-      elementType: 'node',
-      id: n.id,
-      unit: data.unit,
-      signature: JSON.stringify([data.initial ?? null, data.capacity ?? null, data.unit, poolKindName(data)]),
-      reading: reading(data.unit, poolKindName(data), 'stock'),
-    })
+    if (data?.kind !== 'pool') continue
+    const unit = typeof data.unit === 'string' ? data.unit : ''
+    const kind = poolKindName(data)
+    out.set(`node:${n.id}`, { elementType: 'node', id: n.id, unit, signature: JSON.stringify([data.initial ?? null, data.capacity ?? null, unit, kind]), ...read(unit, kind, 'stock') })
   }
-  const lines = d.edges.filter((e) => isResource(e) && typeof (e.data as { unit?: unknown } | undefined)?.unit === 'string' && (e.data as { unit?: unknown }).unit !== '')
-  if (lines.length === 0) return out
   const edgeKind = resolveKinds(d.nodes, d.edges).edgeKind
-  for (const e of lines) {
-    const data = e.data as { unit: string; flow?: unknown }
-    out.set(`edge:${e.id}`, {
-      elementType: 'edge',
-      id: e.id,
-      unit: data.unit,
-      signature: JSON.stringify([String(data.flow ?? ''), data.unit]),
-      reading: reading(data.unit, edgeKind.get(e.id) ?? null, 'rate'),
-    })
+  for (const e of d.edges) {
+    if (!isResource(e)) continue
+    const data = (e.data ?? {}) as { unit?: unknown; flow?: unknown }
+    const unit = typeof data.unit === 'string' ? data.unit : ''
+    const flow = String(data.flow ?? '').trim()
+    // without a unit only a plain number is an amount: `all`, a share, a reference or a table line is not
+    if (unit === '' && parseDecimal(flow) === null) continue
+    out.set(`edge:${e.id}`, { elementType: 'edge', id: e.id, unit, signature: JSON.stringify([flow, unit]), ...read(unit, edgeKind.get(e.id) ?? null, 'rate') })
+  }
+  for (const t of d.timetables) {
+    // the line whose kind the table's unit is a rate of: one that reads it, else a rule's 100 % line
+    const line =
+      d.edges.find((e) => isResource(e) && timetableRef((e.data as { flow?: unknown }).flow) === t.id)?.id ?? d.nodes.flatMap((n) => (ruleOf(n)?.table === t.id ? [ruleOf(n)!.rated] : []))[0]
+    if (line === undefined) continue
+    out.set(`timetable:${t.id}`, { elementType: 'timetable', id: t.id, unit: t.unit, signature: definition(t), ...read(t.unit, edgeKind.get(line) ?? null, 'rate') })
   }
   return out
 }
+
+const MISREAD_ORDER: Record<UnitMisread['elementType'], number> = { node: 0, edge: 1, timetable: 2 }
 
 function unitMisreads(target: DiagDoc, proposed: DiagDoc, result: DiagDoc): UnitMisread[] {
   const after = unitFields(result)
@@ -141,15 +177,26 @@ function unitMisreads(target: DiagDoc, proposed: DiagDoc, result: DiagDoc): Unit
   const theirs = unitFields(proposed)
   const out: UnitMisread[] = []
   for (const [key, f] of after) {
-    // the side(s) this value and its unit came from: the same value in the same unit
+    // the side(s) this value came from: the same value in the same unit. A value and a
+    // unit the user put together field by field belong to neither, and are not judged.
     const fromYours = yours.get(key)?.signature === f.signature ? yours.get(key)! : null
     const fromTheirs = theirs.get(key)?.signature === f.signature ? theirs.get(key)! : null
-    // a value and a unit the user put together field by field belong to neither side
-    if (!fromYours && !fromTheirs) continue
-    if (fromYours?.reading === f.reading || fromTheirs?.reading === f.reading) continue
-    out.push({ elementType: f.elementType, id: f.id, unit: f.unit, origin: fromTheirs ? 'proposed' : 'yours' })
+    const sides = [fromYours, fromTheirs].filter((s): s is UnitField => s !== null)
+    if (sides.length === 0) continue
+    const origin: UnitMisread['origin'] = fromTheirs ? 'proposed' : 'yours'
+    if (f.unit === '') {
+      // counted in the base unit: misread when both documents name one and the names
+      // differ. A kind that gains a base unit it had none of is named, not renamed.
+      if (f.base === null || sides.some((s) => s.base === null || s.base === f.base)) continue
+      out.push({ elementType: f.elementType, id: f.id, unit: (fromTheirs ?? fromYours)!.base!, origin, via: 'base', now: f.base })
+      continue
+    }
+    if (sides.some((s) => s.reading === f.reading)) continue
+    // a table whose unit is no rate of its kind is refused by the run, which says so (told, not refused here)
+    if (f.elementType === 'timetable' && f.readsAsBase) continue
+    out.push({ elementType: f.elementType, id: f.id, unit: f.unit, origin, via: 'unit' })
   }
-  return out.sort((a, b) => (a.elementType === b.elementType ? (a.id < b.id ? -1 : 1) : a.elementType === 'node' ? -1 : 1))
+  return out.sort((a, b) => MISREAD_ORDER[a.elementType] - MISREAD_ORDER[b.elementType] || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
 }
 
 // ── a table read under another definition ─────────────────────────────────

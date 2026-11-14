@@ -373,7 +373,9 @@ test.describe('run phases — the playback announcement', () => {
 //   `bags`      — the amount unit "bag" (60 kg) declared, and the hopper written as 0.9 bag
 //   `slower`    — the drop / discharge schedules and the four lines after the drum raised
 //                 from 44.64 to 45.44 together
-type Change = { tables?: boolean; phases?: boolean; rename?: boolean; tableLine?: boolean; bags?: boolean; slower?: boolean }
+//   `grams`     — the kind counted in g instead of kg, and the hopper's 54, which names no
+//                 unit, rewritten as 54 000
+type Change = { tables?: boolean; phases?: boolean; rename?: boolean; tableLine?: boolean; bags?: boolean; slower?: boolean; grams?: boolean }
 const NOTICE_TIMING = 'The timetables or the step length change, and the phase names stay as they are. After this Apply, the current phase shown may differ from the real process.'
 const NOTICE_PHASES = 'The phase names are taken, but the timetables or the step length are not the proposal’s. After this Apply, the current phase shown may differ from the real process.'
 
@@ -400,6 +402,11 @@ const makeProposal = (page: Page, change: Change) =>
     if (change.bags) {
       f.kinds[0].units = [{ name: 'bag', factor: '60' }]
       Object.assign(f.nodes.find((n: { id: string }) => n.id === 'bean_hopper').data, { initial: 0.9, unit: 'bag' })
+    }
+    if (change.grams) {
+      f.kinds[0].baseUnit = 'g'
+      f.kinds[0].rateUnits[0].factor = '1000'
+      f.nodes.find((n: { id: string }) => n.id === 'bean_hopper').data.initial = 54000
     }
     if (change.slower) {
       for (const id of ['drop', 'discharge']) {
@@ -581,6 +588,48 @@ test.describe('run phases — a revision review', () => {
     expect(await hopper()).toMatchObject({ initial: 0.9, unit: 'bag' })
     // 0.9 bag of 60 kg: the run starts with 54 kg, as before
     expect(await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().values.bean_hopper)).toBe(54)
+  })
+
+  test('a value that names no unit, and a kinds table that counts its kind in another base unit: either without the other is off', async ({ page }) => {
+    await importFile(page, await makeProposal(page, { grams: true }))
+    const review = page.locator('.review')
+    await expect(review).toBeVisible()
+    await review.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+    const kindsBox = review.locator('.review__hunk input[data-hunk="kinds"]')
+    const apply = review.locator('.review__actions .btn--primary')
+    const line = page.getByTestId('review-diagnostics').locator('li')
+    // both pre-selected: the proposal's 54 000 under the proposal's g
+    await expect(kindsBox).toBeChecked()
+    await expect(page.getByTestId('review-diagnostics')).toHaveCount(0)
+    await expect(apply).toBeEnabled()
+
+    // the base unit alone: the kept 54 was written for kg
+    await review.locator('.review__field-choice label', { hasText: 'keep mine' }).click()
+    await expect(line).toHaveCount(1)
+    await expect(line).toHaveAttribute('data-diag', 'refuse')
+    await expect(line).toContainText('These values name no unit and are counted in the base unit of their kind, which is ')
+    await expect(line).toContainText(' in this document and ')
+    await expect(line).toContainText('Green bean hopper')
+    await expect(line).toContainText('Keep your kinds and units, or take the proposal’s changes of these values as well.')
+    await expect(apply).toBeDisabled()
+
+    // the value alone: 54 000 was written for g
+    await review.locator('.review__field-choice label', { hasText: 'take theirs' }).click()
+    await kindsBox.uncheck()
+    await expect(line).toHaveCount(1)
+    await expect(line).toContainText(' in the proposal and ')
+    await expect(line).toContainText('Take the proposal’s kinds and units as well, or leave these changes.')
+    await expect(apply).toBeDisabled()
+
+    // together again: applied, 54 000 g
+    await kindsBox.check()
+    await expect(page.getByTestId('review-diagnostics')).toHaveCount(0)
+    await apply.click()
+    await expect(review).toBeHidden()
+    expect(await page.evaluate(() => {
+      const s = (window as unknown as Bridge).__loop.graph.getState()
+      return [s.nodes.find((n: { id: string }) => n.id === 'bean_hopper').data.initial, s.kinds[0].baseUnit]
+    })).toEqual([54000, 'g'])
   })
 
   test('lines and the tables they read, from different sides: both plans are told, whichever of the two is kept', async ({ page }) => {

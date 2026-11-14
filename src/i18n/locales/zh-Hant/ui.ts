@@ -394,6 +394,8 @@ const ui = {
   'review.diag.tableKeptPlain': '所保留的連線和規則（{readers}）將讀取提案的{table}定義，而不是我的。',
   'review.fail.unitProposed': '{name}的值以單位 {unit} 書寫，而此文件對該單位的讀法與提案不同。請同時採用提案的種類和單位（步長不同時也一併採用），或不採用此變更。',
   'review.fail.unitYours': '{name}的值以單位 {unit} 書寫，而提案的種類和單位對該單位的讀法不同。請保留我的種類和單位，或同時採用提案對此值的變更。',
+  'review.fail.baseProposed': '以下數值未寫單位，按其種類的基本單位計數。該基本單位在提案中是 {unit}，在此文件中是 {now}：{names}。請同時採用提案的種類和單位，或不採用這些變更。',
+  'review.fail.baseYours': '以下數值未寫單位，按其種類的基本單位計數。該基本單位在此文件中是 {unit}，在提案的種類和單位中是 {now}：{names}。請保留我的種類和單位，或同時採用提案對這些數值的變更。',
   'review.phases.timingOnly': '時間表或步長會改變，而階段名稱保持不變。套用後，顯示的目前階段可能與實際流程不一致。',
   'review.phases.phasesOnly': '會採用階段名稱，但時間表或步長不是提案的。套用後，顯示的目前階段可能與實際流程不一致。',
   'review.field.base': '基準',

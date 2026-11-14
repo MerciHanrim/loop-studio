@@ -408,6 +408,8 @@ const ui = {
   'review.diag.tableKeptPlain': 'Koruduğunuz çizgiler ve kurallar ({readers}) sizin değil, önerinin {table} tanımını okur.',
   'review.fail.unitProposed': '{name} değeri {unit} biriminde yazılmış ve bu belge o birimi önerideki gibi okumaz. Önerinin türlerini ve birimlerini de alın (farklıysa adım uzunluğunu da) veya bu değişikliği bırakın.',
   'review.fail.unitYours': '{name} değeri {unit} biriminde yazılmış ve önerinin türleri ve birimleri o birimi başka türlü okur. Kendi türlerinizi ve birimlerinizi koruyun veya önerinin bu değerdeki değişikliğini de alın.',
+  'review.fail.baseProposed': 'Bu değerler birim belirtmiyor ve türlerinin temel biriminde sayılıyor; bu temel birim öneride {unit}, bu belgede {now}: {names}. Önerinin türlerini ve birimlerini de alın veya bu değişiklikleri bırakın.',
+  'review.fail.baseYours': 'Bu değerler birim belirtmiyor ve türlerinin temel biriminde sayılıyor; bu temel birim bu belgede {unit}, önerinin türlerinde ve birimlerinde {now}: {names}. Kendi türlerinizi ve birimlerinizi koruyun veya önerinin bu değerlerdeki değişikliklerini de alın.',
   'review.phases.timingOnly': 'Zaman tabloları veya adım uzunluğu değişiyor, aşama adları ise olduğu gibi kalıyor. Uygulamadan sonra gösterilen geçerli aşama gerçek süreçten farklı olabilir.',
   'review.phases.phasesOnly': 'Aşama adları alınıyor, ancak zaman tabloları veya adım uzunluğu önerininki değil. Uygulamadan sonra gösterilen geçerli aşama gerçek süreçten farklı olabilir.',
   'review.field.base': 'temel',

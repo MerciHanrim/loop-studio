@@ -373,6 +373,8 @@ const ui = {
   'review.diag.tableKeptPlain': '所保留的连线和规则（{readers}）将读取提案的{table}定义，而不是我的。',
   'review.fail.unitProposed': '{name}的值以单位 {unit} 书写，而此文档对该单位的读法与提案不同。请同时采用提案的种类和单位（步长不同时也一并采用），或不采用此更改。',
   'review.fail.unitYours': '{name}的值以单位 {unit} 书写，而提案的种类和单位对该单位的读法不同。请保留我的种类和单位，或同时采用提案对此值的更改。',
+  'review.fail.baseProposed': '以下数值未写单位，按其种类的基本单位计数。该基本单位在提案中是 {unit}，在此文档中是 {now}：{names}。请同时采用提案的种类和单位，或不采用这些更改。',
+  'review.fail.baseYours': '以下数值未写单位，按其种类的基本单位计数。该基本单位在此文档中是 {unit}，在提案的种类和单位中是 {now}：{names}。请保留我的种类和单位，或同时采用提案对这些数值的更改。',
   'review.phases.timingOnly': '时间表或步长会改变，而阶段名称保持不变。应用后，显示的当前阶段可能与实际流程不一致。',
   'review.phases.phasesOnly': '会采用阶段名称，但时间表或步长不是提案的。应用后，显示的当前阶段可能与实际流程不一致。',
   'review.field.base': '基准',
