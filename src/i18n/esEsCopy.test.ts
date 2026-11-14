@@ -110,6 +110,12 @@ describe('es-ES — the region audit, as a contract', () => {
         // `Puntuación de equipo` where es-419 says `Puntaje de equipo`
         'help.examples.coffeeRoastery.p3',
         'help.examples.mmoProgression.p1',
+        // #558 — the check-needed mark of a phase: a check just made is `He revisado` /
+        // `las ha revisado` in Spain and `Revisé` / `las revisó` in Latin America, and
+        // the desktop is `un ordenador` where es-419 says `una computadora`
+        'playbar.phase.check.confirm',
+        'playbar.phase.check.locked',
+        'playbar.phase.check.desktop',
         'help.examples.desalination.p2', // #471 process example: `iconos`
         'help.examples.coffeeRoastingBatch.p1', // the coffee roasting batch: `ha terminado`, where es-419 says `terminó`
         // issue #344 step 3 — the Add bend button, and its hint (`pulse

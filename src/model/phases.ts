@@ -10,6 +10,13 @@ export type DocPhase = {
   /** the first and the last step of the phase, both counted in; a step is 1 or more */
   from: number
   to: number
+  /**
+   * SEMANTICS-R15.md — the name has not been checked against the timing since a
+   * revision Apply left the phase names and the timetables or the step length on
+   * different sides. Set on every phase by such an Apply, never by the author;
+   * cleared by the reader's own "I checked". Only ever `true`: absent is the rule.
+   */
+  unchecked?: true
 }
 
 /** the defensive-read caps */
@@ -42,15 +49,25 @@ export function readPhases(raw: unknown): DocPhase[] {
     const chars = Array.from(e.label)
     seen.add(e.id)
     last = e.to
-    out.push({ id: e.id, label: chars.length > PHASE_LABEL_MAX ? chars.slice(0, PHASE_LABEL_MAX).join('') : e.label, from: e.from, to: e.to })
+    // SEMANTICS-R15.md §R15-1 — the mark is `true` or it is not there: any other value is dropped
+    out.push({ id: e.id, label: chars.length > PHASE_LABEL_MAX ? chars.slice(0, PHASE_LABEL_MAX).join('') : e.label, from: e.from, to: e.to, ...(e.unchecked === true ? { unchecked: true as const } : {}) })
   }
   return out
 }
 
-/** the wire shape, in its key order */
+/** the wire shape, in its key order: `unchecked` last, and only when set */
 export function canonicalPhase(p: DocPhase): DocPhase {
-  return { id: p.id, label: p.label, from: p.from, to: p.to }
+  return { id: p.id, label: p.label, from: p.from, to: p.to, ...(p.unchecked === true ? { unchecked: true as const } : {}) }
 }
+
+/** SEMANTICS-R15.md — does any phase carry the mark? */
+export const anyUnchecked = (phases: readonly DocPhase[]): boolean => phases.some((p) => p.unchecked === true)
+
+/** SEMANTICS-R15.md §R15-2 — every phase marked: what an Apply that split names and timing leaves */
+export const markUnchecked = (phases: readonly DocPhase[]): DocPhase[] => phases.map((p) => ({ ...canonicalPhase(p), unchecked: true as const }))
+
+/** SEMANTICS-R15.md §R15-3 — the mark taken off every phase: the reader checked them */
+export const clearUnchecked = (phases: readonly DocPhase[]): DocPhase[] => phases.map((p) => ({ id: p.id, label: p.label, from: p.from, to: p.to }))
 
 /** the phase that covers `step`, or none: before the run (step 0) and in a gap */
 export function phaseAt(phases: readonly DocPhase[], step: number): DocPhase | null {

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { useGraphStore } from '../../store/graphStore'
 import { kindFindingEdgeId, kindFindingNodeId } from '../../model/kinds'
 import { useMcStore } from '../../store/mcStore'
@@ -141,6 +141,9 @@ export function MobileRunBar() {
   // not before the first step and not in a document without phases: no line, no height
   const phases = useGraphStore((s) => s.phases)
   const phase = shownPhase(phases, stepIndex, status === 'ended', cannotRun)
+  // SEMANTICS-R15.md §R15-4 — the sentence of the mark, opened and closed by its button
+  const [checkOpen, setCheckOpen] = useState(false)
+  const checkNoteId = useId()
 
   // the MC dialog is part of the exclusive set (§MV5): opening it closes any
   // open sheet. The forward direction (a sheet closing the dialog) is in
@@ -178,6 +181,25 @@ export function MobileRunBar() {
       {phase && (
         <div className="pstrip__phase-line" data-testid="run-phase" data-phase={phase.id}>
           {phaseTexts(phase, t).full}
+          {/* SEMANTICS-R15.md §R15-4 — the mark beside the name. Its press opens the sentence
+              under the line. The phone views and runs, so "I checked" is recorded on a desktop. */}
+          {phase.unchecked === true && (
+            <button
+              type="button"
+              className="pb-btn pstrip__phase-check-m"
+              data-testid="run-phase-check"
+              aria-expanded={checkOpen}
+              aria-controls={checkOpen ? checkNoteId : undefined}
+              onClick={() => setCheckOpen((v) => !v)}
+            >
+              {t('playbar.phase.check')}
+            </button>
+          )}
+        </div>
+      )}
+      {phase?.unchecked === true && checkOpen && (
+        <div id={checkNoteId} className="pstrip__phase-checknote" role="note" data-testid="run-phase-check-body">
+          {t('playbar.phase.check.body')} {t('playbar.phase.check.desktop')}
         </div>
       )}
       <div className="pstrip__group">

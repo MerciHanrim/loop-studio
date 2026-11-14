@@ -481,7 +481,7 @@ test.describe('connection shapes — keyboard Add bend and the record label rule
       const r = (window as any).__loop.project.getState().planRevision()
       return r.ok ? (r.text as string) : ''
     })
-    expect(JSON.parse(text).project.semantics).toBe('loop-revision/14') // the current semantics (SEMANTICS-R14.md); the record rule of §R10-6 is unchanged
+    expect(JSON.parse(text).project.semantics).toBe('loop-revision/15') // the current semantics (SEMANTICS-R15.md); the record rule of §R10-6 is unchanged
     expect(text).not.toContain('"straight"')
     await resetAll(page)
     await openRecord(page, text)

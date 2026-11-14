@@ -88,10 +88,10 @@ beforeEach(() => {
 })
 
 describe('a revision file with phases', () => {
-  it('declares the current semantics (/14, which includes the phases of /13), carries the phases inside its content digest, and is read as a proposal of this project', async () => {
+  it('declares the current semantics (/15, which includes the phases of /13), carries the phases inside its content digest, and is read as a proposal of this project', async () => {
     const text = proposalFile({ tables: true, phases: true })
     const f = JSON.parse(text)
-    expect(f.project.semantics).toBe('loop-revision/14')
+    expect(f.project.semantics).toBe('loop-revision/15')
     expect(spans(f.phases)).toEqual(NEW)
     const p = await proposal({ tables: true, phases: true })
     expect(classifyPendingProposal(p)).toEqual({ ok: true, classification: 'exact' })

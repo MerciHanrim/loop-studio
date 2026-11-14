@@ -3,6 +3,8 @@ import { useGraphStore } from '../store/graphStore'
 import { kindFindingEdgeId, kindFindingNodeId } from '../model/kinds'
 import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
+import { useUiStore } from '../store/uiStore'
+import { anyUnchecked } from '../model/phases'
 import { useT } from '../i18n'
 import { isolateAuto } from '../i18n/bidiIsolate'
 import { documentPoolAmounts, runNoticeText, runRefusalText, runStreak, timetableNoticeText, timetableRefusalText } from '../ui/runMessages'
@@ -200,9 +202,17 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   // the button's popover: pressed open, or shown while the keyboard focus or the pointer is on it
   const [phasePinned, setPhasePinned] = useState(false)
   const [phasePeek, setPhasePeek] = useState(false)
-  const phaseOpen = phase != null && phaseAsButton && (phasePinned || phasePeek)
+  // SEMANTICS-R15.md §R15-4 — the phase's name was not checked against the timing since an
+  // Apply left the two on different sides: a mark beside the name says so, and its
+  // popover holds the sentence and the reader's own "I checked". With a name the mark is a
+  // small button after it; where the document shows the button, that button is the mark.
+  const phaseMarked = phase?.unchecked === true
+  const editLocked = useUiStore((s) => s.canvasLocked)
+  const confirmPhasesChecked = useGraphStore((s) => s.confirmPhasesChecked)
+  const phaseOpen = phase != null && (phaseAsButton || phaseMarked) && (phasePinned || phasePeek)
   const phasePopId = useId()
   const phaseNoteId = useId()
+  const phaseCheckId = useId()
   // the popover belongs to the phase it was opened on: another phase, or none, closes it
   const [phaseOpenedOn, setPhaseOpenedOn] = useState<string | null>(null)
   if ((phase?.id ?? null) !== phaseOpenedOn) {
@@ -231,6 +241,29 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
       window.removeEventListener('keydown', onKey, true)
     }
   }, [phaseOpen])
+  // the phase button's own press, focus and pointer: one set for the info button and for the mark
+  const phaseBtnHandlers = {
+    onClick: () => {
+      // pressed while only peeked at (focus, pointer): it stays; pressed while pinned: it closes
+      setPhasePinned((v) => !v)
+      if (phasePinned) setPhasePeek(false)
+    },
+    onFocus: (e: React.FocusEvent<HTMLButtonElement>) => {
+      if (e.currentTarget.matches(':focus-visible')) setPhasePeek(true)
+    },
+    onBlur: (e: React.FocusEvent<HTMLButtonElement>) => {
+      // into the popover (the mark's "I checked" button is the next stop): it stays open
+      if (e.relatedTarget && phasePopRef.current?.contains(e.relatedTarget as Node)) return
+      setPhasePeek(false)
+      setPhasePinned(false)
+    },
+    onPointerEnter: (e: React.PointerEvent<HTMLButtonElement>) => {
+      if (e.pointerType === 'mouse') setPhasePeek(true)
+    },
+    onPointerLeave: (e: React.PointerEvent<HTMLButtonElement>) => {
+      if (e.pointerType === 'mouse' && !e.currentTarget.matches(':focus-visible')) setPhasePeek(false)
+    },
+  }
   // the button goes when the phase does (the end, the steady state, a wider room): focus
   // that was on it is not left on nothing, it moves to Play beside it
   const primaryBtnRef = useRef<HTMLButtonElement>(null)
@@ -313,7 +346,8 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
         const space = probe.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
         let widest = 0
         for (const el of probe.children) widest = Math.max(widest, el.getBoundingClientRect().width)
-        const asButton = widest > space + 0.5
+        // a marked document needs room for the mark after the widest name (22 px and its 6 px gap)
+        const asButton = widest + (anyUnchecked(phases) ? 28 : 0) > space + 0.5
         setPhaseAsButton((was) => (was === asButton ? was : asButton))
       }
       // the open phase popover stands over its button, pulled in at the row's end
@@ -505,6 +539,21 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
               {phase.label}
             </span>
             <span className="sr-only">{phaseText.sr}</span>
+            {phaseMarked && (
+              <button
+                ref={phaseBtnRef}
+                type="button"
+                className={`pb-btn pstrip__phase-check${phaseOpen ? ' is-open' : ''}`}
+                data-testid="run-phase-check"
+                aria-label={t('playbar.phase.check')}
+                aria-describedby={phaseCheckId}
+                aria-expanded={phaseOpen}
+                aria-controls={phaseOpen ? phasePopId : undefined}
+                {...phaseBtnHandlers}
+              >
+                !
+              </button>
+            )}
           </span>
         )}
         {phase && phaseText && phaseAsButton && (
@@ -512,44 +561,74 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
             <button
               ref={phaseBtnRef}
               type="button"
-              className={`pb-btn pstrip__phase-btn${phaseOpen ? ' is-open' : ''}`}
+              className={`pb-btn pstrip__phase-btn${phaseMarked ? ' pstrip__phase-btn--check' : ''}${phaseOpen ? ' is-open' : ''}`}
               data-testid="run-phase"
               data-phase={phase.id}
-              aria-label={phaseText.sr}
-              aria-describedby={phaseNoteId}
+              data-check={phaseMarked ? 'needed' : undefined}
+              aria-label={phaseMarked ? `${phaseText.sr}. ${t('playbar.phase.check')}` : phaseText.sr}
+              aria-describedby={phaseMarked ? `${phaseNoteId} ${phaseCheckId}` : phaseNoteId}
               aria-expanded={phaseOpen}
               aria-controls={phaseOpen ? phasePopId : undefined}
-              onClick={() => {
-                // pressed while only peeked at (focus, pointer): it stays; pressed while pinned: it closes
-                setPhasePinned((v) => !v)
-                if (phasePinned) setPhasePeek(false)
-              }}
-              onFocus={(e) => {
-                if (e.currentTarget.matches(':focus-visible')) setPhasePeek(true)
-              }}
-              onBlur={() => {
-                setPhasePeek(false)
-                setPhasePinned(false)
-              }}
-              onPointerEnter={(e) => {
-                if (e.pointerType === 'mouse') setPhasePeek(true)
-              }}
-              onPointerLeave={(e) => {
-                if (e.pointerType === 'mouse' && !e.currentTarget.matches(':focus-visible')) setPhasePeek(false)
-              }}
+              {...phaseBtnHandlers}
             >
-              <Icon name="info" />
+              {phaseMarked ? '!' : <Icon name="info" />}
             </button>
             <span id={phaseNoteId} className="sr-only">
               {t('playbar.phase.note')}
             </span>
           </>
         )}
+        {phase && phaseMarked && (
+          <span id={phaseCheckId} className="sr-only">
+            {t('playbar.phase.check.body')}
+          </span>
+        )}
       </span>
       {phaseOpen && phaseText && (
-        <div ref={phasePopRef} id={phasePopId} className="pstrip__phase-pop" role="tooltip" data-testid="run-phase-pop">
+        <div
+          ref={phasePopRef}
+          id={phasePopId}
+          className="pstrip__phase-pop"
+          // with the mark the popover holds a button, so it is a named group and no tooltip
+          role={phaseMarked ? 'group' : 'tooltip'}
+          aria-label={phaseMarked ? t('playbar.phase.check') : undefined}
+          data-testid="run-phase-pop"
+          onBlur={(e) => {
+            const next = e.relatedTarget as Node | null
+            if (next && (phasePopRef.current?.contains(next) || phaseBtnRef.current?.contains(next))) return
+            setPhasePeek(false)
+            setPhasePinned(false)
+          }}
+        >
           <span className="pstrip__phase-pop-name">{phaseText.full}</span>
           <span className="pstrip__phase-pop-note">{t('playbar.phase.note')}</span>
+          {phaseMarked && (
+            <>
+              <span className="pstrip__phase-pop-check" data-testid="run-phase-check-body">
+                {t('playbar.phase.check.body')}
+              </span>
+              {editLocked ? (
+                <span className="pstrip__phase-pop-note" data-testid="run-phase-check-locked">
+                  {t('playbar.phase.check.locked')}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="btn pstrip__phase-pop-confirm"
+                  data-testid="run-phase-check-confirm"
+                  onClick={() => {
+                    // the mark and this popover go with it: the focus moves to Play, not to nothing
+                    if (!confirmPhasesChecked()) return
+                    setPhasePinned(false)
+                    setPhasePeek(false)
+                    primaryBtnRef.current?.focus()
+                  }}
+                >
+                  {t('playbar.phase.check.confirm')}
+                </button>
+              )}
+            </>
+          )}
         </div>
       )}
 

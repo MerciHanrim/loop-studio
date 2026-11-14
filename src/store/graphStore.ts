@@ -34,7 +34,7 @@ import { canonicalKinds, kindsDeclareUnits, resolveKinds, type ResourceKindDecl 
 import { exportUnits, type ExportUnits } from '../model/exportUnits'
 import { canonicalDocTime, type DocTime } from '../model/units'
 import { canonicalTimetable, meaningOf, timetableLines, type Timetable } from '../model/timetable'
-import { canonicalPhase, type DocPhase } from '../model/phases'
+import { anyUnchecked, canonicalPhase, clearUnchecked, type DocPhase } from '../model/phases'
 import { parseActivatorExpr } from '../engine'
 import {
   deserialize,
@@ -440,6 +440,12 @@ type GraphStore = {
    *  `loop-studio/graph/4`, one-way. The caller has already shown the §M4-4
    *  impact (the Converters whose verdict changes) and holds the consent. */
   setTime: (time: DocTime | undefined) => void
+  /** SEMANTICS-R15.md §R15-3 — the reader's own "I checked the phases and the
+   *  timetables": takes the `unchecked` mark off every phase. One undo entry and
+   *  no `simulationRev` bump (a phase is nothing the run reads, so a run under
+   *  way goes on). Returns whether anything changed: `false` while the edit lock
+   *  is on, and when no phase is marked. */
+  confirmPhasesChecked: () => boolean
   /** loop-model/5 — replace the document's timetables: one undo entry, one
    *  `simulationRev` bump. A table promotes the document to `loop-studio/graph/5`,
    *  one-way. */
@@ -1814,6 +1820,17 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       })
       bump() // a conserved kind can refuse the run; the sim re-reads the table
       persist()
+    },
+
+    confirmPhasesChecked: () => {
+      if (editGuard()) return false // #334 — refused while the edit lock is on
+      const cur = get().phases
+      if (!anyUnchecked(cur)) return false
+      commit('')
+      lastTag = ''
+      set({ phases: clearUnchecked(cur) })
+      persist()
+      return true
     },
 
     setTime: (next) => {

@@ -22,7 +22,7 @@ import type { FlowNodeKind, LoopEdge, LoopNode } from './types'
 import { hasKindsTable, hasModelLayer, hasTableMeaning, hasTimetables, hasUnits, isModelSemanticsLabel, modelSemanticsLabel, type ModelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
 import { canonicalKinds, readKindsAt, type ResourceKindDecl } from './kinds'
 import { canonicalTimetable, readTimetables, type Timetable } from './timetable'
-import { canonicalPhase, readPhases, type DocPhase } from './phases'
+import { anyUnchecked, canonicalPhase, readPhases, type DocPhase } from './phases'
 import { canonicalDocTime, readDocTime, type DocTime } from './units'
 import { sha256Hex, sha256Js, utf8ByteLength, utf8Bytes } from './workspace'
 
@@ -203,11 +203,11 @@ export type ProjectPayload = {
   semantics?: string
 }
 
-/** the revision semantics this build writes into a header (§R10-6; `/14` since
- *  SEMANTICS-R14.md — the kinds table, the step length and the timetables as
- *  chosen units of an Apply, which changes no projection and no digest; `/13`
- *  was the phases of a run, `/12` the icon of a flow node) */
-export const REVISION_SEMANTICS = 'loop-revision/14'
+/** the revision semantics this build writes into a header (§R10-6; `/15` since
+ *  SEMANTICS-R15.md — the `unchecked` mark of a phase; `/14` was the kinds
+ *  table, the step length and the timetables as chosen units of an Apply, which
+ *  changed no projection and no digest; `/13` the phases of a run) */
+export const REVISION_SEMANTICS = 'loop-revision/15'
 const SEMANTICS_RE = /^loop-revision\/([1-9][0-9]{0,3})$/
 /** the `N` of {@link REVISION_SEMANTICS} — what this reader can verify */
 const OWN_SEMANTICS_N = Number(SEMANTICS_RE.exec(REVISION_SEMANTICS)![1])
@@ -811,6 +811,7 @@ export type SideVersion =
   | 'loop-revision/11' // SEMANTICS-R11.md — the side carries ≥ 1 stored non-default port face (`data.ports`)
   | 'loop-revision/12' // SEMANTICS-R12.md — the side carries ≥ 1 flow-node icon (`data.icon`)
   | 'loop-revision/13' // SEMANTICS-R13.md — the side carries ≥ 1 surviving graph-level phase (`phases`)
+  | 'loop-revision/15' // SEMANTICS-R15.md — ≥ 1 surviving phase carries the `unchecked` mark (`/14` is no content: SEMANTICS-R14.md)
 export type RevisionSideOk = {
   ok: true
   version: SideVersion
@@ -1011,8 +1012,14 @@ export function readRevisionSide(
   // SEMANTICS-R13.md §R13-1 — ≥ 1 SURVIVING phase (survival decides, as for
   // frames: a `phases` block whose entries were all dropped leaves nothing).
   // The newest extension, so the highest label precedence, on the same projection.
-  const hasPhases = readPhases(graph.phases).length > 0
-  const version: SideVersion = hasPhases
+  const sidePhases = readPhases(graph.phases)
+  const hasPhases = sidePhases.length > 0
+  // SEMANTICS-R15.md §R15-1 — ≥ 1 SURVIVING phase carries the `unchecked` mark. The
+  // newest extension, so the highest label precedence, on the same projection.
+  const hasPhaseMark = anyUnchecked(sidePhases)
+  const version: SideVersion = hasPhaseMark
+    ? 'loop-revision/15'
+    : hasPhases
     ? 'loop-revision/13'
     : hasIcon
     ? 'loop-revision/12'

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import type { UnitLine } from '../model/applyDiagnostics'
 import { kindsDiff, type KindsDiffRow } from '../model/kindsDiff'
+import { anyUnchecked } from '../model/phases'
 import type { FramesHunk, HunkSelection, PhasesHunk, ProposalHunk, ThreeWayPlan } from '../model/revision'
 import type { TimeUnit } from '../model/units'
 import { useFrameStore } from '../store/frameStore'
@@ -245,6 +246,8 @@ function PhasesHunkRow({ h, sel, onPhases }: { h: PhasesHunk; sel: HunkSelection
   const t = useT()
   const yours = h.yours?.length ?? 0
   const theirs = h.proposed?.length ?? 0
+  const yoursMarked = anyUnchecked(h.yours ?? [])
+  const theirsMarked = anyUnchecked(h.proposed ?? [])
   return (
     <div>
       <label className="review__hunk-head">
@@ -253,6 +256,9 @@ function PhasesHunkRow({ h, sel, onPhases }: { h: PhasesHunk; sel: HunkSelection
           {t('review.hunk.phasesTitle')}{' '}
           {theirs === 0 ? t('review.hunk.phasesClear', { yours }) : t('review.hunk.phasesTake', { yours, theirs })}
           <span className="review__field-tag">{t('review.diff.phases')}</span>
+          {/* SEMANTICS-R15.md §R15-5 — the mark is part of the phases: say when taking them brings it, or takes it off */}
+          {theirsMarked && !yoursMarked ? <span className="review__hunk-tag" data-phase-mark="brings">{t('review.hunk.phasesMarked')}</span> : null}
+          {!theirsMarked && yoursMarked ? <span className="review__hunk-tag" data-phase-mark="clears">{t('review.hunk.phasesUnmarked')}</span> : null}
           {h.verdict === 'conflict' ? <span className="review__hunk-tag">{t('review.hunk.bothChanged')}</span> : null}
         </span>
       </label>

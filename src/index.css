@@ -4981,6 +4981,38 @@ a.sheet__row {
 .pstrip__phase-btn.is-open {
   border-color: var(--line-control-hover);
 }
+/* SEMANTICS-R15.md §R15-4 — the mark: the phase names were not checked against the timing
+   since an Apply left the two on different sides. After the name it is a small button of
+   its own; where the document shows the phase button, that button is the mark. */
+.pstrip__phase-check {
+  flex: none;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-inline-start: 6px;
+  padding: 0;
+}
+.pstrip__phase-check,
+.pstrip__phase-btn--check {
+  border-color: var(--warn);
+  color: var(--warn);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+.pstrip__phase-pop-check {
+  color: var(--warn);
+  font-size: 11px;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.pstrip__phase-pop-confirm {
+  align-self: flex-start;
+  margin-top: 2px;
+}
 .pstrip__phase-pop {
   position: absolute;
   bottom: calc(100% + 6px);
@@ -7960,6 +7992,23 @@ input[type='number']::-webkit-inner-spin-button {
     font-size: 12px;
     line-height: 1.4;
     white-space: normal;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  /* SEMANTICS-R15.md §R15-4 — the mark beside the name on the phone line, and its sentence */
+  .pstrip--mobile .pstrip__phase-check-m {
+    margin-inline-start: 8px;
+    border-color: var(--warn);
+    color: var(--warn);
+    font-size: 12px;
+    font-weight: 700;
+    vertical-align: middle;
+  }
+  .pstrip--mobile .pstrip__phase-checknote {
+    flex-basis: 100%;
+    color: var(--warn);
+    font-size: 12px;
+    line-height: 1.4;
     word-break: keep-all;
     overflow-wrap: anywhere;
   }
