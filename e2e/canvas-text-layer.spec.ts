@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, test } from './support/loop'
+import { readFileSync } from 'node:fs'
+import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 import { pickTemplate } from './support/workbenchMenus'
 
 // docs/canvas-text-layer.md — the canvas text layer in the browser, on the 3-zone gacha Template
@@ -201,5 +202,98 @@ test.describe('canvas text layer (docs/canvas-text-layer.md)', () => {
     await panBy(page, 60, -30)
     await expect.poll(() => zoneOffsets(page)).toEqual(before)
     await expect(page.locator('.canvas-text__chip[data-kind="node"]')).toHaveAttribute('data-side', side!)
+  })
+})
+
+// §CTL5 — the lines are read over several frames (2026-11-15). One read of every line of the
+// Early MMO (144 lines, about 52,000 points) was a single frame of about 0.9 s; now the layer
+// samples for at most 16 ms in a frame (40 ms while a name waits for the lines) and goes on in
+// the frames after. Read from the layer's own record of its reads (dev builds).
+test.describe('canvas text layer — the lines are read over several frames (§CTL5)', () => {
+  type Read = { t: number; ms: number; lines: boolean; sampled: number; left: number; budget: number; points: number }
+  type MmoBridge = { __loop: { rf: { fitView: (o: object) => void; getViewport: () => { zoom: number } }; routeMap: { pending: () => boolean }; graph: { getState: () => { nodes: { id: string; selected?: boolean }[]; edges: unknown[]; setSelection: (n: string | null, e: string | null) => void; onNodesChange: (c: object[]) => void } } }; __canvasTextReads?: Read[] }
+  const MMO = readFileSync(new URL('../examples/mmo-progression.json', import.meta.url), 'utf8')
+  const lineReads = (page: Page) => page.evaluate(() => ((window as unknown as MmoBridge).__canvasTextReads ?? []).filter((r) => r.lines))
+  const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor((xs.length - 1) / 2)]
+  /** the MMO at the overview (a zoom that puts a selected name on the layer), its routes settled */
+  async function openMmo(page: Page): Promise<void> {
+    await openApp(page)
+    await resetAll(page)
+    await page.evaluate(() => { (window as unknown as MmoBridge).__canvasTextReads = [] })
+    await importGraph(page, MMO)
+    await expect(page.locator('.react-flow__node')).toHaveCount(97)
+    await page.evaluate(() => (window as unknown as MmoBridge).__loop.rf.fitView({ duration: 0, padding: 0.1 }))
+    await expect.poll(() => page.evaluate(() => (window as unknown as MmoBridge).__loop.rf.getViewport().zoom)).toBeLessThan(0.5)
+  }
+  /** the read has ended: lines were read, and the last read of them left none */
+  const whole = async (page: Page) => {
+    await expect.poll(async () => { const rs = await lineReads(page); return rs.length > 0 && rs[rs.length - 1].left === 0 }, { timeout: 20_000 }).toBe(true)
+    await expect.poll(() => page.evaluate(() => (window as unknown as MmoBridge).__loop.routeMap.pending()), { timeout: 20_000 }).toBe(false)
+    await page.waitForTimeout(400)
+    await expect.poll(async () => { const rs = await lineReads(page); return rs[rs.length - 1].left }, { timeout: 20_000 }).toBe(0)
+  }
+
+  test('the Early MMO: many short reads instead of one long one, and every line read by the end', async ({ page }) => {
+    await openMmo(page)
+    await whole(page)
+    const rs = await lineReads(page)
+    const edges = await page.evaluate(() => (window as unknown as MmoBridge).__loop.graph.getState().edges.length)
+    expect(edges).toBe(144)
+    // the read was split: reads that left lines for the next frame, then one that left none
+    expect(rs.filter((r) => r.left > 0).length, 'reads that left lines for a later frame').toBeGreaterThanOrEqual(5)
+    expect(rs[rs.length - 1].left).toBe(0)
+    // every line was sampled (a line whose route changed while the routes settled, more than once)
+    expect(rs.reduce((s, r) => s + r.sampled, 0), 'lines sampled in all').toBeGreaterThanOrEqual(edges)
+    // the points of the whole read: about 52,000 for these 144 lines at 3 world px
+    expect(rs[rs.length - 1].points).toBeGreaterThan(40_000)
+    // each read keeps to its budget. A stalled machine can stretch one read, so the reading
+    // held is the typical one, with room for a slow runner; the single 0.9 s read is far outside it
+    expect(new Set(rs.map((r) => r.budget)), 'no name waits here: the 16 ms budget').toEqual(new Set([16]))
+    test.info().annotations.push({ type: 'line-reads', description: `${rs.length} reads, median ${median(rs.map((r) => r.ms))} ms, longest ${Math.max(...rs.map((r) => r.ms))} ms` })
+    expect(median(rs.map((r) => r.ms)), 'the typical read, ms').toBeLessThan(60)
+  })
+
+  test('a name asked for while the lines are being read waits for them, with the larger budget, and then shows', async ({ page }) => {
+    await openMmo(page)
+    // at once, before the read can have ended: select the node nearest the pane's centre
+    const id = await page.evaluate(() => {
+      const w = window as unknown as MmoBridge
+      const pane = document.querySelector('.react-flow__pane')!.getBoundingClientRect()
+      let best = '', bd = Infinity
+      for (const el of document.querySelectorAll<HTMLElement>('.react-flow__node')) {
+        const r = el.getBoundingClientRect()
+        const d = Math.hypot(r.left + r.width / 2 - (pane.left + pane.width / 2), r.top + r.height / 2 - (pane.top + pane.height / 2))
+        if (d < bd && el.querySelector('.nodef__name')?.textContent?.trim()) { bd = d; best = el.dataset.id! }
+      }
+      const g = w.__loop.graph.getState()
+      g.setSelection(best, null)
+      g.onNodesChange([{ id: best, type: 'select', selected: true }])
+      return best
+    })
+    expect(id).not.toBe('')
+    const chip = page.locator('.canvas-text__chip[data-kind="node"]')
+    // held back first (the lines are not known yet, and the routes are settling) ...
+    await expect(chip).toHaveAttribute('data-hidden', 'provisional')
+    // ... then shown, never hidden for good
+    await expect(chip).not.toHaveAttribute('data-hidden', /.+/, { timeout: 10_000 })
+    await expect(chip).toBeVisible()
+    await whole(page)
+    const rs = await lineReads(page)
+    // while the name waited the layer read with the larger budget
+    expect(rs.some((r) => r.budget === 40), 'reads with the 40 ms budget while the name waited').toBe(true)
+    expect(rs[rs.length - 1].left).toBe(0)
+    // and the name is still shown once everything is read, on a side
+    await expect(chip).toBeVisible()
+    await expect(chip).toHaveAttribute('data-side', /^\d@(8|14)$/)
+  })
+
+  test('a smaller document: its lines are read whole too', async ({ page }) => {
+    await overview(page)
+    const rs = await page.evaluate(() => ((window as unknown as MmoBridge).__canvasTextReads ?? []).filter((r) => r.lines))
+    // the 3-zone gacha's lines (about 16,000 points) take a few frames at 16 ms each; the read
+    // of them ends whole
+    expect(rs.length).toBeGreaterThan(0)
+    expect(rs[rs.length - 1].left).toBe(0)
+    expect(rs[rs.length - 1].points).toBeGreaterThan(5000)
   })
 })

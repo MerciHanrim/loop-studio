@@ -9,6 +9,12 @@
 // to WORLD coordinates and kept; a pan or a zoom only transforms it. A line's
 // colour or activity tint is not a change. During a node drag the lines are
 // not re-read (no label is chosen against lines then).
+//
+// The lines are read over SEVERAL FRAMES (§CTL5): in one frame the layer
+// samples for at most READ_BUDGET_MS, a long line is itself cut where the
+// budget ends, and the rest goes on in the frames after. Until every line has
+// been read the lines are not known, so a name's NEW place waits for that as
+// it waits for the routes; a kept place is shown throughout.
 
 import { useEffect, useRef } from 'react'
 import { useStoreApi } from '@xyflow/react'
@@ -27,6 +33,16 @@ type LineSample = { key: string; pts: Float32Array }
 
 /** world px between two sampled points of a line */
 const LINE_STEP = 3
+/** the longest the layer samples lines in one frame, ms. One read of every line
+ *  of the MMO was a 0.9 s frame (#554); with this it is about ninety frames of
+ *  at most this long (measured 2026-11-15) */
+export const READ_BUDGET_MS = 16
+/** the same while a name is held back waiting for the lines: the read ends
+ *  sooner, so the name shows no later than it did with one long read (with
+ *  16 ms it was up to 70 ms later, with 8 ms 0.4 s later; measured 2026-11-15) */
+export const READ_BUDGET_HELD_MS = 40
+/** how many points are sampled between two looks at the clock */
+const CLOCK_EVERY = 16
 /** the longest a name is held back waiting for the routes to settle, ms: after it the lines read so far are taken as known */
 export const SETTLE_WAIT_MS = 1500
 /** the wait ends this much early, so the draw that shows the name (a timer, then an animation
@@ -43,6 +59,15 @@ const log = (r: Omit<Rechoice, 't'>) => {
   if (!import.meta.env.DEV) return
   const w = window as unknown as { __canvasTextRechoices?: Rechoice[] }
   ;(w.__canvasTextRechoices ??= []).push({ t: Math.round(performance.now()), ...r })
+}
+/** every read of the geometry, for the browser tests (dev builds only): how long it took, whether
+ *  it read lines, how many it sampled (a line read part of the way counts when it is whole),
+ *  how many it left for the next frame, and the budget it had */
+export type ReadRecord = { t: number; ms: number; lines: boolean; sampled: number; left: number; budget: number; points: number }
+const logRead = (r: ReadRecord) => {
+  if (!import.meta.env.DEV) return
+  const w = window as unknown as { __canvasTextReads?: ReadRecord[] }
+  ;(w.__canvasTextReads ??= []).push(r)
 }
 /** marks a chip re-chosen in this draw, with its reason (read by the browser tests) */
 const markRechosen = (c: HTMLElement, reason: string) => {
@@ -78,10 +103,27 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
     // since when a name has been held back as provisional (null: none is), and the timer that ends the wait
     let heldSince: number | null = null
     let settleTimer = 0
+    // a read of the lines that did not fit one frame: how many lines it left for
+    // the next (0: the lines read are whole), and the line it stopped inside
+    let linesLeft = 0
+    let partial: { el: SVGGeometryElement; key: string; out: number[]; s: number } | null = null
 
     const dragging = () => useGraphStore.getState().nodes.some((n) => n.dragging)
 
+    /** the lines' points as one array, from the lines read so far */
+    const joinLines = (): Float32Array => {
+      let total = 0
+      for (const line of lineCache.values()) total += line.pts.length
+      const pts = new Float32Array(total)
+      let at = 0
+      for (const line of lineCache.values()) { pts.set(line.pts, at); at += line.pts.length }
+      return pts
+    }
+
     const readGeometry = (withLines: boolean) => {
+      const readStart = performance.now()
+      const budget = heldSince !== null ? READ_BUDGET_HELD_MS : READ_BUDGET_MS
+      let sampled = 0
       const [tx, ty, z] = store.getState().transform
       const o = root.getBoundingClientRect()
       const toWorld = (r: DOMRect): Box => ({ x: (r.left - o.left - tx) / z, y: (r.top - o.top - ty) / z, w: r.width / z, h: r.height / z })
@@ -97,34 +139,49 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
       let pts = geom.pts
       if (withLines) {
         // a line whose path (`d`) and own transform are what they were keeps its
-        // world points; only a changed or a new line is sampled again (#554)
+        // world points; only a changed or a new line is sampled again (#554).
+        // Sampling stops where this frame's budget ends: the lines not reached
+        // are counted (`left`) and read in the frames after, and a line cut
+        // part of the way (`partial`) goes on from where it stopped, as long
+        // as its path is what it was. The points are world points, so a pan or
+        // a zoom between two frames changes nothing in them.
         const next = new Map<SVGGeometryElement, LineSample>()
-        let total = 0
+        let left = 0
         for (const p of paths) {
           const local = p.getCTM()
           const key = `${p.getAttribute('d') ?? ''}|${local ? `${local.a},${local.b},${local.c},${local.d},${local.e},${local.f}` : ''}`
           let line = lineCache.get(p)
           if (!line || line.key !== key) {
+            if (performance.now() - readStart > budget) { left++; continue }
             let n = 0
             try { n = p.getTotalLength() } catch { continue }
             const m = p.getScreenCTM()
             if (!m || !n) continue
-            const out: number[] = []
-            for (let s = 0; s <= n; s += LINE_STEP) {
+            const resume = partial && partial.el === p && partial.key === key ? partial : null
+            const out: number[] = resume ? resume.out : []
+            let s = resume ? resume.s : 0
+            let cut = false
+            for (let k = 0; s <= n; s += LINE_STEP, k++) {
+              if (k % CLOCK_EVERY === CLOCK_EVERY - 1 && performance.now() - readStart > budget) { cut = true; break }
               const q = p.getPointAtLength(s)
               out.push((m.a * q.x + m.c * q.y + m.e - o.left - tx) / z, (m.b * q.x + m.d * q.y + m.f - o.top - ty) / z)
             }
+            if (cut) { partial = { el: p, key, out, s }; left++; continue }
+            if (resume) partial = null
             line = { key, pts: Float32Array.from(out) }
+            sampled++
           }
           next.set(p, line)
-          total += line.pts.length
         }
         lineCache = next
-        pts = new Float32Array(total)
-        let at = 0
-        for (const line of next.values()) { pts.set(line.pts, at); at += line.pts.length }
+        linesLeft = left
+        // the points are put together once the read is whole; until then the
+        // ones of the last whole read stand (none, the first time)
+        if (left === 0) { partial = null; pts = joinLines() }
       }
-      geom = { nodes, pts, edgeCount: paths.length, linesRead: withLines || geom.linesRead }
+      // a read that left lines for the next frame leaves the lines unknown until it is whole
+      geom = { nodes, pts, edgeCount: paths.length, linesRead: withLines ? linesLeft === 0 : geom.linesRead && linesLeft === 0 }
+      logRead({ t: Math.round(readStart), ms: Math.round((performance.now() - readStart) * 10) / 10, lines: withLines, sampled, left: withLines ? linesLeft : 0, budget, points: geom.pts.length / 2 })
     }
 
     // a chip element per label, reused between draws
@@ -289,16 +346,29 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
       const z = store.getState().transform[2]
       const active = nodeOnLayer(z) || (zonesRef.current.length > 0 && ZONE_TEXT_PX * z < TEXT_SHOW_PX)
       // a held-back name whose wait is over is shown first, on the geometry
-      // already read, before any slower re-read
-      if (heldSince !== null && performance.now() - heldSince >= SETTLE_WAIT_MS - SHOW_SLACK_MS) draw()
+      // already read, before any slower re-read. If the lines are still being
+      // read then, the ones read so far are the lines it is placed against
+      // (§CTL3 "never hidden for good"); the read goes on after it
+      if (heldSince !== null && performance.now() - heldSince >= SETTLE_WAIT_MS - SHOW_SLACK_MS) {
+        if (linesLeft > 0 && !geom.linesRead) geom = { ...geom, pts: joinLines(), linesRead: true }
+        draw()
+      }
       const dragEnded = wasDragging && !drag
+      // this frame read lines and left some for the next
+      let goesOn = false
       if (active && (want !== DRAW || dragEnded)) {
         // lines are read again once a drag ends; while dragging only the nodes
-        readGeometry(!drag && (want === LINES || dragEnded))
-        want = DRAW
+        const lines = !drag && (want === LINES || dragEnded)
+        readGeometry(lines)
+        goesOn = lines && linesLeft > 0
+        want = goesOn ? LINES : DRAW
       }
       wasDragging = drag
       draw()
+      // the read goes on in the next frame. Not during a drag, which reads no
+      // lines (it goes on when the drag ends, `dragEnded`), and not while
+      // nothing goes on the layer (`want` keeps the ask for when something does)
+      if (goesOn && !raf) raf = requestAnimationFrame(frame)
     }
     const schedule = (need: Need) => {
       if (need > want) want = need
