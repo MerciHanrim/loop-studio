@@ -867,6 +867,77 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     expect(sel).toBeNull()
   })
 
+  // 2026-11-11 defect — Reset view cleared the store's selection only and left
+  // each element's own `selected` mark: the ring stayed on a node nothing else
+  // called selected. The phone has two Reset views, the More sheet's row and the
+  // canvas rail's button; both are pressed here, for a node and for a connection.
+  // A selection on the phone brings the Inspector sheet, whose scrim covers the
+  // More button and the rail (measured: a pointer click on either lands on
+  // `.sheet-scrim`), so a finger does not reach them while the sheet is up.
+  // Their handlers are still pressed here, through the DOM, so that no route to
+  // them (another overlay over a selection, #411; a width change, §MV3c) leaves
+  // the mark behind. The More sheet's own row takes a real click.
+  test.describe('Reset view clears the whole selection: the mark on the canvas with the store’s', () => {
+    const shown = (page: Page) =>
+      page.evaluate(() => {
+        type El = { id: string; selected?: boolean }
+        const g = (window as unknown as { __loop: { graph: { getState: () => { nodes: El[]; edges: El[]; selectedNodeId: string | null; selectedEdgeId: string | null } } } }).__loop.graph.getState()
+        return {
+          store: { node: g.selectedNodeId, edge: g.selectedEdgeId },
+          marked: { nodes: g.nodes.filter((n) => n.selected).length, edges: g.edges.filter((e) => e.selected).length },
+          canvas: {
+            nodes: document.querySelectorAll('.react-flow__node.selected').length,
+            edges: document.querySelectorAll('.react-flow__edge.selected').length,
+            rings: document.querySelectorAll('.nodef.is-selected').length,
+          },
+          sheet: document.querySelector('.sheet--inspector') !== null,
+        }
+      })
+    const NOTHING = { store: { node: null, edge: null }, marked: { nodes: 0, edges: 0 }, canvas: { nodes: 0, edges: 0, rings: 0 }, sheet: false }
+    const tapLine = async (page: Page) => {
+      const at = await page.locator('.react-flow__edge path.react-flow__edge-path').first().evaluate((el) => {
+        const p = el as SVGPathElement
+        const m = p.getPointAtLength(p.getTotalLength() / 2).matrixTransform(p.getScreenCTM()!)
+        return { x: m.x, y: m.y }
+      })
+      await page.mouse.move(at.x, at.y)
+      await page.mouse.down()
+      await page.mouse.up()
+    }
+    const select = async (page: Page, what: 'node' | 'connection') => {
+      if (what === 'node') await tapNode(page, page.locator('.react-flow__node').first())
+      else await tapLine(page)
+      await expect(page.locator('.sheet--inspector')).toBeVisible()
+      const s = await shown(page)
+      expect(s.marked, `the ${what} carries its own mark`).toEqual(what === 'node' ? { nodes: 1, edges: 0 } : { nodes: 0, edges: 1 })
+      expect(s.canvas).toEqual(what === 'node' ? { nodes: 1, edges: 0, rings: 1 } : { nodes: 0, edges: 1, rings: 0 })
+      expect(what === 'node' ? s.store.node : s.store.edge).not.toBeNull()
+    }
+
+    for (const what of ['node', 'connection'] as const) {
+      test(`the More sheet’s row, a selected ${what}`, async ({ page }) => {
+        await loadDiagram(page)
+        await select(page, what)
+        // More takes the sheet's place; the selection stands behind it (#411)
+        await page.locator('.mob-more').dispatchEvent('click') // covered by the scrim: see above
+        expect((await shown(page)).marked, 'still selected with More open').toEqual(what === 'node' ? { nodes: 1, edges: 0 } : { nodes: 0, edges: 1 })
+        await page.locator('.sheet__row').filter({ hasText: /^Reset view/ }).click()
+        await expect.poll(() => shown(page), { message: 'every mark of the selection is gone together' }).toEqual(NOTHING)
+        await expect(page.locator('.sheet')).toHaveCount(0) // More closed, and the Inspector sheet does not come back
+        // not left half-selected: one tap selects it again
+        await select(page, what)
+      })
+
+      test(`the canvas rail’s button, a selected ${what}`, async ({ page }) => {
+        await loadDiagram(page)
+        await select(page, what)
+        await page.locator('.rf-resetview').dispatchEvent('click') // covered by the scrim: see above
+        await expect.poll(() => shown(page), { message: 'every mark of the selection is gone together' }).toEqual(NOTHING)
+        await select(page, what)
+      })
+    }
+  })
+
   // docs/label-timing-authoring.md LTA-INV-4 / review round 5 (Hanrim) — the
   // label-timing preset control's mobile read-only rendering was previously
   // exercised only under the desktop `chromium` project (via a `canvasLocked`
