@@ -698,6 +698,241 @@ test.describe('run phases — a revision review', () => {
   })
 })
 
+// SEMANTICS-R15.md — the mark that stays in the document after an Apply that left the phase
+// names and the timing on different sides: beside the name in the run row, with the sentence
+// and the reader's own "I checked the phases and the timetables".
+const CHECK_BODY = 'When a proposal was applied, these phase names and the timetables or the step length came from different sides. The phase shown may differ from the real process.'
+const CHECK_CONFIRM = 'I checked the phases and the timetables'
+
+test.describe('run phases — the check-needed mark', () => {
+  /** the stale case through the review: the proposal's phases taken, its timetables left */
+  async function applyPhasesOnly(page: Page) {
+    await page.evaluate(() => {
+      const L = (window as unknown as Bridge).__loop
+      L.project.getState().clear()
+      L.review.getState().close()
+    })
+    await importFile(page, await makeProposal(page, { tables: true, phases: true }))
+    const review = page.locator('.review')
+    await expect(review).toBeVisible()
+    await review.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+    await review.locator('.review__hunk input[data-hunk="timetables"]').uncheck()
+    await expect(page.getByTestId('review-phase-notice')).toHaveText(NOTICE_PHASES)
+    await review.locator('.review__actions button', { hasText: /^Apply 1 selected/ }).click()
+    await expect(review).toBeHidden()
+  }
+  const marked = (page: Page) => page.evaluate(() => ((window as unknown as Bridge).__loop.graph.getState().phases as { unchecked?: boolean }[]).map((p) => p.unchecked === true))
+  const desk = (page: Page) => page.locator('.pstrip:not(.pstrip--mobile)')
+
+  test('desktop: a mark beside the name; its press opens the sentence and "I checked", which takes it off; Undo brings it back', async ({ page }) => {
+    await openCoffee(page, 'en')
+    await applyPhasesOnly(page)
+    expect(await marked(page)).toEqual([true, true, true, true, true, true, true])
+    await advanceTo(page, 6)
+
+    // the name stays as it is and the mark comes after it
+    await expect(phaseEl(page).locator('.pstrip__phase-name')).toHaveText('Drying')
+    const check = desk(page).getByTestId('run-phase-check')
+    await expect(check).toBeVisible()
+    await expect(check).toHaveAccessibleName('Check needed')
+    await expect(check).toHaveAccessibleDescription(CHECK_BODY)
+    const withMark = await row(page)
+    expect(withMark).toMatchObject({ form: 'name', phase: 'roast_drying', nameCut: false, overflow: false })
+
+    await check.click()
+    const pop = page.getByTestId('run-phase-pop')
+    await expect(pop).toBeVisible()
+    await expect(pop).toHaveAttribute('role', 'group')
+    await expect(page.getByTestId('run-phase-check-body')).toHaveText(CHECK_BODY)
+    const confirm = page.getByTestId('run-phase-check-confirm')
+    await expect(confirm).toHaveText(CHECK_CONFIRM)
+    // Escape closes it, and it is the mark's own again
+    await page.keyboard.press('Escape')
+    await expect(pop).toHaveCount(0)
+
+    // by keyboard: the mark, then "I checked" is the next stop, and the popover stays for it
+    await check.focus()
+    await page.keyboard.press('Enter')
+    await expect(pop).toBeVisible()
+    await page.keyboard.press('Tab')
+    await expect(confirm).toBeFocused()
+    await expect(pop).toBeVisible()
+    await page.keyboard.press('Enter')
+    await expect(check).toHaveCount(0)
+    await expect(pop).toHaveCount(0)
+    expect(await marked(page)).toEqual([false, false, false, false, false, false, false])
+    // the focus is not left on nothing: it is on Play
+    await expect(desk(page).locator('.pb-btn--primary')).toBeFocused()
+    // the run went on: confirming is no change the run reads
+    expect(await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().stepIndex)).toBe(6)
+    await expect(phaseEl(page).locator('.pstrip__phase-name')).toHaveText('Drying')
+    // with the mark and without it the row is the same: no control moved for it
+    expect(await row(page)).toEqual(withMark)
+
+    // one Undo brings the mark back, a second takes the Apply itself back
+    await undo(page)
+    expect(await marked(page)).toEqual([true, true, true, true, true, true, true])
+    await undo(page)
+    expect(await docState(page)).toEqual({ boundary: '5', phases: ['Drying 2–5', 'Browning 6–9'] })
+    expect(await marked(page)).toEqual([false, false, false, false, false, false, false])
+  })
+
+  test('the mark stays through a reload, and through a saved file opened again', async ({ page }) => {
+    await openCoffee(page, 'en')
+    await applyPhasesOnly(page)
+    await page.evaluate(() => (window as unknown as Bridge).__loop.autosave.flush())
+    await page.reload()
+    await expect(page.locator('.react-flow__node')).toHaveCount(11)
+    expect(await marked(page)).toEqual([true, true, true, true, true, true, true])
+    await advanceTo(page, 6)
+    await expect(desk(page).getByTestId('run-phase-check')).toBeVisible()
+
+    const text = await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().exportJSON() as string)
+    await importGraph(page, text)
+    expect(await marked(page)).toEqual([true, true, true, true, true, true, true])
+    await advanceTo(page, 6)
+    await expect(desk(page).getByTestId('run-phase-check')).toBeVisible()
+  })
+
+  test('while the edit lock is on the sentence is there and "I checked" is not', async ({ page }) => {
+    await openCoffee(page, 'en')
+    await applyPhasesOnly(page)
+    await advanceTo(page, 6)
+    await page.evaluate(() => (window as unknown as Bridge).__loop.ui.getState().setCanvasLocked(true))
+    await desk(page).getByTestId('run-phase-check').click()
+    await expect(page.getByTestId('run-phase-check-body')).toHaveText(CHECK_BODY)
+    await expect(page.getByTestId('run-phase-check-locked')).toHaveText('Turn off the edit lock to record that you checked them.')
+    await expect(page.getByTestId('run-phase-check-confirm')).toHaveCount(0)
+    expect(await marked(page)).toEqual([true, true, true, true, true, true, true])
+  })
+
+  test('where the document shows the phase button, that button is the mark', async ({ page }) => {
+    await openCoffee(page, 'en')
+    await applyPhasesOnly(page)
+    // a long name, through a file: the file carries the mark with the phases
+    await reopenWithName(page, 'Browning up to just before the first crack begins')
+    expect(await marked(page)).toEqual([true, true, true, true, true, true, true])
+    await advanceTo(page, 3)
+    const btn = desk(page).locator('.pstrip__phase-btn')
+    await expect(btn).toBeVisible()
+    await expect(btn).toHaveAttribute('data-check', 'needed')
+    expect(strip(await btn.getAttribute('aria-label'))).toBe('Drying phase, steps 2–7. Check needed')
+    await expect(desk(page).getByTestId('run-phase-check')).toHaveCount(0)
+    await btn.click()
+    await expect(page.getByTestId('run-phase-check-body')).toHaveText(CHECK_BODY)
+    await page.getByTestId('run-phase-check-confirm').click()
+    // the same button, a plain phase button again
+    await expect(btn).toBeVisible()
+    await expect(btn).not.toHaveAttribute('data-check', 'needed')
+    expect(await marked(page)).toEqual([false, false, false, false, false, false, false])
+  })
+
+  test('a name that fits alone and not with the mark: the document shows the button', async ({ page }) => {
+    await openCoffee(page, 'en')
+    await advanceTo(page, 3)
+    // the widest name against the room, with no mark: a name
+    const fit = await page.evaluate(() => {
+      const probe = document.querySelector('.pstrip__phase--probe') as HTMLElement
+      const cs = getComputedStyle(probe)
+      const space = probe.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+      let widest = 0
+      for (const el of probe.children) widest = Math.max(widest, el.getBoundingClientRect().width)
+      return { space, widest }
+    })
+    expect(fit.widest).toBeLessThan(fit.space)
+    // a name 20 px narrower than the room: it fits, and it does not fit with the 28 px of the mark
+    await sim(page, 'reset')
+    await page.evaluate((target) => {
+      const g = (window as unknown as Bridge).__loop.graph
+      const measure = document.createElement('span')
+      const probe = document.querySelector('.pstrip__phase--probe') as HTMLElement
+      probe.appendChild(measure)
+      let name = 'Dry'
+      for (;;) {
+        measure.textContent = `${name}i`
+        if (measure.getBoundingClientRect().width > target) break
+        name += 'i'
+      }
+      measure.remove()
+      g.setState({ phases: g.getState().phases.map((p: { id: string }) => (p.id === 'roast_drying' ? { ...p, label: name } : p)) })
+    }, fit.space - 20)
+    await advanceTo(page, 3)
+    await expect(desk(page).locator('.pstrip__phase-name')).toBeVisible()
+    await expect(desk(page).locator('.pstrip__phase-btn')).toHaveCount(0)
+    await page.evaluate(() => {
+      const g = (window as unknown as Bridge).__loop.graph
+      g.setState({ phases: g.getState().phases.map((p: object) => ({ ...p, unchecked: true })) })
+    })
+    await expect(desk(page).locator('.pstrip__phase-btn')).toHaveAttribute('data-check', 'needed')
+    await expect(desk(page).locator('.pstrip__phase-name')).toHaveCount(0)
+  })
+
+  test('phone: the mark is beside the name; its press opens the sentence, and "I checked" is for a desktop', async ({ page }) => {
+    await openCoffee(page, 'en')
+    await applyPhasesOnly(page)
+    await page.setViewportSize({ width: 390, height: 844 })
+    const mob = page.locator('.pstrip--mobile')
+    await expect(mob).toBeVisible()
+    await advanceTo(page, 6)
+    const line = mob.getByTestId('run-phase')
+    expect(strip(await line.textContent())).toBe('Drying (steps 2–7)Check needed')
+    const check = mob.getByTestId('run-phase-check')
+    await expect(check).toHaveText('Check needed')
+    await expect(check).toHaveAttribute('aria-expanded', 'false')
+    await expect(mob.getByTestId('run-phase-check-body')).toHaveCount(0)
+    await check.click()
+    await expect(check).toHaveAttribute('aria-expanded', 'true')
+    await expect(mob.getByTestId('run-phase-check-body')).toHaveText(`${CHECK_BODY} Recording that you checked them is done on a desktop.`)
+    await expect(page.getByTestId('run-phase-check-confirm')).toHaveCount(0)
+    // nothing is cut and the page does not scroll sideways
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false)
+    await check.click()
+    await expect(mob.getByTestId('run-phase-check-body')).toHaveCount(0)
+  })
+
+  test('the announcement names a marked phase with its mark, once', async ({ page }) => {
+    await openCoffee(page, 'en')
+    await applyPhasesOnly(page)
+    const live = page.locator('[data-playback-announce]')
+    const text = async () => strip(await live.textContent())
+    const press = desk(page).locator('.pstrip__step-btn')
+    await press.click()
+    await expect.poll(text).toBe('Step 1, Charge phase, check needed')
+    await press.click()
+    await expect.poll(text).toBe('Step 2, Drying phase, check needed')
+    await press.click()
+    await expect.poll(text).toBe('Step 3')
+  })
+
+  test('in a review, a proposal whose phases carry the mark says so on the phases line', async ({ page }) => {
+    await openCoffee(page, 'en')
+    await page.evaluate(() => {
+      const L = (window as unknown as Bridge).__loop
+      L.project.getState().clear()
+      L.review.getState().close()
+    })
+    const text = await page.evaluate(async () => {
+      const M = await import('/src/model/revision.ts')
+      const S = await import('/src/model/serialize.ts')
+      const P = (window as unknown as Bridge).__loop.project.getState()
+      P.commitRevisionExport(P.planRevision({}).plan)
+      const f = JSON.parse((window as unknown as Bridge).__loop.project.getState().planProposal({}).text)
+      f.phases = f.phases.map((p: object) => ({ ...p, unchecked: true }))
+      const d = S.deserialize(JSON.stringify(f))
+      f.project.contentDigest = M.digestOfCanonical(
+        M.canonicalContent({ nodes: d.nodes, edges: d.edges, recommendedRunConfig: d.recommendedRunConfig, frames: d.frames, dataImports: d.dataImports, kinds: d.kinds, time: d.time, timetables: d.timetables, phases: d.phases }, { modelVersion: d.modelVersion }),
+      )
+      return JSON.stringify(f)
+    })
+    await importFile(page, text)
+    const review = page.locator('.review')
+    await expect(review).toBeVisible()
+    await expect(review.locator('.review__diff [data-diff="phases"]')).toHaveText('phases')
+    await review.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+    await expect(review.locator('.review__hunk [data-phase-mark="brings"]')).toHaveText('· marked: check needed')
+  })
+})
+
 // Every shipped language: the Template's own names, and one long name its author might
 // write, on the desktop row and on the narrower phone (360 px).
 const LONG: Record<string, string> = {

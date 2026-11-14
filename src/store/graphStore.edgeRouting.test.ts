@@ -210,6 +210,6 @@ describe('the header semantics decide a record (§R10-6)', () => {
     const file = JSON.parse(r.text)
     expect(file.project.semantics).toBe(REVISION_SEMANTICS)
     const read = readProject(file.project)
-    expect(read.ok && read.project.semantics).toBe('loop-revision/14')
+    expect(read.ok && read.project.semantics).toBe('loop-revision/15')
   })
 })

@@ -6,7 +6,7 @@
   "totals": {
     "rows": 125,
     "obligations": 76,
-    "callSites": 156
+    "callSites": 157
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -2367,6 +2367,15 @@
         {
           "keys": [
             "a11y.playback.stepNPhase"
+          ],
+          "args": [
+            "phase"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "a11y.playback.stepNPhaseCheck"
           ],
           "args": [
             "phase"

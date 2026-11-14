@@ -49,7 +49,9 @@ export function PlaybackAnnouncer() {
       const phase = phaseAt(useGraphStore.getState().phases, n)
       const fresh = phase != null && phase.id !== namedPhase.current
       namedPhase.current = phase?.id ?? null
-      return fresh ? t('a11y.playback.stepNPhase', { n, phase: isolateAuto(phase.label) }) : t('a11y.playback.stepN', { n })
+      if (!fresh) return t('a11y.playback.stepN', { n })
+      // SEMANTICS-R15.md §R15-4 — a marked phase is named with its mark, once, as the phase is
+      return phase.unchecked === true ? t('a11y.playback.stepNPhaseCheck', { n, phase: isolateAuto(phase.label) }) : t('a11y.playback.stepNPhase', { n, phase: isolateAuto(phase.label) })
     }
     const cancelPending = () => {
       if (pending.current) {

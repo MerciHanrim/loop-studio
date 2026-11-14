@@ -56,8 +56,8 @@ describe('R13-1 — version inference', () => {
     expect(ok.ok && ok.digestVerified).toBe(true)
     expect(readRevisionSide({ nodes, edges, phases: NEW } as never, digest).ok).toBe(false)
   })
-  it('the header this build writes declares /14, which includes /13 (SEMANTICS-R14.md)', () => {
-    expect(REVISION_SEMANTICS).toBe('loop-revision/14')
+  it('the header this build writes declares /15, which includes /13 (SEMANTICS-R15.md)', () => {
+    expect(REVISION_SEMANTICS).toBe('loop-revision/15')
   })
 })
 
@@ -168,11 +168,11 @@ describe('R13-6 — phase names and timing from different sides', () => {
 describe('R13-7 — what a reader that does not know /13 is told', () => {
   // the header check of this build, given the content a build before /13 projects (no phases):
   // the digest fails, and the header's declaration says why
-  it('a /15 header whose digest fails is "a newer version" to this /14 build, so a /13 header is that to a /12 build by the same rule', () => {
+  it('a /16 header whose digest fails is "a newer version" to this /15 build, so a /13 header is that to a /12 build by the same rule', () => {
     const withPhases = digestOfCanonical(doc({ phases: OLD }))
     const asOlderBuildProjects = doc() // no `phases` in its projection
     const r = readProject(
-      { schema: 'loop-revision/1', version: 1, projectId: 'proj_00000000000000000000000000', revisionId: 'rev_00000000000000000000000000', parentId: null, role: 'revision', contentDigest: withPhases, lineage: [], semantics: 'loop-revision/15' },
+      { schema: 'loop-revision/1', version: 1, projectId: 'proj_00000000000000000000000000', revisionId: 'rev_00000000000000000000000000', parentId: null, role: 'revision', contentDigest: withPhases, lineage: [], semantics: 'loop-revision/16' },
       asOlderBuildProjects,
     )
     expect(r.ok).toBe(false)

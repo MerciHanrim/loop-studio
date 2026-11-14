@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { applyDiagnostics, chosenResultDoc, splitEngineChanges, type UnitMisread } from '../model/applyDiagnostics'
+import { markUnchecked } from '../model/phases'
 import {
   AUTHOR_NAME_KEY,
   AUTHOR_NAME_MAX_BYTES,
@@ -17,6 +18,7 @@ import {
   isProjectId,
   isRevisionId,
   mintId,
+  phaseTimingSplit,
   planProposalExport,
   planRevisionExport,
   recordKeepsLabels,
@@ -761,6 +763,13 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           changed: splitEngineChanges(plan, opts.selection),
         })
         if (diagnostics.unitMisreads.length > 0) return { ok: false, reason: 'invalid-selection', unitMisreads: diagnostics.unitMisreads }
+        // SEMANTICS-R15.md §R15-2 — this selection leaves the phase names and the
+        // timing on different sides. The review said so before the click; the
+        // phases of the result carry the mark, so that the document still says it
+        // afterwards. Kept phases are marked too: it is their timing that moved.
+        if (phaseTimingSplit(liveContent(), proposedCanon, { mode: 'hunks', phases: opts.selection.phases, timetables: opts.selection.timetables, time: opts.selection.time }) !== null) {
+          resultPhases = markUnchecked(resultPhases ?? g.phases)
+        }
         // an effective no-op mints no revision / undo entry / simulationRev bump.
         // The `frames` / `dataImports` swaps count: compare the WHOLE resulting
         // content (nodes + edges + the effective frames + dataImports) against
@@ -804,6 +813,10 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         resultTime = proposed.time // loop-model/4 — and the step length (none ⇒ cleared)
         resultTimetables = proposed.timetables ?? [] // loop-model/5 — and the timetables
         resultPhases = proposed.phases ?? [] // loop-revision/13 — and the phases (none ⇒ cleared)
+        // SEMANTICS-R15.md §R15-2 — the proposer moved the timing and left the
+        // phases: they come with the mark. A proposal whose own phases carry it
+        // brings it as content; one without it, taken whole, leaves none (§R15-3).
+        if (phaseTimingSplit(liveContent(), proposedCanon, { mode: 'whole' }) !== null) resultPhases = markUnchecked(resultPhases)
         adoptTime = true
       }
 

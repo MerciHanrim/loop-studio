@@ -36,8 +36,8 @@ describe('loop-revision/14 keeps every document’s bytes and digest', () => {
     expect(JSON.stringify(c)).not.toContain('"phases"')
   })
 
-  it('a written revision file declares /14 in its header, outside the digest, and its content is still read as /13 or earlier', () => {
-    expect(REVISION_SEMANTICS).toBe('loop-revision/14')
+  it('a written revision file declares the current semantics in its header, outside the digest, and unmarked content is still read as /13 or earlier', () => {
+    expect(REVISION_SEMANTICS).toBe('loop-revision/15')
     for (const dropPhases of [false, true]) {
       const { d, content } = doc(dropPhases)
       const r = planRevisionExport({
@@ -50,13 +50,14 @@ describe('loop-revision/14 keeps every document’s bytes and digest', () => {
       })
       if (!r.ok) throw new Error('revision export')
       const file = JSON.parse(r.text)
-      expect(file.project.semantics).toBe('loop-revision/14')
+      expect(file.project.semantics).toBe('loop-revision/15')
       expect(file.project.contentDigest).toBe(dropPhases ? PINNED.withoutPhases : PINNED.withPhases)
       // the label of a side is inferred from its content, and no content is /14
       const back = deserialize(r.text)
       const read = readRevisionSideAndProject({ ...back, recommendedRunConfig: back.recommendedRunConfig } as never, file.project, d.modelVersion)
       if (!read.ok) throw new Error('side and project')
       expect(read.side.version).not.toBe('loop-revision/14')
+      expect(read.side.version).not.toBe('loop-revision/15')
       expect(read.side.version === 'loop-revision/13').toBe(!dropPhases)
     }
   })
