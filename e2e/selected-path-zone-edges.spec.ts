@@ -5,8 +5,10 @@ import { expect, openApp, resetAll, test } from './support/loop'
 //  - `hsel`: a connection touching a SELECTED node (`.lgr-selpath`, Canvas.tsx) keeps 2 px on
 //    screen at every zoom and is never thinner than its own width (index.css). Only those
 //    connections; the class leaves with the selection; Focus mode and the hover relation (#444)
-//    compose with it. In forced colours an unselected STATE line keeps its pinned 1.5 px (the
-//    forced-colours state lines are decided separately).
+//    compose with it.
+//  - `sfw` (2026-11-14): in forced colours the pin of unselected STATE lines at 1.5 px outranked
+//    `hsel`. Over a light system palette a selected node's state lines now keep 2 px on screen
+//    too; over a dark one they keep the pin.
 //  - zone edges: the five frame accents at chroma 0.12 in light and dark, an accented frame's
 //    edge at full opacity, its fill kept at 0.06; the same token draws the label chip's border and
 //    the colour picker's swatch.
@@ -25,6 +27,8 @@ const GRAPH = JSON.stringify({
     { id: 'e_gs', type: 'loop', source: 'gold', target: 'split', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: 'all' } },
     { id: 'e_sd', type: 'loop', source: 'split', target: 'sink', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
     { id: 's_fb', type: 'loop', source: 'gold', target: 'src', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'trigger', expr: '', delay: 0 } },
+    // a state line that does not touch `gold`
+    { id: 's_ot', type: 'loop', source: 'split', target: 'sink', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'trigger', expr: '', delay: 0 } },
   ],
 })
 const OWN = ['e_sg', 'e_gs', 's_fb'] // the connections touching `gold`
@@ -119,13 +123,74 @@ test.describe('hsel — a selected node’s own connections keep 2 px on screen'
     }
   })
 
-  test('forced colours: a selected node’s flow takes the 2 px; an unselected state line keeps its pinned 1.5 px', async ({ page }) => {
-    await page.emulateMedia({ forcedColors: 'active' })
+  // `sfw` (Lumi, 2026-11-14) — forced colours pin every state line that is not
+  // itself selected at 1.5 px (world), with a rule that outranked `hsel`: at
+  // the overview a selected node's state lines were a quarter of a pixel on
+  // screen. Over a LIGHT system palette they now keep 2 px on screen, as the
+  // node's flows do; over a dark one they are left as they were. The dashes
+  // are the same in both, and no other line changes.
+  const dash = (page: Page, id: string) => edge(page, id).locator('.react-flow__edge-path').evaluate((el) => getComputedStyle(el).strokeDasharray)
+
+  test('forced colours, light: a selected node’s state line keeps 2 px on screen, its dashes as they were; other state lines keep the pinned 1.5 px', async ({ page }) => {
+    await page.emulateMedia({ forcedColors: 'active', colorScheme: 'light' })
     await load(page)
-    await selectGold(page)
+    expect(await page.evaluate(() => matchMedia('(forced-colors: active) and (prefers-color-scheme: light)').matches), 'forced colours over a light palette').toBe(true)
+    const dashBefore = await dash(page, 's_fb')
     await zoomTo(page, 0.2)
-    expect(await width(page, 'e_sg')).toBeCloseTo(2 / 0.2, 2)
+    // nothing selected: every state line at the pinned width
     expect(await width(page, 's_fb')).toBeCloseTo(1.5, 2)
+    expect(await width(page, 's_ot')).toBeCloseTo(1.5, 2)
+    await selectGold(page)
+    for (const zoom of [0.2, 0.4, 1, 2]) {
+      await test.step(`zoom ${zoom}`, async () => {
+        await zoomTo(page, zoom)
+        // 2 px on screen, and never under the pinned 1.5 px of world
+        expect(await width(page, 's_fb'), 'the selected node’s state line').toBeCloseTo(Math.max(1.5, 2 / zoom), 2)
+        expect((await width(page, 's_fb')) * zoom, 'on screen').toBeGreaterThanOrEqual(2 - 0.01)
+        // its flows, as before
+        expect(await width(page, 'e_sg')).toBeCloseTo(Math.max(1.5, 2 / zoom), 2)
+        // a state line that does not touch the selection, and a flow that does not
+        expect(await width(page, 's_ot'), 'another node’s state line').toBeCloseTo(1.5, 2)
+        expect(await width(page, OTHER)).toBeCloseTo(1.5, 2)
+        expect(await dash(page, 's_fb'), 'the dashes are not changed').toBe(dashBefore)
+      })
+    }
+    // the selection cleared: back to the pinned width
+    await page.locator('.react-flow__pane').click({ position: { x: 10, y: 10 } })
+    await expect(edge(page, 's_fb')).not.toHaveClass(/lgr-selpath/)
+    await zoomTo(page, 0.2)
+    expect(await width(page, 's_fb')).toBeCloseTo(1.5, 2)
+  })
+
+  test('forced colours, dark: a selected node’s state line keeps its pinned 1.5 px; its flow takes the 2 px', async ({ page }) => {
+    await page.emulateMedia({ forcedColors: 'active', colorScheme: 'dark' })
+    await load(page)
+    expect(await page.evaluate(() => matchMedia('(forced-colors: active) and (prefers-color-scheme: dark)').matches), 'forced colours over a dark palette').toBe(true)
+    const dashBefore = await dash(page, 's_fb')
+    await selectGold(page)
+    for (const zoom of [0.2, 0.4, 1, 2]) {
+      await test.step(`zoom ${zoom}`, async () => {
+        await zoomTo(page, zoom)
+        expect(await width(page, 's_fb'), 'the selected node’s state line, as before').toBeCloseTo(1.5, 2)
+        expect(await width(page, 's_ot')).toBeCloseTo(1.5, 2)
+        expect(await width(page, 'e_sg')).toBeCloseTo(Math.max(1.5, 2 / zoom), 2)
+        expect(await dash(page, 's_fb')).toBe(dashBefore)
+      })
+    }
+  })
+
+  test('forced colours, light: a state line that is itself selected keeps its own 2 px', async ({ page }) => {
+    await page.emulateMedia({ forcedColors: 'active', colorScheme: 'light' })
+    await load(page)
+    await page.evaluate(() => {
+      const g = (window as unknown as { __loop: { graph: { getState: () => { setSelection: (n: string | null, e: string | null) => void; onEdgesChange: (c: object[]) => void } } } }).__loop.graph.getState()
+      g.setSelection(null, 's_fb')
+      g.onEdgesChange([{ id: 's_fb', type: 'select', selected: true }])
+    })
+    await expect(edge(page, 's_fb')).toHaveClass(/selected/)
+    await zoomTo(page, 0.2)
+    // the `.selected` group is outside both the pin and this rule
+    expect(await width(page, 's_fb')).toBeCloseTo(2, 2)
   })
 })
 
