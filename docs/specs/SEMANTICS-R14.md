@@ -44,6 +44,21 @@ unit with the mechanics of the `frames` unit (§R5-6):
 There is never a choice per kind, per unit or per table. The proposal's whole value is
 taken or the target's is kept.
 
+Because the kinds table is taken whole, its line in the review says what a number would
+mean under each table (`kindsDiff`), the open document's value first and the proposal's
+after it, one row for each difference:
+
+- a kind only one side holds;
+- a kind's base unit (`kg` → `g`): a value that names no unit is counted in it;
+- whether the kind is conserved;
+- what 1 of each of its units is worth, written with the base unit (`1 kg/min` →
+  `1000 g/min`, `60 kg` for a bag), with a dash where a side has no such unit. A renamed
+  base unit therefore shows on every unit of the kind, also where the factor is the same
+  text: `1 kg/min` is not `1 g/min`.
+
+The Step length line gives both lengths, and the Timetables line names the tables that
+differ.
+
 ## R14-3. A chosen Apply
 
 `HunkSelection.kinds`, `.time` and `.timetables` are `'proposed'` or `'yours'` (absent is

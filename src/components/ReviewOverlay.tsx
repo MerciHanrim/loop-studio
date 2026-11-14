@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import type { UnitLine } from '../model/applyDiagnostics'
+import { kindsDiff, type KindsDiffRow } from '../model/kindsDiff'
 import type { FramesHunk, HunkSelection, PhasesHunk, ProposalHunk, ThreeWayPlan } from '../model/revision'
 import type { TimeUnit } from '../model/units'
 import { useFrameStore } from '../store/frameStore'
@@ -161,10 +162,18 @@ const TIME_UNIT_WORD: Record<TimeUnit, MessageKey> = { s: 'panels.time.unit.s', 
  *  what differs, so a table is not taken blind. */
 function UnitHunkRows({ plan, sel, onUnit }: { plan: ThreeWayPlan; sel: HunkSelection; onUnit: (line: UnitLine, choice: 'proposed' | 'yours') => void }) {
   const t = useT()
-  const stepText = (time: { step: { value: number; unit: TimeUnit } } | null) => (time ? `${time.step.value} ${t(TIME_UNIT_WORD[time.step.unit])}` : t('panels.time.none'))
-  const rows: { line: UnitLine; verdict: string; text: string }[] = []
+  const stepText =(time: { step: { value: number; unit: TimeUnit } } | null) => (time ? `${time.step.value} ${t(TIME_UNIT_WORD[time.step.unit])}` : t('panels.time.none'))
+  const rows: { line: UnitLine; verdict: string; text: string; detail?: KindsDiffRow[] }[] = []
   const k = plan.kinds
-  if (k && k.verdict !== 'noop') rows.push({ line: 'kinds', verdict: k.verdict, text: t('review.hunk.kindsTake', { names: isolateAuto(changedNames(k.yours, k.proposed, (x) => x.name, (x) => x.name)) }) })
+  if (k && k.verdict !== 'noop') {
+    rows.push({
+      line: 'kinds',
+      verdict: k.verdict,
+      text: t('review.hunk.kindsTake', { names: isolateAuto(changedNames(k.yours, k.proposed, (x) => x.name, (x) => x.name)) }),
+      // what a number would mean under each table: a kind's base unit, and what one of each of its units is worth
+      detail: kindsDiff(k.yours, k.proposed),
+    })
+  }
   const s = plan.time
   if (s && s.verdict !== 'noop') rows.push({ line: 'time', verdict: s.verdict, text: t('review.hunk.timeTake', { yours: isolateAuto(stepText(s.yours)), theirs: isolateAuto(stepText(s.proposed)) }) })
   const tt = plan.timetables
@@ -181,11 +190,52 @@ function UnitHunkRows({ plan, sel, onUnit }: { plan: ThreeWayPlan; sel: HunkSele
                 {r.verdict === 'conflict' ? <span className="review__hunk-tag">{t('review.hunk.bothChanged')}</span> : null}
               </span>
             </label>
+            {r.detail && r.detail.length > 0 ? (
+              <div className="review__fields" data-testid="review-kinds-detail">
+                {r.detail.map((d) => (
+                  <div key={`${d.kind}:${d.what}:${d.what === 'unit' ? d.unit : ''}`} className="review__field-row" data-kinds-row={d.what}>
+                    <span className="review__kinds-name">
+                      <bdi dir="auto">{d.kind}</bdi>
+                      {d.what === 'baseUnit' ? ` · ${t('panels.kinds.baseUnit')}` : d.what === 'conserved' ? ` · ${t('panels.kinds.conserved')}` : null}
+                      {d.what === 'unit' ? (
+                        <>
+                          {' · 1 '}
+                          <bdi dir="auto">{d.unit}</bdi>
+                        </>
+                      ) : null}
+                    </span>
+                    <span className="review__field-vals">
+                      <ValueChange from={kindsValue(d, d.yours)} to={kindsValue(d, d.theirs)} />
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         </li>
       ))}
     </>
   )
+}
+
+/** a value as it is and as the proposal has it. The one place the review draws that
+ *  arrow, for a field of a node or a line and for a row of the kinds table alike. */
+function ValueChange({ from, to }: { from: string; to: string }) {
+  // §L9.3 — a direction-aware CHARACTER from the shared table, never a transform
+  // `before-after` and NOT `graph-relation`: this arrow says a value changed from
+  // one thing to another, which is reading flow, not an edge in the model graph
+  const beforeAfter = useArrowGlyph('before-after')
+  return (
+    <>
+      <code dir="auto">{from}</code> {beforeAfter} <code dir="auto">{to}</code>
+    </>
+  )
+}
+
+/** one side of a kinds-table difference as the review prints a value: a missing one is a dash */
+function kindsValue(d: KindsDiffRow, side: string | boolean | null): string {
+  if (d.what === 'kind') return side ? d.kind : shortVal(undefined)
+  return side === null ? shortVal(undefined) : shortVal(side)
 }
 
 /** SEMANTICS-R13.md §R13-4 — the single graph-level `phases` hunk, as the
@@ -308,10 +358,6 @@ function HunkRow({
   onField: (id: string, field: string, choice: 'proposed' | 'yours') => void
 }) {
   const t = useT()
-  // §L9.3 — a direction-aware CHARACTER from the shared table, never a transform
-  // `before-after` and NOT `graph-relation`: this arrow says a value changed from
-  // one thing to another, which is reading flow, not an edge in the model graph
-  const beforeAfter = useArrowGlyph('before-after')
   if (h.kind !== 'change') {
     const blocked = !!h.blockedBy?.length
     return (
@@ -371,7 +417,7 @@ function HunkRow({
                   </span>
                 ) : (
                   <span className="review__field-vals">
-                    <code dir="auto">{shortVal(f.yours)}</code> {beforeAfter} <code dir="auto">{shortVal(f.proposed)}</code>
+                    <ValueChange from={shortVal(f.yours)} to={shortVal(f.proposed)} />
                   </span>
                 )}
                 <span className="review__field-choice">

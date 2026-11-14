@@ -566,6 +566,10 @@ test.describe('run phases — a revision review', () => {
     await review.locator('.review__actions button', { hasText: 'Choose changes' }).click()
     const kindsBox = review.locator('.review__hunk input[data-hunk="kinds"]')
     await expect(review.locator('.review__hunk', { has: page.locator('input[data-hunk="kinds"]') })).toContainText('Kinds Take the proposal’s kinds and units (changed: ')
+    // a unit the open document does not have: nothing before, 60 kg in the proposal
+    const bag = page.getByTestId('review-kinds-detail').locator('[data-kinds-row="unit"]')
+    await expect(bag.locator('.review__kinds-name')).toHaveText('coffee mass · 1 bag')
+    await expect(bag.locator('code')).toHaveText(['—', '60 kg'])
     await expect(kindsBox).toBeChecked()
     const apply = review.locator('.review__actions .btn--primary')
     await expect(apply).toBeEnabled()
@@ -598,6 +602,17 @@ test.describe('run phases — a revision review', () => {
     const kindsBox = review.locator('.review__hunk input[data-hunk="kinds"]')
     const apply = review.locator('.review__actions .btn--primary')
     const line = page.getByTestId('review-diagnostics').locator('li')
+    // the Kinds line says what a number would mean under each table: the base unit kg → g, and what
+    // one "kg per min" is worth, 1 kg/min → 1000 g/min
+    const detail = page.getByTestId('review-kinds-detail')
+    const base = detail.locator('[data-kinds-row="baseUnit"]')
+    await expect(base).toHaveCount(1)
+    await expect(base.locator('.review__kinds-name')).toHaveText('coffee mass · Base unit')
+    await expect(base.locator('code')).toHaveText(['kg', 'g'])
+    const unit = detail.locator('[data-kinds-row="unit"]')
+    await expect(unit).toHaveCount(1)
+    await expect(unit.locator('.review__kinds-name')).toHaveText('coffee mass · 1 kg per min')
+    await expect(unit.locator('code')).toHaveText(['1 kg/min', '1000 g/min'])
     // both pre-selected: the proposal's 54 000 under the proposal's g
     await expect(kindsBox).toBeChecked()
     await expect(page.getByTestId('review-diagnostics')).toHaveCount(0)

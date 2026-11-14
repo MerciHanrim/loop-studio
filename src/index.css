@@ -8584,6 +8584,11 @@ input[type='number']::-webkit-inner-spin-button {
   font-family: var(--font-mono);
   font-size: 11px;
 }
+/* SEMANTICS-R14.md §R14-2 — a row of the Kinds line: the user's own kind and unit names,
+   so the interface font, not the mono of a field path */
+.review__kinds-name {
+  font-size: 11px;
+}
 .review__field-tag {
   font-size: 9px;
   text-transform: uppercase;
