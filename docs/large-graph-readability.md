@@ -285,8 +285,25 @@ connections are in the focus set, so they stay at full strength while the rest
 dims). With the hover relation (#444) on the same connections they are one step
 heavier, as the relation draws them, but never under the 2 px. The read lines
 are not tagged. Under forced colours an unselected **state** line keeps its
-pinned 1.5 px (§LGR9); a selected node's state lines in forced colours are
-decided separately. `e2e/selected-path-zone-edges.spec.ts` holds these.
+pinned 1.5 px (§LGR9). `e2e/selected-path-zone-edges.spec.ts` holds these.
+
+**Forced colours over a light palette: a selected node's state lines keep
+2 px on screen too (`sfw`, 2026-11-14).** The §LGR9 pin outranked `hsel`, so in
+forced colours a selected node's state lines stayed 1.5 px of world: 0.26 px
+on screen at the overview of the 3-zone gacha, where nothing of them could be
+followed (the lowest share of such a line that showed: 0.03 at the overview,
+0.07 with the zone fitted). Over a **light** system palette
+(`forced-colors: active` and `prefers-color-scheme: light`, which under forced
+colours is the palette's own lightness) they are now drawn at max(1.5 px, 2 px
+on screen), like the node's flows: 0.58 and 1.00 of the same lines show, and
+by eye each can be followed from end to end. Their dashes are not changed, a
+state line that is itself selected keeps its 2 px, and no other line changes.
+Over a **dark** palette nothing changes: the same lines already showed there.
+The cost, measured on the same view: the wider dotted line lies over a thin
+neighbour along more of its length (the four state lines of *Pickup hit*: 6 to
+18 px of overlap each before, 18 to 72 px after, at the overview; nearly the
+same at zoom 1), so a neighbour beside a selected node's state line is harder
+to follow there while the selection stands.
 
 ### LGR3.2 Transient filters
 
