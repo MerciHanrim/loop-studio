@@ -8,7 +8,8 @@
 // line moved, a route settled, a node appeared — `geometryNeed.ts`), converted
 // to WORLD coordinates and kept; a pan or a zoom only transforms it. A line's
 // colour or activity tint is not a change. During a node drag the lines are
-// not re-read (no label is chosen against lines then).
+// not read again: every line keeps the points it had, and they are read after
+// the drop. A read that was not whole when the drag began goes on through it.
 //
 // The lines are read over SEVERAL FRAMES (§CTL5): in one frame the layer
 // samples for at most READ_BUDGET_MS, a long line is itself cut where the
@@ -108,7 +109,20 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
     let linesLeft = 0
     let partial: { el: SVGGeometryElement; key: string; out: number[]; s: number } | null = null
 
+    // the selected name's side was taken when its wait ended while the lines were
+    // still being read: it is shown there, and chosen again once they are whole
+    let tentative = false
+
     const dragging = () => useGraphStore.getState().nodes.some((n) => n.dragging)
+    /** the ids of the lines a drag is moving: the ones with an end on a dragged node */
+    const movingLines = (): Set<string> => {
+      const g = useGraphStore.getState()
+      const moved = new Set<string>()
+      for (const n of g.nodes) if (n.dragging) moved.add(n.id)
+      const ids = new Set<string>()
+      for (const e of g.edges) if (moved.has(e.source) || moved.has(e.target)) ids.add(e.id)
+      return ids
+    }
 
     /** the lines' points as one array, from the lines read so far */
     const joinLines = (): Float32Array => {
@@ -120,9 +134,19 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
       return pts
     }
 
-    const readGeometry = (withLines: boolean) => {
+    /** `drag`: a node drag is under way. A read of the lines that was not whole
+     *  goes on through it for the lines the drag does not move. A line it does
+     *  move is not sampled: it keeps the points it had (as every line does
+     *  through a drag), or none if it had not been read yet, and is read after
+     *  the drop. Its path changes with every frame of the drag, so a read of it
+     *  could be neither cut at the budget nor kept. */
+    const readGeometry = (withLines: boolean, drag = false) => {
       const readStart = performance.now()
       const budget = heldSince !== null ? READ_BUDGET_HELD_MS : READ_BUDGET_MS
+      // while a name waits, sampling also stops where its wait ends: the frame
+      // that shows it comes next, and must not be late for this read
+      const waitEnds = heldSince !== null ? heldSince + SETTLE_WAIT_MS - SHOW_SLACK_MS : 0
+      const until = waitEnds > readStart ? Math.min(readStart + budget, waitEnds) : readStart + budget
       let sampled = 0
       const [tx, ty, z] = store.getState().transform
       const o = root.getBoundingClientRect()
@@ -146,13 +170,24 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
         // as its path is what it was. The points are world points, so a pan or
         // a zoom between two frames changes nothing in them.
         const next = new Map<SVGGeometryElement, LineSample>()
+        const moving = drag ? movingLines() : null
         let left = 0
+        // every read samples something: where the boxes above have already taken
+        // the budget (a large document, a slow machine), one stretch of a line
+        // is still read, or the read would never end
+        let begun = false
         for (const p of paths) {
+          let line = lineCache.get(p)
+          // a line the drag is moving keeps the points it had, or none
+          if (moving !== null && moving.has(p.closest('.react-flow__edge')?.getAttribute('data-id') ?? '')) {
+            if (line) next.set(p, line)
+            continue
+          }
           const local = p.getCTM()
           const key = `${p.getAttribute('d') ?? ''}|${local ? `${local.a},${local.b},${local.c},${local.d},${local.e},${local.f}` : ''}`
-          let line = lineCache.get(p)
           if (!line || line.key !== key) {
-            if (performance.now() - readStart > budget) { left++; continue }
+            if (begun && performance.now() > until) { left++; continue }
+            begun = true
             let n = 0
             try { n = p.getTotalLength() } catch { continue }
             const m = p.getScreenCTM()
@@ -162,7 +197,7 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
             let s = resume ? resume.s : 0
             let cut = false
             for (let k = 0; s <= n; s += LINE_STEP, k++) {
-              if (k % CLOCK_EVERY === CLOCK_EVERY - 1 && performance.now() - readStart > budget) { cut = true; break }
+              if (k % CLOCK_EVERY === CLOCK_EVERY - 1 && performance.now() > until) { cut = true; break }
               const q = p.getPointAtLength(s)
               out.push((m.a * q.x + m.c * q.y + m.e - o.left - tx) / z, (m.b * q.x + m.d * q.y + m.f - o.top - ty) / z)
             }
@@ -243,11 +278,15 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
       // standing somewhere first and jumping. A kept place that still holds is
       // shown throughout. A name held back for SETTLE_WAIT_MS (the routes slow,
       // or failing) is shown with the lines read so far, so a name is never
-      // hidden for good. During a drag the rules use no lines.
+      // hidden for good. During a drag the routes are not waited for (they are
+      // being moved), but the READ is: a drag begun while the lines were still
+      // being read chose a new side against none of them (measured 2026-11-15:
+      // 3 of 24 such drags had the name on another side than with one whole
+      // read), so a new side waits for the read here too, up to the same 1.5 s.
       const now = performance.now()
       const settledNow = !useRouteInputs.getState().busy && !routeDiagnostics().pending
       const waitedOut = heldSince !== null && now - heldSince >= SETTLE_WAIT_MS - SHOW_SLACK_MS
-      const linesKnown = ((settledNow || waitedOut) && (geom.linesRead || geom.edgeCount === 0)) || drag
+      const linesKnown = (settledNow || waitedOut || drag) && (geom.linesRead || geom.edgeCount === 0)
       let held = false
       const seen = new Set<string>()
       // KEYBOARD focus on a zone: on its own chip (a solid ring on the name) or
@@ -303,6 +342,11 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
         // the selection ring's outer edge on screen (index.css `.nodef__sel`: band max(2z, 1.5), gap max(2.5z, 0.75))
         const ringOut = Math.max(2.5 * z, 0.75) + Math.max(2 * z, 1.5)
         const ring: Box = { x: own.x - ringOut, y: own.y - ringOut, w: own.w + 2 * ringOut, h: own.h + 2 * ringOut }
+        // a side taken when the wait ended with the lines still being read was
+        // chosen against the ones read so far: now that every line is read (and a
+        // new side can be shown at once), it is chosen again, once, against them all
+        if (tentative && nodeSlot?.id === id && linesLeft === 0 && geom.linesRead && linesKnown) { nodeSlot = null; tentative = false }
+        const before = nodeSlot
         const p = placeNode(id, toScreen(g.body), own, ring, s.w, s.h, nodeSlot, o, drag)
         // a new side chosen before the lines are known: not kept, not shown (as for a zone name)
         const provisional = !p.hidden && p.slot !== nodeSlot && !linesKnown
@@ -310,6 +354,8 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
         if ((linesKnown || p.hidden) && !provisional) {
           if (p.rechosen) log({ kind: 'node', text: g.name, reason: p.rechosen })
           nodeSlot = p.slot
+          // a NEW side kept while a read is still going (the 1.5 s wait ended first)
+          if (p.slot !== before) tentative = !p.hidden && linesLeft > 0
         }
         const hidden = p.hidden || (provisional ? 'provisional' : '')
         // the measured size is locked, so a chip near the pane's edge never shrinks and wraps
@@ -326,7 +372,7 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
         markRechosen(c, hidden ? '' : p.rechosen)
         if (!hidden) o.placed.push(p.at)
         seen.add(key)
-      } else if (selected.length !== 1) nodeSlot = null
+      } else if (selected.length !== 1) { nodeSlot = null; tentative = false }
 
       for (const [k, c] of chips) if (!seen.has(k)) { c.remove(); chips.delete(k) }
 
@@ -350,24 +396,32 @@ export function CanvasTextLayer({ zones }: { zones: LayerZone[] }) {
       // read then, the ones read so far are the lines it is placed against
       // (§CTL3 "never hidden for good"); the read goes on after it
       if (heldSince !== null && performance.now() - heldSince >= SETTLE_WAIT_MS - SHOW_SLACK_MS) {
-        if (linesLeft > 0 && !geom.linesRead) geom = { ...geom, pts: joinLines(), linesRead: true }
+        const reading = linesLeft > 0
+        if (reading && !geom.linesRead) geom = { ...geom, pts: joinLines(), linesRead: true }
         draw()
+        // this frame is the name's: a read still going takes the next one, so
+        // that the name is on screen inside the wait and not a read later
+        if (reading && heldSince === null) { if (!raf) raf = requestAnimationFrame(frame); return }
       }
       const dragEnded = wasDragging && !drag
+      // a read that was not whole when a drag began (or had not begun) goes on through the drag
+      const readOn = drag && (linesLeft > 0 || !geom.linesRead)
       // this frame read lines and left some for the next
       let goesOn = false
-      if (active && (want !== DRAW || dragEnded)) {
-        // lines are read again once a drag ends; while dragging only the nodes
-        const lines = !drag && (want === LINES || dragEnded)
-        readGeometry(lines)
+      if (active && (want !== DRAW || dragEnded || readOn)) {
+        // outside a drag the lines are read when asked for, and once more when a
+        // drag ends. During a drag they are not read AGAIN (they move, and are
+        // read after the drop); only a read that was not whole goes on, for the
+        // lines the drag does not move (`readGeometry`)
+        const lines = drag ? readOn : want === LINES || dragEnded
+        readGeometry(lines, drag)
         goesOn = lines && linesLeft > 0
-        want = goesOn ? LINES : DRAW
+        want = goesOn && !drag ? LINES : DRAW
       }
       wasDragging = drag
       draw()
-      // the read goes on in the next frame. Not during a drag, which reads no
-      // lines (it goes on when the drag ends, `dragEnded`), and not while
-      // nothing goes on the layer (`want` keeps the ask for when something does)
+      // the read goes on in the next frame. Not while nothing goes on the layer
+      // (`want` keeps the ask for when something does)
       if (goesOn && !raf) raf = requestAnimationFrame(frame)
     }
     const schedule = (need: Need) => {
