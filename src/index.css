@@ -2972,7 +2972,8 @@ a.sheet__row {
    paths can be followed at the overview; other connections are unchanged. The
    width is in world px under the canvas scale, hence `/ --canvas-zoom`. In
    forced colours an unselected STATE line keeps its pinned 1.5 px (the rule
-   further down outranks this one); that case is decided separately. */
+   further down outranks this one), except a selected node's over a light
+   system palette (`sfw`, beside that rule). */
 .react-flow__edge.lgr-selpath .react-flow__edge-path {
   stroke-width: max(var(--edge-w, 1.5px), calc(2px / var(--canvas-zoom, 1))) !important;
 }
@@ -3839,6 +3840,23 @@ a.sheet__row {
   .react-flow__edge:not(.selected) .react-flow__edge-path.edge-state:not(.lgr-active-tint),
   .react-flow__edge:not(.selected) .react-flow__edge-path.edge-state.route-invalid {
     stroke-width: 1.5px !important;
+  }
+}
+/* colour review, `sfw` (Lumi, 2026-11-14) — forced colours over a LIGHT system
+   palette only: the state lines of a SELECTED node (`.lgr-selpath`) keep 2 px
+   ON SCREEN at every zoom, as its flows do (`hsel`, above). The pin just above
+   outranked `hsel`'s rule, so at the overview a selected node's state lines
+   were 0.26 px on screen: on the 3-zone gacha, 0.10 of such a line could be
+   followed (measured 2026-11-11; 1.00 with this rule). The dashes are not
+   changed, and neither is any other line. A dark system palette is left as it
+   is: there the same lines already showed end to end, and the wider ones cost
+   up to three neighbouring lines their followability. `prefers-color-scheme`
+   is the system palette's own lightness under forced colours (Desert light,
+   Night sky dark, measured 2026-09-20). */
+@media (forced-colors: active) and (prefers-color-scheme: light) {
+  .react-flow__edge.lgr-selpath:not(.selected) .react-flow__edge-path.edge-state:not(.lgr-active-tint),
+  .react-flow__edge.lgr-selpath:not(.selected) .react-flow__edge-path.edge-state.route-invalid {
+    stroke-width: max(1.5px, calc(2px / var(--canvas-zoom, 1))) !important;
   }
 }
 @media (prefers-reduced-motion: reduce) {
