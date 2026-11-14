@@ -288,27 +288,61 @@ test.describe('playback — steady-state (§PBO8-7)', () => {
     await expect.poll(() => chipShown(page), { timeout: 4000 }).toBe(true)
 
     // §L2.0 (2026-10): the shipped languages
-    // the chip holds the whole wording and, for the run bar's last fit step
-    // (900 px), a short one; at 1280 the whole one shows, and the tooltip
-    // keeps the whole one at every width
-    for (const [code, text, short] of [
-      ['en', 'Steady state — flows continue', 'Steady'],
-      ['ko', '정상 상태 — 흐름은 계속됨', '흐름 계속'],
-      ['ja', '定常状態 — フローは継続', '定常'],
-      ['de', 'Stabil — läuft weiter', 'Stabil'],
-      ['zh-Hans', '稳态——流动仍在继续', '稳态'],
-      ['zh-Hant', '穩態——流動仍在繼續', '穩態'],
+    // the chip holds the whole wording and, for the run bar's last fit step,
+    // a short one; the tooltip and the status region a screen reader hears
+    // keep the whole one at every width. At 1280 the whole one shows, except
+    // in German (2026-11-14, Lumi: position first): its main button is as wide
+    // as "Erneut abspielen" and its step readout keeps the room of "Schritt
+    // 10000 · beendet", so that nothing moves when a run ends, and the row
+    // takes its last fit step, where the chip reads "Stabil"
+    for (const [code, text, short, whole] of [
+      ['en', 'Steady state — flows continue', 'Steady', true],
+      ['ko', '정상 상태 — 흐름은 계속됨', '정상 상태', true],
+      ['ja', '定常状態 — フローは継続', '定常', true],
+      ['de', 'Stabil — läuft weiter', 'Stabil', false],
+      ['zh-Hans', '稳态——流动仍在继续', '稳态', true],
+      ['zh-Hant', '穩態——流動仍在繼續', '穩態', true],
     ] as const) {
       await setLocale(page, code)
+      const shown = chip(page).locator(whole ? '.pstrip__steady-full' : '.pstrip__steady-short')
+      const other = chip(page).locator(whole ? '.pstrip__steady-short' : '.pstrip__steady-full')
       await expect(chip(page).locator('.pstrip__steady-full')).toHaveText(text)
-      await expect(chip(page).locator('.pstrip__steady-full')).toBeVisible()
       await expect(chip(page).locator('.pstrip__steady-short')).toHaveText(short)
-      await expect(chip(page).locator('.pstrip__steady-short')).toBeHidden()
+      await expect(shown, `${code}: the ${whole ? 'whole' : 'short'} wording shows at 1280`).toBeVisible()
+      await expect(other).toBeHidden()
+      expect(await chip(page).evaluate((el) => el.scrollWidth <= el.clientWidth), `${code}: the wording shown is not cut`).toBe(true)
+      // the whole state, whichever wording shows, on the tooltip (what a
+      // screen reader hears is said once, when the state is reached: the test
+      // after this one)
       await expect(chip(page)).toHaveAttribute('title', text)
     }
     await setLocale(page, 'en')
     await call(page, 'pause')
 
     expect(await inv()).toEqual(before) // steady-state detection touched nothing persistent
+  })
+
+  // 2026-11-14 (Lumi: position first) — German at 1280 px, the default window:
+  // the row keeps the room that stops the end of a run from moving its
+  // controls, and shows the state's short wording for it. The state itself is
+  // not shortened for anyone: the tooltip has the whole wording, and a screen
+  // reader hears the whole wording when the state is reached.
+  test('German at 1280: the chip shows "Stabil" whole; the tooltip and what a screen reader hears keep "Stabil — läuft weiter"', async ({ page }) => {
+    await setup(page)
+    await setLocale(page, 'de')
+    await advanceToSteady(page)
+    await call(page, 'play')
+    await expect.poll(() => chipShown(page), { timeout: 4000 }).toBe(true)
+    await expect(page.locator('.pstrip')).toHaveAttribute('data-fit', '4')
+    await expect(chip(page).locator('.pstrip__steady-short')).toBeVisible()
+    await expect(chip(page).locator('.pstrip__steady-short')).toHaveText('Stabil')
+    await expect(chip(page).locator('.pstrip__steady-full')).toBeHidden()
+    expect(await chip(page).evaluate((el) => el.scrollWidth <= el.clientWidth), 'the short wording is not cut').toBe(true)
+    await expect(chip(page)).toHaveAttribute('title', 'Stabil — läuft weiter')
+    await expect(page.locator('.pstrip [role="status"]')).toHaveText('Stabil — läuft weiter')
+    // the chip itself is not what is read out: the status region is
+    await expect(chip(page)).toHaveAttribute('aria-hidden', 'true')
+    await call(page, 'pause')
+    await setLocale(page, 'en')
   })
 })

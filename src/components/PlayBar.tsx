@@ -55,17 +55,48 @@ type Props = {
 //       toggle comes back)
 //   4 — last, the steady-state text may shorten (an ellipsis, its whole text
 //       on the tooltip and announced as before)
+// Past step 4, where even the short wording has no room, the step readout gives
+// up the room it keeps for its ended text (`data-readout`, see `fitRunRow`).
 // The step is the first that fits, measured on the row itself after every
 // render: the step readout, the ended note and a Monte-Carlo progress change
 // its width as a run goes on. The steady-state status keeps its room whether
 // shown or not, so it never moves a control when it appears.
 const RUN_ROW_STEPS = 4
+// the step readout keeps room for a five-digit step with the ended note in the reader's
+// language (the digits are tabular, so any five-digit number has this width); a longer
+// run widens it by a digit at a time
+const READOUT_ROOM_STEP = 10000
+// The step readout keeps room for its ended text (index.css, `.pstrip__step--readout`), so
+// the end of a run moves nothing. Position comes first (Lumi, 2026-11-14): the row takes
+// every one of its fit steps with that room kept, the state's short wording at step 4
+// included (its whole text stays on the tooltip and in the status region a screen reader
+// hears). Only where even the short wording would be cut, or the row is still too long,
+// does the readout give room up, and the end of a run may then move what follows:
+//   kept  — through steps 0 to 4
+//   gives — at step 4, where the state's short text would be cut or the row is too long:
+//           the readout's box shrinks from its 120 px least width toward the width of its
+//           own text, by as much as the row lacks and no more (index.css), so that the end
+//           of the run moves as little as it can (the narrowest docked column: a 900 px
+//           window)
+//   alone — an ended run that is still too long: the state room, which shows nothing
+//           once a run has ended, gives its place ("Schritt 1201 · beendet" at 900 px)
 function fitRunRow(row: HTMLElement): void {
-  for (let step = 0; step <= RUN_ROW_STEPS; step++) {
+  const chip = row.querySelector<HTMLElement>('.pstrip__steady')
+  // the state's text can shrink at the last step only: there, fitting is not enough
+  const stateWhole = (): boolean => chip == null || chip.scrollWidth <= chip.clientWidth
+  const fitsAt = (step: number): boolean => {
     if (step === 0) delete row.dataset.fit
     else row.dataset.fit = String(step)
-    if (fitsRow(row)) return
+    return fitsRow(row)
   }
+  delete row.dataset.readout
+  for (let step = 0; step < RUN_ROW_STEPS; step++) if (fitsAt(step)) return
+  if (fitsAt(RUN_ROW_STEPS) && stateWhole()) return
+  row.dataset.readout = 'gives'
+  // an ended run shows neither the steady state nor a phase: its state room is empty,
+  // and how narrow it gets cuts nothing; only the row's length counts then
+  const ended = row.querySelector('.pstrip__state')?.classList.contains('is-ended') === true
+  if (ended && !fitsRow(row)) row.dataset.readout = 'alone'
 }
 
 export function PlayBar({ collapsed, onToggleCollapse }: Props) {
@@ -364,6 +395,10 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
     return () => window.removeEventListener('resize', onResize)
   })
 
+  // Play, Pause, Replay in the reader's language, and which one is shown
+  const primaryLabels = [t('playbar.play'), t('playbar.pause'), t('playbar.replay')]
+  const primaryNow = ended ? 2 : running ? 1 : 0
+
   const onPrimary = () => {
     if (ended) {
       reset()
@@ -480,9 +515,14 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
           className={`pb-btn pb-btn--transport pb-btn--primary${running ? ' is-running' : ''}`}
           onClick={onPrimary}
           disabled={cannotRun}
+          // the button is as wide as the widest of its three labels in this language: the
+          // two not shown ride along unseen (index.css, the grid on this button), so it
+          // neither cuts a long one nor changes width when the run starts, pauses or ends
+          data-alt-a={primaryLabels[(primaryNow + 1) % 3]}
+          data-alt-b={primaryLabels[(primaryNow + 2) % 3]}
         >
           <Icon name={ended ? 'run-replay' : running ? 'run-pause' : 'run-play'} className="icon--lead" />
-          {ended ? t('playbar.replay') : running ? t('playbar.pause') : t('playbar.play')}
+          <span className="pb-btn__label">{primaryLabels[primaryNow]}</span>
         </button>
         <button ref={observeBtnRef} type="button" className="pb-btn pstrip__observe" aria-pressed={observing} onClick={toggleObserve}>
           {t('playbar.observe')}
@@ -508,14 +548,16 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
           </button>
         </span>
       ) : (
-        <span className="pstrip__step">
-          {ended ? t('playbar.stepEnded', { n: stepIndex }) : t('playbar.step', { n: stepIndex })}
+        // the readout keeps the room of its widest text in this language, the ended one
+        // (see `.pstrip__step--readout`), so the end of a run moves nothing after it
+        <span className="pstrip__step pstrip__step--readout" data-widest={t('playbar.stepEnded', { n: Math.max(stepIndex, READOUT_ROOM_STEP) })}>
+          <span className="pstrip__step-now">{ended ? t('playbar.stepEnded', { n: stepIndex }) : t('playbar.step', { n: stepIndex })}</span>
         </span>
       )}
 
       {/* the run's state beside its step: its room is kept while hidden; the
           screen reader hears it once, from the status region below */}
-      <span ref={stateRef} className="pstrip__state">
+      <span ref={stateRef} className={`pstrip__state${ended ? ' is-ended' : ''}`}>
         <span className={`pstrip__steady${showSteady ? ' is-on' : ''}`} aria-hidden="true" title={showSteady ? t('playbar.steady') : undefined}>
           {/* the row's last fit step shows the short wording, not an ellipsis
               (the whole text stays on the tooltip and in the status region) */}

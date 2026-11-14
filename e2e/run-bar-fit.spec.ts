@@ -304,3 +304,191 @@ test.describe('the playback strip in a narrow desktop window stays inside the wi
     await expect(page.locator('[data-menu="run"] [role="menuitem"]', { hasText: 'Monte Carlo' })).toBeEnabled()
   })
 })
+
+// 2026-11-13 defect — at the end of a run the Replay label was cut and the
+// controls after the step readout moved. The main button had ONE width for
+// every language (104 px, measured for Korean): "Opnieuw afspelen" (nl),
+// "Erneut abspielen" (de), "Yeniden oynat" (tr) and "إعادة التشغيل" (ar) ran
+// past it. The readout had ONE least width (120 px, measured for English and
+// Korean): in eight languages the ended text was wider, so the end of a run
+// pushed the state room and every control after it along (vi 18 px at step 19,
+// more with each digit).
+//
+// The contract, in every shipped language and at every width: the label shown
+// is inside the button, clear of the icon; the button is the same width for
+// Play, Pause and Replay; the readout is inside its room; the state's text is
+// not cut; nothing passes the row's end. And the readout keeps the room of its
+// ended text, so that from the first step to an ended run of two, three or
+// four digits nothing in the row moves. Position comes first (Lumi,
+// 2026-11-14): the row takes all its fit steps with that room kept, the
+// state's short wording included. Only in the narrowest docked column (a 900 px
+// window, 556 px of row), where even the short wording has no room beside it,
+// does the readout give room up; there the end of a run may move what follows,
+// as before. Read on the real boxes, at five window widths.
+test.describe('the run row holds its widest label and readout: nothing is cut, nothing moves when a run ends', () => {
+  const SHIPPED = ['en', 'ko', 'de', 'fr', 'ru', 'es-419', 'es-ES', 'it', 'ja', 'nl', 'pt-BR', 'pt-PT', 'th', 'tr', 'vi', 'zh-Hans', 'zh-Hant', 'ar']
+  type Sim = { __loop: { sim: { getState: () => { stepIndex: number; status: string; advance: () => void; reset: () => void; play: () => void; pause: () => void } } } }
+  // a run that ends by itself one step after the Pool holds `endAt`
+  const endsAt = (endAt: number) =>
+    JSON.stringify({
+      schema: 'loop-studio/graph',
+      version: 1,
+      nodes: [
+        { id: 'src', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Src', activation: 'automatic', mode: 'pushAny' } },
+        { id: 'pool', type: 'pool', position: { x: 240, y: 0 }, data: { kind: 'pool', label: 'Pool', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+        { id: 'end', type: 'end', position: { x: 480, y: 0 }, data: { kind: 'end', label: 'End', activation: 'automatic' } },
+      ],
+      edges: [
+        { id: 'f', type: 'loop', source: 'src', target: 'pool', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+        { id: 'r', type: 'loop', source: 'pool', target: 'end', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+        { id: 'c', type: 'loop', source: 'pool', target: 'end', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'activator', expr: `>= ${endAt}` } },
+      ],
+    })
+  const load = async (page: Page, endAt: number) => {
+    await importGraph(page, endsAt(endAt))
+    await expect(page.locator('.react-flow__node')).toHaveCount(3)
+    await page.evaluate(() => (window as unknown as Sim).__loop.sim.getState().reset())
+  }
+  const runToEnd = async (page: Page) => {
+    const end = await page.evaluate(() => {
+      const s = (window as unknown as Sim).__loop.sim
+      for (let i = 0; i < 5000 && s.getState().status !== 'ended'; i++) s.getState().advance()
+      return { step: s.getState().stepIndex, status: s.getState().status }
+    })
+    expect(end.status, 'the run ends by itself').toBe('ended')
+    return end.step
+  }
+  /** the row as drawn: the button, its label and icon, the readout, and where every part of the row starts */
+  const row = (page: Page) =>
+    page.evaluate(() => {
+      const r1 = (n: number) => Math.round(n * 10) / 10
+      const strip = document.querySelector('.pstrip:not(.pstrip--mobile)') as HTMLElement
+      const btn = strip.querySelector('.pb-btn--primary') as HTMLElement
+      const step = strip.querySelector('.pstrip__step') as HTMLElement
+      const textBox = (el: Element) => {
+        const node = document.createTreeWalker(el, NodeFilter.SHOW_TEXT).nextNode()!
+        const range = document.createRange()
+        range.selectNodeContents(node)
+        return range.getBoundingClientRect()
+      }
+      const label = textBox(btn)
+      const icon = btn.querySelector('svg')!.getBoundingClientRect()
+      const b = btn.getBoundingClientRect()
+      const cs = getComputedStyle(btn)
+      // the room for the button's content: inside its edges and its paddings
+      const left = b.left + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft)
+      const right = b.right - parseFloat(cs.borderRightWidth) - parseFloat(cs.paddingRight)
+      const readout = textBox(step)
+      const slot = step.getBoundingClientRect()
+      const box = strip.getBoundingClientRect()
+      const parts = [...strip.children].filter((el) => (el as HTMLElement).offsetParent !== null && getComputedStyle(el).position !== 'absolute' && el.getBoundingClientRect().width > 0)
+      return {
+        label: btn.textContent,
+        readout: step.textContent,
+        button: r1(b.width),
+        labelInside: label.left >= left - 0.5 && label.right <= right + 0.5,
+        iconInside: icon.left >= left - 0.5 && icon.right <= right + 0.5,
+        labelClearOfIcon: label.right <= icon.left + 0.5 || label.left >= icon.right - 0.5,
+        readoutInside: readout.left >= slot.left - 0.5 && readout.right <= slot.right + 0.5,
+        // where each part of the row starts and ends: the transport, the readout, the state room, what follows
+        parts: parts.map((el) => `${r1(el.getBoundingClientRect().left)}–${r1(el.getBoundingClientRect().right)}`).join(' '),
+        pastTheRow: parts.filter((el) => el.getBoundingClientRect().left < box.left - 0.5 || el.getBoundingClientRect().right > box.right + 0.5).length,
+        height: Math.round(box.height),
+        // the state's chip (its room is kept whether it shows or not): is its text cut?
+        stateCut: (() => {
+          const chip = strip.querySelector('.pstrip__steady') as HTMLElement
+          return chip.scrollWidth > chip.clientWidth
+        })(),
+        // the room the readout keeps for its ended text: 'kept', or given up short of room
+        // ('gives': its box shrinks toward its own text by what the row lacks; 'alone': an
+        // ended run's empty state room has given its place too)
+        room: strip.dataset.readout ?? 'kept',
+      }
+    })
+  const whole = { labelInside: true, iconInside: true, labelClearOfIcon: true, readoutInside: true, pastTheRow: 0, height: 40, stateCut: false }
+  const pick = (r: Awaited<ReturnType<typeof row>>) => ({ labelInside: r.labelInside, iconInside: r.iconInside, labelClearOfIcon: r.labelClearOfIcon, readoutInside: r.readoutInside, pastTheRow: r.pastTheRow, height: r.height, stateCut: r.stateCut })
+  // an ended run shows neither the steady state nor a phase (PlayBar: both need a run under
+  // way), so the state room is empty then and its width is not a cut
+  const pickEnded = (r: Awaited<ReturnType<typeof row>>) => ({ ...pick(r), stateCut: false })
+
+  for (const locale of SHIPPED) {
+    test(`${locale}: Play, Pause and Replay at 1600, 1280, 1000, 900 and 760 px, and ended runs of two to four digits`, async ({ page }) => {
+      test.setTimeout(120_000)
+      await boot(page, 1280, 800, locale)
+      const button = page.locator('.pstrip:not(.pstrip--mobile) .pb-btn--primary')
+      // 1600 px: a row with room (984 px). 1280 and 1000 px: the row of the
+      // default panels (664 and 656 px). 900 px: the narrowest window that
+      // docks the properties panel, the row's least (556 px). 760 px: no panel
+      // docked
+      for (const width of [1600, 1280, 1000, 900, 760]) {
+        await page.setViewportSize({ width, height: 800 })
+        await load(page, 120)
+        await expect.poll(async () => (await row(page)).readout, { message: 'the row shows step 0' }).toMatch(/0/)
+        const idle = await row(page)
+        expect(pick(idle), `${width}: Play`).toEqual(whole)
+        // heard as seen: the two labels not shown are no part of the name
+        await expect(button).toHaveAccessibleName(idle.label!)
+
+        await page.evaluate(() => (window as unknown as Sim).__loop.sim.getState().play())
+        await expect(button).toHaveClass(/is-running/)
+        const running = await row(page)
+        await page.evaluate(() => {
+          const s = (window as unknown as Sim).__loop.sim.getState()
+          s.pause()
+          s.reset()
+        })
+        expect(pick(running), `${width}: Pause`).toEqual(whole)
+        expect(running.label, 'another label than Play').not.toBe(idle.label)
+        expect(running.button, `${width}: the button is as wide for Pause as for Play`).toBe(idle.button)
+
+        const last = await runToEnd(page)
+        expect(last, 'a three-digit step').toBe(121)
+        await expect.poll(async () => (await row(page)).readout, { message: 'the readout says the run ended' }).toContain('121')
+        const ended = await row(page)
+        expect(pickEnded(ended), `${width}: Replay at step 121`).toEqual(whole)
+        expect(ended.label, 'a third label').not.toBe(running.label)
+        expect(ended.button, `${width}: the button is as wide for Replay`).toBe(idle.button)
+        await expect(button).toHaveAccessibleName(ended.label!)
+        // the readout keeps its room and nothing moves, at every width but
+        // the narrowest column's; there, where even the state's short wording
+        // has no room beside it, the readout gives room up and the end of the
+        // run may move what follows, as it did before
+        const kept = idle.room === 'kept' && running.room === 'kept' && ended.room === 'kept'
+        if (width !== 900) expect([idle.room, running.room, ended.room], `${width}: the readout keeps its room to the end`).toEqual(['kept', 'kept', 'kept'])
+        if (kept) {
+          expect(ended.parts, `${width}: nothing in the row moved from step 0 to the ended run`).toBe(idle.parts)
+          expect(running.parts, `${width}: nor while it ran`).toBe(idle.parts)
+        }
+
+        // two and four digits, in the default window and in the narrowest column
+        if (width !== 1280 && width !== 900) continue
+        for (const [endAt, step] of [[12, 13], [1200, 1201]] as const) {
+          await load(page, endAt)
+          expect(await runToEnd(page)).toBe(step)
+          await expect.poll(async () => (await row(page)).readout).toContain(String(step))
+          const other = await row(page)
+          expect(pickEnded(other), `${width}: ended at step ${step}`).toEqual(whole)
+          // the same places as the three-digit run
+          if (width === 1280) expect(other.parts, `ended at step ${step}: the same places as at step 121`).toBe(ended.parts)
+        }
+      }
+    })
+  }
+
+  // forced colours give the main button a 2 px edge in place of its fill: the
+  // two longest labels and the right-to-left one still fit
+  for (const locale of ['nl', 'de', 'ar']) {
+    test(`${locale}, forced colours: the Replay label is inside the button`, async ({ page }) => {
+      await page.emulateMedia({ forcedColors: 'active' })
+      await boot(page, 1600, 800, locale) // a row with room: the readout keeps its room
+      await load(page, 12)
+      const idle = await row(page)
+      await runToEnd(page)
+      await expect.poll(async () => (await row(page)).readout).toContain('13')
+      const ended = await row(page)
+      expect(pickEnded(ended)).toEqual(whole)
+      expect(ended.button).toBe(idle.button)
+      expect(ended.parts).toBe(idle.parts)
+    })
+  }
+})
