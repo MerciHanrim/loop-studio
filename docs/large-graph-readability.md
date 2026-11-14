@@ -346,7 +346,12 @@ Two classes of state, and nothing in between (persistent-but-not-in-file is
   not with "survives a reload".
 - **Reset view** = reset pan/zoom + clear the *exploration lens* (focus
   selection, filter selections). It does **not** touch the sticky preference
-  toggles and does **not** delete transient frames.
+  toggles and does **not** delete transient frames. The selection goes
+  **whole**: the store's selection together with every node's and connection's
+  own `selected` mark, so the ring, the selection count, the Model list row,
+  the properties and Focus mode agree afterwards (a selection of several
+  included, and under the edit lock). This holds for each way in: View ▸ Reset
+  view on the desktop, the More sheet's row and the canvas button on the phone.
 - **sim Reset** touches only the activity-overlay accumulation (a function of
   the run); every other readability state is left alone.
 

@@ -7,7 +7,7 @@ import { WORKSPACE_MAX_BYTES } from '../../model/workspace'
 import { useFilterStore } from '../../store/filterStore'
 import { useAutoFrameStore, hasAutoFrames } from '../../store/autoFrameStore'
 import { WORTH_IT_FLOOR } from '../frames/autoFrames'
-import { useGraphStore } from '../../store/graphStore'
+import { selectOnly, useGraphStore } from '../../store/graphStore'
 import { useMcStore } from '../../store/mcStore'
 import { useProjectStore } from '../../store/projectStore'
 import { useSimStore } from '../../store/simStore'
@@ -140,9 +140,11 @@ export function MobileMoreMenu({
 
   // docs/large-graph-readability.md §LGR3.4 / LGR-D4 — Reset view (mobile): fit
   // the graph + clear the exploration lens (filters + focused node). UI-only.
+  // The selection goes whole (`selectOnly`): the store's and each element's own
+  // `selected` mark, so the ring does not stay on a node nothing else calls selected
   const resetView = () => {
     useFilterStore.getState().clear()
-    useGraphStore.getState().setSelection(null, null)
+    selectOnly({})
     void fitView({ padding: 0.3, maxZoom: 1.2 })
     closeOverlay('more')
   }

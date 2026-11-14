@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useT } from '../../i18n'
 import { useFilterStore } from '../../store/filterStore'
-import { useGraphStore } from '../../store/graphStore'
+import { selectOnly } from '../../store/graphStore'
 import { useUiStore } from '../../store/uiStore'
 import { LanguageSwitch } from '../LanguageSwitch'
 import { ThemeToggle } from '../ThemeToggle'
@@ -34,7 +34,6 @@ export function ViewMenu({ buttonRef }: { buttonRef?: (el: HTMLButtonElement | n
   const toggleFilterPanel = useUiStore((s) => s.toggleFilterPanel)
   const activity = useUiStore((s) => s.activityOverlay)
   const toggleActivity = useUiStore((s) => s.toggleActivityOverlay)
-  const setSelection = useGraphStore((s) => s.setSelection)
   const fitAll = useFitAll(() => document.querySelector<HTMLElement>('.canvas'))
 
   useOutsideDismiss(open, wrapRef, () => setOpen(false))
@@ -136,9 +135,12 @@ export function ViewMenu({ buttonRef }: { buttonRef?: (el: HTMLButtonElement | n
             onClick={() => {
               setOpen(false)
               // Reset view: the exploration lens off and the whole diagram in
-              // view (the canvas rail's Reset view, docs/large-graph-readability.md §LGR3.4)
+              // view (the canvas rail's Reset view, docs/large-graph-readability.md §LGR3.4).
+              // The selection goes whole: the store's and each element's own
+              // `selected` mark together (`selectOnly`), so the ring, the lists,
+              // the Inspector and Focus mode agree afterwards
               useFilterStore.getState().clear()
-              setSelection(null, null)
+              selectOnly({})
               void fitAll()
             }}
           >

@@ -1212,6 +1212,137 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
     await expect(focusBtn(page)).toHaveAttribute('aria-pressed', 'true') // MODE preference kept
   })
 
+  // 2026-11-11 defect — Reset view cleared the store's selection only: the ring,
+  // the "1 node selected" line and the list row stayed, while the Inspector and
+  // Focus mode said nothing was selected. Every place that shows a selection is
+  // read here, before and after, so they are cleared TOGETHER.
+  test.describe('Reset view clears the whole selection: the marks on the canvas with the store’s', () => {
+    test.use({ viewport: WORKBENCH_ROOMY_VIEWPORT }) // both side panels open: the Model list and the Inspector
+    const shown = (page: Page) =>
+      page.evaluate(() => {
+        type El = { id: string; selected?: boolean }
+        const g = (window as unknown as { __loop: { graph: { getState: () => { nodes: El[]; edges: El[]; selectedNodeId: string | null; selectedEdgeId: string | null } } } }).__loop.graph.getState()
+        const ids = (sel: string, attr: string) => [...document.querySelectorAll(sel)].map((el) => el.getAttribute(attr)).sort()
+        return {
+          store: { node: g.selectedNodeId, edge: g.selectedEdgeId },
+          marked: { nodes: g.nodes.filter((n) => n.selected).map((n) => n.id).sort(), edges: g.edges.filter((e) => e.selected).map((e) => e.id).sort() },
+          canvas: { nodes: ids('.react-flow__node.selected', 'data-id'), edges: ids('.react-flow__edge.selected', 'data-id'), rings: document.querySelectorAll('.nodef.is-selected').length },
+          countLine: document.querySelector('.rightcol .lgr-selection-count')?.textContent ?? null,
+          listRows: ids('.wb-row.is-sel, .wb-row.is-in-sel, .wb-row[aria-pressed="true"]', 'data-node'),
+          inspectorEmpty: document.querySelector('.rightcol .inspector__empty') !== null,
+          focusHint: document.querySelector('.lgr-focus-hint') !== null,
+          dimmed: document.querySelectorAll('.react-flow__node.lgr-deemph, .react-flow__edge.lgr-deemph').length,
+        }
+      })
+    const NOTHING = {
+      store: { node: null, edge: null },
+      marked: { nodes: [], edges: [] },
+      canvas: { nodes: [], edges: [], rings: 0 },
+      countLine: null,
+      listRows: [],
+      inspectorEmpty: true,
+      focusHint: true, // Focus mode is on and waits for a node
+      dimmed: 0,
+    }
+    // a connection is clicked on its own line, at the middle of the path (these
+    // lines are straight and level: a box with no height, which a locator
+    // click calls not visible)
+    const line = (page: Page, id: string) => ({
+      click: async () => {
+        const at = await edgePath(page, id).evaluate((el) => {
+          const p = el as SVGPathElement
+          const m = p.getPointAtLength(p.getTotalLength() / 2).matrixTransform(p.getScreenCTM()!)
+          return { x: m.x, y: m.y }
+        })
+        await page.mouse.click(at.x, at.y)
+      },
+    })
+    const setUp = async (page: Page) => {
+      await loadRT(page)
+      await focusBtn(page).click() // Focus MODE on: the store's selection shows as dimming
+      await expect(page.locator('.wb-row[data-node="gold"]'), 'the Model list is shown').toBeVisible()
+      expect(await shown(page), 'nothing selected at the start').toEqual(NOTHING)
+    }
+
+    test('a selected node', async ({ page }) => {
+      await setUp(page)
+      await node(page, 'gold').click()
+      await expect.poll(async () => (await shown(page)).dimmed, { message: 'Focus dims what is outside gold’s neighbours' }).toBeGreaterThan(0)
+      const before = await shown(page)
+      expect({ ...before, dimmed: 0, countLine: before.countLine === null ? null : 'line' }).toEqual({
+        store: { node: 'gold', edge: null },
+        marked: { nodes: ['gold'], edges: [] },
+        canvas: { nodes: ['gold'], edges: [], rings: 1 },
+        countLine: 'line',
+        listRows: ['gold'],
+        inspectorEmpty: false,
+        focusHint: false,
+        dimmed: 0,
+      })
+      await expect(page.locator('.rightcol .lgr-selection-count')).toHaveText(/1 node selected/)
+
+      await pressViewRow(page, 'reset')
+      await expect.poll(() => shown(page), { message: 'every mark of the selection is gone together' }).toEqual(NOTHING)
+      await expect(focusBtn(page)).toHaveAttribute('aria-pressed', 'true')
+      // and the node is not left half-selected: one click selects it again
+      await node(page, 'gold').click()
+      await expect.poll(async () => (await shown(page)).canvas).toEqual({ nodes: ['gold'], edges: [], rings: 1 })
+      expect((await shown(page)).store).toEqual({ node: 'gold', edge: null })
+    })
+
+    test('a selected connection', async ({ page }) => {
+      await setUp(page)
+      await line(page, 're2').click()
+      await expect.poll(async () => (await shown(page)).canvas.edges).toEqual(['re2'])
+      expect(await shown(page)).toEqual({
+        store: { node: null, edge: 're2' },
+        marked: { nodes: [], edges: ['re2'] },
+        canvas: { nodes: [], edges: ['re2'], rings: 0 },
+        countLine: null, // the line counts nodes
+        listRows: [],
+        inspectorEmpty: false,
+        focusHint: true, // Focus follows a node; a connection is no anchor
+        dimmed: 0,
+      })
+
+      await pressViewRow(page, 'reset')
+      await expect.poll(() => shown(page), { message: 'the connection’s mark goes with the store’s selection' }).toEqual(NOTHING)
+      await line(page, 're2').click()
+      await expect.poll(async () => (await shown(page)).canvas.edges, { message: 'one click selects it again' }).toEqual(['re2'])
+    })
+
+    test('several nodes and a connection', async ({ page }) => {
+      await setUp(page)
+      await node(page, 'gold').click()
+      // a REAL modifier: React Flow reads its multi-selection key from keydown
+      await page.keyboard.down('Control')
+      await node(page, 'mana').click()
+      // gold → mana: inside Focus's set, so it takes the click (a dimmed line does not)
+      await line(page, 're2').click()
+      await page.keyboard.up('Control')
+      await expect.poll(async () => (await shown(page)).marked).toEqual({ nodes: ['gold', 'mana'], edges: ['re2'] })
+      const before = await shown(page)
+      expect(before.store).toEqual({ node: 'gold', edge: 're2' })
+      expect(before.canvas).toEqual({ nodes: ['gold', 'mana'], edges: ['re2'], rings: 2 })
+      expect(before.listRows).toEqual(['gold', 'mana'])
+      await expect(page.locator('.rightcol .lgr-selection-count')).toHaveText(/2 nodes selected/)
+
+      await pressViewRow(page, 'reset')
+      await expect.poll(() => shown(page), { message: 'no node or connection keeps its mark' }).toEqual(NOTHING)
+    })
+
+    test('under the edit lock', async ({ page }) => {
+      await setUp(page)
+      await toolButton(page, 'lock').click()
+      await node(page, 'gold').click()
+      await expect(page.locator('.rightcol .lgr-selection-count')).toHaveText(/1 node selected/)
+      expect((await shown(page)).canvas).toEqual({ nodes: ['gold'], edges: [], rings: 1 })
+
+      await pressViewRow(page, 'reset')
+      await expect.poll(() => shown(page), { message: 'a selection is not an edit: the lock does not keep the mark on' }).toEqual(NOTHING)
+    })
+  })
+
   test('Reset view re-fits the screen viewport but never the GraphDoc / node positions / undo (LGR-D4 vs LGR-INV-2)', async ({ page }) => {
     await loadRT(page)
     const before = await snapshot(page)

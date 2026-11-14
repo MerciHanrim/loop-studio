@@ -624,12 +624,16 @@ export function Canvas() {
   // docs/large-graph-readability.md §LGR3.4 / LGR-D4 — Reset view: one UI-only
   // action that fits the graph and clears the exploration lens (filter
   // selections + the focused node). The Focus *mode* on/off preference is left
-  // alone, and nothing touches the GraphDoc / digest / undo.
+  // alone, and nothing touches the GraphDoc / digest / undo. The selection goes
+  // as a click on the empty canvas takes it (`selectOnly`): the store's AND each
+  // element's own `selected` mark, which draws the ring and feeds the "N nodes
+  // selected" header (2026-11-11: only the store's was cleared, so the screen
+  // said a node was selected and the Inspector and Focus mode said none)
   const resetView = useCallback(() => {
     useFilterStore.getState().clear()
-    setSelection(null, null)
+    selectOnly({})
     void fitAll()
-  }, [setSelection, fitView])
+  }, [fitView])
 
   // structural editing is off on mobile (docs/mobile.md §MV3a) OR when the
   // desktop Canvas is edit-locked (uiStore.canvasLocked). Selection, pan / zoom,
