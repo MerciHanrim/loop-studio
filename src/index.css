@@ -4643,14 +4643,57 @@ a.sheet__row {
   flex: none;
 }
 /* one width for Play, Pause and Replay, so the bar does not move when the
-   label changes: the widest, Korean Replay, measured 97.84 px, 99.84 px with
-   the forced-colours 2 px edge (2026-10-26); 104 px leaves room (Lumi) */
+   label changes: 104 px (2026-10-26, Lumi: Korean Replay measured 97.84 px,
+   99.84 px with the forced-colours 2 px edge), and wider where a language's
+   widest label needs it. The fixed 104 px cut "Opnieuw afspelen" (nl, 100.6 px
+   of label), "Erneut abspielen" (de), "Yeniden oynat" (tr) and
+   "إعادة التشغيل" (ar), measured 2026-11-13; the least width stays 104 px, so
+   the languages that fitted keep their button */
 .pb-btn--transport.pb-btn--primary {
-  width: 104px;
+  width: auto;
+  min-width: 104px;
+  flex: none;
   padding: 0 10px;
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-focus);
+}
+/* how the button gets the width of its widest label with no number measured
+   for one language: a grid of two columns, the icon and the label, centred as
+   the flex row was. The two labels NOT shown (`data-alt-a` / `data-alt-b`) are
+   generated content laid over both columns, never seen and never read out,
+   each with the room of the icon before it; a wider one widens the two
+   columns by the same amount, and the icon keeps to its column's end and the
+   label to its column's start, so what is shown stays together and centred.
+   Where 104 px was enough, every pixel is where it was */
+.pb-btn--transport.pb-btn--primary {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  justify-content: center;
+  align-content: center;
+}
+.pb-btn--transport.pb-btn--primary > .icon {
+  grid-area: 1 / 1;
+  justify-self: end;
+}
+.pb-btn__label {
+  grid-area: 1 / 2;
+  justify-self: start;
+}
+.pb-btn--transport.pb-btn--primary::before,
+.pb-btn--transport.pb-btn--primary::after {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  visibility: hidden;
+  pointer-events: none;
+  /* the icon (16 px), its own margin after it (`.icon--lead`) and the gap */
+  padding-inline-start: calc(16px + 0.25em + 6px);
+}
+.pb-btn--transport.pb-btn--primary::before {
+  content: attr(data-alt-a);
+}
+.pb-btn--transport.pb-btn--primary::after {
+  content: attr(data-alt-b);
 }
 .pb-btn--transport:hover:not(:disabled) {
   background: color-mix(in srgb, var(--bg-raise) 80%, var(--ink-1));
@@ -4798,6 +4841,45 @@ a.sheet__row {
 .pstrip:not(.pstrip--mobile) .pstrip__step {
   min-width: 120px;
 }
+/* 120 px held the English and the Korean text only: "bước 19 · đã kết thúc"
+   (vi) is 138 px, and in eight languages the end of a run widened the readout
+   and moved every control after it by 5 to 18 px (measured 2026-11-13). The
+   readout therefore keeps the room of its own widest text in the reader's
+   language: `data-widest` is the ended text for a five-digit step, generated
+   content in the same grid cell as the text shown, never seen and never read
+   out. The 120 px stays as the least width */
+.pstrip:not(.pstrip--mobile) .pstrip__step--readout {
+  display: inline-grid;
+}
+.pstrip__step-now,
+.pstrip:not(.pstrip--mobile) .pstrip__step--readout::after {
+  grid-area: 1 / 1;
+}
+.pstrip:not(.pstrip--mobile) .pstrip__step--readout::after {
+  content: attr(data-widest);
+  visibility: hidden;
+}
+/* past the row's last fit step, where the state's short text would be cut or
+   the row is still too long, the readout gives its kept room up (PlayBar.tsx
+   `fitRunRow`, `gives`): its box starts from the 120 px least width and
+   shrinks toward the width of its own text, never under it, by what the row
+   lacks. Its shrink factor is far above the state's, so the readout's empty
+   room goes first and the state's text keeps its width as long as it can */
+.pstrip:not(.pstrip--mobile)[data-readout] .pstrip__step--readout::after {
+  display: none;
+}
+.pstrip:not(.pstrip--mobile)[data-readout] .pstrip__step--readout {
+  flex: 0 1000 120px;
+  min-width: min-content;
+}
+/* `alone`, for an ended run that is still too long: its state room, which
+   shows nothing (neither the steady state nor a phase is shown once a run has
+   ended), gives its place to the ended readout. German at 900 px, "Schritt
+   1201 · beendet" beside "Erneut abspielen", was 15 px past the row with it
+   (measured 2026-11-14) */
+.pstrip:not(.pstrip--mobile)[data-readout='alone'] .pstrip__state {
+  display: none;
+}
 .pstrip__field {
   display: flex;
   align-items: center;
@@ -4927,9 +5009,10 @@ a.sheet__row {
   flex-shrink: 1;
 }
 /* the whole wording, or at fit step 4 a short one of its own ("Steady",
-   "흐름 계속") on 5 px sides, so the chip reads whole at 900 px instead of
+   "정상 상태") on 5 px sides, so the chip reads whole at 900 px instead of
    an ellipsis (2026-10-27); the tooltip and the status region keep the
-   whole text */
+   whole text. The short one names the STATE in every language (2026-11-14,
+   Lumi: the Korean one was "흐름 계속", the wording's other half) */
 .pstrip__steady-short {
   display: none;
 }
