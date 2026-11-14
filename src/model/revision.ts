@@ -203,10 +203,11 @@ export type ProjectPayload = {
   semantics?: string
 }
 
-/** the revision semantics this build writes into a header (§R10-6; `/13` since
- *  SEMANTICS-R13.md — the phases of a run; `/12` was the icon of a flow node,
- *  `/11` the port faces of the node structure) */
-export const REVISION_SEMANTICS = 'loop-revision/13'
+/** the revision semantics this build writes into a header (§R10-6; `/14` since
+ *  SEMANTICS-R14.md — the kinds table, the step length and the timetables as
+ *  chosen units of an Apply, which changes no projection and no digest; `/13`
+ *  was the phases of a run, `/12` the icon of a flow node) */
+export const REVISION_SEMANTICS = 'loop-revision/14'
 const SEMANTICS_RE = /^loop-revision\/([1-9][0-9]{0,3})$/
 /** the `N` of {@link REVISION_SEMANTICS} — what this reader can verify */
 const OWN_SEMANTICS_N = Number(SEMANTICS_RE.exec(REVISION_SEMANTICS)![1])
@@ -1603,8 +1604,39 @@ export type PhasesHunk = {
   proposed: NonNullable<CanonicalContent['phases']> | null
   yours: NonNullable<CanonicalContent['phases']> | null
 }
+/** #558 (`SEMANTICS-R14.md` §R14-2) — the kinds table, the step length and the
+ *  timetables in a three-way plan: each ONE atomic unit with the mechanics of
+ *  `FramesHunk` (`noop` / `clean` / `conflict` against the live target, present
+ *  only when base and proposed differ). They are what an engine field leans
+ *  on: a unit name, a `~table` reference, a per-time rate. */
+export type KindsHunk = {
+  kind: 'kinds'
+  verdict: ThreeWayFieldVerdict
+  base: NonNullable<CanonicalContent['kinds']> | null
+  proposed: NonNullable<CanonicalContent['kinds']> | null
+  yours: NonNullable<CanonicalContent['kinds']> | null
+}
+export type TimeHunk = {
+  kind: 'time'
+  verdict: ThreeWayFieldVerdict
+  base: NonNullable<CanonicalContent['time']> | null
+  proposed: NonNullable<CanonicalContent['time']> | null
+  yours: NonNullable<CanonicalContent['time']> | null
+}
+export type TimetablesHunk = {
+  kind: 'timetables'
+  verdict: ThreeWayFieldVerdict
+  base: NonNullable<CanonicalContent['timetables']> | null
+  proposed: NonNullable<CanonicalContent['timetables']> | null
+  yours: NonNullable<CanonicalContent['timetables']> | null
+}
 export type ThreeWayPlan = {
   hunks: ProposalHunk[]
+  /** #558 — the graph-level engine units, each absent when base and proposed
+   *  are equal. A conflicting one counts in `nConf`. */
+  kinds?: KindsHunk
+  time?: TimeHunk
+  timetables?: TimetablesHunk
   /** `SEMANTICS-R13.md` §R13-4 — the graph-level `phases` hunk. Absent when the
    *  base and proposed `phases` arrays are equal. A conflicting one counts in
    *  `nConf`, as a conflicting `frames` hunk does. */
@@ -1767,36 +1799,83 @@ export function computeThreeWay(
     if (verdict === 'conflict') nConf += 1
   }
 
-  return { hunks, ...(frames ? { frames } : {}), ...(dataImports ? { dataImports } : {}), ...(phases ? { phases } : {}), nConf }
+  // #558 (`SEMANTICS-R14.md` §R14-2) — the kinds table, the step length and the
+  // timetables, each one atomic unit with the same mechanics and the same
+  // `nConf` treatment: a whole Apply over a unit the user changed differently
+  // would discard their table, so it is confirmed first.
+  const unit = <T>(b: T | null, p: T | null, y: T | null): { verdict: ThreeWayFieldVerdict; base: T | null; proposed: T | null; yours: T | null } | undefined => {
+    if (deepEq(b, p)) return undefined
+    const verdict: ThreeWayFieldVerdict = deepEq(y, p) ? 'noop' : deepEq(y, b) ? 'clean' : 'conflict'
+    if (verdict === 'conflict') nConf += 1
+    return { verdict, base: b, proposed: p, yours: y }
+  }
+  const kindsUnit = unit(base.kinds ?? null, proposed.kinds ?? null, target.kinds ?? null)
+  const timeUnit = unit(base.time ?? null, proposed.time ?? null, target.time ?? null)
+  const tablesUnit = unit(base.timetables ?? null, proposed.timetables ?? null, target.timetables ?? null)
+
+  return {
+    hunks,
+    ...(kindsUnit ? { kinds: { kind: 'kinds' as const, ...kindsUnit } } : {}),
+    ...(timeUnit ? { time: { kind: 'time' as const, ...timeUnit } } : {}),
+    ...(tablesUnit ? { timetables: { kind: 'timetables' as const, ...tablesUnit } } : {}),
+    ...(frames ? { frames } : {}),
+    ...(dataImports ? { dataImports } : {}),
+    ...(phases ? { phases } : {}),
+    nConf,
+  }
 }
 
 /**
  * SEMANTICS-R13.md §R13-6 — would this Apply leave the phase names and the timing
  * they describe on different sides? Phases are the author's names for spans of
  * steps; the timetables and the step length set what those steps do. A whole
- * Apply takes all three from the proposal; "choose changes" never takes the
- * timetables or the step length (they have no hunk) and takes the phases only
- * when their hunk is accepted. Compared against the LIVE target:
- *   - `'timing-only'` — the timing changes and phases that the document keeps
- *     as they are stay (a whole Apply of a proposal whose phases equal the
- *     target's, or — were timing ever taken per hunk — a kept `phases` hunk);
- *   - `'phases-only'` — the proposal's phases are taken onto the target's
- *     timing, which differs from the proposal's ("choose changes" with the
- *     `phases` hunk accepted).
- * `null` when nothing of the two is split, and always when the resulting
- * document has no phases to go wrong. The review shows a notice; nothing is
- * refused (Lumi, 2026-11-14).
+ * Apply takes all three from the proposal; "choose changes" takes each of the
+ * three only when its line is accepted (#558). Judged on the RESULT of the
+ * Apply, against the LIVE target:
+ *   - `'timing-only'` — the timetables or the step length of the document
+ *     change, and its phases stay as they are (the proposer moved the tables
+ *     and left the phases, or the user took the timing and kept the phases);
+ *   - `'phases-only'` — the proposal's phases are taken, and the resulting
+ *     timetables or step length are not the proposal's.
+ * The step length alone is timing: a phase counts steps. `null` when nothing
+ * of the two is split, and always when the resulting document has no phases
+ * to go wrong. The review shows a notice; nothing is refused (Lumi, 2026-11-14).
  */
-export function phaseTimingSplit(
+export type PhaseTimingApply =
+  | { mode: 'whole' }
+  | { mode: 'hunks'; phases: 'proposed' | 'yours' | undefined; timetables?: 'proposed' | 'yours'; time?: 'proposed' | 'yours' }
+export function phaseTimingSplit(target: CanonicalContent, proposed: CanonicalContent, apply: PhaseTimingApply): 'timing-only' | 'phases-only' | null {
+  const takes = (choice: 'proposed' | 'yours' | undefined) => apply.mode === 'whole' || choice === 'proposed'
+  const hunks = apply.mode === 'hunks' ? apply : undefined
+  const tables = takes(hunks?.timetables) ? proposed.timetables : target.timetables
+  const time = takes(hunks?.time) ? proposed.time : target.time
+  const phases = takes(hunks?.phases) ? proposed.phases : target.phases
+  if ((phases?.length ?? 0) === 0) return null
+  const same = (a: unknown, b: unknown) => deepEq(a ?? null, b ?? null)
+  const timingMoved = !same(tables, target.timetables) || !same(time, target.time)
+  const timingIsTheirs = same(tables, proposed.timetables) && same(time, proposed.time)
+  if (!same(phases, target.phases)) return timingIsTheirs ? null : 'phases-only'
+  return timingMoved ? 'timing-only' : null
+}
+
+/**
+ * #558 — the graph-level lines "choose changes" starts with: a CLEAN kinds
+ * table, step length or timetables unit is pre-accepted, a conflict (the user
+ * changed theirs differently) never is. The `phases` unit is pre-accepted only
+ * when it is clean AND the timing those defaults leave in the document is the
+ * proposal's: otherwise the proposal's phase names would land on timing they
+ * were not written for (§R13-6).
+ */
+export function defaultGraphChoices(
+  plan: ThreeWayPlan,
   target: CanonicalContent,
   proposed: CanonicalContent,
-  apply: { mode: 'whole' } | { mode: 'hunks'; phases: 'proposed' | 'yours' | undefined },
-): 'timing-only' | 'phases-only' | null {
-  const timingDiffers = !deepEq(target.timetables ?? null, proposed.timetables ?? null) || !deepEq(target.time ?? null, proposed.time ?? null)
-  if (!timingDiffers) return null
-  const phasesDiffer = !deepEq(target.phases ?? null, proposed.phases ?? null)
-  if (apply.mode === 'whole') return !phasesDiffer && (target.phases?.length ?? 0) > 0 ? 'timing-only' : null
-  return apply.phases === 'proposed' && phasesDiffer && (proposed.phases?.length ?? 0) > 0 ? 'phases-only' : null
+): Required<Pick<HunkSelection, 'kinds' | 'time' | 'timetables' | 'phases'>> {
+  const pick = (h: { verdict: ThreeWayFieldVerdict } | undefined): 'proposed' | 'yours' => (h?.verdict === 'clean' ? 'proposed' : 'yours')
+  const timetables = pick(plan.timetables)
+  const time = pick(plan.time)
+  const fits = phaseTimingSplit(target, proposed, { mode: 'hunks', phases: 'proposed', timetables, time }) === null
+  return { kinds: pick(plan.kinds), time, timetables, phases: plan.phases?.verdict === 'clean' && fits ? 'proposed' : 'yours' }
 }
 
 /** §R7A.2 `nConf` — the conflict count only (see {@link computeThreeWay}). */
@@ -1852,12 +1931,24 @@ export type HunkSelection = {
   /** `SEMANTICS-R13.md` §R13-4 — the single graph-level `phases` hunk, same
    *  mechanics as `frames`. */
   phases?: 'proposed' | 'yours'
+  /** #558 — the kinds table, the step length and the timetables: each one
+   *  atomic choice, `'proposed'` takes the proposal's whole value (none ⇒
+   *  cleared), `'yours'` / absent keeps the target's. */
+  kinds?: 'proposed' | 'yours'
+  time?: 'proposed' | 'yours'
+  timetables?: 'proposed' | 'yours'
 }
 export type SelectiveApplyResult =
   | {
       ok: true
       nodes: LoopNode[]
       edges: LoopEdge[]
+      /** #558 — set ONLY when the unit was accepted: the proposal's kinds
+       *  table (`[]` = none), its step length (`null` = it declares none) and
+       *  its timetables (`[]` = none). `undefined` ⇒ the target's is kept. */
+      kinds?: readonly ResourceKindDecl[]
+      time?: DocTime | null
+      timetables?: readonly Timetable[]
       /** SEMANTICS-R5.md §R5-6 — set ONLY when the `frames` hunk was accepted
        *  (`selection.frames === 'proposed'`): the proposal's whole `frames`
        *  array (`[]` = clear). `undefined` ⇒ the caller keeps the target's
@@ -1900,6 +1991,10 @@ export function buildSelectiveApply(input: {
     dataImports?: readonly ImportSourceTable[]
     /** `SEMANTICS-R13.md` §R13-4 — the proposal's phases, same posture. */
     phases?: readonly DocPhase[]
+    /** #558 — the proposal's kinds table, step length and timetables. */
+    kinds?: readonly ResourceKindDecl[]
+    time?: DocTime
+    timetables?: readonly Timetable[]
   }
   plan: ThreeWayPlan
   selection: HunkSelection
@@ -2008,11 +2103,18 @@ export function buildSelectiveApply(input: {
     selection.dataImports === 'proposed' ? (proposedFull.dataImports ?? []).map(cloneEl) : undefined
   // `SEMANTICS-R13.md` §R13-4 — the `phases` hunk, identical mechanics.
   const phases: readonly DocPhase[] | undefined = selection.phases === 'proposed' ? (proposedFull.phases ?? []).map(cloneEl) : undefined
+  // #558 — the kinds table, the step length and the timetables: one atomic swap each.
+  const kinds: readonly ResourceKindDecl[] | undefined = selection.kinds === 'proposed' ? (proposedFull.kinds ?? []).map(cloneEl) : undefined
+  const time: DocTime | null | undefined = selection.time === 'proposed' ? (proposedFull.time ? cloneEl(proposedFull.time) : null) : undefined
+  const timetables: readonly Timetable[] | undefined = selection.timetables === 'proposed' ? (proposedFull.timetables ?? []).map(cloneEl) : undefined
 
   return {
     ok: true,
     nodes: outNodes,
     edges: outEdges,
+    ...(kinds !== undefined ? { kinds } : {}),
+    ...(time !== undefined ? { time } : {}),
+    ...(timetables !== undefined ? { timetables } : {}),
     ...(frames !== undefined ? { frames } : {}),
     ...(dataImports !== undefined ? { dataImports } : {}),
     ...(phases !== undefined ? { phases } : {}),

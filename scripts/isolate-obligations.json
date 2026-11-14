@@ -4,9 +4,9 @@
   "$limit": "This manifest defends the call sites listed here, exactly and in both directions. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together close the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
   "$history": "PR B recorded 11 decision rows and deferred them. C3.5 re-ran the population from the TypeScript type checker — 205 ICU arguments — and found 27 more that carry user or technical values: 8 in its first pass (the unrecognized-column header and the five `import.loc.*` calls) and 19 that its first pass only RECORDED as open. All 27 are implemented here, so no row of the disposition manifest is classed `auto`, `ltr` or `per-fragment` any more.",
   "totals": {
-    "rows": 119,
-    "obligations": 70,
-    "callSites": 143
+    "rows": 125,
+    "obligations": 76,
+    "callSites": 156
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -21,7 +21,8 @@
     "issue-519": 2,
     "issue-537": 1,
     "issue-538": 1,
-    "run-phases": 2
+    "run-phases": 2,
+    "issue-558": 6
   },
   "obligations": [
     {
@@ -2369,6 +2370,215 @@
           ],
           "args": [
             "phase"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "review-unit-lines",
+      "rows": [
+        "issue-558 the names and step lengths in the review's graph-level lines"
+      ],
+      "file": "src/components/ReviewOverlay.tsx",
+      "enclosing": "UnitHunkRows",
+      "carries": "the names of the kinds and of the timetables that differ between the open document and a proposal, and the two step lengths, in the Kinds / Step length / Timetables lines of 'choose changes' (SEMANTICS-R14.md §R14-2)",
+      "why": "A kind name and a timetable label are free user text of any direction; a step length is a number with a catalog word, written beside the other side's.",
+      "sites": [
+        {
+          "keys": [
+            "review.hunk.kindsTake"
+          ],
+          "args": [
+            "names"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "review.hunk.timeTake"
+          ],
+          "args": [
+            "yours",
+            "theirs"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "review.hunk.timetablesTake"
+          ],
+          "args": [
+            "names"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "review-diag-element",
+      "rows": [
+        "issue-558 a line named by its two ends in a review finding"
+      ],
+      "file": "src/ui/applyDiagnosticsText.ts",
+      "enclosing": "elementName",
+      "carries": "the labels of the two nodes a line joins, as the Inspector names a line, inside a finding the review shows before a chosen Apply (SEMANTICS-R14.md §R14-6)",
+      "why": "Node labels are free user text of any direction.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.ends.summary"
+          ],
+          "args": [
+            "from",
+            "to"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "review-diag-unit",
+      "rows": [
+        "issue-558 the element and the unit of a refused selection"
+      ],
+      "file": "src/ui/applyDiagnosticsText.ts",
+      "enclosing": "namedUnitText",
+      "carries": "the node, line or timetable whose value would be read in another unit, and that unit's name, in the refusal of a chosen Apply (SEMANTICS-R14.md §R14-6.1)",
+      "why": "A node label, a table label and a unit name are free user text of any direction.",
+      "sites": [
+        {
+          "keys": [
+            "review.fail.unitProposed"
+          ],
+          "args": [
+            "name",
+            "unit"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "review.fail.unitYours"
+          ],
+          "args": [
+            "name",
+            "unit"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "review-diag-base-unit",
+      "rows": [
+        "issue-558 the values and the two base units of a refused selection"
+      ],
+      "file": "src/ui/applyDiagnosticsText.ts",
+      "enclosing": "baseUnitText",
+      "carries": "the nodes and lines whose values name no unit, the base unit of their kind on the side they came from and the base unit the result would count them in, in the refusal of a chosen Apply (SEMANTICS-R14.md §R14-6.1)",
+      "why": "Node labels and base unit names are free user text of any direction.",
+      "sites": [
+        {
+          "keys": [
+            "review.fail.baseProposed"
+          ],
+          "args": [
+            "unit",
+            "now",
+            "names"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "review.fail.baseYours"
+          ],
+          "args": [
+            "unit",
+            "now",
+            "names"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "review-diag-refusal",
+      "rows": [
+        "issue-558 the lines that resolve a refusal"
+      ],
+      "file": "src/ui/applyDiagnosticsText.ts",
+      "enclosing": "refusalText",
+      "carries": "the titles of the graph-level lines whose taking removes a refusal, joined into one list (SEMANTICS-R14.md §R14-6.2)",
+      "why": "A list of catalog titles written inside a sentence: isolated so that its commas and its order stay its own.",
+      "sites": [
+        {
+          "keys": [
+            "review.diag.refusedResolved"
+          ],
+          "args": [
+            "lines"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "review-diag-table",
+      "rows": [
+        "issue-558 the table, its readers and the amounts of a table split"
+      ],
+      "file": "src/ui/applyDiagnosticsText.ts",
+      "enclosing": "tableSplitText",
+      "carries": "the label of a timetable read from the other side, the lines and rules that read it, and what the table plans under each definition as a number with the kind's base unit (SEMANTICS-R14.md §R14-6.3)",
+      "why": "A table label, node labels and a unit name are free user text of any direction; an amount is a number followed by that unit.",
+      "sites": [
+        {
+          "keys": [
+            "review.diag.tableSplitPlain"
+          ],
+          "args": [
+            "table",
+            "readers"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "review.diag.tableKeptPlain"
+          ],
+          "args": [
+            "table",
+            "readers"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "review.diag.tableSplit"
+          ],
+          "args": [
+            "table",
+            "readers",
+            "theirs",
+            "yours",
+            "theirsAt",
+            "yoursAt"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "review.diag.tableKept"
+          ],
+          "args": [
+            "table",
+            "readers",
+            "theirs",
+            "yours",
+            "theirsAt",
+            "yoursAt"
           ],
           "kind": "auto"
         }

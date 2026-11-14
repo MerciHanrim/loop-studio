@@ -1,6 +1,9 @@
+import { applyDiagnostics, chosenResultDoc, splitEngineChanges, type ApplyDiagnostics, type DiagDoc } from '../model/applyDiagnostics'
 import {
+  buildSelectiveApply,
   canonicalContent,
   computeThreeWay,
+  defaultGraphChoices,
   digestOfCanonical,
   graphStructureIssues,
   phaseTimingSplit,
@@ -8,6 +11,7 @@ import {
   recordKeepsLabels,
   type CanonicalContent,
   type HunkSelection,
+  type PhaseTimingApply,
   type ProjectPayload,
   type ProposalBase,
   type ThreeWayPlan,
@@ -244,21 +248,35 @@ function liveTargetContent(): CanonicalContent {
   )
 }
 
-/** SEMANTICS-R13.md §R13-6 — for the Review UI: what of the proposal's timing differs
- *  from the open document's, and whether the Apply about to be made would leave the
- *  phase names and the timing on different sides (`phaseTimingSplit`). Pure read. */
-export function phaseTimingForPending(
-  p: PendingProposal,
-  apply: Parameters<typeof phaseTimingSplit>[2],
-): { timingDiffers: boolean; split: ReturnType<typeof phaseTimingSplit> } {
+/** SEMANTICS-R13.md §R13-6 — for the Review UI: would the Apply about to be made leave
+ *  the phase names and the timing they describe on different sides
+ *  (`phaseTimingSplit`)? Pure read. */
+export function phaseTimingForPending(p: PendingProposal, apply: PhaseTimingApply): ReturnType<typeof phaseTimingSplit> {
   const proposed = proposedGraph(p)
-  const target = liveTargetContent()
-  const theirs = canonicalContent(proposed, { modelVersion: proposed.modelVersion })
-  const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
-  return {
-    timingDiffers: !same(target.timetables, theirs.timetables) || !same(target.time, theirs.time),
-    split: phaseTimingSplit(target, theirs, apply),
-  }
+  return phaseTimingSplit(liveTargetContent(), canonicalContent(proposed, { modelVersion: proposed.modelVersion }), apply)
+}
+
+/** #558 — the graph-level lines "choose changes" starts with (`defaultGraphChoices`),
+ *  against the live target. Pure read. */
+export function defaultGraphChoicesForPending(p: PendingProposal, plan: ThreeWayPlan): ReturnType<typeof defaultGraphChoices> {
+  const proposed = proposedGraph(p)
+  return defaultGraphChoices(plan, liveTargetContent(), canonicalContent(proposed, { modelVersion: proposed.modelVersion }))
+}
+
+/** #558 — what a chosen Apply with this selection would do besides what its lines
+ *  say (`applyDiagnostics`): the same findings the Apply refuses or allows with.
+ *  `null` when the selection cannot be built at all (the Apply names that). `result`
+ *  is the document the selection would make and `theirs` the proposal's own, for the
+ *  names the findings are worded with. Pure read. */
+export function diagnosticsForPending(p: PendingProposal, plan: ThreeWayPlan, selection: HunkSelection): { findings: ApplyDiagnostics; result: DiagDoc; theirs: DiagDoc } | null {
+  const proposed = proposedGraph(p)
+  const g = useGraphStore.getState()
+  const built = buildSelectiveApply({ target: { nodes: g.nodes, edges: g.edges }, proposedFull: proposed, plan, selection })
+  if (!built.ok) return null
+  const live: DiagDoc = { nodes: g.nodes, edges: g.edges, kinds: g.kinds, time: g.time, timetables: g.timetables, modelVersion: g.modelVersion }
+  const theirs: DiagDoc = { nodes: proposed.nodes, edges: proposed.edges, kinds: proposed.kinds, time: proposed.time, timetables: proposed.timetables, modelVersion: g.modelVersion }
+  const chosen = chosenResultDoc(live, built)
+  return { findings: applyDiagnostics({ target: live, proposed: theirs, result: chosen.result, taken: chosen.taken, changed: splitEngineChanges(plan, selection) }), result: chosen.result, theirs }
 }
 
 /** the live target digest a hunk selection is being built against — passed back

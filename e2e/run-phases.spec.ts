@@ -366,10 +366,18 @@ test.describe('run phases — the playback announcement', () => {
 // SEMANTICS-R13.md — phases are revision content. The coffee batch is the open project; a
 // proposal moves the drying / browning boundary from minute 5 to minute 7 in the three
 // release tables, with or without moving its phases (Drying 2–7, Browning 8–9) too.
-type Change = { tables?: boolean; phases?: boolean; rename?: boolean }
+//
+// SEMANTICS-R14.md (#558) — "choose changes" can take the timetables, the step length and
+// the kinds, and says before the Apply what a selection would do besides what its lines say:
+//   `tableLine` — a new table "moisture_slow", and the steam line reading it
+//   `bags`      — the amount unit "bag" (60 kg) declared, and the hopper written as 0.9 bag
+//   `slower`    — the drop / discharge schedules and the four lines after the drum raised
+//                 from 44.64 to 45.44 together
+//   `grams`     — the kind counted in g instead of kg, and the hopper's 54, which names no
+//                 unit, rewritten as 54 000
+type Change = { tables?: boolean; phases?: boolean; rename?: boolean; tableLine?: boolean; bags?: boolean; slower?: boolean; grams?: boolean }
 const NOTICE_TIMING = 'The timetables or the step length change, and the phase names stay as they are. After this Apply, the current phase shown may differ from the real process.'
-const NOTICE_PHASES = 'The phase names are taken, but the timetables and the step length stay yours. After this Apply, the current phase shown may differ from the real process.'
-const NOTE_CHOOSE = 'The proposal’s timetables or step length differ from yours. Choosing changes does not take them: only applying the whole proposal does.'
+const NOTICE_PHASES = 'The phase names are taken, but the timetables or the step length are not the proposal’s. After this Apply, the current phase shown may differ from the real process.'
 
 /** commit the open document as a project revision, and build a proposal of it with `change`, its digest honest */
 const makeProposal = (page: Page, change: Change) =>
@@ -384,6 +392,29 @@ const makeProposal = (page: Page, change: Change) =>
     }
     if (change.phases) f.phases = f.phases.map((p: { id: string }) => (p.id === 'roast_drying' ? { ...p, to: 7 } : p.id === 'roast_browning' ? { ...p, from: 8 } : p))
     if (change.rename) f.phases = f.phases.map((p: { id: string }) => (p.id === 'roast_browning' ? { ...p, label: 'Maillard' } : p))
+    if (change.tableLine) {
+      const t = JSON.parse(JSON.stringify(f.timetables.find((x: { id: string }) => x.id === 'moisture')))
+      t.id = 'moisture_slow'
+      t.label = 'Moisture release, slow'
+      f.timetables.push(t)
+      f.edges.find((e: { id: string }) => e.id === 'e_drum_steam').data.flow = '~moisture_slow'
+    }
+    if (change.bags) {
+      f.kinds[0].units = [{ name: 'bag', factor: '60' }]
+      Object.assign(f.nodes.find((n: { id: string }) => n.id === 'bean_hopper').data, { initial: 0.9, unit: 'bag' })
+    }
+    if (change.grams) {
+      f.kinds[0].baseUnit = 'g'
+      f.kinds[0].rateUnits[0].factor = '1000'
+      f.nodes.find((n: { id: string }) => n.id === 'bean_hopper').data.initial = 54000
+    }
+    if (change.slower) {
+      for (const id of ['drop', 'discharge']) {
+        const s = f.timetables.find((x: { id: string }) => x.id === id)
+        s.points = s.points.map((p: [string, string]) => (p[1] === '44.64' ? [p[0], '45.44'] : p))
+      }
+      for (const id of ['e_drum_drop', 'e_drop_cooler', 'e_cooler_discharge', 'e_discharge_roasted']) f.edges.find((e: { id: string }) => e.id === id).data.flow = '45.44'
+    }
     const d = S.deserialize(JSON.stringify(f))
     f.project.contentDigest = M.digestOfCanonical(
       M.canonicalContent({ nodes: d.nodes, edges: d.edges, recommendedRunConfig: d.recommendedRunConfig, frames: d.frames, dataImports: d.dataImports, kinds: d.kinds, time: d.time, timetables: d.timetables, phases: d.phases }, { modelVersion: d.modelVersion }),
@@ -457,38 +488,197 @@ test.describe('run phases — a revision review', () => {
     await expect(phaseEl(page).locator('.pstrip__phase-name')).toHaveText('Browning')
   })
 
-  test('choosing changes: the timetables are not taken and it says so; the phases line starts on "keep mine", and taking it warns first', async ({ page }) => {
+  test('choosing changes: the timetables and the phases are two lines, pre-selected together; splitting them warns first, either way', async ({ page }) => {
     await importFile(page, await makeProposal(page, { tables: true, phases: true }))
     const review = page.locator('.review')
     await expect(review).toBeVisible()
     await review.locator('.review__actions button', { hasText: 'Choose changes' }).click()
-    await expect(page.getByTestId('review-timing-note')).toHaveText(NOTE_CHOOSE)
-    const row = review.locator('.review__hunk', { hasText: 'Run phases' })
-    await expect(row).toHaveCount(1)
-    await expect(row).toContainText('Take the proposal’s phases (yours: 7, the proposal’s: 7)')
-    const box = row.locator('input[type=checkbox]')
-    // clean, but the proposal's timetables differ: kept by default
-    await expect(box).not.toBeChecked()
+    const tables = review.locator('.review__hunk input[data-hunk="timetables"]')
+    const phases = review.locator('.review__hunk input[data-hunk="phases"]')
+    // the Timetables line names the tables that differ
+    const rowOf = (line: string) => review.locator('.review__hunk', { has: page.locator(`input[data-hunk="${line}"]`) })
+    await expect(rowOf('timetables')).toContainText('Timetables Take the proposal’s timetables (changed: ')
+    await expect(rowOf('timetables')).toContainText('Moisture release, Volatiles release, Chaff release')
+    await expect(rowOf('phases')).toContainText('Take the proposal’s phases (yours: 7, the proposal’s: 7)')
+    // both clean: both pre-selected, names and timing from one side, nothing to say
+    await expect(tables).toBeChecked()
+    await expect(phases).toBeChecked()
     await expect(page.getByTestId('review-phase-notice')).toHaveCount(0)
+    await expect(page.getByTestId('review-diagnostics')).toHaveCount(0)
 
-    await box.check()
+    // the names without the tables
+    await tables.uncheck()
     await expect(page.getByTestId('review-phase-notice')).toHaveText(NOTICE_PHASES)
     await expect(page.getByTestId('review-phase-notice')).toHaveAttribute('data-split', 'phases-only')
-    await box.uncheck()
+    // the tables without the names
+    await tables.check()
+    await phases.uncheck()
+    await expect(page.getByTestId('review-phase-notice')).toHaveText(NOTICE_TIMING)
+    await expect(page.getByTestId('review-phase-notice')).toHaveAttribute('data-split', 'timing-only')
+    // neither: nothing is said, and nothing would change
+    await tables.uncheck()
     await expect(page.getByTestId('review-phase-notice')).toHaveCount(0)
-
-    // keeping mine with nothing else chosen changes nothing, and is said to
-    await review.locator('.review__actions button', { hasText: /^Apply \d+ selected/ }).click()
+    await review.locator('.review__actions button', { hasText: /^Apply 0 selected/ }).click()
     await expect(review).toBeVisible()
     expect(await docState(page)).toEqual({ boundary: '5', phases: ['Drying 2–5', 'Browning 6–9'] })
 
-    // taking the phases: the proposal's names on this document's tables, as warned; one Undo takes them back
-    await box.check()
-    await review.locator('.review__actions button', { hasText: /^Apply 1 selected/ }).click()
+    // both: the chosen Apply takes the tables with the names, and one Undo takes both back
+    await tables.check()
+    await phases.check()
+    await review.locator('.review__actions button', { hasText: /^Apply 2 selected/ }).click()
     await expect(review).toBeHidden()
-    expect(await docState(page)).toEqual({ boundary: '5', phases: ['Drying 2–7', 'Browning 8–9'] })
+    expect(await docState(page)).toEqual({ boundary: '7', phases: ['Drying 2–7', 'Browning 8–9'] })
     await undo(page)
     expect(await docState(page)).toEqual({ boundary: '5', phases: ['Drying 2–5', 'Browning 6–9'] })
+  })
+
+  test('a line that reads a table only the proposal holds: leaving the Timetables line says the run will be refused, and which line resolves it', async ({ page }) => {
+    await importFile(page, await makeProposal(page, { tableLine: true }))
+    const review = page.locator('.review')
+    await expect(review).toBeVisible()
+    await review.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+    const tables = review.locator('.review__hunk input[data-hunk="timetables"]')
+    await expect(tables).toBeChecked()
+    await expect(page.getByTestId('review-diagnostics')).toHaveCount(0)
+
+    await tables.uncheck()
+    const line = page.getByTestId('review-diagnostics').locator('li')
+    await expect(line).toHaveCount(1)
+    await expect(line).toHaveAttribute('data-diag', 'warn')
+    await expect(line).toContainText('After this Apply: Can’t run: a connection names a timetable this document does not hold (')
+    await expect(line).toContainText('Moisture release, slow')
+    await expect(line).toContainText('as well resolves it.')
+    await expect(line).toContainText('Timetables')
+    // told, not refused: the Apply is there, and the document then says the same itself
+    const apply = review.locator('.review__actions button', { hasText: /^Apply 1 selected/ })
+    await expect(apply).toBeEnabled()
+    await apply.click()
+    await expect(review).toBeHidden()
+    await expect(page.locator('.pstrip')).toContainText('Can’t run')
+    await undo(page)
+    await expect(page.locator('.pstrip')).not.toContainText('Can’t run')
+  })
+
+  test('a value in a unit only the proposal declares: without the Kinds line the Apply is off, with the reason; with it the hopper is 54 kg', async ({ page }) => {
+    await importFile(page, await makeProposal(page, { bags: true }))
+    const review = page.locator('.review')
+    await expect(review).toBeVisible()
+    await review.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+    const kindsBox = review.locator('.review__hunk input[data-hunk="kinds"]')
+    await expect(review.locator('.review__hunk', { has: page.locator('input[data-hunk="kinds"]') })).toContainText('Kinds Take the proposal’s kinds and units (changed: ')
+    // a unit the open document does not have: nothing before, 60 kg in the proposal
+    const bag = page.getByTestId('review-kinds-detail').locator('[data-kinds-row="unit"]')
+    await expect(bag.locator('.review__kinds-name')).toHaveText('coffee mass · 1 bag')
+    await expect(bag.locator('code')).toHaveText(['—', '60 kg'])
+    await expect(kindsBox).toBeChecked()
+    const apply = review.locator('.review__actions .btn--primary')
+    await expect(apply).toBeEnabled()
+
+    await kindsBox.uncheck()
+    const line = page.getByTestId('review-diagnostics').locator('li')
+    await expect(line).toHaveCount(1)
+    await expect(line).toHaveAttribute('data-diag', 'refuse')
+    await expect(line).toContainText('The value of ')
+    await expect(line).toContainText('Green bean hopper')
+    await expect(line).toContainText('and this document would not read that unit as the proposal does.')
+    await expect(apply).toBeDisabled()
+    const hopper = () => page.evaluate(() => ((window as unknown as Bridge).__loop.graph.getState().nodes.find((n: { id: string }) => n.id === 'bean_hopper').data as { initial: number; unit?: string }))
+    expect(await hopper()).toMatchObject({ initial: 54 })
+
+    await kindsBox.check()
+    await expect(page.getByTestId('review-diagnostics')).toHaveCount(0)
+    await apply.click()
+    await expect(review).toBeHidden()
+    expect(await hopper()).toMatchObject({ initial: 0.9, unit: 'bag' })
+    // 0.9 bag of 60 kg: the run starts with 54 kg, as before
+    expect(await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().values.bean_hopper)).toBe(54)
+  })
+
+  test('a value that names no unit, and a kinds table that counts its kind in another base unit: either without the other is off', async ({ page }) => {
+    await importFile(page, await makeProposal(page, { grams: true }))
+    const review = page.locator('.review')
+    await expect(review).toBeVisible()
+    await review.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+    const kindsBox = review.locator('.review__hunk input[data-hunk="kinds"]')
+    const apply = review.locator('.review__actions .btn--primary')
+    const line = page.getByTestId('review-diagnostics').locator('li')
+    // the Kinds line says what a number would mean under each table: the base unit kg → g, and what
+    // one "kg per min" is worth, 1 kg/min → 1000 g/min
+    const detail = page.getByTestId('review-kinds-detail')
+    const base = detail.locator('[data-kinds-row="baseUnit"]')
+    await expect(base).toHaveCount(1)
+    await expect(base.locator('.review__kinds-name')).toHaveText('coffee mass · Base unit')
+    await expect(base.locator('code')).toHaveText(['kg', 'g'])
+    const unit = detail.locator('[data-kinds-row="unit"]')
+    await expect(unit).toHaveCount(1)
+    await expect(unit.locator('.review__kinds-name')).toHaveText('coffee mass · 1 kg per min')
+    await expect(unit.locator('code')).toHaveText(['1 kg/min', '1000 g/min'])
+    // both pre-selected: the proposal's 54 000 under the proposal's g
+    await expect(kindsBox).toBeChecked()
+    await expect(page.getByTestId('review-diagnostics')).toHaveCount(0)
+    await expect(apply).toBeEnabled()
+
+    // the base unit alone: the kept 54 was written for kg
+    await review.locator('.review__field-choice label', { hasText: 'keep mine' }).click()
+    await expect(line).toHaveCount(1)
+    await expect(line).toHaveAttribute('data-diag', 'refuse')
+    await expect(line).toContainText('These values name no unit and are counted in the base unit of their kind, which is ')
+    await expect(line).toContainText(' in this document and ')
+    await expect(line).toContainText('Green bean hopper')
+    await expect(line).toContainText('Keep your kinds and units, or take the proposal’s changes of these values as well.')
+    await expect(apply).toBeDisabled()
+
+    // the value alone: 54 000 was written for g
+    await review.locator('.review__field-choice label', { hasText: 'take theirs' }).click()
+    await kindsBox.uncheck()
+    await expect(line).toHaveCount(1)
+    await expect(line).toContainText(' in the proposal and ')
+    await expect(line).toContainText('Take the proposal’s kinds and units as well, or leave these changes.')
+    await expect(apply).toBeDisabled()
+
+    // together again: applied, 54 000 g
+    await kindsBox.check()
+    await expect(page.getByTestId('review-diagnostics')).toHaveCount(0)
+    await apply.click()
+    await expect(review).toBeHidden()
+    expect(await page.evaluate(() => {
+      const s = (window as unknown as Bridge).__loop.graph.getState()
+      return [s.nodes.find((n: { id: string }) => n.id === 'bean_hopper').data.initial, s.kinds[0].baseUnit]
+    })).toEqual([54000, 'g'])
+  })
+
+  test('lines and the tables they read, from different sides: both plans are told, whichever of the two is kept', async ({ page }) => {
+    await importFile(page, await makeProposal(page, { slower: true }))
+    const review = page.locator('.review')
+    await expect(review).toBeVisible()
+    await review.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+    const tables = review.locator('.review__hunk input[data-hunk="timetables"]')
+    await expect(tables).toBeChecked()
+    await expect(page.getByTestId('review-diagnostics')).toHaveCount(0)
+
+    // the lines taken, the tables kept
+    await tables.uncheck()
+    const lines = page.getByTestId('review-diagnostics').locator('li')
+    await expect(lines).toHaveCount(2)
+    // under the list of changes and outside its scrolling box: five rows do not scroll them away
+    await expect(review.locator('.review__pick').getByTestId('review-diagnostics')).toHaveCount(0)
+    await expect(lines.first()).toBeInViewport({ ratio: 1 })
+    const drop = lines.filter({ hasText: 'Drop schedule' })
+    await expect(drop).toHaveAttribute('data-diag', 'warn')
+    await expect(drop).toContainText('The changes you take (')
+    await expect(drop).toContainText('would read your definition of ')
+    await expect(drop).toContainText('Over steps 1–19 the table plans ')
+    await expect(drop).toContainText('45.44 kg')
+    await expect(drop).toContainText('44.64 kg')
+    await expect(drop).toContainText('they first differ at step 14')
+    await expect(review.locator('.review__actions .btn--primary')).toBeEnabled()
+
+    // the tables taken, the four lines kept
+    await tables.check()
+    for (const keep of await review.locator('.review__field-choice label', { hasText: 'keep mine' }).all()) await keep.click()
+    await expect(lines).toHaveCount(2)
+    await expect(lines.filter({ hasText: 'Drop schedule' })).toContainText('The lines and rules you keep (')
+    await expect(lines.filter({ hasText: 'Drop schedule' })).toContainText('would read the proposal’s definition of ')
   })
 
   test('a proposal that only renames a phase: the line is pre-selected, nothing is warned of, and the row shows the new name', async ({ page }) => {
@@ -498,7 +688,6 @@ test.describe('run phases — a revision review', () => {
     await expect(review.locator('.review__diff [data-diff="phases"]')).toHaveText('phases')
     await expect(review.locator('.review__diff [data-diff="timetables"]')).toHaveCount(0)
     await review.locator('.review__actions button', { hasText: 'Choose changes' }).click()
-    await expect(page.getByTestId('review-timing-note')).toHaveCount(0)
     await expect(review.locator('.review__hunk')).toHaveCount(1)
     await expect(review.locator('.review__hunk input[type=checkbox]')).toBeChecked()
     await expect(page.getByTestId('review-phase-notice')).toHaveCount(0)
