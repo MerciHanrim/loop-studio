@@ -8413,15 +8413,31 @@ input[type='number']::-webkit-inner-spin-button {
 /* SEMANTICS-R13.md §R13-5 / §R13-6 — the two sentences about phases and timing: read as
    prose, at the body size, a Korean phrase breaking between its words */
 .review__phase-notice,
-.review__timing-note {
+.review__diag-line {
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
-.review__timing-note {
-  margin: 6px 0 0;
-  color: var(--ink-2);
+/* #558 — what a selection would do besides what its lines say, right under the lines:
+   a warning is told and the Apply stays; a refusing line is the reason the Apply is off */
+.review__diag {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0;
+  padding: 0;
+  list-style: none;
+}
+.review__diag-line {
+  padding: 8px;
+  border: 1px solid var(--warn);
+  border-radius: 6px;
+  color: var(--warn);
   font-size: 12px;
   line-height: 1.45;
+}
+.review__diag-line--refuse {
+  border-color: var(--no);
+  color: var(--no);
 }
 .review__actions {
   display: flex;
@@ -8540,6 +8556,11 @@ input[type='number']::-webkit-inner-spin-button {
   font-weight: 400;
   font-style: italic;
   color: var(--warn);
+}
+/* the tag that ends a graph-level row ("frames", "phases") stood against the last
+   letter of the sentence before it */
+.review__hunk-head .review__field-tag {
+  margin-inline-start: 6px;
 }
 .review__fields {
   display: flex;

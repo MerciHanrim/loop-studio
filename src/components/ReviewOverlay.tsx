@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useReactFlow } from '@xyflow/react'
+import type { UnitLine } from '../model/applyDiagnostics'
 import type { FramesHunk, HunkSelection, PhasesHunk, ProposalHunk, ThreeWayPlan } from '../model/revision'
+import type { TimeUnit } from '../model/units'
 import { useFrameStore } from '../store/frameStore'
 import { useGraphStore } from '../store/graphStore'
 import { useProjectStore, type ApplyClassification, type ApplyFailReason } from '../store/projectStore'
@@ -8,10 +10,13 @@ import { useReviewStore } from '../store/reviewStore'
 import {
   applyPendingProposal,
   currentTargetDigest,
+  defaultGraphChoicesForPending,
+  diagnosticsForPending,
   openPendingProposalAsDocument,
   phaseTimingForPending,
   threeWayForPending,
 } from '../store/revisionIO'
+import { diagnosticLines, LINE_TITLE, unitMisreadText } from '../ui/applyDiagnosticsText'
 import { useSimStore } from '../store/simStore'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
@@ -19,7 +24,7 @@ import { invalidTargetText, reviewModel, type ReviewModel } from '../ui/revision
 import { ConfirmDialog } from './ConfirmDialog'
 import { useDialogFocus } from './useDialogFocus'
 import { useArrowGlyph, useT, type MessageKey } from '../i18n'
-import { isolateLtr } from '../i18n/bidiIsolate'
+import { isolateAuto, isolateLtr } from '../i18n/bidiIsolate'
 import { MobileSheet } from './mobile/MobileSheet'
 import { InlineHintNote } from './HintNote'
 import { Icon } from '../ui/icons'
@@ -105,7 +110,7 @@ const shortVal = (v: unknown): string => {
  *  `remove` hunk — then those removals are pre-accepted too (visible rows, no
  *  hidden cascade). If any dependent is a retarget, the node `remove` is left
  *  for the user to handle deliberately; a `blockedBy` node is never accepted. */
-function defaultSelection(plan: ThreeWayPlan, timingDiffers: boolean): HunkSelection {
+function defaultSelection(plan: ThreeWayPlan, graph: Pick<HunkSelection, 'kinds' | 'time' | 'timetables' | 'phases'>): HunkSelection {
   const byId = new Map(plan.hunks.map((h) => [h.id, h]))
   const accept: Record<string, boolean> = {}
   const fieldChoices: Record<string, Record<string, 'proposed' | 'yours'>> = {}
@@ -125,20 +130,62 @@ function defaultSelection(plan: ThreeWayPlan, timingDiffers: boolean): HunkSelec
   // SEMANTICS-R5.md §R5-6 — pre-accept a CLEAN `frames` hunk (target still at
   // base); leave a `conflict` (a third array) for the user; `noop` is nothing.
   const frames: HunkSelection['frames'] = plan.frames?.verdict === 'clean' ? 'proposed' : 'yours'
-  // SEMANTICS-R13.md §R13-6 — a CLEAN `phases` hunk is pre-accepted like `frames`,
-  // unless the proposal's timetables or step length differ from the target's:
-  // choosing changes never takes those, so the proposal's phase names would
-  // land on the target's timing. Then the default is to keep the target's.
-  const phases: HunkSelection['phases'] = plan.phases?.verdict === 'clean' && !timingDiffers ? 'proposed' : 'yours'
-  return { accept, fieldChoices, frames, phases }
+  // #558 / SEMANTICS-R13.md §R13-6 — the kinds table, the step length, the
+  // timetables and the phases: a CLEAN one is pre-accepted, and the phases only
+  // when the timing those defaults leave is the proposal's (`defaultGraphChoices`)
+  return { accept, fieldChoices, frames, ...graph }
 }
 
 function selectionCount(sel: HunkSelection): number {
   let n = Object.values(sel.accept).filter(Boolean).length
   for (const fc of Object.values(sel.fieldChoices)) n += Object.values(fc).filter((c) => c === 'proposed').length
-  if (sel.frames === 'proposed') n += 1
-  if (sel.phases === 'proposed') n += 1
+  for (const unit of [sel.frames, sel.phases, sel.kinds, sel.time, sel.timetables]) if (unit === 'proposed') n += 1
   return n
+}
+
+/** the names both sides do not hold alike: added, removed or changed, in the proposal's order first */
+function changedNames<T>(yours: readonly T[] | null, theirs: readonly T[] | null, id: (x: T) => string, name: (x: T) => string): string {
+  const mine = new Map((yours ?? []).map((x) => [id(x), x]))
+  const other = new Map((theirs ?? []).map((x) => [id(x), x]))
+  const out: string[] = []
+  for (const [k, x] of other) if (JSON.stringify(mine.get(k)) !== JSON.stringify(x)) out.push(name(x))
+  for (const [k, x] of mine) if (!other.has(k)) out.push(name(x))
+  return out.join(', ')
+}
+
+const TIME_UNIT_WORD: Record<TimeUnit, MessageKey> = { s: 'panels.time.unit.s', min: 'panels.time.unit.min', h: 'panels.time.unit.h', d: 'panels.time.unit.d' }
+
+/** #558 (SEMANTICS-R14.md §R14-2) — the kinds table, the step length and the
+ *  timetables: one row each, with the mechanics of the `frames` row. Checked ⇒
+ *  take the proposal's WHOLE unit; unchecked ⇒ keep the target's. The row says
+ *  what differs, so a table is not taken blind. */
+function UnitHunkRows({ plan, sel, onUnit }: { plan: ThreeWayPlan; sel: HunkSelection; onUnit: (line: UnitLine, choice: 'proposed' | 'yours') => void }) {
+  const t = useT()
+  const stepText = (time: { step: { value: number; unit: TimeUnit } } | null) => (time ? `${time.step.value} ${t(TIME_UNIT_WORD[time.step.unit])}` : t('panels.time.none'))
+  const rows: { line: UnitLine; verdict: string; text: string }[] = []
+  const k = plan.kinds
+  if (k && k.verdict !== 'noop') rows.push({ line: 'kinds', verdict: k.verdict, text: t('review.hunk.kindsTake', { names: isolateAuto(changedNames(k.yours, k.proposed, (x) => x.name, (x) => x.name)) }) })
+  const s = plan.time
+  if (s && s.verdict !== 'noop') rows.push({ line: 'time', verdict: s.verdict, text: t('review.hunk.timeTake', { yours: isolateAuto(stepText(s.yours)), theirs: isolateAuto(stepText(s.proposed)) }) })
+  const tt = plan.timetables
+  if (tt && tt.verdict !== 'noop') rows.push({ line: 'timetables', verdict: tt.verdict, text: t('review.hunk.timetablesTake', { names: isolateAuto(changedNames(tt.yours, tt.proposed, (x) => x.id, (x) => x.label)) }) })
+  return (
+    <>
+      {rows.map((r) => (
+        <li key={`graph:${r.line}`} className={`review__hunk review__hunk--${r.verdict}`}>
+          <div>
+            <label className="review__hunk-head">
+              <input type="checkbox" data-hunk={r.line} checked={sel[r.line] === 'proposed'} onChange={(e) => onUnit(r.line, e.target.checked ? 'proposed' : 'yours')} />
+              <span>
+                {t(LINE_TITLE[r.line])} {r.text}
+                {r.verdict === 'conflict' ? <span className="review__hunk-tag">{t('review.hunk.bothChanged')}</span> : null}
+              </span>
+            </label>
+          </div>
+        </li>
+      ))}
+    </>
+  )
 }
 
 /** SEMANTICS-R13.md §R13-4 — the single graph-level `phases` hunk, as the
@@ -208,6 +255,7 @@ function HunkList({
   onField,
   onFrames,
   onPhases,
+  onUnit,
 }: {
   plan: ThreeWayPlan
   sel: HunkSelection
@@ -215,6 +263,7 @@ function HunkList({
   onField: (id: string, field: string, choice: 'proposed' | 'yours') => void
   onFrames: (choice: 'proposed' | 'yours') => void
   onPhases: (choice: 'proposed' | 'yours') => void
+  onUnit: (line: UnitLine, choice: 'proposed' | 'yours') => void
 }) {
   const t = useT()
   const actionable = plan.hunks.filter(
@@ -222,7 +271,8 @@ function HunkList({
   )
   const framesRow = plan.frames && plan.frames.verdict !== 'noop' ? plan.frames : null
   const phasesRow = plan.phases && plan.phases.verdict !== 'noop' ? plan.phases : null
-  if (!actionable.length && !framesRow && !phasesRow) return <p className="review__stamp">{t('review.hunks.none')}</p>
+  const unitRows = [plan.kinds, plan.time, plan.timetables].some((u) => u && u.verdict !== 'noop')
+  if (!actionable.length && !framesRow && !phasesRow && !unitRows) return <p className="review__stamp">{t('review.hunks.none')}</p>
   return (
     <ul className="review__hunks">
       {actionable.map((h) => (
@@ -235,6 +285,8 @@ function HunkList({
           <FramesHunkRow h={framesRow} sel={sel} onFrames={onFrames} />
         </li>
       ) : null}
+      {/* #558 — in the order one leans on the next: units, step length, timetables, then the phases that count its steps */}
+      <UnitHunkRows plan={plan} sel={sel} onUnit={onUnit} />
       {phasesRow ? (
         <li key="graph:phases" className={`review__hunk review__hunk--${phasesRow.verdict}`}>
           <PhasesHunkRow h={phasesRow} sel={sel} onPhases={onPhases} />
@@ -407,13 +459,16 @@ export function ReviewOverlay() {
   const planCtx = useMemo(
     () =>
       pending && model?.gate === 'ok'
-        ? { plan: threeWayForPending(pending), digest: currentTargetDigest(), timingDiffers: phaseTimingForPending(pending, { mode: 'whole' }).timingDiffers }
+        ? (() => {
+            const plan = threeWayForPending(pending)
+            return { plan, digest: currentTargetDigest(), graph: defaultGraphChoicesForPending(pending, plan) }
+          })()
         : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pending, openRev, openRole, simRev, liveFrames, livePhases, model?.gate],
   )
   const plan = planCtx?.plan ?? null
-  const timingDiffers = planCtx?.timingDiffers ?? false
+  const graphDefaults = planCtx?.graph ?? null
 
   useEffect(() => {
     setArmed(null)
@@ -424,8 +479,19 @@ export function ReviewOverlay() {
 
   // seed the selection whenever the plan is (re)computed
   useEffect(() => {
-    if (plan) setSel(defaultSelection(plan, timingDiffers))
-  }, [plan, timingDiffers])
+    if (plan && graphDefaults) setSel(defaultSelection(plan, graphDefaults))
+  }, [plan, graphDefaults])
+
+  // #558 — what the selection would do besides what its lines say: a value read in
+  // another unit (refused), a run the checks would newly refuse, a table read under
+  // the open document's definition. Recomputed with every choice.
+  const diagnostics = useMemo(
+    () => (pending && plan && mode === 'hunks' ? diagnosticsForPending(pending, plan, sel) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pending, plan, mode, sel],
+  )
+  const diagLines = useMemo(() => (diagnostics ? diagnosticLines(diagnostics, t) : []), [diagnostics, t])
+  const selectionRefused = diagLines.some((l) => l.kind === 'refuse')
 
   // #423 — the desktop dialog keeps the shared dialog contract: focus moves in,
   // Tab stays inside, the page behind is inert, and Escape goes to the top
@@ -500,6 +566,11 @@ export function ReviewOverlay() {
       setErr(t('review.err.noEffect'))
       return
     }
+    if (res.reason === 'invalid-selection' && res.unitMisreads?.length && diagnostics) {
+      // #558 — the store's own gate, should the button have been reached anyway
+      setErr(res.unitMisreads.map((m) => unitMisreadText(m, [diagnostics.result, diagnostics.theirs], t)).join(' '))
+      return
+    }
     if (res.reason === 'invalid-selection') {
       // `res.reasons` / `res.detail` are structural specifics from the model
       // layer (English) — kept verbatim; the generic phrasing is localized.
@@ -519,10 +590,14 @@ export function ReviewOverlay() {
   const setFramesChoice = (choice: 'proposed' | 'yours') => setSel((s) => ({ ...s, frames: choice }))
   // SEMANTICS-R13.md §R13-4 — the atomic graph-level `phases` choice
   const setPhasesChoice = (choice: 'proposed' | 'yours') => setSel((s) => ({ ...s, phases: choice }))
+  // #558 — the atomic kinds table / step length / timetables choices
+  const setUnitChoice = (line: UnitLine, choice: 'proposed' | 'yours') => setSel((s) => ({ ...s, [line]: choice }))
   // §R13-6 — would the Apply about to be made leave the phase names and the timing
   // they describe on different sides? Said before the Apply, never a gate.
   const phaseSplit =
-    canApply && pending ? phaseTimingForPending(pending, mode === 'whole' ? { mode: 'whole' } : { mode: 'hunks', phases: sel.phases }).split : null
+    canApply && pending
+      ? phaseTimingForPending(pending, mode === 'whole' ? { mode: 'whole' } : { mode: 'hunks', phases: sel.phases, timetables: sel.timetables, time: sel.time })
+      : null
   const toggleAccept = (id: string, v: boolean) =>
     setSel((s) => {
       const accept = { ...s.accept, [id]: v }
@@ -613,14 +688,21 @@ export function ReviewOverlay() {
             onField={setField}
             onFrames={setFramesChoice}
             onPhases={setPhasesChoice}
+            onUnit={setUnitChoice}
           />
-          {/* §R13-5 — the timetables and the step length have no row here: said, not left out silently */}
-          {timingDiffers ? (
-            <p className="review__timing-note" data-testid="review-timing-note">
-              {t('review.hunks.timingNote')}
-            </p>
-          ) : null}
         </div>
+      ) : null}
+      {/* #558 — right under the lines they are about, and outside their scrolling box so
+          that a long list cannot scroll them away: what this selection would do besides
+          what the lines say. A refusing one also disables the Apply. */}
+      {canApply && mode === 'hunks' && diagLines.length > 0 ? (
+        <ul className="review__diag" data-testid="review-diagnostics" role="status">
+          {diagLines.map((l) => (
+            <li key={l.key} className={`review__diag-line review__diag-line--${l.kind}`} data-diag={l.kind}>
+              {l.text}
+            </li>
+          ))}
+        </ul>
       ) : null}
 
       {/* §R13-6 — the phase names and the timing would come from different sides */}
@@ -637,7 +719,7 @@ export function ReviewOverlay() {
           </button>
         ) : null}
         {canApply && mode === 'hunks' ? (
-          <button type="button" className="btn btn--primary" onClick={doApplySelected} disabled={editLocked}>
+          <button type="button" className="btn btn--primary" onClick={doApplySelected} disabled={editLocked || selectionRefused}>
             {t('review.action.applySelected', { count: selectionCount(sel) })}
           </button>
         ) : null}

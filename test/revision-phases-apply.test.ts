@@ -88,10 +88,10 @@ beforeEach(() => {
 })
 
 describe('a revision file with phases', () => {
-  it('declares loop-revision/13, carries the phases inside its content digest, and is read as a proposal of this project', async () => {
+  it('declares the current semantics (/14, which includes the phases of /13), carries the phases inside its content digest, and is read as a proposal of this project', async () => {
     const text = proposalFile({ tables: true, phases: true })
     const f = JSON.parse(text)
-    expect(f.project.semantics).toBe('loop-revision/13')
+    expect(f.project.semantics).toBe('loop-revision/14')
     expect(spans(f.phases)).toEqual(NEW)
     const p = await proposal({ tables: true, phases: true })
     expect(classifyPendingProposal(p)).toEqual({ ok: true, classification: 'exact' })
@@ -107,7 +107,7 @@ describe('whole Apply', () => {
     expect(at(6)).toEqual({ moisture: '0.25', phase: 'Browning' })
     const p = await proposal({ tables: true, phases: true })
     // nothing would be split, so the review has nothing to say
-    expect(phaseTimingForPending(p, { mode: 'whole' })).toEqual({ timingDiffers: true, split: null })
+    expect(phaseTimingForPending(p, { mode: 'whole' })).toBeNull()
     const undoBefore = g().past.length
     expect(applyPendingProposal(p).ok).toBe(true)
     expect(boundary()).toBe('7')
@@ -137,7 +137,7 @@ describe('whole Apply', () => {
     const p = await proposal({ tables: true })
     // no `phases` hunk to offer: the proposal's phases are the base's
     expect(threeWayForPending(p).phases).toBeUndefined()
-    expect(phaseTimingForPending(p, { mode: 'whole' })).toEqual({ timingDiffers: true, split: 'timing-only' })
+    expect(phaseTimingForPending(p, { mode: 'whole' })).toBe('timing-only')
     expect(applyPendingProposal(p).ok).toBe(true)
     expect(boundary()).toBe('7')
     expect(spans()).toEqual(OLD)
@@ -177,12 +177,13 @@ describe('whole Apply', () => {
 })
 
 describe('choosing changes', () => {
-  // the timetables and the step length have no hunk: a chosen Apply never takes them
+  // the timetables and the step length are lines of their own since SEMANTICS-R14.md
+  // (`test/revision-choose-units.test.ts`); here they are left with the open document
 
-  it('the user keeps their phases: nothing of the timing or the names changes, so nothing goes stale and nothing is said', async () => {
+  it('the user keeps their phases and their tables: nothing of the timing or the names changes, so nothing goes stale and nothing is said', async () => {
     const p = await proposal({ tables: true, phases: true, label: true })
     expect(threeWayForPending(p).phases).toMatchObject({ verdict: 'clean' })
-    expect(phaseTimingForPending(p, { mode: 'hunks', phases: 'yours' })).toEqual({ timingDiffers: true, split: null })
+    expect(phaseTimingForPending(p, { mode: 'hunks', phases: 'yours' })).toBeNull()
     const res = applyPendingProposal(p, { selection: { accept: {}, fieldChoices: { roast_drum: { 'data.label': 'proposed' } }, phases: 'yours' } })
     expect(res.ok).toBe(true)
     expect(g().nodes.find((n) => n.id === 'roast_drum')!.data.label).toBe('Drum')
@@ -193,7 +194,7 @@ describe('choosing changes', () => {
 
   it('the user takes the proposal’s phases onto their own tables: the review is told, and the names do go stale as it says', async () => {
     const p = await proposal({ tables: true, phases: true })
-    expect(phaseTimingForPending(p, { mode: 'hunks', phases: 'proposed' })).toEqual({ timingDiffers: true, split: 'phases-only' })
+    expect(phaseTimingForPending(p, { mode: 'hunks', phases: 'proposed' })).toBe('phases-only')
     const undoBefore = g().past.length
     expect(applyPendingProposal(p, { selection: { accept: {}, fieldChoices: {}, phases: 'proposed' } }).ok).toBe(true)
     expect(boundary()).toBe('5')
@@ -210,7 +211,7 @@ describe('choosing changes', () => {
 
   it('a proposal that only renames a phase: taking it splits nothing, applies as one undo entry, and resets no table', async () => {
     const p = await proposal({ rename: true })
-    expect(phaseTimingForPending(p, { mode: 'hunks', phases: 'proposed' })).toEqual({ timingDiffers: false, split: null })
+    expect(phaseTimingForPending(p, { mode: 'hunks', phases: 'proposed' })).toBeNull()
     expect(applyPendingProposal(p, { selection: { accept: {}, fieldChoices: {}, phases: 'proposed' } }).ok).toBe(true)
     expect(g().phases.find((x) => x.id === 'roast_browning')!.label).toBe('Maillard')
     expect(boundary()).toBe('5')

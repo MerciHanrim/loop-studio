@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { applyDiagnostics, chosenResultDoc, splitEngineChanges, type UnitMisread } from '../model/applyDiagnostics'
 import {
   AUTHOR_NAME_KEY,
   AUTHOR_NAME_MAX_BYTES,
@@ -107,6 +108,9 @@ export type ApplyResult =
       detail?: string
       /** `invalid-selection` from full-graph validation — the concrete reasons */
       reasons?: string[]
+      /** `invalid-selection` (#558) — the values whose unit the result would
+       *  read another way than the side they came from */
+      unitMisreads?: UnitMisread[]
       /** `invalid-target` — the node of the open document that cannot be projected */
       node?: InvalidTargetNode
     }
@@ -695,11 +699,11 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       // identical mechanics to `resultFrames` throughout this function.
       let resultDataImports: readonly ImportSourceTable[] | undefined
       // loop-model/3 — the kinds table: a whole-proposal Apply adopts the
-      // proposal's; a per-hunk Apply keeps the target's (no kinds hunk yet)
+      // proposal's; a per-hunk Apply takes it only when its line is accepted (#558)
       let resultKinds: readonly ResourceKindDecl[] | undefined
-      // loop-model/4 — the step length, the same way (no time hunk yet)
+      // loop-model/4 — the step length, the same way
       let resultTime: DocTime | undefined
-      // loop-model/5 — the timetables, the same way (no table hunk yet)
+      // loop-model/5 — the timetables, the same way
       let resultTimetables: readonly Timetable[] | undefined
       // SEMANTICS-R13.md §R13-4 — `phases` is ONE atomic hunk, the mechanics of
       // `resultFrames`: a whole Apply adopts the proposal's; a per-hunk Apply
@@ -735,6 +739,28 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         resultFrames = built.frames
         resultDataImports = built.dataImports
         resultPhases = built.phases
+        // #558 — the kinds table, the step length and the timetables, each
+        // taken only when its line was (`undefined` ⇒ kept)
+        resultKinds = built.kinds
+        resultTimetables = built.timetables
+        if (built.time !== undefined) {
+          resultTime = built.time ?? undefined
+          adoptTime = true
+        }
+        // #558 — a value whose unit the result would read another way than the
+        // side it came from is refused: the document would hold a different
+        // number and nothing in it would say so. The review shows the same
+        // finding before the click; this is the gate itself.
+        const live = { nodes: g.nodes, edges: g.edges, kinds: g.kinds, time: g.time, timetables: g.timetables, modelVersion: g.modelVersion }
+        const chosen = chosenResultDoc(live, built)
+        const diagnostics = applyDiagnostics({
+          target: live,
+          proposed: { nodes: proposed.nodes, edges: proposed.edges, kinds: proposed.kinds ?? [], time: proposed.time, timetables: proposed.timetables ?? [], modelVersion: g.modelVersion },
+          result: chosen.result,
+          taken: chosen.taken,
+          changed: splitEngineChanges(plan, opts.selection),
+        })
+        if (diagnostics.unitMisreads.length > 0) return { ok: false, reason: 'invalid-selection', unitMisreads: diagnostics.unitMisreads }
         // an effective no-op mints no revision / undo entry / simulationRev bump.
         // The `frames` / `dataImports` swaps count: compare the WHOLE resulting
         // content (nodes + edges + the effective frames + dataImports) against
@@ -746,9 +772,9 @@ export const useProjectStore = create<ProjectState>((set, get) => {
               edges: built.edges,
               frames: resultFrames ?? useFrameStore.getState().snapshot(),
               dataImports: resultDataImports ?? useDataImportStore.getState().snapshot(),
-              kinds: g.kinds,
-              time: g.time,
-              timetables: g.timetables,
+              kinds: chosen.result.kinds,
+              time: chosen.result.time,
+              timetables: chosen.result.timetables,
               phases: resultPhases ?? g.phases,
             },
             { modelVersion: g.modelVersion },
