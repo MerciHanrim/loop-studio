@@ -3,14 +3,16 @@ import {
   computeThreeWay,
   digestOfCanonical,
   graphStructureIssues,
+  phaseTimingSplit,
   readRevisionSideAndProject,
   recordKeepsLabels,
+  type CanonicalContent,
   type HunkSelection,
   type ProjectPayload,
   type ProposalBase,
   type ThreeWayPlan,
 } from '../model/revision'
-import { deserialize, type DocTime, type ImportSourceTable, type ModelSemanticsVersion, type ResourceKindDecl, type SavedFrame, type Timetable } from '../model/serialize'
+import { deserialize, type DocPhase, type DocTime, type ImportSourceTable, type ModelSemanticsVersion, type ResourceKindDecl, type SavedFrame, type Timetable } from '../model/serialize'
 import type { LoopEdge, LoopNode } from '../model/types'
 import { t } from '../i18n'
 import { useDataImportStore } from './dataImportStore'
@@ -127,6 +129,8 @@ export async function routeImport(text: string): Promise<RouteResult> {
       time: parsed.time,
       // loop-model/5 (SEMANTICS-M5.md §M5-7) — and a `/graph/5` side's timetables
       timetables: parsed.timetables,
+      // loop-revision/13 (SEMANTICS-R13.md §R13-1) — and the side's phases
+      phases: parsed.phases,
     },
     raw,
     parsed.modelVersion,
@@ -197,9 +201,11 @@ export function proposedGraph(
   time?: DocTime
   /** loop-model/5 — the proposal's timetables (`[]` before `/graph/5`) */
   timetables: Timetable[]
+  /** loop-revision/13 — the proposal's phases (`[]` when it has none) */
+  phases: DocPhase[]
 } {
-  const { nodes, edges, frames, dataImports, kinds, time, timetables } = deserialize(p.proposedText)
-  return { nodes, edges, modelVersion: p.modelVersion, frames, dataImports, kinds, ...(time !== undefined ? { time } : {}), timetables }
+  const { nodes, edges, frames, dataImports, kinds, time, timetables, phases } = deserialize(p.proposedText)
+  return { nodes, edges, modelVersion: p.modelVersion, frames, dataImports, kinds, ...(time !== undefined ? { time } : {}), timetables, phases }
 }
 
 /** §R7A.2 — classify without applying, for the Review UI. */
@@ -214,26 +220,45 @@ export function classifyPendingProposal(p: PendingProposal) {
 /** §R7A.3 — the per-hunk three-way plan (`base` vs the LIVE target vs the
  *  proposal), for the Review UI's hunk list. Pure read; nothing mutated. */
 export function threeWayForPending(p: PendingProposal): ThreeWayPlan {
-  const g = useGraphStore.getState()
   const proposed = proposedGraph(p)
-  return computeThreeWay(
-    p.base.content,
-    // SEMANTICS-R5.md §R5-6 — the LIVE target must carry the on-screen saved
-    // frames so the `frames` hunk verdict (noop / clean / conflict) is right.
-    canonicalContent(
-      {
-        nodes: g.nodes,
-        edges: g.edges,
-        frames: useFrameStore.getState().snapshot(),
-        dataImports: useDataImportStore.getState().snapshot(),
-        kinds: g.kinds, // loop-model/3 — the live kinds table is content too
-        time: g.time, // loop-model/4 — and the step length
-        timetables: g.timetables, // loop-model/5 — and the timetables
-      },
-      { modelVersion: g.modelVersion },
-    ),
-    canonicalContent(proposed, { modelVersion: proposed.modelVersion }),
+  // SEMANTICS-R5.md §R5-6 — the LIVE target must carry the on-screen saved
+  // frames so the `frames` hunk verdict (noop / clean / conflict) is right.
+  return computeThreeWay(p.base.content, liveTargetContent(), canonicalContent(proposed, { modelVersion: proposed.modelVersion }))
+}
+
+/** the open document as revision content: what a proposal is compared with and applied onto */
+function liveTargetContent(): CanonicalContent {
+  const g = useGraphStore.getState()
+  return canonicalContent(
+    {
+      nodes: g.nodes,
+      edges: g.edges,
+      frames: useFrameStore.getState().snapshot(),
+      dataImports: useDataImportStore.getState().snapshot(),
+      kinds: g.kinds, // loop-model/3 — the live kinds table is content too
+      time: g.time, // loop-model/4 — and the step length
+      timetables: g.timetables, // loop-model/5 — and the timetables
+      phases: g.phases, // loop-revision/13 — and the phases
+    },
+    { modelVersion: g.modelVersion },
   )
+}
+
+/** SEMANTICS-R13.md §R13-6 — for the Review UI: what of the proposal's timing differs
+ *  from the open document's, and whether the Apply about to be made would leave the
+ *  phase names and the timing on different sides (`phaseTimingSplit`). Pure read. */
+export function phaseTimingForPending(
+  p: PendingProposal,
+  apply: Parameters<typeof phaseTimingSplit>[2],
+): { timingDiffers: boolean; split: ReturnType<typeof phaseTimingSplit> } {
+  const proposed = proposedGraph(p)
+  const target = liveTargetContent()
+  const theirs = canonicalContent(proposed, { modelVersion: proposed.modelVersion })
+  const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+  return {
+    timingDiffers: !same(target.timetables, theirs.timetables) || !same(target.time, theirs.time),
+    split: phaseTimingSplit(target, theirs, apply),
+  }
 }
 
 /** the live target digest a hunk selection is being built against — passed back
@@ -243,21 +268,7 @@ export function threeWayForPending(p: PendingProposal): ThreeWayPlan {
  *  moves this digest, exactly like a `label` rename); it must stay identical to
  *  `projectStore`'s `liveDigest()`, which is what Apply checks it against. */
 export function currentTargetDigest(): string {
-  const g = useGraphStore.getState()
-  return digestOfCanonical(
-    canonicalContent(
-      {
-        nodes: g.nodes,
-        edges: g.edges,
-        frames: useFrameStore.getState().snapshot(),
-        dataImports: useDataImportStore.getState().snapshot(),
-        kinds: g.kinds, // loop-model/3 — the live kinds table is content too
-        time: g.time, // loop-model/4 — and the step length
-        timetables: g.timetables, // loop-model/5 — and the timetables
-      },
-      { modelVersion: g.modelVersion },
-    ),
-  )
+  return digestOfCanonical(liveTargetContent())
 }
 
 /** §R7 — whole-proposal Apply. `confirmed` is the §R7A.4 consent (required for

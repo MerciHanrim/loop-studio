@@ -20,6 +20,7 @@ import type { LoopEdge, LoopNode } from './types'
 import { readKindsAt, type ResourceKindDecl } from './kinds'
 import { hasKindsTable, hasTableMeaning, hasTimetables, hasUnits } from './modelVersion'
 import { readTimetables, type Timetable } from './timetable'
+import { readPhases, type DocPhase } from './phases'
 import { readDocTime, type DocTime } from './units'
 
 /** docs/mmo-multilingual-layout.md §MML3 — a fixed graph-coordinate rectangle
@@ -68,6 +69,9 @@ export type Template = {
   time?: DocTime
   /** loop-model/5 — the Template's timetables, read as an Import reads them */
   timetables?: Timetable[]
+  /** docs/run-phases.md — the Template's phases, read as an Import reads them.
+   *  Their names are localised by the label overlay, as the tables' are. */
+  phases?: DocPhase[]
   /** `false`: kept here — its node labels still follow a locale switch in a
    *  document made from it, and the developer data and checks keep reading it —
    *  but not offered in the Templates menu (desktop or phone). A Template there
@@ -112,8 +116,8 @@ function tplGraph(doc: unknown): Template['graph'] {
 /** loop-model/3 and /4 — a Template's model version, kinds table and step
  *  length, read from its file as an Import reads them: the unit lists, the
  *  step length and the field units only at version 4 (§M4-1) */
-function tplModel(doc: unknown): Pick<Template, 'modelVersion' | 'kinds' | 'time' | 'timetables'> {
-  const d = doc as { schema?: unknown; kinds?: unknown; time?: unknown; timetables?: unknown }
+function tplModel(doc: unknown): Pick<Template, 'modelVersion' | 'kinds' | 'time' | 'timetables' | 'phases'> {
+  const d = doc as { schema?: unknown; kinds?: unknown; time?: unknown; timetables?: unknown; phases?: unknown }
   const modelVersion = modelVersionForSchema(d.schema) ?? 1
   const kinds = hasKindsTable(modelVersion) ? readKindsAt(d.kinds, modelVersion) : []
   const time = hasUnits(modelVersion) ? readDocTime(d.time) : undefined
@@ -121,7 +125,8 @@ function tplModel(doc: unknown): Pick<Template, 'modelVersion' | 'kinds' | 'time
   // a bundled file is checked by its tests: one that does not read must not ship
   if (read && !read.ok) throw new Error(`a Template's timetables do not read: ${read.problem.code}`)
   const timetables = read?.ok ? read.tables : []
-  return { modelVersion, ...(kinds.length > 0 ? { kinds } : {}), ...(time ? { time } : {}), ...(timetables.length > 0 ? { timetables } : {}) }
+  const phases = readPhases(d.phases)
+  return { modelVersion, ...(kinds.length > 0 ? { kinds } : {}), ...(time ? { time } : {}), ...(timetables.length > 0 ? { timetables } : {}), ...(phases.length > 0 ? { phases } : {}) }
 }
 
 export const TEMPLATES: Template[] = [

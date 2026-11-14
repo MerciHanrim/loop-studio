@@ -17,7 +17,7 @@
 // (./dicts.ts); `openTemplate` reads the resident one, which the atomic
 // locale-switch (src/i18n/store.ts) guarantees is loaded for the active locale.
 
-import type { DocTime, ModelSemanticsVersion, RecommendedRunConfig, ResourceKindDecl, SavedFrame } from '../../model/serialize'
+import type { DocPhase, DocTime, ModelSemanticsVersion, RecommendedRunConfig, ResourceKindDecl, SavedFrame } from '../../model/serialize'
 import type { Template } from '../../model/templates'
 import type { Timetable } from '../../model/timetable'
 import type { LoopEdge, LoopNode } from '../../model/types'
@@ -61,6 +61,8 @@ export type OpenedTemplate = {
   time?: DocTime
   /** loop-model/5 — the Template's timetables, cloned */
   timetables?: Timetable[]
+  /** docs/run-phases.md — the Template's phases, cloned, their names overlaid */
+  phases?: DocPhase[]
 }
 
 /**
@@ -108,6 +110,13 @@ export function openTemplate(
     }
   }
 
+  // a phase's name, on the same rule
+  const phases = tpl.phases ? cloneJSON(tpl.phases) : undefined
+  const phaseDict = overlay?.phases[tpl.id]
+  if (phaseDict && phases) {
+    for (const p of phases) p.label = phaseDict[p.id] ?? p.label
+  }
+
   return {
     graph,
     recommendedRunConfig: tpl.recommendedRunConfig
@@ -117,5 +126,6 @@ export function openTemplate(
     ...(tpl.kinds ? { kinds: cloneJSON(tpl.kinds) } : {}),
     ...(tpl.time ? { time: cloneJSON(tpl.time) } : {}),
     ...(timetables ? { timetables } : {}),
+    ...(phases ? { phases } : {}),
   }
 }

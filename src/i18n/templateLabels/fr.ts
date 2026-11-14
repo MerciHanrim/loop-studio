@@ -431,3 +431,17 @@ export const frTables: TemplateLabelMap = {
     'discharge:source': 'Hypothèse d’exemple, pas des données mesurées',
   },
 }
+
+// a Template phase's name (docs/run-phases.md), `templateId -> (phaseId -> name)`. Flat, so
+// the source-text checks read it as they read the tables.
+export const frPhases: TemplateLabelMap = {
+  'coffee-roasting-batch': {
+    roast_charge: 'Chargement',
+    roast_drying: 'Séchage',
+    roast_browning: 'Brunissement',
+    roast_development: 'Développement',
+    roast_drop: 'Vidange',
+    roast_cooling: 'Refroidissement',
+    roast_discharge: 'Sortie',
+  },
+}

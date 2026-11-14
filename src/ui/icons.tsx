@@ -82,6 +82,8 @@ export const ICONS = {
   // the revision chip
   pencil: [p('M3 13L4 9.5L11 2.5L13.5 5L6.5 12L3 13ZM10 3.5L12.5 6')],
   branch: [p('M2.5 4H5.5L10.5 12H13.5M9.5 4H13.5')],
+  // the run row's phase button, where the phase's name has no room (docs/run-phases.md)
+  info: [c(8, 8, 5.5), p('M8 7.4V11'), c(8, 5.1, 0.55, { fill: true })],
   // (a node kind's mark is its canvas symbol, small: components/nodes/KindIcon.tsx)
 } as const satisfies Record<string, readonly Shape[]>
 

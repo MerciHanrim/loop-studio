@@ -439,3 +439,17 @@ export const ruTables: TemplateLabelMap = {
     'discharge:source': 'Условный пример, не измеренные данные',
   },
 }
+
+// a Template phase's name (docs/run-phases.md), `templateId -> (phaseId -> name)`. Flat, so
+// the source-text checks read it as they read the tables.
+export const ruPhases: TemplateLabelMap = {
+  'coffee-roasting-batch': {
+    roast_charge: 'Загрузка',
+    roast_drying: 'Сушка',
+    roast_browning: 'Потемнение',
+    roast_development: 'Развитие',
+    roast_drop: 'Выгрузка',
+    roast_cooling: 'Охлаждение',
+    roast_discharge: 'Выдача',
+  },
+}

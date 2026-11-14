@@ -573,6 +573,15 @@
       ]
     }
   ],
+  "phases": [
+    { "id": "roast_charge", "label": "Charge", "from": 1, "to": 1 },
+    { "id": "roast_drying", "label": "Drying", "from": 2, "to": 5 },
+    { "id": "roast_browning", "label": "Browning", "from": 6, "to": 9 },
+    { "id": "roast_development", "label": "Development", "from": 10, "to": 13 },
+    { "id": "roast_drop", "label": "Drop", "from": 14, "to": 14 },
+    { "id": "roast_cooling", "label": "Cooling", "from": 15, "to": 18 },
+    { "id": "roast_discharge", "label": "Discharge", "from": 19, "to": 19 }
+  ],
   "recommendedRunConfig": {
     "timelineSeries": [
       "bean_hopper",

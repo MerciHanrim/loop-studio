@@ -199,7 +199,7 @@ describe('the header semantics decide a record (§R10-6)', () => {
     expect(declaredSemantics({ semantics: ' loop-revision/10' })).toBe(0)
   })
 
-  it('every revision and proposal this build writes declares the current semantics (loop-revision/12 since SEMANTICS-R12.md), outside the digest; a record without a straight connection or a port face still declares it', async () => {
+  it('every revision and proposal this build writes declares the current semantics (loop-revision/13 since SEMANTICS-R13.md), outside the digest; a record without a straight connection or a port face still declares it', async () => {
     const { readProject, REVISION_SEMANTICS } = await import('../model/revision')
     const e = two()
     expect(dataOf(e).route).toBe('orthogonal') // no straight connection anywhere
@@ -210,6 +210,6 @@ describe('the header semantics decide a record (§R10-6)', () => {
     const file = JSON.parse(r.text)
     expect(file.project.semantics).toBe(REVISION_SEMANTICS)
     const read = readProject(file.project)
-    expect(read.ok && read.project.semantics).toBe('loop-revision/12')
+    expect(read.ok && read.project.semantics).toBe('loop-revision/13')
   })
 })

@@ -9,6 +9,7 @@ import { useT } from '../../i18n'
 import { isolateAuto } from '../../i18n/bidiIsolate'
 import { documentPoolAmounts, runNoticeText, runRefusalText, runStreak, timetableNoticeText, timetableRefusalText } from '../../ui/runMessages'
 import { Icon } from '../../ui/icons'
+import { phaseTexts, shownPhase } from '../../ui/runPhase'
 
 // docs/mobile.md §MV4 — the fixed bottom run bar. Reset / Step / Play·Pause /
 // Monte Carlo + the step counter + a Timeline-sheet toggle. No speed slider or
@@ -135,6 +136,11 @@ export function MobileRunBar() {
   )
   const barRef = useRef<HTMLDivElement>(null)
   useRunBarHeight(barRef, isMobile)
+  // docs/run-phases.md — the phase the author named for the current step: a line of its
+  // own above the controls, with its steps. Not at the end (the end notice stands alone),
+  // not before the first step and not in a document without phases: no line, no height
+  const phases = useGraphStore((s) => s.phases)
+  const phase = shownPhase(phases, stepIndex, status === 'ended', cannotRun)
 
   // the MC dialog is part of the exclusive set (§MV5): opening it closes any
   // open sheet. The forward direction (a sheet closing the dialog) is in
@@ -169,6 +175,11 @@ export function MobileRunBar() {
       aria-label={t('runbar.ariaLabel')}
       data-tour="mobile-run"
     >
+      {phase && (
+        <div className="pstrip__phase-line" data-testid="run-phase" data-phase={phase.id}>
+          {phaseTexts(phase, t).full}
+        </div>
+      )}
       <div className="pstrip__group">
         <button type="button" className="pb-btn pstrip__reset" onClick={reset} aria-label={t('playbar.reset.title')}>
           <Icon name="reset" />

@@ -22,6 +22,7 @@ import type { FlowNodeKind, LoopEdge, LoopNode } from './types'
 import { hasKindsTable, hasModelLayer, hasTableMeaning, hasTimetables, hasUnits, isModelSemanticsLabel, modelSemanticsLabel, type ModelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
 import { canonicalKinds, readKindsAt, type ResourceKindDecl } from './kinds'
 import { canonicalTimetable, readTimetables, type Timetable } from './timetable'
+import { canonicalPhase, readPhases, type DocPhase } from './phases'
 import { canonicalDocTime, readDocTime, type DocTime } from './units'
 import { sha256Hex, sha256Js, utf8ByteLength, utf8Bytes } from './workspace'
 
@@ -143,6 +144,16 @@ export type CanonicalContent = {
    */
   timetables?: Timetable[]
   /**
+   * loop-revision/13 (SEMANTICS-R13.md §R13-2) — the phases of a run as the
+   * author named them (docs/run-phases.md). A trailing key AFTER `timetables`,
+   * BEFORE `modelSemantics`; present **iff** ≥ 1 phase survives `readPhases`
+   * AND the projection runs under the model layer. Absent ⇒ earlier canonical
+   * bytes / digest unchanged (R13-INV-1). A guide, never engine input: never
+   * `engineAffecting` / `advisoryAffecting`. Array order is file order, which
+   * the read keeps in step order.
+   */
+  phases?: DocPhase[]
+  /**
    * loop-model/2 (SEMANTICS-M2.md §M2-8) — the model-semantics discriminator.
    * Present (as `"loop-model/2"`, or `"loop-model/N"` for a later version N)
    * **iff** the document declares a model-layer version (`hasModelLayer`,
@@ -192,10 +203,10 @@ export type ProjectPayload = {
   semantics?: string
 }
 
-/** the revision semantics this build writes into a header (§R10-6; `/12` since
- *  SEMANTICS-R12.md — the icon of a flow node; `/11` was the port faces of the
- *  node structure) */
-export const REVISION_SEMANTICS = 'loop-revision/12'
+/** the revision semantics this build writes into a header (§R10-6; `/13` since
+ *  SEMANTICS-R13.md — the phases of a run; `/12` was the icon of a flow node,
+ *  `/11` the port faces of the node structure) */
+export const REVISION_SEMANTICS = 'loop-revision/13'
 const SEMANTICS_RE = /^loop-revision\/([1-9][0-9]{0,3})$/
 /** the `N` of {@link REVISION_SEMANTICS} — what this reader can verify */
 const OWN_SEMANTICS_N = Number(SEMANTICS_RE.exec(REVISION_SEMANTICS)![1])
@@ -627,6 +638,8 @@ export function canonicalContent(
     time?: unknown
     /** loop-model/5 — raw or already-clean timetables (§M5-2 is applied here) */
     timetables?: unknown
+    /** loop-revision/13 — raw or already-clean phases (`readPhases` is applied here) */
+    phases?: unknown
   },
   opts: { modelLayer?: boolean; modelVersion?: CanonModelVersion } = {},
 ): CanonicalContent {
@@ -726,6 +739,14 @@ export function canonicalContent(
     const tables = readTimetables(doc.timetables, hasTableMeaning(opts.modelVersion))
     if (tables.ok && tables.tables.length > 0) out.timetables = tables.tables.map(canonicalTimetable)
   }
+  // loop-revision/13 (SEMANTICS-R13.md §R13-2) — `phases` AFTER `timetables`,
+  // BEFORE `modelSemantics`. Only under the model layer, only when ≥ 1 phase
+  // survives the read, at any model version (a phase is not model semantics).
+  // Absent ⇒ earlier bytes untouched (R13-INV-1).
+  if (modelLayer) {
+    const phases = readPhases(doc.phases)
+    if (phases.length > 0) out.phases = phases.map(canonicalPhase)
+  }
   // loop-model/2 (SEMANTICS-M2.md §M2-8) — trailing discriminator, ONLY for a
   // model-layer document. Absent ⇒ v1 canonical bytes / digest are untouched (M2-INV-9).
   const label = modelSemanticsLabel(opts.modelVersion)
@@ -758,6 +779,9 @@ export async function fullContentDigest(
     /** `loop-revision/8` — carried into the projection (§R8-2.1). Absent ⇒ the
      *  digest is unchanged from ≤ v7 (R8-INV-2). */
     dataImports?: unknown
+    /** loop-revision/13 — carried into the projection (§R13-2). Absent ⇒ the
+     *  digest is unchanged (R13-INV-1). */
+    phases?: unknown
   },
   modelVersion?: CanonModelVersion,
 ): Promise<string> {
@@ -785,6 +809,7 @@ export type SideVersion =
   | 'loop-revision/10' // SEMANTICS-R10.md — the side carries ≥ 1 straight connection (`route: "straight"`)
   | 'loop-revision/11' // SEMANTICS-R11.md — the side carries ≥ 1 stored non-default port face (`data.ports`)
   | 'loop-revision/12' // SEMANTICS-R12.md — the side carries ≥ 1 flow-node icon (`data.icon`)
+  | 'loop-revision/13' // SEMANTICS-R13.md — the side carries ≥ 1 surviving graph-level phase (`phases`)
 export type RevisionSideOk = {
   ok: true
   version: SideVersion
@@ -849,6 +874,9 @@ export function readRevisionSide(
     time?: DocTime
     /** loop-model/5 — the side's timetables, projected at the declared version. */
     timetables?: readonly Timetable[]
+    /** SEMANTICS-R13.md §R13-1 — the side's phases (from `deserialize`); ≥ 1
+     *  surviving phase makes the side `loop-revision/13`. */
+    phases?: readonly DocPhase[]
     /** `SEMANTICS-R8.md` §R8-1 — true when the file's RAW, pre-defensive-read
      *  content carried a data-import provenance signal (an invalid-typed
      *  provenance key, or a `dataImports` entry) that `readDataImports` /
@@ -979,7 +1007,13 @@ export function readRevisionSide(
   // by `normalizeGraph`). The newest extension, so the highest label precedence,
   // on the same projection.
   const hasIcon = g.nodes.some((n) => readIcon((n.data as { icon?: unknown } | undefined)?.icon) !== undefined)
-  const version: SideVersion = hasIcon
+  // SEMANTICS-R13.md §R13-1 — ≥ 1 SURVIVING phase (survival decides, as for
+  // frames: a `phases` block whose entries were all dropped leaves nothing).
+  // The newest extension, so the highest label precedence, on the same projection.
+  const hasPhases = readPhases(graph.phases).length > 0
+  const version: SideVersion = hasPhases
+    ? 'loop-revision/13'
+    : hasIcon
     ? 'loop-revision/12'
     : hasPorts
     ? 'loop-revision/11'
@@ -1215,10 +1249,21 @@ export type DataImportsChange = {
   proposed: NonNullable<CanonicalContent['dataImports']> | null
 }
 
+/** `loop-revision/13` (`SEMANTICS-R13.md` §R13-4) — the whole projected `phases`
+ *  array compared as ONE top-level hunk, as `FramesChange` is. Present on the
+ *  diff only when the arrays differ (`null` = the side had none). */
+export type PhasesChange = {
+  base: NonNullable<CanonicalContent['phases']> | null
+  proposed: NonNullable<CanonicalContent['phases']> | null
+}
+
 export type RevisionDiff = {
   nodes: ElementBuckets<CanonicalNode>
   edges: ElementBuckets<CanonicalEdge>
   runConfig: RunConfigChange[]
+  /** `loop-revision/13` — `null` when the phases are equal; otherwise the
+   *  before / after arrays (one atomic hunk). */
+  phases: PhasesChange | null
   /** `loop-revision/5` — `null` when the saved frames are equal; otherwise the
    *  before / after arrays (one atomic cosmetic hunk). */
   frames: FramesChange | null
@@ -1238,6 +1283,16 @@ export type RevisionDiff = {
      *  `provenance`: feeds `dirty` / the diff / `nConf`, but never
      *  `engineAffecting` / `advisoryAffecting` (§R8-3). */
     dataImportsChanged: boolean
+    /** `loop-revision/13` — the `phases` array differs. A guide: feeds `dirty` /
+     *  the diff / `nConf`, never `engineAffecting` / `advisoryAffecting`. */
+    phasesChanged: boolean
+    /** SEMANTICS-R13.md §R13-5 — the graph-level engine keys differ: the
+     *  timetables, the step length, the kinds table. They have no hunk (only a
+     *  whole Apply takes them), but a difference in one is a difference: it is
+     *  named in the summary, it is never an empty diff, and it is engine-affecting. */
+    timetablesChanged: boolean
+    stepLengthChanged: boolean
+    kindsChanged: boolean
     engineAffecting: boolean
     /** `loop-revision/2` (`SEMANTICS-R2.md` §R2-3 / R2-D1) — any `advisory`-tagged
      *  hunk (a tuning hint or a `resourceType` tag). Separate from
@@ -1389,8 +1444,18 @@ export function computeRevisionDiff(
   const dataImports: DataImportsChange | null = dataImportsChanged
     ? { base: base.dataImports ?? null, proposed: proposed.dataImports ?? null }
     : null
+  // §R13-4 — the whole `phases` array as one hunk, same shape.
+  const phasesChanged = !deepEq(base.phases ?? null, proposed.phases ?? null)
+  const phases: PhasesChange | null = phasesChanged ? { base: base.phases ?? null, proposed: proposed.phases ?? null } : null
+  // §R13-5 — the graph-level engine keys: no hunk, but named when they differ
+  const timetablesChanged = !deepEq(base.timetables ?? null, proposed.timetables ?? null)
+  const stepLengthChanged = !deepEq(base.time ?? null, proposed.time ?? null)
+  const kindsChanged = !deepEq(base.kinds ?? null, proposed.kinds ?? null)
 
   const anyEngine =
+    timetablesChanged ||
+    stepLengthChanged ||
+    kindsChanged ||
     nodes.added.length > 0 ||
     nodes.removed.length > 0 ||
     edges.added.length > 0 ||
@@ -1420,12 +1485,17 @@ export function computeRevisionDiff(
     edges.changed.length === 0 &&
     runConfig.length === 0 &&
     !framesChanged && // §R5-6 — a frames-only change is NOT an empty diff
-    !dataImportsChanged // §R8-6 — nor a dataImports-only change
+    !dataImportsChanged && // §R8-6 — nor a dataImports-only change
+    !phasesChanged && // §R13-4 — nor a phases-only change
+    !timetablesChanged && // §R13-5 — nor a change of the timetables, the step length or the kinds
+    !stepLengthChanged &&
+    !kindsChanged
 
   return {
     nodes,
     edges,
     runConfig,
+    phases,
     frames,
     dataImports,
     workspaceDiffers: opts.workspaceDiffers ?? false,
@@ -1435,7 +1505,11 @@ export function computeRevisionDiff(
       runConfigChanged: runConfig.length > 0,
       framesChanged,
       dataImportsChanged,
-      engineAffecting: anyEngine, // §R5-3 / §R8-3 — neither `frames` nor `dataImports` ever sets this
+      phasesChanged,
+      timetablesChanged,
+      stepLengthChanged,
+      kindsChanged,
+      engineAffecting: anyEngine, // §R5-3 / §R8-3 / §R13-3 — `frames`, `dataImports` and `phases` never set this
       advisoryAffecting: anyAdvisory, // nor this
       provenanceAffecting: anyProvenance,
       empty,
@@ -1519,8 +1593,22 @@ export type DataImportsHunk = {
   proposed: NonNullable<CanonicalContent['dataImports']> | null
   yours: NonNullable<CanonicalContent['dataImports']> | null
 }
+/** `SEMANTICS-R13.md` §R13-4 — the single graph-level `phases` hunk, mirroring
+ *  `FramesHunk` exactly: one atomic array, `noop` / `clean` / `conflict`
+ *  against the live target, present only when base and proposed differ. */
+export type PhasesHunk = {
+  kind: 'phases'
+  verdict: ThreeWayFieldVerdict
+  base: NonNullable<CanonicalContent['phases']> | null
+  proposed: NonNullable<CanonicalContent['phases']> | null
+  yours: NonNullable<CanonicalContent['phases']> | null
+}
 export type ThreeWayPlan = {
   hunks: ProposalHunk[]
+  /** `SEMANTICS-R13.md` §R13-4 — the graph-level `phases` hunk. Absent when the
+   *  base and proposed `phases` arrays are equal. A conflicting one counts in
+   *  `nConf`, as a conflicting `frames` hunk does. */
+  phases?: PhasesHunk
   /** SEMANTICS-R5.md §R5-6 — the graph-level `frames` hunk. Absent when the
    *  base and proposed `frames` arrays are equal (nothing to offer). */
   frames?: FramesHunk
@@ -1666,7 +1754,49 @@ export function computeThreeWay(
     if (verdict === 'conflict') nConf += 1
   }
 
-  return { hunks, ...(frames ? { frames } : {}), ...(dataImports ? { dataImports } : {}), nConf }
+  // `SEMANTICS-R13.md` §R13-4 — the graph-level `phases` hunk, identical
+  // mechanics (whole-array, same `nConf` treatment: a whole Apply over a third
+  // array would discard the user's phases, so it is confirmed first).
+  const bPhases = base.phases ?? null
+  const pPhases = proposed.phases ?? null
+  let phases: PhasesHunk | undefined
+  if (!deepEq(bPhases, pPhases)) {
+    const yPhases = target.phases ?? null
+    const verdict: ThreeWayFieldVerdict = deepEq(yPhases, pPhases) ? 'noop' : deepEq(yPhases, bPhases) ? 'clean' : 'conflict'
+    phases = { kind: 'phases', verdict, base: bPhases, proposed: pPhases, yours: yPhases }
+    if (verdict === 'conflict') nConf += 1
+  }
+
+  return { hunks, ...(frames ? { frames } : {}), ...(dataImports ? { dataImports } : {}), ...(phases ? { phases } : {}), nConf }
+}
+
+/**
+ * SEMANTICS-R13.md §R13-6 — would this Apply leave the phase names and the timing
+ * they describe on different sides? Phases are the author's names for spans of
+ * steps; the timetables and the step length set what those steps do. A whole
+ * Apply takes all three from the proposal; "choose changes" never takes the
+ * timetables or the step length (they have no hunk) and takes the phases only
+ * when their hunk is accepted. Compared against the LIVE target:
+ *   - `'timing-only'` — the timing changes and phases that the document keeps
+ *     as they are stay (a whole Apply of a proposal whose phases equal the
+ *     target's, or — were timing ever taken per hunk — a kept `phases` hunk);
+ *   - `'phases-only'` — the proposal's phases are taken onto the target's
+ *     timing, which differs from the proposal's ("choose changes" with the
+ *     `phases` hunk accepted).
+ * `null` when nothing of the two is split, and always when the resulting
+ * document has no phases to go wrong. The review shows a notice; nothing is
+ * refused (Lumi, 2026-11-14).
+ */
+export function phaseTimingSplit(
+  target: CanonicalContent,
+  proposed: CanonicalContent,
+  apply: { mode: 'whole' } | { mode: 'hunks'; phases: 'proposed' | 'yours' | undefined },
+): 'timing-only' | 'phases-only' | null {
+  const timingDiffers = !deepEq(target.timetables ?? null, proposed.timetables ?? null) || !deepEq(target.time ?? null, proposed.time ?? null)
+  if (!timingDiffers) return null
+  const phasesDiffer = !deepEq(target.phases ?? null, proposed.phases ?? null)
+  if (apply.mode === 'whole') return !phasesDiffer && (target.phases?.length ?? 0) > 0 ? 'timing-only' : null
+  return apply.phases === 'proposed' && phasesDiffer && (proposed.phases?.length ?? 0) > 0 ? 'phases-only' : null
 }
 
 /** §R7A.2 `nConf` — the conflict count only (see {@link computeThreeWay}). */
@@ -1719,6 +1849,9 @@ export type HunkSelection = {
   /** `SEMANTICS-R8.md` §R8-6 — the single graph-level `dataImports` hunk,
    *  same mechanics as `frames`. */
   dataImports?: 'proposed' | 'yours'
+  /** `SEMANTICS-R13.md` §R13-4 — the single graph-level `phases` hunk, same
+   *  mechanics as `frames`. */
+  phases?: 'proposed' | 'yours'
 }
 export type SelectiveApplyResult =
   | {
@@ -1733,6 +1866,9 @@ export type SelectiveApplyResult =
       /** `SEMANTICS-R8.md` §R8-6 — set ONLY when the `dataImports` hunk was
        *  accepted, same posture as `frames`. */
       dataImports?: readonly ImportSourceTable[]
+      /** `SEMANTICS-R13.md` §R13-4 — set ONLY when the `phases` hunk was
+       *  accepted: the proposal's whole array (`[]` = none). */
+      phases?: readonly DocPhase[]
     }
   | { ok: false; reason: 'invalid-selection'; detail: string }
 
@@ -1762,6 +1898,8 @@ export function buildSelectiveApply(input: {
     /** `SEMANTICS-R8.md` §R8-6 — the proposal's saved data-import source
      *  records, same posture as `frames`. */
     dataImports?: readonly ImportSourceTable[]
+    /** `SEMANTICS-R13.md` §R13-4 — the proposal's phases, same posture. */
+    phases?: readonly DocPhase[]
   }
   plan: ThreeWayPlan
   selection: HunkSelection
@@ -1868,6 +2006,8 @@ export function buildSelectiveApply(input: {
   // `SEMANTICS-R8.md` §R8-6 — the `dataImports` hunk, identical mechanics.
   const dataImports: readonly ImportSourceTable[] | undefined =
     selection.dataImports === 'proposed' ? (proposedFull.dataImports ?? []).map(cloneEl) : undefined
+  // `SEMANTICS-R13.md` §R13-4 — the `phases` hunk, identical mechanics.
+  const phases: readonly DocPhase[] | undefined = selection.phases === 'proposed' ? (proposedFull.phases ?? []).map(cloneEl) : undefined
 
   return {
     ok: true,
@@ -1875,6 +2015,7 @@ export function buildSelectiveApply(input: {
     edges: outEdges,
     ...(frames !== undefined ? { frames } : {}),
     ...(dataImports !== undefined ? { dataImports } : {}),
+    ...(phases !== undefined ? { phases } : {}),
   }
 }
 
@@ -2224,6 +2365,11 @@ function readCanonicalContent(x: unknown): CanonicalContent | null {
   if (Array.isArray(o.timetables) && o.timetables.length > 0) {
     out.timetables = o.timetables as NonNullable<CanonicalContent['timetables']>
   }
+  // loop-revision/13 — and a base snapshot with phases carries the trailing
+  // `phases` (after `timetables`), verbatim.
+  if (Array.isArray(o.phases) && o.phases.length > 0) {
+    out.phases = o.phases as NonNullable<CanonicalContent['phases']>
+  }
   // loop-model/2 (SEMANTICS-M2.md §M2-8) — a stored base snapshot from a v2
   // document carries the trailing discriminator; keep it verbatim (after rrc,
   // the same key order `canonicalContent` emits) so the stored digest verifies.
@@ -2276,6 +2422,9 @@ export type GraphDocInput = {
   time?: DocTime
   /** loop-model/5 (§M5-7) — the doc's timetables. Absent / empty ⇒ no key. */
   timetables?: readonly Timetable[]
+  /** SEMANTICS-R13.md §R13-2 — the doc's phases. Absent / empty ⇒ no `phases`
+   *  key in the file and no contribution to the content digest (R13-INV-1). */
+  phases?: readonly DocPhase[]
   workspace?: unknown
 }
 
@@ -2498,6 +2647,8 @@ function buildFile(
   if (time !== undefined) file.time = time
   // §M5-1 — `timetables` after `time`, only when non-empty.
   if (Array.isArray(doc.timetables) && doc.timetables.length > 0) file.timetables = doc.timetables.map(canonicalTimetable)
+  // §R13-2 — `phases` after `timetables`, only when non-empty, in its read form.
+  if (Array.isArray(doc.phases) && doc.phases.length > 0) file.phases = doc.phases.map(canonicalPhase)
   if (doc.workspace && typeof doc.workspace === 'object') file.workspace = doc.workspace
   file.project = project
   return file

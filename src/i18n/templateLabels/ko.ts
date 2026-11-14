@@ -446,3 +446,17 @@ export const koTables: TemplateLabelMap = {
     'discharge:source': '예시 가정이며 실측 자료가 아닙니다',
   },
 }
+
+// a Template phase's name (docs/run-phases.md), `templateId -> (phaseId -> name)`. Flat, so
+// the source-text checks read it as they read the tables.
+export const koPhases: TemplateLabelMap = {
+  'coffee-roasting-batch': {
+    roast_charge: '투입',
+    roast_drying: '건조',
+    roast_browning: '갈변',
+    roast_development: '발달',
+    roast_drop: '드롭',
+    roast_cooling: '냉각',
+    roast_discharge: '냉각 완료',
+  },
+}

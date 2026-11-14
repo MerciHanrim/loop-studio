@@ -27,12 +27,14 @@ import { TEMPLATES } from '../../model/templates'
 import type { Timetable } from '../../model/timetable'
 import type { LoopNode } from '../../model/types'
 import { BASE_LOCALE } from '../registry'
-import { loadedTemplateFrameLabelDict, loadedTemplateLabelDict, loadedTemplateTableLabelDict, templateLabelDictLocales } from './dicts'
+import type { DocPhase } from '../../model/phases'
+import { loadedTemplateFrameLabelDict, loadedTemplateLabelDict, loadedTemplatePhaseLabelDict, loadedTemplateTableLabelDict, templateLabelDictLocales } from './dicts'
 import {
   AMBIGUOUS_FRAME_IDS,
   AMBIGUOUS_NODE_IDS,
   KNOWN_OFFICIAL_FRAME_LABELS,
   KNOWN_OFFICIAL_LABELS,
+  KNOWN_OFFICIAL_PHASE_LABELS,
   KNOWN_OFFICIAL_TABLE_LABELS,
 } from './known.generated'
 
@@ -222,6 +224,38 @@ export function relabelTablesForLocale(tables: readonly Timetable[], targetLocal
     return { ...t, label, source }
   })
   return changed ? next : (tables as Timetable[])
+}
+
+// ── a phase's name (docs/run-phases.md), on the same rule ─────────────────
+
+/** one locale's official name for every Template phase, or `undefined` for a
+ *  registered locale whose chunk is not resident */
+function phaseTargetsFor(locale: string): ReadonlyMap<string, string> | undefined {
+  const dict = locale === BASE_LOCALE || !templateLabelDictLocales.includes(locale) ? {} : loadedTemplatePhaseLabelDict(locale)
+  if (!dict) return undefined
+  const m = new Map<string, string>()
+  for (const tpl of TEMPLATES) for (const p of tpl.phases ?? []) m.set(p.id, dict[tpl.id]?.[p.id] ?? p.label)
+  return m
+}
+
+/** re-seed the official names of a document's phases for `targetLocale`: a name is
+ *  switched only when it is exactly an official one for that id. Returns the same
+ *  array when nothing changed. */
+export function relabelPhasesForLocale(phases: readonly DocPhase[], targetLocale: string): DocPhase[] {
+  if (phases.length === 0) return phases as DocPhase[]
+  const targets = phaseTargetsFor(targetLocale)
+  if (!targets) {
+    console.error(`[i18n] relabelPhasesForLocale("${targetLocale}"): dictionary not resident — phases left unchanged.`)
+    return phases as DocPhase[]
+  }
+  let changed = false
+  const next = phases.map((p) => {
+    const label = KNOWN_OFFICIAL_PHASE_LABELS[p.id]?.includes(p.label) ? (targets.get(p.id) ?? p.label) : p.label
+    if (label === p.label) return p
+    changed = true
+    return { ...p, label }
+  })
+  return changed ? next : (phases as DocPhase[])
 }
 
 /** Test seam — drop the caches so a stubbed `TEMPLATES` / dictionary / a

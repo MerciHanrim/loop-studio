@@ -309,6 +309,25 @@ describe('the coffee roasting batch example', () => {
     expect(first.events).toEqual({})
   })
 
+  it('the phases the document names are the ones its timetables make, in the note’s words', () => {
+    // docs/run-phases.md — a phase is the author's name for a span of steps, not a value
+    // the engine reads; here the spans are checked against the tables that set the time.
+    // Every time a table changes its rate, or ends, is a boundary; with one minute per
+    // step, the span after boundary a up to boundary b is the steps a + 1 to b.
+    const { timetables, phases, time } = readDoc()
+    expect(time?.step).toEqual({ value: 1, unit: 'min' })
+    expect(timetables.every((x) => x.timeUnit === 'min')).toBe(true)
+    const times = [...new Set(timetables.flatMap((x) => [...x.points.map((p) => Number(p[0])), Number(x.end)]))].sort((a, b) => a - b)
+    expect(times.every(Number.isInteger)).toBe(true)
+    const spans = times.slice(1).map((b, i) => [times[i]! + 1, b])
+    expect(spans).toEqual([[1, 1], [2, 5], [6, 9], [10, 13], [14, 14], [15, 18], [19, 19]])
+    expect(phases.map((p) => [p.from, p.to])).toEqual(spans)
+    expect(phases.map((p) => p.label)).toEqual(['Charge', 'Drying', 'Browning', 'Development', 'Drop', 'Cooling', 'Discharge'])
+    // the three roasting phases are the ones this file's release rates are checked by
+    expect(phases.slice(1, 4).map((p) => ({ name: p.label.toLowerCase(), from: p.from, to: p.to }))).toEqual(PHASES.map((p) => ({ ...p })))
+    expect(phases.at(-1)!.to).toBe(LAST)
+  })
+
   it('matches the pinned oracle', () => {
     const got = derive()
     if (GEN) writeFileSync(resolve(DIR, 'coffee-roasting-batch.expected.json'), JSON.stringify(got, null, 2) + '\n')

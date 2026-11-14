@@ -10,7 +10,7 @@ import { create } from 'zustand'
 import { useAutosaveStore } from './autosaveStore'
 import { useI18n } from '../i18n/store'
 import { defaultNodeLabel } from '../i18n/nodeDefaults'
-import { relabelFramesForLocale, relabelNodesForLocale, relabelTablesForLocale } from '../i18n/templateLabels/relabel'
+import { relabelFramesForLocale, relabelNodesForLocale, relabelPhasesForLocale, relabelTablesForLocale } from '../i18n/templateLabels/relabel'
 import { createNode, defaultData, nextId } from '../model/factory'
 import { dragSnap, snapDrag } from '../model/layout/dragSnap'
 import { useGuideStore } from './guideStore'
@@ -34,6 +34,7 @@ import { canonicalKinds, kindsDeclareUnits, resolveKinds, type ResourceKindDecl 
 import { exportUnits, type ExportUnits } from '../model/exportUnits'
 import { canonicalDocTime, type DocTime } from '../model/units'
 import { canonicalTimetable, meaningOf, timetableLines, type Timetable } from '../model/timetable'
+import { canonicalPhase, type DocPhase } from '../model/phases'
 import { parseActivatorExpr } from '../engine'
 import {
   deserialize,
@@ -117,6 +118,10 @@ export type LoadDocOptions = (
   /** loop-model/5 — the doc's timetables. On a document boundary absent means
    *  none; on a revision Apply it keeps the current ones, as `kinds` does. */
   timetables?: readonly Timetable[]
+  /** docs/run-phases.md — the doc's phases (already defensively read). On a
+   *  document boundary absent means none; on a revision Apply it keeps the
+   *  current ones, and an array (also `[]`) replaces them (SEMANTICS-R13.md §R13-4). */
+  phases?: readonly DocPhase[]
 }
 /** a Template load (or a pasted graph) — always a document boundary */
 export type LoadGraphOptions = {
@@ -139,6 +144,8 @@ export type LoadGraphOptions = {
   time?: DocTime
   /** loop-model/5 — a bundled Template's timetables, if one ever ships any. */
   timetables?: readonly Timetable[]
+  /** docs/run-phases.md — a bundled Template's phases. Absent ⇒ none. */
+  phases?: readonly DocPhase[]
 }
 /** one undo-history frame: the graph, its `modelVersion`, AND an opaque sidecar
  *  (the loop-revision/1 project header at that instant), so a single undo/redo
@@ -157,6 +164,9 @@ type HistoryEntry = {
   time?: DocTime
   /** loop-model/5 — the timetables at that instant */
   timetables?: Timetable[]
+  /** SEMANTICS-R13.md §R13-4 — the phases at that instant: a revision Apply that
+   *  takes the proposal's phases is undone, graph and phases, by one Undo */
+  phases?: DocPhase[]
   /** issue #344 step 3 — the record label rule in force (`recordLabels`) */
   recordLabels?: boolean
   sidecar: unknown
@@ -246,6 +256,15 @@ type GraphStore = {
    *  `newGraph`. Passed to `serialize()` / autosave, to `step()` / Monte Carlo
    *  and into the digests. */
   timetables: Timetable[]
+
+  /** docs/run-phases.md — the phases of a run as the document's author named
+   *  them, or none. Set where a document begins (a file, a Template, a share
+   *  link, a Workspace, the autosave) and by a revision Apply that takes the
+   *  proposal's (SEMANTICS-R13.md); every undo entry carries them, so that
+   *  Apply is one Undo. An inserted module keeps them. Passed to `serialize()`
+   *  / autosave, into the REVISION digest, and shown beside the current step;
+   *  never to `step()`, Monte Carlo or the engine digest. */
+  phases: DocPhase[]
 
   /** issue #344 step 3 (docs/edge-routing.md §ER15.1) — the document came
    *  from a revision or proposal whose header declares semantics before
@@ -648,6 +667,7 @@ function writeAutosaveNow(): void {
       s.kinds,
       s.time,
       s.timetables,
+      s.phases,
     ),
   )
 }
@@ -934,9 +954,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     if (tag === 'remove') queueMicrotask(() => { if (lastTag === 'remove') lastTag = '' })
     clearPristine() // any edit / load / template — even a coalesced one — ends "pristine"
     if (coalesce) return
-    const { nodes, edges, modelVersion, kinds, time, timetables, recordLabels } = get()
+    const { nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels } = get()
     set({
-      past: [...get().past, { nodes, edges, modelVersion, kinds, time, timetables, recordLabels, sidecar: sidecarNow(framesOverride) }].slice(-HISTORY_MAX),
+      past: [...get().past, { nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels, sidecar: sidecarNow(framesOverride) }].slice(-HISTORY_MAX),
       future: [], // a fresh action discards the redo branch AND its sidecars
       canUndo: true,
       canRedo: false,
@@ -993,8 +1013,8 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     notifyFrameChange: () => persist(),
 
     captureGestureSnapshot: () => {
-      const { nodes, edges, modelVersion, kinds, time, timetables, recordLabels } = get()
-      const entry: HistoryEntry = { nodes, edges, modelVersion, kinds, time, timetables, recordLabels, sidecar: sidecarNow() }
+      const { nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels } = get()
+      const entry: HistoryEntry = { nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels, sidecar: sidecarNow() }
       return entry as unknown as GestureSnapshot
     },
     pushGestureEntry: (snapshot) => {
@@ -1011,9 +1031,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     beginNodeDrag: () => {
       if (editGuard()) return // #334 — a refused drag opens no transaction
       if (dragTx) return // the node and selection start callbacks of one gesture: the first wins
-      const { nodes, edges, modelVersion, kinds, time, timetables, recordLabels } = get()
+      const { nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels } = get()
       dragTx = {
-        snapshot: { nodes, edges, modelVersion, kinds, time, timetables, recordLabels, sidecar: sidecarNow() },
+        snapshot: { nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels, sidecar: sidecarNow() },
         positions: new Map(nodes.map((n) => [n.id, { x: n.position.x, y: n.position.y }])),
       }
     },
@@ -1065,6 +1085,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     kinds: stored?.kinds ?? [],
     time: stored?.time,
     timetables: stored?.timetables ?? [],
+    phases: stored?.phases ?? [],
     // issue #344 step 3 (§ER15.1) — the autosaved Project header says which
     // label rule the document had; a header written before the key existed is
     // a record from before `loop-revision/10`. A proposal session is not
@@ -1077,7 +1098,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     undo: () => {
       if (editGuard()) return // #334 — refused while the edit lock is on
-      const { past, future, nodes, edges, modelVersion, kinds, time, timetables, recordLabels } = get()
+      const { past, future, nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels } = get()
       if (!past.length) return
       const prev = past[past.length - 1]
       lastTag = ''
@@ -1087,9 +1108,10 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         kinds: prev.kinds,
         time: prev.time,
         timetables: prev.timetables ?? [],
+        phases: prev.phases ?? phases,
         recordLabels: prev.recordLabels ?? false,
         past: past.slice(0, -1),
-        future: [{ nodes, edges, modelVersion, kinds, time, timetables, recordLabels, sidecar: sidecarNow(), ...(prev.selection ? { selection: prev.selection } : {}) }, ...future].slice(0, HISTORY_MAX),
+        future: [{ nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels, sidecar: sidecarNow(), ...(prev.selection ? { selection: prev.selection } : {}) }, ...future].slice(0, HISTORY_MAX),
         canUndo: past.length > 1,
         canRedo: true,
       })
@@ -1102,7 +1124,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     redo: () => {
       if (editGuard()) return // #334 — refused while the edit lock is on
-      const { past, future, nodes, edges, modelVersion, kinds, time, timetables, recordLabels } = get()
+      const { past, future, nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels } = get()
       if (!future.length) return
       const next = future[0]
       lastTag = ''
@@ -1112,8 +1134,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         kinds: next.kinds,
         time: next.time,
         timetables: next.timetables ?? [],
+        phases: next.phases ?? phases,
         recordLabels: next.recordLabels ?? false,
-        past: [...past, { nodes, edges, modelVersion, kinds, time, timetables, recordLabels, sidecar: sidecarNow(), ...(next.selection ? { selection: next.selection } : {}) }].slice(-HISTORY_MAX),
+        past: [...past, { nodes, edges, modelVersion, kinds, time, timetables, phases, recordLabels, sidecar: sidecarNow(), ...(next.selection ? { selection: next.selection } : {}) }].slice(-HISTORY_MAX),
         future: future.slice(1),
         canUndo: true,
         canRedo: future.length > 1,
@@ -1488,6 +1511,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         kinds: [], // loop-model/3 — an empty canvas declares no kinds
         time: undefined, // loop-model/4 — and no step length
         timetables: [], // loop-model/5 — and no timetables
+        phases: [], // docs/run-phases.md — and no phases
         recordLabels: false,
         loadRev: get().loadRev + 1,
         pendingInitialView: null, // §MML3 — no menu framing survives a New
@@ -1507,7 +1531,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       persist()
     },
 
-    loadGraph: (snapshot, { canvasLocked, modelVersion = 1, initialView = null, frames, dataImports, kinds, time, timetables }) => {
+    loadGraph: (snapshot, { canvasLocked, modelVersion = 1, initialView = null, frames, dataImports, kinds, time, timetables, phases }) => {
       // templates and pasted graphs go through the same handle/field backfill
       const { nodes, edges } = normalizeGraph(snapshot)
       const fresh = enterDocument(canvasLocked)
@@ -1522,6 +1546,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         kinds: kinds ? canonicalKinds(kinds) : [], // loop-model/3 — a Template's table, or none
         time: canonicalDocTime(time), // loop-model/4 — a Template's step length, or none
         timetables: timetables ? timetables.map(canonicalTimetable) : [], // loop-model/5 — its timetables, or none
+        phases: phases ? phases.map(canonicalPhase) : [], // docs/run-phases.md — its phases, or none
         recordLabels: false,
         loadRev: get().loadRev + 1,
         fitRev: get().fitRev + 1,
@@ -1540,10 +1565,10 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     loadJSON: (text) => {
-      const { nodes, edges, recommendedRunConfig, modelVersion, layoutVersion, frames, dataImports, kinds, time, timetables } = deserialize(text)
+      const { nodes, edges, recommendedRunConfig, modelVersion, layoutVersion, frames, dataImports, kinds, time, timetables, phases } = deserialize(text)
       get().loadDoc(
         { nodes, edges },
-        { mode: 'document-boundary', canvasLocked: recommendedRunConfig?.canvasLocked === true, modelVersion, layoutVersion, frames, dataImports, kinds, time, timetables },
+        { mode: 'document-boundary', canvasLocked: recommendedRunConfig?.canvasLocked === true, modelVersion, layoutVersion, frames, dataImports, kinds, time, timetables, phases },
       )
       return recommendedRunConfig
     },
@@ -1589,6 +1614,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         time: opts.mode === 'document-boundary' || opts.replaceTime ? canonicalDocTime(opts.time) : get().time,
         // loop-model/5 — the timetables, as the kinds table
         timetables: opts.timetables !== undefined ? opts.timetables.map(canonicalTimetable) : opts.mode === 'document-boundary' ? [] : get().timetables,
+        // docs/run-phases.md — another document brings its own phases (none ⇒ none);
+        // a revision Apply replaces them only when it carries some (§R13-4), as `kinds`
+        phases: opts.phases !== undefined ? opts.phases.map(canonicalPhase) : opts.mode === 'document-boundary' ? [] : get().phases,
         // issue #344 step 3 — another document says which label rule it takes;
         // a revision Apply edits this one and keeps its rule
         recordLabels: opts.mode === 'document-boundary' ? opts.recordLabels === true : get().recordLabels,
@@ -1767,6 +1795,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         get().kinds,
         get().time,
         get().timetables,
+        get().phases,
       ),
 
     setKinds: (next) => {
@@ -1898,6 +1927,10 @@ useI18n.subscribe((s) => {
   const timetables = relabelTablesForLocale(g.timetables, loc)
   const liveTablesChanged = timetables !== g.timetables
 
+  // live phases (docs/run-phases.md): their names too, here and in every history entry below
+  const phases = relabelPhasesForLocale(g.phases, loc)
+  const livePhasesChanged = phases !== g.phases
+
   // history — remap both the node labels and the frame sidecar of every entry
   const remap = (h: HistoryEntry): HistoryEntry => {
     const n = relabelNodesForLocale(h.nodes, loc)
@@ -1908,11 +1941,14 @@ useI18n.subscribe((s) => {
     const fChg = f1 !== f0
     const t = h.timetables ? relabelTablesForLocale(h.timetables, loc) : h.timetables
     const tChg = t !== h.timetables
-    if (!nChg && !fChg && !tChg) return h
+    const ph = h.phases ? relabelPhasesForLocale(h.phases, loc) : h.phases
+    const phChg = ph !== h.phases
+    if (!nChg && !fChg && !tChg && !phChg) return h
     return {
       ...h,
       ...(nChg ? { nodes: n } : {}),
       ...(tChg ? { timetables: t } : {}),
+      ...(phChg ? { phases: ph } : {}),
       ...(fChg ? { sidecar: { ...(sc ?? { p: null, f: null, d: null }), f: f1 } } : {}),
     }
   }
@@ -1922,7 +1958,7 @@ useI18n.subscribe((s) => {
   const futureChanged = future.some((h, i) => h !== g.future[i])
   const historyChanged = pastChanged || futureChanged
 
-  if (!liveNodesChanged && !liveFramesChanged && !liveTablesChanged && !historyChanged) return
+  if (!liveNodesChanged && !liveFramesChanged && !liveTablesChanged && !livePhasesChanged && !historyChanged) return
 
   // live frame titles: a label-only remap — no undo entry, no autosave here
   if (liveFramesChanged) {
@@ -1931,10 +1967,11 @@ useI18n.subscribe((s) => {
     frameSidecar?.relabel(titles)
   }
 
-  if (liveNodesChanged || liveTablesChanged || historyChanged) {
+  if (liveNodesChanged || liveTablesChanged || livePhasesChanged || historyChanged) {
     useGraphStore.setState({
       ...(liveNodesChanged ? { nodes } : {}),
       ...(liveTablesChanged ? { timetables } : {}),
+      ...(livePhasesChanged ? { phases } : {}),
       ...(pastChanged ? { past } : {}),
       ...(futureChanged ? { future } : {}),
     })
@@ -1942,7 +1979,7 @@ useI18n.subscribe((s) => {
 
   // persist once — autosave stores the LIVE doc, so a history-only remap needs
   // no write.
-  if (liveNodesChanged || liveFramesChanged || liveTablesChanged) writeAutosaveNow()
+  if (liveNodesChanged || liveFramesChanged || liveTablesChanged || livePhasesChanged) writeAutosaveNow()
 })
 
 /** SEMANTICS-M4.md §M4-6 — the open document's unit table, read when an export

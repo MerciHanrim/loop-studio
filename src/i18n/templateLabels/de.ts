@@ -433,3 +433,17 @@ export const deTables: TemplateLabelMap = {
     'discharge:source': 'Beispielannahme, keine Messdaten',
   },
 }
+
+// a Template phase's name (docs/run-phases.md), `templateId -> (phaseId -> name)`. Flat, so
+// the source-text checks read it as they read the tables.
+export const dePhases: TemplateLabelMap = {
+  'coffee-roasting-batch': {
+    roast_charge: 'Füllen',
+    roast_drying: 'Trocknung',
+    roast_browning: 'Bräunung',
+    roast_development: 'Entwicklung',
+    roast_drop: 'Entleeren',
+    roast_cooling: 'Kühlung',
+    roast_discharge: 'Ausgabe',
+  },
+}

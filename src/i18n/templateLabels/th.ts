@@ -440,3 +440,17 @@ export const thTables: TemplateLabelMap = {
     'discharge:source': 'สมมติฐานตัวอย่าง ไม่ใช่ข้อมูลจากการวัด',
   },
 }
+
+// a Template phase's name (docs/run-phases.md), `templateId -> (phaseId -> name)`. Flat, so
+// the source-text checks read it as they read the tables.
+export const thPhases: TemplateLabelMap = {
+  'coffee-roasting-batch': {
+    roast_charge: 'เติมเมล็ด',
+    roast_drying: 'อบแห้ง',
+    roast_browning: 'เปลี่ยนเป็นสีน้ำตาล',
+    roast_development: 'พัฒนา',
+    roast_drop: 'ปล่อยเมล็ด',
+    roast_cooling: 'ระบายความร้อน',
+    roast_discharge: 'นำออก',
+  },
+}

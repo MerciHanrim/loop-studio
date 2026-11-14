@@ -4682,7 +4682,7 @@ a.sheet__row {
   min-width: 0;
 }
 /* a refused run has no state to show and no run to tune: the reason takes that room */
-.pstrip__refused ~ .pstrip__steady,
+.pstrip__refused ~ .pstrip__state,
 .pstrip:not(.pstrip--mobile) .pstrip__refused ~ .pstrip__settings:not(.is-open) {
   display: none;
 }
@@ -4923,6 +4923,90 @@ a.sheet__row {
 }
 .pstrip[data-fit='4'] .pstrip__steady-short {
   display: inline;
+}
+
+/* docs/run-phases.md — the room of the run's state, which also names the phase the
+   document's author gave the current step. The room is the steady-state chip's own
+   box, shown or not, so its width is the same at every step and the phase never
+   moves a control; the phase lies over it and is not shown while the chip is. */
+.pstrip__state {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+.pstrip[data-fit='4'] .pstrip__state {
+  flex-shrink: 1;
+}
+/* the short name, after a rule that parts it from the step. Physical sides, like the
+   row's order: the step is on the left for every reader */
+.pstrip__phase {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+  border-left: 1px solid var(--line-2);
+  color: var(--ink-2);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+}
+/* every phase name of the document, unseen, for the measure (PlayBar.tsx): each at its
+   own natural width */
+.pstrip__phase--probe {
+  visibility: hidden;
+  pointer-events: none;
+}
+.pstrip__phase--probe > span {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+/* a name that has no room: one small button for every phase of the document, its
+   press or focus opening the name and range over the row */
+.pstrip__phase-btn {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+}
+.pstrip__phase-btn.is-open {
+  border-color: var(--line-control-hover);
+}
+.pstrip__phase-pop {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 12px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: max-content;
+  max-width: min(300px, calc(100% - 24px));
+  padding: 8px 10px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-overlay);
+  color: var(--ink-1);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: normal;
+  /* a Korean phrase breaks between words, and a name with no break still wraps */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.pstrip__phase-pop-note {
+  color: var(--ink-3);
+  font-size: 11px;
 }
 
 /* ==== A — timeline chart (separate observation panel, not canvas) ======= */
@@ -7866,6 +7950,19 @@ input[type='number']::-webkit-inner-spin-button {
   .pstrip--mobile.has-initerr {
     flex-wrap: wrap;
   }
+  /* docs/run-phases.md — the current phase and its steps: a row of its own above the
+     controls, there only while there is a phase to name, so a document without
+     phases, the time before the first step and the end add no height. A long name
+     wraps and is never cut */
+  .pstrip--mobile .pstrip__phase-line {
+    flex-basis: 100%;
+    color: var(--ink-2);
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: normal;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
   .pstrip__initerr--mobile {
     flex-basis: 100%;
     font-family: var(--font-mono);
@@ -8310,6 +8407,19 @@ input[type='number']::-webkit-inner-spin-button {
   padding: 8px;
   border: 1px solid var(--warn);
   border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+/* SEMANTICS-R13.md §R13-5 / §R13-6 — the two sentences about phases and timing: read as
+   prose, at the body size, a Korean phrase breaking between its words */
+.review__phase-notice,
+.review__timing-note {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.review__timing-note {
+  margin: 6px 0 0;
+  color: var(--ink-2);
   font-size: 12px;
   line-height: 1.45;
 }

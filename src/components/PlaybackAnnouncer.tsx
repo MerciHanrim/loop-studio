@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useGraphStore } from '../store/graphStore'
 import { useSimStore } from '../store/simStore'
 import { t } from '../i18n'
+import { isolateAuto } from '../i18n/bidiIsolate'
+import { phaseAt } from '../model/phases'
 
 // docs/simulation-playback.md Slice 3c — a polite live region so a screen reader
 // can follow the run without watching the canvas.
@@ -17,6 +19,10 @@ import { t } from '../i18n'
 //   • a Step press flips `idle → paused` as an internal side effect — that is
 //     reported as `Step N`, never `Paused`. Only the user's Pause button
 //     produces a `Paused` message. Speed / zoom / selection produce nothing.
+//   • docs/run-phases.md — a `Step N` message also names the step's phase when
+//     that is not the phase last named ("Step 6, Browning phase"). The end, a
+//     pause and a start name none. At a fast Play a phase that passes inside one
+//     throttle window is not named: nothing is queued behind the step.
 //
 // Read-only over the state machine: it subscribes to `status` / `stepIndex` and
 // the graph's `simulationRev`, and never calls into the store.
@@ -33,8 +39,18 @@ export function PlaybackAnnouncer() {
   const prev = useRef({ status, stepIndex, simulationRev })
   const lastAt = useRef(0)
   const pending = useRef<{ timer: ReturnType<typeof setTimeout>; gen: Gen } | null>(null)
+  // docs/run-phases.md — the phase last named. A message that carries a step names the
+  // step's phase when it is not that one, in the same message: no second region, and a
+  // phase that went by inside one throttle window is not queued behind the step
+  const namedPhase = useRef<string | null>(null)
 
   useEffect(() => {
+    const stepMessage = (n: number): string => {
+      const phase = phaseAt(useGraphStore.getState().phases, n)
+      const fresh = phase != null && phase.id !== namedPhase.current
+      namedPhase.current = phase?.id ?? null
+      return fresh ? t('a11y.playback.stepNPhase', { n, phase: isolateAuto(phase.label) }) : t('a11y.playback.stepN', { n })
+    }
     const cancelPending = () => {
       if (pending.current) {
         clearTimeout(pending.current.timer)
@@ -51,11 +67,13 @@ export function PlaybackAnnouncer() {
       if (s.stepIndex < gen.stepFloor) return // rewound (Reset / scrub)
       if (s.status === 'idle' || s.status === 'ended') return // superseded
       lastAt.current = Date.now()
-      setMessage(t('a11y.playback.stepN', { n: s.stepIndex }))
+      setMessage(stepMessage(s.stepIndex))
     }
 
     const p = prev.current
     const now = Date.now()
+    // a new document, a rewind or a reset: the next step names its phase again
+    if (simulationRev !== p.simulationRev || stepIndex < p.stepIndex || status === 'idle') namedPhase.current = null
 
     if (status !== p.status) {
       // authoritative — always immediate, always cancels a queued step message
@@ -69,7 +87,7 @@ export function PlaybackAnnouncer() {
             : status === 'idle'
               ? t('a11y.playback.resetToZero')
               : stepped
-                ? t('a11y.playback.stepN', { n: stepIndex }) // a Step press, not a user Pause
+                ? stepMessage(stepIndex) // a Step press, not a user Pause
                 : t('a11y.playback.pausedAtStep', { n: stepIndex }),
       )
       lastAt.current = now
@@ -78,7 +96,7 @@ export function PlaybackAnnouncer() {
       if (now - lastAt.current >= ANNOUNCE_MIN_MS) {
         cancelPending()
         lastAt.current = now
-        setMessage(t('a11y.playback.stepN', { n: stepIndex }))
+        setMessage(stepMessage(stepIndex))
       } else if (!pending.current) {
         // inside the throttle window — schedule ONE latest-wins announcement
         const gen: Gen = { simulationRev, stepFloor: stepIndex }

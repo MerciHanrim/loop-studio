@@ -451,3 +451,17 @@ export const ptPTTables: TemplateLabelMap = {
     'discharge:source': 'Suposição de exemplo, não dados medidos',
   },
 }
+
+// a Template phase's name (docs/run-phases.md), `templateId -> (phaseId -> name)`. Flat, so
+// the source-text checks read it as they read the tables.
+export const ptPTPhases: TemplateLabelMap = {
+  'coffee-roasting-batch': {
+    roast_charge: 'Carga',
+    roast_drying: 'Secagem',
+    roast_browning: 'Escurecimento',
+    roast_development: 'Desenvolvimento',
+    roast_drop: 'Descarga',
+    roast_cooling: 'Arrefecimento',
+    roast_discharge: 'Entrega',
+  },
+}

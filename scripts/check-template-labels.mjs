@@ -275,6 +275,48 @@ function checkTableTranslations() {
   }
 }
 
+// docs/run-phases.md — a phase's name: a template with phases has every name in every
+// locale, and no stale key. A phase id is the relabel's only key, so two Templates may
+// not share one.
+function checkPhaseTranslations() {
+  const owner = new Map()
+  for (const tplId of TEMPLATE_IDS) {
+    let phases = []
+    try {
+      phases = JSON.parse(read(`examples/${tplId}.json`)).phases ?? []
+    } catch {
+      phases = []
+    }
+    for (const p of phases) {
+      if (owner.has(p.id)) fail(`phase id "${p.id}" is in both ${owner.get(p.id)} and ${tplId}: a phase id is one Template's`)
+      owner.set(p.id, tplId)
+    }
+    const want = phases.map((p) => p.id)
+    for (const locale of NON_BASE) {
+      if (!dictLocales.includes(locale)) continue
+      const src = read(`src/i18n/templateLabels/${locale}.ts`)
+      const hits = [...src.matchAll(/^export const [A-Za-z_$][\w$]*Phases\b/gm)]
+      if (hits.length !== 1) {
+        fail(`${locale}: expected exactly one \`export const <name>Phases\`, got ${hits.length}`)
+        continue
+      }
+      const rest = src.slice(hits[0].index)
+      const next = rest.slice(1).search(/\nexport const /)
+      const slice = next < 0 ? rest : rest.slice(0, next + 1)
+      const block = new RegExp(`'${tplId}'\\s*:\\s*\\{([\\s\\S]*?)\\n\\s*\\}`).exec(slice)
+      const kv = [...(block?.[1] ?? '').matchAll(/^\s*([A-Za-z_$][\w$]*|'[^']+')\s*:\s*'([^']*)'/gm)]
+      const have = kv.map((m) => m[1].replace(/'/g, ''))
+      const missing = want.filter((k) => !have.includes(k))
+      const stale = have.filter((k) => !want.includes(k))
+      const empty = kv.filter((m) => !m[2].trim()).map((m) => m[1])
+      if (missing.length) fail(`${tplId} / ${locale}: missing phase name for: ${missing.join(', ')}`)
+      if (stale.length) fail(`${tplId} / ${locale}: stale phase key(s): ${stale.join(', ')}`)
+      if (empty.length) fail(`${tplId} / ${locale}: empty phase name for: ${empty.join(', ')}`)
+      if (want.length && !missing.length && !stale.length && !empty.length) ok(`${tplId} / ${locale}: ${want.length} phase name(s), complete`)
+    }
+  }
+}
+
 function checkSharedFrameIdTargets() {
   const raw = {} // locale -> id -> { title, template }
   const record = (locale, id, title, tplId) => {
@@ -406,6 +448,7 @@ checkSharedIdTargets()
 checkFrameShapes()
 checkFrameTranslations()
 checkTableTranslations()
+checkPhaseTranslations()
 checkSharedFrameIdTargets()
 
 // the overlay function must not translate anything but `label` — guard the

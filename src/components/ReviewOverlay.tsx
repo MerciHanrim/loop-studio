@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useReactFlow } from '@xyflow/react'
-import type { FramesHunk, HunkSelection, ProposalHunk, ThreeWayPlan } from '../model/revision'
+import type { FramesHunk, HunkSelection, PhasesHunk, ProposalHunk, ThreeWayPlan } from '../model/revision'
 import { useFrameStore } from '../store/frameStore'
 import { useGraphStore } from '../store/graphStore'
 import { useProjectStore, type ApplyClassification, type ApplyFailReason } from '../store/projectStore'
@@ -9,6 +9,7 @@ import {
   applyPendingProposal,
   currentTargetDigest,
   openPendingProposalAsDocument,
+  phaseTimingForPending,
   threeWayForPending,
 } from '../store/revisionIO'
 import { useSimStore } from '../store/simStore'
@@ -70,6 +71,22 @@ function DiffSummary({ m }: { m: ReviewModel }) {
       {m.diff.summary.framesChanged ? (
         <span className="review__diff-part">{t('review.diff.frames')}</span>
       ) : null}
+      {/* SEMANTICS-R13.md §R13-5 — the graph-level engine keys have no hunk, but a
+          difference in one is named here (a proposal that changed only its timetables
+          used to read "No graph changes") */}
+      {m.diff.summary.timetablesChanged ? (
+        <span className="review__diff-part" data-diff="timetables">{t('panels.timetables.title')}</span>
+      ) : null}
+      {m.diff.summary.stepLengthChanged ? (
+        <span className="review__diff-part" data-diff="step-length">{t('panels.time.title')}</span>
+      ) : null}
+      {m.diff.summary.kindsChanged ? (
+        <span className="review__diff-part" data-diff="kinds">{t('panels.kinds.title')}</span>
+      ) : null}
+      {/* §R13-4 — the phases of a run (docs/run-phases.md) */}
+      {m.diff.summary.phasesChanged ? (
+        <span className="review__diff-part" data-diff="phases">{t('review.diff.phases')}</span>
+      ) : null}
     </p>
   )
 }
@@ -88,7 +105,7 @@ const shortVal = (v: unknown): string => {
  *  `remove` hunk — then those removals are pre-accepted too (visible rows, no
  *  hidden cascade). If any dependent is a retarget, the node `remove` is left
  *  for the user to handle deliberately; a `blockedBy` node is never accepted. */
-function defaultSelection(plan: ThreeWayPlan): HunkSelection {
+function defaultSelection(plan: ThreeWayPlan, timingDiffers: boolean): HunkSelection {
   const byId = new Map(plan.hunks.map((h) => [h.id, h]))
   const accept: Record<string, boolean> = {}
   const fieldChoices: Record<string, Record<string, 'proposed' | 'yours'>> = {}
@@ -108,14 +125,42 @@ function defaultSelection(plan: ThreeWayPlan): HunkSelection {
   // SEMANTICS-R5.md §R5-6 — pre-accept a CLEAN `frames` hunk (target still at
   // base); leave a `conflict` (a third array) for the user; `noop` is nothing.
   const frames: HunkSelection['frames'] = plan.frames?.verdict === 'clean' ? 'proposed' : 'yours'
-  return { accept, fieldChoices, frames }
+  // SEMANTICS-R13.md §R13-6 — a CLEAN `phases` hunk is pre-accepted like `frames`,
+  // unless the proposal's timetables or step length differ from the target's:
+  // choosing changes never takes those, so the proposal's phase names would
+  // land on the target's timing. Then the default is to keep the target's.
+  const phases: HunkSelection['phases'] = plan.phases?.verdict === 'clean' && !timingDiffers ? 'proposed' : 'yours'
+  return { accept, fieldChoices, frames, phases }
 }
 
 function selectionCount(sel: HunkSelection): number {
   let n = Object.values(sel.accept).filter(Boolean).length
   for (const fc of Object.values(sel.fieldChoices)) n += Object.values(fc).filter((c) => c === 'proposed').length
   if (sel.frames === 'proposed') n += 1
+  if (sel.phases === 'proposed') n += 1
   return n
+}
+
+/** SEMANTICS-R13.md §R13-4 — the single graph-level `phases` hunk, as the
+ *  `frames` one: checked ⇒ take the proposal's WHOLE list (or clear it);
+ *  unchecked ⇒ keep the target's. Never a per-phase choice. */
+function PhasesHunkRow({ h, sel, onPhases }: { h: PhasesHunk; sel: HunkSelection; onPhases: (choice: 'proposed' | 'yours') => void }) {
+  const t = useT()
+  const yours = h.yours?.length ?? 0
+  const theirs = h.proposed?.length ?? 0
+  return (
+    <div>
+      <label className="review__hunk-head">
+        <input type="checkbox" data-hunk="phases" checked={sel.phases === 'proposed'} onChange={(e) => onPhases(e.target.checked ? 'proposed' : 'yours')} />
+        <span>
+          {t('review.hunk.phasesTitle')}{' '}
+          {theirs === 0 ? t('review.hunk.phasesClear', { yours }) : t('review.hunk.phasesTake', { yours, theirs })}
+          <span className="review__field-tag">{t('review.diff.phases')}</span>
+          {h.verdict === 'conflict' ? <span className="review__hunk-tag">{t('review.hunk.bothChanged')}</span> : null}
+        </span>
+      </label>
+    </div>
+  )
 }
 
 /** SEMANTICS-R5.md §R5-6 — the single graph-level saved-`frames` hunk. One
@@ -162,19 +207,22 @@ function HunkList({
   onToggleAccept,
   onField,
   onFrames,
+  onPhases,
 }: {
   plan: ThreeWayPlan
   sel: HunkSelection
   onToggleAccept: (id: string, v: boolean) => void
   onField: (id: string, field: string, choice: 'proposed' | 'yours') => void
   onFrames: (choice: 'proposed' | 'yours') => void
+  onPhases: (choice: 'proposed' | 'yours') => void
 }) {
   const t = useT()
   const actionable = plan.hunks.filter(
     (h) => h.verdict !== 'noop' || (h.fields ?? []).some((f) => f.verdict !== 'noop'),
   )
   const framesRow = plan.frames && plan.frames.verdict !== 'noop' ? plan.frames : null
-  if (!actionable.length && !framesRow) return <p className="review__stamp">{t('review.hunks.none')}</p>
+  const phasesRow = plan.phases && plan.phases.verdict !== 'noop' ? plan.phases : null
+  if (!actionable.length && !framesRow && !phasesRow) return <p className="review__stamp">{t('review.hunks.none')}</p>
   return (
     <ul className="review__hunks">
       {actionable.map((h) => (
@@ -185,6 +233,11 @@ function HunkList({
       {framesRow ? (
         <li key="graph:frames" className={`review__hunk review__hunk--${framesRow.verdict}`}>
           <FramesHunkRow h={framesRow} sel={sel} onFrames={onFrames} />
+        </li>
+      ) : null}
+      {phasesRow ? (
+        <li key="graph:phases" className={`review__hunk review__hunk--${phasesRow.verdict}`}>
+          <PhasesHunkRow h={phasesRow} sel={sel} onPhases={onPhases} />
         </li>
       ) : null}
     </ul>
@@ -344,20 +397,23 @@ export function ReviewOverlay() {
   // frame edit while Review is open must recompute the diff / three-way plan
   // (it does NOT bump `simulationRev`).
   const liveFrames = useFrameStore((s) => s.frames)
+  // SEMANTICS-R13.md — and so are the phases (a language switch renames a Template's)
+  const livePhases = useGraphStore((s) => s.phases)
   const model = useMemo(
     () => (pending ? reviewModel(pending) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pending, openRev, openRole, simRev, liveFrames],
+    [pending, openRev, openRole, simRev, liveFrames, livePhases],
   )
   const planCtx = useMemo(
     () =>
       pending && model?.gate === 'ok'
-        ? { plan: threeWayForPending(pending), digest: currentTargetDigest() }
+        ? { plan: threeWayForPending(pending), digest: currentTargetDigest(), timingDiffers: phaseTimingForPending(pending, { mode: 'whole' }).timingDiffers }
         : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pending, openRev, openRole, simRev, liveFrames, model?.gate],
+    [pending, openRev, openRole, simRev, liveFrames, livePhases, model?.gate],
   )
   const plan = planCtx?.plan ?? null
+  const timingDiffers = planCtx?.timingDiffers ?? false
 
   useEffect(() => {
     setArmed(null)
@@ -368,8 +424,8 @@ export function ReviewOverlay() {
 
   // seed the selection whenever the plan is (re)computed
   useEffect(() => {
-    if (plan) setSel(defaultSelection(plan))
-  }, [plan])
+    if (plan) setSel(defaultSelection(plan, timingDiffers))
+  }, [plan, timingDiffers])
 
   // #423 — the desktop dialog keeps the shared dialog contract: focus moves in,
   // Tab stays inside, the page behind is inert, and Escape goes to the top
@@ -461,6 +517,12 @@ export function ReviewOverlay() {
     setSel((s) => ({ ...s, fieldChoices: { ...s.fieldChoices, [id]: { ...(s.fieldChoices[id] ?? {}), [field]: choice } } }))
   // SEMANTICS-R5.md §R5-6 — the atomic graph-level `frames` choice
   const setFramesChoice = (choice: 'proposed' | 'yours') => setSel((s) => ({ ...s, frames: choice }))
+  // SEMANTICS-R13.md §R13-4 — the atomic graph-level `phases` choice
+  const setPhasesChoice = (choice: 'proposed' | 'yours') => setSel((s) => ({ ...s, phases: choice }))
+  // §R13-6 — would the Apply about to be made leave the phase names and the timing
+  // they describe on different sides? Said before the Apply, never a gate.
+  const phaseSplit =
+    canApply && pending ? phaseTimingForPending(pending, mode === 'whole' ? { mode: 'whole' } : { mode: 'hunks', phases: sel.phases }).split : null
   const toggleAccept = (id: string, v: boolean) =>
     setSel((s) => {
       const accept = { ...s.accept, [id]: v }
@@ -550,8 +612,22 @@ export function ReviewOverlay() {
             onToggleAccept={toggleAccept}
             onField={setField}
             onFrames={setFramesChoice}
+            onPhases={setPhasesChoice}
           />
+          {/* §R13-5 — the timetables and the step length have no row here: said, not left out silently */}
+          {timingDiffers ? (
+            <p className="review__timing-note" data-testid="review-timing-note">
+              {t('review.hunks.timingNote')}
+            </p>
+          ) : null}
         </div>
+      ) : null}
+
+      {/* §R13-6 — the phase names and the timing would come from different sides */}
+      {phaseSplit ? (
+        <p className="review__warn review__phase-notice" role="status" data-testid="review-phase-notice" data-split={phaseSplit}>
+          {t(phaseSplit === 'timing-only' ? 'review.phases.timingOnly' : 'review.phases.phasesOnly')}
+        </p>
       ) : null}
 
       <div className="review__actions">

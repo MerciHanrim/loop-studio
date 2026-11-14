@@ -432,3 +432,17 @@ export const es419Tables: TemplateLabelMap = {
     'discharge:source': 'Supuesto de ejemplo, no datos medidos',
   },
 }
+
+// a Template phase's name (docs/run-phases.md), `templateId -> (phaseId -> name)`. Flat, so
+// the source-text checks read it as they read the tables.
+export const es419Phases: TemplateLabelMap = {
+  'coffee-roasting-batch': {
+    roast_charge: 'Carga',
+    roast_drying: 'Secado',
+    roast_browning: 'Pardeamiento',
+    roast_development: 'Desarrollo',
+    roast_drop: 'Descarga',
+    roast_cooling: 'Enfriamiento',
+    roast_discharge: 'Entrega',
+  },
+}

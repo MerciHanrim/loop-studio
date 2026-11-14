@@ -36,6 +36,8 @@ import { canonicalKinds, kindsDeclareUnits, readKindsAt, type ResourceKindDecl }
 import { canonicalDocTime, readDocTime, type DocTime } from './units'
 import { stripFieldUnits } from './engineValues'
 import { canonicalTimetable, readTimetables, type Timetable } from './timetable'
+import { canonicalPhase, readPhases, type DocPhase } from './phases'
+export type { DocPhase } from './phases'
 export type { ModelSemanticsVersion } from './modelVersion'
 export type { ResourceKindDecl } from './kinds'
 export type { DocTime } from './units'
@@ -276,6 +278,11 @@ export type GraphDoc = {
    *  non-empty, and then only on a `loop-studio/graph/5` document. Read whole:
    *  a bad table refuses the file. Not read at all from an earlier schema. */
   timetables?: Timetable[]
+  /** docs/run-phases.md — the phases of a run as the author named them: a guide
+   *  beside the current step, never read by the engine and in neither digest.
+   *  Emitted only when non-empty, at any schema; read defensively (`readPhases`).
+   *  A build from before the key drops it and runs the same. */
+  phases?: DocPhase[]
   /** loop-workspace/2 extension (SEMANTICS-W2.md) — an opaque blob here; the
    *  Workspace reader validates it against the loaded graph. Absent on a plain
    *  Graph Export. */
@@ -748,6 +755,9 @@ export function serialize(
   /** loop-model/5 — the timetables. Absent / empty ⇒ no `timetables` key; a
    *  table needs `modelVersion` 5, so writing one with less is refused. */
   timetables?: readonly Timetable[],
+  /** docs/run-phases.md — the author's phases. Absent / empty ⇒ no `phases` key,
+   *  the same bytes as before the key; written at any model version. */
+  phases?: readonly DocPhase[],
 ): string {
   const kindsOut = Array.isArray(kinds) ? canonicalKinds(kinds) : []
   if (kindsOut.length > 0 && !hasKindsTable(modelVersion)) {
@@ -793,6 +803,8 @@ export function serialize(
   if (timeOut !== undefined) doc.time = timeOut
   // §M5-1 — `timetables` after `time`, only when non-empty.
   if (tablesOut.length > 0) doc.timetables = tablesOut
+  // docs/run-phases.md — `phases` after `timetables`, only when non-empty.
+  if (Array.isArray(phases) && phases.length > 0) doc.phases = phases.map(canonicalPhase)
   if (workspace && typeof workspace === 'object') {
     doc.workspace = workspace
   }
@@ -873,6 +885,9 @@ export function deserialize(text: string): {
   /** loop-model/5 — the timetables; `[]` when absent, and always `[]` before
    *  `/graph/5`. A bad table refuses the file (§M5-2). */
   timetables: Timetable[]
+  /** docs/run-phases.md — the author's phases, already run through `readPhases`;
+   *  `[]` when the file has none. */
+  phases: DocPhase[]
   /**`SEMANTICS-R8.md §R8-1` — true when the file's RAW, pre-defensive-read
    *  content carried a data-import provenance signal that `readDataImports` /
    *  `readParameterData` may have gone on to discard as unreadable (an
@@ -952,6 +967,7 @@ export function deserialize(text: string): {
     kinds: hasKindsTable(modelVersion) ? readKindsAt(obj.kinds, modelVersion) : [], // §M3-1 — never from an earlier schema
     ...(time !== undefined ? { time } : {}),
     timetables: tables.tables,
+    phases: readPhases(obj.phases), // docs/run-phases.md — [] when absent / all-bad
     hasRawDataImportSignal,
     ...(rrc ? { recommendedRunConfig: rrc } : {}),
     ...(workspace ? { workspace } : {}),
@@ -1003,6 +1019,8 @@ export function saveToStorage(
   time?: DocTime,
   /** loop-model/5 — the current timetables, atomically in the same write. */
   timetables?: readonly Timetable[],
+  /** docs/run-phases.md — the current phases, atomically in the same write. */
+  phases?: readonly DocPhase[],
 ): SaveToStorageResult {
   try {
     // `'all'` is a deliberate choice and is written; `'auto'` (and the legacy
@@ -1027,7 +1045,7 @@ export function saveToStorage(
         return { ok: false, reason: 'held' }
       }
     }
-    const text = serialize(nodes, edges, rrc, undefined, project, modelVersion, frames, dataImports, kinds, time, timetables)
+    const text = serialize(nodes, edges, rrc, undefined, project, modelVersion, frames, dataImports, kinds, time, timetables, phases)
     storagePort.setItem(STORAGE_KEY, text)
     if (personal) lastKnownWorkText = text
     return { ok: true }
@@ -1052,6 +1070,7 @@ export function loadFromStorage():
       kinds: ResourceKindDecl[]
       time?: DocTime
       timetables?: Timetable[]
+      phases?: DocPhase[]
       project?: unknown
     }
   | null {
