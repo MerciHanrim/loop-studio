@@ -64,4 +64,11 @@
 //                       order (50 + 50 was planned from 60, 50 + 10 moved),
 //                       and each one's take is room for a later delivery (a
 //                       loop through the second one ran by the Gates' ids)
-export const ENGINE_REVISION = 10
+//   11                  the multi-supply plan: a source Gate is charged what
+//                       it pulls, in the commit order (the next one was
+//                       planned short of what the Pool had); a Gate held to a
+//                       throughput covers it exactly (the group moved nothing,
+//                       or 1e-9 too much); a `pull all` source Gate under a
+//                       multi-supply Gate that is short zeroes the group (it
+//                       was dropped and the rest moved)
+export const ENGINE_REVISION = 11

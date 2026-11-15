@@ -1726,6 +1726,7 @@ export function step(
           const p = pieces[pieceOf.get(G)!]
           if (p.root === G) continue
           let need = (p.cof.get(G) ?? 0) * (s.get(p.id) ?? 0)
+          const throughput = need
           const open: Sup[] = []
           for (const sup of supplies.get(G)!) {
             if (fixed.has(keyOf(sup)) || (sup.kind === 'router' && sPiece.has(sup.piece))) need -= valueOf(sup)
@@ -1747,7 +1748,17 @@ export function step(
               need -= v
             }
           }
-          if (Math.abs(need) > EPSILON) ok = false
+          // Covered? What is LEFT UNCOVERED is asked with no slack: the supplies
+          // above each took `min(need, its bound)`, so a throughput they can
+          // cover leaves exactly 0, and only the rounding of a router supply's
+          // share (`coef · (v / coef)`) is let through. With epsilon here the
+          // search for the FIRST Gate's supply walked into the tolerance: where
+          // the second Gate could bring 4 at most, the first was planned at
+          // 4.000000001 and the Converter fed 1e-9 apart (review of
+          // 2026-11-15, P1; erratum part 4, "no slack"). An overshoot comes
+          // only from supplies fixed before this Gate's throughput was known,
+          // never from a search, and keeps the epsilon as a classification.
+          if (need > Number.EPSILON * 64 * Math.max(1, throughput) || need < -EPSILON) ok = false
         }
         return ok
       }
@@ -1817,9 +1828,16 @@ export function step(
           }
         }
         for (const [p, v] of claim) if (v > availOf(p)) return false
-        // a source Gate reaches its T by its greedy pulls, net of the plan's claims
+        // a source Gate reaches its T by its greedy pulls, net of the plan's
+        // claims and of what the source Gates BEFORE it in the commit order
+        // pull. What a Gate pulls is charged, not what it could: a Gate held to
+        // 2 by its downstream leaves the next one the Pool less 2. It used to
+        // be charged its whole reach (6), in the members' given order, and
+        // the next Gate was planned 2 short of what the Pool had (review of
+        // 2026-11-15, P6).
+        const inOrder = [...members].sort((a, b) => (orderIdx.get(a) ?? Infinity) - (orderIdx.get(b) ?? Infinity))
         const used = new Map<string, number>()
-        for (const m of members) {
+        for (const m of inOrder) {
           if (kindOf(m) !== 'gate' || multi.has(m) || fedByRouter.has(m)) continue
           const T = c.get(m) ?? 0
           if (T <= 0) continue
@@ -1829,11 +1847,11 @@ export function step(
             const want = amountOf(e, availOf(e.source), S[e.source] ?? 0)
             const avail = Math.max(0, availOf(e.source) - (claim.get(e.source) ?? 0) - (used.get(e.source) ?? 0))
             const a = Math.max(0, Math.min(want, avail))
-            add(used, e.source, a)
             r += a
             // what the commit will actually pull from this Pool: up to what is still needed
             const pulled = Math.min(a, need)
             need -= pulled
+            add(used, e.source, pulled)
             if (pulled > 0) addBy(takesBy, m, e.source, pulled)
           }
           if (r < T) return false
@@ -1843,7 +1861,6 @@ export function step(
         // delivery raises it; the level never passes the room. A Converter's
         // own take and delivery on one Pool meet at its turn (its net); an
         // earlier member's take is room a later delivery may fill.
-        const inOrder = [...members].sort((a, b) => (orderIdx.get(a) ?? Infinity) - (orderIdx.get(b) ?? Infinity))
         for (const q of give.keys()) {
           let room = headroom(q)
           for (const m of members) room += ownReserve.get(m)?.get(q) ?? 0
@@ -1906,12 +1923,27 @@ export function step(
         return best
       }
       type Item = { sup: Sup; p: Piece | null }
-      const fill = (it: Item): number => {
+      /** What a multi-supply Gate that is NOT the root of its piece still has to bring: the throughput the root gives it
+       *  (`cof · s`), less its supplies filled so far. `Infinity` for a Gate at the root of its piece (its throughput is
+       *  whatever its supplies add up to). */
+      const stillToCover = (G: string): number => {
+        const p = pieces[pieceOf.get(G)!]
+        if (p.root === G) return Infinity
+        let need = (p.cof.get(G) ?? 0) * (sOf().get(p.id) ?? 0)
+        for (const sup of supplies.get(G)!) if (fixed.has(keyOf(sup))) need -= valueOf(sup)
+        return Math.max(0, need)
+      }
+      /** `upTo`: the most the supply may bring (a Gate held to a throughput never brings more than is left of it). The
+       *  search is then over values that the later supplies can complete, which is one-sided. Without it the last supply
+       *  of a held Gate was searched over "covers the throughput exactly", true at one point only: the bisection ended at
+       *  0 unless that point was the bound or the bound over a power of two, and the whole group moved nothing; and an
+       *  earlier supply settled the test's tolerance past the throughput, 5.000000001 for 5 (review of 2026-11-15, P1). */
+      const fill = (it: Item, upTo = Infinity): number => {
         tentative.delete(keyOf(it.sup)) // from here on this supply is set by its own fill, not by `settle`
         fixed.add(keyOf(it.sup)) // and `settle` reads the value under test as given
         const v = it.sup.kind === 'own'
-          ? largest((x) => uOwn.set((it.sup as { e: LoopEdge }).e.id, x), Math.min(it.sup.want, Math.max(0, availOf(it.sup.e.source))), () => true)
-          : largest((x) => sPiece.set(it.p!.id, x), pieceMax(it.p!), () => rejoin || pullAllSourcesOk(it.p!)) // a rejoin's `pull all` Gates: G-R6, after the fill
+          ? largest((x) => uOwn.set((it.sup as { e: LoopEdge }).e.id, x), Math.min(it.sup.want, Math.max(0, availOf(it.sup.e.source)), upTo), () => true)
+          : largest((x) => sPiece.set(it.p!.id, x), Math.min(pieceMax(it.p!), upTo), () => rejoin || pullAllSourcesOk(it.p!)) // a rejoin's `pull all` Gates: G-R6, after the fill
         fixed.add(keyOf(it.sup))
         return v
       }
@@ -1944,9 +1976,42 @@ export function step(
             fixed.add(keyOf(it.sup))
           })
           if (!feasible()) { zero = true; zeroAt = G; break }
-        } else for (const it of items) if (!determined(it)) fill(it)
+        } else {
+          for (const it of items) {
+            if (determined(it)) continue
+            // a Gate held to a throughput: this supply brings at most what is left of it
+            fixed.delete(keyOf(it.sup)) // (not counted as filled while its own room is measured)
+            const left = stillToCover(G)
+            let upTo = left
+            if (it.sup.kind === 'router' && Number.isFinite(left)) {
+              // the piece's number: every connection from that piece into G carries its share of it
+              const piece = it.sup.piece
+              const coef = supplies.get(G)!.reduce((t, o) => (o.kind === 'router' && o.piece === piece ? t + o.coef : t), 0)
+              upTo = coef > EPSILON ? left / coef : 0
+            }
+            fill(it, upTo)
+          }
+        }
       }
       if (!zero && !feasible()) zero = true // the later Gate of a shared piece could not be met exactly
+      // A `pull all` source Gate in a piece HEADED by a multi-supply Gate runs
+      // at its demand or the group moves nothing (§9; the tree rule, "`pull
+      // all` members fix the number"). Only the source pieces were asked, as
+      // they were filled; such a Gate under a multi-supply Gate was planned
+      // short, dropped at the commit, and the rest of the group moved without
+      // it (review of 2026-11-15, P3).
+      if (!zero && !rejoin) {
+        const c = amountsOf(sOf())
+        for (const p of pieces) {
+          if (p.head === null) continue
+          for (const m of p.members) {
+            if (kindOf(m) !== 'gate' || multi.has(m) || fedByRouter.has(m) || modeOfRouter(m) !== 'pullAll') continue
+            let demand = inbox.get(m) ?? 0
+            for (const e of ownIns(m)) demand += amountOf(e, availOf(e.source), S[e.source] ?? 0)
+            if ((c.get(m) ?? 0) < demand - EPSILON) { zero = true; zeroAt ??= m }
+          }
+        }
+      }
       const failedPullAll = new Set<string>() // G-R6 — every `pull all` Gate of a rejoin whose fixed demand was missed
       if (!zero && rejoin) {
         // the fixed demand: every entry at its full amount (a source piece at

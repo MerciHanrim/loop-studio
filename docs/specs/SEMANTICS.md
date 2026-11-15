@@ -460,6 +460,50 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
   Pinned in `src/engine/planSourceGates.test.ts`, with that open case marked
   as a known defect.
 
+  **Erratum, part 8 (2026-11-15) — the multi-supply plan: three corrections.**
+  Parts 3 and 4 stand as written; the implementation departed from them in
+  three places, repaired in revision 11.
+  - **A source Gate is charged what it pulls, in the commit order.** Part 3:
+    "a later supply gets what the earlier ones leave". The feasibility test
+    charged every source Gate its whole reach on a Pool, whatever its planned
+    throughput, and in the members' listed order. With Pool P = 10, Gate A
+    (`6` from P) held to 2 by a side Pool and Gate B (`6` from P) beside it, B
+    was planned at 4; it takes its 6. **A consequence that shows:** charged
+    its whole reach, an earlier supply could make every amount of its own
+    infeasible and be given nothing, which left its Pool to the later ones.
+    It is now filled first, as the fixed priority says, and a later supply
+    gets less; on such a model less can move in total. That is the contract
+    ("the throughput is whatever that order leaves, not a maximum").
+  - **A Gate held to a throughput covers it exactly.** Part 3: the second Gate
+    of a shared piece "is held to exactly that throughput — its supplies, in
+    their order, each up to its own bound, cover it". Each of its supplies is
+    now searched up to what is left of that throughput, so the search is over
+    amounts the later supplies can complete. It was searched over "covers
+    exactly", true at one point: unless that point was the supply's bound or
+    the bound over a power of two the search ended at 0 and **the whole group
+    moved nothing** (5 to be covered by 3 and 2). The test "the supplies cover
+    the throughput" also asks what is left uncovered with no slack; with
+    epsilon there, an earlier supply settled `1e-9` past the throughput
+    (`5.000000001` for 5) and the first Gate `1e-9` past what the second could
+    cover. Only the rounding of a share is let through; an overshoot by
+    supplies fixed earlier keeps the epsilon as a classification (part 4).
+  - **A `pull all` source Gate under a multi-supply Gate.** §9 and part 2:
+    "`pull all` members fix the number". A `pull all` source Gate in a piece
+    HEADED by a multi-supply Gate was never asked for its demand; planned
+    short, it was dropped at the commit and the rest of the group moved
+    without it, the Converter fed on one input only. When its planned
+    throughput is below its demand **the whole planned group moves nothing**
+    (D-fixed; Lumi, 2026-11-15), a second multi-supply Gate of the group with
+    a Pool of its own included; that Gate reads `held / pullAll`, the others
+    `held / plan`. A short `pull all` source Gate in a source piece keeps what
+    it did (its piece's number is 0).
+  Pinned per connection and Pool to `1e-12` in
+  `src/engine/multiSupplyHeld.test.ts`. **Open, existing and not changed by
+  this:** a group that returns to a Pool exactly what it takes from it stands
+  still when that Pool is exactly full, by the rounding of the level against
+  a bound with no tolerance (with a room of `1e-12` the same flow runs in
+  full); and issue #570 holds for the multi-supply plan as for the tree.
+
   A Converter outside every group whose router input delivers nothing this
   step (its router does not fire, the connection is dead, or a probabilistic
   Gate picked another branch) does not run from its Pools alone: one `f` on
