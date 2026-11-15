@@ -172,6 +172,56 @@ describe('a multi-supply group: its source Gate’s planned pull is held too', (
   })
 })
 
+describe('a `pull all` multi-supply Gate moves its fixed demand or nothing (part 3, D-fixed)', () => {
+  // The same loss where no Converter shows it: a source Gate that supplies a
+  // `pull all` multi-supply Gate lost its pull, and that Gate, which "moves at
+  // exactly that point or not at all", ran short of its demand.
+  //   A ─2→ a ─2→ j ; x ─3→ g ─3→ j ; w ─5→ j (its own Pool) ; j ─1→ out.   Outside: x ─5→ c1 ─1→ y
+  // j's fixed demand is 2 + 3 + 5 = 10. The order is a, c1, g, j.
+  const shape = (x: number): Graph => ({
+    nodes: [pool('A', 100), pool('x', x), pool('w', 100), pool('y', 0), pool('out', 0), gate('a'), conv('c1'), gate('g'), gate('j', 'pullAll')],
+    edges: [res('Aa', 'A', 'a', '2'), res('aj', 'a', 'j', '2'), res('xg', 'x', 'g', '3'), res('gj', 'g', 'j', '3'), res('wj', 'w', 'j', '5'), res('jo', 'j', 'out', '1'), res('x1', 'x', 'c1', '5'), res('1y', 'c1', 'y', '1')],
+  })
+  it('the smallest case: j moves its 10 and the outside Converter gets the 2 left (was: the outside Converter took all 5 and g got 0)', () => {
+    const g = shape(5)
+    const r = one(g)
+    expectExact(r.moved, { Aa: 2, aj: 2, xg: 3, gj: 3, wj: 5, jo: 10, x1: 2, '1y': 0.4 })
+    rules(g, r, 'pull all multi-supply')
+  })
+  it('with 2 in the Pool the Gate g can reach 2, so the demand is 2 + 2 + 5 = 9 (demand by reach): j moves its 9 and nothing is left for the outside Converter (was: it took the 2 and g got 0)', () => {
+    const g = shape(2)
+    const r = one(g)
+    expectExact(r.moved, { Aa: 2, aj: 2, xg: 2, gj: 2, wj: 5, jo: 9, x1: 0, '1y': 0 })
+    rules(g, r, 'pull all multi-supply, a Pool of 2')
+  })
+  it('sweep seed 1481: the `pull all` Gate g4 takes all four of its supplies in full, 8 + 3 + 5 + 1 = 17, at step 1, and nothing after (was: 14 at step 1, the 3 of its Gate g3 lost to the outside Gate g1)', () => {
+    // p2 ─8→ g0 ─3→ g4 ; p3 ─3→ g3 ─4→ g4 ; p4 ─5→ g4 ; p3 ─1→ g4 ; g4 ─2→ p2 (g4 is `pull all`).
+    // Outside the group: p3 ─7→ g1, p1 ─5→ g1, g1 ─4→ g2, p1 ─2→ g2, g1 ─5→ p4, g2 ─3→ p4. p3 holds 6:
+    // g4's own line claims 1 and g3 is to pull 3, so g1, ordered between g0 and g3, finds 2 there.
+    const g: Graph = {
+      nodes: [pool('p0', 9), pool('p1', 7), pool('p2', 14), pool('p3', 6), pool('p4', 9), gate('g0'), gate('g1'), gate('g2'), gate('g3'), gate('g4', 'pullAll')],
+      edges: [res('e0', 'p2', 'g0', '8'), res('e1', 'p3', 'g1', '7'), res('e2', 'p1', 'g1', '5'), res('e3', 'g1', 'g2', '4'), res('e4', 'p1', 'g2', '2'), res('e5', 'p3', 'g3', '3'), res('e6', 'g0', 'g4', '3'), res('e7', 'g3', 'g4', '4'), res('e8', 'p4', 'g4', '5'), res('e9', 'p3', 'g4', '1'), res('e10', 'g1', 'p4', '5'), res('e11', 'g2', 'p4', '3'), res('e12', 'g4', 'p2', '2')],
+    }
+    const intoG4 = (m: Record<string, number>) => m.e6 + m.e7 + m.e8 + m.e9
+    let st = initSim(g.nodes)
+    const first = one(g, st)
+    st = first.state
+    expect([first.moved.e6, first.moved.e7, first.moved.e8, first.moved.e9]).toEqual([8, 3, 5, 1])
+    expect(first.moved.e12).toBe(17)
+    expect(first.moved.e5, 'g3 pulls its 3').toBe(3)
+    expect(first.moved.e1, 'the outside Gate g1 gets what is left of p3').toBe(2)
+    rules(g, first, 'seed 1481, step 1')
+    for (let i = 2; i <= 3; i++) {
+      const r = one(g, st)
+      st = r.state
+      // p3 is empty now: the demand cannot be met, so nothing, never a part of it
+      expect(intoG4(r.moved), `step ${i}: into g4`).toBe(0)
+      expect(r.moved.e12, `step ${i}: out of g4`).toBe(0)
+      rules(g, r, `seed 1481, step ${i}`)
+    }
+  })
+})
+
 describe('the five graphs of the sweep that showed it', () => {
   // the generator of the sweep (the same as in `fullPoolLoop.test.ts`)
   function build(seed0: number): Graph {
