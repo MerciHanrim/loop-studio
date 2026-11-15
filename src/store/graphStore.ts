@@ -638,6 +638,28 @@ const restoreSidecar = (sc: unknown): void => {
   dataImportSidecar?.set(b.d ?? null)
   projectSidecar?.set(b.p ?? null)
 }
+/** SEMANTICS-R.md §R2 — a committed `Export → Project revision` that moved
+ *  the session to another revision is the baseline of the WHOLE history, the
+ *  entries taken before it included: "undo/redo never moves the `revisionId`
+ *  (it moves content, which then re-derives `dirty` against the unchanged
+ *  baseline)". Every entry carries the project header of its moment, which is
+ *  what lets one Undo take back an Apply, graph and header (§R7.3). The export
+ *  wrote no entry and left the older headers in the ones it found, so Ctrl+Z
+ *  after an export put the session back on the revision before it: a plain
+ *  document lost its project (and the next export began another one), an open
+ *  revision went back to its parent (and the next export was a sibling of the
+ *  file just written). Redo did the same from an entry undone before the
+ *  export. `projectStore.commitRevisionExport` calls this with the header it
+ *  committed; frames and data imports in the entries are left as they are. */
+export function rebaseHistoryOnProjectHeader(header: unknown): void {
+  const { past, future } = useGraphStore.getState()
+  if (!past.length && !future.length) return
+  const onto = (e: HistoryEntry): HistoryEntry => ({
+    ...e,
+    sidecar: { ...((e.sidecar ?? { p: null, f: null, d: null }) as SidecarBundle), p: header },
+  })
+  useGraphStore.setState({ past: past.map(onto), future: future.map(onto) })
+}
 /** LGR Slice 5 — the live saved manual frames, for `serialize` / autosave. The
  *  `frameStore` snapshot is already `SavedFrame`-shaped (id / label / rect /
  *  color; no `n`). `undefined` when no frames or before `frameStore` registers. */

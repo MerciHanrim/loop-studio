@@ -192,6 +192,21 @@ prior step succeeded**:
 - The baseline update is **not** a graph-content change and **not** a normal
   undo entry — undo/redo never moves the `revisionId` (it moves content, which
   then re-derives `dirty` against the unchanged baseline).
+  - **The entries already in the history follow the export.** Every history
+    entry carries the project header of its moment, which is how one Undo
+    takes back an Apply, graph and header (§R7.3). An export that moves the
+    session to another revision therefore writes its header into every entry
+    of the undo and the redo branch as well: undoing an edit made before the
+    export, or redoing one undone before it, leaves the session on the
+    exported revision, with `dirty` re-derived. An Apply further back in the
+    history is undone the same way after such an export (its content goes, the
+    exported revision stays). An unchanged re-export (the "not dirty" path,
+    same `revisionId`) changes nothing in the session, the history included.
+    Until 2026-11-15 the entries kept their older headers: Ctrl+Z after an
+    export put a plain document back to "no project" (a reload kept it so, and
+    the next export began another project), and an open revision back to its
+    parent (the next export was a sibling of the file just written). Pinned in
+    `src/store/revisionExportUndo.test.ts` and `e2e/revision.spec.ts`.
 - Autosave (`localStorage`) stores the graph **plus the lightweight project
   header** — `projectId`, `revisionId`, `parentId`, `role`, `lineage`, `meta`
   — so a reload keeps the session on the same revision. It **never** autosaves
