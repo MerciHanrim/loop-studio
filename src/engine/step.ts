@@ -47,6 +47,49 @@ import { EPSILON, type FlowEvent, type GateStatus, type RunLimit, type SimState,
 // everything else is loop-state/1.
 
 const nz = (x: number) => (Math.abs(x) < EPSILON ? 0 : x)
+/** The plans check a Pool's room along the group's commit order with no slack
+ *  (SEMANTICS.md §6 erratum, part 4): the level, summed from what the members
+ *  take and deliver, never passes the room. A group that returns to a Pool
+ *  exactly what it takes from it has a level of 0 on paper and of about 1e-16
+ *  of its flow in floating point, and on an exactly FULL Pool that failed the
+ *  test at every value the search tried (the search halves, and a halved
+ *  number rounds the same way): the group stood still, while a room of 1e-12
+ *  let all of it through (issue #572).
+ *
+ *  A tolerance on the comparison is not the answer: a search walks into a
+ *  tolerance (it was tried: a delivery of exactly 1 into a full Pool became
+ *  1.0000000000000284). What tells the two cases apart is how the level moves
+ *  with the number the search is looking for:
+ *  - a level that IS 0 over a range of the number is rounding at every value
+ *    in the range, and exactly proportional to the number. Halving is exact in
+ *    floating point, so "half the number, half the level" holds bit for bit as
+ *    long as every amount on that Pool is proportional to the number;
+ *  - a level that only PASSES 0 at a point does so because something that is
+ *    not proportional has taken part (a line bringing its full amount, a Pool
+ *    running out, a take fixed by an earlier number), and then half the number
+ *    does not give half the level. That is tested with no slack, as before.
+ *  `LEVEL_ROUNDING`: how many units in the last place of a flow a level may
+ *  be and still be called its rounding. It never decides alone. */
+const LEVEL_ROUNDING = 64 * Number.EPSILON
+type Level = { level: number; gross: number }
+/** Is a level that is past its room nothing but rounding? `at`, `half`,
+ *  `quarter`: the level and the gross flow (everything taken from and
+ *  delivered into the Pool so far) at one member of the walk, with the number
+ *  under search at its value, at half of it and at a quarter.
+ *  - The level is the same at all three: it does not depend on the number, the
+ *    search cannot move it, and whatever let it stand before lets it stand.
+ *  - Or it is exactly proportional to the number (half, then a quarter: two
+ *    halvings, because a level of two units in the last place is "exactly
+ *    twice" one unit by accident) AND no larger than the rounding of the part
+ *    of the flow that moves WITH the number. Measured against the whole flow
+ *    it would be a tolerance again: beside large amounts fixed earlier, a real
+ *    inflow proportional to the number could grow until it reached THEIR
+ *    rounding (seen in a sweep: 2.8e-14 into a full Pool). */
+const roundingOnly = (at: Level, half: Level, quarter: Level): boolean => {
+  if (half.level === at.level && quarter.level === at.level) return true
+  if (half.level * 2 !== at.level || quarter.level * 4 !== at.level) return false
+  return at.level <= LEVEL_ROUNDING * 2 * (at.gross - half.gross)
+}
 const cap = (n: LoopNode): number =>
   n.data.kind === 'pool' && n.data.capacity != null ? n.data.capacity : Infinity
 
@@ -1378,24 +1421,56 @@ export function step(
         }
         return took
       }
-      /** the highest level above the Pool's start that the walk reaches at `s` */
-      const peakAt = (q: string, s: number): number => {
+      /** the Pool's level above its start after each member of the walk at `s`, and everything taken from and delivered
+       *  into it up to there (for `roundingOnly`) */
+      const levelsAt = (q: string, s: number): { level: number[]; gross: number[] } => {
         const gt = gateTakes(s)
+        const levels: number[] = []
+        const grosses: number[] = []
         let level = 0
-        let peak = 0
+        let gross = 0
         for (const m of inOrder) {
           const c = cof.get(m) ?? 0
+          let took = 0
+          let gave = 0
           if (kindOf(m) === 'gate') {
-            level -= gt.get(m)?.get(q) ?? 0
+            took = gt.get(m)?.get(q) ?? 0
             const Wm = W.get(m) ?? 0
-            if (Wm > EPSILON) level += (c * s * (gateInto.get(m)!.get(q) ?? 0)) / Wm
+            if (Wm > EPSILON) gave = (c * s * (gateInto.get(m)!.get(q) ?? 0)) / Wm
           } else {
-            level -= c * s * (convNeed.get(m)!.get(q) ?? 0)
-            level += c * s * (convMake.get(m)!.get(q) ?? 0)
+            took = c * s * (convNeed.get(m)!.get(q) ?? 0)
+            gave = c * s * (convMake.get(m)!.get(q) ?? 0)
           }
-          if (level > peak) peak = level
+          level -= took
+          level += gave
+          gross += took + gave
+          levels.push(level)
+          grosses.push(gross)
         }
+        return { level: levels, gross: grosses }
+      }
+      /** the highest level above the Pool's start that the walk reaches at `s` */
+      const peakAt = (q: string, s: number): number => {
+        let peak = 0
+        for (const level of levelsAt(q, s).level) if (level > peak) peak = level
         return peak
+      }
+      /** the walk keeps the Pool's level within its room at `s`: no slack, and a level that is nothing but rounding is
+       *  not a rise (`roundingOnly`) */
+      const fitsRoom = (q: string, s: number): boolean => {
+        const room = roomOf(q)
+        const at = levelsAt(q, s)
+        let half: ReturnType<typeof levelsAt> | null = null
+        let quarter: ReturnType<typeof levelsAt> | null = null
+        const pick = (l: ReturnType<typeof levelsAt>, i: number): Level => ({ level: l.level[i], gross: l.gross[i] })
+        for (let i = 0; i < at.level.length; i++) {
+          if (at.level[i] <= room) continue
+          if (at.level[i] > LEVEL_ROUNDING * at.gross[i]) return false
+          half ??= levelsAt(q, s / 2)
+          quarter ??= levelsAt(q, s / 4)
+          if (!roundingOnly(pick(at, i), pick(half, i), pick(quarter, i))) return false
+        }
+        return true
       }
       const gateTouches = (q: string) => srcGates.some((g) => wantsOf.get(g)!.some((w) => w.e.source === q))
       const walked: string[] = [] // Pools whose bound needs the bisection
@@ -1496,7 +1571,7 @@ export function step(
       // largest `s` under every other bound at which the walk keeps every such
       // Pool's level within its room (feasible at 0; bisection from there)
       if (walked.length > 0 && Number.isFinite(sMax) && sMax > 0) {
-        const fits = (s: number) => walked.every((q) => peakAt(q, s) <= roomOf(q)) // no slack (#471, erratum part 4)
+        const fits = (s: number) => walked.every((q) => fitsRoom(q, s)) // no slack (#471, erratum part 4)
         if (!fits(sMax)) {
           let lo = 0
           let hi = sMax
@@ -1772,9 +1847,10 @@ export function step(
         return c
       }
       const add = (map: Map<string, number>, k: string, v: number) => map.set(k, (map.get(k) ?? 0) + v)
-      /** the tree plan's bounds, as a test of the whole group at once */
-      const feasible = (): boolean => {
-        if (!settle()) return false
+      /** What the plan, at the numbers as they stand, takes from and delivers into each Pool, per member; null when a
+       *  bound other than a Pool's room is not met. */
+      const flows = (): { give: Map<string, number>; takesBy: Map<string, Map<string, number>>; givesBy: Map<string, Map<string, number>>; inOrder: string[] } | null => {
+        if (!settle()) return null
         const c = amountsOf(sOf())
         const claim = new Map<string, number>() // Pool → taken by the plan
         const give = new Map<string, number>() // Pool → delivered by the plan
@@ -1795,7 +1871,7 @@ export function step(
             // epsilon let the bisection plan ~1e-9 into a full Pool (#471)
             if (v <= 0) continue
             const Wm = W.get(m) ?? 0
-            if (Wm <= EPSILON) return false // no live branch — delivers nothing (#388 D)
+            if (Wm <= EPSILON) return null // no live branch — delivers nothing (#388 D)
             for (const [q, w] of gateInto.get(m)!) {
               if (!isPool(q)) continue
               add(give, q, (v * w) / Wm)
@@ -1803,10 +1879,10 @@ export function step(
             }
             continue
           }
-          if (v > 1) return false // f ≤ 1
+          if (v > 1) return null // f ≤ 1
           if (v <= 0) continue
-          if (disabledPullAll.has(m) || convMake.get(m)!.size === 0) return false
-          if (inOf(m).some((e) => !isPool(e.source) && !liveEdge(e) && rateOfCached(e) > EPSILON)) return false
+          if (disabledPullAll.has(m) || convMake.get(m)!.size === 0) return null
+          if (inOf(m).some((e) => !isPool(e.source) && !liveEdge(e) && rateOfCached(e) > EPSILON)) return null
           const need = convNeed.get(m)!
           for (const [p, r] of need) {
             add(claim, p, v * r)
@@ -1822,12 +1898,12 @@ export function step(
           for (const sup of supplies.get(G)!) {
             if (sup.kind !== 'own') continue
             const u = uOwn.get(sup.e.id) ?? 0
-            if (u > sup.want) return false
+            if (u > sup.want) return null
             add(claim, sup.e.source, u)
             addBy(takesBy, G, sup.e.source, u)
           }
         }
-        for (const [p, v] of claim) if (v > availOf(p)) return false
+        for (const [p, v] of claim) if (v > availOf(p)) return null
         // a source Gate reaches its T by its greedy pulls, net of the plan's
         // claims and of what the source Gates BEFORE it in the commit order
         // pull. What a Gate pulls is charged, not what it could: a Gate held to
@@ -1854,21 +1930,76 @@ export function step(
             add(used, e.source, pulled)
             if (pulled > 0) addBy(takesBy, m, e.source, pulled)
           }
-          if (r < T) return false
+          if (r < T) return null
         }
+        return { give, takesBy, givesBy, inOrder }
+      }
+      /** The plan's flows with the number UNDER SEARCH at `k` times the value being tested (`scale` sets it; the
+       *  numbers fixed earlier stay, `settle` redoes the rest), the plan's state put back as it was. For
+       *  `roundingOnly`. */
+      const flowsScaled = (scale: (k: number) => void, k: number): ReturnType<typeof flows> => {
+        const sp = new Map(sPiece)
+        const uo = new Map(uOwn)
+        const tt = new Set(tentative)
+        scale(k)
+        const out = flows()
+        sPiece.clear()
+        for (const [k, v] of sp) sPiece.set(k, v)
+        uOwn.clear()
+        for (const [k, v] of uo) uOwn.set(k, v)
+        tentative.clear()
+        for (const k of tt) tentative.add(k)
+        return out
+      }
+      /** The tree plan's bounds, as a test of the whole group at once. `scale` is given by a SEARCH for one of the
+       *  plan's numbers and sets that number to a fraction of the value under test: a level past a room is then let
+       *  through only when it is nothing but rounding in that number (`roundingOnly`). Without it (a point that is
+       *  only classified, never searched over: the plan as the fills left it, a `pull all` Gate's fixed demand) a
+       *  level within the rounding of its amounts is let through as it is. */
+      const feasible = (scale?: (k: number) => void): boolean => {
+        const f = flows()
+        if (!f) return false
         // the room, along the commit order (#471 item 5): from the Pool as it
         // stands, each member's take lowers the level at its turn and its
         // delivery raises it; the level never passes the room. A Converter's
         // own take and delivery on one Pool meet at its turn (its net); an
         // earlier member's take is room a later delivery may fill.
-        for (const q of give.keys()) {
+        const levelsOf = (g: NonNullable<ReturnType<typeof flows>>, q: string) => {
+          const level: number[] = []
+          const gross: number[] = []
+          let l = 0
+          let s = 0
+          for (const m of g.inOrder) {
+            const took = g.takesBy.get(m)?.get(q) ?? 0
+            const gave = g.givesBy.get(m)?.get(q) ?? 0
+            l -= took
+            l += gave
+            s += took + gave
+            level.push(l)
+            gross.push(s)
+          }
+          return { level, gross }
+        }
+        let half: ReturnType<typeof flows> | undefined
+        let quarter: ReturnType<typeof flows> | undefined
+        const pick = (l: ReturnType<typeof levelsOf>, i: number): Level => ({ level: l.level[i], gross: l.gross[i] })
+        for (const q of f.give.keys()) {
           let room = headroom(q)
           for (const m of members) room += ownReserve.get(m)?.get(q) ?? 0
-          let level = 0
-          for (const m of inOrder) {
-            level -= takesBy.get(m)?.get(q) ?? 0
-            level += givesBy.get(m)?.get(q) ?? 0
-            if (level > room) return false
+          const at = levelsOf(f, q)
+          let atHalf: ReturnType<typeof levelsOf> | null = null
+          let atQuarter: ReturnType<typeof levelsOf> | null = null
+          for (let i = 0; i < at.level.length; i++) {
+            if (at.level[i] <= room) continue
+            // past the room: a rise, unless it is nothing but rounding (`roundingOnly`)
+            if (at.level[i] > LEVEL_ROUNDING * at.gross[i]) return false
+            if (!scale) continue
+            if (half === undefined) half = flowsScaled(scale, 0.5)
+            if (quarter === undefined) quarter = flowsScaled(scale, 0.25)
+            if (!half || !quarter) return false
+            atHalf ??= levelsOf(half, q)
+            atQuarter ??= levelsOf(quarter, q)
+            if (!roundingOnly(pick(at, i), pick(atHalf, i), pick(atQuarter, i))) return false
           }
         }
         return true
@@ -1903,7 +2034,7 @@ export function step(
       }
       /** the largest value of one free number that keeps the group feasible, then its own all-or-nothing rule */
       const largest = (set: (v: number) => void, hi: number, ok: () => boolean): number => {
-        const test = (v: number) => { set(v); return feasible() }
+        const test = (v: number) => { set(v); return feasible((k) => set(v * k)) }
         let best = 0
         if (hi > EPSILON) {
           if (test(hi)) best = hi

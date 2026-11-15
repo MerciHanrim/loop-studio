@@ -71,4 +71,9 @@
 //                       or 1e-9 too much); a `pull all` source Gate under a
 //                       multi-supply Gate that is short zeroes the group (it
 //                       was dropped and the rest moved)
-export const ENGINE_REVISION = 11
+//   12                  issue #572 — a planned group that returns to an exactly
+//                       full Pool exactly what it takes from it runs: a level
+//                       that is only rounding in the number under search is
+//                       not a rise (it failed at every value the search tried
+//                       and the group stood still)
+export const ENGINE_REVISION = 12

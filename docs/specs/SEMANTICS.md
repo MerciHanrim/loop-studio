@@ -498,15 +498,52 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
     `held / plan`. A short `pull all` source Gate in a source piece keeps what
     it did (its piece's number is 0).
   Pinned per connection and Pool to `1e-12` in
-  `src/engine/multiSupplyHeld.test.ts`. **Open, existing and not changed by
-  this:** a group that returns to a Pool exactly what it takes from it stands
-  still when that Pool is exactly full, in both planners (issue #572): the
-  level, 0 on paper, comes out about `1e-16` above 0 at every value the search
-  tries, against a bound with no tolerance, while a room of `1e-12` lets the
-  same flow run in full. A rounding allowance in that comparison is not the
-  repair (it lets a real bound be passed by the allowance). The cases are held
-  as known defects in `src/engine/fullPoolLoop.test.ts`. And issue #570 holds
-  for the multi-supply plan as for the tree.
+  `src/engine/multiSupplyHeld.test.ts`. Open beside it when revision 11 was
+  made: a group on an exactly full Pool stood still (repaired in part 9), and
+  issue #570 holds for the multi-supply plan as for the tree.
+
+  **Erratum, part 9 (2026-11-15, issue #572) — a level that is only rounding
+  is not a rise.** Parts 2 and 4 stand: the room is checked along the commit
+  order, an earlier member's take is room a later member's delivery may fill,
+  and nothing is added to a bound. One thing they left to the arithmetic: a
+  group that returns to a Pool **exactly** what it takes from it has a level
+  of 0, and 0 does not pass a room of 0, so on an exactly full Pool it runs.
+  In floating point that level is a sum of products of the members'
+  coefficients and comes out about `1e-16` of the flow away from 0, of either
+  sign. Until revision 12 a positive one failed the test, and it failed at
+  every value the search for the plan's number tried (the search halves, and
+  a halved number rounds the same way): the group **stood still**, while a
+  room of `1e-12` let all of it through. Pool `P` 10 of 10, `P →3→` Gate,
+  Gate `→1→` Converter and `→6→ P`, Converter `→1→ P`: nothing moved; 3 moves.
+  - **The rule.** In a search for one of the plan's numbers, a level past its
+    room is let through only when it is nothing but rounding **in that
+    number**: with the number at half and at a quarter of the value under
+    test, the level is exactly a half and a quarter (halving is exact in
+    floating point, so this holds bit for bit while every amount on that Pool
+    is proportional to the number), and it is no larger than 64 units in the
+    last place of the part of the Pool's flow that moves with the number. A
+    level that does not depend on the number at all is left as it stands.
+  - **What is not let through.** A level that passes 0 at a point does so
+    because something not proportional has taken part: a line that brings its
+    full amount, a Pool that runs out, a take fixed by an earlier number. Half
+    the number then does not give half the level, and the level is tested
+    against the room with no slack, as before. A real net inflow, however
+    small the plan's number, is larger than the rounding of its own flow.
+  - **Not a tolerance on the comparison.** "No more than the rounding of the
+    amounts on the Pool" alone was tried and withdrawn: a search walks into a
+    tolerance. A delivery of exactly 1 into a full Pool, the 1 another member
+    took, became `1.0000000000000284`; and measured against the whole flow, a
+    real inflow beside large amounts fixed earlier grew to their rounding.
+  - **Where a point is only classified** (the plan as the fills left it, a
+    `pull all` Gate's fixed demand), no search runs, and a level within the
+    rounding of its amounts is let through as it is (part 4: "a tolerance only
+    classifies a difference already computed").
+  A group that stops at the end of such a range stops where the plan's own
+  numbers stop being proportional: no Pool is planned past its capacity by
+  more than the rounding of its own flow, the same as before this change
+  (0.48 of a unit over 5,153 random graphs, before and after). Pinned in
+  `src/engine/fullPoolLoop.test.ts`: the cases of both planners, the bounds
+  that must not be passed, and a seeded sweep of 2,000 graphs.
 
   A Converter outside every group whose router input delivers nothing this
   step (its router does not fire, the connection is dead, or a probabilistic
