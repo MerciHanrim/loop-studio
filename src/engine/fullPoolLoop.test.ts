@@ -139,6 +139,44 @@ describe('…and no real bound is passed by it', () => {
   it('a net inflow of one part in 10^12 is still an inflow: nothing moves', () => {
     close(one(tree({ out: '1.000000000001', cap: 10 })).m, { Pg: 0, gc: 0, gP: 0, cP: 0 })
   })
+
+  // NOT YET RIGHT ON THIS BRANCH (Lumi's review of PR 574, 2026-11-15). The rule
+  // as it stands lets a REAL inflow through when it is small enough, in two
+  // forms. `it.fails` records each: it passes while the rule is wrong and turns
+  // red when it is repaired, and is then to be changed to `it`.
+  //   A. In a search: a real inflow proportional to the number under search
+  //      also gives "half the number, exactly half the level", and it is let
+  //      through while it is under 64 units in the last place of its flow.
+  //   B. At a point that is only classified (a `pull all` Gate's fixed demand):
+  //      a level within 64 units of the whole flow is let through as it is.
+  it.fails('A: a net inflow of one part in 10^13 is still an inflow: nothing moves (this branch: 3 move, P planned 12 units of rounding past its capacity)', () => {
+    const g = tree({ out: '1.0000000000001', cap: 10 })
+    const r = one(g)
+    close(r.m, { Pg: 0, gc: 0, gP: 0, cP: 0 })
+    expect(pastCapacity(g, r)).toBeLessThanOrEqual(1)
+  })
+  it.fails('A: a net inflow of one part in 10^14: nothing moves (this branch: 3 move)', () => {
+    close(one(tree({ out: '1.00000000000001', cap: 10 })).m, { Pg: 0, gc: 0, gP: 0, cP: 0 })
+  })
+  it.fails('B: a `pull all` multi-supply Gate whose fixed demand returns to the full Pool 8e-14 too much: the group moves nothing (this branch: it runs, 15 units past)', () => {
+    // F 10 of 10 ; F ─3→ A ; A ─1→ J , A ─6→ F ; R ─0.25→ J (pull all) ; J ─1→ c ; c ─out→ F.
+    // The group returns what it takes when out = 12/19; 0.6315789473685 is 7.9e-14 more.
+    const g: Graph = {
+      nodes: [pool('F', 10, 10), pool('R', 100), gate('A'), gate('J', 'pullAll'), conv('c')],
+      edges: [res('FA', 'F', 'A', '3'), res('AJ', 'A', 'J', '1'), res('AF', 'A', 'F', '6'), res('RJ', 'R', 'J', '0.25'), res('Jc', 'J', 'c', '1'), res('cF', 'c', 'F', '0.6315789473685')],
+    }
+    const r = one(g)
+    close(r.m, { FA: 0, AJ: 0, AF: 0, RJ: 0, Jc: 0, cF: 0 })
+    expect(pastCapacity(g, r)).toBeLessThanOrEqual(1)
+  })
+  it('B control: the same Gate with out a hundredth too much moves nothing, and with out too little it runs', () => {
+    const at = (out: string) => one({
+      nodes: [pool('F', 10, 10), pool('R', 100), gate('A'), gate('J', 'pullAll'), conv('c')],
+      edges: [res('FA', 'F', 'A', '3'), res('AJ', 'A', 'J', '1'), res('AF', 'A', 'F', '6'), res('RJ', 'R', 'J', '0.25'), res('Jc', 'J', 'c', '1'), res('cF', 'c', 'F', out)],
+    }).m
+    expect(at('0.64').FA).toBe(0)
+    close(at('0.6'), { FA: 3, RJ: 0.25 })
+  })
   it('with a real room the bound is met exactly (room 0.25, a net inflow of a seventh: 1.75 flows)', () => {
     const g = tree({ out: '2', cap: 10.25 })
     const r = one(g)
