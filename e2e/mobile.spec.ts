@@ -858,6 +858,7 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
         () => (window as unknown as { __loop: { graph: { getState: () => { selectedNodeId: unknown } } } }).__loop.graph.getState().selectedNodeId,
       )
 
+    const before = await graphContent(page)
     await tapNode(page, node)
     await expect(selPanel(page)).toBeVisible()
     const id = await selectedId()
@@ -885,7 +886,10 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     // sheet, and keeps the selection too
     await page.locator('.sheet-scrim').click({ position: { x: 40, y: 40 } })
     await expect(inspector).toBeHidden()
-    expect(await graphContent(page)).toBe(await graphContent(page)) // still no mutation
+    // still no mutation: the graph is the one loaded, through the tap, the
+    // sheet opened twice, Close and the scrim (this line compared the graph
+    // with itself until 2026-11-15, and so checked nothing)
+    expect(await graphContent(page), 'the document after the sheet was opened and closed').toBe(before)
     expect(await selectedId()).toBe(id)
 
     // taking the selection off is the panel's Deselect

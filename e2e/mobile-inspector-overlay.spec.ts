@@ -366,12 +366,37 @@ test.describe('phone: the screen the user opened stays over a selection (#411), 
 test.describe('phone: the tour over a selection', () => {
   test('the panel’s buttons are out of reach under the tour and back when it closes; the Inspect step says the new order', async ({ page }) => {
     await loadWithSelection(page)
-    const reach = () => page.evaluate(() => ['.selpanel__details', '.selpanel__x'].map((s) => !!document.querySelector(s)?.closest('[inert]')))
-    expect(await reach()).toEqual([false, false])
+    // 'missing' is its own answer: a button that is not there is not "in
+    // reach" (the read was `!!el?.closest('[inert]')`, which said `false`,
+    // the expected value, for a panel that was not on the page at all)
+    const reach = () =>
+      page.evaluate(() =>
+        ['.selpanel__details', '.selpanel__x'].map((s) => {
+          const el = document.querySelector(s)
+          return !el ? 'missing' : el.closest('[inert]') ? 'inert' : 'in reach'
+        }),
+      )
+    expect(await reach()).toEqual(['in reach', 'in reach'])
     await page.evaluate(() => (window as unknown as Bridge).__loop.tour.getState().startReplay('mobile'))
     const popover = page.locator('.tour-popover')
     await expect(popover).toBeVisible()
-    expect(await reach(), 'inert under the tour').toEqual([true, true])
+    expect(await reach(), 'inert under the tour').toEqual(['inert', 'inert'])
+    // and a real tap says the same: where each button is drawn, the tap lands
+    // on the tour (not on the panel, and at this step not on the tour's own
+    // popover), so Details opens no sheet and Deselect takes nothing off
+    for (const button of [details(page), deselect(page)]) {
+      const b = (await button.boundingBox())!
+      const at = { x: b.x + b.width / 2, y: b.y + b.height / 2 }
+      const under = await page.evaluate(({ x, y }) => {
+        const hit = document.elementFromPoint(x, y)
+        return { panel: !!hit?.closest('.selpanel'), popover: !!hit?.closest('.tour-popover') }
+      }, at)
+      expect(under, 'what is under the finger at the button').toEqual({ panel: false, popover: false })
+      await tapAt(page, at.x, at.y)
+      expect(await settle(page)).toMatchObject({ overlay: 'none', node: 'ore_stock', marked: 1 })
+      await expect(inspector(page)).toHaveCount(0)
+      await expect(popover.locator('.tour-popover__pos')).toHaveText('1 / 6')
+    }
     await popover.locator('.btn--primary').click()
     await popover.locator('.btn--primary').click()
     await expect(popover.locator('.tour-popover__pos')).toHaveText('3 / 6')
@@ -380,7 +405,7 @@ test.describe('phone: the tour over a selection', () => {
     await expect(details(page)).toHaveText('Details')
     await popover.locator('.tour-popover__x').click()
     await expect(popover).toHaveCount(0)
-    expect(await reach()).toEqual([false, false])
+    expect(await reach()).toEqual(['in reach', 'in reach'])
     await expect(panel(page)).toBeVisible()
     expect(await sel(page)).toMatchObject({ overlay: 'none', node: 'ore_stock', marked: 1 })
   })
