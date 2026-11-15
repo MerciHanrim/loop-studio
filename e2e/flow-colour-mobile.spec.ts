@@ -21,12 +21,15 @@ const GRAPH = JSON.stringify({
   ],
 })
 
-/** a tap through the phone's pan-capture overlay (as in mobile.spec.ts) */
+/** a tap through the phone's pan-capture overlay (as in mobile.spec.ts), then
+ *  the selection panel's Details: the read-only sheet opens on request
+ *  (docs/mobile.md §MV5b) */
 async function tapNode(page: Page, node: Locator): Promise<void> {
   const b = (await node.boundingBox())!
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2)
   await page.mouse.down()
   await page.mouse.up()
+  await page.locator('.selpanel__details').click()
 }
 
 const sheet = (page: Page) => page.locator('.sheet[aria-label="Inspector — read only"]')

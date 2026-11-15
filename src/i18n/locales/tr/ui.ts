@@ -162,6 +162,10 @@ const ui = {
   'timeline.csv.shown.blurb': 'Burada gösterilen birimlerdeki değerleri ekler',
   'timeline.axis.step': '{n}. adım',
   'timeline.sheetTitle': 'Zaman çizelgesi',
+  'mobile.selection.label': 'Seçim',
+  'mobile.selection.details': 'Ayrıntılar',
+  'mobile.selection.deselect': 'Seçimi kaldır',
+  'mobile.selection.anchor': 'Ayrıntılar şunu gösterir: {name}',
   'mobile.inspector.title': 'İnceleyici — salt okunur',
   'mobile.inspector.roNote': 'Düzenleme masaüstünde. Bu salt okunur bir görünüm.',
   'error.unknownCode': 'ifade geçersiz',
@@ -497,7 +501,7 @@ const ui = {
     'Kaydırmak için sürükleyin, yakınlaştırmak için parmaklarınızı açıp kapatın. Sığdır düğmesi diyagramı ortalar.',
   'tour.mobile.inspect.title': 'İnceleme',
   'tour.mobile.inspect.body':
-    'Ayarlarını okumak için bir düğüme ya da bağlantıya dokunun. Düzenleme yalnızca masaüstünde.',
+    'Özetini görmek için bir düğüme ya da bağlantıya dokunun. Ayarları Ayrıntılar’da okunur. Düzenleme yalnızca masaüstünde.',
   'tour.mobile.run.title': 'Çalıştırma',
   'tour.mobile.run.body':
     'Modeli adım adım ilerletin ya da çalıştırmak için Çalıştır düğmesine basın.',

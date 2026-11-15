@@ -1,7 +1,7 @@
 import { useId, useMemo, useState, type ReactNode } from 'react'
 import { convertersWhoseVerdictChanges, kindFindings, kindFindingEdgeId, kindFindingNodeId, resolveKinds, type ResourceKindDecl } from '../model/kinds'
-import { currentAmountText, fieldUnitOptions, fieldUnitText, poolKindName, previewUnitChange, resolveFieldUnit, type FieldUnit } from '../model/units'
-import { fieldHint, outflowReading, stockReading, type FieldHint } from '../model/viewUnits'
+import { fieldUnitOptions, fieldUnitText, poolKindName, previewUnitChange, resolveFieldUnit, type FieldUnit } from '../model/units'
+import { fieldHint, outflowReading, type FieldHint } from '../model/viewUnits'
 import { useViewUnitsStore } from '../store/viewUnitsStore'
 import { KindFindingText, unitOptionLabel } from './ModelPanels'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -46,6 +46,7 @@ import { RunRuleSection } from './RunRuleSection'
 import { EdgeRelation, NodeRelations } from './workbench/Relations'
 import { connectReasonText } from './connectReason'
 import { CONNECT_LABEL } from './connectKindWords'
+import { usePoolAmount } from './usePoolAmount'
 import { CONNECT_KINDS, connectKindOf, type ConnectKind } from '../model/connectKind'
 import { useT, type MessageKey } from '../i18n'
 import { GATE_STATE_KEY, GATE_WHY_KEY } from './nodes/nodes'
@@ -1534,18 +1535,8 @@ function NonNegativeNumberField({
 
 function PoolFields({ id, d, set }: { id: string; d: PoolData; set: Patch }) {
   const t = useT()
-  // the count the node SHOWS — the engine's value once a run has started, the
-  // authored starting amount before — as the node formats it (`nodes.tsx` fmt)
-  const live = useSimStore((s) => (s.values ? s.values[id] : undefined))
-  // loop-model/4 — in the Pool's authored unit when it has one (§M4-5), and in
-  // the Timeline's view unit while one is on (§M4-10)
-  const kinds = useGraphStore((s) => s.kinds)
-  const time = useGraphStore((s) => s.time)
-  const views = useViewUnitsStore((s) => s.views)
-  const decl = kinds.find((k) => k.name === poolKindName(d))
-  const fu = resolveFieldUnit(d.unit, decl, time, 'stock')
-  const reading = decl ? stockReading(views, decl) : undefined
-  const shownText = currentAmountText(live, d.initial, undefined, fu, time, reading?.kind === 'base' ? undefined : reading)
+  // the current amount: one reading, shared with the phone's selection panel
+  const { shownText, decl, fu, reading, time } = usePoolAmount(id, d)
   const hintOf = (value: number | null) => (decl && reading ? fieldHint(value, fu, reading, decl, time, 'stock') : null)
   return (
     <>

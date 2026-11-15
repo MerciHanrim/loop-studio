@@ -165,6 +165,10 @@ const ui = {
   'timeline.csv.shown.blurb': 'Ajoute les valeurs dans les unités affichées ici',
   'timeline.axis.step': 'pas {n}',
   'timeline.sheetTitle': 'Chronologie',
+  'mobile.selection.label': 'Sélection',
+  'mobile.selection.details': 'Détails',
+  'mobile.selection.deselect': 'Désélectionner',
+  'mobile.selection.anchor': 'Les détails montrent {name}',
   'mobile.inspector.title': 'Propriétés — lecture seule',
   'mobile.inspector.roNote':
     'L’édition se fait sur ordinateur. Ceci est une vue en lecture seule.',
@@ -508,7 +512,7 @@ const ui = {
     'Faites glisser pour vous déplacer, pincez pour zoomer. « Ajuster » recentre le schéma.',
   'tour.mobile.inspect.title': 'Consulter',
   'tour.mobile.inspect.body':
-    'Touchez un nœud ou une connexion pour en lire la configuration. L’édition est réservée à l’ordinateur.',
+    'Touchez un nœud ou une connexion pour en voir le résumé. La configuration se lit dans Détails. L’édition est réservée à l’ordinateur.',
   'tour.mobile.run.title': 'Exécuter',
   'tour.mobile.run.body':
     'Parcourez le modèle pas à pas, ou appuyez sur Lecture pour l’exécuter.',
