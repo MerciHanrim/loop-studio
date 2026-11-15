@@ -109,8 +109,88 @@ export function routerOrder(routerIds: string[], resEdges: LoopEdge[]): { order:
       }
     }
   }
-  const cyclic = routerIds.filter((id) => !order.includes(id))
-  return { order, cyclic }
+  if (order.length === routerIds.length) return { order, cyclic: [] }
+  // What the walk could not reach: the routers ON a cycle, and every router
+  // downstream of one. Only the first are the fault (SEMANTICS.md §6, "every
+  // edge on such a cycle is treated as flow 0"): a router is on a cycle when
+  // its strongly connected component among the left-over routers has another
+  // member, or it has a connection to itself. The ones below a cycle are
+  // ordered with the rest, over the connections between routers that are on
+  // no cycle (a connection from a router on a cycle is dead and orders
+  // nothing). Until 2026-11-15 every left-over router was taken as cyclic:
+  // Gates A ⇄ B, B → C, Pool P → C had C reported on the cycle and P → C moved
+  // nothing.
+  const done = new Set(order)
+  const left = routerIds.filter((id) => !done.has(id))
+  const cyclicSet = onCycle(left, radj, done)
+  const cyclic = routerIds.filter((id) => cyclicSet.has(id))
+  if (cyclic.length === left.length) return { order, cyclic }
+  const free = routerIds.filter((id) => !cyclicSet.has(id))
+  const deg = new Map(free.map((id) => [id, 0]))
+  for (const id of free) for (const t of radj.get(id) ?? []) if (deg.has(t)) deg.set(t, deg.get(t)! + 1)
+  const all: string[] = []
+  let front = free.filter((id) => deg.get(id) === 0).sort()
+  while (front.length) {
+    const id = front.shift()!
+    all.push(id)
+    for (const t of radj.get(id) ?? []) {
+      if (!deg.has(t)) continue
+      deg.set(t, deg.get(t)! - 1)
+      if (deg.get(t) === 0) {
+        front.push(t)
+        front = front.sort()
+      }
+    }
+  }
+  return { order: all, cyclic }
+}
+
+/** the routers of `left` that are on a cycle: Tarjan's strongly connected
+ *  components over the connections among `left` (`skip` = the routers already
+ *  ordered), without recursion */
+function onCycle(left: string[], radj: Map<string, string[]>, skip: Set<string>): Set<string> {
+  const index = new Map<string, number>()
+  const low = new Map<string, number>()
+  const onStack = new Set<string>()
+  const stack: string[] = []
+  const out = new Set<string>()
+  let next = 0
+  const succ = (v: string) => (radj.get(v) ?? []).filter((t) => !skip.has(t))
+  for (const start of left) {
+    if (index.has(start)) continue
+    const work: { v: string; ts: string[]; i: number }[] = []
+    const open = (v: string) => {
+      index.set(v, next)
+      low.set(v, next)
+      next++
+      stack.push(v)
+      onStack.add(v)
+      work.push({ v, ts: succ(v), i: 0 })
+    }
+    open(start)
+    while (work.length) {
+      const top = work[work.length - 1]
+      if (top.i < top.ts.length) {
+        const t = top.ts[top.i++]
+        if (!index.has(t)) open(t)
+        else if (onStack.has(t)) low.set(top.v, Math.min(low.get(top.v)!, index.get(t)!))
+        continue
+      }
+      work.pop()
+      const parent = work[work.length - 1]
+      if (parent) low.set(parent.v, Math.min(low.get(parent.v)!, low.get(top.v)!))
+      if (low.get(top.v) !== index.get(top.v)) continue
+      const comp: string[] = []
+      for (;;) {
+        const w = stack.pop()!
+        onStack.delete(w)
+        comp.push(w)
+        if (w === top.v) break
+      }
+      if (comp.length > 1 || succ(top.v).includes(top.v)) for (const w of comp) out.add(w)
+    }
+  }
+  return out
 }
 
 export type GateBranch = {

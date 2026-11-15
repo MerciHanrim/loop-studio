@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LoopEdge, LoopNode } from '../model/types'
-import { gateChances } from './gateChance'
+import { gateChances, routerOrder } from './gateChance'
 import { initSim, step } from './index'
 
 // A probabilistic Gate's chances read from the document (gateChance.ts): the
@@ -93,6 +93,21 @@ describe('gateChances', () => {
     expect(c.reason).toBe('cycle')
   })
 
+  // review of 2026-11-15, E4: the routers BELOW a cycle were taken as on it
+  it('a Gate below a router-only cycle is not on it: its chances are fixed (was: decided at run time)', () => {
+    const nodes = [pool('tickets', 1), gate('on', 'deterministic'), gate('back', 'deterministic'), gate('roll'), pool('ssr'), pool('r')]
+    const edges = [res('l1', 'on', 'back', '1'), res('l2', 'back', 'on', '1'), res('down', 'on', 'roll', '1'), res('e_in', 'tickets', 'roll', '1'), res('e_a', 'roll', 'ssr', '1'), res('e_b', 'roll', 'r', '3')]
+    const c = gateChances(nodes, edges, 'roll', 1)!
+    expect(c.status).toBe('fixed')
+    expect(c.branches.map((b) => b.chance)).toEqual([0.25, 0.75])
+  })
+  it('a Gate ON the cycle, and a Gate with a line INTO a router on it, are still decided at run time', () => {
+    const nodes = [pool('tickets', 1), gate('on'), gate('back', 'deterministic'), gate('above'), pool('out')]
+    const edges = [res('l1', 'on', 'back', '1'), res('l2', 'back', 'on', '1'), res('o', 'on', 'out', '1'), res('e_in', 'tickets', 'above', '1'), res('into', 'above', 'on', '1'), res('side', 'above', 'out', '1')]
+    expect(gateChances(nodes, edges, 'on', 1)).toMatchObject({ status: 'runtime', reason: 'cycle' })
+    expect(gateChances(nodes, edges, 'above', 1)).toMatchObject({ status: 'runtime', reason: 'cycle' })
+  })
+
   it('not a probabilistic Gate: null; no outgoing line: none', () => {
     const { nodes, edges } = roll(['1', '1', '1'])
     expect(gateChances(nodes, edges, 'tickets', 1)).toBeNull()
@@ -127,5 +142,35 @@ describe('gateChances', () => {
     expect(st.values.a / total).toBeCloseTo(c.branches[0].chance!, 1)
     expect(st.values.b / total).toBeCloseTo(c.branches[1].chance!, 1)
     expect(st.values.c / total).toBeCloseTo(c.branches[2].chance!, 1)
+  })
+})
+
+describe('routerOrder: the routers on a cycle, and the ones below it', () => {
+  const pairs = (list: [string, string][]): LoopEdge[] => list.map(([s, t], i) => res(`e${i}`, s, t, '1'))
+  it('no cycle: the order is the walk, nothing is cyclic', () => {
+    expect(routerOrder(['c', 'a', 'b'], pairs([['a', 'b'], ['b', 'c']]))).toEqual({ order: ['a', 'b', 'c'], cyclic: [] })
+  })
+  it('A ⇄ B, B → C → D: only A and B are cyclic; C and D are ordered (was: all four cyclic)', () => {
+    expect(routerOrder(['A', 'B', 'C', 'D'], pairs([['A', 'B'], ['B', 'A'], ['B', 'C'], ['C', 'D']]))).toEqual({ order: ['C', 'D'], cyclic: ['A', 'B'] })
+  })
+  it('routers above the cycle keep their place, and one fed from above and from the cycle comes after the one above', () => {
+    // U → A ⇄ B → X ; U → X
+    expect(routerOrder(['X', 'U', 'A', 'B'], pairs([['U', 'A'], ['A', 'B'], ['B', 'A'], ['B', 'X'], ['U', 'X']]))).toEqual({ order: ['U', 'X'], cyclic: ['A', 'B'] })
+  })
+  it('a router between two cycles is on neither', () => {
+    const r = routerOrder(['A', 'B', 'M', 'N', 'X'], pairs([['A', 'B'], ['B', 'A'], ['B', 'X'], ['X', 'M'], ['M', 'N'], ['N', 'M']]))
+    expect(r).toEqual({ order: ['X'], cyclic: ['A', 'B', 'M', 'N'] })
+  })
+  it('a connection from a router to itself is a cycle of one; a longer cycle is found whole', () => {
+    expect(routerOrder(['S', 'T'], pairs([['S', 'S'], ['S', 'T']]))).toEqual({ order: ['T'], cyclic: ['S'] })
+    expect(routerOrder(['a', 'b', 'c', 'd'], pairs([['a', 'b'], ['b', 'c'], ['c', 'a'], ['c', 'd']]))).toEqual({ order: ['d'], cyclic: ['a', 'b', 'c'] })
+  })
+  it('a long chain below a cycle is ordered without recursion (5,000 routers)', () => {
+    const ids = ['A', 'B', ...Array.from({ length: 5000 }, (_, i) => `n${String(i).padStart(4, '0')}`)]
+    const list: [string, string][] = [['A', 'B'], ['B', 'A'], ['B', ids[2]]]
+    for (let i = 2; i < ids.length - 1; i++) list.push([ids[i], ids[i + 1]])
+    const r = routerOrder(ids, pairs(list))
+    expect(r.cyclic).toEqual(['A', 'B'])
+    expect(r.order).toEqual(ids.slice(2))
   })
 })
