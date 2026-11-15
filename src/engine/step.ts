@@ -1339,24 +1339,42 @@ export function step(
         return Math.max(0, room)
       }
       const inOrder = [...members].sort((a, b) => (orderIdx.get(a) ?? Infinity) - (orderIdx.get(b) ?? Infinity))
-      const sourceGate = inOrder.find((m) => kindOf(m) === 'gate' && !fedByRouter.has(m))
-      const gateWants = sourceGate
-        ? inOf(sourceGate)
+      // The group's source Gates (fed from their own Pools), in the commit
+      // order, with their Pool lines in pull order. A tree can have several:
+      // two Gates into one Converter. Each one's pulls are read net of the
+      // plan's claims AND of what the source Gates before it pull, so two of
+      // them on one Pool share it, and each one's take is room for a later
+      // member's delivery. Only the FIRST one was walked: a second Gate on the
+      // same Pool was planned at a reach the first had already used (50 + 50
+      // planned from a Pool of 60, 50 + 10 moved, the Converter fed at two
+      // fractions), and a loop through a second Gate into a full Pool ran or
+      // stood still by the Gates' ids (review of 2026-11-15, P2 and P5).
+      const srcGates = inOrder.filter((m) => kindOf(m) === 'gate' && !fedByRouter.has(m))
+      const wantsOf = new Map(
+        srcGates.map((g) => [
+          g,
+          inOf(g)
             .filter((e) => isPool(e.source) && !dead.has(e.id))
             .sort(cmpEdge)
-            .map((e) => ({ e, want: amountOf(e, availOf(e.source), S[e.source] ?? 0) }))
-        : []
-      /** the source Gate's greedy pulls at the plan number `s`, per Pool (the commit's own order) */
-      const gateTakes = (s: number): Map<string, number> => {
-        const took = new Map<string, number>()
-        if (!sourceGate) return took
-        let need = (cof.get(sourceGate) ?? 0) * s - (inbox.get(sourceGate) ?? 0)
-        for (const w of gateWants) {
-          if (need <= EPSILON) break
-          const avail = Math.max(0, availOf(w.e.source) - s * (inNeed.get(w.e.source) ?? 0) - (took.get(w.e.source) ?? 0))
-          const a = Math.max(0, Math.min(need, w.want, avail))
-          took.set(w.e.source, (took.get(w.e.source) ?? 0) + a)
-          need -= a
+            .map((e) => ({ e, want: amountOf(e, availOf(e.source), S[e.source] ?? 0) })),
+        ]),
+      )
+      /** every source Gate's greedy pulls at the plan number `s`, per Gate and Pool (the commit's own order) */
+      const gateTakes = (s: number): Map<string, Map<string, number>> => {
+        const took = new Map<string, Map<string, number>>()
+        const used = new Map<string, number>() // Pool → pulled by the source Gates so far
+        for (const g of srcGates) {
+          const mine = new Map<string, number>()
+          took.set(g, mine)
+          let need = (cof.get(g) ?? 0) * s - (inbox.get(g) ?? 0)
+          for (const w of wantsOf.get(g)!) {
+            if (need <= EPSILON) break
+            const avail = Math.max(0, availOf(w.e.source) - s * (inNeed.get(w.e.source) ?? 0) - (used.get(w.e.source) ?? 0))
+            const a = Math.max(0, Math.min(need, w.want, avail))
+            mine.set(w.e.source, (mine.get(w.e.source) ?? 0) + a)
+            used.set(w.e.source, (used.get(w.e.source) ?? 0) + a)
+            need -= a
+          }
         }
         return took
       }
@@ -1368,7 +1386,7 @@ export function step(
         for (const m of inOrder) {
           const c = cof.get(m) ?? 0
           if (kindOf(m) === 'gate') {
-            if (m === sourceGate) level -= gt.get(q) ?? 0
+            level -= gt.get(m)?.get(q) ?? 0
             const Wm = W.get(m) ?? 0
             if (Wm > EPSILON) level += (c * s * (gateInto.get(m)!.get(q) ?? 0)) / Wm
           } else {
@@ -1379,7 +1397,7 @@ export function step(
         }
         return peak
       }
-      const gateTouches = (q: string) => gateWants.some((w) => w.e.source === q)
+      const gateTouches = (q: string) => srcGates.some((g) => wantsOf.get(g)!.some((w) => w.e.source === q))
       const walked: string[] = [] // Pools whose bound needs the bisection
       for (const [q, k] of outCoef) {
         if (k <= EPSILON) continue
@@ -1436,6 +1454,43 @@ export function step(
           hi = lo
         }
         bound(hi)
+      }
+      // Two or more source Gates on one Pool: each bound above read that Pool
+      // as if its Gate were alone. The largest `s` at which EVERY source Gate
+      // still reaches its amount, each one after what the ones before it pull
+      // (no slack; every pull grows with `s`, so the test is one-sided).
+      const pulledBy = new Map<string, number>() // Pool → the number of source Gates with a line off it
+      for (const g of srcGates) for (const p of new Set(wantsOf.get(g)!.map((w) => w.e.source))) pulledBy.set(p, (pulledBy.get(p) ?? 0) + 1)
+      if ([...pulledBy.values()].some((n) => n > 1) && Number.isFinite(sMax) && sMax > 0) {
+        const allReach = (s: number): boolean => {
+          const used = new Map<string, number>()
+          for (const g of srcGates) {
+            const T = (cof.get(g) ?? 0) * s
+            if (T <= 0) continue
+            let r = inbox.get(g) ?? 0
+            let need = Math.max(0, T - r)
+            for (const w of wantsOf.get(g)!) {
+              const avail = Math.max(0, availOf(w.e.source) - s * (inNeed.get(w.e.source) ?? 0) - (used.get(w.e.source) ?? 0))
+              const a = Math.max(0, Math.min(w.want, avail))
+              r += a
+              const pulled = Math.min(a, need) // what the commit pulls: up to what is still needed
+              need -= pulled
+              used.set(w.e.source, (used.get(w.e.source) ?? 0) + pulled)
+            }
+            if (r < T) return false
+          }
+          return true
+        }
+        if (!allReach(sMax)) {
+          let lo = 0
+          let hi = sMax
+          for (let i = 0; i < 64; i++) {
+            const mid = (lo + hi) / 2
+            if (allReach(mid)) lo = mid
+            else hi = mid
+          }
+          bound(lo)
+        }
       }
       // the Pools the source Gate pulls from and a member delivers into: the
       // largest `s` under every other bound at which the walk keeps every such

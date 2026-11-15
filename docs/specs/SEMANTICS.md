@@ -429,6 +429,37 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
   line above its amount, no Pool below 0). No bundled document holds a Gate
   with two Pool lines, and no other test of the engine changed.
 
+  **Erratum, part 7 (2026-11-15) — a tree with several source Gates.** A tree
+  group can hold more than one Gate fed from its own Pools: two Gates into one
+  Converter. Part 2 reads "a source Gate's reach from its own Pools, net of the
+  plan's claims on the same Pools" and "an earlier member's take is room a
+  later member's delivery may fill"; the implementation walked the group's
+  FIRST source Gate only. From revision 10 every source Gate is walked, in the
+  commit order, with one ledger of what they pull:
+  - **Reach.** Each source Gate's pulls are read net of the plan's claims and
+    of what the source Gates before it pull, each line up to its own amount in
+    `(sourceNodeId, edgeId)` order. `s` is the largest value at which every
+    one of them still reaches its amount. Two Gates on one Pool of 60, `50`
+    each into one Converter, are planned and moved at 30 + 30, one fraction
+    0.6. Until revision 10 each reach was read as if its Gate were alone: both
+    were planned at 50, the first took 50 and the second 10, and the Converter
+    was fed at two fractions. A `pull all` Gate among them that cannot have
+    its demand beside the others zeroes the group, as any `pull all` source
+    Gate does.
+  - **Room.** Every source Gate's take lowers its Pool's level at that Gate's
+    turn in the walk of part 2 (issue #471 item 5), so a loop into a full Pool
+    through any source Gate of the group is bounded as the direct loop is.
+    Until revision 10 only the first source Gate's take was counted: a loop
+    through the second one moved nothing, and the same model ran at `f = 1`
+    with the two Gates' ids exchanged.
+  A group with one source Gate is planned as before, number for number.
+  **Not covered, and open (issue #570):** the plan claims the Converters' Pool
+  inputs at the turn of the group's first router, not what its source Gates
+  are planned to pull; a router outside the group that is ordered between the
+  two can take it, and the Converter is then fed at different fractions.
+  Pinned in `src/engine/planSourceGates.test.ts`, with that open case marked
+  as a known defect.
+
   A Converter outside every group whose router input delivers nothing this
   step (its router does not fire, the connection is dead, or a probabilistic
   Gate picked another branch) does not run from its Pools alone: one `f` on
