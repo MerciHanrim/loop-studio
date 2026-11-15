@@ -72,8 +72,9 @@
 //                       multi-supply Gate that is short zeroes the group (it
 //                       was dropped and the rest moved)
 //   12                  issue #572 — a planned group that returns to an exactly
-//                       full Pool exactly what it takes from it runs: a level
-//                       that is only rounding in the number under search is
-//                       not a rise (it failed at every value the search tried
-//                       and the group stood still)
+//                       full Pool exactly what it takes from it runs (its
+//                       floating-point level failed at every value the search
+//                       tried and the group stood still): where floating point
+//                       cannot tell, a Pool's room is tested in exact
+//                       fractions, from the rates as the document states them
 export const ENGINE_REVISION = 12

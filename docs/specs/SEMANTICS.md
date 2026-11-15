@@ -502,48 +502,79 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
   made: a group on an exactly full Pool stood still (repaired in part 9), and
   issue #570 holds for the multi-supply plan as for the tree.
 
-  **Erratum, part 9 (2026-11-15, issue #572) — a level that is only rounding
-  is not a rise.** Parts 2 and 4 stand: the room is checked along the commit
-  order, an earlier member's take is room a later member's delivery may fill,
-  and nothing is added to a bound. One thing they left to the arithmetic: a
-  group that returns to a Pool **exactly** what it takes from it has a level
-  of 0, and 0 does not pass a room of 0, so on an exactly full Pool it runs.
-  In floating point that level is a sum of products of the members'
-  coefficients and comes out about `1e-16` of the flow away from 0, of either
-  sign. Until revision 12 a positive one failed the test, and it failed at
-  every value the search for the plan's number tried (the search halves, and
-  a halved number rounds the same way): the group **stood still**, while a
-  room of `1e-12` let all of it through. Pool `P` 10 of 10, `P →3→` Gate,
-  Gate `→1→` Converter and `→6→ P`, Converter `→1→ P`: nothing moved; 3 moves.
-  - **The rule.** In a search for one of the plan's numbers, a level past its
-    room is let through only when it is nothing but rounding **in that
-    number**: with the number at half and at a quarter of the value under
-    test, the level is exactly a half and a quarter (halving is exact in
-    floating point, so this holds bit for bit while every amount on that Pool
-    is proportional to the number), and it is no larger than 64 units in the
-    last place of the part of the Pool's flow that moves with the number. A
-    level that does not depend on the number at all is left as it stands.
-  - **What is not let through.** A level that passes 0 at a point does so
-    because something not proportional has taken part: a line that brings its
-    full amount, a Pool that runs out, a take fixed by an earlier number. Half
-    the number then does not give half the level, and the level is tested
-    against the room with no slack, as before. A real net inflow, however
-    small the plan's number, is larger than the rounding of its own flow.
-  - **Not a tolerance on the comparison.** "No more than the rounding of the
-    amounts on the Pool" alone was tried and withdrawn: a search walks into a
-    tolerance. A delivery of exactly 1 into a full Pool, the 1 another member
-    took, became `1.0000000000000284`; and measured against the whole flow, a
-    real inflow beside large amounts fixed earlier grew to their rounding.
-  - **Where a point is only classified** (the plan as the fills left it, a
-    `pull all` Gate's fixed demand), no search runs, and a level within the
-    rounding of its amounts is let through as it is (part 4: "a tolerance only
-    classifies a difference already computed").
-  A group that stops at the end of such a range stops where the plan's own
-  numbers stop being proportional: no Pool is planned past its capacity by
-  more than the rounding of its own flow, the same as before this change
-  (0.48 of a unit over 5,153 random graphs, before and after). Pinned in
-  `src/engine/fullPoolLoop.test.ts`: the cases of both planners, the bounds
-  that must not be passed, and a seeded sweep of 2,000 graphs.
+  **Erratum, part 9 (2026-11-16, issue #572) — where floating point cannot
+  tell, a Pool's room is tested in exact arithmetic.** Parts 2 and 4 stand:
+  the room is checked along the commit order, an earlier member's take is room
+  a later member's delivery may fill, and nothing is added to a bound. One
+  thing they left to the arithmetic: a group that returns to a Pool
+  **exactly** what it takes from it has a level of 0, and 0 does not pass a
+  room of 0, so on an exactly full Pool it runs. In floating point that level
+  is a sum of products of the members' coefficients and comes out about
+  `1e-16` of the flow away from 0, of either sign. Until revision 12 a
+  positive one failed the test, and it failed at every value the search for
+  the plan's number tried (the search halves, and a halved number rounds the
+  same way): the group **stood still**, while a room of `1e-12` let all of it
+  through. Pool `P` 10 of 10, `P →3→` Gate, Gate `→1→` Converter and `→6→ P`,
+  Converter `→1→ P`: nothing moved; 3 moves.
+  - **The rule.** Both planners test a Pool's level against its room in
+    floating point first. That answer stands when the level is clear of the
+    room by more than the **doubt window**: `2⁻³⁰` of everything the walk took
+    from that Pool and delivered into it. Inside the window the same walk is
+    done again in exact fractions, and its answer is the answer: a level past
+    the room by anything at all is refused, a level at the room or within it
+    is allowed. The window lets nothing through and refuses nothing by itself;
+    it only says when to ask. It scales with the amounts, so the same model a
+    million times smaller or a million million times larger is asked the same
+    questions (asking every time gives the same result, bit for bit, on 5,153
+    random graphs at each of seven scales from `10⁻⁶` to `10¹²`).
+  - **What the exact walk reads.** No result of a floating-point operation is
+    read as if it were the document's.
+    - A rate the document states as a decimal is that decimal, digit for
+      digit: `0.1` is one tenth, not the double nearest it.
+    - A rate with a unit is the authored decimal times the unit's exact ratio
+      (SEMANTICS-M4.md §M4-2.1), of which the engine holds the nearest double:
+      `100` per day at a step of 11 seconds is `11/864`. The shortest decimal
+      of that double is a different number and is not used.
+    - Any other rate (a percent's fraction, a Parameter's value, a drawn
+      number) is the shortest decimal that gives its double.
+    - A number the engine itself produced (a Pool's content, a room, an inbox,
+      every number of the plan, the number under search) is its double.
+    A stated value is used only when its nearest double is the rate the engine
+    runs on; otherwise the rate in hand is read.
+  - **What it decides.** A group that returns what it takes, as the document
+    writes it, runs: the Converter that takes `0.3` and returns `0.1` and
+    `0.2`, and the one that takes 1000 per day and returns 100 and 900 per day
+    at a step of 11 seconds, whose doubles do not add up. A net inflow of any
+    size is refused, down to one unit in the last place of a rate (a Converter
+    returning `1.0000000000000002` for 1 into a full Pool moves nothing); a net
+    outflow of one unit in the last place runs.
+  - **The plan's number is the largest double at which the exact level is
+    within the room.** When the exact bound is not a double, the Pool ends up
+    to one unit in the last place below full, never above. **A consequence
+    that shows:** something that asks for exactly the Pool's whole content on
+    the next step (a `pull all` Gate whose line is the capacity) finds it one
+    unit in the last place short. A Pool a hair below full after a step is not
+    new (floating-point commits leave one in either engine); it is somewhat
+    more frequent, and in one of 36,071 random runs it made a group that ran
+    before stand still at step 2.
+  - **Two rules that were tried and withdrawn.** A tolerance on the comparison
+    ("no more than the rounding of the amounts on the Pool"): a search walks
+    into a tolerance, and a delivery of exactly 1 into a full Pool became
+    `1.0000000000000284`. A test of proportionality (a level past the room is
+    rounding when half the number gives exactly half the level): a real inflow
+    is proportional too, and one within 64 units in the last place of its flow
+    passed (a Converter returning `1.0000000000001` for 1 let 3 move).
+  - **What stays in floating point.** A Pool's availability, a line's own
+    amount, a Converter's one fraction, a Gate's reach, and the path of the
+    tree planner that bounds a Pool without walking it (a level coefficient of
+    at most epsilon is read as none) are decided as before; this part does not
+    widen to them, and its tests check that their results do not contradict
+    it.
+  Pinned in `src/engine/fullPoolLoop.test.ts` (the cases of both planners, the
+  bounds that must not be passed, a seeded sweep) and
+  `src/engine/exactRoom.test.ts` (the same cases at seven scales, rates with a
+  unit, and the bounds still decided in floating point over 2,000 random
+  graphs at three scales).
 
   A Converter outside every group whose router input delivers nothing this
   step (its router does not fire, the connection is dead, or a probabilistic

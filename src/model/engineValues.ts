@@ -7,9 +7,9 @@
 // names a unit comes back as the SAME arrays (M4-INV-1: every earlier
 // document steps on its own numbers, byte for byte).
 import { resolveKinds, type ResourceKindDecl } from './kinds'
-import { parseDecimal, plainDecimal } from './rational'
+import { parseDecimal, plainDecimal, type Rational } from './rational'
 import type { LoopEdge, LoopNode, PoolData, ResourceEdgeData } from './types'
-import { engineValue, fieldUnitText, poolKindName, resolveFieldUnit, type DocTime } from './units'
+import { engineValue, fieldRational, fieldUnitText, poolKindName, resolveFieldUnit, type DocTime } from './units'
 
 const hasUnitKey = (data: unknown) => typeof (data as { unit?: unknown } | undefined)?.unit === 'string' && (data as { unit: string }).unit !== ''
 
@@ -43,9 +43,16 @@ export function applyUnits(
   edges: LoopEdge[],
   kinds: readonly ResourceKindDecl[] | undefined,
   time: DocTime | undefined,
-): { nodes: LoopNode[]; edges: LoopEdge[] } {
+): { nodes: LoopNode[]; edges: LoopEdge[]; exactFlow?: ReadonlyMap<string, Rational> } {
   if (!kinds || kinds.length === 0 || !anyFieldUnit(nodes, edges)) return { nodes, edges }
   const declOf = new Map(kinds.map((k) => [k.name, k]))
+  // The EXACT value of every converted flow, by connection id: the authored
+  // decimal times the unit's ratio (`fieldRational`), of which the engine value
+  // written into the derived graph is the nearest double. `0.1` per minute at a
+  // step of 7 seconds is 7/600, and no decimal the engine could read back from
+  // its double says so. The planners' exact test of a Pool's room reads this
+  // (SEMANTICS.md §6 erratum, part 9); nothing else does.
+  const exactFlow = new Map<string, Rational>()
   const outNodes = nodes.map((n) => {
     if (n.data?.kind !== 'pool' || !hasUnitKey(n.data)) return n
     const d = n.data as PoolData & { unit?: string }
@@ -68,9 +75,11 @@ export function applyUnits(
     // cannot read as 1: `String` writes an exponent below 1e-6 and from 1e21. A
     // value that is not finite is left as text: the `outOfRange` finding refuses it.
     const value = engineValue(raw, fu, time)
+    const exact = fieldRational(raw, fu, time)
+    if (exact !== null && Number.isFinite(value)) exactFlow.set(e.id, exact)
     return { ...e, data: { ...d, flow: Number.isFinite(value) ? plainDecimal(value) : String(value) } } as LoopEdge
   })
-  return { nodes: outNodes, edges: outEdges }
+  return { nodes: outNodes, edges: outEdges, exactFlow }
 }
 
 const NO_CHIP_UNITS: ReadonlyMap<string, string> = new Map()

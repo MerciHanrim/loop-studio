@@ -16,12 +16,16 @@ import { initSim, step } from './index'
 // way down from the top, a halved number rounds the same way, so EVERY value
 // it tried failed and it ended at 0, while a room of 1e-12 let all of it by.
 //
-// The repair is not a tolerance (tried and withdrawn: a search walks into it,
-// and a delivery of exactly 1 into a full Pool became 1.0000000000000284). A
-// level past its room is let through only when it is exactly proportional to
-// the number under search, at half and at a quarter of it, and no larger than
-// the rounding of the flow that moves with that number (erratum part 9). The
-// second half of this file is what that must NOT do: pass a real bound.
+// The repair (erratum part 9): where the floating-point level is too close to
+// the room to tell, the same walk is done in exact fractions, from the rates as
+// the document states them, and its answer stands. Two rules were tried before
+// it and withdrawn. A tolerance: a search walks into it, and a delivery of
+// exactly 1 into a full Pool became 1.0000000000000284. A test of
+// proportionality (half the number, exactly half the level): a real inflow is
+// proportional too, and one under 64 units in the last place passed. The second
+// half of this file is what the repair must NOT do: pass a real bound.
+// `exactRoom.test.ts` holds the same cases at other scales, rates with a unit,
+// and the bounds that are still decided in floating point.
 
 const P0 = { x: 0, y: 0 }
 const pool = (id: string, initial: number, capacity: number | null = null): LoopNode => ({ id, type: 'pool', position: P0, data: { kind: 'pool', label: id, activation: 'passive', initial, capacity, mode: 'pullAny' } })
@@ -140,25 +144,23 @@ describe('…and no real bound is passed by it', () => {
     close(one(tree({ out: '1.000000000001', cap: 10 })).m, { Pg: 0, gc: 0, gP: 0, cP: 0 })
   })
 
-  // NOT YET RIGHT ON THIS BRANCH (Lumi's review of PR 574, 2026-11-15). The rule
-  // as it stands lets a REAL inflow through when it is small enough, in two
-  // forms. `it.fails` records each: it passes while the rule is wrong and turns
-  // red when it is repaired, and is then to be changed to `it`.
+  // The two forms in which the withdrawn proportionality rule let a REAL inflow
+  // through when it was small enough (Lumi's review of PR 574, 2026-11-15):
   //   A. In a search: a real inflow proportional to the number under search
-  //      also gives "half the number, exactly half the level", and it is let
-  //      through while it is under 64 units in the last place of its flow.
+  //      also gives "half the number, exactly half the level", and it passed
+  //      while it was under 64 units in the last place of its flow.
   //   B. At a point that is only classified (a `pull all` Gate's fixed demand):
-  //      a level within 64 units of the whole flow is let through as it is.
-  it.fails('A: a net inflow of one part in 10^13 is still an inflow: nothing moves (this branch: 3 move, P planned 12 units of rounding past its capacity)', () => {
+  //      a level within 64 units of the whole flow passed as it was.
+  it('A: a net inflow of one part in 10^13 is still an inflow: nothing moves (the withdrawn rule: 3 moved, P planned 12 units of rounding past its capacity)', () => {
     const g = tree({ out: '1.0000000000001', cap: 10 })
     const r = one(g)
     close(r.m, { Pg: 0, gc: 0, gP: 0, cP: 0 })
     expect(pastCapacity(g, r)).toBeLessThanOrEqual(1)
   })
-  it.fails('A: a net inflow of one part in 10^14: nothing moves (this branch: 3 move)', () => {
+  it('A: a net inflow of one part in 10^14: nothing moves (the withdrawn rule: 3 moved)', () => {
     close(one(tree({ out: '1.00000000000001', cap: 10 })).m, { Pg: 0, gc: 0, gP: 0, cP: 0 })
   })
-  it.fails('B: a `pull all` multi-supply Gate whose fixed demand returns to the full Pool 8e-14 too much: the group moves nothing (this branch: it runs, 15 units past)', () => {
+  it('B: a `pull all` multi-supply Gate whose fixed demand returns to the full Pool 8e-14 too much: the group moves nothing (the withdrawn rule: it ran, 15 units past)', () => {
     // F 10 of 10 ; F ─3→ A ; A ─1→ J , A ─6→ F ; R ─0.25→ J (pull all) ; J ─1→ c ; c ─out→ F.
     // The group returns what it takes when out = 12/19; 0.6315789473685 is 7.9e-14 more.
     const g: Graph = {
@@ -168,6 +170,44 @@ describe('…and no real bound is passed by it', () => {
     const r = one(g)
     close(r.m, { FA: 0, AJ: 0, AF: 0, RJ: 0, Jc: 0, cF: 0 })
     expect(pastCapacity(g, r)).toBeLessThanOrEqual(1)
+  })
+  // smaller and smaller real inflows, down to one unit in the last place
+  it.each([['1.000000000000001'], ['1.0000000000000004'], ['1.0000000000000002']])('A: the Converter returns %s for 1: still an inflow, nothing moves', (out) => {
+    close(one(tree({ out, cap: 10 })).m, { Pg: 0, gc: 0, gP: 0, cP: 0 })
+  })
+  it.each([['0.99999999999999'], ['0.9999999999999999']])('A, the other side: the Converter returns %s for 1, a net OUTFLOW: the group runs', (out) => {
+    const g = tree({ out, cap: 10 })
+    const r = one(g)
+    close(r.m, { Pg: 3 }, 1e-9)
+    expect(pastCapacity(g, r)).toBeLessThanOrEqual(1)
+  })
+  it('B, to the last place: 0.6315789473684211 is above 12/19 and is refused; 0.631578947368421 is below it and runs', () => {
+    const at = (out: string) => one({
+      nodes: [pool('F', 10, 10), pool('R', 100), gate('A'), gate('J', 'pullAll'), conv('c')],
+      edges: [res('FA', 'F', 'A', '3'), res('AJ', 'A', 'J', '1'), res('AF', 'A', 'F', '6'), res('RJ', 'R', 'J', '0.25'), res('Jc', 'J', 'c', '1'), res('cF', 'c', 'F', out)],
+    }).m
+    expect(at('0.6315789473684211').FA).toBe(0)
+    close(at('0.631578947368421'), { FA: 3, RJ: 0.25 })
+  })
+  it('rates that balance as the decimals they are written as: a Converter taking 0.3 and returning 0.1 and 0.2 runs on a full Pool', () => {
+    // as doubles, 0.1 + 0.2 is 0.30000000000000004: read that way, the group
+    // would return more than it takes and stand still
+    const g: Graph = {
+      nodes: [pool('P', 10, 10), gate('g'), conv('c')],
+      edges: [res('Pg', 'P', 'g', '3'), res('gc', 'g', 'c', '0.3'), res('c1', 'c', 'P', '0.1'), res('c2', 'c', 'P', '0.2')],
+    }
+    const r = one(g)
+    close(r.m, { Pg: 0.3, gc: 0.3, c1: 0.1, c2: 0.2 })
+    expect(pastCapacity(g, r)).toBeLessThanOrEqual(1)
+  })
+  it('the stall that the withdrawn proportionality rule left: sweep seed 3807 moves the same with its Pools as they are and with 1e-9 of room', () => {
+    // a flat range on a Pool that earlier supplies filled exactly to its room
+    const plain = build(3807)
+    const hair: Graph = { nodes: plain.nodes.map((n) => (n.data.kind === 'pool' && n.data.capacity != null ? { ...n, data: { ...n.data, capacity: n.data.capacity + 1e-9 } } : n)), edges: plain.edges }
+    const a = one(plain)
+    const b = one(hair)
+    close(a.m, b.m, 1e-6)
+    expect(a.m.e7, 'the Gate that stood at 0.43 takes its 2').toBeCloseTo(2, 6)
   })
   it('B control: the same Gate with out a hundredth too much moves nothing, and with out too little it runs', () => {
     const at = (out: string) => one({
@@ -276,7 +316,7 @@ describe('…and no real bound is passed by it', () => {
       ran++
     }
     expect(ran).toBe(2000)
-    // measured on 2026-11-15: 0.48 with the repair, 0.48 before it, 64 with the withdrawn tolerance
+    // measured over 5,153 graphs on 2026-11-16: 0.28 with the repair, 0.48 before it, 64 with the withdrawn tolerance
     expect(worst).toBeLessThan(1)
   })
 })
