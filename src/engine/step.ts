@@ -1150,12 +1150,18 @@ export function step(
       const hit = routerNums.get(id)
       if (hit) return hit
       const v: Nums = { demand: 0, available: 0, ownWant: 0, ownAvail: 0 }
+      // lines off one Pool share what it holds: two "5" lines off a Pool of 8
+      // have 8 available between them, not 10 (the amount the Gate can move,
+      // E1 of the 2026-11-15 review, read the same way here)
+      const claimed = new Map<string, number>()
       for (const e of inOf(id)) {
         if (dead.has(e.id)) continue
         const src = e.source
         if (isPool(src)) {
           const want = Math.max(0, amountOf(e, availOf(src), S[src] ?? 0))
-          const have = Math.min(want, Math.max(0, availOf(src)))
+          const before = claimed.get(src) ?? 0
+          const have = Math.min(want, Math.max(0, availOf(src) - before))
+          claimed.set(src, before + have)
           v.demand += want
           v.available += have
           v.ownWant += want
@@ -2070,10 +2076,23 @@ export function step(
             .sort(cmpEdge)
           let demand = inb
           let inputAvail = inb
+          // What the Pool lines can bring: each line up to its OWN amount, and
+          // lines off one Pool share what that Pool holds, in their order
+          // (the pull below takes them the same way). It used to be the SUM
+          // of the whole Pools, once per line: a Gate on Pool A = 100 and
+          // Pool B = 0, "5" from each, sized T = 10, pulled 5 (each pull is
+          // capped by its line) and still passed 10 on: 5 units from nowhere,
+          // with no notice (review of 2026-11-15, E1). The planned groups
+          // (`reach`) and the Gate's own evidence (`numsOf`) already bound a
+          // supply per line.
+          const claimed = new Map<string, number>()
           const wants = ins.map((e) => {
             const w = amountOf(e, availOf(e.source), S[e.source] ?? 0)
             demand += w
-            inputAvail += availOf(e.source)
+            const before = claimed.get(e.source) ?? 0
+            const have = Math.max(0, Math.min(w, availOf(e.source) - before))
+            claimed.set(e.source, before + have)
+            inputAvail += have
             return { e, want: w }
           })
 
