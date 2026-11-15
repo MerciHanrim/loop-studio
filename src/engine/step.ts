@@ -755,7 +755,12 @@ export function step(
           `Edge "${p.e.id}" from Source "${src.data.label}" goes to ${t?.data.kind ?? 'a missing node'} "${t?.data.label ?? p.e.target}", not a Pool; a push-all Source moves nothing while one of its targets is not a Pool.`,
         )
       }
-      if (!plan.every((p) => p.pool && headroom(p.e.target) >= p.want - EPSILON)) {
+      // every line in full or nothing (§9): lines into one Pool are asked of
+      // its room TOGETHER. Asked one by one, two "5" lines into a room of 8
+      // both passed and the Source pushed 5 + 3 (review of 2026-11-15, E3).
+      const into = new Map<string, number>()
+      for (const p of plan) if (p.pool) into.set(p.e.target, (into.get(p.e.target) ?? 0) + Math.max(0, p.want))
+      if (!plan.every((p) => p.pool) || ![...into].every(([q, want]) => headroom(q) >= want - EPSILON)) {
         continue // atomic: nothing
       }
     }
@@ -2005,8 +2010,14 @@ export function step(
           e,
           want: amountOf(e, availOf(e.source), S[e.source] ?? 0),
         }))
+        // `pull all`: every line in full or nothing (§9), and lines off one
+        // Pool are asked of it TOGETHER. Asked one by one, two "5" lines off a
+        // Pool of 8 both passed: the events said 5 + 5 while the Pool lost 8
+        // (review of 2026-11-15, E3).
+        const from = new Map<string, number>()
+        for (const w of wants) from.set(w.e.source, (from.get(w.e.source) ?? 0) + Math.max(0, w.want))
         const feasible =
-          mode === 'pullAll' ? wants.every((w) => availOf(w.e.source) >= w.want - EPSILON) : true
+          mode === 'pullAll' ? [...from].every(([p, want]) => availOf(p) >= want - EPSILON) : true
         if (feasible) {
           for (const w of wants) {
             const a =

@@ -144,3 +144,65 @@ test.describe('a probabilistic Gate: result · weight · chance', () => {
     await expect(panel(page).locator('.wb-rel__sum')).toHaveText('chance = weight ÷ the sum, 1,043')
   })
 })
+
+// A loop of Gates with no Pool in it is inactive, and a Gate with a line on it
+// has its chances decided at run time. A Gate BELOW such a loop is not on it:
+// until 2026-11-15 the engine's order took every router it could not reach
+// past the loop as part of it, so the panel said "at run time" for a Gate whose
+// own lines touch no loop (whole-code review, E4).
+const BELOW_A_LOOP = JSON.stringify({
+  schema: 'loop-studio/graph/2',
+  version: 1,
+  nodes: [
+    node('tickets', 'pool', { label: 'Tickets', activation: 'passive', initial: 10, capacity: null, mode: 'pullAny' }, 300, 0),
+    node('g_on', 'gate', { label: 'On the loop', activation: 'automatic', distribution: 'probabilistic', mode: 'pullAny' }, 0, 140),
+    node('g_back', 'gate', { label: 'Back', activation: 'automatic', distribution: 'deterministic', mode: 'pullAny' }, -200, 140),
+    node('g_roll', 'gate', { label: 'Roll', activation: 'automatic', distribution: 'probabilistic', mode: 'pullAny' }, 300, 140),
+    node('ssr', 'pool', { label: 'SSR result', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' }, 200, 300),
+    node('r', 'pool', { label: 'R result', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' }, 400, 300),
+  ],
+  edges: [
+    res('l_out', 'g_on', 'g_back', '1'),
+    res('l_back', 'g_back', 'g_on', '1'),
+    res('l_down', 'g_on', 'g_roll', '1'),
+    res('e_in', 'tickets', 'g_roll', '1'),
+    res('e_a', 'g_roll', 'ssr', '1'),
+    res('e_b', 'g_roll', 'r', '3'),
+  ],
+})
+
+test.describe('a probabilistic Gate below a loop of Gates', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 940 })
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, BELOW_A_LOOP)
+  })
+
+  test('the Gate below the loop shows its chances and the sum; the Gate on the loop says "at run time" and why', async ({ page }) => {
+    await pick(page, 'Roll')
+    expect(await rows(page)).toEqual([
+      ['SSR result', '1', '25%'],
+      ['R result', '3', '75%'],
+    ])
+    await expect(panel(page).locator('.wb-rel__sum')).toHaveText('chance = weight ÷ the sum, 4')
+    await panel(page).locator('.wb-rel__row--chance[data-edge="e_b"]').click()
+    await expect(panel(page).locator('.wb-rel__chanceline')).toHaveText(/^Chance 3 ÷ 4 = 75% · of .Roll.’s weights in total$/)
+
+    await pick(page, 'On the loop')
+    expect((await rows(page)).map((r) => r[2])).toEqual(['At run time', 'At run time'])
+    await expect(panel(page).locator('.wb-rel__sum')).toContainText('on a loop of Gates or Converters with no Pool between them')
+  })
+
+  test('a step moves the Tickets through the Gate below the loop, and nothing on the loop', async ({ page }) => {
+    const moved = await page.evaluate(() => {
+      const L = (window as unknown as Bridge).__loop
+      L.sim.getState().reset()
+      L.sim.getState().advance()
+      const v = L.sim.getState().values as Record<string, number>
+      return { tickets: v.tickets, results: v.ssr + v.r }
+    })
+    // was: Tickets 10 and no result, the Gate reported as part of the loop
+    expect(moved).toEqual({ tickets: 9, results: 1 })
+  })
+})

@@ -54,4 +54,9 @@
 //                       throughput from the sum of the whole Pools, pulled
 //                       less, and passed the full amount on (resources from
 //                       nowhere: 100 became 105 in one step)
-export const ENGINE_REVISION = 8
+//   9                   `pull all` Drain / End and `push all` Source ask a Pool
+//                       once for all their lines that share it (two lines
+//                       between the same pair passed one by one); a router
+//                       below a zero-storage cycle is ordered and runs (it was
+//                       taken as on the cycle)
+export const ENGINE_REVISION = 9

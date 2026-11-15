@@ -154,6 +154,28 @@ these zero-storage nodes with **no Pool in it** is ill-defined — every edge on
 such a cycle is treated as flow `0` and a diagnostic is emitted. Real feedback
 loops must contain a Pool.
 
+**Erratum (2026-11-15) — the routers on a cycle, and the ones below it.** Two
+points the sentence above leaves open, as the engine has them from revision 9:
+- **A router on a cycle is inactive as a whole.** Every connection of a router
+  that is on such a cycle is treated as flow `0`, its Pool lines and its lines
+  to routers off the cycle included, not only the edges on the cycle: a Gate on
+  a broken loop that went on pulling would send everything down the branches
+  that are left, which is not the split its author drew. A Gate on the cycle
+  reports `fault / cycle`. This was always so and is kept.
+- **A router below a cycle is not on it.** A router is on a cycle when it can
+  reach itself over router → router connections (its strongly connected
+  component among the routers has another member, or it has a connection to
+  itself). A router that is only reachable FROM a cycle is ordered with the
+  rest, over the connections between routers that are on no cycle, and runs:
+  its line from the cycle delivers nothing and its other lines move. The
+  diagnostic counts the routers on a cycle. Until revision 9 every router the
+  topological walk could not reach was taken as on the cycle, so Gates A ⇄ B,
+  B → C, Pool P → C → Q had C reported `fault / cycle` and P → C moved nothing.
+  The panel's reading of a probabilistic Gate's chances uses the same order: a
+  Gate below a cycle shows its chances, where it said they were decided at run
+  time. Pinned in `src/engine/atomicParallelLines.test.ts`,
+  `src/engine/gateChance.test.ts` and `e2e/gate-chance-panel.spec.ts`.
+
 **Order:** topological (roots first), ties broken by **ascending node id**.
 Every router executes **exactly once** per step.
 
@@ -476,6 +498,20 @@ Per node, across **all** its input edges plus its output headroom:
   a Drain/End, `0` when any input edge is short.
 
 `push all` is the Source mirror: full push on every outgoing edge, or nothing.
+
+**Erratum (2026-11-15) — lines between the same pair.** "Every edge in full" is
+asked of a Pool **once, for all the lines that share it**: a `pull all` Drain
+or End adds up its lines off one Pool before it asks what that Pool holds, and
+a `push all` Source adds up its lines into one Pool before it asks that Pool's
+headroom (§6 Phase 1, step 1, reads `headroom(target) < Σ evalDet(flow)` over
+the edges into that target). Until revision 9 each line was asked alone, so two
+lines between the same pair passed one by one: a `pull all` Drain with two `5`
+lines off a Pool of 8 reported 5 + 5 = 10 taken while the Pool lost 8, and a
+`push all` Source with two `5` lines into a room of 8 pushed 5 + 3. Both now
+move nothing; with 10 held, or room for 10, both move 5 + 5. `pull any` and
+`push any` are unchanged (5 + 3). A Gate's lines off one Pool share it since
+revision 8 (§6 erratum, part 6); a Converter's are grouped by source Pool since
+revision 1. Pinned in `src/engine/atomicParallelLines.test.ts`.
 
 A `pull all` **Converter**'s atomicity has to hold even when the shortfall is
 only visible *through upstream routers* — an upstream Gate that has already
