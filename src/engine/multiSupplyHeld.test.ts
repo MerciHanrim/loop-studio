@@ -148,12 +148,11 @@ describe('P6: a source Gate is charged what it pulls', () => {
     const r = run([pool('P', 7), ...g.nodes.slice(1)], g.edges)
     expectExact(r.moved, { PA: 2, AJ: 1, AX: 1, PB: 5, BJ: 5, JQ: 6 }, 'moved')
   })
-  it('the fixed priority, seen from the other side: the first supply is filled first even when less moves in all', () => {
-    // P = 2 is wanted by A (2) and by B (4). A → J only half of what it takes
-    // (the other half to a side Pool with room). The first supply, A, is
-    // filled to the most it can carry; B gets what is left. Charged its whole
-    // reach, A used to make the plan infeasible for any amount of its own and
-    // was given nothing.
+  it('control: the fixed priority fills the first supply first, and the second gets what is left (unchanged)', () => {
+    // P = 2 is wanted by A (2) and by B (4). A sends J only half of what it
+    // takes (the other half to a side Pool with room). A is the first supply
+    // and takes the 2; nothing is left for B, though B would have sent J all
+    // of it: the order is a contract, not a maximum.
     const r = run(
       [pool('P', 2), gate('A'), gate('B'), gate('J'), pool('X', 0), pool('Q', 0)],
       [res('PA', 'P', 'A', '2'), res('AJ', 'A', 'J', '1'), res('AX', 'A', 'X', '1'), res('PB', 'P', 'B', '4'), res('BJ', 'B', 'J', '1'), res('JQ', 'J', 'Q', '1')],

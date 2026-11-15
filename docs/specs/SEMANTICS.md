@@ -500,9 +500,13 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
   Pinned per connection and Pool to `1e-12` in
   `src/engine/multiSupplyHeld.test.ts`. **Open, existing and not changed by
   this:** a group that returns to a Pool exactly what it takes from it stands
-  still when that Pool is exactly full, by the rounding of the level against
-  a bound with no tolerance (with a room of `1e-12` the same flow runs in
-  full); and issue #570 holds for the multi-supply plan as for the tree.
+  still when that Pool is exactly full, in both planners (issue #572): the
+  level, 0 on paper, comes out about `1e-16` above 0 at every value the search
+  tries, against a bound with no tolerance, while a room of `1e-12` lets the
+  same flow run in full. A rounding allowance in that comparison is not the
+  repair (it lets a real bound be passed by the allowance). The cases are held
+  as known defects in `src/engine/fullPoolLoop.test.ts`. And issue #570 holds
+  for the multi-supply plan as for the tree.
 
   A Converter outside every group whose router input delivers nothing this
   step (its router does not fire, the connection is dead, or a probabilistic
