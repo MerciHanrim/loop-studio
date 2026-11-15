@@ -166,6 +166,80 @@ test.describe('loop-revision/1 — Slice 1C', () => {
     expect(JSON.parse(await textOf(ws!)).project).toBeUndefined()
   })
 
+  // SEMANTICS-R.md §R2, test 2a — "Undo across the edit moves content only —
+  // `revisionId` does not change". Until 2026-11-15 Ctrl+Z after an export put
+  // back the header the undone entry carried (whole-code review, S1): here,
+  // no project at all, also after a reload, and a next export that began
+  // another project than the file just written. The cases, with the long
+  // undo / redo walk, are in src/store/revisionExportUndo.test.ts; these two
+  // go through File ▸ Export, the keyboard and a reload.
+  const key = async (page: Page, combo: string) => {
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    await page.keyboard.press(combo)
+  }
+  const headerOf = async (dl: Download | null) => JSON.parse(await textOf(dl!)).project as { projectId: string; revisionId: string; parentId: string | null }
+
+  test('a plain document, edited and exported: Ctrl+Z keeps the project and the revision, and so does a reload', async ({ page }) => {
+    await addNode(page, 'gate')
+    const file = await headerOf(await exportVia(page, /Project revision/))
+    await expect.poll(async () => (await snap(page)).open?.revisionId).toBe(file.revisionId)
+    const nodes = (await snap(page)).nodes
+
+    await key(page, 'Control+z') // the edit made before the export
+    await expect.poll(async () => (await snap(page)).nodes).toBe(nodes - 1)
+    await expect.poll(() => snap(page)).toMatchObject({
+      open: { projectId: file.projectId, revisionId: file.revisionId, parentId: null },
+      dirty: true, // the content is not the exported one any more
+      headerRevisionId: file.revisionId,
+    })
+    await expect(page.locator('.rev-chip')).toHaveClass(/rev-chip--dirty/)
+
+    await page.reload()
+    await expect(page.locator('.rev-chip')).toBeVisible()
+    await expect.poll(() => snap(page)).toMatchObject({
+      nodes: nodes - 1,
+      open: { projectId: file.projectId, revisionId: file.revisionId },
+      dirty: true,
+    })
+
+    // and the next file continues the project: a child of the one written
+    const next = await headerOf(await exportVia(page, /Project revision/))
+    expect(next.projectId).toBe(file.projectId)
+    expect(next.parentId).toBe(file.revisionId)
+  })
+
+  test('r1, two edits, r2: Ctrl+Z, Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y all stay on r2, and the next file is its child', async ({ page }) => {
+    const r1 = await headerOf(await exportVia(page, /Project revision/))
+    await addNode(page, 'gate')
+    await addNode(page, 'pool')
+    const r2 = await headerOf(await exportVia(page, /Project revision/))
+    expect(r2.parentId).toBe(r1.revisionId)
+    await expect.poll(async () => (await snap(page)).open?.revisionId).toBe(r2.revisionId)
+    const nodes = (await snap(page)).nodes
+    const on = (count: number, dirty: boolean) =>
+      expect.poll(() => snap(page), `${count} nodes`).toMatchObject({
+        nodes: count,
+        open: { projectId: r1.projectId, revisionId: r2.revisionId, parentId: r1.revisionId },
+        dirty,
+        headerRevisionId: r2.revisionId,
+      })
+
+    await key(page, 'Control+z')
+    await on(nodes - 1, true)
+    await key(page, 'Control+z') // the content r1 was written from, and still r2
+    await on(nodes - 2, true)
+    await key(page, 'Control+Shift+z')
+    await on(nodes - 1, true)
+    await key(page, 'Control+y') // the exported content again: saved
+    await on(nodes, false)
+    await key(page, 'Control+z')
+    await on(nodes - 1, true)
+
+    const r3 = await headerOf(await exportVia(page, /Project revision/))
+    expect(r3.projectId).toBe(r1.projectId)
+    expect(r3.parentId, 'a child of r2, not a sibling').toBe(r2.revisionId)
+  })
+
   test('Make a proposal is gated until a project exists, then carries base.content', async ({
     page,
   }) => {

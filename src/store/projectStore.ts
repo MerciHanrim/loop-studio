@@ -35,7 +35,7 @@ import {
 } from '../model/revision'
 import type { LoopEdge, LoopNode } from '../model/types'
 import type { DocPhase, DocTime, ImportSourceTable, ModelSemanticsVersion, ResourceKindDecl, SavedFrame, Timetable } from '../model/serialize'
-import { bootProjectHeader, isEditBlocked, setAutosaveProjectHeader, setDocumentBoundarySink, setHistorySidecar, useGraphStore } from './graphStore'
+import { bootProjectHeader, isEditBlocked, rebaseHistoryOnProjectHeader, setAutosaveProjectHeader, setDocumentBoundarySink, setHistorySidecar, useGraphStore } from './graphStore'
 import { useDataImportStore } from './dataImportStore'
 import { useFrameStore } from './frameStore'
 import { storagePort } from '../storage/storagePort'
@@ -540,6 +540,12 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       }
       set({ open: next })
       persist(next)
+      // §R2 — the session moved to another revision: the history's entries
+      // follow it, or an Undo (or a Redo) across this export would bring back
+      // the header of the revision before it. An unchanged re-export commits
+      // the same revision and changes nothing in the session, the history
+      // included (an Apply undone before it is still redone as that Apply).
+      if (!o || o.revisionId !== next.revisionId) rebaseHistoryOnProjectHeader(next)
       get().refreshDirty() // §R2.1 — if the live graph moved on, it's dirty again
       return 'committed'
     },
