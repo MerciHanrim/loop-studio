@@ -48,4 +48,10 @@
 //                       from 1e21 per step runs at that value: the derived
 //                       graph wrote it as exponent text, which `parseFlow`
 //                       cannot read, so it ran as 1
-export const ENGINE_REVISION = 7
+//   8                   a Gate outside every group that has two or more Pool
+//                       lines takes each line up to its own amount, and lines
+//                       off one Pool share what it holds; it sized its
+//                       throughput from the sum of the whole Pools, pulled
+//                       less, and passed the full amount on (resources from
+//                       nowhere: 100 became 105 in one step)
+export const ENGINE_REVISION = 8

@@ -383,6 +383,30 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
   The 14 bundled documents are unchanged at full precision over 5 seeds × 300
   steps.
 
+  **Erratum, part 6 (2026-11-15) — a Gate's Pool lines, each up to its own
+  amount.** As written above, step 2 sums what the input Pools hold
+  (`inputAvail = Σ (S[P] − taken[P])`) and step 5 pulls `T` from them in order
+  with no bound per line. The implementation summed the whole Pool once per
+  line and then pulled each line capped by that line's own amount, so the two
+  halves disagreed: a Gate on Pool A = 100 and Pool B = 0, `5` from each, had
+  `T = 10`, pulled 5 and passed 10 on, and the model's total rose from 100 to
+  105 with no notice; one Pool of 8 with two `5` lines gave 10. From revision 8
+  a Gate outside every group reads its Pool lines as a planned Gate's supplies
+  are read (part 3: "each up to its own bound"):
+  - step 2 is `inputAvail = Σ over the Pool lines, in (sourceNodeId, edgeId)
+    order, of min(the line's amount, what its Pool still holds after the
+    earlier lines of this Gate)`. Lines off one Pool share what it holds;
+  - step 5 pulls each line up to its own amount, in the same order, until `T`
+    is met. A line marked `5` never carries more than 5.
+  Steps 1, 3 and 4 are unchanged: `demand` is still the sum of the lines'
+  amounts, so a `pull all` Gate with one line short moves nothing. The Gate's
+  evidence (`StepReport.gates`) reads `available` by the same rule: two `5`
+  lines off a Pool of 8 have 8 available, and the Gate is short of supply, not
+  of room. Pinned in `src/engine/gateOwnBound.test.ts` (the cases, and a seeded
+  sweep of Gates fed by Pools only: what is passed on equals what was taken, no
+  line above its amount, no Pool below 0). No bundled document holds a Gate
+  with two Pool lines, and no other test of the engine changed.
+
   A Converter outside every group whose router input delivers nothing this
   step (its router does not fire, the connection is dead, or a probabilistic
   Gate picked another branch) does not run from its Pools alone: one `f` on
