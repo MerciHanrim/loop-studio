@@ -77,4 +77,9 @@
 //                       tried and the group stood still): where floating point
 //                       cannot tell, a Pool's room is tested in exact
 //                       fractions, from the rates as the document states them
-export const ENGINE_REVISION = 12
+//   13                  issue #570 — what a planned group's source Gates are to
+//                       pull is held for them from the plan to their own
+//                       turns (a router outside the group that is ordered
+//                       between took it: the Gate moved less than its plan and
+//                       the Converter behind it ran at several fractions)
+export const ENGINE_REVISION = 13

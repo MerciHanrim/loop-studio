@@ -115,36 +115,18 @@ describe('tree plan: several source Gates', () => {
   })
 })
 
-// NOT fixed by the change that added this file (issue #570, found by a sweep of
-// random graphs on 2026-11-15): the plan is placed at the turn of the group's
-// first router and claims the Converters' Pool inputs there, but not what the
-// group's source Gate was planned to pull. A router OUTSIDE the group that is
-// ordered between the two takes it; the Gate moves less than its plan and the
-// Converter is fed at different fractions. Which rule repairs it is open (hold
-// the Gate's planned pulls too, or plan with what the outside router leaves);
-// under either one the Converter runs at ONE fraction, and that alone is asked
-// here. `it.fails` passes while the defect is there and turns red when it is
-// gone: change it to `it` then.
-describe('KNOWN DEFECT (#570): a router outside the group takes a source Gate’s planned pull', () => {
-  // the group: a ─1→ c0 ─1→ c3 ; x ─1→ g ─1→ c3 ; c3 ─1→ out.  Outside it: x ─5→ <outside> ─1→ y
-  const shape = (outside: string) => ({
-    nodes: [pool('a', 100), pool('x', 5), pool('y', 0), pool('out', 0), conv('c0'), conv(outside), gate('g'), conv('c3')],
-    edges: [res('a0', 'a', 'c0', '1'), res('03', 'c0', 'c3', '1'), res('xg', 'x', 'g', '1'), res('g3', 'g', 'c3', '1'), res('3o', 'c3', 'out', '1'), res('x1', 'x', outside, '5'), res('1y', outside, 'y', '1')],
-  })
-  it.fails('ordered c0, c1, g, c3: the Converter c3 runs at one fraction (today it is fed 1 and 0 and makes 0.5)', () => {
-    const g = shape('c1')
-    const r = run(g.nodes, g.edges)
-    expect(Math.abs(r.moved['03'] - r.moved.g3)).toBeLessThan(1e-9)
-    expect(Math.abs(r.moved['03'] - r.moved['3o'])).toBeLessThan(1e-9)
-  })
-  it('what it does today, so that a change is seen: c0 delivers 1, the outside Converter takes all 5, the Gate gets 0, c3 makes 0.5', () => {
-    const g = shape('c1')
-    const r = run(g.nodes, g.edges)
-    expectExact(r.moved, { a0: 1, '03': 1, xg: 0, g3: 0, '3o': 0.5, x1: 5, '1y': 1 }, 'moved')
-  })
-  it('control: the same outside Converter ordered AFTER the group (z1) gets what the group leaves', () => {
-    const g = shape('z1')
-    const r = run(g.nodes, g.edges)
+// A router OUTSIDE the group that is ordered between the group's first router
+// and a source Gate took what the plan counted on that Gate to pull (issue
+// #570, found by a sweep of random graphs on 2026-11-15). This file held it as
+// a known defect; its repair and its cases are `sourceGateHold.test.ts`. One
+// control stays here, the case that never depended on it.
+describe('a router outside the group, ordered after it', () => {
+  it('control: an outside Converter ordered AFTER the group (z1) gets what the group leaves', () => {
+    // the group: a ─1→ c0 ─1→ c3 ; x ─1→ g ─1→ c3 ; c3 ─1→ out.  Outside it: x ─5→ z1 ─1→ y
+    const r = run(
+      [pool('a', 100), pool('x', 5), pool('y', 0), pool('out', 0), conv('c0'), conv('z1'), gate('g'), conv('c3')],
+      [res('a0', 'a', 'c0', '1'), res('03', 'c0', 'c3', '1'), res('xg', 'x', 'g', '1'), res('g3', 'g', 'c3', '1'), res('3o', 'c3', 'out', '1'), res('x1', 'x', 'z1', '5'), res('1y', 'z1', 'y', '1')],
+    )
     expectExact(r.moved, { a0: 1, '03': 1, xg: 1, g3: 1, '3o': 1, x1: 4, '1y': 0.8 }, 'moved')
   })
 })
