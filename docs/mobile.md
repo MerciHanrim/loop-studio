@@ -149,8 +149,9 @@ Crossing the breakpoint — first load under it, a resize, a rotation — is a
 - `pristineSample` latch is not touched by the layout switch;
 - returning to a desktop width **restores the full editing UI** with node
   positions, selection, undo stack, and run state exactly as they were.
-- a **multi-selection** survives the switch too; the read-only Inspector sheet
-  shows the anchor node and says how many are selected
+- a **multi-selection** survives the switch too; the selection panel says how
+  many are selected and which node the details are of (MV5b), and the
+  read-only Inspector sheet shows that anchor node and the count
   (`docs/large-graph-readability.md` §LGR12.3).
 
 ### MV3d. Rotation & fitView
@@ -285,7 +286,8 @@ Both are bottom sheets. **Shared sheet contract:**
   (MV-D11, MV-D18, MV-D19). They stay reachable by pointer, keyboard and screen
   reader, and Tab follows the page's own order out of the sheet. Only what the
   sheet's scrim covers for the pointer (the canvas, the top bar's `More`
-  button, the open-file card) is `inert` while it is open, so the keyboard and
+  button, the open-file card, the selection panel of MV5b) is `inert` while it
+  is open, so the keyboard and
   a screen reader reach the same controls as a finger. A real dialog opened
   over a sheet is modal like every real dialog: it traps Tab and everything
   else, the sheet, the run bar and the PWA update bar included, is `inert`
@@ -372,6 +374,61 @@ overlay). When the other screen closes and the selection still stands, the
 sheet comes back. Until v0.31.0 the sheet's effect re-ran on every overlay
 change and reclaimed the slot, so Timeline never stayed open over a selection
 and the dialog was dismissed before it could be used.
+
+### MV5b. The selection panel, and the Inspector sheet on request (2026-11-15)
+
+Until 2026-11-15 a selection opened the read-only Inspector sheet by itself.
+The sheet's scrim then covered the top bar's `More` button, and the sheet the
+canvas rail (Zoom in, Zoom out, Reset view): `More` took two taps and the first
+one threw the selection away, and the canvas could not be zoomed or fitted with
+something selected (measured at 390 × 844: scrim 0–791, sheet 506 px, all four
+controls `inert`). The Inspector is now in two stages.
+
+- **A selection brings the selection panel**: one row directly above the run
+  bar, with **no scrim**, and **focus does not move**. It is a labelled region
+  (`Selection`), not a dialog; its text is a `status`, so a new selection is
+  said without being focused.
+- **What it says.** The name on the first line (cut with an ellipsis when it
+  is long; the whole name is in Details). Under it the kind and, where the
+  Inspector reads **one** value out for that kind, that value under the
+  Inspector's own label:
+  - a **Pool**: its Current amount, the same reading as the Inspector's field;
+  - a **Parameter**: its Value, with its unit;
+  - the other node kinds: the kind only. No value is made up for them;
+  - a **connection**: its two ends as its name (`from → to`), its kind in the
+    Inspector's words, and for a resource line its Flow as written;
+  - **several nodes**: how many are selected as the name, and under it which
+    node the details are of (the sheet shows one, §LGR12.3).
+- **Two buttons**, 44 px each: **Details** and **Deselect**.
+- **The canvas rail stands 8 px above the panel's top edge** while the panel
+  shows. The distance is measured from the panel and the canvas pane each time
+  either changes size (`--mob-rail-lift`), because the run bar under the panel
+  is one or two rows high depending on the language and the width. Without a
+  panel the rail keeps the margin it had.
+- **Selecting does not move the canvas, with one exception.** A node low on a
+  short screen can be partly under the panel, and stays where it is; the
+  canvas can be panned and zoomed with the panel up. The exception is a node
+  that was on screen when it was tapped and that the panel then covers
+  **completely** (measured 2026-11-15: on a phone held sideways, after Reset
+  view, the fitted diagram's bottom row, 11 to 12 of the Early MMO's 97
+  nodes): the canvas moves **up only**, by just enough for 8 px of the node's
+  symbol to show above the panel. The zoom and the sideways position are
+  kept, and so are the selection and the rail. A connection, several nodes,
+  and a selection that was already there when the phone layout came up (a
+  width change, §MV3c) move nothing.
+- **The name may show twice** at a low zoom: on the canvas (where the node is)
+  and in the panel (what is selected).
+- **`More` opens with one tap and the selection is kept.** Every sheet opened
+  over the panel covers it, so the panel is one of the elements a sheet makes
+  `inert` (`data-covered-by-sheets`); when the sheet closes the panel is there
+  again.
+- **Details opens the read-only Inspector sheet** (the shared sheet contract
+  above, unchanged). Its Close, a tap on its scrim and Escape close the
+  **sheet** and keep the selection; focus returns to Details.
+- **Taking the selection off** is Deselect, or a tap on the empty canvas, or
+  Reset view (§LGR3.4). The sheet no longer does it.
+- Timeline and the Monte Carlo dialog open over a selection as before (#411);
+  when they close, the panel is what is there, not the sheet.
 
 ## MV6. Compact top bar
 
@@ -505,7 +562,7 @@ opening. Its mobile placement rules:
 | **MV-D0** | hold `v0.4.0` for this **or** ship "mobile unsupported" now | **hold** — reopen `0.4.0-dev`, land this, then tag |
 | MV-D1 | breakpoint | `max-width: 720px` **or** `(max-height: 500px) and (max-width: 950px) and (pointer: coarse)`; one shared query string feeds both CSS and `useIsMobile()` |
 | MV-D2 | structural editing | **hard-locked** (MV3a table) — no add/move/connect/delete/property-change, no delete key, no dbl-click / context-menu / structural shortcuts |
-| MV-D3 | selection & Inspector | selection **allowed**; Inspector is a **read-only** bottom sheet, auto-opens on selection |
+| MV-D3 | selection & Inspector | selection **allowed**; a selection brings the **selection panel** (one row above the run bar, no scrim, no focus move); the Inspector is a **read-only** bottom sheet that opens from the panel's Details (MV5b; until 2026-11-15 it opened on selection) |
 | MV-D4 | simulation-input Inspector tabs | **read-only on mobile** in this cut; any future live sim-input editing is a separate, separately-gated decision |
 | MV-D5 | document replacement | Import / Template **allowed**, but **confirm-before-replace** (MV3b), reusing the existing atomic `loadDoc()` path |
 | MV-D6 | layout switch | **never** mutates the doc / undo history / latch (MV3c); desktop width fully restores the editing UI |

@@ -674,7 +674,7 @@ test.describe('dense-graph pan — mobile viewport', () => {
     expect(await selectedId(page)).toBe('c')
   })
 
-  test('mobile: a tap on an edge selects it and opens the read-only Inspector sheet (§DGP-C1)', async ({
+  test('mobile: a tap on an edge selects it and brings the selection panel, whose Details open the read-only sheet (§DGP-C1)', async ({
     page,
   }) => {
     await load(page)
@@ -692,6 +692,10 @@ test.describe('dense-graph pan — mobile viewport', () => {
     await page.mouse.up()
 
     expect(await selectedEdge(page)).toBe('e_ab')
+    // the selection panel comes up (docs/mobile.md §MV5b); the read-only sheet opens from its Details
+    await expect(page.locator('.selpanel')).toBeVisible()
+    await expect(page.locator('.sheet')).toHaveCount(0)
+    await page.locator('.selpanel__details').click()
     await expect(page.locator('.sheet[aria-label="Inspector — read only"]')).toBeVisible()
   })
 })

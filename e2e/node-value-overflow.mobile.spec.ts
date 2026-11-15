@@ -33,6 +33,9 @@ async function tapNode(page: Page, id: string): Promise<void> {
   const b = (await node(page, id).locator('.nodef').boundingBox())!
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2)
   await expect(node(page, id).locator('.nodef__sel')).toHaveCount(1)
+  // the selection panel comes up; the sheet with every field opens from its
+  // Details (docs/mobile.md §MV5b)
+  await page.locator('.selpanel__details').click()
   await expect(page.locator('.sheet--inspector')).toBeVisible()
 }
 

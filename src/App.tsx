@@ -6,6 +6,7 @@ import { DesktopInspector } from './components/DesktopInspector'
 import { GuidedTour } from './components/GuidedTour'
 import { LocaleLoadNotice } from './components/LocaleLoadNotice'
 import { MobileInspectorSheet } from './components/mobile/MobileInspectorSheet'
+import { MobileSelectionPanel } from './components/mobile/MobileSelectionPanel'
 import { MobileRunBar } from './components/mobile/MobileRunBar'
 import { MonteCarloDialog } from './components/MonteCarloDialog'
 import { PlaybackAnnouncer } from './components/PlaybackAnnouncer'
@@ -48,6 +49,9 @@ export default function App() {
           <DesktopInspector />
         </div>
         <StatusBar />
+        {/* the phone's selection panel: before the run bar in the page's order,
+            as it is on screen (the row above it) */}
+        <MobileSelectionPanel />
         <MobileRunBar />
         <MobileInspectorSheet />
       </div>

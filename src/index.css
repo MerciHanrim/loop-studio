@@ -207,6 +207,9 @@
      `--z-runbar`, which put it over an open sheet: measured at 320x640, it
      covered the first row of the More sheet and took the tap. */
   --z-openhint: 35;
+  /* The phone's selection panel (docs/mobile.md §MV5b) is part of the page
+     too: above the canvas and its rail, BELOW every sheet, which covers it. */
+  --z-selpanel: 38;
   --z-mc-dialog: 50;
   --z-pwa-update: 46;
   /* docs/guided-tour.md §GT4 — the tour layer is above the Canvas / Toolbar /
@@ -8419,10 +8422,106 @@ input[type='number']::-webkit-inner-spin-button {
     z-index: var(--z-pwa-update);
   }
 
-  /* React Flow zoom / fit controls: 44px touch targets, clear of the run bar */
+  /* React Flow zoom / fit controls: 44px touch targets, clear of the run bar.
+     While the selection panel shows (§MV5b) the rail stands 8 px above the
+     panel's top edge: `--mob-rail-lift` is that distance, measured from the
+     panel and the canvas pane (MobileSelectionPanel.tsx). Without a panel the
+     variable is absent and the margin is what it was. */
   .react-flow__controls {
-    margin-bottom: calc(var(--mob-runbar-real, calc(var(--mob-runbar-h) + var(--sai-bottom))) + 8px);
+    margin-bottom: var(--mob-rail-lift, calc(var(--mob-runbar-real, calc(var(--mob-runbar-h) + var(--sai-bottom))) + 8px));
     margin-left: calc(8px + var(--sai-left));
+  }
+
+  /* ---- the selection panel (§MV5b): one row above the run bar, no scrim ----
+     What is selected (its name; its kind and one value), Details, Deselect.
+     Under every sheet (a sheet opened over it covers it), above the canvas. */
+  .selpanel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: var(--mob-runbar-real, calc(var(--mob-runbar-h) + var(--sai-bottom)));
+    z-index: var(--z-selpanel);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px calc(10px + var(--sai-right)) 6px calc(12px + var(--sai-left));
+    background: var(--bg-panel);
+    border-top: 1px solid var(--line-2);
+  }
+  .selpanel__text {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  /* a long name is cut with an ellipsis; the whole name is in Details */
+  .selpanel__name {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .selpanel__sub {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .selpanel__kind {
+    flex: none;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .selpanel__anchor {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* a value under its label. Where the row is too narrow for both, the LABEL
+     gives way (cut with an ellipsis) and the value stays whole: measured at
+     360 px in Russian, "Текущее количество" took the room and the number
+     itself was cut away. Only a value longer than the row is cut. */
+  .selpanel__fact {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    min-width: 0;
+  }
+  .selpanel__fact-label {
+    flex: 0 1000 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .selpanel__fact-value {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--font-mono);
+    color: var(--ink-1);
+  }
+  .selpanel .btn {
+    flex: none;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .selpanel__x {
+    width: 44px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
   .react-flow__controls-button {
     width: 44px;

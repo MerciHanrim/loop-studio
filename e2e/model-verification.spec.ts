@@ -23,8 +23,16 @@ const stepN = (page: Page, n: number) =>
     for (let i = 0; i < k; i++) sim.advance()
   }, n)
 
-const select = (page: Page, nodeId: string) =>
-  page.evaluate((id) => (window as unknown as Bridge).__loop.graph.getState().setSelection(id, null), nodeId)
+/** on the phone the read-only Inspector sheet opens from the selection panel's
+ *  Details (docs/mobile.md §MV5b); once open it follows the selection */
+const openPhoneDetails = async (page: Page) => {
+  if (isMobile(page) && (await page.locator('.sheet--inspector').count()) === 0) await page.locator('.selpanel__details').click()
+}
+
+const select = async (page: Page, nodeId: string) => {
+  await page.evaluate((id) => (window as unknown as Bridge).__loop.graph.getState().setSelection(id, null), nodeId)
+  await openPhoneDetails(page)
+}
 
 const digest = (page: Page) => page.evaluate(() => (window as unknown as Bridge).__loop.revisionIO.currentTargetDigest())
 
@@ -184,6 +192,7 @@ test.describe('model-verification.json — Import → Run → Timeline', () => {
     expect(await poolAfter()).toBe(16) // Gold: 10, +3 in −2 out per step ⇒ 16 at step 6 (oracle)
 
     await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().setSelection(null, 'e_gold_sink'))
+    await openPhoneDetails(page)
     await expect(inspector(page)).toContainText(/Type mismatch/i)
     await expect(inspector(page)).toContainText(/Advisory/i)
   })

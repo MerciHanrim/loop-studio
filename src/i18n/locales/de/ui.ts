@@ -173,6 +173,10 @@ const ui = {
   'timeline.csv.shown.blurb': 'Fügt die Werte in den hier angezeigten Einheiten hinzu',
   'timeline.axis.step': 'Schritt {n}',
   'timeline.sheetTitle': 'Zeitverlauf',
+  'mobile.selection.label': 'Auswahl',
+  'mobile.selection.details': 'Details',
+  'mobile.selection.deselect': 'Auswahl aufheben',
+  'mobile.selection.anchor': 'Details zeigen {name}',
   'mobile.inspector.title': 'Eigenschaften — schreibgeschützt',
   'mobile.inspector.roNote':
     'Bearbeitet wird am Rechner. Dies ist eine schreibgeschützte Ansicht.',
@@ -515,7 +519,7 @@ const ui = {
     'Ziehen zum Verschieben, Aufziehen zum Zoomen. „Einpassen“ zentriert das Diagramm neu.',
   'tour.mobile.inspect.title': 'Ansehen',
   'tour.mobile.inspect.body':
-    'Auf einen Knoten oder eine Verbindung tippen, um die Konfiguration zu lesen. Bearbeitet wird nur am Rechner.',
+    'Auf einen Knoten oder eine Verbindung tippen, um die Zusammenfassung zu sehen. Die Einstellungen stehen unter Details. Bearbeitet wird nur am Rechner.',
   'tour.mobile.run.title': 'Ausführen',
   'tour.mobile.run.body':
     'Das Modell Schritt für Schritt durchgehen oder mit „Abspielen“ starten.',

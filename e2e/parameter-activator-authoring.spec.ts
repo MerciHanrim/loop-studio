@@ -172,6 +172,7 @@ test.describe('parameter activator authoring (docs/parameter-activator.md §PA7)
     await page.reload()
     await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
     await selectEdge(page, 'act1')
+    await page.locator('.selpanel__details').click() // docs/mobile.md §MV5b: the sheet opens on request
     await expect(page.locator('.sheet--inspector .activatorfield__preview')).toHaveText(
       `target is enabled while the source >= 2 (= ${iso('Hard pity')} − 1, currently 3)`,
     )

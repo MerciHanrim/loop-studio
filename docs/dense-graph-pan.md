@@ -148,8 +148,9 @@ Mobile is already `nodesDraggable={false}` and has no edit gestures to protect:
   when it starts on a node, an edge, or a frame**.
 - **Tap vs drag by distance.** A pointer that moves **< `PAN_SLOP` (~8 px)**
   before it lifts is a **tap** — today's behaviour: it selects the node / edge
-  and opens the read-only Inspector sheet (an empty-canvas tap still clears +
-  closes). Time is not a factor — a long press that never moves is still a tap.
+  and brings the selection panel (since 2026-11-15, `docs/mobile.md` §MV5b;
+  before, the read-only Inspector sheet itself) (an empty-canvas tap still
+  clears + closes). Time is not a factor — a long press that never moves is still a tap.
 - **Once the pointer passes `PAN_SLOP` it is a pan**, and the pending tap is
   cancelled: **no selection change, no Inspector open**.
 - **Two fingers / pinch** → the overlay computes it directly (not RF's
@@ -243,13 +244,14 @@ restores Pan mode.
 
 **Touch (mobile):**
 - a one-finger drag **that starts on a node** pans the canvas; the node is not
-  moved, selection does not change, no Inspector sheet opens.
+  moved, selection does not change, no selection panel comes up.
 - a one-finger drag that starts on an **edge** or a **frame** pans.
 - a **tap** (moved < `PAN_SLOP` ≈ 8 px before lift) on a node still selects it
-  and opens the Inspector sheet; **a tap on (or within ~12–16 px of) an edge
-  still selects that edge and opens the Inspector sheet** (§DGP-C1); an
-  empty-canvas tap still clears + closes it; a long press that never moves is
-  still a tap.
+  and brings the selection panel (`docs/mobile.md` §MV5b; the Inspector sheet
+  opens from its Details); **a tap on (or within ~12–16 px of) an edge still
+  selects that edge and brings the panel** (§DGP-C1); an empty-canvas tap
+  still clears the selection and the panel goes; a long press that never
+  moves is still a tap.
 - **node beats edge**: a tap where a node box and an edge overlap selects the
   node.
 - a drag that ends near where it started (< `PAN_SLOP`) resolves to **tap**, not

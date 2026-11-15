@@ -42,6 +42,11 @@ async function tapNode(page: Page, node: Locator): Promise<void> {
   await page.mouse.up()
 }
 
+/** docs/mobile.md §MV5b — a selection brings the selection panel; the read-only
+ *  Inspector sheet opens from the panel's Details */
+const selPanel = (page: Page) => page.locator('.selpanel')
+const openDetails = (page: Page) => page.locator('.selpanel__details').click()
+
 /** document does not scroll sideways */
 async function noHScroll(page: Page): Promise<void> {
   const over = await page.evaluate(() => {
@@ -731,10 +736,14 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
   })
 
   // docs/large-graph-readability.md §LGR12.3 — the selection count on mobile
-  test('§LGR12.3 a single tap opens the sheet and shows NO selection count', async ({ page }) => {
+  test('§LGR12.3 a single tap brings the panel; its sheet shows NO selection count', async ({ page }) => {
     await loadDiagram(page)
     const inspector = page.locator('.sheet[aria-label="Inspector — read only"]')
     await tapNode(page, page.locator('.react-flow__node').first())
+    // §MV5b — the panel, not the sheet
+    await expect(selPanel(page)).toBeVisible()
+    await expect(inspector).toHaveCount(0)
+    await openDetails(page)
     await expect(inspector).toBeVisible()
     // the sheet already IS that node — a "1 node selected" line would be noise
     await expect(page.locator('.lgr-selection-count')).toHaveCount(0)
@@ -794,6 +803,10 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     await expect(page.locator('.pstrip--mobile')).toBeVisible()
     expect(await selectionState(), 'ids + anchor survive the switch').toEqual(before)
     const inspector = page.locator('.sheet[aria-label="Inspector — read only"]')
+    // §MV5b — the selection panel says how many, and which node the details are of
+    await expect(selPanel(page).locator('.selpanel__name')).toHaveText(/3 nodes selected/)
+    await expect(inspector).toHaveCount(0)
+    await openDetails(page)
     await expect(inspector).toBeVisible()
     // the sheet shows ONE node — the anchor — …
     const anchorLabel = await page.evaluate(
@@ -804,6 +817,7 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
       before.anchor,
     )
     await expect(inspector.locator('input').first()).toHaveValue(anchorLabel!)
+    await expect(selPanel(page).locator('.selpanel__anchor')).toContainText(anchorLabel!)
     // … and says how many are selected, without the desktop unlock wording
     const line = inspector.locator('.lgr-selection-count')
     await expect(line).toHaveText(/3 nodes selected/)
@@ -835,12 +849,20 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     await expect(page.locator('.react-flow .lgr-selection-count')).toHaveCount(0)
   })
 
-  test('tapping a node opens a read-only Inspector sheet; Close and empty-canvas tap dismiss it', async ({ page }) => {
+  test('a tapped node’s Details open a read-only Inspector sheet; Close and its scrim close the sheet and keep the selection', async ({ page }) => {
     await loadDiagram(page)
     const inspector = page.locator('.sheet[aria-label="Inspector — read only"]')
     const node = page.locator('.react-flow__node').first()
+    const selectedId = () =>
+      page.evaluate(
+        () => (window as unknown as { __loop: { graph: { getState: () => { selectedNodeId: unknown } } } }).__loop.graph.getState().selectedNodeId,
+      )
 
     await tapNode(page, node)
+    await expect(selPanel(page)).toBeVisible()
+    const id = await selectedId()
+    expect(id).not.toBeNull()
+    await openDetails(page)
     await expect(inspector).toBeVisible()
     // <fieldset disabled> disables descendants functionally (no per-control
     // attribute), so assert via the :enabled pseudo-class, not [disabled].
@@ -851,32 +873,36 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
       await expect(del).toBeHidden()
     }
 
+    // Close closes the SHEET: the selection stands and the panel is there again (§MV5b)
     await inspector.locator('.sheet__x').click()
     await expect(inspector).toBeHidden()
+    expect(await selectedId()).toBe(id)
+    await expect(selPanel(page)).toBeVisible()
 
-    await tapNode(page, node)
+    await openDetails(page)
     await expect(inspector).toBeVisible()
-    // the dimmed canvas above the sheet is the scrim — a tap there dismisses
-    // the sheet and clears the selection (§MV5)
+    // the dimmed canvas above the sheet is the scrim — a tap there closes the
+    // sheet, and keeps the selection too
     await page.locator('.sheet-scrim').click({ position: { x: 40, y: 40 } })
     await expect(inspector).toBeHidden()
     expect(await graphContent(page)).toBe(await graphContent(page)) // still no mutation
-    const sel = await page.evaluate(
-      () => (window as unknown as { __loop: { graph: { getState: () => { selectedNodeId: unknown } } } }).__loop.graph.getState().selectedNodeId,
-    )
-    expect(sel).toBeNull()
+    expect(await selectedId()).toBe(id)
+
+    // taking the selection off is the panel's Deselect
+    await page.locator('.selpanel__x').click()
+    await expect.poll(selectedId).toBeNull()
+    await expect(selPanel(page)).toHaveCount(0)
   })
 
   // 2026-11-11 defect — Reset view cleared the store's selection only and left
   // each element's own `selected` mark: the ring stayed on a node nothing else
   // called selected. The phone has two Reset views, the More sheet's row and the
   // canvas rail's button; both are pressed here, for a node and for a connection.
-  // A selection on the phone brings the Inspector sheet, whose scrim covers the
-  // More button and the rail (measured: a pointer click on either lands on
-  // `.sheet-scrim`), so a finger does not reach them while the sheet is up.
-  // Their handlers are still pressed here, through the DOM, so that no route to
-  // them (another overlay over a selection, #411; a width change, §MV3c) leaves
-  // the mark behind. The More sheet's own row takes a real click.
+  // Until 2026-11-15 a selection on the phone brought the Inspector sheet,
+  // whose scrim covered the More button and the rail, and these tests pressed
+  // both through the DOM. A selection now brings the selection panel, with no
+  // scrim (docs/mobile.md §MV5b): the More button and the rail's button take
+  // a real click here, with the selection on screen.
   test.describe('Reset view clears the whole selection: the mark on the canvas with the store’s', () => {
     const shown = (page: Page) =>
       page.evaluate(() => {
@@ -890,10 +916,10 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
             edges: document.querySelectorAll('.react-flow__edge.selected').length,
             rings: document.querySelectorAll('.nodef.is-selected').length,
           },
-          sheet: document.querySelector('.sheet--inspector') !== null,
+          panel: document.querySelector('.selpanel') !== null,
         }
       })
-    const NOTHING = { store: { node: null, edge: null }, marked: { nodes: 0, edges: 0 }, canvas: { nodes: 0, edges: 0, rings: 0 }, sheet: false }
+    const NOTHING = { store: { node: null, edge: null }, marked: { nodes: 0, edges: 0 }, canvas: { nodes: 0, edges: 0, rings: 0 }, panel: false }
     const tapLine = async (page: Page) => {
       const at = await page.locator('.react-flow__edge path.react-flow__edge-path').first().evaluate((el) => {
         const p = el as SVGPathElement
@@ -907,7 +933,8 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     const select = async (page: Page, what: 'node' | 'connection') => {
       if (what === 'node') await tapNode(page, page.locator('.react-flow__node').first())
       else await tapLine(page)
-      await expect(page.locator('.sheet--inspector')).toBeVisible()
+      await expect(selPanel(page)).toBeVisible()
+      await expect(page.locator('.sheet')).toHaveCount(0)
       const s = await shown(page)
       expect(s.marked, `the ${what} carries its own mark`).toEqual(what === 'node' ? { nodes: 1, edges: 0 } : { nodes: 0, edges: 1 })
       expect(s.canvas).toEqual(what === 'node' ? { nodes: 1, edges: 0, rings: 1 } : { nodes: 0, edges: 1, rings: 0 })
@@ -918,12 +945,13 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
       test(`the More sheet’s row, a selected ${what}`, async ({ page }) => {
         await loadDiagram(page)
         await select(page, what)
-        // More takes the sheet's place; the selection stands behind it (#411)
-        await page.locator('.mob-more').dispatchEvent('click') // covered by the scrim: see above
+        // one tap on More opens it, and the selection stands behind it (§MV5b)
+        await page.locator('.mob-more').click()
+        await expect(page.locator('.sheet__row').filter({ hasText: /^Reset view/ })).toBeVisible()
         expect((await shown(page)).marked, 'still selected with More open').toEqual(what === 'node' ? { nodes: 1, edges: 0 } : { nodes: 0, edges: 1 })
         await page.locator('.sheet__row').filter({ hasText: /^Reset view/ }).click()
         await expect.poll(() => shown(page), { message: 'every mark of the selection is gone together' }).toEqual(NOTHING)
-        await expect(page.locator('.sheet')).toHaveCount(0) // More closed, and the Inspector sheet does not come back
+        await expect(page.locator('.sheet')).toHaveCount(0) // More closed, and no sheet comes in its place
         // not left half-selected: one tap selects it again
         await select(page, what)
       })
@@ -931,7 +959,7 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
       test(`the canvas rail’s button, a selected ${what}`, async ({ page }) => {
         await loadDiagram(page)
         await select(page, what)
-        await page.locator('.rf-resetview').dispatchEvent('click') // covered by the scrim: see above
+        await page.locator('.rf-resetview').click() // above the selection panel, in reach
         await expect.poll(() => shown(page), { message: 'every mark of the selection is gone together' }).toEqual(NOTHING)
         await select(page, what)
       })
@@ -973,6 +1001,7 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     )
 
     const inspector = page.locator('.sheet[aria-label="Inspector — read only"]')
+    await openDetails(page) // §MV5b: the sheet opens from the selection panel
     await expect(inspector).toBeVisible()
     // no radio inputs ANYWHERE on the page — not just inside the visible
     // sheet, since the hidden desktop Inspector is also mounted and must
@@ -2447,6 +2476,7 @@ test('a rule is read on the phone and not made there, and Help explains it', asy
   )
   const box = (await page.locator('.react-flow__node[data-id="ro"] svg').first().boundingBox())!
   await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2)
+  await openDetails(page) // §MV5b: the sheet opens from the selection panel
   const section = page.locator('.sheet--inspector [data-run-rule="ro"]')
   await expect(section.locator('[data-run-reading]')).toContainText('reads')
   await expect(section.locator('[data-run-reading]')).toContainText('store')
