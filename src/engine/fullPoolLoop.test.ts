@@ -301,8 +301,14 @@ describe('…and no real bound is passed by it', () => {
     }
   })
   it('sweep: over 2,000 random graphs and three steps each, no capped Pool is put past its capacity by more than the rounding of its own flow', () => {
+    // 6,000 steps, one question each. What a step breaks is gathered with its
+    // seed, step and number and asserted once at the end, and the test states
+    // its own time limit: an `expect` per step put it near the default 5
+    // seconds on a slow CI runner (main CI of 2026-11-16).
     let worst = 0
     let ran = 0
+    let steps = 0
+    const found: string[] = []
     for (let seed = 1000; seed < 3000; seed++) {
       const g = build(seed)
       let st = initSim(g.nodes)
@@ -311,12 +317,14 @@ describe('…and no real bound is passed by it', () => {
         st = r.state
         const past = pastCapacity(g, r)
         if (past > worst) worst = past
-        expect(past, `seed ${seed}, step ${i + 1}`).toBeLessThanOrEqual(1)
+        steps++
+        if (!(past <= 1)) found.push(`seed ${seed}, step ${i + 1}: a capped Pool is ${past} rounding units past its capacity`)
       }
       ran++
     }
-    expect(ran).toBe(2000)
+    expect(found.slice(0, 50), `${found.length} steps past a capacity`).toEqual([])
+    expect([ran, steps]).toEqual([2000, 6000])
     // measured over 5,153 graphs on 2026-11-16: 0.28 with the repair, 0.48 before it, 64 with the withdrawn tolerance
     expect(worst).toBeLessThan(1)
-  })
+  }, 60_000)
 })

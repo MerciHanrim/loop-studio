@@ -231,19 +231,36 @@ describe('3. the bounds still decided in floating point are not contradicted', (
     return { nodes, edges }
   }
   const kindOf = (g: Graph) => new Map(g.nodes.map((x) => [x.id, x.data.kind]))
+  /** What the sweep asks, the same at every scale (the graphs are the same, times the scale): of 2,000
+   *  graphs, the 5,079 steps that were not refused before the run; in them every Pool (two questions:
+   *  not below 0, and its change against its events), every Pool line, every connection of a
+   *  Converter, every Gate, every Converter, and each step's capped Pools. As separate `expect`s
+   *  these were 2 × 17,652 + 22,482 + 18,477 + 8,523 + 5,079 + 1 = 89,866 assertions. */
+  const ASKED = { graphs: 2000, steps: 5079, pools: 17652, poolLines: 22482, converterLines: 18477, gates: 8523, converters: 5268 }
 
+  // One test walks 2,000 graphs for three steps and asks about 90,000 questions.
+  // Each used to be an `expect` of its own, and on a slow CI runner the test
+  // took 4.6 to 5.4 seconds against the default limit of 5 (main CI of
+  // 2026-11-16, first attempt: timed out with no rule broken). The questions
+  // are the same; what a step breaks is gathered as a line of text (the seed,
+  // the step, the rule and the numbers) and asserted once at the end, and the
+  // test states its own limit. How many of each question were asked is pinned,
+  // so the sweep cannot shrink unseen.
   it.each([[0], [6], [-3]])('2,000 random graphs × 10^%i, three steps each: Pools, lines and Gates keep their rules, and no capped Pool is put past its capacity', (n) => {
     const unit = times(1, n)
-    const oneFraction: number[] = [] // seeds whose Converter is not at one fraction
+    const found: string[] = [] // every rule a step broke
+    const asked = { graphs: 0, steps: 0, pools: 0, poolLines: 0, converterLines: 0, gates: 0, converters: 0 }
     for (let seed = 1000; seed < 3000; seed++) {
       const g = build(seed, n)
       const kind = kindOf(g)
       let st = initSim(g.nodes)
+      asked.graphs++
       for (let i = 0; i < 3; i++) {
         const r = one(g, st)
         st = r.state
         if (r.refused) break
-        const where = `seed ${seed}, step ${i + 1}`
+        asked.steps++
+        const broke = (what: string) => found.push(`seed ${seed}, step ${i + 1}: ${what}`)
         for (const node of g.nodes) {
           if (node.data.kind !== 'pool') continue
           let net = 0
@@ -252,14 +269,23 @@ describe('3. the bounds still decided in floating point are not contradicted', (
             if (e.source === node.id) net -= r.m[e.id]
           }
           // availability: no Pool below 0, and its change is what the events say
-          expect(r.after[node.id], `${where}: ${node.id} below 0`).toBeGreaterThanOrEqual(0)
-          expect(Math.abs(r.after[node.id] - r.before[node.id] - net), `${where}: ${node.id} against its events`).toBeLessThan(1e-9 * unit)
+          asked.pools++
+          if (!(r.after[node.id] >= 0)) broke(`${node.id} below 0 (${r.after[node.id]})`)
+          const off = Math.abs(r.after[node.id] - r.before[node.id] - net)
+          if (!(off < 1e-9 * unit)) broke(`${node.id} against its events by ${off}`)
         }
         for (const e of g.edges) {
+          const rate = Number((e.data as { flow: string }).flow)
           // a line's own amount: a Pool line never carries more than it says
-          if (kind.get(e.source) === 'pool') expect(r.m[e.id], `${where}: ${e.id} above its amount`).toBeLessThanOrEqual(Number((e.data as { flow: string }).flow) * (1 + 1e-12))
+          if (kind.get(e.source) === 'pool') {
+            asked.poolLines++
+            if (!(r.m[e.id] <= rate * (1 + 1e-12))) broke(`${e.id} carries ${r.m[e.id]}, above its amount ${rate}`)
+          }
           // a Converter's fraction is at most 1 on every connection
-          if (kind.get(e.source) === 'converter' || kind.get(e.target) === 'converter') expect(r.m[e.id], `${where}: ${e.id} past f = 1`).toBeLessThanOrEqual(Number((e.data as { flow: string }).flow) * (1 + 1e-9))
+          if (kind.get(e.source) === 'converter' || kind.get(e.target) === 'converter') {
+            asked.converterLines++
+            if (!(r.m[e.id] <= rate * (1 + 1e-9))) broke(`${e.id} carries ${r.m[e.id]}, past one run of ${rate}`)
+          }
         }
         for (const node of g.nodes) {
           const ins = g.edges.filter((e) => e.target === node.id)
@@ -267,18 +293,24 @@ describe('3. the bounds still decided in floating point are not contradicted', (
           if (node.data.kind === 'gate') {
             const a = ins.reduce((t, e) => t + r.m[e.id], 0)
             const b = outs.reduce((t, e) => t + r.m[e.id], 0)
-            expect(Math.abs(a - b), `${where}: Gate ${node.id} in against out`).toBeLessThan(1e-9 * unit)
+            asked.gates++
+            if (!(Math.abs(a - b) < 1e-9 * unit)) broke(`Gate ${node.id} takes ${a} and passes on ${b}`)
           } else if (node.data.kind === 'converter') {
+            // one fraction on every connection. Until issue #570 was repaired (a
+            // router outside the group took a source Gate's planned pull;
+            // `sourceGateHold.test.ts`), seeds 2841 and 2931 broke this one,
+            // before and after the exact room test alike.
             const fs = [...ins, ...outs].map((e) => r.m[e.id] / Number((e.data as { flow: string }).flow))
-            if (fs.length && Math.max(...fs) - Math.min(...fs) > 1e-9 && !oneFraction.includes(seed)) oneFraction.push(seed)
+            asked.converters++
+            if (fs.length && Math.max(...fs) - Math.min(...fs) > 1e-9) broke(`Converter ${node.id} at more than one fraction (${fs.join(', ')})`)
           }
         }
-        expect(pastCapacity(g, r), `${where}: past a capacity`).toBeLessThanOrEqual(1)
+        const past = pastCapacity(g, r)
+        if (!(past <= 1)) broke(`a capped Pool is ${past} rounding units past its capacity`)
       }
     }
-    // Until issue #570 was repaired (a router outside the group took a source
-    // Gate's planned pull; `sourceGateHold.test.ts`), seeds 2841 and 2931 were
-    // here, before and after the exact room test alike.
-    expect(oneFraction).toEqual([])
-  })
+    // the first 50, each with its seed, step and numbers; the count says how many there are in all
+    expect(found.slice(0, 50), `${found.length} rules broken`).toEqual([])
+    expect(asked).toEqual(ASKED)
+  }, 60_000)
 })
