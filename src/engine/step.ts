@@ -2621,11 +2621,26 @@ export function step(
           // a planned Gate moves exactly its plan's throughput (#471 Deploy 2);
           // for a Gate fed by a member the inbox IS that amount
           const plT = planT.get(id)
-          T =
-            plT !== undefined
+          // A planned Gate with no Pool line of its own is fed by another
+          // member of its group: it passes on WHAT IT WAS HANDED, and its
+          // `pull all` is not asked a second time (issue #572; SEMANTICS.md §6
+          // erratum, part 12). The plan's number for it and what the member
+          // before it hands over are one amount worked out in two orders,
+          // `((1 / W) · w) · T` and `(T · w) / W`, and they can differ in the
+          // last place. Taking the least of the two left that last place in the
+          // inbox, which is emptied at the end of the step (I5: no router holds
+          // anything between steps); and `pull all`, asked between the two
+          // workings, moved nothing once the amounts were large enough for one
+          // last place to pass epsilon (3.5e9 handed over, 0 passed on).
+          // The plan has already decided what the group moves, `pull all`
+          // members included; nothing is left for this Gate to refuse.
+          const handed = plT !== undefined && ins.length === 0
+          T = handed
+            ? nz(Math.max(0, inb))
+            : plT !== undefined
               ? nz(Math.max(0, Math.min(plT, demand, inputAvail)))
               : nz(Math.max(0, Math.min(demand, inputAvail, accept(id))))
-          if (mode === 'pullAll' && T < demand - EPSILON) T = 0
+          if (mode === 'pullAll' && !handed && T < demand - EPSILON) T = 0
           if (T <= EPSILON) {
             recordGate(id, 0)
             continue
