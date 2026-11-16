@@ -82,4 +82,11 @@
 //                       turns (a router outside the group that is ordered
 //                       between took it: the Gate moved less than its plan and
 //                       the Converter behind it ran at several fractions)
-export const ENGINE_REVISION = 13
+//   14                  issue #576 — a Converter's coefficient in a plan is asked
+//                       `> 0`, not `> epsilon`: behind a Gate it is a fraction
+//                       per amount, below 1e-9 from a rate of about 1e9 on, and
+//                       the plans left the Converter out (the Gate handed it
+//                       more than a run takes and the rest was gone; a
+//                       multi-supply group stood still; a run target's cap
+//                       was lost)
+export const ENGINE_REVISION = 14
