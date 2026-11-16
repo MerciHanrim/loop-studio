@@ -1448,7 +1448,15 @@ export function step(
           continue
         }
         if (disabledPullAll.has(m)) bound(0) // an upstream router routes nothing into it (§11 / I5)
-        if (c > EPSILON) bound(runOf(m) / c) // f ≤ the target ≤ 1
+        // f ≤ the target ≤ 1. The coefficient is asked `> 0`, not `> EPSILON`
+        // (issue #576; SEMANTICS.md §6 erratum, part 11): behind a Gate it is
+        // a fraction PER AMOUNT, the Gate's share over the connection's rate,
+        // and epsilon is the engine's floor for amounts. With a rate of 1e9 it
+        // is below 1e-9 for no reason but the size of the model's numbers; the
+        // bound was skipped, the Gate was planned past one run, and what the
+        // Converter did not consume was gone (12 handed over for a run of 6).
+        // A product of rates and shares: 0 when not reached, never rounding.
+        if (c > 0) bound(runOf(m) / c)
         if (convMake.get(m)!.size === 0) bound(0) // no live output, no run (#388 D)
         // a router input that delivers nothing this step (its router does not
         // fire, the connection is dead, a probabilistic Gate picked another
@@ -1737,7 +1745,10 @@ export function step(
       let zeroAt: string | null = null // #477 — '' for a short `pull all` Converter, the Gate's id for its own fixed demand
       // the number the targets alone allow: what a `pull all` member must reach
       const targeted = members.some((m) => runTargets?.[m] !== undefined)
-      const sCap = targeted ? Math.min(...members.filter((m) => kindOf(m) === 'converter' && (cof.get(m) ?? 0) > EPSILON).map((m) => runOf(m) / cof.get(m)!)) : 1
+      // (`> 0` here too, issue #576: with every Converter left out for a small
+      // coefficient the cap came out as "none", and a `pull all` Converter was
+      // asked for a whole run where its target allows a half)
+      const sCap = targeted ? Math.min(...members.filter((m) => kindOf(m) === 'converter' && (cof.get(m) ?? 0) > 0).map((m) => runOf(m) / cof.get(m)!)) : 1
       if (ruled && lim && limV < sCap * RUN_REACHED) {
         for (const m of members) if (!runLimit.has(m)) runLimit.set(m, { why: lim.why, pool: lim.pool, needed: lim.per * sCap, had: lim.had })
       }
@@ -2242,9 +2253,16 @@ export function step(
         let hi = Infinity
         for (const m of p.members) {
           const cm = p.cof.get(m) ?? 0
+          if (kindOf(m) === 'converter') {
+            // `> 0`, as in the tree plan (issue #576): skipped for a Converter
+            // whose coefficient is small only because its rates are large, a
+            // piece with no other bound had none, was given 0, and the group
+            // stood still
+            if (cm > 0) hi = Math.min(hi, 1 / cm)
+            continue
+          }
           if (cm <= EPSILON) continue
-          if (kindOf(m) === 'converter') hi = Math.min(hi, 1 / cm)
-          else if (!multi.has(m) && !fedByRouter.has(m)) {
+          if (!multi.has(m) && !fedByRouter.has(m)) {
             let r = inbox.get(m) ?? 0
             for (const e of ownIns(m)) r += Math.max(0, Math.min(amountOf(e, availOf(e.source), S[e.source] ?? 0), availOf(e.source)))
             hi = Math.min(hi, r / cm)

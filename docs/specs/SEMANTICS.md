@@ -623,6 +623,45 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
   gone and none is new; 14 differ from revision 12, two of them in the last
   place only. Pinned in `src/engine/sourceGateHold.test.ts`.
 
+  **Erratum, part 11 (2026-11-16, issue #576) — a coefficient of the plan is
+  not an amount.** `epsilon` is the floor for **amounts**: a magnitude below
+  `1e-9` is nothing (§5). The plans also asked `> epsilon` of a Converter's
+  **coefficient**, its fraction per unit of the group's number. Behind a Gate
+  that number is the Gate's throughput, so the coefficient is a fraction **per
+  amount**: the Gate's share to the Converter over the rate of the connection.
+  It shrinks as the model's amounts grow, and from a rate of about `10⁹` it is
+  below `1e-9` for no other reason. Three tests then left the Converter out:
+  - **the tree plan's bound `f ≤` target `≤ 1`** (part 2). The Gate was planned
+    past one run of the Converter and handed it more than it consumes; the
+    rest was gone, with no notice. Pool `P` (20) `→12→` Gate `→6→` Converter
+    `→1→ out`, every amount times `10⁹`: 12 were taken and handed over where a
+    run takes 6. At `10⁸` and below, 6.
+  - **the multi-supply plan's bound of a piece from its own members** (part
+    3). A piece with no other bound had none, was given 0, and the group stood
+    still.
+  - **the cap the run targets put on a group's number** (SEMANTICS-M6.md). It came out as
+    "no cap", and a `pull all` Converter was asked for a whole run where its
+    target allows a part.
+  The three ask `> 0`. The coefficient is a product of rates and shares, 0
+  when the Converter is not reached and positive otherwise; there is no
+  rounding in it to guard against. **A model is the same model in whatever
+  unit its amounts are counted:** the cases are pinned at seven scales from 1
+  to `10¹⁵` in `src/engine/planLargeAmounts.test.ts`, each asked for the same
+  result times the scale.
+  - **Not changed.** The tests of an amount and of a rate against epsilon are
+    the floor itself. The plans' other coefficients are sums of amounts per
+    unit and showed no effect at any scale. The level coefficient of a Pool
+    (part 9) is a **difference**, what a group gives a Pool less what it takes:
+    asked `> 0`, a loop of Converters that returns `0.1 + 0.2` for `0.3` to a
+    full Pool would stand still on the rounding of that sum.
+  - **The other end of the scale is not this.** With amounts near `10⁻⁶` a
+    step can drop one connection's amount as below epsilon while its
+    neighbours are above it, and a Converter's fractions then differ by up to
+    about `2e-9` as an amount. That is the floor of §5 doing what it says.
+  Of 5,153 random graphs with every amount times `10⁹`, 68 had a Converter fed
+  at more than one fraction and none has now; at `10⁶` and below no graph
+  changes, in any place.
+
   A Converter outside every group whose router input delivers nothing this
   step (its router does not fire, the connection is dead, or a probabilistic
   Gate picked another branch) does not run from its Pools alone: one `f` on
