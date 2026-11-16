@@ -662,6 +662,36 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
   at more than one fraction and none has now; at `10⁶` and below no graph
   changes, in any place.
 
+  **Erratum, part 12 (2026-11-16, issue #572) — a planned Gate fed by another
+  member passes on what it was handed.** Part 2: "each member then moves
+  exactly its planned amounts at its own turn", and I5: no router holds
+  anything between steps. For a planned Gate with no Pool line of its own the
+  planned amount exists twice. The plan gives it a number, its coefficient
+  times the group's number, `((1 / W) · w) · T`; the member before it hands it
+  `(T · w) / W`. One amount, worked out in two orders, and the two can differ
+  in the last place (`3.4999999999999996` and `3.5` for seven twelfths of 6).
+  The Gate moved the least of the two and then asked its `pull all` between
+  them:
+  - the last place of what it was handed stayed in its inbox and was gone at
+    the end of the step, at every scale, for a `pull any` Gate too, with no
+    notice;
+  - once the amounts were large enough for one last place to be more than
+    epsilon (about `10⁷` and up), a `pull all` Gate found itself "short of its
+    demand" and moved **nothing**: the whole of what it had been handed was
+    gone, with a `held` notice (`3.5 × 10⁹` in the smallest case).
+  **The rule.** Such a Gate passes on what is in its inbox, and its `pull all`
+  is not asked a second time. No tolerance is involved. The plan has already
+  decided what the group moves, its `pull all` members included (a short
+  `pull all` source Gate or Converter zeroes the group before anything is
+  handed over, parts 2 and 3), and the plan bounds the group by the rooms its
+  members deliver into; nothing is left for this Gate to refuse. A Gate with a
+  Pool line of its own keeps its test.
+  Pinned in `src/engine/gateHandedOn.test.ts`. Not this part, and open on
+  issue #572: a `pull all` Gate that asks a Pool for its whole content when
+  the Pool holds one unit in the last place less (it stops; nothing is lost),
+  and a chain that is not a planned group, where an upstream Gate can hand a
+  downstream Gate one last place more than it can place.
+
   A Converter outside every group whose router input delivers nothing this
   step (its router does not fire, the connection is dead, or a probabilistic
   Gate picked another branch) does not run from its Pools alone: one `f` on

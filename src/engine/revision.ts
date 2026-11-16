@@ -89,4 +89,10 @@
 //                       more than a run takes and the rest was gone; a
 //                       multi-supply group stood still; a run target's cap
 //                       was lost)
-export const ENGINE_REVISION = 14
+//   15                  issue #572 — a planned Gate with no Pool line of its own
+//                       passes on what it was handed, and its `pull all` is not
+//                       asked a second time (it moved the least of the plan's
+//                       number and the hand-over, one amount in two orders: a
+//                       last place was dropped at every scale, and from about
+//                       1e7 a `pull all` Gate passed on nothing)
+export const ENGINE_REVISION = 15
