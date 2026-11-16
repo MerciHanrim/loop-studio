@@ -576,6 +576,53 @@ not-yet-executed downstream routers (whose `inbox` is still empty):
   unit, and the bounds still decided in floating point over 2,000 random
   graphs at three scales).
 
+  **Erratum, part 10 (2026-11-16, issue #570) — the plan holds what its source
+  Gates pull.** Part 2 places the plan at the turn of the group's first router
+  and says "each member then moves exactly its planned amounts at its own
+  turn". The plan claimed the Converters' Pool inputs there (part 2) and a
+  multi-supply Gate's own Pool amounts (part 3), but not what a **source
+  Gate** of the group, a Gate fed from its own Pools, was planned to pull. A
+  router outside the group that is ordered between the group's first router
+  and that Gate read the Pool whole and took it; the Gate then moved less than
+  its plan. Pool `a` (100) `→1→` Converter `c0` `→1→` Converter `c3`, Pool `x`
+  (5) `→1→` Gate `g` `→1→ c3`, and outside the group `x →5→` Converter `c1`,
+  in the order `c0`, `c1`, `g`, `c3`: `c1` took all 5, `g` got 0, and `c3` was
+  fed 1 and 0 and made 0.5, three fractions on one Converter (I2), with no
+  notice.
+  - **The rule.** When the plan is recorded, what each source Gate pulls from
+    each of its Pools at the plan's numbers (the greedy pulls the plan itself
+    charged, in the commit order) is **held** for that Gate until its own
+    turn. Every other router reads the Pool net of the hold, as it reads it net
+    of a Converter's claim, and so does the plan of another group. At the
+    Gate's turn the hold is released and the Gate pulls as it did. A group that
+    moves nothing holds nothing; a hold lasts no longer than the step. Both
+    planners.
+  - **What it means for a router outside the group.** The group has its first
+    router's place in the order for all of its members, as it already had for
+    its Converters' inputs: an outside router ordered after that place gets
+    what the group leaves (in the example `g` takes its 1 and `c1` the 4 left,
+    the same as when `c1` is ordered after the whole group), and one ordered
+    before it is unaffected. A `pull all` router outside the group that finds
+    less than it asks for does not run.
+  - **The hold is the plan's own pulls, Pool by Pool.** A source Gate with
+    several Pool lines pulls them in their order. Where an outside router used
+    to take from the first of those Pools and the Gate made the amount up from
+    a later line, the Gate now takes from the first Pool and the outside router
+    gets less; **less can move in total** ("whatever that order leaves, not a
+    maximum", part 8). The amounts cannot be swapped between the Gate's lines
+    after the plan: the plan's walk of a Pool's room counts each take from each
+    Pool (parts 2 and 9).
+  - **What else it repairs.** The same loss with no Converter behind the Gate
+    broke no rule and gave no sign: a group of Gates moved less than its plan,
+    and a `pull all` multi-supply Gate ran short of its fixed demand when a
+    Gate supplying it had lost its pull (part 3 says the point or nothing).
+  - **Left as it is.** A source Gate still passes on its planned throughput
+    when its pulls end within epsilon of it, and an amount a router did not
+    pass on is still reported as held; neither is part of this.
+  Of 5,153 random graphs the five with a Converter off its one fraction are
+  gone and none is new; 14 differ from revision 12, two of them in the last
+  place only. Pinned in `src/engine/sourceGateHold.test.ts`.
+
   A Converter outside every group whose router input delivers nothing this
   step (its router does not fire, the connection is dead, or a probabilistic
   Gate picked another branch) does not run from its Pools alone: one `f` on

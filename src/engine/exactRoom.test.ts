@@ -234,7 +234,7 @@ describe('3. the bounds still decided in floating point are not contradicted', (
 
   it.each([[0], [6], [-3]])('2,000 random graphs × 10^%i, three steps each: Pools, lines and Gates keep their rules, and no capped Pool is put past its capacity', (n) => {
     const unit = times(1, n)
-    const oneFraction: number[] = [] // seeds whose Converter is not at one fraction (issue #570, not this change)
+    const oneFraction: number[] = [] // seeds whose Converter is not at one fraction
     for (let seed = 1000; seed < 3000; seed++) {
       const g = build(seed, n)
       const kind = kindOf(g)
@@ -276,10 +276,9 @@ describe('3. the bounds still decided in floating point are not contradicted', (
         expect(pastCapacity(g, r), `${where}: past a capacity`).toBeLessThanOrEqual(1)
       }
     }
-    // The only graphs with a Converter off its one fraction are the ones of
-    // issue #570 (a router outside the group takes a source Gate's planned
-    // pull), the same before and after this change. When #570 is repaired this
-    // list is empty.
-    expect(oneFraction).toEqual([2841, 2931])
+    // Until issue #570 was repaired (a router outside the group took a source
+    // Gate's planned pull; `sourceGateHold.test.ts`), seeds 2841 and 2931 were
+    // here, before and after the exact room test alike.
+    expect(oneFraction).toEqual([])
   })
 })

@@ -460,7 +460,41 @@ export function step(
   // is held here, and every other router reads the Pool net of it, as
   // `headroom` already reads a Pool net of `reserved`.
   const reservedIn = new Map<string, number>() // poolId → claimed by a planned Converter not yet at its turn
-  const availOf = (id: string) => (S[id] ?? 0) - (taken.get(id) ?? 0) - (reservedIn.get(id) ?? 0)
+  // Issue #570 — the same reservation for a planned group's SOURCE GATES
+  // (SEMANTICS.md §6 erratum, part 10). The plan counts on what each of them
+  // pulls from its own Pools; until that Gate's own turn the amount is held
+  // here, and every other router reads the Pool net of it. Without it a router
+  // outside the group that is ordered between the group's first router and the
+  // Gate took it: the Gate moved less than its plan, and the Converter behind
+  // it was fed at different fractions on its connections.
+  // The hold is released at the top of the Gate's turn and the Gate then pulls
+  // as it always did, so with no one else on the Pool nothing changes. A
+  // Pool's total is summed again from the holds that remain, never added and
+  // subtracted, so that a Pool with no hold reads exactly as before.
+  const gateHolds = new Map<string, Map<string, number>>() // source Gate → Pool → held for it until its turn
+  const heldIn = new Map<string, number>() // poolId → the sum of `gateHolds` on it
+  const sumHolds = (pools: Iterable<string>) => {
+    for (const p of pools) {
+      let total = 0
+      for (const h of gateHolds.values()) total += h.get(p) ?? 0
+      if (total > 0) heldIn.set(p, total)
+      else heldIn.delete(p)
+    }
+  }
+  const holdFor = (gateId: string, pulls: Iterable<[string, number]>) => {
+    const h = new Map<string, number>()
+    for (const [p, a] of pulls) if (a > 0) h.set(p, a)
+    if (h.size === 0) return
+    gateHolds.set(gateId, h)
+    sumHolds(h.keys())
+  }
+  const releaseHold = (gateId: string) => {
+    const h = gateHolds.get(gateId)
+    if (!h) return
+    gateHolds.delete(gateId)
+    sumHolds(h.keys())
+  }
+  const availOf = (id: string) => (S[id] ?? 0) - (taken.get(id) ?? 0) - (reservedIn.get(id) ?? 0) - (heldIn.get(id) ?? 0)
   const reservedOf = (id: string) => reserved.get(id) ?? 0
   const headroom = (id: string) => {
     const n = byId.get(id)
@@ -1174,7 +1208,9 @@ export function step(
     const planT = new Map<string, number>() // Gate member → its throughput
     const planTakes = new Map<string, { e: LoopEdge; a: number }[]>() // Converter member → its Pool takes
     const planPulls = new Map<string, { e: LoopEdge; a: number }[]>() // #476 — multi-supply Gate → its own-Pool takes
-    const liveOuts = (id: string): LoopEdge[] => {
+    gateHolds.clear() // a hold lives from a group's plan to its Gate's turn, inside one pass (issue #570)
+    heldIn.clear()
+    const liveOuts =(id: string): LoopEdge[] => {
       const n = byId.get(id)!
       if (isProbGate(n)) {
         const sel = pickBranch(n)
@@ -1724,12 +1760,15 @@ export function step(
       if (zeroAt !== null) for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, m === zeroAt ? 'pullAll' : 'plan')
       // record the plan; claim the inputs (`reservedIn`) and the output room
       // (`reserved`, owned by the member that delivers it, settled on delivery)
+      const heldPulls = gateTakes(s) // what each source Gate pulls at the plan's number (issue #570)
       for (const m of members) {
         planned.add(m)
         const c = cof.get(m) ?? 0
         if (kindOf(m) === 'gate') {
           const T = nz(Math.max(0, c * s))
           planT.set(m, T)
+          const pulls = heldPulls.get(m)
+          if (pulls) holdFor(m, pulls)
           const Wm = W.get(m) ?? 1
           for (const [q, w] of gateInto.get(m)!) {
             if (!isPool(q)) continue
@@ -1958,6 +1997,33 @@ export function step(
         return c
       }
       const add = (map: Map<string, number>, k: string, v: number) => map.set(k, (map.get(k) ?? 0) + v)
+      /** Every source Gate's greedy pulls from its own Pools at the plan `c`,
+       *  net of the plan's claims and of what the source Gates before it in
+       *  the commit order pull; each pull is handed to `onPull`. `false` when
+       *  one of them cannot reach its throughput. */
+      const sourcePulls = (c: Map<string, number>, claim: Map<string, number>, inOrder: string[], onPull: (gateId: string, pool: string, pulled: number) => void): boolean => {
+        const used = new Map<string, number>()
+        for (const m of inOrder) {
+          if (kindOf(m) !== 'gate' || multi.has(m) || fedByRouter.has(m)) continue
+          const T = c.get(m) ?? 0
+          if (T <= 0) continue
+          let r = inbox.get(m) ?? 0
+          let need = Math.max(0, T - r)
+          for (const e of ownIns(m)) {
+            const want = amountOf(e, availOf(e.source), S[e.source] ?? 0)
+            const avail = Math.max(0, availOf(e.source) - (claim.get(e.source) ?? 0) - (used.get(e.source) ?? 0))
+            const a = Math.max(0, Math.min(want, avail))
+            r += a
+            // what the commit will actually pull from this Pool: up to what is still needed
+            const pulled = Math.min(a, need)
+            need -= pulled
+            add(used, e.source, pulled)
+            if (pulled > 0) onPull(m, e.source, pulled)
+          }
+          if (r < T) return false
+        }
+        return true
+      }
       /** the tree plan's bounds, as a test of the whole group at once */
       const feasible = (): boolean => {
         if (!settle()) return false
@@ -2022,26 +2088,7 @@ export function step(
         // the next Gate was planned 2 short of what the Pool had (review of
         // 2026-11-15, P6).
         const inOrder = [...members].sort((a, b) => (orderIdx.get(a) ?? Infinity) - (orderIdx.get(b) ?? Infinity))
-        const used = new Map<string, number>()
-        for (const m of inOrder) {
-          if (kindOf(m) !== 'gate' || multi.has(m) || fedByRouter.has(m)) continue
-          const T = c.get(m) ?? 0
-          if (T <= 0) continue
-          let r = inbox.get(m) ?? 0
-          let need = Math.max(0, T - r)
-          for (const e of ownIns(m)) {
-            const want = amountOf(e, availOf(e.source), S[e.source] ?? 0)
-            const avail = Math.max(0, availOf(e.source) - (claim.get(e.source) ?? 0) - (used.get(e.source) ?? 0))
-            const a = Math.max(0, Math.min(want, avail))
-            r += a
-            // what the commit will actually pull from this Pool: up to what is still needed
-            const pulled = Math.min(a, need)
-            need -= pulled
-            add(used, e.source, pulled)
-            if (pulled > 0) addBy(takesBy, m, e.source, pulled)
-          }
-          if (r < T) return false
-        }
+        if (!sourcePulls(c, claim, inOrder, (m, q, pulled) => addBy(takesBy, m, q, pulled))) return false
         // the room, along the commit order (#471 item 5): from the Pool as it
         // stands, each member's take lowers the level at its turn and its
         // delivery raises it; the level never passes the room. A Converter's
@@ -2351,6 +2398,27 @@ export function step(
       if (zero) for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, m === zeroAt || failedPullAll.has(m) ? 'pullAll' : 'plan')
       // record the plan; claim the inputs (`reservedIn`) and the output room, as the tree plan does
       const c = amountsOf(sOf())
+      // what the plan's source Gates pull, held for them until their turns
+      // (issue #570): the same greedy pulls `feasible` charged, at the plan as
+      // it is recorded, net of the same claims
+      {
+        const claim = new Map<string, number>()
+        for (const m of members) {
+          if (kindOf(m) === 'gate') continue
+          const f = nz(Math.max(0, Math.min(1, c.get(m) ?? 0)))
+          if (f <= 0) continue
+          for (const [p, r] of convNeed.get(m)!) add(claim, p, f * r)
+        }
+        for (const G of multiGates) for (const sup of supplies.get(G)!) if (sup.kind === 'own') add(claim, sup.e.source, Math.max(0, uOwn.get(sup.e.id) ?? 0))
+        const held = new Map<string, Map<string, number>>()
+        const inOrder = [...members].sort((a, b) => (orderIdx.get(a) ?? Infinity) - (orderIdx.get(b) ?? Infinity))
+        sourcePulls(c, claim, inOrder, (m, q, pulled) => {
+          let row = held.get(m)
+          if (!row) held.set(m, (row = new Map()))
+          row.set(q, (row.get(q) ?? 0) + pulled)
+        })
+        for (const [m, row] of held) holdFor(m, row)
+      }
       for (const m of members) {
         planned.add(m)
         if (kindOf(m) === 'gate') {
@@ -2418,6 +2486,7 @@ export function step(
         for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, 'plan')
       if (group) planGroup(group)
       if (mg) planMulti(mg.members, mg.multiGates, mg.rejoin)
+      releaseHold(id) // a planned source Gate at its own turn: what was held for it is its to pull (issue #570)
 
       if (k === 'drain' || k === 'end') {
         // a terminal consumes what a router handed it: the entry is cleared, or
@@ -2845,6 +2914,8 @@ export function step(
       gates.push(...[...gateEntries.values()].sort((a, b) => (a.nodeId < b.nodeId ? -1 : a.nodeId > b.nodeId ? 1 : 0)))
     }
 
+    gateHolds.clear()
+    heldIn.clear()
     if (snap) {
       for (const key of Object.keys(working)) delete working[key]
       Object.assign(working, snap.working)
