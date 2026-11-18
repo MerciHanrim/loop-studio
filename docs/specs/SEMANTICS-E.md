@@ -2,9 +2,11 @@
 
 ```
 Spec ID: loop-exact/1
-Status:  DRAFT — proposed with the pull request of issue #572; it is frozen when that pull request merges
+Status:  Normative for engine revision 16. E-open 1 to 5 are boundaries it does not settle
 Engine:  revision 16 (SEMANTICS-W2.md §W2-1)
 ```
+
+**In force with engine revision 16 (issue #572).** The rules E1 to E19, with E11a and E11b, are what that engine does and what its tests hold. The boundaries E-open 1 to 4 are **not resolved**: each is behaviour the engine has today, written with its values and with a test that fails as expected until it is settled, and a later revision may change it. E-open 5 names issues that stay open on their own.
 
 This document changes how a step is **worked out and recorded**, for every model version. It does not change what a document means, what a file holds, or the digest. It extends [`SEMANTICS.md`](SEMANTICS.md) and its companions and replaces the passages listed under "What this replaces". Where it says nothing, they hold as written.
 
@@ -153,7 +155,7 @@ Both are read from `report.moves`. Neither is an event: the animation, the line 
 
 ## E-open: what this document does not settle
 
-Each of these is a boundary that exists with the rules above. Each has a test that states it.
+Each of these is a boundary that exists with the rules above, and none of them is resolved by revision 16. Each has a test that states it.
 
 ### E-open 1. A loop that balances at one number only
 
