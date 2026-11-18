@@ -1450,7 +1450,9 @@ function GateStateNote({ nodeId }: { nodeId: string }) {
       <p className={`inspector__note${g.state === 'held' || g.state === 'fault' ? ' inspector__note--warn' : ''}`} role="status" data-gate-state={g.state}>
         {t(GATE_STATE_KEY[g.state])}
         {g.why ? ` ${t(GATE_WHY_KEY[g.why])}` : ''}
-        {g.state === 'fault' ? '' : ` ${t('node.gate.moved', { moved: g.moved, demand: g.demand, available: g.available })}`}
+        {/* in plain digits: an amount under the display threshold reads 0.0000000005 here as in the
+            Pool's note, never as 5e-10 (SEMANTICS-E.md §E16) */}
+        {g.state === 'fault' ? '' : ` ${t('node.gate.moved', { moved: plainDecimal(g.moved), demand: plainDecimal(g.demand), available: plainDecimal(g.available) })}`}
       </p>
     </div>
   )

@@ -12,10 +12,10 @@
   "$implemented": "A row classed `auto` / `ltr` / `per-fragment` is an OPEN obligation: the evidence says the value needs bounding and the code does not bound it yet. C3.5 was scoped to fix the two families that were already evidenced — the unrecognized-column header and the five `import.loc.*` calls — and those moved to `isolate-obligations.json`. The checker asserts these rows are NOT wrapped, so implementing one without moving its row is red in both directions.",
   "totals": {
     "arguments": 557,
-    "rows": 68,
+    "rows": 71,
     "byClass": {
       "attribute": 18,
-      "closed-value": 50
+      "closed-value": 53
     },
     "recordedNotImplemented": 0,
     "attributeSink": 36
@@ -700,6 +700,36 @@
       "sink": "indirect",
       "class": "closed-value",
       "evidence": "The same catalog sentence as `review.diag.refused` {reason}."
+    },
+    {
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "GateStateNote",
+      "key": "node.gate.moved",
+      "arg": "moved",
+      "ord": 1,
+      "sink": "text",
+      "class": "closed-value",
+      "evidence": "A number of the step report in plain digits, formatted by `plainDecimal()`: digits, a point and a minus sign only."
+    },
+    {
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "GateStateNote",
+      "key": "node.gate.moved",
+      "arg": "demand",
+      "ord": 1,
+      "sink": "text",
+      "class": "closed-value",
+      "evidence": "A number of the step report in plain digits, formatted by `plainDecimal()`: digits, a point and a minus sign only."
+    },
+    {
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "GateStateNote",
+      "key": "node.gate.moved",
+      "arg": "available",
+      "ord": 1,
+      "sink": "text",
+      "class": "closed-value",
+      "evidence": "A number of the step report in plain digits, formatted by `plainDecimal()`: digits, a point and a minus sign only."
     }
   ]
 }
