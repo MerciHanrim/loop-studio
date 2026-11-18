@@ -102,6 +102,12 @@ export type StepReport = {
    *  amounts). A Gate with no entry is `off` (not fired this step, or no run).
    *  Same lifecycle as `notices`. */
   gates: GateStatus[]
+  /** TRIAL (issue 572, representation B, not for merge) — the exact record of the pull phase's
+   *  moves: the amount as numerator / denominator, and the double an event shows of it
+   *  (`events` carries only those above the display threshold). */
+  moves?: { edgeId: string; from: string; to: string; num: string; den: string; shown: number }[]
+  /** TRIAL — where the exact ledger left a Pool's bounds within the step (an instrument) */
+  outOfBounds?: { pool: string; what: 'over' | 'under'; by: number }[]
   /** loop-model/5 (SEMANTICS-M5.md §M5-6) — planned against moved for each
    *  table line, ascending `edgeId`, unrounded. Present only on a step that
    *  read a table. */
