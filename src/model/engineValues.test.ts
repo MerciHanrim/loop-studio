@@ -88,11 +88,13 @@ describe('a rate with a unit reaches the engine as its own value', () => {
     expect(r.report.diagnostics).not.toEqual([])
   })
 
-  it('moves nothing below the engine floor of 1e-9 per step, and never 1', () => {
+  it('moves an amount under the display threshold of 1e-9 per step, with no event, and never 1 (SEMANTICS-E.md §E7)', () => {
     const d = doc([{ source: 'tank', target: 'city', flow: '0.00001' }], 1, 's')
     const r = first(d)
+    // about 1.157e-10 a step: not shown as an event, in the record of moves, and out of the tank
     expect(r.report.events).toEqual([])
-    expect(r.state.values.tank).toBe(1000)
+    expect(r.report.moves?.map((m) => [m.from, m.to])).toEqual([['tank', 'city']])
+    expect(r.state.values.tank).toBe(999.9999999998843)
   })
 })
 

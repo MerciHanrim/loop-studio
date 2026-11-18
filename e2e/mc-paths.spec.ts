@@ -95,7 +95,10 @@ test.describe('MC execution paths (http)', () => {
 })
 
 // A big single-pool run so wall-time comfortably exceeds the poll interval.
-const BIG: Cfg = { baseSeed: 1, runs: 12_000, steps: 40, tracked: ['ore_stock'] }
+// (6,000 runs since engine revision 16, which steps about twice as slowly: with 12,000 the
+// cooperative path no longer reached "done" inside the 20 s this file waits on CI. The wall
+// time, which is what the run is big for, is about what 12,000 runs took before.)
+const BIG: Cfg = { baseSeed: 1, runs: 6_000, steps: 40, tracked: ['ore_stock'] }
 
 for (const path of ['worker', 'coop'] as const) {
   test.describe(`MC progress + cancel — ${path} path (http)`, () => {

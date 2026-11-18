@@ -7,7 +7,108 @@ import { applyTimetables, meaningOf, timetableFindings, timetableFindingText, ti
 import type { DocTime } from '../model/units'
 import { boundaryOutflowByKind } from './boundaryOutflow'
 import { converterGroups, refusedGroups } from './converterGroups'
-import { add as addR, cmp as cmpR, div as divR, exactDouble as ratOfDouble, fromDouble as ratOfShortestDecimal, fromInt, mul as mulR, parseDecimal, type Rational as Rat, sub as subR, toDouble } from '../model/rational'
+import { fromDouble as ratOfShortestDecimal, fromInt, gcd, parseDecimal, type Rational as Rat, toDouble } from '../model/rational'
+const POW2: bigint[] = []
+const pow2 = (k: number): bigint => (POW2[k] ??= 1n << BigInt(k))
+const F64C = new Float64Array(1)
+const U32C = new Uint32Array(F64C.buffer)
+F64C[0] = 1
+const HI = U32C[1] === 0x3ff00000 ? 1 : 0
+const LO = 1 - HI
+const ratOfDouble = (x: number): Rat => {
+  if (!Number.isFinite(x)) throw new Error(`rational: not finite: ${x}`)
+  if (Number.isInteger(x)) return { num: BigInt(x), den: 1n }
+  F64C[0] = x
+  const hi = U32C[HI]
+  const lo = U32C[LO]
+  const biased = (hi >>> 20) & 0x7ff
+  let mantHi = hi & 0xfffff
+  let e = -1074
+  if (biased !== 0) {
+    mantHi |= 0x100000
+    e = biased - 1075
+  }
+  // not an integer, so `e < 0` and the trailing zero bits are fewer than `-e`
+  const tz = lo !== 0 ? 31 - Math.clz32(lo & -lo) : 32 + (31 - Math.clz32(mantHi & -mantHi))
+  const num = BigInt((mantHi * 4294967296 + lo) / 2 ** tz)
+  return { num: hi >>> 31 ? -num : num, den: pow2(-e - tz) }
+}
+const TWO53 = 1n << 53n
+const TWO54 = 1n << 54n
+/** The double nearest a fraction above 0 (ties to even), by one division of
+ *  integers: the quotient to 54 bits, the last of them and what is left over deciding the
+ *  rounding. NaN where the fraction is outside the plain range of doubles (the caller then goes
+ *  the long way). */
+const nearestDouble = (r: Rat): number => {
+  const a = Number(r.num) / Number(r.den)
+  if (!(a > 1e-280 && a < 1e280)) return NaN
+  F64C[0] = a
+  let k = 53 - (((U32C[HI] >>> 20) & 0x7ff) - 1023) // so that `r · 2^k` is in [2^53, 2^54)
+  let q: bigint
+  let exact: boolean
+  for (;;) {
+    const n = k >= 0 ? r.num << BigInt(k) : r.num
+    const d = k >= 0 ? r.den : r.den << BigInt(-k)
+    q = n / d
+    if (q >= TWO54) k--
+    else if (q < TWO53) k++
+    else {
+      exact = q * d === n
+      break
+    }
+  }
+  let m = q >> 1n
+  if ((q & 1n) === 1n && (!exact || (m & 1n) === 1n)) m += 1n
+  return Number(m) * 2 ** (1 - k)
+}
+// The arithmetic of fractions with the same results as `../model/rational`
+// (a fraction is kept reduced, its denominator above 0; there is one such form), by shorter ways:
+//   - a denominator that is a power of two (every double's is) is reduced by the numerator's
+//     trailing zero bits, with no Euclid's algorithm;
+//   - two fractions on one denominator are added and compared on their numerators;
+//   - 0 and 1 are not multiplied through.
+const ZERO_R: Rat = { num: 0n, den: 1n }
+const reduceR = (num: bigint, den: bigint): Rat => {
+  if (den < 0n) {
+    num = -num
+    den = -den
+  }
+  if (num === 0n) return ZERO_R
+  if (den === 1n) return { num, den }
+  if ((den & (den - 1n)) === 0n) {
+    const low = num & -num // the numerator's lowest set bit, as a power of two
+    if (low === 1n) return { num, den }
+    const g = low < den ? low : den
+    return { num: num / g, den: den / g }
+  }
+  const g = gcd(num, den)
+  return g > 1n ? { num: num / g, den: den / g } : { num, den }
+}
+const addR = (a: Rat, b: Rat): Rat => (a.num === 0n ? b : b.num === 0n ? a : a.den === b.den ? reduceR(a.num + b.num, a.den) : reduceR(a.num * b.den + b.num * a.den, a.den * b.den))
+const subR = (a: Rat, b: Rat): Rat => (b.num === 0n ? a : a.den === b.den ? reduceR(a.num - b.num, a.den) : reduceR(a.num * b.den - b.num * a.den, a.den * b.den))
+const mulR = (a: Rat, b: Rat): Rat => (a.num === 0n || b.num === 0n ? ZERO_R : reduceR(a.num * b.num, a.den * b.den))
+const divR = (a: Rat, b: Rat): Rat => {
+  if (b.num === 0n) throw new Error('rational: division by zero')
+  return a.num === 0n ? ZERO_R : reduceR(a.num * b.den, a.den * b.num)
+}
+const cmpR = (a: Rat, b: Rat): -1 | 0 | 1 => {
+  const d = a.den === b.den ? a.num - b.num : a.num * b.den - b.num * a.den
+  return d < 0n ? -1 : d > 0n ? 1 : 0
+}
+/** A connection's exact rate, kept from step to step with what it was worked from.
+ *  By the connection's ID, not by its object: a document with units has its connections made
+ *  anew by the unit application at every step, so a table by object would never hold an answer
+ *  there, and every rate would be read again every step. The answer depends on nothing but the
+ *  four things kept beside it and compared before it is given, so one id in two documents
+ *  cannot give a wrong one. */
+const RATE_CACHE = new Map<string, { flow: unknown; kind: string; unit: Rat | undefined; r: number; exact: Rat }>()
+/** A fraction above 0 as a double NEAR it (the quotient of the two integers as
+ *  doubles, within a last place or two), for the code that then finds the exact neighbour itself;
+ *  `toDouble` (25 decimal digits through a text) where that quotient is not a finite number above 0 */
+const nearD = (r: Rat): number => {
+  const a = Number(r.num) / Number(r.den)
+  return a > 0 && Number.isFinite(a) ? a : toDouble(r)
+}
 import { evalDet, evalRand, type ModelVersion, rateOf } from './flow'
 import { resolveFlowExprs, routerOrder } from './gateChance'
 import { categorical, sample } from './rng'
@@ -50,6 +151,12 @@ import { EPSILON, type FlowEvent, type GateStatus, type RunLimit, type SimState,
 const nz = (x: number) => (Math.abs(x) < EPSILON ? 0 : x)
 // ── exact fractions (`../model/rational`), for the exact test of a Pool's room
 const RAT0 = fromInt(0)
+/** What a `pull all` node that asks `demand` in all may be short of and still run
+ *  (SEMANTICS-E.md §E11, §E11a): the absolute epsilon where it asks more than that; where its
+ *  whole demand is at or under the epsilon, that part of the demand (an absolute 1e-9 there
+ *  would be all it asks, and the node could never stop). As a double and as a fraction. */
+const shortfallAllowed = (demand: number): number => (demand > EPSILON ? EPSILON : demand * EPSILON)
+const shortfallAllowedR = (demand: Rat): Rat => (cmpR(demand, ratOfDouble(EPSILON)) > 0 ? ratOfDouble(EPSILON) : mulR(demand, ratOfDouble(EPSILON)))
 const RAT1 = fromInt(1)
 const minR = (a: Rat, b: Rat): Rat => (cmpR(a, b) <= 0 ? a : b)
 const maxR = (a: Rat, b: Rat): Rat => (cmpR(a, b) >= 0 ? a : b)
@@ -153,6 +260,177 @@ export function step(
   let runTargets = opts.runTargets
   const runOf = (id: string): number => runTargets?.[id] ?? 1
   const RUN_REACHED = 1 - EPSILON
+  const fracGone = (f: number): boolean => (!(f > 0))
+  const targetFloored = (cid: string): boolean => runTargets?.[cid] !== undefined && runOf(cid) <= EPSILON
+  // A Source's push into a Pool and a Drain's or End's pull from one: an amount above 0 is moved,
+  // whatever its size (SEMANTICS-E.md §E7). Dropped under the display threshold, 5e-10 a step
+  // was not moved.
+  const nzPool = (x: number): number => (x > 0 ? x : 0)
+  /** a fraction that is above 0, as the double nearest it (0 for a fraction at 0 or under) */
+  const rnR = (r: Rat): number => {
+    if (cmpR(r, RAT0) <= 0) return 0
+    // by one division where the fraction is in the plain range of doubles. Outside it, the
+    // loops below find the double just under the fraction from ANY double near it, and the
+    // choice between that one and the next is exact; so the start need not be the nearest
+    const f = nearestDouble(r)
+    if (f === f) return f
+    let v = nearD(r)
+    if (!(v > 0)) return 0
+    while (v > 0 && cmpR(ratOfDouble(v), r) > 0) v = nextTo(v, -1)
+    while (cmpR(ratOfDouble(nextTo(v, 1)), r) <= 0) v = nextTo(v, 1)
+    const up = nextTo(v, 1)
+    const c = cmpR(subR(r, ratOfDouble(v)), subR(ratOfDouble(up), r))
+    if (c !== 0) return c < 0 ? v : up
+    f64[0] = v
+    return (u64[0] & 1n) === 0n ? v : up
+  }
+  /** The largest number between `lo0` (every margin at 0 or above)
+   *  and `hi0` (a margin under 0) at which every margin is at 0 or above. The margins are bent
+   *  lines of the number. Two steps a round, each checked by working the margins out again:
+   *  up from the low end along the lines there, to where the first of them meets 0; down from
+   *  the high end along the lines of the margins passed there. It ends where a margin is 0 at
+   *  the low end and falls just above it: that number is the top, exactly. Where the rounds
+   *  run out, the rest is halved (not exact). */
+  const exactTop = (lo0: Rat, hi0: Rat, marginsAt: (x: Rat) => Rat[]): Rat => {
+    const inAll = (ms: Rat[]) => ms.every((x) => x.num >= 0n)
+    const SL = ratOfDouble(2 ** -30)
+    const TINY = ratOfDouble(2 ** -90)
+    let lo = lo0
+    let hi = hi0
+    let mLo = marginsAt(lo)
+    let mHi = marginsAt(hi)
+    // FIRST, down from the high end, until a number is met at which every margin holds. The
+    // numbers that fit need not be one stretch from the low end: a Gate whose first lines take
+    // from other Pools and whose later lines take from the Pool it adds to fits at 0, not just
+    // above it, and again further up (for example at 0 and from 3 1/3 to 7; begun from the low
+    // end, "0, and falling above it" was taken for the top and the Gate moved nothing).
+    for (let k = 0; k < 60 && !inAll(mHi); k++) {
+      const dT = mulR(subR(hi, lo), SL)
+      if (!isPositive(dT)) break
+      const mDn = marginsAt(subR(hi, dT))
+      if (mDn.length !== mHi.length) break
+      let z: Rat | null = null
+      for (let i = 0; i < mHi.length; i++) {
+        if (mHi[i].num >= 0n || cmpR(mDn[i], mHi[i]) <= 0) continue
+        const zi = addR(hi, divR(mulR(mHi[i], dT), subR(mDn[i], mHi[i])))
+        if (z === null || cmpR(zi, z) < 0) z = zi
+      }
+      if (z === null || cmpR(z, lo) <= 0 || cmpR(z, hi) >= 0) break
+      const mz = marginsAt(z)
+      if (inAll(mz)) {
+        lo = z
+        mLo = mz
+        break
+      }
+      hi = z
+      mHi = mz
+    }
+    for (let round = 0; round < 120; round++) {
+      let moved = false
+      const d = mulR(subR(hi, lo), SL)
+      if (!isPositive(d)) return lo
+      const mUp = marginsAt(addR(lo, d))
+      if (mUp.length === mLo.length) {
+        let z: Rat | null = null
+        for (let i = 0; i < mLo.length; i++) {
+          if (cmpR(mUp[i], mLo[i]) >= 0) continue // not falling
+          const zi = addR(lo, divR(mulR(mLo[i], d), subR(mLo[i], mUp[i])))
+          if (z === null || cmpR(zi, z) < 0) z = zi
+        }
+        if (z !== null && cmpR(z, lo) <= 0) {
+          // a margin is 0 here and falls above: asked again much nearer, so that a bend just above is not taken for it
+          const mNear = marginsAt(addR(lo, mulR(d, TINY)))
+          if (mNear.length === mLo.length && mNear.some((x, i) => mLo[i].num === 0n && x.num < 0n)) return lo
+          // the margin stays at 0 for a while above and bends down before the sliver: the top is under the sliver
+          hi = addR(lo, d)
+          mHi = mUp
+          moved = true
+        } else if (z !== null && cmpR(z, hi) < 0) {
+          const mz = marginsAt(z)
+          if (inAll(mz)) {
+            lo = z
+            mLo = mz
+          } else {
+            hi = z
+            mHi = mz
+          }
+          moved = true
+        }
+      }
+      const d2 = mulR(subR(hi, lo), SL)
+      if (!isPositive(d2)) return lo
+      const mDn = marginsAt(subR(hi, d2))
+      if (mDn.length === mHi.length) {
+        let z: Rat | null = null
+        for (let i = 0; i < mHi.length; i++) {
+          if (mHi[i].num >= 0n || cmpR(mDn[i], mHi[i]) <= 0) continue
+          const zi = addR(hi, divR(mulR(mHi[i], d2), subR(mDn[i], mHi[i])))
+          if (z === null || cmpR(zi, z) < 0) z = zi
+        }
+        if (z !== null && cmpR(z, lo) > 0 && cmpR(z, hi) < 0) {
+          const mz = marginsAt(z)
+          if (inAll(mz)) {
+            lo = z
+            mLo = mz
+          } else {
+            hi = z
+            mHi = mz
+          }
+          moved = true
+        }
+      }
+      if (!moved) {
+        // neither line led anywhere (a margin that bends the other way): one halving, and again
+        const mid = divR(addR(lo, hi), ratOfDouble(2))
+        const mm = marginsAt(mid)
+        if (inAll(mm)) {
+          lo = mid
+          mLo = mm
+        } else {
+          hi = mid
+          mHi = mm
+        }
+      }
+    }
+    for (let i = 0; i < 64; i++) {
+      const mid = divR(addR(lo, hi), ratOfDouble(2))
+      if (inAll(marginsAt(mid))) lo = mid
+      else hi = mid
+    }
+    return lo
+  }
+  const f64 = new Float64Array(1)
+  const u64 = new BigUint64Array(f64.buffer)
+  /** the next double below (d = -1) or above (d = 1) a positive finite x */
+  const nextTo = (x: number, d: 1 | -1): number => {
+    f64[0] = x
+    u64[0] += BigInt(d)
+    return f64[0]
+  }
+  // Exact arithmetic on doubles: a double as an integer count of 2^-160.
+  // Sums and differences of doubles are then exact integer sums (no division, no fractions).
+  const X_SHIFT = 160n
+  const X_UNIT = 2 ** -160
+  const toX = (x: number): bigint => {
+    if (x === 0 || !Number.isFinite(x)) return 0n
+    f64[0] = x
+    const bits = u64[0]
+    const e = Number((bits >> 52n) & 0x7ffn)
+    const m = bits & 0xfffffffffffffn
+    const mant = e === 0 ? m : m | 0x10000000000000n
+    const sh = BigInt((e === 0 ? 1 : e) - 1075) + X_SHIFT
+    const v = sh >= 0n ? mant << sh : mant >> -sh
+    return bits >> 63n ? -v : v
+  }
+  /** the double nearest an exact value (ties to even) */
+  const xNear = (b: bigint): number => Number(b) * X_UNIT
+  /** the largest double within an exact value that is above 0 (0 otherwise) */
+  const xDown = (b: bigint): number => {
+    if (b <= 0n) return 0
+    let v = xNear(b)
+    while (v > 0 && toX(v) > b) v = nextTo(v, -1)
+    return v
+  }
   /** a planned group's `pull all` need per member: the target its number asks for */
   const planNeed = new Map<string, number>()
   /** SEMANTICS-M6.md §M6-5 — what held a ruled stage below its target, by member */
@@ -311,15 +589,54 @@ export function step(
 
   const S = { ...prev.values } // snapshot — read-only
   const working: SimValues = { ...prev.values } // mutated, committed
-  const taken = new Map<string, number>() // pulled OUT of a pool this step
   const reserved = new Map<string, number>() // promised INTO a pool, not yet in `working`
-  const inbox = new Map<string, number>() // handed to a router by an upstream router
-  const ownReserve = new Map<string, Map<string, number>>() // converterId → poolId → reserved for its own output
-  const addOwn = (cid: string, pid: string, q: number) => {
-    let m = ownReserve.get(cid)
-    if (!m) ownReserve.set(cid, (m = new Map()))
-    m.set(pid, (m.get(pid) ?? 0) + q)
+  // The promises as FRACTIONS: what is promised into a Pool, and what of it stands for each
+  // member's own delivery. These are the record; the doubles beside them are read-outs for the
+  // code that still decides in doubles, rounded to the safe side (a member's own promise DOWN,
+  // so a room read with it credited back is never above the exact one). Summed as doubles, two
+  // promises of 0.003999999999999999 and 0.0030000000000000005 read 0.006999999999999999,
+  // 4.3e-19 under their sum, and a Gate outside the plan was given that much room that is not there.
+  const reservedR = new Map<string, Rat>()
+  const ownR = new Map<string, Map<string, Rat>>()
+  const ownOfR = (mid: string, pid: string): Rat => ownR.get(mid)?.get(pid) ?? RAT0
+  const ownSumR = (ms: Iterable<string>, pid: string): Rat => {
+    let t = RAT0
+    for (const m of ms) t = addR(t, ownOfR(m, pid))
+    return t
   }
+  const setOwnR = (mid: string, pid: string, v: Rat) => {
+    let row = ownR.get(mid)
+    if (!row) ownR.set(mid, (row = new Map()))
+    row.set(pid, v)
+    let rowD = ownReserve.get(mid)
+    if (!rowD) ownReserve.set(mid, (rowD = new Map()))
+    rowD.set(pid, downTo(v))
+  }
+  /** promise exactly `x` into Pool `pid` for member `mid`'s own delivery */
+  const promiseR = (mid: string, pid: string, x: Rat) => {
+    if (!isPositive(x)) return
+    const total = addR(reservedR.get(pid) ?? RAT0, x)
+    reservedR.set(pid, total)
+    reserved.set(pid, Number(total.num) / Number(total.den)) // (a read-out; nothing decides on it)
+    setOwnR(mid, pid, addR(ownOfR(mid, pid), x))
+  }
+  /** member `mid` delivers exactly `x` into Pool `pid`: that much of its promise there is settled */
+  const settleR = (mid: string, pid: string, x: Rat) => {
+    const have = ownOfR(mid, pid)
+    if (!isPositive(have)) return
+    const held = cmpR(have, x) < 0 ? have : x
+    const total = subR(reservedR.get(pid) ?? RAT0, held)
+    reservedR.set(pid, total)
+    reserved.set(pid, Number(total.num) / Number(total.den)) // (a read-out; nothing decides on it)
+    setOwnR(mid, pid, subR(have, held))
+  }
+  /** what is promised into a Pool, as an exact count: the exact promises, rounded UP onto the
+   *  fine unit for the code that reads a room on it */
+  const resX = (q: string): bigint => (ceilX(reservedR.get(q) ?? RAT0))
+  const inbox = new Map<string, number>() // handed to a router by an upstream router
+  const ownReserve = new Map<string, Map<string, number>>()
+  /** a promise into a Pool for a member's own delivery: the double `d` as it is */
+  const promise = (mid: string, pid: string, d: number) => promiseR(mid, pid, ratOfDouble(d))
 
   const events: StepResult['report']['events'] = []
   const activated = new Set<string>()
@@ -442,71 +759,171 @@ export function step(
     const r = rateOfCached(e)
     const known = exactRateOf.get(e.id)
     if (known && known.r === r) return known.exact
-    const stated = exactUnitFlow?.get(e.id) ?? (fe(e).kind === 'const' ? parseDecimal(String((e.data as { flow?: unknown } | undefined)?.flow ?? '').trim()) : null)
+    // (the exact rate of a connection is worked from what the document states for it,
+    // the unit's exact ratio, the kind of its expression and the rate in hand. Where all four are
+    // what they were the last time this connection was asked, in whatever step, the answer is the
+    // one given then: a written amount is not read again every step.)
+    const unit = exactUnitFlow?.get(e.id)
+    const flow = (e.data as { flow?: unknown } | undefined)?.flow
+    const kind = fe(e).kind
+    const c = RATE_CACHE.get(e.id)
+    if (c && c.r === r && c.flow === flow && c.kind === kind && (unit === undefined ? c.unit === undefined : c.unit !== undefined && c.unit.num === unit.num && c.unit.den === unit.den)) {
+      exactRateOf.set(e.id, { r, exact: c.exact })
+      return c.exact
+    }
+    const stated = unit ?? (kind === 'const' ? parseDecimal(String(flow ?? '').trim()) : null)
     const exact = stated !== null && stated !== undefined && toDouble(stated) === r ? stated : ratOfShortestDecimal(r)
     exactRateOf.set(e.id, { r, exact })
+    if (RATE_CACHE.size > 20000) RATE_CACHE.clear() // a bound; a cleared table only costs the reading again
+    RATE_CACHE.set(e.id, { flow, kind, unit, r, exact })
     return exact
   }
   /** a line's own amount this step, exactly: its rate when the amount is that rate, else the double the engine worked out */
   const exactWant = (e: LoopEdge, want: number): Rat => {
     if (fe(e).kind !== 'const' || isRefusedRate(e)) return ratOfDouble(want)
     const r = exactRate(e)
-    return toDouble(r) === want ? r : ratOfDouble(want)
+    // (the exact rate's nearest double IS the rate in hand: `exactRate` takes the stated decimal
+    // only when its nearest double is that rate, and otherwise the rate's own shortest decimal,
+    // which reads back as it. So the question is asked of the rate, with no conversion.)
+    return rateOfCached(e) === want ? r : ratOfDouble(want)
   }
 
   // #471 Deploy 2 — a tree group's plan claims the Pool inputs of its
   // Converters at the group's FIRST router's turn (SEMANTICS.md §6 erratum,
   // part 2: the input reservation). Until that Converter's own turn the claim
-  // is held here, and every other router reads the Pool net of it, as
-  // `headroom` already reads a Pool net of `reserved`.
-  const reservedIn = new Map<string, number>() // poolId → claimed by a planned Converter not yet at its turn
+  // is held in `claimR` (below), and every other router reads the Pool net of
+  // it, as `headroom` already reads a Pool net of what is promised into it.
   // Issue #570 — the same reservation for a planned group's SOURCE GATES
   // (SEMANTICS.md §6 erratum, part 10). The plan counts on what each of them
-  // pulls from its own Pools; until that Gate's own turn the amount is held
-  // here, and every other router reads the Pool net of it. Without it a router
-  // outside the group that is ordered between the group's first router and the
-  // Gate took it: the Gate moved less than its plan, and the Converter behind
-  // it was fed at different fractions on its connections.
-  // The hold is released at the top of the Gate's turn and the Gate then pulls
-  // as it always did, so with no one else on the Pool nothing changes. A
-  // Pool's total is summed again from the holds that remain, never added and
-  // subtracted, so that a Pool with no hold reads exactly as before.
-  const gateHolds = new Map<string, Map<string, number>>() // source Gate → Pool → held for it until its turn
-  const heldIn = new Map<string, number>() // poolId → the sum of `gateHolds` on it
-  const sumHolds = (pools: Iterable<string>) => {
-    for (const p of pools) {
-      let total = 0
-      for (const h of gateHolds.values()) total += h.get(p) ?? 0
-      if (total > 0) heldIn.set(p, total)
-      else heldIn.delete(p)
+  // pulls from its own Pools; until that Gate's own turn the amount is claimed
+  // the same way, and every other router reads the Pool net of it. Without it a
+  // router outside the group that is ordered between the group's first router
+  // and the Gate took it: the Gate moved less than its plan, and the Converter
+  // behind it was fed at different fractions on its connections.
+  // The exact ledger, in FRACTIONS. Every move of the step has an exact amount; a Pool's level
+  // within the step is its stored double plus those amounts; it is stored as the nearest double
+  // when the step ends, and that is the only rounding. What the engine decides on in between
+  // (a room, what is available) is read FROM this ledger and rounded to the safe side onto the
+  // fine unit (2^-160): a level up, an available amount down, so that nothing is decided that
+  // the exact ledger does not hold.
+  const lvR = new Map<string, Rat>() // a Pool's exact level within the step
+  const takenR = new Map<string, Rat>() // exactly what has been taken from it
+  const claimR = new Map<string, Rat>() // exactly what a plan has claimed of its supply and not yet taken
+  const inboxR = new Map<string, Rat>() // exactly what a router has been handed
+  const movesR: { edgeId: string; from: string; to: string; amount: Rat; shown: number }[] = [] // the record of moves (`shown`: the nearest double, worked once)
+  const levelR = (id: string): Rat => lvR.get(id) ?? ratOfDouble(working[id] ?? 0)
+  const X_ONE = 1n << 160n
+  const floorX = (r: Rat): bigint => {
+    const n = r.num * X_ONE
+    const q = n / r.den
+    return n % r.den === 0n || n > 0n ? q : q - 1n
+  }
+  const ceilX = (r: Rat): bigint => {
+    const n = r.num * X_ONE
+    const q = n / r.den
+    return n % r.den === 0n || n < 0n ? q : q + 1n
+  }
+  // (a Pool's level and what is available in it, on the fine unit, are asked many times
+  // between two changes. A fraction is never changed in place, a change puts a NEW one in the
+  // ledger; so "the same fraction objects as the last time" is "the same values", and the answer
+  // given then is given again.)
+  const xLevelMemo = new Map<string, { l: Rat | undefined; w: number; v: bigint }>()
+  const xLevel = (id: string): bigint => {
+    const l = lvR.get(id)
+    const w = working[id] ?? 0
+    const m = xLevelMemo.get(id)
+    if (m && m.l === l && m.w === w) return m.v
+    const v = ceilX(l ?? ratOfDouble(w))
+    xLevelMemo.set(id, { l, w, v })
+    return v
+  }
+  const availMemo = new Map<string, { s: number; t: Rat | undefined; c: Rat | undefined; v: bigint; d?: number }>()
+  /** what is available in a Pool, as an exact count (`v`): its start, less the takes and the claims, rounded DOWN onto the fine unit */
+  const availMemoOf = (id: string) => {
+    const s = S[id] ?? 0
+    const t = takenR.get(id)
+    const c = claimR.get(id)
+    let m = availMemo.get(id)
+    if (!m || m.s !== s || m.t !== t || m.c !== c) {
+      m = { s, t, c, v: floorX(subR(subR(ratOfDouble(s), t ?? RAT0), c ?? RAT0)) }
+      availMemo.set(id, m)
     }
+    return m
   }
-  const holdFor = (gateId: string, pulls: Iterable<[string, number]>) => {
-    const h = new Map<string, number>()
-    for (const [p, a] of pulls) if (a > 0) h.set(p, a)
-    if (h.size === 0) return
-    gateHolds.set(gateId, h)
-    sumHolds(h.keys())
+  /** a plan claims an exact amount of a Pool's supply, and gives the claim back as it takes */
+  const claimAddR = (p: string, r: Rat) => claimR.set(p, addR(claimR.get(p) ?? RAT0, r))
+  const claimSubR = (p: string, r: Rat) => claimR.set(p, subR(claimR.get(p) ?? RAT0, r))
+  /** exactly what a Pool can still give: its start, less the takes and the claims */
+  const availR = (id: string): Rat => subR(subR(ratOfDouble(S[id] ?? 0), takenR.get(id) ?? RAT0), claimR.get(id) ?? RAT0)
+  /** a capped Pool's room exactly: capacity, less the exact level, less the exact promises, `own` (exact) credited back (null: no capacity) */
+  const roomRatR = (id: string, own: Rat): Rat | null => {
+    const n = byId.get(id)
+    if (!n) return RAT0
+    const c = cap(n)
+    if (!Number.isFinite(c)) return null
+    return subR(addR(subR(ratOfDouble(c), reservedR.get(id) ?? RAT0), own), levelR(id))
   }
-  const releaseHold = (gateId: string) => {
-    const h = gateHolds.get(gateId)
-    if (!h) return
-    gateHolds.delete(gateId)
-    sumHolds(h.keys())
+  const availOf = (id: string) => {
+    const m = availMemoOf(id)
+    return (m.d ??= xDown(m.v))
   }
-  const availOf = (id: string) => (S[id] ?? 0) - (taken.get(id) ?? 0) - (reservedIn.get(id) ?? 0) - (heldIn.get(id) ?? 0)
   const reservedOf = (id: string) => reserved.get(id) ?? 0
   const headroom = (id: string) => {
     const n = byId.get(id)
     if (!n) return 0
+    if (Number.isFinite(cap(n))) {
+      const b = toX(cap(n)) - xLevel(id) - resX(id)
+      return b >= 0n ? xDown(b) : xNear(b)
+    }
     return cap(n) - (working[id] ?? 0) - reservedOf(id)
   }
-  const takeFrom = (poolId: string, amt: number) => {
-    taken.set(poolId, (taken.get(poolId) ?? 0) + amt)
-    working[poolId] = (working[poolId] ?? 0) - amt
+  /** a capped Pool's room as an exact count, `own` credited back (null: no capacity). A Pool
+   *  that reads full (its level would be stored as its capacity) has no room for a new grant. */
+  const roomX = (id: string, own = 0): bigint | null => {
+    const n = byId.get(id)
+    if (!n) return 0n
+    const c = cap(n)
+    if (!Number.isFinite(c)) return null
+    if (own === 0 && (working[id] ?? 0) >= c) return 0n
+    return toX(c) - xLevel(id) - resX(id) + toX(own)
   }
-  const emit = (e: LoopEdge, from: string, to: string, amount: number) => {
-    if (amount > EPSILON) events.push({ edgeId: e.id, from, to, amount })
+  const roomP = (id: string, own = 0): number => {
+    const b = roomX(id, own)
+    return b === null ? Infinity : xDown(b)
+  }
+  /** the largest double within a fraction that is above 0 (0 otherwise) */
+  const downTo = (x: Rat): number => {
+    if (cmpR(x, RAT0) <= 0) return 0
+    let v = nearD(x) // (the loops below find the same double from any double near it)
+    if (!(v > 0)) return 0
+    while (v > 0 && cmpR(ratOfDouble(v), x) > 0) v = nextTo(v, -1)
+    while (v > 0 && cmpR(ratOfDouble(nextTo(v, 1)), x) <= 0) v = nextTo(v, 1)
+    return v
+  }
+  /** a Pool's level is moved by `delta`, or by exactly `r` where it is given */
+  const moveLevel = (id: string, delta: number, r?: Rat) => {
+    // the exact level moves by the exact amount (signed as `delta` is); what the engine holds
+    // beside it is the double nearest
+    const b = addR(levelR(id), r ?? ratOfDouble(delta))
+    lvR.set(id, b)
+    working[id] = rnR(b)
+  }
+  const takeFrom = (poolId: string, amt: number, r?: Rat) => {
+    takenR.set(poolId, addR(takenR.get(poolId) ?? RAT0, r ?? ratOfDouble(amt)))
+    moveLevel(poolId, -amt, r ? subR(RAT0, r) : undefined)
+  }
+  // A move is RECORDED with its exact amount (`r`; a double moved as it is, is its own exact
+  // amount), whatever its size (SEMANTICS-E.md §E7). The EVENT is what is shown of it: the
+  // nearest double, and only above the display threshold. A router's inbox is exact too.
+  const emit = (e: LoopEdge, from: string, to: string, amount: number, r?: Rat) => {
+    const x = r ?? ratOfDouble(amount)
+    if (!isPositive(x)) return
+    // (a double moved as it is, is its own nearest double; and the record keeps the nearest
+    // double it worked out, so the report does not work it out again)
+    const shown = r === undefined ? amount : rnR(x)
+    movesR.push({ edgeId: e.id, from, to, amount: x, shown })
+    if (!isPool(to) && !isPool(from)) inboxR.set(to, addR(inboxR.get(to) ?? RAT0, x)) // handed from a router to a router (a Pool line goes into the member's own turn)
+    if (shown > EPSILON) events.push({ edgeId: e.id, from, to, amount: shown })
   }
 
   // ── Phase 0: state connections (SEMANTICS-S.md §S2) ─────────────────────
@@ -818,6 +1235,7 @@ export function step(
   })
 
   // ── Phase 1: push ────────────────────────────────────────────────────────
+  for (const id of Object.keys(working)) lvR.set(id, ratOfDouble(working[id] ?? 0)) // the exact ledger starts at the value the push phase finds: a stored double is exactly itself
   const sources = nodes
     .filter((n) => n.data.kind === 'source' && firing(n))
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
@@ -849,7 +1267,8 @@ export function step(
       // both passed and the Source pushed 5 + 3 (review of 2026-11-15, E3).
       const into = new Map<string, number>()
       for (const p of plan) if (p.pool) into.set(p.e.target, (into.get(p.e.target) ?? 0) + Math.max(0, p.want))
-      if (!plan.every((p) => p.pool) || ![...into].every(([q, want]) => headroom(q) >= want - EPSILON)) {
+      const pushed = [...into.values()].reduce((a, b) => a + b, 0) // all the Source asks to push: what its allowance is measured by
+      if (!plan.every((p) => p.pool) || ![...into].every(([q, want]) => roomP(q) >= want - shortfallAllowed(pushed))) {
         continue // atomic: nothing
       }
     }
@@ -859,15 +1278,15 @@ export function step(
         diagnostics.push(`Source "${src.data.label}" pushes to a non-Pool; ignored in Engine A.`)
         continue
       }
-      const h = headroom(p.e.target)
-      const moved = nz(Math.max(0, Math.min(p.want, h)))
+      const h = roomP(p.e.target)
+      const moved = nzPool(Math.max(0, Math.min(p.want, h)))
       if (moved > 0) {
-        working[p.e.target] = (working[p.e.target] ?? 0) + moved
+        moveLevel(p.e.target, moved)
         did += moved
         emit(p.e, src.id, p.e.target, moved)
       }
     }
-    if (did > EPSILON) fired.add(src.id)
+    if (did > 0) fired.add(src.id)
   }
 
   // ── Phase 2: pull over the router DAG ────────────────────────────────────
@@ -982,11 +1401,11 @@ export function step(
       }
       const outs = outOf(target).filter((e) => !skipDet(e.id))
       const sumW = outs.reduce((s, e) => s + rateOfCached(e), 0)
-      if (sumW <= EPSILON) return
+      if (sumW <= 0) return
       const wInto = new Map<string, number>() // two connections into one target are one path
       for (const e of outs) {
         const w = rateOfCached(e)
-        if (w > EPSILON) wInto.set(e.target, (wInto.get(e.target) ?? 0) + w)
+        if (w > 0) wInto.set(e.target, (wInto.get(e.target) ?? 0) + w)
       }
       for (const [t, w] of wInto) follow(t, (c * w) / sumW)
     }
@@ -995,7 +1414,7 @@ export function step(
     for (const [q, n] of paths) {
       if (n < 2) continue
       const net = (share.get(q) ?? 0) - (takes?.get(q) ?? 0)
-      if (net > EPSILON) bound = Math.min(bound, Math.max(0, headroom(q) + (held.get(q) ?? 0)) / net)
+      if (net > 0) bound = Math.min(bound, Math.max(0, headroom(q) + (held.get(q) ?? 0)) / net) // (a net above 0 asks the room, SEMANTICS-E.md §E14; asked only above the epsilon, a Pool reached by two paths was filled past its capacity by a Converter whose net into it was 1e-11 a run)
     }
     return bound
   }
@@ -1012,7 +1431,7 @@ export function step(
       // a router that does not fire this step is inert — like a zero-weight
       // branch (§S4; disabled by an activator, or not firing — #388 A)
       if (k && ROUTER_KINDS.has(k) && !willFire.has(id)) v = 0
-      else if (k === 'pool') v = Math.max(0, headroom(id))
+      else if (k === 'pool') v = roomP(id)
       else if (k === 'drain' || k === 'end') v = Infinity
       else if (k === 'converter') {
         // SEMANTICS.md §9 — a `pullAll` Converter is all-or-nothing. The probe
@@ -1037,7 +1456,7 @@ export function step(
         for (const e of outOf(id)) {
           if (skipDet(e.id)) continue
           const r = rateOfCached(e)
-          if (r <= EPSILON) continue
+          if (r <= 0) continue
           makeInto.set(e.target, (makeInto.get(e.target) ?? 0) + r)
         }
         for (const [target, make] of makeInto) fmax = Math.min(fmax, accept(target) / make)
@@ -1051,7 +1470,7 @@ export function step(
         // out 0: the inbox was already pulled from the source Pool and is lost.
         const own = ownReserve.get(id)
         const acceptInto = (target: string): number =>
-          isPool(target) ? Math.max(0, headroom(target) + (own?.get(target) ?? 0)) : accept(target)
+          isPool(target) ? (roomP(target, own?.get(target) ?? 0)) : accept(target)
         if (isProbGate(byId.get(id))) {
           // one live branch of effective weight 1 (§B4.4)
           const sel = pickBranch(byId.get(id)!)
@@ -1059,7 +1478,7 @@ export function step(
         } else {
           const outs = outOf(id).filter((e) => !skipDet(e.id))
           const sumW = outs.reduce((s, e) => s + rateOfCached(e), 0)
-          if (sumW <= EPSILON) v = 0
+          if (sumW <= 0) v = 0
           else {
             // #471 (V3g) — two branches into one Pool share its room: the
             // bound is per target, `acceptInto(target) · sumW / Σ w into it`.
@@ -1068,7 +1487,7 @@ export function step(
             const wInto = new Map<string, number>()
             for (const e of outs) {
               const w = rateOfCached(e)
-              if (w <= EPSILON) continue
+              if (w <= 0) continue
               wInto.set(e.target, (wInto.get(e.target) ?? 0) + w)
             }
             v = Infinity
@@ -1085,55 +1504,50 @@ export function step(
     }
     return accept
   }
-
-  /** Reserve the pool headroom that `amountIn` arriving at `destId` will consume downstream. */
-  const planReserve = (destId: string, amountIn: number) => {
+  /** Reserve the Pool headroom that `xR` arriving at `destId` will consume downstream, exactly.
+   *  It is followed in the shares the turns hand on in: a Gate's exact weights (a probabilistic
+   *  Gate: its one branch), a Converter's one fraction `xR / Σ inputs` on every output; each
+   *  Pool it ends in is promised its exact part, for the member that delivers there. */
+  const planReserveR = (destId: string, xR: Rat, depth = 0) => {
+    if (!isPositive(xR) || depth > 32) return
     const k = kindOf(destId)
     if (k === 'converter') {
-      const sumIn = sumInRate(destId)
-      const f = sumIn > EPSILON ? Math.min(1, amountIn / sumIn) : 0
+      const sumInR = inOf(destId).reduce((t, e) => (rateOfCached(e) > 0 ? addR(t, exactRate(e)) : t), RAT0)
+      if (!isPositive(sumInR)) return
+      const part = divR(xR, sumInR)
+      const fR = cmpR(part, RAT1) > 0 ? RAT1 : part
       for (const e of outOf(destId)) {
-        if (skipDet(e.id)) continue
-        const q = nz(f * rateOfCached(e))
-        if (q <= 0) continue
-        if (isPool(e.target)) {
-          reserved.set(e.target, reservedOf(e.target) + q)
-          addOwn(destId, e.target, q)
-        } else planReserve(e.target, q)
+        if (skipDet(e.id) || rateOfCached(e) <= 0) continue
+        const q = mulR(fR, exactRate(e))
+        if (isPool(e.target)) promiseR(destId, e.target, q)
+        else planReserveR(e.target, q, depth + 1)
       }
     } else if (k === 'gate') {
       if (isProbGate(byId.get(destId))) {
-        // a probabilistic gate routes the whole amount down its one live branch;
-        // if the draw landed on a disabled-router branch it reserves nothing and
-        // the resource stays upstream (no redraw — frozen loop-rng/1).
         const sel = pickBranch(byId.get(destId)!)
         if (sel && !skipDet(sel.id)) {
-          if (isPool(sel.target)) {
-            reserved.set(sel.target, reservedOf(sel.target) + nz(amountIn))
-            addOwn(destId, sel.target, nz(amountIn)) // #388 B — the Gate's own, credited back in accept and settled on delivery
-          } else planReserve(sel.target, nz(amountIn))
+          if (isPool(sel.target)) promiseR(destId, sel.target, xR)
+          else planReserveR(sel.target, xR, depth + 1)
         }
         return
       }
       const outs = outOf(destId).filter((e) => !skipDet(e.id))
-      const sumW = outs.reduce((s, e) => s + rateOfCached(e), 0)
-      for (const e of outs) {
-        const share = sumW > EPSILON ? nz((amountIn * rateOfCached(e)) / sumW) : 0
-        if (share <= 0) continue
-        if (isPool(e.target)) {
-          reserved.set(e.target, reservedOf(e.target) + share)
-          addOwn(destId, e.target, share) // #388 B
-        } else planReserve(e.target, share)
+      const ws = outs.map((e) => exactRate(e))
+      const W = ws.reduce((t, w) => addR(t, w), RAT0)
+      if (!isPositive(W)) return
+      for (const [i, e] of outs.entries()) {
+        const q = divR(mulR(xR, ws[i]), W)
+        if (isPool(e.target)) promiseR(destId, e.target, q)
+        else planReserveR(e.target, q, depth + 1)
       }
     }
-    // drain / end / pool: nothing further to reserve
   }
 
   // ── Phase 2 as a re-runnable pass ───────────────────────────────────────
   // `pullPass` walks the canonical router `order` exactly once. With
   // `commit = false` it is a *probe*: every mutation lands on a shadow copy of
-  // `working` / `taken` / `reserved` / `inbox` / `ownReserve` / `activated` /
-  // `fired`, `events` / `diagnostics` are rewound, `ended` is restored, and the
+  // `working` / `reserved` / `inbox` / `ownReserve` / `activated` / `fired` and
+  // of the exact ledger; `events` / `diagnostics` are rewound, `ended` is restored, and the
   // set of `pullAll` Converters that could not reach f = 1 is returned. The
   // probabilistic branch picks (`gatePick`) and random-flow draws (`sampled`)
   // are memoised at `step()` scope, so a probe reuses the SAME results as the
@@ -1151,11 +1565,16 @@ export function step(
       ? null
       : {
           working: { ...working },
-          taken: new Map(taken),
           reserved: new Map(reserved),
-          reservedIn: new Map(reservedIn),
           inbox: new Map(inbox),
+          lvR: new Map(lvR),
+          takenR: new Map(takenR),
+          claimR: new Map(claimR),
+          inboxR: new Map(inboxR),
+          movesLen: movesR.length,
           ownReserve: cloneOwn(ownReserve),
+          reservedR: new Map(reservedR),
+          ownR: new Map([...ownR].map(([k, v]) => [k, new Map(v)])),
           activated: new Set(activated),
           fired: new Set(fired),
           eventsLen: events.length,
@@ -1188,7 +1607,7 @@ export function step(
       if (sk === 'pool') return true
       if (!(tk && ROUTER_KINDS.has(tk))) return true
       if (sk === 'gate' && isProbGate(byId.get(e.source))) return pickBranch(byId.get(e.source)!) === e
-      return rateOfCached(e) > EPSILON
+      return rateOfCached(e) > 0
     }
     const orderIdx = new Map(order.map((id, i) => [id, i]))
     const treeAtRoot = new Map<string, string[]>() // root id → the group's members
@@ -1203,14 +1622,15 @@ export function step(
       if (g.cls === 'tree') treeAtRoot.set(root, g.members)
       else multiAtRoot.set(root, { members: g.members, multiGates: g.multiGates, rejoin: g.cls === 'split-rejoin' })
     }
-    const planned = new Set<string>() // members of a planned group
+    const planned = new Set<string>()
     const planF = new Map<string, number>() // Converter member → its run fraction
     const planT = new Map<string, number>() // Gate member → its throughput
-    const planTakes = new Map<string, { e: LoopEdge; a: number }[]>() // Converter member → its Pool takes
-    const planPulls = new Map<string, { e: LoopEdge; a: number }[]>() // #476 — multi-supply Gate → its own-Pool takes
-    gateHolds.clear() // a hold lives from a group's plan to its Gate's turn, inside one pass (issue #570)
-    heldIn.clear()
-    const liveOuts =(id: string): LoopEdge[] => {
+    const planTakes = new Map<string, { e: LoopEdge; a: number; r?: Rat }[]>() // Converter member → its Pool takes (`r`: the exact amount)
+    const planPulls = new Map<string, { e: LoopEdge; a: number; r?: Rat }[]>() // #476 — multi-supply Gate → its own-Pool takes
+    /** a record's line into a Pool has its room promised whatever its size */
+    const promised = (amt: number, x: Rat): boolean => amt > 0 || (isPositive(x))
+    const planPullsSource = new Set<string>() // source Gates whose pulls the plan's record fixed (not multi-supply Gates): they still ask `pull all` at their turn
+    const liveOuts = (id: string): LoopEdge[] => {
       const n = byId.get(id)!
       if (isProbGate(n)) {
         const sel = pickBranch(n)
@@ -1218,6 +1638,49 @@ export function step(
       }
       return outOf(id).filter((e) => !skipDet(e.id))
     }
+    /** What a Gate hands on of `share`, in EXACT shares, followed through the
+     *  Gates below it that only pass on, to the Pools it ends in: each Pool's part is added to
+     *  `partPool`; a target that is not followed (a Converter, a planned member, a router that
+     *  does not fire) gets its part in `partOther`. False where a Gate on the way has no live
+     *  branch. `selRoot`: the branch a probabilistic first Gate has already picked. */
+    const spreadExact = (gid: string, share: Rat, depth: number, partPool: Map<string, Rat>, partOther: Map<string, Rat>, selRoot?: LoopEdge | null, viaLive = true): boolean => {
+      const gn = byId.get(gid)!
+      let parts: { target: string; x: Rat; live: boolean }[]
+      if (isProbGate(gn)) {
+        const picked = selRoot !== undefined ? selRoot : pickBranch(gn)
+        if (!picked || skipDet(picked.id)) return false
+        parts = [{ target: picked.target, x: share, live: true }]
+      } else {
+        const os = outOf(gid).filter((e) => !skipDet(e.id))
+        const ws = os.map((e) => exactRate(e))
+        const Ws = ws.reduce((t, w) => addR(t, w), RAT0)
+        if (!isPositive(Ws)) return false
+        // The rule of a Gate's `accept` (`sumW <= 0` accepts nothing): a Gate whose lines' rates
+        // sum to nothing above 0 moves nothing. A Gate that moved all the same handed what it
+        // took along a line that is not live for the plans: into a `pull all` Gate that then
+        // refused it, or into a planned group that had not counted it (a Pool filled past its
+        // capacity and cut at the commit). A Gate BELOW is asked this only where the line into
+        // it has a rate above 0 (`viaLive`): what a branch with no rate leads to is not asked.
+        if (viaLive && os.reduce((s, e) => s + rateOfCached(e), 0) <= 0) return false
+        parts = os.map((e, i) => ({ target: e.target, x: divR(mulR(share, ws[i]), Ws), live: rateOfCached(e) > 0 }))
+      }
+      for (const { target, x, live } of parts) {
+        if (!isPositive(x)) continue
+        if (isPool(target)) {
+          partPool.set(target, addR(partPool.get(target) ?? RAT0, x))
+          continue
+        }
+        const tk = kindOf(target)
+        if (tk === 'drain' || tk === 'end') continue
+        if (passesOn(target) && depth < 16) {
+          if (!spreadExact(target, x, depth + 1, partPool, partOther, undefined, live)) return false
+        } else partOther.set(target, addR(partOther.get(target) ?? RAT0, x))
+      }
+      return true
+    }
+    /** a Gate that fires this step, outside every plan, with no live Pool line of its own: it passes on what it is handed */
+    const passesOn = (target: string): boolean =>
+      kindOf(target) === 'gate' && willFire.has(target) && !planned.has(target) && !cyclicSet.has(target) && inOf(target).every((e) => !isPool(e.source) || dead.has(e.id))
     const modeOfRouter = (id: string) => ((byId.get(id)?.data as { mode?: string } | undefined)?.mode ?? 'pullAny')
 
     // ── #477 — a Gate's execution evidence (`GateStatus`, types.ts) ─────────
@@ -1237,10 +1700,10 @@ export function step(
         if (isProbGate(byId.get(up))) return pickBranch(byId.get(up)!) === e ? x : 0
         const outs = outOf(up).filter((o) => !skipDet(o.id))
         const Wsum = outs.reduce((s, o) => s + rateOfCached(o), 0)
-        return Wsum > EPSILON ? (x * rateOfCached(e)) / Wsum : 0
+        return Wsum > 0 ? (x * rateOfCached(e)) / Wsum : 0
       }
       const sumIn = sumInRate(up)
-      return Math.min(1, sumIn > EPSILON ? x / sumIn : 0) * rateOfCached(e)
+      return Math.min(1, sumIn > 0 ? x / sumIn : 0) * rateOfCached(e)
     }
     const numsOf = (id: string): Nums => {
       const hit = routerNums.get(id)
@@ -1274,25 +1737,33 @@ export function step(
     const gateEntries = new Map<string, GateStatus>()
     const planZeroWhy = new Map<string, 'pullAll' | 'plan'>() // a planned Gate that moves nothing, by the plan's cause
     const cyclicSet = new Set(cyclic)
-    const r6 = (x: number) => Number(x.toFixed(6))
+    // What is reported is rounded to six decimals. An amount under that precision is reported
+    // to six significant digits instead: a Gate that passed 5e-10 on does not read "moved 0".
+    const r6 = (x: number) => (x !== 0 && Math.abs(x) < 1e-6 ? Number(x.toPrecision(6)) : Number(x.toFixed(6)))
     /** the Gate's verdict, recorded at the point that decided what it moved */
     const recordGate = (id: string, moved: number, fault?: 'inert' | 'cycle') => {
       const { demand, available, ownWant, ownAvail } = numsOf(id)
+      // The verdict is given at the reported precision: 1e-6, or, where the Gate's own amounts
+      // are at or under that, 1e-6 of them (an absolute 1e-6 read every such Gate as `idle`).
+      // And it never contradicts the firing (SEMANTICS-E.md §E9): a Gate that moved anything is
+      // `full` or `partial`, one that moved nothing is `idle` or `held`.
+      const size = Math.max(demand, available)
+      const tol = size > 1e-6 ? 1e-6 : size * 1e-6
       let state: GateStatus['state']
       let why: GateStatus['why']
       if (fault) {
         state = 'fault'
         why = fault
-      } else if (available <= 1e-6) state = 'idle'
-      else if (moved >= demand - 1e-6) state = 'full'
-      else if (moved <= 1e-6) {
-        // at the reported precision (6 decimals): a bisection against a
-        // disabled `pull all` Converter can leave a residual of ~1e-8
-        state = 'held'
-        why = planZeroWhy.get(id) ?? (modeOfRouter(id) === 'pullAll' && ownAvail < ownWant - 1e-6 ? 'pullAll' : 'room')
-      } else {
+      } else if (!(moved > 0)) {
+        if (available <= tol) state = 'idle'
+        else {
+          state = 'held'
+          why = planZeroWhy.get(id) ?? (modeOfRouter(id) === 'pullAll' && ownAvail < ownWant - tol ? 'pullAll' : 'room')
+        }
+      } else if (moved >= demand - tol) state = 'full'
+      else {
         state = 'partial'
-        why = moved < available - 1e-6 ? 'room' : ownAvail < ownWant - 1e-6 ? 'supply' : 'upstream'
+        why = moved < available - tol ? 'room' : ownAvail < ownWant - tol ? 'supply' : 'upstream'
       }
       const entry: GateStatus = { nodeId: id, state, demand: r6(demand), available: r6(available), moved: r6(moved) }
       if (why) entry.why = why
@@ -1315,7 +1786,7 @@ export function step(
         let sum = 0
         for (const e of liveOuts(m)) {
           const r = rateOfCached(e)
-          if (r <= EPSILON) continue
+          if (r <= 0) continue
           sum += r
           into.set(e.target, (into.get(e.target) ?? 0) + r)
         }
@@ -1329,7 +1800,7 @@ export function step(
           const need = new Map<string, number>()
           for (const e of ins) {
             const r = rateOfCached(e)
-            if (r <= EPSILON) continue
+            if (r <= 0) continue
             need.set(e.source, (need.get(e.source) ?? 0) + r)
           }
           convNeed.set(m, need)
@@ -1360,7 +1831,7 @@ export function step(
         let sum = RAT0
         for (const e of liveOuts(m)) {
           const r = rateOfCached(e)
-          if (r <= EPSILON) continue
+          if (r <= 0) continue
           sum = addR(sum, exactRate(e))
           bump(row, e.target, exactRate(e))
         }
@@ -1371,7 +1842,7 @@ export function step(
           for (const e of inOf(m)) {
             if (!isPool(e.source) || dead.has(e.id)) continue
             const r = rateOfCached(e)
-            if (r > EPSILON) bump(n, e.source, exactRate(e))
+            if (r > 0) bump(n, e.source, exactRate(e))
           }
           need.set(m, n)
         }
@@ -1392,7 +1863,7 @@ export function step(
             const hasU = cof.has(u)
             const hasV = cof.has(v)
             if (hasU === hasV) continue
-            if (kindOf(u) === 'gate' && (floatW.get(u) ?? 0) <= EPSILON) continue
+            if (kindOf(u) === 'gate' && (floatW.get(u) ?? 0) <= 0) continue
             const Wu = kindOf(u) === 'gate' ? W.get(u)! : RAT1
             const F = mulR(divR(RAT1, Wu), kindOf(v) === 'gate' ? w : RAT1)
             if (hasU) cof.set(v, mulR(cof.get(u)!, F))
@@ -1425,7 +1896,7 @@ export function step(
           const hasV = cof.has(v)
           if (hasU === hasV) continue
           const Wu = kindOf(u) === 'gate' ? (W.get(u) ?? 0) : 1
-          if (Wu <= EPSILON) continue
+          if (Wu <= 0) continue
           const F = (1 / Wu) * (kindOf(v) === 'gate' ? w : 1)
           if (hasU) cof.set(v, cof.get(u)! * F)
           else cof.set(u, cof.get(v)! / F)
@@ -1442,7 +1913,7 @@ export function step(
       for (const m of members) {
         const c = cof.get(m) ?? 0
         if (kindOf(m) === 'gate') {
-          if ((W.get(m) ?? 0) <= EPSILON) bound(0) // no live branch — delivers nothing (#388 D)
+          if ((W.get(m) ?? 0) <= 0) bound(0) // no live branch — delivers nothing (#388 D)
           const Wm = W.get(m) ?? 1
           for (const [q, w] of gateInto.get(m)!) if (isPool(q)) outCoef.set(q, (outCoef.get(q) ?? 0) + (c * w) / Wm)
           continue
@@ -1462,7 +1933,7 @@ export function step(
         // fire, the connection is dead, a probabilistic Gate picked another
         // branch, a disabled `pull all` Converter): one f on every connection
         // is 0, for the whole group
-        if (inOf(m).some((e) => !isPool(e.source) && !liveEdge(e) && rateOfCached(e) > EPSILON)) bound(0)
+        if (inOf(m).some((e) => !isPool(e.source) && !liveEdge(e) && rateOfCached(e) > 0)) bound(0)
         const need = convNeed.get(m)!
         for (const [p, r] of need) inNeed.set(p, (inNeed.get(p) ?? 0) + c * r)
         for (const [q, make] of convMake.get(m)!) if (isPool(q)) outCoef.set(q, (outCoef.get(q) ?? 0) + c * make)
@@ -1471,7 +1942,7 @@ export function step(
       let lim: { why: 'supply' | 'room'; pool: string; per: number; had: number } | null = null
       let limV = Infinity
       for (const [p, k] of inNeed) {
-        if (k <= EPSILON) continue
+        if (k <= 0) continue
         const v = Math.max(0, availOf(p)) / k
         if (v < limV) {
           limV = v
@@ -1492,7 +1963,11 @@ export function step(
       // bound is found by bisection on the same walk.
       const roomOf = (q: string) => {
         let room = headroom(q)
-        for (const m of members) room += ownReserve.get(m)?.get(q) ?? 0
+        let own = 0
+        for (const m of members) own += ownReserve.get(m)?.get(q) ?? 0
+        // in the room the search reads too, a Pool that reads full has no room of its own
+        if (own === 0 && Number.isFinite(cap(byId.get(q)!)) && (working[q] ?? 0) >= cap(byId.get(q)!)) return 0
+        room += own
         return Math.max(0, room)
       }
       const inOrder = [...members].sort((a, b) => (orderIdx.get(a) ?? Infinity) - (orderIdx.get(b) ?? Infinity))
@@ -1525,7 +2000,7 @@ export function step(
           took.set(g, mine)
           let need = (cof.get(g) ?? 0) * s - (inbox.get(g) ?? 0)
           for (const w of wantsOf.get(g)!) {
-            if (need <= EPSILON) break
+            if (need <= 0) break // (what a source Gate still needs is pulled while it is above 0; with the epsilon here a tree whose amounts are under 1e-9 took nothing in its own walk and was planned at 0)
             const avail = Math.max(0, availOf(w.e.source) - s * (inNeed.get(w.e.source) ?? 0) - (used.get(w.e.source) ?? 0))
             const a = Math.max(0, Math.min(need, w.want, avail))
             mine.set(w.e.source, (mine.get(w.e.source) ?? 0) + a)
@@ -1550,7 +2025,7 @@ export function step(
           if (kindOf(m) === 'gate') {
             took = gt.get(m)?.get(q) ?? 0
             const Wm = W.get(m) ?? 0
-            if (Wm > EPSILON) gave = (c * s * (gateInto.get(m)!.get(q) ?? 0)) / Wm
+            if (Wm > 0) gave = (c * s * (gateInto.get(m)!.get(q) ?? 0)) / Wm
           } else {
             took = c * s * (convNeed.get(m)!.get(q) ?? 0)
             gave = c * s * (convMake.get(m)!.get(q) ?? 0)
@@ -1566,7 +2041,7 @@ export function step(
       const gateTouches = (q: string) => srcGates.some((g) => wantsOf.get(g)!.some((w) => w.e.source === q))
       const walked: string[] = [] // Pools whose bound needs the bisection
       for (const [q, k] of outCoef) {
-        if (k <= EPSILON) continue
+        if (k <= 0) continue
         if (gateTouches(q)) {
           walked.push(q)
           continue
@@ -1595,7 +2070,7 @@ export function step(
         const wants = ins.map((e) => ({ e, want: amountOf(e, availOf(e.source), S[e.source] ?? 0) }))
         const demand = inb + wants.reduce((t, w) => t + w.want, 0)
         sourceGates.push({ id: m, demand, c })
-        if (c <= EPSILON) continue
+        if (c <= 0) continue
         const reach = (s: number): number => {
           const used = new Map<string, number>()
           let r = inb
@@ -1607,7 +2082,7 @@ export function step(
           }
           return r
         }
-        const shared = wants.some((w) => (inNeed.get(w.e.source) ?? 0) > EPSILON)
+        const shared = wants.some((w) => (inNeed.get(w.e.source) ?? 0) > 0)
         let hi = Math.min(sMax, reach(0) / c)
         // no slack (#471, erratum part 4): a value kept is one the Gate reaches
         if (shared && !(reach(hi) >= c * hi)) {
@@ -1680,7 +2155,6 @@ export function step(
             for (const [p, r] of sh.need.get(m)!) inNeedR.set(p, addR(inNeedR.get(p) ?? RAT0, mulR(c, r)))
           }
           const wantsR = new Map(srcGates.map((g) => [g, wantsOf.get(g)!.map((w) => ({ pool: w.e.source, want: exactWant(w.e, w.want) }))]))
-          const EPS = ratOfDouble(EPSILON)
           return (q: string, s: number): boolean => {
             if (!Number.isFinite(roomOf(q))) return true // a Pool with no capacity
             const sR = ratOfDouble(s)
@@ -1691,7 +2165,7 @@ export function step(
               let need = subR(mulR(cofR.get(g) ?? RAT0, sR), ratOfDouble(inbox.get(g) ?? 0))
               let mine = RAT0
               for (const w of wantsR.get(g)!) {
-                if (cmpR(need, EPS) <= 0) break
+                if (cmpR(need, RAT0) <= 0) break // (the same in the exact walk: a need above 0 is pulled)
                 const avail = maxR(RAT0, subR(subR(ratOfDouble(availOf(w.pool)), mulR(sR, inNeedR.get(w.pool) ?? RAT0)), used.get(w.pool) ?? RAT0))
                 const a = maxR(RAT0, minR(need, minR(w.want, avail)))
                 if (w.pool === q) mine = addR(mine, a)
@@ -1706,7 +2180,7 @@ export function step(
               if (kindOf(m) === 'gate') {
                 level = subR(level, took.get(m) ?? RAT0)
                 const w = sh.into.get(m)!.get(q)
-                if (w && (W.get(m) ?? 0) > EPSILON) level = addR(level, divR(mulR(cs, w), sh.W.get(m)!))
+                if (w && (W.get(m) ?? 0) > 0) level = addR(level, divR(mulR(cs, w), sh.W.get(m)!))
               } else {
                 const n = sh.need.get(m)!.get(q)
                 if (n) level = subR(level, mulR(cs, n))
@@ -1762,50 +2236,244 @@ export function step(
           zeroAt ??= ''
         }
       }
-      for (const g of sourceGates) {
-        if (modeOf(g.id) === 'pullAll' && g.c * s < g.demand - EPSILON) {
-          s = 0
-          zeroAt ??= g.id
+      if (zeroAt !== null) for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, m === zeroAt ? 'pullAll' : 'plan')
+      // One working of every amount. The record takes each amount from the exact fractions the
+      // search decides on (coefficient × number × rate). The fraction is what is claimed or
+      // promised, and what the member takes from its Pools at its turn; the double beside it
+      // is that fraction rounded once.
+      const sh = exactShapes(members)
+      const cofR = sh.coefficients(root, () => true, W)
+      const claimIn = (p: string, a: number, r?: Rat) => claimAddR(p, r ?? ratOfDouble(a))
+      const inNeedR = new Map<string, Rat>()
+      for (const m of members) {
+        if (kindOf(m) === 'gate') continue
+        const c = cofR.get(m)
+        if (!c) continue
+        for (const [p, r] of sh.need.get(m)!) inNeedR.set(p, addR(inNeedR.get(p) ?? RAT0, mulR(c, r)))
+      }
+      // The group at a number, in exact fractions: what each source Gate pulls (greedy, in the
+      // plan's order), and how far every bound is from being passed (a margin below 0 is a
+      // bound passed): each Pool's supply, each source Gate's need, and each capped Pool's level
+      // at every turn of the commit order against its exact room (a Pool that reads full has none).
+      const capped = [...new Set(members.flatMap((m) => [...(sh.into.get(m)?.keys() ?? [])]))].filter((q) => isPool(q) && Number.isFinite(cap(byId.get(q)!))).sort()
+      const roomRs = new Map<string, Rat>()
+      for (const q of capped) {
+        let own = 0n
+        for (const m of members) own += toX(ownReserve.get(m)?.get(q) ?? 0)
+        const readsFull = own === 0n && (working[q] ?? 0) >= cap(byId.get(q)!)
+        // (the room and the supply are read off the exact ledger as they are, not rounded onto
+        // the fine unit: a Pool at 8 + 2/3 has a room of exactly a third)
+        roomRs.set(q, readsFull ? RAT0 : (roomRatR(q, ownSumR(members, q))!))
+      }
+      const availRs = new Map<string, Rat>()
+      /** what a Pool can still give, asked of the ledger once a Pool for this record */
+      const availAtPlan = (p: string): Rat => {
+        let v = availRs.get(p)
+        if (!v) availRs.set(p, (v = availR(p)))
+        return v
+      }
+      const handedR = (g: string): Rat => (inboxR.get(g) ?? RAT0)
+      const exactAt = (xR: Rat) => {
+        const usedR = new Map<string, Rat>()
+        const pulls = new Map<string, { e: LoopEdge; aR: Rat }[]>()
+        const margins: Rat[] = []
+        for (const g of srcGates) {
+          let need = subR(mulR(cofR.get(g) ?? RAT0, xR), handedR(g))
+          const list: { e: LoopEdge; aR: Rat }[] = []
+          for (const w of wantsOf.get(g)!) {
+            // What a source Gate's lines bring covers what the plan gives it with NO slack
+            // (with the epsilon here the plan's number stood up to 1e-9 above what the lines
+            // bring; the Gate then handed on less than the member behind it was planned on).
+            if (cmpR(need, RAT0) <= 0) break
+            const pool = w.e.source
+            const avail = maxR(RAT0, subR(subR(availAtPlan(pool), mulR(xR, inNeedR.get(pool) ?? RAT0)), usedR.get(pool) ?? RAT0))
+            const aR = maxR(RAT0, minR(need, minR(exactWant(w.e, w.want), avail)))
+            usedR.set(pool, addR(usedR.get(pool) ?? RAT0, aR))
+            need = subR(need, aR)
+            list.push({ e: w.e, aR })
+          }
+          pulls.set(g, list)
+          margins.push(subR(RAT0, need)) // the Gate's need is covered
+        }
+        for (const p of [...inNeedR.keys()].sort()) {
+          margins.push(subR(availAtPlan(p), mulR(xR, inNeedR.get(p)!))) // the Converters' takes are within the supply
+        }
+        for (const q of capped) {
+          let level = RAT0
+          for (const m of inOrder) {
+            const cs = mulR(cofR.get(m) ?? RAT0, xR)
+            if (kindOf(m) === 'gate') {
+              for (const { e, aR } of pulls.get(m) ?? []) if (e.source === q) level = subR(level, aR)
+              const w = sh.into.get(m)!.get(q)
+              if (w && (W.get(m) ?? 0) > 0) level = addR(level, divR(mulR(cs, w), sh.W.get(m)!))
+            } else {
+              const n = sh.need.get(m)!.get(q)
+              if (n) level = subR(level, mulR(cs, n))
+              const mk = sh.into.get(m)!.get(q)
+              if (mk) level = addR(level, mulR(cs, mk))
+            }
+            margins.push(subR(roomRs.get(q)!, level))
+          }
+        }
+        return { pulls, margins }
+      }
+      const allIn = (ms: Rat[]) => ms.every((x) => cmpR(x, RAT0) >= 0)
+      // The number. The search's is a double; where the exact bounds are passed at it, the
+      // number is the exact point where the first of them is met, a fraction between the
+      // double below and it (the bounds are straight lines over one last place).
+      let sR = ratOfDouble(s)
+      let exactNumber = false
+      if (s > 0) {
+        // The number is the largest fraction within every bound. The bounds that are
+        // not margins give a cap: a Converter's run (its target, 1 without one) and a source
+        // Gate's whole demand, each over the member's exact coefficient. At the cap, or at the
+        // exact point below it where the first margin is met.
+        let capR: Rat | null = null
+        const lower = (v: Rat) => {
+          if (capR === null || cmpR(v, capR) < 0) capR = v
+        }
+        for (const m of members) {
+          const c = cofR.get(m)
+          if (!c || !isPositive(c)) continue
+          if (kindOf(m) !== 'gate') lower(divR(ratOfShortestDecimal(runOf(m)), c))
+          else if (srcGates.includes(m)) {
+            let d = handedR(m)
+            for (const w of wantsOf.get(m)!) d = addR(d, exactWant(w.e, w.want))
+            lower(divR(d, c))
+          }
+        }
+        const cap0 = capR as Rat | null
+        if (cap0 !== null) {
+          if (allIn(exactAt(cap0).margins)) sR = cap0
+          else {
+            // a number within every bound to start from: the search's double, or a double below it
+            let lo = RAT0
+            let d = s
+            for (let i = 0; i < 64 && d > 0; i++) {
+              const x = ratOfDouble(d)
+              if (cmpR(x, cap0) <= 0 && allIn(exactAt(x).margins)) {
+                lo = x
+                break
+              }
+              d = nextTo(d, -1)
+            }
+            // between that number and the cap: the exact point where the first margin is met
+            sR = exactTop(lo, cap0, (x) => exactAt(x).margins)
+          }
+          exactNumber = true
+          // `pull all` source Gates, on the exact number: within the absolute epsilon of what
+          // its lines ask, or the group moves nothing
+          for (const g of sourceGates) {
+            if (modeOf(g.id) !== 'pullAll' || !isPositive(sR)) continue
+            let d = handedR(g.id)
+            for (const w of wantsOf.get(g.id) ?? []) d = addR(d, exactWant(w.e, w.want))
+            if (cmpR(addR(mulR(cofR.get(g.id) ?? RAT0, sR), shortfallAllowedR(d)), d) < 0) {
+              sR = RAT0
+              s = 0
+              zeroAt ??= g.id
+            }
+          }
+          if (!isPositive(sR)) s = 0
+          if (zeroAt !== null) for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, m === zeroAt ? 'pullAll' : 'plan')
         }
       }
-      if (zeroAt !== null) for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, m === zeroAt ? 'pullAll' : 'plan')
-      // record the plan; claim the inputs (`reservedIn`) and the output room
-      // (`reserved`, owned by the member that delivers it, settled on delivery)
-      const heldPulls = gateTakes(s) // what each source Gate pulls at the plan's number (issue #570)
+      if (s > 0 && !exactNumber) {
+        const atHi = exactAt(sR).margins
+        if (!allIn(atHi)) {
+          // the doubles below the search's, one at a time, until one is within every bound (the
+          // search's double can be more than one double above the bound); the exact point is
+          // then between that double and the one above it
+          let loD = nextTo(s, -1)
+          let hiD = s
+          let stepsDown = 1
+          while (stepsDown < 64 && loD > 0 && !allIn(exactAt(ratOfDouble(loD)).margins)) {
+            hiD = loD
+            loD = nextTo(loD, -1)
+            stepsDown++
+          }
+          const lo = ratOfDouble(loD)
+          const hi = ratOfDouble(hiD)
+          const atLo = exactAt(lo).margins
+          const atHi2 = exactAt(hi).margins
+          if (allIn(atLo) && atLo.length === atHi2.length) {
+            // The exact point, from the side that is past the bound. A margin is a bent line
+            // (flat while a Gate's lines cover it, then falling), so the straight line from
+            // the double below to the double above meets zero BELOW the point (a `pull all`
+            // Gate was then given a last place less than its lines bring, and stopped).
+            // The line through the passed double and a point a sliver below it is the margin's
+            // last straight piece; where it meets zero is the point, or still past it and then
+            // the next start.
+            let best: Rat | null = null
+            let from = hi
+            let atFrom = atHi2
+            const SLIVER = ratOfDouble(2 ** -30)
+            for (let round = 0; round < 8 && best === null; round++) {
+              const step = mulR(subR(from, lo), SLIVER)
+              const near = subR(from, step)
+              const atNear = exactAt(near).margins
+              let at: Rat | null = null
+              for (let i = 0; i < atFrom.length; i++) {
+                if (cmpR(atFrom[i], RAT0) >= 0 || cmpR(atNear[i], atFrom[i]) <= 0) continue
+                const zero = addR(from, divR(mulR(atFrom[i], step), subR(atNear[i], atFrom[i]))) // atFrom < 0: below `from`
+                if (at === null || cmpR(zero, at) < 0) at = zero
+              }
+              if (at === null || cmpR(at, lo) <= 0) break
+              const atAt = exactAt(at).margins
+              if (allIn(atAt)) best = at
+              else { from = at; atFrom = atAt }
+            }
+            if (best !== null) {
+              sR = best
+            } else {
+              sR = lo
+            }
+          }
+        }
+      }
+      const pullsOf = new Map<string, { e: LoopEdge; a: number; r?: Rat }[]>()
+      if (s > 0) {
+        for (const [g, list] of exactAt(sR).pulls) {
+          // (a line keeps its exact amount, and is kept whatever its size)
+          pullsOf.set(g, list.map(({ e, aR }) => ({ e, a: nz(rnR(aR)), r: aR })).filter((x) => x.a > 0 || isPositive(x.r)))
+        }
+      }
       for (const m of members) {
         planned.add(m)
-        const c = cof.get(m) ?? 0
+        const cs = s > 0 ? mulR(cofR.get(m) ?? RAT0, sR) : RAT0
         if (kindOf(m) === 'gate') {
-          const T = nz(Math.max(0, c * s))
-          planT.set(m, T)
-          const pulls = heldPulls.get(m)
-          if (pulls) holdFor(m, pulls)
-          const Wm = W.get(m) ?? 1
-          for (const [q, w] of gateInto.get(m)!) {
-            if (!isPool(q)) continue
-            const amt = nz((T * w) / Wm)
-            if (amt <= 0) continue
-            reserved.set(q, reservedOf(q) + amt)
-            addOwn(m, q, amt)
+          planT.set(m, nz(rnR(cs)))
+          const pulls = pullsOf.get(m)
+          if (pulls) {
+            planPulls.set(m, pulls)
+            planPullsSource.add(m)
+            for (const { e, a, r } of pulls) claimIn(e.source, a, r)
+          }
+          const WmR = sh.W.get(m)
+          for (const e of liveOuts(m)) {
+            if (rateOfCached(e) <= 0 || !WmR || (W.get(m) ?? 0) <= 0) continue
+            const xR = divR(mulR(cs, exactRate(e)), WmR)
+            const amt = nz(rnR(xR))
+            if (promised(amt, xR) && isPool(e.target)) promiseR(m, e.target, xR)
           }
           continue
         }
-        const f = nz(Math.max(0, Math.min(1, c * s)))
+        const fR = minR(RAT1, cs)
+        const f = rnR(fR) // (a run fraction is not an amount: the display threshold is not put on it; issue #580)
         planF.set(m, f)
-        const takes: { e: LoopEdge; a: number }[] = []
+        const takes: { e: LoopEdge; a: number; r?: Rat }[] = []
         for (const e of convPoolIns.get(m)!) {
-          const a = nz(f * rateOfCached(e))
-          if (a <= 0) continue
-          takes.push({ e, a })
-          reservedIn.set(e.source, (reservedIn.get(e.source) ?? 0) + a)
+          const xR = mulR(fR, exactRate(e))
+          const a = f > 0 ? nz(rnR(xR)) : 0
+          if (a <= 0 && !(isPositive(xR))) continue
+          takes.push({ e, a, r: xR })
+          claimIn(e.source, a, xR)
         }
         planTakes.set(m, takes)
-        for (const [q, make] of convMake.get(m)!) {
-          if (!isPool(q)) continue
-          const amt = nz(f * make)
-          if (amt <= 0) continue
-          reserved.set(q, reservedOf(q) + amt)
-          addOwn(m, q, amt)
+        for (const e of liveOuts(m)) {
+          if (rateOfCached(e) <= 0) continue
+          const xR = mulR(fR, exactRate(e))
+          const amt = f > 0 ? nz(rnR(xR)) : 0
+          if (promised(amt, xR) && isPool(e.target)) promiseR(m, e.target, xR)
         }
       }
     }
@@ -1855,7 +2523,7 @@ export function step(
     // classifies a difference already computed (a `pull all` demand met, two
     // supplies covering a throughput).
     const planMulti = (members: string[], multiGates: string[], rejoin = false) => {
-      const { W, gateInto, convMake, convNeed, convPoolIns, pair, fedByRouter } = memberShapes(members)
+      const { W, gateInto, convMake, convPoolIns, pair, fedByRouter } = memberShapes(members)
       const multi = new Set(multiGates)
       const byOrder = (a: string, b: string) => (orderIdx.get(a) ?? Infinity) - (orderIdx.get(b) ?? Infinity)
       // the pieces: components over the pairs that do not enter a multi-supply Gate
@@ -1897,7 +2565,7 @@ export function step(
             const hasV = p.cof.has(v)
             if (hasU === hasV) continue
             const Wu = kindOf(u) === 'gate' ? (W.get(u) ?? 0) : 1
-            if (Wu <= EPSILON) continue
+            if (Wu <= 0) continue
             const F = (1 / Wu) * (kindOf(v) === 'gate' ? w : 1)
             if (hasU) p.cof.set(v, p.cof.get(u)! * F)
             else p.cof.set(u, p.cof.get(v)! / F)
@@ -1919,7 +2587,7 @@ export function step(
         for (const { u, w } of ups) {
           const p = pieces[pieceOf.get(u)!]
           const Wu = kindOf(u) === 'gate' ? (W.get(u) ?? 0) : 1
-          const coef = Wu > EPSILON ? (p.cof.get(u) ?? 0) * (1 / Wu) * w : 0 // the amount on the connection per unit of the piece's number
+          const coef = Wu > 0 ? (p.cof.get(u) ?? 0) * (1 / Wu) * w : 0 // the amount on the connection per unit of the piece's number
           list.push({ kind: 'router', src: u, piece: p.id, coef })
         }
         for (const e of ownIns(G)) list.push({ kind: 'own', e, want: Math.max(0, amountOf(e, availOf(e.source), S[e.source] ?? 0)) })
@@ -1927,11 +2595,19 @@ export function step(
       }
       const orderedMulti = [...multiGates].sort(byOrder)
       const sPiece = new Map<number, number>() // source piece → its number
+      type NumR = { d: number; r: Rat }
+      const sPieceR = new Map<number, NumR>() // a piece's number as a fraction; it holds while the double beside it is the piece's number
+      const uOwnR = new Map<string, NumR>() // the same for an own-Pool supply connection's amount (the record rounds it once)
+      /** an own-Pool supply connection's amount, exactly */
+      const ownExact = (id: string): Rat => {
+        const d = uOwn.get(id) ?? 0
+        const x = uOwnR.get(id)
+        return x && x.d === d ? x.r : ratOfDouble(d)
+      }
       const uOwn = new Map<string, number>() // own-Pool supply connection → its amount
       const fixed = new Set<string>() // the supplies filled so far
       const tentative = new Set<string>() // what `settle` set for a Gate that is not its piece's root; redone on every test
       const keyOf = (sup: Sup) => (sup.kind === 'own' ? `own:${sup.e.id}` : `piece:${sup.piece}`)
-      const valueOf = (sup: Sup) => (sup.kind === 'own' ? (uOwn.get(sup.e.id) ?? 0) : sup.coef * (sPiece.get(sup.piece) ?? 0))
       /** every piece's number: a source piece's own; a headed piece's number is the throughput of the Gate at its root (its supplies are all upstream, so earlier in the order) */
       const sOf = (): Map<number, number> => {
         const s = new Map<number, number>()
@@ -1945,59 +2621,6 @@ export function step(
         }
         return s
       }
-      /** A multi-supply Gate that is not the root of its piece has its throughput set by the root (`cof · s`). Its supplies
-       *  not yet filled are set here, in their order, each up to its own bound, to cover exactly that throughput — so a test
-       *  of an earlier supply sees the later Gate as its own fill will leave it. False when they cannot cover it (or the
-       *  filled ones already exceed it). */
-      const settle = (): boolean => {
-        for (const k of tentative) {
-          if (fixed.has(k)) continue // its own fill set it while the tests still listed it here: the value stands
-          if (k.startsWith('own:')) uOwn.delete(k.slice(4))
-          else sPiece.delete(Number(k.slice(6)))
-        }
-        tentative.clear()
-        const s = sOf()
-        let ok = true
-        for (const G of orderedMulti) {
-          const p = pieces[pieceOf.get(G)!]
-          if (p.root === G) continue
-          let need = (p.cof.get(G) ?? 0) * (s.get(p.id) ?? 0)
-          const throughput = need
-          const open: Sup[] = []
-          for (const sup of supplies.get(G)!) {
-            if (fixed.has(keyOf(sup)) || (sup.kind === 'router' && sPiece.has(sup.piece))) need -= valueOf(sup)
-            else open.push(sup)
-          }
-          for (const sup of open) {
-            const k = keyOf(sup)
-            if (tentative.has(k)) continue // a second connection from the same source piece: determined with the first
-            tentative.add(k)
-            if (sup.kind === 'own') {
-              const v = Math.max(0, Math.min(need, sup.want, availOf(sup.e.source)))
-              uOwn.set(sup.e.id, v)
-              need -= v
-            } else {
-              const coef = open.reduce((t, o) => (o.kind === 'router' && o.piece === sup.piece ? t + o.coef : t), 0)
-              const cap = coef > EPSILON ? coef * pieceMax(pieces[sup.piece]) : 0
-              const v = Math.max(0, Math.min(need, cap))
-              sPiece.set(sup.piece, coef > EPSILON ? v / coef : 0)
-              need -= v
-            }
-          }
-          // Covered? What is LEFT UNCOVERED is asked with no slack: the supplies
-          // above each took `min(need, its bound)`, so a throughput they can
-          // cover leaves exactly 0, and only the rounding of a router supply's
-          // share (`coef · (v / coef)`) is let through. With epsilon here the
-          // search for the FIRST Gate's supply walked into the tolerance: where
-          // the second Gate could bring 4 at most, the first was planned at
-          // 4.000000001 and the Converter fed 1e-9 apart (review of
-          // 2026-11-15, P1; erratum part 4, "no slack"). An overshoot comes
-          // only from supplies fixed before this Gate's throughput was known,
-          // never from a search, and keeps the epsilon as a classification.
-          if (need > Number.EPSILON * 64 * Math.max(1, throughput) || need < -EPSILON) ok = false
-        }
-        return ok
-      }
       /** member → its amount (a Gate's T, a Converter's f) */
       const amountsOf = (s: Map<number, number>) => {
         const c = new Map<string, number>()
@@ -2007,314 +2630,305 @@ export function step(
         }
         return c
       }
-      const add = (map: Map<string, number>, k: string, v: number) => map.set(k, (map.get(k) ?? 0) + v)
-      /** Every source Gate's greedy pulls from its own Pools at the plan `c`,
-       *  net of the plan's claims and of what the source Gates before it in
-       *  the commit order pull; each pull is handed to `onPull`. `false` when
-       *  one of them cannot reach its throughput. */
-      const sourcePulls = (c: Map<string, number>, claim: Map<string, number>, inOrder: string[], onPull: (gateId: string, pool: string, pulled: number) => void): boolean => {
-        const used = new Map<string, number>()
-        for (const m of inOrder) {
-          if (kindOf(m) !== 'gate' || multi.has(m) || fedByRouter.has(m)) continue
-          const T = c.get(m) ?? 0
-          if (T <= 0) continue
-          let r = inbox.get(m) ?? 0
-          let need = Math.max(0, T - r)
-          for (const e of ownIns(m)) {
-            const want = amountOf(e, availOf(e.source), S[e.source] ?? 0)
-            const avail = Math.max(0, availOf(e.source) - (claim.get(e.source) ?? 0) - (used.get(e.source) ?? 0))
-            const a = Math.max(0, Math.min(want, avail))
-            r += a
-            // what the commit will actually pull from this Pool: up to what is still needed
-            const pulled = Math.min(a, need)
-            need -= pulled
-            add(used, e.source, pulled)
-            if (pulled > 0) onPull(m, e.source, pulled)
-          }
-          if (r < T) return false
-        }
-        return true
-      }
       /** the tree plan's bounds, as a test of the whole group at once */
       const feasible = (): boolean => {
-        if (!settle()) return false
-        const c = amountsOf(sOf())
-        const claim = new Map<string, number>() // Pool → taken by the plan
-        const give = new Map<string, number>() // Pool → delivered by the plan
-        // per member, in the group's commit order: what it takes from and
-        // delivers into each Pool (#471 item 5 — the room is checked along
-        // that order, below)
-        const takesBy = new Map<string, Map<string, number>>()
-        const givesBy = new Map<string, Map<string, number>>()
-        const addBy = (by: Map<string, Map<string, number>>, m: string, q: string, v: number) => {
-          let row = by.get(m)
-          if (!row) by.set(m, (row = new Map()))
-          row.set(q, (row.get(q) ?? 0) + v)
-        }
-        for (const m of members) {
-          const v = c.get(m) ?? 0
-          if (kindOf(m) === 'gate') {
-            // a positive amount, however small, is checked: skipping one below
-            // epsilon let the bisection plan ~1e-9 into a full Pool (#471)
-            if (v <= 0) continue
-            const Wm = W.get(m) ?? 0
-            if (Wm <= EPSILON) return false // no live branch — delivers nothing (#388 D)
-            for (const [q, w] of gateInto.get(m)!) {
-              if (!isPool(q)) continue
-              add(give, q, (v * w) / Wm)
-              addBy(givesBy, m, q, (v * w) / Wm)
-            }
-            continue
-          }
-          if (v > 1) return false // f ≤ 1
-          if (v <= 0) continue
-          if (disabledPullAll.has(m) || convMake.get(m)!.size === 0) return false
-          if (inOf(m).some((e) => !isPool(e.source) && !liveEdge(e) && rateOfCached(e) > EPSILON)) return false
-          const need = convNeed.get(m)!
-          for (const [p, r] of need) {
-            add(claim, p, v * r)
-            addBy(takesBy, m, p, v * r)
-          }
-          for (const [q, make] of convMake.get(m)!) {
-            if (!isPool(q)) continue
-            add(give, q, v * make)
-            addBy(givesBy, m, q, v * make)
-          }
-        }
-        for (const G of multiGates) {
-          for (const sup of supplies.get(G)!) {
-            if (sup.kind !== 'own') continue
-            const u = uOwn.get(sup.e.id) ?? 0
-            if (u > sup.want) return false
-            add(claim, sup.e.source, u)
-            addBy(takesBy, G, sup.e.source, u)
-          }
-        }
-        for (const [p, v] of claim) if (v > availOf(p)) return false
-        // a source Gate reaches its T by its greedy pulls, net of the plan's
-        // claims and of what the source Gates BEFORE it in the commit order
-        // pull. What a Gate pulls is charged, not what it could: a Gate held to
-        // 2 by its downstream leaves the next one the Pool less 2. It used to
-        // be charged its whole reach (6), in the members' given order, and
-        // the next Gate was planned 2 short of what the Pool had (review of
-        // 2026-11-15, P6).
-        const inOrder = [...members].sort((a, b) => (orderIdx.get(a) ?? Infinity) - (orderIdx.get(b) ?? Infinity))
-        if (!sourcePulls(c, claim, inOrder, (m, q, pulled) => addBy(takesBy, m, q, pulled))) return false
-        // the room, along the commit order (#471 item 5): from the Pool as it
-        // stands, each member's take lowers the level at its turn and its
-        // delivery raises it; the level never passes the room. A Converter's
-        // own take and delivery on one Pool meet at its turn (its net); an
-        // earlier member's take is room a later delivery may fill.
-        let tooClose = false
-        for (const q of give.keys()) {
-          let room = headroom(q)
-          for (const m of members) room += ownReserve.get(m)?.get(q) ?? 0
-          let level = 0
-          let gross = 0 // everything taken from and delivered into the Pool so far (for `LEVEL_DOUBT`)
-          for (const m of inOrder) {
-            const took = takesBy.get(m)?.get(q) ?? 0
-            const gave = givesBy.get(m)?.get(q) ?? 0
-            level -= took
-            level += gave
-            gross += took + gave
-            const doubt = LEVEL_DOUBT * gross
-            if (level > room + doubt) return false // past the room beyond any rounding
-            if (level > room - doubt) tooClose = true // floating point cannot say
-          }
-        }
-        // too close somewhere: the exact walk decides, for every Pool at once (issue #572)
-        return tooClose ? (exactRoom ??= buildExactRoom())() : true
+        return evalPlan().ok
       }
       // The room walk of `feasible` in exact fractions, from the rates the
       // document states and the plan's numbers as they stand (the fixed ones
       // and the ones `settle` has just set; issue #572). Every Pool the plan
       // delivers into is walked: true when no level passes its room.
-      let exactRoom: (() => boolean) | null = null
-      const buildExactRoom = () => {
+      // what the exact walk last worked out: each member's amount and each source Gate's pulls, as fractions, and the Gates' exact weights
+      let lastExact: { amount: (m: string) => Rat; pullsE: Map<string, { e: LoopEdge; aR: Rat }[]>; W: Map<string, Rat> } | null = null
+      let roomsOff = false
+      /** every member's exact amount at the plan's numbers as they stand (`evalPlan` always leaves its working) */
+      const exactAmounts = (): ((m: string) => Rat) => {
+        evalPlan()
+        return lastExact!.amount
+      }
+      /** is a `pull all` Gate's exact amount short of its demand by more than the absolute epsilon? */
+      const shortOf = (m: string, exact: (m: string) => Rat): boolean =>
+        cmpR(addR(exact(m), shortfallAllowedR(sourceDemand(m))), sourceDemand(m)) < 0
+      /** a `pull all` source Gate of a piece runs at its demand or not at all (the tree rule) */
+      const pullAllSourcesOk = (p: Piece): boolean => {
+        const c = amountsOf(sOf())
+        const exact = exactAmounts()
+        for (const m of p.members) {
+          if (kindOf(m) !== 'gate' || multi.has(m) || fedByRouter.has(m) || modeOfRouter(m) !== 'pullAll') continue
+          const T = c.get(m) ?? 0
+          // (a `pull all` Gate given an amount under the epsilon is asked too: skipped here, it
+          // was planned at 1.7e-16 of a demand of 17, stopped at its turn, and the Converter
+          // behind it took its own lines' share)
+          if (!(T > 0)) continue
+          if (shortOf(m, exact)) return false
+        }
+        return true
+      }
+      // ── the multi-supply plan in exact fractions ────────────────────────────
+      // Every free number of the plan (a source piece's number, an own line's amount) is a
+      // fraction; the double beside it is only its nearest. The settling of a Gate that is not
+      // its piece's root, every bound, and the room walk are worked on those fractions with no
+      // tolerance, and a number is searched to the exact point where the first bound is met.
+      type PlanParts = { sh: ReturnType<typeof exactShapes>; cofR: Map<number, Map<string, Rat>>; coefR: Map<Sup, Rat>; claimPools: string[]; rooms: [string, Rat][] }
+      let planPartsMemo: PlanParts | null = null
+      const inOrder = [...members].sort(byOrder)
+      const handedR = (m: string): Rat => ((inboxR.get(m) ?? RAT0))
+      const planParts = (): PlanParts => {
+        if (planPartsMemo) return planPartsMemo
         const sh = exactShapes(members)
-        const cofR = new Map<number, Map<string, Rat>>(
-          pieces.map((p) => [p.id, sh.coefficients(p.root, (u, v) => !multi.has(v) && pieceOf.get(u) === p.id && pieceOf.get(v) === p.id, W)]),
-        )
-        // a router supply's amount per unit of its piece's number
+        const cofR = new Map<number, Map<string, Rat>>(pieces.map((p) => [p.id, sh.coefficients(p.root, (u, v) => !multi.has(v) && pieceOf.get(u) === p.id && pieceOf.get(v) === p.id, W)]))
         const coefR = new Map<Sup, Rat>()
+        const claimSet = new Set<string>()
         for (const G of multiGates) {
           for (const sup of supplies.get(G)!) {
-            if (sup.kind !== 'router') continue
+            if (sup.kind !== 'router') {
+              claimSet.add(sup.e.source)
+              continue
+            }
             const u = sup.src
-            const live = kindOf(u) !== 'gate' || (W.get(u) ?? 0) > EPSILON
+            const live = kindOf(u) !== 'gate' || (W.get(u) ?? 0) > 0
             const Wu = kindOf(u) === 'gate' ? sh.W.get(u)! : RAT1
             const w = sh.pair.get(`${u}\u0000${G}`)
             const c = cofR.get(sup.piece)!.get(u)
             coefR.set(sup, live && w && c ? mulR(mulR(c, divR(RAT1, Wu)), w) : RAT0)
           }
         }
-        const inOrder = [...members].sort((a, b) => (orderIdx.get(a) ?? Infinity) - (orderIdx.get(b) ?? Infinity))
-        return (): boolean => {
-          // every piece's number, as `sOf` has it
-          const s = new Map<number, Rat>()
-          for (const p of pieces) if (p.head === null) s.set(p.id, ratOfDouble(sPiece.get(p.id) ?? 0))
-          for (const G of orderedMulti) {
-            const p = pieces[pieceOf.get(G)!]
-            if (p.root !== G) continue
-            let T = RAT0
-            for (const sup of supplies.get(G)!) T = addR(T, sup.kind === 'router' ? mulR(coefR.get(sup)!, s.get(sup.piece) ?? RAT0) : ratOfDouble(uOwn.get(sup.e.id) ?? 0))
-            s.set(p.id, T)
-          }
-          const amount = (m: string): Rat => {
-            const pid = pieceOf.get(m)!
-            return mulR(cofR.get(pid)!.get(m) ?? RAT0, s.get(pid) ?? RAT0)
-          }
-          const takes = new Map<string, Map<string, Rat>>()
-          const gives = new Map<string, Map<string, Rat>>()
-          const claim = new Map<string, Rat>()
-          const bump = (by: Map<string, Map<string, Rat>>, m: string, q: string, v: Rat) => {
-            let row = by.get(m)
-            if (!row) by.set(m, (row = new Map()))
-            row.set(q, addR(row.get(q) ?? RAT0, v))
-          }
-          const delivered = new Set<string>()
-          for (const m of members) {
-            const v = amount(m)
-            if (!isPositive(v)) continue
-            if (kindOf(m) === 'gate') {
-              if ((W.get(m) ?? 0) <= EPSILON) continue
-              for (const [q, w] of sh.into.get(m)!) {
-                if (!isPool(q)) continue
-                bump(gives, m, q, divR(mulR(v, w), sh.W.get(m)!))
-                delivered.add(q)
-              }
-              continue
-            }
-            for (const [p, r] of sh.need.get(m)!) {
-              claim.set(p, addR(claim.get(p) ?? RAT0, mulR(v, r)))
-              bump(takes, m, p, mulR(v, r))
-            }
-            for (const [q, mk] of sh.into.get(m)!) {
-              if (!isPool(q)) continue
-              bump(gives, m, q, mulR(v, mk))
-              delivered.add(q)
-            }
-          }
-          for (const G of multiGates) {
-            for (const sup of supplies.get(G)!) {
-              if (sup.kind !== 'own') continue
-              const u = ratOfDouble(uOwn.get(sup.e.id) ?? 0)
-              claim.set(sup.e.source, addR(claim.get(sup.e.source) ?? RAT0, u))
-              bump(takes, G, sup.e.source, u)
-            }
-          }
-          const used = new Map<string, Rat>()
-          for (const m of inOrder) {
-            if (kindOf(m) !== 'gate' || multi.has(m) || fedByRouter.has(m)) continue
-            const T = amount(m)
-            if (!isPositive(T)) continue
-            let need = maxR(RAT0, subR(T, ratOfDouble(inbox.get(m) ?? 0)))
-            for (const e of ownIns(m)) {
-              const want = exactWant(e, amountOf(e, availOf(e.source), S[e.source] ?? 0))
-              const avail = maxR(RAT0, subR(subR(ratOfDouble(availOf(e.source)), claim.get(e.source) ?? RAT0), used.get(e.source) ?? RAT0))
-              const pulled = minR(maxR(RAT0, minR(want, avail)), need)
-              need = subR(need, pulled)
-              used.set(e.source, addR(used.get(e.source) ?? RAT0, pulled))
-              if (isPositive(pulled)) bump(takes, m, e.source, pulled)
-            }
-          }
-          for (const q of delivered) {
-            let room = headroom(q)
-            for (const m of members) room += ownReserve.get(m)?.get(q) ?? 0
-            if (!Number.isFinite(room)) continue // a Pool with no capacity
-            const roomR = ratOfDouble(room)
-            let level = RAT0
-            for (const m of inOrder) {
-              const t = takes.get(m)?.get(q)
-              if (t) level = subR(level, t)
-              const g = gives.get(m)?.get(q)
-              if (g) level = addR(level, g)
-              if (cmpR(level, roomR) > 0) return false
-            }
-          }
-          return true
+        for (const m of members) if (kindOf(m) !== 'gate') for (const p of sh.need.get(m)!.keys()) claimSet.add(p)
+        const rooms: [string, Rat][] = []
+        for (const q of [...new Set(members.flatMap((m) => [...(sh.into.get(m)?.keys() ?? [])]))].sort()) {
+          if (!isPool(q)) continue
+          const n = byId.get(q)!
+          if (!Number.isFinite(cap(n))) continue
+          const ownPromised = ownSumR(members, q)
+          rooms.push([q, !isPositive(ownPromised) && (working[q] ?? 0) >= cap(n) ? RAT0 : roomRatR(q, ownPromised)!])
         }
+        return (planPartsMemo = { sh, cofR, coefR, claimPools: [...claimSet].sort(), rooms })
       }
-      /** a `pull all` source Gate of a piece runs at its demand or not at all (the tree rule) */
-      const pullAllSourcesOk = (p: Piece): boolean => {
-        const c = amountsOf(sOf())
-        for (const m of p.members) {
-          if (kindOf(m) !== 'gate' || multi.has(m) || fedByRouter.has(m) || modeOfRouter(m) !== 'pullAll') continue
-          const T = c.get(m) ?? 0
-          if (T <= EPSILON) continue
-          let demand = inbox.get(m) ?? 0
-          for (const e of ownIns(m)) demand += amountOf(e, availOf(e.source), S[e.source] ?? 0)
-          if (T < demand - EPSILON) return false
+      const sExact = (pid: number): Rat => {
+        const d = sPiece.get(pid) ?? 0
+        const x = sPieceR.get(pid)
+        return x && x.d === d ? x.r : ratOfDouble(d)
+      }
+      const setPieceNumber = (pid: number, r: Rat) => {
+        const d = rnR(r)
+        sPiece.set(pid, d)
+        sPieceR.set(pid, { d, r })
+      }
+      const setOwnAmount = (id: string, r: Rat) => {
+        const d = rnR(r)
+        uOwn.set(id, d)
+        uOwnR.set(id, { d, r })
+      }
+      const supplyValue = (sup: Sup): Rat => (sup.kind === 'own' ? ownExact(sup.e.id) : mulR(planParts().coefR.get(sup)!, sExact(sup.piece)))
+      /** every piece's number, exactly (a headed piece: what its root Gate's supplies add up to) */
+      const sNowR = (): Map<number, Rat> => {
+        const s = new Map<number, Rat>()
+        for (const p of pieces) if (p.head === null) s.set(p.id, sExact(p.id))
+        for (const G of orderedMulti) {
+          const p = pieces[pieceOf.get(G)!]
+          if (p.root !== G) continue
+          let T = RAT0
+          for (const sup of supplies.get(G)!) T = addR(T, sup.kind === 'router' ? mulR(planParts().coefR.get(sup)!, s.get(sup.piece) ?? RAT0) : ownExact(sup.e.id))
+          s.set(p.id, T)
         }
-        return true
+        return s
       }
-      /** a finite upper bound for a source piece's number from its own members (the shared constraints are left to `feasible`) */
-      const pieceMax = (p: Piece): number => {
-        let hi = Infinity
+      /** what a source Gate's lines ask, with what it was handed: its demand, exactly */
+      const sourceDemand = (m: string): Rat => ownIns(m).reduce((t, e) => addR(t, exactWant(e, amountOf(e, availOf(e.source), S[e.source] ?? 0))), handedR(m))
+      const pieceMax = (p: Piece): Rat => {
+        const cofP = planParts().cofR.get(p.id)!
+        let hi: Rat | null = null
         for (const m of p.members) {
-          const cm = p.cof.get(m) ?? 0
-          if (kindOf(m) === 'converter') {
-            // `> 0`, as in the tree plan (issue #576): skipped for a Converter
-            // whose coefficient is small only because its rates are large, a
-            // piece with no other bound had none, was given 0, and the group
-            // stood still
-            if (cm > 0) hi = Math.min(hi, 1 / cm)
+          const cm = cofP.get(m)
+          if (!cm || !isPositive(cm)) continue
+          let v: Rat
+          if (kindOf(m) === 'converter') v = divR(RAT1, cm)
+          else if (!multi.has(m) && !fedByRouter.has(m)) {
+            let r = handedR(m)
+            for (const e of ownIns(m)) r = addR(r, maxR(RAT0, minR(exactWant(e, amountOf(e, availOf(e.source), S[e.source] ?? 0)), availR(e.source))))
+            v = divR(r, cm)
+          } else continue
+          if (hi === null || cmpR(v, hi) < 0) hi = v
+        }
+        return hi === null ? RAT0 : maxR(RAT0, hi)
+      }
+      /** The plan at its numbers as they stand: the settling, then every bound as a margin (a
+       *  margin under 0 is a bound passed). The list has the same entries in the same order at
+       *  every number, so two evaluations can be compared entry by entry. */
+      const evalPlan = (): { ok: boolean; margins: Rat[] } => {
+        const { sh, cofR, coefR, claimPools, rooms } = planParts()
+        const margins: Rat[] = []
+        for (const k of tentative) {
+          if (fixed.has(k)) continue
+          if (k.startsWith('own:')) {
+            uOwn.delete(k.slice(4))
+            uOwnR.delete(k.slice(4))
+          } else {
+            sPiece.delete(Number(k.slice(6)))
+            sPieceR.delete(Number(k.slice(6)))
+          }
+        }
+        tentative.clear()
+        const s0 = sNowR()
+        for (const G of orderedMulti) {
+          const p = pieces[pieceOf.get(G)!]
+          if (p.root === G) continue
+          let need = mulR(cofR.get(p.id)!.get(G) ?? RAT0, s0.get(p.id) ?? RAT0)
+          const open: Sup[] = []
+          for (const sup of supplies.get(G)!) {
+            if (fixed.has(keyOf(sup)) || (sup.kind === 'router' && sPiece.has(sup.piece))) need = subR(need, supplyValue(sup))
+            else open.push(sup)
+          }
+          margins.push(need) // what is already fixed for the Gate is within its throughput
+          for (const sup of open) {
+            const k = keyOf(sup)
+            if (tentative.has(k)) continue
+            tentative.add(k)
+            if (sup.kind === 'own') {
+              const v = maxR(RAT0, minR(need, minR(exactWant(sup.e, sup.want), availR(sup.e.source))))
+              setOwnAmount(sup.e.id, v)
+              need = subR(need, v)
+            } else {
+              const coef = open.reduce((t, o) => (o.kind === 'router' && o.piece === sup.piece ? addR(t, coefR.get(o)!) : t), RAT0)
+              const most = isPositive(coef) ? mulR(coef, pieceMax(pieces[sup.piece])) : RAT0
+              const v = maxR(RAT0, minR(need, most))
+              setPieceNumber(sup.piece, isPositive(coef) ? divR(v, coef) : RAT0)
+              need = subR(need, v)
+            }
+          }
+          margins.push(subR(RAT0, maxR(RAT0, need))) // its supplies cover its throughput, exactly
+        }
+        const s = sNowR()
+        const amount = (m: string): Rat => {
+          const pid = pieceOf.get(m)!
+          return mulR(cofR.get(pid)!.get(m) ?? RAT0, s.get(pid) ?? RAT0)
+        }
+        const takes = new Map<string, Map<string, Rat>>()
+        const gives = new Map<string, Map<string, Rat>>()
+        const claim = new Map<string, Rat>()
+        const bump = (by: Map<string, Map<string, Rat>>, m: string, q: string, v: Rat) => {
+          let row = by.get(m)
+          if (!row) by.set(m, (row = new Map()))
+          row.set(q, addR(row.get(q) ?? RAT0, v))
+        }
+        for (const m of members) {
+          const v = amount(m)
+          if (kindOf(m) === 'gate') {
+            const dead0 = (W.get(m) ?? 0) <= 0
+            margins.push(dead0 ? subR(RAT0, v) : RAT0) // a Gate with no live branch moves nothing
+            if (dead0 || !isPositive(v)) continue
+            for (const [q, w] of sh.into.get(m)!) if (isPool(q)) bump(gives, m, q, divR(mulR(v, w), sh.W.get(m)!))
             continue
           }
-          if (cm <= EPSILON) continue
-          if (!multi.has(m) && !fedByRouter.has(m)) {
-            let r = inbox.get(m) ?? 0
-            for (const e of ownIns(m)) r += Math.max(0, Math.min(amountOf(e, availOf(e.source), S[e.source] ?? 0), availOf(e.source)))
-            hi = Math.min(hi, r / cm)
+          margins.push(subR(RAT1, v)) // a Converter runs once at most
+          const cannot = disabledPullAll.has(m) || convMake.get(m)!.size === 0 || inOf(m).some((e) => !isPool(e.source) && !liveEdge(e) && rateOfCached(e) > 0)
+          margins.push(cannot ? subR(RAT0, v) : RAT0) // one that cannot run moves nothing
+          if (!isPositive(v)) continue
+          for (const [p, r] of sh.need.get(m)!) {
+            claim.set(p, addR(claim.get(p) ?? RAT0, mulR(v, r)))
+            bump(takes, m, p, mulR(v, r))
+          }
+          for (const [q, mk] of sh.into.get(m)!) if (isPool(q)) bump(gives, m, q, mulR(v, mk))
+        }
+        for (const G of multiGates) {
+          for (const sup of supplies.get(G)!) {
+            if (sup.kind !== 'own') continue
+            const u = ownExact(sup.e.id)
+            margins.push(subR(exactWant(sup.e, sup.want), u)) // an own line within what it asks
+            claim.set(sup.e.source, addR(claim.get(sup.e.source) ?? RAT0, u))
+            if (isPositive(u)) bump(takes, G, sup.e.source, u)
           }
         }
-        return Number.isFinite(hi) ? Math.max(0, hi) : 0
+        const used = new Map<string, Rat>()
+        const pullsE = new Map<string, { e: LoopEdge; aR: Rat }[]>()
+        for (const m of inOrder) {
+          if (kindOf(m) !== 'gate' || multi.has(m) || fedByRouter.has(m)) continue
+          let need = maxR(RAT0, subR(amount(m), handedR(m)))
+          for (const e of ownIns(m)) {
+            if (!isPositive(need)) break
+            const want = exactWant(e, amountOf(e, availOf(e.source), S[e.source] ?? 0))
+            const avail = maxR(RAT0, subR(subR(availR(e.source), claim.get(e.source) ?? RAT0), used.get(e.source) ?? RAT0))
+            const pulled = minR(maxR(RAT0, minR(want, avail)), need)
+            if (!isPositive(pulled)) continue
+            need = subR(need, pulled)
+            used.set(e.source, addR(used.get(e.source) ?? RAT0, pulled))
+            bump(takes, m, e.source, pulled)
+            let list = pullsE.get(m)
+            if (!list) pullsE.set(m, (list = []))
+            list.push({ e, aR: pulled })
+          }
+          margins.push(subR(RAT0, need)) // a source Gate's lines bring what the plan gives it
+        }
+        lastExact = { amount, pullsE, W: sh.W }
+        for (const p of claimPools) margins.push(subR(availR(p), claim.get(p) ?? RAT0)) // the claims on a Pool within what is available
+        for (const [q, roomR] of rooms) {
+          let level = RAT0
+          for (const m of inOrder) {
+            const t = takes.get(m)?.get(q)
+            if (t) level = subR(level, t)
+            const g = gives.get(m)?.get(q)
+            if (g) level = addR(level, g)
+            margins.push(roomsOff ? RAT0 : subR(roomR, level)) // the Pool's level at this member's turn within its room (left out while a `pull all` Gate's supplies are filled by what the Pools give)
+          }
+        }
+        return { ok: margins.every((x) => x.num >= 0n), margins }
       }
-      /** the largest value of one free number that keeps the group feasible, then its own all-or-nothing rule */
-      const largest = (set: (v: number) => void, hi: number, ok: () => boolean): number => {
-        const test = (v: number) => { set(v); return feasible() }
-        let best = 0
-        if (hi > EPSILON) {
-          if (test(hi)) best = hi
-          else {
-            let lo = 0
-            let h = hi
-            for (let i = 0; i < 64; i++) {
-              const mid = (lo + h) / 2
-              if (test(mid)) lo = mid
-              else h = mid
-            }
-            best = lo
-          }
+      /** The largest fraction, 0 to `hiR`, at which the plan stands. From the bound,
+       *  down the last straight piece of each margin that is passed, to where the first is met. */
+      const largestFit = (setTo: (x: Rat) => void, hiR: Rat, ok: () => boolean): Rat => {
+        const at = (x: Rat) => {
+          setTo(x)
+          return evalPlan()
         }
-        set(best)
-        if (best > EPSILON && !ok()) { best = 0; set(0) }
+        let best = RAT0
+        if (isPositive(hiR)) {
+          if (at(hiR).ok) best = hiR
+          else if (at(RAT0).ok) best = exactTop(RAT0, hiR, (x) => at(x).margins)
+        }
+        at(best)
+        if (isPositive(best) && !ok()) {
+          // its `pull all` rule sets it to 0
+          best = RAT0
+          at(best)
+        }
         return best
       }
-      type Item = { sup: Sup; p: Piece | null }
-      /** What a multi-supply Gate that is NOT the root of its piece still has to bring: the throughput the root gives it
-       *  (`cof · s`), less its supplies filled so far. `Infinity` for a Gate at the root of its piece (its throughput is
-       *  whatever its supplies add up to). */
-      const stillToCover = (G: string): number => {
+      /** what a multi-supply Gate that is not its piece's root still has to bring (null: it is the root) */
+      const stillToCover = (G: string): Rat | null => {
         const p = pieces[pieceOf.get(G)!]
-        if (p.root === G) return Infinity
-        let need = (p.cof.get(G) ?? 0) * (sOf().get(p.id) ?? 0)
-        for (const sup of supplies.get(G)!) if (fixed.has(keyOf(sup))) need -= valueOf(sup)
-        return Math.max(0, need)
+        if (p.root === G) return null
+        let need = mulR(planParts().cofR.get(p.id)!.get(G) ?? RAT0, sNowR().get(p.id) ?? RAT0)
+        for (const sup of supplies.get(G)!) if (fixed.has(keyOf(sup))) need = subR(need, supplyValue(sup))
+        return maxR(RAT0, need)
       }
-      /** `upTo`: the most the supply may bring (a Gate held to a throughput never brings more than is left of it). The
+      type Item = { sup: Sup; p: Piece | null }
+      /** `forG`: the Gate held to a throughput that this supply is filled for (it never brings more than is left of it). The
        *  search is then over values that the later supplies can complete, which is one-sided. Without it the last supply
        *  of a held Gate was searched over "covers the throughput exactly", true at one point only: the bisection ended at
        *  0 unless that point was the bound or the bound over a power of two, and the whole group moved nothing; and an
        *  earlier supply settled the test's tolerance past the throughput, 5.000000001 for 5 (review of 2026-11-15, P1). */
-      const fill = (it: Item, upTo = Infinity): number => {
-        tentative.delete(keyOf(it.sup)) // from here on this supply is set by its own fill, not by `settle`
-        fixed.add(keyOf(it.sup)) // and `settle` reads the value under test as given
-        const v = it.sup.kind === 'own'
-          ? largest((x) => uOwn.set((it.sup as { e: LoopEdge }).e.id, x), Math.min(it.sup.want, Math.max(0, availOf(it.sup.e.source)), upTo), () => true)
-          : largest((x) => sPiece.set(it.p!.id, x), Math.min(pieceMax(it.p!), upTo), () => rejoin || pullAllSourcesOk(it.p!)) // a rejoin's `pull all` Gates: G-R6, after the fill
+      const fill = (it: Item, forG?: string): number => {
+        // What is left of a held Gate's throughput is read before this supply counts as filled.
+        const left = forG !== undefined ? stillToCover(forG) : null
+        tentative.delete(keyOf(it.sup))
         fixed.add(keyOf(it.sup))
-        return v
+        let v: Rat
+        if (it.sup.kind === 'own') {
+          const lineId = it.sup.e.id
+          let hi = minR(exactWant(it.sup.e, it.sup.want), maxR(RAT0, availR(it.sup.e.source)))
+          if (left !== null) hi = minR(hi, left)
+          v = largestFit((x) => setOwnAmount(lineId, x), hi, () => true)
+        } else {
+          const piece = it.p!
+          let hi = pieceMax(piece)
+          if (left !== null) {
+            const pid = it.sup.piece
+            const coef = supplies.get(forG!)!.reduce((t, o) => (o.kind === 'router' && o.piece === pid ? addR(t, planParts().coefR.get(o)!) : t), RAT0)
+            hi = minR(hi, isPositive(coef) ? divR(left, coef) : RAT0)
+          }
+          v = largestFit((x) => setPieceNumber(piece.id, x), hi, () => pullAllSourcesOk(piece))
+        }
+        return rnR(v)
       }
       let zero = false
       let zeroAt: string | null = null // #477 — the `pull all` Gate whose fixed demand could not be met
@@ -2340,29 +2954,78 @@ export function step(
           items.forEach((it, i) => {
             if (Number.isNaN(reach[i])) return
             tentative.delete(keyOf(it.sup))
-            if (it.sup.kind === 'own') uOwn.set(it.sup.e.id, reach[i])
+            if (it.sup.kind === 'own') {
+              setOwnAmount(it.sup.e.id, exactWant(it.sup.e, it.sup.want))
+            }
             else sPiece.set(it.p!.id, reach[i])
             fixed.add(keyOf(it.sup))
           })
-          if (!feasible()) { zero = true; zeroAt = G; break }
+          let fits = feasible()
+          if (!fits) {
+            // The turn's `pull all` rule, in the plan. Asked in fractions, "the full reach fits"
+            // is exact: a line that writes 0.006 asks 1.5e-19 more than a Pool holding the
+            // double 0.011 has left after 0.005, and a supply of 4e-20 of such dust counted
+            // twice does not fit either. The group is not stopped for that, where the Gate's
+            // turn would run: short of what its lines ask by no more than the absolute epsilon.
+            // So: the supplies again, in their order, each as much as fits; what they bring
+            // together may be under the full reach by the absolute epsilon and no more.
+            const live = items.filter((_, i) => !Number.isNaN(reach[i]))
+            const fullOf = live.map((it) => supplyValue(it.sup))
+            const full = fullOf.reduce((t, x) => addR(t, x), RAT0)
+            for (const it of live) {
+              if (it.sup.kind === 'own') setOwnAmount(it.sup.e.id, RAT0)
+              else setPieceNumber(it.p!.id, RAT0)
+              fixed.delete(keyOf(it.sup))
+            }
+            for (const it of live) fill(it)
+            const brought = live.reduce((t, it) => addR(t, supplyValue(it.sup)), RAT0)
+            fits = feasible() && cmpR(subR(full, brought), shortfallAllowedR(full)) <= 0
+            // The epsilon is for a POOL that holds a hair less than is asked of it, and for
+            // nothing else (SEMANTICS-E.md §E12). So of every supply that brings less than its
+            // reach it is asked: WITH THE ROOMS LEFT OUT OF THE QUESTION and the other supplies
+            // as they stand, could it bring more? If it could, it is the room below that holds
+            // it, the fixed demand is not made smaller for that, and the group moves nothing
+            // (SEMANTICS.md §6, erratum parts 3 and 9: "moves at exactly that point or not at
+            // all", "a net inflow of any size is refused"; the two tests B of
+            // fullPoolLoop.test.ts). If it could not, the Pools are what it is short of.
+            // Asked instead whether a Pool of the short supply was empty, a piece held down by
+            // the room with one of its Pools emptied passed.
+            let heldByRoom = false
+            if (fits) {
+              live.forEach((it, i) => {
+                const had = supplyValue(it.sup)
+                if (heldByRoom || cmpR(had, fullOf[i]) >= 0) return
+                const hadOwn = it.sup.kind === 'own' ? ownExact(it.sup.e.id) : RAT0
+                const hadNumber = it.sup.kind === 'own' ? RAT0 : (sNowR().get(it.p!.id) ?? RAT0)
+                roomsOff = true
+                fill(it)
+                roomsOff = false
+                const could = minR(supplyValue(it.sup), fullOf[i])
+                if (it.sup.kind === 'own') setOwnAmount(it.sup.e.id, hadOwn)
+                else setPieceNumber(it.p!.id, hadNumber)
+                if (cmpR(could, had) > 0) heldByRoom = true
+              })
+              if (heldByRoom) fits = false
+              else fits = feasible() // the plan's numbers as they stand again
+            }
+          }
+          if (!fits) {
+            zero = true
+            zeroAt = G
+            break
+          }
         } else {
           for (const it of items) {
             if (determined(it)) continue
             // a Gate held to a throughput: this supply brings at most what is left of it
             fixed.delete(keyOf(it.sup)) // (not counted as filled while its own room is measured)
-            const left = stillToCover(G)
-            let upTo = left
-            if (it.sup.kind === 'router' && Number.isFinite(left)) {
-              // the piece's number: every connection from that piece into G carries its share of it
-              const piece = it.sup.piece
-              const coef = supplies.get(G)!.reduce((t, o) => (o.kind === 'router' && o.piece === piece ? t + o.coef : t), 0)
-              upTo = coef > EPSILON ? left / coef : 0
-            }
-            fill(it, upTo)
+            fill(it, G)
           }
         }
       }
-      if (!zero && !feasible()) zero = true // the later Gate of a shared piece could not be met exactly
+      if (!zero && !feasible()) {
+        zero = true // the later Gate of a shared piece could not be met exactly
+      }
       // A `pull all` source Gate in a piece HEADED by a multi-supply Gate runs
       // at its demand or the group moves nothing (§9; the tree rule, "`pull
       // all` members fix the number"). Only the source pieces were asked, as
@@ -2370,36 +3033,61 @@ export function step(
       // short, dropped at the commit, and the rest of the group moved without
       // it (review of 2026-11-15, P3).
       if (!zero && !rejoin) {
-        const c = amountsOf(sOf())
+        const exact = exactAmounts()
         for (const p of pieces) {
           if (p.head === null) continue
           for (const m of p.members) {
             if (kindOf(m) !== 'gate' || multi.has(m) || fedByRouter.has(m) || modeOfRouter(m) !== 'pullAll') continue
-            let demand = inbox.get(m) ?? 0
-            for (const e of ownIns(m)) demand += amountOf(e, availOf(e.source), S[e.source] ?? 0)
-            if ((c.get(m) ?? 0) < demand - EPSILON) { zero = true; zeroAt ??= m }
+            if (shortOf(m, exact)) {
+              zero = true
+              zeroAt ??= m
+            }
           }
         }
       }
       const failedPullAll = new Set<string>() // G-R6 — every `pull all` Gate of a rejoin whose fixed demand was missed
       if (!zero && rejoin) {
-        // the fixed demand: every entry at its full amount (a source piece at
-        // its own maximum, an own-Pool connection at min(rate, availability)),
-        // through the same coefficients as the plan
-        const full = new Map<number, number>()
-        for (const p of pieces) if (p.head === null) full.set(p.id, pieceMax(p))
+        const exact = exactAmounts()
+        // The fixed demand of a Gate with two supplies, in fractions, its two kinds of supply
+        // kept apart: every entry at its full amount, through the same coefficients as the plan.
+        //   HANDED: what the members before it hand it with every entry at its full amount (a
+        //     source piece at the most its own members can run at). That is not a demand of this
+        //     Gate's: a Gate passes on what it is handed (issue 572, erratum part 12).
+        //   ITS OWN POOL LINES: what they ASK, where the Gate is `pull all`: the rule a Gate's
+        //     turn asks of its lines. (Read as what they could bring, a join asking 6 of a Pool
+        //     holding 2 was "met" at 2, and a Pool holding nothing asked nothing of it.) A Gate
+        //     that is not `pull all` brings what its lines can.
+        // Short of the two together by more than the absolute epsilon, the whole group stops.
+        const fullR = new Map<number, Rat>()
+        for (const p of pieces) if (p.head === null) fullR.set(p.id, pieceMax(p))
         for (const G of orderedMulti) {
           const p = pieces[pieceOf.get(G)!]
           if (p.root !== G) continue
-          let T = 0
-          for (const sup of supplies.get(G)!) T += sup.kind === 'router' ? sup.coef * (full.get(sup.piece) ?? 0) : Math.min(sup.want, Math.max(0, availOf(sup.e.source)))
-          full.set(p.id, T)
+          let handed = RAT0
+          let own = RAT0
+          for (const sup of supplies.get(G)!) {
+            if (sup.kind === 'router') handed = addR(handed, mulR(planParts().coefR.get(sup)!, fullR.get(sup.piece) ?? RAT0))
+            else {
+              const ask = exactWant(sup.e, sup.want)
+              own = addR(own, modeOfRouter(G) === 'pullAll' ? ask : minR(ask, maxR(RAT0, availR(sup.e.source))))
+            }
+          }
+          fullR.set(p.id, addR(handed, own))
         }
-        const demand = amountsOf(full)
-        const plan = amountsOf(sOf())
+        const demandR = (m: string): Rat => mulR(planParts().cofR.get(pieceOf.get(m)!)?.get(m) ?? RAT0, fullR.get(pieceOf.get(m)!) ?? RAT0)
         for (const m of members) {
           if (kindOf(m) !== 'gate' || modeOfRouter(m) !== 'pullAll') continue
-          if ((plan.get(m) ?? 0) < (demand.get(m) ?? 0) - EPSILON) failedPullAll.add(m)
+          if (!multi.has(m) && !fedByRouter.has(m)) {
+            // A SOURCE Gate's fixed demand is what its lines ASK, the rule its turn
+            // asks, and not what they can bring. (Read as what they can bring, a Gate asking 9
+            // of Pools that could bring 4 was "met" at 4 and stopped at its turn; and once the
+            // fill asked the turn's rule and gave it 0, the group stopped where its Pools held
+            // something and ran without it where they held nothing.)
+            if (shortOf(m, exact)) failedPullAll.add(m)
+            continue
+          }
+          const want = demandR(m)
+          if (cmpR(addR(exact(m), shortfallAllowedR(want)), want) < 0) failedPullAll.add(m)
         }
         if (failedPullAll.size) zero = true
       }
@@ -2414,29 +3102,73 @@ export function step(
       // #477 — a zeroed group's Gates say why: the `pull all` Gate whose
       // fixed demand failed, `pullAll`; every other Gate of the group, `plan`
       if (zero) for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, m === zeroAt || failedPullAll.has(m) ? 'pullAll' : 'plan')
-      // record the plan; claim the inputs (`reservedIn`) and the output room, as the tree plan does
+      // record the plan; claim the inputs (`claimR`) and the output room, as the tree plan does
       const c = amountsOf(sOf())
-      // what the plan's source Gates pull, held for them until their turns
-      // (issue #570): the same greedy pulls `feasible` charged, at the plan as
-      // it is recorded, net of the same claims
-      {
-        const claim = new Map<string, number>()
+      if (!zero) {
+        // One working of every amount of the multi-supply plan. The record takes each amount from
+        // the exact fractions the test decided on. The fraction is what is claimed or promised,
+        // and what a Gate or a Converter takes from its Pools at its turn; the double beside it
+        // is that fraction rounded once.
+        evalPlan() // the fractions at the plan's final numbers
+        type ExR = { amount: (m: string) => Rat; pullsE: Map<string, { e: LoopEdge; aR: Rat }[]>; W: Map<string, Rat> }
+        const exR = (lastExact as ExR | null)! // (`evalPlan` always leaves its working)
         for (const m of members) {
-          if (kindOf(m) === 'gate') continue
-          const f = nz(Math.max(0, Math.min(1, c.get(m) ?? 0)))
-          if (f <= 0) continue
-          for (const [p, r] of convNeed.get(m)!) add(claim, p, f * r)
+          planned.add(m)
+          const aR = exR.amount(m)
+          if (kindOf(m) === 'gate') {
+            const T = nz(rnR(aR))
+            planT.set(m, T)
+            const WmR = exR.W.get(m)
+            for (const e of liveOuts(m)) {
+              if (rateOfCached(e) <= 0 || !WmR || (W.get(m) ?? 0) <= 0) continue
+              const xR = divR(mulR(aR, exactRate(e)), WmR)
+              const amt = nz(rnR(xR))
+              if (promised(amt, xR) && isPool(e.target)) promiseR(m, e.target, xR)
+            }
+            // (a line keeps its exact amount, and is kept whatever its size)
+            const pulls: { e: LoopEdge; a: number; r?: Rat }[] = []
+            if (multi.has(m)) {
+              for (const sup of supplies.get(m)!) {
+                if (sup.kind !== 'own') continue
+                const xR = ownExact(sup.e.id)
+                const a = nz(uOwn.get(sup.e.id) ?? 0)
+                if (a > 0 || (isPositive(xR))) pulls.push({ e: sup.e, a, r: xR })
+              }
+            } else {
+              for (const { e, aR: pR } of exR.pullsE.get(m) ?? []) {
+                const a = nz(rnR(pR))
+                if (a > 0 || (isPositive(pR))) pulls.push({ e, a, r: pR })
+              }
+            }
+            if (multi.has(m) || pulls.length) {
+              planPulls.set(m, pulls)
+              if (!multi.has(m)) planPullsSource.add(m)
+              for (const { e, a, r } of pulls) claimAddR(e.source, r ?? ratOfDouble(a))
+            }
+            continue
+          }
+          const fR = minR(RAT1, aR)
+          const f = targetFloored(m) ? 0 : rnR(fR)
+          planF.set(m, f)
+          const takes: { e: LoopEdge; a: number; r?: Rat }[] = []
+          for (const e of convPoolIns.get(m)!) {
+            const xR = mulR(fR, exactRate(e))
+            const a = f > 0 ? nz(rnR(xR)) : 0
+            if (a <= 0 && !(f > 0 && isPositive(xR))) continue
+            takes.push({ e, a, r: xR })
+            claimAddR(e.source, xR)
+          }
+          planTakes.set(m, takes)
+          for (const e of liveOuts(m)) {
+            if (rateOfCached(e) <= 0) continue
+            const xR = mulR(fR, exactRate(e))
+            const amt = f > 0 ? nz(rnR(xR)) : 0
+            if (promised(amt, xR) && isPool(e.target)) promiseR(m, e.target, xR)
+          }
         }
-        for (const G of multiGates) for (const sup of supplies.get(G)!) if (sup.kind === 'own') add(claim, sup.e.source, Math.max(0, uOwn.get(sup.e.id) ?? 0))
-        const held = new Map<string, Map<string, number>>()
-        const inOrder = [...members].sort((a, b) => (orderIdx.get(a) ?? Infinity) - (orderIdx.get(b) ?? Infinity))
-        sourcePulls(c, claim, inOrder, (m, q, pulled) => {
-          let row = held.get(m)
-          if (!row) held.set(m, (row = new Map()))
-          row.set(q, (row.get(q) ?? 0) + pulled)
-        })
-        for (const [m, row] of held) holdFor(m, row)
+        return
       }
+      // a zeroed group: every member is recorded at nothing
       for (const m of members) {
         planned.add(m)
         if (kindOf(m) === 'gate') {
@@ -2447,8 +3179,7 @@ export function step(
             if (!isPool(q)) continue
             const amt = nz((T * w) / Wm)
             if (amt <= 0) continue
-            reserved.set(q, reservedOf(q) + amt)
-            addOwn(m, q, amt)
+            promise(m, q, amt)
           }
           if (multi.has(m)) {
             const pulls: { e: LoopEdge; a: number }[] = []
@@ -2457,28 +3188,25 @@ export function step(
               const a = nz(uOwn.get(sup.e.id) ?? 0)
               if (a <= 0) continue
               pulls.push({ e: sup.e, a })
-              reservedIn.set(sup.e.source, (reservedIn.get(sup.e.source) ?? 0) + a)
             }
             planPulls.set(m, pulls)
           }
           continue
         }
-        const f = nz(Math.max(0, Math.min(1, c.get(m) ?? 0)))
+        const f = targetFloored(m) ? 0 : Math.max(0, Math.min(1, c.get(m) ?? 0))
         planF.set(m, f)
         const takes: { e: LoopEdge; a: number }[] = []
         for (const e of convPoolIns.get(m)!) {
           const a = nz(f * rateOfCached(e))
           if (a <= 0) continue
           takes.push({ e, a })
-          reservedIn.set(e.source, (reservedIn.get(e.source) ?? 0) + a)
         }
         planTakes.set(m, takes)
         for (const [q, make] of convMake.get(m)!) {
           if (!isPool(q)) continue
           const amt = nz(f * make)
           if (amt <= 0) continue
-          reserved.set(q, reservedOf(q) + amt)
-          addOwn(m, q, amt)
+          promise(m, q, amt)
         }
       }
     }
@@ -2504,7 +3232,6 @@ export function step(
         for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, 'plan')
       if (group) planGroup(group)
       if (mg) planMulti(mg.members, mg.multiGates, mg.rejoin)
-      releaseHold(id) // a planned source Gate at its own turn: what was held for it is its to pull (issue #570)
 
       if (k === 'drain' || k === 'end') {
         // a terminal consumes what a router handed it: the entry is cleared, or
@@ -2527,14 +3254,15 @@ export function step(
         // (review of 2026-11-15, E3).
         const from = new Map<string, number>()
         for (const w of wants) from.set(w.e.source, (from.get(w.e.source) ?? 0) + Math.max(0, w.want))
+        const asked = [...from.values()].reduce((a, b) => a + b, 0) // all the node asks: what its allowance is measured by
         const feasible =
-          mode === 'pullAll' ? [...from].every(([p, want]) => availOf(p) >= want - EPSILON) : true
+          mode === 'pullAll' ? [...from].every(([p, want]) => availOf(p) >= want - shortfallAllowed(asked)) : true
         if (feasible) {
           for (const w of wants) {
-            const a =
-              mode === 'pullAll'
-                ? nz(w.want)
-                : nz(Math.max(0, Math.min(w.want, availOf(w.e.source))))
+            // Each line takes what it asks or, where its Pool is short, what the Pool still
+            // holds: a `pull all` node that runs short within its allowance as well
+            // (SEMANTICS-E.md §E11b). It took all it asked, and the record took the Pool under 0.
+            const a = nzPool(Math.max(0, Math.min(w.want, availOf(w.e.source))))
             if (a > 0) {
               takeFrom(w.e.source, a)
               got += a
@@ -2542,7 +3270,7 @@ export function step(
             }
           }
         }
-        if (got > EPSILON) {
+        if (got > 0) {
           fired.add(id)
           if (k === 'end') ended = true
         }
@@ -2565,12 +3293,10 @@ export function step(
         }
 
         let T: number
-        // #492 — what came through the inbox: `planReserve` already walked it
-        // down to the Pools when the upstream router handed it over, so only
-        // the rest of T reserves room as it is passed on. Reserving it again
-        // cancelled out on a chain (the Gate's own credit) but ate the room of
-        // a sibling that shares the Pool
-        let fromInboxT = 0
+        let fromInR: Rat = RAT0
+        let TR: Rat = RAT0 // exactly what came into the Gate this turn, and what it hands on
+        let sizeR: Rat | null = null // the most a Gate outside every plan may move, exactly (null: no bound)
+        let sized = false
         const plPulls = planPulls.get(id)
         if (plPulls !== undefined) {
           // #476 — a multi-supply Gate moves exactly its plan: the inbox (its
@@ -2578,21 +3304,37 @@ export function step(
           // the plan claimed at the group's first router, released here. The
           // plan already applied `pull all` (the point or nothing), so the
           // demand test below does not run again on the Pool net of the claim.
-          let got = inbox.get(id) ?? 0
-          inbox.set(id, 0)
-          for (const { e, a } of plPulls) {
-            reservedIn.set(e.source, (reservedIn.get(e.source) ?? 0) - a)
-            takeFrom(e.source, a)
-            got += a
-            emit(e, e.source, id, a)
+          if (planPullsSource.has(id) && mode === 'pullAll') {
+            // A source Gate keeps its own `pull all` test: what its record brings against what
+            // its lines ask (the plan's number can be less than the demand). Short of it by more
+            // than the absolute epsilon, it takes nothing: the record's claims are given back.
+            // The test is on the exact amounts.
+            let askR = RAT0
+            for (const e of inOf(id)) if (isPool(e.source) && !dead.has(e.id)) askR = addR(askR, exactWant(e, amountOf(e, availOf(e.source) + (plPulls.find((x) => x.e.id === e.id)?.a ?? 0), S[e.source] ?? 0)))
+            const bringR = plPulls.reduce((t, x) => addR(t, x.r ?? ratOfDouble(x.a)), RAT0)
+            const short = cmpR(subR(askR, bringR), shortfallAllowedR(askR)) > 0
+            if (short) {
+              for (const { e, a, r } of plPulls) claimSubR(e.source, r ?? ratOfDouble(a))
+              recordGate(id, 0)
+              continue
+            }
           }
-          T = nz(Math.max(0, got))
-          if (T <= EPSILON) {
+          inbox.set(id, 0)
+          TR = inboxR.get(id) ?? RAT0
+          inboxR.set(id, RAT0)
+          for (const { e, a, r } of plPulls) {
+            const x = r ?? ratOfDouble(a)
+            claimSubR(e.source, x)
+            takeFrom(e.source, a, x)
+            TR = addR(TR, x)
+            emit(e, e.source, id, a, x)
+          }
+          if (!isPositive(TR)) {
             recordGate(id, 0)
             continue
           }
         } else {
-          let inb = inbox.get(id) ?? 0
+          const inb = inbox.get(id) ?? 0
           const ins = inOf(id)
             .filter((e) => isPool(e.source) && !dead.has(e.id))
             .sort(cmpEdge)
@@ -2634,78 +3376,132 @@ export function step(
           // last place to pass epsilon (3.5e9 handed over, 0 passed on).
           // The plan has already decided what the group moves, `pull all`
           // members included; nothing is left for this Gate to refuse.
-          const handed = plT !== undefined && ins.length === 0
+          const handed = (plT !== undefined || (inb > 0)) && ins.length === 0
+          // the display threshold is for what is SHOWN, not for what moves: a throughput under it is not made 0
           T = handed
-            ? nz(Math.max(0, inb))
+            ? Math.max(0, inb)
             : plT !== undefined
-              ? nz(Math.max(0, Math.min(plT, demand, inputAvail)))
-              : nz(Math.max(0, Math.min(demand, inputAvail, accept(id))))
-          if (mode === 'pullAll' && !handed && T < demand - EPSILON) T = 0
-          if (T <= EPSILON) {
+              ? Math.max(0, Math.min(plT, demand, inputAvail))
+              : Math.max(0, Math.min(demand, inputAvail))
+          // `pull all` is asked below, once, on the exact amounts the lines would bring
+          if (T <= 0) {
             recordGate(id, 0)
             continue
           }
 
-          // consume inbox first, then pull the rest from pools in (source, edge) order
-          let need = T
-          const fromInbox = Math.min(need, inb)
-          fromInboxT = fromInbox
-          need -= fromInbox
-          inbox.set(id, inb - fromInbox)
-          inb -= fromInbox
-          for (const w of wants) {
-            if (need <= EPSILON) break
-            const a = nz(Math.min(need, availOf(w.e.source), w.want))
-            if (a > 0) {
-              takeFrom(w.e.source, a)
-              need -= a
-              emit(w.e, w.e.source, id, a)
+          if (plT === undefined && !handed) {
+            // A Gate outside every plan, with Pool lines of its own. What it hands on is followed
+            // in exact shares, through the Gates below that only pass on, to the Pools it ends
+            // in: each Pool gets a fixed part of the throughput. The most the Gate may move is
+            // then the least of `room / part` over those Pools (the exact room; a Pool that
+            // reads full has none) and of `accept / part` over the targets that are not followed.
+            // A division; no walk down the doubles, and no share a part of a last place past the room.
+            const partPool = new Map<string, Rat>()
+            const partOther = new Map<string, Rat>()
+            const blocked = !spreadExact(id, RAT1, 0, partPool, partOther, probabilistic ? sel : undefined)
+            const least = (v: Rat) => {
+              if (sizeR === null || cmpR(v, sizeR) < 0) sizeR = v
+            }
+            // (A Gate that was also HANDED something is sized here too. What it was handed was
+            // promised downstream, exactly, in these same shares, when it was handed: it passes
+            // all of that on, and what its own lines may add is what the Pools' rooms hold beyond
+            // every promise.)
+            const handedR = inb > 0 ? (inboxR.get(id) ?? RAT0) : RAT0
+            if (blocked) least(RAT0)
+            for (const [q, part] of partPool) {
+              const c0 = cap(byId.get(q)!)
+              if (!Number.isFinite(c0)) continue
+              const room = (working[q] ?? 0) >= c0 ? RAT0 : maxR(RAT0, roomRatR(q, RAT0)!) // a Pool that reads full has no room
+              least(addR(handedR, divR(room, part)))
+            }
+            for (const [t, part] of partOther) {
+              const a = accept(t)
+              if (Number.isFinite(a)) {
+                least(divR(ratOfDouble(Math.max(0, a)), part))
+              }
+            }
+            sized = true
+            if (sizeR !== null && !isPositive(sizeR)) {
+              recordGate(id, 0)
+              continue
             }
           }
-        }
 
-        // #388 B — delivering into a Pool settles the reservation that was made
-        // for THIS Gate there (and only that), the way a Converter's does.
-        const settleOwn = (poolId: string, q: number) => {
-          const own = ownReserve.get(id)
-          const held = Math.min(q, own?.get(poolId) ?? 0)
-          if (held <= 0) return
-          reserved.set(poolId, reservedOf(poolId) - held)
-          own!.set(poolId, own!.get(poolId)! - held)
-        }
-
-        if (probabilistic) {
-          // the whole of T goes down the one selected branch (§B4.3)
-          if (isPool(sel!.target)) {
-            settleOwn(sel!.target, T)
-            working[sel!.target] = (working[sel!.target] ?? 0) + T
-          } else {
-            inbox.set(sel!.target, (inbox.get(sel!.target) ?? 0) + T)
-            if (!planned.has(sel!.target) && T > fromInboxT) planReserve(sel!.target, T - fromInboxT) // a plan member's room is already held
+          // consume inbox first, then pull the rest from pools in (source, edge) order
+          const fromInbox = Math.min(T, inb)
+          // What the Gate moves, exactly. Of what it was handed: all of it, where the
+          // throughput takes all of it. Of its Pool lines: each up to its own exact amount and to
+          // what its Pool exactly holds, in their order. The throughput found above (a double)
+          // bounds the sum only where something other than the lines' own amounts and supplies
+          // made it smaller (the plan's throughput); otherwise the lines
+          // bring what they ask, and the sum need not be a double. `pull all` is asked here, on
+          // these amounts, before anything moves: short of what the lines ask by more than the
+          // absolute epsilon, the Gate takes nothing.
+          const inR = inboxR.get(id) ?? RAT0
+          // (a Gate sized exactly passes on all it was handed, up to its exact size)
+          const fromInboxR = sized ? (sizeR !== null ? minR(inR, sizeR) : inR) : fromInbox >= inb ? inR : minR(inR, ratOfDouble(fromInbox))
+          let bound = handed || T < Math.min(demand, inputAvail) ? maxR(RAT0, subR(ratOfDouble(T), fromInboxR)) : null
+          if (sized && sizeR !== null) {
+            const left = maxR(RAT0, subR(sizeR, fromInboxR))
+            bound = bound === null ? left : minR(bound, left)
           }
-          emit(sel!, id, sel!.target, T)
-          fired.add(id)
-          recordGate(id, T)
-          continue
+          let leftR = handed ? RAT0 : bound
+          const dry = new Map<string, Rat>()
+          const linePulls: { e: LoopEdge; x: Rat }[] = []
+          let askR = inR
+          let bringR = fromInboxR
+          for (const w of wants) {
+            const wantR = exactWant(w.e, w.want)
+            askR = addR(askR, wantR)
+            const have = maxR(RAT0, subR(availR(w.e.source), dry.get(w.e.source) ?? RAT0))
+            let x = minR(have, wantR)
+            if (leftR !== null) x = minR(x, leftR)
+            if (!isPositive(x)) continue
+            linePulls.push({ e: w.e, x })
+            dry.set(w.e.source, addR(dry.get(w.e.source) ?? RAT0, x))
+            bringR = addR(bringR, x)
+            if (leftR !== null) leftR = subR(leftR, x)
+          }
+          if (mode === 'pullAll' && !handed && cmpR(subR(askR, bringR), shortfallAllowedR(askR)) > 0) {
+            recordGate(id, 0)
+            continue
+          }
+          const liveW = probabilistic || outOf(id).some((e) => !skipDet(e.id) && rateOfCached(e) > 0)
+          if (!isPositive(bringR) || !liveW) {
+            recordGate(id, 0)
+            continue
+          }
+          inbox.set(id, sized ? rnR(subR(inR, fromInboxR)) : inb - fromInbox)
+          inboxR.set(id, subR(inR, fromInboxR))
+          fromInR = fromInboxR
+          for (const { e, x } of linePulls) {
+            const a = rnR(x)
+            takeFrom(e.source, a, x)
+            emit(e, e.source, id, a, x)
+          }
+          TR = bringR
         }
 
-        const outs = outOf(id).filter((e) => !skipDet(e.id))
-        // `sumW > ε` here: `accept(gate)` sums the SAME `outs` and returns 0 for
-        // `sumW ≤ ε`, so `T` is 0 and the Gate was left at `T ≤ ε` above. The
-        // equal-split arm that stood here for that case was unreachable (#419
-        // item 4).
-        const sumW = outs.reduce((s, e) => s + rateOfCached(e), 0)
-        for (const e of outs) {
-          const share = nz((T * rateOfCached(e)) / sumW)
-          if (share <= 0) continue
+        // The Gate hands on exactly what came in, split exactly by its weights (a probabilistic
+        // Gate: all of it down the one branch). No share is rounded: lines in less lines out
+        // is 0.
+        const outEdges = probabilistic ? [sel!] : outOf(id).filter((e) => !skipDet(e.id))
+        const outWeights = outEdges.map((e) => (probabilistic ? RAT1 : exactRate(e)))
+        const outWeightSum = outWeights.reduce((t, w) => addR(t, w), RAT0)
+        T = rnR(TR)
+        for (const [i, e] of outEdges.entries()) {
+          const xR = isPositive(outWeightSum) ? divR(mulR(TR, outWeights[i]), outWeightSum) : RAT0
+          if (!isPositive(xR)) continue
+          const share = rnR(xR)
           if (isPool(e.target)) {
-            settleOwn(e.target, share)
-            working[e.target] = (working[e.target] ?? 0) + share
+            settleR(id, e.target, xR)
+            moveLevel(e.target, share, xR)
           } else {
             inbox.set(e.target, (inbox.get(e.target) ?? 0) + share)
-            if (!planned.has(e.target) && T > fromInboxT) planReserve(e.target, fromInboxT > 0 ? (share * (T - fromInboxT)) / T : share)
+            // the part of this share that the Gate's own lines brought (the rest was promised when it was handed)
+            if (!planned.has(e.target) && cmpR(TR, fromInR) > 0) planReserveR(e.target, divR(mulR(xR, subR(TR, fromInR)), TR))
           }
-          emit(e, id, e.target, share)
+          emit(e, id, e.target, share, xR)
         }
         fired.add(id)
         recordGate(id, T)
@@ -2732,31 +3528,31 @@ export function step(
         const sumIn = sumInRate(id)
         const own = ownReserve.get(id)
 
-        // the outputs at `f`: into a Pool, settling only the reservation made
+        // the outputs at `fR`: into a Pool, settling only the reservation made
         // for THIS Converter (#388 C — releasing the Pool's total let a
         // pool-fed Converter free another router's promise); into a router,
         // an INBOX (#388 D — `working` is summed over Pools only at commit)
         // with its room reserved downstream, unless the target is a member of
         // a planned group, whose room the plan already holds.
-        const deliver = (f: number) => {
+        const deliver = (fR: Rat, took: boolean) => {
+          // one exact fraction on every output: `fR · rate`, the rate as it is read
+          let made = false
           for (const e of outOf(id)) {
-            if (skipDet(e.id)) continue
-            const q = nz(f * rateOfCached(e))
-            if (q <= 0) continue
+            if (skipDet(e.id) || rateOfCached(e) <= 0) continue
+            const xR = mulR(fR, exactRate(e))
+            if (!isPositive(xR)) continue
+            made = true
+            const q = rnR(xR)
             if (isPool(e.target)) {
-              const held = Math.min(q, own?.get(e.target) ?? 0)
-              if (held > 0) {
-                reserved.set(e.target, reservedOf(e.target) - held)
-                own!.set(e.target, own!.get(e.target)! - held)
-              }
-              working[e.target] = (working[e.target] ?? 0) + q
+              settleR(id, e.target, xR)
+              moveLevel(e.target, q, xR)
             } else {
               inbox.set(e.target, (inbox.get(e.target) ?? 0) + q)
-              if (!planned.has(e.target)) planReserve(e.target, q)
+              if (!planned.has(e.target)) planReserveR(e.target, xR)
             }
-            emit(e, id, e.target, q)
+            emit(e, id, e.target, q, xR)
           }
-          fired.add(id)
+          if (made || took) fired.add(id)
         }
 
         // #471 Deploy 2 — a member of a planned tree group runs at the plan's
@@ -2767,21 +3563,37 @@ export function step(
         if (plF !== undefined) {
           let received = inboxHave
           inbox.set(id, 0)
-          for (const { e, a } of planTakes.get(id) ?? []) {
-            reservedIn.set(e.source, (reservedIn.get(e.source) ?? 0) - a)
-            takeFrom(e.source, a)
+          let receivedR = inboxR.get(id) ?? RAT0 // exactly what arrived
+          inboxR.set(id, RAT0)
+          for (const { e, a, r } of planTakes.get(id) ?? []) {
+            const x = r ?? ratOfDouble(a)
+            claimSubR(e.source, x)
+            takeFrom(e.source, a, x)
             received += a
-            emit(e, e.source, id, a)
+            receivedR = addR(receivedR, x)
+            emit(e, e.source, id, a, x)
           }
           // the plan's f, bounded by what arrived (equal, up to rounding)
-          let f = sumIn > EPSILON ? Math.min(plF, received / sumIn) : 0
-          f = nz(Math.max(0, Math.min(1, f)))
+          // (SEMANTICS-E.md E-open 4: `received` is a sum of doubles, and the double beside an
+          // amount under the display threshold is 0. So a `pull all` Converter one of whose
+          // amounts is that small reads less than arrived and stops its group. Reading the
+          // verdict off the exact amounts lets the group run, and then a member behind it whose
+          // stated run target is under the floor drops what it is handed: tried, and not done.)
+          let f = sumIn > 0 ? Math.min(plF, received / sumIn) : 0
+          f = Math.max(0, Math.min(1, f))
           if (mode === 'pullAll' && f < (planNeed.get(id) ?? 1) * RUN_REACHED) {
             pullShort.add(id)
             f = 0
           }
-          if (f <= EPSILON) continue
-          deliver(f)
+          // The fraction is what arrived over what a full run takes, exactly (the
+          // members before it delivered at the plan's fraction, and so did its own takes)
+          const sumInR = inOf(id).reduce((t, e) => (rateOfCached(e) > 0 ? addR(t, exactRate(e)) : t), RAT0)
+          // (`f`, the double, only carries the `pull all` verdict above here: what arrived is
+          // the ledger's, whatever its size, and the Converter runs on it)
+          const stopped = mode === 'pullAll' && f === 0
+          const fR = !stopped && isPositive(sumInR) ? minR(RAT1, divR(receivedR, sumInR)) : RAT0
+          if (!isPositive(fR) || targetFloored(id)) continue
+          deliver(fR, isPositive(receivedR))
           continue
         }
 
@@ -2792,9 +3604,9 @@ export function step(
         // does not run from its Pools alone (the "half a batch" defect, V2).
         // Or it is a member of a MULTI group (a live router input), which
         // keeps the rule it had (unresolved; #471 stays open).
-        const routerIns = inOf(id).filter((e) => !isPool(e.source) && !dead.has(e.id) && rateOfCached(e) > EPSILON)
+        const routerIns = inOf(id).filter((e) => !isPool(e.source) && !dead.has(e.id) && rateOfCached(e) > 0)
         const routerFed = routerIns.some((e) => liveEdge(e))
-        if (!routerFed && inOf(id).some((e) => !isPool(e.source) && rateOfCached(e) > EPSILON)) {
+        if (!routerFed && inOf(id).some((e) => !isPool(e.source) && rateOfCached(e) > 0)) {
           if (mode === 'pullAll') pullShort.add(id)
           continue
         }
@@ -2819,7 +3631,7 @@ export function step(
         const needFrom = new Map<string, number>()
         for (const e of poolIns) {
           const r = rateOfCached(e)
-          if (r <= EPSILON) continue
+          if (r <= 0) continue
           needFrom.set(e.source, (needFrom.get(e.source) ?? 0) + r)
         }
         let fPool = 1
@@ -2842,14 +3654,26 @@ export function step(
         for (const e of outOf(id)) {
           if (skipDet(e.id)) continue
           const r = rateOfCached(e)
-          if (r <= EPSILON) continue
+          if (r <= 0) continue
           makeInto.set(e.target, (makeInto.get(e.target) ?? 0) + r)
+        }
+        // This Converter's net make into Pool `q` a run, where it is ABOVE 0, else 0. A net above
+        // 0 asks the Pool's room whatever its size (SEMANTICS-E.md §E14): asked only above the
+        // epsilon, a Converter that made 7e-12 a run into a Pool at its capacity was not held,
+        // took its inputs, and what it made was gone. The sign is read off the rates as
+        // fractions, so that rates that balance as they are written (0.3 taken, 0.1 and 0.2
+        // made) are not a net by the rounding of their doubles.
+        const netInto = (q: string, net: number): number => {
+          let r = RAT0
+          for (const e of outOf(id)) if (!skipDet(e.id) && e.target === q && rateOfCached(e) > 0) r = addR(r, exactRate(e))
+          for (const e of poolIns) if (e.source === q && rateOfCached(e) > 0) r = subR(r, exactRate(e))
+          return isPositive(r) ? (net > 0 ? net : toDouble(r)) : 0
         }
         let fOut = makeInto.size > 0 ? 1 : 0 // #388 D — no live output, no run
         for (const [q, make] of makeInto) {
           if (isPool(q)) {
-            const net = make - (needFrom.get(q) ?? 0)
-            if (net > EPSILON) fOut = Math.min(fOut, (headroom(q) + (own?.get(q) ?? 0)) / net)
+            const net = netInto(q, make - (needFrom.get(q) ?? 0))
+            if (net > 0) fOut = Math.min(fOut, (headroom(q) + (own?.get(q) ?? 0)) / net)
           } else fOut = Math.min(fOut, accept(q) / make)
         }
         fOut = Math.min(fOut, sharedPoolBound(makeInto, own, needFrom)) // #492 — a Pool reached by two paths
@@ -2868,8 +3692,8 @@ export function step(
           }
           for (const [q, make] of makeInto) {
             if (!isPool(q)) continue
-            const net = make - (needFrom.get(q) ?? 0)
-            if (net <= EPSILON) continue
+            const net = netInto(q, make - (needFrom.get(q) ?? 0))
+            if (!(net > 0)) continue
             const room = headroom(q) + (own?.get(q) ?? 0)
             const x = room / net
             if (x < v * RUN_REACHED) {
@@ -2881,13 +3705,13 @@ export function step(
         }
 
         // the fraction, before anything moves — `pull all` is decided on it
-        let fDry = sumIn > EPSILON ? (inboxHave + fPool * sumInPool) / sumIn : 0
-        fDry = nz(Math.max(0, Math.min(runOf(id), fDry, fOut)))
+        let fDry = sumIn > 0 ? (inboxHave + fPool * sumInPool) / sumIn : 0
+        fDry = Math.max(0, Math.min(runOf(id), fDry, fOut))
         if (mode === 'pullAll' && fDry < runOf(id) * RUN_REACHED) {
           pullShort.add(id) // probe pass: this pullAll Converter cannot reach f = 1
           continue
         }
-        if (fDry <= EPSILON) continue
+        if (fracGone(fDry) || targetFloored(id)) continue
 
         // What each Pool connection moves. A Converter fed from Pools only:
         // exactly `f · rate` on every one of them (I2). A router-fed Converter
@@ -2897,35 +3721,113 @@ export function step(
         // side keeps the rule it had, `fPool · rate`, the production below
         // follows what was received, so nothing is created, and what was
         // received above what it could use is reported (D1).
-        const fTake = routerFed ? fPool : fDry
-        let received = inboxHave
-        inbox.set(id, 0)
-        for (const e of poolIns) {
-          const a = nz(fTake * rateOfCached(e))
-          if (a > 0) {
-            takeFrom(e.source, a)
-            received += a
-            emit(e, e.source, id, a)
+        //
+        // The run in exact fractions. No Pool gives more than it holds (a Pool holding the
+        // double 0.3 cannot give the 0.3 a line writes, which is 1.1e-17 more), and what it
+        // makes on balance into a capped Pool is within that Pool's exact room. Then every
+        // line moves `fR · rate`.
+        // (The Converter outside a plan with a line from a node that is not a Pool, in
+        // practice a Source's, which delivers nothing: its Pool side is `what a Pool holds / what
+        // it takes of it`, exactly, as for the Converter fed from Pools only. As the double of
+        // that division, 1/3 took 1 - 2^-54 of a Pool holding 1 and left the rest step after step.)
+        let fR = RAT1
+        const viaPool = new Map<string, Rat>() // Pool → what reaches it through Gates that pass on, per run
+        const viaOther = new Map<string, Rat>()
+        if (!routerFed) {
+          // From its run target, exactly. What it hands a Gate that only passes on is followed
+          // in exact shares to the Pools it ends in (their room is asked below with the Pools
+          // it makes into itself); a target that is not followed bounds it by what it accepts,
+          // a double the engine holds.
+          fR = ratOfShortestDecimal(runOf(id))
+          for (const e of outOf(id)) {
+            if (skipDet(e.id) || rateOfCached(e) <= 0 || isPool(e.target)) continue
+            const tk = kindOf(e.target)
+            if (tk === 'drain' || tk === 'end') continue
+            if (passesOn(e.target)) {
+              if (!spreadExact(e.target, exactRate(e), 1, viaPool, viaOther)) fR = RAT0
+            } else viaOther.set(e.target, addR(viaOther.get(e.target) ?? RAT0, exactRate(e)))
+          }
+          for (const [t, part] of viaOther) {
+            const a = accept(t)
+            if (Number.isFinite(a)) fR = minR(fR, divR(ratOfDouble(Math.max(0, a)), part))
           }
         }
-        let f = sumIn > EPSILON ? received / sumIn : 0
-        f = nz(Math.max(0, Math.min(1, f, fOut)))
-        if (mode === 'pullAll' && f < runOf(id) * RUN_REACHED) {
+        const needR = new Map<string, Rat>()
+        for (const e of poolIns) if (rateOfCached(e) > 0) needR.set(e.source, addR(needR.get(e.source) ?? RAT0, exactRate(e)))
+        for (const [p, nr] of needR) fR = minR(fR, divR(maxR(RAT0, availR(p)), nr))
+        if (!routerFed) {
+          const makeR = new Map<string, Rat>()
+          for (const e of outOf(id)) if (!skipDet(e.id) && rateOfCached(e) > 0 && isPool(e.target)) makeR.set(e.target, addR(makeR.get(e.target) ?? RAT0, exactRate(e)))
+          for (const [q, x] of viaPool) makeR.set(q, addR(makeR.get(q) ?? RAT0, x))
+          for (const [q, mk] of makeR) {
+            const net = subR(mk, needR.get(q) ?? RAT0)
+            let room = roomRatR(q, ownOfR(id, q))
+            if (room !== null && (!isPositive(ownOfR(id, q))) && (working[q] ?? 0) >= cap(byId.get(q)!)) room = RAT0 // a Pool that reads full has no room
+            if (room !== null && isPositive(net)) fR = minR(fR, divR(maxR(RAT0, room), net))
+          }
+        }
+        // (a router-fed Converter's output side, before anything is taken: the exact room of
+        // the Pools it makes into itself, on the net amount, a Pool that reads full having
+        // none; a target that is not a Pool, and a Pool reached by two paths, bound it by the
+        // doubles the engine holds)
+        let outBoundR: Rat | null = null
+        if (routerFed) {
+          let b: Rat = makeInto.size > 0 ? RAT1 : RAT0
+          const makeR = new Map<string, Rat>()
+          for (const e of outOf(id)) if (!skipDet(e.id) && rateOfCached(e) > 0) makeR.set(e.target, addR(makeR.get(e.target) ?? RAT0, exactRate(e)))
+          for (const [q, mk] of makeR) {
+            if (!isPool(q)) {
+              const a = accept(q)
+              if (Number.isFinite(a)) b = minR(b, divR(ratOfDouble(Math.max(0, a)), mk))
+              continue
+            }
+            const net = subR(mk, needR.get(q) ?? RAT0)
+            const ownPromised = ownOfR(id, q)
+            let room = roomRatR(q, ownPromised)
+            if (room !== null && !isPositive(ownPromised) && (working[q] ?? 0) >= cap(byId.get(q)!)) room = RAT0 // a Pool that reads full has no room
+            if (room !== null && isPositive(net)) b = minR(b, divR(maxR(RAT0, room), net))
+          }
+          const shared = sharedPoolBound(makeInto, own, needFrom)
+          if (Number.isFinite(shared)) b = minR(b, ratOfDouble(Math.max(0, shared)))
+          outBoundR = b
+        }
+        if (mode === 'pullAll' && cmpR(fR, ratOfDouble(runOf(id) * RUN_REACHED)) < 0) {
           pullShort.add(id)
-          f = 0
+          continue
         }
-        if (routerFed && emitDiag && !multiLoss.has(id)) {
-          const loss = received - f * sumIn
-          if (loss > 1e-6) {
-            multiLoss.add(id)
-            // D1 — as data; the run bars word it in the user's language
-            // (`playbar.diag.multiSupplyLoss`), with the node and the amount
-            notices.push({ kind: 'multiSupplyLoss', nodeId: id, label: n.data.label, amount: Number(loss.toFixed(6)) })
+        let receivedR = inboxR.get(id) ?? RAT0
+        inbox.set(id, 0)
+        inboxR.set(id, RAT0)
+        const hadR = receivedR
+        for (const e of poolIns) {
+          if (rateOfCached(e) <= 0) continue
+          const x = mulR(fR, exactRate(e))
+          if (!isPositive(x)) continue
+          const a = rnR(x)
+          takeFrom(e.source, a, x)
+          receivedR = addR(receivedR, x)
+          emit(e, e.source, id, a, x)
+        }
+        // fed from Pools only: the one fraction on every line. Fed by a router outside every
+        // plan (the safety net): what was received over a full run, bounded by the room
+        let fOutR = fR
+        if (routerFed) {
+          const sumInR = inOf(id).reduce((t, e) => (rateOfCached(e) > 0 ? addR(t, exactRate(e)) : t), RAT0)
+          fOutR = isPositive(sumInR) ? minR(minR(RAT1, outBoundR!), divR(receivedR, sumInR)) : RAT0
+          if (mode === 'pullAll' && cmpR(fOutR, ratOfDouble(runOf(id) * RUN_REACHED)) < 0) {
+            pullShort.add(id)
+            fOutR = RAT0
+          }
+          if (emitDiag && !multiLoss.has(id)) {
+            const loss = toDouble(subR(receivedR, mulR(fOutR, sumInR)))
+            if (loss > 1e-6) {
+              multiLoss.add(id)
+              notices.push({ kind: 'multiSupplyLoss', nodeId: id, label: n.data.label, amount: Number(loss.toFixed(6)) })
+            }
           }
         }
-        if (f <= EPSILON) continue
-        deliver(f)
-        continue
+        if (!isPositive(fOutR) || targetFloored(id)) continue
+        deliver(fOutR, cmpR(receivedR, hadR) > 0)
       }
     }
 
@@ -2946,22 +3848,24 @@ export function step(
       }
       gates.push(...[...gateEntries.values()].sort((a, b) => (a.nodeId < b.nodeId ? -1 : a.nodeId > b.nodeId ? 1 : 0)))
     }
-
-    gateHolds.clear()
-    heldIn.clear()
     if (snap) {
       for (const key of Object.keys(working)) delete working[key]
       Object.assign(working, snap.working)
-      taken.clear()
-      for (const [key, v] of snap.taken) taken.set(key, v)
+      for (const [live, kept] of [[lvR, snap.lvR], [takenR, snap.takenR], [claimR, snap.claimR], [inboxR, snap.inboxR]] as const) {
+        live.clear()
+        for (const [key, v] of kept) live.set(key, v)
+      }
+      movesR.length = snap.movesLen
       reserved.clear()
       for (const [key, v] of snap.reserved) reserved.set(key, v)
-      reservedIn.clear()
-      for (const [key, v] of snap.reservedIn) reservedIn.set(key, v)
       inbox.clear()
       for (const [key, v] of snap.inbox) inbox.set(key, v)
       ownReserve.clear()
       for (const [key, v] of snap.ownReserve) ownReserve.set(key, v)
+      reservedR.clear()
+      for (const [key, v] of snap.reservedR) reservedR.set(key, v)
+      ownR.clear()
+      for (const [key, v] of snap.ownR) ownR.set(key, v)
       activated.clear()
       for (const v of snap.activated) activated.add(v)
       fired.clear()
@@ -3069,7 +3973,9 @@ export function step(
   for (const nid of Object.keys(working)) {
     const n = byId.get(nid)
     const c = n ? cap(n) : Infinity
-    let v = nz(working[nid])
+    // A Pool is stored as the double nearest its exact level, whatever its size: the one
+    // rounding of the step (an amount under the display threshold is not dropped here)
+    let v = working[nid]
     if (v < 0) v = 0
     if (v > c) v = c
     working[nid] = v
@@ -3135,6 +4041,7 @@ export function step(
       diagnostics,
       notices,
       gates,
+      moves: movesR.map((m) => ({ edgeId: m.edgeId, from: m.from, to: m.to, num: String(m.amount.num), den: String(m.amount.den), shown: m.shown })),
       ...(tableLines ? { timetableLines: tableLines } : {}),
       ...(runs ? { runs } : {}),
       // §M3-5 (L1) — only for a document with a kinds table; a v2 report has no key

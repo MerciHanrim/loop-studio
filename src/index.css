@@ -4780,6 +4780,17 @@ a.sheet__row {
      every item stays in the list */
   max-height: 96px;
 }
+/* Below 900 px an open side panel is an overlay over the canvas column (workbench.css,
+   .is-overlay: the list 272 px, the properties 344 px, neither wider than the column less
+   48 px), and it lay over the run's messages too: an Arabic sentence starts at the right, so
+   its beginning was under the properties panel (Lumi, 2026-11-19). The block keeps its
+   place and its lines wrap in the part of it that is beside the panel. */
+.pstrip-diag.is-beside-right {
+  padding-inline-end: calc(min(344px, 100% - 48px) + 12px);
+}
+.pstrip-diag.is-beside-left {
+  padding-inline-start: calc(min(272px, 100% - 48px) + 12px);
+}
 .pstrip-diag,
 .pstrip__diag {
   min-width: 0;

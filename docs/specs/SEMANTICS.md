@@ -55,6 +55,10 @@ state(n+1), report      = step(graph, state(n))
 - `activated`: node ids evaluated as execution targets this step.
 - `fired`: node ids that actually moved / produced / consumed `> epsilon` this
   step. **The UI firing pulse uses `fired` only** (decision 5).
+- **Engine revision 16 ([`SEMANTICS-E.md`](SEMANTICS-E.md)):** `report.moves` is
+  the record of every move of the step with its exact amount; `events` is what
+  is shown of it (the moves above `epsilon`, §E15), and `fired` is "moved
+  anything above 0" (§E9).
 
 ---
 
@@ -95,6 +99,13 @@ resolves inside one step (§6).
 - A Pool value that lands fractionally outside its bounds through rounding is
   clamped into `[0, capacity]` (`[0, ∞)` if uncapped); this clamp only ever
   corrects sub-`epsilon` drift — a clamp larger than `epsilon` is a bug (I3).
+- **Engine revision 16 ([`SEMANTICS-E.md`](SEMANTICS-E.md)) replaces the two
+  lines above for a move.** An amount above 0 moves whatever its size (§E7);
+  `epsilon` decides what is shown (§E15) and what a `pull all` node may be
+  short of (§E11). A Pool is stored as the double nearest its exact level and
+  nothing is clamped (§E4, §E13). Wherever this document tests an amount, a
+  throughput or a rate against `epsilon` to decide whether something moves,
+  that document's rule stands in its place.
 - **`NaN` and `Infinity` are not valid inputs.** `initSim` rejects a graph whose
   `initial`, `capacity`, or constant flow is non-finite.
 - **A Pool's `initial` above its `capacity` is rejected by `initSim`** (issue

@@ -259,7 +259,8 @@ describe('MC · I11 execution invariance / I12 determinism', () => {
 
 // ── statistical tolerance (S1–S3) ───────────────────────────────────────
 describe('MC · statistical tolerance', () => {
-  it('S1 — Source [1-3] → uncapped P, mean[t] ≈ 2t', () => {
+  // its own time limit: 2.8 s here since the engine works in exact amounts (issue #572)
+  it('S1 — Source [1-3] → uncapped P, mean[t] ≈ 2t', { timeout: 30_000 }, () => {
     const r = runMonteCarlo(
       [source('S'), pool('P', 0)],
       [edge('e1', 'S', 'P', '1-3')],

@@ -106,6 +106,7 @@ const ui = {
   'inspector.refused.splitRejoin': 'Uitvoeren niet mogelijk: middelen splitsen bij {split} en komen bij {join} weer samen. Deze modelversie ondersteunt geen paden die splitsen en weer samenkomen, dus het model draait niet. Verwijder een van de paden, of voeg op een ervan een Voorraad toe. Een Voorraad houdt vast wat binnenkomt, dus dat pad beweegt één stap later.',
   'playbar.diag.title': 'Diagnoses van de run ({n})',
   'playbar.diag.multiSupplyLoss': '{label} ontving in deze stap {amount} meer dan het kon gebruiken, en die hoeveelheid is verloren gegaan.',
+  'playbar.diag.movesNotShown': 'Verplaatsingen in deze stap die te klein zijn om te tonen: {n}. Selecteer een Voorraad om te zien wat die heeft bereikt.',
   'playbar.diag.timetableEnded': 'De uitvoering eindigde hier: {label} heeft geen gegevens voor de hele volgende stap.',
   'playbar.diag.timetableUnmet': '{label}: {amount} van wat voor deze stap gepland was, is niet verplaatst.',
   'playbar.diag.runShortSupply': '{label} liep onder het doel: {pool} had {had} van de benodigde {needed}. Stappen op rij: {steps}.',

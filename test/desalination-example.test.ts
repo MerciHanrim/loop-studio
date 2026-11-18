@@ -452,7 +452,9 @@ describe('examples/desalination.json — the bundled desalination process exampl
     expect(got.contract.allOnFeed).toMatchObject({ findings: ['notComputable', 'notComputable'], moved: 0 })
   })
 
-  describe('failures lose nothing silently', () => {
+  // their own time limit: 720 steps of the plant each, 1.6 to 2.1 s here since the engine works
+  // in exact amounts (issue #572)
+  describe('failures lose nothing silently', { timeout: 30_000 }, () => {
     it('an empty chemical tank with no delivery stops its stage, and the plant downstream runs out and stops', () => {
       const r = failure((nodes, edges) => {
         (nodeOf(nodes, 'naocl').data as { initial: number }).initial = 0

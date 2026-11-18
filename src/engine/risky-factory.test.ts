@@ -132,7 +132,9 @@ describe('risky-factory example', () => {
     const mc = runMonteCarlo(nodes, edges, { ...RISKY_FACTORY_MC })
     const cum = mc.endedRuns.atOrBeforeStep
 
-    it('is deterministic — the same config reproduces byte-identical output', () => {
+    // its own time limit: the whole 500 × 40 run a second time, 2.3 s here since the engine
+    // works in exact amounts (issue #572)
+    it('is deterministic — the same config reproduces byte-identical output', { timeout: 30_000 }, () => {
       const again = runMonteCarlo(nodes, edges, { ...RISKY_FACTORY_MC })
       expect(again.series).toEqual(mc.series)
       expect(again.endedRuns).toEqual(mc.endedRuns)

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { initSim, step } from '../engine'
 import type { FlowEvent, SimState, SimValues, StateEvent, StepResult, TriggerQueueEntry } from '../engine'
+import { NO_SMALL_MOVES, smallMovesOf, type SmallMoves } from './smallMoves'
 import { type ConverterGroup, refusedGroups } from '../engine/converterGroups'
 import type { GateStatus, RunGroupReport, StepNotice, TimetableLineReport } from '../engine/types'
 import { hasRunRules, hasTimetables } from '../model/modelVersion'
@@ -86,6 +87,8 @@ export type PreparedResult = {
     runs: RunGroupReport[]
     /** `StepReport.gates` of this step (#477 — the Gate state LED and the Inspector's line) */
     gates: GateStatus[]
+    /** this step's moves that are not shown (SEMANTICS-E.md §E17) */
+    smallMoves: SmallMoves
     /** `StepReport.boundaryOutflow` of this step (loop-model/3 §M3-5; `[]` without a kinds table) */
     boundaryOutflow: BoundaryOutflow[]
   }
@@ -138,6 +141,11 @@ type SimStore = {
    *  `notices`: set at a commit, cleared by Reset, a graph edit, a document
    *  change and a snapshot restore (a snapshot carries no report). */
   gates: GateStatus[]
+  /** SEMANTICS-E.md §E17 — the moves of the last committed step that are not shown (an amount
+   *  at or under the display threshold has no event), and the net change of each Pool one of
+   *  them reached: the run bars' line and the Pool's panel read it. Empty for a step whose
+   *  every move is shown. The same lifecycle as `gates`. */
+  smallMoves: SmallMoves
 
   /** why the current graph cannot be initialised for a run (`initSim` threw —
    *  e.g. a Pool whose `initial` / `capacity` is negative or non-finite, which
@@ -431,6 +439,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       timetableLines: [...(r.report.timetableLines ?? [])],
       runs: [...(r.report.runs ?? [])],
       gates: [...r.report.gates],
+      smallMoves: smallMovesOf(r.report.moves, (id) => kindOf.get(id) === 'pool'),
       boundaryOutflow: [...(r.report.boundaryOutflow ?? [])],
     }
   }
@@ -515,6 +524,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       diagnostics: [...p.derived.diagnostics], // #396 — this step's, replacing the last step's
       notices: [...p.derived.notices],
       gates: [...p.derived.gates],
+      smallMoves: p.derived.smallMoves,
       boundaryOutflow: [...p.derived.boundaryOutflow],
       // §LGR6-cues — this committed step's `effective` id set, appended to the
       // trailing Activity-overlay window (fired nodes + resource-edge ids from
@@ -703,6 +713,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     diagnostics: [],
     notices: [],
     gates: [],
+    smallMoves: NO_SMALL_MOVES,
     boundaryOutflow: [],
     initError: null,
     refusals: [],
@@ -786,6 +797,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         diagnostics: [], // #396 — Reset, a graph edit and a document change leave none behind
         notices: [],
         gates: [],
+        smallMoves: NO_SMALL_MOVES,
         boundaryOutflow: [],
         initError: error,
         refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(), timetableRefusals: tableRefused(), runRefusals: ruleRefused(),
@@ -824,6 +836,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         diagnostics: [], // #396 — a snapshot carries no step report
         notices: [],
         gates: [],
+        smallMoves: NO_SMALL_MOVES,
         boundaryOutflow: [],
         initError: null, // a verified snapshot IS a valid head
         refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(), timetableRefusals: tableRefused(), runRefusals: ruleRefused(), // a refused shape stays refused: a restored head does not step

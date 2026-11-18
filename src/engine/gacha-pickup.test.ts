@@ -282,7 +282,9 @@ describe('the pickup gacha (examples/gacha-pickup.json)', () => {
     if (i.hardPity <= 5) expect(together, 'the ceiling and the guarantee together were checked').toBeGreaterThan(0)
   })
 
-  it('4. it reproduces itself: the same inputs and seed, run twice and from a fresh copy of the file, the same every step', () => {
+  // its own time limit: three whole runs of the example, 3.9 s here and over the default 5 s on
+  // a slower machine since the engine works in exact amounts (issue #572)
+  it('4. it reproduces itself: the same inputs and seed, run twice and from a fresh copy of the file, the same every step', { timeout: 30_000 }, () => {
     const fresh = JSON.parse(JSON.stringify(pickupDoc)) as G
     for (const inp of INPUTS) {
       for (const seed of SEEDS) {

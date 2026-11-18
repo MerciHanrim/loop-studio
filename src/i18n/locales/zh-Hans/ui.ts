@@ -103,6 +103,7 @@ const ui = {
   'inspector.refused.splitRejoin': '无法运行：资源在 {split} 分开，又在 {join} 汇合。此模型版本不支持分开后又汇合的路径，因此模型不会运行。要运行，请删除其中一条路径，或在其中一条路径上添加一个资源池。资源池会保存到达的资源，因此该路径会晚一步移动。',
   'playbar.diag.title': '运行诊断（{n}）',
   'playbar.diag.multiSupplyLoss': '{label} 在本步收到的资源比能使用的多 {amount}，这部分已丢失。',
+  'playbar.diag.movesNotShown': '本步中因太小而未显示的移动：{n} 次。选择一个资源池即可查看到达它的移动。',
   'playbar.diag.timetableEnded': '运行在此结束：{label} 没有覆盖下一步全程的数据。',
   'playbar.diag.timetableUnmet': '{label}：本步计划中有 {amount} 未移动。',
   'playbar.diag.runShortSupply': '{label} 低于目标运行：{pool} 只有所需 {needed} 中的 {had}。连续步数：{steps}。',

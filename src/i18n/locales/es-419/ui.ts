@@ -100,6 +100,7 @@ const ui = {
   'inspector.refused.splitRejoin': 'No se puede ejecutar: los recursos se separan en {split} y vuelven a unirse en {join}. Esta versión del modelo no admite rutas que se separan y vuelven a unirse, así que el modelo no se ejecuta. Para ejecutarlo, elimine una de las rutas o agregue un Depósito en una de ellas. Un Depósito retiene lo que llega, así que esa ruta avanza un paso después.',
   'playbar.diag.title': 'Diagnósticos de la ejecución ({n})',
   'playbar.diag.multiSupplyLoss': '{label} recibió {amount} más de lo que podía usar en este paso, y esa cantidad se perdió.',
+  'playbar.diag.movesNotShown': 'Movimientos demasiado pequeños para mostrarse en este paso: {n}. Selecciona un Depósito para ver lo que le llegó.',
   'playbar.diag.timetableEnded': 'La ejecución terminó aquí: {label} no tiene datos para todo el paso siguiente.',
   'playbar.diag.timetableUnmet': '{label}: {amount} de lo previsto en este paso no se movió.',
   'playbar.diag.runShortSupply': '{label} funcionó por debajo de su objetivo: {pool} tenía {had} de los {needed} necesarios. Pasos seguidos: {steps}.',

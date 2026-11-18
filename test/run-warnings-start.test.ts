@@ -253,7 +253,8 @@ describe('the step length', () => {
     expect(stalled(6, 1), 'a shorter step gains nothing').toEqual([])
   })
 
-  it('agrees with the engine over 120 steps: what is named never runs, and all three run at 1 h', () => {
+  // its own time limit: 2.8 s here since the engine works in exact amounts (issue #572)
+  it('agrees with the engine over 120 steps: what is named never runs, and all three run at 1 h', { timeout: 30_000 }, () => {
     const count = (value: number) => {
       const opts = { kinds: doc.kinds, time: hours(value), timetables: doc.timetables }
       let st = initSim(doc.nodes, opts)
