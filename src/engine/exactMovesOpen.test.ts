@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { add, cmp, exactDouble, fromInt, mul, parseDecimal, sub, type Rational } from '../model/rational'
-import { graphWithSourceLines, plainGraph, type Graph } from './generatedGraphs.fixture'
+import { drain, gate, graphWithSourceLines, plainGraph, pool, res, type Graph } from './generatedGraphs.fixture'
 import { initSim, step, type StepMove } from './index'
 
 // The boundaries SEMANTICS-E.md does not settle (issue #572), on generated graphs
@@ -10,6 +10,7 @@ import { initSim, step, type StepMove } from './index'
 //   E-open 1  a loop that balances at one number only: `plainGraph(257, n)`
 //   E-open 2  a `pull all` node that asks an amount above 0 and under 1e-9: `plainGraph(793, n)`
 //   E-open 3  a group with two supplies, far under 1e-9: `graphWithSourceLines(777, n)`, step 2
+//   E-open 4  a `pull all` Drain or End short within the absolute epsilon records all it asks (by hand)
 // And one consequence of §E14 that is meant, pinned as it is and not an expected failure: a
 // room a hair short of what the written rates ask, `plainGraph(4088, -12)`.
 
@@ -123,6 +124,44 @@ describe('E-open 3 (SEMANTICS-E.md): a group with two supplies, far under 1e-9: 
   it.fails('generated graph with Source lines, seed 777, step 2, at 10^-12: the second line moves nothing (to be: 8e-12, as at the other scales)', () => {
     const out = run(graphWithSourceLines(777, -12), 2)
     expect(cmp(out[1].moved('e2'), ZERO)).toBe(1)
+  })
+})
+
+describe('E-open 4 (SEMANTICS-E.md): a `pull all` Drain or End that is short within the absolute epsilon records all its lines ask', () => {
+  // A `pull all` Drain or End whose Pool holds less than its lines ask, by at most 1e-9, runs
+  // (§E11) and is recorded as taking ALL its lines ask: more than the Pool holds. The record then
+  // takes the Pool under 0, and the stored value is held at 0: the one place besides issue #582
+  // where §E3's bounds and §E4's "no clamp" do not hold. A `pull all` Gate in the same place
+  // takes what the Pool holds, and a `push all` Source pushes the room. The same on two lines off
+  // one Pool whose rates' doubles sum to more than it holds (0.1 + 0.2 off 0.3).
+  const short = (terminal: 'drain' | 'end'): Graph => ({
+    nodes: [pool('A', 2.9999999995), terminal === 'drain' ? drain('d', 'pullAll') : endAll('d')],
+    edges: [res('a', 'A', 'd', '3')],
+  })
+  const endAll = (id: string): Graph['nodes'][number] => ({ id, type: 'end', position: { x: 0, y: 0 }, data: { kind: 'end', label: id, activation: 'automatic', mode: 'pullAll' } as Graph['nodes'][number]['data'] })
+
+  it('a Pool of 2.9999999995 and a `pull all` Drain that asks 3: recorded as 3, and the record takes the Pool under 0', () => {
+    for (const terminal of ['drain', 'end'] as const) {
+      const [s] = run(short(terminal))
+      expect(same(s.moved('a'), dec('3'))).toBe(true)
+      expect(s.outside).toEqual(['A is under 0 after the move on a'])
+    }
+  })
+  it.fails('the same Drain and End (to be: what the Pool holds, 2.9999999995, and no Pool under 0)', () => {
+    for (const terminal of ['drain', 'end'] as const) {
+      const [s] = run(short(terminal))
+      expect(same(s.moved('a'), exactDouble(2.9999999995))).toBe(true)
+      expect(s.outside).toEqual([])
+    }
+  })
+  it('a `pull all` Gate in the same place takes what the Pool holds, and no Pool leaves its bounds', () => {
+    const [s] = run({ nodes: [pool('A', 2.9999999995), pool('Q', 0), gate('g', 'pullAll')], edges: [res('a', 'A', 'g', '3'), res('o', 'g', 'Q', '1')] })
+    expect(same(s.moved('a'), exactDouble(2.9999999995))).toBe(true)
+    expect(s.outside).toEqual([])
+  })
+  it.fails('two lines of 0.1 and 0.2 off a Pool of 0.3 into a `pull all` Drain: the record takes the Pool under 0 (to be: no Pool under 0)', () => {
+    const [s] = run({ nodes: [pool('A', 0.3), drain('d', 'pullAll')], edges: [res('a', 'A', 'd', '0.1'), res('b', 'A', 'd', '0.2')] })
+    expect(s.outside).toEqual([])
   })
 })
 

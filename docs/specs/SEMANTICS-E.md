@@ -36,7 +36,9 @@ In a step, everything that moves is an exact amount, a fraction, and the list of
 
 **E4. What is stored.** A Pool's value after the moves is the double nearest its exact level (a tie between two doubles goes to the even one). There is no clamp (outside the exception below): the level is within the Pool's bounds already, and so is the double nearest it. The `afterPull` labels (Phase 2.5) are then applied to that double as before, with their own `delta` and `clampAdjustment`; the result is the Pool's stored value at the end of the step.
 
-**The one exception is issue #582, and its reading is not decided here.** A Pool that a Phase-0 `label` has lowered is still pulled as it stood in the snapshot; its exact level can then go under 0 within the step, and the value stored is held at 0. The amount of that hold is the only thing that §E3's bounds, §E4's "no clamp" and §E6's identity leave out. Which reading a later specification takes there (a pull reads the lowered level, or the hold is reported as a term of its own) is for issue #582.
+**The exception is issue #582, and its reading is not decided here.** A Pool that a Phase-0 `label` has lowered is still pulled as it stood in the snapshot; its exact level can then go under 0 within the step, and the value stored is held at 0. The amount of that hold is what §E3's bounds, §E4's "no clamp" and §E6's identity leave out. Which reading a later specification takes there (a pull reads the lowered level, or the hold is reported as a term of its own) is for issue #582.
+
+**A second place where the level goes under 0 and is held is not meant and is open: E-open 4** (a `pull all` Drain or End that is short within the absolute epsilon). §E3, §E4 and §E6 are to be read with that one too until it is closed.
 
 **E5. The next step starts from what is stored.** The exact level is not carried over; the stored double is, and it is read exactly. So a step is exact from its start, and a run is a sequence of exact steps with one rounding of each Pool between them. **A run is therefore not the run of the rationals**: over many steps the stored values drift from what exact arithmetic over the whole run would give, by about a last place a step at most, as they did before.
 
@@ -52,7 +54,7 @@ and for one Pool: `final − start = (Σ moves in − Σ moves out) + the Phase-
 
 What changes is the resource term only: `Σ Source push`, `Σ Drain/End pull`, each Converter's recipe difference at the part of a run it made, and a Pool's `Σ moves in − Σ moves out` are sums over the record, exact. Between the value the moves start from and the exact level after the last move the identity holds with no error at all. On the stored doubles it holds to the one rounding of §E4; the two label terms are sums of doubles as before.
 
-**The exception is the lower hold of issue #582 and nothing else**: where a Phase-0 `label` has lowered a Pool and the pulls, which read the snapshot, take more than is left, the exact level is under 0 and the stored value is 0; the identity is then off by exactly the amount of that hold, for that Pool, in that step. A `label` that raises a Pool, or lowers one that is not then pulled under 0, is inside the identity.
+**The exception that is meant is the lower hold of issue #582** (the other, E-open 4, is a defect that is open): where a Phase-0 `label` has lowered a Pool and the pulls, which read the snapshot, take more than is left, the exact level is under 0 and the stored value is 0; the identity is then off by exactly the amount of that hold, for that Pool, in that step. A `label` that raises a Pool, or lowers one that is not then pulled under 0, is inside the identity.
 
 ## Small moves
 
@@ -162,22 +164,41 @@ What would close it is not decided.
 
 ### E-open 2. A `pull all` node that asks an amount above 0 and under `1e-9`
 
-§E12 is the rule of one path, the planned Gate with two supplies. Everywhere else a `pull all` node is asked the older way: what it brought plus `1e-9` is compared with what it asks, whatever it is short of. Those places are the source Gate of a piece or of a tree, a group that rejoins, a `pull all` Converter in a plan (a part of a run, not an amount), a Gate outside every plan, a `pull all` Drain, and a `push all` Source (whose shortfall is always room). So where **all** a node asks is under `1e-9`, it counts as having run with nothing moved, and the other members of its group move without it.
+§E12 is the rule of one path, the planned Gate with two supplies. Everywhere else a `pull all` node is asked the older way: what it brought plus `1e-9` is compared with what it asks, whatever it is short of. Those places are the source Gate of a piece or of a tree, a group that rejoins, a `pull all` Converter in a plan (a part of a run, not an amount), a Gate outside every plan, a `pull all` Drain, and a `push all` Source (whose shortfall is always room). So where **all** a node asks is at or under `1e-9`, it can never be short by more than the epsilon: **it runs on whatever it can bring**, a part of what it asks or nothing, and the other members of its group move with it.
 
-Pools `p0` 3, `p1` 0, `p2` 8 of 9, `p3` 13 of 18. `p3 →8→ g0`, `p0 →1→ g0`; `p3 →6→ g1` (`pull all`); `g1 →1→ g2`, `g1 →1→ g3`; `g0 →7→ g3`; `g2 →4→ g3`, `g2 →5→ p3`; `p0 →5→ g3`, `p1 →2→ g3`; `g3 →1→ p2`. The `pull all` Gate `g1` asks 6 of a Pool that holds 13 and can move none of it for what is below it.
+The least case: a Pool `A`, `A →3→ g` (`pull all`), `g →1→ Q`, the Pool holding 2 of the 3 the line asks.
+
+| every amount times | before revision 16 | revision 16 |
+|---|---|---|
+| 1, 10⁻³ | the Gate stops: nothing moves | the same |
+| **10⁻¹²** | nothing moves, and the Pool's `2e-12` is made 0 at the end of the step (a value under the floor) | **the Gate takes the `2e-12` and passes it on**: a part of what a `pull all` line asks |
+
+The same where it is the room below that is short (the Pool holds 5, the line asks 3, the Pool below has room for 1: `1e-12` moves), with a Converter behind the Gate (a planned group: `2e-12` goes through and the Converter makes two thirds of a run), for a `push all` Source (it pushes the room), and for a `pull all` Drain (which is recorded as taking all it asks: E-open 4). A `pull all` Converter is not of this kind: it is tested on a part of a run, and stops at every size.
+
+It is also so a little above `1e-9`: a node that asks `1.4e-9` and can bring `5e-10` is `9e-10` short, within the epsilon, and runs on the `5e-10`; before revision 16 an amount under the floor was 0 and the node stopped.
+
+In a larger group (a generated graph): Pools `p0` 3, `p1` 0, `p2` 8 of 9, `p3` 13 of 18. `p3 →8→ g0`, `p0 →1→ g0`; `p3 →6→ g1` (`pull all`); `g1 →1→ g2`, `g1 →1→ g3`; `g0 →7→ g3`; `g2 →4→ g3`, `g2 →5→ p3`; `p0 →5→ g3`, `p1 →2→ g3`; `g3 →1→ p2`. The `pull all` Gate `g1` asks 6 of a Pool that holds 13 and can move none of it for what is below it.
 
 | every amount times | `g1` (`pull all`) | the group |
 |---|---|---|
 | 1 | 6 short of 6: stops | nothing moves |
 | **10⁻¹²** | `6e-12` short of `6e-12`, within the absolute epsilon: counts as having run, moves nothing | **`1e-12` moves** from `p0` through `g0` and `g3` into `p2` |
 
-Before this document every amount of the second row was under the floor and nothing moved at all; that the other members now move is §E7, and that the `pull all` Gate does not stop them is this boundary. The question for a later specification: how §E11 and §E12 hold on every path, what "short for a Pool" means for a Drain and a Converter, and whether an absolute `1e-9` can stand as the shortfall of a node whose whole demand is under `1e-9`.
+Before this document every amount of the second row was under the floor and nothing moved at all; that the other members now move is §E7, and that the `pull all` Gate does not stop them is this boundary. **So these part runs are new with revision 16**: they are in documents that did not run at all before (every amount under `1e-9`), and no document that ran before runs differently for it. The question for a later specification: how §E11 and §E12 hold on every path, what "short for a Pool" means for a Drain and a Converter, and whether an absolute `1e-9` can stand as the shortfall of a node whose whole demand is under `1e-9`.
 
 ### E-open 3. A group with two supplies, far under `1e-9`: a line that should move does not
 
 Not E-open 1: it runs at 10⁻³. A Converter `c0` and two Gates `g1`, `g3` are planned as one group. `g1` has a line of 6 from a Pool that holds 1 and a line of 8 from a Pool that holds 12 of 14; what `g1` moves goes through `g3` back into the second Pool. At scale 1 and at 10⁻³ the second line moves 8 times the scale. At 10⁻¹² the plan stops at what the first Pool holds and the second line moves nothing. Nothing is lost and no Pool leaves its bounds. The cause is not found.
 
-### E-open 4. Issues that stand apart
+### E-open 4. A `pull all` Drain or End that is short within the absolute epsilon records all its lines ask
+
+Found while the cases of E-open 2 were laid beside main's (2026-11-18); **this is a place where the engine of revision 16 does not hold §E3 and §E4**, and it is not about small amounts.
+
+A `pull all` Drain or End whose Pool holds less than its lines ask, by at most `1e-9`, runs (§E11) and is recorded as taking **all** its lines ask, which is more than the Pool holds. A Pool of `2.9999999995` and a line of 3: the record has a move of 3, the Pool's exact level is `5e-10` under 0, and the stored value is held at 0. Before revision 16 the event was the same 3 and the commit's clamp took the difference, as §5 then allowed. The same happens with two lines off one Pool whose engine values sum to more than it holds: `0.1` and `0.2` off a Pool of `0.3` (`0.1 + 0.2` in doubles is `0.30000000000000004`), under 0 by `2.8e-17`.
+
+The other nodes do not do this: a `pull all` Gate in the same place takes what the Pool holds (`2.9999999995`), and a `push all` Source pushes the room. What a Drain and an End are to record there (what the Pool holds, as a Gate does) is not decided; it changes an event that revision 15 also shows.
+
+### E-open 5. Issues that stand apart
 
 - **Issue #581**: a line from a Source into a Converter, and a Converter with no input line above another Converter. Unchanged; §E14 touches that turn (the room is asked there for a small net) and no more.
 - **Issue #582**: a Pool that a `label` lowers before the moves (§E4, §E6).
@@ -202,5 +223,5 @@ Not E-open 1: it runs at 10⁻³. A Converter `c0` and two Gates `g1`, `g3` are 
 - `src/engine/exactMoves.test.ts`: on generated graphs at several scales, from the record of moves alone: a Gate's moves in equal its moves out; a Converter is at one part of a run on all its lines; every Pool's level is within its bounds after every move; every stored value is the double nearest the exact level; the events are the record above the threshold; a node has fired exactly where the record has a move of its own.
 - `src/engine/firedSmallMoves.test.ts`: §E9 for each node kind, for an End, and for the state connections that read a firing.
 - `src/engine/exactMovesCases.test.ts`: §E7, §E8, §E10 to §E14 as hand cases.
-- `src/engine/exactMovesOpen.test.ts`: E-open 1 to 3, each as what runs today and as an expected failure that states what is to be.
+- `src/engine/exactMovesOpen.test.ts`: E-open 1 to 4, each as what runs today and as an expected failure that states what is to be.
 - `src/model/engineValues.test.ts`: a rate with a unit under the display threshold moves.
