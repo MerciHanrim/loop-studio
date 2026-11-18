@@ -29,6 +29,19 @@ export type FlowEvent = {
   amount: number
 }
 
+/** One move of the step's record (SEMANTICS-E.md §E2), with its exact amount: the fraction
+ *  `num / den` in lowest terms, both as decimal digits (an amount is above 0). `shown` is the
+ *  double nearest it: what a `FlowEvent` carries where the move is shown, and what a surface
+ *  that lists a move that is NOT shown prints for it. */
+export type StepMove = {
+  edgeId: string
+  from: string
+  to: string
+  num: string
+  den: string
+  shown: number
+}
+
 /** One state connection that had an effect this step. `trigger` / `activator`:
  *  SEMANTICS-S.md §S9 (loop-state/1). `label`: SEMANTICS-S2.md §S2-9
  *  (loop-state/2). Emitted in ascending `edgeId`. Drives the state-edge UI pulse. */
@@ -102,12 +115,12 @@ export type StepReport = {
    *  amounts). A Gate with no entry is `off` (not fired this step, or no run).
    *  Same lifecycle as `notices`. */
   gates: GateStatus[]
-  /** TRIAL (issue 572, representation B, not for merge) — the exact record of the pull phase's
-   *  moves: the amount as numerator / denominator, and the double an event shows of it
-   *  (`events` carries only those above the display threshold). */
-  moves?: { edgeId: string; from: string; to: string; num: string; den: string; shown: number }[]
-  /** TRIAL — where the exact ledger left a Pool's bounds within the step (an instrument) */
-  outOfBounds?: { pool: string; what: 'over' | 'under'; by: number }[]
+  /** The record of the step's moves (SEMANTICS-E.md §E2): every move of a resource, in the
+   *  order it was made, each with its exact amount. `events` is what is SHOWN of this record:
+   *  the moves whose amount is above `EPSILON`, as doubles. A move at or under it is here and
+   *  not there: it has changed its Pools all the same. Present on a step that reached its
+   *  moves (a refused or already ended step has none). */
+  moves?: StepMove[]
   /** loop-model/5 (SEMANTICS-M5.md §M5-6) — planned against moved for each
    *  table line, ascending `edgeId`, unrounded. Present only on a step that
    *  read a table. */

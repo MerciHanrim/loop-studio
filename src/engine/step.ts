@@ -970,10 +970,6 @@ export function step(
     return subR(addR(subR(ratOfDouble(c), reservedR.get(id) ?? RAT0), own), levelR(id))
   }
   const availExactR = availR // (a plan's block has an `availR` of its own, on the fine unit)
-  // part 'b', an instrument: every time the exact ledger leaves a Pool's bounds (above its
-  // capacity, below 0) within a step. The numbers are still decided as today; this says where
-  // a number decided on doubles is not one the exact ledger holds. A probe pass rewinds it.
-  const outOfBounds: { pool: string; what: 'over' | 'under'; by: Rat }[] = []
   const availOf = (id: string) => {
     const m = availMemoOf(id)
     return (m.d ??= xDown(m.v))
@@ -1015,20 +1011,11 @@ export function step(
    *  the level the engine holds is then never below the exact one, so a room read off it is never
    *  more than the exact room. Without the switch: main's `level + delta`. */
   const moveLevel = (id: string, delta: number, r?: Rat) => {
-    {
-      // part 'b': the exact level moves by the exact amount (signed as `delta` is); what the
-      // engine holds beside it is the double nearest
-      const b = addR(levelR(id), r ?? ratOfDouble(delta))
-      lvR.set(id, b)
-      working[id] = rnR(b)
-      if (b.num < 0n) outOfBounds.push({ pool: id, what: 'under', by: subR(RAT0, b) })
-      else if (delta > 0) {
-        const n = byId.get(id)
-        const c = n ? cap(n) : Infinity
-        if (Number.isFinite(c) && cmpR(b, ratOfDouble(c)) > 0) outOfBounds.push({ pool: id, what: 'over', by: subR(b, ratOfDouble(c)) })
-      }
-      return
-    }
+    // the exact level moves by the exact amount (signed as `delta` is); what the engine holds
+    // beside it is the double nearest
+    const b = addR(levelR(id), r ?? ratOfDouble(delta))
+    lvR.set(id, b)
+    working[id] = rnR(b)
   }
   const takeFrom = (poolId: string, amt: number, r?: Rat) => {
     taken.set(poolId, (taken.get(poolId) ?? 0) + amt)
@@ -1706,7 +1693,6 @@ export function step(
           claimR: new Map(claimR),
           inboxR: new Map(inboxR),
           movesLen: movesR.length,
-          oobLen: outOfBounds.length,
           ownReserve: cloneOwn(ownReserve),
           reservedR: new Map(reservedR),
           ownR: new Map([...ownR].map(([k, v]) => [k, new Map(v)])),
@@ -4310,7 +4296,6 @@ export function step(
         for (const [key, v] of kept) live.set(key, v)
       }
       movesR.length = snap.movesLen
-      outOfBounds.length = snap.oobLen
       xTaken.clear()
       for (const [key, v] of snap.xTaken) xTaken.set(key, v)
       taken.clear()
@@ -4504,7 +4489,7 @@ export function step(
       diagnostics,
       notices,
       gates,
-      ...({ moves: movesR.map((m) => ({ edgeId: m.edgeId, from: m.from, to: m.to, num: String(m.amount.num), den: String(m.amount.den), shown: m.shown ?? rnR(m.amount) })), outOfBounds: outOfBounds.map((o) => ({ pool: o.pool, what: o.what, by: toDouble(o.by) })) }),
+      moves: movesR.map((m) => ({ edgeId: m.edgeId, from: m.from, to: m.to, num: String(m.amount.num), den: String(m.amount.den), shown: m.shown ?? rnR(m.amount) })),
       ...(tableLines ? { timetableLines: tableLines } : {}),
       ...(runs ? { runs } : {}),
       // §M3-5 (L1) — only for a document with a kinds table; a v2 report has no key
