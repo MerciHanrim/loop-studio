@@ -122,6 +122,7 @@ const ui = {
   'inspector.refused.splitRejoin': 'Impossibile eseguire: le risorse si dividono in {split} e si ricongiungono in {join}. Questa versione del modello non supporta percorsi che si dividono e si ricongiungono, quindi il modello non viene eseguito. Per eseguirlo, rimuovi uno dei percorsi o aggiungi un Serbatoio su uno di essi. Un Serbatoio trattiene ciò che arriva, quindi quel percorso avanza un passo dopo.',
   'playbar.diag.title': 'Diagnostica dell’esecuzione ({n})',
   'playbar.diag.multiSupplyLoss': '{label} ha ricevuto {amount} in più di quanto potesse usare in questo passo, e quella quantità è andata persa.',
+  'playbar.diag.movesNotShown': 'Spostamenti troppo piccoli per essere mostrati in questo passo: {n}. Seleziona un Serbatoio per vedere che cosa lo ha raggiunto.',
   'playbar.diag.timetableEnded': 'L’esecuzione è terminata qui: {label} non ha dati per tutto il passo successivo.',
   'playbar.diag.timetableUnmet': '{label}: {amount} del piano di questo passo non si è mosso.',
   'playbar.diag.runShortSupply': '{label} ha girato sotto l’obiettivo: {pool} aveva {had} dei {needed} necessari. Passi di fila: {steps}.',

@@ -108,6 +108,7 @@ const ui = {
   'inspector.refused.splitRejoin': 'Não é possível executar: os recursos se dividem em {split} e se reencontram em {join}. Esta versão do modelo não suporta caminhos que se dividem e se reencontram, então o modelo não é executado. Para executá-lo, remova um dos caminhos ou adicione um Reservatório em um deles. Um Reservatório guarda o que chega, então esse caminho avança um passo depois.',
   'playbar.diag.title': 'Diagnósticos da execução ({n})',
   'playbar.diag.multiSupplyLoss': '{label} recebeu {amount} a mais do que podia usar neste passo, e essa quantidade foi perdida.',
+  'playbar.diag.movesNotShown': 'Movimentos pequenos demais para aparecer neste passo: {n}. Selecione um Reservatório para ver o que chegou a ele.',
   'playbar.diag.timetableEnded': 'A execução terminou aqui: {label} não tem dados para todo o passo seguinte.',
   'playbar.diag.timetableUnmet': '{label}: {amount} do plano deste passo não foi movido.',
   'playbar.diag.runShortSupply': '{label} funcionou abaixo do objetivo: {pool} tinha {had} dos {needed} necessários. Passos seguidos: {steps}.',

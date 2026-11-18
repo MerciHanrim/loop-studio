@@ -112,6 +112,7 @@ const ui = {
   'inspector.refused.splitRejoin': 'Không chạy được: tài nguyên tách ra tại {split} và gặp lại nhau tại {join}. Phiên bản mô hình này không hỗ trợ các đường tách ra rồi gặp lại nhau, nên mô hình không chạy. Để chạy, hãy bỏ một trong hai đường, hoặc thêm một Bể chứa trên một đường. Bể chứa giữ lại những gì đến, nên đường đó sẽ di chuyển chậm hơn một bước.',
   'playbar.diag.title': 'Chẩn đoán lần chạy ({n})',
   'playbar.diag.multiSupplyLoss': '{label} đã nhận nhiều hơn {amount} so với lượng có thể dùng ở bước này, và lượng đó đã mất.',
+  'playbar.diag.movesNotShown': 'Số lần chuyển quá nhỏ để hiển thị ở bước này: {n}. Chọn một Bể chứa để xem những gì đã đến đó.',
   'playbar.diag.timetableEnded': 'Lần chạy kết thúc tại đây: {label} không có dữ liệu cho toàn bộ bước tiếp theo.',
   'playbar.diag.timetableUnmet': '{label}: {amount} trong kế hoạch của bước này chưa được chuyển.',
   'playbar.diag.runShortSupply': '{label} chạy dưới mục tiêu: {pool} có {had} trong {needed} cần thiết. Số bước liên tiếp: {steps}.',

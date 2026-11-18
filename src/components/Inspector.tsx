@@ -1,6 +1,6 @@
 import { useId, useMemo, useState, type ReactNode } from 'react'
 import { convertersWhoseVerdictChanges, kindFindings, kindFindingEdgeId, kindFindingNodeId, resolveKinds, type ResourceKindDecl } from '../model/kinds'
-import { fieldUnitOptions, fieldUnitText, poolKindName, previewUnitChange, resolveFieldUnit, type FieldUnit } from '../model/units'
+import { fieldUnitOptions, fieldUnitText, poolKindName, previewUnitChange, recordAmountText, resolveFieldUnit, type FieldUnit } from '../model/units'
 import { fieldHint, outflowReading, type FieldHint } from '../model/viewUnits'
 import { useViewUnitsStore } from '../store/viewUnitsStore'
 import { KindFindingText, unitOptionLabel } from './ModelPanels'
@@ -52,7 +52,8 @@ import { useT, type MessageKey } from '../i18n'
 import { GATE_STATE_KEY, GATE_WHY_KEY } from './nodes/nodes'
 import { isolateAuto, isolateLtr } from '../i18n/bidiIsolate'
 import { hasTableMeaning, hasTimetables } from '../model/modelVersion'
-import { plainDecimal, toSignificant15 } from '../model/rational'
+import { plainDecimal, toSignificant15, type Rational } from '../model/rational'
+import { amountOf } from '../store/smallMoves'
 import { rulesFollowingTank } from '../model/runRule'
 import { firstUncoveredStep, meaningOf, timetableRef } from '../model/timetable'
 import type {
@@ -272,6 +273,7 @@ export function Inspector({ editLocked = false }: { editLocked?: boolean } = {})
         {(d.kind === 'gate' || d.kind === 'converter') && <RefusedGroupNote nodeId={node.id} />}
         {(d.kind === 'pool' || d.kind === 'gate' || d.kind === 'converter') && <KindFindingNote nodeId={node.id} />}
         {d.kind === 'gate' && <GateStateNote nodeId={node.id} />}
+        {d.kind === 'pool' && <PoolSmallMovesNote id={node.id} d={d} />}
 
         {/* the flow mode and the resource type are settings most edits never
             touch (Lumi, 2026-10-19): folded, for every kind that has them */}
@@ -1449,6 +1451,44 @@ function GateStateNote({ nodeId }: { nodeId: string }) {
         {t(GATE_STATE_KEY[g.state])}
         {g.why ? ` ${t(GATE_WHY_KEY[g.why])}` : ''}
         {g.state === 'fault' ? '' : ` ${t('node.gate.moved', { moved: g.moved, demand: g.demand, available: g.available })}`}
+      </p>
+    </div>
+  )
+}
+
+/** SEMANTICS-E.md §E17 — the last committed step moved amounts through the selected Pool that
+ *  are too small to be shown (at or under the display threshold a move has no event, no line
+ *  label and no token, and the Pool's own readout may not change a digit): each such move with
+ *  the node at its other end, and the Pool's net change over ALL the step's moves. A finding,
+ *  not a setting: it stays in view. Nothing where every move that reached the Pool was shown. */
+function PoolSmallMovesNote({ id, d }: { id: string; d: PoolData }) {
+  const t = useT()
+  const small = useSimStore((s) => s.smallMoves)
+  const nodes = useGraphStore((s) => s.nodes)
+  const { fu, reading, time } = usePoolAmount(id, d)
+  const net = small.netByPool[id]
+  if (!net) return null
+  const view = reading?.kind === 'base' ? undefined : reading
+  const label = (nid: string) => nodes.find((n) => n.id === nid)?.data.label || nid
+  const amount = (r: Rational) => recordAmountText(r, fu, time, view)
+  const n = amountOf(net)
+  // the sign goes on the number, after the `≈` of a text that is not the amount: `≈ −2.0000000005`
+  const signed = (sign: string, text: string) => (text.startsWith('≈ ') ? `≈ ${sign}${text.slice(2)}` : `${sign}${text}`)
+  const netText = n.num < 0n ? signed('−', amount({ num: -n.num, den: n.den })) : n.num > 0n ? signed('+', amount(n)) : amount(n)
+  return (
+    <div className="wb-panel__finding" role="status" data-small-moves>
+      <p className="inspector__note">{t('inspector.pool.smallMoves.title')}</p>
+      {small.moves
+        .filter((m) => m.to === id || m.from === id)
+        .map((m, i) => (
+          <p className="inspector__note" key={`${m.edgeId}:${i}`} data-small-move={m.edgeId}>
+            {m.to === id
+              ? t('inspector.pool.smallMoves.in', { label: isolateAuto(label(m.from)), amount: isolateLtr(amount(amountOf(m))) })
+              : t('inspector.pool.smallMoves.out', { label: isolateAuto(label(m.to)), amount: isolateLtr(amount(amountOf(m))) })}
+          </p>
+        ))}
+      <p className="inspector__note" data-small-moves-net>
+        {t('inspector.pool.smallMoves.net', { amount: isolateLtr(netText) })}
       </p>
     </div>
   )

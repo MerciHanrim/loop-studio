@@ -115,6 +115,7 @@ const ui = {
   'inspector.refused.splitRejoin': 'Ausführen nicht möglich: Ressourcen teilen sich bei {split} und treffen sich bei {join} wieder. Diese Modellversion unterstützt keine Pfade, die sich teilen und wieder treffen, daher läuft das Modell nicht. Entfernen Sie einen der Pfade, oder fügen Sie auf einem davon einen Speicher ein. Ein Speicher hält fest, was ankommt, sodass dieser Pfad einen Schritt später weiterläuft.',
   'playbar.diag.title': 'Diagnosen des Laufs ({n})',
   'playbar.diag.multiSupplyLoss': '{label} hat in diesem Schritt {amount} mehr erhalten, als es verwenden konnte; diese Menge ist verloren.',
+  'playbar.diag.movesNotShown': 'Bewegungen in diesem Schritt, die zu klein für die Anzeige sind: {n}. Wähle einen Speicher aus, um zu sehen, was ihn erreicht hat.',
   'playbar.diag.timetableEnded': 'Der Lauf endete hier: {label} hat keine Daten für den ganzen nächsten Schritt.',
   'playbar.diag.timetableUnmet': '{label}: {amount} des Plans dieses Schritts wurde nicht bewegt.',
   'playbar.diag.runShortSupply': '{label} lief unter dem Ziel: {pool} hatte {had} von den nötigen {needed}. Schritte in Folge: {steps}.',

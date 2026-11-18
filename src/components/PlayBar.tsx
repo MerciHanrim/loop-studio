@@ -146,6 +146,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   const cannotRun = initError != null || refused
   const engineDiagnostics = useSimStore((s) => s.diagnostics)
   const notices = useSimStore((s) => s.notices)
+  const movesNotShown = useSimStore((s) => s.smallMoves.moves.length)
   const play = useSimStore((s) => s.play)
   const pause = useSimStore((s) => s.pause)
   const stepOnce = useSimStore((s) => s.stepOnce)
@@ -186,9 +187,11 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
               amount: x.amount,
             }),
       ),
+      // SEMANTICS-E.md §E17 — the step moved amounts too small to be shown: how many
+      ...(movesNotShown > 0 ? [t('playbar.diag.movesNotShown', { n: movesNotShown })] : []),
       ...engineDiagnostics,
     ],
-    [notices, engineDiagnostics, t],
+    [notices, movesNotShown, engineDiagnostics, t],
   )
 
   const running = status === 'running'

@@ -104,6 +104,7 @@ const ui = {
   'inspector.refused.splitRejoin': 'Çalıştırılamıyor: kaynaklar {split} noktasında ayrılıp {join} noktasında yeniden birleşiyor. Bu model sürümü ayrılıp yeniden birleşen yolları desteklemediği için model çalışmıyor. Çalıştırmak için yollardan birini kaldırın ya da birine bir Havuz ekleyin. Havuz gelenleri tuttuğu için o yol bir adım sonra ilerler.',
   'playbar.diag.title': 'Çalıştırma tanıları ({n})',
   'playbar.diag.multiSupplyLoss': '{label} bu adımda kullanabileceğinden {amount} fazla aldı ve bu miktar kayboldu.',
+  'playbar.diag.movesNotShown': 'Bu adımda gösterilemeyecek kadar küçük hareketler: {n}. Ona ulaşanları görmek için bir Havuz seçin.',
   'playbar.diag.timetableEnded': 'Çalışma burada bitti: {label} için sonraki adımın tamamına ait veri yok.',
   'playbar.diag.timetableUnmet': '{label}: bu adımın planından {amount} taşınmadı.',
   'playbar.diag.runShortSupply': '{label} hedefinin altında çalıştı: {pool} içinde gereken {needed} miktarın {had} kadarı vardı. Art arda adım: {steps}.',

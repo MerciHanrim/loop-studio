@@ -107,6 +107,7 @@ const ui = {
   'inspector.refused.splitRejoin': 'Exécution impossible : les ressources se séparent à {split} et se rejoignent à {join}. Cette version du modèle ne prend pas en charge les chemins qui se séparent puis se rejoignent, donc le modèle ne s’exécute pas. Pour l’exécuter, supprimez l’un des chemins ou ajoutez un réservoir sur l’un d’eux. Un réservoir retient ce qui arrive, donc ce chemin avance un pas plus tard.',
   'playbar.diag.title': 'Diagnostics de l’exécution ({n})',
   'playbar.diag.multiSupplyLoss': '{label} a reçu {amount} de plus que ce qu’il pouvait utiliser à cette étape, et cette quantité est perdue.',
+  'playbar.diag.movesNotShown': 'Mouvements trop petits pour être affichés à cette étape : {n}. Sélectionnez un Réservoir pour voir ce qui l’a atteint.',
   'playbar.diag.timetableEnded': 'L’exécution s’est arrêtée ici : {label} n’a pas de données pour tout le pas suivant.',
   'playbar.diag.timetableUnmet': '{label} : {amount} du plan de ce pas n’a pas été déplacé.',
   'playbar.diag.runShortSupply': '{label} a tourné sous son objectif : {pool} avait {had} des {needed} nécessaires. Pas de suite : {steps}.',

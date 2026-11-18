@@ -286,6 +286,16 @@ function shownRational(r: Rational): { text: string; approx: boolean } {
   return { text: approx ? `≈ ${shown}` : shown, approx }
 }
 
+/** SEMANTICS-E.md §E17 — an exact amount of a step's record (a fraction of the base unit, not
+ *  negative) as a Pool's panel prints it: in the Pool's unit, or in the view unit while one is
+ *  on, to at most 15 significant digits, `≈` exactly when the text is not the amount (§M4-5).
+ *  An amount under the display threshold is printed in full digits, never as 0. */
+export function recordAmountText(amount: Rational, fu: FieldUnit, time: DocTime | undefined, view?: FieldUnit): string {
+  const unit = view ?? fu
+  const { text } = shownRational(div(amount, unitRatio(unit, time)))
+  return unit.kind === 'base' ? text : `${text} ${fieldUnitText(unit)}`
+}
+
 /** an AUTHORED value read in another unit (§M4-10): exact from its decimal, so
  *  no double stands between the field and the text. `null` when the text is not
  *  a plain decimal. */
