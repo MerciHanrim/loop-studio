@@ -83,6 +83,7 @@ export {
   type SimState,
   type SimValues,
   type StateEvent,
+  type StepMove,
   type StepReport,
   type StepResult,
   type TriggerQueueEntry,
