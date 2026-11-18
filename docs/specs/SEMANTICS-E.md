@@ -140,7 +140,7 @@ Both are read from `report.moves`. Neither is an event: the animation, the line 
 
 ## A Converter's stated run target
 
-**E19. Unchanged.** Where a run rule gives a Converter a target, a target at or under the floor is no run (SEMANTICS-M6.md §M6-5), and a `pull all` Converter runs where it reaches its target to within the epsilon as a part of a run (`f < 1 − epsilon` stops it). These are fractions of a run, not amounts. A fraction of a run that the engine works out from a supply or a room is not held to that floor (issue #580). The part of a run a planned `pull all` Converter reached is read off the exact amounts that arrived, so it does not depend on their size: a `pull all` Converter that can have all it asks runs at every size, alone, beside a Gate and in front of another Converter.
+**E19. Unchanged.** Where a run rule gives a Converter a target, a target at or under the floor is no run (SEMANTICS-M6.md §M6-5), and a `pull all` Converter runs where it reaches its target to within the epsilon as a part of a run (`f < 1 − epsilon` stops it). These are fractions of a run, not amounts. A fraction of a run that the engine works out from a supply or a room is not held to that floor (issue #580). A `pull all` Converter that can have all it asks runs at every size alone, behind a Gate and in front of a Gate; in front of another Converter it does not: E-open 4.
 
 ## What does not change
 
@@ -178,7 +178,15 @@ Not E-open 1: it runs at 10⁻³. A Converter `c0` and two Gates `g1`, `g3` are 
 
 A generated graph with lines from a Source. A `pull all` Gate `g1` takes 1 and 6 of one Pool and 1 of another and hands half of it into a Pool that, at its turn, has room for exactly that half (4 of a capacity of 17, the Pool holding 13). At scale 1 it runs. With every amount times 10⁻⁸ the same room, as the doubles stand, is a last place under the `4e-8`, and the Gate moves nothing; so at 10⁻¹⁰, 10⁻¹² and 10⁻¹⁵, and not at 10⁻³, 10⁻⁶, 10⁻⁹ or 10⁻¹¹, where the doubles fall the other way. It is not about small amounts. For a `pull all` Gate with two supplies that outcome is the rule (§E12, §E14); this Gate is not one, and which test holds it is not found.
 
-### E-open 4. Issues that stand apart
+### E-open 4. A planned `pull all` Converter in front of a Converter stops its group under `1e-9`
+
+`A →8→ c0` (`pull all`) `→3→ c1 →4→ Q`, and `B →3→ c1`, the Pools holding 8 and 12. At scale 1 and at 10⁻⁹ the group runs. At 10⁻¹⁰ and under nothing of it moves, where a `pull any` Converter in the place of `c0` runs.
+
+The cause is known. The verdict of a planned `pull all` Converter (did it reach its part of a run) is read off a sum of doubles kept beside the exact amounts, and the double beside an amount under the display threshold is 0; so the Converter reads less than arrived, and stops. One amount under `1e-9` among larger ones is enough. In the desalination example with no demand the amounts fall step by step; where a dosing line would carry `6.6e-10` beside a feed of `6.6e-7`, the plant stops, and nothing is lost.
+
+The mend is not made, for what it showed. Read off the exact amounts, the verdict lets such a group run, and a member behind it whose **stated** run target is at or under the floor (§E19) then does not run and drops what it is handed: in that same example `3.5e-4` of water was gone over 720 steps, with no notice. So this boundary and the floor of a stated run target (issue #580) have to be settled together.
+
+### E-open 5. Issues that stand apart
 
 - **Issue #581**: a line from a Source into a Converter, and a Converter with no input line above another Converter. Unchanged; §E14 touches that turn (the room is asked there for a small net) and no more. One thing about it shows more often with this document and is not new: such a Converter runs wherever its output Pool has any room at all, and takes from its Pools in full for it. A Pool with a capacity of the double above 3 that holds 3, a Converter that takes 1 of another Pool and makes 5 into it, and a line from a Source into that Converter: the Converter takes the 1 and makes `4.4e-16`, at ordinary size, where without the Source line it takes `8.9e-17`. A Source that fills a Pool to its capacity leaves such a last place of room at some scales and not at others (two doubles and their sum), which is how six generated graphs came to it at 10⁻¹², three of them at 10⁻³ or 10⁻⁶ as well.
 - **Issue #582**: a Pool that a `label` lowers before the moves (§E4, §E6).
@@ -210,7 +218,7 @@ A generated graph with lines from a Source. A `pull all` Gate `g1` takes 1 and 6
 - `src/engine/exactMoves.test.ts`: on generated graphs at several scales, from the record of moves alone: a Gate's moves in equal its moves out; a Converter is at one part of a run on all its lines; every Pool's level is within its bounds after every move; every stored value is the double nearest the exact level; the events are the record above the threshold; a node has fired exactly where the record has a move of its own; a Gate's reported state says it passed something on exactly where it fired.
 - `src/engine/firedSmallMoves.test.ts`: §E9 for each node kind, for an End, and for the state connections that read a firing.
 - `src/engine/exactMovesCases.test.ts`: §E7, §E8, §E10 to §E14 as hand cases.
-- `src/engine/pullAllShort.test.ts`: §E11, §E11a and §E11b: a third short stops at every size, on every kind of `pull all` node; a node that can have all it asks runs at every size; the edge of the absolute epsilon just above `1e-9`; what a Drain and an End record; a `pull all` Converter that can have all it asks, at four sizes and in five places.
+- `src/engine/pullAllShort.test.ts`: §E11, §E11a and §E11b: a third short stops at every size, on every kind of `pull all` node; a node that can have all it asks runs at every size; the edge of the absolute epsilon just above `1e-9`; what a Drain and an End record; a `pull all` Converter that can have all it asks, at four sizes, alone and beside a Gate.
 - `src/engine/gateStateSmall.test.ts`: a Gate's reported state against its firing, at four sizes.
-- `src/engine/exactMovesOpen.test.ts`: E-open 1 to 3, each as what runs today and as an expected failure that states what is to be.
+- `src/engine/exactMovesOpen.test.ts`: E-open 1 to 4, each as what runs today and as an expected failure that states what is to be.
 - `src/model/engineValues.test.ts`: a rate with a unit under the display threshold moves.

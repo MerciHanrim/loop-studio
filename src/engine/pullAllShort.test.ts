@@ -189,17 +189,12 @@ describe('§E11, the edge of the absolute epsilon: a node that asks a little MOR
 })
 
 describe('a `pull all` Converter is tested on a part of a run, and so runs at every size where it can have all it asks (§E19)', () => {
-  // The verdict of a planned `pull all` Converter was read off the doubles beside the exact
-  // amounts, and those doubles are 0 for an amount under the display threshold: a `pull all`
-  // Converter in front of another Converter was stopped, with its whole group, wherever every
-  // amount was under 1e-9. (Found by a generated graph with Source lines, seed 5481; the Source
-  // line has no part in it.)
+  // Alone, behind a Gate and in front of a Gate. In front of another CONVERTER it does not, under
+  // 1e-9: that is E-open 4 (exactMovesOpen.test.ts).
   const CONVERTERS: [string, (n: number) => Graph, string[]][] = [
     ['alone', (n) => ({ nodes: [pool('A', held('3', n)), pool('Q', 0), conv('c', 'pullAll')], edges: [res('a', 'A', 'c', f('3', n)), res('o', 'c', 'Q', f('1', n))] }), ['a', 'o']],
     ['behind a Gate', (n) => ({ nodes: [pool('A', held('3', n)), pool('Q', 0), gate('g'), conv('c', 'pullAll')], edges: [res('a', 'A', 'g', f('3', n)), res('gc', 'g', 'c', f('3', n)), res('o', 'c', 'Q', f('1', n))] }), ['a', 'gc', 'o']],
     ['in front of a Gate', (n) => ({ nodes: [pool('A', held('8', n)), pool('Q', 0), conv('c', 'pullAll'), gate('g')], edges: [res('a', 'A', 'c', f('8', n)), res('cg', 'c', 'g', f('3', n)), res('o', 'g', 'Q', '1')] }), ['a', 'cg', 'o']],
-    ['in front of a Converter that has a Pool line of its own', (n) => ({ nodes: [pool('A', held('8', n)), pool('B', held('12', n)), pool('Q', 0), conv('c0', 'pullAll'), conv('c1')], edges: [res('a', 'A', 'c0', f('8', n)), res('cc', 'c0', 'c1', f('3', n)), res('b', 'B', 'c1', f('3', n)), res('o', 'c1', 'Q', f('4', n))] }), ['a', 'cc', 'b', 'o']],
-    ['in front of a Converter, both `pull all`', (n) => ({ nodes: [pool('A', held('8', n)), pool('Q', 0), conv('c0', 'pullAll'), conv('c1', 'pullAll')], edges: [res('a', 'A', 'c0', f('8', n)), res('cc', 'c0', 'c1', f('3', n)), res('o', 'c1', 'Q', f('4', n))] }), ['a', 'cc', 'o']],
   ]
   it.each(CONVERTERS)('%s: every line moves at scale 1, at 10^-9, at 10^-10 and at 10^-12, the same amounts times the scale', (_name, make, lines) => {
     const at1 = runAndRead(make(0))[0]

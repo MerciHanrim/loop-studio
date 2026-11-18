@@ -4016,19 +4016,21 @@ export function step(
             receivedR = addR(receivedR, x)
             emit(e, e.source, id, a, x)
           }
-          // The fraction is what arrived over what a full run takes, exactly (the
-          // members before it delivered at the plan's fraction, and so did its own takes)
-          const sumInR = inOf(id).reduce((t, e) => (rateOfCached(e) > 0 ? addR(t, exactRate(e)) : t), RAT0)
-          // the plan's f, bounded by what arrived (equal, up to rounding). What arrived is read
-          // off the exact amounts: the doubles beside them are 0 for an amount under the display
-          // threshold, and a `pull all` Converter whose amounts are that small read "nothing
-          // arrived" and stopped its group (SEMANTICS-E.md §E19: a part of a run is not an amount)
-          let f = isPositive(sumInR) ? Math.min(plF, rnR(divR(receivedR, sumInR))) : 0
+          // the plan's f, bounded by what arrived (equal, up to rounding)
+          // (SEMANTICS-E.md E-open 4: `received` is a sum of doubles, and the double beside an
+          // amount under the display threshold is 0. So a `pull all` Converter one of whose
+          // amounts is that small reads less than arrived and stops its group. Reading the
+          // verdict off the exact amounts lets the group run, and then a member behind it whose
+          // stated run target is under the floor drops what it is handed: tried, and not done.)
+          let f = sumIn > 0 ? Math.min(plF, received / sumIn) : 0
           f = frac(Math.max(0, Math.min(1, f)))
           if (mode === 'pullAll' && f < (planNeed.get(id) ?? 1) * RUN_REACHED) {
             pullShort.add(id)
             f = 0
           }
+          // The fraction is what arrived over what a full run takes, exactly (the
+          // members before it delivered at the plan's fraction, and so did its own takes)
+          const sumInR = inOf(id).reduce((t, e) => (rateOfCached(e) > 0 ? addR(t, exactRate(e)) : t), RAT0)
           // (`f`, the double, only carries the `pull all` verdict above here: what arrived is
           // the ledger's, whatever its size, and the Converter runs on it)
           const stopped = mode === 'pullAll' && f === 0

@@ -88,7 +88,9 @@ describe('a table of what a supply can give (#519)', () => {
     expect(other(available.unmet)).toEqual(other(plan.unmet))
   })
 
-  it('`plan` written out reads the same as no `means`', () => {
+  // (a whole run of the outage inside the test: its own limit. With engine revision 16 it takes
+  // about 2.3 s alone, and went past the default 5 s when the whole suite ran beside it)
+  it('`plan` written out reads the same as no `means`', { timeout: 30_000 }, () => {
     const a = run(outageDoc(undefined))
     expect(a.unmet).toEqual(plan.unmet)
     expect(a.values).toEqual(plan.values)
