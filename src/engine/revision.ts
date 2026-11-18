@@ -103,5 +103,10 @@
 //                       node has fired where it moved anything above 0; a Pool's
 //                       capacity is tested exactly; a planned `pull all` Gate with
 //                       two supplies is let through for a Pool that is short by at
-//                       most 1e-9, never for room that is short (SEMANTICS-E.md)
+//                       most 1e-9, never for room that is short; a `pull all` node
+//                       that asks 1e-9 or less in all may be short by 1e-9 of what
+//                       it asks; a `pull all` Drain or End that runs short takes
+//                       what its Pools hold (it was recorded as taking all it
+//                       asked); a Gate's reported state follows its firing
+//                       (SEMANTICS-E.md)
 export const ENGINE_REVISION = 16
