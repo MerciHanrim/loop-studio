@@ -1002,10 +1002,6 @@ export function step(
     const b = roomX(id, own)
     return b === null ? Infinity : xDown(b)
   }
-  const exactNet = new Map<string, Rat>()
-  const exactReset = () => {
-    exactNet.clear()
-  }
   /** TRIAL — the largest double within a rational that is above 0 (0 otherwise) */
   const downTo = (x: Rat): number => {
     if (cmpR(x, RAT0) <= 0) return 0
@@ -2401,14 +2397,6 @@ export function step(
         }
       }
       let s = Number.isFinite(sMax) ? Math.max(0, sMax) : 0
-      if (s > 0) {
-        // PROTOTYPE — the plan's number against the exact ledger. The amounts the record below
-        // would hold at a number are summed exactly: what is taken from a Pool within what is
-        // exactly available, and each Pool's level, walked in the commit order, within its exact
-        // room. Where they do not fit, the number goes down a double at a time. (`pull all` is
-        // asked after this, on the number that stands.)
-        const inOrderP = [...members].sort((a, b) => (orderIdx.get(a) ?? Infinity) - (orderIdx.get(b) ?? Infinity))
-      }
       // `pull all` members fix the number: the group runs at it or not at all
       // (SEMANTICS.md §9; a short one is recorded for the fixpoint).
       const modeOf = (id: string) => ((byId.get(id)?.data as { mode?: string } | undefined)?.mode ?? 'pullAny')
@@ -2431,9 +2419,6 @@ export function step(
           s = 0
           zeroAt ??= ''
         }
-      }
-      for (const g of sourceGates) {
-        break
       }
       if (zeroAt !== null) for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, m === zeroAt ? 'pullAll' : 'plan')
       {
@@ -2485,7 +2470,6 @@ export function step(
           const usedR = new Map<string, Rat>()
           const pulls = new Map<string, { e: LoopEdge; aR: Rat }[]>()
           const margins: Rat[] = []
-          const labels: string[] = [] // what each margin is, in the same order
           for (const g of srcGates) {
             let need = subR(mulR(cofR.get(g) ?? RAT0, xR), handedR(g))
             const list: { e: LoopEdge; aR: Rat }[] = []
@@ -2500,11 +2484,9 @@ export function step(
             }
             pulls.set(g, list)
             margins.push(subR(coverSlack, need)) // the Gate's need is covered
-            labels.push(`what the source Gate ${g} still needs after its pulls`)
           }
           for (const p of [...inNeedR.keys()].sort()) {
             margins.push(subR(availR(p), mulR(xR, inNeedR.get(p)!))) // the Converters' takes are within the supply
-            labels.push(`the supply of ${p} for the Converters`)
           }
           for (const q of capped) {
             let level = RAT0
@@ -2521,10 +2503,9 @@ export function step(
                 if (mk) level = addR(level, mulR(cs, mk))
               }
               margins.push(subR(roomRs.get(q)!, level))
-              labels.push(`the room of ${q} at ${m}'s turn`)
             }
           }
-          return { pulls, margins, labels }
+          return { pulls, margins }
         }
         const allIn = (ms: Rat[]) => ms.every((x) => cmpR(x, RAT0) >= 0)
         // The number. The search's is a double; where the exact bounds are passed at it, the
@@ -2640,13 +2621,12 @@ export function step(
             }
           }
         }
-        const pick = (e: LoopEdge, v: number): number => v
         const pullsOf = new Map<string, { e: LoopEdge; a: number; r?: Rat }[]>()
         if (s > 0) {
           for (const [g, list] of exactAt(sR).pulls) {
             keepTiny = false
             // (part 'b': a line keeps its exact amount, and is kept whatever its size)
-            pullsOf.set(g, list.map(({ e, aR }) => ({ e, a: nzD(pick(e, rnR(aR))), r: aR })).filter((x) => x.a > 0 || (isPositive(x.r))))
+            pullsOf.set(g, list.map(({ e, aR }) => ({ e, a: nzD(rnR(aR)), r: aR })).filter((x) => x.a > 0 || (isPositive(x.r))))
             keepTiny = false
           }
         }
@@ -2668,7 +2648,7 @@ export function step(
             for (const e of liveOuts(m)) {
               if (rateOfCached(e) <= 0 || !WmR || (W.get(m) ?? 0) <= 0) continue
               const xR = divR(mulR(cs, exactRate(e)), WmR)
-              const amt = nzD(pick(e, rnR(xR)))
+              const amt = nzD(rnR(xR))
               fixedOut.set(e.id, amt)
               if (promised(amt, xR) && isPool(e.target)) promise(m, e.target, upTo(amt, xR), xR)
             }
@@ -2680,7 +2660,7 @@ export function step(
           const takes: { e: LoopEdge; a: number; r?: Rat }[] = []
           for (const e of convPoolIns.get(m)!) {
             const xR = mulR(fR, exactRate(e))
-            const a = f > 0 ? nzD(pick(e, rnR(xR))) : 0
+            const a = f > 0 ? nzD(rnR(xR)) : 0
             if (a <= 0 && !(isPositive(xR))) continue
             takes.push({ e, a, r: xR })
             claimIn(e.source, a, xR)
@@ -2689,7 +2669,7 @@ export function step(
           for (const e of liveOuts(m)) {
             if (rateOfCached(e) <= 0) continue
             const xR = mulR(fR, exactRate(e))
-            const amt = f > 0 ? nzD(pick(e, rnR(xR))) : 0
+            const amt = f > 0 ? nzD(rnR(xR)) : 0
             fixedOut.set(e.id, amt)
             if (promised(amt, xR) && isPool(e.target)) promise(m, e.target, upTo(amt, xR), xR)
           }
@@ -2870,7 +2850,6 @@ export function step(
       const fixed = new Set<string>() // the supplies filled so far
       const tentative = new Set<string>() // what `settle` set for a Gate that is not its piece's root; redone on every test
       const keyOf = (sup: Sup) => (sup.kind === 'own' ? `own:${sup.e.id}` : `piece:${sup.piece}`)
-      const valueOf = (sup: Sup) => (sup.kind === 'own' ? (uOwn.get(sup.e.id) ?? 0) : sup.coef * (sPiece.get(sup.piece) ?? 0))
       /** every piece's number: a source piece's own; a headed piece's number is the throughput of the Gate at its root (its supplies are all upstream, so earlier in the order) */
       const sOf = (): Map<number, number> => {
         const s = new Map<number, number>()
@@ -3197,32 +3176,19 @@ export function step(
       }
       /** part 'q': the largest fraction, 0 to `hiR`, at which the plan stands. From the bound,
        *  down the last straight piece of each margin that is passed, to where the first is met. */
-      const largestQ = (setQ: (x: Rat) => void, hiR: Rat, ok: () => boolean, what: string): Rat => {
+      const largestQ = (setQ: (x: Rat) => void, hiR: Rat, ok: () => boolean): Rat => {
         const at = (x: Rat) => {
           setQ(x)
           return evalQ()
         }
         let best = RAT0
-        let how = 'its bound is 0'
         if (isPositive(hiR)) {
-          const top = at(hiR)
-          if (top.ok) {
-            best = hiR
-            how = 'its bound fits'
-          } else {
-            if (!at(RAT0).ok) how = 'nothing fits, 0 included'
-            else {
-              let wasHalved = false
-              best = exactTop(RAT0, hiR, (x) => at(x).margins, () => {
-                wasHalved = true
-              })
-              how = !isPositive(best) ? 'nothing above 0 fits' : wasHalved ? 'halved' : 'the exact point under its bound'
-            }
-          }
+          if (at(hiR).ok) best = hiR
+          else if (at(RAT0).ok) best = exactTop(RAT0, hiR, (x) => at(x).margins, () => {})
         }
         at(best)
         if (isPositive(best) && !ok()) {
-          how += '; set to 0 by its `pull all` rule'
+          // its `pull all` rule sets it to 0
           best = RAT0
           at(best)
         }
@@ -3237,46 +3203,33 @@ export function step(
         return maxR(RAT0, need)
       }
       type Item = { sup: Sup; p: Piece | null }
-      /** What a multi-supply Gate that is NOT the root of its piece still has to bring: the throughput the root gives it
-       *  (`cof · s`), less its supplies filled so far. `Infinity` for a Gate at the root of its piece (its throughput is
-       *  whatever its supplies add up to). */
-      const stillToCover = (G: string): number => {
-        const p = pieces[pieceOf.get(G)!]
-        if (p.root === G) return Infinity
-        let need = (p.cof.get(G) ?? 0) * (sOf().get(p.id) ?? 0)
-        for (const sup of supplies.get(G)!) if (fixed.has(keyOf(sup))) need -= valueOf(sup)
-        return Math.max(0, need)
-      }
       /** `upTo`: the most the supply may bring (a Gate held to a throughput never brings more than is left of it). The
        *  search is then over values that the later supplies can complete, which is one-sided. Without it the last supply
        *  of a held Gate was searched over "covers the throughput exactly", true at one point only: the bisection ended at
        *  0 unless that point was the bound or the bound over a power of two, and the whole group moved nothing; and an
        *  earlier supply settled the test's tolerance past the throughput, 5.000000001 for 5 (review of 2026-11-15, P1). */
-      const fill = (it: Item, upTo = Infinity, forG?: string): number => {
-        {
-          // part 'q': the same fill on fractions. What is left of a held Gate's throughput is
-          // read before this supply counts as filled.
-          const leftQ = forG !== undefined ? stillToCoverQ(forG) : null
-          tentative.delete(keyOf(it.sup))
-          fixed.add(keyOf(it.sup))
-          let v: Rat
-          if (it.sup.kind === 'own') {
-            const idQ = it.sup.e.id
-            let hiQ = minR(exactWant(it.sup.e, it.sup.want), maxR(RAT0, availQ(it.sup.e.source)))
-            if (leftQ !== null) hiQ = minR(hiQ, leftQ)
-            v = largestQ((x) => setOwnQ(idQ, x), hiQ, () => true, `the own line ${idQ}`)
-          } else {
-            const pQ = it.p!
-            let hiQ = pieceMaxQ(pQ)
-            if (leftQ !== null) {
-              const pid = it.sup.piece
-              const coef = supplies.get(forG!)!.reduce((t, o) => (o.kind === 'router' && o.piece === pid ? addR(t, partsQ().coefR.get(o)!) : t), RAT0)
-              hiQ = minR(hiQ, isPositive(coef) ? divR(leftQ, coef) : RAT0)
-            }
-            v = largestQ((x) => setPieceQ(pQ.id, x), hiQ, () => pullAllSourcesOk(pQ), `piece ${pQ.id} (${pQ.members.join(' ')})`)
+      const fill = (it: Item, forG?: string): number => {
+        // What is left of a held Gate's throughput is read before this supply counts as filled.
+        const leftQ = forG !== undefined ? stillToCoverQ(forG) : null
+        tentative.delete(keyOf(it.sup))
+        fixed.add(keyOf(it.sup))
+        let v: Rat
+        if (it.sup.kind === 'own') {
+          const idQ = it.sup.e.id
+          let hiQ = minR(exactWant(it.sup.e, it.sup.want), maxR(RAT0, availQ(it.sup.e.source)))
+          if (leftQ !== null) hiQ = minR(hiQ, leftQ)
+          v = largestQ((x) => setOwnQ(idQ, x), hiQ, () => true)
+        } else {
+          const pQ = it.p!
+          let hiQ = pieceMaxQ(pQ)
+          if (leftQ !== null) {
+            const pid = it.sup.piece
+            const coef = supplies.get(forG!)!.reduce((t, o) => (o.kind === 'router' && o.piece === pid ? addR(t, partsQ().coefR.get(o)!) : t), RAT0)
+            hiQ = minR(hiQ, isPositive(coef) ? divR(leftQ, coef) : RAT0)
           }
-          return rnR(v)
+          v = largestQ((x) => setPieceQ(pQ.id, x), hiQ, () => pullAllSourcesOk(pQ))
         }
+        return rnR(v)
       }
       let zero = false
       let zeroAt: string | null = null // #477 — the `pull all` Gate whose fixed demand could not be met
@@ -3370,15 +3323,7 @@ export function step(
             if (determined(it)) continue
             // a Gate held to a throughput: this supply brings at most what is left of it
             fixed.delete(keyOf(it.sup)) // (not counted as filled while its own room is measured)
-            const left = stillToCover(G)
-            let upTo = left
-            if (it.sup.kind === 'router' && Number.isFinite(left)) {
-              // the piece's number: every connection from that piece into G carries its share of it
-              const piece = it.sup.piece
-              const coef = supplies.get(G)!.reduce((t, o) => (o.kind === 'router' && o.piece === piece ? t + o.coef : t), 0)
-              upTo = coef > 0 ? left / coef : 0
-            }
-            fill(it, upTo, G)
+            fill(it, G)
           }
         }
       }
@@ -3435,8 +3380,6 @@ export function step(
         //     holding 2 was "met" at 2, and a Pool holding nothing asked nothing of it.) A Gate
         //     that is not `pull all` brings what its lines can.
         // Short of the two together by more than the absolute epsilon, the whole group stops.
-        const handedFull = new Map<string, Rat>()
-        const ownAsk = new Map<string, Rat>()
         let demandR: ((m: string) => Rat) | null = null
         if (exactP) {
           const fullR = new Map<number, Rat>()
@@ -3453,8 +3396,6 @@ export function step(
                 own = addR(own, modeOfRouter(G) === 'pullAll' ? ask : minR(ask, maxR(RAT0, availQ(sup.e.source))))
               }
             }
-            handedFull.set(G, handed)
-            ownAsk.set(G, own)
             fullR.set(p.id, addR(handed, own))
           }
           demandR = (m) => mulR(partsQ().cofR.get(pieceOf.get(m)!)?.get(m) ?? RAT0, fullR.get(pieceOf.get(m)!) ?? RAT0)
@@ -3525,9 +3466,7 @@ export function step(
         evalQ() // the fractions at the plan's final numbers
         type ExR = { amount: (m: string) => Rat; pullsE: Map<string, { e: LoopEdge; aR: Rat }[]>; W: Map<string, Rat> }
         const exR = lastExact as ExR | null
-        const pick = (e: LoopEdge, v: number): number => v
         if (exR) {
-          const rows: string[] = []
           for (const m of members) {
             planned.add(m)
             const aR = exR.amount(m)
@@ -3541,9 +3480,8 @@ export function step(
               for (const e of liveOuts(m)) {
                 if (rateOfCached(e) <= 0 || !WmR || (W.get(m) ?? 0) <= 0) continue
                 const xR = divR(mulR(aR, exactRate(e)), WmR)
-                const amt = nzD(pick(e, rnR(xR)))
+                const amt = nzD(rnR(xR))
                 fixedOut.set(e.id, amt)
-                if (amt > 0) rows.push(`${e.id}:${amt}`)
                 if (promised(amt, xR) && isPool(e.target)) promise(m, e.target, upTo(amt, xR), xR)
               }
               // (part 'b': a line keeps its exact amount, and is kept whatever its size)
@@ -3552,12 +3490,12 @@ export function step(
                 for (const sup of supplies.get(m)!) {
                   if (sup.kind !== 'own') continue
                   const xR = ownExact(sup.e.id)
-                  const a = nzD(pick(sup.e, (uOwn.get(sup.e.id) ?? 0)))
+                  const a = nzD(uOwn.get(sup.e.id) ?? 0)
                   if (a > 0 || (isPositive(xR))) pulls.push({ e: sup.e, a, r: xR })
                 }
               } else {
                 for (const { e, aR: pR } of exR.pullsE.get(m) ?? []) {
-                  const a = nzD(pick(e, rnR(pR)))
+                  const a = nzD(rnR(pR))
                   if (a > 0 || (isPositive(pR))) pulls.push({ e, a, r: pR })
                 }
               }
@@ -3567,7 +3505,6 @@ export function step(
                 for (const { e, a, r } of pulls) {
                   reservedIn.set(e.source, (reservedIn.get(e.source) ?? 0) + a)
                   claimAddR(e.source, r ?? ratOfDouble(a))
-                  rows.push(`${e.id}:${a}`)
                 }
               }
               continue
@@ -3578,20 +3515,18 @@ export function step(
             const takes: { e: LoopEdge; a: number; r?: Rat }[] = []
             for (const e of convPoolIns.get(m)!) {
               const xR = mulR(fR, exactRate(e))
-              const a = f > 0 ? nzD(pick(e, rnR(xR))) : 0
+              const a = f > 0 ? nzD(rnR(xR)) : 0
               if (a <= 0 && !(f > 0 && isPositive(xR))) continue
               takes.push({ e, a, r: xR })
               reservedIn.set(e.source, (reservedIn.get(e.source) ?? 0) + a)
               claimAddR(e.source, xR)
-              rows.push(`${e.id}:${a}`)
             }
             planTakes.set(m, takes)
             for (const e of liveOuts(m)) {
               if (rateOfCached(e) <= 0) continue
               const xR = mulR(fR, exactRate(e))
-              const amt = f > 0 ? nzD(pick(e, rnR(xR))) : 0
+              const amt = f > 0 ? nzD(rnR(xR)) : 0
               fixedOut.set(e.id, amt)
-              if (amt > 0) rows.push(`${e.id}:${amt}`)
               if (promised(amt, xR) && isPool(e.target)) promise(m, e.target, upTo(amt, xR), xR)
             }
           }
@@ -3743,7 +3678,6 @@ export function step(
             // Short of it by more than the absolute epsilon, it takes nothing: the record's claims are given back.
             let demandP = got
             for (const e of inOf(id)) if (isPool(e.source) && !dead.has(e.id)) demandP += amountOf(e, availOf(e.source) + (plPulls.find((x) => x.e.id === e.id)?.a ?? 0), S[e.source] ?? 0)
-            const would = plPulls.reduce((a, x) => a + x.a, got)
             // part 'b': the test on the exact amounts, with the same absolute epsilon
             let shortB = false
             let askR = RAT0
@@ -3979,7 +3913,6 @@ export function step(
           const xR = isPositive(WB) ? divR(mulR(TR, wB[i]), WB) : RAT0
           if (!isPositive(xR)) continue
           const share = rnR(xR)
-          const up = upTo(share, xR)
           if (isPool(e.target)) {
             settleR(id, e.target, xR)
             moveLevel(e.target, share, xR)
@@ -4401,7 +4334,6 @@ export function step(
       fired.clear()
       for (const v of snap.fired) fired.add(v)
       events.length = snap.eventsLen
-      exactReset()
       diagnostics.length = snap.diagLen // no-op while emitDiag is false, kept as a guard
       ended = snap.ended
     }
