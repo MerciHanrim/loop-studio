@@ -36,7 +36,7 @@ const ratOfDoubleFast = (x: number): Rat => {
 const ratOfDouble = (x: number): Rat => (ratOfDoubleFast(x))
 const TWO53 = 1n << 53n
 const TWO54 = 1n << 54n
-/** TRIAL (part 'o') — the double nearest a fraction above 0 (ties to even), by one division of
+/** The double nearest a fraction above 0 (ties to even), by one division of
  *  integers: the quotient to 54 bits, the last of them and what is left over deciding the
  *  rounding. NaN where the fraction is outside the plain range of doubles (the caller then goes
  *  the long way). */
@@ -62,7 +62,7 @@ const nearestFast = (r: Rat): number => {
   if ((q & 1n) === 1n && (!exact || (m & 1n) === 1n)) m += 1n
   return Number(m) * 2 ** (1 - k)
 }
-// TRIAL (part 'o') — the arithmetic of fractions with the same results as `../model/rational`
+// The arithmetic of fractions with the same results as `../model/rational`
 // (a fraction is kept reduced, its denominator above 0; there is one such form), by shorter ways:
 //   - a denominator that is a power of two (every double's is) is reduced by the numerator's
 //     trailing zero bits, with no Euclid's algorithm;
@@ -101,14 +101,14 @@ const subR = (a: Rat, b: Rat): Rat => (subFast(a, b))
 const mulR = (a: Rat, b: Rat): Rat => (mulFast(a, b))
 const divR = (a: Rat, b: Rat): Rat => (divFast(a, b))
 const cmpR = (a: Rat, b: Rat): -1 | 0 | 1 => (cmpFast(a, b))
-/** TRIAL (part 'o') — a connection's exact rate, kept from step to step with what it was worked from.
- *  By the connection's ID, not by its object (2026-11-18): a document with units has its
- *  connections made anew by the unit application at every step, so a table by object never held
- *  an answer there, and every rate was read again every step (found when the cost was measured
- *  with the documents' own settings). The answer depends on nothing but the four things kept
- *  beside it and compared before it is given, so one id in two documents cannot give a wrong one. */
+/** A connection's exact rate, kept from step to step with what it was worked from.
+ *  By the connection's ID, not by its object: a document with units has its connections made
+ *  anew by the unit application at every step, so a table by object would never hold an answer
+ *  there, and every rate would be read again every step. The answer depends on nothing but the
+ *  four things kept beside it and compared before it is given, so one id in two documents
+ *  cannot give a wrong one. */
 const RATE_CACHE = new Map<string, { flow: unknown; kind: string; unit: Rat | undefined; r: number; exact: Rat }>()
-/** TRIAL (part 'o') — a fraction above 0 as a double NEAR it (the quotient of the two integers as
+/** A fraction above 0 as a double NEAR it (the quotient of the two integers as
  *  doubles, within a last place or two), for the code that then finds the exact neighbour itself;
  *  `toDouble` (25 decimal digits through a text) where that quotient is not a finite number above 0 */
 const nearD = (r: Rat): number => {
@@ -265,16 +265,16 @@ export function step(
   }
   const fracGone = (f: number): boolean => (!(f > 0))
   const targetFloored = (cid: string): boolean => runTargets?.[cid] !== undefined && runOf(cid) <= EPSILON
-  // (the fourth review, 2026-11-18) the same for the two turns that still dropped a MOVE under the
-  // epsilon with every part on: a Source's push into a Pool and a Drain's or End's pull from one
-  // (5e-10 a step was not moved). With 'd' an amount above 0 is moved; without it, as on main.
+  // A Source's push into a Pool and a Drain's or End's pull from one: an amount above 0 is moved,
+  // whatever its size (SEMANTICS-E.md §E7). Dropped under the display threshold, 5e-10 a step
+  // was not moved.
   const nzPool = (x: number): number => (x > 0 ? x : 0)
-  /** PROTOTYPE — a fraction that is above 0, as the double nearest it */
+  /** a fraction that is above 0, as the double nearest it (0 for a fraction at 0 or under) */
   const rnR = (r: Rat): number => {
     if (cmpR(r, RAT0) <= 0) return 0
-    // (part 'o': the loops below find the double just under the fraction from ANY double near
-    // it, and the choice between that one and the next is exact; so the start need not be the
-    // nearest, and the result is the same)
+    // by one division where the fraction is in the plain range of doubles. Outside it, the
+    // loops below find the double just under the fraction from ANY double near it, and the
+    // choice between that one and the next is exact; so the start need not be the nearest
     const f = nearestFast(r)
     if (f === f) return f
     let v = nearD(r)
@@ -287,13 +287,13 @@ export function step(
     f64[0] = v
     return (u64[0] & 1n) === 0n ? v : up
   }
-  /** REPRESENTATION B, stage 2 — the largest number between `lo0` (every margin at 0 or above)
+  /** The largest number between `lo0` (every margin at 0 or above)
    *  and `hi0` (a margin under 0) at which every margin is at 0 or above. The margins are bent
    *  lines of the number. Two steps a round, each checked by working the margins out again:
    *  up from the low end along the lines there, to where the first of them meets 0; down from
    *  the high end along the lines of the margins passed there. It ends where a margin is 0 at
    *  the low end and falls just above it: that number is the top, exactly. `halved` is called
-   *  where the rounds run out and the rest is halved (not exact; to be counted). */
+   *  where the rounds run out and the rest is halved (not exact). */
   const exactTop = (lo0: Rat, hi0: Rat, marginsAt: (x: Rat) => Rat[], halved: () => void): Rat => {
     const inAll = (ms: Rat[]) => ms.every((x) => x.num >= 0n)
     const SL = ratOfDouble(2 ** -30)
@@ -305,7 +305,7 @@ export function step(
     // FIRST, down from the high end, until a number is met at which every margin holds. The
     // numbers that fit need not be one stretch from the low end: a Gate whose first lines take
     // from other Pools and whose later lines take from the Pool it adds to fits at 0, not just
-    // above it, and again further up (seed 457: at 0 and from 3 1/3 to 7; begun from the low
+    // above it, and again further up (for example at 0 and from 3 1/3 to 7; begun from the low
     // end, "0, and falling above it" was taken for the top and the Gate moved nothing).
     for (let k = 0; k < 60 && !inAll(mHi); k++) {
       const dT = mulR(subR(hi, lo), SL)
@@ -403,11 +403,11 @@ export function step(
     }
     return lo
   }
-  /** TRIAL — what a deterministic Gate hands each of `outs` at a throughput of T */
+  /** what a deterministic Gate hands each of its lines out, by their weights, at a throughput of T */
   const splitOf = (weights: number[], sumW: number, T: number, fix = false, totalX?: bigint, skip = 0): number[] => {
     const shares = weights.map((w) => (sumW > 0 ? nz((T * w) / sumW) : 0))
     if (fix && sumW > 0 && T > 0) {
-      // PROTOTYPE — each share is `total × w / W` worked out exactly and rounded once (the
+      // each share is `total × w / W` worked out exactly and rounded once (the
       // formula above rounds the product and then the quotient)
       const tX = totalX ?? toX(T)
       const wX = toX(sumW)
@@ -419,7 +419,7 @@ export function step(
       }
     }
     if (fix && T > 0 && shares.some((s) => s > 0)) {
-      // PROTOTYPE — the shares are made to sum to T exactly: what the formula's rounding left
+      // the shares are made to sum to T exactly: what the formula's rounding left
       // over, worked out exactly, goes onto one share that can take it as a double (the largest first)
       const d = (totalX ?? toX(T)) - shares.reduce((s, x) => s + toX(x), 0n)
       if (d !== 0n) {
@@ -450,9 +450,9 @@ export function step(
           }
         }
       }
-      // (Part 'a' first lowered a share here so that no more was handed on than came in; under a
-      // last place was then left with the Gate and gone. The review of 2026-11-17 does not take a
-      // silent loss: what the Gate PULLS is sized instead, see the Gate's turn. WITHDRAWN.)
+      // (no share is lowered here so that no more is handed on than came in: what was taken
+      // off, under a last place, would be left with the Gate and gone. What the Gate PULLS is
+      // sized instead, see the Gate's turn.)
       return shares
     }
     return shares
@@ -465,7 +465,7 @@ export function step(
     u64[0] += BigInt(d)
     return f64[0]
   }
-  // PROTOTYPE ('proto') — exact arithmetic on doubles: a double as an integer count of 2^-160.
+  // Exact arithmetic on doubles: a double as an integer count of 2^-160.
   // Sums and differences of doubles are then exact integer sums (no division, no fractions).
   const X_SHIFT = 160n
   const X_UNIT = 2 ** -160
@@ -649,14 +649,15 @@ export function step(
   const working: SimValues = { ...prev.values } // mutated, committed
   const taken = new Map<string, number>() // pulled OUT of a pool this step
   const reserved = new Map<string, number>() // promised INTO a pool, not yet in `working`
-  // TRIAL (part 'l') — the same promises summed exactly. `reserved` adds doubles: two promises of
-  // 0.003999999999999999 and 0.0030000000000000005 read 0.006999999999999999, 4.3e-19 under their
-  // sum, and a Gate outside the plan was given that much room that is not there (seed 5614).
+  // What has been settled of the promises, as an exact count on the fine unit (kept through a
+  // probe's rewind with the rest; no decision reads it).
   const reservedXm = new Map<string, bigint>()
-  // TRIAL (part 'i') — the promises as FRACTIONS: what is promised into a Pool, and what of it
-  // stands for each member's own delivery. Under 'i' these are the record; the doubles beside
-  // them are read-outs for the code that still decides in doubles, rounded to the safe side
-  // (a member's own promise DOWN, so a room read with it credited back is never above the exact one).
+  // The promises as FRACTIONS: what is promised into a Pool, and what of it stands for each
+  // member's own delivery. These are the record; the doubles beside them are read-outs for the
+  // code that still decides in doubles, rounded to the safe side (a member's own promise DOWN,
+  // so a room read with it credited back is never above the exact one). Summed as doubles, two
+  // promises of 0.003999999999999999 and 0.0030000000000000005 read 0.006999999999999999,
+  // 4.3e-19 under their sum, and a Gate outside the plan was given that much room that is not there.
   const reservedR = new Map<string, Rat>()
   const ownR = new Map<string, Map<string, Rat>>()
   const ownOfR = (mid: string, pid: string): Rat => ownR.get(mid)?.get(pid) ?? RAT0
@@ -673,34 +674,34 @@ export function step(
     if (!rowD) ownReserve.set(mid, (rowD = new Map()))
     rowD.set(pid, downTo(v))
   }
-  /** part 'i': promise exactly `x` into Pool `pid` for member `mid`'s own delivery */
+  /** promise exactly `x` into Pool `pid` for member `mid`'s own delivery */
   const promiseR = (mid: string, pid: string, x: Rat) => {
     if (!isPositive(x)) return
     const total = addR(reservedR.get(pid) ?? RAT0, x)
     reservedR.set(pid, total)
-    reserved.set(pid, Number(total.num) / Number(total.den)) // (a read-out for a trace's text; nothing decides on it)
+    reserved.set(pid, Number(total.num) / Number(total.den)) // (a read-out; nothing decides on it)
     setOwnR(mid, pid, addR(ownOfR(mid, pid), x))
   }
-  /** part 'i': member `mid` delivers exactly `x` into Pool `pid`: that much of its promise there is settled */
+  /** member `mid` delivers exactly `x` into Pool `pid`: that much of its promise there is settled */
   const settleR = (mid: string, pid: string, x: Rat) => {
     const have = ownOfR(mid, pid)
     if (!isPositive(have)) return
     const held = cmpR(have, x) < 0 ? have : x
     const total = subR(reservedR.get(pid) ?? RAT0, held)
     reservedR.set(pid, total)
-    reserved.set(pid, Number(total.num) / Number(total.den)) // (a read-out for a trace's text; nothing decides on it)
+    reserved.set(pid, Number(total.num) / Number(total.den)) // (a read-out; nothing decides on it)
     setOwnR(mid, pid, subR(have, held))
   }
   const reserveSub = (q: string, d: number) => {
     reserved.set(q, (reserved.get(q) ?? 0) - d)
     reservedXm.set(q, (reservedXm.get(q) ?? 0n) - toX(d))
   }
-  /** what is promised into a Pool, as an exact count: under part 'l' the exact sum, otherwise the double
-   *  (part 'i': the exact promises, rounded UP onto the fine unit for the code that reads a room on it) */
+  /** what is promised into a Pool, as an exact count: the exact promises, rounded UP onto the
+   *  fine unit for the code that reads a room on it */
   const resX = (q: string): bigint => (ceilX(reservedR.get(q) ?? RAT0))
   const inbox = new Map<string, number>() // handed to a router by an upstream router
   const ownReserve = new Map<string, Map<string, number>>()
-  /** a promise into a Pool for a member's own delivery: `d`, a double (not under `x`); under part 'i' exactly `x` */
+  /** a promise into a Pool for a member's own delivery: exactly `x` where it is given, otherwise the double `d` as it is */
   const promise = (mid: string, pid: string, d: number, x?: Rat) => {
     return promiseR(mid, pid, x ?? ratOfDouble(d))
   }
@@ -826,7 +827,7 @@ export function step(
     const r = rateOfCached(e)
     const known = exactRateOf.get(e.id)
     if (known && known.r === r) return known.exact
-    // (part 'o': the exact rate of a connection is worked from what the document states for it,
+    // (the exact rate of a connection is worked from what the document states for it,
     // the unit's exact ratio, the kind of its expression and the rate in hand. Where all four are
     // what they were the last time this connection was asked, in whatever step, the answer is the
     // one given then: a written amount is not read again every step.)
@@ -849,10 +850,9 @@ export function step(
   const exactWant = (e: LoopEdge, want: number): Rat => {
     if (fe(e).kind !== 'const' || isRefusedRate(e)) return ratOfDouble(want)
     const r = exactRate(e)
-    // (part 'o': the exact rate's nearest double IS the rate in hand: `exactRate` takes the stated
-    // decimal only when its nearest double is that rate, and otherwise the rate's own shortest
-    // decimal, which reads back as it; with the double reading it is the rate's double itself.
-    // So the question is asked of the rate, with no conversion.)
+    // (the exact rate's nearest double IS the rate in hand: `exactRate` takes the stated decimal
+    // only when its nearest double is that rate, and otherwise the rate's own shortest decimal,
+    // which reads back as it. So the question is asked of the rate, with no conversion.)
     return rateOfCached(e) === want ? r : ratOfDouble(want)
   }
 
@@ -889,21 +889,21 @@ export function step(
     gateHolds.delete(gateId)
     sumHolds(h.keys())
   }
-  // PROTOTYPE ('proto') — the exact level of each Pool within the step (set where the push phase
-  // begins) and exactly what has been taken from it
+  // Each Pool's level where the push phase begins and what has been taken from it since, as
+  // exact counts on the fine unit (kept through a probe's rewind with the rest; no decision reads them).
   const xl = new Map<string, bigint>()
   const xTaken = new Map<string, bigint>()
-  // REPRESENTATION B, stage 1 (part 'b') — the ledger of FRACTIONS. Every move of the step has an
-  // exact amount; a Pool's level within the step is its stored double plus those amounts; it is
-  // stored as the nearest double when the step ends, and that is the only rounding. What the
-  // engine decides on in between (a room, what is available) is read FROM this ledger and
-  // rounded to the safe side onto the trial's fine unit: a level up, an available amount down,
-  // so that nothing is decided that the exact ledger does not hold.
+  // The exact ledger, in FRACTIONS. Every move of the step has an exact amount; a Pool's level
+  // within the step is its stored double plus those amounts; it is stored as the nearest double
+  // when the step ends, and that is the only rounding. What the engine decides on in between
+  // (a room, what is available) is read FROM this ledger and rounded to the safe side onto the
+  // fine unit (2^-160): a level up, an available amount down, so that nothing is decided that
+  // the exact ledger does not hold.
   const lvR = new Map<string, Rat>() // a Pool's exact level within the step
   const takenR = new Map<string, Rat>() // exactly what has been taken from it
   const claimR = new Map<string, Rat>() // exactly what a plan has claimed of its supply and not yet taken
   const inboxR = new Map<string, Rat>() // exactly what a router has been handed
-  const movesR: { edgeId: string; from: string; to: string; amount: Rat; shown?: number }[] = [] // the record (`shown`, part 'o': the nearest double, worked once)
+  const movesR: { edgeId: string; from: string; to: string; amount: Rat; shown?: number }[] = [] // the record of moves (`shown`: the nearest double, worked once)
   const levelR = (id: string): Rat => lvR.get(id) ?? ratOfDouble(working[id] ?? 0)
   const X_ONE = 1n << 160n
   const floorX = (r: Rat): bigint => {
@@ -916,7 +916,7 @@ export function step(
     const q = n / r.den
     return n % r.den === 0n || n < 0n ? q : q + 1n
   }
-  // (part 'o': a Pool's level and what is available in it, on the fine unit, are asked many times
+  // (a Pool's level and what is available in it, on the fine unit, are asked many times
   // between two changes. A fraction is never changed in place, a change puts a NEW one in the
   // ledger; so "the same fraction objects as the last time" is "the same values", and the answer
   // given then is given again.)
@@ -943,15 +943,15 @@ export function step(
     }
     return m
   }
-  /** PROTOTYPE — exactly what is available in a Pool: its start, less the takes, less the claims */
+  /** what is available in a Pool, as an exact count: its start, less the takes, the claims and the holds, rounded DOWN onto the fine unit */
   const availX = (id: string): bigint =>
     availMemoOf(id).v
-  /** part 'b': a plan claims an exact amount of a Pool's supply, and gives the claim back as it takes */
+  /** a plan claims an exact amount of a Pool's supply, and gives the claim back as it takes */
   const claimAddR = (p: string, r: Rat) => claimR.set(p, addR(claimR.get(p) ?? RAT0, r))
   const claimSubR = (p: string, r: Rat) => claimR.set(p, subR(claimR.get(p) ?? RAT0, r))
-  /** part 'b': exactly what a Pool can still give: its start, less the takes, the claims and the holds */
+  /** exactly what a Pool can still give: its start, less the takes, the claims and the holds */
   const availR = (id: string): Rat => subR(subR(subR(ratOfDouble(S[id] ?? 0), takenR.get(id) ?? RAT0), claimR.get(id) ?? RAT0), ratOfDouble(heldIn.get(id) ?? 0))
-  /** part 'b': a capped Pool's room exactly: capacity, less the exact level, less what is promised into it, `own` credited back (null: no capacity) */
+  /** a capped Pool's room exactly: capacity, less the exact level, less what is promised into it, `own` credited back (null: no capacity) */
   const roomRat = (id: string, own = 0): Rat | null => roomRatX(id, toX(own))
   /** the same, `own` as an exact sum on the fine unit (a group's own promises there) */
   const roomRatX = (id: string, ownX: bigint): Rat | null => {
@@ -961,7 +961,7 @@ export function step(
     if (!Number.isFinite(c)) return null
     return roomRatR(id, divR(fromInt(ownX), fromInt(X_ONE)))
   }
-  /** part 'i': the room in fractions throughout: capacity, less the exact level, less the exact promises, `own` (exact) credited back */
+  /** the room in fractions throughout: capacity, less the exact level, less the exact promises, `own` (exact) credited back */
   const roomRatR = (id: string, own: Rat): Rat | null => {
     const n = byId.get(id)
     if (!n) return RAT0
@@ -969,7 +969,7 @@ export function step(
     if (!Number.isFinite(c)) return null
     return subR(addR(subR(ratOfDouble(c), reservedR.get(id) ?? RAT0), own), levelR(id))
   }
-  const availExactR = availR // (a plan's block has an `availR` of its own, on the fine unit)
+  const availExactR = availR // (a plan's block has an `availR` of its own, which asks this one once a Pool)
   const availOf = (id: string) => {
     const m = availMemoOf(id)
     return (m.d ??= xDown(m.v))
@@ -984,8 +984,8 @@ export function step(
     }
     return cap(n) - (working[id] ?? 0) - reservedOf(id)
   }
-  /** PROTOTYPE — a capped Pool's room exactly, `own` credited back (null: no capacity). Rule H: a
-   *  Pool that reads full (its level would be stored as its capacity) has no room for a new grant. */
+  /** a capped Pool's room as an exact count, `own` credited back (null: no capacity). A Pool
+   *  that reads full (its level would be stored as its capacity) has no room for a new grant. */
   const roomX = (id: string, own = 0): bigint | null => {
     const n = byId.get(id)
     if (!n) return 0n
@@ -998,7 +998,7 @@ export function step(
     const b = roomX(id, own)
     return b === null ? Infinity : xDown(b)
   }
-  /** TRIAL — the largest double within a rational that is above 0 (0 otherwise) */
+  /** the largest double within a fraction that is above 0 (0 otherwise) */
   const downTo = (x: Rat): number => {
     if (cmpR(x, RAT0) <= 0) return 0
     let v = nearD(x) // (the loops below find the same double from any double near it)
@@ -1007,9 +1007,7 @@ export function step(
     while (v > 0 && cmpR(ratOfDouble(nextTo(v, 1)), x) <= 0) v = nextTo(v, 1)
     return v
   }
-  /** TRIAL ('up…') — a capped Pool's level is moved and, where the sum is not a double, rounded UP:
-   *  the level the engine holds is then never below the exact one, so a room read off it is never
-   *  more than the exact room. Without the switch: main's `level + delta`. */
+  /** a Pool's level is moved by `delta`, or by exactly `r` where it is given */
   const moveLevel = (id: string, delta: number, r?: Rat) => {
     // the exact level moves by the exact amount (signed as `delta` is); what the engine holds
     // beside it is the double nearest
@@ -1023,19 +1021,19 @@ export function step(
     takenR.set(poolId, addR(takenR.get(poolId) ?? RAT0, r ?? ratOfDouble(amt)))
     moveLevel(poolId, -amt, r ? subR(RAT0, r) : undefined)
   }
-  // part 'b': a move is RECORDED with its exact amount (`r`; a double moved as it is, is its own
-  // exact amount), whatever its size. The EVENT is what is shown of it: the nearest double, and
-  // only above the display threshold. A router's inbox is exact too.
+  // A move is RECORDED with its exact amount (`r`; a double moved as it is, is its own exact
+  // amount), whatever its size (SEMANTICS-E.md §E7). The EVENT is what is shown of it: the
+  // nearest double, and only above the display threshold. A router's inbox is exact too.
   const emit = (e: LoopEdge, from: string, to: string, amount: number, r?: Rat) => {
     const x = r ?? ratOfDouble(amount)
     if (!isPositive(x)) return
-    // (part 'o': a double moved as it is, is its own nearest double; and the record keeps the
-    // nearest double it worked out, so the report does not work it out again)
+    // (a double moved as it is, is its own nearest double; and the record keeps the nearest
+    // double it worked out, so the report does not work it out again)
     const shown = r === undefined ? amount : rnR(x)
     movesR.push({ edgeId: e.id, from, to, amount: x, shown })
     if (!isPool(to) && !isPool(from)) inboxR.set(to, addR(inboxR.get(to) ?? RAT0, x)) // handed from a router to a router (a Pool line goes into the member's own turn)
     if (shown > EPSILON) events.push({ edgeId: e.id, from, to, amount: shown })
-    return // part 'e': a kept line under the epsilon is an event too
+    return
   }
 
   // ── Phase 0: state connections (SEMANTICS-S.md §S2) ─────────────────────
@@ -1348,7 +1346,7 @@ export function step(
 
   // ── Phase 1: push ────────────────────────────────────────────────────────
   for (const id of Object.keys(working)) xl.set(id, toX(working[id] ?? 0)) // the exact level starts at the value the push phase finds
-  for (const id of Object.keys(working)) lvR.set(id, ratOfDouble(working[id] ?? 0)) // part 'b': and so does the ledger of fractions: a stored double is exactly itself
+  for (const id of Object.keys(working)) lvR.set(id, ratOfDouble(working[id] ?? 0)) // and so does the exact ledger: a stored double is exactly itself
   const sources = nodes
     .filter((n) => n.data.kind === 'source' && firing(n))
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
@@ -1526,7 +1524,7 @@ export function step(
     for (const [q, n] of paths) {
       if (n < 2) continue
       const net = (share.get(q) ?? 0) - (takes?.get(q) ?? 0)
-      if (net > 0) bound = Math.min(bound, Math.max(0, headroom(q) + (held.get(q) ?? 0)) / net) // (part 'd', O3: a net above 0 asks the room; asked `> epsilon`, a Pool reached by two paths was filled past its capacity by a Converter whose net into it was 1e-11 a run: with Source lines, seed 2514 at 10^-12)
+      if (net > 0) bound = Math.min(bound, Math.max(0, headroom(q) + (held.get(q) ?? 0)) / net) // (a net above 0 asks the room, SEMANTICS-E.md §E14; asked only above the epsilon, a Pool reached by two paths was filled past its capacity by a Converter whose net into it was 1e-11 a run)
     }
     return bound
   }
@@ -1616,10 +1614,10 @@ export function step(
     }
     return accept
   }
-  /** part 'i': the same, exactly. `xR` arriving at `destId` is followed in the shares the turns
-   *  hand on in: a Gate's exact weights (a probabilistic Gate: its one branch), a Converter's one
-   *  fraction `xR / Σ inputs` on every output; each Pool it ends in is promised its exact part,
-   *  for the member that delivers there. */
+  /** Reserve the Pool headroom that `xR` arriving at `destId` will consume downstream, exactly.
+   *  It is followed in the shares the turns hand on in: a Gate's exact weights (a probabilistic
+   *  Gate: its one branch), a Converter's one fraction `xR / Σ inputs` on every output; each
+   *  Pool it ends in is promised its exact part, for the member that delivers there. */
   const planReserveR = (destId: string, xR: Rat, depth = 0) => {
     if (!isPositive(xR) || depth > 32) return
     const k = kindOf(destId)
@@ -1746,18 +1744,18 @@ export function step(
     const planned = new Set<string>()
     const planF = new Map<string, number>() // Converter member → its run fraction
     const planT = new Map<string, number>() // Gate member → its throughput
-    const planTakes = new Map<string, { e: LoopEdge; a: number; r?: Rat }[]>() // Converter member → its Pool takes (`r`, part 'b': the exact amount)
+    const planTakes = new Map<string, { e: LoopEdge; a: number; r?: Rat }[]>() // Converter member → its Pool takes (`r`: the exact amount)
     const planPulls = new Map<string, { e: LoopEdge; a: number; r?: Rat }[]>() // #476 — multi-supply Gate → its own-Pool takes
-    /** part 'b': what is promised into a Pool is held as a double that is not under the exact amount */
+    /** a double that is not under the exact amount `x`: its nearest (`near`), or the next one above that */
     const upTo = (near: number, x: Rat): number => {
       if (!isPositive(x)) return near
-      const d = near > 0 ? near : rnR(x) // (a line the record's amount floor made 0 is still promised its room)
+      const d = near > 0 ? near : rnR(x) // (a line the display threshold made 0 in the record is still promised its room)
       return cmpR(ratOfDouble(d), x) < 0 ? nextTo(d, 1) : d
     }
-    /** part 'b': a record's line into a Pool has its room promised whatever its size */
+    /** a record's line into a Pool has its room promised whatever its size */
     const promised = (amt: number, x: Rat): boolean => amt > 0 || (isPositive(x))
-    const planOut = new Map<string, Map<string, number>>() // PROTOTYPE — planned member → connection → the amount it is to hand on
-    const planPullsSource = new Set<string>() // PROTOTYPE — source Gates whose pulls the prototype's record fixed (not multi-supply Gates): they still ask `pull all` at their turn
+    const planOut = new Map<string, Map<string, number>>() // planned member → connection → the amount it is to hand on
+    const planPullsSource = new Set<string>() // source Gates whose pulls the plan's record fixed (not multi-supply Gates): they still ask `pull all` at their turn
     gateHolds.clear() // a hold lives from a group's plan to its Gate's turn, inside one pass (issue #570)
     heldIn.clear()
     const liveOuts =(id: string): LoopEdge[] => {
@@ -1768,11 +1766,11 @@ export function step(
       }
       return outOf(id).filter((e) => !skipDet(e.id))
     }
-    /** PROTOTYPE — what a Gate would hand on of `amount`, followed through the Gates below it that
+    /** What a Gate would hand on of `amount`, followed through the Gates below it that
      *  only pass on, with their own split, to the Pools it ends in: summed exactly per Pool into
      *  `need`. False where a target that is not followed (a Converter, a planned member, a router
      *  that does not fire) accepts less, in doubles. `skip`: which share of the first Gate takes
-     *  its split's leftover. (The root Gate's sizing; part 'w' asks it for a Converter too.) */
+     *  its split's leftover. (The root Gate's sizing.) */
     const followDown = (gid: string, amount: number, depth: number, need: Map<string, bigint>, acc: (id: string) => number, skip = 0): boolean => {
       const gn = byId.get(gid)!
       let parts: { target: string; q: number }[]
@@ -1803,7 +1801,7 @@ export function step(
       }
       return true
     }
-    /** parts 'n' and 'v' — what a Gate hands on of `share`, in EXACT shares, followed through the
+    /** What a Gate hands on of `share`, in EXACT shares, followed through the
      *  Gates below it that only pass on, to the Pools it ends in: each Pool's part is added to
      *  `partPool`; a target that is not followed (a Converter, a planned member, a router that
      *  does not fire) gets its part in `partOther`. False where a Gate on the way has no live
@@ -1820,15 +1818,12 @@ export function step(
         const ws = os.map((e) => exactRate(e))
         const Ws = ws.reduce((t, w) => addR(t, w), RAT0)
         if (!isPositive(Ws)) return false
-        // main's rule, kept (`accept` of a Gate: `sumW <= EPSILON` accepts nothing): a Gate whose
-        // lines' rates sum to at most the amount epsilon moves nothing. Left out here, such a Gate
-        // moved, and handed all it took along a line that is not live for the plans: into a
-        // `pull all` Gate that then refused it, or into a planned group that had not counted it
-        // (a Pool filled past its capacity and cut at the commit). Found by the sweep with such
-        // lines, 2026-11-18. Whether a rate is to be asked against the amount epsilon at all is
-        // main's question; the trial does not answer it. As on main, a Gate BELOW is asked this
-        // only where the line into it has a rate above the epsilon (`viaLive`): main does not
-        // ask what a branch of a smaller rate leads to.
+        // The rule of a Gate's `accept` (`sumW <= 0` accepts nothing): a Gate whose lines' rates
+        // sum to nothing above 0 moves nothing. A Gate that moved all the same handed what it
+        // took along a line that is not live for the plans: into a `pull all` Gate that then
+        // refused it, or into a planned group that had not counted it (a Pool filled past its
+        // capacity and cut at the commit). A Gate BELOW is asked this only where the line into
+        // it has a rate above 0 (`viaLive`): what a branch with no rate leads to is not asked.
         if (viaLive && os.reduce((s, e) => s + rateOfCached(e), 0) <= 0) return false
         parts = os.map((e, i) => ({ target: e.target, x: divR(mulR(share, ws[i]), Ws), live: rateOfCached(e) > 0 }))
       }
@@ -1849,8 +1844,8 @@ export function step(
     /** a Gate that fires this step, outside every plan, with no live Pool line of its own: it passes on what it is handed */
     const passesOn = (target: string): boolean =>
       kindOf(target) === 'gate' && willFire.has(target) && !planned.has(target) && !cyclicSet.has(target) && inOf(target).every((e) => !isPool(e.source) || dead.has(e.id))
-    /** PROTOTYPE — a record's amount through the amount epsilon; counted when an amount above 0 is dropped by it */
-    let keepTiny = false // part 'e': the member whose record is being made moves at all, so none of its lines is dropped
+    /** a record's amount through the display threshold */
+    let keepTiny = false // (never set)
     const nzD = (v: number): number => {
       if (keepTiny && v > 0) {
         return v
@@ -2134,7 +2129,7 @@ export function step(
         let room = headroom(q)
         let own = 0
         for (const m of members) own += ownReserve.get(m)?.get(q) ?? 0
-        // PROTOTYPE — rule H in the room the search reads: a Pool that reads full has no room of its own
+        // in the room the search reads too, a Pool that reads full has no room of its own
         if (own === 0 && Number.isFinite(cap(byId.get(q)!)) && (working[q] ?? 0) >= cap(byId.get(q)!)) return 0
         room += own
         return Math.max(0, room)
@@ -2169,7 +2164,7 @@ export function step(
           took.set(g, mine)
           let need = (cof.get(g) ?? 0) * s - (inbox.get(g) ?? 0)
           for (const w of wantsOf.get(g)!) {
-            if (need <= 0) break // (part 'd', O1: what a source Gate still needs is pulled while it is above 0; with the epsilon here a tree whose amounts are under 1e-9 took nothing in its own walk and was planned at 0)
+            if (need <= 0) break // (what a source Gate still needs is pulled while it is above 0; with the epsilon here a tree whose amounts are under 1e-9 took nothing in its own walk and was planned at 0)
             const avail = Math.max(0, availOf(w.e.source) - s * (inNeed.get(w.e.source) ?? 0) - (used.get(w.e.source) ?? 0))
             const a = Math.max(0, Math.min(need, w.want, avail))
             mine.set(w.e.source, (mine.get(w.e.source) ?? 0) + a)
@@ -2324,7 +2319,7 @@ export function step(
             for (const [p, r] of sh.need.get(m)!) inNeedR.set(p, addR(inNeedR.get(p) ?? RAT0, mulR(c, r)))
           }
           const wantsR = new Map(srcGates.map((g) => [g, wantsOf.get(g)!.map((w) => ({ pool: w.e.source, want: exactWant(w.e, w.want) }))]))
-          const EPS = RAT0 // (part 'd', O1: the same in the exact walk)
+          const EPS = RAT0 // (the same in the exact walk: a need above 0 is pulled)
           return (q: string, s: number): boolean => {
             if (!Number.isFinite(roomOf(q))) return true // a Pool with no capacity
             const sR = ratOfDouble(s)
@@ -2408,9 +2403,10 @@ export function step(
       }
       if (zeroAt !== null) for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, m === zeroAt ? 'pullAll' : 'plan')
       {
-        // PROTOTYPE — one working of every amount. The record takes each amount from the exact
-        // fractions the search decides on (coefficient × number × rate), rounded once. That
-        // double is what is claimed or reserved, and what the member moves at its turn.
+        // One working of every amount. The record takes each amount from the exact fractions the
+        // search decides on (coefficient × number × rate). The fraction is what is claimed or
+        // promised, and what the member takes from its Pools at its turn; the double beside it
+        // is that fraction rounded once.
         const sh = exactShapes(members)
         const cofR = sh.coefficients(root, () => true, W)
         const availBefore = new Map<string, bigint>() // what was exactly available in a Pool before this record claimed from it
@@ -2430,15 +2426,15 @@ export function step(
         // The group at a number, in exact fractions: what each source Gate pulls (greedy, in the
         // plan's order), and how far every bound is from being passed (a margin below 0 is a
         // bound passed): each Pool's supply, each source Gate's need, and each capped Pool's level
-        // at every turn of the commit order against its exact room (with rule H).
+        // at every turn of the commit order against its exact room (a Pool that reads full has none).
         const capped = [...new Set(members.flatMap((m) => [...(sh.into.get(m)?.keys() ?? [])]))].filter((q) => isPool(q) && Number.isFinite(cap(byId.get(q)!))).sort()
         const roomRs = new Map<string, Rat>()
         for (const q of capped) {
           let own = 0n
           for (const m of members) own += toX(ownReserve.get(m)?.get(q) ?? 0)
           const readsFull = own === 0n && (working[q] ?? 0) >= cap(byId.get(q)!)
-          // (part 'u': the room and the supply are read off the ledger of fractions as they are,
-          // not rounded onto the fine unit: a Pool at 8 + 2/3 has a room of exactly a third)
+          // (the room and the supply are read off the exact ledger as they are, not rounded onto
+          // the fine unit: a Pool at 8 + 2/3 has a room of exactly a third)
           roomRs.set(q, readsFull ? RAT0 : (roomRatR(q, ownSumR(members, q))!))
         }
         const availRs = new Map<string, Rat>()
@@ -2447,9 +2443,9 @@ export function step(
           if (!v) availRs.set(p, (v = availExactR(p)))
           return v
         }
-        // part 'u': what a source Gate's lines bring covers what the plan gives it with NO slack
-        // (with the amount epsilon here the plan's number stood up to 1e-9 above what the lines
-        // bring; the Gate then hands on less than the member behind it was planned on: seed 332)
+        // What a source Gate's lines bring covers what the plan gives it with NO slack (with the
+        // epsilon here the plan's number stood up to 1e-9 above what the lines bring; the Gate
+        // then handed on less than the member behind it was planned on).
         const coverSlack = RAT0
         const handedR = (g: string): Rat => ((inboxR.get(g) ?? RAT0))
         const exactAt = (xR: Rat) => {
@@ -2500,7 +2496,7 @@ export function step(
         let sR = ratOfDouble(s)
         let exactNumber = false
         if (s > 0) {
-          // part 'u': the number is the largest fraction within every bound. The bounds that are
+          // The number is the largest fraction within every bound. The bounds that are
           // not margins give a cap: a Converter's run (its target, 1 without one) and a source
           // Gate's whole demand, each over the member's exact coefficient. At the cap, or at the
           // exact point below it where the first margin is met.
@@ -2558,8 +2554,8 @@ export function step(
           const atHi = exactAt(sR).margins
           if (!allIn(atHi)) {
             // the doubles below the search's, one at a time, until one is within every bound (the
-            // search's double can be more than one double above the bound: seeds 4525 and 5350);
-            // the exact point is then between that double and the one above it
+            // search's double can be more than one double above the bound); the exact point is
+            // then between that double and the one above it
             let loD = nextTo(s, -1)
             let hiD = s
             let stepsDown = 1
@@ -2575,8 +2571,8 @@ export function step(
             if (allIn(atLo) && atLo.length === atHi2.length) {
               // The exact point, from the side that is past the bound. A margin is a bent line
               // (flat while a Gate's lines cover it, then falling), so the straight line from
-              // the double below to the double above meets zero BELOW the point (seed 5296: a
-              // `pull all` Gate was given a last place less than its lines bring, and stopped).
+              // the double below to the double above meets zero BELOW the point (a `pull all`
+              // Gate was then given a last place less than its lines bring, and stopped).
               // The line through the passed double and a point a sliver below it is the margin's
               // last straight piece; where it meets zero is the point, or still past it and then
               // the next start.
@@ -2611,7 +2607,7 @@ export function step(
         if (s > 0) {
           for (const [g, list] of exactAt(sR).pulls) {
             keepTiny = false
-            // (part 'b': a line keeps its exact amount, and is kept whatever its size)
+            // (a line keeps its exact amount, and is kept whatever its size)
             pullsOf.set(g, list.map(({ e, aR }) => ({ e, a: nzD(rnR(aR)), r: aR })).filter((x) => x.a > 0 || (isPositive(x.r))))
             keepTiny = false
           }
@@ -2641,7 +2637,7 @@ export function step(
             continue
           }
           const fR = minR(RAT1, cs)
-          const f = rnR(fR) // (the amount epsilon on a fraction is issue #580, left as it is; under 'b' a fraction is not an amount)
+          const f = rnR(fR) // (a run fraction is not an amount: the display threshold is not put on it; issue #580)
           planF.set(m, f)
           const takes: { e: LoopEdge; a: number; r?: Rat }[] = []
           for (const e of convPoolIns.get(m)!) {
@@ -2661,8 +2657,7 @@ export function step(
           }
         }
         keepTiny = false
-        // Does the record, as the doubles it holds, fit the exact ledger? Counted, not acted on:
-        // what to do where it does not is not decided (a rule for the whole group, or no plan).
+        // Does the record, as the doubles it holds, fit the exact ledger? Worked out, not acted on.
         const takeX = new Map<string, bigint>()
         const giveBy = new Map<string, Map<string, bigint>>()
         const takeBy = new Map<string, Map<string, bigint>>()
@@ -2824,7 +2819,7 @@ export function step(
       const orderedMulti = [...multiGates].sort(byOrder)
       const sPiece = new Map<number, number>() // source piece → its number
       type NumR = { d: number; r: Rat }
-      const sPieceR = new Map<number, NumR>() // PROTOTYPE ('x') — a piece's number as a fraction; it holds while the double beside it is the piece's number
+      const sPieceR = new Map<number, NumR>() // a piece's number as a fraction; it holds while the double beside it is the piece's number
       const uOwnR = new Map<string, NumR>() // the same for an own-Pool supply connection's amount (the record rounds it once)
       /** an own-Pool supply connection's amount, exactly */
       const ownExact = (id: string): Rat => {
@@ -2894,17 +2889,17 @@ export function step(
       // document states and the plan's numbers as they stand (the fixed ones
       // and the ones `settle` has just set; issue #572). Every Pool the plan
       // delivers into is walked: true when no level passes its room.
-      // TRACE — what the exact walk last worked out (each member's amount, takes and deliveries as fractions) and why it said no
+      // what the exact walk last worked out: each member's amount, takes and deliveries as fractions
       let lastExact: { amount: (m: string) => Rat; takes: Map<string, Map<string, Rat>>; gives: Map<string, Map<string, Rat>>; pullsE: Map<string, { e: LoopEdge; aR: Rat }[]>; W: Map<string, Rat> } | null = null
       let roomsOffQ = false
       /** a `pull all` source Gate of a piece runs at its demand or not at all (the tree rule) */
-      /** PROTOTYPE ('x') — every member's exact amount at the plan's numbers as they stand, or null */
+      /** every member's exact amount at the plan's numbers as they stand, or null */
       const exactAmounts = (): ((m: string) => Rat) | null => {
         lastExact = null
         evalQ()
         return (lastExact as { amount: (m: string) => Rat } | null)?.amount ?? null
       }
-      /** is a `pull all` Gate's amount short of its demand by more than the engine's epsilon? ('x': on the exact amount) */
+      /** is a `pull all` Gate's amount short of its demand by more than the absolute epsilon? Asked of the exact amount where there is one. */
       const shortOf = (m: string, T: number, demand: number, exact: ((m: string) => Rat) | null): boolean =>
         exact ? cmpR(addR(exact(m), ratOfDouble(EPSILON)), demandQ(m)) < 0 : T < demand - EPSILON
       const pullAllSourcesOk = (p: Piece): boolean => {
@@ -2913,9 +2908,9 @@ export function step(
         for (const m of p.members) {
           if (kindOf(m) !== 'gate' || multi.has(m) || fedByRouter.has(m) || modeOfRouter(m) !== 'pullAll') continue
           const T = c.get(m) ?? 0
-          // (part 'p': a `pull all` Gate given an amount under the amount epsilon is asked too:
-          // skipped here, it was planned at 1.7e-16 of a demand of 17, stopped at its turn, and
-          // the Converter behind it took its own lines' share: seed 1209)
+          // (a `pull all` Gate given an amount under the epsilon is asked too: skipped here, it
+          // was planned at 1.7e-16 of a demand of 17, stopped at its turn, and the Converter
+          // behind it took its own lines' share)
           if (!(T > 0)) continue
           let demand = inbox.get(m) ?? 0
           for (const e of ownIns(m)) demand += amountOf(e, availOf(e.source), S[e.source] ?? 0)
@@ -2945,16 +2940,15 @@ export function step(
         }
         return Number.isFinite(hi) ? Math.max(0, hi) : 0
       }
-      // ── part 'q' — the multi-supply plan in exact fractions ────────────────
+      // ── the multi-supply plan in exact fractions ────────────────────────────
       // Every free number of the plan (a source piece's number, an own line's amount) is a
-      // fraction; the double beside it is only its nearest (what the older code reads for a
-      // trace). The settling of a Gate that is not its piece's root, every bound, and the room
-      // walk are worked on those fractions with no tolerance, and a number is searched to the
-      // exact point where the first bound is met.
+      // fraction; the double beside it is only its nearest. The settling of a Gate that is not
+      // its piece's root, every bound, and the room walk are worked on those fractions with no
+      // tolerance, and a number is searched to the exact point where the first bound is met.
       type QParts = { sh: ReturnType<typeof exactShapes>; cofR: Map<number, Map<string, Rat>>; coefR: Map<Sup, Rat>; claimPools: string[]; rooms: [string, Rat][] }
       let qParts: QParts | null = null
       const inOrderQ = [...members].sort(byOrder)
-      const availQ = (p: string): Rat => availR(p) // off the ledger of fractions, as it is
+      const availQ = (p: string): Rat => availR(p) // off the exact ledger, as it is
       const handedQ = (m: string): Rat => ((inboxR.get(m) ?? RAT0))
       const partsQ = (): QParts => {
         if (qParts) return qParts
@@ -3160,7 +3154,7 @@ export function step(
         }
         return { ok: margins.every((x) => x.num >= 0n), margins }
       }
-      /** part 'q': the largest fraction, 0 to `hiR`, at which the plan stands. From the bound,
+      /** The largest fraction, 0 to `hiR`, at which the plan stands. From the bound,
        *  down the last straight piece of each margin that is passed, to where the first is met. */
       const largestQ = (setQ: (x: Rat) => void, hiR: Rat, ok: () => boolean): Rat => {
         const at = (x: Rat) => {
@@ -3180,7 +3174,7 @@ export function step(
         }
         return best
       }
-      /** part 'q': what a multi-supply Gate that is not its piece's root still has to bring (null: it is the root) */
+      /** what a multi-supply Gate that is not its piece's root still has to bring (null: it is the root) */
       const stillToCoverQ = (G: string): Rat | null => {
         const p = pieces[pieceOf.get(G)!]
         if (p.root === G) return null
@@ -3189,7 +3183,7 @@ export function step(
         return maxR(RAT0, need)
       }
       type Item = { sup: Sup; p: Piece | null }
-      /** `upTo`: the most the supply may bring (a Gate held to a throughput never brings more than is left of it). The
+      /** `forG`: the Gate held to a throughput that this supply is filled for (it never brings more than is left of it). The
        *  search is then over values that the later supplies can complete, which is one-sided. Without it the last supply
        *  of a held Gate was searched over "covers the throughput exactly", true at one point only: the bisection ended at
        *  0 unless that point was the bound or the bound over a power of two, and the whole group moved nothing; and an
@@ -3249,14 +3243,13 @@ export function step(
           })
           let fits = feasible()
           if (!fits) {
-            // part 'q': the turn's `pull all` rule, in the plan. Asked in fractions, "the full
-            // reach fits" is exact: a line that writes 0.006 asks 1.5e-19 more than a Pool
-            // holding the double 0.011 has left after 0.005, and a supply of 4e-20 of such dust
-            // counted twice does not fit either; the group stopped for it (seeds 5904 and 2184
-            // at 10^-3), where the Gate's turn would run: short of what its lines ask by no more
-            // than the absolute epsilon. So: the supplies again, in their order, each as much as
-            // fits; what they bring together may be under the full reach by the absolute
-            // epsilon and no more.
+            // The turn's `pull all` rule, in the plan. Asked in fractions, "the full reach fits"
+            // is exact: a line that writes 0.006 asks 1.5e-19 more than a Pool holding the
+            // double 0.011 has left after 0.005, and a supply of 4e-20 of such dust counted
+            // twice does not fit either. The group is not stopped for that, where the Gate's
+            // turn would run: short of what its lines ask by no more than the absolute epsilon.
+            // So: the supplies again, in their order, each as much as fits; what they bring
+            // together may be under the full reach by the absolute epsilon and no more.
             const live = items.filter((_, i) => !Number.isNaN(reach[i]))
             const fullOf = live.map((it) => valueQ(it.sup))
             const full = fullOf.reduce((t, x) => addR(t, x), RAT0)
@@ -3268,18 +3261,16 @@ export function step(
             for (const it of live) fill(it)
             const brought = live.reduce((t, it) => addR(t, valueQ(it.sup)), RAT0)
             fits = feasible() && cmpR(subR(full, brought), ratOfDouble(EPSILON)) <= 0
-            // (2026-11-18, the reviews of the final measurement) The epsilon is for a POOL that
-            // holds a hair less than is asked of it, and for nothing else. So of every supply that
-            // now brings less than its reach it is asked: WITH THE ROOMS LEFT OUT OF THE QUESTION
-            // and the other supplies as they stand, could it bring more? If it could, it is the
-            // room below that holds it, the fixed demand is not made smaller for that, and the
-            // group moves nothing, as on main (SEMANTICS.md §6, erratum parts 3 and 9: "moves at
-            // exactly that point or not at all", "a net inflow of any size is refused"; the two
-            // tests B of fullPoolLoop.test.ts, which stage 3's wider rule had let run 8.5e-14
-            // under the demand). If it could not, the Pools are what it is short of.
-            // A first form of this (a7ea3b72) asked whether a Pool of the short supply was
-            // empty; a piece held down by the room with one of its Pools emptied passed it
-            // (stage2b.probe.test.ts, J, the mixed cases).
+            // The epsilon is for a POOL that holds a hair less than is asked of it, and for
+            // nothing else (SEMANTICS-E.md §E12). So of every supply that brings less than its
+            // reach it is asked: WITH THE ROOMS LEFT OUT OF THE QUESTION and the other supplies
+            // as they stand, could it bring more? If it could, it is the room below that holds
+            // it, the fixed demand is not made smaller for that, and the group moves nothing
+            // (SEMANTICS.md §6, erratum parts 3 and 9: "moves at exactly that point or not at
+            // all", "a net inflow of any size is refused"; the two tests B of
+            // fullPoolLoop.test.ts). If it could not, the Pools are what it is short of.
+            // Asked instead whether a Pool of the short supply was empty, a piece held down by
+            // the room with one of its Pools emptied passed.
             let heldByRoom = ''
             if (fits) {
               live.forEach((it, i) => {
@@ -3349,20 +3340,20 @@ export function step(
           const p = pieces[pieceOf.get(G)!]
           if (p.root !== G) continue
           let T = 0
-          // (part 'p': a `pull all` Gate's own Pool line counts at what it ASKS)
+          // (a `pull all` Gate's own Pool line counts at what it ASKS)
           for (const sup of supplies.get(G)!) T += sup.kind === 'router' ? sup.coef * (full.get(sup.piece) ?? 0) : modeOfRouter(G) === 'pullAll' ? sup.want : Math.min(sup.want, Math.max(0, availOf(sup.e.source)))
           full.set(p.id, T)
         }
         const demand = amountsOf(full)
         const plan = amountsOf(sOf())
         const exactP = exactAmounts()
-        // Part 'p' with 'q': the fixed demand of a Gate with two supplies, in fractions, its two
-        // kinds of supply kept apart.
+        // The fixed demand of a Gate with two supplies, in fractions, its two kinds of supply
+        // kept apart.
         //   HANDED: what the members before it hand it with every entry at its full amount (a
         //     source piece at the most its own members can run at). That is not a demand of this
         //     Gate's: a Gate passes on what it is handed (issue 572, erratum part 12).
         //   ITS OWN POOL LINES: what they ASK, where the Gate is `pull all`: the rule a Gate's
-        //     turn asks of its lines. (Before: what they could bring, so a join asking 6 of a Pool
+        //     turn asks of its lines. (Read as what they could bring, a join asking 6 of a Pool
         //     holding 2 was "met" at 2, and a Pool holding nothing asked nothing of it.) A Gate
         //     that is not `pull all` brings what its lines can.
         // Short of the two together by more than the absolute epsilon, the whole group stops.
@@ -3389,7 +3380,7 @@ export function step(
         for (const m of members) {
           if (kindOf(m) !== 'gate' || modeOfRouter(m) !== 'pullAll') continue
           if (!multi.has(m) && !fedByRouter.has(m)) {
-            // part 'p': a SOURCE Gate's fixed demand is what its lines ASK, the rule its turn
+            // A SOURCE Gate's fixed demand is what its lines ASK, the rule its turn
             // asks, and not what they can bring. (Read as what they can bring, a Gate asking 9
             // of Pools that could bring 4 was "met" at 4 and stopped at its turn; and once the
             // fill asked the turn's rule and gave it 0, the group stopped where its Pools held
@@ -3444,11 +3435,10 @@ export function step(
         })
       }
       if (!zero) {
-        // PROTOTYPE ('r') — one working of every amount of the multi-supply plan. The record takes
-        // each amount from the exact fractions the test decided on, rounded once; that double is
-        // claimed or reserved, and it is what the member moves at its turn (a source Gate pulls
-        // its recorded amounts; a Gate hands on its recorded shares; a Converter takes and makes
-        // its recorded amounts).
+        // One working of every amount of the multi-supply plan. The record takes each amount from
+        // the exact fractions the test decided on. The fraction is what is claimed or promised,
+        // and what a Gate or a Converter takes from its Pools at its turn; the double beside it
+        // is that fraction rounded once.
         evalQ() // the fractions at the plan's final numbers
         type ExR = { amount: (m: string) => Rat; pullsE: Map<string, { e: LoopEdge; aR: Rat }[]>; W: Map<string, Rat> }
         const exR = lastExact as ExR | null
@@ -3470,7 +3460,7 @@ export function step(
                 fixedOut.set(e.id, amt)
                 if (promised(amt, xR) && isPool(e.target)) promise(m, e.target, upTo(amt, xR), xR)
               }
-              // (part 'b': a line keeps its exact amount, and is kept whatever its size)
+              // (a line keeps its exact amount, and is kept whatever its size)
               const pulls: { e: LoopEdge; a: number; r?: Rat }[] = []
               if (multi.has(m)) {
                 for (const sup of supplies.get(m)!) {
@@ -3647,8 +3637,8 @@ export function step(
 
         let T: number
         let fromInR: Rat = RAT0
-        let TR: Rat = RAT0 // part 'b': exactly what came into the Gate this turn, and what it hands on
-        let sizeR: Rat | null = null // part 'n': the most a Gate outside every plan may move, exactly (null: no bound)
+        let TR: Rat = RAT0 // exactly what came into the Gate this turn, and what it hands on
+        let sizeR: Rat | null = null // the most a Gate outside every plan may move, exactly (null: no bound)
         let sizedN = false
         const plPulls = planPulls.get(id)
         if (plPulls !== undefined) {
@@ -3659,12 +3649,12 @@ export function step(
           // demand test below does not run again on the Pool net of the claim.
           let got = inbox.get(id) ?? 0
           if (planPullsSource.has(id) && mode === 'pullAll') {
-            // PROTOTYPE — a source Gate keeps its own `pull all` test, as on main: what its record
-            // brings against what its lines ask (the plan's number can be less than the demand).
-            // Short of it by more than the absolute epsilon, it takes nothing: the record's claims are given back.
+            // A source Gate keeps its own `pull all` test: what its record brings against what
+            // its lines ask (the plan's number can be less than the demand). Short of it by more
+            // than the absolute epsilon, it takes nothing: the record's claims are given back.
             let demandP = got
             for (const e of inOf(id)) if (isPool(e.source) && !dead.has(e.id)) demandP += amountOf(e, availOf(e.source) + (plPulls.find((x) => x.e.id === e.id)?.a ?? 0), S[e.source] ?? 0)
-            // part 'b': the test on the exact amounts, with the same absolute epsilon
+            // the test is on the exact amounts
             let shortB = false
             let askR = RAT0
             for (const e of inOf(id)) if (isPool(e.source) && !dead.has(e.id)) askR = addR(askR, exactWant(e, amountOf(e, availOf(e.source) + (plPulls.find((x) => x.e.id === e.id)?.a ?? 0), S[e.source] ?? 0)))
@@ -3713,7 +3703,7 @@ export function step(
           // (`reach`) and the Gate's own evidence (`numsOf`) already bound a
           // supply per line.
           const claimed = new Map<string, number>()
-          let askX = 0n // part 'a': what the Pool lines ask, and what they can bring, summed exactly
+          let askX = 0n // what the Pool lines ask, and what they can bring, summed exactly
           let bringX = 0n
           const wants = ins.map((e) => {
             const w = amountOf(e, availOf(e.source), S[e.source] ?? 0)
@@ -3744,42 +3734,42 @@ export function step(
           // The plan has already decided what the group moves, `pull all`
           // members included; nothing is left for this Gate to refuse.
           const handed = (plT !== undefined || (inb > 0)) && ins.length === 0
-          // part 'b': the amount epsilon is what is SHOWN, not what moves: a throughput under it is not made 0
+          // the display threshold is for what is SHOWN, not for what moves: a throughput under it is not made 0
           const nzT = (v: number) => v
           T = handed
             ? nzT(Math.max(0, inb))
             : plT !== undefined
               ? nzT(Math.max(0, Math.min(plT, demand, inputAvail)))
               : Math.max(0, Math.min(demand, inputAvail))
-          // part 'b': `pull all` is asked below, once, on the exact amounts the lines would bring
+          // `pull all` is asked below, once, on the exact amounts the lines would bring
           if (T <= 0) {
             recordGate(id, 0)
             continue
           }
 
           if (plT === undefined && !handed) {
-            // part 'n': a Gate outside every plan, moving only what its own lines bring. What it
-            // hands on is followed in exact shares, through the Gates below that only pass on, to
-            // the Pools it ends in: each Pool gets a fixed part of the throughput. The most the
-            // Gate may move is then the least of `room / part` over those Pools (the exact room,
-            // rule H kept) and of `accept / part` over the targets that are not followed. A
-            // division; no walk down the doubles, and no share a part of a last place past the room.
+            // A Gate outside every plan, with Pool lines of its own. What it hands on is followed
+            // in exact shares, through the Gates below that only pass on, to the Pools it ends
+            // in: each Pool gets a fixed part of the throughput. The most the Gate may move is
+            // then the least of `room / part` over those Pools (the exact room; a Pool that
+            // reads full has none) and of `accept / part` over the targets that are not followed.
+            // A division; no walk down the doubles, and no share a part of a last place past the room.
             const partPool = new Map<string, Rat>()
             const partOther = new Map<string, Rat>()
             const blocked = !spreadExact(id, RAT1, 0, partPool, partOther, probabilistic ? sel : undefined)
             const least = (v: Rat) => {
               if (sizeR === null || cmpR(v, sizeR) < 0) sizeR = v
             }
-            // (part 'i': a Gate that was also HANDED something is sized here too. What it was handed
-            // was promised downstream, exactly, in these same shares, when it was handed: it passes
+            // (A Gate that was also HANDED something is sized here too. What it was handed was
+            // promised downstream, exactly, in these same shares, when it was handed: it passes
             // all of that on, and what its own lines may add is what the Pools' rooms hold beyond
-            // every promise. Without 'i' such a Gate is sized on doubles, as in stage 1.)
+            // every promise.)
             const handedR = inb > 0 ? (inboxR.get(id) ?? RAT0) : RAT0
             if (blocked) least(RAT0)
             for (const [q, part] of partPool) {
               const c0 = cap(byId.get(q)!)
               if (!Number.isFinite(c0)) continue
-              const room = (working[q] ?? 0) >= c0 ? RAT0 : maxR(RAT0, roomRat(q)!) // rule H: a Pool that reads full has no room
+              const room = (working[q] ?? 0) >= c0 ? RAT0 : maxR(RAT0, roomRat(q)!) // a Pool that reads full has no room
               least(addR(handedR, divR(room, part)))
             }
             for (const [t, part] of partOther) {
@@ -3794,7 +3784,7 @@ export function step(
               continue
             }
           } else if (plT === undefined && inb === 0) {
-            // PROTOTYPE — a root: everything this Gate moves comes off its own Pool lines. It
+            // A root: everything this Gate moves comes off its own Pool lines. It
             // follows what it would hand on, through the Gates below with their own split, to the
             // Pools it ends in, and sums it per Pool exactly against that Pool's exact room. Where
             // it does not fit, the throughput goes down a double at a time until it does.
@@ -3833,7 +3823,7 @@ export function step(
           let need = T
           const fromInbox = Math.min(need, inb)
           need -= fromInbox
-          // part 'b': what the Gate moves, exactly. Of what it was handed: all of it, where the
+          // What the Gate moves, exactly. Of what it was handed: all of it, where the
           // throughput takes all of it. Of its Pool lines: each up to its own exact amount and to
           // what its Pool exactly holds, in their order. The throughput found above (a double)
           // bounds the sum only where something other than the lines' own amounts and supplies
@@ -3888,9 +3878,9 @@ export function step(
           T = rnR(TR)
         }
 
-        // part 'b': the Gate hands on exactly what came in, split exactly by its weights (a
-        // probabilistic Gate: all of it down the one branch). No share is rounded: lines in
-        // less lines out is 0. What is promised into a Pool for a share is a double not under it.
+        // The Gate hands on exactly what came in, split exactly by its weights (a probabilistic
+        // Gate: all of it down the one branch). No share is rounded: lines in less lines out
+        // is 0.
         const outsB = probabilistic ? [sel!] : outOf(id).filter((e) => !skipDet(e.id))
         const wB = outsB.map((e) => (probabilistic ? RAT1 : exactRate(e)))
         const WB = wB.reduce((t, w) => addR(t, w), RAT0)
@@ -3942,7 +3932,7 @@ export function step(
         // a planned group, whose room the plan already holds.
         const deliver = (f: number, took = true, fR?: Rat) => {
           if (fR !== undefined) {
-            // part 'b': one exact fraction on every output: `fR · rate`, the rate as it is read
+            // one exact fraction on every output: `fR · rate`, the rate as it is read
             let madeB = false
             for (const e of outOf(id)) {
               if (skipDet(e.id) || rateOfCached(e) <= 0) continue
@@ -3963,8 +3953,8 @@ export function step(
             if (madeB || took) fired.add(id)
             return
           }
-          // PROTOTYPE — a planned Converter makes the amounts its plan recorded, when it runs at the
-          // plan's fraction (to within rounding); one that received less runs at what it received
+          // a planned Converter makes the amounts its plan recorded, when it runs at the plan's
+          // fraction (to within rounding); one that received less runs at what it received
           const plannedOut = planOut.get(id)
           const plFv = planF.get(id) ?? 0
           const recordedOut = plannedOut && Math.abs(f - plFv) <= 8 * Number.EPSILON * Math.max(f, plFv) ? plannedOut : undefined
@@ -3987,8 +3977,8 @@ export function step(
             }
             emit(e, id, e.target, q)
           }
-          // (issue #580 trial: with a fraction no longer tested against the amount epsilon, a
-          // Converter whose every amount is under the amount floor has moved nothing and has not fired)
+          // (issue #580: a fraction is not tested against the display threshold, so a Converter
+          // whose every amount is under it has moved nothing here and has not fired)
           if (made || took) fired.add(id)
         }
 
@@ -4000,7 +3990,7 @@ export function step(
         if (plF !== undefined) {
           let received = inboxHave
           inbox.set(id, 0)
-          let receivedR = inboxR.get(id) ?? RAT0 // part 'b': exactly what arrived
+          let receivedR = inboxR.get(id) ?? RAT0 // exactly what arrived
           inboxR.set(id, RAT0)
           for (const { e, a, r } of planTakes.get(id) ?? []) {
             const x = r ?? ratOfDouble(a)
@@ -4018,7 +4008,7 @@ export function step(
             pullShort.add(id)
             f = 0
           }
-          // part 'b': the fraction is what arrived over what a full run takes, exactly (the
+          // The fraction is what arrived over what a full run takes, exactly (the
           // members before it delivered at the plan's fraction, and so did its own takes)
           const sumInR = inOf(id).reduce((t, e) => (rateOfCached(e) > 0 ? addR(t, exactRate(e)) : t), RAT0)
           // (`f`, the double, only carries the `pull all` verdict above here: what arrived is
@@ -4090,12 +4080,12 @@ export function step(
           if (r <= 0) continue
           makeInto.set(e.target, (makeInto.get(e.target) ?? 0) + r)
         }
-        // part 'd' (O3 of the audit): this Converter's net make into Pool `q` a run, where it is
-        // ABOVE 0, else 0. A net above 0 asks the Pool's room whatever its size: asked `> epsilon`,
-        // a Converter that made 7e-12 a run into a Pool at its capacity was not held, took its
-        // inputs, and what it made was gone (with Source lines, seed 18 at 10^-12). With 'd' the
-        // sign is read off the rates as fractions, so that rates that balance as they are
-        // written (0.3 taken, 0.1 and 0.2 made) are not a net by the rounding of their doubles.
+        // This Converter's net make into Pool `q` a run, where it is ABOVE 0, else 0. A net above
+        // 0 asks the Pool's room whatever its size (SEMANTICS-E.md §E14): asked only above the
+        // epsilon, a Converter that made 7e-12 a run into a Pool at its capacity was not held,
+        // took its inputs, and what it made was gone. The sign is read off the rates as
+        // fractions, so that rates that balance as they are written (0.3 taken, 0.1 and 0.2
+        // made) are not a net by the rounding of their doubles.
         const netInto = (q: string, net: number): number => {
           let r = RAT0
           for (const e of outOf(id)) if (!skipDet(e.id) && e.target === q && rateOfCached(e) > 0) r = addR(r, exactRate(e))
@@ -4156,23 +4146,22 @@ export function step(
         // received above what it could use is reported (D1).
         const fTake = routerFed ? fPool : fDry
         {
-          // part 'b': the fraction found above (a double) is the most it runs at. Exactly: no
-          // Pool gives more than it holds (a Pool holding the double 0.3 cannot give the 0.3 a
-          // line writes, which is 1.1e-17 more), and what it makes on balance into a capped Pool
-          // is within that Pool's exact room. Then every line moves `fR · rate`.
-          // (part 'v', the Converter outside a plan with a line from a node that is not a Pool, in
+          // The run in exact fractions. No Pool gives more than it holds (a Pool holding the
+          // double 0.3 cannot give the 0.3 a line writes, which is 1.1e-17 more), and what it
+          // makes on balance into a capped Pool is within that Pool's exact room. Then every
+          // line moves `fR · rate`.
+          // (The Converter outside a plan with a line from a node that is not a Pool, in
           // practice a Source's, which delivers nothing: its Pool side is `what a Pool holds / what
           // it takes of it`, exactly, as for the Converter fed from Pools only. As the double of
           // that division, 1/3 took 1 - 2^-54 of a Pool holding 1 and left the rest step after step.)
           let fR = routerFed ? RAT1 : ratOfDouble(fTake)
-          const viaPool = new Map<string, Rat>() // part 'v': Pool → what reaches it through Gates that pass on, per run
+          const viaPool = new Map<string, Rat>() // Pool → what reaches it through Gates that pass on, per run
           const viaOther = new Map<string, Rat>()
           if (!routerFed) {
-            // part 'v': from its run, exactly; what a target that is not a Pool accepts, and a
-            // Pool reached by two paths, bound it as today (doubles the engine holds)
-            // What it hands a Gate that only passes on is followed in exact shares to the Pools it
-            // ends in (their room is asked below with the Pools it makes into itself); a target
-            // that is not followed bounds it by what it accepts, a double the engine holds.
+            // From its run target, exactly. What it hands a Gate that only passes on is followed
+            // in exact shares to the Pools it ends in (their room is asked below with the Pools
+            // it makes into itself); a target that is not followed bounds it by what it accepts,
+            // a double the engine holds.
             fR = ratOfShortestDecimal(runOf(id))
             for (const e of outOf(id)) {
               if (skipDet(e.id) || rateOfCached(e) <= 0 || isPool(e.target)) continue
@@ -4197,13 +4186,14 @@ export function step(
             for (const [q, mk] of makeR) {
               const net = subR(mk, needR.get(q) ?? RAT0)
               let room = roomRatR(q, ownOfR(id, q))
-              if (room !== null && (!isPositive(ownOfR(id, q))) && (working[q] ?? 0) >= cap(byId.get(q)!)) room = RAT0 // rule H: a Pool that reads full has no room
+              if (room !== null && (!isPositive(ownOfR(id, q))) && (working[q] ?? 0) >= cap(byId.get(q)!)) room = RAT0 // a Pool that reads full has no room
               if (room !== null && isPositive(net)) fR = minR(fR, divR(maxR(RAT0, room), net))
             }
           }
-          // (the same Converter's output side, before anything is taken: the exact room of the
-          // Pools it makes into itself, on the net amount, rule H kept; a target that is not a
-          // Pool, and a Pool reached by two paths, bound it by the doubles the engine holds)
+          // (a router-fed Converter's output side, before anything is taken: the exact room of
+          // the Pools it makes into itself, on the net amount, a Pool that reads full having
+          // none; a target that is not a Pool, and a Pool reached by two paths, bound it by the
+          // doubles the engine holds)
           let outBoundR: Rat | null = null
           if (routerFed) {
             let b: Rat = makeInto.size > 0 ? RAT1 : RAT0
@@ -4218,7 +4208,7 @@ export function step(
               const net = subR(mk, needR.get(q) ?? RAT0)
               const ownQ = ownOfR(id, q)
               let room = roomRatR(q, ownQ)
-              if (room !== null && !isPositive(ownQ) && (working[q] ?? 0) >= cap(byId.get(q)!)) room = RAT0 // rule H
+              if (room !== null && !isPositive(ownQ) && (working[q] ?? 0) >= cap(byId.get(q)!)) room = RAT0 // a Pool that reads full has no room
               if (room !== null && isPositive(net)) b = minR(b, divR(maxR(RAT0, room), net))
             }
             const shared = sharedPoolBound(makeInto, own, needFrom)
@@ -4243,7 +4233,7 @@ export function step(
             emit(e, e.source, id, a, x)
           }
           // fed from Pools only: the one fraction on every line. Fed by a router outside every
-          // plan (the safety net): what was received over a full run, as today, bounded by the room
+          // plan (the safety net): what was received over a full run, bounded by the room
           let fOutR = fR
           if (routerFed) {
             const sumInR = inOf(id).reduce((t, e) => (rateOfCached(e) > 0 ? addR(t, exactRate(e)) : t), RAT0)
@@ -4421,8 +4411,8 @@ export function step(
   for (const nid of Object.keys(working)) {
     const n = byId.get(nid)
     const c = n ? cap(n) : Infinity
-    // part 'b': a Pool is stored as the double nearest its exact level, whatever its size: the
-    // one rounding of the step (an amount under the display threshold is not dropped here)
+    // A Pool is stored as the double nearest its exact level, whatever its size: the one
+    // rounding of the step (an amount under the display threshold is not dropped here)
     let v = working[nid]
     if (v < 0) v = 0
     if (v > c) v = c
