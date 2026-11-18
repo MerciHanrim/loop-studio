@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test'
+import type { CDPSession, Locator, Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 
 // SEMANTICS-E.md §E17, §E9, §E16 (issue #572). An amount at or under 1e-9 moves and has no event:
@@ -20,7 +20,7 @@ type Bridge = {
         smallMoves: { moves: { edgeId: string; from: string; to: string; shown: number }[]; netByPool: Record<string, { num: string; den: string }> }
       }
     }
-    i18n: { getState: () => { activeCatalog: Record<string, string> } }
+    i18n: { getState: () => { activeCatalog: Record<string, string>; setLocale: (code: string) => unknown } }
   }
 }
 
@@ -84,6 +84,60 @@ async function open(page: Page, graph: string) {
   await resetAll(page)
   await importGraph(page, graph)
 }
+
+async function setLocale(page: Page, code: string) {
+  await page.evaluate((c) => (window as unknown as Bridge).__loop.i18n.getState().setLocale(c), code)
+  await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(code)
+}
+
+/** What Chromium's accessibility tree holds for an element: its role, its name, whether it is a
+ *  live region, and under it every role that is not plain text with the texts it holds, in order. */
+async function axOf(cdp: CDPSession, selector: string) {
+  const doc = await cdp.send('DOM.getDocument', { depth: -1, pierce: true })
+  const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector })
+  if (!nodeId) return null
+  const { node } = await cdp.send('DOM.describeNode', { nodeId })
+  const { nodes } = await cdp.send('Accessibility.getFullAXTree')
+  const root = nodes.find((x) => x.backendDOMNodeId === node.backendNodeId)
+  if (!root || root.ignored) return null
+  const byId = new Map(nodes.map((x) => [x.nodeId, x]))
+  const roles: string[] = []
+  const texts: string[] = []
+  const walk = (id: string) => {
+    const n = byId.get(id)
+    if (!n) return
+    const role = n.role?.value ?? ''
+    if (role === 'StaticText') texts.push(String(n.name?.value ?? ''))
+    else if (!n.ignored && role !== 'InlineTextBox' && role !== 'ListMarker' && n !== root) roles.push(role)
+    if (role !== 'StaticText') for (const c of n.childIds ?? []) walk(c)
+  }
+  walk(root.nodeId)
+  const live = root.properties?.find((p) => p.name === 'live')?.value.value
+  return { role: String(root.role?.value ?? ''), name: String(root.name?.value ?? ''), live: live === undefined ? null : String(live), roles, texts }
+}
+
+/** where each visible character of an element stands on the screen: the characters of its first
+ *  line from left to right, and whether any of them is outside the element's own box */
+const onScreen = (l: Locator) =>
+  l.evaluate((el) => {
+    const out: { c: string; x: number; y: number }[] = []
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const text = n.textContent ?? ''
+      for (let i = 0; i < text.length; i++) {
+        const r = document.createRange()
+        r.setStart(n, i)
+        r.setEnd(n, i + 1)
+        const b = r.getBoundingClientRect()
+        if (b.width > 0) out.push({ c: text[i], x: b.x, y: Math.round(b.y) }) // (an isolate has no width)
+      }
+    }
+    const top = Math.min(...out.map((o) => o.y))
+    return {
+      firstLine: out.filter((o) => o.y === top).sort((a, b) => a.x - b.x).map((o) => o.c).join(''),
+      overflows: (el as HTMLElement).scrollWidth > (el as HTMLElement).clientWidth,
+    }
+  })
 
 test.describe('a step that moves amounts too small to show says so', () => {
   test('the engine`s side of it: three moves of the step are not shown, the Pools they reached have a net change, and each node that moved one has fired', async ({ page }) => {
@@ -171,6 +225,106 @@ test.describe('a step that moves amounts too small to show says so', () => {
     await expect(state).not.toContainText(en['node.gate.state.idle'])
     await node(page, 'shut').click()
     await expect(state).toHaveAttribute('data-gate-state', 'idle')
+  })
+
+  // What a screen reader is given, read off Chromium's accessibility tree (no speech is checked
+  // here), in English and in Arabic: the count is an item of the run's list of messages, and the
+  // status region beside it, which is there before the step and empty, takes the same words, so
+  // the change is one that is announced; the Pool's note is a status region of three paragraphs.
+  for (const code of ['en', 'ar']) {
+    test(`desktop, ${code}: the accessibility tree holds the count as a message that is announced, and the Pool's note as a status of three paragraphs`, async ({ page }) => {
+      test.skip(isMobile(page), 'the desktop run strip and Inspector')
+      await open(page, SMALL_MOVES)
+      await setLocale(page, code)
+      const cdp = await page.context().newCDPSession(page)
+      await cdp.send('Accessibility.enable')
+      const announced = page.locator('.pstrip-diag__status')
+      await expect(announced).toHaveCount(1)
+      await expect(announced).toHaveText('')
+      expect(await axOf(cdp, '.pstrip-diag__status')).toMatchObject({ role: 'status', live: 'polite', texts: [] })
+
+      await advance(page)
+      const words = await catalog(page)
+      const counted = filled(words['playbar.diag.movesNotShown'], { n: 3 })
+      await expect(messages(page)).toBeVisible()
+      const title = (await messages(page).locator('.pstrip__diag-title').textContent()) ?? ''
+      expect(title).toContain('1')
+      expect(await axOf(cdp, '[data-testid="run-diagnostics"]')).toEqual({ role: 'region', name: title, live: null, roles: ['list', 'listitem'], texts: [title, counted] })
+      await expect(announced).toHaveText(`${title}: ${counted}`)
+      expect(await axOf(cdp, '.pstrip-diag__status')).toMatchObject({ role: 'status', live: 'polite', texts: [`${title}: ${counted}`] })
+
+      await node(page, 'tank').click()
+      await expect(note(page)).toBeVisible()
+      const ax = await axOf(cdp, '[data-small-moves]')
+      expect(ax).toMatchObject({ role: 'status', live: 'polite', roles: ['paragraph', 'paragraph', 'paragraph'] })
+      // the amounts are plain digits, each inside a left-to-right isolate; the name inside a first-strong one
+      expect(ax!.texts).toEqual([
+        words['inspector.pool.smallMoves.title'],
+        filled(words['inspector.pool.smallMoves.out'], { label: '⁨Seep⁩', amount: '⁦≈ 0.0000000005⁩' }),
+        filled(words['inspector.pool.smallMoves.net'], { amount: '⁦≈ −2.0000000005⁩' }),
+      ])
+    })
+  }
+
+  test('desktop, Arabic: the words read right to left and each amount stays whole and left to right, at the left of its line; nothing overflows', async ({ page }) => {
+    test.skip(isMobile(page), 'the desktop run strip and Inspector')
+    await open(page, SMALL_MOVES)
+    await setLocale(page, 'ar')
+    await advance(page)
+    const ar = await catalog(page)
+    await expect(page.locator('html')).toHaveAttribute('data-text-dir', 'rtl')
+    await expect(messages(page)).toBeVisible()
+    const item = messages(page).locator('.pstrip__diag-list li')
+    expect(await plain(item)).toBe(filled(ar['playbar.diag.movesNotShown'], { n: 3 }))
+    const counted = await onScreen(item)
+    // an Arabic sentence: its first word is at the right end, its full stop at the left
+    expect(counted.firstLine.startsWith('.')).toBe(true)
+    expect(counted.firstLine).toContain(' .3 :') // "…: 3. …" as it stands on the screen, the number in its place
+    expect(counted.overflows).toBe(false)
+
+    await node(page, 'tank').click()
+    await expect(note(page)).toBeVisible()
+    const out = await onScreen(note(page).locator('[data-small-move="seeps"]'))
+    const net = await onScreen(note(page).locator('[data-small-moves-net]'))
+    // the amount is not turned round by the Arabic around it, and neither is its sign
+    expect(out.firstLine.startsWith('≈ 0.0000000005 :Seep ')).toBe(true)
+    expect(net.firstLine.startsWith('≈ −2.0000000005 :')).toBe(true)
+    expect(out.overflows || net.overflows).toBe(false)
+    expect(await note(page).evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+
+    await node(page, 'cup').click()
+    expect((await onScreen(note(page).locator('[data-small-moves-net]'))).firstLine.startsWith('+0.0000000005 :')).toBe(true)
+    await node(page, 'valve').click()
+    const state = page.locator('.inspector p[role="status"][data-gate-state]')
+    await expect(state).toHaveAttribute('data-gate-state', 'full')
+    await expect(state).toContainText('0.0000000005')
+    expect(await state.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+  })
+
+  test('phone, Arabic: the run bar`s line and the Pool`s note in the sheet stay inside the screen, each amount whole', async ({ page }) => {
+    test.skip(!isMobile(page), 'the phone run bar and sheet')
+    await open(page, SMALL_MOVES)
+    await setLocale(page, 'ar')
+    await page.locator('.pstrip--mobile .pstrip__step-btn').click()
+    const ar = await catalog(page)
+    await expect(messages(page)).toBeVisible()
+    expect(await plain(messages(page).locator('.pstrip__diag-list li'))).toBe(filled(ar['playbar.diag.movesNotShown'], { n: 3 }))
+    const bar = (await messages(page).boundingBox())!
+    expect(bar.x).toBeGreaterThanOrEqual(0)
+    expect(bar.x + bar.width).toBeLessThanOrEqual(390)
+    expect(await messages(page).evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+
+    await tapNode(page, node(page, 'tank'))
+    await page.locator('.selpanel__details').click()
+    const inSheet = page.locator('.sheet--inspector [data-small-moves]')
+    await expect(inSheet).toBeVisible()
+    expect((await onScreen(inSheet.locator('[data-small-moves-net]'))).firstLine.startsWith('≈ −2.0000000005 :')).toBe(true)
+    const box = (await inSheet.boundingBox())!
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(390)
+    expect(await inSheet.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   })
 
   test('phone: the run bar counts them, and the Pool`s details list them and its net change', async ({ page }) => {
