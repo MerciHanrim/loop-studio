@@ -10,7 +10,8 @@ import { EPSILON, initSim, step, type StepMove } from './index'
 //   E1  a Gate's moves in equal its moves out; a Converter is at one part of a run on all its lines
 //   E3  every Pool's level is within its bounds after every move of the record
 //   E4  every stored value is the double nearest the Pool's exact level
-//   E9  a node that a move leaves has fired; a node that has fired has a move
+//   E9  a node that a move leaves has fired; a node that has fired has a move; a Gate's reported
+//       state says "passed something on" exactly where it fired
 //   E15 the events are the record's moves above the display threshold, as the nearest doubles
 //
 // Generated graphs (`generatedGraphs.fixture.ts`): plain, with lines from a Source, and with
@@ -93,6 +94,12 @@ function check(g: Graph, before: Record<string, number>, r: ReturnType<typeof st
     const fired = r.report.fired.includes(n.id)
     if (n.data.kind !== 'pool' && from.length > 0 && !fired) out.push(`${where}: ${n.id} moved something on and has not fired`)
     if (fired && into.length + from.length === 0) out.push(`${where}: ${n.id} has fired and the record has no move of its own`)
+  }
+  // a Gate's reported state and its firing never contradict each other
+  for (const s of r.report.gates) {
+    const fired = r.report.fired.includes(s.nodeId)
+    if ((s.state === 'full' || s.state === 'partial') && !fired) out.push(`${where}: Gate ${s.nodeId} reads ${s.state} and has not fired`)
+    if ((s.state === 'idle' || s.state === 'held') && fired) out.push(`${where}: Gate ${s.nodeId} reads ${s.state} and has fired`)
   }
   return out
 }

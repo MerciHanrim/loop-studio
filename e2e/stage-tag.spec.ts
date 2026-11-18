@@ -78,7 +78,10 @@ const CASES: [string, number, string, string][] = [
   // with this name the widest words before #517's review filled their lines exactly
   ['a near miss', 24.96, '25.04', 'Run 24.96 %, target 25.04 % · reads City water demand'],
   ['a run far under 1 %', 1000, '0.0000005', 'Run <0.01 % · reads City water demand'],
-  ['a stage stopped far under 1 %', 0.00000004, '0.0000005', 'Stopped, target <0.01 % · reads City water demand'],
+  // (engine revision 16, issue #580: a part of a run that the supply allows is not held to the
+  // floor of 1e-9. A tank of 4e-8 feeds 4e-10 of a run: it ran "Stopped" before, and it runs now)
+  ['a run far under 1 % of a target far under 1 %', 0.00000004, '0.0000005', 'Run <0.01 %, target <0.01 % · reads City water demand'],
+  ['a stage stopped, its target far under 1 %', 0, '0.0000005', 'Stopped, target <0.01 % · reads City water demand'],
 ]
 for (const [name, feed, wanted, words_] of CASES) {
   test(`${name} fits the block, and the step moves no line or chip`, async ({ page }) => {

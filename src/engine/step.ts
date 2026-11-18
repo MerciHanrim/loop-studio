@@ -157,6 +157,12 @@ import { EPSILON, type FlowEvent, type GateStatus, type RunLimit, type SimState,
 const nz = (x: number) => (Math.abs(x) < EPSILON ? 0 : x)
 // ── exact fractions (`../model/rational`), for the exact test of a Pool's room
 const RAT0 = fromInt(0)
+/** What a `pull all` node that asks `demand` in all may be short of and still run
+ *  (SEMANTICS-E.md §E11, §E11a): the absolute epsilon where it asks more than that; where its
+ *  whole demand is at or under the epsilon, that part of the demand (an absolute 1e-9 there
+ *  would be all it asks, and the node could never stop). As a double and as a fraction. */
+const shortfallAllowed = (demand: number): number => (demand > EPSILON ? EPSILON : demand * EPSILON)
+const shortfallAllowedR = (demand: Rat): Rat => (cmpR(demand, ratOfDouble(EPSILON)) > 0 ? ratOfDouble(EPSILON) : mulR(demand, ratOfDouble(EPSILON)))
 const RAT1 = fromInt(1)
 const minR = (a: Rat, b: Rat): Rat => (cmpR(a, b) <= 0 ? a : b)
 const maxR = (a: Rat, b: Rat): Rat => (cmpR(a, b) >= 0 ? a : b)
@@ -1378,7 +1384,8 @@ export function step(
       // both passed and the Source pushed 5 + 3 (review of 2026-11-15, E3).
       const into = new Map<string, number>()
       for (const p of plan) if (p.pool) into.set(p.e.target, (into.get(p.e.target) ?? 0) + Math.max(0, p.want))
-      if (!plan.every((p) => p.pool) || ![...into].every(([q, want]) => (roomP(q)) >= want - EPSILON)) {
+      const pushed = [...into.values()].reduce((a, b) => a + b, 0) // all the Source asks to push: what its allowance is measured by
+      if (!plan.every((p) => p.pool) || ![...into].every(([q, want]) => roomP(q) >= want - shortfallAllowed(pushed))) {
         continue // atomic: nothing
       }
     }
@@ -1909,25 +1916,33 @@ export function step(
     const gateEntries = new Map<string, GateStatus>()
     const planZeroWhy = new Map<string, 'pullAll' | 'plan'>() // a planned Gate that moves nothing, by the plan's cause
     const cyclicSet = new Set(cyclic)
-    const r6 = (x: number) => Number(x.toFixed(6))
+    // What is reported is rounded to six decimals. An amount under that precision is reported
+    // to six significant digits instead: a Gate that passed 5e-10 on does not read "moved 0".
+    const r6 = (x: number) => (x !== 0 && Math.abs(x) < 1e-6 ? Number(x.toPrecision(6)) : Number(x.toFixed(6)))
     /** the Gate's verdict, recorded at the point that decided what it moved */
     const recordGate = (id: string, moved: number, fault?: 'inert' | 'cycle') => {
       const { demand, available, ownWant, ownAvail } = numsOf(id)
+      // The verdict is given at the reported precision: 1e-6, or, where the Gate's own amounts
+      // are at or under that, 1e-6 of them (an absolute 1e-6 read every such Gate as `idle`).
+      // And it never contradicts the firing (SEMANTICS-E.md §E9): a Gate that moved anything is
+      // `full` or `partial`, one that moved nothing is `idle` or `held`.
+      const size = Math.max(demand, available)
+      const tol = size > 1e-6 ? 1e-6 : size * 1e-6
       let state: GateStatus['state']
       let why: GateStatus['why']
       if (fault) {
         state = 'fault'
         why = fault
-      } else if (available <= 1e-6) state = 'idle'
-      else if (moved >= demand - 1e-6) state = 'full'
-      else if (moved <= 1e-6) {
-        // at the reported precision (6 decimals): a bisection against a
-        // disabled `pull all` Converter can leave a residual of ~1e-8
-        state = 'held'
-        why = planZeroWhy.get(id) ?? (modeOfRouter(id) === 'pullAll' && ownAvail < ownWant - 1e-6 ? 'pullAll' : 'room')
-      } else {
+      } else if (!(moved > 0)) {
+        if (available <= tol) state = 'idle'
+        else {
+          state = 'held'
+          why = planZeroWhy.get(id) ?? (modeOfRouter(id) === 'pullAll' && ownAvail < ownWant - tol ? 'pullAll' : 'room')
+        }
+      } else if (moved >= demand - tol) state = 'full'
+      else {
         state = 'partial'
-        why = moved < available - 1e-6 ? 'room' : ownAvail < ownWant - 1e-6 ? 'supply' : 'upstream'
+        why = moved < available - tol ? 'room' : ownAvail < ownWant - tol ? 'supply' : 'upstream'
       }
       const entry: GateStatus = { nodeId: id, state, demand: r6(demand), available: r6(available), moved: r6(moved) }
       if (why) entry.why = why
@@ -2422,7 +2437,6 @@ export function step(
           if (!c) continue
           for (const [p, r] of sh.need.get(m)!) inNeedR.set(p, addR(inNeedR.get(p) ?? RAT0, mulR(c, r)))
         }
-        const EPSR = ratOfDouble(EPSILON)
         // The group at a number, in exact fractions: what each source Gate pulls (greedy, in the
         // plan's order), and how far every bound is from being passed (a margin below 0 is a
         // bound passed): each Pool's supply, each source Gate's need, and each capped Pool's level
@@ -2540,7 +2554,7 @@ export function step(
               if (modeOf(g.id) !== 'pullAll' || !isPositive(sR)) continue
               let d = handedR(g.id)
               for (const w of wantsOf.get(g.id) ?? []) d = addR(d, exactWant(w.e, w.want))
-              if (cmpR(addR(mulR(cofR.get(g.id) ?? RAT0, sR), EPSR), d) < 0) {
+              if (cmpR(addR(mulR(cofR.get(g.id) ?? RAT0, sR), shortfallAllowedR(d)), d) < 0) {
                 sR = RAT0
                 s = 0
                 zeroAt ??= g.id
@@ -2901,7 +2915,7 @@ export function step(
       }
       /** is a `pull all` Gate's amount short of its demand by more than the absolute epsilon? Asked of the exact amount where there is one. */
       const shortOf = (m: string, T: number, demand: number, exact: ((m: string) => Rat) | null): boolean =>
-        exact ? cmpR(addR(exact(m), ratOfDouble(EPSILON)), demandQ(m)) < 0 : T < demand - EPSILON
+        exact ? cmpR(addR(exact(m), shortfallAllowedR(demandQ(m))), demandQ(m)) < 0 : T < demand - shortfallAllowed(demand)
       const pullAllSourcesOk = (p: Piece): boolean => {
         const c = amountsOf(sOf())
         const exact = exactAmounts()
@@ -3260,7 +3274,7 @@ export function step(
             }
             for (const it of live) fill(it)
             const brought = live.reduce((t, it) => addR(t, valueQ(it.sup)), RAT0)
-            fits = feasible() && cmpR(subR(full, brought), ratOfDouble(EPSILON)) <= 0
+            fits = feasible() && cmpR(subR(full, brought), shortfallAllowedR(full)) <= 0
             // The epsilon is for a POOL that holds a hair less than is asked of it, and for
             // nothing else (SEMANTICS-E.md §E12). So of every supply that brings less than its
             // reach it is asked: WITH THE ROOMS LEFT OUT OF THE QUESTION and the other supplies
@@ -3392,12 +3406,12 @@ export function step(
           }
           if (demandR && exactP) {
             const want = demandR(m)
-            if (cmpR(addR(exactP(m), ratOfDouble(EPSILON)), want) < 0) {
+            if (cmpR(addR(exactP(m), shortfallAllowedR(want)), want) < 0) {
               failedPullAll.add(m)
             }
             continue
           }
-          if ((plan.get(m) ?? 0) < (demand.get(m) ?? 0) - EPSILON) failedPullAll.add(m)
+          if ((plan.get(m) ?? 0) < (demand.get(m) ?? 0) - shortfallAllowed(demand.get(m) ?? 0)) failedPullAll.add(m)
         }
         if (failedPullAll.size) zero = true
       }
@@ -3598,14 +3612,15 @@ export function step(
         // (review of 2026-11-15, E3).
         const from = new Map<string, number>()
         for (const w of wants) from.set(w.e.source, (from.get(w.e.source) ?? 0) + Math.max(0, w.want))
+        const asked = [...from.values()].reduce((a, b) => a + b, 0) // all the node asks: what its allowance is measured by
         const feasible =
-          mode === 'pullAll' ? [...from].every(([p, want]) => availOf(p) >= want - EPSILON) : true
+          mode === 'pullAll' ? [...from].every(([p, want]) => availOf(p) >= want - shortfallAllowed(asked)) : true
         if (feasible) {
           for (const w of wants) {
-            const a =
-              mode === 'pullAll'
-                ? nzPool(w.want)
-                : nzPool(Math.max(0, Math.min(w.want, availOf(w.e.source))))
+            // Each line takes what it asks or, where its Pool is short, what the Pool still
+            // holds: a `pull all` node that runs short within its allowance as well
+            // (SEMANTICS-E.md §E11b). It took all it asked, and the record took the Pool under 0.
+            const a = nzPool(Math.max(0, Math.min(w.want, availOf(w.e.source))))
             if (a > 0) {
               takeFrom(w.e.source, a)
               got += a
@@ -3659,7 +3674,7 @@ export function step(
             let askR = RAT0
             for (const e of inOf(id)) if (isPool(e.source) && !dead.has(e.id)) askR = addR(askR, exactWant(e, amountOf(e, availOf(e.source) + (plPulls.find((x) => x.e.id === e.id)?.a ?? 0), S[e.source] ?? 0)))
             const bringR = plPulls.reduce((t, x) => addR(t, x.r ?? ratOfDouble(x.a)), RAT0)
-            shortB = cmpR(subR(askR, bringR), ratOfDouble(EPSILON)) > 0
+            shortB = cmpR(subR(askR, bringR), shortfallAllowedR(askR)) > 0
             if (shortB) {
               for (const { e, a, r } of plPulls) {
                 reservedIn.set(e.source, (reservedIn.get(e.source) ?? 0) - a)
@@ -3856,7 +3871,7 @@ export function step(
             bringR = addR(bringR, x)
             if (leftR !== null) leftR = subR(leftR, x)
           }
-          if (mode === 'pullAll' && !handed && cmpR(subR(askR, bringR), ratOfDouble(EPSILON)) > 0) {
+          if (mode === 'pullAll' && !handed && cmpR(subR(askR, bringR), shortfallAllowedR(askR)) > 0) {
             recordGate(id, 0)
             continue
           }

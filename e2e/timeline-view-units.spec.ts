@@ -53,11 +53,13 @@ test('a view unit changes the screen and nothing stored, and the base view comes
 
   // the base view: two units on one axis, each value naming its own
   await expect(axisNote(page)).toHaveText('Mixed units')
-  await expect(page.locator('.timeline__key').first()).toHaveText(/Feed tank 500\.0 m³/)
+  // (engine revision 16: the tank holds exactly 500 after these steps. Before, it held
+  // 499.99999999999994, a last place lost on the way, and the key printed that as "500.0")
+  await expect(page.locator('.timeline__key').first()).toHaveText(/Feed tank 500 m³/)
   await expect(page.locator('.timeline__tick', { hasText: /^600$/ })).toHaveCount(1)
 
   await chooseUnit(page, 'L')
-  await expect(page.locator('.timeline__key').first()).toHaveText(/Feed tank ≈ 500000 L/)
+  await expect(page.locator('.timeline__key').first()).toHaveText(/Feed tank 500000 L/) // (exactly 500 m³ now: no `≈`)
   await expect(page.locator('.timeline__key').nth(1)).toHaveText(/Power supply 125 kWh/)
   await expect(axisNote(page)).toHaveText('Mixed units')
   await expect(page.locator('.timeline__tick', { hasText: /^600000$/ })).toHaveCount(1)

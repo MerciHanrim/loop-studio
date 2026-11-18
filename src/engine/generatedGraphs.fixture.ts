@@ -10,8 +10,9 @@ export type Graph = { nodes: LoopNode[]; edges: LoopEdge[] }
 export const pool = (id: string, initial: number, capacity: number | null = null): LoopNode => ({ id, type: 'pool', position: P0, data: { kind: 'pool', label: id, activation: 'passive', initial, capacity, mode: 'pullAny' } })
 export const conv = (id: string, mode: Mode = 'pullAny'): LoopNode => ({ id, type: 'converter', position: P0, data: { kind: 'converter', label: id, activation: 'automatic', mode } })
 export const gate = (id: string, mode: Mode = 'pullAny'): LoopNode => ({ id, type: 'gate', position: P0, data: { kind: 'gate', label: id, activation: 'automatic', distribution: 'deterministic', mode } as LoopNode['data'] })
-export const source = (id: string): LoopNode => ({ id, type: 'source', position: P0, data: { kind: 'source', label: id, activation: 'automatic', mode: 'pushAny' } as LoopNode['data'] })
+export const source = (id: string, mode: 'pushAny' | 'pushAll' = 'pushAny'): LoopNode => ({ id, type: 'source', position: P0, data: { kind: 'source', label: id, activation: 'automatic', mode } as LoopNode['data'] })
 export const drain = (id: string, mode: Mode = 'pullAny'): LoopNode => ({ id, type: 'drain', position: P0, data: { kind: 'drain', label: id, activation: 'automatic', mode } as LoopNode['data'] })
+export const end = (id: string, mode: Mode = 'pullAny'): LoopNode => ({ id, type: 'end', position: P0, data: { kind: 'end', label: id, activation: 'automatic', mode } as LoopNode['data'] })
 export const res = (id: string, s: string, t: string, flow: string): LoopEdge => ({ id, type: 'loop', source: s, target: t, sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow } })
 
 /** `text` × 10^n, digit for digit (no arithmetic, so no rounding) */
