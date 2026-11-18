@@ -188,6 +188,43 @@ describe('§E11, the edge of the absolute epsilon: a node that asks a little MOR
   })
 })
 
+describe('a `pull all` Converter is tested on a part of a run, and so runs at every size where it can have all it asks (§E19)', () => {
+  // The verdict of a planned `pull all` Converter was read off the doubles beside the exact
+  // amounts, and those doubles are 0 for an amount under the display threshold: a `pull all`
+  // Converter in front of another Converter was stopped, with its whole group, wherever every
+  // amount was under 1e-9. (Found by a generated graph with Source lines, seed 5481; the Source
+  // line has no part in it.)
+  const CONVERTERS: [string, (n: number) => Graph, string[]][] = [
+    ['alone', (n) => ({ nodes: [pool('A', held('3', n)), pool('Q', 0), conv('c', 'pullAll')], edges: [res('a', 'A', 'c', f('3', n)), res('o', 'c', 'Q', f('1', n))] }), ['a', 'o']],
+    ['behind a Gate', (n) => ({ nodes: [pool('A', held('3', n)), pool('Q', 0), gate('g'), conv('c', 'pullAll')], edges: [res('a', 'A', 'g', f('3', n)), res('gc', 'g', 'c', f('3', n)), res('o', 'c', 'Q', f('1', n))] }), ['a', 'gc', 'o']],
+    ['in front of a Gate', (n) => ({ nodes: [pool('A', held('8', n)), pool('Q', 0), conv('c', 'pullAll'), gate('g')], edges: [res('a', 'A', 'c', f('8', n)), res('cg', 'c', 'g', f('3', n)), res('o', 'g', 'Q', '1')] }), ['a', 'cg', 'o']],
+    ['in front of a Converter that has a Pool line of its own', (n) => ({ nodes: [pool('A', held('8', n)), pool('B', held('12', n)), pool('Q', 0), conv('c0', 'pullAll'), conv('c1')], edges: [res('a', 'A', 'c0', f('8', n)), res('cc', 'c0', 'c1', f('3', n)), res('b', 'B', 'c1', f('3', n)), res('o', 'c1', 'Q', f('4', n))] }), ['a', 'cc', 'b', 'o']],
+    ['in front of a Converter, both `pull all`', (n) => ({ nodes: [pool('A', held('8', n)), pool('Q', 0), conv('c0', 'pullAll'), conv('c1', 'pullAll')], edges: [res('a', 'A', 'c0', f('8', n)), res('cc', 'c0', 'c1', f('3', n)), res('o', 'c1', 'Q', f('4', n))] }), ['a', 'cc', 'o']],
+  ]
+  it.each(CONVERTERS)('%s: every line moves at scale 1, at 10^-9, at 10^-10 and at 10^-12, the same amounts times the scale', (_name, make, lines) => {
+    const at1 = runAndRead(make(0))[0]
+    expect([...at1.movedLines].sort()).toEqual([...lines].sort())
+    for (const n of [-9, -10, SMALL]) {
+      const [s] = runAndRead(make(n))
+      expect([...moves(s)].sort(), `at 10^${n}`).toEqual([...lines].sort())
+      expect(s.outside, `at 10^${n}`).toEqual([])
+      // the same amounts times the scale, to one part in 10^9
+      for (const id of lines) {
+        const want = Number(at1.moved(id).num) / Number(at1.moved(id).den)
+        const got = Number(s.moved(id).num) / Number(s.moved(id).den) / 10 ** n
+        expect(Math.abs(got - want), `${id} at 10^${n}`).toBeLessThan(1e-9 * want)
+      }
+    }
+  })
+
+  it('and where its Pool holds 7 of the 8 it asks, it stops with its group at every size', () => {
+    for (const n of [0, -9, -10, SMALL]) {
+      const [s] = runAndRead({ nodes: [pool('A', held('7', n)), pool('B', held('12', n)), pool('Q', 0), conv('c0', 'pullAll'), conv('c1')], edges: [res('a', 'A', 'c0', f('8', n)), res('cc', 'c0', 'c1', f('3', n)), res('b', 'B', 'c1', f('3', n)), res('o', 'c1', 'Q', f('4', n))] })
+      expect(moves(s), `at 10^${n}`).toEqual([])
+    }
+  })
+})
+
 describe('at ordinary sizes nothing of this changes what a `pull all` node does', () => {
   it('a Gate 5e-10 short of the 3 its line asks runs on what the Pool holds; one 2e-9 short does not', () => {
     const run = (holds: number) => runAndRead({ nodes: [pool('A', holds), pool('Q', 0), gate('g', 'pullAll')], edges: [res('a', 'A', 'g', '3'), res('o', 'g', 'Q', '1')] })[0]
