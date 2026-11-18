@@ -117,39 +117,64 @@ export function terminatingDecimal(r: Rational): string | null {
  *  the result is the double nearest the rational for every value a document
  *  can hold (a 15-digit decimal times a factor and a step ratio) */
 export function toDouble(r: Rational): number {
+  // The quotient is wanted to at least 26 digits, cut there, with the exponent
+  // that puts the point back: the least `e ≥ 0` with `num · 10^e ≥ 10^25 · den`,
+  // and `floor(num · 10^e / den)`. That `e` used to be found by multiplying by
+  // 10 and dividing again, about 26 divisions of long integers. It follows
+  // from the two digit counts: with `a` digits in `num` and `b` in `den`,
+  // `10^(a-1) ≤ num < 10^a` and `10^(b-1) ≤ den < 10^b`, so the condition
+  // fails at `24 + b - a` and holds at `26 + b - a`; the least `e` is
+  // `25 + b - a` or the one after (0 where that is below 0: it holds at 0
+  // already). One comparison decides, and one division gives the quotient.
+  // The text handed to `Number` is the same, character for character
+  // (`rationalConversions.test.ts` holds the earlier form and compares).
   if (r.num === 0n) return 0
   const neg = r.num < 0n
-  let num = abs(r.num)
+  const num = abs(r.num)
   const den = r.den
-  let e = 0
-  while (num / den < 10n ** 25n) {
-    num *= 10n
+  let e = 25 + den.toString().length - num.toString().length
+  if (e < 0) e = 0
+  let scaled = e === 0 ? num : num * 10n ** BigInt(e)
+  if (scaled < TEN25 * den) {
+    scaled *= 10n
     e++
   }
-  const v = Number(`${num / den}e-${e}`)
+  const v = Number(`${scaled / den}e-${e}`)
   return neg ? -v : v
 }
+const TEN25 = 10n ** 25n
+
+const F64 = new Float64Array(1)
+const U32 = new Uint32Array(F64.buffer)
+F64[0] = 1
+const HI = U32[1] === 0x3ff00000 ? 1 : 0 // the word that holds the sign and the exponent
+const LO = 1 - HI
 
 /** a double as the exact rational of its BINARY value (`0.1` →
  *  3602879701896397 / 2⁵⁵), not of its shortest decimal — what the engine
  *  actually holds, so a display can say whether it shows that value exactly */
 export function exactDouble(x: number): Rational {
+  // A double is `mantissa · 2^e`. Over a power of two the reduced fraction is
+  // the mantissa less its trailing zero bits, over the power of two that is
+  // left: Euclid's algorithm, which `rational` would run, has nothing else to
+  // find. An integer is itself over 1. The fraction is the same one as before
+  // (`rationalConversions.test.ts` holds the earlier form and compares).
   if (!Number.isFinite(x)) throw new Error(`rational: not finite: ${x}`)
-  if (x === 0) return { num: 0n, den: 1n }
-  const view = new DataView(new ArrayBuffer(8))
-  view.setFloat64(0, x)
-  const hi = view.getUint32(0)
-  const lo = view.getUint32(4)
-  const sign = hi >>> 31 ? -1n : 1n
+  if (Number.isInteger(x)) return { num: BigInt(x), den: 1n }
+  F64[0] = x
+  const hi = U32[HI]
+  const lo = U32[LO]
   const biased = (hi >>> 20) & 0x7ff
-  let mant = (BigInt(hi & 0xfffff) << 32n) | BigInt(lo)
-  let e: number
-  if (biased === 0) e = -1074
-  else {
-    mant |= 1n << 52n
+  let mantHi = hi & 0xfffff
+  let e = -1074
+  if (biased !== 0) {
+    mantHi |= 0x100000
     e = biased - 1075
   }
-  return e >= 0 ? rational(sign * mant * 2n ** BigInt(e), 1n) : rational(sign * mant, 2n ** BigInt(-e))
+  // not an integer: `e < 0`, and the mantissa has fewer than `-e` trailing zero bits
+  const tz = lo !== 0 ? 31 - Math.clz32(lo & -lo) : 32 + (31 - Math.clz32(mantHi & -mantHi))
+  const num = BigInt((mantHi * 4294967296 + lo) / 2 ** tz)
+  return { num: hi >>> 31 ? -num : num, den: 1n << BigInt(-e - tz) }
 }
 
 /** a double as the exact rational of its SHORTEST decimal form (the text
