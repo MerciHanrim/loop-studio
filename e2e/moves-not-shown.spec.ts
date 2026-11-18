@@ -302,6 +302,104 @@ test.describe('a step that moves amounts too small to show says so', () => {
     expect(await state.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
   })
 
+  // How often the two status regions CHANGE, which is what a screen reader has to say (the
+  // changes are counted; no speech is checked): once for the count, and the Pool's note comes
+  // in once with its text and is not touched again while its words stay the same.
+  test('desktop: over four steps with the same moves the count`s status region changes once, and the selected Pool`s note comes in once and does not change', async ({ page }) => {
+    test.skip(isMobile(page), 'the desktop run strip and Inspector')
+    await open(page, SMALL_MOVES)
+    await node(page, 'tank').click()
+    await expect(page.locator('.inspector .field__readout')).toBeVisible()
+    await page.evaluate(() => {
+      const w = window as unknown as { __changes: { count: string[]; noteIn: number; noteOut: number; noteChanged: number } }
+      w.__changes = { count: [], noteIn: 0, noteOut: 0, noteChanged: 0 }
+      const status = document.querySelector('.pstrip-diag__status')!
+      new MutationObserver(() => w.__changes.count.push(status.textContent ?? '')).observe(status, { childList: true, characterData: true, subtree: true })
+      const holds = (n: Node) => n instanceof Element && (n.matches('[data-small-moves]') || n.querySelector('[data-small-moves]') !== null)
+      new MutationObserver((records) => {
+        for (const m of records) {
+          const entered = [...m.addedNodes].some(holds)
+          if (entered) w.__changes.noteIn++
+          if ([...m.removedNodes].some(holds)) w.__changes.noteOut++
+          const inside = (m.target instanceof Element ? m.target : m.target.parentElement)?.closest('[data-small-moves]')
+          if (inside && !entered) w.__changes.noteChanged++
+        }
+      }).observe(document.querySelector('.inspector')!, { childList: true, characterData: true, subtree: true })
+    })
+    for (let i = 1; i <= 4; i++) {
+      await advance(page)
+      await expect.poll(() => page.evaluate(() => (window as unknown as { __loop: { sim: { getState: () => { stepIndex: number } } } }).__loop.sim.getState().stepIndex)).toBe(i)
+      await expect(note(page)).toBeVisible()
+    }
+    const en = await catalog(page)
+    // (a last look after the fourth step has been drawn)
+    await expect(page.locator('.inspector .field__readout')).toHaveValue('2.00')
+    const changes = await page.evaluate(() => (window as unknown as { __changes: { count: string[]; noteIn: number; noteOut: number; noteChanged: number } }).__changes)
+    expect(changes.count).toHaveLength(1)
+    expect(changes.count[0]).toContain(filled(en['playbar.diag.movesNotShown'], { n: 3 }))
+    expect({ in: changes.noteIn, out: changes.noteOut, changed: changes.noteChanged }).toEqual({ in: 1, out: 0, changed: 0 })
+  })
+
+  // Below 900 px an open side panel lies over the canvas column. The run's messages keep to the
+  // part beside it: an Arabic sentence starts at the right, and its beginning was under the
+  // properties panel (Lumi, 2026-11-19).
+  for (const code of ['en', 'ar']) {
+    test(`tablet, ${code}: with a side panel open over the canvas the count is beside it, every character of it`, async ({ page }) => {
+      test.skip(isMobile(page), 'the desktop run strip at a tablet`s width')
+      await page.setViewportSize({ width: 768, height: 1024 })
+      await open(page, SMALL_MOVES)
+      await setLocale(page, code)
+      await advance(page)
+      await expect(messages(page)).toBeVisible()
+      /** the left and right ends of the characters of the messages block, title and list */
+      const ends = () =>
+        messages(page).evaluate((el) => {
+          let left = Infinity
+          let right = -Infinity
+          const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+          for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+            const r = document.createRange()
+            r.selectNodeContents(n)
+            for (const b of r.getClientRects()) {
+              if (b.width === 0) continue
+              left = Math.min(left, b.left)
+              right = Math.max(right, b.right)
+            }
+          }
+          return { left, right, cut: el.scrollWidth > el.clientWidth }
+        })
+      const closed = await ends()
+      expect(closed.left).toBeGreaterThanOrEqual(0)
+      expect(closed.right).toBeLessThanOrEqual(768)
+
+      await page.locator('#wb-toggle-right').click()
+      const properties = page.locator('.rightcol.is-overlay')
+      await expect(properties).toBeVisible()
+      const panelLeft = (await properties.boundingBox())!.x
+      expect(panelLeft).toBeGreaterThan(300) // (the panel is over the right part of the strip, as before)
+      const beside = await ends()
+      expect(beside.right).toBeLessThanOrEqual(panelLeft)
+      expect(beside.left).toBeGreaterThanOrEqual(0)
+      expect(beside.cut).toBe(false)
+      expect(await plain(messages(page).locator('.pstrip__diag-list li'))).toBe(filled((await catalog(page))['playbar.diag.movesNotShown'], { n: 3 }))
+
+      // the list panel, over the left part: the same from the other side (one panel at a time)
+      await page.locator('#wb-toggle-left').click()
+      const list = page.locator('.wb-left.is-overlay')
+      await expect(list).toBeVisible()
+      await expect(properties).toBeHidden()
+      const listBox = (await list.boundingBox())!
+      const besideList = await ends()
+      expect(besideList.left).toBeGreaterThanOrEqual(listBox.x + listBox.width)
+      expect(besideList.right).toBeLessThanOrEqual(768)
+
+      // closed again, the block has its whole width back
+      await page.locator('#wb-toggle-left').click()
+      await expect(list).toBeHidden()
+      expect(await ends()).toEqual(closed)
+    })
+  }
+
   test('phone, Arabic: the run bar`s line and the Pool`s note in the sheet stay inside the screen, each amount whole', async ({ page }) => {
     test.skip(!isMobile(page), 'the phone run bar and sheet')
     await open(page, SMALL_MOVES)

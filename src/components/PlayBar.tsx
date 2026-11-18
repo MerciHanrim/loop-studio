@@ -17,7 +17,7 @@ import { phaseTexts, shownPhase } from '../ui/runPhase'
 // side, which `scrollWidth` does not count (ar-XB at 900 px, 2026-10-20)
 import { fitsRow } from './workbench/toolRowFit'
 import { useReactFlow } from '@xyflow/react'
-import { enterObserve, leaveObserve, useObserve } from './workbench/panelLayout'
+import { enterObserve, leaveObserve, useObserve, useWorkbenchPanels } from './workbench/panelLayout'
 import { anyMenuOpenSelector, useMenuOpenStore } from './toolbar/menuOpenStore'
 
 // P2 — playback lives in the chart-header strip, treated as part of the time
@@ -147,6 +147,10 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   const engineDiagnostics = useSimStore((s) => s.diagnostics)
   const notices = useSimStore((s) => s.notices)
   const movesNotShown = useSimStore((s) => s.smallMoves.moves.length)
+  // below 900 px an open side panel lies OVER the canvas column, the run's messages included:
+  // they keep to the part beside it (index.css, .pstrip-diag.is-beside-*)
+  const panels = useWorkbenchPanels()
+  const besidePanel = !panels.overlay ? '' : panels.rightOpen ? ' is-beside-right' : panels.leftOpen ? ' is-beside-left' : ''
   const play = useSimStore((s) => s.play)
   const pause = useSimStore((s) => s.pause)
   const stepOnce = useSimStore((s) => s.stepOnce)
@@ -817,7 +821,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
         // a bounded, scrollable region (Lumi's review of #437: many refused
         // connections must not push the canvas or the Timeline off screen);
         // every item stays in the list; focusable so the keyboard can scroll it
-        <div className="pstrip-diag" data-testid="run-diagnostics" role="region" tabIndex={0} aria-label={t('playbar.diag.title', { n: diagnostics.length })}>
+        <div className={`pstrip-diag${besidePanel}`} data-testid="run-diagnostics" role="region" tabIndex={0} aria-label={t('playbar.diag.title', { n: diagnostics.length })}>
           <span className="pstrip__diag-title">{t('playbar.diag.title', { n: diagnostics.length })}</span>
           <ul className="pstrip__diag-list">
             {diagnostics.map((d) => (
