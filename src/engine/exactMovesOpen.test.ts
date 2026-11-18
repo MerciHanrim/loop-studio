@@ -9,6 +9,7 @@ import { initSim, step, type StepMove } from './index'
 // engine closes it (it is then turned into a plain test).
 //   E-open 1  a loop that balances at one number only: `plainGraph(257, n)`
 //   E-open 2  a group with two supplies, far under 1e-9: `graphWithSourceLines(777, n)`, step 2
+//   E-open 3  a `pull all` Gate held by a room a last place short: `graphWithSourceLines(3763, -8)`
 // (What a `pull all` node may be short of, and what it records then, were two more boundaries
 // here; they are rules now, §E11a and §E11b, and their tests are in pullAllShort.test.ts.)
 // And one consequence of §E14 that is meant, pinned as it is and not an expected failure: a
@@ -105,6 +106,27 @@ describe('E-open 2 (SEMANTICS-E.md): a group with two supplies, far under 1e-9: 
   it.fails('generated graph with Source lines, seed 777, step 2, at 10^-12: the second line moves nothing (to be: 8e-12, as at the other scales)', () => {
     const out = run(graphWithSourceLines(777, -12), 2)
     expect(cmp(out[1].moved('e2'), ZERO)).toBe(1)
+  })
+})
+
+describe('E-open 3 (SEMANTICS-E.md): a `pull all` Gate held by a room a last place short, on a path other than §E12`s', () => {
+  // Generated graph with Source lines, seed 3763, step 1. The `pull all` Gate g1 takes 1 and 6
+  // of p1 and 1 of p3 and hands half of it back into p3, which at its turn has room for exactly
+  // that half (it holds 13 of 17). As the doubles stand that room is exact at scale 1, a last
+  // place over the 4 at 10^-9, and a last place UNDER it at 10^-8: there the Gate moves nothing.
+  // Not about small amounts (10^-8 is above every threshold). For a `pull all` Gate with two
+  // supplies that is the rule (§E12, §E14); this Gate is not one, and which test holds it is not
+  // found.
+  it('generated graph with Source lines, seed 3763: at scale 1 and at 10^-9 the Gate takes the 6 (times the scale) on its line e4', { timeout: 60_000 }, () => {
+    for (const [n, unit] of [[0, '1'], [-9, '0.000000001']] as const) {
+      const [s] = run(graphWithSourceLines(3763, n))
+      expect(same(s.moved('e4'), mul(fromInt(6), dec(unit))), `10^${n}`).toBe(true)
+      expect(s.outside).toEqual([])
+    }
+  })
+  it.fails('generated graph with Source lines, seed 3763, at 10^-8: the Gate moves nothing (to be: 6e-8 on e4, as at the other scales)', () => {
+    const [s] = run(graphWithSourceLines(3763, -8))
+    expect(cmp(s.moved('e4'), ZERO)).toBe(1)
   })
 })
 
