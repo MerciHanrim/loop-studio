@@ -71,6 +71,11 @@ test.describe('the menu bar over an open side panel (narrow band)', () => {
 
   test('File by the keyboard with the list open: the arrows reach a Template row and Enter opens it', async ({ page }) => {
     await openOverlay(page, 'left')
+    // An overlay panel opened from its toggle takes the focus a frame after the click
+    // (`focusInto`, panelLayout.ts). The panel can be visible before that frame: a focus put on
+    // File in between was taken into the panel, and Enter then went to the panel's tab and
+    // opened no menu. So the focus is in the panel before it is moved to File.
+    await expect.poll(() => page.evaluate(() => Boolean(document.activeElement?.closest('.wb-left.is-overlay'))), { message: 'the focus is in the list panel' }).toBe(true)
     const trig = page.locator('.toolbar__filemenu > .wb-mb')
     await trig.focus()
     await page.keyboard.press('Enter')
