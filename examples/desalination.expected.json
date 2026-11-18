@@ -719,7 +719,7 @@
         "naocl2": 999.6892857142857,
         "product": 1660.7142857142858,
         "panelC": 506.57142857142856,
-        "brine": 1499.6545138888887,
+        "brine": 1499.654513888889,
         "adj": 1998.263888888889,
         "backwash": 200.34722222222223
       },
@@ -730,22 +730,22 @@
       "values": {
         "basin": 11226.045552920434,
         "naocl": 1983.2494154606682,
-        "panelA": 1607.059351524032,
+        "panelA": 1607.0593515240328,
         "coag": 9832.494154606684,
         "filtered": 2806.9381412083917,
         "anti": 1967.7080009694037,
-        "permeate": 1365.5978715387528,
-        "recovered": 2499.999999999999,
+        "permeate": 1365.597871538753,
+        "recovered": 2500,
         "panelB": 6858.393254945958,
         "lime": 19703.995923586186,
         "naocl2": 992.5998980896546,
-        "product": 1450.101910345375,
+        "product": 1450.1019103453748,
         "panelC": 1513.201630565526,
         "brine": 1596.780280974592,
         "adj": 1960.0854683709222,
         "backwash": 201.69041511033433
       },
-      "productWaterShown": "≈ 1450101.91034538 L"
+      "productWaterShown": "≈ 1450101.91034537 L"
     },
     {
       "step": 168,
@@ -754,36 +754,36 @@
         "naocl": 1878.9742856651962,
         "panelA": 3888.969558088671,
         "coag": 8789.742856651968,
-        "filtered": 2797.154645412687,
-        "anti": 1769.0691391292942,
-        "permeate": 1362.8610317332682,
-        "recovered": 2499.999999999998,
-        "panelB": 6855.8729886573165,
+        "filtered": 2797.154645412688,
+        "anti": 1769.0691391292944,
+        "permeate": 1362.8610317332684,
+        "recovered": 2500,
+        "panelB": 6855.872988657317,
         "lime": 17916.13669343302,
         "naocl2": 947.9034173358244,
-        "product": 1446.582664175321,
+        "product": 1446.5826641753213,
         "panelC": 1513.1453226268052,
         "brine": 1602.2822199801951,
         "adj": 1711.8186239461168,
-        "backwash": 203.32262503049532
+        "backwash": 203.3226250304953
       },
       "productWaterShown": "≈ 1446582.66417532 L"
     },
     {
       "step": 720,
       "values": {
-        "basin": 11222.786906391146,
+        "basin": 11222.786906391144,
         "naocl": 1964.4561202397247,
         "panelA": 3888.9695580558778,
         "coag": 9644.56120239724,
-        "filtered": 2797.15464470998,
+        "filtered": 2797.1546447099795,
         "anti": 1932.2211423879282,
-        "permeate": 1362.861031517437,
-        "recovered": 2499.999999999998,
+        "permeate": 1362.8610315174367,
+        "recovered": 2500,
         "panelB": 6855.872988459903,
         "lime": 19390.54359678667,
         "naocl2": 984.7635899196662,
-        "product": 1446.5826638875453,
+        "product": 1446.582663887545,
         "panelC": 1513.1453226222006,
         "brine": 1602.2822203603823,
         "adj": 1915.3688076158614,
@@ -794,18 +794,18 @@
     {
       "step": 2160,
       "values": {
-        "basin": 11222.786906391146,
+        "basin": 11222.786906391144,
         "naocl": 1894.9227869063918,
         "panelA": 3888.9695580558778,
         "coag": 8949.227869063898,
-        "filtered": 2797.15464470998,
+        "filtered": 2797.1546447099795,
         "anti": 1799.7766979434857,
-        "permeate": 1362.861031517437,
-        "recovered": 2499.999999999998,
+        "permeate": 1362.8610315174367,
+        "recovered": 2500,
         "panelB": 6855.872988459903,
         "lime": 18198.543596786683,
         "naocl2": 954.9635899196655,
-        "product": 1446.5826638875453,
+        "product": 1446.582663887545,
         "panelC": 1513.1453226222006,
         "brine": 1602.2822203603823,
         "adj": 1749.8132520603058,
@@ -817,9 +817,9 @@
   "experimentalBound": {
     "beta": "2.646681e-11",
     "stepsClosed": 2160,
-    "largestStepError": "2.031764e-12",
-    "largestShareOfBeta": 0.0768,
-    "largestMemberShare": 0.408,
+    "largestStepError": "1.267347e-12",
+    "largestShareOfBeta": 0.0479,
+    "largestMemberShare": 0.285,
     "premises": {
       "noGateAndTreeGroups": true,
       "noTableOnWaterAndNoStateLine": true,
@@ -834,35 +834,35 @@
     "atSteps": [
       {
         "steps": 24,
-        "residual": "3.090250e-12",
-        "maxResidualSoFar": "3.395229e-12",
+        "residual": "4.937023e-12",
+        "maxResidualSoFar": "5.289436e-12",
         "bound": "6.352034e-10",
         "withinBound": true,
-        "shareOfBound": 0.00535
+        "shareOfBound": 0.00833
       },
       {
         "steps": 168,
-        "residual": "-7.164519e-12",
-        "maxResidualSoFar": "8.639589e-12",
+        "residual": "4.485579e-12",
+        "maxResidualSoFar": "8.909568e-12",
         "bound": "4.446424e-9",
         "withinBound": true,
-        "shareOfBound": 0.00194
+        "shareOfBound": 0.002
       },
       {
         "steps": 720,
-        "residual": "9.577206e-11",
-        "maxResidualSoFar": "9.577206e-11",
+        "residual": "-6.723372e-12",
+        "maxResidualSoFar": "1.864095e-11",
         "bound": "1.905610e-8",
         "withinBound": true,
-        "shareOfBound": 0.00503
+        "shareOfBound": 0.000978
       },
       {
         "steps": 2160,
-        "residual": "4.165488e-10",
-        "maxResidualSoFar": "4.165488e-10",
+        "residual": "-8.669940e-11",
+        "maxResidualSoFar": "8.669940e-11",
         "bound": "5.716831e-8",
         "withinBound": true,
-        "shareOfBound": 0.00729
+        "shareOfBound": 0.00152
       }
     ],
     "chain": {
@@ -966,7 +966,7 @@
       "moved": 1563.8424,
       "delivered": 1458.7652,
       "engineLeft": 1894.9227869063918,
-      "difference": 4.547473508864641e-12
+      "difference": 4.774847184307873e-12
     },
     {
       "tank": "coag",
@@ -975,7 +975,7 @@
       "moved": 15638.4238,
       "delivered": 14587.6517,
       "engineLeft": 8949.227869063898,
-      "difference": 5.4569682106375694e-11
+      "difference": 4.9112713895738125e-11
     },
     {
       "tank": "anti",
@@ -984,7 +984,7 @@
       "moved": 2979.1531,
       "delivered": 2778.9298,
       "engineLeft": 1799.7766979434857,
-      "difference": 1.9326762412674725e-11
+      "difference": 2.660272002685815e-11
     },
     {
       "tank": "lime",
@@ -993,7 +993,7 @@
       "moved": 26817.8633,
       "delivered": 25016.4069,
       "engineLeft": 18198.543596786683,
-      "difference": 2.2919266484677792e-10
+      "difference": 2.0736479200422764e-10
     },
     {
       "tank": "naocl2",
@@ -1011,7 +1011,7 @@
       "moved": 3723.4592,
       "delivered": 3473.2724,
       "engineLeft": 1749.8132520603058,
-      "difference": 4.547473508864641e-12
+      "difference": 9.094947017729282e-13
     }
   ],
   "contract": {

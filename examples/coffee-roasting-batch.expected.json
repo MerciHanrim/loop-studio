@@ -47,7 +47,7 @@
   ],
   "engine": {
     "tolerance": 1e-9,
-    "largestDifference": 1.4210854715202004e-14
+    "largestDifference": 2.842170943040401e-14
   },
   "checkpoints": [
     {
@@ -180,7 +180,7 @@
       },
       "engine": {
         "bean_hopper": 0,
-        "roast_drum": 48.39999999999999,
+        "roast_drum": 48.399999999999984,
         "cooling_tray": 0,
         "roasted_beans": 0,
         "released_chaff": 0.24,
@@ -201,7 +201,7 @@
       },
       "engine": {
         "bean_hopper": 0,
-        "roast_drum": 47.879999999999995,
+        "roast_drum": 47.87999999999998,
         "cooling_tray": 0,
         "roasted_beans": 0,
         "released_chaff": 0.32,
@@ -222,7 +222,7 @@
       },
       "engine": {
         "bean_hopper": 0,
-        "roast_drum": 47.36,
+        "roast_drum": 47.35999999999998,
         "cooling_tray": 0,
         "roasted_beans": 0,
         "released_chaff": 0.4,
@@ -243,7 +243,7 @@
       },
       "engine": {
         "bean_hopper": 0,
-        "roast_drum": 46.84,
+        "roast_drum": 46.839999999999975,
         "cooling_tray": 0,
         "roasted_beans": 0,
         "released_chaff": 0.48000000000000004,
@@ -264,7 +264,7 @@
       },
       "engine": {
         "bean_hopper": 0,
-        "roast_drum": 46.290000000000006,
+        "roast_drum": 46.28999999999998,
         "cooling_tray": 0,
         "roasted_beans": 0,
         "released_chaff": 0.48000000000000004,
@@ -285,7 +285,7 @@
       },
       "engine": {
         "bean_hopper": 0,
-        "roast_drum": 45.74000000000001,
+        "roast_drum": 45.73999999999998,
         "cooling_tray": 0,
         "roasted_beans": 0,
         "released_chaff": 0.48000000000000004,
@@ -306,7 +306,7 @@
       },
       "engine": {
         "bean_hopper": 0,
-        "roast_drum": 45.19000000000001,
+        "roast_drum": 45.18999999999998,
         "cooling_tray": 0,
         "roasted_beans": 0,
         "released_chaff": 0.48000000000000004,
@@ -327,7 +327,7 @@
       },
       "engine": {
         "bean_hopper": 0,
-        "roast_drum": 44.640000000000015,
+        "roast_drum": 44.639999999999986,
         "cooling_tray": 0,
         "roasted_beans": 0,
         "released_chaff": 0.48000000000000004,
@@ -349,7 +349,7 @@
       "engine": {
         "bean_hopper": 0,
         "roast_drum": 0,
-        "cooling_tray": 44.64,
+        "cooling_tray": 44.639999999999986,
         "roasted_beans": 0,
         "released_chaff": 0.48000000000000004,
         "water_vapour": 5.999999999999999,
@@ -370,7 +370,7 @@
       "engine": {
         "bean_hopper": 0,
         "roast_drum": 0,
-        "cooling_tray": 44.64,
+        "cooling_tray": 44.639999999999986,
         "roasted_beans": 0,
         "released_chaff": 0.48000000000000004,
         "water_vapour": 5.999999999999999,
@@ -391,7 +391,7 @@
       "engine": {
         "bean_hopper": 0,
         "roast_drum": 0,
-        "cooling_tray": 44.64,
+        "cooling_tray": 44.639999999999986,
         "roasted_beans": 0,
         "released_chaff": 0.48000000000000004,
         "water_vapour": 5.999999999999999,
@@ -412,7 +412,7 @@
       "engine": {
         "bean_hopper": 0,
         "roast_drum": 0,
-        "cooling_tray": 44.64,
+        "cooling_tray": 44.639999999999986,
         "roasted_beans": 0,
         "released_chaff": 0.48000000000000004,
         "water_vapour": 5.999999999999999,
@@ -433,7 +433,7 @@
       "engine": {
         "bean_hopper": 0,
         "roast_drum": 0,
-        "cooling_tray": 44.64,
+        "cooling_tray": 44.639999999999986,
         "roasted_beans": 0,
         "released_chaff": 0.48000000000000004,
         "water_vapour": 5.999999999999999,
@@ -455,7 +455,7 @@
         "bean_hopper": 0,
         "roast_drum": 0,
         "cooling_tray": 0,
-        "roasted_beans": 44.64,
+        "roasted_beans": 44.639999999999986,
         "released_chaff": 0.48000000000000004,
         "water_vapour": 5.999999999999999,
         "volatiles_out": 2.88
