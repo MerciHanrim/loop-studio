@@ -95,4 +95,13 @@
 //                       number and the hand-over, one amount in two orders: a
 //                       last place was dropped at every scale, and from about
 //                       1e7 a `pull all` Gate passed on nothing)
-export const ENGINE_REVISION = 15
+//   16                  issue #572 — a step's moves are exact fractions and are
+//                       recorded (`report.moves`); a Pool is stored as the double
+//                       nearest its exact level, with no clamp; no move is dropped
+//                       for being at or under 1e-9, which now only decides what is
+//                       shown; a rate above 0 is a live line whatever its size; a
+//                       node has fired where it moved anything above 0; a Pool's
+//                       capacity is tested exactly; a planned `pull all` Gate with
+//                       two supplies is let through for a Pool that is short by at
+//                       most 1e-9, never for room that is short (SEMANTICS-E.md)
+export const ENGINE_REVISION = 16
