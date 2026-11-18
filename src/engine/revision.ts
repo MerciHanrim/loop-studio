@@ -109,4 +109,11 @@
 //                       what its Pools hold (it was recorded as taking all it
 //                       asked); a Gate's reported state follows its firing
 //                       (SEMANTICS-E.md)
-export const ENGINE_REVISION = 16
+//   17                  issue #586 — the floor of a stated run target is the
+//                       group's: a planned group one of whose Converters states a
+//                       target at or under 1e-9 stands still as a whole, before
+//                       anything is taken (SEMANTICS-E.md §E19). The member with
+//                       the target was skipped at its own turn, after its takes:
+//                       the members before it ran and handed to it, and it took
+//                       its inputs and made nothing, the group reading `met`
+export const ENGINE_REVISION = 17

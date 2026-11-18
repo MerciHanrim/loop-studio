@@ -77,7 +77,7 @@ The target is a function of the step's start state and the step number, so the s
 
 Order in a step: table findings and plan; rule findings; kind findings; a `stop` table ends the run, one a rule reads included; each rule reads the start state; the phases run, with `f` no greater than the target.
 
-A group runs at the smallest target of its members. `pull all` means reaching the target: `f < target × (1 − 10⁻⁹)` stops the group. It is a ratio, so a small target cannot pass with nothing moved, and at a target of 1 it is the test `pull all` always had. An activator that turns a stage off still wins. The engine's two floors stay: a fraction at or below 10⁻⁹ does not run, and a line amount below it does not move.
+A group runs at the smallest target of its members. `pull all` means reaching the target: `f < target × (1 − 10⁻⁹)` stops the group. It is a ratio, so a small target cannot pass with nothing moved, and at a target of 1 it is the test `pull all` always had. An activator that turns a stage off still wins. The engine's two floors stay: a fraction at or below 10⁻⁹ does not run, and a line amount below it does not move. (Since engine revision 16 the second is gone, and the first is left for a target a rule gives and for nothing the engine works out: [`SEMANTICS-E.md`](SEMANTICS-E.md) §E7, §E19. Since revision 17 that floor is the group's: one member's target at or below it stops the whole group, before anything is taken.)
 
 ## M6-5. The report
 
