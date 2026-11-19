@@ -31,7 +31,7 @@ The rule is engine input: it is in the file, the graph digest, the revision cont
 
 The line must name a time: a rate unit, or an amount per a time. A line with no time unit is an amount per step, so its meaning would move with the step.
 
-The table's amount and the line's rate are both taken to the base unit per step, exactly, and divided as rationals. Every test of a rate is on that exact value, before any step is applied to its sign, so no step length can refuse a line. A valid line can still be too small for the engine to move at a short step: that is a run result, `stopped` with `floor`.
+The table's amount and the line's rate are both taken to the base unit per step, exactly, and divided as rationals. Every test of a rate is on that exact value, before any step is applied to its sign, so no step length can refuse a line. No valid line is too small to move: an amount above 0 moves at any step length ([`SEMANTICS-E.md`](SEMANTICS-E.md) §E7). What can be too small is the target the rule asks for: at or below 10⁻⁹ it is no run, a run result, `stopped` with `floor` (§M6-4). *Before engine revision 16* a line amount below 10⁻⁹ did not move, so a valid line could be too small to move at a short step, and the run read `stopped` with `floor` for that.
 
 ## M6-3. Findings
 
@@ -89,7 +89,7 @@ A group runs at the smallest target of its members. `pull all` means reaching th
 ```
 
 - `target` is the smallest of the rules' targets, and `decidedBy` the stage that gave it, the lowest id on a tie.
-- `basis` is the group's line with the largest engine rate, the lowest id on a tie. The largest line is the last to fall under the engine's amount floor.
+- `basis` is the group's line with the largest engine rate, the lowest id on a tie. `moved` is read off the step's events, and a move at or below 10⁻⁹ moves but has no event ([`SEMANTICS-E.md`](SEMANTICS-E.md) §E15, §E16): the largest line is the last whose move falls under that threshold. *Before engine revision 16* the reason was the engine's amount floor, under which a line moved nothing.
 - `moved` is the amount on the basis line over its rate.
 - `state`, in this order, with no absolute tolerance:
 
