@@ -2149,116 +2149,6 @@ export function step(
           bound(lo)
         }
       }
-      // the Pools the source Gate pulls from and a member delivers into: the
-      // largest `s` under every other bound at which the walk keeps every such
-      // Pool's level within its room (feasible at 0; bisection from there)
-      if (walked.length > 0 && Number.isFinite(sMax) && sMax > 0) {
-        // The same walk in exact fractions, from the rates the document states
-        // and the number `s` itself (issue #572). Asked only where the
-        // floating-point level is too close to the room to tell
-        // (`LEVEL_DOUBT`): a group that returns to a Pool exactly what it
-        // takes from it has a level of exactly 0 there, and one that returns
-        // any more has a level above 0.
-        let exactWalk: ((q: string, s: number) => boolean) | null = null
-        const buildExactWalk = () => {
-          const sh = exactShapes(members)
-          const cofR = sh.coefficients(root, () => true, W)
-          const inNeedR = new Map<string, Rat>()
-          for (const m of members) {
-            if (kindOf(m) === 'gate') continue
-            const c = cofR.get(m)
-            if (!c) continue
-            for (const [p, r] of sh.need.get(m)!) inNeedR.set(p, addR(inNeedR.get(p) ?? RAT0, mulR(c, r)))
-          }
-          const wantsR = new Map(srcGates.map((g) => [g, wantsOf.get(g)!.map((w) => ({ pool: w.e.source, want: exactWant(w.e, w.want) }))]))
-          return (q: string, s: number): boolean => {
-            if (!Number.isFinite(roomOf(q))) return true // a Pool with no capacity
-            const sR = ratOfDouble(s)
-            const room = ratOfDouble(roomOf(q))
-            const took = new Map<string, Rat>() // source Gate → what it pulls from q
-            const used = new Map<string, Rat>()
-            for (const g of srcGates) {
-              let need = subR(mulR(cofR.get(g) ?? RAT0, sR), ratOfDouble(inbox.get(g) ?? 0))
-              let mine = RAT0
-              for (const w of wantsR.get(g)!) {
-                if (cmpR(need, RAT0) <= 0) break // (the same in the exact walk: a need above 0 is pulled)
-                const avail = maxR(RAT0, subR(subR(ratOfDouble(availOf(w.pool)), mulR(sR, inNeedR.get(w.pool) ?? RAT0)), used.get(w.pool) ?? RAT0))
-                const a = maxR(RAT0, minR(need, minR(w.want, avail)))
-                if (w.pool === q) mine = addR(mine, a)
-                used.set(w.pool, addR(used.get(w.pool) ?? RAT0, a))
-                need = subR(need, a)
-              }
-              took.set(g, mine)
-            }
-            let level = RAT0
-            for (const m of inOrder) {
-              const cs = mulR(cofR.get(m) ?? RAT0, sR)
-              if (kindOf(m) === 'gate') {
-                level = subR(level, took.get(m) ?? RAT0)
-                const w = sh.into.get(m)!.get(q)
-                if (w && (W.get(m) ?? 0) > 0) level = addR(level, divR(mulR(cs, w), sh.W.get(m)!))
-              } else {
-                const n = sh.need.get(m)!.get(q)
-                if (n) level = subR(level, mulR(cs, n))
-                const mk = sh.into.get(m)!.get(q)
-                if (mk) level = addR(level, mulR(cs, mk))
-              }
-              if (cmpR(level, room) > 0) return false
-            }
-            return true
-          }
-        }
-        const fits = (s: number) =>
-          walked.every((q) => {
-            const peak = peakAt(q, s)
-            const room = roomOf(q)
-            const doubt = LEVEL_DOUBT * walkGross
-            if (peak > room + doubt) return false // past the room beyond any rounding
-            if (peak <= room - doubt) return true // within it beyond any rounding
-            return (exactWalk ??= buildExactWalk())(q, s) // too close: the exact walk decides
-          }) // no slack (#471, erratum part 4)
-        if (!fits(sMax)) {
-          let lo = 0
-          let hi = sMax
-          for (let i = 0; i < 64; i++) {
-            const mid = (lo + hi) / 2
-            if (fits(mid)) lo = mid
-            else hi = mid
-          }
-          bound(lo)
-        }
-      }
-      let s = Number.isFinite(sMax) ? Math.max(0, sMax) : 0
-      // The floor of a stated run target is the GROUP's (SEMANTICS-E.md §E19; issue #586). A target
-      // a document states at or under the floor is no run (SEMANTICS-M6.md §M6-5), and a group
-      // runs at one number: so the number is 0 here, before anything is claimed, taken or handed
-      // on. Asked of the one member at its turn, after its takes, the floor let the members
-      // before it run and hand to it, and it took its inputs and made nothing.
-      if (members.some((m) => kindOf(m) === 'converter' && targetFloored(m))) s = 0
-      // `pull all` members fix the number: the group runs at it or not at all
-      // (SEMANTICS.md §9; a short one is recorded for the fixpoint).
-      const modeOf = (id: string) => ((byId.get(id)?.data as { mode?: string } | undefined)?.mode ?? 'pullAny')
-      let zeroAt: string | null = null // #477 — '' for a short `pull all` Converter, the Gate's id for its own fixed demand
-      // the number the targets alone allow: what a `pull all` member must reach
-      const targeted = members.some((m) => runTargets?.[m] !== undefined)
-      // (`> 0` here too, issue #576: with every Converter left out for a small
-      // coefficient the cap came out as "none", and a `pull all` Converter was
-      // asked for a whole run where its target allows a half)
-      const sCap = targeted ? Math.min(...members.filter((m) => kindOf(m) === 'converter' && (cof.get(m) ?? 0) > 0).map((m) => runOf(m) / cof.get(m)!)) : 1
-      if (ruled && lim && limV < sCap * RUN_REACHED) {
-        for (const m of members) if (!runLimit.has(m)) runLimit.set(m, { why: lim.why, pool: lim.pool, needed: lim.per * sCap, had: lim.had })
-      }
-      for (const m of members) {
-        if (kindOf(m) !== 'converter' || disabledPullAll.has(m)) continue
-        const need = targeted ? Math.min(1, (cof.get(m) ?? 0) * sCap) : 1
-        planNeed.set(m, need)
-        if (modeOf(m) === 'pullAll' && (cof.get(m) ?? 0) * s < need * RUN_REACHED) {
-          pullShort.add(m)
-          s = 0
-          zeroAt ??= ''
-        }
-      }
-      if (zeroAt !== null) for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, m === zeroAt ? 'pullAll' : 'plan')
       // One working of every amount. The record takes each amount from the exact fractions the
       // search decides on (coefficient × number × rate). The fraction is what is claimed or
       // promised, and what the member takes from its Pools at its turn; the double beside it
@@ -2340,31 +2230,152 @@ export function step(
         return { pulls, margins }
       }
       const allIn = (ms: Rat[]) => ms.every((x) => cmpR(x, RAT0) >= 0)
+      /** The exact cap of the number: the bounds that are not margins, a Converter's run (its
+       *  target, 1 without one) and a source Gate's whole demand, each over the member's exact
+       *  coefficient (null where no member gives one). */
+      const exactCap = (): Rat | null => {
+        let capR: Rat | null = null
+        for (const m of members) {
+          const c = cofR.get(m)
+          if (!c || !isPositive(c)) continue
+          let v: Rat | null = null
+          if (kindOf(m) !== 'gate') v = divR(ratOfShortestDecimal(runOf(m)), c)
+          else if (srcGates.includes(m)) {
+            let d = handedR(m)
+            for (const w of wantsOf.get(m)!) d = addR(d, exactWant(w.e, w.want))
+            v = divR(d, c)
+          }
+          if (v !== null && (capR === null || cmpR(v, capR) < 0)) capR = v
+        }
+        return capR
+      }
+      // the Pools the source Gate pulls from and a member delivers into: the
+      // largest `s` under every other bound at which the walk keeps every such
+      // Pool's level within its room (feasible at 0; bisection from there)
+      if (walked.length > 0 && Number.isFinite(sMax) && sMax > 0) {
+        // The same walk in exact fractions, from the rates the document states
+        // and the number `s` itself (issue #572). Asked only where the
+        // floating-point level is too close to the room to tell
+        // (`LEVEL_DOUBT`): a group that returns to a Pool exactly what it
+        // takes from it has a level of exactly 0 there, and one that returns
+        // any more has a level above 0.
+        let exactWalk: ((q: string, s: number) => boolean) | null = null
+        const buildExactWalk = () => {
+          const sh = exactShapes(members)
+          const cofR = sh.coefficients(root, () => true, W)
+          const inNeedR = new Map<string, Rat>()
+          for (const m of members) {
+            if (kindOf(m) === 'gate') continue
+            const c = cofR.get(m)
+            if (!c) continue
+            for (const [p, r] of sh.need.get(m)!) inNeedR.set(p, addR(inNeedR.get(p) ?? RAT0, mulR(c, r)))
+          }
+          const wantsR = new Map(srcGates.map((g) => [g, wantsOf.get(g)!.map((w) => ({ pool: w.e.source, want: exactWant(w.e, w.want) }))]))
+          return (q: string, s: number): boolean => {
+            if (!Number.isFinite(roomOf(q))) return true // a Pool with no capacity
+            const sR = ratOfDouble(s)
+            const room = ratOfDouble(roomOf(q))
+            const took = new Map<string, Rat>() // source Gate → what it pulls from q
+            const used = new Map<string, Rat>()
+            for (const g of srcGates) {
+              let need = subR(mulR(cofR.get(g) ?? RAT0, sR), ratOfDouble(inbox.get(g) ?? 0))
+              let mine = RAT0
+              for (const w of wantsR.get(g)!) {
+                if (cmpR(need, RAT0) <= 0) break // (the same in the exact walk: a need above 0 is pulled)
+                const avail = maxR(RAT0, subR(subR(ratOfDouble(availOf(w.pool)), mulR(sR, inNeedR.get(w.pool) ?? RAT0)), used.get(w.pool) ?? RAT0))
+                const a = maxR(RAT0, minR(need, minR(w.want, avail)))
+                if (w.pool === q) mine = addR(mine, a)
+                used.set(w.pool, addR(used.get(w.pool) ?? RAT0, a))
+                need = subR(need, a)
+              }
+              took.set(g, mine)
+            }
+            let level = RAT0
+            for (const m of inOrder) {
+              const cs = mulR(cofR.get(m) ?? RAT0, sR)
+              if (kindOf(m) === 'gate') {
+                level = subR(level, took.get(m) ?? RAT0)
+                const w = sh.into.get(m)!.get(q)
+                if (w && (W.get(m) ?? 0) > 0) level = addR(level, divR(mulR(cs, w), sh.W.get(m)!))
+              } else {
+                const n = sh.need.get(m)!.get(q)
+                if (n) level = subR(level, mulR(cs, n))
+                const mk = sh.into.get(m)!.get(q)
+                if (mk) level = addR(level, mulR(cs, mk))
+              }
+              if (cmpR(level, room) > 0) return false
+            }
+            return true
+          }
+        }
+        const fits = (s: number) =>
+          walked.every((q) => {
+            const peak = peakAt(q, s)
+            const room = roomOf(q)
+            const doubt = LEVEL_DOUBT * walkGross
+            if (peak > room + doubt) return false // past the room beyond any rounding
+            if (peak <= room - doubt) return true // within it beyond any rounding
+            return (exactWalk ??= buildExactWalk())(q, s) // too close: the exact walk decides
+          }) // no slack (#471, erratum part 4)
+        // The exact cap first (SEMANTICS-E.md §E22, issue #572, formerly E-open 1). Where every
+        // exact margin holds at it, it is the largest number that fits, and the number below
+        // takes it (`exactCap`, `exactAt`: the same bounds and the same ledger). The search's
+        // double is kept for that. A group that fits at its cap only (it returns to a full Pool
+        // exactly what it takes of it there) was planned at 0 where the cap is not a double: no
+        // double fits, and the bisection ended at 0 before the cap was asked. Where a margin is
+        // passed at the cap, the bisection runs as before.
+        const capR = exactCap()
+        if (!fits(sMax) && !(capR !== null && allIn(exactAt(capR).margins))) {
+          let lo = 0
+          let hi = sMax
+          for (let i = 0; i < 64; i++) {
+            const mid = (lo + hi) / 2
+            if (fits(mid)) lo = mid
+            else hi = mid
+          }
+          bound(lo)
+        }
+      }
+      let s = Number.isFinite(sMax) ? Math.max(0, sMax) : 0
+      // The floor of a stated run target is the GROUP's (SEMANTICS-E.md §E19; issue #586). A target
+      // a document states at or under the floor is no run (SEMANTICS-M6.md §M6-5), and a group
+      // runs at one number: so the number is 0 here, before anything is claimed, taken or handed
+      // on. Asked of the one member at its turn, after its takes, the floor let the members
+      // before it run and hand to it, and it took its inputs and made nothing.
+      if (members.some((m) => kindOf(m) === 'converter' && targetFloored(m))) s = 0
+      // `pull all` members fix the number: the group runs at it or not at all
+      // (SEMANTICS.md §9; a short one is recorded for the fixpoint).
+      const modeOf = (id: string) => ((byId.get(id)?.data as { mode?: string } | undefined)?.mode ?? 'pullAny')
+      let zeroAt: string | null = null // #477 — '' for a short `pull all` Converter, the Gate's id for its own fixed demand
+      // the number the targets alone allow: what a `pull all` member must reach
+      const targeted = members.some((m) => runTargets?.[m] !== undefined)
+      // (`> 0` here too, issue #576: with every Converter left out for a small
+      // coefficient the cap came out as "none", and a `pull all` Converter was
+      // asked for a whole run where its target allows a half)
+      const sCap = targeted ? Math.min(...members.filter((m) => kindOf(m) === 'converter' && (cof.get(m) ?? 0) > 0).map((m) => runOf(m) / cof.get(m)!)) : 1
+      if (ruled && lim && limV < sCap * RUN_REACHED) {
+        for (const m of members) if (!runLimit.has(m)) runLimit.set(m, { why: lim.why, pool: lim.pool, needed: lim.per * sCap, had: lim.had })
+      }
+      for (const m of members) {
+        if (kindOf(m) !== 'converter' || disabledPullAll.has(m)) continue
+        const need = targeted ? Math.min(1, (cof.get(m) ?? 0) * sCap) : 1
+        planNeed.set(m, need)
+        if (modeOf(m) === 'pullAll' && (cof.get(m) ?? 0) * s < need * RUN_REACHED) {
+          pullShort.add(m)
+          s = 0
+          zeroAt ??= ''
+        }
+      }
+      if (zeroAt !== null) for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, m === zeroAt ? 'pullAll' : 'plan')
       // The number. The search's is a double; where the exact bounds are passed at it, the
       // number is the exact point where the first of them is met, a fraction between the
       // double below and it (the bounds are straight lines over one last place).
       let sR = ratOfDouble(s)
       let exactNumber = false
       if (s > 0) {
-        // The number is the largest fraction within every bound. The bounds that are
-        // not margins give a cap: a Converter's run (its target, 1 without one) and a source
-        // Gate's whole demand, each over the member's exact coefficient. At the cap, or at the
+        // The number is the largest fraction within every bound: at the exact cap, or at the
         // exact point below it where the first margin is met.
-        let capR: Rat | null = null
-        const lower = (v: Rat) => {
-          if (capR === null || cmpR(v, capR) < 0) capR = v
-        }
-        for (const m of members) {
-          const c = cofR.get(m)
-          if (!c || !isPositive(c)) continue
-          if (kindOf(m) !== 'gate') lower(divR(ratOfShortestDecimal(runOf(m)), c))
-          else if (srcGates.includes(m)) {
-            let d = handedR(m)
-            for (const w of wantsOf.get(m)!) d = addR(d, exactWant(w.e, w.want))
-            lower(divR(d, c))
-          }
-        }
-        const cap0 = capR as Rat | null
+        const cap0 = exactCap()
         if (cap0 !== null) {
           if (allIn(exactAt(cap0).margins)) sR = cap0
           else {

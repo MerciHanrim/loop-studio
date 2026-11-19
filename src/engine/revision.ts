@@ -135,4 +135,9 @@
 //                       §E11): it read a sum of doubles in which an amount at or
 //                       under 1e-9 is 0, and so stopped, with its group, at sizes
 //                       where its amounts are that small
-export const ENGINE_REVISION = 20
+//   21                  issue #572, E-open 1 — where every exact margin of a plan holds at
+//                       its exact cap, the plan takes the cap (SEMANTICS-E.md §E22): a
+//                       group that fits at its cap only, where the cap is not a double,
+//                       was planned at 0, since no double fits and the search ended at 0
+//                       before the cap was asked
+export const ENGINE_REVISION = 21
