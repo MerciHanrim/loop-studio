@@ -576,6 +576,10 @@ export function step(
     let o = outRes.get(e.source)
     if (!o) outRes.set(e.source, (o = []))
     o.push(e)
+    // A line from a Source into a Converter is no input of the Converter (SEMANTICS-E.md §E20,
+    // issue #581): a Source moves nothing along it (its push phase says so), and counted in a full
+    // run it ran the Converter at a part from its Pool lines alone, with what did not fit lost
+    if (byId.get(e.source)?.data.kind === 'source' && byId.get(e.target)?.data.kind === 'converter') continue
     let i = inRes.get(e.target)
     if (!i) inRes.set(e.target, (i = []))
     i.push(e)
@@ -1934,6 +1938,9 @@ export function step(
         // branch, a disabled `pull all` Converter): one f on every connection
         // is 0, for the whole group
         if (inOf(m).some((e) => !isPool(e.source) && !liveEdge(e) && rateOfCached(e) > 0)) bound(0)
+        // no input line at all (or only lines from a Source, §E20): it makes nothing, and the
+        // plan had nothing to bound it by; it cannot run, and nor can the group
+        if (!inOf(m).some((e) => rateOfCached(e) > 0)) bound(0)
         const need = convNeed.get(m)!
         for (const [p, r] of need) inNeed.set(p, (inNeed.get(p) ?? 0) + c * r)
         for (const [q, make] of convMake.get(m)!) if (isPool(q)) outCoef.set(q, (outCoef.get(q) ?? 0) + c * make)
@@ -2827,7 +2834,8 @@ export function step(
             continue
           }
           margins.push(subR(RAT1, v)) // a Converter runs once at most
-          const cannot = disabledPullAll.has(m) || convMake.get(m)!.size === 0 || inOf(m).some((e) => !isPool(e.source) && !liveEdge(e) && rateOfCached(e) > 0)
+          // (with no input line at all, or only lines from a Source, it cannot run either: §E20)
+          const cannot = disabledPullAll.has(m) || convMake.get(m)!.size === 0 || inOf(m).some((e) => !isPool(e.source) && !liveEdge(e) && rateOfCached(e) > 0) || !inOf(m).some((e) => rateOfCached(e) > 0)
           margins.push(cannot ? subR(RAT0, v) : RAT0) // one that cannot run moves nothing
           if (!isPositive(v)) continue
           for (const [p, r] of sh.need.get(m)!) {

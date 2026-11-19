@@ -358,7 +358,9 @@ export function kindFindings(
   const { flowOf } = resolveFlowExprs(byId, res as LoopEdge[], modelVersion)
   const converters = nodes.filter((n) => n.data.kind === 'converter').map((n) => n.id).sort()
   for (const c of converters) {
-    const lines = res.filter((e) => e.source === c || e.target === c)
+    // a line from a Source into a Converter is no input of it (SEMANTICS-E.md §E20): the recipe is
+    // read without it, as the engine runs it, or a conserved kind would be made from nothing
+    const lines = res.filter((e) => e.source === c || (e.target === c && byId.get(e.source)?.data.kind !== 'source'))
     const involved = lines.some((e) => {
       const k = r.edgeKind.get(e.id)
       return k !== null && k !== undefined && conserved.has(k)

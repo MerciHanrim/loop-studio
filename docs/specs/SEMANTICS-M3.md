@@ -33,7 +33,7 @@ Every `resource` connection has exactly one kind, or none, by this resolution (`
 
 ## M3-3. C1 — per-kind conservation (I1-K)
 
-For each Converter where a conserved kind is involved and each conserved kind `k` among its connections, the balance in `k` is **computable** when every connection of the Converter has a kind and every connection of kind `k` has a numeric rate (a `const`, or a `@param` reference resolved to one — the same resolution `step` performs, §M2-3). When computable it must hold:
+A Converter's connections here are its outputs and its inputs, and a line from a Source is no input of a Converter (SEMANTICS-E.md §E20, from engine revision 18): nothing comes in on it, so it is not counted, and a recipe balanced only on such a line is broken. For each Converter where a conserved kind is involved and each conserved kind `k` among its connections, the balance in `k` is **computable** when every connection of the Converter has a kind and every connection of kind `k` has a numeric rate (a `const`, or a `@param` reference resolved to one — the same resolution `step` performs, §M2-3). When computable it must hold:
 
 ```
 Σ inRate(k) = Σ outRate(k)      (exactly — SEMANTICS-M4.md §M4-5), deliveries into Drains and Ends counted among the outputs

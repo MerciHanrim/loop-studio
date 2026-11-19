@@ -359,39 +359,124 @@ describe('a Pool a `label` state connection edits, and the record of moves (SEMA
   })
 })
 
-describe('a Converter outside every plan with a line from a Source (issue #581)', () => {
-  // A line from a Source into a Converter makes no group, so the Converter is in no plan. The
-  // Source pushes nothing into a Converter; its line still counts in a full run (2 + 3 = 5).
-  // That rule is issue #581's and is unchanged (SEMANTICS-E.md, E-open 4); these pin that the
-  // amounts it gives are exact.
-  const fed = (a: number, cap: number | null = null, mode: Mode = 'pullAny'): Graph => ({
-    nodes: [source('s'), pool('A', a), pool('Q', 0, cap), conv('c', mode)],
-    edges: [res('x', 's', 'c', '2'), res('a', 'A', 'c', '3'), res('o', 'c', 'Q', '5')],
+describe('a line from a Source is no input of a Converter (issue #581, SEMANTICS-E.md §E20)', () => {
+  // A Source moves nothing along a line into a Converter, so the line is not one of the
+  // Converter's inputs: the Converter runs on its other lines, as it would without that line, and
+  // a full run takes 3 of A here, not 2 + 3. The Source's diagnostic stays. Each case is checked
+  // against the same graph with the Source line taken out, line by line.
+  const fed = (a: number, cap: number | null = null, mode: Mode = 'pullAny', push: 'pushAny' | 'pushAll' = 'pushAny', withSource = true): Graph => ({
+    nodes: [...(withSource ? [source('s', push)] : []), pool('A', a), pool('Q', 0, cap), conv('c', mode)],
+    edges: [...(withSource ? [res('x', 's', 'c', '2')] : []), res('a', 'A', 'c', '3'), res('o', 'c', 'Q', '5')],
   })
-  it('the Converter makes 3/5 of a run from its Pool line alone', () => {
-    const [s] = run(fed(10))
+  /** the graph without its lines from a Source into a Converter (and without the Source if nothing else is left of it) */
+  const withoutSourceLines = (g: Graph): Graph => {
+    const kind = (id: string) => g.nodes.find((n) => n.id === id)?.data.kind
+    const edges = g.edges.filter((e) => !(kind(e.source) === 'source' && kind(e.target) === 'converter'))
+    return { nodes: g.nodes.filter((n) => n.data.kind !== 'source' || edges.some((e) => e.source === n.id)), edges }
+  }
+  const asWithout = (g: Graph, steps = 1) => {
+    const a = run(g, steps)
+    const b = run(withoutSourceLines(g), steps)
+    for (let i = 0; i < steps; i++) {
+      for (const e of withoutSourceLines(g).edges) expect(same(a[i].moved(e.id), b[i].moved(e.id)), `step ${i + 1}, ${e.id}`).toBe(true)
+      expect(a[i].notices, `step ${i + 1}`).toEqual(b[i].notices)
+      expect(a[i].outside).toEqual([])
+    }
+    return a
+  }
+  it('a full run takes 3 of the Pool and makes 5, the run of the Converter without the Source line', () => {
+    const [s] = asWithout(fed(10))
+    expect(same(s.moved('a'), fromInt(3))).toBe(true)
+    expect(same(s.moved('o'), fromInt(5))).toBe(true)
+    expect(same(s.moved('x'), ZERO)).toBe(true)
+    expect(s.notices).toEqual([])
+  })
+  it('a push-all Source: the same', () => {
+    const [s] = asWithout(fed(10, null, 'pullAny', 'pushAll'))
+    expect(same(s.moved('o'), fromInt(5))).toBe(true)
+  })
+  it('a Pool holding 1 of the 3 a run takes: all of it is taken, a third of a run, and a third of every output is made', () => {
+    const [s1, s2] = asWithout(fed(1), 2)
+    expect(same(s1.moved('a'), fromInt(1))).toBe(true)
+    expect(same(s1.moved('o'), frac(5, 3))).toBe(true)
+    expect(same(s1.level('A'), ZERO)).toBe(true)
+    expect(same(s2.moved('a'), ZERO)).toBe(true)
+  })
+  it('an output Pool with room for 1.7: the Pool line gives what that room needs, and nothing is lost', () => {
+    const [s1, s2] = asWithout(fed(10, 1.7), 2)
+    expect(same(s1.moved('o'), exactDouble(1.7))).toBe(true)
+    expect(same(s1.moved('a'), mul(exactDouble(1.7), frac(3, 5)))).toBe(true) // 1.02 for 0.34 of a run; it took 3 and lost 1.3 before
+    expect(s1.notices).toEqual([])
+    expect(same(s2.moved('a'), ZERO)).toBe(true)
+  })
+  it('an output Pool with room for 2: 6/5 is taken for 2/5 of a run', () => {
+    const [s] = asWithout(fed(10, 2))
+    expect(same(s.moved('a'), frac(6, 5))).toBe(true)
+    expect(same(s.moved('o'), fromInt(2))).toBe(true)
+    expect(s.notices).toEqual([])
+  })
+  it('a last place of room (SEMANTICS-E.md E-open 5 as it was): the Pool line gives that last place`s part, not 1', () => {
+    const g: Graph = { nodes: [source('s'), pool('A', 10), pool('Q', 3, 3 + 2 ** -51), conv('c')], edges: [res('x', 's', 'c', '1'), res('a', 'A', 'c', '1'), res('o', 'c', 'Q', '5')] }
+    const [s] = asWithout(g)
+    expect(same(s.moved('o'), exactDouble(2 ** -51))).toBe(true)
+    expect(same(s.moved('a'), div(exactDouble(2 ** -51), fromInt(5)))).toBe(true)
+  })
+  it('`pull all`: the Pool line alone fills a run, and the Converter runs', () => {
+    const [s] = asWithout(fed(10, null, 'pullAll'))
+    expect(same(s.moved('a'), fromInt(3))).toBe(true)
+    expect(same(s.moved('o'), fromInt(5))).toBe(true)
+  })
+  it('`pull all`: a Pool short of a run, or an output short of room, and nothing moves', () => {
+    for (const [a, cap] of [[2, null], [10, 1.7]] as const) {
+      const g = fed(a, cap, 'pullAll')
+      const [s] = asWithout(g)
+      still(s, g)
+      expect(s.stored.A).toBe(a)
+    }
+  })
+  it('a Converter whose only input is a line from a Source has no input, and does not run (in either mode)', () => {
+    for (const mode of ['pullAny', 'pullAll'] as const) {
+      const g: Graph = { nodes: [source('s'), pool('Q', 0), conv('c', mode)], edges: [res('x', 's', 'c', '2'), res('o', 'c', 'Q', '5')] }
+      still(run(g)[0], g)
+    }
+  })
+  it('a line from a Source into a Gate is not touched: the Gate moves what its Pool line brings', () => {
+    const g: Graph = { nodes: [source('s'), pool('A', 10), pool('Q', 0), gate('g')], edges: [res('x', 's', 'g', '2'), res('a', 'A', 'g', '3'), res('o', 'g', 'Q', '5')] }
+    const [s] = run(g)
     expect(same(s.moved('a'), fromInt(3))).toBe(true)
     expect(same(s.moved('o'), fromInt(3))).toBe(true)
   })
-  it('a Pool holding 1 of the 3 a run takes: all of it is taken (a third of a run, exactly), nothing is left in it', () => {
-    const [s1, s2] = run(fed(1), 2)
-    expect(same(s1.moved('a'), fromInt(1))).toBe(true)
-    expect(same(s1.moved('o'), fromInt(1))).toBe(true)
-    expect(same(s1.level('A'), ZERO)).toBe(true)
-    expect(same(s2.moved('a'), ZERO)).toBe(true) // (a third of a run as a double takes 1 - 2^-54 and leaves the rest for the next step)
+  it('a Gate line that delivers nothing in the place of the Source line: nothing moves (the rule for a router input, kept)', () => {
+    const g: Graph = { nodes: [pool('E', 0), pool('A', 10), pool('Q', 0), gate('g'), conv('c')], edges: [res('e', 'E', 'g', '2'), res('x', 'g', 'c', '2'), res('a', 'A', 'c', '3'), res('o', 'c', 'Q', '5')] }
+    still(run(g)[0], g)
   })
-  it('an output Pool with room for 1.7: it is filled exactly, and the next step takes nothing', () => {
-    const [s1, s2] = run(fed(10, 1.7), 2)
-    expect(same(s1.moved('o'), exactDouble(1.7))).toBe(true)
-    expect(same(s1.level('Q'), exactDouble(1.7))).toBe(true)
-    expect(same(s1.moved('a'), fromInt(3))).toBe(true) // issue #581's rule: the Pool line in full; 1.3 is lost, with a notice
-    expect(same(s2.moved('a'), ZERO)).toBe(true)
-    expect(s1.outside).toEqual([])
+
+  // In a planned group: c1 -2-> c2, B (10) -2-> c2, c2 -4-> Q, and c1's inputs as each case says
+  const chain = (c1In: LoopEdge[], extra: LoopNode[] = [], cap: number | null = null, c2mode: Mode = 'pullAny', c1c2 = '2'): Graph => ({
+    nodes: [source('s'), ...extra, pool('B', 10), pool('Q', 0, cap), conv('c1'), conv('c2', c2mode)],
+    edges: [...c1In, res('12', 'c1', 'c2', c1c2), res('b', 'B', 'c2', '2'), res('o', 'c2', 'Q', '4')],
   })
-  it('`pull all`: the Source line never delivers, a full run is never there, nothing moves', () => {
-    const [s] = run(fed(10, null, 'pullAll'))
-    expect(same(s.moved('a'), ZERO)).toBe(true)
-    expect(s.stored.A).toBe(10)
+  it('planned: c1 with a Pool line and a Source line runs on its Pool line, and the group at one part, 1', () => {
+    const [s] = asWithout(chain([res('x', 's', 'c1', '1'), res('a', 'A', 'c1', '1')], [pool('A', 10)]))
+    for (const [e, v] of [['a', 1], ['12', 2], ['b', 2], ['o', 4]] as const) expect(same(s.moved(e), fromInt(v)), e).toBe(true)
+  })
+  it('planned, Q with room for 2: both Converters at one half', () => {
+    const [s] = asWithout(chain([res('x', 's', 'c1', '1'), res('a', 'A', 'c1', '1')], [pool('A', 10)], 2))
+    for (const [e, v] of [['a', frac(1, 2)], ['12', fromInt(1)], ['b', fromInt(1)], ['o', fromInt(2)]] as const) expect(same(s.moved(e), v), e).toBe(true)
+  })
+  it('planned: a Source line into the second member', () => {
+    const g: Graph = { nodes: [source('s'), pool('A', 10), pool('B', 10), pool('Q', 0), conv('c1'), conv('c2')], edges: [res('x', 's', 'c2', '1'), res('a', 'A', 'c1', '1'), res('12', 'c1', 'c2', '2'), res('b', 'B', 'c2', '2'), res('o', 'c2', 'Q', '4')] }
+    const [s] = asWithout(g)
+    expect(same(s.moved('o'), fromInt(4))).toBe(true)
+  })
+  it('planned: a member with no input line, or with only a Source line, cannot run, and the group stands still', () => {
+    for (const g of [chain([], [], null, 'pullAny', '6'), chain([res('x', 's', 'c1', '1')], [], null, 'pullAny', '6')]) {
+      // before, c2 took 2 of B and made 1, a quarter of a run on one line and a whole run on another
+      still(run(g)[0], g)
+    }
+  })
+  it('planned: c1 with a line from an empty Pool, and c2 `pull all` with c1 of no input: nothing moves (kept)', () => {
+    for (const g of [chain([res('a', 'A', 'c1', '1')], [pool('A', 0)], null, 'pullAny', '6'), chain([], [], null, 'pullAll', '6')]) still(run(g)[0], g)
   })
 })
 

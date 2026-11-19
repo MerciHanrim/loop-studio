@@ -148,11 +148,10 @@ describe('the record of a step`s moves holds the rules of SEMANTICS-E.md on gene
     expect(r.notShown).toBeGreaterThan(1000)
   })
 
-  // A Converter with a line from a Source is issue #581's shape (it runs from its Pool lines
-  // alone, off one part of a run); that rule is not this document's, so a Converter's parts are
-  // not asked here. Every other check is.
-  it('graphs with lines from a Source (a Converter`s parts of a run apart: issue #581)', { timeout: 120_000 }, () => {
-    const r = sweep(graphWithSourceLines, 'source lines', { converterParts: false })
+  // A line from a Source into a Converter is no input of it and moves nothing (§E20, issue #581),
+  // so the parts are asked of the lines that moved, as everywhere else.
+  it('graphs with lines from a Source', { timeout: 120_000 }, () => {
+    const r = sweep(graphWithSourceLines, 'source lines', { converterParts: true })
     expect(r.found.slice(0, 20)).toEqual([])
     expect(r.steps).toBeGreaterThan(4000)
     expect(r.notShown).toBeGreaterThan(1000)
