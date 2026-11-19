@@ -6,7 +6,8 @@ import { initSim, step, type StateEvent, type StepMove, type StepReport } from '
 
 // SEMANTICS-E.md as hand cases (issue #572). Each test builds a small graph, runs a step and reads
 // the record of its moves (`report.moves`) as exact fractions. The sections: what is promised into
-// a Pool is a fraction (§E1, §E13); a plan's largest number; the room for what comes back through
+// a Pool is a fraction (§E1, §E13); a plan's largest number, and a plan that fits at its exact cap
+// only (§E22); the room for what comes back through
 // a Gate; a Pool a `label` edits (§E3, §E4); a Converter with a line from a Source (issue #581);
 // an amount under 1e-9 in a plan (§E8) and a small net inflow (§E14); a rate above 0 is a line
 // (§E10, §E7); and a planned `pull all` Gate that is short (§E11, §E12). Where a case names a seed,
@@ -210,6 +211,61 @@ describe('the largest number of a plan where the numbers that fit are not one st
     expect(same(s3.moved('e3'), fromInt(1))).toBe(true)
     expect(cmp(s3.moved('e4'), ZERO)).toBe(1)
     expect(s3.outside).toEqual([])
+  })
+})
+
+describe('a plan that fits at one number only, its exact cap (issue #572, formerly E-open 1; SEMANTICS-E.md §E22)', () => {
+  // Generated graph, seed 257: p2 at its capacity of 11; g0 pulls 2 of p0 first and then 3 of p2,
+  // hands 5 to c1, and c1 returns 2 + 1 to p2. p2's room is kept at one number of the plan only,
+  // 5 (times the scale), the plan's exact cap: under it more comes back than p2 gave, and over it
+  // p2's line gives no more. Where 5 times the scale is not a double, the search over doubles found
+  // no number that fits and the group was planned at 0.
+  const lines: [string, string][] = [['e1', '2'], ['e0', '3'], ['e2', '5'], ['e3', '2'], ['e4', '1']]
+  const atCap = (g: Graph, n: number, steps = 3) => {
+    for (const [i, s] of run(g, steps).entries()) {
+      for (const [e, rate] of lines) expect(same(s.moved(e), dec(shift(rate, n))), `10^${n} step ${i + 1} ${e}`).toBe(true)
+      expect(same(s.level('p2'), exactDouble(s.before.p2)), `10^${n} step ${i + 1} p2`).toBe(true)
+      expect(s.stored.p2).toBe(s.before.p2)
+      expect(s.outside).toEqual([])
+      expect(s.notices).toEqual([])
+    }
+  }
+  it('generated graph, seed 257, where 5 times the scale is not a double (10^-2, -3, -6, -9, -12): every line moves its rate, three steps, and p2 ends where it began', () => {
+    for (const n of [-2, -3, -6, -9, -12]) atCap(plainGraph(257, n), n)
+  })
+  it('the same with the Gate `pull all`, the Converter `pull all`, and both, at 10^-3 and 10^-12', () => {
+    for (const modes of [['g0'], ['c1'], ['g0', 'c1']]) {
+      for (const n of [-3, -12]) {
+        const g = plainGraph(257, n)
+        for (const id of modes) (g.nodes.find((x) => x.id === id)!.data as { mode?: Mode }).mode = 'pullAll'
+        atCap(g, n)
+      }
+    }
+  })
+  it('generated graph, seed 257, where it ran already (1, 10^-1, 10^3, 10^9): the same', () => {
+    for (const n of [0, -1, 3, 9]) atCap(plainGraph(257, n), n)
+  })
+  // The cap is not taken where a margin is passed at it: the search stays as it was.
+  const written = (n: number, back: string, p2: string): Graph => ({
+    nodes: [pool('p0', Number(shift('8', n))), pool('p1', Number(shift('2', n))), pool('p2', Number(shift(p2, n)), Number(shift('11', n))), gate('g0'), conv('c1')],
+    edges: [res('e0', 'p2', 'g0', shift('3', n)), res('e1', 'p0', 'g0', shift('2', n)), res('e2', 'g0', 'c1', shift('5', n)), res('e3', 'c1', 'p2', shift('2', n)), res('e4', 'c1', 'p2', shift(back, n))],
+  })
+  it('control: c1 returns 1.000001 on e4, more than p2 gives at the cap, p2 full: no number above 0 fits and nothing moves, at 1, 10^-3 and 10^-12', () => {
+    for (const n of [0, -3, -12]) {
+      const g = written(n, '1.000001', '11')
+      const [s] = run(g)
+      still(s, g)
+    }
+  })
+  it('control: c1 returns 1.5 on e4 and p2 has a room of 0.1: the cap passes the room, and the group runs at the part the search finds, under the cap and within the room, at 1, 10^-3 and 10^-12', () => {
+    for (const n of [0, -3, -12]) {
+      const [s] = run(written(n, '1.5', '10.9'))
+      expect(cmp(s.moved('e2'), ZERO), `10^${n}`).toBe(1)
+      expect(cmp(s.moved('e2'), dec(shift('5', n))), `10^${n}`).toBe(-1)
+      expect(same(div(s.moved('e3'), dec(shift('2', n))), div(s.moved('e2'), dec(shift('5', n)))), `10^${n}`).toBe(true)
+      expect(s.outside).toEqual([])
+      expect(s.notices).toEqual([])
+    }
   })
 })
 

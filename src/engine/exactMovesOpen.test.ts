@@ -7,12 +7,12 @@ import { initSim, step, type StepMove } from './index'
 // (`generatedGraphs.fixture.ts`). Each is stated twice: a plain test for what runs today, and an
 // `it.fails` for what is to be, which passes while the boundary stands and fails on the day the
 // engine closes it (it is then turned into a plain test).
-//   E-open 1  a loop that balances at one number only: `plainGraph(257, n)`
 //   E-open 3  a `pull all` Gate held by a room a last place short: `graphWithSourceLines(3763, -8)`
 // (What a `pull all` node may be short of, and what it records then, were two more boundaries
 // here; they are rules now, §E11a and §E11b, and their tests are in pullAllShort.test.ts. E-open 2
 // and 4, a planned `pull all` Converter whose verdict read amounts under 1e-9 as nothing, are
-// settled from engine revision 20; their tests are in exactMovesCases.test.ts.)
+// settled from engine revision 20, and E-open 1, a loop that balances at one number only, from
+// engine revision 21 (§E22); their tests are in exactMovesCases.test.ts.)
 // And one consequence of §E14 that is meant, pinned as it is and not an expected failure: a
 // room a hair short of what the written rates ask, `plainGraph(4088, -12)`.
 
@@ -71,26 +71,6 @@ function run(g: Graph, steps = 1): StepOut[] {
   }
   return out
 }
-
-describe('E-open 1 (SEMANTICS-E.md): a loop that balances at one number only', () => {
-  // Generated graph, seed 257: p2 at its capacity; g0 takes 3 of p2 and 2 of p0, hands 5 to c1,
-  // c1 returns 2 + 1 to p2. The group returns to p2 exactly what it takes at one number, 5 (times
-  // the scale), and at no other. Where that number is a double (5; 0.5) it runs; where it is not
-  // (0.005; 5e-12) no double fits and the group is planned at 0. It has nothing to do with the
-  // epsilon, and it was so before the moves were exact, at 10^-3.
-  it('generated graph, seed 257: the tree runs at scale 1 and at 10^-1, where its one number is a double', { timeout: 60_000 }, () => {
-    for (const [n, unit] of [[0, '1'], [-1, '0.1']] as const) {
-      const [s] = run(plainGraph(257, n))
-      expect(same(s.moved('e2'), mul(fromInt(5), dec(unit))), `10^${n}`).toBe(true)
-    }
-  })
-  it.fails('generated graph, seed 257, at 10^-3 and at 10^-12, where the number (0.005; 5e-12) is not a double: nothing moves (to be: 5 times the scale, as at scale 1)', { timeout: 60_000 }, () => {
-    for (const [n, unit] of [[-3, '0.001'], [-12, '0.000000000001']] as const) {
-      const [s] = run(plainGraph(257, n))
-      expect(same(s.moved('e2'), mul(fromInt(5), dec(unit))), `10^${n}`).toBe(true)
-    }
-  })
-})
 
 describe('E-open 3 (SEMANTICS-E.md): a `pull all` Gate held by a room a last place short, on a path other than §E12`s', () => {
   // Generated graph with Source lines, seed 3763, step 1. The `pull all` Gate g1 takes 1 and 6
