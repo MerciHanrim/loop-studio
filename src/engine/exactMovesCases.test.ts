@@ -360,30 +360,41 @@ describe('a Pool a Phase-0 `label` edits is pulled at the level the edit left (i
   // What a line may take of such a Pool in that step is the level the Phase-0 labels left, less
   // what the step has taken: an amount the edit removed cannot be taken, an amount it added can.
   // What a Source pushes into the Pool in Phase 1 is not there for the pulls of the same step, as
-  // for every Pool. In each case I1′ holds for every Pool (the moves of the record, exact, and the
-  // label terms as doubles), and no Pool leaves its bounds.
+  // for every Pool. In each case every Pool is stored as its exact level from the ledger rounded
+  // once (I1′ on the stored values, §E6), and no Pool leaves its bounds at any move.
   const labelEdge = (id: string, s: string, t: string, expr: string, after = false): LoopEdge => ({
     id, type: 'loop', source: s, target: t, sourceHandle: 'out', targetHandle: 'in',
     data: { kind: 'state', mode: 'label', expr, ...(after ? { timing: 'afterPull' as const, when: 'source-fired' as const } : {}) },
   })
-  /** I1′ per Pool, exactly over the doubles: final − start − (moves in − moves out) − Σ(delta + clampAdjustment),
-   *  to the one rounding of the stored value (§E4, §E6): within 1e-12 of the Pool's size (it was 0.7 on revision 18) */
-  const i1 = (g: Graph, s: StepOut): string[] => {
+  /** I1′ per Pool on the stored values (§E3, §E4, §E6), with no tolerance: the Pool's exact level from
+   *  the ledger (the value the moves start from, its stored value plus the Phase-0 label term, plus every
+   *  move of the record into it, less every move out of it) is at or above 0, and rounded once to the
+   *  nearest double, with the `afterPull` labels then applied to that double as the engine applies them,
+   *  it is the stored value exactly. On revision 18 a lowered Pool's level went under 0 (by 0.7 in the
+   *  issue's case) and was stored as 0. */
+  const ledger = (g: Graph, s: StepOut): string[] => {
     const off: string[] = []
     for (const n of g.nodes) {
       if (n.data.kind !== 'pool') continue
-      let r = sub(sub(exactDouble(s.stored[n.id] ?? 0), exactDouble(s.before[n.id] ?? 0)), s.balance(n.id))
-      for (const ev of s.stateEvents) {
-        if (ev.to !== n.id || ev.effect.kind !== 'label') continue
-        r = sub(sub(r, exactDouble(ev.effect.delta)), exactDouble(ev.effect.clampAdjustment))
+      const level = s.level(n.id)
+      if (cmp(level, ZERO) < 0) {
+        off.push(`${n.id}: the level from the ledger is under 0 by ${toDouble(sub(ZERO, level))}`)
+        continue
       }
-      const size = Math.max(1, Math.abs(s.before[n.id] ?? 0), Math.abs(s.stored[n.id] ?? 0))
-      if (Math.abs(toDouble(r)) > 1e-12 * size) off.push(`${n.id} by ${toDouble(r)}`)
+      let v = nearest(level)
+      let adj = 0
+      for (const ev of s.stateEvents) {
+        if (ev.to !== n.id || ev.effect.kind !== 'label' || !('applied' in ev.effect) || !ev.effect.applied) continue
+        v = v + ev.effect.delta
+        adj += ev.effect.clampAdjustment
+      }
+      if (adj !== 0) v = v + adj
+      if (s.stored[n.id] !== v) off.push(`${n.id}: stored ${s.stored[n.id]}, the ledger rounded once gives ${v}`)
     }
     return off
   }
   const holds = (g: Graph, s: StepOut) => {
-    expect(i1(g, s)).toEqual([])
+    expect(ledger(g, s)).toEqual([])
     expect(s.outside).toEqual([])
   }
   const left = exactDouble(1 + (0.3 - 1)) // what `=0.3` leaves of a Pool holding 1
