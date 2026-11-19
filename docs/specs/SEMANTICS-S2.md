@@ -110,16 +110,17 @@ Tank T: Pool, init 0, cap 8
 T ──e1:4──► Drain D  (auto)
 ```
 
-The committed `T` trace is **unchanged** from `loop-state/1` — only the
-`stateEvents` shape differs.
+The committed `T` trace is the one of `loop-state/1` (SEMANTICS-S.md §S11) —
+only the `stateEvents` shape differs. Since engine revision 19 the Drain pulls of
+the value the labels left (SEMANTICS-E.md §E21); until then it pulled of `S[T]`,
+0 at step 1, and T committed 0, 8, 4, 4, … with `C` −1, −9, −5.
 
 | step | S[T] | after m1 (−1) | after m2 (+10) | clamp→[0,8] | Drain pull | T (commit) |
 |---:|---:|---:|---:|---:|---:|---:|
 | 0 | 0 | – | – | – | – | 0 |
-| 1 | 0 | −1 | 9 | **8** | 0 | 8 |
-| 2 | 8 | 7 | 17 | **8** | 4 | 4 |
-| 3 | 4 | 3 | 13 | **8** | 4 | 4 |
-| ≥3 | 4 | 3 | 13 | 8 | 4 | 4 → steady |
+| 1 | 0 | −1 | 9 | **8** | 4 | 4 |
+| 2 | 4 | 3 | 13 | **8** | 4 | 4 |
+| ≥2 | 4 | 3 | 13 | 8 | 4 | 4 → steady |
 
 `stateEvents` per step, ascending id — `m1` always
 `{label, delta:-1, clampAdjustment:0}`; `m2` always `{label, delta:+10,
@@ -128,8 +129,8 @@ event:
 
 | step | unclamped after m2 | clamp | `C` (m2.clampAdjustment) | net = Σδ + C | ΔT check |
 |---:|---:|---:|---:|---:|---|
-| 1 | 9  | 8 | **−1** | (−1 + 10) + (−1) = **8** | 8 − 0 = 8 ✓ |
-| 2 | 17 | 8 | **−9** | ( 9) + (−9) = **0** | (4 − 8) = −4 = net − drain(4) ✓ |
+| 1 | 9  | 8 | **−1** | (−1 + 10) + (−1) = **8** | (4 − 0) = 4 = net − drain(4) ✓ |
+| 2 | 13 | 8 | **−5** | ( 9) + (−5) = **4** | (4 − 4) = 0 = net − drain(4) ✓ |
 | 3 | 13 | 8 | **−5** | ( 9) + (−5) = **4** | (4 − 4) = 0 = net − drain(4) ✓ |
 
 `S[F] = 10` forever. `report.events` never contains `m1` / `m2`.

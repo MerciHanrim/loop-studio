@@ -3,16 +3,16 @@
 ```
 Spec ID: loop-exact/1
 Status:  Normative from engine revision 16. E-open 1 to 5 are boundaries it does not settle
-Engine:  revision 16; §E19's rule for a group is of revision 17, §E20 of revision 18 (SEMANTICS-W2.md §W2-1)
+Engine:  revision 16; §E19's rule for a group is of revision 17, §E20 of revision 18, §E21 of revision 19 (SEMANTICS-W2.md §W2-1)
 ```
 
-**In force with engine revision 16 (issue #572).** The rules E1 to E19, with E11a and E11b, are what that engine does and what its tests hold (§E19's rule for a group from revision 17). §E20 holds from engine revision 18 (issue #581). The boundaries E-open 1 to 4 are **not resolved**: each is behaviour the engine has today, written with its values and with a test that fails as expected until it is settled, and a later revision may change it. E-open 5 names issues that stay open on their own.
+**In force with engine revision 16 (issue #572).** The rules E1 to E19, with E11a and E11b, are what that engine does and what its tests hold (§E19's rule for a group from revision 17). §E20 holds from engine revision 18 (issue #581), §E21 from engine revision 19 (issue #582). The boundaries E-open 1 to 4 are **not resolved**: each is behaviour the engine has today, written with its values and with a test that fails as expected until it is settled, and a later revision may change it. E-open 5 names issues that stay open on their own.
 
 This document changes how a step is **worked out and recorded**, for every model version. It does not change what a document means, what a file holds, or the digest. It extends [`SEMANTICS.md`](SEMANTICS.md) and its companions and replaces the passages listed under "What this replaces". Where it says nothing, they hold as written.
 
 The words of `SEMANTICS.md` are kept: Pool, Gate, Converter, Source, Drain, End, `pull any`, `pull all`, the snapshot `S`, the phases of a step, the invariants I1 to I7.
 
-Rules are numbered E1 to E20 (with E11a and E11b) and cited as `§E7`. The number E-open marks what this document does **not** settle; nothing here is to be read as settling it.
+Rules are numbered E1 to E21 (with E11a and E11b) and cited as `§E7`. The number E-open marks what this document does **not** settle; nothing here is to be read as settling it.
 
 ## The statement in one paragraph
 
@@ -34,11 +34,11 @@ In a step, everything that moves is an exact amount, a fraction, and the list of
 
 **E2. A move is in the record when its amount is above 0.** Its size does not matter (§E7).
 
-**E3. A Pool's level.** A `label` is not a move and is not in the record. What a `label` does to a Pool is unchanged (SEMANTICS-S2.md §S2-9, SEMANTICS-S3.md §S3-6): in Phase 0 the Pool's value becomes its stored value at the start plus that phase's label term (the labels' `delta` and the phase's one `clampAdjustment`), worked in doubles. **The moves start from that value**, read exactly as a double's value. At any moment of Phases 1 and 2 a Pool's level is that value, plus every move of the record into it so far, less every move out of it so far. After the last move it is the Pool's exact level of the step. **In a step in which no Phase-0 `label` has lowered the Pool**, the level is within `[0, capacity]` at every moment, exactly (§E13).
+**E3. A Pool's level.** A `label` is not a move and is not in the record. What a `label` does to a Pool is unchanged (SEMANTICS-S2.md §S2-9, SEMANTICS-S3.md §S3-6): in Phase 0 the Pool's value becomes its stored value at the start plus that phase's label term (the labels' `delta` and the phase's one `clampAdjustment`), worked in doubles. **The moves start from that value**, read exactly as a double's value. At any moment of Phases 1 and 2 a Pool's level is that value, plus every move of the record into it so far, less every move out of it so far. After the last move it is the Pool's exact level of the step. The level is within `[0, capacity]` at every moment, exactly (§E13), a Pool a Phase-0 `label` has lowered included, since the pulls read the level the labels left (§E21).
 
-**E4. What is stored.** A Pool's value after the moves is the double nearest its exact level (a tie between two doubles goes to the even one). There is no clamp (outside the exception below): the level is within the Pool's bounds already, and so is the double nearest it. The `afterPull` labels (Phase 2.5) are then applied to that double as before, with their own `delta` and `clampAdjustment`; the result is the Pool's stored value at the end of the step.
+**E4. What is stored.** A Pool's value after the moves is the double nearest its exact level (a tie between two doubles goes to the even one). There is no clamp: the level is within the Pool's bounds already, and so is the double nearest it. The `afterPull` labels (Phase 2.5) are then applied to that double as before, with their own `delta` and `clampAdjustment`; the result is the Pool's stored value at the end of the step.
 
-**The one exception is issue #582, and its reading is not decided here.** A Pool that a Phase-0 `label` has lowered is still pulled as it stood in the snapshot; its exact level can then go under 0 within the step, and the value stored is held at 0. The amount of that hold is the only thing that §E3's bounds, §E4's "no clamp" and §E6's identity leave out. Which reading a later specification takes there (a pull reads the lowered level, or the hold is reported as a term of its own) is for issue #582.
+(Until engine revision 19 there was one exception, issue #582. A Pool that a Phase-0 `label` had lowered was still pulled as it stood in the snapshot; its exact level could then go under 0 within the step, and the value stored was held at 0, an amount that §E3's bounds, §E4's "no clamp" and §E6's identity left out. §E21 removes it.)
 
 **E5. The next step starts from what is stored.** The exact level is not carried over; the stored double is, and it is read exactly. So a step is exact from its start, and a run is a sequence of exact steps with one rounding of each Pool between them. **A run is therefore not the run of the rationals**: over many steps the stored values drift from what exact arithmetic over the whole run would give, by about a last place a step at most, as they did before.
 
@@ -54,7 +54,7 @@ and for one Pool: `final − start = (Σ moves in − Σ moves out) + the Phase-
 
 What changes is the resource term only: `Σ Source push`, `Σ Drain/End pull`, each Converter's recipe difference at the part of a run it made, and a Pool's `Σ moves in − Σ moves out` are sums over the record, exact. Between the value the moves start from and the exact level after the last move the identity holds with no error at all. On the stored doubles it holds to the one rounding of §E4; the two label terms are sums of doubles as before.
 
-**The exception is the lower hold of issue #582 and nothing else**: where a Phase-0 `label` has lowered a Pool and the pulls, which read the snapshot, take more than is left, the exact level is under 0 and the stored value is 0; the identity is then off by exactly the amount of that hold, for that Pool, in that step. A `label` that raises a Pool, or lowers one that is not then pulled under 0, is inside the identity.
+There is no exception since engine revision 19 (§E21). Until then the lower hold of issue #582 was one: where a Phase-0 `label` had lowered a Pool and the pulls, which read the snapshot, took more than was left, the exact level went under 0 and the stored value was 0, and the identity was off by exactly the amount of that hold (0.7 for a Pool of 1 set to 0.3 and pulled of 1).
 
 ## Small moves
 
@@ -156,6 +156,14 @@ The same holds in a planned group, and for a member left with **no input line** 
 
 (On revision 17 the line counted in a full run. With 2 from a Source and 3 from a Pool for 5, the Converter took the 3 and made 3, three fifths of a run; with room for only 1.7 it took the 3 and lost 1.3, with a notice; a `pull all` Converter never ran; in a planned group the members ran at different parts with no notice, and a member with no input let the next one take its Pool line and make a quarter. Under a conserved kind the recipe was balanced on the 2 that never came.)
 
+## A Pool a `label` edits before the moves
+
+**E21. The pulls read the level the Phase-0 labels left.** Where a `label` edits a Pool in Phase 0 (SEMANTICS-S.md §S5), what a line may take of that Pool in the step is the level the labels left, after their one clamp, less what the step has taken of it (and what plans have claimed of it): the value the moves start from (§E3). So an amount a label removed cannot be taken in that step, and an amount it added can. This holds for every pull alike: a Gate, a Converter, a Drain or an End, a planned group, an `all` or `%` line, and the verdict of a `pull all` node. What a Source pushes into the Pool in Phase 1 is still not there for the pulls of the same step, as for every Pool (SEMANTICS.md §2). A Pool no Phase-0 `label` edits is read off the snapshot, as before; an `afterPull` label (Phase 2.5) comes after the moves and does not touch them. (Engine revision 19, issue #582.)
+
+With it the pulls and a Pool's room read one level (the room already did, §E3), the level stays within the Pool's bounds at every move (§E3), nothing is held at the commit (§E4), and I1′ holds for such a Pool as for any other (§E6).
+
+(Until engine revision 19 the pulls read the Pool as it stood in the snapshot. A Pool holding 1 that a label set to 0.3 gave a Gate that asked 1 all of it: its level went under 0, the commit held it at 0, and the 0.7 was made from nothing, outside I1′ and in no report. A Pool a label raised gave nothing of the raise in that step: in SEMANTICS-S.md §S11 Case S-C the Drain took 0 at step 1 and the Tank committed 0, 8, 4, 4, …; it now takes 4 at step 1 and the Tank commits 0, 4, 4, ….)
+
 ## What does not change
 
 - The order of a step: Phase 0 (state connections), Phase 1 (Sources), Phase 2 (the routers in their order), Phase 2.5, the commit; the snapshot `S`, and that a pull is measured against it and against what earlier nodes took (SEMANTICS.md §2, §10).
@@ -202,7 +210,6 @@ The mend is not made, for what it showed. Read off the exact amounts, the verdic
 
 ### E-open 5. Issues that stand apart
 
-- **Issue #582**: a Pool that a `label` lowers before the moves (§E4, §E6).
 - **Issue #572, the remaining case**: one generated graph in which a step moves less than before at amounts of 10⁸ and 10⁹; open on the issue.
 
 ### What was open in the draft of this document and is a rule now
@@ -210,13 +217,14 @@ The mend is not made, for what it showed. Read off the exact amounts, the verdic
 - A `pull all` node whose whole demand is at or under `1e-9` ran on any part of what it asked, because an absolute `1e-9` could not stop it. §E11a. (Before revision 16 nothing moved in such a document at all, and a Pool value under `1e-9` was made 0 at the end of the step.)
 - A `pull all` Drain or End that was short within the epsilon was recorded as taking all it asked. §E11b.
 - A line from a Source into a Converter, and a planned Converter with no input line (issue #581, named in E-open 5 until revision 18). §E20.
+- A Pool a `label` lowers before the moves and that is then pulled (issue #582, named in E-open 5 and as the exception of §E4 and §E6 until revision 19). §E21.
 
 ## What this replaces
 
 | the earlier text | now |
 |---|---|
 | SEMANTICS.md §5: "Any computed magnitude with `|x| < epsilon` is normalised to exactly `0`" | does not hold for a move (§E7). It stands for what is shown (§E15) |
-| SEMANTICS.md §5 and I3: a clamp that "only ever corrects sub-`epsilon` drift" | no clamp of a move's result (§E4, §E13); I3 holds with no clamp, issue #582's lower hold apart |
+| SEMANTICS.md §5 and I3: a clamp that "only ever corrects sub-`epsilon` drift" | no clamp of a move's result (§E4, §E13); I3 holds with no clamp (from revision 19 with no exception, §E21) |
 | SEMANTICS.md §2: `events` are transfers with `amount > epsilon`; `fired` moved `> epsilon` | `events`: the same threshold, a matter of display (§E15). `fired`: above 0 (§E9) |
 | SEMANTICS.md §6, the Gate's turn, step 5 "if `T > epsilon`"; the Converter's "`epsilon`-normalised", "if `f > epsilon`" | a throughput above 0 is moved (§E7); a part of a run is not an amount (§E19) |
 | SEMANTICS.md §6 erratum part 11 (issue #576): a Converter's coefficient in a plan is asked `> 0` | made general: every rate (§E10) |
@@ -226,12 +234,15 @@ The mend is not made, for what it showed. Read off the exact amounts, the verdic
 | The Gate state of issue #477: `idle` where `available ≤ ε`, `held` where `moved = 0` at six decimals | follows the firing, at `1e-6` or `1e-6` of the Gate's own amounts (§E16) |
 | SEMANTICS-M4.md §M4-3: "An engine value at or below the engine's floor of 10⁻⁹ per step moves nothing" | does not hold (§E7) |
 | SEMANTICS-M4.md §M4-5: an engine value on screen | unchanged (§E18) |
+| SEMANTICS.md §2: "Every pull demand is measured against `S`" | except a Pool a Phase-0 `label` edits: against the level the labels left (§E21) |
+| SEMANTICS-S.md §S11 and SEMANTICS-S2.md, Case S-C: the Drain pulls `min(4, S[T])`, T 0, 8, 4, 4, … | of the level the labels left: T 0, 4, 4, … (§E21) |
 
 ## Tests
 
 - `src/engine/exactMoves.test.ts`: on generated graphs at several scales, from the record of moves alone: a Gate's moves in equal its moves out; a Converter is at one part of a run on all its lines; every Pool's level is within its bounds after every move; every stored value is the double nearest the exact level; the events are the record above the threshold; a node has fired exactly where the record has a move of its own; a Gate's reported state says it passed something on exactly where it fired.
 - `src/engine/firedSmallMoves.test.ts`: §E9 for each node kind, for an End, and for the state connections that read a firing.
-- `src/engine/exactMovesCases.test.ts`: §E7, §E8, §E10 to §E14 and §E20 as hand cases (§E20 each against the same graph without its Source lines).
+- `src/engine/exactMovesCases.test.ts`: §E7, §E8, §E10 to §E14, §E20 and §E21 as hand cases (§E20 each against the same graph without its Source lines; §E21 each with I1′ per Pool).
+- `src/engine/state.label.test.ts`, `src/engine/state-verification.test.ts`: §E21 on Case S-C and on the example `state-verification.json`.
 - `src/engine/kinds.test.ts`: §E20 for a recipe of a conserved kind.
 - `src/engine/pullAllShort.test.ts`: §E11, §E11a and §E11b: a third short stops at every size, on every kind of `pull all` node; a node that can have all it asks runs at every size; the edge of the absolute epsilon just above `1e-9`; what a Drain and an End record; a `pull all` Converter that can have all it asks, at four sizes, alone and beside a Gate.
 - `src/engine/gateStateSmall.test.ts`: a Gate's reported state against its firing, at four sizes.

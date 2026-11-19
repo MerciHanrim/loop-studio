@@ -90,6 +90,8 @@ type StepOut = {
   /** what the record moved into a router less what it moved out of it */
   balance: (router: string) => Rational
   stored: Record<string, number>
+  /** the stored values the step started from */
+  before: Record<string, number>
   outside: Outside[]
   notices: StepReport['notices']
   stateEvents: StateEvent[]
@@ -107,6 +109,7 @@ function run(g: Graph, steps = 1): StepOut[] {
       level: (p) => sub(add(exactDouble(from[p] ?? 0), on((m) => m.to === p)), on((m) => m.from === p)),
       balance: (id) => sub(on((m) => m.to === id), on((m) => m.from === id)),
       stored: r.state.values,
+      before: st.values,
       outside: outsideBounds(g, from, moves),
       notices: r.report.notices,
       stateEvents: r.report.stateEvents,
@@ -329,33 +332,154 @@ describe('a Pool a `label` state connection edits, and the record of moves (SEMA
     expect(s.stored.Q).toBe(1)
     expect(s.outside).toEqual([])
   })
-  it('the Pool a plan takes from, lowered before the moves (1 to 0.3): the pull reads the Pool as the step began, and the record takes it under 0 (issue #582, the exception of §E4)', () => {
-    // What a line may take of a Pool is its value at the start of the step less what the step
-    // has taken; an edit before the moves changes the level the moves are applied to, not that.
-    // So the plan takes 1 of a Pool the edit has set to 0.3: the exact level goes under 0 and
-    // the value stored is held at 0. It is the one case here where the record leaves a Pool's
-    // bounds; which reading a later specification takes is for issue #582.
+  it('the Pool a plan takes from, lowered before the moves (1 to 0.3): the plan takes what the edit left, and no more (issue #582, §E21)', () => {
+    // The pull reads the level the Phase-0 edit left: `1 + (0.3 - 1)` as the edit works it out.
+    // On revision 18 the plan took 1, the exact level went under 0 and the value stored was held at 0.
     const g = planned(null)
     g.edges.push(label('l', 'L', 'P', '=0.3'))
     const [s] = run(g)
-    expect(same(s.moved('p'), fromInt(1))).toBe(true)
-    expect(same(s.moved('o'), frac(1, 3))).toBe(true)
+    const left = exactDouble(1 + (0.3 - 1))
+    expect(same(s.moved('p'), left)).toBe(true)
+    expect(same(s.moved('o'), div(left, fromInt(3)))).toBe(true)
     expect(s.stored.P).toBe(0)
     expect(same(s.balance('a1'), ZERO)).toBe(true)
-    expect(s.outside.length).toBe(1)
-    expect(s.outside[0].pool).toBe('P')
-    expect(s.outside[0].what).toBe('under')
-    expect(s.outside[0].edgeId).toBe('p')
-    // by the 1 the line took less the double the edit left, 1 + (0.3 - 1)
-    expect(same(s.outside[0].by, sub(fromInt(1), exactDouble(1 + (0.3 - 1))))).toBe(true)
+    expect(s.outside).toEqual([])
   })
-  it('the same Pool raised before the moves (0 to 0.3): nothing is taken of it in that step (the pull reads 0), and it holds 0.3 after', () => {
+  it('the same Pool raised before the moves (0 to 0.3): the plan takes the 0.3 in that step (issue #582, §E21)', () => {
     const g = planned(null, 0)
     g.edges.push(label('l', 'L', 'P', '=0.3'))
     const [s] = run(g)
-    expect(same(s.moved('p'), ZERO)).toBe(true)
-    expect(s.stored.P).toBe(0.3)
+    expect(same(s.moved('p'), exactDouble(0.3))).toBe(true)
+    expect(same(s.moved('o'), div(exactDouble(0.3), fromInt(3)))).toBe(true)
+    expect(s.stored.P).toBe(0)
     expect(s.outside).toEqual([])
+  })
+})
+
+describe('a Pool a Phase-0 `label` edits is pulled at the level the edit left (issue #582, SEMANTICS-E.md §E21)', () => {
+  // What a line may take of such a Pool in that step is the level the Phase-0 labels left, less
+  // what the step has taken: an amount the edit removed cannot be taken, an amount it added can.
+  // What a Source pushes into the Pool in Phase 1 is not there for the pulls of the same step, as
+  // for every Pool. In each case every Pool is stored as its exact level from the ledger rounded
+  // once (I1′ on the stored values, §E6), and no Pool leaves its bounds at any move.
+  const labelEdge = (id: string, s: string, t: string, expr: string, after = false): LoopEdge => ({
+    id, type: 'loop', source: s, target: t, sourceHandle: 'out', targetHandle: 'in',
+    data: { kind: 'state', mode: 'label', expr, ...(after ? { timing: 'afterPull' as const, when: 'source-fired' as const } : {}) },
+  })
+  /** I1′ per Pool on the stored values (§E3, §E4, §E6), with no tolerance: the Pool's exact level from
+   *  the ledger (the value the moves start from, its stored value plus the Phase-0 label term, plus every
+   *  move of the record into it, less every move out of it) is at or above 0, and rounded once to the
+   *  nearest double, with the `afterPull` labels then applied to that double as the engine applies them,
+   *  it is the stored value exactly. On revision 18 a lowered Pool's level went under 0 (by 0.7 in the
+   *  issue's case) and was stored as 0. */
+  const ledger = (g: Graph, s: StepOut): string[] => {
+    const off: string[] = []
+    for (const n of g.nodes) {
+      if (n.data.kind !== 'pool') continue
+      const level = s.level(n.id)
+      if (cmp(level, ZERO) < 0) {
+        off.push(`${n.id}: the level from the ledger is under 0 by ${toDouble(sub(ZERO, level))}`)
+        continue
+      }
+      let v = nearest(level)
+      let adj = 0
+      for (const ev of s.stateEvents) {
+        if (ev.to !== n.id || ev.effect.kind !== 'label' || !('applied' in ev.effect) || !ev.effect.applied) continue
+        v = v + ev.effect.delta
+        adj += ev.effect.clampAdjustment
+      }
+      if (adj !== 0) v = v + adj
+      if (s.stored[n.id] !== v) off.push(`${n.id}: stored ${s.stored[n.id]}, the ledger rounded once gives ${v}`)
+    }
+    return off
+  }
+  const holds = (g: Graph, s: StepOut) => {
+    expect(ledger(g, s)).toEqual([])
+    expect(s.outside).toEqual([])
+  }
+  const left = exactDouble(1 + (0.3 - 1)) // what `=0.3` leaves of a Pool holding 1
+  const lowered = (more: { nodes?: LoopNode[]; edges?: LoopEdge[] } = {}, expr = '=0.3'): Graph => ({
+    nodes: [pool('P', 1), pool('L', 0), pool('Q', 0), gate('g'), ...(more.nodes ?? [])],
+    edges: [res('a', 'P', 'g', '1'), res('q', 'g', 'Q', '1'), labelEdge('l', 'L', 'P', expr), ...(more.edges ?? [])],
+  })
+  it('the issue: P 1 set to 0.3, a Gate that asks 1 takes the 0.3', () => {
+    const g = lowered()
+    const [s, s2] = run(g, 2)
+    expect(same(s.moved('a'), left)).toBe(true)
+    expect(same(s.moved('q'), left)).toBe(true)
+    expect(s.stored.P).toBe(0)
+    holds(g, s)
+    holds(g, s2)
+  })
+  it('lowered by 0.5 or to 0: the Gate takes 0.5, or nothing', () => {
+    for (const [expr, took] of [['-0.5', exactDouble(0.5)], ['=0', ZERO]] as const) {
+      const g = lowered({}, expr)
+      const [s] = run(g)
+      expect(same(s.moved('a'), took), expr).toBe(true)
+      holds(g, s)
+    }
+  })
+  it('a Drain, an `all` line, and a Converter take of the lowered level', () => {
+    const drained: Graph = { nodes: [pool('P', 1), pool('L', 0), drain('d')], edges: [res('a', 'P', 'd', '1'), labelEdge('l', 'L', 'P', '=0.3')] }
+    const all: Graph = { nodes: [pool('P', 1), pool('L', 0), drain('d')], edges: [res('a', 'P', 'd', 'all'), labelEdge('l', 'L', 'P', '=0.3')] }
+    const made: Graph = { nodes: [pool('P', 1), pool('L', 0), pool('Q', 0), conv('c')], edges: [res('a', 'P', 'c', '1'), res('o', 'c', 'Q', '2'), labelEdge('l', 'L', 'P', '=0.3')] }
+    for (const g of [drained, all, made]) {
+      const [s] = run(g)
+      expect(same(s.moved('a'), left)).toBe(true)
+      holds(g, s)
+    }
+    const [m] = run(made)
+    expect(same(m.moved('o'), mul(left, fromInt(2)))).toBe(true)
+  })
+  it('a `pull all` Drain that asks 1 of the lowered Pool takes nothing; asking what the edit left, it runs', () => {
+    const short: Graph = { nodes: [pool('P', 1), pool('L', 0), drain('d', 'pullAll')], edges: [res('a', 'P', 'd', '1'), labelEdge('l', 'L', 'P', '=0.3')] }
+    const [s] = run(short)
+    still(s, short)
+    expect(s.stored.P).toBe(1 + (0.3 - 1))
+    holds(short, s)
+    const fits: Graph = { nodes: [pool('P', 1), pool('L', 0), drain('d', 'pullAll')], edges: [res('a', 'P', 'd', '0.25'), labelEdge('l', 'L', 'P', '=0.3')] }
+    const [f] = run(fits)
+    expect(same(f.moved('a'), dec('0.25'))).toBe(true)
+    holds(fits, f)
+  })
+  it('a planned Gate → Converter group takes of the lowered level at one part of a run', () => {
+    const g: Graph = { nodes: [pool('P', 1), pool('B', 10), pool('L', 0), pool('Q', 0), gate('g'), conv('c')], edges: [res('a', 'P', 'g', '1'), res('h', 'g', 'c', '1'), res('b', 'B', 'c', '1'), res('o', 'c', 'Q', '2'), labelEdge('l', 'L', 'P', '=0.3')] }
+    const [s] = run(g)
+    for (const e of ['a', 'h', 'b']) expect(same(s.moved(e), left), e).toBe(true)
+    expect(same(s.moved('o'), mul(left, fromInt(2)))).toBe(true)
+    holds(g, s)
+  })
+  it('what a Source pushes into the lowered Pool in the same step is not there for its pulls', () => {
+    const g = lowered({ nodes: [source('s')], edges: [res('s', 's', 'P', '0.5')] })
+    const [s] = run(g)
+    expect(same(s.moved('a'), left)).toBe(true)
+    expect(s.stored.P).toBe(0.5)
+    holds(g, s)
+  })
+  it('an `afterPull` label on the lowered Pool as well: the pull takes the lowered level, the edit after it adds 0.1', () => {
+    const g = lowered({ edges: [labelEdge('m', 'g', 'P', '+0.1', true)] })
+    const [s] = run(g)
+    expect(same(s.moved('a'), left)).toBe(true)
+    expect(s.stored.P).toBe(0.1)
+    holds(g, s)
+  })
+  it('raised: P 0 set to 0.3 gives the 0.3 in that step; P 0.5 raised by 0.3 gives 0.8', () => {
+    const fromZero: Graph = { nodes: [pool('P', 0), pool('L', 0), pool('Q', 0), gate('g')], edges: [res('a', 'P', 'g', '1'), res('q', 'g', 'Q', '1'), labelEdge('l', 'L', 'P', '=0.3')] }
+    const [s] = run(fromZero)
+    expect(same(s.moved('a'), exactDouble(0.3))).toBe(true)
+    expect(s.stored.P).toBe(0)
+    holds(fromZero, s)
+    const byPart: Graph = { nodes: [pool('P', 0.5), pool('L', 0), pool('Q', 0), gate('g')], edges: [res('a', 'P', 'g', '1'), res('q', 'g', 'Q', '1'), labelEdge('l', 'L', 'P', '+0.3')] }
+    const [t] = run(byPart)
+    expect(same(t.moved('a'), exactDouble(0.5 + 0.3))).toBe(true)
+    holds(byPart, t)
+  })
+  it('raised for a `pull all` Drain: P 0.5 raised by 0.5, a Drain that asks 1 takes it all in that step', () => {
+    const g: Graph = { nodes: [pool('P', 0.5), pool('L', 0), drain('d', 'pullAll')], edges: [res('a', 'P', 'd', '1'), labelEdge('l', 'L', 'P', '+0.5')] }
+    const [s] = run(g)
+    expect(same(s.moved('a'), fromInt(1))).toBe(true)
+    expect(s.stored.P).toBe(0)
+    holds(g, s)
   })
 })
 

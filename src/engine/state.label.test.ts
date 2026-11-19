@@ -87,8 +87,10 @@ describe('S-C — F(10) ┄m1:"-1"┄►T ; F ┄m2:"+S"┄►T (cap 8) ; T ─4
   const edges = [label('m1', 'F', 'T', '-1'), label('m2', 'F', 'T', '+S'), res('e1', 'T', 'D', '4')]
   const { frames } = run(nodes, edges, 5)
 
-  it('T commits [0, 8, 4, 4, 4, 4] and F is never debited', () => {
-    expect(frames.map((f) => f.values.T)).toEqual([0, 8, 4, 4, 4, 4])
+  // Engine revision 19 (issue #582, SEMANTICS-E.md §E21): the Drain pulls of the level the labels
+  // left, 8 at step 1, so it takes 4 there (it took 0 of the step-start 0 before: T 0, 8, 4, …)
+  it('T commits [0, 4, 4, 4, 4, 4] and F is never debited', () => {
+    expect(frames.map((f) => f.values.T)).toEqual([0, 4, 4, 4, 4, 4])
     for (const f of frames) expect(f.values.F).toBe(10)
   })
   it('each edge keeps its own raw delta; the clamp rides on m2 only', () => {
@@ -96,9 +98,9 @@ describe('S-C — F(10) ┄m1:"-1"┄►T ; F ┄m2:"+S"┄►T (cap 8) ; T ─4
       expect(lev(frames[s].stateEvents, 'm1')!.effect).toEqual({ kind: 'label', delta: -1, clampAdjustment: 0 })
       expect(lev(frames[s].stateEvents, 'm2')!.effect.delta).toBe(10) // +S[F] = +10, always
     }
-    // clampAdjustment on m2: 9→8 ⇒ -1 ; 17→8 ⇒ -9 ; 13→8 ⇒ -5
+    // clampAdjustment on m2: 9→8 ⇒ -1 ; then 13→8 ⇒ -5 every step
     expect(lev(frames[1].stateEvents, 'm2')!.effect.clampAdjustment).toBe(-1)
-    expect(lev(frames[2].stateEvents, 'm2')!.effect.clampAdjustment).toBe(-9)
+    expect(lev(frames[2].stateEvents, 'm2')!.effect.clampAdjustment).toBe(-5)
     expect(lev(frames[3].stateEvents, 'm2')!.effect.clampAdjustment).toBe(-5)
   })
   it('label events are ascending by edgeId and never leak into report.events', () => {
@@ -111,7 +113,7 @@ describe('S-C — F(10) ┄m1:"-1"┄►T ; F ┄m2:"+S"┄►T (cap 8) ; T ─4
   it('I1′ — per step ΔT == (Σ delta + Σ clampAdjustment) − Drain pull', () => {
     for (let s = 1; s <= 5; s++) {
       const dT = frames[s].values.T - frames[s - 1].values.T
-      const drainPull = Math.min(4, frames[s - 1].values.T)
+      const drainPull = Math.min(4, frames[s - 1].values.T + labelNet(frames[s].stateEvents)) // of the level the labels left
       expect(dT).toBe(labelNet(frames[s].stateEvents) - drainPull)
     }
   })
@@ -312,8 +314,8 @@ describe('label always applies; a co-located activator gates only the target\'s 
   }
   it('gauge open ⇒ exactly the S-C trace (D drains)', () => {
     const r = scGraph(10)
-    expect(r.frames.map((f) => f.values.T)).toEqual([0, 8, 4, 4, 4, 4])
-    expect(lev(r.frames[2].stateEvents, 'm2')!.effect.clampAdjustment).toBe(-9)
+    expect(r.frames.map((f) => f.values.T)).toEqual([0, 4, 4, 4, 4, 4])
+    expect(lev(r.frames[2].stateEvents, 'm2')!.effect.clampAdjustment).toBe(-5)
     for (let s = 1; s <= 5; s++) {
       expect((r.frames[s].stateEvents.find((e) => e.edgeId === 'a1') as unknown as { effect: { satisfied: boolean } }).effect.satisfied).toBe(true)
     }

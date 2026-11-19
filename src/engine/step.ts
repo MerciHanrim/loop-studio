@@ -591,7 +591,9 @@ export function step(
   const cmpEdge = (a: LoopEdge, b: LoopEdge) =>
     a.source < b.source ? -1 : a.source > b.source ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0
 
-  const S = { ...prev.values } // snapshot — read-only
+  // snapshot — read-only, but for one write: at the end of Phase 0 a Pool a `label` edited is given
+  // the level the labels left, which is what the pulls of the step read (SEMANTICS-E.md §E21)
+  const S = { ...prev.values }
   const working: SimValues = { ...prev.values } // mutated, committed
   const reserved = new Map<string, number>() // promised INTO a pool, not yet in `working`
   // The promises as FRACTIONS: what is promised into a Pool, and what of it stands for each
@@ -1220,6 +1222,13 @@ export function step(
     working[tid] = clamped
     clampAdjByTarget.set(tid, nz(clamped - unclamped))
   }
+  // A Pool a label edited is pulled at the level the labels left (SEMANTICS-E.md §E21, engine
+  // revision 19, issue #582): what a line may take of it in this step is that level less what the
+  // step has taken, so an amount a label removed cannot be taken and one it added can. The moves
+  // and the room already start from that level (§E3). Read off the step-start value instead, a
+  // Pool set from 1 to 0.3 gave 1, its level went under 0 and the commit held it at 0, outside
+  // I1′. What Phase 1 pushes into the Pool is still not there for the pulls (they read `S`).
+  for (const tid of labelTargets) S[tid] = working[tid] ?? 0
   // one label event per valid edge, ascending edge.id; `delta` is the edge's own
   // raw request, `clampAdjustment` rides on the last event into each target.
   const lastLabelIdx = new Map<string, number>()

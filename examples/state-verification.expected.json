@@ -24,11 +24,12 @@
         "Gauge A": 1,
         "Gauge B": 4,
         "Level": 5,
-        "Tank": 8
+        "Tank": 4
       },
       "fired": [
         "Gauge Source",
-        "Pulse Source"
+        "Pulse Source",
+        "Tank Drain"
       ],
       "stateEvents": [
         {
@@ -169,7 +170,7 @@
           "effect": {
             "kind": "label",
             "delta": -1,
-            "clampAdjustment": -9
+            "clampAdjustment": -5
           }
         },
         {
