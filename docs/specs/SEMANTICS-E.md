@@ -3,16 +3,16 @@
 ```
 Spec ID: loop-exact/1
 Status:  Normative from engine revision 16. E-open 1 to 5 are boundaries it does not settle
-Engine:  revision 16; §E19's rule for a group is of revision 17 (SEMANTICS-W2.md §W2-1)
+Engine:  revision 16; §E19's rule for a group is of revision 17, §E20 of revision 18 (SEMANTICS-W2.md §W2-1)
 ```
 
-**In force with engine revision 16 (issue #572).** The rules E1 to E19, with E11a and E11b, are what that engine does and what its tests hold. The boundaries E-open 1 to 4 are **not resolved**: each is behaviour the engine has today, written with its values and with a test that fails as expected until it is settled, and a later revision may change it. E-open 5 names issues that stay open on their own.
+**In force with engine revision 16 (issue #572).** The rules E1 to E20, with E11a and E11b, are what that engine does and what its tests hold. The boundaries E-open 1 to 4 are **not resolved**: each is behaviour the engine has today, written with its values and with a test that fails as expected until it is settled, and a later revision may change it. E-open 5 names issues that stay open on their own.
 
 This document changes how a step is **worked out and recorded**, for every model version. It does not change what a document means, what a file holds, or the digest. It extends [`SEMANTICS.md`](SEMANTICS.md) and its companions and replaces the passages listed under "What this replaces". Where it says nothing, they hold as written.
 
 The words of `SEMANTICS.md` are kept: Pool, Gate, Converter, Source, Drain, End, `pull any`, `pull all`, the snapshot `S`, the phases of a step, the invariants I1 to I7.
 
-Rules are numbered E1 to E19 (with E11a and E11b) and cited as `§E7`. The number E-open marks what this document does **not** settle; nothing here is to be read as settling it.
+Rules are numbered E1 to E20 (with E11a and E11b) and cited as `§E7`. The number E-open marks what this document does **not** settle; nothing here is to be read as settling it.
 
 ## The statement in one paragraph
 
@@ -148,6 +148,14 @@ A group runs at one number, so the floor is asked of the group and not of one me
 
 A `pull all` Converter that can have all it asks runs at every size alone, behind a Gate and in front of a Gate; in front of another Converter it does not: E-open 4.
 
+## A line from a Source into a Converter
+
+**E20. A line from a Source is no input of a Converter.** A Source pushes into Pools only; along a line into a Converter it moves nothing, and the step says so (SEMANTICS.md §6, the Source's diagnostic, which stays). So the line is not one of the Converter's inputs. The Converter runs as it would without the line: its other lines set its part of a run, its Pool lines give that part of their rates and no more, what it makes fits the room of its outputs, and nothing is lost. A `pull all` Converter runs where its other lines fill a run, and stands still where they do not. A Converter whose only input is such a line has no input and does not run. (Engine revision 18, issue #581.)
+
+The same holds in a planned group, and for a member left with **no input line** at all: it cannot run, so the group stands still before anything is taken, as for a member behind a router that delivers nothing. And it holds for a recipe: the balance of a conserved kind (SEMANTICS-M3.md §M3-INV-2) is read without the line, since nothing comes in on it.
+
+(On revision 17 the line counted in a full run. With 2 from a Source and 3 from a Pool for 5, the Converter took the 3 and made 3, three fifths of a run; with room for only 1.7 it took the 3 and lost 1.3, with a notice; a `pull all` Converter never ran; in a planned group the members ran at different parts with no notice, and a member with no input let the next one take its Pool line and make a quarter. Under a conserved kind the recipe was balanced on the 2 that never came.)
+
 ## What does not change
 
 - The order of a step: Phase 0 (state connections), Phase 1 (Sources), Phase 2 (the routers in their order), Phase 2.5, the commit; the snapshot `S`, and that a pull is measured against it and against what earlier nodes took (SEMANTICS.md §2, §10).
@@ -194,7 +202,6 @@ The mend is not made, for what it showed. Read off the exact amounts, the verdic
 
 ### E-open 5. Issues that stand apart
 
-- **Issue #581**: a line from a Source into a Converter, and a Converter with no input line above another Converter. Unchanged; §E14 touches that turn (the room is asked there for a small net) and no more. One thing about it shows more often with this document and is not new: such a Converter runs wherever its output Pool has any room at all, and takes from its Pools in full for it. A Pool with a capacity of the double above 3 that holds 3, a Converter that takes 1 of another Pool and makes 5 into it, and a line from a Source into that Converter: the Converter takes the 1 and makes `4.4e-16`, at ordinary size, where without the Source line it takes `8.9e-17`. A Source that fills a Pool to its capacity leaves such a last place of room at some scales and not at others (two doubles and their sum), which is how six generated graphs came to it at 10⁻¹², three of them at 10⁻³ or 10⁻⁶ as well.
 - **Issue #582**: a Pool that a `label` lowers before the moves (§E4, §E6).
 - **Issue #572, the remaining case**: one generated graph in which a step moves less than before at amounts of 10⁸ and 10⁹; open on the issue.
 
@@ -202,6 +209,7 @@ The mend is not made, for what it showed. Read off the exact amounts, the verdic
 
 - A `pull all` node whose whole demand is at or under `1e-9` ran on any part of what it asked, because an absolute `1e-9` could not stop it. §E11a. (Before revision 16 nothing moved in such a document at all, and a Pool value under `1e-9` was made 0 at the end of the step.)
 - A `pull all` Drain or End that was short within the epsilon was recorded as taking all it asked. §E11b.
+- A line from a Source into a Converter, and a planned Converter with no input line (issue #581, named in E-open 5 until revision 18). §E20.
 
 ## What this replaces
 
@@ -223,7 +231,8 @@ The mend is not made, for what it showed. Read off the exact amounts, the verdic
 
 - `src/engine/exactMoves.test.ts`: on generated graphs at several scales, from the record of moves alone: a Gate's moves in equal its moves out; a Converter is at one part of a run on all its lines; every Pool's level is within its bounds after every move; every stored value is the double nearest the exact level; the events are the record above the threshold; a node has fired exactly where the record has a move of its own; a Gate's reported state says it passed something on exactly where it fired.
 - `src/engine/firedSmallMoves.test.ts`: §E9 for each node kind, for an End, and for the state connections that read a firing.
-- `src/engine/exactMovesCases.test.ts`: §E7, §E8, §E10 to §E14 as hand cases.
+- `src/engine/exactMovesCases.test.ts`: §E7, §E8, §E10 to §E14 and §E20 as hand cases (§E20 each against the same graph without its Source lines).
+- `src/engine/kinds.test.ts`: §E20 for a recipe of a conserved kind.
 - `src/engine/pullAllShort.test.ts`: §E11, §E11a and §E11b: a third short stops at every size, on every kind of `pull all` node; a node that can have all it asks runs at every size; the edge of the absolute epsilon just above `1e-9`; what a Drain and an End record; a `pull all` Converter that can have all it asks, at four sizes, alone and beside a Gate.
 - `src/engine/gateStateSmall.test.ts`: a Gate's reported state against its firing, at four sizes.
 - `src/engine/exactMovesOpen.test.ts`: E-open 1 to 4, each as what runs today and as an expected failure that states what is to be.

@@ -116,4 +116,11 @@
 //                       the target was skipped at its own turn, after its takes:
 //                       the members before it ran and handed to it, and it took
 //                       its inputs and made nothing, the group reading `met`
-export const ENGINE_REVISION = 17
+//   18                  issue #581 — a line from a Source is no input of a
+//                       Converter (SEMANTICS-E.md §E20): the Converter runs as it
+//                       would without the line, and a recipe of a conserved kind
+//                       is read without it; a planned Converter left with no input
+//                       stops its group. Counted in a full run, the line ran the
+//                       Converter at a part from its Pool lines alone, lost what
+//                       did not fit, and made a planned group's members disagree
+export const ENGINE_REVISION = 18
