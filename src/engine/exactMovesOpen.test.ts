@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { add, cmp, exactDouble, fromInt, mul, parseDecimal, sub, type Rational } from '../model/rational'
-import { conv, graphWithSourceLines, plainGraph, pool, res, shift, type Graph } from './generatedGraphs.fixture'
+import { graphWithSourceLines, plainGraph, type Graph } from './generatedGraphs.fixture'
 import { initSim, step, type StepMove } from './index'
 
 // The boundaries SEMANTICS-E.md does not settle (issue #572), on generated graphs
@@ -8,11 +8,11 @@ import { initSim, step, type StepMove } from './index'
 // `it.fails` for what is to be, which passes while the boundary stands and fails on the day the
 // engine closes it (it is then turned into a plain test).
 //   E-open 1  a loop that balances at one number only: `plainGraph(257, n)`
-//   E-open 2  a group with two supplies, far under 1e-9: `graphWithSourceLines(777, n)`, step 2
 //   E-open 3  a `pull all` Gate held by a room a last place short: `graphWithSourceLines(3763, -8)`
-//   E-open 4  a planned `pull all` Converter in front of a Converter, under 1e-9 (by hand; found by `graphWithSourceLines(5481, -10)`)
 // (What a `pull all` node may be short of, and what it records then, were two more boundaries
-// here; they are rules now, §E11a and §E11b, and their tests are in pullAllShort.test.ts.)
+// here; they are rules now, §E11a and §E11b, and their tests are in pullAllShort.test.ts. E-open 2
+// and 4, a planned `pull all` Converter whose verdict read amounts under 1e-9 as nothing, are
+// settled from engine revision 20; their tests are in exactMovesCases.test.ts.)
 // And one consequence of §E14 that is meant, pinned as it is and not an expected failure: a
 // room a hair short of what the written rates ask, `plainGraph(4088, -12)`.
 
@@ -92,24 +92,6 @@ describe('E-open 1 (SEMANTICS-E.md): a loop that balances at one number only', (
   })
 })
 
-describe('E-open 2 (SEMANTICS-E.md): a group with two supplies, far under 1e-9: a line that should move does not', () => {
-  // Generated graph with Source lines, seed 777, step 2. Not E-open 1: it runs at 10^-3, where
-  // seed 257 does not. The cause is not found. A group of a Converter and two Gates, planned
-  // together; the Gate g1 has lines of 6 from p2 (which holds 1) and of 8 from p3. At scale 1 and
-  // at 10^-3 it takes the 1 and the 8; at 10^-12 its number stops at what p2 holds and the line
-  // from p3 moves nothing. Nothing is lost and no Pool leaves its bounds.
-  it('generated graph with Source lines, seed 777, step 2: at scale 1 and at 10^-3 the Gate takes 8 (times the scale) on its second line', { timeout: 60_000 }, () => {
-    for (const [n, unit] of [[0, '1'], [-3, '0.001']] as const) {
-      const out = run(graphWithSourceLines(777, n), 2)
-      expect(same(out[1].moved('e2'), mul(fromInt(8), dec(unit))), `10^${n}`).toBe(true)
-    }
-  })
-  it.fails('generated graph with Source lines, seed 777, step 2, at 10^-12: the second line moves nothing (to be: 8e-12, as at the other scales)', () => {
-    const out = run(graphWithSourceLines(777, -12), 2)
-    expect(cmp(out[1].moved('e2'), ZERO)).toBe(1)
-  })
-})
-
 describe('E-open 3 (SEMANTICS-E.md): a `pull all` Gate held by a room a last place short, on a path other than §E12`s', () => {
   // Generated graph with Source lines, seed 3763, step 1. The `pull all` Gate g1 takes 1 and 6
   // of p1 and 1 of p3 and hands half of it back into p3, which at its turn has room for exactly
@@ -128,32 +110,6 @@ describe('E-open 3 (SEMANTICS-E.md): a `pull all` Gate held by a room a last pla
   it.fails('generated graph with Source lines, seed 3763, at 10^-8: the Gate moves nothing (to be: 6e-8 on e4, as at the other scales)', () => {
     const [s] = run(graphWithSourceLines(3763, -8))
     expect(cmp(s.moved('e4'), ZERO)).toBe(1)
-  })
-})
-
-describe('E-open 4 (SEMANTICS-E.md): a planned `pull all` Converter in front of a Converter stops its group where an amount of its own is under 1e-9', () => {
-  // A (8) -8-> c0 (`pull all`) -3-> c1 -4-> Q, and B (12) -3-> c1. The verdict of a planned
-  // `pull all` Converter is read off a sum of doubles, and the double beside an amount under
-  // the display threshold is 0: under 1e-9 it reads "nothing arrived" and the whole group
-  // stops, where a `pull any` Converter in its place runs. The cause is known and the mend is
-  // not made: reading the verdict off the exact amounts lets such a group run into a member
-  // behind it whose stated run target is under the floor (§E19), which then drops what it is
-  // handed (the desalination example with no demand lost 3.5e-4 of water over 720 steps; its
-  // own test, "failures lose nothing silently", holds that).
-  const group = (n: number, first: 'pullAll' | 'pullAny'): Graph => ({
-    nodes: [pool('A', Number(shift('8', n))), pool('B', Number(shift('12', n))), pool('Q', 0), conv('c0', first), conv('c1')],
-    edges: [res('a', 'A', 'c0', shift('8', n)), res('cc', 'c0', 'c1', shift('3', n)), res('b', 'B', 'c1', shift('3', n)), res('o', 'c1', 'Q', shift('4', n))],
-  })
-  it('at scale 1 and at 10^-9 the group runs: 8 in, 3 handed on, 4 made (times the scale); with `pull any` in its place it runs at 10^-10 and at 10^-12 too', () => {
-    for (const [n, unit] of [[0, '1'], [-9, '0.000000001']] as const) {
-      const [s] = run(group(n, 'pullAll'))
-      expect(same(s.moved('a'), mul(fromInt(8), dec(unit))), `10^${n}`).toBe(true)
-      expect(same(s.moved('o'), mul(fromInt(4), dec(unit))), `10^${n}`).toBe(true)
-    }
-    for (const n of [-10, -12]) expect(cmp(run(group(n, 'pullAny'))[0].moved('o'), ZERO), `pull any, 10^${n}`).toBe(1)
-  })
-  it.fails('at 10^-10 and at 10^-12 nothing of the group moves (to be: the same amounts times the scale)', () => {
-    for (const n of [-10, -12]) expect(cmp(run(group(n, 'pullAll'))[0].moved('o'), ZERO), `10^${n}`).toBe(1)
   })
 })
 

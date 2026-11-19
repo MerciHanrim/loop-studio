@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { add, cmp, div, exactDouble, fromInt, mul, parseDecimal, sub, toDouble, type Rational } from '../model/rational'
 import type { LoopEdge, LoopNode } from '../model/types'
-import { conv, drain, gate, graphWithSourceLines, plainGraph, pool, res, source, type Graph, type Mode } from './generatedGraphs.fixture'
+import { conv, drain, gate, graphWithSourceLines, plainGraph, pool, res, shift, source, type Graph, type Mode } from './generatedGraphs.fixture'
 import { initSim, step, type StateEvent, type StepMove, type StepReport } from './index'
 
 // SEMANTICS-E.md as hand cases (issue #572). Each test builds a small graph, runs a step and reads
@@ -480,6 +480,54 @@ describe('a Pool a Phase-0 `label` edits is pulled at the level the edit left (i
     expect(same(s.moved('a'), fromInt(1))).toBe(true)
     expect(s.stored.P).toBe(0)
     holds(g, s)
+  })
+})
+
+describe('a planned `pull all` Converter reads what arrived off the record of moves (issue #572, formerly E-open 2 and 4; SEMANTICS-E.md §E11)', () => {
+  // Its verdict (did it reach its part of a run) was read off a sum of the doubles beside its
+  // amounts, and the double beside an amount at or under 1e-9 is 0. So under 1e-9 it read "nothing
+  // arrived" and stopped, with its group: an amount moved and not seen (§E7, §E15). It is read off
+  // the exact amounts now. A real shortfall still stops it.
+  const group = (n: number, first: Mode, a = '8'): Graph => ({
+    nodes: [pool('A', Number(shift(a, n))), pool('B', Number(shift('12', n))), pool('Q', 0), conv('c0', first), conv('c1')],
+    edges: [res('a', 'A', 'c0', shift('8', n)), res('cc', 'c0', 'c1', shift('3', n)), res('b', 'B', 'c1', shift('3', n)), res('o', 'c1', 'Q', shift('4', n))],
+  })
+  it('formerly E-open 4: A (8) -8-> c0 (`pull all`) -3-> c1 -4-> Q, B (12) -3-> c1, at 1, 10^-9, 10^-10 and 10^-12: the group runs, every line as with `pull any`', () => {
+    for (const n of [0, -9, -10, -12]) {
+      const unit = dec(shift('1', n))
+      const [all] = run(group(n, 'pullAll'))
+      const [any] = run(group(n, 'pullAny'))
+      for (const e of ['a', 'cc', 'b', 'o']) expect(same(all.moved(e), any.moved(e)), `10^${n}, ${e}`).toBe(true)
+      expect(cmp(all.moved('o'), ZERO), `10^${n}`).toBe(1)
+      // the line asks 8 times the scale; where the double A holds is under that (10^-12), the
+      // run is what A holds, within the allowance of §E11a, and every line is at that one part
+      const part = div(all.moved('a'), mul(fromInt(8), unit))
+      for (const [e, v] of [['cc', 3], ['b', 3], ['o', 4]] as const) expect(same(all.moved(e), mul(part, mul(fromInt(v), unit))), `10^${n}, ${e} at the part of a run`).toBe(true)
+      expect(cmp(part, dec('0.999999999')), `10^${n}`).toBe(1)
+      expect(all.outside).toEqual([])
+      expect(all.notices).toEqual([])
+    }
+  })
+  it('a real shortfall still stops it, at every size: A holds 4 of the 8 its line asks', () => {
+    for (const n of [0, -9, -10, -12]) {
+      const g = group(n, 'pullAll', '4')
+      still(run(g)[0], g)
+    }
+  })
+  it('a shortfall of 1e-6 of what it asks, under 1e-9 (§E11a): it stops; a shortfall within 1e-9 of its demand: it runs', () => {
+    const short = group(-10, 'pullAll', '7.99999')
+    still(run(short)[0], short)
+    const within = group(-10, 'pullAll', '7.9999999999')
+    expect(cmp(run(within)[0].moved('o'), ZERO)).toBe(1)
+  })
+  it('formerly E-open 2: generated graph with Source lines, seed 777, at 10^-10, 10^-11 and 10^-12: the `pull all` Converter c2 and the Gate g1`s line from p3 move as at scale 1, times the scale', { timeout: 60_000 }, () => {
+    for (const n of [-10, -11, -12]) {
+      const unit = dec(shift('1', n))
+      const out = run(graphWithSourceLines(777, n), 2)
+      for (const [e, v] of [['e3', 5], ['e4', 7], ['e7', 3]] as const) expect(same(out[0].moved(e), mul(fromInt(v), unit)), `10^${n}, step 1, ${e}`).toBe(true)
+      expect(same(out[1].moved('e2'), mul(fromInt(8), unit)), `10^${n}, step 2, e2`).toBe(true)
+      for (const s of out) expect(s.outside).toEqual([])
+    }
   })
 })
 

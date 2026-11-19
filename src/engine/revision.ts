@@ -130,4 +130,9 @@
 //                       more than it held and the difference was made from nothing,
 //                       outside I1′; SEMANTICS-S.md §S11 Case S-C now commits T
 //                       0, 4, 4, … (0, 8, 4, … before)
-export const ENGINE_REVISION = 19
+//   20                  issue #572, E-open 2 and 4 — a planned `pull all` Converter
+//                       reads what it received off the record, exactly (SEMANTICS-E.md
+//                       §E11): it read a sum of doubles in which an amount at or
+//                       under 1e-9 is 0, and so stopped, with its group, at sizes
+//                       where its amounts are that small
+export const ENGINE_REVISION = 20
