@@ -272,7 +272,10 @@ A `passive` node with **no** incoming trigger edge never fires
 - **target: a Pool.** Non-Pool target ⇒ inert + diagnostic.
 - **what it changes:** `working[target]`, the target Pool's **step-start
   balance** (initialised from `S[target]`), during Phase 0. The resource Phase 1
-  / Phase 2 of the same step then operate on that adjusted value.
+  / Phase 2 of the same step then operate on that adjusted value, and the pulls
+  of Phase 2 read it: what a line may take of the target is the adjusted value,
+  not `S[target]` (from engine revision 19, SEMANTICS-E.md §E21; until then the
+  pulls read `S[target]`, issue #582).
 - **`expr` grammar** (assignment):
 
   | form | meaning |
@@ -502,21 +505,27 @@ T ──e1:4──► Drain D  (auto)
 
 Phase 0, per step, from `working[T] = S[T]`: apply `m1` (`−1`), then `m2`
 (`+S[F] = +10`) ⇒ `working[T] = S[T] + 9`; then the single clamp to `[0, 8]`;
-then Phase 2 Drain pulls `min(4, S[T])`.
+then Phase 2 Drain pulls `min(4, working[T])`, of the value the labels left
+(engine revision 19, SEMANTICS-E.md §E21).
 
 | step | S[T] | after m1 (−1) | after m2 (+10) | clamp→[0,8] | Drain pull | T (commit) |
 |---:|---:|---:|---:|---:|---:|---:|
 | 0 | 0 | – | – | – | – | 0 |
-| 1 | 0 | −1 | 9 | **8** | 0 (S[T]=0) | 8 |
-| 2 | 8 | 7 | 17 | **8** | 4 (S[T]=8) | 4 |
-| 3 | 4 | 3 | 13 | **8** | 4 | 4 |
-| ≥3 | 4 | 3 | 13 | 8 | 4 | 4 → steady |
+| 1 | 0 | −1 | 9 | **8** | 4 (of 8) | 4 |
+| 2 | 4 | 3 | 13 | **8** | 4 | 4 |
+| ≥2 | 4 | 3 | 13 | 8 | 4 | 4 → steady |
 
 `S[F] = 10` forever (F is only read). I1′: T's change per step =
 `Σ label applied` − `Drain pull`. `stateEvents` per step, ascending id:
 `m1 {label, delta:-1, applied:-1}`, `m2 {label, delta:+10, applied:+X}` where
-`+X` is the post-clamp contribution (step 2: from 7, requested +10 → 17,
-clamped to 8 ⇒ `applied:+1`). `report.events` never contains `m1` / `m2`.
+`+X` is the post-clamp contribution (step 2: from 3, requested +10 → 13,
+clamped to 8 ⇒ `applied:+5`). `report.events` never contains `m1` / `m2`.
+
+(Until engine revision 19 the Drain pulled `min(4, S[T])`: 0 at step 1, where
+`S[T]` was 0, so T committed 0, 8, 4, 4, … That was the vector frozen on
+2026-08-28; it was changed on Lumi's decision of 2026-11-19, issue #582. Read off
+`S[T]`, a Pool a label LOWERED was pulled of more than it held, and the
+difference was made from nothing.)
 
 ---
 

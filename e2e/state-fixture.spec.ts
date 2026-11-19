@@ -108,9 +108,10 @@ test.describe('state-verification.json — app import + feedback', () => {
     await finishStateCue(page)
     await expect(page.locator('.edge-label[data-edge-id="m_tank_addS"] .edge-label__delta')).toHaveText('+10')
     // 2026-10-21: -1 that moved by -1 repeats its set value — no second number;
-    // its clamp note stays
+    // its clamp note stays. Engine revision 19 (issue #582): Tank Drain took 4 at step 1, so step 2
+    // starts at 4 and is clamped from 13 to 8 (it started at 8 and was clamped from 17 before)
     await expect(page.locator('.edge-label[data-edge-id="m_tank_sub"] .edge-label__delta')).toHaveCount(0)
-    await expect(page.locator('.edge-label[data-edge-id="m_tank_sub"] .edge-label__clamp')).toHaveText('clamp -9')
+    await expect(page.locator('.edge-label[data-edge-id="m_tank_sub"] .edge-label__clamp')).toHaveText('clamp -5')
   })
 
   test('Reset clears every state effect', async ({ page }) => {

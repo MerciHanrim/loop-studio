@@ -69,7 +69,9 @@ state(n+1), report      = step(graph, state(n))
 - Each step reads a **snapshot** `S` = the Pool values committed at the end of
   the previous step. Every pull demand is measured against `S` (and against what
   earlier nodes already took this step — §10), never against mid-step working
-  values.
+  values. The one exception is a Pool that a Phase-0 `label` edits: its pulls
+  are measured against the level the labels left (SEMANTICS-E.md §E21, from
+  engine revision 19).
 - A separate **working copy** is mutated during the step and becomes `S` for the
   next step.
 

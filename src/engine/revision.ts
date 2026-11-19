@@ -123,4 +123,11 @@
 //                       stops its group. Counted in a full run, the line ran the
 //                       Converter at a part from its Pool lines alone, lost what
 //                       did not fit, and made a planned group's members disagree
-export const ENGINE_REVISION = 18
+//   19                  issue #582 — a Pool a Phase-0 `label` edits is pulled at the
+//                       level the labels left (SEMANTICS-E.md §E21): a lowered
+//                       amount cannot be taken in that step, a raised one can.
+//                       Read off the step-start value, a lowered Pool was pulled of
+//                       more than it held and the difference was made from nothing,
+//                       outside I1′; SEMANTICS-S.md §S11 Case S-C now commits T
+//                       0, 4, 4, … (0, 8, 4, … before)
+export const ENGINE_REVISION = 19
