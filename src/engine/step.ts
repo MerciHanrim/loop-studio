@@ -2213,6 +2213,12 @@ export function step(
         }
       }
       let s = Number.isFinite(sMax) ? Math.max(0, sMax) : 0
+      // The floor of a stated run target is the GROUP's (SEMANTICS-E.md §E19; issue #586). A target
+      // a document states at or under the floor is no run (SEMANTICS-M6.md §M6-5), and a group
+      // runs at one number: so the number is 0 here, before anything is claimed, taken or handed
+      // on. Asked of the one member at its turn, after its takes, the floor let the members
+      // before it run and hand to it, and it took its inputs and made nothing.
+      if (members.some((m) => kindOf(m) === 'converter' && targetFloored(m))) s = 0
       // `pull all` members fix the number: the group runs at it or not at all
       // (SEMANTICS.md §9; a short one is recorded for the fixpoint).
       const modeOf = (id: string) => ((byId.get(id)?.data as { mode?: string } | undefined)?.mode ?? 'pullAny')
@@ -3578,7 +3584,9 @@ export function step(
           // amount under the display threshold is 0. So a `pull all` Converter one of whose
           // amounts is that small reads less than arrived and stops its group. Reading the
           // verdict off the exact amounts lets the group run, and then a member behind it whose
-          // stated run target is under the floor drops what it is handed: tried, and not done.)
+          // stated run target is under the floor drops what it is handed: tried, and not done.
+          // Since revision 17 a group with such a member does not run at all, §E19; the mend
+          // has not been tried again.)
           let f = sumIn > 0 ? Math.min(plF, received / sumIn) : 0
           f = Math.max(0, Math.min(1, f))
           if (mode === 'pullAll' && f < (planNeed.get(id) ?? 1) * RUN_REACHED) {

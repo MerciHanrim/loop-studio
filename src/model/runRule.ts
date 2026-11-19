@@ -432,8 +432,10 @@ export function runReports(
     const target = Math.min(...held.map((r) => r.target))
     const decider = held.filter((r) => r.target === target).sort((a, b) => lowestId(a.stage, b.stage))[0]!
     const rateOf = (e: LoopEdge) => Number((e.data as { flow?: unknown }).flow)
-    // the largest line is the last to fall under the engine's amount floor, so `moved`
-    // is 0 only when no line of the group moved
+    // `moved` is read off the events, and a move at or under the display threshold (1e-9)
+    // has none (SEMANTICS-E.md §E15): the largest line's move is the last of the group's to
+    // fall under it, so `moved` is 0 only when no line of the group has an event
+    // (SEMANTICS-M6.md §M6-5)
     const basis = groupLines(edges, members)
       .filter((e) => rateOf(e) > 0)
       .sort((a, b) => rateOf(b) - rateOf(a) || lowestId(a.id, b.id))[0]

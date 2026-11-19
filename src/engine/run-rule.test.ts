@@ -271,6 +271,97 @@ describe('a chain holds one number', () => {
   })
 })
 
+// Issue #586 (engine revision 17; SEMANTICS-E.md §E19). A target a document states at or under
+// the floor is no run (§M6-5, B2 to B4 above, on a stage alone). A chain runs at one number, so
+// the floor is the group's: the chain stops as a whole, before anything is taken. On revision 16
+// the member with the target took its inputs, and what the member before it handed over, and
+// made nothing: the group read `met` and 2,000 units a step were gone at rates of 10^12.
+describe('the floor of a stated target is the group’s (issue #586)', () => {
+  type Rule = ReturnType<typeof asks>
+  /** tank → a → b → store, b also takes from panel; every rate times 10^scale */
+  const big = (scale: number, a: Mode, b: Mode, ruleA?: Rule, ruleB?: Rule) => {
+    const rate = (k: number) => String(BigInt(k) * 10n ** BigInt(scale))
+    return {
+      nodes: [pool('sig', 0), pool('tank', 10 ** (scale + 4)), pool('panel', 10 ** (scale + 4)), stage('a', a, ruleA), stage('b', b, ruleB), pool('store', 0)],
+      edges: [line('in', 'tank', 'a', rate(1)), line('mid', 'a', 'b', rate(1)), line('pw', 'panel', 'b', rate(3)), line('out', 'b', 'store', rate(1))],
+    }
+  }
+  /** three in a row: tank → a → b → c → store */
+  const three = (ruleA?: Rule, ruleB?: Rule, ruleC?: Rule) => ({
+    nodes: [pool('sig', 0), pool('tank', 1e6), pool('panel', 1e6), stage('a', 'pullAny', ruleA), stage('b', 'pullAny', ruleB), stage('c', 'pullAny', ruleC), pool('store', 0)],
+    edges: [line('in', 'tank', 'a', '100'), line('ab', 'a', 'b', '100'), line('pw', 'panel', 'b', '300'), line('bc', 'b', 'c', '100'), line('out', 'c', 'store', '100')],
+  })
+  /** the exact amount each line moved, off the step's record */
+  const moved = (r: StepResult) => Object.fromEntries((r.report.moves ?? []).map((m) => [m.edgeId, `${m.num}/${m.den}`]))
+  /** the whole group stood still: no move in the record, no event, nobody fired, every Pool as it was */
+  const stoodStill = (g: G, name: string) => {
+    const r = go(g)
+    expect(moved(r), `${name}: the record`).toEqual({})
+    expect(r.report.events, `${name}: the events`).toEqual([])
+    expect(r.report.fired, `${name}: who fired`).toEqual([])
+    expect(r.state.values, `${name}: the Pools`).toEqual(initSim(g.nodes).values)
+    const run = r.report.runs![0]!
+    expect([run.state, run.why, run.moved], `${name}: the group's report`).toEqual(['stopped', 'floor', 0])
+    expect(r.report.notices, `${name}: the notice of a stopped group`).toMatchObject([{ kind: 'runHeld', state: 'stopped' }])
+  }
+
+  for (const wanted of ['0.0000000005', '0.000000001']) {
+    it(`a chain whose second member states ${wanted} stands still, in either mode of either member`, () => {
+      for (const [a, b] of [['pullAny', 'pullAny'], ['pullAll', 'pullAny'], ['pullAny', 'pullAll'], ['pullAll', 'pullAll']] as const) {
+        stoodStill(chain(a, b, undefined, asks(wanted)), `${a} → ${b}`)
+        stoodStill(chain(a, b, asks('0.5'), asks(wanted)), `${a} (asks 0.5) → ${b}`)
+      }
+    })
+
+    it(`a chain whose FIRST member states ${wanted} stands still too`, () => {
+      stoodStill(chain('pullAny', 'pullAny', asks(wanted)), 'a states it')
+      stoodStill(chain('pullAny', 'pullAny', asks(wanted), asks('0.5')), 'a states it, b asks 0.5')
+    })
+
+    it(`three in a row, the target of ${wanted} on any one of them: all three stand still`, () => {
+      stoodStill(three(asks(wanted)), 'on the first')
+      stoodStill(three(undefined, asks(wanted)), 'on the second')
+      stoodStill(three(undefined, undefined, asks(wanted)), 'on the third')
+    })
+
+    it(`at rates of 10^12 a chain with ${wanted} takes nothing (it took 2,000 units and more a step and made nothing)`, () => {
+      stoodStill(big(12, 'pullAny', 'pullAny', undefined, asks(wanted)), 'rates of 10^12')
+      stoodStill(big(12, 'pullAll', 'pullAny', asks('0.5'), asks(wanted)), 'rates of 10^12, `pull all` first')
+    })
+  }
+
+  it('just above the floor the chain runs, every line at the target: nothing of the group floor reaches it', () => {
+    const r = go(chain('pullAny', 'pullAny', undefined, asks('0.000000002')))
+    expect(moved(r)).toEqual({ in: '1/5000000', mid: '1/5000000', pw: '3/5000000', out: '1/5000000' })
+    expect([r.report.runs![0]!.state, r.report.runs![0]!.why]).toEqual(['met', null])
+    expect(r.state.values.store).toBe(2e-7)
+    const large = go(big(12, 'pullAny', 'pullAny', undefined, asks('0.000000002')))
+    expect(moved(large)).toEqual({ in: '2000/1', mid: '2000/1', pw: '6000/1', out: '2000/1' })
+    expect(large.state.values.store).toBe(2000)
+  })
+
+  it('no member of a chain takes anything it makes nothing of, at any of the three targets', () => {
+    for (const wanted of ['0.0000000005', '0.000000001', '0.000000002']) {
+      for (const g of [chain('pullAny', 'pullAny', undefined, asks(wanted)), chain('pullAny', 'pullAny', asks(wanted)), three(undefined, asks(wanted)), big(12, 'pullAny', 'pullAny', undefined, asks(wanted))]) {
+        const moves = go(g).report.moves ?? []
+        for (const n of g.nodes) {
+          if (n.data.kind !== 'converter') continue
+          const takes = moves.some((m) => m.to === n.id)
+          const makes = moves.some((m) => m.from === n.id)
+          expect([n.id, wanted, takes, makes], 'takes and makes go together').toEqual([n.id, wanted, makes, makes])
+        }
+      }
+    }
+  })
+
+  it('a stage on its own at the floor is as it was: nothing moves, and it says so', () => {
+    for (const wanted of ['0.0000000005', '0.000000001']) {
+      stoodStill(plant('pullAny', asks(wanted)), 'alone')
+      stoodStill(plant('pullAll', asks(wanted)), 'alone, `pull all`')
+    }
+  })
+})
+
 describe('findings refuse the step', () => {
   const rated = (rule: Partial<RunRule>, flow = '100', unit?: string, opts: { time?: DocTime; kinds?: ResourceKindDecl[]; tables?: Timetable[] } = {}) => {
     const table = DEMAND

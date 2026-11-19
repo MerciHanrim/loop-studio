@@ -2,8 +2,8 @@
 
 ```
 Spec ID: loop-exact/1
-Status:  Normative for engine revision 16. E-open 1 to 5 are boundaries it does not settle
-Engine:  revision 16 (SEMANTICS-W2.md §W2-1)
+Status:  Normative from engine revision 16. E-open 1 to 5 are boundaries it does not settle
+Engine:  revision 16; §E19's rule for a group is of revision 17 (SEMANTICS-W2.md §W2-1)
 ```
 
 **In force with engine revision 16 (issue #572).** The rules E1 to E19, with E11a and E11b, are what that engine does and what its tests hold. The boundaries E-open 1 to 4 are **not resolved**: each is behaviour the engine has today, written with its values and with a test that fails as expected until it is settled, and a later revision may change it. E-open 5 names issues that stay open on their own.
@@ -142,7 +142,11 @@ Both are read from `report.moves`. Neither is an event: the animation, the line 
 
 ## A Converter's stated run target
 
-**E19. Unchanged.** Where a run rule gives a Converter a target, a target at or under the floor is no run (SEMANTICS-M6.md §M6-5), and a `pull all` Converter runs where it reaches its target to within the epsilon as a part of a run (`f < 1 − epsilon` stops it). These are fractions of a run, not amounts. A fraction of a run that the engine works out from a supply or a room is not held to that floor (issue #580). A `pull all` Converter that can have all it asks runs at every size alone, behind a Gate and in front of a Gate; in front of another Converter it does not: E-open 4.
+**E19. The floor stays, and it is the group's.** Where a run rule gives a Converter a target, a target at or under the floor is no run (SEMANTICS-M6.md §M6-5), and a `pull all` Converter runs where it reaches its target to within the epsilon as a part of a run (`f < 1 − epsilon` stops it). These are fractions of a run, not amounts. A fraction of a run that the engine works out from a supply or a room is not held to that floor (issue #580).
+
+A group runs at one number, so the floor is asked of the group and not of one member: **a planned group one of whose Converters states a target at or under the floor stands still as a whole.** Its number is 0 before anything is claimed, taken or handed on; no line of it moves, nobody in it fires, and it reads `stopped`, `floor`, as a Converter alone does. (Engine revision 17, issue #586. On revision 16 the floor was asked of the one member at its turn, after its takes: in `tank → a → b → store` with a target of `5e-10` on `b`, `a` ran and handed on, and `b` took that and its own line and made nothing, the group reading `met`. At a target of exactly `1e-9` revision 15 lost too.) A member that takes its inputs and makes nothing of them is never a state of a group.
+
+A `pull all` Converter that can have all it asks runs at every size alone, behind a Gate and in front of a Gate; in front of another Converter it does not: E-open 4.
 
 ## What does not change
 
@@ -186,7 +190,7 @@ A generated graph with lines from a Source. A `pull all` Gate `g1` takes 1 and 6
 
 The cause is known. The verdict of a planned `pull all` Converter (did it reach its part of a run) is read off a sum of doubles kept beside the exact amounts, and the double beside an amount under the display threshold is 0; so the Converter reads less than arrived, and stops. One amount under `1e-9` among larger ones is enough. In the desalination example with no demand the amounts fall step by step; where a dosing line would carry `6.6e-10` beside a feed of `6.6e-7`, the plant stops, and nothing is lost.
 
-The mend is not made, for what it showed. Read off the exact amounts, the verdict lets such a group run, and a member behind it whose **stated** run target is at or under the floor (§E19) then does not run and drops what it is handed: in that same example `3.5e-4` of water was gone over 720 steps, with no notice. So this boundary and the floor of a stated run target (issue #580) have to be settled together.
+The mend is not made, for what it showed. Read off the exact amounts, the verdict lets such a group run, and a member behind it whose **stated** run target is at or under the floor (§E19) then does not run and drops what it is handed: in that same example `3.5e-4` of water was gone over 720 steps, with no notice. So this boundary and the floor of a stated run target (issue #580) have to be settled together. (Since revision 17 a group that holds such a member does not run at all, §E19. Whether the mend then holds has not been tried again; this boundary is as open as it was.)
 
 ### E-open 5. Issues that stand apart
 
