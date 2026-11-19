@@ -492,16 +492,20 @@ describe('a planned `pull all` Converter reads what arrived off the record of mo
     nodes: [pool('A', Number(shift(a, n))), pool('B', Number(shift('12', n))), pool('Q', 0), conv('c0', first), conv('c1')],
     edges: [res('a', 'A', 'c0', shift('8', n)), res('cc', 'c0', 'c1', shift('3', n)), res('b', 'B', 'c1', shift('3', n)), res('o', 'c1', 'Q', shift('4', n))],
   })
-  it('formerly E-open 4: A (8) -8-> c0 (`pull all`) -3-> c1 -4-> Q, B (12) -3-> c1, at 1, 10^-9, 10^-10 and 10^-12: the group runs, at one part of a run, as with `pull any`', () => {
+  it('formerly E-open 4: A (8) -8-> c0 (`pull all`) -3-> c1 -4-> Q, B (12) -3-> c1, at 1, 10^-9, 10^-10 and 10^-12: the group runs, every line as with `pull any`', () => {
     for (const n of [0, -9, -10, -12]) {
       const unit = dec(shift('1', n))
-      for (const mode of ['pullAll', 'pullAny'] as const) {
-        const g = group(n, mode)
-        const [s] = run(g)
-        for (const [e, v] of [['a', 8], ['cc', 3], ['b', 3], ['o', 4]] as const) expect(same(s.moved(e), mul(fromInt(v), unit)), `${mode}, 10^${n}, ${e}`).toBe(true)
-        expect(s.outside).toEqual([])
-        expect(s.notices).toEqual([])
-      }
+      const [all] = run(group(n, 'pullAll'))
+      const [any] = run(group(n, 'pullAny'))
+      for (const e of ['a', 'cc', 'b', 'o']) expect(same(all.moved(e), any.moved(e)), `10^${n}, ${e}`).toBe(true)
+      expect(cmp(all.moved('o'), ZERO), `10^${n}`).toBe(1)
+      // the line asks 8 times the scale; where the double A holds is under that (10^-12), the
+      // run is what A holds, within the allowance of §E11a, and every line is at that one part
+      const part = div(all.moved('a'), mul(fromInt(8), unit))
+      for (const [e, v] of [['cc', 3], ['b', 3], ['o', 4]] as const) expect(same(all.moved(e), mul(part, mul(fromInt(v), unit))), `10^${n}, ${e} at the part of a run`).toBe(true)
+      expect(cmp(part, dec('0.999999999')), `10^${n}`).toBe(1)
+      expect(all.outside).toEqual([])
+      expect(all.notices).toEqual([])
     }
   })
   it('a real shortfall still stops it, at every size: A holds 4 of the 8 its line asks', () => {

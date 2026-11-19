@@ -3584,7 +3584,6 @@ export function step(
         // delivered exactly `f · rate`, and it makes `f · rate` on every output.
         const plF = planF.get(id)
         if (plF !== undefined) {
-          let received = inboxHave
           inbox.set(id, 0)
           let receivedR = inboxR.get(id) ?? RAT0 // exactly what arrived
           inboxR.set(id, RAT0)
@@ -3592,27 +3591,25 @@ export function step(
             const x = r ?? ratOfDouble(a)
             claimSubR(e.source, x)
             takeFrom(e.source, a, x)
-            received += a
             receivedR = addR(receivedR, x)
             emit(e, e.source, id, a, x)
           }
-          // the plan's f, bounded by what arrived (equal, up to rounding)
-          // (SEMANTICS-E.md E-open 4: `received` is a sum of doubles, and the double beside an
-          // amount under the display threshold is 0. So a `pull all` Converter one of whose
-          // amounts is that small reads less than arrived and stops its group. Reading the
-          // verdict off the exact amounts lets the group run, and then a member behind it whose
-          // stated run target is under the floor drops what it is handed: tried, and not done.
-          // Since revision 17 a group with such a member does not run at all, §E19; the mend
-          // has not been tried again.)
-          let f = sumIn > 0 ? Math.min(plF, received / sumIn) : 0
+          // The fraction is what arrived over what a full run takes, exactly (the
+          // members before it delivered at the plan's fraction, and so did its own takes)
+          const sumInR = inOf(id).reduce((t, e) => (rateOfCached(e) > 0 ? addR(t, exactRate(e)) : t), RAT0)
+          // The plan's f, bounded by what arrived, and the `pull all` verdict on it: read off the
+          // record, exactly (SEMANTICS-E.md §E11, §E7, §E15; engine revision 20, issue #572). It
+          // was read off a sum of the doubles beside the amounts, and the double beside an amount
+          // at or under the display threshold is 0: a `pull all` Converter one of whose amounts
+          // was that small read "nothing arrived" and stopped its group (E-open 2 and 4 until
+          // revision 20). A member behind it whose stated run target is at or under the floor
+          // no longer drops what it is handed: since revision 17 such a group does not run (§E19).
+          let f = isPositive(sumInR) ? Math.min(plF, toDouble(divR(receivedR, sumInR))) : 0
           f = Math.max(0, Math.min(1, f))
           if (mode === 'pullAll' && f < (planNeed.get(id) ?? 1) * RUN_REACHED) {
             pullShort.add(id)
             f = 0
           }
-          // The fraction is what arrived over what a full run takes, exactly (the
-          // members before it delivered at the plan's fraction, and so did its own takes)
-          const sumInR = inOf(id).reduce((t, e) => (rateOfCached(e) > 0 ? addR(t, exactRate(e)) : t), RAT0)
           // (`f`, the double, only carries the `pull all` verdict above here: what arrived is
           // the ledger's, whatever its size, and the Converter runs on it)
           const stopped = mode === 'pullAll' && f === 0

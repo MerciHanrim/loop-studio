@@ -2,11 +2,11 @@
 
 ```
 Spec ID: loop-exact/1
-Status:  Normative from engine revision 16. E-open 1 to 5 are boundaries it does not settle
-Engine:  revision 16; §E19's rule for a group is of revision 17, §E20 of revision 18, §E21 of revision 19 (SEMANTICS-W2.md §W2-1)
+Status:  Normative from engine revision 16. E-open 1, 3 and 5 are boundaries it does not settle (2 and 4 are settled)
+Engine:  revision 16; §E19's rule for a group is of revision 17, §E20 of revision 18, §E21 of revision 19, §E11's reading of a planned `pull all` Converter of revision 20 (SEMANTICS-W2.md §W2-1)
 ```
 
-**In force with engine revision 16 (issue #572).** The rules E1 to E19, with E11a and E11b, are what that engine does and what its tests hold (§E19's rule for a group from revision 17). §E20 holds from engine revision 18 (issue #581), §E21 from engine revision 19 (issue #582). The boundaries E-open 1 to 4 are **not resolved**: each is behaviour the engine has today, written with its values and with a test that fails as expected until it is settled, and a later revision may change it. E-open 5 names issues that stay open on their own.
+**In force with engine revision 16 (issue #572).** The rules E1 to E19, with E11a and E11b, are what that engine does and what its tests hold (§E19's rule for a group from revision 17). §E20 holds from engine revision 18 (issue #581), §E21 from engine revision 19 (issue #582), and §E11's reading of what a planned `pull all` Converter received off the record from engine revision 20 (issue #572; it settles E-open 2 and 4). The boundaries E-open 1 and 3 are **not resolved**: each is behaviour the engine has today, written with its values and with a test that fails as expected until it is settled, and a later revision may change it. E-open 5 names issues that stay open on their own.
 
 This document changes how a step is **worked out and recorded**, for every model version. It does not change what a document means, what a file holds, or the digest. It extends [`SEMANTICS.md`](SEMANTICS.md) and its companions and replaces the passages listed under "What this replaces". Where it says nothing, they hold as written.
 
@@ -99,6 +99,8 @@ No bundled example has a line of a rate at or under `1e-9`, and this rule change
 
 This holds at every place a `pull all` amount is tested: a `push all` Source's room; a `pull all` Drain and End; the source Gate of a tree and of a piece; the planned Gate with two supplies (§E12) and its fixed demand; a planned source Gate at its own turn; a Gate outside every plan. A `pull all` Converter is not among them: it is tested on a part of a run (`f < 1 − epsilon`, §E19), which does not depend on the size of the amounts.
 
+**What a planned `pull all` Converter has received is read off the record.** Its part of a run, for that test, is what arrived (its own takes and what the members before it handed it) over what a full run takes, both exact (§E1, §E7). An amount at or under `1e-9` counts as what it is: the threshold is one of display (§E15). (From engine revision 20, issue #572. Until then the verdict read a sum of the doubles beside the amounts, and the double beside an amount at or under `1e-9` is 0: such a Converter read "nothing arrived" and stopped, and its group with it, at sizes where every amount is that small, E-open 2 and 4 below.)
+
 **The edge of §E11, stated and not mended.** A little above `1e-9` the absolute allowance is still a large part of the demand: a Gate that asks `1.4e-9` of a Pool that holds `5e-10` is `9e-10` short, within the epsilon, and takes the `5e-10`. Before revision 16 an amount under `1e-9` was 0 and that Gate stopped; with `1.2e-9` in the Pool it ran, on the `1.2e-9`, then as now. A Gate that asks exactly `1e-9` is on the other side: a Pool that holds half of it leaves it short, and nothing moves.
 
 **E11b. A node that runs short takes what its Pools hold, and no more.** Where a `pull all` node runs within its allowance, each of its lines moves what it asks or, where its Pool is short, what the Pool still holds; lines off one Pool take in their order. A Gate, a Drain and an End alike; a `push all` Source pushes the room. So the record never takes a Pool under 0 (§E3). (Before, a `pull all` Drain or End that was short within the epsilon was recorded as taking all it asked: a Pool of `2.9999999995` and a line of 3 gave an event of 3 and a level `5e-10` under 0, which the commit's clamp took. It is recorded as `2.9999999995` now.)
@@ -146,7 +148,7 @@ Both are read from `report.moves`. Neither is an event: the animation, the line 
 
 A group runs at one number, so the floor is asked of the group and not of one member: **a planned group one of whose Converters states a target at or under the floor stands still as a whole.** Its number is 0 before anything is claimed, taken or handed on; no line of it moves, nobody in it fires, and it reads `stopped`, `floor`, as a Converter alone does. (Engine revision 17, issue #586. On revision 16 the floor was asked of the one member at its turn, after its takes: in `tank → a → b → store` with a target of `5e-10` on `b`, `a` ran and handed on, and `b` took that and its own line and made nothing, the group reading `met`. At a target of exactly `1e-9` revision 15 lost too.) A member that takes its inputs and makes nothing of them is never a state of a group.
 
-A `pull all` Converter that can have all it asks runs at every size alone, behind a Gate and in front of a Gate; in front of another Converter it does not: E-open 4.
+A `pull all` Converter that can have all it asks runs at every size alone, behind a Gate, in front of a Gate, and (from engine revision 20, §E11) in front of another Converter.
 
 ## A line from a Source into a Converter
 
@@ -175,7 +177,7 @@ With it the pulls and a Pool's room read one level (the room already did, §E3),
 
 ## E-open: what this document does not settle
 
-Each of these is a boundary that exists with the rules above, and none of them is resolved by revision 16. Each has a test that states it.
+Each of these is a boundary that existed with the rules above, and none of them was resolved by revision 16. Each has a test that states it. E-open 2 and 4 are settled from revision 20 (§E11) and keep their numbers here; E-open 1 and 3 are open.
 
 ### E-open 1. A loop that balances at one number only
 
@@ -192,21 +194,19 @@ Pools `p0` 8, `p1` 2, `p2` 11 of a capacity of 11. `p2 →3→ g0`, `p0 →2→ 
 
 What would close it is not decided.
 
-### E-open 2. A group with two supplies, far under `1e-9`: a line that should move does not
+### E-open 2. Settled in engine revision 20 (§E11)
 
-Not E-open 1: it runs at 10⁻³. A Converter `c0` and two Gates `g1`, `g3` are planned as one group. `g1` has a line of 6 from a Pool that holds 1 and a line of 8 from a Pool that holds 12 of 14; what `g1` moves goes through `g3` back into the second Pool. At scale 1 and at 10⁻³ the second line moves 8 times the scale. At 10⁻¹² the plan stops at what the first Pool holds and the second line moves nothing. Nothing is lost and no Pool leaves its bounds. The cause is not found.
+A group with two supplies (a generated graph with Source lines, seed 777) moved a line at scale 1 and at 10⁻³ and not at 10⁻¹². The cause, found on 2026-11-19, was E-open 4's: the group's `pull all` Converter `c2`, whose amounts were all at or under `1e-9` from 10⁻¹⁰ down, read "nothing arrived" and stopped, and the part of the group that depended on it with it (with `c2` set to `pull any` the group ran at every size). Its verdict is read off the record now, and the group moves at 10⁻¹⁰ to 10⁻¹² what it moves at scale 1, times the scale.
 
 ### E-open 3. A `pull all` Gate held by a room a last place short, on a path other than §E12's
 
 A generated graph with lines from a Source. A `pull all` Gate `g1` takes 1 and 6 of one Pool and 1 of another and hands half of it into a Pool that, at its turn, has room for exactly that half (4 of a capacity of 17, the Pool holding 13). At scale 1 it runs. With every amount times 10⁻⁸ the same room, as the doubles stand, is a last place under the `4e-8`, and the Gate moves nothing; so at 10⁻¹⁰, 10⁻¹² and 10⁻¹⁵, and not at 10⁻³, 10⁻⁶, 10⁻⁹ or 10⁻¹¹, where the doubles fall the other way. It is not about small amounts. For a `pull all` Gate with two supplies that outcome is the rule (§E12, §E14); this Gate is not one, and which test holds it is not found.
 
-### E-open 4. A planned `pull all` Converter in front of a Converter stops its group under `1e-9`
+### E-open 4. Settled in engine revision 20 (§E11)
 
-`A →8→ c0` (`pull all`) `→3→ c1 →4→ Q`, and `B →3→ c1`, the Pools holding 8 and 12. At scale 1 and at 10⁻⁹ the group runs. At 10⁻¹⁰ and under nothing of it moves, where a `pull any` Converter in the place of `c0` runs.
+`A →8→ c0` (`pull all`) `→3→ c1 →4→ Q`, and `B →3→ c1`, the Pools holding 8 and 12, ran at scale 1 and at 10⁻⁹ and moved nothing from 10⁻¹⁰ down, where a `pull any` Converter in the place of `c0` ran. The verdict of the planned `pull all` Converter was read off a sum of doubles kept beside the exact amounts, and the double beside an amount under the display threshold is 0, so it read less than arrived and stopped. It is read off the record now (§E11), and the group runs at every size as with `pull any`; a real shortfall still stops it.
 
-The cause is known. The verdict of a planned `pull all` Converter (did it reach its part of a run) is read off a sum of doubles kept beside the exact amounts, and the double beside an amount under the display threshold is 0; so the Converter reads less than arrived, and stops. One amount under `1e-9` among larger ones is enough. In the desalination example with no demand the amounts fall step by step; where a dosing line would carry `6.6e-10` beside a feed of `6.6e-7`, the plant stops, and nothing is lost.
-
-The mend is not made, for what it showed. Read off the exact amounts, the verdict lets such a group run, and a member behind it whose **stated** run target is at or under the floor (§E19) then does not run and drops what it is handed: in that same example `3.5e-4` of water was gone over 720 steps, with no notice. So this boundary and the floor of a stated run target (issue #580) have to be settled together. (Since revision 17 a group that holds such a member does not run at all, §E19. Whether the mend then holds has not been tried again; this boundary is as open as it was.)
+That mend had been tried once and taken out: read off the exact amounts, the verdict let such a group run into a member behind it whose stated run target was at or under the floor, which dropped what it was handed (`3.5e-4` of water over 720 steps of the desalination example with no demand). Since revision 17 such a group does not run at all (§E19), and with the mend that example's failure case keeps every unit of water: in 720 steps it runs differently from revision 19 from step 174 on, the water in its Pools is its start plus what came in less what left, and no amount is held or lost.
 
 ### E-open 5. Issues that stand apart
 
@@ -218,6 +218,7 @@ The mend is not made, for what it showed. Read off the exact amounts, the verdic
 - A `pull all` Drain or End that was short within the epsilon was recorded as taking all it asked. §E11b.
 - A line from a Source into a Converter, and a planned Converter with no input line (issue #581, named in E-open 5 until revision 18). §E20.
 - A Pool a `label` lowers before the moves and that is then pulled (issue #582, named in E-open 5 and as the exception of §E4 and §E6 until revision 19). §E21.
+- A planned `pull all` Converter whose amounts are at or under `1e-9` (E-open 2 and 4 until revision 20). §E11, what a planned `pull all` Converter has received.
 
 ## What this replaces
 
@@ -246,5 +247,6 @@ The mend is not made, for what it showed. Read off the exact amounts, the verdic
 - `src/engine/kinds.test.ts`: §E20 for a recipe of a conserved kind.
 - `src/engine/pullAllShort.test.ts`: §E11, §E11a and §E11b: a third short stops at every size, on every kind of `pull all` node; a node that can have all it asks runs at every size; the edge of the absolute epsilon just above `1e-9`; what a Drain and an End record; a `pull all` Converter that can have all it asks, at four sizes, alone and beside a Gate.
 - `src/engine/gateStateSmall.test.ts`: a Gate's reported state against its firing, at four sizes.
-- `src/engine/exactMovesOpen.test.ts`: E-open 1 to 4, each as what runs today and as an expected failure that states what is to be.
+- `src/engine/exactMovesOpen.test.ts`: E-open 1 and 3, each as what runs today and as an expected failure that states what is to be.
+- `src/engine/exactMovesCases.test.ts`, "a planned `pull all` Converter reads what arrived off the record of moves": E-open 2 and 4 as settled, and a real shortfall that still stops.
 - `src/model/engineValues.test.ts`: a rate with a unit under the display threshold moves.
