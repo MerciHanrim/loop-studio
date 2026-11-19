@@ -173,3 +173,25 @@ describe('loop-model/3 — the desalination shapes (design §6, §7)', () => {
     expect(st).toEqual(v2.state)
   })
 })
+
+describe('a recipe does not count a line from a Source (issue #581, SEMANTICS-E.md §E20)', () => {
+  // A Source moves nothing into a Converter, so its line is no input, and the balance of a
+  // conserved kind is read without it, as the run is.
+  const shape = (out: string) => ({
+    nodes: [node('s', 'source'), pool('A', 10, 'water'), pool('Q', 0, 'water'), node('c', 'converter')],
+    edges: [res('x', 's', 'c', '2', 'water'), res('a', 'A', 'c', '3'), res('o', 'c', 'Q', out)],
+  })
+  it('2 from a Source and 3 from a Pool for 5: the 2 is not water that comes in, so the recipe is refused and no water is made', () => {
+    const { nodes, edges } = shape('5')
+    const { state, reports } = run(nodes, edges, 1, WATER)
+    expect(reports[0]!.events).toEqual([])
+    expect(reports[0]!.diagnostics).toContain(`Can't run: Converter "c" takes in 3 "water" and puts out 5 (out − in 2). A conserved kind must balance, so nothing moved.`)
+    expect(state.values.A + state.values.Q).toBe(10)
+  })
+  it('3 from the Pool for 3: balanced, it runs, and the water is kept', () => {
+    const { nodes, edges } = shape('3')
+    const { state, reports } = run(nodes, edges, 1, WATER)
+    expect(reports[0]!.diagnostics.some((d) => d.startsWith("Can't run"))).toBe(false)
+    expect(state.values).toMatchObject({ A: 7, Q: 3 })
+  })
+})
