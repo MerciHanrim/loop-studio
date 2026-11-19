@@ -165,14 +165,15 @@ describe('state verification fixture', () => {
     for (const s of [4, 5, 6]) expect(derived.frames[s].fired).toContain('Interactive Drain')
   })
 
-  it('label +/-/=: Tank trace [0,8,4,4,4,4,4]; the single clamp rides the last edge', () => {
-    expect(derived.frames.map((f) => f.values.Tank)).toEqual([0, 8, 4, 4, 4, 4, 4])
+  // Engine revision 19 (issue #582): Tank Drain pulls of the level the labels left, so it takes 4 at step 1
+  it('label +/-/=: Tank trace [0,4,4,4,4,4,4]; the single clamp rides the last edge', () => {
+    expect(derived.frames.map((f) => f.values.Tank)).toEqual([0, 4, 4, 4, 4, 4, 4])
     const ev = (f: Frame, id: string) =>
       (f.stateEvents as { edgeId: string; effect: any }[]).find((e) => e.edgeId === id)
     // m_tank_addS < m_tank_sub is false — ids sort m_tank_addS, m_tank_sub ⇒ addS first, sub last
     expect(ev(derived.frames[1], 'm_tank_addS')?.effect).toEqual({ kind: 'label', delta: 10, clampAdjustment: 0 })
     expect(ev(derived.frames[1], 'm_tank_sub')?.effect).toEqual({ kind: 'label', delta: -1, clampAdjustment: -1 })
-    expect(ev(derived.frames[2], 'm_tank_sub')?.effect.clampAdjustment).toBe(-9)
+    expect(ev(derived.frames[2], 'm_tank_sub')?.effect.clampAdjustment).toBe(-5)
     // `=7` into a cap-5 Pool ⇒ Level pinned at 5, clampAdjustment −2 every step
     expect(derived.frames.map((f) => f.values.Level)).toEqual([0, 5, 5, 5, 5, 5, 5])
     expect(ev(derived.frames[1], 'm_level_set')?.effect).toEqual({ kind: 'label', delta: 7, clampAdjustment: -2 })
