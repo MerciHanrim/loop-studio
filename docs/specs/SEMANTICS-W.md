@@ -205,6 +205,14 @@ so every id that keys a draw is in the projection.
   digest all the start graph's. The mark, and the disabled Export, are exactly
   what an edit after completion produces through the `simulationRev`
   subscription; the next run completed at the current rev clears it.
+- **Another document cancels the run** (review S3, 2026-11-21). An edit is not
+  another document; New, a Template, a file, a share link and a Workspace are
+  (`graphStore.documentRev`; a revision Apply is an edit). Opening one aborts
+  the run in flight and lets go of it: whatever that run answers later (its
+  result, its cancellation, its progress) changes nothing of the document now
+  open, and Cancel reaches only a run started on that document. The status
+  leaves `running` as a Cancel leaves it (`done` with a result, else `idle`),
+  without the "Cancelled" note.
 - On **Export**: the stored `resultGraphDigest` is written **verbatim**. It is
   **never recomputed against the current graph on export.** In particular, when a
   result was *restored from a Workspace file*, its original `resultGraphDigest` is
@@ -344,7 +352,8 @@ MC-stale-on-`simulationRev` hook) must **not** fire mid-restore and undo the
 snapshot / re-stale the just-restored result. Restore is:
 
 1. load the graph (bumps `simulationRev` once, resetting sim + staling MC — as
-   normal);
+   normal; it is another document, so a Monte-Carlo run in flight is cancelled
+   here, §W3.2, before the file's result is attached);
 2. **then**, in one synchronous pass, apply `mc.config`, attach `mc.result` with
    its file/`digest`-derived `stale`, set `view`, set `canvas`, and call
    `simStore.restoreSnapshot(simulation)` which sets the fields **and forces
