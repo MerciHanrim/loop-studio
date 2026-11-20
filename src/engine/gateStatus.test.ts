@@ -267,3 +267,63 @@ describe('#593 — a `pull all` Gate stopped by its own supply says `pullAll`, a
     held(gatesAt(plainGraph(1056, -12), 1), 'g0', 'plan')
   })
 })
+
+// Issue #593, the Gates below — a plan with two supplies sets the piece of a `pull all` Gate to 0
+// because its own Pools are short (revision 22 says `pullAll` for that Gate). A Gate that the piece
+// feeds was given its reason against `available`, which is plan-free: it counts what the piece
+// would have offered, and moving less than that read `room`, with no capacity in the graph. The
+// reason is now worked out with that offer taken out, since the plan gives it nothing: `plan` where
+// the group moved nothing, `upstream` where nothing arrived and the group moved, and main's test
+// (`room`, `supply`, `upstream`) where something of its own is left. A piece a room set to 0 (its
+// `pull all` Gate's own Pools whole) is not part of this, and `demand`, `available` and `moved` are
+// reported as before.
+const reason = (g: GateStatus[], id: string) => {
+  const e = only(g, id)
+  return `${e.state}/${e.why}`
+}
+/** g0 (`pull all`, A and B, 5 each times the scale) hands everything to g1; g1 has a line of 8 of its own from C and delivers into Q */
+const below = (a: number, c: number, scale: number, qCap: number | null = null): Graph => ({
+  nodes: [pool('A', a), pool('B', scale * 5), pool('C', c), pool('Q', 0, qCap), gate('g0', 'pullAll'), gate('g1')],
+  edges: [res('a', 'A', 'g0', String(scale * 5)), res('b', 'B', 'g0', String(scale * 5)), res('h', 'g0', 'g1', '1'), res('c', 'C', 'g1', String(scale * 8)), res('q', 'g1', 'Q', '1')],
+})
+describe('#593 — a Gate fed by a piece a plan set to 0 for its `pull all` Gate`s own supply', () => {
+  it('M7, M8, M9: g1 has nothing of its own and the group moves nothing (g0 a last place, 1e-7 or 0.5 short): held by the plan', () => {
+    expect(reason(run(below(lastPlaceUnder(5e8), 0, 1e8)).gates, 'g1')).toBe('held/plan')
+    expect(reason(run(below(4.9999999, 0, 1)).gates, 'g1')).toBe('held/plan')
+    expect(reason(run(below(4.5, 0, 1)).gates, 'g1')).toBe('held/plan')
+  })
+  it('seed 2950 at 10^8 and 10^9, step 4: g1 held by the plan, as g0 is held by its `pull all` rule', () => {
+    for (const n of [8, 9]) {
+      const g = gatesAt(plainGraph(2950, n), 4)
+      expect(reason(g, 'g0'), `10^${n}`).toBe('held/pullAll')
+      expect(reason(g, 'g1'), `10^${n}`).toBe('held/plan')
+    }
+  })
+  it('M10: g1 moves the 3 its own Pool holds of 8, and nothing arrives from g0: a part by supply, with the reported numbers as before', () => {
+    expectGate(run(below(4.5, 3, 1)).gates, 'g1', { state: 'partial', why: 'supply', demand: 18, available: 12.5, moved: 3 })
+  })
+  it('M12: a Gate of g0`s piece with no line of its own receives nothing while another Gate of the group moves (held by what feeds it); that other Gate, its own lines whole, moves them (a part by what feeds it)', () => {
+    // g0 (pull all, A 4.5 of 5, B 5) hands 1 part to g1 (no line of its own) and 1 part to g2; g2 has a
+    // line of 4 of its own from D, which holds 10
+    const g: Graph = {
+      nodes: [pool('A', 4.5), pool('B', 5), pool('D', 10), pool('Q', 0), pool('R', 0), gate('g0', 'pullAll'), gate('g1'), gate('g2')],
+      edges: [res('a', 'A', 'g0', '5'), res('b', 'B', 'g0', '5'), res('h1', 'g0', 'g1', '1'), res('h2', 'g0', 'g2', '1'), res('d', 'D', 'g2', '4'), res('q', 'g1', 'Q', '1'), res('r', 'g2', 'R', '1')],
+    }
+    const r = run(g)
+    expect(reason(r.gates, 'g0')).toBe('held/pullAll')
+    expect(reason(r.gates, 'g1')).toBe('held/upstream')
+    expect(reason(r.gates, 'g2')).toBe('partial/upstream')
+    expect(r.moved.d).toBe(4)
+  })
+  // controls: unchanged
+  it('control M10b: g1`s own 3 and a room of 2 below it: it moves 2, a part by room', () => {
+    expect(reason(run(below(4.5, 3, 1, 2)).gates, 'g1')).toBe('partial/room')
+  })
+  it('control M11: g1`s own 3 and a full Pool below it: held by room', () => {
+    expect(reason(run(below(4.5, 3, 1, 0)).gates, 'g1')).toBe('held/room')
+  })
+  it('control: seed 325 at 10^-12, step 4: the piece is set to 0 by a room (the `pull all` Gate g1`s own Pools are whole, p0 is full): every Gate held by room', () => {
+    const g = gatesAt(plainGraph(325, -12), 4)
+    for (const id of ['g0', 'g1', 'g2', 'g4']) expect(reason(g, id), id).toBe('held/room')
+  })
+})
