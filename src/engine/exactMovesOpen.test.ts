@@ -1,20 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import { add, cmp, exactDouble, fromInt, mul, parseDecimal, sub, type Rational } from '../model/rational'
-import { graphWithSourceLines, plainGraph, type Graph } from './generatedGraphs.fixture'
+import { graphWithSourceLines, plainGraph, shift, type Graph } from './generatedGraphs.fixture'
 import { initSim, step, type StepMove } from './index'
 
-// The boundaries SEMANTICS-E.md does not settle (issue #572), on generated graphs
-// (`generatedGraphs.fixture.ts`). Each is stated twice: a plain test for what runs today, and an
-// `it.fails` for what is to be, which passes while the boundary stands and fails on the day the
-// engine closes it (it is then turned into a plain test).
-//   E-open 3  a `pull all` Gate held by a room a last place short: `graphWithSourceLines(3763, -8)`
+// The stops that SEMANTICS-E.md once left open (issue #572), on generated graphs
+// (`generatedGraphs.fixture.ts`), pinned as they are: each is what the rules make of doubles that
+// are a last place off the decimals a person wrote, and it is meant.
+//   E-open 3   a `pull all` Gate whose piece is held by a room a last place short:
+//              `graphWithSourceLines(3763, n)` (§E13, §E14, §E11)
+//   seed 2950  a `pull all` Gate whose Pool holds a last place under its line after three
+//              steps: `plainGraph(2950, n)` (§E5, §E11)
+//   §E14       a room a hair short of what the written rates ask: `plainGraph(4088, -12)`
 // (What a `pull all` node may be short of, and what it records then, were two more boundaries
 // here; they are rules now, §E11a and §E11b, and their tests are in pullAllShort.test.ts. E-open 2
 // and 4, a planned `pull all` Converter whose verdict read amounts under 1e-9 as nothing, are
 // settled from engine revision 20, and E-open 1, a loop that balances at one number only, from
 // engine revision 21 (§E22); their tests are in exactMovesCases.test.ts.)
-// And one consequence of §E14 that is meant, pinned as it is and not an expected failure: a
-// room a hair short of what the written rates ask, `plainGraph(4088, -12)`.
 
 const ZERO: Rational = fromInt(0)
 const dec = (text: string) => parseDecimal(text)!
@@ -54,6 +55,8 @@ type StepOut = {
   /** what the record moved into a router less what it moved out of it */
   balance: (router: string) => Rational
   outside: string[]
+  /** the stored values the step started from */
+  before: Record<string, number>
 }
 function run(g: Graph, steps = 1): StepOut[] {
   let st = initSim(g.nodes)
@@ -66,30 +69,71 @@ function run(g: Graph, steps = 1): StepOut[] {
       moved: (edge) => on((m) => m.edgeId === edge),
       balance: (id) => sub(on((m) => m.to === id), on((m) => m.from === id)),
       outside: outsideBounds(g, st.values, moves),
+      before: st.values,
     })
     st = r.state
   }
   return out
 }
 
-describe('E-open 3 (SEMANTICS-E.md): a `pull all` Gate held by a room a last place short, on a path other than §E12`s', () => {
-  // Generated graph with Source lines, seed 3763, step 1. The `pull all` Gate g1 takes 1 and 6
-  // of p1 and 1 of p3 and hands half of it back into p3, which at its turn has room for exactly
-  // that half (it holds 13 of 17). As the doubles stand that room is exact at scale 1, a last
-  // place over the 4 at 10^-9, and a last place UNDER it at 10^-8: there the Gate moves nothing.
-  // Not about small amounts (10^-8 is above every threshold). For a `pull all` Gate with two
-  // supplies that is the rule (§E12, §E14); this Gate is not one, and which test holds it is not
-  // found.
-  it('generated graph with Source lines, seed 3763: at scale 1 and at 10^-9 the Gate takes the 6 (times the scale) on its line e4', { timeout: 60_000 }, () => {
-    for (const [n, unit] of [[0, '1'], [-9, '0.000000001']] as const) {
+describe('E-open 3, settled as meant (SEMANTICS-E.md §E13, §E14, §E11): a `pull all` Gate whose piece is held by a room a last place short', () => {
+  // Generated graph with Source lines, seed 3763, step 1. A plan with two supplies: g2 takes from
+  // g0, from g1 and from its own lines. The `pull all` Gate g1 heads a piece of it: it takes 1 (e2)
+  // and 6 (e4) of p1 and then 1 (e3) of p3, and hands half of its 8 back into p3 (e10). p3 holds
+  // 11 of 17 and the Source pushes 3 into it first, so its room is 3: exactly what g1's whole run
+  // puts into it on balance (4 in, 1 out). Under 7, g1 takes nothing of p3 and its numbers that fit
+  // are up to 6; at 8 it fits again. The room is the doubles' capacity less their level less the
+  // push, tested exactly (§E13, §E14). Where that is a last place under 3 times the scale, 8 does
+  // not fit: the piece's largest number is just under 6, short of g1's demand of 8 by far more than
+  // the absolute epsilon (§E11), and the piece is planned at 0. g1 moves nothing; the rest of the
+  // group runs. Where it is a last place over or exact, g1 runs in full.
+  const unit = (n: number) => dec(shift('1', n))
+  const roomShort = (n: number): boolean => {
+    const g = graphWithSourceLines(3763, n)
+    const p3 = g.nodes.find((x) => x.id === 'p3')!.data as { initial: number; capacity: number }
+    const flow = (id: string) => dec((g.edges.find((e) => e.id === id)!.data as { flow: string }).flow)
+    const room = sub(exactDouble(p3.capacity), add(exactDouble(p3.initial), flow('x2')))
+    return cmp(room, sub(dec(shift('4', n)), flow('e3'))) < 0
+  }
+  it('where p3`s room is not short (1, 10^-2, -3, -5, -6, -9, -11, -13, -14, 10^3, 10^9): g1 takes 1, 6 and 1 and hands 4 into p3, times the scale', { timeout: 60_000 }, () => {
+    for (const n of [0, -2, -3, -5, -6, -9, -11, -13, -14, 3, 9]) {
+      expect(roomShort(n), `10^${n}`).toBe(false)
       const [s] = run(graphWithSourceLines(3763, n))
-      expect(same(s.moved('e4'), mul(fromInt(6), dec(unit))), `10^${n}`).toBe(true)
+      for (const [e, k] of [['e2', 1], ['e4', 6], ['e3', 1], ['e10', 4]] as const) expect(same(s.moved(e), mul(fromInt(k), unit(n))), `10^${n} ${e}`).toBe(true)
       expect(s.outside).toEqual([])
     }
   })
-  it.fails('generated graph with Source lines, seed 3763, at 10^-8: the Gate moves nothing (to be: 6e-8 on e4, as at the other scales)', () => {
-    const [s] = run(graphWithSourceLines(3763, -8))
-    expect(cmp(s.moved('e4'), ZERO)).toBe(1)
+  it('where p3`s room is a last place short (10^-1, -4, -7, -8, -10, -12, -15): g1 moves nothing on any of its lines, and the rest of the group runs', { timeout: 60_000 }, () => {
+    for (const n of [-1, -4, -7, -8, -10, -12, -15]) {
+      expect(roomShort(n), `10^${n}`).toBe(true)
+      const [s] = run(graphWithSourceLines(3763, n))
+      for (const e of ['e2', 'e4', 'e3', 'e6', 'e10']) expect(same(s.moved(e), ZERO), `10^${n} ${e}`).toBe(true)
+      expect(same(s.moved('e0'), mul(fromInt(4), unit(n))), `10^${n} e0`).toBe(true)
+      expect(same(s.moved('e7'), mul(fromInt(7), unit(n))), `10^${n} e7`).toBe(true)
+      expect(s.outside).toEqual([])
+    }
+  })
+})
+
+describe('seed 2950, settled as meant (SEMANTICS-E.md §E5, §E11): a `pull all` Gate whose Pool holds a last place under its line', () => {
+  // Generated graph, seed 2950. The `pull all` Gate g0 asks 5 of p1 and 5 of p2. After three
+  // steps p1 holds the double nearest its exact level, a last place under 5 (§E5: the next step
+  // starts from the stored double). At scale 1 that is 8.9e-16 short, within the absolute epsilon:
+  // g0 takes what p1 holds (§E11, §E11b). At 10^8 and 10^9 the same last place is 6e-8 and 9.5e-7,
+  // more than the epsilon: g0 stops, and with it the group.
+  it('step 4 at scale 1: p1 holds a last place under 5 and g0 takes all of it', () => {
+    const s = run(plainGraph(2950, 0), 4)[3]
+    expect(cmp(exactDouble(s.before.p1), dec('5'))).toBe(-1)
+    expect(same(s.moved('e1'), exactDouble(s.before.p1))).toBe(true)
+    expect(same(s.moved('e0'), dec('5'))).toBe(true)
+  })
+  it('step 4 at 10^8 and 10^9: p1 holds a last place under 5 times the scale, more than 1e-9 short, and nothing moves', () => {
+    for (const n of [8, 9]) {
+      const s = run(plainGraph(2950, n), 4)[3]
+      expect(cmp(add(exactDouble(s.before.p1), dec('0.000000001')), dec(shift('5', n))), `10^${n}`).toBe(-1)
+      for (const e of ['e0', 'e1', 'e2', 'e3', 'e4', 'e5', 'e6']) expect(same(s.moved(e), ZERO), `10^${n} ${e}`).toBe(true)
+      expect(s.outside).toEqual([])
+    }
   })
 })
 

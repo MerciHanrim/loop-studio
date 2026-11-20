@@ -2,17 +2,17 @@
 
 ```
 Spec ID: loop-exact/1
-Status:  Normative from engine revision 16. E-open 3 and 5 are boundaries it does not settle (1, 2 and 4 are settled)
+Status:  Normative from engine revision 16. Every E-open is settled: 1, 2 and 4 by engine revisions, 3 and 5 as stops that are meant
 Engine:  revision 16; §E19's rule for a group is of revision 17, §E20 of revision 18, §E21 of revision 19, §E11's reading of a planned `pull all` Converter of revision 20, §E22 of revision 21 (SEMANTICS-W2.md §W2-1)
 ```
 
-**In force with engine revision 16 (issue #572).** The rules E1 to E19, with E11a and E11b, are what that engine does and what its tests hold (§E19's rule for a group from revision 17). §E20 holds from engine revision 18 (issue #581), §E21 from engine revision 19 (issue #582), §E11's reading of what a planned `pull all` Converter received off the record from engine revision 20 (issue #572; it settles E-open 2 and 4), and §E22 from engine revision 21 (issue #572; it settles E-open 1). The boundary E-open 3 is **not resolved**: it is behaviour the engine has today, written with its values and with a test that fails as expected until it is settled, and a later revision may change it. E-open 5 names issues that stay open on their own.
+**In force with engine revision 16 (issue #572).** The rules E1 to E19, with E11a and E11b, are what that engine does and what its tests hold (§E19's rule for a group from revision 17). §E20 holds from engine revision 18 (issue #581), §E21 from engine revision 19 (issue #582), §E11's reading of what a planned `pull all` Converter received off the record from engine revision 20 (issue #572; it settles E-open 2 and 4), and §E22 from engine revision 21 (issue #572; it settles E-open 1). E-open 3, and the remaining case of issue #572 that E-open 5 names, are stops the rules make, and they are meant: §E13, §E14 and §E11 for the first, §E5 and §E11 for the second. Their values are written below, and their tests hold them as they are. No boundary of this document is open.
 
 This document changes how a step is **worked out and recorded**, for every model version. It does not change what a document means, what a file holds, or the digest. It extends [`SEMANTICS.md`](SEMANTICS.md) and its companions and replaces the passages listed under "What this replaces". Where it says nothing, they hold as written.
 
 The words of `SEMANTICS.md` are kept: Pool, Gate, Converter, Source, Drain, End, `pull any`, `pull all`, the snapshot `S`, the phases of a step, the invariants I1 to I7.
 
-Rules are numbered E1 to E22 (with E11a and E11b) and cited as `§E7`. The number E-open marks what this document does **not** settle; nothing here is to be read as settling it.
+Rules are numbered E1 to E22 (with E11a and E11b) and cited as `§E7`. The number E-open marks what this document did not settle when it was written; each now says how it is settled.
 
 ## The statement in one paragraph
 
@@ -112,7 +112,7 @@ This holds at every place a `pull all` amount is tested: a `push all` Source's r
 
 Where a supply could bring more if the rooms were not asked, it is the room that holds it; the fixed demand is not made smaller for that, and the group moves nothing. This keeps SEMANTICS.md §6, erratum part 3 ("the group moves at exactly that point or not at all") and part 9 ("A net inflow of any size is refused") for room, and gives the allowance of §9 to a Pool that holds a hair less than its line asks.
 
-That distinction is the rule of this path. On the other paths (the source Gate of a tree or of a piece, a Gate outside every plan, a Drain, an End, a `push all` Source) the test is on what the node brings in all, as before revision 16, and this document does not say what they do where it is room that is a last place short: E-open 3.
+That distinction is the rule of this path. On the other paths (the source Gate of a tree or of a piece, a Gate outside every plan, a Drain, an End, a `push all` Source) the test is on what the node brings in all, as before revision 16. Where it is room that is a last place short on such a path, the node's number is first held to the room (§E13), and then the node is tested on what it brings in all. E-open 3 is that case, and its stop is meant.
 
 ## Capacity
 
@@ -120,10 +120,11 @@ That distinction is the rule of this path. On the other paths (the source Gate o
 
 **E14. A net inflow above 0 asks the room, whatever its size.** Where a Converter makes into a Pool more than it takes from it in a run, on balance, by any amount above 0, the Pool's room bounds the run: at the Converter's own turn, for a Pool it reaches by two paths, and in a plan. Whether the balance is above 0 is read off the rates as fractions, so that rates that balance as they are written (`0.3` taken, `0.1` and `0.2` made) are not a net by the rounding of their doubles.
 
-Two things follow and are meant. Both come of one fact: a capacity and a level are doubles, and the difference of two doubles need not be the difference of the decimals a person wrote. §E13 takes the doubles' difference as the room.
+Three things follow and are meant. All come of one fact: a capacity and a level are doubles, and the difference of two doubles need not be the difference of the decimals a person wrote. §E13 takes the doubles' difference as the room.
 
 - A `pull all` group puts `0.001` and `0.007` into a Pool that holds `0.001` of a capacity of `0.009`. As doubles the capacity less the level is `7e-19` under the `0.008` that the written rates ask. The room is short; by §E12 the group moves nothing. (Before, it moved: in doubles `0.009 − 0.001` is not under `0.008`.)
 - A Pool holds `1.3e-11` of `1.6e-11`; as doubles that leaves `2.9999999999999993e-12`, under the `3e-12` a tree of routers needs on balance. The tree is planned at that room, and a Gate of it that pulls its lines in order does not come to its last line. No Pool leaves its bounds.
+- A `pull all` Gate heads a piece of a plan with two supplies. A whole run of it puts into a Pool, on balance, exactly that Pool's room as the decimals stand. Where the doubles leave the room a last place short, the piece fits only at a number far under the Gate's demand, and the Gate moves nothing. The rest of the group runs (E-open 3).
 
 ## What is shown
 
@@ -183,9 +184,13 @@ This rule asks one point, the cap. A group whose numbers that fit include a sing
 - What a `label` does.
 - The file formats, the digest, the model versions.
 
-## E-open: what this document does not settle
+## E-open: what this document did not settle, and how each is settled
 
-Each of these is a boundary that existed with the rules above, and none of them was resolved by revision 16. Each has a test that states it. E-open 2 and 4 are settled from revision 20 (§E11), and E-open 1 from revision 21 (§E22); they keep their numbers here. E-open 3 is open.
+Each of these is a boundary that existed with the rules above, and none of them was resolved by revision 16. Each has a test that states it.
+- E-open 2 and 4 are settled from revision 20 (§E11), and E-open 1 from revision 21 (§E22).
+- E-open 3 and the remaining case of E-open 5 are settled as stops that are meant, with no change to the engine (2026-11-20).
+
+They keep their numbers here.
 
 ### E-open 1. Settled in engine revision 21 (§E22)
 
@@ -207,9 +212,26 @@ This graph is seed 257 of the generated graphs. Seeds 0 to 9,999 of the plain gr
 
 A group with two supplies (a generated graph with Source lines, seed 777) moved a line at scale 1 and at 10⁻³ and not at 10⁻¹². The cause, found on 2026-11-19, was E-open 4's: the group's `pull all` Converter `c2`, whose amounts were all at or under `1e-9` from 10⁻¹⁰ down, read "nothing arrived" and stopped, and the part of the group that depended on it with it (with `c2` set to `pull any` the group ran at every size). Its verdict is read off the record now, and the group moves at 10⁻¹⁰ to 10⁻¹² what it moves at scale 1, times the scale.
 
-### E-open 3. A `pull all` Gate held by a room a last place short, on a path other than §E12's
+### E-open 3. Settled: the stop is meant (§E13, §E14, §E11)
 
-A generated graph with lines from a Source. A `pull all` Gate `g1` takes 1 and 6 of one Pool and 1 of another and hands half of it into a Pool that, at its turn, has room for exactly that half (4 of a capacity of 17, the Pool holding 13). At scale 1 it runs. With every amount times 10⁻⁸ the same room, as the doubles stand, is a last place under the `4e-8`, and the Gate moves nothing; so at 10⁻¹⁰, 10⁻¹² and 10⁻¹⁵, and not at 10⁻³, 10⁻⁶, 10⁻⁹ or 10⁻¹¹, where the doubles fall the other way. It is not about small amounts. For a `pull all` Gate with two supplies that outcome is the rule (§E12, §E14); this Gate is not one, and which test holds it is not found.
+A generated graph with lines from a Source (seed 3763), step 1, planned as a plan with two supplies: the Gate `g2` takes from `g0`, from `g1` and from its own lines. The `pull all` Gate `g1` heads a piece of that plan. It takes 1 and 6 of `p1`, then 1 of `p3`, and hands half of its 8 back into `p3`. `p3` holds 11 of a capacity of 17, and a Source pushes 3 into it first, so its room is 3. That is exactly what a whole run of `g1` puts into it on balance: 4 in, 1 out. Under 7, `g1` takes nothing of `p3`, so the numbers that fit are those up to 6; at 8 it fits again.
+
+The path that holds it, found on 2026-11-19:
+
+1. The room is the doubles' capacity less their level less the push, tested exactly (§E13, §E14). At some scales that is a last place under 3 times the scale.
+2. There, 8 does not fit. The plan searches the piece's number exactly, and the largest that fits is just under 6.
+3. `g1`'s `pull all` test asks that number against its demand of 8. This is the test of a piece's `pull all` source Gate. The number is short by far more than the absolute epsilon (§E11), and the piece is planned at 0.
+4. `g1` moves nothing, and the rest of the group runs: `g2` takes 7 of its own line `e7` in place of 6.
+
+This is §E14's consequence again, on a piece of a plan with two supplies. The room, as the doubles leave it, is short of what the written rates ask, and an all-or-nothing rule gets nothing. It is meant, and the engine is not changed for it. It has nothing to do with small amounts:
+
+| every amount times | `p3`'s room less 3 times the scale | what `g1` moves |
+|---|---|---|
+| 1, 10³, 10⁶, 10⁹ | 0 | 1, 6 and 1, and 4 into `p3`, times the scale |
+| 10⁻², 10⁻³, 10⁻⁵, 10⁻⁶, 10⁻⁹, 10⁻¹¹, 10⁻¹³, 10⁻¹⁴ | a last place over (`1.2e-17` at 10⁻², `7.9e-25` at 10⁻⁹) | the same |
+| 10⁻¹, 10⁻⁴, 10⁻⁷, 10⁻⁸, 10⁻¹⁰, 10⁻¹², 10⁻¹⁵ | a last place under (`−1.3e-16` at 10⁻¹, `−1.9e-23` at 10⁻⁸) | nothing |
+
+(Until 2026-11-20 this was written as a boundary whose test was not found, with a test that failed as expected; the stops at 10⁻¹, 10⁻⁴ and 10⁻⁷ were not named.)
 
 ### E-open 4. Settled in engine revision 20 (§E11)
 
@@ -217,9 +239,12 @@ A generated graph with lines from a Source. A `pull all` Gate `g1` takes 1 and 6
 
 That mend had been tried once and taken out: read off the exact amounts, the verdict let such a group run into a member behind it whose stated run target was at or under the floor, which dropped what it was handed (`3.5e-4` of water over 720 steps of the desalination example with no demand). Since revision 17 such a group does not run at all (§E19), and with the mend that example's failure case keeps every unit of water: in 720 steps it runs differently from revision 19 from step 174 on, the water in its Pools is its start plus what came in less what left, and no amount is held or lost.
 
-### E-open 5. Issues that stand apart
+### E-open 5. Issues that stood apart
 
-- **Issue #572, the remaining case**: one generated graph in which a step moves less than before at amounts of 10⁸ and 10⁹; open on the issue.
+- **Issue #572, the remaining case** (a generated graph, seed 2950): settled as a stop that is meant (§E5, §E11), with no change to the engine.
+  - The `pull all` Gate `g0` asks 5 of `p1`. After three steps `p1` holds the double nearest its exact level, a last place under 5 times the scale, and the next step starts from that double (§E5).
+  - At scale 1 that last place is `8.9e-16`, within the absolute epsilon, and `g0` takes what `p1` holds (§E11b).
+  - At 10⁸ and 10⁹ it is `6e-8` and `9.5e-7`, more than the epsilon. At step 4 the group moves nothing, where revision 15 moved.
 
 ### What was open in the draft of this document and is a rule now
 
@@ -229,6 +254,8 @@ That mend had been tried once and taken out: read off the exact amounts, the ver
 - A Pool a `label` lowers before the moves and that is then pulled (issue #582, named in E-open 5 and as the exception of §E4 and §E6 until revision 19). §E21.
 - A planned `pull all` Converter whose amounts are at or under `1e-9` (E-open 2 and 4 until revision 20). §E11, what a planned `pull all` Converter has received.
 - A group that fits at its exact cap only, where the cap is not a double (E-open 1 until revision 21). §E22.
+- A `pull all` Gate whose piece is held by a room a last place short (E-open 3 until 2026-11-20). A stop that is meant: §E13, §E14, §E11.
+- Issue #572's remaining case, seed 2950 (E-open 5 until 2026-11-20). A stop that is meant: §E5, §E11.
 
 ## What this replaces
 
@@ -257,7 +284,7 @@ That mend had been tried once and taken out: read off the exact amounts, the ver
 - `src/engine/kinds.test.ts`: §E20 for a recipe of a conserved kind.
 - `src/engine/pullAllShort.test.ts`: §E11, §E11a and §E11b: a third short stops at every size, on every kind of `pull all` node; a node that can have all it asks runs at every size; the edge of the absolute epsilon just above `1e-9`; what a Drain and an End record; a `pull all` Converter that can have all it asks, at four sizes, alone and beside a Gate.
 - `src/engine/gateStateSmall.test.ts`: a Gate's reported state against its firing, at four sizes.
-- `src/engine/exactMovesOpen.test.ts`: E-open 3, as what runs today and as an expected failure that states what is to be.
+- `src/engine/exactMovesOpen.test.ts`: the stops that were open, pinned as they are. E-open 3 at eighteen scales, with `p3`'s room asked exactly at each; seed 2950 at step 4 at 1, 10⁸ and 10⁹; §E14's room a hair short.
 - `src/engine/exactMovesCases.test.ts`, "a plan that fits at one number only, its exact cap": §E22 on E-open 1's graph at nine scales, with `pull all` members, and two controls where a margin is passed at the cap.
 - `src/engine/exactMovesCases.test.ts`, "a planned `pull all` Converter reads what arrived off the record of moves": E-open 2 and 4 as settled, and a real shortfall that still stops.
 - `src/model/engineValues.test.ts`: a rate with a unit under the display threshold moves.
