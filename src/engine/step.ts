@@ -1765,10 +1765,25 @@ export function step(
     }
     const gateEntries = new Map<string, GateStatus>()
     const planZeroWhy = new Map<string, 'pullAll' | 'plan'>() // a planned Gate that moves nothing, by the plan's cause
+    // #593 — the members of a piece a plan with two supplies set to 0 for its `pull all` source
+    // Gate's own supply, and, per Gate of such a plan, whether its whole group moved nothing
+    const cutForSupply = new Set<string>()
+    const groupStill = new Map<string, boolean>()
     const cyclicSet = new Set(cyclic)
     // What is reported is rounded to six decimals. An amount under that precision is reported
     // to six significant digits instead: a Gate that passed 5e-10 on does not read "moved 0".
     const r6 = (x: number) => (x !== 0 && Math.abs(x) < 1e-6 ? Number(x.toPrecision(6)) : Number(x.toFixed(6)))
+    /** What the routers above a Gate offered (plan-free, as `available` counts it) that the plan gives
+     *  nothing, their piece set to 0 for supply (#593). `available` keeps its meaning; only the reason
+     *  is worked out without it. */
+    const cutOff = (id: string): number => {
+      let x = 0
+      for (const e of inOf(id)) {
+        if (dead.has(e.id) || isPool(e.source) || !cutForSupply.has(e.source) || !willFire.has(e.source)) continue
+        x += sendOf(e.source, e, numsOf(e.source).available)
+      }
+      return x
+    }
     /** the Gate's verdict, recorded at the point that decided what it moved. `stoppedBy`: the
      *  point found that the Gate's own Pools leave it short of what its lines ask by more than the
      *  allowance of SEMANTICS-E.md §E11 (issue #593) */
@@ -1795,11 +1810,19 @@ export function step(
           // it read a stop for a shortfall between 1e-9 and 1e-6, or one the sum of doubles
           // rounded away, as `room` (issue #593).
           why = planZeroWhy.get(id) ?? (stoppedBy ?? (modeOfRouter(id) === 'pullAll' && ownAvail < ownWant - tol ? 'pullAll' : 'room'))
+          // #593 — fed by a piece the plan set to 0 for supply: the reason is worked out with what
+          // that piece offered taken out. Nothing left: the group moved nothing (`plan`), or
+          // nothing arrived from what feeds it (`upstream`). Something left: the test above on it.
+          const cut = planZeroWhy.has(id) || stoppedBy ? 0 : cutOff(id)
+          if (cut > 0) {
+            why = available - cut <= tol ? (groupStill.get(id) ? 'plan' : 'upstream') : modeOfRouter(id) === 'pullAll' && ownAvail < ownWant - tol ? 'pullAll' : 'room'
+          }
         }
       } else if (moved >= demand - tol) state = 'full'
       else {
         state = 'partial'
-        why = moved < available - tol ? 'room' : ownAvail < ownWant - tol ? 'supply' : 'upstream'
+        // (#593: what a piece the plan set to 0 for supply offered is not counted for the reason)
+        why = moved < available - cutOff(id) - tol ? 'room' : ownAvail < ownWant - tol ? 'supply' : 'upstream'
       }
       const entry: GateStatus = { nodeId: id, state, demand: r6(demand), available: r6(available), moved: r6(moved) }
       if (why) entry.why = why
@@ -3172,6 +3195,14 @@ export function step(
       // #593 — a `pull all` source Gate whose piece went to 0 for its own Pools says so; a reason
       // the plan already gave stands
       if (!zero) for (const m of shortBySupply) if (!((c.get(m) ?? 0) > 0) && !planZeroWhy.has(m)) planZeroWhy.set(m, 'pullAll')
+      // #593 — what the Gates the plan feeds are told: whether the group moved nothing, and which
+      // pieces it set to 0 for their `pull all` Gate's own supply (not one a room set to 0)
+      const still = members.every((m) => !((c.get(m) ?? 0) > 0))
+      for (const m of members) if (kindOf(m) === 'gate') groupStill.set(m, still)
+      if (!zero) {
+        const sp = sOf()
+        for (const p of pieces) if (!((sp.get(p.id) ?? 0) > 0) && p.members.some((m) => shortBySupply.has(m))) for (const m of p.members) cutForSupply.add(m)
+      }
       if (!zero) {
         // One working of every amount of the multi-supply plan. The record takes each amount from
         // the exact fractions the test decided on. The fraction is what is claimed or promised,

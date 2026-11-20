@@ -166,6 +166,7 @@ const canvas = {
   'node.gate.state.fault': 'Konnte in diesem Schritt nicht laufen.',
   'node.gate.why.supply': 'Seine Eingänge enthielten weniger, als es angefordert hat.',
   'node.gate.why.upstream': 'Teilweise versorgt: Was es speist, konnte in diesem Schritt nicht mehr liefern, und davon hat es alles genommen.',
+  'node.gate.why.upstreamHeld': 'Von dem, was es speist, kam in diesem Schritt nichts an.',
   'node.gate.why.room': 'Sein Ausgang hatte keinen Platz mehr dafür.',
   'node.gate.why.pullAll': 'Seine Alles-oder-nichts-Anforderung wurde nicht erfüllt, also hat es nichts bewegt.',
   'node.gate.why.plan': 'Die Gruppe, mit der es läuft, hat in diesem Schritt nichts bewegt.',

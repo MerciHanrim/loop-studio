@@ -57,6 +57,7 @@ import type { GateStatus } from '../../engine/types'
 import { setNodeNameBox } from '../../store/routeMap'
 import type { StageTagText } from '../../ui/stageTag'
 import { StageTag, useStageTag } from './StageTag'
+import { GATE_STATE_KEY, gateWhyKey } from './gateStatusKeys'
 import { runNeedsCase } from '../../ui/flowColour'
 import { useCanvasTheme } from '../../ui/media'
 import { roleSymbol, type SymbolPrim } from './roleSymbol'
@@ -403,25 +404,7 @@ function useGateState(id: string): GateStatus | null {
   return useSimStore((s) => s.gates.find((g) => g.nodeId === id) ?? null)
 }
 
-/** the state's phrase (the LED's accessible name; the Inspector's first
- *  sentence) and the reason's phrase, keyed by the engine's tokens — literal
- *  maps so every key is a call site the i18n checker can see */
-export const GATE_STATE_KEY = {
-  idle: 'node.gate.state.idle',
-  full: 'node.gate.state.full',
-  partial: 'node.gate.state.partial',
-  held: 'node.gate.state.held',
-  fault: 'node.gate.state.fault',
-} satisfies Record<GateStatus['state'], MessageKey>
-export const GATE_WHY_KEY = {
-  supply: 'node.gate.why.supply',
-  upstream: 'node.gate.why.upstream',
-  room: 'node.gate.why.room',
-  pullAll: 'node.gate.why.pullAll',
-  plan: 'node.gate.why.plan',
-  inert: 'node.gate.why.inert',
-  cycle: 'node.gate.why.cycle',
-} satisfies Record<NonNullable<GateStatus['why']>, MessageKey>
+// the Gate state's and reason's phrases: gateStatusKeys.ts (issue #593: a reason's phrase can depend on the state)
 
 /** issue #477 — the Gate state LED: a 9 px disc at the cell's top-left (the
  *  mirror of the `!` flag), outside the diamond and clear of the fired ticks.
@@ -924,6 +907,7 @@ function NodeFrame({
   // node structure — the word the inner symbol stands for joins the name
   // ("Gate Triage desk, deterministic"), under the new structure only
   const roleWord = outside && roleKey ? tip(roleKey) : null
+  const gateWhy = gateState ? gateWhyKey(gateState) : null
   const aria =
     `${tip(`canvas.nodeKind.${kind}` as MessageKey)} ${title}` +
     // SEMANTICS-R12.md — the icon's name, whatever the zoom (the name is not a
@@ -933,7 +917,7 @@ function NodeFrame({
     (invalid ? `, ${tip('node.aria.invalid')}` : '') +
     // issue #477 — a Gate's state this step, in words (the LED is decorative):
     // the state phrase, and the reason when there is one
-    (gateState ? `, ${tip(GATE_STATE_KEY[gateState.state])}${gateState.why ? ` ${tip(GATE_WHY_KEY[gateState.why])}` : ''}` : '') +
+    (gateState ? `, ${tip(GATE_STATE_KEY[gateState.state])}${gateWhy ? ` ${tip(gateWhy)}` : ''}` : '') +
     // SEMANTICS-M6.md §M6-8 — the whole tag, whichever form shows
     (stageTag ? `, ${stageTag.full}` : '') +
     (selected ? `, ${tip('node.aria.selected')}` : '') +

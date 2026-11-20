@@ -162,6 +162,7 @@ const canvas = {
   'node.gate.state.fault': 'Bu adımda çalışamadı.',
   'node.gate.why.supply': 'Girişlerinde istediğinden az vardı.',
   'node.gate.why.upstream': 'Kısmen beslendi: onu besleyen bu adımda daha fazlasını veremedi ve o da bunun tamamını aldı.',
+  'node.gate.why.upstreamHeld': 'Bu adımda onu besleyen yerden hiçbir şey gelmedi.',
   'node.gate.why.room': 'Çıkışında ona yer kalmamıştı.',
   'node.gate.why.pullAll': 'Ya hep ya hiç talebi karşılanmadı, bu yüzden hiçbir şey taşımadı.',
   'node.gate.why.plan': 'Birlikte çalıştığı grup bu adımda hiçbir şey taşımadı.',

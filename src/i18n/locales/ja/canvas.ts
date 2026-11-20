@@ -142,6 +142,7 @@ const canvas = {
   'node.gate.state.fault': 'このステップでは実行できませんでした。',
   'node.gate.why.supply': '入力にあった量が要求より少なかったためです。',
   'node.gate.why.upstream': '一部のみ供給: 上流がこのステップでそれ以上送れず、送られた分はすべて受け取りました。',
+  'node.gate.why.upstreamHeld': 'このステップでは上流から何も届きませんでした。',
   'node.gate.why.room': '送り先に空きが残っていませんでした。',
   'node.gate.why.pullAll': '全量か無しかの要求が満たされず、何も移動しませんでした。',
   'node.gate.why.plan': '一緒に実行されるグループがこのステップでは何も移動しませんでした。',
