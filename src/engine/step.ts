@@ -861,6 +861,22 @@ export function step(
   const claimSubR = (p: string, r: Rat) => claimR.set(p, subR(claimR.get(p) ?? RAT0, r))
   /** exactly what a Pool can still give: its start, less the takes and the claims */
   const availR = (id: string): Rat => subR(subR(ratOfDouble(S[id] ?? 0), takenR.get(id) ?? RAT0), claimR.get(id) ?? RAT0)
+  /** What a Gate's own Pool lines can bring with no room asked: each line up to its exact amount
+   *  and to what its Pool exactly holds, lines off one Pool sharing it, `back` (a plan's own
+   *  claims on a Pool) given back first. Asked where a `pull all` Gate stops, to say whether its
+   *  own Pools were short (issue #593). */
+  const ownSupplyR = (lines: { e: LoopEdge; wantR: Rat }[], back?: Map<string, Rat>): Rat => {
+    const used = new Map<string, Rat>()
+    let total = RAT0
+    for (const { e, wantR } of lines) {
+      const p = e.source
+      const has = maxR(RAT0, subR(addR(availR(p), back?.get(p) ?? RAT0), used.get(p) ?? RAT0))
+      const x = minR(wantR, has)
+      used.set(p, addR(used.get(p) ?? RAT0, x))
+      total = addR(total, x)
+    }
+    return total
+  }
   /** a capped Pool's room exactly: capacity, less the exact level, less the exact promises, `own` (exact) credited back (null: no capacity) */
   const roomRatR = (id: string, own: Rat): Rat | null => {
     const n = byId.get(id)
@@ -1753,8 +1769,10 @@ export function step(
     // What is reported is rounded to six decimals. An amount under that precision is reported
     // to six significant digits instead: a Gate that passed 5e-10 on does not read "moved 0".
     const r6 = (x: number) => (x !== 0 && Math.abs(x) < 1e-6 ? Number(x.toPrecision(6)) : Number(x.toFixed(6)))
-    /** the Gate's verdict, recorded at the point that decided what it moved */
-    const recordGate = (id: string, moved: number, fault?: 'inert' | 'cycle') => {
+    /** the Gate's verdict, recorded at the point that decided what it moved. `stoppedBy`: the
+     *  point found that the Gate's own Pools leave it short of what its lines ask by more than the
+     *  allowance of SEMANTICS-E.md §E11 (issue #593) */
+    const recordGate = (id: string, moved: number, fault?: 'inert' | 'cycle', stoppedBy?: 'pullAll') => {
       const { demand, available, ownWant, ownAvail } = numsOf(id)
       // The verdict is given at the reported precision: 1e-6, or, where the Gate's own amounts
       // are at or under that, 1e-6 of them (an absolute 1e-6 read every such Gate as `idle`).
@@ -1771,7 +1789,12 @@ export function step(
         if (available <= tol) state = 'idle'
         else {
           state = 'held'
-          why = planZeroWhy.get(id) ?? (modeOfRouter(id) === 'pullAll' && ownAvail < ownWant - tol ? 'pullAll' : 'room')
+          // A reason the plan gave stands. Then the stop's own finding: its own Pools short of
+          // its lines by more than the allowance (the test of the stop, exact, at the point that
+          // made it). The test in doubles at the reported precision is kept for the rest; alone,
+          // it read a stop for a shortfall between 1e-9 and 1e-6, or one the sum of doubles
+          // rounded away, as `room` (issue #593).
+          why = planZeroWhy.get(id) ?? (stoppedBy ?? (modeOfRouter(id) === 'pullAll' && ownAvail < ownWant - tol ? 'pullAll' : 'room'))
         }
       } else if (moved >= demand - tol) state = 'full'
       else {
@@ -2682,6 +2705,8 @@ export function step(
       /** is a `pull all` Gate's exact amount short of its demand by more than the absolute epsilon? */
       const shortOf = (m: string, exact: (m: string) => Rat): boolean =>
         cmpR(addR(exact(m), shortfallAllowedR(sourceDemand(m))), sourceDemand(m)) < 0
+      /** the `pull all` source Gates whose piece went to 0 for their own Pools (issue #593) */
+      const shortBySupply = new Set<string>()
       /** a `pull all` source Gate of a piece runs at its demand or not at all (the tree rule) */
       const pullAllSourcesOk = (p: Piece): boolean => {
         const c = amountsOf(sOf())
@@ -2693,7 +2718,13 @@ export function step(
           // was planned at 1.7e-16 of a demand of 17, stopped at its turn, and the Converter
           // behind it took its own lines' share)
           if (!(T > 0)) continue
-          if (shortOf(m, exact)) return false
+          if (shortOf(m, exact)) {
+            // the piece goes to 0 for it: say `pullAll` where its own Pools are short of its
+            // demand (issue #593), not where it is a room that held its number (E-open 3)
+            const lines = ownIns(m).map((e) => ({ e, wantR: exactWant(e, amountOf(e, availOf(e.source), S[e.source] ?? 0)) }))
+            if (cmpR(addR(addR(handedR(m), ownSupplyR(lines)), shortfallAllowedR(sourceDemand(m))), sourceDemand(m)) < 0) shortBySupply.add(m)
+            return false
+          }
         }
         return true
       }
@@ -3138,6 +3169,9 @@ export function step(
       if (zero) for (const m of members) if (kindOf(m) === 'gate') planZeroWhy.set(m, m === zeroAt || failedPullAll.has(m) ? 'pullAll' : 'plan')
       // record the plan; claim the inputs (`claimR`) and the output room, as the tree plan does
       const c = amountsOf(sOf())
+      // #593 — a `pull all` source Gate whose piece went to 0 for its own Pools says so; a reason
+      // the plan already gave stands
+      if (!zero) for (const m of shortBySupply) if (!((c.get(m) ?? 0) > 0) && !planZeroWhy.has(m)) planZeroWhy.set(m, 'pullAll')
       if (!zero) {
         // One working of every amount of the multi-supply plan. The record takes each amount from
         // the exact fractions the test decided on. The fraction is what is claimed or promised,
@@ -3349,7 +3383,12 @@ export function step(
             const short = cmpR(subR(askR, bringR), shortfallAllowedR(askR)) > 0
             if (short) {
               for (const { e, a, r } of plPulls) claimSubR(e.source, r ?? ratOfDouble(a))
-              recordGate(id, 0)
+              // `pullAll` where its own Pools (its claims given back), with no room asked, leave it
+              // short too; where it was the plan's room that cut it, the reason is not this (#593)
+              const lines = inOf(id)
+                .filter((e) => isPool(e.source) && !dead.has(e.id))
+                .map((e) => ({ e, wantR: exactWant(e, amountOf(e, availOf(e.source) + (plPulls.find((x) => x.e.id === e.id)?.a ?? 0), S[e.source] ?? 0)) }))
+              recordGate(id, 0, undefined, cmpR(subR(askR, ownSupplyR(lines)), shortfallAllowedR(askR)) > 0 ? 'pullAll' : undefined)
               continue
             }
           }
@@ -3497,7 +3536,10 @@ export function step(
             if (leftR !== null) leftR = subR(leftR, x)
           }
           if (mode === 'pullAll' && !handed && cmpR(subR(askR, bringR), shortfallAllowedR(askR)) > 0) {
-            recordGate(id, 0)
+            // `pullAll` where its own Pools, with no room asked (no `leftR`), leave it short too;
+            // where it was a room that cut it, the reason is not this (#593)
+            const supR = addR(inR, ownSupplyR(wants.map((w) => ({ e: w.e, wantR: exactWant(w.e, w.want) }))))
+            recordGate(id, 0, undefined, cmpR(subR(askR, supR), shortfallAllowedR(askR)) > 0 ? 'pullAll' : undefined)
             continue
           }
           const liveW = probabilistic || outOf(id).some((e) => !skipDet(e.id) && rateOfCached(e) > 0)

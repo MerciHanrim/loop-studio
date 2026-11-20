@@ -140,4 +140,9 @@
 //                       group that fits at its cap only, where the cap is not a double,
 //                       was planned at 0, since no double fits and the search ended at 0
 //                       before the cap was asked
-export const ENGINE_REVISION = 21
+//   22                  issue #593 — a held `pull all` Gate whose own Pools leave it short by
+//                       more than the allowance reads `pullAll`, the reason given where the
+//                       stop is decided (SEMANTICS-E.md §E16); it read `room` where the
+//                       shortfall was under 1e-6, or rounded away in a sum of doubles. What
+//                       moves is unchanged; the reason is part of a run's reported result
+export const ENGINE_REVISION = 22

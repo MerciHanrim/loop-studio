@@ -3,10 +3,10 @@
 ```
 Spec ID: loop-exact/1
 Status:  Normative from engine revision 16. Every numbered E-open case is settled: 1, 2 and 4 by engine revisions, 3 and 5 as stops that are meant
-Engine:  revision 16; §E19's rule for a group is of revision 17, §E20 of revision 18, §E21 of revision 19, §E11's reading of a planned `pull all` Converter of revision 20, §E22 of revision 21 (SEMANTICS-W2.md §W2-1)
+Engine:  revision 16; §E19's rule for a group is of revision 17, §E20 of revision 18, §E21 of revision 19, §E11's reading of a planned `pull all` Converter of revision 20, §E22 of revision 21, §E16's reason of a held `pull all` Gate of revision 22 (SEMANTICS-W2.md §W2-1)
 ```
 
-**In force with engine revision 16 (issue #572).** The rules E1 to E19, with E11a and E11b, are what that engine does and what its tests hold (§E19's rule for a group from revision 17). §E20 holds from engine revision 18 (issue #581), §E21 from engine revision 19 (issue #582), §E11's reading of what a planned `pull all` Converter received off the record from engine revision 20 (issue #572; it settles E-open 2 and 4), and §E22 from engine revision 21 (issue #572; it settles E-open 1). E-open 3, and the remaining case of issue #572 that E-open 5 names, are stops the rules make, and they are meant: §E13, §E14 and §E11 for the first, §E5 and §E11 for the second. Their values are written below, and their tests hold them as they are. Every numbered E-open case is settled. That does not widen any rule: §E22 still does not cover a group whose numbers that fit include a single point under its cap.
+**In force with engine revision 16 (issue #572).** The rules E1 to E19, with E11a and E11b, are what that engine does and what its tests hold (§E19's rule for a group from revision 17). §E20 holds from engine revision 18 (issue #581), §E21 from engine revision 19 (issue #582), §E11's reading of what a planned `pull all` Converter received off the record from engine revision 20 (issue #572; it settles E-open 2 and 4), §E22 from engine revision 21 (issue #572; it settles E-open 1), and §E16's reason of a held `pull all` Gate from engine revision 22 (issue #593). E-open 3, and the remaining case of issue #572 that E-open 5 names, are stops the rules make, and they are meant: §E13, §E14 and §E11 for the first, §E5 and §E11 for the second. Their values are written below, and their tests hold them as they are. Every numbered E-open case is settled. That does not widen any rule: §E22 still does not cover a group whose numbers that fit include a single point under its cap.
 
 This document changes how a step is **worked out and recorded**, for every model version. It does not change what a document means, what a file holds, or the digest. It extends [`SEMANTICS.md`](SEMANTICS.md) and its companions and replaces the passages listed under "What this replaces". Where it says nothing, they hold as written.
 
@@ -133,6 +133,17 @@ Three things follow and are meant. All come of one fact: a capacity and a level 
 **E16. The notices' threshold is its own.** A notice that names an amount (an amount that stayed with a router, an amount a Converter could not use) is given for more than `1e-6`. That is a display threshold of the notices and has nothing to do with what is moved or with a capacity; the exact amount under it is in the record all the same. The reports that are worked from the events (a table line's moved amount, a run rule's shares, the outflow by kind) read what is shown.
 
 **A Gate's reported state follows its firing.** The state a Gate reports for the step (issue #477: `idle`, `full`, `partial`, `held`) is given at the precision of what it reports, `1e-6`, and, where the Gate's own amounts are at or under that, at `1e-6` of them. It never contradicts §E9: a Gate that moved anything reads `full` or `partial`, and one that moved nothing reads `idle` or `held`, however small the amounts. The numbers beside it are rounded to six decimals, and an amount under that precision is given to six significant digits, so that a Gate that passed `5e-10` on does not read as having moved 0.
+
+**The reason of a held `pull all` Gate follows its stop** (engine revision 22, issue #593). A `pull all` Gate that its own Pools leave short of what its lines ask by more than the allowance of §E11 or §E11a reads `held` / `pullAll`, however small the shortfall. The reason is given where the stop is decided, on the exact amounts:
+
+- at the Gate's turn, outside every plan or as a planned source Gate;
+- where a plan sets the piece of its source Gate to 0.
+
+Its own Pools are asked with no room: where a room cut the Gate, and its own Pools would have covered it, the reason stays `room` (E-open 3 is such a case). A reason the plan already gave stands (`plan`, `pullAll`).
+
+Until revision 22 the reason was asked in doubles at the reported precision. A shortfall between `1e-9` and `1e-6`, or one a sum of doubles rounded away, read `room` in a graph with no capacity at all: seed 2950, step 4, at 10⁸ and 10⁹.
+
+This covers the `pull all` Gate's own reason. A `pull any` Gate that moves nothing, or moves part, because a plan set the piece upstream of it to 0 is not covered by it (issue #593).
 
 **E17. A move that is not shown is marked.** Because of §E7 a Pool's value can change, a node can fire and a run can end with no event. The interface says so in two places:
 
@@ -284,6 +295,7 @@ That mend had been tried once and taken out: read off the exact amounts, the ver
 - `src/engine/kinds.test.ts`: §E20 for a recipe of a conserved kind.
 - `src/engine/pullAllShort.test.ts`: §E11, §E11a and §E11b: a third short stops at every size, on every kind of `pull all` node; a node that can have all it asks runs at every size; the edge of the absolute epsilon just above `1e-9`; what a Drain and an End record; a `pull all` Converter that can have all it asks, at four sizes, alone and beside a Gate.
 - `src/engine/gateStateSmall.test.ts`: a Gate's reported state against its firing, at four sizes.
+- `src/engine/gateStatus.test.ts`, "#593": §E16's reason of a held `pull all` Gate. Six stops by its own supply read `pullAll`: alone at `1e-7` and at a last place of `5e8`, after an earlier member took of its Pool, in seed 2950's plan, and with a room short as well. Four controls stay as they were: a room alone, a shortfall within the allowance, E-open 3, and a reason the plan gave.
 - `src/engine/exactMovesOpen.test.ts`: the stops that were open, pinned as they are. E-open 3 at eighteen scales, with `p3`'s room asked exactly at each; seed 2950 at step 4 at 1, 10⁸ and 10⁹; §E14's room a hair short.
 - `src/engine/exactMovesCases.test.ts`, "a plan that fits at one number only, its exact cap": §E22 on E-open 1's graph at nine scales, with `pull all` members, and two controls where a margin is passed at the cap.
 - `src/engine/exactMovesCases.test.ts`, "a planned `pull all` Converter reads what arrived off the record of moves": E-open 2 and 4 as settled, and a real shortfall that still stops.
