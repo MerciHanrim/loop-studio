@@ -2,11 +2,11 @@
 
 ```
 Spec ID: loop-exact/1
-Status:  Normative from engine revision 16. Every E-open is settled: 1, 2 and 4 by engine revisions, 3 and 5 as stops that are meant
+Status:  Normative from engine revision 16. Every numbered E-open case is settled: 1, 2 and 4 by engine revisions, 3 and 5 as stops that are meant
 Engine:  revision 16; §E19's rule for a group is of revision 17, §E20 of revision 18, §E21 of revision 19, §E11's reading of a planned `pull all` Converter of revision 20, §E22 of revision 21 (SEMANTICS-W2.md §W2-1)
 ```
 
-**In force with engine revision 16 (issue #572).** The rules E1 to E19, with E11a and E11b, are what that engine does and what its tests hold (§E19's rule for a group from revision 17). §E20 holds from engine revision 18 (issue #581), §E21 from engine revision 19 (issue #582), §E11's reading of what a planned `pull all` Converter received off the record from engine revision 20 (issue #572; it settles E-open 2 and 4), and §E22 from engine revision 21 (issue #572; it settles E-open 1). E-open 3, and the remaining case of issue #572 that E-open 5 names, are stops the rules make, and they are meant: §E13, §E14 and §E11 for the first, §E5 and §E11 for the second. Their values are written below, and their tests hold them as they are. No boundary of this document is open.
+**In force with engine revision 16 (issue #572).** The rules E1 to E19, with E11a and E11b, are what that engine does and what its tests hold (§E19's rule for a group from revision 17). §E20 holds from engine revision 18 (issue #581), §E21 from engine revision 19 (issue #582), §E11's reading of what a planned `pull all` Converter received off the record from engine revision 20 (issue #572; it settles E-open 2 and 4), and §E22 from engine revision 21 (issue #572; it settles E-open 1). E-open 3, and the remaining case of issue #572 that E-open 5 names, are stops the rules make, and they are meant: §E13, §E14 and §E11 for the first, §E5 and §E11 for the second. Their values are written below, and their tests hold them as they are. Every numbered E-open case is settled. That does not widen any rule: §E22 still does not cover a group whose numbers that fit include a single point under its cap.
 
 This document changes how a step is **worked out and recorded**, for every model version. It does not change what a document means, what a file holds, or the digest. It extends [`SEMANTICS.md`](SEMANTICS.md) and its companions and replaces the passages listed under "What this replaces". Where it says nothing, they hold as written.
 
