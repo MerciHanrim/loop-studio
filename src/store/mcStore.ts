@@ -85,7 +85,12 @@ type McStore = {
   clear: () => void
 }
 
-let controller: AbortController | null = null
+/** the run in flight, by its own controller. A run writes the store (progress,
+ *  result, cancellation, failure) only while it is still this one: opening
+ *  another document cancels it and lets go of it (review S3, the subscription
+ *  at the end of this file), so its late answer changes nothing of the document
+ *  now open, and Cancel reaches only the run that is current. */
+let current: AbortController | null = null
 let messageTimer: ReturnType<typeof setTimeout> | undefined
 
 export const useMcStore = create<McStore>((set, get) => ({
@@ -225,19 +230,21 @@ export const useMcStore = create<McStore>((set, get) => ({
     useSimStore.getState().pause() // the live run yields to the batch
 
     clearTimeout(messageTimer)
-    controller = new AbortController()
+    const mine = new AbortController()
+    current = mine
+    const isCurrent = () => current === mine
     // keep any previous successful result visible until this run succeeds
     set({ status: 'running', progress: 0, completedRuns: 0, message: '' })
 
     const onProgress = (p: MonteCarloProgress) => {
-      if (get().status !== 'running') return
+      if (!isCurrent() || get().status !== 'running') return
       set({ progress: p.progress, completedRuns: p.completedRuns })
     }
 
     const t0 = performance.now()
     try {
       const result = await runMonteCarloParallel(nodes, edges, config, {
-        signal: controller.signal,
+        signal: mine.signal,
         onProgress,
       })
       const wallMs = performance.now() - t0
@@ -247,6 +254,9 @@ export const useMcStore = create<McStore>((set, get) => ({
       // so a result computed under v1 is not mistaken for a current v2 result
       // (and vice versa) after a promotion / cross-version Import.
       const resultGraphDigest = await semanticDigest({ nodes, edges, kinds, time, timetables }, config.modelVersion)
+      // another document opened while the runner or the digest was awaited:
+      // this answer is not the open document's (review S3)
+      if (!isCurrent()) return
       // issue #407 — the result belongs to the graph captured at START. If the
       // document's simulation semantics moved on while the run was in flight,
       // it lands already stale: the values, `runGraph`, `runRev` and the digest
@@ -269,6 +279,9 @@ export const useMcStore = create<McStore>((set, get) => ({
         message: '',
       })
     } catch (e) {
+      // a run let go of (another document opened) reports nothing: its
+      // cancellation was not asked for on the document now open
+      if (!isCurrent()) return
       const err = e as Error
       if (err.name === 'AbortError') {
         // previous successful result (if any) stays; brief "Cancelled" note
@@ -280,16 +293,17 @@ export const useMcStore = create<McStore>((set, get) => ({
         set({ status: 'error', message: 'failed', errorDetail: err.message || '' })
       }
     } finally {
-      controller = null
+      if (isCurrent()) current = null // never another run's: a later run may be current by now
     }
   },
 
   cancel: () => {
-    controller?.abort()
+    current?.abort()
   },
 
   clear: () => {
-    controller?.abort()
+    current?.abort()
+    current = null
     set({
       status: 'idle',
       result: null,
@@ -364,4 +378,24 @@ useGraphStore.subscribe((g) => {
   reconcileTracked()
   const s = useMcStore.getState()
   if (s.result && !s.stale) useMcStore.setState({ stale: true })
+})
+
+// review S3 (Lumi, 2026-11-21) — a run belongs to the document it started on.
+// Another document (New, a Template, a file, a Share link, a Workspace:
+// `documentRev`) cancels the run in flight and lets go of it, so whatever it
+// answers later — result, cancellation, progress — changes nothing here. The
+// status leaves `running` as a Cancel leaves it, without the "Cancelled" note:
+// nobody pressed Cancel on this document. A Workspace's own saved result is
+// restored after this, by `restoreResult`. An EDIT of the same document, a
+// revision Apply included, is not another document: #407's rule stands.
+let lastDocumentRev = useGraphStore.getState().documentRev
+useGraphStore.subscribe((g) => {
+  if (g.documentRev === lastDocumentRev) return
+  lastDocumentRev = g.documentRev
+  const run = current
+  if (run === null) return
+  current = null
+  run.abort()
+  const s = useMcStore.getState()
+  useMcStore.setState({ status: s.result ? 'done' : 'idle', progress: 0, completedRuns: s.result?.completedRuns ?? 0, message: '' })
 })

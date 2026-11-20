@@ -204,6 +204,13 @@ type GraphStore = {
    *  store watches this to drop its ephemeral selections on a graph swap. */
   loadRev: number
 
+  /** bumped only when ANOTHER document opens — `newGraph`, `loadGraph`, and
+   *  `loadDoc` in `document-boundary` mode (a file, a Share link, a Workspace),
+   *  the moments `documentBoundarySink` fires. Unlike `loadRev`, NOT a revision
+   *  Apply (an edit of this document). `mcStore` watches it: a Monte Carlo run
+   *  belongs to the document it started on (review S3). */
+  documentRev: number
+
   /** bumped only by `loadGraph` — a Templates load or a pasted graph: a
    *  whole-graph swap that carries NO viewport of its own and lands on top of
    *  another graph the user was already looking at. The Canvas watches this to
@@ -1106,6 +1113,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     selectedEdgeId: null,
     simulationRev: 0,
     loadRev: 0,
+    documentRev: 0,
     fitRev: 0,
     pendingInitialView: null,
     pristineSample: stored == null,
@@ -1542,6 +1550,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         phases: [], // docs/run-phases.md — and no phases
         recordLabels: false,
         loadRev: get().loadRev + 1,
+        documentRev: get().documentRev + 1,
         pendingInitialView: null, // §MML3 — no menu framing survives a New
         // `newGraph` does NOT bump `fitRev`: an empty canvas has nothing to fit,
         // and every e2e `resetAll()` calls this right before an `importGraph` —
@@ -1577,6 +1586,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         phases: phases ? phases.map(canonicalPhase) : [], // docs/run-phases.md — its phases, or none
         recordLabels: false,
         loadRev: get().loadRev + 1,
+        documentRev: get().documentRev + 1,
         fitRev: get().fitRev + 1,
         // §MML3 — a menu-opened Template's framing hint; `null` for a paste
         pendingInitialView: initialView,
@@ -1649,6 +1659,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         // a revision Apply edits this one and keeps its rule
         recordLabels: opts.mode === 'document-boundary' ? opts.recordLabels === true : get().recordLabels,
         loadRev: get().loadRev + 1,
+        documentRev: opts.mode === 'document-boundary' ? get().documentRev + 1 : get().documentRev,
         pendingInitialView: null, // §MML3 — file / Share / Workspace keeps its own camera
       })
       if (frames !== undefined) frameSidecar?.set(frames) // §SF6 — replace with the doc's saved frames
