@@ -152,6 +152,7 @@ const canvas = {
   'node.gate.state.fault': 'Bước này không thể chạy.',
   'node.gate.why.supply': 'Đầu vào của nó có ít hơn lượng nó yêu cầu.',
   'node.gate.why.upstream': 'Được cấp một phần: nguồn cấp cho nó không thể giao thêm ở bước này, và nó đã nhận toàn bộ phần đó.',
+  'node.gate.why.upstreamHeld': 'Ở bước này không có gì đến từ nguồn cấp cho nó.',
   'node.gate.why.room': 'Đầu ra của nó không còn chỗ.',
   'node.gate.why.pullAll': 'Yêu cầu tất cả hoặc không của nó không được đáp ứng, nên nó không chuyển gì.',
   'node.gate.why.plan': 'Nhóm chạy cùng nó không chuyển gì ở bước này.',

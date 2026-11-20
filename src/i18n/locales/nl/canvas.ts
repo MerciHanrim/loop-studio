@@ -151,6 +151,7 @@ const canvas = {
   'node.gate.state.fault': 'Kon in deze stap niet draaien.',
   'node.gate.why.supply': 'Zijn invoer bevatte minder dan het vroeg.',
   'node.gate.why.upstream': 'Deels bevoorraad: wat het voedt kon in deze stap niet meer leveren, en daarvan heeft het alles genomen.',
+  'node.gate.why.upstreamHeld': 'Van wat het voedt, kwam in deze stap niets aan.',
   'node.gate.why.room': 'Zijn uitgang bood er geen ruimte meer voor.',
   'node.gate.why.pullAll': 'Zijn alles-of-niets-vraag werd niet vervuld, dus heeft het niets verplaatst.',
   'node.gate.why.plan': 'De groep waarmee het draait heeft in deze stap niets verplaatst.',

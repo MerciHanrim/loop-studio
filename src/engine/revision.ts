@@ -145,4 +145,10 @@
 //                       stop is decided (SEMANTICS-E.md §E16); it read `room` where the
 //                       shortfall was under 1e-6, or rounded away in a sum of doubles. What
 //                       moves is unchanged; the reason is part of a run's reported result
-export const ENGINE_REVISION = 22
+//   23                  issue #593 — a Gate fed by a piece a plan set to 0 for its `pull all`
+//                       Gate's own supply has its reason worked out without what that piece
+//                       offered (SEMANTICS-E.md §E16): `plan` where its group moved nothing,
+//                       `upstream` where nothing arrived and the group moved, and the tests
+//                       as before on what is left; it read `room`. `available` and every
+//                       move are unchanged
+export const ENGINE_REVISION = 23

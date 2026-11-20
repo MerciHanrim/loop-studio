@@ -136,6 +136,7 @@ const canvas = {
   'node.gate.state.fault': 'Could not run this step.',
   'node.gate.why.supply': 'Its inputs held less than it asked for.',
   'node.gate.why.upstream': 'Supplied in part: what feeds it could deliver no more this step, and it took all of that.',
+  'node.gate.why.upstreamHeld': 'Nothing arrived from what feeds it this step.',
   'node.gate.why.room': 'Its outlet had no room left for it.',
   'node.gate.why.pullAll': 'Its all-or-nothing demand was not met, so it moved nothing.',
   'node.gate.why.plan': 'The group it runs with moved nothing this step.',

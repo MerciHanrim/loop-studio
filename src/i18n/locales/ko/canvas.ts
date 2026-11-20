@@ -128,6 +128,7 @@ const canvas = {
   'node.gate.state.fault': '이번 단계에 실행할 수 없었습니다.',
   'node.gate.why.supply': '입력에 요청한 양보다 적게 들어 있었습니다.',
   'node.gate.why.upstream': '일부만 공급됨: 앞에서 보내는 쪽이 이번 단계에 더 보낼 수 없었고, 보내온 양은 모두 받았습니다.',
+  'node.gate.why.upstreamHeld': '이번 단계에 앞에서 보내는 쪽에서 도착한 것이 없었습니다.',
   'node.gate.why.room': '내보낼 곳에 남은 공간이 없었습니다.',
   'node.gate.why.pullAll': '전부 아니면 없음 조건의 수요가 채워지지 않아 아무것도 옮기지 않았습니다.',
   'node.gate.why.plan': '함께 실행되는 그룹이 이번 단계에 아무것도 옮기지 않았습니다.',

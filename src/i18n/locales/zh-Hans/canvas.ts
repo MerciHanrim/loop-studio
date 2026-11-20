@@ -135,6 +135,7 @@ const canvas = {
   'node.gate.state.fault': '本步无法运行。',
   'node.gate.why.supply': '输入所持有的少于它的请求量。',
   'node.gate.why.upstream': '仅部分供应：上游本步无法再多送，送来的它已全部接收。',
+  'node.gate.why.upstreamHeld': '本步上游没有送来任何东西。',
   'node.gate.why.room': '出口没有剩余空间。',
   'node.gate.why.pullAll': '“全有或全无”的需求未被满足，因此没有移动任何内容。',
   'node.gate.why.plan': '与它一起运行的组本步没有移动任何内容。',

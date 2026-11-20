@@ -153,6 +153,7 @@ const canvas = {
   'node.gate.state.fault': 'N’a pas pu s’exécuter à ce pas.',
   'node.gate.why.supply': 'Ses entrées contenaient moins que ce qu’il demandait.',
   'node.gate.why.upstream': 'Alimenté en partie : ce qui l’alimente ne pouvait pas livrer davantage à ce pas, et il a pris tout cela.',
+  'node.gate.why.upstreamHeld': 'Rien n’est arrivé de ce qui l’alimente à ce pas.',
   'node.gate.why.room': 'Sa sortie n’avait plus de place pour lui.',
   'node.gate.why.pullAll': 'Sa demande tout ou rien n’a pas été satisfaite, il n’a donc rien déplacé.',
   'node.gate.why.plan': 'Le groupe avec lequel il s’exécute n’a rien déplacé à ce pas.',

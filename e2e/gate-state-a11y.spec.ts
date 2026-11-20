@@ -121,3 +121,75 @@ test.describe('#477 — a Gate\'s state reaches the keyboard and assistive tech'
     await pickLocale(page, 'en')
   })
 })
+
+// Issue #593 (Lumi's review of PR #595) — `upstream` reads differently by state. A `pull all` Gate g0 is
+// 0.5 short of its own lines (A holds 4.5 of 5), so the plan sets its piece to 0; it hands one part to g1,
+// which has no line of its own, and one part to g2, which also takes 4 of its own from D. g2 moves, so
+// g1 is held with nothing arrived from what feeds it (`held` / `upstream`, a phrase of its own), and g2
+// passes on a part with its own lines whole (`partial` / `upstream`, "supplied in part"). Both phrases
+// are read where a person reads them: the focused node's accessible name and the Inspector's line, in
+// English and in Korean.
+const pos = (x: number, y: number) => ({ x, y })
+const M12 = JSON.stringify({
+  schema: 'loop-studio/graph',
+  version: 1,
+  nodes: [
+    // (within the 480 by 200 the fixture above uses, so every node is in view at the default zoom)
+    { id: 'A', type: 'pool', position: pos(0, 0), data: { kind: 'pool', label: 'A', activation: 'passive', initial: 4.5, capacity: null, mode: 'pullAny' } },
+    { id: 'B', type: 'pool', position: pos(0, 200), data: { kind: 'pool', label: 'B', activation: 'passive', initial: 5, capacity: null, mode: 'pullAny' } },
+    { id: 'g0', type: 'gate', position: pos(120, 100), data: { kind: 'gate', label: 'g0', activation: 'automatic', distribution: 'deterministic', mode: 'pullAll' } },
+    { id: 'g1', type: 'gate', position: pos(240, 0), data: { kind: 'gate', label: 'g1', activation: 'automatic', distribution: 'deterministic', mode: 'pullAny' } },
+    { id: 'Q', type: 'pool', position: pos(360, 0), data: { kind: 'pool', label: 'Q', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+    { id: 'D', type: 'pool', position: pos(120, 200), data: { kind: 'pool', label: 'D', activation: 'passive', initial: 10, capacity: null, mode: 'pullAny' } },
+    { id: 'g2', type: 'gate', position: pos(240, 200), data: { kind: 'gate', label: 'g2', activation: 'automatic', distribution: 'deterministic', mode: 'pullAny' } },
+    { id: 'R', type: 'pool', position: pos(360, 200), data: { kind: 'pool', label: 'R', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+  ],
+  edges: [
+    { id: 'a', type: 'loop', source: 'A', target: 'g0', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '5' } },
+    { id: 'b', type: 'loop', source: 'B', target: 'g0', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '5' } },
+    { id: 'h1', type: 'loop', source: 'g0', target: 'g1', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+    { id: 'h2', type: 'loop', source: 'g0', target: 'g2', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+    { id: 'd', type: 'loop', source: 'D', target: 'g2', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '4' } },
+    { id: 'q', type: 'loop', source: 'g1', target: 'Q', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+    { id: 'r', type: 'loop', source: 'g2', target: 'R', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+  ],
+})
+
+test.describe('#593 — `upstream` on a held Gate and on a part, on screen', () => {
+  test.beforeEach(async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, M12)
+    await advance(page)
+    expect((await gates(page)).map((g) => [g.nodeId, g.state, g.why])).toEqual([
+      ['g0', 'held', 'pullAll'],
+      ['g1', 'held', 'upstream'],
+      ['g2', 'partial', 'upstream'],
+    ])
+  })
+
+  for (const locale of ['en', 'ko'] as const) {
+    test(`${locale}: the held Gate says nothing arrived, the Gate that passed a part says it was supplied in part`, async ({ page }) => {
+      if (locale !== 'en') await pickLocale(page, locale)
+      const c = await catalog(page)
+      const held = `${c['node.gate.state.held']} ${c['node.gate.why.upstreamHeld']}`
+      const part = `${c['node.gate.state.partial']} ${c['node.gate.why.upstream']}`
+      expect(c['node.gate.why.upstreamHeld']).not.toBe(c['node.gate.why.upstream'])
+      // the focused node's accessible name: the state, then the reason, then "focused"
+      await tabTo(page, 'g1')
+      await expect(node(page, 'g1')).toHaveAccessibleName(new RegExp(`^${escape(c['canvas.nodeKind.gate'])} g1, .*${escape(held)}, ${escape(c['node.aria.focused'])}$`))
+      await expect(node(page, 'g1')).not.toHaveAccessibleName(new RegExp(escape(c['node.gate.why.upstream'])))
+      await tabTo(page, 'g2')
+      await expect(node(page, 'g2')).toHaveAccessibleName(new RegExp(`^${escape(c['canvas.nodeKind.gate'])} g2, .*${escape(part)}, ${escape(c['node.aria.focused'])}$`))
+      await expect(node(page, 'g2')).not.toHaveAccessibleName(new RegExp(escape(c['node.gate.why.upstreamHeld'])))
+      // the Inspector's line for each, with its numbers after the phrases
+      await node(page, 'g1').click()
+      await expect(inspectorLine(page)).toHaveAttribute('data-gate-state', 'held')
+      await expect(inspectorLine(page)).toHaveText(new RegExp(`^${escape(held)} `))
+      await node(page, 'g2').click()
+      await expect(inspectorLine(page)).toHaveAttribute('data-gate-state', 'partial')
+      await expect(inspectorLine(page)).toHaveText(new RegExp(`^${escape(part)} `))
+      if (locale !== 'en') await pickLocale(page, 'en')
+    })
+  }
+})

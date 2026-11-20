@@ -138,6 +138,7 @@ const canvas = {
   'node.gate.state.fault': '這一步無法執行。',
   'node.gate.why.supply': '輸入所持有的少於它的請求量。',
   'node.gate.why.upstream': '僅部分供應：上游這一步無法再多送，送來的它已全部接收。',
+  'node.gate.why.upstreamHeld': '這一步上游沒有送來任何東西。',
   'node.gate.why.room': '出口沒有剩餘空間。',
   'node.gate.why.pullAll': '「全有或全無」的需求未被滿足，因此沒有移動任何內容。',
   'node.gate.why.plan': '與它一起執行的群組這一步沒有移動任何內容。',

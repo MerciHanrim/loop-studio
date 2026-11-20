@@ -155,12 +155,16 @@ export type GateStatus = {
   /** why a `partial`, `held` or `fault`; absent for `idle` and `full`.
    *  `supply`: its own Pools held less than it asked for. `upstream`: a
    *  router that feeds it could deliver no more — it took all it was offered
-   *  (a `pull all` Gate too: the rule binds its own Pools only, D-demand).
+   *  (a `pull all` Gate too: the rule binds its own Pools only, D-demand); on a
+   *  `held` Gate, nothing arrived from what feeds it while its group moved
+   *  (issue #593: the piece above it was set to 0 for its `pull all` Gate's own
+   *  supply; its phrase is its own, `node.gate.why.upstreamHeld`).
    *  `room`: its outlet had no room left for it (a full target, no live
    *  branch, or an earlier supply of its group took the room). `pullAll`: its
    *  all-or-nothing demand on its own Pools was not met. `plan`: the group it
-   *  runs with moved nothing (a `pull all` Converter short of `f = 1`, or a
-   *  shared piece that cannot be met). */
+   *  runs with moved nothing (a `pull all` Converter short of `f = 1`, a
+   *  shared piece that cannot be met, or a piece above it set to 0 for its
+   *  `pull all` Gate's own supply, issue #593). */
   why?: 'supply' | 'upstream' | 'room' | 'pullAll' | 'plan' | 'inert' | 'cycle'
   /** what it would have moved with nothing binding it (rounded to 6 decimals) */
   demand: number

@@ -157,6 +157,7 @@ const canvas = {
   'node.gate.state.fault': 'Não pôde executar neste passo.',
   'node.gate.why.supply': 'As entradas tinham menos do que ele pediu.',
   'node.gate.why.upstream': 'Abastecido em parte: o que o alimenta não pôde entregar mais neste passo, e ele recebeu tudo isso.',
+  'node.gate.why.upstreamHeld': 'Nada chegou do que o alimenta neste passo.',
   'node.gate.why.room': 'A saída não tinha mais espaço para ele.',
   'node.gate.why.pullAll': 'A exigência de tudo ou nada não foi cumprida, por isso nada foi movido.',
   'node.gate.why.plan': 'O grupo em que ele é executado não moveu nada neste passo.',
