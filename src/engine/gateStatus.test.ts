@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { LoopEdge, LoopNode } from '../model/types'
 import { initSim, step } from './index'
 import type { GateStatus } from './types'
+import { graphWithSourceLines, plainGraph } from './generatedGraphs.fixture'
 
 // Issue #477 — a Gate's execution evidence (`StepReport.gates`). The design is
 // the QA record gate-state-design.md rev 2 (Lumi, 2026-11-02): the state is
@@ -191,5 +192,78 @@ describe('#477 — the Gate state is decided by the engine, against a plan-free 
     const g = single(100, null, 'pullAny')
     const ended = step(g.nodes, g.edges, { ...initSim(g.nodes), ended: true }, 1, 2)
     expect(ended.report.gates).toEqual([])
+  })
+})
+
+// Issue #593 — a `pull all` Gate that its own Pools leave short by more than the allowance of
+// SEMANTICS-E.md §E11 (1e-9) stops, and says `pullAll`, whatever the size of the shortfall. The
+// reason is given where the stop is decided: at the Gate's turn, and where a plan sets its piece
+// to 0. It read `room` where the shortfall was under the reported precision (1e-6), or where the
+// sum of doubles rounded it away, in a graph with no capacity at all. Where it is a room that cut
+// the Gate, `room` stands; a reason the plan already gave (`plan`) stands.
+const F64 = new Float64Array(1)
+const U64 = new BigUint64Array(F64.buffer)
+/** the double one last place under x */
+const lastPlaceUnder = (x: number) => {
+  F64[0] = x
+  U64[0] -= 1n
+  return F64[0]
+}
+/** the Gate entries of step `at` of a generated graph (the seed and model version of exactMoves*.test.ts) */
+const gatesAt = ({ nodes, edges }: Graph, at: number): GateStatus[] => {
+  let st = initSim(nodes)
+  let r = step(nodes, edges, st, 7, 2)
+  for (let i = 2; i <= at; i++) {
+    st = r.state
+    r = step(nodes, edges, st, 7, 2)
+  }
+  return r.report.gates
+}
+const held = (g: GateStatus[], id: string, why: GateStatus['why']) => {
+  const e = only(g, id)
+  expect(`${e.state}/${e.why}`, id).toBe(`held/${why}`)
+  expect(e.moved, `${id} moved`).toBe(0)
+}
+
+describe('#593 — a `pull all` Gate stopped by its own supply says `pullAll`, at any size of the shortfall', () => {
+  it('alone, one line of 5, its Pool holds 4.9999999 (1e-7 short): held by its `pull all` rule', () => {
+    const g: Graph = { nodes: [pool('a', 4.9999999), gate('G', 'pullAll'), pool('x', 0)], edges: [res('e1', 'a', 'G', '5'), res('o1', 'G', 'x', '5')] }
+    held(run(g).gates, 'G', 'pullAll')
+  })
+  it('alone, two lines of 5e8, one Pool a last place under (6e-8 short, which a sum of doubles rounds away): held by its `pull all` rule', () => {
+    const g: Graph = {
+      nodes: [pool('a', lastPlaceUnder(5e8)), pool('b', 5e8), gate('G', 'pullAll'), pool('x', 0)],
+      edges: [res('e1', 'a', 'G', '500000000'), res('e2', 'b', 'G', '500000000'), res('o1', 'G', 'x', '1')],
+    }
+    held(run(g).gates, 'G', 'pullAll')
+  })
+  it('an earlier member took of its Pool first (generated graph, seed 34, at 10^-6, steps 1 and 2: a Converter takes 3e-6 of 5e-6, and the Gate asks 3e-6)', () => {
+    for (const at of [1, 2]) held(gatesAt(plainGraph(34, -6), at), 'g1', 'pullAll')
+  })
+  it('an earlier Gate emptied its Pool, which was 1e-6 short already (generated graph, seed 5, at 10^-6, step 1)', () => {
+    held(gatesAt(plainGraph(5, -6), 1), 'g0', 'pullAll')
+  })
+  it('seed 2950 at 10^8 and 10^9, step 4: the plan sets g0`s piece to 0, its Pool a last place short of 5 times the scale', () => {
+    for (const n of [8, 9]) held(gatesAt(plainGraph(2950, n), 4), 'g0', 'pullAll')
+  })
+  it('a room AND a supply 1e-7 short: its own Pools fail it first, as for a larger shortfall', () => {
+    const g: Graph = { nodes: [pool('a', 4.9999999), gate('G', 'pullAll'), pool('x', 9, 10)], edges: [res('e1', 'a', 'G', '5'), res('o1', 'G', 'x', '5')] }
+    held(run(g).gates, 'G', 'pullAll')
+  })
+  // controls: unchanged
+  it('control: the supply is whole and the room is 1 of 5: held by room', () => {
+    const g: Graph = { nodes: [pool('a', 5), gate('G', 'pullAll'), pool('x', 9, 10)], edges: [res('e1', 'a', 'G', '5'), res('o1', 'G', 'x', '5')] }
+    held(run(g).gates, 'G', 'room')
+  })
+  it('control: within the allowance (1e-10 short) the Gate runs and takes what its Pool holds', () => {
+    const g: Graph = { nodes: [pool('a', 4.9999999999), gate('G', 'pullAll'), pool('x', 0)], edges: [res('e1', 'a', 'G', '5'), res('o1', 'G', 'x', '5')] }
+    expect(only(run(g).gates, 'G').state).toBe('full')
+  })
+  it('control: E-open 3 (generated graph with Source lines, seed 3763, at 10^-8): a room a last place short holds the piece of the `pull all` Gate g1, whose Pools are whole: held by room', () => {
+    held(gatesAt(graphWithSourceLines(3763, -8), 1), 'g1', 'room')
+  })
+  it('control: a reason the plan gave stands (seed 727 at 10^-12, step 3; seed 1056 at 10^-12, step 1: a `pull all` Converter zeroes the group)', () => {
+    held(gatesAt(plainGraph(727, -12), 3), 'g2', 'plan')
+    held(gatesAt(plainGraph(1056, -12), 1), 'g0', 'plan')
   })
 })
