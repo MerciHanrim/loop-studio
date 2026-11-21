@@ -179,10 +179,25 @@ bump).
    carries a digest under the old projection; on Import the compare fails and
    its saved result is attached `stale: true` with the §W3.2 notice, once — a
    re-run clears it. Files without a Parameter, and v1 files, are unaffected.
+   **Erratum (review M2, 2026-11-21):** a Pool's `resourceType` is projected
+   from `loop-model/3`, normalised as the engine reads it (§M4.1: trim, NFC),
+   and only when it has one. From that version it gives the Pool's lines their
+   kind (`SEMANTICS-M3.md` §M3-2), which can refuse the run, and from
+   `loop-model/4` it says what the Pool's `unit` means. A Pool's `unit` was
+   projected from `loop-model/4` already. A Source's `resourceType` is read by
+   no layer and stays out. **Compatibility:** a Workspace file exported before
+   this erratum whose graph is at `loop-model/3` or later and has a Pool or a
+   resource connection with a kind carries a digest under the old projection.
+   On Import the compare fails and its saved result is attached `stale: true`
+   with the §W3.2 notice, once; a re-run clears it. Files below
+   `loop-model/3`, and files with no kind on any Pool or line, are unaffected.
+   The checked-range note (`modelKey`, `src/model/runGuide.ts`) reads the same
+   projection on both sides, so it is unaffected.
 2. **Project** each edge to `{ id, source, target, sourceHandle, targetHandle,
    kind, flow? | weight?, mode?, delay?, expr? }` — every field that affects
    routing, flow, RNG keying, or state semantics; **dropping** presentation-only
-   fields.
+   fields. A resource edge's own `resourceType` is projected from
+   `loop-model/3` under the same rule as a Pool's (erratum M2 above).
 3. **Drop** `recommendedRunConfig` and any other doc-level advisory metadata.
 4. **Sort** nodes and edges by `id`; within each object, emit keys in a **fixed
    order** (defined in §W11).

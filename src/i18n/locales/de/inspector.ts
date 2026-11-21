@@ -62,12 +62,14 @@ const inspector = {
   'inspector.field.expression': 'Ausdruck',
   'inspector.field.format': 'Format (unverbindlich)',
   'inspector.field.resourceType': 'Ressourcentyp (unverbindlich)',
+  'inspector.field.resourceTypeRead': 'Ressourcentyp',
   'inspector.resourceType.placeholder': 'Gold, Energy, XP, Player, Item oder ein eigener Name',
   'inspector.resourceType.tooLong': 'Mehr als {max} Bytes — diese Angabe wird nicht exportiert.',
   'inspector.resourceType.normalised': 'Normalisiert zu „{value}“.',
   'inspector.resourceType.custom': 'Eigener Typ — allgemeine Markierung, keine eingebaute Farbe.',
   'inspector.resourceType.mismatch':
     'Typen passen nicht zusammen: {pairs}. Nur unverbindlich — es ändert keine Menge und blockiert keinen Lauf.',
+  'inspector.resourceType.mismatchRead': 'Typen passen nicht zusammen: {pairs}.',
   'inspector.resourceType.pair': '{edge} auf der Verbindung, {node} am Knoten',
   'inspector.parameter.outOfRange':
     'Der Wert liegt außerhalb des unverbindlichen Minimums/Maximums — er bleibt unverändert und wird nicht gekappt.',

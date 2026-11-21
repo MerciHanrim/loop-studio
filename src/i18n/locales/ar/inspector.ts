@@ -75,6 +75,7 @@ const inspector = {
   'inspector.field.expression': 'التعبير',
   'inspector.field.format': 'التنسيق (استرشادي)',
   'inspector.field.resourceType': 'نوع المورد (استرشادي)',
+  'inspector.field.resourceTypeRead': 'نوع المورد',
   // the five BUILTIN_RESOURCE_TYPES are BYTE-MATCHED model tokens, not prose:
   // a reader has to be able to type them, so every locale keeps them verbatim
   // and translates only the trailing clause.
@@ -83,6 +84,7 @@ const inspector = {
   'inspector.resourceType.normalised': 'طُبّع إلى “{value}”.',
   'inspector.resourceType.custom': 'نوع مخصّص — لون عام؛ لا لون مدمج له.',
   'inspector.resourceType.mismatch': 'عدم تطابق في النوع: {pairs}. استرشادي فقط — لا يغيّر أي كمية ولا يمنع أي تشغيل.',
+  'inspector.resourceType.mismatchRead': 'عدم تطابق في النوع: {pairs}.',
   'inspector.resourceType.pair': '{edge} على الاتصال و{node} على العقدة',
   'inspector.parameter.outOfRange': 'القيمة خارج الحد الأدنى/الأقصى الاسترشادي — حُفظت كما هي دون تقييد.',
   'inspector.parameter.hintIncoherent': 'أحد التلميحات الاسترشادية غير متّسق وسيُسقَط عند التصدير.',

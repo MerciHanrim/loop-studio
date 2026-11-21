@@ -13,6 +13,7 @@ import { MAX_SERIES } from './limits'
 import type { LoopEdge, LoopNode } from './types'
 import { hasKindsTable, hasModelLayer, hasRunRules, hasTimetables, hasUnits, modelSemanticsLabel, type ModelSemanticsVersion } from './modelVersion'
 import { readKindsAt, type ResourceKindDecl } from './kinds'
+import { normalizeResourceType } from './model/resourceType'
 import { canonicalDocTime, type DocTime } from './units'
 import { canonicalTimetable, type Timetable } from './timetable'
 
@@ -92,6 +93,11 @@ type NodeProjection = {
   /** loop-model/4 (SEMANTICS-M4.md §M4-6) — a Pool's authored unit, under the
    *  version-4 projection only */
   unit?: string
+  /** review M2 (2026-11-21) — a Pool's kind, normalised as the engine reads it
+   *  (§M4.1 identity), from loop-model/3: it gives its lines their kind
+   *  (SEMANTICS-M3.md §M3-2), which can refuse the run, and from 4 it says what
+   *  the Pool's unit means. Absent below 3 or with no kind ⇒ the earlier bytes. */
+  resourceType?: string
 }
 type EdgeProjection = {
   id: string
@@ -101,6 +107,9 @@ type EdgeProjection = {
   targetHandle: string | null
   /** §M4-6 — a resource connection's authored unit, version 4 only */
   unit?: string
+  /** review M2 — a resource connection's own kind, from loop-model/3 (§M3-2:
+   *  read where no Pool end gives one, and checked against a Pool end's) */
+  resourceType?: string
   kind: string
   flow?: string
   mode?: string
@@ -132,6 +141,9 @@ function projectNode(n: LoopNode, modelVersion?: ModelSemanticsVersion): NodePro
     // engine reads, so it is part of the engine-relevant projection; absent ⇒
     // the earlier bytes
     if (hasUnits(modelVersion) && typeof d.unit === 'string' && d.unit !== '') p.unit = d.unit
+    // review M2 — the kind, where the engine reads it (see NodeProjection.resourceType)
+    const kind = hasKindsTable(modelVersion) ? normalizeResourceType((d as { resourceType?: unknown }).resourceType).value : null
+    if (kind !== null) p.resourceType = kind
   }
   // issue #409 — the engine input of loop-model/2 (see NodeProjection.value)
   if (d.kind === 'parameter' && hasModelLayer(modelVersion)) p.value = d.value
@@ -155,6 +167,9 @@ function projectEdge(e: LoopEdge, modelVersion?: ModelSemanticsVersion): EdgePro
     p.flow = e.data.flow
     // §M4-6 — see projectNode
     if (hasUnits(modelVersion) && typeof e.data.unit === 'string' && e.data.unit !== '') p.unit = e.data.unit
+    // review M2 — see EdgeProjection.resourceType
+    const kind = hasKindsTable(modelVersion) ? normalizeResourceType((e.data as { resourceType?: unknown }).resourceType).value : null
+    if (kind !== null) p.resourceType = kind
   } else if (e.data?.kind === 'state') {
     p.mode = e.data.mode
     p.expr = e.data.expr ?? ''

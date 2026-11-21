@@ -59,12 +59,14 @@ const inspector = {
   'inspector.field.expression': 'นิพจน์',
   'inspector.field.format': 'รูปแบบ (ข้อมูลประกอบ)',
   'inspector.field.resourceType': 'ชนิดทรัพยากร (ข้อมูลประกอบ)',
+  'inspector.field.resourceTypeRead': 'ชนิดทรัพยากร',
   'inspector.resourceType.placeholder': 'Gold, Energy, XP, Player, Item หรือชื่อที่กำหนดเอง',
   'inspector.resourceType.tooLong': 'เกิน {max} ไบต์ — แท็กนี้จะถูกตัดทิ้งเมื่อส่งออก',
   'inspector.resourceType.normalised': 'ปรับให้เป็นรูปแบบมาตรฐาน “{value}” แล้ว',
   'inspector.resourceType.custom': 'ชนิดที่กำหนดเอง — ใช้สีตัวอย่างทั่วไป ไม่มีสีประจำในระบบ',
   'inspector.resourceType.mismatch':
     'ชนิดไม่ตรงกัน: {pairs} เป็นข้อมูลประกอบเท่านั้น — ไม่เปลี่ยนปริมาณใดและไม่ขวางการรันใด',
+  'inspector.resourceType.mismatchRead': 'ชนิดไม่ตรงกัน: {pairs}',
   'inspector.resourceType.pair': '{edge} ที่เส้นเชื่อม, {node} ที่โหนด',
   'inspector.parameter.outOfRange':
     'ค่าอยู่นอกช่วงต่ำสุด/สูงสุดที่เป็นข้อมูลประกอบ — เก็บไว้ตามเดิม ไม่ถูกตัด',

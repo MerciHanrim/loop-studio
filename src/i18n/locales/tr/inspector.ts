@@ -54,12 +54,14 @@ const inspector = {
   'inspector.field.expression': 'İfade',
   'inspector.field.format': 'Biçim (bilgilendirici)',
   'inspector.field.resourceType': 'Kaynak türü (bilgilendirici)',
+  'inspector.field.resourceTypeRead': 'Kaynak türü',
   'inspector.resourceType.placeholder': 'Gold, Energy, XP, Player, Item ya da kendi adınız',
   'inspector.resourceType.tooLong': '{max} bayttan uzun — bu etiket dışa aktarımda düşürülecek.',
   'inspector.resourceType.normalised': '«{value}» biçimine getirildi.',
   'inspector.resourceType.custom': 'Özel tür — genel örnek renk; yerleşik bir renk yok.',
   'inspector.resourceType.mismatch':
     'Tür uyuşmazlığı: {pairs}. Yalnızca bilgilendirici — hiçbir miktarı değiştirmez ve hiçbir çalıştırmayı engellemez.',
+  'inspector.resourceType.mismatchRead': 'Tür uyuşmazlığı: {pairs}.',
   'inspector.resourceType.pair': 'bağlantıda {edge}, düğümde {node}',
   'inspector.parameter.outOfRange':
     'Değer bilgilendirici en az/en çok aralığının dışında — olduğu gibi tutuldu, kırpılmadı.',

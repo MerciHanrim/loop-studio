@@ -52,6 +52,7 @@ const inspector = {
   'inspector.field.expression': 'Expressie',
   'inspector.field.format': 'Notatie (indicatief)',
   'inspector.field.resourceType': 'Middeltype (indicatief)',
+  'inspector.field.resourceTypeRead': 'Middeltype',
   // NOT translated. These five are `BUILTIN_RESOURCE_TYPES`
   // (src/model/model/resourceType.ts) and the model matches them BYTE-EQUAL,
   // so a reader who types `Goud` gets a custom type with the generic swatch
@@ -64,6 +65,7 @@ const inspector = {
   'inspector.resourceType.normalised': 'Genormaliseerd naar “{value}”.',
   'inspector.resourceType.custom': 'Eigen type — algemeen staal; geen ingebouwde kleur.',
   'inspector.resourceType.mismatch': 'Typeconflict: {pairs}. Alleen indicatief — het verandert geen hoeveelheid en blokkeert geen run.',
+  'inspector.resourceType.mismatchRead': 'Typeconflict: {pairs}.',
   'inspector.resourceType.pair': '{edge} op de verbinding, {node} op het knooppunt',
   'inspector.parameter.outOfRange': 'De waarde valt buiten de indicatieve min/max — ongewijzigd bewaard, niet begrensd.',
   'inspector.parameter.hintIncoherent': 'Een indicatieve hint is tegenstrijdig en vervalt bij het exporteren.',
