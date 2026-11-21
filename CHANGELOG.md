@@ -7,6 +7,8 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **A two-finger pinch keeps what is under your fingers in place.** On the phone, a pinch zoomed about a point above the fingers by the height of the top bar, so the content under them slid away: up when zooming in, down when zooming out, by the whole bar for a 2× pinch. On a touch screen in Pan mode with the left panel open it slid sideways by the panel's width as well. The pinch now zooms about the point between your fingers, at every screen size and in both orientations. Zooming in and out, the zoom limits and moving with one finger are unchanged.
+
 ## v0.33.0 — 2026-11-22
 
 Run engine fixes for the losses, and the moves of more than was taken, found between Gates and Converters with several feeds, in loops and with very small amounts; a document that cannot run says so and is refused everywhere, and a Monte Carlo run stays with the document it started on; a coffee roasting batch Template; zone names, the selected node, its paths and keyboard focus that stay readable when zoomed out; the current phase named in the run row; and on the phone, a selection that no longer hides More and the canvas buttons, and Details that puts keyboard focus in its sheet.

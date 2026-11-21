@@ -276,12 +276,22 @@ export function PanSurface({
       if (ec.length) g.onEdgesChange(ec)
     }
 
+    /** review U2 — the fingers' midpoint in PANE coordinates, the ones the
+     *  viewport's x / y are in. The pointers are page (client) coordinates; read
+     *  as pane ones, the content under the fingers moved by the pane's offset ×
+     *  (1 − the zoom ratio): 57 px up for a 2× pinch under the phone's top bar.
+     *  The surface covers the pane exactly, as for `nodeAt` and `edgeAt`. */
+    const paneMid = (p1: { x: number; y: number }, p2: { x: number; y: number }) => {
+      const rect = el.getBoundingClientRect()
+      return { x: (p1.x + p2.x) / 2 - rect.left, y: (p1.y + p2.y) / 2 - rect.top }
+    }
+
     const startPinch = (id1: number, id2: number) => {
       mode = 'pinch'
       pinchIds = [id1, id2]
       const p1 = pointers.get(id1)!
       const p2 = pointers.get(id2)!
-      pinchMid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+      pinchMid = paneMid(p1, p2)
       pinchDist = Math.hypot(p2.x - p1.x, p2.y - p1.y)
     }
 
@@ -294,7 +304,7 @@ export function PanSurface({
       const p1 = pointers.get(pinchIds[0])
       const p2 = pointers.get(pinchIds[1])
       if (!p1 || !p2) return
-      const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+      const mid = paneMid(p1, p2)
       const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y)
       if (dist < PINCH_MIN_DIST || pinchDist < PINCH_MIN_DIST) {
         pinchMid = mid
