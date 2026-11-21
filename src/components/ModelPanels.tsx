@@ -522,11 +522,14 @@ function TimeSection({ nodes, edges }: { nodes: LoopNode[]; edges: LoopEdge[] })
     ].join(' ')
     setPending({ body, next })
   }
+  // review P1 — the count edits a declared step only, and only once something is typed: a Tab
+  // or a click through it is no edit. With no step declared the field is empty and disabled,
+  // so a step length is declared by choosing its unit (§M4-3) and the count never picks hours
   const commitValue = (text: string) => {
     setDraft(null)
     const v = Number(text)
-    if (!Number.isInteger(v) || v < 1 || v > STEP_VALUE_MAX) return
-    propose({ ...(time ?? { step: { value: v, unit: 'h' } }), step: { value: v, unit: time?.step.unit ?? 'h' } })
+    if (time === undefined || !Number.isInteger(v) || v < 1 || v > STEP_VALUE_MAX) return
+    propose({ ...time, step: { value: v, unit: time.step.unit } })
   }
   return (
     <>
@@ -543,10 +546,12 @@ function TimeSection({ nodes, edges }: { nodes: LoopNode[]; edges: LoopEdge[] })
           max={STEP_VALUE_MAX}
           step={1}
           aria-label={t('panels.time.value')}
-          disabled={locked}
-          value={draft ?? String(time?.step.value ?? 1)}
+          disabled={locked || time === undefined}
+          value={draft ?? (time === undefined ? '' : String(time.step.value))}
           onChange={(e) => setDraft(e.target.value)}
-          onBlur={(e) => commitValue(e.target.value)}
+          onBlur={() => {
+            if (draft !== null) commitValue(draft)
+          }}
           // the Enter must end here: left to run on, it pressed the button of the dialog
           // the change had just opened, and the change was gone before it could be read
           onKeyDown={(e) => {

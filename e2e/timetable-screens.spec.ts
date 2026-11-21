@@ -52,8 +52,9 @@ async function buildDocument(page: Page) {
   await page.getByLabel('Base unit of water').blur()
   await page.getByLabel('Units of water').fill('CMH=1/h')
   await page.getByLabel('Units of water').blur()
-  await page.locator('.mp-row__time-value').fill('1')
-  await page.locator('.mp-row__time-value').blur()
+  // §M4-3 — the step length is declared by choosing its unit: one hour
+  await page.getByRole('combobox', { name: 'Step length', exact: true }).selectOption('h')
+  await expect(page.locator('.mp-row__time-value')).toHaveValue('1')
 }
 
 async function makeTable(page: Page) {
