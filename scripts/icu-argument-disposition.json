@@ -11,11 +11,11 @@
   },
   "$implemented": "A row classed `auto` / `ltr` / `per-fragment` is an OPEN obligation: the evidence says the value needs bounding and the code does not bound it yet. C3.5 was scoped to fix the two families that were already evidenced — the unrecognized-column header and the five `import.loc.*` calls — and those moved to `isolate-obligations.json`. The checker asserts these rows are NOT wrapped, so implementing one without moving its row is red in both directions.",
   "totals": {
-    "arguments": 560,
-    "rows": 71,
+    "arguments": 561,
+    "rows": 72,
     "byClass": {
       "attribute": 18,
-      "closed-value": 53
+      "closed-value": 54
     },
     "recordedNotImplemented": 0,
     "attributeSink": 36
@@ -230,6 +230,16 @@
       "sink": "prop:UnitInput.label",
       "class": "attribute",
       "evidence": "TRACED: the same `UnitInput` as the base-unit field — its `label` prop lands on its own `<input aria-label>` unchanged, an HTML attribute markup cannot reach. The value is a user KIND NAME (loop-model/4, the kind's unit lists; issue #471 U1 stage 2)."
+    },
+    {
+      "file": "src/components/MonteCarloDialog.tsx",
+      "enclosing": "MonteCarloDialog",
+      "key": "playbar.initError",
+      "arg": "detail",
+      "ord": 1,
+      "sink": "text",
+      "class": "closed-value",
+      "evidence": "`simStore.initError` — an engine initialisation phrase, Latin-leading; the run bar's own line, shown in the dialog that Run refuses (review `initError`, 2026-11-21)."
     },
     {
       "file": "src/components/PlayBar.tsx",

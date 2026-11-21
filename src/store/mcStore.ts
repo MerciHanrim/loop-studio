@@ -195,6 +195,10 @@ export const useMcStore = create<McStore>((set, get) => ({
 
   run: async () => {
     if (get().status === 'running') return
+    // review `initError` (Lumi, 2026-11-21) — a graph the engine cannot initialise
+    // is refused here, as Play and Step refuse it: before, the run started, every
+    // run's `initSim` threw, and the run bar said only "Run failed"
+    if (useSimStore.getState().initError != null) return
     // #471 (Deploy 2, F1) — a graph with a refused Converter group does not
     // run: the dialog's Run is disabled and shows the reason; this guards a
     // caller that bypasses it (the same line the run bar shows).

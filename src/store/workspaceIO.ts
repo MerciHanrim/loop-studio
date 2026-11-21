@@ -180,8 +180,10 @@ export async function importFile(
   mc.setDistributionPoolId(restored.view.distributionPoolId)
   mc.setShowMean(restored.view.showMean)
 
+  // §W5 — the saved run position is a valid head only for a graph the engine can
+  // initialise; for one it cannot, the store keeps the reset head with the reason
   if (restored.simulation) {
-    useSimStore.getState().restoreSnapshot({
+    const taken = useSimStore.getState().restoreSnapshot({
       seed: restored.simulation.seed,
       step: restored.simulation.step,
       ended: restored.simulation.ended,
@@ -191,6 +193,7 @@ export async function importFile(
       stateEvents: restored.simulation.stateEvents as StateEvent[],
       series: restored.simulation.series,
     })
+    if (!taken) warnings.push('this graph cannot start a run (the run bar says why); the saved run position was not restored')
   }
 
   return { workspace: true, warnings, canvas: restored.canvas }
