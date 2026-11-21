@@ -1183,8 +1183,18 @@ export type FieldTag = 'engine' | 'cosmetic' | 'advisory' | 'provenance'
  * refresh, so lumping it in with "purely cosmetic" would understate what kind
  * of content it is. `parameter.value` and `register.expr` stay `engine`.
  * Everything else in the projection is `engine`.
+ *
+ * Review M2 (Lumi, 2026-11-21) — a tag follows what the engine reads at the
+ * document's version (`at`): from loop-model/3 a Pool's and a resource
+ * connection's `resourceType` (SEMANTICS-M3.md §M3-2: a line's kind, which can
+ * refuse the run), from loop-model/4 a Pool's `unit` (what its numbers mean).
+ * There they are `engine`, as the semantic digest projects them. Below those
+ * versions, and with no `at`, they keep their `advisory` tag. A Parameter's or
+ * a Register's `unit` is a display hint at every version.
  */
-export function fieldTag(kind: 'node' | 'edge', field: string): FieldTag {
+export function fieldTag(kind: 'node' | 'edge', field: string, at?: { modelVersion: number; nodeKind?: string }): FieldTag {
+  if (at && hasKindsTable(at.modelVersion) && field === 'data.resourceType' && (kind === 'edge' || at.nodeKind === 'pool')) return 'engine'
+  if (at && hasUnits(at.modelVersion) && kind === 'node' && at.nodeKind === 'pool' && field === 'data.unit') return 'engine'
   if (kind === 'node' && (field === 'label' || field === 'position' || field === 'data.label')) {
     return 'cosmetic'
   }
@@ -1347,14 +1357,24 @@ export function deepEq(a: unknown, b: unknown): boolean {
   return ak.every((k) => k in bo && deepEq(ao[k], bo[k]))
 }
 
+/** the model version a canonical content was projected at (§M2-8 discriminator; absent ⇒ 1) */
+const versionOfContent = (c: CanonicalContent): number =>
+  c.modelSemantics !== undefined ? Number(c.modelSemantics.slice('loop-model/'.length)) || 1 : 1
+/** review M2 — the version the field tags are judged at: the highest of the sides
+ *  (where either side reads a Pool's kind or unit, a change in it is engine input) */
+const tagVersion = (...cs: CanonicalContent[]): number => Math.max(...cs.map(versionOfContent))
+
 function diffElement(
   kind: 'node' | 'edge',
   base: CanonicalNode | CanonicalEdge,
   proposed: CanonicalNode | CanonicalEdge,
+  modelVersion: number,
 ): FieldChange[] {
   const fields: FieldChange[] = []
   const b = base as Record<string, unknown>
   const p = proposed as Record<string, unknown>
+  const nodeKind = ((p.data ?? b.data) as { kind?: unknown } | undefined)?.kind
+  const at = { modelVersion, ...(typeof nodeKind === 'string' ? { nodeKind } : {}) }
   const keys = new Set([...Object.keys(b), ...Object.keys(p)])
   for (const k of keys) {
     if (k === 'id') continue
@@ -1363,13 +1383,13 @@ function diffElement(
       const pd = (p.data ?? {}) as Record<string, unknown>
       for (const dk of new Set([...Object.keys(bd), ...Object.keys(pd)])) {
         if (!deepEq(bd[dk], pd[dk])) {
-          fields.push({ field: `data.${dk}`, base: bd[dk], proposed: pd[dk], tag: fieldTag(kind, `data.${dk}`) })
+          fields.push({ field: `data.${dk}`, base: bd[dk], proposed: pd[dk], tag: fieldTag(kind, `data.${dk}`, at) })
         }
       }
       continue
     }
     if (!deepEq(b[k], p[k])) {
-      fields.push({ field: k, base: b[k], proposed: p[k], tag: fieldTag(kind, k) })
+      fields.push({ field: k, base: b[k], proposed: p[k], tag: fieldTag(kind, k, at) })
     }
   }
   return fields
@@ -1379,6 +1399,7 @@ function bucket<T extends { id: string }>(
   kind: 'node' | 'edge',
   base: T[],
   proposed: T[],
+  modelVersion: number,
 ): ElementBuckets<T> {
   const bi = indexById(base)
   const pi = indexById(proposed)
@@ -1396,7 +1417,7 @@ function bucket<T extends { id: string }>(
       unchangedCount++
       continue
     }
-    changed.push({ id, fields: diffElement(kind, bv as never, pv as never) })
+    changed.push({ id, fields: diffElement(kind, bv as never, pv as never, modelVersion) })
   }
   for (const [id, bv] of bi) if (!pi.has(id)) removed.push(bv)
   added.sort(byId)
@@ -1439,8 +1460,9 @@ export function computeRevisionDiff(
   proposed: CanonicalContent,
   opts: { workspaceDiffers?: boolean } = {},
 ): RevisionDiff {
-  const nodes = bucket('node', base.nodes, proposed.nodes)
-  const edges = bucket('edge', base.edges, proposed.edges)
+  const at = tagVersion(base, proposed)
+  const nodes = bucket('node', base.nodes, proposed.nodes, at)
+  const edges = bucket('edge', base.edges, proposed.edges, at)
   const runConfig = diffRunConfig(base.recommendedRunConfig, proposed.recommendedRunConfig)
   // §R5-6 — the whole `frames` array as one cosmetic hunk.
   const framesChanged = !deepEq(base.frames ?? null, proposed.frames ?? null)
@@ -1705,7 +1727,7 @@ export function computeThreeWay(
         hunks.push({ kind: 'remove', elementType: kind, id, verdict, base: bv, yours: tv })
       } else if (bv && pv && !deepEq(bv, pv)) {
         // CHANGE
-        const fields: HunkField[] = diffElement(kind, bv as never, pv as never).map((f) => {
+        const fields: HunkField[] = diffElement(kind, bv as never, pv as never, tagVersion(base, target, proposed)).map((f) => {
           const yours = tv ? fieldOf(tv, f.field) : undefined
           const verdict: ThreeWayFieldVerdict = !tv
             ? 'conflict' // §R7A.3 — id absent in target ⇒ conflict

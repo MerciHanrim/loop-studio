@@ -230,6 +230,16 @@ Assignments for the new / extended fields (existing v1 fields keep their
 - `summary.empty` is still "no `added` / `removed` / `changed` anywhere".
   An advisory-only change is **not** empty.
 
+**Erratum (review M2, 2026-11-21) — the tags follow what the engine reads at the document's version.** The table above is the `loop-model/1` and `/2` reading, where a kind is a tag and a Pool has no unit. From `loop-model/3` the engine reads a Pool's and a resource connection's `resourceType` (`SEMANTICS-M3.md` §M3-2: they give a line its kind, and a conserved kind can refuse the run). From `loop-model/4` it reads a Pool's `unit` (`SEMANTICS-M4.md`: what the Pool's numbers mean). There those fields are tagged **`engine`** and set `summary.engineAffecting`:
+
+| field | `loop-model/1`–`/2` | `loop-model/3` | `loop-model/4` and later |
+|---|---|---|---|
+| `pool.resourceType`, `resource`-edge `.resourceType` | `advisory` | `engine` | `engine` |
+| `pool.unit` | — | `advisory` | `engine` |
+| `parameter.unit`, `register.unit` (display) | `advisory` | `advisory` | `advisory` |
+
+The version is the highest of the sides compared (the base and the proposal; in a three-way plan, also yours): where either side reads the field, a change in it is engine input. A Source carries no `resourceType` in the projection, so it has no tag. The semantic digest (`SEMANTICS-W.md` §W3.1) projects the same fields at the same versions.
+
 ---
 
 ## R2-4. Conservative extension, and the golden vector
