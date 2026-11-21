@@ -32,7 +32,10 @@ export function MonteCarloDialog() {
   const timetableRefusals = useSimStore((s) => s.timetableRefusals)
   const runRefusals = useSimStore((s) => s.runRefusals)
   const timetables = useGraphStore((s) => s.timetables)
-  const refusedCount = groupRefusedCount + kindRefusedCount + timetableRefusals.length + runRefusals.length
+  // review `initError` (Lumi, 2026-11-21) — a graph the engine cannot initialise:
+  // Run does not start and the dialog names the reason, in the run bar's words
+  const initError = useSimStore((s) => s.initError)
+  const refusedCount = (initError != null ? 1 : 0) + groupRefusedCount + kindRefusedCount + timetableRefusals.length + runRefusals.length
   // iOS Safari keeps its focus-zoom until the field is blurred — drop focus (and
   // dismiss the soft keyboard) before the dialog unmounts so the page returns to
   // 100% (docs/mobile.md §MV4b). No-op on desktop.
@@ -58,15 +61,22 @@ export function MonteCarloDialog() {
     [nodes],
   )
 
-  const [estimate, setEstimate] = useState<CostEstimate | null>(null)
-  const [estimating, setEstimating] = useState(false)
+  const [probed, setEstimate] = useState<CostEstimate | null>(null)
+  const [probing, setEstimating] = useState(false)
+  // a graph the engine cannot initialise has nothing to time: no estimate is shown
+  // and none is awaited (the probe below does not run for it)
+  const estimate = initError != null ? null : probed
+  const estimating = initError == null && probing
   const probeRef = useRef<AbortController | null>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
 
   // debounced cost probe — on open and on any config change
   useEffect(() => {
     if (!open) return
+    // a graph the engine cannot initialise has nothing to time: the probe's first
+    // run would throw (review `initError`: an unhandled rejection per opening)
     probeRef.current?.abort()
+    if (initError != null) return
     const ac = new AbortController()
     probeRef.current = ac
     setEstimating(true)
@@ -79,6 +89,10 @@ export function MonteCarloDialog() {
       try {
         const e = await estimateMonteCarloCost(g.nodes, g.edges, config, { signal: ac.signal, prior })
         if (!ac.signal.aborted) setEstimate(e)
+      } catch {
+        // the estimate is advice: a probe that fails shows none (Run's own guards
+        // decide whether a run may start), and never escapes as an unhandled rejection
+        if (!ac.signal.aborted) setEstimate(null)
       } finally {
         if (!ac.signal.aborted) setEstimating(false)
       }
@@ -87,7 +101,7 @@ export function MonteCarloDialog() {
       window.clearTimeout(t)
       ac.abort()
     }
-  }, [open, config, lastThroughput])
+  }, [open, config, lastThroughput, initError])
 
   // Escape closes (does NOT cancel a run); Tab trapped; focus returns to the
   // strip's Monte Carlo button — or, where the row folds it (docs/workbench.md
@@ -303,7 +317,9 @@ export function MonteCarloDialog() {
 
         {refusedCount > 0 ? (
           <p className="mcdlg__note mcdlg__refused" role="status">
-            {groupRefusedCount > 0
+            {initError != null
+              ? t('playbar.initError', { detail: initError })
+              : groupRefusedCount > 0
               ? t('playbar.refused', { n: groupRefusedCount })
               : kindRefusedCount > 0
                 ? t('playbar.refused.kinds', { n: kindRefusedCount })

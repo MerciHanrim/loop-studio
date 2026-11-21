@@ -149,10 +149,12 @@ type SimStore = {
 
   /** why the current graph cannot be initialised for a run (`initSim` threw —
    *  e.g. a Pool whose `initial` / `capacity` is negative or non-finite, which
-   *  a hand-edited or legacy file can carry), or `null`. Set by `reset()` /
-   *  the first `head()` and cleared by the next successful one. While set,
-   *  Play / Step are no-ops and the PlayBar shows the reason — the engine's
-   *  own diagnostic text. Session-only, never serialized. Before this, the
+   *  a hand-edited or legacy file can carry), or `null`. Worked out with the
+   *  refusal lists (`refusalState()`): the store's first state (a reload),
+   *  `reset()`, `restoreSnapshot()` and the first `head()`. While set, Play,
+   *  Step and Monte Carlo do not start, a Workspace's saved run position is
+   *  not taken, and the run bars and the Monte Carlo dialog show the reason —
+   *  the engine's own diagnostic text. Session-only, never serialized. Before this, the
    *  throw escaped through the graph store's subscriber list, so every
    *  subscriber registered after the sim store (Monte-Carlo staleness, the
    *  project `dirty` flag) silently missed that graph change. */
@@ -266,8 +268,11 @@ type SimStore = {
   reset: () => void
   /** replace the head with a verified snapshot (Workspace Import, SEMANTICS-W.md
    *  §W5 / D1). Always lands paused / ended — never running, never a timer. Does
-   *  NOT touch the graph store, so it triggers no `simulationRev` bump. */
-  restoreSnapshot: (snap: SimSnapshot) => void
+   *  NOT touch the graph store, so it triggers no `simulationRev` bump.
+   *  A snapshot is a valid head only for a graph the engine can initialise: for
+   *  one it cannot, the snapshot is not taken (only its seed is kept), the head
+   *  is the reset one with `initError` set, and this returns `false`. */
+  restoreSnapshot: (snap: SimSnapshot) => boolean
   setSpeed: (ms: number) => void
   setSeed: (seed: number) => void
   /** flip one Pool or Register in the drawn set. `shownIds` is the RESOLVED
@@ -380,8 +385,12 @@ export const useSimStore = create<SimStore>((set, get) => {
    *  `restoreSnapshot()` and the first Step or Play (`head()`) all take it from
    *  here, so the run bars, the Monte Carlo dialog and Monte Carlo's own guard
    *  agree from the first frame. Before, a reload began with four empty lists
-   *  until a reset, and `head()` left the run rule's out. */
-  const refusalState = () => ({
+   *  until a reset, and `head()` left the run rule's out.
+   *  `initError` too (review, Lumi 2026-11-21): a reload began without it, so
+   *  the run bar named no reason and Monte Carlo started and failed. A caller
+   *  that has just initialised the graph passes its own answer. */
+  const refusalState = (initError: string | null = safeInit(graph().nodes).error) => ({
+    initError,
     refusals: refusedGroups(graph().nodes, graph().edges),
     kindRefusals: kindRefused(),
     timetableRefusals: tableRefused(),
@@ -422,7 +431,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         triggerQueue: s.triggerQueue,
       }
     const { init, error } = safeInit(graph().nodes)
-    set({ values: init.values, stepIndex: 0, triggerQueue: [], series: [{ step: 0, values: init.values }], initError: error, ...refusalState() })
+    set({ values: init.values, stepIndex: 0, triggerQueue: [], series: [{ step: 0, values: init.values }], ...refusalState(error) })
     return init
   }
   /** #471 — Play / Step do not start while a group is refused (see `refusals`)
@@ -727,9 +736,8 @@ export const useSimStore = create<SimStore>((set, get) => {
     gates: [],
     smallMoves: NO_SMALL_MOVES,
     boundaryOutflow: [],
-    initError: null,
-    // review S2 — the booted document's refusals, as a reset would give them
-    // (`values` stays `null` until first use, as before)
+    // review S2 — the booted document's refusals and `initError`, as a reset
+    // would give them (`values` stays `null` until first use, as before)
     ...refusalState(),
     activitySteps: [],
     steadyState: false,
@@ -810,8 +818,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         gates: [],
         smallMoves: NO_SMALL_MOVES,
         boundaryOutflow: [],
-        initError: error,
-        ...refusalState(),
+        ...refusalState(error),
         activitySteps: [],
         steadyState: false,
         autoPause: null,
@@ -822,6 +829,17 @@ export const useSimStore = create<SimStore>((set, get) => {
     },
 
     restoreSnapshot: (snap) => {
+      // review `initError` (Lumi, 2026-11-21) — a saved run position is a valid head
+      // only for a graph the engine can initialise. For one it cannot (a Workspace
+      // saved from it, or edited outside the app) the snapshot is not taken: the
+      // head is the reset one, `initError` names the reason, and nothing steps.
+      // Before, the snapshot cleared `initError`, and Step and Play ran the refused
+      // graph from the saved values until a Reset showed the reason again.
+      if (safeInit(graph().nodes).error != null) {
+        get().reset()
+        if (snap.seed != null) set({ seed: snap.seed }) // the seed is a setting, not run state
+        return false
+      }
       discardTransition()
       steadyWindow = [] // §PBO5 — a restored head starts a fresh window
       // #537 — a restored head is past its steps: whether a core process stopped among them
@@ -849,13 +867,15 @@ export const useSimStore = create<SimStore>((set, get) => {
         gates: [],
         smallMoves: NO_SMALL_MOVES,
         boundaryOutflow: [],
-        initError: null, // a verified snapshot IS a valid head
-        ...refusalState(), // a refused shape stays refused: a restored head does not step
+        // the graph initialises (checked above), so `initError` is null; a refused
+        // shape stays refused: a restored head does not step
+        ...refusalState(null),
         activitySteps: [],
         commitEpoch: s.commitEpoch + 1,
         lastSettledTransitionId: null,
         ...(snap.seed != null ? { seed: snap.seed } : {}),
       }))
+      return true
     },
 
     setSpeed: (ms) => {

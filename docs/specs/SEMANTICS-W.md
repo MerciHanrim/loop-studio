@@ -358,6 +358,17 @@ matters as much as per-field validation.
          then rebuilds from the next `Step` / `Reset`).
      - If `simulation` cannot yield a coherent snapshot at all, restore **step 0
        / idle** and warn — never a half-set sim.
+     - **Erratum (review `initError`, 2026-11-21):** a snapshot is a valid head
+       **only for a graph the engine can initialise** (`initSim` accepts it —
+       no Pool with a negative or non-finite `initial` / `capacity`, or an
+       `initial` above its `capacity`). For one it cannot, the snapshot is not
+       taken: the graph opens as written, the head is step 0 / idle with the
+       engine's reason (`initError`), Step, Play and Monte Carlo are refused, and
+       one warning says the saved run position was not restored. Only the
+       snapshot's `seed` is kept (a setting, not run state). Before this, the
+       snapshot cleared the reason, its values were filled from the authored
+       `initial` (even a negative one), and Step and Play ran a graph `initSim`
+       refuses until a Reset showed the reason again.
 5. **No auto-run**, **no timer** (§W2.1).
 
 ### W5.1 Atomic restore order
@@ -372,7 +383,9 @@ snapshot / re-stale the just-restored result. Restore is:
 2. **then**, in one synchronous pass, apply `mc.config`, attach `mc.result` with
    its file/`digest`-derived `stale`, set `view`, set `canvas`, and call
    `simStore.restoreSnapshot(simulation)` which sets the fields **and forces
-   `status: 'paused'`** — after this pass no further `simulationRev` bump occurs,
+   `status: 'paused'`** (for a graph the engine can initialise; for one it
+   cannot, it keeps the reset head — §W5 item 4, erratum `initError`) — after
+   this pass no further `simulationRev` bump occurs,
    so the subscribers see a consistent final state and do not re-stale or
    re-reset.
 
@@ -411,7 +424,9 @@ and (c) `view.timeline` falling back to `"live"` if there was no usable result.
 - **`simStore.restoreSnapshot(simulation)`** — a new action that sets
   `{ seed, stepIndex, values, firedNodeIds, triggerQueue, stateEvents, series }`
   and forces `status: 'paused'`; the inverse of the fields the store already
-  exposes. It must **not** start the play timer.
+  exposes. It must **not** start the play timer. It returns whether the
+  snapshot was taken: `false` for a graph the engine cannot initialise (§W5
+  item 4, erratum `initError`).
 - **`src/model/workspace.ts`** — owns the `workspace` schema, `semanticDigest()`,
   the byte-size check, `resultOmitted`, and the defensive reader — mirroring how
   `serialize.ts` owns the graph doc. `serialize()` / `deserialize()` grow a

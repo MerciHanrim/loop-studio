@@ -62,14 +62,34 @@ describe('simStore.initError — the engine refusing to initialise is a value, n
     expect(useSimStore.getState().initError).toBeNull()
   })
 
-  it('a restored Workspace snapshot is a valid head: initError is cleared', () => {
+  // A restored snapshot is a valid head only for a document the engine can
+  // initialise (review `initError`, Lumi 2026-11-21). Before, a snapshot was a
+  // valid head whatever the graph: it cleared `initError`, and Step and Play ran a
+  // graph `initSim` refuses from the saved values.
+  const snapshot = () => ({
+    seed: 9, step: 2, ended: false, values: { [poolId()]: 7 }, fired: [], triggerQueue: [], stateEvents: [],
+    series: [{ step: 0, values: { [poolId()]: 5 } }],
+  })
+
+  it('a restored Workspace snapshot of a document that initialises is a valid head', () => {
+    useGraphStore.getState().updateNodeData(poolId(), { initial: 5 })
+    expect(useSimStore.getState().restoreSnapshot(snapshot())).toBe(true)
+    expect(useSimStore.getState()).toMatchObject({ initError: null, status: 'paused', stepIndex: 2, values: { [poolId()]: 7 }, seed: 9 })
+    useSimStore.getState().advance()
+    expect(useSimStore.getState().stepIndex).toBe(3)
+  })
+
+  it('a snapshot of a document that cannot be initialised is not taken: initError stays, nothing steps, the seed is kept', () => {
     useGraphStore.getState().updateNodeData(poolId(), { initial: -5 })
-    useSimStore.getState().restoreSnapshot({
-      seed: null, step: 2, ended: false, values: { [poolId()]: 7 }, fired: [], triggerQueue: [], stateEvents: [],
-      series: [{ step: 0, values: { [poolId()]: 5 } }],
-    })
+    expect(useSimStore.getState().restoreSnapshot(snapshot())).toBe(false)
+    expect(useSimStore.getState()).toMatchObject({ status: 'idle', stepIndex: 0, values: {}, seed: 9 })
+    expect(useSimStore.getState().initError).toMatch(/initial must be a finite number/)
+    useSimStore.getState().stepOnce()
+    useSimStore.getState().play()
+    expect(useSimStore.getState()).toMatchObject({ status: 'idle', stepIndex: 0, values: {} })
+    // fixing the value is what lets it run, as for any other refused graph
+    useGraphStore.getState().updateNodeData(poolId(), { initial: 3 })
     expect(useSimStore.getState().initError).toBeNull()
-    expect(useSimStore.getState().status).toBe('paused')
   })
 })
 
