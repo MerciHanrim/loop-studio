@@ -10,6 +10,7 @@ import { WORTH_IT_FLOOR } from '../frames/autoFrames'
 import { selectOnly, useGraphStore } from '../../store/graphStore'
 import { useMcStore } from '../../store/mcStore'
 import { useProjectStore } from '../../store/projectStore'
+import { exportableDocument } from '../../store/sessionActions'
 import { useSimStore } from '../../store/simStore'
 import { PHONE_SPEEDS } from '../../store/playbackTier'
 import { selectOverlay, useUiStore } from '../../store/uiStore'
@@ -119,7 +120,6 @@ export function MobileMoreMenu({
   // §L9.3 — a direction-aware CHARACTER from the shared table, never a transform
   const { fitView } = useReactFlow()
 
-  const exportJSON = useGraphStore((s) => s.exportJSON)
   const loadGraph = useGraphStore((s) => s.loadGraph)
   const projectOpen = useProjectStore((s) => s.open)
 
@@ -174,7 +174,9 @@ export function MobileMoreMenu({
     if (shareBusy) return
     setShareBusy(true)
     try {
-      const result = await prepareShareLink(exportJSON({ ...useMcStore.getState().config }))
+      // review P2 — the same document text as the desktop's: the Monte Carlo
+      // settings, the Timeline's series choice and the canvas lock
+      const result = await prepareShareLink(exportableDocument())
       if (result.status === 'too-large') {
         window.alert(t('share.tooLarge', { size: shareKb(result.bytes), cap: shareKb(result.cap) }))
         return
@@ -202,7 +204,7 @@ export function MobileMoreMenu({
     if (shareBusy) return { status: 'unavailable' }
     setShareBusy(true)
     try {
-      const result = await prepareProtectedShareLink(exportJSON({ ...useMcStore.getState().config }), password)
+      const result = await prepareProtectedShareLink(exportableDocument(), password)
       if (result.status !== 'ok') return result
       const copied = await copyShareLink(result.url)
       setShareConfirm(false)
@@ -271,7 +273,7 @@ export function MobileMoreMenu({
   }
 
   const graphJSON = () => {
-    downloadText(exportJSON({ ...useMcStore.getState().config }), 'loop-studio-graph.json')
+    downloadText(exportableDocument(), 'loop-studio-graph.json')
     closeOverlay()
   }
 
