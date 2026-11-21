@@ -2,12 +2,33 @@ import { useEffect, useRef, type RefObject } from 'react'
 import { isTopOverlay, pushOverlay, topOverlay, type OverlayKind } from '../ui/overlayStack'
 
 const FOCUSABLE =
-  'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+  'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])'
+const FIELD = 'input:not(:disabled), select:not(:disabled), textarea:not(:disabled)'
+
+/** review U1 — `:disabled` (not the `disabled` attribute) also covers a control
+ *  inside a `<fieldset disabled>`, the phone's read-only Inspector sheet. What
+ *  takes focus must also be inside the dialog, shown and not inert: `focus()` on
+ *  anything else does nothing, and focus was left on <body> */
+function canTakeFocus(el: HTMLElement | null | undefined, within: HTMLElement): el is HTMLElement {
+  return (
+    !!el &&
+    within.contains(el) &&
+    !el.matches(':disabled') &&
+    !el.closest('[inert]') &&
+    el.getClientRects().length > 0 &&
+    getComputedStyle(el).visibility !== 'hidden'
+  )
+}
+
+/** the first element in `within` that matches `selector` and can take focus */
+function firstUsable(within: HTMLElement, selector: string): HTMLElement | undefined {
+  return [...within.querySelectorAll<HTMLElement>(selector)].find((el) => canTakeFocus(el, within))
+}
 
 /**
  * Focus behaviour shared by every app dialog and every mobile sheet:
  *  - on open, move focus to the first field (input/select) or the first
- *    focusable element
+ *    focusable element that can take it (enabled, shown, inside, not inert)
  *  - a dialog (`kind: 'modal'`, the default) traps Tab inside itself; a mobile
  *    sheet (`kind: 'sheet'`) does not, it is not modal (src/ui/overlayStack.ts)
  *  - Escape → `onEscape`, for the top dialog or sheet only
@@ -52,11 +73,15 @@ export function useDialogFocus(
     // mobile sheet makes the rest inert. Registered before focus moves in, so
     // the page behind is already inert when it does.
     const removeEntry = d ? pushOverlay(d, kind) : () => {}
-    const target =
-      initialFocusRef.current?.() ??
-      d?.querySelector<HTMLElement>('input, select, textarea') ??
-      d?.querySelector<HTMLElement>(FOCUSABLE)
-    target?.focus()
+    // the owner's choice, else the first usable field, else the first usable
+    // control: with every field disabled that is the dialog's Close, first in
+    // its head (the phone's read-only Inspector sheet; the Monte Carlo dialog
+    // opened while its run goes)
+    if (d) {
+      const asked = initialFocusRef.current?.()
+      const target = canTakeFocus(asked, d) ? asked : (firstUsable(d, FIELD) ?? firstUsable(d, FOCUSABLE))
+      target?.focus()
+    }
 
     const onKey = (e: KeyboardEvent) => {
       if (!isTopOverlay(ref.current)) return
@@ -67,7 +92,8 @@ export function useDialogFocus(
       }
       // a sheet is not modal: Tab follows the page's own order out of it
       if (e.key !== 'Tab' || kind !== 'modal' || !ref.current) return
-      const items = [...ref.current.querySelectorAll<HTMLElement>(FOCUSABLE)]
+      const within = ref.current
+      const items = [...within.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => canTakeFocus(el, within))
       if (!items.length) return
       const first = items[0]
       const last = items[items.length - 1]
