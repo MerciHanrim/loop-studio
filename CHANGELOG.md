@@ -7,6 +7,7 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **Sharing or exporting from the phone keeps the canvas lock and the Timeline's series.** On the phone, More ▸ Export ▸ Graph JSON, More ▸ Share link and its password-protected link wrote the document with its Monte Carlo settings only. A locked document, or one with a chosen set of Timeline series (the 3-zone gacha Template, or eight of the Templates' series choices), opened unlocked and with the automatic series for whoever received it. These three now write the same document as the desktop ones. The Workspace file already kept both, and a project revision still leaves them out, on the phone as on the desktop.
 - **A two-finger pinch keeps what is under your fingers in place.** On the phone, a pinch zoomed about a point above the fingers by the height of the top bar, so the content under them slid away: up when zooming in, down when zooming out, by the whole bar for a 2× pinch. On a touch screen in Pan mode with the left panel open it slid sideways by the panel's width as well. The pinch now zooms about the point between your fingers, at every screen size and in both orientations. Zooming in and out, the zoom limits and moving with one finger are unchanged.
 
 ## v0.33.0 — 2026-11-22
