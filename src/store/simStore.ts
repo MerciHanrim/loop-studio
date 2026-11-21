@@ -375,6 +375,18 @@ export const useSimStore = create<SimStore>((set, get) => {
   /** loop-model/6 — the findings that refuse the run under the current rules */
   const ruleRefused = () => (hasRunRules(graph().modelVersion) ? runFindings(graph().nodes, graph().edges, graph().timetables, graph().kinds, graph().time, graph().modelVersion) : [])
   const tableRefused = () => (hasTimetables(graph().modelVersion) ? timetableFindings(graph().nodes, graph().edges, graph().timetables, graph().kinds, graph().time) : [])
+  /** review S2 (Lumi, 2026-11-21) — every reason the open document cannot run,
+   *  worked out in this one place: the store's first state (a reload), `reset()`,
+   *  `restoreSnapshot()` and the first Step or Play (`head()`) all take it from
+   *  here, so the run bars, the Monte Carlo dialog and Monte Carlo's own guard
+   *  agree from the first frame. Before, a reload began with four empty lists
+   *  until a reset, and `head()` left the run rule's out. */
+  const refusalState = () => ({
+    refusals: refusedGroups(graph().nodes, graph().edges),
+    kindRefusals: kindRefused(),
+    timetableRefusals: tableRefused(),
+    runRefusals: ruleRefused(),
+  })
 
   // §PB6 — τ maps to this wall-clock span. Reduced motion does NOT get its own
   // (shorter) span here: instead `loop()` drives an RM transition straight to
@@ -410,7 +422,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         triggerQueue: s.triggerQueue,
       }
     const { init, error } = safeInit(graph().nodes)
-    set({ values: init.values, stepIndex: 0, triggerQueue: [], series: [{ step: 0, values: init.values }], initError: error, refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(), timetableRefusals: tableRefused() })
+    set({ values: init.values, stepIndex: 0, triggerQueue: [], series: [{ step: 0, values: init.values }], initError: error, ...refusalState() })
     return init
   }
   /** #471 — Play / Step do not start while a group is refused (see `refusals`)
@@ -716,10 +728,9 @@ export const useSimStore = create<SimStore>((set, get) => {
     smallMoves: NO_SMALL_MOVES,
     boundaryOutflow: [],
     initError: null,
-    refusals: [],
-    kindRefusals: [],
-    timetableRefusals: [],
-    runRefusals: [],
+    // review S2 — the booted document's refusals, as a reset would give them
+    // (`values` stays `null` until first use, as before)
+    ...refusalState(),
     activitySteps: [],
     steadyState: false,
     autoPause: null,
@@ -800,7 +811,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         smallMoves: NO_SMALL_MOVES,
         boundaryOutflow: [],
         initError: error,
-        refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(), timetableRefusals: tableRefused(), runRefusals: ruleRefused(),
+        ...refusalState(),
         activitySteps: [],
         steadyState: false,
         autoPause: null,
@@ -839,7 +850,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         smallMoves: NO_SMALL_MOVES,
         boundaryOutflow: [],
         initError: null, // a verified snapshot IS a valid head
-        refusals: refusedGroups(graph().nodes, graph().edges), kindRefusals: kindRefused(), timetableRefusals: tableRefused(), runRefusals: ruleRefused(), // a refused shape stays refused: a restored head does not step
+        ...refusalState(), // a refused shape stays refused: a restored head does not step
         activitySteps: [],
         commitEpoch: s.commitEpoch + 1,
         lastSettledTransitionId: null,
