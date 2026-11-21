@@ -15,9 +15,10 @@ session neither reads nor saves stored work, author information or settings
 ([docs/storage-sessions.md](docs/storage-sessions.md)).
 
 **Run it now: <https://cozy-loop-studio.pages.dev>** — available in
-[18 languages](#languages), with seven bundled Templates: a seawater
+[18 languages](#languages), with eight bundled Templates: a seawater
 desalination plant from intake to the city and the sea, checked over 90 days with
-chemical deliveries every 14 days; a coffee roastery's daily operations; and, under
+chemical deliveries every 14 days; one coffee roasting batch from the hopper to roasted
+beans, a minute per step; a coffee roastery's daily operations; and, under
 Games, an early MMO's levelling economy and gacha banners: three single-banner rule
 sets and a three-zone probability/pity comparison.
 
@@ -157,7 +158,27 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.32.0
+## Latest — v0.33.0
+
+A run engine that keeps every resource, documents that say when they cannot run, and a canvas
+that stays readable when zoomed out.
+
+- **The run engine keeps every resource**: Gates and Converters no longer lose resources or
+  pass on more than they took, with several feeds, under run rules, with very small or very
+  large amounts, and in loops that return what they take
+- **A document that cannot run says so**: right after a reload and everywhere a run can start,
+  with its reason; a Monte Carlo run stays with the document it started on
+- **A coffee roasting batch** joins the Templates
+- **Readable when zoomed out**: zone names, the selected node's name and paths, and keyboard
+  focus stay visible at the overview
+- **The run row names the current phase**, and keeps its controls in place when a run ends
+- **Safer edits**: moving through the step length no longer declares one hour, a change of
+  kind counts as a change to the model, and Undo after a project revision export keeps the
+  revision
+- **Phone**: a selection no longer hides More and the canvas buttons, and Details opened from
+  the keyboard puts focus in its sheet
+
+## v0.32.0
 
 Timetables, run rules and units, shown in a seawater desalination process example, and a
 Timeline built for reading a run.
@@ -208,17 +229,8 @@ The workbench and the automatic lines, tidied.
 - **Automatic lines**: fewer steps and hooks next to a node, room kept for the arrowhead, and
   a bend point placed by a port kept on the line
 
-## v0.30.0
-
-The menus and the canvas, tidied.
-
-- **A shorter File menu**: names only, with Templates ▸ and Export ▸ submenus; the item you
-  point at is described at the foot of the menu
-- **Early MMO is back under Templates**, after Coffee, as it was — eight Templates
-- **Check marks beside their names** in the View menu and Edit ▸ Edit lock
-- **No minimap**: Reset view and Fit show the whole diagram; panning and zooming are unchanged
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.29.0 (the
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.30.0 (a shorter
+File menu with Templates ▸ and Export ▸ submenus, and no minimap), v0.29.0 (the
 workbench: a menu bar, a tool row, the node list and the properties panel around the canvas,
 and nodes as symbols; [`docs/workbench.md`](docs/workbench.md)), v0.28.4 (starting
 and finishing a connection responds faster), v0.28.3 (Undo and Redo leave nothing selected),
