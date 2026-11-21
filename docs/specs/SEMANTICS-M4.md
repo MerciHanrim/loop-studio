@@ -32,6 +32,8 @@ A kind in the table (§M3-1) may carry two unit lists, and the document may carr
 
 ## M4-3. The step length
 
+A step length is declared by choosing its unit, which declares one of that unit; the count then edits it. With no step length declared, the count field is empty and cannot be edited, and only a typed value changes a declared one: moving through the field (a Tab or a click) changes nothing. (Review P1, 2026-11-21: the field used to show 1 with no step declared, and a Tab through it declared 1 hour.)
+
 A step change moves the amount per step of every field authored per time unit, and of no other field. It can therefore change a balance verdict only at a Converter whose connections mix per-time and per-step rates; the change names those Converters and waits for consent before it is applied (M4-4).
 
 ## M4-4. Changing a unit, a step length or a factor
