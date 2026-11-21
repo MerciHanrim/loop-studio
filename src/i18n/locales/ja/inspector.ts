@@ -53,12 +53,14 @@ const inspector = {
   'inspector.field.expression': '式',
   'inspector.field.format': '書式（参考）',
   'inspector.field.resourceType': 'リソースの種類（参考）',
+  'inspector.field.resourceTypeRead': 'リソースの種類',
   'inspector.resourceType.placeholder': 'Gold、Energy、XP、Player、Item、または任意の名前',
   'inspector.resourceType.tooLong': '{max} バイトを超えています — このタグは書き出し時に削除されます。',
   'inspector.resourceType.normalised': '正規化結果：「{value}」',
   'inspector.resourceType.custom': 'カスタム種別 — 汎用スウォッチで、組み込みの色はありません。',
   'inspector.resourceType.mismatch':
     '種別の不一致：{pairs}。参考情報のみで、量は変わらず実行も妨げません。',
+  'inspector.resourceType.mismatchRead': '種別の不一致：{pairs}。',
   'inspector.resourceType.pair': '接続は {edge}、ノードは {node}',
   'inspector.parameter.outOfRange':
     '値が参考の最小 / 最大の範囲外です — そのまま保持され、クランプされません。',

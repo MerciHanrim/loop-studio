@@ -1192,9 +1192,15 @@ export type FieldTag = 'engine' | 'cosmetic' | 'advisory' | 'provenance'
  * versions, and with no `at`, they keep their `advisory` tag. A Parameter's or
  * a Register's `unit` is a display hint at every version.
  */
-export function fieldTag(kind: 'node' | 'edge', field: string, at?: { modelVersion: number; nodeKind?: string }): FieldTag {
-  if (at && hasKindsTable(at.modelVersion) && field === 'data.resourceType' && (kind === 'edge' || at.nodeKind === 'pool')) return 'engine'
-  if (at && hasUnits(at.modelVersion) && kind === 'node' && at.nodeKind === 'pool' && field === 'data.unit') return 'engine'
+export function fieldTag(kind: 'node' | 'edge', field: string, at?: { modelVersion: number; dataKind?: string }): FieldTag {
+  if (at) {
+    // the element's own `data.kind`: a node's kind, or a connection's `resource` /
+    // `state` (absent reads as `resource`, as the engine's `isResource` does)
+    const pool = kind === 'node' && at.dataKind === 'pool'
+    const resourceLine = kind === 'edge' && (at.dataKind ?? 'resource') === 'resource'
+    if (hasKindsTable(at.modelVersion) && field === 'data.resourceType' && (pool || resourceLine)) return 'engine'
+    if (hasUnits(at.modelVersion) && pool && field === 'data.unit') return 'engine'
+  }
   if (kind === 'node' && (field === 'label' || field === 'position' || field === 'data.label')) {
     return 'cosmetic'
   }
@@ -1373,8 +1379,8 @@ function diffElement(
   const fields: FieldChange[] = []
   const b = base as Record<string, unknown>
   const p = proposed as Record<string, unknown>
-  const nodeKind = ((p.data ?? b.data) as { kind?: unknown } | undefined)?.kind
-  const at = { modelVersion, ...(typeof nodeKind === 'string' ? { nodeKind } : {}) }
+  const dataKind = ((p.data ?? b.data) as { kind?: unknown } | undefined)?.kind
+  const at = { modelVersion, ...(typeof dataKind === 'string' ? { dataKind } : {}) }
   const keys = new Set([...Object.keys(b), ...Object.keys(p)])
   for (const k of keys) {
     if (k === 'id') continue

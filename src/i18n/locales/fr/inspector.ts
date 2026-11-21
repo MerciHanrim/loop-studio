@@ -56,6 +56,7 @@ const inspector = {
   'inspector.field.expression': 'Expression',
   'inspector.field.format': 'Format (indicatif)',
   'inspector.field.resourceType': 'Type de ressource (indicatif)',
+  'inspector.field.resourceTypeRead': 'Type de ressource',
   'inspector.resourceType.placeholder': 'Gold, Energy, XP, Player, Item, ou un nom personnalisé',
   'inspector.resourceType.tooLong':
     'Plus de {max} octets — cette étiquette ne sera pas exportée.',
@@ -64,6 +65,7 @@ const inspector = {
     'Type personnalisé — pastille générique ; aucune couleur intégrée.',
   'inspector.resourceType.mismatch':
     'Types incompatibles : {pairs}. Indicatif seulement — cela ne change aucune quantité et ne bloque aucune exécution.',
+  'inspector.resourceType.mismatchRead': 'Types incompatibles : {pairs}.',
   'inspector.resourceType.pair': '{edge} sur la connexion, {node} sur le nœud',
   'inspector.parameter.outOfRange':
     'La valeur est en dehors du minimum/maximum indicatif — conservée telle quelle, sans écrêtage.',

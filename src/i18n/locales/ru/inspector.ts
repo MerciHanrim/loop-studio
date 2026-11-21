@@ -63,12 +63,14 @@ const inspector = {
   'inspector.field.expression': 'Выражение',
   'inspector.field.format': 'Формат (справочно)',
   'inspector.field.resourceType': 'Тип ресурса (справочно)',
+  'inspector.field.resourceTypeRead': 'Тип ресурса',
   'inspector.resourceType.placeholder': 'Gold, Energy, XP, Player, Item или своё название',
   'inspector.resourceType.tooLong': 'Больше {max} байт — эта метка будет отброшена при экспорте.',
   'inspector.resourceType.normalised': 'Приведено к «{value}».',
   'inspector.resourceType.custom': 'Свой тип — общий образец, встроенного цвета нет.',
   'inspector.resourceType.mismatch':
     'Несовпадение типов: {pairs}. Только справочно — количества не меняются и выполнение не блокируется.',
+  'inspector.resourceType.mismatchRead': 'Несовпадение типов: {pairs}.',
   'inspector.resourceType.pair': '{edge} на связи, {node} на узле',
   'inspector.parameter.outOfRange':
     'Значение выходит за справочные мин./макс. — оставлено как есть, не обрезано.',

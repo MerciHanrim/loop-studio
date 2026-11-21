@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { initSim, step } from '../engine'
-import { canonicalContent, computeRevisionDiff } from './revision'
+import { canonicalContent, computeRevisionDiff, fieldTag } from './revision'
 import { modelKey } from './runGuide'
 import { deserialize } from './serialize'
 import { canonicalGraphString } from './workspace'
@@ -110,6 +110,31 @@ describe('a resource connection\'s kind, where the engine reads it (loop-model/3
     expect(projection(b)).not.toBe(projection(a))
     expect(key(b)).not.toBe(key(a))
     expect(review(a, b)).toEqual({ tags: ['f.data.resourceType=engine'], engineAffecting: true, advisoryAffecting: false })
+  })
+})
+
+describe('fieldTag: only a Pool\'s and a RESOURCE connection\'s kind become engine (Lumi, #598 review)', () => {
+  it('a resource connection\'s kind is engine from 3; a connection with no data kind reads as a resource line, as the engine reads it', () => {
+    expect(fieldTag('edge', 'data.resourceType', { modelVersion: 3, dataKind: 'resource' })).toBe('engine')
+    expect(fieldTag('edge', 'data.resourceType', { modelVersion: 4 })).toBe('engine')
+  })
+
+  it('a state connection\'s kind is not: it stays advisory at every version', () => {
+    for (const modelVersion of [1, 2, 3, 4, 7]) expect(fieldTag('edge', 'data.resourceType', { modelVersion, dataKind: 'state' }), `v${modelVersion}`).toBe('advisory')
+  })
+
+  it('a node that is not a Pool: its kind and its unit stay advisory', () => {
+    for (const dataKind of ['source', 'drain', 'gate', 'converter', 'parameter', 'register']) {
+      expect(fieldTag('node', 'data.resourceType', { modelVersion: 7, dataKind }), dataKind).toBe('advisory')
+      expect(fieldTag('node', 'data.unit', { modelVersion: 7, dataKind }), dataKind).toBe('advisory')
+    }
+  })
+
+  it('below 3, and with no version given, a resource connection\'s and a Pool\'s kind stay advisory', () => {
+    expect(fieldTag('edge', 'data.resourceType', { modelVersion: 2, dataKind: 'resource' })).toBe('advisory')
+    expect(fieldTag('node', 'data.resourceType', { modelVersion: 2, dataKind: 'pool' })).toBe('advisory')
+    expect(fieldTag('edge', 'data.resourceType')).toBe('advisory')
+    expect(fieldTag('node', 'data.unit')).toBe('advisory')
   })
 })
 

@@ -51,7 +51,7 @@ import { CONNECT_KINDS, connectKindOf, type ConnectKind } from '../model/connect
 import { useT, type MessageKey } from '../i18n'
 import { GATE_STATE_KEY, gateWhyKey } from './nodes/gateStatusKeys'
 import { isolateAuto, isolateLtr } from '../i18n/bidiIsolate'
-import { hasTableMeaning, hasTimetables } from '../model/modelVersion'
+import { hasKindsTable, hasTableMeaning, hasTimetables } from '../model/modelVersion'
 import { plainDecimal, toSignificant15, type Rational } from '../model/rational'
 import { amountOf } from '../store/smallMoves'
 import { rulesFollowingTank } from '../model/runRule'
@@ -269,7 +269,7 @@ export function Inspector({ editLocked = false }: { editLocked?: boolean } = {})
 
         {/* a mismatch is a finding, not a setting: it stays in view, with the
             way to the setting it is about, while that setting is folded */}
-        {d.kind === 'pool' && <ResourceMismatchNote findings={mismatches.filter((f) => f.nodeId === node.id)} />}
+        {d.kind === 'pool' && <ResourceMismatchNote on="pool" findings={mismatches.filter((f) => f.nodeId === node.id)} />}
         {(d.kind === 'gate' || d.kind === 'converter') && <RefusedGroupNote nodeId={node.id} />}
         {(d.kind === 'pool' || d.kind === 'gate' || d.kind === 'converter') && <KindFindingNote nodeId={node.id} />}
         {d.kind === 'gate' && <GateStateNote nodeId={node.id} />}
@@ -362,7 +362,7 @@ export function Inspector({ editLocked = false }: { editLocked?: boolean } = {})
           )}
         </section>
 
-        {ed.kind === 'resource' && <ResourceMismatchNote findings={mismatches.filter((f) => f.edgeId === edge.id)} />}
+        {ed.kind === 'resource' && <ResourceMismatchNote on="edge" findings={mismatches.filter((f) => f.edgeId === edge.id)} />}
 
         <PanelDetails>
           {/* keyed per connection (its refusal note resets), apart from the
@@ -1343,9 +1343,12 @@ function ResourceTypeField({ value, onChange }: { value: string | undefined; onC
   const t = useT()
   const norm = normalizeResourceType(value)
   const raw = value ?? ''
+  // review M2 — from loop-model/3 the engine reads a Pool's and a resource
+  // connection's kind (SEMANTICS-M3.md §M3-2): the label stops calling it advisory
+  const read = hasKindsTable(useGraphStore((s) => s.modelVersion))
   return (
     <>
-      <Field label={t('inspector.field.resourceType')}>
+      <Field label={read ? t('inspector.field.resourceTypeRead') : t('inspector.field.resourceType')}>
         <input
           id={RESOURCE_TYPE_INPUT_ID}
           value={raw}
@@ -1499,19 +1502,30 @@ function PoolSmallMovesNote({ id, d }: { id: string; d: PoolData }) {
 
 /** an advisory resource-type mismatch (loop-model/1 §M4), shown outside the
  *  folded settings with a button that unfolds them and puts the caret in the
- *  resource type */
-function ResourceMismatchNote({ findings }: { findings: ResourceMismatchFinding[] }) {
+ *  resource type. Review M2 (Lumi, 2026-11-21) — from loop-model/3 the engine
+ *  reads the kinds (`hasKindsTable`, SEMANTICS-M3.md §M3-2), so the note no
+ *  longer calls the mismatch advisory: on a connection it states the mismatch
+ *  alone, and on a Pool it gives way to the kind finding (`KindFindingNote`),
+ *  which names the same conflict and says whether it stops the run. */
+function ResourceMismatchNote({ findings, on }: { findings: ResourceMismatchFinding[]; on: 'pool' | 'edge' }) {
   const t = useT()
   const setOpen = useUiStore((s) => s.setPanelDetailsOpen)
-  if (findings.length === 0) return null
+  const read = hasKindsTable(useGraphStore((s) => s.modelVersion))
+  if (findings.length === 0 || (read && on === 'pool')) return null
   return (
     <div className="wb-panel__finding">
       <p className="inspector__note inspector__note--warn">
-        {t('inspector.resourceType.mismatch', {
-          pairs: findings
-            .map((f) => t('inspector.resourceType.pair', { edge: isolateAuto(f.edgeType), node: isolateAuto(f.nodeType) }))
-            .join(', '),
-        })}
+        {read
+          ? t('inspector.resourceType.mismatchRead', {
+              pairs: findings
+                .map((f) => t('inspector.resourceType.pair', { edge: isolateAuto(f.edgeType), node: isolateAuto(f.nodeType) }))
+                .join(', '),
+            })
+          : t('inspector.resourceType.mismatch', {
+              pairs: findings
+                .map((f) => t('inspector.resourceType.pair', { edge: isolateAuto(f.edgeType), node: isolateAuto(f.nodeType) }))
+                .join(', '),
+            })}
       </p>
       <button
         type="button"
