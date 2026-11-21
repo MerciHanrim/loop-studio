@@ -160,12 +160,11 @@ import, …) live under [`docs/`](docs/).
 
 ## Latest — v0.33.0
 
-A run engine that keeps every resource, documents that say when they cannot run, and a canvas
-that stays readable when zoomed out.
+Run engine fixes, documents that say when they cannot run, and a canvas that stays readable
+when zoomed out.
 
-- **The run engine keeps every resource**: Gates and Converters no longer lose resources or
-  pass on more than they took, with several feeds, under run rules, with very small or very
-  large amounts, and in loops that return what they take
+- **Run engine fixes**: the losses, and the moves of more than was taken, found between Gates
+  and Converters with several feeds, in loops and with very small amounts
 - **A document that cannot run says so**: right after a reload and everywhere a run can start,
   with its reason; a Monte Carlo run stays with the document it started on
 - **A coffee roasting batch** joins the Templates
