@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FSI, LRI, PDI, isolateAuto, isolateLtr, stripBidiControls, unwrapIsolates } from './bidiIsolate'
+import { FSI, LRI, PDI, isolateAuto, isolateLtr, isolateLtrRun, stripBidiControls, unwrapIsolates } from './bidiIsolate'
 import { bidiFindings, hasAnyBidiControl, isolatesIn } from './bidiControls'
 
 // docs/localization.md §L9.4 — the producer half of bidi isolation.
@@ -241,5 +241,25 @@ describe('the catalog boundary', () => {
       const dirty = Object.entries(cat).filter(([, v]) => hasAnyBidiControl(v))
       expect(dirty.map(([k]) => `${code} ${k}`)).toEqual([])
     }
+  })
+})
+
+// review I1 — a relation built of isolated parts is laid out left to right as one
+// run, and the parts keep their own isolates (the reason `isolateLtr` cannot do it)
+describe('isolateLtrRun keeps the isolates of its parts', () => {
+  it('one LRI around the run; each part keeps its FSI…PDI', () => {
+    const run = `${isolateAuto('قادوس البن')} → ${isolateAuto('Drum A1')}`
+    expect(isolateLtrRun(run)).toBe(`${LRI}${FSI}قادوس البن${PDI} → ${FSI}Drum A1${PDI}${PDI}`)
+    expect(isolatesIn(isolateLtrRun(run))).toEqual(['FSI', 'FSI', 'LRI'])
+  })
+
+  it('control: isolateLtr on the same run strips the parts’ isolates', () => {
+    const run = `${isolateAuto('قادوس البن')} → ${isolateAuto('Drum A1')}`
+    expect(isolateLtr(run)).toBe(`${LRI}قادوس البن → Drum A1${PDI}`)
+  })
+
+  it('an empty or blank run is returned unchanged', () => {
+    expect(isolateLtrRun('')).toBe('')
+    expect(isolateLtrRun('  ')).toBe('  ')
   })
 })

@@ -122,6 +122,21 @@ export function isolateLtr(value: string): string {
   return isInert(clean) ? clean : LRI + clean + PDI
 }
 
+/** Lay out a RELATION written from already isolated parts — `{from} → {to}`,
+ *  each name in its own isolate — left to right as one run, in any paragraph.
+ *
+ *  Review I1: the arrow of a graph relation points from the first name to the
+ *  second (`→` is kept for every reader, §L9.3), so the relation must read
+ *  left to right also inside a right-to-left sentence. `isolateLtr` cannot do
+ *  this: it strips the bidi controls of its value first, which removes the
+ *  parts' own isolates, and a name's neutral characters (a digit, a bracket)
+ *  then join its neighbour. This wrapper KEEPS what is inside and adds one LRI
+ *  around it; its caller is responsible for every user value inside being
+ *  isolated already. */
+export function isolateLtrRun(isolatedParts: string): string {
+  return isInert(isolatedParts) ? isolatedParts : LRI + isolatedParts + PDI
+}
+
 /** The text a reader sees, with the isolation removed again — the inverse of
  *  the two helpers above for any value they produced.
  *
