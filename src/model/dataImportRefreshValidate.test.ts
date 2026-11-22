@@ -3,6 +3,7 @@ import { nextId } from './factory'
 import { analyzeRefreshColumns, validateRefreshSnapshot, type ColumnPairing } from './dataImportRefreshValidate'
 import type { ImportSourceTable } from './serialize'
 import { DI_COLUMNS_MAX } from './serialize'
+import { t, type MessageKey } from '../i18n'
 
 // docs/data-import.md §DI9/§DI11 -- Phase 2. `analyzeRefreshColumns` is pure
 // and always succeeds; `validateRefreshSnapshot` is the actual trust
@@ -91,6 +92,57 @@ describe('validateRefreshSnapshot -- per-cell rules reused from validateDrafts',
     })
     const r = validateRefreshSnapshot([items, pool], pool.sourceTableId, [['pool_key', 'item_key'], ['p1', 'itm_NOPE']], 1, 0, [])
     expect(!r.ok && r.errors.some((e) => e.code === 'orphan-foreign-key')).toBe(true)
+  })
+})
+
+// Review P3 — a refresh issue carries what the wizard needs to say WHICH cell:
+// its incoming column and, in `detail`, the column's header and the cell as
+// typed, as `validateDrafts` does for the same codes. The refresh wizard used to
+// show "text unavailable (import.issue.duplicate-key)" and the same for a bad
+// number, because their messages need `{value}` and no row or column at all.
+describe('validateRefreshSnapshot -- a cell issue says which cell', () => {
+  const errorsOf = (rows: string[][]) => {
+    const t = table()
+    const r = validateRefreshSnapshot([t], t.sourceTableId, rows, 1, 0, [])
+    if (r.ok) throw new Error('expected a refusal')
+    return r.errors.map((e) => ({ code: e.code, rowIndex: e.rowIndex, incomingColumnIndex: e.incomingColumnIndex, detail: e.detail }))
+  }
+
+  it('a duplicate key: its row, the key column, the header and the key', () => {
+    expect(errorsOf([['item_key', 'weight'], ['itm_a', '10'], ['itm_a', '20']])).toEqual([
+      { code: 'duplicate-key', rowIndex: 1, incomingColumnIndex: 0, detail: { header: 'item_key', value: 'itm_a' } },
+    ])
+  })
+
+  it('two bad numbers in two rows: each its own row and value', () => {
+    expect(errorsOf([['item_key', 'weight'], ['itm_a', 'ten'], ['itm_b', '3kg']])).toEqual([
+      { code: 'invalid-number', rowIndex: 0, incomingColumnIndex: 1, detail: { header: 'weight', value: 'ten' } },
+      { code: 'invalid-number', rowIndex: 1, incomingColumnIndex: 1, detail: { header: 'weight', value: '3kg' } },
+    ])
+  })
+
+  it('an empty number cell: its row and column', () => {
+    expect(errorsOf([['item_key', 'weight'], ['itm_a', ''], ['itm_b', '3']])).toEqual([
+      { code: 'empty-number', rowIndex: 0, incomingColumnIndex: 1, detail: { header: 'weight', value: '' } },
+    ])
+  })
+
+  it('every message these issues name can be written with the detail they carry (no "text unavailable")', () => {
+    const issues = [
+      ...errorsOf([['item_key', 'weight'], ['itm_a', '10'], ['itm_a', '20']]),
+      ...errorsOf([['item_key', 'weight'], ['itm_a', 'ten'], ['itm_b', '']]),
+    ]
+    for (const e of issues) {
+      const text = t(`import.issue.${e.code}` as MessageKey, e.detail as Record<string, string | number> | undefined)
+      expect(text, e.code).not.toMatch(/text unavailable/)
+    }
+  })
+
+  it('the incoming column is where the column is in the pasted text, not in the stored table', () => {
+    // the same two columns, pasted the other way round
+    expect(errorsOf([['weight', 'item_key'], ['ten', 'itm_a']])).toEqual([
+      { code: 'invalid-number', rowIndex: 0, incomingColumnIndex: 0, detail: { header: 'weight', value: 'ten' } },
+    ])
   })
 })
 

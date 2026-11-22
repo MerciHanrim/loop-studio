@@ -375,11 +375,16 @@ export function validateRefreshSnapshot(
     let sourceKey: string | null = null
     if (keyCol) {
       const idx = indexBySourceColumnId.get(keyCol.sourceColumnId)
-      const cell = idx !== undefined ? normalizeKey(raw[idx] ?? '') : ''
-      if (cell === '') errors.push({ code: 'empty-key', rowIndex: ri })
-      else if (utf8Len(cell) > SOURCE_KEY_MAX_BYTES) errors.push({ code: 'key-too-long', rowIndex: ri, detail: { max: SOURCE_KEY_MAX_BYTES } })
-      else if (hasControlChar(cell)) errors.push({ code: 'key-control-char', rowIndex: ri })
-      else if (seenKeys.has(cell)) errors.push({ code: 'duplicate-key', rowIndex: ri })
+      const rawCell = idx !== undefined ? (raw[idx] ?? '') : ''
+      const cell = normalizeKey(rawCell)
+      // review P3 — which cell, as `validateDrafts` says it for the same codes:
+      // the incoming column and, in `detail`, its header (and the key as typed)
+      const at = { rowIndex: ri, ...(idx !== undefined ? { incomingColumnIndex: idx } : {}) }
+      const header = keyCol.header
+      if (cell === '') errors.push({ code: 'empty-key', ...at, detail: { header } })
+      else if (utf8Len(cell) > SOURCE_KEY_MAX_BYTES) errors.push({ code: 'key-too-long', ...at, detail: { max: SOURCE_KEY_MAX_BYTES, header } })
+      else if (hasControlChar(cell)) errors.push({ code: 'key-control-char', ...at, detail: { header } })
+      else if (seenKeys.has(cell)) errors.push({ code: 'duplicate-key', ...at, detail: { header, value: rawCell } })
       else {
         seenKeys.add(cell)
         sourceKey = cell
@@ -397,7 +402,14 @@ export function validateRefreshSnapshot(
       if (c.role === 'number') {
         const parsed = parseNumberCell(cellRaw)
         if (parsed.ok) number[c.sourceColumnId] = parsed.value
-        else errors.push({ code: parsed.code, rowIndex: ri, sourceColumnId: c.sourceColumnId })
+        else
+          errors.push({
+            code: parsed.code,
+            rowIndex: ri,
+            sourceColumnId: c.sourceColumnId,
+            ...(idx !== undefined ? { incomingColumnIndex: idx } : {}),
+            detail: { header: c.header, value: cellRaw },
+          })
       } else if (c.role === 'label') {
         const v = normalizeKey(cellRaw)
         if (v !== '') label[c.sourceColumnId] = v
@@ -427,7 +439,14 @@ export function validateRefreshSnapshot(
       if (value === undefined) continue
       const targetRow = target ? lookup.row(target, value) : undefined
       if (!targetRow) {
-        errors.push({ code: 'orphan-foreign-key', rowIndex: ri, sourceColumnId: c.sourceColumnId, detail: { value } })
+        const idx = indexBySourceColumnId.get(c.sourceColumnId)
+        errors.push({
+          code: 'orphan-foreign-key',
+          rowIndex: ri,
+          sourceColumnId: c.sourceColumnId,
+          ...(idx !== undefined ? { incomingColumnIndex: idx } : {}),
+          detail: { value, header: c.header },
+        })
       }
     }
   }

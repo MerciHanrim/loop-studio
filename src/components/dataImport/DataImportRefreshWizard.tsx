@@ -12,6 +12,7 @@ import {
   type RefreshIssueCode,
 } from '../../model/dataImportRefreshValidate'
 import { cellResolutionKey, diffRefresh, type RefreshCommitResult, type RefreshDiffPlan, type RefreshResolution } from '../../model/dataImportRefresh'
+import { formatCellValueForDisplay } from '../../model/dataImportValidate'
 import { nextId } from '../../model/factory'
 import type { ImportColumnRole } from '../../model/serialize'
 import { useDataImportStore } from '../../store/dataImportStore'
@@ -19,6 +20,7 @@ import { useGraphStore } from '../../store/graphStore'
 import { useDialogFocus } from '../useDialogFocus'
 import { isolateAuto } from '../../i18n/bidiIsolate'
 import { DialogScrim } from '../DialogScrim'
+import { issueLocationText } from './issueText'
 
 // docs/data-import.md §DI11/§DI16 Phase 2 -- the 4-step refresh wizard for
 // ONE already-bound table: paste/upload -> column events (only shown when
@@ -132,6 +134,27 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
   const headers = useMemo(() => parsedRows[Math.max(0, headerRowIndex - 1)] ?? [], [parsedRows, headerRowIndex])
 
   if (!table) return null
+
+  /** review P3 — a refresh issue line as the first import wizard writes its
+   *  own (`DataImportWizard` `issueText`): the description with the cell as
+   *  typed, display-formatted and isolated, behind the shared location prefix
+   *  (the table, the row as a line of the pasted text, the column and its
+   *  header). It used to be the description alone, and two codes had no
+   *  `{value}` to show, so their line was "text unavailable (…)". */
+  const refreshIssueText = (issue: RefreshIssue): string => {
+    // the copy is what is rendered; `issue.detail` itself stays raw
+    const detail = { ...(issue.detail ?? {}) } as Record<string, string | number>
+    if (typeof detail.value === 'string') detail.value = isolateAuto(formatCellValueForDisplay(detail.value))
+    const desc = t(REFRESH_ISSUE_KEY[issue.code], detail)
+    const loc = issueLocationText(t, {
+      table: table.label,
+      headerRowIndex,
+      rowIndex: issue.rowIndex,
+      columnIndex: issue.incomingColumnIndex,
+      header: typeof issue.detail?.header === 'string' ? issue.detail.header : null,
+    })
+    return `${loc}: ${desc}`
+  }
 
   const reparse = (text: string, auto: boolean, manualDelim: ',' | '\t') => {
     const stripped = stripBom(text)
@@ -444,7 +467,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
               {issues && issues.length > 0 && (
                 <ul className="import__error">
                   {issues.map((issue, i) => (
-                    <li key={i}>{t(REFRESH_ISSUE_KEY[issue.code], issue.detail as Record<string, string | number> | undefined)}</li>
+                    <li key={i}>{refreshIssueText(issue)}</li>
                   ))}
                 </ul>
               )}
