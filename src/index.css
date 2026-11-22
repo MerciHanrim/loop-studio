@@ -248,10 +248,19 @@
    keep the base stack above; `--font-mono` (code, numbers, expressions) is a
    separate variable and is untouched either way. CSS-only for now — a
    self-hosted `Noto Sans JP` subset is only worth adding later if OS-fallback
-   glyph variance across platforms actually becomes a real problem. */
+   glyph variance across platforms actually becomes a real problem.
+
+   Issue #607 — the platform's own Japanese UI fonts come BEFORE 'Noto Sans JP'.
+   Measured on Windows with CDP `CSS.getPlatformFontsForNode`: a machine with
+   Noto Sans JP installed in one weight only (`NotoSansJP-Bold.otf`) drew every
+   Japanese glyph in that face, at 400, 500 and 700 alike, because the family
+   was named right after IBM Plex Sans. Hiragino Sans (macOS) and Yu Gothic UI /
+   Yu Gothic / Meiryo (Windows) ship every weight the UI uses; Noto Sans JP stays
+   as the fallback where none of them exists (Linux). The order is pinned by
+   `src/i18n/fontStacks.test.ts`. */
 :lang(ja) {
-  --font-sans: 'IBM Plex Sans', 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic UI',
-    'Yu Gothic', Meiryo, sans-serif;
+  --font-sans: 'IBM Plex Sans', 'Hiragino Sans', 'Yu Gothic UI', 'Yu Gothic',
+    Meiryo, 'Noto Sans JP', sans-serif;
 }
 
 /* The same defect, measured for Chinese on 2026-09-21 with CDP
