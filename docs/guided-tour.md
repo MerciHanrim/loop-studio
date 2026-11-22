@@ -89,6 +89,21 @@ empty, or the timeline is collapsed), see §GT4 "missing target".
 The phone layout **cannot edit** ([`docs/mobile.md`](mobile.md)), so the mobile
 tour is a **different script**, not the desktop tour with smaller popovers.
 
+**Which script runs** (review T1, #610, 2026-11-22). `Start tour` on the Welcome
+card picks the script the **layout** shows: the phone script when the app is in
+the phone layout, by the same query that switches it (`MOBILE_MEDIA_QUERY`,
+`src/ui/media.ts`: `max-width: 720px`, or a phone held sideways: `max-height:
+500px`, `max-width: 950px` and a coarse pointer), and the desktop script
+otherwise. It is read when `Start tour` is pressed; a resize during the tour
+keeps the script it started with. The replays need no rule of their own: Help's
+`Restart the tour` exists only in the desktop layout and runs the desktop
+script, More's only in the phone layout and runs the phone script. Before, the
+Welcome card used `innerWidth < 768`, so a phone held sideways got the desktop
+script on the phone layout and a 721–767 px window the phone script on the
+desktop layout. Below 900 px the desktop layout folds the properties panel, so
+the desktop script's Inspector step shows the centred card there (§GT4 "missing
+target"; recorded on #610, not changed by it).
+
 | # | Step | Anchor | What the copy says |
 |---|---|---|---|
 | 1 | **Open a graph** | the top bar / Import control | open a shared graph — from a `#g1=` link or by importing a file |

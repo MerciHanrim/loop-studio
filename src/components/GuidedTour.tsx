@@ -4,7 +4,8 @@ import { useMcStore } from '../store/mcStore'
 import { useProjectStore } from '../store/projectStore'
 import { selectUpdateReady, usePwaStore } from '../store/pwaStore'
 import { useReviewStore } from '../store/reviewStore'
-import { TOUR_TOTAL, readTourKey, useTourStore } from '../store/tourStore'
+import { TOUR_TOTAL, readTourKey, useTourStore, type TourPlatform } from '../store/tourStore'
+import { MOBILE_MEDIA_QUERY } from '../ui/media'
 import { useUiStore } from '../store/uiStore'
 import { tourScript } from './tourSteps'
 import { useDialogFocus } from './useDialogFocus'
@@ -15,7 +16,13 @@ import { Icon } from '../ui/icons'
 // GraphDoc, digest, undo, selection, viewport, SimState, or MC state (§GT4).
 // Its only persistent trace is one localStorage string (tourStore, §GT6).
 
-const PLATFORM = () => (window.innerWidth < 768 ? 'mobile' : 'desktop') as 'mobile' | 'desktop'
+// review T1 (#610) — the script is the one the LAYOUT shows: the same query that
+// switches the app to the phone layout (src/ui/media.ts). It used to be
+// `innerWidth < 768`, so a phone held sideways got the desktop script on the phone
+// layout, and a 721–767 px window the phone script on the desktop layout. Read when
+// Start is pressed; a resize during the tour keeps the script it started with.
+const PLATFORM = (): TourPlatform =>
+  typeof window !== 'undefined' && window.matchMedia?.(MOBILE_MEDIA_QUERY).matches ? 'mobile' : 'desktop'
 
 // issue #308 - where focus goes when the tour ends, by Done, Escape or the
 // close control, whether it was a first run or a replay: never <body>. The Help
