@@ -24,11 +24,11 @@ import { canonicalPrint, parse, refsOf } from './expr'
 import type { ExprNode } from './expr'
 import { nextId } from './factory'
 import { canonicalContent, validateResultGraph } from './revision'
-import { normalizeGraph } from './serialize'
+import { minimumModelVersion, normalizeGraph } from './serialize'
 import type { ModelSemanticsVersion } from './serialize'
 import { kindMergeConflicts, kindsDeclareUnits, mergeKinds, type ResourceKindDecl } from './kinds'
 import { anyFieldUnit, applyUnits } from './engineValues'
-import { anyRunRule, type RunRule } from './runRule'
+import type { RunRule } from './runRule'
 import { normalizeResourceType } from './model/resourceType'
 import type { LoopEdge, LoopNode } from './types'
 import { stepSeconds, type DocTime } from './units'
@@ -431,8 +431,12 @@ export function extractModule(src: GraphDocLike, selectedIds: readonly string[])
   // loop-model/6 — and so do the tables its rules read
   const read = new Set([...timetableLines(selEdges).map((l) => l.tableId), ...nodes.flatMap((n) => (n.data as { run?: RunRule }).run?.table ?? [])])
   const timetables = (src.timetables ?? []).filter((t) => read.has(t.id))
-  const modelVersion: ModelSemanticsVersion = anyRunRule(nodes) ? 6 : timetables.length > 0 ? 5 : units ? 4 : kinds.length > 0 ? 3 : hasParamFlow ? 2 : 1
   const time = units ? src.time : undefined
+  // review M1 — the version is what the module's content needs, by the rule the
+  // file's own checks use (`modelVersionNeeds`): a hand-written ladder here
+  // stopped at 6, and a line reading an `available` table (7) made `serialize`
+  // refuse the file. A `@param` flow, which `serialize` does not check, is 2.
+  const modelVersion: ModelSemanticsVersion = minimumModelVersion({ nodes, edges: selEdges, kinds, time, timetables }, hasParamFlow ? 2 : 1)
 
   return { ok: true, nodes, edges: selEdges, modelVersion, kinds, ...(time !== undefined ? { time } : {}), ...(timetables.length > 0 ? { timetables } : {}) }
 }
