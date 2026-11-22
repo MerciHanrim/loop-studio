@@ -113,6 +113,22 @@ describe('a module', () => {
     expect(r.ok && r.modelVersion).toBe(5)
     expect(r.ok && r.timetables?.map((t) => t.id)).toEqual(['intake'])
   })
+
+  // review M1 — a table of what a line can move (SEMANTICS-M7) is a /graph/7 fact: the extract
+  // stopped at 5 (6 with a run rule), and `serialize` refused the file it was then asked to write
+  it('an extract whose line reads an `available` table is a /graph/7 file that serialize writes', () => {
+    const r = extractModule({ nodes, edges, modelVersion: 7, timetables: [table({ means: 'available' })] }, ['src', 'tank'])
+    if (!r.ok) throw new Error(r.reason)
+    expect(r.modelVersion).toBe(7)
+    const text = serialize(r.nodes, r.edges, undefined, undefined, undefined, r.modelVersion, undefined, undefined, r.kinds, r.time, r.timetables)
+    expect(JSON.parse(text).schema).toBe('loop-studio/graph/7')
+    expect(deserialize(text).timetables?.map((t) => t.means)).toEqual(['available'])
+  })
+
+  it('control: a plan table alone stays a /graph/5 extract', () => {
+    const r = extractModule({ nodes, edges, modelVersion: 7, timetables: [table(), table({ id: 'gone', means: 'available' })] }, ['src', 'tank'])
+    expect(r.ok && r.modelVersion).toBe(5)
+  })
 })
 
 describe('the run CSV', () => {

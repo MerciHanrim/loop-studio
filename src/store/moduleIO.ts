@@ -54,11 +54,20 @@ export function planSelectionAsModule(ids: string[] = selectedNodeIds()): Extrac
   const g = useGraphStore.getState()
   const r = extractModule({ nodes: g.nodes, edges: g.edges, modelVersion: g.modelVersion, kinds: g.kinds, time: g.time, timetables: g.timetables }, ids)
   if (!r.ok) return { ok: false, reason: r.reason }
-  return {
-    ok: true,
+  // review M1 — a file `serialize` refuses comes back as a refusal, through the
+  // same message the menu shows for the extract's own refusals. It used to be
+  // thrown out of the menu's click handler: no file, no message, a page error.
+  let text: string
+  try {
     // loop-model/3 — the kinds the selection names ride along (a `/graph/3` module);
     // loop-model/4 — and the step length when the selection carries units
-    text: serialize(r.nodes, r.edges, undefined, undefined, undefined, r.modelVersion, undefined, undefined, r.kinds, r.time, r.timetables),
+    text = serialize(r.nodes, r.edges, undefined, undefined, undefined, r.modelVersion, undefined, undefined, r.kinds, r.time, r.timetables)
+  } catch (e) {
+    return { ok: false, reason: `This selection could not be saved as a structure: ${e instanceof Error ? e.message : String(e)}.` }
+  }
+  return {
+    ok: true,
+    text,
     filename: 'loop-studio-module.json',
     hadFrames: useFrameStore.getState().snapshot().length > 0,
     nodeCount: r.nodes.length,

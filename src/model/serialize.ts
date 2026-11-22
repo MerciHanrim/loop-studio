@@ -34,7 +34,7 @@ import { hasKindsTable, hasRunRules, hasTableMeaning, hasTimetables, hasUnits, t
 import { anyRunRule, readRunRule, stripRunRules } from './runRule'
 import { canonicalKinds, kindsDeclareUnits, readKindsAt, type ResourceKindDecl } from './kinds'
 import { canonicalDocTime, readDocTime, type DocTime } from './units'
-import { stripFieldUnits } from './engineValues'
+import { anyFieldUnit, stripFieldUnits } from './engineValues'
 import { canonicalTimetable, readTimetables, type Timetable } from './timetable'
 import { canonicalPhase, readPhases, type DocPhase } from './phases'
 export type { DocPhase } from './phases'
@@ -731,6 +731,50 @@ function toDocEdge(e: LoopEdge): LoopEdge {
   } as LoopEdge
 }
 
+/** One thing a document's content needs of its model-semantics version: the
+ *  lowest version that may hold it, and the words `serialize` refuses a lower
+ *  one with. */
+export type ModelVersionNeed = { version: ModelSemanticsVersion; refusal: string }
+
+/** Review M1 — what this content needs of its model-semantics version, as ONE
+ *  list. `serialize` refuses a lower version with each need's own words, and a
+ *  writer that picks its version from the content (`extractModule`) takes the
+ *  highest (`minimumModelVersion`), so the two cannot drift apart again: the
+ *  extract's hand-written ladder stopped at 6 while a table of what a line can
+ *  move needs 7, and its file was refused. Each fact is read in the form it is
+ *  written (the canonical kinds, step length and tables). The order is the
+ *  order of the refusals. */
+export function modelVersionNeeds(content: {
+  nodes: readonly LoopNode[]
+  edges: readonly LoopEdge[]
+  kinds?: readonly ResourceKindDecl[]
+  time?: DocTime
+  timetables?: readonly Timetable[]
+}): ModelVersionNeed[] {
+  const kinds = Array.isArray(content.kinds) ? canonicalKinds(content.kinds) : []
+  const tables = Array.isArray(content.timetables) ? content.timetables.map(canonicalTimetable) : []
+  const needs: ModelVersionNeed[] = []
+  // M3-INV-1 — an older envelope may not carry a kinds table
+  if (kinds.length > 0) needs.push({ version: 3, refusal: 'a kinds table needs model-semantics version 3' })
+  // M4-INV-2 — a step length, a unit list or a field unit
+  if (canonicalDocTime(content.time) !== undefined || kindsDeclareUnits(kinds) || anyFieldUnit(content.nodes, content.edges)) {
+    needs.push({ version: 4, refusal: 'units and a step length need model-semantics version 4' })
+  }
+  if (tables.length > 0) needs.push({ version: 5, refusal: 'a timetable needs model-semantics version 5' })
+  // SEMANTICS-M7.md §M7-1 — an older build drops an unknown table key without a word,
+  // so it would read an `available` table as a plan and lose the meaning on save
+  if (tables.some((x) => x.means === 'available')) needs.push({ version: 7, refusal: 'a table of what a line can move needs model-semantics version 7' })
+  if (anyRunRule(content.nodes)) needs.push({ version: 6, refusal: 'a run rule needs model-semantics version 6' })
+  return needs
+}
+
+/** the lowest model-semantics version that holds this content, never below
+ *  `atLeast` (an extract passes 2 for a `@param` flow, a fact `serialize` does
+ *  not refuse on) */
+export function minimumModelVersion(content: Parameters<typeof modelVersionNeeds>[0], atLeast: ModelSemanticsVersion = 1): ModelSemanticsVersion {
+  return modelVersionNeeds(content).reduce<ModelSemanticsVersion>((v, need) => (need.version > v ? need.version : v), atLeast)
+}
+
 export function serialize(
   nodes: LoopNode[],
   edges: LoopEdge[],
@@ -759,26 +803,15 @@ export function serialize(
    *  the same bytes as before the key; written at any model version. */
   phases?: readonly DocPhase[],
 ): string {
+  // what the content needs of the version is one list, shared with the writers
+  // that pick their version from the content (`modelVersionNeeds`); a lower
+  // version is refused, never written with the fact silently dropped
+  for (const need of modelVersionNeeds({ nodes, edges, kinds, time, timetables })) {
+    if (modelVersion < need.version) throw new Error(`${need.refusal}, not ${modelVersion}`)
+  }
   const kindsOut = Array.isArray(kinds) ? canonicalKinds(kinds) : []
-  if (kindsOut.length > 0 && !hasKindsTable(modelVersion)) {
-    throw new Error(`a kinds table needs model-semantics version 3, not ${modelVersion}`)
-  }
   const timeOut = canonicalDocTime(time)
-  if (!hasUnits(modelVersion) && (timeOut !== undefined || kindsDeclareUnits(kindsOut) || anyFieldUnitKey(nodes, edges))) {
-    throw new Error(`units and a step length need model-semantics version 4, not ${modelVersion}`)
-  }
   const tablesOut = Array.isArray(timetables) ? timetables.map(canonicalTimetable) : []
-  if (tablesOut.length > 0 && !hasTimetables(modelVersion)) {
-    throw new Error(`a timetable needs model-semantics version 5, not ${modelVersion}`)
-  }
-  // SEMANTICS-M7.md §M7-1 — an older build drops an unknown table key without a word,
-  // so it would read an `available` table as a plan and lose the meaning on save
-  if (tablesOut.some((x) => x.means === 'available') && !hasTableMeaning(modelVersion)) {
-    throw new Error(`a table of what a line can move needs model-semantics version 7, not ${modelVersion}`)
-  }
-  if (anyRunRule(nodes) && !hasRunRules(modelVersion)) {
-    throw new Error(`a run rule needs model-semantics version 6, not ${modelVersion}`)
-  }
   const doc: GraphDoc = {
     schema: schemaForModelVersion(modelVersion),
     version: SCHEMA_VERSION,
@@ -812,12 +845,6 @@ export function serialize(
     doc.project = project
   }
   return JSON.stringify(doc, null, 2)
-}
-
-/** `true` when any Pool or resource connection carries a non-empty `unit` key */
-function anyFieldUnitKey(nodes: readonly LoopNode[], edges: readonly LoopEdge[]): boolean {
-  const has = (d: unknown) => typeof (d as { unit?: unknown } | undefined)?.unit === 'string' && (d as { unit: string }).unit !== ''
-  return nodes.some((n) => n.data?.kind === 'pool' && has(n.data)) || edges.some((e) => (e.data?.kind ?? 'resource') === 'resource' && has(e.data))
 }
 
 /** why `deserialize` rejected a file — a CODE the UI maps to a localized
