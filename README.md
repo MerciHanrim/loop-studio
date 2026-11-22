@@ -158,7 +158,21 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.33.0
+## Latest — v0.33.1
+
+Fixes to what is already there, on the phone and in the right-to-left and Japanese interfaces.
+
+- **Phone**: a pinch keeps what is under your fingers in place; sharing or exporting keeps the
+  canvas lock and the Timeline's series; the first-run tour matches the layout when the phone
+  is held sideways
+- **Save selected structure** works on a selection that holds a delivery line
+- **Data refresh errors** say which table, row, column and cell is wrong
+- **Right-to-left sentences**: a connection in a review line reads from its start to its end,
+  and names and ids inside a few more sentences keep their own direction
+- **Japanese text** is no longer drawn bold everywhere on a computer with Noto Sans JP installed
+  in one weight only
+
+## v0.33.0
 
 Run engine fixes, documents that say when they cannot run, and a canvas that stays readable
 when zoomed out.
@@ -216,19 +230,9 @@ Eighteen languages again, and a round of workbench clarity.
 - **Smaller fixes**: View ▸ Filters closes the menu; a region-select drag can start on a
   connection or a frame's name; Run settings stays put as the step count grows
 
-## v0.30.1
-
-The workbench and the automatic lines, tidied.
-
-- **Values in the model list**: each Parameter's and Pool's value at the end of its row, with
-  the name giving way first when room is short; bold kind headings with counts
-- **Larger small text**: the run bar's and the timeline's smallest labels and buttons
-- **No stray text selection**: a drag that starts between the menus, on a tool-row label or on
-  the status bar no longer selects their words
-- **Automatic lines**: fewer steps and hooks next to a node, room kept for the arrowhead, and
-  a bend point placed by a port kept on the line
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.30.0 (a shorter
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.30.1 (values in
+the model list, larger small text, and automatic lines with fewer steps next to a node),
+v0.30.0 (a shorter
 File menu with Templates ▸ and Export ▸ submenus, and no minimap), v0.29.0 (the
 workbench: a menu bar, a tool row, the node list and the properties panel around the canvas,
 and nodes as symbols; [`docs/workbench.md`](docs/workbench.md)), v0.28.4 (starting
