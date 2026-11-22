@@ -7,7 +7,7 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
-## v0.33.1 — 2026-11-22
+## v0.33.1 — 2026-11-23
 
 Fixes to what is already there: on the phone, a pinch that keeps what is under your fingers in place, and sharing or exporting that keeps the canvas lock and the Timeline's series; Save selected structure on a selection that holds a delivery line; data refresh errors that say which cell is wrong; names and ids inside right-to-left sentences that keep their own direction; Japanese text no longer drawn bold everywhere; and a first-run tour that matches the layout on a phone held sideways.
 
