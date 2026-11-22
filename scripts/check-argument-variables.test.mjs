@@ -85,6 +85,13 @@ const commitErrorOnMain = () => {
   return swap(text, text.slice(start, end), '{t(COMMIT_ERROR_KEY[commitError.code], commitError.detail as Record<string, string | number> | undefined)}')
 }
 
+// the isolating assignment moved BELOW the call it is meant to feed (review of #647)
+const ASSIGN_THEN_CALL =
+  "    if (typeof detail.value === 'string')\n      detail.value = isolateAuto(formatCellValueForDisplay(detail.value))\n    const desc = t(ISSUE_KEY[issue.code], detail)\n"
+const CALL_THEN_ASSIGN =
+  "    const desc = t(ISSUE_KEY[issue.code], detail)\n    if (typeof detail.value === 'string')\n      detail.value = isolateAuto(formatCellValueForDisplay(detail.value))\n"
+const assignAfterCall = () => swap(read(WIZARD), ASSIGN_THEN_CALL, CALL_THEN_ASSIGN)
+
 const DISPOSITION = 'scripts/icu-argument-disposition.json'
 
 // each case spawns a checker that builds a TypeScript program over src/ (about
@@ -115,6 +122,12 @@ describe('check-icu-arguments: an argument object in a variable is read, or decl
     const r = run(ICU, { [WIZARD]: commitErrorOnMain() })
     expect(r.status).toBe(1)
     expect(r.stderr).toMatch(/UNTRACEABLE {2}src\/components\/dataImport\/DataImportWizard\.tsx:\d+ {2}<computed> COMMIT_ERROR_KEY\[commitError\.code\] receives `commitError\.detail as/)
+  })
+
+  it('an isolating assignment AFTER the call is not read as the argument: the object is untraceable', () => {
+    const r = run(ICU, { [WIZARD]: assignAfterCall() })
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(/UNTRACEABLE {2}src\/components\/dataImport\/DataImportWizard\.tsx:\d+ {2}<computed> ISSUE_KEY\[issue\.code\] receives `detail`/)
   })
 
   it('a spread with no opaque entry fails, by site', () => {
@@ -171,6 +184,14 @@ describe('check-isolate-arguments: no argument object in a declared file is skip
     )
     const r = run(ISOLATE, { [WIZARD]: text })
     expect(r.status).toBe(1)
-    expect(r.stderr).toMatch(/wizard-issue-value: expected 1 `detail\.value = isolateAuto\(…\)` assignment, found 0/)
+    expect(r.stderr).toMatch(/wizard-issue-value: expected 1 `detail\.value = isolateAuto\(…\)` assignment before the call at src\/components\/dataImport\/DataImportWizard\.tsx:\d+, found 0$/m)
+  })
+
+  it('the same assignment moved AFTER the call fails: it cannot run before the sentence is made', () => {
+    const r = run(ISOLATE, { [WIZARD]: assignAfterCall() })
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(
+      /wizard-issue-value: expected 1 `detail\.value = isolateAuto\(…\)` assignment before the call at src\/components\/dataImport\/DataImportWizard\.tsx:\d+, found 0 \(1 more that cannot run before it: after the call or in another function\)/,
+    )
   })
 })

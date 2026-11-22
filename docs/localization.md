@@ -4056,8 +4056,10 @@ the ICU checker no rows and the isolate checker no arguments, so three sites
 passed values raw unseen (the revision chip's title, the frame announcements
 while an arrow key is held, and the import wizard's commit error, which quoted
 the user's table and frame names). Now a variable is read when it is a `const`
-of the same function initialized with an object literal, with every later
-`<name>.<prop> = …` there (the import wizards' isolated `detail.value`); anything
+of the same function initialized with an object literal, with every
+`<name>.<prop> = …` that runs before the call, in that function and ahead of it
+(the import wizards' isolated `detail.value`; one after the call or in a nested
+function makes the variable unreadable); anything
 else, including a `...spread` inside the object, must be listed under `opaque`
 in `scripts/icu-argument-disposition.json` with the reason it is safe, or it is a
 STOP. In a declared file the isolate checker stops on an object it cannot read

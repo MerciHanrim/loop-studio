@@ -29,10 +29,11 @@
 //
 // AN ARGUMENT OBJECT IN A VARIABLE (review I2, 2026-11-22). In a declared file, a
 // `t(key, x)` whose `x` is not an object literal is read when `x` is a `const` of
-// the same function initialized with one (its properties, and any later
-// `x.<prop> = …` in that function); a call whose object cannot be read is a STOP
-// unless a producer obligation claims it (the value is then asserted where it is
-// produced). Before, such a call was invisible here, and only the files the
+// the same function initialized with one (its properties, and any
+// `x.<prop> = …` that runs before the call: in that function, ahead of it); a
+// call whose object cannot be read is a STOP unless a producer obligation claims
+// it (the value is then asserted where it is produced, and a producer assignment
+// counts only where it runs before the located call). Before, such a call was invisible here, and only the files the
 // manifest names are scanned: `check-icu-arguments.mjs` closes the whole tree.
 //
 // Fixtures: `LOOP_CHECK_SOURCE_OVERRIDES` (a JSON map from a repo-relative path
@@ -184,11 +185,14 @@ function unwrap(e) {
 }
 
 /** The object literal an argument stands for: the literal itself, or the
- *  initializer of a `const` of the same function, with every later
- *  `<name>.<prop> = …` there; `null` when it cannot be read that way. Syntactic
+ *  initializer of a `const` of the same function, with every
+ *  `<name>.<prop> = …` there that runs before the call; `null` when it cannot be read that way. Syntactic
  *  (this checker has no type checker): the name must be declared ONCE in that
  *  function, and every other use of it must be a property read, a property
- *  assignment or the call itself. */
+ *  assignment or the call itself. An assignment counts only when it runs BEFORE
+ *  the call — in the call's own function and ahead of it in the source; one after
+ *  the call or inside a nested function makes the object unreadable (review of
+ *  #647). */
 function readArgObject(a1, call, sf) {
   if (ts.isObjectLiteralExpression(a1)) return { lit: a1, assigns: [] }
   const e = unwrap(a1)
@@ -215,8 +219,9 @@ function readArgObject(a1, call, sf) {
       } else if (ts.isPropertyAccessExpression(p) && p.expression === n) {
         const outer = p.parent
         if (ts.isBinaryExpression(outer) && outer.left === p) {
-          if (outer.operatorToken.kind === ts.SyntaxKind.EqualsToken) assigns.push({ name: p.name.text, expr: outer.right })
-          else other = true
+          const before = scopeOf(outer) === fn && outer.getEnd() <= call.getStart(sf)
+          if (outer.operatorToken.kind === ts.SyntaxKind.EqualsToken && before) assigns.push({ name: p.name.text, expr: outer.right })
+          else other = true // a compound assignment, or one that may run after the call
         }
       } else if (!(ts.isPropertyAccessExpression(p) && p.name === n)) {
         other = true
@@ -255,6 +260,7 @@ function tCalls(rel) {
         line: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1,
         rel,
         sf,
+        node: n,
       })
     }
     ts.forEachChild(n, visit)
@@ -331,10 +337,16 @@ for (const o of MANIFEST.obligations) {
       fail(`${o.id}: expected 1 call in ${o.enclosing} with the declared key set, found ${resolved.length}`)
       continue
     }
-    const sf = parse(o.file)
+    // the SAME parse as the located call, so the call node can be compared against
+    const sf = resolved[0].sf
     if (expected.producerAssignment) {
-      // `<target> = <wrapper>(…)` somewhere in the file, read off the AST
+      // `<target> = <wrapper>(…)` read off the AST, and only where it runs BEFORE
+      // the located call: in the call's own function, ahead of it in the source.
+      // Anywhere else it would change the value after the sentence was made
+      // (review of #647: an isolating assignment moved below the call must fail).
+      const call = resolved[0].node
       let found = 0
+      let after = 0
       const visit = (n) => {
         if (
           ts.isBinaryExpression(n) &&
@@ -342,13 +354,17 @@ for (const o of MANIFEST.obligations) {
           n.left.getText(sf) === expected.producerAssignment &&
           wrappedBy(n.right, sf, wrapper)
         ) {
-          found += 1
+          if (scopeOf(n) === scopeOf(call) && n.getEnd() <= call.getStart(sf)) found += 1
+          else after += 1
         }
         ts.forEachChild(n, visit)
       }
       visit(sf)
       if (found !== 1) {
-        fail(`${o.id}: expected 1 \`${expected.producerAssignment} = ${wrapper}(…)\` assignment, found ${found}`)
+        fail(
+          `${o.id}: expected 1 \`${expected.producerAssignment} = ${wrapper}(…)\` assignment before the call at ${o.file}:${resolved[0].line}, found ${found}` +
+            (after ? ` (${after} more that cannot run before it: after the call or in another function)` : ''),
+        )
         continue
       }
       ok(`${o.id}: producer \`${expected.producerAssignment}\` wrapped with ${wrapper}`)

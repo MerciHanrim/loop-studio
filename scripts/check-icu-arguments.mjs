@@ -42,9 +42,11 @@
 // frame announcements' held-key path passed user and wire values raw that way.
 // Now a variable is TRACED when it is a `const` in the same function whose
 // initializer is an object literal: its properties are the arguments, and so is
-// every later `<name>.<prop> = <expr>` in that function (the import wizards set
-// `detail.value` to the isolated cell that way). Anything that cannot be traced,
-// a variable of any other shape or a `...spread` inside the object, is listed in
+// every `<name>.<prop> = <expr>` that runs BEFORE the call, i.e. in that same
+// function and ahead of the call (the import wizards set `detail.value` to the
+// isolated cell that way). An assignment after the call or inside a nested
+// function makes the variable untraceable. Anything that cannot be traced, a
+// variable of any other shape or a `...spread` inside the object, is listed in
 // the disposition file's `opaque` section with the REASON it is safe, or it is a
 // STOP.
 //
@@ -134,7 +136,13 @@ function functionOf(node) {
 /** Trace an argument object passed in a variable: `{ lit, assigns }` when it is a
  *  `const` of the same function initialized with an object literal, and every other
  *  use of the name in that function is a property READ, a `<name>.<prop> = …`
- *  assignment or this call; `null` otherwise (a STOP unless declared opaque). */
+ *  assignment or this call; `null` otherwise (a STOP unless declared opaque).
+ *
+ *  An assignment counts only when it runs BEFORE the call: written in the call's
+ *  own function (not in a nested one, which may run at any time) and ahead of the
+ *  call in the source. An assignment after the call, or in a nested function,
+ *  changes the object after the sentence was made, so the variable is not traced
+ *  (review of #647: an isolating assignment moved below the call must fail). */
 function traceVariable(arg, call) {
   const e = unwrap(arg)
   if (!ts.isIdentifier(e)) return null
@@ -157,8 +165,9 @@ function traceVariable(arg, call) {
       } else if (ts.isPropertyAccessExpression(p) && p.expression === n) {
         const outer = p.parent
         if (ts.isBinaryExpression(outer) && outer.left === p) {
-          if (outer.operatorToken.kind === ts.SyntaxKind.EqualsToken) assigns.push({ name: p.name.text, expr: outer.right })
-          else other = true // a compound assignment
+          const before = functionOf(outer) === fn && outer.getEnd() <= call.getStart()
+          if (outer.operatorToken.kind === ts.SyntaxKind.EqualsToken && before) assigns.push({ name: p.name.text, expr: outer.right })
+          else other = true // a compound assignment, or one that may run after the call
         }
         // otherwise a property read, which changes nothing
       } else {
