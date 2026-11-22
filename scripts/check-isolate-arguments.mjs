@@ -26,12 +26,27 @@
 // Built on the TypeScript parser, never a regex: `createSourceFile` RECOVERS
 // from a syntax error instead of throwing, so `parseDiagnostics` is checked and
 // a file that does not parse is a STOP rather than a shorter list of findings.
+//
+// AN ARGUMENT OBJECT IN A VARIABLE (review I2, 2026-11-22). In a declared file, a
+// `t(key, x)` whose `x` is not an object literal is read when `x` is a `const` of
+// the same function initialized with one (its properties, and any
+// `x.<prop> = …` that runs before the call: in that function, ahead of it); a
+// call whose object cannot be read is a STOP unless a producer obligation claims
+// it (the value is then asserted where it is produced, and a producer assignment
+// counts only where it runs before the located call). Before, such a call was invisible here, and only the files the
+// manifest names are scanned: `check-icu-arguments.mjs` closes the whole tree.
+//
+// Fixtures: `LOOP_CHECK_SOURCE_OVERRIDES` (a JSON map from a repo-relative path
+// to a stand-in file), used by `scripts/check-argument-variables.test.mjs`.
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import ts from 'typescript'
 
 const root = resolve(import.meta.dirname, '..')
+const OVERRIDES = JSON.parse(process.env.LOOP_CHECK_SOURCE_OVERRIDES || '{}')
+/** a repo-relative file's text, or its stand-in */
+const readRel = (rel) => readFileSync(OVERRIDES[rel] ?? resolve(root, rel), 'utf8')
 let failed = false
 const fail = (m) => {
   console.error(`  FAIL  ${m}`)
@@ -39,12 +54,12 @@ const fail = (m) => {
 }
 const ok = (m) => console.log(`  ok    ${m}`)
 
-const MANIFEST = JSON.parse(readFileSync(resolve(root, 'scripts/isolate-obligations.json'), 'utf8'))
+const MANIFEST = JSON.parse(readRel('scripts/isolate-obligations.json'))
 const WRAPPER = { auto: 'isolateAuto', ltr: 'isolateLtr' }
 
 /** Parse a source file, failing closed on anything unrecognised. */
 function parse(rel) {
-  const src = readFileSync(resolve(root, rel), 'utf8')
+  const src = readRel(rel)
   const sf = ts.createSourceFile(rel, src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   const diags = sf.parseDiagnostics ?? []
   if (diags.length) {
@@ -161,6 +176,63 @@ function scopeOf(node) {
   return node.getSourceFile()
 }
 
+/** strip the wrappers that do not change what an expression is */
+function unwrap(e) {
+  while (ts.isParenthesizedExpression(e) || ts.isAsExpression(e) || ts.isNonNullExpression(e) || (ts.isSatisfiesExpression && ts.isSatisfiesExpression(e))) {
+    e = e.expression
+  }
+  return e
+}
+
+/** The object literal an argument stands for: the literal itself, or the
+ *  initializer of a `const` of the same function, with every
+ *  `<name>.<prop> = …` there that runs before the call; `null` when it cannot be read that way. Syntactic
+ *  (this checker has no type checker): the name must be declared ONCE in that
+ *  function, and every other use of it must be a property read, a property
+ *  assignment or the call itself. An assignment counts only when it runs BEFORE
+ *  the call — in the call's own function and ahead of it in the source; one after
+ *  the call or inside a nested function makes the object unreadable (review of
+ *  #647). */
+function readArgObject(a1, call, sf) {
+  if (ts.isObjectLiteralExpression(a1)) return { lit: a1, assigns: [] }
+  const e = unwrap(a1)
+  if (!ts.isIdentifier(e)) return null
+  const fn = scopeOf(call)
+  const decls = []
+  const scan = (n) => {
+    if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === e.text) decls.push(n)
+    ts.forEachChild(n, scan)
+  }
+  scan(fn)
+  if (decls.length !== 1) return null
+  const decl = decls[0]
+  if (!(decl.parent.flags & ts.NodeFlags.Const) || !decl.initializer || scopeOf(decl) !== fn) return null
+  const lit = unwrap(decl.initializer)
+  if (!ts.isObjectLiteralExpression(lit)) return null
+  const assigns = []
+  let other = false
+  const visit = (n) => {
+    if (ts.isIdentifier(n) && n.text === e.text && n !== decl.name) {
+      const p = n.parent
+      if (unwrap(a1) === n || (ts.isCallExpression(p) && /(^|\.)t$/.test(p.expression.getText(sf)) && p.arguments[1] === n)) {
+        // the argument object of a `t(…)` call (this one, or another one sharing it)
+      } else if (ts.isPropertyAccessExpression(p) && p.expression === n) {
+        const outer = p.parent
+        if (ts.isBinaryExpression(outer) && outer.left === p) {
+          const before = scopeOf(outer) === fn && outer.getEnd() <= call.getStart(sf)
+          if (outer.operatorToken.kind === ts.SyntaxKind.EqualsToken && before) assigns.push({ name: p.name.text, expr: outer.right })
+          else other = true // a compound assignment, or one that may run after the call
+        }
+      } else if (!(ts.isPropertyAccessExpression(p) && p.name === n)) {
+        other = true
+      }
+    }
+    ts.forEachChild(n, visit)
+  }
+  visit(fn)
+  return other ? null : { lit, assigns }
+}
+
 /** Every `t(...)` call in a file, with its resolved key set and its arguments. */
 function tCalls(rel) {
   const sf = parse(rel)
@@ -169,19 +241,26 @@ function tCalls(rel) {
     if (ts.isCallExpression(n) && /(^|\.)t$/.test(n.expression.getText(sf)) && n.arguments.length) {
       const props = new Map()
       const a1 = n.arguments[1]
-      if (a1 && ts.isObjectLiteralExpression(a1)) {
-        for (const p of a1.properties) {
+      const read = a1 ? readArgObject(a1, n, sf) : { lit: null, assigns: [] }
+      if (read?.lit) {
+        for (const p of read.lit.properties) {
           if (ts.isPropertyAssignment(p) && p.name) props.set(p.name.getText(sf).replace(/['"]/g, ''), p.initializer)
           else if (ts.isShorthandPropertyAssignment(p)) props.set(p.name.getText(sf), p.name)
         }
+        for (const a of read.assigns) props.set(a.name, a.expr)
       }
       out.push({
         keys: resolveKeys(n.arguments[0], sf, scopeOf(n)),
         raw: n.arguments[0].getText(sf).replace(/\s+/g, ' '),
         enclosing: enclosingOf(n, sf),
         props,
+        // the argument object's source text when it cannot be read (a STOP unless
+        // a producer obligation claims the call)
+        unread: read ? null : a1.getText(sf).replace(/\s+/g, ' '),
         line: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1,
+        rel,
         sf,
+        node: n,
       })
     }
     ts.forEachChild(n, visit)
@@ -232,6 +311,9 @@ for (const o of MANIFEST.obligations) if (!byFile.has(o.file)) byFile.set(o.file
 
 let siteCount = 0
 const claimed = new Set()
+/** the calls a producer obligation located — the only ones whose argument object
+ *  may stay unread here, since the value is asserted where it is produced */
+const producerCalls = new Set()
 
 for (const o of MANIFEST.obligations) {
   const calls = byFile.get(o.file)
@@ -255,10 +337,16 @@ for (const o of MANIFEST.obligations) {
       fail(`${o.id}: expected 1 call in ${o.enclosing} with the declared key set, found ${resolved.length}`)
       continue
     }
-    const sf = parse(o.file)
+    // the SAME parse as the located call, so the call node can be compared against
+    const sf = resolved[0].sf
     if (expected.producerAssignment) {
-      // `<target> = <wrapper>(…)` somewhere in the file, read off the AST
+      // `<target> = <wrapper>(…)` read off the AST, and only where it runs BEFORE
+      // the located call: in the call's own function, ahead of it in the source.
+      // Anywhere else it would change the value after the sentence was made
+      // (review of #647: an isolating assignment moved below the call must fail).
+      const call = resolved[0].node
       let found = 0
+      let after = 0
       const visit = (n) => {
         if (
           ts.isBinaryExpression(n) &&
@@ -266,13 +354,17 @@ for (const o of MANIFEST.obligations) {
           n.left.getText(sf) === expected.producerAssignment &&
           wrappedBy(n.right, sf, wrapper)
         ) {
-          found += 1
+          if (scopeOf(n) === scopeOf(call) && n.getEnd() <= call.getStart(sf)) found += 1
+          else after += 1
         }
         ts.forEachChild(n, visit)
       }
       visit(sf)
       if (found !== 1) {
-        fail(`${o.id}: expected 1 \`${expected.producerAssignment} = ${wrapper}(…)\` assignment, found ${found}`)
+        fail(
+          `${o.id}: expected 1 \`${expected.producerAssignment} = ${wrapper}(…)\` assignment before the call at ${o.file}:${resolved[0].line}, found ${found}` +
+            (after ? ` (${after} more that cannot run before it: after the call or in another function)` : ''),
+        )
         continue
       }
       ok(`${o.id}: producer \`${expected.producerAssignment}\` wrapped with ${wrapper}`)
@@ -310,6 +402,7 @@ for (const o of MANIFEST.obligations) {
     }
     siteCount += 1
     claimed.add(`${o.file}::${o.enclosing}::${sig(resolved[0].keys)}::0`)
+    producerCalls.add(resolved[0])
     continue
   }
 
@@ -396,6 +489,21 @@ for (const o of MANIFEST.obligations) {
 function sameSet(a, b) {
   return sig(a) === sig(b)
 }
+
+// ── review I2: in a declared file, no `t(…)` call passes an argument object this
+//    checker cannot read, unless a producer obligation claims that call ──
+let unread = 0
+for (const calls of byFile.values()) {
+  for (const c of calls) {
+    if (c.unread && !producerCalls.has(c)) {
+      fail(
+        `${c.rel}:${c.line}: t(${c.raw}, ${c.unread.slice(0, 60)}) passes its arguments in an object this checker cannot read — write them as an object literal at the call (or a \`const\` one in the same function), or declare the call as a producer obligation`,
+      )
+      unread++
+    }
+  }
+}
+if (!unread) ok('every argument object in a declared file is read, or claimed by a producer obligation')
 
 console.log('')
 // ── exhaustiveness, both directions ──

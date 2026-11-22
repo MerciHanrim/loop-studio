@@ -34,6 +34,25 @@
 // its class and the EVIDENCE for it. An argument with neither a derived class
 // nor a row is a STOP, which is what makes a newly added interpolation fail
 // closed instead of joining an unexamined majority.
+//
+// AN ARGUMENT OBJECT PASSED IN A VARIABLE (review I2, 2026-11-22)
+//
+// `t(key, params)` with `params` a variable used to give no rows at all, so its
+// arguments were neither counted nor failed: the revision chip's title and the
+// frame announcements' held-key path passed user and wire values raw that way.
+// Now a variable is TRACED when it is a `const` in the same function whose
+// initializer is an object literal: its properties are the arguments, and so is
+// every `<name>.<prop> = <expr>` that runs BEFORE the call, i.e. in that same
+// function and ahead of the call (the import wizards set `detail.value` to the
+// isolated cell that way). An assignment after the call or inside a nested
+// function makes the variable untraceable. Anything that cannot be traced, a
+// variable of any other shape or a `...spread` inside the object, is listed in
+// the disposition file's `opaque` section with the REASON it is safe, or it is a
+// STOP.
+//
+// Fixtures: `LOOP_CHECK_SOURCE_OVERRIDES` is a JSON map from a repo-relative path
+// to a file that stands in for it (a source file or a manifest), used by
+// `scripts/check-argument-variables.test.mjs`.
 
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
@@ -41,6 +60,9 @@ import ts from 'typescript'
 
 const root = resolve(import.meta.dirname, '..')
 const emitMissing = process.argv.includes('--missing')
+const OVERRIDES = JSON.parse(process.env.LOOP_CHECK_SOURCE_OVERRIDES || '{}')
+/** a repo-relative file's text, or its stand-in */
+const readRel = (rel) => readFileSync(OVERRIDES[rel] ?? resolve(root, rel), 'utf8')
 let failed = false
 const fail = (m) => {
   console.error(`  FAIL  ${m}`)
@@ -48,8 +70,8 @@ const fail = (m) => {
 }
 const ok = (m) => console.log(`  ok    ${m}`)
 
-const DISPOSITION = JSON.parse(readFileSync(resolve(root, 'scripts/icu-argument-disposition.json'), 'utf8'))
-const OBLIGATIONS = JSON.parse(readFileSync(resolve(root, 'scripts/isolate-obligations.json'), 'utf8'))
+const DISPOSITION = JSON.parse(readRel('scripts/icu-argument-disposition.json'))
+const OBLIGATIONS = JSON.parse(readRel('scripts/isolate-obligations.json'))
 
 /** the classes a manifest row may declare */
 const MANIFEST_CLASSES = new Set(['auto', 'ltr', 'per-fragment', 'closed-value', 'unreachable', 'attribute'])
@@ -67,7 +89,7 @@ function walk(dir, out = []) {
   return out
 }
 
-const program = ts.createProgram(walk(join(root, 'src')), {
+const compilerOptions = {
   target: ts.ScriptTarget.ESNext,
   module: ts.ModuleKind.ESNext,
   moduleResolution: ts.ModuleResolutionKind.Bundler,
@@ -77,8 +99,86 @@ const program = ts.createProgram(walk(join(root, 'src')), {
   allowImportingTsExtensions: true,
   noEmit: true,
   resolveJsonModule: true,
-})
+}
+const host = ts.createCompilerHost(compilerOptions)
+const hostGetSourceFile = host.getSourceFile
+host.getSourceFile = (fileName, languageVersion, onError, shouldCreate) => {
+  const rel = relative(root, fileName).replace(/\\/g, '/')
+  if (OVERRIDES[rel]) return ts.createSourceFile(fileName, readRel(rel), languageVersion, true)
+  return hostGetSourceFile(fileName, languageVersion, onError, shouldCreate)
+}
+const program = ts.createProgram(walk(join(root, 'src')), compilerOptions, host)
 const checker = program.getTypeChecker()
+
+/** strip the wrappers that do not change what an expression is */
+function unwrap(e) {
+  while (
+    ts.isParenthesizedExpression(e) ||
+    ts.isAsExpression(e) ||
+    ts.isNonNullExpression(e) ||
+    (ts.isSatisfiesExpression && ts.isSatisfiesExpression(e))
+  ) {
+    e = e.expression
+  }
+  return e
+}
+
+/** the function a node is in (the scope a traced `const` must share) */
+function functionOf(node) {
+  for (let p = node.parent; p; p = p.parent) {
+    if (ts.isFunctionDeclaration(p) || ts.isArrowFunction(p) || ts.isFunctionExpression(p) || ts.isMethodDeclaration(p)) {
+      return p
+    }
+  }
+  return node.getSourceFile()
+}
+
+/** Trace an argument object passed in a variable: `{ lit, assigns }` when it is a
+ *  `const` of the same function initialized with an object literal, and every other
+ *  use of the name in that function is a property READ, a `<name>.<prop> = …`
+ *  assignment or this call; `null` otherwise (a STOP unless declared opaque).
+ *
+ *  An assignment counts only when it runs BEFORE the call: written in the call's
+ *  own function (not in a nested one, which may run at any time) and ahead of the
+ *  call in the source. An assignment after the call, or in a nested function,
+ *  changes the object after the sentence was made, so the variable is not traced
+ *  (review of #647: an isolating assignment moved below the call must fail). */
+function traceVariable(arg, call) {
+  const e = unwrap(arg)
+  if (!ts.isIdentifier(e)) return null
+  const sym = checker.getSymbolAtLocation(e)
+  const decl = sym?.declarations?.[0]
+  if (!decl || !ts.isVariableDeclaration(decl) || !decl.initializer) return null
+  const list = decl.parent
+  if (!ts.isVariableDeclarationList(list) || !(list.flags & ts.NodeFlags.Const)) return null
+  const lit = unwrap(decl.initializer)
+  if (!ts.isObjectLiteralExpression(lit)) return null
+  const fn = functionOf(call)
+  if (functionOf(decl) !== fn) return null
+  const assigns = []
+  let other = false
+  const visit = (n) => {
+    if (ts.isIdentifier(n) && n !== decl.name && checker.getSymbolAtLocation(n) === sym) {
+      const p = n.parent
+      if (e === n || (ts.isCallExpression(p) && isTCall(p, p.getSourceFile()) && p.arguments[1] === n)) {
+        // the argument object of a `t(…)` call (this one, or another one sharing it)
+      } else if (ts.isPropertyAccessExpression(p) && p.expression === n) {
+        const outer = p.parent
+        if (ts.isBinaryExpression(outer) && outer.left === p) {
+          const before = functionOf(outer) === fn && outer.getEnd() <= call.getStart()
+          if (outer.operatorToken.kind === ts.SyntaxKind.EqualsToken && before) assigns.push({ name: p.name.text, expr: outer.right })
+          else other = true // a compound assignment, or one that may run after the call
+        }
+        // otherwise a property read, which changes nothing
+      } else {
+        other = true // passed on, spread, element access, reassigned: not traceable
+      }
+    }
+    ts.forEachChild(n, visit)
+  }
+  visit(fn)
+  return other ? null : { lit, assigns }
+}
 
 function enclosingOf(node, sf) {
   const names = []
@@ -178,6 +278,9 @@ function typeClass(expr) {
 
 // ── enumerate ──────────────────────────────────────────────────────────────
 const args = []
+/** argument objects (or parts of them) that cannot be traced, each needing an
+ *  `opaque` entry with its reason */
+const opaqueSites = []
 for (const sf of program.getSourceFiles()) {
   if (sf.isDeclarationFile) continue
   const rel = relative(root, sf.fileName).replace(/\\/g, '/')
@@ -192,51 +295,64 @@ for (const sf of program.getSourceFiles()) {
       const a0 = n.arguments[0]
       const key = ts.isStringLiteralLike(a0) ? a0.text : `<computed> ${a0.getText(sf).replace(/\s+/g, ' ')}`
       const a1 = n.arguments[1]
-      if (a1 && ts.isObjectLiteralExpression(a1)) {
-        const enclosing = enclosingOf(n, sf)
-        const sink = sinkOf(n, sf)
-        for (const p of a1.properties) {
+      const enclosing = enclosingOf(n, sf)
+      const sink = sinkOf(n, sf)
+      const line = sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1
+      const text = (e) => e.getText(sf).replace(/\s+/g, ' ')
+      /** one argument, from a property of the object or an assignment to it */
+      const push = (name, expr, via) => {
+        const id = `${rel}::${enclosing}::${key}::${name}`
+        const ord = (seen.get(id) ?? 0) + 1
+        seen.set(id, ord)
+        const tc = typeClass(expr)
+        args.push({
+          file: rel,
+          enclosing,
+          key,
+          arg: name,
+          ord,
+          sink,
+          line,
+          via,
+          expr: text(expr),
+          derived: mentionsIsolate(expr)
+            ? 'isolated'
+            : isProducerObligation(rel, enclosing, key, name)
+              ? 'producer'
+              : tc.kind === 'number'
+                ? 'number'
+                : tc.kind === 'enum'
+                  ? 'enum'
+                  : isCatalog(expr, sf)
+                    ? 'catalog'
+                    : null,
+          members: tc.members,
+        })
+      }
+      let lit = null
+      let assigns = []
+      if (ts.isObjectLiteralExpression(a1)) {
+        lit = a1
+      } else {
+        const traced = traceVariable(a1, n)
+        if (traced) {
+          lit = traced.lit
+          assigns = traced.assigns
+        } else {
+          opaqueSites.push({ file: rel, enclosing, key, expr: text(a1), line })
+        }
+      }
+      if (lit) {
+        const via = lit === a1 ? 'literal' : `const ${text(unwrap(a1))}`
+        for (const p of lit.properties) {
           if (ts.isSpreadAssignment(p)) {
-            fail(`${rel}:${sf.getLineAndCharacterOfPosition(p.getStart(sf)).line + 1}: a SPREAD argument cannot be enumerated`)
+            opaqueSites.push({ file: rel, enclosing, key, expr: text(p), line })
             continue
           }
-          let name = null
-          let expr = null
-          if (ts.isPropertyAssignment(p) && p.name) {
-            name = p.name.getText(sf).replace(/['"]/g, '')
-            expr = p.initializer
-          } else if (ts.isShorthandPropertyAssignment(p)) {
-            name = p.name.getText(sf)
-            expr = p.name
-          }
-          if (!name || !expr) continue
-          const id = `${rel}::${enclosing}::${key}::${name}`
-          const ord = (seen.get(id) ?? 0) + 1
-          seen.set(id, ord)
-          const tc = typeClass(expr)
-          args.push({
-            file: rel,
-            enclosing,
-            key,
-            arg: name,
-            ord,
-            sink,
-            line: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1,
-            expr: expr.getText(sf).replace(/\s+/g, ' '),
-            derived: mentionsIsolate(expr)
-              ? 'isolated'
-              : isProducerObligation(rel, enclosing, key, name)
-                ? 'producer'
-                : tc.kind === 'number'
-                  ? 'number'
-                  : tc.kind === 'enum'
-                    ? 'enum'
-                    : isCatalog(expr, sf)
-                      ? 'catalog'
-                      : null,
-            members: tc.members,
-          })
+          if (ts.isPropertyAssignment(p) && p.name) push(p.name.getText(sf).replace(/['"]/g, ''), p.initializer, via)
+          else if (ts.isShorthandPropertyAssignment(p)) push(p.name.getText(sf), p.name, via)
         }
+        for (const a of assigns) push(a.name, a.expr, `${via}, assigned`)
       }
     }
     ts.forEachChild(n, visit)
@@ -249,7 +365,9 @@ const rowByAddr = new Map(DISPOSITION.rows.map((r) => [addr(r), r]))
 
 if (emitMissing) {
   const missing = args.filter((a) => !a.derived && !rowByAddr.has(addr(a)))
-  console.log(JSON.stringify(missing, null, 1))
+  const declared = new Set((DISPOSITION.opaque ?? []).map((o) => `${o.file}::${o.enclosing}::${o.key}::${o.expr}`))
+  const opaqueMissing = opaqueSites.filter((s) => !declared.has(`${s.file}::${s.enclosing}::${s.key}::${s.expr}`))
+  console.log(JSON.stringify({ arguments: missing, opaque: opaqueMissing }, null, 1))
   process.exit(0)
 }
 
@@ -274,6 +392,38 @@ for (const a of args) {
   }
 }
 if (!unclassified && !doubled) ok(`every argument classified exactly once: ${args.length} / ${args.length}`)
+
+// ── 1b. an argument object the checker cannot trace (a variable of another shape,
+//        or a `...spread` inside the object) is declared in `opaque`, WITH the
+//        reason it is safe; a declaration nothing matches is stale ──
+const OPAQUE = DISPOSITION.opaque ?? []
+const oaddr = (o) => `${o.file}::${o.enclosing}::${o.key}::${o.expr}`
+const opaqueByAddr = new Map(OPAQUE.map((o) => [oaddr(o), o]))
+let untraced = 0
+for (const s of opaqueSites) {
+  const d = opaqueByAddr.get(oaddr(s))
+  if (!d) {
+    fail(`UNTRACEABLE  ${s.file}:${s.line}  ${s.key} receives \`${s.expr}\`, which the checker cannot read; write the arguments as an object literal, or declare it in \`opaque\` with the reason it is safe`)
+    untraced++
+  } else if (!d.reason || !String(d.reason).trim()) {
+    fail(`opaque entry without a reason: ${oaddr(d)}`)
+    untraced++
+  }
+}
+const liveOpaque = new Set(opaqueSites.map(oaddr))
+for (const o of OPAQUE) {
+  if (!liveOpaque.has(oaddr(o))) {
+    fail(`stale opaque entry (no such argument object): ${oaddr(o)}`)
+    untraced++
+  }
+}
+if (OPAQUE.length !== (DISPOSITION.totals.opaque ?? 0)) {
+  fail(`opaque entries: ${OPAQUE.length}, manifest declares ${DISPOSITION.totals.opaque ?? 0}`)
+  untraced++
+}
+if (!untraced) {
+  ok(`every argument object is read or declared opaque with a reason: ${args.filter((a) => a.via !== 'literal').length} traced argument(s) from variables, ${opaqueSites.length} opaque part(s)`)
+}
 
 // ── 2. no stale manifest row ───────────────────────────────────────────────
 const live = new Set(args.map(addr))
@@ -315,8 +465,13 @@ if (!drift) ok('the two manifests do not overlap')
 //    two implementations of one rule. ──
 let undeclared = 0
 for (const a of args.filter((x) => x.derived === 'isolated')) {
+  // a site's declared `args`, or a producer site's `producerArg` (the import
+  // wizards' `detail.value`, read through the traced variable since review I2)
   const known = OBLIGATIONS.obligations.some(
-    (o) => o.file === a.file && o.enclosing === a.enclosing && o.sites.some((s) => (s.args ?? []).includes(a.arg)),
+    (o) =>
+      o.file === a.file &&
+      o.enclosing === a.enclosing &&
+      o.sites.some((s) => (s.args ?? []).includes(a.arg) || s.producerArg === a.arg),
   )
   if (!known) {
     fail(`wrapped but not declared as an obligation: ${addr(a)}`)
