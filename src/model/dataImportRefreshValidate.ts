@@ -365,6 +365,10 @@ export function validateRefreshSnapshot(
 
   const keyCol = keyCols[0]
   const rows: { sourceKey: string; number: Record<string, number>; label: Record<string, string>; foreignKey: Record<string, string> }[] = []
+  // review P3 — the effective row each kept row came from: a row a key check
+  // refuses is left out of `rows`, so an index into `rows` is not the row the
+  // person sees, and an FK issue must name the row it is on
+  const rowAt: number[] = []
   const seenKeys = new Set<string>()
   for (let ri = 0; ri < rawRows.length; ri++) {
     const raw = rawRows[ri]
@@ -419,6 +423,7 @@ export function validateRefreshSnapshot(
       }
     }
     rows.push({ sourceKey, number, label, foreignKey })
+    rowAt.push(ri)
   }
 
   // -- FK-target validation -- this table's OWN outgoing FK cells only.
@@ -442,7 +447,7 @@ export function validateRefreshSnapshot(
         const idx = indexBySourceColumnId.get(c.sourceColumnId)
         errors.push({
           code: 'orphan-foreign-key',
-          rowIndex: ri,
+          rowIndex: rowAt[ri],
           sourceColumnId: c.sourceColumnId,
           ...(idx !== undefined ? { incomingColumnIndex: idx } : {}),
           detail: { value, header: c.header },

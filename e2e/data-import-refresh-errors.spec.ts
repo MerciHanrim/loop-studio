@@ -53,11 +53,43 @@ const errorLines = async (page: Page) => {
   return (await items.allInnerTexts()).map(plain)
 }
 
+/** `Items` as above AND `GachaPoolEntries` (key / foreignKey → Items / number),
+ *  in one import, as e2e/data-import-refresh.spec.ts does */
+async function importItemsAndPoolTables(page: Page): Promise<void> {
+  await menuButton(page).click()
+  await page.getByRole('menuitem', { name: 'Import spreadsheet values as Parameters…' }).click()
+  await expect(wizardDialog(page)).toBeVisible()
+  await wizardDialog(page).getByLabel('Table name').fill('Items')
+  await wizardDialog(page).getByPlaceholder('Paste CSV or TSV text here').fill('item_key,display_name,weight\nitm_a,Ember Blade,10\nitm_b,Iron Charm,3')
+  const itemsHeader = wizardDialog(page).locator('.import__table').nth(0).locator('.import__preview thead tr').first()
+  await itemsHeader.locator('th').nth(0).locator('select').selectOption('key')
+  await itemsHeader.locator('th').nth(1).locator('select').selectOption('label')
+  await itemsHeader.locator('th').nth(2).locator('select').selectOption('number')
+  await wizardDialog(page).getByRole('button', { name: 'Add another table' }).click()
+  const poolTable = wizardDialog(page).locator('.import__table').nth(1)
+  await poolTable.getByLabel('Table name').fill('GachaPoolEntries')
+  await poolTable.getByPlaceholder('Paste CSV or TSV text here').fill('pool_entry_key,item_key,weight\nppe_a,itm_a,5')
+  const poolHeader = poolTable.locator('.import__preview thead tr').first()
+  await poolHeader.locator('th').nth(0).locator('select').selectOption('key')
+  const fkTh = poolHeader.locator('th').nth(1)
+  await fkTh.locator('select').first().selectOption('foreignKey')
+  await fkTh.locator('select').nth(1).selectOption({ label: 'Items' })
+  await poolHeader.locator('th').nth(2).locator('select').selectOption('number')
+  await wizardDialog(page).getByRole('button', { name: 'Next' }).click()
+  await wizardDialog(page).getByRole('button', { name: 'Next' }).click()
+  await wizardDialog(page).getByRole('button', { name: 'Import' }).click()
+  await expect(wizardDialog(page)).toBeHidden()
+}
+
 test.beforeEach(async ({ page }) => {
   await openApp(page)
   await resetAll(page)
-  await importItemsTable(page)
 })
+
+test.describe('one table, Items', () => {
+  test.beforeEach(async ({ page }) => {
+    await importItemsTable(page)
+  })
 
 test('a duplicate key names its row, its column and the key', async ({ page }) => {
   await refreshWith(page, 'item_key,display_name,weight\nitm_a,Ember Blade,10\nitm_a,Iron Charm,3')
@@ -94,4 +126,26 @@ test('control: a refresh with good data still applies', async ({ page }) => {
   await expect(refreshDialog(page)).toBeHidden()
   const nodes = await page.evaluate(() => (window as unknown as { __loop: { graph: { getState: () => GS } } }).__loop.graph.getState().nodes.map((n) => n.data))
   expect(nodes.some((d) => d?.label === 'Items · Ember Blade · weight' && d?.value === 25)).toBe(true)
+})
+})
+
+test.describe('two tables, GachaPoolEntries → Items', () => {
+  test.beforeEach(async ({ page }) => {
+    await importItemsAndPoolTables(page)
+  })
+
+  test('an unknown foreign key after a row refused for its key names its own line', async ({ page }) => {
+    await menuButton(page).click()
+    await page.getByRole('menuitem', { name: 'Refresh or manage imported tables…' }).click()
+    await expect(manageDialog(page)).toBeVisible()
+    await manageDialog(page).locator('.import__binding').nth(1).getByRole('button', { name: 'Refresh…' }).click()
+    await expect(refreshDialog(page)).toBeVisible()
+    // line 3 repeats line 2's key (refused), line 4 points at an item that does not exist
+    await refreshDialog(page).getByPlaceholder('Paste CSV or TSV text here').fill('pool_entry_key,item_key,weight\nppe_a,itm_a,5\nppe_a,itm_b,5\nppe_c,itm_NOPE,5')
+    await refreshDialog(page).getByRole('button', { name: 'Next' }).click()
+    expect(await errorLines(page)).toEqual([
+      'Table GachaPoolEntries, row 3, column 1 (pool_entry_key): Key "ppe_a" is already used by another row. Give every row a unique Key.',
+      'Table GachaPoolEntries, row 4, column 2 (item_key): No row in the target table has the key "itm_NOPE".',
+    ])
+  })
 })

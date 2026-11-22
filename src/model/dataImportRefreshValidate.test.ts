@@ -138,6 +138,24 @@ describe('validateRefreshSnapshot -- a cell issue says which cell', () => {
     }
   })
 
+  it('an orphan FK after a row refused for its key names its own row', () => {
+    const items = table({ sourceTableId: 'srctable_items' })
+    const pool = table({
+      sourceTableId: 'srctable_pool',
+      label: 'Pool',
+      columns: [
+        { sourceColumnId: 'col_key2', role: 'key', header: 'pool_key' },
+        { sourceColumnId: 'col_fk', role: 'foreignKey', header: 'item_key', refTableId: 'srctable_items' },
+      ],
+      rows: [{ sourceKey: 'p1', number: {}, label: {}, foreignKey: { col_fk: 'itm_a' } }],
+    })
+    // row 0: a duplicate of nothing yet, fine; row 1: the same key again (refused); row 2: an orphan FK
+    const r = validateRefreshSnapshot([items, pool], pool.sourceTableId, [['pool_key', 'item_key'], ['p1', 'itm_a'], ['p1', 'itm_a'], ['p2', 'itm_NOPE']], 1, 0, [])
+    if (r.ok) throw new Error('expected a refusal')
+    expect(r.errors.find((e) => e.code === 'duplicate-key')?.rowIndex).toBe(1)
+    expect(r.errors.find((e) => e.code === 'orphan-foreign-key')).toMatchObject({ rowIndex: 2, incomingColumnIndex: 1, detail: { value: 'itm_NOPE', header: 'item_key' } })
+  })
+
   it('the incoming column is where the column is in the pasted text, not in the stored table', () => {
     // the same two columns, pasted the other way round
     expect(errorsOf([['weight', 'item_key'], ['ten', 'itm_a']])).toEqual([
