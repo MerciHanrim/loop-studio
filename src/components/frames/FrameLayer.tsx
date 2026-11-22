@@ -297,17 +297,17 @@ export function FrameLayer() {
     [setRectsSilently],
   )
 
-  /** the settled position / size, announced once the burst stops (D11) */
-  const announceLater = useCallback(
-    (key: 'canvas.frame.a11y.moved' | 'canvas.frame.a11y.resized', params: Record<string, string | number>) => {
-      if (announceTimer.current) clearTimeout(announceTimer.current)
-      announceTimer.current = setTimeout(() => {
-        announceTimer.current = null
-        setAnnouncement(t(key, params))
-      }, ANNOUNCE_MS)
-    },
-    [t],
-  )
+  /** the settled position / size, announced once the burst stops (D11). It takes
+   *  the finished sentence: each caller writes its `t()` call with a literal key and
+   *  the frame name isolated, as the keyup path does (review I2 — this path used to
+   *  build the sentence here, from a key and a params object, with the name raw) */
+  const announceLater = useCallback((text: string) => {
+    if (announceTimer.current) clearTimeout(announceTimer.current)
+    announceTimer.current = setTimeout(() => {
+      announceTimer.current = null
+      setAnnouncement(text)
+    }, ANNOUNCE_MS)
+  }, [])
 
   /** open the transaction: the pre-gesture snapshot + the pre-gesture geometry */
   const beginKeyGesture = useCallback(
@@ -346,7 +346,9 @@ export function FrameLayer() {
         setRectsSilently(r.frameRects)
         useGraphStore.getState().applyGesturePositions(r.nodePositions, r.edgeWaypoints)
         if (g.isAuto) setAutoDraft({ id: g.id, rect: r.rect })
-        announceLater('canvas.frame.a11y.moved', { label: g.name, x: Math.round(r.rect.x), y: Math.round(r.rect.y) })
+        announceLater(
+          t('canvas.frame.a11y.moved', { label: isolateAuto(g.name), x: Math.round(r.rect.x), y: Math.round(r.rect.y) }),
+        )
       } else {
         // the pointer contract exactly: the top-left is the anchor, w / h grow,
         // and a resize never moves the contents
@@ -363,10 +365,12 @@ export function FrameLayer() {
         g.current = next
         if (g.isAuto) setAutoDraft({ id: g.id, rect: next })
         else setRectsSilently({ [g.id]: next })
-        announceLater('canvas.frame.a11y.resized', { label: g.name, w: Math.round(next.w), h: Math.round(next.h) })
+        announceLater(
+          t('canvas.frame.a11y.resized', { label: isolateAuto(g.name), w: Math.round(next.w), h: Math.round(next.h) }),
+        )
       }
     },
-    [setRectsSilently, announceLater],
+    [setRectsSilently, announceLater, t],
   )
 
   /** close the transaction. `commit: false` (Escape) always restores the origin;

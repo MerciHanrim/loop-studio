@@ -10,16 +10,34 @@
     "unreachable": "the site cannot render this value at all. NO ROW USES THIS CLASS: every argument enumerated is reachable, which is worth recording as a result rather than leaving the class quietly empty."
   },
   "$implemented": "A row classed `auto` / `ltr` / `per-fragment` is an OPEN obligation: the evidence says the value needs bounding and the code does not bound it yet. C3.5 was scoped to fix the two families that were already evidenced — the unrecognized-column header and the five `import.loc.*` calls — and those moved to `isolate-obligations.json`. The checker asserts these rows are NOT wrapped, so implementing one without moving its row is red in both directions.",
+  "$opaque": "Review I2 (2026-11-22). An argument object passed in a VARIABLE is read when the variable is a `const` of the same function initialized with an object literal: its properties are arguments, and so is every later `<name>.<prop> = <expr>` there. What cannot be read that way, a variable of another shape or a `...spread` inside the object, is listed under `opaque` with the REASON it is safe, matched on (file, enclosing function, key, the object's source text). An unread object with no entry, an entry with no reason, and an entry nothing matches are all a STOP. Before, such an object gave no rows at all: the revision chip's title, the frame announcements' held-key path and the import wizard's commit error passed values that way, raw.",
   "totals": {
-    "arguments": 561,
+    "arguments": 577,
     "rows": 72,
     "byClass": {
       "attribute": 18,
       "closed-value": 54
     },
     "recordedNotImplemented": 0,
-    "attributeSink": 36
+    "attributeSink": 36,
+    "opaque": 2
   },
+  "opaque": [
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "enclosing": "DataImportWizard>issueText",
+      "key": "<computed> ISSUE_KEY[issue.code]",
+      "expr": "...(issue.detail ?? {})",
+      "reason": "The validator's issue detail (src/model/dataImportValidate.ts): numbers (count, max, actual, expected, length), a column header, and the cell `value`. The 27 messages ISSUE_KEY resolves to read only {value}, {count}, {max}, {actual} and {expected}. {value} is replaced right after the spread by `detail.value = isolateAuto(formatCellValueForDisplay(…))`, which this checker reads as the argument `value` (isolated, obligation `wizard-issue-value`); the other four are numbers. No message reads the header; the location prefix isolates it separately (issueText.ts)."
+    },
+    {
+      "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
+      "enclosing": "DataImportRefreshWizard>refreshIssueText",
+      "key": "<computed> REFRESH_ISSUE_KEY[issue.code]",
+      "expr": "...(issue.detail ?? {})",
+      "reason": "The refresh validator's issue detail (src/model/dataImportRefreshValidate.ts): the same shapes as the import wizard's. The 26 messages REFRESH_ISSUE_KEY resolves to read only {value}, {count}, {max}, {actual} and {expected}. {value} is replaced right after the spread by `detail.value = isolateAuto(formatCellValueForDisplay(…))`, read here as the argument `value` (isolated, obligation `refresh-issue-value`); the other four are numbers. No message reads the header; the location prefix isolates it separately (issueText.ts)."
+    }
+  ],
   "rows": [
     {
       "file": "src/components/ExportMenu.tsx",

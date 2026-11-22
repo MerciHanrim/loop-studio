@@ -4,9 +4,9 @@
   "$limit": "This manifest defends the call sites listed here, exactly and in both directions. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together close the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
   "$history": "PR B recorded 11 decision rows and deferred them. C3.5 re-ran the population from the TypeScript type checker — 205 ICU arguments — and found 27 more that carry user or technical values: 8 in its first pass (the unrecognized-column header and the five `import.loc.*` calls) and 19 that its first pass only RECORDED as open. All 27 are implemented here, so no row of the disposition manifest is classed `auto`, `ltr` or `per-fragment` any more.",
   "totals": {
-    "rows": 143,
-    "obligations": 88,
-    "callSites": 175
+    "rows": 148,
+    "obligations": 90,
+    "callSites": 180
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -27,7 +27,8 @@
     "issue-572": 5,
     "review-m2": 1,
     "review-p3": 1,
-    "review-i1": 8
+    "review-i1": 8,
+    "review-i2": 5
   },
   "obligations": [
     {
@@ -252,16 +253,36 @@
     {
       "id": "framelayer-announcement-label",
       "rows": [
-        "decisions-framelayer.json sites[0]"
+        "decisions-framelayer.json sites[0]",
+        "review-i2 FrameLayer.tsx held-key canvas.frame.a11y.moved {label}",
+        "review-i2 FrameLayer.tsx held-key canvas.frame.a11y.resized {label}"
       ],
       "file": "src/components/frames/FrameLayer.tsx",
       "enclosing": "FrameLayer",
       "carries": "the user FRAME NAME, at the head of a localized sentence",
-      "note": "The sr-only accessibility path. Nobody can see it, which is exactly why it needed recording rather than dropping.",
+      "note": "The sr-only accessibility path. Nobody can see it, which is exactly why it needed recording rather than dropping. Two calls per key since review I2 (2026-11-22): the sentence written while an arrow key is HELD (`announceLater`, 300 ms after the last press) and the one written at the keyup. The held path used to build its sentence inside `announceLater` from a key and a params object, with the name raw, and neither checker could read it.",
       "sites": [
         {
           "keys": [
             "canvas.frame.a11y.moved"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "canvas.frame.a11y.moved"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "canvas.frame.a11y.resized"
           ],
           "args": [
             "label"
@@ -349,6 +370,68 @@
             "id"
           ],
           "kind": "ltr"
+        }
+      ]
+    },
+    {
+      "id": "revisionchip-title-values",
+      "rows": [
+        "review-i2 RevisionChip.tsx revChip.title {project} {role} {revision}",
+        "review-i2 RevisionChip.tsx revChip.titleDirty {project} {role} {revision}"
+      ],
+      "file": "src/components/RevisionChip.tsx",
+      "enclosing": "RevisionChip",
+      "carries": "the shortened project id, the role and the full revision id — wire tokens, direction known",
+      "note": "Review I2 (2026-11-22, reproduced on 8876e879): the title passed the three values raw, through a shared params object neither checker could read. Laid out in the chip's ltr direction, a project id starting with a digit came apart after the Arabic word before it.",
+      "sites": [
+        {
+          "keys": [
+            "revChip.title"
+          ],
+          "args": [
+            "project",
+            "role",
+            "revision"
+          ],
+          "kind": "ltr"
+        },
+        {
+          "keys": [
+            "revChip.titleDirty"
+          ],
+          "args": [
+            "project",
+            "role",
+            "revision"
+          ],
+          "kind": "ltr"
+        }
+      ]
+    },
+    {
+      "id": "wizard-commit-error-names",
+      "rows": [
+        "review-i2 DataImportWizard.tsx import.commitError.* {table} {frame}"
+      ],
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "enclosing": "DataImportWizard",
+      "carries": "the user's TABLE NAME and FRAME NAME quoted by a failed commit",
+      "note": "Found by the stricter argument checkers of review I2 (2026-11-22), not by the review: `t(COMMIT_ERROR_KEY[code], commitError.detail as …)` passed the commit result's detail object whole, so `{table}` (frame-placement-failed) and `{frame}` (frame-insufficient-space) went into the sentence raw and no checker could see them. ONE call; its key resolves to the map's six values, four of which read neither argument.",
+      "sites": [
+        {
+          "keys": [
+            "import.commitError.source-table-id-collision",
+            "import.commitError.parameter-id-collision",
+            "import.commitError.frame-placement-failed",
+            "import.commitError.frame-not-found",
+            "import.commitError.frame-insufficient-space",
+            "import.commitError.invalid-result-graph"
+          ],
+          "args": [
+            "table",
+            "frame"
+          ],
+          "kind": "auto"
         }
       ]
     },

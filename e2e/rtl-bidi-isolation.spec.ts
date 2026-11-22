@@ -559,6 +559,77 @@ test.describe('§L9.4 LRI — an id keeps its own left-to-right order under an r
     expect(p.aloneDir).toBe('ltr')
   })
 
+  test('review I2 — the chip TITLE isolates the project, the role and the revision, and a digit-leading project id stays whole', async ({ page }) => {
+    // Review I2 (2026-11-22, reproduced on main 8876e879): the title passed its three
+    // values raw. Laid out in the chip's own direction (ltr, the layout direction), a
+    // project id that starts with a digit came apart: after the Arabic word
+    // `المشروع` the digit took the Arabic side and the rest of the id stayed on the
+    // other. The browser draws a `title` tooltip itself, and it cannot be captured,
+    // so the product's title STRING is laid out here as the reproduction drew it: in
+    // a box with the chip's computed direction and `unicode-bidi: isolate`, i.e. NOT
+    // under the app's `plaintext` rule for chrome prose (with that rule the Arabic
+    // word decides the direction and the raw id does not come apart).
+    const LRI = String.fromCharCode(0x2066)
+    await page.evaluate(() => {
+      ;(window as unknown as Bridge).__loop.project.getState()._setOpen({
+        projectId: 'proj_7V4AS8MM',
+        revisionId: 'rev_6S4MTEKA',
+        parentId: null,
+        role: 'revision',
+        lineage: [],
+        meta: { tool: 'test', createdAt: '2026-01-01T00:00:00.000Z' },
+        baselineDigest: 'd'.repeat(64),
+      })
+      // the made-up baseline differs from the live graph; the clean title first, the
+      // next edit makes it dirty again (the store's own 250 ms refresh)
+      ;(window as unknown as { __loop: { project: { setState: (p: object) => void } } }).__loop.project.setState({ dirty: false })
+    })
+    await setLocale(page, 'ar')
+    const chip = page.locator('.rev-chip').first()
+    await expect(chip).toBeVisible()
+    await expect(chip).not.toHaveClass(/rev-chip--dirty/)
+    const iso = (s: string) => `${LRI}${s}${PDI}`
+    // `revChip.title` in the Arabic catalog: `المشروع {project} · {role} {revision}`
+    const title = `المشروع ${iso('7v4as8')} · ${iso('revision')} ${iso('rev_6S4MTEKA')}`
+
+    // the layout of the title the chip REALLY carries, before its exact text
+    const laid = await chip.evaluate((el) => {
+      const text = el.getAttribute('title') ?? ''
+      const box = document.createElement('div')
+      box.style.cssText = `position:fixed;left:0;top:0;white-space:nowrap;unicode-bidi:isolate;direction:${getComputedStyle(el).direction}`
+      box.textContent = text
+      document.body.append(box)
+      const node = box.firstChild as Text
+      const at = (i: number) => {
+        const r = document.createRange()
+        r.setStart(node, i)
+        r.setEnd(node, i + 1)
+        const b = r.getBoundingClientRect()
+        return { left: b.left, right: b.right }
+      }
+      const i = text.indexOf('7v4as8')
+      const glyphs = [...'7v4as8'].map((_, k) => at(i + k))
+      const word = at(text.indexOf('المشروع'))
+      box.remove()
+      return { direction: getComputedStyle(el).direction, glyphs, wordLeft: word.left }
+    })
+    expect(laid.direction).toBe('ltr')
+    // the id reads left to right in its authored order, each glyph touching the next
+    for (let k = 1; k < laid.glyphs.length; k++) {
+      expect(laid.glyphs[k]!.left, `glyph ${k} of 7v4as8 follows glyph ${k - 1}`).toBeGreaterThanOrEqual(laid.glyphs[k - 1]!.left)
+      expect(Math.abs(laid.glyphs[k]!.left - laid.glyphs[k - 1]!.right), `glyph ${k} of 7v4as8 touches glyph ${k - 1}`).toBeLessThan(1)
+    }
+    await expect(chip).toHaveAttribute('title', title)
+
+    // the same values in the dirty title: `… · تغييرات غير محفوظة منذ هذه المراجعة`
+    await page.evaluate(() => {
+      const G = (window as unknown as Bridge).__loop.graph.getState()
+      G.addNodeAt('pool', { x: 0, y: 0 })
+    })
+    await expect(chip).toHaveClass(/rev-chip--dirty/)
+    await expect(chip).toHaveAttribute('title', `${title} · تغييرات غير محفوظة منذ هذه المراجعة`)
+  })
+
   test('a SYMBOL-leading node id in a flow reference is LRI-isolated', async ({ page }) => {
     // ported from i18n-ar-isolation.spec.ts (archived; its contract lives here).
     // `@{…}` is the braced reference form, so an id the generator would never produce
@@ -782,6 +853,52 @@ test.describe('§L9.4 FSI — a value of unknown direction, bounded inside the s
       id,
     )
     expect(label).toBe('2024 مبيعات')
+  })
+
+  test('review I2 — the frame name is FSI-isolated WHILE the arrow key is held, and after it is released', async ({ page }) => {
+    // Review I2 (2026-11-22, reproduced on main 8876e879): a HELD arrow key announces
+    // the settled place 300 ms after the last press (`announceLater`), and that text
+    // carried the name raw; only the text written at the keyup was isolated. The test
+    // above presses (down + up), so it reads the keyup text only. This one reads the
+    // live region's DOM text on both paths. Only the text is checked: nothing here
+    // listens to a screen reader.
+    await page.evaluate(() => {
+      const f = (window as unknown as Bridge).__loop.frame.getState()
+      const fid = f.addFrame({ x: -40, y: -40, w: 420, h: 280 })
+      f.renameFrame(fid, 'Intake (A-1)')
+    })
+    await setLocale(page, 'ar')
+    const frame = page.locator('.lgr-frame').first()
+    await expect(frame).toBeVisible()
+    const text = () => page.evaluate(() => document.querySelector('[data-frame-announce]')?.textContent ?? '')
+
+    for (const step of [
+      { target: frame, head: 'نُقل', tail: 'إلى x', what: 'move' },
+      { target: frame.locator('.lgr-frame__resize'), head: 'غُيّر حجم', tail: 'إلى العرض', what: 'resize' },
+    ]) {
+      if (step.what === 'move') {
+        await frame.focus()
+        await page.keyboard.press('Enter')
+      } else {
+        await step.target.focus()
+      }
+      await page.keyboard.down('ArrowRight')
+      // the held path: no keyup yet, so this is the text `announceLater` wrote
+      await expect.poll(text).toContain(step.head)
+      const held = (await measure(page, '[data-frame-announce]'))!
+      expect(held.spans.map((s) => s.kind), `${step.what}, key held`).toEqual(['FSI'])
+      expect(held.spans[0]!.text).toBe('Intake (A-1)')
+      expect(held.controls).toEqual(['FSI', 'PDI'])
+      expect(held.tail).toContain(step.tail)
+
+      await page.keyboard.up('ArrowRight')
+      // the keyup path writes the settled text again; it must stay isolated
+      await expect.poll(text).toContain(step.head)
+      const released = (await measure(page, '[data-frame-announce]'))!
+      expect(released.spans.map((s) => s.kind), `${step.what}, key released`).toEqual(['FSI'])
+      expect(released.spans[0]!.text).toBe('Intake (A-1)')
+      expect(released.controls).toEqual(['FSI', 'PDI'])
+    }
   })
 })
 

@@ -18,8 +18,21 @@ export function RevisionChip({ className }: { className?: string }) {
 
   const isProposal = open.role === 'proposal'
   const label = isProposal ? t('revChip.proposal') : t('revChip.rev', { id: isolateLtr(short(open.revisionId)) })
-  const titleParams = { project: short(open.projectId), role: open.role, revision: open.revisionId }
-  const title = dirty ? t('revChip.titleDirty', titleParams) : t('revChip.title', titleParams)
+  // review I2 — the three wire values are LRI-isolated in the title too: raw, a
+  // project id that starts with a digit came apart after the Arabic word before it
+  // when the title was laid out in the chip's ltr direction. Written out at each call
+  // (not a shared params object) so the argument checkers can read them.
+  const title = dirty
+    ? t('revChip.titleDirty', {
+        project: isolateLtr(short(open.projectId)),
+        role: isolateLtr(open.role),
+        revision: isolateLtr(open.revisionId),
+      })
+    : t('revChip.title', {
+        project: isolateLtr(short(open.projectId)),
+        role: isolateLtr(open.role),
+        revision: isolateLtr(open.revisionId),
+      })
 
   return (
     <span

@@ -1027,7 +1027,14 @@ export function DataImportWizard({
               )}
               {commitError && (
                 <p className="import__error">
-                  {t(COMMIT_ERROR_KEY[commitError.code], commitError.detail as Record<string, string | number> | undefined)}
+                  {/* review I2 — the two names a commit failure quotes (the table's,
+                      the frame's) are the user's own, so they are isolated here; the
+                      detail object used to be passed through whole, which no argument
+                      checker could read */}
+                  {t(COMMIT_ERROR_KEY[commitError.code], {
+                    table: isolateAuto(String(commitError.detail?.table ?? '')),
+                    frame: isolateAuto(String(commitError.detail?.frame ?? '')),
+                  })}
                 </p>
               )}
             </div>
