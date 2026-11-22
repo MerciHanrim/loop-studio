@@ -146,6 +146,28 @@ describe('validateDrafts -- foreign keys (§DI8) and group-by (§DI-D11)', () =>
     expect(!r.ok && r.warnings.some((w) => w.code === 'label-fallback')).toBe(false) // orphan is NOT the fallback path
   })
 
+  // review P3 — an FK issue names the row it is on in the pasted text. Rows a
+  // key check refused are left out of the built table, and the FK pass used
+  // to number the rows that remained, so an orphan after a refused row named
+  // the row before it.
+  it('an orphan FK after a row refused for its key names its own row', () => {
+    const items = draftFrom(['item_key', 'name'], [['itm_a', 'Ember Blade']], ['key', 'label'])
+    // row 0: an empty key (refused), row 1: fine, row 2: an orphan FK
+    const pool = draftFrom(['pe_key', 'item_key'], [['', 'itm_a'], ['pe1', 'itm_a'], ['pe2', 'itm_NOPE']], ['key', 'foreignKey'])
+    const r = validateDrafts([items, linkFk(pool, 1, items)])
+    if (r.ok) throw new Error('expected a refusal')
+    expect(r.errors.find((e) => e.code === 'empty-key')?.rowIndex).toBe(0)
+    expect(r.errors.find((e) => e.code === 'orphan-foreign-key')?.rowIndex).toBe(2)
+  })
+
+  it('an orphan FK after an Ignored column names its own column in the pasted text', () => {
+    const items = draftFrom(['item_key', 'name'], [['itm_a', 'Ember Blade']], ['key', 'label'])
+    const pool = draftFrom(['pe_key', 'note', 'item_key'], [['pe1', 'x', 'itm_NOPE']], ['key', 'ignored', 'foreignKey'])
+    const r = validateDrafts([items, linkFk(pool, 2, items)])
+    if (r.ok) throw new Error('expected a refusal')
+    expect(r.errors.find((e) => e.code === 'orphan-foreign-key')).toMatchObject({ rowIndex: 0, columnIndex: 2, detail: { header: 'item_key' } })
+  })
+
   it('an FK column with no target table picked is a blocking error', () => {
     const pool = draftFrom(['pe_key', 'item_key'], [['pe1', 'itm_a']], ['key', 'foreignKey'])
     const r = validateDrafts([pool]) // never linked via refDraftId

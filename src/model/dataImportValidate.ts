@@ -367,6 +367,10 @@ export function validateDrafts(
   // of any cross-table (FK) reference. Builds each table's normalised rows
   // and its key set, needed by pass B below.
   const built: ValidatedTable[] = []
+  // review P3 — per table, the effective row each kept row came from: a row a
+  // key check refuses is left out of `rows`, so pass B's index into `rows` is
+  // not the row the person sees, and an FK issue must name the row it is on
+  const rowAtByTable: number[][] = []
   for (let ti = 0; ti < drafts.length; ti++) {
     const draft = drafts[ti]
 
@@ -449,6 +453,8 @@ export function validateDrafts(
     }
 
     const validatedRows: ValidatedRow[] = []
+    const rowAt: number[] = []
+    rowAtByTable.push(rowAt)
     const seenKeys = new Set<string>()
     const keyColIdx = keyColumnIndexes[0]
     for (let ri = 0; ri < rows.length; ri++) {
@@ -498,6 +504,7 @@ export function validateDrafts(
         }
       }
       validatedRows.push({ sourceKey, number, label, foreignKey })
+      rowAt.push(ri)
     }
 
     const columns: ValidatedColumn[] = draft.columns
@@ -530,17 +537,22 @@ export function validateDrafts(
       const col = table.columns[ci]
       if (col.role !== 'foreignKey' || !col.refTableId) continue
       const target = lookup.table(col.refTableId)
+      // review P3 — the column's place in the pasted text, as every pass-A
+      // issue gives it: `table.columns` leaves the Ignored columns out, so `ci`
+      // named the wrong column after one
+      const columnIndex = drafts[ti].columns.findIndex((c) => c.sourceColumnId === col.sourceColumnId)
       for (let ri = 0; ri < table.rows.length; ri++) {
         const row = table.rows[ri]
         const value = row.foreignKey[col.sourceColumnId]
         if (value === undefined) continue // empty FK cell -- no relation for this row, allowed
+        const at = { tableIndex: ti, rowIndex: rowAtByTable[ti][ri], ...(columnIndex >= 0 ? { columnIndex } : {}) }
         const targetRow = target ? lookup.row(target, value) : undefined
         if (!targetRow) {
-          errors.push({ code: 'orphan-foreign-key', tableIndex: ti, rowIndex: ri, columnIndex: ci, detail: { value, header: col.header } })
+          errors.push({ code: 'orphan-foreign-key', ...at, detail: { value, header: col.header } })
           continue
         }
         if (target && composeRowLabelTerm(target, targetRow) === null) {
-          warnings.push({ code: 'label-fallback', tableIndex: ti, rowIndex: ri, columnIndex: ci })
+          warnings.push({ code: 'label-fallback', ...at })
         }
       }
     }

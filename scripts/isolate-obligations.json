@@ -4,9 +4,9 @@
   "$limit": "This manifest defends the call sites listed here, exactly and in both directions. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together close the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
   "$history": "PR B recorded 11 decision rows and deferred them. C3.5 re-ran the population from the TypeScript type checker — 205 ICU arguments — and found 27 more that carry user or technical values: 8 in its first pass (the unrecognized-column header and the five `import.loc.*` calls) and 19 that its first pass only RECORDED as open. All 27 are implemented here, so no row of the disposition manifest is classed `auto`, `ltr` or `per-fragment` any more.",
   "totals": {
-    "rows": 134,
-    "obligations": 79,
-    "callSites": 166
+    "rows": 135,
+    "obligations": 80,
+    "callSites": 167
   },
   "rowsBySource": {
     "pr-b-census": 11,
@@ -25,7 +25,8 @@
     "issue-558": 6,
     "phone-selection-panel": 3,
     "issue-572": 5,
-    "review-m2": 1
+    "review-m2": 1,
+    "review-p3": 1
   },
   "obligations": [
     {
@@ -208,6 +209,25 @@
       ]
     },
     {
+      "id": "refresh-issue-value",
+      "rows": [
+        "review-p3 DataImportRefreshWizard.tsx import.issue.* {value}"
+      ],
+      "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
+      "enclosing": "DataImportRefreshWizard>refreshIssueText",
+      "carries": "a USER CELL, display-formatted",
+      "note": "The refresh wizard's copy of `wizard-issue-value` (review P3, 2026-11-22). ONE catalog call, `t(REFRESH_ISSUE_KEY[issue.code], detail)`, whose key `resolveKeys` resolves to the map's 26 values. The refresh validator now passes the cell as typed in `detail.value` for a duplicate key, a number cell and an orphan foreign key, as `validateDrafts` does; before, two of those messages had no `{value}` and read \"text unavailable\".",
+      "shape": "producer",
+      "sites": [
+        {
+          "keyCount": 26,
+          "producerAssignment": "detail.value",
+          "producerArg": "value",
+          "kind": "auto"
+        }
+      ]
+    },
+    {
       "id": "wizard-status-key-header",
       "rows": [
         "decisions-dataimportwizard.json sites[15]"
@@ -363,8 +383,9 @@
         "c3.5-sweep DataImportWizard.tsx import.loc.tableColumnHeader {header}",
         "c3.5-sweep DataImportWizard.tsx import.loc.table {table}"
       ],
-      "file": "src/components/dataImport/DataImportWizard.tsx",
-      "enclosing": "DataImportWizard>issueLocation",
+      "file": "src/components/dataImport/issueText.ts",
+      "enclosing": "issueLocationText",
+      "lineage": "Moved, not changed (review P3, 2026-11-22): `DataImportWizard>issueLocation` became the shared `issueLocationText` in `issueText.ts`, so the refresh wizard writes the same location prefix. The same five keys and the same isolated arguments; the isolates are now written at each call, not prepared in a variable.",
       "carries": "the user's TABLE NAME and, on two branches, the COLUMN HEADER",
       "why": "`issueText` renders `${issueLocation(issue)}: ${desc}` — ONE string. `desc` already isolates its `{value}`; without these the same sentence carried one bounded argument and two unbounded ones, and the two unbounded ones came first.",
       "sites": [

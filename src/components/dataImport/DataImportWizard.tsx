@@ -34,6 +34,7 @@ import { canvasFitInsets, viewportForRect } from '../canvasFit'
 import { useDialogFocus } from '../useDialogFocus'
 import { useQuickStartStore } from './quickStartStore'
 import { isolateAuto } from '../../i18n/bidiIsolate'
+import { issueLocationText } from './issueText'
 import { DialogScrim } from '../DialogScrim'
 import { ArrowIcon, Icon } from '../../ui/icons'
 
@@ -516,51 +517,6 @@ export function DataImportWizard({
 
   // -- issue text ---------------------------------------------------------
 
-  const issueLocation = (issue: Issue): string | null => {
-    if (issue.tableIndex < 0) return null
-    const ui = tables[issue.tableIndex]
-    const table = ui?.draft.label || `#${issue.tableIndex + 1}`
-    const header = typeof issue.detail?.header === 'string' ? issue.detail.header : null
-    // `issue.rowIndex` counts from 0 within the EFFECTIVE (post header-row,
-    // post ignore-last-N-rows) data rows -- it is NOT the row's position in
-    // the raw pasted/uploaded text. Add back the header row itself (and
-    // anything before it) so the number shown matches what the user sees
-    // by counting lines in their own source text, 1-based.
-    const headerRowIndex = ui?.draft.headerRowIndex ?? 1
-    // §L9.4 — the LOCATION prefix is concatenated with the issue description in
-    // `issueText`, so the two halves end up in ONE string. The description's own
-    // `{value}` has been isolated since PR C's first pass; leaving the table
-    // name and the column header raw meant the same sentence carried one bounded
-    // argument and two unbounded ones, which is the shape the isolate exists to
-    // prevent. Both are user text from the spreadsheet.
-    if (issue.rowIndex !== undefined && issue.columnIndex !== undefined) {
-      const row = headerRowIndex + issue.rowIndex + 1
-      const column = issue.columnIndex + 1
-      return header
-        ? t('import.loc.tableRowColumnHeader', {
-            table: isolateAuto(table),
-            row,
-            column,
-            header: isolateAuto(header),
-          })
-        : t('import.loc.tableRowColumn', { table: isolateAuto(table), row, column })
-    }
-    if (issue.rowIndex !== undefined) {
-      return t('import.loc.tableRow', {
-        table: isolateAuto(table),
-        row: headerRowIndex + issue.rowIndex + 1,
-      })
-    }
-    if (issue.columnIndex !== undefined && header) {
-      return t('import.loc.tableColumnHeader', {
-        table: isolateAuto(table),
-        column: issue.columnIndex + 1,
-        header: isolateAuto(header),
-      })
-    }
-    return t('import.loc.table', { table: isolateAuto(table) })
-  }
-
   const issueText = (issue: Issue): string => {
     // §DI17 -- a user cell shown inside a message is display-formatted
     // (length-capped, control characters made visible); `detail.value`
@@ -571,8 +527,18 @@ export function DataImportWizard({
     if (typeof detail.value === 'string')
       detail.value = isolateAuto(formatCellValueForDisplay(detail.value))
     const desc = t(ISSUE_KEY[issue.code], detail)
-    const loc = issueLocation(issue)
-    return loc ? `${loc}: ${desc}` : desc
+    if (issue.tableIndex < 0) return desc
+    // the location prefix is `issueText.ts`, shared with the refresh wizard
+    // since review P3: the same words and the same row count
+    const ui = tables[issue.tableIndex]
+    const loc = issueLocationText(t, {
+      table: ui?.draft.label || `#${issue.tableIndex + 1}`,
+      headerRowIndex: ui?.draft.headerRowIndex ?? 1,
+      rowIndex: issue.rowIndex,
+      columnIndex: issue.columnIndex,
+      header: typeof issue.detail?.header === 'string' ? issue.detail.header : null,
+    })
+    return `${loc}: ${desc}`
   }
 
   // §DI17 -- inline error bookkeeping for the input step
