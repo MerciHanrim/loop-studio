@@ -150,6 +150,73 @@ test.describe('guided tour — first run', () => {
   })
 })
 
+// ── review T1 (#610) — Start on the Welcome card picks the script the LAYOUT uses ──
+// The layout is MOBILE_MEDIA_QUERY (src/ui/media.ts). The script used to be picked by
+// `innerWidth < 768`, so the two disagreed: a phone held sideways (a coarse pointer,
+// 768–950 px wide, ≤ 500 px tall) had the phone layout and the desktop script, five of
+// its six steps on the centred fallback card; a 721–767 px window had the desktop
+// layout and the phone script. Reproduced on main f0415d17.
+
+/** the first-run card, the two-node graph `G` behind it (the phone's "Inspect" step
+ *  points at a node), then Start by a real click */
+async function startFromWelcomeCard(page: Page): Promise<void> {
+  await seedKey(page, null)
+  await openApp(page)
+  await expect(welcome(page)).toBeVisible()
+  await importGraph(page, G)
+  await welcome(page).getByRole('button', { name: /Start tour|투어 시작/ }).click()
+  await expect(popover(page)).toBeVisible()
+}
+
+/** each of the six steps: its title, and whether its target is highlighted (not the
+ *  centred fallback card, §GT4) */
+async function walkSteps(page: Page): Promise<{ title: string; highlighted: boolean }[]> {
+  const out: { title: string; highlighted: boolean }[] = []
+  for (let i = 0; i < 6; i++) {
+    await expect(popover(page).locator('.tour-popover__pos')).toHaveText(`${i + 1} / 6`)
+    // the target is measured on mount and again one frame later
+    await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))))
+    out.push({
+      title: ((await popover(page).locator('.tour-popover__title').textContent()) ?? '').trim(),
+      highlighted:
+        (await page.locator('.tour-spot').count()) === 1 &&
+        !(await popover(page).evaluate((el) => el.classList.contains('tour-popover--centred'))),
+    })
+    if (i < 5) await popover(page).getByRole('button', { name: /^(Next|다음)$/ }).click()
+  }
+  await page.keyboard.press('Escape')
+  return out
+}
+
+test.describe('guided tour — the script follows the layout (review T1, #610)', () => {
+  test.describe('a phone held sideways, 844 × 390, touch', () => {
+    test.use({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true })
+    test('the phone layout gets the phone script, every step on its target', async ({ page }) => {
+      await startFromWelcomeCard(page)
+      await expect(page.locator('[data-tour="mobile-more"]')).toBeVisible() // the phone layout
+      expect((await tourState(page)).platform).toBe('mobile')
+      const steps = await walkSteps(page)
+      expect(steps.map((s) => s.title)).toEqual(['Open a graph', 'Move around', 'Inspect', 'Run it', 'Timeline', 'More'])
+      expect(steps.filter((s) => !s.highlighted).map((s) => s.title), 'steps on the fallback card').toEqual([])
+    })
+  })
+
+  test.describe('a desktop window 740 px wide', () => {
+    test.use({ viewport: { width: 740, height: 800 } })
+    test('the desktop layout gets the desktop script', async ({ page }) => {
+      await startFromWelcomeCard(page)
+      await expect(page.locator('[data-tour="palette"]')).toBeVisible() // the desktop layout
+      expect((await tourState(page)).platform).toBe('desktop')
+      const steps = await walkSteps(page)
+      expect(steps.map((s) => s.title)).toEqual(['Pieces', 'Canvas', 'Inspector', 'Playback', 'Timeline', 'Files and sharing'])
+      // below 900 px the workbench folds the properties panel by design, so the
+      // Inspector step falls back to the centred card there; older than T1 and kept
+      // out of it (recorded on #610). Every other step is on its target.
+      expect(steps.filter((s) => !s.highlighted).map((s) => s.title), 'steps on the fallback card').toEqual(['Inspector'])
+    })
+  })
+})
+
 // ── 3 / 4 — Help menu re-entry & contents ───────────────────────────────────
 test.describe('guided tour — Help menu', () => {
   // docs/contextual-inline-help.md §CIH4 — the reserved 3rd slot is now live.
