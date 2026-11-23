@@ -7,6 +7,7 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **An inserted structure's activator reads the inserted Parameter.** An activator that compares with a Parameter, for example at least Threshold, kept the Parameter's old id when its structure was added with Insert saved structure…, so it read the document's own node of that id, or no node at all, and opened at the wrong value or never. Save selected structure… also saved such an activator without its Parameter, and saved a selection holding both as an older file version in which the comparison no longer names the Parameter. The activator now reads the inserted Parameter, a selection whose activator reads a Parameter outside it is refused with the reason, as one with a Register already was, and the file keeps the version the comparison needs.
 - **The data import wizard names an untitled frame in your language.** Choosing Add to an existing frame listed an untitled frame as "Group 1" in English in every language, while the canvas and the Model list call it, for example, 그룹 1 in Korean. A frame too small for the imported nodes was refused with an empty name, Not enough free space in "", in every language. Both now use the frame's name, or for an untitled frame the same default name and number the canvas shows.
 
 ## v0.33.1 — 2026-11-23
