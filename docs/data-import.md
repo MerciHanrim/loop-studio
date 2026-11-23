@@ -745,6 +745,14 @@ per-row `missing` prompts. A genuine rename (same `sourceColumnId`, new
 header text) is not a "change" in the diff sense at all — only the display
 text updates.
 
+This includes a `missing` row the user leaves undecided (neither unlink nor
+delete): its stored data carries over, but only under the columns the
+refreshed table keeps, with the same role — a removed `number`, `label` or
+`foreignKey` column's value is dropped from it too (#619). Copied whole, the
+stored table held values for columns it no longer has, its read-back
+dropped them, and the batch-wide round-trip gate then refused the next
+refresh of every other table.
+
 ### Row existence, then per-cell state — a two-phase classification (restructured this round: `locally deleted` and `value-changed` were NOT mutually exclusive as one flat list)
 
 A single flat list of "cases," as earlier drafts had, breaks down for a
