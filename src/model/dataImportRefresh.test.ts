@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { nextId } from './factory'
 import { validateRefreshSnapshot, type ColumnPairing } from './dataImportRefreshValidate'
 import { buildRefreshCommit, cellResolutionKey, classifyCell, diffRefresh, findImportForeignKeyDependents, type RefreshResolution } from './dataImportRefresh'
+import { deserialize, readDataImports, serialize } from './serialize'
 import type { ImportColumn, ImportSourceTable, SavedFrame } from './serialize'
 import type { LoopEdge, LoopNode } from './types'
 
@@ -647,5 +648,125 @@ describe('collision-safe resolution keys (§DI-D15 / per-cell resolution) -- ide
     // p1's "apply-incoming" choice via a colliding key.
     const p2After = result.updatedNodes.find((n) => n.id === 'p2') ?? n2
     expect((p2After.data as { value: number }).value).toBe(7)
+  })
+})
+
+// #619 item 3 -- a missing row left undecided is carried over, but only under
+// the columns this refresh keeps (docs/data-import.md "Column-level events":
+// a removed column's prior values are dropped). Before, the row was copied
+// whole: a removed column's value stayed in the stored table, its read-back
+// dropped it, and the next refresh of ANY other table was refused by the
+// batch-wide round-trip gate (`round-trip-mismatch`).
+describe('buildRefreshCommit -- an undecided missing row keeps only the columns the refresh keeps (#619 item 3)', () => {
+  const catsTable = (): ImportSourceTable => ({
+    sourceTableId: 'srctable_cats',
+    label: 'Cats',
+    columns: [col('col_ckey', 'key', 'cat_key'), col('col_cn', 'number', 'n')],
+    rows: [
+      { sourceKey: 'cat_x', number: { col_cn: 1 }, label: {}, foreignKey: {} },
+      { sourceKey: 'cat_y', number: { col_cn: 2 }, label: {}, foreignKey: {} },
+    ],
+  })
+  // Items: key, name (label), weight (number), cost (number), cat (foreign key to Cats)
+  const gearTable = (): ImportSourceTable => ({
+    sourceTableId: 'srctable_items',
+    label: 'Items',
+    columns: [
+      col('col_key', 'key', 'item_key'),
+      col('col_name', 'label', 'display_name'),
+      col('col_weight', 'number', 'weight'),
+      col('col_cost', 'number', 'cost'),
+      col('col_cat', 'foreignKey', 'cat', 'srctable_cats'),
+    ],
+    rows: [
+      { sourceKey: 'itm_a', number: { col_weight: 10, col_cost: 4 }, label: { col_name: 'Ember Blade' }, foreignKey: { col_cat: 'cat_x' } },
+      { sourceKey: 'itm_b', number: { col_weight: 3, col_cost: 1 }, label: { col_name: 'Iron Charm' }, foreignKey: { col_cat: 'cat_y' } },
+    ],
+  })
+  const item = (key: string, column: string, value: number) =>
+    paramNode(`p_${key}_${column}`, { sourceTableId: 'srctable_items', sourceKey: key, sourceColumnId: column, value })
+  const host = () => ({
+    nodes: [item('itm_a', 'col_weight', 10), item('itm_a', 'col_cost', 4), item('itm_b', 'col_weight', 3), item('itm_b', 'col_cost', 1)],
+    edges: [] as LoopEdge[],
+  })
+  const CELL: Record<string, string> = { item_key: 'itm_b', display_name: 'Iron Charm', weight: '3', cost: '1', cat: 'cat_y' }
+  const ALL = ['item_key', 'display_name', 'weight', 'cost', 'cat']
+
+  /** refresh Items with a paste that holds only `itm_b`, without `removed`'s headers; `itm_a` is missing */
+  function refresh(removed: { header: string; id: string } | null, missingChoice?: 'unlink' | 'delete') {
+    const tables = [catsTable(), gearTable()]
+    const header = ALL.filter((h) => h !== removed?.header)
+    const pairings: ColumnPairing[] = removed ? [{ kind: 'column-removed', sourceColumnId: removed.id }] : []
+    const snapshot = snapshotFor(tables, 'srctable_items', [header.map((h) => CELL[h])], pairings, header)
+    const h = host()
+    const d = diffRefresh(tables, 'srctable_items', h.nodes, snapshot)
+    if (!d.ok) throw new Error('diff refused')
+    expect(d.plan.rows.find((r) => r.sourceKey === 'itm_a')?.kind).toBe('missing')
+    const resolution: RefreshResolution = { ...NO_RESOLUTION, missingRowChoices: new Map(missingChoice ? [['itm_a', missingChoice]] : []) }
+    const result = buildRefreshCommit(tables, d.plan, resolution, h, 2, { x: 0, y: 0 }, [])
+    if (!result.ok) throw new Error('commit refused')
+    const stored = tables.map((t) => result.updatedTables.find((u) => u.sourceTableId === t.sourceTableId) ?? t)
+    return { result, stored, itemA: stored[1].rows.find((r) => r.sourceKey === 'itm_a') }
+  }
+  /** a refresh of Cats with its own unchanged data -- only the batch-wide gate can refuse it */
+  const refreshCats = (stored: ImportSourceTable[]) => {
+    const r = validateRefreshSnapshot(stored, 'srctable_cats', [['cat_key', 'n'], ['cat_x', '1'], ['cat_y', '2']], 1, 0, [])
+    return r.ok ? 'ok' : r.errors.map((e) => e.code).join(',')
+  }
+
+  it('a removed number column: its value goes, the kept cost stays, and a refresh of another table passes', () => {
+    const { stored, itemA } = refresh({ header: 'weight', id: 'col_weight' })
+    expect.soft(itemA).toEqual({ sourceKey: 'itm_a', number: { col_cost: 4 }, label: { col_name: 'Ember Blade' }, foreignKey: { col_cat: 'cat_x' } })
+    expect.soft(readDataImports(stored)).toEqual(stored)
+    expect(refreshCats(stored)).toBe('ok')
+  })
+
+  it('a removed label column: its value goes, and a refresh of another table passes', () => {
+    const { stored, itemA } = refresh({ header: 'display_name', id: 'col_name' })
+    expect.soft(itemA).toEqual({ sourceKey: 'itm_a', number: { col_weight: 10, col_cost: 4 }, label: {}, foreignKey: { col_cat: 'cat_x' } })
+    expect.soft(readDataImports(stored)).toEqual(stored)
+    expect(refreshCats(stored)).toBe('ok')
+  })
+
+  it('a removed foreign-key column: its value goes, and a refresh of another table passes', () => {
+    const { stored, itemA } = refresh({ header: 'cat', id: 'col_cat' })
+    expect.soft(itemA).toEqual({ sourceKey: 'itm_a', number: { col_weight: 10, col_cost: 4 }, label: { col_name: 'Ember Blade' }, foreignKey: {} })
+    expect.soft(readDataImports(stored)).toEqual(stored)
+    expect(refreshCats(stored)).toBe('ok')
+  })
+
+  it('the kept cost is still the base of the Parameter linked to it; the removed column\'s Parameters are unlinked', () => {
+    const { result, itemA } = refresh({ header: 'weight', id: 'col_weight' })
+    expect(itemA?.number.col_cost).toBe(4)
+    const unlinked = result.updatedNodes.filter((n) => (n.data as { sourceColumnId?: string }).sourceColumnId === undefined).map((n) => n.id).sort()
+    expect(unlinked).toEqual(['p_itm_a_col_weight', 'p_itm_b_col_weight'])
+    // its label may be recomposed, but it stays linked to cost with its value
+    const cost = (result.updatedNodes.find((n) => n.id === 'p_itm_a_col_cost') ?? host().nodes[1]).data as { sourceColumnId?: string; value: number }
+    expect(cost).toMatchObject({ sourceColumnId: 'col_cost', value: 4 })
+  })
+
+  it('saved and read back: the file holds the row as stored, and reopened it is the same', () => {
+    const { result, stored } = refresh({ header: 'weight', id: 'col_weight' })
+    const nodes = host().nodes.map((n) => result.updatedNodes.find((u) => u.id === n.id) ?? n)
+    const text = serialize(nodes, [], undefined, undefined, undefined, 2, [], stored)
+    const fileRow = (JSON.parse(text).dataImports as ImportSourceTable[])[1].rows.find((r) => r.sourceKey === 'itm_a')
+    expect.soft(fileRow?.number).toEqual({ col_cost: 4 })
+    const doc = deserialize(text)
+    expect.soft(doc.dataImports).toEqual(stored)
+    expect(refreshCats(doc.dataImports)).toBe('ok')
+  })
+
+  it('control: no column removed -- the undecided row is carried over whole, as before', () => {
+    const { stored, itemA } = refresh(null)
+    expect(itemA).toEqual(gearTable().rows[0])
+    expect(refreshCats(stored)).toBe('ok')
+  })
+
+  it('control: the missing row unlinked, or deleted -- the row is dropped, as before', () => {
+    for (const choice of ['unlink', 'delete'] as const) {
+      const { stored, itemA } = refresh({ header: 'weight', id: 'col_weight' }, choice)
+      expect(itemA).toBeUndefined()
+      expect(refreshCats(stored)).toBe('ok')
+    }
   })
 })

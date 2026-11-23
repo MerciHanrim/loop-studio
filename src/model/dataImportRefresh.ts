@@ -13,7 +13,7 @@ import { composeFullRowLabel } from './dataImportValidate'
 import { firstByKey, groupByKey, ImportTableLookup, PathIndex, tableLookup } from './dataImportIndex'
 import type { ValidatedRefreshSnapshot } from './dataImportRefreshValidate'
 import { findReferences, type NodeReference } from './dataImportReferences'
-import type { ImportRow, ImportSourceTable, ModelSemanticsVersion, SavedFrame } from './serialize'
+import type { ImportColumn, ImportRow, ImportSourceTable, ModelSemanticsVersion, SavedFrame } from './serialize'
 import type { LoopEdge, LoopNode, ParameterData } from './types'
 
 type Point = { x: number; y: number }
@@ -484,6 +484,13 @@ export function buildRefreshCommit(
   const pending: { sourceKey: string; sourceColumnId: string; value: number }[] = []
 
   const oldRowsByKey = new Map(oldTable.rows.map((r) => [r.sourceKey, r]))
+  // #619 item 3 -- the role of every column the refreshed table keeps
+  const keptRole = new Map(plan.snapshot.resolvedColumns.map((c) => [c.sourceColumnId, c.role]))
+  const keptValues = <V>(values: Record<string, V>, role: ImportColumn['role']): Record<string, V> => {
+    const out: Record<string, V> = {}
+    for (const [sourceColumnId, v] of Object.entries(values)) if (keptRole.get(sourceColumnId) === role) out[sourceColumnId] = v
+    return out
+  }
   const newRowsByKey = new Map(plan.snapshot.rows.map((r) => [r.sourceKey, r]))
 
   // -- bulk-unlink every Parameter under a removed `number`-role column ----
@@ -524,9 +531,20 @@ export function buildRefreshCommit(
         }
         continue
       }
-      // unresolved -- no-op: the row's stored data carries over unchanged
+      // unresolved -- no-op: the row's stored data carries over unchanged, but
+      // only under the columns this refresh keeps (#619 item 3, "Column-level
+      // events": a removed column's prior values are dropped). Copied whole,
+      // a removed column's value stayed in the stored table, its read-back
+      // dropped it, and the next refresh of any other table was refused.
       const carried = oldRowsByKey.get(row.sourceKey)
-      if (carried) newRows.push({ sourceKey: carried.sourceKey, number: { ...carried.number }, label: { ...carried.label }, foreignKey: { ...carried.foreignKey } })
+      if (carried) {
+        newRows.push({
+          sourceKey: carried.sourceKey,
+          number: keptValues(carried.number, 'number'),
+          label: keptValues(carried.label, 'label'),
+          foreignKey: keptValues(carried.foreignKey, 'foreignKey'),
+        })
+      }
       continue
     }
 
