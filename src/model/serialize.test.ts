@@ -13,6 +13,7 @@ import {
   serialize,
 } from './serialize'
 import type { GraphDoc, GraphFileError, ImportSourceTable } from './serialize'
+import { canonicalContent, digestOfCanonical } from './revision'
 import type { LoopEdge, LoopNode } from './types'
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -536,8 +537,8 @@ describe('serialize / deserialize — saved frames (loop-revision/5)', () => {
         { id: 'norect', label: 'x' }, // no rect → drop
         'nope', // not an object → drop
         { id: 'badcolor', label: 'x', rect: { x: 0, y: 0, w: 5, h: 5 }, color: 'chartreuse' }, // kept, color dropped
-        { id: 'ok', label: 'dup', rect: { x: 9, y: 9, w: 9, h: 9 } }, // dup id → fresh id, kept
-        { label: 'noid', rect: { x: 3, y: 3, w: 3, h: 3 } }, // missing id → fresh id, kept
+        { id: 'ok', label: 'dup', rect: { x: 9, y: 9, w: 9, h: 9 } }, // dup id → derived id, kept
+        { label: 'noid', rect: { x: 3, y: 3, w: 3, h: 3 } }, // missing id → derived id, kept
         { id: 'long', label: 'y'.repeat(200), rect: { x: 0, y: 0, w: 4, h: 4 } }, // label capped
       ],
     })
@@ -550,6 +551,61 @@ describe('serialize / deserialize — saved frames (loop-revision/5)', () => {
     const ids = back.frames.map((f) => f.id)
     expect(new Set(ids).size).toBe(ids.length)
     expect(ids.every((i) => typeof i === 'string' && i.length > 0)).toBe(true)
+  })
+
+  // #619 item 4 — a repeated or missing id is replaced by an id derived from the
+  // file itself, so every read of one file gives the same ids (and digest). It
+  // was `frame_<time>_<counter>`, new on every read.
+  describe('§R5-1.1 — a repeated or missing id is derived from the file (#619 item 4)', () => {
+    const file = (frames: unknown[]) => JSON.stringify({ schema: 'loop-studio/graph/2', version: 1, nodes: [n('p', 'pool')], edges: [], frames })
+    const at = (id: string | undefined, x: number) => (id === undefined ? { label: `@${x}`, rect: { x, y: 0, w: 10, h: 10 } } : { id, label: `@${x}`, rect: { x, y: 0, w: 10, h: 10 } })
+    const idsOf = (text: string) => deserialize(text).frames.map((f) => f.id)
+    const tick = () => {
+      const until = Date.now() + 3
+      while (Date.now() < until) {
+        /* the old id was time-based: let the clock move between reads */
+      }
+    }
+    const twice = (text: string) => {
+      const a = idsOf(text)
+      tick()
+      return [a, idsOf(text)]
+    }
+
+    it('a repeated id: the first keeps it, the others take _2, _3; two reads agree', () => {
+      const text = file([at('frame_dup', 0), at('frame_dup', 20), at('frame_dup', 40)])
+      const [a, b] = twice(text)
+      expect.soft(a).toEqual(['frame_dup', 'frame_dup_2', 'frame_dup_3'])
+      expect(b).toEqual(a)
+    })
+
+    it('a missing id takes its position in the file; two reads agree', () => {
+      const text = file([at('frame_one', 0), at(undefined, 20)])
+      const [a, b] = twice(text)
+      expect.soft(a).toEqual(['frame_one', 'frame_2'])
+      expect(b).toEqual(a)
+    })
+
+    it('a derived id never takes an id a LATER frame of the file carries', () => {
+      // `a_2` and `frame_2` belong to later frames, so the replacements skip them
+      const text = file([at('a', 0), at('a', 20), at(undefined, 40), at('a_2', 60), at('frame_3', 80)])
+      const [ids, again] = twice(text)
+      expect.soft(ids).toEqual(['a', 'a_3', 'frame_3_2', 'a_2', 'frame_3'])
+      expect(again).toEqual(ids)
+      expect(new Set(ids).size).toBe(ids.length)
+    })
+
+    it('the projection digest of the file content is the same on every read', () => {
+      const raw = JSON.parse(file([at('frame_dup', 0), at('frame_dup', 20), at(undefined, 40)]))
+      const d1 = digestOfCanonical(canonicalContent(raw, { modelLayer: true }))
+      tick()
+      const d2 = digestOfCanonical(canonicalContent(raw, { modelLayer: true }))
+      expect(d2).toBe(d1)
+    })
+
+    it('control: a file with unique ids reads as it is', () => {
+      expect(idsOf(file([at('x', 0), at('y', 20)]))).toEqual(['x', 'y'])
+    })
   })
 
   it('§R5-1.1 — at most SF_FRAMES_MAX (200) entries survive', () => {

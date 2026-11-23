@@ -106,7 +106,7 @@ Evaluated **per graph** and **per side** of a proposal.
 | `rect.w <= 0` or `rect.h <= 0` | **entry dropped** + one warning. |
 | an accepted `rect` | `x, y, w, h` kept **verbatim** at full `Number` precision (`§R4.1`: `-0 → 0`, **no rounding**). No clamping — an off-canvas frame is user intent, like a node `position`. |
 | `id` a non-empty string, unique among already-kept entries | kept as-is. |
-| `id` missing / empty / not a string / a duplicate of an already-kept id | a **fresh session id** is assigned on read (`frame_…`); the entry is otherwise kept. The *file's* id string is never trusted for identity. |
+| `id` missing / empty / not a string / a duplicate of an already-kept id | an id **derived from the file** is assigned on read; the entry is otherwise kept. A duplicate of `x` becomes `x_2`, `x_3`, …; a missing / empty / non-string id becomes `frame_<p>`, `p` the entry's 1-based position in the file's `frames` array, then `frame_<p>_2`, … The derived id is the first of these that no frame of the file carries (a later one included) and that this read has not already used. So every read of one file gives the same ids and the same projection (#619: a time-based `frame_…` gave a different id, and digest, on every read). The clashing string is still never trusted for identity. |
 | `label` not a string | coerced with `String(...)`. |
 | `label` longer than `SF_LABEL_MAX` (**120** UTF-16 units) | truncated to 120. |
 | `color` one of `"slate" | "sage" | "gold" | "violet" | "rose"` | kept. |
@@ -377,7 +377,7 @@ by SG5.
 | **R5-D2** | **No `schema` / `version` bump.** `frames` is additive, forward-compatible, `cosmetic`. A pre-v5 reader ignores the key and loses only the overlay; on its next save it drops `frames` (frames only — never a node / edge / value). Accepted (`SF` §SF5). |
 | **R5-D3** | **No `members`.** 4a/4b removed the membership model; the §LGR6.4 sketch's `members` is not carried. |
 | **R5-D4** | Only **`frameStore.frames`** (manual + promoted) is serialized. A pure suggested frame is never wire content (§R5-9). |
-| **R5-D5** | Defensive read drops a bad **entry**, never the graph; a file-clashing `id` is replaced on read; `SF_LABEL_MAX = 120`, `SF_FRAMES_MAX = 200`; `rect` kept verbatim (no clamp). |
+| **R5-D5** | Defensive read drops a bad **entry**, never the graph; a file-clashing or missing `id` is replaced on read by an id derived from the file's own ids and order (the same on every read); `SF_LABEL_MAX = 120`, `SF_FRAMES_MAX = 200`; `rect` kept verbatim (no clamp). |
 | **R5-D6** | `frames` array order is **file order**, not re-sorted — user intent, like `waypoints`. |
 | **R5-D7** | The wire diff compares the **whole** projected `frames` array as one `cosmetic` hunk; per-entry granularity is UI-only. |
 | **R5-D8** | `loop-workspace/1` not bumped; `SimState` / engine digest unaffected. |
