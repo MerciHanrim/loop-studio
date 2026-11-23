@@ -25,7 +25,7 @@ import { canonicalRef } from './expr/canonical'
 import { parseActivatorExpr } from '../engine/stateExpr'
 import type { ExprNode } from './expr'
 import { nextId } from './factory'
-import { canonicalContent, validateResultGraph } from './revision'
+import { canonicalContent, invalidContentReason, InvalidRevisionContentError, validateResultGraph } from './revision'
 import { minimumModelVersion, normalizeGraph } from './serialize'
 import type { ModelSemanticsVersion } from './serialize'
 import { kindMergeConflicts, kindsDeclareUnits, mergeKinds, type ResourceKindDecl } from './kinds'
@@ -323,7 +323,9 @@ export function insertGraph(host: GraphDocLike, mod: GraphDocLike, opts: InsertO
   }
   try {
     canonicalContent({ nodes, edges, kinds, time, timetables }, { modelVersion })
-  } catch {
+  } catch (e) {
+    // #619 item 5 — the projection's own cause, not one sentence for all
+    if (e instanceof InvalidRevisionContentError) return { ok: false, reason: `The merged graph is not valid: ${invalidContentReason(e)}` }
     return { ok: false, reason: 'The merged graph holds a non-finite number.' }
   }
 
