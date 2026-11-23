@@ -63,10 +63,51 @@ export class SecureRandomUnavailableError extends Error {
  *  name it (its id, label and the kind it carries). */
 export class InvalidRevisionContentError extends Error {
   readonly node?: { id: string; label: string; kind: string }
-  constructor(where: string, node?: { id: string; label: string; kind: string }) {
-    super(node ? `node ${node.id} has kind "${node.kind}", which is not a node kind` : `non-finite number in revision content at ${where}`)
+  /** #619 item 5 — why the content was refused. Its message, and the reason a
+   *  refusal shows (`invalidContentReason`), say that cause; before, every cause
+   *  but an unknown kind read "non-finite number". */
+  readonly contentCause: InvalidRevisionContentCause
+  constructor(where: string, node?: { id: string; label: string; kind: string }, cause?: InvalidRevisionContentCause) {
+    const c: InvalidRevisionContentCause = node ? { kind: 'unknown-kind' } : (cause ?? { kind: 'non-finite', where })
+    super(
+      c.kind === 'unknown-kind' ? `node ${node!.id} has kind "${node!.kind}", which is not a node kind`
+      : c.kind === 'unreadable-model-node' ? `node ${c.nodeId} (${c.nodeKind}) cannot be read: ${c.detail}`
+      : c.kind === 'model-node-in-v1' ? `node ${c.nodeId}: a ${c.nodeKind} node is not loop-revision/1 content`
+      : c.kind === 'invariant' ? c.detail
+      : `non-finite number in revision content at ${c.where}`,
+    )
     this.name = 'InvalidRevisionContentError'
+    this.contentCause = c
     if (node) this.node = node
+  }
+}
+
+/** #619 item 5 — what made the canonical projection refuse content */
+export type InvalidRevisionContentCause =
+  | { kind: 'non-finite'; where: string }
+  | { kind: 'unreadable-model-node'; nodeId: string; nodeKind: string; detail: string }
+  | { kind: 'model-node-in-v1'; nodeId: string; nodeKind: string }
+  | { kind: 'unknown-kind' }
+  | { kind: 'invariant'; detail: string }
+
+/** #619 item 5 — the refusal reason for content the projection cannot read, as
+ *  a result check or a structure insert shows it (model-layer English, like the
+ *  other reasons): the node and the reader's own reason, or for a genuine
+ *  non-finite number the long-standing sentence and where it is. No stack, no
+ *  error class name. */
+export function invalidContentReason(e: InvalidRevisionContentError): string {
+  const c = e.contentCause
+  switch (c.kind) {
+    case 'non-finite':
+      return `A node or edge holds a non-finite number (NaN / Infinity): ${c.where}.`
+    case 'unreadable-model-node':
+      return `Node ${c.nodeId} (${c.nodeKind}) cannot be read: ${c.detail}.`
+    case 'model-node-in-v1':
+      return `Node ${c.nodeId} is a ${c.nodeKind} node, which a version 1 document cannot hold.`
+    case 'unknown-kind':
+      return `Node ${e.node!.id}: unknown kind "${e.node!.kind}".`
+    case 'invariant':
+      return 'The graph cannot be read as revision content.'
   }
 }
 
@@ -442,10 +483,10 @@ function projectNode(n: LoopNode, modelLayer: boolean): CanonicalNode {
   // `project`, the graph still loads — R-INV-10 / R2-INV-9).
   if (MODEL_NODE_KINDS.has(kind)) {
     if (!modelLayer) {
-      throw new InvalidRevisionContentError(`node ${n.id}: a ${kind} node is not loop-revision/1 content`)
+      throw new InvalidRevisionContentError(`node ${n.id}`, undefined, { kind: 'model-node-in-v1', nodeId: n.id, nodeKind: kind })
     }
     const read = kind === 'parameter' ? readParameterData(rawData) : readRegisterData(rawData)
-    if (!read.ok) throw new InvalidRevisionContentError(`node ${n.id} (${kind}): ${read.detail}`)
+    if (!read.ok) throw new InvalidRevisionContentError(`node ${n.id}`, undefined, { kind: 'unreadable-model-node', nodeId: n.id, nodeKind: kind, detail: read.detail })
     const nd = read.data as unknown as Record<string, unknown>
     const data: Record<string, unknown> = {}
     for (const f of MODEL_NODE_FIELDS[kind as 'parameter' | 'register']) {
@@ -1052,7 +1093,7 @@ export function readRevisionSide(
     // 5 — lift into the common compare model; R2-INV-2 / R3-INV-2 say the bytes match
     const lifted = canonicalContent(graph, { modelLayer: true })
     if (canonicalJson(lifted) !== canonicalJson(v1)) {
-      throw new InvalidRevisionContentError('R2-INV-2: lifting a v1 side changed its canonical bytes')
+      throw new InvalidRevisionContentError('R2-INV-2', undefined, { kind: 'invariant', detail: 'R2-INV-2: lifting a v1 side changed its canonical bytes' })
     }
     return { ok: true, version, content: lifted, digestVerified: storedDigest !== undefined }
   }
@@ -2215,8 +2256,9 @@ export function validateResultGraph(
   if (kindsOk) {
     try {
       canonicalContent({ nodes, edges })
-    } catch {
-      reasons.push('A node or edge holds a non-finite number (NaN / Infinity).')
+    } catch (e) {
+      // #619 item 5 — the projection's own cause, not one sentence for all
+      reasons.push(e instanceof InvalidRevisionContentError ? invalidContentReason(e) : 'A node or edge holds a non-finite number (NaN / Infinity).')
     }
   }
 
