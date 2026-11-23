@@ -325,6 +325,49 @@ test('a 2-table FK import resolves the linked row into the generated label', asy
   ])
 })
 
+// review P4 (#611): an untitled frame is named by the catalogue's default name, in the
+// interface's language, in the wizard's frame choices and in a refusal for room. Before,
+// the choices read "Group 1" in English in every language, and the refusal quoted an empty
+// name: `""에 여유 공간이 충분하지 않습니다.` Reproduced on main b8bb0a01. The wizard is
+// filled in English (the Data menu button is found by its English name) and the interface
+// is switched to Korean at the placement step, where the choices are drawn.
+test('Korean: untitled frames are 그룹 1 and 그룹 2 in the frame choices and in a refusal for room', async ({ page }) => {
+  const ids = await page.evaluate(() => {
+    const F = (window as unknown as { __loop: { frame: { getState: () => { addFrame: (r: object) => string } } } }).__loop.frame.getState()
+    return {
+      big: F.addFrame({ x: 100, y: 100, w: 340, h: 340 }),
+      tiny: F.addFrame({ x: 600, y: 100, w: 40, h: 40 }), // too small for a node
+    }
+  })
+  await openWizard(page)
+  await dialog(page).getByLabel('Table name').fill('Items')
+  await dialog(page).getByPlaceholder('Paste CSV or TSV text here').fill('item_key,weight\nitm_a,10')
+  const headerRow = dialog(page).locator('.import__preview thead tr').first()
+  await headerRow.locator('select').nth(0).selectOption('key')
+  await headerRow.locator('select').nth(1).selectOption('number')
+  await dialog(page).getByRole('button', { name: 'Next' }).click()
+  await expect(dialog(page).getByText('Add to an existing frame')).toBeVisible()
+
+  await page.evaluate(() => (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (c: string) => void } } } }).__loop.i18n.getState().setLocale('ko'))
+  await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('ko')
+  await dialog(page).getByText('기존 프레임에 추가').click()
+  const select = dialog(page).locator('select').last()
+  const options = await select.evaluate((s) => [...(s as HTMLSelectElement).options].map((o) => o.text))
+  // soft: the refusal below is checked whatever the choices say
+  expect.soft(options).toEqual(['프레임 선택…', '그룹 1', '그룹 2'])
+
+  await select.selectOption(ids.tiny)
+  await dialog(page).locator('.mcdlg__foot .btn--primary').click() // -> review
+  await dialog(page).locator('.mcdlg__foot .btn--primary').click() // 가져오기
+  const error = dialog(page).locator('.import__error')
+  await expect(error).toBeVisible()
+  // the name is FSI-isolated in the sentence (isolate-obligations.json `wizard-commit-error-names`)
+  const text = ((await error.textContent()) ?? '').replace(/[⁦-⁩]/g, '')
+  expect(text).toBe('"그룹 2"에 여유 공간이 충분하지 않습니다.')
+  expect(await page.evaluate(() => (window as unknown as { __loop: { graph: { getState: () => { nodes: unknown[] } } } }).__loop.graph.getState().nodes.length)).toBe(0)
+  void ids.big
+})
+
 test('adding to an existing frame with a partly-occupied top row finds the free space instead of failing', async ({ page }) => {
   await openApp(page)
   await resetAll(page)

@@ -7,6 +7,8 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **The data import wizard names an untitled frame in your language.** Choosing Add to an existing frame listed an untitled frame as "Group 1" in English in every language, while the canvas and the Model list call it, for example, 그룹 1 in Korean. A frame too small for the imported nodes was refused with an empty name, Not enough free space in "", in every language. Both now use the frame's name, or for an untitled frame the same default name and number the canvas shows.
+
 ## v0.33.1 — 2026-11-23
 
 Fixes to what is already there: on the phone, a pinch that keeps what is under your fingers in place, and sharing or exporting that keeps the canvas lock and the Timeline's series; Save selected structure on a selection that holds a delivery line; data refresh errors that say which cell is wrong; names and ids inside right-to-left sentences that keep their own direction; Japanese text no longer drawn bold everywhere; and a first-run tour that matches the layout on a phone held sideways.

@@ -194,6 +194,27 @@ describe('buildImportCommit -- placement', () => {
     expect(built.ok).toBe(false)
   })
 
+  // review P4 (#611) — an untitled frame's label is '', so the refusal quoted an empty
+  // name (`Not enough free space in ""`). The model layer has no catalogue and a saved
+  // frame carries no number, so the refusal names the frame by its id as well, and the
+  // wizard names it the way the canvas and the Model list do.
+  it('"existingFrame": a refusal for room names the frame by its id as well as its label, on both paths', () => {
+    const many = draftFrom(['k', 'n'], Array.from({ length: 50 }, (_, i) => [`k${i}`, '1']), ['key', 'number'])
+    const vMany = validateDrafts([many])
+    if (!vMany.ok) throw new Error('expected ok')
+    const tiny: SavedFrame = { id: 'frame_tiny', label: '', rect: { x: 0, y: 0, w: 50, h: 50 } }
+    const narrow = buildImportCommit(vMany.plan, { kind: 'existingFrame', frameId: 'frame_tiny' }, EMPTY_HOST, [tiny], [])
+    expect(narrow).toMatchObject({ ok: false, reason: 'frame-insufficient-space', detail: { frame: '', frameId: 'frame_tiny' } })
+
+    const one = draftFrom(['k', 'n'], [['a', '1']], ['key', 'number'])
+    const vOne = validateDrafts([one])
+    if (!vOne.ok) throw new Error('expected ok')
+    const full: SavedFrame = { id: 'frame_full', label: '', rect: { x: 0, y: 0, w: 200, h: 100 } }
+    const occupied = { nodes: [{ id: 'n1', type: 'pool', position: { x: 24, y: 24 }, data: {} } as unknown as LoopNode], edges: [] }
+    const taken = buildImportCommit(vOne.plan, { kind: 'existingFrame', frameId: 'frame_full' }, occupied, [full], [])
+    expect(taken).toMatchObject({ ok: false, reason: 'frame-insufficient-space', detail: { frame: '', frameId: 'frame_full' } })
+  })
+
   it('"existingFrame": refuses when the frame is already occupied by an existing node', () => {
     const d = draftFrom(['k', 'n'], [['a', '1']], ['key', 'number'])
     const v = validateDrafts([d])

@@ -274,6 +274,17 @@ export function DataImportWizard({
   const [existingFrameId, setExistingFrameId] = useState<string>('')
   const [commitError, setCommitError] = useState<{ code: CommitFailureCode; detail?: Record<string, unknown> } | null>(null)
   const frames = useFrameStore((s) => s.frames)
+  // review P4 (#611) — a frame is named as the canvas and the Model list name it: its
+  // own name, or the catalogue's default name with its number (an untitled frame read
+  // "Group 1" in English in every language here). The same rule names the frame a
+  // refusal for room quotes, which carries the frame's id, since an untitled frame's
+  // label is ''. A shared helper for the three places that follow this rule is a
+  // later refactoring (#611).
+  const frameName = (f: { label: string; n: number }) => f.label || t('canvas.frame.defaultName', { n: f.n })
+  const commitErrorFrameName = (detail: Record<string, unknown> | undefined): string => {
+    const f = frames.find((x) => x.id === detail?.frameId)
+    return f ? frameName(f) : String(detail?.frame ?? '')
+  }
   const commitDataImport = useGraphStore((s) => s.commitDataImport)
 
   // §DI17 -- quick start open/closed. `forceQuickStart` is a per-open
@@ -954,7 +965,7 @@ export function DataImportWizard({
                   <option value="">{t('import.selectFrame')}</option>
                   {frames.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.label || `Group ${f.n}`}
+                      {frameName(f)}
                     </option>
                   ))}
                 </select>
@@ -1033,7 +1044,7 @@ export function DataImportWizard({
                       checker could read */}
                   {t(COMMIT_ERROR_KEY[commitError.code], {
                     table: isolateAuto(String(commitError.detail?.table ?? '')),
-                    frame: isolateAuto(String(commitError.detail?.frame ?? '')),
+                    frame: isolateAuto(commitErrorFrameName(commitError.detail)),
                   })}
                 </p>
               )}
