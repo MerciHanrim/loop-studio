@@ -27,7 +27,17 @@ test.beforeEach(async ({ page }) => {
   await resetAll(page)
 })
 
+const loopKeys = (page: Page) =>
+  page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('loop-studio')).sort())
+
 test('Reset all data: a removal refused after others succeeded keeps the step, says some data may remain, and does not reload', async ({ page }) => {
+  // #623 — the document record must be stored BEFORE the keys are read. `resetAll()`
+  // calls `newGraph()`, which schedules the autosave 400 ms later; on a slow runner that
+  // write landed between the read and the reset, so one key went and one arrived and
+  // the old count check failed on both attempts (CI, shard 1/8 on #609 and shard 5/8 on
+  // #576). Flushed here, the record exists, and the refused removal really leaves data.
+  await page.evaluate(() => (window as unknown as { __loop: { autosave: { flush: () => void } } }).__loop.autosave.flush())
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('loop-studio:graph:v1') !== null)).toBe(true)
   await page.evaluate(() => {
     localStorage.setItem('loop-studio:author', JSON.stringify({ name: 'Kept' }))
     ;(window as unknown as { __noReload?: boolean }).__noReload = true // gone if the page reloads
@@ -40,7 +50,7 @@ test('Reset all data: a removal refused after others succeeded keeps the step, s
       return orig.call(this, k)
     }
   })
-  const before = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('loop-studio')).length)
+  const before = await loopKeys(page)
   await openStorageArea(page)
   await storage(page).locator('[data-storage-action="reset-all"]').click()
   await storage(page).locator('[data-storage-confirm]').click()
@@ -52,10 +62,12 @@ test('Reset all data: a removal refused after others succeeded keeps the step, s
   await expect(storage(page).locator('[data-storage-notice="done"]')).toHaveCount(0)
   await expect(page.locator('.gate')).toHaveCount(0)
   expect(await page.evaluate(() => (window as unknown as { __noReload?: boolean }).__noReload)).toBe(true)
-  // it really was partial: one key went, the rest are still there
-  const after = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('loop-studio')).length)
-  expect(after).toBeGreaterThan(0)
-  expect(after).toBeLessThan(before)
+  // it really was partial: the first registered key (the remembered storage mode) went,
+  // the document record whose removal was refused is still there, and nothing arrived
+  const after = await loopKeys(page)
+  expect(before.filter((k) => !after.includes(k)), 'removed').toEqual(['loop-studio:storage-mode'])
+  expect(after.filter((k) => !before.includes(k)), 'arrived').toEqual([])
+  expect(after).toContain('loop-studio:graph:v1')
 })
 
 /** every `Blob#text()` (a `File` is a `Blob`) rejects from here on */
