@@ -348,10 +348,12 @@ export function buildImportCommit(
     const usableW = target.rect.w - FRAME_PAD * 2
     const cols = Math.max(1, Math.floor((usableW + GRID_GAP_X) / (NODE_W + GRID_GAP_X)))
     const rowsNeeded = Math.ceil(cells.length / cols)
-    if (usableW < NODE_W) return { ok: false, reason: 'frame-insufficient-space', detail: { frame: target.label } }
+    // review P4 (#611) — the id too: an untitled frame's label is '', and the wizard
+    // names it the way the canvas does, which needs the frame's number
+    if (usableW < NODE_W) return { ok: false, reason: 'frame-insufficient-space', detail: { frame: target.label, frameId: target.id } }
     const hostObstacles = host.nodes.map((n) => nodeRect(n.position))
     const origin = findFreeGridOrigin(target, cols, rowsNeeded, hostObstacles)
-    if (!origin) return { ok: false, reason: 'frame-insufficient-space', detail: { frame: target.label } }
+    if (!origin) return { ok: false, reason: 'frame-insufficient-space', detail: { frame: target.label, frameId: target.id } }
     const candidate: Point[] = []
     for (let i = 0; i < cells.length; i++) {
       const col = i % cols
