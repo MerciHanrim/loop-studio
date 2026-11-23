@@ -802,9 +802,16 @@ function fieldTag(prefix: string, id: string, changed: string[]): string | null 
 const accentOf = (data: unknown): unknown => (data as { accent?: unknown } | undefined)?.accent
 // SEMANTICS-R12.md — a node's icon is just as visual: setting, removing,
 // undoing or redoing one never resets the run either.
-const withoutAccent = (data: unknown): string => {
+// #619 item 1 — and a name (SEMANTICS-W.md §W3): `label`, and the imported
+// Parameter's `labelAutoComposed`, which a hand rename clears. The node data
+// keys whose change keeps the run, in an edit and in its Undo / Redo alike.
+const RUN_KEEPING_NODE_KEYS: ReadonlySet<string> = new Set(['label', 'labelAutoComposed', 'accent', 'icon'])
+/** the visual keys alone, as `onlyAccentsDiffer` has always compared them */
+const VISUAL_NODE_KEYS: ReadonlySet<string> = new Set(['accent', 'icon'])
+const without = (data: unknown, keys: ReadonlySet<string> | readonly string[]): string => {
   if (!data || typeof data !== 'object') return JSON.stringify(data)
-  const { accent: _accent, icon: _icon, ...rest } = data as Record<string, unknown>
+  const rest = { ...(data as Record<string, unknown>) }
+  for (const k of keys) delete rest[k]
   return JSON.stringify(rest)
 }
 /** true when `a` and `b` differ in nothing the engine reads but some element's
@@ -816,7 +823,7 @@ export function onlyAccentsDiffer(
   a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
   b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
 ): boolean {
-  return onlyCosmeticsDiffer(a, b, ['accent'])
+  return onlyCosmeticsDiffer(a, b, VISUAL_NODE_KEYS, ['accent'])
 }
 
 /** Do the two history snapshots differ in NOTHING the engine reads? True for
@@ -827,27 +834,23 @@ export function onlyAccentsDiffer(
  *  delete commits the same `nodes` / `edges`). Undo / redo then keep
  *  `simulationRev` — §SF11.3 promises that for every frame operation (issue
  *  #391: identical snapshots and position-only ones used to fall through to
- *  the bump). */
+ *  the bump). #619 item 1 — and for a rename: a node's `label` and
+ *  `labelAutoComposed` are not engine input (SEMANTICS-W.md §W3). */
 export function onlyDecorationDiffers(
   a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion; kinds?: readonly ResourceKindDecl[]; time?: DocTime; timetables?: readonly Timetable[] },
   b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion; kinds?: readonly ResourceKindDecl[]; time?: DocTime; timetables?: readonly Timetable[] },
 ): boolean {
   // §ER18 — and a connection's sides (`ports`, cosmetic in SEMANTICS-R11.md):
   // undoing a side-only end move does not reset the run either
-  return onlyCosmeticsDiffer(a, b, ['accent', 'route', 'waypoints', 'ports'])
+  return onlyCosmeticsDiffer(a, b, RUN_KEEPING_NODE_KEYS, ['accent', 'route', 'waypoints', 'ports'])
 }
 
 function onlyCosmeticsDiffer(
   a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion; kinds?: readonly ResourceKindDecl[]; time?: DocTime; timetables?: readonly Timetable[] },
   b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion; kinds?: readonly ResourceKindDecl[]; time?: DocTime; timetables?: readonly Timetable[] },
+  nodeKeys: ReadonlySet<string>,
   edgeKeys: readonly string[],
 ): boolean {
-  const withoutEdgeKeys = (data: unknown): string => {
-    if (!data || typeof data !== 'object') return JSON.stringify(data)
-    const rest = { ...(data as Record<string, unknown>) }
-    for (const k of edgeKeys) delete rest[k]
-    return JSON.stringify(rest)
-  }
   if (a.modelVersion !== b.modelVersion) return false
   // loop-model/3 — the kinds table is engine input (a conserved kind refuses
   // a run), so a table change is never decoration
@@ -864,7 +867,7 @@ function onlyCosmeticsDiffer(
     if (p === q) continue
     if (p.id !== q.id || p.type !== q.type) return false
     if (p.data === q.data) continue
-    if (withoutAccent(p.data) !== withoutAccent(q.data)) return false
+    if (without(p.data, nodeKeys) !== without(q.data, nodeKeys)) return false
   }
   for (let i = 0; i < a.edges.length; i++) {
     const p = a.edges[i]!, q = b.edges[i]!
@@ -874,7 +877,7 @@ function onlyCosmeticsDiffer(
       (p.sourceHandle ?? null) !== (q.sourceHandle ?? null) || (p.targetHandle ?? null) !== (q.targetHandle ?? null)
     ) return false
     if (p.data === q.data) continue
-    if (withoutEdgeKeys(p.data) !== withoutEdgeKeys(q.data)) return false
+    if (without(p.data, edgeKeys) !== without(q.data, edgeKeys)) return false
   }
   return true
 }
@@ -1341,8 +1344,10 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       // /graph/4 content: the commit latches the version, one-way
       if (typeof patch.unit === 'string' && patch.unit !== '' && !hasUnits(get().modelVersion)) set({ modelVersion: 4 })
       // a pure `label` rename does not change what a simulation computes, and
-      // neither does a flow colour (FC-2.4) or an icon (R12)
-      if (Object.keys(patch).some((k) => k !== 'label' && k !== 'accent' && k !== 'icon')) bump()
+      // neither does a flow colour (FC-2.4) or an icon (R12). #619 item 1 —
+      // nor does `labelAutoComposed`, which the Inspector sends with the first
+      // keystroke of an imported Parameter's rename (SEMANTICS-W.md §W3)
+      if (Object.keys(patch).some((k) => !RUN_KEEPING_NODE_KEYS.has(k))) bump()
       persist()
     },
 
@@ -1816,7 +1821,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         set({ nodes: g.nodes.map((n) => byId.get(n.id) ?? n) })
       }
       dataImportSidecar?.set(nextTables)
-      bump()
+      // #619 item 1 — a table name, and the Parameter labels composed from it,
+      // are not engine input (SEMANTICS-W.md §W3): the run is kept. `commit`
+      // above records the Undo entry and ends "pristine"; `persist` saves it.
       persist()
       return { ok: true }
     },
