@@ -140,8 +140,11 @@ Applied in `deserialize()` before the graph is handed to the store. Order:
    - `rect.w <= 0` or `rect.h <= 0`.
 3. Otherwise **normalise, keep**:
    - `id` — coerce to string; if empty / missing / duplicate of an
-     already-kept id ⇒ **assign a fresh session id** (`frame_…`), so a
-     hand-edited file with clashing ids still loads deterministically;
+     already-kept id ⇒ **assign an id derived from the file** (`x_2`, `x_3`, …
+     for a repeat of `x`; `frame_<position>` for a missing one; never an id
+     any frame of the file carries), so a hand-edited file with clashing ids
+     still loads deterministically, with the same ids on every read
+     (`SEMANTICS-R5.md` §R5-1.1);
    - `label` — coerce to string; trim trailing control chars; **cap at
      `SF_LABEL_MAX` = 120** UTF-16 units (excess truncated) to bound the
      payload;
@@ -322,7 +325,7 @@ serialization code lands (the R3 sequence).
 **unit — defensive read (`serialize.test.ts` / a new `savedFrames.test.ts`):**
 - `frames` absent / `[]` / not-an-array ⇒ empty set, graph loads;
 - non-finite / negative-size `rect` ⇒ frame dropped, graph kept;
-- empty / duplicate / missing `id` ⇒ fresh session id assigned;
+- empty / duplicate / missing `id` ⇒ an id derived from the file, the same on every read;
 - over-long `label` ⇒ truncated to `SF_LABEL_MAX`;
 - unknown `color` ⇒ key dropped, frame kept neutral;
 - > `SF_FRAMES_MAX` entries ⇒ capped;

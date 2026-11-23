@@ -294,22 +294,36 @@ export type GraphDoc = {
   project?: unknown
 }
 
-let sfSeq = 0
-const freshFrameId = (): string => `frame_${Date.now().toString(36)}_${(sfSeq++).toString(36)}`
-
 /**
  * `SEMANTICS-R5.md §R5-1.1` — the defensive read of `GraphDoc.frames`. Drops a
- * bad ENTRY, never the graph. A file-clashing / missing `id` is replaced with a
- * fresh session id (the file's id string is not trusted for identity). `label`
- * is coerced + capped, `rect` kept verbatim (finite, positive size), `color`
- * kept only if it is a palette id. At most `SF_FRAMES_MAX` entries survive.
- * The `n` ordinal is never read — the store re-derives it from array order.
+ * bad ENTRY, never the graph. A file-clashing / missing `id` is replaced with an
+ * id derived from the file itself (the clashing string is not trusted for
+ * identity): a repeat of `x` becomes `x_2`, `x_3`, …; a missing id becomes
+ * `frame_<position>` (1-based, in the file's `frames` array), with `_2`, `_3`, …
+ * if that is taken. A derived id never takes an id any frame of the file carries,
+ * a later one included, nor one already used. So every read of one file gives the
+ * same ids (#619 item 4 — it was `frame_<time>_<counter>`, new on every read).
+ * `label` is coerced + capped, `rect` kept verbatim (finite, positive size),
+ * `color` kept only if it is a palette id. At most `SF_FRAMES_MAX` entries
+ * survive. The `n` ordinal is never read — the store re-derives it from array order.
  */
 export function readSavedFrames(raw: unknown): SavedFrame[] {
   if (!Array.isArray(raw)) return []
   const out: SavedFrame[] = []
   const seen = new Set<string>()
+  // every id the file's frames carry, reserved before any is derived
+  const carried = new Set<string>()
   for (const entry of raw) {
+    const id = entry && typeof entry === 'object' ? (entry as { id?: unknown }).id : undefined
+    if (typeof id === 'string' && id !== '') carried.add(id)
+  }
+  const derive = (stem: string, first: string): string => {
+    let id = first
+    for (let k = 2; carried.has(id) || seen.has(id); k++) id = `${stem}_${k}`
+    return id
+  }
+  for (let position = 1; position <= raw.length; position++) {
+    const entry: unknown = raw[position - 1]
     if (out.length >= SF_FRAMES_MAX) break
     if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue
     const e = entry as Record<string, unknown>
@@ -328,7 +342,8 @@ export function readSavedFrames(raw: unknown): SavedFrame[] {
       continue
     }
     let id = typeof e.id === 'string' ? e.id : ''
-    if (id === '' || seen.has(id)) id = freshFrameId()
+    if (id === '') id = derive(`frame_${position}`, `frame_${position}`)
+    else if (seen.has(id)) id = derive(id, `${id}_2`)
     seen.add(id)
     let label = typeof e.label === 'string' ? e.label : e.label == null ? '' : String(e.label)
     if (label.length > SF_LABEL_MAX) label = label.slice(0, SF_LABEL_MAX)
