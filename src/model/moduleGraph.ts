@@ -21,6 +21,8 @@
 // consent dialog, the download, and the frames-exclusion notice.
 
 import { canonicalPrint, parse, refsOf } from './expr'
+import { canonicalRef } from './expr/canonical'
+import { parseActivatorExpr } from '../engine/stateExpr'
 import type { ExprNode } from './expr'
 import { nextId } from './factory'
 import { canonicalContent, validateResultGraph } from './revision'
@@ -100,6 +102,26 @@ const kindOf = (data: unknown): string | undefined =>
  * provenance-free module round-trips through Insert/Extract byte-for-byte
  * unchanged.
  */
+/** #619 item 2 — the Parameter an activator edge's `expr` reads (`op @id [± n]`),
+ *  by the engine's own parser and the document's model version (a v1 document has
+ *  no such reference, §PA4), or `null` for any other edge or a literal comparison */
+function activatorParamRef(
+  data: unknown,
+  modelVersion: ModelSemanticsVersion,
+): { op: string; id: string; offset: number } | null {
+  const d = data as { kind?: unknown; mode?: unknown; expr?: unknown } | undefined
+  if (!d || d.kind !== 'state' || d.mode !== 'activator' || typeof d.expr !== 'string') return null
+  const p = parseActivatorExpr(d.expr, modelVersion)
+  if (!p.ok || p.rhs.kind !== 'param') return null
+  return { op: p.op, id: p.rhs.id, offset: p.rhs.offset }
+}
+
+/** the same comparison reading another Parameter, spelt as the Inspector writes it */
+function activatorExprWith(ref: { op: string; offset: number }, id: string): string {
+  const suffix = ref.offset === 0 ? '' : ` ${ref.offset > 0 ? '+' : '-'} ${Math.abs(ref.offset)}`
+  return `${ref.op} ${canonicalRef(id)}${suffix}`
+}
+
 function stripDataImportProvenance(n: LoopNode): LoopNode {
   if (kindOf(n.data) !== 'parameter') return n
   const d = n.data as Record<string, unknown>
@@ -227,6 +249,15 @@ export function insertGraph(host: GraphDocLike, mod: GraphDocLike, opts: InsertO
         }
       }
       data = { ...data, flow: canonicalPrint(remapAst(r.ast, idMap)) } as LoopEdge['data']
+    }
+    // #619 item 2 — an activator's `@id` (a Parameter, docs/parameter-activator.md §PA4)
+    // takes the re-issued id too; left as it was, it read the HOST's node of that id,
+    // or a node that is not there
+    const act = activatorParamRef(data, mod.modelVersion)
+    if (act) {
+      const to = idMap.get(act.id)
+      if (!to) return { ok: false, reason: `The activator "${e.id}" reads "${act.id}", which is not part of the module.` }
+      data = { ...data, expr: activatorExprWith(act, to) } as LoopEdge['data']
     }
     outEdges.push({ ...e, id: edgeIdMap.get(e.id)!, source, target, data })
   }
@@ -377,6 +408,9 @@ export function extractModule(src: GraphDocLike, selectedIds: readonly string[])
     for (const rid of refsOf(r.ast)) if (!sel.has(rid)) dangling.push({ from: n.id, targetId: rid })
   }
   for (const e of selEdges) {
+    // #619 item 2 — an activator that reads a Parameter outside the selection
+    const act = activatorParamRef(e.data, src.modelVersion)
+    if (act && !sel.has(act.id)) dangling.push({ from: e.id, targetId: act.id })
     const flow = (e.data as { flow?: unknown } | undefined)?.flow
     if (kindOf(e.data) !== 'resource' || !isParamFlow(flow)) continue
     const r = parse(flow)
@@ -406,8 +440,12 @@ export function extractModule(src: GraphDocLike, selectedIds: readonly string[])
   // schema v2 iff a surviving edge carries an `@param` flow (§MS2.2); every
   // referenced Parameter is guaranteed inside the selection (the dangling guard
   // above refused otherwise).
+  // #619 item 2 — and so does an activator that reads a Parameter (§PA4): in a
+  // version 1 file `>= @p` is no reference, so the insert could not re-issue it
   const hasParamFlow = selEdges.some(
-    (e) => kindOf(e.data) === 'resource' && isParamFlow((e.data as { flow?: unknown }).flow),
+    (e) =>
+      (kindOf(e.data) === 'resource' && isParamFlow((e.data as { flow?: unknown }).flow)) ||
+      activatorParamRef(e.data, src.modelVersion) !== null,
   )
   // loop-model/3 — the source's declared kinds that the selection names (a
   // Pool's `resourceType`, a connection's annotation) travel with it; a

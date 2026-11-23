@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { canonicalContent } from './revision'
 import { extractModule, insertGraph, type GraphDocLike } from './moduleGraph'
+import { initSim, step } from '../engine/step'
 import type { LoopEdge, LoopNode } from './types'
 
 // docs/module-system.md §MS8 — the model layer for module insert / extract.
@@ -158,6 +159,109 @@ describe('insertGraph — expression rewrite', () => {
     expect(r.ok).toBe(false)
     if (r.ok) return
     expect(r.reason).toMatch(/not_in_module/)
+  })
+})
+
+// #619 item 2 (reproduced on main c309293f) — an activator `expr` names a Parameter with
+// `@id` (SEMANTICS-S4.md, docs/parameter-activator.md §PA4). The insert re-issued every node
+// id but left the activator's `@id` as it was, so the inserted activator read the HOST's
+// node of that id, or a node that is not there; the extract let a selection out without
+// the Parameter its activator reads. A Register's `@ref` was already rewritten and guarded
+// (the control below).
+describe('insertGraph / extractModule — an activator `@id` (#619 item 2)', () => {
+  // the module: Parameter m_th (5); Pool m_src (10) gates Source m_s by `>= @m_th`;
+  // m_s pushes 1 into Pool m_dst each step it is enabled
+  const source = (id: string): LoopNode =>
+    ({ id, type: 'source', position: { x: 200, y: 0 }, data: { kind: 'source', label: id, activation: 'automatic', mode: 'pushAny' } }) as LoopNode
+  const activator = (id: string, s: string, t: string, expr: string): LoopEdge =>
+    ({ id, type: 'loop', source: s, target: t, sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'activator', expr } }) as LoopEdge
+  const gated = (expr = '>= @m_th') =>
+    doc(
+      [param('m_th', 5), pool('m_src', { initial: 10 }, { x: 0, y: 200 }), source('m_s'), pool('m_dst', {}, { x: 400, y: 0 })],
+      [activator('m_act', 'm_src', 'm_s', expr), rEdge('m_push', 'm_s', 'm_dst', '1')],
+      2,
+    )
+  /** the expr of the (one) inserted activator */
+  const exprOf = (r: { edges: LoopEdge[] }) =>
+    (r.edges.find((e) => (e.data as { mode?: string }).mode === 'activator')!.data as { expr: string }).expr
+  /** one step of the merged document: what reached the inserted m_dst */
+  const firstStep = (r: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: number }, dstId: string) =>
+    step(r.nodes, r.edges, initSim(r.nodes), 1, r.modelVersion as 2).state.values[dstId]
+
+  it('into a host that has a node with the same id: the activator reads the INSERTED Parameter', () => {
+    const v2host = doc([param('m_th', 100, { x: 0, y: 600 })], [], 2)
+    const r = insertGraph(v2host, gated(), { at: { x: 1000, y: 0 } })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    // soft: the run below is checked whatever the text says
+    expect.soft(exprOf(r)).toBe(`>= @${r.idMap['m_th']}`)
+    // the run reads 10 >= 5 (the inserted Parameter), not 10 >= 100 (the host's)
+    expect(firstStep(r, r.idMap['m_dst'])).toBe(1)
+  })
+
+  it('into a host without that id: the activator reads the inserted Parameter, not a missing node', () => {
+    const r = insertGraph(doc([], [], 2), gated(), { at: { x: 0, y: 0 } })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect.soft(exprOf(r)).toBe(`>= @${r.idMap['m_th']}`)
+    expect(firstStep(r, r.idMap['m_dst'])).toBe(1)
+  })
+
+  it('keeps the comparison and the offset as written', () => {
+    const r = insertGraph(doc([], [], 2), gated('< @m_th - 2'), { at: { x: 0, y: 0 } })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(exprOf(r)).toBe(`< @${r.idMap['m_th']} - 2`)
+  })
+
+  it('refuses a module whose activator reads a node outside it, naming it', () => {
+    const mod = doc([pool('m_src', { initial: 10 }), source('m_s')], [activator('m_act', 'm_src', 'm_s', '>= @elsewhere')], 2)
+    const r = insertGraph(doc([], [], 2), mod, { at: { x: 0, y: 0 } })
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.reason).toMatch(/elsewhere/)
+  })
+
+  it('a literal comparison is left exactly as it is', () => {
+    const r = insertGraph(doc([], [], 2), gated('>= 3'), { at: { x: 0, y: 0 } })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(exprOf(r)).toBe('>= 3')
+  })
+
+  it('extract refuses a selection whose activator reads a Parameter outside it, with the reference', () => {
+    const r = extractModule(gated(), ['m_src', 'm_s', 'm_dst'])
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.dangling).toEqual([{ from: 'm_act', targetId: 'm_th' }])
+    expect(r.reason).toMatch(/m_act → m_th/)
+  })
+
+  it('extract with the Parameter inside the selection is accepted', () => {
+    expect(extractModule(gated(), ['m_th', 'm_src', 'm_s', 'm_dst']).ok).toBe(true)
+  })
+
+  it('extract then insert: the file is version 2, so the activator still reads its own Parameter', () => {
+    // a version 1 file has no `@id` activator (§PA4): it would be a comparison
+    // the engine refuses, and the insert would leave it as it is
+    const x = extractModule(gated(), ['m_th', 'm_src', 'm_s', 'm_dst'])
+    expect(x.ok).toBe(true)
+    if (!x.ok) return
+    expect.soft(x.modelVersion).toBe(2)
+    const r = insertGraph(doc([param('m_th', 100)], [], 2), doc(x.nodes, x.edges, x.modelVersion as 1 | 2), { at: { x: 0, y: 0 } })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect.soft(exprOf(r)).toBe(`>= @${r.idMap['m_th']}`)
+    expect(firstStep(r, r.idMap['m_dst'])).toBe(1)
+  })
+
+  it('control: a Register `@ref` is rewritten on insert and refused on extract, as before', () => {
+    const mod = doc([param('m_th', 5), register('m_reg', '@m_th + 1')], [], 2)
+    const r = insertGraph(doc([param('m_th', 100)], [], 2), mod, { at: { x: 0, y: 0 } })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect((r.nodes.find((n) => n.id === r.idMap['m_reg'])!.data as { expr: string }).expr).toBe(`@${r.idMap['m_th']} + 1`)
+    expect(extractModule(mod, ['m_reg']).ok).toBe(false)
   })
 })
 

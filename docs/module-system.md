@@ -166,9 +166,11 @@ Extract is copy-out, never cut, so it mints **no undo entry**.
   **states that frames are not included** before it produces the file, so no
   loss is silent (§MS4a-B3).
 - **`schema`:** `loop-studio/graph/2` iff a surviving edge's `flow` is an
-  `@param` reference (every referenced Parameter is guaranteed inside the
-  selection, because a dangling reference **refuses** the Extract — §MS2.4);
-  else `loop-studio/graph`.
+  `@param` reference, or a surviving activator compares with a Parameter
+  (`>= @p`, `parameter-activator.md` §PA4; a version 1 file has no such
+  reference, so the insert could not re-issue it — #619) (every referenced
+  Parameter is guaranteed inside the selection, because a dangling reference
+  **refuses** the Extract — §MS2.4); else `loop-studio/graph`.
 
 ### MS2.3 Boundary edges
 
@@ -181,8 +183,9 @@ is a possible later addition, not part of this pass.
 
 ### MS2.4 Dangling references — Extract is refused (§MS4a-B1)
 
-If a **selected** `register`'s expression, or a **selected** edge's v2 `@param`
-`flow`, references a node id that is **not** in the selection, the reference
+If a **selected** `register`'s expression, a **selected** edge's v2 `@param`
+`flow`, or a **selected** activator's `@id` (§PA4), references a node id that
+is **not** in the selection, the reference
 would dangle in the module. **Extract is refused.** The command reports which
 node(s) hold the offending reference(s) and which target id is out of the
 selection, so the user can either widen the selection to include the target or
@@ -218,6 +221,12 @@ the module's content only:
   already exist: `refsOf`, `canonicalRef`). A dangling `@ref` cannot reach this
   point — Extract refused it (§MS2.4) and Insert's §MS3.6 validation would
   refuse a hand-made one.
+- every activator's `@id` (`op @id [± n]`, §PA4, read by the engine's own
+  `parseActivatorExpr` at the module's version), re-written as the Inspector
+  writes it (`op @newId [± n]`); a literal comparison is left as it is. An
+  activator whose `@id` is not a module node (a hand-made file) refuses the
+  insert, as for a Register. (#619 — before, the activator kept the old id and
+  read the host's node of that id, or no node.)
 - `recommendedRunConfig` — **not present** (§MS2.2) and **ignored if a
   hand-made file carries one** (§MS3.7).
 
@@ -358,7 +367,7 @@ stated where it applies above; collected here for review.
 
 | id | boundary |
 |---|---|
-| **B1** | **A dangling `@ref` refuses Extract.** If a selected `register` expr or a selected v2 `@param flow` targets a node outside the selection, Extract is **refused** and the offending reference(s) are shown. Dropping only the boundary *edges* while leaving a broken `@ref` is not allowed. There is no override. (§MS2.4) |
+| **B1** | **A dangling `@ref` refuses Extract.** If a selected `register` expr, a selected v2 `@param flow` or a selected activator's `@id` targets a node outside the selection, Extract is **refused** and the offending reference(s) are shown. Dropping only the boundary *edges* while leaving a broken `@ref` is not allowed. There is no override. (§MS2.4) |
 | **B2** | **A module's `recommendedRunConfig` is ignored on insert; the host's run config is kept.** Insert never touches `mcStore`, the Timeline selection, or `canvasLocked`. Extract omits `recommendedRunConfig` from the module file. (§MS2.2 / §MS3.7) |
 | **B3** | **Saved frames are never carried through a v1 module insert / extract.** If the source graph (extract) or the module file (insert) has a `frames` block, the confirmation **states the frames are excluded** before the operation runs — no silent loss. `frameStore` is untouched. (§MS2.2 / §MS3.7) |
 | **B4** | **Build the full candidate (all ids + `@ref` rewritten), validate it, then apply once — or change nothing.** On any validation / parse failure the host graph, its `modelVersion`, the undo history, and the selection state are **all** left completely unchanged. (§MS3.6) |
