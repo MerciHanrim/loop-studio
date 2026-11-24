@@ -68,6 +68,9 @@ function Form({ rootRef, onClose }: { rootRef: React.RefObject<HTMLDivElement | 
   const setTimetables = useGraphStore((s) => s.setTimetables)
 
   const [text, setText] = useState('')
+  // #615 item 5 — the last chosen file could not be read; cleared by the next
+  // text, typed or read (the data import wizard's own rule, #423)
+  const [fileReadFailed, setFileReadFailed] = useState(false)
   const [timeColumn, setTimeColumn] = useState(0)
   const [rateColumn, setRateColumn] = useState(1)
   const [gapChoice, setGapChoice] = useState<GapChoice | null>(null)
@@ -133,7 +136,16 @@ function Form({ rootRef, onClose }: { rootRef: React.RefObject<HTMLDivElement | 
 
   const pickFile = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) setText(await file.text())
+    if (!file) return
+    // #615 item 5 — a read the browser refuses is said here, never an
+    // unhandled rejection (it left the box empty with no word)
+    try {
+      const read = await file.text()
+      setFileReadFailed(false)
+      setText(read)
+    } catch {
+      setFileReadFailed(true)
+    }
   }
   const note = (): string => {
     if (gaps.length === 0 || !gapChoice) return ''
@@ -161,12 +173,25 @@ function Form({ rootRef, onClose }: { rootRef: React.RefObject<HTMLDivElement | 
       <div className="mcdlg__body ttable">
         <label className="ttable__field">
           <span>{t('timetable.import.paste')}</span>
-          <textarea rows={5} dir="ltr" value={text} onChange={(e) => setText(e.target.value)} />
+          <textarea
+            rows={5}
+            dir="ltr"
+            value={text}
+            onChange={(e) => {
+              setFileReadFailed(false)
+              setText(e.target.value)
+            }}
+          />
         </label>
         <label className="ttable__field">
           <span>{t('timetable.import.file')}</span>
           <input type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" onChange={pickFile} />
         </label>
+        {fileReadFailed ? (
+          <p className="ttable__problem" role="alert">
+            {t('import.fileReadFailed')}
+          </p>
+        ) : null}
         {text.trim() !== '' && parsed === null ? <p className="ttable__problem">{t('timetable.import.unreadable')}</p> : null}
         {columnCount > 2 ? (
           <div className="ttable__row">
