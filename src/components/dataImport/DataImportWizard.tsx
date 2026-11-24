@@ -36,6 +36,7 @@ import { useQuickStartStore } from './quickStartStore'
 import { isolateAuto } from '../../i18n/bidiIsolate'
 import { issueLocationText } from './issueText'
 import { DialogScrim } from '../DialogScrim'
+import { DraftNumberInput } from '../DraftNumberInput'
 import { ArrowIcon, Icon } from '../../ui/icons'
 
 // Static lookups, not dynamic `import.issue.` + code template strings --
@@ -163,17 +164,6 @@ const NAME_OVERHANG = 136 / 2 - 56 / 2
 
 function newDraftUI(): DraftUI {
   return { draft: createTableDraft(), pasteText: '', delimiter: ',', delimiterAuto: true, parseError: null }
-}
-
-/** A row-count field (header row index, ignore-last-N-rows) must be a
- *  genuine non-negative INTEGER at or above `min` -- a raw `Number(input)`
- *  accepts a fraction (`2.5`) or a non-finite value (`Infinity`, from
- *  `1e999`) unnoticed, which then silently mis-slices `parsedRows`. Anything
- *  that isn't a finite integer falls back to `min`, exactly like the empty-
- *  input case already does. */
-function sanitizeRowCount(raw: string, min: number): number {
-  const n = Number(raw)
-  return Number.isFinite(n) && Number.isInteger(n) ? Math.max(min, n) : min
 }
 
 /** Re-parse `pasteText` and re-derive `draft.columns` to match the header
@@ -756,23 +746,35 @@ export function DataImportWizard({
                       </label>
                       <label>
                         {t('import.headerRow')}
-                        <input dir="ltr"
-                          type="number"
+                        {/* #615 item 1 — set on Enter or on leaving the field, never per
+                            key: a blank no longer snaps to 1 (so 2 → cleared → 3 read
+                            13), and no key on the way reparses the paste, which resets
+                            the roles when the header row's cell count differs. A
+                            confirmed row of another cell count still resets them. */}
+                        <DraftNumberInput
                           min={1}
                           value={ui.draft.headerRowIndex}
-                          onChange={(e) => {
-                            updateDraft(ti, { headerRowIndex: sanitizeRowCount(e.target.value, 1) })
+                          allowEmpty={false}
+                          commitOnConfirm
+                          valid={(n) => Number.isInteger(n) && n >= 1}
+                          onCommit={(n) => {
+                            if (n == null) return
+                            updateDraft(ti, { headerRowIndex: n })
                             updateTable(ti, {})
                           }}
                         />
                       </label>
                       <label>
                         {t('import.ignoreLastRows')}
-                        <input dir="ltr"
-                          type="number"
+                        <DraftNumberInput
                           min={0}
                           value={ui.draft.ignoreLastNRows}
-                          onChange={(e) => updateDraft(ti, { ignoreLastNRows: sanitizeRowCount(e.target.value, 0) })}
+                          allowEmpty={false}
+                          commitOnConfirm
+                          valid={(n) => Number.isInteger(n) && n >= 0}
+                          onCommit={(n) => {
+                            if (n != null) updateDraft(ti, { ignoreLastNRows: n })
+                          }}
                         />
                       </label>
                     </div>
