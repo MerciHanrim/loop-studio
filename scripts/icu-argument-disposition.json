@@ -12,11 +12,11 @@
   "$implemented": "A row classed `auto` / `ltr` / `per-fragment` is an OPEN obligation: the evidence says the value needs bounding and the code does not bound it yet. C3.5 was scoped to fix the two families that were already evidenced — the unrecognized-column header and the five `import.loc.*` calls — and those moved to `isolate-obligations.json`. The checker asserts these rows are NOT wrapped, so implementing one without moving its row is red in both directions.",
   "$opaque": "Review I2 (2026-11-22). An argument object passed in a VARIABLE is read when the variable is a `const` of the same function initialized with an object literal: its properties are arguments, and so is every `<name>.<prop> = <expr>` that runs BEFORE the call (in that function, ahead of the call; one after the call or in a nested function makes the variable untraceable). What cannot be read that way, a variable of another shape or a `...spread` inside the object, is listed under `opaque` with the REASON it is safe, matched on (file, enclosing function, key, the object's source text). An unread object with no entry, an entry with no reason, and an entry nothing matches are all a STOP. Before, such an object gave no rows at all: the revision chip's title, the frame announcements' held-key path and the import wizard's commit error passed values that way, raw.",
   "totals": {
-    "arguments": 578,
-    "rows": 72,
+    "arguments": 593,
+    "rows": 74,
     "byClass": {
       "attribute": 18,
-      "closed-value": 54
+      "closed-value": 56
     },
     "recordedNotImplemented": 0,
     "attributeSink": 36,
@@ -758,6 +758,26 @@
       "sink": "text",
       "class": "closed-value",
       "evidence": "A number of the step report in plain digits, formatted by `plainDecimal()`: digits, a point and a minus sign only."
+    },
+    {
+      "file": "src/ui/revisionActions.ts",
+      "enclosing": "planFailureMessage",
+      "key": "revision.export.refused",
+      "arg": "problem",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "#619 follow-up: a whole CATALOG sentence from `contentProblemSentence` (src/ui/contentProblemText.ts), already the reader's direction; the user values inside it (a node, connection or frame name, an imported row's key, an unknown kind) are isolated there, each declared in scripts/isolate-obligations.json (`content-problem-sentence`). Shown in the export's alert."
+    },
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "enclosing": "DataImportWizard>openDiagramProblemText",
+      "key": "import.commitError.openDiagram",
+      "arg": "problem",
+      "ord": 1,
+      "sink": "text",
+      "class": "closed-value",
+      "evidence": "#619 follow-up: the same CATALOG sentence from `contentProblemSentence`, its user values isolated inside it (`content-problem-sentence` in scripts/isolate-obligations.json)."
     }
   ]
 }

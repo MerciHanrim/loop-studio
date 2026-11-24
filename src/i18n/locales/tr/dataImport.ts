@@ -169,7 +169,9 @@ const dataImport = {
   'import.commitError.frame-not-found': 'Seçilen çerçeve artık yok.',
   'import.commitError.frame-insufficient-space': '«{frame}» içinde yeterli boş yer yok.',
   'import.commitError.invalid-result-graph':
-    'Ortaya çıkan grafik geçersiz — lütfen destekle iletişime geçin.',
+    'Açık diyagramda okunamayan bir içerik var, bu yüzden hiçbir şey içe aktarılmadı. İçe aktardığınız tablo bunun nedeni değil.',
+  'import.commitError.openDiagram':
+    '{problem} Sorun içe aktardığınız tabloda değil, açık diyagramda. Hiçbir şey içe aktarılmadı. Bunu diyagramda düzeltin ya da kaldırın, sonra yeniden deneyin.',
   'import.menu.import': 'Tablo değerlerini Parametre olarak içe aktar…',
   'import.menu.timetable': 'Yeni zaman tablosu…',
   'timetable.import.title': 'Yeni zaman tablosu',

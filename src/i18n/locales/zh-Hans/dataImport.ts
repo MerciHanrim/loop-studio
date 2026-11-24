@@ -163,7 +163,8 @@ const dataImport = {
   'import.commitError.frame-placement-failed': '找不到放置“{table}”分组框的空间。',
   'import.commitError.frame-not-found': '所选的分组框已不存在。',
   'import.commitError.frame-insufficient-space': '“{frame}”中的空间不足。',
-  'import.commitError.invalid-result-graph': '生成的图无效——请联系技术支持。',
+  'import.commitError.invalid-result-graph': '打开的图包含无法读取的内容，因此没有导入任何内容。原因不在你要导入的表格。',
+  'import.commitError.openDiagram': '{problem}问题出在打开的图中，而不是你要导入的表格。没有导入任何内容。请在图中修正或删除后再试。',
 
   // docs/data-import.md §DI16 Phase 2 -- the manage-bindings dialog + the
   // 4-step refresh wizard. §DI17 reworded the menu items and added the guide entry.

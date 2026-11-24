@@ -156,7 +156,8 @@ const dataImport = {
   'import.commitError.frame-placement-failed': 'Could not find space for "{table}"\'s frame.',
   'import.commitError.frame-not-found': 'The selected frame no longer exists.',
   'import.commitError.frame-insufficient-space': 'Not enough free space in "{frame}".',
-  'import.commitError.invalid-result-graph': 'The resulting graph is invalid — please contact support.',
+  'import.commitError.invalid-result-graph': 'The open diagram has content that cannot be read, so nothing was imported. The table you are importing is not the cause.',
+  'import.commitError.openDiagram': '{problem} This is in the open diagram, not in the table you are importing. Nothing was imported. Correct or remove it in the diagram, then try again.',
 
   // docs/data-import.md §DI16 Phase 2 -- the manage-bindings dialog + the
   // 4-step refresh wizard. §DI17 reworded the menu items and added the guide entry.

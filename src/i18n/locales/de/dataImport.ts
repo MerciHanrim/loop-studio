@@ -194,7 +194,9 @@ const dataImport = {
   'import.commitError.frame-not-found': 'Den ausgewählten Rahmen gibt es nicht mehr.',
   'import.commitError.frame-insufficient-space': 'Zu wenig freier Platz in "{frame}".',
   'import.commitError.invalid-result-graph':
-    'Der entstandene Graph ist ungültig — wenden Sie sich bitte an den Support.',
+    'Das geöffnete Diagramm enthält Inhalte, die sich nicht lesen lassen. Es wurde nichts importiert. Die Tabelle, die Sie importieren, ist nicht die Ursache.',
+  'import.commitError.openDiagram':
+    '{problem} Das betrifft das geöffnete Diagramm, nicht die Tabelle, die Sie importieren. Es wurde nichts importiert. Korrigieren oder entfernen Sie es im Diagramm und versuchen Sie es erneut.',
   'import.menu.import': 'Werte aus einem Tabellenblatt als Parameter importieren…',
   'import.menu.timetable': 'Neue Zeittabelle…',
   'timetable.import.title': 'Neue Zeittabelle',

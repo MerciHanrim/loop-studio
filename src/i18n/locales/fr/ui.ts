@@ -290,7 +290,18 @@ const ui = {
   'revision.export.noSecureRandom':
     'Ce navigateur n’a pas de source aléatoire sûre, un identifiant de révision ne peut donc pas être créé. Rien n’a été exporté.',
   'revision.export.unknownKind': 'Ce schéma contient un nœud que Loop Studio ne connaît pas. Le nœud {node} est de type {kind}. Rien n’a été exporté. Supprimez ou remplacez ce nœud, puis réessayez.',
-  'revision.export.invalidContent': 'Ce schéma contient des éléments qui ne peuvent pas être exportés, par exemple un nombre non fini. Rien n’a été exporté.',
+  'revision.export.invalidContent': 'Ce schéma contient des éléments qui ne peuvent pas être lus. Rien n’a été exporté.',
+  'revision.export.refused': '{problem} Rien n’a été exporté. Corrigez-le ou supprimez-le, puis réessayez.',
+  'content.problem.nonFiniteNodeInitial': 'Le nœud {node} a une quantité initiale qui n’est pas un nombre fini.',
+  'content.problem.nonFiniteNodeCapacity': 'Le nœud {node} a une capacité qui n’est pas un nombre fini.',
+  'content.problem.nonFiniteNodePosition': 'Le nœud {node} a une position qui n’est pas un nombre fini.',
+  'content.problem.nonFiniteEdgeDelay': 'La connexion {edge} a un délai qui n’est pas un nombre fini.',
+  'content.problem.nonFiniteEdgeWaypoint': 'La connexion {edge} a un coude dont la position n’est pas un nombre fini.',
+  'content.problem.nonFiniteFrame': 'Le groupe {frame} a une position ou une taille qui n’est pas un nombre fini.',
+  'content.problem.nonFiniteRow': 'La ligne importée {row} contient un nombre non fini.',
+  'content.problem.unreadableNode': 'Le nœud {node} ({kind}) ne peut pas être lu.',
+  'content.problem.modelNodeInV1': 'Le nœud {node} est un nœud de type {kind}, qu’un document de version 1 ne peut pas contenir.',
+  'content.problem.unknownKind': 'Le nœud {node} est de type {kind}, que Loop Studio ne connaît pas.',
   'revision.export.tooLarge':
     'Ce schéma est trop volumineux pour être exporté comme révision de projet ({size} ; limite {cap}). Utilisez « Fichier → Graph JSON » à la place.',
   'proposal.needProject':

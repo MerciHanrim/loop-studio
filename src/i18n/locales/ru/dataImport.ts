@@ -175,7 +175,8 @@ const dataImport = {
   'import.commitError.frame-placement-failed': 'Не удалось найти место для рамки таблицы «{table}».',
   'import.commitError.frame-not-found': 'Выбранной рамки больше не существует.',
   'import.commitError.frame-insufficient-space': 'В «{frame}» недостаточно свободного места.',
-  'import.commitError.invalid-result-graph': 'Получившийся граф некорректен — обратитесь в поддержку.',
+  'import.commitError.invalid-result-graph': 'В открытой диаграмме есть содержимое, которое нельзя прочитать, поэтому ничего не импортировано. Импортируемая таблица здесь ни при чём.',
+  'import.commitError.openDiagram': '{problem} Это проблема открытой диаграммы, а не импортируемой таблицы. Ничего не импортировано. Исправьте или удалите это в диаграмме и повторите попытку.',
 
   'import.menu.import': 'Импортировать значения из таблицы как Параметры…',
   'import.menu.timetable': 'Новая таблица времени…',

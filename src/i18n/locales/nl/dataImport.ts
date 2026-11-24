@@ -163,7 +163,8 @@ const dataImport = {
   'import.commitError.frame-placement-failed': 'Kon geen ruimte vinden voor het kader van "{table}".',
   'import.commitError.frame-not-found': 'Het gekozen kader bestaat niet meer.',
   'import.commitError.frame-insufficient-space': 'Niet genoeg vrije ruimte in "{frame}".',
-  'import.commitError.invalid-result-graph': 'Het resulterende diagram is ongeldig — neem contact op met de ondersteuning.',
+  'import.commitError.invalid-result-graph': 'Het geopende diagram bevat inhoud die niet kan worden gelezen. Er is niets geïmporteerd. De tabel die wordt geïmporteerd is niet de oorzaak.',
+  'import.commitError.openDiagram': '{problem} Dit zit in het geopende diagram, niet in de tabel die wordt geïmporteerd. Er is niets geïmporteerd. Corrigeer of verwijder het in het diagram en probeer het opnieuw.',
 
   // docs/data-import.md §DI16 Phase 2 -- the manage-bindings dialog + the
   // 4-step refresh wizard. §DI17 reworded the menu items and added the guide entry.

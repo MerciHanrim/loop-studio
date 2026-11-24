@@ -171,7 +171,8 @@ const dataImport = {
   'import.commitError.frame-placement-failed': 'Non è stato trovato spazio per il riquadro di "{table}".',
   'import.commitError.frame-not-found': 'Il riquadro selezionato non esiste più.',
   'import.commitError.frame-insufficient-space': 'Spazio libero insufficiente in "{frame}".',
-  'import.commitError.invalid-result-graph': 'Il grafo risultante non è valido — contatta l’assistenza.',
+  'import.commitError.invalid-result-graph': 'Il diagramma aperto contiene elementi che non si possono leggere. Non è stato importato nulla. La tabella che stai importando non ne è la causa.',
+  'import.commitError.openDiagram': '{problem} Il problema è nel diagramma aperto, non nella tabella che stai importando. Non è stato importato nulla. Correggilo o rimuovilo nel diagramma, poi riprova.',
 
   'import.menu.import': 'Importa valori da foglio di calcolo come Parametri…',
   'import.menu.timetable': 'Nuova tabella oraria…',

@@ -202,7 +202,8 @@ const dataImport = {
   'import.commitError.frame-placement-failed': 'تعذّر إيجاد مساحة لإطار "{table}".',
   'import.commitError.frame-not-found': 'الإطار المحدد لم يعد موجودًا.',
   'import.commitError.frame-insufficient-space': 'لا مساحة حرة كافية في "{frame}".',
-  'import.commitError.invalid-result-graph': 'المخطط الناتج غير صالح — يرجى التواصل مع الدعم.',
+  'import.commitError.invalid-result-graph': 'في المخطط المفتوح محتوى لا يمكن قراءته، لذلك لم يُستورَد شيء. الجدول الذي تستورده ليس السبب.',
+  'import.commitError.openDiagram': '{problem} المشكلة في المخطط المفتوح، لا في الجدول الذي تستورده. لم يُستورَد شيء. صحّح ذلك أو أزِله في المخطط ثم أعد المحاولة.',
 
   // docs/data-import.md §DI16 Phase 2 -- the manage-bindings dialog + the
   // 4-step refresh wizard. §DI17 reworded the menu items and added the guide entry.

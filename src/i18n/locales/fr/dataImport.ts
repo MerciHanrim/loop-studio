@@ -200,7 +200,9 @@ const dataImport = {
   'import.commitError.frame-not-found': 'Le cadre sélectionné n’existe plus.',
   'import.commitError.frame-insufficient-space': 'Pas assez de place libre dans « {frame} ».',
   'import.commitError.invalid-result-graph':
-    'Le graphe obtenu est invalide — contactez l’assistance technique.',
+    'Le schéma ouvert contient des éléments qui ne peuvent pas être lus. Rien n’a été importé. Le tableau que vous importez n’en est pas la cause.',
+  'import.commitError.openDiagram':
+    '{problem} Le problème se trouve dans le schéma ouvert, pas dans le tableau que vous importez. Rien n’a été importé. Corrigez-le ou supprimez-le dans le schéma, puis réessayez.',
 
   // §DI16 Phase 2 -- manage bindings + the refresh wizard
   'import.menu.import': 'Importer des valeurs de feuille de calcul comme paramètres…',

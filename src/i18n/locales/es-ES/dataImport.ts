@@ -172,7 +172,8 @@ const dataImport = {
   'import.commitError.frame-placement-failed': 'No se encontró espacio para el marco de “{table}”.',
   'import.commitError.frame-not-found': 'El marco seleccionado ya no existe.',
   'import.commitError.frame-insufficient-space': 'No hay suficiente espacio libre en “{frame}”.',
-  'import.commitError.invalid-result-graph': 'El grafo resultante es inválido: comuníquese con soporte.',
+  'import.commitError.invalid-result-graph': 'El diagrama abierto tiene contenido que no se puede leer, así que no se importó nada. La tabla que importas no es la causa.',
+  'import.commitError.openDiagram': '{problem} Esto está en el diagrama abierto, no en la tabla que importas. No se importó nada. Corrígelo o quítalo en el diagrama y vuelve a intentarlo.',
 
   'import.menu.import': 'Importar valores de una hoja de cálculo como Parámetros…',
   'import.menu.timetable': 'Nueva tabla horaria…',

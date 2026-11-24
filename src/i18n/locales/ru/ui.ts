@@ -304,7 +304,18 @@ const ui = {
   'revision.export.noSecureRandom':
     'В этом браузере нет надёжного источника случайности, поэтому нельзя создать идентификатор ревизии. Ничего не экспортировано.',
   'revision.export.unknownKind': 'В этой диаграмме есть узел, которого Loop Studio не знает. Узел {node} имеет тип {kind}. Ничего не экспортировано. Удалите или замените этот узел и повторите попытку.',
-  'revision.export.invalidContent': 'В этой диаграмме есть содержимое, которое нельзя экспортировать, например значение, не являющееся конечным числом. Ничего не экспортировано.',
+  'revision.export.invalidContent': 'В этой диаграмме есть содержимое, которое нельзя прочитать, поэтому ничего не экспортировано.',
+  'revision.export.refused': '{problem} Ничего не экспортировано. Исправьте или удалите это и повторите попытку.',
+  'content.problem.nonFiniteNodeInitial': 'У узла {node} начальное количество не является конечным числом.',
+  'content.problem.nonFiniteNodeCapacity': 'У узла {node} ёмкость не является конечным числом.',
+  'content.problem.nonFiniteNodePosition': 'У узла {node} положение не является конечным числом.',
+  'content.problem.nonFiniteEdgeDelay': 'У связи {edge} задержка не является конечным числом.',
+  'content.problem.nonFiniteEdgeWaypoint': 'У связи {edge} положение точки излома не является конечным числом.',
+  'content.problem.nonFiniteFrame': 'У группы {frame} положение или размер не является конечным числом.',
+  'content.problem.nonFiniteRow': 'В импортированной строке {row} есть число, которое не является конечным.',
+  'content.problem.unreadableNode': 'Узел {node} ({kind}) невозможно прочитать.',
+  'content.problem.modelNodeInV1': 'Узел {node} имеет тип {kind}, а документ версии 1 не может содержать такие узлы.',
+  'content.problem.unknownKind': 'Узел {node} имеет тип {kind}, которого Loop Studio не знает.',
   'revision.export.tooLarge':
     'Эта диаграмма слишком велика для экспорта как Ревизия проекта ({size}; предел {cap}). Используйте Файл → Graph JSON.',
   'proposal.needProject':

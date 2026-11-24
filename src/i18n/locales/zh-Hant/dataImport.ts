@@ -171,7 +171,8 @@ const dataImport = {
   'import.commitError.frame-placement-failed': '找不到可以放「{table}」群組框的空間。',
   'import.commitError.frame-not-found': '選取的群組框已經不存在。',
   'import.commitError.frame-insufficient-space': '「{frame}」裡的空間不足。',
-  'import.commitError.invalid-result-graph': '產生的圖無效——請聯絡技術支援。',
+  'import.commitError.invalid-result-graph': '開啟的圖包含無法讀取的內容，因此沒有匯入任何內容。原因不在你要匯入的表格。',
+  'import.commitError.openDiagram': '{problem}問題出在開啟的圖中，而不是你要匯入的表格。沒有匯入任何內容。請在圖中修正或刪除後再試。',
 
   // §DI16 Phase 2 -- manage bindings + the refresh wizard
   'import.menu.import': '把試算表數值匯入為參數…',

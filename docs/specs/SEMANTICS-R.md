@@ -285,6 +285,15 @@ blank edge handles to `out` / `in` / `state-*`, backfills edge `data`). Then:
   cause** (the node's name, or its id when the name is empty, and the kind),
   never with the secure-random message of R-INV-12, which stays for its own
   cause; any other error is a defect and is not turned into a refusal.
+  The other causes refuse by name too (#619 follow-up): a non-finite number
+  carries WHERE it is as a structured element (a node's starting amount,
+  capacity or position, a connection's delay or bend point, a group frame, an
+  imported row) and the refusal names that element by its name, or its id when
+  the name is empty, and the field in words; a Register or Parameter the
+  reader cannot read, and a model node in a version 1 document, are named with
+  their kind. The same sentence serves the data import (docs/data-import.md),
+  each action adding its own outcome. An internal check (`invariant`) names
+  nothing and keeps a general refusal that guesses no cause.
   - **No rounding.** `position` is preserved to the pixel-fraction, so a
     sub-pixel move is a real content change (it makes the session `dirty`, it
     shows in the diff, and Apply restores the exact coordinate). A UI that wants

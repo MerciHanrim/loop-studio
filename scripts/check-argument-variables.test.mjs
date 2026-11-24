@@ -77,12 +77,14 @@ const frameOnMain = () => {
 }
 
 const WIZARD = 'src/components/dataImport/DataImportWizard.tsx'
+// the call alone, wherever it sits (#619 follow-up put it in the `:` branch of
+// the invalid-result-graph conditional)
 const commitErrorOnMain = () => {
   const text = read(WIZARD)
-  const start = text.indexOf('{t(COMMIT_ERROR_KEY[commitError.code], {')
-  const end = text.indexOf('})}', start) + '})}'.length
+  const start = text.indexOf('t(COMMIT_ERROR_KEY[commitError.code], {')
+  const end = text.indexOf('})', start) + '})'.length
   expect(start).toBeGreaterThan(0)
-  return swap(text, text.slice(start, end), '{t(COMMIT_ERROR_KEY[commitError.code], commitError.detail as Record<string, string | number> | undefined)}')
+  return swap(text, text.slice(start, end), 't(COMMIT_ERROR_KEY[commitError.code], commitError.detail as Record<string, string | number> | undefined)')
 }
 
 // the isolating assignment moved BELOW the call it is meant to feed (review of #647)

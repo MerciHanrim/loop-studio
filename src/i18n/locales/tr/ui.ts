@@ -284,7 +284,18 @@ const ui = {
   'revision.export.noSecureRandom':
     'Bu tarayıcıda güvenli bir rastgelelik kaynağı yok, bu yüzden sürüm kimliği oluşturulamıyor. Hiçbir şey dışa aktarılmadı.',
   'revision.export.unknownKind': 'Bu diyagramda, Loop Studio tarafından tanınmayan bir düğüm var. {node} düğümünün türü {kind}. Hiçbir şey dışa aktarılmadı. Bu düğümü silin ya da değiştirin, sonra yeniden deneyin.',
-  'revision.export.invalidContent': 'Bu diyagramda, sonlu olmayan bir sayı gibi, dışa aktarılamayan bir içerik var. Hiçbir şey dışa aktarılmadı.',
+  'revision.export.invalidContent': 'Bu diyagramda okunamayan bir içerik var, bu yüzden hiçbir şey dışa aktarılmadı.',
+  'revision.export.refused': '{problem} Hiçbir şey dışa aktarılmadı. Bunu düzeltin ya da kaldırın, sonra yeniden deneyin.',
+  'content.problem.nonFiniteNodeInitial': '{node} düğümünün başlangıç miktarı sonlu bir sayı değil.',
+  'content.problem.nonFiniteNodeCapacity': '{node} düğümünün kapasitesi sonlu bir sayı değil.',
+  'content.problem.nonFiniteNodePosition': '{node} düğümünün konumu sonlu bir sayı değil.',
+  'content.problem.nonFiniteEdgeDelay': '{edge} bağlantısının gecikmesi sonlu bir sayı değil.',
+  'content.problem.nonFiniteEdgeWaypoint': '{edge} bağlantısının bir kırılma noktasının konumu sonlu bir sayı değil.',
+  'content.problem.nonFiniteFrame': '{frame} grubunun konumu ya da boyutu sonlu bir sayı değil.',
+  'content.problem.nonFiniteRow': 'İçe aktarılan {row} satırında sonlu olmayan bir sayı var.',
+  'content.problem.unreadableNode': '{node} düğümü ({kind}) okunamıyor.',
+  'content.problem.modelNodeInV1': '{node} düğümü {kind} türünde; sürüm 1 belgesi bu tür bir düğümü içeremez.',
+  'content.problem.unknownKind': '{node} düğümünün türü {kind}; Loop Studio bu türü tanımıyor.',
   'revision.export.tooLarge':
     'Bu diyagram Proje sürümü olarak dışa aktarılamayacak kadar büyük ({size}; sınır {cap}). Bunun yerine Dosya → Graph JSON kullanın.',
   'proposal.needProject':

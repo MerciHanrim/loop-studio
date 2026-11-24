@@ -82,9 +82,20 @@ export class InvalidRevisionContentError extends Error {
   }
 }
 
+/** #619 follow-up — WHERE a non-finite number sits, structured so a message can
+ *  name the element by its label and the field by its own name (`where` stays
+ *  the model-layer text). A node's field is `position`, `initial` or
+ *  `capacity`; an edge's `delay` or `waypoint`; a frame's `rect`; an imported
+ *  row's field is the column id. */
+export type ContentElement =
+  | { type: 'node'; id: string; field: 'position' | 'initial' | 'capacity' }
+  | { type: 'edge'; id: string; field: 'delay' | 'waypoint' }
+  | { type: 'frame'; id: string; field: 'rect' }
+  | { type: 'importRow'; id: string; field: string }
+
 /** #619 item 5 — what made the canonical projection refuse content */
 export type InvalidRevisionContentCause =
-  | { kind: 'non-finite'; where: string }
+  | { kind: 'non-finite'; where: string; element?: ContentElement }
   | { kind: 'unreadable-model-node'; nodeId: string; nodeKind: string; detail: string }
   | { kind: 'model-node-in-v1'; nodeId: string; nodeKind: string }
   | { kind: 'unknown-kind' }
@@ -295,8 +306,8 @@ export function mintId(prefix: 'proj' | 'rev'): string {
 
 // ── number / string normalisation (§R4.1) ─────────────────────────────────
 
-function numOrThrow(n: number, where: string): number {
-  if (!Number.isFinite(n)) throw new InvalidRevisionContentError(where)
+function numOrThrow(n: number, where: string, element: ContentElement): number {
+  if (!Number.isFinite(n)) throw new InvalidRevisionContentError(where, undefined, { kind: 'non-finite', where, element })
   return n === 0 ? 0 : n // collapse -0; otherwise keep full precision (no rounding)
 }
 
@@ -472,8 +483,8 @@ function normNodeData(n: LoopNode): Record<string, unknown> {
 function projectNode(n: LoopNode, modelLayer: boolean): CanonicalNode {
   const kind = n.data.kind as string
   const position = {
-    x: numOrThrow(n.position?.x ?? 0, `node ${n.id} position.x`),
-    y: numOrThrow(n.position?.y ?? 0, `node ${n.id} position.y`),
+    x: numOrThrow(n.position?.x ?? 0, `node ${n.id} position.x`, { type: 'node', id: n.id, field: 'position' }),
+    y: numOrThrow(n.position?.y ?? 0, `node ${n.id} position.y`, { type: 'node', id: n.id, field: 'position' }),
   }
   const rawData = n.data as unknown as Record<string, unknown>
 
@@ -545,9 +556,9 @@ function projectNode(n: LoopNode, modelLayer: boolean): CanonicalNode {
     let v = src[f]
     if (f === 'capacity') {
       // pool capacity: number (finite) or null (unbounded); absent ⇒ null
-      v = v == null ? null : numOrThrow(v as number, `node ${n.id} data.capacity`)
+      v = v == null ? null : numOrThrow(v as number, `node ${n.id} data.capacity`, { type: 'node', id: n.id, field: 'capacity' })
     } else if (f === 'initial') {
-      v = numOrThrow((v ?? 0) as number, `node ${n.id} data.initial`)
+      v = numOrThrow((v ?? 0) as number, `node ${n.id} data.initial`, { type: 'node', id: n.id, field: 'initial' })
     }
     data[f] = v
   }
@@ -561,7 +572,7 @@ function projectEdge(e: LoopEdge, modelLayer: boolean): CanonicalEdge {
   const data: Record<string, unknown> = {}
   for (const f of fields) {
     if (f === 'kind') data.kind = kind
-    else if (f === 'delay') data.delay = numOrThrow(((src?.delay ?? 0) as number) || 0, `edge ${e.id} data.delay`)
+    else if (f === 'delay') data.delay = numOrThrow(((src?.delay ?? 0) as number) || 0, `edge ${e.id} data.delay`, { type: 'edge', id: e.id, field: 'delay' })
     else if (f === 'expr') data.expr = (src?.expr ?? '') as string
     else if (f === 'flow') data.flow = (src?.flow ?? '') as string
     else if (f === 'mode') data.mode = src?.mode
@@ -591,8 +602,8 @@ function projectEdge(e: LoopEdge, modelLayer: boolean): CanonicalEdge {
       const wp = src?.waypoints
       if (src?.route === 'orthogonal' && Array.isArray(wp) && wp.length > 0) {
         data.waypoints = (wp as { x: number; y: number }[]).map((p) => ({
-          x: numOrThrow(p.x === 0 ? 0 : p.x, `edge ${e.id} data.waypoints.x`),
-          y: numOrThrow(p.y === 0 ? 0 : p.y, `edge ${e.id} data.waypoints.y`),
+          x: numOrThrow(p.x === 0 ? 0 : p.x, `edge ${e.id} data.waypoints.x`, { type: 'edge', id: e.id, field: 'waypoint' }),
+          y: numOrThrow(p.y === 0 ? 0 : p.y, `edge ${e.id} data.waypoints.y`, { type: 'edge', id: e.id, field: 'waypoint' }),
         }))
       }
     }
@@ -707,10 +718,10 @@ export function canonicalContent(
     if (frames.length > 0) {
       out.frames = frames.map((f) => {
         const rect = {
-          x: numOrThrow(f.rect.x, `frame ${f.id} rect.x`),
-          y: numOrThrow(f.rect.y, `frame ${f.id} rect.y`),
-          w: numOrThrow(f.rect.w, `frame ${f.id} rect.w`),
-          h: numOrThrow(f.rect.h, `frame ${f.id} rect.h`),
+          x: numOrThrow(f.rect.x, `frame ${f.id} rect.x`, { type: 'frame', id: f.id, field: 'rect' }),
+          y: numOrThrow(f.rect.y, `frame ${f.id} rect.y`, { type: 'frame', id: f.id, field: 'rect' }),
+          w: numOrThrow(f.rect.w, `frame ${f.id} rect.w`, { type: 'frame', id: f.id, field: 'rect' }),
+          h: numOrThrow(f.rect.h, `frame ${f.id} rect.h`, { type: 'frame', id: f.id, field: 'rect' }),
         }
         return f.color
           ? { id: f.id, label: f.label, rect, color: f.color }
@@ -742,7 +753,7 @@ export function canonicalContent(
           number: Object.fromEntries(
             Object.keys(r.number)
               .sort()
-              .map((k) => [k, numOrThrow(r.number[k], `dataImports row ${r.sourceKey} number.${k}`)]),
+              .map((k) => [k, numOrThrow(r.number[k], `dataImports row ${r.sourceKey} number.${k}`, { type: 'importRow', id: r.sourceKey, field: k })]),
           ),
           label: Object.fromEntries(Object.keys(r.label).sort().map((k) => [k, r.label[k]])),
           foreignKey: Object.fromEntries(Object.keys(r.foreignKey).sort().map((k) => [k, r.foreignKey[k]])),
@@ -2221,7 +2232,34 @@ export function graphStructureIssues(nodes: LoopNode[], edges: LoopEdge[]): stri
   return out
 }
 
-export type ResultValidation = { ok: true } | { ok: false; reasons: string[] }
+/** #619 follow-up — the first problem of content that cannot be read, in a form
+ *  a message can name to the user (the reasons stay model-layer English).
+ *  `other` is anything without a node or element to name (an internal check,
+ *  an edge or a position problem): a message then stays general. */
+export type ContentProblem =
+  | { kind: 'non-finite'; element?: ContentElement }
+  | { kind: 'unreadable-model-node'; nodeId: string; nodeKind: string }
+  | { kind: 'model-node-in-v1'; nodeId: string; nodeKind: string }
+  | { kind: 'unknown-kind'; nodeId: string; nodeKind: string }
+  | { kind: 'other' }
+
+/** #619 follow-up — the problem an `InvalidRevisionContentError` carries */
+export function contentProblemOf(e: InvalidRevisionContentError): ContentProblem {
+  const c = e.contentCause
+  switch (c.kind) {
+    case 'non-finite':
+      return c.element ? { kind: 'non-finite', element: c.element } : { kind: 'non-finite' }
+    case 'unreadable-model-node':
+    case 'model-node-in-v1':
+      return { kind: c.kind, nodeId: c.nodeId, nodeKind: c.nodeKind }
+    case 'unknown-kind':
+      return { kind: 'unknown-kind', nodeId: e.node!.id, nodeKind: e.node!.kind }
+    case 'invariant':
+      return { kind: 'other' }
+  }
+}
+
+export type ResultValidation = { ok: true } | { ok: false; reasons: string[]; problem: ContentProblem }
 
 /**
  * Full-GraphDoc validation of a selective-apply result (Slice 2 review round 2).
@@ -2235,6 +2273,9 @@ export function validateResultGraph(
   recommendedRunConfig?: RecommendedRunConfig,
 ): ResultValidation {
   const reasons: string[] = []
+  // #619 follow-up — the first problem a message can name (the first unknown
+  // kind, else the projection's cause); anything else is `other`
+  let problem: ContentProblem | undefined
   const nodeIds = new Set(nodes.map((n) => n.id))
 
   // 1. node kind + shape (before the projection — an unknown kind would crash it)
@@ -2243,6 +2284,7 @@ export function validateResultGraph(
     const kind = (n.data as { kind?: unknown } | undefined)?.kind
     if (typeof kind !== 'string' || !NODE_KINDS.has(kind)) {
       reasons.push(`Node ${n.id}: unknown kind "${String(kind)}".`)
+      problem ??= { kind: 'unknown-kind', nodeId: n.id, nodeKind: String(kind) }
       kindsOk = false
     } else if (n.type !== kind) {
       reasons.push(`Node ${n.id}: type "${n.type}" ≠ data.kind "${kind}".`)
@@ -2259,6 +2301,7 @@ export function validateResultGraph(
     } catch (e) {
       // #619 item 5 — the projection's own cause, not one sentence for all
       reasons.push(e instanceof InvalidRevisionContentError ? invalidContentReason(e) : 'A node or edge holds a non-finite number (NaN / Infinity).')
+      if (e instanceof InvalidRevisionContentError) problem ??= contentProblemOf(e)
     }
   }
 
@@ -2309,7 +2352,7 @@ export function validateResultGraph(
     reasons.push('The result cannot be normalized.')
   }
 
-  return reasons.length ? { ok: false, reasons } : { ok: true }
+  return reasons.length ? { ok: false, reasons, problem: problem ?? { kind: 'other' } } : { ok: true }
 }
 
 // ── defensive `project` reader (§R10 steps 3/6) ──────────────────────────
