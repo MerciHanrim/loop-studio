@@ -260,6 +260,10 @@ export function DataImportWizard({
   // problems are STALE: still listed (so the user keeps the context) but no
   // longer marked as active errors, until Next re-checks.
   const [validationStale, setValidationStale] = useState(false)
+  // #615 item 5 — the tables' ids in the order the last check saw them: a
+  // recorded problem's `tableIndex` is a position in THAT order, so it is read
+  // back through the table's id, never through today's position
+  const [validatedIds, setValidatedIds] = useState<string[]>([])
   const [placementKind, setPlacementKind] = useState<'none' | 'framePerTable' | 'existingFrame'>('none')
   const [existingFrameId, setExistingFrameId] = useState<string>('')
   const [commitError, setCommitError] = useState<{ code: CommitFailureCode; detail?: Record<string, unknown> } | null>(null)
@@ -340,6 +344,7 @@ export function DataImportWizard({
     setStep('tables')
     setTables([newDraftUI()])
     setValidation(null)
+    setValidatedIds([])
     setValidationStale(false)
     setPlacementKind('none')
     setExistingFrameId('')
@@ -457,6 +462,7 @@ export function DataImportWizard({
     if (hasParseError || hasIncompleteTable) return
     const result = validateDrafts(tables.map((ui) => ui.draft))
     setValidation(result)
+    setValidatedIds(tables.map((ui) => ui.draft.sourceTableId))
     setValidationStale(false)
     if (result.ok) setStep('placement')
     else setFocusSummaryTick((n) => n + 1)
@@ -543,7 +549,15 @@ export function DataImportWizard({
   }
 
   // §DI17 -- inline error bookkeeping for the input step
-  const errors = validation && !validation.ok ? validation.errors : []
+  // #615 item 5 — each recorded problem placed by its table's id: a removed
+  // table's problems are gone, and the others follow their table to its card
+  // now (they were matched by position, so a removal moved them onto the next
+  // card, written with that card's name). The check itself is unchanged.
+  const errors = (validation && !validation.ok ? validation.errors : []).flatMap((e) => {
+    if (e.tableIndex < 0) return [e]
+    const now = tables.findIndex((ui) => ui.draft.sourceTableId === validatedIds[e.tableIndex])
+    return now < 0 ? [] : [{ ...e, tableIndex: now }]
+  })
   const activeErrors = validationStale ? [] : errors
   const badCells = new Set(activeErrors.filter((e) => e.columnIndex !== undefined).map((e) => `${e.tableIndex}:${e.rowIndex ?? 'h'}:${e.columnIndex}`))
   const errorTableCount = new Set(errors.map((e) => e.tableIndex)).size
@@ -696,7 +710,8 @@ export function DataImportWizard({
                 return (
                   <div
                     className="import__table"
-                    key={ti}
+                    // #615 item 5 — keyed by the table, not its position
+                    key={ui.draft.sourceTableId}
                     ref={(el) => {
                       cardRefs.current[ti] = el
                     }}
