@@ -1,0 +1,1 @@
+{"type":"internal","reason":"CI only: the e2e decision job's checkout fetched depth 1 on a push to main (the number 0 is falsy in an Actions expression), so it could never skip the e2e jobs; it now uses the strings '0' / '1', reports a shallow clone as undetermined, and its comments no longer call it a #615 follow-up. Nothing a build reads or ships changes."}

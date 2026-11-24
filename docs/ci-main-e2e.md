@@ -32,4 +32,6 @@ Anything else runs the e2e jobs in full: another event, several commits or a mer
   - **a different tree:** #567 (`bc9df4c6`) and #568 (`d2d04159`) decide `true`: `main` had moved after their CI, the previous `main` is not in the head, and the trees differ.
   - **cannot be determined:** `68fb0e54` (a commit pushed without a pull request), the root commit (no parent) and the merge commit of #144 (two parents) decide `true`.
 
+- The first `main` run after #666 (run 45432967893, `c35455d6`): every job, `checks` and the full e2e, passed, but **no time was saved**. The decision job's checkout asked for `fetch-depth: ${{ github.event_name == 'push' && 0 || 1 }}`, and in an expression the number `0` is falsy, so it fetched depth 1; with no parent in the clone the decision was `true` ("not a single commit … parents: none") and every e2e job ran, which is the conservative fallback doing its job. Fixed by using the strings `'0'` / `'1'`; a shallow clone is now reported as such.
+
 The shard weights (docs/ci-e2e-shards.md) take their timing samples from any run that ran the shards: pull requests, the daily run and the `main` pushes that still run them.

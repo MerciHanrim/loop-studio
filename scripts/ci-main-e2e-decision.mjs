@@ -1,4 +1,4 @@
-// CI on `main` (#615 follow-up, Lumi 2026-11-25) — may a push to `main` skip
+// CI on `main` (#666, Lumi 2026-11-25) — may a push to `main` skip
 // the e2e jobs because the exact files it holds already passed the full CI on
 // their pull request?
 //
@@ -12,7 +12,8 @@
 //   1. the event is a push to `main` (a pull request, the daily schedule and a
 //      manual run always run everything);
 //   2. the push is one commit on top of the previous `main` (`before` is the
-//      commit's only parent);
+//      commit's only parent), read from a full clone (a shallow one has no
+//      parent here and runs everything);
 //   3. exactly one merged pull request into `main` has this commit as its
 //      merge commit;
 //   4. that pull request's head has the required checks (`checks`, `e2e`) from
@@ -49,6 +50,9 @@ export function decide(ctx, io) {
     if (ctx.event !== 'push') return full(`event "${ctx.event}": the full suite always runs`)
     if (!/^[0-9a-f]{40}$/.test(ctx.sha ?? '')) return full('undetermined: no commit SHA')
     if (!/^[0-9a-f]{40}$/.test(ctx.before ?? '') || /^0+$/.test(ctx.before)) return full('undetermined: no previous main commit for this push')
+
+    // a shallow clone has no parent to compare with: say so, not "no parents"
+    if (io.git(['rev-parse', '--is-shallow-repository']).trim() !== 'false') return full('undetermined: a shallow clone, without the history to compare with')
 
     const parents = io.git(['rev-list', '--parents', '-n', '1', ctx.sha]).trim().split(/\s+/).slice(1)
     if (parents.length !== 1 || parents[0] !== ctx.before) return full(`not a single commit on top of ${ctx.before.slice(0, 8)} (parents: ${parents.map((p) => p.slice(0, 8)).join(', ') || 'none'})`)
