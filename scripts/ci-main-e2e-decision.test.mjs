@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ACTIONS_APP_ID, decide } from './ci-main-e2e-decision.mjs'
 
-// #615 follow-up (Lumi 2026-11-25) — a push to main skips the e2e jobs only when
+// #666 (Lumi 2026-11-25) — a push to main skips the e2e jobs only when
 // the merge commit holds the tree of a pull request head whose required checks
 // passed; everything else, including anything that cannot be determined, runs
 // them in full. Made-up GitHub API answers and git, one rule per test.
@@ -28,6 +28,7 @@ function world(over = {}) {
     mergeTree: T,
     headTree: T,
     fetchThrows: false,
+    shallow: 'false',
     ...over,
   }
   const calls = []
@@ -39,6 +40,7 @@ function world(over = {}) {
   }
   const git = (args) => {
     const a = args.join(' ')
+    if (a === 'rev-parse --is-shallow-repository') return w.shallow + '\n'
     if (a === `rev-list --parents -n 1 ${M}`) return [M, ...w.parents].join(' ') + '\n'
     if (args[0] === 'fetch') {
       if (w.fetchThrows) throw new Error('fatal: could not fetch refs/pull/7/head')
@@ -101,6 +103,12 @@ describe('anything that cannot be determined: full e2e', () => {
       expectFull(decide({ ...ctx, event }, io), new RegExp(`event "${event}"`))
       expect(calls).toEqual([]) // nothing is even looked up
     }
+  })
+
+  it('a shallow clone: no history to compare with (main c35455d6 ran with depth 1)', () => {
+    // a depth-1 clone shows the commit with no parent at all
+    expectFull(decide(ctx, world({ shallow: 'true', parents: [] }).io), /undetermined: a shallow clone/)
+    expectFull(decide(ctx, world({ shallow: '' }).io), /undetermined: a shallow clone/) // no clear answer
   })
 
   it('no previous main, or the push is not one commit on top of it', () => {

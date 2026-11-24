@@ -148,8 +148,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # a push compares the merge commit with its parent and the head's tree
-          fetch-depth: ${{ github.event_name == 'push' && 0 || 1 }}
+          # a push compares the merge commit with its parent and the head's tree,
+          # so it needs the history; anything else answers without git. The
+          # values are STRINGS: in an expression the number 0 is falsy, so
+          # `&& 0 || 1` gave 1 on a push too (main c35455d6: a depth-1 clone, no
+          # parent, every e2e job run), while the string '0' is truthy.
+          fetch-depth: ${{ github.event_name == 'push' && '0' || '1' }}
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
