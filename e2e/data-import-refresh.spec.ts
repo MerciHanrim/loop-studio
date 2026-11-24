@@ -432,3 +432,166 @@ test('an FK re-point can be accepted or rejected; a rejected re-point reappears 
 
   expect(await poolFkFor('ppe_a')).toBe('itm_b') // accepted -- base moves
 })
+
+// #615 follow-up — Back → Next keeps what was chosen while its input is the same.
+// Column changes: kept while the incoming header row is cell for cell the same (the
+// choices point at incoming columns by index). Review: kept while the plan's whole
+// input is the same (the data rows, the header row, Ignore last N rows, the column
+// pairings). Any of those changed: reset, as before.
+test.describe('the refresh wizard keeps its choices across Back → Next while their input is the same (#615)', () => {
+  // `weight` is gone (renamed to `mass`), `cost` is new, itm_b is missing, itm_c is added
+  const PASTE = 'item_key,display_name,mass,cost\nitm_a,Ember Blade,99,4\nitm_c,Steel Ring,7,1'
+  const dlg = refreshDialog
+  const pasteBox = (page: Page) => dlg(page).getByPlaceholder('Paste CSV or TSV text here')
+  const next = (page: Page) => dlg(page).getByRole('button', { name: 'Next' }).click()
+  const back = (page: Page) => dlg(page).getByRole('button', { name: 'Back' }).click()
+  const weightSelect = (page: Page) => dlg(page).locator('li', { hasText: 'is no longer in the new data' }).locator('select')
+  const costSelect = (page: Page) => dlg(page).locator('li', { hasText: `${iso('cost')}" is not mapped` }).locator('select').first()
+  const addC = (page: Page) => dlg(page).locator('li', { hasText: 'itm_c' }).getByRole('checkbox')
+  const missingB = (page: Page) => dlg(page).locator('li', { hasText: 'itm_b' }).locator('select')
+  const columnChanges = (page: Page) => dlg(page).getByRole('heading', { name: 'Column changes' })
+  const commitButton = (page: Page) => dlg(page).getByRole('button', { name: 'Commit refresh' })
+
+  async function openRefresh(page: Page, paste: string): Promise<void> {
+    await importItemsTable(page)
+    await openManage(page)
+    await manageDialog(page).getByRole('button', { name: 'Refresh…' }).click()
+    await expect(dlg(page)).toBeVisible()
+    await pasteBox(page).fill(paste)
+  }
+  /** on Column changes: weight → mass, Map more, cost → Number */
+  async function chooseColumns(page: Page): Promise<void> {
+    await weightSelect(page).selectOption({ label: 'mass' })
+    await dlg(page).getByRole('button', { name: 'Map more columns…' }).click()
+    await costSelect(page).selectOption('number')
+  }
+  async function expectColumnsKept(page: Page): Promise<void> {
+    await expect(columnChanges(page)).toBeVisible()
+    await expect(weightSelect(page)).toHaveValue('2') // `mass` is incoming column 2
+    await expect(costSelect(page)).toBeVisible() // Map more still open
+    await expect(costSelect(page)).toHaveValue('number')
+  }
+  async function expectColumnsReset(page: Page): Promise<void> {
+    await expect(columnChanges(page)).toBeVisible()
+    await expect(weightSelect(page)).toHaveValue('')
+    await expect(costSelect(page)).toHaveCount(0) // Map more closed
+  }
+  /** on Review: add itm_c, unlink itm_b */
+  async function chooseReview(page: Page): Promise<void> {
+    await expect(commitButton(page)).toBeVisible()
+    await addC(page).check()
+    await missingB(page).selectOption('unlink')
+  }
+  async function expectReviewKept(page: Page): Promise<void> {
+    await expect(commitButton(page)).toBeVisible()
+    await expect(addC(page)).toBeChecked()
+    await expect(missingB(page)).toHaveValue('unlink')
+  }
+  async function expectReviewReset(page: Page): Promise<void> {
+    await expect(commitButton(page)).toBeVisible()
+    await expect(addC(page)).not.toBeChecked()
+    await expect(missingB(page)).toHaveValue('')
+  }
+
+  test('Column changes: Back → Next with nothing edited keeps the choices and Map more open', async ({ page }) => {
+    await openRefresh(page, PASTE)
+    await next(page)
+    await chooseColumns(page)
+    await back(page)
+    await expect(pasteBox(page)).toBeVisible()
+    await next(page)
+    await expectColumnsKept(page)
+  })
+
+  test('Review: Back → Next, and Back to the paste and Next twice, keep the choices; Commit refresh applies them', async ({ page }) => {
+    await openRefresh(page, PASTE)
+    await next(page)
+    await chooseColumns(page)
+    await next(page)
+    await chooseReview(page)
+
+    await back(page)
+    await expectColumnsKept(page)
+    await next(page)
+    await expectReviewKept(page)
+
+    await back(page)
+    await back(page)
+    await expect(pasteBox(page)).toBeVisible()
+    await next(page)
+    await expectColumnsKept(page)
+    await next(page)
+    await expectReviewKept(page)
+
+    await commitButton(page).click()
+    await expect(dlg(page)).toBeHidden()
+    const after = await gs(page)
+    // itm_c added, as chosen
+    expect(after.nodes.some((n) => n.data?.sourceKey === 'itm_c' && n.data?.label === 'Items · Steel Ring · mass' && n.data?.value === 7)).toBe(true)
+    // itm_b kept as-is and unlinked, as chosen
+    const b = after.nodes.find((n) => n.data?.label?.includes('Iron Charm'))
+    expect(b).toBeDefined()
+    expect(b!.data?.sourceKey).toBeUndefined()
+    // the rename and the new column, as chosen
+    expect(after.nodes.some((n) => n.data?.label?.includes('Ember Blade') && n.data?.value === 99)).toBe(true)
+    expect(after.nodes.some((n) => n.data?.sourceKey === 'itm_a' && n.data?.value === 4)).toBe(true)
+    const table = (await dataImportTables(page))[0]
+    expect(table.columns.map((c) => c.header)).toEqual(expect.arrayContaining(['mass', 'cost']))
+  })
+
+  test('Review with no column change: Back to the paste and Next keeps the choices', async ({ page }) => {
+    await openRefresh(page, 'item_key,display_name,weight\nitm_a,Ember Blade,10\nitm_c,Steel Ring,7')
+    await next(page)
+    await chooseReview(page)
+    await back(page)
+    await expect(pasteBox(page)).toBeVisible()
+    await next(page)
+    await expectReviewKept(page)
+  })
+
+  test('controls: another column order resets the Column changes choices', async ({ page }) => {
+    await openRefresh(page, PASTE)
+    await next(page)
+    await chooseColumns(page)
+    await back(page)
+    await pasteBox(page).fill('item_key,display_name,cost,mass\nitm_a,Ember Blade,4,99\nitm_c,Steel Ring,1,7')
+    await next(page)
+    await expectColumnsReset(page)
+  })
+
+  test('controls: a changed data row, Ignore last N rows or column pairing resets the Review choices', async ({ page }) => {
+    await openRefresh(page, `${PASTE}\nitm_d,Spare Part,1,1`)
+    await next(page)
+    await chooseColumns(page)
+    await next(page)
+    await chooseReview(page)
+
+    // a data row: the column choices stay (same header row), the Review ones reset
+    await back(page)
+    await back(page)
+    await pasteBox(page).fill(`${PASTE.replace('Steel Ring,7', 'Steel Ring,8')}\nitm_d,Spare Part,1,1`)
+    await next(page)
+    await expectColumnsKept(page)
+    await next(page)
+    await expectReviewReset(page)
+
+    // Ignore last N rows
+    await chooseReview(page)
+    await back(page)
+    await back(page)
+    const ignore = dlg(page).getByLabel('Ignore last N rows')
+    await ignore.fill('1')
+    await ignore.press('Enter')
+    await next(page)
+    await expectColumnsKept(page)
+    await next(page)
+    await expectReviewReset(page)
+
+    // a column pairing: cost mapped as a label instead of a number
+    await chooseReview(page)
+    await back(page)
+    await costSelect(page).selectOption('label')
+    await next(page)
+    await expectReviewReset(page)
+  })
+})

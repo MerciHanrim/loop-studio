@@ -126,6 +126,9 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
   const [locallyDeletedChoices, setLocallyDeletedChoices] = useState<Map<string, 'recreate' | 'discard'>>(new Map())
   const [fkRepointChoices, setFkRepointChoices] = useState<Map<string, 'accept' | 'reject'>>(new Map())
   const [commitError, setCommitError] = useState<RefreshCommitResult | null>(null)
+  // #615 — the input the kept Column changes / Review choices were made for
+  const columnsChosenFor = useRef<string | null>(null)
+  const reviewChosenFor = useRef<string | null>(null)
 
   const headers = useMemo(() => parsedRows[Math.max(0, headerRowIndex - 1)] ?? [], [parsedRows, headerRowIndex])
 
@@ -194,16 +197,30 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
     input.click()
   }
 
+  // #615 — Back → Next keeps what was chosen while its input is the same.
+  // The Column changes choices point at incoming columns by index, and the
+  // analysis is the stored columns against the incoming header row alone: so
+  // they are kept while both are cell for cell the same, and reset otherwise.
+  // The Review choices are kept while the plan's whole input is the same as
+  // when the plan they were made on was built: the data rows, the header row,
+  // Ignore last N rows and the column pairings (`runValidateAndDiff`).
+  const columnsInputKey = () => JSON.stringify([table.columns, parsedRows[Math.max(0, headerRowIndex - 1)] ?? []])
+
   const goToEventsOrReview = () => {
     const a = analyzeRefreshColumns(table, parsedRows, headerRowIndex)
+    const key = columnsInputKey()
+    const keep = analysis !== null && columnsChosenFor.current === key
+    columnsChosenFor.current = key
     setAnalysis(a)
-    setEventChoices({})
-    setNewColumnChoices({})
-    setShowMapMore(false)
+    if (!keep) {
+      setEventChoices({})
+      setNewColumnChoices({})
+      setShowMapMore(false)
+    }
     if (a.events.length > 0) {
       setStep('events')
     } else {
-      runValidateAndDiff(a, {}, {})
+      runValidateAndDiff(a, keep ? eventChoices : {}, keep ? newColumnChoices : {})
     }
   }
 
@@ -243,11 +260,15 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
     setIssues(null)
     setDuplicateError(false)
     setPlan(d.plan)
-    setConfirmedAdds(new Set())
-    setMissingRowChoices(new Map())
-    setCellChoices(new Map())
-    setLocallyDeletedChoices(new Map())
-    setFkRepointChoices(new Map())
+    const key = JSON.stringify([parsedRows, headerRowIndex, ignoreLastNRows, pairings])
+    if (reviewChosenFor.current !== key) {
+      reviewChosenFor.current = key
+      setConfirmedAdds(new Set())
+      setMissingRowChoices(new Map())
+      setCellChoices(new Map())
+      setLocallyDeletedChoices(new Map())
+      setFkRepointChoices(new Map())
+    }
     setCommitError(null)
     setStep('review')
   }

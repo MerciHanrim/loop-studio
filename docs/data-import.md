@@ -991,6 +991,14 @@ create zero Parameters of their own but are still bound in this same atomic
 step, so their key/label data is available for FK enrichment (§DI8) both
 immediately and on every future refresh.
 
+### The refresh wizard's choices across Back → Next (#615)
+
+The refresh wizard's steps are Paste, Column changes (only when the incoming header row needs a decision) and Review. Back and Next keep what was chosen while the input it was chosen for is the same, and reset it otherwise:
+
+- **Column changes** (a missing column's rename or removal, an ambiguous column's match, a new column's role and its referenced table, and whether Map more columns is open) are kept while the stored table's columns and the incoming header row are cell for cell the same as when they were chosen. They point at incoming columns by position, so another header row (another order, a header added or removed, another header row number that reads other cells) resets them.
+- **Review** choices (Add this row, a missing row's Keep as-is or Delete, a conflict's value, a locally deleted value's Recreate or Discard, a reference's Accept or Reject) are kept while the plan's whole input is the same as when the plan they were made on was built: the parsed rows, the header row number, Ignore last N rows and the column pairings. A change to any of them resets them.
+- Nothing is written before Commit refresh, which applies the choices shown.
+
 ### Removed-column defaults, per role (new — Phase 2 implementation-time addendum, approved)
 
 A refresh can find that a previously-mapped column's header is simply gone
