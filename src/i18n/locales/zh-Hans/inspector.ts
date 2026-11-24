@@ -140,7 +140,7 @@ const inspector = {
   'inspector.edge.note': '修改连线的模拟设置会让当前运行重新开始。走线、拐点和颜色只影响绘制，修改它们不会重新开始。',
   'inspector.field.delay': '延迟——脉冲送达前要经过的步数',
   'inspector.delay.ok': '在（触发 + 延迟 + 1）时送达；0 表示下一步。',
-  'inspector.delay.bad': '请填 ≥ 0 的整数——其他数值引擎一律按 0 运行，你输入的内容保持不变。',
+  'inspector.delay.bad': '请填 ≥ 0 的整数。',
   'inspector.field.condition': '条件——与源进行比较',
   'inspector.field.modifier': '修改量——每一步施加的变化',
   'inspector.expr.activatorPlaceholder': '>= 5',

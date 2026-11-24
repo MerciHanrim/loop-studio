@@ -153,7 +153,7 @@ const inspector = {
   'inspector.edge.note': 'Modificare le impostazioni di simulazione di un collegamento riavvia l’esecuzione in corso. Percorso, angoli e colore riguardano solo il disegno e non la riavviano.',
   'inspector.field.delay': 'Ritardo — passi prima che l’impulso venga consegnato',
   'inspector.delay.ok': 'consegnato a (scatto + ritardo + 1); 0 significa il passo successivo.',
-  'inspector.delay.bad': 'usa un numero intero ≥ 0 — con qualsiasi altro valore il motore esegue 0 e lascia intatto ciò che hai scritto.',
+  'inspector.delay.bad': 'usa un numero intero ≥ 0.',
   'inspector.field.condition': 'Condizione — confronto rispetto alla sorgente',
   'inspector.field.modifier': 'Modificatore — variazione applicata a ogni passo',
   'inspector.expr.activatorPlaceholder': '>= 5',

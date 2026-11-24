@@ -144,7 +144,7 @@ const inspector = {
   'inspector.edge.note': 'Thay đổi thiết lập mô phỏng của một liên kết sẽ khởi động lại lần chạy hiện tại. Đường đi, điểm gấp và màu chỉ là phần vẽ và không khởi động lại nó.',
   'inspector.field.delay': 'Độ trễ — số bước trước khi xung được chuyển tới',
   'inspector.delay.ok': 'chuyển tới ở (bước kích hoạt + độ trễ + 1); 0 nghĩa là bước kế tiếp.',
-  'inspector.delay.bad': 'hãy dùng số nguyên ≥ 0 — bộ máy mô phỏng chạy mọi giá trị khác như 0 và giữ nguyên nội dung đã nhập.',
+  'inspector.delay.bad': 'hãy dùng số nguyên ≥ 0.',
   'inspector.field.condition': 'Điều kiện — so sánh với nguồn',
   'inspector.field.modifier': 'Thay đổi — áp dụng ở mỗi bước',
   'inspector.expr.activatorPlaceholder': '>= 5',

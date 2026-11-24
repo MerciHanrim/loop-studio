@@ -218,3 +218,104 @@ test.describe('a half-typed number in a field that allows a blank is not stored 
     }
   })
 })
+
+// #615 item 1, the trigger delay — the field stored `Number(v)` on every key:
+// a `-` removed the delay as a blank does, `-2` and `1.5` were stored and saved,
+// and every key reset the run. It now takes the draft rule of the other number
+// fields: a real blank removes the delay, only a whole number ≥ 0 is stored,
+// and anything else is a draft that stores nothing, with the "not allowed"
+// hint shown for it. A value already stored invalid (a file) keeps the
+// engine's own 0 + diagnostic.
+test.describe('the trigger delay stores only a whole number ≥ 0, or a blank (#615 item 1)', () => {
+  type G = { __loop: { graph: { getState: () => any; setState: (s: unknown) => void }; autosave: { flush: () => void }; sim: { getState: () => { stepIndex: number } } } }
+  const OK = 'delivered at (fired + delay + 1); 0 means the next step.'
+  // the rule alone: right for a draft that is never stored and for a value
+  // already stored invalid in a file
+  const BAD = 'use a whole number ≥ 0.'
+  const delay = (page: Page) => page.getByRole('spinbutton', { name: /^Delay — steps before the pulse is delivered/ })
+  /** the stored delay ('removed' when the key is gone or undefined), the autosaved one, the run */
+  const state = (page: Page) =>
+    page.evaluate(() => {
+      const l = (window as unknown as G).__loop
+      l.autosave.flush()
+      const g = l.graph.getState()
+      const d = g.edges.find((e: { id: string }) => e.id === 't_pd_a').data
+      const rec = JSON.parse(localStorage.getItem('loop-studio:graph:v1') ?? 'null')
+      const sd = rec?.edges?.find((e: { id: string }) => e.id === 't_pd_a')?.data
+      return { stored: d.delay ?? 'removed', saved: sd?.delay ?? 'removed', rev: g.simulationRev as number, step: l.sim.getState().stepIndex }
+    })
+
+  /** delay 2, one step taken, then `keys` typed after select-all; the state before typing */
+  async function typeOver(page: Page, keys: string[]) {
+    await page.evaluate(() => (window as unknown as G).__loop.graph.setState({ selectedEdgeId: 't_pd_a', selectedNodeId: null }))
+    const f = delay(page)
+    await f.fill('2')
+    await f.press('Tab')
+    await expect.poll(async () => (await state(page)).stored).toBe(2)
+    await stepOnce(page)
+    const before = await state(page)
+    const el = (await f.elementHandle())!
+    await el.click()
+    await el.press('Control+a')
+    for (const k of keys) await el.press(k)
+    return { el, before }
+  }
+  const hintNow = (page: Page) => page.locator('.field__hint').filter({ hasText: /delivered at|use a whole number/ }).first()
+
+  test.beforeEach(async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, readFileSync(new URL('../examples/state-verification.json', import.meta.url), 'utf8'))
+  })
+
+  for (const [name, keys] of [['-', ['Minus']], ['-2', ['Minus', '2']]] as const) {
+    test(`\`${name}\` on a delay of 2 stores nothing, keeps the autosave and the run, and shows the hint for it`, async ({ page }) => {
+      const { el, before } = await typeOver(page, [...keys])
+      expect.soft(await state(page), 'while typing').toEqual(before)
+      expect.soft(await el.getAttribute('aria-invalid')).toBe('true')
+      await expect.soft(hintNow(page)).toHaveText(BAD)
+      await el.press('Tab')
+      expect.soft(await el.inputValue(), 'on leaving, the stored delay again').toBe('2')
+      await expect.soft(hintNow(page)).toHaveText(OK)
+      expect(await state(page), 'after leaving').toEqual(before)
+    })
+  }
+
+  test('`1.5`: the `1` on the way is stored (and resets the run); the `.` and the `5` change nothing more', async ({ page }) => {
+    const { el, before } = await typeOver(page, ['1'])
+    const afterOne = await state(page)
+    expect(afterOne).toEqual({ stored: 1, saved: 1, rev: before.rev + 1, step: 0 })
+    for (const k of ['Period', '5']) {
+      await el.press(k)
+      expect.soft(await state(page), `after ${k}`).toEqual(afterOne)
+    }
+    expect.soft(await el.getAttribute('aria-invalid'), '1.5 is not a whole number').toBe('true')
+    await expect.soft(hintNow(page)).toHaveText(BAD)
+    await el.press('Tab')
+    expect.soft(await el.inputValue()).toBe('1')
+    expect(await state(page), 'after leaving: 1.5 was never stored').toEqual(afterOne)
+  })
+
+  test('controls: a real blank removes the delay and `3` is stored, both resetting the run, as before', async ({ page }) => {
+    const blank = await typeOver(page, ['Backspace'])
+    await blank.el.press('Tab')
+    expect(await state(page)).toMatchObject({ stored: 'removed', saved: 'removed', step: 0 })
+    await expect(hintNow(page)).toHaveText(OK)
+    const three = await typeOver(page, ['3'])
+    expect(await state(page)).toMatchObject({ stored: 3, saved: 3, step: 0 })
+    await three.el.press('Tab')
+    await expect(hintNow(page)).toHaveText(OK)
+  })
+
+  test('a delay already stored invalid in a file is shown as it is, with the hint, and the engine still runs it as 0 with its diagnostic', async ({ page }) => {
+    const doc = JSON.parse(readFileSync(new URL('../examples/state-verification.json', import.meta.url), 'utf8'))
+    doc.edges.find((e: { id: string }) => e.id === 't_pd_a').data.delay = -2
+    await importGraph(page, JSON.stringify(doc))
+    await page.evaluate(() => (window as unknown as G).__loop.graph.setState({ selectedEdgeId: 't_pd_a', selectedNodeId: null }))
+    await expect(delay(page)).toHaveValue('-2')
+    await expect(delay(page)).toHaveAttribute('aria-invalid', 'true')
+    await expect(hintNow(page)).toHaveText(BAD)
+    await page.getByRole('button', { name: 'Advance one step' }).click()
+    await expect(page.getByTestId('run-diagnostics')).toContainText('State edge "t_pd_a" delay -2 is not an integer ≥ 0; treated as 0.')
+  })
+})

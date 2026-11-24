@@ -149,7 +149,7 @@ const inspector = {
   'inspector.field.delay': 'Gecikme — darbe iletilmeden önceki adım sayısı',
   'inspector.delay.ok': '(çalışma + gecikme + 1) anında iletilir; 0 bir sonraki adım demektir.',
   'inspector.delay.bad':
-    '0 ya da daha büyük bir tam sayı kullanın — motor başka her değeri 0 olarak çalıştırır ve yazdığınızı olduğu gibi bırakır.',
+    '0 ya da daha büyük bir tam sayı kullanın.',
   'inspector.field.condition': 'Koşul — kaynakla karşılaştırma',
   'inspector.field.modifier': 'Değiştirici — her adımda uygulanan değişim',
   'inspector.expr.activatorPlaceholder': '>= 5',

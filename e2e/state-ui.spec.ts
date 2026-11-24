@@ -109,7 +109,7 @@ test.describe('Slice 5 — Inspector editing', () => {
     await load(page)
   })
 
-  test('trigger: only the delay field, validated as a whole number ≥ 0, never auto-corrected', async ({ page }) => {
+  test('trigger: only the delay field, validated as a whole number ≥ 0, never auto-corrected nor stored when invalid', async ({ page }) => {
     await selectEdge(page, 't_trig')
     const insp = page.locator('.inspector')
     // the workbench panel: the old Mode select is the connection's Kind select
@@ -130,8 +130,9 @@ test.describe('Slice 5 — Inspector editing', () => {
     await delay.fill('-1')
     await expect(delay).toHaveAttribute('aria-invalid', 'true')
     await expect(insp.locator('.field__hint--bad')).toBeVisible()
-    // engine runs it as 0, but the stored value is left exactly as typed
-    await expect.poll(() => edgeData(page, 't_trig').then((d) => d.delay)).toBe(-1)
+    // #615 item 1 — an invalid number is a draft: shown and marked, never
+    // corrected, and not stored (it used to be stored as typed, -1)
+    await expect.poll(() => edgeData(page, 't_trig').then((d) => d.delay)).toBe(2)
 
     await delay.fill('')
     await expect.poll(() => edgeData(page, 't_trig').then((d) => d.delay)).toBeUndefined()

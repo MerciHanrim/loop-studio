@@ -167,7 +167,7 @@ const inspector = {
   'inspector.field.delay': 'التأخير — عدد الخطوات قبل تسليم النبضة',
   'inspector.delay.ok': 'يُسلَّم عند (وقت العمل + التأخير + 1)؛ و0 تعني الخطوة التالية.',
   'inspector.delay.bad':
-    'استخدم عددًا صحيحًا أكبر من أو يساوي 0 — يشغّل المحرك أي قيمة أخرى كأنها 0 ويترك ما كتبته دون تغيير.',
+    'استخدم عددًا صحيحًا أكبر من أو يساوي 0.',
   'inspector.field.condition': 'الشرط — مقارنة مع المصدر',
   'inspector.field.modifier': 'المعدِّل — تغيير يُطبَّق كل خطوة',
   'inspector.expr.activatorPlaceholder': '>= 5',

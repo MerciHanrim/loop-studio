@@ -144,7 +144,7 @@ const inspector = {
   'inspector.field.delay': 'ディレイ — パルスが届くまでのステップ数',
   'inspector.delay.ok': '（発火 + ディレイ + 1）で届きます。0 は次のステップです。',
   'inspector.delay.bad':
-    '0 以上の整数を入力してください — それ以外の値はエンジンが 0 として実行し、入力内容はそのまま残します。',
+    '0 以上の整数を入力してください。',
   'inspector.field.condition': '条件 — ソースとの比較',
   'inspector.field.modifier': '修飾子 — 毎ステップ適用される変更',
   'inspector.expr.activatorPlaceholder': '>= 5',

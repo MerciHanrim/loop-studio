@@ -134,7 +134,7 @@ const inspector = {
   'inspector.edge.note': '연결의 시뮬레이션 설정을 바꾸면 현재 실행이 다시 시작됩니다. 경로, 꺾임점, 색상은 그리기 정보일 뿐이라 바꿔도 다시 시작되지 않습니다.',
   'inspector.field.delay': '지연 — 펄스가 전달되기까지의 단계 수',
   'inspector.delay.ok': '(fired + delay + 1)에 전달됩니다. 0은 다음 단계를 뜻합니다.',
-  'inspector.delay.bad': '0 이상의 정수를 사용하세요 — 다른 값은 엔진이 0으로 실행하며 입력한 값은 그대로 둡니다.',
+  'inspector.delay.bad': '0 이상의 정수를 사용하세요.',
   'inspector.field.condition': '조건 — 소스와의 비교',
   'inspector.field.modifier': '변경 — 매 단계 적용되는 변화',
   'inspector.expr.activatorPlaceholder': '>= 5',
