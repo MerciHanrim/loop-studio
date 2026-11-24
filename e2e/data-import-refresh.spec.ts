@@ -148,6 +148,57 @@ test('renaming a table recomposes every auto-composed Parameter as ONE atomic Un
   expect((await dataImportTables(page))[0].label).toBe('Loot Items')
 })
 
+// #615 item 4 — closing Manage bindings discards a rename draft. Before, Cancel
+// took the focus from the name field first, and that blur saved the draft: the
+// table was renamed (one more Undo entry) by the button that should discard it.
+// Escape closed without the blur, but the draft stayed in the dialog and showed
+// again on the next open, for the next Cancel to save. Leaving the field (Tab)
+// is how a rename is saved, and stays so.
+test.describe('closing Manage bindings discards a rename draft (#615 item 4)', () => {
+  const nameField = (page: Page) => manageDialog(page).getByLabel('Table name')
+  const state = async (page: Page) => ({ label: (await dataImportTables(page))[0].label, undo: (await gs(page)).past.length })
+
+  test.beforeEach(async ({ page }) => {
+    await importItemsTable(page)
+  })
+
+  for (const [how, close] of [
+    ['Cancel', (page: Page) => manageDialog(page).getByRole('button', { name: 'Cancel' }).click()],
+    ['Escape', (page: Page) => page.keyboard.press('Escape')],
+    // a press on the backdrop, outside the dialog
+    ['a press outside the dialog', (page: Page) => page.mouse.click(4, 4)],
+  ] as const) {
+    test(`${how}: the table keeps its name, no Undo entry, and the draft is gone on reopening`, async ({ page }) => {
+      const before = await state(page)
+      await openManage(page)
+      await nameField(page).fill('Draft name')
+      await close(page)
+      await expect(manageDialog(page)).toBeHidden()
+      expect.soft(await state(page)).toEqual(before)
+      await openManage(page)
+      await expect(nameField(page)).toHaveValue('Items')
+      // and the next Cancel saves nothing either
+      await manageDialog(page).getByRole('button', { name: 'Cancel' }).click()
+      await expect(manageDialog(page)).toBeHidden()
+      expect(await state(page)).toEqual(before)
+    })
+  }
+
+  test('leaving the field still saves the rename, and closing keeps it', async ({ page }) => {
+    const before = await state(page)
+    await openManage(page)
+    await nameField(page).fill('Loot Items')
+    await nameField(page).press('Tab')
+    await expect.poll(async () => (await state(page)).label).toBe('Loot Items')
+    expect((await state(page)).undo).toBe(before.undo + 1)
+    await manageDialog(page).getByRole('button', { name: 'Cancel' }).click()
+    await expect(manageDialog(page)).toBeHidden()
+    expect(await state(page)).toEqual({ label: 'Loot Items', undo: before.undo + 1 })
+    await openManage(page)
+    await expect(nameField(page)).toHaveValue('Loot Items')
+  })
+})
+
 test('refresh: an added row, a missing row, and an auto-applied value change commit as ONE atomic entry; Undo reverts nodes and the table together', async ({
   page,
 }) => {
