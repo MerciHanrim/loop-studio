@@ -20,6 +20,7 @@ import { useGraphStore } from '../../store/graphStore'
 import { useDialogFocus } from '../useDialogFocus'
 import { isolateAuto } from '../../i18n/bidiIsolate'
 import { DialogScrim } from '../DialogScrim'
+import { DraftNumberInput } from '../DraftNumberInput'
 import { issueLocationText } from './issueText'
 
 // docs/data-import.md §DI11/§DI16 Phase 2 -- the 4-step refresh wizard for
@@ -77,11 +78,6 @@ const COMMIT_ERROR_KEY: Record<Extract<RefreshCommitResult, { ok: false }>['reas
   'referenced-node': 'import.refresh.commitError.referenced-node',
   'missing-row-dependency': 'import.refresh.commitError.missing-row-dependency',
   'placement-failed': 'import.refresh.commitError.placement-failed',
-}
-
-function sanitizeRowCount(raw: string, min: number): number {
-  const n = Number(raw)
-  return Number.isFinite(n) && Number.isInteger(n) ? Math.max(min, n) : min
 }
 
 type EventChoice = { kind: 'rename' | 'matched'; incomingColumnIndex: number } | { kind: 'column-removed' }
@@ -364,11 +360,31 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                 </label>
                 <label>
                   {t('import.headerRow')}
-                  <input dir="ltr" type="number" min={1} value={headerRowIndex} onChange={(e) => setHeaderRowIndex(sanitizeRowCount(e.target.value, 1))} />
+                  {/* #615 item 1 — set on Enter or on leaving the field, a whole
+                      number ≥ 1; a blank no longer snaps to 1 (2 → cleared → 3 read 13) */}
+                  <DraftNumberInput
+                    min={1}
+                    value={headerRowIndex}
+                    allowEmpty={false}
+                    commitOnConfirm
+                    valid={(n) => Number.isInteger(n) && n >= 1}
+                    onCommit={(n) => {
+                      if (n != null) setHeaderRowIndex(n)
+                    }}
+                  />
                 </label>
                 <label>
                   {t('import.ignoreLastRows')}
-                  <input dir="ltr" type="number" min={0} value={ignoreLastNRows} onChange={(e) => setIgnoreLastNRows(sanitizeRowCount(e.target.value, 0))} />
+                  <DraftNumberInput
+                    min={0}
+                    value={ignoreLastNRows}
+                    allowEmpty={false}
+                    commitOnConfirm
+                    valid={(n) => Number.isInteger(n) && n >= 0}
+                    onCommit={(n) => {
+                      if (n != null) setIgnoreLastNRows(n)
+                    }}
+                  />
                 </label>
               </div>
               {parseError && (

@@ -146,6 +146,8 @@ test('review round 3 -- a validation issue reports the RAW source line number, n
 
   const headerInput = dialog(page).locator('label', { hasText: 'Header row' }).locator('input')
   await headerInput.fill('2')
+  // #615 item 1 — the field sets its value on Enter or on leaving it, not per key
+  await headerInput.press('Enter')
 
   const headerRow = dialog(page).locator('.import__preview thead tr').first()
   await headerRow.locator('select').nth(0).selectOption('key')
