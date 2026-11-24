@@ -3,10 +3,22 @@ name: CI
 # Verification only — no deploy. Cloudflare Pages builds and deploys `main`
 # directly from its GitHub connection.
 
+# What runs where (docs/ci-main-e2e.md, Lumi 2026-11-25):
+#   - a pull request: everything;
+#   - a push to `main`: `checks` always; the e2e jobs only when the
+#     `e2e decision` job cannot show that the merge commit holds the exact tree
+#     of a pull request head whose required checks passed — anything unknown
+#     runs them in full;
+#   - every day at 03:00 KST (18:00 UTC), and by hand (Run workflow) before a
+#     release: everything, on `main`, since the same tree can still fail with
+#     time or environment.
 on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,9 +29,11 @@ permissions:
 # previous commit's run was still going cancelled that run and left the commit
 # with no CI record (main `7b77c1ac`, 2026-10-29); and since a group holds only
 # one pending run, scoping just `cancel-in-progress` to pull requests would
-# still let a third quick merge cancel the second one while it waited.
+# still let a third quick merge cancel the second one while it waited. The
+# daily and the manual run are keyed by their event too, so they never queue
+# behind, or ahead of, the push run of the same commit.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || format('{0}-{1}', github.event_name, github.sha) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -85,6 +99,8 @@ jobs:
       - name: Licence screen — the third-party notices are shown as text, never through an HTML sink
         run: npm run check:licence-screen
       - name: Change declaration — a change that ships says whether it is user-facing, with its version and release note
+        # a change only: the daily and the manual run declare nothing
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
         run: npm run check:change-declaration
         env:
           # a pull request: its HEAD commit against the base BRANCH as fetched
@@ -113,6 +129,36 @@ jobs:
       - name: PWA precache closure and notices (Cloudflare Production path)
         run: CF_PAGES_BRANCH=main npm run build && node scripts/check-pwa-closure.mjs dist && node scripts/check-third-party-notices.mjs dist pwa
 
+  # ── Whether this run needs the e2e jobs ────────────────────────────────
+  # `scripts/ci-main-e2e-decision.mjs` (its rules are in its header and in
+  # docs/ci-main-e2e.md). Only a push to `main` can come out `false`; a pull
+  # request, the daily and the manual run answer `true` without looking
+  # anything up. The e2e jobs below run unless the answer is exactly `false`,
+  # so this job failing or giving no answer runs them in full.
+  e2e-decision:
+    name: e2e decision
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+    outputs:
+      run_e2e: ${{ steps.decide.outputs.run_e2e }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # a push compares the merge commit with its parent and the head's tree
+          fetch-depth: ${{ github.event_name == 'push' && 0 || 1 }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - id: decide
+        run: node scripts/ci-main-e2e-decision.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_BEFORE: ${{ github.event.before }}
+
   # ── E2E, parallelised ──────────────────────────────────────────────────
   # The dev-server + portable suite (`npm run e2e`) is split into N shards that
   # run concurrently; the production-bundle and PWA suites are their own jobs.
@@ -128,6 +174,8 @@ jobs:
   # change the matrix AND the `/N` in the run step; the check keeps them equal.
   e2e-shard:
     name: e2e (shard ${{ matrix.shard }}/8)
+    needs: e2e-decision
+    if: ${{ !cancelled() && needs.e2e-decision.outputs.run_e2e != 'false' }}
     # Windows so the committed visual baselines (`*-win32.png`) match; public
     # repo ⇒ Actions minutes are free.
     runs-on: windows-latest
@@ -172,6 +220,8 @@ jobs:
 
   e2e-dist:
     name: e2e (production bundle)
+    needs: e2e-decision
+    if: ${{ !cancelled() && needs.e2e-decision.outputs.run_e2e != 'false' }}
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -198,6 +248,8 @@ jobs:
 
   e2e-pwa:
     name: e2e (PWA)
+    needs: e2e-decision
+    if: ${{ !cancelled() && needs.e2e-decision.outputs.run_e2e != 'false' }}
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -222,18 +274,28 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  # single stable status that gates the branch — green only if every E2E job is
+  # single stable status that gates the branch — green only if every E2E job
+  # is, or, on a push to `main` only, if the decision job itself succeeded and
+  # answered exactly `false` (the e2e jobs then show as skipped)
   e2e:
     name: e2e
     runs-on: ubuntu-latest
-    needs: [e2e-shard, e2e-dist, e2e-pwa]
+    needs: [e2e-decision, e2e-shard, e2e-dist, e2e-pwa]
     if: always()
     steps:
-      - name: Every E2E job passed
+      - name: Every E2E job passed, or this push holds an already verified tree
         run: |
-          echo "shards : ${{ needs.e2e-shard.result }}"
-          echo "dist   : ${{ needs.e2e-dist.result }}"
-          echo "pwa    : ${{ needs.e2e-pwa.result }}"
+          echo "event    : ${{ github.event_name }}"
+          echo "decision : ${{ needs.e2e-decision.result }} run_e2e=${{ needs.e2e-decision.outputs.run_e2e }}"
+          echo "shards   : ${{ needs.e2e-shard.result }}"
+          echo "dist     : ${{ needs.e2e-dist.result }}"
+          echo "pwa      : ${{ needs.e2e-pwa.result }}"
+          if test "${{ github.event_name }}" = "push" \
+            && test "${{ needs.e2e-decision.result }}" = "success" \
+            && test "${{ needs.e2e-decision.outputs.run_e2e }}" = "false"; then
+            echo "e2e skipped: the merge commit holds a verified pull request head's tree (see the e2e decision job)"
+            exit 0
+          fi
           test "${{ needs.e2e-shard.result }}" = "success" \
             && test "${{ needs.e2e-dist.result }}" = "success" \
             && test "${{ needs.e2e-pwa.result }}" = "success"
