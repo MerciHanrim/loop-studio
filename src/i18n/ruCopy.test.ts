@@ -214,7 +214,7 @@ describe('ru copy — the first Cyrillic catalog', () => {
     // `ёмкостью`)
     expect([...yo].sort()).toEqual([
       'берёт', // timetable screens: help.stepOrder
-      'введённое',
+      // `введённое` left with #615 item 1: `inspector.delay.bad` keeps its rule only
       'вернёт', // #420 follow-up: review.openDoc.replace.body
       'вернётся',
       'включён',

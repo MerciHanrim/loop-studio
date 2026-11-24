@@ -138,7 +138,7 @@ const inspector = {
   'inspector.edge.note': 'Cambiar la configuración de simulación de una conexión reinicia la ejecución actual. El trazado, los codos y el color solo afectan al dibujo y no la reinician.',
   'inspector.field.delay': 'Retardo: pasos antes de que se entregue el pulso',
   'inspector.delay.ok': 'se entrega en (disparo + retardo + 1); 0 significa el paso siguiente.',
-  'inspector.delay.bad': 'use un número entero ≥ 0: el motor ejecuta cualquier otro valor como 0 y deja intacto lo que usted escribió.',
+  'inspector.delay.bad': 'use un número entero ≥ 0.',
   'inspector.field.condition': 'Condición: comparación contra el origen',
   'inspector.field.modifier': 'Modificador: cambio aplicado en cada paso',
   'inspector.expr.activatorPlaceholder': '>= 5',

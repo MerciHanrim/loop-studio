@@ -135,7 +135,7 @@ const inspector = {
   'inspector.edge.note': 'Changing a connection’s simulation settings restarts the current run. Route, bends, and colour are drawing-only and do not restart it.',
   'inspector.field.delay': 'Delay — steps before the pulse is delivered',
   'inspector.delay.ok': 'delivered at (fired + delay + 1); 0 means the next step.',
-  'inspector.delay.bad': 'use a whole number ≥ 0 — the engine runs any other value as 0 and leaves what you typed untouched.',
+  'inspector.delay.bad': 'use a whole number ≥ 0.',
   'inspector.field.condition': 'Condition — comparison against the source',
   'inspector.field.modifier': 'Modifier — change applied each step',
   'inspector.expr.activatorPlaceholder': '>= 5',

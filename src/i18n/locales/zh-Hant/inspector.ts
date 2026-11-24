@@ -146,7 +146,7 @@ const inspector = {
   'inspector.field.delay': '延遲——脈衝送達前要經過的步數',
   'inspector.delay.ok': '在（觸發 + 延遲 + 1）時送達；0 表示下一步。',
   'inspector.delay.bad':
-    '請填 ≥ 0 的整數——其他數值引擎一律當作 0 執行，而你輸入的內容維持不變。',
+    '請填 ≥ 0 的整數。',
   'inspector.field.condition': '條件——與來源比較',
   'inspector.field.modifier': '修改量——每一步施加的變化',
   'inspector.expr.activatorPlaceholder': '>= 5',

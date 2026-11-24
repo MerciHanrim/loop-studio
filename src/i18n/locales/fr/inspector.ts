@@ -156,7 +156,7 @@ const inspector = {
   'inspector.field.delay': 'Délai — pas avant que l’impulsion soit livrée',
   'inspector.delay.ok': 'livrée à (déclenchement + délai + 1) ; 0 signifie le pas suivant.',
   'inspector.delay.bad':
-    'utilisez un entier ≥ 0 — le moteur exécute toute autre valeur comme 0 et laisse intacte celle que vous avez saisie.',
+    'utilisez un entier ≥ 0.',
   'inspector.field.condition': 'Condition — comparaison avec la source',
   'inspector.field.modifier': 'Modificateur — variation appliquée à chaque pas',
   'inspector.expr.activatorPlaceholder': '>= 5',

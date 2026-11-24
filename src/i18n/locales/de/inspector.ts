@@ -160,7 +160,7 @@ const inspector = {
   'inspector.field.delay': 'Verzögerung — Schritte, bis der Impuls ankommt',
   'inspector.delay.ok': 'kommt bei (ausgelöst + Verzögerung + 1) an; 0 heißt im nächsten Schritt.',
   'inspector.delay.bad':
-    'verwenden Sie eine ganze Zahl ≥ 0 — die Engine führt jeden anderen Wert als 0 aus und lässt Ihre Eingabe unverändert.',
+    'verwenden Sie eine ganze Zahl ≥ 0.',
   'inspector.field.condition': 'Bedingung — Vergleich mit der Quelle',
   'inspector.field.modifier': 'Änderung — wird in jedem Schritt angewendet',
   'inspector.expr.activatorPlaceholder': '>= 5',

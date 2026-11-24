@@ -150,7 +150,7 @@ const inspector = {
   'inspector.edge.note': 'Het wijzigen van de simulatie-instellingen van een verbinding start de huidige run opnieuw. Route, knikken en kleur zijn alleen tekening en starten hem niet opnieuw.',
   'inspector.field.delay': 'Vertraging — stappen voordat de puls wordt bezorgd',
   'inspector.delay.ok': 'bezorgd op (gevuurd + vertraging + 1); 0 betekent de volgende stap.',
-  'inspector.delay.bad': 'gebruik een geheel getal ≥ 0 — de engine voert elke andere waarde uit als 0 en laat wat je typte ongemoeid.',
+  'inspector.delay.bad': 'gebruik een geheel getal ≥ 0.',
   'inspector.field.condition': 'Voorwaarde — vergelijking met de bron',
   'inspector.field.modifier': 'Aanpassing — wijziging die elke stap wordt toegepast',
   'inspector.expr.activatorPlaceholder': '>= 5',

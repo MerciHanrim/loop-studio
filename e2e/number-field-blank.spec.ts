@@ -229,7 +229,9 @@ test.describe('a half-typed number in a field that allows a blank is not stored 
 test.describe('the trigger delay stores only a whole number ≥ 0, or a blank (#615 item 1)', () => {
   type G = { __loop: { graph: { getState: () => any; setState: (s: unknown) => void }; autosave: { flush: () => void }; sim: { getState: () => { stepIndex: number } } } }
   const OK = 'delivered at (fired + delay + 1); 0 means the next step.'
-  const BAD = /^use a whole number ≥ 0/
+  // the rule alone: right for a draft that is never stored and for a value
+  // already stored invalid in a file
+  const BAD = 'use a whole number ≥ 0.'
   const delay = (page: Page) => page.getByRole('spinbutton', { name: /^Delay — steps before the pulse is delivered/ })
   /** the stored delay ('removed' when the key is gone or undefined), the autosaved one, the run */
   const state = (page: Page) =>

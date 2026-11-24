@@ -145,7 +145,7 @@ const inspector = {
   'inspector.edge.note': 'Alterar as definições de simulação de uma ligação reinicia a execução atual. A rota, as dobras e a cor são só desenho e não a reiniciam.',
   'inspector.field.delay': 'Atraso — passos antes de o pulso ser entregue',
   'inspector.delay.ok': 'entregue em (disparo + atraso + 1); 0 significa o próximo passo.',
-  'inspector.delay.bad': 'use um número inteiro ≥ 0 — o motor executa qualquer outro valor como 0 e mantém intacto o que escreveu.',
+  'inspector.delay.bad': 'use um número inteiro ≥ 0.',
   'inspector.field.condition': 'Condição — comparação com a origem',
   'inspector.field.modifier': 'Modificador — alteração aplicada a cada passo',
   'inspector.expr.activatorPlaceholder': '>= 5',
