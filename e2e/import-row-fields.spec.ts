@@ -107,7 +107,7 @@ test.describe('the import wizard’s Header row and Ignore last rows set their v
 })
 
 test.describe('the refresh wizard’s Header row sets its value on Enter or leaving (#615 item 1)', () => {
-  test('2 → cleared → 3 never shows 1 or 13; Enter sets it', async ({ page }) => {
+  test('2 → cleared → 3 never shows 1 or 13; Enter sets it and row 2 is read as the header; Ignore last N rows applies by Enter or Tab and a blank brings the value back', async ({ page }) => {
     // a bound table
     await page.getByRole('button', { name: 'Data' }).click()
     await page.getByRole('menuitem', { name: 'Import spreadsheet values as Parameters…' }).click()
@@ -138,11 +138,43 @@ test.describe('the refresh wizard’s Header row sets its value on Enter or leav
     await header.press('2')
     await header.press('Enter')
     await expect(header).toHaveValue('2')
-    // the confirmed row is read: Next reaches the review with no column changes
+
+    // Ignore last N rows: a blank is not snapped to 0 while typing; 1 by Enter
+    // is set; a blank confirmed by Tab brings 1 back
     const ignore = refresh(page).getByLabel('Ignore last N rows')
     await ignore.click()
     await ignore.press('End')
     await ignore.press('Backspace')
-    expect.soft(await ignore.inputValue()).toBe('')
+    expect.soft(await ignore.inputValue(), 'not snapped to 0 while typing').toBe('')
+    await ignore.press('1')
+    await ignore.press('Enter')
+    await expect(ignore).toHaveValue('1')
+    await ignore.click()
+    await ignore.press('End')
+    await ignore.press('Backspace')
+    await ignore.press('Tab')
+    await expect(ignore, 'a blank confirmed: the value before comes back').toHaveValue('1')
+
+    // the confirmed values are the ones read. Row 2 is the header: its columns
+    // match the stored table, so Next goes straight to the review (row 1, the
+    // note line, would have stopped at Column changes); the last row ignored,
+    // itm_b is missing from the new data
+    const next = refresh(page).getByRole('button', { name: 'Next' })
+    await next.click()
+    await expect(refresh(page).getByRole('button', { name: 'Commit refresh' })).toBeVisible()
+    await expect(refresh(page).getByRole('heading', { name: 'Column changes' })).toHaveCount(0)
+    await expect(refresh(page).getByText('1 row is missing from the new data')).toBeVisible()
+
+    // back, Ignore last N rows set to 0 by Tab: no row is missing any more
+    await refresh(page).getByRole('button', { name: 'Back' }).click()
+    await ignore.click()
+    await ignore.press('Control+a')
+    await ignore.press('0')
+    await ignore.press('Tab')
+    await expect(ignore).toHaveValue('0')
+    await expect(header, 'the header row kept').toHaveValue('2')
+    await next.click()
+    await expect(refresh(page).getByRole('button', { name: 'Commit refresh' })).toBeVisible()
+    await expect(refresh(page).getByText(/missing from the new data/)).toHaveCount(0)
   })
 })
