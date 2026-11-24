@@ -56,6 +56,7 @@ const inspector = {
   'inspector.pool.smallMoves.net': 'Cambio neto en todo el paso: {amount}',
   'inspector.field.capacity': 'Capacidad (en blanco = sin límite)',
   'inspector.number.nonNegativeHint': 'Ingrese un número igual o mayor que 0.',
+  'inspector.number.finiteHint': 'Ingrese un número finito.',
   'inspector.field.flowMode': 'Modo de flujo',
   'inspector.field.distribution': 'Distribución',
   'inspector.field.value': 'Valor',

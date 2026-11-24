@@ -38,6 +38,7 @@ const inspector = {
   'inspector.pool.smallMoves.net': '스텝 전체의 순변화: {amount}',
   'inspector.field.capacity': '용량 (비우면 무제한)',
   'inspector.number.nonNegativeHint': '0 이상의 숫자를 입력하세요.',
+  'inspector.number.finiteHint': '유한한 숫자를 입력하세요.',
   'inspector.field.flowMode': '흐름 모드',
   'inspector.field.distribution': '분배 방식',
   'inspector.field.value': '값',

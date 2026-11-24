@@ -49,6 +49,7 @@ const inspector = {
   'inspector.pool.smallMoves.net': 'Variação líquida no passo inteiro: {amount}',
   'inspector.field.capacity': 'Capacidade (em branco = ilimitada)',
   'inspector.number.nonNegativeHint': 'Digite um número igual ou maior que 0.',
+  'inspector.number.finiteHint': 'Digite um número finito.',
   'inspector.field.flowMode': 'Modo de fluxo',
   'inspector.field.distribution': 'Distribuição',
   'inspector.field.value': 'Valor',

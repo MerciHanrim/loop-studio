@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { Locator, Page } from '@playwright/test'
 import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from './support/loop'
+import { keepPanelDetailsOpen } from './support/panel'
 import { openMonteCarloDialog, openRunSettings } from './support/workbenchMenus'
 
 // issue #422 item 2 (Lumi, 2026-11-01) — Seed, Runs, Steps and Base seed:
@@ -193,8 +194,8 @@ test.describe('a half-typed number in a field that allows a blank is not stored 
         const kept = { stored: value, saved: value, step: runKept ? stepBefore : 0 }
         expect.soft(await state(page, node, key), `${input}: typing`).toEqual(kept)
         expect.soft(await el.getAttribute('aria-invalid'), `${input}: the field says it is not a number yet`).toBe('true')
-        // the capacity field has a visible hint (Min, Max and Step have none, for any input)
-        if (key === 'capacity') await expect.soft(page.getByText('Enter a number that is 0 or greater.'), `${input}: the hint`).toBeVisible()
+        // the visible hint: capacity's own rule; Min, Max and Step any finite number (#615 follow-up)
+        await expect.soft(page.getByText(key === 'capacity' ? 'Enter a number that is 0 or greater.' : 'Enter a finite number.'), `${input}: the hint`).toBeVisible()
         await el.press('Tab')
         expect.soft(await el.inputValue(), `${input}: on leaving, the stored value again`).toBe(shown)
         expect(await state(page, node, key), `${input}: after leaving`).toEqual(kept)
@@ -317,5 +318,147 @@ test.describe('the trigger delay stores only a whole number ≥ 0, or a blank (#
     await expect(hintNow(page)).toHaveText(BAD)
     await page.getByRole('button', { name: 'Advance one step' }).click()
     await expect(page.getByTestId('run-diagnostics')).toContainText('State edge "t_pd_a" delay -2 is not an integer ≥ 0; treated as 0.')
+  })
+})
+
+// #615 follow-up — a Parameter's Value, Min, Max and Step take any finite
+// number. A draft that is not one (`-`, `1e`, an overflow such as `1e400`)
+// was marked with aria-invalid only, and `-` typed into an EMPTY Min, Max or
+// Step was not marked at all: the number input reports '' before and after,
+// so no change event reached the field. Each now shows "Enter a finite
+// number." inside the field with aria-invalid while the draft is not a
+// number, and drops both for a number, an allowed blank (Min, Max, Step) or on
+// leaving. A blank Value is still not allowed. Nothing invalid is stored.
+test.describe('a Parameter’s Value, Min, Max and Step say when the draft is not a finite number (#615)', () => {
+  type G = { __loop: { graph: { getState: () => any }; autosave: { flush: () => void } } }
+  const HINT = 'Enter a finite number.'
+  const GRAPH = JSON.stringify({
+    schema: 'loop-studio/graph',
+    version: 1,
+    nodes: [
+      { id: 'p', type: 'parameter', position: { x: 0, y: 0 }, data: { kind: 'parameter', label: 'Rate', value: 5 } },
+      { id: 'pool', type: 'pool', position: { x: 300, y: 0 }, data: { kind: 'pool', label: 'Stock', activation: 'passive', initial: 1, capacity: 10, mode: 'pullAny' } },
+    ],
+    edges: [],
+  })
+  async function scene(page: Page, id: string) {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, GRAPH)
+    await keepPanelDetailsOpen(page)
+    await page.locator(`.react-flow__node[data-id="${id}"]`).click()
+  }
+  // the Inspector's field; its name gains the hint while it shows, so match the start
+  const input = (page: Page, name: RegExp) => page.locator('.inspector').getByRole('spinbutton', { name })
+  // `has` is matched inside each label, so the inner locator starts from the page, not `.inspector`
+  const hintOf = (page: Page, name: RegExp) => page.locator('.inspector label.field').filter({ has: page.getByRole('spinbutton', { name }) }).locator('.field__hint--bad')
+  const stored = (page: Page, id: string, key: string) =>
+    page.evaluate(
+      ([i, k]) => {
+        const l = (window as unknown as G).__loop
+        l.autosave.flush()
+        return l.graph.getState().nodes.find((n: { id: string }) => n.id === i).data[k] ?? null
+      },
+      [id, key] as const,
+    )
+  /** select all, then press `keys` one at a time */
+  async function over(page: Page, name: RegExp, keys: string[]) {
+    await input(page, name).click()
+    await input(page, name).press('Control+a')
+    for (const k of keys) await input(page, name).press(k)
+  }
+  async function expectMarked(page: Page, name: RegExp, hint: string, label: string) {
+    await expect(input(page, name), `${label}: aria-invalid`).toHaveAttribute('aria-invalid', 'true')
+    await expect(hintOf(page, name), `${label}: the hint`).toHaveText(hint)
+  }
+  async function expectClear(page: Page, name: RegExp, label: string) {
+    await expect(input(page, name), `${label}: no aria-invalid`).not.toHaveAttribute('aria-invalid', 'true')
+    await expect(hintOf(page, name), `${label}: no hint`).toHaveCount(0)
+  }
+
+  const FIELDS = [
+    ['Value', /^Value/, 'value', false],
+    ['Min', /^Min \(advisory\)/, 'min', true],
+    ['Max', /^Max \(advisory\)/, 'max', true],
+    ['Step', /^Step \(advisory\)/, 'step', true],
+  ] as const
+
+  for (const [title, name, key, blankAllowed] of FIELDS) {
+    test(`${title}: \`-\`, \`1e\` and \`1e400\` show the hint; a number, ${blankAllowed ? 'a blank' : 'leaving'} and leaving clear it; nothing invalid is stored`, async ({ page }) => {
+      await scene(page, 'p')
+      // a stored start value
+      await over(page, name, ['4', 'Tab'])
+      expect(await stored(page, 'p', key)).toBe(4)
+
+      // `-` → marked; then `3` makes `-3`, a number → cleared and stored
+      await over(page, name, ['Minus'])
+      await expectMarked(page, name, HINT, '`-`')
+      expect(await stored(page, 'p', key)).toBe(4)
+      await input(page, name).press('3')
+      await expectClear(page, name, '`-3`')
+      expect(await stored(page, 'p', key)).toBe(-3)
+
+      // `1e` → marked (the `1` on the way is a number and is stored); leaving clears it
+      await over(page, name, ['1', 'e'])
+      await expectMarked(page, name, HINT, '`1e`')
+      expect(await stored(page, 'p', key)).toBe(1)
+      await input(page, name).press('Tab')
+      await expectClear(page, name, '`1e`, left')
+      await expect(input(page, name)).toHaveValue('1')
+
+      // `1e400` → marked (an overflow); Backspace to `1e40`, a number → cleared
+      await over(page, name, [...'1e400'])
+      await expectMarked(page, name, HINT, '`1e400`')
+      expect(await stored(page, 'p', key)).toBe(1e40)
+      await input(page, name).press('Backspace')
+      await expectClear(page, name, '`1e40`')
+
+      // `-` then Backspace → a real blank
+      await over(page, name, ['Minus'])
+      await expectMarked(page, name, HINT, '`-` again')
+      await input(page, name).press('Backspace')
+      if (blankAllowed) {
+        await expectClear(page, name, 'a blank (allowed)')
+        expect(await stored(page, 'p', key)).toBeNull()
+      } else {
+        await expectMarked(page, name, HINT, 'a blank (not allowed)')
+        expect(await stored(page, 'p', key)).toBe(1e40)
+        await input(page, name).press('Tab')
+        await expectClear(page, name, 'a blank, left')
+        await expect(input(page, name)).toHaveValue('1e+40')
+      }
+    })
+  }
+
+  for (const [title, name, key] of FIELDS.filter((f) => f[3])) {
+    test(`${title}: \`-\` typed into the empty field is marked too; leaving clears it`, async ({ page }) => {
+      await scene(page, 'p')
+      await expect(input(page, name)).toHaveValue('')
+      await input(page, name).click()
+      await input(page, name).press('Minus')
+      await expectMarked(page, name, HINT, '`-` into the empty field')
+      expect(await stored(page, 'p', key)).toBeNull()
+      await input(page, name).press('Tab')
+      await expectClear(page, name, 'left')
+      await expect(input(page, name)).toHaveValue('')
+      expect(await stored(page, 'p', key)).toBeNull()
+    })
+  }
+
+  test('control: Pool capacity keeps its own hint and storing rule', async ({ page }) => {
+    await scene(page, 'pool')
+    const cap = /^Capacity/
+    const CAP_HINT = 'Enter a number that is 0 or greater.'
+    await over(page, cap, ['Minus'])
+    await expectMarked(page, cap, CAP_HINT, '`-`')
+    await input(page, cap).press('3')
+    await expectMarked(page, cap, CAP_HINT, '`-3`')
+    expect(await stored(page, 'pool', 'capacity')).toBe(10)
+    await input(page, cap).press('Tab')
+    await expectClear(page, cap, 'left')
+    await expect(input(page, cap)).toHaveValue('10')
+    await over(page, cap, ['Backspace'])
+    await expectClear(page, cap, 'a blank (unlimited)')
+    expect(await stored(page, 'pool', 'capacity')).toBeNull()
   })
 })

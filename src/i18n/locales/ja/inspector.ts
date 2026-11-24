@@ -43,6 +43,7 @@ const inspector = {
   'inspector.pool.smallMoves.net': 'ステップ全体の純変化: {amount}',
   'inspector.field.capacity': '容量（空欄 = 無制限）',
   'inspector.number.nonNegativeHint': '0 以上の数値を入力してください。',
+  'inspector.number.finiteHint': '有限の数値を入力してください。',
   'inspector.field.flowMode': 'フローモード',
   'inspector.field.distribution': '分布',
   'inspector.field.value': '値',

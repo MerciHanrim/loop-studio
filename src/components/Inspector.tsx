@@ -1699,6 +1699,31 @@ function ConverterFields({ d, set }: { d: ConverterData; set: Patch }) {
 
 // ── loop-model/1 (SEMANTICS-M.md) ────────────────────────────────────────
 
+/** #615 — a Parameter's Value, Min, Max or Step: any finite number. While the
+ *  draft is not one (a half-typed `-` or `1e`, an overflow such as `1e400`, or
+ *  a blank where none is allowed) the field says so, as a Pool's capacity does
+ *  for its own rule; a number, an allowed blank, or leaving the field clears it. */
+function FiniteNumberField({
+  label,
+  value,
+  allowEmpty,
+  onCommit,
+}: {
+  label: string
+  value: number | null
+  allowEmpty: boolean
+  onCommit: (n: number | null) => void
+}) {
+  const t = useT()
+  const [draftInvalid, setDraftInvalid] = useState(false)
+  return (
+    <Field label={label}>
+      <DraftNumberInput value={value} allowEmpty={allowEmpty} onCommit={onCommit} onInvalidChange={setDraftInvalid} />
+      {draftInvalid ? <p className="field__hint field__hint--bad">{t('inspector.number.finiteHint')}</p> : null}
+    </Field>
+  )
+}
+
 function ParameterFields({ d, set }: { d: ParameterData; set: Patch }) {
   const t = useT()
   // advisory notices from the defensive read (§M1.2) — value-out-of-range etc.
@@ -1710,23 +1735,15 @@ function ParameterFields({ d, set }: { d: ParameterData; set: Patch }) {
   const optional = (key: 'min' | 'max' | 'step') => (n: number | null) => set({ [key]: n ?? undefined })
   return (
     <>
-      <Field label={t('inspector.field.value')}>
-        <DraftNumberInput value={d.value} allowEmpty={false} onCommit={(n) => { if (n != null) set({ value: n }) }} />
-      </Field>
+      <FiniteNumberField label={t('inspector.field.value')} value={d.value} allowEmpty={false} onCommit={(n) => { if (n != null) set({ value: n }) }} />
       <Field label={t('inspector.field.unit')}>
         {/* §L9.3 — a unit is user-authored graph data, not an engine token: the
             canvas face `.nodef__unit` takes `auto` for the same reason. */}
         <input dir="auto" value={d.unit ?? ''} onChange={(e) => set({ unit: e.target.value || undefined })} />
       </Field>
-      <Field label={t('inspector.field.min')}>
-        <DraftNumberInput value={d.min ?? null} allowEmpty onCommit={optional('min')} />
-      </Field>
-      <Field label={t('inspector.field.max')}>
-        <DraftNumberInput value={d.max ?? null} allowEmpty onCommit={optional('max')} />
-      </Field>
-      <Field label={t('inspector.field.step')}>
-        <DraftNumberInput value={d.step ?? null} allowEmpty onCommit={optional('step')} />
-      </Field>
+      <FiniteNumberField label={t('inspector.field.min')} value={d.min ?? null} allowEmpty onCommit={optional('min')} />
+      <FiniteNumberField label={t('inspector.field.max')} value={d.max ?? null} allowEmpty onCommit={optional('max')} />
+      <FiniteNumberField label={t('inspector.field.step')} value={d.step ?? null} allowEmpty onCommit={optional('step')} />
       {notices.includes('PARAM_VALUE_OUT_OF_RANGE') && (
         <p className="inspector__note">{t('inspector.parameter.outOfRange')}</p>
       )}
