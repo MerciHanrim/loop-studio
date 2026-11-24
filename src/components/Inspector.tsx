@@ -880,19 +880,25 @@ function TriggerFields({
 }) {
   const t = useT()
   const raw = ed.delay
-  const ok = raw == null || parseDelay(raw).ok
+  // #615 item 1 — the draft rule of the other number fields: a real blank removes
+  // the delay, only a whole number ≥ 0 is stored, and anything else (a half-typed
+  // `-`, `-2`, `1.5`) is a draft that stores nothing. Before, every key stored
+  // `Number(v)`: `-` removed the delay, `-2` and `1.5` were saved, and each key
+  // reset the run. The hint follows the draft; a value already stored invalid (a
+  // file) still reads as bad, and the engine still runs it as 0 with a diagnostic.
+  const [draftInvalid, setDraftInvalid] = useState(false)
+  const ok = !draftInvalid && (raw == null || parseDelay(raw).ok)
   return (
     <Field label={t('inspector.field.delay')}>
-      <input dir="ltr"
-        type="number"
+      <DraftNumberInput
         min={0}
         step={1}
-        value={raw ?? ''}
-        aria-invalid={!ok}
-        onChange={(e) => {
-          const v = e.target.value
-          setData({ ...ed, delay: v === '' ? undefined : Number(v) })
-        }}
+        value={typeof raw === 'number' ? raw : null}
+        allowEmpty
+        valid={(n) => Number.isInteger(n) && n >= 0}
+        onCommit={(n) => setData({ ...ed, delay: n ?? undefined })}
+        onInvalidChange={setDraftInvalid}
+        aria-invalid={!ok || undefined}
       />
       {ok ? (
         <p className="field__hint">{t('inspector.delay.ok')}</p>
