@@ -83,8 +83,17 @@ export function AccentField() {
     }
     return out
   }, [nodes, edges, recentShown])
-  const [hexDraft, setHexDraft] = useState<string | null>(null)
-  const [hexError, setHexError] = useState<'alpha' | 'format' | null>(null)
+  // #615 item 3 — the Hex draft and its error belong to the targets they were
+  // typed for. When the targets change (another node; a Shift+click on the
+  // canvas keeps the focus here), an unconfirmed draft is dropped: never shown
+  // for the new targets, never written to them by a later Enter or blur, even
+  // while the field keeps the focus. Dropping, like Escape, never writes.
+  const targetKey = useMemo(() => `${targets.nodeIds.join('\n')}\t${targets.edgeIds.join('\n')}`, [targets])
+  const [draft, setDraft] = useState<{ text: string; error: 'alpha' | 'format' | null; forKey: string } | null>(null)
+  if (draft !== null && draft.forKey !== targetKey) setDraft(null)
+  const liveDraft = draft !== null && draft.forKey === targetKey ? draft : null
+  const hexDraft = liveDraft?.text ?? null
+  const hexError = liveDraft?.error ?? null
 
   const apply = (value: string | null) => {
     if (count === 0) return
@@ -113,17 +122,16 @@ export function AccentField() {
   }, [pickerValue, hasTargets])
 
   const commitHex = () => {
-    if (hexDraft === null) return
-    const parsed = parseAccentInput(hexDraft)
+    // only a draft typed for this render's targets: `apply` writes to them
+    if (liveDraft === null) return
+    const parsed = parseAccentInput(liveDraft.text)
     if (parsed.ok) {
       apply(parsed.value)
-      setHexDraft(null)
-      setHexError(null)
+      setDraft(null)
     } else if (parsed.reason === 'empty') {
-      setHexDraft(null)
-      setHexError(null)
+      setDraft(null)
     } else {
-      setHexError(parsed.reason)
+      setDraft({ ...liveDraft, error: parsed.reason })
     }
   }
 
@@ -227,17 +235,13 @@ export function AccentField() {
             placeholder={current.mixed ? t('inspector.accent.mixed') : '#336699'}
             aria-invalid={hexError ? true : undefined}
             aria-describedby={hexError ? `${ids}-hexerr` : undefined}
-            onChange={(e) => {
-              setHexDraft(e.target.value)
-              setHexError(null)
-            }}
+            onChange={(e) => setDraft({ text: e.target.value, error: null, forKey: targetKey })}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()
                 commitHex()
               } else if (e.key === 'Escape') {
-                setHexDraft(null)
-                setHexError(null)
+                setDraft(null)
               }
             }}
             onBlur={commitHex}

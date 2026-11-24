@@ -430,3 +430,108 @@ test.describe('flow colour — the pinned colours are the stylesheet’s', () =>
     })
   }
 })
+
+// #615 item 3 — the Hex draft belongs to the selection it was typed for. When the
+// colour targets change, an unconfirmed draft and its error are dropped: they are
+// neither shown for the new targets nor written to them, whether the field keeps
+// the focus or not.
+test.describe('flow colour — the Hex draft is dropped when the selection changes (#615 item 3)', () => {
+  const hexBox = (page: Page) => section(page).getByRole('textbox', { name: 'Hex' })
+  const hexError = (page: Page) => section(page).locator('.inspector__note--warn', { hasText: 'Not a colour' })
+  const undoLength = (page: Page): Promise<number> => loopGet(page, 'graph.getState().past.length')
+  const hexHasFocus = (page: Page) =>
+    page.evaluate(() => document.activeElement !== null && document.activeElement === document.querySelector('.accent-field__hex input'))
+  const selectedNode = (page: Page): Promise<string | null> => loopGet(page, 'graph.getState().selectedNodeId')
+  /** selects one node through the store alone: the focus stays where it is */
+  const storeSelect = (page: Page, id: string) =>
+    page.evaluate((i) => {
+      const g = (window as any).__loop.graph
+      const s = g.getState()
+      g.setState({
+        nodes: s.nodes.map((n: { id: string; selected?: boolean }) => (!!n.selected === (n.id === i) ? n : { ...n, selected: n.id === i })),
+        edges: s.edges.map((e: { selected?: boolean }) => (e.selected ? { ...e, selected: false } : e)),
+        selectedNodeId: i,
+        selectedEdgeId: null,
+      })
+    }, id)
+
+  test('an invalid draft and its error stay with neither the next node nor the first one on return', async ({ page }) => {
+    await load(page)
+    await node(page, 'gold').click()
+    await hexBox(page).fill('#zz12')
+    await hexBox(page).press('Tab')
+    await expect(hexBox(page)).toHaveAttribute('aria-invalid', 'true')
+    await expect(hexError(page)).toHaveCount(1)
+
+    await node(page, 'sink').click()
+    await expect.poll(() => selectedNode(page)).toBe('sink')
+    await expect(hexBox(page)).toHaveValue('')
+    await expect(hexBox(page)).not.toHaveAttribute('aria-invalid', 'true')
+    await expect(hexError(page)).toHaveCount(0)
+
+    await node(page, 'gold').click()
+    await expect.poll(() => selectedNode(page)).toBe('gold')
+    await expect(hexBox(page)).toHaveValue('')
+    await expect(hexBox(page)).not.toHaveAttribute('aria-invalid', 'true')
+    await expect(hexError(page)).toHaveCount(0)
+    expect(await accentOf(page, 'nodes', 'gold')).toBeNull()
+    expect(await accentOf(page, 'nodes', 'sink')).toBeNull()
+  })
+
+  test('Shift+click on another node keeps the focus in the field: the unconfirmed draft is neither shown for it nor written to it', async ({ page }) => {
+    await load(page)
+    await node(page, 'gold').click()
+    await hexBox(page).click()
+    await hexBox(page).fill('#333333')
+    const undo = await undoLength(page)
+    await node(page, 'sink').click({ modifiers: ['Shift'] })
+    await expect.poll(() => selectedNode(page)).toBe('sink')
+    // the path itself: the selection changed while the field kept the focus
+    expect(await hexHasFocus(page)).toBe(true)
+    // right after the selection change
+    await expect(hexBox(page)).toHaveValue('')
+    expect(await accentOf(page, 'nodes', 'sink')).toBeNull()
+    expect(await accentOf(page, 'nodes', 'gold')).toBeNull()
+    // then the field is left
+    await page.keyboard.press('Tab')
+    expect(await hexHasFocus(page)).toBe(false)
+    expect(await accentOf(page, 'nodes', 'sink')).toBeNull()
+    expect(await accentOf(page, 'nodes', 'gold')).toBeNull()
+    expect(await undoLength(page)).toBe(undo)
+  })
+
+  test('store-driven defensive test: a selection change that keeps the focus writes nothing on Enter or on leaving the field', async ({ page }) => {
+    await load(page)
+    await node(page, 'gold').click()
+    await hexBox(page).click()
+    await hexBox(page).fill('#123456')
+    const undo = await undoLength(page)
+    await storeSelect(page, 'sink')
+    await expect.poll(() => selectedNode(page)).toBe('sink')
+    expect(await hexHasFocus(page)).toBe(true)
+    await expect(hexBox(page)).toHaveValue('')
+    await hexBox(page).press('Enter')
+    expect(await accentOf(page, 'nodes', 'sink')).toBeNull()
+    await page.keyboard.press('Tab')
+    expect(await accentOf(page, 'nodes', 'sink')).toBeNull()
+    expect(await accentOf(page, 'nodes', 'gold')).toBeNull()
+    expect(await undoLength(page)).toBe(undo)
+  })
+
+  test('controls: a confirmed colour is written; a canvas click leaves the field first, so the draft goes to the node it was typed for', async ({ page }) => {
+    await load(page)
+    await node(page, 'gold').click()
+    const undo = await undoLength(page)
+    await hexBox(page).fill('#123456')
+    await hexBox(page).press('Enter')
+    expect(await accentOf(page, 'nodes', 'gold')).toBe('#123456')
+    expect(await undoLength(page)).toBe(undo + 1)
+
+    await hexBox(page).fill('#654321') // not confirmed
+    await node(page, 'sink').click()
+    await expect.poll(() => selectedNode(page)).toBe('sink')
+    expect(await accentOf(page, 'nodes', 'gold')).toBe('#654321')
+    expect(await accentOf(page, 'nodes', 'sink')).toBeNull()
+    await expect(hexBox(page)).toHaveValue('')
+  })
+})
