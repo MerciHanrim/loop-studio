@@ -278,7 +278,18 @@ const ui = {
   'revision.export.noSecureRandom':
     '這個瀏覽器沒有安全的隨機來源，因此無法建立修訂 ID。沒有匯出任何內容。',
   'revision.export.unknownKind': '這張圖包含 Loop Studio 不認得的節點。節點 {node} 的類型為 {kind}。沒有匯出任何內容。請刪除或替換該節點後再試。',
-  'revision.export.invalidContent': '這張圖包含無法匯出的內容，例如非有限的數字。沒有匯出任何內容。',
+  'revision.export.invalidContent': '這張圖包含無法讀取的內容，因此沒有匯出任何內容。',
+  'revision.export.refused': '{problem}沒有匯出任何內容。請修正或刪除後再試。',
+  'content.problem.nonFiniteNodeInitial': '節點 {node} 的初始數量不是有限數字。',
+  'content.problem.nonFiniteNodeCapacity': '節點 {node} 的容量不是有限數字。',
+  'content.problem.nonFiniteNodePosition': '節點 {node} 的位置不是有限數字。',
+  'content.problem.nonFiniteEdgeDelay': '連線 {edge} 的延遲不是有限數字。',
+  'content.problem.nonFiniteEdgeWaypoint': '連線 {edge} 的拐點位置不是有限數字。',
+  'content.problem.nonFiniteFrame': '群組 {frame} 的位置或大小不是有限數字。',
+  'content.problem.nonFiniteRow': '匯入的列 {row} 中有非有限的數字。',
+  'content.problem.unreadableNode': '無法讀取節點 {node}（{kind}）。',
+  'content.problem.modelNodeInV1': '節點 {node} 是 {kind} 節點，版本 1 的文件不能包含這類節點。',
+  'content.problem.unknownKind': '節點 {node} 的類型為 {kind}，Loop Studio 不認得這個類型。',
   'revision.export.tooLarge':
     '這張圖太大，無法匯出為專案修訂（{size}，上限 {cap}）。請改用「檔案 → Graph JSON」。',
   'proposal.needProject':

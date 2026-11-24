@@ -304,7 +304,18 @@ const ui = {
   'revision.export.noSecureRandom':
     'เบราว์เซอร์นี้ไม่มีแหล่งสุ่มที่ปลอดภัย จึงสร้างรหัสรุ่นไม่ได้ ไม่มีอะไรถูกส่งออก',
   'revision.export.unknownKind': 'ไดอะแกรมนี้มีโหนดที่ Loop Studio ไม่รู้จัก โหนด {node} มีชนิด {kind} ไม่มีอะไรถูกส่งออก ลบหรือแทนที่โหนดนั้นแล้วลองอีกครั้ง',
-  'revision.export.invalidContent': 'ไดอะแกรมนี้มีเนื้อหาที่ส่งออกไม่ได้ เช่น ตัวเลขที่ไม่ใช่จำนวนจำกัด ไม่มีอะไรถูกส่งออก',
+  'revision.export.invalidContent': 'ไดอะแกรมนี้มีเนื้อหาที่อ่านไม่ได้ จึงไม่มีอะไรถูกส่งออก',
+  'revision.export.refused': '{problem} ไม่มีอะไรถูกส่งออก แก้ไขหรือลบส่วนนั้นแล้วลองอีกครั้ง',
+  'content.problem.nonFiniteNodeInitial': 'โหนด {node} มีปริมาณเริ่มต้นที่ไม่ใช่จำนวนจำกัด',
+  'content.problem.nonFiniteNodeCapacity': 'โหนด {node} มีความจุที่ไม่ใช่จำนวนจำกัด',
+  'content.problem.nonFiniteNodePosition': 'โหนด {node} มีตำแหน่งที่ไม่ใช่จำนวนจำกัด',
+  'content.problem.nonFiniteEdgeDelay': 'เส้นเชื่อม {edge} มีการหน่วงเวลาที่ไม่ใช่จำนวนจำกัด',
+  'content.problem.nonFiniteEdgeWaypoint': 'เส้นเชื่อม {edge} มีจุดหักมุมที่ตำแหน่งไม่ใช่จำนวนจำกัด',
+  'content.problem.nonFiniteFrame': 'กลุ่ม {frame} มีตำแหน่งหรือขนาดที่ไม่ใช่จำนวนจำกัด',
+  'content.problem.nonFiniteRow': 'แถวที่นำเข้า {row} มีตัวเลขที่ไม่ใช่จำนวนจำกัด',
+  'content.problem.unreadableNode': 'อ่านโหนด {node} ({kind}) ไม่ได้',
+  'content.problem.modelNodeInV1': 'โหนด {node} เป็นโหนดชนิด {kind} ซึ่งเอกสารเวอร์ชัน 1 ไม่สามารถมีได้',
+  'content.problem.unknownKind': 'โหนด {node} มีชนิด {kind} ซึ่ง Loop Studio ไม่รู้จัก',
   'revision.export.tooLarge':
     'ไดอะแกรมนี้ใหญ่เกินกว่าจะส่งออกเป็นรุ่นของโปรเจกต์ ({size} ขีดจำกัด {cap}) ใช้ ไฟล์ → Graph JSON แทน',
   'proposal.needProject':

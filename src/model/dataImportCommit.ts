@@ -388,7 +388,9 @@ export function buildImportCommit(
   })
 
   const check = validateResultGraph([...host.nodes, ...createdNodes], host.edges)
-  if (!check.ok) return { ok: false, reason: 'invalid-result-graph', detail: { reasons: check.reasons } }
+  // #619 follow-up — the imported Parameters are checked before this point, so a
+  // refusal here comes from the OPEN diagram; `problem` lets the wizard name it
+  if (!check.ok) return { ok: false, reason: 'invalid-result-graph', detail: { reasons: check.reasons, problem: check.problem } }
 
   const tables: ImportSourceTable[] = plan.tables.map((t) => ({
     sourceTableId: t.sourceTableId,

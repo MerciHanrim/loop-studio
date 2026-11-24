@@ -1321,6 +1321,17 @@ Parameters of their own (`Items`, `Banners`) are still part of this same
 atomic step, since their data feeds FK enrichment (§DI8) from the moment of
 import onward.
 
+The commit refuses, and adds nothing, when the result cannot be read as a
+whole graph (`validateResultGraph`, the check a revision Apply also uses).
+The tables are validated before that point, so such a refusal comes from the
+**open diagram**, not from the table being imported, and the wizard says so
+(#619 follow-up): it names the node or element and what is wrong with it, by
+its name or its id when the name is empty, with the same sentence the
+revision export uses (docs/specs/SEMANTICS-R.md §R4.1), then that nothing was
+imported and that it is to be corrected in the diagram. A problem with nothing
+to name (an edge or position problem, an internal check) gets a general line
+that still points at the open diagram and guesses no cause.
+
 ### DI-D11 — a table with 2+ foreign keys requires an explicit "group by" pick (new this round)
 
 No silent default when a table like `GachaPoolEntries` has more than one FK

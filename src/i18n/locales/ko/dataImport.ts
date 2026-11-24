@@ -142,7 +142,8 @@ const dataImport = {
   'import.commitError.frame-placement-failed': '"{table}" 프레임을 배치할 공간을 찾지 못했습니다.',
   'import.commitError.frame-not-found': '선택한 프레임이 더 이상 존재하지 않습니다.',
   'import.commitError.frame-insufficient-space': '"{frame}"에 여유 공간이 충분하지 않습니다.',
-  'import.commitError.invalid-result-graph': '결과 그래프가 유효하지 않습니다 — 지원팀에 문의하세요.',
+  'import.commitError.invalid-result-graph': '열려 있는 다이어그램에 읽을 수 없는 내용이 있어 아무것도 가져오지 않았습니다. 가져오려는 표 때문이 아닙니다.',
+  'import.commitError.openDiagram': '{problem} 가져오려는 표가 아니라 열려 있는 다이어그램의 문제입니다. 아무것도 가져오지 않았습니다. 다이어그램에서 고치거나 지운 뒤 다시 시도하세요.',
 
   'import.menu.import': '스프레드시트 값을 파라미터로 가져오기…',
   'import.menu.timetable': '새 시간표…',

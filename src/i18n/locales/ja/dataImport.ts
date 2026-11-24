@@ -142,7 +142,8 @@ const dataImport = {
   'import.commitError.frame-placement-failed': '「{table}」のフレームを配置する空きが見つかりませんでした。',
   'import.commitError.frame-not-found': '選択したフレームはもう存在しません。',
   'import.commitError.frame-insufficient-space': '「{frame}」に十分な空きがありません。',
-  'import.commitError.invalid-result-graph': '生成されたグラフが無効です — サポートにお問い合わせください。',
+  'import.commitError.invalid-result-graph': '開いている図に読み取れない内容があるため、何も読み込まれていません。読み込もうとしている表は原因ではありません。',
+  'import.commitError.openDiagram': '{problem}これは読み込もうとしている表ではなく、開いている図の問題です。何も読み込まれていません。図の中で修正するか削除してから、もう一度お試しください。',
 
   'import.menu.import': '表計算の値をパラメータとして読み込む…',
   'import.menu.timetable': '新しいタイムテーブル…',

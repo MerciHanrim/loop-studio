@@ -30,6 +30,8 @@ import { useGraphStore } from '../../store/graphStore'
 import { useUiStore } from '../../store/uiStore'
 import { REPO_URL } from '../AboutDialog'
 import { downloadCsv } from '../../ui/download'
+import { contentProblemSentence } from '../../ui/contentProblemText'
+import type { ContentProblem } from '../../model/revision'
 import { canvasFitInsets, viewportForRect } from '../canvasFit'
 import { useDialogFocus } from '../useDialogFocus'
 import { useQuickStartStore } from './quickStartStore'
@@ -278,6 +280,13 @@ export function DataImportWizard({
   const commitErrorFrameName = (detail: Record<string, unknown> | undefined): string => {
     const f = frames.find((x) => x.id === detail?.frameId)
     return f ? frameName(f) : String(detail?.frame ?? '')
+  }
+  // #619 follow-up — a refused result comes from the OPEN diagram (the table is
+  // checked before): name its node and the problem, as the revision export does;
+  // a problem with nothing to name keeps the general text
+  const openDiagramProblemText = (detail: Record<string, unknown> | undefined): string => {
+    const problem = detail?.problem ? contentProblemSentence(detail.problem as ContentProblem) : null
+    return problem ? t('import.commitError.openDiagram', { problem }) : t('import.commitError.invalid-result-graph')
   }
   const commitDataImport = useGraphStore((s) => s.commitDataImport)
 
@@ -1059,10 +1068,12 @@ export function DataImportWizard({
                       the frame's) are the user's own, so they are isolated here; the
                       detail object used to be passed through whole, which no argument
                       checker could read */}
-                  {t(COMMIT_ERROR_KEY[commitError.code], {
-                    table: isolateAuto(String(commitError.detail?.table ?? '')),
-                    frame: isolateAuto(commitErrorFrameName(commitError.detail)),
-                  })}
+                  {commitError.code === 'invalid-result-graph'
+                    ? openDiagramProblemText(commitError.detail)
+                    : t(COMMIT_ERROR_KEY[commitError.code], {
+                        table: isolateAuto(String(commitError.detail?.table ?? '')),
+                        frame: isolateAuto(commitErrorFrameName(commitError.detail)),
+                      })}
                 </p>
               )}
             </div>

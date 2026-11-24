@@ -1,6 +1,7 @@
 import {
   canonicalContent,
   computeRevisionDiff,
+  contentProblemOf,
   InvalidRevisionContentError,
   type RevisionDiff,
   SecureRandomUnavailableError,
@@ -12,6 +13,7 @@ import {
   proposedGraph,
   type PendingProposal,
 } from '../store/revisionIO'
+import { contentProblemSentence } from './contentProblemText'
 import { downloadText } from './download'
 import { t } from '../i18n'
 
@@ -40,7 +42,10 @@ function planFailureMessage(e: unknown): string {
     if (e.node) {
       return t('revision.export.unknownKind', { node: isolateAuto(e.node.label || e.node.id), kind: isolateAuto(e.node.kind) })
     }
-    return t('revision.export.invalidContent')
+    // #619 follow-up — the node or element and what is wrong with it, as the
+    // data import says it; an internal check names nothing and stays general
+    const problem = contentProblemSentence(contentProblemOf(e))
+    return problem ? t('revision.export.refused', { problem }) : t('revision.export.invalidContent')
   }
   throw e
 }

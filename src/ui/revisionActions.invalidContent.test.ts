@@ -112,6 +112,17 @@ describe('Export ▸ Project revision', () => {
     expect(exportProjectRevision()).toEqual({ ok: false, message: unknownKindText('u', 'blob') })
   })
 
+  it('#619 follow-up — a non-finite starting amount: refused with the node and the field named, nothing downloaded', () => {
+    const id = useGraphStore.getState().nodes[0].id
+    useGraphStore.getState().updateNodeData(id, { label: 'Tank' })
+    useGraphStore.setState({ nodes: useGraphStore.getState().nodes.map((n) => (n.id === id ? ({ ...n, data: { ...n.data, initial: Infinity } } as LoopNode) : n)) }, false)
+    expect(exportProjectRevision()).toEqual({
+      ok: false,
+      message: t('revision.export.refused', { problem: t('content.problem.nonFiniteNodeInitial', { node: isolateAuto('Tank') }) }),
+    })
+    expect(download).not.toHaveBeenCalled()
+  })
+
   it('each cause keeps its own text; anything else is not a refusal and still throws', () => {
     const plan = vi.spyOn(useProjectStore.getState(), 'planRevision')
     plan.mockImplementationOnce(() => {
@@ -155,7 +166,11 @@ describe('Export ▸ Make a proposal', () => {
     // the same text answers Export ▸ Project revision AND Make a proposal, so it
     // must not say "Project revision"; and a non-finite number would not survive
     // Graph JSON either (JSON writes it as `null`), so no text offers that way
-    for (const text of [unknownKindText('Wonder', 'widget'), t('revision.export.invalidContent')]) {
+    for (const text of [
+      unknownKindText('Wonder', 'widget'),
+      t('revision.export.invalidContent'),
+      t('revision.export.refused', { problem: t('content.problem.nonFiniteNodeInitial', { node: isolateAuto('Tank') }) }),
+    ]) {
       expect(text).not.toMatch(/Project revision|proposal/i)
       expect(text).not.toMatch(/Graph JSON/)
     }

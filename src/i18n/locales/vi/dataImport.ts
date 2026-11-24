@@ -156,7 +156,8 @@ const dataImport = {
   'import.commitError.frame-placement-failed': 'Không tìm được chỗ cho nhóm của "{table}".',
   'import.commitError.frame-not-found': 'Nhóm đã chọn không còn tồn tại.',
   'import.commitError.frame-insufficient-space': 'Không đủ chỗ trống trong "{frame}".',
-  'import.commitError.invalid-result-graph': 'Đồ thị tạo ra không hợp lệ — vui lòng liên hệ hỗ trợ.',
+  'import.commitError.invalid-result-graph': 'Sơ đồ đang mở có nội dung không đọc được, nên chưa nhập gì cả. Bảng bạn đang nhập không phải là nguyên nhân.',
+  'import.commitError.openDiagram': '{problem} Vấn đề nằm trong sơ đồ đang mở, không phải trong bảng bạn đang nhập. Chưa nhập gì cả. Hãy sửa hoặc bỏ phần đó trong sơ đồ rồi thử lại.',
 
   'import.menu.import': 'Nhập giá trị bảng tính thành Tham số…',
   'import.menu.timetable': 'Bảng thời gian mới…',
