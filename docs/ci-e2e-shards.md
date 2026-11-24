@@ -35,7 +35,7 @@ Refreshed and grown to **eight** shards on 2026-10-30 (issue #394). The weights 
 
 ## Keeping the weights current
 
-Every shard job uploads its JSON report (`test-results/e2e-report.json`) as the artifact `e2e-report-shard-<i>`, kept for two weeks. To add a run as a sample:
+Every shard job uploads its JSON report (`test-results/e2e-report.json`) as the artifact `e2e-report-shard-<i>`, kept for two weeks. Since 2026-11-25 a push to `main` whose tree already passed on its pull request skips the shards (docs/ci-main-e2e.md), so take the samples from pull request runs, the daily run on `main`, or a `main` push that ran them. To add a run as a sample:
 
 ```bash
 gh run download <run id> -p 'e2e-report-shard-*' -D reports

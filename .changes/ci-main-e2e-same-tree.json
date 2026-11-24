@@ -1,0 +1,1 @@
+{"type":"internal","reason":"CI only: a push to main runs checks always and skips the e2e jobs only when the merge commit holds the tree of a pull request head whose required checks passed; a daily and a manual full run are added. Nothing a build reads or ships changes."}
