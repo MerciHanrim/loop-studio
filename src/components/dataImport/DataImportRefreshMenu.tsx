@@ -38,6 +38,18 @@ export function DataImportRefreshMenu({
   const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({})
   const [renameError, setRenameError] = useState<Record<string, 'empty-table-name' | 'label-too-long'>>({})
   const [csvBlocked, setCsvBlocked] = useState(false)
+  // #615 item 4 — the dialog stays mounted while closed, so a rename draft (and
+  // its error) left by Escape, Cancel or a press outside used to show again on
+  // the next open, for the next Cancel to save. Closing discards them; leaving
+  // the field is what saves a rename.
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (!open) {
+      setRenameDrafts({})
+      setRenameError({})
+    }
+  }
 
   // Only ONE modal is ever active at a time: while the refresh wizard is
   // open, THIS dialog's own focus trap / Escape handler must detach --
@@ -133,7 +145,9 @@ export function DataImportRefreshMenu({
           {csvBlocked && <p className="import__error">{t('import.refresh.exportBlockedDuplicate')}</p>}
         </div>
         <div className="mcdlg__foot">
-          <button type="button" className="btn" onClick={onClose}>
+          {/* #615 item 4 — a press on Cancel does not take the focus first: that
+              blur saved the name field's draft, so Cancel renamed the table */}
+          <button type="button" className="btn" onMouseDown={(e) => e.preventDefault()} onClick={onClose}>
             {t('dialog.cancel')}
           </button>
         </div>
