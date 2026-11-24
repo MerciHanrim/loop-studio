@@ -59,6 +59,15 @@ export function DraftNumberInput({
     return r.kind === 'blank' ? !allowEmpty && !commitOnConfirm : r.kind === 'invalid'
   }
   const draftInvalid = draft !== null && isInvalid(draft, badInput)
+  /** one edit of the text; `noCommit` when a blank would only set what is already stored */
+  const edit = (text: string, bad: boolean, noCommit = false) => {
+    setDraft(text)
+    setBadInput(bad)
+    const invalid = isInvalid(text, bad)
+    onInvalidChange?.(invalid)
+    if (invalid || commitOnConfirm || noCommit) return
+    onCommit(text === '' ? null : Number(text))
+  }
   /** end the edit: under `commitOnConfirm` a valid number is set now */
   const confirm = () => {
     if (commitOnConfirm && draft !== null) {
@@ -80,15 +89,19 @@ export function DraftNumberInput({
         rest.onKeyDown?.(e)
         if (commitOnConfirm && e.key === 'Enter' && !e.defaultPrevented) confirm()
       }}
-      onChange={(e) => {
-        const text = e.target.value
-        const bad = e.target.validity?.badInput === true
-        setDraft(text)
-        setBadInput(bad)
-        const invalid = isInvalid(text, bad)
-        onInvalidChange?.(invalid)
-        if (invalid || commitOnConfirm) return
-        onCommit(text === '' ? null : Number(text))
+      onChange={(e) => edit(e.target.value, e.target.validity?.badInput === true)}
+      onInput={(e) => {
+        // #615 — `-` typed into an EMPTY field: the input reports '' before and
+        // after, so React's onChange (which fires only when the value changes)
+        // never runs, and the field was not marked. The native `input` event
+        // still comes, with `validity.badInput` set; so does the Backspace that
+        // takes the `-` away again. Handled here only while the field shows ''
+        // (whenever it shows anything else, onChange runs for the same event).
+        const el = e.currentTarget
+        if (shown !== '' || el.value !== '') return
+        const bad = el.validity?.badInput === true
+        if (bad === badInput) return
+        edit('', bad, value === null)
       }}
       onBlur={confirm}
     />

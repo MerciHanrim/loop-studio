@@ -46,6 +46,7 @@ const inspector = {
   'inspector.pool.smallMoves.net': '整個步驟的淨變化：{amount}',
   'inspector.field.capacity': '容量（留空表示不限）',
   'inspector.number.nonNegativeHint': '請輸入 0 或更大的數字。',
+  'inspector.number.finiteHint': '請輸入有限的數字。',
   'inspector.field.flowMode': '流動方式',
   'inspector.field.distribution': '分配方式',
   'inspector.field.value': '數值',

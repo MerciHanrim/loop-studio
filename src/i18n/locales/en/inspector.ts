@@ -38,6 +38,7 @@ const inspector = {
   'inspector.pool.smallMoves.net': 'Net change over the whole step: {amount}',
   'inspector.field.capacity': 'Capacity (blank = unlimited)',
   'inspector.number.nonNegativeHint': 'Enter a number that is 0 or greater.',
+  'inspector.number.finiteHint': 'Enter a finite number.',
   'inspector.field.flowMode': 'Flow mode',
   'inspector.field.distribution': 'Distribution',
   'inspector.field.value': 'Value',

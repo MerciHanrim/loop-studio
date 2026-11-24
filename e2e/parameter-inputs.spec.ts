@@ -55,7 +55,8 @@ test.describe('Parameter value field — draft until a finite number (#393 A)', 
       return n.id as string
     })
     const stored = () => page.evaluate((nid) => (window as any).__loop.graph.getState().nodes.find((n: any) => n.id === nid).data.value, id)
-    const field = page.locator('.rightcol').getByLabel('Value', { exact: true })
+    // while the draft is not a number the field's hint joins its name (#615 follow-up)
+    const field = page.locator('.rightcol').getByRole('spinbutton', { name: /^Value( Enter a finite number\.)?$/ })
     await expect(field).toBeVisible()
 
     await field.click()

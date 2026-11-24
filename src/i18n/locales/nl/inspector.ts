@@ -42,6 +42,7 @@ const inspector = {
   'inspector.pool.smallMoves.net': 'Nettoverandering over de hele stap: {amount}',
   'inspector.field.capacity': 'Capaciteit (leeg = onbeperkt)',
   'inspector.number.nonNegativeHint': 'Voer een getal in dat 0 of groter is.',
+  'inspector.number.finiteHint': 'Voer een eindig getal in.',
   'inspector.field.flowMode': 'Stroommodus',
   'inspector.field.distribution': 'Verdeling',
   'inspector.field.value': 'Waarde',

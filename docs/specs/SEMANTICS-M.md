@@ -112,6 +112,16 @@ stored value**. A field dropped at read time does **not** appear in the
 projection (so it also does not appear in a diff). See §M8.1a for the exact
 field lists.
 
+**Editing in the Inspector** (#615). `value`, `min`, `max` and `step` are
+number fields that store only a finite number; `min`, `max` and `step` also
+take a blank, which removes the hint, and a blank `value` is not stored. While
+what is typed is not a finite number (a half-typed `-` or `1e`, an overflow such
+as `1e400`, or a blank `value`), nothing is stored and the field is marked
+invalid with the hint "Enter a finite number." under it; a number, an allowed
+blank, or leaving the field (which shows the stored value again) clears it.
+The coherence rules above (`min ≤ max`, `step > 0`) are read from the stored
+fields and keep their own notices; this hint is only about the text typed.
+
 ### M1.3 Ports & forward-compat
 
 A Parameter has **no ports** and cannot be an edge endpoint. It participates

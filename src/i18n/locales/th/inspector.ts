@@ -49,6 +49,7 @@ const inspector = {
   'inspector.pool.smallMoves.net': 'การเปลี่ยนแปลงสุทธิตลอดทั้งสเต็ป: {amount}',
   'inspector.field.capacity': 'ความจุ (เว้นว่าง = ไม่จำกัด)',
   'inspector.number.nonNegativeHint': 'ใส่ตัวเลขที่เป็น 0 หรือมากกว่า',
+  'inspector.number.finiteHint': 'ใส่ตัวเลขที่มีค่าจำกัด',
   'inspector.field.flowMode': 'โหมดการไหล',
   'inspector.field.distribution': 'การกระจาย',
   'inspector.field.value': 'ค่า',

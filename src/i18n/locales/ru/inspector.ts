@@ -53,6 +53,7 @@ const inspector = {
   'inspector.pool.smallMoves.net': 'Чистое изменение за весь шаг: {amount}',
   'inspector.field.capacity': 'Ёмкость (пусто = без ограничения)',
   'inspector.number.nonNegativeHint': 'Введите число 0 или больше.',
+  'inspector.number.finiteHint': 'Введите конечное число.',
   'inspector.field.flowMode': 'Режим потока',
   'inspector.field.distribution': 'Распределение',
   'inspector.field.value': 'Значение',

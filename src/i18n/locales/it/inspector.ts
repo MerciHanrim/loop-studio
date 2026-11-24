@@ -57,6 +57,7 @@ const inspector = {
   'inspector.pool.smallMoves.net': 'Variazione netta sull’intero passo: {amount}',
   'inspector.field.capacity': 'Capacità (vuoto = illimitata)',
   'inspector.number.nonNegativeHint': 'Inserisci un numero maggiore o uguale a 0.',
+  'inspector.number.finiteHint': 'Inserisci un numero finito.',
   'inspector.field.flowMode': 'Modalità di flusso',
   'inspector.field.distribution': 'Distribuzione',
   'inspector.field.value': 'Valore',

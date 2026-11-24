@@ -48,6 +48,7 @@ const inspector = {
   'inspector.pool.smallMoves.net': 'Thay đổi ròng trong cả bước: {amount}',
   'inspector.field.capacity': 'Sức chứa (để trống = không giới hạn)',
   'inspector.number.nonNegativeHint': 'Nhập một số từ 0 trở lên.',
+  'inspector.number.finiteHint': 'Nhập một số hữu hạn.',
   'inspector.field.flowMode': 'Chế độ dòng chảy',
   'inspector.field.distribution': 'Cách phân phối',
   'inspector.field.value': 'Giá trị',

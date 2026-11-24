@@ -65,6 +65,7 @@ const inspector = {
   'inspector.pool.smallMoves.net': 'صافي التغيّر على مدى الخطوة كلها: {amount}',
   'inspector.field.capacity': 'السعة (فارغ = بلا حد)',
   'inspector.number.nonNegativeHint': 'أدخل رقمًا يساوي 0 أو أكبر.',
+  'inspector.number.finiteHint': 'أدخل رقمًا محدودًا.',
   'inspector.field.flowMode': 'وضع التدفّق',
   'inspector.field.distribution': 'التوزيع',
   'inspector.field.value': 'القيمة',

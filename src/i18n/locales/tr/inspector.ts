@@ -44,6 +44,7 @@ const inspector = {
   'inspector.pool.smallMoves.net': 'Adımın tamamındaki net değişim: {amount}',
   'inspector.field.capacity': 'Kapasite (boş = sınırsız)',
   'inspector.number.nonNegativeHint': '0 ya da daha büyük bir sayı girin.',
+  'inspector.number.finiteHint': 'Sonlu bir sayı girin.',
   'inspector.field.flowMode': 'Akış kipi',
   'inspector.field.distribution': 'Dağılım',
   'inspector.field.value': 'Değer',
