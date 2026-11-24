@@ -11,7 +11,10 @@ import { readDraft } from '../ui/draftNumber'
  * keystroke snapped a Parameter's value to 0 as soon as a minus was typed and
  * lost the sign (issue #393 A). The draft is dropped on blur, snapping the
  * field back to whatever is stored. `allowEmpty` commits `null` for a blank
- * field.
+ * field — a real blank only: a half-typed `-` or `1e`, which the input also
+ * reports as `''`, is told apart by `validity.badInput` and commits nothing
+ * (#615 item 2; before, typing a minus in a Pool's capacity set it to
+ * unlimited).
  *
  * `commitOnConfirm` (#422, Lumi 2026-11-01 — Seed, Runs, Steps, Base seed):
  * typing changes the draft only; a valid number is committed when the edit is
@@ -44,13 +47,18 @@ export function DraftNumberInput({
   onInvalidChange?: (invalid: boolean) => void
 } & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'onBlur' | 'type'>) {
   const [draft, setDraft] = useState<string | null>(null)
+  // #615 item 2 — a number input reports a half-typed number (`-`, `1e`) as the
+  // empty value, the same as a blank; `validity.badInput` tells them apart. Such
+  // an "empty" is an edit in progress: never committed as a blank, and invalid.
+  const [badInput, setBadInput] = useState(false)
   const shown = draft ?? (value == null ? '' : String(value))
-  const isInvalid = (text: string) => {
+  const isInvalid = (text: string, bad = false) => {
+    if (text === '' && bad) return true
     const r = readDraft(text, valid)
     // a blank that commits nothing is an edit in progress, not an error
     return r.kind === 'blank' ? !allowEmpty && !commitOnConfirm : r.kind === 'invalid'
   }
-  const draftInvalid = draft !== null && isInvalid(draft)
+  const draftInvalid = draft !== null && isInvalid(draft, badInput)
   /** end the edit: under `commitOnConfirm` a valid number is set now */
   const confirm = () => {
     if (commitOnConfirm && draft !== null) {
@@ -58,6 +66,7 @@ export function DraftNumberInput({
       if (r.kind === 'value' && r.n !== value) onCommit(r.n)
     }
     setDraft(null)
+    setBadInput(false)
     onInvalidChange?.(false)
   }
   return (
@@ -73,8 +82,10 @@ export function DraftNumberInput({
       }}
       onChange={(e) => {
         const text = e.target.value
+        const bad = e.target.validity?.badInput === true
         setDraft(text)
-        const invalid = isInvalid(text)
+        setBadInput(bad)
+        const invalid = isInvalid(text, bad)
         onInvalidChange?.(invalid)
         if (invalid || commitOnConfirm) return
         onCommit(text === '' ? null : Number(text))
