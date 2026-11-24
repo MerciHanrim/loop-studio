@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import type { Locator, Page } from '@playwright/test'
 import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from './support/loop'
 import { openMonteCarloDialog, openRunSettings } from './support/workbenchMenus'
@@ -116,5 +117,104 @@ test.describe('a number field sets its value on Enter or blur; a blank sets noth
     await fields.nth(2).fill('-3')
     await fields.nth(2).press('Enter')
     expect((await mc(page)).baseSeed).toBe(0)
+  })
+})
+
+// #615 item 2 — a field that allows a blank (Pool capacity: blank = unlimited;
+// a Parameter's Min, Max and Step) stores its value as you type. A number input
+// reports a half-typed `-` or `1e` as an empty value, the same as a blank, so
+// typing a minus cleared the capacity to unlimited, saved it and reset the run,
+// and it stayed so when `-5` was refused. The browser tells them apart
+// (`validity.badInput`, measured true for `-` and `1e`, false for a real blank):
+// a half-typed number is now an edit in progress — nothing stored, the hint
+// shown, the stored value shown again on leaving. A real blank still clears.
+test.describe('a half-typed number in a field that allows a blank is not stored as a blank (#615 item 2)', () => {
+  type G = { __loop: { graph: { getState: () => any; setState: (s: unknown) => void }; autosave: { flush: () => void } } }
+  const field = (page: Page, label: string) => page.getByLabel(label, { exact: true })
+
+  async function scene(page: Page): Promise<string> {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, readFileSync(new URL('../examples/state-verification.json', import.meta.url), 'utf8'))
+    await page.evaluate(() => (window as unknown as G).__loop.graph.getState().addNodeAt('parameter', { x: 900, y: 600 }))
+    return page.evaluate(() => (window as unknown as G).__loop.graph.getState().nodes.at(-1).id as string)
+  }
+  /** the stored value, what the autosave wrote, and the run's step */
+  const state = (page: Page, node: string, key: string) =>
+    page.evaluate(
+      ({ node, key }) => {
+        const l = (window as unknown as G).__loop
+        l.autosave.flush()
+        const d = l.graph.getState().nodes.find((n: { id: string }) => n.id === node).data
+        const rec = JSON.parse(localStorage.getItem('loop-studio:graph:v1') ?? 'null')
+        const saved = rec?.nodes?.find((n: { id: string }) => n.id === node)?.data
+        return { stored: d[key] ?? null, saved: saved?.[key] ?? null, step: (window as unknown as { __loop: { sim: { getState: () => { stepIndex: number } } } }).__loop.sim.getState().stepIndex }
+      },
+      { node, key },
+    )
+  const select = (page: Page, id: string) => page.evaluate((id) => (window as unknown as G).__loop.graph.setState({ selectedNodeId: id, selectedEdgeId: null }), id)
+
+  /** set `start`, take one step of the run, then type `keys` after select-all */
+  async function typeOver(page: Page, node: string, label: string, start: string, keys: string[]) {
+    await select(page, node)
+    const f = field(page, label)
+    await f.fill(start)
+    await f.press('Tab')
+    await stepOnce(page)
+    // the run's step just before typing (a repeated start value resets nothing)
+    const stepBefore = await page.evaluate(() => (window as unknown as { __loop: { sim: { getState: () => { stepIndex: number } } } }).__loop.sim.getState().stepIndex)
+    // held as an element: an invalid hint joins the field's accessible name
+    const el = (await f.elementHandle())!
+    await el.click()
+    await el.press('Control+a')
+    for (const k of keys) await el.press(k)
+    return { el, stepBefore }
+  }
+
+  const BLANK_ALLOWED = [
+    ['Pool capacity', 'buffer', 'Capacity (blank = unlimited)', 'capacity', '10'],
+    ['Parameter Min', 'PARAM', 'Min (advisory)', 'min', '2'],
+    ['Parameter Max', 'PARAM', 'Max (advisory)', 'max', '50'],
+    ['Parameter Step', 'PARAM', 'Step (advisory)', 'step', '5'],
+  ] as const
+
+  for (const [name, nodeKey, label, key, start] of BLANK_ALLOWED) {
+    test(`${name}: \`-\` and \`1e\` store nothing, keep the run, show the hint, and show the value again on leaving; a real blank still clears`, async ({ page }) => {
+      const pid = await scene(page)
+      const node = nodeKey === 'PARAM' ? pid : nodeKey
+      // `-`: nothing stored, the run kept. `1e`: the `1` on the way is a valid
+      // number and is stored as you type (as in every such field, the controls
+      // too); the `e` must not then clear it.
+      for (const [input, keys, value, runKept, shown] of [
+        ['-', ['Minus'], Number(start), true, start],
+        ['1e', ['1', 'e'], 1, false, '1'],
+      ] as const) {
+        const { el, stepBefore } = await typeOver(page, node, label, start, [...keys])
+        const kept = { stored: value, saved: value, step: runKept ? stepBefore : 0 }
+        expect.soft(await state(page, node, key), `${input}: typing`).toEqual(kept)
+        expect.soft(await el.getAttribute('aria-invalid'), `${input}: the field says it is not a number yet`).toBe('true')
+        // the capacity field has a visible hint (Min, Max and Step have none, for any input)
+        if (key === 'capacity') await expect.soft(page.getByText('Enter a number that is 0 or greater.'), `${input}: the hint`).toBeVisible()
+        await el.press('Tab')
+        expect.soft(await el.inputValue(), `${input}: on leaving, the stored value again`).toBe(shown)
+        expect(await state(page, node, key), `${input}: after leaving`).toEqual(kept)
+      }
+      // control: a real blank still clears (and, being a change, resets the run)
+      const { el } = await typeOver(page, node, label, start, ['Backspace'])
+      await el.press('Tab')
+      expect(await state(page, node, key)).toEqual({ stored: null, saved: null, step: 0 })
+    })
+  }
+
+  test('controls — Pool starting amount and Parameter value (no blank): `-` and a blank store nothing, as before', async ({ page }) => {
+    const pid = await scene(page)
+    for (const [node, label, key, start] of [['buffer', 'Starting amount', 'initial', '7'], [pid, 'Value', 'value', '4']] as const) {
+      for (const keys of [['Minus'], ['Backspace']]) {
+        const { el, stepBefore } = await typeOver(page, node, label, start, keys)
+        expect.soft(await state(page, node, key)).toEqual({ stored: Number(start), saved: Number(start), step: stepBefore })
+        await el.press('Tab')
+        expect(await el.inputValue()).toBe(start)
+      }
+    }
   })
 })
