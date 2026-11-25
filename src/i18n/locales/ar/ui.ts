@@ -358,7 +358,7 @@ const ui = {
   'mc.cost.measured': 'مقيس (آخر تشغيل)',
   'mc.cost.benchmark': 'قياس أداء محلي',
   'mc.cost.execution': 'التنفيذ',
-  'mc.cost.parallel': 'متوازٍ، {workers} عامل',
+  'mc.cost.parallel': 'عدد العمّال: {workers}',
   'mc.cost.localPause': 'محلي · قد يتوقّف لحظة',
   'mc.cost.local': 'محلي',
   'mc.cost.memory': 'الذاكرة',

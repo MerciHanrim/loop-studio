@@ -335,7 +335,7 @@ const ui = {
   'mc.cost.measured': '측정값(최근 실행)',
   'mc.cost.benchmark': '로컬 기준 성능',
   'mc.cost.execution': '실행 방식',
-  'mc.cost.parallel': '병렬 · 워커 {workers}개',
+  'mc.cost.parallel': '워커 {workers}개',
   'mc.cost.localPause': '로컬 · 잠깐 멈출 수 있음',
   'mc.cost.local': '로컬',
   'mc.cost.memory': '메모리',

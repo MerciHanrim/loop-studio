@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LoopEdge, LoopNode } from '../model/types'
 import { defaultWorkerCount, estimateMonteCarloCost, type RunConfig } from './index'
 
@@ -65,8 +65,44 @@ describe('estimateMonteCarloCost', () => {
     expect(measured.lowMs).toBeLessThan(200)
   })
 
-  it('a tiny run count uses the local (non-parallel) path', async () => {
+  it('without Workers (here: no DOM `Worker`) the path is local, whatever the run count', async () => {
     const e = await estimateMonteCarloCost(nodes, edges, { ...cfg, runs: 8 })
+    expect(e.path).toBe('local')
+  })
+})
+
+// #620 item 1 — the estimate described the local path below 32 runs while the
+// run (runMonteCarloParallel) used Workers whenever more than one was available:
+// at 16 runs the dialog said "Local" and the run created 4 Workers. The
+// estimate now takes the driver's rule, so the Execution line, the worker count
+// and the time band describe the path the run takes.
+describe('estimateMonteCarloCost follows the run’s own rule for Workers (#620 item 1)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('Worker', class {})
+    vi.stubGlobal('navigator', { hardwareConcurrency: 12 }) // defaultWorkerCount() = 4
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('below 32 runs, with Workers available, the path is parallel with the workers the run starts', async () => {
+    for (const [runs, workers] of [[16, 4], [3, 3], [2, 2], [64, 4]] as const) {
+      const e = await estimateMonteCarloCost(nodes, edges, { ...cfg, runs, steps: 10 })
+      expect(e.path, `runs ${runs}`).toBe('parallel')
+      expect(e.workers, `runs ${runs}`).toBe(workers)
+    }
+  })
+
+  it('one run is parallel too (the run starts one Worker), and its band assumes no speed-up', async () => {
+    const e = await estimateMonteCarloCost(nodes, edges, { ...cfg, runs: 1, steps: 10 }, { prior: { msPerRunStep: 1 } })
+    expect(e.path).toBe('parallel')
+    expect(e.workers).toBe(1)
+    // 1 run × 10 steps × 1 ms = 10 ms of work, one Worker: never under the work itself
+    expect(e.lowMs).toBeGreaterThanOrEqual(10 * 0.85)
+    expect(e.highMs).toBeGreaterThanOrEqual(e.lowMs)
+  })
+
+  it('one core (one worker at most): the run stays local, and so does the estimate', async () => {
+    vi.stubGlobal('navigator', { hardwareConcurrency: 1 })
+    const e = await estimateMonteCarloCost(nodes, edges, { ...cfg, runs: 64, steps: 10 })
     expect(e.path).toBe('local')
   })
 })

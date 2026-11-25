@@ -326,7 +326,7 @@ const ui = {
   'mc.cost.measured': '实测（上次运行）',
   'mc.cost.benchmark': '本地基准',
   'mc.cost.execution': '执行',
-  'mc.cost.parallel': '并行，{workers} 个工作线程',
+  'mc.cost.parallel': '工作线程数：{workers}',
   'mc.cost.localPause': '本地 · 可能短暂卡顿',
   'mc.cost.local': '本地',
   'mc.cost.memory': '内存',

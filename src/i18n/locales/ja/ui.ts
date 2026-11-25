@@ -333,7 +333,7 @@ const ui = {
   'mc.cost.measured': '実測（前回の実行）',
   'mc.cost.benchmark': 'ローカルベンチマーク',
   'mc.cost.execution': '実行',
-  'mc.cost.parallel': '並列、ワーカー {workers} 個',
+  'mc.cost.parallel': 'ワーカー数：{workers}',
   'mc.cost.localPause': 'ローカル · 一時的に停止することがあります',
   'mc.cost.local': 'ローカル',
   'mc.cost.memory': 'メモリー',

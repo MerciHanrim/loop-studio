@@ -329,7 +329,7 @@ const ui = {
   'mc.cost.measured': 'Gemeten (laatste run)',
   'mc.cost.benchmark': 'Lokale benchmark',
   'mc.cost.execution': 'Uitvoering',
-  'mc.cost.parallel': 'Parallel, {workers} workers',
+  'mc.cost.parallel': 'Workers: {workers}',
   'mc.cost.localPause': 'Lokaal · kan even haperen',
   'mc.cost.local': 'Lokaal',
   'mc.cost.memory': 'Geheugen',

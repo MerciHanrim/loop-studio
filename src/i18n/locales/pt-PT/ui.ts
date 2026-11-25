@@ -346,7 +346,7 @@ const ui = {
   'mc.cost.measured': 'Medido (última execução)',
   'mc.cost.benchmark': 'Referência local',
   'mc.cost.execution': 'Execução',
-  'mc.cost.parallel': 'Paralela, {workers} workers',
+  'mc.cost.parallel': 'Workers: {workers}',
   'mc.cost.localPause': 'Local · pode pausar brevemente',
   'mc.cost.local': 'Local',
   'mc.cost.memory': 'Memória',

@@ -184,7 +184,8 @@ const SURVIVING: ReadonlyArray<readonly [string, readonly string[]]> = [
     'parameter', 'parameters', 'project', 'document', 'model', 'label', 'labels',
     'focus', 'filters', 'type', 'route', 'diagram', 'object', 'offset', 'bytes',
     // `contact` left with #619 follow-up: the import's result refusal no longer says `neem contact op`
-    'repository', 'index', 'effect', 'conflict', 'parallel', 'plus', 'per',
+    // `parallel` left with #620 item 1: the Monte Carlo line now reads `Workers: {workers}`
+    'repository', 'index', 'effect', 'conflict', 'plus', 'per',
     'open', 'water', 'meter', 'moment', 'rest', 'via', 'violet', 'auto', 'zone', 'zones',
     'zoom', 'activator', 'later', 'site',
     // 2026-10 — the example notes and the workbench status bar
@@ -236,7 +237,7 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
   ['catalog inspector.field.route', 'Route'],
   // (`inspector.field.type`, `Type`, was removed in v0.29.0)
   ['catalog language.thai', 'Thai'],
-  ['catalog mc.cost.parallel', 'Parallel, {workers} workers'],
+  ['catalog mc.cost.parallel', 'Workers: {workers}'], // #620 item 1: the neutral count, the same in Dutch
   ['catalog mc.field.runs', 'runs'],
   ['catalog mc.title', 'Monte Carlo'],
   ['catalog node.default.parameter', 'Parameter'],

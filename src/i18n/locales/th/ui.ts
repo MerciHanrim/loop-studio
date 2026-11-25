@@ -369,7 +369,7 @@ const ui = {
   'mc.cost.measured': 'วัดจริง (การรันล่าสุด)',
   'mc.cost.benchmark': 'การวัดบนเครื่อง',
   'mc.cost.execution': 'การประมวลผล',
-  'mc.cost.parallel': 'ขนาน {workers} เธรด',
+  'mc.cost.parallel': 'จำนวนเธรด: {workers}',
   'mc.cost.localPause': 'บนเครื่อง · อาจหยุดชั่วครู่',
   'mc.cost.local': 'บนเครื่อง',
   'mc.cost.memory': 'หน่วยความจำ',
