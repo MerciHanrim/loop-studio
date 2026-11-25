@@ -507,6 +507,161 @@ test.describe('the grips: the side choice by click, tap or key (§ER18)', () => 
 
 })
 
+// #612 item 2 — a mouse press on a grip sets the drag state before React Flow knows whether a
+// drag begins; only a drag's end cleared it, and a click is no drag. The grips' Escape listener
+// (window, capture) then took the next Escape for that "drag" and stopped it. With the picker
+// open the picker still closed (its own listener on the same window runs too); with the picker
+// closed again, that Escape was all used up: it was meant to deselect the connection, and the
+// connection stayed selected (MEASURED on main 7a507219: after a click and the picker closed,
+// one Escape left the connection selected, a second deselected it; the keyboard way, one).
+test.describe('the grips: a click leaves no drag to cancel (#612 item 2)', () => {
+  const selected = (page: Page, id: string) =>
+    page.evaluate((eid) => !!(window as unknown as { __loop: L }).__loop.graph.getState().edges.find((x: { id: string; selected?: boolean }) => x.id === eid)?.selected, id)
+  const picker = (page: Page) => page.locator('.end-picker[data-end="target"]')
+  const current = (page: Page) => picker(page).locator('[aria-pressed="true"]')
+
+  test('a mouse click, the picker closed by its current side: the next Escape deselects the connection', async ({ page }) => {
+    await open(page)
+    await selectEdge(page, 'e_leave')
+    const before = await state(page, 'e_leave')
+    await grip(page, 'target').click()
+    await expect(current(page)).toBeVisible()
+    await current(page).click() // the side it is on: closes, nothing changed
+    await expect(picker(page)).toHaveCount(0)
+    expect(await state(page, 'e_leave')).toEqual(before)
+    expect(await selected(page, 'e_leave')).toBe(true)
+    await page.keyboard.press('Escape')
+    await expect.poll(() => selected(page, 'e_leave'), { message: 'one Escape deselects the connection' }).toBe(false)
+    await expect(grip(page, 'target')).toHaveCount(0)
+  })
+
+  test('control: with the picker open after a mouse click, Escape closes the picker first and the next deselects', async ({ page }) => {
+    await open(page)
+    await selectEdge(page, 'e_leave')
+    await grip(page, 'target').click()
+    await expect(picker(page)).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(picker(page)).toHaveCount(0)
+    await expect(grip(page, 'target')).toBeFocused()
+    expect(await selected(page, 'e_leave'), 'the picker took the first Escape').toBe(true)
+    await page.keyboard.press('Escape')
+    await expect.poll(() => selected(page, 'e_leave')).toBe(false)
+  })
+
+  // Lumi's review of #678: the release listener a press adds waits for a release that may never
+  // come. Each way a press can end without one must leave no drag state and no listener behind:
+  // the window losing focus (a release made in another window reaches the page as none of
+  // pointerup, mouseup and click), the page hidden, and the grip going away. The page's window
+  // listeners for those release events are counted from the start (an init script), so a
+  // listener left behind shows as a count above the one before the press.
+  async function countReleaseListeners(page: Page) {
+    await page.addInitScript(() => {
+      const TYPES = new Set(['mouseup', 'touchend', 'touchcancel'])
+      const live = new Set<unknown>()
+      const add = window.addEventListener.bind(window)
+      const remove = window.removeEventListener.bind(window)
+      const key = (type: string, fn: unknown, opts: unknown) => `${type}|${typeof opts === 'boolean' ? opts : !!(opts as { capture?: boolean } | undefined)?.capture}|${String(fn)}`
+      const ids = new WeakMap<object, number>()
+      let n = 0
+      const idOf = (fn: unknown) => {
+        if (typeof fn !== 'function') return 0
+        if (!ids.has(fn)) ids.set(fn, ++n)
+        return ids.get(fn)!
+      }
+      window.addEventListener = ((type: string, fn: EventListenerOrEventListenerObject, opts?: boolean | AddEventListenerOptions) => {
+        if (TYPES.has(type)) live.add(`${key(type, '', opts)}#${idOf(fn)}`)
+        return add(type, fn, opts)
+      }) as typeof window.addEventListener
+      window.removeEventListener = ((type: string, fn: EventListenerOrEventListenerObject, opts?: boolean | EventListenerOptions) => {
+        if (TYPES.has(type)) live.delete(`${key(type, '', opts)}#${idOf(fn)}`)
+        return remove(type, fn, opts)
+      }) as typeof window.removeEventListener
+      ;(window as unknown as { __releaseListeners: () => number }).__releaseListeners = () => live.size
+    })
+    return () => page.evaluate(() => (window as unknown as { __releaseListeners: () => number }).__releaseListeners())
+  }
+  const swallowNextRelease = (page: Page) =>
+    page.evaluate(() => {
+      for (const type of ['pointerup', 'mouseup', 'click']) {
+        const eat = (e: Event) => {
+          e.stopImmediatePropagation()
+          window.removeEventListener(type, eat, true)
+        }
+        window.addEventListener(type, eat, true)
+      }
+    })
+  const hidePage = (page: Page) =>
+    page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
+      document.dispatchEvent(new Event('visibilitychange'))
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' })
+    })
+
+  for (const how of ['blur', 'hidden'] as const) {
+    for (const dragged of [false, true]) {
+      test(`${how} while the grip is pressed${dragged ? ' and dragged' : ''}, the release elsewhere: no drag state or listener is left, nothing applied, and one Escape deselects`, async ({ page }) => {
+        const listeners = await countReleaseListeners(page)
+        await open(page)
+        await selectEdge(page, 'e_leave')
+        const before = await state(page, 'e_leave')
+        const base = await listeners()
+        const a = await centreOf(grip(page, 'target'))
+        await page.mouse.move(a.x, a.y)
+        await page.mouse.down()
+        if (dragged) {
+          await page.mouse.move(a.x + 20, a.y + 20, { steps: 5 })
+          await expect(page.locator('.react-flow__connection')).toHaveCount(1)
+        }
+        expect(await listeners(), 'the press added its release listener').toBeGreaterThan(base)
+        if (how === 'blur') await page.evaluate(() => void window.dispatchEvent(new Event('blur')))
+        else await hidePage(page)
+        await swallowNextRelease(page)
+        await page.mouse.up()
+        await expect(page.locator('.react-flow__connection'), 'no connection line is left').toHaveCount(0)
+        expect(await listeners(), 'no release listener is left').toBe(base)
+        expect(await state(page, 'e_leave'), 'nothing applied').toEqual(before)
+        expect(await selected(page, 'e_leave')).toBe(true)
+        await page.keyboard.press('Escape')
+        await expect.poll(() => selected(page, 'e_leave'), { message: 'one Escape deselects the connection' }).toBe(false)
+      })
+    }
+  }
+
+  test('the grip going away while it is pressed (the connection deselected): no drag state or listener is left', async ({ page }) => {
+    const listeners = await countReleaseListeners(page)
+    await open(page)
+    await selectEdge(page, 'e_leave')
+    const base = await listeners()
+    const a = await centreOf(grip(page, 'target'))
+    await page.mouse.move(a.x, a.y)
+    await page.mouse.down()
+    expect(await listeners()).toBeGreaterThan(base)
+    await page.evaluate(() => {
+      const l = (window as unknown as { __loop: L }).__loop
+      const g = l.graph.getState()
+      g.setSelection(null, null)
+      l.graph.setState({ edges: g.edges.map((e: object) => ({ ...e, selected: false })) })
+    })
+    await expect(grip(page, 'target')).toHaveCount(0)
+    expect(await listeners(), 'the release listener went with the grip, with no release yet').toBe(base)
+    await swallowNextRelease(page)
+    await page.mouse.up()
+  })
+
+  test('control: the keyboard way (Enter on the grip, Enter on its current side), then one Escape deselects', async ({ page }) => {
+    await open(page)
+    await selectEdge(page, 'e_leave')
+    await grip(page, 'target').focus()
+    await page.keyboard.press('Enter')
+    await expect(current(page)).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(picker(page)).toHaveCount(0)
+    expect(await selected(page, 'e_leave')).toBe(true)
+    await page.keyboard.press('Escape')
+    await expect.poll(() => selected(page, 'e_leave')).toBe(false)
+  })
+})
+
 test.describe('the grips: the side choice by tap (§ER18)', () => {
   test.use({ hasTouch: true })
   test('a tap offers the sides as a click does, and a tapped side moves the end', async ({ page }) => {

@@ -109,6 +109,8 @@ export function EndGrips(p: Props) {
   const drag = useRef<Drag | null>(null)
   // a click that follows a real drag (released on the grip itself) is not a pick
   const justDragged = useRef(false)
+  /** takes down the current press's release listener (#612 item 2), while one is up */
+  const stopRelease = useRef<(() => void) | null>(null)
   const [picking, setPickingOnly] = useState<PortEnd | null>(null)
   // where the side popover sits; measured once it is open, forgotten as it closes
   const [popAt, setPopAt] = useState<(Pt & { maxH: number; maxW: number }) | null>(null)
@@ -211,6 +213,10 @@ export function EndGrips(p: Props) {
   // end a drag in progress, applying nothing: the engine listens until the
   // button or finger is released, so its own release is sent to it
   const cancelDrag = useCallback(() => {
+    // the press's release listener goes with it (Lumi's review of #678: it waits for a release
+    // that may never come; the synthetic release below is sent to the document and does not
+    // reach the window)
+    stopRelease.current?.()
     const d = drag.current
     if (!d) return
     d.cancelled = true
@@ -221,16 +227,28 @@ export function EndGrips(p: Props) {
   }, [store])
 
   // Esc during a drag cancels it; the grips going away (deselected, deleted,
-  // locked) cancel it too
+  // locked) cancel it too. Lumi's review of #678: so does the window losing focus
+  // or the page hidden, while a press or a drag is under way: its release is then
+  // made where the page never sees it, and the state and the listeners it set
+  // waited for good (MEASURED on 118ef297: the press's release listeners stayed,
+  // a drag's line stayed on the canvas). Nothing is applied, as for Esc.
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
       if (ev.key !== 'Escape' || !drag.current) return
       ev.stopPropagation()
       cancelDrag()
     }
+    const onLoss = (ev: Event) => {
+      if (ev.type === 'visibilitychange' && document.visibilityState !== 'hidden') return
+      if (drag.current) cancelDrag()
+    }
     window.addEventListener('keydown', onKey, true)
+    window.addEventListener('blur', onLoss)
+    document.addEventListener('visibilitychange', onLoss)
     return () => {
       window.removeEventListener('keydown', onKey, true)
+      window.removeEventListener('blur', onLoss)
+      document.removeEventListener('visibilitychange', onLoss)
       cancelDrag()
     }
   }, [cancelDrag])
@@ -244,11 +262,38 @@ export function EndGrips(p: Props) {
     const fixed: PortEnd = end === 'source' ? 'target' : 'source'
     const fixedNode = fixed === 'source' ? p.source : p.target
     const fixedHandle = fixed === 'source' ? p.sourceHandle : p.targetHandle
-    drag.current = { end, cancelled: false, touch: 'touches' in event }
+    const d = { end, cancelled: false, touch: 'touches' in event }
+    drag.current = d
     // a touch drag holds that touch's moves until it ends, so the next tap is
     // still a click (connectTouchHold.ts; measured on these grips 2026-10-22)
     if ('touches' in event) holdConnectTouch(event.nativeEvent)
     justDragged.current = false
+    // #612 item 2 — the state above is set before React Flow knows whether a drag begins, and
+    // only a drag's end (`onReconnectEnd`) or a cancel cleared it. A click is no drag: the state
+    // stayed, and the Escape listener above took the next Escape for it and stopped it (MEASURED:
+    // after a click and the picker closed again, the Escape that should deselect the connection
+    // did nothing). A release with no drag begun ends it here. React Flow's own release listener
+    // (document) runs before this one (window), so a real drag has ended (and marked
+    // `justDragged`) by then.
+    // A press that ends any other way (Esc, the grips going away, a focus loss) takes this
+    // listener down through `cancelDrag`, so none is left waiting.
+    stopRelease.current?.() // a previous press's, if one is somehow still up
+    const stop = () => {
+      window.removeEventListener('mouseup', onRelease)
+      window.removeEventListener('touchend', onRelease)
+      window.removeEventListener('touchcancel', onRelease)
+      if (stopRelease.current === stop) stopRelease.current = null
+    }
+    const onRelease = () => {
+      stop()
+      if (drag.current !== d || justDragged.current) return
+      drag.current = null
+      if (d.touch) releaseConnectTouch()
+    }
+    window.addEventListener('mouseup', onRelease)
+    window.addEventListener('touchend', onRelease)
+    window.addEventListener('touchcancel', onRelease)
+    stopRelease.current = stop
     useEndGripNotice.getState().set(null, null)
     XYHandle.onPointerDown(event.nativeEvent, {
       autoPanOnConnect: s.autoPanOnConnect,
