@@ -244,11 +244,30 @@ export function EndGrips(p: Props) {
     const fixed: PortEnd = end === 'source' ? 'target' : 'source'
     const fixedNode = fixed === 'source' ? p.source : p.target
     const fixedHandle = fixed === 'source' ? p.sourceHandle : p.targetHandle
-    drag.current = { end, cancelled: false, touch: 'touches' in event }
+    const d = { end, cancelled: false, touch: 'touches' in event }
+    drag.current = d
     // a touch drag holds that touch's moves until it ends, so the next tap is
     // still a click (connectTouchHold.ts; measured on these grips 2026-10-22)
     if ('touches' in event) holdConnectTouch(event.nativeEvent)
     justDragged.current = false
+    // #612 item 2 — the state above is set before React Flow knows whether a drag begins, and
+    // only a drag's end (`onReconnectEnd`) or a cancel cleared it. A click is no drag: the state
+    // stayed, and the Escape listener above took the next Escape for it and stopped it (MEASURED:
+    // after a click and the picker closed again, the Escape that should deselect the connection
+    // did nothing). A release with no drag begun ends it here. React Flow's own release listener
+    // (document) runs before this one (window), so a real drag has ended (and marked
+    // `justDragged`) by then.
+    const onRelease = () => {
+      window.removeEventListener('mouseup', onRelease)
+      window.removeEventListener('touchend', onRelease)
+      window.removeEventListener('touchcancel', onRelease)
+      if (drag.current !== d || justDragged.current) return
+      drag.current = null
+      if (d.touch) releaseConnectTouch()
+    }
+    window.addEventListener('mouseup', onRelease)
+    window.addEventListener('touchend', onRelease)
+    window.addEventListener('touchcancel', onRelease)
     useEndGripNotice.getState().set(null, null)
     XYHandle.onPointerDown(event.nativeEvent, {
       autoPanOnConnect: s.autoPanOnConnect,

@@ -1,0 +1,1 @@
+{"type":"user-facing","changelog":"- **Escape deselects a connection after its end's side picker was used.** After a click on a selected connection's end grip, and the side picker closed again, the next Escape did nothing; only a second Escape deselected the connection. One Escape now does it, as it already did when the picker was opened from the keyboard."}

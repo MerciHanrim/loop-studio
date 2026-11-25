@@ -1391,7 +1391,9 @@ the graph store): the Inspector's Ends group and the canvas end grips.
   Choosing a side moves the end to it (one undo step, the run kept) and closes it; Esc
   or a press elsewhere closes it unchanged; either way focus returns to the grip. It is
   the precise path for a side of the same node; another node is reached by dragging,
-  or from the Ends group. No zoom is forced for touch.
+  or from the Ends group. No zoom is forced for touch. A click or tap is no drag: once
+  the picker is closed, the next Esc is the canvas's again, as after Enter (#612; a
+  click used to leave a drag state behind, and that Esc did nothing).
 - **Compatibility.** Nothing new is stored: the ends and `data.ports` are written and
   read as before, so a moved end round-trips through save, reopen, undo and redo, and
   an older build loses only the faces (§ER17).
