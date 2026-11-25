@@ -829,6 +829,37 @@ test.describe('a frame selected by a plain click is the selection alone (#612 it
     expect(await marked(page)).toEqual({ nodes: [], edges: [] })
   })
 
+  // Lumi's review of #677: the modifier keep is the STRIP's alone. Enter / Space and the resize
+  // handle shared it in the first head (the key handler passed its modifiers; the handle shares
+  // the strip's press path), and kept the node selected.
+  test('Shift+Enter on the focused frame selects it alone, as plain Enter does', async ({ page }) => {
+    const { fid, frame } = await setup(page)
+    await frame.focus()
+    await page.keyboard.press('Shift+Enter')
+    expect(await selectedId(page)).toBe(fid)
+    expect(await marked(page)).toEqual({ nodes: [], edges: [] })
+  })
+
+  test('a Control+press on the resize handle selects the frame alone; only the strip keeps the selection', async ({ page }) => {
+    const { fid, nodeId, frame, strip } = await setup(page)
+    // the handle shows on a selected frame: a Control+click on the strip selects it and keeps the node
+    await page.keyboard.down('Control')
+    await page.mouse.click(strip.x, strip.y)
+    await page.keyboard.up('Control')
+    await expect.poll(() => selectedId(page)).toBe(fid)
+    expect((await marked(page)).nodes).toEqual([nodeId])
+    const handle = frame.locator('.lgr-frame__resize')
+    await expect(handle).toBeVisible()
+    const hb = (await handle.boundingBox())!
+    await page.keyboard.down('Control')
+    await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2)
+    await page.mouse.down()
+    await page.mouse.up()
+    await page.keyboard.up('Control')
+    expect(await selectedId(page)).toBe(fid)
+    expect(await marked(page), 'the resize handle selects the frame alone').toEqual({ nodes: [], edges: [] })
+  })
+
   for (const mod of ['Shift', 'Control'] as const) {
     test(`unchanged: a ${mod}+click on the strip selects the frame and keeps the node selected`, async ({ page }) => {
       const { fid, nodeId, strip } = await setup(page)

@@ -175,8 +175,9 @@ export function FrameLayer() {
   // alone: the nodes and connections selected before it are let go, as a click on the empty
   // canvas lets them go, so the delete keys act on the frame (they take a selected node or
   // connection first). MEASURED before: click node A, click frame F's strip, Delete, and A was
-  // deleted. With Shift, Ctrl or ⌘ held the selection is kept, as before this change (Ctrl / ⌘
-  // + drag is the frame-only move).
+  // deleted. A press on the STRIP with Shift, Ctrl or ⌘ held keeps the selection, as before this
+  // change (Ctrl / ⌘ + drag is the frame-only move); only the strip passes its modifiers here
+  // (Lumi's review of #677: the resize handle, Enter / Space and the name select alone).
   const selectFrameAlone = (id: string, mods?: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }) => {
     if (!mods || !(mods.shiftKey || mods.ctrlKey || mods.metaKey)) selectOnly({})
     selectFrame(id)
@@ -657,7 +658,8 @@ export function FrameLayer() {
     (e: React.PointerEvent) => {
       e.stopPropagation()
       e.preventDefault()
-      selectFrameAlone(id, e)
+      // the modifier keep is the strip's alone (the move); the resize handle selects alone
+      selectFrameAlone(id, kind === 'move' ? e : undefined)
       if (!editable) return // D6 — select only
       const G = useGraphStore.getState()
       const anchor = flowPt(e)
@@ -876,7 +878,7 @@ export function FrameLayer() {
                 }
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
-                  selectFrameAlone(rf.id, e)
+                  selectFrameAlone(rf.id) // the keyboard click: alone, whatever is held
                   return
                 }
                 if (!ARROWS[e.key]) return
