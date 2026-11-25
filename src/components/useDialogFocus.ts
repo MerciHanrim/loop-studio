@@ -86,6 +86,11 @@ export function useDialogFocus(
     const onKey = (e: KeyboardEvent) => {
       if (!isTopOverlay(ref.current)) return
       if (e.key === 'Escape') {
+        // #613 item 5 — an Escape inside an input-method composition is the
+        // composition's own (it cancels or ends it), not a request to close:
+        // closing here threw away a protected link, already gone from the
+        // address. keyCode 229 is how some browsers report a composing key.
+        if (e.isComposing || e.keyCode === 229) return
         e.preventDefault()
         onEscapeRef.current()
         return
