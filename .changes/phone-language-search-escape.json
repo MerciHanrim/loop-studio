@@ -1,0 +1,1 @@
+{"type":"user-facing","changelog":"- **On a phone, Escape in the language search clears the search first.** In the More sheet, one Escape in the language search cleared it, closed the language list and closed the whole sheet. Escape now does one step at a time, as on a computer: it clears the search, then closes the list, then closes the sheet."}

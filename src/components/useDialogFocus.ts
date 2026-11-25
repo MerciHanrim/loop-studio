@@ -31,7 +31,8 @@ function firstUsable(within: HTMLElement, selector: string): HTMLElement | undef
  *    focusable element that can take it (enabled, shown, inside, not inert)
  *  - a dialog (`kind: 'modal'`, the default) traps Tab inside itself; a mobile
  *    sheet (`kind: 'sheet'`) does not, it is not modal (src/ui/overlayStack.ts)
- *  - Escape → `onEscape`, for the top dialog or sheet only
+ *  - Escape → `onEscape`, for the top dialog or sheet only, unless an earlier
+ *    handler has used it (`defaultPrevented`) or an input method is composing
  *  - on close, restore focus to `returnFocusTo()` (or the element that was
  *    focused when the dialog opened)
  */
@@ -91,6 +92,13 @@ export function useDialogFocus(
         // closing here threw away a protected link, already gone from the
         // address. keyCode 229 is how some browsers report a composing key.
         if (e.isComposing || e.keyCode === 229) return
+        // #613 item 1 — an Escape an earlier handler has used (and said so with
+        // preventDefault) is not also a close: the phone's language search
+        // clears its query, and the More sheet closed on the same key as well.
+        // One Escape, one step; the next Escape reaches the dialog or sheet.
+        // This also holds for an armed canvas tool's capture listener (it
+        // disarms first) and the expression field's suggestion list.
+        if (e.defaultPrevented) return
         e.preventDefault()
         onEscapeRef.current()
         return
