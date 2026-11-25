@@ -734,9 +734,13 @@ the §SF11.1 transaction:
   or mobile. A frame, its resize handle, the ✕, any other button and anything
   outside the canvas therefore never open one, even with a node still selected;
 - React Flow keeps doing the movement **and** its live announcement, so the
-  5 px / 20 px steps and the EN/KO/JA message are untouched. Every modifier
-  combination React Flow moves on opens a transaction, because React Flow's
-  node handler has no modifier gate — only Shift changes the step (measured);
+  5 px / 20 px steps and the EN/KO/JA message are untouched. Only Shift
+  changes the step. An arrow with **Alt, Ctrl or ⌘** held is not a move (#612,
+  2026-11-25): the node stays, nothing is recorded, and the key keeps its default
+  (Alt+Left is the browser's Back). React Flow's node handler has no modifier
+  gate, so the canvas's listener stops such an arrow before it, without
+  preventing its default (until then every combination moved and opened a
+  transaction);
 - one entry is pushed when the **last** arrow comes up and the positions really
   changed. A key repeat is one entry, tapping twice is two, an out-and-back
   inside one gesture is none;

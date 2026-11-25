@@ -1121,6 +1121,15 @@ export function Canvas() {
       if (!ARROW_KEYS.has(e.key) || blocksCanvasKey(e.target)) return
       const ids = movableFor(e.target)
       if (ids.length === 0) return
+      // #612 item 5 — an arrow with Alt, Ctrl or ⌘ held is not a move: Alt+Left is the browser's
+      // Back, and the others are the system's or the browser's. The guard read only Shift, so the
+      // node moved and the key's default was prevented (MEASURED). Its default is left alone; the
+      // event is stopped here only so that React Flow's own node step, which reads no modifier
+      // either, does not move the node in its place.
+      if (e.altKey || e.ctrlKey || e.metaKey) {
+        e.stopPropagation()
+        return
+      }
       if (!gesture.active) {
         const g = useGraphStore.getState()
         const positions: Record<string, Pt> = {}
