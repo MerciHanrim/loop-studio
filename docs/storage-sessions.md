@@ -50,7 +50,7 @@ A preference added later follows these rules by registering its key in the port'
 
 ## Settings: Storage and privacy
 
-Desktop `Settings` and the phone's More sheet open the area (`src/components/StoragePrivacyDialog.tsx`). It shows the storage mode, a plain statement of what a personal browser keeps, the `Restore automatically` box (the gate's "trust this browser" choice, the same key; in a temporary session, the "always temporary" box), the way into the other kind of session, and the two deletions. Every action is a step with an explanation, an `Export the diagram first` button, Cancel and Confirm; nothing happens before Confirm.
+Desktop `Settings` and the phone's More sheet open the area (`src/components/StoragePrivacyDialog.tsx`). It shows the storage mode, a plain statement of what a personal browser keeps, the `Restore automatically` box (the gate's "trust this browser" choice, the same key; in a temporary session, the "always temporary" box), the way into the other kind of session, and the two deletions. Every action is a step with an explanation, an `Export the diagram first` button, Cancel and Confirm; nothing happens before Confirm. The keyboard focus follows the steps: into a step it goes to the export button (where opening the area on a step puts it), and back on the area to the button that opened the step, also after a deletion that went through (#613).
 
 Switching never copies or deletes a document silently:
 
@@ -90,6 +90,7 @@ A share link always carries the whole document and always names the public addre
 | The port's four states, the mode key, reset | `src/storage/storagePort.test.ts` |
 | Switches, the two deletions, the loss warning | `src/store/sessionActions.test.ts`, `e2e/storage-sessions.spec.ts` |
 | The area, the chip, the share dialog's facts, the phone's row | `e2e/storage-sessions.spec.ts` |
+| The keyboard focus into each step and back to the button that opened it | `e2e/storage-sessions.spec.ts` |
 | The portable file: gate every time, recommendation, no boxes, no theme before the gate, a temporary session leaves the storage byte for byte as it was | `e2e/portable-file.spec.ts` |
 | Before the gate, the ONLY storage traffic is the mode key: two reads (boot script, port), no other key read, nothing written | `e2e/storage-port-runtime.spec.ts` |
 | A deletion that fails is reported as failed, on its step, never as done | `src/store/sessionActions.test.ts`, `e2e/storage-sessions.spec.ts` |

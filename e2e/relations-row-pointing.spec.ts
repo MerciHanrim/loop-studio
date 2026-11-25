@@ -150,3 +150,52 @@ test.describe('Relations rows', () => {
     expect(await doc(page), 'reading under the lock changes nothing in the document').toBe(before)
   })
 })
+
+// #613 item 6 — the keyboard focus ring of a Relations row was a box-shadow with the outline
+// removed, and a link had no ring at all, only a colour. Forced colours drop box-shadows:
+// a focused row then differed from an unfocused one by its 1 px border only, and a focused
+// link was pixel-identical to an unfocused one (MEASURED on main 5515c4b9). Both now draw an
+// outline, which forced colours keep.
+test.describe('Relations — the keyboard focus ring of a row and of a link (#613 item 6)', () => {
+  const ring = (el: ReturnType<Page['locator']>) =>
+    el.evaluate((e) => {
+      const c = getComputedStyle(e)
+      return { focusVisible: e.matches(':focus-visible'), outline: c.outlineStyle, width: parseFloat(c.outlineWidth), boxShadow: c.boxShadow }
+    })
+  for (const forced of [false, true])
+    for (const [what, sel, selection] of [
+      ['row', '.wb-rel__row', { selectedNodeId: 'pool', selectedEdgeId: null }],
+      ['link', '.wb-rel__link', { selectedNodeId: null, selectedEdgeId: 'e_in' }],
+    ] as const) {
+      test(`${forced ? 'forced colours' : 'normal colours'}: a focused ${what} shows a ring`, async ({ page }) => {
+        await page.setViewportSize({ width: 1600, height: 940 })
+        await openApp(page)
+        await resetAll(page)
+        await importGraph(page, DOC)
+        if (forced) await page.emulateMedia({ forcedColors: 'active' })
+        await page.evaluate((s) => (window as unknown as { __loop: Record<string, { setState: (x: object) => void }> }).__loop.graph.setState(s), selection)
+        const el = panel(page).locator(sel).first()
+        await expect(el).toBeVisible()
+        await page.mouse.move(2, 2)
+        await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+        const bb = (await el.boundingBox())!
+        const clip = { x: bb.x - 6, y: bb.y - 6, width: bb.width + 12, height: bb.height + 12 }
+        const unfocused = await page.screenshot({ clip })
+        await page.keyboard.press('Shift') // a keyboard interaction: the focus below is :focus-visible
+        await el.focus()
+        const r = await ring(el)
+        expect(r.focusVisible, `${what}: focus-visible`).toBe(true)
+        if (forced || what === 'link') {
+          expect(r.outline, `${what}: an outline ring`).toBe('solid')
+          expect(r.width, `${what}: at least 2 px`).toBeGreaterThanOrEqual(2)
+        } else {
+          // normal colours, the row: a ring, drawn either way
+          expect(r.outline !== 'none' || r.boxShadow !== 'none', 'row: a ring').toBe(true)
+        }
+        if (forced) {
+          const focused = await page.screenshot({ clip })
+          expect(Buffer.compare(unfocused, focused) !== 0, `${what}: focused looks different from unfocused`).toBe(true)
+        }
+      })
+    }
+})

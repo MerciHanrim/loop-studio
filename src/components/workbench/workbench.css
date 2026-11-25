@@ -756,8 +756,11 @@
   border-color: var(--line-2);
   outline: none;
 }
+/* #613 item 6 — an outline, not a box-shadow: forced colours drop shadows, and the focused
+   row then differed only by its 1 px border. Offset 0 draws it where the 2 px shadow was. */
 .wb-rel__row:focus-visible {
-  box-shadow: 0 0 0 2px var(--focus);
+  outline: 2px solid var(--focus);
+  outline-offset: 0;
 }
 .wb-rel__name {
   white-space: normal;
@@ -861,7 +864,12 @@
 .wb-rel__link:hover,
 .wb-rel__link:focus-visible {
   color: var(--sel);
-  outline: none;
+}
+/* #613 item 6 — the link had no ring, only a colour (pixel-identical in forced colours) */
+.wb-rel__link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 /* ---- the analysis area under the canvas ---- */

@@ -102,6 +102,47 @@ test.describe('the Storage and privacy area', () => {
     expect(await stored(page)).toEqual(before)
     expect(await nodeCount(page)).toBe(1)
   })
+
+  // #613 item 3 — the dialog moved focus only when it opened: a step change replaced the
+  // body under the focused button, and focus fell to the page (MEASURED on main 5515c4b9:
+  // <body> after Enter on Delete work data, and again after Cancel). Into a step, focus goes
+  // where opening on that step puts it (its first control, the export offer); back on the
+  // area, to the button that opened the step, also after a deletion that went through.
+  test('focus moves into each step and back to the button that opened it (#613 item 3)', async ({ page }) => {
+    await openWithOneNode(page)
+    await openStorageArea(page)
+    const exportOffer = dialog(page).locator('[data-storage-export]')
+    for (const [action, leave] of [
+      ['delete-work', 'Escape'],
+      ['reset-all', 'Cancel'],
+      ['to-temporary', 'Escape'],
+      ['copy', 'Cancel'],
+    ] as const) {
+      const opener = dialog(page).locator(`[data-storage-action="${action}"]`)
+      await opener.focus()
+      await page.keyboard.press('Enter')
+      await expect(dialog(page)).not.toHaveAttribute('data-storage-step', 'menu')
+      await expect(exportOffer, `${action}: focus in the step`).toBeFocused()
+      if (leave === 'Escape') await page.keyboard.press('Escape')
+      else {
+        await page.keyboard.press('Tab') // the export offer, then Cancel
+        await expect(dialog(page).getByRole('button', { name: 'Cancel' })).toBeFocused()
+        await page.keyboard.press('Enter')
+      }
+      await expect(dialog(page)).toHaveAttribute('data-storage-step', 'menu')
+      await expect(opener, `${action}: back on its button after ${leave}`).toBeFocused()
+    }
+
+    // a deletion that went through: the area says so, and focus is on the button again
+    const del = dialog(page).locator('[data-storage-action="delete-work"]')
+    await del.focus()
+    await page.keyboard.press('Enter')
+    await expect(exportOffer).toBeFocused()
+    await dialog(page).locator('[data-storage-confirm]').focus()
+    await page.keyboard.press('Enter')
+    await expect(dialog(page).locator('[data-storage-notice="done"]')).toBeVisible()
+    await expect(del).toBeFocused()
+  })
 })
 
 test.describe('switching sessions', () => {
