@@ -228,6 +228,10 @@ so every id that keys a draw is in the projection.
   open, and Cancel reaches only a run started on that document. The status
   leaves `running` as a Cancel leaves it (`done` with a result, else `idle`),
   without the "Cancelled" note.
+- **A Cancel ends the run whenever it comes after Run** (#620 item 2), including
+  while the first run of a session still loads the Worker code: the run ends
+  as a cancel (no new result; the previous one, if any, stays) instead of
+  going on to finish.
 - On **Export**: the stored `resultGraphDigest` is written **verbatim**. It is
   **never recomputed against the current graph on export.** In particular, when a
   result was *restored from a Workspace file*, its original `resultGraphDigest` is

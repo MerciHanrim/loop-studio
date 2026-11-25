@@ -97,6 +97,11 @@ export async function runMonteCarloParallel(
   } catch {
     return runMonteCarloCooperative(nodes, edges, config, options) // no inlined worker → sync
   }
+  // #620 item 2 — a Cancel while the chunk loaded: the abort listener below is
+  // added only now, and a listener added to an already aborted signal never
+  // fires, so check again here. From here to `addEventListener` nothing awaits,
+  // so no abort can slip in between.
+  if (options.signal?.aborted) throw abortError(0)
 
   const poolIds = pools.map((p) => p.id)
   const store = pools.map(() => new Float64Array(runs * span)) // per-pool, run-major run*span+t
