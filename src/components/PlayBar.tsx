@@ -256,6 +256,10 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   if ((phase?.id ?? null) !== phaseOpenedOn) {
     setPhaseOpenedOn(phase?.id ?? null)
     if (phasePinned) setPhasePinned(false)
+    // #613 item 4 — the peek as well: when the phase ended with the pointer on the mark, the
+    // button went from under it, no pointerleave came, and the flag stayed; the popover then
+    // opened by itself at the next phase with the pointer elsewhere (MEASURED)
+    if (phasePeek) setPhasePeek(false)
   }
   useEffect(() => {
     if (!phaseOpen) return

@@ -806,6 +806,40 @@ test.describe('run phases — the check-needed mark', () => {
     expect(await marked(page)).toEqual([true, true, true, true, true, true, true])
   })
 
+  // #613 item 4 — pointing at the mark opens its popover (the peek); the flag was cleared
+  // only by the pointer leaving, a blur, a press outside or Escape. When the phase ended
+  // with the pointer on the mark, the mark went from under it and the flag stayed: the
+  // popover opened by itself at the next phase, with the pointer elsewhere (MEASURED on
+  // main 5515c4b9). The popover belongs to the phase it was opened on, the peek as well.
+  test('the popover does not open by itself after the mark went from under the pointer (#613 item 4)', async ({ page }) => {
+    await openCoffee(page, 'en')
+    await page.evaluate(() => {
+      const g = (window as unknown as Bridge).__loop.graph
+      g.setState({ phases: g.getState().phases.map((p: object) => ({ ...p, unchecked: true })) })
+    })
+    await advanceTo(page, 3)
+    const mark = desk(page).getByTestId('run-phase-check')
+    const body = page.getByTestId('run-phase-check-body')
+    await expect(mark).toBeVisible()
+    const at = (await mark.boundingBox())!
+    await page.mouse.move(at.x + at.width / 2, at.y + at.height / 2)
+    await expect(body).toBeVisible() // pointing at the mark opens it
+    await sim(page, 'reset') // the phase ends: the mark goes from under the pointer
+    await expect(mark).toHaveCount(0)
+    await page.mouse.move(20, 400) // the pointer goes far away
+    await advanceTo(page, 3)
+    await expect(mark).toBeVisible()
+    await page.waitForTimeout(300) // room for an opening that should not come
+    await expect(body, 'the popover stays shut with the pointer elsewhere').toBeHidden()
+
+    // control: pointing at the mark again opens it, and leaving closes it
+    const again = (await mark.boundingBox())!
+    await page.mouse.move(again.x + again.width / 2, again.y + again.height / 2)
+    await expect(body).toBeVisible()
+    await page.mouse.move(20, 400)
+    await expect(body).toBeHidden()
+  })
+
   test('where the document shows the phase button, that button is the mark', async ({ page }) => {
     await openCoffee(page, 'en')
     await applyPhasesOnly(page)

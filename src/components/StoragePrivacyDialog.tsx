@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useT } from '../i18n'
 import {
   deleteWorkData,
@@ -36,6 +36,15 @@ import { useDialogFocus } from './useDialogFocus'
 
 export type StorageStep = 'menu' | 'toTemporary' | 'copy' | 'toPersonal' | 'deleteWork' | 'resetAll'
 
+/** the area's button that opens each step (its `data-storage-action`) */
+const OPENER: Record<Exclude<StorageStep, 'menu'>, string> = {
+  toTemporary: 'to-temporary',
+  copy: 'copy',
+  toPersonal: 'to-personal',
+  deleteWork: 'delete-work',
+  resetAll: 'reset-all',
+}
+
 type Props = {
   open: boolean
   onClose: () => void
@@ -68,6 +77,21 @@ function StorageArea({ onClose, returnFocusTo, initialStep }: Required<Pick<Prop
     setNotice((n) => (n?.kind === 'failed' ? null : n))
   }
   useDialogFocus(true, ref, step === 'menu' ? onClose : back, returnFocusTo)
+  // #613 item 3 — `useDialogFocus` moves focus when the dialog opens only. A step change
+  // replaces the body under the focused button, and focus fell to the page (MEASURED: <body>
+  // after Enter on Delete work data, and again after Cancel). Into a step: its first control,
+  // where opening on that step puts it (the export offer). Back on the area: the button that
+  // opened the step, also after a deletion that went through.
+  const shownStep = useRef(step)
+  useEffect(() => {
+    const from = shownStep.current
+    shownStep.current = step
+    const d = ref.current
+    if (from === step || !d) return
+    // (the area's Close when the opening button is not shown for this session's mode)
+    const opener = step === 'menu' && from !== 'menu' ? d.querySelector<HTMLElement>(`[data-storage-action="${OPENER[from]}"]`) : null
+    ;(opener ?? d.querySelector<HTMLElement>('.mcdlg__foot button:not(:disabled)'))?.focus()
+  }, [step])
 
   const temporary = mode === 'temporary'
   const portable = build === 'portable'
