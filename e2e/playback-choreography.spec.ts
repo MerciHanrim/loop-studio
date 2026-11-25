@@ -356,7 +356,7 @@ test.describe('playback — Slice 2 choreography', () => {
     await expect.poll(() => simState(page).then((s) => (s.tau != null ? 1 : 0)), { timeout: 4000 }).toBe(1)
     const mid = await page.evaluate(() => ({
       pb: document.querySelectorAll('.pb-move').length,
-      legacy: document.querySelectorAll('.flow-move, .react-flow__edges animateMotion:not(.pb-move animateMotion)').length,
+      legacy: document.querySelectorAll('.react-flow__edges animateMotion:not(.pb-move animateMotion)').length,
       step: (window as any).__loop.sim.getState().stepIndex,
     }))
     expect(mid.pb).toBeGreaterThan(0)
@@ -800,9 +800,12 @@ test.describe('playback — Slice 3b state-event choreography', () => {
     await call(page, 'pause')
     const rm = await stCue(page, 't_sd')
     expect(rm!.moveCount).toBe(0)
-    expect(
-      await page.locator('.react-flow__edge[data-id="t_sd"] .state-edge-pulse').count(),
-    ).toBeGreaterThanOrEqual(0) // (present while its committed event stands)
+    // #623 — was `count() >= 0`, true for any count. The static highlight is there exactly while
+    // the edge's committed event stands (LoopEdge: a trigger / label event in `stateEvents`,
+    // reduced motion, paused or running): one when t_sd has one, none when it has none
+    const held = await page.evaluate(() => ((window as any).__loop.sim.getState().stateEvents as { edgeId: string }[]).some((e) => e.edgeId === 't_sd'))
+    await expect(page.locator('.react-flow__edge[data-id="t_sd"] .state-edge-pulse')).toHaveCount(held ? 1 : 0)
+    test.info().annotations.push({ type: 't_sd event at the pause', description: String(held) })
     // the committed run is intact — every step in series once
     const done = await stTrans(page)
     expect(done.series).toBe(done.step + 1)

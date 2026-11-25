@@ -287,22 +287,22 @@ test.describe('§L9.3 — engine tokens stay in author order', () => {
 
     expect(await attrOf(page, `${N('tank')} .nodef__value`)).toBe('ltr')
     expect(await attrOf(page, `${N('reg')} .nodef__value`)).toBe('ltr')
-    // the engine sub-line exists in the previous body only (the new node's body
-    // holds the value row alone, the unit beside the value); where it exists it
-    // declares ltr like the value
-    for (const id of ['tank', 'reg']) {
-      if (await page.locator(`${N(id)} .nodef__sub`).count()) expect(await attrOf(page, `${N(id)} .nodef__sub`)).toBe('ltr')
-    }
+    // #623 — the engine sub-line these guarded (`if (.nodef__sub count)`) is not in the node's
+    // body any more, so their checks never ran. The body's engine text now is the value row and,
+    // on a capped Pool, the capacity beside it: that capacity reads inside the value's ltr
+    await expect(page.locator(`${N('tank')} .nodef__cap`)).toHaveCount(1)
+    expect(await page.locator(`${N('tank')} .nodef__cap`).evaluate((el) => el.closest('[dir]')?.getAttribute('dir'))).toBe('ltr')
     // the same element on a different caller declares the opposite, which is
     // the proof that the direction travels with the VALUE and not the class
     // the user's unit: the previous body's sub-line, or the new node's unit beside the value
     const unitSel = `${N('param')} .nodef__sub, ${N('param')} .nodef__unit`
     expect(await attrOf(page, unitSel)).toBe('auto')
     expect(await dirOf(page, unitSel)).toBe('rtl')
-    // and the text really is the engine's, not an empty box (the previous body's
-    // detail line; the new node shows the capacity in the value row instead)
-    if (await page.locator(`${N('tank')} .nodef__sub`).count()) await expect(page.locator(`${N('tank')} .nodef__sub`)).toHaveText('≤ 8')
-    if (await page.locator(`${N('reg')} .nodef__sub`).count()) await expect(page.locator(`${N('reg')} .nodef__sub`)).toHaveText('= 1 + 1')
+    // and the text really is the engine's, not an empty box. #623: these read the sub-line under
+    // the same guard and never ran; the body shows the capacity beside the value and the
+    // Register's computed value (`1 + 1`)
+    await expect(page.locator(`${N('tank')} .nodef__cap`)).toHaveText('≤ 8')
+    await expect(page.locator(`${N('reg')} .nodef__value`)).toHaveText('= 2')
   })
 
   test('a pinned value keeps the number ahead of its unit under a surrounding rtl', async ({ page }) => {
@@ -441,10 +441,14 @@ test.describe('§L9.3 — catalog prose follows the reader', () => {
     await expect(page.locator(`${N('bad')} .nodef__name`)).toHaveText((await catalog(page, 'node.unreadable.title')).replace('{kind}', 'parameter'))
     expect(await attrOf(page, `${N('bad')} .nodef__name`)).toBe('rtl')
     expect(await dirOf(page, `${N('bad')} .nodef__name`)).toBe('rtl')
-    if (await page.locator(`${N('bad')} .nodef__sub`).count()) {
-      expect(await attrOf(page, `${N('bad')} .nodef__sub`)).toBe('rtl')
-      expect(await dirOf(page, `${N('bad')} .nodef__sub`)).toBe('rtl')
-    }
+    // #623 — a guarded check of `.nodef__sub` stood here; the body has no sub-line, so it never
+    // ran. The node's text is its flag and the fallback name: the name is the only prose, so
+    // what reads rtl is all the prose there is (a new text element here must be looked at)
+    const texts = await page.locator(N('bad')).evaluate((n) =>
+      [...n.querySelectorAll('[class]')].filter((e) => [...e.childNodes].some((c) => c.nodeType === 3 && c.textContent!.trim())).map((e) => e.classList[0]),
+    )
+    expect(texts).toEqual(['nodef__flag', 'nodef__name'])
+    await expect(page.locator(`${N('bad')} .nodef__flag`)).toHaveText('!')
   })
 
   test('the filter panel’s own copy reads rtl under ar, row labels aside', async ({ page }) => {

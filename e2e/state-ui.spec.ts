@@ -373,7 +373,8 @@ test.describe('Slice 5 — in-canvas feedback', () => {
 
     await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().reset())
     expect(await stateEvents(page)).toEqual([])
-    await expect(page.locator('.state-pulse, .state-flash, .edge-label__delta')).toHaveCount(0)
+    // #623 — the state cues drawn today (`.state-pulse` / `.state-flash` are no longer emitted)
+    await expect(page.locator('.state-edge-pulse, .state-move, .edge-label__delta')).toHaveCount(0)
 
     await stepN(page, 2)
     await selectEdge(page, 'a_gate')
@@ -381,7 +382,9 @@ test.describe('Slice 5 — in-canvas feedback', () => {
     await expect
       .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().stepIndex))
       .toBe(0)
-    await expect(page.locator('.state-pulse, .state-flash')).toHaveCount(0)
+    // #623 — was `.state-pulse, .state-flash`, classes nothing emits any more, so it checked
+    // nothing; the edit's rewind clears the cues the run draws today
+    await expect(page.locator('.state-edge-pulse, .state-move, .edge-label__delta')).toHaveCount(0)
   })
 
   test('prefers-reduced-motion: a static edge highlight instead of a travelling bead', async ({ page, context }) => {
@@ -393,7 +396,8 @@ test.describe('Slice 5 — in-canvas feedback', () => {
 
     await stepN(page, 2)
     await expect(page.locator('.react-flow__edge[data-id="t_trig"] .state-edge-pulse')).toHaveCount(1)
-    await expect(page.locator('.react-flow__edge[data-id="t_trig"] .state-pulse')).toHaveCount(0)
+    // #623 — was `.state-pulse` (no longer emitted); the travelling bead is `.state-move`
+    await expect(page.locator('.react-flow__edge[data-id="t_trig"] .state-move')).toHaveCount(0)
     await page.emulateMedia({ reducedMotion: null })
   })
 })

@@ -146,8 +146,9 @@ test('Summary shows R(t) + unit and ONE shared Show-calculation toggle beside th
   await expect(calc).toHaveAccessibleName(/hide calculation/i)
   await calc.click()
   await expect(summaryPanel(page).locator('.mp-row__expr')).toHaveCount(0)
-  // no per-row toggle remains
-  await expect(summaryPanel(page).locator('.mp-row__calcbtn')).toHaveCount(0)
+  // no per-row toggle remains. #623: was `.mp-row__calcbtn`, a class nothing emits; the panel
+  // holds exactly one calculation toggle, the shared one
+  await expect(summaryPanel(page).getByRole('button', { name: /calculation/i })).toHaveCount(1)
 
   const bad = rows.filter({ hasText: 'Broken' })
   await expect(bad).toContainText(/no value/i)

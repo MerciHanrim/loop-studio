@@ -151,7 +151,10 @@ test.describe('Early MMO progression example', () => {
     // the series selector; the old `+N more` chip no longer exists (§6.3)
     const trigger = page.locator('.timeline__series')
     await expect(trigger).toHaveText('Series 5/55')
-    await expect(legend.locator('.timeline__key--more')).toHaveCount(0)
+    // #623 — was `.timeline__key--more`, a class nothing emits; the legend holds exactly the
+    // five chips named above, and none is a "+N" chip
+    await expect(legend.locator('.timeline__key')).toHaveCount(5)
+    await expect(legend.locator('.timeline__key', { hasText: /^\s*\+\s*\d/ })).toHaveCount(0)
 
     // run a few steps so the chart draws lines, then reveal a hidden series
     await page.evaluate(() => {
