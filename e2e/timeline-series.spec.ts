@@ -177,7 +177,8 @@ const headerGeometry = (page: Page) =>
       triggerInside: trig.left >= legendBox.left - 0.5 && trig.right <= legendBox.right + 0.5 && trig.right <= window.innerWidth,
       triggerH: trig.height,
       overflow: legend.scrollWidth - legend.clientWidth,
-      moreChips: document.querySelectorAll('.timeline__key--more').length,
+      // #623 — was `.timeline__key--more`, a class nothing emits: a "+N" chip among the drawn ones
+      moreChips: [...legend.querySelectorAll('.timeline__key')].filter((k) => /^\s*\+\s*\d/.test(k.textContent ?? '')).length,
     }
   })
 
@@ -195,8 +196,10 @@ test.describe('recommendedRunConfig.timelineSeries — the three stored states',
     await expect(trigger(page)).toHaveText('Series 2/4')
     await expect(trigger(page)).toHaveAttribute('aria-label', 'Choose chart series, 2 of 4 shown')
     await expect(trigger(page)).toHaveAttribute('aria-haspopup', 'dialog')
-    // §6.3 — the old inline expansion is gone, not accompanied
-    await expect(page.locator('.timeline__key--more')).toHaveCount(0)
+    // §6.3 — the old inline expansion is gone, not accompanied. #623: was `.timeline__key--more`,
+    // a class nothing emits; the legend holds exactly the two chips, and none is a "+N" chip
+    await expect(page.locator('.timeline__key')).toHaveCount(2)
+    await expect(page.locator('.timeline__key', { hasText: /^\s*\+\s*\d/ })).toHaveCount(0)
 
     await openSelector(page)
     const boxes = popover(page).getByRole('checkbox')

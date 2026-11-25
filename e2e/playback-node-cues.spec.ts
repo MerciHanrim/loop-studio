@@ -128,19 +128,21 @@ test('the conversion mark shows from the Converter onset, at its own spot inside
     }
     const range = document.createRange()
     const boxes: DOMRect[] = []
-    // the text the mark must keep clear of: the previous body's title and mode
-    // line; the new node's body holds only a value row (its name is outside)
-    for (const sel of ['.nodef__title', '.nodef__sub', '.nodef__value']) {
-      const el = f.querySelector(sel)
-      if (!el) continue
-      range.selectNodeContents(el)
+    // the text the mark must keep clear of: every text run the node's body draws. #623 — this
+    // read `.nodef__title`, `.nodef__sub` and `.nodef__value`, none of which a Converter's body
+    // has today (its name, below the outline, is its one text), so it compared the mark with no box
+    const tw = document.createTreeWalker(f, NodeFilter.SHOW_TEXT)
+    for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+      if (!n.textContent!.trim()) continue
+      range.selectNodeContents(n)
       boxes.push(...[...range.getClientRects()].filter((r) => r.width > 0.5))
     }
     const hits = boxes.filter((b) => !(m.right <= b.left || m.left >= b.right || m.bottom <= b.top || m.top >= b.bottom)).length
-    return { out, hits, size: m.width / scale }
+    return { out, hits, size: m.width / scale, texts: boxes.length }
   })
   // (#337: the Converter's width is a fraction of a px, so the size read back
   // through the zoom carries a float error far below a px)
+  expect(geo.texts, 'the body has text to keep clear of (its name)').toBeGreaterThan(0)
   expect({ out: geo.out, hits: geo.hits }).toEqual({ out: 0, hits: 0 })
   expect(geo.size).toBeCloseTo(10, 3)
   // after the settle it fades
@@ -277,7 +279,7 @@ for (const [tpl, perLocale] of CONVERTER_TEMPLATES) {
             if (Math.abs(l.rf.getViewport().zoom - 1) < 1e-6) break
           }
           await raf(12)
-          const rows: { id: string; spot: string | null; out: number; hits: number }[] = []
+          const rows: { id: string; spot: string | null; out: number; hits: number; texts: number }[] = []
           const convIds = [...document.querySelectorAll<HTMLElement>('.react-flow__node')].filter((n) => n.querySelector('.nodef--converter')).map((n) => n.dataset.id!)
           for (const cid of convIds) {
             // bring it into view: the fill test reads the drawn shape on screen
@@ -289,6 +291,7 @@ for (const [tpl, perLocale] of CONVERTER_TEMPLATES) {
             const spot = f.dataset.convSpot ?? null
             let out = -1
             let hits = -1
+            let texts = 0
             if (spot) {
               const [sx, sy] = spot.split(',').map(Number)
               const box = f.getBoundingClientRect()
@@ -305,17 +308,20 @@ for (const [tpl, perLocale] of CONVERTER_TEMPLATES) {
               }
               const range = document.createRange()
               const boxes: DOMRect[] = []
-              for (const sel of ['.nodef__title', '.nodef__sub']) {
-                const el = f.querySelector(sel)
-                if (!el) continue
-                range.selectNodeContents(el)
+              // #623 — every text run of the body (it read `.nodef__title` / `.nodef__sub`,
+              // which the body no longer has, so the spot was compared with no text box)
+              const tw = document.createTreeWalker(f, NodeFilter.SHOW_TEXT)
+              for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+                if (!n.textContent!.trim()) continue
+                range.selectNodeContents(n)
                 boxes.push(...[...range.getClientRects()].filter((r) => r.width > 0.5))
               }
+              texts = boxes.length
               const chip = f.querySelector('.nodef__chip')?.getBoundingClientRect()
               if (chip) boxes.push(chip)
               hits = boxes.filter((b) => !(x0 + 10 <= b.left - 0.75 || x0 >= b.right + 0.75 || y0 + 10 <= b.top - 0.75 || y0 >= b.bottom + 0.75)).length
             }
-            rows.push({ id: (node as HTMLElement).dataset.id!, spot, out, hits })
+            rows.push({ id: (node as HTMLElement).dataset.id!, spot, out, hits, texts })
           }
           return rows.sort((a, b) => a.id.localeCompare(b.id))
         },
@@ -328,7 +334,8 @@ for (const [tpl, perLocale] of CONVERTER_TEMPLATES) {
       const rows = await measure(loc, true)
       expect(rows.length, `${tpl} ${loc}: Converters`).toBe(perLocale)
       total += rows.length
-      for (const r of rows) if (!r.spot || r.out !== 0 || r.hits !== 0) bad.push(`${loc} ${r.id} ${JSON.stringify(r)}`)
+      // #623 — each Converter's body had text the spot was compared with (its name at least)
+      for (const r of rows) if (!r.spot || r.out !== 0 || r.hits !== 0 || r.texts < 1) bad.push(`${loc} ${r.id} ${JSON.stringify(r)}`)
       if (loc === 'en') freshEn = JSON.stringify(rows.map((r) => [r.id, r.spot]))
     }
     expect(bad, bad.join('\n')).toEqual([])

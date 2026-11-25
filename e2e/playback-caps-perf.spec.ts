@@ -338,7 +338,7 @@ test.describe('playback — Slice 3c-c: ONE global travel budget (resource + tri
     for (const eid of ['c060', 'c062', 'c063']) {
       const n = await page
         .locator(`.react-flow__edge[data-id="${eid}"]`)
-        .evaluate((el) => el.querySelectorAll('g.pb-move, g.state-move, .pb-cue, .pb-l0-pulse, .state-edge-pulse, animateMotion, .flow-move').length)
+        .evaluate((el) => el.querySelectorAll('g.pb-move, g.state-move, .pb-cue, .pb-l0-pulse, .state-edge-pulse, animateMotion').length)
       expect(n, `${eid} shows no travelling / legacy cue`).toBe(0)
     }
     // …while their in-budget siblings each show exactly one

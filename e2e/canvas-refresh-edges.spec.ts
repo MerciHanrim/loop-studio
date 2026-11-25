@@ -132,7 +132,7 @@ test.describe('Playback choreography — the token reacts ONLY to real engine ev
 // (issue #330 PR 1 — the `+N` badge lives in the label layer; a TRAVELLING one
 // is motion, the reduced-motion static one is not)
 const MOTION =
-  '.react-flow__edges animateMotion, .flow-move, .pb-move, .pb-cue, .flow-bead, .flow-trail, .pb-badge[data-playback-badge="travel"], .state-move, .state-move__n'
+  '.react-flow__edges animateMotion, .pb-move, .pb-cue, .flow-bead, .flow-trail, .pb-badge[data-playback-badge="travel"], .state-move, .state-move__n'
 
 test.describe('Canvas Refresh PR 2 — reduced motion: the flow bead contract', () => {
   test('a real FlowEvent renders NO moving element — a held static highlight + arrival cue instead', async ({ page }) => {

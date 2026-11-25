@@ -116,8 +116,9 @@ test.describe('state-verification.json — app import + feedback', () => {
 
   test('Reset clears every state effect', async ({ page }) => {
     await stepN(page, 4)
-    await expect(page.locator('.state-pulse, .state-flash, .edge-label__delta').first()).toBeVisible()
+    // #623 — the state cues drawn today (`.state-pulse` / `.state-flash` are no longer emitted)
+    await expect(page.locator('.state-edge-pulse, .state-move, .edge-label__delta').first()).toBeVisible()
     await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().reset())
-    await expect(page.locator('.state-pulse, .state-flash, .edge-label__delta')).toHaveCount(0)
+    await expect(page.locator('.state-edge-pulse, .state-move, .edge-label__delta')).toHaveCount(0)
   })
 })

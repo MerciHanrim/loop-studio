@@ -1,0 +1,1 @@
+{"type":"internal","reason":"Tests only (#623 items 3, 4, 6 and 10): e2e assertions on classes nothing emits, a count() >= 0, and guards whose checks never ran now assert what the screen shows, and the Italian and Dutch copy tests read all ten Templates; no product code, build or shipped file changes."}
