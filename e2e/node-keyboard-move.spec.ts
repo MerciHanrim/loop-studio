@@ -363,25 +363,28 @@ test.describe('node keyboard move — what must NOT open a transaction (§LGR6.7
     expect(a.past - b.past).toBe(0)
   })
 
-  test('every modifier that React Flow really moves on opens a transaction, and the step matches', async ({ page }) => {
+  test('a plain or Shift arrow is a move with its transaction; with Ctrl, Alt or ⌘ held there is no move and no transaction', async ({ page }) => {
     await load(page)
     const id = await focusAndSelect(page)
-    // React Flow's node handler has NO modifier gate: every combination moves,
-    // and only Shift changes the step (measured 2026-09-20).
+    // React Flow's node handler has NO modifier gate: every combination moved,
+    // and only Shift changes the step (measured 2026-09-20), so this test used to
+    // pin that each of them opened a transaction. #612 item 5 (Lumi, 2026-11-25):
+    // with Ctrl, Alt or ⌘ held an arrow is not a move at all, and React Flow's
+    // own step is kept from running in its place.
     for (const [combo, step] of [
       ['ArrowRight', 16],
       ['Shift+ArrowRight', 64],
-      ['Control+ArrowRight', 16],
-      ['Alt+ArrowRight', 16],
-      ['Meta+ArrowRight', 16],
-      ['Control+Shift+ArrowRight', 64],
+      ['Control+ArrowRight', 0],
+      ['Alt+ArrowRight', 0],
+      ['Meta+ArrowRight', 0],
+      ['Control+Shift+ArrowRight', 0],
     ] as const) {
       const b = await state(page)
       await page.keyboard.press(combo)
       await page.waitForTimeout(300)
       const a = await state(page)
-      expect(a.pos[id].x - b.pos[id].x, `${combo}: the grid step`).toBe(step)
-      expect(a.past - b.past, `${combo}: a move React Flow makes is a move we record`).toBe(1)
+      expect(a.pos[id].x - b.pos[id].x, `${combo}: the step`).toBe(step)
+      expect(a.past - b.past, `${combo}: one entry per move, none without one`).toBe(step ? 1 : 0)
     }
   })
 })
@@ -458,5 +461,71 @@ test.describe('node keyboard move — orthogonal routing (§LGR6.7 / §ER3.9)', 
     // the commit at keyup must not force another rebuild on top of the last move
     await page.waitForTimeout(600)
     expect(await page.evaluate(() => (window as unknown as Bridge).__loop.routeMap.genCount()), 'the push adds no rebuild of its own').toBe(gen1)
+  })
+})
+
+// #612 item 5 — the canvas's arrow-key guard read only Shift: with Alt, Ctrl or ⌘ held an arrow
+// still moved the focused node and prevented the key's default, so Alt+Left (the browser's
+// Back) moved the node instead (MEASURED on main 7a507219: each of Alt / Ctrl / Meta + an arrow
+// moved the selected, focused node one grid step and ended `defaultPrevented`). An arrow with
+// one of those held is not a move: the node stays, and the key keeps its default. React Flow's
+// own node step (which reads no modifier either) does not run in its place.
+//
+// The test never lets a real Back leave the page: every `preventDefault` call on an arrow
+// keydown is logged where it happens (an init script wraps it), so the app's and React Flow's
+// calls are seen whatever the listener order; and a same-URL history entry is pushed first, so a
+// Back the browser does take stays in the page.
+test.describe('an arrow with Alt, Ctrl or ⌘ held is not a node move (#612 item 5)', () => {
+  type Log = { __arrowPrevented: string[] }
+  async function logPreventDefault(page: Page) {
+    await page.addInitScript(() => {
+      const w = window as unknown as Log
+      w.__arrowPrevented = []
+      const original = Event.prototype.preventDefault
+      Event.prototype.preventDefault = function (this: Event) {
+        if (this instanceof KeyboardEvent && this.type === 'keydown' && this.key.startsWith('Arrow')) {
+          const mods = [this.altKey && 'Alt', this.ctrlKey && 'Control', this.metaKey && 'Meta', this.shiftKey && 'Shift'].filter(Boolean)
+          w.__arrowPrevented.push([...mods, this.key].join('+'))
+        }
+        return original.call(this)
+      }
+    })
+    return () => page.evaluate(() => (window as unknown as Log).__arrowPrevented.splice(0))
+  }
+
+  for (const combo of ['Alt+ArrowLeft', 'Alt+ArrowRight', 'Control+ArrowUp', 'Meta+ArrowDown']) {
+    test(`${combo}: the node stays, nothing is recorded, and the key's default is not prevented`, async ({ page }) => {
+      const prevented = await logPreventDefault(page)
+      await load(page)
+      const id = await focusAndSelect(page)
+      await page.evaluate(() => history.pushState({ guard: true }, '', location.href))
+      const b = await state(page)
+      await prevented()
+      await page.keyboard.press(combo)
+      await page.waitForTimeout(300)
+      expect(await page.evaluate(() => Boolean((window as unknown as { __loop?: unknown }).__loop)), 'still on the app').toBe(true)
+      const a = await state(page)
+      expect(a.pos[id], 'the node stays').toEqual(b.pos[id])
+      expect(a.past, 'nothing is recorded').toBe(b.past)
+      expect(await prevented(), "no one prevented the key's default").toEqual([])
+    })
+  }
+
+  test('control: a plain arrow moves one grid step, Shift four, each prevented as before', async ({ page }) => {
+    const prevented = await logPreventDefault(page)
+    await load(page)
+    const id = await focusAndSelect(page)
+    const b = await state(page)
+    await prevented()
+    await page.keyboard.press('ArrowRight')
+    await page.waitForTimeout(300)
+    const a = await state(page)
+    expect(a.pos[id].x - b.pos[id].x).toBe(16)
+    expect(await prevented()).toContain('ArrowRight')
+    await page.keyboard.press('Shift+ArrowDown')
+    await page.waitForTimeout(300)
+    const c = await state(page)
+    expect(c.pos[id].y - a.pos[id].y).toBe(64)
+    expect(await prevented()).toContain('Shift+ArrowDown')
   })
 })
