@@ -335,7 +335,7 @@ const ui = {
   'mc.cost.measured': 'Đã đo (lần chạy trước)',
   'mc.cost.benchmark': 'Đo thử tại máy',
   'mc.cost.execution': 'Thực thi',
-  'mc.cost.parallel': 'Song song, {workers} luồng',
+  'mc.cost.parallel': 'Số luồng: {workers}',
   'mc.cost.localPause': 'Tại máy · có thể khựng trong chốc lát',
   'mc.cost.local': 'Tại máy',
   'mc.cost.memory': 'Bộ nhớ',

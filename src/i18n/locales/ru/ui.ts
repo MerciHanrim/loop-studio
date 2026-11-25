@@ -369,7 +369,7 @@ const ui = {
   'mc.cost.measured': 'Измерено (последний прогон)',
   'mc.cost.benchmark': 'Локальный замер',
   'mc.cost.execution': 'Выполнение',
-  'mc.cost.parallel': 'Параллельно, потоков: {workers}',
+  'mc.cost.parallel': 'Потоков: {workers}',
   'mc.cost.localPause': 'Локально · возможна короткая пауза',
   'mc.cost.local': 'Локально',
   'mc.cost.memory': 'Память',

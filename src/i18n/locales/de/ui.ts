@@ -363,7 +363,7 @@ const ui = {
   'mc.cost.measured': 'Gemessen (letzter Lauf)',
   'mc.cost.benchmark': 'Lokaler Vergleichswert',
   'mc.cost.execution': 'Ausführung',
-  'mc.cost.parallel': 'Parallel, {workers} Prozesse',
+  'mc.cost.parallel': 'Prozesse: {workers}',
   'mc.cost.localPause': 'Lokal · kann kurz stocken',
   'mc.cost.local': 'Lokal',
   'mc.cost.memory': 'Arbeitsspeicher',

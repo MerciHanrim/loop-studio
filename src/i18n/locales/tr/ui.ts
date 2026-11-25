@@ -349,7 +349,7 @@ const ui = {
   'mc.cost.measured': 'Ölçüldü (son çalıştırma)',
   'mc.cost.benchmark': 'Yerel ölçüm',
   'mc.cost.execution': 'Yürütme',
-  'mc.cost.parallel': 'Paralel, {workers} iş parçacığı',
+  'mc.cost.parallel': 'İş parçacığı: {workers}',
   'mc.cost.localPause': 'Yerel · kısa süre duraklayabilir',
   'mc.cost.local': 'Yerel',
   'mc.cost.memory': 'Bellek',

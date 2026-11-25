@@ -356,7 +356,7 @@ const ui = {
   'mc.cost.measured': 'Mesuré (dernière exécution)',
   'mc.cost.benchmark': 'Test de référence local',
   'mc.cost.execution': 'Exécution',
-  'mc.cost.parallel': 'En parallèle, {workers} processus',
+  'mc.cost.parallel': 'Processus : {workers}',
   'mc.cost.localPause': 'Local · peut marquer une brève pause',
   'mc.cost.local': 'Local',
   'mc.cost.memory': 'Mémoire',

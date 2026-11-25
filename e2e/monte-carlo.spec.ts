@@ -156,7 +156,9 @@ test.describe('Monte Carlo run', () => {
   // its time band was the local one) while the run started Workers. The line
   // now names the path the run takes: as many workers as the run starts, or
   // Local when it starts none. Workers are counted by wrapping the constructor.
-  for (const runs of [16, 64]) {
+  // The count reads "Workers: N", which also holds for the one Worker of a
+  // single run (Lumi: "Parallel, 1 workers" called one Worker parallel).
+  for (const runs of [1, 16, 64]) {
     test(`the Execution line names the Workers the run starts — ${runs} runs (#620 item 1)`, async ({ page }) => {
       await page.evaluate(() => {
         const w = window as unknown as { __workers: number }
@@ -179,7 +181,8 @@ test.describe('Monte Carlo run', () => {
       await runBtn.click()
       await expect.poll(() => mcSnapshot(page).then((s) => s.status), { timeout: 20_000 }).toBe('done')
       const started = await page.evaluate(() => (window as unknown as { __workers: number }).__workers)
-      expect(line).toBe(started > 0 ? `Parallel, ${started} workers` : 'Local')
+      expect(line).toBe(started > 0 ? `Workers: ${started}` : 'Local')
+      expect(line).not.toMatch(/Parallel/)
     })
   }
 

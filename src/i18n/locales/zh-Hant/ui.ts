@@ -341,7 +341,7 @@ const ui = {
   'mc.cost.measured': '實測（上次執行）',
   'mc.cost.benchmark': '本機基準',
   'mc.cost.execution': '執行',
-  'mc.cost.parallel': '平行，{workers} 個工作執行緒',
+  'mc.cost.parallel': '工作執行緒數：{workers}',
   'mc.cost.localPause': '本機 · 可能短暫停頓',
   'mc.cost.local': '本機',
   'mc.cost.memory': '記憶體',
