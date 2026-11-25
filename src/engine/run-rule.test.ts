@@ -260,14 +260,25 @@ describe('a chain holds one number', () => {
     }
   })
 
-  it('a rule on a chain never runs it above the target, at any step', () => {
+  // #622 item 1 — this asserted only inside a loop over the step's events, so a chain that moved
+  // nothing (no events) passed with no assertion run, and so did one that stopped partway. Each
+  // step's amounts are now stated: the chain runs at the target 0.25 on every line, every step,
+  // and the store holds the twelve steps' worth. A run above the target, below it, a stop at any
+  // step, or no run at all fails.
+  it('a rule on a chain runs it at the target, never above, at every step', () => {
     const g = chain('pullAny', 'pullAny', asks('0.25'))
     let st = initSim(g.nodes)
     for (let i = 0; i < 12; i++) {
       const r = step(g.nodes, g.edges, st, 1, MV)
-      for (const e of r.report.events) expect(e.amount / Number((g.edges.find((x) => x.id === e.edgeId)!.data as { flow: string }).flow)).toBeLessThanOrEqual(0.25)
+      const moved: Record<string, number> = {}
+      for (const e of r.report.events) moved[e.edgeId] = (moved[e.edgeId] ?? 0) + e.amount
+      expect(Object.keys(moved).sort(), `step ${i + 1}: every line of the chain moved`).toEqual(['in', 'mid', 'out', 'pw'])
+      // 0.25 of each line's flow: in 100, mid 100, pw 300, out 100
+      for (const [line, want] of [['in', 25], ['mid', 25], ['pw', 75], ['out', 25]] as const) expect(moved[line], `step ${i + 1}: ${line}`).toBeCloseTo(want, 9)
+      expect([r.report.runs![0]!.state, r.report.runs![0]!.moved], `step ${i + 1}: the run`).toEqual(['met', 0.25])
       st = r.state
     }
+    expect(st.values.store).toBeCloseTo(300, 9)
   })
 })
 

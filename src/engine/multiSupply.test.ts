@@ -91,7 +91,18 @@ function checks({ nodes, edges }: Graph, r: ReturnType<typeof run>) {
       g.available <= 1e-6 ? 'idle' : g.moved >= g.demand - 1e-6 ? 'full' : g.moved <= 1e-6 ? 'held' : 'partial'
     expect(g.state, `${g.nodeId} state from its numbers`).toBe(want)
     expect(g.why === undefined, `${g.nodeId} why only on partial / held`).toBe(want === 'idle' || want === 'full')
-    if (want === 'partial') expect(g.why, `${g.nodeId} partial why`).toBe(g.moved < g.available - 1e-6 ? 'room' : g.why === 'supply' ? 'supply' : 'upstream')
+    // #622 item 3 — the expected reason was taken from `g.why` itself in the not-room case
+    // (`g.why === 'supply' ? 'supply' : 'upstream'`), so `supply` and `upstream` could be swapped
+    // and pass. It is read from the step's input state now: `supply` when one of the Gate's own
+    // Pools (a Pool → Gate line), net of what that Pool's other lines took this step (a shared
+    // Pool is seen net of the plan's claim, S5), held less than its line asks; else `upstream`.
+    if (want === 'partial') {
+      const own = edges.filter((e) => e.target === g.nodeId && byId.get(e.source)?.data.kind === 'pool')
+      const left = (e: LoopEdge) => r.before[e.source] - edges.filter((x) => x.source === e.source && x.id !== e.id).reduce((t, x) => t + r.moved[x.id], 0)
+      const ownShort = own.some((e) => (e.data as { flow: string }).flow !== 'all' && left(e) < rate(e) - 1e-6)
+      const reason = g.moved < g.available - 1e-6 ? 'room' : ownShort ? 'supply' : 'upstream'
+      expect(g.why, `${g.nodeId} partial why`).toBe(reason)
+    }
   }
 }
 const pin = (g: Graph, want: { moved: Record<string, number>; pools: Record<string, number> }) => {
