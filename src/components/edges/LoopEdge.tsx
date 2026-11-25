@@ -510,8 +510,11 @@ function LoopEdge({
   // start-of-flow dot only when the edge is selected and idle; hidden during a
   // transition so it never doubles up with the token.
   const startDot = selected && !isState && transition == null
-  const sx = sourceX + (targetX - sourceX) * 0.08
-  const sy = sourceY + (targetY - sourceY) * 0.08
+  // #612 item 4 — 8 % along the DRAWN path, not along the straight line between the ends: on a
+  // routed or curved connection that line is not the path, and the dot floated off it (MEASURED
+  // on the Desalination Template: 8 of 47 connections, up to 55.5 px off). Sampled only while
+  // the dot is shown (one selected, idle connection).
+  const { x: sx, y: sy } = startDot ? pointOnPath(path, 0.08) : { x: 0, y: 0 }
 
   // docs/large-graph-readability.md §LGR3.1 — while Focus is on, an edge OUTSIDE
   // the selected node's 1-hop set is de-emphasised; its label BADGE (flow /

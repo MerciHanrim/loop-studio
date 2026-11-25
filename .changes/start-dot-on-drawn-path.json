@@ -1,0 +1,1 @@
+{"type":"user-facing","changelog":"- **A selected connection's start dot sits on the line.** The small dot that marks where a selected connection starts was placed along the straight line between its two ends, so on a routed or curved connection it could float beside the line, in one Template more than 50 px away. It now sits on the line itself, near its start."}
