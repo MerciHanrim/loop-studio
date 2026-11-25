@@ -67,11 +67,13 @@ const converterRate = (flow: string): number =>
 type Before = ReturnType<typeof initSim>
 type After = ReturnType<typeof step>
 
-/** the four checks over one step; `[]` when all hold. Since #476 every group
- *  (a tree, or a multi group planned at its fixed priority, two multi-supply
- *  Gates meeting at one Converter included) is checked like a Pool-fed
- *  Converter; `multi` counts the Converters checks 2 / 3 skipped and is 0. */
-function conservation(nodes: LoopNode[], edges: LoopEdge[], before: Before, after: After): { violations: string[]; multi: number } {
+/** the four checks over one step; `violations` is `[]` when all hold. Since #476 every group
+ *  (a tree, or a multi group planned at its fixed priority, two multi-supply Gates meeting at
+ *  one Converter included) is checked like a Pool-fed Converter. #622 item 2: the skip path
+ *  for multi-group Converters, never filled since #476, is gone (its count was a constant 0,
+ *  so `expect(…).toBe(0)` could not fail); `ran` names the Converters that ran this step
+ *  (f > 0), so a caller can see that checks 2 and 3 had something to compare. */
+function conservation(nodes: LoopNode[], edges: LoopEdge[], before: Before, after: After): { violations: string[]; ran: string[] } {
   const violations: string[] = []
   const byEdge = new Map(edges.map((e) => [e.id, e]))
   const moved = new Map<string, number>()
@@ -79,8 +81,7 @@ function conservation(nodes: LoopNode[], edges: LoopEdge[], before: Before, afte
   const into = (id: string) => [...moved].reduce((s, [eid, a]) => s + (byEdge.get(eid)!.target === id ? a : 0), 0)
   const outOf = (id: string) => [...moved].reduce((s, [eid, a]) => s + (byEdge.get(eid)!.source === id ? a : 0), 0)
   const flowOf = (e: LoopEdge) => (e.data as { flow?: string }).flow ?? ''
-  const multiMembers = new Set<string>()
-  const multi = 0
+  const ran: string[] = []
 
   for (const n of nodes) {
     if (n.data.kind === 'pool') {
@@ -94,7 +95,6 @@ function conservation(nodes: LoopNode[], edges: LoopEdge[], before: Before, afte
     } else if (n.data.kind === 'converter') {
       const ins = edges.filter((e) => e.target === n.id && e.data?.kind === 'resource')
       const outs = edges.filter((e) => e.source === n.id && e.data?.kind === 'resource')
-      if (multiMembers.has(n.id)) continue
       // 2 — one f on the inputs; every output either moved f · rate or is
       // inert this step (a branch into a router that does not fire, or on a
       // zero-storage cycle: SEMANTICS-S.md §S4 — the Converter makes its other
@@ -106,6 +106,7 @@ function conservation(nodes: LoopNode[], edges: LoopEdge[], before: Before, afte
         fs.push({ e: e.id, f: (moved.get(e.id) ?? 0) / r })
       }
       const f = fs[0]?.f ?? 0
+      if (f > 1e-6) ran.push(n.id)
       if (fs.some((x) => Math.abs(x.f - f) > 1e-6)) {
         violations.push(`Converter ${n.id}: no single f on its inputs — ${fs.map((x) => `${x.e} ${x.f.toFixed(4)}`).join(', ')} (I2)`)
       }
@@ -126,22 +127,22 @@ function conservation(nodes: LoopNode[], edges: LoopEdge[], before: Before, afte
       }
     }
   }
-  return { violations, multi }
+  return { violations, ran }
 }
 
-/** `expect` the four checks over `steps` steps of one graph; returns the
- *  number of multi-group Converters the checks skipped */
-function holds(nodes: LoopNode[], edges: LoopEdge[], steps: number, label: string): number {
+/** `expect` the four checks over `steps` steps of one graph; returns the Converters that ran
+ *  (f > 0) on at least one of those steps, sorted: the ones checks 2 and 3 really compared */
+function holds(nodes: LoopNode[], edges: LoopEdge[], steps: number, label: string): string[] {
   let s = initSim(nodes)
-  let multi = 0
+  const ran = new Set<string>()
   for (let t = 0; t < steps; t++) {
     const r = step(nodes, edges, s, 3, 2)
     const c = conservation(nodes, edges, s, r)
-    multi = Math.max(multi, c.multi)
+    for (const id of c.ran) ran.add(id)
     expect(c.violations, `${label} step ${t + 1}\nnodes=${JSON.stringify(nodes.map((n) => n.data))}\nedges=${JSON.stringify(edges.map((e) => [e.source, e.target, (e.data as { flow?: string }).flow]))}`).toEqual([])
     s = r.state
   }
-  return multi
+  return [...ran].sort()
 }
 
 describe('conservation — the #388 shapes', () => {
@@ -290,6 +291,59 @@ describe('conservation — randomised sweep over activations and router kinds', 
   it(`the sweep draws ${routerFedConverters} router-fed Converters in ${count('tree')} tree, ${count('multi')} multi and ${count('split-rejoin')} refused groups; all four checks hold on the trees and the planned multi groups`, () => {
     expect(routerFedConverters).toBeGreaterThan(0) // the counts are a fact of the sample, reported here
     expect(count('tree')).toBeGreaterThan(0)
+    // #622 item 2 — checks 2 and 3 really compared Converters across the sweep, router-fed ones among them
+    const ran = SWEEP.flatMap((g, i) => holds(g.nodes, g.edges, 4, `graph ${i + 1}`).map((id) => ({ g, id })))
+    expect(ran.length, 'Converters that ran and were checked, over the sweep').toBeGreaterThan(0)
+    expect(ran.some(({ g, id }) => g.edges.some((e) => e.target === id && g.nodes.find((y) => y.id === e.source)?.data.kind !== 'pool')), 'a router-fed one among them').toBe(true)
+  })
+})
+
+// #622 item 2 — the checks are worth their `toEqual([])` only if they report a break: a step's
+// result with conservation broken by a planted value must give a violation, one per check.
+describe('conservation — the checks report a planted break (#622 item 2)', () => {
+  // P1 →(3) C →(3) x, with a Gate on a second line: P2 →(2) g →(2) y
+  const nodes = [pool('P1', 50), converter('C'), pool('x', 0), pool('P2', 50), gate('g'), pool('y', 0)]
+  const edges = [edge('i1', 'P1', 'C', '3'), edge('o1', 'C', 'x', '3'), edge('i2', 'P2', 'g', '2'), edge('o2', 'g', 'y', '2')]
+  const once = () => {
+    const before = initSim(nodes)
+    return { before, after: step(nodes, edges, before, 3, 2) }
+  }
+  /** the step's result with one event's amount replaced, or a Pool's value moved */
+  const planted = (after: After, change: { edge?: string; amount?: number; pool?: string; by?: number }): After => ({
+    ...after,
+    report: { ...after.report, events: after.report.events.map((ev) => (ev.edgeId === change.edge ? { ...ev, amount: change.amount! } : ev)) },
+    state: { ...after.state, values: change.pool ? { ...after.state.values, [change.pool]: after.state.values[change.pool]! + change.by! } : after.state.values },
+  })
+
+  it('as it is, all four checks hold and C ran', () => {
+    const { before, after } = once()
+    expect(after.report.events.map((e) => e.edgeId).sort(), 'every line moved').toEqual(['i1', 'i2', 'o1', 'o2'])
+    expect(conservation(nodes, edges, before, after)).toEqual({ violations: [], ran: ['C'] })
+  })
+  it('check 1: a Pool that changed by more than its events (an unreported clamp)', () => {
+    const { before, after } = once()
+    expect(conservation(nodes, edges, before, planted(after, { pool: 'x', by: 1 })).violations.join('\n')).toMatch(/^Pool x: its value changed by 1\.000000 more than its events say/m)
+  })
+  it('check 2: an output at another f than the inputs, and inputs at two f', () => {
+    const { before, after } = once()
+    expect(conservation(nodes, edges, before, planted(after, { edge: 'o1', amount: 2 })).violations.join('\n')).toMatch(/^Converter C: output o1 at f 0\.6667, its inputs at 1\.0000/m)
+    const twoIn = { nodes: [...nodes, pool('P3', 50)], edges: [...edges, edge('i3', 'P3', 'C', '1')] }
+    const before2 = initSim(twoIn.nodes)
+    const after2 = step(twoIn.nodes, twoIn.edges, before2, 3, 2)
+    expect(conservation(twoIn.nodes, twoIn.edges, before2, after2).violations).toEqual([])
+    expect(conservation(twoIn.nodes, twoIn.edges, before2, planted(after2, { edge: 'i3', amount: 0.5 })).violations.join('\n')).toMatch(/^Converter C: no single f on its inputs/m)
+  })
+  it('check 3: a loss other than the recipe’s; and inputs taken with nothing made', () => {
+    const { before, after } = once()
+    // o1 makes 2 of its 3 (x moved by its events, so check 1 holds): 1 lost where the recipe loses 0
+    const lessMade = planted(planted(after, { edge: 'o1', amount: 2 }), { pool: 'x', by: -1 })
+    expect(conservation(nodes, edges, before, lessMade).violations.join('\n')).toMatch(/^Converter C: lost 1\.000000, its recipe at f 1\.0000 loses 0\.000000/m)
+    const noOutput: After = { ...after, report: { ...after.report, events: after.report.events.filter((ev) => ev.edgeId !== 'o1') } }
+    expect(conservation(nodes, edges, before, planted(noOutput, { pool: 'x', by: -3 })).violations.join('\n')).toMatch(/^Converter C: took its inputs at f 1\.0000 and produced nothing/m)
+  })
+  it('check 4: a Gate that passed on less than it took', () => {
+    const { before, after } = once()
+    expect(conservation(nodes, edges, before, planted(after, { edge: 'o2', amount: 1.5 })).violations.join('\n')).toMatch(/^Gate g: took 2\.000000 and passed on 1\.500000/m)
   })
 })
 
@@ -327,31 +381,41 @@ describe('conservation — two outputs into one target (#471 V3, V3g, V3r)', () 
 })
 
 describe('conservation — a nearly full capped output (#471 V1)', () => {
+  const v1 = (s: number) => {
+    const rnd = lcg(s * 15485863)
+    const pick = picker(rnd)
+    const mode = pick<Mode>(['pullAny', 'pullAll'])
+    const nIn = 1 + Math.floor(rnd() * 3)
+    const nodes: LoopNode[] = [converter('C', 'automatic', mode)]
+    const edges: LoopEdge[] = []
+    for (let i = 0; i < nIn; i++) {
+      nodes.push(pool(`a${i}`, Math.floor(rnd() * 12)))
+      edges.push(edge(`e${i}`, `a${i}`, 'C', String(1 + Math.floor(rnd() * 5))))
+    }
+    const make = 1 + Math.floor(rnd() * 5)
+    const cap = 5 + Math.floor(rnd() * 10)
+    // room strictly inside (0, make): the output binds f below 1
+    const room = Math.min(cap, Math.max(0.5, Math.round(rnd() * (make - 0.5) * 2) / 2))
+    nodes.push(pool('x', cap - room, cap))
+    edges.push(edge('o1', 'C', 'x', String(make)))
+    if (rnd() < 0.5) {
+      nodes.push(pool('y', 0))
+      edges.push(edge('o2', 'C', 'y', String(1 + Math.floor(rnd() * 5))))
+    }
+    return { nodes, edges }
+  }
   for (let s = 1; s <= 20; s++) {
     it(`seed ${s}: a Pool-fed Converter whose output room is short takes its inputs at the same fraction`, () => {
-      const rnd = lcg(s * 15485863)
-      const pick = picker(rnd)
-      const mode = pick<Mode>(['pullAny', 'pullAll'])
-      const nIn = 1 + Math.floor(rnd() * 3)
-      const nodes: LoopNode[] = [converter('C', 'automatic', mode)]
-      const edges: LoopEdge[] = []
-      for (let i = 0; i < nIn; i++) {
-        nodes.push(pool(`a${i}`, Math.floor(rnd() * 12)))
-        edges.push(edge(`e${i}`, `a${i}`, 'C', String(1 + Math.floor(rnd() * 5))))
-      }
-      const make = 1 + Math.floor(rnd() * 5)
-      const cap = 5 + Math.floor(rnd() * 10)
-      // room strictly inside (0, make): the output binds f below 1
-      const room = Math.min(cap, Math.max(0.5, Math.round(rnd() * (make - 0.5) * 2) / 2))
-      nodes.push(pool('x', cap - room, cap))
-      edges.push(edge('o1', 'C', 'x', String(make)))
-      if (rnd() < 0.5) {
-        nodes.push(pool('y', 0))
-        edges.push(edge('o2', 'C', 'y', String(1 + Math.floor(rnd() * 5))))
-      }
+      const { nodes, edges } = v1(s)
       holds(nodes, edges, 3, `seed ${s}`)
     })
   }
+  // #622 item 2 — a seed whose C does not run (an input Pool at 0, or `pull all` held by the
+  // room) has nothing for checks 2 and 3 to compare; across the twenty, some C must run
+  it('the twenty seeds: C ran, and was checked, in some of them', () => {
+    const ran = Array.from({ length: 20 }, (_, i) => v1(i + 1)).filter(({ nodes, edges }, i) => holds(nodes, edges, 3, `seed ${i + 1}`).includes('C')).length
+    expect(ran, 'seeds whose C ran').toBeGreaterThan(0)
+  })
 })
 
 describe('conservation — two routers into one Converter (#471 V4 — a tree group, planned as one since Deploy 2)', () => {
@@ -373,7 +437,8 @@ describe('conservation — two routers into one Converter (#471 V4 — a tree gr
   for (let s = 1; s <= 20; s++) {
     it(`seed ${s}: all four checks hold — the two Gates deliver C's recipe at one f`, () => {
       const { nodes, edges } = diamond(s)
-      expect(holds(nodes, edges, 2, `seed ${s}`)).toBe(0) // a tree group: nothing skipped
+      // #622 item 2 — was `toBe(0)` on a count that was always 0; C itself ran and was checked
+      expect(holds(nodes, edges, 2, `seed ${s}`), 'C ran, and checks 2 and 3 compared it').toEqual(['C'])
     })
   }
   it('a Converter fed by two routers receives no more than its recipe uses (#471 V4 — the joint plan across routers)', () => {
