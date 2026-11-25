@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { ViewportPortal, useReactFlow, useStore } from '@xyflow/react'
 import { useFrameStore, type FrameRect, type FrameColor } from '../../store/frameStore'
 import { useAutoFrameStore } from '../../store/autoFrameStore'
-import { useGraphStore, type GestureSnapshot } from '../../store/graphStore'
+import { selectOnly, useGraphStore, type GestureSnapshot } from '../../store/graphStore'
 import { useUiStore } from '../../store/uiStore'
 import { useLocaleDirection, useT } from '../../i18n'
 import { useIsMobile } from '../../ui/media'
@@ -171,6 +171,16 @@ export function FrameLayer() {
   const adoptFrameSilently = useFrameStore((s) => s.adoptFrameSilently)
   const disarmTool = useFrameStore((s) => s.disarmTool)
   const selectFrame = useFrameStore((s) => s.selectFrame)
+  // #612 item 1 — a frame selected by a plain press (or Enter / Space on it) is the selection
+  // alone: the nodes and connections selected before it are let go, as a click on the empty
+  // canvas lets them go, so the delete keys act on the frame (they take a selected node or
+  // connection first). MEASURED before: click node A, click frame F's strip, Delete, and A was
+  // deleted. With Shift, Ctrl or ⌘ held the selection is kept, as before this change (Ctrl / ⌘
+  // + drag is the frame-only move).
+  const selectFrameAlone = (id: string, mods?: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }) => {
+    if (!mods || !(mods.shiftKey || mods.ctrlKey || mods.metaKey)) selectOnly({})
+    selectFrame(id)
+  }
   const renameFrame = useFrameStore((s) => s.renameFrame)
   const setRectsSilently = useFrameStore((s) => s.setRectsSilently)
   const setFrameColor = useFrameStore((s) => s.setFrameColor)
@@ -647,7 +657,7 @@ export function FrameLayer() {
     (e: React.PointerEvent) => {
       e.stopPropagation()
       e.preventDefault()
-      selectFrame(id)
+      selectFrameAlone(id, e)
       if (!editable) return // D6 — select only
       const G = useGraphStore.getState()
       const anchor = flowPt(e)
@@ -866,7 +876,7 @@ export function FrameLayer() {
                 }
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
-                  selectFrame(rf.id)
+                  selectFrameAlone(rf.id, e)
                   return
                 }
                 if (!ARROWS[e.key]) return
@@ -898,7 +908,7 @@ export function FrameLayer() {
                         onPointerDown={startChromeDrag('move', rf.id, rf.rect, rf.auto, rf.label)}
                         onClick={(e) => {
                           e.stopPropagation()
-                          selectFrame(rf.id)
+                          selectFrameAlone(rf.id, e)
                         }}
                       />
                     )),
@@ -916,7 +926,7 @@ export function FrameLayer() {
                 maxW={rf.rect.w}
                 onSize={(w, h) => onChipSize(rf.id, w, h)}
                 onOpen={() => {
-                  selectFrame(rf.id)
+                  selectFrameAlone(rf.id)
                   if (propsId === rf.id) closeFrameProps()
                   else openFrameProps(rf.id)
                 }}

@@ -744,3 +744,99 @@ test.describe('frame accessibility — the selection and focus rings (§LGR6.6)'
     void id
   })
 })
+
+// #612 item 1 — selecting a frame left the nodes and connections selected before it, and the
+// delete keys take those first: click node A, click frame F's strip, Delete, and A was deleted
+// (MEASURED on main 7a507219: the node and the frame both selected, the node gone, the frame
+// kept). Rule (Lumi, 2026-11-25): a frame selected by a plain click (or its keyboard
+// equivalent, Enter / Space on the focused frame) is the selection alone, so the delete keys
+// act on it. A press with Shift, Ctrl or ⌘ held keeps the existing selection, as before this
+// change (Ctrl / ⌘ + drag is the frame-only move); that case is left as it was.
+test.describe('a frame selected by a plain click is the selection alone (#612 item 1)', () => {
+  type SelBridge = { __loop: { graph: { getState: () => { nodes: { id: string; selected?: boolean }[]; edges: { id: string; selected?: boolean }[]; onEdgesChange: (c: object[]) => void } } } }
+  const nodeCount = (page: Page) => page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().nodes.length)
+  const marked = (page: Page) =>
+    page.evaluate(() => {
+      const g = (window as unknown as SelBridge).__loop.graph.getState()
+      return { nodes: g.nodes.filter((n) => n.selected).map((n) => n.id), edges: g.edges.filter((e) => e.selected).map((e) => e.id) }
+    })
+
+  /** an empty frame clear of every node, a node on screen selected by a click, and a connection marked too */
+  async function setup(page: Page) {
+    await page.setViewportSize({ width: 1600, height: 940 })
+    await load(page)
+    await page.evaluate(() => (window as unknown as Bridge).__loop.rf.setViewport({ x: -400, y: -300, zoom: 1 }, { duration: 0 }))
+    const fid = await seedFrame(page, { x: 640, y: 480, w: 192, h: 128 })
+    const nodeId = await page.evaluate(() => {
+      const pane = document.querySelector('.react-flow')!.getBoundingClientRect()
+      const n = [...document.querySelectorAll<HTMLElement>('.react-flow__node')].find((el) => {
+        const r = el.getBoundingClientRect()
+        return r.left > pane.left + 4 && r.top > pane.top + 4 && r.right < Math.min(pane.right, innerWidth) - 4 && r.bottom < Math.min(pane.bottom, innerHeight) - 4
+      })
+      return n!.dataset.id!
+    })
+    await page.locator(`.react-flow__node[data-id="${nodeId}"]`).click()
+    expect((await marked(page)).nodes).toEqual([nodeId])
+    const frame = page.locator('.lgr-frame').last()
+    // a point on the top strip clear of the frame's name, which lies over the strip's start
+    const sb = (await frame.locator('.lgr-frame__edge-hit--top').first().boundingBox())!
+    const lb = await frame.locator('.lgr-frame__label:not(.lgr-frame__label--static)').boundingBox()
+    const strip = { x: Math.min(sb.x + sb.width - 8, lb ? lb.x + lb.width + 16 : sb.x + 40), y: sb.y + sb.height / 2 }
+    return { fid, nodeId, frame, strip }
+  }
+
+  for (const key of ['Delete', 'Backspace'] as const) {
+    test(`a plain click on the strip: the node is no longer selected, and ${key} removes the frame alone`, async ({ page }) => {
+      const { fid, nodeId, strip } = await setup(page)
+      const n0 = await nodeCount(page)
+      await page.mouse.click(strip.x, strip.y)
+      await expect.poll(() => selectedId(page)).toBe(fid)
+      expect(await marked(page), 'the frame is the selection alone').toEqual({ nodes: [], edges: [] })
+      await page.keyboard.press(key)
+      await page.waitForTimeout(300)
+      expect((await frames(page)).map((f) => f.id), 'the frame is deleted').toEqual([])
+      expect(await nodeCount(page), `node ${nodeId} and every other node stay`).toBe(n0)
+    })
+  }
+
+  test('a connection marked before it is let go as well', async ({ page }) => {
+    const { fid, strip } = await setup(page)
+    const edgeId = await page.evaluate(() => {
+      const g = (window as unknown as SelBridge).__loop.graph.getState()
+      const e = g.edges[0]
+      g.onEdgesChange([{ id: e.id, type: 'select', selected: true }])
+      return e.id
+    })
+    expect((await marked(page)).edges).toEqual([edgeId])
+    await page.mouse.click(strip.x, strip.y)
+    await expect.poll(() => selectedId(page)).toBe(fid)
+    expect(await marked(page)).toEqual({ nodes: [], edges: [] })
+  })
+
+  test("a plain click on the frame's name selects it alone too", async ({ page }) => {
+    const { fid, frame } = await setup(page)
+    await frame.locator('.lgr-frame__label:not(.lgr-frame__label--static)').click()
+    await expect.poll(() => selectedId(page)).toBe(fid)
+    expect(await marked(page)).toEqual({ nodes: [], edges: [] })
+    await page.keyboard.press('Escape') // the name's popover
+  })
+
+  test('Enter on the focused frame, the keyboard click, selects it alone', async ({ page }) => {
+    const { fid, frame } = await setup(page)
+    await frame.focus()
+    await page.keyboard.press('Enter')
+    expect(await selectedId(page)).toBe(fid)
+    expect(await marked(page)).toEqual({ nodes: [], edges: [] })
+  })
+
+  for (const mod of ['Shift', 'Control'] as const) {
+    test(`unchanged: a ${mod}+click on the strip selects the frame and keeps the node selected`, async ({ page }) => {
+      const { fid, nodeId, strip } = await setup(page)
+      await page.keyboard.down(mod)
+      await page.mouse.click(strip.x, strip.y)
+      await page.keyboard.up(mod)
+      await expect.poll(() => selectedId(page)).toBe(fid)
+      expect((await marked(page)).nodes).toEqual([nodeId])
+    })
+  }
+})

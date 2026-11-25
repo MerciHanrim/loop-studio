@@ -683,6 +683,11 @@ connected-edge cascade is unchanged), otherwise the selected frame — a saved
 frame is an undoable delete, a suggested one is dismissed (session-only), the
 same split the ✕ button already makes. The keys are ignored inside a text
 field, while **any** modal dialog is open, and on a locked or mobile canvas.
+A frame selected by a plain press (its strip, its resize handle, its name, or
+Enter / Space on it) is the selection alone: the nodes and connections selected
+before it are let go, as a click on the empty canvas lets them go, so the keys
+then delete the frame (#612; before, the earlier node was deleted). With Shift,
+Ctrl or ⌘ held the earlier selection is kept, and the keys still take it first.
 
 **Four pre-existing defects this pass found (audit 2026-09-20).**
 
