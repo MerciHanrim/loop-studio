@@ -1190,7 +1190,9 @@ can still cover its arrow, as it always could. A record keeps its recorded place
   moves it on the grid (Alt: free); the arrow keys move a focused handle one
   grid step, Shift four; Delete or Backspace removes it (the last one removed
   makes the route automatic again); Escape cancels the drag or key gesture in
-  progress and puts the point back.
+  progress and puts the point back. A pointer drag whose pointer is lost (the
+  window's focus, the page hidden, the capture taken away) is cancelled the same
+  way: the point goes back and nothing is recorded, as for a frame (#410, #612).
 - **Refused**: a bend point dropped inside a node, or within `BEND_STUB_TOL`
   (8 px) of the connection's own port stub (the stretch from a port to
   `ROUTE_STUB` past its node's side), goes back where it was; nothing is

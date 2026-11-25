@@ -596,7 +596,9 @@ entry through an explicit transaction (§SF11.1 "Move" — not the 600 ms
 coalescing, so a paused drag is still one entry); `Esc` or a `pointercancel`
 mid-drag puts frame, nodes and waypoints back and records nothing, and since
 issue #410 (2026-10-30) so does a focus loss (`blur`, the page hidden) or a lost
-pointer capture — the strip and the resize handle capture the pointer. A carried
+pointer capture — the strip and the resize handle capture the pointer. A Frame
+tool draw in flight ends the same way on a focus loss (#612): the draft goes, no
+frame is made, and the tool stays armed for the next draw. A carried
 node moves exactly like a hand-dragged one: no engine / `simulationRev` /
 timeline effect, the `loop-revision` content digest moves as for any position
 change. Under the edit-lock and on mobile a saved frame is **view + select

@@ -29,6 +29,21 @@ type Pt = { x: number; y: number }
 const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
 
 type Gesture = { snapshot: GestureSnapshot; start: Pt[]; index: number; at: Pt; free: boolean }
+type Held = { id: number; el: HTMLElement }
+
+/** #612 item 3 — let go of the pointer a drag holds; true when it held one. A pointer drag
+ *  whose pointer is lost (the window's focus, the page hidden, the capture taken away) is then
+ *  cancelled, as the frame gesture is (#410): the app never learned where the pointer was let
+ *  go, so the point goes back and nothing is recorded. MEASURED before: the point stayed where
+ *  it was dragged, written with no undo entry, and a later pass of the pointer over it with no
+ *  button held moved it again. */
+function letGo(held: { current: Held | null }): boolean {
+  const p = held.current
+  if (!p) return false
+  held.current = null
+  if (p.el.hasPointerCapture(p.id)) p.el.releasePointerCapture(p.id)
+  return true
+}
 
 export function RouteBends({ edgeId, waypoints }: { edgeId: string; waypoints: Pt[] }) {
   const t = useT()
@@ -37,6 +52,8 @@ export function RouteBends({ edgeId, waypoints }: { edgeId: string; waypoints: P
   const selectBend = useRouteEditStore((s) => s.selectBend)
   const [invalidAt, setInvalidAt] = useState<number | null>(null)
   const gestureRef = useRef<Gesture | null>(null)
+  /** the pointer a drag holds, while it holds it (#612 item 3: its ends besides the release) */
+  const pointerRef = useRef<Held | null>(null)
   const buttons = useRef<(HTMLButtonElement | null)[]>([])
 
   const store = () => useGraphStore.getState()
@@ -80,8 +97,18 @@ export function RouteBends({ edgeId, waypoints }: { edgeId: string; waypoints: P
     const onKeyUp = (e: KeyboardEvent) => {
       if (ARROWS[e.key]) keyGesture.release(e.key)
     }
-    const onBlur = () => keyGesture.end('blur')
-    const onVisibility = () => keyGesture.end('visibility')
+    // #612 item 3 — a pointer drag whose pointer is lost is cancelled (see `letGo`)
+    const cancelPointerDrag = () => {
+      if (letGo(pointerRef) && !keyGesture.active) closeRef.current(false)
+    }
+    const onBlur = () => {
+      cancelPointerDrag()
+      keyGesture.end('blur')
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') cancelPointerDrag()
+      keyGesture.end('visibility')
+    }
     window.addEventListener('keyup', onKeyUp)
     window.addEventListener('blur', onBlur)
     document.addEventListener('visibilitychange', onVisibility)
@@ -121,6 +148,7 @@ export function RouteBends({ edgeId, waypoints }: { edgeId: string; waypoints: P
             // the handle takes the keys, so Escape reaches it mid-drag
             e.currentTarget.focus()
             e.currentTarget.setPointerCapture(e.pointerId)
+            pointerRef.current = { id: e.pointerId, el: e.currentTarget }
             selectBend({ edgeId, index: i })
             const g = open(i)
             g.free = e.altKey
@@ -132,11 +160,18 @@ export function RouteBends({ edgeId, waypoints }: { edgeId: string; waypoints: P
             moveTo(g, e.altKey ? f : snapPoint(f))
           }}
           onPointerUp={(e) => {
+            pointerRef.current = null
             if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
             if (!keyGesture.active) close(true)
           }}
           onPointerCancel={() => {
+            pointerRef.current = null
             if (!keyGesture.active) close(false)
+          }}
+          // a capture lost while the drag still holds it (after a normal release it holds none)
+          onLostPointerCapture={(e) => {
+            const held = pointerRef.current
+            if (held?.id === e.pointerId && held.el === e.currentTarget && letGo(pointerRef) && !keyGesture.active) close(false)
           }}
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => {

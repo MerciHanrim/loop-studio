@@ -599,13 +599,28 @@ export function FrameLayer() {
       setDraft(null)
       disarmTool()
     }
+    // #612 item 3 — a draw in flight whose pointer is lost with the window's focus or the
+    // page hidden ends with no frame, as the move and resize gesture does (#410): the app never
+    // learned where the pointer was let go. The tool stays armed for the next draw. MEASURED
+    // before: the draft stayed and grew with moves made with no button held. The draw takes
+    // no pointer capture, so a lost capture does not apply.
+    const onLoss = (e: Event) => {
+      if (e.type === 'visibilitychange' && document.visibilityState !== 'hidden') return
+      if (dragRef.current?.kind !== 'draw') return
+      dragRef.current = null
+      setDraft(null)
+    }
     pane.addEventListener('pointerdown', onDown)
     window.addEventListener('keydown', onCancel)
     window.addEventListener('contextmenu', onCancel)
+    window.addEventListener('blur', onLoss)
+    document.addEventListener('visibilitychange', onLoss)
     return () => {
       pane.removeEventListener('pointerdown', onDown)
       window.removeEventListener('keydown', onCancel)
       window.removeEventListener('contextmenu', onCancel)
+      window.removeEventListener('blur', onLoss)
+      document.removeEventListener('visibilitychange', onLoss)
     }
   }, [toolArmed, flowPt, disarmTool])
 
