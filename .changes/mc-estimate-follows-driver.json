@@ -1,0 +1,1 @@
+{"type":"user-facing","changelog":"- **The Monte Carlo dialog says how a small run will really run.** Below 32 runs the dialog's Execution line said Local, and its time estimate was for that path, while the run itself used parallel workers. The line, the worker count and the time estimate now follow the way the run goes."}

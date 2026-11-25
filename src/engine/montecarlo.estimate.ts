@@ -62,7 +62,11 @@ export async function estimateMonteCarloCost(
 ): Promise<CostEstimate> {
   const fileProtocol = typeof location !== 'undefined' && location.protocol === 'file:'
   const { workers } = effectiveWorkers(config.runs)
-  const parallel = canUseWorkers() && config.runs >= 32 && workers > 1
+  // #620 item 1 — the run's own rule (`runMonteCarloParallel`): Workers whenever
+  // more than one is available, whatever the run count. This used to require
+  // `runs >= 32` as well, so below 32 runs the dialog said "Local" and timed the
+  // local path while the run started Workers.
+  const parallel = canUseWorkers() && defaultWorkerCount() > 1
   const path: CostEstimate['path'] = parallel ? 'parallel' : 'local'
 
   const poolIds = config.tracked.length
@@ -120,7 +124,9 @@ export async function estimateMonteCarloCost(
   if (parallel) {
     const spawn = workers * ASSUMED_SPAWN_MS
     lowMs = spawn + workMs / workers // ideal linear speedup
-    highMs = spawn + workMs / 2 // conservative: ~2× regardless of core count
+    // conservative: ~2× regardless of core count — and none with one Worker
+    // (one run starts one Worker: `workers` is capped by the number of jobs)
+    highMs = spawn + workMs / Math.min(2, workers)
   } else {
     lowMs = workMs * 0.8
     highMs = workMs * 1.4

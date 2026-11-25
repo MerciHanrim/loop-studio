@@ -152,6 +152,37 @@ test.describe('Monte Carlo run', () => {
     expect((await mcSnapshot(page)).hasResult).toBe(false)
   })
 
+  // #620 item 1 — below 32 runs the dialog's Execution line said "Local" (and
+  // its time band was the local one) while the run started Workers. The line
+  // now names the path the run takes: as many workers as the run starts, or
+  // Local when it starts none. Workers are counted by wrapping the constructor.
+  for (const runs of [16, 64]) {
+    test(`the Execution line names the Workers the run starts — ${runs} runs (#620 item 1)`, async ({ page }) => {
+      await page.evaluate(() => {
+        const w = window as unknown as { __workers: number }
+        w.__workers = 0
+        const Real = window.Worker
+        const Counting = function (this: unknown, ...args: ConstructorParameters<typeof Worker>) {
+          w.__workers++
+          return new Real(...args)
+        } as unknown as typeof Worker
+        Counting.prototype = Real.prototype
+        window.Worker = Counting
+      })
+      await page.evaluate(([r, tracked]) => {
+        ;(window as any).__loop.mc.getState().setConfig({ baseSeed: 1, runs: r, steps: 10, tracked })
+      }, [runs, FIXTURE_POOLS_4] as const)
+      await openMonteCarloDialog(page)
+      const runBtn = page.locator('.mcdlg__foot .btn--primary')
+      await expect(runBtn).toBeEnabled()
+      const line = await page.locator('.mcdlg__path').innerText()
+      await runBtn.click()
+      await expect.poll(() => mcSnapshot(page).then((s) => s.status), { timeout: 20_000 }).toBe('done')
+      const started = await page.evaluate(() => (window as unknown as { __workers: number }).__workers)
+      expect(line).toBe(started > 0 ? `Parallel, ${started} workers` : 'Local')
+    })
+  }
+
   test('control for #620 item 2: with the chunk held and no Cancel, the run finishes with its result', async ({ page }) => {
     await page.route(/mc\.worker\.ts\?worker/, async (route) => {
       await new Promise((r) => setTimeout(r, 1500))
