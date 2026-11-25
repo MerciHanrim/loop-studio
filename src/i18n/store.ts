@@ -73,7 +73,17 @@ export const useI18n = create<I18nState>((set, get) => ({
     const s = get()
     const entry = getEntry(code)
     if (!entry) return // unknown code — ignored, no state change (§L5.1)
-    if (code === s.activeLocale && !s.loading) return // no-op re-select (§L4.5)
+    if (code === s.activeLocale && !s.loading) {
+      if (s.requestedLocale === code) return // no-op re-select (§L4.5)
+      // #620 item 3 — a failed request left another locale requested and
+      // stored. Choosing the active one again is an explicit switch (§L5.1):
+      // store it and make it the request (a late completion of the failed one
+      // is then stale), and the failure's notice goes. It is already active, so
+      // nothing loads and nothing about the UI language changes.
+      writeStoredLocale(code)
+      set({ requestedLocale: code, requestGeneration: s.requestGeneration + 1, loadError: null })
+      return
+    }
 
     writeStoredLocale(code) // (a) persist intent — synchronous, unconditional
 

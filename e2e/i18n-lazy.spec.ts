@@ -187,6 +187,41 @@ test.describe('locale lazy-loading — behaviour', () => {
     errors.length = 0
   })
 
+  // #620 item 3 — the failed choice stays stored (§L4.5: a reload may still
+  // honour it), but choosing the active language again afterwards did nothing:
+  // the stored choice stayed `ko` and the next visit opened in Korean although
+  // the user had gone back to English. It is an explicit switch (§L5.1).
+  test('after a failed load, choosing the current language again is what the next visit opens in (#620 item 3)', async ({
+    page,
+    errors,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+    await page.route('**/i18n/locales/ko/**', (r) => r.abort())
+    await page.route('**/i18n/templateLabels/ko*', (r) => r.abort())
+
+    await setLocale(page, 'ko')
+    await expect(page.locator('.boot-notice[role="status"]')).toBeVisible()
+    expect(await stored(page)).toBe('ko') // the failed choice is kept, as before
+    expect((await i18nState(page)).activeLocale).toBe('en')
+
+    await setLocale(page, 'en') // back to the language on screen
+    expect(await stored(page)).toBe('en')
+    await expect(page.locator('.boot-notice[role="status"]')).toHaveCount(0)
+
+    // the next visit, with Korean loadable again, opens in English
+    await page.unroute('**/i18n/locales/ko/**')
+    await page.unroute('**/i18n/templateLabels/ko*')
+    await page.reload()
+    await expect.poll(() => loop(page)).toBe(true)
+    expect(await htmlLang(page)).toBe('en')
+    expect((await i18nState(page)).activeLocale).toBe('en')
+
+    const unexpected = errors.filter((e) => !/ERR_FAILED|Failed to load resource/i.test(e))
+    expect(unexpected).toEqual([])
+    errors.length = 0
+  })
+
   test('§TLO11 — official nodes follow the switch, a user rename does not; undo stays coherent', async ({
     page,
   }) => {

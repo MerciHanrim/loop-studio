@@ -2780,7 +2780,13 @@ successful switch. The failure contract is otherwise unchanged (see Rules).
   partial catalog**. (A tiny "switching…" affordance on the language control
   itself is fine.)
 - **re-selecting `activeLocale` is a no-op** — no generation bump, no load, no
-  announce.
+  announce — **while it is also the requested locale.** After a failed load
+  the failed locale is the requested and stored one; choosing `activeLocale`
+  again then is an explicit switch (§L5.1, #620 item 3): the preference is
+  written, `requestedLocale` becomes it with a generation bump (a late
+  completion of the failed request is dropped), and the load-failure notice is
+  cleared. Nothing loads and nothing about the UI language changes, since it is
+  already active.
 - **a fast `ko → en → ko`** (or any burst) settles on **the last request**: each
   bumps the generation, only the newest can commit, earlier completions are
   dropped by the generation check. The end state is exactly as if only the last

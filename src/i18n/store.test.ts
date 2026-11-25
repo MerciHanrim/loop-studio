@@ -144,6 +144,51 @@ describe('i18n store — atomic activation', () => {
     expect(useI18n.getState().loadError).toBeNull()
   })
 
+  // #620 item 3 — after a failed load the requested locale and the stored
+  // choice are the failed one; choosing the ACTIVE locale again hit the
+  // no-op guard, so the stored choice stayed the failed one and the next visit
+  // opened in it. That choice is an explicit switch (§L5.1): it is stored, it
+  // becomes the request (a late success of the failed one is dropped), and the
+  // failure's notice goes; no catalog is loaded, the locale is already active.
+  it('after a failed load, choosing the active locale again stores it and drops the failed request', async () => {
+    reset()
+    const set = vi.fn()
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem: set })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    defer('ko').reject(new Error('offline'))
+    useI18n.getState().setLocale('ko')
+    await tick()
+    expect(useI18n.getState().loadError).toEqual({ code: 'ko', current: 'en' })
+    expect(set).toHaveBeenLastCalledWith('loop-studio/ui-locale/1', 'ko')
+    const gen = useI18n.getState().requestGeneration
+    const enLoad = vi.spyOn(getEntry('en')!, 'catalog')
+
+    useI18n.getState().setLocale('en')
+    expect(set).toHaveBeenLastCalledWith('loop-studio/ui-locale/1', 'en')
+    expect(useI18n.getState().requestedLocale).toBe('en')
+    expect(useI18n.getState().requestGeneration).toBe(gen + 1)
+    expect(useI18n.getState().loadError).toBeNull()
+    expect(useI18n.getState().activeLocale).toBe('en')
+    expect(useI18n.getState().loading).toBe(false)
+    expect(enLoad).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
+  it('a late success of the failed-then-replaced request does not switch the language', async () => {
+    reset()
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {} })
+    const d = defer('ko')
+    useI18n.getState().setLocale('ko') // still loading
+    useI18n.setState({ loading: false, loadError: { code: 'ko', current: 'en' } }) // as a failure leaves it
+    useI18n.getState().setLocale('en') // the user goes back to the active locale
+    d.resolve(koCatalog) // the ko import completes after all
+    await tick()
+    expect(useI18n.getState().activeLocale).toBe('en')
+    expect(useI18n.getState().requestedLocale).toBe('en')
+    vi.unstubAllGlobals()
+  })
+
   it('the preference is still persisted even if the load fails', () => {
     reset()
     const set = vi.fn()
