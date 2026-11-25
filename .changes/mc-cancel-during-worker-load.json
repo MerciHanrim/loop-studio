@@ -1,0 +1,1 @@
+{"type":"user-facing","changelog":"- **Cancel stops a Monte Carlo run that has only just started.** The first Monte Carlo run after opening Loop Studio loads its worker code first, and a Cancel clicked during that moment was missed: the run went on, finished and showed its result as if Cancel had not been clicked. It now ends as a cancel, and a previous result stays as it was."}

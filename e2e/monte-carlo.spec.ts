@@ -117,6 +117,56 @@ test.describe('Monte Carlo run', () => {
     expect(s.hasResult).toBe(false)
     expect(s.message).toBe('cancelled')
   })
+
+  // #620 item 2 — the first run of a session imports the Worker chunk before it
+  // listens for Cancel. A Cancel in that window reached no listener, and the run
+  // went on to finish: status `done` and its result shown, as if Cancel had not
+  // been clicked. The worker module request is held here so the run waits in
+  // that import while Cancel is clicked; the run must end as a cancel.
+  test('a Cancel while the Worker chunk is still loading cancels the run (#620 item 2)', async ({ page }) => {
+    let released = false
+    await page.route(/mc\.worker\.ts\?worker/, async (route) => {
+      await new Promise((r) => setTimeout(r, 2500))
+      released = true
+      await route.continue()
+    })
+    await page.evaluate((tracked) => {
+      ;(window as any).__loop.mc.getState().setConfig({ baseSeed: 1, runs: 64, steps: 10, tracked })
+    }, FIXTURE_POOLS_4)
+    await openMonteCarloDialog(page)
+    const runBtn = page.locator('.mcdlg__foot .btn--primary')
+    await expect(runBtn).toBeEnabled()
+    await runBtn.click()
+    await expect.poll(() => mcSnapshot(page).then((s) => s.status)).toBe('running')
+    await page.locator('.mcdlg__foot .btn', { hasText: 'Cancel' }).click()
+    expect(released, 'Cancel was clicked while the worker chunk was still held').toBe(false)
+
+    // the run ends as a cancel once the chunk arrives, and never finishes
+    await expect.poll(() => mcSnapshot(page).then((s) => s.status), { timeout: 10_000 }).toBe('idle')
+    const s = await mcSnapshot(page)
+    expect(s.hasResult).toBe(false)
+    expect(s.message).toBe('cancelled')
+    expect(released).toBe(true)
+    await page.waitForTimeout(1500) // room for a run that was not stopped to finish
+    expect((await mcSnapshot(page)).status).toBe('idle')
+    expect((await mcSnapshot(page)).hasResult).toBe(false)
+  })
+
+  test('control for #620 item 2: with the chunk held and no Cancel, the run finishes with its result', async ({ page }) => {
+    await page.route(/mc\.worker\.ts\?worker/, async (route) => {
+      await new Promise((r) => setTimeout(r, 1500))
+      await route.continue()
+    })
+    await page.evaluate((tracked) => {
+      ;(window as any).__loop.mc.getState().setConfig({ baseSeed: 1, runs: 64, steps: 10, tracked })
+    }, FIXTURE_POOLS_4)
+    await openMonteCarloDialog(page)
+    const runBtn = page.locator('.mcdlg__foot .btn--primary')
+    await expect(runBtn).toBeEnabled()
+    await runBtn.click()
+    await expect.poll(() => mcSnapshot(page).then((s) => s.status), { timeout: 20_000 }).toBe('done')
+    expect((await mcSnapshot(page)).hasResult).toBe(true)
+  })
 })
 
 test.describe('Risky Factory demo graph', () => {
