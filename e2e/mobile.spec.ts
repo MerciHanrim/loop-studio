@@ -411,10 +411,14 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
     await search.focus()
     await page.keyboard.type('fra')
     await expect(page.locator('.lang-menu__item')).toHaveCount(1)
+    // #613 item 1 — one Escape, one step: the query, then the menu, then the sheet
+    await page.keyboard.press('Escape')
+    await expect(search).toHaveValue('')
     await page.keyboard.press('Escape')
     await expect(search).toBeHidden()
     expect(await page.evaluate(() => document.activeElement?.classList.contains('lang-menu__search') ?? false)).toBe(false)
     await page.keyboard.press('Escape')
+    await expect(sheet(page, 'More')).toBeHidden()
 
     // the share panel's link field
     await more(page).click()
@@ -428,6 +432,40 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
     await runBar(page).getByRole('button', { name: 'Monte Carlo' }).click()
     await expect(page.locator('.mcdlg__field input').first()).toBeVisible()
     expect(await under16(), 'the Monte-Carlo dialog').toEqual([])
+  })
+
+  // #613 item 1 — on the desktop, Escape in the language search clears the query
+  // first (e2e/i18n-fr.spec.ts). In the More sheet the sheet answered the same
+  // key as well: one Escape cleared the query, closed the menu and closed the
+  // whole sheet. The language list marks the Escape it handles (preventDefault);
+  // the sheet leaves a handled Escape alone. The plain-Escape control is
+  // "More menu: … Escape closes and returns focus" above.
+  test('Escape in the More sheet language search clears the query, then closes the menu, then the sheet (#613 item 1)', async ({ page }) => {
+    await loadDiagram(page)
+    await more(page).click()
+    const moreSheet = sheet(page, 'More')
+    const trigger = moreSheet.locator('button.lang-switch')
+    await trigger.click()
+    const search = page.locator('.lang-menu__search')
+    await expect(search).toBeVisible()
+    await search.focus()
+    await page.keyboard.type('fra')
+    await expect(page.locator('.lang-menu__item')).toHaveCount(1)
+
+    await page.keyboard.press('Escape')
+    await expect(search).toHaveValue('')
+    await expect(search).toBeFocused()
+    expect(await page.locator('.lang-menu__item').count()).toBeGreaterThan(1)
+    await expect(moreSheet).toBeVisible()
+
+    await page.keyboard.press('Escape')
+    await expect(search).toBeHidden()
+    await expect(trigger).toBeFocused()
+    await expect(moreSheet).toBeVisible()
+
+    await page.keyboard.press('Escape')
+    await expect(moreSheet).toBeHidden()
+    await expect(more(page)).toBeFocused()
   })
 
   test('Timeline sheet opens and closes', async ({ page }) => {
