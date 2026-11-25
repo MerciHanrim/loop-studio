@@ -6,7 +6,7 @@
 // view hides. The phone has no panels and no toggle. docs/workbench.md §WB1b.
 import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
-import { openViewMenu, pickTemplate } from './support/workbenchMenus'
+import { openMonteCarloDialog, openViewMenu, pickTemplate } from './support/workbenchMenus'
 
 type Bridge = { __loop: Record<string, any> }
 
@@ -124,6 +124,119 @@ test.describe('#538 — the observation view', () => {
     await expect(toggle(page)).toHaveAttribute('aria-pressed', 'false')
     const via = await look(page)
     expect([via.left, via.right, via.toolRow]).toEqual([true, true, true])
+  })
+
+  // #613 item 2 — the view's Esc listener runs in the capture phase, before the Timeline's
+  // popovers answer the same key: one Esc closed the popover (or let the pinned step go) and
+  // left the view as well. The first Esc is the popover's; the next leaves the view, as for a
+  // menu above. Each popover opened with the mouse; the CSV menu also from the keyboard, where
+  // focus goes into the menu (with the mouse it stays on the menu's button).
+  test.describe('Esc: a Timeline popover takes the first Esc, the next leaves the view (#613 item 2)', () => {
+    async function recorded(page: Page) {
+      await page.setViewportSize({ width: 1920, height: 1080 })
+      await openApp(page)
+      await template(page)
+      await page.evaluate(() => {
+        const s = (window as unknown as Bridge).__loop.sim
+        while (s.getState().stepIndex < 10) s.getState().advance()
+      })
+    }
+    /** one Esc: `gone` must hold and the view must stay; the next Esc leaves the view */
+    async function firstEscIsThePopovers(page: Page, gone: () => Promise<void>) {
+      await page.keyboard.press('Escape')
+      await gone()
+      await page.waitForTimeout(200) // room for a leave that should not come
+      expect(await pressed(page), 'the popover took the first Esc; the view stays').toBe(true)
+      await page.keyboard.press('Escape')
+      await expect(toggle(page)).toHaveAttribute('aria-pressed', 'false')
+    }
+    /** the CSV control is a menu while a view unit is on (SEMANTICS-M4 §M4-8) */
+    async function csvMenu(page: Page) {
+      await page.evaluate(() => (window as unknown as Bridge).__loop.viewUnits.getState().setViewUnit('water', 'L'))
+      const trigger = page.locator('.timeline__csv[aria-haspopup="true"]')
+      await expect(trigger).toBeVisible()
+      return { trigger, pop: page.locator('.timeline .menu__pop[role="menu"]') }
+    }
+
+    test('the Series popover', async ({ page }) => {
+      await recorded(page)
+      await toggle(page).click()
+      await page.locator('.timeline__series').click()
+      const pop = page.locator('.tl-series')
+      await expect(pop).toBeVisible()
+      await firstEscIsThePopovers(page, () => expect(pop).toBeHidden())
+    })
+
+    test('the pinned step', async ({ page }) => {
+      await recorded(page)
+      await toggle(page).click()
+      const svg = page.locator('.timeline__svg')
+      const box = (await svg.boundingBox())!
+      await svg.click({ position: { x: box.width * 0.6, y: box.height / 2 } })
+      await page.mouse.move(2, 2) // no hover preview over the pinned reading
+      const pinned = page.locator('.timeline__reading:not([data-preview])')
+      await expect(pinned).toBeVisible()
+      await expect(page.locator('.timeline__plot')).toBeFocused()
+      await firstEscIsThePopovers(page, () => expect(pinned).toBeHidden())
+    })
+
+    test('the Timeline CSV menu, opened with the mouse', async ({ page }) => {
+      await recorded(page)
+      const { trigger, pop } = await csvMenu(page)
+      await toggle(page).click()
+      await trigger.click()
+      await expect(pop).toBeVisible()
+      await expect(trigger).toBeFocused() // with the mouse, focus stays on the button
+      await firstEscIsThePopovers(page, async () => {
+        await expect(pop).toBeHidden()
+        await expect(trigger).toBeFocused()
+      })
+    })
+
+    test('the Timeline CSV menu, opened from the keyboard (focus inside the menu)', async ({ page }) => {
+      await recorded(page)
+      const { trigger, pop } = await csvMenu(page)
+      await toggle(page).click()
+      await trigger.focus()
+      await page.keyboard.press('Enter')
+      await expect(pop).toBeVisible()
+      await expect(pop.locator('[role="menuitem"]').first()).toBeFocused()
+      await firstEscIsThePopovers(page, async () => {
+        await expect(pop).toBeHidden()
+        await expect(trigger).toBeFocused()
+      })
+    })
+
+    test('the Distribution Export menu', async ({ page }) => {
+      test.setTimeout(120_000)
+      await recorded(page)
+      await openMonteCarloDialog(page)
+      const dlg = page.locator('.mcdlg[aria-labelledby="mcdlg-title"]')
+      await dlg.locator('.mcdlg__foot .btn--primary').click()
+      await expect(page.locator('.dist')).toBeVisible({ timeout: 90_000 })
+      if (await dlg.isVisible()) {
+        await page.keyboard.press('Escape')
+        await expect(dlg).toBeHidden()
+      }
+      await toggle(page).click()
+      const trigger = page.locator('.dist__stats .menu button', { hasText: 'Export' })
+      await trigger.click()
+      const pop = page.locator('.dist__stats .menu__pop')
+      await expect(pop).toBeVisible()
+      await firstEscIsThePopovers(page, async () => {
+        await expect(pop).toBeHidden()
+        await expect(trigger).toBeFocused()
+        await expect(page.locator('.dist')).toBeVisible()
+      })
+    })
+
+    // control: with nothing open, the first Esc leaves the view (the menus' case is above)
+    test('control: with no popover open, one Esc leaves the view', async ({ page }) => {
+      await recorded(page)
+      await toggle(page).click()
+      await page.keyboard.press('Escape')
+      await expect(toggle(page)).toHaveAttribute('aria-pressed', 'false')
+    })
   })
 
   test('focus on what the view hides moves to the toggle; Tab never reaches a hidden control', async ({ page }) => {

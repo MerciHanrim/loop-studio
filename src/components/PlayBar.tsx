@@ -477,7 +477,14 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   // it first. Capture phase, registered as the view is entered, so this runs before a menu
   // opened later closes itself (the View menu closes in its own capture listener without
   // marking the event; MEASURED: in the bubble phase the first Esc closed the menu and left
-  // the view too)
+  // the view too).
+  // #613 item 2 — the capture phase only decides that nothing known is open; the view is
+  // left when the same Esc comes back in the bubble phase unhandled. The Timeline's popovers
+  // answer Esc after this capture listener: the Series popover and the pinned step in their
+  // element handlers, the CSV and Distribution Export menus in a capture listener registered
+  // when the menu opens. Each marks the Esc (preventDefault) and stops it, so it never
+  // reaches the bubble listener. MEASURED before: one Esc closed each of the four and left
+  // the view as well.
   const settingsOpenRef = useRef(false)
   useEffect(() => {
     // either popover of the row: the run settings, or the phase button's
@@ -485,13 +492,24 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   }, [settingsOpen, phaseOpen])
   useEffect(() => {
     if (!observing) return
-    const onKey = (e: KeyboardEvent) => {
+    let pending: KeyboardEvent | null = null
+    const onCapture = (e: KeyboardEvent) => {
+      pending = null
       if (e.key !== 'Escape' || e.defaultPrevented) return
       if (anyMenuOpenSelector(useMenuOpenStore.getState()) || topOverlay() != null || settingsOpenRef.current) return
-      leaveObserve()
+      pending = e
     }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
+    const onBubble = (e: KeyboardEvent) => {
+      if (e !== pending) return
+      pending = null
+      if (!e.defaultPrevented) leaveObserve()
+    }
+    window.addEventListener('keydown', onCapture, true)
+    window.addEventListener('keydown', onBubble)
+    return () => {
+      window.removeEventListener('keydown', onCapture, true)
+      window.removeEventListener('keydown', onBubble)
+    }
   }, [observing])
 
   return (

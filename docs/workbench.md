@@ -70,7 +70,9 @@ the Timeline and the status bar stay.
   comes back.
 - **Ways out.** A second press, View ▸ Observation view, Esc, or a status-bar panel toggle,
   which also opens its panel. Esc goes to whatever is open on top first: a menu, a dialog or
-  sheet, the run-settings popover. Only the next Esc leaves the view.
+  sheet, the run-settings popover, and the Timeline's Series popover, pinned step (while the
+  chart has focus), CSV menu and Distribution Export menu (#613). Whatever handles an Esc
+  itself (it marks it with `preventDefault`) uses it. Only the next Esc leaves the view.
 - **The canvas.** The zoom stays, and the model point at the pane's centre before the switch
   is at its centre after it. The drawing is not enlarged; Fit in the status bar does that.
   Leaving puts the saved viewport back exactly.
