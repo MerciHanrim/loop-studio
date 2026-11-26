@@ -1,0 +1,1 @@
+{"type":"internal","reason":"Test-only (#623 item 8): a new e2e spec clicks a connection's line exactly where it passes under a frame's border strip and checks that the frame, not the line, is selected, with a control click one step past the strip selecting the line. The edgePoint helper is unchanged. No product code changes."}
