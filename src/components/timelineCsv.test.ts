@@ -87,6 +87,49 @@ describe('buildRunCsv', () => {
   })
 })
 
+// issue #616 item 4 — a header cell that begins with `=`, `+`, `-` or `@` is read
+// as a formula when the file is opened in a spreadsheet. Such a cell gets one
+// leading `'`, the guard the change-proposal export uses; every other header
+// cell, and every data cell, is written exactly as before.
+describe('a header cell that begins with = + - @ is guarded', () => {
+  const FORMULA_POOLS = [
+    { id: 'p1', label: '=SUM(A1:A9)' },
+    { id: 'p2', label: '+1+1' },
+    { id: 'p3', label: '-2+3' },
+    { id: 'p4', label: '@cmd' },
+    { id: 'gold', label: 'Gold' },
+  ]
+  const series = [{ step: 0, values: { p1: 0, p2: 0, p3: 0, p4: 0, gold: -2 } }]
+  const rows = (csv: string) => {
+    const parsed = parseDelimitedText(csv, ',')
+    expect(parsed.ok).toBe(true)
+    return parsed.ok ? parsed.rows : []
+  }
+
+  it('Pool columns: the four formula-like names get one leading `\'`; `step` and a plain name do not', () => {
+    const [head, row] = rows(buildRunCsv(FORMULA_POOLS, series))
+    expect(head).toEqual(['step', "'=SUM(A1:A9) [p1]", "'+1+1 [p2]", "'-2+3 [p3]", "'@cmd [p4]", 'Gold [gold]'])
+    // data cells are never guarded: a negative number stays a number
+    expect(row).toEqual(['0', '0', '0', '0', '0', '-2'])
+  })
+
+  it('timetable-line and rule columns are guarded the same way', () => {
+    const [head] = rows(
+      buildRunCsv([], [{ step: 0, values: {} }], [{ edgeId: 'e1', label: '=feed', unit: 'kg' }], [{ id: 'g1', label: '+rule' }]),
+    )
+    expect(head).toEqual(['step', "'=feed (planned) [kg] [e1]", "'=feed (moved) [kg] [e1]", "'+rule (target) [g1]", "'+rule (moved) [g1]", "'+rule (state) [g1]"])
+  })
+
+  // the file with shown values: src/model/viewUnits.test.ts, which has a real view
+
+  it('control: a header with no formula-like cell is byte for byte what it was', () => {
+    expect(buildRunCsv(POOLS(['a', 'b'], () => 'P'), [{ step: 0, values: { a: 0, b: 0 } }])).toBe('step,P [a],P [b]\r\n0,0,0\r\n')
+    const [head] = rows(buildRunCsv([{ id: 'x', label: 'a=b' }, { id: 'y', label: 'Gold-2' }, { id: 'z', label: ' =lead space' }], [{ step: 0, values: {} }]))
+    // only the FIRST character decides; a sign inside the name is ordinary text
+    expect(head).toEqual(['step', 'a=b [x]', 'Gold-2 [y]', ' =lead space [z]'])
+  })
+})
+
 describe('the 3-zone gacha Template — the case this exists for', () => {
   const pools = buildGachaBannerZonesGraph()
     .nodes.filter((n) => n.data.kind === 'pool')
