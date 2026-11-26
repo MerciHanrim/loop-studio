@@ -6,7 +6,7 @@
 // of (nodes, edges, config). A parallel driver (later, separate) must match it
 // bit-for-bit.
 
-import { toCsv } from '../model/csv'
+import { guardFormulaStart, toCsv } from '../model/csv'
 import { namesAUnit, NO_EXPORT_UNITS, unitsHeader, withUnit, type ExportUnits } from '../model/exportUnits'
 import type { LoopEdge, LoopNode } from '../model/types'
 import { mix32 } from './rng'
@@ -517,6 +517,11 @@ export function aggregateRuns(params: {
 // SEMANTICS-M4.md §M4-6 — every number here is in the base unit per step. With
 // no `units` argument, or for a document that names no unit, each writer's
 // output is what it was before units existed.
+//
+// Issue #616 item 4 — wherever a writer puts a Pool's name (the runs file's
+// header, the series and summary files' `pool` cells), a name that begins with
+// `=`, `+`, `-` or `@` gets one leading `'` (`guardFormulaStart`), so a
+// spreadsheet opening the file reads it as text. Numbers are never guarded.
 
 const STATS = ['p10', 'p50', 'p90', 'mean', 'min', 'max'] as const
 
@@ -528,7 +533,7 @@ export function toSeriesCsv(r: MonteCarloResult, units: ExportUnits = NO_EXPORT_
   for (let t = 0; t < r.endedRuns.atOrBeforeStep.length; t++) {
     for (const pool of r.pools) {
       const s = r.series[pool.id]
-      rows.push([t, pool.label, ...(named ? [units.get(pool.id) ?? ''] : []), s.p10[t], s.p50[t], s.p90[t], s.mean[t], s.min[t], s.max[t]])
+      rows.push([t, guardFormulaStart(pool.label), ...(named ? [units.get(pool.id) ?? ''] : []), s.p10[t], s.p50[t], s.p90[t], s.mean[t], s.min[t], s.max[t]])
     }
   }
   return toCsv(rows)
@@ -536,7 +541,7 @@ export function toSeriesCsv(r: MonteCarloResult, units: ExportUnits = NO_EXPORT_
 
 /** `montecarlo-final.csv` — one row per run, run-index order, seed inline. */
 export function toFinalCsv(r: MonteCarloResult, units: ExportUnits = NO_EXPORT_UNITS): string {
-  const rows: (string | number)[][] = [['run', 'seed', ...r.pools.map((p) => withUnit(p.label, units.get(p.id)))]]
+  const rows: (string | number)[][] = [['run', 'seed', ...r.pools.map((p) => guardFormulaStart(withUnit(p.label, units.get(p.id))))]]
   for (let i = 0; i < r.completedRuns; i++) {
     rows.push([i, r.runSeeds[i], ...r.pools.map((p) => r.final[p.id].values[i])])
   }
@@ -549,7 +554,7 @@ export function toFinalSummaryCsv(r: MonteCarloResult, units: ExportUnits = NO_E
   const rows: (string | number)[][] = [['pool', ...(named ? ['unit'] : []), ...STATS]]
   for (const pool of r.pools) {
     const s = r.final[pool.id].summary
-    rows.push([pool.label, ...(named ? [units.get(pool.id) ?? ''] : []), s.p10, s.p50, s.p90, s.mean, s.min, s.max])
+    rows.push([guardFormulaStart(pool.label), ...(named ? [units.get(pool.id) ?? ''] : []), s.p10, s.p50, s.p90, s.mean, s.min, s.max])
   }
   return toCsv(rows)
 }
