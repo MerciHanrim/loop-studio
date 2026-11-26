@@ -42,7 +42,7 @@ export type ImportCommitResult =
   | { ok: false; reason: CommitFailureCode; detail?: Record<string, unknown> }
 
 // `NODE_W` / `NODE_H` deliberately do NOT mirror `src/components/frames/
-// autoFrames.ts`'s `CANON_NODE_W` / `CANON_NODE_H` (150 / 40): that pair is
+// autoFrames.ts`'s `CANON_NODE_W` / `CANON_NODE_H` (56 / 56, the symbol's cell): that pair is
 // `autoFrames.ts`'s own canonical footprint for its frame-SUGGESTION
 // algorithm over already-placed non-model nodes ("Model nodes (parameter /
 // register) never take part" -- see that file's own comment), never a claim

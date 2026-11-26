@@ -334,10 +334,26 @@ groups.
 **All geometry is CANONICAL (§AF8 / S9).** Every measurement below — a node
 centre, a member bounding box, a spatial gap, a rect, an overlap area — is
 computed from the node's **`position`** and a **fixed canonical footprint**
-`CANON_NODE_W × CANON_NODE_H = 150 × 40` flow units. React Flow's live
+`CANON_NODE_W × CANON_NODE_H = 56 × 56` flow units, the symbol's drawn cell
+(issue #618 item 1; it was 150 × 40, the previous node's size, which made a
+frame reach about 94 units past its last member). React Flow's live
 `measured` width/height is **never read**. So the output is identical whatever
 the locale, label length, font, font-load timing, browser, viewport, zoom, or
 whether `measured` has populated — no "±1–2" wobble.
+
+**No other node inside a frame (issue #618 item 1, Lumi 2026-11-27).** After the
+spatial pass and the S3 gate, a candidate whose rect shares any area with the
+canonical cell of a node outside it (model nodes aside, as everywhere here) is
+**dropped** ("holds another group's node"); a border that only touches a cell does
+not count. A frame drag carries what is inside it, so such a suggestion would move
+another group's node. The split-big cut walks the gaps from the widest down to the
+first that leaves both sides at least `MIN_FRAME_NODES`, as the spatial-cohesion cut
+does; it used to try only the widest gap. Measured on every Template, before and
+after: Coffee roastery keeps its 3 frames, the first no longer holding Roasted bean
+stock; desalination 4 → 3 (the one holding three other nodes is dropped); MMO 6 → 5,
+none holding another node (each of the six before held 2–6), coverage 39/90 → 21/90;
+Gacha pickup 3 → 2; Coffee roasting batch 1 → 3 and Gacha general 0 → 1 (the walking
+cut); Gacha zones and Gacha standard keep theirs.
 
 1. **Drop / merge small.** Any group of **1 or 2** nodes is merged into the
    neighbouring group it shares the most drawn edges with; tie-break = lowest
@@ -670,7 +686,7 @@ not React Flow's `measured` sizes have populated** (extends LGR-INV-7):
 
 | Source | Rule |
 |---|---|
-| **node geometry** | **canonical footprint only** — `CANON_NODE_W × CANON_NODE_H = 150 × 40` at the node's `position`. React Flow's live `measured` width/height is **never read** by membership, split, contamination, ranking, overlap, or the rect. (The render layer may *draw* a slightly larger visual if a real node body exceeds the canonical box, but that never feeds back into the algorithm.) |
+| **node geometry** | **canonical footprint only** — `CANON_NODE_W × CANON_NODE_H = 56 × 56` (the drawn cell; 150 × 40 before #618) at the node's `position`. React Flow's live `measured` width/height is **never read** by membership, split, contamination, ranking, overlap, or the rect. (The render layer may *draw* a slightly larger visual if a real node body exceeds the canonical box, but that never feeds back into the algorithm.) |
 | adjacency | a **multigraph** built from all drawn edges — a parallel edge is kept, not collapsed (§AF3.2) |
 | label-propagation scope | **one run over every eligible node id** (no per-component split); components stay apart because no edge joins them |
 | label-propagation processing order | iterate nodes in **ascending node-id** (lexical, `<`) order, every round |
@@ -712,7 +728,9 @@ not React Flow's `measured` sizes have populated** (extends LGR-INV-7):
   pair overlapping > 0.5 of the smaller rect, ≤ 6 frames — not just the count.
   Coverage is recorded and asserted only as a **range** (Coffee `0.95–1.0`,
   MMO `0.35–0.5`); a change that pushes MMO back toward 0.92 **fails** the
-  test (it means the spatial pass stopped dropping).
+  test (it means the spatial pass stopped dropping). Since #618 item 1 the
+  contract also asserts that no other node's cell takes area inside a frame, and
+  MMO's final frames are `{7, 4, 4, 3, 3}`, coverage 21/90, pinned exactly.
 - **fixture (threshold sweep)** — prints-only: Coffee / MMO / `interleaved` /
   clean-blobs under raw, `ratio ≤ 1.0`, and the adopted `abs` rule; documents
   why `abs` was chosen (§AF3.7).
@@ -789,7 +807,7 @@ existing `canvas.frame.*` key family gains `canvas.frame.suggest` + a
       max(2, floor(members × 0.5))` (S8), `≤ 0.55 × eligible` (S3), `≥ 3` (S4),
       no > 0.5 overlap, ≤ 6 frames; a candidate that can't is **unframed**.
       **`MAX_FRAMES = 6` is a ceiling, not a target.** All geometry is
-      **canonical** (`CANON_NODE_W×H = 150×40`), never `measured` (S9).
+      **canonical** (`CANON_NODE_W×H = 150×40`, 56×56 since #618 item 1), never `measured` (S9).
       Coffee → 3 unchanged (0 foreign); MMO → 6, sizes `{10,8,7,6,4,4}`,
       **0 % pairwise overlap, foreign 0–3 (all ≤ budget), coverage 0.43, 13
       candidates dropped** — the raw-LP 0.92 / 100 %-overlap version is
