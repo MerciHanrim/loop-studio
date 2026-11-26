@@ -275,3 +275,96 @@ test.describe('#538 — the Timeline tabs', () => {
     await expect.poll(() => page.locator('.timeline__rates svg.timeline__rate').count()).toBeGreaterThan(1)
   })
 })
+
+// issue #614 item 3 (Lumi, 2026-11-26) — the strips share one rule: a step covers (k − 1, k],
+// as the rate strip's own comment says and draws. The run strip drew step k over [k, k + 1],
+// one step later on the same x axis. Read on the desalination Template: the rate strip of
+// `naoclDeliveries` gives each step's span (one piece per step), and the run strip of `filter`
+// must stand at that step's value inside it.
+test.describe('#614 item 3 — the run strip and the rate strip put a step in the same place', () => {
+  const STEPS = 40
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await openApp(page)
+    await template(page, 'desalination', STEPS)
+  })
+
+  /** the rate strip's moved line: one `M x0 y H x1` piece per step, in step order */
+  const ratePieces = async (page: Page) => {
+    await showStrip(page, 'table:naoclDeliveries')
+    const d = (await page.locator('.timeline__rates svg.timeline__rate path.timeline__rate-moved').first().getAttribute('d')) ?? ''
+    return [...d.matchAll(/M(-?[\d.]+) (-?[\d.]+)H(-?[\d.]+)/g)].map((m) => ({ x0: Number(m[1]), x1: Number(m[3]) }))
+  }
+  /** the run strip's ran line as horizontal pieces, its axis ends, and each step's share */
+  const runStrip = async (page: Page) => {
+    await showStrip(page, 'run:filter')
+    const svg = page.locator('[data-run-strip="filter"]')
+    const d = (await svg.locator('path.timeline__rate-line').getAttribute('d')) ?? ''
+    const segs: { x0: number; x1: number; y: number }[] = []
+    let x = 0
+    let y = 0
+    let first: number | null = null
+    for (const [, cmd, a, b] of d.matchAll(/([MHVL])(-?[\d.]+)(?: (-?[\d.]+))?/g)) {
+      if (cmd === 'M' || cmd === 'L') {
+        x = Number(a)
+        y = Number(b)
+        first ??= x
+      } else if (cmd === 'H') {
+        if (Number(a) !== x) segs.push({ x0: Math.min(x, Number(a)), x1: Math.max(x, Number(a)), y })
+        x = Number(a)
+      } else y = Number(a)
+    }
+    const axis = await svg.locator('line.timeline__axis').first().evaluate((l) => ({ top: Number(l.getAttribute('y1')), bottom: Number(l.getAttribute('y2')) }))
+    const shares = await page.evaluate(() =>
+      ((window as unknown as Bridge).__loop.sim.getState().series as { step: number; runs?: { members: string[]; moved: number }[] }[]).map((p) => p.runs?.find((r) => r.members[0] === 'filter')?.moved ?? null),
+    )
+    return { segs, first, last: x, axis, shares }
+  }
+
+  test('at the middle of each step’s span on the rate strip, the run strip stands at that step’s share', async ({ page }) => {
+    const pieces = await ratePieces(page)
+    expect(pieces, 'the rate strip draws one piece per step').toHaveLength(STEPS)
+    const run = await runStrip(page)
+    const yOf = (v: number) => run.axis.bottom - v * (run.axis.bottom - run.axis.top)
+    const yAt = (x: number) => run.segs.find((s) => s.x0 < x && x < s.x1)?.y ?? null
+    const wrong: string[] = []
+    let checked = 0
+    for (let k = 2; k <= STEPS; k++) {
+      const v = run.shares[k]
+      const before = run.shares[k - 1]
+      // a step whose share equals the one before it cannot tell the two rules apart
+      if (v == null || before == null || Math.abs(yOf(v) - yOf(before)) < 0.02) continue
+      checked++
+      const p = pieces[k - 1]!
+      const y = yAt((p.x0 + p.x1) / 2)
+      if (y === null || Math.abs(y - yOf(v)) > 0.006) wrong.push(`step ${k}: at y ${y}, its share is at ${yOf(v).toFixed(2)}`)
+    }
+    expect(checked, 'steps whose share differs from the step before').toBeGreaterThan(20)
+    expect(wrong).toEqual([])
+  })
+
+  test('control: both strips span the same steps on the same x axis, from step 0 to the last', async ({ page }) => {
+    const pieces = await ratePieces(page)
+    const run = await runStrip(page)
+    expect(Math.abs(run.first! - pieces[0]!.x0), 'both start at step 0').toBeLessThan(1)
+    expect(Math.abs(run.last - pieces.at(-1)!.x1), 'both end at the last step').toBeLessThan(1)
+  })
+
+  test('the pointer inside a step’s span reads that step on both strips', async ({ page }) => {
+    const pieces = await ratePieces(page)
+    // 30 % into step 20's span, from its start: nearer step 19's end than step 20's
+    const p = pieces[19]!
+    const at = p.x0 + 0.3 * (p.x1 - p.x0)
+    const readAt = async (svg: ReturnType<Page['locator']>) => {
+      const box = (await svg.boundingBox())!
+      await page.mouse.move(box.x + at, box.y + box.height / 2)
+      // an available table's reading is `.timeline__rate-reading`; a run strip's, `.timeline__rate-value`
+      const text = (await svg.locator('.timeline__rate-reading, .timeline__rate-value').textContent()) ?? ''
+      await page.mouse.move(5, 5)
+      return Number(/Step (\d+)/.exec(text)?.[1] ?? NaN)
+    }
+    expect(await readAt(page.locator('.timeline__rates svg.timeline__rate').first()), 'the rate strip').toBe(20)
+    await showStrip(page, 'run:filter')
+    expect(await readAt(page.locator('[data-run-strip="filter"]')), 'the run strip').toBe(20)
+  })
+})

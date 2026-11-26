@@ -28,9 +28,17 @@ const x = (step: number) => step * 10
 const y = (v: number) => 100 - v * 100
 
 describe('a run strip’s path', () => {
-  it('is stairs: a step holds its value across the whole step', () => {
+  // issue #614 item 3 (Lumi, 2026-11-26) — a step covers (k − 1, k], as on the rate strip
+  // (TimetableRateChart): step 1 from x(0) to x(1), step 2 from x(1) to x(2). It used to be
+  // drawn over [k, k + 1], one step later: 'M0 50.00 H10 V50.00 H20 V75.00'.
+  it('is stairs: step k holds its value across (k − 1, k], as the rate strip draws it', () => {
     const path = runStripPath([{ step: 1, value: 0.5 }, { step: 2, value: 0.25 }], x, y, 0)
-    expect(path).toBe('M0 50.00 H10 V50.00 H20 V75.00')
+    expect(path).toBe('M0 50.00 H10 V75.00 H20')
+  })
+
+  it('a stretch that starts later starts at the end of the step before it', () => {
+    const path = runStripPath([{ step: 1, value: null }, { step: 3, value: 1 }, { step: 4, value: 0 }], x, y, 0)
+    expect(path).toBe('M20 0.00 H30 V100.00 H40')
   })
 
   it('starts a new stretch after a step with no report, and draws no line across it', () => {
@@ -46,7 +54,7 @@ describe('a run strip’s path', () => {
   })
 
   it('leaves out what lies before the view', () => {
-    expect(runStripPath([{ step: 1, value: 1 }, { step: 5, value: 0.5 }], x, y, 4)).toBe('M40 50.00 H50 V50.00')
+    expect(runStripPath([{ step: 1, value: 1 }, { step: 5, value: 0.5 }], x, y, 4)).toBe('M40 50.00 H50')
   })
 
   it('is empty with nothing to draw', () => {
