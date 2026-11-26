@@ -23,27 +23,38 @@ export function compareStripPlace(a: readonly [number, number, number, string], 
 
 type Column = { x: number; first: number; last: number; lo: number; hi: number }
 
+/** Issue #614 item 3 (Lumi, 2026-11-26) — a step covers (k − 1, k], as on the rate strip
+ *  (TimetableRateChart): step k's value runs from x(k − 1) to x(k), and the line steps to the
+ *  next value at x(k). It used to be drawn over [k, k + 1], one step later on the same axis. */
 export function runStripPath(points: readonly StripPoint[], x: (step: number) => number, y: (value: number) => number, minStep: number): string {
   const out: string[] = []
   let col: Column | null = null
-  let open = false
+  // the height the line stands at, as written; null outside a stretch
+  let at: string | null = null
   const flush = () => {
     if (!col) return
-    out.push(`H${col.x} V${y(col.first).toFixed(2)}`)
-    if (col.lo !== col.hi) out.push(`V${y(col.lo).toFixed(2)} V${y(col.hi).toFixed(2)} V${y(col.last).toFixed(2)}`)
+    // the column's first value from where the last column ended to this column
+    const first = y(col.first).toFixed(2)
+    if (first !== at) out.push(`V${first}`)
+    out.push(`H${col.x}`)
+    at = first
+    if (col.lo !== col.hi) {
+      out.push(`V${y(col.lo).toFixed(2)} V${y(col.hi).toFixed(2)} V${y(col.last).toFixed(2)}`)
+      at = y(col.last).toFixed(2)
+    }
     col = null
   }
   for (const p of points) {
     if (p.step < minStep) continue
     if (p.value === null) {
       flush()
-      open = false
+      at = null
       continue
     }
     const px = Math.round(x(p.step))
-    if (!open) {
-      out.push(`M${Math.round(x(Math.max(p.step - 1, minStep)))} ${y(p.value).toFixed(2)}`)
-      open = true
+    if (at === null && col === null) {
+      at = y(p.value).toFixed(2)
+      out.push(`M${Math.round(x(Math.max(p.step - 1, minStep)))} ${at}`)
     }
     if (col && col.x === px) {
       col.lo = Math.min(col.lo, p.value)

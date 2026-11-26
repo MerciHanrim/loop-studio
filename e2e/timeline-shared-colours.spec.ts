@@ -4,7 +4,7 @@
 // step reading; the patterns stay, so colour is never the only tell. The canvas keeps the flow
 // colour. Forced colours are unchanged. docs/timeline-series-contract.md.
 import type { Page } from '@playwright/test'
-import { ensureTimelineOpen, expect, openApp, resetAll, test } from './support/loop'
+import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, runMc, test } from './support/loop'
 import { pickTemplate } from './support/workbenchMenus'
 
 type Bridge = { __loop: Record<string, any> }
@@ -127,5 +127,83 @@ test.describe('shared-colour Pools in the Timeline', () => {
     expect(s.length).toBe(4)
     expect(new Set(s.map((x) => x.line.color)).size).toBe(4)
     for (const x of s) expect(x.chip, `${x.id}: the legend chip`).toEqual(x.line)
+  })
+})
+
+// issue #614 item 2 — the Distribution chart drew a Pool by its place in the Monte Carlo
+// result and never by its own colour, so the same Pool read one colour in Live and another in
+// Distribution once a colour was set or only some Pools were tracked. It now draws each Pool
+// in the colour the Live chart gives it.
+const pool = (id: string, label: string, y: number, accent?: string) => ({
+  id,
+  type: 'pool',
+  position: { x: 300, y },
+  data: { kind: 'pool', label, activation: 'passive', initial: 0, capacity: null, mode: 'pullAny', ...(accent ? { accent } : {}) },
+})
+const feed = (id: string, target: string, flow: string) => ({ id, source: 'src', target, type: 'loop', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow } })
+/** Alpha and Gamma have no colour of their own; Beta has one, and Delta the same one, so the
+ *  Live chart gives Delta a palette colour of its own (see above) */
+const FOUR = JSON.stringify({
+  schema: 'loop-studio/graph/2',
+  version: 1,
+  nodes: [
+    { id: 'src', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Source', activation: 'automatic' } },
+    pool('a', 'Alpha', -225),
+    pool('b', 'Beta', -75, '#D9480F'),
+    pool('c', 'Gamma', 75),
+    pool('d', 'Delta', 225, '#D9480F'),
+  ],
+  edges: [feed('e_a', 'a', '1'), feed('e_b', 'b', '2'), feed('e_c', 'c', '1d3'), feed('e_d', 'd', '3')],
+})
+
+test.describe('#614 item 2 — a Pool is the same colour in Live and in Distribution', () => {
+  test.use({ viewport: { width: 1440, height: 900 } })
+
+  /** each Pool's line colour in the Live chart */
+  const liveColours = (page: Page) =>
+    page.evaluate(() =>
+      Object.fromEntries(
+        [...document.querySelectorAll('.timeline__svg path.timeline__line:not(.timeline__line--register)')].map((l) => [l.getAttribute('data-series')!, getComputedStyle(l).stroke]),
+      ),
+    )
+  /** a Monte Carlo run over `tracked`, then the Distribution chart's colour for `id` */
+  async function distributionColour(page: Page, tracked: string[], id: string): Promise<string> {
+    await runMc(page, { baseSeed: 1, runs: 20, steps: 5, tracked })
+    await page.evaluate((p) => {
+      const m = (window as unknown as Bridge).__loop.mc
+      m.setState({ distributionPoolId: p })
+      m.getState().setView('distribution')
+    }, id)
+    await expect(page.locator('.band .band__p50')).toHaveCount(1)
+    // the Pool select shows with two or more Pools tracked; with one, its name stands alone
+    if (tracked.length > 1) await expect(page.locator('select.band__pool')).toHaveValue(id)
+    else await expect(page.locator('.band__pool--single')).toHaveCount(1)
+    const colour = await page.evaluate(() => getComputedStyle(document.querySelector('.band .band__p50')!).stroke)
+    await page.evaluate(() => (window as unknown as Bridge).__loop.mc.getState().setView('live'))
+    return colour
+  }
+  async function setUp(page: Page) {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, FOUR)
+    await ensureTimelineOpen(page)
+    await advance(page, 5)
+    const live = await liveColours(page)
+    expect(Object.keys(live).sort(), 'the Live chart draws the four Pools').toEqual(['a', 'b', 'c', 'd'])
+    expect(new Set(Object.values(live)).size, 'four colours in Live').toBe(4)
+    return live
+  }
+
+  test('a Pool with its own colour, a Pool tracked alone, and a Pool whose colour Live told apart', async ({ page }) => {
+    const live = await setUp(page)
+    expect(await distributionColour(page, ['b', 'c'], 'b'), 'Beta, its own colour, tracked with Gamma').toBe(live.b)
+    expect(await distributionColour(page, ['c'], 'c'), 'Gamma, tracked alone').toBe(live.c)
+    expect(await distributionColour(page, ['b', 'd'], 'd'), 'Delta, the colour Live gives it beside Beta').toBe(live.d)
+  })
+
+  test('control: every Pool tracked, a Pool with no colour of its own keeps its Live colour', async ({ page }) => {
+    const live = await setUp(page)
+    expect(await distributionColour(page, ['a', 'b', 'c', 'd'], 'a'), 'Alpha').toBe(live.a)
+    expect(await distributionColour(page, ['a', 'b', 'c', 'd'], 'c'), 'Gamma').toBe(live.c)
   })
 })
