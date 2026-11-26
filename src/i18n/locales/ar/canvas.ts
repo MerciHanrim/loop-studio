@@ -43,10 +43,6 @@ const canvas = {
   'canvas.focus.rowLabel': 'التركيز على التحديد',
   'canvas.focus.stateOn': 'مُفعّل',
   'canvas.focus.stateOff': 'مُعطّل',
-  'canvas.panMode.off': 'وضع التحريك مُعطّل — اسحب لوحة فارغة للتحريك',
-  'canvas.panMode.on': 'وضع التحريك مُفعّل — اسحب من أي مكان للتحريك',
-  'canvas.panMode.rowLabel': 'وضع التحريك',
-  'canvas.filter.open': 'المرشّحات — أخفِ أجزاءً من المخطط أثناء الاستكشاف',
   'canvas.filter.close': 'إغلاق لوحة المرشّحات',
   'canvas.filter.title': 'المرشّحات',
   'canvas.filter.rowLabel': 'المرشّحات',
@@ -74,14 +70,12 @@ const canvas = {
   // The button names BOTH ways in, so the keyboard gesture stops being the only
   // way to find the feature.
   'canvas.regionSelect.off': 'تحديد منطقة — اسحب على لوحة فارغة للتحديد؛ السحب مع Shift يعمل أيضًا',
-  'canvas.regionSelect.on': 'تحديد منطقة — جارٍ التحديد؛ اسحب على لوحة فارغة، وEsc للإلغاء',
   // shown whenever there is a selection, lock or no lock
   'canvas.regionSelect.count':
     '{n, plural, zero {لم تُحدَّد أي عقدة} one {عقدة واحدة محددة} two {عقدتان محددتان} few {# عقد محددة} many {# عقدة محددة} other {# عقدة محددة}}',
   'canvas.regionSelect.countLocked':
     '{n, plural, zero {لم تُحدَّد أي عقدة} one {عقدة واحدة محددة} two {عقدتان محددتان} few {# عقد محددة} many {# عقدة محددة} other {# عقدة محددة}} · ألغِ قفل التحرير لتحريكها',
   'canvas.frame.draw': 'إطار مجموعة — اسحب على لوحة فارغة لرسم واحد',
-  'canvas.frame.drawing': 'إطار مجموعة — جارٍ الرسم؛ اسحب على لوحة فارغة، وEsc للإلغاء',
   'canvas.frame.defaultName': 'مجموعة {n}',
   'canvas.frame.delete': 'حذف هذا الإطار',
   'canvas.frame.suggest': 'اقتراح إطارات — مستطيلات تجميع تقريبية حول العقد المترابطة بنيويًا. بنيوية فقط، لا تعني المعنى المجالي.',

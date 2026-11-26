@@ -274,7 +274,9 @@ describe('es-419 copy — mechanical review', () => {
       Alt: ['hint.frameMove.body'],
       // (the What's new release notes — `whatsNew.*` — were removed in v0.29.0,
       // so every entry that only they owned left with them)
-      Esc: ['canvas.regionSelect.on', 'canvas.frame.drawing', 'inspector.edge.route.addBendHint'],
+      // #638: `canvas.regionSelect.on` / `canvas.frame.drawing` left with the
+      // phone rail's desktop-only buttons
+      Esc: ['inspector.edge.route.addBendHint'],
       Escape: [
         'canvas.frame.a11y.descSelected',
         'rf.node.a11y',

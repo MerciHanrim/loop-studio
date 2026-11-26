@@ -2134,10 +2134,11 @@ reader still has to judge, and what measurement already settled.
    spelling, for exactly this reason. Measured, each maps 1:1 onto its English
    concept — Drain 5 keys, Pool 26, Gate 5, canvas 19, with **0** keys where
    the English uses the concept and Thai uses a different word.
-   **Sub-question, not a separate item:** five `canvas` keys render English
+   **Sub-question, not a separate item:** two `canvas` keys render English
    *empty canvas* as `พื้นที่ว่าง` ("empty area") rather than `ผืนผ้าใบ` —
-   `canvas.panMode.off`, `canvas.regionSelect.off` / `.on`, `canvas.frame.draw`
-   / `.drawing`. The English there is an interaction phrase, not a standalone
+   `canvas.regionSelect.off` and `canvas.frame.draw` (five when measured;
+   `canvas.panMode.off`, `canvas.regionSelect.on` and `canvas.frame.drawing`
+   left with the phone rail's desktop-only buttons in #638). The English there is an interaction phrase, not a standalone
    term, so a contextual translation is plausibly deliberate. It belongs to
    `ผืนผ้าใบ`'s review, not to a list of its own.
 3. **`Pickup`** kept in English. Measured across all thirteen translated

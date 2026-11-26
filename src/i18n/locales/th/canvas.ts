@@ -63,10 +63,6 @@ const canvas = {
   'canvas.focus.rowLabel': 'โฟกัสสิ่งที่เลือก',
   'canvas.focus.stateOn': 'เปิด',
   'canvas.focus.stateOff': 'ปิด',
-  'canvas.panMode.off': 'โหมดเลื่อนปิดอยู่ — ลากพื้นที่ว่างเพื่อเลื่อน',
-  'canvas.panMode.on': 'โหมดเลื่อนเปิดอยู่ — ลากตรงไหนก็ได้เพื่อเลื่อน',
-  'canvas.panMode.rowLabel': 'โหมดเลื่อน',
-  'canvas.filter.open': 'ตัวกรอง — ซ่อนบางส่วนของกราฟขณะสำรวจ',
   'canvas.filter.close': 'ปิดแผงตัวกรอง',
   'canvas.filter.title': 'ตัวกรอง',
   'canvas.filter.rowLabel': 'ตัวกรอง',
@@ -92,12 +88,10 @@ const canvas = {
   'canvas.resetView': 'รีเซ็ตมุมมอง — จัดกราฟให้พอดีและล้างตัวกรองกับโฟกัส',
   'canvas.regionSelect.off':
     'เลือกพื้นที่ — ลากบนพื้นที่ว่างเพื่อเลือก กด Shift ค้างแล้วลากก็ได้เช่นกัน',
-  'canvas.regionSelect.on': 'เลือกพื้นที่ — กำลังเลือก ลากบนพื้นที่ว่าง กด Esc เพื่อยกเลิก',
   'canvas.regionSelect.count': '{n, plural, other {เลือกไว้ # โหนด}}',
   'canvas.regionSelect.countLocked':
     '{n, plural, other {เลือกไว้ # โหนด}} · ปลดล็อกการแก้ไขเพื่อย้าย',
   'canvas.frame.draw': 'กรอบกลุ่ม — ลากบนพื้นที่ว่างเพื่อวาด',
-  'canvas.frame.drawing': 'กรอบกลุ่ม — กำลังวาด ลากบนพื้นที่ว่าง กด Esc เพื่อยกเลิก',
   'canvas.frame.defaultName': 'กลุ่มที่ {n}',
   'canvas.frame.delete': 'ลบกรอบนี้',
   'canvas.frame.suggest':

@@ -42,10 +42,6 @@ const canvas = {
   'canvas.focus.rowLabel': 'フォーカス対象',
   'canvas.focus.stateOn': 'オン',
   'canvas.focus.stateOff': 'オフ',
-  'canvas.panMode.off': 'パンモード オフ — 空のキャンバスをドラッグしてパン',
-  'canvas.panMode.on': 'パンモード オン — どこをドラッグしてもパン',
-  'canvas.panMode.rowLabel': 'パンモード',
-  'canvas.filter.open': 'フィルター — 確認しながらグラフの一部を隠します',
   'canvas.filter.close': 'フィルターパネルを閉じる',
   'canvas.filter.title': 'フィルター',
   'canvas.filter.rowLabel': 'フィルター',
@@ -71,12 +67,9 @@ const canvas = {
   'canvas.resetView': '表示をリセット — グラフを合わせ、フィルターとフォーカスを解除',
   // docs/large-graph-readability.md §LGR12 — ワンショットの領域選択ツール。
   'canvas.regionSelect.off': '領域を選択 — 空のキャンバスをドラッグして選択。Shift+ドラッグも可',
-  'canvas.regionSelect.on': '領域を選択 — 選択中。空のキャンバスをドラッグ、Esc でキャンセル',
   'canvas.regionSelect.count': '{n, plural, other {# 個選択中}}',
   'canvas.regionSelect.countLocked': '{n, plural, other {# 個選択中 · 移動するには編集ロックを解除}}',
   'canvas.frame.draw': 'グループフレーム — 空のキャンバスをドラッグして描画',
-  'canvas.frame.drawing':
-    'グループフレーム — 描画中。空のキャンバスをドラッグ、Esc で中止',
   'canvas.frame.defaultName': 'グループ {n}',
   'canvas.frame.delete': 'このフレームを削除',
   'canvas.frame.suggest':

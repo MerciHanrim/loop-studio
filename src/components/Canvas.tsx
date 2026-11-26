@@ -43,8 +43,8 @@ import { FilterPanel } from './FilterPanel'
 import { FrameLayer } from './frames/FrameLayer'
 import { SmartGuideLayer } from './SmartGuideLayer'
 import { PanSurface } from './PanSurface'
-import { useFrameStore, hasFrames } from '../store/frameStore'
-import { useAutoFrameStore, hasAutoFrames, autoFramesStale } from '../store/autoFrameStore'
+import { useFrameStore } from '../store/frameStore'
+import { useAutoFrameStore, hasAutoFrames } from '../store/autoFrameStore'
 import { WORTH_IT_FLOOR } from './frames/autoFrames'
 import { CanvasHintNote, useHintEligible } from './HintNote'
 import { NOTICE_RAIL_ID, RailOrPanel } from '../ui/noticeRail'
@@ -151,7 +151,6 @@ export function Canvas() {
   const onEdgesChange = useGraphStore((s) => s.onEdgesChange)
   const onConnect = useGraphStore((s) => s.onConnect)
   const addNodeAt = useGraphStore((s) => s.addNodeAt)
-  const tidyToGrid = useGraphStore((s) => s.tidyToGrid)
   const setSelection = useGraphStore((s) => s.setSelection)
   const { screenToFlowPosition, fitView, setViewport, getViewport, deleteElements } = useReactFlow()
   // the whole-diagram fit that contains the outside names (./useFitAll), the
@@ -181,16 +180,9 @@ export function Canvas() {
   // issue #344 §ER14.5 — routed connections not drawn yet (their first sliced
   // generation is running): the canvas says it is busy
   const routesBusy = useRouteInputs((s) => s.busy)
-  const toggleCanvasLocked = useUiStore((s) => s.toggleCanvasLocked)
   const focusMode = useUiStore((s) => s.focusMode)
-  const toggleFocusMode = useUiStore((s) => s.toggleFocusMode)
   const filterPanelOpen = useUiStore((s) => s.filterPanelOpen)
-  const toggleFilterPanel = useUiStore((s) => s.toggleFilterPanel)
-  const activityOverlay = useUiStore((s) => s.activityOverlay)
-  const toggleActivityOverlay = useUiStore((s) => s.toggleActivityOverlay)
   const panMode = useUiStore((s) => s.panMode)
-  const togglePanMode = useUiStore((s) => s.togglePanMode)
-  const setPanMode = useUiStore((s) => s.setPanMode)
   const regionSelectArmed = useUiStore((s) => s.regionSelectArmed)
   // docs/large-graph-readability-frame-colour.md §FC10 — a frame's properties
   // popover is placed in SCREEN space from its title's measured rect, so the
@@ -206,17 +198,10 @@ export function Canvas() {
   const disarmRefInsert = useUiStore((s) => s.disarmRefInsert)
   const refInsertArmed = refInsert != null
   const frameToolArmed = useFrameStore((s) => s.toolArmed)
-  const armFrameTool = useFrameStore((s) => s.armTool)
-  const disarmFrameTool = useFrameStore((s) => s.disarmTool)
-  const clearFrames = useFrameStore((s) => s.clearFrames)
   const selectFrame = useFrameStore((s) => s.selectFrame)
-  const framesExist = useFrameStore(hasFrames)
-  // docs/large-graph-readability-auto-frames.md §AF — "Suggest frames" (P1: an
-  // explicit action, never auto) + its derived set.
-  const suggestFrames = useAutoFrameStore((s) => s.suggest)
-  const clearAutoFrames = useAutoFrameStore((s) => s.clearAuto)
+  // docs/large-graph-readability-auto-frames.md §AF — the derived set of
+  // suggested frames ("Suggest frames" is an explicit action, never auto)
   const autoFramesExist = useAutoFrameStore(hasAutoFrames)
-  const autoSuggestSignature = useAutoFrameStore((s) => s.lastSignature)
   // §AF9.2 — the "structural, not domain meaning" note, dismissible for the
   // session (a plain component-state flag — resets on a full reload).
   const [suggestNoteDismissed, setSuggestNoteDismissed] = useState(false)
@@ -227,26 +212,6 @@ export function Canvas() {
   const tier3Ready = useTier3Ready()
   const largeGraphInteractionGate = useLargeGraphInteractionGate()
   const focusOrFilterEverUsed = useHintStore((s) => s.focusOrFilterEverUsed)
-  const graphEditRev = useGraphStore((s) => s.nodes)
-  // §AF2.2 — the "Suggest frames" control only appears when the whole graph is
-  // big enough for the feature to help (below the floor it would only ever
-  // produce nothing). Also keeps the controls column from growing on a small
-  // graph.
-  const suggestEligible = useMemo(
-    () =>
-      graphEditRev.filter((n) => {
-        const k = (n.data as { kind?: string } | undefined)?.kind ?? String(n.type)
-        return k !== 'parameter' && k !== 'register'
-      }).length >= WORTH_IT_FLOOR,
-    [graphEditRev],
-  )
-  const suggestStale = useMemo(
-    () => autoFramesStale(autoSuggestSignature),
-    // re-check whenever the graph's node array identity changes (an edit) or a
-    // new suggest resets the signature; positions are read live inside.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [autoSuggestSignature, graphEditRev],
-  )
   const fitRev = useGraphStore((s) => s.fitRev)
   const loadRev = useGraphStore((s) => s.loadRev)
   const nodesInitialized = useNodesInitialized()
@@ -647,16 +612,10 @@ export function Canvas() {
   const panSurfaceActive = (isMobile || panMode) && !frameToolArmed && !regionSelectArmed
 
   // docs/large-graph-readability.md §LGR12 — the three drag tools are mutually
-  // exclusive. Arming region select turns the Frame tool and Pan mode off;
-  // arming either of those cancels region select. The existing Frame ↔ Pan
-  // precedence (`panSurfaceActive` already yields to `frameToolArmed`) is NOT
-  // changed here, and with every tool off nothing about node drag, connect or
-  // pan differs from before.
-  const armRegionSelect = useCallback(() => {
-    disarmFrameTool()
-    setPanMode(false)
-    setRegionSelectArmed(true)
-  }, [disarmFrameTool, setPanMode, setRegionSelectArmed])
+  // exclusive: arming the Frame tool or Pan mode cancels region select (the
+  // effect below). The existing Frame ↔ Pan precedence (`panSurfaceActive`
+  // already yields to `frameToolArmed`) is NOT changed here, and with every
+  // tool off nothing about node drag, connect or pan differs from before.
   const disarmRegionSelect = useCallback(() => setRegionSelectArmed(false), [setRegionSelectArmed])
   // the selection a rubber-band box started from, so Esc can put it back
   // (§LGR12.1). Non-null exactly while a box is in flight.
@@ -673,10 +632,6 @@ export function Canvas() {
     selectionBeforeBox.current = null
     clearRfSelectionBox()
   }, [disarmRegionSelect, clearRfSelectionBox])
-  const toggleRegionSelect = useCallback(
-    () => (regionSelectArmed ? disarmRegionSelect() : armRegionSelect()),
-    [regionSelectArmed, armRegionSelect, disarmRegionSelect],
-  )
 
   // how many nodes are selected — shown whether or not the canvas is locked, so
   // the count does not vanish at the moment the user unlocks to act on it.
@@ -1488,247 +1443,6 @@ export function Canvas() {
               />
             </svg>
           </ControlButton>
-          {/* docs/large-graph-readability.md §LGR2.1 / §LGR9 — the Focus toggle.
-              A global UI preference (uiStore, persisted), default off. Desktop:
-              here in the canvas controls. Mobile: in the More sheet
-              (MobileMoreMenu), not here. */}
-          {!isMobile && (
-            <ControlButton
-              onClick={toggleFocusMode}
-              title={focusMode ? t('canvas.focus.off') : t('canvas.focus.on')}
-              aria-label={focusMode ? t('canvas.focus.off') : t('canvas.focus.on')}
-              aria-pressed={focusMode}
-              className="rf-focus"
-            >
-              <Icon name="focus" size={14} />
-            </ControlButton>
-          )}
-          {/* docs/large-graph-readability.md §LGR3.2 / §LGR9 — the Filters
-              toggle (desktop). Opens / closes the panel; the open state is a
-              sticky preference. Mobile: the More sheet. */}
-          {!isMobile && (
-            <ControlButton
-              onClick={toggleFilterPanel}
-              title={filterPanelOpen ? t('canvas.filter.close') : t('canvas.filter.open')}
-              aria-label={filterPanelOpen ? t('canvas.filter.close') : t('canvas.filter.open')}
-              aria-pressed={filterPanelOpen}
-              className="rf-filter"
-            >
-              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
-                <path
-                  d="M2 3h12l-4.6 5.6v4L6.6 14V8.6z"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </ControlButton>
-          )}
-          {/* docs/large-graph-readability.md §LGR12 — the one-shot "select a
-              region" tool (desktop only, like the Frame tool: on mobile the pan
-              surface owns the drag gesture). Armed ⇒ a pane drag rubber-bands a
-              selection box; releasing it confirms and disarms. Shift-drag keeps
-              working unchanged — this is the discoverable way in, not a
-              replacement. Selection only: never in the GraphDoc / undo, and
-              allowed under the edit-lock because selecting is already a
-              read-only action there (§EM13.8). */}
-          {!isMobile && (
-            <ControlButton
-              onClick={toggleRegionSelect}
-              title={regionSelectArmed ? t('canvas.regionSelect.on') : t('canvas.regionSelect.off')}
-              aria-label={regionSelectArmed ? t('canvas.regionSelect.on') : t('canvas.regionSelect.off')}
-              aria-pressed={regionSelectArmed}
-              className="rf-regionselect"
-            >
-              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
-                <rect
-                  x="2.5"
-                  y="2.5"
-                  width="11"
-                  height="11"
-                  rx="1"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                  strokeDasharray="2.6 2"
-                />
-                <circle cx="6" cy="6.5" r="1.5" fill="currentColor" />
-                <circle cx="10" cy="10" r="1.5" fill="currentColor" />
-              </svg>
-            </ControlButton>
-          )}
-          {/* docs/large-graph-readability.md §LGR6 — the one-shot "draw a group
-              frame" tool (desktop only; frame drawing is not on mobile, §LGR9).
-              Armed ⇒ a pane drag rubber-bands a labelled rectangle behind the
-              nodes. Transient, session-only, never in the GraphDoc / undo.
-              #338 — while the canvas is locked it stays in place, `disabled`
-              (a saved frame is document content, #334), so the rail keeps its
-              height; locking also turns an armed tool off (store/editPolicy). */}
-          {!isMobile && (
-            <ControlButton
-              onClick={() => (frameToolArmed ? disarmFrameTool() : armFrameTool())}
-              title={frameToolArmed ? t('canvas.frame.drawing') : t('canvas.frame.draw')}
-              aria-label={frameToolArmed ? t('canvas.frame.drawing') : t('canvas.frame.draw')}
-              aria-pressed={frameToolArmed}
-              disabled={canvasLocked}
-              className="rf-frame"
-            >
-              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
-                <rect
-                  x="2.5"
-                  y="3.5"
-                  width="11"
-                  height="9"
-                  rx="1.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeDasharray="2.4 2"
-                />
-              </svg>
-            </ControlButton>
-          )}
-          {/* issue #344 §DL2.10 — Tidy to grid: re-place the document on the
-              grid by the conversion's own rules, as ONE undo step. Desktop
-              only (the phone does not edit); `disabled` while locked, never
-              removed, so the rail keeps its height (#338). */}
-          {!isMobile && (
-            <ControlButton
-              onClick={() => tidyToGrid()}
-              title={t('canvas.tidy')}
-              aria-label={t('canvas.tidy')}
-              disabled={canvasLocked}
-              className="rf-tidy"
-            >
-              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
-                <path
-                  d="M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </ControlButton>
-          )}
-          {/* docs/…-auto-frames.md §AF4.1 — "Suggest frames": an EXPLICIT
-              action (P1). Never runs on a sim / Activity / Focus / Filter
-              change or on a graph edit. `is-stale` = the structure or a node
-              moved since the last Suggest (§AF4.3) — a hint, still no
-              auto-recompute. */}
-          {!isMobile && (suggestEligible || autoFramesExist) && (
-            <ControlButton
-              onClick={() => suggestFrames()}
-              title={suggestStale ? t('canvas.frame.suggestStale') : t('canvas.frame.suggest')}
-              aria-label={suggestStale ? t('canvas.frame.suggestStale') : t('canvas.frame.suggest')}
-              className={`rf-suggest${suggestStale ? ' is-stale' : ''}`}
-              data-stale={suggestStale ? '' : undefined}
-            >
-              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
-                <rect x="1.5" y="2.5" width="6" height="5" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" strokeDasharray="1.6 1.4" />
-                <rect x="8.5" y="8.5" width="6" height="5" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" strokeDasharray="1.6 1.4" />
-              </svg>
-            </ControlButton>
-          )}
-          {/* §AF5 R4 — the DEFAULT clear removes BOTH kinds ("Clear all frames").
-              Shown when either a manual or an auto frame exists. #338 —
-              `disabled` while the canvas is locked, never removed. */}
-          {!isMobile && (framesExist || autoFramesExist) && (
-            <ControlButton
-              onClick={() => {
-                clearFrames()
-                clearAutoFrames()
-              }}
-              title={t('canvas.frame.clearAll')}
-              aria-label={t('canvas.frame.clearAll')}
-              disabled={canvasLocked}
-              className="rf-frame-clear"
-            >
-              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
-                <path
-                  d="M4 4l8 8M12 4l-8 8"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </ControlButton>
-          )}
-          {/* §AF5 R4 — the auxiliary "Clear suggested frames": only the derived
-              auto set, keeps every manual frame. Shown only when auto frames
-              exist. */}
-          {!isMobile && autoFramesExist && (
-            <ControlButton
-              onClick={() => clearAutoFrames()}
-              title={t('canvas.frame.clearSuggested')}
-              aria-label={t('canvas.frame.clearSuggested')}
-              className="rf-suggest-clear"
-            >
-              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
-                <rect x="2.5" y="3.5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeDasharray="2.2 1.8" />
-                <path d="M6 6l4 4M10 6l-4 4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-              </svg>
-            </ControlButton>
-          )}
-          {/* docs/large-graph-readability.md §LGR6-cues — the opt-in Activity
-              overlay toggle (a sticky global pref, default off). */}
-          {!isMobile && (
-            <ControlButton
-              onClick={toggleActivityOverlay}
-              title={activityOverlay ? t('canvas.activity.on') : t('canvas.activity.off')}
-              aria-label={activityOverlay ? t('canvas.activity.on') : t('canvas.activity.off')}
-              aria-pressed={activityOverlay}
-              className="rf-activity"
-            >
-              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
-                <path
-                  d="M1 9h3l2-5 3 8 2-4h4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </ControlButton>
-          )}
-          {!isMobile && (
-            <ControlButton
-              onClick={toggleCanvasLocked}
-              // #335 — a toggle: the NAME is fixed ("Edit lock"), `aria-pressed`
-              // carries the state, and the tooltip names the next action
-              title={canvasLocked ? t('canvas.lock.unlock') : t('canvas.lock.lock')}
-              aria-label={t('canvas.lock.name')}
-              aria-pressed={canvasLocked}
-              className="rf-lock"
-            >
-              <Icon name={canvasLocked ? 'lock' : 'unlock'} size={14} />
-            </ControlButton>
-          )}
-          {/* docs/dense-graph-pan.md — desktop Pan mode. Session-only; not on
-              mobile (mobile is always effectively panning). */}
-          {!isMobile && (
-            <ControlButton
-              onClick={togglePanMode}
-              title={panMode ? t('canvas.panMode.on') : t('canvas.panMode.off')}
-              aria-label={t('canvas.panMode.rowLabel')}
-              aria-pressed={panMode}
-              className="rf-panmode"
-            >
-              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
-                <path
-                  d="M8 1.5v13M1.5 8h13M8 1.5 5.6 4M8 1.5 10.4 4M8 14.5 5.6 12M8 14.5 10.4 12M1.5 8 4 5.6M1.5 8 4 10.4M14.5 8 12 5.6M14.5 8 12 10.4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </ControlButton>
-          )}
         </Controls>
         ) : null}
       </ReactFlow>

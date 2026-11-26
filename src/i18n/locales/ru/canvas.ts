@@ -58,11 +58,6 @@ const canvas = {
   'canvas.focus.rowLabel': 'Фокус на выделении',
   'canvas.focus.stateOn': 'Вкл.',
   'canvas.focus.stateOff': 'Выкл.',
-  'canvas.panMode.off':
-    'Режим перемещения выключен — тяните пустой холст, чтобы сдвинуть вид',
-  'canvas.panMode.on': 'Режим перемещения включён — тяните в любом месте, чтобы сдвинуть вид',
-  'canvas.panMode.rowLabel': 'Режим перемещения',
-  'canvas.filter.open': 'Фильтры — скрывают части графа во время изучения',
   'canvas.filter.close': 'Закрыть панель фильтров',
   'canvas.filter.title': 'Фильтры',
   'canvas.filter.rowLabel': 'Фильтры',
@@ -90,14 +85,11 @@ const canvas = {
   'canvas.resetView': 'Сбросить вид — вписать граф и снять фильтры и фокус',
   'canvas.regionSelect.off':
     'Выделить область — тяните по пустому холсту; Shift+перетаскивание тоже работает',
-  'canvas.regionSelect.on':
-    'Выделить область — идёт выделение; тяните по пустому холсту, Esc для отмены',
   'canvas.regionSelect.count':
     '{n, plural, one {Выбран # узел} few {Выбрано # узла} many {Выбрано # узлов} other {Выбрано # узла}}',
   'canvas.regionSelect.countLocked':
     '{n, plural, one {Выбран # узел} few {Выбрано # узла} many {Выбрано # узлов} other {Выбрано # узла}} · разблокируйте редактирование, чтобы переместить их',
   'canvas.frame.draw': 'Рамка группы — тяните по пустому холсту, чтобы её нарисовать',
-  'canvas.frame.drawing': 'Рамка группы — идёт рисование; тяните по пустому холсту, Esc для отмены',
   'canvas.frame.defaultName': 'Группа {n}',
   'canvas.frame.delete': 'Удалить эту рамку',
   'canvas.frame.suggest':

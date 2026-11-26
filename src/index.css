@@ -3000,16 +3000,6 @@ a.sheet__row {
   }
 }
 
-/* docs/large-graph-readability.md §LGR2.1 — the Focus toggle. It is a MODE, not
-   a momentary action, so its ON state must read at a glance: a signal-coloured
-   glyph, a soft-tint fill, and a persistent inset ring (kept on hover). */
-.react-flow__controls-button.rf-focus[aria-pressed='true'],
-.react-flow__controls-button.rf-focus[aria-pressed='true']:hover {
-  color: var(--accent);
-  background: var(--accent-soft);
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
-
 /* the "arm" hint — shown only while Focus is ON but nothing is selected, so the
    canvas has not visibly changed yet. A React Flow top-centre Panel; never
    takes the pointer, never shifts layout. */
@@ -3243,16 +3233,6 @@ a.sheet__row {
 .lgr-filter__clear {
   padding: 3px 8px;
   font-size: 11px;
-}
-
-/* the Filters toggle ON state — same "mode is on" treatment as Focus (§LGR2.1 /
-   §LGR9): signal glyph + soft tint + a persistent inset ring, with an
-   `outline` fallback under a forced-colors override. */
-.react-flow__controls-button.rf-filter[aria-pressed='true'],
-.react-flow__controls-button.rf-filter[aria-pressed='true']:hover {
-  color: var(--accent);
-  background: var(--accent-soft);
-  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* ── docs/large-graph-readability.md §LGR6 — transient group frames ──────────
@@ -3699,67 +3679,6 @@ a.sheet__row {
   }
 }
 
-/* the Frame-tool + Activity toggles, and the Canvas edit lock (#335 — before
-   it, a 1.07 : 1 background change was its only tell) — same "pressed" tell
-   as Focus / Filters */
-.react-flow__controls-button.rf-frame[aria-pressed='true'],
-.react-flow__controls-button.rf-frame[aria-pressed='true']:hover,
-.react-flow__controls-button.rf-activity[aria-pressed='true'],
-.react-flow__controls-button.rf-activity[aria-pressed='true']:hover,
-.react-flow__controls-button.rf-lock[aria-pressed='true'],
-.react-flow__controls-button.rf-lock[aria-pressed='true']:hover {
-  color: var(--accent);
-  background: var(--accent-soft);
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
-/* §LGR9 — a UA colour override drops `box-shadow` and the token fill, so the
-   ON state would lose its tell. The pressed tell under forced-colors is the
-   system "selected" pair, `Highlight` / `HighlightText` (both survive the
-   override) — NOT an `outline`: `outline` is the keyboard-focus ring, and a
-   pressed rule on the same property hid the focus ring on a pressed button
-   (measured 2026-09-19: pressed and pressed+focus were pixel-identical). The
-   same rule covers every rail toggle that carries a pressed state, and it
-   sits AFTER all four normal pressed rules so it wins their equal specificity,
-   and lists the `:hover` variants too — the normal rules' `:hover` selector
-   has higher specificity and its (forced) background would otherwise win
-   while the pointer rests on the button, i.e. right after a click. */
-@media (forced-colors: active) {
-  .react-flow__controls-button.rf-focus[aria-pressed='true'],
-  .react-flow__controls-button.rf-focus[aria-pressed='true']:hover,
-  .react-flow__controls-button.rf-filter[aria-pressed='true'],
-  .react-flow__controls-button.rf-filter[aria-pressed='true']:hover,
-  .react-flow__controls-button.rf-frame[aria-pressed='true'],
-  .react-flow__controls-button.rf-frame[aria-pressed='true']:hover,
-  .react-flow__controls-button.rf-activity[aria-pressed='true'],
-  .react-flow__controls-button.rf-activity[aria-pressed='true']:hover,
-  .react-flow__controls-button.rf-lock[aria-pressed='true'],
-  .react-flow__controls-button.rf-lock[aria-pressed='true']:hover {
-    background: Highlight;
-    color: HighlightText;
-  }
-}
-/* docs/…-auto-frames.md §AF4.3 — the "Suggest frames" control shows a small
-   corner dot when the graph changed since the last Suggest. A non-colour tell
-   (shape, present-or-absent); it never triggers a recompute. */
-.react-flow__controls-button.rf-suggest {
-  position: relative;
-}
-.react-flow__controls-button.rf-suggest.is-stale::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-@media (forced-colors: active) {
-  .react-flow__controls-button.rf-suggest.is-stale::after {
-    background: Highlight;
-    outline: 1px solid CanvasText;
-  }
-}
 /* while the Frame tool is armed the pane draws instead of panning */
 .react-flow.frame-arming .react-flow__pane {
   cursor: crosshair;

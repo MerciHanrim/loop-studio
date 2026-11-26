@@ -47,10 +47,6 @@ const canvas = {
   'canvas.focus.rowLabel': 'Focus sur la sélection',
   'canvas.focus.stateOn': 'Activé',
   'canvas.focus.stateOff': 'Désactivé',
-  'canvas.panMode.off': 'Mode déplacement désactivé — faites glisser le canevas vide pour vous déplacer',
-  'canvas.panMode.on': 'Mode déplacement activé — faites glisser n’importe où pour vous déplacer',
-  'canvas.panMode.rowLabel': 'Mode déplacement',
-  'canvas.filter.open': 'Filtres — masquer des parties du graphe pendant l’exploration',
   'canvas.filter.close': 'Fermer le panneau des filtres',
   'canvas.filter.title': 'Filtres',
   'canvas.filter.rowLabel': 'Filtres',
@@ -78,14 +74,10 @@ const canvas = {
   // docs/large-graph-readability.md §LGR12 — the one-shot region-select tool.
   'canvas.regionSelect.off':
     'Sélectionner une zone — faites glisser sur le canevas vide ; Maj + glisser fonctionne aussi',
-  'canvas.regionSelect.on':
-    'Sélectionner une zone — sélection en cours ; faites glisser sur le canevas vide, Échap pour annuler',
   'canvas.regionSelect.count': '{n, plural, one {# nœud sélectionné} other {# nœuds sélectionnés}}',
   'canvas.regionSelect.countLocked':
     '{n, plural, one {# nœud sélectionné} other {# nœuds sélectionnés}} · déverrouillez l’édition pour les déplacer',
   'canvas.frame.draw': 'Cadre de groupe — faites glisser sur le canevas vide pour en tracer un',
-  'canvas.frame.drawing':
-    'Cadre de groupe — tracé en cours ; faites glisser sur le canevas vide, Échap pour annuler',
   'canvas.frame.defaultName': 'Groupe {n}',
   'canvas.frame.delete': 'Supprimer ce cadre',
   'canvas.frame.suggest':

@@ -900,9 +900,8 @@ test.describe('large-graph readability — Slice 1', () => {
       }
       ;(window as unknown as { __loop: { ui: { setState: (p: object) => void } } }).__loop.ui.setState({ focusMode: false })
     })
-    // not in the canvas controls on mobile
-    await expect(page.locator('.react-flow__controls-button.rf-focus')).toHaveCount(0)
-    // …in the More sheet instead
+    // in the More sheet (#638: the canvas rail never had a Focus button on the
+    // phone; the `toHaveCount(0)` on one could not fail)
     await page.locator('.mob-more').click()
     const toggle = page.locator('.sheet__row', { hasText: 'Focus selection' }).locator('button')
     await expect(toggle).toHaveAttribute('aria-pressed', 'false')
@@ -1408,7 +1407,6 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
   test('mobile: Filters + Reset view are in the More sheet, not the canvas controls (§LGR9)', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 780 })
     await loadRT(page)
-    await expect(page.locator('.react-flow__controls-button.rf-filter')).toHaveCount(0) // no canvas control on mobile
     await page.locator('.mob-more').click()
     await expect(page.locator('.sheet__row').filter({ hasText: /^Reset view/ })).toBeVisible()
     await page.locator('.sheet__row').filter({ hasText: /^Filters/ }).click()
@@ -2900,8 +2898,6 @@ test.describe('LGR Slice 4a — mobile (the More sheet)', () => {
 
     // §LGR9 — frame drawing + the activity toggle are NOT canvas controls on mobile
     await expect(frameToolBtn(page)).toHaveCount(0)
-    await expect(page.locator('.react-flow__controls-button.rf-activity')).toHaveCount(0)
-    await expect(page.locator('.react-flow__controls-button.rf-frame-clear')).toHaveCount(0)
 
     // an existing (session) frame still RENDERS on the mobile canvas
     await page.evaluate(() =>
@@ -3272,8 +3268,6 @@ test.describe('LGR Slice 4b — mobile (the More sheet)', () => {
   test('Suggest from the More sheet; Area frames render DISPLAY-ONLY (no edit / resize / x); the note dismisses; Clear suggested vs Clear all', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 780 })
     await loadAF(page)
-    // no canvas control on the phone (its rail never had Suggest frames)
-    await expect(page.locator('.react-flow__controls-button.rf-suggest')).toHaveCount(0)
 
     await more(page).click()
     await expect(sheetRow(page, /Suggest frames/)).toBeVisible()
