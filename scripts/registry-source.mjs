@@ -56,7 +56,9 @@ let cachedAst = null
 function text() {
   if (cachedText == null) {
     try {
-      cachedText = readFileSync(resolve(ROOT, REGISTRY), 'utf8')
+      // LOOP_REGISTRY_FILE: a fixture registry, for a test that runs a checker
+      // as a process (scripts/gen-known-labels.test.mjs)
+      cachedText = readFileSync(process.env.LOOP_REGISTRY_FILE ?? resolve(ROOT, REGISTRY), 'utf8')
     } catch (e) {
       die(`could not be read (${e.code ?? e.message})`)
     }

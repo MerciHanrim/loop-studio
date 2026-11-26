@@ -27,9 +27,14 @@ import { resolve } from 'node:path'
 const root = resolve(import.meta.dirname, '..')
 const read = (p) => readFileSync(resolve(root, p), 'utf8')
 const OUT = 'src/i18n/templateLabels/known.generated.ts'
+// Tests only (scripts/gen-known-labels.test.mjs): a fixture registry and a
+// scratch output file, so a test never edits the real registry or rewrites the
+// committed file.
+const REGISTRY_FILE = process.env.LOOP_REGISTRY_FILE
+const OUT_FILE = process.env.LOOP_KNOWN_LABELS_OUT
 
 // ── registry: base + shipped non-base locales (never named literally) ──
-const registrySrc = read('src/i18n/registry.ts')
+const registrySrc = REGISTRY_FILE ? readFileSync(REGISTRY_FILE, 'utf8') : read('src/i18n/registry.ts')
 const BASE_LOCALE = /\bBASE_LOCALE\s*=\s*'([a-zA-Z][\w-]*)'/.exec(registrySrc)?.[1]
 if (!BASE_LOCALE) {
   console.error('gen-known-labels: could not read BASE_LOCALE from src/i18n/registry.ts')
@@ -376,7 +381,7 @@ export const AMBIGUOUS_FRAME_IDS: readonly string[] = [${
 }]
 `
 
-const target = resolve(root, OUT)
+const target = OUT_FILE ?? resolve(root, OUT)
 const prev = (() => {
   try {
     return readFileSync(target, 'utf8')
