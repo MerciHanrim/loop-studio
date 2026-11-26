@@ -269,7 +269,9 @@ describe('loop-revision/5 golden vector (SEMANTICS-R5.md §R5-4)', () => {
     )
     const parsed = deserialize(file)
     expect(parsed.frames).toHaveLength(2) // graph's frames intact
-    const ws = readWorkspace(parsed.workspace, { nodes: parsed.nodes, edges: parsed.edges })
+    // the digest only judges a saved Monte Carlo result, and this payload has
+    // none (`mc: {}`), so any value reads the same (`'x'`, as the other tests)
+    const ws = readWorkspace(parsed.workspace, { nodes: parsed.nodes, edges: parsed.edges }, 'x')
     expect(JSON.stringify(ws)).not.toContain('"frames"')
   })
 })

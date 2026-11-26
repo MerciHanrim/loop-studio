@@ -34,7 +34,10 @@ const OUTAGE: Timetable = {
 function outageDoc(means: 'plan' | 'available' | undefined) {
   const doc = deserialize(readFileSync(resolve(DIR, 'desalination.json'), 'utf8'))
   const edges = doc.edges.map((e) => (e.id === LINE ? ({ ...e, data: { ...e.data, flow: '~grid_b', unit: undefined } } as LoopEdge) : e))
-  const table = means === undefined ? OUTAGE : { ...OUTAGE, means }
+  // `means: 'plan'` is what a FILE may say (timetable.ts reads it as no
+  // `means`); the in-memory `Timetable` has only `means?: 'available'`, so the
+  // written-out form is cast here, as the canonical-form test below does
+  const table: Timetable = means === undefined ? OUTAGE : ({ ...OUTAGE, means } as unknown as Timetable)
   return { ...doc, edges, timetables: [...doc.timetables, table] }
 }
 

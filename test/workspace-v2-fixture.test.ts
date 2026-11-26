@@ -26,7 +26,10 @@ import { importFile } from '../src/store/workspaceIO'
 //   GEN_WORKSPACE_V2_FIXTURE=1 npm test -- workspace-v2-fixture
 
 const FIXTURE = resolve(import.meta.dirname, 'fixtures/workspace-v2-engine-revision-1.json')
-const FIXTURE_REVISION = 1
+// typed `number`, not the literal `1`: compared with ENGINE_REVISION below,
+// whose literal type differs while the engine is past revision 1, and the
+// comparison has to stay a run-time question (#624)
+const FIXTURE_REVISION: number = 1
 
 describe('loop-workspace/2 fixture', () => {
   beforeEach(() => {

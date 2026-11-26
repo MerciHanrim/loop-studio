@@ -199,7 +199,7 @@ function derive() {
   const startOf = new Map<string, Rational>()
   for (const n of nodes) {
     if (n.data.kind !== 'pool') continue
-    const d = n.data as { initial: number; capacity: number | null; unit?: string }
+    const d = n.data as { initial: number; capacity: number | null; unit?: string; resourceType?: string }
     const fu = resolveFieldUnit(d.unit, declOf.get(poolKindName(d) ?? ''), time, 'stock')
     for (const [f, v] of [['initial', d.initial], ['capacity', d.capacity]] as const) {
       if (v == null) continue

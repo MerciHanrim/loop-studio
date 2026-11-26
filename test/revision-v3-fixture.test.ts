@@ -303,7 +303,7 @@ describe('loop-revision/3 golden vector — §R3-4', () => {
     for (const e of g.edges) {
       expect((e.data as { route?: unknown }).route).toBeUndefined()
       expect((e.data as { waypoints?: unknown }).waypoints).toBeUndefined()
-      expect(e.data.kind).toBe('resource')
+      expect(e.data?.kind).toBe('resource')
     }
     expect((g.edges.find((e) => e.id === 'e_sg')!.data as { flow?: string }).flow).toBe('2')
     expect((g.edges.find((e) => e.id === 'e_sg')!.data as { resourceType?: string }).resourceType).toBe('Gold')
