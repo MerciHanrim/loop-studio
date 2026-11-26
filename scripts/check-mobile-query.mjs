@@ -7,8 +7,8 @@
 // src/ui/media.ts (used by useIsMobile) MUST be the exact same query string.
 // CSS cannot import the constant, so this guards the two from drifting.
 
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join, relative, resolve, sep } from 'node:path'
 import { MOBILE_MEDIA_QUERY } from '../src/ui/media.ts'
 
 // LOOP_CHECK_ROOT: tests only (scripts/check-scripts-scope.test.mjs) — a copy of the tree
@@ -29,18 +29,37 @@ if (css.includes(needle)) {
   fail(`src/index.css has no "@media ${MOBILE_MEDIA_QUERY} {" block`)
 }
 
+// issue #621 item 6 — every stylesheet under src/, not src/index.css alone:
+// `workbench.css` and `nodeStructure.css` carry @media blocks of their own.
+const stylesheets = []
+const walk = (dir) => {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name)
+    if (e.isDirectory()) walk(p)
+    else if (/\.css$/.test(e.name)) stylesheets.push(relative(root, p).split(sep).join('/'))
+  }
+}
+walk(resolve(root, 'src'))
+if (!stylesheets.includes('src/index.css')) fail('src/index.css was not found by the stylesheet walk - the reader is broken')
+
 // Every width-driven @media block must be the shared query — nothing else may
 // introduce a second breakpoint behind Loop Studio's back.
-for (const m of css.matchAll(/@media ([^{]+){/g)) {
-  const q = m[1].trim()
-  const allowed =
-    q === MOBILE_MEDIA_QUERY ||
-    q.includes('prefers-color-scheme') ||
-    q.includes('prefers-reduced-motion') ||
-    q.includes('forced-colors')
-  if (allowed) continue
-  fail(`unexpected @media query in src/index.css: ${q}`)
+let stray = 0
+for (const rel of stylesheets.sort()) {
+  const text = readFileSync(resolve(root, rel), 'utf8')
+  for (const m of text.matchAll(/@media ([^{]+){/g)) {
+    const q = m[1].trim()
+    const allowed =
+      q === MOBILE_MEDIA_QUERY ||
+      q.includes('prefers-color-scheme') ||
+      q.includes('prefers-reduced-motion') ||
+      q.includes('forced-colors')
+    if (allowed) continue
+    stray++
+    fail(`unexpected @media query in ${rel}: ${q}`)
+  }
 }
+if (stray === 0) ok(`${stylesheets.length} stylesheet(s) under src/ use no other breakpoint`)
 
 if (failed) {
   console.error('\ncheck-mobile-query: FAILED')

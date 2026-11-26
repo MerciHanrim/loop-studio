@@ -35,13 +35,33 @@ const NON_TEXTUAL = new Set(['checkbox', 'radio', 'range', 'file', 'color', 'hid
 
 /** fields whose value is a technical grammar, not prose. Listed explicitly:
  *  the classification is a product decision and must not be guessed from a
- *  class name. */
+ *  class name.
+ *
+ *  Issue #621 item 4: this list was declared and never read, so an expression
+ *  field could declare `dir="auto"` and pass. Each entry is now
+ *  `file:Component:value` — the file, the component the `<input>` is written in,
+ *  and the source text of its `value={…}` — and must match EXACTLY ONE
+ *  text-carrying control, which must declare `dir="ltr"`. An entry that matches
+ *  none (or more than one) is a failure, never a skip. */
 const EXPRESSION_FIELDS = new Set([
-  'src/components/Inspector.tsx:flow',
-  'src/components/Inspector.tsx:activator-condition',
-  'src/components/Inspector.tsx:label-expression',
-  'src/components/RegisterExprField.tsx:draft',
+  'src/components/Inspector.tsx:EdgeFlowField:flow', // a connection's flow
+  'src/components/Inspector.tsx:ActivatorField:raw', // an activator's condition
+  'src/components/Inspector.tsx:ExprField:raw', // a label (state change) expression
+  'src/components/RegisterExprField.tsx:RegisterExprField:draft', // a Register expression
 ])
+
+/** the name of the component (function declaration, or a const holding a
+ *  function) that a JSX node is written in, or null */
+const componentOf = (node, sf) => {
+  for (let p = node.parent; p; p = p.parent) {
+    if (ts.isFunctionDeclaration(p) && p.name) return p.name.getText(sf)
+    if ((ts.isArrowFunction(p) || ts.isFunctionExpression(p)) && ts.isVariableDeclaration(p.parent) && ts.isIdentifier(p.parent.name)) {
+      return p.parent.name.getText(sf)
+    }
+  }
+  return null
+}
+const expressionMatches = new Map([...EXPRESSION_FIELDS].map((k) => [k, 0]))
 
 const files = []
 const walk = (dir) => {
@@ -103,6 +123,19 @@ for (const abs of files) {
           } else if (type === 'number' && dir !== 'ltr') {
             problems.push(`${rel}:${line} a number field declares dir="${dir}" - a numeric token is pinned ltr`)
           }
+          // the expression fields: `file:Component:value`
+          const valueAttr = open.attributes.properties.find((x) => ts.isJsxAttribute(x) && x.name.getText(sf) === 'value')
+          const valueText =
+            valueAttr && valueAttr.initializer && ts.isJsxExpression(valueAttr.initializer) && valueAttr.initializer.expression
+              ? valueAttr.initializer.expression.getText(sf)
+              : null
+          const key = valueText === null ? null : `${rel}:${componentOf(node, sf)}:${valueText}`
+          if (key !== null && expressionMatches.has(key)) {
+            expressionMatches.set(key, expressionMatches.get(key) + 1)
+            if (dir !== 'ltr') {
+              problems.push(`${rel}:${line} an expression field (${key}) declares dir="${dir}" - an expression reads left to right whatever it contains`)
+            }
+          }
         }
       }
     }
@@ -111,12 +144,17 @@ for (const abs of files) {
   visit(sf)
 }
 
+for (const [key, n] of expressionMatches) {
+  if (n !== 1) problems.push(`${key} is listed as an expression field and matches ${n} inputs (it must match exactly one)`)
+}
+
 const byDir = {}
 for (const r of rows) byDir[r.dir ?? '(none)'] = (byDir[r.dir ?? '(none)'] ?? 0) + 1
 
 console.log('check-form-direction')
 console.log('  text-carrying controls found :', rows.length)
 console.log('  by declared direction        :', JSON.stringify(byDir))
+console.log('  expression fields found      :', [...expressionMatches.values()].filter((n) => n === 1).length, 'of', EXPRESSION_FIELDS.size)
 if (rows.length === 0) {
   problems.push('no text-carrying controls were found at all - the reader is broken, not the source')
 }
