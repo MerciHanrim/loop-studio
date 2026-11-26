@@ -48,7 +48,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+// LOOP_CHECK_ROOT: tests only (scripts/check-scripts-scope.test.mjs) — a copy of the tree
+const ROOT = process.env.LOOP_CHECK_ROOT ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 /** the glyphs issue #298 replaced, by what they stood for */
 export const REPLACED = {

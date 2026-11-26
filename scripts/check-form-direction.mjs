@@ -24,7 +24,8 @@ import path from 'node:path'
 import ts from 'typescript'
 import { fileURLToPath } from 'node:url'
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+// LOOP_CHECK_ROOT: tests only (scripts/check-scripts-scope.test.mjs) — a copy of the tree
+const ROOT = process.env.LOOP_CHECK_ROOT ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const SRC = path.join(ROOT, 'src')
 
 /** controls that carry text and therefore need a direction */

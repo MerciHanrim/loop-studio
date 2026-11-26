@@ -11,7 +11,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { MOBILE_MEDIA_QUERY } from '../src/ui/media.ts'
 
-const root = resolve(import.meta.dirname, '..')
+// LOOP_CHECK_ROOT: tests only (scripts/check-scripts-scope.test.mjs) — a copy of the tree
+const root = process.env.LOOP_CHECK_ROOT ?? resolve(import.meta.dirname, '..')
 let failed = false
 const fail = (m) => {
   console.error(`  FAIL  ${m}`)

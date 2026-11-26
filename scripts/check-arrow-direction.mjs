@@ -51,7 +51,8 @@ import path from 'node:path'
 import ts from 'typescript'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+// LOOP_CHECK_ROOT: tests only (scripts/check-scripts-scope.test.mjs) — a copy of the tree
+const ROOT = process.env.LOOP_CHECK_ROOT ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const M = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/arrow-units.json'), 'utf8'))
 const EMIT = process.argv.includes('--emit')
 
