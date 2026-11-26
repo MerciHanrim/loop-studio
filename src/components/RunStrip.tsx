@@ -67,7 +67,8 @@ function Strip({ group, series, width, padL, padR, minStep, maxStep, pinStep }: 
   const lastPoint = [...reports].reverse().find((p) => p.report !== null && p.step > minStep) ?? null
   const ends = lastPoint?.report ? endWordCentres(y(lastPoint.report.target), y(lastPoint.report.moved), PAD_TOP, RATE_STRIP_H - 1) : null
   const at = hover === null ? null : (reports.find((p) => p.step === hover) ?? null)
-  const stepAt = (clientX: number, box: DOMRect) => Math.min(maxStep, Math.max(minStep, Math.round(minStep + ((clientX - box.left - padL) / iw) * span)))
+  // issue #614 item 3 — the step whose span (k − 1, k] holds the pointer, as on the rate strip
+  const stepAt = (clientX: number, box: DOMRect) => Math.min(maxStep, Math.max(minStep + 1, Math.ceil(minStep + ((clientX - box.left - padL) / iw) * span)))
   const reading = at?.report ? t('timeline.run.at', { step: at.step, target: isolateAuto(fullPercent(at.report.target)), moved: isolateAuto(fullPercent(at.report.moved)) }) : null
   // #538 — the pinned step's reading, said once in a status line (see TimetableRateChart)
   const pinnedText = pinnedOnly ? (reading ?? '') : null

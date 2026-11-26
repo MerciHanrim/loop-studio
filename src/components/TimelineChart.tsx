@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { formatRegisterValue, readAccent, registerSeriesRuns, registersOfSnapshot } from '../model/model'
+import { formatRegisterValue, registerSeriesRuns, registersOfSnapshot } from '../model/model'
 import { resolveTimelineSeries } from '../model/timelineSeries'
 import { axisMark, axisPad, axisUnit, chartNumber as fmt, compactText, fullText, shownNumber, viewIsOn, viewUnitChoices, type PoolViews } from '../model/viewUnits'
 import { documentExportUnits, documentRunRules, documentTableLines, useGraphStore } from '../store/graphStore'
@@ -13,7 +13,8 @@ import { useT } from '../i18n'
 import { isolateAuto } from '../i18n/bidiIsolate'
 import { downloadCsv } from '../ui/download'
 import { buildRunCsv, buildShownRunCsv } from './timelineCsv'
-import { seriesColours, seriesDashes } from '../ui/seriesDash'
+import { seriesDashes } from '../ui/seriesDash'
+import { chartPoolColours, ownPoolSeries, ownRegisterSeries } from '../ui/poolColours'
 import { stageStateText } from '../ui/stageTag'
 import { SeriesMark } from './SeriesMark'
 import { RunStrips, useRunStrips } from './RunStrip'
@@ -34,23 +35,8 @@ const PAD = { l: 40, r: 20, t: 14, b: 20 }
 /** #538 — how far above the x axis the lowest end label's centre may sit, so its box ends
  *  above the "step N" label's (measured: 4 px of overlap when centred on the axis) */
 const END_LABEL_CLEAR = 6
-// stable per-series colour by index — the series' own tokens (index.css
-// `--series-*`, 2026-10-21), at the node hues' values and order they used to
-// read, so a series' colour no longer claims a node kind
-const HUES = [
-  '--series-1',
-  '--series-2',
-  '--series-3',
-  '--series-4',
-  '--series-5',
-  '--series-6',
-]
-const colorFor = (i: number) => `var(${HUES[i % HUES.length]})`
-// docs/flow-colour-and-compact-nodes.md FC-6 — a Pool or Register with a flow
-// colour draws its series in it; every other series keeps its colour by index,
-// so colouring one node never recolours another series. No flow colour under
-// forced colours (FC-3.4). Edge colours never reach the timeline.
-const seriesColor = (accent: unknown, i: number, forced: boolean) => (!forced && readAccent(accent)) || colorFor(i)
+// a series' colour: its flow colour, else the chart palette (`--series-*`) by index, told apart
+// where drawn lines share one — one rule with the Distribution chart (ui/poolColours.ts)
 
 const reducedMotion = () =>
   typeof window !== 'undefined' &&
@@ -242,22 +228,10 @@ export function TimelineChart() {
 
   // each Pool's own colour (its flow colour, else the palette by index); `pools` below is what
   // the chart draws, once a shared colour is told apart
-  const poolsOwn = useMemo(
-    () =>
-      nodes
-        .filter((n) => n.data.kind === 'pool')
-        .map((n, i) => ({ id: n.id, label: n.data.label, color: seriesColor(n.data.accent, i, forced) })),
-    [nodes, forced],
-  )
+  const poolsOwn = useMemo(() => ownPoolSeries(nodes, forced), [nodes, forced])
   // loop-model/1 §M3.5 — R(t) per committed snapshot for each Register.
   // Nothing stored: recomputed from `series[i].values` + the live graph.
-  const registers = useMemo(
-    () =>
-      nodes
-        .filter((n) => n.data.kind === 'register')
-        .map((n, i) => ({ id: n.id, label: n.data.label, color: seriesColor(n.data.accent, poolsOwn.length + i, forced) })),
-    [nodes, poolsOwn.length, forced],
-  )
+  const registers = useMemo(() => ownRegisterSeries(nodes, poolsOwn.length, forced), [nodes, poolsOwn.length, forced])
 
   // `timelineSeries` (simStore, UI-only) is the stored choice — `auto`, `'all'`
   // or an explicit id list (Pool AND Register ids). What is DRAWN is its
@@ -280,8 +254,7 @@ export function TimelineChart() {
   // list and the step reading. Not under forced colours: the palette there is by index already.
   const dashes = useMemo(() => seriesDashes(poolsOwn, drawnSet), [poolsOwn, drawnSet])
   const pools = useMemo(() => {
-    if (forced) return poolsOwn
-    const colours = seriesColours(poolsOwn, drawnSet)
+    const colours = chartPoolColours(poolsOwn, drawnSet, forced)
     return poolsOwn.map((p) => ({ ...p, color: colours.get(p.id) ?? p.color }))
   }, [poolsOwn, drawnSet, forced])
   const shownPools = useMemo(() => pools.filter((p) => drawnSet.has(p.id)).map((p) => ({ ...p, dash: dashes.get(p.id) })), [pools, drawnSet, dashes])

@@ -152,6 +152,8 @@ The cap applies to what is rendered — line, segment and bead — not only to t
 
 **A colour of their own, too (Hanrim / Lumi, 2026-11-11).** A pattern alone did not tell the desalination example's four water tanks apart at a glance. Where two drawn Pool lines share a colour, the first drawn one keeps it and each later drawn one also takes a chart palette colour (`--series-1` … `-6`): the one farthest, in OKLab, from every colour drawn, and never one a drawn line already has while the palette lasts (`seriesColours`, `src/ui/seriesDash.ts`). The line, its legend chip, the series selector and the step reading show that one colour. The colour is chosen among the lines drawn, so showing or hiding a line can change another's colour; its pattern, chosen by document rank, does not move, so a line is never told by colour alone. **The canvas keeps the flow colour**, so for those lines the chart's colour differs from the node's. Forced colours are unchanged: their palette is by index already.
 
+**The Distribution chart draws a Pool in its Live colour (issue #614 item 2).** The colour rule above lives in one place (`src/ui/poolColours.ts`) and both charts read it: a Pool's flow colour, else the palette by its place among the document's Pools, told apart where drawn Live lines share one. The Distribution chart used to colour a Pool by its place in the Monte Carlo result, which tracks only some Pools, and ignored its flow colour, so one Pool read two colours. A result's Pool that the document no longer has keeps the palette by its place in the result.
+
 **One pattern, one meaning (#532).** Across the Timeline panel each pattern says one thing:
 
 | Pattern | Means |

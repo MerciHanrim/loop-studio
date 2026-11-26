@@ -175,7 +175,9 @@ test.describe('#614 item 2 — a Pool is the same colour in Live and in Distribu
       m.getState().setView('distribution')
     }, id)
     await expect(page.locator('.band .band__p50')).toHaveCount(1)
-    await expect(page.locator('.band__pool')).toHaveValue(id)
+    // the Pool select shows with two or more Pools tracked; with one, its name stands alone
+    if (tracked.length > 1) await expect(page.locator('select.band__pool')).toHaveValue(id)
+    else await expect(page.locator('.band__pool--single')).toHaveCount(1)
     const colour = await page.evaluate(() => getComputedStyle(document.querySelector('.band .band__p50')!).stroke)
     await page.evaluate(() => (window as unknown as Bridge).__loop.mc.getState().setView('live'))
     return colour

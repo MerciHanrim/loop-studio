@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { MonteCarloResult } from '../engine'
 import { axisMark, axisPad, axisUnit, chartNumber, compactText, shownNumber, viewIsOn } from '../model/viewUnits'
+import { useGraphStore } from '../store/graphStore'
 import { useMcStore } from '../store/mcStore'
+import { useSimStore } from '../store/simStore'
+import { useForcedColors } from '../ui/media'
+import { livePoolColours, paletteColour } from '../ui/poolColours'
 import { usePoolViews } from '../store/viewUnitsStore'
 import { useT } from '../i18n'
 
@@ -11,10 +15,6 @@ import { useT } from '../i18n'
 // header number, not shading here.
 
 const PAD = { l: 40, r: 16, t: 12, b: 20 }
-// the run chart's series tokens (index.css `--series-*`, 2026-10-21: their own,
-// at the kind hues' values and order they used to read)
-const HUES = ['--series-1', '--series-2', '--series-3', '--series-4', '--series-5', '--series-6']
-const hueVar = (i: number) => `var(${HUES[i % HUES.length]})`
 
 const NICE = [1, 1.2, 1.4, 1.5, 1.6, 1.8, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 10]
 function niceCeil(v: number): number {
@@ -62,7 +62,13 @@ export function BandChart({ result }: { result: MonteCarloResult }) {
     return () => ro.disconnect()
   }, [])
 
-  const poolIndex = Math.max(0, pools.findIndex((p) => p.id === poolId))
+  // issue #614 item 2 — the Pool's colour in the Live chart (ui/poolColours.ts): its flow
+  // colour, else the palette by its place among the document's Pools, told apart where drawn
+  // lines share one. Never its place in this result, which tracks only some Pools.
+  const nodes = useGraphStore((s) => s.nodes)
+  const timelineSeries = useSimStore((s) => s.timelineSeries)
+  const forced = useForcedColors()
+  const liveColours = useMemo(() => livePoolColours(nodes, timelineSeries, forced), [nodes, timelineSeries, forced])
   const band = result.series[poolId]
   const steps = result.config.steps
   // SEMANTICS-M4.md §M4-8 — the same view unit as the live chart. The chart draws
@@ -119,7 +125,8 @@ export function BandChart({ result }: { result: MonteCarloResult }) {
   }, [band, size, steps, poolId, poolView])
 
   if (!band || !view) return null
-  const hue = hueVar(poolIndex)
+  // a Pool the document no longer has (a result from before an edit): the palette by its place
+  const hue = liveColours.get(poolId) ?? paletteColour(Math.max(0, pools.findIndex((p) => p.id === poolId)))
   const { w, h } = view
 
   return (
