@@ -331,6 +331,11 @@ serialized, not in the undo stack, and **cleared on every graph (re)load**
 (doc switch, reopen, browser refresh) and by **Reset view** (`LGR-D4`, §LGR3.4).
 The filter **panel's open/closed** state is a separate global UI preference.
 
+A hidden **node kind** whose last node an edit removes leaves the hidden set
+(issue #616 item 2): the panel lists only the kinds the graph has, so it could
+not be unticked, and the next node of that kind would be hidden the moment it
+was made. Every other hidden kind is kept.
+
 ### LGR3.3 Composition
 
 Filter applies first (removes), then focus dims the remainder. Both are off by
