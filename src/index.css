@@ -8055,6 +8055,15 @@ input[type='number']::-webkit-inner-spin-button {
     word-break: keep-all;
     overflow-wrap: anywhere;
   }
+  /* #537 / issue #614 item 1 — the run guide on the phone: a full-width row of the bar
+     (the bar's own top border and panel colour stand for the strip's block); the lines
+     wrap and are never cut */
+  .pstrip--mobile .pstrip-guide--mobile {
+    flex-basis: 100%;
+    padding: 0;
+    border-top: 0;
+    background: none;
+  }
   .pstrip__initerr--mobile {
     flex-basis: 100%;
     font-family: var(--font-mono);

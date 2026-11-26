@@ -79,9 +79,9 @@
       "rows": [
         "issue-537 run guide pause stage and pool"
       ],
-      "file": "src/components/PlayBar.tsx",
-      "enclosing": "PlayBar",
-      "carries": "the user's own NODE LABELS of the core process that stopped and of the Pool it lacked supply from or room in (issue #537 — the pause auto-play makes at a run's first stop of a core process, worded by the run bar from `simStore.autoPause`)",
+      "file": "src/ui/runGuideText.ts",
+      "enclosing": "useRunGuideTexts",
+      "carries": "the user's own NODE LABELS of the core process that stopped and of the Pool it lacked supply from or room in (issue #537 — the pause auto-play makes at a run's first stop of a core process, worded from `simStore.autoPause` once for both run bars, the desktop strip and the phone's bar, issue #614 item 1)",
       "sites": [
         {
           "keys": [

@@ -564,6 +564,8 @@ any settle is (PB-INV-2), and Play stops after it. Once per run: the first such 
 it, whether Play or a manual Step reached it, and only Reset or a restored head arms it
 again. The reason (`simStore.autoPause`: step, stage, cause, the short or full tank) stays
 in the run row's guide line and its status region until Reset. Monte Carlo is untouched.
+The phone's run bar shows the same line, and the checked-range note, as a row of the bar
+with the same status regions (issue #614 item 1; `docs/mobile.md` §MV4).
 
 ## PB6. Speed
 
