@@ -114,6 +114,10 @@ export type ArrowCatalogResult = {
   missing: { key: string; unit: string }[]
   /** (unit, key) pairs evaluated — the CONTRACT axis */
   checked: number
+  /** of `checked`, the pairs the conditional clause evaluated (a conditional key
+   *  counts only when its value uses the arrow), so `checked − conditionalChecked`
+   *  is the number of MANDATORY pairs this catalogue was held to */
+  conditionalChecked: number
   /** arrow characters evaluated inside those values — the OCCURRENCE axis */
   occurrences: number
   /** occurrences contributed by the conditional clause alone */
@@ -209,6 +213,7 @@ export function arrowCatalogViolations(
   const violations: ArrowViolation[] = []
   const missing: { key: string; unit: string }[] = []
   let checked = 0
+  let conditionalChecked = 0
   let occurrences = 0
   let conditionalOccurrences = 0
 
@@ -299,6 +304,7 @@ export function arrowCatalogViolations(
     const total = [...value].reduce((n, ch) => (family.has(ch) ? n + 1 : n), 0)
     if (total === 0) continue // no arrow at all — nothing to rule on
     checked++
+    conditionalChecked++
     const want = requiredArrowGlyph(unit, loc)
     const got = countOf(value, want)
     occurrences += got
@@ -315,5 +321,5 @@ export function arrowCatalogViolations(
     }
   }
 
-  return { violations, missing, checked, occurrences, conditionalOccurrences }
+  return { violations, missing, checked, conditionalChecked, occurrences, conditionalOccurrences }
 }

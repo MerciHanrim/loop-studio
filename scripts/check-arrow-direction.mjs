@@ -50,8 +50,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { catalogSlices } from './catalog-slices.mjs'
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+// LOOP_CHECK_ROOT: tests only (scripts/check-scripts-scope.test.mjs) — a copy of the tree
+const ROOT = process.env.LOOP_CHECK_ROOT ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const M = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/arrow-units.json'), 'utf8'))
 const EMIT = process.argv.includes('--emit')
 
@@ -59,14 +61,20 @@ const problems = []
 const squash = (s) => s.replace(/\s+/g, '')
 
 const tsxFiles = []
+// issue #621 item 6 — every stylesheet under src/, not src/index.css alone
+const cssAbs = []
 const walk = (dir) => {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name)
     if (e.isDirectory()) walk(p)
     else if (/\.tsx$/.test(e.name) && !/\.test\.tsx$/.test(e.name)) tsxFiles.push(p)
+    else if (/\.css$/.test(e.name)) cssAbs.push(p)
   }
 }
 walk(path.join(ROOT, 'src'))
+if (!cssAbs.some((a) => path.relative(ROOT, a).split(path.sep).join('/') === 'src/index.css')) {
+  problems.push('src/index.css was not found by the stylesheet walk - the reader is broken, not the source')
+}
 
 const parse = (abs, rel) => {
   const sf = ts.createSourceFile(rel, fs.readFileSync(abs, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
@@ -279,7 +287,7 @@ for (const [rel, per] of measured) {
 
 // ── clause 3: no transform mirroring ───────────────────────────────────────
 const TRANSFORM = /scaleX\(\s*-1|rotateY\(\s*180|scale\(\s*-1/
-const cssFiles = ['src/index.css']
+const cssFiles = cssAbs.map((a) => path.relative(ROOT, a).split(path.sep).join('/'))
 for (const rel of [...cssFiles, ...tsxFiles.map((a) => path.relative(ROOT, a).split(path.sep).join('/'))]) {
   const abs = path.join(ROOT, rel)
   if (!fs.existsSync(abs)) continue
@@ -314,16 +322,25 @@ if (entries.length === 0) problems.push('no locale entries parsed out of registr
 
 // Node's raw ESM loader strips TS types but will not follow the EXTENSIONLESS
 // relative imports a folder locale's index.ts uses for its slices. So a folder
-// locale is merged here from its domain files, in the same order index.ts spreads
+// locale is merged here from its domain files, in the order index.ts spreads
 // them - the approach scripts/check-i18n.mjs already takes for the same reason.
-const DOMAIN_FILES = ['ui', 'canvas', 'inspector', 'templates', 'dataImport']
+// Issue #621 item 3: the slice list is READ from that locale's own index.ts
+// (`catalogSlices`, shared with check-i18n), not carried here by hand - a hand
+// list left a sixth slice, and every arrow in it, out of every check below.
 const catalogOf = async (code) => {
   const flat = path.join(ROOT, 'src/i18n/locales', code + '.ts')
   if (fs.existsSync(flat)) return (await import(pathToFileURL(flat).href)).default
   const dir = path.join(ROOT, 'src/i18n/locales', code)
   if (!fs.existsSync(path.join(dir, 'index.ts'))) return null
+  let slices
+  try {
+    slices = catalogSlices(path.join(dir, 'index.ts'))
+  } catch (e) {
+    problems.push(`${code}: ${e.message}`)
+    return null
+  }
   const parts = []
-  for (const d of DOMAIN_FILES) {
+  for (const d of slices) {
     const f = path.join(dir, d + '.ts')
     if (!fs.existsSync(f)) {
       problems.push(`${code}: folder locale is missing the \`${d}\` slice`)
@@ -346,6 +363,7 @@ const { arrowCatalogViolations, arrowCensus } = await import(pathToFileURL(path.
 const contractInput = { units: M.units, catalog: M.catalog, conditional: M.conditional }
 const perLocale = []
 let checkedKeys = 0
+let conditionalPairs = 0
 let glyphOccurrences = 0
 let conditionalOccurrences = 0
 let censusClaimed = 0
@@ -368,9 +386,10 @@ for (const loc of entries) {
 
   const r = arrowCatalogViolations(loc, cat, contractInput)
   checkedKeys += r.checked
+  conditionalPairs += r.conditionalChecked
   glyphOccurrences += r.occurrences
   conditionalOccurrences += r.conditionalOccurrences
-  perLocale.push({ ...loc, catalogue: true, checked: r.checked, occurrences: r.occurrences, conditional: r.conditionalOccurrences })
+  perLocale.push({ ...loc, catalogue: true, checked: r.checked, conditionalPairs: r.conditionalChecked, occurrences: r.occurrences, conditional: r.conditionalOccurrences })
   for (const m of r.missing) {
     problems.push(`${loc.code}: key \`${m.key}\` is missing - the \`${m.unit}\` arrow contract names it`)
   }
@@ -390,7 +409,22 @@ const occurrencesPerLocale = M.catalog.reduce(
   (n, c) => n + c.keys.reduce((m, k) => m + ((c.occurrences && c.occurrences[k]) || 1), 0),
   0,
 )
-const conditionalHits = checkedKeys - withCatalogue.length * pairsPerLocale
+// Issue #621 item 3: this used to be `conditionalHits = checked − X` followed by
+// `checked === X + conditionalHits`, an identity that held for every input. The
+// conditional pairs are now counted where they are evaluated (the contract's
+// `conditionalChecked`), so each locale's MANDATORY pairs are held to the
+// manifest's number on their own: a governed key that is not evaluated is a pair
+// short here, whatever any other check reports.
+const conditionalHits = conditionalPairs
+for (const l of withCatalogue) {
+  const mandatory = l.checked - l.conditionalPairs
+  if (mandatory !== pairsPerLocale) {
+    problems.push(`${l.code}: ${mandatory} mandatory pair(s) evaluated, the manifest declares ${pairsPerLocale} per catalogue`)
+  }
+  if (l.conditionalPairs > M.conditional.length) {
+    problems.push(`${l.code}: ${l.conditionalPairs} conditional pair(s) evaluated, the manifest has ${M.conditional.length} conditional key(s)`)
+  }
+}
 const expected = withCatalogue.length * pairsPerLocale + conditionalHits
 if (checkedKeys !== expected) {
   problems.push(`the pair total ${checkedKeys} does not match ${withCatalogue.length} x ${pairsPerLocale} + ${conditionalHits}`)

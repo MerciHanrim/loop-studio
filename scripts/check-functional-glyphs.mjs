@@ -17,7 +17,8 @@
 //
 //  1. Components (`src/components/**/*.tsx`, `src/ui/**/*.tsx`): no replaced
 //     glyph in RENDERED text — JSX text, a string literal inside a JSX
-//     expression, or an `aria-label` / `title` / `placeholder` attribute. Read
+//     expression (a child of an element or of a fragment), or an `aria-label` /
+//     `title` / `placeholder` attribute. Read
 //     through the TypeScript AST, so a comment that names a glyph (many do, this
 //     file included) is not a hit.
 //  2. Catalogs (`src/i18n/locales/**`): no replaced glyph in any translated VALUE,
@@ -48,7 +49,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+// LOOP_CHECK_ROOT: tests only (scripts/check-scripts-scope.test.mjs) — a copy of the tree
+const ROOT = process.env.LOOP_CHECK_ROOT ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 /** the glyphs issue #298 replaced, by what they stood for */
 export const REPLACED = {
@@ -129,7 +131,9 @@ export function componentHits(sf) {
   }
   const visit = (n) => {
     if (ts.isJsxText(n)) note(n.text, n, 'JSX text')
-    else if (ts.isJsxExpression(n) && n.expression && ts.isJsxElement(n.parent)) literalsIn(n.expression, 'JSX expression')
+    // issue #621 item 5 — a child of a fragment (`<>{'…'}</>`) renders the same
+    // as a child of an element; only an attribute's expression is read below
+    else if (ts.isJsxExpression(n) && n.expression && (ts.isJsxElement(n.parent) || ts.isJsxFragment(n.parent))) literalsIn(n.expression, 'JSX expression')
     else if (ts.isJsxAttribute(n) && NAME_ATTRS.has(n.name.getText(sf)) && n.initializer) {
       if (ts.isStringLiteral(n.initializer)) note(n.initializer.text, n, n.name.getText(sf))
       else if (ts.isJsxExpression(n.initializer) && n.initializer.expression) literalsIn(n.initializer.expression, n.name.getText(sf))
