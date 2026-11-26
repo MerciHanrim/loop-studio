@@ -7,6 +7,8 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **Two notices at the top no longer cover each other, and a playback badge fits its number once the font has loaded.** The start notice, the notice that a language could not be loaded and the notice that autosave failed all stood in one place at the top, so with two at once the later one covered the other and its Dismiss could not be pressed; they now stack, each whole and each pressable, and one alone stands where it did. A `+N` badge on a moving resource measured before the interface font had loaded kept the fallback font's width for the session, about 1 px too wide, or too narrow for its number under a narrower fallback; it is now measured again once the font has loaded.
+
 ## v0.34.0 — 2026-11-26
 
 Fixes found in a review of the whole code: on the phone, the run bar says why Play paused; a Pool keeps one colour in Live and Distribution, and a run strip puts a step where the rate strip does; Escape and keyboard focus do what they say in dialogs, popovers and the language search; the data import and refresh wizards keep your choices and say what they cannot read; editing frames, connections, colours and number fields keeps what you meant; Monte Carlo runs cancel and explain small runs; and the run and Monte Carlo CSVs open a name that looks like a formula as text.
