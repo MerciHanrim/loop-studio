@@ -3814,6 +3814,16 @@ test.describe('LGR Slice 5 — saved frames (SF / loop-revision/5)', () => {
     await expect.poll(async () => Array.isArray(await sfRec(page))).toBe(true)
     return (await sfRec(page)) as unknown[]
   }
+  // #623 item 5 — the record once any save the last action scheduled has
+  // landed: after one frame (a save scheduled from an effect is pending by
+  // then), the pending debounced autosave is written NOW, then the record is
+  // read. No fixed wait, so a slow runner cannot read before a wrong save
+  // lands; a flush with nothing pending writes nothing.
+  const sfRecFlushed = async (page: Page): Promise<unknown> => {
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(null))))
+    await page.evaluate(() => (window as unknown as { __loop: { autosave: { flush: () => void } } }).__loop.autosave.flush())
+    return sfRec(page)
+  }
   const sfUndo = (page: Page) =>
     page.evaluate(() => (window as unknown as { __loop: { graph: { getState: () => { undo: () => void } } } }).__loop.graph.getState().undo())
   const sfRedo = (page: Page) =>
@@ -3878,9 +3888,9 @@ test.describe('LGR Slice 5 — saved frames (SF / loop-revision/5)', () => {
     await loadAF(page)
     await (await menuRow(page, 'insert', 'Suggest frames')).click()
     expect((await afHead(page)).autoFrames.length).toBe(2)
-    // wait out the autosave debounce — suggestions must not reach the record
-    await page.waitForTimeout(500)
-    expect(await sfRec(page)).toBeNull()
+    // suggestions must not reach the record — not even through a save that
+    // has not fired yet
+    expect(await sfRecFlushed(page)).toBeNull()
 
     // promote one by giving it an accent (§AF5 R5)
     const autoId = (await afHead(page)).autoFrames[0].id
@@ -3980,13 +3990,13 @@ test.describe('LGR Slice 5 — saved frames (SF / loop-revision/5)', () => {
     await page.locator('.lgr-frame--auto .lgr-frame__edge-hit').first().click()
     await page.locator('.lgr-frame--auto .lgr-frame__del').first().click() // Dismiss one
     await (await menuRow(page, 'edit', 'Clear suggested frames')).click()
-    await page.waitForTimeout(450) // let any (unexpected) autosave fire
+    const recAfter = await sfRecFlushed(page) // any (unexpected) save lands first
     const after = await sfState(page)
     expect(after.past).toBe(mid.past)
     expect(after.rev).toBe(mid.rev) // pure Suggest/Dismiss/Clear touches NOTHING on the doc
     expect(after.struct).toBe(mid.struct)
     expect(after.simRev).toBe(mid.simRev)
-    expect(await sfRec(page)).toEqual(recMid)
+    expect(recAfter).toEqual(recMid)
   })
 
   test('two docs differing ONLY in frames: SAME engine/structure digest + simulationRev; the FULL revision digest differs; exported bytes gain the `frames` block (boundary 8)', async ({ page }) => {

@@ -30,7 +30,8 @@ const exportItem = (page: Page, name: RegExp | string) =>
 /** open File ▾, click one of its (flattened) Export rows, answer the in-app
  *  disclosure dialog if it appears (Slice 2b — Project revision now
  *  discloses via ConfirmDialog), and return the download it produced (or
- *  null). */
+ *  null). `'cancel'` NEEDS the dialog and waits for it, so a dialog that never
+ *  showed fails here instead of passing as "nothing downloaded" (#623 item 7). */
 async function exportVia(
   page: Page,
   item: RegExp | string,
@@ -40,6 +41,7 @@ async function exportVia(
   const wait = page.waitForEvent('download', { timeout: 3000 }).catch(() => null)
   await exportItem(page, item).click()
   const dlg = page.locator('.mcdlg--confirm')
+  if (choice === 'cancel') await expect(dlg).toBeVisible()
   if (choice && (await dlg.isVisible().catch(() => false))) {
     const name = choice === 'cancel' ? /^cancel$/i : /export revision|save workspace/i
     await dlg.getByRole('button', { name }).click()
