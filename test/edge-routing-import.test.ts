@@ -91,7 +91,7 @@ describe('edge routing — malformed payload quarantine through real import path
     const g = deserialize(JSON.stringify(broken))
     expect((g.edges[0].data as { route?: unknown }).route).toBeUndefined()
     expect((g.edges[0].data as { waypoints?: unknown }).waypoints).toBeUndefined()
-    expect(g.edges[0].data.flow).toBe('2')
+    expect((g.edges[0].data as { flow?: unknown }).flow).toBe('2')
     expect(JSON.stringify(g.workspace)).not.toMatch(/"route"|"waypoints"/)
     const { restored } = readWorkspace(g.workspace, { nodes: g.nodes, edges: g.edges }, 'x')
     expect(restored?.simulation?.step).toBe(sim.step)

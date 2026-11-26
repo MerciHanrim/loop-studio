@@ -210,7 +210,7 @@ describe('loop-revision/6 golden vector (SEMANTICS-R6.md §R6-4)', () => {
     const edge = result.edges.find((e) => e.id === 'm')!
     expect('timing' in (edge.data as Record<string, unknown>)).toBe(false)
     expect('when' in (edge.data as Record<string, unknown>)).toBe(false)
-    expect(isCsuContent({ nodes: result.nodes, edges: result.edges })).toBe(false)
+    expect(isCsuContent({ edges: result.edges })).toBe(false)
     expect(digestOfCanonical(canonicalContent({ nodes: result.nodes, edges: result.edges }))).toBe(CG0_DIGEST)
     expect(validateResultGraph(result.nodes, result.edges).ok).toBe(true)
   })
@@ -232,7 +232,7 @@ describe('loop-revision/6 golden vector (SEMANTICS-R6.md §R6-4)', () => {
     const edge = result.edges.find((e) => e.id === 'm')!
     expect((edge.data as { timing?: unknown }).timing).toBe('afterPull')
     expect((edge.data as { when?: unknown }).when).toBe('source-fired')
-    expect(isCsuContent({ nodes: result.nodes, edges: result.edges })).toBe(true)
+    expect(isCsuContent({ edges: result.edges })).toBe(true)
     expect(digestOfCanonical(canonicalContent({ nodes: result.nodes, edges: result.edges }))).toBe(CG1_DIGEST)
     expect(validateResultGraph(result.nodes, result.edges).ok).toBe(true)
   })

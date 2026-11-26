@@ -7,7 +7,7 @@ real-time sync — every artifact here is a plain JSON file you could email.
 | File | What it is |
 |---|---|
 | `base.revision.json` | A **Project revision** file — a normal graph doc plus a `project` key (stable `projectId`, `revisionId`, `parentId` chain, content digest). Importing it opens the project. |
-| `proposal.clean.json` | A **proposal** off that base: adds a `Bonus` pool + its edge, bumps `Gold.initial` 5 → 8, switches the gate to `uniform`. Carries a complete `base.content` snapshot so the diff and apply run offline. |
+| `proposal.clean.json` | A **proposal** off that base: adds a `Bonus` pool + its edge, bumps `Gold.initial` 5 → 8, switches the gate to `probabilistic` (until #624 it said `uniform`, which is not a gate distribution and ran as deterministic). Carries a complete `base.content` snapshot so the diff and apply run offline. |
 | `proposal.structural.json` | A proposal that **removes the `Split` gate**: it drops one incident edge and **retargets** the other (`Gate → Sink` becomes `Gold → Sink`). |
 | `oracle.json` | The expected results — whole-apply and selective-apply digests, the three-way hunk verdicts, the dependency / structural-conflict cases, and the named selections the E2E specs replay. |
 

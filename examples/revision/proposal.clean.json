@@ -43,7 +43,7 @@
         "kind": "gate",
         "label": "Split",
         "activation": "automatic",
-        "distribution": "uniform"
+        "distribution": "probabilistic"
       }
     },
     {
@@ -146,7 +146,7 @@
     "revisionId": "rev_0000000000000000000000000X",
     "parentId": "rev_00000000000000000000000BSE",
     "role": "proposal",
-    "contentDigest": "cb6b4c226cdffe1a2009394a50e539c91057a88b522f3b426c904e372e9f577d",
+    "contentDigest": "dc80b34c221b864d8df96b6e5576e436fd2f4dec9e4c92b6959f83d8f5c06adf",
     "base": {
       "revisionId": "rev_00000000000000000000000BSE",
       "contentDigest": "e490f996091cbb9e3875f83669e369240f882540421b141f6aa43db093da7617",

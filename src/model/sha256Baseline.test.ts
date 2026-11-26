@@ -110,6 +110,8 @@ const PLACED_PINS: Record<string, { contentDigest: string; fullContentDigest: st
   'equilibrium.json': { contentDigest: '373f7deae9c99c7f324e92cabf90fdb23146a6bb79c6e8a02cd3553d34320a7d', fullContentDigest: '373f7deae9c99c7f324e92cabf90fdb23146a6bb79c6e8a02cd3553d34320a7d' },
 }
 const BEFORE_STEP4 = import.meta.glob('../../test/fixtures/templates-before-step4/*.json', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
+// #624 — the revision example as it stood before its gate was corrected (below)
+const REVISION_BEFORE_624 = import.meta.glob('../../test/fixtures/revision-before-624/*.json', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
 const readBefore = (file: string): string => {
   const text = BEFORE_STEP4['../../test/fixtures/templates-before-step4/' + file]
   if (text === undefined) throw new Error('missing pre-step-4 copy ' + file)
@@ -217,9 +219,36 @@ describe('the digests of real documents are unchanged', () => {
     }
   })
 
+  // #624 (2026-11-26) — `proposal.clean.json` switched its gate to
+  // `uniform`, which is not a gate distribution (the engine ran it as
+  // deterministic); it now says `probabilistic`. The recorded #301 row is
+  // checked on the file as it stood before (`test/fixtures/revision-before-624/`),
+  // and the file as it stands is pinned anew: same outcome, new content digest.
+  const REVISION_CHANGED_SINCE: Record<string, { text: string; contentDigest: string }> = {
+    'revision/proposal.clean.json': {
+      text: REVISION_BEFORE_624['../../test/fixtures/revision-before-624/proposal.clean.json'],
+      contentDigest: 'dc80b34c221b864d8df96b6e5576e436fd2f4dec9e4c92b6959f83d8f5c06adf',
+    },
+  }
+  for (const [file, changed] of Object.entries(REVISION_CHANGED_SINCE)) {
+    it(`examples/${file}: changed since the #301 record (#624) - the import reader reads it, and its new content digest is the pinned one`, () => {
+      const text = read(file)
+      const obj = JSON.parse(text) as { project: { contentDigest?: string } }
+      const p = deserialize(text)
+      const out = readRevisionSideAndProject(
+        { nodes: p.nodes, edges: p.edges, recommendedRunConfig: p.recommendedRunConfig, frames: p.frames, dataImports: p.dataImports, rawDataImportSignal: p.hasRawDataImportSignal },
+        obj.project,
+        p.modelVersion,
+      )
+      expect(out.ok).toBe(true)
+      expect(obj.project.contentDigest).toBe(changed.contentDigest)
+      if (out.ok) expect(digestOfCanonical(out.side.content)).toBe(changed.contentDigest)
+      expect(changed.text, 'the pre-#624 copy').toBeTypeOf('string')
+    })
+  }
   for (const r of EXAMPLE_REVISION_READS) {
-    it(`examples/${String(r.file)}: the import reader gives the same outcome`, () => {
-      const text = read(String(r.file))
+    it(`examples/${String(r.file)}${String(r.file) in REVISION_CHANGED_SINCE ? ' before #624' : ''}: the import reader gives the same outcome`, () => {
+      const text = REVISION_CHANGED_SINCE[String(r.file)]?.text ?? read(String(r.file))
       const obj = JSON.parse(text) as { project: { contentDigest?: string; base?: { contentDigest?: string } } }
       const p = deserialize(text)
       const out = readRevisionSideAndProject(
