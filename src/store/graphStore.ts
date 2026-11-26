@@ -217,8 +217,13 @@ type GraphStore = {
    *  re-fit the camera to the new graph once React Flow has measured it.
    *  Excluded on purpose: `newGraph` (empty canvas, nothing to fit) and
    *  `loadDoc` (file / Workspace / Share / revision import — a Workspace
-   *  restores its own saved view, a plain file import keeps the camera). */
+   *  restores its own saved view, a plain file import keeps the camera); a
+   *  share link then asks for the fit itself (`requestFit`, issue #616 item 3). */
   fitRev: number
+  /** issue #616 item 3 — the last `fitRev` came from `requestFit`: the fit replaces
+   *  React Flow's own first fit of the loaded nodes, which the Canvas would otherwise
+   *  read as a camera the user moved (a Template's swap keeps that guard) */
+  fitRequested: boolean
 
   /** docs/mmo-multilingual-layout.md §MML3 — a one-shot camera-framing hint set
    *  only by `loadGraph` when a Template carries `initialView` (currently just
@@ -432,6 +437,10 @@ type GraphStore = {
   newGraph: () => void
   loadGraph: (snapshot: Snapshot, opts: LoadGraphOptions) => void
   loadDoc: (doc: { nodes: LoopNode[]; edges: LoopEdge[] }, opts: LoadDocOptions) => void
+  /** issue #616 item 3 — asks the Canvas for its fit of the document now loaded (`fitRev`):
+   *  the app's fit, which counts the outside names, once React Flow has measured the nodes.
+   *  For a load that carries no camera of its own and should open framed: a share link. */
+  requestFit: () => void
   /** a document boundary (#334); returns the file's `recommendedRunConfig` (if
    *  any) for the caller to apply — its lock is already applied */
   loadJSON: (text: string) => RecommendedRunConfig | undefined
@@ -1118,6 +1127,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     loadRev: 0,
     documentRev: 0,
     fitRev: 0,
+    fitRequested: false,
     pendingInitialView: null,
     pristineSample: stored == null,
     modelVersion: bootModelVersion,
@@ -1593,6 +1603,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         loadRev: get().loadRev + 1,
         documentRev: get().documentRev + 1,
         fitRev: get().fitRev + 1,
+        fitRequested: false,
         // §MML3 — a menu-opened Template's framing hint; `null` for a paste
         pendingInitialView: initialView,
       })
@@ -1615,6 +1626,8 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       )
       return recommendedRunConfig
     },
+
+    requestFit: () => set({ fitRev: get().fitRev + 1, fitRequested: true }),
 
     /** load already-deserialized (and normalized) nodes/edges — one `bump()`.
      *  Used by `loadJSON`, the Workspace importer, the share link, the project

@@ -8,7 +8,7 @@ import { expect, openApp, resetAll, test } from './support/loop'
 // fit (useFitAll), the one the status bar's "Fit the whole diagram" uses, which counts the
 // outside names.
 
-type Bridge = { __loop: Record<string, { getState: () => any }> }
+type Bridge = { __loop: Record<string, { getState: () => any }> & { rf: { getViewport: () => { x: number; y: number; zoom: number } } } }
 
 const LONG = 'A very long node name that sits outside its node and runs wide'
 const pool = (id: string, label: string, y: number) => ({

@@ -7,6 +7,7 @@ a release yet is under **Unreleased** ([`docs/release-notes.md`](docs/release-no
 
 ## Unreleased
 
+- **Relations marks only a Parameter the run uses, and a share link opens with every name in view.** A flow row in Relations showed `◇` and a name for any amount that began with `@`: `@{rate}` read as `◇ {rate}`, and `@rate*2`, or an `@` naming a Pool or no node, read as a Parameter though the run moves nothing for it. The row now shows `◇` and the Parameter's name only for an amount the run reads as a Parameter, and any other amount as you wrote it. A share link opened framed on the node shapes only, so a name outside a node at the edge of the diagram could be cut off until Reset view; it now opens as Fit the whole diagram frames it, names included.
 - **Two notices at the top no longer cover each other, and a playback badge fits its number once the font has loaded.** The start notice, the notice that a language could not be loaded and the notice that autosave failed all stood in one place at the top, so with two at once the later one covered the other and its Dismiss could not be pressed; they now stack, each whole and each pressable, and one alone stands where it did. A `+N` badge on a moving resource measured before the interface font had loaded kept the fallback font's width for the session, about 1 px too wide, or too narrow for its number under a narrower fallback; it is now measured again once the font has loaded.
 
 ## v0.34.0 — 2026-11-26

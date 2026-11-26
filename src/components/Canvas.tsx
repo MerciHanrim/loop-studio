@@ -290,7 +290,8 @@ export function Canvas() {
   // (`useNodesInitialized`) AND those measurements have settled (§MML1) — no
   // `setTimeout`, no retry loop. Excluded upstream: `newGraph` and `loadDoc`
   // (file / Workspace / Share / revision import — a Workspace restores its own
-  // saved view). Skipped if a `loadDoc` landed after the arm, or if the camera
+  // saved view); a share link asks for this fit after its `loadDoc`
+  // (`requestFit`, issue #616 item 3). Skipped if a `loadDoc` landed after the arm, or if the camera
   // was moved between the swap and the fit (a deliberate pan wins). The initial
   // mount is left to `<ReactFlow fitView>`. Pan / zoom, "Reset view", Focus,
   // filters and the mobile orientation re-fit are untouched; nothing here reads
@@ -299,7 +300,8 @@ export function Canvas() {
   const armedSwap = useRef<{
     rev: number
     atLoadRev: number
-    fromVp: { x: number; y: number; zoom: number }
+    /** the camera when the swap was armed; `null` for a fit asked for before the first run */
+    fromVp: { x: number; y: number; zoom: number } | null
     sig: number | null
   } | null>(null)
   const [settleTick, setSettleTick] = useState(0)
@@ -311,11 +313,18 @@ export function Canvas() {
   useEffect(() => {
     if (seenFitRev.current === null) {
       seenFitRev.current = fitRev // first run: adopt the mount's graph
-      return
+      // issue #616 item 3 — a fit asked for before this first run: a share link that loaded
+      // while the canvas mounted (`requestFit`)
+      if (!useGraphStore.getState().fitRequested) return
+      armedSwap.current = { rev: fitRev, atLoadRev: loadRev, fromVp: null, sig: null }
     }
     if (fitRev !== seenFitRev.current && armedSwap.current?.rev !== fitRev) {
       seenFitRev.current = fitRev
-      armedSwap.current = { rev: fitRev, atLoadRev: loadRev, fromVp: getViewport(), sig: null }
+      // issue #616 item 3 — an asked-for fit (`requestFit`, a share link) replaces React
+      // Flow's own first fit of the loaded nodes, which knows only the node boxes: that
+      // camera move is not the user's, so it has no camera to keep (`fromVp: null`)
+      const fromVp = useGraphStore.getState().fitRequested ? null : getViewport()
+      armedSwap.current = { rev: fitRev, atLoadRev: loadRev, fromVp, sig: null }
     }
     const armed = armedSwap.current
     if (!armed || !nodesInitialized) return // wait for the measure pass
@@ -334,10 +343,10 @@ export function Canvas() {
     }
     armedSwap.current = null
     const now = getViewport()
+    const from = armed.fromVp
     const untouched =
-      Math.abs(now.x - armed.fromVp.x) < 0.5 &&
-      Math.abs(now.y - armed.fromVp.y) < 0.5 &&
-      Math.abs(now.zoom - armed.fromVp.zoom) < 1e-6
+      from === null ||
+      (Math.abs(now.x - from.x) < 0.5 && Math.abs(now.y - from.y) < 0.5 && Math.abs(now.zoom - from.zoom) < 1e-6)
     if (!untouched) return
     // §MML3 — a menu-opened Template may frame a sub-region instead of fit-all
     const iv = useGraphStore.getState().pendingInitialView
@@ -390,7 +399,7 @@ export function Canvas() {
       const v = getViewport()
       void setViewport({ x: v.x, y: v.y - d, zoom: v.zoom }, { duration: 0 })
       const armed = armedSwap.current
-      if (armed) armed.fromVp = { ...armed.fromVp, y: armed.fromVp.y - d }
+      if (armed?.fromVp) armed.fromVp = { ...armed.fromVp, y: armed.fromVp.y - d }
     })
     ro.observe(pane)
     return () => ro.disconnect()
