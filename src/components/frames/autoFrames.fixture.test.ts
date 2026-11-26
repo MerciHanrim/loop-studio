@@ -3,6 +3,8 @@ import coffeeDoc from '../../../examples/coffee-roastery.json'
 import mmoDoc from '../../../examples/mmo-progression.json'
 import {
   analyzeStages,
+  CANON_NODE_H,
+  CANON_NODE_W,
   frameForeign,
   foreignBudget,
   suggestFrames,
@@ -61,6 +63,13 @@ function assertAcceptanceContract(frames: ReturnType<typeof suggestFrames>, node
     expect(f.members.length).toBeLessThanOrEqual(MAX_FRAME_FRACTION * eligible)
     // S8 — spatially clean
     expect(frameForeign(f, nodes)).toBeLessThanOrEqual(foreignBudget(f.members.length))
+    // #618 item 1 — no other node's drawn body (the canonical cell) takes area inside the frame
+    const mem = new Set(f.members)
+    for (const nd of nodes) {
+      if (mem.has(nd.id) || nd.kind === 'parameter' || nd.kind === 'register') continue
+      const cell = { x: nd.position.x, y: nd.position.y, w: CANON_NODE_W, h: CANON_NODE_H }
+      expect(rectOverlapFrac(f.rect, cell), `${nd.id} inside a frame`).toBe(0)
+    }
   }
   // no kept pair overlaps > MAX_OVERLAP_FRAC of the smaller rect
   for (let i = 0; i < frames.length; i++)
@@ -126,10 +135,14 @@ describe('Early MMO fixture — Table A / A′ / B', () => {
     expect(noGap.map((d) => d.size).sort((a, b) => b - a)).toEqual([6, 4, 4, 4, 3, 3])
   })
 
-  it('Table B — exactly 6 frames, sizes {10, 8, 7, 6, 4, 4}, coverage 39/90', () => {
-    expect(frames.length).toBe(6)
-    expect(frames.map((f) => f.members.length).sort((a, b) => b - a)).toEqual([10, 8, 7, 6, 4, 4])
-    expect(frames.reduce((s, f) => s + f.members.length, 0)).toBe(39)
+  // issue #618 item 1 (Lumi, 2026-11-27) — frames sized by the drawn 56 cell, and a frame that
+  // takes in another group's drawn body is dropped: of the 14 clean candidates, 9 held one
+  // (the six frames kept before held 2–6 each); the 5 left are below the ceiling.
+  // Before: 6 frames, {10, 8, 7, 6, 4, 4}, 39/90.
+  it('Table B — exactly 5 frames, sizes {7, 4, 4, 3, 3}, coverage 21/90', () => {
+    expect(frames.length).toBe(5)
+    expect(frames.map((f) => f.members.length).sort((a, b) => b - a)).toEqual([7, 4, 4, 3, 3])
+    expect(frames.reduce((s, f) => s + f.members.length, 0)).toBe(21)
     expect(eligible).toBe(90)
   })
 
@@ -140,15 +153,19 @@ describe('Early MMO fixture — Table A / A′ / B', () => {
     expect(maxFM).toBeLessThanOrEqual(0.5 + 1e-9)
   })
 
-  it('8 clean candidates lost to the MAX_FRAMES ceiling (a ceiling, not a target)', () => {
-    const ceiling = stages.drops.filter((d) => d.reason === 'MAX_FRAMES ceiling reached')
-    expect(ceiling.map((d) => d.size).sort((a, b) => b - a)).toEqual([4, 4, 4, 3, 3, 3, 3, 3])
+  // #618 item 1 — before, 8 clean candidates were lost to the ceiling; now 9 are dropped for
+  // holding another group's node and none reaches the ceiling
+  it('9 candidates dropped for holding another group’s node; none lost to the MAX_FRAMES ceiling', () => {
+    const holding = stages.drops.filter((d) => d.reason === 'holds another group’s node')
+    expect(holding.map((d) => d.size).sort((a, b) => b - a)).toEqual([10, 8, 6, 4, 4, 4, 3, 3, 3])
+    expect(stages.drops.filter((d) => d.reason === 'MAX_FRAMES ceiling reached')).toEqual([])
   })
 
-  it('coverage is in the reported range 0.35–0.50 (NOT back up toward 0.92)', () => {
+  // #618 item 1 — the reported range was 0.35–0.50 (39/90); a frame may no longer take in another
+  // group's node, so on this Template's interleaved layout coverage falls to 21/90 (0.23)
+  it('coverage is 21/90 (NOT back up toward 0.92)', () => {
     const cov = frames.reduce((s, f) => s + f.members.length, 0) / eligible
-    expect(cov).toBeGreaterThanOrEqual(0.35)
-    expect(cov).toBeLessThanOrEqual(0.5)
+    expect(cov).toBeCloseTo(21 / 90, 9)
   })
 
   it('deterministic under input-array reversal', () => {

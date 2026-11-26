@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AUTO_FRAME_MIN,
   AUTO_FRAME_PAD,
+  CANON_NODE_W,
   foreignBudget,
   frameForeign,
   MAX_FRAME_FRACTION,
@@ -175,11 +176,12 @@ describe('suggestFrames — rect (§AF3.6 rule 4)', () => {
     const [f] = suggestFrames(nodes, edges)
     expect(Number.isInteger(f.rect.x)).toBe(true)
     expect(Number.isInteger(f.rect.w)).toBe(true)
-    // members all inside the rect
+    // members all inside the rect, at the footprint the algorithm uses (the helper's `measured`
+    // width of 100 is ignored by design, §AF8; #618 item 1: the drawn 56 cell)
     for (const id of f.members) {
       const node = nodes.find((nn) => nn.id === id)!
       expect(node.position.x).toBeGreaterThanOrEqual(f.rect.x)
-      expect(node.position.x + 100).toBeLessThanOrEqual(f.rect.x + f.rect.w + 1)
+      expect(node.position.x + CANON_NODE_W).toBeLessThanOrEqual(f.rect.x + f.rect.w + 1)
     }
     expect(f.rect.w).toBeGreaterThanOrEqual(AUTO_FRAME_MIN)
     expect(f.rect.h).toBeGreaterThanOrEqual(AUTO_FRAME_MIN)
@@ -213,5 +215,69 @@ describe('suggestFrames — no mega-frame, no confetti (runtime properties S3/S4
       expect(f.members.length / framed).toBeLessThan(0.75) // no single mega-frame
     }
     expect(frames.length).toBeGreaterThanOrEqual(2)
+  })
+})
+
+// issue #618 item 1 (Lumi, 2026-11-27) — a suggested frame is sized by the node body as drawn,
+// the 56 × 56 cell, not the earlier 150 × 40 footprint; a suggestion whose frame takes in the
+// drawn body of a node outside it, by area, is not kept (a border that only touches one is);
+// and a group too big for one frame is split at the widest gap that leaves both sides valid,
+// walking the gaps from the widest down.
+describe('suggestFrames — #618 item 1: the drawn node body', () => {
+  const CELL = 56
+  /** a dense chain of `count` Pools from `x0`, `step` apart on one row */
+  const chain = (prefix: string, count: number, x0: number, step: number, y = 0) => {
+    const nodes = Array.from({ length: count }, (_, i) => n(`${prefix}${i}`, x0 + i * step, y))
+    const edges = nodes.slice(1).map((m, i) => e(nodes[i].id, m.id))
+    for (let i = 0; i < count; i++) for (let j = i + 2; j < count; j++) edges.push(e(nodes[i].id, nodes[j].id))
+    return { nodes, edges }
+  }
+
+  it('the frame is the members’ drawn cells plus the padding', () => {
+    const a = chain('a', 5, 0, 100)
+    const b = chain('b', 5, 3000, 100)
+    const frames = suggestFrames([...a.nodes, ...b.nodes], [...a.edges, ...b.edges, e('a4', 'b0')])
+    const fa = frames.find((f) => f.members.includes('a0'))!
+    expect(fa.rect).toEqual({ x: -AUTO_FRAME_PAD, y: -AUTO_FRAME_PAD, w: 400 + CELL + 2 * AUTO_FRAME_PAD, h: CELL + 2 * AUTO_FRAME_PAD })
+  })
+
+  /** three dense groups of 5 far apart on a row, one bridge between each, and `x_in`, a node
+   *  in no group (no connection), placed at (x, y) — near group A. (A node linked to another
+   *  group is pulled into A by the spatial split when it sits this close, so it would be A's.) */
+  const withIntruder = (x: number, y: number) => {
+    const a = chain('a', 5, 0, 100)
+    const b = chain('b', 5, 3000, 100)
+    const c = chain('c', 5, 6000, 100)
+    const edges = [...a.edges, ...b.edges, ...c.edges, e('a4', 'b0'), e('b4', 'c0')]
+    return { nodes: [...a.nodes, ...b.nodes, ...c.nodes, n('x_in', x, y)], edges }
+  }
+
+  it('a suggestion whose frame takes in the drawn body of a node outside it, by area, is not kept', () => {
+    // the node 10 units inside A's frame, below A's last member
+    const { nodes, edges } = withIntruder(420, CELL + AUTO_FRAME_PAD - 10)
+    const drops: AutoFrameDrop[] = []
+    const frames = suggestFrames(nodes, edges, drops)
+    expect(frames.some((f) => f.members.includes('a0')), 'A is not kept').toBe(false)
+    expect(frames.some((f) => f.members.includes('c0')), 'C, clear of every other node, is kept').toBe(true)
+    expect(drops.some((d) => d.members.includes('a0') && d.reason === 'holds another group’s node')).toBe(true)
+  })
+
+  it('control: a body that only touches the frame’s border does not count', () => {
+    // its top edge exactly on A's bottom border
+    const { nodes, edges } = withIntruder(420, CELL + AUTO_FRAME_PAD)
+    const frames = suggestFrames(nodes, edges)
+    expect(frames.some((f) => f.members.includes('a0')), 'A is kept').toBe(true)
+  })
+
+  it('a group too big for one frame is split at the widest gap that leaves both sides valid', () => {
+    // one sparse chain (one label): 6 nodes, a 400 gap, 7 nodes, a 1,200 gap, one stray. The
+    // widest gap leaves the stray alone (not valid); the next, between the two clusters, is.
+    const nodes: AFNode[] = []
+    for (let i = 0; i < 6; i++) nodes.push(n(`a${i}`, i * 100, (i % 2) * 60))
+    for (let i = 0; i < 7; i++) nodes.push(n(`b${i}`, 900 + i * 100, (i % 2) * 60))
+    nodes.push(n('stray', 2700, 0))
+    const edges = nodes.slice(1).map((m, i) => e(nodes[i].id, m.id))
+    const frames = suggestFrames(nodes, edges)
+    expect(frames.map((f) => f.members), 'the six-node cluster is suggested').toContainEqual(['a0', 'a1', 'a2', 'a3', 'a4', 'a5'])
   })
 })

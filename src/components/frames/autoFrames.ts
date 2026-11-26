@@ -1,4 +1,5 @@
 import type { FrameRect } from '../../store/frameStore'
+import { CELL } from '../nodes/symbol'
 
 // docs/large-graph-readability-auto-frames.md (§AF, Slice 4b) — the pure
 // clustering algorithm behind "Suggest frames". No store access, no React, no
@@ -40,10 +41,12 @@ const LP_MAX_ROUNDS = 20
 
 /** CANONICAL node footprint (flow units). The ONLY node size the algorithm ever
  *  uses. Fixed so results never depend on live DOM `measured` dimensions
- *  (§AF8). Chosen to comfortably wrap a typical node body; the drawn frame is
- *  this footprint's bbox + `AUTO_FRAME_PAD`. */
-export const CANON_NODE_W = 150
-export const CANON_NODE_H = 40
+ *  (§AF8). Issue #618 item 1 (Lumi, 2026-11-27): the body as drawn, the symbol's
+ *  56 × 56 cell (`nodes/symbol.ts`); the earlier 150 × 40 was the previous
+ *  node's, and made a frame reach about 94 units past its last member. The
+ *  drawn frame is this footprint's bbox + `AUTO_FRAME_PAD`. */
+export const CANON_NODE_W = CELL
+export const CANON_NODE_H = CELL
 
 // ── spatial-cohesion + overlap-resolution (§AF3.6 r3 / r4, review boundary 5) ──
 /** a group is CONTAMINATED — and must be split or dropped — when the count of
@@ -91,6 +94,7 @@ export type AutoFrameDrop = {
     | 'contaminated: spatial recursion depth cap'
     | 'exceeds MAX_FRAME_FRACTION: not spatially separable'
     | 'overlap > MAX_OVERLAP_FRAC of a kept frame'
+    | 'holds another group’s node'
     | 'MAX_FRAMES ceiling reached'
 }
 
@@ -213,7 +217,11 @@ function mergeSmall(groups: Group[], adj: Map<string, string[]>): Group[] {
 }
 
 /** rule 2 — split a group holding > MAX_FRAME_FRACTION of the framed total by a
- *  single spatial cut on its longer bbox axis at the widest gap; recurse ≤ 2. */
+ *  single spatial cut; recurse ≤ 2. Issue #618 item 1 (Lumi, 2026-11-27): the
+ *  same cut as the spatial-cohesion split (`bestSpatialCut`), the gaps walked
+ *  from the widest down to the first that leaves both sides valid. It used to
+ *  try only the widest gap, so one stray node far off (a widest gap with one
+ *  node on its side) kept the group whole and it was dropped. */
 function splitBig(groups: Group[], centre: Centre, framedTotal: number, depth = 0): Group[] {
   if (framedTotal === 0) return groups
   const out: Group[] = []
@@ -226,37 +234,13 @@ function splitBig(groups: Group[], centre: Centre, framedTotal: number, depth = 
       out.push(g)
       continue
     }
-    const pts = g.members.map((id) => ({ id, ...centre.get(id)! }))
-    const xs = [...pts].sort((a, b) => a.cx - b.cx || (a.id < b.id ? -1 : 1))
-    const ys = [...pts].sort((a, b) => a.cy - b.cy || (a.id < b.id ? -1 : 1))
-    const spanX = xs[xs.length - 1].cx - xs[0].cx
-    const spanY = ys[ys.length - 1].cy - ys[0].cy
-    const useX = spanX >= spanY
-    const sorted = useX ? xs : ys
-    const coord = (p: { cx: number; cy: number }) => (useX ? p.cx : p.cy)
-    let gap = 0
-    let cutAfter = -1
-    let cutLow = Infinity
-    for (let i = 0; i < sorted.length - 1; i++) {
-      const d = coord(sorted[i + 1]) - coord(sorted[i])
-      const low = coord(sorted[i])
-      if (d > gap || (d === gap && low < cutLow)) {
-        gap = d
-        cutAfter = i
-        cutLow = low
-      }
-    }
-    if (
-      gap < MIN_SPLIT_GAP ||
-      cutAfter < 0 ||
-      cutAfter + 1 < MIN_FRAME_NODES ||
-      sorted.length - (cutAfter + 1) < MIN_FRAME_NODES
-    ) {
+    const cut = bestSpatialCut(g.members, centre)
+    if (!cut) {
       out.push(g)
       continue
     }
-    const a: Group = { members: sorted.slice(0, cutAfter + 1).map((p) => p.id).sort() }
-    const b: Group = { members: sorted.slice(cutAfter + 1).map((p) => p.id).sort() }
+    const a: Group = { members: [...cut.a].sort() }
+    const b: Group = { members: [...cut.b].sort() }
     out.push(...splitBig([a, b], centre, framedTotal, depth + 1))
   }
   return out
@@ -518,10 +502,22 @@ function pipeline(
   })
   const candidates = groups.map((g) => g.members.length).sort((a, b) => b - a)
 
-  // rule 4 — overlap resolution + the MAX_FRAMES ceiling.
+  // rule 3c — issue #618 item 1 (Lumi, 2026-11-27): a frame takes in no drawn
+  // body of a node outside it. A candidate whose rect shares any area with a
+  // non-member's body (its canonical cell) is DROPPED; a border that only
+  // touches one does not count. A frame drag carries what is inside it
+  // (frameMoveGesture.ts), so such a suggestion would move another group's node.
   const cand = groups
     .filter((g) => g.members.length >= MIN_FRAME_NODES)
     .map((g) => ({ members: [...g.members].sort(), rect: frameRect(g.members, rectById) }))
+    .filter((c) => {
+      const mem = new Set(c.members)
+      const held = allIds.filter((id) => !mem.has(id) && rectOverlap(c.rect, rectById.get(id)!) > 0)
+      if (held.length === 0) return true
+      drops.push({ members: c.members, size: c.members.length, foreign: held.length, reason: 'holds another group’s node' })
+      return false
+    })
+  // rule 4 — overlap resolution + the MAX_FRAMES ceiling.
   const kept = resolveOverlap(cand, adj, drops)
 
   // §AF8 — frame order by (rect.y, rect.x, representativeNodeId)

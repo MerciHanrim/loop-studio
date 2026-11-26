@@ -7,9 +7,9 @@ import { AUX_LINE_H, CELL, CENTRE, LABEL_GAP, LABEL_MAX_W, NAME_LINE_H, SYMBOLS 
 // suggested frame, under the node structure whose names stand outside the
 // body. The algorithm's rect (R0, `autoFrames.ts`) is untouched: it alone
 // decides the candidates, the drops, the grouping, the order and the labels.
-// R0 wraps a canonical 150 × 40 box per node, which no longer holds a symbol's
-// outside name; the shown rect grows R0 to its members' displayed extent where
-// that is safe. A partial fix (2026-10-22): what it cannot hold is reported.
+// R0 wraps a canonical box per node, the symbol's 56 × 56 cell (150 × 40 before
+// issue #618 item 1), which does not hold a symbol's outside name; the shown
+// rect grows R0 to its members' displayed extent where that is safe. A partial fix (2026-10-22): what it cannot hold is reported.
 //
 // Deterministic, like R0: it reads a node's kind, position, its connected
 // faces and whether its data has a capacity / unit — never the DOM, a measured
