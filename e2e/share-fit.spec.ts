@@ -70,6 +70,54 @@ test.describe('#616 item 3 — a share link opens with the app’s fit', () => {
     expect(Math.abs(opened.y - fitted.y), 'the same y').toBeLessThan(2)
   })
 
+  // Lumi's control (2026-11-27): the app's fit replaces only React Flow's own first fit. A camera
+  // the user moves before the fit has landed is kept. To open a window the fit cannot land in,
+  // animation frames are held from the moment the shared nodes are in the page (the fit waits
+  // for at least one frame after the measure pass); a real wheel zoom moves the camera; then
+  // the frames are released. On the first version of this fix (head 06450291) the late fit
+  // overwrote the zoom: 1.954 became the app's fit, 0.82.
+  test('a camera the user moves right after the link opens is kept: the fit that lands later does not overwrite it', async ({ page }) => {
+    await page.addInitScript(() => {
+      const w = window as unknown as { requestAnimationFrame: typeof requestAnimationFrame; __heldFrames: FrameRequestCallback[]; __holdFrames: boolean; __releaseFrames: () => void }
+      const raf = w.requestAnimationFrame.bind(window)
+      w.__heldFrames = []
+      w.__holdFrames = false
+      w.requestAnimationFrame = (cb: FrameRequestCallback) => {
+        if (w.__holdFrames) {
+          w.__heldFrames.push(cb)
+          return -1
+        }
+        return raf(cb)
+      }
+      w.__releaseFrames = () => {
+        w.__holdFrames = false
+        for (const cb of w.__heldFrames.splice(0)) raf(cb)
+      }
+      // only on the page opened from the share link (its hash is still there when this runs)
+      if (!location.hash.startsWith('#g1=')) return
+      new MutationObserver((_, obs) => {
+        if (document.querySelectorAll('.react-flow__node').length < 3) return
+        w.__holdFrames = true
+        obs.disconnect()
+      }).observe(document, { childList: true, subtree: true })
+    })
+    await openShared(page)
+    const pending = () => page.evaluate(() => (window as unknown as { __loop: { canvas: { swapFitPending: () => boolean } } }).__loop.canvas.swapFitPending())
+    expect(await pending(), 'the fit has not landed yet').toBe(true)
+    const pane = (await page.locator('.react-flow__pane').boundingBox())!
+    await page.mouse.move(pane.x + pane.width / 2, pane.y + pane.height / 2)
+    await page.mouse.wheel(0, -400)
+    await expect.poll(async () => (await viewport(page)).zoom, { message: 'the wheel zoomed in' }).toBeGreaterThan(1.3)
+    const moved = await viewport(page)
+    await page.evaluate(() => (window as unknown as { __releaseFrames: () => void }).__releaseFrames())
+    await expect.poll(pending, { message: 'the fit is no longer pending' }).toBe(false)
+    await page.waitForTimeout(300)
+    const after = await viewport(page)
+    expect(Math.abs(after.zoom - moved.zoom), 'the user’s zoom is kept').toBeLessThan(0.001)
+    expect(Math.abs(after.x - moved.x), 'the user’s x is kept').toBeLessThan(1)
+    expect(Math.abs(after.y - moved.y), 'the user’s y is kept').toBeLessThan(1)
+  })
+
   test('control: after Fit the whole diagram, every outside name is inside the pane', async ({ page }) => {
     await openShared(page)
     await page.locator('button.wb-zb[aria-label="Fit the whole diagram"]').click()

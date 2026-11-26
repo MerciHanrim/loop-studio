@@ -326,7 +326,10 @@ approved or skipped for the pristine sample:
    has measured the nodes, with the fit "Fit the whole diagram" uses, counting
    the names outside the nodes (issue #616 item 3; it was React Flow's
    `fitView`, which knows only the node boxes and could cut an outer name).
-   A view only: no `simulationRev` bump, nothing in the document.
+   It replaces only React Flow's own first fit: a camera the user moves after
+   the link opened (a pan, a wheel or pinch zoom) is kept, and the fit does
+   not land over it. A view only: no `simulationRev` bump, nothing in the
+   document.
 
 `loadDoc` persists, so the shared graph becomes the working graph. The restore
 is deterministic: the same link always yields the same state.

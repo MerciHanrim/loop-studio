@@ -300,10 +300,28 @@ export function Canvas() {
   const armedSwap = useRef<{
     rev: number
     atLoadRev: number
-    /** the camera when the swap was armed; `null` for a fit asked for before the first run */
+    /** the camera when the swap was armed; `null` for an asked-for fit (`requestFit`),
+     *  which reads the user's own moves instead (`userMovedAtLoad`) */
     fromVp: { x: number; y: number; zoom: number } | null
     sig: number | null
   } | null>(null)
+  // issue #616 item 3 (Lumi's control, 2026-11-27) — the document load (`loadRev`) in which
+  // the user last moved the camera: a pan, a wheel or pinch zoom through React Flow (its
+  // `onMoveStart` carries the input event; a programmatic move, React Flow's own first fit
+  // included, carries none) or through the pan surface. An asked-for fit lands only when the
+  // user has not moved the camera since the load it was asked for.
+  const userMovedAtLoad = useRef<number | null>(null)
+  const markUserMove = useCallback(() => {
+    userMovedAtLoad.current = useGraphStore.getState().loadRev
+  }, [])
+  // the pan surface moves the camera only for the user's own pan or pinch
+  const panSurfaceSetViewport = useCallback(
+    (vp: { x: number; y: number; zoom: number }) => {
+      markUserMove()
+      void setViewport(vp)
+    },
+    [markUserMove, setViewport],
+  )
   const [settleTick, setSettleTick] = useState(0)
   // DEV / E2E only — the swap's fit-all while it is landing (React Flow's
   // fitView resolves a frame or more later), for `swapFitPending` below
@@ -321,8 +339,8 @@ export function Canvas() {
     if (fitRev !== seenFitRev.current && armedSwap.current?.rev !== fitRev) {
       seenFitRev.current = fitRev
       // issue #616 item 3 — an asked-for fit (`requestFit`, a share link) replaces React
-      // Flow's own first fit of the loaded nodes, which knows only the node boxes: that
-      // camera move is not the user's, so it has no camera to keep (`fromVp: null`)
+      // Flow's own first fit of the loaded nodes, which knows only the node boxes and is not
+      // the user's move; it keeps the user's own moves instead (`userMovedAtLoad`)
       const fromVp = useGraphStore.getState().fitRequested ? null : getViewport()
       armedSwap.current = { rev: fitRev, atLoadRev: loadRev, fromVp, sig: null }
     }
@@ -345,8 +363,9 @@ export function Canvas() {
     const now = getViewport()
     const from = armed.fromVp
     const untouched =
-      from === null ||
-      (Math.abs(now.x - from.x) < 0.5 && Math.abs(now.y - from.y) < 0.5 && Math.abs(now.zoom - from.zoom) < 1e-6)
+      from === null
+        ? userMovedAtLoad.current !== armed.atLoadRev
+        : Math.abs(now.x - from.x) < 0.5 && Math.abs(now.y - from.y) < 0.5 && Math.abs(now.zoom - from.zoom) < 1e-6
     if (!untouched) return
     // §MML3 — a menu-opened Template may frame a sub-region instead of fit-all
     const iv = useGraphStore.getState().pendingInitialView
@@ -1300,6 +1319,11 @@ export function Canvas() {
           selectionBeforeBox.current = null
           disarmRegionSelect()
         }}
+        // issue #616 item 3 — a camera move from the user's input (the event is null for a
+        // programmatic one): an asked-for fit still to land keeps it
+        onMoveStart={(event) => {
+          if (event) markUserMove()
+        }}
         onPaneClick={() => {
           if (useUiStore.getState().refInsert) disarmRefInsert()
           selectFrame(null)
@@ -1320,7 +1344,7 @@ export function Canvas() {
             the overlay capturing the first finger) can't exceed it. */}
         <PanSurface
           active={panSurfaceActive}
-          setViewport={setViewport}
+          setViewport={panSurfaceSetViewport}
           getViewport={getViewport}
           minZoom={zoomFloor}
           maxZoom={MAX_ZOOM}
