@@ -354,6 +354,54 @@ describe('MC · CSV / JSON exports', () => {
     const summaryRows = parseDelimitedText(toFinalSummaryCsv(h), ',')
     expect(summaryRows.ok && summaryRows.rows[1][0]).toBe(hostile)
   })
+  // issue #616 item 4 follow-up — a Pool name that begins with `=`, `+`, `-` or `@`
+  // is read as a formula when a spreadsheet opens the file. Where a Monte-Carlo
+  // CSV writes the name — the runs file's header, the series and summary files'
+  // `pool` cells — it gets one leading `'`; a plain name and every number do not.
+  describe('a Pool name that begins with = + - @ is guarded', () => {
+    const SIGNED = ['=SUM(A1:A9)', '+1+1', '-2+3', '@cmd']
+    const named = (label: (id: string) => string) => {
+      const ids = ['p1', 'p2', 'p3', 'p4', 'gold']
+      const res = runMonteCarlo(
+        [source('S'), ...ids.map((id) => ({ ...pool(id, 0), data: { ...pool(id, 0).data, label: label(id) } }) as LoopNode)],
+        ids.map((id, i) => edge('e' + i, 'S', id, '1-3')),
+        { baseSeed: 1, runs: 4, steps: 2, tracked: [] },
+      )
+      return res
+    }
+    const signedLabel = (id: string) => (id === 'gold' ? 'Gold' : SIGNED[Number(id.slice(1)) - 1])
+    const rowsOf = (csv: string) => {
+      const p = parseDelimitedText(csv, ',')
+      expect(p.ok).toBe(true)
+      return p.ok ? p.rows : []
+    }
+    const guarded = SIGNED.map((s) => `'${s}`)
+
+    it('runs file: the header names; `run`, `seed` and a plain name are not guarded', () => {
+      const rows = rowsOf(toFinalCsv(named(signedLabel)))
+      expect(rows[0]).toEqual(['run', 'seed', ...guarded, 'Gold'])
+    })
+    it('series file: the `pool` cells; the header is not touched', () => {
+      const rows = rowsOf(toSeriesCsv(named(signedLabel)))
+      expect(rows[0]).toEqual(['step', 'pool', 'p10', 'p50', 'p90', 'mean', 'min', 'max'])
+      expect(rows.slice(1, 6).map((r) => r[1])).toEqual([...guarded, 'Gold'])
+    })
+    it('summary file: the `pool` cells', () => {
+      const rows = rowsOf(toFinalSummaryCsv(named(signedLabel)))
+      expect(rows.slice(1).map((r) => r[0])).toEqual([...guarded, 'Gold'])
+    })
+    it('control: the numbers are the numbers the same run writes under plain names', () => {
+      const plain = named((id) => id.toUpperCase())
+      const signed = named(signedLabel)
+      // drop the name cells; every other cell is the same
+      expect(rowsOf(toFinalCsv(signed)).slice(1)).toEqual(rowsOf(toFinalCsv(plain)).slice(1))
+      expect(rowsOf(toSeriesCsv(signed)).slice(1).map((r) => [r[0], ...r.slice(2)])).toEqual(rowsOf(toSeriesCsv(plain)).slice(1).map((r) => [r[0], ...r.slice(2)]))
+      expect(rowsOf(toFinalSummaryCsv(signed)).slice(1).map((r) => r.slice(1))).toEqual(rowsOf(toFinalSummaryCsv(plain)).slice(1).map((r) => r.slice(1)))
+      // and plain names are written as they are
+      expect(rowsOf(toFinalCsv(plain))[0]).toEqual(['run', 'seed', 'P1', 'P2', 'P3', 'P4', 'GOLD'])
+    })
+  })
+
   it('JSON carries the spec ids and stable field order', () => {
     const j = JSON.parse(toMonteCarloJson(r))
     expect(j.spec).toBe('loop-mc/1')

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import type { Download, Page } from '@playwright/test'
-import { expect, openApp, resetAll, test } from './support/loop'
+import { expect, importGraph, openApp, resetAll, runMc, test } from './support/loop'
 
 // docs/data-import.md §CSV — the Timeline run CSV's COLUMN NAMES, checked on
 // the bytes the browser wrote.
@@ -197,6 +197,65 @@ test.describe('the run CSV names every column independently', () => {
     expect(after[0].slice(5).some((h) => h.startsWith("'")), 'no plain name is guarded').toBe(false)
     // the numbers are the same numbers
     expect(after.slice(1)).toEqual(before.slice(1))
+  })
+})
+
+// issue #616 item 4 follow-up — the three Monte-Carlo CSVs write a Pool's name in
+// the runs file's header and in the series and summary files' `pool` cells. A name
+// that begins with `=`, `+`, `-` or `@` gets one leading `'` there; checked on the
+// downloaded bytes, against the same run downloaded with plain names.
+test.describe('the Monte-Carlo CSVs guard a Pool name that begins with = + - @', () => {
+  const graph = (names: string[]) =>
+    JSON.stringify({
+      schema: 'loop-studio/graph/2',
+      version: 1,
+      nodes: [
+        { id: 'S', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'S', activation: 'automatic', mode: 'pushAny' } },
+        ...names.map((label, i) => ({ id: `p${i + 1}`, type: 'pool', position: { x: 300, y: i * 120 }, data: { kind: 'pool', label, activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } })),
+      ],
+      edges: names.map((_, i) => ({ id: `e${i + 1}`, source: 'S', target: `p${i + 1}`, type: 'loop', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1-3' } })),
+    })
+  const FILES = [
+    ['dist.export.runsCsv', 'loop-studio-montecarlo-runs.csv'],
+    ['dist.export.seriesCsv', 'loop-studio-montecarlo-series.csv'],
+    ['dist.export.summaryCsv', 'loop-studio-montecarlo-summary.csv'],
+  ] as const
+  async function downloadMc(page: Page, names: string[]): Promise<Record<string, string[][]>> {
+    await importGraph(page, graph(names))
+    await runMc(page, { baseSeed: 1, runs: 6, steps: 3, tracked: [] })
+    const exportBtn = page.locator('.timeline__csv[aria-haspopup="true"]')
+    await expect(exportBtn).toBeEnabled({ timeout: 60_000 })
+    const out: Record<string, string[][]> = {}
+    for (const [key, file] of FILES) {
+      const label = await page.evaluate((k) => ((window as unknown as { __loop: Loop }).__loop.i18n.getState().activeCatalog as Record<string, string>)[k], key)
+      if ((await exportBtn.getAttribute('aria-expanded')) !== 'true') await exportBtn.click()
+      const [download] = await Promise.all([page.waitForEvent('download'), page.locator('.menu__pop [role="menuitem"] .menu__name', { hasText: label }).click()])
+      expect(download.suggestedFilename()).toBe(file)
+      out[file] = await rowsOf(page, await savedBytes(download))
+    }
+    return out
+  }
+
+  test('runs header and series / summary `pool` cells: only the four signed names get a leading `\'`; the numbers are the plain run\'s', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    const plain = await downloadMc(page, ['P1', 'P2', 'P3', 'P4', 'Gold'])
+    const signed = await downloadMc(page, ['=SUM(A1:A9)', '+1+1', '-2+3', '@cmd', 'Gold'])
+    const guarded = ["'=SUM(A1:A9)", "'+1+1", "'-2+3", "'@cmd", 'Gold']
+
+    const runs = signed['loop-studio-montecarlo-runs.csv']
+    expect(runs[0]).toEqual(['run', 'seed', ...guarded])
+    expect(runs.slice(1), 'runs: the same numbers').toEqual(plain['loop-studio-montecarlo-runs.csv'].slice(1))
+
+    const series = signed['loop-studio-montecarlo-series.csv']
+    expect(series[0], 'series header untouched').toEqual(plain['loop-studio-montecarlo-series.csv'][0])
+    expect(series.slice(1, 6).map((r) => r[1])).toEqual(guarded)
+    const dropName = (rows: string[][], at: number) => rows.slice(1).map((r) => r.filter((_, i) => i !== at))
+    expect(dropName(series, 1), 'series: the same numbers').toEqual(dropName(plain['loop-studio-montecarlo-series.csv'], 1))
+
+    const summary = signed['loop-studio-montecarlo-summary.csv']
+    expect(summary.slice(1).map((r) => r[0])).toEqual(guarded)
+    expect(dropName(summary, 0), 'summary: the same numbers').toEqual(dropName(plain['loop-studio-montecarlo-summary.csv'], 0))
   })
 })
 
