@@ -387,8 +387,12 @@ Three layers, in this order:
 
 1. **Relation.** For a node: its connections, grouped by what they do to it
    and what it does to others. Each row selects its connection, and
-   pointing at a row highlights its line. For a connection: one sentence
-   saying when it acts and what happens, plus links to both ends.
+   pointing at a row highlights its line. A flow row shows `◇` and the
+   Parameter's name only for a flow the engine runs as a Parameter: a single
+   `@id` or `@{id}` (`parseFlow`) naming a Parameter; any other text, such
+   as `@rate*2` or a reference to a Pool or to no node, is shown as written
+   (issue #616 item 1). For a connection: one sentence saying when it acts
+   and what happens, plus links to both ends.
 2. **Edit.** The fields most edits need: a node's name and its kind's main
    values (a Pool's starting amount, current amount and capacity; a Gate's
    distribution; a Parameter's value; a Register's expression), a

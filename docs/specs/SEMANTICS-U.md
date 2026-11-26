@@ -321,7 +321,15 @@ approved or skipped for the pristine sample:
 2. `graphStore.loadDoc({ nodes, edges })` — the **one and only** `simulationRev`
    bump of the whole load (sim resets to step 0, MC goes idle, exactly as a
    `Graph JSON` import).
-3. `applyRecommended(recommendedRunConfig)` and `fitView()`.
+3. `applyRecommended(recommendedRunConfig)` and the app's fit of the shared
+   graph: `graphStore.requestFit()`, which the Canvas answers once React Flow
+   has measured the nodes, with the fit "Fit the whole diagram" uses, counting
+   the names outside the nodes (issue #616 item 3; it was React Flow's
+   `fitView`, which knows only the node boxes and could cut an outer name).
+   It replaces only React Flow's own first fit: a camera the user moves after
+   the link opened (a pan, a wheel or pinch zoom) is kept, and the fit does
+   not land over it. A view only: no `simulationRev` bump, nothing in the
+   document.
 
 `loadDoc` persists, so the shared graph becomes the working graph. The restore
 is deterministic: the same link always yields the same state.

@@ -199,3 +199,75 @@ test.describe('Relations — the keyboard focus ring of a row and of a link (#61
       })
     }
 })
+
+// issue #616 item 1 — a flow row's `◇` marks a reference to a Parameter. Relations read it from
+// the text: whatever followed `@` was taken as the id, so on main `ba39e719` `@{rate}` showed
+// `◇ {rate}` and `@rate*2`, which the engine refuses (it moves nothing), showed `◇ rate*2`.
+// The row now reads the flow as the engine does: a single `@id` or `@{id}` naming a Parameter
+// shows `◇` and the Parameter's name; any other text is shown as it is.
+test.describe('#616 item 1 — Relations marks only a reference the engine runs', () => {
+  const pool = (id: string, label: string, y: number) => node(id, 'pool', { label, activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' }, 400, y)
+  const flow = (id: string, target: string, f: string) => ({ id, source: 'src', target, type: 'loop', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: f } })
+  const REFS = JSON.stringify({
+    schema: 'loop-studio/graph/2',
+    version: 1,
+    nodes: [
+      node('src', 'source', { label: 'Source', activation: 'automatic' }, 0, 0),
+      node('rate', 'parameter', { label: 'Rate value', value: 3 }, 0, 300),
+      pool('p_plain', 'Plain ref', -300),
+      pool('p_braced', 'Braced ref', -150),
+      pool('p_expr', 'Expression', 0),
+      pool('p_pool', 'Pool ref', 150),
+      pool('p_missing', 'Missing ref', 300),
+      pool('p_number', 'Number', 450),
+    ],
+    edges: [
+      flow('e_plain', 'p_plain', '@rate'),
+      flow('e_braced', 'p_braced', '@{rate}'),
+      flow('e_expr', 'p_expr', '@rate*2'),
+      flow('e_pool', 'p_pool', '@p_plain'),
+      flow('e_missing', 'p_missing', '@nowhere'),
+      flow('e_number', 'p_number', '2'),
+    ],
+  })
+  /** each row's effect, by the name of the Pool it leads to (bidi isolates removed) */
+  const effects = (page: Page) =>
+    panel(page)
+      .locator('.wb-rel__row')
+      .evaluateAll((els) =>
+        Object.fromEntries(els.map((e) => [(e.querySelector('.wb-rel__name')?.textContent ?? '').replace(/[⁦-⁩]/g, ''), (e.querySelector('.wb-rel__effect')?.textContent ?? '').replace(/[⁦-⁩]/g, '')])),
+      )
+  /** what one step moves into each Pool: the engine's own reading of each flow */
+  const movedInOneStep = async (page: Page) => {
+    await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().advance())
+    return page.evaluate(() => {
+      const v = (window as unknown as Bridge).__loop.sim.getState().values as Record<string, number>
+      return { p_plain: v.p_plain, p_braced: v.p_braced, p_expr: v.p_expr, p_pool: v.p_pool, p_missing: v.p_missing, p_number: v.p_number }
+    })
+  }
+
+  test('`@{rate}` reads as the Parameter; `@rate*2`, a Pool and a missing id read as written', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, REFS)
+    await pick(page, 'Source')
+    const e = await effects(page)
+    // soft: every row is checked, so a failure lists each one that reads wrong
+    expect.soft(e['Braced ref'], 'a braced reference').toBe('◇ Rate value')
+    expect.soft(e.Expression, 'not a reference: the engine moves nothing').toBe('@rate*2')
+    expect.soft(e['Pool ref'], 'a reference to a Pool: the engine moves nothing').toBe('@p_plain')
+    expect.soft(e['Missing ref'], 'a reference to no node: the engine moves nothing').toBe('@nowhere')
+    // the engine agrees: the two references move the Parameter's 3, the others nothing
+    expect(await movedInOneStep(page)).toMatchObject({ p_plain: 3, p_braced: 3, p_expr: 0, p_pool: 0, p_missing: 0 })
+  })
+
+  test('control: `@rate` and a number read as before', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, REFS)
+    await pick(page, 'Source')
+    const e = await effects(page)
+    expect(e['Plain ref']).toBe('◇ Rate value')
+    expect(e.Number).toBe('2')
+  })
+})

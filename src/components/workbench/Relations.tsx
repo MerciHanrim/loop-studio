@@ -5,6 +5,7 @@ import type { LoopEdge, LoopNode } from '../../model/types'
 import type { ModelSemanticsVersion } from '../../model/modelVersion'
 import { classifyLabelTiming, parseActivatorExpr, parseLabelExpr } from '../../engine/stateExpr'
 import { gateChances, type GateChances } from '../../engine/gateChance'
+import { parseFlow } from '../../engine/flow'
 import { selectOnly, useGraphStore } from '../../store/graphStore'
 import { useUiStore } from '../../store/uiStore'
 import { useT, type MessageKey } from '../../i18n'
@@ -51,7 +52,13 @@ function effectText(t: Tr, e: LoopEdge, nodes: LoopNode[], modelVersion: ModelSe
   const k = connectKindOf(e)
   if (k === 'flow') {
     const f = typeof d.flow === 'string' ? d.flow : String(d.flow ?? '')
-    return f.startsWith('@') ? `◇ ${nameOf(nodes, f.slice(1))}` : f
+    // issue #616 item 1 — read as the engine reads it (parseFlow, then resolveFlowExprs):
+    // `◇` and the Parameter's name only for a single `@id` / `@{id}` that names a Parameter;
+    // any other text (`@rate*2`, a reference to a Pool or to no node, a v1 document's `@`)
+    // moves what the engine makes of it, so it is shown as written
+    const fx = parseFlow(f, modelVersion)
+    if (fx.kind === 'param' && nodes.find((n) => n.id === fx.id)?.data.kind === 'parameter') return `◇ ${nameOf(nodes, fx.id)}`
+    return f
   }
   if (k === 'condition') {
     const p = parseActivatorExpr(String(d.expr ?? ''), modelVersion)
