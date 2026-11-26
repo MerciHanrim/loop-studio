@@ -7,7 +7,8 @@
 // The store rules, the checked-range key and the save / autosave / share round trips are
 // pinned by src/store/simStore.autoPause.test.ts.
 import type { Page } from '@playwright/test'
-import { ensureTimelineOpen, expect, iso, openApp, resetAll, test } from './support/loop'
+import { readFileSync } from 'node:fs'
+import { ensureTimelineOpen, expect, importGraph, iso, openApp, resetAll, test } from './support/loop'
 import { pickTemplate } from './support/workbenchMenus'
 import { showStrip } from './support/timelineTabs'
 
@@ -171,5 +172,61 @@ test.describe('#537 — the desalination example’s run guide', () => {
     expect(s.guideWhole).toBe(true)
     expect(s.areaOverflows).toBe(false)
     await test.info().attach('600 px at the floor, paused at 1161, the strips tab', { body: await page.screenshot(), contentType: 'image/png' })
+  })
+})
+
+// issue #614 item 1 — the phone runs the same example through its own run bar
+// (MobileRunBar), which read neither the auto-pause nor the checked range: Play
+// paused itself at step 1161 and nothing on screen said why. The bar now carries
+// the same two lines, visible, and the same two status regions. The Templates
+// menu is the desktop's; the phone opens the example's file.
+test.describe('#614 — the phone run bar says why Play paused and past which step the example is checked', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  const DESAL = readFileSync(new URL('../examples/desalination.json', import.meta.url), 'utf8')
+  const bar = (page: Page) => page.locator('.pstrip--mobile')
+
+  async function example(page: Page, opts: { deliveries: boolean }) {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, DESAL)
+    await expect(page.locator('.react-flow__node')).toHaveCount(43)
+    if (!opts.deliveries) {
+      await page.evaluate((ids: string[]) => {
+        const g = (window as unknown as Bridge).__loop.graph.getState()
+        for (const id of ids) g.removeNode(id)
+      }, DELIVERIES)
+      await expect(page.locator('.react-flow__node')).toHaveCount(37)
+    }
+    await expect(bar(page)).toBeVisible()
+  }
+
+  test('Play pauses itself at the first core stop: the bar says why, and its status region too', async ({ page }) => {
+    test.setTimeout(180_000)
+    await example(page, { deliveries: false })
+    await advance(page, 1150)
+    // control: before the stop, no guide line
+    await expect(bar(page).locator('[data-testid="run-guide"]')).toHaveCount(0)
+    await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().setSpeed(120))
+    await bar(page).locator('.pb-btn--primary').click()
+    await expect.poll(() => sim(page), { timeout: 60_000, message: 'auto-play pauses at the first core stop' }).toEqual({ step: 1161, status: 'paused' })
+    await expect(bar(page).locator('[data-testid="run-guide"] [data-guide="pause"]')).toHaveText(PAUSE_TEXT)
+    await expect(bar(page).locator('[data-testid="run-guide"] [data-guide="pause"]')).toBeVisible()
+    await expect(status(page, 'pause')).toHaveText(PAUSE_TEXT)
+    await expect(status(page, 'pause')).toHaveAttribute('role', 'status')
+    // the bar's controls stay on screen with the line under them
+    await expect(bar(page).locator('.pb-btn--primary')).toBeInViewport()
+  })
+
+  test('past 2,160 steps the bar says the example is checked over 90 days', async ({ page }) => {
+    test.setTimeout(180_000)
+    await example(page, { deliveries: true })
+    await advance(page, 2160)
+    // control: at the last checked step, nothing is said
+    await expect(bar(page).locator('[data-testid="run-guide"]')).toHaveCount(0)
+    await bar(page).locator('.pstrip__step-btn').click()
+    await expect.poll(async () => (await sim(page)).step).toBe(2161)
+    await expect(bar(page).locator('[data-testid="run-guide"] [data-guide="checked"]')).toHaveText(CHECKED_TEXT)
+    await expect(status(page, 'checked')).toHaveText(CHECKED_TEXT)
+    await expect(bar(page).locator('[data-testid="run-guide"] [data-guide="pause"]'), 'the shipped example never paused').toHaveCount(0)
   })
 })
