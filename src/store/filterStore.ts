@@ -100,3 +100,16 @@ useGraphStore.subscribe((g) => {
   lastLoadRev = g.loadRev
   useFilterStore.getState().clear()
 })
+
+// Issue #616 item 2 — the panel offers a row only for a kind the graph has, so a
+// hidden kind whose last node an edit removes could never be unticked, and the
+// next node of that kind was hidden the moment it was made. Such a kind leaves
+// the hidden set; every other hidden kind is kept.
+useGraphStore.subscribe((g, prev) => {
+  if (g.nodes === prev.nodes) return
+  const hidden = useFilterStore.getState().hiddenNodeKinds
+  if (hidden.size === 0) return
+  const present = new Set<NodeKind>(g.nodes.map((n) => n.data.kind))
+  const kept = [...hidden].filter((k) => present.has(k))
+  if (kept.length !== hidden.size) useFilterStore.setState({ hiddenNodeKinds: new Set(kept) })
+})
