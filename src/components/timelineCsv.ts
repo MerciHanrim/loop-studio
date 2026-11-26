@@ -1,4 +1,4 @@
-import { toCsv } from '../model/csv'
+import { guardFormulaStart, toCsv } from '../model/csv'
 import { withUnit } from '../model/exportUnits'
 import { plainDecimal } from '../model/rational'
 import type { RunGroupReport, TimetableLineReport } from '../engine/types'
@@ -74,6 +74,12 @@ const ruleCells = (rules: readonly RunCsvRule[], pt: RunCsvPoint): (string | num
     return hit ? [plainDecimal(hit.target), plainDecimal(hit.moved), hit.state] : ['', '', '']
   })
 
+/** Issue #616 item 4 — the column names a user's labels start: one that begins
+ *  with `=`, `+`, `-` or `@` gets one leading `'` (`guardFormulaStart`), so a
+ *  spreadsheet opening the file reads it as text. The data cells are numbers
+ *  and are never guarded. */
+const guardedNames = (names: readonly string[]): string[] => names.map(guardFormulaStart)
+
 /** `<label> [<node-id>]`, or `<label> [<unit>] [<node-id>]` — readable half
  *  first, identifying half last. */
 export function runCsvColumnName(pool: RunCsvPool): string {
@@ -85,7 +91,7 @@ export function runCsvColumnName(pool: RunCsvPool): string {
  *  a round trip through this product's own importer instead of being replaced
  *  by spaces. */
 export function buildRunCsv(pools: readonly RunCsvPool[], series: readonly RunCsvPoint[], lines: readonly RunCsvTableLine[] = [], rules: readonly RunCsvRule[] = []): string {
-  const head = ['step', ...pools.map(runCsvColumnName), ...tableHead(lines), ...ruleHead(rules)]
+  const head = ['step', ...guardedNames([...pools.map(runCsvColumnName), ...tableHead(lines), ...ruleHead(rules)])]
   // a Pool with no entry in a committed snapshot reads 0, exactly as the chart
   // draws it — the CSV never disagrees with what is on screen
   const rows = series.map((pt) => [pt.step, ...pools.map((p) => pt.values[p.id] ?? 0), ...tableCells(lines, pt), ...ruleCells(rules, pt)])
@@ -97,7 +103,7 @@ export function buildRunCsv(pools: readonly RunCsvPool[], series: readonly RunCs
  *  and `<label> (approx) [id]`, `true` or `false`. A Pool the view does not
  *  re-express adds nothing, so no cell is blank. */
 export function buildShownRunCsv(pools: readonly (RunCsvPool & { view?: PoolView })[], series: readonly RunCsvPoint[], lines: readonly RunCsvTableLine[] = [], rules: readonly RunCsvRule[] = []): string {
-  const head = ['step', ...pools.flatMap((p) => (p.view?.fu ? [runCsvColumnName(p), `${withUnit(`${p.label} (shown)`, p.view.unit)} [${p.id}]`, `${p.label} (approx) [${p.id}]`] : [runCsvColumnName(p)])), ...tableHead(lines), ...ruleHead(rules)]
+  const head = ['step', ...guardedNames([...pools.flatMap((p) => (p.view?.fu ? [runCsvColumnName(p), `${withUnit(`${p.label} (shown)`, p.view.unit)} [${p.id}]`, `${p.label} (approx) [${p.id}]`] : [runCsvColumnName(p)])), ...tableHead(lines), ...ruleHead(rules)])]
   const rows = series.map((pt) => [
     pt.step,
     ...pools.flatMap((p) => {

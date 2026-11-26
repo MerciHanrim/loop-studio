@@ -1692,6 +1692,13 @@ reader that takes the id from the end still finds it (SEMANTICS-M4.md §M4-6).
 The same holds in the separate file with shown values, whose added columns are
 `feed (shown) [L] [pool_1]` and `feed (approx) [pool_1]` (§M4-8).
 
+A column name that begins with `=`, `+`, `-` or `@` starts with one `'`
+(issue #616 item 4): a spreadsheet opening the file would otherwise read the
+name as a formula. It is the change-proposal export's guard (DI-D18), applied
+only to such a name, so every other column name is written as it always was;
+the numbers under it are never guarded. `=SUM(A1:A9) [p1]` is written
+`'=SUM(A1:A9) [p1]`.
+
 ### Tests
 
 - `src/model/csv.test.ts` — `csvField` / `toCsv`, and a hostile-label round trip
