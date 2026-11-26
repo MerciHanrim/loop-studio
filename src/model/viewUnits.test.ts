@@ -155,6 +155,20 @@ describe('the two run files (§M4-8)', () => {
     ])
   })
 
+  it('issue #616 item 4 — a name that begins with = + - @ is guarded in every header cell it heads, the added ones too', () => {
+    const signed = withView(inL).map((p) => ({ ...p, label: (p.id === 'feed' ? '-' : p.id === 'power' ? '=' : '') + p.label }))
+    expect(rows(buildShownRunCsv(signed, series))[0]).toEqual([
+      'step',
+      "'-feed [m³] [feed]",
+      "'-feed (shown) [L] [feed]",
+      "'-feed (approx) [feed]",
+      "'=power [kWh] [power]",
+      'free [free]',
+    ])
+    // the numbers under them are untouched
+    expect(rows(buildShownRunCsv(signed, series))[1]).toEqual(['0', '500', '500000', 'false', '125', '1'])
+  })
+
   it('holds the number, the step reading\'s text and the flag; no cell is blank', () => {
     const r = rows(buildShownRunCsv(withView(inL), series))
     expect(r[1]).toEqual(['0', '500', '500000', 'false', '125', '1'])

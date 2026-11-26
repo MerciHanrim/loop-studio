@@ -170,4 +170,46 @@ test.describe('the run CSV names every column independently', () => {
     expect(header, 'still one column per Pool, the quoting did not split one in two').toHaveLength(24)
     expect(new Set(header).size).toBe(24)
   })
+
+  // issue #616 item 4 — a column name that begins with `=`, `+`, `-` or `@` is read as a
+  // formula when the file is opened in a spreadsheet. The downloaded header guards each
+  // such cell with one leading `'`, as the change-proposal export does; every other
+  // name, and every number under them, is written as before.
+  test('a Pool name that begins with = + - @ is guarded in the downloaded header; plain names and the numbers are not', async ({ page }) => {
+    await loadGachaIn(page, 'ko')
+    await stepTimes(page, 2)
+    const before = await rowsOf(page, await downloadRunCsv(page))
+    const ids = await poolIds(page)
+    const signed = ['=SUM(A1:A9)', '+1+1', '-2+3', '@cmd']
+    await page.evaluate(
+      ([nodeIds, labels]) => {
+        const g = (window as unknown as { __loop: Loop }).__loop.graph.getState()
+        labels.forEach((label, i) => g.updateNodeData(nodeIds[i], { label }))
+      },
+      [ids.slice(0, 4), signed] as const,
+    )
+    await stepTimes(page, 2)
+    const after = await rowsOf(page, await downloadRunCsv(page))
+    expect(after[0].slice(1, 5)).toEqual(signed.map((s, i) => `'${s} [${ids[i]}]`))
+    // control: the step column and every other name are byte for byte the names before
+    expect(after[0][0]).toBe('step')
+    expect(after[0].slice(5)).toEqual(before[0].slice(5))
+    expect(after[0].slice(5).some((h) => h.startsWith("'")), 'no plain name is guarded').toBe(false)
+    // the numbers are the same numbers
+    expect(after.slice(1)).toEqual(before.slice(1))
+  })
 })
+
+/** every row of a downloaded CSV, through the product's own parser */
+async function rowsOf(page: Page, bytes: Buffer): Promise<string[][]> {
+  const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  return page.evaluate(async (t) => {
+    const csv = (await import('/src/model/csv.ts')) as {
+      stripBom: (s: string) => string
+      parseDelimitedText: (s: string, d: string) => { ok: boolean; rows?: string[][] }
+    }
+    const r = csv.parseDelimitedText(csv.stripBom(t), ',')
+    if (!r.ok || !r.rows) throw new Error('the product could not parse its own export')
+    return r.rows
+  }, text)
+}

@@ -44,6 +44,15 @@ export function stripBom(text: string): string {
  *  (`src/ui/download.ts`), so a serializer's output stays a plain document. */
 export const CSV_EOL = '\r\n'
 
+/** Issue #616 item 4 — a TEXT cell that begins with `=`, `+`, `-` or `@` is read
+ *  as a formula when a spreadsheet opens the file. Such a cell gets one leading
+ *  `'`, the guard the change-proposal export writes (./dataImportExportCsv);
+ *  any other text is returned as it is. For text a user named (a column name),
+ *  never for a number: a negative number is a number. */
+export function guardFormulaStart(text: string): string {
+  return /^[=+\-@]/.test(text) ? `'${text}` : text
+}
+
 /** One field. Quoted only when it has to be, with internal quotes doubled --
  *  never rewritten. `parseDelimitedText` below is the exact inverse, which is
  *  what makes an export then re-import round trip lossless. A TAB is
