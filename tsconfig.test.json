@@ -1,0 +1,36 @@
+{
+  // The unit tests in the top-level test/ folder and their helpers. Vitest only
+  // TRANSPILES them; without this project `tsc -b` never type-checked them
+  // (issue #624: 13 type errors were standing in them, and the build was
+  // green). Same compiler options as tsconfig.app.json, plus the Node types the
+  // tests use to read fixtures from disk (`node:fs`, `node:path`, `process`,
+  // `import.meta.dirname`).
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node", "vite/client"],
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "strict": true,
+
+    /* Bundler mode — same as tsconfig.app.json */
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "allowArbitraryExtensions": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting — same as the other projects */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  // `src/vite-env.d.ts` declares the build-time globals (`__APP_VERSION__`)
+  // that the app modules the tests import refer to
+  "include": ["test/**/*.ts", "src/vite-env.d.ts"]
+}
