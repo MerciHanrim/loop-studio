@@ -108,3 +108,65 @@ test('the tab going hidden flushes the pending autosave too (hidden transition s
   })
   expect(await storedPoolLabel(page)).toBe('EDIT-THEN-HIDE')
 })
+
+// issue #614 item 5 — the start notice, the language notice and the autosave notice each sat
+// in the one fixed place at the top, at one z-index, so with two at once the later one painted
+// over the other: on main `ba39e719` the autosave notice covered the language notice's
+// Dismiss. They now stack, each whole and each pressable; one alone keeps its place.
+test.describe('#614 item 5 — two notices at once', () => {
+  const failLanguage = async (page: Page) => {
+    await page.route('**/i18n/locales/ko/**', (r) => r.abort())
+    await page.route('**/i18n/templateLabels/ko*', (r) => r.abort())
+    await page.evaluate(() => (window as unknown as Bridge).__loop.i18n.getState().setLocale('ko'))
+    await expect(page.locator('.boot-notice[role="status"]')).toBeVisible()
+  }
+  const failAutosave = async (page: Page) => {
+    await page.evaluate(() => {
+      Storage.prototype.setItem = function () {
+        throw new DOMException('quota', 'QuotaExceededError')
+      }
+    })
+    await relabelPool(page, 'AUTOSAVE-REFUSED')
+    await expect(page.locator('.boot-notice--autosave')).toBeVisible()
+  }
+  const box = (page: Page, sel: string) => page.locator(sel).evaluate((e) => { const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom } })
+  /** the notice's place when alone: its top, and its centre against the window's */
+  const place = (page: Page, sel: string) =>
+    page.locator(sel).evaluate((e) => { const b = e.getBoundingClientRect(); return { top: Math.round(b.top), centred: Math.abs(b.left + b.width / 2 - window.innerWidth / 2) <= 1 } })
+  /** the aborted language load's network errors are expected; nothing else is */
+  const onlyExpected = (errors: string[]) => {
+    expect(errors.filter((e) => !/ERR_FAILED|Failed to load resource/i.test(e))).toEqual([])
+    errors.length = 0
+  }
+
+  test('the language notice and the autosave notice do not overlap, and both Dismiss and Export can be pressed', async ({ page, errors }) => {
+    await failLanguage(page)
+    await failAutosave(page)
+    const lang = await box(page, '.boot-notice[role="status"]')
+    const save = await box(page, '.boot-notice--autosave')
+    const overlap = Math.max(0, Math.min(lang.r, save.r) - Math.max(lang.l, save.l)) * Math.max(0, Math.min(lang.b, save.b) - Math.max(lang.t, save.t))
+    expect(overlap, 'the two notices share no area').toBe(0)
+    /** the element on top at a button's centre is the button */
+    const onTop = (sel: string) =>
+      page.locator(sel).evaluate((btn) => {
+        const b = btn.getBoundingClientRect()
+        const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2)
+        return hit === btn || btn.contains(hit)
+      })
+    expect(await onTop('.boot-notice[role="status"] button'), 'the language notice’s Dismiss is on top').toBe(true)
+    expect(await onTop('.boot-notice--autosave button'), 'the autosave notice’s Export is on top').toBe(true)
+    await page.locator('.boot-notice[role="status"] button').click()
+    await expect(page.locator('.boot-notice[role="status"]')).toHaveCount(0)
+    await expect(page.locator('.boot-notice--autosave'), 'the autosave notice stays').toBeVisible()
+    onlyExpected(errors)
+  })
+
+  test('control: one notice alone keeps its place at the top, centred', async ({ page, errors }) => {
+    await failLanguage(page)
+    expect(await place(page, '.boot-notice[role="status"]'), 'the language notice').toEqual({ top: 8, centred: true })
+    await page.locator('.boot-notice[role="status"] button').click()
+    await failAutosave(page)
+    expect(await place(page, '.boot-notice--autosave'), 'the autosave notice').toEqual({ top: 8, centred: true })
+    onlyExpected(errors)
+  })
+})
