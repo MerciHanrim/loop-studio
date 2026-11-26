@@ -26,9 +26,14 @@ export default function App() {
       <ShareLoader />
       <Shortcuts />
       <PwaUpdateBar />
-      <BootNotice />
-      <LocaleLoadNotice />
-      <AutosaveNotice />
+      {/* issue #614 item 5 — the three notices share one fixed place at the top and stack
+          there, in this order, each whole and each pressable; one alone stands where each
+          stood before (index.css `.boot-notices`) */}
+      <div className="boot-notices">
+        <BootNotice />
+        <LocaleLoadNotice />
+        <AutosaveNotice />
+      </div>
       <div className="app">
         <Toolbar />
         {/* the notice rail (src/ui/noticeRail.tsx): the tier-1 canvas hints

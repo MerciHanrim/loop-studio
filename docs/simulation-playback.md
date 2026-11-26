@@ -507,6 +507,11 @@ changes.
   it would meet the target.
 - **No tail** joining token and badge: at the 6 px gap it made no visible
   difference.
+- **The badge's width** is measured once per text on a canvas with the badge's
+  own font (`playbackBadge.ts`), and again after a font finishes loading, so a
+  text first measured with the fallback font takes the web font's width; the
+  plan below is made again when its width changes (issue #614 item 4: the
+  fallback width used to stay for the session).
 - **What is guaranteed, and what is a plan.** Guaranteed every frame: a shown
   badge never meets either end body (tested at its real width), and a
   connection's place does not change during a step. A plan, not a guarantee:

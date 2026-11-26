@@ -2739,6 +2739,11 @@ i18n store; `src/components/LocaleLoadNotice.tsx` shows a dismissible
 `role="status"` banner (mirrors `BootNotice`) so a language that will not load
 does not read as a silent bug. Cleared on `dismissLoadError()` and on the next
 successful switch. The failure contract is otherwise unchanged (see Rules).
+It stands in one fixed column at the top with the boot notice and the autosave
+notice (`.boot-notices`, `src/App.tsx`): with two at once they stack, each
+whole and each Dismiss pressable; one alone keeps the place it had (issue #614
+item 5: they shared one fixed place, and the autosave notice covered this
+notice's Dismiss).
 
 **State (the minimum the provider holds):**
 

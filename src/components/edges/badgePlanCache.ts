@@ -67,7 +67,7 @@ function pathOf(e: LoopEdge, s: LoopNode, t: LoopNode, map: ReadonlyMap<string, 
   return getBezierPath({ sourceX: a.x, sourceY: a.y, sourcePosition: a.pos, targetX: b.x, targetY: b.y, targetPosition: b.pos })[0]
 }
 
-let cache: { sig: string; map: ReadonlyMap<string, RoutedEdge>; places: Map<string, BadgePlace> } | null = null
+let cache: { sig: string; map: ReadonlyMap<string, RoutedEdge>; width: number; places: Map<string, BadgePlace> } | null = null
 
 /** what a plan reads: the marks, and every resource connection with its path */
 function planInputs(nodes: LoopNode[], edges: LoopEdge[], map: ReadonlyMap<string, RoutedEdge>): { marks: PlanMark[]; plan: (PlanEdge & { d: string })[] } {
@@ -98,9 +98,12 @@ function planInputs(nodes: LoopNode[], edges: LoopEdge[], map: ReadonlyMap<strin
 export function badgePlaces(nodes: LoopNode[], edges: LoopEdge[], map: ReadonlyMap<string, RoutedEdge>): Map<string, BadgePlace> {
   // #421 — once per layout, not once per connection asking at a step's start
   const sig = layoutSignatureOnce(nodes, edges)
-  if (cache && cache.sig === sig && cache.map === map) return cache.places
+  // issue #614 item 4 — the plan's badge width is measured again once the web font has
+  // loaded (playbackBadge.ts); a plan made with the fallback width is made again
+  const width = badgeWidth(PLAN_TEXT)
+  if (cache && cache.sig === sig && cache.map === map && cache.width === width) return cache.places
   const { marks, plan } = planInputs(nodes, edges, map)
-  const places = planBadgePlaces(plan, marks, badgeWidth(PLAN_TEXT))
-  cache = { sig, map, places }
+  const places = planBadgePlaces(plan, marks, width)
+  cache = { sig, map, width, places }
   return places
 }

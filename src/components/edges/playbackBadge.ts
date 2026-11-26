@@ -18,14 +18,28 @@ const fmtAmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 /** the badge text: always signed, from `+1` */
 export const badgeText = (amount: number): string => `+${fmtAmt(amount)}`
 
-/** the badge's font, as `.pb-badge__n` sets it (index.css) */
+/** the badge's font size, as `.pb-badge` sets it (index.css; weight 700). Its digits are
+ *  one width in IBM Plex Sans, so the badge's `tabular-nums` changes no width measured here. */
 const BADGE_FONT_PX = 10
 const widths = new Map<string, number>()
 let ctx: CanvasRenderingContext2D | null | undefined
+let fontWatch = false
+
+/** issue #614 item 4 — a text measured before the web font arrived was measured with the
+ *  fallback font and kept that width for the session (a pill about 1 px too wide, or one that
+ *  clips its text under a narrower fallback). Once any font finishes loading, every text is
+ *  measured again on its next use. */
+function watchFonts(): void {
+  if (fontWatch || typeof document === 'undefined') return
+  fontWatch = true
+  document.fonts?.addEventListener?.('loadingdone', () => widths.clear())
+}
 
 /** the badge text's width in px: measured with the badge's own font once per
- *  text (a canvas, never the DOM); an estimate where no canvas exists (tests) */
+ *  text (a canvas, never the DOM), again after a font loads; an estimate where
+ *  no canvas exists (tests) */
 export function badgeTextWidth(text: string): number {
+  watchFonts()
   const hit = widths.get(text)
   if (hit != null) return hit
   let w = text.length * 6.1

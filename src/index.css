@@ -8688,13 +8688,28 @@ input[type='number']::-webkit-inner-spin-button {
   border: 0;
 }
 
-/* one-time boot notice (SEMANTICS-R.md §R8 reboot rule) */
-.boot-notice {
+/* the fixed notices at the top: the one-time boot notice (SEMANTICS-R.md §R8 reboot rule),
+   a language that failed to load, an autosave that failed. Issue #614 item 5 — they shared
+   one fixed place and one z-index, so a second one painted over the first and covered its
+   Dismiss; now one fixed column holds them, stacked in App.tsx's order. The column takes no
+   pointer where no notice is, and is not drawn with none. */
+.boot-notices {
   position: fixed;
   top: calc(8px + var(--sai-top));
   left: 50%;
   transform: translateX(-50%);
   z-index: var(--z-mc-dialog);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.boot-notices:empty {
+  display: none;
+}
+.boot-notice {
+  pointer-events: auto;
   max-width: min(560px, calc(100vw - 24px));
   display: flex;
   align-items: center;
