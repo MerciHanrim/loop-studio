@@ -1,0 +1,1 @@
+{"type":"internal","reason":"Test-only (#623 items 5 and 7): two saved-frames e2e tests read the autosave record after writing any pending save instead of after a fixed 450/500 ms wait, and the workspace and revision export helpers wait for the confirm dialog before pressing Cancel or Save without it. No product code changes."}

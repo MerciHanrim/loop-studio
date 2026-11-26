@@ -33,7 +33,10 @@ function autoAcceptDialogs(page: Page) {
 /** open File ▾ and click one of its (flattened) Export rows; answer the
  *  in-app summary dialog (Slice 2b — Workspace JSON / Project revision
  *  confirm via ConfirmDialog) and return the resulting download (or null if
- *  none fired). */
+ *  none fired). `'accept'` answers the dialog only if the row shows one (Graph
+ *  JSON has none); `'cancel'` and `'omit'` NEED the dialog: they wait for it,
+ *  so a dialog that never showed (or showed late) fails here instead of
+ *  passing as "nothing downloaded" (#623 item 7). */
 async function exportVia(
   page: Page,
   item: RegExp | string,
@@ -43,6 +46,7 @@ async function exportVia(
   const wait = page.waitForEvent('download', { timeout: 3000 }).catch(() => null)
   await exportItem(page, item).click()
   const dlg = page.locator('.mcdlg--confirm')
+  if (choice === 'cancel' || choice === 'omit') await expect(dlg).toBeVisible()
   if (choice && (await dlg.isVisible().catch(() => false))) {
     const name =
       choice === 'cancel'
