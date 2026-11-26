@@ -158,7 +158,30 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.33.1
+## Latest — v0.34.0
+
+Fixes found in a review of the whole code, across running, editing, data and the keyboard.
+
+- **Runs and charts**: on the phone, the run bar says why Play paused; a Pool keeps one colour
+  in Live and Distribution; a run rule's strip puts a step where the timetable strips do;
+  Cancel stops a Monte Carlo run that has just started, and the dialog says how a small run
+  will really run; renaming no longer resets the run
+- **Keyboard**: Escape no longer closes a dialog while you type with an input method, clears
+  the phone's language search first, and closes an open Timeline popover first in the
+  observation view; keyboard focus shows in Storage and privacy, the phase popover and the
+  Relations list
+- **Editing**: selecting a frame lets go of the nodes selected before it; dragging a bend point
+  or drawing a frame ends cleanly when the window loses the pointer; arrow keys with a modifier
+  no longer move a node; a colour typed in the Hex field stays with its node; a minus in a
+  Pool's capacity no longer makes it unlimited, a trigger's Delay keeps whole steps, and a
+  Parameter's fields say when what you type is not a number
+- **Data import and refresh**: the wizards keep your choices when you go Back and Next, take a
+  number on Enter or on leaving a field, keep each table's problems with that table, and say
+  what in a file or the diagram they cannot read
+- **Downloads**: in the run and Monte Carlo CSVs, a name that begins with `=`, `+`, `-` or `@`
+  opens as text
+
+## v0.33.1
 
 Fixes to what is already there, on the phone and in the right-to-left and Japanese interfaces.
 
@@ -211,26 +234,9 @@ Timeline built for reading a run.
 - **Node icons**, a state light on every Gate, and the game examples under Templates ▸ Games
 - **The run engine no longer loses resources** between Gates, Converters and capped Pools
 
-## v0.31.0
-
-Eighteen languages again, and a round of workbench clarity.
-
-- **Eighteen languages**: besides English and Korean, the interface is available again in
-  Arabic, Chinese (Simplified and Traditional), Dutch, French, German, Italian, Japanese,
-  Portuguese (Brazil and Portugal), Russian, Spanish (Latin America and Spain), Thai, Turkish
-  and Vietnamese; the text added with the redesign is a translation draft in these languages.
-  Arabic text reads right to left while the layout keeps the same places as every language
-- **Clearer run buttons**: Reset, Step and Play are redrawn at full size, Play is filled with
-  the accent colour, and the main button keeps one width while its label changes
-- **Keyboard focus visible everywhere it was not**: on the chosen canvas tool and connection
-  kind, on the open List, Properties and Focus toggles, in the model list next to the selection
-  bar, and around every menu row — in high-contrast mode too
-- **The model list follows the canvas**: it scrolls to a node selected on the canvas, keeps the
-  kind heading in view while you scroll, and marks every selected node of a multiple selection
-- **Smaller fixes**: View ▸ Filters closes the menu; a region-select drag can start on a
-  connection or a frame's name; Run settings stays put as the step count grows
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.30.1 (values in
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.31.0 (eighteen
+languages again, clearer run buttons, and keyboard focus visible everywhere it was not),
+v0.30.1 (values in
 the model list, larger small text, and automatic lines with fewer steps next to a node),
 v0.30.0 (a shorter
 File menu with Templates ▸ and Export ▸ submenus, and no minimap), v0.29.0 (the
