@@ -1697,7 +1697,9 @@ A column name that begins with `=`, `+`, `-` or `@` starts with one `'`
 name as a formula. It is the change-proposal export's guard (DI-D18), applied
 only to such a name, so every other column name is written as it always was;
 the numbers under it are never guarded. `=SUM(A1:A9) [p1]` is written
-`'=SUM(A1:A9) [p1]`.
+`'=SUM(A1:A9) [p1]`. The Monte-Carlo CSVs guard a Pool's name the same way
+wherever they write it: the runs file's column names and the series and
+summary files' `pool` cells.
 
 ### Tests
 
