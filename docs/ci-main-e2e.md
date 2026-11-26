@@ -8,7 +8,7 @@ Every fix ran the full CI twice: about 18 minutes on its pull request and about 
 
 - **A pull request:** everything, as before. The ruleset on `main` requires `checks` and `e2e`.
 - **A push to `main`:** `checks` always. The e2e jobs run unless the `e2e decision` job shows that this commit holds a tree that has already passed the full CI. The gate job `e2e` then passes with the e2e jobs skipped, and the decision job's summary names the pull request and head.
-- **Every day at 03:00 KST** (cron `0 18 * * *`, on `main`), and **by hand before a release** (Actions ▸ CI ▸ Run workflow): everything. A tree that passed once can still fail with time, the runner image or a flaky test, so the full suite keeps running on `main` regardless.
+- **By hand** (Actions ▸ CI ▸ Run workflow, on `main`), whenever a full check of `main` is wanted, before a release among others: everything. A tree that passed once can still fail with time, the runner image or a flaky test, so the full suite is run on `main` this way. Until 2026-11-27 it also ran every day at 03:00 KST (cron `0 18 * * *`); that run started hours late on 2026-11-25 and 2026-11-26 and had not started at 03:04 on 2026-11-27, and Hanrim and Lumi replaced it with the manual run.
 
 ## The decision (`scripts/ci-main-e2e-decision.mjs`)
 
@@ -34,4 +34,4 @@ Anything else runs the e2e jobs in full: another event, several commits or a mer
 
 - The first `main` run after #666 (run 45432967893, `c35455d6`): every job, `checks` and the full e2e, passed, but **no time was saved**. The decision job's checkout asked for `fetch-depth: ${{ github.event_name == 'push' && 0 || 1 }}`, and in an expression the number `0` is falsy, so it fetched depth 1; with no parent in the clone the decision was `true` ("not a single commit … parents: none") and every e2e job ran, which is the conservative fallback doing its job. Fixed by using the strings `'0'` / `'1'`; a shallow clone is now reported as such.
 
-The shard weights (docs/ci-e2e-shards.md) take their timing samples from any run that ran the shards: pull requests, the daily run and the `main` pushes that still run them.
+The shard weights (docs/ci-e2e-shards.md) take their timing samples from any run that ran the shards: pull requests, the manual run and the `main` pushes that still run them.

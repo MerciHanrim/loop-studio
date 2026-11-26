@@ -9,15 +9,20 @@ name: CI
 #     `e2e decision` job cannot show that the merge commit holds the exact tree
 #     of a pull request head whose required checks passed — anything unknown
 #     runs them in full;
-#   - every day at 03:00 KST (18:00 UTC), and by hand (Run workflow) before a
-#     release: everything, on `main`, since the same tree can still fail with
-#     time or environment.
+#   - by hand (Actions ▸ CI ▸ Run workflow) when a full check of `main` is
+#     wanted, before a release among others: everything, on `main`, since the
+#     same tree can still fail with time or environment. There is no scheduled
+#     run any more (Hanrim / Lumi, 2026-11-27: the 03:00 KST daily run started
+#     hours late and is replaced by running it by hand when needed).
+#
+# The actions run on Node 24, their own runtime (the app's Node is `.nvmrc`):
+# `actions/checkout`, `actions/setup-node` and `actions/upload-artifact` at v7
+# (2026-11-27; at v4 they targeted Node 20, which runners now force onto
+# Node 24 with a deprecation warning on every job).
 on:
   pull_request:
   push:
     branches: [main]
-  schedule:
-    - cron: '0 18 * * *'
   workflow_dispatch:
 
 permissions:
@@ -30,8 +35,8 @@ permissions:
 # with no CI record (main `7b77c1ac`, 2026-10-29); and since a group holds only
 # one pending run, scoping just `cancel-in-progress` to pull requests would
 # still let a third quick merge cancel the second one while it waited. The
-# daily and the manual run are keyed by their event too, so they never queue
-# behind, or ahead of, the push run of the same commit.
+# manual run is keyed by its event too, so it never queues behind, or ahead of,
+# the push run of the same commit.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || format('{0}-{1}', github.event_name, github.sha) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -42,12 +47,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # the change-declaration check compares with the base commit, so the
           # history has to be here: a shallow clone has no common ancestor
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -99,7 +104,7 @@ jobs:
       - name: Licence screen — the third-party notices are shown as text, never through an HTML sink
         run: npm run check:licence-screen
       - name: Change declaration — a change that ships says whether it is user-facing, with its version and release note
-        # a change only: the daily and the manual run declare nothing
+        # a change only: the manual run declares nothing
         if: github.event_name == 'pull_request' || github.event_name == 'push'
         run: npm run check:change-declaration
         env:
@@ -132,7 +137,7 @@ jobs:
   # ── Whether this run needs the e2e jobs ────────────────────────────────
   # `scripts/ci-main-e2e-decision.mjs` (its rules are in its header and in
   # docs/ci-main-e2e.md). Only a push to `main` can come out `false`; a pull
-  # request, the daily and the manual run answer `true` without looking
+  # request and the manual run answer `true` without looking
   # anything up. The e2e jobs below run unless the answer is exactly `false`,
   # so this job failing or giving no answer runs them in full.
   e2e-decision:
@@ -146,7 +151,7 @@ jobs:
     outputs:
       run_e2e: ${{ steps.decide.outputs.run_e2e }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # a push compares the merge commit with its parent and the head's tree,
           # so it needs the history; anything else answers without git. The
@@ -154,7 +159,7 @@ jobs:
           # `&& 0 || 1` gave 1 on a push too (main c35455d6: a depth-1 clone, no
           # parent, every e2e job run), while the string '0' is truthy.
           fetch-depth: ${{ github.event_name == 'push' && '0' || '1' }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
       - id: decide
@@ -189,8 +194,8 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -205,7 +210,7 @@ jobs:
       # reads to refresh the weights; small, kept for two weeks, uploaded always
       - name: Upload the timing report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-report-shard-${{ matrix.shard }}
           path: test-results/e2e-report.json
@@ -213,7 +218,7 @@ jobs:
           if-no-files-found: ignore
       - name: Upload Playwright artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-shard-${{ matrix.shard }}
           path: |
@@ -229,8 +234,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -241,7 +246,7 @@ jobs:
         run: npm run e2e:dist
       - name: Upload Playwright artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-dist
           path: |
@@ -257,8 +262,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -269,7 +274,7 @@ jobs:
         run: npm run e2e:pwa
       - name: Upload Playwright artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-pwa
           path: |
