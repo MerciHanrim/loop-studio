@@ -215,3 +215,57 @@ describe('suggestFrames — no mega-frame, no confetti (runtime properties S3/S4
     expect(frames.length).toBeGreaterThanOrEqual(2)
   })
 })
+
+// issue #618 item 1 (Lumi, 2026-11-27) — a suggested frame is sized by the node body as drawn,
+// the 56 × 56 cell, not the earlier 150 × 40 footprint; a suggestion whose frame takes in the
+// drawn body of a node outside it, by area, is not kept (a border that only touches one is);
+// and a group too big for one frame is split at the widest gap that leaves both sides valid,
+// walking the gaps from the widest down.
+describe('suggestFrames — #618 item 1: the drawn node body', () => {
+  const CELL = 56
+  /** a dense chain of `count` Pools from `x0`, `step` apart on one row */
+  const chain = (prefix: string, count: number, x0: number, step: number, y = 0) => {
+    const nodes = Array.from({ length: count }, (_, i) => n(`${prefix}${i}`, x0 + i * step, y))
+    const edges = nodes.slice(1).map((m, i) => e(nodes[i].id, m.id))
+    for (let i = 0; i < count; i++) for (let j = i + 2; j < count; j++) edges.push(e(nodes[i].id, nodes[j].id))
+    return { nodes, edges }
+  }
+
+  it('the frame is the members’ drawn cells plus the padding', () => {
+    const a = chain('a', 5, 0, 100)
+    const b = chain('b', 5, 3000, 100)
+    const frames = suggestFrames([...a.nodes, ...b.nodes], [...a.edges, ...b.edges, e('a4', 'b0')])
+    const fa = frames.find((f) => f.members.includes('a0'))!
+    expect(fa.rect).toEqual({ x: -AUTO_FRAME_PAD, y: -AUTO_FRAME_PAD, w: 400 + CELL + 2 * AUTO_FRAME_PAD, h: CELL + 2 * AUTO_FRAME_PAD })
+  })
+
+  it('a suggestion whose frame takes in another group’s drawn body by area is not kept', () => {
+    // group A on a row; one node of group B sits just inside A's frame, below its last member
+    const a = chain('a', 5, 0, 100)
+    const b = chain('b', 5, 3000, 100)
+    const intruder = n('b_in', 420, CELL + AUTO_FRAME_PAD - 10)
+    const drops: AutoFrameDrop[] = []
+    const frames = suggestFrames([...a.nodes, ...b.nodes, intruder], [...a.edges, ...b.edges, e('a4', 'b0'), e('b0', 'b_in'), e('b1', 'b_in'), e('b2', 'b_in')], drops)
+    expect(frames.some((f) => f.members.includes('a0')), 'A is not kept').toBe(false)
+    expect(drops.some((d) => d.members.includes('a0'))).toBe(true)
+  })
+
+  it('control: a body that only touches the frame’s border does not count', () => {
+    const a = chain('a', 5, 0, 100)
+    const b = chain('b', 5, 3000, 100)
+    // its top edge exactly on A's bottom border
+    const touching = n('b_in', 420, CELL + AUTO_FRAME_PAD)
+    const frames = suggestFrames([...a.nodes, ...b.nodes, touching], [...a.edges, ...b.edges, e('a4', 'b0'), e('b0', 'b_in'), e('b1', 'b_in'), e('b2', 'b_in')])
+    expect(frames.some((f) => f.members.includes('a0')), 'A is kept').toBe(true)
+  })
+
+  it('a group too big for one frame is split at the widest gap that leaves both sides valid', () => {
+    // one chain: 6 nodes, a 500 gap, 7 nodes, a 900 gap, one stray
+    const a = chain('a', 6, 0, 100)
+    const b = chain('b', 7, 1000, 100)
+    const stray = n('stray', 2500, 0)
+    const edges = [...a.edges, ...b.edges, e('a5', 'b0'), e('b6', 'stray')]
+    const frames = suggestFrames([...a.nodes, ...b.nodes, stray], edges)
+    expect(frames.map((f) => f.members.length).sort((x, y) => x - y)).toEqual([6, 7])
+  })
+})

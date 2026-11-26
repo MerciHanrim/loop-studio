@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { Locator, Page } from '@playwright/test'
 import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, test, snap } from './support/loop'
-import { menuRow, menuRowState, pressViewRow, statusFocus, toolButton, viewRow, viewRowPressed } from './support/workbenchMenus'
+import { menuRow, menuRowState, pickTemplate, pressViewRow, statusFocus, toolButton, viewRow, viewRowPressed } from './support/workbenchMenus'
 import { WORKBENCH_ROOMY_VIEWPORT } from './support/panel'
 import { probe } from './support/boundary'
 import { frameInPane } from './support/visualFrame'
@@ -3290,6 +3290,37 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
     expect(z, `the capture zoom ${z} stays at L1`).toBeGreaterThanOrEqual(0.45)
     test.info().annotations.push({ type: 'capture-zoom', description: String(z) })
     await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'auto-frames-mixed'))
+  })
+
+  // issue #618 item 1 (Lumi, 2026-11-27) — on the Coffee roastery Template, Area 1 was drawn round
+  // Roasted bean stock, a node of Area 2: the frame was sized by a 150 × 40 footprint and the
+  // check for other groups' nodes counted only centres inside the members' centre box. A
+  // suggested frame now holds no other group's drawn body by area (model nodes, which no frame
+  // takes in as a member, are left out as before).
+  test('#618: on the Coffee roastery Template, no suggested frame takes in another group’s node', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await pickTemplate(page, 'coffee-roastery')
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __loop: { graph: { getState: () => { nodes: { measured?: { width?: number } }[] } } } }).__loop.graph.getState().nodes.every((n) => n.measured?.width))).toBe(true)
+    await (await menuRow(page, 'insert', 'Suggest frames')).click()
+    await expect.poll(async () => (await afHead(page)).autoFrames.length).toBeGreaterThan(0)
+    const holds = await page.evaluate(() => {
+      const l = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      const nodes = l.graph.getState().nodes as { id: string; type: string; position: { x: number; y: number }; measured: { width: number; height: number } }[]
+      const frames = l.autoFrame.getState().autoFrames as { area: number; shown: { x: number; y: number; w: number; h: number }; members: string[] }[]
+      const out: string[] = []
+      for (const f of frames) {
+        const mem = new Set(f.members)
+        for (const n of nodes) {
+          if (mem.has(n.id) || n.type === 'parameter' || n.type === 'register') continue
+          const ix = Math.min(f.shown.x + f.shown.w, n.position.x + n.measured.width) - Math.max(f.shown.x, n.position.x)
+          const iy = Math.min(f.shown.y + f.shown.h, n.position.y + n.measured.height) - Math.max(f.shown.y, n.position.y)
+          if (ix > 0 && iy > 0) out.push(`Area ${f.area} × ${n.id}`)
+        }
+      }
+      return out
+    })
+    expect(holds).toEqual([])
   })
 })
 
