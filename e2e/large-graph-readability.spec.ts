@@ -1103,6 +1103,38 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
     await expect(node(page, 'mana')).toBeVisible()
   })
 
+  // issue #616 item 2 — a hidden kind whose last node is deleted is dropped from the
+  // hidden set, so the next node of that kind shows; another kind's hidden choice stays
+  test('deleting the last node of a hidden kind drops that kind: a new one shows; Pool stays hidden (#616)', async ({ page }) => {
+    await loadRT(page)
+    await pressViewRow(page, 'filter')
+    const group = filterPanel(page).locator('.lgr-filter__group', { hasText: 'Node kind' })
+    await filterRow(page, 'End').check()
+    await filterRow(page, 'Pool').check()
+    await expect(node(page, 'end')).toHaveCount(0)
+    for (const id of ['gold', 'mana', 'plain']) await expect(node(page, id)).toHaveCount(0)
+
+    // the graph's only End goes
+    await page.evaluate(() => (window as unknown as { __loop: { graph: { getState: () => { removeNode: (id: string) => void } } } }).__loop.graph.getState().removeNode('end'))
+    await expect(group.locator('.lgr-filter__row span')).toHaveText(['Source', 'Pool'])
+    const hidden = () => page.evaluate(() => [...(window as unknown as { __loop: { filter: { getState: () => { hiddenNodeKinds: Set<string> } } } }).__loop.filter.getState().hiddenNodeKinds].sort())
+    await expect.poll(hidden).toEqual(['pool'])
+
+    // a new End is drawn, and offered unticked; the Pools stay hidden, their row ticked
+    const newEnd = await page.evaluate(() => {
+      const g = (window as unknown as { __loop: { graph: { getState: () => any } } }).__loop.graph.getState()
+      g.addNodeAt('end', { x: 700, y: 100 })
+      const ns = (window as unknown as { __loop: { graph: { getState: () => any } } }).__loop.graph.getState().nodes
+      return ns[ns.length - 1].id as string
+    })
+    await expect(node(page, newEnd)).toBeVisible()
+    await expect(group.locator('.lgr-filter__row span')).toHaveText(['Source', 'Pool', 'End'])
+    await expect(filterRow(page, 'End')).not.toBeChecked()
+    await expect(filterRow(page, 'Pool')).toBeChecked()
+    for (const id of ['gold', 'mana', 'plain']) await expect(node(page, id)).toHaveCount(0)
+    expect(await hidden()).toEqual(['pool'])
+  })
+
   test('Clear filters restores everything and the count reads back', async ({ page }) => {
     await loadRT(page)
     await pressViewRow(page, 'filter')
