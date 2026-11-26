@@ -23,22 +23,32 @@
 
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { baseLocale, nonBaseCodes, RegistryParseError } from './registry-source.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 const read = (p) => readFileSync(resolve(root, p), 'utf8')
 const OUT = 'src/i18n/templateLabels/known.generated.ts'
+// Tests only (scripts/gen-known-labels.test.mjs): a scratch output file, so a
+// test never rewrites the committed one. The fixture registry is read through
+// `registry-source.mjs` (LOOP_REGISTRY_FILE).
+const OUT_FILE = process.env.LOOP_KNOWN_LABELS_OUT
 
 // ── registry: base + shipped non-base locales (never named literally) ──
-const registrySrc = read('src/i18n/registry.ts')
-const BASE_LOCALE = /\bBASE_LOCALE\s*=\s*'([a-zA-Z][\w-]*)'/.exec(registrySrc)?.[1]
-if (!BASE_LOCALE) {
-  console.error('gen-known-labels: could not read BASE_LOCALE from src/i18n/registry.ts')
+// issue #621 item 2 — read through the shared fail-closed reader, the
+// TypeScript parser rather than a regex: a regex lost a locale written in
+// double quotes, and an indented closing `]` gave an empty list, and either
+// way this wrote a smaller file that `--check` then compared with the same
+// wrong read. The reader throws when it sees no non-base locale.
+let BASE_LOCALE
+let NON_BASE
+try {
+  BASE_LOCALE = baseLocale()
+  NON_BASE = nonBaseCodes()
+} catch (e) {
+  if (!(e instanceof RegistryParseError)) throw e
+  console.error(`gen-known-labels: ${e.message}`)
   process.exit(1)
 }
-const shippedBlock = /SHIPPED_LOCALES[^[]*\[([\s\S]*?)\n\]/.exec(registrySrc)?.[1] ?? ''
-const NON_BASE = [...shippedBlock.matchAll(/code:\s*'([a-zA-Z][\w-]*)'/g)]
-  .map((m) => m[1])
-  .filter((c) => c !== BASE_LOCALE)
 
 // ── template ids, from src/model/templates.ts ──
 const templatesSrc = read('src/model/templates.ts')
@@ -376,7 +386,7 @@ export const AMBIGUOUS_FRAME_IDS: readonly string[] = [${
 }]
 `
 
-const target = resolve(root, OUT)
+const target = OUT_FILE ?? resolve(root, OUT)
 const prev = (() => {
   try {
     return readFileSync(target, 'utf8')
