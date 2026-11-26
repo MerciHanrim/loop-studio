@@ -10,6 +10,7 @@ import { isolateAuto } from '../../i18n/bidiIsolate'
 import { documentPoolAmounts, runNoticeText, runRefusalText, runStreak, timetableNoticeText, timetableRefusalText } from '../../ui/runMessages'
 import { Icon } from '../../ui/icons'
 import { phaseTexts, shownPhase } from '../../ui/runPhase'
+import { useRunGuideTexts } from '../../ui/runGuideText'
 
 // docs/mobile.md §MV4 — the fixed bottom run bar. Reset / Step / Play·Pause /
 // Monte Carlo + the step counter + a Timeline-sheet toggle. No speed slider or
@@ -137,6 +138,9 @@ export function MobileRunBar() {
     ],
     [notices, movesNotShown, engineDiagnostics, t],
   )
+  // #537 / issue #614 item 1 — the run guide's two lines, the desktop strip's own words
+  // (ui/runGuideText.ts): why Play paused, and past which step the example is checked
+  const { pauseText, checkedText } = useRunGuideTexts()
   const barRef = useRef<HTMLDivElement>(null)
   useRunBarHeight(barRef, isMobile)
   // docs/run-phases.md — the phase the author named for the current step: a line of its
@@ -289,6 +293,24 @@ export function MobileRunBar() {
         </div>
       ) : null}
 
+      {/* #537 / issue #614 item 1 — the run guide: a visible row of the bar, as on the
+          desktop strip (a touch user has no other way to learn why Play stopped). The bar
+          wraps and its measured height follows, so the controls stay above it */}
+      {(pauseText || checkedText) && (
+        <div className="pstrip-guide pstrip-guide--mobile" data-testid="run-guide">
+          {pauseText && (
+            <p className="pstrip-guide__line pstrip-guide__line--pause" data-guide="pause">
+              {pauseText}
+            </p>
+          )}
+          {checkedText && (
+            <p className="pstrip-guide__line pstrip-guide__line--checked" data-guide="checked">
+              {checkedText}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* issue #396 — the step's engine diagnostics, a visible row of the bar
           like the run refusal above (the bar already wraps; its measured
           height follows). The status region reads the set once per change. */}
@@ -310,6 +332,14 @@ export function MobileRunBar() {
         status region); it changes only when the set changes */}
     <div className="sr-only pstrip-diag__status" role="status" aria-live="polite" aria-atomic="true">
       {diagnostics.length > 0 ? `${t('playbar.diag.title', { n: diagnostics.length })}: ${diagnostics.join(' ')}` : ''}
+    </div>
+    {/* the run guide's status regions, as on the desktop strip: always mounted, outside
+        the bar, one per line, so each line is read once when it appears */}
+    <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-guide-status="pause">
+      {pauseText}
+    </div>
+    <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-guide-status="checked">
+      {checkedText}
     </div>
     </>
   )

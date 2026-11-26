@@ -210,6 +210,15 @@ The mobile layout is unaffected — it is always view-only regardless of the fie
   no departure ring; past the 12 a move keeps its path highlight and arrival
   cue. Fixed when a step starts, so a rotation mid-step changes nothing in that
   step. Reduced motion and L0 keep their contracts.
+- **The run guide is a row of the bar** (#537, issue #614 item 1). The
+  desktop strip's two guide lines (`docs/simulation-playback.md` PB5.5): why
+  Play paused itself at a core stop, and, in a bundled example, past which step
+  the example is checked. The same words (`ui/runGuideText.ts`), a full-width
+  row under the controls while a line shows, and the same two always-mounted
+  status regions outside the bar, so each line is read once when it appears.
+  A touch user cannot hover for a reason, so it is visible; the bar's measured
+  height follows the row, and the controls stay on screen.
+  `e2e/run-guide.spec.ts` holds it at 390 × 844.
 - 44 px minimum touch targets.
 - **Its height is measured, not assumed** (issue #303). The bar wraps to a
   second row below about 390 px and, at 390 px, in six languages; the
