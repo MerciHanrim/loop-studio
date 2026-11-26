@@ -51,14 +51,16 @@ const BASE = {
   ],
 }
 
-// clean: add Bonus pool + edge; Gold.initial 5→8; Split → uniform
+// clean: add Bonus pool + edge; Gold.initial 5→8; Split → probabilistic
+// (#624: it said `uniform`, which is not a gate distribution — the engine read
+// it as deterministic, so the proposal's gate change did nothing to a run)
 const CLEAN = {
   nodes: [
     ...BASE.nodes.map((n) =>
       n.id === 'n_pool'
         ? ({ ...n, data: { ...n.data, initial: 8 } } as LoopNode)
         : n.id === 'n_gate'
-          ? ({ ...n, data: { ...n.data, distribution: 'uniform' } } as LoopNode)
+          ? ({ ...n, data: { ...n.data, distribution: 'probabilistic' } } as LoopNode)
           : n,
     ),
     node('n_bonus', 'pool', { label: 'Bonus' }, { x: 440, y: 260 }),
