@@ -42,10 +42,6 @@ const canvas = {
   'canvas.focus.rowLabel': 'Focus op selectie',
   'canvas.focus.stateOn': 'Aan',
   'canvas.focus.stateOff': 'Uit',
-  'canvas.panMode.off': 'Verschuifmodus uit — sleep op een leeg tekengebied om te verschuiven',
-  'canvas.panMode.on': 'Verschuifmodus aan — sleep overal om te verschuiven',
-  'canvas.panMode.rowLabel': 'Verschuifmodus',
-  'canvas.filter.open': 'Filters — verberg delen van het diagram tijdens het verkennen',
   'canvas.filter.close': 'Filterpaneel sluiten',
   'canvas.filter.title': 'Filters',
   'canvas.filter.rowLabel': 'Filters',
@@ -77,13 +73,11 @@ const canvas = {
   // The button names BOTH ways in, so the keyboard gesture stops being the only
   // way to find the feature.
   'canvas.regionSelect.off': 'Gebied selecteren — sleep op een leeg tekengebied om te selecteren; Shift-slepen werkt ook',
-  'canvas.regionSelect.on': 'Gebied selecteren — bezig; sleep op een leeg tekengebied, Esc om te annuleren',
   // shown whenever there is a selection, lock or no lock
   'canvas.regionSelect.count': '{n, plural, one {# knooppunt geselecteerd} other {# knooppunten geselecteerd}}',
   'canvas.regionSelect.countLocked':
     '{n, plural, one {# knooppunt geselecteerd} other {# knooppunten geselecteerd}} · ontgrendel het bewerken om ze te verplaatsen',
   'canvas.frame.draw': 'Groepskader — sleep op een leeg tekengebied om er een te tekenen',
-  'canvas.frame.drawing': 'Groepskader — bezig met tekenen; sleep op een leeg tekengebied, Esc om te annuleren',
   'canvas.frame.defaultName': 'Groep {n}',
   'canvas.frame.delete': 'Dit kader verwijderen',
   'canvas.frame.suggest': 'Kaders voorstellen — ruwe groeperingsrechthoeken rond knooppunten die structureel samenhangen. Alleen structuur; geen inhoudelijke betekenis.',

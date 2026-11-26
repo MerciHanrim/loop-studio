@@ -53,11 +53,6 @@ const canvas = {
   'canvas.focus.rowLabel': 'Auswahl fokussieren',
   'canvas.focus.stateOn': 'An',
   'canvas.focus.stateOff': 'Aus',
-  'canvas.panMode.off':
-    'Verschiebemodus aus — leere Arbeitsfläche ziehen, um zu verschieben',
-  'canvas.panMode.on': 'Verschiebemodus an — überall ziehen, um zu verschieben',
-  'canvas.panMode.rowLabel': 'Verschiebemodus',
-  'canvas.filter.open': 'Filter — Teile des Graphen beim Erkunden ausblenden',
   'canvas.filter.close': 'Filterleiste schließen',
   'canvas.filter.title': 'Filter',
   'canvas.filter.rowLabel': 'Filter',
@@ -87,15 +82,11 @@ const canvas = {
     'Ansicht zurücksetzen — Graph einpassen, Filter und Fokus löschen',
   'canvas.regionSelect.off':
     'Bereich auswählen — auf leerer Arbeitsfläche ziehen; Umschalt+Ziehen geht auch',
-  'canvas.regionSelect.on':
-    'Bereich auswählen — läuft; auf leerer Arbeitsfläche ziehen, Esc bricht ab',
   'canvas.regionSelect.count':
     '{n, plural, one {# Knoten ausgewählt} other {# Knoten ausgewählt}}',
   'canvas.regionSelect.countLocked':
     '{n, plural, one {# Knoten ausgewählt} other {# Knoten ausgewählt}} · Bearbeitung entsperren, um sie zu bewegen',
   'canvas.frame.draw': 'Gruppenrahmen — auf leerer Arbeitsfläche ziehen, um einen aufzuziehen',
-  'canvas.frame.drawing':
-    'Gruppenrahmen — wird aufgezogen; auf leerer Arbeitsfläche ziehen, Esc bricht ab',
   'canvas.frame.defaultName': 'Gruppe {n}',
   'canvas.frame.delete': 'Diesen Rahmen löschen',
   'canvas.frame.suggest':

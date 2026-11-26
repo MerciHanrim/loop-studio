@@ -177,14 +177,14 @@ and the desktop Inspector wrapped in `<fieldset disabled>` (read-only, values
 visible). `elementsSelectable` stays **true** — selection, the read-only
 Inspector, pan / zoom, the Timeline and the simulation all keep
 working. It replaces React Flow's built-in "interactive" toggle
-(`<Controls showInteractive={false}>` + our own `.rf-lock` `ControlButton`),
-because that toggle also kills selection.
+(`<Controls showInteractive={false}>`; the desktop lock control is in the
+workbench toolbar and menus), because that toggle also kills selection.
 
 `canvasLocked` is a **UI preference**, never the GraphDoc / `loop-revision/*`
 digest / undo / `simulationRev`. A document can request it with
 `recommendedRunConfig.canvasLocked: true` (advisory, applied on load, written
 back by Export, preserved through Graph / Workspace / Share round-trips —
-`src/model/serialize.ts`); the user flips the `.rf-lock` control at any time.
+`src/model/serialize.ts`); the user flips the edit lock at any time.
 The mobile layout is unaffected — it is always view-only regardless of the field.
 
 ## MV4. Bottom run bar

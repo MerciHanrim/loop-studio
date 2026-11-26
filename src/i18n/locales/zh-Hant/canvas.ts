@@ -42,10 +42,6 @@ const canvas = {
   'canvas.focus.rowLabel': '聚焦選取範圍',
   'canvas.focus.stateOn': '開',
   'canvas.focus.stateOff': '關',
-  'canvas.panMode.off': '平移模式已關閉——拖曳空白畫布可平移',
-  'canvas.panMode.on': '平移模式已開啟——在任何位置拖曳都可平移',
-  'canvas.panMode.rowLabel': '平移模式',
-  'canvas.filter.open': '篩選——瀏覽時隱藏圖中的部分內容',
   'canvas.filter.close': '關閉篩選面板',
   'canvas.filter.title': '篩選',
   'canvas.filter.rowLabel': '篩選',
@@ -71,11 +67,9 @@ const canvas = {
   'canvas.resetView': '重設檢視——讓整張圖符合視窗並清除篩選與聚焦',
   // docs/large-graph-readability.md §LGR12 — the one-shot region-select tool.
   'canvas.regionSelect.off': '框選區域——在空白畫布上拖曳即可選取；按住 Shift 拖曳也可以',
-  'canvas.regionSelect.on': '框選區域——選取中；在空白畫布上拖曳，按 Esc 取消',
   'canvas.regionSelect.count': '{n, plural, other {已選取 # 個節點}}',
   'canvas.regionSelect.countLocked': '{n, plural, other {已選取 # 個節點}} · 解除編輯鎖定後才能移動',
   'canvas.frame.draw': '群組框——在空白畫布上拖曳即可畫一個',
-  'canvas.frame.drawing': '群組框——繪製中；在空白畫布上拖曳，按 Esc 取消',
   'canvas.frame.defaultName': '群組 {n}',
   'canvas.frame.delete': '刪除這個群組框',
   'canvas.frame.suggest':

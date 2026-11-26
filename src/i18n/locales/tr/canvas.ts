@@ -59,10 +59,6 @@ const canvas = {
   'canvas.focus.rowLabel': 'Seçime odaklan',
   'canvas.focus.stateOn': 'Açık',
   'canvas.focus.stateOff': 'Kapalı',
-  'canvas.panMode.off': 'Kaydırma kapalı — görünümü kaydırmak için boş tuvali sürükleyin',
-  'canvas.panMode.on': 'Kaydırma açık — kaydırmak için herhangi bir yeri sürükleyin',
-  'canvas.panMode.rowLabel': 'Kaydırma kipi',
-  'canvas.filter.open': 'Süzgeçler — incelerken grafiğin bir bölümünü gizler',
   'canvas.filter.close': 'Süzgeç panelini kapat',
   'canvas.filter.title': 'Süzgeçler',
   'canvas.filter.rowLabel': 'Süzgeçler',
@@ -88,13 +84,10 @@ const canvas = {
   'canvas.resetView': 'Görünümü sıfırla — grafiği sığdırır, süzgeç ve odağı kaldırır',
   'canvas.regionSelect.off':
     'Bölge seç — seçmek için boş tuvali sürükleyin; Shift ile sürükleme de çalışır',
-  'canvas.regionSelect.on':
-    'Bölge seç — seçiliyor; boş tuvali sürükleyin, iptal için Esc',
   'canvas.regionSelect.count': '{n, plural, one {# düğüm seçildi} other {# düğüm seçildi}}',
   'canvas.regionSelect.countLocked':
     '{n, plural, one {# düğüm seçildi} other {# düğüm seçildi}} · taşımak için düzenlemeyi açın',
   'canvas.frame.draw': 'Grup çerçevesi — çizmek için boş tuvali sürükleyin',
-  'canvas.frame.drawing': 'Grup çerçevesi — çiziliyor; boş tuvali sürükleyin, iptal için Esc',
   'canvas.frame.defaultName': '{n}. grup',
   'canvas.frame.delete': 'Bu çerçeveyi sil',
   'canvas.frame.suggest':

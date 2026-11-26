@@ -31,10 +31,6 @@ const canvas = {
   'canvas.focus.rowLabel': 'Focus selection',
   'canvas.focus.stateOn': 'On',
   'canvas.focus.stateOff': 'Off',
-  'canvas.panMode.off': 'Pan mode off — drag empty canvas to pan',
-  'canvas.panMode.on': 'Pan mode on — drag anywhere to pan',
-  'canvas.panMode.rowLabel': 'Pan mode',
-  'canvas.filter.open': 'Filters — hide parts of the graph while exploring',
   'canvas.filter.close': 'Close the filter panel',
   'canvas.filter.title': 'Filters',
   'canvas.filter.rowLabel': 'Filters',
@@ -62,13 +58,11 @@ const canvas = {
   // The button names BOTH ways in, so the keyboard gesture stops being the only
   // way to find the feature.
   'canvas.regionSelect.off': 'Select a region — drag on empty canvas to select; Shift-drag also works',
-  'canvas.regionSelect.on': 'Select a region — selecting; drag on empty canvas, Esc to cancel',
   // shown whenever there is a selection, lock or no lock
   'canvas.regionSelect.count': '{n, plural, one {# node selected} other {# nodes selected}}',
   'canvas.regionSelect.countLocked':
     '{n, plural, one {# node selected} other {# nodes selected}} · unlock editing to move them',
   'canvas.frame.draw': 'Group frame — drag on empty canvas to draw one',
-  'canvas.frame.drawing': 'Group frame — drawing; drag on empty canvas, Esc to cancel',
   'canvas.frame.defaultName': 'Group {n}',
   'canvas.frame.delete': 'Delete this frame',
   'canvas.frame.suggest': 'Suggest frames — rough grouping rectangles around structurally-connected nodes. Structural only; not domain meaning.',

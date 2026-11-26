@@ -37,10 +37,6 @@ const canvas = {
   'canvas.focus.rowLabel': '聚焦所选',
   'canvas.focus.stateOn': '开',
   'canvas.focus.stateOff': '关',
-  'canvas.panMode.off': '平移模式已关闭——拖动空白画布可平移',
-  'canvas.panMode.on': '平移模式已开启——在任意位置拖动都可平移',
-  'canvas.panMode.rowLabel': '平移模式',
-  'canvas.filter.open': '筛选——浏览时隐藏图中的部分内容',
   'canvas.filter.close': '关闭筛选面板',
   'canvas.filter.title': '筛选',
   'canvas.filter.rowLabel': '筛选',
@@ -68,12 +64,10 @@ const canvas = {
   // The button names BOTH ways in, so the keyboard gesture stops being the only
   // way to find the feature.
   'canvas.regionSelect.off': '框选区域——在空白画布上拖动进行选择；按住 Shift 拖动同样可以',
-  'canvas.regionSelect.on': '框选区域——正在选择；在空白画布上拖动，按 Esc 取消',
   // shown whenever there is a selection, lock or no lock
   'canvas.regionSelect.count': '{n, plural, other {已选中 # 个节点}}',
   'canvas.regionSelect.countLocked': '{n, plural, other {已选中 # 个节点}} · 解除编辑锁定后才能移动',
   'canvas.frame.draw': '分组框——在空白画布上拖动即可绘制',
-  'canvas.frame.drawing': '分组框——正在绘制；在空白画布上拖动，按 Esc 取消',
   'canvas.frame.defaultName': '分组 {n}',
   'canvas.frame.delete': '删除此分组框',
   'canvas.frame.suggest': '推荐分组——围绕结构上相连的节点画出大致的分组矩形。仅依据结构，不涉及业务含义。',
