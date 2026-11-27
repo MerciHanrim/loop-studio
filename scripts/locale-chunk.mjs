@@ -16,3 +16,26 @@
 // serialise with an external reference intact.
 export const LOCALE_CHUNK_RE =
   /(?:^|\/)assets\/(?:locale|tmpl-labels)-[A-Za-z0-9-]+-[A-Za-z0-9_-]+\.js$/
+
+// issue #625 item 4 — the runtime cache the locale chunks are kept in. Renamed from
+// `LOCALE_CHUNK_CACHE_BEFORE_625` when it started keeping JavaScript only: a
+// service worker before that may have stored the HTML page under a chunk's URL,
+// and CacheFirst reads only its own cache, so this one never reads those
+// entries. The earlier cache is not deleted by this.
+export const LOCALE_CHUNK_CACHE = 'loop-locale-chunks-js'
+export const LOCALE_CHUNK_CACHE_BEFORE_625 = 'loop-locale-chunks'
+
+// issue #625 item 4 — which response to such a URL the runtime cache keeps: a 200
+// served as JavaScript, nothing else. The host answers a file it does not have
+// with the app's HTML page and a 200 (measured on the production site,
+// 2026-11-27), so a status check alone kept that page as the chunk, and
+// CacheFirst served it for that URL from then on. Workbox's `cacheWillUpdate`
+// plugin hook: the response to keep, or null to keep nothing.
+//
+// It is passed to Workbox as this function itself; `generateSW` writes its text
+// into `sw.js`, so it must not refer to anything outside its own body.
+export async function localeChunkCacheWillUpdate({ response }) {
+  if (!response || response.status !== 200) return null
+  const type = response.headers.get('content-type') || ''
+  return /^(?:text|application)\/(?:x-)?(?:javascript|ecmascript)\b/i.test(type) ? response : null
+}

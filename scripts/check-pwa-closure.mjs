@@ -91,7 +91,7 @@ while (queue.length) {
     // the service worker itself — not precached, expected
   } else if (LOCALE_CHUNK_RE.test(rel)) {
     // docs/pwa.md §P8 — a lazily-loaded locale chunk: deliberately NOT
-    // precached, served by the `loop-locale-chunks` CacheFirst route.
+    // precached, served by the `LOCALE_CHUNK_CACHE` CacheFirst route.
     if (precache.has(rel)) fail(`locale chunk should be runtime-cached, not precached: ${rel}`)
     else ok(`${rel} (runtime-cached)`)
   } else if (!precache.has(rel)) {

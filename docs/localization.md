@@ -2800,7 +2800,7 @@ notice's Dismiss).
 - **the data boundary is unchanged regardless of load strategy:** no GraphDoc,
   Workspace, Share, revision bytes depend on which catalogs are loaded or when.
   The PWA **precaches only EN + the app shell**; each non-EN `locale-*` /
-  `tmpl-labels-*` chunk is `CacheFirst` runtime-cached (`loop-locale-chunks`),
+  `tmpl-labels-*` chunk is `CacheFirst` runtime-cached (`loop-locale-chunks-js`),
   fetched on first `setLocale` / boot. See `docs/pwa.md` §P8 for the offline
   guarantee. The shared name pattern lives in `scripts/locale-chunk.mjs`
   (`LOCALE_CHUNK_RE`) so the Workbox rule and `check:pwa-closure` never drift.
