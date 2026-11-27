@@ -42,7 +42,6 @@ const parse = (rel) => {
 
 for (const c of CONTRACTS) {
   const sf = parse(c.file)
-  const text = sf.getFullText()
 
   // the declaration
   let decl = null

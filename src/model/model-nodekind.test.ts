@@ -154,7 +154,7 @@ describe('engine tolerates model nodes (SEMANTICS-M.md §M6.1 — never read, ne
     // §M3.6 / M-INV-2 — Register values are NEVER in SimState
     const st1 = step(g.nodes, g.edges, initSim(g.nodes), 1).state
     expect(Object.keys(st1.values)).not.toContain('rg')
-    expect(Object.keys(st1.values).every((k) => (g.nodes.find((n) => n.id === k)?.data as { kind: string }).kind === 'pool')).toBe(true)
+    expect(Object.keys(st1.values).every((k) => (g.nodes.find((n) => n.id === k)?.data as { kind: string } | undefined)?.kind === 'pool')).toBe(true)
   })
 
   it('an edge incident to a model node contributes no flow and never blocks the run', () => {
@@ -207,8 +207,8 @@ describe('resource-type editing (loop-model/1 §M4) is advisory revision content
     const graph = g('Energy', 'Gold') // pool A is Energy, edge is Gold
     const findings = resourceTypeMismatches({
       resourceEdges: graph.edges.map((e) => ({ id: e.id, source: e.source, target: e.target, resourceType: (e.data as { resourceType?: unknown }).resourceType })),
-      nodeKind: (id) => (graph.nodes.find((n) => n.id === id)?.data as { kind: string }).kind,
-      nodeResourceType: (id) => (graph.nodes.find((n) => n.id === id)?.data as { resourceType?: unknown }).resourceType,
+      nodeKind: (id) => (graph.nodes.find((n) => n.id === id)?.data as { kind: string } | undefined)?.kind,
+      nodeResourceType: (id) => (graph.nodes.find((n) => n.id === id)?.data as { resourceType?: unknown } | undefined)?.resourceType,
     })
     expect(findings).toHaveLength(1)
     expect(findings[0]).toMatchObject({ edgeId: 'e', endpoint: 'source', edgeType: 'Gold', nodeType: 'Energy' })

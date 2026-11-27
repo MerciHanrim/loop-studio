@@ -218,7 +218,7 @@ describe('the readers of a Monte Carlo result file', () => {
     const a = read(added)
     expect(a.warnings).toEqual(read(before).warnings)
     expect(a.restored?.result?.stale).toBe(false)
-    expect((a.restored?.result?.result as typeof r).final.tank.summary.max).toBe(3)
+    expect((a.restored?.result?.result as typeof r | undefined)?.final.tank.summary.max).toBe(3)
   })
 })
 

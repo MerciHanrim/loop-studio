@@ -2,10 +2,12 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["react", "typescript", "oxc"],
   // issue #625 item 5 (Lumi, 2026-11-27): a correctness rule is an error, so a
-  // planted bug fails `npm run lint`. The seven correctness rules below had
-  // warnings in the code on 2026-11-27 (58 in all) and stay warnings until each
-  // is fixed rule by rule and moved up to an error; `npm run lint` also fails
-  // above 88 warnings in all (`--max-warnings`), so none of them can grow.
+  // planted bug fails `npm run lint`. The correctness rules below had warnings
+  // in the code on 2026-11-27 (58 in all, seven rules) and stay warnings until
+  // each is fixed rule by rule and moved up to an error; `npm run lint` also
+  // fails above the warnings left (`--max-warnings`), so none of them can grow.
+  // Moved up so far: eslint/no-unused-vars (1) and
+  // eslint/no-unsafe-optional-chaining (5), fixed in the first follow-up.
   "categories": {
     "correctness": "error"
   },
@@ -16,9 +18,7 @@
     "react/set-state-in-effect": "warn", // 23
     "react/refs": "warn", // 15
     "react-hooks/exhaustive-deps": "warn", // 11
-    "eslint/no-unsafe-optional-chaining": "warn", // 5
     "react/immutability": "warn", // 2
-    "react/use-memo": "warn", // 1
-    "eslint/no-unused-vars": "warn" // 1
+    "react/use-memo": "warn" // 1
   }
 }

@@ -23,7 +23,7 @@ const file = (schema: string, run: unknown = RULE) =>
       { id: 'out', source: 'ro', target: 'store', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '1' } },
     ],
   })
-const runOf = (nodes: readonly LoopNode[], id = 'ro') => (nodes.find((n) => n.id === id)?.data as { run?: unknown }).run
+const runOf = (nodes: readonly LoopNode[], id = 'ro') => (nodes.find((n) => n.id === id)?.data as { run?: unknown } | undefined)?.run
 
 describe('the version boundary', () => {
   it('/graph/6 is version 6, and a rule needs it', () => {
