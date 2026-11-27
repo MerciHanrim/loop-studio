@@ -1547,18 +1547,19 @@ let scheduler: Scheduler | null = taskScheduler()
 let job: { token: number; sig: string; nodes: LoopNode[]; edges: LoopEdge[]; steps: Generator<string>; out: GenOut; slices: number; stepCount: number; maxSlice: number; busy: number; start: number; lastStep: number; maxStep: number; slowest: string } | null = null
 let jobToken = 0
 
-/** §ER14.5 — after a step, may another one run in the same slice? `elapsed`
- *  is the slice so far, `lastStep` the step just run, `maxStep` the slowest
- *  step of the job so far. */
-export function sliceTakesAnotherStep(elapsed: number, lastStep: number, maxStep: number): boolean {
-  return elapsed + Math.max(lastStep, maxStep) <= SLICE_MS
+/** §ER14.5 — after a step, may another one run in the same slice? Only when
+ *  the step just run (`lastStep`) would still fit after the slice so far
+ *  (`elapsed`). Not the job's slowest step: that never decays, so one slow step
+ *  made every later slice one step long (#617 item 2: MMO ran 1158 steps in
+ *  1159 slices). */
+export function sliceTakesAnotherStep(elapsed: number, lastStep: number): boolean {
+  return elapsed + lastStep <= SLICE_MS
 }
 
 /** test hook — the slices a job whose steps take `durations` ms would run, by
  *  the same rule as `startFull` (each entry: the step indices of one slice) */
 export function __slicesFor(durations: readonly number[]): number[][] {
   const slices: number[][] = []
-  let maxStep = 0
   let i = 0
   while (i < durations.length) {
     const slice: number[] = []
@@ -1567,9 +1568,8 @@ export function __slicesFor(durations: readonly number[]): number[][] {
       const lastStep = durations[i]
       slice.push(i)
       elapsed += lastStep
-      maxStep = Math.max(maxStep, lastStep)
       i++
-      if (i >= durations.length || !sliceTakesAnotherStep(elapsed, lastStep, maxStep)) break
+      if (i >= durations.length || !sliceTakesAnotherStep(elapsed, lastStep)) break
     }
     slices.push(slice)
   }
@@ -1605,7 +1605,7 @@ function startFull(nodes: LoopNode[], edges: LoopEdge[], sig: string): void {
       j.lastStep = now() - s0
       if (j.lastStep > j.maxStep) j.slowest = step.value
       j.maxStep = Math.max(j.maxStep, j.lastStep)
-      if (!sliceTakesAnotherStep(now() - t0, j.lastStep, j.maxStep)) break
+      if (!sliceTakesAnotherStep(now() - t0, j.lastStep)) break
     }
     j.slices++
     j.maxSlice = Math.max(j.maxSlice, now() - t0)

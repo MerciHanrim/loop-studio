@@ -8,7 +8,9 @@ import { __slicesFor, SLICE_MS, sliceTakesAnotherStep } from './routeMap'
 
 describe('#617 item 2 — the slice budget is the last step, not the slowest so far', () => {
   it('after a slow step, a short one still lets another step run in the slice', () => {
-    expect(sliceTakesAnotherStep(2, 0.5, 20)).toBe(true)
+    // the job's slowest step so far (20 ms) is not part of the check any more
+    expect(sliceTakesAnotherStep(2, 0.5)).toBe(true)
+    expect(__slicesFor([20, 0.5, 0.5])).toEqual([[0], [1, 2]])
   })
 
   it('one slow step, then 100 short ones: the short ones share slices', () => {
@@ -20,8 +22,8 @@ describe('#617 item 2 — the slice budget is the last step, not the slowest so 
   })
 
   it('controls: a slice ends once the last step no longer fits, and steady steps keep their pairs', () => {
-    expect(sliceTakesAnotherStep(6, 3, 3)).toBe(false)
-    expect(sliceTakesAnotherStep(5, 3, 3)).toBe(true)
+    expect(sliceTakesAnotherStep(6, 3)).toBe(false)
+    expect(sliceTakesAnotherStep(5, 3)).toBe(true)
     // a slow step is run in the slice it starts in (its length is not known before), then ends it
     expect(__slicesFor([0.5, 20, 0.5])).toEqual([[0, 1], [2]])
     // steady 3 ms steps: two to a slice
