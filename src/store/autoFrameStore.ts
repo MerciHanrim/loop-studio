@@ -51,6 +51,12 @@ type AutoFrameStore = {
   clearAuto: () => void
 }
 
+/** the set without one frame; the signature cleared when none is left */
+function withoutAuto(s: { autoFrames: AutoFrame[]; lastSignature: string | null }, id: string) {
+  const autoFrames = s.autoFrames.filter((f) => f.id !== id)
+  return { autoFrames, lastSignature: autoFrames.length > 0 ? s.lastSignature : null }
+}
+
 let seq = 0
 const newId = (): string => `af_${Date.now().toString(36)}_${(seq++).toString(36)}`
 
@@ -71,7 +77,10 @@ function graphInputs(): { nodes: AFNode[]; edges: AFEdge[] } {
 }
 
 /** a deterministic string over the structure + positions that would change the
- *  clustering or the rects. NOT a hash — a plain join is enough and is stable. */
+ *  clustering or the rects. NOT a hash — a plain join is enough and is stable.
+ *  A node's name is not in it: neither the clustering nor the shown rect reads
+ *  name text, so a rename alone would light the hint for a recompute that
+ *  changes nothing (measured for issue #618 item 2). */
 export function graphSignature(nodes: AFNode[], edges: AFEdge[]): string {
   const n = nodes
     .map((nd) => `${nd.id}:${nd.kind}:${Math.round(nd.position.x)},${Math.round(nd.position.y)}`)
@@ -107,10 +116,12 @@ export const useAutoFrameStore = create<AutoFrameStore>((set) => ({
     })
   },
 
-  // §AF5 R8 — remove one from the current set; not remembered.
-  dismissAuto: (id) => set((s) => ({ autoFrames: s.autoFrames.filter((f) => f.id !== id) })),
+  // §AF5 R8 — remove one from the current set; not remembered. The last one
+  // gone leaves nothing to be stale about, as an empty `suggest` (issue #618
+  // item 2: the hint stayed lit with no suggestion left).
+  dismissAuto: (id) => set((s) => withoutAuto(s, id)),
   // used by the render layer's "promote to manual" path (§AF5 R5).
-  removeAuto: (id) => set((s) => ({ autoFrames: s.autoFrames.filter((f) => f.id !== id) })),
+  removeAuto: (id) => set((s) => withoutAuto(s, id)),
 
   clearAuto: () => set((s) => (s.autoFrames.length === 0 && s.lastSignature === null ? s : { autoFrames: [], lastSignature: null })),
 }))
