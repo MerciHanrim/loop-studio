@@ -29,7 +29,10 @@ export function useStageTag(id: string, data: unknown): StageTagText | null {
   const table = useGraphStore((s) => (rule?.table === undefined ? null : (s.timetables.find((x) => x.id === rule.table)?.label ?? null)))
   const noLine = useGraphStore((s) => rule?.tank !== undefined && graphReadBlocked(s.nodes, s.edges).some((b) => b.stage === id))
   const report = useSimStore((s) => (rule ? (s.series[s.series.length - 1]?.runs?.find((r) => r.members.includes(id)) ?? null) : null))
-  return useMemo(() => (rule ? stageTagText(t, { report, tank, table, noLine }) : null), [t, rule !== null, report, tank, table, noLine]) // eslint-disable-line react-hooks/exhaustive-deps
+  // the memo keys on whether there is a rule, not on the rule object, which
+  // `ruleOf` builds afresh each render (#625 item 5, react/use-memo)
+  const hasRule = rule !== null
+  return useMemo(() => (hasRule ? stageTagText(t, { report, tank, table, noLine }) : null), [t, hasRule, report, tank, table, noLine])
 }
 
 export function StageTag({ id, tank, text }: { id: string; tank: string | undefined; text: StageTagText }) {

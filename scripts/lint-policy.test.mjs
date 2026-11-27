@@ -27,7 +27,7 @@ function lint(paths) {
   }
   const diagnostics = JSON.parse(out).diagnostics
   const count = (severity) => diagnostics.filter((d) => d.severity === severity).length
-  return { code, warnings: count('warning'), errors: count('error'), out: out.slice(0, 2000) }
+  return { code, warnings: count('warning'), errors: count('error'), out: out.slice(0, 2000), raw: out }
 }
 
 const dir = mkdtempSync(join(tmpdir(), 'lint-policy-'))
@@ -41,8 +41,9 @@ const probe = (name, text) => {
 describe('the lint policy (#625 item 5)', () => {
   it('the lint script caps the warnings', () => {
     expect(script).toMatch(/^oxlint --max-warnings \d+$/)
-    // 88 on 2026-11-27; 82 once no-unused-vars (1) and no-unsafe-optional-chaining (5) were fixed
-    expect(CAP).toBe(82)
+    // 88 on 2026-11-27; 82 once no-unused-vars (1) and no-unsafe-optional-chaining (5) were fixed;
+    // 79 once use-memo (1) and immutability (2) were
+    expect(CAP).toBe(79)
   })
 
   it('the code as it is passes, at the cap', { timeout: 60_000 }, () => {
@@ -68,6 +69,16 @@ describe('the lint policy (#625 item 5)', () => {
     expect(chain.errors, chain.out).toBeGreaterThanOrEqual(1)
     expect(chain.out).toMatch(/no-unsafe-optional-chaining/)
     expect(chain.code).not.toBe(0)
+  })
+
+  it('the rules moved up next are errors: a memo keyed on an expression, a prop written to', { timeout: 60_000 }, () => {
+    const errorsOf = (r, rule) => JSON.parse(r.raw).diagnostics.filter((d) => d.severity === 'error' && d.code.includes(rule)).length
+    const memo = lint([probe('memo.tsx', "import { useMemo } from 'react'\nexport function Tag({ a }: { a: string | null }) {\n  const v = useMemo(() => (a ? a.length : 0), [a !== null])\n  return <div>{v}</div>\n}\n")])
+    expect(errorsOf(memo, 'use-memo'), memo.out).toBe(1)
+    expect(memo.code).not.toBe(0)
+    const prop = lint([probe('prop.tsx', 'export function Box({ o }: { o: { v: number } }) {\n  o.v = 1\n  return <div>{o.v}</div>\n}\n')])
+    expect(errorsOf(prop, 'immutability'), prop.out).toBeGreaterThanOrEqual(1)
+    expect(prop.code).not.toBe(0)
   })
 
   it('one more warning than the cap fails: the code as it is and one new warning', { timeout: 60_000 }, () => {

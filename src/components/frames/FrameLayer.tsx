@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefCallback } from 'react'
 import { ViewportPortal, useReactFlow, useStore } from '@xyflow/react'
 import { useFrameStore, type FrameRect, type FrameColor } from '../../store/frameStore'
 import { useAutoFrameStore } from '../../store/autoFrameStore'
@@ -207,6 +207,11 @@ export function FrameLayer() {
   const closeFrameProps = useUiStore((s) => s.closeFrameProps)
   /** the open popover's anchor: that frame's own title chip */
   const propsAnchorRef = useRef<HTMLButtonElement>(null)
+  // the open frame's chip hands its element back through this, so the ref is set
+  // where it is owned, not by the chip (#625 item 5, react/immutability)
+  const setPropsAnchor = useCallback((el: HTMLButtonElement | null) => {
+    propsAnchorRef.current = el
+  }, [])
 
   const [tx, ty, zoom] = useStore((s) => s.transform)
   const { screenToFlowPosition } = useReactFlow()
@@ -923,7 +928,7 @@ export function FrameLayer() {
                 editable={canEdit}
                 selected={sel}
                 open={propsId === rf.id}
-                buttonRef={propsId === rf.id ? propsAnchorRef : undefined}
+                buttonRef={propsId === rf.id ? setPropsAnchor : undefined}
                 place={chipPlaceOf(rf)}
                 maxW={rf.rect.w}
                 onSize={(w, h) => onChipSize(rf.id, w, h)}
@@ -1061,8 +1066,8 @@ function FrameLabel({
   /** §FC10 — this frame's properties popover is the one currently open */
   open: boolean
   /** set only on the OPEN frame: the popover anchors to (and returns focus to)
-   *  this element. */
-  buttonRef?: RefObject<HTMLButtonElement | null>
+   *  this element, which the chip hands to it (null when it goes) */
+  buttonRef?: RefCallback<HTMLButtonElement>
   onOpen: () => void
 }) {
   // docs/localization.md §L9.3 — the chip shows EITHER the name the user typed
@@ -1086,7 +1091,7 @@ function FrameLabel({
   const roRef = useRef<ResizeObserver | null>(null)
   const measure = useCallback(
     (el: HTMLElement | null) => {
-      if (buttonRef) (buttonRef as { current: HTMLButtonElement | null }).current = el as HTMLButtonElement | null
+      buttonRef?.(el as HTMLButtonElement | null)
       roRef.current?.disconnect()
       roRef.current = null
       if (!el) return
