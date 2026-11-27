@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { useGraphStore } from './graphStore'
-import { useAutoFrameStore, hasAutoFrames, autoFramesStale, graphSignature, type SignatureNode } from './autoFrameStore'
+import { useAutoFrameStore, hasAutoFrames, autoFramesStale, graphSignature } from './autoFrameStore'
 import { useFrameStore } from './frameStore'
 import { useUiStore } from './uiStore'
 import { suggestFrames, type AFEdge, type AFNode } from '../components/frames/autoFrames'
@@ -128,8 +128,8 @@ describe('autoFrameStore', () => {
 })
 
 // issue #618 item 2 — the recompute hint, on the store's real change paths:
-// it goes off with the last suggestion, and a node's name counts
-describe('autoFrameStore — the recompute hint with no suggestion left, and a rename', () => {
+// it goes off with the last suggestion
+describe('autoFrameStore — the recompute hint with no suggestion left', () => {
   const moveOne = () =>
     useGraphStore.setState({
       nodes: useGraphStore.getState().nodes.map((n) => (n.id === 'b0_0' ? { ...n, position: { x: n.position.x + 999, y: n.position.y } } : n)) as never,
@@ -171,13 +171,10 @@ describe('autoFrameStore — the recompute hint with no suggestion left, and a r
     expect(stale()).toBe(false)
   })
 
-  it('a rename through updateNodeData lights the hint', () => {
-    expect(stale()).toBe(false)
+  it('control: a rename through updateNodeData does not light it (nothing a Suggest computes reads the name)', () => {
     useGraphStore.getState().updateNodeData('b0_1', { label: 'A much longer name than the one before' })
     const renamed = useGraphStore.getState().nodes.find((n) => n.id === 'b0_1')
     expect((renamed?.data as { label?: string } | undefined)?.label).toBe('A much longer name than the one before')
-    expect(stale()).toBe(true)
-    useAutoFrameStore.getState().suggest()
     expect(stale()).toBe(false)
   })
 
@@ -198,11 +195,11 @@ describe('autoFrameStore — the staleness-signature boundary', () => {
   }
   const sigOf = (d: ReturnType<typeof base>) =>
     graphSignature(
-      d.nodes.map((n) => ({ id: n.id, kind: n.data.kind, position: n.position, label: n.data.label }) as SignatureNode),
+      d.nodes.map((n) => ({ id: n.id, kind: n.data.kind, position: n.position }) as AFNode),
       d.edges.map((e) => ({ source: e.source, target: e.target }) as AFEdge),
     )
 
-  it('STALE on: node add/delete, edge add/delete, a position move, a kind change, a parallel-edge multiplicity change, a rename', () => {
+  it('STALE on: node add/delete, edge add/delete, a position move, a kind change, a parallel-edge multiplicity change', () => {
     const s0 = sigOf(base())
 
     const addNode = base()
@@ -233,15 +230,14 @@ describe('autoFrameStore — the staleness-signature boundary', () => {
     // add a SECOND edge between an already-connected pair (multiplicity 1 → 2)
     parallel.edges.push({ id: 'dup', source: 'b0_0', target: 'b0_1', type: 'loop', data: { kind: 'resource' } })
     expect(sigOf(parallel)).not.toBe(s0)
-
-    // issue #618 item 2 — the name the frame is drawn around
-    const label = base()
-    label.nodes = label.nodes.map((n) => (n.id === 'b0_0' ? { ...n, data: { ...n.data, label: 'renamed' } } : n))
-    expect(sigOf(label)).not.toBe(s0)
   })
 
-  it('NOT stale on: a Parameter value change, a manual/auto frame op, a filter, a sim run (none touch graph structure, positions or names)', () => {
+  it('NOT stale on: a node label change, a Parameter value change, a manual/auto frame op, a filter, a sim run (none touch graph structure or positions)', () => {
     const s0 = sigOf(base())
+
+    const label = base()
+    label.nodes = label.nodes.map((n) => (n.id === 'b0_0' ? { ...n, data: { ...n.data, label: 'renamed' } } : n))
+    expect(sigOf(label)).toBe(s0)
 
     const paramVal = base()
     paramVal.nodes = paramVal.nodes.map((n) => (n.id === 'b0_0' ? { ...n, data: { ...n.data, value: 42, expr: '@x + 1' } } : n))
