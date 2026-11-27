@@ -835,7 +835,11 @@ export const RUN_FORM_SLOTS: readonly number[] = Array.from({ length: 29 }, (_, 
   (a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5) || a - b,
 )
 
-type RunFormReport = { groups: number; moved: string[]; unresolved: string[]; unchanged: string[][]; candidates: number; ms: number; endRoom?: { moved: string[]; kept: string[] } }
+/** one decision of a guarded label round (#617 item 4): the edge's route crossed
+ *  `before` placed labels; the detour crosses `ofBefore` of those and `after` of
+ *  every placed label */
+export type LabelRoundEntry = { id: string; round: number; before: number; ofBefore: number | null; after: number | null; outcome: 'no-route' | 'same' | 'lower-rung' | 'not-fewer' | 'accepted' }
+type RunFormReport = { groups: number; moved: string[]; unresolved: string[]; unchanged: string[][]; candidates: number; ms: number; endRoom?: { moved: string[]; kept: string[] }; labelRounds?: LabelRoundEntry[] }
 const NO_RUN_FORM: RunFormReport = { groups: 0, moved: [], unresolved: [], unchanged: [], candidates: 0, ms: 0 }
 /** the pass's report for the generation on screen (kept with each generation) */
 let shownRunForm: RunFormReport = NO_RUN_FORM
@@ -1135,6 +1139,7 @@ function* fullSteps(nodes: LoopNode[], edges: LoopEdge[], out: GenOut): Generato
   // guarded rounds: an edge running through other edges' labels is routed again
   // with those labels as soft obstacles, kept only when it crosses fewer of them
   // and is not a lower rung
+  const labelRounds: LabelRoundEntry[] = []
   for (let round = 0; round < LABEL_ROUNDS; round++) {
     let changed = 0
     for (const e of p.ortho) {
@@ -1149,8 +1154,25 @@ function* fullSteps(nodes: LoopNode[], edges: LoopEdge[], out: GenOut): Generato
         yield `round ${e.id} @${pad}`
         if (r2) break
       }
-      if (!r2 || r2.d === r.d || CLASS_RANK[r2.routeClass] > CLASS_RANK[r.routeClass]) continue
-      if (crossed.filter((b) => polyHits(r2.points, b)).length >= crossed.length) continue
+      const entry: LabelRoundEntry = { id: e.id, round, before: crossed.length, ofBefore: null, after: null, outcome: 'no-route' }
+      labelRounds.push(entry)
+      if (!r2) continue
+      const detour = r2
+      entry.ofBefore = crossed.filter((b) => polyHits(detour.points, b)).length
+      entry.after = [...placed].filter(([id, b]) => id !== e.id && polyHits(detour.points, b)).length
+      if (r2.d === r.d) {
+        entry.outcome = 'same'
+        continue
+      }
+      if (CLASS_RANK[r2.routeClass] > CLASS_RANK[r.routeClass]) {
+        entry.outcome = 'lower-rung'
+        continue
+      }
+      if (entry.ofBefore >= crossed.length) {
+        entry.outcome = 'not-fewer'
+        continue
+      }
+      entry.outcome = 'accepted'
       routes.set(e.id, r2)
       stubs = sharedStubsOf(p, routes)
       placed.delete(e.id)
@@ -1172,7 +1194,7 @@ function* fullSteps(nodes: LoopNode[], edges: LoopEdge[], out: GenOut): Generato
   // §ER15.2 — last: the repeated Value change groups, everything else final
   const { beside: besides, report: runForm } = runFormPass(p, edges, routes, labels, free, stubs)
   // §ER15.3 — then the chips with a unit that cover their own line's ends
-  out.runForm = { ...runForm, endRoom: endRoomPass(p, edges, routes, labels, free, stubs, besides) }
+  out.runForm = { ...runForm, endRoom: endRoomPass(p, edges, routes, labels, free, stubs, besides), labelRounds }
   yield 'run form'
   // §M6-7 — last of all, the read connections, which go round the chips when they can
   const chips = [...labels].flatMap(([id, c]) => (c && labelSizes.has(id) ? [labelBoxAt(c, labelSizes.get(id)!, id)] : []))
