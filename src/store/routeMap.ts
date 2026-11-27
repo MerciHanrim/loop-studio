@@ -1225,7 +1225,8 @@ function* fullSteps(nodes: LoopNode[], edges: LoopEdge[], out: GenOut): Generato
     for (const pad of crossed.length > 0 ? SOFT_PADS : []) {
       const r2 = yield* routeOneSteps(p, e, routes, crossed, pad)
       if (!r2) continue
-      if (CLASS_RANK[r2.routeClass] <= CLASS_RANK[r.routeClass] && crossed.filter((b) => polyHits(r2.points, b)).length < crossed.length) routes.set(e.id, r2)
+      // fewer of every chip, as the label rounds (#617 item 4)
+      if (CLASS_RANK[r2.routeClass] <= CLASS_RANK[r.routeClass] && chips.filter((b) => polyHits(r2.points, b)).length < crossed.length) routes.set(e.id, r2)
       break
     }
     yield `read ${e.id}`

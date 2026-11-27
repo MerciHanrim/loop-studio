@@ -99,18 +99,30 @@ describe('#617 item 3 — a chip beside its line is taken where it is drawn', ()
     __resetRouteCache()
   })
 
-  it('desalination, every chip 80 × 18: the read connections go round the beside chips as drawn', () => {
+  const desal = (w: number, h: number) => {
     const nodes = (desalDoc as unknown as { nodes: LoopNode[] }).nodes
     const edges = (desalDoc as unknown as { edges: LoopEdge[] }).edges
-    for (const e of edges) setRouteLabelSize(e.id, 80, 18, !!(e.data as { unit?: string }).unit)
+    for (const e of edges) setRouteLabelSize(e.id, w, h, !!(e.data as { unit?: string }).unit)
     const gen = currentRouteGeneration(nodes, edges)
-    // the chips this is about are beside their lines (stored by the near edge)
-    expect(gen.map.get('e_filter_filtered')?.beside?.side).toBe('up')
-    expect(gen.map.get('e_disinfect_product')?.beside?.side).toBe('up')
     const drawn = new Map(chipBoxesOf(gen).map((b) => [b.id, b]))
-    const crosses = (read: string, chip: string) => __polyHits(gen.map.get(read)!.points, drawn.get(`label:${chip}`)!)
-    expect(crosses('read:filter', 'e_filter_filtered')).toBe(false)
-    expect(crosses('read:remin', 'e_disinfect_product')).toBe(false)
+    const crosses = (route: string, chip: string) => __polyHits(gen.map.get(route)!.points, drawn.get(`label:${chip}`)!)
+    return { gen, drawn, crosses }
+  }
+
+  it('desalination, every chip 90 × 19: a read connection goes round a beside chip as drawn', () => {
+    const { gen, crosses } = desal(90, 19)
+    // the chip this is about is beside its line (stored by the near edge)
+    expect(gen.map.get('e_backwash_thick')?.beside?.side).toBe('up')
+    expect(crosses('read:thick', 'e_backwash_thick')).toBe(false)
+  })
+
+  it('desalination, every chip 80 × 18: a read connection keeps a detour only when it crosses fewer of every chip', () => {
+    // read:filter and read:remin could go round their beside chips only by crossing other chips
+    // (e_coag_filter; e_lime_remin and e_naocl2_disinfect): no such detour is kept
+    const { drawn, gen } = desal(80, 18)
+    const count = (route: string) => [...drawn.values()].filter((b) => __polyHits(gen.map.get(route)!.points, b)).length
+    expect(count('read:filter')).toBeLessThanOrEqual(1)
+    expect(count('read:remin')).toBeLessThanOrEqual(1)
   })
 })
 
