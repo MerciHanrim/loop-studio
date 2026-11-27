@@ -131,7 +131,7 @@ npm test                 # vitest (engine + store unit tests)
 npm run e2e              # Playwright browser end-to-end
 ```
 
-Requires **Node 22+** (`.nvmrc` pins `22`). React + TypeScript + Vite,
+Requires **Node 22.18+** (`.nvmrc` pins `22`; the check scripts import `.ts` files, which Node runs without a flag from 22.18.0). React + TypeScript + Vite,
 [React Flow](https://reactflow.dev) for the canvas, Zustand for state; the
 simulation engine is a dependency-free, unit-tested TypeScript module kept
 separate from the UI. Deployed on Cloudflare Pages; CI on GitHub Actions.
