@@ -174,7 +174,8 @@ describe('autoFrameStore — the recompute hint with no suggestion left, and a r
   it('a rename through updateNodeData lights the hint', () => {
     expect(stale()).toBe(false)
     useGraphStore.getState().updateNodeData('b0_1', { label: 'A much longer name than the one before' })
-    expect((useGraphStore.getState().nodes.find((n) => n.id === 'b0_1')?.data as { label?: string }).label).toBe('A much longer name than the one before')
+    const renamed = useGraphStore.getState().nodes.find((n) => n.id === 'b0_1')
+    expect((renamed?.data as { label?: string } | undefined)?.label).toBe('A much longer name than the one before')
     expect(stale()).toBe(true)
     useAutoFrameStore.getState().suggest()
     expect(stale()).toBe(false)
