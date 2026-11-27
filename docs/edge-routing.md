@@ -289,6 +289,16 @@ routeMapKey = stableStringify({
   waypoint change, or an added / removed node or edge still do. Raw (not
   quantised) values are used, which can only rebuild more often, never reuse
   wrongly.
+- The signature also holds what the last passes read about each connection
+  (#617 item 6, 2026-11-27):
+  - whether its chip prints a unit (`showsUnit`, reported with the chip's
+    size; the end-room pass, §ER15.3, reads it);
+  - whether it is a Value change (`kind` `state`, `mode` `label`; the run-form
+    groups, §ER15.2, read it).
+
+  Either can change alone, at the same chip size: a chip that starts printing
+  its unit, or one of two repeated Value changes made a Trigger in the
+  Inspector. Before, the cached generation was then served.
 - **Excluded** (current decision, correct): zoom, pan, viewport transform,
   hover, selection, keyboard focus, theme / `data-theme`, `prefers-*`, sim
   status / step / run cue, any animation frame.
