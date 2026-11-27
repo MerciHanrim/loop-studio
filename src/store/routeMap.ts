@@ -1368,7 +1368,11 @@ export function __resetProvisionalPeak(): void {
   provisionalPeakMs = 0
 }
 /** the last full generation's job: slices and the longest one, ms */
-let lastJob: { slices: number; maxSliceMs: number; maxStepMs: number; slowestStep: string; cancelled: number } = { slices: 0, maxSliceMs: 0, maxStepMs: 0, slowestStep: '', cancelled: 0 }
+/** the last committed full generation's job: its slices (the commit counted as
+ *  one), steps, the longest slice and step, the time its slices ran (`busyMs`)
+ *  and from its start to its commit (`totalMs`, the waits between tasks
+ *  included), and how many jobs were cancelled so far */
+let lastJob: { slices: number; steps: number; maxSliceMs: number; maxStepMs: number; busyMs: number; totalMs: number; slowestStep: string; cancelled: number } = { slices: 0, steps: 0, maxSliceMs: 0, maxStepMs: 0, busyMs: 0, totalMs: 0, slowestStep: '', cancelled: 0 }
 const warned = new Set<string>()
 
 /** the collinear length two polylines share */
@@ -1540,8 +1544,37 @@ function taskScheduler(): Scheduler | null {
 }
 let scheduler: Scheduler | null = taskScheduler()
 
-let job: { token: number; sig: string; nodes: LoopNode[]; edges: LoopEdge[]; steps: Generator<string>; out: GenOut; slices: number; maxSlice: number; lastStep: number; maxStep: number; slowest: string } | null = null
+let job: { token: number; sig: string; nodes: LoopNode[]; edges: LoopEdge[]; steps: Generator<string>; out: GenOut; slices: number; stepCount: number; maxSlice: number; busy: number; start: number; lastStep: number; maxStep: number; slowest: string } | null = null
 let jobToken = 0
+
+/** §ER14.5 — after a step, may another one run in the same slice? Only when
+ *  the step just run (`lastStep`) would still fit after the slice so far
+ *  (`elapsed`). Not the job's slowest step: that never decays, so one slow step
+ *  made every later slice one step long (#617 item 2: MMO ran 1158 steps in
+ *  1159 slices). */
+export function sliceTakesAnotherStep(elapsed: number, lastStep: number): boolean {
+  return elapsed + lastStep <= SLICE_MS
+}
+
+/** test hook — the slices a job whose steps take `durations` ms would run, by
+ *  the same rule as `startFull` (each entry: the step indices of one slice) */
+export function __slicesFor(durations: readonly number[]): number[][] {
+  const slices: number[][] = []
+  let i = 0
+  while (i < durations.length) {
+    const slice: number[] = []
+    let elapsed = 0
+    for (;;) {
+      const lastStep = durations[i]
+      slice.push(i)
+      elapsed += lastStep
+      i++
+      if (i >= durations.length || !sliceTakesAnotherStep(elapsed, lastStep)) break
+    }
+    slices.push(slice)
+  }
+  return slices
+}
 
 function cancelJob(): void {
   if (job) lastJob = { ...lastJob, cancelled: lastJob.cancelled + 1 }
@@ -1554,7 +1587,7 @@ function startFull(nodes: LoopNode[], edges: LoopEdge[], sig: string): void {
   if (!scheduler) return
   const out: GenOut = {}
   const token = ++jobToken
-  job = { token, sig, nodes, edges, steps: fullSteps(nodes, edges, out), out, slices: 0, maxSlice: 0, lastStep: 0, maxStep: 0, slowest: '' }
+  job = { token, sig, nodes, edges, steps: fullSteps(nodes, edges, out), out, slices: 0, stepCount: 0, maxSlice: 0, busy: 0, start: now(), lastStep: 0, maxStep: 0, slowest: '' }
   const runSlice = () => {
     const j = job
     if (!j || j.token !== token) return // cancelled: never commits
@@ -1568,13 +1601,15 @@ function startFull(nodes: LoopNode[], edges: LoopEdge[], sig: string): void {
         done = true
         break
       }
+      j.stepCount++
       j.lastStep = now() - s0
       if (j.lastStep > j.maxStep) j.slowest = step.value
       j.maxStep = Math.max(j.maxStep, j.lastStep)
-      if (now() - t0 + Math.max(j.lastStep, j.maxStep) > SLICE_MS) break
+      if (!sliceTakesAnotherStep(now() - t0, j.lastStep)) break
     }
     j.slices++
     j.maxSlice = Math.max(j.maxSlice, now() - t0)
+    j.busy += now() - t0
     scheduler!(done ? commitSlice : runSlice)
   }
   // the commit (diagnostics, the kept generation) is a task of its own, counted
@@ -1591,7 +1626,8 @@ function startFull(nodes: LoopNode[], edges: LoopEdge[], sig: string): void {
     }
     j.slices++
     j.maxSlice = Math.max(j.maxSlice, now() - t0)
-    lastJob = { slices: j.slices, maxSliceMs: +j.maxSlice.toFixed(2), maxStepMs: +j.maxStep.toFixed(2), slowestStep: j.slowest, cancelled: lastJob.cancelled }
+    j.busy += now() - t0
+    lastJob = { slices: j.slices, steps: j.stepCount, maxSliceMs: +j.maxSlice.toFixed(2), maxStepMs: +j.maxStep.toFixed(2), busyMs: +j.busy.toFixed(1), totalMs: +(now() - j.start).toFixed(1), slowestStep: j.slowest, cancelled: lastJob.cancelled }
   }
   scheduler(runSlice)
 }
@@ -1883,5 +1919,5 @@ export function __resetRouteCache(): void {
   recordLabels = false
   warned.clear()
   lastProvisional = null
-  lastJob = { slices: 0, maxSliceMs: 0, maxStepMs: 0, slowestStep: '', cancelled: 0 }
+  lastJob = { slices: 0, steps: 0, maxSliceMs: 0, maxStepMs: 0, busyMs: 0, totalMs: 0, slowestStep: '', cancelled: 0 }
 }

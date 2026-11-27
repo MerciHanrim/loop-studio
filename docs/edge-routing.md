@@ -995,9 +995,26 @@ Lumi, 2026-10-09: no pause at the drop, no long main-thread task.
   moved node — incident ones first, within `PROVISIONAL_MS` (5 ms, budgeted by
   the longest route so far; an edge with no route at all is always routed).
 - The **full generation** for the new layout then runs as a job, in id order,
-  in slices of about `SLICE_MS` (8 ms; a step is started only when the longest
-  step so far still fits), each slice its own task, so input and frames run in
-  between. A single search is itself a step sequence: the A* search pauses
+  in slices of about `SLICE_MS` (8 ms; another step is started in a slice only
+  when the last step's length still fits, `sliceTakesAnotherStep`), each slice
+  its own task, so input and frames run in between.
+  - Until 2026-11-27 the check used the job's slowest step so far, which never
+    decays: once one step took more than 8 ms, every later slice ran one step.
+    The Early MMO ran its 1,158 steps in 1,159 slices (#617 item 2).
+  - Measured on 2026-11-27 (development build, 1440 × 900, 7 runs each): the
+    Early MMO runs in 236 slices instead of 1,159 (median). The job finishes in
+    1,740 ms instead of 1,887 and the Template settles in 3,315 ms instead of
+    3,688.
+  - The trade-off is a longer slice. A slice may now start a step after up to
+    8 ms minus the last step, and that step can be longer: the Early MMO's
+    longest slice is 13.3 ms instead of 11.1 at the median, 15.0 ms at most.
+    On the other Templates (5 runs each) the longest slice rose by 1 to 4 ms
+    at the median and their times stayed within their run-to-run spread.
+  - These are measured durations, not a frame budget; a slice under a frame's
+    length does not by itself keep frames on time.
+  - `routeDiagnostics().job` reports the committed job's slices, steps, the
+    longest slice and step, the slices' own time (`busyMs`) and the time from
+    its start to its commit (`totalMs`). A single search is itself a step sequence: the A* search pauses
   every `SEARCH_SLICE` (1,024) expansions, so no step is longer than a slice;
   the synchronous router drains the same steps, so its result is unchanged. It is committed in one swap when complete; a partial map is never
   drawn. A newer layout, or a drag starting, cancels a running job; a cancelled
@@ -1022,7 +1039,8 @@ Lumi, 2026-10-09: no pause at the drop, no long main-thread task.
   - routing-owned work (development build, where it is instrumented): the
     largest slice 6.9 ms on the cold load and 10 ms at the drop, the longest
     step 6.9 ms, the provisional map at most 6 ms (≤ 10); no routing task of
-    50 ms or more;
+    50 ms or more. These are the 2026-10 figures, under the old slice check;
+    for the cold load under the current one, see the slice check above;
   - the committed map equals the synchronous generation byte for byte; 0
     cancelled generations committed.
   - Not routing: the document mount (~145 ms in production) and the node press
