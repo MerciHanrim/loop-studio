@@ -261,7 +261,9 @@ export function Canvas() {
       setViewport(vp, { duration: 0 })
       if (import.meta.env.DEV) lastInitialViewRef.current = { insetL: insets.left, insetT: insets.top, zoom: vp.zoom }
     },
-    [paneW, paneH, setViewport, fitView],
+    // `fitAll` (built from `fitView` and React Flow's other helpers), not `fitView`, which
+    // this does not call (#625 item 5, exhaustive-deps)
+    [paneW, paneH, setViewport, fitAll],
   )
   // keep the re-fit effect's deps stable (fitRev / loadRev / a settle signal)
   // — `applyInitialView` changes identity with the pane size and must not
@@ -379,7 +381,7 @@ export function Canvas() {
         })
       }
     }
-  }, [fitRev, loadRev, nodesInitialized, measuredSig, settleTick, fitView, getViewport])
+  }, [fitRev, loadRev, nodesInitialized, measuredSig, settleTick, fitAll, getViewport])
 
   // the notice rail (src/ui/noticeRail.tsx, `#notice-rail`) sits between the
   // toolbar and this pane: when a note comes or goes the pane's TOP EDGE moves
@@ -626,7 +628,7 @@ export function Canvas() {
     useFilterStore.getState().clear()
     selectOnly({})
     void fitAll()
-  }, [fitView])
+  }, [fitAll])
 
   // structural editing is off on mobile (docs/mobile.md §MV3a) OR when the
   // desktop Canvas is edit-locked (uiStore.canvasLocked). Selection, pan / zoom,
@@ -838,7 +840,7 @@ export function Canvas() {
       window.removeEventListener('resize', onResize)
       window.removeEventListener('orientationchange', onResize)
     }
-  }, [isMobile, fitView])
+  }, [isMobile, fitAll])
 
   const onSelectionChange = useCallback(
     ({ nodes: sn, edges: se }: { nodes: { id: string }[]; edges: { id: string }[] }) => {
