@@ -85,7 +85,8 @@ function Strip({ table, series, width, padL, padR, minStep, maxStep, stepSec, pi
   const iw = Math.max(1, width - padL - padR)
   const span = Math.max(1, maxStep - minStep)
   const x = (step: number) => padL + ((step - minStep) / span) * iw
-  const line = useMemo(() => timetablePolyline(table, toTime(minStep), toTime(maxStep), Math.max(64, Math.round(iw) * 2)), [table, minStep, maxStep, iw, stepSec])
+  // `toTime` written out, so the memo lists what it reads (#625 item 5, exhaustive-deps)
+  const line = useMemo(() => timetablePolyline(table, (minStep * stepSec) / unitSec, (maxStep * stepSec) / unitSec, Math.max(64, Math.round(iw) * 2)), [table, minStep, maxStep, iw, stepSec, unitSec])
   const moved = useMovedRates(table, series)
   const top = niceTop(Math.max(0, ...line.map((p) => p.rate), ...(moved ?? []).flatMap((m) => m.rates.map((r) => r.moved))))
   const y = (v: number) => RATE_STRIP_H - PAD_BOTTOM - (v / top) * (RATE_STRIP_H - PAD_TOP - PAD_BOTTOM)

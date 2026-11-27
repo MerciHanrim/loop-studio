@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { formatRegisterValue, registerSeriesRuns, registersOfSnapshot } from '../model/model'
 import { resolveTimelineSeries } from '../model/timelineSeries'
 import { axisMark, axisPad, axisUnit, chartNumber as fmt, compactText, fullText, shownNumber, viewIsOn, viewUnitChoices, type PoolViews } from '../model/viewUnits'
@@ -156,6 +156,9 @@ export function TimelineChart() {
   // guide's lines under the run row (a pause's reason, the checked-range note) count whole:
   // they stay in view, so they must not take the strip's or the chart's room.
   const [measured, setMeasured] = useState<{ floor: number; panel: number; notice: number } | null>(null)
+  // No dependency list on purpose: the page is measured after EVERY render (what it holds
+  // changes with the run row's wrapping, the notices and the language, not with one input),
+  // and state is set only when a number changes, so it cannot loop (#625 item 5).
   useLayoutEffect(() => {
     const area = areaRef.current
     const next = (() => {
@@ -179,7 +182,10 @@ export function TimelineChart() {
     if (isMobile || collapsed) return
     if (height < areaMin) setHeight(areaMin)
   }, [areaMin, height, isMobile, collapsed])
-  useLayoutEffect(() => {
+  // the switch alone decides; a resize inside the view is the splitter's. The height is
+  // read when the switch changes, not watched: an effect event, so it is not a
+  // dependency (#625 item 5, exhaustive-deps)
+  const applyViewFloor = useEffectEvent(() => {
     if (isMobile) return
     if (floorWanted != null) {
       if (heightBeforeDistribution.current == null) heightBeforeDistribution.current = height
@@ -189,7 +195,9 @@ export function TimelineChart() {
       setHeight(heightBeforeDistribution.current)
       heightBeforeDistribution.current = null
     }
-    // the switch alone decides; a resize inside the view is the splitter's
+  })
+  useLayoutEffect(() => {
+    applyViewFloor()
   }, [floorWanted, isMobile])
 
   // #538 — on the strips tab the chart is hidden, so its box gives no width: the strip's
