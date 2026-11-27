@@ -1815,6 +1815,8 @@ export function __routeGenCount(): number {
 export function __syncFullGeneration(nodes: LoopNode[], edges: LoopEdge[]): Map<string, RoutedEdge> {
   return rebuildFull(nodes, withReadEdges(nodes, edges)).map
 }
+/** test hook — does the polyline enter the box's interior (the test every label pass uses) */
+export const __polyHits = (pts: Pt[], b: Box): boolean => polyHits(pts, b)
 /** test hook — the synchronous Curved / Straight label slots for this input */
 export function __syncFreeSlots(nodes: LoopNode[], edges: LoopEdge[]): Map<string, FreeSlot> {
   return rebuildFull(nodes, withReadEdges(nodes, edges)).free
