@@ -127,6 +127,65 @@ describe('autoFrameStore', () => {
   })
 })
 
+// issue #618 item 2 — the recompute hint, on the store's real change paths:
+// it goes off with the last suggestion, and a node's name counts
+describe('autoFrameStore — the recompute hint with no suggestion left, and a rename', () => {
+  const moveOne = () =>
+    useGraphStore.setState({
+      nodes: useGraphStore.getState().nodes.map((n) => (n.id === 'b0_0' ? { ...n, position: { x: n.position.x + 999, y: n.position.y } } : n)) as never,
+    })
+  const stale = () => autoFramesStale(useAutoFrameStore.getState().lastSignature)
+
+  beforeEach(() => {
+    resetStores()
+    const { nodes, edges } = twoBlobDoc()
+    useGraphStore.setState({
+      nodes: nodes.map((n) => ({ id: n.id, type: n.kind, position: n.position, data: { kind: n.kind, label: `Name ${n.id}` } })) as never,
+      edges: edges.map((e, i) => ({ id: `e${i}`, source: e.source, target: e.target, type: 'loop', data: { kind: 'resource' } })) as never,
+    })
+    useAutoFrameStore.getState().suggest()
+    expect(useAutoFrameStore.getState().autoFrames.length).toBe(2)
+  })
+
+  it('control: with one suggestion still shown, a move lights the hint', () => {
+    useAutoFrameStore.getState().dismissAuto(useAutoFrameStore.getState().autoFrames[0].id)
+    expect(useAutoFrameStore.getState().autoFrames.length).toBe(1)
+    moveOne()
+    expect(stale()).toBe(true)
+  })
+
+  it('dismissing the last suggestion turns the hint off: a later move does not light it', () => {
+    for (const f of [...useAutoFrameStore.getState().autoFrames]) useAutoFrameStore.getState().dismissAuto(f.id)
+    expect(useAutoFrameStore.getState().autoFrames).toEqual([])
+    expect(useAutoFrameStore.getState().lastSignature).toBeNull()
+    moveOne()
+    expect(stale()).toBe(false)
+  })
+
+  it('promoting the last suggestion (removeAuto) turns the hint off too', () => {
+    const [a, b] = useAutoFrameStore.getState().autoFrames
+    useAutoFrameStore.getState().dismissAuto(a.id)
+    useAutoFrameStore.getState().removeAuto(b.id)
+    expect(useAutoFrameStore.getState().lastSignature).toBeNull()
+    moveOne()
+    expect(stale()).toBe(false)
+  })
+
+  it('a rename through updateNodeData lights the hint', () => {
+    expect(stale()).toBe(false)
+    useGraphStore.getState().updateNodeData('b0_1', { label: 'A much longer name than the one before' })
+    expect((useGraphStore.getState().nodes.find((n) => n.id === 'b0_1')?.data as { label?: string }).label).toBe('A much longer name than the one before')
+    expect(stale()).toBe(true)
+    useAutoFrameStore.getState().suggest()
+    expect(stale()).toBe(false)
+  })
+
+  it('control: a Parameter value change still does not light it', () => {
+    useGraphStore.getState().updateNodeData('p1', { value: 42 } as never)
+    expect(stale()).toBe(false)
+  })
+})
+
 // §AF8 / review boundary 2 — exactly which changes make the auto set "stale"
 describe('autoFrameStore — the staleness-signature boundary', () => {
   const base = () => {
