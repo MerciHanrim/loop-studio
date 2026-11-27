@@ -9,8 +9,8 @@
 // conservative: the e2e jobs are skipped only when ALL of these are certain,
 // and anything unknown, missing or failing to compare runs them in full.
 //
-//   1. the event is a push to `main` (a pull request, the daily schedule and a
-//      manual run always run everything);
+//   1. the event is a push to `main` (a pull request and a manual run always
+//      run everything, as would any other event);
 //   2. the push is one commit on top of the previous `main` (`before` is the
 //      commit's only parent), read from a full clone (a shallow one has no
 //      parent here and runs everything);
@@ -25,7 +25,9 @@
 //   7. the merge commit's tree is the head's tree.
 //
 // Same tree is not the same run: time and environment can still fail a test,
-// so the full suite also runs every day and by hand before a release.
+// so the full suite also runs by hand (Actions ▸ CI ▸ Run workflow) when a
+// full check of `main` is wanted, before a release among others. The daily
+// scheduled run was removed on 2026-11-27.
 //
 // CLI (CI): reads GITHUB_EVENT_NAME, GITHUB_SHA, GITHUB_REPOSITORY and
 // EVENT_BEFORE, calls `gh api` (GH_TOKEN) and `git`, and writes `run_e2e=true|false`
@@ -89,7 +91,7 @@ export function decide(ctx, io) {
     const headTree = io.git(['rev-parse', `${head}^{tree}`]).trim()
     if (!/^[0-9a-f]{40}$/.test(mergedTree) || mergedTree !== headTree) return full(`#${pr.number}: the merge tree ${mergedTree.slice(0, 8)} is not head ${head.slice(0, 8)}'s tree ${headTree.slice(0, 8)}`)
 
-    return { runE2e: false, reason: `#${pr.number}: the merge commit holds head ${head.slice(0, 8)}'s tree ${headTree.slice(0, 8)}, whose required checks passed; e2e skipped (the full suite runs daily)` }
+    return { runE2e: false, reason: `#${pr.number}: the merge commit holds head ${head.slice(0, 8)}'s tree ${headTree.slice(0, 8)}, whose required checks passed; e2e skipped (run the full suite by hand: Actions ▸ CI ▸ Run workflow)` }
   } catch (e) {
     return full(`undetermined: ${String(e?.message ?? e).split('\n')[0]}`)
   }
