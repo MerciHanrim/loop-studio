@@ -54,13 +54,15 @@ describe('#617 item 6 — what the layout signature leaves out', () => {
     expect([m2.sourceHandle, m2.targetHandle]).toEqual(['state-source', 'state-target'])
     const after = currentRouteGeneration(g1.nodes, g1.edges)
     expect(routeDiagnostics().runForm.groups).toBe(0)
-    // the same as a generation computed from scratch for this input
-    const m1 = after.map.get('m1')!.label
+    // the same as a generation computed from scratch for this input (Curved lines:
+    // their chips are the generation's free slots)
+    const m1 = after.free.get('m1')
+    expect(m1).toBeDefined()
     __resetRouteCache()
     for (const id of ['m1', 'm2']) {
       setRouteLabelSize(id, 30, 19)
       setRouteRunFormSize(id, 160, 43)
     }
-    expect(currentRouteGeneration(g1.nodes, g1.edges).map.get('m1')!.label).toEqual(m1)
+    expect(currentRouteGeneration(g1.nodes, g1.edges).free.get('m1')).toEqual(m1)
   })
 })

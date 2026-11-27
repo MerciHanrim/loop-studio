@@ -171,15 +171,18 @@ export function computeStagger(
     }
   }
 
-  // ── order the buckets: Phase-1 first, then Phase-2 SCCs by (depth, id) ──
-  const p2groups = [
-    ...new Set(perEvent.filter((e) => e.group !== 'P1').map((e) => e.group as number)),
-  ].sort((a, b) => (depth.get(a) ?? 0) - (depth.get(b) ?? 0) || a - b)
-  const orderedKeys: GroupKey[] = [...(hasP1 ? (['P1'] as const) : []), ...p2groups]
-
-  const bucketCount = Math.min(orderedKeys.length, STAGGER_MAX_BUCKETS)
+  // ── the buckets: Phase-1 first, then one per distinct Phase-2 depth ──────
+  // #617 item 7 (Lumi, 2026-11-27): every routing SCC at one depth shares that
+  // depth's bucket, so parallel siblings start together and a depth is never
+  // split over two buckets; the depths past the cap fold into the last one.
+  const p2groups = [...new Set(perEvent.filter((e) => e.group !== 'P1').map((e) => e.group as number))]
+  const p2depths = [...new Set(p2groups.map((g) => depth.get(g) ?? 0))].sort((a, b) => a - b)
+  const levelCount = (hasP1 ? 1 : 0) + p2depths.length
+  const bucketCount = Math.min(levelCount, STAGGER_MAX_BUCKETS)
+  const levelOfDepth = new Map(p2depths.map((d, i) => [d, (hasP1 ? 1 : 0) + i]))
   const bucketOfKey = new Map<GroupKey, number>()
-  orderedKeys.forEach((k, i) => bucketOfKey.set(k, Math.min(i, bucketCount - 1)))
+  if (hasP1) bucketOfKey.set('P1', 0)
+  for (const g of p2groups) bucketOfKey.set(g, Math.min(levelOfDepth.get(depth.get(g) ?? 0)!, bucketCount - 1))
 
   const onsetByEdge: Record<string, number> = {}
   for (const { edgeId, group } of perEvent) {
