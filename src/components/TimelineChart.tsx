@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { formatRegisterValue, registerSeriesRuns, registersOfSnapshot } from '../model/model'
 import { resolveTimelineSeries } from '../model/timelineSeries'
 import { axisMark, axisPad, axisUnit, chartNumber as fmt, compactText, fullText, shownNumber, viewIsOn, viewUnitChoices, type PoolViews } from '../model/viewUnits'
@@ -156,10 +157,15 @@ export function TimelineChart() {
   // guide's lines under the run row (a pause's reason, the checked-range note) count whole:
   // they stay in view, so they must not take the strip's or the chart's room.
   const [measured, setMeasured] = useState<{ floor: number; panel: number; notice: number } | null>(null)
-  // No dependency list on purpose: the page is measured after EVERY render (what it holds
-  // changes with the run row's wrapping, the notices and the language, not with one input),
-  // and state is set only when a number changes, so it cannot loop (#625 item 5).
-  useLayoutEffect(() => {
+  // What the page holds changes with the run row's wrapping, its guide lines, the notices and
+  // the language, not with one input, and most of it is the run row's (PlayBar), which also
+  // re-renders on its own. So it is measured when the view's layout switches (the fold, the
+  // phone, the Distribution view, the tabs), then whenever a measured part changes size (a
+  // ResizeObserver) or the area's content changes (a MutationObserver: a part mounting or
+  // going, a notice's text), applied at once (flushSync). State is set only when a number
+  // changes, and the observers watch sizes and content, not the style and attributes the new
+  // numbers set, so a measurement does not set off another (#625 item 5).
+  const measureFloor = useEffectEvent(() => {
     const area = areaRef.current
     const next = (() => {
       if (!area || collapsed || isMobile || showDistribution) return null
@@ -173,6 +179,28 @@ export function TimelineChart() {
     })()
     if (next?.floor !== measured?.floor || next?.panel !== measured?.panel || next?.notice !== measured?.notice) setMeasured(next)
   })
+  useLayoutEffect(() => {
+    measureFloor()
+    const area = areaRef.current
+    // folded, on the phone or in the Distribution view there is no floor to keep: no observers
+    if (!area || collapsed || isMobile || showDistribution || typeof ResizeObserver === 'undefined' || typeof MutationObserver === 'undefined') return
+    const apply = () => flushSync(() => measureFloor())
+    const sizes = new ResizeObserver(apply)
+    const observeParts = () => {
+      sizes.disconnect()
+      for (const el of area.querySelectorAll(FLOOR_PARTS)) sizes.observe(el)
+    }
+    observeParts()
+    const content = new MutationObserver(() => {
+      observeParts()
+      apply()
+    })
+    content.observe(area, { childList: true, subtree: true, characterData: true })
+    return () => {
+      sizes.disconnect()
+      content.disconnect()
+    }
+  }, [collapsed, isMobile, showDistribution, tabbed])
   const measuredFloor = measured?.floor ?? null
   const maxHeight = areaMax()
   const areaMin = Math.min(showDistribution ? DISTRIBUTION_MIN : Math.max(ANALYSIS_MIN, measuredFloor ?? ANALYSIS_MIN), maxHeight)
@@ -1138,6 +1166,8 @@ export const PLOT_MIN = 140
 /** #534 — one run notice in view: the list's border and top padding, its title and one
  *  line, when the line cannot be measured (the CSS fallback is the same) */
 const NOTICE_ROW_MIN = 37
+/** the parts the floor is measured from (the first notice's lines set the notice row) */
+const FLOOR_PARTS = '.wb-splitter, .pstrip, .pstrip-guide, .pstrip-diag, .pstrip-diag li:first-child, .timeline__head'
 /** the panel's top border */
 const PANEL_BORDER = 1
 

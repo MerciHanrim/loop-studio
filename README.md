@@ -126,7 +126,7 @@ npm install
 npm run dev             # http://localhost:5173
 npm run build            # -> dist/            static SPA, deploy anywhere
 npm run build:portable   # -> dist-portable/   single self-contained index.html (file://)
-npm run lint             # oxlint: fails on a correctness error or above 69 warnings
+npm run lint             # oxlint: fails on a correctness error or above 68 warnings
 npm test                 # vitest (engine + store unit tests)
 npm run e2e              # Playwright browser end-to-end
 ```

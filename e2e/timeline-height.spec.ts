@@ -253,4 +253,49 @@ test.describe('#534 — the analysis area keeps the chart readable', () => {
     await expect.poll(async () => (await inView(page, '.pstrip-diag', 'li')).at(-1), { message: 'scrolling reaches the last notice' }).toBe(true)
     await expectChartWhole(page)
   })
+
+  // #625 item 5 — the floor follows what the run row shows even when only the run row
+  // re-renders. The run guide line (#537) is set here from the store's `autoPause` alone, a
+  // change the run row (PlayBar) renders and the chart (TimelineChart) does not; with a
+  // change the chart also reads (a new `series` array, the same points), the control. With
+  // run notices on screen: their list gives way to the new line, so the chart's box keeps
+  // its size and nothing else re-renders the chart
+  test('a run guide line the run row shows on its own raises the floor by its height, as one shown with the chart', async ({ page }) => {
+    test.setTimeout(120_000)
+    await page.setViewportSize({ width: 1920, height: 600 })
+    await openApp(page)
+    await desalination(page, { steps: 1300, strips: true })
+    await expect(page.locator('.pstrip-diag')).toHaveCount(1)
+    await expect(page.locator('.pstrip-guide')).toHaveCount(0)
+    await toFloor(page)
+    const splitter = page.locator('.wb-splitter')
+    const floor0 = Number(await splitter.getAttribute('aria-valuemin'))
+    const guide = (withChart: boolean) =>
+      page.evaluate((chart: boolean) => {
+        const sim = (window as unknown as Bridge).__loop.sim as unknown as { getState: () => any; setState: (p: object) => void }
+        const s = sim.getState()
+        sim.setState({ autoPause: { step: s.stepIndex, stage: 'RO', pool: null, cause: 'supply' }, ...(chart ? { series: [...s.series] } : {}) })
+      }, withChart)
+    const noGuide = (withChart: boolean) =>
+      page.evaluate((chart: boolean) => {
+        const sim = (window as unknown as Bridge).__loop.sim as unknown as { getState: () => any; setState: (p: object) => void }
+        sim.setState({ autoPause: null, ...(chart ? { series: [...sim.getState().series] } : {}) })
+      }, withChart)
+
+    for (const withChart of [true, false]) {
+      const how = withChart ? 'with the chart' : 'on its own'
+      await guide(withChart)
+      await expect(page.locator('.pstrip-guide')).toHaveCount(1)
+      const line = await page.locator('.pstrip-guide').evaluate((el) => (el as HTMLElement).offsetHeight)
+      expect(line, 'the guide line has a height').toBeGreaterThan(0)
+      await expect.poll(async () => Number(await splitter.getAttribute('aria-valuemin')), { message: `the floor rises by the guide line, ${how}` }).toBe(floor0 + line)
+      await toFloor(page)
+      const l = await expectChartWhole(page)
+      expect(l.plot, `the chart keeps its floor, ${how}`).toBe(PLOT_MIN)
+      await noGuide(withChart)
+      await expect(page.locator('.pstrip-guide')).toHaveCount(0)
+      await expect.poll(async () => Number(await splitter.getAttribute('aria-valuemin')), { message: `the floor comes back down, ${how}` }).toBe(floor0)
+      await toFloor(page)
+    }
+  })
 })
