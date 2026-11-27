@@ -108,7 +108,8 @@ and no injected `<link rel="manifest">` (§P9 D8a, Slice-1 criterion 5).
     options: {                            //   serialises this into sw.js)
       cacheName: 'loop-locale-chunks',
       expiration: { maxEntries: 24 },
-      cacheableResponse: { statuses: [0, 200] },
+      // a 200 served as JavaScript only (#625 item 4, below)
+      plugins: [{ cacheWillUpdate: localeChunkCacheWillUpdate }],
     },
   }],
   maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
@@ -131,6 +132,17 @@ the main JS is accepted as runtime-cached (not "missing from precache").
 
 **Runtime caching** — one route: the locale chunks above. `index.html` still has
 its `NavigationRoute` app-shell fallback (see below).
+
+**What the locale cache keeps** (#625 item 4, 2026-11-27).
+- The rule: a response is kept only when it is a 200 served as JavaScript (`localeChunkCacheWillUpdate`, `scripts/locale-chunk.mjs`).
+- Why: the host answers a file it does not have with the app's HTML page and a 200. The production site does, for `/assets/locale-ko-…js` that does not exist; so does the PWA test server.
+- Until then the rule was `statuses: [0, 200]`. A locale chunk missing at the host, as an app shell from an earlier deploy can still ask for one, was stored as that page. `CacheFirst` then served the page for that URL every time after.
+- What this does not change:
+  - such an app's first load of that language still fails;
+  - entries already stored by an earlier service worker are not removed. The cache keeps its name, and a later service worker still reads such an entry if it asks for the same URL.
+
+  The rule only keeps such a response from being stored, so a failure does not persist through the cache.
+- Pinned by `e2e/i18n.pwa.spec.ts`: the server's answer to a missing chunk, the SW not keeping it, and a real chunk still kept. Also by `scripts/locale-chunk.test.mjs`: the rule, and its text running as written, as `sw.js` carries it.
 
 **Locale offline guarantee.** A language is offline-available once its chunks
 have been fetched **while the Service Worker controls the page** — i.e.

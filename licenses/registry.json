@@ -29,7 +29,6 @@
     { "name": "workbox-precaching", "evidence": { "file": "workbox-*.js", "contains": "workbox:precaching:" }, "source": "service worker runtime" },
     { "name": "workbox-strategies", "evidence": { "file": "workbox-*.js", "contains": "workbox:strategies:" }, "source": "service worker runtime" },
     { "name": "workbox-expiration", "evidence": { "file": "workbox-*.js", "contains": "workbox:expiration:" }, "source": "service worker runtime" },
-    { "name": "workbox-cacheable-response", "evidence": { "file": "workbox-*.js", "contains": "workbox:cacheable-response:" }, "source": "service worker runtime" },
     { "name": "idb", "evidence": { "file": "workbox-*.js", "contains": "versionchange" }, "source": "service worker runtime (IndexedDB wrapper used by workbox-expiration)" },
     { "name": "workbox-build", "evidence": { "file": "sw.js", "contains": "SKIP_WAITING" }, "source": "service worker template (sw.js body)" },
     {

@@ -945,22 +945,6 @@
           ]
         },
         {
-          "name": "workbox-cacheable-response",
-          "version": "7.4.1",
-          "spdx": "MIT",
-          "source": "service worker runtime",
-          "licenceFiles": [
-            {
-              "file": "LICENSE",
-              "sha256": "aee9670e09b75ca8a2a1fe62d545ae38a6797970caf0335628e3a4dd15bc9b6c"
-            }
-          ],
-          "noticeFiles": [],
-          "copyright": [
-            "Copyright 2018 Google LLC"
-          ]
-        },
-        {
           "name": "workbox-core",
           "version": "7.4.1",
           "spdx": "MIT",
@@ -1073,7 +1057,7 @@
           ]
         }
       ],
-      "noticesSha256": "9daba7797b59998c6044ef7b86c7cb8a1cd29e41341320d41847d81e3c3002a3"
+      "noticesSha256": "5addba45d8ed7f04f0797d485972a3e3b931ac447b57968829ceed38e80f4604"
     },
     "web": {
       "entries": [
