@@ -42,8 +42,9 @@ describe('the lint policy (#625 item 5)', () => {
   it('the lint script caps the warnings', () => {
     expect(script).toMatch(/^oxlint --max-warnings \d+$/)
     // 88 on 2026-11-27; 82 once no-unused-vars (1) and no-unsafe-optional-chaining (5) were fixed;
-    // 79 once use-memo (1) and immutability (2) were; 75 once four exhaustive-deps warnings were
-    expect(CAP).toBe(75)
+    // 79 once use-memo (1) and immutability (2) were; 75 once four exhaustive-deps warnings were;
+    // 69 once Canvas's six were
+    expect(CAP).toBe(69)
   })
 
   it('the code as it is passes, at the cap', { timeout: 60_000 }, () => {

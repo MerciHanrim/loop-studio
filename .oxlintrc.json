@@ -18,6 +18,8 @@
     // the correctness rules with warnings on 2026-11-27, and how many
     "react/set-state-in-effect": "warn", // 23
     "react/refs": "warn", // 15
-    "react-hooks/exhaustive-deps": "warn" // 11, then 7: 4 fixed in the charts and LoopEdge
+    // 11, then 7 (4 fixed in the charts and LoopEdge), then 1 (6 in Canvas): TimelineChart:159
+    // and the ones under suppression comments remain, so it stays a warning
+    "react-hooks/exhaustive-deps": "warn"
   }
 }
