@@ -953,7 +953,27 @@ pinned single-edge core (golden + differential tests); the app no longer calls i
   through other edges' labels is routed again with those labels as soft
   obstacles (`computeSoftReroute`: one rung of `SOFT_PADS` — 12, then 6 px —
   per step, each with the budget `SOFT_EXPANSIONS`), kept only when it crosses
-  fewer of them and is not a lower rung; otherwise the edge keeps its route.
+  fewer of them, crosses no more of every placed label than the old route
+  did, and is not a lower rung; otherwise the edge keeps its route. A detour
+  that is not kept and newly crosses other labels is routed once more on that
+  rung with those labels soft too, and judged the same way (#617 item 4).
+  - Why both conditions: counting only the labels the old route crossed let a
+    route trade one crossing for two (MMO, the banner zones). Requiring fewer
+    of every placed label instead also refused the one-for-one swaps, which
+    move the crossing to a label whose own route then gets its round: MMO's
+    final layout went from 43 route × chip crossings to 46. With a swap
+    allowed and the second try it ends at 39 (2026-11-27, every Template
+    measured; `routeMap.labelGeometry.test.ts` pins the counts).
+  - `routeDiagnostics().runForm.labelRounds` records every decision: the
+    labels the old route crossed, how many of those and of every placed label
+    the detour crosses, and the outcome.
+- Whether a line meets a box is the line's own test: each segment is clipped
+  to the box's open interior. For a horizontal or vertical segment that is its
+  bounding box's answer; a diagonal one, a Straight connection's, is judged by
+  the line, not by its bounding box (#617 item 1).
+- A chip beside its line is stored by its near edge (§ER15.2); every pass
+  that takes its box builds it with `besideBox` from that point and its side,
+  never as a box centred on it (#617 item 3).
 - Label sizes are the labels' REST sizes (shown, not selected, no run value),
   reported by the rendered labels; the last known size stays while a label is
   hidden by zoom. A run, a selection or a zoom never moves a route.
@@ -1193,10 +1213,12 @@ can still cover its arrow, as it always could. A record keeps its recorded place
   progress and puts the point back. A pointer drag whose pointer is lost (the
   window's focus, the page hidden, the capture taken away) is cancelled the same
   way: the point goes back and nothing is recorded, as for a frame (#410, #612).
-- **Refused**: a bend point dropped inside a node, or within `BEND_STUB_TOL`
-  (8 px) of the connection's own port stub (the stretch from a port to
-  `ROUTE_STUB` past its node's side), goes back where it was; nothing is
-  adjusted and nothing is recorded. While it is over such a place the handle
+- **Refused**: a bend point dropped inside a node, inside a node's outside
+  name (any node's, the connection's own ends included: the router goes round
+  every name and would drop the point, #617 item 5), or within
+  `BEND_STUB_TOL` (8 px) of the connection's own port stub (the stretch from a
+  port to `ROUTE_STUB` past its node's side), goes back where it was; nothing
+  is adjusted and nothing is recorded. While it is over such a place the handle
   has a dashed border (the non-colour tell).
 - **Undo**: adding, moving (one drag, or one held key gesture), removing,
   Reset and a shape change are one history entry each, never merged with the
@@ -1335,8 +1357,8 @@ the graph store): the Inspector's Ends group and the canvas end grips.
   another node resets it, as drawing a new connection does.
 - **Routes.** An automatic route is recomputed (the ends and faces are in the layout
   signature). The user's bends are never removed by a move: when a kept bend would be
-  refused by the bend rule at the new ends (`bendRejection`: inside a node, or on the
-  new end's stub), the Inspector says so BEFORE applying; "Reset to automatic" stays
+  refused by the bend rule at the new ends (`bendRejection`: inside a node or a node's
+  outside name, or on the new end's stub), the Inspector says so BEFORE applying; "Reset to automatic" stays
   the user's own, separate choice (the line-editing principle: a user-adjusted route
   is kept, going back to automatic is explicit).
 - **The Inspector's Ends group.** Folded by default to one line — the group's name and
@@ -1474,7 +1496,7 @@ for moving an end. The investigation behind the rules is share note 48 (Lumi,
 A read connection is routed by the guarded router, but it is planned apart from the document's lines.
 
 - **Last.** `plan()` keeps read connections out of `ortho`. Every document line, chip, reserved stub and fan is settled as if no rule existed, and `fullSteps` routes the read connections after that, against all of it. So a read connection moves no line and no chip. The stage tag can, because its block is part of the name block (SEMANTICS-M6.md §M6-8). Sorting them last would not be enough: a reserved stub or a placed route would still push a document line aside, as it did on 141 of 400 random graphs while they were planned together.
-- **Round the chips.** A read connection that runs through a chip is routed again with the chips it crossed as soft obstacles, and the new route is kept only when it crosses fewer of them and is not a lower rung.
+- **Round the chips.** A read connection that runs through a chip is routed again with the chips it crossed as soft obstacles, and the new route is kept only when it crosses fewer of them, no more of every chip, and is not a lower rung, as in the label rounds (§ER14.3). The chips are taken where they are drawn, a chip beside its line by its near edge. Once the read connections saw those chips, a rule that counted only the crossed chips let two of them in desalination go round a chip by crossing others, 5 → 6 crossings; with every chip counted it is 5 → 4 (#617 item 4, 2026-11-27).
 - **In the provisional map** a read connection is routed after the document's lines too. One out of time keeps its last route.
 - **Its own port.** Each end takes the first spot left, in this order: the centre of a free face; then a face beside its centre, by `READ_PORT_OFFSET` (12 px), on the side the other end lies; then the same face on the other side; then the next face. The face that holds the node's name is never used, and a Converter takes only its top or bottom face beside the centre, because its left and right faces are points. A spot holds one read connection. The offset is more than `PARALLEL_GAP` and inside a Converter's flat side of ±16 px.
 - **On the outline.** `symbolAnchorAt` puts the port on the symbol's outline at that offset, so the line meets a Pool's curve and a Converter's flat side.
