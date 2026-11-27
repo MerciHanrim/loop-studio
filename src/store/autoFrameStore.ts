@@ -51,30 +51,44 @@ type AutoFrameStore = {
   clearAuto: () => void
 }
 
+/** the set without one frame; the signature cleared when none is left */
+function withoutAuto(s: { autoFrames: AutoFrame[]; lastSignature: string | null }, id: string) {
+  const autoFrames = s.autoFrames.filter((f) => f.id !== id)
+  return { autoFrames, lastSignature: autoFrames.length > 0 ? s.lastSignature : null }
+}
+
 let seq = 0
 const newId = (): string => `af_${Date.now().toString(36)}_${(seq++).toString(36)}`
 
-/** the inputs `suggestFrames` needs, read from the live graph store. Only
- *  `id`, `kind` and `position` are passed — the algorithm's geometry is
- *  canonical and never reads React Flow's `measured` size (§AF8 / S9), so the
- *  store does not forward it. */
-function graphInputs(): { nodes: AFNode[]; edges: AFEdge[] } {
+/** a node as the staleness signature reads it: the algorithm's inputs and the
+ *  node's name, which the frame is drawn around (issue #618 item 2) */
+export type SignatureNode = AFNode & { label?: string }
+
+/** the inputs `suggestFrames` needs, read from the live graph store, and each
+ *  node's name for the signature. Only `id`, `kind` and `position` reach the
+ *  algorithm — its geometry is canonical and never reads React Flow's
+ *  `measured` size (§AF8 / S9), so the store does not forward it. */
+function graphInputs(): { nodes: SignatureNode[]; edges: AFEdge[] } {
   const g = useGraphStore.getState()
   return {
     nodes: g.nodes.map((n) => ({
       id: n.id,
       kind: (n.data as { kind?: string })?.kind ?? String(n.type),
       position: n.position,
+      label: (n.data as { label?: unknown })?.label as string | undefined,
     })),
     edges: g.edges.map((e) => ({ source: e.source, target: e.target })),
   }
 }
 
 /** a deterministic string over the structure + positions that would change the
- *  clustering or the rects. NOT a hash — a plain join is enough and is stable. */
-export function graphSignature(nodes: AFNode[], edges: AFEdge[]): string {
+ *  clustering or the rects, and the node names the frames are drawn around
+ *  (issue #618 item 2: a rename used to leave the hint off). NOT a hash — a
+ *  plain join is enough and is stable; a name is JSON-quoted so its text cannot
+ *  run into the separators. */
+export function graphSignature(nodes: SignatureNode[], edges: AFEdge[]): string {
   const n = nodes
-    .map((nd) => `${nd.id}:${nd.kind}:${Math.round(nd.position.x)},${Math.round(nd.position.y)}`)
+    .map((nd) => `${nd.id}:${nd.kind}:${Math.round(nd.position.x)},${Math.round(nd.position.y)}:${JSON.stringify(nd.label ?? '')}`)
     .sort()
     .join('|')
   const e = edges
@@ -107,10 +121,12 @@ export const useAutoFrameStore = create<AutoFrameStore>((set) => ({
     })
   },
 
-  // §AF5 R8 — remove one from the current set; not remembered.
-  dismissAuto: (id) => set((s) => ({ autoFrames: s.autoFrames.filter((f) => f.id !== id) })),
+  // §AF5 R8 — remove one from the current set; not remembered. The last one
+  // gone leaves nothing to be stale about, as an empty `suggest` (issue #618
+  // item 2: the hint stayed lit with no suggestion left).
+  dismissAuto: (id) => set((s) => withoutAuto(s, id)),
   // used by the render layer's "promote to manual" path (§AF5 R5).
-  removeAuto: (id) => set((s) => ({ autoFrames: s.autoFrames.filter((f) => f.id !== id) })),
+  removeAuto: (id) => set((s) => withoutAuto(s, id)),
 
   clearAuto: () => set((s) => (s.autoFrames.length === 0 && s.lastSignature === null ? s : { autoFrames: [], lastSignature: null })),
 }))
