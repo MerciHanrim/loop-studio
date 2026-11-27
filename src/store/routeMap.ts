@@ -852,8 +852,8 @@ export const RUN_FORM_SLOTS: readonly number[] = Array.from({ length: 29 }, (_, 
 
 /** one decision of a guarded label round (#617 item 4): the edge's route crossed
  *  `before` placed labels; the detour crosses `ofBefore` of those and `after` of
- *  every placed label, and is kept only when `after` < `before` */
-export type LabelRoundEntry = { id: string; round: number; before: number; ofBefore: number | null; after: number | null; outcome: 'no-route' | 'same' | 'lower-rung' | 'not-fewer' | 'accepted' }
+ *  every placed label, and is kept only when `ofBefore` < `before` and `after` <= `before` */
+export type LabelRoundEntry = { id: string; round: number; before: number; ofBefore: number | null; after: number | null; outcome: 'no-route' | 'same' | 'lower-rung' | 'not-fewer' | 'more' | 'accepted' }
 type RunFormReport = { groups: number; moved: string[]; unresolved: string[]; unchanged: string[][]; candidates: number; ms: number; endRoom?: { moved: string[]; kept: string[] }; labelRounds?: LabelRoundEntry[] }
 const NO_RUN_FORM: RunFormReport = { groups: 0, moved: [], unresolved: [], unchanged: [], candidates: 0, ms: 0 }
 /** the pass's report for the generation on screen (kept with each generation) */
@@ -1155,9 +1155,10 @@ function* fullSteps(nodes: LoopNode[], edges: LoopEdge[], out: GenOut): Generato
     yield `label ${e.id}`
   }
   // guarded rounds: an edge running through other edges' labels is routed again
-  // with those labels as soft obstacles, kept only when it crosses fewer of every
-  // placed label, not just of those (#617 item 4: one crossing traded for two),
-  // and is not a lower rung
+  // with those labels as soft obstacles, kept only when it crosses fewer of them,
+  // no more of every placed label (#617 item 4: one crossing was traded for two;
+  // one for one stays allowed, the label it moves to gets its own round), and is
+  // not a lower rung
   const labelRounds: LabelRoundEntry[] = []
   for (let round = 0; round < LABEL_ROUNDS; round++) {
     let changed = 0
@@ -1166,32 +1167,38 @@ function* fullSteps(nodes: LoopNode[], edges: LoopEdge[], out: GenOut): Generato
       if (!r) continue
       const crossed = [...placed].filter(([id, b]) => id !== e.id && polyHits(r.points, b)).map(([, b]) => b)
       if (crossed.length === 0) continue
-      // one rung of `SOFT_PADS` per step, until one is free
-      let r2: GuardedResult | null = null
-      for (const pad of SOFT_PADS) {
-        r2 = yield* routeOneSteps(p, e, routes, crossed, pad)
-        yield `round ${e.id} @${pad}`
-        if (r2) break
-      }
       const entry: LabelRoundEntry = { id: e.id, round, before: crossed.length, ofBefore: null, after: null, outcome: 'no-route' }
       labelRounds.push(entry)
-      if (!r2) continue
-      const detour = r2
-      entry.ofBefore = crossed.filter((b) => polyHits(detour.points, b)).length
-      entry.after = [...placed].filter(([id, b]) => id !== e.id && polyHits(detour.points, b)).length
-      if (r2.d === r.d) {
-        entry.outcome = 'same'
-        continue
+      const judge = (d: GuardedResult): LabelRoundEntry['outcome'] => {
+        entry.ofBefore = crossed.filter((b) => polyHits(d.points, b)).length
+        entry.after = [...placed].filter(([id, b]) => id !== e.id && polyHits(d.points, b)).length
+        if (d.d === r.d) return 'same'
+        if (CLASS_RANK[d.routeClass] > CLASS_RANK[r.routeClass]) return 'lower-rung'
+        if (entry.ofBefore >= crossed.length) return 'not-fewer'
+        if (entry.after > crossed.length) return 'more'
+        return 'accepted'
       }
-      if (CLASS_RANK[r2.routeClass] > CLASS_RANK[r.routeClass]) {
-        entry.outcome = 'lower-rung'
-        continue
+      // one rung of `SOFT_PADS` per step, until one is free. A detour that is not
+      // kept and newly crosses other labels is routed once more on that rung with
+      // those labels soft too (#617 item 4: measured on the Templates, refusing
+      // alone left MMO with more crossings than before)
+      let r2: GuardedResult | null = null
+      for (const pad of SOFT_PADS) {
+        let soft = crossed
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const d = yield* routeOneSteps(p, e, routes, soft, pad)
+          yield `round ${e.id} @${pad}`
+          if (!d) break
+          r2 = d
+          entry.outcome = judge(d)
+          if (entry.outcome === 'accepted') break
+          const newly = [...placed].filter(([id, b]) => id !== e.id && !soft.includes(b) && polyHits(d.points, b)).map(([, b]) => b)
+          if (newly.length === 0) break
+          soft = [...soft, ...newly]
+        }
+        if (r2) break
       }
-      if (entry.after >= crossed.length) {
-        entry.outcome = 'not-fewer'
-        continue
-      }
-      entry.outcome = 'accepted'
+      if (entry.outcome !== 'accepted' || !r2) continue
       routes.set(e.id, r2)
       stubs = sharedStubsOf(p, routes)
       placed.delete(e.id)
@@ -1225,8 +1232,8 @@ function* fullSteps(nodes: LoopNode[], edges: LoopEdge[], out: GenOut): Generato
     for (const pad of crossed.length > 0 ? SOFT_PADS : []) {
       const r2 = yield* routeOneSteps(p, e, routes, crossed, pad)
       if (!r2) continue
-      // fewer of every chip, as the label rounds (#617 item 4)
-      if (CLASS_RANK[r2.routeClass] <= CLASS_RANK[r.routeClass] && chips.filter((b) => polyHits(r2.points, b)).length < crossed.length) routes.set(e.id, r2)
+      // fewer of those chips and no more of every chip, as the label rounds (#617 item 4)
+      if (CLASS_RANK[r2.routeClass] <= CLASS_RANK[r.routeClass] && crossed.filter((b) => polyHits(r2.points, b)).length < crossed.length && chips.filter((b) => polyHits(r2.points, b)).length <= crossed.length) routes.set(e.id, r2)
       break
     }
     yield `read ${e.id}`

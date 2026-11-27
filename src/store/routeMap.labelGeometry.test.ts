@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { LoopEdge, LoopNode } from '../model/types'
 import mmoDoc from '../../examples/mmo-progression.json'
 import desalDoc from '../../examples/desalination.json'
+import bannerDoc from '../../examples/gacha-banner-zones.json'
 import { __polyHits, __resetRouteCache, bendRejection, chipBoxesOf, currentRouteGeneration, routeDiagnostics, setNodeNameBox, setRouteLabelSize } from './routeMap'
 
 // issue #617 items 1, 3, 4 and 5 — where a label meets a line, where a chip beside
@@ -126,12 +127,12 @@ describe('#617 item 3 — a chip beside its line is taken where it is drawn', ()
   })
 })
 
-describe('#617 item 4 — a label round keeps a detour only when it crosses fewer of every placed label', () => {
+describe('#617 item 4 — a label round keeps no detour that crosses more placed labels than its route did', () => {
   beforeEach(() => {
     __resetRouteCache()
   })
 
-  it('MMO progression, every chip 72 × 18: no detour kept that crosses as many placed labels as before, or more', () => {
+  it('MMO progression, every chip 72 × 18: no detour kept that crosses more placed labels than before', () => {
     const nodes = (mmoDoc as unknown as { nodes: LoopNode[] }).nodes
     const edges = (mmoDoc as unknown as { edges: LoopEdge[] }).edges
     for (const e of edges) setRouteLabelSize(e.id, 72, 18)
@@ -139,6 +140,26 @@ describe('#617 item 4 — a label round keeps a detour only when it crosses fewe
     const rounds = routeDiagnostics().runForm.labelRounds ?? []
     const accepted = rounds.filter((r) => r.outcome === 'accepted')
     expect(accepted.length).toBeGreaterThan(0) // the rounds do keep detours here
-    expect(accepted.filter((r) => (r.after ?? 0) >= r.before).map((r) => `${r.id}@${r.round} ${r.before}->${r.after}`)).toEqual([])
+    expect(accepted.filter((r) => (r.after ?? 0) > r.before).map((r) => `${r.id}@${r.round} ${r.before}->${r.after}`)).toEqual([])
+  })
+
+  // the final layout, every route against every chip as drawn: no more crossings than the
+  // route map had before #617 (measured on its code, 2026-11-27). Refusing a detour alone
+  // left MMO with more than before; the detour routed once more round the labels it newly
+  // crosses is what keeps the count down.
+  const docs = { mmo: mmoDoc, desal: desalDoc, banner: bannerDoc } as const
+  const BEFORE: [keyof typeof docs, number, number, number][] = [
+    ['mmo', 72, 18, 48], ['mmo', 80, 18, 65], ['mmo', 90, 19, 72],
+    ['desal', 72, 18, 3], ['desal', 80, 18, 3], ['desal', 90, 19, 2],
+    ['banner', 72, 18, 19], ['banner', 80, 18, 28], ['banner', 90, 19, 29],
+  ]
+  it.each(BEFORE)('%s, every chip %i × %i: no more route × chip crossings than before (%i)', (name, w, h, before) => {
+    const doc = docs[name] as unknown as { nodes: LoopNode[]; edges: LoopEdge[] }
+    for (const e of doc.edges) setRouteLabelSize(e.id, w, h, !!(e.data as { unit?: string }).unit)
+    const gen = currentRouteGeneration(doc.nodes, doc.edges)
+    const chips = chipBoxesOf(gen)
+    let n = 0
+    for (const [id, r] of gen.map) n += chips.filter((b) => b.id !== `label:${id}` && __polyHits(r.points, b)).length
+    expect(n).toBeLessThanOrEqual(before)
   })
 })
