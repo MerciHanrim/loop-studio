@@ -583,7 +583,8 @@ function LoopEdge({
     const next = el ? { w: el.offsetWidth, h: el.offsetHeight } : null
     setLabelSize((prev) => (prev && next && prev.w === next.w && prev.h === next.h ? prev : next))
     if (next && reportsRestSize) setRouteLabelSize(id, next.w, next.h, label.unit === true)
-  }, [labelKey, reportsRestSize, id])
+    // `label.unit` is in `labelKey` too, so listing it adds no run (#625 item 5, exhaustive-deps)
+  }, [labelKey, reportsRestSize, id, label.unit])
   // docs/edge-routing.md §ER15.2 — a label that grows in a run (a Value change:
   // Δ row and clamp note; a Trigger: its blocked note) also reports its RUN
   // FORM — the rendered border box at the largest it can grow to, every row at

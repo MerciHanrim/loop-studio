@@ -18,6 +18,6 @@
     // the correctness rules with warnings on 2026-11-27, and how many
     "react/set-state-in-effect": "warn", // 23
     "react/refs": "warn", // 15
-    "react-hooks/exhaustive-deps": "warn" // 11
+    "react-hooks/exhaustive-deps": "warn" // 11, then 7: 4 fixed in the charts and LoopEdge
   }
 }
