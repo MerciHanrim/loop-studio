@@ -41,7 +41,8 @@ const probe = (name, text) => {
 describe('the lint policy (#625 item 5)', () => {
   it('the lint script caps the warnings', () => {
     expect(script).toMatch(/^oxlint --max-warnings \d+$/)
-    expect(CAP).toBe(88)
+    // 88 on 2026-11-27; 82 once no-unused-vars (1) and no-unsafe-optional-chaining (5) were fixed
+    expect(CAP).toBe(82)
   })
 
   it('the code as it is passes, at the cap', { timeout: 60_000 }, () => {
@@ -58,9 +59,20 @@ describe('the lint policy (#625 item 5)', () => {
     expect(r.code).not.toBe(0)
   })
 
+  it('the rules moved up are errors: an unused variable, an unsafe optional chain', { timeout: 60_000 }, () => {
+    const unused = lint([probe('unused.ts', 'export function g(): number {\n  const unused = 1\n  return 2\n}\n')])
+    expect(unused.errors, unused.out).toBe(1)
+    expect(unused.out).toMatch(/no-unused-vars/)
+    expect(unused.code).not.toBe(0)
+    const chain = lint([probe('chain.ts', 'export function h(o?: { a: { b: number } }): number {\n  return (o?.a).b\n}\n')])
+    expect(chain.errors, chain.out).toBeGreaterThanOrEqual(1)
+    expect(chain.out).toMatch(/no-unsafe-optional-chaining/)
+    expect(chain.code).not.toBe(0)
+  })
+
   it('one more warning than the cap fails: the code as it is and one new warning', { timeout: 60_000 }, () => {
-    // a rule kept as a warning (eslint/no-unused-vars), in a file of its own
-    const p = probe('warning.ts', 'export function g(): number {\n  const unused = 1\n  return 2\n}\n')
+    // a rule kept as a warning (react/only-export-components), in a file of its own
+    const p = probe('warning.tsx', 'export function helper(): number {\n  return 1\n}\nexport function Card() {\n  return <div>{helper()}</div>\n}\n')
     const alone = lint([p])
     expect(alone.errors, alone.out).toBe(0)
     expect(alone.warnings).toBe(1)
