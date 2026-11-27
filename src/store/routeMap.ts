@@ -335,14 +335,29 @@ export function nameFootprintsOf(nodes: LoopNode[]): Array<{ id: string; name: B
 
 const hit = (a: Box, b: Box): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
 
-/** does the polyline enter box `b`'s interior? */
+/** does the polyline enter box `b`'s interior? Each segment is clipped to the
+ *  box's open interior (Liang–Barsky): for a horizontal or vertical segment the
+ *  answer is its bounding box's, and a diagonal one (a Straight connection) is
+ *  judged by the line itself, not by its bounding box (#617 item 1). */
 function polyHits(pts: Pt[], b: Box): boolean {
-  for (let i = 1; i < pts.length; i++) {
-    const a = pts[i - 1]
-    const c = pts[i]
-    if (Math.max(a.x, c.x) > b.x && Math.min(a.x, c.x) < b.x + b.w && Math.max(a.y, c.y) > b.y && Math.min(a.y, c.y) < b.y + b.h) return true
-  }
+  for (let i = 1; i < pts.length; i++) if (segmentEnters(pts[i - 1], pts[i], b)) return true
   return false
+}
+function segmentEnters(a: Pt, c: Pt, b: Box): boolean {
+  let t0 = 0
+  let t1 = 1
+  // one axis: the segment's parameter range strictly inside (lo, hi) on it
+  const axis = (p: number, d: number, lo: number, hi: number): boolean => {
+    if (d === 0) return p > lo && p < hi
+    const u = (lo - p) / d
+    const v = (hi - p) / d
+    t0 = Math.max(t0, Math.min(u, v))
+    t1 = Math.min(t1, Math.max(u, v))
+    return true
+  }
+  if (!axis(a.x, c.x - a.x, b.x, b.x + b.w) || !axis(a.y, c.y - a.y, b.y, b.y + b.h)) return false
+  // a non-empty open range: a segment that only touches a side or a corner has t0 === t1
+  return t0 < t1
 }
 
 /** the point at fraction `f` of a polyline's length */
@@ -837,7 +852,7 @@ export const RUN_FORM_SLOTS: readonly number[] = Array.from({ length: 29 }, (_, 
 
 /** one decision of a guarded label round (#617 item 4): the edge's route crossed
  *  `before` placed labels; the detour crosses `ofBefore` of those and `after` of
- *  every placed label */
+ *  every placed label, and is kept only when `after` < `before` */
 export type LabelRoundEntry = { id: string; round: number; before: number; ofBefore: number | null; after: number | null; outcome: 'no-route' | 'same' | 'lower-rung' | 'not-fewer' | 'accepted' }
 type RunFormReport = { groups: number; moved: string[]; unresolved: string[]; unchanged: string[][]; candidates: number; ms: number; endRoom?: { moved: string[]; kept: string[] }; labelRounds?: LabelRoundEntry[] }
 const NO_RUN_FORM: RunFormReport = { groups: 0, moved: [], unresolved: [], unchanged: [], candidates: 0, ms: 0 }
@@ -877,6 +892,9 @@ export function besideBox(near: Pt, side: LabelSide, s: LabelSize, id: string): 
   const y = side === 'left' || side === 'right' ? near.y - s.h / 2 : side === 'down' ? near.y : near.y - s.h
   return { id: `label:${id}`, x, y, w: s.w, h: s.h }
 }
+/** a chip's box from its stored point: centred on it, or, beside its line, hung
+ *  from it by its near edge (#617 item 3: four passes centred a beside chip) */
+const chipBoxAt = (at: Pt, s: LabelSize, id: string, beside: Beside | undefined): Box => (beside ? besideBox(at, beside.side, s, id) : labelBoxAt(at, s, id))
 
 type RunFormSpot = { box: Box; c: Pt; f: number; beside?: Beside }
 
@@ -954,7 +972,7 @@ function endRoomPass(
   for (const e of edges) {
     const c = centreOf(e.id)
     const s = runFormSizes.get(e.id) ?? labelSizes.get(e.id)
-    if (c && s) boxes.set(e.id, labelBoxAt(c, s, e.id))
+    if (c && s) boxes.set(e.id, chipBoxAt(c, s, e.id, beside.get(e.id) ?? free.get(e.id)?.beside))
   }
   const lines: [string, Pt[]][] = [...[...routes].map(([id, r]): [string, Pt[]] => [id, r.points]), ...p.lines]
   for (const e of covering) {
@@ -1137,7 +1155,8 @@ function* fullSteps(nodes: LoopNode[], edges: LoopEdge[], out: GenOut): Generato
     yield `label ${e.id}`
   }
   // guarded rounds: an edge running through other edges' labels is routed again
-  // with those labels as soft obstacles, kept only when it crosses fewer of them
+  // with those labels as soft obstacles, kept only when it crosses fewer of every
+  // placed label, not just of those (#617 item 4: one crossing traded for two),
   // and is not a lower rung
   const labelRounds: LabelRoundEntry[] = []
   for (let round = 0; round < LABEL_ROUNDS; round++) {
@@ -1168,7 +1187,7 @@ function* fullSteps(nodes: LoopNode[], edges: LoopEdge[], out: GenOut): Generato
         entry.outcome = 'lower-rung'
         continue
       }
-      if (entry.ofBefore >= crossed.length) {
+      if (entry.after >= crossed.length) {
         entry.outcome = 'not-fewer'
         continue
       }
@@ -1197,7 +1216,7 @@ function* fullSteps(nodes: LoopNode[], edges: LoopEdge[], out: GenOut): Generato
   out.runForm = { ...runForm, endRoom: endRoomPass(p, edges, routes, labels, free, stubs, besides), labelRounds }
   yield 'run form'
   // §M6-7 — last of all, the read connections, which go round the chips when they can
-  const chips = [...labels].flatMap(([id, c]) => (c && labelSizes.has(id) ? [labelBoxAt(c, labelSizes.get(id)!, id)] : []))
+  const chips = [...labels].flatMap(([id, c]) => (c && labelSizes.has(id) ? [chipBoxAt(c, labelSizes.get(id)!, id, besides.get(id))] : []))
   for (const e of p.reads) {
     const r = yield* routeOneSteps(p, e, routes, [])
     if (!r) continue
@@ -1270,7 +1289,7 @@ function provisional(nodes: LoopNode[], edges: LoopEdge[], from: Base): Required
   const redo = new Set([...first, ...then].map((e) => e.id))
   for (const [id, r] of out) {
     const s = labelSizes.get(id)
-    if (r.label && s && !redo.has(id)) placed.set(id, labelBoxAt(r.label, s, id))
+    if (r.label && s && !redo.has(id)) placed.set(id, chipBoxAt(r.label, s, id, r.beside))
   }
   const free = new Map<string, FreeSlot>()
   const freeRedo: LoopEdge[] = []
@@ -1282,7 +1301,7 @@ function provisional(nodes: LoopNode[], edges: LoopEdge[], from: Base): Required
     }
     free.set(e.id, s)
     const size = labelSizes.get(e.id)
-    if (size) placed.set(e.id, labelBoxAt(s.at, size, e.id))
+    if (size) placed.set(e.id, chipBoxAt(s.at, size, e.id, s.beside))
   }
   const t0 = now()
   let longest = 0
@@ -1605,11 +1624,7 @@ export function chipBoxesOf(gen: { map: ReadonlyMap<string, RoutedEdge>; free: R
   const out: Box[] = []
   const add = (id: string, at: Pt | null, beside?: Beside) => {
     const s = labelSizes.get(id)
-    if (!s || !at) return
-    const side = beside?.side
-    const x = side === 'left' ? at.x - s.w : side === 'right' ? at.x : at.x - s.w / 2
-    const y = side === 'up' ? at.y - s.h : side === 'down' ? at.y : at.y - s.h / 2
-    out.push({ id: `label:${id}`, x, y, w: s.w, h: s.h })
+    if (s && at) out.push(chipBoxAt(at, s, id, beside))
   }
   for (const [id, r] of gen.map) add(id, r.label, r.beside)
   for (const [id, f] of gen.free) add(id, f.at, f.beside)
@@ -1672,14 +1687,18 @@ export function currentRouteMap(nodes: LoopNode[], edges: LoopEdge[]): ReadonlyM
 /** how close to a port stub a bend point may not be, flow px */
 export const BEND_STUB_TOL = 8
 
-/** why a bend point of `edgeId` cannot be at `p`: inside a node, or on one of
- *  the connection's own port stubs (the stretch from a port to `ROUTE_STUB`
- *  past its node's side, which the router owns); null when it can. A refused
- *  edit is undone, never adjusted. */
-export function bendRejection(nodes: LoopNode[], edges: LoopEdge[], edgeId: string, p: Pt): 'node' | 'stub' | null {
+/** why a bend point of `edgeId` cannot be at `p`: inside a node, inside a
+ *  node's outside name (the router goes round every name, its own ends' too, and
+ *  would drop the point: #617 item 5), or on one of the connection's own port
+ *  stubs (the stretch from a port to `ROUTE_STUB` past its node's side, which
+ *  the router owns); null when it can. A refused edit is undone, never
+ *  adjusted. */
+export function bendRejection(nodes: LoopNode[], edges: LoopEdge[], edgeId: string, p: Pt): 'node' | 'name' | 'stub' | null {
+  const inside = (b: Box) => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h
+  for (const n of nodes) if (inside(boxOf(n))) return 'node'
   for (const n of nodes) {
-    const b = boxOf(n)
-    if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) return 'node'
+    const name = nameBoxOf(n)
+    if (name && inside(name)) return 'name'
   }
   const e = edges.find((x) => x.id === edgeId)
   if (!e) return null
