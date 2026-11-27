@@ -79,6 +79,42 @@ test('precache is EN + app shell only — no locale chunk', async ({ page }) => 
   expect(list.some((u) => /^icons\/.+\.png$/.test(u))).toBe(true)
 })
 
+// issue #625 item 4 — the host answers a missing file with the app's HTML page and a 200
+// (measured on the production site on 2026-11-27: `/assets/locale-ko-…js` that does not
+// exist → 200, `text/html; charset=utf-8`; this server does the same, its SPA fallback). A
+// locale chunk the SW fetches that way must not be kept: CacheFirst would then serve the
+// page for that chunk every time after. A real chunk is still kept.
+test.describe('the locale-chunk cache keeps JavaScript only (#625 item 4)', () => {
+  const MISSING = '/assets/locale-ko-Zz625chk.js'
+
+  test('the server answers a missing locale chunk like the host: 200 and the HTML page', async ({ page }) => {
+    await setGen(page, 'a')
+    const r = await page.request.get(`${ORIGIN}${MISSING}`)
+    expect(r.status()).toBe(200)
+    expect(r.headers()['content-type']).toMatch(/^text\/html/)
+    expect(LOCALE_CHUNK_RE.test(MISSING)).toBe(true) // the SW's rule applies to it
+  })
+
+  test('that HTML response, fetched through the SW, is not cached; a real chunk loaded after it is', async ({ page }) => {
+    await setGen(page, 'a')
+    await installAndControl(page)
+    const got = await page.evaluate(async (u) => {
+      const r = await fetch(u)
+      return { status: r.status, type: r.headers.get('content-type'), viaSw: !!navigator.serviceWorker.controller }
+    }, MISSING)
+    expect(got).toEqual({ status: 200, type: expect.stringMatching(/^text\/html/), viaSw: true })
+    // give the SW's cache write (asynchronous after the response) time to land
+    await page.waitForTimeout(500)
+    expect(await localeCachePaths(page)).not.toContain(MISSING)
+
+    // control: the same SW still keeps a real chunk
+    await pickLocale(page, 'ko')
+    await expect.poll(() => htmlLang(page)).toBe('ko')
+    await expect.poll(() => localeCachePaths(page)).toEqual(expect.arrayContaining([expect.stringMatching(/\/assets\/locale-ko-(?!Zz625chk)/)]))
+    expect(await localeCachePaths(page)).not.toContain(MISSING)
+  })
+})
+
 test('a language loaded under an active SW is runtime-cached and works offline', async ({ page, context }) => {
   await setGen(page, 'a')
   await installAndControl(page)
