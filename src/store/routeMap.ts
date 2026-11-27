@@ -1450,7 +1450,9 @@ export function routeDiagnostics(): Report & { provisional: typeof lastProvision
  *  Non-layout fields — `selected`, `dragging`, `data.label`, values, classes —
  *  are deliberately NOT part of it. issue #344 — the label sizes of routed
  *  edges are part of it; §ER15 — so is every edge's shape and label size, as
- *  Curved and Straight labels are placed too. */
+ *  Curved and Straight labels are placed too; #617 item 6 — and whether a chip
+ *  prints a unit and whether a line is a Value change, which the last passes
+ *  read. */
 export function layoutSignature(nodes: LoopNode[], edges: LoopEdge[]): string {
   const ns: (string | number | boolean)[][] = []
   const symbols = symbolNodes()
@@ -1470,7 +1472,12 @@ export function layoutSignature(nodes: LoopNode[], edges: LoopEdge[]): string {
     // §ER15.2 — and a label's run-form size (read by the last pass only)
     const rs = runFormSizes.get(e.id)
     const rp = (e.data as { readPort?: unknown } | undefined)?.readPort
-    es.push([...(rp ? [rp] : []), e.id, shape, e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, shape === 'o' && Array.isArray(wp) ? wp : null, ls ? [ls.w, ls.h] : null, faceOf(e, 'source'), faceOf(e, 'target'), rs ? [rs.w, rs.h] : null])
+    // #617 item 6 — read by the passes too: whether the chip prints a unit (the
+    // end-room pass, §ER15.3) and whether the line is a Value change (the
+    // run-form groups, §ER15.2, `repeatedChangeGroups`); either can change alone
+    const d = e.data as { kind?: unknown; mode?: unknown } | undefined
+    const valueChange = d?.kind === 'state' && d.mode === 'label'
+    es.push([...(rp ? [rp] : []), e.id, shape, e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, shape === 'o' && Array.isArray(wp) ? wp : null, ls ? [ls.w, ls.h] : null, faceOf(e, 'source'), faceOf(e, 'target'), rs ? [rs.w, rs.h] : null, ls?.showsUnit === true, valueChange])
   }
   return JSON.stringify([ns, es])
 }

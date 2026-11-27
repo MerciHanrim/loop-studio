@@ -94,12 +94,24 @@ is prepared** (a graph edit mid-transition cancels playback — §PB7 — so the
 snapshot is never stale during a run).
 
 **Bucket.** Events are grouped into ordered buckets: the Phase-1 bucket first,
-then one bucket per distinct Phase-2 routing-SCC, ordered by that SCC's
-longest-predecessor depth (id-ascending tiebreak). Let `B` be the count of
+then **one bucket per distinct Phase-2 depth**: every routing-SCC at one
+longest-predecessor depth shares that depth's bucket. Let `B` be the count of
 non-empty buckets this step. Same bucket ⇒ **identical onset** (parallel
 siblings, and every edge inside one SCC, move together). Only the depths that
 actually occur are kept, then the list is compressed to consecutive indices and
-clamped to `STAGGER_MAX_BUCKETS` (deeper ranks fold into the last bucket).
+clamped to `STAGGER_MAX_BUCKETS` (deeper depths fold into the last bucket). A
+depth is never split over two buckets.
+
+- Until 2026-11-27 each routing-SCC took its own bucket, ordered by depth and
+  then by id. Siblings at one depth started one after another, in id order (on
+  Coffee roastery, the three outflows of Roasted bean stock at 0.18, 0.24 and
+  0.30), and a depth could be split across the cap. The two halves of this
+  section disagreed; Lumi settled it as one bucket per depth (#617 item 7).
+- The cost, measured on Coffee roasting batch's step 2: the drum's three
+  outputs now leave together, on lines 6 px apart. For about the first fifth
+  of the step (0.5 s at the slowest speed, 2400 ms a step) the tokens are
+  bunched and one amount badge is held back until they separate. After that
+  each is apart and readable.
 
 **PBO1.1 — the stagger is a visual narration, not a physical route.** Every value
 is computed **atomically against `S(t)`** (I7) — Phase-2 processing consumes what
