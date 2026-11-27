@@ -17,6 +17,14 @@
 export const LOCALE_CHUNK_RE =
   /(?:^|\/)assets\/(?:locale|tmpl-labels)-[A-Za-z0-9-]+-[A-Za-z0-9_-]+\.js$/
 
+// issue #625 item 4 — the runtime cache the locale chunks are kept in. Renamed from
+// `LOCALE_CHUNK_CACHE_BEFORE_625` when it started keeping JavaScript only: a
+// service worker before that may have stored the HTML page under a chunk's URL,
+// and CacheFirst reads only its own cache, so this one never reads those
+// entries. The earlier cache is not deleted by this.
+export const LOCALE_CHUNK_CACHE = 'loop-locale-chunks-js'
+export const LOCALE_CHUNK_CACHE_BEFORE_625 = 'loop-locale-chunks'
+
 // issue #625 item 4 — which response to such a URL the runtime cache keeps: a 200
 // served as JavaScript, nothing else. The host answers a file it does not have
 // with the app's HTML page and a 200 (measured on the production site,

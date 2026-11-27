@@ -106,7 +106,7 @@ and no injected `<link rel="manifest">` (§P9 D8a, Slice-1 criterion 5).
     urlPattern: LOCALE_CHUNK_RE,          // shared from scripts/locale-chunk.mjs — the
     handler: 'CacheFirst',                //   RegExp itself, not a callback (generateSW
     options: {                            //   serialises this into sw.js)
-      cacheName: 'loop-locale-chunks',
+      cacheName: LOCALE_CHUNK_CACHE,      // 'loop-locale-chunks-js' (#625 item 4, below)
       expiration: { maxEntries: 24 },
       // a 200 served as JavaScript only (#625 item 4, below)
       plugins: [{ cacheWillUpdate: localeChunkCacheWillUpdate }],
@@ -122,7 +122,7 @@ Explicitly **excluded**: source maps (`*.map`), any `stats.html` / bundle
 report, anything outside `dist/`, and — deliberately — the per-locale
 **`locale-*` / `tmpl-labels-*` chunks** (docs/localization.md §L4.5). Precaching
 every language would defeat the split; instead each is `CacheFirst`
-runtime-cached in `loop-locale-chunks`, fetched the first time that language is
+runtime-cached in `loop-locale-chunks-js`, fetched the first time that language is
 loaded.
 
 **`check:pwa-closure`** enforces the split: every app-shell essential
@@ -137,12 +137,14 @@ its `NavigationRoute` app-shell fallback (see below).
 - The rule: a response is kept only when it is a 200 served as JavaScript (`localeChunkCacheWillUpdate`, `scripts/locale-chunk.mjs`).
 - Why: the host answers a file it does not have with the app's HTML page and a 200. The production site does, for `/assets/locale-ko-…js` that does not exist; so does the PWA test server.
 - Until then the rule was `statuses: [0, 200]`. A locale chunk missing at the host, as an app shell from an earlier deploy can still ask for one, was stored as that page. `CacheFirst` then served the page for that URL every time after.
-- What this does not change:
-  - such an app's first load of that language still fails;
-  - entries already stored by an earlier service worker are not removed. The cache keeps its name, and a later service worker still reads such an entry if it asks for the same URL.
+- The cache was renamed at the same time, `loop-locale-chunks` → `loop-locale-chunks-js` (`LOCALE_CHUNK_CACHE`; the earlier name is `LOCALE_CHUNK_CACHE_BEFORE_625`). An earlier service worker may have stored the HTML page under a real chunk's URL, and `CacheFirst` reads only its own cache. **So the earlier entries are not read. Whether they are deleted is a separate matter**: nothing here deletes them. In the test below, after the new worker's boot, the earlier cache still held both entries planted in it.
+- What this does not change: an app shell from an earlier deploy that asks for a chunk the host no longer has still gets the HTML page, and that first load of the language still fails. The rule and the new name keep such a page from being stored or read again, so the failure does not persist through the cache.
+- Pinned by `e2e/i18n.pwa.spec.ts`:
+  - the server's answer to a missing chunk, and the service worker not keeping it;
+  - a real chunk still kept;
+  - the HTML page planted in the earlier cache under the real Korean chunks' URLs not read: Korean still loads, and the new cache holds JavaScript for them. With the earlier name kept, Korean did not load.
 
-  The rule only keeps such a response from being stored, so a failure does not persist through the cache.
-- Pinned by `e2e/i18n.pwa.spec.ts`: the server's answer to a missing chunk, the SW not keeping it, and a real chunk still kept. Also by `scripts/locale-chunk.test.mjs`: the rule, and its text running as written, as `sw.js` carries it.
+  Also by `scripts/locale-chunk.test.mjs`: the rule, and its text running as written, as `sw.js` carries it.
 
 **Locale offline guarantee.** A language is offline-available once its chunks
 have been fetched **while the Service Worker controls the page** — i.e.
@@ -153,7 +155,7 @@ language while offline is refused — the current language, node labels,
 `<html lang|dir>` and the stored preference are all kept, and
 `LocaleLoadNotice` explains why. There is no idle re-fetch: a re-`import()` of
 an already-resident module makes no request, and a locale loaded under an
-active SW is already in `loop-locale-chunks` (the boot / switch `import()` flows
+active SW is already in `loop-locale-chunks-js` (the boot / switch `import()` flows
 through the `CacheFirst` route).
 
 **Cache versioning** — Workbox writes one precache keyed to the build's revision

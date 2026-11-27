@@ -1,12 +1,12 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { LOCALE_CHUNK_RE } from '../scripts/locale-chunk.mjs'
+import { LOCALE_CHUNK_CACHE, LOCALE_CHUNK_CACHE_BEFORE_625, LOCALE_CHUNK_RE } from '../scripts/locale-chunk.mjs'
 
 // Runs under playwright.pwa.config.ts — a real `--mode pwa` build with the
 // service worker, served by e2e/support/pwa-serve.mjs at :4174.
 // docs/localization.md §L4.5 / docs/pwa.md §P8 — the per-locale `locale-*` /
 // `tmpl-labels-*` chunks are NOT precached; they are CacheFirst runtime-cached
-// in `loop-locale-chunks`, so a language becomes offline-usable once loaded
+// in `LOCALE_CHUNK_CACHE`, so a language becomes offline-usable once loaded
 // while the SW controls the page.
 
 const ORIGIN = 'http://localhost:4174'
@@ -52,14 +52,14 @@ async function pickLocale(page: Page, code: string) {
   await page.locator(`.lang-menu__item[data-locale="${code}"]`).click()
 }
 
-/** paths held in the `loop-locale-chunks` runtime cache */
-const localeCachePaths = (page: Page) =>
-  page.evaluate(async () => {
-    const has = (await caches.keys()).includes('loop-locale-chunks')
+/** paths held in a runtime cache, by default the locale-chunk one */
+const localeCachePaths = (page: Page, name: string = LOCALE_CHUNK_CACHE) =>
+  page.evaluate(async (name) => {
+    const has = (await caches.keys()).includes(name)
     if (!has) return []
-    const reqs = await (await caches.open('loop-locale-chunks')).keys()
+    const reqs = await (await caches.open(name)).keys()
     return reqs.map((r) => new URL(r.url).pathname).sort()
-  })
+  }, name)
 
 const swPrecache = (page: Page) =>
   page.request
@@ -113,6 +113,41 @@ test.describe('the locale-chunk cache keeps JavaScript only (#625 item 4)', () =
     await expect.poll(() => localeCachePaths(page)).toEqual(expect.arrayContaining([expect.stringMatching(/\/assets\/locale-ko-(?!Zz625chk)/)]))
     expect(await localeCachePaths(page)).not.toContain(MISSING)
   })
+
+  test('an HTML page an earlier worker kept under a real chunk URL is not read: the language still loads', async ({ page }) => {
+    await setGen(page, 'a')
+    await installAndControl(page)
+    // the real Korean chunks' URLs, from a first load (saved as the language)
+    await pickLocale(page, 'ko')
+    await expect.poll(() => htmlLang(page)).toBe('ko')
+    await expect.poll(() => localeCachePaths(page)).toEqual(expect.arrayContaining([expect.stringMatching(/\/assets\/locale-ko-/), expect.stringMatching(/\/assets\/tmpl-labels-ko-/)]))
+    const ko = (await localeCachePaths(page)).filter((p) => /\/assets\/(?:locale|tmpl-labels)-ko-/.test(p))
+
+    // what a worker before #625 could leave: the HTML page under those URLs, in the cache it used
+    const planted = await page.evaluate(async ({ name, before, paths }) => {
+      await caches.delete(name)
+      const old = await caches.open(before)
+      for (const p of paths) await old.put(new URL(p, location.origin).href, new Response('<!doctype html><html lang="en"><body>app</body></html>', { headers: { 'content-type': 'text/html; charset=utf-8' } }))
+      return (await old.keys()).length
+    }, { name: LOCALE_CHUNK_CACHE, before: LOCALE_CHUNK_CACHE_BEFORE_625, paths: ko })
+    expect(planted).toBe(ko.length)
+
+    // a fresh boot in the saved language: its chunks go through this worker again
+    await page.reload()
+    await page.waitForFunction(() => !!navigator.serviceWorker.controller)
+    await expect(page.locator('.canvas .react-flow')).toBeVisible()
+    await expect.poll(() => htmlLang(page)).toBe('ko')
+    await expect(page.locator('.boot-notice[role="status"]')).toHaveCount(0)
+    // the chunks this worker now holds are the real ones, as JavaScript
+    const held = await page.evaluate(async ({ name, paths }) => {
+      const c = await caches.open(name)
+      return Promise.all(paths.map(async (p) => (await c.match(new URL(p, location.origin).href))?.headers.get('content-type') ?? null))
+    }, { name: LOCALE_CHUNK_CACHE, paths: ko })
+    for (const t of held) expect(t).toMatch(/javascript/)
+    // recorded, not required: the earlier cache is not deleted by this worker
+    const oldStill = await localeCachePaths(page, LOCALE_CHUNK_CACHE_BEFORE_625)
+    test.info().annotations.push({ type: 'earlier cache after the boot', description: `${LOCALE_CHUNK_CACHE_BEFORE_625}: ${oldStill.length} entries` })
+  })
 })
 
 test('a language loaded under an active SW is runtime-cached and works offline', async ({ page, context }) => {
@@ -151,7 +186,7 @@ test('a fresh SW-controlled boot in a saved language has that language cached �
   // brand-new context: SW is installed but does not control the FIRST load
   // (clientsClaim:false). One reload → controlled → the boot import() of the
   // saved KO locale flows through CacheFirst and is stored.
-  await page.evaluate(() => caches.delete('loop-locale-chunks'))
+  await page.evaluate((name) => caches.delete(name), LOCALE_CHUNK_CACHE)
   await page.reload() // still not necessarily controlled here…
   await page.waitForFunction(() => !!navigator.serviceWorker.controller)
   await page.reload() // …controlled now; this boot caches KO

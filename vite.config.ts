@@ -7,7 +7,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { configDefaults, defineConfig } from 'vitest/config'
 import { viteSingleFile } from 'vite-plugin-singlefile'
 import { manifest } from './src/pwa/manifest.ts'
-import { LOCALE_CHUNK_RE, localeChunkCacheWillUpdate } from './scripts/locale-chunk.mjs'
+import { LOCALE_CHUNK_CACHE, LOCALE_CHUNK_RE, localeChunkCacheWillUpdate } from './scripts/locale-chunk.mjs'
 import { VITE_LICENSE_JSON, thirdPartyNotices, thirdPartyNoticesDev } from './scripts/third-party-notices/vite-plugin.mjs'
 
 // docs/localization.md §L4.5 — each non-`en` UI catalog and template-label dict
@@ -156,7 +156,9 @@ export default defineConfig(({ mode }) => {
                     urlPattern: LOCALE_CHUNK_RE,
                     handler: 'CacheFirst',
                     options: {
-                      cacheName: 'loop-locale-chunks',
+                      // issue #625 item 4 — a new name: entries an earlier worker
+                      // stored, the HTML page among them, are not read
+                      cacheName: LOCALE_CHUNK_CACHE,
                       expiration: { maxEntries: 24 },
                       // issue #625 item 4 — a 200 served as JavaScript only: the
                       // host answers a missing chunk with the HTML page and a 200,
