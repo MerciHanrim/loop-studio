@@ -13,19 +13,21 @@ const script = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scri
 const CAP = Number(/--max-warnings[ =](\d+)/.exec(script)?.[1])
 const OXLINT = join(ROOT, 'node_modules', 'oxlint', 'bin', 'oxlint')
 
-/** oxlint with the repository's config and the script's cap, on `paths`: its exit code and the counts it reports */
+/** oxlint with the repository's config and the script's cap, on `paths`: its exit code and the counts it
+ *  reports. The JSON format is asked for: oxlint picks its default format by environment (on GitHub
+ *  Actions it prints `::error …` annotations), and the counts must not depend on that. */
 function lint(paths) {
   let out = ''
   let code = 0
   try {
-    out = execFileSync(process.execPath, [OXLINT, '-c', join(ROOT, '.oxlintrc.json'), '--max-warnings', String(CAP), ...paths], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+    out = execFileSync(process.execPath, [OXLINT, '-c', join(ROOT, '.oxlintrc.json'), '--format', 'json', '--max-warnings', String(CAP), ...paths], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
   } catch (e) {
     code = e.status ?? 1
-    out = `${e.stdout ?? ''}${e.stderr ?? ''}`
+    out = `${e.stdout ?? ''}`
   }
-  // one line per diagnostic: `path:line:col: warning|error plugin(rule): …`
-  const count = (kind) => out.split(/\r?\n/).filter((l) => new RegExp(`:\\d+:\\d+: ${kind} `).test(l)).length
-  return { code, warnings: count('warning'), errors: count('error'), out }
+  const diagnostics = JSON.parse(out).diagnostics
+  const count = (severity) => diagnostics.filter((d) => d.severity === severity).length
+  return { code, warnings: count('warning'), errors: count('error'), out: out.slice(0, 2000) }
 }
 
 const dir = mkdtempSync(join(tmpdir(), 'lint-policy-'))
