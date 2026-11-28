@@ -49,9 +49,10 @@ export function ViewMenu({ buttonRef }: { buttonRef?: (el: HTMLButtonElement | n
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   }, [open])
-  useEffect(() => {
-    if (!open) setActiveRow(null)
-  }, [open])
+  // View closed: no row stays open. Set during render (#625 item 5, set-state-in-effect). It is
+  // needed: a press outside (the canvas) closes View before the row's own outside-press listener
+  // runs, and a click with no mousedown reaches no such listener, so the row would stay open
+  if (!open && activeRow !== null) setActiveRow(null)
   useEffect(() => {
     useMenuOpenStore.getState().setOpen('view', open)
     return () => useMenuOpenStore.getState().setOpen('view', false)
