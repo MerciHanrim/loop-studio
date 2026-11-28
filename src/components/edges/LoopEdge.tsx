@@ -454,11 +454,15 @@ function LoopEdge({
   // geometry every frame. L1, the fast tiers' arrival badge and the
   // reduced-motion static badge keep their place and their showing.
   const t3 = pbPt != null && pbTier === 'full' && lod === 'L2'
-  const planRef = useRef<{ step: number; place: BadgePlace } | null>(null)
-  if (t3 && planRef.current?.step !== transition!.fromStep) {
-    planRef.current = { step: transition!.fromStep, place: badgePlaces(gNodes, gEdges, gen.map).get(id) ?? 'up-right' }
+  // the place held for the step, in state: set during render when a new step first needs it,
+  // so this render uses it and the next renders keep it (#625 item 5, refs)
+  const [planHeld, setPlanHeld] = useState<{ step: number; place: BadgePlace } | null>(null)
+  let plan = planHeld
+  if (t3 && plan?.step !== transition!.fromStep) {
+    plan = { step: transition!.fromStep, place: badgePlaces(gNodes, gEdges, gen.map).get(id) ?? 'up-right' }
+    setPlanHeld(plan)
   }
-  const badgePlace: BadgePlace = t3 ? planRef.current!.place : 'up-right'
+  const badgePlace: BadgePlace = t3 ? plan!.place : 'up-right'
   const t3Bodies = t3 ? [gNodes.find((n) => n.id === source), gNodes.find((n) => n.id === target)].map((n) => (n ? nodeBodyBox(n) : null)) : null
   const t3Clear =
     !t3 ||

@@ -17,7 +17,7 @@
     "react/only-export-components": ["warn", { "allowConstantExport": true }],
     // the correctness rules with warnings on 2026-11-27, and how many
     "react/set-state-in-effect": "warn", // 23, then 21 (the overflow menu and the run-rule draft reset during render), then 20 (View's open row)
-    "react/refs": "warn", // 15, then 13 (Canvas's initial view is an effect event), then 8 (RouteBends' and FrameLayer's key gestures and the frame chip), then 6 (the Timeline area's most from the column's observed height)
+    "react/refs": "warn", // 15, then 13 (Canvas's initial view is an effect event), then 8 (RouteBends' and FrameLayer's key gestures and the frame chip), then 6 (the Timeline area's most from the column's observed height), then 0 in view (LoopEdge's badge place held in state); the one under a suppression comment remains, so it stays a warning
     // 11, then 7 (4 fixed in the charts and LoopEdge), then 1 (6 in Canvas), then 0 in view
     // (TimelineChart's floor); the ones under suppression comments remain, so it stays a warning
     "react-hooks/exhaustive-deps": "warn"
