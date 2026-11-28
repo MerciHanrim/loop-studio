@@ -84,6 +84,14 @@ describe('the lint policy (#625 item 5)', () => {
     expect(prop.code).not.toBe(0)
   })
 
+  it('react/refs is an error: a ref written during render fails with exit code 1', { timeout: 60_000 }, () => {
+    const r = lint([probe('refs.tsx', "import { useRef } from 'react'\nexport function Box({ v }: { v: number }) {\n  const last = useRef(0)\n  last.current = v\n  return <div>{v}</div>\n}\n")])
+    const refs = JSON.parse(r.raw).diagnostics.filter((d) => d.code.includes('(refs)'))
+    expect(refs.length, r.out).toBe(1)
+    expect(refs[0].severity, r.out).toBe('error')
+    expect(r.code).toBe(1)
+  })
+
   it('one more warning than the cap fails: the code as it is and one new warning', { timeout: 60_000 }, () => {
     // a rule kept as a warning (react/only-export-components), in a file of its own
     const p = probe('warning.tsx', 'export function helper(): number {\n  return 1\n}\nexport function Card() {\n  return <div>{helper()}</div>\n}\n')
