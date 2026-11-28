@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { EdgeLabelRenderer, useReactFlow } from '@xyflow/react'
 import { useT } from '../../i18n'
 import { snapPoint, GRID } from '../../model/layout/grid'
 import { useGraphStore, type GestureSnapshot } from '../../store/graphStore'
 import { useRouteEditStore } from '../../store/routeEditStore'
 import { beginLiveLayout, bendRejection, endLiveLayout } from '../../store/routeMap'
-import { createKeyGesture, type GestureEndReason } from '../../ui/keyGestureLifetime'
+import { createKeyGesture, type GestureEndReason, type KeyGesture } from '../../ui/keyGestureLifetime'
 
 // issue #344 step 3 (docs/diagram-layout.md §DL4, docs/edge-routing.md §ER16) —
 // the bend points of the selected Manual orthogonal connection, as handles.
@@ -89,25 +89,30 @@ export function RouteBends({ edgeId, waypoints }: { edgeId: string; waypoints: P
     setInvalidAt(rejected(p) ? g.index : null)
   }
 
-  // the latest `close`, for the gesture lifetime and the unmount clean-up
+  // the latest committed `close`, for the gesture lifetime and the unmount clean-up: set
+  // after each commit (#625 item 5, refs), and read only from events and effects
   const closeRef = useRef(close)
-  closeRef.current = close
-  const keyGesture = useMemo(() => createKeyGesture((reason: GestureEndReason) => closeRef.current(reason !== 'cancel')), [])
+  useLayoutEffect(() => {
+    closeRef.current = close
+  })
+  // the key gesture is made on its first use, in a handler or an effect, never in render
+  const keyGestureRef = useRef<KeyGesture | null>(null)
+  const keyGesture = useCallback(() => (keyGestureRef.current ??= createKeyGesture((reason: GestureEndReason) => closeRef.current(reason !== 'cancel'))), [])
   useEffect(() => {
     const onKeyUp = (e: KeyboardEvent) => {
-      if (ARROWS[e.key]) keyGesture.release(e.key)
+      if (ARROWS[e.key]) keyGesture().release(e.key)
     }
     // #612 item 3 — a pointer drag whose pointer is lost is cancelled (see `letGo`)
     const cancelPointerDrag = () => {
-      if (letGo(pointerRef) && !keyGesture.active) closeRef.current(false)
+      if (letGo(pointerRef) && !keyGesture().active) closeRef.current(false)
     }
     const onBlur = () => {
       cancelPointerDrag()
-      keyGesture.end('blur')
+      keyGesture().end('blur')
     }
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') cancelPointerDrag()
-      keyGesture.end('visibility')
+      keyGesture().end('visibility')
     }
     window.addEventListener('keyup', onKeyUp)
     window.addEventListener('blur', onBlur)
@@ -116,7 +121,7 @@ export function RouteBends({ edgeId, waypoints }: { edgeId: string; waypoints: P
       window.removeEventListener('keyup', onKeyUp)
       window.removeEventListener('blur', onBlur)
       document.removeEventListener('visibilitychange', onVisibility)
-      keyGesture.end('blur')
+      keyGesture().end('blur')
       closeRef.current(true)
     }
   }, [keyGesture])
@@ -144,7 +149,7 @@ export function RouteBends({ edgeId, waypoints }: { edgeId: string; waypoints: P
             if (e.button !== 0) return
             e.stopPropagation()
             e.preventDefault()
-            keyGesture.end('pointerdown')
+            keyGesture().end('pointerdown')
             // the handle takes the keys, so Escape reaches it mid-drag
             e.currentTarget.focus()
             e.currentTarget.setPointerCapture(e.pointerId)
@@ -155,23 +160,23 @@ export function RouteBends({ edgeId, waypoints }: { edgeId: string; waypoints: P
           }}
           onPointerMove={(e) => {
             const g = gestureRef.current
-            if (!g || g.index !== i || keyGesture.active) return
+            if (!g || g.index !== i || keyGesture().active) return
             const f = screenToFlowPosition({ x: e.clientX, y: e.clientY })
             moveTo(g, e.altKey ? f : snapPoint(f))
           }}
           onPointerUp={(e) => {
             pointerRef.current = null
             if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
-            if (!keyGesture.active) close(true)
+            if (!keyGesture().active) close(true)
           }}
           onPointerCancel={() => {
             pointerRef.current = null
-            if (!keyGesture.active) close(false)
+            if (!keyGesture().active) close(false)
           }}
           // a capture lost while the drag still holds it (after a normal release it holds none)
           onLostPointerCapture={(e) => {
             const held = pointerRef.current
-            if (held?.id === e.pointerId && held.el === e.currentTarget && letGo(pointerRef) && !keyGesture.active) close(false)
+            if (held?.id === e.pointerId && held.el === e.currentTarget && letGo(pointerRef) && !keyGesture().active) close(false)
           }}
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => {
@@ -180,13 +185,13 @@ export function RouteBends({ edgeId, waypoints }: { edgeId: string; waypoints: P
               e.preventDefault()
               e.stopPropagation()
               let g = gestureRef.current
-              if (!g || !keyGesture.active || g.index !== i) {
-                keyGesture.end('superseded')
+              if (!g || !keyGesture().active || g.index !== i) {
+                keyGesture().end('superseded')
                 closeRef.current(true)
                 g = open(i)
               }
               const step = e.shiftKey ? GRID * 4 : GRID
-              keyGesture.press(e.key)
+              keyGesture().press(e.key)
               moveTo(g, snapPoint({ x: g.at.x + dir[0] * step, y: g.at.y + dir[1] * step }))
               return
             }
@@ -194,7 +199,7 @@ export function RouteBends({ edgeId, waypoints }: { edgeId: string; waypoints: P
               if (gestureRef.current) {
                 e.preventDefault()
                 e.stopPropagation()
-                if (keyGesture.active) keyGesture.end('cancel')
+                if (keyGesture().active) keyGesture().end('cancel')
                 else close(false)
               }
               return

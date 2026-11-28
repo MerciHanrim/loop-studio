@@ -323,6 +323,29 @@ test.describe('frame accessibility — keyboard move and resize (§LGR6.6)', () 
     expect((await history(page)).past - h1.past, 'the stray keyup adds nothing').toBe(0)
   })
 
+  // #625 item 5 (Lumi, 2026-11-28) — the gesture's end calls the latest committed
+  // `endKeyGesture`, kept in a ref set after each commit. A language switched while the key is
+  // held makes a new one (it closes over `t`): the move is announced in the new language.
+  test('a language switched while an arrow is held: the move ends as one entry, announced in the new language', async ({ page }) => {
+    await load(page)
+    const id = await seedFrame(page, FRAME)
+    await container(page).focus()
+    await page.keyboard.press('Enter')
+    const h0 = await history(page)
+    const r0 = await rectOf(page, id)
+    const said = page.locator('[data-frame-announce]')
+    await page.keyboard.down('ArrowDown')
+    await expect.poll(async () => (await rectOf(page, id)).y, { message: 'the held arrow moved the frame' }).toBe(r0.y + 16)
+    await page.evaluate(() => (window as unknown as Bridge).__loop.i18n.getState().setLocale('ko'))
+    await page.waitForFunction(() => document.documentElement.lang === 'ko')
+    await page.keyboard.up('ArrowDown')
+    const r1 = await rectOf(page, id)
+    expect(r1, 'one grid step down').toEqual({ ...r0, y: r0.y + 16 })
+    // the ko catalog's moved message, with the frame's place after the move
+    await expect(said).toHaveText(new RegExp(`이동됨, x ${r1.x}, y ${r1.y}$`))
+    expect((await history(page)).past - h0.past, 'one entry for the gesture').toBe(1)
+  })
+
   test('the resize handle is a keyboard control: Left/Right change width, Up/Down change height, Shift accelerates, and its name carries the current size', async ({ page }) => {
     await load(page)
     const id = await seedFrame(page, FRAME)
