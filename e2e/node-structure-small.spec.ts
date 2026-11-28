@@ -507,6 +507,44 @@ test.describe('node structure — the small graph under the new node', () => {
     expect(home).toEqual({ left: '0px', inside: false })
   })
 
+  // #625 item 5 (Lumi, 2026-11-28) — the chip reports its size from its callback ref, in the
+  // same commit as the frame layer's render that hands it a new reporter, before that render's
+  // effects run. The commits that run it again are a new anchor (the properties popover opening
+  // or closing) and a new element (the chip turning into a plain span on a locked canvas, and
+  // back). Through each, the chip moved off a name keeps its place, which is made from the size
+  // it reported.
+  test('the title chip moved off a name keeps its place through the popover and a lock, which measure it again', async ({ page }) => {
+    const tight = { x: 224, y: 148, w: 587, h: 88 }
+    type Bridge = { __loop: { frame: { getState: () => { resizeFrame: (id: string, rect: typeof tight) => void } }; ui: { getState: () => { setCanvasLocked: (v: boolean) => void } } } }
+    const place = () =>
+      page.evaluate(() => {
+        const c = document.querySelector('.lgr-frame__label') as HTMLElement
+        const chip = c.getBoundingClientRect()
+        const w = (document.querySelector('.react-flow__node[data-id="waiting"] .nodef__name') as HTMLElement).getBoundingClientRect()
+        return { left: c.style.left, inside: c.classList.contains('is-inside'), clear: chip.left >= w.right || chip.right <= w.left || chip.bottom <= w.top || chip.top >= w.bottom }
+      })
+    await openSmall(page, 'outside')
+    await panLeft(page, 200)
+    await page.evaluate((r) => (window as unknown as Bridge).__loop.frame.getState().resizeFrame('clinic', r), tight)
+    await expect.poll(async () => (await place()).left, { message: 'the chip moved off the name' }).not.toBe('0px')
+    const moved = await place()
+    expect(moved.clear).toBe(true)
+
+    await page.locator('.lgr-frame__label').click()
+    await expect(page.locator('.lgr-frame-props')).toBeVisible()
+    expect(await place(), 'the popover open').toEqual(moved)
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.lgr-frame-props')).toHaveCount(0)
+    expect(await place(), 'the popover closed').toEqual(moved)
+
+    await page.evaluate(() => (window as unknown as Bridge).__loop.ui.getState().setCanvasLocked(true))
+    await expect(page.locator('.lgr-frame__label--static')).toHaveCount(1)
+    await expect.poll(place, { message: 'a locked canvas: the chip is a plain span' }).toEqual(moved)
+    await page.evaluate(() => (window as unknown as Bridge).__loop.ui.getState().setCanvasLocked(false))
+    await expect(page.locator('.lgr-frame__label--static')).toHaveCount(0)
+    await expect.poll(place, { message: 'unlocked again' }).toEqual(moved)
+  })
+
   // Lumi (2026-10-12): the corner case — a name across the frame's bottom-right
   // corner, where the RESIZE HANDLE of a selected frame sits. Both must hold:
   // the name is read and selects its node, and the frame can still be resized
