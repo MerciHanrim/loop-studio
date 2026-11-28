@@ -49,8 +49,18 @@ export function useDialogFocus(
   } = {},
 ): void {
   const kind = options.kind ?? 'modal'
+  // `kind`, `initialFocus` and `returnFocusTo` as of the latest commit, set after each commit. The
+  // open effect reads all three when the dialog opens and keeps them until it closes: focus goes
+  // back through the `returnFocusTo` the dialog opened with, as before. None is a reason to run the
+  // effect again (#625 item 5: refs, exhaustive-deps)
+  const kindRef = useRef(kind)
   const initialFocusRef = useRef(options.initialFocus)
-  initialFocusRef.current = options.initialFocus
+  const returnFocusToRef = useRef(returnFocusTo)
+  useEffect(() => {
+    kindRef.current = kind
+    initialFocusRef.current = options.initialFocus
+    returnFocusToRef.current = returnFocusTo
+  })
   // The newest `onEscape`, without making its IDENTITY a reason to run the
   // effect again. Most callers pass an inline arrow, which is a new function on
   // every render, so the effect used to tear down and set up on every render of
@@ -73,7 +83,9 @@ export function useDialogFocus(
     // issue #307 - the top dialog or sheet alone answers Escape; a dialog over a
     // mobile sheet makes the rest inert. Registered before focus moves in, so
     // the page behind is already inert when it does.
-    const removeEntry = d ? pushOverlay(d, kind) : () => {}
+    const kindAtOpen = kindRef.current
+    const returnFocusToAtOpen = returnFocusToRef.current
+    const removeEntry = d ? pushOverlay(d, kindAtOpen) : () => {}
     // the owner's choice, else the first usable field, else the first usable
     // control: with every field disabled that is the dialog's Close, first in
     // its head (the phone's read-only Inspector sheet; the Monte Carlo dialog
@@ -104,7 +116,7 @@ export function useDialogFocus(
         return
       }
       // a sheet is not modal: Tab follows the page's own order out of it
-      if (e.key !== 'Tab' || kind !== 'modal' || !ref.current) return
+      if (e.key !== 'Tab' || kindAtOpen !== 'modal' || !ref.current) return
       const within = ref.current
       const items = [...within.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => canTakeFocus(el, within))
       if (!items.length) return
@@ -129,11 +141,8 @@ export function useDialogFocus(
       // person is still working in. MEASURED with the target alone: focus left
       // the Help sheet, and while the page behind was inert it fell to <body>.
       const top = topOverlay()
-      const back = top && opener?.isConnected && top.contains(opener) ? opener : (returnFocusTo?.() ?? opener)
+      const back = top && opener?.isConnected && top.contains(opener) ? opener : (returnFocusToAtOpen?.() ?? opener)
       back?.focus?.()
     }
-    // returnFocusTo is intentionally not a dep — it's read at cleanup time; and
-    // onEscape is read through its ref (above)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, ref])
 }

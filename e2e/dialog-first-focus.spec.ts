@@ -76,3 +76,130 @@ test('desktop: the Monte Carlo dialog opened again while its run goes has focus 
   expect(await status(), 'measured while the run went').toBe('running')
   await page.evaluate(() => (window as unknown as L).__loop.mc.getState().cancel())
 })
+
+// #625 item 5 (Lumi, 2026-11-28) — useDialogFocus, pinned before its refs change: where focus is
+// when a dialog or sheet opens, and where each Escape puts it back. A dialog opened over a sheet
+// keeps focus inside the dialog (the measured regression: a re-run of the open effect when the
+// sheet re-rendered took focus back into the sheet behind the scrim), and closing it returns to
+// the row in the sheet that opened it.
+const settleTour = (page: Page) =>
+  page.evaluate(() => {
+    const l = (window as unknown as L).__loop as any
+    l.tour.setState({ phase: 'idle' })
+    l.hint.setState({ postTourCooldownActive: false })
+  })
+const helpButton = (page: Page) => page.locator('.toolbar__actions .wb-mb', { hasText: /^Help$/ })
+
+test.describe('focus on open and back on Escape — desktop', () => {
+  test.beforeEach(async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await settleTour(page)
+  })
+  test('About: its Close on open; Escape back to Help', async ({ page }) => {
+    await helpButton(page).click()
+    await page.getByRole('menuitem', { name: 'About Loop Studio' }).click()
+    await expect(page.locator('.mcdlg--about .mcdlg__x')).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(helpButton(page)).toBeFocused()
+  })
+  test('Monte Carlo: its first field on open; Escape back to Run', async ({ page }) => {
+    await openMonteCarloDialog(page)
+    const dialog = page.locator('.mcdlg').filter({ has: page.locator('input') }).first()
+    expect(await page.evaluate(() => document.activeElement?.tagName)).toBe('INPUT')
+    expect(await dialog.evaluate((d) => d.contains(document.activeElement))).toBe(true)
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.toolbar__actions .wb-mb', { hasText: /^Run$/ })).toBeFocused()
+  })
+  test('Example notes: its Close on open; Escape back to Help', async ({ page }) => {
+    await helpButton(page).click()
+    await page.getByRole('menuitem', { name: /^Example notes/ }).click()
+    await expect(page.locator('.mcdlg--contextual-help .mcdlg__x')).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(helpButton(page)).toBeFocused()
+  })
+  test('the tour replayed: Next on open (its initialFocus); Escape back to Help', async ({ page }) => {
+    await page.evaluate(() => ((window as unknown as L).__loop as any).tour.getState().startReplay('desktop'))
+    await expect(page.locator('.tour-popover').getByRole('button', { name: /^Next$/ })).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(helpButton(page)).toBeFocused()
+  })
+
+  // the owner re-rendered while the dialog is open, with another `returnFocusTo`: focus goes back
+  // through the one the dialog opened with (e2e/support/dialogFocusHarness.tsx, mounted in the page)
+  test('a returnFocusTo changed while the dialog is open: Escape goes back to the target it opened with', async ({ page }) => {
+    await page.evaluate(async () => {
+      const host = document.createElement('div')
+      host.id = 'dfh-host'
+      document.body.appendChild(host)
+      const m = await import('/e2e/support/dialogFocusHarness.tsx')
+      m.mountDialogFocusHarness(host)
+    })
+    await page.locator('#dfh-opener').click()
+    await expect(page.locator('#dfh-inside')).toBeFocused()
+    // the owner re-renders: returnFocusTo now names B
+    await page.evaluate(() => document.getElementById('dfh-host')!.dispatchEvent(new Event('dfh-retarget')))
+    await page.waitForTimeout(100)
+    await expect(page.locator('#dfh-inside'), 'the re-render did not move focus').toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(page.locator('#dfh-dialog')).toHaveCount(0)
+    await expect(page.locator('#dfh-a'), 'back to A, which returnFocusTo named when the dialog opened').toBeFocused()
+  })
+})
+
+test.describe('focus on open and back on Escape — phone 390 × 844', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  const more = (page: Page) => page.locator('.mob-more')
+  const moreSheet = (page: Page) => page.locator('.sheet[aria-label="More"]')
+  const helpSheet = (page: Page) => page.locator('.sheet[aria-label="Help"]')
+  async function openRow(page: Page, sheet: () => ReturnType<typeof moreSheet>, text: string | RegExp) {
+    await sheet().locator('.sheet__row').filter({ hasText: text }).focus()
+    await page.keyboard.press('Enter')
+  }
+  test.beforeEach(async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await settleTour(page)
+    await more(page).focus()
+    await page.keyboard.press('Enter')
+    await expect(moreSheet(page).locator('.sheet__x')).toBeFocused()
+  })
+  test('More: its Close on open; Escape back to More', async ({ page }) => {
+    await page.keyboard.press('Escape')
+    await expect(more(page)).toBeFocused()
+  })
+  test('About over the Help sheet: focus stays in About; Escape back to its row, then to Help in More', async ({ page }) => {
+    await openRow(page, () => moreSheet(page), 'Help')
+    await expect(helpSheet(page).locator('.sheet__x')).toBeFocused()
+    await openRow(page, () => helpSheet(page), /About/)
+    const close = page.locator('.mcdlg--about .mcdlg__x')
+    await expect(close).toBeFocused()
+    await page.waitForTimeout(600)
+    await expect(close, 'still in About after the sheet behind has re-rendered').toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(helpSheet(page).locator('.sheet__row', { hasText: 'About Loop Studio' })).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(moreSheet(page).locator('.sheet__row', { hasText: /^Help/ })).toBeFocused()
+  })
+  test('the contextual-tips dialog over the Help sheet: focus in it; Escape back to its row, then to Help in More', async ({ page }) => {
+    await openRow(page, () => moreSheet(page), 'Help')
+    await openRow(page, () => helpSheet(page), 'Turn contextual tips back on')
+    await expect(page.locator('.mcdlg--contextual-help .mcdlg__x')).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(helpSheet(page).locator('.sheet__row', { hasText: 'Turn contextual tips back on' })).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(moreSheet(page).locator('.sheet__row', { hasText: /^Help/ })).toBeFocused()
+  })
+  test('Storage over the More sheet: its first field on open; Escape back to its row, then to More', async ({ page }) => {
+    const row = moreSheet(page).locator('[data-settings-row="storage-privacy"]')
+    await row.focus()
+    await page.keyboard.press('Enter')
+    const dialog = page.locator('.mcdlg--storage')
+    expect(await page.evaluate(() => document.activeElement?.tagName)).toBe('INPUT')
+    expect(await dialog.evaluate((d) => d.contains(document.activeElement))).toBe(true)
+    await page.keyboard.press('Escape')
+    await expect(row).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(more(page)).toBeFocused()
+  })
+})
