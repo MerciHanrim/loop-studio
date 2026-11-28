@@ -138,6 +138,18 @@ export function autoFramesStale(lastSignature: string | null): boolean {
   return graphSignature(nodes, edges) !== lastSignature
 }
 
+/** `autoFramesStale` for the graph it is given, not read from the store: a component that lists
+ *  the graph it renders with can compute it (#625 item 5, exhaustive-deps) */
+export function autoFramesStaleFor(
+  lastSignature: string | null,
+  nodes: readonly { id: string; type?: string; data?: unknown; position: { x: number; y: number } }[],
+  edges: readonly { source: string; target: string }[],
+): boolean {
+  if (lastSignature === null) return false
+  const n = nodes.map((nd) => ({ id: nd.id, kind: (nd.data as { kind?: string } | undefined)?.kind ?? String(nd.type), position: nd.position }))
+  return graphSignature(n, edges.map((e) => ({ source: e.source, target: e.target }))) !== lastSignature
+}
+
 // §AF6 / §AF4.2 — a whole-graph swap drops the derived set (same `loadRev`
 // signal the 4a manual frames use). A plain edit never bumps `loadRev`, so the
 // set survives an edit and just goes "stale" (§AF4.3).
