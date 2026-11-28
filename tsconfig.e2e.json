@@ -25,7 +25,7 @@
     /* `await import('/src/…')` inside page.evaluate is a Vite root-absolute
        module URL resolved by the dev server; map it so the same string is a
        typed import here (the product file is checked under these options too). */
-    "paths": { "/src/*": ["./src/*"] },
+    "paths": { "/src/*": ["./src/*"], "/e2e/*": ["./e2e/*"] },
 
     /* Linting — same as the other projects */
     "noUnusedLocals": true,

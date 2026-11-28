@@ -124,6 +124,27 @@ test.describe('focus on open and back on Escape — desktop', () => {
     await page.keyboard.press('Escape')
     await expect(helpButton(page)).toBeFocused()
   })
+
+  // the owner re-rendered while the dialog is open, with another `returnFocusTo`: focus goes back
+  // through the one the dialog opened with (e2e/support/dialogFocusHarness.tsx, mounted in the page)
+  test('a returnFocusTo changed while the dialog is open: Escape goes back to the target it opened with', async ({ page }) => {
+    await page.evaluate(async () => {
+      const host = document.createElement('div')
+      host.id = 'dfh-host'
+      document.body.appendChild(host)
+      const m = await import('/e2e/support/dialogFocusHarness.tsx')
+      m.mountDialogFocusHarness(host)
+    })
+    await page.locator('#dfh-opener').click()
+    await expect(page.locator('#dfh-inside')).toBeFocused()
+    // the owner re-renders: returnFocusTo now names B
+    await page.evaluate(() => document.getElementById('dfh-host')!.dispatchEvent(new Event('dfh-retarget')))
+    await page.waitForTimeout(100)
+    await expect(page.locator('#dfh-inside'), 'the re-render did not move focus').toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(page.locator('#dfh-dialog')).toHaveCount(0)
+    await expect(page.locator('#dfh-a'), 'back to A, which returnFocusTo named when the dialog opened').toBeFocused()
+  })
 })
 
 test.describe('focus on open and back on Escape — phone 390 × 844', () => {
