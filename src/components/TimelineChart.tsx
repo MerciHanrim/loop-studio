@@ -112,6 +112,16 @@ export function TimelineChart() {
   // run and the canvas's zoom are untouched.
   const areaRef = useRef<HTMLDivElement>(null)
   const heightBeforeDistribution = useRef<number | null>(null)
+  // the column's height, kept from a ResizeObserver, so render reads state and not the DOM
+  // (#625 item 5, refs); before the first report it is the old fallback, 600
+  const [colHeight, setColHeight] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    const col = areaRef.current?.closest('.canvas-col') as HTMLElement | null
+    if (!col || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setColHeight(col.clientHeight))
+    ro.observe(col)
+    return () => ro.disconnect()
+  }, [])
   const areaMax = () => {
     const col = areaRef.current?.closest('.canvas-col') as HTMLElement | null
     return Math.max(ANALYSIS_MIN, (col?.clientHeight ?? 600) - ANALYSIS_CANVAS_MIN)
@@ -202,14 +212,17 @@ export function TimelineChart() {
     }
   }, [collapsed, isMobile, showDistribution, tabbed])
   const measuredFloor = measured?.floor ?? null
-  const maxHeight = areaMax()
+  const maxHeight = Math.max(ANALYSIS_MIN, (colHeight ?? 600) - ANALYSIS_CANVAS_MIN)
   const areaMin = Math.min(showDistribution ? DISTRIBUTION_MIN : Math.max(ANALYSIS_MIN, measuredFloor ?? ANALYSIS_MIN), maxHeight)
   // an area under its floor (notices or a strip just appeared) rises to it; a hard
-  // floor, unlike the comfortable height below, so the height is one of its inputs
+  // floor, unlike the comfortable height below, so the height is one of its inputs. An
+  // area over its most (the window made shorter, or opened short before the column's
+  // first report) comes down to it, so the canvas keeps its least (#625 item 5)
   useLayoutEffect(() => {
     if (isMobile || collapsed) return
     if (height < areaMin) setHeight(areaMin)
-  }, [areaMin, height, isMobile, collapsed])
+    else if (height > maxHeight) setHeight(maxHeight)
+  }, [areaMin, maxHeight, height, isMobile, collapsed])
   // the switch alone decides; a resize inside the view is the splitter's. The height is
   // read when the switch changes, not watched: an effect event, so it is not a
   // dependency (#625 item 5, exhaustive-deps)
@@ -1129,7 +1142,7 @@ export function TimelineChart() {
             } as React.CSSProperties)
       }
     >
-      {!collapsed ? <AnalysisSplitter height={height} min={areaMin} onHeight={setHeight} label={t('workbench.analysis.resize')} /> : null}
+      {!collapsed ? <AnalysisSplitter height={height} min={areaMin} max={maxHeight} onHeight={setHeight} label={t('workbench.analysis.resize')} /> : null}
       <PlayBar
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed((c) => !c)}
@@ -1202,23 +1215,18 @@ export const DISTRIBUTION_MIN = 280
 /** the splitter above the analysis area: drag it, or focus it and press ↑ / ↓
  *  (one grid step), Home / End (the least / the most) — a window splitter
  *  (`role="separator"`, focusable, with its value). `min` is the view's own
- *  least height (the Distribution view's is higher). */
-function AnalysisSplitter({ height, min, onHeight, label }: { height: number; min: number; onHeight: (h: number) => void; label: string }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const maxOf = () => {
-    const col = ref.current?.closest('.canvas-col') as HTMLElement | null
-    return Math.max(ANALYSIS_MIN, (col?.clientHeight ?? 600) - ANALYSIS_CANVAS_MIN)
-  }
-  const clamp = (h: number) => Math.round(Math.min(maxOf(), Math.max(min, h)))
+ *  least height (the Distribution view's is higher); `max` its most, from the canvas
+ *  column's height as last observed. */
+function AnalysisSplitter({ height, min, max, onHeight, label }: { height: number; min: number; max: number; onHeight: (h: number) => void; label: string }) {
+  const clamp = (h: number) => Math.round(Math.min(max, Math.max(min, h)))
   return (
     <div
-      ref={ref}
       className="wb-splitter"
       role="separator"
       aria-orientation="horizontal"
       aria-label={label}
       aria-valuemin={min}
-      aria-valuemax={maxOf()}
+      aria-valuemax={max}
       aria-valuenow={height}
       tabIndex={0}
       onPointerDown={(e) => {
@@ -1240,7 +1248,7 @@ function AnalysisSplitter({ height, min, onHeight, label }: { height: number; mi
       }}
       onKeyDown={(e) => {
         const next =
-          e.key === 'ArrowUp' ? height + ANALYSIS_STEP : e.key === 'ArrowDown' ? height - ANALYSIS_STEP : e.key === 'Home' ? min : e.key === 'End' ? maxOf() : null
+          e.key === 'ArrowUp' ? height + ANALYSIS_STEP : e.key === 'ArrowDown' ? height - ANALYSIS_STEP : e.key === 'Home' ? min : e.key === 'End' ? max : null
         if (next == null) return
         e.preventDefault()
         onHeight(clamp(next))

@@ -299,3 +299,74 @@ test.describe('#534 — the analysis area keeps the chart readable', () => {
     }
   })
 })
+
+// #625 item 5 (Lumi, 2026-11-28) — the area's most height: the canvas column's height less the
+// canvas's own least (160), never under 96. The splitter says it (aria-valuemax) and End takes the
+// area there; Home takes it to the least.
+test.describe("the analysis area's most height", () => {
+  const most = (page: Page) =>
+    page.evaluate(() => {
+      const col = document.querySelector('.wb-splitter')!.closest('.canvas-col') as HTMLElement
+      return Math.max(96, col.clientHeight - 160)
+    })
+  const splitter = (page: Page) => page.locator('.wb-splitter')
+  const valueMax = async (page: Page) => Number(await splitter(page).getAttribute('aria-valuemax'))
+  const areaH = (page: Page) => page.locator('.timeline.wb-analysis').evaluate((el) => Math.round(el.getBoundingClientRect().height))
+
+  test('opened, and after the window changes width: the splitter says the most, End takes the area there, Home to the least', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await openApp(page)
+    await resetAll(page)
+    await ensureTimelineOpen(page)
+    await expect.poll(() => valueMax(page)).toBe(await most(page))
+    await page.setViewportSize({ width: 1024, height: 640 })
+    await expect.poll(() => valueMax(page), { message: 'a narrower, shorter window' }).toBe(await most(page))
+    await splitter(page).focus()
+    await page.keyboard.press('End')
+    await expect.poll(() => areaH(page), { message: 'End: the most' }).toBe(await most(page))
+    await expect(splitter(page)).toHaveAttribute('aria-valuenow', String(await most(page)))
+    await page.keyboard.press('Home')
+    const least = Number(await splitter(page).getAttribute('aria-valuemin'))
+    await expect.poll(() => areaH(page), { message: 'Home: the least' }).toBe(least)
+  })
+
+  test('after the window changes height only, the splitter says the new most', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await openApp(page)
+    await resetAll(page)
+    await ensureTimelineOpen(page)
+    await expect.poll(() => valueMax(page)).toBe(await most(page))
+    for (const height of [600, 1000, 800]) {
+      await page.setViewportSize({ width: 1280, height })
+      await expect.poll(() => valueMax(page), { message: `1280 × ${height}` }).toBe(await most(page))
+    }
+  })
+
+  // a floor above the most (nine notices and the strips; measured 2026-11-28: floor 252 at
+  // 1280 wide) in a 460 px window, whose most is 200: the most wins, and the canvas keeps its 160
+  const canvasH = (page: Page) => page.locator('.react-flow').evaluate((el) => Math.round(el.getBoundingClientRect().height))
+  const atMost = async (page: Page, how: string) => {
+    await expect.poll(() => areaH(page), { message: `${how}: the area at the most` }).toBe(await most(page))
+    expect(await canvasH(page), `${how}: the canvas keeps its least`).toBe(CANVAS_MIN)
+    expect(Number(await splitter(page).getAttribute('aria-valuenow')), `${how}: the splitter's value is its most`).toBe(await valueMax(page))
+  }
+
+  test('a floor above the most, the window made shorter by height only: the area comes down to the most, the canvas keeps 160', async ({ page }) => {
+    test.setTimeout(120_000)
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await openApp(page)
+    await desalination(page, { steps: 1300, strips: true })
+    await expect(page.locator('.pstrip-diag li')).toHaveCount(9)
+    await page.setViewportSize({ width: 1280, height: 460 })
+    await atMost(page, 'made shorter')
+  })
+
+  test('a floor above the most, opened in a short window: the area is the most, the canvas keeps 160', async ({ page }) => {
+    test.setTimeout(120_000)
+    await page.setViewportSize({ width: 1280, height: 460 })
+    await openApp(page)
+    await desalination(page, { steps: 1300, strips: true })
+    await expect(page.locator('.pstrip-diag li')).toHaveCount(9)
+    await atMost(page, 'opened short')
+  })
+})
