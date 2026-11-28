@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
-import { openMonteCarloDialog } from './support/workbenchMenus'
+import { openMonteCarloDialog, openViewMenu } from './support/workbenchMenus'
 
 // docs/localization.md §L13 — Slice 3, acceptance validation.
 //
@@ -514,4 +514,51 @@ test.describe('i18n Slice 3 — KO under reduced-motion', () => {
     await expect(page.locator('[data-playback-announce]')).toHaveText(/단계/)
     await assertContained(page, '.timeline')
   })
+})
+
+// #625 item 5 (Lumi, 2026-11-28) — the language list's search matches a language's name in the UI
+// language too (`displayName`), so the results follow a language switch made while the list is open
+// with a query in it; and the current language stays the one selected option.
+test('the language search follows a language switch made with the list open: results and the selected option', async ({ page }) => {
+  await openApp(page)
+  await resetAll(page)
+  const setLocale = (code: string) =>
+    page.evaluate(async (c) => {
+      ;(window as any).__loop.i18n.getState().setLocale(c)
+    }, code)
+  await openViewMenu(page)
+  const row = page.locator('.wb-viewmenu__pop .lang-menu > .lang-switch')
+  await row.click()
+  await expect(row).toHaveAttribute('aria-expanded', 'true')
+  const search = page.locator('.lang-menu__search')
+  const option = (code: string) => page.locator(`.lang-menu__item[data-locale="${code}"]`)
+  const selected = page.locator('.lang-menu__item[aria-selected="true"]')
+
+  // nothing typed: every language, English the one selected
+  await expect(selected).toHaveCount(1)
+  await expect(selected).toHaveAttribute('data-locale', 'en')
+  // "독일" is German's name in Korean only: in English it finds nothing
+  await search.fill('독일')
+  await expect(page.locator('.lang-menu__empty')).toBeVisible()
+  await expect(option('de')).toHaveCount(0)
+
+  // switched to Korean with the list open and the query kept: the same query finds German
+  await setLocale('ko')
+  await page.waitForFunction(() => document.documentElement.lang === 'ko')
+  await expect(search).toHaveValue('독일')
+  await expect(option('de')).toHaveCount(1)
+  await expect(option('de')).toHaveAttribute('aria-selected', 'false')
+  await expect(page.locator('.lang-menu__empty')).toHaveCount(0)
+  // the query cleared: Korean is now the one selected
+  await search.fill('')
+  await expect(selected).toHaveCount(1)
+  await expect(selected).toHaveAttribute('data-locale', 'ko')
+
+  // and back: the Korean name finds nothing in English again
+  await search.fill('독일')
+  await setLocale('en')
+  await page.waitForFunction(() => document.documentElement.lang === 'en')
+  await expect(page.locator('.lang-menu__empty')).toBeVisible()
+  await search.fill('')
+  await expect(selected).toHaveAttribute('data-locale', 'en')
 })
