@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { paneSize, useObserve } from './workbench/panelLayout'
 import type { DragEvent, RefObject } from 'react'
 import {
@@ -233,9 +233,6 @@ export function Canvas() {
   }, [nodes, paneW, paneH])
 
 
-  // the zoom Controls rail is on screen on the phone only (canvasFitInsets)
-  const isMobileRef = useRef(isMobile)
-  isMobileRef.current = isMobile
   // DEV / E2E only — the last `applyInitialView` result, so a test can assert
   // the insets and zoom it framed with. Tree-shaken from the production /
   // portable bundle with the rest of `import.meta.env.DEV`.
@@ -249,27 +246,21 @@ export function Canvas() {
   // height. Clamp the zoom to `[minZoom, 1.2]`. Pure function of the rect + pane
   // size — identical for every UI language, and unchanged on a language switch
   // (this only runs on a `fitRev` swap).
-  const applyInitialView = useCallback(
-    (iv: InitialView) => {
-      // the computation itself lives in `canvasFit.ts` (shared with the
-      // import wizard's post-commit view, docs/data-import.md §DI17); the
-      // insets are this Canvas's own overlays. `keep` (issue #344) caps the
-      // zoom so the core start nodes stay whole.
-      const insets = canvasFitInsets(0, isMobileRef.current)
-      const vp = viewportForRect(iv.rect, { width: paneW, height: paneH }, insets, { floor: iv.minZoom, ceil: 1.2, keep: iv.keep })
-      if (!vp) return void fitAll()
-      setViewport(vp, { duration: 0 })
-      if (import.meta.env.DEV) lastInitialViewRef.current = { insetL: insets.left, insetT: insets.top, zoom: vp.zoom }
-    },
-    // `fitAll` (built from `fitView` and React Flow's other helpers), not `fitView`, which
-    // this does not call (#625 item 5, exhaustive-deps)
-    [paneW, paneH, setViewport, fitAll],
-  )
-  // keep the re-fit effect's deps stable (fitRev / loadRev / a settle signal)
-  // — `applyInitialView` changes identity with the pane size and must not
-  // re-trigger or tear down the pending swap fit.
-  const applyInitialViewRef = useRef(applyInitialView)
-  applyInitialViewRef.current = applyInitialView
+  // An effect event (#625 item 5, refs): only the re-fit effect below calls it. It reads the
+  // pane size and the phone flag as they are when it runs, and is no dependency of that
+  // effect, so a pane resize does not re-trigger or tear down the pending swap fit. The
+  // zoom Controls rail is on screen on the phone only (canvasFitInsets).
+  const applyInitialView = useEffectEvent((iv: InitialView) => {
+    // the computation itself lives in `canvasFit.ts` (shared with the
+    // import wizard's post-commit view, docs/data-import.md §DI17); the
+    // insets are this Canvas's own overlays. `keep` (issue #344) caps the
+    // zoom so the core start nodes stay whole.
+    const insets = canvasFitInsets(0, isMobile)
+    const vp = viewportForRect(iv.rect, { width: paneW, height: paneH }, insets, { floor: iv.minZoom, ceil: 1.2, keep: iv.keep })
+    if (!vp) return void fitAll()
+    setViewport(vp, { duration: 0 })
+    if (import.meta.env.DEV) lastInitialViewRef.current = { insetL: insets.left, insetT: insets.top, zoom: vp.zoom }
+  })
 
   // §MML1 — a node whose title wraps grows its box ONE measure pass after
   // `nodesInitialized` first turns true (and fires `updateNodeInternals`), so
@@ -371,7 +362,7 @@ export function Canvas() {
     if (!untouched) return
     // §MML3 — a menu-opened Template may frame a sub-region instead of fit-all
     const iv = useGraphStore.getState().pendingInitialView
-    if (iv) applyInitialViewRef.current(iv)
+    if (iv) applyInitialView(iv)
     else {
       const landing = fitAll()
       if (import.meta.env.DEV) {
