@@ -99,8 +99,7 @@ export function RecoveryScreen({ initial, reread, discardIfUnchanged, onDone }: 
         if (now.kind === 'unreadable' && now.text === shownText) return
         showChanged(now)
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [shownText],
+    [shownText, reread],
   )
 
   const download = () => {
