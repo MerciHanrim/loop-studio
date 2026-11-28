@@ -588,7 +588,7 @@ test('the ⋯ menu open when every item comes back inline closes, and stays clos
   await expect(btn).toBeVisible()
   await btn.click()
   await expect(page.locator('.toolbar__overflow-pop')).toBeVisible()
-  await style.evaluate((el) => el.remove())
+  await style.evaluate((el) => (el as Element).remove())
   await expect(page.locator('.toolbar__overflow')).toHaveAttribute('data-ghost', '')
   await expect(page.locator('.toolbar__overflow-pop'), 'closed once nothing is in it').toHaveCount(0)
   await page.addStyleTag({ content: narrow })

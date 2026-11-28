@@ -77,10 +77,9 @@ export const OverflowMenu = forwardRef<OverflowMenuHandle, Props>(function Overf
     }
   }, [open])
 
-  // if every item leaves the menu (viewport widened) close it
-  useEffect(() => {
-    if (ghost && open) setOpen(false)
-  }, [ghost, open])
+  // if every item leaves the menu (viewport widened) close it: set during render, so the
+  // menu is never drawn open with nothing in it (#625 item 5, set-state-in-effect)
+  if (ghost && open) setOpen(false)
 
   useImperativeHandle(ref, () => ({ close: () => setOpen(false) }), [])
 
