@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useT, type MessageKey } from '../i18n'
 import { isolateAuto } from '../i18n/bidiIsolate'
 import { ruleOf, runFindings, runGroupOf, runNotices, groupLines, type RunRule } from '../model/runRule'
@@ -110,7 +110,13 @@ export function RunRuleSection({ node }: { node: LoopNode }) {
   const [draft, setDraft] = useState<RuleDraft | null>(null)
   // "By a run rule" with nothing chosen yet holds no rule, and still shows the fields
   const [asked, setAsked] = useState(false)
-  useEffect(() => setDraft(null), [storedKey]) // an undo, or a rule set elsewhere, ends the draft
+  // a rule set elsewhere (or an undo, where the section stays open) ends the draft: set during
+  // render when the stored rule changes, from the rule it last saw (#625 item 5, set-state-in-effect)
+  const [draftKey, setDraftKey] = useState(storedKey)
+  if (draftKey !== storedKey) {
+    setDraftKey(storedKey)
+    setDraft(null)
+  }
 
   const form = draft ?? stored ?? {}
   const ruled = stored !== null || draft !== null || asked

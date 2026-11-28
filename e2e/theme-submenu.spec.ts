@@ -232,3 +232,17 @@ test('every shipped language but English shows the agreed labels, never a raw mo
     await page.keyboard.press('Escape')
   }
 })
+
+// #625 item 5 (Lumi, 2026-11-28) — which row of View is open is forgotten when View closes:
+// opened again, View shows every row closed.
+test('the Theme row open when View closes is closed when View opens again', async ({ page }) => {
+  await openThemeSubmenu(page)
+  const row = page.locator('.wb-viewmenu__pop .theme-menu .settings-row')
+  await expect(row).toHaveAttribute('aria-expanded', 'true')
+  await page.locator('.toolbar__actions .wb-viewmenu > .wb-mb').click()
+  await expect(page.locator('.wb-viewmenu__pop')).toHaveCount(0)
+  await openSettings(page)
+  await expect(page.locator('.wb-viewmenu__pop')).toBeVisible()
+  await expect(row).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.locator('.theme-menu__pop')).toHaveCount(0)
+})
