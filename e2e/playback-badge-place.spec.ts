@@ -112,6 +112,58 @@ test('L2: a badge waits while its box still meets the source body', async ({ pag
   for (const b of await badges(page)) expect(b.hit, b.id).toEqual([])
 })
 
+// #625 item 5 (Lumi, 2026-11-28) — the place is held for the step it was read in (§PB4.8), and only
+// for that step. Roasted bean stock moved 400 px down in the middle of a step: every badge already
+// shown keeps its place to the step's end; the next step reads the plan of the new layout, where
+// Roast yield's badge stands down-right (measured on the Coffee roastery at zoom 1, 1280 × 800).
+const sidesOf = async (page: Page) => Object.fromEntries((await badges(page)).map((b) => [b.id, b.side]))
+const moveRoastedStock = (page: Page) =>
+  page.evaluate(() => {
+    const g = (window as any).__loop.graph.getState()
+    const n = g.nodes.find((x: any) => x.id === 'roasted_stock')
+    g.applyGesturePositions({ roasted_stock: { x: n.position.x, y: n.position.y + 400 } }, {})
+  })
+async function toStep4(page: Page) {
+  await openCoffee(page)
+  await atZoom(page, 1)
+  for (let i = 0; i < 3; i++) {
+    await sim(page, 's.setSpeed(600); s.stepOnce()')
+    await settled(page)
+  }
+  await sim(page, 's.setSpeed(3500); s.stepOnce(); s.pause()')
+}
+
+test('L2: a layout change in the middle of a step leaves each shown badge where its step put it', async ({ page }) => {
+  test.setTimeout(90_000)
+  await toStep4(page)
+  await setTau(page, 0.5)
+  const before = await sidesOf(page)
+  expect(before.e_roast_yield, 'Roast yield’s badge is shown before the move').toBe('up-left')
+  await moveRoastedStock(page)
+  await routesSettled(page)
+  for (const t of [0.55, 0.7]) {
+    await setTau(page, t)
+    const now = await sidesOf(page)
+    for (const [id, side] of Object.entries(now)) if (id in before) expect(side, `${id} at τ ${t}`).toBe(before[id])
+    expect(now.e_roast_yield, `Roast yield at τ ${t}`).toBe('up-left')
+  }
+})
+
+test('L2: the step after a layout change reads the plan of the new layout', async ({ page }) => {
+  test.setTimeout(90_000)
+  await toStep4(page)
+  await setTau(page, 0.5)
+  expect((await sidesOf(page)).e_roast_yield).toBe('up-left')
+  await moveRoastedStock(page)
+  await routesSettled(page)
+  // Step during a paused step finishes it (simStore `stepOnce`)
+  await sim(page, 's.stepOnce()')
+  await settled(page)
+  await sim(page, 's.setSpeed(3500); s.stepOnce(); s.pause()')
+  await setTau(page, 0.5)
+  expect((await sidesOf(page)).e_roast_yield, 'the next step, from the new plan').toBe('down-right')
+})
+
 test('L1 keeps today’s badge: up-right, from the departure', async ({ page }) => {
   await openCoffee(page)
   await atZoom(page, 0.64)
