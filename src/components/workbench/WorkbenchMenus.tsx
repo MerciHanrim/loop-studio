@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useT, type MessageKey } from '../../i18n'
 import type { NodeKind } from '../../model/types'
 import { WORTH_IT_FLOOR } from '../frames/autoFrames'
-import { autoFramesStale, hasAutoFrames, useAutoFrameStore } from '../../store/autoFrameStore'
+import { autoFramesStaleFor, hasAutoFrames, useAutoFrameStore } from '../../store/autoFrameStore'
 import { hasFrames, useFrameStore } from '../../store/frameStore'
 import { useGraphStore } from '../../store/graphStore'
 import { useMcStore } from '../../store/mcStore'
@@ -49,6 +49,7 @@ export function InsertMenu({ addCentered }: { addCentered: (kind: NodeKind) => v
   const t = useT()
   const locked = useUiStore((s) => s.canvasLocked)
   const nodes = useGraphStore((s) => s.nodes)
+  const edges = useGraphStore((s) => s.edges)
   const suggest = useAutoFrameStore((s) => s.suggest)
   const autoExist = useAutoFrameStore(hasAutoFrames)
   const signature = useAutoFrameStore((s) => s.lastSignature)
@@ -58,8 +59,8 @@ export function InsertMenu({ addCentered }: { addCentered: (kind: NodeKind) => v
   const eligible = useMemo(() => nodes.filter((n) => n.type !== 'parameter' && n.type !== 'register').length >= WORTH_IT_FLOOR, [nodes])
   // §AF4.3 — the structure or a node moved since the last Suggest: said on the
   // row, still no automatic recompute (the rail's `is-stale`)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const stale = useMemo(() => autoFramesStale(signature), [signature, nodes])
+  // the edges too: an edge added or removed changes the signature
+  const stale = useMemo(() => autoFramesStaleFor(signature, nodes, edges), [signature, nodes, edges])
   const entries: MenuEntry[] = [
     ...KINDS.map((k): MenuEntry => ({ kind: 'item', key: k, label: t(`palette.${k}.name` as MessageKey), hint: t(`palette.${k}.description` as MessageKey), onSelect: () => addCentered(k), disabled: locked })),
     { kind: 'sep', key: 's1' },
