@@ -341,4 +341,32 @@ test.describe("the analysis area's most height", () => {
       await expect.poll(() => valueMax(page), { message: `1280 × ${height}` }).toBe(await most(page))
     }
   })
+
+  // a floor above the most (nine notices and the strips; measured 2026-11-28: floor 252 at
+  // 1280 wide) in a 460 px window, whose most is 200: the most wins, and the canvas keeps its 160
+  const canvasH = (page: Page) => page.locator('.react-flow').evaluate((el) => Math.round(el.getBoundingClientRect().height))
+  const atMost = async (page: Page, how: string) => {
+    await expect.poll(() => areaH(page), { message: `${how}: the area at the most` }).toBe(await most(page))
+    expect(await canvasH(page), `${how}: the canvas keeps its least`).toBe(CANVAS_MIN)
+    expect(Number(await splitter(page).getAttribute('aria-valuenow')), `${how}: the splitter's value is its most`).toBe(await valueMax(page))
+  }
+
+  test('a floor above the most, the window made shorter by height only: the area comes down to the most, the canvas keeps 160', async ({ page }) => {
+    test.setTimeout(120_000)
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await openApp(page)
+    await desalination(page, { steps: 1300, strips: true })
+    await expect(page.locator('.pstrip-diag li')).toHaveCount(9)
+    await page.setViewportSize({ width: 1280, height: 460 })
+    await atMost(page, 'made shorter')
+  })
+
+  test('a floor above the most, opened in a short window: the area is the most, the canvas keeps 160', async ({ page }) => {
+    test.setTimeout(120_000)
+    await page.setViewportSize({ width: 1280, height: 460 })
+    await openApp(page)
+    await desalination(page, { steps: 1300, strips: true })
+    await expect(page.locator('.pstrip-diag li')).toHaveCount(9)
+    await atMost(page, 'opened short')
+  })
 })
