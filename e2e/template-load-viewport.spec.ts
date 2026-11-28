@@ -392,3 +392,121 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
     }
   })
 })
+
+// #625 item 5 (Lumi, 2026-11-28) — the menu-open framing (`applyInitialView` in Canvas.tsx) is
+// pinned before it moves into an effect event: it runs once per swap, with the Controls rail's
+// inset on the phone only, and a camera the user moves before it lands is kept (the rule #698
+// kept for a share link's fit, here on the framing path).
+test.describe('the menu-open framing (applyInitialView)', () => {
+  type LastInitialView = { insetL: number; insetT: number; zoom: number } | null
+  const lastInitialView = (page: Page) =>
+    page.evaluate(() => (window as unknown as { __loop: { canvas: { lastInitialView: () => LastInitialView } } }).__loop.canvas.lastInitialView())
+  const swapFitPending = (page: Page) =>
+    page.evaluate(() => (window as unknown as { __loop: { canvas: { swapFitPending: () => boolean } } }).__loop.canvas.swapFitPending())
+
+  test('desktop: the framing lands once the swap settles, with no Controls inset, at the zoom it reports', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    expect(await lastInitialView(page), 'no framing before the Template').toBeNull()
+    await pickDesktopTemplate(page, GACHA_EN, GACHA_L)
+    await expect.poll(() => swapFitPending(page), { message: 'the swap fit has landed' }).toBe(false)
+    const iv = await lastInitialView(page)
+    expect(iv, 'the framing ran').not.toBeNull()
+    expect(iv!.insetL, 'no Controls rail on a desktop').toBe(0)
+    expect(iv!.insetT).toBe(0)
+    expect(Math.abs((await getVp(page)).zoom - iv!.zoom), 'the camera is the framing').toBeLessThan(1e-9)
+  })
+
+  test('mobile: the framing keeps clear of the Controls rail (44 px inset)', async ({ browser }) => {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+    await page.addInitScript(() => {
+      try {
+        localStorage.setItem('loop-studio/guided-tour/1', 'dismissed')
+      } catch {
+        /* private mode */
+      }
+    })
+    await seedPersonalBrowser(page)
+    try {
+      await openApp(page)
+      await resetAll(page)
+      await pickMobileTemplate(page, GACHA_EN, GACHA_L)
+      await expect.poll(() => swapFitPending(page), { message: 'the swap fit has landed' }).toBe(false)
+      const iv = await lastInitialView(page)
+      expect(iv, 'the framing ran').not.toBeNull()
+      expect(iv!.insetL, 'the phone’s Controls rail').toBe(44)
+      expect(iv!.insetT).toBe(0)
+      expect(Math.abs((await getVp(page)).zoom - iv!.zoom), 'the camera is the framing').toBeLessThan(1e-9)
+    } finally {
+      await page.close()
+    }
+  })
+
+  // Animation frames are held from the moment the Template's nodes are in the page (the swap
+  // fit waits for a frame after the measure pass), so the framing cannot land until they are
+  // released; the same window share-fit.spec.ts opens for a share link's fit.
+  const holdFramesOnceShown = (page: Page) =>
+    page.addInitScript(() => {
+      const w = window as unknown as { requestAnimationFrame: typeof requestAnimationFrame; __heldFrames: FrameRequestCallback[]; __holdFrames: boolean; __releaseFrames: () => void; __holdWhenShown: (id: string) => void }
+      const raf = w.requestAnimationFrame.bind(window)
+      w.__heldFrames = []
+      w.__holdFrames = false
+      w.requestAnimationFrame = (cb: FrameRequestCallback) => {
+        if (w.__holdFrames) {
+          w.__heldFrames.push(cb)
+          return -1
+        }
+        return raf(cb)
+      }
+      w.__releaseFrames = () => {
+        w.__holdFrames = false
+        for (const cb of w.__heldFrames.splice(0)) raf(cb)
+      }
+      w.__holdWhenShown = (id: string) => {
+        new MutationObserver((_, obs) => {
+          if (!document.querySelector(`.react-flow__node[data-id="${id}"]`)) return
+          w.__holdFrames = true
+          obs.disconnect()
+        }).observe(document, { childList: true, subtree: true })
+      }
+    })
+  const releaseFrames = (page: Page) => page.evaluate(() => (window as unknown as { __releaseFrames: () => void }).__releaseFrames())
+
+  test('control: with the frames held and released and no move of the user’s, the framing lands', async ({ page }) => {
+    await holdFramesOnceShown(page)
+    await openApp(page)
+    await resetAll(page)
+    await page.evaluate((id) => (window as unknown as { __holdWhenShown: (id: string) => void }).__holdWhenShown(id), GACHA_L)
+    await pickDesktopTemplate(page, GACHA_EN, GACHA_L)
+    expect(await swapFitPending(page), 'the framing has not landed yet').toBe(true)
+    expect(await lastInitialView(page)).toBeNull()
+    await releaseFrames(page)
+    await expect.poll(() => swapFitPending(page), { message: 'the swap fit has landed' }).toBe(false)
+    const iv = await lastInitialView(page)
+    expect(iv, 'the framing ran after the release').not.toBeNull()
+    expect(Math.abs((await getVp(page)).zoom - iv!.zoom), 'the camera is the framing').toBeLessThan(1e-9)
+  })
+
+  test('a camera the user wheels before the framing lands is kept: the framing does not run', async ({ page }) => {
+    await holdFramesOnceShown(page)
+    await openApp(page)
+    await resetAll(page)
+    await page.evaluate((id) => (window as unknown as { __holdWhenShown: (id: string) => void }).__holdWhenShown(id), GACHA_L)
+    await pickDesktopTemplate(page, GACHA_EN, GACHA_L)
+    expect(await swapFitPending(page), 'the framing has not landed yet').toBe(true)
+    const before = await getVp(page)
+    const pane = (await page.locator('.react-flow__pane').boundingBox())!
+    await page.mouse.move(pane.x + pane.width / 2, pane.y + pane.height / 2)
+    await page.mouse.wheel(0, -400)
+    await expect.poll(async () => (await getVp(page)).zoom, { message: 'the wheel zoomed in' }).toBeGreaterThan(before.zoom * 1.2)
+    const moved = await getVp(page)
+    await releaseFrames(page)
+    await expect.poll(() => swapFitPending(page), { message: 'the swap fit is no longer pending' }).toBe(false)
+    await page.waitForTimeout(300)
+    const after = await getVp(page)
+    expect(Math.abs(after.zoom - moved.zoom), 'the user’s zoom is kept').toBeLessThan(0.001)
+    expect(Math.abs(after.x - moved.x), 'the user’s x is kept').toBeLessThan(1)
+    expect(Math.abs(after.y - moved.y), 'the user’s y is kept').toBeLessThan(1)
+    expect(await lastInitialView(page), 'the framing did not run').toBeNull()
+  })
+})

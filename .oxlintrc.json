@@ -17,7 +17,7 @@
     "react/only-export-components": ["warn", { "allowConstantExport": true }],
     // the correctness rules with warnings on 2026-11-27, and how many
     "react/set-state-in-effect": "warn", // 23
-    "react/refs": "warn", // 15
+    "react/refs": "warn", // 15, then 13 (Canvas's initial view is an effect event)
     // 11, then 7 (4 fixed in the charts and LoopEdge), then 1 (6 in Canvas), then 0 in view
     // (TimelineChart's floor); the ones under suppression comments remain, so it stays a warning
     "react-hooks/exhaustive-deps": "warn"
