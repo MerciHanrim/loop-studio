@@ -201,6 +201,101 @@ test.describe('#420 — an unreadable saved diagram', () => {
     await expect(page.locator('.react-flow')).toBeVisible()
   })
 
+  // #625 item 5 — the screen's other-tab handler must read the text the screen
+  // shows NOW: a handler that kept the first text takes that text, written back,
+  // for "unchanged" (the two tests below fail on such a handler)
+  test('another tab changing the record twice: the screen follows each change, also back to the text it first showed', async ({ page }) => {
+    const first = UNREADABLE['broken JSON']
+    await seedRecord(page, first)
+    await page.goto('/')
+    await expect(screen(page)).toBeVisible()
+    const other = await page.context().newPage()
+    await other.goto('about:blank')
+    await other.goto(page.url())
+    await other.evaluate(([k, v]) => localStorage.setItem(k, v), [WORK_KEY, READABLE] as const)
+    await expect(page.locator('[data-recovery="readable"]')).toBeVisible()
+    await other.evaluate(([k, v]) => localStorage.setItem(k, v), [WORK_KEY, first] as const)
+    await expect(screen(page)).toBeVisible()
+    await expect(screen(page).locator('[data-recovery-note="changed"]')).toBeVisible()
+    await other.close()
+  })
+
+  test('a change from another tab closes the discard confirmation, also when the record goes back to the text first shown', async ({ page }) => {
+    const first = UNREADABLE['broken JSON']
+    await seedRecord(page, first)
+    await page.goto('/')
+    await expect(screen(page)).toBeVisible()
+    const other = await page.context().newPage()
+    await other.goto('about:blank')
+    await other.goto(page.url())
+    await other.evaluate(([k, v]) => localStorage.setItem(k, v), [WORK_KEY, UNREADABLE['a node entry without a position']] as const)
+    await expect(screen(page).locator('[data-recovery-note="changed"]')).toBeVisible()
+    const confirm = page.locator('.mcdlg--confirm')
+    await button(page, /discard/i).click()
+    await expect(confirm).toBeVisible()
+    await other.evaluate(([k, v]) => localStorage.setItem(k, v), [WORK_KEY, first] as const)
+    await expect(confirm).toHaveCount(0) // the confirmation was for the record as it was shown
+    await expect(screen(page)).toBeVisible()
+    expect(await record(page)).toBe(first) // nothing deleted
+    await other.close()
+  })
+
+  // #625 item 5 — the screen's own `storage` listeners, told apart from any other
+  // feature's by the stack that added them (the dev server names the module)
+  test('the screen listens to other tabs only while open: one listener of its own, none after Try again or the temporary session, one again after a reload', async ({ page }) => {
+    const first = UNREADABLE['broken JSON']
+    await page.addInitScript(
+      ([k, v]) => {
+        const w = window as unknown as { __recoveryListeners: Set<unknown> }
+        w.__recoveryListeners = new Set()
+        const add = window.addEventListener.bind(window)
+        const remove = window.removeEventListener.bind(window)
+        window.addEventListener = ((type: string, fn: EventListenerOrEventListenerObject, o?: boolean | AddEventListenerOptions) => {
+          if (type === 'storage' && /RecoveryScreen\.tsx/.test(new Error().stack ?? '')) w.__recoveryListeners.add(fn)
+          add(type, fn, o)
+        }) as typeof window.addEventListener
+        window.removeEventListener = ((type: string, fn: EventListenerOrEventListenerObject, o?: boolean | EventListenerOptions) => {
+          if (type === 'storage') w.__recoveryListeners.delete(fn)
+          remove(type, fn, o)
+        }) as typeof window.removeEventListener
+        // the unreadable record before the first load and before the reload
+        try {
+          const seeded = Number(sessionStorage.getItem('__record_seeds') ?? '0')
+          if (seeded >= 2) return
+          sessionStorage.setItem('__record_seeds', String(seeded + 1))
+          localStorage.setItem(k, v)
+        } catch {
+          /* ignore */
+        }
+      },
+      [WORK_KEY, first] as const,
+    )
+    const listeners = () => page.evaluate(() => (window as unknown as { __recoveryListeners: Set<unknown> }).__recoveryListeners.size)
+    await page.goto('/')
+    await expect(screen(page)).toBeVisible()
+    expect(await listeners()).toBe(1)
+    const other = await page.context().newPage()
+    await other.goto('about:blank')
+    await other.goto(page.url())
+    await other.evaluate(([k, v]) => localStorage.setItem(k, v), [WORK_KEY, UNREADABLE['a newer schema']] as const)
+    await expect(screen(page).locator('[data-recovery-note="changed"]')).toBeVisible()
+    expect(await listeners()).toBe(1)
+    await other.evaluate(([k, v]) => localStorage.setItem(k, v), [WORK_KEY, READABLE] as const)
+    const readable = page.locator('[data-recovery="readable"]')
+    await expect(readable).toBeVisible()
+    expect(await listeners()).toBe(1)
+    await readable.getByRole('button', { name: /try again/i }).click()
+    await expect(page.locator('.react-flow')).toBeVisible()
+    expect(await listeners()).toBe(0)
+    await other.close()
+    await page.reload()
+    await expect(screen(page)).toBeVisible()
+    expect(await listeners()).toBe(1)
+    await button(page, /temporary session/i).click()
+    await expect(page.locator('.react-flow')).toBeVisible()
+    expect(await listeners()).toBe(0)
+  })
+
   test('Continue in a temporary session: the app works in memory, the saved record never changes, a share link opens in memory', async ({ page }) => {
     const text = UNREADABLE['broken JSON']
     await seedRecord(page, text)
