@@ -45,8 +45,8 @@ describe('the lint policy (#625 item 5)', () => {
     // 79 once use-memo (1) and immutability (2) were; 75 once four exhaustive-deps warnings were;
     // 69 once Canvas's six were; 68 once TimelineChart's floor was; 66 once Canvas's two refs were;
     // 61 once RouteBends' and FrameLayer's five were; 59 once two set-state resets were;
-    // 58 once View's row reset was
-    expect(CAP).toBe(58)
+    // 58 once View's row reset was; 56 once TimelineChart's two refs were
+    expect(CAP).toBe(56)
   })
 
   it('the code as it is passes, at the cap', { timeout: 60_000 }, () => {
