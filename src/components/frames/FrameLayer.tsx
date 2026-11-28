@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefCallback } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefCallback } from 'react'
 import { ViewportPortal, useReactFlow, useStore } from '@xyflow/react'
 import { useFrameStore, type FrameRect, type FrameColor } from '../../store/frameStore'
 import { useAutoFrameStore } from '../../store/autoFrameStore'
@@ -8,7 +8,7 @@ import { useLocaleDirection, useT } from '../../i18n'
 import { useIsMobile } from '../../ui/media'
 import { FRAME_MIN_SCREEN_PX, frameIsCreatable, normaliseRect } from './frameGeom'
 import { applyMoveDelta, captureMoveOrigin, moveTargets, type MoveOrigin, type Pt } from './frameMoveGesture'
-import { createKeyGesture } from '../../ui/keyGestureLifetime'
+import { createKeyGesture, type KeyGesture as KeyGestureLifetime } from '../../ui/keyGestureLifetime'
 import { FramePropsPopover } from './FramePropsPopover'
 import { CanvasTextLayer } from '../canvasText/CanvasTextLayer'
 import { isolateAuto } from '../../i18n/bidiIsolate'
@@ -438,10 +438,15 @@ export function FrameLayer() {
 
   // §LGR6.6 / §LGR6.7 — the lifetime (held keys, end on the last keyup, safe
   // end on blur / tab switch / pointer press, late events ignored) is the
-  // shared module; only capture / apply / restore stay here.
+  // shared module; only capture / apply / restore stay here. The latest committed
+  // `endKeyGesture` is set after each commit (#625 item 5, refs) and read only when a
+  // gesture ends; the gesture is made on its first use, in a handler or an effect.
   const endRef = useRef(endKeyGesture)
-  endRef.current = endKeyGesture
-  const gesture = useMemo(() => createKeyGesture((reason) => endRef.current(reason !== 'cancel')), [])
+  useLayoutEffect(() => {
+    endRef.current = endKeyGesture
+  })
+  const gestureRef = useRef<KeyGestureLifetime | null>(null)
+  const gesture = useCallback(() => (gestureRef.current ??= createKeyGesture((reason) => endRef.current(reason !== 'cancel'))), [])
 
   /** one arrow press (or repeat) on a frame or on its resize handle */
   const pressArrow = useCallback(
@@ -452,12 +457,12 @@ export function FrameLayer() {
       e.stopPropagation()
       let g = keyRef.current
       if (!g || g.id !== rf.id || g.kind !== kind) {
-        gesture.end('superseded') // a different target / mode closes the previous one cleanly
+        gesture().end('superseded') // a different target / mode closes the previous one cleanly
         beginKeyGesture(kind, rf.id, rf.rect, rf.auto, rf.label, name)
         g = keyRef.current!
       }
       const step = e.shiftKey ? KEY_STEP_FAST : KEY_STEP
-      gesture.press(e.key)
+      gesture().press(e.key)
       g.dx += dir[0] * step
       g.dy += dir[1] * step
       applyKeyGesture(g)
@@ -470,10 +475,10 @@ export function FrameLayer() {
   // or the page goes away, so a lost keyup can never leave a transaction open.
   useEffect(() => {
     const onKeyUp = (e: KeyboardEvent) => {
-      if (ARROWS[e.key]) gesture.release(e.key)
+      if (ARROWS[e.key]) gesture().release(e.key)
     }
-    const onBlur = () => gesture.end('blur')
-    const onVisibility = () => gesture.end('visibility')
+    const onBlur = () => gesture().end('blur')
+    const onVisibility = () => gesture().end('visibility')
     window.addEventListener('keyup', onKeyUp)
     window.addEventListener('blur', onBlur)
     document.addEventListener('visibilitychange', onVisibility)
@@ -872,7 +877,7 @@ export function FrameLayer() {
                   if (keyRef.current) {
                     e.preventDefault()
                     e.stopPropagation()
-                    gesture.end('cancel') // origin back, no entry, no promotion
+                    gesture().end('cancel') // origin back, no entry, no promotion
                     return
                   }
                   if (sel) {
@@ -894,7 +899,7 @@ export function FrameLayer() {
                 // focus left the frame entirely (not just moved to its own
                 // chrome): settle any open transaction
                 if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
-                if (keyRef.current && keyRef.current.id === rf.id) gesture.end('blur')
+                if (keyRef.current && keyRef.current.id === rf.id) gesture().end('blur')
               }}
             >
               {selectable
@@ -931,7 +936,8 @@ export function FrameLayer() {
                 buttonRef={propsId === rf.id ? setPropsAnchor : undefined}
                 place={chipPlaceOf(rf)}
                 maxW={rf.rect.w}
-                onSize={(w, h) => onChipSize(rf.id, w, h)}
+                frameId={rf.id}
+                onSize={onChipSize}
                 onOpen={() => {
                   selectFrameAlone(rf.id)
                   if (propsId === rf.id) closeFrameProps()
@@ -979,14 +985,14 @@ export function FrameLayer() {
                       if (e.key === 'Escape' && keyRef.current) {
                         e.preventDefault()
                         e.stopPropagation()
-                        gesture.end('cancel')
+                        gesture().end('cancel')
                         return
                       }
                       if (!ARROWS[e.key]) return
                       pressArrow('resize', rf, rf.label || def, e)
                     }}
                     onBlur={() => {
-                      if (keyRef.current && keyRef.current.id === rf.id && keyRef.current.kind === 'resize') gesture.end('blur')
+                      if (keyRef.current && keyRef.current.id === rf.id && keyRef.current.kind === 'resize') gesture().end('blur')
                     }}
                   />
                 </>
@@ -1042,6 +1048,7 @@ function FrameLabel({
   buttonRef,
   place,
   maxW,
+  frameId,
   onSize,
   onOpen,
 }: {
@@ -1056,8 +1063,11 @@ function FrameLabel({
   place: { x: number; inside: boolean; placed: boolean }
   /** the frame's width: the chip never grows past the frame's right edge */
   maxW: number
-  /** reports the chip's rendered size (flow px) so it can be placed */
-  onSize: (w: number, h: number) => void
+  /** the frame the chip belongs to */
+  frameId: string
+  /** reports the chip's rendered size (flow px) for `frameId` so it can be placed; a
+   *  stable function, so the callback ref below is not made again on every render */
+  onSize: (id: string, w: number, h: number) => void
   /** §LGR6.6 — the container is the frame's single tab stop; the label joins
    *  the tab order only once the frame is selected, next to ✕ and the resize
    *  handle, so the keyboard rename path is kept without a duplicate stop on
@@ -1084,10 +1094,10 @@ function FrameLabel({
   const chipDir = showsUserLabel ? 'auto' : uiDir
 
   // the chip measures itself (offset size = flow px inside the viewport
-  // transform) and reports every change; the reporter is kept in a ref so the
-  // observer is attached once per element
-  const onSizeRef = useRef(onSize)
-  onSizeRef.current = onSize
+  // transform) and reports every change. The callback ref runs in the commit, before
+  // this component's effects, so it calls the reporter it was made with, never one kept
+  // in a ref (#625 item 5, refs); the reporter and the frame id do not change, so the
+  // observer is still attached once per element
   const roRef = useRef<ResizeObserver | null>(null)
   const measure = useCallback(
     (el: HTMLElement | null) => {
@@ -1095,7 +1105,7 @@ function FrameLabel({
       roRef.current?.disconnect()
       roRef.current = null
       if (!el) return
-      const report = () => onSizeRef.current(el.offsetWidth, el.offsetHeight)
+      const report = () => onSize(frameId, el.offsetWidth, el.offsetHeight)
       report()
       if (typeof ResizeObserver !== 'undefined') {
         const ro = new ResizeObserver(report)
@@ -1103,7 +1113,7 @@ function FrameLabel({
         roRef.current = ro
       }
     },
-    [buttonRef],
+    [buttonRef, frameId, onSize],
   )
   const placeStyle = { left: place.x, maxWidth: Math.max(0, maxW - place.x) }
   const placeClass = `${place.inside ? ' is-inside' : ''}${place.placed ? '' : ' is-colliding'}`
