@@ -40,7 +40,7 @@
     "check:e2e-shards": "node scripts/e2e-shards.mjs check",
     "check:functional-glyphs": "node scripts/check-functional-glyphs.mjs",
     "check:model-version": "node scripts/check-model-version.mjs",
-    "lint": "oxlint --max-warnings 59",
+    "lint": "oxlint --max-warnings 58",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview --port 4173 --strictPort",
