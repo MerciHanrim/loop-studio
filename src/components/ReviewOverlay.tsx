@@ -539,7 +539,6 @@ export function ReviewOverlay() {
   // the open document's definition. Recomputed with every choice.
   const diagnostics = useMemo(
     () => (pending && plan && mode === 'hunks' ? diagnosticsForPending(pending, plan, sel) : null),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [pending, plan, mode, sel],
   )
   const diagLines = useMemo(() => (diagnostics ? diagnosticLines(diagnostics, t) : []), [diagnostics, t])

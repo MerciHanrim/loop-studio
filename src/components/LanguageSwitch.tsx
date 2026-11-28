@@ -74,13 +74,14 @@ export function LanguageSwitch({
 
   const displayName = (l: (typeof locales)[number]) => t(l.displayNameKey)
 
+  // a query also matches a language's name in the UI language, so the list is filtered again when
+  // that language changes: `t` changes with it (#625 item 5, exhaustive-deps)
   const filtered = useMemo(
     () =>
       query.trim() === ''
         ? locales
-        : locales.filter((l) => matchesLanguageQuery(l, displayName(l), query)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [locales, query, active],
+        : locales.filter((l) => matchesLanguageQuery(l, t(l.displayNameKey), query)),
+    [locales, query, t],
   )
 
   const activeIdxIn = (list: readonly (typeof locales)[number][]) =>
@@ -100,7 +101,6 @@ export function LanguageSwitch({
   useEffect(() => {
     if (!open || !positionReady) return
     ;(showSearch ? searchRef.current : listRef.current)?.focus()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, showSearch, positionReady])
   useEffect(() => {
     if (open) optionRefs.current[focusIdx]?.scrollIntoView({ block: 'nearest' })
