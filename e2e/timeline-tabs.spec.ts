@@ -368,3 +368,57 @@ test.describe('#614 item 3 — the run strip and the rate strip put a step in th
     expect(await readAt(page.locator('[data-run-strip="filter"]')), 'the run strip').toBe(20)
   })
 })
+
+// #625 item 5 (Lumi, 2026-11-28) — a strip's status line, through its changes: a strip shown with
+// a pinned step adds the line empty and then says the pinned reading (a live region that is
+// there before its words); a moved step changes the words once; a pointer reading the strip
+// changes nothing; letting the step go removes the line.
+test('a strip status line: added empty then the pinned reading, one change per pinned step, none while the pointer reads the strip', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await openApp(page)
+  await template(page, 'desalination', 48)
+  await page.locator('.timeline__plot').focus()
+  await page.keyboard.press('ArrowLeft')
+  await page.keyboard.press('ArrowLeft')
+  await expect(page.locator('.timeline__reading')).toHaveAttribute('data-step', '47')
+  await page.evaluate(() => {
+    const w = window as unknown as { __lines: string[] }
+    w.__lines = []
+    const of = (n: Node) => (n instanceof Element ? n : n.parentElement)?.closest('[data-strip-reading="dpump"]')
+    new MutationObserver((recs) => {
+      for (const r of recs) {
+        for (const n of r.addedNodes) if (n instanceof Element && n.matches('[data-strip-reading="dpump"]')) w.__lines.push(`added:${n.textContent}`)
+        for (const n of r.removedNodes) if (n instanceof Element && n.matches('[data-strip-reading="dpump"]')) w.__lines.push('removed')
+        if (r.type === 'characterData' ? of(r.target) : r.target instanceof Element && r.target.matches('[data-strip-reading="dpump"]')) w.__lines.push(`text:${of(r.target)?.textContent ?? ''}`)
+      }
+    }).observe(document.body, { subtree: true, childList: true, characterData: true })
+  })
+  const lines = () => page.evaluate(() => (window as unknown as { __lines: string[] }).__lines.splice(0))
+  const line = page.locator('[data-strip-reading="dpump"]')
+
+  await showStrip(page, 'run:dpump')
+  await page.mouse.move(5, 5)
+  await expect(line).toHaveText(/^Step 47: target/)
+  const shown = await lines()
+  expect(shown[0], 'the line is added empty').toBe('added:')
+  expect(shown.slice(1).every((x) => /^text:Step 47: target/.test(x)) && shown.length === 2, `then says the pinned reading once: ${JSON.stringify(shown)}`).toBe(true)
+
+  await page.locator('.timeline__strip-read').focus()
+  await page.keyboard.press('ArrowLeft')
+  await expect(line).toHaveText(/^Step 46:/)
+  const moved = await lines()
+  expect(moved.length, `one change for the moved step: ${JSON.stringify(moved)}`).toBe(1)
+
+  const box = (await page.locator('[data-run-strip="dpump"]').boundingBox())!
+  await page.mouse.move(box.x + box.width * 0.3, box.y + box.height / 2)
+  await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2)
+  await page.mouse.move(5, 5)
+  await page.waitForTimeout(200)
+  expect(await lines(), 'the pointer reading the strip says nothing').toEqual([])
+  await expect(line).toHaveText(/^Step 46:/)
+
+  await page.locator('.timeline__strip-read').focus()
+  await page.keyboard.press('Escape')
+  await expect(line).toHaveCount(0)
+  expect(await lines()).toEqual(['removed'])
+})

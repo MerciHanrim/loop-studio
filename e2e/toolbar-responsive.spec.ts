@@ -575,3 +575,25 @@ test.describe('toolbar — dropdowns are never clipped by the responsive layout'
     })
   }
 })
+
+// #625 item 5 (Lumi, 2026-11-28) — the ⋯ menu, open when every item comes back inline, closes;
+// when items collapse into it again it stays closed until it is opened.
+test('the ⋯ menu open when every item comes back inline closes, and stays closed when they collapse again', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 900 })
+  await openApp(page)
+  await resetAll(page)
+  const narrow = '.toolbar { max-width: 480px !important; }'
+  const style = await page.addStyleTag({ content: narrow })
+  const btn = page.locator('.toolbar__overflow-btn')
+  await expect(btn).toBeVisible()
+  await btn.click()
+  await expect(page.locator('.toolbar__overflow-pop')).toBeVisible()
+  await style.evaluate((el) => el.remove())
+  await expect(page.locator('.toolbar__overflow')).toHaveAttribute('data-ghost', '')
+  await expect(page.locator('.toolbar__overflow-pop'), 'closed once nothing is in it').toHaveCount(0)
+  await page.addStyleTag({ content: narrow })
+  await expect(page.locator('.toolbar__overflow')).not.toHaveAttribute('data-ghost', '')
+  await expect(btn).toBeVisible()
+  await expect(btn).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.locator('.toolbar__overflow-pop'), 'still closed when items collapse again').toHaveCount(0)
+})

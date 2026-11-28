@@ -460,3 +460,22 @@ test('Help says how a rule reads a tank, on the desktop menu', async ({ page }) 
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
+
+// #625 item 5 (Lumi, 2026-11-28) — a draft (a rule being edited that does not read yet) ends when
+// the stored rule changes from elsewhere while the section stays open: the fields read the stored
+// rule. (An undo clears the selection, so the section closes and its draft goes with it.)
+test('a draft ends when the stored rule changes elsewhere: the fields read the stored rule', async ({ page }) => {
+  await openApp(page)
+  await importGraph(page, plant())
+  await makeRule(page)
+  const stored = { tank: 'store', level: '150', band: '150', side: 'fill' }
+  await expect.poll(() => graph(page)).toEqual({ version: 6, run: stored })
+  const level = section(page).getByLabel('Target level')
+  // another tank drops the level and the band: a draft
+  await field(page, 'Tank').selectOption('feed')
+  await expect(level, 'the draft shows its own empty level').toHaveValue('')
+  expect((await graph(page)).run, 'a draft is not stored').toEqual(stored)
+  await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().setRunRule('ro', { tank: 'store', level: '200', band: '150', side: 'fill' }))
+  await expect(field(page, 'Tank'), 'a rule set elsewhere ends the draft').toHaveValue('store')
+  await expect(level).toHaveValue('200')
+})
