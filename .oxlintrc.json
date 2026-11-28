@@ -16,7 +16,7 @@
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }],
     // the correctness rules with warnings on 2026-11-27, and how many
-    "react/set-state-in-effect": "warn", // 23, then 21 (the overflow menu and the run-rule draft reset during render)
+    "react/set-state-in-effect": "warn", // 23, then 21 (the overflow menu and the run-rule draft reset during render), then 20 (View's open row)
     "react/refs": "warn", // 15, then 13 (Canvas's initial view is an effect event), then 8 (RouteBends' and FrameLayer's key gestures and the frame chip)
     // 11, then 7 (4 fixed in the charts and LoopEdge), then 1 (6 in Canvas), then 0 in view
     // (TimelineChart's floor); the ones under suppression comments remain, so it stays a warning
