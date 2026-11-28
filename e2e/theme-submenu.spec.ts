@@ -246,3 +246,39 @@ test('the Theme row open when View closes is closed when View opens again', asyn
   await expect(row).toHaveAttribute('aria-expanded', 'false')
   await expect(page.locator('.theme-menu__pop')).toHaveCount(0)
 })
+
+// The closes that do not pass through the row's own dismiss (measured, 2026-11-28): a press on the
+// canvas closes View first, and the row is gone before its own outside-press listener runs; a click
+// with no mousedown (a script's click(), or an activation that sends only a click) reaches no
+// outside-press listener at all. View's own reset is what closes the row in both.
+const VIEW_ROWS = [
+  { name: 'Theme', row: '.wb-viewmenu__pop .theme-menu .settings-row', list: '.theme-menu__pop' },
+  { name: 'Language', row: '.wb-viewmenu__pop .lang-menu > .settings-row', list: '.wb-viewmenu__pop .lang-menu [role="listbox"]' },
+]
+const VIEW_CLOSES: { way: string; close: (page: Page) => Promise<void> }[] = [
+  {
+    way: 'a press on the canvas',
+    close: async (page) => {
+      const pane = (await page.locator('.react-flow__pane').boundingBox())!
+      await page.mouse.click(pane.x + pane.width * 0.75, pane.y + pane.height * 0.85)
+    },
+  },
+  { way: 'a click with no mousedown on its Filters row', close: (page) => page.locator('.wb-viewmenu__pop [data-view-row="filter"]').dispatchEvent('click') },
+]
+for (const r of VIEW_ROWS) {
+  for (const c of VIEW_CLOSES) {
+    test(`the ${r.name} row open when View closes by ${c.way} is closed when View opens again`, async ({ page }) => {
+      await openSettings(page)
+      const row = page.locator(r.row)
+      await row.click()
+      await expect(row).toHaveAttribute('aria-expanded', 'true')
+      await expect(page.locator(r.list)).toHaveCount(1)
+      await c.close(page)
+      await expect(page.locator('.wb-viewmenu__pop')).toHaveCount(0)
+      await openSettings(page)
+      await expect(page.locator('.wb-viewmenu__pop')).toBeVisible()
+      await expect(row).toHaveAttribute('aria-expanded', 'false')
+      await expect(page.locator(r.list)).toHaveCount(0)
+    })
+  }
+}
