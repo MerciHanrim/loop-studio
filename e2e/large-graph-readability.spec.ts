@@ -3147,6 +3147,34 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
     expect((await menuRowState(page, 'insert', 'Suggest frames')).note).toBeNull()
   })
 
+  // #625 item 5 (Lumi, 2026-11-28) — the hint follows the edges too: the suggestion's signature has
+  // every edge's two ends, so an edge added or removed is "the graph changed" at once, with no node
+  // touched; an edge's data alone (its flow) is not in the signature and changes nothing
+  test('an edge removed or added marks Suggest frames changed at once; an edge\'s flow alone does not (AF4.3)', async ({ page }) => {
+    type G = { __loop: { graph: { getState: () => { edges: { id: string; data: object }[]; removeEdge: (id: string) => void }; setState: (p: object) => void } } }
+    const note = async () => (await menuRowState(page, 'insert', 'Suggest frames')).note
+    const suggest = async () => {
+      await (await menuRow(page, 'insert', 'Suggest frames')).click()
+      expect(await note()).toBeNull()
+    }
+    await loadAF(page)
+    await suggest()
+    await page.evaluate(() => (window as unknown as G).__loop.graph.getState().removeEdge('bridge'))
+    expect(await note(), 'an edge removed').not.toBeNull()
+    await suggest()
+    await page.evaluate(() => {
+      const g = (window as unknown as G).__loop.graph
+      g.setState({ edges: [...g.getState().edges, { id: 'extra', type: 'loop', source: 'b0_0', target: 'b1_5', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } }] })
+    })
+    expect(await note(), 'an edge added').not.toBeNull()
+    await suggest()
+    await page.evaluate(() => {
+      const g = (window as unknown as G).__loop.graph
+      g.setState({ edges: g.getState().edges.map((e) => (e.id === 'extra' ? { ...e, data: { ...e.data, flow: '7' } } : e)) })
+    })
+    expect(await note(), 'an edge’s flow alone').toBeNull()
+  })
+
   test('forced-colors: an auto frame border stays DASHED, distinct from a manual (solid) frame (AF-INV-6)', async ({ page }) => {
     await page.emulateMedia({ forcedColors: 'active' })
     await loadAF(page)
